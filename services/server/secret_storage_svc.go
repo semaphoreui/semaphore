@@ -1,6 +1,8 @@
 package server
 
 import (
+	"errors"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	pro "github.com/semaphoreui/semaphore/pro/services/server"
@@ -36,7 +38,7 @@ func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err err
 	}
 
 	keys, err := s.accessKeyService.GetAll(projectID, db.GetAccessKeyOptions{
-		Owner:     db.AccessKeyVault,
+		Owner:     db.AccessKeySecretStorage,
 		StorageID: &storageID,
 	}, db.RetrieveQueryParams{})
 
@@ -56,6 +58,17 @@ func (s *SecretStorageServiceImpl) GetSecretStorage(projectID int, storageID int
 }
 
 func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.SecretStorage, err error) {
+
+	if storage.Secret == "" && storage.SecretEnvironmentVariable == "" {
+		err = errors.New("secret or environment variable must be set")
+		return
+	}
+
+	if storage.Secret != "" && storage.SecretEnvironmentVariable != "" {
+		err = errors.New("only one of secret or environment variable can be set")
+		return
+	}
+
 	res, err = s.secretStorageRepo.CreateSecretStorage(storage)
 
 	if err != nil {
@@ -67,8 +80,12 @@ func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.Secr
 		Type:      db.AccessKeyString,
 		ProjectID: &storage.ProjectID,
 		String:    storage.Secret,
-		Owner:     db.AccessKeyVault,
+		Owner:     db.AccessKeySecretStorage,
 		StorageID: &res.ID,
+	}
+
+	if storage.SecretEnvironmentVariable != "" {
+		key.SourceStorageKey = &storage.SecretEnvironmentVariable
 	}
 
 	_, err = s.accessKeyService.Create(key)
@@ -83,7 +100,7 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 	}
 
 	keys, err := s.accessKeyService.GetAll(storage.ProjectID, db.GetAccessKeyOptions{
-		Owner:     db.AccessKeyVault,
+		Owner:     db.AccessKeySecretStorage,
 		StorageID: &storage.ID,
 	}, db.RetrieveQueryParams{})
 
@@ -98,7 +115,7 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 				Type:      db.AccessKeyString,
 				ProjectID: &storage.ProjectID,
 				String:    storage.Secret,
-				Owner:     db.AccessKeyVault,
+				Owner:     db.AccessKeySecretStorage,
 				StorageID: &storage.ID,
 			})
 		} else {

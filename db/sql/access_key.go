@@ -2,6 +2,7 @@ package sql
 
 import (
 	"database/sql"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )
@@ -30,7 +31,7 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 		switch options.Owner {
 		case db.AccessKeyVariable, db.AccessKeyEnvironment:
 			q = q.Where(squirrel.Eq{"pe.environment_id": *options.EnvironmentID})
-		case db.AccessKeyVault:
+		case db.AccessKeySecretStorage:
 			q = q.Where(squirrel.Eq{"pe.storage_id": options.StorageID})
 		}
 	}
@@ -58,12 +59,6 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 	if err != nil {
 		return err
 	}
-
-	//err = key.SerializeSecret()
-	//
-	//if err != nil {
-	//	return err
-	//}
 
 	var res sql.Result
 

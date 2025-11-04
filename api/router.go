@@ -146,9 +146,6 @@ func Route(
 	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
 
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("GET", "POST")
-	publicAPIRouter.HandleFunc("/auth/verify/email", startEmailVerification).Methods("POST")
-	publicAPIRouter.HandleFunc("/auth/login/email", loginEmail).Methods("GET", "POST")
-	publicAPIRouter.HandleFunc("/auth/login/email/resend", resendEmailOtp).Methods("GET", "POST")
 	publicAPIRouter.HandleFunc("/auth/verify", verifySession).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/recovery", recoverySession).Methods("POST")
 
@@ -380,22 +377,6 @@ func Route(
 	projectUserManagement.HandleFunc("/{user_id}", projects.GetUsers).Methods("GET", "HEAD")
 	projectUserManagement.HandleFunc("/{user_id}", projects.UpdateUser).Methods("PUT")
 	projectUserManagement.HandleFunc("/{user_id}", projects.RemoveUser).Methods("DELETE")
-
-	//
-	// Manage project invites
-	projectInvitesAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
-	projectInvitesAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanManageProjectUsers))
-	projectInvitesAPI.Path("/invites").HandlerFunc(projects.GetInvites).Methods("GET", "HEAD")
-	projectInvitesAPI.Path("/invites").HandlerFunc(projects.CreateInvite).Methods("POST")
-
-	projectInviteManagement := projectInvitesAPI.PathPrefix("/invites").Subrouter()
-	projectInviteManagement.Use(projects.InviteMiddleware)
-	projectInviteManagement.HandleFunc("/{invite_id}", projects.GetInvites).Methods("GET", "HEAD")
-	projectInviteManagement.HandleFunc("/{invite_id}", projects.UpdateInvite).Methods("PUT")
-	projectInviteManagement.HandleFunc("/{invite_id}", projects.DeleteInvite).Methods("DELETE")
-
-	// Accept invite endpoint (doesn't require project context)
-	authenticatedAPI.Path("/invites/accept").HandlerFunc(projects.AcceptInvite).Methods("POST")
 
 	//
 	// Project resources CRUD (continue)

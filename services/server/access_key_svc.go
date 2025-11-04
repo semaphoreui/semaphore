@@ -1,6 +1,10 @@
 package server
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"errors"
+
+	"github.com/semaphoreui/semaphore/db"
+)
 
 type AccessKeyService interface {
 	Update(key db.AccessKey) error
@@ -59,13 +63,8 @@ func (s *AccessKeyServiceImpl) GetAll(projectID int, options db.GetAccessKeyOpti
 
 func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, err error) {
 
-	err = key.Validate(true)
-	if err != nil {
-		return
-	}
-
 	err = s.encryptionService.SerializeSecret(&key)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrReadOnlyStorage) {
 		return
 	}
 
@@ -76,7 +75,9 @@ func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, er
 func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
 	if key.OverrideSecret {
 		err = s.encryptionService.SerializeSecret(&key)
-		if err != nil {
+		if errors.Is(err, ErrReadOnlyStorage) {
+			key.OverrideSecret = false
+		} else if err != nil {
 			return
 		}
 	}

@@ -59,10 +59,15 @@
         dense
     />
 
+    <v-alert
+      v-if="isReadOnly"
+      type="info"
+    >Read-only secret storage chosen.</v-alert>
+
     <v-text-field
         v-model="item.login_password.login"
         :label="$t('usernameOptional')"
-        v-if="item.type === 'login_password'"
+        v-if="!isReadOnly && item.type === 'login_password'"
         :disabled="formSaving || !canEditSecrets"
         outlined
         dense
@@ -74,7 +79,7 @@
         :label="$t('password')"
         :rules="[v => (!!v || !canEditSecrets) || $t('password_required')]"
         :type="showLoginPassword ? 'text' : 'password'"
-        v-if="item.type === 'login_password'"
+        v-if="!isReadOnly && item.type === 'login_password'"
         :required="canEditSecrets"
         :disabled="formSaving || !canEditSecrets"
         autocomplete="new-password"
@@ -86,7 +91,7 @@
     <v-text-field
       v-model="item.ssh.login"
       :label="$t('usernameOptional')"
-      v-if="item.type === 'ssh'"
+      v-if="!isReadOnly && item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
       outlined
       dense
@@ -97,7 +102,7 @@
       :append-icon="showSSHPassphrase ? 'mdi-eye' : 'mdi-eye-off'"
       label="Passphrase (Optional)"
       :type="showSSHPassphrase ? 'text' : 'password'"
-      v-if="item.type === 'ssh'"
+      v-if="!isReadOnly && item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
       @click:append="showSSHPassphrase = !showSSHPassphrase"
       outlined
@@ -110,7 +115,7 @@
       :label="$t('privateKey')"
       :disabled="formSaving || !canEditSecrets"
       :rules="[v => !canEditSecrets || !!v || $t('private_key_required')]"
-      v-if="item.type === 'ssh'"
+      v-if="!isReadOnly && item.type === 'ssh'"
     />
 
     <v-checkbox
@@ -154,12 +159,26 @@ export default {
         name: `${this.$t('keyFormNone')}`,
       }],
       secretStorages: null,
+      // isReadOnly: true,
     };
   },
 
   computed: {
     canEditSecrets() {
       return this.isNew || this.item.override_secret;
+    },
+
+    isReadOnly() {
+      if (this.item.source_storage_id == null) {
+        return false;
+      }
+
+      const storage = this.secretStorages.find((s) => s.id === this.item.source_storage_id);
+      if (storage == null) {
+        return false;
+      }
+
+      return storage.readonly;
     },
   },
 

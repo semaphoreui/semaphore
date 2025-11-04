@@ -16,5 +16,6 @@ type SecretStorage struct {
 	Params    MapStringAnyField `db:"params" json:"params"`
 	ReadOnly  bool              `db:"readonly" json:"readonly"`
 
-	Secret string `db:"-" json:"secret,omitempty" backup:"-"`
+	Secret                    string `db:"-" json:"secret,omitempty" backup:"-"`
+	SecretEnvironmentVariable string `db:"-" json:"secret_environment_variable,omitempty" backup:"-"`
 }

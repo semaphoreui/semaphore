@@ -2,14 +2,16 @@ package api
 
 import (
 	"errors"
-	"github.com/pquerna/otp"
-	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pquerna/otp"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	proApi "github.com/semaphoreui/semaphore/pro/api"
+	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/pquerna/otp/totp"
 )
@@ -160,7 +162,7 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 
 	switch session.VerificationMethod {
 	case db.SessionVerificationEmail:
-		verifySessionByEmail(session, w, r)
+		proApi.VerifySessionByEmail(session, w, r)
 		return
 
 	case db.SessionVerificationTotp:
