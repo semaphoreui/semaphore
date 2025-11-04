@@ -108,6 +108,20 @@ func Send(
 		}
 	}
 
+	// Check if username/password are provided for authentication without encryption
+	// This is insecure but some SMTP servers on port 25 require it
+	if username != "" && password != "" {
+		return plainauthInsecure(
+			host,
+			port,
+			username,
+			password,
+			from,
+			to,
+			body,
+		)
+	}
+
 	return anonymous(
 		host,
 		port,
@@ -128,6 +142,29 @@ func plainauth(
 ) error {
 	auth := PlainOrLoginAuth(username, password, host)
 	// auth := smtp.PlainAuth("", username, password, host)
+
+	return smtp.SendMail(
+		net.JoinHostPort(host, port),
+		auth,
+		from,
+		[]string{to},
+		body.Bytes(),
+	)
+}
+
+// plainauthInsecure sends email using SMTP authentication without TLS/SSL encryption.
+// WARNING: This sends credentials in plain text and should only be used when the user
+// explicitly accepts this security risk (e.g., for internal SMTP servers on port 25).
+func plainauthInsecure(
+	host string,
+	port string,
+	username string,
+	password string,
+	from string,
+	to string,
+	body *bytes.Buffer,
+) error {
+	auth := PlainOrLoginAuthInsecure(username, password, host)
 
 	return smtp.SendMail(
 		net.JoinHostPort(host, port),

@@ -9,7 +9,14 @@ import (
 )
 
 func PlainOrLoginAuth(username, password, host string) smtp.Auth {
-	return &plainOrLoginAuth{username: username, password: password, host: host}
+	return &plainOrLoginAuth{username: username, password: password, host: host, allowInsecure: false}
+}
+
+// PlainOrLoginAuthInsecure creates an auth that allows unencrypted connections.
+// WARNING: This should only be used when the user explicitly accepts the security risk
+// of sending credentials over an unencrypted connection.
+func PlainOrLoginAuthInsecure(username, password, host string) smtp.Auth {
+	return &plainOrLoginAuth{username: username, password: password, host: host, allowInsecure: true}
 }
 
 func isLocalhost(name string) bool {
@@ -17,19 +24,20 @@ func isLocalhost(name string) bool {
 }
 
 type plainOrLoginAuth struct {
-	username   string
-	password   string
-	host       string
-	authMethod string
+	username      string
+	password      string
+	host          string
+	authMethod    string
+	allowInsecure bool
 }
 
 func (a *plainOrLoginAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
-	// Must have TLS, or else localhost server.
+	// Must have TLS, or else localhost server, or explicitly allow insecure.
 	// Note: If TLS is not true, then we can't trust ANYTHING in ServerInfo.
 	// In particular, it doesn't matter if the server advertises PLAIN auth.
 	// That might just be the attacker saying
 	// "it's ok, you can trust me with your password."
-	if !server.TLS && !isLocalhost(server.Name) {
+	if !server.TLS && !isLocalhost(server.Name) && !a.allowInsecure {
 		return "", nil, errors.New("unencrypted connection")
 	}
 	if server.Name != a.host {
