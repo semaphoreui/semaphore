@@ -454,6 +454,16 @@
             v-if="needField('backend_filename') && premiumFeatures.terraform_backend"
           ></v-text-field>
 
+          <v-text-field
+            v-model="item.task_params.tf_path"
+            :label="fieldLabel('terraform_tf_path')"
+            outlined
+            dense
+            :disabled="formSaving"
+            placeholder="terraform"
+            v-if="needField('tf_path') && app === 'terragrunt'"
+          ></v-text-field>
+
         </div>
 
         <h2 class="mb-4">

@@ -25,6 +25,7 @@ type TerraformApp struct {
 	Name             string          // Name is the name of the terraform binary
 	PlanHasNoChanges bool            // PlanHasNoChanges is true if terraform plan has no changes
 	backendFilename  string          // backendFilename is the name of the backend file
+	tfPath           string          // tfPath is the path to terraform/tofu binary for Terragrunt
 }
 
 type terraformReader struct {
@@ -106,6 +107,13 @@ func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	return logger
 }
 
+func (t *TerraformApp) getTfPath() string {
+	if t.tfPath != "" {
+		return t.tfPath
+	}
+	return "terraform"
+}
+
 func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInstaller, params *db.TerraformTaskParams) error {
 
 	keyInstallation, err := keyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleGit, t.Logger)
@@ -127,7 +135,7 @@ func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInst
 	}
 
 	if t.Name == string(db.AppTerragrunt) {
-		args = append(args, "--tf-path=terraform")
+		args = append(args, fmt.Sprintf("--tf-path=%s", t.getTfPath()))
 	}
 
 	cmd := t.makeCmd(t.Name, args, environmentVars)
@@ -163,7 +171,7 @@ func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
 	args := []string{"workspace", "list"}
 	if t.Name == string(db.AppTerragrunt) {
 		args = append([]string{"run", "--"}, args...)
-		args = append(args, "--tf-path=terraform")
+		args = append(args, fmt.Sprintf("--tf-path=%s", t.getTfPath()))
 	}
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	err := cmd.Run()
@@ -178,7 +186,7 @@ func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []strin
 	args := []string{"workspace", "select", "-or-create=true", workspace}
 	if t.Name == string(db.AppTerragrunt) {
 		args = append([]string{"run", "--"}, args...)
-		args = append(args, "--tf-path=terraform")
+		args = append(args, fmt.Sprintf("--tf-path=%s", t.getTfPath()))
 	}
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	t.Logger.LogCmd(cmd)
@@ -219,6 +227,13 @@ func (t *TerraformApp) InstallRequirements(args LocalAppInstallingArgs) (err err
 	tpl := args.TplParams.(*db.TerraformTemplateParams)
 	p := args.Params.(*db.TerraformTaskParams)
 
+	// Set tfPath from template params if provided, otherwise default to "terraform"
+	if tpl.TfPath != "" {
+		t.tfPath = tpl.TfPath
+	} else {
+		t.tfPath = "terraform"
+	}
+
 	if tpl.OverrideBackend {
 		t.backendFilename = "backend.tf"
 		if tpl.BackendFilename != "" {
@@ -253,7 +268,7 @@ func (t *TerraformApp) InstallRequirements(args LocalAppInstallingArgs) (err err
 func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
 	planArgs := []string{"plan", "-lock=false"}
 	if t.Name == string(db.AppTerragrunt) {
-		planArgs = append(planArgs, "--tf-path=terraform")
+		planArgs = append(planArgs, fmt.Sprintf("--tf-path=%s", t.getTfPath()))
 	}
 	planArgs = append(planArgs, args...)
 	cmd := t.makeCmd(t.Name, planArgs, environmentVars)
@@ -285,7 +300,7 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
 	applyArgs := []string{"apply", "-auto-approve", "-lock=false"}
 	if t.Name == string(db.AppTerragrunt) {
-		applyArgs = append(applyArgs, "--tf-path=terraform")
+		applyArgs = append(applyArgs, fmt.Sprintf("--tf-path=%s", t.getTfPath()))
 	}
 	applyArgs = append(applyArgs, args...)
 	cmd := t.makeCmd(t.Name, applyArgs, environmentVars)

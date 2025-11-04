@@ -332,6 +332,7 @@ export default {
   terraform_override_backend: 'Override backend settings',
   terraform_backend_filename: 'Backend filename (default: backend.tf)',
   terraform_invalid_backend_filename: 'Invalid backend filename',
+  terraform_tf_path: 'Terraform binary path (default: terraform)',
 
   // Ansible
   tag: 'Tag',
