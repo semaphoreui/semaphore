@@ -325,10 +325,15 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		if o.BecomeKeyID != nil {
 			BecomeKey, _ = findNameByID[db.AccessKey](*o.BecomeKeyID, b.keys)
 		}
+		var Repository *string = nil
+		if o.RepositoryID != nil {
+			Repository, _ = findNameByID[db.Repository](*o.RepositoryID, b.repositories)
+		}
 		inventories[i] = BackupInventory{
-			Inventory: o,
-			SSHKey:    SSHKey,
-			BecomeKey: BecomeKey,
+			Inventory:  o,
+			SSHKey:     SSHKey,
+			BecomeKey:  BecomeKey,
+			Repository: Repository,
 		}
 	}
 
