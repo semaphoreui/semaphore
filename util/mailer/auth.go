@@ -12,10 +12,6 @@ func PlainOrLoginAuth(username, password, host string) smtp.Auth {
 	return &plainOrLoginAuth{username: username, password: password, host: host}
 }
 
-func isLocalhost(name string) bool {
-	return name == "localhost" || name == "127.0.0.1" || name == "::1"
-}
-
 type plainOrLoginAuth struct {
 	username   string
 	password   string
@@ -24,14 +20,6 @@ type plainOrLoginAuth struct {
 }
 
 func (a *plainOrLoginAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
-	// Must have TLS, or else localhost server.
-	// Note: If TLS is not true, then we can't trust ANYTHING in ServerInfo.
-	// In particular, it doesn't matter if the server advertises PLAIN auth.
-	// That might just be the attacker saying
-	// "it's ok, you can trust me with your password."
-	if !server.TLS && !isLocalhost(server.Name) {
-		return "", nil, errors.New("unencrypted connection")
-	}
 	if server.Name != a.host {
 		return "", nil, errors.New("wrong host name")
 	}
