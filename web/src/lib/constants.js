@@ -231,6 +231,9 @@ export const TERRAFORM_FIELDS = {
   backend_filename: {
     label: 'terraform_backend_filename',
   },
+  tf_path: {
+    label: 'terraform_binary_path',
+  },
 };
 
 export const UNKNOWN_APP_FIELDS = {

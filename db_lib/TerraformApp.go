@@ -106,7 +106,7 @@ func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	return logger
 }
 
-func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInstaller, params *db.TerraformTaskParams) error {
+func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInstaller, params *db.TerraformTaskParams, tplParams *db.TerraformTemplateParams) error {
 
 	keyInstallation, err := keyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleGit, t.Logger)
 	if err != nil {
@@ -127,7 +127,11 @@ func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInst
 	}
 
 	if t.Name == string(db.AppTerragrunt) {
-		args = append(args, "--tf-path=terraform")
+		tfPath := "terraform"
+		if tplParams.TfPath != "" {
+			tfPath = tplParams.TfPath
+		}
+		args = append(args, "--tf-path="+tfPath)
 	}
 
 	cmd := t.makeCmd(t.Name, args, environmentVars)
@@ -159,11 +163,15 @@ func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInst
 	return nil
 }
 
-func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
+func (t *TerraformApp) isWorkspacesSupported(environmentVars []string, tplParams *db.TerraformTemplateParams) bool {
 	args := []string{"workspace", "list"}
 	if t.Name == string(db.AppTerragrunt) {
 		args = append([]string{"run", "--"}, args...)
-		args = append(args, "--tf-path=terraform")
+		tfPath := "terraform"
+		if tplParams.TfPath != "" {
+			tfPath = tplParams.TfPath
+		}
+		args = append(args, "--tf-path="+tfPath)
 	}
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	err := cmd.Run()
@@ -174,11 +182,15 @@ func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
 	return true
 }
 
-func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []string) error {
+func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []string, tplParams *db.TerraformTemplateParams) error {
 	args := []string{"workspace", "select", "-or-create=true", workspace}
 	if t.Name == string(db.AppTerragrunt) {
 		args = append([]string{"run", "--"}, args...)
-		args = append(args, "--tf-path=terraform")
+		tfPath := "terraform"
+		if tplParams.TfPath != "" {
+			tfPath = tplParams.TfPath
+		}
+		args = append(args, "--tf-path="+tfPath)
 	}
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	t.Logger.LogCmd(cmd)
@@ -232,7 +244,7 @@ func (t *TerraformApp) InstallRequirements(args LocalAppInstallingArgs) (err err
 		}
 	}
 
-	if err = t.init(args.EnvironmentVars, args.Installer, p); err != nil {
+	if err = t.init(args.EnvironmentVars, args.Installer, p, tpl); err != nil {
 		return
 	}
 
@@ -242,18 +254,22 @@ func (t *TerraformApp) InstallRequirements(args LocalAppInstallingArgs) (err err
 		workspace = t.Inventory.Inventory
 	}
 
-	if !t.isWorkspacesSupported(args.EnvironmentVars) {
+	if !t.isWorkspacesSupported(args.EnvironmentVars, tpl) {
 		return
 	}
 
-	err = t.selectWorkspace(workspace, args.EnvironmentVars)
+	err = t.selectWorkspace(workspace, args.EnvironmentVars, tpl)
 	return
 }
 
-func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
+func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process), tplParams *db.TerraformTemplateParams) error {
 	planArgs := []string{"plan", "-lock=false"}
 	if t.Name == string(db.AppTerragrunt) {
-		planArgs = append(planArgs, "--tf-path=terraform")
+		tfPath := "terraform"
+		if tplParams.TfPath != "" {
+			tfPath = tplParams.TfPath
+		}
+		planArgs = append(planArgs, "--tf-path="+tfPath)
 	}
 	planArgs = append(planArgs, args...)
 	cmd := t.makeCmd(t.Name, planArgs, environmentVars)
@@ -282,10 +298,14 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 	return nil
 }
 
-func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
+func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process), tplParams *db.TerraformTemplateParams) error {
 	applyArgs := []string{"apply", "-auto-approve", "-lock=false"}
 	if t.Name == string(db.AppTerragrunt) {
-		applyArgs = append(applyArgs, "--tf-path=terraform")
+		tfPath := "terraform"
+		if tplParams.TfPath != "" {
+			tfPath = tplParams.TfPath
+		}
+		applyArgs = append(applyArgs, "--tf-path="+tfPath)
 	}
 	applyArgs = append(applyArgs, args...)
 	cmd := t.makeCmd(t.Name, applyArgs, environmentVars)
@@ -307,13 +327,13 @@ func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map
 }
 
 func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
-	err := t.Plan(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+	params := args.TaskParams.(*db.TerraformTaskParams)
+	tplParams := args.TemplateParams.(*db.TerraformTemplateParams)
+
+	err := t.Plan(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback, tplParams)
 	if err != nil {
 		return err
 	}
-
-	params := args.TaskParams.(*db.TerraformTaskParams)
-	tplParams := args.TemplateParams.(*db.TerraformTemplateParams)
 
 	if t.PlanHasNoChanges || params.Plan {
 		t.Logger.SetStatus(task_logger.TaskSuccessStatus)
@@ -322,7 +342,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 
 	if tplParams.AutoApprove || tplParams.AllowAutoApprove && params.AutoApprove {
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
-		return t.Apply(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+		return t.Apply(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback, tplParams)
 	}
 
 	t.Logger.SetStatus(task_logger.TaskWaitingConfirmation)
@@ -341,7 +361,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		t.Logger.SetStatus(task_logger.TaskFailStatus)
 	case task_logger.TaskConfirmed:
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
-		return t.Apply(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+		return t.Apply(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback, tplParams)
 	}
 
 	return nil

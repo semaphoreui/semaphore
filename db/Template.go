@@ -81,6 +81,7 @@ type TerraformTemplateParams struct {
 	AutoApprove      bool   `json:"auto_approve,omitempty"`
 	OverrideBackend  bool   `json:"override_backend,omitempty"` // override backend if internal backend is used
 	BackendFilename  string `json:"backend_filename,omitempty"`
+	TfPath           string `json:"tf_path,omitempty"` // path to terraform binary (e.g., "tofu" for OpenTofu)
 }
 
 type SurveyVarEnumValue struct {
