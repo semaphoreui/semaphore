@@ -76,7 +76,7 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []
 			command = app.AppPath
 		}
 		if app.AppArgs != nil {
-			args = append(args, app.AppArgs...)
+			args = append(app.AppArgs, args...)
 		}
 	}
 
