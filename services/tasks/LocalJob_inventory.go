@@ -30,6 +30,10 @@ func (t *LocalJob) installInventory() (err error) {
 	switch t.Inventory.Type {
 	case db.InventoryFile:
 		err = t.cloneInventoryRepo(t.KeyInstaller)
+		if err != nil {
+			return
+		}
+		err = t.checkoutInventoryRepo()
 	case db.InventoryStatic, db.InventoryStaticYaml:
 		err = t.installStaticInventory()
 	}
@@ -87,6 +91,36 @@ func (t *LocalJob) cloneInventoryRepo(keyInstaller db_lib.AccessKeyInstaller) er
 	}
 
 	return repo.Clone()
+}
+
+func (t *LocalJob) checkoutInventoryRepo() error {
+	if t.Inventory.Repository == nil {
+		return nil
+	}
+
+	if t.Inventory.Repository.GetType() == db.RepositoryLocal {
+		return nil
+	}
+
+	repo := db_lib.GitRepository{
+		Logger:     t.Logger,
+		TmpDirName: t.tmpInventoryFilename(),
+		Repository: *t.Inventory.Repository,
+		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
+	}
+
+	err := repo.ValidateRepo()
+	if err != nil {
+		return err
+	}
+
+	if t.Task.CommitHash != nil {
+		// checkout to commit if it is provided for Task
+		t.Log("checking out inventory repository to specified commit/branch")
+		return repo.Checkout(*t.Task.CommitHash)
+	}
+
+	return nil
 }
 
 func (t *LocalJob) installStaticInventory() error {
