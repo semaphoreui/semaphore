@@ -1,5 +1,11 @@
 package db
 
+import (
+	"errors"
+
+	log "github.com/sirupsen/logrus"
+)
+
 type TemplateVaultType string
 
 const (
@@ -24,6 +30,16 @@ func FillTemplateVault(d Store, projectID int, templateVault *TemplateVault) (er
 		var vault AccessKey
 		vault, err = d.GetAccessKey(projectID, *templateVault.VaultKeyID)
 		if err != nil {
+			// If the vault key is not found, log a warning but don't fail the entire request.
+			// This allows templates to load even when vault keys have been deleted.
+			if errors.Is(err, ErrNotFound) {
+				log.WithFields(log.Fields{
+					"vault_id":     templateVault.ID,
+					"vault_key_id": *templateVault.VaultKeyID,
+					"project_id":   projectID,
+				}).Warn("Template vault references non-existent access key")
+				return nil
+			}
 			return
 		}
 		templateVault.Vault = &vault
