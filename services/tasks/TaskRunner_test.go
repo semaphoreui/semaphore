@@ -739,3 +739,155 @@ func TestTaskRunner_populateTaskEnvironment(t *testing.T) {
 
 	assert.Equal(t, tsk.Environment.JSON, "{\"a\":11,\"b\":22,\"c\":33,\"d\":4}")
 }
+
+func TestCheckoutInventoryRepo_WithCommitHash(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	commitHash := "abc123"
+	repoID := 1
+	projectID := 1
+
+	job := LocalJob{
+		Task: db.Task{
+			CommitHash: &commitHash,
+		},
+		Template: db.Template{
+			ID: 1,
+		},
+		Inventory: db.Inventory{
+			ID:           1,
+			ProjectID:    projectID,
+			Type:         db.InventoryFile,
+			RepositoryID: &repoID,
+			Repository: &db.Repository{
+				ID:        repoID,
+				ProjectID: projectID,
+				GitURL:    "https://github.com/example/inventory.git",
+				GitBranch: "main",
+			},
+		},
+		KeyInstaller: &KeyInstallerMock{},
+	}
+
+	// This test verifies that checkoutInventoryRepo doesn't panic
+	// and properly handles the checkout logic
+	err := job.checkoutInventoryRepo()
+
+	// The function should return an error since the repo doesn't actually exist
+	// but it should not panic and should have attempted to checkout
+	if err == nil {
+		t.Fatal("Expected error for non-existent repo, got nil")
+	}
+}
+
+func TestCheckoutInventoryRepo_WithoutCommitHash(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	repoID := 1
+	projectID := 1
+
+	job := LocalJob{
+		Task: db.Task{
+			CommitHash: nil,
+		},
+		Template: db.Template{
+			ID: 1,
+		},
+		Inventory: db.Inventory{
+			ID:           1,
+			ProjectID:    projectID,
+			Type:         db.InventoryFile,
+			RepositoryID: &repoID,
+			Repository: &db.Repository{
+				ID:        repoID,
+				ProjectID: projectID,
+				GitURL:    "https://github.com/example/inventory.git",
+				GitBranch: "main",
+			},
+		},
+		KeyInstaller: &KeyInstallerMock{},
+	}
+
+	// When CommitHash is nil, checkoutInventoryRepo should still validate the repo
+	// Since the repo doesn't exist, it should return an error
+	err := job.checkoutInventoryRepo()
+
+	if err == nil {
+		t.Fatal("Expected error for non-existent repo, got nil")
+	}
+}
+
+func TestCheckoutInventoryRepo_WithoutRepository(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	commitHash := "abc123"
+
+	job := LocalJob{
+		Task: db.Task{
+			CommitHash: &commitHash,
+		},
+		Template: db.Template{
+			ID: 1,
+		},
+		Inventory: db.Inventory{
+			ID:           1,
+			Type:         db.InventoryStatic,
+			RepositoryID: nil,
+			Repository:   nil,
+		},
+		KeyInstaller: &KeyInstallerMock{},
+	}
+
+	// When Repository is nil, checkoutInventoryRepo should return nil immediately
+	err := job.checkoutInventoryRepo()
+
+	if err != nil {
+		t.Fatalf("Expected no error when Repository is nil, got: %v", err)
+	}
+}
+
+func TestCheckoutInventoryRepo_WithLocalRepository(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	commitHash := "abc123"
+	repoID := 1
+	projectID := 1
+
+	job := LocalJob{
+		Task: db.Task{
+			CommitHash: &commitHash,
+		},
+		Template: db.Template{
+			ID: 1,
+		},
+		Inventory: db.Inventory{
+			ID:           1,
+			ProjectID:    projectID,
+			Type:         db.InventoryFile,
+			RepositoryID: &repoID,
+			Repository: &db.Repository{
+				ID:        repoID,
+				ProjectID: projectID,
+				GitURL:    "/local/path/to/inventory",
+				GitBranch: "main",
+			},
+		},
+		KeyInstaller: &KeyInstallerMock{},
+	}
+
+	// When Repository is local type, checkoutInventoryRepo should return nil immediately
+	// before validating the repo
+	err := job.checkoutInventoryRepo()
+
+	if err != nil {
+		t.Fatalf("Expected no error when Repository is local, got: %v", err)
+	}
+}
