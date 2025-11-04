@@ -70,6 +70,16 @@ func (r *terraformReader) Read(p []byte) (n int, err error) {
 }
 
 func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []string) *exec.Cmd {
+
+	if app, ok := util.Config.Apps[t.Name]; ok {
+		if app.AppPath != "" {
+			command = app.AppPath
+		}
+		if app.AppArgs != nil {
+			args = append(args, app.AppArgs...)
+		}
+	}
+
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = t.GetFullPath()
 

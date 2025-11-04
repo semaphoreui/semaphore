@@ -19,6 +19,7 @@ api/public/**/*
 /.dredd/config.json
 /database.boltdb
 /database.sqlite
+/database.sqlite-journal
 /database.boltdb.lock
 /database_test.boltdb
 .DS_Store

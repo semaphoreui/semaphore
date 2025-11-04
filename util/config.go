@@ -623,6 +623,74 @@ func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) err
 					if err != nil {
 						return err
 					}
+				case reflect.Slice:
+					// Handle slice assignment
+					fieldElemType := fieldValue.Type().Elem()
+					var sourceSlice reflect.Value
+					if val.Kind() == reflect.Slice || val.Kind() == reflect.Array {
+						sourceSlice = val
+					} else if val.Kind() == reflect.String {
+						// Try to parse JSON array from string
+						str := val.String()
+						// First, try to unmarshal into []any
+						var anyArr []any
+						if err := json.Unmarshal([]byte(str), &anyArr); err == nil {
+							sourceSlice = reflect.ValueOf(anyArr)
+						} else if fieldElemType.Kind() == reflect.String {
+							// Fallback: treat as single element string
+							sourceSlice = reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf("")), 1, 1)
+							sourceSlice.Index(0).SetString(str)
+						} else {
+							return fmt.Errorf("expected slice or json array string for field %s but got %T", field.Name, value)
+						}
+					} else {
+						return fmt.Errorf("expected slice for field %s but got %T", field.Name, value)
+					}
+
+					// Build destination slice
+					newSlice := reflect.MakeSlice(fieldValue.Type(), 0, sourceSlice.Len())
+					for i := 0; i < sourceSlice.Len(); i++ {
+						srcElemVal := sourceSlice.Index(i)
+						// When source is []any, elements come as interface{}, unwrap reflect.Value
+						if srcElemVal.Kind() == reflect.Interface && !srcElemVal.IsNil() {
+							srcElemVal = reflect.ValueOf(srcElemVal.Interface())
+						}
+
+						var dstElem reflect.Value
+						// Prepare destination element
+						if fieldElemType.Kind() == reflect.Struct {
+							dstElem = reflect.New(fieldElemType).Elem()
+							if srcElemVal.Kind() == reflect.Map {
+								// Expect map[string]any
+								mIface, ok := srcElemVal.Interface().(map[string]any)
+								if !ok {
+									return fmt.Errorf("cannot assign element of type %T to slice element of type %s", srcElemVal.Interface(), fieldElemType)
+								}
+								if err := assignMapToStructRecursive(mIface, dstElem); err != nil {
+									return err
+								}
+							} else if srcElemVal.Type().ConvertibleTo(fieldElemType) {
+								dstElem = srcElemVal.Convert(fieldElemType)
+							} else {
+								return fmt.Errorf("cannot assign element of type %s to slice element of type %s", srcElemVal.Type(), fieldElemType)
+							}
+						} else {
+							// Primitive or other kinds
+							if srcElemVal.Type().ConvertibleTo(fieldElemType) {
+								dstElem = srcElemVal.Convert(fieldElemType)
+							} else {
+								newVal, converted := CastValueToKind(srcElemVal.Interface(), fieldElemType.Kind())
+								if !converted {
+									return fmt.Errorf("cannot assign element of type %s to slice element of type %s", srcElemVal.Type(), fieldElemType)
+								}
+								dstElem = reflect.ValueOf(newVal)
+							}
+						}
+
+						newSlice = reflect.Append(newSlice, dstElem)
+					}
+
+					fieldValue.Set(newSlice)
 				case reflect.Map:
 					if fieldValue.IsNil() {
 						mapValue := reflect.MakeMap(fieldValue.Type())

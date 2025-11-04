@@ -1,8 +1,9 @@
 package db
 
 import (
-	"github.com/semaphoreui/semaphore/util"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/util"
 )
 
 func TestConfig_assignMapToStruct(t *testing.T) {
@@ -22,6 +23,7 @@ func TestConfig_assignMapToStruct(t *testing.T) {
 		Email   string            `json:"email"`
 		Address Address           `json:"address"`
 		Details map[string]Detail `json:"details"`
+		Tags    []string          `json:"tags"`
 	}
 
 	johnData := map[string]any{
@@ -45,6 +47,7 @@ func TestConfig_assignMapToStruct(t *testing.T) {
 				"description": "Ho ho ho",
 			},
 		},
+		"tags": "[\"test\"]",
 	}
 
 	var john User
@@ -70,6 +73,10 @@ func TestConfig_assignMapToStruct(t *testing.T) {
 
 	if john.Details["interests"].Value != "politics" {
 		t.Errorf("Expected interests to be politics but got '%s'", john.Details["interests"].Value)
+	}
+
+	if len(john.Tags) < 1 {
+		t.Fatal("Expected user tags")
 	}
 
 	//if john.Details["occupation"].Value != "engineer" {
