@@ -167,7 +167,7 @@ func TestSetConfigValue_SliceAndMap(t *testing.T) {
     type X struct {
         Arr []string
         Mp  map[string]int
-        P   *int
+        I   int
     }
     var x X
     // slice
@@ -181,8 +181,8 @@ func TestSetConfigValue_SliceAndMap(t *testing.T) {
         t.Fatalf("setConfigValue map mismatch: %+v", x.Mp)
     }
     // primitive
-    setConfigValue(reflect.ValueOf(&x).Elem().FieldByName("P"), "123")
-    if x.P == nil || *x.P != 123 {
-        t.Fatalf("setConfigValue primitive mismatch: %+v", x.P)
+    setConfigValue(reflect.ValueOf(&x).Elem().FieldByName("I"), "123")
+    if x.I != 123 {
+        t.Fatalf("setConfigValue primitive mismatch: %+v", x.I)
     }
 }

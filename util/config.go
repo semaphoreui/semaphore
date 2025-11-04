@@ -761,14 +761,19 @@ func CastValueToKind(value any, kind reflect.Kind) (res any, ok bool) {
 
 	switch kind {
 	case reflect.String:
+		// strings are always acceptable as-is, or will be coerced upstream
 		ok = true
 	case reflect.Int:
-		if reflect.ValueOf(value).Kind() != reflect.Int {
+		if reflect.ValueOf(value).Kind() == reflect.Int {
+			ok = true
+		} else {
 			res = castStringToInt(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
 		}
 	case reflect.Bool:
-		if reflect.ValueOf(value).Kind() != reflect.Bool {
+		if reflect.ValueOf(value).Kind() == reflect.Bool {
+			ok = true
+		} else {
 			res = castStringToBool(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
 		}
