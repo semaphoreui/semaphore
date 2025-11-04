@@ -16,6 +16,11 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
+const (
+	// DefaultTerraformBinary is the default terraform binary used by Terragrunt
+	DefaultTerraformBinary = "terraform"
+)
+
 type TerraformApp struct {
 	Logger           task_logger.Logger
 	Template         db.Template
@@ -111,7 +116,7 @@ func (t *TerraformApp) getTfPath() string {
 	if t.tfPath != "" {
 		return t.tfPath
 	}
-	return "terraform"
+	return DefaultTerraformBinary
 }
 
 func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInstaller, params *db.TerraformTaskParams) error {
@@ -227,12 +232,8 @@ func (t *TerraformApp) InstallRequirements(args LocalAppInstallingArgs) (err err
 	tpl := args.TplParams.(*db.TerraformTemplateParams)
 	p := args.Params.(*db.TerraformTaskParams)
 
-	// Set tfPath from template params if provided, otherwise default to "terraform"
-	if tpl.TfPath != "" {
-		t.tfPath = tpl.TfPath
-	} else {
-		t.tfPath = "terraform"
-	}
+	// Set tfPath from template params, getTfPath() will handle default if empty
+	t.tfPath = tpl.TfPath
 
 	if tpl.OverrideBackend {
 		t.backendFilename = "backend.tf"
