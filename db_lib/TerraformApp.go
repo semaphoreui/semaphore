@@ -70,6 +70,30 @@ func (r *terraformReader) Read(p []byte) (n int, err error) {
 }
 
 func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []string) *exec.Cmd {
+
+	if app, ok := util.Config.Apps[t.Name]; ok {
+		if app.AppPath != "" {
+			command = app.AppPath
+		}
+		if app.AppArgs != nil {
+			args = append(app.AppArgs, args...)
+		}
+	}
+
+	if t.Name == string(db.AppTerragrunt) {
+		hasTfPath := false
+		for i := 0; i < len(args); i++ {
+			a := args[i]
+			if a == "--tf-path" || strings.HasPrefix(a, "--tf-path=") {
+				hasTfPath = true
+				break
+			}
+		}
+		if !hasTfPath {
+			args = append(args, "--tf-path=terraform")
+		}
+	}
+
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = t.GetFullPath()
 
@@ -126,10 +150,6 @@ func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInst
 		args = append(args, "-migrate-state")
 	}
 
-	if t.Name == string(db.AppTerragrunt) {
-		args = append(args, "--tf-path=terraform")
-	}
-
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	cmd.Env = append(cmd.Env, keyInstallation.GetGitEnv()...)
 	t.Logger.LogCmd(cmd)
@@ -161,10 +181,7 @@ func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInst
 
 func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
 	args := []string{"workspace", "list"}
-	if t.Name == string(db.AppTerragrunt) {
-		args = append([]string{"run", "--"}, args...)
-		args = append(args, "--tf-path=terraform")
-	}
+
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	err := cmd.Run()
 	if err != nil {
@@ -178,7 +195,6 @@ func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []strin
 	args := []string{"workspace", "select", "-or-create=true", workspace}
 	if t.Name == string(db.AppTerragrunt) {
 		args = append([]string{"run", "--"}, args...)
-		args = append(args, "--tf-path=terraform")
 	}
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	t.Logger.LogCmd(cmd)
@@ -252,9 +268,6 @@ func (t *TerraformApp) InstallRequirements(args LocalAppInstallingArgs) (err err
 
 func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
 	planArgs := []string{"plan", "-lock=false"}
-	if t.Name == string(db.AppTerragrunt) {
-		planArgs = append(planArgs, "--tf-path=terraform")
-	}
 	planArgs = append(planArgs, args...)
 	cmd := t.makeCmd(t.Name, planArgs, environmentVars)
 	t.Logger.LogCmd(cmd)
@@ -284,9 +297,6 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 
 func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
 	applyArgs := []string{"apply", "-auto-approve", "-lock=false"}
-	if t.Name == string(db.AppTerragrunt) {
-		applyArgs = append(applyArgs, "--tf-path=terraform")
-	}
 	applyArgs = append(applyArgs, args...)
 	cmd := t.makeCmd(t.Name, applyArgs, environmentVars)
 	t.Logger.LogCmd(cmd)
