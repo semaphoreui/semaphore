@@ -317,7 +317,7 @@ func GetTaskDefinition(
 
 	taskDefinition.Environment = string(envStr)
 
-	extractedTaskResults := ExtractAsAnyForTaskParams(taskValues, h, payload)
+	extractedTaskResults := Extract(taskValues, h, payload)
 	for k, v := range extractedTaskResults {
 		taskDefinition.Params[k] = v
 	}
@@ -366,38 +366,14 @@ func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload 
 		case db.IntegrationExtractBodyValue:
 			switch extractValue.BodyDataType {
 			case db.IntegrationBodyDataJSON:
-				var extractedResult = fmt.Sprintf("%v", gojsonq.New().JSONString(string(payload)).Find(extractValue.Key))
-				result[extractValue.Variable] = extractedResult
+				val := gojsonq.New().JSONString(string(payload)).Find(extractValue.Key)
+				if val != nil {
+					result[extractValue.Variable] = fmt.Sprintf("%v", val)
+				}
 			case db.IntegrationBodyDataString:
 				result[extractValue.Variable] = string(payload)
 			}
 		}
 	}
 	return
-}
-
-func ExtractAsAnyForTaskParams(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) db.MapStringAnyField {
-	// Create a result map that accepts any type
-	result := make(db.MapStringAnyField)
-
-	for _, extractValue := range extractValues {
-		switch extractValue.ValueSource {
-		case db.IntegrationExtractHeaderValue:
-			// Extract the header value
-			result[extractValue.Variable] = h.Get(extractValue.Key)
-
-		case db.IntegrationExtractBodyValue:
-			switch extractValue.BodyDataType {
-			case db.IntegrationBodyDataJSON:
-				// Query the JSON payload for the key using gojsonq
-				rawValue := gojsonq.New().JSONString(string(payload)).Find(extractValue.Key)
-				result[extractValue.Variable] = rawValue
-
-			case db.IntegrationBodyDataString:
-				// Simply use the entire payload as a string
-				result[extractValue.Variable] = string(payload)
-			}
-		}
-	}
-	return result
 }
