@@ -66,7 +66,7 @@
 
     <v-text-field
         v-model="item.login_password.login"
-        :label="$t('loginOptional')"
+        :label="$t('usernameOptional')"
         v-if="!isReadOnly && item.type === 'login_password'"
         :disabled="formSaving || !canEditSecrets"
         outlined
