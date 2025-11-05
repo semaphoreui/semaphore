@@ -3,10 +3,11 @@ name: Pro Self-Hosted Release
 'on':
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - v*-beta*
+      - v*-rc*
 
 jobs:
-  release:
+  prerelease:
     runs-on: ubuntu-latest
 
     steps:
@@ -60,7 +61,7 @@ jobs:
           PROJECT_NAME=semaphore \
             task release:prod
 
-  deploy-prod:
+  deploy-beta:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'semaphoreui'
 
@@ -109,8 +110,6 @@ jobs:
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
-          flavor: |
-            latest=true
 
       - name: Server build
         uses: docker/build-push-action@v5
@@ -189,8 +188,6 @@ jobs:
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=${{ github.ref_name }}
-          flavor: |
-            latest=true
 
       - name: Runner build
         uses: docker/build-push-action@v5
