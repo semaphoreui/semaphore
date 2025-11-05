@@ -117,7 +117,7 @@
                 get your verification code.
               </div>
 
-              <div v-else-if="verificationMethod === 'email'" class="text-center mb-4">
+              <div v-else-if="isPortal && verificationMethod === 'email'" class="text-center mb-4">
                 Check your email for the verification code we just sent you.
               </div>
 
@@ -145,7 +145,7 @@
                   small
                   :disabled="verificationEmailSending"
                   color="primary"
-                  v-if="verificationMethod === 'email'"
+                  v-if="isPortal && verificationMethod === 'email'"
                   @click="resendEmailVerification()"
                 >
                   {{
@@ -383,6 +383,12 @@ export default {
       default:
         throw new Error(`Unknown authentication status: ${status}`);
     }
+  },
+
+  computed: {
+    isPortal() {
+      return process.env.VUE_APP_BUILD_TYPE === 'pro_portal';
+    },
   },
 
   methods: {
