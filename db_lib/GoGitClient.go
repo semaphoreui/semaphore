@@ -38,6 +38,49 @@ func (t ProgressWrapper) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// resolveReferenceName checks if the provided branch name is actually a branch or tag
+// and returns the appropriate plumbing.ReferenceName
+func (c GoGitClient) resolveReferenceName(r GitRepository) (plumbing.ReferenceName, error) {
+	remote := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{r.Repository.GitURL},
+	})
+
+	auth, err := c.getAuthMethod(r)
+	if err != nil {
+		return "", fmt.Errorf("failed to create auth method: %w", err)
+	}
+
+	listOptions := &git.ListOptions{}
+	if auth != nil {
+		listOptions.Auth = auth
+	}
+
+	refs, err := remote.List(listOptions)
+	if err != nil {
+		return "", fmt.Errorf("failed to list remote references: %w", err)
+	}
+
+	// Check if it's a branch
+	branchRef := plumbing.NewBranchReferenceName(r.Repository.GitBranch)
+	for _, ref := range refs {
+		if ref.Name() == branchRef {
+			return branchRef, nil
+		}
+	}
+
+	// Check if it's a tag
+	tagRef := plumbing.NewTagReferenceName(r.Repository.GitBranch)
+	for _, ref := range refs {
+		if ref.Name() == tagRef {
+			return tagRef, nil
+		}
+	}
+
+	// If neither found, return error
+	return "", fmt.Errorf("reference '%s' not found as branch or tag", r.Repository.GitBranch)
+}
+
 func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
 	switch r.Repository.SSHKey.Type {
 	case db.AccessKeySSH:
@@ -102,11 +145,19 @@ func (c GoGitClient) Clone(r GitRepository) error {
 		return authErr
 	}
 
+	// Resolve reference name to support both branches and tags
+	refName, refErr := c.resolveReferenceName(r)
+	if refErr != nil {
+		// If we can't resolve the reference, log a warning but continue with branch assumption
+		r.Logger.Log("Warning: Unable to resolve reference type, assuming branch: " + refErr.Error())
+		refName = plumbing.NewBranchReferenceName(r.Repository.GitBranch)
+	}
+
 	cloneOpt := &git.CloneOptions{
 		URL:               r.Repository.GetGitURL(true),
 		Progress:          ProgressWrapper{r.Logger},
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
-		ReferenceName:     plumbing.NewBranchReferenceName(r.Repository.GitBranch),
+		ReferenceName:     refName,
 		Auth:              authMethod,
 	}
 
