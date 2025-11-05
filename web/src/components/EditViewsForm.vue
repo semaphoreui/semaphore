@@ -44,7 +44,11 @@
             <v-icon small color="red">mdi-close</v-icon>
           </v-btn>
 
-          <v-btn class="ml-4" icon @click="activeViewId = view.id">
+          <v-btn
+            class="ml-4"
+            icon
+            @click="activeViewId = (activeViewId === view.id ? null : view.id)"
+          >
             <v-icon>mdi-cog</v-icon>
           </v-btn>
 
