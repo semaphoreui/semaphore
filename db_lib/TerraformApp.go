@@ -117,7 +117,7 @@ func (t *TerraformApp) runCmd(command string, args []string) error {
 }
 
 func (t *TerraformApp) GetFullPath() string {
-	return path.Join(t.Repository.GetAnsiblePath(t.Template.ID), strings.TrimPrefix(t.Template.Playbook, "/"))
+	return path.Join(t.Repository.GetRootPath(t.Template.ID), strings.TrimPrefix(t.Template.Playbook, "/"))
 }
 
 func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {

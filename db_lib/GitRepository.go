@@ -35,7 +35,7 @@ type GitRepository struct {
 	Client     GitClient
 }
 
-func (r GitRepository) GetAnsiblePath() string {
+func (r GitRepository) GetRootPath() string {
 	return path.Join(r.GetFullPath(), r.Repository.Path)
 }
 
