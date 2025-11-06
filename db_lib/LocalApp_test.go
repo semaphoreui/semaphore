@@ -19,10 +19,9 @@ func contains(slice []string, item string) bool {
 }
 
 func TestGetEnvironmentVars(t *testing.T) {
-
-	os.Setenv("SEMAPHORE_TEST", "test123")
-	os.Setenv("SEMAPHORE_TEST2", "test222")
-	os.Setenv("PASSWORD", "test222")
+	os.Setenv("SEMAPHORE_TEST", "test123")  //nolint:errcheck
+	os.Setenv("SEMAPHORE_TEST2", "test222") //nolint:errcheck
+	os.Setenv("PASSWORD", "test222")        //nolint:errcheck
 
 	util.Config = &util.ConfigType{
 		ForwardedEnvVars: []string{"SEMAPHORE_TEST"},
@@ -44,7 +43,6 @@ func TestGetEnvironmentVars(t *testing.T) {
 	}
 
 	for _, e := range expected {
-
 		if !contains(res, e) {
 			t.Errorf("Expected %v, got %v", expected, res)
 		}

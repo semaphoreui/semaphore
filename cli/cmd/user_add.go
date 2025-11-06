@@ -13,6 +13,7 @@ func init() {
 	userAddCmd.PersistentFlags().StringVar(&targetUserArgs.email, "email", "", "New user email")
 	userAddCmd.PersistentFlags().StringVar(&targetUserArgs.password, "password", "", "New user password")
 	userAddCmd.PersistentFlags().BoolVar(&targetUserArgs.admin, "admin", false, "Mark new user as admin")
+	userAddCmd.PersistentFlags().BoolVar(&targetUserArgs.external, "external", false, "Mark new user as external (LDAP or OIDC user)")
 	userCmd.AddCommand(userAddCmd)
 }
 
@@ -36,9 +37,16 @@ var userAddCmd = &cobra.Command{
 			ok = false
 		}
 
-		if targetUserArgs.password == "" {
-			fmt.Println("Argument --password required")
-			ok = false
+		if targetUserArgs.external {
+			if targetUserArgs.password != "" {
+				fmt.Println("Argument --password not allowed for external users")
+				ok = false
+			}
+		} else {
+			if targetUserArgs.password == "" {
+				fmt.Println("Argument --password required")
+				ok = false
+			}
 		}
 
 		if !ok {
@@ -56,6 +64,7 @@ var userAddCmd = &cobra.Command{
 				Username: targetUserArgs.login,
 				Email:    targetUserArgs.email,
 				Admin:    targetUserArgs.admin,
+				External: targetUserArgs.external,
 			},
 		}); err != nil {
 			panic(err)

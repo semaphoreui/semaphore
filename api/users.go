@@ -2,17 +2,28 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	log "github.com/sirupsen/logrus"
 	"image/png"
 	"net/http"
 
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/util"
 )
+
+type UsersController struct {
+	subscriptionService pro_interfaces.SubscriptionService
+}
+
+func NewUsersController(subscriptionService pro_interfaces.SubscriptionService) *UsersController {
+	return &UsersController{
+		subscriptionService: subscriptionService,
+	}
+}
 
 type minimalUser struct {
 	ID       int    `json:"id"`
@@ -20,9 +31,11 @@ type minimalUser struct {
 	Name     string `json:"name"`
 }
 
-func getUsers(w http.ResponseWriter, r *http.Request) {
-	currentUser := context.Get(r, "user").(*db.User)
-	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{})
+func (c *UsersController) GetUsers(w http.ResponseWriter, r *http.Request) {
+	currentUser := helpers.GetFromContext(r, "user").(*db.User)
+	users, err := helpers.Store(r).GetUsers(db.RetrieveQueryParams{
+		Filter: r.URL.Query().Get("s"),
+	})
 
 	if err != nil {
 		panic(err)
@@ -45,20 +58,42 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func addUser(w http.ResponseWriter, r *http.Request) {
+func (c *UsersController) AddUser(w http.ResponseWriter, r *http.Request) {
 	var user db.UserWithPwd
 	if !helpers.Bind(w, r, &user) {
 		return
 	}
 
-	editor := context.Get(r, "user").(*db.User)
+	editor := helpers.GetFromContext(r, "user").(*db.User)
 	if !editor.Admin {
 		log.Warn(editor.Username + " is not permitted to create users")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	newUser, err := helpers.Store(r).CreateUser(user)
+	if user.Pro {
+		ok, err := c.subscriptionService.CanAddProUser()
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if !ok {
+			helpers.WriteErrorStatus(w,
+				fmt.Sprintf("You have reached the limit of Pro users for your subscription."), http.StatusForbidden)
+			return
+		}
+	}
+
+	var err error
+	var newUser db.User
+
+	if user.External {
+		newUser, err = helpers.Store(r).CreateUserWithoutPassword(user.User)
+	} else {
+		newUser, err = helpers.Store(r).CreateUser(user)
+	}
 
 	if err != nil {
 		log.Warn(editor.Username + " is not created: " + err.Error())
@@ -67,6 +102,35 @@ func addUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusCreated, newUser)
+}
+func readonlyUserMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userID, err := helpers.GetIntParam("user_id", w, r)
+
+		if err != nil {
+			return
+		}
+
+		user, err := helpers.Store(r).GetUser(userID)
+
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		editor := helpers.GetFromContext(r, "user").(*db.User)
+
+		if !editor.Admin && editor.ID != user.ID {
+			user = db.User{
+				ID:       user.ID,
+				Username: user.Username,
+				Name:     user.Name,
+			}
+		}
+
+		r = helpers.SetContextValue(r, "_user", user)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func getUserMiddleware(next http.Handler) http.Handler {
@@ -84,7 +148,7 @@ func getUserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		editor := context.Get(r, "user").(*db.User)
+		editor := helpers.GetFromContext(r, "user").(*db.User)
 
 		if !editor.Admin && editor.ID != user.ID {
 			log.Warn(editor.Username + " is not permitted to edit users")
@@ -92,14 +156,14 @@ func getUserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "_user", user)
+		r = helpers.SetContextValue(r, "_user", user)
 		next.ServeHTTP(w, r)
 	})
 }
 
-func updateUser(w http.ResponseWriter, r *http.Request) {
-	targetUser := context.Get(r, "_user").(db.User)
-	editor := context.Get(r, "user").(*db.User)
+func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	targetUser := helpers.GetFromContext(r, "_user").(db.User)
+	editor := helpers.GetFromContext(r, "user").(*db.User)
 
 	var user db.UserWithPwd
 	if !helpers.Bind(w, r, &user) {
@@ -110,6 +174,21 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		log.Warn(editor.Username + " is not permitted to mark users as Pro")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
+	}
+
+	if user.Pro {
+		ok, err := c.subscriptionService.CanAddProUser()
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if !ok {
+			helpers.WriteErrorStatus(w,
+				fmt.Sprintf("You have reached the limit of Pro users for your subscription."), http.StatusForbidden)
+			return
+		}
 	}
 
 	if !editor.Admin && editor.ID != targetUser.ID {
@@ -141,8 +220,8 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateUserPassword(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
-	editor := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "_user").(db.User)
+	editor := helpers.GetFromContext(r, "user").(*db.User)
 
 	var pwd struct {
 		Pwd string `json:"password"`
@@ -174,8 +253,8 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteUser(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
-	editor := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "_user").(db.User)
+	editor := helpers.GetFromContext(r, "user").(*db.User)
 
 	if !editor.Admin && editor.ID != user.ID {
 		log.Warn(editor.Username + " is not permitted to delete users")
@@ -191,7 +270,7 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func totpQr(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
+	user := helpers.GetFromContext(r, "_user").(db.User)
 
 	if user.Totp == nil {
 		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusNotFound)
@@ -223,7 +302,7 @@ func totpQr(w http.ResponseWriter, r *http.Request) {
 }
 
 func enableTotp(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
+	user := helpers.GetFromContext(r, "_user").(db.User)
 
 	if !util.Config.Auth.Totp.Enabled {
 		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusBadRequest)
@@ -267,7 +346,7 @@ func enableTotp(w http.ResponseWriter, r *http.Request) {
 }
 
 func disableTotp(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "_user").(db.User)
+	user := helpers.GetFromContext(r, "_user").(db.User)
 	if user.Totp == nil {
 		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusBadRequest)
 		return

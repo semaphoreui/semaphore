@@ -5,12 +5,14 @@ export const TEMPLATE_TYPE_ICONS = {
 };
 
 export const TEMPLATE_TYPE_TITLES = {
+  undefined: 'Task',
   '': 'Task',
   build: 'Build',
   deploy: 'Deploy',
 };
 
 export const TEMPLATE_TYPE_ACTION_TITLES = {
+  undefined: 'Run',
   '': 'Run',
   build: 'Build',
   deploy: 'Deploy',
@@ -25,16 +27,16 @@ export const USER_PERMISSIONS = {
 
 export const USER_ROLES = [{
   slug: 'owner',
-  title: 'Owner',
+  name: 'Owner',
 }, {
   slug: 'manager',
-  title: 'Manager',
+  name: 'Manager',
 }, {
   slug: 'task_runner',
-  title: 'Task Runner',
+  name: 'Task Runner',
 }, {
   slug: 'guest',
-  title: 'Guest',
+  name: 'Guest',
 }];
 
 export const MATCHER_TYPE_TITLES = {
@@ -89,6 +91,11 @@ export const APP_ICONS = {
     color: 'black',
     darkColor: 'white',
   },
+  terragrunt: {
+    icon: '$vuetify.icons.terragrunt',
+    color: '#4b3b7a',
+    darkColor: '#4b3b7a',
+  },
   pulumi: {
     icon: '$vuetify.icons.pulumi',
     color: 'black',
@@ -107,10 +114,22 @@ export const APP_ICONS = {
   },
 };
 
+export const APP_SHORT_TITLE = {
+  ansible: 'Ansible',
+  terraform: 'Terraform',
+  tofu: 'OpenTofu',
+  terragrunt: 'Terragrunt',
+  bash: 'Bash',
+  pulumi: 'Pulumi',
+  python: 'Python',
+  powershell: 'PowerShell',
+};
+
 export const APP_TITLE = {
   ansible: 'Ansible Playbook',
   terraform: 'Terraform Code',
   tofu: 'OpenTofu Code',
+  terragrunt: 'Terragrunt Code',
   bash: 'Bash Script',
   pulumi: 'Pulumi Code',
   python: 'Python Script',
@@ -121,17 +140,19 @@ export const APP_INVENTORY_TITLE = {
   ansible: 'Ansible Inventory',
   terraform: 'Terraform Workspace',
   tofu: 'OpenTofu Workspace',
+  terragrunt: 'Terragrunt Workspace',
 };
 
 export const APP_INVENTORY_TYPES = {
   ansible: ['static', 'file', 'static-yaml'],
   terraform: ['terraform-workspace'],
-  tofu: ['terraform-workspace'],
+  tofu: ['tofu-workspace'],
+  terragrunt: ['terragrunt-workspace'],
 };
 
 export const DEFAULT_APPS = Object.keys(APP_ICONS);
 
-export const ANSIBLE_FIELDS = {
+const BASE_FIELDS = {
   playbook: {
     label: 'playbookFilename',
   },
@@ -144,13 +165,47 @@ export const ANSIBLE_FIELDS = {
   environment: {
     label: 'environment3',
   },
+  git_branch: {
+    label: 'branch',
+  },
+  allow_override_branch: {
+    label: 'allow_override_branch',
+  },
+};
+
+export const ANSIBLE_FIELDS = {
+  ...BASE_FIELDS,
   vault: {
     label: 'vaultPassword2',
+  },
+  limit: {
+    label: 'limit',
+  },
+  allow_override_limit: {
+    label: 'allowLimitInTask',
+  },
+  allow_debug: {
+    label: 'allowDebug',
+  },
+  tags: {
+    label: 'tags',
+  },
+  skip_tags: {
+    label: 'skipTags',
+  },
+  allow_override_tags: {
+    label: 'tags',
+  },
+  allow_override_skip_tags: {
+    label: 'skipTags',
+  },
+  allow_override_inventory: {
+    label: 'allowInventoryInTask',
   },
 };
 
 export const TERRAFORM_FIELDS = {
-  ...ANSIBLE_FIELDS,
+  ...BASE_FIELDS,
   playbook: {
     label: 'Subdirectory path (Optional)',
     optional: true,
@@ -158,16 +213,32 @@ export const TERRAFORM_FIELDS = {
   inventory: {
     label: 'Workspace (Optional)',
   },
-  vault: undefined,
+  auto_approve: {
+    label: 'auto_approve',
+  },
+  allow_auto_approve: {
+    label: 'auto_approve',
+  },
+  allow_destroy: {
+    label: 'auto_destroy',
+  },
+  allow_override_inventory: {
+    label: 'allowInventoryInTask',
+  },
+  override_backend: {
+    label: 'terraform_override_backend',
+  },
+  backend_filename: {
+    label: 'terraform_backend_filename',
+  },
 };
 
 export const UNKNOWN_APP_FIELDS = {
-  ...ANSIBLE_FIELDS,
+  ...BASE_FIELDS,
   playbook: {
     label: 'Script Filename *',
   },
   inventory: undefined,
-  vault: undefined,
 };
 
 export const APP_FIELDS = {
@@ -175,4 +246,40 @@ export const APP_FIELDS = {
   ansible: ANSIBLE_FIELDS,
   terraform: TERRAFORM_FIELDS,
   tofu: TERRAFORM_FIELDS,
+  terragrunt: TERRAFORM_FIELDS,
+};
+
+export const ROLE_PERMISSIONS = {
+  default: [{
+    permission: 1,
+    label: 'canRunProjectTasks',
+    color: 'blue',
+    textColor: 'white',
+  }, {
+    permission: 2,
+    label: 'canUpdateProject',
+    color: 'green',
+    textColor: 'white',
+  }, {
+    permission: 4,
+    label: 'canManageProjectResources',
+    color: 'orange',
+    textColor: 'white',
+  }, {
+    permission: 8,
+    label: 'canManageProjectUsers',
+    color: 'red',
+    textColor: 'white',
+  }],
+  template: [{
+    permission: 1,
+    label: 'Can run tasks',
+    color: 'blue',
+    textColor: 'white',
+  }, {
+    permission: 4,
+    label: 'Can update the template',
+    color: 'orange',
+    textColor: 'white',
+  }],
 };

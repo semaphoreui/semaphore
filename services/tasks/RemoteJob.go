@@ -7,14 +7,19 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
 
 type RemoteJob struct {
-	Task     db.Task
-	taskPool *TaskPool
+	RunnerTag *string
+	Task      db.Task
+	taskPool  *TaskPool
+	killed    bool
 }
 
 type runnerWebhookPayload struct {
@@ -29,6 +34,12 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	if runner.Webhook == "" {
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"runner_id": runner.ID,
+		"task_id":   tsk.Task.ID,
+		"action":    action,
+	}).Infof("Calling runner webhook")
 
 	var jsonBytes []byte
 	jsonBytes, err = json.Marshal(runnerWebhookPayload{
@@ -58,10 +69,20 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 		return
 	}
 
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
+	}
+	
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		err = fmt.Errorf("webhook returned incorrect status")
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"runner_id": runner.ID,
+		"task_id":   tsk.Task.ID,
+		"action":    action,
+	}).Infof("Runner webhook returned %d", resp.StatusCode)
 
 	return
 }
@@ -77,16 +98,17 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	tsk.IncomingVersion = incomingVersion
 	tsk.Username = username
 	tsk.Alias = alias
+	t.taskPool.state.UpdateRuntimeFields(tsk)
 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {
 		var projectRunners []db.Runner
-		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true)
+		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, t.RunnerTag)
 		if err != nil {
 			return
 		}
 		var globalRunners []db.Runner
-		globalRunners, err = t.taskPool.store.GetGlobalRunners(true)
+		globalRunners, err = t.taskPool.store.GetAllRunners(true, true)
 		if err != nil {
 			return
 		}
@@ -125,19 +147,28 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	}
 
 	tsk.RunnerID = runner.ID
+	if t.taskPool != nil && t.taskPool.state != nil {
+		t.taskPool.state.UpdateRuntimeFields(tsk)
+	}
 
-	startTime := time.Now()
+	startTime := tz.Now()
 
 	taskTimedOut := false
 
 	for {
-		if util.Config.MaxTaskDurationSec > 0 && int(time.Now().Sub(startTime).Seconds()) > util.Config.MaxTaskDurationSec {
+		if util.Config.MaxTaskDurationSec > 0 && int(tz.Now().Sub(startTime).Seconds()) > util.Config.MaxTaskDurationSec {
 			taskTimedOut = true
 			break
 		}
 
 		time.Sleep(1_000_000_000)
 		tsk = t.taskPool.GetTask(t.Task.ID)
+
+		if tsk == nil {
+			err = fmt.Errorf("task %d not found", t.Task.ID)
+			return
+		}
+
 		if tsk.Task.Status == task_logger.TaskSuccessStatus ||
 			tsk.Task.Status == task_logger.TaskStoppedStatus ||
 			tsk.Task.Status == task_logger.TaskFailStatus {
@@ -161,5 +192,10 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 }
 
 func (t *RemoteJob) Kill() {
+	t.killed = true
 	// Do nothing because you can't kill remote process
+}
+
+func (t *RemoteJob) IsKilled() bool {
+	return t.killed
 }

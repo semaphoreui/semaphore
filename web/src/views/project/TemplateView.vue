@@ -6,28 +6,29 @@
     <NewTaskDialog
       v-model="newTaskDialog"
       :project-id="projectId"
-      :template-id="itemId"
-      :template-alias="item.name"
-      :template-type="item.type"
-      :template-app="item.app"
+      :template="item"
     />
 
-    <EditTemplateDialogue
+    <EditTemplateDialog
       v-model="editDialog"
       :project-id="projectId"
       :item-app="item.app"
       :item-id="itemId"
       @save="loadData()"
-    ></EditTemplateDialogue>
+      :premium-features="premiumFeatures"
+      :task-type="item.type"
+    ></EditTemplateDialog>
 
-    <EditTemplateDialogue
+    <EditTemplateDialog
       v-model="copyDialog"
       :project-id="projectId"
       :item-app="item.app"
       item-id="new"
       :source-item-id="itemId"
       @save="onTemplateCopied"
-    ></EditTemplateDialogue>
+      :premium-features="premiumFeatures"
+      :task-type="item.type"
+    ></EditTemplateDialog>
 
     <ObjectRefsDialog
       object-title="template"
@@ -41,6 +42,13 @@
       :text="$t('askDeleteTemp')"
       v-model="deleteDialog"
       @yes="remove()"
+    />
+
+    <YesNoDialog
+      :title="$t('stopAllTasks')"
+      :text="$t('askStopAllTasks')"
+      v-model="stopAllDialog"
+      @yes="stopAllTasks()"
     />
 
     <v-toolbar flat>
@@ -62,7 +70,23 @@
 
       <v-spacer></v-spacer>
 
-      <v-btn color="primary" depressed class="mr-3" @click="newTaskDialog = true">
+      <v-btn
+        @click="stopAllDialog = true"
+        color="grey"
+        class="mr-3"
+        v-if="canStop"
+      >
+        Stop all
+      </v-btn>
+
+      <v-btn
+        v-if="canRun"
+        color="primary"
+        depressed
+        class="mr-3"
+        @click="newTaskDialog = true"
+        data-testid="template-run"
+      >
         {{ $t(TEMPLATE_TYPE_ACTION_TITLES[item.type]) }}
       </v-btn>
 
@@ -79,38 +103,74 @@
       </v-btn>
     </v-toolbar>
 
-    <v-tabs class="ml-4">
+    <SingleLineEditable
+      class="mx-4 TemplateView__description"
+      v-model="item.description"
+      @save="updateDescription()"
+      v-if="item.description || can(USER_PERMISSIONS.manageProjectResources)"
+      :can-edit="can(USER_PERMISSIONS.manageProjectResources)"
+    />
+
+    <v-tabs>
       <v-tab
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
-        }/templates/${item.id}/tasks`">Tasks</v-tab>
+        }/templates/${item.id}/tasks`">{{ $t('template_tasks') }}
+      </v-tab>
       <v-tab
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
-        }/templates/${item.id}/details`">Details</v-tab>
+        }/templates/${item.id}/details`">{{ $t('template_details') }}
+      </v-tab>
+      <v-tab
+        v-if="isPro && can(USER_PERMISSIONS.manageProjectResources)"
+        :to="`/project/${item.project_id}${
+          $route.params.viewId ? `/views/${$route.params.viewId}` : ''
+        }/templates/${item.id}/perms`">{{ $t('Permissions') }}
+      </v-tab>
       <v-tab
         v-if="['terraform', 'tofu'].includes(item.app)"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/state`"
       >
-        Workspaces
+        {{ $t('template_tf_workspaces') }}
       </v-tab>
     </v-tabs>
 
-    <v-divider style="margin-top: -1px;"/>
+    <v-divider style="margin-top: -1px;" />
 
     <router-view
-      class="mt-8"
+      :project-id="projectId"
       :template="item"
       :inventory="inventory"
       :environment="environment"
       :repositories="repositories"
       :premium-features="premiumFeatures"
+      :is-admin="isAdmin"
       @update-template="loadData"
     ></router-view>
   </div>
 </template>
+
+<style lang="scss">
+
+@import '~vuetify/src/styles/settings/_variables';
+
+.TemplateView__description {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+@media #{map-get($display-breakpoints, 'md-and-up')} {
+  .TemplateView__description {
+    transform: translateY(-12px);
+    margin-bottom: 0;
+  }
+}
+
+</style>
+
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';
@@ -124,15 +184,18 @@ import {
 } from '@/lib/constants';
 import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
-import EditTemplateDialogue from '@/components/EditTemplateDialog.vue';
+import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
 import PermissionsCheck from '@/components/PermissionsCheck';
+import SingleLineEditable from '@/components/SingleLineEditable.vue';
+import ProjectMixin from '@/components/ProjectMixin';
 
 export default {
   components: {
+    SingleLineEditable,
     YesNoDialog,
     ObjectRefsDialog,
     NewTaskDialog,
-    EditTemplateDialogue,
+    EditTemplateDialog,
   },
 
   props: {
@@ -141,7 +204,7 @@ export default {
     premiumFeatures: Object,
   },
 
-  mixins: [PermissionsCheck],
+  mixins: [PermissionsCheck, ProjectMixin],
 
   data() {
     return {
@@ -158,11 +221,20 @@ export default {
       itemRefs: null,
       itemRefsDialog: null,
       newTaskDialog: null,
+      stopAllDialog: null,
       USER_PERMISSIONS,
     };
   },
 
   computed: {
+    canRun() {
+      return this.can(USER_PERMISSIONS.runProjectTasks);
+    },
+
+    canStop() {
+      return this.can(USER_PERMISSIONS.runProjectTasks);
+    },
+
     canUpdate() {
       return this.can(USER_PERMISSIONS.manageProjectResources);
     },
@@ -186,6 +258,10 @@ export default {
     isLoaded() {
       return this.item && this.inventory && this.environment && this.repositories;
     },
+
+    isPro() {
+      return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
   },
 
   watch: {
@@ -207,6 +283,31 @@ export default {
   methods: {
     showDrawer() {
       EventBus.$emit('i-show-drawer');
+    },
+
+    async stopAllTasks() {
+      try {
+        await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/templates/${this.itemId}/stop_all_tasks`,
+          data: {
+            force: true,
+          },
+          responseType: 'json',
+        });
+
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'All running tasks have been requested to stop',
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      } finally {
+        this.stopAllDialog = false;
+      }
     },
 
     async askDelete() {
@@ -259,38 +360,37 @@ export default {
     },
 
     async loadData() {
-      this.item = (
-        await axios({
-          method: 'get',
-          url: `/api/project/${this.projectId}/templates/${this.itemId}`,
-          responseType: 'json',
-        })
-      ).data;
-
-      this.inventory = (
-        await axios({
-          method: 'get',
-          url: `/api/project/${this.projectId}/inventory`,
-          responseType: 'json',
-        })
-      ).data;
-
-      this.environment = (
-        await axios({
-          method: 'get',
-          url: `/api/project/${this.projectId}/environment`,
-          responseType: 'json',
-        })
-      ).data;
-
-      this.repositories = (
-        await axios({
-          method: 'get',
-          url: `/api/project/${this.projectId}/repositories`,
-          responseType: 'json',
-        })
-      ).data;
+      [
+        this.item,
+        this.inventory,
+        this.environment,
+        this.repositories,
+      ] = await Promise.all([
+        this.loadProjectResource('templates', this.itemId),
+        this.loadProjectResources('inventory'),
+        this.loadProjectResources('environment'),
+        this.loadProjectResources('repositories'),
+      ]);
     },
+
+    async updateDescription() {
+      try {
+        await axios({
+          method: 'put',
+          url: `/api/project/${this.projectId}/templates/${this.itemId}/description`,
+          responseType: 'json',
+          data: {
+            description: this.item.description,
+          },
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      }
+    },
+
   },
 };
 </script>

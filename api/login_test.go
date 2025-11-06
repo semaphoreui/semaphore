@@ -5,7 +5,7 @@ import (
 )
 
 func TestParseClaim(t *testing.T) {
-	claims := map[string]interface{}{
+	claims := map[string]any{
 		"username": "fiftin",
 		"email":    "",
 		"id":       1234567,
@@ -23,7 +23,7 @@ func TestParseClaim(t *testing.T) {
 }
 
 func TestParseClaim2(t *testing.T) {
-	claims := map[string]interface{}{
+	claims := map[string]any{
 		"username": "fiftin",
 		"email":    "",
 		"id":       1234567,
@@ -41,7 +41,7 @@ func TestParseClaim2(t *testing.T) {
 }
 
 func TestParseClaim3(t *testing.T) {
-	claims := map[string]interface{}{
+	claims := map[string]any{
 		"username": "fiftin",
 		"email":    "",
 		"id":       1234567,
@@ -55,7 +55,7 @@ func TestParseClaim3(t *testing.T) {
 }
 
 func TestParseClaim4(t *testing.T) {
-	claims := map[string]interface{}{
+	claims := map[string]any{
 		"username": "fiftin",
 		"email":    "",
 		"id":       1234567,
@@ -69,7 +69,7 @@ func TestParseClaim4(t *testing.T) {
 }
 
 func TestParseClaim5(t *testing.T) {
-	claims := map[string]interface{}{
+	claims := map[string]any{
 		"username": "fiftin",
 		"email":    "",
 		"id":       123456757343.0,

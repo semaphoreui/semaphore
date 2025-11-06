@@ -74,6 +74,7 @@ body:
 
       multiple: true
       options:
+        - SQLite
         - MySQL
         - BoltDB
         - Postgres

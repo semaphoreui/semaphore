@@ -8,7 +8,6 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/gorilla/context"
 )
 
 func IntegrationMiddleware(next http.Handler) http.Handler {
@@ -30,19 +29,19 @@ func IntegrationMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "integration", integration)
+		r = helpers.SetContextValue(r, "integration", integration)
 		next.ServeHTTP(w, r)
 	})
 }
 
 func GetIntegration(w http.ResponseWriter, r *http.Request) {
-	integration := context.Get(r, "integration").(db.Integration)
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 	helpers.WriteJSON(w, http.StatusOK, integration)
 }
 
 func GetIntegrations(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	integrations, err := helpers.Store(r).GetIntegrations(project.ID, helpers.QueryParams(r.URL))
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	integrations, err := helpers.Store(r).GetIntegrations(project.ID, helpers.QueryParams(r.URL), false)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -62,7 +61,7 @@ func GetIntegrationRefs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -79,7 +78,7 @@ func GetIntegrationRefs(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddIntegration(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	var integration db.Integration
 	log.Info(fmt.Sprintf("Found Project: %v", project.ID))
 
@@ -121,7 +120,7 @@ func AddIntegration(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateIntegration(w http.ResponseWriter, r *http.Request) {
-	oldIntegration := context.Get(r, "integration").(db.Integration)
+	oldIntegration := helpers.GetFromContext(r, "integration").(db.Integration)
 	var integration db.Integration
 
 	if !helpers.Bind(w, r, &integration) {
@@ -159,11 +158,11 @@ func DeleteIntegration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	err = helpers.Store(r).DeleteIntegration(project.ID, integration_id)
 	if err == db.ErrInvalidOperation {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Integration failed to be deleted",
 		})
 		return

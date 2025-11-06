@@ -3,14 +3,15 @@
     ref="form"
     lazy-validation
     v-model="formValid"
-    v-if="item != null"
+    v-if="item != null && (!supportStorages || secretStorages != null)"
     class="pb-3"
   >
     <v-alert
       :value="formError"
       color="error"
-      class="pb-2"
-    >{{ formError }}</v-alert>
+      data-testid="varGroup-error"
+    >{{ formError }}
+    </v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -18,13 +19,41 @@
       :rules="[v => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
-      class="mb-2"
+      outlined
+      dense
     ></v-text-field>
 
-    <v-tabs grow v-model="tab" class="mb-7">
+    <v-row v-if="supportStorages && isNew">
+      <v-col>
+        <v-autocomplete
+          v-model="item.secret_storage_id"
+          :label="$t('Secret storage (optional)')"
+          :items="secretStorages"
+          :disabled="formSaving || !isNew"
+          item-value="id"
+          item-text="name"
+          outlined
+          dense
+          clearable
+        />
+      </v-col>
+      <v-col>
+        <v-text-field
+          v-model="item.secret_storage_key_prefix"
+          :label="$t('Secret key prefix')"
+          :disabled="formSaving || !item.secret_storage_id|| !isNew"
+          outlined
+          dense
+        />
+      </v-col>
+    </v-row>
+
+    <v-tabs grow v-model="tab">
       <v-tab key="variables">Variables</v-tab>
       <v-tab key="secrets">Secrets</v-tab>
     </v-tabs>
+
+    <v-divider style="margin-top: -1px;" class="mb-7"/>
 
     <v-tabs-items v-model="tab">
       <v-tab-item key="variables">
@@ -38,7 +67,8 @@
                 class="ml-1"
                 v-bind="attrs"
                 v-on="on"
-              >mdi-help-box</v-icon>
+              >mdi-help-box
+              </v-icon>
             </template>
             <div>
               <div><code>--extra-vars</code> for Ansible</div>
@@ -46,7 +76,7 @@
             </div>
           </v-tooltip>
 
-          <v-spacer />
+          <v-spacer/>
 
           <v-btn-toggle
             v-model="extraVarsEditMode"
@@ -61,7 +91,7 @@
             </v-btn>
           </v-btn-toggle>
 
-          <v-btn icon @click="addExtraVar()">
+          <v-btn icon @click="addExtraVar()" data-testid="varGroup-addVar">
             <v-icon>
               mdi-plus
             </v-icon>
@@ -69,20 +99,35 @@
 
         </v-subheader>
 
-        <codemirror
-          v-if="extraVarsEditMode === 'json'"
-          :style="{ border: '1px solid lightgray' }"
-          v-model="json"
-          :options="cmOptions"
-          :placeholder="$t('enterExtraVariablesJson')"
-        />
+        <div v-if="extraVarsEditMode === 'json'" style="position: relative;">
+          <codemirror
+            :class="{
+              'EnvironmentEditor': true,
+            }"
+            :style="{ border: '1px solid lightgray' }"
+            v-model="json"
+            :options="cmOptions"
+            :placeholder="$t('enterExtraVariablesJson')"
+          />
 
+          <RichEditor
+            v-model="json"
+            type="json"
+            v-if="extraVarsEditMode === 'json'"
+            style="
+              position: absolute;
+              right: 0;
+              top: 0;
+              margin: 10px;
+            "
+          />
+        </div>
         <div v-else-if="extraVarsEditMode === 'table'">
           <v-data-table
             v-if="extraVars != null"
             :items="extraVars"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -122,16 +167,18 @@
             </template>
           </v-data-table>
 
-          <v-alert color="error" v-else>Can't be displayed as table.</v-alert>
+          <v-alert color="warning" v-else>
+            Oops! This JSON structure is a little too complex to display as a table.
+          </v-alert>
         </div>
 
         <div>
           <v-subheader class="px-0 mt-4">
             {{ $t('environmentVariables') }}
 
-            <v-spacer />
+            <v-spacer/>
 
-            <v-btn icon @click="addEnvVar()">
+            <v-btn icon @click="addEnvVar()" data-testid="varGroup-addEnv">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -140,7 +187,7 @@
           <v-data-table
             :items="env"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -184,6 +231,14 @@
 
       <v-tab-item key="secrets">
 
+        <div v-if="!isNew && secretStorage" class="pb-3">
+          <div style="font-weight: bold; font-size: 20px;">
+            <v-icon small class="mr-1">$vuetify.icons.hashicorp_vault</v-icon>
+            {{ secretStorage.name }}
+          </div>
+          <pre>{{ item.secret_storage_key_prefix }}*</pre>
+        </div>
+
         <div>
           <v-subheader class="px-0">
             {{ $t('extraVariables') }}
@@ -194,7 +249,8 @@
                   class="ml-1"
                   v-bind="attrs"
                   v-on="on"
-                >mdi-help-box</v-icon>
+                >mdi-help-box
+                </v-icon>
               </template>
               <div>
                 <div><code>--extra-vars</code> for Ansible</div>
@@ -202,8 +258,8 @@
               </div>
             </v-tooltip>
 
-            <v-spacer />
-            <v-btn icon @click="addSecret('var')">
+            <v-spacer/>
+            <v-btn icon @click="addSecret('var')" data-testid="varGroup-addSecretVar">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -213,7 +269,7 @@
           <v-data-table
             :items="secrets.filter(s => !s.remove && s.type === 'var')"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -260,9 +316,9 @@
           <v-subheader class="px-0 mt-4">
             {{ $t('environmentVariables') }}
 
-            <v-spacer />
+            <v-spacer/>
 
-            <v-btn icon @click="addSecret('env')">
+            <v-btn icon @click="addSecret('env')" data-testid="varGroup-addSecretEnv">
               <v-icon>
                 mdi-plus
               </v-icon>
@@ -272,7 +328,7 @@
           <v-data-table
             :items="secrets.filter(s => !s.remove && s.type === 'env')"
             :items-per-page="-1"
-            class="elevation-1"
+            class="elevation-1 FieldTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -320,7 +376,13 @@
 
   </v-form>
 </template>
-
+<style lang="scss">
+.EnvironmentEditor {
+  .CodeMirror {
+    height: 160px !important;
+  }
+}
+</style>
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 
@@ -331,19 +393,28 @@ import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/display/placeholder.js';
 import { getErrorMessage } from '@/lib/error';
+import RichEditor from '@/components/RichEditor.vue';
 
 export default {
   mixins: [ItemFormBase],
 
   props: {
     needHelp: Boolean,
+    supportStorages: Boolean,
   },
 
   components: {
+    RichEditor,
     codemirror,
   },
 
-  created() {
+  computed: {
+    secretStorage() {
+      if (this.item && this.item.secret_storage_id && this.secretStorages) {
+        return this.secretStorages.find((s) => s.id === this.item.secret_storage_id);
+      }
+      return null;
+    },
   },
 
   watch: {
@@ -390,9 +461,26 @@ export default {
     return {
       // PREDEFINED_ENV_VARS,
       images: [
-        'dind-runner:latest',
+        'dind-runner:v2.0.0',
+        'dind-runner:v2.0.2',
+        'dind-runner:v2.0.3',
+        'dind-runner:v2.0.4',
+        'dind-runner:v2.0.5',
+        'dind-runner:v2.0.6',
+        'dind-runner:v2.0.7',
+        'dind-runner:v2.0.8',
+        'dind-runner:v2.0.9',
+        'dind-runner:v2.0.10',
+        'nodejs-runner:v2.0.0',
+        'nodejs-runner:v2.0.3',
+        'nodejs-runner:v2.0.4',
+        'nodejs-runner:v2.0.5',
+        'nodejs-runner:v2.0.6',
+        'nodejs-runner:v2.0.7',
+        'nodejs-runner:v2.0.8',
+        'nodejs-runner:v2.0.9',
+        'nodejs-runner:v2.0.10',
       ],
-      advancedOptions: false,
 
       json: '{}',
       extraVars: [],
@@ -411,6 +499,8 @@ export default {
       },
 
       extraVarsEditMode: 'json',
+
+      secretStorages: null,
     };
   },
 
@@ -488,7 +578,7 @@ export default {
           operation = 'create';
         } else if (s.remove) {
           operation = 'delete';
-        } else if (s.value !== '') {
+        } else {
           operation = 'update';
         }
         return {
@@ -504,7 +594,23 @@ export default {
       this.item.secrets = secrets;
     },
 
-    afterLoadData() {
+    async afterLoadData() {
+      if (this.itemId === 'new') {
+        [
+          this.secretStorages,
+        ] = await Promise.all([
+          this.loadProjectResources('secret_storages'),
+        ]);
+      } else {
+        this.secretStorages = [];
+
+        if (this.item.secret_storage_id) {
+          this.secretStorages.push(
+            await this.loadProjectResource('secret_storages', this.item.secret_storage_id),
+          );
+        }
+      }
+
       this.json = JSON.stringify(JSON.parse(this.item?.json || '{}'), null, 2);
 
       const json = JSON.parse(this.item?.json || '{}');

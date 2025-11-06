@@ -4,10 +4,7 @@
     <NewTaskDialog
       v-model="newTaskDialog"
       :project-id="template.project_id"
-      :template-id="template.id"
-      :template-alias="template.name"
-      :template-type="template.type"
-      :template-app="template.app"
+      :template="template"
       :source-task="sourceTask"
     />
 

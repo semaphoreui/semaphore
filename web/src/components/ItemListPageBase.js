@@ -7,6 +7,7 @@ import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 import { getErrorMessage } from '@/lib/error';
 import { USER_PERMISSIONS } from '@/lib/constants';
 import PermissionsCheck from '@/components/PermissionsCheck';
+import ProjectMixin from '@/components/ProjectMixin';
 
 export default {
   components: {
@@ -15,14 +16,19 @@ export default {
     ObjectRefsDialog,
   },
 
-  mixins: [PermissionsCheck],
+  mixins: [PermissionsCheck, ProjectMixin],
 
   props: {
-    projectId: Number,
     projectType: String,
     userId: Number,
     userRole: String,
     user: Object,
+  },
+
+  computed: {
+    IDFieldName() {
+      return 'id';
+    },
   },
 
   data() {
@@ -92,6 +98,7 @@ export default {
         if (this.itemRefs.templates.length > 0
           || this.itemRefs.repositories.length > 0
           || this.itemRefs.inventories.length > 0
+          || this.itemRefs.access_keys.length > 0
           || this.itemRefs.schedules.length > 0) {
           this.itemRefsDialog = true;
           return;
@@ -107,7 +114,7 @@ export default {
       this.itemId = itemId;
 
       try {
-        const item = this.items.find((x) => x.id === itemId);
+        const item = this.items.find((x) => x[this.IDFieldName] === itemId);
 
         await axios({
           method: 'delete',

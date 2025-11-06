@@ -9,8 +9,8 @@ python3 -m venv .venv
 ./.venv/bin/pip3 install ansible
 
 task build
-task e2e:goodman
-task e2e:hooks
+task dredd:goodman
+task dredd:hooks
 
 cp ./.devcontainer/config.json ./.dredd/config.json
 

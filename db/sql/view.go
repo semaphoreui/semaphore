@@ -14,10 +14,16 @@ func (d *SqlDb) GetViews(projectID int) (views []db.View, err error) {
 
 func (d *SqlDb) UpdateView(view db.View) error {
 	_, err := d.exec(
-		"update project__view set title=?, position=?, project_id=? where id=?",
+		"update project__view set title=?, position=?, project_id=?, `type`=?, sort_column=?, sort_reverse=?, "+
+			"hidden=? "+
+			"where id=?",
 		view.Title,
 		view.Position,
 		view.ProjectID,
+		view.Type,
+		view.SortColumn,
+		view.SortReverse,
+		view.Hidden,
 		view.ID)
 
 	return err
@@ -26,10 +32,16 @@ func (d *SqlDb) UpdateView(view db.View) error {
 func (d *SqlDb) CreateView(view db.View) (newView db.View, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__view (project_id, title, position) values (?, ?, ?)",
+		"insert into project__view (project_id, title, position, `type`, sort_column, sort_reverse, "+
+			"hidden) values (?, ?, ?, ?, ?, ?, ?)",
 		view.ProjectID,
 		view.Title,
-		view.Position)
+		view.Position,
+		view.Type,
+		view.SortColumn,
+		view.SortReverse,
+		view.Hidden,
+	)
 
 	if err != nil {
 		return

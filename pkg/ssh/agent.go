@@ -2,8 +2,12 @@ package ssh
 
 import (
 	"fmt"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/util"
 	"io"
 	"net"
+	"path"
 
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"golang.org/x/crypto/ssh"
@@ -32,7 +36,7 @@ func (a *Agent) Listen() error {
 
 	for _, k := range a.Keys {
 		var (
-			key interface{}
+			key any
 			err error
 		)
 
@@ -60,7 +64,6 @@ func (a *Agent) Listen() error {
 			Name: a.SocketFile,
 		},
 	)
-
 	if err != nil {
 		return fmt.Errorf("listening on socket %q: %w", a.SocketFile, err)
 	}
@@ -72,7 +75,6 @@ func (a *Agent) Listen() error {
 	go func() {
 		for {
 			conn, err := a.listener.Accept()
-
 			if err != nil {
 				select {
 				case <-a.done:
@@ -84,7 +86,7 @@ func (a *Agent) Listen() error {
 			}
 
 			go func(conn net.Conn) {
-				defer conn.Close()
+				defer conn.Close() //nolint:errcheck
 
 				if err := agent.ServeAgent(keyring, conn); err != nil && err != io.EOF {
 					a.Logger.Logf("error serving SSH agent listener: %w", err)
@@ -97,6 +99,113 @@ func (a *Agent) Listen() error {
 }
 
 func (a *Agent) Close() error {
-	close(a.done)
-	return a.listener.Close()
+	if a.done != nil {
+		close(a.done)
+	}
+	if a.listener != nil {
+		return a.listener.Close()
+	}
+	return nil
+}
+
+func StartSSHAgent(key db.AccessKey, logger task_logger.Logger) (Agent, error) {
+
+	socketFilename := fmt.Sprintf("ssh-agent-%d-%s.sock", key.ID, random.String(10))
+
+	var socketFile string
+
+	if key.ProjectID == nil {
+		socketFile = path.Join(util.Config.TmpPath, socketFilename)
+	} else {
+		socketFile = path.Join(util.Config.GetProjectTmpDir(*key.ProjectID), socketFilename)
+	}
+
+	sshAgent := Agent{
+		Logger: logger,
+		Keys: []AgentKey{
+			{
+				Key:        []byte(key.SshKey.PrivateKey),
+				Passphrase: []byte(key.SshKey.Passphrase),
+			},
+		},
+		SocketFile: socketFile,
+	}
+
+	return sshAgent, sshAgent.Listen()
+}
+
+type AccessKeyInstallation struct {
+	SSHAgent *Agent
+	Login    string
+	Password string
+	Script   string
+}
+
+func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
+	env = make([]string, 0)
+
+	env = append(env, "GIT_TERMINAL_PROMPT=0")
+	if key.SSHAgent != nil {
+		env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
+		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+		if util.Config.SshConfigPath != "" {
+			sshCmd += " -F " + util.Config.SshConfigPath
+		}
+		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
+	}
+
+	return env
+}
+
+func (key *AccessKeyInstallation) Destroy() error {
+	if key.SSHAgent != nil {
+		return key.SSHAgent.Close()
+	}
+	return nil
+}
+
+type KeyInstaller struct{}
+
+func (KeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation AccessKeyInstallation, err error) {
+
+	switch usage {
+	case db.AccessKeyRoleGit:
+		switch key.Type {
+		case db.AccessKeySSH:
+			var agent Agent
+			agent, err = StartSSHAgent(key, logger)
+			installation.SSHAgent = &agent
+			installation.Login = key.SshKey.Login
+		}
+	case db.AccessKeyRoleAnsiblePasswordVault:
+		switch key.Type {
+		case db.AccessKeyLoginPassword:
+			installation.Password = key.LoginPassword.Password
+		default:
+			err = fmt.Errorf("access key type not supported for ansible password vault")
+		}
+	case db.AccessKeyRoleAnsibleBecomeUser:
+		if key.Type != db.AccessKeyLoginPassword {
+			err = fmt.Errorf("access key type not supported for ansible become user")
+		}
+		installation.Login = key.LoginPassword.Login
+		installation.Password = key.LoginPassword.Password
+	case db.AccessKeyRoleAnsibleUser:
+		switch key.Type {
+		case db.AccessKeySSH:
+			var agent Agent
+			agent, err = StartSSHAgent(key, logger)
+			installation.SSHAgent = &agent
+			installation.Login = key.SshKey.Login
+		case db.AccessKeyLoginPassword:
+			installation.Login = key.LoginPassword.Login
+			installation.Password = key.LoginPassword.Password
+		case db.AccessKeyNone:
+			// No SSH agent or password needed for ansible user with no access key.
+		default:
+			err = fmt.Errorf("access key type not supported for ansible user")
+		}
+	}
+
+	return
 }

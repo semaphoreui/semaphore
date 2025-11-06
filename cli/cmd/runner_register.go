@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
 )
@@ -19,24 +18,30 @@ func init() {
 	runnerCmd.AddCommand(runnerRegisterCmd)
 }
 
+func initRunnerRegistrationToken() {
+	if !runnerRegisterArgs.stdinRegistrationToken {
+		return
+	}
+
+	tokenBytes, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(tokenBytes) == 0 {
+		panic("Empty token")
+	}
+
+	util.Config.Runner.RegistrationToken = strings.TrimSpace(string(tokenBytes))
+}
+
 func registerRunner() {
 
 	configFile := util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
-	if runnerRegisterArgs.stdinRegistrationToken {
-		tokenBytes, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			panic(err)
-		}
+	initRunnerRegistrationToken()
 
-		if len(tokenBytes) == 0 {
-			panic("Empty token")
-		}
-
-		util.Config.Runner.RegistrationToken = strings.TrimSpace(string(tokenBytes))
-	}
-
-	taskPool := runners.JobPool{}
+	taskPool := createRunnerJobPool()
 
 	err := taskPool.Register(configFile)
 

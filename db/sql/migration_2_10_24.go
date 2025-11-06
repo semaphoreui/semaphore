@@ -7,7 +7,7 @@ type migration_2_10_24 struct {
 }
 
 func (m migration_2_10_24) PreApply(tx *gorp.Transaction) error {
-	switch m.db.sql.Dialect.(type) {
+	switch m.db.Sql().Dialect.(type) {
 	case gorp.MySQLDialect:
 		_, _ = tx.Exec(m.db.PrepareQuery("alter table `project__template` drop foreign key `project__template_ibfk_6`"))
 	case gorp.PostgresDialect:

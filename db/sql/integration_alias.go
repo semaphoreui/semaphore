@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"database/sql"
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )
@@ -61,14 +60,14 @@ func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, leve
 
 	err = d.selectOne(&aliasObj, query, args...)
 
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
+	if err != nil {
+		return
 	}
 
 	if aliasObj.IntegrationID == nil {
 		level = db.IntegrationAliasProject
 		var projIntegrations []db.Integration
-		projIntegrations, err = d.GetIntegrations(aliasObj.ProjectID, db.RetrieveQueryParams{})
+		projIntegrations, err = d.GetIntegrations(aliasObj.ProjectID, db.RetrieveQueryParams{}, true)
 		if err != nil {
 			return
 		}

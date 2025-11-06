@@ -1,23 +1,120 @@
 package sql
 
 import (
-	"database/sql"
+	"encoding/json"
+	"math/rand"
+	"time"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
-	"math/rand"
 )
 
-func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (db.TaskStage, error) {
-	_, err := d.exec(
-		"insert into task__stage (task_id, type) VALUES (?, ?, ?, ?)",
+func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error) {
+	insertID, err := d.insert(
+		"id",
+		"insert into task__stage "+
+			"(task_id, `start`, `end`, `type`) VALUES "+
+			"(?, ?, ?, ?)",
 		stage.TaskID,
-		stage.Type,
-		stage.Start)
-	return stage, err
+		stage.Start,
+		stage.End,
+		stage.Type)
+
+	if err != nil {
+		return
+	}
+
+	res = stage
+	res.ID = insertID
+	return
 }
 
-func (d *SqlDb) GetTaskStages(projectID int, taskID int) ([]db.TaskStage, error) {
-	return nil, nil
+func (d *SqlDb) EndTaskStage(taskID int, stageID int, end time.Time) (err error) {
+	_, err = d.exec(
+		"update task__stage set `end`=? where task_id=? and id=?",
+		end,
+		taskID,
+		stageID)
+
+	return
+}
+
+func (d *SqlDb) CreateTaskStageResult(taskID int, stageID int, result map[string]any) (err error) {
+	jsn, err := json.Marshal(result)
+	if err != nil {
+		return
+	}
+
+	_, err = d.insert(
+		"id",
+		"insert into task__stage_result "+
+			"(task_id, stage_id, `json`) VALUES "+
+			"(?, ?, ?)",
+		taskID,
+		stageID,
+		string(jsn))
+
+	return
+}
+
+func (d *SqlDb) getTaskStage(taskID int, stageID int) (res db.TaskStage, err error) {
+	err = d.selectOne(
+		&res,
+		"select * from task__stage where task_id=? and id=?",
+		taskID,
+		stageID)
+
+	return
+}
+
+func (d *SqlDb) validateTask(projectID int, taskID int) error {
+	_, err := d.GetTask(projectID, taskID)
+
+	return err
+}
+
+func (d *SqlDb) GetTaskStageResult(projectID int, taskID int, stageID int) (res db.TaskStageResult, err error) {
+
+	if err = d.validateTask(projectID, taskID); err != nil {
+		return
+	}
+
+	err = d.selectOne(
+		&res,
+		"select * from task__stage_result where task_id=? and stage_id=?",
+		taskID,
+		stageID)
+
+	return
+}
+
+func (d *SqlDb) getTaskStages(projectID int, taskID int, stageType *db.TaskStageType) (res []db.TaskStageWithResult, err error) {
+	if err = d.validateTask(projectID, taskID); err != nil {
+		return
+	}
+
+	q := squirrel.Select("p.*, pu.json").
+		From("task__stage as p").
+		Join("task__stage_result as pu on pu.stage_id=p.id").
+		Where("pu.task_id=?", taskID)
+
+	if stageType != nil {
+		q = q.Where(squirrel.Eq{"type": *stageType})
+	}
+
+	query, args, err := q.ToSql()
+
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&res, query, args...)
+
+	return
+}
+
+func (d *SqlDb) GetTaskStages(projectID int, taskID int) ([]db.TaskStageWithResult, error) {
+	return d.getTaskStages(projectID, taskID, nil)
 }
 
 func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
@@ -30,7 +127,7 @@ func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
 
 	if rand.Intn(10) == 0 { // randomly recalculate number of tasks for the template
 		var n int64
-		n, err = d.sql.SelectInt("SELECT count(*) FROM task WHERE template_id=?", templateID)
+		n, err = d.Sql().SelectInt("SELECT count(*) FROM task WHERE template_id=?", templateID)
 		if err != nil {
 			return
 		}
@@ -70,7 +167,7 @@ func (d *SqlDb) clearTasks(projectID int, templateID int, maxTasks int) {
 }
 
 func (d *SqlDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err error) {
-	err = d.sql.Insert(&task)
+	err = d.Sql().Insert(&task)
 	newTask = task
 
 	if err != nil {
@@ -92,7 +189,7 @@ func (d *SqlDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err err
 }
 
 func (d *SqlDb) UpdateTask(task db.Task) error {
-	err := task.PreUpdate(d.sql)
+	err := task.PreUpdate(d.Sql())
 	if err != nil {
 		return err
 	}
@@ -119,12 +216,37 @@ func (d *SqlDb) UpdateTask(task db.Task) error {
 }
 
 func (d *SqlDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
-	_, err := d.exec(
+	insertID, err := d.insert(
+		"id",
 		"insert into task__output (task_id, output, time) VALUES (?, ?, ?)",
 		output.TaskID,
 		output.Output,
 		output.Time.UTC())
+
+	output.ID = insertID
 	return output, err
+}
+
+func (d *SqlDb) InsertTaskOutputBatch(output []db.TaskOutput) error {
+
+	if len(output) == 0 {
+		return nil
+	}
+
+	q := squirrel.Insert("task__output").
+		Columns("task_id", "output", "time", "stage_id")
+
+	for _, item := range output {
+		q = q.Values(item.TaskID, item.Output, item.Time.UTC(), item.StageID)
+	}
+
+	query, args, err := q.ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = d.exec(query, args...)
+	return err
 }
 
 func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
@@ -140,6 +262,10 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("`user` on task.user_id=`user`.id").
 		OrderBy("id desc")
+
+	if params.TaskFilter != nil && len(params.TaskFilter.Status) > 0 {
+		q = q.Where(squirrel.Eq{"status": params.TaskFilter.Status})
+	}
 
 	if templateID == nil {
 		q = q.Where("tpl.project_id=?", projectID)
@@ -183,15 +309,6 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 
 	err = d.selectOne(&task, query, args...)
 
-	if err == sql.ErrNoRows {
-		err = db.ErrNotFound
-		return
-	}
-
-	if err != nil {
-		return
-	}
-
 	return
 }
 
@@ -224,16 +341,46 @@ func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
 	return
 }
 
-func (d *SqlDb) GetTaskOutputs(projectID int, taskID int) (output []db.TaskOutput, err error) {
-	// check if task exists in the project
-	_, err = d.GetTask(projectID, taskID)
+func (d *SqlDb) GetTaskOutputs(projectID int, taskID int, params db.RetrieveQueryParams) (output []db.TaskOutput, err error) {
 
+	if err = d.validateTask(projectID, taskID); err != nil {
+		return
+	}
+
+	q := squirrel.Select("task_id", "time", "output").
+		From("task__output").
+		Where("task_id=?", taskID).
+		OrderBy("time, id")
+
+	if params.Count > 0 {
+		q = q.Limit(uint64(params.Count)).Offset(uint64(params.Offset))
+	}
+
+	query, args, err := q.ToSql()
 	if err != nil {
 		return
 	}
 
-	_, err = d.selectAll(&output,
-		"select task_id, time, output from task__output where task_id=? order by id",
-		taskID)
+	_, err = d.selectAll(&output, query, args...)
+	return
+}
+
+func (d *SqlDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (output []db.TaskOutput, err error) {
+
+	if err = d.validateTask(projectID, taskID); err != nil {
+		return
+	}
+
+	q := squirrel.Select("id", "task_id", "time", "output").
+		From("task__output").
+		Where("task_id=?", taskID).
+		Where("stage_id=?", stageID)
+
+	query, args, err := q.ToSql()
+	if err != nil {
+		return
+	}
+
+	_, err = d.selectAll(&output, query, args...)
 	return
 }

@@ -3,12 +3,11 @@ package api
 import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/gorilla/context"
 	"net/http"
 )
 
 func setOption(w http.ResponseWriter, r *http.Request) {
-	currentUser := context.Get(r, "user").(*db.User)
+	currentUser := helpers.GetFromContext(r, "user").(*db.User)
 
 	if !currentUser.Admin {
 		helpers.WriteJSON(w, http.StatusForbidden, map[string]string{
@@ -34,7 +33,7 @@ func setOption(w http.ResponseWriter, r *http.Request) {
 }
 
 func getOptions(w http.ResponseWriter, r *http.Request) {
-	currentUser := context.Get(r, "user").(*db.User)
+	currentUser := helpers.GetFromContext(r, "user").(*db.User)
 
 	if !currentUser.Admin {
 		helpers.WriteJSON(w, http.StatusForbidden, map[string]string{

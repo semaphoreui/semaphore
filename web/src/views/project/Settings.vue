@@ -22,26 +22,48 @@
       style="margin: auto; max-width: 600px; padding: 0 16px;"
       class="CenterToScreen"
     >
-      <h2 class="mt-8 mb-1">General</h2>
+      <h2 class="mt-8 mb-1">{{ $t('general_settings') }}</h2>
 
       <v-divider class="mb-8" />
 
       <div class="project-settings-form">
-        <div style="height: 300px;">
-          <ProjectForm :item-id="projectId" ref="form" @error="onError" @save="onSave"/>
+        <div>
+          <ProjectForm
+            :item-id="projectId"
+            ref="form"
+            @error="onError"
+            @save="onSave"
+            :system-info="systemInfo"
+          />
         </div>
 
-        <div class="text-right">
+        <div class="d-flex justify-space-between mt-4">
+          <v-btn
+            color="blue-grey"
+            @click="sendTestNotification()"
+            width="170"
+            :disabled="testNotificationProgress"
+            data-testid="settings-testAlerts"
+          >Test Alerts</v-btn>
           <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
         </div>
+
+        <v-progress-linear
+          v-if="testNotificationProgress"
+          color="blue-grey darken-1"
+          indeterminate
+          rounded
+          width="170"
+          height="36"
+          style="margin-top: -36px; width: 170px;"
+        ></v-progress-linear>
       </div>
 
-      <h2 class="mt-8 mb-1">Danger Zone</h2>
+      <h2 class="mt-8 mb-1">{{ $t('danger_zone_settings') }}</h2>
 
       <v-divider class="mb-8" />
 
       <div class="project-backup project-settings-button" v-if="projectType === ''">
-
         <v-row align="center">
           <v-col class="shrink">
 
@@ -50,6 +72,7 @@
               @click="backupProject"
               :disabled="backupProgress"
               min-width="170"
+              data-testid="settings-exportProject"
             >{{ $t('backup') }}
             </v-btn>
 
@@ -70,6 +93,37 @@
           </v-col>
         </v-row>
       </div>
+
+      <div class="project-backup project-settings-button" v-if="projectType === ''">
+        <v-row align="center">
+          <v-col class="shrink">
+
+            <v-btn
+              color="blue-grey"
+              @click="clearCache"
+              :disabled="clearCacheProgress"
+              min-width="170"
+              data-testid="settings-clearCache"
+            >{{ $t('clear_cache') }}</v-btn>
+
+            <v-progress-linear
+              v-if="clearCacheProgress"
+              color="blue-grey darken-1"
+              indeterminate
+              rounded
+              height="36"
+              style="margin-top: -36px"
+            ></v-progress-linear>
+
+          </v-col>
+          <v-col class="grow">
+            <div style="font-size: 14px">
+              {{ $t('clear_cache_message') }}
+            </div>
+          </v-col>
+        </v-row>
+      </div>
+
       <div class="project-delete-form project-settings-button">
         <v-row align="center">
           <v-col class="shrink">
@@ -77,6 +131,7 @@
               color="error"
               min-width="170"
               @click="deleteProjectDialog = true"
+              data-testid="settings-deleteProject"
             >{{ $t('deleteProject2') }}
             </v-btn>
           </v-col>
@@ -121,16 +176,48 @@ export default {
   props: {
     projectId: Number,
     projectType: String,
+    systemInfo: Object,
   },
 
   data() {
     return {
       deleteProjectDialog: null,
       backupProgress: false,
+      clearCacheProgress: false,
+      testNotificationProgress: false,
     };
   },
 
   methods: {
+    async sendTestNotification() {
+      this.testNotificationProgress = true;
+      try {
+        await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/notifications/test`,
+          responseType: 'json',
+        });
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'Test notification sent.',
+        });
+      } catch (err) {
+        let msg;
+        if (err.response.status === 409) {
+          msg = 'Please allow alerts for the project and save it.';
+        } else {
+          msg = getErrorMessage(err);
+        }
+
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: msg,
+        });
+      } finally {
+        this.testNotificationProgress = false;
+      }
+    },
+
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },
@@ -151,6 +238,34 @@ export default {
 
     async saveProject() {
       await this.$refs.form.save();
+    },
+
+    async clearCache() {
+      this.clearCacheProgress = true;
+      await delay(1000);
+
+      try {
+        await axios({
+          method: 'delete',
+          url: `/api/project/${this.projectId}/cache`,
+          transformResponse: (res) => res, // Necessary to not parse json
+          responseType: 'json',
+        });
+
+        await delay(1000);
+
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'Project cache cleaned.',
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      } finally {
+        this.clearCacheProgress = false;
+      }
     },
 
     async backupProject() {

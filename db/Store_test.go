@@ -13,7 +13,7 @@ func TestObjectToJSON(t *testing.T) {
 	}
 	s := ObjectToJSON(v)
 	assert.NotNil(t, s)
-	assert.Equal(t, "{\"name\":\"test\",\"title\":\"Test\",\"required\":false,\"type\":\"\",\"description\":\"\",\"values\":null}", *s)
+	assert.Equal(t, "{\"name\":\"test\",\"title\":\"Test\"}", *s)
 }
 
 func TestObjectToJSON2(t *testing.T) {
@@ -29,5 +29,5 @@ func TestObjectToJSON3(t *testing.T) {
 	}
 	s := ObjectToJSON(v)
 	assert.NotNil(t, s)
-	assert.Equal(t, "{\"name\":\"test\",\"title\":\"Test\",\"required\":false,\"type\":\"\",\"description\":\"\",\"values\":null}", *s)
+	assert.Equal(t, "{\"name\":\"test\",\"title\":\"Test\"}", *s)
 }

@@ -3,7 +3,7 @@ import { getErrorMessage } from '@/lib/error';
 
 export default {
   props: {
-    integrationId: [Number, String],
+    // integrationId: [Number, String],
   },
   methods: {
     /**

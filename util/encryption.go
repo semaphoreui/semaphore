@@ -44,6 +44,6 @@ func GeneratePrivateKey(privateKeyFile io.Writer) (publicKey string, err error) 
 
 	publicKeyFile.Flush()
 
-	publicKey = string(b.Bytes())
+	publicKey = b.String()
 	return
 }

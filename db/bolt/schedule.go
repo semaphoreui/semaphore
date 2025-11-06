@@ -28,16 +28,19 @@ func (d *BoltDb) GetSchedules() (schedules []db.Schedule, err error) {
 
 func (d *BoltDb) getProjectSchedules(projectID int, filter func(referringObj db.Schedule) bool) (schedules []db.Schedule, err error) {
 	schedules = []db.Schedule{}
-	err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+	err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, func(referringObj any) bool {
 		return filter == nil || filter(referringObj.(db.Schedule))
 	}, &schedules)
 	return
 }
 
-func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWithTpl, err error) {
+func (d *BoltDb) GetProjectSchedules(projectID int, includeTaskParams bool, includeCommitCheckers bool) (schedules []db.ScheduleWithTpl, err error) {
 	schedules = []db.ScheduleWithTpl{}
 
 	orig, err := d.getProjectSchedules(projectID, func(s db.Schedule) bool {
+		if includeCommitCheckers {
+			return true
+		}
 		return s.RepositoryID == nil
 	})
 
@@ -60,9 +63,9 @@ func (d *BoltDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWith
 	return
 }
 
-func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int) (schedules []db.Schedule, err error) {
+func (d *BoltDb) GetTemplateSchedules(projectID int, templateID int, onlyCommitCheckers bool) (schedules []db.Schedule, err error) {
 	schedules, err = d.getProjectSchedules(projectID, func(s db.Schedule) bool {
-		return s.TemplateID == templateID && s.RepositoryID != nil
+		return s.TemplateID == templateID && (!onlyCommitCheckers || s.RepositoryID != nil)
 	})
 
 	return

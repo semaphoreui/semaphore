@@ -2,15 +2,16 @@ package api
 
 import (
 	"errors"
-	"github.com/gorilla/context"
-	"github.com/pquerna/otp"
-	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pquerna/otp"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	proApi "github.com/semaphoreui/semaphore/pro/api"
+	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/pquerna/otp/totp"
 )
@@ -19,11 +20,10 @@ func getSession(r *http.Request) (*db.Session, bool) {
 	// fetch session from cookie
 	cookie, err := r.Cookie("semaphore")
 	if err != nil {
-		//w.WriteHeader(http.StatusUnauthorized)
 		return nil, false
 	}
 
-	value := make(map[string]interface{})
+	value := make(map[string]any)
 	if err = util.Cookie.Decode("semaphore", cookie.Value, &value); err != nil {
 		//w.WriteHeader(http.StatusUnauthorized)
 		return nil, false
@@ -55,7 +55,6 @@ func getSession(r *http.Request) (*db.Session, bool) {
 			log.Error(err)
 		}
 
-		//w.WriteHeader(http.StatusUnauthorized)
 		return nil, false
 	}
 
@@ -71,6 +70,28 @@ type totpRecoveryRequestBody struct {
 	RecoveryCode string `json:"recovery_code"`
 }
 
+// recoverySession handles the recovery of a user session using a recovery code.
+// It validates the recovery code provided by the user and, if valid, verifies the session.
+// If the recovery code is invalid or recovery is not allowed, it returns an appropriate HTTP status code.
+//
+// HTTP Request:
+// - Method: POST
+// - Body: JSON object containing the recovery code (e.g., {"recovery_code": "code"}).
+//
+// Responses:
+// - 204 No Content: Recovery successful, session verified.
+// - 400 Bad Request: Invalid request body or user does not have TOTP enabled.
+// - 401 Unauthorized: Invalid recovery code or session not found.
+// - 403 Forbidden: TOTP recovery is disabled.
+// - 500 Internal Server Error: An unexpected error occurred.
+//
+// Preconditions:
+// - The session must exist and be valid.
+// - TOTP recovery must be enabled in the configuration.
+//
+// Parameters:
+// - w: The HTTP response writer.
+// - r: The HTTP request.
 func recoverySession(w http.ResponseWriter, r *http.Request) {
 	session, ok := getSession(r)
 
@@ -131,7 +152,6 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// nolint: gocyclo
 func verifySession(w http.ResponseWriter, r *http.Request) {
 	session, ok := getSession(r)
 
@@ -141,6 +161,10 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch session.VerificationMethod {
+	case db.SessionVerificationEmail:
+		proApi.VerifySessionByEmail(session, w, r)
+		return
+
 	case db.SessionVerificationTotp:
 		if !util.Config.Auth.Totp.Enabled {
 			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
@@ -184,8 +208,10 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
+func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req *http.Request) {
 	var userID int
+
+	req = r
 
 	authHeader := strings.ToLower(r.Header.Get("authorization"))
 
@@ -198,21 +224,28 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 			}
 
 			w.WriteHeader(http.StatusUnauthorized)
-			return false
+			return
 		}
 
 		userID = token.UserID
 	} else {
-		session, ok := getSession(r)
+		session, found := getSession(r)
 
-		if !ok {
+		if !found {
 			w.WriteHeader(http.StatusUnauthorized)
-			return false
+			return
 		}
 
 		if !session.IsVerified() {
-			helpers.WriteErrorStatus(w, "TOTP_REQUIRED", http.StatusUnauthorized)
-			return false
+			switch session.VerificationMethod {
+			case db.SessionVerificationEmail:
+				helpers.WriteErrorStatus(w, "EMAIL_OTP_REQUIRED", http.StatusUnauthorized)
+			case db.SessionVerificationTotp:
+				helpers.WriteErrorStatus(w, "TOTP_REQUIRED", http.StatusUnauthorized)
+			default:
+				helpers.WriteErrorStatus(w, "SESSION_NOT_VERIFIED", http.StatusUnauthorized)
+			}
+			return
 		}
 
 		userID = session.UserID
@@ -220,7 +253,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 		if err := helpers.Store(r).TouchSession(userID, session.ID); err != nil {
 			log.Error(err)
 			w.WriteHeader(http.StatusUnauthorized)
-			return false
+			return
 		}
 	}
 
@@ -231,17 +264,18 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 			log.Error(err)
 		}
 		w.WriteHeader(http.StatusUnauthorized)
-		return false
+		return
 	}
 
-	context.Set(r, "user", &user)
-	return true
+	ok = true
+	req = helpers.SetContextValue(r, "user", &user)
+	return
 }
 
 // nolint: gocyclo
 func authentication(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ok := authenticationHandler(w, r)
+		ok, r := authenticationHandler(w, r)
 		if ok {
 			next.ServeHTTP(w, r)
 		}
@@ -256,7 +290,7 @@ func authenticationWithStore(next http.Handler) http.Handler {
 		var ok bool
 
 		db.StoreSession(store, r.URL.String(), func() {
-			ok = authenticationHandler(w, r)
+			ok, r = authenticationHandler(w, r)
 		})
 
 		if ok {
@@ -267,7 +301,7 @@ func authenticationWithStore(next http.Handler) http.Handler {
 
 func adminMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := context.Get(r, "user").(*db.User)
+		user := helpers.GetFromContext(r, "user").(*db.User)
 
 		if !user.Admin {
 			w.WriteHeader(http.StatusForbidden)

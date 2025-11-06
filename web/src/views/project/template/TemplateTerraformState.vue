@@ -1,5 +1,5 @@
 <template>
-  <div v-if="inventories != null && states != null">
+  <div v-if="inventories != null && states != null" class="mt-8">
 
     <EditDialog
       v-model="editDialog"
@@ -135,161 +135,187 @@
         </v-menu>
       </div>
 
-      <v-divider class="mb-6"/>
-
-      <div class="mb-6 d-flex justify-space-between align-center" v-if="inventories.length > 0">
-
-        <h2>{{ inventory.inventory }} workspace</h2>
-
-        <div>
-
-          <v-btn
-            class="mr-4"
-            :disabled="inventoryId === template.inventory_id"
-            color="success"
-            @click="setDefaultInventory()"
-          >
-            Make default
-          </v-btn>
-
-          <v-btn
-            class="mr-4"
-            color="primary"
-            :disabled="inventoryId === template.inventory_id"
-            @click="detachInventory()"
-          >
-            Detach
-          </v-btn>
-
-          <v-btn
-            icon
-            class="mr-2"
-            color="error"
-            :disabled="inventoryId === template.inventory_id"
-            @click="deleteInventoryDialog = true;"
-          >
-            <v-icon>mdi-delete</v-icon>
-          </v-btn>
-
-          <v-btn
-            icon
-            @click="itemId = inventoryId; inventoryDialog = true;"
-          >
-            <v-icon>mdi-pencil</v-icon>
-          </v-btn>
-        </div>
-      </div>
-
-      <v-alert
-        type="info"
-        text
-        color="hsl(348deg, 86%, 61%)"
-        style="border-radius: 0;"
-        v-if="!premiumFeatures.terraform_backend"
+      <v-card
+        style="background-color: var(--highlighted-card-bg-color);"
+        v-if="inventories.length > 0"
       >
-        <span class="mr-2">
-          Terraform/OpenTofu HTTP backend available only in <b>PRO</b> version.
-        </span>
-        <v-btn
+
+        <v-card-title
+          class="d-flex justify-space-between align-center"
+          style="font-weight: normal;"
+        >
+
+          <span>Workspace: <strong>{{ inventory.inventory }}</strong></span>
+
+          <div>
+
+            <v-btn
+              class="mr-4"
+              :disabled="inventoryId === template.inventory_id"
+              color="success"
+              @click="setDefaultInventory()"
+            >
+              Make default
+            </v-btn>
+
+            <v-btn
+              class="mr-4"
+              color="primary"
+              :disabled="inventoryId === template.inventory_id"
+              @click="detachInventory()"
+            >
+              Detach
+            </v-btn>
+
+            <v-btn
+              icon
+              class="mr-2"
+              color="error"
+              :disabled="inventoryId === template.inventory_id"
+              @click="deleteInventoryDialog = true;"
+            >
+              <v-icon>mdi-delete</v-icon>
+            </v-btn>
+
+            <v-btn
+              icon
+              @click="itemId = inventoryId; inventoryDialog = true;"
+            >
+              <v-icon>mdi-pencil</v-icon>
+            </v-btn>
+          </div>
+
+        </v-card-title>
+
+        <v-divider />
+
+        <v-alert
+          type="info"
+          text
           color="hsl(348deg, 86%, 61%)"
-          href="https://semaphoreui.com/pro"
+          style="border-radius: 0;"
+          v-if="!premiumFeatures.terraform_backend"
         >
-          Learn more
-          <v-icon>mdi-chevron-right</v-icon>
-        </v-btn>
-      </v-alert>
-
-      <div class="mb-3 pl-1" v-if="(aliases || []).length === 0">There is no aliases.</div>
-
-      <div v-else v-for="alias of (aliases || [])" :key="alias.id">
-        <code class="mr-2">{{ alias.url }}</code>
-        <v-btn
-          icon
-          @click="copyToClipboard(alias.url, $t('aliasUrlCopied'))"
-        >
-          <v-icon>mdi-content-copy</v-icon>
-        </v-btn>
-        <v-btn icon @click="editAlias(alias.id)">
-          <v-icon>mdi-pencil</v-icon>
-        </v-btn>
-        <v-btn icon @click="deleteAlias(alias.id)">
-          <v-icon>mdi-delete</v-icon>
-        </v-btn>
-      </div>
-
-      <v-btn
-        color="primary"
-        @click="addAlias()"
-        :disabled="!premiumFeatures.terraform_backend"
-      >
-        {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
-      </v-btn>
-    </div>
-
-    <v-data-table
-      style="max-width: 1000px; margin: auto;"
-      v-if="premiumFeatures.terraform_backend"
-      :headers="headers"
-      :items="states"
-      :footer-props="{ itemsPerPageOptions: [20] }"
-      single-expand
-      show-expand
-      class="mt-4 TaskListTable"
-    >
-      <template v-slot:item.id="{ item }">
-        #{{ item.id }}
-      </template>
-
-      <template v-slot:item.task_id="{ item }">
-        <TaskLink
-          v-if="item.task_id"
-          :task-id="item.task_id"
-          :label="'#' + item.task_id"
-        />
-        <div v-else>&mdash;</div>
-      </template>
-
-      <template v-slot:item.status="{ item }">
-        <TaskStatus :status="item.status"/>
-      </template>
-
-      <template v-slot:item.created="{ item }">
-        {{ item.created | formatDate }}
-      </template>
-
-      <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="deleteState(item)">
-            <v-icon>mdi-delete</v-icon>
+            <span class="mr-2">
+              Terraform/OpenTofu HTTP backend available only in <b>PRO</b> version.
+            </span>
+          <v-btn
+            color="hsl(348deg, 86%, 61%)"
+            href="https://semaphoreui.com/pro#runners"
+          >
+            Learn more
+            <v-icon>mdi-chevron-right</v-icon>
           </v-btn>
-        </v-btn-toggle>
-      </template>
+        </v-alert>
+        <v-card-text>
 
-      <template v-slot:expanded-item="{ headers, item }">
-        <td
-          :colspan="headers.length"
-          style="max-width: 400px"
-        >
-          <TerraformStateView
-            class="mb-1"
-            :project-id="template.project_id"
-            :inventory-id="inventoryId"
-            :state-id="item.id"
-          />
-        </td>
-      </template>
-    </v-data-table>
+          <h3>Aliases</h3>
+          <div class="mb-6">Unique endpoints (aliases) to access your Terraform HTTP backend.</div>
 
-    <v-container v-else>
-      <div style="text-align: center; color: grey;">No state available.</div>
-    </v-container>
+          <div v-for="alias of (aliases || [])" :key="alias.id">
+            <code class="mr-2">{{ alias.url }}</code>
+            <CopyClipboardButton
+              :text="alias.url"
+              :success-message="$t('aliasUrlCopied')"
+            />
+            <v-btn icon @click="editAlias(alias.id)">
+              <v-icon>mdi-pencil</v-icon>
+            </v-btn>
+            <v-btn icon @click="deleteAlias(alias.id)">
+              <v-icon>mdi-delete</v-icon>
+            </v-btn>
+          </div>
+
+          <v-btn
+            color="primary"
+            @click="addAlias()"
+            :disabled="!premiumFeatures.terraform_backend"
+            class="mb-8"
+          >
+            {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
+          </v-btn>
+
+          <v-divider class="mb-4" />
+
+          <h3>State history</h3>
+          <div class="mb-6">Chronological history of the workspace state changes.</div>
+
+          <v-data-table
+            style="
+              background: transparent;
+            "
+            v-if="premiumFeatures.terraform_backend"
+            :headers="headers"
+            :items="states"
+            :footer-props="{ itemsPerPageOptions: [20] }"
+            single-expand
+            show-expand
+            class="mt-4 TaskListTable TaskListTable TerraformStateTable"
+          >
+            <template v-slot:item.id="{ item }">
+              #{{ item.id }}
+            </template>
+
+            <template v-slot:item.task_id="{ item }">
+              <TaskLink
+                v-if="item.task_id"
+                :task-id="item.task_id"
+                :label="'#' + item.task_id"
+              />
+              <div v-else>&mdash;</div>
+            </template>
+
+            <template v-slot:item.status="{ item }">
+              <TaskStatus :status="item.status" />
+            </template>
+
+            <template v-slot:item.created="{ item }">
+              {{ item.created | formatDate }}
+            </template>
+
+            <template v-slot:expanded-item="{ headers, item }">
+              <td
+                :colspan="headers.length"
+                style="max-width: 400px"
+              >
+                <TerraformStateView
+                  class="mb-1"
+                  :project-id="template.project_id"
+                  :inventory-id="inventoryId"
+                  :state-id="item.id"
+                />
+              </td>
+            </template>
+          </v-data-table>
+
+          <v-container v-else>
+            <div style="text-align: center; color: grey;">No state available.</div>
+          </v-container>
+
+        </v-card-text>
+      </v-card>
+
+    </div>
 
   </div>
 </template>
+<style lang="scss">
+.TerraformStateTable {
+
+  .v-data-table__wrapper {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .v-data-footer {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}
+</style>
 <script>
 
 import axios from 'axios';
-import EventBus from '@/event-bus';
 import TerraformInventoryForm from '@/components/TerraformInventoryForm.vue';
 import EditDialog from '@/components/EditDialog.vue';
 import { APP_INVENTORY_TITLE } from '@/lib/constants';
@@ -300,6 +326,7 @@ import TerraformAliasForm from '@/components/TerraformAliasForm.vue';
 import TaskStatus from '@/components/TaskStatus.vue';
 import TaskLink from '@/components/TaskLink.vue';
 import TerraformStateView from '@/components/TerraformStateView.vue';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 
 export default {
   mixins: [AppsMixin],
@@ -310,6 +337,7 @@ export default {
   },
 
   components: {
+    CopyClipboardButton,
     TerraformStateView,
     TaskLink,
     TaskStatus,
@@ -380,9 +408,6 @@ export default {
   },
 
   methods: {
-    deleteState(id) {
-      console.log(id);
-    },
 
     async setDefaultInventory() {
       await axios({
@@ -423,6 +448,10 @@ export default {
     },
 
     async loadStates() {
+      if (!this.inventoryId) {
+        this.states = [];
+        return;
+      }
       this.states = (await axios.get(`/api/project/${this.template.project_id}/inventory/${this.inventoryId}/terraform/states`)).data;
     },
 
@@ -441,6 +470,10 @@ export default {
     },
 
     async loadAliases() {
+      if (!this.inventoryId) {
+        this.aliases = [];
+        return;
+      }
       try {
         this.aliases = (await axios({
           url: `/api/project/${this.template.project_id}/inventory/${this.inventoryId}/terraform/aliases`,
@@ -457,21 +490,6 @@ export default {
         url: `/api/project/${this.template.project_id}/inventory/${this.inventoryId}/terraform/aliases/${alias}`,
       });
       await this.loadAliases();
-    },
-
-    async copyToClipboard(text) {
-      try {
-        await window.navigator.clipboard.writeText(text);
-        EventBus.$emit('i-snackbar', {
-          color: 'success',
-          text: 'The command has been copied to the clipboard.',
-        });
-      } catch (e) {
-        EventBus.$emit('i-snackbar', {
-          color: 'error',
-          text: `Can't copy the command: ${e.message}`,
-        });
-      }
     },
 
     editAlias(alias) {

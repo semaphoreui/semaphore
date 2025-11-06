@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 )
 
@@ -83,9 +84,57 @@ func TestLoadEnvironmentToObject(t *testing.T) {
 	}
 }
 
-func TestCastStringToInt(t *testing.T) {
+func TestLoadEnvironmentToObject_Arr(t *testing.T) {
+	var val struct {
+		StringArr []string `env:"TEST_STRING_ARR"`
+	}
 
-	var errMsg = "Cast string => int failed"
+	err := os.Setenv("TEST_STRING_ARR", "[\"test1\",\"test2\"]")
+	if err != nil {
+		panic(err)
+	}
+
+	err = loadEnvironmentToObject(&val)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if val.StringArr == nil {
+		t.Error("Invalid array value")
+	}
+
+	if val.StringArr[0] != "test1" {
+		t.Error("Invalid array item value")
+	}
+
+	if val.StringArr[1] != "test2" {
+		t.Error("Invalid array item value")
+	}
+}
+
+func TestLoadEnvironmentToObject_Map(t *testing.T) {
+	type User struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+	var val struct {
+		Users map[string]User `env:"TEST_USERS"`
+	}
+
+	err := os.Setenv("TEST_USERS", "{\"test\":{\"name\":\"test\",\"age\":5}}")
+	if err != nil {
+		panic(err)
+	}
+
+	err = loadEnvironmentToObject(&val)
+
+	if val.Users["test"].Name != "test" {
+		t.Error("Invalid field value")
+	}
+}
+
+func TestCastStringToInt(t *testing.T) {
+	errMsg := "Cast string => int failed"
 
 	if castStringToInt("5") != 5 {
 		t.Error(errMsg)
@@ -106,12 +155,10 @@ func TestCastStringToInt(t *testing.T) {
 		}
 	}()
 	castStringToInt("xxx")
-
 }
 
 func TestCastStringToBool(t *testing.T) {
-
-	var errMsg = "Cast string => bool failed"
+	errMsg := "Cast string => bool failed"
 
 	if castStringToBool("1") != true {
 		t.Error(errMsg)
@@ -131,11 +178,10 @@ func TestCastStringToBool(t *testing.T) {
 	if castStringToBool("") != false {
 		t.Error(errMsg)
 	}
-
 }
 
 func TestConfigInitialization(t *testing.T) {
-	var testLdapMappingsUID = "uid"
+	testLdapMappingsUID := "uid"
 
 	Config = NewConfigType()
 
@@ -144,14 +190,13 @@ func TestConfigInitialization(t *testing.T) {
 }
 
 func TestGetConfigValue(t *testing.T) {
-
 	Config = NewConfigType()
 
-	var testPort = "1337"
-	var testCookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
-	var testMaxParallelTasks = 5
-	var testLdapNeedTls = true
-	var testDbHost = "192.168.0.1"
+	testPort := "1337"
+	testCookieHash := "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
+	testMaxParallelTasks := 5
+	testLdapNeedTls := true
+	testDbHost := "192.168.0.1"
 
 	Config.Port = testPort
 	Config.CookieHash = testCookieHash
@@ -191,28 +236,26 @@ func TestGetConfigValue(t *testing.T) {
 		}
 	}()
 	getConfigValue("Not.Existent")
-
 }
 
 func TestSetConfigValue(t *testing.T) {
-
 	Config = new(ConfigType)
 
 	configValue := reflect.ValueOf(Config).Elem()
 
-	var testPort = "1337"
-	var testCookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
-	var testMaxParallelTasks = 5
-	var testLdapNeedTls = true
-	//var testDbHost string = "192.168.0.1"
-	var testEmailSecure = "1"
-	var expectEmailSecure = true
+	testPort := "1337"
+	testCookieHash := "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
+	testMaxParallelTasks := 5
+	testLdapNeedTls := true
+	// var testDbHost string = "192.168.0.1"
+	testEmailSecure := "1"
+	expectEmailSecure := true
 
 	setConfigValue(configValue.FieldByName("Port"), testPort)
 	setConfigValue(configValue.FieldByName("CookieHash"), testCookieHash)
-	setConfigValue(configValue.FieldByName("MaxParallelTasks"), testMaxParallelTasks)
-	setConfigValue(configValue.FieldByName("LdapNeedTLS"), testLdapNeedTls)
-	//setConfigValue(configValue.FieldByName("BoltDb.Hostname"), testDbHost)
+	setConfigValue(configValue.FieldByName("MaxParallelTasks"), strconv.Itoa(testMaxParallelTasks))
+	setConfigValue(configValue.FieldByName("LdapNeedTLS"), "true")
+	// setConfigValue(configValue.FieldByName("BoltDb.Hostname"), testDbHost)
 	setConfigValue(configValue.FieldByName("EmailSecure"), testEmailSecure)
 
 	if Config.Port != testPort {
@@ -246,31 +289,30 @@ func TestSetConfigValue(t *testing.T) {
 			t.Error("Did not fail on non-existent config attribute!")
 		}
 	}()
-	//setConfigValue(configValue.FieldByName("Not.Existent"), "someValue")
+	// setConfigValue(configValue.FieldByName("Not.Existent"), "someValue")
 
 }
 
 func TestLoadConfigEnvironmet(t *testing.T) {
-
 	Config = new(ConfigType)
 	Config.BoltDb = &DbConfig{}
 	Config.Dialect = DbDriverBolt
 
-	var envPort = "1337"
-	var envCookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
-	var envAccessKeyEncryption = "1/wRYXQltDGwbzNZRP9ZfJb2IoWcn1hYrxA0vOdvVos="
-	var envMaxParallelTasks = "5"
-	var expectMaxParallelTasks = 5
-	var expectLdapNeedTls = true
-	var envLdapNeedTls = "1"
-	var envDbHost = "192.168.0.1"
+	envPort := "1337"
+	envCookieHash := "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
+	envAccessKeyEncryption := "1/wRYXQltDGwbzNZRP9ZfJb2IoWcn1hYrxA0vOdvVos="
+	envMaxParallelTasks := "5"
+	expectMaxParallelTasks := 5
+	expectLdapNeedTls := true
+	envLdapNeedTls := "1"
+	envDbHost := "192.168.0.1"
 
-	os.Setenv("SEMAPHORE_PORT", envPort)
-	os.Setenv("SEMAPHORE_COOKIE_HASH", envCookieHash)
-	os.Setenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION", envAccessKeyEncryption)
-	os.Setenv("SEMAPHORE_MAX_PARALLEL_TASKS", envMaxParallelTasks)
-	os.Setenv("SEMAPHORE_LDAP_NEEDTLS", envLdapNeedTls)
-	os.Setenv("SEMAPHORE_DB_HOST", envDbHost)
+	os.Setenv("SEMAPHORE_PORT", envPort)                                 //nolint:errcheck
+	os.Setenv("SEMAPHORE_COOKIE_HASH", envCookieHash)                    //nolint:errcheck
+	os.Setenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION", envAccessKeyEncryption) //nolint:errcheck
+	os.Setenv("SEMAPHORE_MAX_PARALLEL_TASKS", envMaxParallelTasks)       //nolint:errcheck
+	os.Setenv("SEMAPHORE_LDAP_NEEDTLS", envLdapNeedTls)                  //nolint:errcheck
+	os.Setenv("SEMAPHORE_DB_HOST", envDbHost)                            //nolint:errcheck
 
 	loadConfigEnvironment()
 
@@ -297,13 +339,11 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 	//	// inactive db-dialects could be set as they share the same env-vars; but should be ignored
 	//	t.Error("DB-Hostname was loaded for inactive DB-dialects!")
 	//}
-
 }
 
 func TestLoadConfigDefaults(t *testing.T) {
-
 	Config = new(ConfigType)
-	var errMsg = "Failed to load config-default"
+	errMsg := "Failed to load config-default"
 
 	loadConfigDefaults()
 
@@ -315,8 +355,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 	}
 }
 
-func ensureConfigValidationFailure(t *testing.T, attribute string, value interface{}) {
-
+func ensureConfigValidationFailure(t *testing.T, attribute string, value any) {
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf(
@@ -326,18 +365,18 @@ func ensureConfigValidationFailure(t *testing.T, attribute string, value interfa
 		}
 	}()
 	validateConfig()
-
 }
 
 func TestValidateConfig(t *testing.T) {
-	//assert := assert.New(t)
+	// assert := assert.New(t)
 
 	Config = new(ConfigType)
 
-	var testPort = ":3000"
-	var testDbDialect = DbDriverBolt
-	var testCookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
-	var testMaxParallelTasks = 0
+	testPort := ":3000"
+	testDbDialect := DbDriverBolt
+	testCookieHash := "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
+	testMaxParallelTasks := 0
+	testEmailTlsMinVersion := "1.2"
 
 	Config.Port = testPort
 	Config.Dialect = testDbDialect
@@ -346,6 +385,7 @@ func TestValidateConfig(t *testing.T) {
 	Config.GitClientId = GoGitClientId
 	Config.CookieEncryption = testCookieHash
 	Config.AccessKeyEncryption = testCookieHash
+	Config.EmailTlsMinVersion = testEmailTlsMinVersion
 	validateConfig()
 
 	Config.Port = "INVALID"
@@ -361,21 +401,20 @@ func TestValidateConfig(t *testing.T) {
 	ensureConfigValidationFailure(t, "MaxParallelTasks", Config.MaxParallelTasks)
 	Config.MaxParallelTasks = testMaxParallelTasks
 
-	//Config.CookieHash = "\"0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ=\"" // invalid with quotes (can happen when supplied as env-var)
-	//ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
+	// Config.CookieHash = "\"0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ=\"" // invalid with quotes (can happen when supplied as env-var)
+	// ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
 
-	//Config.CookieHash = "!)394340"
-	//ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
+	// Config.CookieHash = "!)394340"
+	// ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
 
-	//Config.CookieHash = ""
-	//ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
+	// Config.CookieHash = ""
+	// ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
 
-	//Config.CookieHash = "TQwjDZ5fIQtaIw==" // valid b64, but too small
-	//ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
+	// Config.CookieHash = "TQwjDZ5fIQtaIw==" // valid b64, but too small
+	// ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
 	Config.CookieHash = testCookieHash
 
 	Config.Dialect = "someOtherDB"
 	ensureConfigValidationFailure(t, "Dialect", Config.Dialect)
 	Config.Dialect = testDbDialect
-
 }

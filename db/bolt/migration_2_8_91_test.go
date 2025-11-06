@@ -40,7 +40,7 @@ func TestMigration_2_8_91_Apply(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var userData map[string]interface{}
+	var userData map[string]any
 	err = store.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte("project__user_0000000001"))
 		str := string(b.Get([]byte("0000000001")))

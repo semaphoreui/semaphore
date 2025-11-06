@@ -10,7 +10,7 @@ import (
 func (d *BoltDb) GetOptions(params db.RetrieveQueryParams) (res map[string]string, err error) {
 	res = make(map[string]string)
 	var options []db.Option
-	err = d.getObjects(0, db.OptionProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+	err = d.getObjects(0, db.OptionProps, db.RetrieveQueryParams{}, func(i any) bool {
 
 		option := i.(db.Option)
 		if params.Filter == "" {
@@ -83,7 +83,7 @@ func (d *BoltDb) DeleteOptions(filter string) (err error) {
 
 	var options []db.Option
 
-	err = d.getObjects(0, db.OptionProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+	err = d.getObjects(0, db.OptionProps, db.RetrieveQueryParams{}, func(i any) bool {
 		opt := i.(db.Option)
 		return opt.Key == filter || strings.HasPrefix(opt.Key, filter+".")
 	}, &options)

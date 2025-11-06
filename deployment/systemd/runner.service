@@ -4,7 +4,7 @@ Requires=network.target
 
 [Service]
 EnvironmentFile=/etc/semaphore/env
-ExecStart=/usr/bin/semaphore runner --config ${SEMAPHORE_CONFIG}
+ExecStart=/usr/bin/semaphore runner start --config ${SEMAPHORE_CONFIG}
 ExecReload=/bin/kill -HUP $MAINPID
 User=semaphore
 Group=semaphore

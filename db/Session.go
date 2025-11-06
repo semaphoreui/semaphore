@@ -7,6 +7,7 @@ type SessionVerificationMethod int
 const (
 	SessionVerificationNone SessionVerificationMethod = iota
 	SessionVerificationTotp
+	SessionVerificationEmail
 )
 
 // Session is a connection to the API

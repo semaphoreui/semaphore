@@ -1,0 +1,20 @@
+version: "2"
+
+run:
+  timeout: "240s"
+  # TODO: remove following line to make golangci return non-zero as lint were not passed
+  issues-exit-code: 0
+
+linters:
+  default: standard
+  disable:
+    - unused
+
+formatters:
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      rewrite-rules:
+        - pattern: 'interface{}'
+          replacement: 'any'

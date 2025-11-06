@@ -12,18 +12,29 @@ func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db
 		return
 	}
 
+	if integration.TaskParams != nil {
+		params := *integration.TaskParams
+		params.ProjectID = integration.ProjectID
+		err = d.Sql().Insert(&params)
+		if err != nil {
+			return
+		}
+		integration.TaskParamsID = &params.ID
+	}
+
 	insertID, err := d.insert(
 		"id",
 		"insert into project__integration "+
-			"(project_id, name, template_id, auth_method, auth_secret_id, auth_header, searchable) values "+
-			"(?, ?, ?, ?, ?, ?, ?)",
+			"(project_id, name, template_id, auth_method, auth_secret_id, auth_header, searchable, task_params_id) values "+
+			"(?, ?, ?, ?, ?, ?, ?, ?)",
 		integration.ProjectID,
 		integration.Name,
 		integration.TemplateID,
 		integration.AuthMethod,
 		integration.AuthSecretID,
 		integration.AuthHeader,
-		integration.Searchable)
+		integration.Searchable,
+		integration.TaskParamsID)
 
 	if err != nil {
 		return
@@ -35,13 +46,43 @@ func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db
 	return
 }
 
-func (d *SqlDb) GetIntegrations(projectID int, params db.RetrieveQueryParams) (integrations []db.Integration, err error) {
+func (d *SqlDb) GetIntegrations(projectID int, params db.RetrieveQueryParams, includeTaskParams bool) (integrations []db.Integration, err error) {
 	err = d.getObjects(projectID, db.IntegrationProps, params, nil, &integrations)
+
+	if includeTaskParams {
+		for i := range integrations {
+			if integrations[i].TaskParamsID == nil {
+				continue
+			}
+
+			var taskParams db.TaskParams
+			err = d.getObject(projectID, db.TaskParamsProps, *integrations[i].TaskParamsID, &taskParams)
+			if err != nil {
+				return nil, err
+			}
+			integrations[i].TaskParams = &taskParams
+		}
+	}
+
 	return integrations, err
 }
 
 func (d *SqlDb) GetIntegration(projectID int, integrationID int) (integration db.Integration, err error) {
 	err = d.getObject(projectID, db.IntegrationProps, integrationID, &integration)
+	if err != nil {
+		return
+	}
+
+	if integration.TaskParamsID != nil {
+		var taskParams db.TaskParams
+		err = d.getObject(projectID, db.TaskParamsProps, *integration.TaskParamsID, &taskParams)
+		if err != nil {
+			return
+		}
+
+		integration.TaskParams = &taskParams
+	}
+
 	return
 }
 
@@ -54,25 +95,72 @@ func (d *SqlDb) GetIntegrationRefs(projectID int, integrationID int) (referrers 
 	return
 }
 
-func (d *SqlDb) DeleteIntegration(projectID int, integrationID int) error {
-	return d.deleteObject(projectID, db.IntegrationProps, integrationID)
+func (d *SqlDb) DeleteIntegration(projectID int, integrationID int) (err error) {
+	var integration db.Integration
+	err = d.getObject(projectID, db.IntegrationProps, integrationID, &integration)
+	if err != nil {
+		return
+	}
+
+	err = d.deleteObject(projectID, db.IntegrationProps, integrationID)
+	if err != nil {
+		return
+	}
+
+	if integration.TaskParamsID != nil {
+		err = d.deleteObject(projectID, db.TaskParamsProps, *integration.TaskParamsID)
+	}
+	return
 }
 
-func (d *SqlDb) UpdateIntegration(integration db.Integration) error {
-	err := integration.Validate()
+func (d *SqlDb) UpdateIntegration(integration db.Integration) (err error) {
 
-	if err != nil {
-		return err
+	if err = integration.Validate(); err != nil {
+		return
+	}
+
+	if integration.TaskParams != nil {
+		var curr db.Integration
+		err = d.getObject(integration.ProjectID, db.IntegrationProps, integration.ID, &curr)
+		if err != nil {
+			return
+		}
+
+		params := *integration.TaskParams
+		params.ProjectID = integration.ProjectID
+
+		if curr.TaskParamsID == nil {
+			err = d.Sql().Insert(&params)
+		} else {
+			params.ID = *curr.TaskParamsID
+			_, err = d.Sql().Update(&params)
+		}
+
+		if err != nil {
+			return
+		}
+
+		integration.TaskParamsID = &params.ID
 	}
 
 	_, err = d.exec(
-		"update project__integration set `name`=?, template_id=?, auth_method=?, auth_secret_id=?, auth_header=?, searchable=? where `id`=?",
+		"update project__integration set "+
+			"`name`=?, "+
+			"template_id=?, "+
+			"auth_method=?, "+
+			"auth_secret_id=?, "+
+			"auth_header=?, "+
+			"searchable=?, "+
+			"task_params_id=? "+
+			"where project_id=? AND `id`=?",
 		integration.Name,
 		integration.TemplateID,
 		integration.AuthMethod,
 		integration.AuthSecretID,
 		integration.AuthHeader,
 		integration.Searchable,
+		integration.TaskParamsID,
+		integration.ProjectID,
 		integration.ID)
 
 	return err
@@ -87,14 +175,15 @@ func (d *SqlDb) CreateIntegrationExtractValue(projectId int, value db.Integratio
 
 	insertID, err := d.insert("id",
 		"insert into project__integration_extract_value "+
-			"(value_source, body_data_type, `key`, `variable`, `name`, integration_id) values "+
-			"(?, ?, ?, ?, ?, ?)",
+			"(value_source, body_data_type, `key`, `variable`, `name`, integration_id, variable_type) values "+
+			"(?, ?, ?, ?, ?, ?, ?)",
 		value.ValueSource,
 		value.BodyDataType,
 		value.Key,
 		value.Variable,
 		value.Name,
-		value.IntegrationID)
+		value.IntegrationID,
+		value.VariableType)
 
 	if err != nil {
 		return
@@ -108,7 +197,7 @@ func (d *SqlDb) CreateIntegrationExtractValue(projectId int, value db.Integratio
 
 func (d *SqlDb) GetIntegrationExtractValues(projectID int, params db.RetrieveQueryParams, integrationID int) ([]db.IntegrationExtractValue, error) {
 	var values []db.IntegrationExtractValue
-	err := d.getObjectsByReferrer(integrationID, db.IntegrationProps, db.IntegrationExtractValueProps, params, &values)
+	err := d.connection.GetObjectsByReferrer(integrationID, db.IntegrationProps, db.IntegrationExtractValueProps, params, &values)
 	return values, err
 }
 
@@ -145,12 +234,13 @@ func (d *SqlDb) UpdateIntegrationExtractValue(projectID int, integrationExtractV
 	}
 
 	_, err = d.exec(
-		"update project__integration_extract_value set value_source=?, body_data_type=?, `key`=?, `variable`=?, `name`=? where `id`=?",
+		"update project__integration_extract_value set value_source=?, body_data_type=?, `key`=?, `variable`=?, `name`=?, `variable_type`=? where `id`=?",
 		integrationExtractValue.ValueSource,
 		integrationExtractValue.BodyDataType,
 		integrationExtractValue.Key,
 		integrationExtractValue.Variable,
 		integrationExtractValue.Name,
+		integrationExtractValue.VariableType,
 		integrationExtractValue.ID)
 
 	return err

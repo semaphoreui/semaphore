@@ -1,6 +1,7 @@
 package db
 
 import (
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -19,6 +20,33 @@ type Event struct {
 	ObjectName  string  `db:"-" json:"object_name"`
 	ProjectName *string `db:"project_name" json:"project_name"`
 	Username    *string `db:"-" json:"username"`
+}
+
+func (event Event) ToFields() (logFields log.Fields) {
+
+	logFields = log.Fields{}
+
+	if event.ProjectID != nil {
+		logFields["project"] = *event.ProjectID
+	}
+
+	if event.ObjectType != nil {
+		logFields["type"] = *event.ObjectType
+	}
+
+	if event.ObjectID != nil {
+		logFields["object"] = *event.ObjectID
+	}
+
+	if event.UserID != nil {
+		logFields["user"] = *event.UserID
+	}
+
+	if event.IntegrationID != nil {
+		logFields["integration"] = *event.IntegrationID
+	}
+
+	return
 }
 
 type EventObjectType string

@@ -3,11 +3,11 @@ package sql
 import (
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
-	"time"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
 func (d *SqlDb) CreateProject(project db.Project) (newProject db.Project, err error) {
-	project.Created = time.Now().UTC()
+	project.Created = tz.Now()
 
 	insertId, err := d.insert(
 		"id",
@@ -81,13 +81,14 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 	//}
 	// TODO: sort projects
 
-	tx, err := d.sql.Begin()
+	tx, err := d.Sql().Begin()
 
 	if err != nil {
 		return err
 	}
 
 	statements := []string{
+		"update project__template set build_template_id = null where project_id=?",
 		"delete from project__template where project_id=?",
 		"delete from project__user where project_id=?",
 		"delete from project__repository where project_id=?",

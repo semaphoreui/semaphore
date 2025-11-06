@@ -7,7 +7,6 @@
         {{ $t('dashboard2') }}
       </v-toolbar-title>
     </v-toolbar>
-    <v-divider />
 
     <DashboardMenu
       v-if="projectId"
@@ -24,7 +23,7 @@
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <RunnerForm
-          :project-id="projectId"
+          :project-id="projectId || itemProjectId"
           :item-id="itemId"
           @save="onSave"
           @error="onError"
@@ -52,14 +51,11 @@
                 style="background: gray; color: white; display: block; font-size: 14px;"
               >{{ (newRunner || {}).token }}</code>
 
-              <v-btn
+              <CopyClipboardButton
                 style="position: absolute; right: 10px; top: 2px;"
-                icon
-                color="white"
-                @click="copyToClipboard((newRunner || {}).token)"
-              >
-                <v-icon>mdi-content-copy</v-icon>
-              </v-btn>
+                :text="(newRunner || {}).token"
+              />
+
             </div>
           </div>
 
@@ -69,7 +65,7 @@
               <code
                 class="px-2 py-3 mt-2"
                 style="background: gray; color: white; display: block; font-size: 14px;"
-              >{{ (newRunner || {private_key: ''}).private_key.substring(0, 90) + '...' }}</code>
+              >{{ (newRunner || { private_key: '' }).private_key.substring(0, 90) + '...' }}</code>
 
               <v-btn
                 style="position: absolute; right: 10px; top: 2px;"
@@ -83,14 +79,10 @@
                 </v-icon>
               </v-btn>
 
-              <v-btn
+              <CopyClipboardButton
                 style="position: absolute; right: 50px; top: 2px;"
-                icon
-                color="white"
-                @click="copyToClipboard((newRunner || {}).private_key)"
-              >
-                <v-icon>mdi-content-copy</v-icon>
-              </v-btn>
+                :text="(newRunner || {}).private_key"
+              />
             </div>
           </div>
 
@@ -103,7 +95,7 @@
             <v-tab key="docker">Docker</v-tab>
           </v-tabs>
 
-          <v-divider style="margin-top: -1px;"/>
+          <v-divider style="margin-top: -1px;" />
 
           <v-tabs-items v-model="usageTab">
             <v-tab-item key="config">
@@ -117,14 +109,10 @@
                      class="pa-2"
                 >{{ runnerConfigCommand }}</pre>
 
-                <v-btn
+                <CopyClipboardButton
                   style="position: absolute; right: 10px; top: 10px;"
-                  icon
-                  color="white"
-                  @click="copyToClipboard(runnerConfigCommand)"
-                >
-                  <v-icon>mdi-content-copy</v-icon>
-                </v-btn>
+                  :text="runnerConfigCommand"
+                />
               </div>
 
               <div class="mt-3">Launching the runner:</div>
@@ -149,14 +137,10 @@
                      class="pa-2"
                 >{{ runnerSetupCommand }}</pre>
 
-                <v-btn
+                <CopyClipboardButton
                   style="position: absolute; right: 10px; top: 10px;"
-                  icon
-                  color="white"
-                  @click="copyToClipboard(runnerSetupCommand)"
-                >
-                  <v-icon>mdi-content-copy</v-icon>
-                </v-btn>
+                  :text="runnerSetupCommand"
+                />
               </div>
 
               <div class="mt-3">
@@ -181,14 +165,10 @@
                      class="pa-2"
                 >{{ runnerEnvCommand }}</pre>
 
-                <v-btn
+                <CopyClipboardButton
                   style="position: absolute; right: 10px; top: 10px;"
-                  icon
-                  color="white"
-                  @click="copyToClipboard(runnerEnvCommand)"
-                >
-                  <v-icon>mdi-content-copy</v-icon>
-                </v-btn>
+                  :text="runnerEnvCommand"
+                />
               </div>
             </v-tab-item>
 
@@ -203,14 +183,10 @@
                      class="pa-2"
                 >{{ runnerDockerCommand }}</pre>
 
-                <v-btn
+                <CopyClipboardButton
                   style="position: absolute; right: 10px; top: 10px;"
-                  icon
-                  color="white"
-                  @click="copyToClipboard(runnerDockerCommand)"
-                >
-                  <v-icon>mdi-content-copy</v-icon>
-                </v-btn>
+                  :text="runnerDockerCommand"
+                />
               </div>
             </v-tab-item>
           </v-tabs-items>
@@ -243,29 +219,48 @@
       </v-btn>
     </v-toolbar>
 
+    <v-btn
+      :disabled="!premiumFeatures.project_runners"
+      style="position: absolute; right: 15px; top: 15px;"
+      color="primary"
+      @click="editItem('new')"
+    >{{ $t('newRunner') }}
+    </v-btn>
+
+    <v-divider v-if="!projectId" />
+
     <v-alert
-      v-if="!premiumFeatures.project_runners"
-      type="info"
+      v-if="projectId && !premiumFeatures.project_runners"
       text
       color="hsl(348deg, 86%, 61%)"
-      style="border-radius: 0;"
+      class="PageAlert"
     >
-      <span v-if="projectId">
-        Project-level runners are only available in the <b>PRO</b> version.
-      </span>
-
-      <span v-else>
-        The open-source version has limited functionality;
-        full functionality is in the <b>PRO</b> version.
-      </span>
+      <span v-html="$t('project_runners_only_pro')"></span>
       <v-btn
-        class="ml-2 pr-2"
+        dark
+        v-if="isAdmin"
+        class="ml-2"
         color="hsl(348deg, 86%, 61%)"
-        href="https://semaphoreui.com/pro"
+        href="https://semaphoreui.com/pro#runners"
       >
-        Learn more
-        <v-icon>mdi-chevron-right</v-icon>
+        {{ $t('upgrade_to_pro') }}
       </v-btn>
+      <span v-else style="font-weight: bold;">
+        {{ $t('contact_admin_to_upgrade') }}
+      </span>
+    </v-alert>
+
+    <v-alert
+      style="border-radius: 0;"
+      type="info"
+      text
+      v-if="!systemInfo.use_remote_runner && projectId == null"
+    >
+      Global runners
+      <a
+        target="_blank"
+        href="https://docs.semaphoreui.com/administration-guide/runners/#set-up-a-server"
+      >disabled</a>.
     </v-alert>
 
     <v-data-table
@@ -290,6 +285,26 @@
         {{ item.max_parallel_tasks || '∞' }}
       </template>
 
+      <template v-slot:item.touched="{ item }">
+        <v-chip
+          v-if="item.touched"
+          :color="getStatusColor(item)"
+          style="font-weight: bold;"
+        >
+          <span v-if="item.touched">{{ item.touched | formatDate }}</span>
+          <span v-else>{{ $t('never') }}</span>
+        </v-chip>
+      </template>
+
+      <template v-slot:item.project_id="{ item }">
+        {{ item.project_id ? `#${item.project_id}` : '&mdash;' }}
+      </template>
+
+      <template v-slot:item.tag="{ item }">
+        <code v-if="item.tag">{{ item.tag }}</code>
+        <span v-else>&mdash;</span>
+      </template>
+
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn
@@ -307,6 +322,32 @@
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
+
+          <v-tooltip bottom :max-width="150">
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn
+                v-bind="attrs"
+                v-on="on"
+                icon
+                class="mr-1"
+                @click="clearCache(item)"
+              >
+                <v-icon>mdi-broom</v-icon>
+              </v-btn>
+            </template>
+            <div style="font-weight: bold;">
+              {{ $t('clear_cache') }}
+            </div>
+
+            <div v-if="item.cleaning_requested" style="font-size: 12px; line-height: 1.2">
+              <span v-if="item.touched < item.cleaning_requested">
+                Already requested {{ item.cleaning_requested | formatDate }}.
+              </span>
+              <span v-else>
+                Last cleaned {{ item.cleaning_requested | formatDate }}.
+              </span>
+            </div>
+          </v-tooltip>
         </div>
       </template>
     </v-data-table>
@@ -321,11 +362,14 @@ import RunnerForm from '@/components/RunnerForm.vue';
 import axios from 'axios';
 import DashboardMenu from '@/components/DashboardMenu.vue';
 import delay from '@/lib/delay';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
+import PageMixin from '@/components/PageMixin';
 
 export default {
-  mixins: [ItemListPageBase],
+  mixins: [ItemListPageBase, PageMixin],
 
   components: {
+    CopyClipboardButton,
     DashboardMenu,
     RunnerForm,
     YesNoDialog,
@@ -333,16 +377,25 @@ export default {
   },
 
   props: {
-    webHost: String,
-    version: String,
     projectId: Number,
-    premiumFeatures: Object,
   },
 
   computed: {
+    webHost() {
+      return this.systemInfo?.web_host || window.location.origin;
+    },
+
+    version() {
+      return (this.systemInfo?.version || '').split('-')[0];
+    },
+
+    itemProjectId() {
+      return this.getProjectIdOfItem(this.itemId);
+    },
+
     runnerConfigCommand() {
       return `{
-  "web_host": "${this.webHost}",
+  "web_host": "${this.webHost || window.location.origin}",
   "runner": {
     "token": "${(this.newRunner || {}).token}",
     "private_key_file": "/path/to/private/key"
@@ -390,6 +443,60 @@ semaphore runner start --no-config`;
   },
 
   methods: {
+
+    async clearCache(runner) {
+      const projectId = this.projectId || this.getProjectIdOfItem(runner.id);
+
+      const url = projectId
+        ? `/api/project/${projectId}/runners/${runner.id}/cache`
+        : `/api/runners/${runner.id}/cache`;
+
+      try {
+        await axios({
+          method: 'delete',
+          url,
+          responseType: 'json',
+        });
+        await this.loadItems();
+      } catch (e) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: `Cannot clear cache: ${e.message}`,
+        });
+      }
+    },
+
+    getStatusColor(runner) {
+      if (!runner.touched) {
+        return 'grey';
+      }
+
+      const d = Date.now() - new Date(runner.touched);
+
+      if (d < 1000 * 60 * 5) {
+        return 'success';
+      }
+
+      if (d < 1000 * 60 * 60) {
+        return 'warning';
+      }
+
+      return 'grey';
+    },
+
+    getProjectIdOfItem(itemId) {
+      if (!itemId || itemId === 'new') {
+        return null;
+      }
+
+      const item = this.items.find((x) => x.id === itemId);
+      if (item) {
+        return item.project_id;
+      }
+
+      return null;
+    },
+
     async downloadFile(content, type, name) {
       const a = document.createElement('a');
       const blob = new Blob([content], { type });
@@ -408,25 +515,16 @@ semaphore runner start --no-config`;
       return this.loadItems();
     },
 
-    async copyToClipboard(text) {
-      try {
-        await window.navigator.clipboard.writeText(text);
-        EventBus.$emit('i-snackbar', {
-          color: 'success',
-          text: 'The command has been copied to the clipboard.',
-        });
-      } catch (e) {
-        EventBus.$emit('i-snackbar', {
-          color: 'error',
-          text: `Can't copy the command: ${e.message}`,
-        });
-      }
-    },
-
     async setActive(runnerId, active) {
+      const projectId = this.projectId || this.getProjectIdOfItem(runnerId);
+
+      const url = projectId
+        ? `/api/project/${projectId}/runners/${runnerId}/active`
+        : `/api/runners/${runnerId}/active`;
+
       await axios({
         method: 'post',
-        url: `/api/runners/${runnerId}/active`,
+        url,
         responseType: 'json',
         data: {
           active,
@@ -443,13 +541,19 @@ semaphore runner start --no-config`;
           value: 'name',
           width: '50%',
         },
+        ...(this.projectId ? [] : [{
+          text: this.$i18n.t('project'),
+          value: 'project_id',
+        }]),
         {
           text: this.$i18n.t('webhook'),
           value: 'webhook',
-        },
-        {
-          text: this.$i18n.t('maxNumberOfParallelTasks'),
-          value: 'max_parallel_tasks',
+        }, {
+          text: this.$i18n.t('tag'),
+          value: 'tag',
+        }, {
+          text: this.$i18n.t('activity'),
+          value: 'touched',
         }, {
           text: this.$i18n.t('actions'),
           value: 'actions',

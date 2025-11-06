@@ -3,7 +3,7 @@ package sql
 import (
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
-	"time"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
 func (d *SqlDb) getEvents(q squirrel.SelectBuilder, params db.RetrieveQueryParams) (events []db.Event, err error) {
@@ -30,7 +30,7 @@ func (d *SqlDb) getEvents(q squirrel.SelectBuilder, params db.RetrieveQueryParam
 }
 
 func (d *SqlDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
-	var created = time.Now().UTC()
+	var created = tz.Now()
 
 	_, err = d.exec(
 		"insert into event(user_id, project_id, object_id, object_type, description, created) values (?, ?, ?, ?, ?, ?)",

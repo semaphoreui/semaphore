@@ -3,7 +3,6 @@ package db
 import (
 	"encoding/json"
 	"errors"
-	"strings"
 )
 
 type EnvironmentSecretOperation string
@@ -20,6 +19,17 @@ const (
 	EnvironmentSecretVar EnvironmentSecretType = "var"
 	EnvironmentSecretEnv EnvironmentSecretType = "env"
 )
+
+func (t EnvironmentSecretType) GetAccessKeyOwner() AccessKeyOwner {
+	switch t {
+	case EnvironmentSecretVar:
+		return AccessKeyVariable
+	case EnvironmentSecretEnv:
+		return AccessKeyEnvironment
+	default:
+		panic("unknown secret type: " + t)
+	}
+}
 
 type EnvironmentSecret struct {
 	ID        int                        `json:"id"`
@@ -39,7 +49,10 @@ type Environment struct {
 	ENV       *string `db:"env" json:"env" binding:"required"`
 
 	// Secrets is a field which used to update secrets associated with the environment.
-	Secrets []EnvironmentSecret `db:"-" json:"secrets" backup:"-"`
+	Secrets []EnvironmentSecret `db:"-" json:"secrets,omitempty" backup:"-"`
+
+	SecretStorageID        *int    `db:"secret_storage_id" json:"secret_storage_id,omitempty" backup:"-"`
+	SecretStorageKeyPrefix *string `db:"secret_storage_key_prefix" json:"secret_storage_key_prefix,omitempty"`
 }
 
 func (s *EnvironmentSecret) Validate() error {
@@ -55,58 +68,53 @@ func (s *EnvironmentSecret) Validate() error {
 	return errors.New("invalid environment secret type")
 }
 
-func (env *Environment) Validate() error {
-	if env.Name == "" {
-		return &ValidationError{"Environment name can not be empty"}
+func validateJSON(s string, mustValuesBeScalar bool) error {
+	if s == "" {
+		return nil
 	}
 
-	if !json.Valid([]byte(env.JSON)) {
-		return &ValidationError{"Extra variables must be valid JSON"}
+	var data map[string]any
+	err := json.Unmarshal([]byte(s), &data)
+	if err != nil {
+		return errors.New("must be valid JSON")
 	}
 
-	if env.ENV != nil && !json.Valid([]byte(*env.ENV)) {
-		return &ValidationError{"Environment variables must be valid JSON"}
+	for k, v := range data {
+		if k == "" {
+			return errors.New("key can not be empty")
+		}
+
+		if mustValuesBeScalar {
+			switch v.(type) {
+			case []any, map[string]any:
+				return errors.New("values must be scalar")
+			}
+		}
 	}
 
 	return nil
 }
 
-func FillEnvironmentSecrets(store Store, env *Environment, deserializeSecret bool) error {
-	keys, err := store.GetEnvironmentSecrets(env.ProjectID, env.ID)
+func (env *Environment) Validate() (err error) {
+	if env.Name == "" {
+		err = &ValidationError{"Environment name can not be empty"}
+		return
+	}
 
+	err = validateJSON(env.JSON, false)
 	if err != nil {
-		return err
+		err = &ValidationError{"Extra variables " + err.Error()}
+		return
 	}
 
-	for _, k := range keys {
-		var secretName string
-		var secretType EnvironmentSecretType
-
-		if strings.HasPrefix(k.Name, string(EnvironmentSecretVar)+".") {
-			secretType = EnvironmentSecretVar
-			secretName = strings.TrimPrefix(k.Name, string(EnvironmentSecretVar)+".")
-		} else if strings.HasPrefix(k.Name, string(EnvironmentSecretEnv)+".") {
-			secretType = EnvironmentSecretEnv
-			secretName = strings.TrimPrefix(k.Name, string(EnvironmentSecretEnv)+".")
-		} else {
-			secretType = EnvironmentSecretVar
-			secretName = k.Name
-		}
-
-		if deserializeSecret {
-			err = k.DeserializeSecret()
-			if err != nil {
-				return err
-			}
-		}
-
-		env.Secrets = append(env.Secrets, EnvironmentSecret{
-			ID:     k.ID,
-			Name:   secretName,
-			Type:   secretType,
-			Secret: k.String,
-		})
+	if env.ENV == nil {
+		return
 	}
 
-	return nil
+	err = validateJSON(*env.ENV, true)
+	if err != nil {
+		err = &ValidationError{"Environment variables " + err.Error()}
+	}
+
+	return
 }

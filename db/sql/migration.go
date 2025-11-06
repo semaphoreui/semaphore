@@ -1,12 +1,17 @@
 package sql
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/go-gorp/gorp/v3"
 	"path"
 	"regexp"
 	"strings"
-	"time"
+
+	"text/template"
+
+	"github.com/go-gorp/gorp/v3"
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/util"
 
 	"github.com/semaphoreui/semaphore/db"
 	log "github.com/sirupsen/logrus"
@@ -35,22 +40,70 @@ func getVersionErrPath(version db.Migration) string {
 
 // getVersionSQL takes a path to an SQL file and returns it from embed.FS
 // a slice of strings separated by newlines
-func getVersionSQL(name string) (queries []string) {
+func getVersionSQL(dialect string, name string, ignoreErrors bool) (queries []string) {
 	sql, err := dbAssets.ReadFile(path.Join("migrations", name))
+	if err != nil {
+		if ignoreErrors {
+			log.WithError(err).Warnf("migration %s not found", name)
+			return nil
+		} else {
+			panic(err)
+		}
+	}
+
+	processedSql, err := preprocessSqlDialect(dialect, string(sql))
+
 	if err != nil {
 		panic(err)
 	}
-	queries = strings.Split(strings.ReplaceAll(string(sql), ";\r\n", ";\n"), ";\n")
+
+	queries = strings.Split(strings.ReplaceAll(processedSql, ";\r\n", ";\n"), ";\n")
 	for i := range queries {
 		queries[i] = strings.Trim(queries[i], "\r\n\t ")
 	}
 	return
 }
 
+func getDialectConfig(dialect string) interface{} {
+	type Config struct {
+		Sqlite     bool
+		Mysql      bool
+		Postgresql bool
+	}
+
+	conf := Config{}
+
+	switch dialect {
+	case util.DbDriverSQLite:
+		conf.Sqlite = true
+	case "mysql":
+		conf.Mysql = true
+	case "postgres":
+		conf.Postgresql = true
+	}
+
+	return conf
+}
+
+func preprocessSqlDialect(dialect string, sql string) (string, error) {
+
+	tmpl, err := template.New("sql").Parse(sql)
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, getDialectConfig(dialect))
+	if err != nil {
+		panic(err)
+	}
+	return buf.String(), nil
+}
+
 // prepareMigration converts migration SQLite-query to current dialect.
 // Supported MySQL and Postgres dialects.
 func (d *SqlDb) prepareMigration(query string) string {
-	switch d.sql.Dialect.(type) {
+	switch d.Sql().Dialect.(type) {
 	case gorp.MySQLDialect:
 		query = autoIncrementRE.ReplaceAllString(query, "auto_increment")
 		query = ifExistsRE.ReplaceAllString(query, "")
@@ -106,7 +159,7 @@ func (d *SqlDb) IsMigrationApplied(migration db.Migration) (bool, error) {
 		return false, nil
 	}
 
-	exists, err := d.sql.SelectInt(
+	exists, err := d.Sql().SelectInt(
 		d.PrepareQuery("select count(1) as ex from migrations where version = ?"),
 		migration.Version)
 
@@ -137,7 +190,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		}
 	}
 
-	tx, err := d.sql.Begin()
+	tx, err := d.Sql().Begin()
 	if err != nil {
 		return err
 	}
@@ -152,7 +205,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		return err
 	}
 
-	queries := getVersionSQL(getVersionPath(migration))
+	queries := getVersionSQL(d.GetDialect(), getVersionPath(migration), false)
 	for i, query := range queries {
 		fmt.Printf("\r [%d/%d]", i+1, len(query))
 
@@ -169,7 +222,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		if err != nil {
 			handleRollbackError(tx.Rollback())
 			log.Warnf("\n ERR! Query: %s\n\n", q)
-			log.Fatalf(err.Error())
+			log.Fatal(err.Error())
 			return err
 		}
 	}
@@ -186,7 +239,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		return err
 	}
 
-	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, time.Now())
+	_, err = tx.Exec(d.PrepareQuery("insert into migrations(version, upgraded_date) values (?, ?)"), migration.Version, tz.Now())
 	if err != nil {
 		handleRollbackError(tx.Rollback())
 		return err
@@ -199,23 +252,41 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 
 // TryRollbackMigration attempts to rollback the database to an earlier version if a rollback exists
 func (d *SqlDb) TryRollbackMigration(version db.Migration) {
-	data, _ := dbAssets.ReadFile(getVersionErrPath(version))
-	if len(data) == 0 {
-		fmt.Println("Rollback SQL does not exist.")
-		fmt.Println()
-		return
+	var err error
+
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		panic(err)
 	}
 
-	queries := getVersionSQL(getVersionErrPath(version))
+	defer func() {
+		if err == nil {
+			err = tx.Commit()
+			if err != nil {
+				log.WithError(err).WithFields(log.Fields{
+					"context": "migration",
+					"version": version.Version,
+				}).Error("failed to commit undo migration transaction")
+			}
+		} else {
+			_ = tx.Rollback()
+			log.Error(err)
+		}
+	}()
+
+	queries := getVersionSQL(d.GetDialect(), getVersionErrPath(version), true)
+
 	for _, query := range queries {
 		fmt.Printf(" [ROLLBACK] > %v\n", query)
 		q := d.prepareMigration(query)
 		if q == "" {
 			continue
 		}
-		if _, err := d.exec(q); err != nil {
+		if _, err = d.execTx(tx, q); err != nil {
 			fmt.Println(" [ROLLBACK] - Stopping")
 			return
 		}
 	}
+
+	_, err = d.execTx(tx, "delete from migrations where version=?", version.Version)
 }

@@ -18,9 +18,11 @@
       :rules="[v => !!v || 'Name is required']"
       required
       :disabled="formSaving"
+      outlined
+      dense
     ></v-text-field>
 
-    <v-select
+    <v-autocomplete
       v-model="item.template_id"
       label="Task Template to run"
       clearable
@@ -28,7 +30,35 @@
       item-value="id"
       item-text="name"
       :disabled="formSaving"
-    ></v-select>
+      outlined
+      dense
+    ></v-autocomplete>
+
+    <v-card
+      v-if="item.template_id"
+      style="background: rgba(133, 133, 133, 0.06)"
+      class="mb-6 pt-3"
+    >
+
+      <div style="
+        position: absolute;
+        background: var(--highlighted-card-bg-color);
+        width: 28px;
+        height: 28px;
+        transform: rotate(45deg);
+        left: calc(50% - 14px);
+        top: -14px;
+        border-radius: 0;
+      "></div>
+
+      <v-card-text>
+        <TaskParamsForm
+          :template="templates.find(t => t.id === item.template_id)"
+          v-model="item.task_params"
+        />
+
+      </v-card-text>
+    </v-card>
 
     <v-select
       v-model="item.auth_method"
@@ -37,6 +67,8 @@
       item-value="id"
       item-text="title"
       :disabled="formSaving"
+      outlined
+      dense
     ></v-select>
 
     <v-text-field
@@ -44,6 +76,8 @@
       v-model="item.auth_header"
       label="Auth header"
       :disabled="formSaving"
+      outlined
+      dense
     ></v-text-field>
 
     <v-select
@@ -55,13 +89,10 @@
       item-value="id"
       item-text="name"
       :disabled="formSaving"
+      outlined
+      dense
     ></v-select>
 
-    <TaskParamsForm
-      v-if="item.template_id"
-      v-model="item.task_params"
-      :app="(template || {}).app"
-    />
   </v-form>
 </template>
 <script>
@@ -82,11 +113,17 @@ export default {
         id: 'github',
         title: 'GitHub Webhooks',
       }, {
+        id: 'bitbucket',
+        title: 'Bitbucket Webhooks',
+      }, {
         id: 'token',
         title: 'Token',
       }, {
         id: 'hmac',
         title: 'HMAC',
+      }, {
+        id: 'basic',
+        title: 'BasicAuth',
       }],
       keys: null,
     };
@@ -101,7 +138,7 @@ export default {
 
   computed: {
     isLoaded() {
-      return this.keys != null;
+      return this.item && this.keys != null;
     },
 
     loginPasswordKeys() {
@@ -120,7 +157,7 @@ export default {
 
     getNewItem() {
       return {
-        template_id: {},
+        template_id: null,
       };
     },
 

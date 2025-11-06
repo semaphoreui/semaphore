@@ -8,13 +8,16 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"github.com/gorilla/context"
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/runners"
+	"github.com/semaphoreui/semaphore/services/server"
+	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
-	"net/http"
+	log "github.com/sirupsen/logrus"
 )
 
 func RunnerMiddleware(next http.Handler) http.Handler {
@@ -31,7 +34,7 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 
 		store := helpers.Store(r)
 
-		runner, err := store.GetGlobalRunnerByToken(token)
+		runner, err := store.GetRunnerByToken(token)
 
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusNotFound, map[string]string{
@@ -47,7 +50,7 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "runner", runner)
+		r = helpers.SetContextValue(r, "runner", runner)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -91,14 +94,49 @@ func chunkRSAEncrypt(pub *rsa.PublicKey, plaintext []byte) ([]byte, error) {
 	return encryptedBuffer.Bytes(), nil
 }
 
-func GetRunner(w http.ResponseWriter, r *http.Request) {
-	runner := context.Get(r, "runner").(db.Runner)
+type RunnerController struct {
+	runnerRepo        db.RunnerManager
+	taskPool          *tasks.TaskPool
+	encryptionService server.AccessKeyEncryptionService
+}
+
+func NewRunnerController(runnerRepo db.RunnerManager, taskPool *tasks.TaskPool, encryptionService server.AccessKeyEncryptionService) *RunnerController {
+	return &RunnerController{
+		runnerRepo:        runnerRepo,
+		taskPool:          taskPool,
+		encryptionService: encryptionService,
+	}
+}
+
+func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
+	runner := helpers.GetFromContext(r, "runner").(db.Runner)
+
+	clearCache := false
+
+	err := c.runnerRepo.TouchRunner(runner)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"runner_id": runner.ID,
+			"context":   "runner",
+		}).WithError(err).Error("runner touch failed")
+		helpers.WriteError(w, err)
+		return
+	}
+
+	if runner.CleaningRequested != nil && (runner.Touched == nil || runner.CleaningRequested.After(*runner.Touched)) {
+		clearCache = true
+	}
 
 	data := runners.RunnerState{
 		AccessKeys: make(map[int]db.AccessKey),
+		ClearCache: clearCache,
 	}
 
-	tasks := helpers.TaskPool(r).GetRunningTasks()
+	if clearCache {
+		data.CacheCleanProjectID = runner.ProjectID
+	}
+
+	tasks := c.taskPool.GetRunningTasks()
 
 	for _, tsk := range tasks {
 		if tsk.RunnerID != runner.ID {
@@ -120,7 +158,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			})
 
 			if tsk.Inventory.SSHKeyID != nil {
-				err := tsk.Inventory.SSHKey.DeserializeSecret()
+				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.SSHKey)
 				if err != nil {
 					// TODO: return error
 				}
@@ -128,7 +166,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if tsk.Inventory.BecomeKeyID != nil {
-				err := tsk.Inventory.BecomeKey.DeserializeSecret()
+				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.BecomeKey)
 				if err != nil {
 					// TODO: return error
 				}
@@ -138,7 +176,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			if tsk.Template.Vaults != nil {
 				for _, vault := range tsk.Template.Vaults {
 					if vault.VaultKeyID != nil {
-						err := vault.Vault.DeserializeSecret()
+						err := c.encryptionService.DeserializeSecret(vault.Vault)
 						if err != nil {
 							// TODO: return error
 						}
@@ -148,7 +186,7 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if tsk.Inventory.RepositoryID != nil {
-				err := tsk.Inventory.Repository.SSHKey.DeserializeSecret()
+				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.Repository.SSHKey)
 				if err != nil {
 					// TODO: return error
 				}
@@ -199,9 +237,9 @@ func GetRunner(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func UpdateRunner(w http.ResponseWriter, r *http.Request) {
+func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) {
 
-	runner := context.Get(r, "runner").(db.Runner)
+	runner := helpers.GetFromContext(r, "runner").(db.Runner)
 
 	var body runners.RunnerProgress
 
@@ -212,7 +250,7 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskPool := helpers.TaskPool(r)
+	taskPool := c.taskPool
 
 	if body.Jobs == nil {
 		w.WriteHeader(http.StatusNoContent)
@@ -223,17 +261,21 @@ func UpdateRunner(w http.ResponseWriter, r *http.Request) {
 		tsk := taskPool.GetTask(job.ID)
 
 		if tsk == nil {
-			// TODO: log
 			continue
 		}
 
 		if tsk.RunnerID != runner.ID {
-			// TODO: add error message
-			continue
+			helpers.WriteErrorStatus(w, "Task not assigned to this runner", http.StatusBadRequest)
+			return
 		}
 
 		for _, logRecord := range job.LogRecords {
 			tsk.LogWithTime(logRecord.Time, logRecord.Message)
+		}
+
+		if !job.Status.IsValid() {
+			helpers.WriteErrorStatus(w, "Invalid task status", http.StatusBadRequest)
+			return
 		}
 
 		tsk.SetStatus(job.Status)
@@ -276,6 +318,11 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.WithFields(log.Fields{
+		"runner_id": runner.ID,
+		"context":   "runner",
+	}).Info("New runner registered")
+
 	var res struct {
 		Token string `json:"token"`
 	}
@@ -287,7 +334,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 
 func UnregisterRunner(w http.ResponseWriter, r *http.Request) {
 
-	runner := context.Get(r, "runner").(db.Runner)
+	runner := helpers.GetFromContext(r, "runner").(db.Runner)
 
 	err := helpers.Store(r).DeleteGlobalRunner(runner.ID)
 

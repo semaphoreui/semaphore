@@ -15,6 +15,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :timezone="systemInfo.schedule_timezone"
         />
       </template>
     </EditDialog>
@@ -60,6 +61,7 @@
     >
       <template v-slot:item.active="{ item }">
         <v-switch
+          :disabled="!can(USER_PERMISSIONS.manageProjectResources)"
           v-model="item.active"
           inset
           @change="setActive(item.id, item.active)"
@@ -78,6 +80,9 @@
           >{{ item.tpl_name }}
           </router-link>
         </div>
+      </template>
+      <template v-slot:item.cron_format="{ item }">
+        <code>{{ item.cron_format }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -117,6 +122,9 @@ import axios from 'axios';
 export default {
   components: { TaskList, ScheduleForm },
   mixins: [ItemListPageBase],
+  props: {
+    systemInfo: Object,
+  },
   data() {
     return {
       openedItems: [],

@@ -43,7 +43,7 @@ func doSetup() int {
 	store.Connect("setup")
 
 	fmt.Println("Running db Migrations..")
-	if err := db.Migrate(store); err != nil {
+	if err := db.Migrate(store, nil); err != nil {
 		fmt.Printf("Database migrations failed!\n %v\n", err.Error())
 		os.Exit(1)
 	}
@@ -87,7 +87,7 @@ func readNewline(pre string, stdin *bufio.Reader) string {
 
 	str, err := stdin.ReadString('\n')
 	util.LogWarning(err)
-	str = strings.Replace(strings.Replace(str, "\n", "", -1), "\r", "", -1)
+	str = strings.ReplaceAll(strings.ReplaceAll(str, "\n", ""), "\r", "")
 
 	return str
 }

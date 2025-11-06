@@ -1,0 +1,1 @@
+alter table `project__inventory` drop `runner_tag`;

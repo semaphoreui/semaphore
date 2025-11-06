@@ -13,7 +13,7 @@ var integrationAliasProps = db.ObjectProps{
 
 func (d *BoltDb) GetIntegrationAliases(projectID int, integrationID *int) (res []db.IntegrationAlias, err error) {
 
-	err = d.integrationAlias.getAliases(projectID, func(i interface{}) bool {
+	err = d.integrationAlias.getAliases(projectID, func(i any) bool {
 		alias := i.(db.IntegrationAlias)
 		if alias.IntegrationID == nil && integrationID == nil {
 			return true
@@ -37,7 +37,7 @@ func (d *BoltDb) GetIntegrationsByAlias(alias string) (res []db.Integration, lev
 
 	if aliasObj.IntegrationID == nil {
 		level = db.IntegrationAliasProject
-		err = d.getObjects(aliasObj.ProjectID, db.IntegrationProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		err = d.getObjects(aliasObj.ProjectID, db.IntegrationProps, db.RetrieveQueryParams{}, func(i any) bool {
 			integration := i.(db.Integration)
 			return integration.Searchable
 		}, &res)

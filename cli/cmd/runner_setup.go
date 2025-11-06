@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/cli/setup"
-	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
 )
@@ -33,15 +32,15 @@ func doRunnerSetup() int {
 	}
 
 	if util.Config.Runner.RegistrationToken != "" {
-		taskPool := runners.JobPool{}
+		taskPool := createRunnerJobPool()
 		err := taskPool.Register(&resultConfigPath)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore runner --config %v\n\n", resultConfigPath)
-	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore runner --config %v &\n\n", resultConfigPath)
+	fmt.Printf(" Re-launch this program pointing to the configuration file\n\n./semaphore runner start --config %v\n\n", resultConfigPath)
+	fmt.Printf(" To run as daemon:\n\nnohup ./semaphore runner start --config %v &\n\n", resultConfigPath)
 
 	return 0
 }

@@ -1,19 +1,40 @@
 <template>
-  <div v-if="!isLoaded">
+  <div v-if="!isLoaded" :style="{ height: `${loaderHeight}px` }" class="mt-1">
     <v-row>
       <v-col>
         <v-skeleton-loader
-            type="table-heading, list-item-two-line, image, table-tfoot"
+          type="
+            table-heading,
+            image,
+            list-item-two-line,
+            list-item-two-line,
+            list-item-two-line"
         ></v-skeleton-loader>
       </v-col>
       <v-col>
         <v-skeleton-loader
-            type="table-heading, list-item-two-line, image, table-tfoot"
+          type="
+            table-heading,
+            list-item-two-line,
+            list-item-two-line,
+            list-item-two-line,
+            article"
+        ></v-skeleton-loader>
+      </v-col>
+      <v-col v-if="needAppBlock">
+        <v-skeleton-loader
+          type="
+            table-heading,
+            list-item-two-line,
+            article,
+            list-item-two-line,
+            article"
         ></v-skeleton-loader>
       </v-col>
     </v-row>
   </div>
   <v-form
+    class="mt-1"
     v-else
     ref="form"
     lazy-validation
@@ -68,12 +89,13 @@
     <v-alert
       :value="formError"
       color="error"
-      class="pb-2"
     >{{ formError }}
     </v-alert>
 
-    <v-row>
-      <v-col cols="12" md="6" class="pb-0">
+    <v-row class="mb-0">
+      <v-col>
+        <h2 class="mb-4">{{ $t('template_common_options') }}</h2>
+
         <v-card
           class="mb-6"
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
@@ -140,20 +162,13 @@
           :disabled="formSaving"
         ></v-text-field>
 
-        <v-textarea
-          v-model="item.description"
-          :label="$t('description')"
-          :disabled="formSaving"
-          rows="1"
-          :auto-grow="true"
-          outlined
-          dense
-        ></v-textarea>
-
         <v-text-field
           v-model="item.playbook"
           :label="fieldLabel('playbook')"
-          :rules="isFieldRequired('playbook') ? [v => !!v || $t('playbook_filename_required')] : []"
+          :rules="
+              isFieldRequired('playbook')
+              ? [v => !!v || $t('playbook_filename_required')]
+              : []"
           outlined
           dense
           :required="isFieldRequired('playbook')"
@@ -162,7 +177,7 @@
           v-if="needField('playbook')"
         ></v-text-field>
 
-        <v-select
+        <v-autocomplete
           v-model="item.inventory_id"
           :label="fieldLabel('inventory')"
           :items="inventory"
@@ -173,9 +188,9 @@
           required
           :disabled="formSaving"
           v-if="needField('inventory')"
-        ></v-select>
+        ></v-autocomplete>
 
-        <v-select
+        <v-autocomplete
           v-model="item.repository_id"
           :label="fieldLabel('repository') + ' *'"
           :items="repositories"
@@ -184,12 +199,48 @@
           :rules="isFieldRequired('repository') ? [v => !!v || $t('repository_required')] : []"
           outlined
           dense
+          hide-details
           :required="isFieldRequired('repository')"
           :disabled="formSaving"
           v-if="needField('repository')"
-        ></v-select>
+        ></v-autocomplete>
 
-        <v-select
+        <div class="mb-3 text-right">
+
+          <a
+            v-if="!item.git_branch && !setBranch"
+            @click="setBranch = true"
+          >Set branch</a>
+
+        </div>
+
+        <div v-if="item.git_branch || setBranch">
+          <div v-if="branches != null">
+            <v-autocomplete
+              clearable
+              :items="branches"
+              v-model="item.git_branch"
+              :label="fieldLabel('branch')"
+              outlined
+              dense
+              :disabled="formSaving"
+              :placeholder="$t('branch')"
+            ></v-autocomplete>
+          </div>
+          <div v-else>
+            <v-text-field
+              clearable
+              v-model="item.git_branch"
+              :label="fieldLabel('branch')"
+              outlined
+              dense
+              :disabled="formSaving"
+              :placeholder="$t('branch')"
+            ></v-text-field>
+          </div>
+        </div>
+
+        <v-autocomplete
           v-model="item.environment_id"
           :label="fieldLabel('environment')"
           :items="environment"
@@ -201,26 +252,11 @@
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="needField('environment')"
-        ></v-select>
+        ></v-autocomplete>
 
-      </v-col>
-
-      <v-col cols="12" md="6" class="pb-0">
-
-        <TemplateVaults
-          v-if="needField('vault')"
-          :project-id="this.projectId"
-          :vaults="vaults"
-          @change="setTemplateVaults"
-        ></TemplateVaults>
-
-        <SurveyVars
-          style="margin-top: -10px;"
-          :vars="surveyVars"
-          @change="setSurveyVars"
-        />
-
-        <v-select
+        <v-autocomplete
+          class="mb-3"
+          style="max-height: 60px;"
           v-model="item.view_id"
           :label="$t('view')"
           clearable
@@ -230,61 +266,238 @@
           :disabled="formSaving"
           outlined
           dense
-        ></v-select>
-
-        <v-checkbox
-          class="mt-0"
-          :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
-          v-model="cronVisible"
-        />
-
-        <v-select
-          v-if="cronVisible"
-          v-model="cronRepositoryId"
-          :label="$t('repository2')"
-          :placeholder="$t('cronChecksNewCommitBeforeRun')"
-          :rules="[v => !!v || $t('repository_required')]"
-          :items="repositories"
-          item-value="id"
-          item-text="name"
-          clearable
-          :disabled="formSaving"
-          outlined
-          dense
-        ></v-select>
-
-        <v-select
-          v-if="cronVisible"
-          v-model="cronFormat"
-          :label="$t('checkInterval')"
-          :hint="$t('newCommitCheckInterval')"
-          item-value="cron"
-          item-text="title"
-          :items="cronFormats"
-          :disabled="formSaving"
-          outlined
-          dense
-        />
-
-        <v-checkbox
-          class="mt-0"
-          :label="$t('suppressSuccessAlerts')"
-          v-model="item.suppress_success_alerts"
-        />
-
-        <ArgsPicker
-          :vars="args"
-          @change="setArgs"
-          title="CLI args"
-        />
-
-        <v-checkbox
-          class="mt-0"
-          :label="$t('allowCliArgsInTask')"
-          v-model="item.allow_override_args_in_task"
-        />
-
+        ></v-autocomplete>
       </v-col>
+
+      <v-col>
+        <h2 class="mb-4">{{ $t('template_advanced') }}</h2>
+
+        <div class="mb-4">
+
+          <v-autocomplete
+            v-if="premiumFeatures.project_runners"
+            v-model="item.runner_tag"
+            :items="runnerTags"
+            :label="fieldLabel('runner_tag')"
+            item-value="tag"
+            item-text="tag"
+            outlined
+            dense
+            :disabled="formSaving"
+            :placeholder="$t('runner_tag')"
+          ></v-autocomplete>
+
+          <SurveyVars
+            :vars="surveyVars"
+            @change="setSurveyVars"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            v-model="item.allow_parallel_tasks"
+          >
+            <template v-slot:label>
+              {{ $t('allow_parallel_tasks') }}
+              <v-chip class="ml-2" small color="error">New</v-chip>
+            </template>
+          </v-checkbox>
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
+            v-model="cronVisible"
+          />
+
+          <v-select
+            v-if="cronVisible"
+            v-model="cronRepositoryId"
+            :label="$t('repository2')"
+            :placeholder="$t('cronChecksNewCommitBeforeRun')"
+            :rules="[v => !!v || $t('repository_required')]"
+            :items="repositories"
+            item-value="id"
+            item-text="name"
+            clearable
+            :disabled="formSaving"
+            outlined
+            dense
+          ></v-select>
+
+          <v-select
+            v-if="cronVisible"
+            v-model="cronFormat"
+            :label="$t('checkInterval')"
+            :hint="$t('newCommitCheckInterval')"
+            item-value="cron"
+            item-text="title"
+            :items="cronFormats"
+            :disabled="formSaving"
+            outlined
+            dense
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('suppressSuccessAlerts')"
+            v-model="item.suppress_success_alerts"
+          />
+
+          <div style="position: relative">
+            <ArgsPicker
+              :vars="args"
+              @change="setArgs"
+              title="CLI args"
+            />
+
+            <RichEditor
+              v-model="argsJson"
+              type="json_array"
+              style="
+              position: absolute;
+              right: -23px;
+              top: -18px;
+              margin: 10px;
+            "
+            />
+
+          </div>
+
+        </div>
+
+        <h2 class="mb-4">{{ $t('task_prompts') }}</h2>
+        <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
+          <v-checkbox
+            class="mt-0"
+            :label="$t('allowCliArgsInTask')"
+            v-model="item.allow_override_args_in_task"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('allow_override_branch')"
+            v-model="item.allow_override_branch_in_task"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('allowInventoryInTask')"
+            v-model="allow_override_inventory"
+            v-if="needField('allow_override_inventory')"
+          />
+        </div>
+      </v-col>
+
+      <v-col v-if="needAppBlock">
+        <div class="mb-3">
+          <h2 class="mb-4">
+            {{ $t('template_app_options', { app: getAppTitle(app, true) }) }}
+          </h2>
+
+          <ArgsPicker
+            v-if="needField('limit')"
+            :vars="item.task_params.limit"
+            @change="setLimit"
+            :title="$t('limit')"
+            :arg-title="$t('limit')"
+            :add-arg-title="$t('addLimit')"
+          />
+
+          <ArgsPicker
+            v-if="needField('tags')"
+            :vars="item.task_params.tags"
+            @change="setTags"
+            :title="$t('tags')"
+            :arg-title="$t('tag')"
+            :add-arg-title="$t('addTag')"
+          />
+
+          <ArgsPicker
+            v-if="needField('skip_tags')"
+            :vars="item.task_params.skip_tags"
+            @change="setSkipTags"
+            :title="$t('skipTags')"
+            :arg-title="$t('tag')"
+            :add-arg-title="$t('addSkippedTag')"
+          />
+
+          <TemplateVaults
+            v-if="needField('vault')"
+            :project-id="this.projectId"
+            :vaults="vaults"
+            @change="setTemplateVaults"
+          ></TemplateVaults>
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('auto_approve')"
+            v-model="item.task_params.auto_approve"
+            v-if="needField('auto_approve')"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('terraform_override_backend')"
+            v-model="item.task_params.override_backend"
+            :true-value="true"
+            :false-value="false"
+            v-if="needField('override_backend') && premiumFeatures.terraform_backend"
+          />
+
+          <v-text-field
+            v-model="item.task_params.backend_filename"
+            :label="fieldLabel('terraform_backend_filename')"
+            outlined
+            dense
+            :disabled="formSaving || !item.task_params.override_backend"
+            placeholder="backend.tf"
+            :rules="[v => validateBackendFilename(v) || $t('terraform_invalid_backend_filename')]"
+            v-if="needField('backend_filename') && premiumFeatures.terraform_backend"
+          ></v-text-field>
+
+        </div>
+
+        <h2 class="mb-4">
+          {{ $t('template_app_prompts', { app: getAppTitle(app, true) }) }}
+        </h2>
+        <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
+          <v-checkbox
+            class="mt-0"
+            :label="$t('allowLimitInTask')"
+            v-model="item.task_params.allow_override_limit"
+            v-if="needField('allow_override_limit')"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('tags')"
+            v-model="item.task_params.allow_override_tags"
+            v-if="needField('allow_override_tags')"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('skipTags')"
+            v-model="item.task_params.allow_override_skip_tags"
+            v-if="needField('allow_override_skip_tags')"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('allowDebug')"
+            v-model="item.task_params.allow_debug"
+            v-if="needField('allow_debug')"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('auto_approve')"
+            v-model="item.task_params.allow_auto_approve"
+            v-if="needField('allow_auto_approve')"
+          />
+
+        </div>
+      </v-col>
+
     </v-row>
   </v-form>
 </template>
@@ -305,17 +518,17 @@ import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 import TemplateVaults from '@/components/TemplateVaults.vue';
-import {
-  TEMPLATE_TYPE_ICONS,
-  TEMPLATE_TYPE_TITLES,
-} from '@/lib/constants';
+import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
+import AppsMixin from '@/components/AppsMixin';
+import RichEditor from '@/components/RichEditor.vue';
 import SurveyVars from './SurveyVars';
 
 export default {
-  mixins: [ItemFormBase, AppFieldsMixin],
+  mixins: [ItemFormBase, AppFieldsMixin, AppsMixin],
 
   components: {
+    RichEditor,
     TemplateVaults,
     ArgsPicker,
     SurveyVars,
@@ -324,6 +537,8 @@ export default {
   props: {
     sourceItemId: Number,
     app: String,
+    premiumFeatures: Object,
+    taskType: String,
   },
 
   data() {
@@ -355,7 +570,9 @@ export default {
         lint: true,
         indentWithTabs: false,
       },
-      item: {},
+      item: {
+        task_params: {},
+      },
       inventory: null,
       repositories: null,
       environment: null,
@@ -369,17 +586,30 @@ export default {
       helpDialog: null,
       helpKey: null,
 
-      advancedOptions: false,
       args: [],
+      runnerTags: null,
+      branches: null,
+      setBranch: false,
     };
   },
 
   watch: {
+    gitBranch() {
+      this.setBranch = false;
+    },
+
+    async repositoryId() {
+      this.branches = null;
+
+      await this.loadBranches();
+    },
+
     needReset(val) {
       if (val) {
         if (this.item != null) {
           this.item.template_id = this.templateId;
         }
+        this.inventory = null;
       }
     },
 
@@ -392,37 +622,136 @@ export default {
     },
   },
 
+  async created() {
+    await this.loadBranches();
+  },
+
   computed: {
-    surveyVars() {
-      if (this.sourceItemId != null && this.item.survey_vars === undefined) {
-        throw new Error();
+    argsJson: {
+      get() {
+        return JSON.stringify(this.args);
+      },
+      set(val) {
+        this.args = JSON.parse(val);
+      },
+    },
+
+    repositoryId() {
+      return this.item?.repository_id;
+    },
+
+    gitBranch() {
+      return this.item?.git_branch;
+    },
+
+    allow_override_inventory: {
+      get() {
+        return this.item.task_params.allow_override_inventory;
+      },
+      set(newValue) {
+        this.item.task_params.allow_override_inventory = newValue;
+      },
+    },
+
+    loaderHeight() {
+      switch (this.taskType) {
+        case 'build':
+          if (['', 'ansible', 'terraform', 'tofu'].includes(this.app)) {
+            return 626;
+          }
+          return 560;
+        case 'deploy':
+          if (['', 'ansible', 'terraform', 'tofu'].includes(this.app)) {
+            return 676;
+          }
+          return 610;
+        default:
+          if (['', 'ansible', 'terraform', 'tofu'].includes(this.app)) {
+            return 564;
+          }
+          return 514;
       }
+    },
+
+    appBlockTitle() {
+      switch (this.app) {
+        case '':
+        case 'ansible':
+          return this.$t('ansible_playbook_options');
+        default:
+          return this.app;
+      }
+    },
+
+    needAppBlock() {
+      return ['', 'ansible', 'ansible', 'tofu', 'terraform'].includes(this.app);
+    },
+
+    surveyVars() {
+      // if (this.sourceItemId != null && this.item.survey_vars === undefined) {
+      //   throw new Error();
+      // }
       return this.item.survey_vars;
     },
 
     vaults() {
-      if (this.sourceItemId != null && this.item.vaults === undefined) {
-        throw new Error();
-      }
+      // if (this.sourceItemId != null && this.item.vaults === undefined) {
+      //   throw new Error();
+      // }
       return this.item.vaults;
     },
 
     isLoaded() {
-      if (this.isNew && this.sourceItemId == null) {
-        return true;
-      }
+      // if (this.isNew && this.sourceItemId == null) {
+      //   return true;
+      // }
 
       return this.repositories != null
         && this.inventory != null
         && this.environment != null
         && this.item != null
         && this.schedules != null
-        && this.views != null;
+        && this.views != null
+        && this.runnerTags != null;
     },
 
   },
 
   methods: {
+    async loadBranches() {
+      if (this.repositoryId == null) {
+        return;
+      }
+
+      this.branches = await this.loadProjectEndpoint(
+        `/repositories/${this.repositoryId}/branches`,
+      );
+    },
+
+    validateBackendFilename(v) {
+      if (!v) {
+        return true;
+      }
+
+      if (!v.endsWith('.tf')) {
+        return 'File must have extension .tf';
+      }
+
+      return /^[a-zA-Z0-9_\-.]+\.tf$/.test(v);
+    },
+
+    setSkipTags(tags) {
+      this.item.task_params.skip_tags = tags;
+    },
+
+    setTags(tags) {
+      this.item.task_params.tags = tags;
+    },
+
+    setLimit(limit) {
+      this.item.task_params.limit = limit;
+    },
+
     setArgs(args) {
       this.args = args;
     },
@@ -440,67 +769,43 @@ export default {
       this.helpDialog = true;
     },
 
-    async afterLoadData() {
-      if (this.sourceItemId) {
-        const item = (await axios({
-          url: `/api/project/${this.projectId}/templates/${this.sourceItemId}`,
-          responseType: 'json',
-        })).data;
+    getNewItem() {
+      return {
+        task_params: {},
+      };
+    },
 
-        item.id = null;
+    async loadRelativeData() {
+      let templates;
+      let inventory1;
+      let inventory2;
 
-        if (item.vaults) {
-          for (let i = 0; i < item.vaults.length; i += 1) {
-            item.vaults[i].id = null;
-          }
-        }
+      [
+        this.repositories,
+        inventory1,
+        inventory2,
+        this.schedules,
+        this.views,
+        this.environment,
+        templates,
+        this.runnerTags,
+      ] = await Promise.all([
+        this.loadProjectResources('repositories'),
+        this.loadProjectEndpoint(`/inventory?app=${this.app}&template_id=${this.itemId}`),
+        this.loadProjectEndpoint(`/inventory?app=${this.app}`),
+        this.isNew ? [] : this.loadProjectEndpoint(`/templates/${this.itemId}/schedules`),
+        this.loadProjectResources('views'),
+        this.loadProjectResources('environment'),
+        this.loadProjectResources('templates'),
+        this.loadProjectResources('runner_tags'),
+      ]);
 
-        const sourceSchedule = (await axios({
-          url: `/api/project/${this.projectId}/templates/${this.sourceItemId}/schedules`,
-          responseType: 'json',
-        })).data[0];
-
-        if (sourceSchedule != null) {
-          this.cronFormat = sourceSchedule.cron_format;
-          this.cronRepositoryId = sourceSchedule.repository_id;
-          this.cronVisible = this.cronRepositoryId != null;
-        }
-
-        this.item = item;
-      }
-
-      this.advancedOptions = this.item.arguments != null || this.item.allow_override_args_in_task;
-
-      this.repositories = (await axios({
-        url: `/api/project/${this.projectId}/repositories`,
-        responseType: 'json',
-      })).data;
-
-      this.inventory = [
-        ...(await axios({
-          url: `/api/project/${this.projectId}/inventory?app=${this.app}&template_id=${this.itemId}`,
-          responseType: 'json',
-        })).data,
-
-        ...(await axios({
-          url: `/api/project/${this.projectId}/inventory?app=${this.app}`,
-          responseType: 'json',
-        })).data,
-      ];
-
-      this.environment = (await axios({
-        url: `/api/project/${this.projectId}/environment`,
-        responseType: 'json',
-      })).data;
-
-      const template = (await axios({
-        url: `/api/project/${this.projectId}/templates`,
-        responseType: 'json',
-      })).data;
+      this.inventory = [...inventory1, ...inventory2];
 
       const builds = [];
       const deploys = [];
-      template.forEach((t) => {
+
+      templates.forEach((t) => {
         switch (t.type) {
           case 'build':
             if (builds.length === 0) {
@@ -517,8 +822,6 @@ export default {
           default:
             break;
         }
-
-        this.args = JSON.parse(this.item.arguments || '[]');
       });
 
       this.buildTemplates = builds;
@@ -526,16 +829,38 @@ export default {
         this.buildTemplates.push({ divider: true });
       }
       this.buildTemplates.push(...deploys);
+    },
 
-      this.schedules = this.isNew ? [] : (await axios({
-        url: `/api/project/${this.projectId}/templates/${this.itemId}/schedules`,
-        responseType: 'json',
-      })).data;
+    async afterLoadData() {
+      if (this.sourceItemId) {
+        const item = await this.loadProjectResource('templates', this.sourceItemId);
 
-      this.views = (await axios({
-        url: `/api/project/${this.projectId}/views`,
-        responseType: 'json',
-      })).data;
+        item.id = null;
+
+        if (item.vaults) {
+          for (let i = 0; i < item.vaults.length; i += 1) {
+            item.vaults[i].id = null;
+          }
+        }
+
+        const sourceSchedule = (await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`))[0];
+
+        if (sourceSchedule != null) {
+          this.cronFormat = sourceSchedule.cron_format;
+          this.cronRepositoryId = sourceSchedule.repository_id;
+          this.cronVisible = this.cronRepositoryId != null;
+        }
+
+        this.item = item;
+      }
+
+      if (!this.item.task_params) {
+        this.item.task_params = {};
+      }
+
+      this.args = JSON.parse(this.item.arguments || '[]');
+
+      await this.loadRelativeData();
 
       if (this.schedules.length > 0) {
         const schedule = this.schedules.find((s) => s.repository_id != null);

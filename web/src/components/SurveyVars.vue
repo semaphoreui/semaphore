@@ -1,9 +1,9 @@
 <template>
-  <div class="pb-6">
+  <div class="pb-6" style="margin-top: -10px;">
     <v-dialog
       v-model="editDialog"
       hide-overlay
-      width="300"
+      width="400"
     >
       <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
         <v-card-title></v-card-title>
@@ -38,6 +38,7 @@
               v-model="editedVar.description"
               required
             />
+
             <v-select
               v-model="editedVar.type"
               :label="$t('type')"
@@ -50,7 +51,7 @@
               v-if="editedVar.type === 'enum'"
               :items="editedValues"
               :items-per-page="-1"
-              class="elevation-1"
+              class="elevation-1 FieldTable"
               hide-default-footer
               :no-data-text="$t('noValues')"
             >
@@ -62,6 +63,7 @@
                       flat
                       hide-details
                       v-model="props.item.name"
+                      :label="$t('matchKey')"
                       class="v-text-field--solo--no-min-height"
                     ></v-text-field>
                   </td>
@@ -71,6 +73,7 @@
                       flat
                       hide-details
                       v-model="props.item.value"
+                      :label="$t('matchValue')"
                       class="v-text-field--solo--no-min-height"
                     ></v-text-field>
                   </td>
@@ -88,13 +91,35 @@
             </v-data-table>
 
             <div class="text-right mt-2">
-
               <v-btn
                 color="primary"
                 v-if="editedVar.type === 'enum'"
                 @click="addEditedVarValue()"
               >Add Value</v-btn>
             </div>
+
+            <v-select
+              v-if="editedVar.type === 'enum'"
+              v-model="editedVar.default_value"
+              :label="$t('default_value')"
+              :items="editedValues"
+              item-value="value"
+              item-text="name"
+              clearable
+            ></v-select>
+
+            <v-text-field
+              type="number"
+              v-else-if="editedVar.type === 'int'"
+              :label="$t('default_value')"
+              v-model="editedVar.default_value"
+            />
+
+            <v-text-field
+              v-else-if="editedVar.type !== 'secret'"
+              :label="$t('default_value')"
+              v-model="editedVar.default_value"
+            />
 
             <v-checkbox
               :label="$t('required')"
@@ -122,14 +147,12 @@
       </v-card>
     </v-dialog>
     <fieldset style="padding: 0 10px 2px 10px;
-                     border: 1px solid rgba(0, 0, 0, 0.38);
-                     border-radius: 4px;
+                        border-width: 1px;
+                        border-color: rgba(133, 133, 133, 0.4);
+                        background-color: rgba(133, 133, 133, 0.1);
+                     border-radius: 8px;
                      font-size: 12px;"
-              :style="{
-                       'border-color': $vuetify.theme.dark ?
-                         'rgba(200, 200, 200, 0.38)' :
-                         'rgba(0, 0, 0, 0.38)'
-                     }">
+    >
       <legend style="padding: 0 3px;">{{ $t('surveyVariables') }}</legend>
       <v-chip-group column style="margin-top: -4px;">
         <v-chip
@@ -149,9 +172,6 @@
     </fieldset>
   </div>
 </template>
-<style lang="scss">
-
-</style>
 <script>
 export default {
   props: {

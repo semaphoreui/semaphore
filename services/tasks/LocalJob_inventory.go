@@ -14,22 +14,23 @@ import (
 
 func (t *LocalJob) installInventory() (err error) {
 	if t.Inventory.SSHKeyID != nil {
-		t.sshKeyInstallation, err = t.Inventory.SSHKey.Install(db.AccessKeyRoleAnsibleUser, t.Logger)
+		t.sshKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleAnsibleUser, t.Logger)
 		if err != nil {
 			return
 		}
 	}
 
 	if t.Inventory.BecomeKeyID != nil {
-		t.becomeKeyInstallation, err = t.Inventory.BecomeKey.Install(db.AccessKeyRoleAnsibleBecomeUser, t.Logger)
+		t.becomeKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.BecomeKey, db.AccessKeyRoleAnsibleBecomeUser, t.Logger)
 		if err != nil {
 			return
 		}
 	}
 
-	if t.Inventory.Type == db.InventoryFile {
-		err = t.cloneInventoryRepo()
-	} else if t.Inventory.Type == db.InventoryStatic || t.Inventory.Type == db.InventoryStaticYaml {
+	switch t.Inventory.Type {
+	case db.InventoryFile:
+		err = t.cloneInventoryRepo(t.KeyInstaller)
+	case db.InventoryStatic, db.InventoryStaticYaml:
 		err = t.installStaticInventory()
 	}
 
@@ -37,19 +38,29 @@ func (t *LocalJob) installInventory() (err error) {
 }
 
 func (t *LocalJob) tmpInventoryFilename() string {
-	return "inventory_" + strconv.Itoa(t.Task.ID)
+	if t.Inventory.Repository == nil {
+		return "inventory_" + strconv.Itoa(t.Inventory.ID)
+	}
+	return t.Inventory.Repository.GetDirName(t.Template.ID) + "_inventory_" + strconv.Itoa(t.Inventory.ID)
 }
 
 func (t *LocalJob) tmpInventoryFullPath() string {
-	pathname := path.Join(util.Config.TmpPath, t.tmpInventoryFilename())
+	if t.Inventory.Repository != nil && t.Inventory.Repository.GetType() == db.RepositoryLocal {
+		return t.Inventory.Repository.GetGitURL(true)
+	}
+	pathname := path.Join(util.Config.GetProjectTmpDir(t.Template.ProjectID), t.tmpInventoryFilename())
 	if t.Inventory.Type == db.InventoryStaticYaml {
 		pathname += ".yml"
 	}
 	return pathname
 }
 
-func (t *LocalJob) cloneInventoryRepo() error {
+func (t *LocalJob) cloneInventoryRepo(keyInstaller db_lib.AccessKeyInstaller) error {
 	if t.Inventory.Repository == nil {
+		return nil
+	}
+
+	if t.Inventory.Repository.GetType() == db.RepositoryLocal {
 		return nil
 	}
 
@@ -59,7 +70,7 @@ func (t *LocalJob) cloneInventoryRepo() error {
 		Logger:     t.Logger,
 		TmpDirName: t.tmpInventoryFilename(),
 		Repository: *t.Inventory.Repository,
-		Client:     db_lib.CreateDefaultGitClient(),
+		Client:     db_lib.CreateDefaultGitClient(keyInstaller),
 	}
 
 	// Try to pull the repo before trying to clone it
@@ -88,9 +99,20 @@ func (t *LocalJob) installStaticInventory() error {
 }
 
 func (t *LocalJob) destroyInventoryFile() {
+	if !t.Inventory.Type.IsStatic() {
+		return
+	}
+
 	fullPath := t.tmpInventoryFullPath()
 	if err := os.Remove(fullPath); err != nil {
-		log.Error(err)
+		if os.IsNotExist(err) {
+			return
+		}
+
+		log.WithError(err).WithFields(log.Fields{
+			"context": "task_running",
+			"task_id": t.Task.ID,
+		}).Warn("failed to remove inventory file")
 	}
 }
 

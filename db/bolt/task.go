@@ -15,7 +15,7 @@ func (d *BoltDb) CreateTaskStage(stage db.TaskStage) (db.TaskStage, error) {
 	return newOutput.(db.TaskStage), nil
 }
 
-func (d *BoltDb) GetTaskStages(projectID int, taskID int) (res []db.TaskStage, err error) {
+func (d *BoltDb) GetTaskStages(projectID int, taskID int) (res []db.TaskStageWithResult, err error) {
 	// check if task exists in the project
 	_, err = d.GetTask(projectID, taskID)
 
@@ -23,7 +23,23 @@ func (d *BoltDb) GetTaskStages(projectID int, taskID int) (res []db.TaskStage, e
 		return
 	}
 
-	err = d.getObjects(taskID, db.TaskStageProps, db.RetrieveQueryParams{}, nil, &res)
+	var stages []db.TaskStage
+	err = d.getObjects(taskID, db.TaskStageProps, db.RetrieveQueryParams{}, nil, &stages)
+	if err != nil {
+		return
+	}
+
+	// Convert TaskStage to TaskStageWithResult
+	res = make([]db.TaskStageWithResult, len(stages))
+	for i, stage := range stages {
+		res[i] = db.TaskStageWithResult{
+			ID:     stage.ID,
+			TaskID: stage.TaskID,
+			Start:  stage.Start,
+			End:    stage.End,
+			Type:   stage.Type,
+		}
+	}
 
 	return
 }
@@ -38,7 +54,7 @@ func (d *BoltDb) clearTasks(projectID int, templateID int, maxTasks int) {
 
 	if nTasks == 0 { // recalculate number of tasks for the template
 
-		n, err := d.count(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(item interface{}) bool {
+		n, err := d.count(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(item any) bool {
 			task := item.(db.Task)
 
 			return task.TemplateID == templateID
@@ -74,7 +90,7 @@ func (d *BoltDb) clearTasks(projectID int, templateID int, maxTasks int) {
 
 		c := b.Cursor()
 
-		return apply(c, db.TaskProps, db.RetrieveQueryParams{}, func(item interface{}) bool {
+		return apply(c, db.TaskProps, db.RetrieveQueryParams{}, func(item any) bool {
 			task := item.(db.Task)
 
 			if task.TemplateID != templateID {
@@ -83,7 +99,7 @@ func (d *BoltDb) clearTasks(projectID int, templateID int, maxTasks int) {
 
 			i++
 			return i > maxTasks
-		}, func(i interface{}) error {
+		}, func(i any) error {
 			task := i.(db.Task)
 			return d.deleteTaskWithOutputs(projectID, task.ID, false, tx)
 		})
@@ -91,7 +107,11 @@ func (d *BoltDb) clearTasks(projectID int, templateID int, maxTasks int) {
 }
 
 func (d *BoltDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err error) {
-	task.Created = time.Now()
+	err = task.PreInsert(nil)
+	if err != nil {
+		return
+	}
+
 	task.ID = 0
 	res, err := d.createObject(0, db.TaskProps, task)
 	if err != nil {
@@ -118,10 +138,26 @@ func (d *BoltDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	return newOutput.(db.TaskOutput), nil
 }
 
+func (d *BoltDb) InsertTaskOutputBatch(output []db.TaskOutput) error {
+	if len(output) == 0 {
+		return nil
+	}
+
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		for _, out := range output {
+			_, err := d.createObjectTx(tx, out.TaskID, db.TaskOutputProps, out)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQueryParams) (tasksWithTpl []db.TaskWithTpl, err error) {
 	var tasks []db.Task
 
-	err = d.getObjects(0, db.TaskProps, params, func(tsk interface{}) bool {
+	err = d.getObjects(0, db.TaskProps, params, func(tsk any) bool {
 		task := tsk.(db.Task)
 
 		if task.ProjectID != projectID {
@@ -229,7 +265,7 @@ func (d *BoltDb) DeleteTaskWithOutputs(projectID int, taskID int) error {
 	})
 }
 
-func (d *BoltDb) GetTaskOutputs(projectID int, taskID int) (outputs []db.TaskOutput, err error) {
+func (d *BoltDb) GetTaskOutputs(projectID int, taskID int, params db.RetrieveQueryParams) (outputs []db.TaskOutput, err error) {
 	// check if task exists in the project
 	_, err = d.GetTask(projectID, taskID)
 
@@ -237,7 +273,23 @@ func (d *BoltDb) GetTaskOutputs(projectID int, taskID int) (outputs []db.TaskOut
 		return
 	}
 
-	err = d.getObjects(taskID, db.TaskOutputProps, db.RetrieveQueryParams{}, nil, &outputs)
+	err = d.getObjects(taskID, db.TaskOutputProps, params, nil, &outputs)
 
+	return
+}
+
+func (d *BoltDb) EndTaskStage(taskID int, stageID int, end time.Time) error {
+	return nil
+}
+
+func (d *BoltDb) CreateTaskStageResult(taskID int, stageID int, result map[string]any) error {
+	return nil
+}
+
+func (d *BoltDb) GetTaskStageResult(projectID int, taskID int, stageID int) (res db.TaskStageResult, err error) {
+	return
+}
+
+func (d *BoltDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (res []db.TaskOutput, err error) {
 	return
 }

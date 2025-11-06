@@ -3,6 +3,7 @@ package bolt
 import (
 	"encoding/json"
 	"errors"
+	"sort"
 
 	"github.com/semaphoreui/semaphore/db"
 	"go.etcd.io/bbolt"
@@ -44,26 +45,104 @@ func (d *BoltDb) UpdateTemplate(template db.Template) error {
 	return d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
 }
 
+func (d *BoltDb) setTemplateDescriptionTx(projectID int, templateID int, description string, tx *bbolt.Tx) error {
+
+	template, err := d.getRawTemplateTx(projectID, templateID, tx)
+	if err != nil {
+		return err
+	}
+	if description == "" {
+		template.Description = nil
+	} else {
+		template.Description = &description
+	}
+
+	err = d.updateObjectTx(tx, projectID, db.TemplateProps, template)
+
+	return err
+}
+
+func (d *BoltDb) SetTemplateDescription(projectID int, templateID int, description string) error {
+	err := d.db.Update(func(tx *bbolt.Tx) error {
+		return d.setTemplateDescriptionTx(projectID, templateID, description, tx)
+	})
+
+	return err
+}
+
+func (d *BoltDb) GetTemplatesWithPermissions(projectID int, userID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.TemplateWithPerms, err error) {
+	res, err := d.GetTemplates(projectID, filter, params)
+	if err != nil {
+		return
+	}
+
+	for _, tpl := range res {
+		var tplWithPerms db.TemplateWithPerms
+		tplWithPerms.Template = tpl
+		templates = append(templates, tplWithPerms)
+	}
+
+	return
+}
+
 func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
-	var ftr = func(tpl interface{}) bool {
+	var view db.View
+
+	if filter.ViewID != nil {
+		view, err = d.GetView(projectID, *filter.ViewID)
+		if err != nil {
+			return
+		}
+	}
+
+	var ftr = func(tpl any) bool {
 		template := tpl.(db.Template)
 		var res = true
 		if filter.App != nil {
 			res = res && template.App == *filter.App
 		}
+
 		if filter.ViewID != nil {
-			res = res && template.ViewID != nil && *template.ViewID == *filter.ViewID
+			switch view.Type {
+			case db.ViewTypeAll:
+			case db.ViewTypeCustom:
+				res = res && template.ViewID != nil && *template.ViewID == *filter.ViewID
+			}
 		}
+
 		if filter.BuildTemplateID != nil {
 			res = res && template.BuildTemplateID != nil && *template.BuildTemplateID == *filter.BuildTemplateID
 			if filter.AutorunOnly {
 				res = res && template.Autorun
 			}
 		}
+
 		return res
 	}
 
 	err = d.getObjects(projectID, db.TemplateProps, params, ftr, &templates)
+
+	var sortColumn string
+	var sortReverse bool
+
+	if params.SortBy != "" {
+		sortColumn = params.SortBy
+		sortReverse = params.SortInverted
+	} else if filter.ViewID != nil && view.SortColumn != nil {
+		sortColumn = *view.SortColumn
+		sortReverse = view.SortReverse
+	}
+
+	switch sortColumn {
+	case "name":
+		sort.Slice(templates, func(i, j int) bool {
+			if sortReverse {
+				return templates[i].Name > templates[j].Name
+			} else {
+				return templates[i].Name < templates[j].Name
+			}
+		})
+	}
 
 	if err != nil {
 		return
@@ -88,7 +167,7 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 
 	var errEndOfTemplates = errors.New("no more templates to filling")
 
-	err = d.apply(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(i interface{}) error {
+	err = d.apply(projectID, db.TaskProps, db.RetrieveQueryParams{}, func(i any) error {
 		task := i.(db.Task)
 
 		if task.ProjectID != projectID {
@@ -128,6 +207,11 @@ func (d *BoltDb) GetTemplates(projectID int, filter db.TemplateFilter, params db
 	return
 }
 
+func (d *BoltDb) getRawTemplateTx(projectID int, templateID int, tx *bbolt.Tx) (template db.Template, err error) {
+	err = d.getObjectTx(tx, projectID, db.TemplateProps, intObjectID(templateID), &template)
+	return
+}
+
 func (d *BoltDb) getRawTemplate(projectID int, templateID int) (template db.Template, err error) {
 	err = d.getObject(projectID, db.TemplateProps, intObjectID(templateID), &template)
 	return
@@ -164,7 +248,7 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		}
 	}
 
-	schedules, err := d.GetTemplateSchedules(projectID, templateID)
+	schedules, err := d.GetTemplateSchedules(projectID, templateID, false)
 	if err != nil {
 		return
 	}
@@ -187,7 +271,7 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		}
 	}
 
-	integrations, err := d.GetIntegrations(projectID, db.RetrieveQueryParams{})
+	integrations, err := d.GetIntegrations(projectID, db.RetrieveQueryParams{}, false)
 	if err != nil {
 		return
 	}
@@ -210,4 +294,24 @@ func (d *BoltDb) DeleteTemplate(projectID int, templateID int) error {
 
 func (d *BoltDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferrers, error) {
 	return d.getObjectRefs(projectID, db.TemplateProps, templateID)
+}
+
+func (d *BoltDb) GetTemplatePermission(projectID int, templateID int, userID int) (perm db.ProjectUserPermission, err error) {
+	return
+}
+func (d *BoltDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplateRolePerm, err error) {
+	roles = []db.TemplateRolePerm{}
+	return
+}
+func (d *BoltDb) CreateTemplateRole(role db.TemplateRolePerm) (newRole db.TemplateRolePerm, err error) {
+	return
+}
+func (d *BoltDb) DeleteTemplateRole(projectID int, templateID int, roleID int) error {
+	return nil
+}
+func (d *BoltDb) UpdateTemplateRole(role db.TemplateRolePerm) error {
+	return nil
+}
+func (d *BoltDb) GetTemplateRole(projectID int, templateID int, roleID int) (role db.TemplateRolePerm, err error) {
+	return
 }

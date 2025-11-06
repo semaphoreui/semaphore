@@ -13,28 +13,28 @@ type publicAlias struct {
 	db               *BoltDb
 }
 
-func (d *publicAlias) getAliases(projectID int, filter func(i interface{}) bool, res interface{}) (err error) {
+func (d *publicAlias) getAliases(projectID int, filter func(i any) bool, res any) (err error) {
 
 	err = d.db.getObjects(projectID, d.aliasProps, db.RetrieveQueryParams{}, filter, res)
 
 	return
 }
 
-func (d *publicAlias) getAlias(projectID int, aliasID int, res interface{}) (err error) {
+func (d *publicAlias) getAlias(projectID int, aliasID int, res any) (err error) {
 
 	err = d.db.getObject(projectID, d.aliasProps, intObjectID(aliasID), res)
 
 	return
 }
 
-func (d *publicAlias) getPublicAlias(alias string, aliasObj interface{}) (err error) {
+func (d *publicAlias) getPublicAlias(alias string, aliasObj any) (err error) {
 
 	err = d.db.getObject(-1, d.publicAliasProps, strObjectID(alias), aliasObj)
 
 	return
 }
 
-func (d *publicAlias) createAlias(aliasObj interface{}) (newAlias interface{}, err error) {
+func (d *publicAlias) createAlias(aliasObj any) (newAlias any, err error) {
 
 	alias := aliasObj.(db.Aliasable).ToAlias()
 

@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -42,6 +43,10 @@ type BoltDb struct {
 
 	integrationAlias publicAlias
 	terraformAlias   publicAlias
+}
+
+func (d *BoltDb) GetDialect() string {
+	return util.DbDriverBolt
 }
 
 var terraformAliasProps = db.ObjectProps{
@@ -94,10 +99,6 @@ func makeBucketId(props db.ObjectProps, ids ...int) []byte {
 	return []byte(id)
 }
 
-func (d *BoltDb) Migrate() error {
-	return nil
-}
-
 func (d *BoltDb) openDbFile() {
 	var filename string
 	if d.Filename == "" {
@@ -130,7 +131,7 @@ func (d *BoltDb) openSession(token string) {
 
 	if _, exists := d.connections[token]; exists {
 		// Use for debugging
-		panic(fmt.Errorf("Connection " + token + " already exists"))
+		panic(fmt.Errorf("connection %s already exists", token))
 	}
 
 	if len(d.connections) > 0 {
@@ -159,7 +160,7 @@ func (d *BoltDb) closeSession(token string) {
 
 	if !exists {
 		// Use for debugging
-		panic(fmt.Errorf("can not close closed connection " + token))
+		panic(fmt.Errorf("can not close closed connection %s", token))
 	}
 
 	if len(d.connections) > 1 {
@@ -210,19 +211,23 @@ func (d *BoltDb) IsInitialized() (initialized bool, err error) {
 	return
 }
 
-func (d *BoltDb) getObject(bucketID int, props db.ObjectProps, objectID objectID, object interface{}) (err error) {
+func (d *BoltDb) getObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, objectID objectID, object any) (err error) {
+	b := tx.Bucket(makeBucketId(props, bucketID))
+	if b == nil {
+		return db.ErrNotFound
+	}
+
+	str := b.Get(objectID.ToBytes())
+	if str == nil {
+		return db.ErrNotFound
+	}
+
+	return unmarshalObject(str, object, props.SelectColumns)
+}
+
+func (d *BoltDb) getObject(bucketID int, props db.ObjectProps, objectID objectID, object any) (err error) {
 	err = d.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(makeBucketId(props, bucketID))
-		if b == nil {
-			return db.ErrNotFound
-		}
-
-		str := b.Get(objectID.ToBytes())
-		if str == nil {
-			return db.ErrNotFound
-		}
-
-		return unmarshalObject(str, object, props.SelectColumns)
+		return d.getObjectTx(tx, bucketID, props, objectID, object)
 	})
 
 	return
@@ -249,7 +254,7 @@ func getFieldNameByTagSuffix(t reflect.Type, tagName string, tagValueSuffix stri
 	return "", fmt.Errorf("field not found")
 }
 
-func sortObjects(objects interface{}, sortBy string, sortInverted bool) error {
+func sortObjects(objects any, sortBy string, sortInverted bool) error {
 	objectsValue := reflect.ValueOf(objects).Elem()
 	objType := objectsValue.Type().Elem()
 
@@ -318,7 +323,7 @@ func createObjectType(t reflect.Type) reflect.Type {
 	return reflect.StructOf(fields)
 }
 
-func unmarshalObject(data []byte, obj interface{}, fields []string) error {
+func unmarshalObject(data []byte, obj any, fields []string) error {
 	newType := createObjectType(reflect.TypeOf(obj))
 	ptr := reflect.New(newType).Interface()
 
@@ -356,13 +361,13 @@ func unmarshalObject(data []byte, obj interface{}, fields []string) error {
 	return nil
 }
 
-func copyObject(obj interface{}, newType reflect.Type) interface{} {
+func copyObject(obj any, newType reflect.Type) any {
 	newValue := reflect.New(newType).Elem()
 
 	oldValue := reflect.ValueOf(obj)
 
 	for i := 0; i < newType.NumField(); i++ {
-		var v interface{}
+		var v any
 		if newValue.Field(i).Kind() == reflect.Struct &&
 			newValue.Field(i).Type().PkgPath() == "" {
 			v = copyObject(oldValue.Field(i).Interface(), newValue.Field(i).Type())
@@ -375,7 +380,7 @@ func copyObject(obj interface{}, newType reflect.Type) interface{} {
 	return newValue.Interface()
 }
 
-func marshalObject(obj interface{}) ([]byte, error) {
+func marshalObject(obj any) ([]byte, error) {
 	newType := createObjectType(reflect.TypeOf(obj))
 	return json.Marshal(copyObject(obj, newType))
 }
@@ -384,8 +389,8 @@ func apply(
 	rawData enumerable,
 	props db.ObjectProps,
 	params db.RetrieveQueryParams,
-	filter func(interface{}) bool,
-	applier func(interface{}) error,
+	filter func(any) bool,
+	applier func(any) error,
 ) (err error) {
 	objType := props.Type
 
@@ -450,7 +455,7 @@ func apply(
 	return
 }
 
-func (d *BoltDb) count(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool) (n int, err error) {
+func (d *BoltDb) count(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(any) bool) (n int, err error) {
 	n = 0
 
 	err = d.db.View(func(tx *bbolt.Tx) error {
@@ -461,7 +466,7 @@ func (d *BoltDb) count(bucketID int, props db.ObjectProps, params db.RetrieveQue
 
 		c := b.Cursor()
 
-		return apply(c, db.TaskProps, params, filter, func(i interface{}) error {
+		return apply(c, db.TaskProps, params, filter, func(i any) error {
 			n++
 			return nil
 		})
@@ -470,16 +475,20 @@ func (d *BoltDb) count(bucketID int, props db.ObjectProps, params db.RetrieveQue
 	return
 }
 
-func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) (err error) {
+func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.RetrieveQueryParams, filter func(any) bool, objects any) (err error) {
 	objectsValue := reflect.ValueOf(objects).Elem()
 
 	objectsValue.Set(reflect.MakeSlice(objectsValue.Type(), 0, 0))
 
-	err = apply(rawData, props, params, filter, func(i interface{}) error {
+	err = apply(rawData, props, params, filter, func(i any) error {
 		newObjectValues := reflect.Append(objectsValue, reflect.ValueOf(i))
 		objectsValue.Set(newObjectValues)
 		return nil
 	})
+
+	if err != nil {
+		return
+	}
 
 	sortable := false
 
@@ -499,7 +508,7 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.Retrie
 	return
 }
 
-func (d *BoltDb) getObjectsTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) error {
+func (d *BoltDb) getObjectsTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(any) bool, objects any) error {
 	b := tx.Bucket(makeBucketId(props, bucketID))
 	var c enumerable
 	if b == nil {
@@ -510,13 +519,13 @@ func (d *BoltDb) getObjectsTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, 
 	return unmarshalObjects(c, props, params, filter, objects)
 }
 
-func (d *BoltDb) getObjects(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(interface{}) bool, objects interface{}) error {
+func (d *BoltDb) getObjects(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, filter func(any) bool, objects any) error {
 	return d.db.View(func(tx *bbolt.Tx) error {
 		return d.getObjectsTx(tx, bucketID, props, params, filter, objects)
 	})
 }
 
-func (d *BoltDb) apply(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, applier func(interface{}) error) error {
+func (d *BoltDb) apply(bucketID int, props db.ObjectProps, params db.RetrieveQueryParams, applier func(any) error) error {
 	return d.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(makeBucketId(props, bucketID))
 		var c enumerable
@@ -556,7 +565,7 @@ func (d *BoltDb) deleteObject(bucketID int, props db.ObjectProps, objectID objec
 	return d.db.Update(fn)
 }
 
-func (d *BoltDb) updateObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, object interface{}) error {
+func (d *BoltDb) updateObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, object any) error {
 	b := tx.Bucket(makeBucketId(props, bucketID))
 	if b == nil {
 		return db.ErrNotFound
@@ -605,13 +614,13 @@ func (d *BoltDb) updateObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps
 }
 
 // updateObject updates data for object in database.
-func (d *BoltDb) updateObject(bucketID int, props db.ObjectProps, object interface{}) error {
+func (d *BoltDb) updateObject(bucketID int, props db.ObjectProps, object any) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
 		return d.updateObjectTx(tx, bucketID, props, object)
 	})
 }
 
-func (d *BoltDb) createObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, object interface{}) (interface{}, error) {
+func (d *BoltDb) createObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps, object any) (any, error) {
 	b, err := tx.CreateBucketIfNotExists(makeBucketId(props, bucketID))
 
 	if err != nil {
@@ -695,7 +704,7 @@ func (d *BoltDb) createObjectTx(tx *bbolt.Tx, bucketID int, props db.ObjectProps
 	return object, b.Put(objID.ToBytes(), str)
 }
 
-func (d *BoltDb) createObject(bucketID int, props db.ObjectProps, object interface{}) (res interface{}, err error) {
+func (d *BoltDb) createObject(bucketID int, props db.ObjectProps, object any) (res any, err error) {
 
 	_ = d.db.Update(func(tx *bbolt.Tx) error {
 		res, err = d.createObjectTx(tx, bucketID, props, object)
@@ -724,7 +733,7 @@ func (d *BoltDb) getReferringObjectByParentID(parentID int, objProps db.ObjectPr
 	referringObjs = make([]db.ObjectReferrer, 0)
 
 	var referringObjectOfType = reflect.New(reflect.SliceOf(referringObjectProps.Type))
-	err = d.getObjects(parentID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+	err = d.getObjects(parentID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj any) bool {
 		return isObjectReferredBy(objProps, intObjectID(objID), referringObj)
 	}, referringObjectOfType.Interface())
 
@@ -782,7 +791,7 @@ func (d *BoltDb) getObjectRefsFrom(projectID int, objProps db.ObjectProps, objID
 
 	if referringObjectProps.Type == db.ScheduleProps.Type {
 		schedules := make([]db.Schedule, 0)
-		err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+		err = d.getObjects(projectID, db.ScheduleProps, db.RetrieveQueryParams{}, func(referringObj any) bool {
 			return isObjectReferredBy(objProps, objID, referringObj)
 		}, &schedules)
 
@@ -803,7 +812,7 @@ func (d *BoltDb) getObjectRefsFrom(projectID int, objProps db.ObjectProps, objID
 		}
 	} else {
 		referringObjects = reflect.New(reflect.SliceOf(referringObjectProps.Type))
-		err = d.getObjects(projectID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+		err = d.getObjects(projectID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj any) bool {
 			return isObjectReferredBy(objProps, objID, referringObj)
 		}, referringObjects.Interface())
 
@@ -822,7 +831,7 @@ func (d *BoltDb) getObjectRefsFrom(projectID int, objProps db.ObjectProps, objID
 	return
 }
 
-func getReferredValue(props db.ObjectProps, referringObj interface{}) (f reflect.Value, ok bool) {
+func getReferredValue(props db.ObjectProps, referringObj any) (f reflect.Value, ok bool) {
 	if props.ReferringColumnSuffix == "" {
 		ok = false
 		return
@@ -840,7 +849,7 @@ func getReferredValue(props db.ObjectProps, referringObj interface{}) (f reflect
 	return
 }
 
-func isObjectReferredBy(props db.ObjectProps, objID objectID, referringObj interface{}) bool {
+func isObjectReferredBy(props db.ObjectProps, objID objectID, referringObj any) bool {
 	f, ok := getReferredValue(props, referringObj)
 	if !ok {
 		return false
@@ -898,7 +907,7 @@ func isObjectReferredBy(props db.ObjectProps, objID objectID, referringObj inter
 func (d *BoltDb) isObjectInUse(bucketID int, objProps db.ObjectProps, objID objectID, referringObjectProps db.ObjectProps) (inUse bool, err error) {
 	referringObjects := reflect.New(reflect.SliceOf(referringObjectProps.Type))
 
-	err = d.getObjects(bucketID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj interface{}) bool {
+	err = d.getObjects(bucketID, referringObjectProps, db.RetrieveQueryParams{}, func(referringObj any) bool {
 		return isObjectReferredBy(objProps, objID, referringObj)
 	}, referringObjects.Interface())
 
@@ -935,7 +944,7 @@ func (d *BoltDb) GetTaskStats(projectID int, templateID *int, unit db.TaskStatUn
 		var date string
 		var stat *db.TaskStat
 
-		err2 := apply(c, db.TaskProps, db.RetrieveQueryParams{}, func(i interface{}) bool {
+		err2 := apply(c, db.TaskProps, db.RetrieveQueryParams{}, func(i any) bool {
 			task := i.(db.Task)
 
 			if task.ProjectID != projectID {
@@ -955,7 +964,7 @@ func (d *BoltDb) GetTaskStats(projectID int, templateID *int, unit db.TaskStatUn
 			}
 
 			return true
-		}, func(i interface{}) error {
+		}, func(i any) error {
 
 			task := i.(db.Task)
 
@@ -997,6 +1006,10 @@ func CreateTestStore() *BoltDb {
 	util.Config = &util.ConfigType{
 		BoltDb:  &util.DbConfig{},
 		Dialect: "bolt",
+		Log: &util.ConfigLog{
+			Events: &util.EventLogType{},
+			Tasks:  &util.TaskLogType{},
+		},
 	}
 
 	fn := "/tmp/test_semaphore_db_" + util.RandString(5)

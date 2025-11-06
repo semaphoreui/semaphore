@@ -31,12 +31,21 @@ type LocalAppRunningArgs struct {
 	CliArgs         []string
 	EnvironmentVars []string
 	Inputs          map[string]string
-	TaskParams      interface{}
+	TaskParams      any
+	TemplateParams  any
 	Callback        func(*os.Process)
+}
+
+type LocalAppInstallingArgs struct {
+	EnvironmentVars []string
+	TplParams       any
+	Params          any
+	Installer       AccessKeyInstaller
 }
 
 type LocalApp interface {
 	SetLogger(logger task_logger.Logger) task_logger.Logger
-	InstallRequirements(environmentVars []string, params interface{}) error
+	InstallRequirements(args LocalAppInstallingArgs) error
 	Run(args LocalAppRunningArgs) error
+	Clear()
 }

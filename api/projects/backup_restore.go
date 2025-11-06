@@ -8,12 +8,11 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	projectService "github.com/semaphoreui/semaphore/services/project"
-	"github.com/gorilla/context"
 	log "github.com/sirupsen/logrus"
 )
 
 func GetBackup(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	store := helpers.Store(r)
 
@@ -36,7 +35,7 @@ func GetBackup(w http.ResponseWriter, r *http.Request) {
 }
 
 func Restore(w http.ResponseWriter, r *http.Request) {
-	user := context.Get(r, "user").(*db.User)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	var backup projectService.BackupFormat
 

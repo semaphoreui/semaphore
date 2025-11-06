@@ -15,7 +15,7 @@ func (d migration_2_8_28) Apply() (err error) {
 		return
 	}
 
-	repos := make(map[string]map[string]map[string]interface{})
+	repos := make(map[string]map[string]map[string]any)
 
 	for _, projectID := range projectIDs {
 		var err2 error

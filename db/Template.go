@@ -18,6 +18,7 @@ const (
 	AppAnsible    TemplateApp = "ansible"
 	AppTerraform  TemplateApp = "terraform"
 	AppTofu       TemplateApp = "tofu"
+	AppTerragrunt TemplateApp = "terragrunt"
 	AppBash       TemplateApp = "bash"
 	AppPowerShell TemplateApp = "powershell"
 	AppPython     TemplateApp = "python"
@@ -32,6 +33,8 @@ func (t TemplateApp) InventoryTypes() []InventoryType {
 		return []InventoryType{InventoryTerraformWorkspace}
 	case AppTofu:
 		return []InventoryType{InventoryTofuWorkspace}
+	case AppTerragrunt:
+		return []InventoryType{InventoryTerragruntWorkspace}
 	default:
 		return []InventoryType{}
 	}
@@ -50,7 +53,7 @@ func (t TemplateApp) HasInventoryType(inventoryType InventoryType) bool {
 }
 
 func (t TemplateApp) IsTerraform() bool {
-	return t == AppTerraform || t == AppTofu
+	return t == AppTerraform || t == AppTofu || t == AppTerragrunt
 }
 
 type SurveyVarType string
@@ -61,9 +64,23 @@ const (
 	SurveyVarEnum TemplateType = "enum"
 )
 
+type AnsibleTemplateParams struct {
+	AllowDebug             bool     `json:"allow_debug"`
+	AllowOverrideInventory bool     `json:"allow_override_inventory"`
+	AllowOverrideLimit     bool     `json:"allow_override_limit"`
+	AllowOverrideTags      bool     `json:"allow_override_tags"`
+	AllowOverrideSkipTags  bool     `json:"allow_override_skip_tags"`
+	Limit                  []string `json:"limit"`
+	Tags                   []string `json:"tags"`
+	SkipTags               []string `json:"skip_tags"`
+}
+
 type TerraformTemplateParams struct {
-	AllowDestroy     bool `json:"allow_destroy"`
-	AllowAutoApprove bool `json:"allow_auto_approve"`
+	AllowDestroy     bool   `json:"allow_destroy,omitempty"`
+	AllowAutoApprove bool   `json:"allow_auto_approve,omitempty"`
+	AutoApprove      bool   `json:"auto_approve,omitempty"`
+	OverrideBackend  bool   `json:"override_backend,omitempty"` // override backend if internal backend is used
+	BackendFilename  string `json:"backend_filename,omitempty"`
 }
 
 type SurveyVarEnumValue struct {
@@ -72,12 +89,13 @@ type SurveyVarEnumValue struct {
 }
 
 type SurveyVar struct {
-	Name        string               `json:"name" backup:"name"`
-	Title       string               `json:"title" backup:"title"`
-	Required    bool                 `json:"required" backup:"required"`
-	Type        SurveyVarType        `json:"type" backup:"type"`
-	Description string               `json:"description" backup:"description"`
-	Values      []SurveyVarEnumValue `json:"values" backup:"values"`
+	Name         string               `json:"name" backup:"name"`
+	Title        string               `json:"title" backup:"title"`
+	Required     bool                 `json:"required,omitempty" backup:"required"`
+	Type         SurveyVarType        `json:"type,omitempty" backup:"type"`
+	Description  string               `json:"description,omitempty" backup:"description"`
+	Values       []SurveyVarEnumValue `json:"values,omitempty" backup:"values"`
+	DefaultValue string               `json:"default_value,omitempty" backup:"default_value"`
 }
 
 type TemplateFilter struct {
@@ -92,52 +110,88 @@ type Template struct {
 	ID int `db:"id" json:"id" backup:"-"`
 
 	ProjectID     int  `db:"project_id" json:"project_id" backup:"-"`
-	InventoryID   *int `db:"inventory_id" json:"inventory_id" backup:"-"`
+	InventoryID   *int `db:"inventory_id" json:"inventory_id,omitempty" backup:"-"`
 	RepositoryID  int  `db:"repository_id" json:"repository_id" backup:"-"`
-	EnvironmentID *int `db:"environment_id" json:"environment_id" backup:"-"`
+	EnvironmentID *int `db:"environment_id" json:"environment_id,omitempty" backup:"-"`
 
 	// Name as described in https://github.com/semaphoreui/semaphore/issues/188
 	Name string `db:"name" json:"name"`
 	// playbook name in the form of "some_play.yml"
 	Playbook string `db:"playbook" json:"playbook"`
 	// to fit into []string
-	Arguments *string `db:"arguments" json:"arguments"`
+	Arguments *string `db:"arguments" json:"arguments,omitempty"`
 	// if true, semaphore will not prepend any arguments to `arguments` like inventory, etc
-	AllowOverrideArgsInTask bool `db:"allow_override_args_in_task" json:"allow_override_args_in_task"`
+	AllowOverrideArgsInTask bool `db:"allow_override_args_in_task" json:"allow_override_args_in_task,omitempty"`
 
-	Description *string `db:"description" json:"description"`
+	Description *string `db:"description" json:"description,omitempty"`
 
-	Vaults []TemplateVault `db:"-" json:"vaults" backup:"-"`
+	Vaults []TemplateVault `db:"-" json:"vaults,omitempty" backup:"-"`
 
-	Type            TemplateType `db:"type" json:"type"`
-	StartVersion    *string      `db:"start_version" json:"start_version"`
-	BuildTemplateID *int         `db:"build_template_id" json:"build_template_id" backup:"-"`
+	Type            TemplateType `db:"type" json:"type,omitempty"`
+	StartVersion    *string      `db:"start_version" json:"start_version,omitempty"`
+	BuildTemplateID *int         `db:"build_template_id" json:"build_template_id,omitempty" backup:"-"`
 
-	ViewID *int `db:"view_id" json:"view_id" backup:"-"`
+	ViewID *int `db:"view_id" json:"view_id,omitempty" backup:"-"`
 
-	LastTask *TaskWithTpl `db:"-" json:"last_task" backup:"-"`
+	LastTask *TaskWithTpl `db:"-" json:"last_task,omitempty" backup:"-"`
 
-	Autorun bool `db:"autorun" json:"autorun"`
+	Autorun bool `db:"autorun" json:"autorun,omitempty"`
 
 	// override variables
-	GitBranch *string `db:"git_branch" json:"git_branch"`
+	GitBranch *string `db:"git_branch" json:"git_branch,omitempty"`
 
 	// SurveyVarsJSON used internally for read from database.
 	// It is not used for store survey vars to database.
 	// Do not use it in your code. Use SurveyVars instead.
 	SurveyVarsJSON *string     `db:"survey_vars" json:"-" backup:"-"`
-	SurveyVars     []SurveyVar `db:"-" json:"survey_vars" backup:"survey_vars"`
+	SurveyVars     []SurveyVar `db:"-" json:"survey_vars,omitempty" backup:"survey_vars"`
 
-	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts"`
+	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts,omitempty"`
 
-	App TemplateApp `db:"app" json:"app"`
+	App TemplateApp `db:"app" json:"app,omitempty"`
 
 	Tasks int `db:"tasks" json:"tasks" backup:"-"`
 
-	TaskParams MapStringAnyField `db:"task_params" json:"task_params"`
+	TaskParams MapStringAnyField `db:"task_params" json:"task_params,omitempty"`
+
+	RunnerTag *string `db:"runner_tag" json:"runner_tag,omitempty"`
+
+	AllowOverrideBranchInTask bool `db:"allow_override_branch_in_task" json:"allow_override_branch_in_task,omitempty"`
+	AllowParallelTasks        bool `db:"allow_parallel_tasks" json:"allow_parallel_tasks,omitempty"`
+}
+
+type TemplateWithPerms struct {
+	Template
+	Permissions *ProjectUserPermission `db:"permissions" json:"permissions"`
+}
+
+func (tpl *Template) FillParams(target any) error {
+	content, err := json.Marshal(tpl.TaskParams)
+	if err != nil {
+		return nil
+	}
+	err = json.Unmarshal(content, target)
+	return err
+}
+
+func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
+	switch tpl.App {
+	case AppAnsible, "":
+		var params AnsibleTemplateParams
+		err = tpl.FillParams(&params)
+		if err != nil {
+			return
+		}
+		ok = params.AllowOverrideInventory
+	}
+
+	return
 }
 
 func (tpl *Template) Validate() error {
+	if tpl.RunnerTag != nil && *tpl.RunnerTag == "" {
+		return &ValidationError{"template runner tag can not be empty"}
+	}
 	switch tpl.App {
 	case AppAnsible:
 		if tpl.InventoryID == nil {

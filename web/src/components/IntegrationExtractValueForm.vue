@@ -51,7 +51,19 @@
           dense
           required
           :disabled="formSaving"
-          ></v-text-field>
+          >
+        </v-text-field>
+        <v-select v-model="item.variable_type"
+                  label="Variable Usage *"
+                  :items="variableTypes"
+                  item-value="id"
+                  item-text="text"
+                  :rules="[v => !!v || 'Variable Type is required']"
+                  outlined
+                  dense
+                  required
+                  :disabled="formSaving">
+        </v-select>
         <v-text-field
           v-model="item.variable"
           label="Variable *"
@@ -92,6 +104,13 @@ export default {
       }, {
         id: 'string',
         text: 'String',
+      }],
+      variableTypes: [{
+        id: 'environment',
+        text: 'Environment',
+      }, {
+        id: 'task',
+        text: 'Task',
       }],
     };
   },

@@ -1,6 +1,10 @@
 package db
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/semaphoreui/semaphore/util"
+)
 
 func TestConfig_assignMapToStruct(t *testing.T) {
 	type Address struct {
@@ -14,34 +18,36 @@ func TestConfig_assignMapToStruct(t *testing.T) {
 	}
 
 	type User struct {
-		//Name    string            `json:"name"`
-		//Age     int               `json:"age"`
-		//Email   string            `json:"email"`
-		//Address Address           `json:"address"`
+		Name    string            `json:"name"`
+		Age     int               `json:"age"`
+		Email   string            `json:"email"`
+		Address Address           `json:"address"`
 		Details map[string]Detail `json:"details"`
+		Tags    []string          `json:"tags"`
 	}
 
-	johnData := map[string]interface{}{
-		//"name":  "John Doe",
-		//"age":   30,
-		//"email": "john.doe@example.com",
-		//"address": map[string]interface{}{
-		//	"street": "123 Main St",
-		//	"city":   "Anytown",
-		//},
-		"details": map[string]interface{}{
-			//"occupation": map[string]interface{}{
-			//	"value":       "engineer",
-			//	"description": "Works with computers",
-			//},
-			//"hobby": map[string]interface{}{
-			//	"value":       "hiking",
-			//	"description": "Enjoys the outdoors",
-			//},
-			"interests": map[string]interface{}{
+	johnData := map[string]any{
+		"name":  "John Doe",
+		"age":   30,
+		"email": "john.doe@example.com",
+		"address": map[string]any{
+			"street": "123 Main St",
+			"city":   "Anytown",
+		},
+		"details": map[string]any{
+			"occupation": map[string]any{
+				"value":       "engineer",
+				"description": "Works with computers",
+			},
+			"hobby": map[string]any{
+				"value":       "hiking",
+				"description": "Enjoys the outdoors",
+			},
+			"interests": map[string]any{
 				"description": "Ho ho ho",
 			},
 		},
+		"tags": "[\"test\"]",
 	}
 
 	var john User
@@ -51,7 +57,7 @@ func TestConfig_assignMapToStruct(t *testing.T) {
 		Description: "Follows current events",
 	}
 
-	err := AssignMapToStruct(johnData, &john)
+	err := util.AssignMapToStruct(johnData, &john)
 
 	if err != nil {
 		t.Fatal(err)
@@ -67,6 +73,10 @@ func TestConfig_assignMapToStruct(t *testing.T) {
 
 	if john.Details["interests"].Value != "politics" {
 		t.Errorf("Expected interests to be politics but got '%s'", john.Details["interests"].Value)
+	}
+
+	if len(john.Tags) < 1 {
+		t.Fatal("Expected user tags")
 	}
 
 	//if john.Details["occupation"].Value != "engineer" {

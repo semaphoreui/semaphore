@@ -22,7 +22,6 @@
     </EditDialog>
 
     <EditDialog
-      expandable
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :icon="getAppIcon(itemApp)"
@@ -39,6 +38,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :premium-features="premiumFeatures"
         />
       </template>
     </EditDialog>
@@ -162,6 +162,10 @@ export default {
   },
   mixins: [ItemListPageBase, AppsMixin],
   components: { TemplateSelectForm, InventoryForm },
+
+  props: {
+    premiumFeatures: Object,
+  },
 
   data() {
     return {

@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine3.21 as builder
 
 RUN apk add --no-cache -U \
     libc-dev curl nodejs npm git gcc zip unzip tar
@@ -8,24 +8,30 @@ WORKDIR /usr/local
 RUN curl -sL https://taskfile.dev/install.sh | sh
 
 WORKDIR /go/src/semaphore
-COPY go.mod go.sum /go/src/semaphore/
+COPY . /go/src/semaphore
 
 RUN --mount=type=cache,target=/go/pkg \
     go mod download -x
 
-COPY . /go/src/semaphore
-
+ARG APP_BUILD_TYPE
 ARG TARGETOS
 ARG TARGETARCH
+ARG GH_TOKEN
+
+RUN if [ -n "$APP_BUILD_TYPE" ]; then \
+      git clone https://${GH_TOKEN}@github.com/semaphoreui/semaphorepro-module.git pro_impl && \
+      go work init . ./pro_impl; \
+    fi
 
 RUN --mount=type=cache,target=/go/pkg \
     --mount=type=cache,target=/root/.cache/go-build \
-    task deps && \
-    task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
+    task deps APP_BUILD_TYPE=${APP_BUILD_TYPE} && \
+    task build GOOS=${TARGETOS} GOARCH=${TARGETARCH} APP_BUILD_TYPE=${APP_BUILD_TYPE}
 
 
-ENV OPENTOFU_VERSION="1.7.0"
+ENV OPENTOFU_VERSION="1.9.0"
 ENV TERRAFORM_VERSION="1.10.3"
+ENV TERRAGRUNT_VERSION="0.78.0"
 #ENV PULUMI_VERSION="3.116.1"
 
 RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
@@ -36,16 +42,10 @@ RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
     unzip terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip -d /tmp && \
     rm terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
 
-#RUN if [ "$TARGETARCH" = "amd64" ]; then \
-#      export PULUMI_ARCH="x64"; \
-#    else \
-#      export PULUMI_ARCH="${TARGETARCH}"; \
-#    fi && \
-#    wget -O pulumi.tar.gz https://github.com/pulumi/pulumi/releases/download/v${PULUMI_VERSION}/pulumi-v${PULUMI_VERSION}-linux-${PULUMI_ARCH}.tar.gz
-#RUN tar xf pulumi.tar.gz --strip-components=1 -C /usr/local/bin
-#RUN rm pulumi.tar.gz
+RUN wget -O /tmp/terragrunt https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_${TARGETARCH} && \
+    chmod +x /tmp/terragrunt
 
-FROM alpine:3.19
+FROM alpine:3.21
 
 ARG TARGETARCH="amd64"
 
@@ -68,6 +68,7 @@ COPY --from=builder /go/src/semaphore/deployment/docker/runner/runner-wrapper /u
 COPY --from=builder /go/src/semaphore/bin/semaphore /usr/local/bin/
 COPY --from=builder /tmp/tofu /usr/local/bin/
 COPY --from=builder /tmp/terraform /usr/local/bin/
+COPY --from=builder /tmp/terragrunt /usr/local/bin/
 
 RUN chown -R semaphore:0 /usr/local/bin/runner-wrapper && \
     chmod +x /usr/local/bin/runner-wrapper && \
@@ -77,18 +78,21 @@ RUN chown -R semaphore:0 /usr/local/bin/runner-wrapper && \
 WORKDIR /home/semaphore
 
 # renovate: datasource=pypi depName=ansible
-ENV ANSIBLE_VERSION 11.1.0
+ARG ANSIBLE_VERSION=11.1.0
+ENV ANSIBLE_VERSION=${ANSIBLE_VERSION}
 ARG ANSIBLE_VENV_PATH=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv
 
 RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo && \
      mkdir -p ${ANSIBLE_VENV_PATH} && \
      python3 -m venv ${ANSIBLE_VENV_PATH} --system-site-packages && \
      source ${ANSIBLE_VENV_PATH}/bin/activate && \
-     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests pywinrm && \
+     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests pywinrm passlib && \
      apk del python3-dev build-base openssl-dev libffi-dev cargo && \
      rm -rf /var/cache/apk/* && \
      find ${ANSIBLE_VENV_PATH} -iname __pycache__ | xargs rm -rf && \
      chown -R semaphore:0 /opt/semaphore
+
+RUN echo 'Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null' > /etc/ssh/ssh_config.d/semaphore.conf
 
 USER 1001
 

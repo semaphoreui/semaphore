@@ -2,6 +2,8 @@ package db_lib
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -17,19 +19,36 @@ import (
 	ssh2 "golang.org/x/crypto/ssh"
 )
 
-type GoGitClient struct{}
+type GoGitClient struct {
+	keyInstaller AccessKeyInstaller
+}
 
 type ProgressWrapper struct {
 	Logger task_logger.Logger
 }
 
 func (t ProgressWrapper) Write(p []byte) (n int, err error) {
+	s := string(p)
+
+	if strings.HasPrefix(s, "Counting objects:") || strings.HasPrefix(s, "Compressing objects:") {
+		return len(p), nil
+	}
+
 	t.Logger.Log(string(p))
 	return len(p), nil
 }
 
-func getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
-	if r.Repository.SSHKey.Type == db.AccessKeySSH {
+func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
+	switch r.Repository.SSHKey.Type {
+	case db.AccessKeySSH:
+
+		install, err := c.keyInstaller.Install(r.Repository.SSHKey, db.AccessKeyRoleGit, r.Logger)
+		if err != nil {
+			return nil, err
+		}
+
+		defer install.Destroy()
+
 		var sshKeyBuff = r.Repository.SSHKey.SshKey.PrivateKey
 
 		if r.Repository.SSHKey.SshKey.Login == "" {
@@ -39,22 +58,21 @@ func getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
 		publicKey, sshErr := ssh.NewPublicKeys(r.Repository.SSHKey.SshKey.Login, []byte(sshKeyBuff), r.Repository.SSHKey.SshKey.Passphrase)
 
 		if sshErr != nil {
-			r.Logger.Log("Unable to creating ssh auth method")
 			return nil, sshErr
 		}
 		publicKey.HostKeyCallback = ssh2.InsecureIgnoreHostKey()
 
 		return publicKey, sshErr
-	} else if r.Repository.SSHKey.Type == db.AccessKeyLoginPassword {
+	case db.AccessKeyLoginPassword:
 		password := &http.BasicAuth{
 			Username: r.Repository.SSHKey.LoginPassword.Login,
 			Password: r.Repository.SSHKey.LoginPassword.Password,
 		}
 
 		return password, nil
-	} else if r.Repository.SSHKey.Type == db.AccessKeyNone {
+	case db.AccessKeyNone:
 		return nil, nil
-	} else {
+	default:
 		return nil, errors.New("unsupported auth method")
 	}
 }
@@ -65,7 +83,7 @@ func openRepository(r GitRepository, targetDir GitRepositoryDirType) (*git.Repos
 
 	switch targetDir {
 	case GitRepositoryTmpPath:
-		dir = util.Config.TmpPath
+		dir = util.Config.GetProjectTmpDir(r.Repository.ProjectID)
 	case GitRepositoryFullPath:
 		dir = r.GetFullPath()
 	default:
@@ -78,14 +96,14 @@ func openRepository(r GitRepository, targetDir GitRepositoryDirType) (*git.Repos
 func (c GoGitClient) Clone(r GitRepository) error {
 	r.Logger.Log("Cloning Repository " + r.Repository.GitURL)
 
-	authMethod, authErr := getAuthMethod(r)
+	authMethod, authErr := c.getAuthMethod(r)
 
 	if authErr != nil {
 		return authErr
 	}
 
 	cloneOpt := &git.CloneOptions{
-		URL:               r.Repository.GetGitURL(),
+		URL:               r.Repository.GetGitURL(true),
 		Progress:          ProgressWrapper{r.Logger},
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 		ReferenceName:     plumbing.NewBranchReferenceName(r.Repository.GitBranch),
@@ -113,7 +131,7 @@ func (c GoGitClient) Pull(r GitRepository) error {
 		return err
 	}
 
-	authMethod, authErr := getAuthMethod(r)
+	authMethod, authErr := c.getAuthMethod(r)
 	if authErr != nil {
 		return authErr
 	}
@@ -158,7 +176,7 @@ func (c GoGitClient) CanBePulled(r GitRepository) bool {
 		return false
 	}
 
-	authMethod, err := getAuthMethod(r)
+	authMethod, err := c.getAuthMethod(r)
 	if err != nil {
 		return false
 	}
@@ -245,7 +263,7 @@ func (c GoGitClient) GetLastRemoteCommitHash(r GitRepository) (hash string, err 
 		URLs: []string{r.Repository.GitURL},
 	})
 
-	auth, err := getAuthMethod(r)
+	auth, err := c.getAuthMethod(r)
 	if err != nil {
 		return
 	}
@@ -271,4 +289,35 @@ func (c GoGitClient) GetLastRemoteCommitHash(r GitRepository) (hash string, err 
 	}
 
 	return
+}
+
+func (c GoGitClient) GetRemoteBranches(r GitRepository) ([]string, error) {
+	remote := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{r.Repository.GitURL},
+	})
+
+	auth, err := c.getAuthMethod(r)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SSH auth method: %w", err)
+	}
+
+	listOptions := &git.ListOptions{}
+	if auth != nil {
+		listOptions.Auth = auth
+	}
+
+	refs, err := remote.List(listOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list remote references: %w", err)
+	}
+
+	branches := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if ref.Name().IsBranch() {
+			branches = append(branches, ref.Name().Short())
+		}
+	}
+	return branches, nil
 }

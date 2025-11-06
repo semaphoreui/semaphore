@@ -1,17 +1,16 @@
 package bolt
 
 import (
-	"testing"
-	"time"
-
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"testing"
 )
 
 func TestGetTemplateVaults(t *testing.T) {
 	store := CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: tz.Now(),
 		Name:    "TestProject",
 	})
 	if err != nil {
@@ -50,7 +49,7 @@ func TestCreateTemplateVault(t *testing.T) {
 	store := CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: tz.Now(),
 		Name:    "TestProject",
 	})
 	if err != nil {
@@ -89,7 +88,7 @@ func TestUpdateTemplateVaults(t *testing.T) {
 	store := CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
-		Created: time.Now(),
+		Created: tz.Now(),
 		Name:    "TestProject",
 	})
 	if err != nil {

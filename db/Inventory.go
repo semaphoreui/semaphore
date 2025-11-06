@@ -5,14 +5,18 @@ import "path"
 type InventoryType string
 
 const (
-	//InventoryNone       InventoryType = "none"
 	InventoryStatic     InventoryType = "static"
 	InventoryStaticYaml InventoryType = "static-yaml"
 	// InventoryFile means that it is path to the Ansible inventory file
-	InventoryFile               InventoryType = "file"
-	InventoryTerraformWorkspace InventoryType = "terraform-workspace"
-	InventoryTofuWorkspace      InventoryType = "tofu-workspace"
+	InventoryFile                InventoryType = "file"
+	InventoryTerraformWorkspace  InventoryType = "terraform-workspace"
+	InventoryTofuWorkspace       InventoryType = "tofu-workspace"
+	InventoryTerragruntWorkspace InventoryType = "terragrunt-workspace"
 )
+
+func (i InventoryType) IsStatic() bool {
+	return i == InventoryStatic || i == InventoryStaticYaml
+}
 
 // Inventory is the model of an ansible inventory file
 type Inventory struct {
@@ -41,6 +45,9 @@ type Inventory struct {
 	// If null than inventory will be got from template repository.
 	RepositoryID *int        `db:"repository_id" json:"repository_id" backup:"-"`
 	Repository   *Repository `db:"-" json:"-" backup:"-"`
+
+	// RunnerTag is a tag which allow join inventory to the runner.
+	RunnerTag *string `db:"runner_tag" json:"runner_tag,omitempty"`
 }
 
 func (e Inventory) GetFilename() string {
@@ -57,37 +64,10 @@ func (e Inventory) GetFilename() string {
 	//return strings.TrimPrefix(e.Inventory, "/")
 }
 
-func FillInventory(d Store, inventory *Inventory) (err error) {
-	if inventory.SSHKeyID != nil {
-		inventory.SSHKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
+func (e Inventory) Validate() error {
+	if e.RunnerTag == nil && *e.RunnerTag == "" {
+		return &ValidationError{"template runner tag can not be empty"}
 	}
 
-	if err != nil {
-		return
-	}
-
-	if inventory.BecomeKeyID != nil {
-		inventory.BecomeKey, err = d.GetAccessKey(inventory.ProjectID, *inventory.BecomeKeyID)
-	}
-
-	if err != nil {
-		return
-	}
-
-	if inventory.RepositoryID != nil {
-		var repo Repository
-		repo, err = d.GetRepository(inventory.ProjectID, *inventory.RepositoryID)
-		if err != nil {
-			return
-		}
-
-		err = repo.SSHKey.DeserializeSecret()
-		if err != nil {
-			return
-		}
-
-		inventory.Repository = &repo
-	}
-
-	return
+	return nil
 }

@@ -65,19 +65,22 @@ func (e *JobLogger) Debug(message string) {
 }
 
 type JobPool struct {
-	// logger channel used to putting log records to database.
-	logger chan jobLogRecord
-
-	// register channel used to put tasks to queue.
-	register chan *job
-
 	runningJobs map[int]*runningJob
 
 	queue []*job
 
-	//token *string
-
 	processing int32
+
+	keyInstaller db_lib.AccessKeyInstaller
+}
+
+func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
+	return &JobPool{
+		runningJobs:  make(map[int]*runningJob),
+		queue:        make([]*job, 0),
+		processing:   0,
+		keyInstaller: keyInstaller,
+	}
 }
 
 func (p *JobPool) existsInQueue(taskID int) bool {
@@ -147,6 +150,8 @@ func (p *JobPool) Unregister() (err error) {
 func (p *JobPool) Run() {
 	logger := JobLogger{Context: "running"}
 
+	launched := false
+
 	if util.Config.Runner.Token == "" {
 		logger.Panic(fmt.Errorf("no token provided"), "read input", "can not retrieve runner token")
 	}
@@ -194,6 +199,9 @@ func (p *JobPool) Run() {
 				}
 
 				if err != nil {
+					logger.ActionError(err, "launch job", "job failed")
+					t.job.Logger.Log("Unable to launch the application. Please contact your system administrator for assistance.")
+
 					if runningJob.status == task_logger.TaskStoppingStatus {
 						runningJob.SetStatus(task_logger.TaskStoppedStatus)
 					} else {
@@ -220,7 +228,12 @@ func (p *JobPool) Run() {
 
 				defer atomic.StoreInt32(&p.processing, 0)
 
-				p.sendProgress()
+				ok := p.sendProgress()
+
+				if ok && !launched {
+					launched = true
+					fmt.Println("Runner connected")
+				}
 
 				if util.Config.Runner.OneOff && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
 					os.Exit(0)
@@ -233,7 +246,7 @@ func (p *JobPool) Run() {
 	}
 }
 
-func (p *JobPool) sendProgress() {
+func (p *JobPool) sendProgress() (ok bool) {
 
 	logger := JobLogger{Context: "sending_progress"}
 
@@ -285,9 +298,13 @@ func (p *JobPool) sendProgress() {
 
 	if resp.StatusCode >= 400 {
 		logger.ActionError(fmt.Errorf("invalid status code"), "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
+	} else {
+		ok = true
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
+
+	return
 }
 
 func (p *JobPool) getResponseErrorMessage(resp *http.Response) (res string) {
@@ -421,7 +438,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		}
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	ok = true
 	return
@@ -445,14 +462,14 @@ func generatePrivateKey(privateKeyFilePath string) (publicKey string, err error)
 	if err != nil {
 		return
 	}
-	defer privateKeyFile.Close()
+	defer privateKeyFile.Close() //nolint:errcheck
 
 	return util.GeneratePrivateKey(privateKeyFile)
 }
 
 func decryptChunkedBytes(combinedCiphertext []byte, privateKey *rsa.PrivateKey) (fullPlaintext []byte, err error) {
 
-	rsaBlockSize := privateKey.PublicKey.N.BitLen() / 8 // e.g. 256 for 2048-bit key
+	rsaBlockSize := privateKey.N.BitLen() / 8 // e.g. 256 for 2048-bit key
 
 	// 3. Decrypt all chunks
 	for i := 0; i < len(combinedCiphertext); i += rsaBlockSize {
@@ -512,7 +529,7 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -542,6 +559,26 @@ func (p *JobPool) checkNewJobs() {
 	if err != nil {
 		logger.ActionError(err, "parsing result json", "server's response has invalid format")
 		return
+	}
+
+	if response.ClearCache {
+		if response.CacheCleanProjectID == nil {
+			if err2 := util.Config.ClearTmpDir(); err2 != nil {
+				logger.ActionError(
+					err2,
+					"cleaning cache",
+					"cannot clear tmp directory",
+				)
+			}
+		} else {
+			if err2 := util.Config.ClearProjectTmpDir(*response.CacheCleanProjectID); err2 != nil {
+				logger.ActionError(
+					err2,
+					"cleaning cache",
+					"cannot clear project "+strconv.Itoa(*response.CacheCleanProjectID)+" tmp directory",
+				)
+			}
+		}
 	}
 
 	for _, currJob := range response.CurrentJobs {
@@ -600,11 +637,12 @@ func (p *JobPool) checkNewJobs() {
 			alias:           newJob.Alias,
 
 			job: &tasks.LocalJob{
-				Task:        newJob.Task,
-				Template:    newJob.Template,
-				Inventory:   newJob.Inventory,
-				Repository:  newJob.Repository,
-				Environment: newJob.Environment,
+				Task:         newJob.Task,
+				Template:     newJob.Template,
+				Inventory:    newJob.Inventory,
+				Repository:   newJob.Repository,
+				Environment:  newJob.Environment,
+				KeyInstaller: p.keyInstaller,
 				App: db_lib.CreateApp(
 					newJob.Template,
 					newJob.Repository,

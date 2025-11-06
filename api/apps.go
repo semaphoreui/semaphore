@@ -6,63 +6,12 @@ import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/conv"
 	"github.com/semaphoreui/semaphore/util"
-	"github.com/gorilla/context"
 	"net/http"
 	"reflect"
 	"sort"
-	"strings"
 )
-
-func structToFlatMap(obj interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-	val := reflect.ValueOf(obj)
-	typ := reflect.TypeOf(obj)
-
-	if typ.Kind() == reflect.Ptr {
-		val = val.Elem()
-		typ = typ.Elem()
-	}
-
-	if typ.Kind() != reflect.Struct {
-		return result
-	}
-
-	// Iterate over the struct fields
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldType := typ.Field(i)
-		jsonTag := fieldType.Tag.Get("json")
-
-		// Use the json tag if it is set, otherwise use the field name
-		fieldName := jsonTag
-		if fieldName == "" || fieldName == "-" {
-			fieldName = fieldType.Name
-		} else {
-			// Handle the case where the json tag might have options like `json:"name,omitempty"`
-			fieldName = strings.Split(fieldName, ",")[0]
-		}
-
-		// Check if the field is a struct itself
-		if field.Kind() == reflect.Struct {
-			// Convert nested struct to map
-			nestedMap := structToFlatMap(field.Interface())
-			// Add nested map to result with a prefixed key
-			for k, v := range nestedMap {
-				result[fieldName+"."+k] = v
-			}
-		} else if (field.Kind() == reflect.Ptr ||
-			field.Kind() == reflect.Array ||
-			field.Kind() == reflect.Slice ||
-			field.Kind() == reflect.Map) && field.IsNil() {
-			result[fieldName] = nil
-		} else {
-			result[fieldName] = field.Interface()
-		}
-	}
-
-	return result
-}
 
 func validateAppID(str string) error {
 	return nil
@@ -73,6 +22,7 @@ func appMiddleware(next http.Handler) http.Handler {
 		appID, err := helpers.GetStrParam("app_id", w, r)
 		if err != nil {
 			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
 		if err := validateAppID(appID); err != nil {
@@ -80,7 +30,7 @@ func appMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "app_id", appID)
+		r = helpers.SetContextValue(r, "app_id", appID)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -110,7 +60,7 @@ func getApps(w http.ResponseWriter, r *http.Request) {
 }
 
 func getApp(w http.ResponseWriter, r *http.Request) {
-	appID := context.Get(r, "app_id").(string)
+	appID := helpers.GetFromContext(r, "app_id").(string)
 
 	app, ok := util.Config.Apps[appID]
 	if !ok {
@@ -122,7 +72,7 @@ func getApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteApp(w http.ResponseWriter, r *http.Request) {
-	appID := context.Get(r, "app_id").(string)
+	appID := helpers.GetFromContext(r, "app_id").(string)
 
 	store := helpers.Store(r)
 
@@ -137,7 +87,7 @@ func deleteApp(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func setAppOption(store db.Store, appID string, field string, val interface{}) error {
+func setAppOption(store db.Store, appID string, field string, val any) error {
 	key := "apps." + appID + "." + field
 
 	if val == nil {
@@ -155,13 +105,13 @@ func setAppOption(store db.Store, appID string, field string, val interface{}) e
 
 	options := db.ConvertFlatToNested(opts)
 
-	_ = db.AssignMapToStruct(options, util.Config)
+	_ = util.AssignMapToStruct(options, util.Config)
 
 	return nil
 }
 
 func setApp(w http.ResponseWriter, r *http.Request) {
-	appID := context.Get(r, "app_id").(string)
+	appID := helpers.GetFromContext(r, "app_id").(string)
 
 	store := helpers.Store(r)
 
@@ -171,7 +121,7 @@ func setApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	options := structToFlatMap(app)
+	options := conv.StructToFlatMap(app)
 
 	for k, v := range options {
 		t := reflect.TypeOf(v)
@@ -206,7 +156,7 @@ func setApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func setAppActive(w http.ResponseWriter, r *http.Request) {
-	appID := context.Get(r, "app_id").(string)
+	appID := helpers.GetFromContext(r, "app_id").(string)
 
 	store := helpers.Store(r)
 

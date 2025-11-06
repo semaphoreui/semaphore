@@ -21,7 +21,7 @@ func TestRepository_ClearCache(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: path.Join(os.TempDir(), util.RandString(rand.Intn(10-4)+4)),
 	}
-	repoDir := path.Join(util.Config.TmpPath, "repository_123_55")
+	repoDir := path.Join(util.Config.TmpPath, "project_0", "repository_123_55")
 	err := os.MkdirAll(repoDir, 0755)
 	require.NoError(t, err)
 
@@ -61,7 +61,7 @@ func TestRepository_GetGitURL(t *testing.T) {
 			ExpectedGitUrl: "https://password@github.com/user/project.git",
 		},
 	} {
-		gitUrl := v.Repository.GetGitURL()
+		gitUrl := v.Repository.GetGitURL(false)
 		assert.Equal(t, v.ExpectedGitUrl, gitUrl, "wrong gitUrl")
 	}
 }

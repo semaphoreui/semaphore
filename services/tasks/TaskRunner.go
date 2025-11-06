@@ -7,7 +7,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
+
+	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
@@ -19,6 +23,7 @@ import (
 type Job interface {
 	Run(username string, incomingVersion *string, alias string) error
 	Kill()
+	IsKilled() bool
 }
 
 type TaskRunner struct {
@@ -28,10 +33,15 @@ type TaskRunner struct {
 	Repository  db.Repository
 	Environment db.Environment
 
-	users     []int
-	alert     bool
-	alertChat *string
-	pool      *TaskPool
+	currentStage  *db.TaskStage
+	currentOutput *db.TaskOutput
+	currentState  any
+
+	users        []int
+	alert        bool
+	alertChat    *string
+	pool         *TaskPool
+	keyInstaller db_lib.AccessKeyInstaller
 
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
@@ -43,9 +53,25 @@ type TaskRunner struct {
 	statusListeners []task_logger.StatusListener
 	logListeners    []task_logger.LogListener
 
+	// Alias uses if task require an alias for run.
+	// For example, terraform task require an alias for run.
 	Alias string
 
 	logWG sync.WaitGroup
+}
+
+func NewTaskRunner(
+	newTask db.Task,
+	p *TaskPool,
+	username string,
+	keyInstaller db_lib.AccessKeyInstaller,
+) *TaskRunner {
+	return &TaskRunner{
+		Task:         newTask,
+		pool:         p,
+		Username:     username,
+		keyInstaller: keyInstaller,
+	}
 }
 
 func (t *TaskRunner) AddStatusListener(l task_logger.StatusListener) {
@@ -58,7 +84,7 @@ func (t *TaskRunner) AddLogListener(l task_logger.LogListener) {
 
 func (t *TaskRunner) saveStatus() {
 	for _, user := range t.users {
-		b, err := json.Marshal(&map[string]interface{}{
+		b, err := json.Marshal(&map[string]any{
 			"type":        "update",
 			"start":       t.Task.Start,
 			"end":         t.Task.End,
@@ -77,6 +103,10 @@ func (t *TaskRunner) saveStatus() {
 	if err := t.pool.store.UpdateTask(t.Task); err != nil {
 		t.panicOnError(err, "Failed to update TaskRunner status")
 	}
+	// persist runtime fields in HA store
+	if t.pool != nil && t.pool.state != nil {
+		t.pool.state.UpdateRuntimeFields(t)
+	}
 }
 
 func (t *TaskRunner) kill() {
@@ -84,19 +114,54 @@ func (t *TaskRunner) kill() {
 }
 
 func (t *TaskRunner) createTaskEvent() {
-	objType := db.EventTask
-	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")" + " finished - " + strings.ToUpper(string(t.Task.Status))
 
-	_, err := t.pool.store.CreateEvent(db.Event{
+	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")"
+
+	if t.Task.Status.IsFinished() {
+		desc += " finished with status " + strings.ToUpper(string(t.Task.Status))
+
+		hook := hooks.GetHook(t.Template.App)
+		if hook != nil {
+			go hook.End(t.pool.store, t.Task.ProjectID, t.Task.ID)
+		}
+	} else {
+		desc += " " + strings.ToUpper(string(t.Task.Status))
+	}
+
+	objType := db.EventTask
+	event := db.Event{
 		UserID:      t.Task.UserID,
 		ProjectID:   &t.Task.ProjectID,
 		ObjectType:  &objType,
 		ObjectID:    &t.Task.ID,
 		Description: &desc,
-	})
+	}
+
+	var runnerID *int
+	if t.RunnerID > 0 {
+		runnerID = &t.RunnerID
+	}
+
+	if err := t.pool.logWriteService.WriteTaskLog(pro_interfaces.TaskLogRecord{
+		ProjectID:    t.Task.ProjectID,
+		TemplateID:   t.Template.ID,
+		TemplateName: t.Template.Name,
+		TaskID:       t.Task.ID,
+		UserID:       t.Task.UserID,
+		Description:  &desc,
+		Username:     t.Username,
+		RunnerID:     runnerID,
+		Status:       t.Task.Status,
+	}); err != nil {
+		log.Error(err)
+	}
+
+	_, err := t.pool.store.CreateEvent(event)
 
 	if err != nil {
-		t.panicOnError(err, "Fatal error inserting an event")
+		msg := "Fatal error inserting an event"
+		t.Log(msg)
+		log.WithError(err).Error(msg)
 	}
 }
 
@@ -109,12 +174,12 @@ func (t *TaskRunner) run() {
 	defer func() {
 		log.Info("Stopped running TaskRunner " + strconv.Itoa(t.Task.ID))
 		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.Task.ID))
-		t.pool.resourceLocker <- &resourceLock{lock: false, holder: t}
 
-		now := time.Now()
+		now := tz.Now()
 		t.Task.End = &now
 		t.saveStatus()
 		t.createTaskEvent()
+		t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
 	}()
 
 	// Mark task as stopped if user stopped task during preparation (before task run).
@@ -124,26 +189,12 @@ func (t *TaskRunner) run() {
 	}
 
 	t.SetStatus(task_logger.TaskStartingStatus)
-
-	objType := db.EventTask
-	desc := "Task ID " + strconv.Itoa(t.Task.ID) + " (" + t.Template.Name + ")" + " is running"
-
-	_, err := t.pool.store.CreateEvent(db.Event{
-		UserID:      t.Task.UserID,
-		ProjectID:   &t.Task.ProjectID,
-		ObjectType:  &objType,
-		ObjectID:    &t.Task.ID,
-		Description: &desc,
-	})
-
-	if err != nil {
-		t.Log("Fatal error inserting an event")
-		panic(err)
-	}
+	t.createTaskEvent()
 
 	t.Log("Started: " + strconv.Itoa(t.Task.ID))
 	t.Log("Run TaskRunner with template: " + t.Template.Name + "\n")
 
+	var err error
 	var username string
 	var incomingVersion *string
 
@@ -163,8 +214,17 @@ func (t *TaskRunner) run() {
 	err = t.job.Run(username, incomingVersion, t.Alias)
 
 	if err != nil {
-		t.Log("Running app failed: " + err.Error())
-		t.SetStatus(task_logger.TaskFailStatus)
+		if t.job.IsKilled() {
+			t.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			log.WithError(err).WithFields(log.Fields{
+				"task_id":     t.Task.ID,
+				"context":     "task_runner",
+				"task_status": t.Task.Status,
+			}).Warn("Failed to run task")
+			t.Log("Failed to run task: " + err.Error())
+			t.SetStatus(task_logger.TaskFailStatus)
+		}
 		return
 	}
 
@@ -183,11 +243,18 @@ func (t *TaskRunner) run() {
 	}
 
 	for _, tpl := range tpls {
-		_, err = t.pool.AddTask(db.Task{
+		task := db.Task{
 			TemplateID:  tpl.ID,
 			ProjectID:   tpl.ProjectID,
 			BuildTaskID: &t.Task.ID,
-		}, nil, tpl.ProjectID, tpl.App.NeedTaskAlias())
+		}
+		_, err = t.pool.AddTask(
+			task,
+			nil,
+			"",
+			tpl.ProjectID,
+			tpl.App.NeedTaskAlias(),
+		)
 		if err != nil {
 			t.Log("Running app failed: " + err.Error())
 			continue
@@ -207,6 +274,40 @@ func (t *TaskRunner) prepareError(err error, errMsg string) error {
 	}
 
 	return nil
+}
+
+func (t *TaskRunner) populateTaskEnvironment() (err error) {
+
+	if t.Task.Environment == "" {
+		return
+
+	}
+
+	tplEnvironment := make(map[string]any)
+	err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
+	if err != nil {
+		return
+	}
+
+	taskEnvironment := make(map[string]any)
+	err = json.Unmarshal([]byte(t.Task.Environment), &taskEnvironment)
+	if err != nil {
+		return
+	}
+
+	for k, v := range taskEnvironment {
+		tplEnvironment[k] = v
+	}
+
+	var ev []byte
+	ev, err = json.Marshal(tplEnvironment)
+	if err != nil {
+		return err
+	}
+
+	t.Environment.JSON = string(ev)
+
+	return
 }
 
 // nolint: gocyclo
@@ -255,11 +356,16 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	// get inventory
-	if t.Task.InventoryID != nil {
-		t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
+	canOverrideInventory, err := t.Template.CanOverrideInventory()
+	if err != nil {
+		return err
+	}
+
+	if canOverrideInventory && t.Task.InventoryID != nil {
+		t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
 		if err != nil {
 			if t.Template.InventoryID != nil {
-				t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+				t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
 				if err != nil {
 					return t.prepareError(err, "Template Inventory not found!")
 				}
@@ -267,7 +373,7 @@ func (t *TaskRunner) populateDetails() error {
 		}
 	} else {
 		if t.Template.InventoryID != nil {
-			t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+			t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
 			if err != nil {
 				return t.prepareError(err, "Template Inventory not found!")
 			}
@@ -281,8 +387,7 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
-	err = t.Repository.SSHKey.DeserializeSecret()
-	if err != nil {
+	if err = t.pool.encryptionService.DeserializeSecret(&t.Repository.SSHKey); err != nil {
 		return err
 	}
 
@@ -293,40 +398,15 @@ func (t *TaskRunner) populateDetails() error {
 			return err
 		}
 
-		if err = db.FillEnvironmentSecrets(t.pool.store, &t.Environment, true); err != nil {
+		err = t.pool.encryptionService.FillEnvironmentSecrets(&t.Environment, true)
+		if err != nil {
 			return err
 		}
 	}
 
-	if t.Task.Environment != "" {
-		environment := make(map[string]interface{})
-		if t.Environment.JSON != "" {
-			err = json.Unmarshal([]byte(t.Task.Environment), &environment)
-			if err != nil {
-				return err
-			}
-		}
+	err = t.populateTaskEnvironment()
 
-		taskEnvironment := make(map[string]interface{})
-		err = json.Unmarshal([]byte(t.Environment.JSON), &taskEnvironment)
-		if err != nil {
-			return err
-		}
-
-		for k, v := range taskEnvironment {
-			environment[k] = v
-		}
-
-		var ev []byte
-		ev, err = json.Marshal(environment)
-		if err != nil {
-			return err
-		}
-
-		t.Environment.JSON = string(ev)
-	}
-
-	return nil
+	return err
 }
 
 // checkTmpDir checks to see if the temporary directory exists
@@ -335,7 +415,7 @@ func checkTmpDir(path string) error {
 	var err error
 	if _, err = os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			return os.MkdirAll(path, 0700)
+			return os.MkdirAll(path, 0755)
 		}
 	}
 	return err

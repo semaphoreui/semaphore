@@ -2,7 +2,8 @@ package sql
 
 import (
 	"database/sql"
-	"errors"
+
+	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -15,7 +16,7 @@ func (d *SqlDb) GetAccessKeyRefs(projectID int, keyID int) (db.ObjectReferrers, 
 	return d.getObjectRefs(projectID, db.AccessKeyProps, keyID)
 }
 
-func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) (keys []db.AccessKey, err error) {
+func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, params db.RetrieveQueryParams) (keys []db.AccessKey, err error) {
 	keys = make([]db.AccessKey, 0)
 
 	q, err := d.makeObjectsQuery(projectID, db.AccessKeyProps, params)
@@ -24,7 +25,16 @@ func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) (key
 		return
 	}
 
-	q = q.Where("pe.environment_id IS NULL")
+	if !options.IgnoreOwner {
+		q = q.Where("pe.owner=?", options.Owner)
+
+		switch options.Owner {
+		case db.AccessKeyVariable, db.AccessKeyEnvironment:
+			q = q.Where(squirrel.Eq{"pe.environment_id": *options.EnvironmentID})
+		case db.AccessKeySecretStorage:
+			q = q.Where(squirrel.Eq{"pe.storage_id": options.StorageID})
+		}
+	}
 
 	query, args, err := q.ToSql()
 
@@ -35,7 +45,7 @@ func (d *SqlDb) GetAccessKeys(projectID int, params db.RetrieveQueryParams) (key
 	_, err = d.selectAll(&keys, query, args...)
 
 	for i := range keys {
-		if keys[i].Secret == nil {
+		if keys[i].SourceStorageID == nil && keys[i].Secret == nil {
 			keys[i].Empty = true
 		}
 	}
@@ -50,15 +60,9 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 		return err
 	}
 
-	err = key.SerializeSecret()
-
-	if err != nil {
-		return err
-	}
-
 	var res sql.Result
 
-	var args []interface{}
+	var args []any
 	query := "update access_key set name=?"
 	args = append(args, key.Name)
 
@@ -80,19 +84,34 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
-	err = key.SerializeSecret()
-	if err != nil {
-		return
-	}
+	//err = key.SerializeSecret()
+	//if err != nil {
+	//	return
+	//}
 
 	insertID, err := d.insert(
 		"id",
-		"insert into access_key (name, type, project_id, secret, environment_id) values (?, ?, ?, ?, ?)",
+		"insert into access_key ("+
+			"name, "+
+			"type, "+
+			"project_id, "+
+			"secret, "+
+			"environment_id, "+
+			"owner, "+
+			"storage_id, "+
+			"source_storage_id, "+
+			"source_storage_key) "+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		key.Name,
 		key.Type,
 		key.ProjectID,
 		key.Secret,
-		key.EnvironmentID)
+		key.EnvironmentID,
+		key.Owner,
+		key.StorageID,
+		key.SourceStorageID,
+		key.SourceStorageKey,
+	)
 
 	if err != nil {
 		return
@@ -111,38 +130,38 @@ const RekeyBatchSize = 100
 
 func (d *SqlDb) RekeyAccessKeys(oldKey string) (err error) {
 
-	var globalProps = db.AccessKeyProps
-	globalProps.IsGlobal = true
-
-	for i := 0; ; i++ {
-
-		var keys []db.AccessKey
-		err = d.getObjects(-1, globalProps, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize}, nil, &keys)
-
-		if err != nil {
-			return
-		}
-
-		if len(keys) == 0 {
-			break
-		}
-
-		for _, key := range keys {
-
-			err = key.DeserializeSecret2(oldKey)
-
-			if err != nil {
-				return err
-			}
-
-			key.OverrideSecret = true
-			err = d.UpdateAccessKey(key)
-
-			if err != nil && !errors.Is(err, db.ErrNotFound) {
-				return err
-			}
-		}
-	}
+	//var globalProps = db.AccessKeyProps
+	//globalProps.IsGlobal = true
+	//
+	//for i := 0; ; i++ {
+	//
+	//	var keys []db.AccessKey
+	//	err = d.getObjects(-1, globalProps, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize}, nil, &keys)
+	//
+	//	if err != nil {
+	//		return
+	//	}
+	//
+	//	if len(keys) == 0 {
+	//		break
+	//	}
+	//
+	//	for _, key := range keys {
+	//
+	//		err = key.DeserializeSecret2(oldKey)
+	//
+	//		if err != nil {
+	//			return err
+	//		}
+	//
+	//		key.OverrideSecret = true
+	//		err = d.UpdateAccessKey(key)
+	//
+	//		if err != nil && !errors.Is(err, db.ErrNotFound) {
+	//			return err
+	//		}
+	//	}
+	//}
 
 	return
 }

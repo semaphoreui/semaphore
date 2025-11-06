@@ -1,11 +1,11 @@
 ---
 swagger: '2.0'
 info:
-  title: SEMAPHORE
-  description: Semaphore API
-  version: "2.2.1"
-
-host: localhost:3000
+  title: Semaphore API
+  description: |
+    Semaphore API provides endpoints for managing and interacting with the Semaphore UI.
+    This documentation outlines the available operations and data models.
+  version: "2.16.14"
 
 consumes:
   - application/json
@@ -30,6 +30,8 @@ schemes:
 basePath: /api
 
 definitions:
+  App:
+    type: object
 
   Pong:
     type: string
@@ -41,7 +43,7 @@ definitions:
       auth:
         type: string
         description: Username/Email address
-        x-example: user@semaphore.com
+        x-example: user@semaphoreui.com
       password:
         type: string
         format: password
@@ -145,6 +147,87 @@ definitions:
         type: string
         enum: [owner, manager, task_runner, guest]
 
+  ProjectInvite:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 1
+      project_id:
+        type: integer
+        minimum: 1
+      user_id:
+        type: integer
+        minimum: 1
+        description: User ID for user-based invites (optional)
+      email:
+        type: string
+        format: email
+        description: Email address for email-based invites (optional)
+      role:
+        type: string
+        enum: [owner, manager, task_runner, guest]
+        example: manager
+      status:
+        type: string
+        enum: [pending, accepted, declined, expired]
+        example: pending
+      inviter_user_id:
+        type: integer
+        minimum: 1
+        description: ID of the user who created the invite
+      created:
+        type: string
+        format: date-time
+        description: When the invite was created
+      expires_at:
+        type: string
+        format: date-time
+        description: When the invite expires (optional)
+      accepted_at:
+        type: string
+        format: date-time
+        description: When the invite was accepted (optional)
+      inviter_user:
+        $ref: "#/definitions/User"
+        description: Details of the user who created the invite
+      user:
+        $ref: "#/definitions/User"
+        description: Details of the invited user (for user-based invites)
+
+  ProjectInviteRequest:
+    type: object
+    properties:
+#      user_id:
+#        type: integer
+#        minimum: 1
+#        description: User ID to invite (use either user_id or email, not both)
+      email:
+        type: string
+        format: email
+        description: Email address to invite (use either user_id or email, not both)
+        x-example: user@example.com
+      role:
+        type: string
+        enum: [owner, manager, task_runner, guest]
+        example: manager
+      expires_at:
+        type: string
+        format: date-time
+        description: When the invite should expire (optional, defaults to 7 days)
+    required:
+      - role
+
+  AcceptInviteRequest:
+    type: object
+    properties:
+      token:
+        type: string
+        description: The invitation token
+        x-example: "a1b2c3d4e5f6..."
+    required:
+      - token
+
   ProjectBackup:
     type: object
     example: {"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}]}
@@ -157,16 +240,12 @@ definitions:
           alert:
             type: boolean
           alert_chat:
-            type:
-              - string
-              - 'null'
+            type: string
           max_parallel_tasks:
             type: integer
             minimum: 0
           type:
-            type:
-              - string
-              - 'null'
+            type: string
       templates:
         type: array
         items:
@@ -185,9 +264,7 @@ definitions:
             playbook:
               type: string
             arguments:
-              type:
-                - string
-                - 'null'
+              type: string
             description:
               type: string
             allow_override_args_in_task:
@@ -195,29 +272,21 @@ definitions:
             suppress_success_alerts:
               type: boolean
             cron:
-              type:
-                - string
-                - 'null'
+              type: string
             build_template:
-              type:
-                - string
-                - 'null'
+              type: string
             autorun:
               type: boolean
             survey_vars:
-              type:
-                - string
-                - 'null'
+              type: string
             start_version:
-              type:
-                - string
-                - 'null'
+              type: string
             type:
               type: string
             vault_key:
-              type:
-                - string
-                - 'null'
+              type: string
+            allow_override_branch_in_task:
+              type: boolean
       repositories:
         type: array
         items:
@@ -263,13 +332,9 @@ definitions:
             inventory:
               type: string
             ssh_key:
-              type:
-                - string
-                - 'null'
+              type: string
             become_key:
-              type:
-                - string
-                - 'null'
+              type: string
             type:
               type: string
               enum: [static, static-yaml, file]
@@ -281,15 +346,11 @@ definitions:
             name:
               type: string
             password:
-              type:
-                - string
-                - 'null'
+              type: string
             json:
               type: string
             env:
-              type:
-                - string
-                - 'null'
+              type: string
 
   APIToken:
     type: object
@@ -298,7 +359,7 @@ definitions:
         type: string
       created:
         type: string
-#        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
+      #        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       expired:
         type: boolean
       user_id:
@@ -314,20 +375,17 @@ definitions:
       alert:
         type: boolean
       alert_chat:
-        type:
-          - string
-          - 'null'
+        type: string
         example: Test
       max_parallel_tasks:
         type: integer
         minimum: 0
       type:
-        type:
-          - string
-          - 'null'
+        type: string
       demo:
         description: Create Demo project resources?
         type: boolean
+
   Project:
     type: object
     properties:
@@ -339,21 +397,17 @@ definitions:
         example: Test
       created:
         type: string
-#        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
+      #        pattern: ^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-[0-9]{2}T\d{2}:\d{2}:\d{2}Z$
       alert:
         type: boolean
       alert_chat:
-        type:
-          - string
-          - 'null'
+        type: string
         example: Test
       max_parallel_tasks:
         type: integer
         minimum: 0
       type:
-        type:
-          - string
-          - 'null'
+        type: string
 
   AccessKeyRequest:
     type: object
@@ -433,6 +487,7 @@ definitions:
         type: integer
       name:
         type: string
+        example: Test
       secret:
         type: string
       type:
@@ -554,6 +609,8 @@ definitions:
       template_id:
         type: integer
         minimum: 1
+      task_params:
+        $ref: '#/definitions/TaskPrams'
 
   IntegrationRequest:
     type: object
@@ -565,6 +622,8 @@ definitions:
         type: integer
       template_id:
         type: integer
+      params:
+        $ref: '#/definitions/TaskPrams'
 
   IntegrationExtractValueRequest:
     type: object
@@ -584,6 +643,9 @@ definitions:
       variable:
         type: string
         example: variable
+      variable_type:
+        type: string
+        enum: [environment, task]
 
   IntegrationExtractValue:
     type: object
@@ -605,6 +667,9 @@ definitions:
       variable:
         type: string
         example: variable
+      variable_type:
+        type: string
+        enum: [environment, task]
       integration_id:
         type: integer
 
@@ -677,6 +742,7 @@ definitions:
       path:
         type: string
         example: deployment/ansible
+
   Repository:
     type: object
     properties:
@@ -709,20 +775,78 @@ definitions:
         type: integer
       status:
         type: string
-      debug:
-        type: boolean
       playbook:
         type: string
       environment:
         type: string
       secret:
         type: string
-      limit:
+      arguments:
         type: string
       git_branch:
-        type:
-          - string
-          - 'null'
+        type: string
+      message:
+        type: string
+      inventory_id:
+        type: integer
+      params:
+        allOf:
+          - $ref: '#/definitions/AnsibleTaskParams'
+          - $ref: '#/definitions/TerraformTaskParams'
+      limit:
+        type: string
+
+  AnsibleTaskParams:
+    type: object
+    properties:
+      debug:
+        type: boolean
+      dry_run:
+        type: boolean
+      diff:
+        type: boolean
+      limit:
+        type: array
+        items:
+          type: string
+      tags:
+        type: array
+        items:
+          type: string
+      skip_tags:
+        type: array
+        items:
+          type: string
+
+  TerraformTaskParams:
+    type: object
+    properties:
+      plan:
+        type: boolean
+      destroy:
+        type: boolean
+      auto_approve:
+        type: boolean
+      upgrade:
+        type: boolean
+
+  TaskPrams:
+    type: object
+    properties:
+      environment:
+        type: string
+      git_branch:
+        type: string
+      message:
+        type: string
+      inventory_id:
+        type: integer
+      arguments:
+        type: string
+      params:
+        allOf:
+          - $ref: '#/definitions/AnsibleTaskParams'
+          - $ref: '#/definitions/TerraformTaskParams'
 
   TaskOutput:
     type: object
@@ -847,13 +971,9 @@ definitions:
         type: string
         enum: ["", build, deploy]
       start_version:
-        type:
-          - string
-          - 'null'
+        type: string
       build_template_id:
-        type:
-          - integer
-          - 'null'
+        type: integer
       autorun:
         type: boolean
       survey_vars:
@@ -906,13 +1026,9 @@ definitions:
         enum: [password, script]
         example: script
       vault_key_id:
-        type:
-          - integer
-          - 'null'
+        type: integer
       script:
-        type:
-          - string
-          - 'null'
+        type: string
         example: path/to/script-client.py
 
   ScheduleRequest:
@@ -932,6 +1048,8 @@ definitions:
         type: string
       active:
         type: boolean
+      task_params:
+        $ref: '#/definitions/TaskPrams'
 
   Schedule:
     type: object
@@ -948,6 +1066,8 @@ definitions:
         type: string
       active:
         type: boolean
+      task_params:
+        $ref: '#/definitions/TaskPrams'
 
   ViewRequest:
     type: object
@@ -972,6 +1092,16 @@ definitions:
         type: integer
       position:
         type: integer
+      hidden:
+        type: boolean
+      type:
+        type: string
+        enum: ["", all]
+      sort_column:
+        type: string
+        enum: [name]
+      sort_reverse:
+        type: boolean
 
   Runner:
     type: object
@@ -987,13 +1117,9 @@ definitions:
       user_id:
         type: integer
       object_id:
-        type:
-          - integer
-          - 'null'
+        type: integer
       object_type:
-        type:
-          - string
-          - 'null'
+        type: string
       description:
         type: string
 
@@ -1002,13 +1128,20 @@ definitions:
     properties:
       version:
         type: string
-      updateBody:
+      ansible:
         type: string
-      update:
+      web_host:
+        type: string
+      use_remote_runner:
+        type: boolean
+      auth_methods:
         type: object
-        properties:
-          tag_name:
-            type: string
+      git_client:
+        type: string
+      schedule_timezone:
+        type: string
+      premium_features:
+        type: object
 
 securityDefinitions:
   cookie:
@@ -1116,8 +1249,23 @@ parameters:
     type: integer
     required: true
     x-example: 13
+  invite_id:
+    name: invite_id
+    description: Invite ID
+    in: path
+    type: integer
+    required: true
+    x-example: 14
 
 paths:
+  /debug/gc:
+    post:
+      summary: Garbage collector
+      description: Run the garbage collector
+      responses:
+        204:
+          description: Successful "OK" reply
+
   /ping:
     get:
       summary: PING test
@@ -1376,7 +1524,7 @@ paths:
   /projects:
     get:
       tags:
-        - projects
+        - project
       summary: Get projects
       responses:
         200:
@@ -1387,7 +1535,7 @@ paths:
               $ref: "#/definitions/Project"
     post:
       tags:
-        - projects
+        - project
       summary: Create a new project
       consumes:
         - application/json
@@ -1402,10 +1550,11 @@ paths:
           description: Created project
           schema:
             $ref: "#/definitions/Project"
+  
   /projects/restore:
     post:
       tags:
-        - projects
+        - project
       summary: Restore Project
       consumes:
         - application/json
@@ -1431,6 +1580,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Event'
+  
   /events/last:
     get:
       summary: Get last 200 Events related to Semaphore and projects you are part of
@@ -1610,12 +1760,126 @@ paths:
         204:
           description: User updated
 
+  # Invite management
+#  /project/{project_id}/invites:
+#    parameters:
+#      - $ref: "#/parameters/project_id"
+#    get:
+#      tags:
+#        - project
+#      summary: Get invitations for project
+#      parameters:
+#        - name: sort
+#          in: query
+#          required: false
+#          type: string
+#          enum: [created, status, role]
+#          description: sorting field
+#          x-example: created
+#        - name: order
+#          in: query
+#          required: false
+#          type: string
+#          enum: [asc, desc]
+#          description: ordering manner
+#          x-example: desc
+#      responses:
+#        200:
+#          description: Project invitations
+#          schema:
+#            type: array
+#            items:
+#              $ref: "#/definitions/ProjectInvite"
+#    post:
+#      tags:
+#        - project
+#      summary: Create project invitation
+#      parameters:
+#        - name: Invite
+#          in: body
+#          required: true
+#          schema:
+#            $ref: "#/definitions/ProjectInviteRequest"
+#      responses:
+#        201:
+#          description: Invitation created
+#          schema:
+#            $ref: "#/definitions/ProjectInvite"
+#        400:
+#          description: Bad request (invalid role, missing user_id/email, or both provided)
+#        409:
+#          description: User already a member or invitation already exists
+#
+#  /project/{project_id}/invites/{invite_id}:
+#    parameters:
+#      - $ref: "#/parameters/project_id"
+#      - $ref: "#/parameters/invite_id"
+#    get:
+#      tags:
+#        - project
+#      summary: Get specific project invitation
+#      responses:
+#        200:
+#          description: Project invitation
+#          schema:
+#            $ref: "#/definitions/ProjectInvite"
+#        404:
+#          description: Invitation not found
+#    put:
+#      tags:
+#        - project
+#      summary: Update project invitation status
+#      parameters:
+#        - name: Invite Update
+#          in: body
+#          required: true
+#          schema:
+#            type: object
+#            properties:
+#              status:
+#                type: string
+#                enum: [pending, declined, expired]
+#                example: declined
+#      responses:
+#        204:
+#          description: Invitation updated
+#        400:
+#          description: Invalid status or status transition
+#    delete:
+#      tags:
+#        - project
+#      summary: Delete project invitation
+#      responses:
+#        204:
+#          description: Invitation deleted
+#
+#  /invites/accept:
+#    post:
+#      tags:
+#        - project
+#      summary: Accept project invitation
+#      parameters:
+#        - name: Accept Invite
+#          in: body
+#          required: true
+#          schema:
+#            $ref: "#/definitions/AcceptInviteRequest"
+#      responses:
+#        204:
+#          description: Invitation accepted successfully
+#        400:
+#          description: Invalid token, invitation expired, or user already a member
+#        403:
+#          description: Invitation not for this user
+#        404:
+#          description: Invitation not found
+
   /project/{project_id}/integrations:
     parameters:
       - $ref: "#/parameters/project_id"
     get:
       tags:
-        - project
+        - integration
       summary: get all integrations
       responses:
         200:
@@ -1627,7 +1891,7 @@ paths:
     post:
       summary: create a new integration
       tags:
-        - project
+        - integration
       parameters:
         - name: Integration
           in: body
@@ -1639,13 +1903,23 @@ paths:
           description: Integration Created
           schema:
             $ref: "#/definitions/Integration"
+  
   /project/{project_id}/integrations/{integration_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/integration_id"
+    get:
+      tags:
+        - integration
+      summary: Get Integration
+      responses:
+        200:
+          description: Integration Value
+          schema:
+            $ref: "#/definitions/Integration"
     put:
       tags:
-        - project
+        - integration
       summary: Update Integration
       parameters:
         - name: Integration
@@ -1658,7 +1932,7 @@ paths:
           description: Integration updated
     delete:
       tags:
-        - project
+        - integration
       summary: Remove integration
       responses:
         204:
@@ -1680,7 +1954,7 @@ paths:
               $ref: "#/definitions/IntegrationExtractValue"
     post:
       tags:
-        - project
+        - integration
       summary: Add Integration Extracted Value
       parameters:
         - name: Integration Extracted Value
@@ -1737,7 +2011,7 @@ paths:
               $ref: "#/definitions/IntegrationMatcher"
     post:
       tags:
-        - project
+        - integration
       summary: Add Integration Matcher
       parameters:
         - name: Integration Matcher
@@ -1784,7 +2058,7 @@ paths:
       - $ref: "#/parameters/project_id"
     get:
       tags:
-        - project
+        - key-store
       summary: Get access keys linked to project
       parameters:
         # TODO - the space in this parameter name results in a dredd warning
@@ -1818,7 +2092,7 @@ paths:
               $ref: "#/definitions/AccessKey"
     post:
       tags:
-        - project
+        - key-store
       summary: Add access key
       parameters:
         - name: Access Key
@@ -1839,7 +2113,7 @@ paths:
       - $ref: "#/parameters/key_id"
     put:
       tags:
-        - project
+        - key-store
       summary: Updates access key
       parameters:
         - name: Access Key
@@ -1854,7 +2128,7 @@ paths:
           description: Bad type
     delete:
       tags:
-        - project
+        - key-store
       summary: Removes access key
       responses:
         204:
@@ -1866,7 +2140,7 @@ paths:
       - $ref: "#/parameters/project_id"
     get:
       tags:
-        - project
+        - repository
       summary: Get repositories
       parameters:
         - name: sort
@@ -1891,7 +2165,7 @@ paths:
               $ref: "#/definitions/Repository"
     post:
       tags:
-        - project
+        - repository
       summary: Add repository
       parameters:
         - name: Repository
@@ -1903,7 +2177,7 @@ paths:
         201:
           description: Repository created
           schema:
-              $ref: "#/definitions/Repository"
+            $ref: "#/definitions/Repository"
 
   /project/{project_id}/repositories/{repository_id}:
     parameters:
@@ -1911,16 +2185,16 @@ paths:
       - $ref: "#/parameters/repository_id"
     get:
       tags:
-          - project
+        - repository
       summary: Get repository
       responses:
         200:
           description: repository object
           schema:
-              $ref: "#/definitions/Repository"
+            $ref: "#/definitions/Repository"
     put:
       tags:
-        - project
+        - repository
       summary: Updates repository
       parameters:
         - name: Repository
@@ -1935,7 +2209,7 @@ paths:
           description: Bad request
     delete:
       tags:
-        - project
+        - repository
       summary: Removes repository
       responses:
         204:
@@ -1947,7 +2221,7 @@ paths:
       - $ref: "#/parameters/project_id"
     get:
       tags:
-        - project
+        - inventory
       summary: Get inventory
       parameters:
         - name: sort
@@ -1971,7 +2245,7 @@ paths:
               $ref: "#/definitions/Inventory"
     post:
       tags:
-        - project
+        - inventory
       summary: create inventory
       parameters:
         - name: Inventory
@@ -1990,7 +2264,7 @@ paths:
       - $ref: "#/parameters/inventory_id"
     get:
       tags:
-        - project
+        - inventory
       summary: Get inventory
       responses:
         200:
@@ -1999,7 +2273,7 @@ paths:
             $ref: "#/definitions/Inventory"
     put:
       tags:
-        - project
+        - inventory
       summary: Updates inventory
       parameters:
         - name: Inventory
@@ -2012,7 +2286,7 @@ paths:
           description: Inventory updated
     delete:
       tags:
-        - project
+        - inventory
       summary: Removes inventory
       responses:
         204:
@@ -2024,7 +2298,7 @@ paths:
       - $ref: "#/parameters/project_id"
     get:
       tags:
-        - project
+        - variable-group
       summary: Get environment
       parameters:
         - name: sort
@@ -2050,7 +2324,7 @@ paths:
               $ref: "#/definitions/Environment"
     post:
       tags:
-        - project
+        - variable-group
       summary: Add environment
       parameters:
         - name: environment
@@ -2069,16 +2343,16 @@ paths:
       - $ref: "#/parameters/environment_id"
     get:
       tags:
-        - project
+        - variable-group
       summary: Get environment
       responses:
         200:
           description: environment object
           schema:
-              $ref: "#/definitions/Environment"
+            $ref: "#/definitions/Environment"
     put:
       tags:
-        - project
+        - variable-group
       summary: Update environment
       parameters:
         - name: environment
@@ -2091,7 +2365,7 @@ paths:
           description: Environment Updated
     delete:
       tags:
-        - project
+        - variable-group
       summary: Removes environment
       responses:
         204:
@@ -2103,7 +2377,7 @@ paths:
       - $ref: "#/parameters/project_id"
     get:
       tags:
-        - project
+        - template
       summary: Get template
       parameters:
         - name: sort
@@ -2134,7 +2408,7 @@ paths:
                   $ref: "#/definitions/Task"
     post:
       tags:
-        - project
+        - template
       summary: create template
       parameters:
         - name: template
@@ -2147,13 +2421,26 @@ paths:
           description: template created
           schema:
             $ref: "#/definitions/Template"
+
+  /project/{project_id}/templates/{template_id}/stop_all_tasks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    post:
+      tags:
+        - template
+      summary: Stop all active tasks of template
+      responses:
+        204:
+          description: tasks stopped
+
   /project/{project_id}/templates/{template_id}:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/template_id"
     get:
       tags:
-        - project
+        - template
       summary: Get template
       responses:
         200:
@@ -2162,7 +2449,7 @@ paths:
             $ref: "#/definitions/Template"
     put:
       tags:
-        - project
+        - template
       summary: Updates template
       parameters:
         - name: template
@@ -2175,12 +2462,11 @@ paths:
           description: template updated
     delete:
       tags:
-        - project
+        - template
       summary: Removes template
       responses:
         204:
           description: template removed
-
 
   # project schedules
   /project/{project_id}/schedules/{schedule_id}:
@@ -2307,7 +2593,7 @@ paths:
       - $ref: "#/parameters/project_id"
     get:
       tags:
-        - project
+        - task
       summary: Get Tasks related to current project
       responses:
         200:
@@ -2318,7 +2604,7 @@ paths:
               $ref: '#/definitions/Task'
     post:
       tags:
-        - project
+        - task
       summary: Starts a job
       parameters:
         - name: task
@@ -2343,6 +2629,12 @@ paths:
                 type: string
               git_branch:
                 type: string
+              message:
+                type: string
+              arguments:
+                type: string
+              inventory_id:
+                type: integer
       responses:
         201:
           description: Task queued
@@ -2355,7 +2647,7 @@ paths:
       - $ref: "#/parameters/project_id"
     get:
       tags:
-        - project
+        - task
       summary: Get last 200 Tasks related to current project
       responses:
         200:
@@ -2372,7 +2664,7 @@ paths:
       - $ref: '#/parameters/task_id'
     post:
       tags:
-        - project
+        - task
       summary: Stop a job
       responses:
         204:
@@ -2384,7 +2676,7 @@ paths:
       - $ref: "#/parameters/task_id"
     get:
       tags:
-        - project
+        - task
       summary: Get a single task
       responses:
         200:
@@ -2393,7 +2685,7 @@ paths:
             $ref: "#/definitions/Task"
     delete:
       tags:
-        - project
+        - task
       summary: Deletes task (including output)
       responses:
         204:
@@ -2405,7 +2697,7 @@ paths:
       - $ref: '#/parameters/task_id'
     get:
       tags:
-        - project
+        - task
       summary: Get task output
       responses:
         200:
@@ -2415,23 +2707,42 @@ paths:
             items:
               $ref: "#/definitions/TaskOutput"
 
-#  /runners:
-#    post:
-#      tags:
-#        - project
-#      summary: Starts a job
-#      parameters:
-#        - name: task
-#          in: body
-#          required: true
-#          schema:
-#            type: object
-#            properties:
-#              registration_token:
-#                type: string
-#                example: test123
-#      responses:
-#        201:
-#          description: Task queued
-#          schema:
-#            $ref: "#/definitions/Runner"
+  /project/{project_id}/tasks/{task_id}/raw_output:
+    parameters:
+      - $ref: '#/parameters/project_id'
+      - $ref: '#/parameters/task_id'
+    get:
+      tags:
+        - task
+      summary: Get task raw output
+      responses:
+        200:
+          description: output
+          headers:
+            content-type:
+              type: string
+              x-example: text/plain; charset=utf-8
+  /apps:
+    get:
+      summary: Get apps
+      responses:
+        200:
+          description: Apps
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/App"
+
+  /project/{project_id}/notifications/test:
+    post:
+      tags:
+        - project
+      summary: Send test notification
+      description: Sends a test notification to all enabled messengers for the project
+      parameters:
+        - $ref: "#/parameters/project_id"
+      responses:
+        409:
+          description: Alerts not enabled for the project
+#        204:
+#          description: Test notification dispatched (or alerts disabled)

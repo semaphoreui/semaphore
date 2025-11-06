@@ -1,10 +1,10 @@
 package helpers
 
 import (
-	"net/http"
-
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 )
 
 type EventLogItem struct {
@@ -25,33 +25,41 @@ const (
 	EventLogDelete EventLogType = "delete"
 )
 
-func EventLog(r *http.Request, action EventLogType, event EventLogItem) {
-	record := db.Event{
-		ObjectType:  &event.ObjectType,
-		ObjectID:    &event.ObjectID,
-		Description: &event.Description,
+func EventLog(r *http.Request, action EventLogType, item EventLogItem) {
+	event := db.Event{
+		ObjectType:  &item.ObjectType,
+		ObjectID:    &item.ObjectID,
+		Description: &item.Description,
 	}
 
-	if event.IntegrationID > 0 {
-		record.IntegrationID = &event.IntegrationID
+	if item.IntegrationID > 0 {
+		event.IntegrationID = &item.IntegrationID
 	}
 
-	if event.UserID > 0 {
-		record.UserID = &event.UserID
+	if item.UserID > 0 {
+		event.UserID = &item.UserID
 	}
 
-	if event.ProjectID > 0 {
-		record.ProjectID = &event.ProjectID
+	if item.ProjectID > 0 {
+		event.ProjectID = &item.ProjectID
 	}
 
-	if _, err := Store(r).CreateEvent(record); err != nil {
-		log.WithFields(log.Fields{
-			"integration": event.IntegrationID,
-			"user":        event.UserID,
-			"project":     event.ProjectID,
-			"type":        string(event.ObjectType),
-			"object":      event.ObjectID,
-			"action":      string(action),
-		}).Error("Failed to store event")
+	logFields := event.ToFields()
+	logFields["action"] = string(action)
+
+	if _, err := Store(r).CreateEvent(event); err != nil {
+		log.WithFields(logFields).Error("Failed to store event")
+	}
+
+	logWriter := GetFromContext(r, "log_writer").(pro_interfaces.LogWriteService)
+
+	if err := logWriter.WriteEventLog(pro_interfaces.EventLogRecord{
+		Action:        string(action),
+		ProjectID:     event.ProjectID,
+		UserID:        event.UserID,
+		IntegrationID: event.IntegrationID,
+		Description:   event.Description,
+	}); err != nil {
+		log.WithFields(logFields).Error("Failed to store event in log file")
 	}
 }
