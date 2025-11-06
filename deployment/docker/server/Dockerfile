@@ -46,7 +46,7 @@ RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
 RUN wget -O /tmp/terragrunt https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_${TARGETARCH} && \
     chmod +x /tmp/terragrunt
 
-FROM alpine:3.21
+FROM alpine:3.22
 
 ARG TARGETARCH="amd64"
 # renovate: datasource=pypi depName=ansible
