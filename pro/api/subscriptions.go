@@ -1,14 +1,17 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
-	"net/http"
 )
 
 func NewSubscriptionController(
 	optionsRepo db.OptionsManager,
 	userRepo db.UserManager,
+	runnerRepo db.RunnerManager,
+	tfRepo db.TerraformStore,
 ) pro_interfaces.SubscriptionController {
 	return &subscriptionControllerImpl{}
 }

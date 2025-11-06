@@ -12,4 +12,5 @@ type TerraformStore interface {
 	GetTerraformInventoryState(projectID int, inventoryId int, stateID int) (TerraformInventoryState, error)
 	GetTerraformInventoryStates(projectID, inventoryID int, params RetrieveQueryParams) ([]TerraformInventoryState, error)
 	DeleteTerraformInventoryState(projectID int, inventoryId int, stateID int) error
+	GetTerraformStateCount() (int, error)
 }

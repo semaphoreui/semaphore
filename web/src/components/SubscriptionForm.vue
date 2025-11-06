@@ -157,7 +157,7 @@
                 <v-list-item-content>
                   <v-list-item-title>Terraform backends</v-list-item-title>
                   <v-list-item-subtitle>
-                    {{ item.terraform_backends_used }} / {{ item.terraform_backends }}
+                    {{ item.terraform_states_used }} / {{ item.terraform_states }}
                   </v-list-item-subtitle>
                 </v-list-item-content>
               </v-list-item>

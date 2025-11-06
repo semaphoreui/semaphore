@@ -46,3 +46,7 @@ func (d *TerraformStoreImpl) DeleteTerraformInventoryState(projectID int, invent
 func (d *TerraformStoreImpl) GetTerraformInventoryState(projectID int, inventoryId int, stateID int) (res db.TerraformInventoryState, err error) {
 	return
 }
+
+func (d *TerraformStoreImpl) GetTerraformStateCount() (n int, err error) {
+	return
+}

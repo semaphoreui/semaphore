@@ -108,7 +108,7 @@ func Route(
 	terraformInventoryController := proProjects.NewTerraformInventoryController(terraformStore)
 	userController := NewUserController(subscriptionService)
 	usersController := NewUsersController(subscriptionService)
-	subscriptionController := proApi.NewSubscriptionController(store, store)
+	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore)
 	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService)
 	taskController := projects.NewTaskController(ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
