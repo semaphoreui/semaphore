@@ -16,6 +16,10 @@ func WriteJSON(w http.ResponseWriter, code int, out any) {
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(code)
 
+	if out == nil {
+		return
+	}
+
 	if err := json.NewEncoder(w).Encode(out); err != nil {
 		log.Error(err)
 		debug.PrintStack()
