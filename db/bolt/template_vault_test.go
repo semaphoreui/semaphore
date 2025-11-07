@@ -246,3 +246,56 @@ func TestUpdateTemplateWithVaults(t *testing.T) {
 		t.Fatalf("expected script vault after update, got %s", vaultsAfter[0].Type)
 	}
 }
+
+func TestUpdateTemplateWithEmptyVaults(t *testing.T) {
+	store := CreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{
+		Created: tz.Now(),
+		Name:    "TestProject",
+	})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	// Create a template with a vault
+	template, err := store.CreateTemplate(db.Template{
+		ProjectID: proj.ID,
+		Name:      "TestTemplate",
+		Playbook:  "test.yml",
+		Vaults: []db.TemplateVault{
+			{
+				Type: "password",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	// Verify vault was created
+	vaultsBefore, err := store.GetTemplateVaults(proj.ID, template.ID)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if len(vaultsBefore) != 1 {
+		t.Fatalf("expected 1 vault before update, got %d", len(vaultsBefore))
+	}
+
+	// Update the template with an empty vaults array (explicitly removing vaults)
+	template.Name = "UpdatedName"
+	template.Vaults = []db.TemplateVault{} // Empty array, not nil - should delete vaults
+	err = store.UpdateTemplate(template)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	// Verify vaults were deleted
+	vaultsAfter, err := store.GetTemplateVaults(proj.ID, template.ID)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if len(vaultsAfter) != 0 {
+		t.Fatalf("expected 0 vaults after update with empty array, got %d", len(vaultsAfter))
+	}
+}
