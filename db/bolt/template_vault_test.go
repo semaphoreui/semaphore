@@ -133,3 +133,56 @@ func TestUpdateTemplateVaults(t *testing.T) {
 		t.Fatalf("expected 1 vault with type 'script', got %d", len(vaults))
 	}
 }
+
+func TestUpdateTemplatePreservesVaults(t *testing.T) {
+	store := CreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{
+		Created: tz.Now(),
+		Name:    "TestProject",
+	})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	// Create a template with a vault
+	template, err := store.CreateTemplate(db.Template{
+		ProjectID: proj.ID,
+		Name:      "TestTemplate",
+		Playbook:  "test.yml",
+		Vaults: []db.TemplateVault{
+			{
+				Type: "password",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	// Verify vault was created
+	vaultsBefore, err := store.GetTemplateVaults(proj.ID, template.ID)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if len(vaultsBefore) != 1 {
+		t.Fatalf("expected 1 vault before update, got %d", len(vaultsBefore))
+	}
+
+	// Update the template without passing vaults (simulating an API call that only updates name)
+	template.Name = "UpdatedName"
+	template.Vaults = nil // This simulates what happens when the API receives a request without vaults field
+	err = store.UpdateTemplate(template)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	// Verify vaults were NOT deleted
+	vaultsAfter, err := store.GetTemplateVaults(proj.ID, template.ID)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if len(vaultsAfter) != 1 {
+		t.Fatalf("expected 1 vault after update, got %d (vaults should be preserved)", len(vaultsAfter))
+	}
+}
