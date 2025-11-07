@@ -50,3 +50,6 @@ __debug_bin*
 /go.work.x
 /go.work
 /go.work.sum
+config.json
+database.boltdb
+admin

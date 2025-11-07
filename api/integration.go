@@ -293,6 +293,11 @@ func GetTaskDefinition(
 
 	taskDefinition.IntegrationID = &integration.ID
 
+	// Initialize Params if nil to avoid panic when assigning extracted task parameters
+	if taskDefinition.Params == nil {
+		taskDefinition.Params = make(db.MapStringAnyField)
+	}
+
 	env := make(map[string]any)
 
 	if taskDefinition.Environment != "" {
