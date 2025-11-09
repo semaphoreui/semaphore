@@ -691,12 +691,21 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		}
 		// Use Terraform-specific prepareRun with init args
 		if tfApp, ok := t.App.(*db_lib.TerraformApp); ok {
+			initArgs := []string(nil)
+			if argsMap != nil {
+				if stageArgs, ok := argsMap["init"]; ok {
+					initArgs = stageArgs
+				} else if defaultArgs, ok := argsMap["default"]; ok {
+					initArgs = defaultArgs
+				}
+			}
+
 			err = t.prepareRunTerraform(tfApp, db_lib.LocalAppInstallingArgs{
 				EnvironmentVars: environmentVariables,
 				TplParams:       tplParams,
 				Params:          params,
 				Installer:       t.KeyInstaller,
-			}, argsMap["init"])
+			}, initArgs)
 			if err != nil {
 				return err
 			}
