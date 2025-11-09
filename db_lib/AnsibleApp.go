@@ -62,7 +62,9 @@ func (t *AnsibleApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 }
 
 func (t *AnsibleApp) Run(args LocalAppRunningArgs) error {
-	return t.Playbook.RunPlaybook(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+	// Use "default" key for backward compatibility
+	cliArgs := args.CliArgs["default"]
+	return t.Playbook.RunPlaybook(cliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
 }
 
 func (t *AnsibleApp) Log(msg string) {
