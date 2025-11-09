@@ -309,8 +309,11 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		}
 	}
 
-	// Add common args to each stage
+	// Add common args to each stage except init
 	for stage := range argsMap {
+		if stage == "init" {
+			continue
+		}
 		// Prepend destroy args
 		combined := append([]string{}, destroyArgs...)
 		combined = append(combined, argsMap[stage]...)
