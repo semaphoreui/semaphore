@@ -675,8 +675,6 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 			if argsMap != nil {
 				if stageArgs, ok := argsMap["init"]; ok {
 					initArgs = stageArgs
-				} else if defaultArgs, ok := argsMap["default"]; ok {
-					initArgs = defaultArgs
 				}
 			}
 
