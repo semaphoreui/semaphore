@@ -545,10 +545,10 @@ func (t *LocalJob) getCLIArgs() (templateArgs []string, taskArgs []string, err e
 	return
 }
 
-// convertArgsJSONIfArray converts array format JSON to map format with "default" key and returns the result
-func convertArgsJSONIfArray(argsJSON string) (string, error) {
+// convertArgsJSONIfArray converts array format JSON to map format with "default" key and returns the parsed result
+func convertArgsJSONIfArray(argsJSON string) (map[string][]string, error) {
 	if argsJSON == "" {
-		return argsJSON, nil
+		return nil, nil
 	}
 
 	// Try to parse as array first
@@ -558,20 +558,16 @@ func convertArgsJSONIfArray(argsJSON string) (string, error) {
 		mapArgs := map[string][]string{
 			"default": arr,
 		}
-		convertedJSON, err := json.Marshal(mapArgs)
-		if err != nil {
-			return "", fmt.Errorf("failed to convert array to map format: %v", err)
-		}
-		return string(convertedJSON), nil
+		return mapArgs, nil
 	}
 
 	// If not an array, verify it's a valid map format
 	var mapArgs map[string][]string
 	if err := json.Unmarshal([]byte(argsJSON), &mapArgs); err != nil {
-		return "", fmt.Errorf("invalid format of arguments, must be valid JSON array or map: %v", err)
+		return nil, fmt.Errorf("invalid format of arguments, must be valid JSON array or map: %v", err)
 	}
 
-	return argsJSON, nil
+	return mapArgs, nil
 }
 
 // getCLIArgsMap returns args that support both array and map formats
@@ -581,36 +577,17 @@ func (t *LocalJob) getCLIArgsMap() (templateArgsMap map[string][]string, taskArg
 
 	// Convert template arguments if needed
 	if t.Template.Arguments != nil {
-		converted, err := convertArgsJSONIfArray(*t.Template.Arguments)
+		templateArgsMap, err = convertArgsJSONIfArray(*t.Template.Arguments)
 		if err != nil {
 			return nil, nil, err
 		}
-		t.Template.Arguments = &converted
 	}
 
 	// Convert task arguments if needed
 	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
-		converted, err := convertArgsJSONIfArray(*t.Task.Arguments)
+		taskArgsMap, err = convertArgsJSONIfArray(*t.Task.Arguments)
 		if err != nil {
 			return nil, nil, err
-		}
-		t.Task.Arguments = &converted
-	}
-
-	// Now parse as map format (both should be maps after conversion)
-	if t.Template.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateArgsMap)
-		if err != nil {
-			err = fmt.Errorf("failed to parse template arguments as map: %v", err)
-			return
-		}
-	}
-
-	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
-		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskArgsMap)
-		if err != nil {
-			err = fmt.Errorf("failed to parse task arguments as map: %v", err)
-			return
 		}
 	}
 
