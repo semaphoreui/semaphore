@@ -1,6 +1,6 @@
 {
   "description": "Example of Terraform multi-stage arguments format",
-  "architecture_note": "Array format is automatically converted to map with 'default' key internally",
+  "architecture_note": "Array format is automatically converted to map with 'default' key at runtime during task execution",
   "examples": [
     {
       "name": "Legacy array format (backward compatible)",
@@ -63,7 +63,7 @@
     }
   ],
   "notes": [
-    "Array format is automatically converted to map with 'default' key",
+    "Array format is automatically converted to map with 'default' key at runtime (original JSON in database remains unchanged)",
     "Common arguments like -var, -destroy, and environment secrets are automatically added to all stages",
     "Stage resolution order: specific stage key -> 'default' key -> empty array",
     "Template arguments and Task arguments are merged at the stage level",

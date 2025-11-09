@@ -25,12 +25,12 @@ type LocalAppRunningArgs struct {
 
 ### 2. Argument Parsing (`services/tasks/LocalJob.go`)
 
-Added `getCLIArgsMap()` function that:
-- Attempts to parse arguments as an array first (backward compatible)
-- Converts array format to map with "default" key automatically
-- Falls back to map format if array parsing fails
-- Returns map representation for all argument types
+Added `convertArgsJSONIfArray()` and `getCLIArgsMap()` functions that:
+- `convertArgsJSONIfArray()`: Checks JSON format and converts array format to map with "default" key **in-place**
+- `getCLIArgsMap()`: Parses arguments as map format (after conversion)
+- Array format is automatically converted to map format at runtime
 - Supports both Template and Task level arguments
+- Ensures consistent map-based interface throughout the system
 
 ### 3. Terraform Argument Processing (`services/tasks/LocalJob.go`)
 
@@ -167,7 +167,9 @@ For each stage, arguments are resolved in this order:
 ### Backward Compatibility Details
 
 **Array Format → Map Conversion:**
-- Array `["-var", "foo=bar"]` → Map `{"default": ["-var", "foo=bar"]}`
+- **Runtime Conversion**: Array `["-var", "foo=bar"]` is converted to `{"default": ["-var", "foo=bar"]}` **in-place** when the task runs
+- **No Database Changes**: Original JSON remains stored as array, conversion happens only during task execution
+- **Transparent**: Users don't see the conversion, it happens automatically
 - Ansible and Shell apps: Always use "default" key
 - Terraform apps: Use stage-specific keys, fall back to "default"
 
