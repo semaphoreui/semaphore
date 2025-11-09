@@ -338,6 +338,8 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 	// Use stage-specific args from map, with "default" fallback
 	if pArgs, ok := args.CliArgs["plan"]; ok {
 		planArgs = pArgs
+	} else if aArgs, ok := args.CliArgs["apply"]; ok {
+		applyArgs = aArgs
 	} else if defaultArgs, ok := args.CliArgs["default"]; ok {
 		planArgs = defaultArgs
 	}

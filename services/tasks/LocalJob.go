@@ -309,6 +309,10 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		}
 	}
 
+	if len(argsMap) == 0 {
+		argsMap["default"] = []string{}
+	}
+
 	// Add common args to each stage except init
 	for stage := range argsMap {
 		if stage == "init" {
@@ -320,11 +324,6 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		combined = append(combined, varArgs...)
 		combined = append(combined, secretArgs...)
 		argsMap[stage] = combined
-	}
-
-	// Ensure we have at least a "default" stage with common args if no args specified
-	if len(argsMap) == 0 {
-		argsMap["default"] = append(append([]string{}, destroyArgs...), append(varArgs, secretArgs...)...)
 	}
 
 	return
