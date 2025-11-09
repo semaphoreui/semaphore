@@ -130,7 +130,7 @@ func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	return logger
 }
 
-func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInstaller, params *db.TerraformTaskParams) error {
+func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInstaller, params *db.TerraformTaskParams, extraArgs []string) error {
 
 	keyInstallation, err := keyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleGit, t.Logger)
 	if err != nil {
@@ -148,6 +148,11 @@ func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInst
 		args = append(args, "-reconfigure")
 	} else {
 		args = append(args, "-migrate-state")
+	}
+
+	// Add extra args specific to init stage
+	if extraArgs != nil {
+		args = append(args, extraArgs...)
 	}
 
 	cmd := t.makeCmd(t.Name, args, environmentVars)
@@ -230,7 +235,16 @@ func (t *TerraformApp) Clear() {
 	}
 }
 
+type TerraformInstallRequirementsArgs struct {
+	LocalAppInstallingArgs
+	InitArgs []string // Stage-specific args for init
+}
+
 func (t *TerraformApp) InstallRequirements(args LocalAppInstallingArgs) (err error) {
+	return t.InstallRequirementsWithInitArgs(args, nil)
+}
+
+func (t *TerraformApp) InstallRequirementsWithInitArgs(args LocalAppInstallingArgs, initArgs []string) (err error) {
 
 	tpl := args.TplParams.(*db.TerraformTemplateParams)
 	p := args.Params.(*db.TerraformTaskParams)
@@ -248,7 +262,7 @@ func (t *TerraformApp) InstallRequirements(args LocalAppInstallingArgs) (err err
 		}
 	}
 
-	if err = t.init(args.EnvironmentVars, args.Installer, p); err != nil {
+	if err = t.init(args.EnvironmentVars, args.Installer, p, initArgs); err != nil {
 		return
 	}
 
@@ -317,7 +331,32 @@ func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map
 }
 
 func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
-	err := t.Plan(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+	// Determine which args to use for plan and apply stages
+	var planArgs []string
+	var applyArgs []string
+
+	if args.CliArgsMap != nil && len(args.CliArgsMap) > 0 {
+		// Use stage-specific args from map
+		if pArgs, ok := args.CliArgsMap["plan"]; ok {
+			planArgs = pArgs
+		} else {
+			// Fall back to CliArgs if no plan-specific args
+			planArgs = args.CliArgs
+		}
+
+		if aArgs, ok := args.CliArgsMap["apply"]; ok {
+			applyArgs = aArgs
+		} else {
+			// Fall back to CliArgs if no apply-specific args
+			applyArgs = args.CliArgs
+		}
+	} else {
+		// Use legacy CliArgs for backward compatibility
+		planArgs = args.CliArgs
+		applyArgs = args.CliArgs
+	}
+
+	err := t.Plan(planArgs, args.EnvironmentVars, args.Inputs, args.Callback)
 	if err != nil {
 		return err
 	}
@@ -332,7 +371,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 
 	if tplParams.AutoApprove || tplParams.AllowAutoApprove && params.AutoApprove {
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
-		return t.Apply(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.Callback)
 	}
 
 	t.Logger.SetStatus(task_logger.TaskWaitingConfirmation)
@@ -351,7 +390,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		t.Logger.SetStatus(task_logger.TaskFailStatus)
 	case task_logger.TaskConfirmed:
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
-		return t.Apply(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.Callback)
 	}
 
 	return nil

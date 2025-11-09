@@ -1,0 +1,56 @@
+{
+  "description": "Example of Terraform multi-stage arguments format",
+  "examples": [
+    {
+      "name": "Legacy array format (backward compatible)",
+      "arguments": ["-var", "environment=production"]
+    },
+    {
+      "name": "New map format with stage-specific args",
+      "arguments": {
+        "init": ["-upgrade"],
+        "plan": ["-var", "environment=production"],
+        "apply": ["-var", "environment=production", "-parallelism=10"]
+      }
+    },
+    {
+      "name": "Terraform with backend configuration",
+      "arguments": {
+        "init": [
+          "-backend-config=bucket=my-terraform-state",
+          "-backend-config=key=prod/terraform.tfstate"
+        ],
+        "plan": ["-out=tfplan"],
+        "apply": ["tfplan"]
+      }
+    },
+    {
+      "name": "Multi-environment setup",
+      "arguments": {
+        "init": ["-reconfigure"],
+        "plan": [
+          "-var-file=environments/production.tfvars",
+          "-out=tfplan"
+        ],
+        "apply": [
+          "tfplan",
+          "-auto-approve"
+        ]
+      }
+    },
+    {
+      "name": "Minimal init-only customization",
+      "arguments": {
+        "init": ["-upgrade"]
+      },
+      "note": "Plan and apply will use common arguments only (vars, secrets, etc.)"
+    }
+  ],
+  "notes": [
+    "Common arguments like -var, -destroy, and environment secrets are automatically added to all stages",
+    "If a stage is not defined in the map, it will use CliArgs if available",
+    "Template arguments and Task arguments are merged at the stage level",
+    "Array format applies arguments to all stages (backward compatible behavior)"
+  ]
+}
+

@@ -244,9 +244,10 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 }
 
 // nolint: gocyclo
-func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (args []string, err error) {
+func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (args []string, argsMap map[string][]string, err error) {
 
 	args = []string{}
+	argsMap = make(map[string][]string)
 
 	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
 
@@ -262,31 +263,75 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		return
 	}
 
+	// Common args for destroy flag
+	destroyArgs := []string{}
 	if params.Destroy {
-		args = append(args, "-destroy")
+		destroyArgs = append(destroyArgs, "-destroy")
 	}
 
+	// Common args for environment variables
+	varArgs := []string{}
 	for name, value := range extraVars {
 		if name == "semaphore_vars" {
 			continue
 		}
-		args = append(args, "-var", fmt.Sprintf("%s=%s", name, value))
+		varArgs = append(varArgs, "-var", fmt.Sprintf("%s=%s", name, value))
 	}
 
-	templateArgs, taskArgs, err := t.getCLIArgs()
+	templateArgs, taskArgs, templateArgsMap, taskArgsMap, err := t.getCLIArgsMap()
 	if err != nil {
 		t.Log(err.Error())
 		return
 	}
 
-	args = append(args, templateArgs...)
-	args = append(args, taskArgs...)
-
+	// Common args for environment secrets
+	secretArgs := []string{}
 	for _, secret := range t.Environment.Secrets {
 		if secret.Type != db.EnvironmentSecretVar {
 			continue
 		}
-		args = append(args, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+		secretArgs = append(secretArgs, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	}
+
+	// If we have map format, use it for stage-specific args
+	if templateArgsMap != nil || taskArgsMap != nil {
+		// Merge template and task args maps
+		argsMap = make(map[string][]string)
+		
+		if templateArgsMap != nil {
+			for stage, stageArgs := range templateArgsMap {
+				argsMap[stage] = append([]string{}, stageArgs...)
+			}
+		}
+		
+		if taskArgsMap != nil {
+			for stage, stageArgs := range taskArgsMap {
+				if existing, ok := argsMap[stage]; ok {
+					argsMap[stage] = append(existing, stageArgs...)
+				} else {
+					argsMap[stage] = append([]string{}, stageArgs...)
+				}
+			}
+		}
+
+		// Add common args to each stage
+		for stage := range argsMap {
+			argsMap[stage] = append(destroyArgs, argsMap[stage]...)
+			argsMap[stage] = append(argsMap[stage], varArgs...)
+			argsMap[stage] = append(argsMap[stage], secretArgs...)
+		}
+
+		// If no "init" stage defined, create one with common args
+		if _, ok := argsMap["init"]; !ok {
+			argsMap["init"] = append(append([]string{}, destroyArgs...), append(varArgs, secretArgs...)...)
+		}
+	} else {
+		// Fall back to array format (backward compatibility)
+		args = append(args, destroyArgs...)
+		args = append(args, varArgs...)
+		args = append(args, templateArgs...)
+		args = append(args, taskArgs...)
+		args = append(args, secretArgs...)
 	}
 
 	return
@@ -510,6 +555,41 @@ func (t *LocalJob) getCLIArgs() (templateArgs []string, taskArgs []string, err e
 	return
 }
 
+// getCLIArgsMap returns args that support both array and map formats
+// Returns: templateArgs (array), taskArgs (array), templateArgsMap (map), taskArgsMap (map), err
+func (t *LocalJob) getCLIArgsMap() (templateArgs []string, taskArgs []string, templateArgsMap map[string][]string, taskArgsMap map[string][]string, err error) {
+
+	if t.Template.Arguments != nil {
+		// Try to unmarshal as array first
+		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateArgs)
+		if err != nil {
+			// If array fails, try map format
+			err = json.Unmarshal([]byte(*t.Template.Arguments), &templateArgsMap)
+			if err != nil {
+				err = fmt.Errorf("invalid format of the template extra arguments, must be valid JSON array or map")
+				return
+			}
+			err = nil // Clear error since map parsing succeeded
+		}
+	}
+
+	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
+		// Try to unmarshal as array first
+		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskArgs)
+		if err != nil {
+			// If array fails, try map format
+			err = json.Unmarshal([]byte(*t.Task.Arguments), &taskArgsMap)
+			if err != nil {
+				err = fmt.Errorf("invalid format of the task extra arguments, must be valid JSON array or map")
+				return
+			}
+			err = nil // Clear error since map parsing succeeded
+		}
+	}
+
+	return
+}
+
 func (t *LocalJob) getTemplateParams() (any, error) {
 	var params any
 	switch t.Template.App {
@@ -573,31 +653,68 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		environmentVariables = append(environmentVariables, "TF_HTTP_ADDRESS="+util.GetPublicAliasURL("terraform", alias))
 	}
 
-	err = t.prepareRun(db_lib.LocalAppInstallingArgs{
-		EnvironmentVars: environmentVariables,
-		TplParams:       tplParams,
-		Params:          params,
-		Installer:       t.KeyInstaller,
-	})
-
-	if err != nil {
-		return err
-	}
-
+	// For Terraform apps, get args first so we can pass init args to prepareRun
 	var args []string
+	var argsMap map[string][]string
 	var inputs map[string]string
 
+	if t.Template.App.IsTerraform() {
+		args, argsMap, err = t.getTerraformArgs(username, incomingVersion)
+		if err != nil {
+			return
+		}
+	}
+
+	// Call prepareRun with init args for Terraform
+	if t.Template.App.IsTerraform() && argsMap != nil {
+		// Use Terraform-specific prepareRun with init args
+		if tfApp, ok := t.App.(*db_lib.TerraformApp); ok {
+			err = t.prepareRunTerraform(tfApp, db_lib.LocalAppInstallingArgs{
+				EnvironmentVars: environmentVariables,
+				TplParams:       tplParams,
+				Params:          params,
+				Installer:       t.KeyInstaller,
+			}, argsMap["init"])
+			if err != nil {
+				return err
+			}
+		} else {
+			err = t.prepareRun(db_lib.LocalAppInstallingArgs{
+				EnvironmentVars: environmentVariables,
+				TplParams:       tplParams,
+				Params:          params,
+				Installer:       t.KeyInstaller,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		err = t.prepareRun(db_lib.LocalAppInstallingArgs{
+			EnvironmentVars: environmentVariables,
+			TplParams:       tplParams,
+			Params:          params,
+			Installer:       t.KeyInstaller,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// Get args for non-Terraform apps
 	switch t.Template.App {
 	case db.AppAnsible:
 		args, inputs, err = t.getPlaybookArgs(username, incomingVersion)
+		if err != nil {
+			return
+		}
 	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
-		args, err = t.getTerraformArgs(username, incomingVersion)
+		// Already got args earlier for Terraform
 	default:
 		args, err = t.getShellArgs(username, incomingVersion)
-	}
-
-	if err != nil {
-		return
+		if err != nil {
+			return
+		}
 	}
 
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
@@ -628,6 +745,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 
 	return t.App.Run(db_lib.LocalAppRunningArgs{
 		CliArgs:         args,
+		CliArgsMap:      argsMap,
 		EnvironmentVars: environmentVariables,
 		Inputs:          inputs,
 		TaskParams:      params,
@@ -680,6 +798,60 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 	}
 
 	if err := t.App.InstallRequirements(installingArgs); err != nil {
+		t.Log("Failed to install requirements: " + err.Error())
+		return err
+	}
+
+	if err := t.installVaultKeyFiles(); err != nil {
+		t.Log("Failed to install vault password files: " + err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (t *LocalJob) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArgs db_lib.LocalAppInstallingArgs, initArgs []string) error {
+
+	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
+
+	if err := checkTmpDir(util.Config.GetProjectTmpDir(t.Template.ProjectID)); err != nil {
+		t.Log("Creating tmp dir failed: " + err.Error())
+		return err
+	}
+
+	// Override git branch from template if set
+	if t.Template.GitBranch != nil && *t.Template.GitBranch != "" {
+		t.Repository.GitBranch = *t.Template.GitBranch
+	}
+
+	// Override git branch from task if set
+	if t.Task.GitBranch != nil && *t.Task.GitBranch != "" {
+		t.Repository.GitBranch = *t.Task.GitBranch
+	}
+
+	if t.Repository.GetType() == db.RepositoryLocal {
+		if _, err := os.Stat(t.Repository.GitURL); err != nil {
+			t.Log("Failed in finding static repository at " + t.Repository.GitURL + ": " + err.Error())
+			return err
+		}
+	} else {
+		if err := t.updateRepository(); err != nil {
+			t.Log("Failed updating repository: " + err.Error())
+			return err
+		}
+		if err := t.checkoutRepository(); err != nil {
+			t.Log("Failed to checkout repository to required commit: " + err.Error())
+			return err
+		}
+	}
+
+	if err := t.installInventory(); err != nil {
+		t.Log("Failed to install inventory: " + err.Error())
+		return err
+	}
+
+	// Call Terraform-specific install with init args
+	if err := tfApp.InstallRequirementsWithInitArgs(installingArgs, initArgs); err != nil {
 		t.Log("Failed to install requirements: " + err.Error())
 		return err
 	}
