@@ -109,7 +109,9 @@ func (t *ShellApp) makeShellCmd(args []string, environmentVars []string) *exec.C
 }
 
 func (t *ShellApp) Run(args LocalAppRunningArgs) error {
-	cmd := t.makeShellCmd(args.CliArgs, args.EnvironmentVars)
+	// Use "default" key for backward compatibility
+	cliArgs := args.CliArgs["default"]
+	cmd := t.makeShellCmd(cliArgs, args.EnvironmentVars)
 	t.Logger.LogCmd(cmd)
 	//cmd.Stdin = &t.reader
 	cmd.Stdin = strings.NewReader("")

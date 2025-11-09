@@ -28,8 +28,7 @@ func getEnvironmentVars() []string {
 }
 
 type LocalAppRunningArgs struct {
-	CliArgs         []string
-	CliArgsMap      map[string][]string // Stage-specific args (e.g., "init", "apply")
+	CliArgs         map[string][]string // Stage-specific args (e.g., "init", "apply", "default")
 	EnvironmentVars []string
 	Inputs          map[string]string
 	TaskParams      any

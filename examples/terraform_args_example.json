@@ -1,9 +1,14 @@
 {
   "description": "Example of Terraform multi-stage arguments format",
+  "architecture_note": "Array format is automatically converted to map with 'default' key internally",
   "examples": [
     {
       "name": "Legacy array format (backward compatible)",
-      "arguments": ["-var", "environment=production"]
+      "arguments": ["-var", "environment=production"],
+      "internal_representation": {
+        "default": ["-var", "environment=production"]
+      },
+      "behavior": "All stages (init, plan, apply) use the 'default' key args"
     },
     {
       "name": "New map format with stage-specific args",
@@ -11,7 +16,17 @@
         "init": ["-upgrade"],
         "plan": ["-var", "environment=production"],
         "apply": ["-var", "environment=production", "-parallelism=10"]
-      }
+      },
+      "behavior": "Each stage uses its specific args"
+    },
+    {
+      "name": "Mix of default and stage-specific",
+      "arguments": {
+        "default": ["-var", "common=value"],
+        "init": ["-upgrade"],
+        "apply": ["-parallelism=20"]
+      },
+      "behavior": "init uses its args, plan uses 'default', apply uses its args"
     },
     {
       "name": "Terraform with backend configuration",
@@ -39,18 +54,21 @@
       }
     },
     {
-      "name": "Minimal init-only customization",
+      "name": "Minimal init-only customization with default fallback",
       "arguments": {
+        "default": ["-var", "environment=prod"],
         "init": ["-upgrade"]
       },
-      "note": "Plan and apply will use common arguments only (vars, secrets, etc.)"
+      "behavior": "init uses '-upgrade', plan and apply use 'default' args"
     }
   ],
   "notes": [
+    "Array format is automatically converted to map with 'default' key",
     "Common arguments like -var, -destroy, and environment secrets are automatically added to all stages",
-    "If a stage is not defined in the map, it will use CliArgs if available",
+    "Stage resolution order: specific stage key -> 'default' key -> empty array",
     "Template arguments and Task arguments are merged at the stage level",
-    "Array format applies arguments to all stages (backward compatible behavior)"
+    "Ansible and Shell apps always use the 'default' key",
+    "Terraform apps can use stage-specific keys (init, plan, apply) with 'default' fallback"
   ]
 }
 

@@ -244,9 +244,8 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 }
 
 // nolint: gocyclo
-func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (args []string, argsMap map[string][]string, err error) {
+func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (argsMap map[string][]string, err error) {
 
-	args = []string{}
 	argsMap = make(map[string][]string)
 
 	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
@@ -278,7 +277,7 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		varArgs = append(varArgs, "-var", fmt.Sprintf("%s=%s", name, value))
 	}
 
-	templateArgs, taskArgs, templateArgsMap, taskArgsMap, err := t.getCLIArgsMap()
+	templateArgsMap, taskArgsMap, err := t.getCLIArgsMap()
 	if err != nil {
 		t.Log(err.Error())
 		return
@@ -293,45 +292,36 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 		secretArgs = append(secretArgs, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 
-	// If we have map format, use it for stage-specific args
-	if templateArgsMap != nil || taskArgsMap != nil {
-		// Merge template and task args maps
-		argsMap = make(map[string][]string)
-		
-		if templateArgsMap != nil {
-			for stage, stageArgs := range templateArgsMap {
+	// Merge template and task args maps
+	if templateArgsMap != nil {
+		for stage, stageArgs := range templateArgsMap {
+			argsMap[stage] = append([]string{}, stageArgs...)
+		}
+	}
+	
+	if taskArgsMap != nil {
+		for stage, stageArgs := range taskArgsMap {
+			if existing, ok := argsMap[stage]; ok {
+				argsMap[stage] = append(existing, stageArgs...)
+			} else {
 				argsMap[stage] = append([]string{}, stageArgs...)
 			}
 		}
-		
-		if taskArgsMap != nil {
-			for stage, stageArgs := range taskArgsMap {
-				if existing, ok := argsMap[stage]; ok {
-					argsMap[stage] = append(existing, stageArgs...)
-				} else {
-					argsMap[stage] = append([]string{}, stageArgs...)
-				}
-			}
-		}
+	}
 
-		// Add common args to each stage
-		for stage := range argsMap {
-			argsMap[stage] = append(destroyArgs, argsMap[stage]...)
-			argsMap[stage] = append(argsMap[stage], varArgs...)
-			argsMap[stage] = append(argsMap[stage], secretArgs...)
-		}
+	// Add common args to each stage
+	for stage := range argsMap {
+		// Prepend destroy args
+		combined := append([]string{}, destroyArgs...)
+		combined = append(combined, argsMap[stage]...)
+		combined = append(combined, varArgs...)
+		combined = append(combined, secretArgs...)
+		argsMap[stage] = combined
+	}
 
-		// If no "init" stage defined, create one with common args
-		if _, ok := argsMap["init"]; !ok {
-			argsMap["init"] = append(append([]string{}, destroyArgs...), append(varArgs, secretArgs...)...)
-		}
-	} else {
-		// Fall back to array format (backward compatibility)
-		args = append(args, destroyArgs...)
-		args = append(args, varArgs...)
-		args = append(args, templateArgs...)
-		args = append(args, taskArgs...)
-		args = append(args, secretArgs...)
+	// Ensure we have at least a "default" stage with common args if no args specified
+	if len(argsMap) == 0 {
+		argsMap["default"] = append(append([]string{}, destroyArgs...), append(varArgs, secretArgs...)...)
 	}
 
 	return
@@ -556,11 +546,13 @@ func (t *LocalJob) getCLIArgs() (templateArgs []string, taskArgs []string, err e
 }
 
 // getCLIArgsMap returns args that support both array and map formats
-// Returns: templateArgs (array), taskArgs (array), templateArgsMap (map), taskArgsMap (map), err
-func (t *LocalJob) getCLIArgsMap() (templateArgs []string, taskArgs []string, templateArgsMap map[string][]string, taskArgsMap map[string][]string, err error) {
+// Array format is converted to map with "default" key for backward compatibility
+// Returns: templateArgsMap (map), taskArgsMap (map), err
+func (t *LocalJob) getCLIArgsMap() (templateArgsMap map[string][]string, taskArgsMap map[string][]string, err error) {
 
 	if t.Template.Arguments != nil {
 		// Try to unmarshal as array first
+		var templateArgs []string
 		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateArgs)
 		if err != nil {
 			// If array fails, try map format
@@ -570,11 +562,17 @@ func (t *LocalJob) getCLIArgsMap() (templateArgs []string, taskArgs []string, te
 				return
 			}
 			err = nil // Clear error since map parsing succeeded
+		} else {
+			// Array format: convert to map with "default" key
+			templateArgsMap = map[string][]string{
+				"default": templateArgs,
+			}
 		}
 	}
 
 	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
 		// Try to unmarshal as array first
+		var taskArgs []string
 		err = json.Unmarshal([]byte(*t.Task.Arguments), &taskArgs)
 		if err != nil {
 			// If array fails, try map format
@@ -584,6 +582,11 @@ func (t *LocalJob) getCLIArgsMap() (templateArgs []string, taskArgs []string, te
 				return
 			}
 			err = nil // Clear error since map parsing succeeded
+		} else {
+			// Array format: convert to map with "default" key
+			taskArgsMap = map[string][]string{
+				"default": taskArgs,
+			}
 		}
 	}
 
@@ -654,19 +657,14 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 	}
 
 	// For Terraform apps, get args first so we can pass init args to prepareRun
-	var args []string
 	var argsMap map[string][]string
 	var inputs map[string]string
 
 	if t.Template.App.IsTerraform() {
-		args, argsMap, err = t.getTerraformArgs(username, incomingVersion)
+		argsMap, err = t.getTerraformArgs(username, incomingVersion)
 		if err != nil {
 			return
 		}
-	}
-
-	// Call prepareRun with init args for Terraform
-	if t.Template.App.IsTerraform() && argsMap != nil {
 		// Use Terraform-specific prepareRun with init args
 		if tfApp, ok := t.App.(*db_lib.TerraformApp); ok {
 			err = t.prepareRunTerraform(tfApp, db_lib.LocalAppInstallingArgs{
@@ -702,12 +700,15 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 	}
 
 	// Get args for non-Terraform apps
+	var args []string
 	switch t.Template.App {
 	case db.AppAnsible:
 		args, inputs, err = t.getPlaybookArgs(username, incomingVersion)
 		if err != nil {
 			return
 		}
+		// Convert to map format with "default" key
+		argsMap = map[string][]string{"default": args}
 	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		// Already got args earlier for Terraform
 	default:
@@ -715,6 +716,8 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		if err != nil {
 			return
 		}
+		// Convert to map format with "default" key
+		argsMap = map[string][]string{"default": args}
 	}
 
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
@@ -744,8 +747,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 	}
 
 	return t.App.Run(db_lib.LocalAppRunningArgs{
-		CliArgs:         args,
-		CliArgsMap:      argsMap,
+		CliArgs:         argsMap,
 		EnvironmentVars: environmentVariables,
 		Inputs:          inputs,
 		TaskParams:      params,

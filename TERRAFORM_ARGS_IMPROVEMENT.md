@@ -8,12 +8,11 @@ Enhanced the argument handling system to support stage-specific CLI arguments fo
 
 ### 1. LocalAppRunningArgs Structure (`db_lib/LocalApp.go`)
 
-Added support for map-based arguments alongside the existing array format:
+Unified to use map-based arguments with "default" key for backward compatibility:
 
 ```go
 type LocalAppRunningArgs struct {
-    CliArgs         []string                // Legacy array format (backward compatible)
-    CliArgsMap      map[string][]string     // New map format for stage-specific args
+    CliArgs         map[string][]string     // Stage-specific args (e.g., "init", "apply", "default")
     EnvironmentVars []string
     Inputs          map[string]string
     TaskParams      any
@@ -22,28 +21,31 @@ type LocalAppRunningArgs struct {
 }
 ```
 
+**Key Change**: Array format arguments are automatically converted to map format with key "default".
+
 ### 2. Argument Parsing (`services/tasks/LocalJob.go`)
 
 Added `getCLIArgsMap()` function that:
 - Attempts to parse arguments as an array first (backward compatible)
+- Converts array format to map with "default" key automatically
 - Falls back to map format if array parsing fails
-- Returns both array and map representations
+- Returns map representation for all argument types
 - Supports both Template and Task level arguments
 
 ### 3. Terraform Argument Processing (`services/tasks/LocalJob.go`)
 
 Updated `getTerraformArgs()` to:
-- Return both array and map formats
+- Return map format only (unified interface)
 - Merge template and task arguments at the stage level
 - Apply common args (destroy, vars, secrets) to all stages
-- Auto-create "init" stage if not explicitly defined
+- Ensure at least "default" stage exists with common args
 
 ### 4. TerraformApp Enhancements (`db_lib/TerraformApp.go`)
 
 Modified Terraform execution to:
 - Accept stage-specific init args during installation
 - Use different args for plan and apply stages
-- Maintain backward compatibility with array format
+- Fall back to "default" key when specific stage not defined
 - New method `InstallRequirementsWithInitArgs()` for init customization
 
 ### 5. LocalJob Orchestration (`services/tasks/LocalJob.go`)
@@ -52,16 +54,26 @@ Enhanced `Run()` method to:
 - Get args before prepareRun for Terraform apps
 - Pass init-specific args during installation
 - Provide plan/apply-specific args during execution
+- Convert all args to unified map format with "default" key for non-Terraform apps
 
 ## Usage Examples
 
 ### Legacy Format (Still Supported)
 
-Array format arguments apply to all stages:
+Array format arguments are automatically converted to map with "default" key:
 
 ```json
 {
   "arguments": ["-var", "environment=production"]
+}
+```
+
+**Internally converted to:**
+```json
+{
+  "arguments": {
+    "default": ["-var", "environment=production"]
+  }
 }
 ```
 
@@ -143,8 +155,21 @@ Result: Arguments are merged per stage
 - **init**: Used during `terraform init` (via InstallRequirements)
 - **plan**: Used during `terraform plan`
 - **apply**: Used during `terraform apply`
+- **default**: Used as fallback when specific stage not defined
 
-Note: If using map format, unspecified stages fall back to CliArgs if available.
+### Stage Resolution Order (Terraform)
+
+For each stage, arguments are resolved in this order:
+1. Stage-specific key (e.g., "init", "plan", "apply")
+2. Fall back to "default" key if stage-specific not found
+3. Empty array if neither exists
+
+### Backward Compatibility Details
+
+**Array Format → Map Conversion:**
+- Array `["-var", "foo=bar"]` → Map `{"default": ["-var", "foo=bar"]}`
+- Ansible and Shell apps: Always use "default" key
+- Terraform apps: Use stage-specific keys, fall back to "default"
 
 ## Testing
 
@@ -168,13 +193,27 @@ The implementation has been validated with:
 ```json
 {"arguments": ["-var", "foo=bar"]}
 ```
+**Result:** Automatically converted to `{"default": ["-var", "foo=bar"]}` internally
 
 ### Phase 2: Migrate to map format for multi-stage tasks
 ```json
 {"arguments": {"init": ["-upgrade"], "apply": ["-var", "foo=bar"]}}
 ```
+**Result:** Uses stage-specific args for init and apply
 
-### Phase 3: Leverage full stage-specific capabilities
+### Phase 3: Mix default and stage-specific for flexibility
+```json
+{
+  "arguments": {
+    "default": ["-var", "common=value"],
+    "init": ["-upgrade"],
+    "apply": ["-parallelism=20"]
+  }
+}
+```
+**Result:** plan stage uses "default" args, init and apply use their specific args
+
+### Phase 4: Leverage full stage-specific capabilities
 ```json
 {
   "arguments": {
@@ -184,4 +223,5 @@ The implementation has been validated with:
   }
 }
 ```
+**Result:** Complete control over each stage independently
 

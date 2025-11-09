@@ -335,25 +335,17 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 	var planArgs []string
 	var applyArgs []string
 
-	if args.CliArgsMap != nil && len(args.CliArgsMap) > 0 {
-		// Use stage-specific args from map
-		if pArgs, ok := args.CliArgsMap["plan"]; ok {
-			planArgs = pArgs
-		} else {
-			// Fall back to CliArgs if no plan-specific args
-			planArgs = args.CliArgs
-		}
+	// Use stage-specific args from map, with "default" fallback
+	if pArgs, ok := args.CliArgs["plan"]; ok {
+		planArgs = pArgs
+	} else if defaultArgs, ok := args.CliArgs["default"]; ok {
+		planArgs = defaultArgs
+	}
 
-		if aArgs, ok := args.CliArgsMap["apply"]; ok {
-			applyArgs = aArgs
-		} else {
-			// Fall back to CliArgs if no apply-specific args
-			applyArgs = args.CliArgs
-		}
-	} else {
-		// Use legacy CliArgs for backward compatibility
-		planArgs = args.CliArgs
-		applyArgs = args.CliArgs
+	if aArgs, ok := args.CliArgs["apply"]; ok {
+		applyArgs = aArgs
+	} else if defaultArgs, ok := args.CliArgs["default"]; ok {
+		applyArgs = defaultArgs
 	}
 
 	err := t.Plan(planArgs, args.EnvironmentVars, args.Inputs, args.Callback)
