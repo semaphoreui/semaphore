@@ -545,34 +545,33 @@ func (t *LocalJob) getCLIArgs() (templateArgs []string, taskArgs []string, err e
 	return
 }
 
-// convertArgsJSONIfArray converts array format JSON to map format with "default" key
-func convertArgsJSONIfArray(argsJSON *string) error {
-	if argsJSON == nil || *argsJSON == "" {
-		return nil
+// convertArgsJSONIfArray converts array format JSON to map format with "default" key and returns the result
+func convertArgsJSONIfArray(argsJSON string) (string, error) {
+	if argsJSON == "" {
+		return argsJSON, nil
 	}
 
 	// Try to parse as array first
 	var arr []string
-	if err := json.Unmarshal([]byte(*argsJSON), &arr); err == nil {
+	if err := json.Unmarshal([]byte(argsJSON), &arr); err == nil {
 		// It's an array, convert to map format
 		mapArgs := map[string][]string{
 			"default": arr,
 		}
 		convertedJSON, err := json.Marshal(mapArgs)
 		if err != nil {
-			return fmt.Errorf("failed to convert array to map format: %v", err)
+			return "", fmt.Errorf("failed to convert array to map format: %v", err)
 		}
-		*argsJSON = string(convertedJSON)
-		return nil
+		return string(convertedJSON), nil
 	}
 
 	// If not an array, verify it's a valid map format
 	var mapArgs map[string][]string
-	if err := json.Unmarshal([]byte(*argsJSON), &mapArgs); err != nil {
-		return fmt.Errorf("invalid format of arguments, must be valid JSON array or map: %v", err)
+	if err := json.Unmarshal([]byte(argsJSON), &mapArgs); err != nil {
+		return "", fmt.Errorf("invalid format of arguments, must be valid JSON array or map: %v", err)
 	}
 
-	return nil
+	return argsJSON, nil
 }
 
 // getCLIArgsMap returns args that support both array and map formats
@@ -581,15 +580,21 @@ func convertArgsJSONIfArray(argsJSON *string) error {
 func (t *LocalJob) getCLIArgsMap() (templateArgsMap map[string][]string, taskArgsMap map[string][]string, err error) {
 
 	// Convert template arguments if needed
-	if err = convertArgsJSONIfArray(t.Template.Arguments); err != nil {
-		return
+	if t.Template.Arguments != nil {
+		converted, err := convertArgsJSONIfArray(*t.Template.Arguments)
+		if err != nil {
+			return nil, nil, err
+		}
+		t.Template.Arguments = &converted
 	}
 
 	// Convert task arguments if needed
-	if t.Template.AllowOverrideArgsInTask {
-		if err = convertArgsJSONIfArray(t.Task.Arguments); err != nil {
-			return
+	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
+		converted, err := convertArgsJSONIfArray(*t.Task.Arguments)
+		if err != nil {
+			return nil, nil, err
 		}
+		t.Task.Arguments = &converted
 	}
 
 	// Now parse as map format (both should be maps after conversion)
