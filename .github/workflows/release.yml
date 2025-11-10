@@ -92,8 +92,8 @@ jobs:
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},prefix=v
+            type=semver,pattern={{major}}.{{minor}},prefix=v
           flavor: |
             latest=true
 
@@ -119,8 +119,8 @@ jobs:
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
-            type=semver,pattern={{version}},suffix=-ansible2.16.5
-            type=semver,pattern={{major}}.{{minor}},suffix=-ansible2.16.5
+            type=semver,pattern={{version}},prefix=v,suffix=-ansible2.16.5
+            type=semver,pattern={{major}}.{{minor}},prefix=v,suffix=-ansible2.16.5
           flavor: |
             latest=true
             suffix=-ansible2.16.5
@@ -149,8 +149,8 @@ jobs:
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
-            type=semver,pattern={{version}},suffix=-powershell7.5.0
-            type=semver,pattern={{major}}.{{minor}},suffix=-powershell7.5.0
+            type=semver,pattern={{version}},prefix=v,suffix=-powershell7.5.0
+            type=semver,pattern={{major}}.{{minor}},prefix=v,suffix=-powershell7.5.0
           flavor: |
             latest=true
             suffix=-powershell7.5.0
@@ -183,8 +183,8 @@ jobs:
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},prefix=v
+            type=semver,pattern={{major}}.{{minor}},prefix=v
           flavor: |
             latest=true
 
@@ -210,8 +210,8 @@ jobs:
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
-            type=semver,pattern={{version}},suffix=-ansible2.16.5
-            type=semver,pattern={{major}}.{{minor}},suffix=-ansible2.16.5
+            type=semver,pattern={{version}},prefix=v,suffix=-ansible2.16.5
+            type=semver,pattern={{major}}.{{minor}},prefix=v,suffix=-ansible2.16.5
           flavor: |
             latest=true
             suffix=-ansible2.16.5
@@ -240,8 +240,8 @@ jobs:
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
-            type=semver,pattern={{version}},suffix=-powershell7.5.0
-            type=semver,pattern={{major}}.{{minor}},suffix=-powershell7.5.0
+            type=semver,pattern={{version}},prefix=v,suffix=-powershell7.5.0
+            type=semver,pattern={{major}}.{{minor}},prefix=v,suffix=-powershell7.5.0
           flavor: |
             latest=true
             suffix=-powershell7.5.0
