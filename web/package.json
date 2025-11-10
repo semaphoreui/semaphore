@@ -35,7 +35,7 @@
     "@vue/test-utils": "^2.0.0",
     "babel-eslint": "^10.1.0",
     "chai": "^5.0.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^17.0.0",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-import-resolver-alias": "^1.1.2",
