@@ -133,8 +133,9 @@ type TLSConfig struct {
 }
 
 type TotpConfig struct {
-	Enabled       bool `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
-	AllowRecovery bool `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
+	Enabled       bool   `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
+	AllowRecovery bool   `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
+	Issuer        string `json:"app_name" env:"SEMAPHORE_TOTP_ISSUER"`
 }
 
 type EventLogType struct {
