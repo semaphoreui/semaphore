@@ -133,6 +133,7 @@ export default {
   key: '{expr}',
   surveyVariables: 'Survey Variables',
   addVariable: 'Add variable',
+  allowMultipleValues: 'Allow multiple values',
   vaultName: 'Vault ID (optional)',
   vaultNameDefault: 'Only one `default` (empty) name may exist',
   default_value: 'Default value',

@@ -48,7 +48,7 @@
             ></v-select>
 
             <v-data-table
-              v-if="editedVar.type === 'enum'"
+              v-if="editedVar.type === 'enum' || editedVar.type === 'select'"
               :items="editedValues"
               :items-per-page="-1"
               class="elevation-1 FieldTable"
@@ -93,20 +93,34 @@
             <div class="text-right mt-2">
               <v-btn
                 color="primary"
-                v-if="editedVar.type === 'enum'"
+                class="d-block"
+                v-if="editedVar.type === 'enum' || editedVar.type === 'select'"
                 @click="addEditedVarValue()"
               >Add Value</v-btn>
             </div>
 
             <v-select
-              v-if="editedVar.type === 'enum'"
+              v-if="editedVar.type === 'enum' || editedVar.type === 'select'"
               v-model="editedVar.default_value"
               :label="$t('default_value')"
               :items="editedValues"
               item-value="value"
               item-text="name"
               clearable
-            ></v-select>
+              :multiple="editedVar.type === 'select'"
+              :chips="editedVar.type === 'select'"
+            >
+              <template
+                v-slot:selection="{ item, index }"
+                v-if="editedVar.type === 'select'">
+                <v-chip
+                  small
+                  close
+                  @click:close="removeDefaultItem(index)"
+                  >{{ selectedItemLabel(item) }}
+                </v-chip>
+              </template>
+            </v-select>
 
             <v-text-field
               type="number"
@@ -206,6 +220,9 @@ export default {
       }, {
         id: 'enum',
         name: 'Enum',
+      }, {
+        id: 'select',
+        name: 'Select',
       }],
       formError: null,
     };
@@ -232,6 +249,20 @@ export default {
       this.editedValues.push(...(this.editedVar.values || []));
       this.editedVar.values = this.editedValues;
 
+      // normalize default_value for select vs enum
+      if (this.editedVar.type === 'select') {
+        if (this.editedVar.default_value == null) {
+          this.editedVar.default_value = [];
+        } else if (!Array.isArray(this.editedVar.default_value)) {
+          const dv = this.editedVar.default_value;
+          this.editedVar.default_value = dv === '' ? [] : [dv];
+        }
+      } else if (Array.isArray(this.editedVar.default_value)) {
+        this.editedVar.default_value = this.editedVar.default_value.length > 0
+          ? this.editedVar.default_value[0]
+          : '';
+      }
+
       this.editedVarIndex = index;
 
       if (this.$refs.form) {
@@ -248,7 +279,7 @@ export default {
         return;
       }
 
-      if (this.editedVar.type === 'enum') {
+      if (this.editedVar.type === 'enum' || this.editedVar.type === 'select') {
         if (this.editedValues.length === 0) {
           this.formError = 'Enumeration must have values.';
           return;
@@ -274,6 +305,18 @@ export default {
         this.editedVar.values = [];
       }
 
+      // normalize default_value before saving: select keeps array, others use string
+      if (this.editedVar.type === 'select') {
+        if (!Array.isArray(this.editedVar.default_value)) {
+          const dv = this.editedVar.default_value;
+          this.editedVar.default_value = dv == null || dv === '' ? [] : [dv];
+        }
+      } else if (Array.isArray(this.editedVar.default_value)) {
+        this.editedVar.default_value = this.editedVar.default_value.length > 0
+          ? this.editedVar.default_value[0]
+          : '';
+      }
+
       if (this.editedVarIndex != null) {
         this.modifiedVars[this.editedVarIndex] = this.editedVar;
       } else {
@@ -288,6 +331,39 @@ export default {
     deleteVar(index) {
       this.modifiedVars.splice(index, 1);
       this.$emit('change', this.modifiedVars);
+    },
+
+    // remove one selected default item (for multiple select)
+    removeDefaultItem(index) {
+      if (!this.editedVar || !Array.isArray(this.editedVar.default_value)) {
+        return;
+      }
+
+      if (index >= 0 && index < this.editedVar.default_value.length) {
+        this.editedVar.default_value.splice(index, 1);
+      }
+    },
+
+    // label shown in selection chips - item could be the value or an object
+    selectedItemLabel(item) {
+      if (!item) return '';
+      if (typeof item === 'object' && item.name) return item.name;
+      const found = this.editedValues.find((v) => v.value === item || v.name === item);
+      return (found && found.name) || String(item);
+    },
+
+    onTypeChange(newType) {
+      if (!this.editedVar) return;
+      if (newType === 'select') {
+        if (!Array.isArray(this.editedVar.default_value)) {
+          const dv = this.editedVar.default_value;
+          this.editedVar.default_value = dv == null || dv === '' ? [] : [dv];
+        }
+      } else if (Array.isArray(this.editedVar.default_value)) {
+        this.editedVar.default_value = this.editedVar.default_value.length > 0
+          ? this.editedVar.default_value[0]
+          : '';
+      }
     },
   },
 };
