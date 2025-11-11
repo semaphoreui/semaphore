@@ -2,6 +2,9 @@ package db
 
 import (
 	"encoding/json"
+
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	log "github.com/sirupsen/logrus"
 )
 
 type TemplateType string
@@ -234,7 +237,14 @@ func FillTemplate(d Store, template *Template) (err error) {
 	}
 
 	if template.SurveyVarsJSON != nil {
-		err = json.Unmarshal([]byte(*template.SurveyVarsJSON), &template.SurveyVars)
+		if err2 := json.Unmarshal([]byte(*template.SurveyVarsJSON), &template.SurveyVars); err2 != nil {
+			log.WithFields(log.Fields{
+				"context":     common_errors.GetErrorContext(),
+				"project_id":  &template.ProjectID,
+				"template_id": template.ID,
+				"hint":        "validate JSON array in project__template.survey_vars",
+			}).Error("failed to unmarshal template survey vars")
+		}
 	}
 
 	return

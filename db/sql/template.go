@@ -2,11 +2,12 @@ package sql
 
 import (
 	"encoding/json"
-
 	"errors"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	common_errors "github.com/semaphoreui/semaphore/pkg/common_errors"
+	log "github.com/sirupsen/logrus"
 )
 
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
@@ -318,11 +319,14 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 		}
 
 		if tpl.SurveyVarsJSON != nil {
-			err = json.Unmarshal([]byte(*tpl.SurveyVarsJSON), &template.SurveyVars)
-		}
-
-		if err != nil {
-			return
+			if err2 := json.Unmarshal([]byte(*tpl.SurveyVarsJSON), &template.SurveyVars); err2 != nil {
+				log.WithFields(log.Fields{
+					"context":     common_errors.GetErrorContext(),
+					"project_id":  projectID,
+					"template_id": template.ID,
+					"hint":        "validate JSON array in project__template.survey_vars",
+				}).Error("failed to unmarshal template survey vars")
+			}
 		}
 
 		template.Vaults, err = d.GetTemplateVaults(projectID, template.ID)
