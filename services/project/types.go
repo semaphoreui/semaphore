@@ -67,8 +67,9 @@ type BackupView struct {
 
 type BackupInventory struct {
 	db.Inventory
-	SSHKey    *string `backup:"ssh_key"`
-	BecomeKey *string `backup:"become_key"`
+	SSHKey     *string `backup:"ssh_key"`
+	BecomeKey  *string `backup:"become_key"`
+	Repository *string `backup:"repository"`
 }
 
 type BackupRepository struct {

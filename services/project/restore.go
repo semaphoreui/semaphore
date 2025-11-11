@@ -173,6 +173,9 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 	if e.BecomeKey != nil && getEntryByName[BackupAccessKey](e.BecomeKey, backup.Keys) == nil {
 		return fmt.Errorf("BecomeKey does not exist in keys[].Name")
 	}
+	if e.Repository != nil && getEntryByName[BackupRepository](e.Repository, backup.Repositories) == nil {
+		return fmt.Errorf("Repository does not exist in repositories[].name")
+	}
 	return nil
 }
 
@@ -193,11 +196,20 @@ func (e BackupInventory) Restore(store db.Store, b *BackupDB) error {
 	} else {
 		BecomeKeyID = &((*k).ID)
 	}
+	var RepositoryID *int
+	if e.Repository == nil {
+		RepositoryID = nil
+	} else if r := findEntityByName[db.Repository](e.Repository, b.repositories); r == nil {
+		RepositoryID = nil
+	} else {
+		RepositoryID = &r.ID
+	}
 
 	inv := e.Inventory
 	inv.ProjectID = b.meta.ID
 	inv.SSHKeyID = SSHKeyID
 	inv.BecomeKeyID = BecomeKeyID
+	inv.RepositoryID = RepositoryID
 
 	newInventory, err := store.CreateInventory(inv)
 	if err != nil {
