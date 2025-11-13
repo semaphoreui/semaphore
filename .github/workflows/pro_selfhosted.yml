@@ -187,7 +187,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:12.18
+        image: postgres:18.1
         env:
           POSTGRES_USER: semaphore
           POSTGRES_PASSWORD: p455w0rd
@@ -463,7 +463,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:12.18
+        image: postgres:18.1
         env:
           POSTGRES_USER: semaphore
           POSTGRES_PASSWORD: p455w0rd
