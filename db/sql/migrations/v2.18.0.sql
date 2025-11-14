@@ -1,0 +1,1 @@
+alter table `project__repository` add column path text not null;

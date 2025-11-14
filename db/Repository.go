@@ -30,6 +30,7 @@ type Repository struct {
 	SSHKeyID  int    `db:"ssh_key_id" json:"ssh_key_id" binding:"required" backup:"-"`
 
 	SSHKey AccessKey `db:"-" json:"-" backup:"-"`
+	Path   string    `db:"path" json:"path" backup:"path"`
 }
 
 func (r Repository) ClearCache() error {
@@ -42,6 +43,10 @@ func (r Repository) getDirNamePrefix() string {
 
 func (r Repository) GetDirName(templateID int) string {
 	return r.getDirNamePrefix() + "template_" + strconv.Itoa(templateID)
+}
+
+func (r Repository) GetRootPath(templateID int) string {
+	return path.Join(r.GetFullPath(templateID), r.Path)
 }
 
 func (r Repository) GetFullPath(templateID int) string {

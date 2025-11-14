@@ -35,6 +35,10 @@ type GitRepository struct {
 	Client     GitClient
 }
 
+func (r GitRepository) GetRootPath() string {
+	return path.Join(r.GetFullPath(), r.Repository.Path)
+}
+
 func (r GitRepository) GetFullPath() string {
 	if r.TmpDirName != "" {
 		return path.Join(util.Config.GetProjectTmpDir(r.Repository.ProjectID), r.TmpDirName)

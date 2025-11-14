@@ -39,6 +39,7 @@ func TestBackupProject(t *testing.T) {
 		Name:      "Test",
 		GitURL:    "git@example.com:test/test",
 		GitBranch: "master",
+		Path:      "deployment/ansible",
 	})
 	assert.NoError(t, err)
 

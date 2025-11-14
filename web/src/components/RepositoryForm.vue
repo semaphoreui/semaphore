@@ -101,6 +101,14 @@
         </v-tooltip>
       </template>
     </v-autocomplete>
+
+    <v-text-field
+      v-model.trim="item.path"
+      :label="$t('path')"
+      :rules="[v => isValidPath(v) != false || $t('invalidPath')]"
+      required
+      :disabled="formSaving || type === 'local'"
+    ></v-text-field>
   </v-form>
 </template>
 <script>
@@ -193,6 +201,16 @@ export default {
 
     getSingleItemUrl() {
       return `/api/project/${this.projectId}/repositories/${this.itemId}`;
+    },
+
+    isValidPath(path) {
+      // TODO Write this.
+      // Always accept an empty path
+      if (path == null || path === '') {
+        return true;
+      }
+      // For now, always accept any path
+      return true;
     },
   },
 };

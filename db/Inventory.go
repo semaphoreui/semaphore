@@ -1,5 +1,7 @@
 package db
 
+import "path"
+
 type InventoryType string
 
 const (
@@ -49,11 +51,15 @@ type Inventory struct {
 }
 
 func (e Inventory) GetFilename() string {
+	pathPrefix := ""
+	if e.Repository != nil {
+		pathPrefix = e.Repository.Path
+	}
 	if e.Type != InventoryFile {
-		return ""
+		return pathPrefix
 	}
 
-	return e.Inventory
+	return path.Join(pathPrefix, e.Inventory)
 
 	//return strings.TrimPrefix(e.Inventory, "/")
 }

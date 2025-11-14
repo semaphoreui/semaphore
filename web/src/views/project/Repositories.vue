@@ -63,6 +63,10 @@
         {{ keys.find((k) => k.id === item.ssh_key_id).name }}
       </template>
 
+      <template v-slot:item.path="{ item }">
+        {{ item.path }}
+      </template>
+
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
           <v-btn @click="askDeleteItem(item.id)">
@@ -104,7 +108,7 @@ export default {
       return [{
         text: this.$i18n.t('name'),
         value: 'name',
-        width: '25%',
+        width: '20%',
       },
       {
         text: this.$i18n.t('gitUrl'),
@@ -114,7 +118,12 @@ export default {
       {
         text: this.$i18n.t('sshKey'),
         value: 'ssh_key_id',
-        width: '25%',
+        width: '15%',
+      },
+      {
+        text: this.$i18n.t('path'),
+        value: 'path',
+        width: '15%',
       },
       {
         text: this.$i18n.t('actions'),

@@ -300,6 +300,8 @@ definitions:
               type: string
             ssh_key:
               type: string
+            path:
+              type: string
       keys:
         type: array
         items:
@@ -737,7 +739,10 @@ definitions:
         example: master
       ssh_key_id:
         type: integer
-  
+      path:
+        type: string
+        example: deployment/ansible
+
   Repository:
     type: object
     properties:
@@ -756,6 +761,9 @@ definitions:
         example: master
       ssh_key_id:
         type: integer
+      path:
+        type: string
+        example: deployment/ansible
 
   Task:
     type: object
