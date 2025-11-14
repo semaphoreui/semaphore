@@ -36,8 +36,8 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 	return cmd
 }
 
-func (p AnsiblePlaybook) runCmd(command string, args []string) error {
-	cmd := p.makeCmd(command, args, nil)
+func (p AnsiblePlaybook) runCmd(command string, args []string, environmentVars []string) error {
+	cmd := p.makeCmd(command, args, environmentVars)
 	p.Logger.LogCmd(cmd)
 	err := cmd.Run()
 	// Wait for all log processing to complete before returning
@@ -87,8 +87,8 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 	return err
 }
 
-func (p AnsiblePlaybook) RunGalaxy(args []string) error {
-	return p.runCmd("ansible-galaxy", args)
+func (p AnsiblePlaybook) RunGalaxy(args []string, environmentVars []string) error {
+	return p.runCmd("ansible-galaxy", args, environmentVars)
 }
 
 func (p AnsiblePlaybook) GetFullPath() (path string) {
