@@ -76,9 +76,11 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		plan = token.Plan
 	}
 
+	ansibleVersion, _ := util.AnsibleVersion()
+
 	body := map[string]any{
 		"version":           util.Version(),
-		"ansible":           util.AnsibleVersion(),
+		"ansible":           ansibleVersion,
 		"web_host":          util.Config.WebHost,
 		"use_remote_runner": util.Config.UseRemoteRunner,
 		"auth_methods":      authMethods,

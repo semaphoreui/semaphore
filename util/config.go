@@ -86,11 +86,11 @@ type oidcEndpoint struct {
 }
 
 const (
-	// GoGitClientId is builtin Git client. It is not require external dependencies and is preferred.
+	// GoGitClientId is builtin Git client. It does not require external dependencies and is preferred.
 	// Use it if you don't need external SSH authorization.
 	GoGitClientId = "go_git"
 	// CmdGitClientId is external Git client.
-	// Default Git client. It is use external Git binary to clone repositories.
+	// Default Git client. It uses external Git binary to clone repositories.
 	CmdGitClientId = "cmd_git"
 )
 
@@ -816,11 +816,11 @@ func setConfigValue(attribute reflect.Value, value string) {
 
 func getConfigValue(path string) string {
 	attribute := reflect.ValueOf(Config)
-	nested_path := strings.Split(path, ".")
+	nestedPath := strings.Split(path, ".")
 
-	for i, nested := range nested_path {
+	for i, nested := range nestedPath {
 		attribute = reflect.Indirect(attribute).FieldByName(nested)
-		lastDepth := len(nested_path) == i+1
+		lastDepth := len(nestedPath) == i+1
 		if !lastDepth && attribute.Kind() != reflect.Struct && attribute.Kind() != reflect.Pointer ||
 			lastDepth && attribute.Kind() == reflect.Invalid {
 			panic(fmt.Errorf("got non-existent config attribute '%v'", path))
@@ -989,12 +989,12 @@ func FindSemaphore() string {
 	return cmdPath
 }
 
-func AnsibleVersion() string {
+func AnsibleVersion() (string, error) {
 	bytes, err := exec.Command("ansible", "--version").Output()
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return string(bytes)
+	return string(bytes), nil
 }
 
 // CheckUpdate uses the GitHub client to check for new tags in the semaphore repo
@@ -1007,8 +1007,10 @@ func CheckUpdate() (updateAvailable *github.RepositoryRelease, err error) {
 	}
 
 	updateAvailable = nil
-	if (*releases[0].TagName)[1:] != Version() {
-		updateAvailable = releases[0]
+	if len(releases) > 0 && releases[0].TagName != nil {
+		if (*releases[0].TagName)[1:] != Version() {
+			updateAvailable = releases[0]
+		}
 	}
 
 	return
