@@ -32,6 +32,7 @@ type alertTask struct {
 	Result  string
 	Desc    string
 	Version string
+	Status  string
 }
 
 type alertChat struct {
@@ -504,6 +505,73 @@ func (t *TaskRunner) sendGotifyAlert() {
 	}
 }
 
+func (t *TaskRunner) sendPushoverAlert() {
+	if !util.Config.PushoverAlert || !t.alert {
+		return
+	}
+
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+		return
+	}
+
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("pushover"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  t.Task.Status.Format(),
+			Version: version,
+			Desc:    t.Task.Message,
+			Status:  string(t.Task.Status),
+		},
+	}
+
+	tpl, err := template.ParseFS(templates, "templates/pushover.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse pushover alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate pushover alert template!")
+		panic(err)
+	}
+
+	if body.Len() == 0 {
+		t.Log("Buffer for pushover alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send pushover alert")
+
+	resp, err := http.Post(
+		fmt.Sprintf(
+			"https://api.pushover.net/1/messages.json?user=%s&token=%s",
+			util.Config.PushoverUserKey,
+			util.Config.PushoverToken),
+		"application/json",
+		body,
+	)
+
+	if err != nil {
+		t.Log("Can't send pushover alert! Error: " + err.Error())
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send pushover alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully pushover alert")
+	}
+
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
+	}
+}
+
 func (t *TaskRunner) alertInfos() (string, string) {
 	version := ""
 
@@ -552,7 +620,7 @@ func (t *TaskRunner) alertColor(kind string) string {
 		case task_logger.TaskStoppedStatus:
 			return "#5B5B5B"
 		}
-	case "rocketchat":
+	case "rocketchat", "pushover":
 		switch t.Task.Status {
 		case task_logger.TaskSuccessStatus:
 			return "#00EE00"

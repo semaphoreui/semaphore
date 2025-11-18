@@ -170,6 +170,12 @@ func InteractiveSetup(conf *util.ConfigType) {
 		askValue("Microsoft Teams Webhook URL", "", &conf.MicrosoftTeamsUrl)
 	}
 
+	askConfirmation("Enable Pushover alerts?", false, &conf.PushoverAlert)
+	if conf.PushoverAlert {
+		askValue("Pushover User KEY", "", &conf.PushoverUserKey)
+		askValue("Pushover Token", "", &conf.PushoverToken)
+	}
+
 	askConfirmation("Enable LDAP authentication?", false, &conf.LdapEnable)
 	if conf.LdapEnable {
 		conf.LdapMappings = &util.LdapMappings{}
