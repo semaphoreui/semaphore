@@ -30,7 +30,7 @@ require (
 	golang.org/x/crypto v0.44.0
 	golang.org/x/oauth2 v0.33.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	modernc.org/sqlite v1.40.0
+	modernc.org/sqlite v1.40.1
 )
 
 replace github.com/semaphoreui/semaphore/pro => ./pro
