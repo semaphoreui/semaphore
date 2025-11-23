@@ -70,16 +70,8 @@
       </v-card-text>
     </v-card>
 
-    <v-switch
-      v-model="isRunAt"
-      label="Run once"
-      :disabled="formSaving"
-      class="mt-2"
-      @change="onRunAtToggle"
-    />
-
     <v-text-field
-      v-if="isRunAt"
+      v-if="type === 'run_at'"
       v-model="runAtInput"
       type="datetime-local"
       label="Run at"
@@ -508,28 +500,16 @@ export default {
 
   props: {
     timezone: String,
+    type: String,
   },
 
   computed: {
-    isRunAt: {
-      get() {
-        return this.item?.type === 'run_at';
-      },
-      set(val) {
-        if (!this.item) {
-          return;
-        }
-
-        this.$set(this.item, 'type', val ? 'run_at' : 'cron');
-      },
-    },
-
     localTimezone() {
       return 'Local';
     },
 
     runAtRules() {
-      if (!this.isRunAt) {
+      if (this.type === 'run_at') {
         return [];
       }
 
@@ -565,23 +545,15 @@ export default {
         cron_format: '* * * * *',
         active: true,
         task_params: {},
-        type: 'cron',
         run_at: null,
       };
     },
 
-    onRunAtToggle() {
-      if (this.isRunAt && !this.runAtInput) {
-        this.setDefaultRunAt();
-      }
-
-      if (!this.isRunAt && !this.item.cron_format) {
-        this.item.cron_format = '* * * * *';
-      }
-    },
-
     setDefaultRunAt() {
-      const nextHour = dayjs().tz(this.timezone).add(1, 'hour').minute(0).second(0).millisecond(0);
+      const nextHour = dayjs().tz(this.timezone).add(1, 'hour').minute(0)
+        .second(0)
+        .millisecond(0);
+
       this.runAtInput = nextHour.format(RUN_AT_FORMAT);
     },
 
@@ -596,10 +568,11 @@ export default {
     },
 
     nextRunTime() {
-      if (this.isRunAt) {
+      if (this.type === 'run_at') {
+        const runAt = this.item.run_at ? dayjs(this.item.run_at) : null;
         const parsed = this.runAtInput
           ? dayjs.tz(this.runAtInput, RUN_AT_FORMAT, this.timezone)
-          : (this.item.run_at ? dayjs(this.item.run_at) : null);
+          : runAt;
 
         if (!parsed || !parsed.isValid()) {
           return null;
@@ -618,7 +591,7 @@ export default {
     },
 
     refreshCheckboxes() {
-      if (this.isRunAt) {
+      if (this.type === 'run_at') {
         this.cronFormatError = null;
         this.disableRawCron = false;
         return;
@@ -694,7 +667,7 @@ export default {
 
       if (this.item.run_at) {
         this.setRunAtInputFromItem();
-      } else if (this.isRunAt) {
+      } else if (this.type === 'run_at') {
         this.setDefaultRunAt();
       } else if (this.isNew) {
         this.item.cron_format = '* * * * *';
@@ -704,7 +677,9 @@ export default {
     },
 
     async beforeSave() {
-      if (this.isRunAt) {
+      this.item.type = this.type;
+
+      if (this.type === 'run_at') {
         const parsed = this.runAtInput
           ? dayjs.tz(this.runAtInput, RUN_AT_FORMAT, this.timezone)
           : null;
@@ -714,11 +689,9 @@ export default {
           throw new Error(this.formError);
         }
 
-        this.item.type = 'run_at';
         this.item.run_at = parsed.toISOString();
         this.item.cron_format = this.item.cron_format || '';
       } else {
-        this.item.type = 'cron';
         this.item.run_at = null;
       }
     },
