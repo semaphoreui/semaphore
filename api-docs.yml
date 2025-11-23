@@ -1040,6 +1040,14 @@ definitions:
         type: string
       active:
         type: boolean
+      run_at:
+        type: string
+        format: date-time
+      type:
+        type: string
+        enum:
+          - cron
+          - run_at
       task_params:
         $ref: '#/definitions/TaskPrams'
 
@@ -1058,6 +1066,14 @@ definitions:
         type: string
       active:
         type: boolean
+      run_at:
+        type: string
+        format: date-time
+      type:
+        type: string
+        enum:
+          - cron
+          - run_at
       task_params:
         $ref: '#/definitions/TaskPrams'
 
