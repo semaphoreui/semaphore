@@ -69,7 +69,23 @@
       </template>
 
       <template v-slot:item.name="{ item }">
-        <div>{{ item.name || '&mdash;' }}</div>
+        <div class="d-flex align-center">
+          <span>{{ item.name || '&mdash;' }}</span>
+          <v-tooltip top v-if="item.run_once">
+            <template v-slot:activator="{ on }">
+              <v-chip
+                x-small
+                color="orange"
+                text-color="white"
+                class="ml-2"
+                v-on="on"
+              >
+                RUN ONCE
+              </v-chip>
+            </template>
+            <span>This schedule will automatically deactivate after running once</span>
+          </v-tooltip>
+        </div>
       </template>
 
       <template v-slot:item.tpl_name="{ item }">

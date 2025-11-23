@@ -227,15 +227,33 @@
       </template>
     </v-simple-table>
 
-    <v-checkbox
-      style="position: absolute; bottom: 15px; left: 22px;"
-      v-model="item.active"
-      hide-details
-    >
-      <template v-slot:label>
-        {{ $t('enabled') }}
-      </template>
-    </v-checkbox>
+    <div style="position: absolute; bottom: 15px; left: 22px; display: flex; gap: 16px;">
+      <v-checkbox
+        v-model="item.active"
+        hide-details
+      >
+        <template v-slot:label>
+          {{ $t('enabled') }}
+        </template>
+      </v-checkbox>
+
+      <v-checkbox
+        v-model="item.run_once"
+        hide-details
+      >
+        <template v-slot:label>
+          <span>
+            Run once
+            <v-tooltip top max-width="300">
+              <template v-slot:activator="{ on }">
+                <v-icon small v-on="on" style="margin-left: 4px;">mdi-information-outline</v-icon>
+              </template>
+              <span>Schedule will automatically deactivate after running once. Useful for one-time maintenance tasks.</span>
+            </v-tooltip>
+          </span>
+        </template>
+      </v-checkbox>
+    </div>
 
   </v-form>
 </template>
