@@ -3,7 +3,7 @@ package db
 import "time"
 
 const (
-	ScheduleTypeCron  = "cron"
+	ScheduleTypeCron  = ""
 	ScheduleTypeRunAt = "run_at"
 )
 

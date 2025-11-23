@@ -1045,9 +1045,7 @@ definitions:
         format: date-time
       type:
         type: string
-        enum:
-          - cron
-          - run_at
+        enum: ['', 'run_at']
       task_params:
         $ref: '#/definitions/TaskPrams'
 
@@ -1071,9 +1069,7 @@ definitions:
         format: date-time
       type:
         type: string
-        enum:
-          - cron
-          - run_at
+        enum: ['', 'run_at']
       task_params:
         $ref: '#/definitions/TaskPrams'
 
