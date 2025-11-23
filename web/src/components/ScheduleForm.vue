@@ -70,17 +70,32 @@
       </v-card-text>
     </v-card>
 
-    <v-text-field
-      v-if="type === 'run_at'"
-      v-model="runAtInput"
-      type="datetime-local"
-      label="Run at"
-      :rules="runAtRules"
-      :disabled="formSaving"
-      :suffix="timezone + ' time'"
-      outlined
-      dense
-    ></v-text-field>
+    <div v-if="type === 'run_at'">
+      <v-text-field
+
+        v-model="runAtInput"
+        type="datetime-local"
+        label="Run at"
+        :rules="runAtRules"
+        :disabled="formSaving"
+        :suffix="timezone + ' time'"
+        outlined
+        dense
+      ></v-text-field>
+
+      <div class="d-flex justify-end">
+
+        <v-checkbox
+          v-model="item.delete_after_run"
+          hide-details
+          class="mt-0 pt-0"
+        >
+          <template v-slot:label>
+            {{ $t('Delete after run') }}
+          </template>
+        </v-checkbox>
+      </div>
+    </div>
 
     <div v-else>
       <v-switch
@@ -544,6 +559,8 @@ export default {
         template_id: null,
         cron_format: '* * * * *',
         active: true,
+        run_once: false,
+        delete_after_run: false,
         task_params: {},
         run_at: null,
       };
