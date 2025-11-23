@@ -10,6 +10,7 @@ type Schedule struct {
 
 	LastCommitHash *string `db:"last_commit_hash" json:"-" backup:"-"`
 	RepositoryID   *int    `db:"repository_id" json:"repository_id" backup:"-"`
+	RunOnceDate    *string `db:"run_once_date" json:"run_once_date,omitempty" backup:"run_once_date"`
 
 	TaskParamsID *int       `db:"task_params_id" json:"-" backup:"-"`
 	TaskParams   TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`

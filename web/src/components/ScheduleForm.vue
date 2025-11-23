@@ -107,6 +107,38 @@
         dense
       />
 
+      <div v-if="timing === 'once'" class="mt-4">
+        <v-row>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="onceDate"
+              :label="$t('Date')"
+              type="date"
+              :rules="[v => !!v || 'Date is required']"
+              required
+              outlined
+              dense
+              @input="refreshCron()"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="onceTime"
+              :label="$t('Time')"
+              type="time"
+              :rules="[v => !!v || 'Time is required']"
+              required
+              outlined
+              dense
+              @input="refreshCron()"
+            ></v-text-field>
+          </v-col>
+        </v-row>
+        <div class="text-caption" style="color: red; margin-top: -12px;">
+          {{ timezone + ' time zone' }}
+        </div>
+      </div>
+
       <div v-if="['yearly'].includes(timing)">
         <div class="mt-4">Months</div>
         <div class="d-flex flex-wrap">
@@ -325,6 +357,9 @@ const MONTHS = [{
 }];
 
 const TIMINGS = [{
+  id: 'once',
+  title: 'Once',
+}, {
   id: 'yearly',
   title: 'Yearly',
 }, {
@@ -437,6 +472,8 @@ export default {
       days: [],
       months: [],
       weekdays: [],
+      onceDate: null,
+      onceTime: null,
       rawCron: false,
       disableRawCron: false,
       showInfo: true,
@@ -503,6 +540,15 @@ export default {
 
   methods: {
     nextRunTime() {
+      // For "once" schedules, return the run_once_date
+      if (this.item.run_once_date) {
+        try {
+          return new Date(this.item.run_once_date);
+        } catch {
+          return null;
+        }
+      }
+
       try {
         return CronExpressionParser.parse(this.item.cron_format, {
           tz: this.timezone,
@@ -513,12 +559,21 @@ export default {
     },
 
     refreshCheckboxes() {
-      // if (!/test/.test(this.item.cron_format)) {
-      //   this.rawCron = true;
-      //   this.disableRawCron = true;
-      // } else {
-      //   this.disableRawCron = false;
-      // }
+      // Check if this is a "once" schedule
+      if (this.item.run_once_date) {
+        this.timing = 'once';
+        // Parse the run_once_date to extract date and time
+        try {
+          const dt = new Date(this.item.run_once_date);
+          // Format to YYYY-MM-DD
+          this.onceDate = dt.toISOString().split('T')[0];
+          // Format to HH:MM
+          this.onceTime = dt.toISOString().split('T')[1].substring(0, 5);
+        } catch (err) {
+          console.error('Error parsing run_once_date:', err);
+        }
+        return;
+      }
 
       this.cronFormatError = null;
       this.disableRawCron = false;
@@ -605,6 +660,25 @@ export default {
     },
 
     refreshCron() {
+      // Handle "once" timing separately
+      if (this.timing === 'once') {
+        if (this.onceDate && this.onceTime) {
+          // Parse the date and time
+          const dateTime = new Date(`${this.onceDate}T${this.onceTime}`);
+
+          // Store the target datetime in RFC3339 format
+          this.item.run_once_date = dateTime.toISOString();
+
+          // Generate a cron expression that runs every minute
+          // The actual execution will be controlled by the backend checking run_once_date
+          this.item.cron_format = '* * * * *';
+        }
+        return;
+      }
+
+      // Clear run_once_date for non-once timings
+      this.item.run_once_date = null;
+
       const fields = {};
 
       switch (this.timing) {

@@ -86,6 +86,34 @@ func (r ScheduleRunner) Run() {
 		return
 	}
 
+	// Check if this is a one-time schedule that should run
+	if schedule.RunOnceDate != nil {
+		targetTime, err := time.Parse(time.RFC3339, *schedule.RunOnceDate)
+		if err != nil {
+			log.WithError(err).Error("Failed to parse run_once_date")
+			return
+		}
+
+		// Check if we've passed the target time
+		now := time.Now().In(time.UTC)
+		if now.Before(targetTime.Add(-1 * time.Minute)) {
+			// Too early, don't run yet
+			return
+		}
+		if now.After(targetTime.Add(2 * time.Minute)) {
+			// Too late, disable the schedule
+			log.WithFields(log.Fields{
+				"schedule_id": schedule.ID,
+				"target_time": targetTime,
+			}).Info("One-time schedule has passed, deactivating")
+			err = r.pool.store.SetScheduleActive(schedule.ProjectID, schedule.ID, false)
+			if err != nil {
+				log.WithError(err).Error("Failed to deactivate schedule")
+			}
+			return
+		}
+	}
+
 	if schedule.RepositoryID != nil {
 		var updated bool
 		updated, err = r.tryUpdateScheduleCommitHash(schedule)
@@ -117,6 +145,18 @@ func (r ScheduleRunner) Run() {
 
 	if err != nil {
 		log.Error(err)
+		return
+	}
+
+	// If this was a one-time schedule, deactivate it after successful execution
+	if schedule.RunOnceDate != nil {
+		log.WithFields(log.Fields{
+			"schedule_id": schedule.ID,
+		}).Info("One-time schedule executed successfully, deactivating")
+		err = r.pool.store.SetScheduleActive(schedule.ProjectID, schedule.ID, false)
+		if err != nil {
+			log.WithError(err).Error("Failed to deactivate schedule after execution")
+		}
 	}
 }
 
