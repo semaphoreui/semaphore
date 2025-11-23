@@ -2,10 +2,12 @@ package projects
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/schedules"
-	"net/http"
 )
 
 // SchedulesMiddleware ensures a template exists and loads it to the context
@@ -81,6 +83,28 @@ func validateCronFormat(cronFormat string, w http.ResponseWriter) bool {
 	return false
 }
 
+func validateSchedulePayload(schedule db.Schedule, w http.ResponseWriter) bool {
+	if schedule.OneOff {
+		if schedule.RunAt == nil {
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "run_at must be provided for one-off schedules",
+			})
+			return false
+		}
+
+		if schedule.RunAt.Before(time.Now()) {
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "run_at must be in the future",
+			})
+			return false
+		}
+
+		return true
+	}
+
+	return validateCronFormat(schedule.CronFormat, w)
+}
+
 func ValidateScheduleCronFormat(w http.ResponseWriter, r *http.Request) {
 	var schedule db.Schedule
 	if !helpers.Bind(w, r, &schedule) {
@@ -99,7 +123,7 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !validateCronFormat(schedule.CronFormat, w) {
+	if !validateSchedulePayload(schedule, w) {
 		return
 	}
 
@@ -148,7 +172,7 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !validateCronFormat(schedule.CronFormat, w) {
+	if !validateSchedulePayload(schedule, w) {
 		return
 	}
 

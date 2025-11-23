@@ -23,6 +23,24 @@ type ScheduleRunner struct {
 	keyInstaller      db_lib.AccessKeyInstaller
 }
 
+type oneTimeSchedule struct {
+	runAt time.Time
+	ran   bool
+}
+
+func (s *oneTimeSchedule) Next(t time.Time) time.Time {
+	if s.ran {
+		return time.Time{}
+	}
+
+	if !t.Before(s.runAt) {
+		s.ran = true
+		return time.Time{}
+	}
+
+	return s.runAt
+}
+
 func CreateScheduleRunner(
 	projectID int,
 	scheduleID int,
@@ -118,6 +136,16 @@ func (r ScheduleRunner) Run() {
 	if err != nil {
 		log.Error(err)
 	}
+
+	if schedule.OneOff {
+		err = r.pool.store.SetScheduleActive(schedule.ProjectID, schedule.ID, false)
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"project_id":  schedule.ProjectID,
+				"schedule_id": schedule.ID,
+			}).Errorf("failed to disable one-off schedule after run")
+		}
+	}
 }
 
 type SchedulePool struct {
@@ -151,18 +179,52 @@ func (p *SchedulePool) Refresh() {
 	defer p.locker.Unlock()
 
 	p.clear()
+	now := time.Now().In(p.cron.Location())
 	for _, schedule := range schedules {
 		if schedule.RepositoryID == nil && !schedule.Active {
 			continue
 		}
 
-		_, err = p.addRunner(CreateScheduleRunner(
+		runner := CreateScheduleRunner(
 			schedule.ProjectID,
 			schedule.ID,
 			p,
 			p.encryptionService,
 			p.keyInstaller,
-		), schedule.CronFormat)
+		)
+
+		switch {
+		case schedule.OneOff:
+			if schedule.RunAt == nil {
+				log.WithFields(log.Fields{
+					"project_id":  schedule.ProjectID,
+					"schedule_id": schedule.ID,
+				}).Warn("one-off schedule has no run_at value")
+				continue
+			}
+
+			runAt := schedule.RunAt.In(p.cron.Location())
+			if !runAt.After(now) {
+				if schedule.Active {
+					err = p.store.SetScheduleActive(schedule.ProjectID, schedule.ID, false)
+					if err != nil {
+						log.WithError(err).WithFields(log.Fields{
+							"project_id":  schedule.ProjectID,
+							"schedule_id": schedule.ID,
+						}).Warn("failed to deactivate past one-off schedule")
+					}
+				}
+				continue
+			}
+
+			_, err = p.addOneTimeRunner(runner, runAt)
+		default:
+			if schedule.CronFormat == "" {
+				continue
+			}
+
+			_, err = p.addRunner(runner, schedule.CronFormat)
+		}
 
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
@@ -179,6 +241,12 @@ func (p *SchedulePool) addRunner(runner ScheduleRunner, cronFormat string) (int,
 	if err != nil {
 		return 0, err
 	}
+
+	return int(id), nil
+}
+
+func (p *SchedulePool) addOneTimeRunner(runner ScheduleRunner, runAt time.Time) (int, error) {
+	id := p.cron.Schedule(&oneTimeSchedule{runAt: runAt}, runner)
 
 	return int(id), nil
 }

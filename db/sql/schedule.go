@@ -19,14 +19,16 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, task_params_id)"+
-			"values (?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, one_off, task_params_id)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,
 		schedule.CronFormat,
 		schedule.RepositoryID,
 		schedule.Name,
 		schedule.Active,
+		schedule.RunAt,
+		schedule.OneOff,
 		schedule.TaskParamsID)
 
 	if err != nil {
@@ -81,6 +83,8 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		"template_id=?, "+
 		"`name`=?, "+
 		"`active`=?, "+
+		"run_at=?, "+
+		"one_off=?, "+
 		"last_commit_hash = NULL, "+
 		"task_params_id=? "+
 		"where project_id=? and id=?",
@@ -89,6 +93,8 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		schedule.TemplateID,
 		schedule.Name,
 		schedule.Active,
+		schedule.RunAt,
+		schedule.OneOff,
 		schedule.TaskParamsID,
 		schedule.ProjectID,
 		schedule.ID)
@@ -140,7 +146,7 @@ func (d *SqlDb) DeleteSchedule(projectID int, scheduleID int) (err error) {
 }
 
 func (d *SqlDb) GetSchedules() (schedules []db.Schedule, err error) {
-	_, err = d.selectAll(&schedules, "select * from project__schedule where cron_format != ''")
+	_, err = d.selectAll(&schedules, "select * from project__schedule where cron_format != '' or run_at is not null")
 	return
 }
 

@@ -82,7 +82,10 @@
         </div>
       </template>
       <template v-slot:item.cron_format="{ item }">
-        <code>{{ item.cron_format }}</code>
+        <div v-if="item.one_off">
+          {{ formatRunAt(item) }}
+        </div>
+        <code v-else>{{ item.cron_format }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -118,6 +121,12 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import ScheduleForm from '@/components/ScheduleForm.vue';
 import TaskList from '@/components/TaskList.vue';
 import axios from 'axios';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezonePlugin from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezonePlugin);
 
 export default {
   components: { TaskList, ScheduleForm },
@@ -131,6 +140,21 @@ export default {
     };
   },
   methods: {
+    formatRunAt(item) {
+      if (!item.run_at) {
+        return '—';
+      }
+
+      const tz = this.systemInfo?.schedule_timezone || 'UTC';
+      const parsed = dayjs(item.run_at).tz(tz);
+
+      if (!parsed.isValid()) {
+        return '—';
+      }
+
+      return `${parsed.format('YYYY-MM-DD HH:mm')} (${tz})`;
+    },
+
     async setActive(scheduleId, active) {
       await axios({
         method: 'put',
@@ -151,7 +175,7 @@ export default {
         text: this.$i18n.t('name'),
         value: 'name',
       }, {
-        text: this.$i18n.t('Cron'),
+        text: this.$i18n.t('schedule'),
         value: 'cron_format',
       }, {
         text: this.$i18n.t('template'),

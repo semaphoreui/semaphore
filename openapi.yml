@@ -2950,6 +2950,11 @@ components:
           type: string
         active:
           type: boolean
+        run_at:
+          type: string
+          format: date-time
+        one_off:
+          type: boolean
     Schedule:
       type: object
       properties:
@@ -2964,6 +2969,11 @@ components:
         name:
           type: string
         active:
+          type: boolean
+        run_at:
+          type: string
+          format: date-time
+        one_off:
           type: boolean
     ViewRequest:
       type: object

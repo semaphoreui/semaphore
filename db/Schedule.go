@@ -1,5 +1,7 @@
 package db
 
+import "time"
+
 type Schedule struct {
 	ID         int    `db:"id" json:"id" backup:"-"`
 	ProjectID  int    `db:"project_id" json:"project_id" backup:"-"`
@@ -8,8 +10,10 @@ type Schedule struct {
 	Name       string `db:"name" json:"name"`
 	Active     bool   `db:"active" json:"active"`
 
-	LastCommitHash *string `db:"last_commit_hash" json:"-" backup:"-"`
-	RepositoryID   *int    `db:"repository_id" json:"repository_id" backup:"-"`
+	LastCommitHash *string    `db:"last_commit_hash" json:"-" backup:"-"`
+	RepositoryID   *int       `db:"repository_id" json:"repository_id" backup:"-"`
+	RunAt          *time.Time `db:"run_at" json:"run_at,omitempty"`
+	OneOff         bool       `db:"one_off" json:"one_off"`
 
 	TaskParamsID *int       `db:"task_params_id" json:"-" backup:"-"`
 	TaskParams   TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`

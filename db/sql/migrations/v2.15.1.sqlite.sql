@@ -288,7 +288,9 @@ CREATE TABLE project__schedule (
                                    repository_id    INTEGER REFERENCES project__repository(id),
                                    last_commit_hash VARCHAR(64) NULL,
                                    name             VARCHAR(100) NOT NULL DEFAULT '',
-                                   active           INTEGER NOT NULL DEFAULT 1
+                                   active           INTEGER NOT NULL DEFAULT 1,
+                                   run_at           DATETIME NULL,
+                                   one_off          INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX project__schedule__project_id
