@@ -7,10 +7,10 @@ type Schedule struct {
 	CronFormat string `db:"cron_format" json:"cron_format"`
 	Name       string `db:"name" json:"name"`
 	Active     bool   `db:"active" json:"active"`
+	RunOnce    bool   `db:"run_once" json:"run_once"`
 
 	LastCommitHash *string `db:"last_commit_hash" json:"-" backup:"-"`
 	RepositoryID   *int    `db:"repository_id" json:"repository_id" backup:"-"`
-	RunOnceDate    *string `db:"run_once_date" json:"run_once_date,omitempty" backup:"run_once_date"`
 
 	TaskParamsID *int       `db:"task_params_id" json:"-" backup:"-"`
 	TaskParams   TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`

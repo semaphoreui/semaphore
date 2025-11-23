@@ -109,33 +109,71 @@
 
       <div v-if="timing === 'once'" class="mt-4">
         <v-row>
-          <v-col cols="12" sm="6">
-            <v-text-field
-              v-model="onceDate"
-              :label="$t('Date')"
-              type="date"
-              :rules="[v => !!v || 'Date is required']"
+          <v-col cols="12" sm="6" md="4">
+            <v-select
+              v-model="onceYear"
+              :label="$t('Year')"
+              :items="yearOptions"
+              :rules="[v => !!v || 'Year is required']"
               required
               outlined
               dense
-              @input="refreshCron()"
-            ></v-text-field>
+              @change="refreshCron()"
+            />
+          </v-col>
+          <v-col cols="12" sm="6" md="4">
+            <v-select
+              v-model="onceMonth"
+              :label="$t('Month')"
+              :items="MONTHS"
+              item-value="id"
+              item-text="title"
+              :rules="[v => !!v || 'Month is required']"
+              required
+              outlined
+              dense
+              @change="refreshCron()"
+            />
+          </v-col>
+          <v-col cols="12" sm="6" md="4">
+            <v-select
+              v-model="onceDay"
+              :label="$t('Day')"
+              :items="dayOptions"
+              :rules="[v => !!v || 'Day is required']"
+              required
+              outlined
+              dense
+              @change="refreshCron()"
+            />
           </v-col>
           <v-col cols="12" sm="6">
-            <v-text-field
-              v-model="onceTime"
-              :label="$t('Time')"
-              type="time"
-              :rules="[v => !!v || 'Time is required']"
+            <v-select
+              v-model="onceHour"
+              :label="$t('Hour')"
+              :items="hourOptions"
+              :rules="[v => v !== null || 'Hour is required']"
               required
               outlined
               dense
-              @input="refreshCron()"
-            ></v-text-field>
+              @change="refreshCron()"
+            />
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-select
+              v-model="onceMinute"
+              :label="$t('Minute')"
+              :items="minuteOptions"
+              :rules="[v => v !== null || 'Minute is required']"
+              required
+              outlined
+              dense
+              @change="refreshCron()"
+            />
           </v-col>
         </v-row>
         <div class="text-caption" style="color: red; margin-top: -12px;">
-          Local browser time (will be converted to {{ timezone }})
+          {{ timezone + ' time zone' }}
         </div>
       </div>
 
@@ -472,8 +510,11 @@ export default {
       days: [],
       months: [],
       weekdays: [],
-      onceDate: null,
-      onceTime: null,
+      onceYear: null,
+      onceMonth: null,
+      onceDay: null,
+      onceHour: null,
+      onceMinute: null,
       rawCron: false,
       disableRawCron: false,
       showInfo: true,
@@ -519,6 +560,27 @@ export default {
       return 'Local';
     },
 
+    yearOptions() {
+      const currentYear = new Date().getFullYear();
+      const years = [];
+      for (let i = 0; i < 10; i += 1) {
+        years.push(currentYear + i);
+      }
+      return years;
+    },
+
+    dayOptions() {
+      return Array.from({ length: 31 }, (_, i) => i + 1);
+    },
+
+    hourOptions() {
+      return Array.from({ length: 24 }, (_, i) => ({ text: `${i}`.padStart(2, '0'), value: i }));
+    },
+
+    minuteOptions() {
+      return Array.from({ length: 60 }, (_, i) => ({ text: `${i}`.padStart(2, '0'), value: i }));
+    },
+
     nextRunUtcDate() {
       return formatDateInTZ(this.nextRunTime(), this.timezone);
     },
@@ -540,15 +602,6 @@ export default {
 
   methods: {
     nextRunTime() {
-      // For "once" schedules, return the run_once_date
-      if (this.item.run_once_date) {
-        try {
-          return new Date(this.item.run_once_date);
-        } catch {
-          return null;
-        }
-      }
-
       try {
         return CronExpressionParser.parse(this.item.cron_format, {
           tz: this.timezone,
@@ -560,25 +613,26 @@ export default {
 
     refreshCheckboxes() {
       // Check if this is a "once" schedule
-      if (this.item.run_once_date) {
+      if (this.item.run_once) {
         this.timing = 'once';
-        // Parse the run_once_date to extract date and time
-        // Display in local browser time for better UX
+        // Parse the cron format to extract date/time
         try {
-          const dt = new Date(this.item.run_once_date);
-          // Get local date components
-          const year = dt.getFullYear();
-          const month = String(dt.getMonth() + 1).padStart(2, '0');
-          const day = String(dt.getDate()).padStart(2, '0');
-          const hours = String(dt.getHours()).padStart(2, '0');
-          const minutes = String(dt.getMinutes()).padStart(2, '0');
+          const cron = CronExpressionParser.parse(this.item.cron_format, {
+            tz: this.timezone,
+          });
+          const fields = cron.fields;
 
-          // Format to YYYY-MM-DD in local time
-          this.onceDate = `${year}-${month}-${day}`;
-          // Format to HH:MM in local time
-          this.onceTime = `${hours}:${minutes}`;
+          // Extract values from cron fields
+          this.onceMinute = fields.minute.values[0];
+          this.onceHour = fields.hour.values[0];
+          this.onceDay = fields.dayOfMonth.values[0];
+          this.onceMonth = fields.month.values[0];
+
+          // Set year to current or next year based on the next run time
+          const nextRun = cron.next().toDate();
+          this.onceYear = nextRun.getFullYear();
         } catch (err) {
-          console.error('Error parsing run_once_date:', err);
+          console.error('Error parsing once schedule:', err);
         }
         return;
       }
@@ -670,27 +724,19 @@ export default {
     refreshCron() {
       // Handle "once" timing separately
       if (this.timing === 'once') {
-        if (this.onceDate && this.onceTime) {
-          // Parse the date and time in the schedule's timezone
-          // The date/time inputs are meant to be in the schedule timezone (this.timezone)
-          const dateTimeStr = `${this.onceDate}T${this.onceTime}:00`;
-
-          // Create a date object and convert to ISO string
-          // Note: The backend expects ISO 8601 format and will interpret it correctly
-          const dateTime = new Date(dateTimeStr);
-
-          // Store the target datetime in RFC3339 format
-          this.item.run_once_date = dateTime.toISOString();
-
-          // Generate a cron expression that runs every minute
-          // The actual execution will be controlled by the backend checking run_once_date
-          this.item.cron_format = '* * * * *';
+        if (this.onceYear && this.onceMonth && this.onceDay !== null
+            && this.onceHour !== null && this.onceMinute !== null) {
+          // Generate cron expression for specific date/time
+          // Format: minute hour day month *
+          // Since cron doesn't support year, we'll use a specific date
+          this.item.cron_format = `${this.onceMinute} ${this.onceHour} ${this.onceDay} ${this.onceMonth} *`;
+          this.item.run_once = true;
         }
         return;
       }
 
-      // Clear run_once_date for non-once timings
-      this.item.run_once_date = null;
+      // Clear run_once for other timings
+      this.item.run_once = false;
 
       const fields = {};
 

@@ -1,1 +1,1 @@
-alter table project__schedule drop run_once_date;
+alter table project__schedule drop run_once;
