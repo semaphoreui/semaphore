@@ -17,17 +17,24 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 		schedule.TaskParamsID = &params.ID
 	}
 
+	if schedule.Type == "" {
+		schedule.Type = db.ScheduleTypeCron
+	}
+
 	insertID, err := d.insert(
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, task_params_id)"+
-			"values (?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,
 		schedule.CronFormat,
 		schedule.RepositoryID,
 		schedule.Name,
 		schedule.Active,
-		schedule.TaskParamsID)
+		schedule.RunAt,
+		schedule.Type,
+		schedule.TaskParamsID,
+		schedule.DeleteAfterRun)
 
 	if err != nil {
 		return
@@ -75,21 +82,31 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		schedule.TaskParamsID = &params.ID
 	}
 
+	if schedule.Type == "" {
+		schedule.Type = db.ScheduleTypeCron
+	}
+
 	_, err = d.exec("update project__schedule set "+
 		"cron_format=?, "+
 		"repository_id=?, "+
 		"template_id=?, "+
 		"`name`=?, "+
 		"`active`=?, "+
+		"run_at=?, "+
+		"`type`=?, "+
 		"last_commit_hash = NULL, "+
-		"task_params_id=? "+
+		"task_params_id=?, "+
+		"delete_after_run=? "+
 		"where project_id=? and id=?",
 		schedule.CronFormat,
 		schedule.RepositoryID,
 		schedule.TemplateID,
 		schedule.Name,
 		schedule.Active,
+		schedule.RunAt,
+		schedule.Type,
 		schedule.TaskParamsID,
+		schedule.DeleteAfterRun,
 		schedule.ProjectID,
 		schedule.ID)
 
@@ -140,7 +157,7 @@ func (d *SqlDb) DeleteSchedule(projectID int, scheduleID int) (err error) {
 }
 
 func (d *SqlDb) GetSchedules() (schedules []db.Schedule, err error) {
-	_, err = d.selectAll(&schedules, "select * from project__schedule where cron_format != ''")
+	_, err = d.selectAll(&schedules, "select * from project__schedule where cron_format != '' or run_at is not null")
 	return
 }
 

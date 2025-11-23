@@ -16,6 +16,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :timezone="systemInfo.schedule_timezone"
+          :type="scheduleType"
         />
       </template>
     </EditDialog>
@@ -38,12 +39,43 @@
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('schedule') }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn
-        color="primary"
-        @click="editItem('new')"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >{{ $t('newSchedule') }}
-      </v-btn>
+      <v-menu
+        offset-y
+      >
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn
+            class="pr-2"
+            v-bind="attrs"
+            v-on="on"
+            color="primary"
+            v-if="can(USER_PERMISSIONS.manageProjectResources)"
+          >{{ $t('newSchedule') }}
+            <v-icon>mdi-chevron-down</v-icon>
+          </v-btn>
+        </template>
+
+        <v-list>
+          <v-list-item
+            link
+            @click="editSchedule('new', 'cron');"
+          >
+            <v-list-item-icon>
+              <v-icon>mdi-calendar-sync</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>Cron</v-list-item-title>
+          </v-list-item>
+          <v-list-item
+            link
+            @click="editSchedule('new', 'run_at');"
+          >
+            <v-list-item-icon>
+              <v-icon>mdi-clock-time-eight-outline</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>Run once</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+
     </v-toolbar>
 
     <v-divider />
@@ -82,7 +114,10 @@
         </div>
       </template>
       <template v-slot:item.cron_format="{ item }">
-        <code>{{ item.cron_format }}</code>
+        <div v-if="item.type === 'run_at'">
+          {{ formatRunAt(item) }}
+        </div>
+        <code v-else>{{ item.cron_format }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -90,7 +125,7 @@
           <v-btn @click="askDeleteItem(item.id)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-          <v-btn @click="editItem(item.id)">
+          <v-btn @click="editSchedule(item.id, item.type)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </v-btn-toggle>
@@ -118,6 +153,12 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import ScheduleForm from '@/components/ScheduleForm.vue';
 import TaskList from '@/components/TaskList.vue';
 import axios from 'axios';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezonePlugin from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezonePlugin);
 
 export default {
   components: { TaskList, ScheduleForm },
@@ -128,9 +169,30 @@ export default {
   data() {
     return {
       openedItems: [],
+      scheduleType: null,
     };
   },
   methods: {
+    editSchedule(id, type) {
+      this.scheduleType = type;
+      this.editItem(id);
+    },
+
+    formatRunAt(item) {
+      if (!item.run_at) {
+        return '—';
+      }
+
+      const tz = this.systemInfo?.schedule_timezone || 'UTC';
+      const parsed = dayjs(item.run_at).tz(tz);
+
+      if (!parsed.isValid()) {
+        return '—';
+      }
+
+      return `${parsed.format('YYYY-MM-DD HH:mm')} (${tz})`;
+    },
+
     async setActive(scheduleId, active) {
       await axios({
         method: 'put',
@@ -151,7 +213,7 @@ export default {
         text: this.$i18n.t('name'),
         value: 'name',
       }, {
-        text: this.$i18n.t('Cron'),
+        text: this.$i18n.t('schedule'),
         value: 'cron_format',
       }, {
         text: this.$i18n.t('template'),

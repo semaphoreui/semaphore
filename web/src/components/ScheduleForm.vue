@@ -70,127 +70,156 @@
       </v-card-text>
     </v-card>
 
-    <v-switch
-      v-model="rawCron"
-      label="Show cron format"
-      :disabled="disableRawCron"
-    />
+    <div v-if="type === 'run_at'">
+      <v-text-field
 
-    <v-text-field
-      v-if="rawCron"
-      v-model="item.cron_format"
-      :label="$t('Cron')"
-      :rules="[v => !!v || $t('Cron required')]"
-      required
-      :disabled="formSaving"
-      @input="refreshCheckboxes()"
-      :suffix="timezone + ' time'"
-      outlined
-      :error="cronFormatError != null"
-      :error-messages="cronFormatError"
-      dense
-    ></v-text-field>
+        v-model="runAtInput"
+        type="datetime-local"
+        label="Run at"
+        :rules="runAtRules"
+        :disabled="formSaving"
+        :suffix="timezone + ' time'"
+        outlined
+        dense
+      ></v-text-field>
+
+      <div class="d-flex justify-end">
+
+        <v-checkbox
+          v-model="item.delete_after_run"
+          hide-details
+          class="mt-0 pt-0"
+        >
+          <template v-slot:label>
+            {{ $t('Delete after run') }}
+          </template>
+        </v-checkbox>
+      </div>
+    </div>
 
     <div v-else>
-      <v-select
-        v-model="timing"
-        :label="$t('Timing')"
-        :items="TIMINGS"
-        item-value="id"
-        item-text="title"
-        :rules="[v => !!v || $t('template_required')]"
-        required
-        :disabled="formSaving"
-        @change="refreshCron()"
-        outlined
-        hide-details
-        dense
+      <v-switch
+        v-model="rawCron"
+        label="Show cron format"
+        :disabled="disableRawCron"
       />
 
-      <div v-if="['yearly'].includes(timing)">
-        <div class="mt-4">Months</div>
-        <div class="d-flex flex-wrap">
-          <v-checkbox
-            class="mr-2 mt-0 ScheduleCheckbox"
-            v-for="m in MONTHS"
-            :key="m.id"
-            :value="m.id"
-            :label="m.title"
-            v-model="months"
-            color="white"
-            :class="{'ScheduleCheckbox--active': months.includes(m.id)}"
-            @change="refreshCron()"
-          ></v-checkbox>
-        </div>
-      </div>
+      <v-text-field
+        v-if="rawCron"
+        v-model="item.cron_format"
+        :label="$t('Cron')"
+        :rules="[v => !!v || $t('Cron required')]"
+        required
+        :disabled="formSaving"
+        @input="refreshCheckboxes()"
+        :suffix="timezone + ' time'"
+        outlined
+        :error="cronFormatError != null"
+        :error-messages="cronFormatError"
+        dense
+      ></v-text-field>
 
-      <div v-if="['weekly'].includes(timing)">
-        <div class="mt-4">Weekdays</div>
-        <div class="d-flex flex-wrap">
-          <v-checkbox
-            class="mr-2 mt-0 ScheduleCheckbox"
-            v-for="d in WEEKDAYS" :key="d.id"
-            :value="d.id"
-            :label="d.title"
-            v-model="weekdays"
-            color="white"
-            :class="{'ScheduleCheckbox--active': weekdays.includes(d.id)}"
-            @change="refreshCron()"
-          ></v-checkbox>
-        </div>
-      </div>
+      <div v-else>
+        <v-select
+          v-model="timing"
+          :label="$t('Timing')"
+          :items="TIMINGS"
+          item-value="id"
+          item-text="title"
+          :rules="[v => !!v || $t('template_required')]"
+          required
+          :disabled="formSaving"
+          @change="refreshCron()"
+          outlined
+          hide-details
+          dense
+        />
 
-      <div v-if="['yearly', 'monthly'].includes(timing)">
-        <div class="mt-4">Days</div>
-        <div class="d-flex flex-wrap">
-          <v-checkbox
-            class="mr-2 mt-0 ScheduleCheckbox"
-            v-for="d in 31"
-            :key="d"
-            :value="d"
-            :label="`${d}`"
-            v-model="days"
-            color="white"
-            :class="{'ScheduleCheckbox--active': days.includes(d)}"
-            @change="refreshCron()"
-          ></v-checkbox>
+        <div v-if="['yearly'].includes(timing)">
+          <div class="mt-4">Months</div>
+          <div class="d-flex flex-wrap">
+            <v-checkbox
+              class="mr-2 mt-0 ScheduleCheckbox"
+              v-for="m in MONTHS"
+              :key="m.id"
+              :value="m.id"
+              :label="m.title"
+              v-model="months"
+              color="white"
+              :class="{'ScheduleCheckbox--active': months.includes(m.id)}"
+              @change="refreshCron()"
+            ></v-checkbox>
+          </div>
         </div>
-      </div>
 
-      <div v-if="['yearly', 'monthly', 'weekly', 'daily'].includes(timing)">
-        <div class="mt-4 d-flex justify-space-between">
-          <span>Hours</span>
-          <b style="color: red;">{{ timezone + ' time' }}</b>
+        <div v-if="['weekly'].includes(timing)">
+          <div class="mt-4">Weekdays</div>
+          <div class="d-flex flex-wrap">
+            <v-checkbox
+              class="mr-2 mt-0 ScheduleCheckbox"
+              v-for="d in WEEKDAYS" :key="d.id"
+              :value="d.id"
+              :label="d.title"
+              v-model="weekdays"
+              color="white"
+              :class="{'ScheduleCheckbox--active': weekdays.includes(d.id)}"
+              @change="refreshCron()"
+            ></v-checkbox>
+          </div>
         </div>
-        <div class="d-flex flex-wrap">
-          <v-checkbox
-            class="mr-2 mt-0 ScheduleCheckbox"
-            v-for="h in 24"
-            :key="h - 1"
-            :value="h - 1"
-            :label="`${h - 1}`"
-            v-model="hours"
-            color="white"
-            :class="{'ScheduleCheckbox--active': hours.includes(h - 1)}"
-            @change="refreshCron()"
-          ></v-checkbox>
-        </div>
-      </div>
 
-      <div>
-        <div class="mt-4">Minutes</div>
-        <div class="d-flex flex-wrap">
-          <v-checkbox
-            class="mr-2 mt-0 ScheduleCheckbox"
-            v-for="m in MINUTES"
-            :key="m.id"
-            :value="m.id"
-            :label="m.title"
-            v-model="minutes"
-            color="white"
-            :class="{'ScheduleCheckbox--active': minutes.includes(m.id)}"
-            @change="refreshCron()"
-          ></v-checkbox>
+        <div v-if="['yearly', 'monthly'].includes(timing)">
+          <div class="mt-4">Days</div>
+          <div class="d-flex flex-wrap">
+            <v-checkbox
+              class="mr-2 mt-0 ScheduleCheckbox"
+              v-for="d in 31"
+              :key="d"
+              :value="d"
+              :label="`${d}`"
+              v-model="days"
+              color="white"
+              :class="{'ScheduleCheckbox--active': days.includes(d)}"
+              @change="refreshCron()"
+            ></v-checkbox>
+          </div>
+        </div>
+
+        <div v-if="['yearly', 'monthly', 'weekly', 'daily'].includes(timing)">
+          <div class="mt-4 d-flex justify-space-between">
+            <span>Hours</span>
+            <b style="color: red;">{{ timezone + ' time' }}</b>
+          </div>
+          <div class="d-flex flex-wrap">
+            <v-checkbox
+              class="mr-2 mt-0 ScheduleCheckbox"
+              v-for="h in 24"
+              :key="h - 1"
+              :value="h - 1"
+              :label="`${h - 1}`"
+              v-model="hours"
+              color="white"
+              :class="{'ScheduleCheckbox--active': hours.includes(h - 1)}"
+              @change="refreshCron()"
+            ></v-checkbox>
+          </div>
+        </div>
+
+        <div>
+          <div class="mt-4">Minutes</div>
+          <div class="d-flex flex-wrap">
+            <v-checkbox
+              class="mr-2 mt-0 ScheduleCheckbox"
+              v-for="m in MINUTES"
+              :key="m.id"
+              :value="m.id"
+              :label="m.title"
+              v-model="minutes"
+              color="white"
+              :class="{'ScheduleCheckbox--active': minutes.includes(m.id)}"
+              @change="refreshCron()"
+            ></v-checkbox>
+          </div>
         </div>
       </div>
     </div>
@@ -281,10 +310,18 @@
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezonePlugin from 'dayjs/plugin/timezone';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 
 import { CronExpression, CronExpressionParser, CronFieldCollection } from 'cron-parser';
 import { getErrorMessage } from '@/lib/error';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
+
+dayjs.extend(utc);
+dayjs.extend(timezonePlugin);
+dayjs.extend(customParseFormat);
 
 const MONTHS = [{
   id: 1,
@@ -379,6 +416,8 @@ const MINUTES = [
   { id: 55, title: ':55' },
 ];
 
+const RUN_AT_FORMAT = 'YYYY-MM-DDTHH:mm';
+
 function formatDateInTZ(date, tz) {
   if (date == null) {
     return '—';
@@ -441,6 +480,7 @@ export default {
       disableRawCron: false,
       showInfo: true,
       cronFormatError: null,
+      runAtInput: '',
     };
   },
 
@@ -475,11 +515,22 @@ export default {
 
   props: {
     timezone: String,
+    type: String,
   },
 
   computed: {
     localTimezone() {
       return 'Local';
+    },
+
+    runAtRules() {
+      if (this.type === 'run_at') {
+        return [];
+      }
+
+      return [
+        (v) => !!v || 'Run time is required',
+      ];
     },
 
     nextRunUtcDate() {
@@ -502,7 +553,51 @@ export default {
   },
 
   methods: {
+    getNewItem() {
+      return {
+        name: '',
+        template_id: null,
+        cron_format: '* * * * *',
+        active: true,
+        run_once: false,
+        delete_after_run: false,
+        task_params: {},
+        run_at: null,
+      };
+    },
+
+    setDefaultRunAt() {
+      const nextHour = dayjs().tz(this.timezone).add(1, 'hour').minute(0)
+        .second(0)
+        .millisecond(0);
+
+      this.runAtInput = nextHour.format(RUN_AT_FORMAT);
+    },
+
+    setRunAtInputFromItem() {
+      if (!this.item.run_at) {
+        this.runAtInput = '';
+        return;
+      }
+
+      const parsed = dayjs(this.item.run_at).tz(this.timezone);
+      this.runAtInput = parsed.isValid() ? parsed.format(RUN_AT_FORMAT) : '';
+    },
+
     nextRunTime() {
+      if (this.type === 'run_at') {
+        const runAt = this.item.run_at ? dayjs(this.item.run_at) : null;
+        const parsed = this.runAtInput
+          ? dayjs.tz(this.runAtInput, RUN_AT_FORMAT, this.timezone)
+          : runAt;
+
+        if (!parsed || !parsed.isValid()) {
+          return null;
+        }
+
+        return parsed.toDate();
+      }
+
       try {
         return CronExpressionParser.parse(this.item.cron_format, {
           tz: this.timezone,
@@ -513,6 +608,12 @@ export default {
     },
 
     refreshCheckboxes() {
+      if (this.type === 'run_at') {
+        this.cronFormatError = null;
+        this.disableRawCron = false;
+        return;
+      }
+
       // if (!/test/.test(this.item.cron_format)) {
       //   this.rawCron = true;
       //   this.disableRawCron = true;
@@ -577,11 +678,39 @@ export default {
     },
 
     afterLoadData() {
-      if (this.isNew) {
+      if (!this.item.type) {
+        this.item.type = this.item.run_at ? 'run_at' : 'cron';
+      }
+
+      if (this.item.run_at) {
+        this.setRunAtInputFromItem();
+      } else if (this.type === 'run_at') {
+        this.setDefaultRunAt();
+      } else if (this.isNew) {
         this.item.cron_format = '* * * * *';
       }
 
       this.refreshCheckboxes();
+    },
+
+    async beforeSave() {
+      this.item.type = this.type;
+
+      if (this.type === 'run_at') {
+        const parsed = this.runAtInput
+          ? dayjs.tz(this.runAtInput, RUN_AT_FORMAT, this.timezone)
+          : null;
+
+        if (!parsed || !parsed.isValid()) {
+          this.formError = 'Please provide a valid run time for the run_at schedule.';
+          throw new Error(this.formError);
+        }
+
+        this.item.run_at = parsed.toISOString();
+        this.item.cron_format = this.item.cron_format || '';
+      } else {
+        this.item.run_at = null;
+      }
     },
 
     isWeekly(s) {

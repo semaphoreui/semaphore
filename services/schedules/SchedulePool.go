@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/util"
 
@@ -21,6 +22,24 @@ type ScheduleRunner struct {
 	pool              *SchedulePool
 	encryptionService server.AccessKeyEncryptionService
 	keyInstaller      db_lib.AccessKeyInstaller
+}
+
+type oneTimeSchedule struct {
+	runAt time.Time
+	ran   bool
+}
+
+func (s *oneTimeSchedule) Next(t time.Time) time.Time {
+	if s.ran {
+		return time.Time{}
+	}
+
+	if !t.Before(s.runAt) {
+		s.ran = true
+		return time.Time{}
+	}
+
+	return s.runAt
 }
 
 func CreateScheduleRunner(
@@ -82,15 +101,28 @@ func (r ScheduleRunner) Run() {
 
 	schedule, err := r.pool.store.GetSchedule(r.projectID, r.scheduleID)
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).WithFields(log.Fields{
+			"context":     common_errors.GetErrorContext(),
+			"project_id":  r.projectID,
+			"schedule_id": r.scheduleID,
+		}).Error("failed to get schedule")
 		return
+	}
+
+	scheduleType := schedule.Type
+	if scheduleType == "" {
+		scheduleType = db.ScheduleTypeCron
 	}
 
 	if schedule.RepositoryID != nil {
 		var updated bool
 		updated, err = r.tryUpdateScheduleCommitHash(schedule)
 		if err != nil {
-			log.Error(err)
+			log.WithError(err).WithFields(log.Fields{
+				"context":     common_errors.GetErrorContext(),
+				"project_id":  r.projectID,
+				"schedule_id": r.scheduleID,
+			}).Error("failed to update schedule commit hash")
 			return
 		}
 		if !updated {
@@ -100,7 +132,12 @@ func (r ScheduleRunner) Run() {
 
 	tpl, err := r.pool.store.GetTemplate(schedule.ProjectID, schedule.TemplateID)
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).WithFields(log.Fields{
+			"context":      common_errors.GetErrorContext(),
+			"project_id":   schedule.ProjectID,
+			"schedule_id":  schedule.ID,
+			"template_id":  schedule.TemplateID,
+		}).Error("failed to get template")
 		return
 	}
 
@@ -116,7 +153,16 @@ func (r ScheduleRunner) Run() {
 	)
 
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).WithFields(log.Fields{
+			"context":     common_errors.GetErrorContext(),
+			"project_id":  schedule.ProjectID,
+			"schedule_id": schedule.ID,
+			"template_id": schedule.TemplateID,
+		}).Error("failed to add task")
+	}
+
+	if scheduleType == db.ScheduleTypeRunAt {
+		r.pool.Refresh()
 	}
 }
 
@@ -143,7 +189,9 @@ func (p *SchedulePool) Refresh() {
 	schedules, err := p.store.GetSchedules()
 
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).WithFields(log.Fields{
+			"context": common_errors.GetErrorContext(),
+		}).Error("failed to get schedules")
 		return
 	}
 
@@ -151,21 +199,79 @@ func (p *SchedulePool) Refresh() {
 	defer p.locker.Unlock()
 
 	p.clear()
+	now := time.Now().In(p.cron.Location())
 	for _, schedule := range schedules {
+		scheduleType := schedule.Type
+		if scheduleType == "" {
+			scheduleType = db.ScheduleTypeCron
+		}
+
 		if schedule.RepositoryID == nil && !schedule.Active {
 			continue
 		}
 
-		_, err = p.addRunner(CreateScheduleRunner(
+		runner := CreateScheduleRunner(
 			schedule.ProjectID,
 			schedule.ID,
 			p,
 			p.encryptionService,
 			p.keyInstaller,
-		), schedule.CronFormat)
+		)
+
+		switch scheduleType {
+		case db.ScheduleTypeRunAt:
+			if schedule.RunAt == nil {
+				log.WithFields(log.Fields{
+					"project_id":  schedule.ProjectID,
+					"schedule_id": schedule.ID,
+				}).Warn("run_at schedule has no run_at value")
+				continue
+			}
+
+			runAt := schedule.RunAt.In(p.cron.Location())
+
+			if !runAt.After(now) {
+				if schedule.DeleteAfterRun {
+					err = p.store.DeleteSchedule(schedule.ProjectID, schedule.ID)
+					if err != nil {
+						log.WithError(err).WithFields(log.Fields{
+							"context":     common_errors.GetErrorContext(),
+							"project_id":  schedule.ProjectID,
+							"schedule_id": schedule.ID,
+						}).Warn("failed to delete past run_at schedule")
+					}
+				} else if schedule.Active {
+					err = p.store.SetScheduleActive(schedule.ProjectID, schedule.ID, false)
+					if err != nil {
+						log.WithError(err).WithFields(log.Fields{
+							"context":     common_errors.GetErrorContext(),
+							"project_id":  schedule.ProjectID,
+							"schedule_id": schedule.ID,
+						}).Warn("failed to deactivate past run_at schedule")
+					}
+				}
+				continue
+			}
+
+			_, err = p.addOneTimeRunner(runner, runAt)
+		case db.ScheduleTypeCron:
+			if schedule.CronFormat == "" {
+				continue
+			}
+
+			_, err = p.addRunner(runner, schedule.CronFormat)
+		default:
+			log.WithFields(log.Fields{
+				"project_id":  schedule.ProjectID,
+				"schedule_id": schedule.ID,
+				"type":        schedule.Type,
+			}).Warn("schedule has unsupported type")
+			continue
+		}
 
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
+				"context":     common_errors.GetErrorContext(),
 				"project_id":  schedule.ProjectID,
 				"schedule_id": schedule.ID,
 			}).Errorf("failed to add schedule")
@@ -179,6 +285,12 @@ func (p *SchedulePool) addRunner(runner ScheduleRunner, cronFormat string) (int,
 	if err != nil {
 		return 0, err
 	}
+
+	return int(id), nil
+}
+
+func (p *SchedulePool) addOneTimeRunner(runner ScheduleRunner, runAt time.Time) (int, error) {
+	id := p.cron.Schedule(&oneTimeSchedule{runAt: runAt}, runner)
 
 	return int(id), nil
 }
