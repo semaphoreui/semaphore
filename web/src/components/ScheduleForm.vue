@@ -135,7 +135,7 @@
           </v-col>
         </v-row>
         <div class="text-caption" style="color: red; margin-top: -12px;">
-          {{ timezone + ' time zone' }}
+          Local browser time (will be converted to {{ timezone }})
         </div>
       </div>
 
@@ -563,12 +563,20 @@ export default {
       if (this.item.run_once_date) {
         this.timing = 'once';
         // Parse the run_once_date to extract date and time
+        // Display in local browser time for better UX
         try {
           const dt = new Date(this.item.run_once_date);
-          // Format to YYYY-MM-DD
-          this.onceDate = dt.toISOString().split('T')[0];
-          // Format to HH:MM
-          this.onceTime = dt.toISOString().split('T')[1].substring(0, 5);
+          // Get local date components
+          const year = dt.getFullYear();
+          const month = String(dt.getMonth() + 1).padStart(2, '0');
+          const day = String(dt.getDate()).padStart(2, '0');
+          const hours = String(dt.getHours()).padStart(2, '0');
+          const minutes = String(dt.getMinutes()).padStart(2, '0');
+
+          // Format to YYYY-MM-DD in local time
+          this.onceDate = `${year}-${month}-${day}`;
+          // Format to HH:MM in local time
+          this.onceTime = `${hours}:${minutes}`;
         } catch (err) {
           console.error('Error parsing run_once_date:', err);
         }
@@ -663,8 +671,13 @@ export default {
       // Handle "once" timing separately
       if (this.timing === 'once') {
         if (this.onceDate && this.onceTime) {
-          // Parse the date and time
-          const dateTime = new Date(`${this.onceDate}T${this.onceTime}`);
+          // Parse the date and time in the schedule's timezone
+          // The date/time inputs are meant to be in the schedule timezone (this.timezone)
+          const dateTimeStr = `${this.onceDate}T${this.onceTime}:00`;
+
+          // Create a date object and convert to ISO string
+          // Note: The backend expects ISO 8601 format and will interpret it correctly
+          const dateTime = new Date(dateTimeStr);
 
           // Store the target datetime in RFC3339 format
           this.item.run_once_date = dateTime.toISOString();
