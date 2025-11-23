@@ -117,6 +117,24 @@ func (r ScheduleRunner) Run() {
 
 	if err != nil {
 		log.Error(err)
+		return
+	}
+
+	// If this is a run-once schedule, deactivate it after running
+	if schedule.RunOnce {
+		err = r.pool.store.SetScheduleActive(schedule.ProjectID, schedule.ID, false)
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"project_id":  schedule.ProjectID,
+				"schedule_id": schedule.ID,
+			}).Error("Failed to deactivate run-once schedule")
+		} else {
+			log.WithFields(log.Fields{
+				"project_id":  schedule.ProjectID,
+				"schedule_id": schedule.ID,
+				"name":        schedule.Name,
+			}).Info("Run-once schedule executed and deactivated")
+		}
 	}
 }
 

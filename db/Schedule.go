@@ -7,6 +7,7 @@ type Schedule struct {
 	CronFormat string `db:"cron_format" json:"cron_format"`
 	Name       string `db:"name" json:"name"`
 	Active     bool   `db:"active" json:"active"`
+	RunOnce    bool   `db:"run_once" json:"run_once"`
 
 	LastCommitHash *string `db:"last_commit_hash" json:"-" backup:"-"`
 	RepositoryID   *int    `db:"repository_id" json:"repository_id" backup:"-"`
