@@ -101,7 +101,11 @@ func (r ScheduleRunner) Run() {
 
 	schedule, err := r.pool.store.GetSchedule(r.projectID, r.scheduleID)
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).WithFields(log.Fields{
+			"context":     common_errors.GetErrorContext(),
+			"project_id":  r.projectID,
+			"schedule_id": r.scheduleID,
+		}).Error("failed to get schedule")
 		return
 	}
 
@@ -114,7 +118,11 @@ func (r ScheduleRunner) Run() {
 		var updated bool
 		updated, err = r.tryUpdateScheduleCommitHash(schedule)
 		if err != nil {
-			log.Error(err)
+			log.WithError(err).WithFields(log.Fields{
+				"context":     common_errors.GetErrorContext(),
+				"project_id":  r.projectID,
+				"schedule_id": r.scheduleID,
+			}).Error("failed to update schedule commit hash")
 			return
 		}
 		if !updated {
@@ -124,7 +132,12 @@ func (r ScheduleRunner) Run() {
 
 	tpl, err := r.pool.store.GetTemplate(schedule.ProjectID, schedule.TemplateID)
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).WithFields(log.Fields{
+			"context":      common_errors.GetErrorContext(),
+			"project_id":   schedule.ProjectID,
+			"schedule_id":  schedule.ID,
+			"template_id":  schedule.TemplateID,
+		}).Error("failed to get template")
 		return
 	}
 
@@ -140,7 +153,12 @@ func (r ScheduleRunner) Run() {
 	)
 
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).WithFields(log.Fields{
+			"context":     common_errors.GetErrorContext(),
+			"project_id":  schedule.ProjectID,
+			"schedule_id": schedule.ID,
+			"template_id": schedule.TemplateID,
+		}).Error("failed to add task")
 	}
 
 	if scheduleType == db.ScheduleTypeRunAt {
@@ -171,7 +189,9 @@ func (p *SchedulePool) Refresh() {
 	schedules, err := p.store.GetSchedules()
 
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).WithFields(log.Fields{
+			"context": common_errors.GetErrorContext(),
+		}).Error("failed to get schedules")
 		return
 	}
 
@@ -251,6 +271,7 @@ func (p *SchedulePool) Refresh() {
 
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
+				"context":     common_errors.GetErrorContext(),
 				"project_id":  schedule.ProjectID,
 				"schedule_id": schedule.ID,
 			}).Errorf("failed to add schedule")
