@@ -83,11 +83,16 @@ func validateCronFormat(cronFormat string, w http.ResponseWriter) bool {
 	return false
 }
 
-func validateSchedulePayload(schedule db.Schedule, w http.ResponseWriter) bool {
-	if schedule.OneOff {
+func validateSchedulePayload(schedule *db.Schedule, w http.ResponseWriter) bool {
+	if schedule.Type == "" {
+		schedule.Type = db.ScheduleTypeCron
+	}
+
+	switch schedule.Type {
+	case db.ScheduleTypeRunAt:
 		if schedule.RunAt == nil {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "run_at must be provided for one-off schedules",
+				"error": "run_at must be provided for run_at schedules",
 			})
 			return false
 		}
@@ -99,10 +104,17 @@ func validateSchedulePayload(schedule db.Schedule, w http.ResponseWriter) bool {
 			return false
 		}
 
+		schedule.CronFormat = ""
 		return true
+	case db.ScheduleTypeCron:
+		schedule.RunAt = nil
+		return validateCronFormat(schedule.CronFormat, w)
+	default:
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid schedule type",
+		})
+		return false
 	}
-
-	return validateCronFormat(schedule.CronFormat, w)
 }
 
 func ValidateScheduleCronFormat(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +135,7 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !validateSchedulePayload(schedule, w) {
+	if !validateSchedulePayload(&schedule, w) {
 		return
 	}
 
@@ -172,7 +184,7 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !validateSchedulePayload(schedule, w) {
+	if !validateSchedulePayload(&schedule, w) {
 		return
 	}
 

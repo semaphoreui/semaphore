@@ -1043,8 +1043,11 @@ definitions:
       run_at:
         type: string
         format: date-time
-      one_off:
-        type: boolean
+      type:
+        type: string
+        enum:
+          - cron
+          - run_at
       task_params:
         $ref: '#/definitions/TaskPrams'
 
@@ -1066,8 +1069,11 @@ definitions:
       run_at:
         type: string
         format: date-time
-      one_off:
-        type: boolean
+      type:
+        type: string
+        enum:
+          - cron
+          - run_at
       task_params:
         $ref: '#/definitions/TaskPrams'
 

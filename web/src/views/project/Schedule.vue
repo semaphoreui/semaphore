@@ -82,7 +82,7 @@
         </div>
       </template>
       <template v-slot:item.cron_format="{ item }">
-        <div v-if="item.one_off">
+        <div v-if="item.type === 'run_at'">
           {{ formatRunAt(item) }}
         </div>
         <code v-else>{{ item.cron_format }}</code>

@@ -2953,8 +2953,11 @@ components:
         run_at:
           type: string
           format: date-time
-        one_off:
-          type: boolean
+        type:
+          type: string
+          enum:
+            - cron
+            - run_at
     Schedule:
       type: object
       properties:
@@ -2973,8 +2976,11 @@ components:
         run_at:
           type: string
           format: date-time
-        one_off:
-          type: boolean
+        type:
+          type: string
+          enum:
+            - cron
+            - run_at
     ViewRequest:
       type: object
       properties:

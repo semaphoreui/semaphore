@@ -290,7 +290,7 @@ CREATE TABLE project__schedule (
                                    name             VARCHAR(100) NOT NULL DEFAULT '',
                                    active           INTEGER NOT NULL DEFAULT 1,
                                    run_at           DATETIME NULL,
-                                   one_off          INTEGER NOT NULL DEFAULT 0
+                                   type             VARCHAR(20) NOT NULL DEFAULT 'cron'
 );
 
 CREATE INDEX project__schedule__project_id

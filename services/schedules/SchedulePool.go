@@ -104,6 +104,11 @@ func (r ScheduleRunner) Run() {
 		return
 	}
 
+	scheduleType := schedule.Type
+	if scheduleType == "" {
+		scheduleType = db.ScheduleTypeCron
+	}
+
 	if schedule.RepositoryID != nil {
 		var updated bool
 		updated, err = r.tryUpdateScheduleCommitHash(schedule)
@@ -137,13 +142,13 @@ func (r ScheduleRunner) Run() {
 		log.Error(err)
 	}
 
-	if schedule.OneOff {
+	if scheduleType == db.ScheduleTypeRunAt {
 		err = r.pool.store.SetScheduleActive(schedule.ProjectID, schedule.ID, false)
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"project_id":  schedule.ProjectID,
 				"schedule_id": schedule.ID,
-			}).Errorf("failed to disable one-off schedule after run")
+			}).Errorf("failed to disable run_at schedule after run")
 		}
 	}
 }
@@ -181,6 +186,11 @@ func (p *SchedulePool) Refresh() {
 	p.clear()
 	now := time.Now().In(p.cron.Location())
 	for _, schedule := range schedules {
+		scheduleType := schedule.Type
+		if scheduleType == "" {
+			scheduleType = db.ScheduleTypeCron
+		}
+
 		if schedule.RepositoryID == nil && !schedule.Active {
 			continue
 		}
@@ -193,13 +203,13 @@ func (p *SchedulePool) Refresh() {
 			p.keyInstaller,
 		)
 
-		switch {
-		case schedule.OneOff:
+		switch scheduleType {
+		case db.ScheduleTypeRunAt:
 			if schedule.RunAt == nil {
 				log.WithFields(log.Fields{
 					"project_id":  schedule.ProjectID,
 					"schedule_id": schedule.ID,
-				}).Warn("one-off schedule has no run_at value")
+				}).Warn("run_at schedule has no run_at value")
 				continue
 			}
 
@@ -211,19 +221,26 @@ func (p *SchedulePool) Refresh() {
 						log.WithError(err).WithFields(log.Fields{
 							"project_id":  schedule.ProjectID,
 							"schedule_id": schedule.ID,
-						}).Warn("failed to deactivate past one-off schedule")
+						}).Warn("failed to deactivate past run_at schedule")
 					}
 				}
 				continue
 			}
 
 			_, err = p.addOneTimeRunner(runner, runAt)
-		default:
+		case db.ScheduleTypeCron:
 			if schedule.CronFormat == "" {
 				continue
 			}
 
 			_, err = p.addRunner(runner, schedule.CronFormat)
+		default:
+			log.WithFields(log.Fields{
+				"project_id":  schedule.ProjectID,
+				"schedule_id": schedule.ID,
+				"type":        schedule.Type,
+			}).Warn("schedule has unsupported type")
+			continue
 		}
 
 		if err != nil {

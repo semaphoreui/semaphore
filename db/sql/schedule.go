@@ -17,9 +17,13 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 		schedule.TaskParamsID = &params.ID
 	}
 
+	if schedule.Type == "" {
+		schedule.Type = db.ScheduleTypeCron
+	}
+
 	insertID, err := d.insert(
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, one_off, task_params_id)"+
+		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id)"+
 			"values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,
@@ -28,7 +32,7 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 		schedule.Name,
 		schedule.Active,
 		schedule.RunAt,
-		schedule.OneOff,
+		schedule.Type,
 		schedule.TaskParamsID)
 
 	if err != nil {
@@ -77,6 +81,10 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		schedule.TaskParamsID = &params.ID
 	}
 
+	if schedule.Type == "" {
+		schedule.Type = db.ScheduleTypeCron
+	}
+
 	_, err = d.exec("update project__schedule set "+
 		"cron_format=?, "+
 		"repository_id=?, "+
@@ -84,7 +92,7 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		"`name`=?, "+
 		"`active`=?, "+
 		"run_at=?, "+
-		"one_off=?, "+
+		"`type`=?, "+
 		"last_commit_hash = NULL, "+
 		"task_params_id=? "+
 		"where project_id=? and id=?",
@@ -94,7 +102,7 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		schedule.Name,
 		schedule.Active,
 		schedule.RunAt,
-		schedule.OneOff,
+		schedule.Type,
 		schedule.TaskParamsID,
 		schedule.ProjectID,
 		schedule.ID)

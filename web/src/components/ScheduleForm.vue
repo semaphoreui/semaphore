@@ -71,15 +71,15 @@
     </v-card>
 
     <v-switch
-      v-model="item.one_off"
+      v-model="isRunAt"
       label="Run once"
       :disabled="formSaving"
       class="mt-2"
-      @change="onOneOffToggle"
+      @change="onRunAtToggle"
     />
 
     <v-text-field
-      v-if="item.one_off"
+      v-if="isRunAt"
       v-model="runAtInput"
       type="datetime-local"
       label="Run at"
@@ -511,12 +511,25 @@ export default {
   },
 
   computed: {
+    isRunAt: {
+      get() {
+        return this.item?.type === 'run_at';
+      },
+      set(val) {
+        if (!this.item) {
+          return;
+        }
+
+        this.$set(this.item, 'type', val ? 'run_at' : 'cron');
+      },
+    },
+
     localTimezone() {
       return 'Local';
     },
 
     runAtRules() {
-      if (!this.item?.one_off) {
+      if (!this.isRunAt) {
         return [];
       }
 
@@ -552,17 +565,17 @@ export default {
         cron_format: '* * * * *',
         active: true,
         task_params: {},
-        one_off: false,
+        type: 'cron',
         run_at: null,
       };
     },
 
-    onOneOffToggle() {
-      if (this.item.one_off && !this.runAtInput) {
+    onRunAtToggle() {
+      if (this.isRunAt && !this.runAtInput) {
         this.setDefaultRunAt();
       }
 
-      if (!this.item.one_off && !this.item.cron_format) {
+      if (!this.isRunAt && !this.item.cron_format) {
         this.item.cron_format = '* * * * *';
       }
     },
@@ -583,7 +596,7 @@ export default {
     },
 
     nextRunTime() {
-      if (this.item.one_off) {
+      if (this.isRunAt) {
         const parsed = this.runAtInput
           ? dayjs.tz(this.runAtInput, RUN_AT_FORMAT, this.timezone)
           : (this.item.run_at ? dayjs(this.item.run_at) : null);
@@ -605,7 +618,7 @@ export default {
     },
 
     refreshCheckboxes() {
-      if (this.item.one_off) {
+      if (this.isRunAt) {
         this.cronFormatError = null;
         this.disableRawCron = false;
         return;
@@ -675,9 +688,13 @@ export default {
     },
 
     afterLoadData() {
+      if (!this.item.type) {
+        this.item.type = this.item.run_at ? 'run_at' : 'cron';
+      }
+
       if (this.item.run_at) {
         this.setRunAtInputFromItem();
-      } else if (this.item.one_off) {
+      } else if (this.isRunAt) {
         this.setDefaultRunAt();
       } else if (this.isNew) {
         this.item.cron_format = '* * * * *';
@@ -687,21 +704,22 @@ export default {
     },
 
     async beforeSave() {
-      if (this.item.one_off) {
+      if (this.isRunAt) {
         const parsed = this.runAtInput
           ? dayjs.tz(this.runAtInput, RUN_AT_FORMAT, this.timezone)
           : null;
 
         if (!parsed || !parsed.isValid()) {
-          this.formError = 'Please provide a valid run time for one-off schedule.';
+          this.formError = 'Please provide a valid run time for the run_at schedule.';
           throw new Error(this.formError);
         }
 
+        this.item.type = 'run_at';
         this.item.run_at = parsed.toISOString();
         this.item.cron_format = this.item.cron_format || '';
       } else {
+        this.item.type = 'cron';
         this.item.run_at = null;
-        this.item.one_off = false;
       }
     },
 
