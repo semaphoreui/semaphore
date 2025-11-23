@@ -86,6 +86,15 @@ func (r ScheduleRunner) Run() {
 		return
 	}
 
+	if schedule.RunOnce {
+		err = r.pool.store.SetScheduleActive(schedule.ProjectID, schedule.ID, false)
+		if err != nil {
+			log.Error(err)
+		} else {
+			go r.pool.Refresh()
+		}
+	}
+
 	if schedule.RepositoryID != nil {
 		var updated bool
 		updated, err = r.tryUpdateScheduleCommitHash(schedule)
