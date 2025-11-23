@@ -195,6 +195,18 @@
       </div>
     </div>
 
+    <div class="d-flex justify-end">
+      <v-checkbox
+        class="mt-0 pt-0"
+        v-model="item.run_once"
+        hide-details
+      >
+        <template v-slot:label>
+          {{ $t('runOnce') }}
+        </template>
+      </v-checkbox>
+    </div>
+
     <div
       class="text-center text-subtitle-1 mb-3"
       :class="{'mt-8': !rawCron, 'mt-3': rawCron}"
@@ -234,16 +246,6 @@
     >
       <template v-slot:label>
         {{ $t('enabled') }}
-      </template>
-    </v-checkbox>
-
-    <v-checkbox
-      style="position: absolute; bottom: 15px; left: 150px;"
-      v-model="item.run_once"
-      hide-details
-    >
-      <template v-slot:label>
-        {{ $t('runOnce') }}
       </template>
     </v-checkbox>
 
