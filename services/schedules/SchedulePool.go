@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/util"
 
@@ -143,13 +144,7 @@ func (r ScheduleRunner) Run() {
 	}
 
 	if scheduleType == db.ScheduleTypeRunAt {
-		err = r.pool.store.SetScheduleActive(schedule.ProjectID, schedule.ID, false)
-		if err != nil {
-			log.WithError(err).WithFields(log.Fields{
-				"project_id":  schedule.ProjectID,
-				"schedule_id": schedule.ID,
-			}).Errorf("failed to disable run_at schedule after run")
-		}
+		r.pool.Refresh()
 	}
 }
 
@@ -214,11 +209,22 @@ func (p *SchedulePool) Refresh() {
 			}
 
 			runAt := schedule.RunAt.In(p.cron.Location())
+
 			if !runAt.After(now) {
-				if schedule.Active {
+				if schedule.DeleteAfterRun {
+					err = p.store.DeleteSchedule(schedule.ProjectID, schedule.ID)
+					if err != nil {
+						log.WithError(err).WithFields(log.Fields{
+							"context":     common_errors.GetErrorContext(),
+							"project_id":  schedule.ProjectID,
+							"schedule_id": schedule.ID,
+						}).Warn("failed to delete past run_at schedule")
+					}
+				} else if schedule.Active {
 					err = p.store.SetScheduleActive(schedule.ProjectID, schedule.ID, false)
 					if err != nil {
 						log.WithError(err).WithFields(log.Fields{
+							"context":     common_errors.GetErrorContext(),
 							"project_id":  schedule.ProjectID,
 							"schedule_id": schedule.ID,
 						}).Warn("failed to deactivate past run_at schedule")
