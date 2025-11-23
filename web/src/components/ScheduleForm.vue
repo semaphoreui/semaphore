@@ -237,6 +237,16 @@
       </template>
     </v-checkbox>
 
+    <v-checkbox
+      style="position: absolute; bottom: 15px; left: 150px;"
+      v-model="item.run_once"
+      hide-details
+    >
+      <template v-slot:label>
+        {{ $t('runOnce') }}
+      </template>
+    </v-checkbox>
+
   </v-form>
 </template>
 
@@ -579,6 +589,7 @@ export default {
     afterLoadData() {
       if (this.isNew) {
         this.item.cron_format = '* * * * *';
+        this.item.run_once = false;
       }
 
       this.refreshCheckboxes();

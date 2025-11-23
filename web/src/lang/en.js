@@ -289,6 +289,7 @@ export default {
   runners: 'Runners',
   newRunner: 'New Runner',
   enabled: 'Enabled',
+  runOnce: 'Run once',
   scheduleNextRun: 'Next run',
   maxNumberOfParallelTasks: 'Maximum parallel tasks',
   runnerUsage: 'Usage:',
