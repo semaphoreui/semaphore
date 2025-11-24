@@ -152,6 +152,7 @@
       v-model="drawer"
       mobile-breakpoint="960"
       v-if="$route.path.startsWith('/project/')"
+      class="NavDrawer"
     >
       <v-menu bottom max-width="235" max-height="100%" v-if="project">
         <template v-slot:activator="{ on, attrs }">
@@ -699,6 +700,9 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+.NavDrawer {
+  height: 100dvh !important;
+}
 .NewProSubscriptionMenuItem {
   transition: 0.2s transform;
   .v-list-item__content, .v-list-item__icon {

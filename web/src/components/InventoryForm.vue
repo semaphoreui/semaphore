@@ -149,11 +149,11 @@
 }
 
 .v-dialog--fullscreen .InventoryEditor--static .CodeMirror {
-  height: calc(100vh - 540px) !important;
+  height: calc(100dvh - 540px) !important;
 }
 
 .v-dialog--fullscreen .InventoryEditor--static-yaml .CodeMirror {
-  height: calc(100vh - 600px) !important;
+  height: calc(100dvh - 600px) !important;
 }
 </style>
 <script>

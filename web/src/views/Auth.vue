@@ -323,7 +323,7 @@
   }
 }
 .auth {
-  height: 100vh;
+  height: 100dvh;
   background: #80808024;
 }
 .auth {

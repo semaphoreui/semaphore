@@ -179,7 +179,7 @@ $task-log-status-tab-height:
 .task-log-records {
   background: black;
   color: white;
-  height: calc(90vh - #{$card-title-height + $task-log-status-tab-height});
+  height: calc(90dvh - #{$card-title-height + $task-log-status-tab-height});
   overflow: auto;
   font-family: monospace;
   margin: 0;
@@ -191,18 +191,18 @@ $task-log-status-tab-height:
 }
 
 .task-log-view--with-message .task-log-records {
-  height: calc(90vh -
+  height: calc(90dvh -
     #{$card-title-height + $task-log-message-height-total + $task-log-status-tab-height});
 }
 
 .v-dialog--fullscreen {
 
   .task-log-records {
-    height: calc(100vh - #{$card-title-height + $task-log-status-tab-height});
+    height: calc(100dvh - #{$card-title-height + $task-log-status-tab-height});
   }
 
   .task-log-view--with-message .task-log-records {
-    height: calc(100vh -
+    height: calc(100dvh -
       #{$card-title-height + $task-log-message-height-total + $task-log-status-tab-height});
   }
 }
