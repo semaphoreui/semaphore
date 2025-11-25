@@ -23,13 +23,13 @@ type WorkflowEngine struct {
 
 // WorkflowRunContext holds the runtime context for a workflow execution
 type WorkflowRunContext struct {
-	Run         db.WorkflowRun
-	Workflow    db.Workflow
-	NodeRuns    map[int]db.WorkflowNodeRun
+	Run            db.WorkflowRun
+	Workflow       db.Workflow
+	NodeRuns       map[int]db.WorkflowNodeRun
 	CompletedNodes map[int]bool
 	RunningNodes   map[int]bool
-	mu          sync.RWMutex
-	stopped     bool
+	mu             sync.RWMutex
+	stopped        bool
 }
 
 // NewWorkflowEngine creates a new workflow engine
@@ -55,9 +55,9 @@ func (e *WorkflowEngine) ExecuteWorkflow(runID int) error {
 
 	// Create run context
 	ctx := &WorkflowRunContext{
-		Run:         run,
-		Workflow:    workflow,
-		NodeRuns:    make(map[int]db.WorkflowNodeRun),
+		Run:            run,
+		Workflow:       workflow,
+		NodeRuns:       make(map[int]db.WorkflowNodeRun),
 		CompletedNodes: make(map[int]bool),
 		RunningNodes:   make(map[int]bool),
 	}
@@ -235,7 +235,7 @@ func (e *WorkflowEngine) executeTaskNode(ctx *WorkflowRunContext, node db.Workfl
 	// Apply task params from node config
 	if taskParams != nil {
 		if environment, ok := taskParams["environment"].(map[string]interface{}); ok {
-			task.Environment = db.ObjectToJSON(environment)
+			task.Environment = *db.ObjectToJSON(environment)
 		}
 	}
 
@@ -254,7 +254,7 @@ func (e *WorkflowEngine) executeTaskNode(ctx *WorkflowRunContext, node db.Workfl
 	}
 
 	// Add task to pool for execution
-	e.taskPool.AddTask(newTask, ctx.Run.UserID)
+	e.taskPool.AddTask(newTask, ctx.Run.UserID, "", task.ProjectID, false)
 
 	// Wait for task completion
 	for {

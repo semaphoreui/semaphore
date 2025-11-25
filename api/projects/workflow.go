@@ -41,15 +41,15 @@ func WorkflowMiddleware(next http.Handler) http.Handler {
 func GetWorkflows(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
-	params, err := helpers.GetQueryParams(r.URL.Query(), db.WorkflowProps)
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"error": err.Error(),
-		})
-		return
-	}
+	//params, err := helpers.GetQueryParams(r.URL.Query(), db.WorkflowProps)
+	//if err != nil {
+	//	helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+	//		"error": err.Error(),
+	//	})
+	//	return
+	//}
 
-	workflows, err := helpers.Store(r).GetWorkflows(project.ID, params)
+	workflows, err := helpers.Store(r).GetWorkflows(project.ID, db.RetrieveQueryParams{})
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -270,15 +270,15 @@ func RunWorkflow(w http.ResponseWriter, r *http.Request) {
 func GetWorkflowRuns(w http.ResponseWriter, r *http.Request) {
 	workflow := helpers.GetFromContext(r, "workflow").(db.Workflow)
 
-	params, err := helpers.GetQueryParams(r.URL.Query(), db.WorkflowRunProps)
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"error": err.Error(),
-		})
-		return
-	}
+	//params, err := helpers.GetQueryParams(r.URL.Query(), db.WorkflowRunProps)
+	//if err != nil {
+	//	helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+	//		"error": err.Error(),
+	//	})
+	//	return
+	//}
 
-	runs, err := helpers.Store(r).GetWorkflowRuns(workflow.ID, params)
+	runs, err := helpers.Store(r).GetWorkflowRuns(workflow.ID, db.RetrieveQueryParams{})
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -291,15 +291,15 @@ func GetWorkflowRuns(w http.ResponseWriter, r *http.Request) {
 func GetProjectWorkflowRuns(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
-	params, err := helpers.GetQueryParams(r.URL.Query(), db.WorkflowRunProps)
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"error": err.Error(),
-		})
-		return
-	}
+	//params, err := helpers.GetQueryParams(r.URL.Query(), db.WorkflowRunProps)
+	//if err != nil {
+	//	helpers.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
+	//		"error": err.Error(),
+	//	})
+	//	return
+	//}
 
-	runs, err := helpers.Store(r).GetProjectWorkflowRuns(project.ID, params)
+	runs, err := helpers.Store(r).GetProjectWorkflowRuns(project.ID, db.RetrieveQueryParams{})
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

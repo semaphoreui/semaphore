@@ -1,9 +1,7 @@
 package sql
 
 import (
-	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
@@ -13,24 +11,24 @@ import (
 func (d *SqlDb) GetWorkflows(projectID int, params db.RetrieveQueryParams) (workflows []db.Workflow, err error) {
 	query := "select * from project__workflow where project_id=?"
 	order := "order by name"
-	
+
 	if params.SortBy != "" {
 		order = fmt.Sprintf("order by %s", params.SortBy)
 		if params.SortInverted {
 			order += " desc"
 		}
 	}
-	
+
 	query += " " + order
-	
+
 	if params.Count > 0 {
 		query += fmt.Sprintf(" limit %d", params.Count)
 	}
-	
+
 	if params.Offset > 0 {
 		query += fmt.Sprintf(" offset %d", params.Offset)
 	}
-	
+
 	_, err = d.selectAll(&workflows, query, projectID)
 	return
 }
@@ -38,20 +36,20 @@ func (d *SqlDb) GetWorkflows(projectID int, params db.RetrieveQueryParams) (work
 // GetWorkflow retrieves a specific workflow with its nodes and links
 func (d *SqlDb) GetWorkflow(projectID int, workflowID int) (workflow db.Workflow, err error) {
 	err = d.selectOne(&workflow, "select * from project__workflow where project_id=? and id=?", projectID, workflowID)
-	
+
 	if err != nil {
 		return
 	}
-	
+
 	// Load nodes
 	workflow.Nodes, err = d.GetWorkflowNodes(workflowID)
 	if err != nil {
 		return
 	}
-	
+
 	// Load links
 	workflow.Links, err = d.GetWorkflowLinks(workflowID)
-	
+
 	return
 }
 
@@ -61,11 +59,11 @@ func (d *SqlDb) CreateWorkflow(workflow db.Workflow) (newWorkflow db.Workflow, e
 	if err != nil {
 		return
 	}
-	
+
 	now := tz.Now()
 	workflow.CreatedAt = now
 	workflow.UpdatedAt = now
-	
+
 	insertID, err := d.insert("id", "insert into project__workflow (project_id, name, description, created_at, updated_at) values (?, ?, ?, ?, ?)",
 		workflow.ProjectID,
 		workflow.Name,
@@ -73,11 +71,11 @@ func (d *SqlDb) CreateWorkflow(workflow db.Workflow) (newWorkflow db.Workflow, e
 		workflow.CreatedAt,
 		workflow.UpdatedAt,
 	)
-	
+
 	if err != nil {
 		return
 	}
-	
+
 	newWorkflow = workflow
 	newWorkflow.ID = insertID
 	return
@@ -89,16 +87,16 @@ func (d *SqlDb) UpdateWorkflow(workflow db.Workflow) error {
 	if err != nil {
 		return err
 	}
-	
+
 	workflow.UpdatedAt = tz.Now()
-	
+
 	_, err = d.exec("update project__workflow set name=?, description=?, updated_at=? where id=?",
 		workflow.Name,
 		workflow.Description,
 		workflow.UpdatedAt,
 		workflow.ID,
 	)
-	
+
 	return err
 }
 
@@ -126,7 +124,7 @@ func (d *SqlDb) CreateWorkflowNode(node db.WorkflowNode) (newNode db.WorkflowNod
 	if err != nil {
 		return
 	}
-	
+
 	insertID, err := d.insert("id", "insert into project__workflow_node (workflow_id, task_template_id, type, name, position_x, position_y, config) values (?, ?, ?, ?, ?, ?, ?)",
 		node.WorkflowID,
 		node.TaskTemplateID,
@@ -136,11 +134,11 @@ func (d *SqlDb) CreateWorkflowNode(node db.WorkflowNode) (newNode db.WorkflowNod
 		node.PositionY,
 		node.Config,
 	)
-	
+
 	if err != nil {
 		return
 	}
-	
+
 	newNode = node
 	newNode.ID = insertID
 	return
@@ -152,7 +150,7 @@ func (d *SqlDb) UpdateWorkflowNode(node db.WorkflowNode) error {
 	if err != nil {
 		return err
 	}
-	
+
 	_, err = d.exec("update project__workflow_node set task_template_id=?, type=?, name=?, position_x=?, position_y=?, config=? where id=?",
 		node.TaskTemplateID,
 		node.Type,
@@ -162,7 +160,7 @@ func (d *SqlDb) UpdateWorkflowNode(node db.WorkflowNode) error {
 		node.Config,
 		node.ID,
 	)
-	
+
 	return err
 }
 
@@ -186,11 +184,11 @@ func (d *SqlDb) CreateWorkflowLink(link db.WorkflowLink) (newLink db.WorkflowLin
 		link.ToNodeID,
 		link.Condition,
 	)
-	
+
 	if err != nil {
 		return
 	}
-	
+
 	newLink = link
 	newLink.ID = insertID
 	return
@@ -209,15 +207,15 @@ func (d *SqlDb) GetWorkflowRuns(workflowID int, params db.RetrieveQueryParams) (
 		join project__workflow w on wr.workflow_id = w.id 
 		where wr.workflow_id=? 
 		order by wr.id desc`
-	
+
 	if params.Count > 0 {
 		query += fmt.Sprintf(" limit %d", params.Count)
 	}
-	
+
 	if params.Offset > 0 {
 		query += fmt.Sprintf(" offset %d", params.Offset)
 	}
-	
+
 	_, err = d.selectAll(&runs, query, workflowID)
 	return
 }
@@ -229,15 +227,15 @@ func (d *SqlDb) GetProjectWorkflowRuns(projectID int, params db.RetrieveQueryPar
 		join project__workflow w on wr.workflow_id = w.id 
 		where wr.project_id=? 
 		order by wr.id desc`
-	
+
 	if params.Count > 0 {
 		query += fmt.Sprintf(" limit %d", params.Count)
 	}
-	
+
 	if params.Offset > 0 {
 		query += fmt.Sprintf(" offset %d", params.Offset)
 	}
-	
+
 	_, err = d.selectAll(&runs, query, projectID)
 	return
 }
@@ -252,7 +250,7 @@ func (d *SqlDb) GetWorkflowRun(workflowRunID int) (run db.WorkflowRun, err error
 func (d *SqlDb) CreateWorkflowRun(run db.WorkflowRun) (newRun db.WorkflowRun, err error) {
 	now := tz.Now()
 	run.Start = &now
-	
+
 	insertID, err := d.insert("id", "insert into project__workflow_run (workflow_id, project_id, user_id, status, start, message) values (?, ?, ?, ?, ?, ?)",
 		run.WorkflowID,
 		run.ProjectID,
@@ -261,11 +259,11 @@ func (d *SqlDb) CreateWorkflowRun(run db.WorkflowRun) (newRun db.WorkflowRun, er
 		run.Start,
 		run.Message,
 	)
-	
+
 	if err != nil {
 		return
 	}
-	
+
 	newRun = run
 	newRun.ID = insertID
 	return
@@ -279,7 +277,7 @@ func (d *SqlDb) UpdateWorkflowRun(run db.WorkflowRun) error {
 		run.Message,
 		run.ID,
 	)
-	
+
 	return err
 }
 
@@ -305,7 +303,7 @@ func (d *SqlDb) GetWorkflowNodeRun(nodeRunID int) (nodeRun db.WorkflowNodeRun, e
 func (d *SqlDb) CreateWorkflowNodeRun(nodeRun db.WorkflowNodeRun) (newNodeRun db.WorkflowNodeRun, err error) {
 	now := tz.Now()
 	nodeRun.Start = &now
-	
+
 	insertID, err := d.insert("id", "insert into project__workflow_node_run (workflow_run_id, node_id, task_id, status, start, message) values (?, ?, ?, ?, ?, ?)",
 		nodeRun.WorkflowRunID,
 		nodeRun.NodeID,
@@ -314,11 +312,11 @@ func (d *SqlDb) CreateWorkflowNodeRun(nodeRun db.WorkflowNodeRun) (newNodeRun db
 		nodeRun.Start,
 		nodeRun.Message,
 	)
-	
+
 	if err != nil {
 		return
 	}
-	
+
 	newNodeRun = nodeRun
 	newNodeRun.ID = insertID
 	return
@@ -333,6 +331,6 @@ func (d *SqlDb) UpdateWorkflowNodeRun(nodeRun db.WorkflowNodeRun) error {
 		nodeRun.Message,
 		nodeRun.ID,
 	)
-	
+
 	return err
 }
