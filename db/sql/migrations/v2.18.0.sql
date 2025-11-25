@@ -4,8 +4,8 @@ create table `project__workflow` (
     `project_id` int not null,
     `name` varchar(255) not null,
     `description` text,
-    `created_at` datetime not null default current_timestamp,
-    `updated_at` datetime not null default current_timestamp,
+    `created_at` datetime not null,
+    `updated_at` datetime not null,
 
     foreign key (`project_id`) references `project`(`id`) on delete cascade
 );
