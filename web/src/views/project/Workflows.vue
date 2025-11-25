@@ -66,7 +66,6 @@
     </v-dialog>
   </div>
 </template>
-
 <script>
 import axios from 'axios';
 
@@ -126,15 +125,15 @@ export default {
       }
     },
 
-    async deleteItem(item) {
-      if (confirm(this.$t('confirm_delete'))) {
-        try {
-          await axios.delete(`/api/project/${this.projectId}/workflows/${item.id}`);
-          this.load();
-        } catch (e) {
-          // handle error
-        }
-      }
+    async deleteItem() {
+      // if (confirm(this.$t('confirm_delete'))) {
+      //   try {
+      //     await axios.delete(`/api/project/${this.projectId}/workflows/${item.id}`);
+      //     this.load();
+      //   } catch (e) {
+      //     // handle error
+      //   }
+      // }
     },
   },
 };
