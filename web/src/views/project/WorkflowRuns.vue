@@ -72,7 +72,8 @@
         <v-card-text>
           <div class="mb-4">
             <strong>Started:</strong> {{ formatDateTime(selectedRun.run.start) }}<br>
-            <strong>Ended:</strong> {{ selectedRun.run.end ? formatDateTime(selectedRun.run.end) : 'Running...' }}<br>
+            <strong>Ended:</strong>
+            {{ selectedRun.run.end ? formatDateTime(selectedRun.run.end) : 'Running...' }}<br>
             <strong>Duration:</strong> {{ getDuration(selectedRun.run) }}
           </div>
 
@@ -291,7 +292,7 @@ export default {
       if (!this.selectedRun) return '#cccccc';
       const nodeRun = this.selectedRun.node_runs.find((nr) => nr.node_id === node.id);
       if (!nodeRun) return '#cccccc';
-      
+
       switch (nodeRun.status) {
         case 'success': return '#4caf50';
         case 'running': return '#2196f3';

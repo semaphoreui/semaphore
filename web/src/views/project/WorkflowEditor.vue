@@ -270,8 +270,9 @@ export default {
       }
     },
     addNode(type) {
+      this.nodeCounter += 1;
       const node = {
-        temp_id: `temp-${++this.nodeCounter}`,
+        temp_id: `temp-${this.nodeCounter}`,
         type,
         name: `${type} ${this.workflow.nodes.length + 1}`,
         position_x: 100 + this.workflow.nodes.length * 50,
@@ -319,16 +320,17 @@ export default {
       this.mouseX = event.clientX - canvas.left;
       this.mouseY = event.clientY - canvas.top;
     },
-    connectNode(toNode, type) {
+    connectNode(toNode) {
       if (!this.connectingFrom || this.connectingFrom.node === toNode) return;
-      
+
+      this.linkCounter += 1;
       const link = {
-        temp_id: `temp-link-${++this.linkCounter}`,
+        temp_id: `temp-link-${this.linkCounter}`,
         from_node_id: this.getNodeId(this.connectingFrom.node),
         to_node_id: this.getNodeId(toNode),
         condition: 'success',
       };
-      
+
       this.workflow.links.push(link);
       this.connectingFrom = null;
     },
@@ -419,7 +421,7 @@ export default {
             links: linksToSave,
           },
         );
-        
+
         this.$emit('snackbar', 'Workflow saved successfully');
         this.loadWorkflow(); // Reload to get proper IDs
       } catch (error) {
@@ -491,7 +493,7 @@ export default {
   position: relative;
   overflow: auto;
   background: #f5f5f5;
-  background-image: 
+  background-image:
     linear-gradient(0deg, #e0e0e0 1px, transparent 1px),
     linear-gradient(90deg, #e0e0e0 1px, transparent 1px);
   background-size: 20px 20px;
