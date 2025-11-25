@@ -235,7 +235,7 @@ export default {
   run: 'Запуск',
   add: 'Додати',
   password_required: 'Пароль обов’язковий',
-  name_required: "Ім’я обов’язкове",
+  name_required: 'Ім’я обов’язкове',
   user_credentials_required: 'Облікові дані користувача обов’язкові',
   type_required: 'Тип обов’язковий',
   path_required: 'Шлях до інвентарного файлу обов’язковий',
