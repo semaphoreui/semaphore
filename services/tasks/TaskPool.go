@@ -47,9 +47,15 @@ type PoolEvent struct {
 	task      *TaskRunner
 }
 
+type WorkflowEventHandler interface {
+    HandleTaskCompletion(taskRunner *TaskRunner)
+}
+
 type TaskPool struct {
 	// register channel used to put tasks to queue.
 	register chan *TaskRunner
+
+    workflowEventHandler WorkflowEventHandler
 
 	// logger channel used to putting log records to database.
 	logger chan logRecord
@@ -195,6 +201,9 @@ func (p *TaskPool) handleQueue() {
 			p.state.Enqueue(t.task)
 		case EventTypeFinished:
 			p.onTaskStop(t.task)
+            if p.workflowEventHandler != nil {
+                p.workflowEventHandler.HandleTaskCompletion(t.task)
+            }
 		}
 
 		if p.state.QueueLen() == 0 {
@@ -726,4 +735,8 @@ func (p *TaskPool) AddTask(
 	taskRunner.createTaskEvent()
 
 	return
+}
+
+func (p *TaskPool) SetWorkflowEventHandler(handler WorkflowEventHandler) {
+    p.workflowEventHandler = handler
 }

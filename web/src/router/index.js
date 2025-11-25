@@ -119,6 +119,14 @@ const routes = [
     }],
   },
   {
+    path: '/project/:projectId/workflows',
+    component: () => import('../views/project/Workflows.vue'),
+  },
+  {
+    path: '/project/:projectId/workflows/:workflowId',
+    component: () => import('../views/project/Workflow.vue'),
+  },
+  {
     path: '/project/:projectId/environment',
     component: Environment,
   },

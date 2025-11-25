@@ -95,6 +95,11 @@ func (d *SqlDbConnection) Connect() {
 	d.sql.AddTableWithName(db.User{}, "user").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.Session{}, "session").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.TaskParams{}, "project__task_params").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.Workflow{}, "workflow").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.WorkflowNode{}, "workflow_node").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.WorkflowLink{}, "workflow_link").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.WorkflowRun{}, "workflow_run").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.WorkflowNodeRun{}, "workflow_node_run").SetKeys(true, "id")
 
 	//if d.GetDialect() == util.DbDriverSQLite {
 	//	_, err = d.exec("PRAGMA foreign_keys = ON")

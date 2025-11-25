@@ -19,6 +19,7 @@ import (
 	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/services/workflows"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -105,6 +106,9 @@ func runService() {
 		logWriteService,
 	)
 
+	workflowEngine := workflows.NewWorkflowEngine(store, &taskPool)
+	taskPool.SetWorkflowEventHandler(workflowEngine)
+
 	schedulePool := schedules.CreateSchedulePool(
 		store,
 		&taskPool,
@@ -138,6 +142,7 @@ func runService() {
 		terraformStore,
 		ansibleTaskRepo,
 		&taskPool,
+		workflowEngine,
 		projectService,
 		integrationService,
 		encryptionService,
@@ -153,6 +158,7 @@ func runService() {
 			r = helpers.SetContextValue(r, "store", store)
 			r = helpers.SetContextValue(r, "schedule_pool", schedulePool)
 			r = helpers.SetContextValue(r, "task_pool", &taskPool)
+			r = helpers.SetContextValue(r, "workflow_engine", workflowEngine)
 			r = helpers.SetContextValue(r, "log_writer", logWriteService)
 			next.ServeHTTP(w, r)
 		})

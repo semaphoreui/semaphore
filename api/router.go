@@ -16,6 +16,7 @@ import (
 	proProjects "github.com/semaphoreui/semaphore/pro/api/projects"
 	"github.com/semaphoreui/semaphore/services/server"
 	taskServices "github.com/semaphoreui/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/services/workflows"
 
 	"github.com/semaphoreui/semaphore/api/debug"
 	"github.com/semaphoreui/semaphore/api/tasks"
@@ -86,6 +87,7 @@ func Route(
 	terraformStore db.TerraformStore,
 	ansibleTaskRepo db.AnsibleTaskRepository,
 	taskPool *taskServices.TaskPool,
+	workflowEngine *workflows.WorkflowEngine,
 	projectService server.ProjectService,
 	integrationService server.IntegrationService,
 	encryptionService server.AccessKeyEncryptionService,
@@ -331,6 +333,17 @@ func Route(
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.GetRunners).Methods("GET", "HEAD")
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.AddRunner).Methods("POST")
 	projectUserAPI.Path("/runner_tags").HandlerFunc(projectRunnerController.GetRunnerTags).Methods("GET", "HEAD")
+
+	projectUserAPI.Path("/workflows").HandlerFunc(projects.GetWorkflows).Methods("GET", "HEAD")
+	projectUserAPI.Path("/workflows").HandlerFunc(projects.CreateWorkflow).Methods("POST")
+
+	projectWorkflowManagement := projectUserAPI.PathPrefix("/workflows").Subrouter()
+	projectWorkflowManagement.Use(projects.WorkflowMiddleware)
+	projectWorkflowManagement.HandleFunc("/{workflow_id}", projects.GetWorkflow).Methods("GET", "HEAD")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}", projects.UpdateWorkflow).Methods("PUT")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}", projects.DeleteWorkflow).Methods("DELETE")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/run", projects.RunWorkflow).Methods("POST")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/runs", projects.GetWorkflowRuns).Methods("GET", "HEAD")
 
 	projectRunnersAPI := projectUserAPI.PathPrefix("/runners").Subrouter()
 	projectRunnersAPI.Use(projectRunnerController.RunnerMiddleware)
