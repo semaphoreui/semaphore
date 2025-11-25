@@ -481,6 +481,29 @@ type RoleRepository interface {
 	DeleteRole(slug string) error
 }
 
+// WorkflowManager handles workflow-related operations
+type WorkflowManager interface {
+	GetWorkflows(projectID int) ([]Workflow, error)
+	GetWorkflow(projectID int, workflowID int) (Workflow, error)
+	CreateWorkflow(workflow Workflow) (Workflow, error)
+	UpdateWorkflow(workflow Workflow) error
+	DeleteWorkflow(projectID int, workflowID int) error
+	GetWorkflowNodes(workflowID int) ([]WorkflowNode, error)
+	CreateWorkflowNode(node WorkflowNode) (WorkflowNode, error)
+	UpdateWorkflowNode(node WorkflowNode) error
+	DeleteWorkflowNode(workflowID int, nodeID int) error
+	GetWorkflowLinks(workflowID int) ([]WorkflowLink, error)
+	CreateWorkflowLink(link WorkflowLink) (WorkflowLink, error)
+	DeleteWorkflowLink(workflowID int, linkID int) error
+	GetWorkflowRuns(workflowID int, params RetrieveQueryParams) ([]WorkflowRun, error)
+	GetWorkflowRun(workflowID int, runID int) (WorkflowRun, error)
+	CreateWorkflowRun(run WorkflowRun) (WorkflowRun, error)
+	UpdateWorkflowRun(run WorkflowRun) error
+	GetWorkflowRunNodes(runID int) ([]WorkflowRunNode, error)
+	CreateWorkflowRunNode(node WorkflowRunNode) (WorkflowRunNode, error)
+	UpdateWorkflowRunNode(node WorkflowRunNode) error
+}
+
 // Store is the main interface that aggregates all specialized interfaces
 type Store interface {
 	ConnectionManager
@@ -504,6 +527,7 @@ type Store interface {
 	EventManager
 	SecretStorageRepository
 	RoleRepository
+	WorkflowManager
 }
 
 var AccessKeyProps = ObjectProps{

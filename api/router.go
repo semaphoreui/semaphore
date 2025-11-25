@@ -114,6 +114,7 @@ func Route(
 	rolesController := proApi.NewRolesController(store)
 	templateController := projects.NewTemplateController(store, store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
+	workflowController := projects.NewWorkflowController(store, taskPool)
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -318,6 +319,19 @@ func Route(
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.GetProjectSchedules).Methods("GET", "HEAD")
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
 	projectUserAPI.Path("/schedules/validate").HandlerFunc(projects.ValidateScheduleCronFormat).Methods("POST")
+
+	projectUserAPI.Path("/workflows").HandlerFunc(projects.GetWorkflows).Methods("GET", "HEAD")
+	projectUserAPI.Path("/workflows").HandlerFunc(projects.AddWorkflow).Methods("POST")
+
+	projectWorkflowAPI := projectUserAPI.PathPrefix("/workflows").Subrouter()
+	projectWorkflowAPI.Use(projects.WorkflowMiddleware)
+	projectWorkflowAPI.Path("/{workflow_id}").HandlerFunc(projects.GetWorkflow).Methods("GET", "HEAD")
+	projectWorkflowAPI.Path("/{workflow_id}").HandlerFunc(projects.UpdateWorkflow).Methods("PUT")
+	projectWorkflowAPI.Path("/{workflow_id}").HandlerFunc(projects.DeleteWorkflow).Methods("DELETE")
+	projectWorkflowAPI.Path("/{workflow_id}/nodes").HandlerFunc(projects.UpdateWorkflowNodes).Methods("PUT")
+	projectWorkflowAPI.Path("/{workflow_id}/run").HandlerFunc(workflowController.RunWorkflow).Methods("POST")
+	projectWorkflowAPI.Path("/{workflow_id}/runs").HandlerFunc(projects.GetWorkflowRuns).Methods("GET", "HEAD")
+	projectWorkflowAPI.Path("/{workflow_id}/runs/{run_id}").HandlerFunc(projects.GetWorkflowRun).Methods("GET", "HEAD")
 
 	projectUserAPI.Path("/views").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
 	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
