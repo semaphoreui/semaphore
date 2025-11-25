@@ -328,6 +328,10 @@ func Route(
 	projectUserAPI.Path("/backup").HandlerFunc(projects.GetBackup).Methods("GET", "HEAD")
 	projectUserAPI.Path("/notifications/test").HandlerFunc(projectController.SendTestNotification).Methods("POST")
 
+	projectUserAPI.Path("/workflows").HandlerFunc(projects.GetWorkflows).Methods("GET", "HEAD")
+	projectUserAPI.Path("/workflows").HandlerFunc(projects.CreateWorkflow).Methods("POST")
+	projectUserAPI.Path("/workflow_runs").HandlerFunc(projects.GetProjectWorkflowRuns).Methods("GET", "HEAD")
+
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.GetRunners).Methods("GET", "HEAD")
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.AddRunner).Methods("POST")
 	projectUserAPI.Path("/runner_tags").HandlerFunc(projectRunnerController.GetRunnerTags).Methods("GET", "HEAD")
@@ -511,6 +515,16 @@ func Route(
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values/{value_id}", projects.UpdateIntegrationExtractValue).Methods("PUT")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values/{value_id}", projects.DeleteIntegrationExtractValue).Methods("DELETE")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values/{value_id}/refs", projects.GetIntegrationExtractValueRefs).Methods("GET")
+
+	projectWorkflowAPI := projectUserAPI.PathPrefix("/workflows").Subrouter()
+	projectWorkflowAPI.Use(projects.WorkflowMiddleware)
+	projectWorkflowAPI.HandleFunc("/{workflow_id}", projects.GetWorkflow).Methods("GET", "HEAD")
+	projectWorkflowAPI.HandleFunc("/{workflow_id}", projects.UpdateWorkflow).Methods("PUT")
+	projectWorkflowAPI.HandleFunc("/{workflow_id}", projects.DeleteWorkflow).Methods("DELETE")
+	projectWorkflowAPI.HandleFunc("/{workflow_id}/run", projects.RunWorkflow).Methods("POST")
+	projectWorkflowAPI.HandleFunc("/{workflow_id}/runs", projects.GetWorkflowRuns).Methods("GET", "HEAD")
+	projectWorkflowAPI.HandleFunc("/{workflow_id}/runs/{run_id}", projects.GetWorkflowRun).Methods("GET", "HEAD")
+	projectWorkflowAPI.HandleFunc("/{workflow_id}/runs/{run_id}/stop", projects.StopWorkflowRun).Methods("POST")
 
 	if os.Getenv("DEBUG") == "1" {
 		defer debugPrintRoutes(r)

@@ -481,6 +481,41 @@ type RoleRepository interface {
 	DeleteRole(slug string) error
 }
 
+// WorkflowManager handles workflow-related operations
+type WorkflowManager interface {
+	GetWorkflows(projectID int, params RetrieveQueryParams) ([]Workflow, error)
+	GetWorkflow(projectID int, workflowID int) (Workflow, error)
+	CreateWorkflow(workflow Workflow) (Workflow, error)
+	UpdateWorkflow(workflow Workflow) error
+	DeleteWorkflow(projectID int, workflowID int) error
+
+	// Workflow nodes
+	GetWorkflowNodes(workflowID int) ([]WorkflowNode, error)
+	GetWorkflowNode(workflowID int, nodeID int) (WorkflowNode, error)
+	CreateWorkflowNode(node WorkflowNode) (WorkflowNode, error)
+	UpdateWorkflowNode(node WorkflowNode) error
+	DeleteWorkflowNode(workflowID int, nodeID int) error
+
+	// Workflow links
+	GetWorkflowLinks(workflowID int) ([]WorkflowLink, error)
+	CreateWorkflowLink(link WorkflowLink) (WorkflowLink, error)
+	DeleteWorkflowLink(workflowID int, linkID int) error
+
+	// Workflow runs
+	GetWorkflowRuns(workflowID int, params RetrieveQueryParams) ([]WorkflowRunWithWorkflow, error)
+	GetProjectWorkflowRuns(projectID int, params RetrieveQueryParams) ([]WorkflowRunWithWorkflow, error)
+	GetWorkflowRun(workflowRunID int) (WorkflowRun, error)
+	CreateWorkflowRun(run WorkflowRun) (WorkflowRun, error)
+	UpdateWorkflowRun(run WorkflowRun) error
+	DeleteWorkflowRun(workflowRunID int) error
+
+	// Workflow node runs
+	GetWorkflowNodeRuns(workflowRunID int) ([]WorkflowNodeRun, error)
+	GetWorkflowNodeRun(nodeRunID int) (WorkflowNodeRun, error)
+	CreateWorkflowNodeRun(nodeRun WorkflowNodeRun) (WorkflowNodeRun, error)
+	UpdateWorkflowNodeRun(nodeRun WorkflowNodeRun) error
+}
+
 // Store is the main interface that aggregates all specialized interfaces
 type Store interface {
 	ConnectionManager
@@ -504,6 +539,7 @@ type Store interface {
 	EventManager
 	SecretStorageRepository
 	RoleRepository
+	WorkflowManager
 }
 
 var AccessKeyProps = ObjectProps{
@@ -712,6 +748,40 @@ var TemplateVaultProps = ObjectProps{
 var UserTotpProps = ObjectProps{
 	TableName:         "user__totp",
 	Type:              reflect.TypeOf(UserTotp{}),
+	PrimaryColumnName: "id",
+}
+
+var WorkflowProps = ObjectProps{
+	TableName:             "project__workflow",
+	Type:                  reflect.TypeOf(Workflow{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "workflow_id",
+	SortableColumns:       []string{"name", "created_at", "updated_at"},
+	DefaultSortingColumn:  "name",
+}
+
+var WorkflowNodeProps = ObjectProps{
+	TableName:         "project__workflow_node",
+	Type:              reflect.TypeOf(WorkflowNode{}),
+	PrimaryColumnName: "id",
+}
+
+var WorkflowLinkProps = ObjectProps{
+	TableName:         "project__workflow_link",
+	Type:              reflect.TypeOf(WorkflowLink{}),
+	PrimaryColumnName: "id",
+}
+
+var WorkflowRunProps = ObjectProps{
+	TableName:         "project__workflow_run",
+	Type:              reflect.TypeOf(WorkflowRun{}),
+	PrimaryColumnName: "id",
+	SortInverted:      true,
+}
+
+var WorkflowNodeRunProps = ObjectProps{
+	TableName:         "project__workflow_node_run",
+	Type:              reflect.TypeOf(WorkflowNodeRun{}),
 	PrimaryColumnName: "id",
 }
 
