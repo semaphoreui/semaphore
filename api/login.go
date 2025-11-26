@@ -494,11 +494,12 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Query()["return"] != nil {
+	returnValue := r.URL.Query().Get("return")
+	if returnValue != "" {
 		if config.ReturnViaState {
-			returnPath = r.URL.Query()["return"][0]
+			returnPath = returnValue
 		} else {
-			redirectPath = r.URL.Query()["return"][0]
+			redirectPath = returnValue
 		}
 	}
 
