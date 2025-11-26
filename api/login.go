@@ -533,7 +533,7 @@ func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
 		Return: returnPath,
 	}
 
-	cookie := http.Cookie{Name: "oauthstate", Value: state.Csrf, Expires: expiration}
+	cookie := http.Cookie{Name: "oauthstate", Value: state.Csrf, Expires: expiration, HttpOnly: true}
 	http.SetCookie(w, &cookie)
 
 	stateBytes, err := json.Marshal(state)
