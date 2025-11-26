@@ -482,22 +482,33 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
 	ctx := context.Background()
+	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
 
+	returnPath := ""
 	redirectPath := ""
 
-	if r.URL.Query()["redirect"] != nil {
-		// TODO: validate path
-		redirectPath = r.URL.Query()["redirect"][0]
+	config, ok := util.Config.OidcProviders[pid]
+	if !ok {
+		log.Error(fmt.Errorf("no such provider: %s", pid))
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	if r.URL.Query()["return"] != nil {
+		if config.ReturnViaState {
+			returnPath = r.URL.Query()["return"][0]
+		} else {
+			redirectPath = r.URL.Query()["return"][0]
+		}
 	}
 
 	_, oauth, err := getOidcProvider(pid, ctx, redirectPath)
 	if err != nil {
 		log.Error(err.Error())
-		loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
-	state := generateStateOauthCookie(w, redirectPath)
+	state := generateStateOauthCookie(w, returnPath)
 	u := oauth.AuthCodeURL(state)
 	http.Redirect(w, r, u, http.StatusTemporaryRedirect)
 }
@@ -777,7 +788,19 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	createSession(w, r, user, true)
 
-	redirectPath := mux.Vars(r)["redirect_path"]
+	config, ok := util.Config.OidcProviders[pid]
+	if !ok {
+		log.Error(fmt.Errorf("no such provider: %s", pid))
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	redirectPath := ""
+	if config.ReturnViaState {
+		redirectPath = stateData.Return
+	} else {
+		redirectPath = mux.Vars(r)["redirect_path"]
+	}
 
 	redirectPath, err = url.JoinPath(util.Config.WebHost, redirectPath)
 	if err != nil {
@@ -786,8 +809,8 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if redirectPath == "" {
-		redirectPath = "/"
+	if !strings.HasPrefix(redirectPath, "/") {
+		redirectPath = "/" + redirectPath
 	}
 
 	http.Redirect(w, r, redirectPath, http.StatusTemporaryRedirect)

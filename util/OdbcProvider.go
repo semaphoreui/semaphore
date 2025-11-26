@@ -16,6 +16,7 @@ type OidcProvider struct {
 	NameClaim        string       `json:"name_claim" default:"preferred_username"`
 	EmailClaim       string       `json:"email_claim" default:"email"`
 	Order            int          `json:"order"`
+	ReturnViaState   bool         `json:"return_via_state"`
 }
 
 type ClaimsProvider interface {

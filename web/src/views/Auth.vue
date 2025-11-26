@@ -601,11 +601,11 @@ export default {
 
     async oidcSignIn(provider) {
       const params = new URLSearchParams();
-      const redirectTo = this.$route.query.redirect;
-      if (redirectTo) {
-        params.set('redirect', redirectTo);
+      const returnTo = this.$route.query.return;
+      if (returnTo) {
+        params.set('return', returnTo);
       } else if (this.$route.query.new_project === 'premium') {
-        params.set('redirect', '/project/premium');
+        params.set('return', '/project/premium');
       }
       const qs = params.toString();
       const suffix = qs ? `?${qs}` : '';
@@ -613,7 +613,7 @@ export default {
     },
 
     redirectAfterLogin() {
-      const redirectTo = this.$route.query.redirect;
+      const redirectTo = this.$route.query.return;
       let baseURI = document.baseURI;
 
       if (redirectTo) {

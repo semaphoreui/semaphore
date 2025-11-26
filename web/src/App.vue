@@ -1173,7 +1173,7 @@ export default {
         if (this.$route.path !== '/auth/login') {
           await this.$router.push({
             path: '/auth/login',
-            query: { redirect: this.$route.fullPath },
+            query: { return: this.$route.fullPath },
           });
         }
         this.state = 'success';
