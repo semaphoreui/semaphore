@@ -497,12 +497,18 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
-	state := generateStateOauthCookie(w)
+	state := generateStateOauthCookie(w, redirectPath)
 	u := oauth.AuthCodeURL(state)
 	http.Redirect(w, r, u, http.StatusTemporaryRedirect)
 }
 
-func generateStateOauthCookie(w http.ResponseWriter) string {
+type oAuthState struct {
+	Csrf   string `json:"csrf"`
+	Return string `json:"return"`
+}
+
+func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
+
 	expiration := tz.Now().Add(365 * 24 * time.Hour)
 
 	b := make([]byte, 16)
@@ -510,11 +516,21 @@ func generateStateOauthCookie(w http.ResponseWriter) string {
 	if err != nil {
 		panic(err)
 	}
-	oauthState := base64.URLEncoding.EncodeToString(b)
-	cookie := http.Cookie{Name: "oauthstate", Value: oauthState, Expires: expiration}
+
+	state := oAuthState{
+		Csrf:   base64.URLEncoding.EncodeToString(b),
+		Return: returnPath,
+	}
+
+	cookie := http.Cookie{Name: "oauthstate", Value: state.Csrf, Expires: expiration}
 	http.SetCookie(w, &cookie)
 
-	return oauthState
+	stateBytes, err := json.Marshal(state)
+	if err != nil {
+		panic(err)
+	}
+
+	return base64.URLEncoding.EncodeToString(stateBytes)
 }
 
 type claimResult struct {
@@ -648,7 +664,25 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.FormValue("state") != oauthState.Value {
+	s := r.FormValue("state")
+	b, err := base64.URLEncoding.DecodeString(s)
+
+	if err != nil {
+		log.Error(err.Error())
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	var stateData oAuthState
+	err = json.Unmarshal(b, &stateData)
+
+	if err != nil {
+		log.Error(err.Error())
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	if stateData.Csrf != oauthState.Value {
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
