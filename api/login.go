@@ -534,6 +534,7 @@ func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
 		Return: returnPath,
 	}
 
+	// Secure flag is not set to allow Semaphore to be used without HTTPS inside private networks
 	cookie := http.Cookie{
 		Name:     "oauthstate",
 		Value:    state.Csrf,
