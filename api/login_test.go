@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseClaim(t *testing.T) {
@@ -18,13 +20,8 @@ func TestParseClaim(t *testing.T) {
 
 	res, ok := parseClaim("email | {{ .id }}@test.com", claims)
 
-	if !ok {
-		t.Fail()
-	}
-
-	if res != "1234567@test.com" {
-		t.Fatalf("%s must be %d@test.com", res, claims["id"])
-	}
+	assert.True(t, ok, "parseClaim should succeed")
+	assert.Equal(t, "1234567@test.com", res, "Result should be formatted correctly")
 }
 
 func TestParseClaim2(t *testing.T) {
@@ -36,13 +33,8 @@ func TestParseClaim2(t *testing.T) {
 
 	res, ok := parseClaim("username", claims)
 
-	if !ok {
-		t.Fail()
-	}
-
-	if res != claims["username"] {
-		t.Fail()
-	}
+	assert.True(t, ok, "parseClaim should succeed")
+	assert.Equal(t, claims["username"], res, "Result should match username claim")
 }
 
 func TestParseClaim3(t *testing.T) {
@@ -54,9 +46,7 @@ func TestParseClaim3(t *testing.T) {
 
 	_, ok := parseClaim("email", claims)
 
-	if ok {
-		t.Fail()
-	}
+	assert.False(t, ok, "parseClaim should fail for empty email")
 }
 
 func TestParseClaim4(t *testing.T) {
@@ -68,9 +58,7 @@ func TestParseClaim4(t *testing.T) {
 
 	_, ok := parseClaim("|", claims)
 
-	if ok {
-		t.Fail()
-	}
+	assert.False(t, ok, "parseClaim should fail for invalid pattern")
 }
 
 func TestParseClaim5(t *testing.T) {
@@ -84,9 +72,8 @@ func TestParseClaim5(t *testing.T) {
 
 	res, ok := parseClaim("{{ .id }}", claims)
 
-	if !ok || res != "123456757343" {
-		t.Fatalf("Expected: %v, Got: %v", "123456757343", res)
-	}
+	assert.True(t, ok, "parseClaim should succeed")
+	assert.Equal(t, "123456757343", res, "Result should match formatted ID")
 }
 
 func TestGenerateStateOauthCookie(t *testing.T) {
@@ -97,38 +84,26 @@ func TestGenerateStateOauthCookie(t *testing.T) {
 
 	// Test 1: Verify returned state is valid base64
 	stateBytes, err := base64.URLEncoding.DecodeString(stateStr)
-	if err != nil {
-		t.Fatalf("Returned state is not valid base64: %v", err)
-	}
+	assert.NoError(t, err, "Returned state should be valid base64")
 
 	// Test 2: Verify state contains valid JSON
 	var state oAuthState
 	err = json.Unmarshal(stateBytes, &state)
-	if err != nil {
-		t.Fatalf("State does not contain valid JSON: %v", err)
-	}
+	assert.NoError(t, err, "State should contain valid JSON")
 
 	// Test 3: Verify return path is preserved
-	if state.Return != returnPath {
-		t.Fatalf("Expected return path %s, got %s", returnPath, state.Return)
-	}
+	assert.Equal(t, returnPath, state.Return, "Return path should be preserved")
 
 	// Test 4: Verify CSRF token is not empty
-	if state.Csrf == "" {
-		t.Fatal("CSRF token should not be empty")
-	}
+	assert.NotEmpty(t, state.Csrf, "CSRF token should not be empty")
 
 	// Test 5: Verify CSRF token is valid base64
 	_, err = base64.URLEncoding.DecodeString(state.Csrf)
-	if err != nil {
-		t.Fatalf("CSRF token is not valid base64: %v", err)
-	}
+	assert.NoError(t, err, "CSRF token should be valid base64")
 
 	// Test 6: Verify cookie is set
 	cookies := w.Result().Cookies()
-	if len(cookies) == 0 {
-		t.Fatal("No cookies were set")
-	}
+	assert.NotEmpty(t, cookies, "At least one cookie should be set")
 
 	// Test 7: Verify cookie has correct name
 	var oauthCookie *http.Cookie
@@ -138,19 +113,13 @@ func TestGenerateStateOauthCookie(t *testing.T) {
 			break
 		}
 	}
-	if oauthCookie == nil {
-		t.Fatal("Cookie 'oauthstate' was not set")
-	}
+	assert.NotNil(t, oauthCookie, "Cookie 'oauthstate' should be set")
 
 	// Test 8: Verify cookie value matches CSRF token in state
-	if oauthCookie.Value != state.Csrf {
-		t.Fatalf("Cookie value %s does not match CSRF token %s", oauthCookie.Value, state.Csrf)
-	}
+	assert.Equal(t, state.Csrf, oauthCookie.Value, "Cookie value should match CSRF token")
 
 	// Test 9: Verify cookie has expiration set (should be ~365 days)
-	if oauthCookie.Expires.IsZero() {
-		t.Fatal("Cookie expiration should be set")
-	}
+	assert.False(t, oauthCookie.Expires.IsZero(), "Cookie expiration should be set")
 
 	expectedExpiration := time.Now().Add(365 * 24 * time.Hour)
 	timeDiff := oauthCookie.Expires.Sub(expectedExpiration)
@@ -158,9 +127,7 @@ func TestGenerateStateOauthCookie(t *testing.T) {
 		timeDiff = -timeDiff
 	}
 	// Allow 5 seconds tolerance for test execution time
-	if timeDiff > 5*time.Second {
-		t.Fatalf("Cookie expiration is off by more than 5 seconds: %v", timeDiff)
-	}
+	assert.LessOrEqual(t, timeDiff, 5*time.Second, "Cookie expiration should be within 5 seconds of expected")
 }
 
 func TestGenerateStateOauthCookieEmptyReturnPath(t *testing.T) {
@@ -171,20 +138,14 @@ func TestGenerateStateOauthCookieEmptyReturnPath(t *testing.T) {
 
 	// Decode and verify state
 	stateBytes, err := base64.URLEncoding.DecodeString(stateStr)
-	if err != nil {
-		t.Fatalf("Returned state is not valid base64: %v", err)
-	}
+	assert.NoError(t, err, "Returned state should be valid base64")
 
 	var state oAuthState
 	err = json.Unmarshal(stateBytes, &state)
-	if err != nil {
-		t.Fatalf("State does not contain valid JSON: %v", err)
-	}
+	assert.NoError(t, err, "State should contain valid JSON")
 
 	// Verify empty return path is preserved
-	if state.Return != "" {
-		t.Fatalf("Expected empty return path, got %s", state.Return)
-	}
+	assert.Empty(t, state.Return, "Return path should be empty")
 }
 
 func TestGenerateStateOauthCookieUniqueness(t *testing.T) {
@@ -196,20 +157,20 @@ func TestGenerateStateOauthCookieUniqueness(t *testing.T) {
 	state2Str := generateStateOauthCookie(w2, "/path2")
 
 	// Decode states
-	state1Bytes, _ := base64.URLEncoding.DecodeString(state1Str)
-	state2Bytes, _ := base64.URLEncoding.DecodeString(state2Str)
+	state1Bytes, err1 := base64.URLEncoding.DecodeString(state1Str)
+	state2Bytes, err2 := base64.URLEncoding.DecodeString(state2Str)
+	assert.NoError(t, err1, "First state should be valid base64")
+	assert.NoError(t, err2, "Second state should be valid base64")
 
 	var state1, state2 oAuthState
-	json.Unmarshal(state1Bytes, &state1)
-	json.Unmarshal(state2Bytes, &state2)
+	err1 = json.Unmarshal(state1Bytes, &state1)
+	err2 = json.Unmarshal(state2Bytes, &state2)
+	assert.NoError(t, err1, "First state should be valid JSON")
+	assert.NoError(t, err2, "Second state should be valid JSON")
 
 	// Verify CSRF tokens are different
-	if state1.Csrf == state2.Csrf {
-		t.Fatal("Multiple calls should generate different CSRF tokens")
-	}
+	assert.NotEqual(t, state1.Csrf, state2.Csrf, "Multiple calls should generate different CSRF tokens")
 
 	// Verify states are different
-	if state1Str == state2Str {
-		t.Fatal("Multiple calls should generate different state strings")
-	}
+	assert.NotEqual(t, state1Str, state2Str, "Multiple calls should generate different state strings")
 }
