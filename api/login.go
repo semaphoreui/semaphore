@@ -810,17 +810,20 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		redirectPath = mux.Vars(r)["redirect_path"]
 	}
 
-	redirectPath, err = url.JoinPath(util.Config.WebHost, redirectPath)
+	if !strings.HasPrefix(redirectPath, "/") {
+		redirectPath = "/" + redirectPath
+	}
+
+	redirectURL, err := url.JoinPath(util.Config.WebHost, redirectPath)
 	if err != nil {
 		log.Error(err)
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
-	// Only allow redirect paths starting with '/' but NOT with '//' or '/\'.
-	if !(len(redirectPath) > 1 && redirectPath[0] == '/' && redirectPath[1] != '/' && redirectPath[1] != '\\') {
-		redirectPath = "/"
+	if redirectURL == "" {
+		redirectURL = "/"
 	}
 
-	http.Redirect(w, r, redirectPath, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
