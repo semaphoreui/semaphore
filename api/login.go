@@ -482,27 +482,45 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
 	ctx := context.Background()
+	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
 
+	returnPath := ""
 	redirectPath := ""
 
-	if r.URL.Query()["redirect"] != nil {
-		// TODO: validate path
-		redirectPath = r.URL.Query()["redirect"][0]
+	config, ok := util.Config.OidcProviders[pid]
+	if !ok {
+		log.Error(fmt.Errorf("no such provider: %s", pid))
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	returnValue := r.URL.Query().Get("return")
+	if returnValue != "" {
+		if config.ReturnViaState {
+			returnPath = returnValue
+		} else {
+			redirectPath = returnValue
+		}
 	}
 
 	_, oauth, err := getOidcProvider(pid, ctx, redirectPath)
 	if err != nil {
 		log.Error(err.Error())
-		loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
-	state := generateStateOauthCookie(w)
+	state := generateStateOauthCookie(w, returnPath)
 	u := oauth.AuthCodeURL(state)
 	http.Redirect(w, r, u, http.StatusTemporaryRedirect)
 }
 
-func generateStateOauthCookie(w http.ResponseWriter) string {
+type oAuthState struct {
+	Csrf   string `json:"csrf"`
+	Return string `json:"return"`
+}
+
+func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
+
 	expiration := tz.Now().Add(365 * 24 * time.Hour)
 
 	b := make([]byte, 16)
@@ -510,11 +528,28 @@ func generateStateOauthCookie(w http.ResponseWriter) string {
 	if err != nil {
 		panic(err)
 	}
-	oauthState := base64.URLEncoding.EncodeToString(b)
-	cookie := http.Cookie{Name: "oauthstate", Value: oauthState, Expires: expiration}
+
+	state := oAuthState{
+		Csrf:   base64.URLEncoding.EncodeToString(b),
+		Return: returnPath,
+	}
+
+	// Secure flag is not set to allow Semaphore to be used without HTTPS inside private networks
+	cookie := http.Cookie{
+		Name:     "oauthstate",
+		Value:    state.Csrf,
+		Expires:  expiration,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
 	http.SetCookie(w, &cookie)
 
-	return oauthState
+	stateBytes, err := json.Marshal(state)
+	if err != nil {
+		panic(err)
+	}
+
+	return base64.URLEncoding.EncodeToString(stateBytes)
 }
 
 type claimResult struct {
@@ -648,7 +683,25 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.FormValue("state") != oauthState.Value {
+	s := r.FormValue("state")
+	b, err := base64.URLEncoding.DecodeString(s)
+
+	if err != nil {
+		log.Error(err.Error())
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	var stateData oAuthState
+	err = json.Unmarshal(b, &stateData)
+
+	if err != nil {
+		log.Error(err.Error())
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	if stateData.Csrf != oauthState.Value {
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
@@ -743,7 +796,19 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	createSession(w, r, user, true)
 
-	redirectPath := mux.Vars(r)["redirect_path"]
+	config, ok := util.Config.OidcProviders[pid]
+	if !ok {
+		log.Error(fmt.Errorf("no such provider: %s", pid))
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	redirectPath := ""
+	if config.ReturnViaState {
+		redirectPath = stateData.Return
+	} else {
+		redirectPath = mux.Vars(r)["redirect_path"]
+	}
 
 	redirectPath, err = url.JoinPath(util.Config.WebHost, redirectPath)
 	if err != nil {
@@ -752,7 +817,8 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if redirectPath == "" {
+	// Only allow redirect paths starting with '/' but NOT with '//' or '/\'.
+	if !(len(redirectPath) > 1 && redirectPath[0] == '/' && redirectPath[1] != '/' && redirectPath[1] != '\\') {
 		redirectPath = "/"
 	}
 

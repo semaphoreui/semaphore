@@ -60,22 +60,20 @@ import delay from '@/lib/delay';
 
 export default {
   name: 'AcceptInvite',
+  props: {
+    token: {
+      type: String,
+      required: true,
+    },
+  },
   data() {
     return {
       state: 'processing',
-      token: null,
       errorMessage: null,
       projectId: null,
     };
   },
   async created() {
-    this.token = this.$route.query.token;
-    if (!this.token) {
-      this.state = 'error';
-      this.errorMessage = 'Missing invitation token.';
-      return;
-    }
-
     await this.process();
   },
   methods: {
