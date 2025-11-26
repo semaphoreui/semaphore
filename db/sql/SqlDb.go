@@ -95,6 +95,11 @@ func (d *SqlDbConnection) Connect() {
 	d.sql.AddTableWithName(db.User{}, "user").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.Session{}, "session").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.TaskParams{}, "project__task_params").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.Workflow{}, "workflow").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.WorkflowNode{}, "workflow_node").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.WorkflowLink{}, "workflow_link").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.WorkflowRun{}, "workflow_run").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.WorkflowNodeRun{}, "workflow_node_run").SetKeys(true, "id")
 
 	//if d.GetDialect() == util.DbDriverSQLite {
 	//	_, err = d.exec("PRAGMA foreign_keys = ON")
@@ -735,7 +740,7 @@ func InsertTemplateFromType(typeInstance any) (string, []any) {
 		}
 		fields += val.Type().Field(i).Tag.Get("db")
 		values += "?"
-		args = append(args, val.Field(i))
+		args = append(args, val.Field(i).Interface())
 		if i != (typeFieldSize - 1) {
 			fields += ", "
 			values += ", "
@@ -779,13 +784,24 @@ func (d *SqlDb) CreateObject(props db.ObjectProps, object any) (newObject any, e
 		return
 	}
 
-	newObject = object
+	// Create a new instance of the same type
+	origVal := reflect.ValueOf(object)
+	newPtr := reflect.New(origVal.Type()) // pointer to new T
+	newVal := newPtr.Elem()               // addressable struct
 
-	v := reflect.ValueOf(newObject)
-	field := v.FieldByName("ID")
-	field.SetInt(int64(insertID))
+	// Copy all fields from original object
+	newVal.Set(origVal)
 
-	return
+	// Set the ID field
+	idField := newVal.FieldByName("ID")
+	if idField.IsValid() && idField.CanSet() {
+		idField.SetInt(int64(insertID))
+	}
+
+	// Return pointer or value? — your choice:
+	newObject = newVal.Interface() // RETURN VALUE (same kind as input)
+
+	return newObject, nil
 }
 
 func (d *SqlDb) GetObjectsByForeignKeyQuery(props db.ObjectProps, foreignID int, foreignProps db.ObjectProps, params db.RetrieveQueryParams, objects any) (err error) {

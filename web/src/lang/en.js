@@ -380,4 +380,7 @@ export default {
   role_required: 'Role is required',
 
   templatePermission: 'Template permissions',
+  workflows: 'Workflows',
+  new_workflow: 'New Workflow',
+  confirm_delete: 'Are you sure you want to delete this?',
 };

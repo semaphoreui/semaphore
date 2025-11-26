@@ -45,6 +45,116 @@ type BoltDb struct {
 	terraformAlias   publicAlias
 }
 
+func (d *BoltDb) GetWorkflows(projectID int, params db.RetrieveQueryParams) ([]db.Workflow, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) GetWorkflow(projectID int, workflowID int) (db.Workflow, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) CreateWorkflow(workflow db.Workflow) (db.Workflow, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) UpdateWorkflow(workflow db.Workflow) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) DeleteWorkflow(projectID int, workflowID int) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) GetWorkflowNodes(projectID int, workflowID int) ([]db.WorkflowNode, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) CreateWorkflowNode(node db.WorkflowNode) (db.WorkflowNode, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) UpdateWorkflowNode(node db.WorkflowNode) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) DeleteWorkflowNode(projectID int, nodeID int) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) DeleteWorkflowNodes(projectID int, workflowID int) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) GetWorkflowLinks(projectID int, workflowID int) ([]db.WorkflowLink, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) CreateWorkflowLink(link db.WorkflowLink) (db.WorkflowLink, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) DeleteWorkflowLinks(projectID int, workflowID int) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) CreateWorkflowRun(run db.WorkflowRun) (db.WorkflowRun, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) GetWorkflowRun(projectID int, runID int) (db.WorkflowRun, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) GetWorkflowRuns(projectID int, workflowID *int, params db.RetrieveQueryParams) ([]db.WorkflowRun, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) UpdateWorkflowRun(run db.WorkflowRun) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) CreateWorkflowNodeRun(run db.WorkflowNodeRun) (db.WorkflowNodeRun, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) UpdateWorkflowNodeRun(run db.WorkflowNodeRun) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) GetWorkflowNodeRun(projectID int, runID int) (db.WorkflowNodeRun, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) GetWorkflowNodeRunByTaskID(taskID int) (db.WorkflowNodeRun, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *BoltDb) GetWorkflowNodeRuns(projectID int, workflowRunID int) ([]db.WorkflowNodeRun, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (d *BoltDb) GetDialect() string {
 	return util.DbDriverBolt
 }
