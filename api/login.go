@@ -809,8 +809,9 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !strings.HasPrefix(redirectPath, "/") {
-		redirectPath = "/" + redirectPath
+	// Only allow redirect paths starting with '/' but NOT with '//' or '/\'.
+	if !(len(redirectPath) > 1 && redirectPath[0] == '/' && redirectPath[1] != '/' && redirectPath[1] != '\\') {
+		redirectPath = "/"
 	}
 
 	http.Redirect(w, r, redirectPath, http.StatusTemporaryRedirect)
