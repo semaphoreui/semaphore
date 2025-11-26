@@ -51,7 +51,7 @@
     "openai": "^6.0.0",
     "plugin-error": "^2.0.1",
     "prettier": "^3.4.2",
-    "sass": "~1.94.0",
+    "sass": "~1.32.12",
     "sass-loader": "^13.0.0",
     "through2": "^4.0.2",
     "vue-cli-plugin-vuetify": "~2.5.0",

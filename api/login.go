@@ -433,10 +433,6 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 	}
 
 	if redirectPath != "" {
-		//if !strings.HasPrefix(redirectPath, "/") {
-		//	redirectPath = "/" + redirectPath
-		//}
-
 		redirectPath = strings.TrimRight(redirectPath, "/")
 
 		providerUrl, err2 := url.Parse(provider.RedirectURL)
