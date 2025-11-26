@@ -454,8 +454,21 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 		}
 	}
 
+	endpoint := oidcProvider.Endpoint()
+	
+	// Configure token endpoint authentication method based on provider settings
+	switch provider.TokenEndpointAuthMethod {
+	case "client_secret_post":
+		endpoint.AuthStyle = oauth2.AuthStyleInParams
+	case "client_secret_basic":
+		endpoint.AuthStyle = oauth2.AuthStyleInHeader
+	default:
+		// Use auto-detect for empty or unrecognized values (maintains backward compatibility)
+		endpoint.AuthStyle = oauth2.AuthStyleAutoDetect
+	}
+
 	oauthConfig := oauth2.Config{
-		Endpoint:     oidcProvider.Endpoint(),
+		Endpoint:     endpoint,
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		RedirectURL:  provider.RedirectURL + redirectPath,
