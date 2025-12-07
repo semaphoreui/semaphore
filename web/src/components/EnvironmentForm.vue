@@ -239,6 +239,7 @@
           <pre>{{ item.secret_storage_key_prefix }}*</pre>
         </div>
 
+<!--
         <div>
           <v-subheader class="px-0">
             {{ $t('extraVariables') }}
@@ -311,7 +312,7 @@
             </template>
           </v-data-table>
         </div>
-
+-->
         <div>
           <v-subheader class="px-0 mt-4">
             {{ $t('environmentVariables') }}
