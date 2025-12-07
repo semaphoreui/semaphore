@@ -3,7 +3,6 @@ package tasks
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"os"
 	"strings"
 
@@ -118,7 +117,6 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 
 func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion *string) (str string, err error) {
 	extraVars := make(map[string]any)
-	extraSecretVars := make(map[string]any)
 
 	if t.Environment.JSON != "" {
 		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
@@ -126,15 +124,6 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 			return
 		}
 	}
-	if t.Secret != "" {
-		err = json.Unmarshal([]byte(t.Secret), &extraSecretVars)
-		if err != nil {
-			return
-		}
-	}
-	t.Secret = "{}"
-
-	maps.Copy(extraVars, extraSecretVars)
 
 	taskDetails := make(map[string]any)
 
@@ -186,6 +175,15 @@ func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 			return
 		}
 	}
+
+	if t.Secret != "" {
+		err = json.Unmarshal([]byte(t.Secret), &environmentVars)
+		if err != nil {
+			return
+		}
+	}
+
+	t.Secret = "{}"
 
 	for key, val := range environmentVars {
 		res = append(res, fmt.Sprintf("%s=%s", key, val))
@@ -449,12 +447,12 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 		args = append(args, "--extra-vars", extraVars)
 	}
 
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
-	}
+	//for _, secret := range t.Environment.Secrets {
+	//	if secret.Type != db.EnvironmentSecretVar {
+	//		continue
+	//	}
+	//	args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	//}
 
 	templateArgs, taskArgs, err := t.getCLIArgs()
 	if err != nil {
