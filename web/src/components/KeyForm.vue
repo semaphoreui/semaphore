@@ -118,6 +118,15 @@
       v-if="!isReadOnly && item.type === 'ssh'"
     />
 
+    <v-textarea
+      outlined
+      v-model="item.ssh.certificate"
+      :label="$t('certificate')"
+      :placeholder="$t('certificatePlaceholder')"
+      :disabled="formSaving || !canEditSecrets"
+      v-if="!isReadOnly && item.type === 'ssh'"
+    />
+
     <v-checkbox
         v-model="item.override_secret"
         :label="$t('override')"

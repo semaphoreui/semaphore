@@ -2,6 +2,8 @@ package ssh
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/util"
@@ -135,10 +137,11 @@ func StartSSHAgent(key db.AccessKey, logger task_logger.Logger) (Agent, error) {
 }
 
 type AccessKeyInstallation struct {
-	SSHAgent *Agent
-	Login    string
-	Password string
-	Script   string
+	SSHAgent        *Agent
+	Login           string
+	Password        string
+	Script          string
+	CertificateFile string
 }
 
 func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
@@ -151,6 +154,9 @@ func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
 		if util.Config.SshConfigPath != "" {
 			sshCmd += " -F " + util.Config.SshConfigPath
 		}
+		if key.CertificateFile != "" {
+			sshCmd += " -o CertificateFile=" + key.CertificateFile
+		}
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
 	}
 
@@ -158,6 +164,9 @@ func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
 }
 
 func (key *AccessKeyInstallation) Destroy() error {
+	if key.CertificateFile != "" {
+		os.Remove(key.CertificateFile) //nolint:errcheck
+	}
 	if key.SSHAgent != nil {
 		return key.SSHAgent.Close()
 	}
@@ -165,6 +174,28 @@ func (key *AccessKeyInstallation) Destroy() error {
 }
 
 type KeyInstaller struct{}
+
+// writeCertificateFile writes the SSH certificate to a temporary file and returns the path.
+func writeCertificateFile(key db.AccessKey) (certFile string, err error) {
+	if key.SshKey.Certificate == "" {
+		return "", nil
+	}
+
+	certFilename := fmt.Sprintf("ssh-cert-%d-%s.pub", key.ID, random.String(10))
+
+	if key.ProjectID == nil {
+		certFile = path.Join(util.Config.TmpPath, certFilename)
+	} else {
+		certFile = path.Join(util.Config.GetProjectTmpDir(*key.ProjectID), certFilename)
+	}
+
+	err = os.WriteFile(certFile, []byte(key.SshKey.Certificate), 0600)
+	if err != nil {
+		return "", fmt.Errorf("writing certificate file: %w", err)
+	}
+
+	return certFile, nil
+}
 
 func (KeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation AccessKeyInstallation, err error) {
 
@@ -174,8 +205,12 @@ func (KeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger tas
 		case db.AccessKeySSH:
 			var agent Agent
 			agent, err = StartSSHAgent(key, logger)
+			if err != nil {
+				return
+			}
 			installation.SSHAgent = &agent
 			installation.Login = key.SshKey.Login
+			installation.CertificateFile, err = writeCertificateFile(key)
 		}
 	case db.AccessKeyRoleAnsiblePasswordVault:
 		switch key.Type {
@@ -195,8 +230,12 @@ func (KeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger tas
 		case db.AccessKeySSH:
 			var agent Agent
 			agent, err = StartSSHAgent(key, logger)
+			if err != nil {
+				return
+			}
 			installation.SSHAgent = &agent
 			installation.Login = key.SshKey.Login
+			installation.CertificateFile, err = writeCertificateFile(key)
 		case db.AccessKeyLoginPassword:
 			installation.Login = key.LoginPassword.Login
 			installation.Password = key.LoginPassword.Password

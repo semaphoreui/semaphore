@@ -66,9 +66,10 @@ type LoginPassword struct {
 }
 
 type SshKey struct {
-	Login      string `json:"login"`
-	Passphrase string `json:"passphrase"`
-	PrivateKey string `json:"private_key"`
+	Login       string `json:"login"`
+	Passphrase  string `json:"passphrase"`
+	PrivateKey  string `json:"private_key"`
+	Certificate string `json:"certificate"`
 }
 
 type AccessKeyRole int

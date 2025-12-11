@@ -95,6 +95,8 @@ export default {
   loginOptional: 'Login (Optional)',
   usernameOptional: 'Username (Optional)',
   privateKey: 'Private Key',
+  certificate: 'Certificate (Optional)',
+  certificatePlaceholder: 'Paste your SSH CA certificate here (e.g., id_ed25519-cert.pub)',
   override: 'Override',
   useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook: 'Use this type of key for HTTPS repositories and for playbooks which use non-SSH connections.',
   deleteKey: 'Delete key',
