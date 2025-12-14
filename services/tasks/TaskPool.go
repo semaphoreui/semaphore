@@ -31,10 +31,11 @@ type logRecord struct {
 type EventType uint
 
 const (
-	EventTypeNew      EventType = 0
-	EventTypeFinished EventType = 1
-	EventTypeFailed   EventType = 2
-	EventTypeEmpty    EventType = 3
+	EventTypeNew      EventType = 0 // EventTypeNew represents an event when a new task is created, typically sent during a periodic check or timer.
+	EventTypeFinished EventType = 1 // EventTypeFinished represents an event when a task finishes, typically sent during a periodic check or timer.
+	EventTypeFailed   EventType = 2 // EventTypeFailed represents an event when a task fails, typically sent during a periodic check or timer.
+	EventTypeEmpty    EventType = 3 // EventTypeEmpty represents an event when the queue is empty, typically sent during a periodic check or timer.
+	EventTypeRequeued EventType = 4 // EventTypeRequeued represents an event when a task is moved back to the waiting state for reprocessing.
 )
 
 const (
@@ -190,7 +191,21 @@ func getTaskName(t *TaskRunner) string {
 
 func (p *TaskPool) handleQueue() {
 	for t := range p.queueEvents {
+		// When a task is re-queued (e.g., no remote runner available), we should
+		// clean up its "running" bookkeeping but avoid immediately retrying it in
+		// the same queue pass to prevent hot retry loops.
+		skipTaskID := 0
+
 		switch t.eventType {
+		case EventTypeRequeued:
+			// Task was started but moved back to waiting. It must not remain in
+			// running/active sets and must release its claim so it can be picked
+			// up again later.
+			p.onTaskStop(t.task)
+			// Avoid immediate retry in this same event handling iteration; it
+			// will be retried on the next periodic tick or when another event
+			// triggers queue processing.
+			skipTaskID = t.task.Task.ID
 		case EventTypeNew:
 			p.state.Enqueue(t.task)
 		case EventTypeFinished:
@@ -205,6 +220,12 @@ func (p *TaskPool) handleQueue() {
 		for i < p.state.QueueLen() {
 			curr := p.state.QueueGet(i)
 			if curr == nil { // item may no longer be local, move ahead
+				i = i + 1
+				continue
+			}
+
+			// When handling a requeue event, don't immediately start the same task again.
+			if skipTaskID != 0 && curr.Task.ID == skipTaskID {
 				i = i + 1
 				continue
 			}
