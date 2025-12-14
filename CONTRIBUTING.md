@@ -126,7 +126,11 @@ As Dredd and the application database config may differ it expects it's own conf
    curl https://cursor.com/install -fsSL | bash
    ```
 
-   You can check the agent using command: `cursor-agent --version`.
+   You can check the agent using command:
+
+   ```bash
+   cursor-agent --version
+   ```
 
 3. Set up MCP server for Cursor
 
