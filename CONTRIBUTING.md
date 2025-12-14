@@ -114,6 +114,12 @@ As Dredd and the application database config may differ it expects it's own conf
    pipx install semaphore-mcp
    ```
 
+   Upgrade:
+
+   ```bash
+   pipx install semaphore-mcp
+   ```
+
 2. Install Cursor Agent CLI
 
    ```bash
