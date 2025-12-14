@@ -106,7 +106,7 @@ As Dredd and the application database config may differ it expects it's own conf
 
 <img width="700" alt="image" src="https://github.com/user-attachments/assets/cc6132ee-b31e-424c-8ca9-4eba56bf7fb0" />
 
-## Manual testing with using Semaphore MCP and Cursor Agent
+## Manual testing with using Semaphore MCP and Cursor agent
 
 1. Install Semaphore MCP
 
@@ -114,11 +114,13 @@ As Dredd and the application database config may differ it expects it's own conf
    pipx install semaphore-mcp
    ```
 
-2. Install Cursor CLI
+2. Install Cursor Agent CLI
 
    ```bash
    curl https://cursor.com/install -fsSL | bash
    ```
+
+   You can check the agent using command: `cursor-agent --version`.
 
 3. Set up MCP server for Cursor
 
