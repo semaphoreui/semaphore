@@ -41,3 +41,16 @@
 
 **Expected Results**:
 - "Deploy demo app to Dev" successfully executed
+
+## Test Case 4: Test bash script
+**Objective**: Verify running bash scripts
+**Steps**:
+1. Add repository "Semaphore" https://github.com/semaphoreui/semaphore with branch `develop`.
+2. Create a template with following options:
+   * Type: Bash script
+   * Script path tests/manual/data/case4/tesh.sh
+3. Run the template
+4. Wait until it finished and check if it is ok.
+
+**Expected Results**:
+- Task complate successfully
