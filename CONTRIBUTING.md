@@ -110,13 +110,13 @@ As Dredd and the application database config may differ it expects it's own conf
 
 1. Install Semaphore MCP
 
-   ```
+   ```bash
    pipx install semaphore-mcp
    ```
 
 2. Install Cursor CLI
 
-   ```
+   ```bash
    curl https://cursor.com/install -fsSL | bash
    ```
 
@@ -124,7 +124,7 @@ As Dredd and the application database config may differ it expects it's own conf
 
    Add following block to `~/.cursor/mcp.json`:
 
-   ```
+   ```json
 	{
 	  "mcpServers": {
 	    "semaphore": {
@@ -141,7 +141,7 @@ As Dredd and the application database config may differ it expects it's own conf
 
 4. Run tests
 
-   ```
+   ```bash
    cd tests/manual
    ./run.sh
    ```
