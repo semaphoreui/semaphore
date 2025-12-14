@@ -178,7 +178,7 @@ func (t *TaskRunner) run() {
 		if requeued {
 			// Task is being re-queued, don't mark as finished
 			log.Info("Task " + strconv.Itoa(t.Task.ID) + " re-queued (waiting for available runner)")
-			t.pool.queueEvents <- PoolEvent{EventTypeRequeued, t}
+			t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
 			return
 		}
 
@@ -224,7 +224,7 @@ func (t *TaskRunner) run() {
 	err = t.job.Run(username, incomingVersion, t.Alias)
 
 	if err != nil {
-		if err.Error() == "all runners busy" {
+		if errors.Is(err, ErrAllRunnersBusy) {
 			// No runners available right now, put task back in waiting state
 			t.SetStatus(task_logger.TaskWaitingStatus)
 			t.pool.state.Enqueue(t)

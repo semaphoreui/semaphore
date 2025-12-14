@@ -3,6 +3,7 @@ package tasks
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -14,6 +15,9 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
+
+// ErrAllRunnersBusy is returned when no runners are available to execute a task
+var ErrAllRunnersBusy = errors.New("all runners busy")
 
 type RemoteJob struct {
 	RunnerTag *string
@@ -136,7 +140,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	}
 
 	if runner == nil {
-		err = fmt.Errorf("all runners busy")
+		err = ErrAllRunnersBusy
 		return
 	}
 
