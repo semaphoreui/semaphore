@@ -21,7 +21,10 @@ import (
 )
 
 type Job interface {
-	Run(username string, incomingVersion *string, alias string) error
+	// Run executes the job and returns whether it was able to start and any error.
+	// If canRun is false, the task should remain in waiting state and be retried later.
+	// This allows remote jobs to signal that no runners are currently available.
+	Run(username string, incomingVersion *string, alias string) (canRun bool, err error)
 	Kill()
 	IsKilled() bool
 }
@@ -171,7 +174,17 @@ func (t *TaskRunner) run() {
 		defer t.pool.store.Close("run task " + strconv.Itoa(t.Task.ID))
 	}
 
+	// requeued indicates task should go back to waiting state (e.g., no runners available)
+	requeued := false
+
 	defer func() {
+		if requeued {
+			// Task is being re-queued, don't mark as finished
+			log.Info("Task " + strconv.Itoa(t.Task.ID) + " re-queued (waiting for available runner)")
+			t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
+			return
+		}
+
 		log.Info("Stopped running TaskRunner " + strconv.Itoa(t.Task.ID))
 		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.Task.ID))
 
@@ -211,7 +224,15 @@ func (t *TaskRunner) run() {
 
 	}
 
-	err = t.job.Run(username, incomingVersion, t.Alias)
+	canRun, err := t.job.Run(username, incomingVersion, t.Alias)
+
+	if !canRun && err == nil {
+		// No runners available right now, put task back in waiting state
+		t.SetStatus(task_logger.TaskWaitingStatus)
+		t.pool.state.Enqueue(t)
+		requeued = true
+		return
+	}
 
 	if err != nil {
 		if t.job.IsKilled() {

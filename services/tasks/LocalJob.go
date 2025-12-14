@@ -630,7 +630,10 @@ func (t *LocalJob) getParams() (params any, err error) {
 	return
 }
 
-func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (err error) {
+func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (canRun bool, err error) {
+
+	// Local jobs can always run immediately
+	canRun = true
 
 	defer func() {
 		t.destroyKeys()
@@ -684,7 +687,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 				Installer:       t.KeyInstaller,
 			}, initArgs)
 			if err != nil {
-				return err
+				return true, err
 			}
 		} else {
 			err = t.prepareRun(db_lib.LocalAppInstallingArgs{
@@ -694,7 +697,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 				Installer:       t.KeyInstaller,
 			})
 			if err != nil {
-				return err
+				return true, err
 			}
 		}
 	} else {
@@ -705,7 +708,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 			Installer:       t.KeyInstaller,
 		})
 		if err != nil {
-			return err
+			return true, err
 		}
 	}
 
@@ -753,10 +756,10 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 
 	if t.killed {
 		t.SetStatus(task_logger.TaskStoppedStatus)
-		return nil
+		return true, nil
 	}
 
-	return t.App.Run(db_lib.LocalAppRunningArgs{
+	err = t.App.Run(db_lib.LocalAppRunningArgs{
 		CliArgs:         argsMap,
 		EnvironmentVars: environmentVariables,
 		Inputs:          inputs,
@@ -766,6 +769,7 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 			t.Process = p
 		},
 	})
+	return true, err
 
 }
 

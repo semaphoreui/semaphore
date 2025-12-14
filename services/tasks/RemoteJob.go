@@ -72,7 +72,7 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	if resp != nil {
 		defer resp.Body.Close() //nolint:errcheck
 	}
-	
+
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		err = fmt.Errorf("webhook returned incorrect status")
 		return
@@ -87,12 +87,12 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	return
 }
 
-func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
+func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (canRun bool, err error) {
 
 	tsk := t.taskPool.GetTask(t.Task.ID)
 
 	if tsk == nil {
-		return fmt.Errorf("task not found")
+		return false, fmt.Errorf("task not found")
 	}
 
 	tsk.IncomingVersion = incomingVersion
@@ -117,12 +117,12 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	})
 
 	if err != nil {
-		return
+		return false, err
 	}
 
 	if len(runners) == 0 {
-		err = fmt.Errorf("no runners available")
-		return
+		// No runners configured at all - this is a real error
+		return false, fmt.Errorf("no runners available")
 	}
 
 	var runner *db.Runner
@@ -136,14 +136,14 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	}
 
 	if runner == nil {
-		err = fmt.Errorf("no runners available")
-		return
+		// All runners are busy - signal to retry later, not an error
+		return false, nil
 	}
 
 	err = callRunnerWebhook(runner, tsk, "start")
 
 	if err != nil {
-		return
+		return false, err
 	}
 
 	tsk.RunnerID = runner.ID
@@ -165,8 +165,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		tsk = t.taskPool.GetTask(t.Task.ID)
 
 		if tsk == nil {
-			err = fmt.Errorf("task %d not found", t.Task.ID)
-			return
+			return true, fmt.Errorf("task %d not found", t.Task.ID)
 		}
 
 		if tsk.Task.Status == task_logger.TaskSuccessStatus ||
@@ -179,7 +178,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	err = callRunnerWebhook(runner, tsk, "finish")
 
 	if err != nil {
-		return
+		return true, err
 	}
 
 	if tsk.Task.Status == task_logger.TaskFailStatus {
@@ -188,7 +187,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		err = fmt.Errorf("task timed out")
 	}
 
-	return
+	return true, err
 }
 
 func (t *RemoteJob) Kill() {
