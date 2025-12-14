@@ -1,6 +1,6 @@
 # Manual QA Agent Guide (MCP)
 
-This directory is intended to be executed by an LLM acting as a **manual QA engineer**. The LLM should use **MCP tools** (Semaphore + optional Playwright UI) to execute the cases in `test_plan.md` and write a clear, reproducible test report.
+This directory is intended to be executed by an LLM acting as a **manual QA engineer**. The LLM should use **MCP tools** (Semaphore) to execute the cases in `test_plan.md` and write a clear, reproducible test report.
 
 ## Goals (what “good” looks like)
 
@@ -43,15 +43,6 @@ Use these for stable verification and for most actions:
 - Task management: `mcp_semaphore_list_tasks`, `mcp_semaphore_filter_tasks`, `mcp_semaphore_get_waiting_tasks`, `mcp_semaphore_stop_task`, `mcp_semaphore_bulk_stop_tasks`
 - Environments: `mcp_semaphore_list_environments`, `mcp_semaphore_get_environment`, `mcp_semaphore_create_environment`, `mcp_semaphore_update_environment`, `mcp_semaphore_delete_environment`
 - Inventory: `mcp_semaphore_list_inventory`, `mcp_semaphore_get_inventory`, `mcp_semaphore_create_inventory`, `mcp_semaphore_update_inventory`, `mcp_semaphore_delete_inventory`
-
-### Playwright MCP tools (fallback / true “manual UI”)
-
-Use Playwright when a required flow is not available via the Semaphore MCP API (for example, **Project CRUD** in Test Case 1 if no project create/update/delete MCP actions exist in your environment).
-
-Evidence guidance:
-- Prefer `browser_snapshot` (accessibility tree) for step-by-step traceability.
-- Take screenshots for failures and confusing UI states.
-- Record the URL/path of the UI page used.
 
 ## Handling missing prerequisites
 

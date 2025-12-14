@@ -1,4 +1,4 @@
-# Semaphore UI Test Plan - 5 Real-World Test Cases
+# Semaphore UI Test Plan
 
 > For LLM/MCP execution instructions, safety rules, and reporting templates, see `AGENT.md`.
 
