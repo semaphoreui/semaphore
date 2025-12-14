@@ -72,7 +72,7 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	if resp != nil {
 		defer resp.Body.Close() //nolint:errcheck
 	}
-	
+
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		err = fmt.Errorf("webhook returned incorrect status")
 		return
@@ -136,7 +136,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	}
 
 	if runner == nil {
-		err = fmt.Errorf("no runners available")
+		err = fmt.Errorf("all runners busy")
 		return
 	}
 
