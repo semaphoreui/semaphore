@@ -198,16 +198,14 @@ func (p *TaskPool) handleQueue() {
 
 		switch t.eventType {
 		case EventTypeRequeued:
-			if t.task != nil {
-				// Task was started but moved back to waiting. It must not remain in
-				// running/active sets and must release its claim so it can be picked
-				// up again later.
-				p.onTaskStop(t.task)
-				// Avoid immediate retry in this same event handling iteration; it
-				// will be retried on the next periodic tick or when another event
-				// triggers queue processing.
-				skipTaskID = t.task.Task.ID
-			}
+			// Task was started but moved back to waiting. It must not remain in
+			// running/active sets and must release its claim so it can be picked
+			// up again later.
+			p.onTaskStop(t.task)
+			// Avoid immediate retry in this same event handling iteration; it
+			// will be retried on the next periodic tick or when another event
+			// triggers queue processing.
+			skipTaskID = t.task.Task.ID
 		case EventTypeNew:
 			p.state.Enqueue(t.task)
 		case EventTypeFinished:
