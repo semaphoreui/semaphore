@@ -132,7 +132,7 @@ As Dredd and the application database config may differ it expects it's own conf
 	      "args": [],
 	      "env": {
 	        "SEMAPHORE_URL": "http://localhost:3000",
-	        "SEMAPHORE_API_TOKEN": "ypzqpwbfpfkan7nruvak6gv5ltaa23fxgjoelqgcmlm="
+	        "SEMAPHORE_API_TOKEN": "<TOKEN>"
 	      }
 	    }
 	  }
