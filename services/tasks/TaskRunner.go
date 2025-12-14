@@ -178,7 +178,7 @@ func (t *TaskRunner) run() {
 		if requeued {
 			// Task is being re-queued, don't mark as finished
 			log.Info("Task " + strconv.Itoa(t.Task.ID) + " re-queued (waiting for available runner)")
-			t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
+			t.pool.queueEvents <- PoolEvent{EventTypeRequeued, t}
 			return
 		}
 
