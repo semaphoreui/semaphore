@@ -1,0 +1,1 @@
+cursor-agent --approve-mcps --force --print "$(cat test_plan.md)"
