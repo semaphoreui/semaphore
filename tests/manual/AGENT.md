@@ -7,7 +7,7 @@ reproducible test report.
 1. For each test case create a new project with demo flag.
 2. Use this project for tests.
 3. After each test case delete the project.
-4. Run test cases simultaneously.
+4. Run test cases in parallel.
 
 ## Goals (what "good" looks like)
 
