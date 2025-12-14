@@ -60,7 +60,7 @@ Open [localhost:3000](http://localhost:3000)
 Note: for Windows, you may need [Cygwin](https://www.cygwin.com/) to run certain commands because the [reflex](github.com/cespare/reflex) package probably doesn't work on Windows.
 You may encounter issues when running `task watch`, but running `task build` etc... will still be OK.
 
-## Integration Tests
+## Integration tests
 
 Dredd is used for API integration tests, if you alter the API in any way you must make sure that the information in the api docs
 matches the responses.
@@ -100,9 +100,7 @@ As Dredd and the application database config may differ it expects it's own conf
     dredd --config ./.dredd/dredd.local.yml
     ```
 
-## Web Interface
-
-## Goland Debug Configuration
+## Goland debug configuration
 
 <img width="700" alt="image" src="https://github.com/user-attachments/assets/cc6132ee-b31e-424c-8ca9-4eba56bf7fb0" />
 
