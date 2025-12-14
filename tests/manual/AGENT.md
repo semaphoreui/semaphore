@@ -1,8 +1,13 @@
 # Manual QA Agent Guide (MCP)
 
-This directory is intended to be executed by an LLM acting as a **manual QA engineer**. 
-The LLM should use **MCP tools** (Semaphore) to execute the cases in `test_plan.md` and write a clear, 
+This directory is intended to be executed by an LLM acting as a **manual QA engineer**.
+The LLM should use **MCP tools** (Semaphore) to execute the cases in `test_plan.md` and write a clear,
 reproducible test report.
+
+1. For each test case create a new project with demo flag.
+2. Use this project for tests.
+3. After each test case delete the project.
+4. Run test cases simultaneously.
 
 ## Goals (what "good" looks like)
 

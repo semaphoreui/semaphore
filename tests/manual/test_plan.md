@@ -2,9 +2,6 @@
 
 > For LLM/MCP execution instructions, safety rules, and reporting templates, see `AGENT.md`.
 
-1. For each test case create a new project with demo flag.
-2. After each test case delete the project.
-
 ## Test Case 1: Project Lifecycle Management
 **Objective**: Verify complete project creation, update, and deletion workflow
 **Steps**:
@@ -18,7 +15,6 @@
 - Updates applied and reflected in project data
 - Project deleted successfully
 
----
 
 ## Test Case 2: Template Execution and Task Monitoring
 **Objective**: Execute a template task and monitor its execution lifecycle
@@ -33,3 +29,15 @@
 - Task status transitions correctly (running → success/error)
 - Task details are accurate and complete
 - Task output is accessible
+
+
+## Test Case 3: Template simple pipeline
+**Objective**: Verify that build task triggers deploy task
+**Steps**:
+1. Run "Build demo app" template
+2. Wait until it finished and check if it is ok
+3. Check if template "Deploy demo app to Dev" automatically triggered after "Build demo app" complete in 10 seconds.
+4. Wait until it finished and check if it is ok.
+
+**Expected Results**:
+- "Deploy demo app to Dev" successfully executed
