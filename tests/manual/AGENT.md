@@ -4,12 +4,12 @@ This directory is intended to be executed by an LLM acting as a **manual QA engi
 The LLM should use **MCP tools** (Semaphore) to execute the cases in `test_plan.md` and write a clear, 
 reproducible test report.
 
-## Goals (what “good” looks like)
+## Goals (what "good" looks like)
 
 - Execute each test case end-to-end (or mark it **BLOCKED** with a precise reason).
 - Prefer deterministic verification (API/MCP) and capture evidence (IDs, logs, screenshots).
 - Never damage real user data: use **ephemeral test data**, and **clean up** what you create.
-- Produce a single report file: `artifacts/results-<run-id>.md` (ignored by `tests/manual/.gitignore`).
+- Produce a single report file: `artifacts/results-<run-id>.md`.
 
 ## Safety rules (must-follow)
 
@@ -40,7 +40,7 @@ If the environment does not contain the preconditions needed to run a test case
 Instead:
 - Mark the test **BLOCKED**.
 - State exactly what is missing.
-- Include the discovery evidence (e.g. “`list_templates` returned 0 templates for project X”).
+- Include the discovery evidence (e.g. "`list_templates` returned 0 templates for project X").
 - Suggest the minimal setup to unblock.
 
 ## Test-case playbooks (how to execute `test_plan.md`)
