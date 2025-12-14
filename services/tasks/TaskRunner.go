@@ -224,7 +224,7 @@ func (t *TaskRunner) run() {
 	err = t.job.Run(username, incomingVersion, t.Alias)
 
 	if err != nil {
-		if err.Error() == "all runners busy" {
+		if errors.Is(err, ErrAllRunnersBusy) {
 			// No runners available right now, put task back in waiting state
 			t.SetStatus(task_logger.TaskWaitingStatus)
 			t.pool.state.Enqueue(t)
