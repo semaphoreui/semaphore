@@ -1,5 +1,7 @@
 # Semaphore UI Test Plan - 5 Real-World Test Cases
 
+> For LLM/MCP execution instructions, safety rules, and reporting templates, see `AGENT.md`.
+
 ## Test Case 1: Project Lifecycle Management
 **Objective**: Verify complete project creation, update, and deletion workflow
 **Steps**:
