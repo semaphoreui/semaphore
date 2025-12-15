@@ -6,7 +6,7 @@ reproducible test report.
 
 Run test cases simultaneously (in parallel).
 
-1. Use Playwright MCP to execute the cases in `test_plan.md`.
+1. Use Playwright MCP to execute the cases in `test_plan.md` in headless mode (do not show a browser window).
 2. Open page http://localhost:8080/auth/login and login using **fiftin** with password **150986**
 3. Use the UI http://localhost:8080/ to execute the test cases.
 4. For each test case create a new project.
