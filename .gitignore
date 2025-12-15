@@ -1,6 +1,6 @@
 gin-bin
 build/
-/tests/manual/artifacts/
+/tests/mcp-*/artifacts/
 /certs/
 web/public/js/bundle.js
 web/public/css/*.*

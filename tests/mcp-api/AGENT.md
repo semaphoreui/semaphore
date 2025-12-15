@@ -37,7 +37,7 @@ Run test cases simultaneously (in parallel).
    - For tasks: record template name/id, task id, final status, and output excerpt.
 4. **Cleanup**
    - Delete resources created by this run (projects/environments/inventory/tasks as applicable).
-5. **Write report**: save as `tests/manual/results-<run-id>.md`.
+5. **Write report**: save as `tests/mcp-api/results-<run-id>.md`.
 
 ## Handling missing prerequisites
 
