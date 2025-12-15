@@ -2,8 +2,21 @@
 
 > For LLM/MCP execution instructions, safety rules, and reporting templates, see `AGENT.md`.
 
+## Test Case 1: Project Lifecycle Management
+**Objective**: Verify complete project creation, update, and deletion workflow
+**Steps**:
+1. Verify project creation and retrieve project details
+2. Update project properties
+3. Verify updates were applied correctly
 
-## Test Case 1: Create a new user
+**Expected Results**:
+- Project created successfully with correct initial values
+- Project details retrieved accurately
+- Updates applied and reflected in project data
+- Project deleted successfully
+
+
+## Test Case 2: Create a new user
 **Objective**: Verify complete user creation, update, and deletion workflow
 **Steps**:
 1. Go to /users
