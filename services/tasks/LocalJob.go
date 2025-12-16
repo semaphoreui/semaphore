@@ -732,9 +732,6 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
-		if t.sshKeyInstallation.CertificateFile != "" {
-			environmentVariables = append(environmentVariables, fmt.Sprintf("ANSIBLE_SSH_ARGS=-o CertificateFile=%s", t.sshKeyInstallation.CertificateFile))
-		}
 	}
 
 	if t.Template.Type != db.TemplateTask {

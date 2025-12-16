@@ -2,8 +2,6 @@ package ssh
 
 import (
 	"fmt"
-	"os"
-
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/util"
@@ -17,8 +15,9 @@ import (
 )
 
 type AgentKey struct {
-	Key        []byte
-	Passphrase []byte
+	Key         []byte
+	Passphrase  []byte
+	Certificate []byte
 }
 
 type Agent struct {
@@ -52,9 +51,27 @@ func (a *Agent) Listen() error {
 			return fmt.Errorf("parsing private key: %w", err)
 		}
 
-		if err := keyring.Add(agent.AddedKey{
+		addedKey := agent.AddedKey{
 			PrivateKey: key,
-		}); err != nil {
+		}
+
+		if len(k.Certificate) > 0 {
+			pubKey, _, _, _, err := ssh.ParseAuthorizedKey(k.Certificate)
+
+			if err != nil {
+				return fmt.Errorf("parsing certificate: %w", err)
+			}
+
+			cert, ok := pubKey.(*ssh.Certificate)
+
+			if !ok {
+				return fmt.Errorf("certificate is not a valid SSH certificate")
+			}
+
+			addedKey.Certificate = cert
+		}
+
+		if err := keyring.Add(addedKey); err != nil {
 			return fmt.Errorf("adding private key: %w", err)
 		}
 	}
@@ -126,8 +143,9 @@ func StartSSHAgent(key db.AccessKey, logger task_logger.Logger) (Agent, error) {
 		Logger: logger,
 		Keys: []AgentKey{
 			{
-				Key:        []byte(key.SshKey.PrivateKey),
-				Passphrase: []byte(key.SshKey.Passphrase),
+				Key:         []byte(key.SshKey.PrivateKey),
+				Passphrase:  []byte(key.SshKey.Passphrase),
+				Certificate: []byte(key.SshKey.Certificate),
 			},
 		},
 		SocketFile: socketFile,
@@ -137,11 +155,10 @@ func StartSSHAgent(key db.AccessKey, logger task_logger.Logger) (Agent, error) {
 }
 
 type AccessKeyInstallation struct {
-	SSHAgent        *Agent
-	Login           string
-	Password        string
-	Script          string
-	CertificateFile string
+	SSHAgent *Agent
+	Login    string
+	Password string
+	Script   string
 }
 
 func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
@@ -154,9 +171,6 @@ func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
 		if util.Config.SshConfigPath != "" {
 			sshCmd += " -F " + util.Config.SshConfigPath
 		}
-		if key.CertificateFile != "" {
-			sshCmd += " -o CertificateFile=" + key.CertificateFile
-		}
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
 	}
 
@@ -164,9 +178,6 @@ func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
 }
 
 func (key *AccessKeyInstallation) Destroy() error {
-	if key.CertificateFile != "" {
-		os.Remove(key.CertificateFile) //nolint:errcheck
-	}
 	if key.SSHAgent != nil {
 		return key.SSHAgent.Close()
 	}
@@ -174,28 +185,6 @@ func (key *AccessKeyInstallation) Destroy() error {
 }
 
 type KeyInstaller struct{}
-
-// writeCertificateFile writes the SSH certificate to a temporary file and returns the path.
-func writeCertificateFile(key db.AccessKey) (certFile string, err error) {
-	if key.SshKey.Certificate == "" {
-		return "", nil
-	}
-
-	certFilename := fmt.Sprintf("ssh-cert-%d-%s.pub", key.ID, random.String(10))
-
-	if key.ProjectID == nil {
-		certFile = path.Join(util.Config.TmpPath, certFilename)
-	} else {
-		certFile = path.Join(util.Config.GetProjectTmpDir(*key.ProjectID), certFilename)
-	}
-
-	err = os.WriteFile(certFile, []byte(key.SshKey.Certificate), 0600)
-	if err != nil {
-		return "", fmt.Errorf("writing certificate file: %w", err)
-	}
-
-	return certFile, nil
-}
 
 func (KeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation AccessKeyInstallation, err error) {
 
@@ -210,7 +199,6 @@ func (KeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger tas
 			}
 			installation.SSHAgent = &agent
 			installation.Login = key.SshKey.Login
-			installation.CertificateFile, err = writeCertificateFile(key)
 		}
 	case db.AccessKeyRoleAnsiblePasswordVault:
 		switch key.Type {
@@ -235,7 +223,6 @@ func (KeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger tas
 			}
 			installation.SSHAgent = &agent
 			installation.Login = key.SshKey.Login
-			installation.CertificateFile, err = writeCertificateFile(key)
 		case db.AccessKeyLoginPassword:
 			installation.Login = key.LoginPassword.Login
 			installation.Password = key.LoginPassword.Password
