@@ -194,9 +194,6 @@ func (KeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger tas
 		case db.AccessKeySSH:
 			var agent Agent
 			agent, err = StartSSHAgent(key, logger)
-			if err != nil {
-				return
-			}
 			installation.SSHAgent = &agent
 			installation.Login = key.SshKey.Login
 		}
@@ -218,9 +215,6 @@ func (KeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger tas
 		case db.AccessKeySSH:
 			var agent Agent
 			agent, err = StartSSHAgent(key, logger)
-			if err != nil {
-				return
-			}
 			installation.SSHAgent = &agent
 			installation.Login = key.SshKey.Login
 		case db.AccessKeyLoginPassword:
