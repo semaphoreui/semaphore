@@ -18,17 +18,17 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/pquerna/otp v1.5.0
-	github.com/redis/go-redis/v9 v9.17.1
+	github.com/redis/go-redis/v9 v9.17.2
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/semaphoreui/semaphore/pro v0.0.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/thedevsaddam/gojsonq/v2 v2.5.2
 	go.etcd.io/bbolt v1.4.1
-	golang.org/x/crypto v0.45.0
-	golang.org/x/oauth2 v0.33.0
+	golang.org/x/crypto v0.46.0
+	golang.org/x/oauth2 v0.34.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	modernc.org/sqlite v1.40.1
 )
@@ -73,8 +73,8 @@ require (
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/term v0.37.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/term v0.38.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.66.10 // indirect
