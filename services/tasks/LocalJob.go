@@ -788,6 +788,11 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 		t.Repository.GitBranch = *t.Task.GitBranch
 	}
 
+	// Override inventory repository git branch from repository if it is the same
+	if t.Inventory.Repository != nil && t.Repository.ID == t.Inventory.Repository.ID {
+		t.Inventory.Repository.GitBranch = t.Repository.GitBranch
+	}
+
 	if t.Repository.GetType() == db.RepositoryLocal {
 		if _, err := os.Stat(t.Repository.GitURL); err != nil {
 			t.Log("Failed in finding static repository at " + t.Repository.GitURL + ": " + err.Error())
@@ -839,6 +844,11 @@ func (t *LocalJob) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArg
 	// Override git branch from task if set
 	if t.Task.GitBranch != nil && *t.Task.GitBranch != "" {
 		t.Repository.GitBranch = *t.Task.GitBranch
+	}
+
+	// Override inventory repository git branch from repository if it is the same
+	if t.Inventory.Repository != nil && t.Repository.ID == t.Inventory.Repository.ID {
+		t.Inventory.Repository.GitBranch = t.Repository.GitBranch
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
