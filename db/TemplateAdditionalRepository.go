@@ -29,11 +29,11 @@ func (tar *TemplateAdditionalRepository) Validate() error {
 		return &ValidationError{"additional repository path cannot be empty"}
 	}
 
-	// Validate repository type - only git repos allowed
+	// Validate repository type - only git/ssh/https repos allowed
 	if tar.Repository != nil {
 		repoType := tar.Repository.GetType()
-		if repoType != RepositoryGit && repoType != RepositorySSH {
-			return &ValidationError{"additional repositories must be git type"}
+		if repoType != RepositoryGit && repoType != RepositorySSH && repoType != RepositoryHTTP {
+			return &ValidationError{"additional repositories must be git, ssh, or https type"}
 		}
 	}
 

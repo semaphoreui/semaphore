@@ -8,7 +8,7 @@ import (
 )
 
 func (d *BoltDb) GetTemplateAdditionalRepositories(projectID int, templateID int) (repos []db.TemplateAdditionalRepository, err error) {
-	err = d.getObjects(0, db.TemplateAdditionalRepositoryProps, db.RetrieveQueryParams{
+	err = d.getObjects(projectID, db.TemplateAdditionalRepositoryProps, db.RetrieveQueryParams{
 		SortBy: "position",
 	}, func(i interface{}) bool {
 		repo := i.(db.TemplateAdditionalRepository)
@@ -44,11 +44,14 @@ func (d *BoltDb) UpdateTemplateAdditionalRepositories(projectID int, templateID 
 	var oldRepos []db.TemplateAdditionalRepository
 
 	oldRepos, err = d.GetTemplateAdditionalRepositories(projectID, templateID)
+	if err != nil {
+		return err
+	}
 
 	err = d.db.Update(func(tx *bbolt.Tx) error {
 		// Delete all old additional repositories
 		for _, oldRepo := range oldRepos {
-			err = d.deleteObject(0, db.TemplateAdditionalRepositoryProps, intObjectID(oldRepo.ID), tx)
+			err = d.deleteObject(projectID, db.TemplateAdditionalRepositoryProps, intObjectID(oldRepo.ID), tx)
 			if err != nil {
 				return err
 			}
@@ -71,7 +74,7 @@ func (d *BoltDb) UpdateTemplateAdditionalRepositories(projectID int, templateID 
 
 			repo.TemplateID = templateID
 
-			_, err = d.createObjectTx(tx, 0, db.TemplateAdditionalRepositoryProps, repo)
+			_, err = d.createObjectTx(tx, projectID, db.TemplateAdditionalRepositoryProps, repo)
 			if err != nil {
 				return err
 			}
