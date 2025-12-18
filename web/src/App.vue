@@ -1344,11 +1344,14 @@ export default {
     },
 
     async loadData() {
+      await this.loadUserInfo();
+
+      // Activate session and start socket only after confirming user is authenticated
+      socket.setSessionActive(true);
       if (!socket.isRunning()) {
         socket.start();
       }
 
-      await this.loadUserInfo();
       await this.loadProjects();
 
       // try to find project and switch to it if URL not pointing to any project
@@ -1510,6 +1513,7 @@ export default {
           responseType: 'json',
         }));
 
+        socket.setSessionActive(false);
         socket.stop();
 
         if (this.$route.path !== '/auth/login') {
