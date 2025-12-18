@@ -26,6 +26,10 @@ func (d *BoltDb) CreateTemplate(template db.Template) (newTemplate db.Template, 
 	if err != nil {
 		return
 	}
+	err = d.UpdateTemplateAdditionalRepositories(template.ProjectID, newTemplate.ID, template.AdditionalRepositories)
+	if err != nil {
+		return
+	}
 	err = db.FillTemplate(d, &newTemplate)
 	return
 }
@@ -42,7 +46,11 @@ func (d *BoltDb) UpdateTemplate(template db.Template) error {
 	if err != nil {
 		return err
 	}
-	return d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
+	err = d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
+	if err != nil {
+		return err
+	}
+	return d.UpdateTemplateAdditionalRepositories(template.ProjectID, template.ID, template.AdditionalRepositories)
 }
 
 func (d *BoltDb) setTemplateDescriptionTx(projectID int, templateID int, description string, tx *bbolt.Tx) error {

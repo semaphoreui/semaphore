@@ -345,4 +345,15 @@ export default {
   project_stats: 'Statystyki',
   allow_override_branch: 'Gałąź',
   template_common_options: 'Wspólne opcje',
+
+  // Dodatkowe repozytoria
+  additionalRepositories: 'Dodatkowe repozytoria',
+  pathInvalidCharacters: 'Ścieżka może zawierać tylko litery, cyfry, myślniki, podkreślenia i ukośniki',
+  pathAlreadyUsed: 'Ta ścieżka jest już używana przez inne repozytorium',
+  exampleMyRepo: 'np. moje-repo lub libs/moja-lib',
+  optional: 'Opcjonalnie',
+  additionalRepositoryBranches: 'Gałęzie dodatkowych repozytoriów (nadpisanie)',
+  setBranch: 'Wybierz gałąź',
+  useDefaultBranch: 'Użyj domyślny',
+  clearAdditionalRepositories: 'Wyczyść katalog dodatkowych repozytoriów przed budowaniem',
 };

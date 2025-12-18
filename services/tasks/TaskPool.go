@@ -399,6 +399,7 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 			Logger:       app.SetLogger(tr),
 			App:          app,
 			KeyInstaller: p.keyInstallationService,
+			Store:        p.store,
 		}
 	}
 	tr.job = job
@@ -737,6 +738,7 @@ func (p *TaskPool) AddTask(
 			Logger:       app.SetLogger(taskRunner),
 			App:          app,
 			KeyInstaller: p.keyInstallationService,
+			Store:        p.store,
 		}
 	}
 

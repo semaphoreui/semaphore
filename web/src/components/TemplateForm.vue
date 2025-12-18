@@ -210,7 +210,7 @@
           <a
             v-if="!item.git_branch && !setBranch"
             @click="setBranch = true"
-          >Set branch</a>
+          >{{ $t('setBranch') }}</a>
 
         </div>
 
@@ -269,7 +269,7 @@
         ></v-autocomplete>
       </v-col>
 
-      <v-col>
+      <v-col class="mb-0">
         <h2 class="mb-4">{{ $t('template_advanced') }}</h2>
 
         <div class="mb-4">
@@ -499,6 +499,16 @@
       </v-col>
 
     </v-row>
+
+    <TemplateAdditionalRepositories
+      v-model="item.additional_repositories"
+      :git-repositories="gitRepositories"
+      :branches="additionalRepoBranches"
+      :form-saving="formSaving"
+      :show-field="needField('repository')"
+      @load-branches="loadAdditionalRepoBranches"
+    />
+
   </v-form>
 </template>
 <style lang="scss">
@@ -518,6 +528,7 @@ import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 import TemplateVaults from '@/components/TemplateVaults.vue';
+import TemplateAdditionalRepositories from '@/components/TemplateAdditionalRepositories.vue';
 import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import AppsMixin from '@/components/AppsMixin';
@@ -532,6 +543,7 @@ export default {
     TemplateVaults,
     ArgsPicker,
     SurveyVars,
+    TemplateAdditionalRepositories,
   },
 
   props: {
@@ -572,6 +584,7 @@ export default {
       },
       item: {
         task_params: {},
+        additional_repositories: [],
       },
       inventory: null,
       repositories: null,
@@ -590,6 +603,7 @@ export default {
       runnerTags: null,
       branches: null,
       setBranch: false,
+      additionalRepoBranches: {}, // { index: [branches] }
     };
   },
 
@@ -701,6 +715,17 @@ export default {
       return this.item.vaults;
     },
 
+    gitRepositories() {
+      // Filter repositories to only git/ssh/https types for additional repositories
+      if (!this.repositories) {
+        return [];
+      }
+      return this.repositories.filter((repo) => {
+        const type = repo.type || 'ssh';
+        return type === 'git' || type === 'ssh' || type === 'https';
+      });
+    },
+
     isLoaded() {
       // if (this.isNew && this.sourceItemId == null) {
       //   return true;
@@ -723,9 +748,33 @@ export default {
         return;
       }
 
-      this.branches = await this.loadProjectEndpoint(
-        `/repositories/${this.repositoryId}/branches`,
-      );
+      try {
+        this.branches = await this.loadProjectEndpoint(
+          `/repositories/${this.repositoryId}/branches`,
+        );
+      } catch (error) {
+        // If branches can't be loaded (e.g., temp directory doesn't exist),
+        // fallback to text field
+        this.branches = null;
+      }
+    },
+
+    async loadAdditionalRepoBranches(index) {
+      const addRepo = this.item.additional_repositories[index];
+      if (!addRepo || !addRepo.repository_id) {
+        this.$set(this.additionalRepoBranches, index, null);
+        return;
+      }
+
+      try {
+        const branches = await this.loadProjectEndpoint(
+          `/repositories/${addRepo.repository_id}/branches`,
+        );
+        this.$set(this.additionalRepoBranches, index, branches);
+      } catch (error) {
+        // If branches can't be loaded, fallback to text field
+        this.$set(this.additionalRepoBranches, index, null);
+      }
     },
 
     validateBackendFilename(v) {
@@ -843,6 +892,15 @@ export default {
           }
         }
 
+        if (item.additional_repositories) {
+          for (let i = 0; i < item.additional_repositories.length; i += 1) {
+            item.additional_repositories[i].id = 0;
+            item.additional_repositories[i].showBranch = (
+              !!item.additional_repositories[i].git_branch
+            );
+          }
+        }
+
         const sourceSchedule = (await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`))[0];
 
         if (sourceSchedule != null) {
@@ -872,6 +930,21 @@ export default {
       }
 
       this.itemTypeIndex = Object.keys(TEMPLATE_TYPE_ICONS).indexOf(this.item.type);
+
+      // Initialize showBranch for additional repositories
+      if (this.item.additional_repositories) {
+        for (let i = 0; i < this.item.additional_repositories.length; i += 1) {
+          this.$set(
+            this.item.additional_repositories[i],
+            'showBranch',
+            !!this.item.additional_repositories[i].git_branch,
+          );
+          // Load branches for additional repositories
+          if (this.item.additional_repositories[i].repository_id) {
+            this.loadAdditionalRepoBranches(i);
+          }
+        }
+      }
     },
 
     getItemsUrl() {
@@ -943,6 +1016,7 @@ export default {
         });
       }
     },
+
   },
 };
 </script>

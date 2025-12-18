@@ -130,6 +130,8 @@ type Template struct {
 
 	Vaults []TemplateVault `db:"-" json:"vaults,omitempty" backup:"-"`
 
+	AdditionalRepositories []TemplateAdditionalRepository `db:"-" json:"additional_repositories,omitempty" backup:"-"`
+
 	Type            TemplateType `db:"type" json:"type,omitempty"`
 	StartVersion    *string      `db:"start_version" json:"start_version,omitempty"`
 	BuildTemplateID *int         `db:"build_template_id" json:"build_template_id,omitempty" backup:"-"`
@@ -226,6 +228,13 @@ func FillTemplate(d Store, template *Template) (err error) {
 		return
 	}
 	template.Vaults = vaults
+
+	var additionalRepos []TemplateAdditionalRepository
+	additionalRepos, err = d.GetTemplateAdditionalRepositories(template.ProjectID, template.ID)
+	if err != nil {
+		return
+	}
+	template.AdditionalRepositories = additionalRepos
 
 	var tasks []TaskWithTpl
 	tasks, err = d.GetTemplateTasks(template.ProjectID, template.ID, RetrieveQueryParams{Count: 1})

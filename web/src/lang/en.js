@@ -380,4 +380,15 @@ export default {
   role_required: 'Role is required',
 
   templatePermission: 'Template permissions',
+
+  // Additional Repositories
+  additionalRepositories: 'Additional Repositories',
+  pathInvalidCharacters: 'Path can only contain letters, numbers, dashes, underscores, and slashes',
+  pathAlreadyUsed: 'This path is already used by another repository',
+  exampleMyRepo: 'e.g., my-repo or libs/my-lib',
+  optional: 'Optional',
+  additionalRepositoryBranches: 'Additional Repository Branches (Override)',
+  setBranch: 'Set branch',
+  useDefaultBranch: 'Use default',
+  clearAdditionalRepositories: 'Clear additional repositories directory before build',
 };

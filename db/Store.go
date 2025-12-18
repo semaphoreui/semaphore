@@ -282,6 +282,9 @@ type TemplateManager interface {
 	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
 	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
 
+	GetTemplateAdditionalRepositories(projectID int, templateID int) ([]TemplateAdditionalRepository, error)
+	UpdateTemplateAdditionalRepositories(projectID int, templateID int, repos []TemplateAdditionalRepository) error
+
 	GetTemplatePermission(projectID int, templateID int, userID int) (ProjectUserPermission, error)
 	GetTemplateRoles(projectID int, templateID int) ([]TemplateRolePerm, error)
 	CreateTemplateRole(role TemplateRolePerm) (TemplateRolePerm, error)
@@ -587,6 +590,15 @@ var TemplateProps = ObjectProps{
 	ReferringColumnSuffix: "template_id",
 	SortableColumns:       []string{"name", "playbook", "inventory", "environment", "repository"},
 	DefaultSortingColumn:  "name",
+}
+
+var TemplateAdditionalRepositoryProps = ObjectProps{
+	TableName:             "project__template_additional_repository",
+	Type:                  reflect.TypeOf(TemplateAdditionalRepository{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "template_id",
+	SortableColumns:       []string{"position", "path"},
+	DefaultSortingColumn:  "position",
 }
 
 var ProjectUserProps = ObjectProps{

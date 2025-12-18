@@ -37,6 +37,7 @@ type LocalJob struct {
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
 	KeyInstaller db_lib.AccessKeyInstaller
+	Store        db.Store // Store provides access to database
 }
 
 func (t *LocalJob) IsKilled() bool {
@@ -804,6 +805,12 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 		}
 	}
 
+	// Clone additional repositories
+	if err := t.cloneAdditionalRepositories(); err != nil {
+		t.Log("Failed cloning additional repositories: " + err.Error())
+		return err
+	}
+
 	if err := t.installInventory(); err != nil {
 		t.Log("Failed to install inventory: " + err.Error())
 		return err
@@ -855,6 +862,12 @@ func (t *LocalJob) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArg
 			t.Log("Failed to checkout repository to required commit: " + err.Error())
 			return err
 		}
+	}
+
+	// Clone additional repositories
+	if err := t.cloneAdditionalRepositories(); err != nil {
+		t.Log("Failed cloning additional repositories: " + err.Error())
+		return err
 	}
 
 	if err := t.installInventory(); err != nil {
@@ -980,4 +993,133 @@ func (t *LocalJob) installVaultKeyFiles() (err error) {
 	}
 
 	return
+}
+
+func (t *LocalJob) cloneAdditionalRepositories() error {
+	additionalRepos, err := t.Store.GetTemplateAdditionalRepositories(t.Template.ProjectID, t.Template.ID)
+	if err != nil {
+		return err
+	}
+
+	reposDir := path.Join(t.getRepoPath(), "repos")
+
+	// Check if user requested to clear additional repos directory
+	shouldClear := false
+	if t.Task.Params != nil {
+		if clearRepos, ok := t.Task.Params["clear_additional_repos"].(bool); ok && clearRepos {
+			shouldClear = true
+		}
+	}
+
+	// If no additional repos configured, always clear repos/ directory if it exists
+	if len(additionalRepos) == 0 {
+		if _, err := os.Stat(reposDir); err == nil {
+			t.Log("No additional repositories configured - removing repos/ directory")
+			if err := os.RemoveAll(reposDir); err != nil {
+				return fmt.Errorf("failed removing repos directory: %w", err)
+			}
+		}
+		return nil
+	}
+
+	// If user requested to clear, remove repos/ directory
+	if shouldClear {
+		if _, err := os.Stat(reposDir); err == nil {
+			t.Log("Clearing additional repositories directory as requested")
+			if err := os.RemoveAll(reposDir); err != nil {
+				return fmt.Errorf("failed clearing repos directory: %w", err)
+			}
+		}
+	}
+
+	t.Log(fmt.Sprintf("Cloning %d additional repositories", len(additionalRepos)))
+
+	for _, addRepo := range additionalRepos {
+		if addRepo.Repository == nil {
+			t.Log(fmt.Sprintf("Warning: Repository %d not loaded, skipping", addRepo.RepositoryID))
+			continue
+		}
+
+		repo := *addRepo.Repository
+
+		// Override git branch from template additional repo if set
+		if addRepo.GitBranch != nil && *addRepo.GitBranch != "" {
+			repo.GitBranch = *addRepo.GitBranch
+		}
+
+		// Override git branch from task params if provided
+		// Task.Params can contain: { "additional_repos": { "path1": { "branch": "feature-x" } } }
+		if t.Task.Params != nil {
+			if addRepoParams, ok := t.Task.Params["additional_repos"].(map[string]interface{}); ok {
+				if pathParams, ok := addRepoParams[addRepo.Path].(map[string]interface{}); ok {
+					if branchOverride, ok := pathParams["branch"].(string); ok && branchOverride != "" {
+						repo.GitBranch = branchOverride
+						t.Log(fmt.Sprintf("Branch override for '%s': %s", addRepo.Path, branchOverride))
+					}
+				}
+			}
+		}
+
+		// Clone to workspace/repos/<path>/
+		// Create repos directory if doesn't exist
+		if err := checkTmpDir(reposDir); err != nil {
+			return fmt.Errorf("failed creating repos directory: %w", err)
+		}
+
+		targetPath := path.Join(reposDir, addRepo.Path)
+
+		t.Log(fmt.Sprintf("Cloning additional repository '%s' to 'repos/%s' (branch: %s)",
+			repo.Name, addRepo.Path, repo.GitBranch))
+
+		gitRepo := db_lib.GitRepository{
+			Logger:     t.Logger,
+			TemplateID: t.Template.ID,
+			Repository: repo,
+			TmpDirName: path.Join(t.Repository.GetDirName(t.Template.ID), "repos", addRepo.Path),
+			Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		}
+
+		// Check if already cloned
+		err := gitRepo.ValidateRepo()
+		if err != nil {
+			if !os.IsNotExist(err) {
+				// Directory exists but corrupted, remove it
+				err = os.RemoveAll(targetPath)
+				if err != nil {
+					return fmt.Errorf("failed removing corrupted repo '%s': %w", repo.Name, err)
+				}
+			}
+			// Clone fresh
+			if err := gitRepo.Clone(); err != nil {
+				return fmt.Errorf("failed cloning additional repo '%s': %w", repo.Name, err)
+			}
+		} else {
+			// Already exists, try to pull
+			if gitRepo.CanBePulled() {
+				if err := gitRepo.Pull(); err != nil {
+					t.Log(fmt.Sprintf("Pull failed for '%s', re-cloning: %s", repo.Name, err.Error()))
+					// Pull failed, re-clone
+					if err := os.RemoveAll(targetPath); err != nil {
+						return fmt.Errorf("failed removing repo '%s': %w", repo.Name, err)
+					}
+					if err := gitRepo.Clone(); err != nil {
+						return fmt.Errorf("failed re-cloning repo '%s': %w", repo.Name, err)
+					}
+				}
+			}
+		}
+
+		// Checkout to specified branch
+		if err := gitRepo.Checkout(repo.GitBranch); err != nil {
+			return fmt.Errorf("failed checkout '%s' to branch '%s': %w", repo.Name, repo.GitBranch, err)
+		}
+
+		t.Log(fmt.Sprintf("Successfully prepared additional repository '%s' at '%s'", repo.Name, addRepo.Path))
+	}
+
+	return nil
+}
+
+func (t *LocalJob) getRepoPath() string {
+	return t.Repository.GetFullPath(t.Template.ID)
 }

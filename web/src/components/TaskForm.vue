@@ -123,6 +123,35 @@
         && template.allow_override_branch_in_task"
     />
 
+    <div v-if="additionalRepos && additionalRepos.length > 0" class="mt-2">
+      <h4 class="mb-3">{{ $t('additionalRepositoryBranches') }}</h4>
+
+      <v-autocomplete
+        v-for="addRepo in additionalRepos"
+        :key="addRepo.id"
+        v-model="additionalRepoBranches[addRepo.path]"
+        :label="`${addRepo.repository.name} (${
+          addRepo.git_branch || addRepo.repository.git_branch
+        })`"
+        :placeholder="addRepo.git_branch || addRepo.repository.git_branch"
+        :items="additionalReposBranchesList[addRepo.repository_id] || []"
+        outlined
+        dense
+        clearable
+        :disabled="formSaving"
+      >
+        <template v-slot:prepend-inner>
+          <v-icon small class="mr-1">mdi-source-branch</v-icon>
+        </template>
+      </v-autocomplete>
+
+      <v-checkbox
+        class="mt-0"
+        :label="$t('clearAdditionalRepositories')"
+        v-model="clearAdditionalRepos"
+      />
+    </div>
+
     <v-autocomplete
       v-model="inventory_id"
       :label="fieldLabel('inventory')"
@@ -205,6 +234,10 @@ export default {
         indentWithTabs: false,
       },
       inventory: null,
+      additionalRepos: null,
+      additionalRepoBranches: {},
+      additionalReposBranchesList: {}, // { repo_id: [branches] }
+      clearAdditionalRepos: false,
     };
   },
 
@@ -289,6 +322,23 @@ export default {
       this.item.arguments = JSON.stringify(args || []);
     },
 
+    async loadAdditionalRepoBranches(repoId) {
+      if (!repoId) {
+        return;
+      }
+
+      try {
+        const branches = await this.loadProjectEndpoint(
+          `/repositories/${repoId}/branches`,
+        );
+        this.$set(this.additionalReposBranchesList, repoId, branches);
+      } catch (error) {
+        // If branches can't be loaded, autocomplete will be empty
+        console.error(`Failed to load branches for repo ${repoId}:`, error);
+        this.$set(this.additionalReposBranchesList, repoId, []);
+      }
+    },
+
     getTaskMessage(task) {
       let buildTask = task;
 
@@ -326,6 +376,32 @@ export default {
     beforeSave() {
       this.item.environment = JSON.stringify(this.editedEnvironment);
       this.item.secret = JSON.stringify(this.editedSecretEnvironment);
+
+      // Save additional repository branch overrides to params
+      if (this.additionalRepoBranches && Object.keys(this.additionalRepoBranches).length > 0) {
+        if (!this.item.params) {
+          this.item.params = {};
+        }
+
+        const additionalRepoParams = {};
+        Object.entries(this.additionalRepoBranches).forEach(([path, branch]) => {
+          if (branch && branch.trim() !== '') {
+            additionalRepoParams[path] = { branch };
+          }
+        });
+
+        if (Object.keys(additionalRepoParams).length > 0) {
+          this.item.params.additional_repos = additionalRepoParams;
+        }
+      }
+
+      // Save clear additional repos option
+      if (this.clearAdditionalRepos) {
+        if (!this.item.params) {
+          this.item.params = {};
+        }
+        this.item.params.clear_additional_repos = true;
+      }
     },
 
     refreshItem() {
@@ -350,6 +426,7 @@ export default {
       [
         this.buildTasks,
         this.inventory,
+        this.additionalRepos,
       ] = await Promise.all([
 
         this.template.type === 'deploy' ? (await axios({
@@ -363,7 +440,22 @@ export default {
           url: this.getInventoryUrl(),
           responseType: 'json',
         })).data : [],
+
+        this.template?.id ? (await axios({
+          keys: 'get',
+          url: `/api/project/${this.projectId}/templates/${this.template.id}`,
+          responseType: 'json',
+        })).data.additional_repositories || [] : [],
       ]);
+
+      // Load branches for additional repositories
+      if (this.additionalRepos && this.additionalRepos.length > 0) {
+        await Promise.all(
+          this.additionalRepos
+            .filter((addRepo) => addRepo.repository_id)
+            .map((addRepo) => this.loadAdditionalRepoBranches(addRepo.repository_id)),
+        );
+      }
 
       if (this.item.build_task_id == null
         && this.buildTasks.length > 0

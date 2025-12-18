@@ -68,6 +68,11 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		return
 	}
 
+	err = d.UpdateTemplateAdditionalRepositories(template.ProjectID, insertID, template.AdditionalRepositories)
+	if err != nil {
+		return
+	}
+
 	err = db.FillTemplate(d, &newTemplate)
 
 	if err != nil {
@@ -140,8 +145,11 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	}
 
 	err = d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return d.UpdateTemplateAdditionalRepositories(template.ProjectID, template.ID, template.AdditionalRepositories)
 }
 func (d *SqlDb) SetTemplateDescription(projectID int, templateID int, description string) (err error) {
 
