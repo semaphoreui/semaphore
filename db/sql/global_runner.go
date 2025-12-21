@@ -2,6 +2,7 @@ package sql
 
 import (
 	"encoding/base64"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"

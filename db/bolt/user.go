@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"fmt"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"golang.org/x/crypto/bcrypt"

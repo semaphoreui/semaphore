@@ -1,8 +1,9 @@
 package bolt
 
 import (
-	"go.etcd.io/bbolt"
 	"testing"
+
+	"go.etcd.io/bbolt"
 )
 
 func TestMigration_2_14_7_Apply(t *testing.T) {

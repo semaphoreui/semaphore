@@ -133,10 +133,10 @@ func (r ScheduleRunner) Run() {
 	tpl, err := r.pool.store.GetTemplate(schedule.ProjectID, schedule.TemplateID)
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
-			"context":      common_errors.GetErrorContext(),
-			"project_id":   schedule.ProjectID,
-			"schedule_id":  schedule.ID,
-			"template_id":  schedule.TemplateID,
+			"context":     common_errors.GetErrorContext(),
+			"project_id":  schedule.ProjectID,
+			"schedule_id": schedule.ID,
+			"template_id": schedule.TemplateID,
 		}).Error("failed to get template")
 		return
 	}

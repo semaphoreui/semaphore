@@ -1,10 +1,11 @@
 package projects
 
 import (
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
-	"net/http"
 )
 
 // NewProjectRunnerController creates a new ProjectRunnerController instance.

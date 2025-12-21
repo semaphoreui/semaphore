@@ -3,11 +3,12 @@ package api
 import (
 	"bufio"
 	"bytes"
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 func getAllRunners(w http.ResponseWriter, r *http.Request) {

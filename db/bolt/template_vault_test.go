@@ -1,9 +1,10 @@
 package bolt
 
 import (
+	"testing"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
-	"testing"
 )
 
 func TestGetTemplateVaults(t *testing.T) {

@@ -3,11 +3,12 @@ package projects
 import (
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/services/server"
-	"net/http"
 )
 
 type EnvironmentController struct {
