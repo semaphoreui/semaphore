@@ -134,6 +134,40 @@ func StartSSHAgent(key db.AccessKey, logger task_logger.Logger) (Agent, error) {
 	return sshAgent, sshAgent.Listen()
 }
 
+func StartSSHAgentWithKeys(keys []db.AccessKey, projectID int, logger task_logger.Logger) (Agent, error) {
+	if len(keys) == 0 {
+		return Agent{}, fmt.Errorf("no keys provided")
+	}
+
+	// Generate unique socket filename
+	socketFilename := fmt.Sprintf("ssh-agent-process-%s.sock", random.String(10))
+	socketFile := path.Join(util.Config.GetProjectTmpDir(projectID), socketFilename)
+
+	// Build agent keys array
+	var agentKeys []AgentKey
+	for _, key := range keys {
+		if key.Type != db.AccessKeySSH {
+			continue // Skip non-SSH keys
+		}
+		agentKeys = append(agentKeys, AgentKey{
+			Key:        []byte(key.SshKey.PrivateKey),
+			Passphrase: []byte(key.SshKey.Passphrase),
+		})
+	}
+
+	if len(agentKeys) == 0 {
+		return Agent{}, fmt.Errorf("no valid SSH keys found")
+	}
+
+	sshAgent := Agent{
+		Logger:     logger,
+		Keys:       agentKeys,
+		SocketFile: socketFile,
+	}
+
+	return sshAgent, sshAgent.Listen()
+}
+
 type AccessKeyInstallation struct {
 	SSHAgent *Agent
 	Login    string

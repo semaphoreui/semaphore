@@ -1,23 +1,81 @@
 package tasks
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strconv"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/semaphoreui/semaphore/util"
 )
 
 func (t *LocalJob) installInventory() (err error) {
-	if t.Inventory.SSHKeyID != nil {
-		t.sshKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleAnsibleUser, t.Logger)
+	processKeyIDs, err := t.getProcessSSHKeyIDs()
+	if err != nil {
+		return err
+	}
+
+	var processKeys []db.AccessKey
+	for _, keyID := range processKeyIDs {
+		key, err := t.store.GetAccessKey(t.Template.ProjectID, keyID)
 		if err != nil {
-			return
+			return fmt.Errorf("failed to load process SSH key %d: %w", keyID, err)
 		}
+
+		if err := t.encryptionService.DeserializeSecret(&key); err != nil {
+			return fmt.Errorf("failed to deserialize process SSH key %d: %w", keyID, err)
+		}
+
+		if key.Type != db.AccessKeySSH {
+			return fmt.Errorf("process key %d is not an SSH key (type: %s)", keyID, key.Type)
+		}
+
+		processKeys = append(processKeys, key)
+	}
+
+	if t.Inventory.SSHKeyID != nil {
+		if t.Inventory.SSHKey.Type == db.AccessKeySSH && len(processKeys) > 0 {
+			// Both inventory key and process keys - combine them
+			allKeys := append([]db.AccessKey{t.Inventory.SSHKey}, processKeys...)
+			agent, err := ssh.StartSSHAgentWithKeys(allKeys, t.Template.ProjectID, t.Logger)
+			if err != nil {
+				return fmt.Errorf("failed to start SSH agent with combined keys: %w", err)
+			}
+			t.sshKeyInstallation.SSHAgent = &agent
+			t.sshKeyInstallation.Login = t.Inventory.SSHKey.SshKey.Login
+			t.Log(fmt.Sprintf("Started SSH Agent with inventory key + %d process key(s)", len(processKeys)))
+		} else if len(processKeys) > 0 {
+			t.sshKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleAnsibleUser, t.Logger)
+			if err != nil {
+				return err
+			}
+			agent, err := ssh.StartSSHAgentWithKeys(processKeys, t.Template.ProjectID, t.Logger)
+			if err != nil {
+				return fmt.Errorf("failed to start SSH agent with process keys: %w", err)
+			}
+			if t.sshKeyInstallation.SSHAgent != nil {
+				t.sshKeyInstallation.SSHAgent.Close()
+			}
+			t.sshKeyInstallation.SSHAgent = &agent
+			t.Log(fmt.Sprintf("Started SSH Agent with %d process key(s)", len(processKeys)))
+		} else {
+			t.sshKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleAnsibleUser, t.Logger)
+			if err != nil {
+				return err
+			}
+		}
+	} else if len(processKeys) > 0 {
+		agent, err := ssh.StartSSHAgentWithKeys(processKeys, t.Template.ProjectID, t.Logger)
+		if err != nil {
+			return fmt.Errorf("failed to start SSH agent with process keys: %w", err)
+		}
+		t.sshKeyInstallation.SSHAgent = &agent
+		t.Log(fmt.Sprintf("Started SSH Agent with %d process key(s)", len(processKeys)))
 	}
 
 	if t.Inventory.BecomeKeyID != nil {

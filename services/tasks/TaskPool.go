@@ -390,15 +390,17 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 	} else {
 		app := db_lib.CreateApp(tr.Template, tr.Repository, tr.Inventory, tr)
 		job = &LocalJob{
-			Task:         tr.Task,
-			Template:     tr.Template,
-			Inventory:    tr.Inventory,
-			Repository:   tr.Repository,
-			Environment:  tr.Environment,
-			Secret:       "{}",
-			Logger:       app.SetLogger(tr),
-			App:          app,
-			KeyInstaller: p.keyInstallationService,
+			Task:              tr.Task,
+			Template:          tr.Template,
+			Inventory:         tr.Inventory,
+			Repository:        tr.Repository,
+			Environment:       tr.Environment,
+			Secret:            "{}",
+			Logger:            app.SetLogger(tr),
+			App:               app,
+			KeyInstaller:      p.keyInstallationService,
+			store:             p.store,
+			encryptionService: p.encryptionService,
 		}
 	}
 	tr.job = job
@@ -728,15 +730,17 @@ func (p *TaskPool) AddTask(
 			taskRunner)
 
 		job = &LocalJob{
-			Task:         taskRunner.Task,
-			Template:     taskRunner.Template,
-			Inventory:    taskRunner.Inventory,
-			Repository:   taskRunner.Repository,
-			Environment:  taskRunner.Environment,
-			Secret:       extraSecretVars,
-			Logger:       app.SetLogger(taskRunner),
-			App:          app,
-			KeyInstaller: p.keyInstallationService,
+			Task:              taskRunner.Task,
+			Template:          taskRunner.Template,
+			Inventory:         taskRunner.Inventory,
+			Repository:        taskRunner.Repository,
+			Environment:       taskRunner.Environment,
+			Secret:            extraSecretVars,
+			Logger:            app.SetLogger(taskRunner),
+			App:               app,
+			KeyInstaller:      p.keyInstallationService,
+			store:             p.store,
+			encryptionService: p.encryptionService,
 		}
 	}
 

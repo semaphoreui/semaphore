@@ -76,6 +76,7 @@ type AnsibleTemplateParams struct {
 	Limit                  []string `json:"limit"`
 	Tags                   []string `json:"tags"`
 	SkipTags               []string `json:"skip_tags"`
+	SSHAgentKeyIDs         []int    `json:"ssh_agent_key_ids,omitempty"`
 }
 
 type TerraformTemplateParams struct {
@@ -84,6 +85,11 @@ type TerraformTemplateParams struct {
 	AutoApprove      bool   `json:"auto_approve,omitempty"`
 	OverrideBackend  bool   `json:"override_backend,omitempty"` // override backend if internal backend is used
 	BackendFilename  string `json:"backend_filename,omitempty"`
+	SSHAgentKeyIDs   []int  `json:"ssh_agent_key_ids,omitempty"`
+}
+
+type DefaultTemplateParams struct {
+	SSHAgentKeyIDs []int `json:"ssh_agent_key_ids,omitempty"`
 }
 
 type SurveyVarEnumValue struct {

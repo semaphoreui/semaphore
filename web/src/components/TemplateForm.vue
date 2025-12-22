@@ -292,6 +292,47 @@
             @change="setSurveyVars"
           />
 
+          <v-autocomplete
+            v-if="sshKeys != null && supportsSSHAgent"
+            v-model="ssh_agent_key_ids"
+            :items="sshKeys"
+            item-value="id"
+            item-text="name"
+            :label="$t('sshAgentKeys')"
+            :hint="$t('sshAgentKeysHint')"
+            persistent-hint
+            multiple
+            chips
+            deletable-chips
+            outlined
+            dense
+            class="mb-3"
+          >
+            <template v-slot:selection="{ item, index }">
+              <v-chip
+                v-if="index < 2"
+                close
+                @click:close="removeSSHAgentKey(item.id)"
+                small
+              >
+                {{ item.name }}
+              </v-chip>
+              <span
+                v-if="index === 2"
+                class="grey--text text-caption"
+              >
+                (+{{ ssh_agent_key_ids.length - 2 }} {{ $t('others') }})
+              </span>
+            </template>
+          </v-autocomplete>
+
+          <v-skeleton-loader
+            v-else-if="supportsSSHAgent"
+            type="card"
+            height="54"
+            style="margin-bottom: 16px; margin-top: 4px;"
+          ></v-skeleton-loader>
+
           <v-checkbox
             class="mt-0"
             v-model="item.allow_parallel_tasks"
@@ -590,6 +631,7 @@ export default {
       runnerTags: null,
       branches: null,
       setBranch: false,
+      keys: null,
     };
   },
 
@@ -650,6 +692,26 @@ export default {
       },
       set(newValue) {
         this.item.task_params.allow_override_inventory = newValue;
+      },
+    },
+
+    sshKeys() {
+      if (this.keys == null) {
+        return null;
+      }
+      return this.keys.filter((key) => key.type === 'ssh');
+    },
+
+    supportsSSHAgent() {
+      return ['ansible', 'terraform', 'tofu', 'terragrunt', 'bash', 'powershell', 'python', 'pulumi'].includes(this.app);
+    },
+
+    ssh_agent_key_ids: {
+      get() {
+        return this.item.task_params.ssh_agent_key_ids || [];
+      },
+      set(newValue) {
+        this.item.task_params.ssh_agent_key_ids = newValue;
       },
     },
 
@@ -764,6 +826,13 @@ export default {
       this.item.vaults = v;
     },
 
+    removeSSHAgentKey(keyId) {
+      const index = this.ssh_agent_key_ids.indexOf(keyId);
+      if (index > -1) {
+        this.ssh_agent_key_ids = this.ssh_agent_key_ids.filter((id) => id !== keyId);
+      }
+    },
+
     showHelpDialog(key) {
       this.helpKey = key;
       this.helpDialog = true;
@@ -789,6 +858,7 @@ export default {
         this.environment,
         templates,
         this.runnerTags,
+        this.keys,
       ] = await Promise.all([
         this.loadProjectResources('repositories'),
         this.loadProjectEndpoint(`/inventory?app=${this.app}&template_id=${this.itemId}`),
@@ -798,6 +868,7 @@ export default {
         this.loadProjectResources('environment'),
         this.loadProjectResources('templates'),
         this.loadProjectResources('runner_tags'),
+        this.loadProjectResources('keys'),
       ]);
 
       this.inventory = [...inventory1, ...inventory2];
