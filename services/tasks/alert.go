@@ -504,6 +504,69 @@ func (t *TaskRunner) sendGotifyAlert() {
 	}
 }
 
+func (t *TaskRunner) sendLarkAlert() {
+	if !util.Config.LarkAlert || !t.alert {
+		return
+	}
+
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+		return
+	}
+
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("lark"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  t.Task.Status.Format(),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+	}
+
+	tpl, err := template.ParseFS(templates, "templates/lark.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse lark alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate lark alert template!")
+		panic(err)
+	}
+
+	if body.Len() == 0 {
+		t.Log("Buffer for lark alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send lark alert")
+
+	resp, err := http.Post(
+		util.Config.LarkUrl,
+		"application/json",
+		body,
+	)
+
+	if err != nil {
+		t.Log("Can't send lark alert! Error: " + err.Error())
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send lark alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully lark alert")
+	}
+
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
+	}
+}
+
 func (t *TaskRunner) alertInfos() (string, string) {
 	version := ""
 
@@ -566,6 +629,21 @@ func (t *TaskRunner) alertColor(kind string) string {
 			return "#BEBEBE"
 		case task_logger.TaskStoppedStatus:
 			return "#5B5B5B"
+		}
+	case "lark":
+		switch t.Task.Status {
+		case task_logger.TaskSuccessStatus:
+			return "green"
+		case task_logger.TaskFailStatus:
+			return "red"
+		case task_logger.TaskRunningStatus:
+			return "blue"
+		case task_logger.TaskWaitingStatus:
+			return "yellow"
+		case task_logger.TaskStoppingStatus:
+			return "grey"
+		case task_logger.TaskStoppedStatus:
+			return "black"
 		}
 	}
 

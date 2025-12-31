@@ -1,0 +1,26 @@
+         {
+           "msg_type": "interactive",
+           "card": {
+             "header": {
+               "title": {
+                 "tag": "plain_text",
+                 "content": "Task: {{ .Name }}"
+               },
+               "template": "{{ .Color }}"
+             },
+             "elements": [
+               {
+                 "tag": "div",
+                 "fields": [
+                   {
+                     "is_short": true,
+                     "text": {
+                       "tag": "lark_md",
+                       "content": "**Execution : ** {{ .Task.ID }}  \n**Status: **{{ .Task.Result }}  \n**Author: **{{ .Author }}  \n{{ if .Task.Version }}**Version: **{{ .Task.Version }}  \n{{ end }}[Task Link]({{ .Task.URL }})"
+                     }
+                   }
+                 ]
+               }
+             ]
+           }
+         }
