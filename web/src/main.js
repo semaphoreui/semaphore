@@ -70,7 +70,7 @@ Vue.filter('formatDate', (value) => {
 });
 
 // formatTime: localized time with seconds
-Vue.filter('formatTime', (value) => (value ? dayjs(String(value)).format('LTS') : '—'));
+Vue.filter('formatTime', (value) => (value ? new Date(value).toLocaleTimeString(undefined, { hour: 'numeric', minute: 'numeric' }) : '—'));
 
 // formatLog: unchanged (ANSI → HTML)
 Vue.filter('formatLog', (value) => (value ? convert.ansi_to_html(String(value)) : value));
