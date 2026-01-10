@@ -83,21 +83,13 @@
 
     <EditDialog
       v-model="subscriptionDialog"
-      :save-button-text="null"
-      :cancel-button-text="$t('close')"
+      hide-buttons
       v-if="user"
       event-name="i-user"
       dont-close-on-save
     >
       <template v-slot:title="{}">
-        <v-icon
-          large
-          class="mr-2"
-          color="#f14668"
-        >
-          mdi-professional-hexagon
-        </v-icon>
-        Subscription details
+        Upgrade to Semaphore PRO
       </template>
 
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -515,7 +507,7 @@
                   {{
                     user.has_active_subscription
                       ? 'Subscription details'
-                      : 'Activate subscription'
+                      : 'Upgrade to PRO'
                   }}
                 </v-list-item-content>
               </v-list-item>
@@ -611,25 +603,6 @@
               </v-list-item>
             </v-list>
           </v-menu>
-
-          <v-list-item
-            key="premium"
-            v-if="false && isPro && user.admin && !user.has_active_subscription"
-            @click="subscriptionDialog = true"
-            class="ActivatePremiumSubscriptionButton"
-          >
-            <v-list-item-icon>
-              <v-icon
-                color="white"
-              >mdi-professional-hexagon</v-icon>
-            </v-list-item-icon>
-            <v-list-item-content>
-              <v-list-item-title
-              >
-                Activate Subscription
-              </v-list-item-title>
-            </v-list-item-content>
-          </v-list-item>
         </v-list>
 
       </template>
