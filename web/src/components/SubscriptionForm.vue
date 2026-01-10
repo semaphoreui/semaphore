@@ -54,12 +54,7 @@
 
       <v-row>
         <v-col>
-          <v-btn
-            @click="save"
-            style="width: 100%"
-            color="primary"
-            :disabled="formSaving || !item.key"
-          >
+          <v-btn @click="save" style="width: 100%" color="success" :disabled="formSaving">
             <v-progress-circular
               v-if="formSaving"
               indeterminate
@@ -87,6 +82,7 @@
         class="mt-4"
         :disabled="formSaving"
         target="_blank"
+        outlined
         href="https://portal.semaphoreui.com/start_trial"
       >
         Get 30-day free trial
