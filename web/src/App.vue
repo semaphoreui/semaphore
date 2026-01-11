@@ -1082,6 +1082,10 @@ export default {
   },
 
   mounted() {
+    EventBus.$on('i-subscription', () => {
+      this.subscriptionDialog = true;
+    });
+
     EventBus.$on('i-snackbar', (e) => {
       this.snackbar = true;
       this.snackbarColor = e.color;
