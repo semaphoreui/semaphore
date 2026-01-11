@@ -1,6 +1,5 @@
 <template>
   <v-app v-if="state === 'success'" class="app">
-
     <YesNoDialog
       :title="$t('projectRestoreResult')"
       v-model="restoreProjectResultDialog"
@@ -9,22 +8,12 @@
       :max-width="400"
     >
       <div class="pt-3" v-if="restoreProjectResult">
-
-        <v-alert
-          dense
-          outlined
-          type="success"
-        >
-          {{ $t('projectWithNameRestored', {projectName: restoreProjectResult.projectName}) }}
+        <v-alert dense outlined type="success">
+          {{ $t('projectWithNameRestored', { projectName: restoreProjectResult.projectName }) }}
         </v-alert>
 
-        <v-alert
-          dense
-          outlined
-          type="error"
-          class="mb-0"
-        >
-          <b>{{ $t('emptyKeysRestored', {emptyKeys: restoreProjectResult.emptyKeys}) }}</b>
+        <v-alert dense outlined type="error" class="mb-0">
+          <b>{{ $t('emptyKeysRestored', { emptyKeys: restoreProjectResult.emptyKeys }) }}</b>
           {{ $t('pleaseUpdateAccessKeys') }}
         </v-alert>
       </div>
@@ -47,7 +36,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :is-admin="user.admin"
-          :auth-methods="(systemInfo || {auth_methods: {}}).auth_methods"
+          :auth-methods="(systemInfo || { auth_methods: {} }).auth_methods"
           @hide-action-buttons="hideUserDialogButtons = true"
           @show-action-buttons="hideUserDialogButtons = false"
         />
@@ -89,13 +78,18 @@
       dont-close-on-save
     >
       <template v-slot:title="{}">
-        Upgrade to Semaphore PRO
+        {{
+          user.has_active_subscription ? 'Subscription &amp; Billing' : 'Upgrade to Semaphore PRO'
+        }}
       </template>
 
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <SubscriptionForm
           item-id="new"
-          @save="onSave(); onSubscriptionKeyUpdates();"
+          @save="
+            onSave();
+            onSubscriptionKeyUpdates();
+          "
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
@@ -120,17 +114,9 @@
       </template>
     </EditDialog>
 
-    <v-snackbar
-      v-model="snackbar"
-      :color="snackbarColor"
-      :timeout="3000"
-      top
-    >
+    <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" top>
       {{ snackbarText }}
-      <v-btn
-        text
-        @click="snackbar = false"
-      >
+      <v-btn text @click="snackbar = false">
         {{ $t('close') }}
       </v-btn>
     </v-snackbar>
@@ -160,7 +146,7 @@
                 <v-avatar
                   :color="getProjectColor(project)"
                   size="24"
-                  style="font-size: 13px; font-weight: bold;"
+                  style="font-size: 13px; font-weight: bold"
                 >
                   <span class="white--text">{{ getProjectInitials(project) }}</span>
                 </v-avatar>
@@ -180,7 +166,6 @@
           </v-list>
         </template>
         <v-list>
-
           <v-list-item
             v-for="(item, i) in projects"
             :key="i"
@@ -191,7 +176,7 @@
               <v-avatar
                 :color="getProjectColor(item)"
                 size="24"
-                style="font-size: 13px; font-weight: bold;"
+                style="font-size: 13px; font-weight: bold"
               >
                 <span class="white--text">{{ getProjectInitials(item) }}</span>
               </v-avatar>
@@ -199,7 +184,7 @@
             <v-list-item-content>{{ item.name }}</v-list-item-content>
           </v-list-item>
 
-          <v-divider v-if="user.can_create_project"/>
+          <v-divider v-if="user.can_create_project" />
 
           <v-list-item
             @click="showNewProjectDialogue()"
@@ -254,7 +239,6 @@
       </v-list>
 
       <v-list class="pt-0" v-if="project">
-
         <v-list-item
           key="dashboard"
           :to="`/project/${projectId}/history`"
@@ -373,11 +357,7 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item
-          key="team"
-          :to="`/project/${projectId}/team`"
-          data-testid="sidebar-team"
-        >
+        <v-list-item key="team" :to="`/project/${projectId}/team`" data-testid="sidebar-team">
           <v-list-item-icon>
             <v-icon>mdi-account-multiple</v-icon>
           </v-list-item-icon>
@@ -390,7 +370,6 @@
 
       <template v-slot:append>
         <v-list class="pa-0">
-
           <v-list-item>
             <v-switch
               class="DarkModeSwitch"
@@ -399,24 +378,13 @@
               append-icon="mdi-weather-night"
             ></v-switch>
 
-            <v-spacer/>
+            <v-spacer />
 
-            <v-menu
-              top
-              min-width="150"
-              max-width="235"
-              nudge-top="12"
-              :position-x="50"
-              absolute
-            >
-              <template v-slot:activator="{on, attrs}">
-                <v-btn
-                  icon
-                  v-bind="attrs"
-                  v-on="on"
-                >
+            <v-menu top min-width="150" max-width="235" nudge-top="12" :position-x="50" absolute>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn icon v-bind="attrs" v-on="on">
                   <img
-                    style="border-radius: 30px; max-width: 100%;"
+                    style="border-radius: 30px; max-width: 100%"
                     :src="`flags/${lang.flag}.svg`"
                     alt=""
                   />
@@ -429,10 +397,9 @@
                   :key="lang.id"
                   @click="selectLanguage(lang.id)"
                 >
-
                   <v-list-item-icon>
                     <v-img
-                      style="border-radius: 20px; max-width: 24px;"
+                      style="border-radius: 20px; max-width: 24px"
                       :src="`flags/${lang.flag}.svg`"
                       alt=""
                     />
@@ -441,27 +408,16 @@
                   <v-list-item-content>
                     <v-list-item-title>{{ lang.title }}</v-list-item-title>
                   </v-list-item-content>
-
                 </v-list-item>
               </v-list>
             </v-menu>
-
           </v-list-item>
 
           <v-menu top max-width="235" nudge-top="12">
             <template v-slot:activator="{ on, attrs }">
-              <v-list-item
-                key="project"
-                v-bind="attrs"
-                v-on="on"
-              >
+              <v-list-item key="project" v-bind="attrs" v-on="on">
                 <v-list-item-icon>
-                  <v-icon
-                    color="#f14668"
-                    v-if="user.pro"
-                  >
-                    mdi-professional-hexagon
-                  </v-icon>
+                  <v-icon color="#f14668" v-if="user.pro"> mdi-professional-hexagon </v-icon>
                   <v-icon v-else>mdi-account</v-icon>
                 </v-list-item-icon>
 
@@ -469,7 +425,6 @@
                   <v-list-item-title>
                     {{ user.name }}
                   </v-list-item-title>
-
                 </v-list-item-content>
 
                 <v-list-item-action>
@@ -495,30 +450,21 @@
                 @click="subscriptionDialog = true"
               >
                 <v-list-item-icon>
-                  <v-icon
-                    color="#f14668"
-                    style="transform: scale(1.4)"
-                  >
+                  <v-icon color="#f14668" style="transform: scale(1.4)">
                     mdi-professional-hexagon
                   </v-icon>
                 </v-list-item-icon>
 
                 <v-list-item-content>
                   {{
-                    user.has_active_subscription
-                      ? 'Subscription details'
-                      : 'Upgrade to PRO'
+                    user.has_active_subscription ? 'Subscription &amp; Billing' : 'Upgrade to PRO'
                   }}
                 </v-list-item-content>
               </v-list-item>
 
-              <v-divider/>
+              <v-divider />
 
-              <v-list-item
-                key="runners"
-                to="/runners"
-                v-if="user.admin"
-              >
+              <v-list-item key="runners" to="/runners" v-if="user.admin">
                 <v-list-item-icon>
                   <v-icon>mdi-cogs</v-icon>
                 </v-list-item-icon>
@@ -528,11 +474,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item
-                key="tasks"
-                to="/tasks"
-                v-if="user.admin"
-              >
+              <v-list-item key="tasks" to="/tasks" v-if="user.admin">
                 <v-list-item-icon>
                   <v-icon>mdi-check-all</v-icon>
                 </v-list-item-icon>
@@ -542,11 +484,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item
-                key="tokens"
-                to="/tokens"
-                data-testid="sidebar-tokens"
-              >
+              <v-list-item key="tokens" to="/tokens" data-testid="sidebar-tokens">
                 <v-list-item-icon>
                   <v-icon>mdi-api</v-icon>
                 </v-list-item-icon>
@@ -566,11 +504,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item
-                key="roles"
-                to="/roles"
-                v-if="isPro && user.admin"
-              >
+              <v-list-item key="roles" to="/roles" v-if="isPro && user.admin">
                 <v-list-item-icon>
                   <v-icon>mdi-account-cog</v-icon>
                 </v-list-item-icon>
@@ -604,7 +538,6 @@
             </v-list>
           </v-menu>
         </v-list>
-
       </template>
     </v-navigation-drawer>
 
@@ -617,27 +550,16 @@
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
         :user="user"
-        :premiumFeatures="((systemInfo || {premium_features: {}}).premium_features)"
-        :authMethods="(systemInfo || {auth_methods: {}}).auth_methods"
+        :premiumFeatures="(systemInfo || { premium_features: {} }).premium_features"
+        :authMethods="(systemInfo || { auth_methods: {} }).auth_methods"
         :systemInfo="systemInfo"
       ></router-view>
     </v-main>
-
   </v-app>
   <v-app v-else-if="state === 'loading'">
     <v-main>
-      <v-container
-        fluid
-        fill-height
-        align-center
-        justify-center
-        class="pa-0"
-      >
-        <v-progress-circular
-          :size="70"
-          color="primary"
-          indeterminate
-        ></v-progress-circular>
+      <v-container fluid fill-height align-center justify-center class="pa-0">
+        <v-progress-circular :size="70" color="primary" indeterminate></v-progress-circular>
       </v-container>
     </v-main>
   </v-app>
@@ -678,11 +600,11 @@
 }
 .NewProSubscriptionMenuItem {
   transition: 0.2s transform;
-  .v-list-item__content, .v-list-item__icon {
+  .v-list-item__content,
+  .v-list-item__icon {
     transition: 0.5s transform;
   }
   &:hover {
-
     transform: scale(1.05) translateY(-1px);
 
     // .v-list-item__content {
@@ -706,7 +628,7 @@
 }
 
 .theme--light {
-  --highlighted-card-bg-color: #F3F3F3;
+  --highlighted-card-bg-color: #f3f3f3;
 }
 
 .DarkModeSwitch {
@@ -798,11 +720,13 @@
 }
 
 .v-data-table {
-  td:first-child, th:first-child {
+  td:first-child,
+  th:first-child {
     padding-left: 2px !important;
   }
 
-  td:last-child, th:last-child {
+  td:last-child,
+  th:last-child {
     padding-right: 2px !important;
   }
 
@@ -930,12 +854,7 @@ import YesNoDialog from '@/components/YesNoDialog.vue';
 import TaskLogDialog from '@/components/TaskLogDialog.vue';
 import delay from '@/lib/delay';
 
-const PROJECT_COLORS = [
-  'red',
-  'blue',
-  'orange',
-  'green',
-];
+const PROJECT_COLORS = ['red', 'blue', 'orange', 'green'];
 
 const LANGUAGES = {
   en: {
@@ -1056,7 +975,8 @@ export default {
 
   watch: {
     async projects(val) {
-      if (val.length === 0
+      if (
+        val.length === 0
         && this.$route.path.startsWith('/project/')
         && this.$route.path !== '/project/new'
         && this.$route.path !== '/project/premium'
@@ -1095,7 +1015,6 @@ export default {
   },
 
   computed: {
-
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
     },
@@ -1249,11 +1168,13 @@ export default {
       }
 
       if (e.action === 'restore') {
-        const emptyKeys = (await axios({
-          method: 'get',
-          url: `/api/project/${project.id}/keys`,
-          responseType: 'json',
-        })).data.filter((k) => k.empty);
+        const emptyKeys = (
+          await axios({
+            method: 'get',
+            url: `/api/project/${project.id}/keys`,
+            responseType: 'json',
+          })
+        ).data.filter((k) => k.empty);
 
         this.restoreProjectResult = {
           projectName,
@@ -1286,7 +1207,6 @@ export default {
   },
 
   methods: {
-
     async onSubscriptionKeyUpdates() {
       EventBus.$emit('i-snackbar', {
         color: 'success',
@@ -1328,9 +1248,11 @@ export default {
       await this.loadProjects();
 
       // try to find project and switch to it if URL not pointing to any project
-      if (this.$route.path === '/'
+      if (
+        this.$route.path === '/'
         || this.$route.path === '/project'
-        || (this.$route.path.startsWith('/project/'))) {
+        || this.$route.path.startsWith('/project/')
+      ) {
         await this.trySelectMostSuitableProject();
       }
 
@@ -1361,8 +1283,10 @@ export default {
         projectId = this.projectId;
       }
 
-      if ((projectId == null || !this.projects.some((p) => p.id === projectId))
-        && localStorage.getItem('projectId')) {
+      if (
+        (projectId == null || !this.projects.some((p) => p.id === projectId))
+        && localStorage.getItem('projectId')
+      ) {
         projectId = parseInt(localStorage.getItem('projectId'), 10);
       }
 
@@ -1376,11 +1300,13 @@ export default {
     },
 
     async selectProject(projectId, overriderQuery = {}) {
-      this.userRole = (await axios({
-        method: 'get',
-        url: `/api/project/${projectId}/role`,
-        responseType: 'json',
-      })).data;
+      this.userRole = (
+        await axios({
+          method: 'get',
+          url: `/api/project/${projectId}/role`,
+          responseType: 'json',
+        })
+      ).data;
 
       localStorage.setItem('projectId', projectId);
       if (this.projectId === projectId) {
@@ -1409,31 +1335,36 @@ export default {
     },
 
     async loadProjects() {
-      this.projects = (await axios({
-        method: 'get',
-        url: '/api/projects',
-        responseType: 'json',
-      })).data;
+      this.projects = (
+        await axios({
+          method: 'get',
+          url: '/api/projects',
+          responseType: 'json',
+        })
+      ).data;
     },
 
     async loadUserInfo() {
-      this.user = (await axios({
-        method: 'get',
-        url: '/api/user',
-        responseType: 'json',
-      })).data;
+      this.user = (
+        await axios({
+          method: 'get',
+          url: '/api/user',
+          responseType: 'json',
+        })
+      ).data;
 
-      this.systemInfo = (await axios({
-        method: 'get',
-        url: '/api/info',
-        responseType: 'json',
-      })).data;
+      this.systemInfo = (
+        await axios({
+          method: 'get',
+          url: '/api/info',
+          responseType: 'json',
+        })
+      ).data;
     },
 
     getProjectColor(projectData) {
-      const projectIndex = this.projects.length
-        - this.projects.findIndex((p) => p.id === projectData.id);
-      return PROJECT_COLORS[projectIndex % PROJECT_COLORS.length];
+      const i = this.projects.length - this.projects.findIndex((p) => p.id === projectData.id);
+      return PROJECT_COLORS[i % PROJECT_COLORS.length];
     },
 
     getProjectInitials(projectData) {
@@ -1454,13 +1385,11 @@ export default {
           reader.onload = async (ev) => {
             const fileContent = ev.target.result;
             try {
-              await axios
-                .post('/api/projects/restore', fileContent)
-                .then(async (payload) => {
-                  this.$router.push({ path: `/project/${payload.data.id}/history` });
-                  this.state = 'success';
-                  await this.loadProjects();
-                });
+              await axios.post('/api/projects/restore', fileContent).then(async (payload) => {
+                this.$router.push({ path: `/project/${payload.data.id}/history` });
+                this.state = 'success';
+                await this.loadProjects();
+              });
             } catch (err) {
               EventBus.$emit('i-snackbar', {
                 color: 'error',
@@ -1480,11 +1409,11 @@ export default {
       this.snackbarText = '';
 
       try {
-        (await axios({
+        await axios({
           method: 'post',
           url: '/api/auth/logout',
           responseType: 'json',
-        }));
+        });
 
         socket.setSessionActive(false);
         socket.stop();

@@ -36,9 +36,17 @@
     </div>
 
     <div v-else style="margin-bottom: 30px">
-      <div style="line-height: 1.3">
+      <div
+        v-if="item.state === 'active'"
+        style="line-height: 1.3; font-weight: bold; color: rgb(0, 188, 0)"
+        class="mb-5"
+      >
+        You PRO subscription is active.
+      </div>
+      <div v-else style="line-height: 1.3">
         Enter your subscription key to unlock advanced features, or get a new one instantly.
       </div>
+
       <v-textarea
         class="mt-4"
         rows="4"
@@ -77,6 +85,7 @@
       </v-row>
 
       <v-btn
+        v-if="item.state !== 'active'"
         style="width: 100%"
         color="primary"
         class="mt-4"
