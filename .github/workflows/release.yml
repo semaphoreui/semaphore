@@ -92,7 +92,8 @@ jobs:
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
-            type=raw,value=${{ github.ref_name }}
+            type=semver,pattern={{version}},prefix=v
+            type=semver,pattern={{major}}.{{minor}},prefix=v
           flavor: |
             latest=true
 
@@ -107,6 +108,23 @@ jobs:
           labels: ${{ steps.server.outputs.labels }}
           tags: ${{ steps.server.outputs.tags }}
 
+      - name: Server Ansible meta
+        id: server_ansible
+        uses: docker/metadata-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/semaphore
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semaphoreui.com>
+          tags: |
+            type=semver,pattern={{version}},prefix=v,suffix=-ansible2.16.5
+            type=semver,pattern={{major}}.{{minor}},prefix=v,suffix=-ansible2.16.5
+          flavor: |
+            latest=true
+            suffix=-ansible2.16.5
+
       - name: Server build with Ansible 2.16.5
         uses: docker/build-push-action@v5
         with:
@@ -117,8 +135,25 @@ jobs:
           file: deployment/docker/server/Dockerfile
           platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
-          labels: ${{ steps.server.outputs.labels }}
-          tags: semaphoreui/semaphore:${{ github.ref_name }}-ansible2.16.5
+          labels: ${{ steps.server_ansible.outputs.labels }}
+          tags: ${{ steps.server_ansible.outputs.tags }}
+
+      - name: Server PowerShell meta
+        id: server_powershell
+        uses: docker/metadata-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/semaphore
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semaphoreui.com>
+          tags: |
+            type=semver,pattern={{version}},prefix=v,suffix=-powershell7.5.0
+            type=semver,pattern={{major}}.{{minor}},prefix=v,suffix=-powershell7.5.0
+          flavor: |
+            latest=true
+            suffix=-powershell7.5.0
 
       - name: Server build with PowerShell 7.5.0
         uses: docker/build-push-action@v5
@@ -132,8 +167,8 @@ jobs:
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          labels: ${{ steps.server.outputs.labels }}
-          tags: semaphoreui/semaphore:${{ github.ref_name }}-powershell7.5.0
+          labels: ${{ steps.server_powershell.outputs.labels }}
+          tags: ${{ steps.server_powershell.outputs.tags }}
 
 
 
@@ -148,7 +183,8 @@ jobs:
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
-            type=raw,value=${{ github.ref_name }}
+            type=semver,pattern={{version}},prefix=v
+            type=semver,pattern={{major}}.{{minor}},prefix=v
           flavor: |
             latest=true
 
@@ -163,6 +199,23 @@ jobs:
           labels: ${{ steps.runner.outputs.labels }}
           tags: ${{ steps.runner.outputs.tags }}
 
+      - name: Runner Ansible meta
+        id: runner_ansible
+        uses: docker/metadata-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/runner
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semaphoreui.com>
+          tags: |
+            type=semver,pattern={{version}},prefix=v,suffix=-ansible2.16.5
+            type=semver,pattern={{major}}.{{minor}},prefix=v,suffix=-ansible2.16.5
+          flavor: |
+            latest=true
+            suffix=-ansible2.16.5
+
       - name: Runner build with Ansible 2.16.5
         uses: docker/build-push-action@v5
         with:
@@ -173,8 +226,25 @@ jobs:
           file: deployment/docker/runner/Dockerfile
           platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
-          labels: ${{ steps.runner.outputs.labels }}
-          tags: semaphoreui/runner:${{ github.ref_name }}-ansible2.16.5
+          labels: ${{ steps.runner_ansible.outputs.labels }}
+          tags: ${{ steps.runner_ansible.outputs.tags }}
+
+      - name: Runner PowerShell meta
+        id: runner_powershell
+        uses: docker/metadata-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/runner
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semaphoreui.com>
+          tags: |
+            type=semver,pattern={{version}},prefix=v,suffix=-powershell7.5.0
+            type=semver,pattern={{major}}.{{minor}},prefix=v,suffix=-powershell7.5.0
+          flavor: |
+            latest=true
+            suffix=-powershell7.5.0
 
       - name: Runner build with PowerShell 7.5.0
         uses: docker/build-push-action@v5
@@ -188,5 +258,5 @@ jobs:
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          labels: ${{ steps.runner.outputs.labels }}
-          tags: semaphoreui/runner:${{ github.ref_name }}-powershell7.5.0
+          labels: ${{ steps.runner_powershell.outputs.labels }}
+          tags: ${{ steps.runner_powershell.outputs.tags }}
