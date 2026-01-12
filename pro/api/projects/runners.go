@@ -57,13 +57,5 @@ func (c *ProjectRunnerControllerImpl) ClearRunnerCache(w http.ResponseWriter, r 
 }
 
 func (c *ProjectRunnerControllerImpl) GetRunnerTags(w http.ResponseWriter, r *http.Request) {
-	project := helpers.GetFromContext(r, "project").(db.Project)
-	tags, err := helpers.Store(r).GetRunnerTags(project.ID)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	helpers.WriteJSON(w, http.StatusOK, tags)
+	w.WriteHeader(http.StatusNotFound)
 }
