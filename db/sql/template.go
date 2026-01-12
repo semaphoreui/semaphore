@@ -136,7 +136,11 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		return err
 	}
 
-	err = d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
+	// Only update vaults if they were explicitly provided (non-nil)
+	// to avoid deleting existing vaults when updating other template fields
+	if template.Vaults != nil {
+		err = d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
+	}
 
 	return err
 }
