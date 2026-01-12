@@ -3,6 +3,7 @@ package db_lib
 import (
 	"fmt"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -26,7 +27,18 @@ func (c CmdGitClient) makeCmd(
 
 	switch targetDir {
 	case GitRepositoryTmpPath:
-		cmd.Dir = util.Config.GetProjectTmpDir(r.Repository.ProjectID)
+		tmpDir := util.Config.GetProjectTmpDir(r.Repository.ProjectID)
+		// Ensure the tmp directory exists for git commands
+		// This is particularly important for commands like ls-remote
+		// that don't require a repository but need a working directory
+		if err := os.MkdirAll(tmpDir, 0755); err != nil {
+			// Log the error but continue - git will use current directory if cmd.Dir is empty
+			if r.Logger != nil {
+				r.Logger.Log(fmt.Sprintf("Warning: failed to create tmp directory %s: %v", tmpDir, err))
+			}
+		} else {
+			cmd.Dir = tmpDir
+		}
 	case GitRepositoryFullPath:
 		cmd.Dir = r.GetFullPath()
 	default:
