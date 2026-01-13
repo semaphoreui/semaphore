@@ -190,7 +190,7 @@ export default {
   vaultPassword2: 'Vault Password',
   view: 'View',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'I want to run a task by the cron only for new commits of some repository',
+  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'Auto-run task if new git commit have been found',
   repository2: 'Repository',
   cronChecksNewCommitBeforeRun: 'Cron checks new commit before run',
   readThe: 'Read the',

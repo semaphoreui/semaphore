@@ -11,7 +11,11 @@
       <v-toolbar-title>{{ $t('api_tokens') }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
-      <a :href="`${this.systemInfo?.web_host || ''}/swagger/index.html`" class="mr-6">
+      <a
+        :href="`${this.systemInfo?.web_host || ''}/swagger/index.html`"
+        class="mr-6"
+        target="_blank"
+      >
         {{ $t('API Reference') }}
       </a>
 
