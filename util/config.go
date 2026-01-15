@@ -158,14 +158,9 @@ type TaskLogType struct {
 	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"SEMAPHORE_TASK_RESULT_LOGGER"`
 }
 
-type ConfigLogChannels struct {
-	Syslog *SyslogConfig `json:"syslog,omitempty"`
-}
-
 type ConfigLog struct {
-	Events   *EventLogType      `json:"events,omitempty"`
-	Tasks    *TaskLogType       `json:"tasks,omitempty"`
-	Channels *ConfigLogChannels `json:"channels,omitempty"`
+	Events *EventLogType `json:"events,omitempty"`
+	Tasks  *TaskLogType  `json:"tasks,omitempty"`
 }
 
 type SyslogConfig struct {
@@ -323,6 +318,8 @@ type ConfigType struct {
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
 
 	Teams *TeamsConfig `json:"teams,omitempty"`
+
+	Syslog *SyslogConfig `json:"syslog,omitempty"`
 
 	Log *ConfigLog `json:"log,omitempty"`
 

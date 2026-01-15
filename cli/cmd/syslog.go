@@ -16,6 +16,7 @@ func initSyslog(conf *util.SyslogConfig) {
 		hook, err := lSyslog.NewSyslogHook(conf.Network, conf.Address, syslog.LOG_DEBUG, conf.Tag)
 		if err == nil {
 			log.AddHook(hook)
+			log.Info("Syslog logging enabled")
 		} else {
 			log.WithError(err).Fatal("Failed to create syslog hook")
 		}
