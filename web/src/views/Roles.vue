@@ -60,7 +60,8 @@
         depressed
         v-if="isAdmin"
         color="amber darken-3"
-        href="https://semaphoreui.com/pro#secret_storages"
+        href="https://semaphoreui.com/enterprise"
+        target="_blank"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>

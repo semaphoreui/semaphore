@@ -3,6 +3,7 @@ package tasks
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -14,6 +15,9 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
+
+// ErrAllRunnersBusy is returned when all available runners are busy
+var ErrAllRunnersBusy = errors.New("all runners busy")
 
 type RemoteJob struct {
 	RunnerTag *string
@@ -72,7 +76,7 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	if resp != nil {
 		defer resp.Body.Close() //nolint:errcheck
 	}
-	
+
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		err = fmt.Errorf("webhook returned incorrect status")
 		return
@@ -136,7 +140,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	}
 
 	if runner == nil {
-		err = fmt.Errorf("no runners available")
+		err = ErrAllRunnersBusy
 		return
 	}
 

@@ -1,27 +1,17 @@
 <template>
-  <v-form
-    ref="form"
-    lazy-validation
-    v-model="formValid"
-    v-if="item != null"
-  >
+  <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
     <v-alert
       :value="formError"
       :type="(formError || '').includes('already activated') ? 'warning' : 'error'"
-    >{{ formError }}
+      >{{ formError }}
     </v-alert>
 
     <div v-if="showProUser" style="margin-bottom: 30px">
-      <v-alert
-        class="mb-3"
-        type="success"
-      >
-        <span>
-          Congrats! You are now using a Pro subscription.
-        </span>
+      <v-alert class="mb-3" type="success">
+        <span> Congrats! You are now using a Pro subscription. </span>
       </v-alert>
 
-      <div style="margin: 20px 0; font-size: 16px;">
+      <div style="margin: 20px 0; font-size: 16px">
         Are you want to make your current user <strong>Pro</strong>?
       </div>
 
@@ -30,7 +20,7 @@
           @click="showProUser = false"
           color="primary"
           :disabled="formSaving"
-          style="width: calc(50% - 5px); margin-right: 10px;"
+          style="width: calc(50% - 5px); margin-right: 10px"
         >
           No
         </v-btn>
@@ -38,21 +28,32 @@
           @click="makeProUser"
           color="primary"
           :disabled="formSaving"
-          style="width: calc(50% - 5px);"
+          style="width: calc(50% - 5px)"
         >
           Yes
         </v-btn>
       </div>
     </div>
 
-    <div v-else style=" margin-bottom: 30px;">
+    <div v-else style="margin-bottom: 30px">
+      <div
+        v-if="item.state === 'active'"
+        style="line-height: 1.3; font-weight: bold; color: rgb(0, 188, 0)"
+        class="mb-5"
+      >
+        You PRO subscription is active.
+      </div>
+      <div v-else style="line-height: 1.3">
+        Enter your subscription key to unlock advanced features, or get a new one instantly.
+      </div>
+
       <v-textarea
         class="mt-4"
         rows="4"
         auto-grow
         v-model="item.key"
-        label="Subscription Key"
-        :rules="[v => !!v || $t('key_required')]"
+        label="Enter your PRO key"
+        :rules="[(v) => !!v || $t('key_required')]"
         required
         :disabled="formSaving"
         outlined
@@ -61,12 +62,7 @@
 
       <v-row>
         <v-col>
-          <v-btn
-            @click="save"
-            style="width: 100%;"
-            color="primary"
-            :disabled="formSaving"
-          >
+          <v-btn @click="save" style="width: 100%" color="success" :disabled="formSaving">
             <v-progress-circular
               v-if="formSaving"
               indeterminate
@@ -76,27 +72,38 @@
             <span v-else>Activate New key</span>
           </v-btn>
         </v-col>
-<!--        <v-col>-->
-<!--          <v-btn-->
-<!--            style="width: 100%;"-->
-<!--            color="primary"-->
-<!--            :disabled="formSaving"-->
-<!--          >Buy Pro</v-btn>-->
-<!--        </v-col>-->
+        <v-col>
+          <v-btn
+            style="width: 100%"
+            color="primary"
+            :disabled="formSaving"
+            target="_blank"
+            href="https://portal.semaphoreui.com/buy_pro"
+            >Buy Pro</v-btn
+          >
+        </v-col>
       </v-row>
 
+      <v-btn
+        v-if="item.state !== 'active'"
+        style="width: 100%"
+        color="primary"
+        class="mt-4"
+        :disabled="formSaving"
+        target="_blank"
+        outlined
+        href="https://portal.semaphoreui.com/start_trial"
+      >
+        Get 30-day free trial
+      </v-btn>
     </div>
 
-    <v-card
-      v-if="item.plan"
-      class="mb-3"
-      style="background: var(--highlighted-card-bg-color)"
-    >
+    <v-card v-if="item.plan" class="mb-3" style="background: var(--highlighted-card-bg-color)">
       <v-card-title>Plan &amp; status</v-card-title>
       <v-card-text class="pb-2">
         <v-row>
           <v-col class="py-0">
-            <v-list class="py-0" style="background: unset;">
+            <v-list class="py-0" style="background: unset">
               <v-list-item class="pa-0">
                 <v-list-item-content>
                   <v-list-item-title>Plan</v-list-item-title>
@@ -128,11 +135,11 @@
             </v-list>
           </v-col>
           <v-col class="py-0">
-            <v-list class="py-0" style="background: unset;">
+            <v-list class="py-0" style="background: unset">
               <v-list-item class="pa-0">
                 <v-list-item-content>
                   <v-list-item-title>Status</v-list-item-title>
-                  <v-list-item-subtitle style="display: flex; align-items: center;">
+                  <v-list-item-subtitle style="display: flex; align-items: center">
                     <div
                       style="
                         border-radius: 100px;
@@ -165,26 +172,33 @@
           </v-col>
         </v-row>
 
-        <div style="
-          margin-top: 20px;
-          font-weight: bold;
-          color: #00bc00;
-        ">Renews in {{ (new Date() - new Date(item.expiresAt)) | formatMilliseconds }}</div>
+        <div style="margin-top: 20px; font-weight: bold; color: #00bc00">
+          Renews in {{ (new Date() - new Date(item.expiresAt)) | formatMilliseconds }}
+        </div>
       </v-card-text>
     </v-card>
 
     <div v-else class="mb-4 mt-2">
-
       <div>
-        Don't have subscription key? <a
-        target="_blank"
-        href="https://portal.semaphoreui.com/auth/login?new_project=premium"
-      >Get one</a>.
+        Need help?
+        <a
+          target="_blank"
+          class="LinkHoverable"
+          href="https://portal.semaphoreui.com/auth/login?new_project=premium"
+          >Contact support</a
+        >
       </div>
     </div>
-
   </v-form>
 </template>
+<style lang="scss">
+.LinkHoverable {
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+</style>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import { getErrorMessage } from '@/lib/error';
