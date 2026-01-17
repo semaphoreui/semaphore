@@ -853,8 +853,7 @@ import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import TaskLogDialog from '@/components/TaskLogDialog.vue';
 import delay from '@/lib/delay';
-
-const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)');
+import darkModeMixin from '@/lib/darkMode';
 
 const PROJECT_COLORS = ['red', 'blue', 'orange', 'green'];
 
@@ -925,6 +924,7 @@ function getSystemLang() {
 
 export default {
   name: 'App',
+  mixins: [darkModeMixin],
   components: {
     SubscriptionForm,
     TaskLogDialog,
@@ -1005,17 +1005,6 @@ export default {
         EventBus.$emit('i-new-project', { projectType: this.$route.query.new_project });
       }
     },
-
-    darkMode(val) {
-      this.$vuetify.theme.dark = val;
-      if (val && !prefersDarkMode.matches) {
-        localStorage.setItem('darkMode', '1');
-      } else if (!val && prefersDarkMode.matches) {
-        localStorage.setItem('darkMode', '0');
-      } else {
-        localStorage.removeItem('darkMode');
-      }
-    },
   },
 
   computed: {
@@ -1057,19 +1046,7 @@ export default {
   },
 
   async created() {
-    const isDarkMode = localStorage.getItem('darkMode');
-    if (isDarkMode !== null) {
-      this.darkMode = isDarkMode === '1';
-    } else {
-      this.darkModeListener = (e) => {
-        this.darkMode = e.matches;
-      };
-      prefersDarkMode.addEventListener('change', this.darkModeListener);
-
-      if (prefersDarkMode.matches) {
-        this.darkMode = true;
-      }
-    }
+    this.initDarkMode();
 
     try {
       await this.loadData();
@@ -1222,12 +1199,6 @@ export default {
           break;
       }
     });
-  },
-
-  beforeDestroy() {
-    if (this.darkModeListener) {
-      prefersDarkMode.removeEventListener('change', this.darkModeListener);
-    }
   },
 
   methods: {

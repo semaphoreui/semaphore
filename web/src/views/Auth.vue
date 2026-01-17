@@ -336,10 +336,10 @@
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
 import EventBus from '@/event-bus';
-
-const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)');
+import darkModeMixin from '@/lib/darkMode';
 
 export default {
+  mixins: [darkModeMixin],
   data() {
     return {
       signInFormValid: false,
@@ -368,19 +368,6 @@ export default {
     };
   },
 
-  watch: {
-    darkMode(val) {
-      this.$vuetify.theme.dark = val;
-      if (val && !prefersDarkMode.matches) {
-        localStorage.setItem('darkMode', '1');
-      } else if (!val && prefersDarkMode.matches) {
-        localStorage.setItem('darkMode', '0');
-      } else {
-        localStorage.removeItem('darkMode');
-      }
-    },
-  },
-
   async created() {
     const { status, verificationMethod } = await this.getAuthenticationStatus();
 
@@ -400,25 +387,7 @@ export default {
         throw new Error(`Unknown authentication status: ${status}`);
     }
 
-    const isDarkMode = localStorage.getItem('darkMode');
-    if (isDarkMode !== null) {
-      this.darkMode = isDarkMode === '1';
-    } else {
-      this.darkModeListener = (e) => {
-        this.darkMode = e.matches;
-      };
-      prefersDarkMode.addEventListener('change', this.darkModeListener);
-
-      if (prefersDarkMode.matches) {
-        this.darkMode = true;
-      }
-    }
-  },
-
-  beforeDestroy() {
-    if (this.darkModeListener) {
-      prefersDarkMode.removeEventListener('change', this.darkModeListener);
-    }
+    this.initDarkMode();
   },
 
   computed: {
