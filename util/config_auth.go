@@ -16,4 +16,9 @@ type EmailAuthConfig struct {
 type AuthConfig struct {
 	Totp  *TotpConfig      `json:"totp,omitempty"`
 	Email *EmailAuthConfig `json:"email,omitempty"`
+
+	// MaxSessionLifeHours defines the maximum lifetime of a session in hours.
+	// After this period of inactivity, the session will expire.
+	// Default is 168 hours (7 days).
+	MaxSessionLifeHours int `json:"max_session_life_hours,omitempty" default:"168" env:"SEMAPHORE_MAX_SESSION_LIFE_HOURS"`
 }
