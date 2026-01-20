@@ -21,9 +21,7 @@ func CreateStoreWithConfig(config util.DbConfig) db.Store {
 	case util.DbDriverBolt:
 		return bolt.CreateBoltDBWithConfig(config)
 
-	case util.DbDriverMySQL:
-	case util.DbDriverPostgres:
-	case util.DbDriverSQLite:
+	case util.DbDriverMySQL, util.DbDriverPostgres, util.DbDriverSQLite:
 		return sql.CreateDbWithConfig(config)
 
 	default:
