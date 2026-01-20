@@ -77,11 +77,8 @@ func migrateBoltDb(boltDbPath string) {
 	defer boltStore.Close("")
 
 	// 2. Create SQL Store
-	cfg, err := util.ConfigInitNew("", true, true)
-	if err != nil {
-		fmt.Printf("Error initializing config: %v\n", err)
-		return
-	}
+	cfg, _ := util.ConfigInitNew(persistentFlags.configPath, persistentFlags.noConfig, true)
+
 	sqlCfg, err := cfg.GetDBConfig()
 
 	if err != nil {
