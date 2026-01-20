@@ -405,8 +405,6 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 //     default lookup logic implemented by loadConfigFile.
 //   - noConfigFile: when true, skip loading configuration from a file and rely
 //     solely on environment variables and defaults.
-//   - useEnvironment: when true, load or override configuration values from
-//     environment variables.
 //
 // Returns:
 //   - config: the fully initialized ConfigType instance, after file/env/default
@@ -414,7 +412,7 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 //   - usedConfigPath: the path of the configuration file that was actually used,
 //     or nil if no config file was loaded (either because noConfigFile was true
 //     or no file could be resolved).
-func ConfigInitNew(configPath string, noConfigFile bool, useEnvironment bool) (config *ConfigType, usedConfigPath *string) {
+func ConfigInitNew(configPath string, noConfigFile bool) (config *ConfigType, usedConfigPath *string) {
 	fmt.Println("Loading config")
 
 	config = NewConfigType()
@@ -424,9 +422,8 @@ func ConfigInitNew(configPath string, noConfigFile bool, useEnvironment bool) (c
 		usedConfigPath = loadConfigFile(config, configPath)
 	}
 
-	if useEnvironment {
-		loadConfigEnvironment(config)
-	}
+	loadConfigEnvironment(config)
+
 	loadConfigDefaults(config)
 
 	fmt.Println("Validating config")
@@ -469,8 +466,7 @@ func ConfigInitNew(configPath string, noConfigFile bool, useEnvironment bool) (c
 func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 	fmt.Println("Loading config")
 
-	cfg, usedConfigPath := ConfigInitNew(configPath, noConfigFile, true)
-	Config = cfg
+	Config, usedConfigPath = ConfigInitNew(configPath, noConfigFile)
 	return
 }
 

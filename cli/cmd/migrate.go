@@ -32,7 +32,9 @@ var migrateCmd = &cobra.Command{
 
 		if migrationArgs.undoTo != "" && migrationArgs.applyTo != "" {
 			panic("Cannot specify both --undo-to and --apply-to")
-		} else if migrationArgs.undoTo != "" || migrationArgs.applyTo != "" {
+		}
+
+		if migrationArgs.undoTo != "" || migrationArgs.applyTo != "" {
 			var undoTo, applyTo *string
 
 			if migrationArgs.undoTo != "" {
@@ -77,7 +79,7 @@ func migrateBoltDb(boltDbPath string) {
 	defer boltStore.Close("")
 
 	// 2. Create SQL Store
-	cfg, _ := util.ConfigInitNew(persistentFlags.configPath, persistentFlags.noConfig, true)
+	cfg, _ := util.ConfigInitNew(persistentFlags.configPath, persistentFlags.noConfig)
 
 	sqlCfg, err := cfg.GetDBConfig()
 
