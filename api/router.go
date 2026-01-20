@@ -183,6 +183,7 @@ func Route(
 	authenticatedAPI.Use(StoreMiddleware, JSONMiddleware, authentication)
 
 	authenticatedAPI.Path("/info").HandlerFunc(systemInfoController.GetSystemInfo).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/info/seen_intro").HandlerFunc(systemInfoController.SetSeenIntro).Methods("POST")
 
 	authenticatedAPI.Path("/subscription").HandlerFunc(subscriptionController.Activate).Methods("POST")
 	authenticatedAPI.Path("/subscription").HandlerFunc(subscriptionController.GetSubscription).Methods("GET")

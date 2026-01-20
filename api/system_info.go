@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -76,6 +77,16 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		plan = token.Plan
 	}
 
+	// Check if user has seen the intro
+	seenIntroKey := fmt.Sprintf("seen_intro_%d", user.ID)
+	seenIntroVersion, err := helpers.Store(r).GetOption(seenIntroKey)
+
+	if err != nil {
+		log.WithError(err).Error("Failed to get seen_intro option")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
 	body := map[string]any{
 		"version":           util.Version(),
 		"ansible":           util.AnsibleVersion(),
@@ -87,7 +98,33 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		"schedule_timezone": timezone,
 		"teams":             util.Config.Teams,
 		"roles":             roles,
+		"seen_intro":        seenIntroVersion,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)
+}
+
+func (c *SystemInfoController) SetSeenIntro(w http.ResponseWriter, r *http.Request) {
+	user := helpers.GetFromContext(r, "user").(*db.User)
+
+	var reqBody struct {
+		Version string `json:"version"`
+	}
+
+	if !helpers.Bind(w, r, &reqBody) {
+		return
+	}
+
+	seenIntroKey := fmt.Sprintf("seen_intro_%d", user.ID)
+
+	err := helpers.Store(r).SetOption(seenIntroKey, reqBody.Version)
+	if err != nil {
+		log.WithError(err).Error("Failed to set seen_intro option")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, map[string]string{
+		"status": "ok",
+	})
 }
