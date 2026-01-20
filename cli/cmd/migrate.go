@@ -74,6 +74,7 @@ func migrateBoltDb(boltDbPath string) {
 
 	boltStore := bolt.CreateBoltDBWithConfig(boltCfg)
 	boltStore.Connect("")
+	defer boltStore.Close("")
 
 	// 2. Create SQL Store
 	cfg, _ := util.ConfigInitNew("", true, true)

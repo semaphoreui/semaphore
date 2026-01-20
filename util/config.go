@@ -823,11 +823,11 @@ func setConfigValue(attribute reflect.Value, value string) {
 
 func getConfigValue(conf *ConfigType, path string) string {
 	attribute := reflect.ValueOf(conf)
-	nested_path := strings.Split(path, ".")
+	nestedPath := strings.Split(path, ".")
 
-	for i, nested := range nested_path {
+	for i, nested := range nestedPath {
 		attribute = reflect.Indirect(attribute).FieldByName(nested)
-		lastDepth := len(nested_path) == i+1
+		lastDepth := len(nestedPath) == i+1
 		if !lastDepth && attribute.Kind() != reflect.Struct && attribute.Kind() != reflect.Pointer ||
 			lastDepth && attribute.Kind() == reflect.Invalid {
 			panic(fmt.Errorf("got non-existent config attribute '%v'", path))
