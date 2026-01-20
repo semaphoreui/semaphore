@@ -911,6 +911,19 @@ func loadEnvironmentToObject(obj any) error {
 				newValue := reflect.New(fieldType.Type.Elem())
 				fieldValue.Set(newValue)
 			}
+
+			envVar := fieldType.Tag.Get("env")
+			if envVar != "" {
+				if envValue, exists := os.LookupEnv(envVar); exists {
+					newValue := reflect.New(fieldType.Type.Elem())
+					err := json.Unmarshal([]byte(envValue), newValue.Interface())
+					if err != nil {
+						return err
+					}
+					fieldValue.Set(newValue)
+				}
+			}
+
 			err := loadEnvironmentToObject(fieldValue.Interface())
 			if err != nil {
 				return err
