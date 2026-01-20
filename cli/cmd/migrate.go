@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/semaphoreui/semaphore/db/bolt"
 	"github.com/semaphoreui/semaphore/db/factory"
 	"github.com/semaphoreui/semaphore/db_migration"
 	"github.com/semaphoreui/semaphore/util"
@@ -61,11 +62,6 @@ func migrateBoltDb(boltDbPath string) {
 		Hostname: boltDbPath,
 	}
 
-	if boltCfg.Dialect != util.DbDriverBolt {
-		fmt.Printf("Error: Source database must be BoltDB (dialect: %s)\n", boltCfg.Dialect)
-		return
-	}
-
 	_, err := os.Stat(boltDbPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -76,7 +72,7 @@ func migrateBoltDb(boltDbPath string) {
 		return
 	}
 
-	boltStore := factory.CreateStoreWithConfig(boltCfg)
+	boltStore := bolt.CreateBoltDBWithConfig(boltCfg)
 	boltStore.Connect("")
 
 	// 2. Create SQL Store
