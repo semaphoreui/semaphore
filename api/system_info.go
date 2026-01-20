@@ -77,9 +77,10 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		plan = token.Plan
 	}
 
-	// Check if user has seen the intro
+	// Check if the user has seen the intro
 	seenIntroKey := fmt.Sprintf("seen_intro_%d", user.ID)
 	seenIntroVersion, err := helpers.Store(r).GetOption(seenIntroKey)
+	seenIntro := seenIntroVersion == util.Ver
 
 	if err != nil {
 		log.WithError(err).Error("Failed to get seen_intro option")
@@ -98,7 +99,7 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		"schedule_timezone": timezone,
 		"teams":             util.Config.Teams,
 		"roles":             roles,
-		"seen_intro":        seenIntroVersion,
+		"seen_intro":        seenIntro,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)
