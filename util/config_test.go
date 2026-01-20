@@ -206,20 +206,20 @@ func TestGetConfigValue(t *testing.T) {
 		Hostname: testDbHost,
 	}
 
-	if getConfigValue("Port") != testPort {
+	if getConfigValue(Config, "Port") != testPort {
 		t.Error("Could not get value for config attribute 'Port'!")
 	}
-	if getConfigValue("CookieHash") != testCookieHash {
+	if getConfigValue(Config, "CookieHash") != testCookieHash {
 		t.Error("Could not get value for config attribute 'CookieHash'!")
 	}
-	if getConfigValue("MaxParallelTasks") != fmt.Sprintf("%v", testMaxParallelTasks) {
+	if getConfigValue(Config, "MaxParallelTasks") != fmt.Sprintf("%v", testMaxParallelTasks) {
 		t.Error("Could not get value for config attribute 'MaxParallelTasks'!")
 	}
-	if getConfigValue("LdapNeedTLS") != fmt.Sprintf("%v", testLdapNeedTls) {
+	if getConfigValue(Config, "LdapNeedTLS") != fmt.Sprintf("%v", testLdapNeedTls) {
 		t.Error("Could not get value for config attribute 'LdapNeedTLS'!")
 	}
 
-	if getConfigValue("BoltDb.Hostname") != fmt.Sprintf("%v", testDbHost) {
+	if getConfigValue(Config, "BoltDb.Hostname") != fmt.Sprintf("%v", testDbHost) {
 		t.Error("Could not get value for config attribute 'BoltDb.Hostname'!")
 	}
 
@@ -228,14 +228,14 @@ func TestGetConfigValue(t *testing.T) {
 			t.Error("Did not fail on non-existent config attribute!")
 		}
 	}()
-	getConfigValue("NotExistent")
+	getConfigValue(Config, "NotExistent")
 
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("Did not fail on non-existent config attribute!")
 		}
 	}()
-	getConfigValue("Not.Existent")
+	getConfigValue(Config, "Not.Existent")
 }
 
 func TestSetConfigValue(t *testing.T) {
@@ -314,7 +314,7 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 	os.Setenv("SEMAPHORE_LDAP_NEEDTLS", envLdapNeedTls)                  //nolint:errcheck
 	os.Setenv("SEMAPHORE_DB_HOST", envDbHost)                            //nolint:errcheck
 
-	loadConfigEnvironment()
+	loadConfigEnvironment(Config)
 
 	if Config.Port != envPort {
 		t.Error("Setting 'Port' was not loaded from environment-vars!")
@@ -345,7 +345,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 	Config = new(ConfigType)
 	errMsg := "Failed to load config-default"
 
-	loadConfigDefaults()
+	loadConfigDefaults(Config)
 
 	if Config.Port != ":3000" {
 		t.Error(errMsg)
@@ -364,7 +364,7 @@ func ensureConfigValidationFailure(t *testing.T, attribute string, value any) {
 			)
 		}
 	}()
-	validateConfig()
+	validateConfig(Config)
 }
 
 func TestValidateConfig(t *testing.T) {
@@ -386,7 +386,7 @@ func TestValidateConfig(t *testing.T) {
 	Config.CookieEncryption = testCookieHash
 	Config.AccessKeyEncryption = testCookieHash
 	Config.EmailTlsMinVersion = testEmailTlsMinVersion
-	validateConfig()
+	validateConfig(Config)
 
 	Config.Port = "INVALID"
 	ensureConfigValidationFailure(t, "Port", Config.Port)
