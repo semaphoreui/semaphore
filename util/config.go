@@ -394,6 +394,26 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 	return json.MarshalIndent(&conf, " ", "\t")
 }
 
+// ConfigInitNew initializes and validates the global configuration.
+// It optionally loads settings from a JSON config file, environment variables,
+// and built-in defaults, then prepares runtime helpers such as the secure cookie
+// encoder and the parsed WebHost URL.
+//
+// Parameters:
+//   - configPath: path to the JSON configuration file to load. This is only used
+//     when noConfigFile is false. If empty, the function will fall back to any
+//     default lookup logic implemented by loadConfigFile.
+//   - noConfigFile: when true, skip loading configuration from a file and rely
+//     solely on environment variables and defaults.
+//   - useEnvironment: when true, load or override configuration values from
+//     environment variables.
+//
+// Returns:
+//   - config: the fully initialized ConfigType instance, after file/env/default
+//     loading, validation, and runtime helper setup.
+//   - usedConfigPath: the path of the configuration file that was actually used,
+//     or nil if no config file was loaded (either because noConfigFile was true
+//     or no file could be resolved).
 func ConfigInitNew(configPath string, noConfigFile bool, useEnvironment bool) (config *ConfigType, usedConfigPath *string) {
 	fmt.Println("Loading config")
 
