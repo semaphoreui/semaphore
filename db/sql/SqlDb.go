@@ -28,6 +28,7 @@ type SqlDbConnection struct {
 }
 
 type SqlDb struct {
+	config     util.DbConfig
 	connection SqlDbConnection
 }
 
@@ -35,8 +36,8 @@ func (d *SqlDb) Sql() *gorp.DbMap {
 	return d.connection.sql
 }
 
-func (d *SqlDbConnection) Connect() {
-	sqlDb, err := connect()
+func (d *SqlDbConnection) Connect(config util.DbConfig) {
+	sqlDb, err := connect(config)
 	if err != nil {
 		panic(err)
 	}
@@ -47,11 +48,11 @@ func (d *SqlDbConnection) Connect() {
 			log.Warn("Cannot close database connection: " + err.Error())
 		}
 
-		if err = createDb(); err != nil {
+		if err = createDb(config); err != nil {
 			panic(err)
 		}
 
-		sqlDb, err = connect()
+		sqlDb, err = connect(config)
 		if err != nil {
 			panic(err)
 		}
@@ -61,14 +62,9 @@ func (d *SqlDbConnection) Connect() {
 		}
 	}
 
-	cfg, err := util.Config.GetDBConfig()
-	if err != nil {
-		panic(err)
-	}
-
 	var dialect gorp.Dialect
 
-	switch cfg.Dialect {
+	switch config.Dialect {
 	case util.DbDriverMySQL:
 		dialect = gorp.MySQLDialect{Engine: "InnoDB", Encoding: "UTF8"}
 	case util.DbDriverPostgres:
@@ -324,12 +320,22 @@ create table ` + "`migrations`" + ` (
 //go:embed migrations/*.sql
 var dbAssets embed.FS
 
-func CreateDb(dialect string) *SqlDb {
+func CreateDbWithConfig(config util.DbConfig) *SqlDb {
 	return &SqlDb{
+		config: config,
 		connection: SqlDbConnection{
-			dialect: dialect,
+			dialect: config.Dialect,
 		},
 	}
+}
+
+func CreateDb(dialect string) *SqlDb {
+	conf, err := util.Config.GetDBConfig()
+
+	if err != nil {
+		panic(err)
+	}
+	return CreateDbWithConfig(conf)
 }
 
 func (d *SqlDbConnection) GetDialect() string {
@@ -436,12 +442,7 @@ func (d *SqlDb) selectAll(i any, query string, args ...any) ([]any, error) {
 	return d.connection.SelectAll(i, query, args...)
 }
 
-func connect() (*sql.DB, error) {
-	cfg, err := util.Config.GetDBConfig()
-	if err != nil {
-		return nil, err
-	}
-
+func connect(cfg util.DbConfig) (*sql.DB, error) {
 	connectionString, err := cfg.GetConnectionString(true)
 	if err != nil {
 		return nil, err
@@ -451,12 +452,7 @@ func connect() (*sql.DB, error) {
 	return sql.Open(dialect, connectionString)
 }
 
-func createDb() error {
-	cfg, err := util.Config.GetDBConfig()
-	if err != nil {
-		return err
-	}
-
+func createDb(cfg util.DbConfig) error {
 	if !cfg.HasSupportMultipleDatabases() {
 		return nil
 	}
@@ -473,7 +469,7 @@ func createDb() error {
 
 	defer conn.Close() //nolint:errcheck
 
-	_, err = conn.Exec("create database " + cfg.GetDbName())
+	_, err = conn.Exec("create database " + cfg.DbName)
 	if err != nil {
 		log.Warn(err.Error())
 	}
@@ -562,7 +558,7 @@ func (d *SqlDb) PermanentConnection() bool {
 }
 
 func (d *SqlDb) Connect(_ string) {
-	d.connection.Connect()
+	d.connection.Connect(d.config)
 }
 
 func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectID int) (refs db.ObjectReferrers, err error) {

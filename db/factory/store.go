@@ -12,15 +12,20 @@ func CreateStore() db.Store {
 	if err != nil {
 		panic("Can not read configuration")
 	}
+	return CreateStoreWithConfig(config)
+}
+
+func CreateStoreWithConfig(config util.DbConfig) db.Store {
+
 	switch config.Dialect {
-	case util.DbDriverMySQL:
-		return sql.CreateDb(config.Dialect)
 	case util.DbDriverBolt:
-		return bolt.CreateBoltDB()
+		return bolt.CreateBoltDBWithConfig(config)
+
+	case util.DbDriverMySQL:
 	case util.DbDriverPostgres:
-		return sql.CreateDb(config.Dialect)
 	case util.DbDriverSQLite:
-		return sql.CreateDb(config.Dialect)
+		return sql.CreateDbWithConfig(config)
+
 	default:
 		panic("Unsupported database dialect: " + config.Dialect)
 	}

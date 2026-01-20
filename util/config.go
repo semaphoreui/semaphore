@@ -394,35 +394,36 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 	return json.MarshalIndent(&conf, " ", "\t")
 }
 
-// ConfigInit reads in cli flags, and switches actions appropriately on them
-func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
+func ConfigInitNew(configPath string, noConfigFile bool, useEnvironment bool) (config *ConfigType, usedConfigPath *string) {
 	fmt.Println("Loading config")
 
-	Config = NewConfigType()
-	Config.Apps = map[string]App{}
+	config = NewConfigType()
+	config.Apps = map[string]App{}
 
 	if !noConfigFile {
-		usedConfigPath = loadConfigFile(configPath)
+		usedConfigPath = loadConfigFile(config, configPath)
 	}
 
-	loadConfigEnvironment()
-	loadConfigDefaults()
+	if useEnvironment {
+		loadConfigEnvironment(config)
+	}
+	loadConfigDefaults(config)
 
 	fmt.Println("Validating config")
-	validateConfig()
+	validateConfig(config)
 
 	var encryption []byte
 
-	hash, _ := base64.StdEncoding.DecodeString(Config.CookieHash)
-	if len(Config.CookieEncryption) > 0 {
-		encryption, _ = base64.StdEncoding.DecodeString(Config.CookieEncryption)
+	hash, _ := base64.StdEncoding.DecodeString(config.CookieHash)
+	if len(config.CookieEncryption) > 0 {
+		encryption, _ = base64.StdEncoding.DecodeString(config.CookieEncryption)
 	}
 
 	Cookie = securecookie.New(hash, encryption)
 
-	if Config.WebHost != "" {
+	if config.WebHost != "" {
 		var err error
-		WebHostURL, err = url.Parse(Config.WebHost)
+		WebHostURL, err = url.Parse(config.WebHost)
 		if err != nil {
 			panic(err)
 		}
@@ -434,17 +435,26 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		WebHostURL = nil
 	}
 
-	if Config.Runner != nil && Config.Runner.TokenFile != "" {
-		runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
+	if config.Runner != nil && config.Runner.TokenFile != "" {
+		runnerTokenBytes, err := os.ReadFile(config.Runner.TokenFile)
 		if err == nil {
-			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
+			config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
 		}
 	}
 
 	return
 }
 
-func loadConfigFile(configPath string) (usedConfigPath *string) {
+// ConfigInit reads in cli flags, and switches actions appropriately on them
+func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
+	fmt.Println("Loading config")
+
+	cfg, usedConfigPath := ConfigInitNew(configPath, noConfigFile, true)
+	Config = cfg
+	return
+}
+
+func loadConfigFile(conf *ConfigType, configPath string) (usedConfigPath *string) {
 	if configPath == "" {
 		configPath = os.Getenv("SEMAPHORE_CONFIG_PATH")
 	}
@@ -470,7 +480,7 @@ func loadConfigFile(configPath string) (usedConfigPath *string) {
 			if err != nil {
 				continue
 			}
-			decodeConfig(file)
+			decodeConfig(conf, file)
 			usedConfigPath = &p
 			break
 		}
@@ -480,7 +490,7 @@ func loadConfigFile(configPath string) (usedConfigPath *string) {
 		file, err := os.Open(p)
 		exitOnConfigFileError(err)
 		usedConfigPath = &p
-		decodeConfig(file)
+		decodeConfig(conf, file)
 	}
 
 	return
@@ -542,8 +552,8 @@ func loadDefaultsToObject(obj any) error {
 	return nil
 }
 
-func loadConfigDefaults() {
-	err := loadDefaultsToObject(Config)
+func loadConfigDefaults(conf *ConfigType) {
+	err := loadDefaultsToObject(conf)
 	if err != nil {
 		panic(err)
 	}
@@ -811,8 +821,8 @@ func setConfigValue(attribute reflect.Value, value string) {
 	}
 }
 
-func getConfigValue(path string) string {
-	attribute := reflect.ValueOf(Config)
+func getConfigValue(conf *ConfigType, path string) string {
+	attribute := reflect.ValueOf(conf)
 	nested_path := strings.Split(path, ".")
 
 	for i, nested := range nested_path {
@@ -876,8 +886,8 @@ func validate(value any) error {
 	return nil
 }
 
-func validateConfig() {
-	err := validate(Config)
+func validateConfig(conf *ConfigType) {
+	err := validate(conf)
 	if err != nil {
 		panic(err)
 	}
@@ -935,8 +945,8 @@ func loadEnvironmentToObject(obj any) error {
 	return nil
 }
 
-func loadConfigEnvironment() {
-	err := loadEnvironmentToObject(Config)
+func loadConfigEnvironment(conf *ConfigType) {
+	err := loadEnvironmentToObject(conf)
 	if err != nil {
 		panic(err)
 	}
@@ -953,8 +963,8 @@ func exitOnConfigFileError(err error) {
 	}
 }
 
-func decodeConfig(file io.Reader) {
-	if err := json.NewDecoder(file).Decode(&Config); err != nil {
+func decodeConfig(conf *ConfigType, file io.Reader) {
+	if err := json.NewDecoder(file).Decode(&conf); err != nil {
 		fmt.Println("Could not decode configuration!")
 		panic(err)
 	}
@@ -1011,44 +1021,12 @@ func CheckUpdate() (updateAvailable *github.RepositoryRelease, err error) {
 	return
 }
 
-func (d *DbConfig) IsPresent() bool {
-	return d.GetHostname() != ""
+func (d *DbConfig) isPresent() bool {
+	return d.Hostname != ""
 }
 
 func (d *DbConfig) HasSupportMultipleDatabases() bool {
 	return true
-}
-
-func (d *DbConfig) GetDbName() string {
-	dbName := os.Getenv("SEMAPHORE_DB_NAME")
-	if dbName != "" {
-		return dbName
-	}
-	return d.DbName
-}
-
-func (d *DbConfig) GetUsername() string {
-	username := os.Getenv("SEMAPHORE_DB_USER")
-	if username != "" {
-		return username
-	}
-	return d.Username
-}
-
-func (d *DbConfig) GetPassword() string {
-	password := os.Getenv("SEMAPHORE_DB_PASS")
-	if password != "" {
-		return password
-	}
-	return d.Password
-}
-
-func (d *DbConfig) GetHostname() string {
-	hostname := os.Getenv("SEMAPHORE_DB_HOST")
-	if hostname != "" {
-		return hostname
-	}
-	return d.Hostname
 }
 
 // GetConnectionString constructs the database connection string based on the current configuration.
@@ -1062,10 +1040,10 @@ func (d *DbConfig) GetHostname() string {
 // - connectionString: the constructed database connection string.
 // - err: an error if the dialect is unsupported.
 func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString string, err error) {
-	dbName := d.GetDbName()
-	dbUser := d.GetUsername()
-	dbPass := d.GetPassword()
-	dbHost := d.GetHostname()
+	dbName := d.DbName
+	dbUser := d.Username
+	dbPass := d.Password
+	dbHost := d.Hostname
 
 	switch d.Dialect {
 	case DbDriverBolt:
@@ -1122,55 +1100,47 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 // It retrieves the database dialect and prints the corresponding connection details.
 // If the dialect is not found, it panics with an error message.
 func (conf *ConfigType) PrintDbInfo() {
-	// Get the database dialect
-	dialect, err := conf.GetDialect()
-	if err != nil {
-		panic(err)
-	}
+	dbConf, err := conf.GetDBConfig()
 
-	// Print database connection information based on the dialect
-	switch dialect {
-	case DbDriverMySQL:
-		fmt.Printf("MySQL %v@%v %v\n", conf.MySQL.GetUsername(), conf.MySQL.GetHostname(), conf.MySQL.GetDbName())
-	case DbDriverBolt:
-		fmt.Printf("BoltDB %v\n", conf.BoltDb.GetHostname())
-	case DbDriverPostgres:
-		fmt.Printf("Postgres %v@%v %v\n", conf.Postgres.GetUsername(), conf.Postgres.GetHostname(), conf.Postgres.GetDbName())
-	case DbDriverSQLite:
-		fmt.Printf("SQLite %v@%v %v\n", conf.SQLite.GetUsername(), conf.SQLite.GetHostname(), conf.SQLite.GetDbName())
-	default:
+	if err != nil {
 		panic(fmt.Errorf("database configuration not found"))
 	}
+	fmt.Printf("%v %v@%v %v\n", dbConf.Dialect, dbConf.Username, dbConf.Hostname, dbConf.DbName)
 }
 
-func (conf *ConfigType) GetDialect() (dialect string, err error) {
-	if conf.Dialect == "" {
-		switch {
-		case conf.MySQL.IsPresent():
-			dialect = DbDriverMySQL
-		case conf.BoltDb.IsPresent():
-			dialect = DbDriverBolt
-		case conf.Postgres.IsPresent():
-			dialect = DbDriverPostgres
-		case conf.SQLite.IsPresent():
-			dialect = DbDriverSQLite
-		default:
-			err = errors.New("database configuration not found")
-		}
-		return
-	}
+//func (conf *ConfigType) GetDialect() (dialect string, err error) {
+//	if conf.Dialect == "" {
+//
+//		drivers := []string{DbDriverMySQL, DbDriverBolt, DbDriverPostgres, DbDriverSQLite}
+//
+//		for _, driver := range drivers {
+//			dbConf, err := conf.GetDBConfigForDialect(driver)
+//
+//			if err == nil && dbConf.IsPresent() {
+//				return driver, nil
+//			}
+//		}
+//
+//		switch {
+//		case conf.MySQL.IsPresent():
+//			dialect = DbDriverMySQL
+//		case conf.BoltDb.IsPresent():
+//			dialect = DbDriverBolt
+//		case conf.Postgres.IsPresent():
+//			dialect = DbDriverPostgres
+//		case conf.SQLite.IsPresent():
+//			dialect = DbDriverSQLite
+//		default:
+//			err = errors.New("database configuration not found")
+//		}
+//		return
+//	}
+//
+//	dialect = conf.Dialect
+//	return
+//}
 
-	dialect = conf.Dialect
-	return
-}
-
-func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
-	var dialect string
-	dialect, err = conf.GetDialect()
-	if err != nil {
-		return
-	}
-
+func (conf *ConfigType) GetDBConfigForDialect(dialect string) (dbConfig DbConfig, err error) {
 	switch dialect {
 	case DbDriverBolt:
 		dbConfig = *conf.BoltDb
@@ -1186,7 +1156,53 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 
 	dbConfig.Dialect = dialect
 
+	if err == nil {
+		updateDbConfigFromEnv(&dbConfig)
+	}
+
 	return
+}
+
+func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
+	if conf.Dialect == "" {
+
+		drivers := []string{DbDriverMySQL, DbDriverBolt, DbDriverPostgres, DbDriverSQLite}
+
+		for _, driver := range drivers {
+			dbConf, err := conf.GetDBConfigForDialect(driver)
+			if err == nil && dbConf.isPresent() {
+				return dbConf, nil
+			}
+		}
+
+		err = errors.New("database configuration not found")
+		return
+	}
+
+	return conf.GetDBConfigForDialect(conf.Dialect)
+}
+
+func updateDbConfigFromEnv(conf *DbConfig) {
+
+	dbName := os.Getenv("SEMAPHORE_DB_NAME")
+	if dbName != "" {
+		conf.DbName = dbName
+	}
+
+	username := os.Getenv("SEMAPHORE_DB_USER")
+	if username != "" {
+		conf.Username = username
+	}
+
+	password := os.Getenv("SEMAPHORE_DB_PASS")
+	if password != "" {
+		conf.Password = password
+	}
+
+	hostname := os.Getenv("SEMAPHORE_DB_HOST")
+	if hostname != "" {
+		conf.Hostname = hostname
+	}
 }
 
 // GenerateSecrets generates cookie secret during setup

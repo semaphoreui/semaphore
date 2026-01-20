@@ -36,6 +36,8 @@ func (d emptyEnumerable) Next() (key []byte, value []byte) {
 }
 
 type BoltDb struct {
+	config util.DbConfig
+
 	Filename    string
 	db          *bbolt.DB
 	connections map[string]bool
@@ -55,8 +57,8 @@ var terraformAliasProps = db.ObjectProps{
 	PrimaryColumnName: "alias",
 }
 
-func CreateBoltDB() *BoltDb {
-	res := BoltDb{}
+func CreateBoltDBWithConfig(config util.DbConfig) *BoltDb {
+	res := BoltDb{config: config}
 	res.integrationAlias = publicAlias{
 		aliasProps:       db.IntegrationAliasProps,
 		publicAliasProps: integrationAliasProps,
@@ -68,6 +70,14 @@ func CreateBoltDB() *BoltDb {
 		db:               &res,
 	}
 	return &res
+}
+
+func CreateBoltDB() *BoltDb {
+	conf, err := util.Config.GetDBConfig()
+	if err != nil {
+		panic(err)
+	}
+	return CreateBoltDBWithConfig(conf)
 }
 
 type objectID interface {
@@ -102,11 +112,7 @@ func makeBucketId(props db.ObjectProps, ids ...int) []byte {
 func (d *BoltDb) openDbFile() {
 	var filename string
 	if d.Filename == "" {
-		config, err := util.Config.GetDBConfig()
-		if err != nil {
-			panic(err)
-		}
-		filename = config.GetHostname()
+		filename = d.config.Hostname
 	} else {
 		filename = d.Filename
 	}
@@ -188,12 +194,7 @@ func (d *BoltDb) Close(token string) {
 }
 
 func (d *BoltDb) PermanentConnection() bool {
-	config, err := util.Config.GetDBConfig()
-	if err != nil {
-		panic(err)
-	}
-
-	isSessionConnection, ok := config.Options["sessionConnection"]
+	isSessionConnection, ok := d.config.Options["sessionConnection"]
 
 	if ok && (isSessionConnection == "true" || isSessionConnection == "yes") {
 		return false

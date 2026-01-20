@@ -55,6 +55,24 @@ func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 	return
 }
 
+func (d *SqlDb) ImportUser(user db.UserWithPwd) (newUser db.User, err error) {
+	err = db.ValidateUser(user.User)
+	if err != nil {
+		return
+	}
+
+	user.Created = db.GetParsedTime(tz.Now())
+
+	err = d.Sql().Insert(&user.User)
+
+	if err != nil {
+		return
+	}
+
+	newUser = user.User
+	return
+}
+
 func (d *SqlDb) DeleteUser(userID int) error {
 	res, err := d.exec("delete from `user` where id=?", userID)
 	return validateMutationResult(res, err)
