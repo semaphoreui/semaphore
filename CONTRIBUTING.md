@@ -41,7 +41,7 @@ When creating a pull-request you should:
    ```
    Windows users will additionally need to manually install goreleaser from https://github.com/goreleaser/goreleaser/releases
 
-4) Create database if you want to use MySQL (Semaphore also supports [bbolt](https://github.com/etcd-io/bbolt), it doesn't require additional action)
+4) Create database if you want to use MySQL (Semaphore also supports SQLite, it doesn't require additional action)
 
    ```
    echo "create database semaphore;" | mysql -uroot -p
