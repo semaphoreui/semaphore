@@ -555,6 +555,7 @@ type claimResult struct {
 	username string
 	name     string
 	email    string
+	admin    bool
 }
 
 func parseClaim(str string, claims map[string]any) (string, bool) {
@@ -627,6 +628,10 @@ func parseClaims(claims map[string]any, provider util.ClaimsProvider) (res claim
 	res.name, ok = parseClaim(provider.GetNameClaim(), claims)
 	if !ok {
 		res.name = getRandomProfileName()
+	}
+
+	if provider.IsAdminMappingEnable() {
+		res.admin = provider.IsAdminUserClaims(claims)
 	}
 
 	return
@@ -789,6 +794,17 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if !user.External {
 		log.Error(fmt.Errorf("OIDC user '%s' conflicts with local user", user.Username))
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	if provider.IsAdminMappingEnable() {
+		user.Admin = claims.admin
+	}
+
+	err = helpers.Store(r).UpdateUser(db.UserWithPwd{Pwd: "", User: user})
+	if err != nil {
+		log.Error(fmt.Errorf("Failed update OIDC user '%s': %v", user.Username, err))
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}

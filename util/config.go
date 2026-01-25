@@ -64,6 +64,16 @@ type LdapMappings struct {
 	CN   string `json:"cn" env:"SEMAPHORE_LDAP_MAPPING_CN" default:"cn"`
 }
 
+func (p *LdapMappings) IsAdminMappingEnable() bool {
+	// Always returns ‘not implemented’ with LDAP
+	return false
+}
+
+func (p *LdapMappings) IsAdminUserClaims(claims map[string]any) bool {
+	// Always returns ‘not implemented’ with LDAP
+	return false
+}
+
 func (p *LdapMappings) GetUsernameClaim() string {
 	return p.UID
 }
