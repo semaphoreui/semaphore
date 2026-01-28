@@ -67,7 +67,7 @@ func migrateBoltDb(boltDbPath string) {
 		return
 	}
 
-	_, err := os.Stat(boltDbPath)
+	file, err := os.Stat(boltDbPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			fmt.Println("File does not exist")
@@ -75,6 +75,10 @@ func migrateBoltDb(boltDbPath string) {
 			fmt.Printf("Error: %v\n", err)
 		}
 		return
+	}
+
+	if file.Size() > 1024*1024*1024 {
+		fmt.Println("File is too big ", file.Size())
 	}
 
 	boltStore := bolt.CreateBoltDB()

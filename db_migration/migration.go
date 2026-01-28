@@ -25,8 +25,6 @@ func (m *Migrator) Migrate(oldStore, newStore db.Store) error {
 
 	m.userIDs = make(map[int]db.User)
 
-	//m.integrationIDs = make(map[int]int)
-
 	fmt.Println("Migrating users...")
 	if err := m.migrateUsers(); err != nil {
 		return err
@@ -65,6 +63,7 @@ func (m *Migrator) migrateProjects() error {
 		return err
 	}
 
+	migrated := map[int]bool{}
 	for _, user := range users {
 		newUser := m.userIDs[user.ID]
 		projects, err := m.oldStore.GetProjects(user.ID)
@@ -74,10 +73,13 @@ func (m *Migrator) migrateProjects() error {
 		}
 
 		for _, project := range projects {
+			if !migrated[project.ID] {
+				err = m.migrateProject(&newUser, &project)
+				if err != nil {
+					return err
+				}
 
-			err = m.migrateProject(&newUser, &project)
-			if err != nil {
-				return err
+				migrated[project.ID] = true
 			}
 		}
 	}
@@ -88,6 +90,10 @@ func (m *Migrator) migrateProject(user *db.User, project *db.Project) error {
 	backup, err := projectService.GetBackup(project.ID, m.oldStore)
 
 	if err != nil {
+		return err
+	}
+
+	if err := backup.Verify(); err != nil {
 		return err
 	}
 
