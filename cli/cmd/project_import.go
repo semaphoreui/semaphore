@@ -26,7 +26,7 @@ var targetProjectImportArgs projectImportArgs
 func init() {
 	projectImportCmd.PersistentFlags().StringVar(&targetProjectImportArgs.dir, "dir", "", "Directory path with project backups to import")
 	projectImportCmd.PersistentFlags().StringVar(&targetProjectImportArgs.file, "file", "", "Backup file path to import")
-	projectImportCmd.PersistentFlags().StringVar(&targetProjectImportArgs.projectName, "project_name", "", "Override project name (only valid with --file)")
+	projectImportCmd.PersistentFlags().StringVar(&targetProjectImportArgs.projectName, "project-name", "", "Override project name (only valid with --file)")
 	projectCmd.AddCommand(projectImportCmd)
 }
 
@@ -47,7 +47,7 @@ var projectImportCmd = &cobra.Command{
 		}
 
 		if targetProjectImportArgs.projectName != "" && targetProjectImportArgs.dir != "" {
-			fmt.Println("Option --project_name can only be used with --file, not --dir")
+			fmt.Println("Option --project-name can only be used with --file, not --dir")
 			ok = false
 		}
 

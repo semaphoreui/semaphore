@@ -18,8 +18,8 @@ type projectExportArgs struct {
 var targetProjectExportArgs projectExportArgs
 
 func init() {
-	projectExportCmd.PersistentFlags().IntVar(&targetProjectExportArgs.projectID, "project_id", 0, "Project ID to export")
-	projectExportCmd.PersistentFlags().StringVar(&targetProjectExportArgs.projectName, "project_name", "", "Project name to export")
+	projectExportCmd.PersistentFlags().IntVar(&targetProjectExportArgs.projectID, "project-id", 0, "Project ID to export")
+	projectExportCmd.PersistentFlags().StringVar(&targetProjectExportArgs.projectName, "project-name", "", "Project name to export")
 	projectExportCmd.PersistentFlags().StringVar(&targetProjectExportArgs.file, "file", "", "Output file path (default: stdout)")
 	projectCmd.AddCommand(projectExportCmd)
 }
@@ -31,12 +31,12 @@ var projectExportCmd = &cobra.Command{
 
 		ok := true
 		if targetProjectExportArgs.projectID == 0 && targetProjectExportArgs.projectName == "" {
-			fmt.Println("Argument --project_id or --project_name required")
+			fmt.Println("Argument --project-id or --project-name required")
 			ok = false
 		}
 
 		if targetProjectExportArgs.projectID != 0 && targetProjectExportArgs.projectName != "" {
-			fmt.Println("Only one of --project_id or --project_name can be specified")
+			fmt.Println("Only one of --project-id or --project-name can be specified")
 			ok = false
 		}
 
