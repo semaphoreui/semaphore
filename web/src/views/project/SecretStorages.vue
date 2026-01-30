@@ -1,35 +1,35 @@
 <template>
   <div v-if="items != null">
     <ObjectRefsDialog
-      object-title="storage"
-      :object-refs="itemRefs"
-      :project-id="projectId"
-      v-model="itemRefsDialog"
+        object-title="storage"
+        :object-refs="itemRefs"
+        :project-id="projectId"
+        v-model="itemRefsDialog"
     />
 
     <YesNoDialog
-      :title="$t('deleteStorage')"
-      :text="$t('askDeleteStorage')"
-      v-model="deleteItemDialog"
-      @yes="deleteItem(itemId)"
+        :title="$t('deleteStorage')"
+        :text="$t('askDeleteStorage')"
+        v-model="deleteItemDialog"
+        @yes="deleteItem(itemId)"
     />
 
     <EditDialog
-      v-model="editDialog"
-      :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${itemType} Storage`"
-      :max-width="450"
-      @save="loadItems()"
+        v-model="editDialog"
+        :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
+        :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${itemType} Storage`"
+        :max-width="450"
+        @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <SecretStorageForm
-          :project-id="projectId"
-          :item-id="itemId"
-          :item-type="itemType"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
+            :project-id="projectId"
+            :item-id="itemId"
+            :item-type="itemType"
+            @save="onSave"
+            @error="onError"
+            :need-save="needSave"
+            :need-reset="needReset"
         />
       </template>
     </EditDialog>
@@ -42,11 +42,11 @@
       <v-menu offset-y>
         <template v-slot:activator="{ on, attrs }">
           <v-btn
-            class="pr-2"
-            v-bind="attrs"
-            v-on="on"
-            color="primary"
-            v-if="can(USER_PERMISSIONS.manageProjectResources)"
+              class="pr-2"
+              v-bind="attrs"
+              v-on="on"
+              color="primary"
+              v-if="can(USER_PERMISSIONS.manageProjectResources)"
           >
             New Storage
             <v-icon>mdi-chevron-down</v-icon>
@@ -54,29 +54,29 @@
         </template>
         <v-list>
           <v-list-item
-            link
-            @click="
+              link
+              @click="
               editItem('new');
               itemType = 'vault';
             "
-            :disabled="!premiumFeatures.secret_storage_management"
+              :disabled="!premiumFeatures.secret_storage_management"
           >
             <v-list-item-icon>
-              <v-icon>$vuetify.icons.hashicorp_vault </v-icon>
+              <v-icon>$vuetify.icons.hashicorp_vault</v-icon>
             </v-list-item-icon>
             <v-list-item-title>Hashicorp Vault</v-list-item-title>
           </v-list-item>
 
           <v-list-item
-            link
-            @click="
+              link
+              @click="
               editItem('new');
               itemType = 'dvls';
             "
-            :disabled="!premiumFeatures.secret_storage_management"
+              :disabled="!premiumFeatures.secret_storage_management"
           >
             <v-list-item-icon>
-              <v-icon>$vuetify.icons.dvls </v-icon>
+              <v-icon>$vuetify.icons.dvls</v-icon>
             </v-list-item-icon>
             <v-list-item-title>Devolutions Server</v-list-item-title>
           </v-list-item>
@@ -90,21 +90,21 @@
       </v-tab>
 
       <v-tab
-        key="storages"
-        :to="`/project/${projectId}/secret_storages`"
-        data-testid="keystore-storages"
+          key="storages"
+          :to="`/project/${projectId}/secret_storages`"
+          data-testid="keystore-storages"
       >
         Storages
       </v-tab>
     </v-tabs>
 
-    <v-divider style="margin-top: -1px" />
+    <v-divider style="margin-top: -1px"/>
 
     <v-alert
-      v-if="!premiumFeatures.secret_storage_management"
-      text
-      color="hsl(348deg, 86%, 61%)"
-      class="PageAlert"
+        v-if="!premiumFeatures.secret_storage_management"
+        text
+        color="hsl(348deg, 86%, 61%)"
+        class="PageAlert"
     >
       <span class="mr-1" v-html="$t('secret_storage_only_pro')"></span>
 
@@ -118,15 +118,20 @@
     </v-alert>
 
     <v-data-table
-      :headers="headers"
-      :items="items"
-      hide-default-footer
-      class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
+        :headers="headers"
+        :items="items"
+        hide-default-footer
+        class="mt-4"
+        :items-per-page="Number.MAX_VALUE"
+        style="
+          max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+          margin: auto
+        "
     >
       <template v-slot:item.name="{ item }">
-        <v-icon class="mr-3" small> $vuetify.icons.hashicorp_vault </v-icon>
+        <v-icon class="mr-3" small>
+          {{ getIcon(item) }}
+        </v-icon>
 
         <span class="mr-2">{{ item.name }}</span>
 
@@ -180,6 +185,17 @@ export default {
   },
 
   methods: {
+    getIcon(item) {
+      switch (item.type) {
+        case 'vault':
+          return '$vuetify.icons.hashicorp_vault';
+        case 'dvls':
+          return '$vuetify.icons.dvls';
+        default:
+          return '';
+      }
+    },
+
     upgradeToPro() {
       EventBus.$emit('i-subscription', {});
     },
