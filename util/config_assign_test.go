@@ -162,6 +162,86 @@ func TestAssignMapToStruct_MapPrimitiveConversions(t *testing.T) {
     }
 }
 
+func TestAssignMapToStruct_SkipsDbMinusTag(t *testing.T) {
+	type Sample struct {
+		Name     string `json:"name"`
+		Password string `json:"password" db:"-"`
+		Age      int    `json:"age"`
+		Secret   string `json:"secret" db:"-"`
+	}
+
+	t.Run("fields with db:- tag should not be assigned", func(t *testing.T) {
+		s := Sample{
+			Name:     "original",
+			Password: "original_password",
+			Age:      25,
+			Secret:   "original_secret",
+		}
+
+		m := map[string]any{
+			"name":     "updated",
+			"password": "new_password",
+			"age":      30,
+			"secret":   "new_secret",
+		}
+
+		if err := AssignMapToStruct(m, &s); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Fields without db:"-" should be updated
+		if s.Name != "updated" {
+			t.Errorf("expected Name to be 'updated', got '%s'", s.Name)
+		}
+		if s.Age != 30 {
+			t.Errorf("expected Age to be 30, got %d", s.Age)
+		}
+
+		// Fields with db:"-" should retain original values
+		if s.Password != "original_password" {
+			t.Errorf("expected Password to remain 'original_password', got '%s'", s.Password)
+		}
+		if s.Secret != "original_secret" {
+			t.Errorf("expected Secret to remain 'original_secret', got '%s'", s.Secret)
+		}
+	})
+
+	t.Run("nested struct with db:- tag fields", func(t *testing.T) {
+		type Inner struct {
+			Public  string `json:"public"`
+			Private string `json:"private" db:"-"`
+		}
+		type Outer struct {
+			Inner Inner `json:"inner"`
+		}
+
+		o := Outer{
+			Inner: Inner{
+				Public:  "original_public",
+				Private: "original_private",
+			},
+		}
+
+		m := map[string]any{
+			"inner": map[string]any{
+				"public":  "updated_public",
+				"private": "updated_private",
+			},
+		}
+
+		if err := AssignMapToStruct(m, &o); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if o.Inner.Public != "updated_public" {
+			t.Errorf("expected Inner.Public to be 'updated_public', got '%s'", o.Inner.Public)
+		}
+		if o.Inner.Private != "original_private" {
+			t.Errorf("expected Inner.Private to remain 'original_private', got '%s'", o.Inner.Private)
+		}
+	})
+}
+
 func TestSetConfigValue_SliceAndMap(t *testing.T) {
     // This ensures setConfigValue (used by defaults/env) is compatible with slice/map JSON
     type X struct {

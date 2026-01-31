@@ -328,6 +328,10 @@ type ConfigType struct {
 	Debugging *DebuggingConfig `json:"debugging,omitempty"`
 
 	HA *HAConfig `json:"ha,omitempty"`
+
+	// SubscriptionKey is a subscription key or token that can be set via config.
+	// When this is set, subscription activation from the web interface is disabled.
+	SubscriptionKey string `json:"subscription_key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY"`
 }
 
 func NewConfigType() *ConfigType {
@@ -591,6 +595,13 @@ func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) err
 
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
+
+		// Skip fields with db:"-" tag
+		dbTag := field.Tag.Get("db")
+		if dbTag == "-" {
+			continue
+		}
+
 		jsonTag := field.Tag.Get("json")
 		if jsonTag == "" {
 			jsonTag = field.Name
