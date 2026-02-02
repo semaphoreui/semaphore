@@ -232,6 +232,10 @@ export default {
   },
 
   methods: {
+    afterLoadData() {
+      this.formError = this.item.error;
+    },
+
     async makeProUser() {
       try {
         const user = (await axios.get('/api/user')).data;
