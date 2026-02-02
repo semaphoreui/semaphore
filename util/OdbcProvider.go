@@ -16,7 +16,7 @@ type OidcProvider struct {
 	NameClaim        string       `json:"name_claim" default:"preferred_username"`
 	EmailClaim       string       `json:"email_claim" default:"email"`
 	GroupsClaim      string       `json:"groups_claim" default:"groups"`
-	AdminGroup       string       `json:"admin_group" default:""` // Group from the groups in the claims that members will be map as admin on semaphore
+	AdminGroup       string       `json:"admin_group" default:""` // Group from the groups in the claims that members will be mapped as admin on semaphore
 	Order            int          `json:"order"`
 	// ReturnViaState when true, passes the return path via the OAuth state parameter instead of the redirect URL path. This is useful for OAuth providers that have strict redirect URL validation.
 	ReturnViaState bool `json:"return_via_state"`
