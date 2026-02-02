@@ -678,9 +678,9 @@ export default {
     },
 
     afterLoadData() {
-      if (!this.item.type) {
-        this.item.type = this.item.run_at ? 'run_at' : 'cron';
-      }
+      // if (!this.item.type) {
+      //   this.item.type = this.item.run_at ? 'run_at' : '';
+      // }
 
       if (this.item.run_at) {
         this.setRunAtInputFromItem();

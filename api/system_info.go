@@ -60,8 +60,9 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	if err != nil {
 		log.WithError(err).Error("Failed to get subscription plan")
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		err = nil
+		//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		//return
 	}
 
 	switch {
@@ -70,7 +71,9 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		plan = ""
 	case err != nil:
 		log.WithError(err).Error("Failed to get subscription plan")
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		err = nil
+		plan = ""
+		//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	default:
 		plan = token.Plan
