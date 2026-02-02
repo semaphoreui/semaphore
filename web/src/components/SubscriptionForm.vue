@@ -233,7 +233,9 @@ export default {
 
   methods: {
     afterLoadData() {
-      this.formError = this.item.error;
+      if (this.item.error) {
+        this.formError = this.item.error;
+      }
     },
 
     async makeProUser() {
