@@ -66,21 +66,30 @@
     >
       <legend style="padding: 0 3px;">{{ title || $t('Args') }}</legend>
       <v-chip-group column style="margin-top: -4px;">
-        <v-chip
-          v-for="(v, i) in modifiedVars"
-          close
-          @click:close="deleteVar(i)"
-          :key="i"
-          @click="editVar(i)"
+        <draggable
+          v-model="modifiedVars"
+          @end="onDragEnd"
+          :animation="200"
+          class="d-flex flex-wrap"
+          ghost-class="chip-ghost"
         >
-          <div
-            style="
-              max-width: 200px;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            "
-          >{{ v.name }}</div>
-        </v-chip>
+          <v-chip
+            v-for="(v, i) in modifiedVars"
+            close
+            @click:close="deleteVar(i)"
+            :key="i"
+            @click="editVar(i)"
+            class="draggable-chip"
+          >
+            <div
+              style="
+                max-width: 200px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              "
+            >{{ v.name }}</div>
+          </v-chip>
+        </draggable>
         <v-chip @click="editVar(null)">
           + <span
                 class="ml-1"
@@ -92,10 +101,25 @@
   </div>
 </template>
 <style lang="scss">
+.draggable-chip {
+  cursor: grab;
 
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.chip-ghost {
+  opacity: 0.5;
+}
 </style>
 <script>
+import draggable from 'vuedraggable';
+
 export default {
+  components: {
+    draggable,
+  },
   props: {
     vars: Array,
     title: String,
@@ -173,6 +197,10 @@ export default {
 
     deleteVar(index) {
       this.modifiedVars.splice(index, 1);
+      this.$emit('change', this.modifiedVars.map((x) => x.name));
+    },
+
+    onDragEnd() {
       this.$emit('change', this.modifiedVars.map((x) => x.name));
     },
   },
