@@ -65,12 +65,16 @@ type LdapMappings struct {
 }
 
 func (p *LdapMappings) IsAdminMappingEnable() bool {
-	// LDAP admin mapping is not supported, always returns false
+	// LDAP admin mapping is not supported. Always returns false, meaning users
+	// authenticated via LDAP will not automatically receive admin privileges
+	// based on group membership.
 	return false
 }
 
 func (p *LdapMappings) IsAdminUserClaims(claims map[string]any) bool {
-	// LDAP admin user claims are not supported, always returns false
+	// LDAP admin mapping is not supported. Always returns false, meaning users
+	// authenticated via LDAP will not automatically receive admin privileges
+	// based on group membership.
 	return false
 }
 
