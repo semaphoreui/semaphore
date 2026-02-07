@@ -783,6 +783,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			Email:    claims.email,
 			External: true,
 			Pro:      true,
+			Admin:    provider.IsAdminMappingEnable() && claims.admin,
 		}
 		user, err = helpers.Store(r).CreateUserWithoutPassword(user)
 		if err != nil {
@@ -790,23 +791,23 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 			return
 		}
-	}
+	} else {
+		if !user.External {
+			log.Error(fmt.Errorf("OIDC user '%s' conflicts with local user", user.Username))
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
 
-	if !user.External {
-		log.Error(fmt.Errorf("OIDC user '%s' conflicts with local user", user.Username))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
-		return
-	}
-
-	if provider.IsAdminMappingEnable() {
-		user.Admin = claims.admin
-	}
-
-	err = helpers.Store(r).UpdateUser(db.UserWithPwd{Pwd: "", User: user})
-	if err != nil {
-		log.Error(fmt.Errorf("Failed update OIDC user '%s': %v", user.Username, err))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
-		return
+		// For existing users: update only if admin mapping is enabled and user admin field needs to change.
+		if provider.IsAdminMappingEnable() && user.Admin != claims.admin {
+			user.Admin = claims.admin
+			err = helpers.Store(r).UpdateUser(db.UserWithPwd{Pwd: "", User: user})
+			if err != nil {
+				log.Error(fmt.Errorf("Failed update OIDC user '%s': %v", user.Username, err))
+				http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+				return
+			}
+		}
 	}
 
 	createSession(w, r, user, true)
