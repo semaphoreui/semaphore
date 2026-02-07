@@ -1,5 +1,7 @@
 package util
 
+import log "github.com/sirupsen/logrus"
+
 type OidcProvider struct {
 	ClientID         string       `json:"client_id"`
 	ClientIDFile     string       `json:"client_id_file"`
@@ -35,13 +37,26 @@ func (p *OidcProvider) IsAdminMappingEnable() bool {
 }
 
 func (p *OidcProvider) IsAdminUserClaims(claims map[string]any) bool {
-	if rawList, ok := claims[p.GroupsClaim].([]any); ok {
-		for _, g := range rawList {
-			if group, ok := g.(string); ok {
-				if p.AdminGroup == group {
-					return true
-				}
+	// SECURITY NOTE: Group membership check is CASE-SENSITIVE.
+	//                We match exact string values from the groups claim.
+	//                This follows JWT/OIDC conventions and prevents accidental privilege escalation
+	//                due to inconsistent casing from IdPs (e.g. "Admin" ≠ "admin").
+	rawList, ok := claims[p.GroupsClaim].([]any)
+
+	if !ok {
+		log.Info("Warning: groups claim is not a list/array of strings → cannot reliably detect admin group membership. Assuming non-admin for security.")
+		return false
+	}
+
+	for _, g := range rawList {
+		group, ok := g.(string)
+
+		if ok {
+			if p.AdminGroup == group {
+				return true
 			}
+		} else {
+			log.Info("Warning: groups claim contains non-string value(s) — ignoring invalid entries")
 		}
 	}
 	return false
