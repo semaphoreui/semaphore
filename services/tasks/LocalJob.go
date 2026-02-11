@@ -71,18 +71,8 @@ func (t *LocalJob) SetCommit(hash, message string) {
 	t.Logger.SetCommit(hash, message)
 }
 
-func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]any, err error) {
-
-	extraVars = make(map[string]any)
-
-	if t.Environment.JSON != "" {
-		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
-		if err != nil {
-			return
-		}
-	}
-
-	taskDetails := make(map[string]any)
+func (t *LocalJob) getTaskDetails(username string, incomingVersion *string) (taskDetails map[string]any) {
+	taskDetails = make(map[string]any)
 
 	taskDetails["id"] = t.Task.ID
 
@@ -109,8 +99,22 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 		}
 	}
 
+	return
+}
+
+func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]any, err error) {
+
+	extraVars = make(map[string]any)
+
+	if t.Environment.JSON != "" {
+		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
+		if err != nil {
+			return
+		}
+	}
+
 	vars := make(map[string]any)
-	vars["task_details"] = taskDetails
+	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
 
 	return
@@ -136,35 +140,8 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 
 	maps.Copy(extraVars, extraSecretVars)
 
-	taskDetails := make(map[string]any)
-
-	taskDetails["id"] = t.Task.ID
-
-	if t.Task.Message != "" {
-		taskDetails["message"] = t.Task.Message
-	}
-
-	taskDetails["username"] = username
-	taskDetails["url"] = t.Task.GetUrl()
-	taskDetails["commit_hash"] = t.Task.CommitHash
-	taskDetails["commit_message"] = t.Task.CommitMessage
-	taskDetails["inventory_name"] = t.Inventory.Name
-	taskDetails["inventory_id"] = t.Inventory.ID
-	taskDetails["repository_name"] = t.Repository.Name
-	taskDetails["repository_id"] = t.Repository.ID
-
-	if t.Template.Type != db.TemplateTask {
-		taskDetails["type"] = t.Template.Type
-		if incomingVersion != nil {
-			taskDetails["incoming_version"] = incomingVersion
-		}
-		if t.Template.Type == db.TemplateBuild {
-			taskDetails["target_version"] = t.Task.Version
-		}
-	}
-
 	vars := make(map[string]any)
-	vars["task_details"] = taskDetails
+	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
 
 	ev, err := json.Marshal(extraVars)
