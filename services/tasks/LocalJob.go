@@ -178,6 +178,22 @@ func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 	return
 }
 
+func (t *LocalJob) getShellEnvironmentExtraENV(username string, incomingVersion *string) (extraShellVars []string) {
+	taskDetails := t.getTaskDetails(username, incomingVersion)
+
+	for taskDetail, taskDetailValue := range taskDetails {
+		detailAsStr, ok := taskDetailValue.(string)
+		if !ok {
+			continue
+		}
+
+		envVarName := fmt.Sprintf("SEMAPHORE_TASK_DETAILS_%s", strings.ToUpper(taskDetail))
+		extraShellVars = append(extraShellVars, fmt.Sprintf("%s=%s", envVarName, detailAsStr))
+	}
+
+	return
+}
+
 // nolint: gocyclo
 func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args []string, err error) {
 	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
@@ -705,6 +721,18 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		}
 		// Convert to map format with "default" key
 		argsMap = map[string][]string{"default": args}
+	}
+
+	// Get extra environment vars for non-Terraform apps
+	switch t.Template.App {
+	case db.AppAnsible:
+		// Semaphore vars / task details were already passed
+		// as 'extra vars' in JSON format
+		break
+	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
+		break
+	default:
+		environmentVariables = append(environmentVariables, t.getShellEnvironmentExtraENV(username, incomingVersion)...)
 	}
 
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
