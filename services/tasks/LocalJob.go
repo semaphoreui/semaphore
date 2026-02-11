@@ -182,13 +182,31 @@ func (t *LocalJob) getShellEnvironmentExtraENV(username string, incomingVersion 
 	taskDetails := t.getTaskDetails(username, incomingVersion)
 
 	for taskDetail, taskDetailValue := range taskDetails {
-		detailAsStr, ok := taskDetailValue.(string)
-		if !ok {
+		envVarName := fmt.Sprintf("SEMAPHORE_TASK_DETAILS_%s", strings.ToUpper(taskDetail))
+
+		detailAsStr := ""
+		switch taskDetailValueOfType := taskDetailValue.(type) {
+		case string:
+			detailAsStr = taskDetailValueOfType
+		case *string:
+			if taskDetailValueOfType != nil {
+				detailAsStr = *taskDetailValueOfType
+			}
+
+		case int:
+			detailAsStr = strconv.Itoa(taskDetailValueOfType)
+		case *int:
+			if taskDetailValueOfType != nil {
+				detailAsStr = strconv.Itoa(*taskDetailValueOfType)
+			}
+
+		default:
 			continue
 		}
 
-		envVarName := fmt.Sprintf("SEMAPHORE_TASK_DETAILS_%s", strings.ToUpper(taskDetail))
-		extraShellVars = append(extraShellVars, fmt.Sprintf("%s=%s", envVarName, detailAsStr))
+		if detailAsStr != "" {
+			extraShellVars = append(extraShellVars, fmt.Sprintf("%s=%s", envVarName, detailAsStr))
+		}
 	}
 
 	return
