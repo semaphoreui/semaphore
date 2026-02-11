@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/conv"
@@ -209,7 +210,12 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			}
 		}
 
-		RunIntegration(integration, project, r, payload)
+		task := RunIntegration(integration, project, r, payload)
+		if task != nil {
+			w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(task.ID))
+			w.Header().Add("X-Semaphore-Template-ID", strconv.Itoa(task.TemplateID))
+			w.Header().Add("X-Semaphore-Project-ID", strconv.Itoa(task.ProjectID))
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -325,7 +331,8 @@ func GetTaskDefinition(
 	return
 }
 
-func RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) {
+func RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) (taskRef *db.Task) {
+	taskRef = nil
 
 	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
 
@@ -349,11 +356,15 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 
 	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
-	_, err = pool.AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
+	task, err := pool.AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
 		log.Error(err)
 		return
 	}
+
+	taskRef = &task
+
+	return
 }
 
 func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]string) {
