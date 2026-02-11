@@ -215,6 +215,14 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(task.ID))
 			w.Header().Add("X-Semaphore-Template-ID", strconv.Itoa(task.TemplateID))
 			w.Header().Add("X-Semaphore-Project-ID", strconv.Itoa(task.ProjectID))
+
+			if task.IntegrationID != nil {
+				w.Header().Add("X-Semaphore-Integration-ID", strconv.Itoa(*task.IntegrationID))
+			}
+
+			if task.InventoryID != nil {
+				w.Header().Add("X-Semaphore-Inventory-ID", strconv.Itoa(*task.InventoryID))
+			}
 		}
 	}
 
