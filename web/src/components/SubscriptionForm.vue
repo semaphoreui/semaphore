@@ -136,7 +136,7 @@
     <v-card v-if="item.plan" class="mb-3" style="background: var(--highlighted-card-bg-color)">
       <v-card-title>Plan &amp; status</v-card-title>
       <v-card-text class="pb-2">
-        <v-list class="py-0 pb-5" style="background: unset">
+        <v-list class="py-0 pb-5" style="background: unset" v-if="item.company">
           <v-list-item class="pa-0">
             <v-list-item-content class="py-0">
               <v-list-item-title>Subscription holder</v-list-item-title>
