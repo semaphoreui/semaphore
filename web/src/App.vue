@@ -417,7 +417,7 @@
             <template v-slot:activator="{ on, attrs }">
               <v-list-item key="project" v-bind="attrs" v-on="on">
                 <v-list-item-icon>
-                  <v-icon color="#f14668" v-if="user.pro"> mdi-professional-hexagon </v-icon>
+                  <v-icon color="#f14668" v-if="user.pro"> mdi-professional-hexagon</v-icon>
                   <v-icon v-else>mdi-account</v-icon>
                 </v-list-item-icon>
 
@@ -457,7 +457,9 @@
 
                 <v-list-item-content>
                   {{
-                    user.has_active_subscription ? 'Subscription &amp; Billing' : 'Upgrade to PRO'
+                    user.has_active_subscription
+                      ? 'Subscription &amp; Billing'
+                      : 'Upgrade to PRO or EE'
                   }}
                 </v-list-item-content>
               </v-list-item>
@@ -598,12 +600,15 @@
 .NavDrawer {
   height: 100dvh !important;
 }
+
 .NewProSubscriptionMenuItem {
   transition: 0.2s transform;
+
   .v-list-item__content,
   .v-list-item__icon {
     transition: 0.5s transform;
   }
+
   &:hover {
     transform: scale(1.05) translateY(-1px);
 
@@ -615,6 +620,7 @@
     }
   }
 }
+
 .ActivatePremiumSubscriptionButton {
   background: hsl(348deg, 86%, 61%);
   //transform: scale(0.9);
