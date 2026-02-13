@@ -384,3 +384,11 @@ func (d *SqlDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (out
 	_, err = d.selectAll(&output, query, args...)
 	return
 }
+
+func (d *SqlDb) GetNodeCount() (int, error) {
+	return 0, nil
+}
+
+func (d *SqlDb) GetUiCount() (int, error) {
+	return 1, nil
+}

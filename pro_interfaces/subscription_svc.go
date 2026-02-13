@@ -10,6 +10,7 @@ type SubscriptionToken struct {
 	Users     int       `json:"users"`
 	ExpiresAt time.Time `json:"expiresAt"`
 	Nodes     int       `json:"nodes,omitempty"`
+	UIs       int       `json:"uis,omitempty"`
 }
 
 func (t *SubscriptionToken) Validate() error {

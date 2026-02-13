@@ -125,7 +125,7 @@
                 <v-list-item-content>
                   <v-list-item-title>Nodes</v-list-item-title>
                   <v-list-item-subtitle>
-                    {{ item.nodes }}
+                    {{ item.nodes_used }} / {{ item.nodes }}
                   </v-list-item-subtitle>
                 </v-list-item-content>
               </v-list-item>
@@ -170,6 +170,14 @@
                   <v-list-item-title>Terraform backends</v-list-item-title>
                   <v-list-item-subtitle>
                     {{ item.terraform_states_used }} / {{ item.terraform_states }}
+                  </v-list-item-subtitle>
+                </v-list-item-content>
+              </v-list-item>
+              <v-list-item class="pa-0" v-if="item.uis">
+                <v-list-item-content>
+                  <v-list-item-title>UIs</v-list-item-title>
+                  <v-list-item-subtitle>
+                    {{ item.uis_used }} / {{ item.uis }}
                   </v-list-item-subtitle>
                 </v-list-item-content>
               </v-list-item>

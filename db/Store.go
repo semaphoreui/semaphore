@@ -241,6 +241,9 @@ type UserManager interface {
 	GetUser(userID int) (User, error)
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 	GetAllAdmins() ([]User, error)
+
+	GetNodeCount() (int, error)
+	GetUiCount() (int, error)
 }
 
 // ProjectStore handles project-related operations
