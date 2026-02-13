@@ -60,11 +60,7 @@
         dense
       ></v-textarea>
 
-      <v-btn color="primary" fab small style="position: absolute; top: 15px; right: -15px">
-        <v-icon>mdi-dots-horizontal</v-icon>
-      </v-btn>
-
-      <v-menu offset-y>
+      <v-menu offset-y v-if="item.state === 'active'">
         <template v-slot:activator="{ on, attrs }">
           <v-btn
             color="primary"
@@ -72,7 +68,6 @@
             v-on="on"
             fab
             small
-            depressed
             style="position: absolute; top: 15px; right: -15px"
           >
             <v-icon>mdi-dots-horizontal</v-icon>
@@ -231,7 +226,7 @@
 
         <div style="margin-top: 20px; font-weight: bold; color: #00bc00">
           Renews in {{ (new Date() - new Date(item.expiresAt)) | formatMilliseconds }}
-          <span style="font-weight: normal; color: grey">if auto-renew is activated</span>
+          <span>(if auto-renew is activated)</span>
         </div>
       </v-card-text>
     </v-card>
