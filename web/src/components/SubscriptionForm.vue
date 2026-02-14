@@ -81,6 +81,12 @@
             </v-list-item-icon>
             <v-list-item-title>Reload</v-list-item-title>
           </v-list-item>
+          <v-list-item link @click="uploadKeyFile">
+            <v-list-item-icon>
+              <v-icon>mdi-upload</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>Upload</v-list-item-title>
+          </v-list-item>
           <v-list-item link @click="resetToken">
             <v-list-item-icon>
               <v-icon>mdi-delete</v-icon>
@@ -89,6 +95,19 @@
           </v-list-item>
         </v-list>
       </v-menu>
+
+      <v-btn
+        v-else
+        color="primary"
+        v-bind="attrs"
+        v-on="on"
+        fab
+        small
+        style="position: absolute; top: 30px; right: -15px"
+        @click="uploadKeyFile()"
+      >
+        <v-icon>mdi-upload</v-icon>
+      </v-btn>
 
       <v-row>
         <v-col>
@@ -285,6 +304,23 @@ export default {
   },
 
   methods: {
+    uploadKeyFile() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.txt,.key,.pem,.lic';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            this.item.key = event.target.result.trim();
+          };
+          reader.readAsText(file);
+        }
+      };
+      input.click();
+    },
+
     async resetToken() {
       this.formError = null;
       this.formSaving = true;
