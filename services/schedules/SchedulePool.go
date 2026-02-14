@@ -133,10 +133,10 @@ func (r ScheduleRunner) Run() {
 	tpl, err := r.pool.store.GetTemplate(schedule.ProjectID, schedule.TemplateID)
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
-			"context":      common_errors.GetErrorContext(),
-			"project_id":   schedule.ProjectID,
-			"schedule_id":  schedule.ID,
-			"template_id":  schedule.TemplateID,
+			"context":     common_errors.GetErrorContext(),
+			"project_id":  schedule.ProjectID,
+			"schedule_id": schedule.ID,
+			"template_id": schedule.TemplateID,
 		}).Error("failed to get template")
 		return
 	}
@@ -170,6 +170,9 @@ func (r ScheduleRunner) Run() {
 		}).Error("failed to add task")
 	}
 
+	// For "RunAt" schedules, the schedule should only trigger once at the specified time and be deactivated afterwards.
+	// Calling Refresh here ensures that after the job has fired, the pool reloads the active schedules
+	// from the database (where this run-at schedule may now be disabled) so it is not executed again.
 	if scheduleType == db.ScheduleTypeRunAt {
 		r.pool.Refresh()
 	}
