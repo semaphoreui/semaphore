@@ -187,9 +187,45 @@ func (r ScheduleRunner) Run() {
 // ScheduleDeduplicator prevents the same schedule from being executed on
 // multiple nodes simultaneously in an HA cluster. When configured, each
 // ScheduleRunner calls TryLockExecution before creating a task.
+//
+// The deduplication lock is intended to cover a *single execution attempt*
+// of a schedule occurrence: a node should acquire the lock immediately
+// before creating a task and release it once the attempt has either
+// completed or failed. Implementations are free to choose the underlying
+// mechanism (in‑memory, database, distributed store, etc.), but they should
+// be robust to node failures and process restarts (for example by using
+// leases with automatic expiry).
+//
+// Callers MUST treat the lock as advisory and best‑effort: if the
+// implementation becomes unavailable or releases the lock early, at‑most‑once
+// execution across the cluster is not guaranteed.
 type ScheduleDeduplicator interface {
 	// TryLockExecution attempts to acquire an execution lock for the given
-	// schedule. Returns true if this node should execute the schedule.
+	// schedule occurrence.
+	//
+	// Lock duration:
+	//   - The lock is expected to remain held for the duration of the current
+	//     schedule execution attempt (from just before task creation until
+	//     the attempt finishes or fails).
+	//   - Implementations will typically release the lock explicitly when the
+	//     attempt ends and/or rely on a lease with automatic expiry to avoid
+	//     permanent deadlocks.
+	//
+	// Timeouts and crash behavior:
+	//   - If the node that acquired the lock crashes or loses connectivity,
+	//     the behavior is implementation‑specific. Recommended practice is to
+	//     use a finite TTL/lease so that the lock eventually expires and
+	//     future executions can proceed.
+	//
+	// Idempotency:
+	//   - TryLockExecution may be called multiple times for the same
+	//     scheduleID (for example, after retries or rescheduling). The
+	//     implementation SHOULD behave idempotently such that, for a single
+	//     schedule occurrence, at most one call across the cluster returns
+	//     true.
+	//
+	// Returns true if this node successfully acquired the lock and should
+	// execute the schedule, and false otherwise.
 	TryLockExecution(scheduleID int) bool
 }
 
