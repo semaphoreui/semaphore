@@ -195,7 +195,24 @@ type HARedisConfig struct {
 
 type HAConfig struct {
 	Enabled bool           `json:"enabled" env:"SEMAPHORE_HA_ENABLED"`
+	NodeID  string         `json:"node_id,omitempty" env:"SEMAPHORE_HA_NODE_ID"` // auto-generated if empty
 	Redis   *HARedisConfig `json:"redis,omitempty"`
+}
+
+// HAEnabled returns true when high-availability mode is configured.
+func HAEnabled() bool {
+	return Config.HA != nil && Config.HA.Enabled
+}
+
+// InitHANodeID generates a unique node identifier for this instance if one
+// was not explicitly configured. Must be called after ConfigInit.
+func InitHANodeID() {
+	if Config.HA == nil {
+		return
+	}
+	if Config.HA.NodeID == "" {
+		Config.HA.NodeID = RandString(16)
+	}
 }
 
 type TeamInviteType string
