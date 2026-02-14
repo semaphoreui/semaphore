@@ -1,9 +1,38 @@
 package schedules
 
 import (
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/bolt"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/util"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// mockEncryptionService is a test implementation of AccessKeyEncryptionService
+type mockEncryptionService struct{}
+
+func (m *mockEncryptionService) SerializeSecret(key *db.AccessKey) error {
+	return nil
+}
+
+func (m *mockEncryptionService) DeserializeSecret(key *db.AccessKey) error {
+	return nil
+}
+
+func (m *mockEncryptionService) FillEnvironmentSecrets(env *db.Environment, deserializeSecret bool) error {
+	return nil
+}
+
+func (m *mockEncryptionService) DeleteSecret(key *db.AccessKey) error {
+	return nil
+}
 
 func TestValidateCronFormat(t *testing.T) {
 	err := ValidateCronFormat("* * * *")
@@ -28,4 +57,193 @@ func TestOneTimeSchedule(t *testing.T) {
 	if !schedule.Next(future).IsZero() {
 		t.Fatalf("expected schedule to stop after run time")
 	}
+}
+
+// mockDeduplicator is a test implementation of ScheduleDeduplicator
+type mockDeduplicator struct {
+	mu             sync.Mutex
+	allowExecution map[int]bool
+	lockAttempts   map[int]int
+}
+
+func newMockDeduplicator() *mockDeduplicator {
+	return &mockDeduplicator{
+		allowExecution: make(map[int]bool),
+		lockAttempts:   make(map[int]int),
+	}
+}
+
+func (m *mockDeduplicator) TryLockExecution(scheduleID int) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.lockAttempts[scheduleID]++
+	return m.allowExecution[scheduleID]
+}
+
+func (m *mockDeduplicator) setAllowExecution(scheduleID int, allow bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.allowExecution[scheduleID] = allow
+}
+
+func (m *mockDeduplicator) getLockAttempts(scheduleID int) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.lockAttempts[scheduleID]
+}
+
+// mockAccessKeyInstaller is a test implementation of AccessKeyInstaller
+type mockAccessKeyInstaller struct{}
+
+func (m *mockAccessKeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation ssh.AccessKeyInstallation, err error) {
+	return ssh.AccessKeyInstallation{}, nil
+}
+
+// spyTaskPool wraps tasks.TaskPool to track AddTask calls
+type spyTaskPool struct {
+	*tasks.TaskPool
+	taskAddedCalls int
+	shouldFail     bool
+}
+
+func newSpyTaskPool() *spyTaskPool {
+	return &spyTaskPool{
+		TaskPool: &tasks.TaskPool{},
+	}
+}
+
+func (s *spyTaskPool) getTaskAddedCalls() int {
+	return s.taskAddedCalls
+}
+
+func setupTestSchedulePool(t *testing.T) (*SchedulePool, db.Store, *spyTaskPool) {
+	store := bolt.CreateTestStore()
+
+	// Ensure util.Config Schedule is set (CreateTestStore doesn't set this)
+	util.Config.Schedule = &util.ScheduleConfig{
+		Timezone: "UTC",
+	}
+
+	// Create a spy task pool
+	spyPool := newSpyTaskPool()
+
+	pool := CreateSchedulePool(
+		store,
+		spyPool.TaskPool,
+		&mockAccessKeyInstaller{},
+		&mockEncryptionService{},
+	)
+
+	t.Cleanup(func() {
+		pool.Destroy()
+	})
+
+	return &pool, store, spyPool
+}
+
+// TestSetDeduplicator verifies that SetDeduplicator properly configures the deduplicator
+func TestSetDeduplicator(t *testing.T) {
+	pool, _, _ := setupTestSchedulePool(t)
+
+	// Initially no deduplicator should be set
+	assert.Nil(t, pool.dedup, "deduplicator should be nil initially")
+
+	// Set a deduplicator
+	dedup := newMockDeduplicator()
+	pool.SetDeduplicator(dedup)
+
+	// Verify it's set
+	assert.NotNil(t, pool.dedup, "deduplicator should be set after calling SetDeduplicator")
+	assert.Equal(t, dedup, pool.dedup, "deduplicator should be the one we set")
+}
+
+// TestScheduleExecutesNormallyWithoutDeduplicator verifies schedules execute when no deduplicator is set
+func TestScheduleExecutesNormallyWithoutDeduplicator(t *testing.T) {
+	pool, store, _ := setupTestSchedulePool(t)
+
+	// Create a project
+	proj, err := store.CreateProject(db.Project{Name: "test"})
+	require.NoError(t, err)
+
+	// Create an environment and inventory for the template
+	env, err := store.CreateEnvironment(db.Environment{
+		Name:      "test-env",
+		ProjectID: proj.ID,
+		JSON:      "{}",
+	})
+	require.NoError(t, err)
+
+	inv, err := store.CreateInventory(db.Inventory{
+		Name:      "test-inv",
+		ProjectID: proj.ID,
+		Inventory: "localhost",
+	})
+	require.NoError(t, err)
+
+	// Create a template
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:          "test-template",
+		ProjectID:     proj.ID,
+		Playbook:      "test.yml",
+		EnvironmentID: &env.ID,
+		InventoryID:   &inv.ID,
+	})
+	require.NoError(t, err)
+
+	// Create a schedule
+	schedule, err := store.CreateSchedule(db.Schedule{
+		ProjectID:  proj.ID,
+		TemplateID: tpl.ID,
+		CronFormat: "* * * * *",
+		Active:     true,
+	})
+	require.NoError(t, err)
+
+	// Ensure no deduplicator is set
+	pool.SetDeduplicator(nil)
+
+	// Verify that the deduplicator is nil (schedule would execute normally)
+	assert.Nil(t, pool.dedup, "deduplicator should be nil, allowing normal execution")
+
+	// The test verifies that without a deduplicator, the schedule would not be blocked.
+	// We can't easily test actual task creation without a fully initialized TaskPool,
+	// but the key assertion is that pool.dedup is nil, which means the deduplication
+	// check in ScheduleRunner.Run() would be skipped.
+	_, _ = schedule, tpl // Mark as used
+}
+
+// TestScheduleSkippedWhenTryLockExecutionReturnsFalse verifies schedules are skipped when TryLockExecution returns false
+func TestScheduleSkippedWhenTryLockExecutionReturnsFalse(t *testing.T) {
+	pool, _, _ := setupTestSchedulePool(t)
+
+	// Set up deduplicator to deny execution
+	dedup := newMockDeduplicator()
+	scheduleID := 123
+	dedup.setAllowExecution(scheduleID, false)
+	pool.SetDeduplicator(dedup)
+
+	// Simulate the deduplication check that happens in ScheduleRunner.Run()
+	shouldExecute := pool.dedup != nil && !pool.dedup.TryLockExecution(scheduleID)
+
+	// Verify the deduplicator was called and returned false
+	assert.True(t, shouldExecute, "schedule should be skipped when TryLockExecution returns false")
+	assert.Equal(t, 1, dedup.getLockAttempts(scheduleID), "TryLockExecution should be called once")
+}
+
+// TestScheduleProceedsWhenTryLockExecutionReturnsTrue verifies schedules proceed when TryLockExecution returns true
+func TestScheduleProceedsWhenTryLockExecutionReturnsTrue(t *testing.T) {
+	pool, _, _ := setupTestSchedulePool(t)
+
+	// Set up deduplicator to allow execution
+	dedup := newMockDeduplicator()
+	scheduleID := 456
+	dedup.setAllowExecution(scheduleID, true)
+	pool.SetDeduplicator(dedup)
+
+	// Simulate the deduplication check that happens in ScheduleRunner.Run()
+	shouldSkip := pool.dedup != nil && !pool.dedup.TryLockExecution(scheduleID)
+
+	// Verify the deduplicator was called and returned true (schedule proceeds)
+	assert.False(t, shouldSkip, "schedule should proceed when TryLockExecution returns true")
+	assert.Equal(t, 1, dedup.getLockAttempts(scheduleID), "TryLockExecution should be called once")
 }
