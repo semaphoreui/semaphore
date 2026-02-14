@@ -12,7 +12,6 @@ import (
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // mockEncryptionService is a test implementation of AccessKeyEncryptionService
@@ -159,57 +158,13 @@ func TestSetDeduplicator(t *testing.T) {
 
 // TestScheduleExecutesNormallyWithoutDeduplicator verifies schedules execute when no deduplicator is set
 func TestScheduleExecutesNormallyWithoutDeduplicator(t *testing.T) {
-	pool, store, _ := setupTestSchedulePool(t)
-
-	// Create a project
-	proj, err := store.CreateProject(db.Project{Name: "test"})
-	require.NoError(t, err)
-
-	// Create an environment and inventory for the template
-	env, err := store.CreateEnvironment(db.Environment{
-		Name:      "test-env",
-		ProjectID: proj.ID,
-		JSON:      "{}",
-	})
-	require.NoError(t, err)
-
-	inv, err := store.CreateInventory(db.Inventory{
-		Name:      "test-inv",
-		ProjectID: proj.ID,
-		Inventory: "localhost",
-	})
-	require.NoError(t, err)
-
-	// Create a template
-	tpl, err := store.CreateTemplate(db.Template{
-		Name:          "test-template",
-		ProjectID:     proj.ID,
-		Playbook:      "test.yml",
-		EnvironmentID: &env.ID,
-		InventoryID:   &inv.ID,
-	})
-	require.NoError(t, err)
-
-	// Create a schedule
-	schedule, err := store.CreateSchedule(db.Schedule{
-		ProjectID:  proj.ID,
-		TemplateID: tpl.ID,
-		CronFormat: "* * * * *",
-		Active:     true,
-	})
-	require.NoError(t, err)
+	pool, _, _ := setupTestSchedulePool(t)
 
 	// Ensure no deduplicator is set
 	pool.SetDeduplicator(nil)
 
 	// Verify that the deduplicator is nil (schedule would execute normally)
 	assert.Nil(t, pool.dedup, "deduplicator should be nil, allowing normal execution")
-
-	// The test verifies that without a deduplicator, the schedule would not be blocked.
-	// We can't easily test actual task creation without a fully initialized TaskPool,
-	// but the key assertion is that pool.dedup is nil, which means the deduplication
-	// check in ScheduleRunner.Run() would be skipped.
-	_, _ = schedule, tpl // Mark as used
 }
 
 // TestScheduleSkippedWhenTryLockExecutionReturnsFalse verifies schedules are skipped when TryLockExecution returns false
@@ -223,10 +178,10 @@ func TestScheduleSkippedWhenTryLockExecutionReturnsFalse(t *testing.T) {
 	pool.SetDeduplicator(dedup)
 
 	// Simulate the deduplication check that happens in ScheduleRunner.Run()
-	shouldExecute := pool.dedup != nil && !pool.dedup.TryLockExecution(scheduleID)
+	shouldSkip := pool.dedup != nil && !pool.dedup.TryLockExecution(scheduleID)
 
 	// Verify the deduplicator was called and returned false
-	assert.True(t, shouldExecute, "schedule should be skipped when TryLockExecution returns false")
+	assert.True(t, shouldSkip, "schedule should be skipped when TryLockExecution returns false")
 	assert.Equal(t, 1, dedup.getLockAttempts(scheduleID), "TryLockExecution should be called once")
 }
 
