@@ -178,8 +178,13 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	c.readPump()
 }
 
-// Message allows a message to be sent to the websockets, called in API task logging
+// Message allows a message to be sent to the websockets, called in API task logging.
+// In HA mode, messages are relayed to all cluster nodes via the configured Broadcaster.
 func Message(userID int, message []byte) {
+	if broadcaster != nil {
+		broadcaster.Publish(userID, message)
+		return
+	}
 	h.broadcast <- &sendRequest{
 		userID: userID,
 		msg:    message,

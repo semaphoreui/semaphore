@@ -14,6 +14,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/factory"
 	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
+	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
 	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
 	"github.com/semaphoreui/semaphore/services/schedules"
@@ -75,6 +76,9 @@ func runService() {
 
 	initSyslog(util.Config.Syslog)
 
+	// Initialize HA node identity before any component that uses it.
+	util.InitHANodeID()
+
 	state := proTasks.NewTaskStateStore()
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
@@ -113,6 +117,36 @@ func runService() {
 	)
 
 	defer schedulePool.Destroy()
+
+	// --- Active-Active HA Setup ---
+	// When HA is enabled, multiple Semaphore nodes share the same Redis-backed
+	// task state and coordinate via Pub/Sub. The following components ensure:
+	// 1. Node registry: heartbeat-based cluster membership
+	// 2. Schedule deduplication: only one node fires each schedule occurrence
+	// 3. WebSocket broadcaster: real-time events reach clients on all nodes
+	// 4. Orphan cleaner: tasks from dead nodes are marked as failed
+	if nodeRegistry := proHA.NewNodeRegistry(); nodeRegistry != nil {
+		if err := nodeRegistry.Start(); err != nil {
+			log.WithError(err).Fatal("failed to start HA node registry")
+		}
+		defer nodeRegistry.Stop()
+		log.WithField("node_id", nodeRegistry.NodeID()).Info("HA active-active mode enabled")
+	}
+
+	if dedup := proHA.NewScheduleDeduplicator(); dedup != nil {
+		schedulePool.SetDeduplicator(dedup)
+	}
+
+	if wsBroadcaster := proHA.NewWSBroadcaster(); wsBroadcaster != nil {
+		sockets.SetBroadcaster(wsBroadcaster)
+		wsBroadcaster.Start()
+		defer wsBroadcaster.Stop()
+	}
+
+	if orphanCleaner := proHA.NewOrphanCleaner(store); orphanCleaner != nil {
+		orphanCleaner.Start()
+		defer orphanCleaner.Stop()
+	}
 
 	util.Config.PrintDbInfo()
 

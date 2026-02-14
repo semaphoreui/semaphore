@@ -141,6 +141,15 @@ func (r ScheduleRunner) Run() {
 		return
 	}
 
+	// In HA mode, ensure only one node fires this schedule occurrence.
+	if r.pool.dedup != nil && !r.pool.dedup.TryLockExecution(r.scheduleID) {
+		log.WithFields(log.Fields{
+			"project_id":  r.projectID,
+			"schedule_id": r.scheduleID,
+		}).Debug("schedule already executed by another node")
+		return
+	}
+
 	task := schedule.TaskParams.CreateTask(schedule.TemplateID)
 	task.ScheduleID = &schedule.ID
 
@@ -166,13 +175,29 @@ func (r ScheduleRunner) Run() {
 	}
 }
 
+// ScheduleDeduplicator prevents the same schedule from being executed on
+// multiple nodes simultaneously in an HA cluster. When configured, each
+// ScheduleRunner calls TryLockExecution before creating a task.
+type ScheduleDeduplicator interface {
+	// TryLockExecution attempts to acquire an execution lock for the given
+	// schedule. Returns true if this node should execute the schedule.
+	TryLockExecution(scheduleID int) bool
+}
+
 type SchedulePool struct {
 	cron              *cron.Cron
 	locker            sync.Locker
+	dedup             ScheduleDeduplicator
 	store             db.Store
 	taskPool          *tasks.TaskPool
 	encryptionService server.AccessKeyEncryptionService
 	keyInstaller      db_lib.AccessKeyInstaller
+}
+
+// SetDeduplicator configures a distributed schedule deduplicator for HA mode.
+// When set, only one node in the cluster fires each schedule occurrence.
+func (p *SchedulePool) SetDeduplicator(d ScheduleDeduplicator) {
+	p.dedup = d
 }
 
 func (p *SchedulePool) init() {
