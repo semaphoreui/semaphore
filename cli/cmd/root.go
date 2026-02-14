@@ -137,12 +137,6 @@ func runService() {
 		schedulePool.SetDeduplicator(dedup)
 	}
 
-	if wsBroadcaster := proHA.NewWSBroadcaster(); wsBroadcaster != nil {
-		sockets.SetBroadcaster(wsBroadcaster)
-		wsBroadcaster.Start()
-		defer wsBroadcaster.Stop()
-	}
-
 	if orphanCleaner := proHA.NewOrphanCleaner(store); orphanCleaner != nil {
 		orphanCleaner.Start()
 		defer orphanCleaner.Stop()
@@ -163,7 +157,16 @@ func runService() {
 
 	subscriptionService.StartValidationCron()
 
+	// Start the WebSocket hub before the broadcaster so that h.broadcast
+	// channel is being consumed when LocalBroadcast is called.
 	go sockets.StartWS()
+
+	if wsBroadcaster := proHA.NewWSBroadcaster(); wsBroadcaster != nil {
+		sockets.SetBroadcaster(wsBroadcaster)
+		wsBroadcaster.Start()
+		defer wsBroadcaster.Stop()
+	}
+
 	go schedulePool.Run()
 	go taskPool.Run()
 
