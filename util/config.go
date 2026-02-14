@@ -348,7 +348,8 @@ type ConfigType struct {
 
 	// SubscriptionKey is a subscription key or token that can be set via config.
 	// When this is set, subscription activation from the web interface is disabled.
-	SubscriptionKey string `json:"subscription_key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY"`
+	SubscriptionKey     string `json:"subscription_key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY"`
+	SubscriptionKeyFile string `json:"subscription_key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
 }
 
 func NewConfigType() *ConfigType {
@@ -458,6 +459,15 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		if err == nil {
 			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
 		}
+	}
+
+	if Config.SubscriptionKeyFile != "" {
+		subscriptionKeyBytes, err := os.ReadFile(Config.SubscriptionKeyFile)
+		if err != nil {
+			panic(err)
+		}
+
+		Config.SubscriptionKey = strings.TrimSpace(string(subscriptionKeyBytes))
 	}
 
 	return
