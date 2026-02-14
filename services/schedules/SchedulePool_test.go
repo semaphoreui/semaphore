@@ -98,37 +98,23 @@ func (m *mockAccessKeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRol
 	return ssh.AccessKeyInstallation{}, nil
 }
 
-// spyTaskPool wraps tasks.TaskPool to track AddTask calls
-type spyTaskPool struct {
-	*tasks.TaskPool
-	taskAddedCalls int
-	shouldFail     bool
-}
-
-func newSpyTaskPool() *spyTaskPool {
-	return &spyTaskPool{
-		TaskPool: &tasks.TaskPool{},
-	}
-}
-
-func (s *spyTaskPool) getTaskAddedCalls() int {
-	return s.taskAddedCalls
-}
-
-func setupTestSchedulePool(t *testing.T) (*SchedulePool, db.Store, *spyTaskPool) {
+func setupTestSchedulePool(t *testing.T) (*SchedulePool, db.Store) {
 	store := bolt.CreateTestStore()
+
+	// Store original config and restore after test
+	originalSchedule := util.Config.Schedule
+	t.Cleanup(func() {
+		util.Config.Schedule = originalSchedule
+	})
 
 	// Ensure util.Config Schedule is set (CreateTestStore doesn't set this)
 	util.Config.Schedule = &util.ScheduleConfig{
 		Timezone: "UTC",
 	}
 
-	// Create a spy task pool
-	spyPool := newSpyTaskPool()
-
 	pool := CreateSchedulePool(
 		store,
-		spyPool.TaskPool,
+		&tasks.TaskPool{},
 		&mockAccessKeyInstaller{},
 		&mockEncryptionService{},
 	)
@@ -137,12 +123,12 @@ func setupTestSchedulePool(t *testing.T) (*SchedulePool, db.Store, *spyTaskPool)
 		pool.Destroy()
 	})
 
-	return &pool, store, spyPool
+	return &pool, store
 }
 
 // TestSetDeduplicator verifies that SetDeduplicator properly configures the deduplicator
 func TestSetDeduplicator(t *testing.T) {
-	pool, _, _ := setupTestSchedulePool(t)
+	pool, _ := setupTestSchedulePool(t)
 
 	// Initially no deduplicator should be set
 	assert.Nil(t, pool.dedup, "deduplicator should be nil initially")
@@ -158,7 +144,7 @@ func TestSetDeduplicator(t *testing.T) {
 
 // TestScheduleExecutesNormallyWithoutDeduplicator verifies schedules execute when no deduplicator is set
 func TestScheduleExecutesNormallyWithoutDeduplicator(t *testing.T) {
-	pool, _, _ := setupTestSchedulePool(t)
+	pool, _ := setupTestSchedulePool(t)
 
 	// Ensure no deduplicator is set
 	pool.SetDeduplicator(nil)
@@ -169,7 +155,7 @@ func TestScheduleExecutesNormallyWithoutDeduplicator(t *testing.T) {
 
 // TestScheduleSkippedWhenTryLockExecutionReturnsFalse verifies schedules are skipped when TryLockExecution returns false
 func TestScheduleSkippedWhenTryLockExecutionReturnsFalse(t *testing.T) {
-	pool, _, _ := setupTestSchedulePool(t)
+	pool, _ := setupTestSchedulePool(t)
 
 	// Set up deduplicator to deny execution
 	dedup := newMockDeduplicator()
@@ -187,7 +173,7 @@ func TestScheduleSkippedWhenTryLockExecutionReturnsFalse(t *testing.T) {
 
 // TestScheduleProceedsWhenTryLockExecutionReturnsTrue verifies schedules proceed when TryLockExecution returns true
 func TestScheduleProceedsWhenTryLockExecutionReturnsTrue(t *testing.T) {
-	pool, _, _ := setupTestSchedulePool(t)
+	pool, _ := setupTestSchedulePool(t)
 
 	// Set up deduplicator to allow execution
 	dedup := newMockDeduplicator()
