@@ -147,6 +147,12 @@ func (r ScheduleRunner) Run() {
 			"project_id":  r.projectID,
 			"schedule_id": r.scheduleID,
 		}).Debug("schedule already executed by another node")
+		// For one-time schedules the winning node deactivates/deletes
+		// the schedule in the DB after execution. Refresh so this
+		// node's cron picks up that change and drops the stale entry.
+		if scheduleType == db.ScheduleTypeRunAt {
+			r.pool.Refresh()
+		}
 		return
 	}
 
