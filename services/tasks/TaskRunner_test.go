@@ -164,7 +164,7 @@ func TestGetRepoPath(t *testing.T) {
 	}
 
 	dir := tsk.job.(*LocalJob).App.(*db_lib.AnsibleApp).GetPlaybookDir()
-	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
+	if dir != "/tmp/project_0/repository_0_template_0/src/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
 }
@@ -210,7 +210,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 	}
 
 	dir := tsk.job.(*LocalJob).App.(*db_lib.AnsibleApp).GetPlaybookDir()
-	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
+	if dir != "/tmp/project_0/repository_0_template_0/src/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
 }
