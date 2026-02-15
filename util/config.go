@@ -47,6 +47,21 @@ const (
 	EventLogDelete EventLogAction = "delete"
 )
 
+const (
+	// HomeDirModeUserHome does not override HOME.
+	// Sets ANSIBLE_HOME per template to isolate .ansible/ across parallel tasks.
+	HomeDirModeUserHome = "user_home"
+
+	// HomeDirModeProjectDir sets HOME to the project temp directory.
+	// This is the legacy behavior. Parallel ansible-galaxy runs may conflict.
+	HomeDirModeProjectDir = "project_dir"
+
+	// HomeDirModeTemplateDir sets HOME to a per-template directory.
+	// The git checkout lives in a "src" subdirectory, keeping HOME artifacts
+	// (like .ansible/) separate from the repository files.
+	HomeDirModeTemplateDir = "template_dir"
+)
+
 type DbConfig struct {
 	Dialect string `json:"-"`
 
@@ -251,6 +266,16 @@ type ConfigType struct {
 
 	// semaphore stores ephemeral projects here
 	TmpPath string `json:"tmp_path,omitempty" default:"/tmp/semaphore" env:"SEMAPHORE_TMP_PATH"`
+
+	// HomeDirMode controls how the HOME environment variable is set for tasks.
+	//   "template_home" (default) — HOME is set to a per-template directory,
+	//       isolating .ansible/ across parallel tasks. Repo is cloned into a
+	//       "src" subdirectory under HOME.
+	//   "project_home" — HOME is set to the project temp directory (legacy
+	//       behavior). Parallel ansible-galaxy runs in the same project may conflict.
+	//   "user_home" — HOME is not overridden (keeps the real user HOME).
+	//       ANSIBLE_HOME is set per template to isolate .ansible/ for Ansible tasks.
+	HomeDirMode string `json:"home_dir_mode,omitempty" rule:"^(user_home|project_dir|template_dir)?$" env:"SEMAPHORE_HOME_DIR_MODE" default:"template_dir"`
 
 	// SshConfigPath is a path to the custom SSH config file.
 	// Default path is ~/.ssh/config.

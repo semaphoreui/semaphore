@@ -53,11 +53,16 @@ func (r Repository) GetHomePath(templateID int) string {
 }
 
 // GetFullPath returns the path where the repository source code lives.
-// For non-local repos this is a "src" subdirectory under the template home,
-// keeping the git checkout separate from HOME artifacts like .ansible/.
+// In template_dir / user_home mode this is a "src" subdirectory under
+// the template home, keeping the git checkout separate from HOME artifacts
+// like .ansible/. In project_home mode the repo lives directly in the
+// template directory (legacy layout).
 func (r Repository) GetFullPath(templateID int) string {
 	if r.GetType() == RepositoryLocal {
 		return r.GetGitURL(true)
+	}
+	if util.Config.HomeDirMode == util.HomeDirModeProjectDir {
+		return r.GetHomePath(templateID)
 	}
 	return path.Join(r.GetHomePath(templateID), "src")
 }

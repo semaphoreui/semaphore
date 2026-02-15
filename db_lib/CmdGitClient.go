@@ -96,7 +96,10 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 
 	var dirName string
 	if r.TmpDirName == "" {
-		dirName = path.Join(r.Repository.GetDirName(r.TemplateID), "src")
+		dirName = r.Repository.GetDirName(r.TemplateID)
+		if util.Config.HomeDirMode != util.HomeDirModeProjectDir {
+			dirName = path.Join(dirName, "src")
+		}
 	} else {
 		dirName = r.TmpDirName
 	}
