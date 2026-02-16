@@ -2,11 +2,12 @@ package sql
 
 import (
 	"errors"
+	"strings"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"golang.org/x/crypto/bcrypt"
-	"strings"
 )
 
 func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {

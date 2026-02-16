@@ -801,6 +801,13 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 		return err
 	}
 
+	if util.Config.HomeDirMode != util.HomeDirModeProjectHome {
+		if err := checkTmpDir(t.Repository.GetHomePath(t.Template.ID)); err != nil {
+			t.Log("Creating task home dir failed: " + err.Error())
+			return err
+		}
+	}
+
 	// Override git branch from template if set
 	if t.Template.GitBranch != nil && *t.Template.GitBranch != "" {
 		t.Repository.GitBranch = *t.Template.GitBranch
@@ -852,6 +859,13 @@ func (t *LocalJob) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArg
 	if err := checkTmpDir(util.Config.GetProjectTmpDir(t.Template.ProjectID)); err != nil {
 		t.Log("Creating tmp dir failed: " + err.Error())
 		return err
+	}
+
+	if util.Config.HomeDirMode != util.HomeDirModeProjectHome {
+		if err := checkTmpDir(t.Repository.GetHomePath(t.Template.ID)); err != nil {
+			t.Log("Creating task home dir failed: " + err.Error())
+			return err
+		}
 	}
 
 	// Override git branch from template if set
