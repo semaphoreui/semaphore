@@ -39,14 +39,6 @@ const (
 	DbDriverSQLite   = "sqlite"
 )
 
-type EventLogAction string
-
-const (
-	EventLogCreate EventLogAction = "create"
-	EventLogUpdate EventLogAction = "update"
-	EventLogDelete EventLogAction = "delete"
-)
-
 const (
 	// HomeDirModeUserHome does not override HOME.
 	// Sets ANSIBLE_HOME per template to isolate .ansible/ across parallel tasks.
