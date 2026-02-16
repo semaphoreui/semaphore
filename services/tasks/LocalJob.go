@@ -778,7 +778,7 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 		return err
 	}
 
-	if util.Config.HomeDirMode != util.HomeDirModeProjectDir {
+	if util.Config.HomeDirMode != util.HomeDirModeProjectHome {
 		if err := checkTmpDir(t.Repository.GetHomePath(t.Template.ID)); err != nil {
 			t.Log("Creating task home dir failed: " + err.Error())
 			return err
@@ -838,7 +838,7 @@ func (t *LocalJob) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArg
 		return err
 	}
 
-	if util.Config.HomeDirMode != util.HomeDirModeProjectDir {
+	if util.Config.HomeDirMode != util.HomeDirModeProjectHome {
 		if err := checkTmpDir(t.Repository.GetHomePath(t.Template.ID)); err != nil {
 			t.Log("Creating task home dir failed: " + err.Error())
 			return err

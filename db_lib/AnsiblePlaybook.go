@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/creack/pty"
@@ -29,9 +30,11 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 	cmd.Env = append(cmd.Env, getEnvironmentVars()...)
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", getHomeDir(p.Repository, p.TemplateID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
-	if util.Config.HomeDirMode == util.HomeDirModeUserHome {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_HOME=%s", p.Repository.GetHomePath(p.TemplateID)))
+
+	if util.Config.HomeDirMode == util.HomeDirModeTemplateDir {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_HOME=%s", path.Join(p.Repository.GetHomePath(p.TemplateID), ".ansible")))
 	}
+
 	cmd.Env = append(cmd.Env, environmentVars...)
 
 	cmd.SysProcAttr = util.Config.GetSysProcAttr()

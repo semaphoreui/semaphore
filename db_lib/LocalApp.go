@@ -10,16 +10,13 @@ import (
 )
 
 // getHomeDir returns the HOME directory value for a task based on the configured
-// HomeDirMode. For "template_dir" it returns the per-template directory, for
-// "project_dir" it returns the project tmp directory, and for "user_home" it
-// returns the real user HOME (no override).
+// HomeDirMode. For "project_home" it returns the project tmp directory.
+// For "template_dir" and "user_home" it returns the real user HOME (no override).
 func getHomeDir(repo db.Repository, templateID int) string {
 	switch util.Config.HomeDirMode {
-	case util.HomeDirModeProjectDir:
+	case util.HomeDirModeProjectHome:
 		return util.Config.GetProjectTmpDir(repo.ProjectID)
-	case util.HomeDirModeTemplateDir:
-		return repo.GetHomePath(templateID)
-	case util.HomeDirModeUserHome:
+	case util.HomeDirModeTemplateDir, util.HomeDirModeUserHome:
 		return os.Getenv("HOME")
 	default:
 		return ""
