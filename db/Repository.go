@@ -44,11 +44,11 @@ func (r Repository) GetDirName(templateID int) string {
 	return r.getDirNamePrefix() + "template_" + strconv.Itoa(templateID)
 }
 
-// GetHomePath returns the per-template home directory with a "_home" suffix.
-// This is used as HOME for task execution so that parallel tasks from different
-// templates get isolated home directories (preventing concurrent ansible-galaxy
-// writes to the same $HOME/.ansible/collections/), while keeping HOME artifacts
-// separate from the repository files.
+// GetHomePath returns the per-template "home" directory with a "_home" suffix.
+// Currently this path is used for home-like directories such as ANSIBLE_HOME so
+// that parallel tasks from different templates get isolated home directories
+// (preventing concurrent ansible-galaxy writes to the same collections path),
+// while keeping these artifacts separate from the repository files.
 func (r Repository) GetHomePath(templateID int) string {
 	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetDirName(templateID)+"_home")
 }
