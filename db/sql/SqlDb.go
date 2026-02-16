@@ -96,12 +96,12 @@ func (d *SqlDbConnection) Connect() {
 	d.sql.AddTableWithName(db.Session{}, "session").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.TaskParams{}, "project__task_params").SetKeys(true, "id")
 
-	//if d.GetDialect() == util.DbDriverSQLite {
-	//	_, err = d.exec("PRAGMA foreign_keys = ON")
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//}
+	if d.GetDialect() == util.DbDriverSQLite {
+		_, err = d.Exec("PRAGMA foreign_keys = ON")
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 func (d *SqlDbConnection) Close() {
