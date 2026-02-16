@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/ssh"
@@ -97,9 +96,6 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 	var dirName string
 	if r.TmpDirName == "" {
 		dirName = r.Repository.GetDirName(r.TemplateID)
-		if util.Config.HomeDirMode != util.HomeDirModeProjectDir {
-			dirName = path.Join(dirName, "src")
-		}
 	} else {
 		dirName = r.TmpDirName
 	}

@@ -44,27 +44,23 @@ func (r Repository) GetDirName(templateID int) string {
 	return r.getDirNamePrefix() + "template_" + strconv.Itoa(templateID)
 }
 
-// GetHomePath returns the per-template home directory. This is used as HOME
-// for task execution so that parallel tasks from different templates get isolated
-// home directories (preventing concurrent ansible-galaxy writes to the same
-// $HOME/.ansible/collections/).
+// GetHomePath returns the per-template home directory with a "_home" suffix.
+// This is used as HOME for task execution so that parallel tasks from different
+// templates get isolated home directories (preventing concurrent ansible-galaxy
+// writes to the same $HOME/.ansible/collections/), while keeping HOME artifacts
+// separate from the repository files.
 func (r Repository) GetHomePath(templateID int) string {
-	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetDirName(templateID))
+	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetDirName(templateID)+"_home")
 }
 
 // GetFullPath returns the path where the repository source code lives.
-// In template_dir / user_home mode this is a "src" subdirectory under
-// the template home, keeping the git checkout separate from HOME artifacts
-// like .ansible/. In project_home mode the repo lives directly in the
-// template directory (legacy layout).
+// The repository is cloned directly into the template directory
+// (e.g. repository_15_template_114) without any subdirectory.
 func (r Repository) GetFullPath(templateID int) string {
 	if r.GetType() == RepositoryLocal {
 		return r.GetGitURL(true)
 	}
-	if util.Config.HomeDirMode == util.HomeDirModeProjectDir {
-		return r.GetHomePath(templateID)
-	}
-	return path.Join(r.GetHomePath(templateID), "src")
+	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetDirName(templateID))
 }
 
 func (r Repository) GetGitURL(secure bool) string {

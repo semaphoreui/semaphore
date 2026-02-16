@@ -57,8 +57,8 @@ const (
 	HomeDirModeProjectDir = "project_dir"
 
 	// HomeDirModeTemplateDir sets HOME to a per-template directory.
-	// The git checkout lives in a "src" subdirectory, keeping HOME artifacts
-	// (like .ansible/) separate from the repository files.
+	// The HOME directory uses a "_home" suffix (e.g. repository_15_template_114_home),
+	// keeping HOME artifacts (like .ansible/) separate from the repository files.
 	HomeDirModeTemplateDir = "template_dir"
 )
 
