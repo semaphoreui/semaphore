@@ -205,7 +205,7 @@ func (t *LocalJob) getShellEnvironmentExtraENV(username string, incomingVersion 
 		}
 
 		if detailAsStr != "" {
-			extraShellVars = append(extraShellVars, fmt.Sprintf("%s=%s", envVarName, detailAsStr))
+			extraShellVars = append(extraShellVars, fmt.Sprintf("%s=%s", envVarName, util.ShellQuote(util.ShellStripUnsafe(detailAsStr))))
 		}
 	}
 
