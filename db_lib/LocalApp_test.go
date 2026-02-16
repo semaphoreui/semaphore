@@ -51,7 +51,6 @@ func TestGetEnvironmentVars(t *testing.T) {
 }
 
 func TestGetHomeDir(t *testing.T) {
-	// Import db package for Repository type
 	repo := db.Repository{
 		ProjectID: 42,
 	}
@@ -62,6 +61,10 @@ func TestGetHomeDir(t *testing.T) {
 	testHome := "/home/testuser"
 	os.Setenv("HOME", testHome) //nolint:errcheck
 	defer os.Setenv("HOME", originalHome) //nolint:errcheck
+
+	// Save original config and restore after all tests
+	originalConfig := util.Config
+	defer func() { util.Config = originalConfig }()
 
 	tests := []struct {
 		name         string
