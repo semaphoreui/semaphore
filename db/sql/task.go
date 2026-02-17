@@ -249,7 +249,16 @@ func (d *SqlDb) InsertTaskOutputBatch(output []db.TaskOutput) error {
 	return err
 }
 
+// getTasks retrieves tasks for a given project, optionally filtered by template and/or task IDs.
+// The taskIDs parameter has three-way semantics: nil means no filtering by ID,
+// and a non-nil non-empty slice restricts the query to only those task IDs.
 func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
+
+	if taskIDs != nil && len(taskIDs) == 0 {
+		*tasks = []db.TaskWithTpl{}
+		return nil
+	}
+
 	fields := "task.*"
 	fields += ", tpl.playbook as tpl_playbook" +
 		", `user`.name as user_name" +
@@ -273,7 +282,7 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		q = q.Where("tpl.project_id=? AND task.template_id=?", projectID, templateID)
 	}
 
-	if len(taskIDs) > 0 {
+	if taskIDs != nil {
 		q = q.Where(squirrel.Eq{"task.id": taskIDs})
 	}
 
