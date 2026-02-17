@@ -169,11 +169,19 @@ type ConfigLog struct {
 	Tasks  *TaskLogType  `json:"tasks,omitempty"`
 }
 
+type SyslogFormat string
+
+const (
+	SyslogDefault SyslogFormat = ""
+	SyslogRFC5424 SyslogFormat = "rfc5424"
+)
+
 type SyslogConfig struct {
-	Enabled bool   `json:"enabled" env:"SEMAPHORE_SYSLOG_ENABLED"`
-	Network string `json:"network,omitempty" env:"SEMAPHORE_SYSLOG_NETWORK"`
-	Address string `json:"address,omitempty" env:"SEMAPHORE_SYSLOG_ADDRESS"`
-	Tag     string `json:"tag,omitempty" env:"SEMAPHORE_SYSLOG_TAG"`
+	Enabled bool         `json:"enabled" env:"SEMAPHORE_SYSLOG_ENABLED"`
+	Network string       `json:"network,omitempty" env:"SEMAPHORE_SYSLOG_NETWORK"`
+	Address string       `json:"address,omitempty" env:"SEMAPHORE_SYSLOG_ADDRESS"`
+	Tag     string       `json:"tag,omitempty" env:"SEMAPHORE_SYSLOG_TAG"`
+	Format  SyslogFormat `json:"format,omitempty" env:"SEMAPHORE_SYSLOG_FORMAT"`
 }
 
 type ConfigProcess struct {
