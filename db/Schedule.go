@@ -21,8 +21,8 @@ type Schedule struct {
 	RepositoryID   *int       `db:"repository_id" json:"repository_id" backup:"-"`
 	RunAt          *time.Time `db:"run_at" json:"run_at,omitempty"`
 
-	TaskParamsID *int       `db:"task_params_id" json:"-" backup:"-"`
-	TaskParams   TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`
+	TaskParamsID *int        `db:"task_params_id" json:"-" backup:"-"`
+	TaskParams   *TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`
 }
 
 type ScheduleWithTpl struct {

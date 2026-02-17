@@ -7,10 +7,10 @@ import (
 
 func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, err error) {
 
-	if schedule.TaskParamsID != nil {
+	if schedule.TaskParams != nil {
 		params := schedule.TaskParams
 		params.ProjectID = schedule.ProjectID
-		err = d.Sql().Insert(&params)
+		err = d.Sql().Insert(params)
 		if err != nil {
 			return
 		}
@@ -58,7 +58,7 @@ func (d *SqlDb) SetScheduleLastCommitHash(projectID int, scheduleID int, lastCom
 
 func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 
-	if schedule.TaskParamsID != nil {
+	if schedule.TaskParams != nil {
 		var curr db.Schedule
 		err = d.getObject(schedule.ProjectID, db.ScheduleProps, schedule.ID, &curr)
 		if err != nil {
@@ -69,10 +69,10 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		params.ProjectID = schedule.ProjectID
 
 		if curr.TaskParamsID == nil {
-			err = d.Sql().Insert(&params)
+			err = d.Sql().Insert(params)
 		} else {
 			params.ID = *curr.TaskParamsID
-			_, err = d.Sql().Update(&params)
+			_, err = d.Sql().Update(params)
 		}
 
 		if err != nil {
@@ -131,7 +131,7 @@ func (d *SqlDb) GetSchedule(projectID int, scheduleID int) (schedule db.Schedule
 			return
 		}
 
-		schedule.TaskParams = taskParams
+		schedule.TaskParams = &taskParams
 	}
 
 	return
@@ -187,7 +187,7 @@ func (d *SqlDb) GetProjectSchedules(projectID int, includeTaskParams bool, inclu
 			if err != nil {
 				return nil, err
 			}
-			schedules[i].TaskParams = taskParams
+			schedules[i].TaskParams = &taskParams
 		}
 	}
 
