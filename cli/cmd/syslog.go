@@ -16,19 +16,21 @@ import (
 )
 
 func initSyslog(conf *util.SyslogConfig) {
-	if conf.Enabled {
-		hook, err := lSyslog.NewSyslogHook(conf.Network, conf.Address, syslog.LOG_DEBUG, conf.Tag)
-		if err != nil {
-			log.WithError(err).Fatal("Failed to create syslog hook")
-			return
-		}
-
-		log.AddHook(&rfc5424Hook{
-			writer: hook.Writer,
-			tag:    conf.Tag,
-		})
-		log.Info("Syslog logging enabled (RFC 5424)")
+	if !conf.Enabled {
+		return
 	}
+
+	hook, err := lSyslog.NewSyslogHook(conf.Network, conf.Address, syslog.LOG_DEBUG, conf.Tag)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to create syslog hook")
+		return
+	}
+
+	log.AddHook(&rfc5424Hook{
+		writer: hook.Writer,
+		tag:    conf.Tag,
+	})
+	log.Info("Syslog logging enabled (RFC 5424)")
 }
 
 type rfc5424Hook struct {
