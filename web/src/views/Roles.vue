@@ -26,26 +26,24 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
-      <v-btn
-        icon
-        class="mr-4"
-        @click="returnToProjects()"
-      >
+    <v-toolbar flat>
+      <v-btn icon class="mr-4" @click="returnToProjects()">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
       <v-toolbar-title>{{ $t('Roles') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
         :disabled="!premiumFeatures.custom_roles_management"
         color="primary"
         @click="editItem('new')"
-      >{{ $t('newRole') }}</v-btn>
+        >{{ $t('newRole') }}</v-btn
+      >
     </v-toolbar>
 
     <TeamMenu v-if="projectId" :project-id="projectId" :system-info="systemInfo" />
 
-    <v-divider style="margin-top: -1px;"/>
+    <v-divider style="margin-top: -1px" />
 
     <v-alert
       v-if="!premiumFeatures.custom_roles_management"
@@ -66,7 +64,7 @@
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
-      <span v-else style="font-weight: bold;">
+      <span v-else style="font-weight: bold">
         {{ $t('contact_admin_to_upgrade_enterprise') }}
       </span>
     </v-alert>
@@ -78,26 +76,15 @@
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
       <template v-slot:item.permissions="{ item }">
-        <TemplatePermissionsChips
-          class="py-1"
-          :permissions="item.permissions"
-        />
+        <TemplatePermissionsChips class="py-1" :permissions="item.permissions" />
       </template>
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-btn
-            icon
-            class="mr-1"
-            @click="askDeleteItem(item.slug)"
-          >
+          <v-btn icon class="mr-1" @click="askDeleteItem(item.slug)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn
-            icon
-            class="mr-1"
-            @click="editItem(item.slug)"
-          >
+          <v-btn icon class="mr-1" @click="editItem(item.slug)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>
@@ -132,8 +119,7 @@ export default {
   },
 
   data() {
-    return {
-    };
+    return {};
   },
 
   computed: {
@@ -150,20 +136,22 @@ export default {
 
   methods: {
     getHeaders() {
-      return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
-        width: '50%',
-      },
-      {
-        text: this.$i18n.t('permissions'),
-        value: 'permissions',
-      },
-      {
-        text: this.$i18n.t('actions'),
-        value: 'actions',
-        sortable: false,
-      }];
+      return [
+        {
+          text: this.$i18n.t('name'),
+          value: 'name',
+          width: '50%',
+        },
+        {
+          text: this.$i18n.t('permissions'),
+          value: 'permissions',
+        },
+        {
+          text: this.$i18n.t('actions'),
+          value: 'actions',
+          sortable: false,
+        },
+      ];
     },
 
     async returnToProjects() {
@@ -175,7 +163,9 @@ export default {
     },
 
     getSingleItemUrl() {
-      return this.projectId ? `/api/project/${this.projectId}/roles/${this.itemId}` : `/api/roles/${this.itemId}`;
+      return this.projectId
+        ? `/api/project/${this.projectId}/roles/${this.itemId}`
+        : `/api/roles/${this.itemId}`;
     },
 
     getEventName() {
