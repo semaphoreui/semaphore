@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"encoding/json"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"go.etcd.io/bbolt"
@@ -136,6 +137,23 @@ func (d *BoltDb) GetEvents(projectID int, params db.RetrieveQueryParams) (events
 			return *evt.ProjectID == projectID
 		})
 
+		return nil
+	})
+
+	return
+}
+
+func (d *BoltDb) GetAllEvents(params db.RetrieveQueryParams) (events []db.Event, err error) {
+	err = d.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("events"))
+		if b == nil {
+			return nil
+		}
+
+		c := b.Cursor()
+		events, err = d.getEvents(c, params, func(evt db.Event) bool {
+			return true
+		})
 		return nil
 	})
 
