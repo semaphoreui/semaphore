@@ -26,11 +26,17 @@ func initSyslog(conf *util.SyslogConfig) {
 		return
 	}
 
-	log.AddHook(&rfc5424Hook{
-		writer: hook.Writer,
-		tag:    conf.Tag,
-	})
-	log.Info("Syslog logging enabled (RFC 5424)")
+	switch conf.Format {
+	case util.SyslogDefault:
+		log.AddHook(hook)
+		log.Info("Syslog logging enabled")
+	case util.SyslogRFC5424:
+		log.AddHook(&rfc5424Hook{
+			writer: hook.Writer,
+			tag:    conf.Tag,
+		})
+		log.Info("Syslog logging enabled (RFC 5424)")
+	}
 }
 
 type rfc5424Hook struct {
