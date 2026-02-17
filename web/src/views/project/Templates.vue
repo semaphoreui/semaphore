@@ -218,7 +218,10 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="createTask(item.id)">
+          <v-btn
+            v-if="canRun(item)"
+            @click="createTask(item.id)"
+          >
             <v-icon>mdi-play</v-icon>
           </v-btn>
         </v-btn-toggle>
@@ -440,6 +443,22 @@ export default {
       EventBus.$emit('i-show-task', {
         taskId,
       });
+    },
+
+    canRun(item) {
+      if (this.isAdmin) {
+        return true;
+      }
+
+      const perm = this.USER_PERMISSIONS.runProjectTasks;
+
+      if (item.permissions != null) {
+        // eslint-disable-next-line no-bitwise
+        return (item.permissions & perm) === perm;
+      }
+
+      // eslint-disable-next-line no-bitwise
+      return (this.userPermissions & perm) === perm;
     },
 
     createTask(itemId) {
