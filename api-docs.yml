@@ -831,8 +831,9 @@ definitions:
         type: string
       message:
         type: string
-      inventory_id:
-        type: integer
+#      inventory_id:
+#        type: integer
+#        x-nullable: true
       arguments:
         type: string
       params:
