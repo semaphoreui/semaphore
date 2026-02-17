@@ -280,7 +280,7 @@ if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ]; then
         IMPORT_ARGS="${IMPORT_ARGS} --project-name ${SEMAPHORE_IMPORT_PROJECT_NAME}"
     fi
     if test "$#" -ne 1; then
-        /usr/local/bin/semaphore project import ${IMPORT_ARGS} || echoerr "Project import failed"
+        /usr/local/bin/semaphore project import ${IMPORT_ARGS} --config "${SEMAPHORE_CONFIG_PATH}/config.json" || echoerr "Project import failed"
     else
         "$1" project import ${IMPORT_ARGS} || echoerr "Project import failed"
     fi
