@@ -242,6 +242,14 @@ func Route(
 	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("PUT", "POST")
 	appsAPI.Path("/{app_id}/active").HandlerFunc(setAppActive).Methods("POST")
 	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("DELETE")
+	appsAPI.Path("/{app_id}/versions").HandlerFunc(getAppVersions).Methods("GET", "HEAD")
+	appsAPI.Path("/{app_id}/versions").HandlerFunc(createAppVersion).Methods("POST")
+
+	appVersionsAPI := appsAPI.PathPrefix("/{app_id}/versions").Subrouter()
+	appVersionsAPI.Use(appVersionMiddleware)
+	appVersionsAPI.Path("/{version_id}").HandlerFunc(getAppVersion).Methods("GET", "HEAD")
+	appVersionsAPI.Path("/{version_id}").HandlerFunc(updateAppVersion).Methods("PUT", "POST")
+	appVersionsAPI.Path("/{version_id}").HandlerFunc(deleteAppVersion).Methods("DELETE")
 
 	adminAPI.Path("/tasks").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
 	tasksAPI := adminAPI.PathPrefix("/tasks").Subrouter()

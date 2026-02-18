@@ -232,6 +232,8 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		err = migration_2_8_26{db: d}.PostApply(tx)
 	case "2.8.42":
 		err = migration_2_8_42{db: d}.PostApply(tx)
+	case "2.18.0":
+		err = migration_2_18_0{db: d}.PostApply(tx)
 	}
 
 	if err != nil {

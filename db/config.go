@@ -1,8 +1,10 @@
 package db
 
 import (
-	"github.com/semaphoreui/semaphore/util"
+	"encoding/json"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/util"
 )
 
 func ConvertFlatToNested(flatMap map[string]string) map[string]any {
@@ -37,11 +39,52 @@ func FillConfigFromDB(store Store) (err error) {
 
 	options := ConvertFlatToNested(opts)
 
-	if options["apps"] == nil {
-		options["apps"] = make(map[string]any)
-	}
-
 	err = util.AssignMapToStruct(options, util.Config)
 
+	if err != nil {
+		return
+	}
+
+	err = fillAppsFromDB(store)
+
 	return
+}
+
+func fillAppsFromDB(store Store) error {
+	apps, err := store.GetApps()
+	if err != nil {
+		return err
+	}
+
+	if util.Config.Apps == nil {
+		util.Config.Apps = make(map[string]util.App)
+	}
+
+	for _, a := range apps {
+		versions, err := store.GetAppVersions(a.ID)
+		if err != nil {
+			return err
+		}
+
+		app := util.App{
+			Active:    a.Active,
+			Priority:  a.Priority,
+			Title:     a.Title,
+			Icon:      a.Icon,
+			Color:     a.Color,
+			DarkColor: a.DarkColor,
+		}
+
+		if len(versions) > 0 {
+			v := versions[0]
+			app.AppPath = v.Path
+			if v.Args != nil {
+				_ = json.Unmarshal([]byte(*v.Args), &app.AppArgs)
+			}
+		}
+
+		util.Config.Apps[a.ID] = app
+	}
+
+	return nil
 }
