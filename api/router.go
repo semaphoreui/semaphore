@@ -244,6 +244,7 @@ func Route(
 	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("DELETE")
 	appsAPI.Path("/{app_id}/versions").HandlerFunc(getAppVersions).Methods("GET", "HEAD")
 	appsAPI.Path("/{app_id}/versions").HandlerFunc(createAppVersion).Methods("POST")
+	appsAPI.Path("/{app_id}/reorder_versions").HandlerFunc(setAppVersionOrder).Methods("POST")
 
 	appVersionsAPI := appsAPI.PathPrefix("/{app_id}/versions").Subrouter()
 	appVersionsAPI.Use(appVersionMiddleware)

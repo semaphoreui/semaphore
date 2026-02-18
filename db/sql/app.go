@@ -92,3 +92,16 @@ func (d *SqlDb) DeleteAppVersion(appID string, versionID int) error {
 	res, err := d.exec("delete from `app__version` where `app_id`=? and `id`=?", appID, versionID)
 	return validateMutationResult(res, err)
 }
+
+func (d *SqlDb) SetAppVersionOrder(appID string, order map[int]int) error {
+	for id, priority := range order {
+		_, err := d.exec(
+			"update `app__version` set `priority`=? where `app_id`=? and `id`=?",
+			priority, appID, id,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

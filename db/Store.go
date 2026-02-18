@@ -228,6 +228,7 @@ type AppManager interface {
 	CreateAppVersion(version AppVersion) (AppVersion, error)
 	UpdateAppVersion(version AppVersion) error
 	DeleteAppVersion(appID string, versionID int) error
+	SetAppVersionOrder(appID string, order map[int]int) error
 }
 
 // OptionsManager handles system options

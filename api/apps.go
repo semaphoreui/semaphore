@@ -275,6 +275,24 @@ func updateAppVersion(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func setAppVersionOrder(w http.ResponseWriter, r *http.Request) {
+	appID := helpers.GetFromContext(r, "app_id").(string)
+	store := helpers.Store(r)
+
+	var order map[int]int
+	if !helpers.Bind(w, r, &order) {
+		return
+	}
+
+	err := store.SetAppVersionOrder(appID, order)
+	if err != nil {
+		helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func deleteAppVersion(w http.ResponseWriter, r *http.Request) {
 	appID := helpers.GetFromContext(r, "app_id").(string)
 	versionID := helpers.GetFromContext(r, "version_id").(int)

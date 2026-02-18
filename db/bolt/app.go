@@ -66,3 +66,17 @@ func (d *BoltDb) DeleteAppVersion(appID string, versionID int) error {
 		return d.deleteObject(0, db.AppVersionProps, intObjectID(versionID), tx)
 	})
 }
+
+func (d *BoltDb) SetAppVersionOrder(appID string, order map[int]int) error {
+	for id, priority := range order {
+		version, err := d.GetAppVersion(appID, id)
+		if err != nil {
+			return err
+		}
+		version.Priority = priority
+		if err = d.updateObject(0, db.AppVersionProps, version); err != nil {
+			return err
+		}
+	}
+	return nil
+}
