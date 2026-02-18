@@ -50,9 +50,17 @@
 
     <v-divider />
 
-    <IntegrationMatcher class="mb-6" v-if="integration.searchable" />
+    <IntegrationMatcher
+      class="mb-6"
+      v-if="integration.searchable"
+      :user-permissions="userPermissions"
+      :is-admin="isAdmin"
+    />
 
-    <IntegrationExtractValue />
+    <IntegrationExtractValue
+      :user-permissions="userPermissions"
+      :is-admin="isAdmin"
+    />
   </div>
 </template>
 <script>
