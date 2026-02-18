@@ -16,6 +16,7 @@ tasks:
         vars:
           GOOS: ""
           GOARCH: ""
+          APP_BUILD_TYPE: ""
 
   deps:
     desc: Install all build dependencies
@@ -28,17 +29,18 @@ tasks:
     desc: Installs required tools to build and publish
     vars:
       SWAGGER_VERSION: v0.30.5
-      GORELEASER_VERSION: v1.25.1
+      GORELEASER_VERSION: v2.11.2
       GOLINTER_VERSION: v1.57.2
     cmds:
 #      - go install github.com/go-swagger/go-swagger/cmd/swagger@{{ .SWAGGER_VERSION }}
-      - go install github.com/goreleaser/goreleaser@{{ .GORELEASER_VERSION }}
+      - go install github.com/goreleaser/goreleaser/v2@{{ .GORELEASER_VERSION }}
 #      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@{{ .GOLINTER_VERSION }}
+    dir: /tmp
 
   deps:be:
     desc: Vendor application dependencies
     cmds:
-      - go mod vendor
+      - go {{ if eq .APP_BUILD_TYPE "pro_selfhosted" }}work{{ else }}mod{{ end }} vendor
 
   deps:fe:
     desc: Installs nodejs requirements
@@ -88,13 +90,15 @@ tasks:
       - ../api/public/index.html
       - ../api/public/favicon.ico
     cmds:
-      - npm run build
+      - >-
+        {{ if eq OS "windows" }}set VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }} && {{ else }}env VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }}{{ end }}
+        npm run build
 
   build:be:
     desc: Build server binary
     cmds:
       - >-
-        env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }}
+        {{ if eq OS "windows" }}set CGO_ENABLED=0 && GOOS={{ .GOOS }} && GOARCH={{ .GOARCH }} && {{ else }}env CGO_ENABLED=0 GOOS={{ .GOOS }} GOARCH={{ .GOARCH }}{{ end }}
         go build -o bin/semaphore{{ if eq OS "windows" }}.exe{{ end }}
         -tags "netgo"
         -ldflags "-s -w -X {{ .IMPORT }}/util.Ver={{ .VERSION }} -X {{ .IMPORT }}/util.Commit={{ .SHA }} -X {{ .IMPORT }}/util.Date={{ .DATE }}" ./cli

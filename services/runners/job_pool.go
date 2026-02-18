@@ -65,19 +65,22 @@ func (e *JobLogger) Debug(message string) {
 }
 
 type JobPool struct {
-	// logger channel used to putting log records to database.
-	logger chan jobLogRecord
-
-	// register channel used to put tasks to queue.
-	register chan *job
-
 	runningJobs map[int]*runningJob
 
 	queue []*job
 
-	//token *string
-
 	processing int32
+
+	keyInstaller db_lib.AccessKeyInstaller
+}
+
+func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
+	return &JobPool{
+		runningJobs:  make(map[int]*runningJob),
+		queue:        make([]*job, 0),
+		processing:   0,
+		keyInstaller: keyInstaller,
+	}
 }
 
 func (p *JobPool) existsInQueue(taskID int) bool {
@@ -147,6 +150,8 @@ func (p *JobPool) Unregister() (err error) {
 func (p *JobPool) Run() {
 	logger := JobLogger{Context: "running"}
 
+	launched := false
+
 	if util.Config.Runner.Token == "" {
 		logger.Panic(fmt.Errorf("no token provided"), "read input", "can not retrieve runner token")
 	}
@@ -194,6 +199,9 @@ func (p *JobPool) Run() {
 				}
 
 				if err != nil {
+					logger.ActionError(err, "launch job", "job failed")
+					t.job.Logger.Log("Unable to launch the application. Please contact your system administrator for assistance.")
+
 					if runningJob.status == task_logger.TaskStoppingStatus {
 						runningJob.SetStatus(task_logger.TaskStoppedStatus)
 					} else {
@@ -220,7 +228,12 @@ func (p *JobPool) Run() {
 
 				defer atomic.StoreInt32(&p.processing, 0)
 
-				p.sendProgress()
+				ok := p.sendProgress()
+
+				if ok && !launched {
+					launched = true
+					fmt.Println("Runner connected")
+				}
 
 				if util.Config.Runner.OneOff && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
 					os.Exit(0)
@@ -233,7 +246,7 @@ func (p *JobPool) Run() {
 	}
 }
 
-func (p *JobPool) sendProgress() {
+func (p *JobPool) sendProgress() (ok bool) {
 
 	logger := JobLogger{Context: "sending_progress"}
 
@@ -285,9 +298,13 @@ func (p *JobPool) sendProgress() {
 
 	if resp.StatusCode >= 400 {
 		logger.ActionError(fmt.Errorf("invalid status code"), "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
+	} else {
+		ok = true
 	}
 
 	defer resp.Body.Close() //nolint:errcheck
+
+	return
 }
 
 func (p *JobPool) getResponseErrorMessage(resp *http.Response) (res string) {
@@ -620,11 +637,12 @@ func (p *JobPool) checkNewJobs() {
 			alias:           newJob.Alias,
 
 			job: &tasks.LocalJob{
-				Task:        newJob.Task,
-				Template:    newJob.Template,
-				Inventory:   newJob.Inventory,
-				Repository:  newJob.Repository,
-				Environment: newJob.Environment,
+				Task:         newJob.Task,
+				Template:     newJob.Template,
+				Inventory:    newJob.Inventory,
+				Repository:   newJob.Repository,
+				Environment:  newJob.Environment,
+				KeyInstaller: p.keyInstaller,
 				App: db_lib.CreateApp(
 					newJob.Template,
 					newJob.Repository,

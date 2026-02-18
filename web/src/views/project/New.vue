@@ -1,30 +1,36 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div>
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('newProject') }}</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
 
-    <v-divider />
+    <v-divider/>
 
     <div
       style="margin: auto; max-width: 600px; padding: 0 16px;"
       class="CenterToScreen"
     >
-        <div class="project-settings-form">
+      <div class="project-settings-form">
         <div style="height: 300px;">
-            <ProjectForm item-id="new" ref="editForm" @save="onSave" />
+          <ProjectForm
+            item-id="new"
+            ref="editForm"
+            @save="onSave"
+            :system-info="systemInfo"
+          />
         </div>
 
         <div class="text-right">
-            <v-btn
+          <v-btn
             color="success" class="mr-3" @click="createDemoProject()"
-            >{{ $t('CreateDemoProject') }}</v-btn>
+          >{{ $t('CreateDemoProject') }}
+          </v-btn>
 
-            <v-btn color="primary" @click="createProject()">{{ $t('create') }}</v-btn>
+          <v-btn color="primary" @click="createProject()">{{ $t('create') }}</v-btn>
         </div>
-        </div>
+      </div>
     </div>
 
   </div>
@@ -39,10 +45,11 @@ import ProjectForm from '@/components/ProjectForm.vue';
 export default {
   components: { ProjectForm },
   data() {
-    return {
-    };
+    return {};
   },
-
+  props: {
+    systemInfo: Object,
+  },
   methods: {
     onSave(e) {
       EventBus.$emit('i-project', {

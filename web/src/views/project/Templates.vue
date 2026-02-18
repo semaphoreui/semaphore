@@ -106,13 +106,15 @@
     </v-toolbar>
 
     <v-tabs show-arrows class="pl-4" v-model="viewTab">
-      <v-tab :to="getViewUrl(null)" :disabled="viewItemsLoading">{{ $t('all') }}</v-tab>
 
       <v-tab
         v-for="(view) in views"
         :key="view.id"
         :to="getViewUrl(view.id)"
         :disabled="viewItemsLoading"
+        :style="{
+          'text-decoration': view.hidden ? 'line-through' : 'none',
+        }"
       >{{ view.title }}
       </v-tab>
 
@@ -216,7 +218,10 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="createTask(item.id)">
+          <v-btn
+            v-if="canRun(item)"
+            @click="createTask(item.id)"
+          >
             <v-icon>mdi-play</v-icon>
           </v-btn>
         </v-btn-toggle>
@@ -288,11 +293,7 @@ export default {
     premiumFeatures: Object,
   },
   mixins: [ItemListPageBase, AppsMixin],
-  async created() {
-    socket.addListener((data) => this.onWebsocketDataReceived(data));
 
-    await this.loadData();
-  },
   data() {
     return {
       TEMPLATE_TYPE_ICONS,
@@ -312,6 +313,7 @@ export default {
       itemApp: '',
     };
   },
+
   computed: {
 
     viewId() {
@@ -352,9 +354,27 @@ export default {
       }
     },
   },
+
+  async created() {
+    socket.addListener((data) => this.onWebsocketDataReceived(data));
+    await this.loadData();
+  },
+
   methods: {
     async beforeLoadItems() {
       await this.loadViews();
+      if (this.viewId == null) {
+        let viewId = localStorage.getItem(`project${this.projectId}__lastVisitedViewId`);
+
+        if (viewId == null) {
+          viewId = this.views[0]?.id;
+        }
+
+        if (viewId != null
+          && this.views.some((v) => v.id === parseInt(viewId, 10))) {
+          await this.$router.push({ path: `/project/${this.projectId}/views/${viewId}/templates` });
+        }
+      }
     },
 
     allowActions() {
@@ -373,7 +393,7 @@ export default {
         method: 'get',
         url: `/api/project/${this.projectId}/views`,
         responseType: 'json',
-      })).data;
+      })).data.filter((v) => !v.hidden || this.can(this.USER_PERMISSIONS.manageProjectResources));
       this.views.sort((v1, v2) => v1.position - v2.position);
 
       if (this.viewId != null && !this.views.some((v) => v.id === this.viewId)) {
@@ -423,6 +443,22 @@ export default {
       EventBus.$emit('i-show-task', {
         taskId,
       });
+    },
+
+    canRun(item) {
+      if (this.isAdmin) {
+        return true;
+      }
+
+      const perm = this.USER_PERMISSIONS.runProjectTasks;
+
+      if (item.permissions != null) {
+        // eslint-disable-next-line no-bitwise
+        return (item.permissions & perm) === perm;
+      }
+
+      // eslint-disable-next-line no-bitwise
+      return (this.userPermissions & perm) === perm;
     },
 
     createTask(itemId) {

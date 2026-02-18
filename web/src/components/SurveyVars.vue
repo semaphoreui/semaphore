@@ -155,16 +155,25 @@
     >
       <legend style="padding: 0 3px;">{{ $t('surveyVariables') }}</legend>
       <v-chip-group column style="margin-top: -4px;">
-        <v-chip
-          v-for="(v, i) in modifiedVars"
-          close
-          @click:close="deleteVar(i)"
-          :key="v.name"
-          @click="editVar(i)"
-          :color="v.type === 'int' ? '#61e2ff' : 'gray'"
+        <draggable
+          v-model="modifiedVars"
+          @end="onDragEnd"
+          :animation="200"
+          class="d-flex flex-wrap"
+          ghost-class="chip-ghost"
         >
-          {{ v.title }}
-        </v-chip>
+          <v-chip
+            v-for="(v, i) in modifiedVars"
+            close
+            @click:close="deleteVar(i)"
+            :key="v.name"
+            @click="editVar(i)"
+            :color="v.type === 'int' ? '#61e2ff' : 'gray'"
+            class="draggable-chip"
+          >
+            {{ v.title }}
+          </v-chip>
+        </draggable>
         <v-chip @click="editVar(null)">
           + <span class="ml-1" v-if="modifiedVars.length === 0">{{ $t('addVariable') }}</span>
         </v-chip>
@@ -172,8 +181,26 @@
     </fieldset>
   </div>
 </template>
+<style lang="scss">
+.draggable-chip {
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.chip-ghost {
+  opacity: 0.5;
+}
+</style>
 <script>
+import draggable from 'vuedraggable';
+
 export default {
+  components: {
+    draggable,
+  },
   props: {
     vars: Array,
   },
@@ -287,6 +314,10 @@ export default {
 
     deleteVar(index) {
       this.modifiedVars.splice(index, 1);
+      this.$emit('change', this.modifiedVars);
+    },
+
+    onDragEnd() {
       this.$emit('change', this.modifiedVars);
     },
   },

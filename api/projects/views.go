@@ -6,14 +6,12 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-
-	"github.com/gorilla/context"
 )
 
 // ViewMiddleware ensures a key exists and loads it to the context
 func ViewMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := helpers.GetFromContext(r, "project").(db.Project)
 		viewID, err := helpers.GetIntParam("view_id", w, r)
 		if err != nil {
 			return
@@ -26,16 +24,17 @@ func ViewMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "view", view)
+		r = helpers.SetContextValue(r, "view", view)
 		next.ServeHTTP(w, r)
 	})
 }
 
 func GetViewTemplates(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
-	view := context.Get(r, "view").(db.View)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	view := helpers.GetFromContext(r, "view").(db.View)
+	user := helpers.UserFromContext(r)
 
-	templates, err := helpers.Store(r).GetTemplates(project.ID, db.TemplateFilter{ViewID: &view.ID}, helpers.QueryParams(r.URL))
+	templates, err := helpers.Store(r).GetTemplatesWithPermissions(project.ID, user.ID, db.TemplateFilter{ViewID: &view.ID}, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -47,13 +46,13 @@ func GetViewTemplates(w http.ResponseWriter, r *http.Request) {
 
 // GetViews retrieves sorted keys from the database
 func GetViews(w http.ResponseWriter, r *http.Request) {
-	if view := context.Get(r, "view"); view != nil {
+	if view := helpers.GetFromContext(r, "view"); view != nil {
 		k := view.(db.View)
 		helpers.WriteJSON(w, http.StatusOK, k)
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	var views []db.View
 
 	views, err := helpers.Store(r).GetViews(project.ID)
@@ -68,7 +67,7 @@ func GetViews(w http.ResponseWriter, r *http.Request) {
 
 // AddView adds a new key to the database
 func AddView(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 	var view db.View
 
 	if !helpers.Bind(w, r, &view) {
@@ -110,7 +109,7 @@ func AddView(w http.ResponseWriter, r *http.Request) {
 func SetViewPositions(w http.ResponseWriter, r *http.Request) {
 	var positions map[int]int
 
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	if !helpers.Bind(w, r, &positions) {
 		return
@@ -130,7 +129,7 @@ func SetViewPositions(w http.ResponseWriter, r *http.Request) {
 // nolint: gocyclo
 func UpdateView(w http.ResponseWriter, r *http.Request) {
 	var view db.View
-	oldView := context.Get(r, "view").(db.View)
+	oldView := helpers.GetFromContext(r, "view").(db.View)
 
 	if !helpers.Bind(w, r, &view) {
 		return
@@ -168,7 +167,7 @@ func UpdateView(w http.ResponseWriter, r *http.Request) {
 
 // RemoveView deletes a view from the database
 func RemoveView(w http.ResponseWriter, r *http.Request) {
-	view := context.Get(r, "view").(db.View)
+	view := helpers.GetFromContext(r, "view").(db.View)
 
 	err := helpers.Store(r).DeleteView(view.ProjectID, view.ID)
 

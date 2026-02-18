@@ -19,19 +19,26 @@ type BackupDB struct {
 	integrationAliases       map[int][]db.IntegrationAlias
 	integrationMatchers      map[int][]db.IntegrationMatcher
 	integrationExtractValues map[int][]db.IntegrationExtractValue
+
+	secretStorages []db.SecretStorage
+	globalRoles    []db.Role
+	roles          []db.Role
+	templateRoles  map[int][]db.TemplateRolePerm
 }
 
 type BackupFormat struct {
-	Meta               BackupMeta          `backup:"meta"`
-	Templates          []BackupTemplate    `backup:"templates"`
-	Repositories       []BackupRepository  `backup:"repositories"`
-	Keys               []BackupAccessKey   `backup:"keys"`
-	Views              []BackupView        `backup:"views"`
-	Inventories        []BackupInventory   `backup:"inventories"`
-	Environments       []BackupEnvironment `backup:"environments"`
-	Integration        []BackupIntegration `backup:"integrations"`
-	IntegrationAliases []string            `backup:"integration_aliases"`
-	Schedules          []BackupSchedule    `backup:"schedules"`
+	Meta               BackupMeta            `backup:"meta"`
+	Templates          []BackupTemplate      `backup:"templates"`
+	Repositories       []BackupRepository    `backup:"repositories"`
+	Keys               []BackupAccessKey     `backup:"keys"`
+	Views              []BackupView          `backup:"views"`
+	Inventories        []BackupInventory     `backup:"inventories"`
+	Environments       []BackupEnvironment   `backup:"environments"`
+	Integration        []BackupIntegration   `backup:"integrations"`
+	IntegrationAliases []string              `backup:"integration_aliases"`
+	Schedules          []BackupSchedule      `backup:"schedules"`
+	SecretStorages     []BackupSecretStorage `backup:"secret_storages"`
+	Roles              []BackupRole          `backup:"roles"`
 }
 
 type BackupMeta struct {
@@ -44,11 +51,14 @@ type BackupEnvironment struct {
 
 type BackupAccessKey struct {
 	db.AccessKey
+	SourceStorage *string `backup:"source_storage"`
+	Storage       *string `backup:"storage"`
 }
 
 type BackupSchedule struct {
 	db.Schedule
-	Template string `backup:"template"`
+	Template            string  `backup:"template"`
+	CheckableRepository *string `backup:"checkable_repository"`
 }
 
 type BackupView struct {
@@ -66,6 +76,12 @@ type BackupRepository struct {
 	SSHKey *string `backup:"ssh_key"`
 }
 
+type BackupTemplateRole struct {
+	Role        string                   `backup:"role"`
+	IsGlobal    bool                     `backup:"is_global"`
+	Permissions db.ProjectUserPermission `backup:"permissions"`
+}
+
 type BackupTemplate struct {
 	db.Template
 
@@ -75,10 +91,12 @@ type BackupTemplate struct {
 	BuildTemplate *string               `backup:"build_template"`
 	View          *string               `backup:"view"`
 	Vaults        []BackupTemplateVault `backup:"vaults"`
-	Cron          *string               `backup:"cron"`
+	//Cron          *string               `backup:"cron"`
 
 	// Deprecated: Left here for compatibility with old backups
 	VaultKey *string `json:"vault_key"`
+
+	Roles []BackupTemplateRole `backup:"roles"`
 }
 
 type BackupTemplateVault struct {
@@ -93,6 +111,14 @@ type BackupIntegration struct {
 	ExtractValues []db.IntegrationExtractValue `backup:"extract_values"`
 	Template      string                       `backup:"template"`
 	AuthSecret    *string                      `backup:"auth_secret"`
+}
+
+type BackupSecretStorage struct {
+	db.SecretStorage
+}
+
+type BackupRole struct {
+	db.Role
 }
 
 type BackupEntry interface {
@@ -122,5 +148,13 @@ func (e BackupView) GetName() string {
 }
 
 func (e BackupTemplate) GetName() string {
+	return e.Name
+}
+
+func (e BackupSecretStorage) GetName() string {
+	return e.Name
+}
+
+func (e BackupRole) GetName() string {
 	return e.Name
 }

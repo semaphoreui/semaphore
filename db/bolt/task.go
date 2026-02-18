@@ -1,9 +1,10 @@
 package bolt
 
 import (
+	"time"
+
 	"github.com/semaphoreui/semaphore/db"
 	"go.etcd.io/bbolt"
-	"time"
 )
 
 func (d *BoltDb) CreateTaskStage(stage db.TaskStage) (db.TaskStage, error) {
@@ -22,7 +23,23 @@ func (d *BoltDb) GetTaskStages(projectID int, taskID int) (res []db.TaskStageWit
 		return
 	}
 
-	err = d.getObjects(taskID, db.TaskStageProps, db.RetrieveQueryParams{}, nil, &res)
+	var stages []db.TaskStage
+	err = d.getObjects(taskID, db.TaskStageProps, db.RetrieveQueryParams{}, nil, &stages)
+	if err != nil {
+		return
+	}
+
+	// Convert TaskStage to TaskStageWithResult
+	res = make([]db.TaskStageWithResult, len(stages))
+	for i, stage := range stages {
+		res[i] = db.TaskStageWithResult{
+			ID:     stage.ID,
+			TaskID: stage.TaskID,
+			Start:  stage.Start,
+			End:    stage.End,
+			Type:   stage.Type,
+		}
+	}
 
 	return
 }
@@ -119,6 +136,22 @@ func (d *BoltDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 		return db.TaskOutput{}, err
 	}
 	return newOutput.(db.TaskOutput), nil
+}
+
+func (d *BoltDb) InsertTaskOutputBatch(output []db.TaskOutput) error {
+	if len(output) == 0 {
+		return nil
+	}
+
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		for _, out := range output {
+			_, err := d.createObjectTx(tx, out.TaskID, db.TaskOutputProps, out)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQueryParams) (tasksWithTpl []db.TaskWithTpl, err error) {
@@ -245,7 +278,7 @@ func (d *BoltDb) GetTaskOutputs(projectID int, taskID int, params db.RetrieveQue
 	return
 }
 
-func (d *BoltDb) EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) error {
+func (d *BoltDb) EndTaskStage(taskID int, stageID int, end time.Time) error {
 	return nil
 }
 
@@ -259,4 +292,12 @@ func (d *BoltDb) GetTaskStageResult(projectID int, taskID int, stageID int) (res
 
 func (d *BoltDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (res []db.TaskOutput, err error) {
 	return
+}
+
+func (d *BoltDb) GetNodeCount() (int, error) {
+	return 0, nil
+}
+
+func (d *BoltDb) GetUiCount() (int, error) {
+	return 1, nil
 }

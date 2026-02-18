@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -44,6 +45,10 @@ type BoltDb struct {
 	terraformAlias   publicAlias
 }
 
+func (d *BoltDb) GetDialect() string {
+	return util.DbDriverBolt
+}
+
 var terraformAliasProps = db.ObjectProps{
 	TableName:         "terraform_alias",
 	Type:              reflect.TypeOf(db.TerraformInventoryAlias{}),
@@ -73,7 +78,7 @@ type intObjectID int
 type strObjectID string
 
 func (d intObjectID) ToBytes() []byte {
-	return []byte(fmt.Sprintf("%010d", d))
+	return fmt.Appendf(nil, "%010d", d)
 }
 
 func (d strObjectID) ToBytes() []byte {
@@ -480,6 +485,10 @@ func unmarshalObjects(rawData enumerable, props db.ObjectProps, params db.Retrie
 		objectsValue.Set(newObjectValues)
 		return nil
 	})
+
+	if err != nil {
+		return
+	}
 
 	sortable := false
 

@@ -81,7 +81,7 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 	//}
 	// TODO: sort projects
 
-	tx, err := d.sql.Begin()
+	tx, err := d.Sql().Begin()
 
 	if err != nil {
 		return err

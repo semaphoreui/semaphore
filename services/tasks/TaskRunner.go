@@ -3,12 +3,15 @@ package tasks
 import (
 	"encoding/json"
 	"errors"
-	"github.com/semaphoreui/semaphore/pkg/tz"
-	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
@@ -34,10 +37,11 @@ type TaskRunner struct {
 	currentOutput *db.TaskOutput
 	currentState  any
 
-	users     []int
-	alert     bool
-	alertChat *string
-	pool      *TaskPool
+	users        []int
+	alert        bool
+	alertChat    *string
+	pool         *TaskPool
+	keyInstaller db_lib.AccessKeyInstaller
 
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
@@ -54,6 +58,20 @@ type TaskRunner struct {
 	Alias string
 
 	logWG sync.WaitGroup
+}
+
+func NewTaskRunner(
+	newTask db.Task,
+	p *TaskPool,
+	username string,
+	keyInstaller db_lib.AccessKeyInstaller,
+) *TaskRunner {
+	return &TaskRunner{
+		Task:         newTask,
+		pool:         p,
+		Username:     username,
+		keyInstaller: keyInstaller,
+	}
 }
 
 func (t *TaskRunner) AddStatusListener(l task_logger.StatusListener) {
@@ -84,6 +102,10 @@ func (t *TaskRunner) saveStatus() {
 
 	if err := t.pool.store.UpdateTask(t.Task); err != nil {
 		t.panicOnError(err, "Failed to update TaskRunner status")
+	}
+	// persist runtime fields in HA store
+	if t.pool != nil && t.pool.state != nil {
+		t.pool.state.UpdateRuntimeFields(t)
 	}
 }
 
@@ -120,7 +142,7 @@ func (t *TaskRunner) createTaskEvent() {
 		runnerID = &t.RunnerID
 	}
 
-	if err := util.Config.Log.Tasks.Write(util.TaskLogRecord{
+	if err := t.pool.logWriteService.WriteTaskLog(pro_interfaces.TaskLogRecord{
 		ProjectID:    t.Task.ProjectID,
 		TemplateID:   t.Template.ID,
 		TemplateName: t.Template.Name,
@@ -149,7 +171,17 @@ func (t *TaskRunner) run() {
 		defer t.pool.store.Close("run task " + strconv.Itoa(t.Task.ID))
 	}
 
+	// requeued indicates task should go back to waiting state (e.g., all runners busy)
+	requeued := false
+
 	defer func() {
+		if requeued {
+			// Task is being re-queued, don't mark as finished
+			log.Info("Task " + strconv.Itoa(t.Task.ID) + " re-queued (waiting for available runner)")
+			t.pool.queueEvents <- PoolEvent{EventTypeRequeued, t}
+			return
+		}
+
 		log.Info("Stopped running TaskRunner " + strconv.Itoa(t.Task.ID))
 		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.Task.ID))
 
@@ -192,6 +224,14 @@ func (t *TaskRunner) run() {
 	err = t.job.Run(username, incomingVersion, t.Alias)
 
 	if err != nil {
+		if errors.Is(err, ErrAllRunnersBusy) {
+			// No runners available right now, put task back in waiting state
+			t.SetStatus(task_logger.TaskWaitingStatus)
+			t.pool.state.Enqueue(t)
+			requeued = true
+			return
+		}
+
 		if t.job.IsKilled() {
 			t.SetStatus(task_logger.TaskStoppedStatus)
 		} else {
@@ -254,6 +294,40 @@ func (t *TaskRunner) prepareError(err error, errMsg string) error {
 	return nil
 }
 
+func (t *TaskRunner) populateTaskEnvironment() (err error) {
+
+	if t.Task.Environment == "" {
+		return
+
+	}
+
+	tplEnvironment := make(map[string]any)
+	err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
+	if err != nil {
+		return
+	}
+
+	taskEnvironment := make(map[string]any)
+	err = json.Unmarshal([]byte(t.Task.Environment), &taskEnvironment)
+	if err != nil {
+		return
+	}
+
+	for k, v := range taskEnvironment {
+		tplEnvironment[k] = v
+	}
+
+	var ev []byte
+	ev, err = json.Marshal(tplEnvironment)
+	if err != nil {
+		return err
+	}
+
+	t.Environment.JSON = string(ev)
+
+	return
+}
+
 // nolint: gocyclo
 func (t *TaskRunner) populateDetails() error {
 	// get template
@@ -306,10 +380,10 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	if canOverrideInventory && t.Task.InventoryID != nil {
-		t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
+		t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Task.InventoryID)
 		if err != nil {
 			if t.Template.InventoryID != nil {
-				t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+				t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
 				if err != nil {
 					return t.prepareError(err, "Template Inventory not found!")
 				}
@@ -317,7 +391,7 @@ func (t *TaskRunner) populateDetails() error {
 		}
 	} else {
 		if t.Template.InventoryID != nil {
-			t.Inventory, err = t.pool.store.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
+			t.Inventory, err = t.pool.inventoryService.GetInventory(t.Template.ProjectID, *t.Template.InventoryID)
 			if err != nil {
 				return t.prepareError(err, "Template Inventory not found!")
 			}
@@ -331,8 +405,7 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
-	err = t.Repository.SSHKey.DeserializeSecret()
-	if err != nil {
+	if err = t.pool.encryptionService.DeserializeSecret(&t.Repository.SSHKey); err != nil {
 		return err
 	}
 
@@ -343,40 +416,15 @@ func (t *TaskRunner) populateDetails() error {
 			return err
 		}
 
-		if err = db.FillEnvironmentSecrets(t.pool.store, &t.Environment, true); err != nil {
+		err = t.pool.encryptionService.FillEnvironmentSecrets(&t.Environment, true)
+		if err != nil {
 			return err
 		}
 	}
 
-	if t.Task.Environment != "" {
-		environment := make(map[string]any)
-		if t.Environment.JSON != "" {
-			err = json.Unmarshal([]byte(t.Task.Environment), &environment)
-			if err != nil {
-				return err
-			}
-		}
+	err = t.populateTaskEnvironment()
 
-		taskEnvironment := make(map[string]any)
-		err = json.Unmarshal([]byte(t.Environment.JSON), &taskEnvironment)
-		if err != nil {
-			return err
-		}
-
-		for k, v := range taskEnvironment {
-			environment[k] = v
-		}
-
-		var ev []byte
-		ev, err = json.Marshal(environment)
-		if err != nil {
-			return err
-		}
-
-		t.Environment.JSON = string(ev)
-	}
-
-	return nil
+	return err
 }
 
 // checkTmpDir checks to see if the temporary directory exists

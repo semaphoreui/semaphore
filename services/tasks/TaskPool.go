@@ -1,16 +1,17 @@
 package tasks
 
 import (
-	"errors"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/random"
-	"github.com/semaphoreui/semaphore/pkg/tz"
-	"github.com/semaphoreui/semaphore/services/tasks/stage_parsers"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/pro/pkg/stage_parsers"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/server"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
@@ -21,18 +22,25 @@ import (
 )
 
 type logRecord struct {
-	task   *TaskRunner
-	output string
-	time   time.Time
+	task         *TaskRunner
+	output       string
+	time         time.Time
+	currentStage *db.TaskStage
 }
 
 type EventType uint
 
 const (
-	EventTypeNew      EventType = 0
-	EventTypeFinished EventType = 1
-	EventTypeFailed   EventType = 2
-	EventTypeEmpty    EventType = 3
+	EventTypeNew      EventType = 0 // EventTypeNew represents an event when a new task is created, typically sent during a periodic check or timer.
+	EventTypeFinished EventType = 1 // EventTypeFinished represents an event when a task finishes, typically sent during a periodic check or timer.
+	EventTypeFailed   EventType = 2 // EventTypeFailed represents an event when a task fails, typically sent during a periodic check or timer.
+	EventTypeEmpty    EventType = 3 // EventTypeEmpty represents an event when the queue is empty, typically sent during a periodic check or timer.
+	EventTypeRequeued EventType = 4 // EventTypeRequeued represents an event when a task is moved back to the waiting state for reprocessing.
+)
+
+const (
+	TaskOutputBatchSize        = 500
+	TaskOutputInsertIntervalMs = 500
 )
 
 type PoolEvent struct {
@@ -41,32 +49,78 @@ type PoolEvent struct {
 }
 
 type TaskPool struct {
-	// Queue contains list of tasks in status TaskWaitingStatus.
-	Queue []*TaskRunner
-
 	// register channel used to put tasks to queue.
 	register chan *TaskRunner
-
-	// activeProj ???
-	activeProj map[int]map[int]*TaskRunner
-
-	// RunningTasks contains tasks with status TaskRunningStatus. Map key is a task ID.
-	RunningTasks map[int]*TaskRunner
 
 	// logger channel used to putting log records to database.
 	logger chan logRecord
 
-	store db.Store
+	store                  db.Store
+	ansibleTaskRepo        db.AnsibleTaskRepository
+	logWriteService        pro_interfaces.LogWriteService
+	inventoryService       server.InventoryService
+	encryptionService      server.AccessKeyEncryptionService
+	keyInstallationService server.AccessKeyInstallationService
 
 	queueEvents chan PoolEvent
 
-	aliases map[string]*TaskRunner
+	// state provides pluggable storage for Queue, active projects, running tasks and aliases
+	state TaskStateStore
 }
 
-var ErrInvalidSubscription = errors.New("has no active subscription")
+func CreateTaskPool(
+	store db.Store,
+	state TaskStateStore,
+	ansibleTaskRepo db.AnsibleTaskRepository,
+	inventoryService server.InventoryService,
+	encryptionService server.AccessKeyEncryptionService,
+	keyInstallationService server.AccessKeyInstallationService,
+	logWriteService pro_interfaces.LogWriteService,
+) TaskPool {
+	p := TaskPool{
+		register:               make(chan *TaskRunner),      // add TaskRunner to queue
+		logger:                 make(chan logRecord, 10000), // store log records to database
+		store:                  store,
+		state:                  state,
+		queueEvents:            make(chan PoolEvent),
+		inventoryService:       inventoryService,
+		ansibleTaskRepo:        ansibleTaskRepo,
+		encryptionService:      encryptionService,
+		logWriteService:        logWriteService,
+		keyInstallationService: keyInstallationService,
+	}
+	// attempt to start HA state store (no-op for memory)
+	_ = p.state.Start(p.hydrateTaskRunner)
+	return p
+}
 
+// CreateTaskPoolWithState allows passing a custom TaskStateStore (e.g., Redis-backed)
+func CreateTaskPoolWithState(
+	stateStore TaskStateStore,
+	store db.Store,
+	ansibleTaskRepo db.AnsibleTaskRepository,
+	inventoryService server.InventoryService,
+	encryptionService server.AccessKeyEncryptionService,
+	keyInstallationService server.AccessKeyInstallationService,
+	logWriteService pro_interfaces.LogWriteService,
+) TaskPool {
+	p := TaskPool{
+		register:               make(chan *TaskRunner),      // add TaskRunner to queue
+		logger:                 make(chan logRecord, 10000), // store log records to database
+		store:                  store,
+		queueEvents:            make(chan PoolEvent),
+		state:                  stateStore,
+		inventoryService:       inventoryService,
+		ansibleTaskRepo:        ansibleTaskRepo,
+		encryptionService:      encryptionService,
+		logWriteService:        logWriteService,
+		keyInstallationService: keyInstallationService,
+	}
+	_ = p.state.Start(p.hydrateTaskRunner)
+	return p
+}
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
-	for _, task := range p.RunningTasks {
+	for _, task := range p.state.RunningRange() {
 		if task.RunnerID == runnerID {
 			res++
 		}
@@ -75,15 +129,11 @@ func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
 }
 
 func (p *TaskPool) GetRunningTasks() (res []*TaskRunner) {
-	for _, task := range p.RunningTasks {
-		res = append(res, task)
-	}
-	return
+	return p.state.RunningRange()
 }
 
 func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
-
-	for _, t := range p.Queue {
+	for _, t := range p.state.QueueRange() {
 		if t.Task.ID == id {
 			task = t
 			break
@@ -91,7 +141,7 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 	}
 
 	if task == nil {
-		for _, t := range p.RunningTasks {
+		for _, t := range p.state.RunningRange() {
 			if t.Task.ID == id {
 				task = t
 				break
@@ -103,176 +153,25 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 }
 
 func (p *TaskPool) GetTaskByAlias(alias string) (task *TaskRunner) {
-	return p.aliases[alias]
-}
-
-func (p *TaskPool) MoveToNextStage(
-	app db.TemplateApp,
-	projectID int,
-	currentState any,
-	currentStage *db.TaskStage,
-	currentOutput *db.TaskOutput,
-	newOutput db.TaskOutput,
-) (newStage *db.TaskStage, newState any, err error) {
-
-	newState = currentState
-	stages := stage_parsers.GetAllTaskStages(app)
-
-	for _, stageType := range stages {
-
-		parser := stage_parsers.GetStageResultParser(app, stageType, newState)
-		if parser == nil {
-			continue
-		}
-
-		matched := false
-
-		var oldStage *db.TaskStage
-
-		var stage db.TaskStage
-
-		if parser.IsEnd(currentStage, newOutput) {
-
-			err = p.store.EndTaskStage(
-				currentStage.TaskID,
-				currentStage.ID,
-				newOutput.Time,
-				newOutput.ID,
-			)
-
-			if err != nil {
-				return
-			}
-
-			stage = *currentStage
-			stage.End = &newOutput.Time
-			stage.EndOutputID = &newOutput.ID
-			oldStage = &stage
-
-			matched = true
-
-		} else if parser.IsStart(currentStage, newOutput) {
-
-			if currentStage != nil {
-				err = p.store.EndTaskStage(
-					currentStage.TaskID,
-					currentStage.ID,
-					currentOutput.Time,
-					currentOutput.ID,
-				)
-
-				if err != nil {
-					return
-				}
-
-				oldSt := *currentStage
-				oldSt.End = &currentOutput.Time
-				oldSt.EndOutputID = &currentOutput.ID
-				oldStage = &oldSt
-			}
-
-			stage, err = p.store.CreateTaskStage(db.TaskStage{
-				TaskID:        newOutput.TaskID,
-				Start:         &newOutput.Time,
-				Type:          stageType,
-				StartOutputID: &newOutput.ID,
-				EndOutputID:   nil,
-			})
-
-			if err != nil {
-				return
-			}
-
-			matched = true
-		} else {
-			var ok bool
-			ok, err = parser.Parse(currentStage, newOutput, p.store, projectID)
-			if err != nil {
-				log.Error(err.Error())
-			} else if ok {
-				newState = parser.State()
-			}
-		}
-
-		if matched {
-
-			newStage = &stage
-
-			var oldParser stage_parsers.StageResultParser
-
-			if oldStage != nil {
-				oldParser = stage_parsers.GetStageResultParser(app, oldStage.Type, currentState)
-			}
-
-			if oldParser != nil && oldParser.NeedParse() {
-
-				res := oldParser.Result()
-
-				err = p.store.CreateTaskStageResult(oldStage.TaskID, oldStage.ID, res)
-			}
-
-			break
-		}
-	}
-
-	return
+	return p.state.GetByAlias(alias)
 }
 
 // nolint: gocyclo
 func (p *TaskPool) Run() {
 	ticker := time.NewTicker(5 * time.Second)
 
-	defer func() {
-		ticker.Stop()
-	}()
+	defer ticker.Stop()
 
 	go p.handleQueue()
+	go p.handleLogs()
 
 	for {
 		select {
-		case record := <-p.logger: // new log message which should be put to database
-			db.StoreSession(p.store, "logger", func() {
-
-				newOutput, err := p.store.CreateTaskOutput(db.TaskOutput{
-					TaskID: record.task.Task.ID,
-					Output: record.output,
-					Time:   record.time,
-				})
-
-				if err != nil {
-					log.Error(err)
-					return
-				}
-
-				currentOutput := record.task.currentOutput
-
-				record.task.currentOutput = &newOutput
-
-				newStage, newState, err := p.MoveToNextStage(
-					record.task.Template.App,
-					record.task.Task.ProjectID,
-					record.task.currentState,
-					record.task.currentStage,
-					currentOutput,
-					newOutput)
-
-				if err != nil {
-					log.Error(err)
-					return
-				}
-
-				record.task.currentState = newState
-
-				if newStage != nil {
-					record.task.currentStage = newStage
-				}
-			})
-
 		case task := <-p.register: // new task created by API or schedule
 
 			db.StoreSession(p.store, "new task", func() {
 				//p.Queue = append(p.Queue, task)
-				msg := "Task " + strconv.Itoa(task.Task.ID) + " added to queue"
+				msg := "Task " + getTaskName(task) + " added to queue"
 				task.Log(msg)
 				log.Info(msg)
 				task.saveStatus()
@@ -286,27 +185,55 @@ func (p *TaskPool) Run() {
 	}
 }
 
+func getTaskName(t *TaskRunner) string {
+	return t.Template.Name + " " + strconv.Itoa(t.Task.ID)
+}
+
 func (p *TaskPool) handleQueue() {
 	for t := range p.queueEvents {
+		// When a task is re-queued (e.g., no remote runner available), we should
+		// clean up its "running" bookkeeping but avoid immediately retrying it in
+		// the same queue pass to prevent hot retry loops.
+		skipTaskID := 0
+
 		switch t.eventType {
+		case EventTypeRequeued:
+			// Task was started but moved back to waiting. It must not remain in
+			// running/active sets and must release its claim so it can be picked
+			// up again later.
+			p.onTaskStop(t.task)
+			// Avoid immediate retry in this same event handling iteration; it
+			// will be retried on the next periodic tick or when another event
+			// triggers queue processing.
+			skipTaskID = t.task.Task.ID
 		case EventTypeNew:
-			p.Queue = append(p.Queue, t.task)
+			p.state.Enqueue(t.task)
 		case EventTypeFinished:
 			p.onTaskStop(t.task)
 		}
 
-		if len(p.Queue) == 0 {
+		if p.state.QueueLen() == 0 {
 			continue
 		}
 
 		var i = 0
-		for i < len(p.Queue) {
-			curr := p.Queue[i]
+		for i < p.state.QueueLen() {
+			curr := p.state.QueueGet(i)
+			if curr == nil { // item may no longer be local, move ahead
+				i = i + 1
+				continue
+			}
+
+			// When handling a requeue event, don't immediately start the same task again.
+			if skipTaskID != 0 && curr.Task.ID == skipTaskID {
+				i = i + 1
+				continue
+			}
 
 			if curr.Task.Status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
-				p.Queue = slices.Delete(p.Queue, i, i+1)
-				log.Info("Task " + strconv.Itoa(curr.Task.ID) + " removed from queue")
+				_ = p.state.DequeueAt(i)
+				log.Info("Task " + getTaskName(curr) + " removed from queue")
 				continue
 			}
 
@@ -315,59 +242,184 @@ func (p *TaskPool) handleQueue() {
 				continue
 			}
 
-			p.Queue = slices.Delete(p.Queue, i, i+1)
+			// ensure only one instance claims the task before dequeue
+			if !p.state.TryClaim(curr.Task.ID) {
+				i = i + 1
+				continue
+			}
+
+			_ = p.state.DequeueAt(i)
 			runTask(curr, p)
 		}
 	}
 }
 
-func runTask(task *TaskRunner, p *TaskPool) {
-	log.Info("Set resource locker with TaskRunner " + strconv.Itoa(task.Task.ID))
+func (p *TaskPool) handleLogs() {
+	logTicker := time.NewTicker(TaskOutputInsertIntervalMs * time.Millisecond)
 
+	defer logTicker.Stop()
+
+	logs := make([]logRecord, 0)
+
+	for {
+
+		select {
+		case record := <-p.logger:
+			logs = append(logs, record)
+
+			if len(logs) >= TaskOutputBatchSize {
+				p.flushLogs(&logs)
+			}
+		case <-logTicker.C:
+			p.flushLogs(&logs)
+		}
+	}
+}
+
+func (p *TaskPool) flushLogs(logs *[]logRecord) {
+	if len(*logs) > 0 {
+		p.writeLogs(*logs)
+		*logs = (*logs)[:0]
+	}
+}
+
+func (p *TaskPool) writeLogs(logs []logRecord) {
+
+	taskOutput := make([]db.TaskOutput, 0)
+
+	for _, record := range logs {
+		newOutput := db.TaskOutput{
+			TaskID: record.task.Task.ID,
+			Output: record.output,
+			Time:   record.time,
+		}
+
+		currentOutput := record.task.currentOutput
+		record.task.currentOutput = &newOutput
+
+		db.StoreSession(p.store, "logger", func() {
+
+			newStage, newState, err := stage_parsers.MoveToNextStage(
+				p.store,
+				p.ansibleTaskRepo,
+				p.logWriteService,
+				record.task.Template.App,
+				record.task.Task.ProjectID,
+				record.task.currentState,
+				record.task.currentStage,
+				currentOutput,
+				newOutput)
+
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			record.task.currentState = newState
+
+			if newStage != nil {
+				record.task.currentStage = newStage
+			}
+
+			if record.task.currentStage != nil {
+				newOutput.StageID = &record.task.currentStage.ID
+			}
+		})
+		taskOutput = append(taskOutput, newOutput)
+	}
+
+	db.StoreSession(p.store, "logger", func() {
+		err := p.store.InsertTaskOutputBatch(taskOutput)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+	})
+}
+
+func runTask(task *TaskRunner, p *TaskPool) {
+	log.Info("Set resource locker with TaskRunner " + getTaskName(task))
 	p.onTaskRun(task)
 
-	log.Info("Task " + strconv.Itoa(task.Task.ID) + " started")
-	go task.run()
+	log.Info("Task " + getTaskName(task) + " started")
+	go func() {
+		time.Sleep(1 * time.Second)
+		task.run()
+	}()
 }
 
 func (p *TaskPool) onTaskRun(t *TaskRunner) {
-	projTasks, ok := p.activeProj[t.Task.ProjectID]
-	if !ok {
-		projTasks = make(map[int]*TaskRunner)
-		p.activeProj[t.Task.ProjectID] = projTasks
+	p.state.AddActive(t.Task.ProjectID, t)
+	p.state.SetRunning(t)
+	if t.Alias != "" {
+		p.state.SetAlias(t.Alias, t)
 	}
-	projTasks[t.Task.ID] = t
-	p.RunningTasks[t.Task.ID] = t
-	p.aliases[t.Alias] = t
 }
 
 func (p *TaskPool) onTaskStop(t *TaskRunner) {
-	if p.activeProj[t.Task.ProjectID] != nil && p.activeProj[t.Task.ProjectID][t.Task.ID] != nil {
-		delete(p.activeProj[t.Task.ProjectID], t.Task.ID)
-		if len(p.activeProj[t.Task.ProjectID]) == 0 {
-			delete(p.activeProj, t.Task.ProjectID)
+	p.state.RemoveActive(t.Task.ProjectID, t.Task.ID)
+	p.state.DeleteRunning(t.Task.ID)
+	p.state.DeleteClaim(t.Task.ID)
+	if t.Alias != "" {
+		p.state.DeleteAlias(t.Alias)
+	}
+}
+
+// hydrateTaskRunner builds a TaskRunner for an existing task from DB without starting it
+func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, error) {
+	task, err := p.store.GetTask(projectID, taskID)
+	if err != nil {
+		return nil, err
+	}
+	tr := NewTaskRunner(task, p, "", p.keyInstallationService)
+	if err := tr.populateDetails(); err != nil {
+		return nil, err
+	}
+	// load runtime fields from HA store (e.g., Redis)
+	if p.state != nil {
+		p.state.LoadRuntimeFields(tr)
+	}
+	// set appropriate job handler for consistency (not run)
+	var job Job
+	if util.Config.UseRemoteRunner || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
+		tag := tr.Template.RunnerTag
+		if tag == nil {
+			tag = tr.Inventory.RunnerTag
+		}
+		job = &RemoteJob{RunnerTag: tag, Task: tr.Task, taskPool: p}
+	} else {
+		app := db_lib.CreateApp(tr.Template, tr.Repository, tr.Inventory, tr)
+		job = &LocalJob{
+			Task:         tr.Task,
+			Template:     tr.Template,
+			Inventory:    tr.Inventory,
+			Repository:   tr.Repository,
+			Environment:  tr.Environment,
+			Secret:       "{}",
+			Logger:       app.SetLogger(tr),
+			App:          app,
+			KeyInstaller: p.keyInstallationService,
 		}
 	}
-
-	delete(p.RunningTasks, t.Task.ID)
-	delete(p.aliases, t.Alias)
+	tr.job = job
+	return tr, nil
 }
 
 func (p *TaskPool) blocks(t *TaskRunner) bool {
 
-	if util.Config.MaxParallelTasks > 0 && len(p.RunningTasks) >= util.Config.MaxParallelTasks {
+	if util.Config.MaxParallelTasks > 0 && p.state.RunningCount() >= util.Config.MaxParallelTasks {
 		return true
 	}
 
-	if p.activeProj[t.Task.ProjectID] == nil || len(p.activeProj[t.Task.ProjectID]) == 0 {
+	if p.state.ActiveCount(t.Task.ProjectID) == 0 {
 		return false
 	}
 
-	for _, r := range p.activeProj[t.Task.ProjectID] {
+	for _, r := range p.state.GetActive(t.Task.ProjectID) {
 		if r.Task.Status.IsFinished() {
 			continue
 		}
-		if r.Template.ID == t.Task.TemplateID {
+		if r.Template.ID == t.Task.TemplateID && !r.Template.AllowParallelTasks {
 			return true
 		}
 	}
@@ -379,26 +431,13 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 		return false
 	}
 
-	res := proj.MaxParallelTasks > 0 && len(p.activeProj[t.Task.ProjectID]) >= proj.MaxParallelTasks
+	res := proj.MaxParallelTasks > 0 && p.state.ActiveCount(t.Task.ProjectID) >= proj.MaxParallelTasks
 
 	if res {
 		return true
 	}
 
 	return res
-}
-
-func CreateTaskPool(store db.Store) TaskPool {
-	return TaskPool{
-		Queue:        make([]*TaskRunner, 0), // queue of waiting tasks
-		register:     make(chan *TaskRunner), // add TaskRunner to queue
-		activeProj:   make(map[int]map[int]*TaskRunner),
-		RunningTasks: make(map[int]*TaskRunner),   // working tasks
-		logger:       make(chan logRecord, 10000), // store log records to database
-		store:        store,
-		queueEvents:  make(chan PoolEvent),
-		aliases:      make(map[string]*TaskRunner),
-	}
 }
 
 func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
@@ -428,10 +467,9 @@ func (p *TaskPool) RejectTask(targetTask db.Task) error {
 func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	tsk := p.GetTask(targetTask.ID)
 	if tsk == nil { // task not active, but exists in database
-		tsk = &TaskRunner{
-			Task: targetTask,
-			pool: p,
-		}
+
+		tsk = NewTaskRunner(targetTask, p, "", p.keyInstallationService)
+
 		err := tsk.populateDetails()
 		if err != nil {
 			return err
@@ -453,6 +491,86 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	}
 
 	return nil
+}
+
+// StopTasksByTemplate stops all active (queued or running) tasks that belong to
+// the specified project and template. If forceStop is true, tasks are marked as
+// stopped immediately and running tasks are killed; otherwise tasks are marked
+// as stopping and will gracefully transition to stopped.
+func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop bool) {
+	// Handle queued tasks
+	for _, t := range p.state.QueueRange() {
+		if t == nil {
+			continue
+		}
+		if t.Task.ProjectID != projectID || t.Task.TemplateID != templateID {
+			continue
+		}
+		if t.Task.Status.IsFinished() {
+			continue
+		}
+		if forceStop {
+			t.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			t.SetStatus(task_logger.TaskStoppingStatus)
+		}
+		// Queued tasks will be dequeued and immediately finalize to Stopped in run()
+	}
+
+	// Handle running tasks
+	for _, t := range p.state.RunningRange() {
+		if t == nil {
+			continue
+		}
+		if t.Task.ProjectID != projectID || t.Task.TemplateID != templateID {
+			continue
+		}
+		if t.Task.Status.IsFinished() {
+			continue
+		}
+		prevStatus := t.Task.Status
+		if forceStop {
+			t.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			t.SetStatus(task_logger.TaskStoppingStatus)
+		}
+		if prevStatus == task_logger.TaskRunningStatus {
+			t.kill()
+		}
+	}
+
+	// Update tasks in DB that are neither queued nor running but still active
+	// (e.g., created but not present in this instance's memory state).
+	if tasks, err := p.store.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{
+		TaskFilter: &db.TaskFilter{
+			Status: task_logger.UnfinishedTaskStatuses(),
+		},
+	}); err == nil {
+		for _, twt := range tasks {
+
+			// if task is managed locally (queued/running), it was handled above
+			if p.GetTask(twt.Task.ID) != nil {
+				continue
+			}
+
+			// mark non-local task as stopped and write event for history
+			tr := NewTaskRunner(twt.Task, p, "", p.keyInstallationService)
+			if err := tr.populateDetails(); err != nil {
+				log.Error(err)
+				continue
+			}
+
+			tr.SetStatus(task_logger.TaskStoppedStatus)
+			tr.createTaskEvent()
+		}
+	} else {
+		log.Error(err)
+	}
+}
+
+// GetQueuedTasks returns a snapshot of tasks currently queued
+func (p *TaskPool) GetQueuedTasks() []*TaskRunner {
+	return p.state.QueueRange()
 }
 
 func getNextBuildVersion(startVersion string, currentVersion string) string {
@@ -572,11 +690,7 @@ func (p *TaskPool) AddTask(
 		return
 	}
 
-	taskRunner := TaskRunner{
-		Task:     newTask,
-		pool:     p,
-		Username: username,
-	}
+	taskRunner := NewTaskRunner(newTask, p, username, p.keyInstallationService)
 
 	if needAlias {
 		// A unique, randomly-generated identifier that persists throughout the task's lifecycle.
@@ -611,23 +725,24 @@ func (p *TaskPool) AddTask(
 			taskRunner.Template,
 			taskRunner.Repository,
 			taskRunner.Inventory,
-			&taskRunner)
+			taskRunner)
 
 		job = &LocalJob{
-			Task:        taskRunner.Task,
-			Template:    taskRunner.Template,
-			Inventory:   taskRunner.Inventory,
-			Repository:  taskRunner.Repository,
-			Environment: taskRunner.Environment,
-			Secret:      extraSecretVars,
-			Logger:      app.SetLogger(&taskRunner),
-			App:         app,
+			Task:         taskRunner.Task,
+			Template:     taskRunner.Template,
+			Inventory:    taskRunner.Inventory,
+			Repository:   taskRunner.Repository,
+			Environment:  taskRunner.Environment,
+			Secret:       extraSecretVars,
+			Logger:       app.SetLogger(taskRunner),
+			App:          app,
+			KeyInstaller: p.keyInstallationService,
 		}
 	}
 
 	taskRunner.job = job
 
-	p.register <- &taskRunner
+	p.register <- taskRunner
 
 	taskRunner.createTaskEvent()
 

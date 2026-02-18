@@ -3,7 +3,7 @@
       ref="form"
       lazy-validation
       v-model="formValid"
-      v-if="item != null"
+      v-if="item != null && secretStorages != null"
   >
     <v-alert
         :value="formError"
@@ -22,6 +22,30 @@
         dense
     />
 
+    <v-autocomplete
+      v-if="supportStorages"
+      v-model="item.source_storage_id"
+      :label="$t('Storage (optional)')"
+      :items="secretStorages"
+      item-value="id"
+      item-text="name"
+      :disabled="formSaving || !canEditSecrets"
+      outlined
+      dense
+      clearable
+    />
+
+    <v-text-field
+      v-if="supportStorages && item.source_storage_id != null"
+      v-model="item.source_storage_key"
+      :label="$t('Source Key')"
+      :disabled="formSaving || !canEditSecrets"
+      outlined
+      dense
+    />
+
+    <v-divider class="mb-6" />
+
     <v-select
         v-model="item.type"
         :label="$t('type')"
@@ -35,10 +59,15 @@
         dense
     />
 
+    <v-alert
+      v-if="isReadOnly"
+      type="info"
+    >Read-only secret storage chosen.</v-alert>
+
     <v-text-field
         v-model="item.login_password.login"
-        :label="$t('loginOptional')"
-        v-if="item.type === 'login_password'"
+        :label="$t('usernameOptional')"
+        v-if="!isReadOnly && item.type === 'login_password'"
         :disabled="formSaving || !canEditSecrets"
         outlined
         dense
@@ -50,7 +79,7 @@
         :label="$t('password')"
         :rules="[v => (!!v || !canEditSecrets) || $t('password_required')]"
         :type="showLoginPassword ? 'text' : 'password'"
-        v-if="item.type === 'login_password'"
+        v-if="!isReadOnly && item.type === 'login_password'"
         :required="canEditSecrets"
         :disabled="formSaving || !canEditSecrets"
         autocomplete="new-password"
@@ -62,7 +91,7 @@
     <v-text-field
       v-model="item.ssh.login"
       :label="$t('usernameOptional')"
-      v-if="item.type === 'ssh'"
+      v-if="!isReadOnly && item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
       outlined
       dense
@@ -73,7 +102,7 @@
       :append-icon="showSSHPassphrase ? 'mdi-eye' : 'mdi-eye-off'"
       label="Passphrase (Optional)"
       :type="showSSHPassphrase ? 'text' : 'password'"
-      v-if="item.type === 'ssh'"
+      v-if="!isReadOnly && item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
       @click:append="showSSHPassphrase = !showSSHPassphrase"
       outlined
@@ -86,7 +115,7 @@
       :label="$t('privateKey')"
       :disabled="formSaving || !canEditSecrets"
       :rules="[v => !canEditSecrets || !!v || $t('private_key_required')]"
-      v-if="item.type === 'ssh'"
+      v-if="!isReadOnly && item.type === 'ssh'"
     />
 
     <v-checkbox
@@ -110,6 +139,11 @@ import ItemFormBase from '@/components/ItemFormBase';
 
 export default {
   mixins: [ItemFormBase],
+
+  props: {
+    supportStorages: Boolean,
+  },
+
   data() {
     return {
       showLoginPassword: false,
@@ -124,6 +158,8 @@ export default {
         id: 'none',
         name: `${this.$t('keyFormNone')}`,
       }],
+      secretStorages: null,
+      // isReadOnly: true,
     };
   },
 
@@ -131,6 +167,27 @@ export default {
     canEditSecrets() {
       return this.isNew || this.item.override_secret;
     },
+
+    isReadOnly() {
+      if (this.item.source_storage_id == null) {
+        return false;
+      }
+
+      const storage = this.secretStorages.find((s) => s.id === this.item.source_storage_id);
+      if (storage == null) {
+        return false;
+      }
+
+      return storage.readonly;
+    },
+  },
+
+  async created() {
+    [
+      this.secretStorages,
+    ] = await Promise.all([
+      this.loadProjectResources('secret_storages'),
+    ]);
   },
 
   methods: {

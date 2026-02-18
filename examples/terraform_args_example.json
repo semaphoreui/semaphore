@@ -1,0 +1,74 @@
+{
+  "description": "Example of Terraform multi-stage arguments format",
+  "architecture_note": "Array format is automatically converted to map with 'default' key at runtime during task execution",
+  "examples": [
+    {
+      "name": "Legacy array format (backward compatible)",
+      "arguments": ["-var", "environment=production"],
+      "internal_representation": {
+        "default": ["-var", "environment=production"]
+      },
+      "behavior": "All stages (init, plan, apply) use the 'default' key args"
+    },
+    {
+      "name": "New map format with stage-specific args",
+      "arguments": {
+        "init": ["-upgrade"],
+        "plan": ["-var", "environment=production"],
+        "apply": ["-var", "environment=production", "-parallelism=10"]
+      },
+      "behavior": "Each stage uses its specific args"
+    },
+    {
+      "name": "Mix of default and stage-specific",
+      "arguments": {
+        "default": ["-var", "common=value"],
+        "init": ["-upgrade"],
+        "apply": ["-parallelism=20"]
+      },
+      "behavior": "init uses its args, plan uses 'default', apply uses its args"
+    },
+    {
+      "name": "Terraform with backend configuration",
+      "arguments": {
+        "init": [
+          "-backend-config=bucket=my-terraform-state",
+          "-backend-config=key=prod/terraform.tfstate"
+        ],
+        "plan": ["-out=tfplan"],
+        "apply": ["tfplan"]
+      }
+    },
+    {
+      "name": "Multi-environment setup",
+      "arguments": {
+        "init": ["-reconfigure"],
+        "plan": [
+          "-var-file=environments/production.tfvars",
+          "-out=tfplan"
+        ],
+        "apply": [
+          "tfplan",
+          "-auto-approve"
+        ]
+      }
+    },
+    {
+      "name": "Minimal init-only customization with default fallback",
+      "arguments": {
+        "default": ["-var", "environment=prod"],
+        "init": ["-upgrade"]
+      },
+      "behavior": "init uses '-upgrade', plan and apply use 'default' args"
+    }
+  ],
+  "notes": [
+    "Array format is automatically converted to map with 'default' key at runtime (original JSON in database remains unchanged)",
+    "Common arguments like -var, -destroy, and environment secrets are automatically added to all stages",
+    "Stage resolution order: specific stage key -> 'default' key -> empty array",
+    "Template arguments and Task arguments are merged at the stage level",
+    "Ansible and Shell apps always use the 'default' key",
+    "Terraform apps can use stage-specific keys (init, plan, apply) with 'default' fallback"
+  ]
+}
+

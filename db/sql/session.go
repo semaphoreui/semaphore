@@ -19,13 +19,13 @@ func (d *SqlDb) VerifySession(userID int, sessionID int) error {
 }
 
 func (d *SqlDb) CreateSession(session db.Session) (db.Session, error) {
-	err := d.sql.Insert(&session)
+	err := d.Sql().Insert(&session)
 	return session, err
 }
 
 func (d *SqlDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
 	token.Created = db.GetParsedTime(tz.Now())
-	err := d.sql.Insert(&token)
+	err := d.Sql().Insert(&token)
 	return token, err
 }
 

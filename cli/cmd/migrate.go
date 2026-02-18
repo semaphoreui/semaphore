@@ -12,7 +12,7 @@ var migrationArgs struct {
 
 func init() {
 	migrateCmd.PersistentFlags().StringVar(&migrationArgs.undoTo, "undo-to", "", "Undo to specific version")
-	migrateCmd.PersistentFlags().StringVar(&migrationArgs.undoTo, "apply-to", "", "Apply to specific version")
+	migrateCmd.PersistentFlags().StringVar(&migrationArgs.applyTo, "apply-to", "", "Apply to specific version")
 
 	rootCmd.AddCommand(migrateCmd)
 }

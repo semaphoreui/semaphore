@@ -7,13 +7,18 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
 	"github.com/semaphoreui/semaphore/api"
+	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/factory"
+	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
+	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
+	proServer "github.com/semaphoreui/semaphore/pro/services/server"
+	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
 	"github.com/semaphoreui/semaphore/services/schedules"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -68,10 +73,74 @@ func Execute() {
 
 func runService() {
 	store := createStore("root")
-	taskPool := tasks.CreateTaskPool(store)
-	schedulePool := schedules.CreateSchedulePool(store, &taskPool)
+
+	initSyslog(util.Config.Syslog)
+
+	// Initialize HA node identity before any component that uses it.
+	util.InitHANodeID()
+
+	state := proTasks.NewTaskStateStore()
+	terraformStore := proFactory.NewTerraformStore(store)
+	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
+
+	projectService := server.NewProjectService(store, store)
+	encryptionService := server.NewAccessKeyEncryptionService(store, store, store)
+	accessKeyInstallationService := server.NewAccessKeyInstallationService(encryptionService)
+	integrationService := server.NewIntegrationService(store, encryptionService)
+	inventoryService := server.NewInventoryService(
+		store,
+		store,
+		store,
+		encryptionService,
+	)
+	accessKeyService := server.NewAccessKeyService(store, encryptionService, store)
+	secretStorageService := server.NewSecretStorageService(store, accessKeyService)
+	environmentService := server.NewEnvironmentService(store, encryptionService)
+	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
+	logWriteService := proServer.NewLogWriteService()
+
+	taskPool := tasks.CreateTaskPool(
+		store,
+		state,
+		ansibleTaskRepo,
+		inventoryService,
+		encryptionService,
+		accessKeyInstallationService,
+		logWriteService,
+	)
+
+	schedulePool := schedules.CreateSchedulePool(
+		store,
+		&taskPool,
+		accessKeyInstallationService,
+		encryptionService,
+	)
 
 	defer schedulePool.Destroy()
+
+	// --- Active-Active HA Setup ---
+	// When HA is enabled, multiple Semaphore nodes share the same Redis-backed
+	// task state and coordinate via Pub/Sub. The following components ensure:
+	// 1. Node registry: heartbeat-based cluster membership
+	// 2. Schedule deduplication: only one node fires each schedule occurrence
+	// 3. WebSocket broadcaster: real-time events reach clients on all nodes
+	// 4. Orphan cleaner: tasks from dead nodes are marked as failed
+	if nodeRegistry := proHA.NewNodeRegistry(); nodeRegistry != nil {
+		if err := nodeRegistry.Start(); err != nil {
+			log.WithError(err).Fatal("failed to start HA node registry")
+		}
+		defer nodeRegistry.Stop()
+		log.WithField("node_id", nodeRegistry.NodeID()).Info("HA active-active mode enabled")
+	}
+
+	if dedup := proHA.NewScheduleDeduplicator(); dedup != nil {
+		schedulePool.SetDeduplicator(dedup)
+	}
+
+	if orphanCleaner := proHA.NewOrphanCleaner(store); orphanCleaner != nil {
+		orphanCleaner.Start()
+		defer orphanCleaner.Stop()
+	}
 
 	util.Config.PrintDbInfo()
 
@@ -86,17 +155,42 @@ func runService() {
 	fmt.Printf("Interface %v\n", util.Config.Interface)
 	fmt.Printf("Port %v\n", util.Config.Port)
 
+	subscriptionService.StartValidationCron()
+
+	// Start the WebSocket hub before the broadcaster so that h.broadcast
+	// channel is being consumed when LocalBroadcast is called.
 	go sockets.StartWS()
+
+	if wsBroadcaster := proHA.NewWSBroadcaster(); wsBroadcaster != nil {
+		sockets.SetBroadcaster(wsBroadcaster)
+		wsBroadcaster.Start()
+		defer wsBroadcaster.Stop()
+	}
+
 	go schedulePool.Run()
 	go taskPool.Run()
 
-	route := api.Route()
+	route := api.Route(
+		store,
+		terraformStore,
+		ansibleTaskRepo,
+		&taskPool,
+		projectService,
+		integrationService,
+		encryptionService,
+		accessKeyInstallationService,
+		secretStorageService,
+		accessKeyService,
+		environmentService,
+		subscriptionService,
+	)
 
 	route.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			context.Set(r, "store", store)
-			context.Set(r, "schedule_pool", schedulePool)
-			context.Set(r, "task_pool", &taskPool)
+			r = helpers.SetContextValue(r, "store", store)
+			r = helpers.SetContextValue(r, "schedule_pool", schedulePool)
+			r = helpers.SetContextValue(r, "task_pool", &taskPool)
+			r = helpers.SetContextValue(r, "log_writer", logWriteService)
 			next.ServeHTTP(w, r)
 		})
 	})

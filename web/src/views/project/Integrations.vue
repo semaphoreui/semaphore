@@ -40,28 +40,34 @@
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
         @click="editItem('new')"
-      >{{ $t('NewIntegration') }}
+        >{{ $t('NewIntegration') }}
       </v-btn>
     </v-toolbar>
 
-    <div
-      class="px-4 py-3"
-    >
-      <div class="mb-3 pl-1" v-if="(aliases || []).length === 0">There is no aliases.</div>
+    <div class="px-4 py-3">
+      <div class="mb-3 pl-1" v-if="(aliases || []).length === 0">There are no aliases.</div>
 
-      <div v-else v-for="alias of (aliases || [])" :key="alias.id">
+      <div v-else v-for="alias of aliases || []" :key="alias.id">
         <code class="mr-2">{{ alias.url }}</code>
-        <v-btn icon
-               @click="copyToClipboard(alias.url, $t('aliasUrlCopied'))">
-          <v-icon>mdi-content-copy</v-icon>
-        </v-btn>
-        <v-btn icon @click="deleteAlias(alias.id)">
+
+        <CopyClipboardButton :text="alias.url" :success-message="$t('aliasUrlCopied')" />
+
+        <v-btn
+          v-if="can(USER_PERMISSIONS.manageProjectResources)"
+          icon
+          @click="deleteAlias(alias.id)"
+        >
           <v-icon>mdi-delete</v-icon>
         </v-btn>
       </div>
-
-      <v-btn color="primary" @click="addAlias()" :disabled="aliases == null">
+      <v-btn
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        color="primary"
+        @click="addAlias()"
+        :disabled="aliases == null"
+      >
         {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
       </v-btn>
     </div>
@@ -73,19 +79,16 @@
       :items="items"
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
+      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.name="{ item }">
-        <router-link
-          :to="`/project/${projectId}/integrations/${item.id}`"
-        >{{ item.name }}
+        <router-link :to="`/project/${projectId}/integrations/${item.id}`"
+          >{{ item.name }}
         </router-link>
       </template>
       <template v-slot:item.template_id="{ item }">
-        <router-link
-          :to="`/project/${projectId}/templates/${item.template_id}`"
-        >
-          {{ (templates.find((t) => t.id === item.template_id) || {name: '—'}).name }}
+        <router-link :to="`/project/${projectId}/templates/${item.template_id}`">
+          {{ (templates.find((t) => t.id === item.template_id) || { name: '—' }).name }}
         </router-link>
       </template>
       <template v-slot:item.actions="{ item }">
@@ -109,11 +112,11 @@ import { USER_PERMISSIONS } from '@/lib/constants';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import IntegrationForm from '@/components/IntegrationForm.vue';
 import IntegrationsBase from '@/views/project/IntegrationsBase';
-import copyToClipboard from '@/lib/copyToClipboard';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 
 export default {
   mixins: [ItemListPageBase, IntegrationsBase],
-  components: { IntegrationForm },
+  components: { IntegrationForm, CopyClipboardButton },
   data() {
     return {
       templates: null,
@@ -121,36 +124,39 @@ export default {
   },
 
   async created() {
-    this.templates = (await axios({
-      method: 'get',
-      url: `/api/project/${this.projectId}/templates`,
-      responseType: 'json',
-    })).data;
+    this.templates = (
+      await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/templates`,
+        responseType: 'json',
+      })
+    ).data;
   },
 
   methods: {
-    copyToClipboard,
     allowActions() {
       return this.can(USER_PERMISSIONS.updateProject);
     },
     getHeaders() {
-      return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
-        width: '40%',
-        sortable: true,
-      },
-      {
-        text: this.$i18n.t('template'),
-        value: 'template_id',
-        width: '60%',
-        sortable: true,
-      },
-      {
-        value: 'actions',
-        sortable: false,
-        width: '0%',
-      }];
+      return [
+        {
+          text: this.$i18n.t('name'),
+          value: 'name',
+          width: '40%',
+          sortable: true,
+        },
+        {
+          text: this.$i18n.t('template'),
+          value: 'template_id',
+          width: '60%',
+          sortable: true,
+        },
+        {
+          value: 'actions',
+          sortable: false,
+          width: '0%',
+        },
+      ];
     },
     getItemsUrl() {
       return `/api/project/${this.projectId}/integrations`;

@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/natefinch/lumberjack.v2"
 
@@ -35,16 +34,25 @@ var WebHostURL *url.URL
 
 const (
 	DbDriverMySQL    = "mysql"
-	DbDriverBolt     = "bolt"
+	DbDriverBolt     = "bolt" // Deprecated: replaced with sqlite
 	DbDriverPostgres = "postgres"
+	DbDriverSQLite   = "sqlite"
 )
 
-type EventLogAction string
-
 const (
-	EventLogCreate EventLogAction = "create"
-	EventLogUpdate EventLogAction = "update"
-	EventLogDelete EventLogAction = "delete"
+	// HomeDirModeUserHome does not override HOME.
+	// Sets ANSIBLE_HOME per template to isolate .ansible/ across parallel tasks.
+	HomeDirModeUserHome = "user_home"
+
+	// HomeDirModeProjectHome sets HOME to the project temp directory.
+	// This is the legacy behavior. Parallel ansible-galaxy runs may conflict.
+	HomeDirModeProjectHome = "project_home"
+
+	// HomeDirModeTemplateDir does not override HOME.
+	// Sets ANSIBLE_HOME to a per-template "_home/.ansible" directory
+	// (e.g. repository_15_template_114_home/.ansible) to isolate
+	// .ansible/ artifacts across parallel tasks.
+	HomeDirModeTemplateDir = "template_dir"
 )
 
 type DbConfig struct {
@@ -133,53 +141,47 @@ type TLSConfig struct {
 }
 
 type TotpConfig struct {
-	Enabled       bool `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
-	AllowRecovery bool `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
+	Enabled       bool   `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
+	AllowRecovery bool   `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
+	Issuer        string `json:"app_name" env:"SEMAPHORE_TOTP_ISSUER"`
 }
 
 type EventLogType struct {
-	Format  FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_EVENT_LOG_FORMAT"`
+	Format  string             `json:"format,omitempty" env:"SEMAPHORE_EVENT_LOG_FORMAT"`
 	Enabled bool               `json:"enabled" env:"SEMAPHORE_EVENT_LOG_ENABLED"`
 	Logger  *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_EVENT_LOGGER"`
 }
 
-type EventLogRecord struct {
-	Action        string  `json:"action"`
-	UserID        *int    `json:"user,omitempty"`
-	IntegrationID *int    `json:"integration,omitempty"`
-	ProjectID     *int    `json:"project,omitempty"`
-	Description   *string `json:"description,omitempty"`
-}
-
-type FileLogFormat string
-
 const (
-	FileLogJSON FileLogFormat = "json"
-	FileLogRaw  FileLogFormat = "raw"
+	FileLogJSON string = "json"
+	FileLogRaw  string = ""
 )
 
 type TaskLogType struct {
 	Enabled      bool               `json:"enabled" env:"SEMAPHORE_TASK_LOG_ENABLED"`
-	Format       FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_TASK_LOG_FORMAT"`
+	Format       string             `json:"format,omitempty" env:"SEMAPHORE_TASK_LOG_FORMAT"`
 	Logger       *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_TASK_LOGGER"`
 	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"SEMAPHORE_TASK_RESULT_LOGGER"`
-}
-
-type TaskLogRecord struct {
-	Username     string                 `json:"username,omitempty"`
-	TaskID       int                    `json:"task"`
-	ProjectID    int                    `json:"project"`
-	TemplateID   int                    `json:"template"`
-	TemplateName string                 `json:"template_name"`
-	UserID       *int                   `json:"user,omitempty"`
-	Description  *string                `json:"-"`
-	RunnerID     *int                   `json:"runner,omitempty"`
-	Status       task_logger.TaskStatus `json:"status"`
 }
 
 type ConfigLog struct {
 	Events *EventLogType `json:"events,omitempty"`
 	Tasks  *TaskLogType  `json:"tasks,omitempty"`
+}
+
+type SyslogFormat string
+
+const (
+	SyslogDefault SyslogFormat = ""
+	SyslogRFC5424 SyslogFormat = "rfc5424"
+)
+
+type SyslogConfig struct {
+	Enabled bool         `json:"enabled" env:"SEMAPHORE_SYSLOG_ENABLED"`
+	Network string       `json:"network,omitempty" env:"SEMAPHORE_SYSLOG_NETWORK"`
+	Address string       `json:"address,omitempty" env:"SEMAPHORE_SYSLOG_ADDRESS"`
+	Tag     string       `json:"tag,omitempty" env:"SEMAPHORE_SYSLOG_TAG"`
+	Format  SyslogFormat `json:"format,omitempty" env:"SEMAPHORE_SYSLOG_FORMAT"`
 }
 
 type ConfigProcess struct {
@@ -198,13 +200,59 @@ type DebuggingConfig struct {
 	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
 }
 
+type HARedisConfig struct {
+	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
+	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
+	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS"`
+	User          string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
+	TLS           bool   `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
+	TLSSkipVerify bool   `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
+}
+
+type HAConfig struct {
+	Enabled bool           `json:"enabled" env:"SEMAPHORE_HA_ENABLED"`
+	NodeID  string         `json:"node_id,omitempty" env:"SEMAPHORE_HA_NODE_ID"` // auto-generated if empty
+	Redis   *HARedisConfig `json:"redis,omitempty"`
+}
+
+// HAEnabled returns true when high-availability mode is configured.
+func HAEnabled() bool {
+	return Config.HA != nil && Config.HA.Enabled
+}
+
+// InitHANodeID generates a unique node identifier for this instance if one
+// was not explicitly configured. Must be called after ConfigInit.
+func InitHANodeID() {
+	if Config.HA == nil {
+		return
+	}
+	if Config.HA.NodeID == "" {
+		Config.HA.NodeID = RandString(16)
+	}
+}
+
+type TeamInviteType string
+
+const (
+	TeamInviteEmail    TeamInviteType = "email"
+	TeamInviteUsername TeamInviteType = "username"
+	TeamInviteBoth     TeamInviteType = "both"
+)
+
+type TeamsConfig struct {
+	InvitesEnabled  bool           `json:"invites_enabled,omitempty" env:"SEMAPHORE_TEAMS_INVITES_ENABLED"`
+	InviteType      TeamInviteType `json:"invite_type,omitempty" env:"SEMAPHORE_TEAMS_INVITE_TYPE" default:"username"`
+	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
-	BoltDb   *DbConfig `json:"bolt,omitempty"`
+	BoltDb   *DbConfig `json:"bolt,omitempty"` // Deprecated
 	Postgres *DbConfig `json:"postgres,omitempty"`
+	SQLite   *DbConfig `json:"sqlite,omitempty"`
 
-	Dialect string `json:"dialect,omitempty" default:"bolt" rule:"^mysql|bolt|postgres$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect string `json:"dialect,omitempty" default:"bolt" rule:"^mysql|bolt|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -219,6 +267,16 @@ type ConfigType struct {
 
 	// semaphore stores ephemeral projects here
 	TmpPath string `json:"tmp_path,omitempty" default:"/tmp/semaphore" env:"SEMAPHORE_TMP_PATH"`
+
+	// HomeDirMode controls how the HOME environment variable is set for tasks.
+	//   "template_home" (default) — HOME is set to a per-template directory,
+	//       isolating .ansible/ across parallel tasks. Repo is cloned into a
+	//       "src" subdirectory under HOME.
+	//   "project_home" — HOME is set to the project temp directory (legacy
+	//       behavior). Parallel ansible-galaxy runs in the same project may conflict.
+	//   "user_home" — HOME is not overridden (keeps the real user HOME).
+	//       ANSIBLE_HOME is set per template to isolate .ansible/ for Ansible tasks.
+	HomeDirMode string `json:"home_dir_mode,omitempty" rule:"^(user_home|project_home|template_dir)?$" env:"SEMAPHORE_HOME_DIR_MODE" default:"template_dir"`
 
 	// SshConfigPath is a path to the custom SSH config file.
 	// Default path is ~/.ssh/config.
@@ -301,6 +359,10 @@ type ConfigType struct {
 
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
 
+	Teams *TeamsConfig `json:"teams,omitempty"`
+
+	Syslog *SyslogConfig `json:"syslog,omitempty"`
+
 	Log *ConfigLog `json:"log,omitempty"`
 
 	Process *ConfigProcess `json:"process,omitempty"`
@@ -308,6 +370,13 @@ type ConfigType struct {
 	Schedule *ScheduleConfig `json:"schedule,omitempty"`
 
 	Debugging *DebuggingConfig `json:"debugging,omitempty"`
+
+	HA *HAConfig `json:"ha,omitempty"`
+
+	// SubscriptionKey is a subscription key or token that can be set via config.
+	// When this is set, subscription activation from the web interface is disabled.
+	SubscriptionKey     string `json:"subscription_key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY"`
+	SubscriptionKeyFile string `json:"subscription_key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
 }
 
 func NewConfigType() *ConfigType {
@@ -417,6 +486,15 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		if err == nil {
 			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
 		}
+	}
+
+	if Config.SubscriptionKeyFile != "" {
+		subscriptionKeyBytes, err := os.ReadFile(Config.SubscriptionKeyFile)
+		if err != nil {
+			panic(err)
+		}
+
+		Config.SubscriptionKey = strings.TrimSpace(string(subscriptionKeyBytes))
 	}
 
 	return
@@ -571,6 +649,13 @@ func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) err
 
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
+
+		// Skip fields with db:"-" tag
+		dbTag := field.Tag.Get("db")
+		if dbTag == "-" {
+			continue
+		}
+
 		jsonTag := field.Tag.Get("json")
 		if jsonTag == "" {
 			jsonTag = field.Name
@@ -599,6 +684,74 @@ func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) err
 					if err != nil {
 						return err
 					}
+				case reflect.Slice:
+					// Handle slice assignment
+					fieldElemType := fieldValue.Type().Elem()
+					var sourceSlice reflect.Value
+					if val.Kind() == reflect.Slice || val.Kind() == reflect.Array {
+						sourceSlice = val
+					} else if val.Kind() == reflect.String {
+						// Try to parse JSON array from string
+						str := val.String()
+						// First, try to unmarshal into []any
+						var anyArr []any
+						if err := json.Unmarshal([]byte(str), &anyArr); err == nil {
+							sourceSlice = reflect.ValueOf(anyArr)
+						} else if fieldElemType.Kind() == reflect.String {
+							// Fallback: treat as single element string
+							sourceSlice = reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf("")), 1, 1)
+							sourceSlice.Index(0).SetString(str)
+						} else {
+							return fmt.Errorf("expected slice or json array string for field %s but got %T", field.Name, value)
+						}
+					} else {
+						return fmt.Errorf("expected slice for field %s but got %T", field.Name, value)
+					}
+
+					// Build destination slice
+					newSlice := reflect.MakeSlice(fieldValue.Type(), 0, sourceSlice.Len())
+					for i := 0; i < sourceSlice.Len(); i++ {
+						srcElemVal := sourceSlice.Index(i)
+						// When source is []any, elements come as interface{}, unwrap reflect.Value
+						if srcElemVal.Kind() == reflect.Interface && !srcElemVal.IsNil() {
+							srcElemVal = reflect.ValueOf(srcElemVal.Interface())
+						}
+
+						var dstElem reflect.Value
+						// Prepare destination element
+						if fieldElemType.Kind() == reflect.Struct {
+							dstElem = reflect.New(fieldElemType).Elem()
+							if srcElemVal.Kind() == reflect.Map {
+								// Expect map[string]any
+								mIface, ok := srcElemVal.Interface().(map[string]any)
+								if !ok {
+									return fmt.Errorf("cannot assign element of type %T to slice element of type %s", srcElemVal.Interface(), fieldElemType)
+								}
+								if err := assignMapToStructRecursive(mIface, dstElem); err != nil {
+									return err
+								}
+							} else if srcElemVal.Type().ConvertibleTo(fieldElemType) {
+								dstElem = srcElemVal.Convert(fieldElemType)
+							} else {
+								return fmt.Errorf("cannot assign element of type %s to slice element of type %s", srcElemVal.Type(), fieldElemType)
+							}
+						} else {
+							// Primitive or other kinds
+							if srcElemVal.Type().ConvertibleTo(fieldElemType) {
+								dstElem = srcElemVal.Convert(fieldElemType)
+							} else {
+								newVal, converted := CastValueToKind(srcElemVal.Interface(), fieldElemType.Kind())
+								if !converted {
+									return fmt.Errorf("cannot assign element of type %s to slice element of type %s", srcElemVal.Type(), fieldElemType)
+								}
+								dstElem = reflect.ValueOf(newVal)
+							}
+						}
+
+						newSlice = reflect.Append(newSlice, dstElem)
+					}
+
+					fieldValue.Set(newSlice)
 				case reflect.Map:
 					if fieldValue.IsNil() {
 						mapValue := reflect.MakeMap(fieldValue.Type())
@@ -669,14 +822,19 @@ func CastValueToKind(value any, kind reflect.Kind) (res any, ok bool) {
 
 	switch kind {
 	case reflect.String:
+		// strings are always acceptable as-is, or will be coerced upstream
 		ok = true
 	case reflect.Int:
-		if reflect.ValueOf(value).Kind() != reflect.Int {
+		if reflect.ValueOf(value).Kind() == reflect.Int {
+			ok = true
+		} else {
 			res = castStringToInt(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
 		}
 	case reflect.Bool:
-		if reflect.ValueOf(value).Kind() != reflect.Bool {
+		if reflect.ValueOf(value).Kind() == reflect.Bool {
+			ok = true
+		} else {
 			res = castStringToBool(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
 		}
@@ -816,6 +974,19 @@ func loadEnvironmentToObject(obj any) error {
 				newValue := reflect.New(fieldType.Type.Elem())
 				fieldValue.Set(newValue)
 			}
+
+			envVar := fieldType.Tag.Get("env")
+			if envVar != "" {
+				if envValue, exists := os.LookupEnv(envVar); exists {
+					newValue := reflect.New(fieldType.Type.Elem())
+					err := json.Unmarshal([]byte(envValue), newValue.Interface())
+					if err != nil {
+						return err
+					}
+					fieldValue.Set(newValue)
+				}
+			}
+
 			err := loadEnvironmentToObject(fieldValue.Interface())
 			if err != nil {
 				return err
@@ -1014,6 +1185,9 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 				dbHost)
 		}
 		connectionString += mapToQueryString(d.Options)
+	case DbDriverSQLite:
+		connectionString = "file:" + dbHost
+		connectionString += mapToQueryString(d.Options)
 	default:
 		err = fmt.Errorf("unsupported database driver: %s", d.Dialect)
 	}
@@ -1038,6 +1212,8 @@ func (conf *ConfigType) PrintDbInfo() {
 		fmt.Printf("BoltDB %v\n", conf.BoltDb.GetHostname())
 	case DbDriverPostgres:
 		fmt.Printf("Postgres %v@%v %v\n", conf.Postgres.GetUsername(), conf.Postgres.GetHostname(), conf.Postgres.GetDbName())
+	case DbDriverSQLite:
+		fmt.Printf("SQLite %v@%v %v\n", conf.SQLite.GetUsername(), conf.SQLite.GetHostname(), conf.SQLite.GetDbName())
 	default:
 		panic(fmt.Errorf("database configuration not found"))
 	}
@@ -1052,6 +1228,8 @@ func (conf *ConfigType) GetDialect() (dialect string, err error) {
 			dialect = DbDriverBolt
 		case conf.Postgres.IsPresent():
 			dialect = DbDriverPostgres
+		case conf.SQLite.IsPresent():
+			dialect = DbDriverSQLite
 		default:
 			err = errors.New("database configuration not found")
 		}
@@ -1074,6 +1252,8 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 		dbConfig = *conf.BoltDb
 	case DbDriverPostgres:
 		dbConfig = *conf.Postgres
+	case DbDriverSQLite:
+		dbConfig = *conf.SQLite
 	case DbDriverMySQL:
 		dbConfig = *conf.MySQL
 	default:

@@ -5,10 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/conv"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/pkg/conv"
+	"github.com/semaphoreui/semaphore/services/server"
+	task2 "github.com/semaphoreui/semaphore/services/tasks"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -43,7 +47,17 @@ func hmacHashPayload(secret string, payloadBody []byte) string {
 	return fmt.Sprintf("%x", sum)
 }
 
-func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
+type IntegrationController struct {
+	integrationService server.IntegrationService
+}
+
+func NewIntegrationController(integrationService server.IntegrationService) *IntegrationController {
+	return &IntegrationController{
+		integrationService: integrationService,
+	}
+}
+
+func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -91,10 +105,15 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if integration.ProjectID != project.ID {
-			panic("")
+			log.WithFields(log.Fields{
+				"context":       "integrations",
+				"project_id":    project.ID,
+				"integrationId": integration.ID,
+			}).Error("integration project mismatch")
+			continue
 		}
 
-		err = db.FillIntegration(store, &integration)
+		err = c.integrationService.FillIntegration(&integration)
 		if err != nil {
 			log.Error(err)
 			return
@@ -191,7 +210,20 @@ func ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		RunIntegration(integration, project, r, payload)
+		task := RunIntegration(integration, project, r, payload)
+		if task != nil {
+			w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(task.ID))
+			w.Header().Add("X-Semaphore-Template-ID", strconv.Itoa(task.TemplateID))
+			w.Header().Add("X-Semaphore-Project-ID", strconv.Itoa(task.ProjectID))
+
+			if task.IntegrationID != nil {
+				w.Header().Add("X-Semaphore-Integration-ID", strconv.Itoa(*task.IntegrationID))
+			}
+
+			if task.InventoryID != nil {
+				w.Header().Add("X-Semaphore-Inventory-ID", strconv.Itoa(*task.InventoryID))
+			}
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -237,16 +269,18 @@ func MatchCompare(value any, method db.IntegrationMatchMethodType, expected stri
 	}
 }
 
-func RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) {
-
-	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
+func GetTaskDefinition(
+	integration db.Integration,
+	payload []byte,
+	h http.Header,
+	extractorCreator func(projectID, integrationID int) ([]db.IntegrationExtractValue, error),
+) (taskDefinition db.Task, err error) {
 
 	var envValues = make([]db.IntegrationExtractValue, 0)
 	var taskValues = make([]db.IntegrationExtractValue, 0)
 
-	extractValuesForExtractor, err := helpers.Store(r).GetIntegrationExtractValues(project.ID, db.RetrieveQueryParams{}, integration.ID)
+	extractValuesForExtractor, err := extractorCreator(integration.ProjectID, integration.ID)
 	if err != nil {
-		log.Error(err)
 		return
 	}
 
@@ -259,27 +293,67 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		}
 	}
 
-	var extractedEnvResults = Extract(envValues, r, payload)
+	var extractedEnvResults = Extract(envValues, h, payload)
 
-	environmentJSONBytes, err := json.Marshal(extractedEnvResults)
+	if integration.TaskParams != nil {
+		taskDefinition = integration.TaskParams.CreateTask(integration.TemplateID)
+	} else {
+		taskDefinition = db.Task{
+			ProjectID:  integration.ProjectID,
+			TemplateID: integration.TemplateID,
+			Params:     make(db.MapStringAnyField),
+		}
+	}
+
+	taskDefinition.IntegrationID = &integration.ID
+
+	env := make(map[string]any)
+
+	if taskDefinition.Environment != "" {
+		err = json.Unmarshal([]byte(taskDefinition.Environment), &env)
+		if err != nil {
+			return
+		}
+	}
+
+	// Add extracted environment variables only if they don't conflict with
+	// existing task definition variables (task definition has higher priority)
+	for k, v := range extractedEnvResults {
+		if _, exists := env[k]; !exists {
+			env[k] = v
+		}
+	}
+
+	envStr, err := json.Marshal(env)
 	if err != nil {
-		log.Error(err)
 		return
 	}
 
-	var extractedTaskResults = ExtractAsAnyForTaskParams(taskValues, r, payload)
+	taskDefinition.Environment = string(envStr)
 
-	var environmentJSONString = string(environmentJSONBytes)
-	var taskDefinition = db.Task{
-		TemplateID:    integration.TemplateID,
-		ProjectID:     integration.ProjectID,
-		Environment:   environmentJSONString,
-		IntegrationID: &integration.ID,
+	extractedTaskResults := Extract(taskValues, h, payload)
+	for k, v := range extractedTaskResults {
+		taskDefinition.Params[k] = v
 	}
 
-	// Only assign extractedTaskResults to Params if it's not empty
-	if len(extractedTaskResults) > 0 {
-		taskDefinition.Params = extractedTaskResults
+	return
+}
+
+func RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) (taskRef *db.Task) {
+	taskRef = nil
+
+	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
+
+	taskDefinition, err := GetTaskDefinition(
+		integration, payload, r.Header, func(projectID, integrationID int) ([]db.IntegrationExtractValue, error) {
+			return helpers.Store(r).GetIntegrationExtractValues(projectID, db.RetrieveQueryParams{}, integrationID)
+		})
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"context":        "integrations",
+			"integration_id": integration.ID,
+		}).Error("Failed to get task definition")
+		return
 	}
 
 	tpl, err := helpers.Store(r).GetTemplate(integration.ProjectID, integration.TemplateID)
@@ -288,55 +362,37 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		return
 	}
 
-	_, err = helpers.TaskPool(r).AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
+	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
+
+	task, err := pool.AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
 		log.Error(err)
 		return
 	}
+
+	taskRef = &task
+
+	return
 }
 
-func Extract(extractValues []db.IntegrationExtractValue, r *http.Request, payload []byte) (result map[string]string) {
+func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]string) {
 	result = make(map[string]string)
 
 	for _, extractValue := range extractValues {
 		switch extractValue.ValueSource {
 		case db.IntegrationExtractHeaderValue:
-			result[extractValue.Variable] = r.Header.Get(extractValue.Key)
+			result[extractValue.Variable] = h.Get(extractValue.Key)
 		case db.IntegrationExtractBodyValue:
 			switch extractValue.BodyDataType {
 			case db.IntegrationBodyDataJSON:
-				var extractedResult = fmt.Sprintf("%v", gojsonq.New().JSONString(string(payload)).Find(extractValue.Key))
-				result[extractValue.Variable] = extractedResult
+				val := gojsonq.New().JSONString(string(payload)).Find(extractValue.Key)
+				if val != nil {
+					result[extractValue.Variable] = fmt.Sprintf("%v", val)
+				}
 			case db.IntegrationBodyDataString:
 				result[extractValue.Variable] = string(payload)
 			}
 		}
 	}
 	return
-}
-
-func ExtractAsAnyForTaskParams(extractValues []db.IntegrationExtractValue, r *http.Request, payload []byte) db.MapStringAnyField {
-	// Create a result map that accepts any type
-	result := make(db.MapStringAnyField)
-
-	for _, extractValue := range extractValues {
-		switch extractValue.ValueSource {
-		case db.IntegrationExtractHeaderValue:
-			// Extract the header value
-			result[extractValue.Variable] = r.Header.Get(extractValue.Key)
-
-		case db.IntegrationExtractBodyValue:
-			switch extractValue.BodyDataType {
-			case db.IntegrationBodyDataJSON:
-				// Query the JSON payload for the key using gojsonq
-				rawValue := gojsonq.New().JSONString(string(payload)).Find(extractValue.Key)
-				result[extractValue.Variable] = rawValue
-
-			case db.IntegrationBodyDataString:
-				// Simply use the entire payload as a string
-				result[extractValue.Variable] = string(payload)
-			}
-		}
-	}
-	return result
 }

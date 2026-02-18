@@ -19,6 +19,7 @@ var skipTests = []string{
 	"/api/ws > Websocket handler > 200 > application/json",
 	"authentication > /api/auth/login > Performs Login > 204 > application/json",
 	"authentication > /api/auth/logout > Destroys current session > 204 > application/json",
+	"/project/{project_id}/notifications/test",
 	//"/api/upgrade > Upgrade the server > 200 > application/json",
 	// TODO - Skipping this while we work out how to get a 204 response from the api for testing
 	//"/api/upgrade > Check if new updates available and fetch /info > 204 > application/json",
@@ -79,10 +80,16 @@ func main() {
 		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"role\": \"owner\"}"
 	})
 
-	h.Before("project > /api/project/{project_id}/integrations > get all integrations > 200 > application/json", capabilityWrapper("integration"))
-	h.Before("project > /api/project/{project_id}/integrations/{integration_id} > Get Integration > 200 > application/json", capabilityWrapper("integration"))
-	h.Before("project > /api/project/{project_id}/integrations/{integration_id} > Update Integration > 204 > application/json", capabilityWrapper("integration"))
-	h.Before("project > /api/project/{project_id}/integrations/{integration_id} > Remove integration > 204 > application/json", capabilityWrapper("integration"))
+	h.Before("project > /api/project/{project_id}/invites > Get invitations for project > 200 > application/json", capabilityWrapper("invite"))
+	h.Before("project > /api/project/{project_id}/invites > Create project invitation > 201 > application/json", capabilityWrapper("invite"))
+	h.Before("project > /api/project/{project_id}/invites/{invite_id} > Get specific project invitation > 200 > application/json", capabilityWrapper("invite"))
+	h.Before("project > /api/project/{project_id}/invites/{invite_id} > Update project invitation status > 204 > application/json", capabilityWrapper("invite"))
+	h.Before("project > /api/project/{project_id}/invites/{invite_id} > Delete project invitation > 204 > application/json", capabilityWrapper("invite"))
+
+	h.Before("integration > /api/project/{project_id}/integrations > get all integrations > 200 > application/json", capabilityWrapper("integration"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id} > Get Integration > 200 > application/json", capabilityWrapper("integration"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id} > Update Integration > 204 > application/json", capabilityWrapper("integration"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id} > Remove integration > 204 > application/json", capabilityWrapper("integration"))
 
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/values > Get Integration Extracted Values linked to integration extractor > 200 > application/json", capabilityWrapper("integrationextractvalue"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/values > Add Integration Extracted Value > 204 > application/json", capabilityWrapper("integrationextractvalue"))
@@ -93,41 +100,42 @@ func main() {
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers > Add Integration Matcher > 204 > application/json", capabilityWrapper("integration"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers/{matcher_id} > Updates Integration Matcher > 204 > application/json", capabilityWrapper("integrationmatcher"))
 
-	h.Before("project > /api/project/{project_id}/keys > Add access key > 201 > application/json", capabilityWrapper("access_key"))
-	h.Before("project > /api/project/{project_id}/keys/{key_id} > Updates access key > 204 > application/json", capabilityWrapper("access_key"))
-	h.Before("project > /api/project/{project_id}/keys/{key_id} > Removes access key > 204 > application/json", capabilityWrapper("access_key"))
+	h.Before("key-store > /api/project/{project_id}/keys > Add access key > 201 > application/json", capabilityWrapper("access_key"))
+	h.Before("key-store > /api/project/{project_id}/keys/{key_id} > Updates access key > 204 > application/json", capabilityWrapper("access_key"))
+	h.Before("key-store > /api/project/{project_id}/keys/{key_id} > Removes access key > 204 > application/json", capabilityWrapper("access_key"))
 
-	h.Before("project > /api/project/{project_id}/repositories > Add repository > 201 > application/json", capabilityWrapper("access_key"))
-	h.Before("project > /api/project/{project_id}/repositories/{repository_id} > Get repository > 200 > application/json", capabilityWrapper("repository"))
-	h.Before("project > /api/project/{project_id}/repositories/{repository_id} > Updates repository > 204 > application/json", capabilityWrapper("repository"))
-	h.Before("project > /api/project/{project_id}/repositories/{repository_id} > Removes repository > 204 > application/json", capabilityWrapper("repository"))
+	h.Before("repository > /api/project/{project_id}/repositories > Add repository > 201 > application/json", capabilityWrapper("access_key"))
+	h.Before("repository > /api/project/{project_id}/repositories/{repository_id} > Get repository > 200 > application/json", capabilityWrapper("repository"))
+	h.Before("repository > /api/project/{project_id}/repositories/{repository_id} > Updates repository > 204 > application/json", capabilityWrapper("repository"))
+	h.Before("repository > /api/project/{project_id}/repositories/{repository_id} > Removes repository > 204 > application/json", capabilityWrapper("repository"))
 
-	h.Before("project > /api/project/{project_id}/inventory > create inventory > 201 > application/json", capabilityWrapper("inventory"))
-	h.Before("project > /api/project/{project_id}/inventory/{inventory_id} > Get inventory > 200 > application/json", capabilityWrapper("inventory"))
-	h.Before("project > /api/project/{project_id}/inventory/{inventory_id} > Updates inventory > 204 > application/json", capabilityWrapper("inventory"))
-	h.Before("project > /api/project/{project_id}/inventory/{inventory_id} > Removes inventory > 204 > application/json", capabilityWrapper("inventory"))
+	h.Before("inventory > /api/project/{project_id}/inventory > create inventory > 201 > application/json", capabilityWrapper("inventory"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Get inventory > 200 > application/json", capabilityWrapper("inventory"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Updates inventory > 204 > application/json", capabilityWrapper("inventory"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Removes inventory > 204 > application/json", capabilityWrapper("inventory"))
 
-	h.Before("project > /api/project/{project_id}/environment > Add environment > 201 > application/json", capabilityWrapper("environment"))
-	h.Before("project > /api/project/{project_id}/environment/{environment_id} > Get environment > 200 > application/json", capabilityWrapper("environment"))
-	h.Before("project > /api/project/{project_id}/environment/{environment_id} > Update environment > 204 > application/json", capabilityWrapper("environment"))
-	h.Before("project > /api/project/{project_id}/environment/{environment_id} > Removes environment > 204 > application/json", capabilityWrapper("environment"))
+	h.Before("variable-group > /api/project/{project_id}/environment > Add environment > 201 > application/json", capabilityWrapper("environment"))
+	h.Before("variable-group > /api/project/{project_id}/environment/{environment_id} > Get environment > 200 > application/json", capabilityWrapper("environment"))
+	h.Before("variable-group > /api/project/{project_id}/environment/{environment_id} > Update environment > 204 > application/json", capabilityWrapper("environment"))
+	h.Before("variable-group > /api/project/{project_id}/environment/{environment_id} > Removes environment > 204 > application/json", capabilityWrapper("environment"))
 
-	h.Before("project > /api/project/{project_id}/templates > create template > 201 > application/json", func(t *trans.Transaction) {
+	h.Before("template > /api/project/{project_id}/templates > create template > 201 > application/json", func(t *trans.Transaction) {
 		addCapabilities([]string{"repository", "inventory", "environment", "view"})
 	})
 
-	h.Before("project > /api/project/{project_id}/templates/{template_id} > Get template > 200 > application/json", capabilityWrapper("template"))
-	h.Before("project > /api/project/{project_id}/templates/{template_id} > Updates template > 204 > application/json", capabilityWrapper("template"))
-	h.Before("project > /api/project/{project_id}/templates/{template_id} > Removes template > 204 > application/json", capabilityWrapper("template"))
+	h.Before("template > /api/project/{project_id}/templates/{template_id}/stop_all_tasks > Stop all active tasks of template > 204 > application/json", capabilityWrapper("template"))
+	h.Before("template > /api/project/{project_id}/templates/{template_id} > Get template > 200 > application/json", capabilityWrapper("template"))
+	h.Before("template > /api/project/{project_id}/templates/{template_id} > Updates template > 204 > application/json", capabilityWrapper("template"))
+	h.Before("template > /api/project/{project_id}/templates/{template_id} > Removes template > 204 > application/json", capabilityWrapper("template"))
 
-	h.Before("project > /api/project/{project_id}/tasks > Starts a job > 201 > application/json", capabilityWrapper("template"))
-	h.Before("project > /api/project/{project_id}/tasks/last > Get last 200 Tasks related to current project > 200 > application/json", capabilityWrapper("template"))
+	h.Before("task > /api/project/{project_id}/tasks > Starts a job > 201 > application/json", capabilityWrapper("template"))
+	h.Before("task > /api/project/{project_id}/tasks/last > Get last 200 Tasks related to current project > 200 > application/json", capabilityWrapper("template"))
 
-	h.Before("project > /api/project/{project_id}/tasks/{task_id} > Get a single task > 200 > application/json", capabilityWrapper("task"))
-	h.Before("project > /api/project/{project_id}/tasks/{task_id} > Deletes task (including output) > 204 > application/json", capabilityWrapper("task"))
-	h.Before("project > /api/project/{project_id}/tasks/{task_id}/output > Get task output > 200 > application/json", capabilityWrapper("task"))
-	h.Before("project > /api/project/{project_id}/tasks/{task_id}/raw_output > Get task raw output > 200 > text/plain; charset=utf-8", capabilityWrapper("task"))
-	h.Before("project > /api/project/{project_id}/tasks/{task_id}/stop > Stop a job > 204 > application/json", capabilityWrapper("task"))
+	h.Before("task > /api/project/{project_id}/tasks/{task_id} > Get a single task > 200 > application/json", capabilityWrapper("task"))
+	h.Before("task > /api/project/{project_id}/tasks/{task_id} > Deletes task (including output) > 204 > application/json", capabilityWrapper("task"))
+	h.Before("task > /api/project/{project_id}/tasks/{task_id}/output > Get task output > 200 > application/json", capabilityWrapper("task"))
+	h.Before("task > /api/project/{project_id}/tasks/{task_id}/raw_output > Get task raw output > 200 > text/plain; charset=utf-8", capabilityWrapper("task"))
+	h.Before("task > /api/project/{project_id}/tasks/{task_id}/stop > Stop a job > 204 > application/json", capabilityWrapper("task"))
 
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Get schedule > 200 > application/json", capabilityWrapper("schedule"))
 	h.Before("schedule > /api/project/{project_id}/schedules/{schedule_id} > Updates schedule > 204 > application/json", capabilityWrapper("schedule"))

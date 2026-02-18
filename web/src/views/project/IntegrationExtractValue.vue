@@ -35,24 +35,19 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>ExtractValue</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
         color="primary"
         @click="editItem('new')"
-      >New Extracted Value</v-btn>
-    </v-toolbar>
-    <v-data-table
-      :headers="headers"
-      :items="items"
-      class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+        >New Extracted Value</v-btn
       >
-      <template v-slot:item.name="{ item }">
-        {{ item.name }} {{ item.extractorId }}
-      </template>
+    </v-toolbar>
+    <v-data-table :headers="headers" :items="items" class="mt-4" :items-per-page="Number.MAX_VALUE">
+      <template v-slot:item.name="{ item }"> {{ item.name }} {{ item.extractorId }} </template>
       <template v-slot:item.value_source="{ item }">
         <code>{{ item.value_source }}</code>
       </template>
@@ -70,19 +65,11 @@
       </template>
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-btn
-            icon
-            class="mr-1"
-            @click="askDeleteItem(item.id)"
-          >
+          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn
-            icon
-            class="mr-1"
-            @click="editItem(item.id)"
-          >
+          <v-btn icon class="mr-1" @click="editItem(item.id)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>
@@ -120,41 +107,43 @@ export default {
     },
 
     getHeaders() {
-      return [{
-        text: 'Name',
-        value: 'name',
-        sortable: true,
-      },
-      {
-        text: 'Value Source',
-        value: 'value_source',
-        sortable: false,
-      },
-      // {
-      //   text: 'Body Data Type',
-      //   value: 'body_data_type',
-      //   sortable: false,
-      // },
-      {
-        text: 'Key',
-        value: 'key',
-        sortable: false,
-      },
-      {
-        text: 'Variable',
-        value: 'variable',
-        sortable: false,
-      },
-      {
-        text: 'Variable Type',
-        value: 'variable_type',
-        sortable: false,
-      },
-      {
-        text: 'Actions',
-        value: 'actions',
-        sortable: false,
-      }];
+      return [
+        {
+          text: 'Name',
+          value: 'name',
+          sortable: true,
+        },
+        {
+          text: 'Value Source',
+          value: 'value_source',
+          sortable: false,
+        },
+        // {
+        //   text: 'Body Data Type',
+        //   value: 'body_data_type',
+        //   sortable: false,
+        // },
+        {
+          text: 'Key',
+          value: 'key',
+          sortable: false,
+        },
+        {
+          text: 'Variable',
+          value: 'variable',
+          sortable: false,
+        },
+        {
+          text: 'Variable Type',
+          value: 'variable_type',
+          sortable: false,
+        },
+        {
+          text: 'Actions',
+          value: 'actions',
+          sortable: false,
+        },
+      ];
     },
     getItemsUrl() {
       return `/api/project/${this.projectId}/integrations/${this.integrationId}/values`;

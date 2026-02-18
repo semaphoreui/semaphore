@@ -56,7 +56,7 @@
 .task-log-view__placeholder {
   margin-left: 24px;
   margin-right: 24px;
-  height: calc(100vh - 208px);
+  height: calc(100dvh - 208px);
 }
 </style>
 <script>
@@ -110,6 +110,9 @@ export default {
     },
 
     async loadData() {
+      if (this.itemId == null) {
+        return;
+      }
       this.item = await this.loadProjectResource('tasks', this.itemId);
       this.template = await this.loadProjectResource('templates', this.item.template_id);
     },

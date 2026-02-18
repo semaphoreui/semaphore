@@ -22,7 +22,6 @@
     </EditDialog>
 
     <EditDialog
-      expandable
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :icon="getAppIcon(itemApp)"

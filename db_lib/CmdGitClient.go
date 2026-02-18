@@ -2,25 +2,50 @@ package db_lib
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/pkg/ssh"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type CmdGitClient struct {
-	keyInstallation db.AccessKeyInstallation
+	keyInstaller AccessKeyInstaller
 }
 
-func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, args ...string) *exec.Cmd {
+func (c CmdGitClient) makeCmd(
+	r GitRepository,
+	targetDir GitRepositoryDirType,
+	installation ssh.AccessKeyInstallation,
+	args ...string,
+) *exec.Cmd {
 	cmd := exec.Command("git") //nolint: gas
 
-	cmd.Env = append(getEnvironmentVars(), c.keyInstallation.GetGitEnv()...)
+	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv()...)
 
 	switch targetDir {
 	case GitRepositoryTmpPath:
 		cmd.Dir = util.Config.GetProjectTmpDir(r.Repository.ProjectID)
+		_, err := os.Stat(cmd.Dir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				err = os.MkdirAll(cmd.Dir, 0755)
+				if err != nil {
+					log.WithError(err).WithFields(log.Fields{
+						"context": "git",
+					}).Error("failed to create project temp directory")
+				}
+			} else {
+				log.WithError(err).WithFields(log.Fields{
+					"context": "git",
+				}).Error("failed to check existing project temp directory")
+			}
+		}
 	case GitRepositoryFullPath:
 		cmd.Dir = r.GetFullPath()
 	default:
@@ -34,15 +59,15 @@ func (c CmdGitClient) makeCmd(r GitRepository, targetDir GitRepositoryDirType, a
 
 func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args ...string) error {
 	var err error
-	c.keyInstallation, err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit, r.Logger)
+	keyInstallation, err := c.keyInstaller.Install(r.Repository.SSHKey, db.AccessKeyRoleGit, r.Logger)
 
 	if err != nil {
 		return err
 	}
 
-	defer c.keyInstallation.Destroy() //nolint: errcheck
+	defer keyInstallation.Destroy() //nolint: errcheck
 
-	cmd := c.makeCmd(r, targetDir, args...)
+	cmd := c.makeCmd(r, targetDir, keyInstallation, args...)
 
 	r.Logger.LogCmd(cmd)
 
@@ -50,14 +75,14 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 }
 
 func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, args ...string) (out string, err error) {
-	c.keyInstallation, err = r.Repository.SSHKey.Install(db.AccessKeyRoleGit, r.Logger)
+	keyInstallation, err := c.keyInstaller.Install(r.Repository.SSHKey, db.AccessKeyRoleGit, r.Logger)
 	if err != nil {
 		return
 	}
 
-	defer c.keyInstallation.Destroy() //nolint: errcheck
+	defer keyInstallation.Destroy() //nolint: errcheck
 
-	bytes, err := c.makeCmd(r, targetDir, args...).Output()
+	bytes, err := c.makeCmd(r, targetDir, keyInstallation, args...).Output()
 	if err != nil {
 		return
 	}
@@ -87,7 +112,11 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 func (c CmdGitClient) Pull(r GitRepository) error {
 	r.Logger.Log("Updating Repository " + r.Repository.GitURL)
 
-	return c.run(r, GitRepositoryFullPath, "pull", "--recurse-submodules", "origin", r.Repository.GitBranch)
+	err := c.run(r, GitRepositoryFullPath, "pull", "origin", r.Repository.GitBranch)
+	if err != nil {
+		return err
+	}
+	return c.run(r, GitRepositoryFullPath, "submodule", "update", "--init", "--recursive")
 }
 
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {

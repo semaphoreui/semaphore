@@ -52,6 +52,7 @@ type RetrieveQueryParams struct {
 	SortInverted bool
 	Filter       string
 	Ownership    OwnershipFilter
+	TaskFilter   *TaskFilter
 }
 
 type ObjectReferrer struct {
@@ -65,6 +66,7 @@ type ObjectReferrers struct {
 	Repositories []ObjectReferrer `json:"repositories"`
 	Integrations []ObjectReferrer `json:"integrations"`
 	Schedules    []ObjectReferrer `json:"schedules"`
+	AccessKeys   []ObjectReferrer `json:"access_keys"`
 }
 
 type IntegrationReferrers struct {
@@ -156,6 +158,10 @@ type ValidationError struct {
 	Message string
 }
 
+func NewValidationError(message string) *ValidationError {
+	return &ValidationError{Message: message}
+}
+
 func (e *ValidationError) Error() string {
 	return e.Message
 }
@@ -170,6 +176,7 @@ type TaskFilter struct {
 	Start  *time.Time `json:"start"`
 	End    *time.Time `json:"end"`
 	UserID *int       `json:"user_id"`
+	Status []task_logger.TaskStatus
 }
 
 type TaskStat struct {
@@ -194,6 +201,7 @@ type ConnectionManager interface {
 
 // MigrationManager handles database migrations
 type MigrationManager interface {
+	GetDialect() string
 	// IsInitialized indicates is database already initialized, or it is empty.
 	// The method is useful for creating required entities in database during first run.
 	IsInitialized() (bool, error)
@@ -233,6 +241,9 @@ type UserManager interface {
 	GetUser(userID int) (User, error)
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 	GetAllAdmins() ([]User, error)
+
+	GetNodeCount() (int, error)
+	GetUiCount() (int, error)
 }
 
 // ProjectStore handles project-related operations
@@ -250,9 +261,20 @@ type ProjectStore interface {
 	UpdateProjectUser(projectUser ProjectUser) error
 }
 
+type ProjectInviteRepository interface {
+	// Project invites
+	GetProjectInvites(projectID int, params RetrieveQueryParams) ([]ProjectInviteWithUser, error)
+	CreateProjectInvite(invite ProjectInvite) (ProjectInvite, error)
+	GetProjectInvite(projectID int, inviteID int) (ProjectInvite, error)
+	GetProjectInviteByToken(token string) (ProjectInvite, error)
+	UpdateProjectInvite(invite ProjectInvite) error
+	DeleteProjectInvite(projectID int, inviteID int) error
+}
+
 // TemplateManager handles template-related operations
 type TemplateManager interface {
 	GetTemplates(projectID int, filter TemplateFilter, params RetrieveQueryParams) ([]Template, error)
+	GetTemplatesWithPermissions(projectID int, userID int, filter TemplateFilter, params RetrieveQueryParams) ([]TemplateWithPerms, error)
 	GetTemplateRefs(projectID int, templateID int) (ObjectReferrers, error)
 	CreateTemplate(template Template) (Template, error)
 	UpdateTemplate(template Template) error
@@ -262,6 +284,13 @@ type TemplateManager interface {
 	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
 	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
 	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
+
+	GetTemplatePermission(projectID int, templateID int, userID int) (ProjectUserPermission, error)
+	GetTemplateRoles(projectID int, templateID int) ([]TemplateRolePerm, error)
+	CreateTemplateRole(role TemplateRolePerm) (TemplateRolePerm, error)
+	DeleteTemplateRole(projectID int, templateID int, permID int) error
+	UpdateTemplateRole(role TemplateRolePerm) error
+	GetTemplateRole(projectID int, templateID int, permID int) (TemplateRolePerm, error)
 }
 
 // InventoryManager handles inventory-related operations
@@ -295,11 +324,18 @@ type EnvironmentManager interface {
 	GetEnvironmentSecrets(projectID int, environmentID int) ([]AccessKey, error)
 }
 
+type GetAccessKeyOptions struct {
+	Owner         AccessKeyOwner
+	IgnoreOwner   bool
+	EnvironmentID *int
+	StorageID     *int
+}
+
 // AccessKeyManager handles access key-related operations
 type AccessKeyManager interface {
 	GetAccessKey(projectID int, accessKeyID int) (AccessKey, error)
 	GetAccessKeyRefs(projectID int, accessKeyID int) (ObjectReferrers, error)
-	GetAccessKeys(projectID int, params RetrieveQueryParams) ([]AccessKey, error)
+	GetAccessKeys(projectID int, options GetAccessKeyOptions, params RetrieveQueryParams) ([]AccessKey, error)
 	RekeyAccessKeys(oldKey string) error
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
@@ -309,7 +345,7 @@ type AccessKeyManager interface {
 // IntegrationManager handles integration-related operations
 type IntegrationManager interface {
 	CreateIntegration(integration Integration) (newIntegration Integration, err error)
-	GetIntegrations(projectID int, params RetrieveQueryParams) ([]Integration, error)
+	GetIntegrations(projectID int, params RetrieveQueryParams, includeTaskParams bool) ([]Integration, error)
 	GetIntegration(projectID int, integrationID int) (integration Integration, err error)
 	UpdateIntegration(integration Integration) error
 	GetIntegrationRefs(projectID int, integrationID int) (IntegrationReferrers, error)
@@ -364,23 +400,27 @@ type TaskManager interface {
 	DeleteTaskWithOutputs(projectID int, taskID int) error
 	GetTaskOutputs(projectID int, taskID int, params RetrieveQueryParams) ([]TaskOutput, error)
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
+	InsertTaskOutputBatch(output []TaskOutput) error
 	CreateTaskStage(stage TaskStage) (TaskStage, error)
-	EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) error
+	EndTaskStage(taskID int, stageID int, end time.Time) error
 	CreateTaskStageResult(taskID int, stageID int, result map[string]any) error
-	CreateAnsibleTaskHost(host AnsibleTaskHost) error
-	CreateAnsibleTaskError(error AnsibleTaskError) error
-	GetAnsibleTaskHosts(projectID int, taskID int) ([]AnsibleTaskHost, error)
-	GetAnsibleTaskErrors(projectID int, taskID int) ([]AnsibleTaskError, error)
 	GetTaskStages(projectID int, taskID int) ([]TaskStageWithResult, error)
 	GetTaskStageResult(projectID int, taskID int, stageID int) (TaskStageResult, error)
 	GetTaskStageOutputs(projectID int, taskID int, stageID int) ([]TaskOutput, error)
 	GetTaskStats(projectID int, templateID *int, unit TaskStatUnit, filter TaskFilter) ([]TaskStat, error)
 }
 
+type AnsibleTaskRepository interface {
+	CreateAnsibleTaskHost(host AnsibleTaskHost) error
+	CreateAnsibleTaskError(error AnsibleTaskError) error
+	GetAnsibleTaskHosts(projectID int, taskID int) ([]AnsibleTaskHost, error)
+	GetAnsibleTaskErrors(projectID int, taskID int) ([]AnsibleTaskError, error)
+}
+
 // ScheduleManager handles schedule-related operations
 type ScheduleManager interface {
 	GetSchedules() ([]Schedule, error)
-	GetProjectSchedules(projectID int) ([]ScheduleWithTpl, error)
+	GetProjectSchedules(projectID int, includeTaskParams bool, includeCommitCheckers bool) ([]ScheduleWithTpl, error)
 	GetTemplateSchedules(projectID int, templateID int, onlyCommitCheckers bool) ([]Schedule, error)
 	CreateSchedule(schedule Schedule) (Schedule, error)
 	UpdateSchedule(schedule Schedule) error
@@ -414,6 +454,7 @@ type RunnerManager interface {
 	TouchRunner(runner Runner) (err error)
 	ClearRunnerCache(runner Runner) (err error)
 	GetRunnerTags(projectID int) ([]RunnerTag, error)
+	GetRunnerCount() (int, error)
 }
 
 // EventManager handles event-related operations
@@ -423,6 +464,26 @@ type EventManager interface {
 	GetEvents(projectID int, params RetrieveQueryParams) ([]Event, error)
 }
 
+type SecretStorageRepository interface {
+	GetSecretStorages(projectID int) ([]SecretStorage, error)
+	CreateSecretStorage(storage SecretStorage) (SecretStorage, error)
+	GetSecretStorage(projectID int, storageID int) (SecretStorage, error)
+	UpdateSecretStorage(storage SecretStorage) error
+	GetSecretStorageRefs(projectID int, storageID int) (ObjectReferrers, error)
+	DeleteSecretStorage(projectID int, storageID int) error
+}
+
+type RoleRepository interface {
+	GetGlobalRoleBySlug(slug string) (Role, error)
+	GetProjectOrGlobalRoleBySlug(projectID int, slug string) (Role, error)
+	GetProjectRole(projectID int, slug string) (Role, error)
+	GetProjectRoles(projectID int) ([]Role, error)
+	GetGlobalRoles() ([]Role, error)
+	UpdateRole(role Role) error
+	CreateRole(role Role) (Role, error)
+	DeleteRole(slug string) error
+}
+
 // Store is the main interface that aggregates all specialized interfaces
 type Store interface {
 	ConnectionManager
@@ -430,6 +491,7 @@ type Store interface {
 	OptionsManager
 	UserManager
 	ProjectStore
+	ProjectInviteRepository
 	TemplateManager
 	InventoryManager
 	RepositoryManager
@@ -443,6 +505,8 @@ type Store interface {
 	ViewManager
 	RunnerManager
 	EventManager
+	SecretStorageRepository
+	RoleRepository
 }
 
 var AccessKeyProps = ObjectProps{
@@ -461,6 +525,13 @@ var IntegrationProps = ObjectProps{
 	ReferringColumnSuffix: "integration_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
+}
+
+var TaskParamsProps = ObjectProps{
+	TableName:             "project__task_params",
+	Type:                  reflect.TypeOf(TaskParams{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "params_id",
 }
 
 var IntegrationExtractValueProps = ObjectProps{
@@ -527,6 +598,15 @@ var ProjectUserProps = ObjectProps{
 	PrimaryColumnName: "user_id",
 }
 
+var ProjectInviteProps = ObjectProps{
+	TableName:             "project__invite",
+	Type:                  reflect.TypeOf(ProjectInvite{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "invite_id",
+	SortableColumns:       []string{"created", "status", "role"},
+	DefaultSortingColumn:  "created",
+}
+
 var ProjectProps = ObjectProps{
 	TableName:             "project",
 	Type:                  reflect.TypeOf(Project{}),
@@ -541,6 +621,22 @@ var ScheduleProps = ObjectProps{
 	Type:              reflect.TypeOf(Schedule{}),
 	PrimaryColumnName: "id",
 	Ownerships:        []*ObjectProps{&ProjectProps},
+}
+
+var SecretStorageProps = ObjectProps{
+	TableName:             "project__secret_storage",
+	ReferringColumnSuffix: "storage_id",
+	Type:                  reflect.TypeOf(SecretStorage{}),
+	PrimaryColumnName:     "id",
+	Ownerships:            []*ObjectProps{&ProjectProps},
+}
+
+var RoleProps = ObjectProps{
+	TableName:         "role",
+	Type:              reflect.TypeOf(Role{}),
+	PrimaryColumnName: "slug",
+	IsGlobal:          true,
+	SortableColumns:   []string{"name"},
 }
 
 var UserProps = ObjectProps{
@@ -623,6 +719,11 @@ var UserTotpProps = ObjectProps{
 }
 
 func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, err error) {
+	if p.ReferringColumnSuffix == "" {
+		err = errors.New("referring column suffix is not set")
+		return
+	}
+
 	n := t.NumField()
 	for i := 0; i < n; i++ {
 		if !strings.HasSuffix(t.Field(i).Tag.Get("db"), p.ReferringColumnSuffix) {

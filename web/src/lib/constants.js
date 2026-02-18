@@ -27,16 +27,16 @@ export const USER_PERMISSIONS = {
 
 export const USER_ROLES = [{
   slug: 'owner',
-  title: 'Owner',
+  name: 'Owner',
 }, {
   slug: 'manager',
-  title: 'Manager',
+  name: 'Manager',
 }, {
   slug: 'task_runner',
-  title: 'Task Runner',
+  name: 'Task Runner',
 }, {
   slug: 'guest',
-  title: 'Guest',
+  name: 'Guest',
 }];
 
 export const MATCHER_TYPE_TITLES = {
@@ -247,4 +247,39 @@ export const APP_FIELDS = {
   terraform: TERRAFORM_FIELDS,
   tofu: TERRAFORM_FIELDS,
   terragrunt: TERRAFORM_FIELDS,
+};
+
+export const ROLE_PERMISSIONS = {
+  default: [{
+    permission: 1,
+    label: 'canRunProjectTasks',
+    color: 'blue',
+    textColor: 'white',
+  }, {
+    permission: 2,
+    label: 'canUpdateProject',
+    color: 'green',
+    textColor: 'white',
+  }, {
+    permission: 4,
+    label: 'canManageProjectResources',
+    color: 'orange',
+    textColor: 'white',
+  }, {
+    permission: 8,
+    label: 'canManageProjectUsers',
+    color: 'red',
+    textColor: 'white',
+  }],
+  template: [{
+    permission: 1,
+    label: 'Can run tasks',
+    color: 'blue',
+    textColor: 'white',
+  }, {
+    permission: 4,
+    label: 'Can update the template',
+    color: 'orange',
+    textColor: 'white',
+  }],
 };

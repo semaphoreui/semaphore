@@ -61,7 +61,7 @@ type Task struct {
 
 	Message string `db:"message" json:"message,omitempty"`
 
-	// CommitMessage is a git commit hash of playbook repository which
+	// CommitHash is a git commit hash of playbook repository which
 	// was active when task was created.
 	CommitHash *string `db:"commit_hash" json:"commit_hash,omitempty"`
 	// CommitMessage contains message retrieved from git repository after checkout to CommitHash.
@@ -80,7 +80,7 @@ type Task struct {
 	Limit string `db:"-" json:"limit"`
 }
 
-func (task *Task) FillParams(target any) (err error) {
+func (task *Task) ExtractParams(target any) (err error) {
 	content, err := json.Marshal(task.Params)
 	if err != nil {
 		return
@@ -170,7 +170,7 @@ func (task *Task) ValidateNewTask(template Template) error {
 		params = &DefaultTaskParams{}
 	}
 
-	return task.FillParams(params)
+	return task.ExtractParams(params)
 }
 
 func (task *TaskWithTpl) Fill(d Store) error {
@@ -200,10 +200,11 @@ type TaskWithTpl struct {
 
 // TaskOutput is the ansible log output from the task
 type TaskOutput struct {
-	ID     int       `db:"id" json:"id"`
-	TaskID int       `db:"task_id" json:"task_id"`
-	Time   time.Time `db:"time" json:"time"`
-	Output string    `db:"output" json:"output"`
+	ID      int       `db:"id" json:"id"`
+	TaskID  int       `db:"task_id" json:"task_id"`
+	Time    time.Time `db:"time" json:"time"`
+	Output  string    `db:"output" json:"output"`
+	StageID *int      `db:"stage_id" json:"stage_id"`
 }
 
 type TaskStageType string
@@ -216,13 +217,11 @@ const (
 )
 
 type TaskStage struct {
-	ID            int           `db:"id" json:"id"`
-	TaskID        int           `db:"task_id" json:"task_id"`
-	Start         *time.Time    `db:"start" json:"start"`
-	End           *time.Time    `db:"end" json:"end"`
-	StartOutputID *int          `db:"start_output_id" json:"start_output_id"`
-	EndOutputID   *int          `db:"end_output_id" json:"end_output_id"`
-	Type          TaskStageType `db:"type" json:"type"`
+	ID     int           `db:"id" json:"id"`
+	TaskID int           `db:"task_id" json:"task_id"`
+	Start  *time.Time    `db:"start" json:"start"`
+	End    *time.Time    `db:"end" json:"end"`
+	Type   TaskStageType `db:"type" json:"type"`
 }
 
 type TaskStageWithResult struct {

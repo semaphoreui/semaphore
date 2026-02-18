@@ -34,22 +34,19 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>Matcher</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
         color="primary"
         @click="editItem('new')"
-      >New Matcher</v-btn>
+        >New Matcher</v-btn
+      >
     </v-toolbar>
 
-    <v-data-table
-      :headers="headers"
-      :items="items"
-      class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
-      >
+    <v-data-table :headers="headers" :items="items" class="mt-4" :items-per-page="Number.MAX_VALUE">
       <template v-slot:item.name="{ item }">
         {{ item.name }}
       </template>
@@ -60,7 +57,7 @@
         <code>{{ item.method }}</code>
       </template>
       <template v-slot:item.body_data_type="{ item }">
-        {{ item.body_data_type || "N/A" }}
+        {{ item.body_data_type || 'N/A' }}
       </template>
       <template v-slot:item.key="{ item }">
         <code>{{ item.key }}</code>
@@ -71,19 +68,11 @@
 
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-btn
-            icon
-            class="mr-1"
-            @click="askDeleteItem(item.id)"
-          >
+          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn
-            icon
-            class="mr-1"
-            @click="editItem(item.id)"
-          >
+          <v-btn icon class="mr-1" @click="editItem(item.id)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>
@@ -118,41 +107,43 @@ export default {
       return true;
     },
     getHeaders() {
-      return [{
-        text: 'Name',
-        value: 'name',
-        sortable: true,
-      },
-      {
-        text: 'Match Type',
-        value: 'match_type',
-        sortable: true,
-      },
-      {
-        text: 'Body Data Type',
-        value: 'body_data_type',
-        sortable: false,
-      },
-      {
-        text: 'Key',
-        value: 'key',
-        sortable: true,
-      },
-      {
-        text: 'Method',
-        value: 'method',
-        sortable: true,
-      },
-      {
-        text: 'Value',
-        value: 'value',
-        sortable: true,
-      },
-      {
-        text: '',
-        value: 'actions',
-        sortable: false,
-      }];
+      return [
+        {
+          text: 'Name',
+          value: 'name',
+          sortable: true,
+        },
+        {
+          text: 'Match Type',
+          value: 'match_type',
+          sortable: true,
+        },
+        {
+          text: 'Body Data Type',
+          value: 'body_data_type',
+          sortable: false,
+        },
+        {
+          text: 'Key',
+          value: 'key',
+          sortable: true,
+        },
+        {
+          text: 'Method',
+          value: 'method',
+          sortable: true,
+        },
+        {
+          text: 'Value',
+          value: 'value',
+          sortable: true,
+        },
+        {
+          text: '',
+          value: 'actions',
+          sortable: false,
+        },
+      ];
     },
     getItemsUrl() {
       return `/api/project/${this.projectId}/integrations/${this.integrationId}/matchers`;

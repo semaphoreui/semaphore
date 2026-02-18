@@ -98,7 +98,10 @@ type Integration struct {
 	AuthHeader   string                `db:"auth_header" json:"auth_header"`
 	AuthSecret   AccessKey             `db:"-" json:"-" backup:"-"`
 	Searchable   bool                  `db:"searchable" json:"searchable"`
-	TaskParams   MapStringAnyField     `db:"task_params" json:"task_params"`
+	//TaskParams   MapStringAnyField     `db:"task_params" json:"task_params"`
+
+	TaskParamsID *int        `db:"task_params_id" json:"-" backup:"-"`
+	TaskParams   *TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`
 }
 
 func (alias IntegrationAlias) ToAlias() Alias {
@@ -206,18 +209,4 @@ func (value *IntegrationExtractValue) String() string {
 	builder.WriteString(" from " + value.Key + " as " + value.Variable)
 
 	return builder.String()
-}
-
-func FillIntegration(d Store, inventory *Integration) (err error) {
-	if inventory.AuthSecretID != nil {
-		inventory.AuthSecret, err = d.GetAccessKey(inventory.ProjectID, *inventory.AuthSecretID)
-	}
-
-	if err != nil {
-		return
-	}
-
-	err = inventory.AuthSecret.DeserializeSecret()
-
-	return
 }

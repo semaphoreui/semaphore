@@ -14,14 +14,14 @@ import (
 
 func (t *LocalJob) installInventory() (err error) {
 	if t.Inventory.SSHKeyID != nil {
-		t.sshKeyInstallation, err = t.Inventory.SSHKey.Install(db.AccessKeyRoleAnsibleUser, t.Logger)
+		t.sshKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleAnsibleUser, t.Logger)
 		if err != nil {
 			return
 		}
 	}
 
 	if t.Inventory.BecomeKeyID != nil {
-		t.becomeKeyInstallation, err = t.Inventory.BecomeKey.Install(db.AccessKeyRoleAnsibleBecomeUser, t.Logger)
+		t.becomeKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.BecomeKey, db.AccessKeyRoleAnsibleBecomeUser, t.Logger)
 		if err != nil {
 			return
 		}
@@ -29,7 +29,7 @@ func (t *LocalJob) installInventory() (err error) {
 
 	switch t.Inventory.Type {
 	case db.InventoryFile:
-		err = t.cloneInventoryRepo()
+		err = t.cloneInventoryRepo(t.KeyInstaller)
 	case db.InventoryStatic, db.InventoryStaticYaml:
 		err = t.installStaticInventory()
 	}
@@ -55,7 +55,7 @@ func (t *LocalJob) tmpInventoryFullPath() string {
 	return pathname
 }
 
-func (t *LocalJob) cloneInventoryRepo() error {
+func (t *LocalJob) cloneInventoryRepo(keyInstaller db_lib.AccessKeyInstaller) error {
 	if t.Inventory.Repository == nil {
 		return nil
 	}
@@ -70,7 +70,7 @@ func (t *LocalJob) cloneInventoryRepo() error {
 		Logger:     t.Logger,
 		TmpDirName: t.tmpInventoryFilename(),
 		Repository: *t.Inventory.Repository,
-		Client:     db_lib.CreateDefaultGitClient(),
+		Client:     db_lib.CreateDefaultGitClient(keyInstaller),
 	}
 
 	// Try to pull the repo before trying to clone it

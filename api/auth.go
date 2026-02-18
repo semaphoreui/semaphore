@@ -2,15 +2,16 @@ package api
 
 import (
 	"errors"
-	"github.com/gorilla/context"
-	"github.com/pquerna/otp"
-	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pquerna/otp"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
+	proApi "github.com/semaphoreui/semaphore/pro/api"
+	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/pquerna/otp/totp"
 )
@@ -161,7 +162,7 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 
 	switch session.VerificationMethod {
 	case db.SessionVerificationEmail:
-		verifySessionByEmail(w, r)
+		proApi.VerifySessionByEmail(session, w, r)
 		return
 
 	case db.SessionVerificationTotp:
@@ -207,8 +208,10 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
+func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req *http.Request) {
 	var userID int
+
+	req = r
 
 	authHeader := strings.ToLower(r.Header.Get("authorization"))
 
@@ -221,21 +224,28 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 			}
 
 			w.WriteHeader(http.StatusUnauthorized)
-			return false
+			return
 		}
 
 		userID = token.UserID
 	} else {
-		session, ok := getSession(r)
+		session, found := getSession(r)
 
-		if !ok {
+		if !found {
 			w.WriteHeader(http.StatusUnauthorized)
-			return false
+			return
 		}
 
 		if !session.IsVerified() {
-			helpers.WriteErrorStatus(w, "TOTP_REQUIRED", http.StatusUnauthorized)
-			return false
+			switch session.VerificationMethod {
+			case db.SessionVerificationEmail:
+				helpers.WriteErrorStatus(w, "EMAIL_OTP_REQUIRED", http.StatusUnauthorized)
+			case db.SessionVerificationTotp:
+				helpers.WriteErrorStatus(w, "TOTP_REQUIRED", http.StatusUnauthorized)
+			default:
+				helpers.WriteErrorStatus(w, "SESSION_NOT_VERIFIED", http.StatusUnauthorized)
+			}
+			return
 		}
 
 		userID = session.UserID
@@ -243,7 +253,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 		if err := helpers.Store(r).TouchSession(userID, session.ID); err != nil {
 			log.Error(err)
 			w.WriteHeader(http.StatusUnauthorized)
-			return false
+			return
 		}
 	}
 
@@ -254,17 +264,18 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) bool {
 			log.Error(err)
 		}
 		w.WriteHeader(http.StatusUnauthorized)
-		return false
+		return
 	}
 
-	context.Set(r, "user", &user)
-	return true
+	ok = true
+	req = helpers.SetContextValue(r, "user", &user)
+	return
 }
 
 // nolint: gocyclo
 func authentication(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ok := authenticationHandler(w, r)
+		ok, r := authenticationHandler(w, r)
 		if ok {
 			next.ServeHTTP(w, r)
 		}
@@ -279,7 +290,7 @@ func authenticationWithStore(next http.Handler) http.Handler {
 		var ok bool
 
 		db.StoreSession(store, r.URL.String(), func() {
-			ok = authenticationHandler(w, r)
+			ok, r = authenticationHandler(w, r)
 		})
 
 		if ok {
@@ -290,7 +301,7 @@ func authenticationWithStore(next http.Handler) http.Handler {
 
 func adminMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := context.Get(r, "user").(*db.User)
+		user := helpers.GetFromContext(r, "user").(*db.User)
 
 		if !user.Admin {
 			w.WriteHeader(http.StatusForbidden)

@@ -1,4 +1,4 @@
-name: Release
+name: Community Release
 
 'on':
   push:
@@ -17,12 +17,12 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.21.0'
+          go-version: '^1.24.6'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
         with:
-          node-version: '16'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
@@ -41,7 +41,7 @@ jobs:
       - name: Import gnupg
         run: |
           echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
-          gpg --sign -u "58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
+          gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
       - name: Reset repo
@@ -50,7 +50,10 @@ jobs:
 
       - name: Run release
         run: |
-          GITHUB_TOKEN=${{ secrets.GH_TOKEN }} task release:prod
+          GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
+          GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
+          PROJECT_NAME=semaphore_community \
+            task release:prod
 
   deploy-prod:
     runs-on: ubuntu-latest
@@ -83,7 +86,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/semaphore
+            semaphoreui/semaphore-community
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
@@ -114,7 +117,7 @@ jobs:
           platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
-          tags: semaphoreui/semaphore:${{ github.ref_name }}-ansible2.16.5
+          tags: semaphoreui/semaphore-community:${{ github.ref_name }}-ansible2.16.5
 
       - name: Server build with PowerShell 7.5.0
         uses: docker/build-push-action@v5
@@ -123,13 +126,13 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=semaphoreui/semaphore
+            SEMAPHORE_IMAGE=semaphoreui/semaphore-community
             SEMAPHORE_VERSION=${{ github.ref_name }}
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.server.outputs.labels }}
-          tags: semaphoreui/semaphore:${{ github.ref_name }}-powershell7.5.0
+          tags: semaphoreui/semaphore-community:${{ github.ref_name }}-powershell7.5.0
 
 
 
@@ -139,7 +142,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/runner
+            semaphoreui/runner-community
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
@@ -170,7 +173,7 @@ jobs:
           platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
-          tags: semaphoreui/runner:${{ github.ref_name }}-ansible2.16.5
+          tags: semaphoreui/runner-community:${{ github.ref_name }}-ansible2.16.5
 
       - name: Runner build with PowerShell 7.5.0
         uses: docker/build-push-action@v5
@@ -179,10 +182,10 @@ jobs:
           context: .
           build-args: |
             POWERSHELL_VERSION=7.5.0
-            SEMAPHORE_IMAGE=semaphoreui/runner
+            SEMAPHORE_IMAGE=semaphoreui/runner-community
             SEMAPHORE_VERSION=${{ github.ref_name }}
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
-          tags: semaphoreui/runner:${{ github.ref_name }}-powershell7.5.0
+          tags: semaphoreui/runner-community:${{ github.ref_name }}-powershell7.5.0

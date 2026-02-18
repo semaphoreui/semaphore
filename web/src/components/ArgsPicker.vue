@@ -3,7 +3,7 @@
     <v-dialog
       v-model="editDialog"
       hide-overlay
-      width="300"
+      width="400"
     >
       <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
         <v-card-title></v-card-title>
@@ -24,6 +24,8 @@
               v-model.trim="editedVar.name"
               :rules="[(v) => !!v || $t('arg_required')]"
               required
+              outlined
+              dense
             />
 
             <div class="text-right mt-2">
@@ -64,15 +66,30 @@
     >
       <legend style="padding: 0 3px;">{{ title || $t('Args') }}</legend>
       <v-chip-group column style="margin-top: -4px;">
-        <v-chip
-          v-for="(v, i) in modifiedVars"
-          close
-          @click:close="deleteVar(i)"
-          :key="v.name"
-          @click="editVar(i)"
+        <draggable
+          v-model="modifiedVars"
+          @end="onDragEnd"
+          :animation="200"
+          class="d-flex flex-wrap"
+          ghost-class="chip-ghost"
         >
-          {{ v.name }}
-        </v-chip>
+          <v-chip
+            v-for="(v, i) in modifiedVars"
+            close
+            @click:close="deleteVar(i)"
+            :key="i"
+            @click="editVar(i)"
+            class="draggable-chip"
+          >
+            <div
+              style="
+                max-width: 200px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              "
+            >{{ v.name }}</div>
+          </v-chip>
+        </draggable>
         <v-chip @click="editVar(null)">
           + <span
                 class="ml-1"
@@ -84,10 +101,25 @@
   </div>
 </template>
 <style lang="scss">
+.draggable-chip {
+  cursor: grab;
 
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.chip-ghost {
+  opacity: 0.5;
+}
 </style>
 <script>
+import draggable from 'vuedraggable';
+
 export default {
+  components: {
+    draggable,
+  },
   props: {
     vars: Array,
     title: String,
@@ -97,11 +129,12 @@ export default {
   watch: {
     vars(val) {
       this.var = val || [];
+      this.fillModifiedVars();
     },
   },
 
   created() {
-    this.modifiedVars = (this.vars || []).map((v) => ({ name: v }));
+    this.fillModifiedVars();
   },
 
   data() {
@@ -115,6 +148,10 @@ export default {
     };
   },
   methods: {
+    fillModifiedVars() {
+      this.modifiedVars = (this.vars || []).map((v) => ({ name: v }));
+    },
+
     addEditedVarValue() {
       this.editedValues.push({
         name: '',
@@ -160,6 +197,10 @@ export default {
 
     deleteVar(index) {
       this.modifiedVars.splice(index, 1);
+      this.$emit('change', this.modifiedVars.map((x) => x.name));
+    },
+
+    onDragEnd() {
       this.$emit('change', this.modifiedVars.map((x) => x.name));
     },
   },

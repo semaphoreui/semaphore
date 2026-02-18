@@ -2,13 +2,14 @@ package db_lib
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -69,11 +70,35 @@ func (r *terraformReader) Read(p []byte) (n int, err error) {
 }
 
 func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []string) *exec.Cmd {
+
+	if app, ok := util.Config.Apps[t.Name]; ok {
+		if app.AppPath != "" {
+			command = app.AppPath
+		}
+		if app.AppArgs != nil {
+			args = append(app.AppArgs, args...)
+		}
+	}
+
+	if t.Name == string(db.AppTerragrunt) {
+		hasTfPath := false
+		for i := 0; i < len(args); i++ {
+			a := args[i]
+			if a == "--tf-path" || strings.HasPrefix(a, "--tf-path=") {
+				hasTfPath = true
+				break
+			}
+		}
+		if !hasTfPath {
+			args = append(args, "--tf-path=terraform")
+		}
+	}
+
 	cmd := exec.Command(command, args...) //nolint: gas
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.GetProjectTmpDir(t.Template.ProjectID)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", getHomeDir(t.Repository, t.Template.ID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 
 	if environmentVars != nil {
@@ -105,9 +130,9 @@ func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	return logger
 }
 
-func (t *TerraformApp) init(environmentVars []string, params *db.TerraformTaskParams) error {
+func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInstaller, params *db.TerraformTaskParams, extraArgs []string) error {
 
-	keyInstallation, err := t.Inventory.SSHKey.Install(db.AccessKeyRoleGit, t.Logger)
+	keyInstallation, err := keyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleGit, t.Logger)
 	if err != nil {
 		return err
 	}
@@ -125,8 +150,9 @@ func (t *TerraformApp) init(environmentVars []string, params *db.TerraformTaskPa
 		args = append(args, "-migrate-state")
 	}
 
-	if t.Name == string(db.AppTerragrunt) {
-		args = append(args, "--tf-path=terraform")
+	// Add extra args specific to init stage
+	if extraArgs != nil {
+		args = append(args, extraArgs...)
 	}
 
 	cmd := t.makeCmd(t.Name, args, environmentVars)
@@ -160,10 +186,7 @@ func (t *TerraformApp) init(environmentVars []string, params *db.TerraformTaskPa
 
 func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
 	args := []string{"workspace", "list"}
-	if t.Name == string(db.AppTerragrunt) {
-		args = append([]string{"run", "--"}, args...)
-		args = append(args, "--tf-path=terraform")
-	}
+
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	err := cmd.Run()
 	if err != nil {
@@ -177,7 +200,6 @@ func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []strin
 	args := []string{"workspace", "select", "-or-create=true", workspace}
 	if t.Name == string(db.AppTerragrunt) {
 		args = append([]string{"run", "--"}, args...)
-		args = append(args, "--tf-path=terraform")
 	}
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	t.Logger.LogCmd(cmd)
@@ -213,10 +235,19 @@ func (t *TerraformApp) Clear() {
 	}
 }
 
-func (t *TerraformApp) InstallRequirements(environmentVars []string, tplParams any, params any) (err error) {
+type TerraformInstallRequirementsArgs struct {
+	LocalAppInstallingArgs
+	InitArgs []string // Stage-specific args for init
+}
 
-	tpl := tplParams.(*db.TerraformTemplateParams)
-	p := params.(*db.TerraformTaskParams)
+func (t *TerraformApp) InstallRequirements(args LocalAppInstallingArgs) (err error) {
+	return t.InstallRequirementsWithInitArgs(args, nil)
+}
+
+func (t *TerraformApp) InstallRequirementsWithInitArgs(args LocalAppInstallingArgs, initArgs []string) (err error) {
+
+	tpl := args.TplParams.(*db.TerraformTemplateParams)
+	p := args.Params.(*db.TerraformTaskParams)
 
 	if tpl.OverrideBackend {
 		t.backendFilename = "backend.tf"
@@ -231,7 +262,7 @@ func (t *TerraformApp) InstallRequirements(environmentVars []string, tplParams a
 		}
 	}
 
-	if err = t.init(environmentVars, p); err != nil {
+	if err = t.init(args.EnvironmentVars, args.Installer, p, initArgs); err != nil {
 		return
 	}
 
@@ -241,19 +272,16 @@ func (t *TerraformApp) InstallRequirements(environmentVars []string, tplParams a
 		workspace = t.Inventory.Inventory
 	}
 
-	if !t.isWorkspacesSupported(environmentVars) {
+	if !t.isWorkspacesSupported(args.EnvironmentVars) {
 		return
 	}
 
-	err = t.selectWorkspace(workspace, environmentVars)
+	err = t.selectWorkspace(workspace, args.EnvironmentVars)
 	return
 }
 
 func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
 	planArgs := []string{"plan", "-lock=false"}
-	if t.Name == string(db.AppTerragrunt) {
-		planArgs = append(planArgs, "--tf-path=terraform")
-	}
 	planArgs = append(planArgs, args...)
 	cmd := t.makeCmd(t.Name, planArgs, environmentVars)
 	t.Logger.LogCmd(cmd)
@@ -283,9 +311,6 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 
 func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
 	applyArgs := []string{"apply", "-auto-approve", "-lock=false"}
-	if t.Name == string(db.AppTerragrunt) {
-		applyArgs = append(applyArgs, "--tf-path=terraform")
-	}
 	applyArgs = append(applyArgs, args...)
 	cmd := t.makeCmd(t.Name, applyArgs, environmentVars)
 	t.Logger.LogCmd(cmd)
@@ -306,7 +331,26 @@ func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map
 }
 
 func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
-	err := t.Plan(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+	// Determine which args to use for plan and apply stages
+	var planArgs []string
+	var applyArgs []string
+
+	// Use stage-specific args from map, with "default" fallback
+	if pArgs, ok := args.CliArgs["plan"]; ok {
+		planArgs = pArgs
+	} else if aArgs, ok := args.CliArgs["apply"]; ok {
+		applyArgs = aArgs
+	} else if defaultArgs, ok := args.CliArgs["default"]; ok {
+		planArgs = defaultArgs
+	}
+
+	if aArgs, ok := args.CliArgs["apply"]; ok {
+		applyArgs = aArgs
+	} else if defaultArgs, ok := args.CliArgs["default"]; ok {
+		applyArgs = defaultArgs
+	}
+
+	err := t.Plan(planArgs, args.EnvironmentVars, args.Inputs, args.Callback)
 	if err != nil {
 		return err
 	}
@@ -321,7 +365,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 
 	if tplParams.AutoApprove || tplParams.AllowAutoApprove && params.AutoApprove {
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
-		return t.Apply(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.Callback)
 	}
 
 	t.Logger.SetStatus(task_logger.TaskWaitingConfirmation)
@@ -340,7 +384,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		t.Logger.SetStatus(task_logger.TaskFailStatus)
 	case task_logger.TaskConfirmed:
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
-		return t.Apply(args.CliArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.Callback)
 	}
 
 	return nil

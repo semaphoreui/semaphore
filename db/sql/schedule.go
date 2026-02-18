@@ -6,16 +6,35 @@ import (
 )
 
 func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, err error) {
+
+	if schedule.TaskParams != nil {
+		params := schedule.TaskParams
+		params.ProjectID = schedule.ProjectID
+		err = d.Sql().Insert(params)
+		if err != nil {
+			return
+		}
+		schedule.TaskParamsID = &params.ID
+	}
+
+	if schedule.Type == "" {
+		schedule.Type = db.ScheduleTypeCron
+	}
+
 	insertID, err := d.insert(
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`)"+
-			"values (?, ?, ?, ?, ?, ?)",
+		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,
 		schedule.CronFormat,
 		schedule.RepositoryID,
 		schedule.Name,
-		schedule.Active)
+		schedule.Active,
+		schedule.RunAt,
+		schedule.Type,
+		schedule.TaskParamsID,
+		schedule.DeleteAfterRun)
 
 	if err != nil {
 		return
@@ -37,51 +56,141 @@ func (d *SqlDb) SetScheduleLastCommitHash(projectID int, scheduleID int, lastCom
 	return err
 }
 
-func (d *SqlDb) UpdateSchedule(schedule db.Schedule) error {
-	_, err := d.exec("update project__schedule set "+
+func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
+
+	if schedule.TaskParams != nil {
+		var curr db.Schedule
+		err = d.getObject(schedule.ProjectID, db.ScheduleProps, schedule.ID, &curr)
+		if err != nil {
+			return
+		}
+
+		params := schedule.TaskParams
+		params.ProjectID = schedule.ProjectID
+
+		if curr.TaskParamsID == nil {
+			err = d.Sql().Insert(params)
+		} else {
+			params.ID = *curr.TaskParamsID
+			_, err = d.Sql().Update(params)
+		}
+
+		if err != nil {
+			return
+		}
+
+		schedule.TaskParamsID = &params.ID
+	}
+
+	if schedule.Type == "" {
+		schedule.Type = db.ScheduleTypeCron
+	}
+
+	_, err = d.exec("update project__schedule set "+
 		"cron_format=?, "+
 		"repository_id=?, "+
 		"template_id=?, "+
 		"`name`=?, "+
 		"`active`=?, "+
-		"last_commit_hash = NULL "+
+		"run_at=?, "+
+		"`type`=?, "+
+		"last_commit_hash = NULL, "+
+		"task_params_id=?, "+
+		"delete_after_run=? "+
 		"where project_id=? and id=?",
 		schedule.CronFormat,
 		schedule.RepositoryID,
 		schedule.TemplateID,
 		schedule.Name,
 		schedule.Active,
+		schedule.RunAt,
+		schedule.Type,
+		schedule.TaskParamsID,
+		schedule.DeleteAfterRun,
 		schedule.ProjectID,
 		schedule.ID)
-	return err
+
+	return
 }
 
-func (d *SqlDb) GetSchedule(projectID int, scheduleID int) (template db.Schedule, err error) {
+func (d *SqlDb) GetSchedule(projectID int, scheduleID int) (schedule db.Schedule, err error) {
 	err = d.selectOne(
-		&template,
+		&schedule,
 		"select * from project__schedule where project_id=? and id=?",
 		projectID,
 		scheduleID)
 
+	if err != nil {
+		return
+	}
+
+	if schedule.TaskParamsID != nil {
+		var taskParams db.TaskParams
+		err = d.getObject(projectID, db.TaskParamsProps, *schedule.TaskParamsID, &taskParams)
+		if err != nil {
+			return
+		}
+
+		schedule.TaskParams = &taskParams
+	}
+
 	return
 }
 
-func (d *SqlDb) DeleteSchedule(projectID int, scheduleID int) error {
-	_, err := d.exec("delete from project__schedule where project_id=? and id=?", projectID, scheduleID)
+func (d *SqlDb) DeleteSchedule(projectID int, scheduleID int) (err error) {
+	var schedule db.Schedule
+	err = d.getObject(projectID, db.ScheduleProps, scheduleID, &schedule)
+	if err != nil {
+		return
+	}
+
+	err = d.deleteObject(projectID, db.ScheduleProps, scheduleID)
+	if err != nil {
+		return
+	}
+
+	if schedule.TaskParamsID != nil {
+		err = d.deleteObject(projectID, db.TaskParamsProps, *schedule.TaskParamsID)
+	}
+
 	return err
 }
 
 func (d *SqlDb) GetSchedules() (schedules []db.Schedule, err error) {
-	_, err = d.selectAll(&schedules, "select * from project__schedule where cron_format != ''")
+	_, err = d.selectAll(&schedules, "select * from project__schedule where cron_format != '' or run_at is not null")
 	return
 }
 
-func (d *SqlDb) GetProjectSchedules(projectID int) (schedules []db.ScheduleWithTpl, err error) {
+func (d *SqlDb) GetProjectSchedules(projectID int, includeTaskParams bool, includeCommitCheckers bool) (schedules []db.ScheduleWithTpl, err error) {
+
+	repoFilter := ""
+	if !includeCommitCheckers {
+		repoFilter = "ps.repository_id IS NULL AND "
+	}
+
 	_, err = d.selectAll(&schedules,
 		"SELECT ps.*, pt.name as tpl_name FROM project__schedule ps "+
 			"JOIN project__template pt ON pt.id = ps.template_id "+
-			"WHERE ps.repository_id IS NULL AND ps.project_id=?",
+			"WHERE "+
+			repoFilter+
+			"ps.project_id=?",
 		projectID)
+
+	if includeTaskParams {
+		for i := range schedules {
+			if schedules[i].TaskParamsID == nil {
+				continue
+			}
+
+			var taskParams db.TaskParams
+			err = d.getObject(projectID, db.TaskParamsProps, *schedules[i].TaskParamsID, &taskParams)
+			if err != nil {
+				return nil, err
+			}
+			schedules[i].TaskParams = &taskParams
+		}
+	}
+
 	return
 }
 

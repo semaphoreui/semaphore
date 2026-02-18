@@ -15,7 +15,16 @@ fi
 
 echoerr "Starting semaphore runner"
 if test "$#" -ne 1; then
-    exec /usr/local/bin/semaphore runner start --no-config
+    if [ -n "${SEMAPHORE_RUNNER_REGISTRATION_TOKEN:-}" ]; then
+
+      if [ -z "${SEMAPHORE_RUNNER_TOKEN:-}" ] && [ -z "${SEMAPHORE_RUNNER_TOKEN_FILE:-}" ]; then
+        export SEMAPHORE_RUNNER_TOKEN_FILE="${SEMAPHORE_TMP_PATH}/runner_token.txt"
+      fi
+
+      exec /usr/local/bin/semaphore runner start --no-config --register
+    else
+      exec /usr/local/bin/semaphore runner start --no-config
+    fi
 else
     exec "$@"
 fi

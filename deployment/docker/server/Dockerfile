@@ -8,23 +8,28 @@ WORKDIR /usr/local
 RUN curl -sL https://taskfile.dev/install.sh | sh
 
 WORKDIR /go/src/semaphore
-COPY go.mod go.sum /go/src/semaphore/
+COPY . /go/src/semaphore
 
 RUN --mount=type=cache,target=/go/pkg \
     go mod download -x
 
-COPY . /go/src/semaphore
-
+ARG APP_BUILD_TYPE
 ARG TARGETOS
 ARG TARGETARCH
+ARG GH_TOKEN
+
+RUN if [ -n "$APP_BUILD_TYPE" ]; then \
+      git clone https://${GH_TOKEN}@github.com/semaphoreui/semaphorepro-module.git pro_impl && \
+      go work init . ./pro_impl; \
+    fi
 
 RUN --mount=type=cache,target=/go/pkg \
     --mount=type=cache,target=/root/.cache/go-build \
-    task deps && \
-    task build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
+    task deps APP_BUILD_TYPE=${APP_BUILD_TYPE} && \
+    task build GOOS=${TARGETOS} GOARCH=${TARGETARCH} APP_BUILD_TYPE=${APP_BUILD_TYPE}
 
 
-ENV OPENTOFU_VERSION="1.9.0"
+ENV OPENTOFU_VERSION="1.11.0"
 ENV TERRAFORM_VERSION="1.11.3"
 ENV TERRAGRUNT_VERSION="0.78.0"
 #ENV PULUMI_VERSION="3.116.1"
@@ -83,7 +88,7 @@ RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo &&
      mkdir -p ${ANSIBLE_VENV_PATH} && \
      python3 -m venv ${ANSIBLE_VENV_PATH} --system-site-packages && \
      source ${ANSIBLE_VENV_PATH}/bin/activate && \
-     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests pywinrm && \
+     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests pywinrm passlib && \
      apk del python3-dev build-base openssl-dev libffi-dev cargo && \
      rm -rf /var/cache/apk/* && \
      find ${ANSIBLE_VENV_PATH} -iname __pycache__ | xargs rm -rf && \

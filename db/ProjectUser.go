@@ -10,7 +10,7 @@ const (
 	ProjectNone       ProjectUserRole = ""
 )
 
-type ProjectUserPermission int
+type ProjectUserPermission int64
 
 const (
 	CanRunProjectTasks ProjectUserPermission = 1 << iota

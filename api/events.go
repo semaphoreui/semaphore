@@ -4,14 +4,12 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"net/http"
-
-	"github.com/gorilla/context"
 )
 
 // nolint: gocyclo
 func getEvents(w http.ResponseWriter, r *http.Request, limit int) {
-	user := context.Get(r, "user").(*db.User)
-	projectObj, exists := context.GetOk(r, "project")
+	user := helpers.GetFromContext(r, "user").(*db.User)
+	projectObj, exists := helpers.GetOkFromContext(r, "project")
 
 	var err error
 	var events []db.Event

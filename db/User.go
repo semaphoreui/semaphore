@@ -2,6 +2,8 @@ package db
 
 import (
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
 // User is the model for an entity which has access to the API
@@ -17,7 +19,8 @@ type User struct {
 	Alert    bool      `db:"alert" json:"alert"`
 	Pro      bool      `db:"pro" json:"pro"`
 
-	Totp *UserTotp `db:"-" json:"totp,omitempty"`
+	Totp     *UserTotp     `db:"-" json:"totp,omitempty"`
+	EmailOtp *UserEmailOtp `db:"-" json:"email_otp,omitempty"`
 }
 
 type UserTotp struct {
@@ -58,4 +61,9 @@ func ValidateUser(user User) error {
 		return &ValidationError{Message: "Name cannot be empty"}
 	}
 	return nil
+}
+
+func (o *UserEmailOtp) IsExpired() bool {
+	// Email OTP is valid for 10 minutes
+	return tz.Now().Sub(o.Created) > 10*time.Minute
 }

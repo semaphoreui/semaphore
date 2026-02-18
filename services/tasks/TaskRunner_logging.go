@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/tz"
 	"io"
 	"os/exec"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -24,6 +25,20 @@ func (t *TaskRunner) Logf(format string, a ...any) {
 }
 
 func (t *TaskRunner) LogWithTime(now time.Time, msg string) {
+	t.sendToWs(now, msg)
+
+	t.pool.logger <- logRecord{
+		task:   t,
+		output: msg,
+		time:   now,
+	}
+
+	for _, l := range t.logListeners {
+		l(now, msg)
+	}
+}
+
+func (t *TaskRunner) sendToWs(now time.Time, msg string) {
 	for _, user := range t.users {
 		b, err := json.Marshal(&map[string]any{
 			"type":       "log",
@@ -35,16 +50,6 @@ func (t *TaskRunner) LogWithTime(now time.Time, msg string) {
 
 		util.LogPanic(err)
 		sockets.Message(user, b)
-	}
-
-	t.pool.logger <- logRecord{
-		task:   t,
-		output: msg,
-		time:   now,
-	}
-
-	for _, l := range t.logListeners {
-		l(now, msg)
 	}
 }
 
@@ -176,7 +181,6 @@ func (t *TaskRunner) logPipe(reader io.Reader) {
 			return // it is ok
 		case "bufio.Scanner: token too long":
 			msg = "TaskRunner output exceeds the maximum allowed size of 10MB"
-			break
 		}
 
 		t.kill() // kill the job because stdout cannot be read.

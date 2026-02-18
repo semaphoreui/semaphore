@@ -1,4 +1,4 @@
-name: Beta
+name: Community Beta
 
 'on':
   push:
@@ -16,12 +16,12 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.21.0'
+          go-version: '^1.24.6'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
         with:
-          node-version: '16'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
@@ -40,7 +40,7 @@ jobs:
       - name: Import gnupg
         run: |
           echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
-          gpg --sign -u "58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
+          gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
       - name: Reset repo
@@ -49,7 +49,10 @@ jobs:
 
       - name: Run release
         run: |
-          GITHUB_TOKEN=${{ secrets.GH_TOKEN }} task release:prod
+          GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
+          PROJECT_NAME=semaphore_community \
+          GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
+          task release:prod
 
   deploy-beta:
     runs-on: ubuntu-latest
@@ -80,7 +83,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/semaphore
+            semaphoreui/semaphore-community
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>
@@ -107,7 +110,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
-            semaphoreui/runner
+            semaphoreui/runner-community
           labels: |
             org.opencontainers.image.vendor=SemaphoreUI
             maintainer=Semaphore UI <support@semaphoreui.com>

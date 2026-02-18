@@ -25,6 +25,12 @@ export default {
     user: Object,
   },
 
+  computed: {
+    IDFieldName() {
+      return 'id';
+    },
+  },
+
   data() {
     const allowActions = this.allowActions();
 
@@ -92,6 +98,7 @@ export default {
         if (this.itemRefs.templates.length > 0
           || this.itemRefs.repositories.length > 0
           || this.itemRefs.inventories.length > 0
+          || this.itemRefs.access_keys.length > 0
           || this.itemRefs.schedules.length > 0) {
           this.itemRefsDialog = true;
           return;
@@ -107,7 +114,7 @@ export default {
       this.itemId = itemId;
 
       try {
-        const item = this.items.find((x) => x.id === itemId);
+        const item = this.items.find((x) => x[this.IDFieldName] === itemId);
 
         await axios({
           method: 'delete',

@@ -9,6 +9,16 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/random"
 )
 
+func findNameBySlug[T db.BackupSluggedEntity](slug string, items []T) (*string, error) {
+	for _, o := range items {
+		if o.GetSlug() == slug {
+			name := o.GetName()
+			return &name, nil
+		}
+	}
+	return nil, fmt.Errorf("item %s does not exist", slug)
+}
+
 func findNameByID[T db.BackupEntity](ID int, items []T) (*string, error) {
 	for _, o := range items {
 		if o.GetID() == ID {
@@ -18,6 +28,7 @@ func findNameByID[T db.BackupEntity](ID int, items []T) (*string, error) {
 	}
 	return nil, fmt.Errorf("item %d does not exist", ID)
 }
+
 func findEntityByName[T db.BackupEntity](name *string, items []T) *T {
 	if name == nil {
 		return nil
@@ -121,6 +132,12 @@ func (b *BackupDB) makeUniqueNames() {
 		item.Name = name
 	})
 
+	makeUniqueNames(b.roles, func(item *db.Role) string {
+		return item.Name
+	}, func(item *db.Role, name string) {
+		item.Name = name
+	})
+
 }
 
 func (b *BackupDB) load(projectID int, store db.Store) (err error) {
@@ -144,7 +161,7 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		return
 	}
 
-	b.keys, err = store.GetAccessKeys(projectID, db.RetrieveQueryParams{})
+	b.keys, err = store.GetAccessKeys(projectID, db.GetAccessKeyOptions{IgnoreOwner: true}, db.RetrieveQueryParams{})
 	if err != nil {
 		return
 	}
@@ -164,12 +181,29 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		return
 	}
 
-	schedules, err := store.GetSchedules()
+	schedules, err := store.GetProjectSchedules(projectID, true, true)
 	if err != nil {
 		return
 	}
 
-	b.schedules = getSchedulesByProject(projectID, schedules)
+	for _, s := range schedules {
+		b.schedules = append(b.schedules, s.Schedule)
+	}
+
+	b.secretStorages, err = store.GetSecretStorages(projectID)
+	if err != nil {
+		return
+	}
+
+	b.roles, err = store.GetProjectRoles(projectID)
+	if err != nil {
+		return
+	}
+
+	b.globalRoles, err = store.GetGlobalRoles()
+	if err != nil {
+		return
+	}
 
 	b.meta, err = store.GetProject(projectID)
 	if err != nil {
@@ -181,7 +215,7 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		return
 	}
 
-	b.integrations, err = store.GetIntegrations(projectID, db.RetrieveQueryParams{})
+	b.integrations, err = store.GetIntegrations(projectID, db.RetrieveQueryParams{}, true)
 	if err != nil {
 		return
 	}
@@ -190,6 +224,7 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 	b.integrationMatchers = make(map[int][]db.IntegrationMatcher)
 	b.integrationExtractValues = make(map[int][]db.IntegrationExtractValue)
 	for _, o := range b.integrations {
+
 		b.integrationAliases[o.ID], err = store.GetIntegrationAliases(projectID, &o.ID)
 		if err != nil {
 			return
@@ -204,16 +239,36 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		}
 	}
 
+	b.templateRoles = make(map[int][]db.TemplateRolePerm)
+	for _, t := range b.templates {
+		b.templateRoles[t.ID], err = store.GetTemplateRoles(projectID, t.ID)
+		if err != nil {
+			return
+		}
+	}
+
 	b.makeUniqueNames()
 
 	return
 }
 
 func (b *BackupDB) format() (*BackupFormat, error) {
+
+	roles := make([]BackupRole, len(b.roles))
+	for i, r := range b.roles {
+		roles[i] = BackupRole{
+			r,
+		}
+	}
+
 	schedules := make([]BackupSchedule, len(b.schedules))
 	for i, o := range b.schedules {
 
 		tplName, _ := findNameByID[db.Template](o.TemplateID, b.templates)
+		var repoName *string
+		if o.RepositoryID != nil {
+			repoName, _ = findNameByID[db.Repository](*o.RepositoryID, b.repositories)
+		}
 
 		if tplName == nil {
 			continue
@@ -222,13 +277,34 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		schedules[i] = BackupSchedule{
 			o,
 			*tplName,
+			repoName,
+		}
+
+		if o.TaskParams.InventoryID != nil {
+			schedules[i].TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
 		}
 	}
 
 	keys := make([]BackupAccessKey, len(b.keys))
 	for i, o := range b.keys {
 		keys[i] = BackupAccessKey{
-			o,
+			AccessKey: o,
+		}
+	}
+
+	secretStorages := make([]BackupSecretStorage, len(b.secretStorages))
+	for i, o := range b.secretStorages {
+		secretStorages[i] = BackupSecretStorage{
+			SecretStorage: o,
+		}
+
+		for k := range keys {
+			if keys[k].StorageID != nil && *keys[k].StorageID == o.ID {
+				keys[k].Storage = &o.Name
+			}
+			if keys[k].SourceStorageID != nil && *keys[k].SourceStorageID == o.ID {
+				keys[k].SourceStorage = &o.Name
+			}
 		}
 	}
 
@@ -314,6 +390,30 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			o.SurveyVars = surveyVars
 		}
 
+		var roles []BackupTemplateRole
+		for _, r := range b.templateRoles[o.ID] {
+			name, err := findNameBySlug[db.Role](r.RoleSlug, b.roles)
+			if err == nil {
+				roles = append(roles, BackupTemplateRole{
+					Role:        *name,
+					IsGlobal:    false,
+					Permissions: r.Permissions,
+				})
+			} else {
+				// Try to find in Global
+				name, err = findNameBySlug[db.Role](r.RoleSlug, b.globalRoles)
+				if err != nil {
+					continue
+				}
+
+				roles = append(roles, BackupTemplateRole{
+					Role:        *name,
+					IsGlobal:    true,
+					Permissions: r.Permissions,
+				})
+			}
+		}
+
 		templates[i] = BackupTemplate{
 			Template:      o,
 			View:          View,
@@ -321,8 +421,8 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			Inventory:     Inventory,
 			Environment:   Environment,
 			BuildTemplate: BuildTemplate,
-			Cron:          getScheduleByTemplate(o.ID, b.schedules),
 			Vaults:        vaults,
+			Roles:         roles,
 		}
 	}
 
@@ -355,6 +455,10 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			Template:      *tplName,
 			AuthSecret:    keyName,
 		}
+
+		if o.TaskParams != nil && o.TaskParams.InventoryID != nil {
+			integrations[i].TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
+		}
 	}
 
 	var integrationAliases []string
@@ -376,6 +480,8 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		Integration:        integrations,
 		IntegrationAliases: integrationAliases,
 		Schedules:          schedules,
+		SecretStorages:     secretStorages,
+		Roles:              roles,
 	}, nil
 }
 
@@ -393,7 +499,7 @@ func (b *BackupFormat) Marshal() (res string, err error) {
 		return
 	}
 
-	bytes, err := json.Marshal(data)
+	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return
 	}

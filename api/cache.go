@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/gorilla/context"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -10,7 +9,7 @@ import (
 )
 
 func clearCache(w http.ResponseWriter, r *http.Request) {
-	currentUser := context.Get(r, "user").(*db.User)
+	currentUser := helpers.GetFromContext(r, "user").(*db.User)
 
 	if !currentUser.Admin {
 		helpers.WriteJSON(w, http.StatusForbidden, map[string]string{

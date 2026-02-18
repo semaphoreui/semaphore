@@ -113,8 +113,9 @@ func InteractiveSetup(conf *util.ConfigType) {
 
 	dbPrompt := `What database to use:
    1 - MySQL
-   2 - BoltDB
+   2 - BoltDB (DEPRECATED!!!)
    3 - PostgreSQL
+   4 - SQLite
 `
 
 	var db int
@@ -130,6 +131,9 @@ func InteractiveSetup(conf *util.ConfigType) {
 	case 3:
 		conf.Dialect = util.DbDriverPostgres
 		scanPostgres(conf)
+	case 4:
+		conf.Dialect = util.DbDriverSQLite
+		scanSQLite(conf)
 	}
 
 	defaultPlaybookPath := filepath.Join(os.TempDir(), "semaphore")
@@ -183,13 +187,11 @@ func InteractiveSetup(conf *util.ConfigType) {
 }
 
 func scanBoltDb(conf *util.ConfigType) {
-	workingDirectory, err := os.Getwd()
-	if err != nil {
-		workingDirectory = os.TempDir()
-	}
-	defaultBoltDBPath := filepath.Join(workingDirectory, "database.boltdb")
-	conf.BoltDb = &util.DbConfig{}
-	askValue("db filename", defaultBoltDBPath, &conf.BoltDb.Hostname)
+	conf.BoltDb = scanFileDB("database.boltdb")
+}
+
+func scanSQLite(conf *util.ConfigType) {
+	conf.SQLite = scanFileDB("database.sqlite")
 }
 
 func scanMySQL(conf *util.ConfigType) {
@@ -212,6 +214,17 @@ func scanPostgres(conf *util.ConfigType) {
 	if _, exists := conf.Postgres.Options["sslmode"]; !exists {
 		conf.Postgres.Options["sslmode"] = "disable"
 	}
+}
+
+func scanFileDB(defaultDbFile string) *util.DbConfig {
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		workingDirectory = os.TempDir()
+	}
+	defaultDBPath := filepath.Join(workingDirectory, defaultDbFile)
+	conf := &util.DbConfig{}
+	askValue("db Hostname", defaultDBPath, &conf.Hostname)
+	return conf
 }
 
 func scanErrorChecker(n int, err error) {
@@ -283,7 +296,8 @@ func askValue(prompt string, defaultValue string, item any) {
 
 	_, _ = fmt.Sscanln(defaultValue, item)
 
-	scanErrorChecker(fmt.Scanln(item))
+	n, err := fmt.Scanln(item)
+	scanErrorChecker(n, err)
 
 	// Empty line after prompt
 	fmt.Println("")
@@ -299,7 +313,8 @@ func askConfirmation(prompt string, defaultValue bool, item *bool) {
 
 	var answer string
 
-	scanErrorChecker(fmt.Scanln(&answer))
+	n, err := fmt.Scanln(&answer)
+	scanErrorChecker(n, err)
 
 	switch strings.ToLower(answer) {
 	case "y", "yes":

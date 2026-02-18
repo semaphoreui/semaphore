@@ -11,14 +11,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/gorilla/context"
 )
 
 // InventoryMiddleware ensures an inventory exists and loads it to the context
 func InventoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		project := context.Get(r, "project").(db.Project)
+		project := helpers.GetFromContext(r, "project").(db.Project)
 		inventoryID, err := helpers.GetIntParam("inventory_id", w, r)
 		if err != nil {
 			return
@@ -31,13 +29,13 @@ func InventoryMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "inventory", inventory)
+		r = helpers.SetContextValue(r, "inventory", inventory)
 		next.ServeHTTP(w, r)
 	})
 }
 
 func GetInventoryRefs(w http.ResponseWriter, r *http.Request) {
-	inventory := context.Get(r, "inventory").(db.Inventory)
+	inventory := helpers.GetFromContext(r, "inventory").(db.Inventory)
 	refs, err := helpers.Store(r).GetInventoryRefs(inventory.ProjectID, inventory.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -49,12 +47,12 @@ func GetInventoryRefs(w http.ResponseWriter, r *http.Request) {
 
 // GetInventory returns an inventory from the database
 func GetInventory(w http.ResponseWriter, r *http.Request) {
-	if inventory := context.Get(r, "inventory"); inventory != nil {
+	if inventory := helpers.GetFromContext(r, "inventory"); inventory != nil {
 		helpers.WriteJSON(w, http.StatusOK, inventory.(db.Inventory))
 		return
 	}
 
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	params := helpers.QueryParamsWithOwner(r.URL, db.InventoryProps)
 
@@ -78,7 +76,7 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 
 // AddInventory creates an inventory in the database
 func AddInventory(w http.ResponseWriter, r *http.Request) {
-	project := context.Get(r, "project").(db.Project)
+	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	var inventory db.Inventory
 
@@ -154,7 +152,7 @@ func IsValidInventoryPath(path string) bool {
 
 // UpdateInventory writes updated values to an existing inventory item in the database
 func UpdateInventory(w http.ResponseWriter, r *http.Request) {
-	oldInventory := context.Get(r, "inventory").(db.Inventory)
+	oldInventory := helpers.GetFromContext(r, "inventory").(db.Inventory)
 
 	var inventory db.Inventory
 
@@ -214,7 +212,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 
 // RemoveInventory deletes an inventory from the database
 func RemoveInventory(w http.ResponseWriter, r *http.Request) {
-	inventory := context.Get(r, "inventory").(db.Inventory)
+	inventory := helpers.GetFromContext(r, "inventory").(db.Inventory)
 	var err error = helpers.Store(r).DeleteInventory(inventory.ProjectID, inventory.ID)
 	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{

@@ -294,6 +294,16 @@
 
           <v-checkbox
             class="mt-0"
+            v-model="item.allow_parallel_tasks"
+          >
+            <template v-slot:label>
+              {{ $t('allow_parallel_tasks') }}
+              <v-chip class="ml-2" small color="error">New</v-chip>
+            </template>
+          </v-checkbox>
+
+          <v-checkbox
+            class="mt-0"
             :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
             v-model="cronVisible"
           />
@@ -332,11 +342,26 @@
             v-model="item.suppress_success_alerts"
           />
 
-          <ArgsPicker
-            :vars="args"
-            @change="setArgs"
-            title="CLI args"
-          />
+          <div style="position: relative">
+            <ArgsPicker
+              :vars="args"
+              @change="setArgs"
+              title="CLI args"
+            />
+
+            <RichEditor
+              v-model="argsJson"
+              type="json_array"
+              style="
+              position: absolute;
+              right: -23px;
+              top: -18px;
+              margin: 10px;
+            "
+            />
+
+          </div>
+
         </div>
 
         <h2 class="mb-4">{{ $t('task_prompts') }}</h2>
@@ -365,7 +390,7 @@
       <v-col v-if="needAppBlock">
         <div class="mb-3">
           <h2 class="mb-4">
-            {{ $t('template_app_options', {app: getAppTitle(app, true)}) }}
+            {{ $t('template_app_options', { app: getAppTitle(app, true) }) }}
           </h2>
 
           <ArgsPicker
@@ -432,7 +457,7 @@
         </div>
 
         <h2 class="mb-4">
-          {{ $t('template_app_prompts', {app: getAppTitle(app, true)}) }}
+          {{ $t('template_app_prompts', { app: getAppTitle(app, true) }) }}
         </h2>
         <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
           <v-checkbox
@@ -496,12 +521,14 @@ import TemplateVaults from '@/components/TemplateVaults.vue';
 import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import AppsMixin from '@/components/AppsMixin';
+import RichEditor from '@/components/RichEditor.vue';
 import SurveyVars from './SurveyVars';
 
 export default {
   mixins: [ItemFormBase, AppFieldsMixin, AppsMixin],
 
   components: {
+    RichEditor,
     TemplateVaults,
     ArgsPicker,
     SurveyVars,
@@ -600,6 +627,15 @@ export default {
   },
 
   computed: {
+    argsJson: {
+      get() {
+        return JSON.stringify(this.args);
+      },
+      set(val) {
+        this.args = JSON.parse(val);
+      },
+    },
+
     repositoryId() {
       return this.item?.repository_id;
     },

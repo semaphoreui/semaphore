@@ -10,6 +10,15 @@
       </v-btn>
       <v-toolbar-title>{{ $t('api_tokens') }}</v-toolbar-title>
       <v-spacer></v-spacer>
+
+      <a
+        :href="`${this.systemInfo?.web_host || ''}/swagger/index.html`"
+        class="mr-6"
+        target="_blank"
+      >
+        {{ $t('API Reference') }}
+      </a>
+
       <v-btn
         color="primary"
         @click="newToken()"
@@ -38,13 +47,11 @@
           <v-icon>mdi-eye</v-icon>
         </v-btn>
 
-        <v-btn
-          icon
+        <CopyClipboardButton
           v-if="item.token_id"
-          @click="copyToClipboard(item.token_id)"
-        >
-          <v-icon>mdi-content-copy</v-icon>
-        </v-btn>
+          :text="item.token_id"
+          success-message="The token has been copied to the clipboard."
+        />
 
       </template>
 
@@ -81,14 +88,17 @@
 import EventBus from '@/event-bus';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import axios from 'axios';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 
 export default {
   mixins: [ItemListPageBase],
 
   components: {
+    CopyClipboardButton,
   },
 
   props: {
+    systemInfo: Object,
   },
 
   computed: {
@@ -166,21 +176,6 @@ export default {
 
     getEventName() {
       return 'i-token';
-    },
-
-    async copyToClipboard(text) {
-      try {
-        await window.navigator.clipboard.writeText(text);
-        EventBus.$emit('i-snackbar', {
-          color: 'success',
-          text: 'The token has been copied to the clipboard.',
-        });
-      } catch (e) {
-        EventBus.$emit('i-snackbar', {
-          color: 'error',
-          text: `Can't copy the token: ${e.message}`,
-        });
-      }
     },
   },
 };

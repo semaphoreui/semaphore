@@ -45,7 +45,7 @@ func (t *ShellApp) makeCmd(command string, args []string, environmentVars []stri
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.GetProjectTmpDir(t.Template.ProjectID)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", getHomeDir(t.Repository, t.Template.ID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	cmd.Env = append(cmd.Env, environmentVars...)
 
@@ -77,7 +77,7 @@ func (t *ShellApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 func (t *ShellApp) Clear() {
 }
 
-func (t *ShellApp) InstallRequirements(environmentVars []string, tplParams any, params any) error {
+func (t *ShellApp) InstallRequirements(args LocalAppInstallingArgs) error {
 	return nil
 }
 
@@ -109,7 +109,9 @@ func (t *ShellApp) makeShellCmd(args []string, environmentVars []string) *exec.C
 }
 
 func (t *ShellApp) Run(args LocalAppRunningArgs) error {
-	cmd := t.makeShellCmd(args.CliArgs, args.EnvironmentVars)
+	// Use "default" key for backward compatibility
+	cliArgs := args.CliArgs["default"]
+	cmd := t.makeShellCmd(cliArgs, args.EnvironmentVars)
 	t.Logger.LogCmd(cmd)
 	//cmd.Stdin = &t.reader
 	cmd.Stdin = strings.NewReader("")
@@ -118,5 +120,8 @@ func (t *ShellApp) Run(args LocalAppRunningArgs) error {
 		return err
 	}
 	args.Callback(cmd.Process)
-	return cmd.Wait()
+	err = cmd.Wait()
+	// Wait for all log processing to complete before returning
+	t.Logger.WaitLog()
+	return err
 }

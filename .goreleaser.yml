@@ -1,3 +1,4 @@
+version: 2
 dist: bin
 
 before:
@@ -24,6 +25,12 @@ builds:
       - arm64
       - ppc64le
     ignore:
+      - goos: freebsd
+        goarch: arm
+      - goos: freebsd
+        goarch: 386
+      - goos: freebsd
+        goarch: ppc64le
       - goos: darwin
         goarch: 386
       - goos: darwin
@@ -32,10 +39,13 @@ builds:
         goarch: ppc64le
       - goos: windows
         goarch: ppc64le
+      - goos: windows
+        goarch: arm
 
 archives:
   - files:
       - LICENSE
+    name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         format: zip
@@ -43,13 +53,26 @@ archives:
 signs:
   -
     artifacts: checksum
-    args: ["-u", "58A7 CC3D 8A9C A2E5 BB5C 141D 4064 23EA F814 63CA", "--pinentry-mode", "loopback", "--yes", "--batch", "--output", "${signature}", "--detach-sign", "${artifact}"]
+    signature: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_checksums.txt.sig"
+    cmd: gpg
+    args: [
+      "-u", "{{ .Env.GPG_KEY_ID }}",
+      "--pinentry-mode", "loopback",
+      "--yes",
+      "--batch",
+      "--output", "${signature}",
+      "--detach-sign", "${artifact}"
+    ]
+
+checksum:
+  name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_checksums.txt"
 
 snapshot:
   name_template: "{{ .Timestamp }}-{{ .ShortCommit }}-SNAPSHOT"
 
 nfpms:
-  - file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - file_name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    package_name: "semaphore"
     description: Modern UI and powerful API for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
     homepage: https://github.com/semaphoreui/semaphore
     vendor: Semaphore UI
@@ -70,4 +93,5 @@ nfpms:
 
 release:
   draft: true
+  use_existing_draft: true
   name_template: "{{.Tag}}"

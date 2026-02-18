@@ -8,12 +8,9 @@
             list-item-two-line,
             list-item-two-line,
             list-item-two-line,
-<<<<<<< HEAD
             list-item-two-line,
             list-item-two-line,
             list-item-two-line,
-=======
->>>>>>> inventory_runner
             list-item-two-line"
   ></v-skeleton-loader>
   <v-form
@@ -48,6 +45,7 @@
       item-text="tag"
       outlined
       dense
+      clearable
       :disabled="formSaving"
       :placeholder="$t('runner_tag')"
     ></v-autocomplete>
@@ -114,18 +112,34 @@
       dense
     ></v-select>
 
-    <codemirror
-      :class="{
+    <div
+      style="position: relative"
+      v-if="item.type === 'static' || item.type === 'static-yaml'"
+    >
+      <codemirror
+        :class="{
         'InventoryEditor': true,
         'InventoryEditor--static': item.type === 'static',
         'InventoryEditor--static-yaml': item.type === 'static-yaml',
       }"
-      :style="{ border: '1px solid lightgray' }"
-      v-model.trim="item.inventory"
-      :options="cmOptions"
-      v-if="item.type === 'static' || item.type === 'static-yaml'"
-      :placeholder="$t('enterInventory')"
-    />
+        :style="{ border: '1px solid lightgray' }"
+        v-model.trim="item.inventory"
+        :options="cmOptions"
+        :placeholder="$t('enterInventory')"
+      />
+
+      <RichEditor
+        v-model.trim="item.inventory"
+        type="ini"
+        style="
+              position: absolute;
+              right: 0;
+              top: 0;
+              margin: 10px;
+            "
+      />
+
+    </div>
 
   </v-form>
 </template>
@@ -135,11 +149,11 @@
 }
 
 .v-dialog--fullscreen .InventoryEditor--static .CodeMirror {
-  height: calc(100vh - 540px) !important;
+  height: calc(100dvh - 540px) !important;
 }
 
 .v-dialog--fullscreen .InventoryEditor--static-yaml .CodeMirror {
-  height: calc(100vh - 600px) !important;
+  height: calc(100dvh - 600px) !important;
 }
 </style>
 <script>
@@ -151,11 +165,13 @@ import { codemirror } from 'vue-codemirror';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/display/placeholder.js';
+import RichEditor from '@/components/RichEditor.vue';
 
 export default {
   mixins: [ItemFormBase],
 
   components: {
+    RichEditor,
     codemirror,
   },
 

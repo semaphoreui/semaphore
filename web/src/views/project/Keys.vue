@@ -5,7 +5,6 @@
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Key`"
       :max-width="450"
-      position="top"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -16,6 +15,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :support-storages="premiumFeatures.secret_storages"
         />
       </template>
     </EditDialog>
@@ -45,7 +45,8 @@
       >{{ $t('newKey') }}</v-btn>
     </v-toolbar>
 
-    <v-divider />
+    <KeyStoreMenu v-if="isPro" :project-id="projectId" />
+    <v-divider v-else />
 
     <v-data-table
       :headers="headers"
@@ -86,10 +87,24 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import KeyForm from '@/components/KeyForm.vue';
+import PageMixin from '@/components/PageMixin';
+import KeyStoreMenu from '@/components/KeyStoreMenu.vue';
 
 export default {
-  components: { KeyForm },
-  mixins: [ItemListPageBase],
+  components: { KeyStoreMenu, KeyForm },
+
+  mixins: [ItemListPageBase, PageMixin],
+
+  props: {
+    systemInfo: Object,
+  },
+
+  computed: {
+    isPro() {
+      return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
+  },
+
   methods: {
     getHeaders() {
       return [{
