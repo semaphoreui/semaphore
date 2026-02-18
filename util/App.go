@@ -10,3 +10,8 @@ type App struct {
 	AppPath   string   `json:"path"`
 	AppArgs   []string `json:"args"`
 }
+
+type AppVersionRuntime struct {
+	AppPath string   `json:"path"`
+	AppArgs []string `json:"args"`
+}

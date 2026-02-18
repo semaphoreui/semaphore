@@ -64,7 +64,8 @@ func deleteApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	delete(util.Config.Apps, appID)
+	_ = db.FillAppsFromDB(store)
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -135,7 +136,7 @@ func setApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	util.Config.Apps[appID] = body
+	_ = db.FillAppsFromDB(store)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -174,10 +175,7 @@ func setAppActive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if a, ok := util.Config.Apps[appID]; ok {
-		a.Active = body.Active
-		util.Config.Apps[appID] = a
-	}
+	_ = db.FillAppsFromDB(store)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -249,6 +247,8 @@ func createAppVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_ = db.FillAppsFromDB(store)
+
 	helpers.WriteJSON(w, http.StatusCreated, created)
 }
 
@@ -281,6 +281,8 @@ func updateAppVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_ = db.FillAppsFromDB(store)
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -303,6 +305,8 @@ func setAppVersionOrder(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	_ = db.FillAppsFromDB(store)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -327,6 +331,8 @@ func deleteAppVersion(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	_ = db.FillAppsFromDB(store)
 
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -45,12 +45,12 @@ func FillConfigFromDB(store Store) (err error) {
 		return
 	}
 
-	err = fillAppsFromDB(store)
+	err = FillAppsFromDB(store)
 
 	return
 }
 
-func fillAppsFromDB(store Store) error {
+func FillAppsFromDB(store Store) error {
 	apps, err := store.GetApps()
 	if err != nil {
 		return err
@@ -59,6 +59,8 @@ func fillAppsFromDB(store Store) error {
 	if util.Config.Apps == nil {
 		util.Config.Apps = make(map[string]util.App)
 	}
+
+	util.Config.AppVersions = make(map[int]util.AppVersionRuntime)
 
 	for _, a := range apps {
 		versions, err := store.GetAppVersions(a.ID)
@@ -84,6 +86,16 @@ func fillAppsFromDB(store Store) error {
 		}
 
 		util.Config.Apps[a.ID] = app
+
+		for _, v := range versions {
+			rt := util.AppVersionRuntime{
+				AppPath: v.Path,
+			}
+			if v.Args != nil {
+				_ = json.Unmarshal([]byte(*v.Args), &rt.AppArgs)
+			}
+			util.Config.AppVersions[v.ID] = rt
+		}
 	}
 
 	return nil
