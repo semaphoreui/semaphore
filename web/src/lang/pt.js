@@ -158,6 +158,11 @@ export default {
   duration: 'Duração',
   stop: 'Parar',
   forceStop: 'Parar Forçadamente',
+  stopAll: 'Parar tudo',
+  stopAllTasks: 'Parar todas as tarefas',
+  askStopAllTasks: 'Tem certeza de que deseja parar todas as tarefas?',
+  forceStopAllTasks: 'Parar forçadamente todas as tarefas',
+  askForceStopAllTasks: 'Tem certeza de que deseja parar forçadamente todas as tarefas?',
   raw_log: 'Log Bruto',
 
   confirmTask: 'Confirmar',
