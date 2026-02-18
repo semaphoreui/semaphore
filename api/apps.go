@@ -34,7 +34,11 @@ func getApps(w http.ResponseWriter, r *http.Request) {
 }
 
 func getApp(w http.ResponseWriter, r *http.Request) {
-	appID := helpers.GetFromContext(r, "app_id").(string)
+	appID, err := helpers.GetStrParam("app_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid app", http.StatusBadRequest)
+		return
+	}
 
 	app, ok := util.Config.Apps[appID]
 	if !ok {
@@ -46,10 +50,15 @@ func getApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteApp(w http.ResponseWriter, r *http.Request) {
-	appID := helpers.GetFromContext(r, "app_id").(string)
+	appID, err := helpers.GetStrParam("app_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid app", http.StatusBadRequest)
+		return
+	}
+
 	store := helpers.Store(r)
 
-	err := store.DeleteApp(appID)
+	err = store.DeleteApp(appID)
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -60,7 +69,12 @@ func deleteApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func setApp(w http.ResponseWriter, r *http.Request) {
-	appID := helpers.GetFromContext(r, "app_id").(string)
+	appID, err := helpers.GetStrParam("app_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid app", http.StatusBadRequest)
+		return
+	}
+
 	store := helpers.Store(r)
 
 	var body util.App
@@ -127,7 +141,12 @@ func setApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func setAppActive(w http.ResponseWriter, r *http.Request) {
-	appID := helpers.GetFromContext(r, "app_id").(string)
+	appID, err := helpers.GetStrParam("app_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid app", http.StatusBadRequest)
+		return
+	}
+
 	store := helpers.Store(r)
 
 	var body struct {

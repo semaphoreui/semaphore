@@ -155,22 +155,23 @@
 
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-btn
-            v-if="!isDefaultApp(item.id)"
-            icon
-            class="mr-1"
-            @click="askDeleteItem(item.id)"
-            :disabled="item.id === userId"
-          >
-            <v-icon>mdi-delete</v-icon>
-          </v-btn>
-
           <v-btn icon class="mr-1" @click="editItem(item.id)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
 
           <v-btn icon class="mr-1" @click="openVersions(item.id)">
             <v-icon>mdi-format-list-numbered</v-icon>
+          </v-btn>
+
+          <v-btn
+            v-if="!isDefaultApp(item.id)"
+            icon
+            color="red"
+            class="mr-1"
+            @click="askDeleteItem(item.id)"
+            :disabled="item.id === userId"
+          >
+            <v-icon>mdi-delete</v-icon>
           </v-btn>
         </div>
       </template>
