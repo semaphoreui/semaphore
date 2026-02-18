@@ -200,6 +200,7 @@ func Route(
 	authenticatedAPI.Path("/user").HandlerFunc(userController.GetUser).Methods("GET", "HEAD")
 
 	authenticatedAPI.Path("/apps").HandlerFunc(getApps).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/apps/{app_id}/versions").HandlerFunc(getAppVersions).Methods("GET", "HEAD")
 
 	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
 	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
@@ -237,7 +238,7 @@ func Route(
 	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
 
 	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
-	appsAPI.Use(appMiddleware)
+	//appsAPI.Use(appMiddleware)
 	appsAPI.Path("/{app_id}").HandlerFunc(getApp).Methods("GET", "HEAD")
 	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("PUT", "POST")
 	appsAPI.Path("/{app_id}/active").HandlerFunc(setAppActive).Methods("POST")
@@ -247,7 +248,7 @@ func Route(
 	appsAPI.Path("/{app_id}/reorder_versions").HandlerFunc(setAppVersionOrder).Methods("POST")
 
 	appVersionsAPI := appsAPI.PathPrefix("/{app_id}/versions").Subrouter()
-	appVersionsAPI.Use(appVersionMiddleware)
+	//appVersionsAPI.Use(appVersionMiddleware)
 	appVersionsAPI.Path("/{version_id}").HandlerFunc(getAppVersion).Methods("GET", "HEAD")
 	appVersionsAPI.Path("/{version_id}").HandlerFunc(updateAppVersion).Methods("PUT", "POST")
 	appVersionsAPI.Path("/{version_id}").HandlerFunc(deleteAppVersion).Methods("DELETE")

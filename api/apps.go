@@ -5,51 +5,11 @@ import (
 	"errors"
 	"net/http"
 	"sort"
-	"strconv"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
 )
-
-func validateAppID(str string) error {
-	return nil
-}
-
-func appMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		appID, err := helpers.GetStrParam("app_id", w, r)
-		if err != nil {
-			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if err := validateAppID(appID); err != nil {
-			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		r = helpers.SetContextValue(r, "app_id", appID)
-		next.ServeHTTP(w, r)
-	})
-}
-
-func appVersionMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		versionIDStr, err := helpers.GetStrParam("version_id", w, r)
-		if err != nil {
-			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		versionID, err := strconv.Atoi(versionIDStr)
-		if err != nil {
-			helpers.WriteErrorStatus(w, "invalid version id", http.StatusBadRequest)
-			return
-		}
-		r = helpers.SetContextValue(r, "version_id", versionID)
-		next.ServeHTTP(w, r)
-	})
-}
 
 func getApps(w http.ResponseWriter, r *http.Request) {
 	type app struct {
@@ -204,7 +164,12 @@ func setAppActive(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAppVersions(w http.ResponseWriter, r *http.Request) {
-	appID := helpers.GetFromContext(r, "app_id").(string)
+	appID, err := helpers.GetStrParam("app_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid app", http.StatusBadRequest)
+		return
+	}
+
 	store := helpers.Store(r)
 
 	versions, err := store.GetAppVersions(appID)
@@ -217,8 +182,18 @@ func getAppVersions(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAppVersion(w http.ResponseWriter, r *http.Request) {
-	appID := helpers.GetFromContext(r, "app_id").(string)
-	versionID := helpers.GetFromContext(r, "version_id").(int)
+	appID, err := helpers.GetStrParam("app_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid app", http.StatusBadRequest)
+		return
+	}
+
+	versionID, err := helpers.GetIntParam("version_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid version id", http.StatusBadRequest)
+		return
+	}
+
 	store := helpers.Store(r)
 
 	version, err := store.GetAppVersion(appID, versionID)
@@ -235,7 +210,12 @@ func getAppVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func createAppVersion(w http.ResponseWriter, r *http.Request) {
-	appID := helpers.GetFromContext(r, "app_id").(string)
+	appID, err := helpers.GetStrParam("app_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid app", http.StatusBadRequest)
+		return
+	}
+
 	store := helpers.Store(r)
 
 	var version db.AppVersion
@@ -254,8 +234,18 @@ func createAppVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateAppVersion(w http.ResponseWriter, r *http.Request) {
-	appID := helpers.GetFromContext(r, "app_id").(string)
-	versionID := helpers.GetFromContext(r, "version_id").(int)
+	appID, err := helpers.GetStrParam("app_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid app", http.StatusBadRequest)
+		return
+	}
+
+	versionID, err := helpers.GetIntParam("version_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid version id", http.StatusBadRequest)
+		return
+	}
+
 	store := helpers.Store(r)
 
 	var version db.AppVersion
@@ -266,7 +256,7 @@ func updateAppVersion(w http.ResponseWriter, r *http.Request) {
 	version.ID = versionID
 	version.AppID = appID
 
-	err := store.UpdateAppVersion(version)
+	err = store.UpdateAppVersion(version)
 	if err != nil {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -276,7 +266,12 @@ func updateAppVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func setAppVersionOrder(w http.ResponseWriter, r *http.Request) {
-	appID := helpers.GetFromContext(r, "app_id").(string)
+	appID, err := helpers.GetStrParam("app_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid app", http.StatusBadRequest)
+		return
+	}
+
 	store := helpers.Store(r)
 
 	var order map[int]int
@@ -284,7 +279,7 @@ func setAppVersionOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := store.SetAppVersionOrder(appID, order)
+	err = store.SetAppVersionOrder(appID, order)
 	if err != nil {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -294,11 +289,21 @@ func setAppVersionOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteAppVersion(w http.ResponseWriter, r *http.Request) {
-	appID := helpers.GetFromContext(r, "app_id").(string)
-	versionID := helpers.GetFromContext(r, "version_id").(int)
+	appID, err := helpers.GetStrParam("app_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid app", http.StatusBadRequest)
+		return
+	}
+
+	versionID, err := helpers.GetIntParam("version_id", w, r)
+	if err != nil {
+		helpers.WriteErrorStatus(w, "invalid version id", http.StatusBadRequest)
+		return
+	}
+
 	store := helpers.Store(r)
 
-	err := store.DeleteAppVersion(appID, versionID)
+	err = store.DeleteAppVersion(appID, versionID)
 	if err != nil {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
 		return

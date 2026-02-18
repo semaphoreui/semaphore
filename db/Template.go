@@ -151,7 +151,8 @@ type Template struct {
 
 	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts,omitempty"`
 
-	App TemplateApp `db:"app" json:"app,omitempty"`
+	App          TemplateApp `db:"app" json:"app,omitempty"`
+	AppVersionID *int       `db:"app_version_id" json:"app_version_id,omitempty"`
 
 	Tasks int `db:"tasks" json:"tasks" backup:"-"`
 

@@ -24,13 +24,13 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 			"playbook, arguments, allow_override_args_in_task, description, `type`, "+
 			"start_version, build_template_id, view_id, autorun, survey_vars, "+
 			"suppress_success_alerts, app, git_branch, runner_tag, task_params, "+
-			"allow_override_branch_in_task, allow_parallel_tasks)"+
+			"allow_override_branch_in_task, allow_parallel_tasks, app_version_id)"+
 			"values ("+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?,"+
-			"?, ?)",
+			"?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -57,6 +57,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 
 		template.AllowOverrideBranchInTask,
 		template.AllowParallelTasks,
+		template.AppVersionID,
 	)
 
 	if err != nil {
@@ -108,7 +109,8 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"task_params=?, "+
 		"runner_tag=?, "+
 		"allow_override_branch_in_task=?, "+
-		"allow_parallel_tasks=? "+
+		"allow_parallel_tasks=?, "+
+		"app_version_id=? "+
 		"where id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
@@ -131,6 +133,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.RunnerTag,
 		template.AllowOverrideBranchInTask,
 		template.AllowParallelTasks,
+		template.AppVersionID,
 
 		template.ID,
 		template.ProjectID,

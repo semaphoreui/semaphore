@@ -18,3 +18,4 @@ create table `app__version` (
     `priority` int not null default 0,
     foreign key (`app_id`) references `app` (`id`) on delete cascade
 );
+alter table `project__template` add column `app_version_id` int null references `app__version`(`id`);

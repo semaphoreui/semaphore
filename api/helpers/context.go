@@ -7,8 +7,9 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 )
 
-func GetFromContext(r *http.Request, key string) any {
-	return r.Context().Value(key)
+func GetFromContext(r *http.Request, key string) (res any) {
+	res = r.Context().Value(key)
+	return
 }
 
 func GetOkFromContext(r *http.Request, key string) (res any, ok bool) {
