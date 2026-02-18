@@ -296,27 +296,33 @@ func (t *TaskRunner) prepareError(err error, errMsg string) error {
 
 func (t *TaskRunner) populateTaskEnvironment() (err error) {
 
+	// If task has no environment override, nothing to merge
 	if t.Task.Environment == "" {
 		return
-
 	}
 
+	// Start with template environment if it exists
 	tplEnvironment := make(map[string]any)
-	err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
-	if err != nil {
-		return
+	if t.Environment.JSON != "" {
+		err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
+		if err != nil {
+			return
+		}
 	}
 
+	// Parse task environment
 	taskEnvironment := make(map[string]any)
 	err = json.Unmarshal([]byte(t.Task.Environment), &taskEnvironment)
 	if err != nil {
 		return
 	}
 
+	// Merge task environment into template environment
 	for k, v := range taskEnvironment {
 		tplEnvironment[k] = v
 	}
 
+	// Update the environment JSON with merged values
 	var ev []byte
 	ev, err = json.Marshal(tplEnvironment)
 	if err != nil {
