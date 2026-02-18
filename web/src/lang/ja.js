@@ -158,6 +158,11 @@ export default {
   duration: '期間',
   stop: '停止',
   forceStop: '強制停止',
+  stopAll: 'すべて停止',
+  stopAllTasks: 'すべてのタスクを停止',
+  askStopAllTasks: 'すべてのタスクを停止してもよろしいですか？',
+  forceStopAllTasks: 'すべてのタスクを強制停止',
+  askForceStopAllTasks: 'すべてのタスクを強制停止してもよろしいですか？',
   raw_log: '生ログ',
 
   confirmTask: '確認',
