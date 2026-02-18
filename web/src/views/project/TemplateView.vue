@@ -48,7 +48,14 @@
       :title="$t('stopAllTasks')"
       :text="$t('askStopAllTasks')"
       v-model="stopAllDialog"
-      @yes="stopAllTasks()"
+      @yes="stopAllTasks(false)"
+    />
+
+    <YesNoDialog
+      :title="$t('forceStopAllTasks')"
+      :text="$t('askForceStopAllTasks')"
+      v-model="forceStopAllDialog"
+      @yes="stopAllTasks(true)"
     />
 
     <v-toolbar flat>
@@ -70,14 +77,33 @@
 
       <v-spacer></v-spacer>
 
-      <v-btn
-        @click="stopAllDialog = true"
-        color="grey"
-        class="mr-3"
-        v-if="canStop"
-      >
-        Stop all
-      </v-btn>
+      <v-menu offset-y v-if="canStop">
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn
+            v-bind="attrs"
+            v-on="on"
+            color="grey"
+            class="mr-3 pr-2"
+          >
+            {{ $t('stopAll') }}
+            <v-icon>mdi-chevron-down</v-icon>
+          </v-btn>
+        </template>
+        <v-list>
+          <v-list-item @click="stopAllDialog = true">
+            <v-list-item-icon>
+              <v-icon>mdi-stop</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>{{ $t('stop') }}</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="forceStopAllDialog = true">
+            <v-list-item-icon>
+              <v-icon>mdi-alert-octagon</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>{{ $t('forceStop') }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
 
       <v-btn
         v-if="canRun"
@@ -222,6 +248,7 @@ export default {
       itemRefsDialog: null,
       newTaskDialog: null,
       stopAllDialog: null,
+      forceStopAllDialog: null,
       USER_PERMISSIONS,
     };
   },
@@ -285,13 +312,13 @@ export default {
       EventBus.$emit('i-show-drawer');
     },
 
-    async stopAllTasks() {
+    async stopAllTasks(force) {
       try {
         await axios({
           method: 'post',
           url: `/api/project/${this.projectId}/templates/${this.itemId}/stop_all_tasks`,
           data: {
-            force: true,
+            force,
           },
           responseType: 'json',
         });
@@ -307,6 +334,7 @@ export default {
         });
       } finally {
         this.stopAllDialog = false;
+        this.forceStopAllDialog = false;
       }
     },
 

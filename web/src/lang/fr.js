@@ -158,6 +158,11 @@ export default {
   duration: 'Durée',
   stop: 'Arrêter',
   forceStop: 'Arrêt forcé',
+  stopAll: 'Tout arrêter',
+  stopAllTasks: 'Arrêter toutes les tâches',
+  askStopAllTasks: 'Êtes-vous sûr de vouloir arrêter toutes les tâches ?',
+  forceStopAllTasks: 'Forcer l\'arrêt de toutes les tâches',
+  askForceStopAllTasks: 'Êtes-vous sûr de vouloir forcer l\'arrêt de toutes les tâches ?',
   raw_log: 'Journal brut',
 
   confirmTask: 'Confirmer',

@@ -160,6 +160,11 @@ export default {
   duration: 'Duration',
   stop: 'Stop',
   forceStop: 'Force Stop',
+  stopAll: 'Stop All',
+  stopAllTasks: 'Stop All Tasks',
+  askStopAllTasks: 'Are you sure you want to stop all tasks?',
+  forceStopAllTasks: 'Force Stop All Tasks',
+  askForceStopAllTasks: 'Are you sure you want to force stop all tasks?',
   raw_log: 'Raw log',
 
   confirmTask: 'Confirm',

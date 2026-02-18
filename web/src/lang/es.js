@@ -158,6 +158,11 @@ export default {
   duration: 'Duración',
   stop: 'Detener',
   forceStop: 'Detener Forzosamente',
+  stopAll: 'Detener todo',
+  stopAllTasks: 'Detener todas las tareas',
+  askStopAllTasks: '¿Está seguro de que desea detener todas las tareas?',
+  forceStopAllTasks: 'Detener forzosamente todas las tareas',
+  askForceStopAllTasks: '¿Está seguro de que desea detener forzosamente todas las tareas?',
   raw_log: 'Registro en bruto',
 
   confirmTask: 'Confirmar',
