@@ -156,7 +156,11 @@ func (r ScheduleRunner) Run() {
 		return
 	}
 
-	task := schedule.TaskParams.CreateTask(schedule.TemplateID)
+	var taskParams db.TaskParams
+	if schedule.TaskParams != nil {
+		taskParams = *schedule.TaskParams
+	}
+	task := taskParams.CreateTask(schedule.TemplateID)
 	task.ScheduleID = &schedule.ID
 
 	_, err = r.pool.taskPool.AddTask(
