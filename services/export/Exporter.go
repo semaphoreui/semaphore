@@ -438,12 +438,12 @@ type ProgressBar struct {
 func (p *ProgressBar) update(progress float32) {
 	if progress-p.progress > 0.01 {
 		p.updateForce(progress)
-		p.progress = progress
 	}
 }
 
 func (p *ProgressBar) updateForce(progress float32) {
 	p.printer(progress)
+	p.progress = progress
 }
 
 func (p *ExporterChain) Load(store db.Store) (err error) {
