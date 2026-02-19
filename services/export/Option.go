@@ -8,7 +8,7 @@ type OptionExporter struct {
 	ValueMap[db.Option]
 }
 
-func (e *OptionExporter) load(store db.Store, exporter DataExporter) error {
+func (e *OptionExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	options, err := store.GetOptions(db.RetrieveQueryParams{})
 	if err != nil {
@@ -35,7 +35,7 @@ func getOption(opts map[string]string) []db.Option {
 	return values
 }
 
-func (e *OptionExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *OptionExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
 	for _, val := range e.values {
 		old := val.value

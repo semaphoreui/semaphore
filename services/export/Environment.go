@@ -10,7 +10,7 @@ type EnvironmentExporter struct {
 	ValueMap[db.Environment]
 }
 
-func (a *EnvironmentExporter) load(store db.Store, exporter DataExporter) error {
+func (e *EnvironmentExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -23,7 +23,7 @@ func (a *EnvironmentExporter) load(store db.Store, exporter DataExporter) error 
 			return err
 		}
 
-		err = a.appendValues(envs, strconv.Itoa(proj))
+		err = e.appendValues(envs, strconv.Itoa(proj))
 		if err != nil {
 			return err
 		}
@@ -31,17 +31,17 @@ func (a *EnvironmentExporter) load(store db.Store, exporter DataExporter) error 
 	return nil
 }
 
-func (a *EnvironmentExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *EnvironmentExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range a.values {
+	for _, val := range e.values {
 		old := val.value
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
 
-		old.SecretStorageID, err = exporter.getNewKeyIntRef(SecretStorage, val.scope, old.SecretStorageID)
+		old.SecretStorageID, err = exporter.getNewKeyIntRef(SecretStorage, val.scope, old.SecretStorageID, e)
 		if err != nil {
 			return err
 		}
@@ -51,7 +51,7 @@ func (a *EnvironmentExporter) restore(store db.Store, exporter DataExporter) (er
 			return err
 		}
 
-		err = exporter.mapIntKeys(a.getName(), val.scope, old.ID, newVault.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
 		if err != nil {
 			return err
 		}
@@ -60,14 +60,14 @@ func (a *EnvironmentExporter) restore(store db.Store, exporter DataExporter) (er
 	return nil
 }
 
-func (a *EnvironmentExporter) getName() string {
+func (e *EnvironmentExporter) getName() string {
 	return Environment
 }
 
-func (a *EnvironmentExporter) exportDependsOn() []string {
+func (e *EnvironmentExporter) exportDependsOn() []string {
 	return []string{Project}
 }
 
-func (a *EnvironmentExporter) importDependsOn() []string {
+func (e *EnvironmentExporter) importDependsOn() []string {
 	return []string{SecretStorage}
 }

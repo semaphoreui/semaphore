@@ -6,7 +6,7 @@ type ProjectExporter struct {
 	ValueMap[db.Project]
 }
 
-func (a *ProjectExporter) load(store db.Store, exporter DataExporter) error {
+func (a *ProjectExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	allKeys := make([]db.Project, 0)
 
@@ -35,7 +35,7 @@ func (a *ProjectExporter) load(store db.Store, exporter DataExporter) error {
 	return a.appendValues(allKeys, GlobalScope)
 }
 
-func (a *ProjectExporter) restore(store db.Store, exporter DataExporter) error {
+func (a *ProjectExporter) restore(store db.Store, exporter DataExporter, progress Progress) error {
 	for _, val := range a.values {
 		old := val.value
 

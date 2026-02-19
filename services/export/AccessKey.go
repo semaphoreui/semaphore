@@ -10,7 +10,7 @@ type AccessKeyExporter struct {
 	ValueMap[db.AccessKey]
 }
 
-func (e *AccessKeyExporter) load(store db.Store, exporter DataExporter) error {
+func (e *AccessKeyExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -32,31 +32,31 @@ func (e *AccessKeyExporter) load(store db.Store, exporter DataExporter) error {
 	return nil
 }
 
-func (e *AccessKeyExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *AccessKeyExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 	for _, val := range e.values {
 		old := val.value
 
-		old.EnvironmentID, err = exporter.getNewKeyIntRef(Environment, val.scope, old.EnvironmentID)
+		old.EnvironmentID, err = exporter.getNewKeyIntRef(Environment, val.scope, old.EnvironmentID, e)
 		if err != nil {
 			return err
 		}
 
-		old.StorageID, err = exporter.getNewKeyIntRef(SecretStorage, val.scope, old.StorageID)
+		old.StorageID, err = exporter.getNewKeyIntRef(SecretStorage, val.scope, old.StorageID, e)
 		if err != nil {
 			return err
 		}
 
-		old.UserID, err = exporter.getNewKeyIntRef(User, val.scope, old.UserID)
+		old.UserID, err = exporter.getNewKeyIntRef(User, val.scope, old.UserID, e)
 		if err != nil {
 			return err
 		}
 
-		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
 
-		old.SourceStorageID, err = exporter.getNewKeyIntRef(SecretStorage, val.scope, old.SourceStorageID)
+		old.SourceStorageID, err = exporter.getNewKeyIntRef(SecretStorage, val.scope, old.SourceStorageID, e)
 		if err != nil {
 			return err
 		}

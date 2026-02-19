@@ -10,7 +10,7 @@ type ProjectUserExporter struct {
 	ValueMap[db.ProjectUser]
 }
 
-func (a *ProjectUserExporter) load(store db.Store, exporter DataExporter) error {
+func (e *ProjectUserExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -23,7 +23,7 @@ func (a *ProjectUserExporter) load(store db.Store, exporter DataExporter) error 
 			return err
 		}
 
-		err = a.appendValuesAndCheck(getUsers(users, projId), strconv.Itoa(projId), false)
+		err = e.appendValuesAndCheck(getUsers(users, projId), strconv.Itoa(projId), false)
 		if err != nil {
 			return err
 		}
@@ -46,16 +46,16 @@ func getUsers(vals []db.UserWithProjectRole, projId int) []db.ProjectUser {
 	return values
 }
 
-func (a *ProjectUserExporter) restore(store db.Store, exporter DataExporter) (err error) {
-	for _, val := range a.values {
+func (e *ProjectUserExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	for _, val := range e.values {
 		old := val.value
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
 
-		old.UserID, err = exporter.getNewKeyInt(User, GlobalScope, old.UserID)
+		old.UserID, err = exporter.getNewKeyInt(User, GlobalScope, old.UserID, e)
 		if err != nil {
 			return err
 		}
@@ -65,7 +65,7 @@ func (a *ProjectUserExporter) restore(store db.Store, exporter DataExporter) (er
 			return err
 		}
 
-		err = exporter.mapIntKeys(a.getName(), val.scope, old.ID, obj.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, obj.ID)
 		if err != nil {
 			return err
 		}
@@ -74,14 +74,14 @@ func (a *ProjectUserExporter) restore(store db.Store, exporter DataExporter) (er
 	return nil
 }
 
-func (a *ProjectUserExporter) exportDependsOn() []string {
+func (e *ProjectUserExporter) exportDependsOn() []string {
 	return []string{User, Project}
 }
 
-func (a *ProjectUserExporter) importDependsOn() []string {
+func (e *ProjectUserExporter) importDependsOn() []string {
 	return []string{User, Project}
 }
 
-func (a *ProjectUserExporter) getName() string {
+func (e *ProjectUserExporter) getName() string {
 	return ProjectUser
 }

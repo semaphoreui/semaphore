@@ -10,7 +10,7 @@ type RepositoryExporter struct {
 	ValueMap[db.Repository]
 }
 
-func (a *RepositoryExporter) load(store db.Store, exporter DataExporter) error {
+func (e *RepositoryExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -23,7 +23,7 @@ func (a *RepositoryExporter) load(store db.Store, exporter DataExporter) error {
 			return err
 		}
 
-		err = a.appendValues(envs, strconv.Itoa(projId))
+		err = e.appendValues(envs, strconv.Itoa(projId))
 		if err != nil {
 			return err
 		}
@@ -32,17 +32,17 @@ func (a *RepositoryExporter) load(store db.Store, exporter DataExporter) error {
 	return nil
 }
 
-func (a *RepositoryExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *RepositoryExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range a.values {
+	for _, val := range e.values {
 		old := val.value
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
 
-		old.SSHKeyID, err = exporter.getNewKeyInt(AccessKey, val.scope, old.SSHKeyID)
+		old.SSHKeyID, err = exporter.getNewKeyInt(AccessKey, val.scope, old.SSHKeyID, e)
 		if err != nil {
 			return err
 		}
@@ -52,7 +52,7 @@ func (a *RepositoryExporter) restore(store db.Store, exporter DataExporter) (err
 			return err
 		}
 
-		err = exporter.mapIntKeys(a.getName(), val.scope, old.ID, newVault.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
 		if err != nil {
 			return err
 		}
@@ -61,14 +61,14 @@ func (a *RepositoryExporter) restore(store db.Store, exporter DataExporter) (err
 	return nil
 }
 
-func (a *RepositoryExporter) exportDependsOn() []string {
+func (e *RepositoryExporter) exportDependsOn() []string {
 	return []string{Project}
 }
 
-func (a *RepositoryExporter) importDependsOn() []string {
+func (e *RepositoryExporter) importDependsOn() []string {
 	return []string{AccessKey}
 }
 
-func (a *RepositoryExporter) getName() string {
+func (e *RepositoryExporter) getName() string {
 	return Repository
 }

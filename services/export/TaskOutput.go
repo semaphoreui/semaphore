@@ -10,11 +10,18 @@ type TaskOutputExporter struct {
 	ValueMap[db.TaskOutput]
 }
 
-func (e *TaskOutputExporter) load(store db.Store, exporter DataExporter) error {
+func (e *TaskOutputExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
 		return err
 	}
+
+	taskCount, err := taskCount(exporter)
+	if err != nil {
+		return err
+	}
+
+	taskIndex := 0
 
 	for _, projId := range projs {
 
@@ -32,6 +39,9 @@ func (e *TaskOutputExporter) load(store db.Store, exporter DataExporter) error {
 			}
 
 			allValues = append(allValues, outputRes...)
+
+			taskIndex = taskIndex + 1
+			progress.update(float32(taskIndex) / float32(taskCount))
 		}
 
 		err = e.appendValuesAndCheck(allValues, strconv.Itoa(projId), false)
@@ -43,26 +53,62 @@ func (e *TaskOutputExporter) load(store db.Store, exporter DataExporter) error {
 	return nil
 }
 
-func (e *TaskOutputExporter) restore(store db.Store, exporter DataExporter) (err error) {
-	for _, val := range e.values {
+func taskCount(exporter DataExporter) (int, error) {
+
+	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+
+	for _, projId := range projs {
+
+		tasks, err := exporter.getLoadedKeysInt(Task, strconv.Itoa(projId))
+		if err != nil {
+			return 0, err
+		}
+		count = count + len(tasks)
+	}
+
+	return count, nil
+}
+
+func (e *TaskOutputExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+
+	outputs := make([]db.TaskOutput, 0)
+
+	size := len(e.values)
+
+	for index, val := range e.values {
 		old := val.value
 
-		old.TaskID, err = exporter.getNewKeyInt(Task, val.scope, old.TaskID)
+		old.TaskID, err = exporter.getNewKeyInt(Task, val.scope, old.TaskID, e)
 		if err != nil {
 			return err
 		}
 
-		old.StageID, err = exporter.getNewKeyIntRef(TaskStage, val.scope, old.StageID)
+		old.StageID, err = exporter.getNewKeyIntRef(TaskStage, val.scope, old.StageID, e)
 		if err != nil {
 			return err
 		}
 
-		newVault, err := store.CreateTaskOutput(old)
-		if err != nil {
-			return err
+		outputs = append(outputs, old)
+
+		if len(outputs) >= 1000 {
+			err = store.InsertTaskOutputBatch(outputs)
+			if err != nil {
+				return err
+			}
+
+			outputs = make([]db.TaskOutput, 0)
 		}
 
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
+		progress.update(float32(index) / float32(size))
+	}
+
+	if len(outputs) > 0 {
+		err = store.InsertTaskOutputBatch(outputs)
 		if err != nil {
 			return err
 		}

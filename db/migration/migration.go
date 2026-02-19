@@ -50,7 +50,7 @@ func (m *Migrator) migrateUsers() error {
 
 func (m *Migrator) migrateProject() error {
 
-	mapper := &export.TypeKeyMapper{Keys: make(map[string]map[string]map[export.EntityKey]export.EntityKey)}
+	mapper := &export.TypeKeyMapper{Keys: make(map[string]map[string]map[export.EntityKey]export.EntityKey), IgnoreKeyNotFoundErr: true}
 	p := export.InitProjectExporters(mapper)
 
 	err := p.Load(m.oldStore)

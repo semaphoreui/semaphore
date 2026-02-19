@@ -10,7 +10,7 @@ type IntegrationExporter struct {
 	ValueMap[db.Integration]
 }
 
-func (a *IntegrationExporter) load(store db.Store, exporter DataExporter) error {
+func (e *IntegrationExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -22,7 +22,7 @@ func (a *IntegrationExporter) load(store db.Store, exporter DataExporter) error 
 		if err != nil {
 			return err
 		}
-		err = a.appendValues(keys, strconv.Itoa(proj))
+		err = e.appendValues(keys, strconv.Itoa(proj))
 		if err != nil {
 			return err
 		}
@@ -31,39 +31,34 @@ func (a *IntegrationExporter) load(store db.Store, exporter DataExporter) error 
 	return nil
 }
 
-func (a *IntegrationExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *IntegrationExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range a.values {
+	for _, val := range e.values {
 		old := val.value
 
 		if old.TaskParams != nil {
-			old.TaskParams.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.TaskParams.InventoryID)
+			old.TaskParams.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.TaskParams.InventoryID, e)
 			if err != nil {
 				return err
 			}
 
-			old.TaskParams.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+			old.TaskParams.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 			if err != nil {
 				return err
 			}
 		}
 
-		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID)
+		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID, e)
 		if err != nil {
 			return err
 		}
 
-		old.AuthSecretID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.AuthSecretID)
+		old.AuthSecretID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.AuthSecretID, e)
 		if err != nil {
 			return err
 		}
 
-		//old.TaskParamsID, err = exporter.getNewKeyIntRef(TaskParams, val.scope, old.TaskParamsID)
-		//if err != nil {
-		//	return err
-		//}
-
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
@@ -73,7 +68,7 @@ func (a *IntegrationExporter) restore(store db.Store, exporter DataExporter) (er
 			return err
 		}
 
-		err = exporter.mapIntKeys(a.getName(), val.scope, old.ID, integration.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, integration.ID)
 		if err != nil {
 			return err
 		}
@@ -82,14 +77,14 @@ func (a *IntegrationExporter) restore(store db.Store, exporter DataExporter) (er
 	return nil
 }
 
-func (a *IntegrationExporter) getName() string {
+func (e *IntegrationExporter) getName() string {
 	return Integration
 }
 
-func (a *IntegrationExporter) exportDependsOn() []string {
+func (e *IntegrationExporter) exportDependsOn() []string {
 	return []string{Project}
 }
 
-func (a *IntegrationExporter) importDependsOn() []string {
+func (e *IntegrationExporter) importDependsOn() []string {
 	return []string{Project, SecretStorage, Environment, Template}
 }

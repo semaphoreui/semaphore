@@ -10,7 +10,7 @@ type InventoryExporter struct {
 	ValueMap[db.Inventory]
 }
 
-func (a *InventoryExporter) load(store db.Store, exporter DataExporter) error {
+func (e *InventoryExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -22,7 +22,7 @@ func (a *InventoryExporter) load(store db.Store, exporter DataExporter) error {
 		if err != nil {
 			return err
 		}
-		err = a.appendValues(envs, strconv.Itoa(proj))
+		err = e.appendValues(envs, strconv.Itoa(proj))
 		if err != nil {
 			return err
 		}
@@ -30,27 +30,27 @@ func (a *InventoryExporter) load(store db.Store, exporter DataExporter) error {
 	return nil
 }
 
-func (a *InventoryExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *InventoryExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range a.values {
+	for _, val := range e.values {
 		old := val.value
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
 
-		old.SSHKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.SSHKeyID)
+		old.SSHKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.SSHKeyID, e)
 		if err != nil {
 			return err
 		}
 
-		old.BecomeKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.BecomeKeyID)
+		old.BecomeKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.BecomeKeyID, e)
 		if err != nil {
 			return err
 		}
 
-		old.RepositoryID, err = exporter.getNewKeyIntRef(Repository, val.scope, old.RepositoryID)
+		old.RepositoryID, err = exporter.getNewKeyIntRef(Repository, val.scope, old.RepositoryID, e)
 		if err != nil {
 			return err
 		}
@@ -66,7 +66,7 @@ func (a *InventoryExporter) restore(store db.Store, exporter DataExporter) (err 
 			return err
 		}
 
-		err = exporter.mapIntKeys(a.getName(), val.scope, old.ID, newVault.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
 		if err != nil {
 			return err
 		}
@@ -75,14 +75,14 @@ func (a *InventoryExporter) restore(store db.Store, exporter DataExporter) (err 
 	return nil
 }
 
-func (a *InventoryExporter) getName() string {
+func (e *InventoryExporter) getName() string {
 	return Inventory
 }
 
-func (a *InventoryExporter) exportDependsOn() []string {
+func (e *InventoryExporter) exportDependsOn() []string {
 	return []string{Project}
 }
 
-func (a *InventoryExporter) importDependsOn() []string {
+func (e *InventoryExporter) importDependsOn() []string {
 	return []string{AccessKey, Repository}
 }

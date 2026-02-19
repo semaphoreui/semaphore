@@ -10,7 +10,7 @@ type IntegrationMatcherExporter struct {
 	ValueMap[db.IntegrationMatcher]
 }
 
-func (a *IntegrationMatcherExporter) load(store db.Store, exporter DataExporter) error {
+func (e *IntegrationMatcherExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -33,7 +33,7 @@ func (a *IntegrationMatcherExporter) load(store db.Store, exporter DataExporter)
 			}
 			allValues = append(allValues, vals...)
 		}
-		err = a.appendValues(allValues, strconv.Itoa(proj))
+		err = e.appendValues(allValues, strconv.Itoa(proj))
 		if err != nil {
 			return err
 		}
@@ -42,12 +42,12 @@ func (a *IntegrationMatcherExporter) load(store db.Store, exporter DataExporter)
 	return nil
 }
 
-func (a *IntegrationMatcherExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *IntegrationMatcherExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range a.values {
+	for _, val := range e.values {
 		old := val.value
 
-		old.IntegrationID, err = exporter.getNewKeyInt(Integration, val.scope, old.IntegrationID)
+		old.IntegrationID, err = exporter.getNewKeyInt(Integration, val.scope, old.IntegrationID, e)
 		if err != nil {
 			return err
 		}
@@ -57,7 +57,7 @@ func (a *IntegrationMatcherExporter) restore(store db.Store, exporter DataExport
 			return err
 		}
 
-		err = exporter.mapIntKeys(a.getName(), val.scope, old.ID, newVault.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
 		if err != nil {
 			return err
 		}
@@ -66,14 +66,14 @@ func (a *IntegrationMatcherExporter) restore(store db.Store, exporter DataExport
 	return nil
 }
 
-func (a *IntegrationMatcherExporter) getName() string {
+func (e *IntegrationMatcherExporter) getName() string {
 	return IntegrationMatcher
 }
 
-func (a *IntegrationMatcherExporter) exportDependsOn() []string {
+func (e *IntegrationMatcherExporter) exportDependsOn() []string {
 	return []string{Project, Integration}
 }
 
-func (a *IntegrationMatcherExporter) importDependsOn() []string {
+func (e *IntegrationMatcherExporter) importDependsOn() []string {
 	return []string{Project, Integration}
 }

@@ -10,7 +10,7 @@ type TemplateExporter struct {
 	ValueMap[db.Template]
 }
 
-func (t *TemplateExporter) load(store db.Store, exporter DataExporter) (err error) {
+func (e *TemplateExporter) load(store db.Store, exporter DataExporter, progress Progress) (err error) {
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
 		return err
@@ -23,7 +23,7 @@ func (t *TemplateExporter) load(store db.Store, exporter DataExporter) (err erro
 			return err
 		}
 
-		err = t.appendValues(templates, strconv.Itoa(projId))
+		err = e.appendValues(templates, strconv.Itoa(projId))
 		if err != nil {
 			return err
 		}
@@ -32,28 +32,28 @@ func (t *TemplateExporter) load(store db.Store, exporter DataExporter) (err erro
 	return nil
 }
 
-func (t *TemplateExporter) restore(store db.Store, exporter DataExporter) (err error) {
-	for _, val := range t.values {
+func (e *TemplateExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	for _, val := range e.values {
 		old := val.value
 
 		old.Vaults = nil
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
 
-		old.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.InventoryID)
+		old.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.InventoryID, e)
 		if err != nil {
 			return err
 		}
 
-		old.EnvironmentID, err = exporter.getNewKeyIntRef(Environment, val.scope, old.EnvironmentID)
+		old.EnvironmentID, err = exporter.getNewKeyIntRef(Environment, val.scope, old.EnvironmentID, e)
 		if err != nil {
 			return err
 		}
 
-		old.RepositoryID, err = exporter.getNewKeyInt(Repository, val.scope, old.RepositoryID)
+		old.RepositoryID, err = exporter.getNewKeyInt(Repository, val.scope, old.RepositoryID, e)
 		if err != nil {
 			return err
 		}
@@ -63,7 +63,7 @@ func (t *TemplateExporter) restore(store db.Store, exporter DataExporter) (err e
 			return err
 		}
 
-		err = exporter.mapIntKeys(t.getName(), val.scope, old.ID, newTmpl.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newTmpl.ID)
 		if err != nil {
 			return err
 		}
@@ -71,14 +71,14 @@ func (t *TemplateExporter) restore(store db.Store, exporter DataExporter) (err e
 	return
 }
 
-func (t *TemplateExporter) getName() string {
+func (e *TemplateExporter) getName() string {
 	return Template
 }
 
-func (t *TemplateExporter) exportDependsOn() []string {
+func (e *TemplateExporter) exportDependsOn() []string {
 	return []string{Project}
 }
 
-func (t *TemplateExporter) importDependsOn() []string {
+func (e *TemplateExporter) importDependsOn() []string {
 	return []string{Project, Inventory, Environment, Repository, View}
 }

@@ -10,7 +10,7 @@ type RunnerExporter struct {
 	ValueMap[db.Runner]
 }
 
-func (e *RunnerExporter) load(store db.Store, exporter DataExporter) error {
+func (e *RunnerExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -32,12 +32,12 @@ func (e *RunnerExporter) load(store db.Store, exporter DataExporter) error {
 	return nil
 }
 
-func (e *RunnerExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *RunnerExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
 	for _, val := range e.values {
 		old := val.value
 
-		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}

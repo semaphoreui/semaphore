@@ -10,7 +10,7 @@ type RoleExporter struct {
 	ValueMap[db.Role]
 }
 
-func (a *RoleExporter) load(store db.Store, exporter DataExporter) error {
+func (e *RoleExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -22,7 +22,7 @@ func (a *RoleExporter) load(store db.Store, exporter DataExporter) error {
 		if err != nil {
 			return err
 		}
-		err = a.appendValues(roles, strconv.Itoa(proj))
+		err = e.appendValues(roles, strconv.Itoa(proj))
 		if err != nil {
 			return err
 		}
@@ -33,15 +33,15 @@ func (a *RoleExporter) load(store db.Store, exporter DataExporter) error {
 		return err
 	}
 
-	return a.appendValues(roles, GlobalScope)
+	return e.appendValues(roles, GlobalScope)
 }
 
-func (a *RoleExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *RoleExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range a.values {
+	for _, val := range e.values {
 		old := val.value
 
-		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
@@ -51,7 +51,7 @@ func (a *RoleExporter) restore(store db.Store, exporter DataExporter) (err error
 			return err
 		}
 
-		err = exporter.mapKeys(a.getName(), val.scope, old.Slug, newRole.Slug)
+		err = exporter.mapKeys(e.getName(), val.scope, old.Slug, newRole.Slug)
 		if err != nil {
 			return err
 		}
@@ -60,14 +60,14 @@ func (a *RoleExporter) restore(store db.Store, exporter DataExporter) (err error
 	return nil
 }
 
-func (a *RoleExporter) exportDependsOn() []string {
+func (e *RoleExporter) exportDependsOn() []string {
 	return []string{Project}
 }
 
-func (a *RoleExporter) importDependsOn() []string {
+func (e *RoleExporter) importDependsOn() []string {
 	return []string{Project}
 }
 
-func (a *RoleExporter) getName() string {
+func (e *RoleExporter) getName() string {
 	return Role
 }

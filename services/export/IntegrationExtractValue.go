@@ -10,7 +10,7 @@ type IntegrationExtractValueExporter struct {
 	ValueMap[db.IntegrationExtractValue]
 }
 
-func (a *IntegrationExtractValueExporter) load(store db.Store, exporter DataExporter) error {
+func (e *IntegrationExtractValueExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -33,7 +33,7 @@ func (a *IntegrationExtractValueExporter) load(store db.Store, exporter DataExpo
 			allValues = append(allValues, vals...)
 		}
 
-		err = a.appendValues(allValues, strconv.Itoa(proj))
+		err = e.appendValues(allValues, strconv.Itoa(proj))
 		if err != nil {
 			return err
 		}
@@ -42,12 +42,12 @@ func (a *IntegrationExtractValueExporter) load(store db.Store, exporter DataExpo
 	return nil
 }
 
-func (a *IntegrationExtractValueExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *IntegrationExtractValueExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range a.values {
+	for _, val := range e.values {
 		old := val.value
 
-		old.IntegrationID, err = exporter.getNewKeyInt(Integration, val.scope, old.IntegrationID)
+		old.IntegrationID, err = exporter.getNewKeyInt(Integration, val.scope, old.IntegrationID, e)
 		if err != nil {
 			return err
 		}
@@ -57,7 +57,7 @@ func (a *IntegrationExtractValueExporter) restore(store db.Store, exporter DataE
 			return err
 		}
 
-		err = exporter.mapIntKeys(a.getName(), val.scope, old.ID, newVault.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
 		if err != nil {
 			return err
 		}
@@ -66,14 +66,14 @@ func (a *IntegrationExtractValueExporter) restore(store db.Store, exporter DataE
 	return nil
 }
 
-func (a *IntegrationExtractValueExporter) getName() string {
+func (e *IntegrationExtractValueExporter) getName() string {
 	return IntegrationExtractValue
 }
 
-func (a *IntegrationExtractValueExporter) exportDependsOn() []string {
+func (e *IntegrationExtractValueExporter) exportDependsOn() []string {
 	return []string{Project, Integration}
 }
 
-func (a *IntegrationExtractValueExporter) importDependsOn() []string {
+func (e *IntegrationExtractValueExporter) importDependsOn() []string {
 	return []string{Project, Integration}
 }

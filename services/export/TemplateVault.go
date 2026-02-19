@@ -10,7 +10,7 @@ type TemplateVaultExporter struct {
 	ValueMap[db.TemplateVault]
 }
 
-func (t *TemplateVaultExporter) load(store db.Store, exporter DataExporter) (err error) {
+func (e *TemplateVaultExporter) load(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -34,7 +34,7 @@ func (t *TemplateVaultExporter) load(store db.Store, exporter DataExporter) (err
 			vaultsArr = append(vaultsArr, vaults...)
 		}
 
-		err = t.appendValues(vaultsArr, strconv.Itoa(projId))
+		err = e.appendValues(vaultsArr, strconv.Itoa(projId))
 		if err != nil {
 			return err
 		}
@@ -43,21 +43,21 @@ func (t *TemplateVaultExporter) load(store db.Store, exporter DataExporter) (err
 	return nil
 }
 
-func (t *TemplateVaultExporter) restore(store db.Store, exporter DataExporter) (err error) {
-	for _, val := range t.values {
+func (e *TemplateVaultExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	for _, val := range e.values {
 		old := val.value
 
-		old.VaultKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.VaultKeyID)
+		old.VaultKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.VaultKeyID, e)
 		if err != nil {
 			return err
 		}
 
-		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID)
+		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID, e)
 		if err != nil {
 			return err
 		}
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
@@ -67,7 +67,7 @@ func (t *TemplateVaultExporter) restore(store db.Store, exporter DataExporter) (
 			return err
 		}
 
-		err = exporter.mapIntKeys(t.getName(), val.scope, old.ID, newVault.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
 		if err != nil {
 			return err
 		}
@@ -76,14 +76,14 @@ func (t *TemplateVaultExporter) restore(store db.Store, exporter DataExporter) (
 	return nil
 }
 
-func (t *TemplateVaultExporter) getName() string {
+func (e *TemplateVaultExporter) getName() string {
 	return TemplateVault
 }
 
-func (t *TemplateVaultExporter) importDependsOn() []string {
+func (e *TemplateVaultExporter) importDependsOn() []string {
 	return []string{Template, AccessKey}
 }
 
-func (t *TemplateVaultExporter) exportDependsOn() []string {
+func (e *TemplateVaultExporter) exportDependsOn() []string {
 	return []string{Template}
 }

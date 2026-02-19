@@ -10,7 +10,7 @@ type ScheduleExporter struct {
 	ValueMap[db.Schedule]
 }
 
-func (a *ScheduleExporter) load(store db.Store, exporter DataExporter) error {
+func (e *ScheduleExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -23,7 +23,7 @@ func (a *ScheduleExporter) load(store db.Store, exporter DataExporter) error {
 			return err
 		}
 		envs := getSchedules(vals)
-		err = a.appendValues(envs, strconv.Itoa(proj))
+		err = e.appendValues(envs, strconv.Itoa(proj))
 		if err != nil {
 			return err
 		}
@@ -42,29 +42,34 @@ func getSchedules(vals []db.ScheduleWithTpl) []db.Schedule {
 	return values
 }
 
-func (a *ScheduleExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *ScheduleExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range a.values {
+	for _, val := range e.values {
 		old := val.value
 
 		if old.TaskParamsID != nil {
-			old.TaskParams.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.TaskParams.InventoryID)
+			old.TaskParams.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.TaskParams.InventoryID, e)
 			if err != nil {
 				return err
 			}
 
-			old.TaskParams.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+			old.TaskParams.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 			if err != nil {
 				return err
 			}
 		}
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
 
-		old.RepositoryID, err = exporter.getNewKeyIntRef(Repository, val.scope, old.RepositoryID)
+		old.RepositoryID, err = exporter.getNewKeyIntRef(Repository, val.scope, old.RepositoryID, e)
+		if err != nil {
+			return err
+		}
+
+		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID, e)
 		if err != nil {
 			return err
 		}
@@ -74,7 +79,7 @@ func (a *ScheduleExporter) restore(store db.Store, exporter DataExporter) (err e
 			return err
 		}
 
-		err = exporter.mapIntKeys(a.getName(), val.scope, old.ID, newVault.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
 		if err != nil {
 			return err
 		}
@@ -83,14 +88,14 @@ func (a *ScheduleExporter) restore(store db.Store, exporter DataExporter) (err e
 	return nil
 }
 
-func (a *ScheduleExporter) getName() string {
+func (e *ScheduleExporter) getName() string {
 	return Schedule
 }
 
-func (a *ScheduleExporter) exportDependsOn() []string {
+func (e *ScheduleExporter) exportDependsOn() []string {
 	return []string{Project}
 }
 
-func (a *ScheduleExporter) importDependsOn() []string {
-	return []string{SecretStorage, Repository, Project, Inventory}
+func (e *ScheduleExporter) importDependsOn() []string {
+	return []string{SecretStorage, Repository, Project, Inventory, Template}
 }

@@ -12,7 +12,7 @@ type EventExporter struct {
 	ValueMap[db.Event]
 }
 
-func (e *EventExporter) load(store db.Store, exporter DataExporter) error {
+func (e *EventExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	envs, err := store.GetAllEvents(db.RetrieveQueryParams{Count: math.MaxInt})
 	if err != nil {
@@ -22,19 +22,20 @@ func (e *EventExporter) load(store db.Store, exporter DataExporter) error {
 	return e.appendValuesAndCheck(envs, GlobalScope, false)
 }
 
-func (e *EventExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *EventExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range e.values {
+	size := len(e.values)
+	for index, val := range e.values {
 		old := val.value
 
 		old.ID = -1
 
-		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
 
-		old.UserID, err = exporter.getNewKeyIntRef(User, GlobalScope, old.UserID)
+		old.UserID, err = exporter.getNewKeyIntRef(User, GlobalScope, old.UserID, e)
 		if err != nil {
 			return err
 		}
@@ -44,7 +45,7 @@ func (e *EventExporter) restore(store db.Store, exporter DataExporter) (err erro
 			scope = strconv.Itoa(*old.ProjectID)
 		}
 
-		old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, scope, old.IntegrationID)
+		old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, scope, old.IntegrationID, e)
 		if err != nil {
 			return err
 		}
@@ -58,6 +59,8 @@ func (e *EventExporter) restore(store db.Store, exporter DataExporter) (err erro
 		if err != nil {
 			return err
 		}
+
+		progress.update(float32(index) / float32(size))
 	}
 
 	return nil
@@ -102,11 +105,11 @@ func (e *EventExporter) restoreEventObject(event *db.Event, exporter DataExporte
 		if !ok {
 			return fmt.Errorf("unknown event object type: %s", *event.ObjectType)
 		}
-		event.ObjectID, err = exporter.getNewKeyIntRef(entityName, scope, event.ObjectID)
+		event.ObjectID, err = exporter.getNewKeyIntRef(entityName, scope, event.ObjectID, e)
 		if err != nil {
-			fmt.Printf("failed to restore event object: %s\n", err.Error())
-			event.ObjectID = nil
+			return err
 		}
+
 	}
 	return nil
 }

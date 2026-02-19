@@ -10,7 +10,7 @@ type IntegrationAliasExporter struct {
 	ValueMap[db.IntegrationAlias]
 }
 
-func (a *IntegrationAliasExporter) load(store db.Store, exporter DataExporter) error {
+func (e *IntegrationAliasExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -38,7 +38,7 @@ func (a *IntegrationAliasExporter) load(store db.Store, exporter DataExporter) e
 			allValues = append(allValues, vals...)
 		}
 
-		err = a.appendValues(allValues, strconv.Itoa(proj))
+		err = e.appendValues(allValues, strconv.Itoa(proj))
 		if err != nil {
 			return err
 		}
@@ -47,17 +47,17 @@ func (a *IntegrationAliasExporter) load(store db.Store, exporter DataExporter) e
 	return nil
 }
 
-func (a *IntegrationAliasExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *IntegrationAliasExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range a.values {
+	for _, val := range e.values {
 		old := val.value
 
-		old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, val.scope, old.IntegrationID)
+		old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, val.scope, old.IntegrationID, e)
 		if err != nil {
 			return err
 		}
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
@@ -67,7 +67,7 @@ func (a *IntegrationAliasExporter) restore(store db.Store, exporter DataExporter
 			return err
 		}
 
-		err = exporter.mapIntKeys(a.getName(), val.scope, old.ID, newVault.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
 		if err != nil {
 			return err
 		}
@@ -76,14 +76,14 @@ func (a *IntegrationAliasExporter) restore(store db.Store, exporter DataExporter
 	return nil
 }
 
-func (a *IntegrationAliasExporter) getName() string {
+func (e *IntegrationAliasExporter) getName() string {
 	return IntegrationAlias
 }
 
-func (a *IntegrationAliasExporter) exportDependsOn() []string {
+func (e *IntegrationAliasExporter) exportDependsOn() []string {
 	return []string{Project, Integration}
 }
 
-func (a *IntegrationAliasExporter) importDependsOn() []string {
+func (e *IntegrationAliasExporter) importDependsOn() []string {
 	return []string{Project, Integration}
 }

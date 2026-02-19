@@ -10,7 +10,7 @@ type TaskStageExporter struct {
 	ValueMap[db.TaskStage]
 }
 
-func (e *TaskStageExporter) load(store db.Store, exporter DataExporter) error {
+func (e *TaskStageExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
 		return err
@@ -59,11 +59,11 @@ func getStages(vals []db.TaskStageWithResult) []db.TaskStage {
 	return values
 }
 
-func (e *TaskStageExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *TaskStageExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 	for _, val := range e.values {
 		old := val.value
 
-		old.TaskID, err = exporter.getNewKeyInt(Task, val.scope, old.TaskID)
+		old.TaskID, err = exporter.getNewKeyInt(Task, val.scope, old.TaskID, e)
 		if err != nil {
 			return err
 		}

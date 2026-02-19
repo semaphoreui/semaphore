@@ -6,7 +6,7 @@ type UserExporter struct {
 	ValueMap[db.User]
 }
 
-func (a *UserExporter) load(store db.Store, exporter DataExporter) error {
+func (a *UserExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 	users, err := store.GetUsers(db.RetrieveQueryParams{})
 	if err != nil {
 		return err
@@ -15,7 +15,7 @@ func (a *UserExporter) load(store db.Store, exporter DataExporter) error {
 	return a.appendValues(users, GlobalScope)
 }
 
-func (a *UserExporter) restore(store db.Store, exporter DataExporter) error {
+func (a *UserExporter) restore(store db.Store, exporter DataExporter, progress Progress) error {
 	for _, val := range a.values {
 		old := val.value
 

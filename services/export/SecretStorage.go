@@ -10,7 +10,7 @@ type SecretStorageExporter struct {
 	ValueMap[db.SecretStorage]
 }
 
-func (a *SecretStorageExporter) load(store db.Store, exporter DataExporter) error {
+func (e *SecretStorageExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -24,7 +24,7 @@ func (a *SecretStorageExporter) load(store db.Store, exporter DataExporter) erro
 			return err
 		}
 
-		err = a.appendValues(keys, strconv.Itoa(projId))
+		err = e.appendValues(keys, strconv.Itoa(projId))
 		if err != nil {
 			return err
 		}
@@ -33,18 +33,18 @@ func (a *SecretStorageExporter) load(store db.Store, exporter DataExporter) erro
 	return nil
 }
 
-func (a *SecretStorageExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *SecretStorageExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range a.values {
+	for _, val := range e.values {
 		old := val.value
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 
 		newVault, err := store.CreateSecretStorage(old)
 		if err != nil {
 			return err
 		}
 
-		err = exporter.mapIntKeys(a.getName(), val.scope, old.ID, newVault.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
 		if err != nil {
 			return err
 		}
@@ -53,14 +53,14 @@ func (a *SecretStorageExporter) restore(store db.Store, exporter DataExporter) (
 	return nil
 }
 
-func (a *SecretStorageExporter) exportDependsOn() []string {
+func (e *SecretStorageExporter) exportDependsOn() []string {
 	return []string{Project}
 }
 
-func (a *SecretStorageExporter) importDependsOn() []string {
+func (e *SecretStorageExporter) importDependsOn() []string {
 	return []string{Project}
 }
 
-func (a *SecretStorageExporter) getName() string {
+func (e *SecretStorageExporter) getName() string {
 	return SecretStorage
 }

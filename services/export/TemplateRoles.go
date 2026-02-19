@@ -10,7 +10,7 @@ type TemplateRoleExporter struct {
 	ValueMap[db.TemplateRolePerm]
 }
 
-func (t *TemplateRoleExporter) load(store db.Store, exporter DataExporter) (err error) {
+func (e *TemplateRoleExporter) load(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -33,7 +33,7 @@ func (t *TemplateRoleExporter) load(store db.Store, exporter DataExporter) (err 
 			roles = append(roles, templateRoles...)
 		}
 
-		err = t.appendValues(roles, strconv.Itoa(projId))
+		err = e.appendValues(roles, strconv.Itoa(projId))
 		if err != nil {
 			return err
 		}
@@ -42,21 +42,21 @@ func (t *TemplateRoleExporter) load(store db.Store, exporter DataExporter) (err 
 	return nil
 }
 
-func (t *TemplateRoleExporter) restore(store db.Store, exporter DataExporter) (err error) {
-	for _, val := range t.values {
+func (e *TemplateRoleExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	for _, val := range e.values {
 		old := val.value
 
-		old.RoleSlug, err = exporter.getNewKey(Role, val.scope, old.RoleSlug)
+		old.RoleSlug, err = exporter.getNewKey(Role, val.scope, old.RoleSlug, e)
 		if err != nil {
 			return err
 		}
 
-		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID)
+		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID, e)
 		if err != nil {
 			return err
 		}
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
@@ -66,7 +66,7 @@ func (t *TemplateRoleExporter) restore(store db.Store, exporter DataExporter) (e
 			return err
 		}
 
-		err = exporter.mapIntKeys(t.getName(), val.scope, old.ID, newVault.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
 		if err != nil {
 			return err
 		}
@@ -75,14 +75,14 @@ func (t *TemplateRoleExporter) restore(store db.Store, exporter DataExporter) (e
 	return nil
 }
 
-func (t *TemplateRoleExporter) getName() string {
+func (e *TemplateRoleExporter) getName() string {
 	return TemplateRole
 }
 
-func (t *TemplateRoleExporter) importDependsOn() []string {
+func (e *TemplateRoleExporter) importDependsOn() []string {
 	return []string{Template, Project}
 }
 
-func (t *TemplateRoleExporter) exportDependsOn() []string {
+func (e *TemplateRoleExporter) exportDependsOn() []string {
 	return []string{Template, Project}
 }

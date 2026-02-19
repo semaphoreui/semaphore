@@ -10,7 +10,7 @@ type ViewExporter struct {
 	ValueMap[db.View]
 }
 
-func (a *ViewExporter) load(store db.Store, exporter DataExporter) error {
+func (e *ViewExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
@@ -24,7 +24,7 @@ func (a *ViewExporter) load(store db.Store, exporter DataExporter) error {
 			return err
 		}
 
-		err = a.appendValues(envs, strconv.Itoa(proj))
+		err = e.appendValues(envs, strconv.Itoa(proj))
 		if err != nil {
 			return err
 		}
@@ -32,12 +32,12 @@ func (a *ViewExporter) load(store db.Store, exporter DataExporter) error {
 	return nil
 }
 
-func (a *ViewExporter) restore(store db.Store, exporter DataExporter) (err error) {
+func (e *ViewExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range a.values {
+	for _, val := range e.values {
 		old := val.value
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
 			return err
 		}
@@ -47,7 +47,7 @@ func (a *ViewExporter) restore(store db.Store, exporter DataExporter) (err error
 			return err
 		}
 
-		err = exporter.mapIntKeys(a.getName(), val.scope, old.ID, newView.ID)
+		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newView.ID)
 		if err != nil {
 			return err
 		}
@@ -56,14 +56,14 @@ func (a *ViewExporter) restore(store db.Store, exporter DataExporter) (err error
 	return nil
 }
 
-func (a *ViewExporter) exportDependsOn() []string {
+func (e *ViewExporter) exportDependsOn() []string {
 	return []string{Project}
 }
 
-func (a *ViewExporter) importDependsOn() []string {
+func (e *ViewExporter) importDependsOn() []string {
 	return []string{Project}
 }
 
-func (a *ViewExporter) getName() string {
+func (e *ViewExporter) getName() string {
 	return View
 }
