@@ -84,3 +84,22 @@ func (e Role) GetName() string {
 	}
 	return e.Name
 }
+
+func (e TemplateVault) GetID() int {
+	return e.ID
+}
+
+func (e Task) GetID() int {
+	return e.ID
+}
+
+func (e Integration) GetID() int {
+	return e.ID
+}
+
+func (e Project) GetID() int {
+	return e.ID
+}
+func (e User) GetID() int {
+	return e.ID
+}

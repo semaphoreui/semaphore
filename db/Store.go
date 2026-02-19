@@ -233,6 +233,7 @@ type UserManager interface {
 	CreateUser(user UserWithPwd) (User, error)
 	DeleteUser(userID int) error
 	UpdateUser(user UserWithPwd) error
+	ImportUser(user UserWithPwd) (User, error)
 	SetUserPassword(userID int, password string) error
 	AddTotpVerification(userID int, url string, recoveryHash string) (UserTotp, error)
 	DeleteTotpVerification(userID int, totpID int) error
@@ -462,6 +463,7 @@ type EventManager interface {
 	CreateEvent(event Event) (Event, error)
 	GetUserEvents(userID int, params RetrieveQueryParams) ([]Event, error)
 	GetEvents(projectID int, params RetrieveQueryParams) ([]Event, error)
+	GetAllEvents(params RetrieveQueryParams) ([]Event, error)
 }
 
 type SecretStorageRepository interface {

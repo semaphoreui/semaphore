@@ -70,3 +70,12 @@ func (d *SqlDb) GetEvents(projectID int, params db.RetrieveQueryParams) ([]db.Ev
 
 	return d.getEvents(q, params)
 }
+
+func (d *SqlDb) GetAllEvents(params db.RetrieveQueryParams) ([]db.Event, error) {
+	q := squirrel.Select("event.*, p.name as project_name").
+		From("event").
+		LeftJoin("project as p on event.project_id=p.id").
+		OrderBy("id desc")
+
+	return d.getEvents(q, params)
+}
