@@ -1,6 +1,7 @@
 package export
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -157,7 +158,7 @@ func (d *TypeKeyMapper) getCheckAndNewKey(name string, scope string, oldKey Enti
 	if !ok {
 		msg := fmt.Sprintf("%s key %s not found", name, oldKey)
 		errHandler.onError(msg)
-		return "", fmt.Errorf(msg)
+		return "", errors.New(msg)
 	}
 
 	return newKey, nil
@@ -493,6 +494,10 @@ func (p *ExporterChain) Restore(store db.Store) error {
 		errCount := len(exporter.getErrors())
 		if errCount > 0 {
 			fmt.Printf("\tErrors: %d\n", errCount)
+
+			//for _, err := range exporter.getErrors() {
+			//	fmt.Println("\t", err)
+			//}
 		}
 		exporter.clear()
 	}

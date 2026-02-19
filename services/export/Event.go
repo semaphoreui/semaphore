@@ -99,13 +99,24 @@ func eventObjectTypeToEntityName(t db.EventObjectType) (string, bool) {
 	}
 }
 
+func getScope(objectType, scope string) string {
+	switch objectType {
+	case Project:
+		return GlobalScope
+	case User:
+		return GlobalScope
+	}
+
+	return scope
+}
+
 func (e *EventExporter) restoreEventObject(event *db.Event, exporter DataExporter, scope string) (err error) {
 	if event.ObjectType != nil {
 		entityName, ok := eventObjectTypeToEntityName(*event.ObjectType)
 		if !ok {
 			return fmt.Errorf("unknown event object type: %s", *event.ObjectType)
 		}
-		event.ObjectID, err = exporter.getNewKeyIntRef(entityName, scope, event.ObjectID, e)
+		event.ObjectID, err = exporter.getNewKeyIntRef(entityName, getScope(entityName, scope), event.ObjectID, e)
 		if err != nil {
 			return err
 		}
