@@ -465,7 +465,7 @@ func (p *ExporterChain) Load(store db.Store) (err error) {
 	return
 }
 
-func (p *ExporterChain) Restore(store db.Store) error {
+func (p *ExporterChain) Restore(store db.Store, errLogSize int) error {
 	keys, err := getSortedKeys(p.exporters, func(t TypeExporter) []string {
 		return t.importDependsOn()
 	})
@@ -493,11 +493,16 @@ func (p *ExporterChain) Restore(store db.Store) error {
 
 		errCount := len(exporter.getErrors())
 		if errCount > 0 {
-			fmt.Printf("\tErrors: %d\n", errCount)
+			fmt.Printf("    Errors: %d\n", errCount)
 
-			//for _, err := range exporter.getErrors() {
-			//	fmt.Println("\t", err)
-			//}
+			if errLogSize > 0 {
+				for i, err := range exporter.getErrors() {
+					if i > errLogSize {
+						break
+					}
+					fmt.Println("      ", err)
+				}
+			}
 		}
 		exporter.clear()
 	}

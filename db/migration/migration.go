@@ -12,18 +12,18 @@ type Migrator struct {
 	userIDs map[int]db.User
 }
 
-func Migrate(oldStore, newStore db.Store) error {
+func Migrate(oldStore, newStore db.Store, errLogSize int) error {
 	migrator := &Migrator{}
-	return migrator.Migrate(oldStore, newStore)
+	return migrator.Migrate(oldStore, newStore, errLogSize)
 }
 
-func (m *Migrator) Migrate(oldStore, newStore db.Store) error {
+func (m *Migrator) Migrate(oldStore, newStore db.Store, errLogSize int) error {
 	m.oldStore = oldStore
 	m.newStore = newStore
 
 	m.userIDs = make(map[int]db.User)
 
-	if err := m.migrateProject(); err != nil {
+	if err := m.migrateProject(errLogSize); err != nil {
 		return err
 	}
 
@@ -48,7 +48,7 @@ func (m *Migrator) migrateUsers() error {
 	return nil
 }
 
-func (m *Migrator) migrateProject() error {
+func (m *Migrator) migrateProject(errLogSize int) error {
 
 	mapper := &export.TypeKeyMapper{Keys: make(map[string]map[string]map[export.EntityKey]export.EntityKey), IgnoreKeyNotFoundErr: true}
 	p := export.InitProjectExporters(mapper)
@@ -58,7 +58,7 @@ func (m *Migrator) migrateProject() error {
 		return err
 	}
 
-	err = p.Restore(m.newStore)
+	err = p.Restore(m.newStore, errLogSize)
 	if err != nil {
 		return err
 	}
