@@ -58,6 +58,16 @@ func (e *TemplateExporter) restore(store db.Store, exporter DataExporter, progre
 			return err
 		}
 
+		old.ViewID, err = exporter.getNewKeyIntRef(View, val.scope, old.ViewID, e)
+		if err != nil {
+			return err
+		}
+
+		old.BuildTemplateID, err = exporter.getNewKeyIntRef(Template, val.scope, old.BuildTemplateID, e)
+		if err != nil {
+			return err
+		}
+
 		newTmpl, err := store.CreateTemplate(old)
 		if err != nil {
 			return err
