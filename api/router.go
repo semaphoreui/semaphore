@@ -320,6 +320,7 @@ func Route(
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.GetProjectSchedules).Methods("GET", "HEAD")
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
 	projectUserAPI.Path("/schedules/validate").HandlerFunc(projects.ValidateScheduleCronFormat).Methods("POST")
+	projectUserAPI.Path("/schedules/next").HandlerFunc(projects.GetNextRunTime).Methods("POST")
 
 	projectUserAPI.Path("/views").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
 	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
