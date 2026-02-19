@@ -47,19 +47,36 @@ func (e *TaskExporter) restore(store db.Store, exporter DataExporter, progress P
 		old := val.value
 
 		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
+		if err != nil {
+			return err
+		}
 
 		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID, e)
+		if err != nil {
+			return err
+		}
 
 		old.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.InventoryID, e)
+		if err != nil {
+			return err
+		}
 
 		old.ScheduleID, err = exporter.getNewKeyIntRef(Schedule, val.scope, old.ScheduleID, e)
+		if err != nil {
+			return err
+		}
 
 		old.UserID, err = exporter.getNewKeyIntRef(User, GlobalScope, old.UserID, e)
+		if err != nil {
+			return err
+		}
 
 		old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, val.scope, old.IntegrationID, e)
+		if err != nil {
+			return err
+		}
 
 		old.BuildTaskID, err = exporter.getNewKeyIntRef(Task, val.scope, old.BuildTaskID, e)
-
 		if err != nil {
 			return err
 		}
