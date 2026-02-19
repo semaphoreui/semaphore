@@ -438,6 +438,7 @@ type ProgressBar struct {
 func (p *ProgressBar) update(progress float32) {
 	if progress-p.progress > 0.01 {
 		p.updateForce(progress)
+		p.progress = progress
 	}
 }
 
