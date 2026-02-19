@@ -15,7 +15,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/websocket v1.5.3
-	github.com/lib/pq v1.10.9
+	github.com/lib/pq v1.11.2
 	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/pquerna/otp v1.5.0
 	github.com/robfig/cron/v3 v3.0.1
