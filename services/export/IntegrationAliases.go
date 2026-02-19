@@ -23,12 +23,13 @@ func (e *IntegrationAliasExporter) load(store db.Store, exporter DataExporter, p
 			return err
 		}
 
+		allValues := make([]db.IntegrationAlias, 0)
+		allValues = append(allValues, vals...)
+
 		integrations, err := exporter.getLoadedKeysInt(Integration, strconv.Itoa(proj))
 		if err != nil {
 			return err
 		}
-
-		allValues := make([]db.IntegrationAlias, 0)
 
 		for _, integration := range integrations {
 			vals, err = store.GetIntegrationAliases(proj, &integration)
