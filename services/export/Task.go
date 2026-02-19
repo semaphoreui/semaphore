@@ -1,7 +1,6 @@
 package export
 
 import (
-	"math"
 	"slices"
 	"strconv"
 
@@ -38,12 +37,13 @@ func (e *TaskExporter) load(store db.Store, exporter DataExporter, progress Prog
 	}
 
 	return nil
-
 }
 
 func (e *TaskExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
 
-	for _, val := range e.values {
+	size := len(e.values)
+
+	for index, val := range e.values {
 		old := val.value
 
 		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
@@ -64,7 +64,7 @@ func (e *TaskExporter) restore(store db.Store, exporter DataExporter, progress P
 			return err
 		}
 
-		newVault, err := store.CreateTask(old, math.MaxInt)
+		newVault, err := store.CreateTask(old, 0)
 		if err != nil {
 			return err
 		}
@@ -73,6 +73,8 @@ func (e *TaskExporter) restore(store db.Store, exporter DataExporter, progress P
 		if err != nil {
 			return err
 		}
+
+		progress.update(float32(index) / float32(size))
 	}
 
 	return nil
