@@ -13,10 +13,11 @@ import (
 )
 
 var migrationArgs struct {
-	undoTo     string
-	applyTo    string
-	fromBoltDb string
-	errLogSize int
+	undoTo         string
+	applyTo        string
+	fromBoltDb     string
+	errLogSize     int
+	skipTaskOutput bool
 }
 
 func init() {
@@ -24,6 +25,8 @@ func init() {
 	migrateCmd.PersistentFlags().StringVar(&migrationArgs.applyTo, "apply-to", "", "Apply to specific version")
 	migrateCmd.PersistentFlags().StringVar(&migrationArgs.fromBoltDb, "from-boltdb", "", "Path to boltDB data file")
 	migrateCmd.PersistentFlags().IntVar(&migrationArgs.errLogSize, "err-log-size", 0, "Error log size")
+	migrateCmd.PersistentFlags().BoolVar(&migrationArgs.skipTaskOutput, "skip-task-output", false, "Skip task output importing during migration")
+
 	rootCmd.AddCommand(migrateCmd)
 }
 
@@ -107,7 +110,14 @@ func migrateBoltDb(boltDbPath string) {
 
 	// 3. Connect and migrate
 	fmt.Println("Starting migration...")
-	err = migration.Migrate(boltStore, sqlStore, migrationArgs.errLogSize)
+	migrator := &migration.Migrator{
+		OldStore:       boltStore,
+		NewStore:       sqlStore,
+		ErrLogSize:     migrationArgs.errLogSize,
+		SkipTaskOutput: migrationArgs.skipTaskOutput,
+	}
+
+	err = migrator.Migrate()
 	if err != nil {
 		fmt.Printf("Migration failed: %v\n", err)
 		return

@@ -391,7 +391,8 @@ func getSortedKeys(exporters map[string]TypeExporter, dependsOn func(t TypeExpor
 	return sorted, nil
 }
 
-func InitProjectExporters(mapper KeyMapper) *ExporterChain {
+func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool) *ExporterChain {
+
 	exporters := map[string]TypeExporter{
 		User:                    &UserExporter{},
 		Project:                 &ProjectExporter{},
@@ -413,13 +414,20 @@ func InitProjectExporters(mapper KeyMapper) *ExporterChain {
 		IntegrationAlias:        &IntegrationAliasExporter{},
 		Task:                    &TaskExporter{},
 		TaskStage:               &TaskStageExporter{},
-		TaskOutput:              &TaskOutputExporter{},
 		Option:                  &OptionExporter{},
 		Event:                   &EventExporter{},
 		Runner:                  &RunnerExporter{},
 	}
 
+	if !skipTaskOutput {
+		exporters[TaskOutput] = &TaskOutputExporter{}
+	}
+
 	return &ExporterChain{exporters: exporters, KeyMapper: mapper}
+}
+
+func NewKeyMapper() *TypeKeyMapper {
+	return &TypeKeyMapper{Keys: make(map[string]map[string]map[EntityKey]EntityKey), IgnoreKeyNotFoundErr: true}
 }
 
 type ProgressBar struct {
