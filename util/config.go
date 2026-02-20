@@ -72,6 +72,20 @@ type LdapMappings struct {
 	CN   string `json:"cn" env:"SEMAPHORE_LDAP_MAPPING_CN" default:"cn"`
 }
 
+func (p *LdapMappings) IsAdminMappingEnable() bool {
+	// LDAP admin mapping is not supported. Always returns false, meaning users
+	// authenticated via LDAP will not automatically receive admin privileges
+	// based on group membership.
+	return false
+}
+
+func (p *LdapMappings) IsAdminUserClaims(claims map[string]any) bool {
+	// LDAP admin mapping is not supported. Always returns false, meaning users
+	// authenticated via LDAP will not automatically receive admin privileges
+	// based on group membership.
+	return false
+}
+
 func (p *LdapMappings) GetUsernameClaim() string {
 	return p.UID
 }
