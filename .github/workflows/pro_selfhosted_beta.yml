@@ -6,6 +6,9 @@ name: Pro Self-Hosted Release
       - v*-beta*
       - v*-rc*
 
+permissions:
+  contents: write
+
 jobs:
   prerelease:
     runs-on: ubuntu-latest
@@ -56,7 +59,7 @@ jobs:
       - name: Run release
         run: |
           APP_BUILD_TYPE=pro_selfhosted \
-          GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
+          GITHUB_TOKEN=${{ github.token }} \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
           PROJECT_NAME=semaphore \
             task release:prod
@@ -117,7 +120,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           build-args: |
-            GH_TOKEN=${{ secrets.GH_TOKEN }}
+            GH_TOKEN=${{ github.token }}
             APP_BUILD_TYPE=pro_selfhosted
           file: deployment/docker/server/Dockerfile
           platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
@@ -135,7 +138,7 @@ jobs:
           context: .
           build-args: |
             ANSIBLE_VERSION=9.4.0
-            GH_TOKEN=${{ secrets.GH_TOKEN }}
+            GH_TOKEN=${{ github.token }}
             APP_BUILD_TYPE=pro_selfhosted
           file: deployment/docker/server/Dockerfile
           platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
@@ -158,7 +161,7 @@ jobs:
             POWERSHELL_VERSION=7.5.0
             SEMAPHORE_IMAGE=public.ecr.aws/semaphore/server
             SEMAPHORE_VERSION=${{ github.ref_name }}
-            GH_TOKEN=${{ secrets.GH_TOKEN }}
+            GH_TOKEN=${{ github.token }}
             APP_BUILD_TYPE=pro_selfhosted
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
@@ -195,7 +198,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           build-args: |
-            GH_TOKEN=${{ secrets.GH_TOKEN }}
+            GH_TOKEN=${{ github.token }}
           file: deployment/docker/runner/Dockerfile
           platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
@@ -212,7 +215,7 @@ jobs:
           context: .
           build-args: |
             ANSIBLE_VERSION=9.4.0
-            GH_TOKEN=${{ secrets.GH_TOKEN }}
+            GH_TOKEN=${{ github.token }}
           file: deployment/docker/runner/Dockerfile
           platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
@@ -234,7 +237,7 @@ jobs:
             POWERSHELL_VERSION=7.5.0
             SEMAPHORE_IMAGE=public.ecr.aws/semaphore/runner
             SEMAPHORE_VERSION=${{ github.ref_name }}
-            GH_TOKEN=${{ secrets.GH_TOKEN }}
+            GH_TOKEN=${{ github.token }}
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
