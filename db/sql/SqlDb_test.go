@@ -1,8 +1,9 @@
 package sql
 
 import (
-	"github.com/go-gorp/gorp/v3"
 	"testing"
+
+	"github.com/go-gorp/gorp/v3"
 )
 
 func TestValidatePort(t *testing.T) {

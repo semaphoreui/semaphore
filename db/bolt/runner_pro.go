@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"fmt"
+
 	"github.com/semaphoreui/semaphore/db"
 	"go.etcd.io/bbolt"
 )

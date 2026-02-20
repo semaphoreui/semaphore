@@ -1,9 +1,10 @@
 package sql
 
 import (
-	"github.com/semaphoreui/semaphore/db"
 	"strconv"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func (d *SqlDb) GetTemplateVaults(projectID int, templateID int) (vaults []db.TemplateVault, err error) {

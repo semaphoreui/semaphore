@@ -1,10 +1,11 @@
 package project
 
 import (
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_MarshalValue_NilPointer_ReturnsNil(t *testing.T) {

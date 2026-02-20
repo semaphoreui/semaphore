@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+
 	"github.com/semaphoreui/semaphore/db"
 )
 

@@ -1,10 +1,11 @@
 package api
 
 import (
-	"github.com/semaphoreui/semaphore/util"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/util"
 )
 
 func TestApiPing(t *testing.T) {

@@ -1,10 +1,11 @@
 package helpers
 
 import (
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 type EventLogItem struct {

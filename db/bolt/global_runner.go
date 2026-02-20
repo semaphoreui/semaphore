@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"encoding/base64"
+
 	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"

@@ -2,9 +2,10 @@ package bolt
 
 import (
 	"errors"
+	"strings"
+
 	"github.com/semaphoreui/semaphore/db"
 	"go.etcd.io/bbolt"
-	"strings"
 )
 
 func (d *BoltDb) GetOptions(params db.RetrieveQueryParams) (res map[string]string, err error) {

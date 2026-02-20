@@ -3,11 +3,12 @@ package projects
 import (
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/util"
-	"net/http"
 )
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context

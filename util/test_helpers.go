@@ -1,8 +1,9 @@
 package util
 
 import (
-	"github.com/semaphoreui/semaphore/pkg/tz"
 	"math/rand"
+
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
 //HELPERS
