@@ -121,7 +121,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           build-args: |
-            GH_TOKEN=${{ github.token }}
+            GH_TOKEN=${{ secrets.GH_TOKEN }}
             APP_BUILD_TYPE=pro_selfhosted
           file: deployment/docker/server/Dockerfile
           platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
@@ -139,7 +139,7 @@ jobs:
           context: .
           build-args: |
             ANSIBLE_VERSION=9.4.0
-            GH_TOKEN=${{ github.token }}
+            GH_TOKEN=${{ secrets.GH_TOKEN }}
             APP_BUILD_TYPE=pro_selfhosted
           file: deployment/docker/server/Dockerfile
           platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
@@ -162,7 +162,7 @@ jobs:
             POWERSHELL_VERSION=7.5.0
             SEMAPHORE_IMAGE=public.ecr.aws/semaphore/server
             SEMAPHORE_VERSION=${{ github.ref_name }}
-            GH_TOKEN=${{ github.token }}
+            GH_TOKEN=${{ secrets.GH_TOKEN }}
             APP_BUILD_TYPE=pro_selfhosted
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
@@ -201,7 +201,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           build-args: |
-            GH_TOKEN=${{ github.token }}
+            GH_TOKEN=${{ secrets.GH_TOKEN }}
           file: deployment/docker/runner/Dockerfile
           platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
@@ -218,7 +218,7 @@ jobs:
           context: .
           build-args: |
             ANSIBLE_VERSION=9.4.0
-            GH_TOKEN=${{ github.token }}
+            GH_TOKEN=${{ secrets.GH_TOKEN }}
           file: deployment/docker/runner/Dockerfile
           platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
@@ -240,7 +240,7 @@ jobs:
             POWERSHELL_VERSION=7.5.0
             SEMAPHORE_IMAGE=public.ecr.aws/semaphore/runner
             SEMAPHORE_VERSION=${{ github.ref_name }}
-            GH_TOKEN=${{ github.token }}
+            GH_TOKEN=${{ secrets.GH_TOKEN }}
           file: deployment/docker/server/powershell/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
