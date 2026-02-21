@@ -134,17 +134,27 @@ export default {
 
   methods: {
     async loadItemsAndShowPublicKey(e) {
-      const publicKey = e && e.action === 'new'
-        ? this.extractPublicKey(e.item)
-        : '';
-      if (publicKey) {
-        this.createdPublicKey = publicKey;
-        this.createdPublicKeyDialog = true;
-      } else {
+      await this.loadItems();
+
+      const isGeneratedOnCreate = e && e.action === 'new';
+      const isGeneratedOnUpdate = e && e.action === 'edit' && e.item && e.item.generate_ssh_key;
+      if (!isGeneratedOnCreate && !isGeneratedOnUpdate) {
         this.createdPublicKey = '';
+        return;
       }
 
-      await this.loadItems();
+      const itemId = e && e.item ? e.item.id : null;
+      const reloadedItem = itemId ? this.items.find((x) => x.id === itemId) : null;
+      const sourceItem = reloadedItem || (e || {}).item;
+      const publicKey = this.extractPublicKey(sourceItem);
+
+      if (!publicKey) {
+        this.createdPublicKey = '';
+        return;
+      }
+
+      this.createdPublicKey = publicKey;
+      this.createdPublicKeyDialog = true;
     },
 
     extractPublicKey(item) {
