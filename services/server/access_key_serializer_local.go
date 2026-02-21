@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -121,8 +122,13 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encry
 			res = os.Getenv(*key.SourceStorageKey)
 			return
 		case db.AccessKeySourceStorageFile:
+			filePath := filepath.Clean(*key.SourceStorageKey)
+			if !filepath.IsAbs(filePath) {
+				err = fmt.Errorf("file path must be absolute")
+				return
+			}
 			var data []byte
-			data, err = os.ReadFile(*key.SourceStorageKey)
+			data, err = os.ReadFile(filePath)
 			if err != nil {
 				return
 			}
