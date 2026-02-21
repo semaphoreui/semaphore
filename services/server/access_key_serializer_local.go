@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -123,26 +124,34 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encry
 			res = os.Getenv(*key.SourceStorageKey)
 			return
 		case db.AccessKeySourceStorageFile:
+
 			filePath := filepath.Clean(*key.SourceStorageKey)
 			if !filepath.IsAbs(filePath) {
-				err = fmt.Errorf("file path must be absolute")
+				err = common_errors.NewUserErrorS("file path must be absolute")
 				return
 			}
 
 			for _, segment := range strings.Split(filepath.ToSlash(*key.SourceStorageKey), "/") {
 				if segment == ".." {
-					err = fmt.Errorf("file path must not contain traversal segments")
+					err = common_errors.NewUserErrorS("file path must not contain traversal segments")
 					return
 				}
 			}
 
-			var resolvedPath string
-			resolvedPath, err = filepath.EvalSymlinks(filePath)
+			secretsBasePath := filepath.Clean(util.Config.Dirs.SecretsPath)
+			if !filepath.IsAbs(secretsBasePath) {
+				err = common_errors.NewUserErrorS("secrets path must be absolute")
+				return
+			}
+
+			var relPath string
+			relPath, err = filepath.Rel(secretsBasePath, filePath)
 			if err != nil {
 				return
 			}
-			if resolvedPath != filePath {
-				err = fmt.Errorf("file path must not contain symlinks")
+
+			if relPath == ".." || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) {
+				err = common_errors.NewUserErrorS("file path must be inside secrets path")
 				return
 			}
 
