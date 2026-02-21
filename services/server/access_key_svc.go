@@ -67,6 +67,7 @@ func (s *AccessKeyServiceImpl) GetAll(projectID int, options db.GetAccessKeyOpti
 
 func maybeGenerateSSHPrivateKey(key *db.AccessKey) error {
 	if !key.GenerateSSHKey || key.Type != db.AccessKeySSH {
+		key.Plain = nil
 		return nil
 	}
 
@@ -117,21 +118,13 @@ func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, er
 }
 
 func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
-	oldKey, err := s.accessKeyRepo.GetAccessKey(*key.ProjectID, key.ID)
-	if err != nil {
-		return
-	}
-
-	// Never trust client-provided plain payload on update.
-	// Preserve existing value unless it is regenerated below.
-	key.Plain = oldKey.Plain
-
-	err = maybeGenerateSSHPrivateKey(&key)
-	if err != nil {
-		return
-	}
 
 	if key.OverrideSecret {
+		err = maybeGenerateSSHPrivateKey(&key)
+		if err != nil {
+			return
+		}
+
 		err = s.encryptionService.SerializeSecret(&key)
 		if errors.Is(err, ErrReadOnlyStorage) {
 			key.OverrideSecret = false

@@ -125,14 +125,30 @@
       v-if="!isReadOnly && item.type === 'ssh'"
     />
 
-    <v-textarea
-      outlined
-      :value="publicKey"
-      label="Public Key"
+    <div
       v-if="item.type === 'ssh' && !isNew && hasGeneratedPublicKey"
-      :disabled="formSaving"
-      readonly
-    />
+      class="mb-4"
+    >
+<!--      <div>Public Key</div>-->
+      <div style="position: relative">
+        <pre
+          style="
+            overflow: auto;
+            background: gray;
+            color: white;
+            border-radius: 10px;
+            margin-top: 5px;
+          "
+          class="pa-2"
+          >{{ publicKey }}</pre
+        >
+
+        <CopyClipboardButton
+          style="position: absolute; right: 0; top: 0; transform: scale(0.9);"
+          :text="publicKey"
+        />
+      </div>
+    </div>
 
     <v-checkbox
         v-model="item.override_secret"
@@ -152,8 +168,13 @@
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 
 export default {
+  components: {
+    CopyClipboardButton,
+  },
+
   mixins: [ItemFormBase],
 
   props: {

@@ -28,14 +28,25 @@
       hide-buttons
     >
       <template v-slot:form="{}">
-        <div>
-          <v-textarea
-            outlined
-            readonly
-            auto-grow
-            label="Public Key"
-            :value="createdPublicKey"
-          />
+        <div class="mb-4">
+          <div style="position: relative">
+            <pre
+              style="
+                overflow: auto;
+                background: gray;
+                color: white;
+                border-radius: 10px;
+                margin-top: 5px;
+              "
+              class="pa-2"
+              >{{ createdPublicKey }}</pre
+            >
+
+            <CopyClipboardButton
+              style="position: absolute; right: 10px; top: 10px"
+              :text="createdPublicKey"
+            />
+          </div>
         </div>
       </template>
     </EditDialog>
@@ -109,9 +120,14 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import KeyForm from '@/components/KeyForm.vue';
 import PageMixin from '@/components/PageMixin';
 import KeyStoreMenu from '@/components/KeyStoreMenu.vue';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 
 export default {
-  components: { KeyStoreMenu, KeyForm },
+  components: {
+    CopyClipboardButton,
+    KeyStoreMenu,
+    KeyForm,
+  },
 
   mixins: [ItemListPageBase, PageMixin],
 

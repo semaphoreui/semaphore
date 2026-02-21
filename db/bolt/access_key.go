@@ -44,7 +44,7 @@ func (d *BoltDb) UpdateAccessKey(key db.AccessKey) error {
 			return err2
 		}
 		oldKey.Name = key.Name
-		oldKey.Plain = key.Plain
+		//oldKey.Plain = key.Plain
 		key = oldKey
 	}
 

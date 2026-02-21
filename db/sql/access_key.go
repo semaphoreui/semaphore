@@ -63,14 +63,14 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 	var res sql.Result
 
 	var args []any
-	query := "update access_key set name=?, plain=?"
+	query := "update access_key set name=?"
 	args = append(args, key.Name)
-	args = append(args, key.Plain)
 
 	if key.OverrideSecret {
-		query += ", type=?, secret=?"
+		query += ", type=?, secret=?, plain=?"
 		args = append(args, key.Type)
 		args = append(args, key.Secret)
+		args = append(args, key.Plain)
 	}
 
 	query += " where id=?"
