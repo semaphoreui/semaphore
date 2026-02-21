@@ -24,7 +24,23 @@
     ></v-text-field>
 
     <div v-if="item.type === 'vault'">
+      <div class="d-flex justify-space-between align-center mb-2">
+        <b style="font-size: 13px; margin-left: 5px">Token</b>
+        <v-btn-toggle v-model="secretStorage" tile group>
+          <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
+            Store in DB
+          </v-btn>
+          <v-btn value="env" small class="mr-0 mt-0" style="border-radius: 4px">
+            From ENV
+          </v-btn>
+          <v-btn value="file" small class="mr-0 mt-0" style="border-radius: 4px">
+            From File
+          </v-btn>
+        </v-btn-toggle>
+      </div>
+
       <v-text-field
+        v-if="secretStorage === 'database'"
         v-model="item.secret"
         :label="$t('Token')"
         :disabled="formSaving"
@@ -34,6 +50,19 @@
         outlined
         dense
         append-icon="mdi-lock"
+        type="password"
+      ></v-text-field>
+
+      <v-text-field
+        v-else
+        v-model="item.secret"
+        :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
+        required
+        data-testid="secretStorage-vaultTokenSource"
+        outlined
+        dense
       ></v-text-field>
     </div>
 
@@ -95,6 +124,7 @@
         outlined
         dense
         append-icon="mdi-lock"
+        type="password"
       ></v-text-field>
 
       <v-text-field
