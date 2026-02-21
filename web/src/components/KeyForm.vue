@@ -56,7 +56,7 @@
           v-if="supportStorages && ['env', 'file'].includes(sourceStorageType)"
           v-model="item.source_storage_key"
           :label="
-            sourceStorageType == 'env' ? $t('Environment variable name') : $t('Path to the file')
+            sourceStorageType === 'env' ? $t('Environment variable name') : $t('Path to the file')
           "
           :rules="[(v) => !!v || $t('type_required')]"
           :disabled="formSaving || !canEditSecrets"
