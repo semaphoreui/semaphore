@@ -105,7 +105,8 @@ func (s *accessKeyEncryptionServiceImpl) SerializeSecret(key *db.AccessKey) erro
 		return err
 	}
 	if readonly {
-		return ErrReadOnlyStorage
+		return nil
+		//return ErrReadOnlyStorage
 	}
 
 	err = key.Validate(true)

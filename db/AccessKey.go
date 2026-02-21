@@ -68,6 +68,14 @@ type AccessKey struct {
 	SourceStorageType *AccessKeySourceStorageType `db:"source_storage_type" json:"source_storage_type,omitempty"`
 }
 
+func (key *AccessKey) IsNativelyReadOnly() bool {
+	if key.SourceStorageType == nil {
+		return false
+	}
+
+	return *key.SourceStorageType == AccessKeySourceStorageFile || *key.SourceStorageType == AccessKeySourceStorageEnv
+}
+
 func (key *AccessKey) IsEmpty() bool {
 	if key == nil {
 		return true
@@ -129,20 +137,20 @@ func (key *AccessKey) Validate(validateSecretFields bool) error {
 		return fmt.Errorf("name can not be empty")
 	}
 
-	if !validateSecretFields {
-		return nil
-	}
+	//if !validateSecretFields {
+	//	return nil
+	//}
 
-	switch key.Type {
-	case AccessKeySSH:
-		if key.SshKey.PrivateKey == "" {
-			return fmt.Errorf("private key can not be empty")
-		}
-	case AccessKeyLoginPassword:
-		if key.LoginPassword.Password == "" {
-			return fmt.Errorf("password can not be empty")
-		}
-	}
+	//switch key.Type {
+	//case AccessKeySSH:
+	//	if key.SshKey.PrivateKey == "" {
+	//		return fmt.Errorf("private key can not be empty")
+	//	}
+	//case AccessKeyLoginPassword:
+	//	if key.LoginPassword.Password == "" {
+	//		return fmt.Errorf("password can not be empty")
+	//	}
+	//}
 
 	return nil
 }

@@ -22,11 +22,11 @@
       :color="$vuetify.theme.dark ? '#212121' : 'white'"
       style="background: #8585850f"
     >
-      <v-tabs fixed-tabs v-model="sourceStorageTypeIndex">
-        <v-tab style="padding: 0">Local</v-tab>
-        <v-tab style="padding: 0">Storage</v-tab>
-        <v-tab style="padding: 0">Env</v-tab>
-        <v-tab style="padding: 0">File</v-tab>
+      <v-tabs fixed-tabs v-model="sourceStorageTypeIndex" :disabled="formSaving || !canEditSecrets">
+        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">Local</v-tab>
+        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">Storage</v-tab>
+        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">Env</v-tab>
+        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">File</v-tab>
       </v-tabs>
 
       <div class="ml-4 mr-4 mt-6" v-if="sourceStorageType">
@@ -58,7 +58,7 @@
           :label="
             sourceStorageType == 'env' ? $t('Environment variable name') : $t('Path to the file')
           "
-          :rules="[(v) => !!v  || $t('type_required')]"
+          :rules="[(v) => !!v || $t('type_required')]"
           :disabled="formSaving || !canEditSecrets"
           outlined
           dense
