@@ -131,6 +131,10 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encry
 		}
 	}
 
+	if key.Secret == nil || *key.Secret == "" {
+		return
+	}
+
 	ciphertext := []byte(*key.Secret)
 
 	if ciphertext[len(*key.Secret)-1] == '\n' { // not encrypted private key, used for back compatibility
