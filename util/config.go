@@ -350,7 +350,8 @@ type ConfigType struct {
 
 	IntegrationAlias string `json:"global_integration_alias,omitempty" env:"SEMAPHORE_INTEGRATION_ALIAS"`
 
-	Apps map[string]App `json:"apps,omitempty" env:"SEMAPHORE_APPS"`
+	Apps        map[string]App              `json:"apps,omitempty" env:"SEMAPHORE_APPS"`
+	AppVersions map[int]AppVersionRuntime   `json:"-"`
 
 	Runner *RunnerConfig `json:"runner,omitempty"`
 

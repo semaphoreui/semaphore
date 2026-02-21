@@ -25,6 +25,7 @@ type TerraformApp struct {
 	Name             string          // Name is the name of the terraform binary
 	PlanHasNoChanges bool            // PlanHasNoChanges is true if terraform plan has no changes
 	backendFilename  string          // backendFilename is the name of the backend file
+	VersionCfg       AppVersionConfig
 }
 
 type terraformReader struct {
@@ -71,13 +72,11 @@ func (r *terraformReader) Read(p []byte) (n int, err error) {
 
 func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []string) *exec.Cmd {
 
-	if app, ok := util.Config.Apps[t.Name]; ok {
-		if app.AppPath != "" {
-			command = app.AppPath
-		}
-		if app.AppArgs != nil {
-			args = append(app.AppArgs, args...)
-		}
+	if t.VersionCfg.Path != "" {
+		command = t.VersionCfg.Path
+	}
+	if t.VersionCfg.Args != nil {
+		args = append(t.VersionCfg.Args, args...)
 	}
 
 	if t.Name == string(db.AppTerragrunt) {

@@ -215,6 +215,22 @@ type MigrationManager interface {
 	TryRollbackMigration(version Migration)
 }
 
+// AppManager handles app and app version operations
+type AppManager interface {
+	GetApps() ([]App, error)
+	GetApp(appID string) (App, error)
+	CreateApp(app App) (App, error)
+	UpdateApp(app App) error
+	DeleteApp(appID string) error
+
+	GetAppVersions(appID string) ([]AppVersion, error)
+	GetAppVersion(appID string, versionID int) (AppVersion, error)
+	CreateAppVersion(version AppVersion) (AppVersion, error)
+	UpdateAppVersion(version AppVersion) error
+	DeleteAppVersion(appID string, versionID int) error
+	SetAppVersionOrder(appID string, order map[int]int) error
+}
+
 // OptionsManager handles system options
 type OptionsManager interface {
 	GetOptions(params RetrieveQueryParams) (map[string]string, error)
@@ -490,6 +506,7 @@ type RoleRepository interface {
 type Store interface {
 	ConnectionManager
 	MigrationManager
+	AppManager
 	OptionsManager
 	UserManager
 	ProjectStore
@@ -698,6 +715,20 @@ var GlobalRunnerProps = ObjectProps{
 	DefaultSortingColumn: "id",
 	SortInverted:         true,
 	IsGlobal:             true,
+}
+
+var AppProps = ObjectProps{
+	TableName:         "app",
+	Type:              reflect.TypeOf(App{}),
+	PrimaryColumnName: "id",
+	IsGlobal:          true,
+}
+
+var AppVersionProps = ObjectProps{
+	TableName:         "app__version",
+	Type:              reflect.TypeOf(AppVersion{}),
+	PrimaryColumnName: "id",
+	IsGlobal:          true,
 }
 
 var OptionProps = ObjectProps{

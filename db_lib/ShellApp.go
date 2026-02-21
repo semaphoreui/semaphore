@@ -17,6 +17,7 @@ type ShellApp struct {
 	Repository db.Repository
 	App        db.TemplateApp
 	reader     bashReader
+	VersionCfg AppVersionConfig
 }
 
 type bashReader struct {
@@ -96,13 +97,11 @@ func (t *ShellApp) makeShellCmd(args []string, environmentVars []string) *exec.C
 		command = string(t.App)
 	}
 
-	if app, ok := util.Config.Apps[string(t.App)]; ok {
-		if app.AppPath != "" {
-			command = app.AppPath
-		}
-		if app.AppArgs != nil {
-			appArgs = app.AppArgs
-		}
+	if t.VersionCfg.Path != "" {
+		command = t.VersionCfg.Path
+	}
+	if t.VersionCfg.Args != nil {
+		appArgs = t.VersionCfg.Args
 	}
 
 	return t.makeCmd(command, append(appArgs, args...), environmentVars)

@@ -17,6 +17,7 @@ type AnsiblePlaybook struct {
 	TemplateID int
 	Repository db.Repository
 	Logger     task_logger.Logger
+	VersionCfg AppVersionConfig
 }
 
 func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars []string) *exec.Cmd {
@@ -52,7 +53,14 @@ func (p AnsiblePlaybook) runCmd(command string, args []string, environmentVars [
 }
 
 func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
-	cmd := p.makeCmd("ansible-playbook", args, environmentVars)
+	command := "ansible-playbook"
+	if p.VersionCfg.Path != "" {
+		command = p.VersionCfg.Path
+	}
+	if p.VersionCfg.Args != nil {
+		args = append(p.VersionCfg.Args, args...)
+	}
+	cmd := p.makeCmd(command, args, environmentVars)
 	p.Logger.LogCmd(cmd)
 
 	ptmx, err := pty.Start(cmd)

@@ -33,34 +33,20 @@
       </v-col>
     </v-row>
   </div>
-  <v-form
-    class="mt-1"
-    v-else
-    ref="form"
-    lazy-validation
-    v-model="formValid"
-  >
-    <v-dialog
-      v-model="helpDialog"
-      hide-overlay
-      width="300"
-    >
-      <v-alert
-        border="top"
-        colored-border
-        type="info"
-        elevation="2"
-        class="mb-0 pb-0"
-      >
+  <v-form class="mt-1" v-else ref="form" lazy-validation v-model="formValid">
+    <v-dialog v-model="helpDialog" hide-overlay width="300">
+      <v-alert border="top" colored-border type="info" elevation="2" class="mb-0 pb-0">
         <div v-if="helpKey === 'build_version'">
           <p>
             {{ $t('definesStartVersionOfYourArtifactEachRunIncrements') }}
           </p>
           <p>
             {{ $t('forMoreInformationAboutBuildingSeeThe') }}
-            <a href="https://docs.semaphoreui.com/user-guide/task-templates#build"
-               target="_blank"
-            >{{ $t('taskTemplateReference') }}</a>.
+            <a
+              href="https://docs.semaphoreui.com/user-guide/task-templates#build"
+              target="_blank"
+              >{{ $t('taskTemplateReference') }}</a
+            >.
           </p>
         </div>
         <div v-else-if="helpKey === 'build'">
@@ -69,28 +55,28 @@
           </p>
           <p>
             {{ $t('forMoreInformationAboutDeployingSeeThe') }}
-            <a href="https://docs.semaphoreui.com/user-guide/task-templates#build"
-               target="_blank"
-            >{{ $t('taskTemplateReference2') }}</a>.
+            <a
+              href="https://docs.semaphoreui.com/user-guide/task-templates#build"
+              target="_blank"
+              >{{ $t('taskTemplateReference2') }}</a
+            >.
           </p>
         </div>
         <div v-if="helpKey === 'cron'">
           <p>{{ $t('definesAutorunSchedule') }}</p>
           <p>
             {{ $t('forMoreInformationAboutCronSeeThe') }}
-            <a href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format"
-               target="_blank"
-            >{{ $t('cronExpressionFormatReference') }}</a>.
+            <a
+              href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format"
+              target="_blank"
+              >{{ $t('cronExpressionFormatReference') }}</a
+            >.
           </p>
         </div>
       </v-alert>
     </v-dialog>
 
-    <v-alert
-      :value="formError"
-      color="error"
-    >{{ formError }}
-    </v-alert>
+    <v-alert :value="formError" color="error">{{ formError }} </v-alert>
 
     <v-row class="mb-0">
       <v-col>
@@ -101,15 +87,8 @@
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
           style="background: #8585850f"
         >
-          <v-tabs
-            fixed-tabs
-            v-model="itemTypeIndex"
-          >
-            <v-tab
-              style="padding: 0"
-              v-for="(key) in Object.keys(TEMPLATE_TYPE_ICONS)"
-              :key="key"
-            >
+          <v-tabs fixed-tabs v-model="itemTypeIndex">
+            <v-tab style="padding: 0" v-for="key in Object.keys(TEMPLATE_TYPE_ICONS)" :key="key">
               <v-icon small class="mr-2">{{ TEMPLATE_TYPE_ICONS[key] }}</v-icon>
               {{ $t(TEMPLATE_TYPE_TITLES[key]) }}
             </v-tab>
@@ -120,7 +99,7 @@
               v-if="item.type === 'build'"
               v-model="item.start_version"
               :label="$t('startVersion')"
-              :rules="[v => !!v || $t('start_version_required')]"
+              :rules="[(v) => !!v || $t('start_version_required')]"
               required
               :disabled="formSaving"
               :placeholder="$t('example000')"
@@ -135,7 +114,7 @@
               :items="buildTemplates"
               item-value="id"
               item-text="name"
-              :rules="[v => !!v || $t('build_template_required')]"
+              :rules="[(v) => !!v || $t('build_template_required')]"
               required
               :disabled="formSaving"
               append-outer-icon="mdi-help-circle"
@@ -149,13 +128,12 @@
               v-model="item.autorun"
             />
           </div>
-
         </v-card>
 
         <v-text-field
           v-model="item.name"
           :label="$t('name2')"
-          :rules="[v => !!v || $t('name_required')]"
+          :rules="[(v) => !!v || $t('name_required')]"
           outlined
           dense
           required
@@ -166,9 +144,8 @@
           v-model="item.playbook"
           :label="fieldLabel('playbook')"
           :rules="
-              isFieldRequired('playbook')
-              ? [v => !!v || $t('playbook_filename_required')]
-              : []"
+            isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
+          "
           outlined
           dense
           :required="isFieldRequired('playbook')"
@@ -196,7 +173,7 @@
           :items="repositories"
           item-value="id"
           item-text="name"
-          :rules="isFieldRequired('repository') ? [v => !!v || $t('repository_required')] : []"
+          :rules="isFieldRequired('repository') ? [(v) => !!v || $t('repository_required')] : []"
           outlined
           dense
           hide-details
@@ -206,12 +183,7 @@
         ></v-autocomplete>
 
         <div class="mb-3 text-right">
-
-          <a
-            v-if="!item.git_branch && !setBranch"
-            @click="setBranch = true"
-          >Set branch</a>
-
+          <a v-if="!item.git_branch && !setBranch" @click="setBranch = true">Set branch</a>
         </div>
 
         <div v-if="item.git_branch || setBranch">
@@ -246,7 +218,7 @@
           :items="environment"
           item-value="id"
           item-text="name"
-          :rules="isFieldRequired('environment') ? [v => !!v || $t('environment_required')] : []"
+          :rules="isFieldRequired('environment') ? [(v) => !!v || $t('environment_required')] : []"
           outlined
           dense
           :required="isFieldRequired('environment')"
@@ -256,7 +228,7 @@
 
         <v-autocomplete
           class="mb-3"
-          style="max-height: 60px;"
+          style="max-height: 60px"
           v-model="item.view_id"
           :label="$t('view')"
           clearable
@@ -273,6 +245,18 @@
         <h2 class="mb-4">{{ $t('template_advanced') }}</h2>
 
         <div class="mb-4">
+          <v-autocomplete
+            v-if="appVersions && appVersions.length > 0"
+            v-model="item.app_version_id"
+            :label="$t('version')"
+            clearable
+            :items="appVersions"
+            item-value="id"
+            :item-text="(v) => v.name || '(default)'"
+            :disabled="formSaving"
+            outlined
+            dense
+          ></v-autocomplete>
 
           <v-autocomplete
             v-if="premiumFeatures.project_runners"
@@ -287,15 +271,9 @@
             :placeholder="$t('runner_tag')"
           ></v-autocomplete>
 
-          <SurveyVars
-            :vars="surveyVars"
-            @change="setSurveyVars"
-          />
+          <SurveyVars :vars="surveyVars" @change="setSurveyVars" />
 
-          <v-checkbox
-            class="mt-0"
-            v-model="item.allow_parallel_tasks"
-          >
+          <v-checkbox class="mt-0" v-model="item.allow_parallel_tasks">
             <template v-slot:label>
               {{ $t('allow_parallel_tasks') }}
               <v-chip class="ml-2" small color="error">New</v-chip>
@@ -313,7 +291,7 @@
             v-model="cronRepositoryId"
             :label="$t('repository2')"
             :placeholder="$t('cronChecksNewCommitBeforeRun')"
-            :rules="[v => !!v || $t('repository_required')]"
+            :rules="[(v) => !!v || $t('repository_required')]"
             :items="repositories"
             item-value="id"
             item-text="name"
@@ -343,25 +321,14 @@
           />
 
           <div style="position: relative">
-            <ArgsPicker
-              :vars="args"
-              @change="setArgs"
-              title="CLI args"
-            />
+            <ArgsPicker :vars="args" @change="setArgs" title="CLI args" />
 
             <RichEditor
               v-model="argsJson"
               type="json_array"
-              style="
-              position: absolute;
-              right: -23px;
-              top: -18px;
-              margin: 10px;
-            "
+              style="position: absolute; right: -23px; top: -18px; margin: 10px"
             />
-
           </div>
-
         </div>
 
         <h2 class="mb-4">{{ $t('task_prompts') }}</h2>
@@ -450,10 +417,9 @@
             dense
             :disabled="formSaving || !item.task_params.override_backend"
             placeholder="backend.tf"
-            :rules="[v => validateBackendFilename(v) || $t('terraform_invalid_backend_filename')]"
+            :rules="[(v) => validateBackendFilename(v) || $t('terraform_invalid_backend_filename')]"
             v-if="needField('backend_filename') && premiumFeatures.terraform_backend"
           ></v-text-field>
-
         </div>
 
         <h2 class="mb-4">
@@ -494,10 +460,8 @@
             v-model="item.task_params.allow_auto_approve"
             v-if="needField('allow_auto_approve')"
           />
-
         </div>
       </v-col>
-
     </v-row>
   </v-form>
 </template>
@@ -543,22 +507,28 @@ export default {
 
   data() {
     return {
-      cronFormats: [{
-        cron: '* * * * *',
-        title: '1 minute',
-      }, {
-        cron: '*/5 * * * *',
-        title: '5 minutes',
-      }, {
-        cron: '*/10 * * * *',
-        title: '10 minutes',
-      }, {
-        cron: '@hourly',
-        title: '1 hour',
-      }, {
-        cron: '@daily',
-        title: '24 hours',
-      }],
+      cronFormats: [
+        {
+          cron: '* * * * *',
+          title: '1 minute',
+        },
+        {
+          cron: '*/5 * * * *',
+          title: '5 minutes',
+        },
+        {
+          cron: '*/10 * * * *',
+          title: '10 minutes',
+        },
+        {
+          cron: '@hourly',
+          title: '1 hour',
+        },
+        {
+          cron: '@daily',
+          title: '24 hours',
+        },
+      ],
       itemTypeIndex: 0,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_TITLES,
@@ -590,6 +560,7 @@ export default {
       runnerTags: null,
       branches: null,
       setBranch: false,
+      appVersions: null,
     };
   },
 
@@ -706,15 +677,16 @@ export default {
       //   return true;
       // }
 
-      return this.repositories != null
+      return (
+        this.repositories != null
         && this.inventory != null
         && this.environment != null
         && this.item != null
         && this.schedules != null
         && this.views != null
-        && this.runnerTags != null;
+        && this.runnerTags != null
+      );
     },
-
   },
 
   methods: {
@@ -723,9 +695,7 @@ export default {
         return;
       }
 
-      this.branches = await this.loadProjectEndpoint(
-        `/repositories/${this.repositoryId}/branches`,
-      );
+      this.branches = await this.loadProjectEndpoint(`/repositories/${this.repositoryId}/branches`);
     },
 
     validateBackendFilename(v) {
@@ -829,6 +799,21 @@ export default {
         this.buildTemplates.push({ divider: true });
       }
       this.buildTemplates.push(...deploys);
+
+      await this.loadAppVersions();
+    },
+
+    async loadAppVersions() {
+      if (!this.app) {
+        this.appVersions = [];
+        return;
+      }
+
+      try {
+        this.appVersions = await this.loadEndpoint(`/api/apps/${this.app}/versions`);
+      } catch (e) {
+        this.appVersions = [];
+      }
     },
 
     async afterLoadData() {
@@ -843,7 +828,9 @@ export default {
           }
         }
 
-        const sourceSchedule = (await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`))[0];
+        const sourceSchedule = (
+          await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`)
+        )[0];
 
         if (sourceSchedule != null) {
           this.cronFormat = sourceSchedule.cron_format;
