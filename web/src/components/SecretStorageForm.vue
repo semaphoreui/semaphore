@@ -26,7 +26,7 @@
     <div v-if="item.type === 'vault'">
       <div class="d-flex justify-space-between align-center mb-2">
         <b style="font-size: 13px; margin-left: 5px">Token</b>
-        <v-btn-toggle v-model="secretStorage" tile group>
+        <v-btn-toggle v-model="secretStorage" tile group mandatory>
           <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
             Store in DB
           </v-btn>
@@ -41,6 +41,7 @@
 
       <v-text-field
         v-if="secretStorage === 'database'"
+        class="masked-secret-input"
         v-model="item.secret"
         :label="$t('Token')"
         :disabled="formSaving"
@@ -50,7 +51,6 @@
         outlined
         dense
         append-icon="mdi-lock"
-        type="password"
       ></v-text-field>
 
       <v-text-field
@@ -99,7 +99,7 @@
 
       <div class="d-flex justify-space-between align-center">
         <b style="font-size: 13px; margin-left: 5px">App secret</b>
-        <v-btn-toggle v-model="secretStorage" tile group>
+        <v-btn-toggle v-model="secretStorage" tile group mandatory>
           <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
             Store in DB
           </v-btn>
@@ -114,7 +114,7 @@
 
       <v-text-field
         v-if="secretStorage === 'database'"
-        class="TextInput TextInput--no-legend"
+        class="TextInput TextInput--no-legend masked-secret-input"
         v-model="item.secret"
         :label="$t('Secret')"
         :disabled="formSaving"
@@ -124,7 +124,6 @@
         outlined
         dense
         append-icon="mdi-lock"
-        type="password"
       ></v-text-field>
 
       <v-text-field
