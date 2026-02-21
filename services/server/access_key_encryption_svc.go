@@ -60,8 +60,20 @@ type accessKeyEncryptionServiceImpl struct {
 }
 
 func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) (AccessKeyDeserializer, bool, error) {
-	if key.SourceStorageID == nil {
+
+	if key.SourceStorageType == nil {
 		return &LocalAccessKeyDeserializer{}, false, nil
+	}
+
+	switch *key.SourceStorageType {
+	case db.AccessKeySourceStorageEnv, db.AccessKeySourceStorageFile:
+		return &LocalAccessKeyDeserializer{}, true, nil
+	case db.AccessKeySourceStorageVault:
+		if key.SourceStorageID == nil {
+			return &LocalAccessKeyDeserializer{}, false, errors.New("vault storage id is required")
+		}
+	default:
+		return nil, false, fmt.Errorf("unsupported secret storage type '%s'", *key.SourceStorageType)
 	}
 
 	storage, err := s.secretStorageRepo.GetSecretStorage(*key.ProjectID, *key.SourceStorageID)

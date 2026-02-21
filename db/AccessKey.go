@@ -68,6 +68,42 @@ type AccessKey struct {
 	SourceStorageType *AccessKeySourceStorageType `db:"source_storage_type" json:"source_storage_type,omitempty"`
 }
 
+func (key *AccessKey) IsEmpty() bool {
+	if key == nil {
+		return true
+	}
+
+	if key.Type == AccessKeyNone {
+		return false
+	}
+
+	if key.SourceStorageType != nil {
+		switch *key.SourceStorageType {
+		case AccessKeySourceStorageEnv, AccessKeySourceStorageFile:
+			return key.SourceStorageKey == nil || *key.SourceStorageKey == ""
+		case AccessKeySourceStorageVault:
+			return key.SourceStorageID == nil
+		default:
+			return true
+		}
+	}
+
+	if key.Secret != nil && *key.Secret != "" {
+		return false
+	}
+
+	switch key.Type {
+	case AccessKeyString:
+		return key.String == ""
+	case AccessKeySSH:
+		return key.SshKey.PrivateKey == ""
+	case AccessKeyLoginPassword:
+		return key.LoginPassword.Password == ""
+	default:
+		return true
+	}
+}
+
 type LoginPassword struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`

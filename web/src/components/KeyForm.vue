@@ -5,7 +5,7 @@
     v-model="formValid"
     v-if="item != null && secretStorages != null"
   >
-    <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
+    <v-alert :value="formError" color="error" class="mb-6">{{ formError }}</v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -33,7 +33,7 @@
         <v-autocomplete
           v-if="supportStorages && sourceStorageType === 'vault'"
           v-model="item.source_storage_id"
-          :label="$t('Storage (optional)')"
+          :label="$t('Storage')"
           :items="secretStorages"
           item-value="id"
           item-text="name"
@@ -47,6 +47,18 @@
           v-if="supportStorages && sourceStorageType === 'vault' && item.source_storage_id != null"
           v-model="item.source_storage_key"
           :label="$t('Source Key')"
+          :disabled="formSaving || !canEditSecrets"
+          outlined
+          dense
+        />
+
+        <v-text-field
+          v-if="supportStorages && ['env', 'file'].includes(sourceStorageType)"
+          v-model="item.source_storage_key"
+          :label="
+            sourceStorageType == 'env' ? $t('Environment variable name') : $t('Path to the file')
+          "
+          :rules="[(v) => !!v  || $t('type_required')]"
           :disabled="formSaving || !canEditSecrets"
           outlined
           dense
@@ -67,7 +79,7 @@
       dense
     />
 
-    <v-alert v-if="isReadOnly" type="info">Read-only secret storage chosen.</v-alert>
+    <v-alert v-if="isReadOnly" type="info" text>Read-only secret storage chosen.</v-alert>
 
     <v-text-field
       v-model="item.login_password.login"
@@ -159,7 +171,6 @@ export default {
         },
       ],
       secretStorages: null,
-      // isReadOnly: true,
     };
   },
 
@@ -191,6 +202,14 @@ export default {
     },
 
     isReadOnly() {
+      if (!this.sourceStorageType) {
+        return false;
+      }
+
+      if (['env', 'file'].includes(this.sourceStorageType)) {
+        return true;
+      }
+
       if (this.item.source_storage_id == null) {
         return false;
       }
