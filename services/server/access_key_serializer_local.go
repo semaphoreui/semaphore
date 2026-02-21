@@ -110,11 +110,25 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res s
 }
 
 func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encryptionString string) (res string, err error) {
-	if key.Secret == nil || *key.Secret == "" {
-		if key.SourceStorageKey != nil {
-			res = os.Getenv(*key.SourceStorageKey)
+
+	if key.SourceStorageType != nil {
+		if key.SourceStorageKey == nil {
+			return "", fmt.Errorf("source storage key is required")
 		}
-		return
+
+		switch *key.SourceStorageType {
+		case db.AccessKeySourceStorageEnv:
+			res = os.Getenv(*key.SourceStorageKey)
+			return
+		case db.AccessKeySourceStorageFile:
+			var data []byte
+			data, err = os.ReadFile(*key.SourceStorageKey)
+			if err != nil {
+				return
+			}
+			res = string(data)
+			return
+		}
 	}
 
 	ciphertext := []byte(*key.Secret)

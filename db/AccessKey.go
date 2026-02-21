@@ -7,6 +7,8 @@ import (
 type AccessKeyType string
 type AccessKeyOwner string
 
+type AccessKeySourceStorageType string
+
 const (
 	AccessKeySSH           AccessKeyType = "ssh"
 	AccessKeyNone          AccessKeyType = "none"
@@ -18,6 +20,11 @@ const (
 	AccessKeyVariable      AccessKeyOwner = "variable"
 	AccessKeySecretStorage AccessKeyOwner = "vault"
 	AccessKeyShared        AccessKeyOwner = ""
+)
+const (
+	AccessKeySourceStorageVault AccessKeySourceStorageType = "vault"
+	AccessKeySourceStorageEnv   AccessKeySourceStorageType = "env"
+	AccessKeySourceStorageFile  AccessKeySourceStorageType = "file"
 )
 
 // AccessKey represents a key used to access a machine with ansible from semaphore
@@ -44,7 +51,7 @@ type AccessKey struct {
 	// EnvironmentID is an ID of environment which owns the access key.
 	EnvironmentID *int `db:"environment_id" json:"-" backup:"-"`
 
-	// UserID is an ID of user which owns the access key.
+	// UserID is an ID of a user which owns the access key.
 	UserID *int `db:"user_id" json:"-" backup:"-"`
 
 	Empty bool `db:"-" json:"empty,omitempty"`
@@ -55,9 +62,10 @@ type AccessKey struct {
 	SourceStorageID *int `db:"source_storage_id" json:"source_storage_id,omitempty" backup:"-"`
 
 	// SourceStorageKey is an optional reference to a specific storage key associated with the source storage.
-	// For example for Hashicorp vault this is the path to the secret.
+	// For example, for Hashicorp vault this is the path to the secret.
 	// If SourceStorageID is nil, this field is references to an environment variable.
-	SourceStorageKey *string `db:"source_storage_key" json:"source_storage_key,omitempty"`
+	SourceStorageKey  *string                     `db:"source_storage_key" json:"source_storage_key,omitempty"`
+	SourceStorageType *AccessKeySourceStorageType `db:"source_storage_type" json:"source_storage_type,omitempty"`
 }
 
 type LoginPassword struct {
