@@ -62,7 +62,7 @@ type AccessKey struct {
 	SourceStorageID *int `db:"source_storage_id" json:"source_storage_id,omitempty" backup:"-"`
 
 	// SourceStorageKey is an optional reference to a specific storage key associated with the source storage.
-	// For example, for Hashicorp vault this is the path to the secret.
+	// For example, for HashiCorp Vault, this is the path to the secret.
 	// If SourceStorageID is nil, this field is references to an environment variable.
 	SourceStorageKey  *string                     `db:"source_storage_key" json:"source_storage_key,omitempty"`
 	SourceStorageType *AccessKeySourceStorageType `db:"source_storage_type" json:"source_storage_type,omitempty"`
