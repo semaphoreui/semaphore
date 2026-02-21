@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -127,6 +128,24 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encry
 				err = fmt.Errorf("file path must be absolute")
 				return
 			}
+
+			for _, segment := range strings.Split(filepath.ToSlash(*key.SourceStorageKey), "/") {
+				if segment == ".." {
+					err = fmt.Errorf("file path must not contain traversal segments")
+					return
+				}
+			}
+
+			var resolvedPath string
+			resolvedPath, err = filepath.EvalSymlinks(filePath)
+			if err != nil {
+				return
+			}
+			if resolvedPath != filePath {
+				err = fmt.Errorf("file path must not contain symlinks")
+				return
+			}
+
 			var data []byte
 			data, err = os.ReadFile(filePath)
 			if err != nil {
