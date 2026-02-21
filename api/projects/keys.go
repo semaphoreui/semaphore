@@ -120,6 +120,7 @@ func (c *KeyController) AddKey(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
+	key.Plain = newKey.Plain
 
 	helpers.WriteJSON(w, http.StatusCreated, key)
 }

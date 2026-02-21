@@ -125,6 +125,15 @@
       v-if="!isReadOnly && item.type === 'ssh'"
     />
 
+    <v-textarea
+      outlined
+      :value="publicKey"
+      label="Public Key"
+      v-if="item.type === 'ssh' && !isNew && hasGeneratedPublicKey"
+      :disabled="formSaving"
+      readonly
+    />
+
     <v-checkbox
         v-model="item.override_secret"
         :label="$t('override')"
@@ -171,6 +180,21 @@ export default {
   },
 
   computed: {
+    hasGeneratedPublicKey() {
+      return this.publicKey !== '';
+    },
+
+    publicKey: {
+      get() {
+        try {
+          const plain = JSON.parse(this.item?.plain || '{}');
+          return plain.public_key || '';
+        } catch (e) {
+          return '';
+        }
+      },
+    },
+
     canEditSecrets() {
       return this.isNew || this.item.override_secret;
     },

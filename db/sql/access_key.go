@@ -63,8 +63,9 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 	var res sql.Result
 
 	var args []any
-	query := "update access_key set name=?"
+	query := "update access_key set name=?, plain=?"
 	args = append(args, key.Name)
+	args = append(args, key.Plain)
 
 	if key.OverrideSecret {
 		query += ", type=?, secret=?"
@@ -96,16 +97,18 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 			"type, "+
 			"project_id, "+
 			"secret, "+
+			"plain, "+
 			"environment_id, "+
 			"owner, "+
 			"storage_id, "+
 			"source_storage_id, "+
 			"source_storage_key) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		key.Name,
 		key.Type,
 		key.ProjectID,
 		key.Secret,
+		key.Plain,
 		key.EnvironmentID,
 		key.Owner,
 		key.StorageID,

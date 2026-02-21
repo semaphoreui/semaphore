@@ -3,6 +3,7 @@ package server
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -72,7 +73,7 @@ func maybeGenerateSSHPrivateKey(key *db.AccessKey) error {
 	var b bytes.Buffer
 	privateKeyFile := bufio.NewWriter(&b)
 
-	_, err := util.GeneratePrivateKey(privateKeyFile)
+	publicKey, err := util.GeneratePrivateKey(privateKeyFile)
 	if err != nil {
 		return err
 	}
@@ -83,6 +84,20 @@ func maybeGenerateSSHPrivateKey(key *db.AccessKey) error {
 	}
 
 	key.SshKey.PrivateKey = b.String()
+
+	type sshPublicKey struct {
+		PublicKey string `json:"public_key"`
+	}
+
+	plainBytes, err := json.Marshal(sshPublicKey{
+		PublicKey: publicKey,
+	})
+	if err != nil {
+		return err
+	}
+
+	plain := string(plainBytes)
+	key.Plain = &plain
 	return nil
 }
 
@@ -102,6 +117,15 @@ func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, er
 }
 
 func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
+	oldKey, err := s.accessKeyRepo.GetAccessKey(*key.ProjectID, key.ID)
+	if err != nil {
+		return
+	}
+
+	// Never trust client-provided plain payload on update.
+	// Preserve existing value unless it is regenerated below.
+	key.Plain = oldKey.Plain
+
 	err = maybeGenerateSSHPrivateKey(&key)
 	if err != nil {
 		return

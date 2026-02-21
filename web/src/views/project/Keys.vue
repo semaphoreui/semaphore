@@ -5,7 +5,7 @@
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Key`"
       :max-width="450"
-      @save="loadItems()"
+      @save="loadItemsAndShowPublicKey($event)"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <KeyForm
@@ -17,6 +17,26 @@
           :need-reset="needReset"
           :support-storages="premiumFeatures.secret_storages"
         />
+      </template>
+    </EditDialog>
+
+    <EditDialog
+      :max-width="700"
+      v-model="createdPublicKeyDialog"
+      :save-button-text="null"
+      title="Generated SSH Public Key"
+      hide-buttons
+    >
+      <template v-slot:form="{}">
+        <div>
+          <v-textarea
+            outlined
+            readonly
+            auto-grow
+            label="Public Key"
+            :value="createdPublicKey"
+          />
+        </div>
       </template>
     </EditDialog>
 
@@ -105,7 +125,41 @@ export default {
     },
   },
 
+  data() {
+    return {
+      createdPublicKeyDialog: false,
+      createdPublicKey: '',
+    };
+  },
+
   methods: {
+    async loadItemsAndShowPublicKey(e) {
+      const publicKey = e && e.action === 'new'
+        ? this.extractPublicKey(e.item)
+        : '';
+      if (publicKey) {
+        this.createdPublicKey = publicKey;
+        this.createdPublicKeyDialog = true;
+      } else {
+        this.createdPublicKey = '';
+      }
+
+      await this.loadItems();
+    },
+
+    extractPublicKey(item) {
+      if (!item || !item.plain) {
+        return '';
+      }
+
+      try {
+        const plain = JSON.parse(item.plain);
+        return plain.public_key || '';
+      } catch (e) {
+        return '';
+      }
+    },
+
     getHeaders() {
       return [{
         text: this.$i18n.t('name'),
