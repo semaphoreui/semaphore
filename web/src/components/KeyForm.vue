@@ -109,12 +109,19 @@
       dense
     />
 
+    <v-checkbox
+      v-model="item.generate_ssh_key"
+      label="Generate SSH Key"
+      v-if="!isReadOnly && item.type === 'ssh'"
+      :disabled="formSaving || !canEditSecrets"
+    />
+
     <v-textarea
       outlined
       v-model="item.ssh.private_key"
       :label="$t('privateKey')"
-      :disabled="formSaving || !canEditSecrets"
-      :rules="[v => !canEditSecrets || !!v || $t('private_key_required')]"
+      :disabled="formSaving || !canEditSecrets || item.generate_ssh_key"
+      :rules="[v => !canEditSecrets || item.generate_ssh_key || !!v || $t('private_key_required')]"
       v-if="!isReadOnly && item.type === 'ssh'"
     />
 
@@ -195,6 +202,7 @@ export default {
       return {
         ssh: {},
         login_password: {},
+        generate_ssh_key: false,
       };
     },
 

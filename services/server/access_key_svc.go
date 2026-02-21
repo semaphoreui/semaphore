@@ -1,9 +1,12 @@
 package server
 
 import (
+	"bufio"
+	"bytes"
 	"errors"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 type AccessKeyService interface {
@@ -61,7 +64,33 @@ func (s *AccessKeyServiceImpl) GetAll(projectID int, options db.GetAccessKeyOpti
 	return s.accessKeyRepo.GetAccessKeys(projectID, options, params)
 }
 
+func maybeGenerateSSHPrivateKey(key *db.AccessKey) error {
+	if !key.GenerateSSHKey || key.Type != db.AccessKeySSH {
+		return nil
+	}
+
+	var b bytes.Buffer
+	privateKeyFile := bufio.NewWriter(&b)
+
+	_, err := util.GeneratePrivateKey(privateKeyFile)
+	if err != nil {
+		return err
+	}
+
+	err = privateKeyFile.Flush()
+	if err != nil {
+		return err
+	}
+
+	key.SshKey.PrivateKey = b.String()
+	return nil
+}
+
 func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, err error) {
+	err = maybeGenerateSSHPrivateKey(&key)
+	if err != nil {
+		return
+	}
 
 	err = s.encryptionService.SerializeSecret(&key)
 	if err != nil && !errors.Is(err, ErrReadOnlyStorage) {
@@ -73,6 +102,11 @@ func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, er
 }
 
 func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
+	err = maybeGenerateSSHPrivateKey(&key)
+	if err != nil {
+		return
+	}
+
 	if key.OverrideSecret {
 		err = s.encryptionService.SerializeSecret(&key)
 		if errors.Is(err, ErrReadOnlyStorage) {
