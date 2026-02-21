@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -159,6 +160,7 @@ func (m Migration) ParseVersion() (res MigrationVersion, err error) {
 	}
 
 	if len(parts) < 3 {
+		res.Patch = math.MaxInt
 		return
 	}
 
