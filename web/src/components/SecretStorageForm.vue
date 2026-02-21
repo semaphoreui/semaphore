@@ -127,6 +127,7 @@ export default {
   data() {
     return {
       secretStorage: 'database',
+      secretStorageReady: false,
     };
   },
 
@@ -146,7 +147,11 @@ export default {
         this.item.type = this.itemType;
       }
 
+      this.secretStorageReady = false;
       this.secretStorage = this.item.source_storage_type || 'database';
+      this.$nextTick(() => {
+        this.secretStorageReady = true;
+      });
     },
 
     getItemsUrl() {
@@ -159,8 +164,14 @@ export default {
   },
 
   watch: {
-    secretStorage(value) {
+    secretStorage(value, oldValue) {
       this.item.source_storage_type = value === 'database' ? undefined : value;
+
+      if (!this.secretStorageReady || value === oldValue) {
+        return;
+      }
+
+      this.item.secret = '';
     },
   },
 };
