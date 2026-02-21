@@ -100,8 +100,8 @@
       <v-text-field
         v-else
         class="TextInput TextInput--no-legend"
-        v-model="item.secret_environment_variable"
-        :label="$t('Env var name')"
+        v-model="item.secret"
+        :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
         :disabled="formSaving"
         :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
         required
@@ -146,11 +146,7 @@ export default {
         this.item.type = this.itemType;
       }
 
-      if (this.item.secret_environment_variable) {
-        this.secretStorage = 'env';
-      } else {
-        this.secretStorage = 'database';
-      }
+      this.secretStorage = this.item.source_storage_type || 'database';
     },
 
     getItemsUrl() {
@@ -159,6 +155,12 @@ export default {
 
     getSingleItemUrl() {
       return `/api/project/${this.projectId}/secret_storages/${this.itemId}`;
+    },
+  },
+
+  watch: {
+    secretStorage(value) {
+      this.item.source_storage_type = value === 'database' ? undefined : value;
     },
   },
 };

@@ -16,6 +16,8 @@ type SecretStorage struct {
 	Params    MapStringAnyField `db:"params" json:"params"`
 	ReadOnly  bool              `db:"readonly" json:"readonly"`
 
-	Secret                    string `db:"-" json:"secret,omitempty" backup:"-"`
-	SecretEnvironmentVariable string `db:"-" json:"secret_environment_variable,omitempty" backup:"-"`
+	SourceStorageType *AccessKeySourceStorageType `db:"-" json:"source_storage_type,omitempty" backup:"-"`
+	// Secret is a source value: literal secret for local storage,
+	// env var name for "env", or file path for "file".
+	Secret string `db:"-" json:"secret,omitempty" backup:"-"`
 }
