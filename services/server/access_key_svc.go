@@ -99,7 +99,7 @@ func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
 		}
 	}
 
-	if !oldKey.IsNativelyReadOnly() {
+	if !key.IsNativelyReadOnly() {
 		err = s.encryptionService.SerializeSecret(&key)
 		if err != nil {
 			return
