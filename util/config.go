@@ -245,6 +245,11 @@ type TeamsConfig struct {
 	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
 }
 
+type ConfigDirs struct {
+	SecretsPath string `json:"secrets_path,omitempty" env:"SEMAPHORE_SECRETS_PATH" default:"/tmp/semaphore"`
+	ReposPath   string `json:"repos_path,omitempty" env:"SEMAPHORE_REPOS_PATH"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -376,6 +381,8 @@ type ConfigType struct {
 	// When this is set, subscription activation from the web interface is disabled.
 	SubscriptionKey     string `json:"subscription_key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY"`
 	SubscriptionKeyFile string `json:"subscription_key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
+
+	Dirs *ConfigDirs `json:"dirs,omitempty"`
 }
 
 func NewConfigType() *ConfigType {
@@ -554,17 +561,34 @@ func loadDefaultsToObject(obj any) error {
 		fieldInfo := t.Field(i)
 		fieldValue := v.Field(i)
 
-		if !fieldValue.IsZero() && fieldInfo.Type.Kind() != reflect.Struct && fieldInfo.Type.Kind() != reflect.Map {
+		if !fieldInfo.IsExported() {
 			continue
 		}
 
-		if fieldInfo.Type.Kind() == reflect.Struct {
+		fieldKind := fieldInfo.Type.Kind()
+		isPtrToStruct := fieldKind == reflect.Ptr && fieldInfo.Type.Elem().Kind() == reflect.Struct
+
+		if !fieldValue.IsZero() && fieldKind != reflect.Struct && fieldKind != reflect.Map && !isPtrToStruct {
+			continue
+		}
+
+		if fieldKind == reflect.Struct {
 			err := loadDefaultsToObject(fieldValue.Addr().Interface())
 			if err != nil {
 				return err
 			}
 			continue
-		} else if fieldInfo.Type.Kind() == reflect.Map {
+		} else if isPtrToStruct {
+			if fieldValue.IsNil() {
+				continue
+			}
+
+			err := loadDefaultsToObject(fieldValue.Interface())
+			if err != nil {
+				return err
+			}
+			continue
+		} else if fieldKind == reflect.Map {
 			for _, key := range fieldValue.MapKeys() {
 				val := fieldValue.MapIndex(key)
 
@@ -865,7 +889,14 @@ func setConfigValue(attribute reflect.Value, value string) {
 			attribute.Set(mapValue.Elem())
 		default:
 			newValue, _ := CastValueToKind(value, kind)
-			attribute.Set(reflect.ValueOf(newValue))
+			convertedValue := reflect.ValueOf(newValue)
+			if convertedValue.Type().AssignableTo(attribute.Type()) {
+				attribute.Set(convertedValue)
+			} else if convertedValue.Type().ConvertibleTo(attribute.Type()) {
+				attribute.Set(convertedValue.Convert(attribute.Type()))
+			} else {
+				panic(fmt.Errorf("cannot assign value of type %s to field of type %s", convertedValue.Type(), attribute.Type()))
+			}
 		}
 
 	} else {

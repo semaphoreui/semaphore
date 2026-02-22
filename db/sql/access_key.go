@@ -45,9 +45,7 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 	_, err = d.selectAll(&keys, query, args...)
 
 	for i := range keys {
-		if keys[i].SourceStorageID == nil && keys[i].Secret == nil {
-			keys[i].Empty = true
-		}
+		keys[i].Empty = keys[i].IsEmpty()
 	}
 
 	return
@@ -67,9 +65,13 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 	args = append(args, key.Name)
 
 	if key.OverrideSecret {
-		query += ", type=?, secret=?"
+
+		query += ", type=?, secret=?, source_storage_id=?, source_storage_key=?, source_storage_type=?"
 		args = append(args, key.Type)
 		args = append(args, key.Secret)
+		args = append(args, key.SourceStorageID)
+		args = append(args, key.SourceStorageKey)
+		args = append(args, key.SourceStorageType)
 	}
 
 	query += " where id=?"
@@ -84,11 +86,6 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
-	//err = key.SerializeSecret()
-	//if err != nil {
-	//	return
-	//}
-
 	insertID, err := d.insert(
 		"id",
 		"insert into access_key ("+
@@ -100,8 +97,9 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 			"owner, "+
 			"storage_id, "+
 			"source_storage_id, "+
-			"source_storage_key) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"source_storage_key, "+
+			"source_storage_type) "+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		key.Name,
 		key.Type,
 		key.ProjectID,
@@ -111,6 +109,7 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 		key.StorageID,
 		key.SourceStorageID,
 		key.SourceStorageKey,
+		key.SourceStorageType,
 	)
 
 	if err != nil {

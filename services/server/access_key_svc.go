@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
 type AccessKeyService interface {
@@ -73,15 +74,40 @@ func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, er
 }
 
 func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
-	if key.OverrideSecret {
+	if !key.OverrideSecret {
+		err = s.accessKeyRepo.UpdateAccessKey(key)
+		return
+	}
+
+	var oldKey db.AccessKey
+	oldKey, err = s.accessKeyRepo.GetAccessKey(*key.ProjectID, key.ID)
+	if err != nil {
+		return
+	}
+
+	if oldKey.SourceStorageType != nil && !oldKey.IsNativelyReadOnly() {
+		// validate if it is secure to override secret storage
+
+		var oldSt db.SecretStorage
+		oldSt, err = s.secretStorageRepo.GetSecretStorage(*key.ProjectID, *oldKey.SourceStorageID)
+		if err != nil {
+			return
+		}
+
+		if !oldSt.ReadOnly && *oldKey.SourceStorageID != *key.SourceStorageID {
+			err = common_errors.NewUserErrorS("cannot override secret storage")
+			return
+		}
+	}
+
+	if !key.IsNativelyReadOnly() {
 		err = s.encryptionService.SerializeSecret(&key)
-		if errors.Is(err, ErrReadOnlyStorage) {
-			key.OverrideSecret = false
-		} else if err != nil {
+		if err != nil {
 			return
 		}
 	}
 
 	err = s.accessKeyRepo.UpdateAccessKey(key)
+
 	return
 }

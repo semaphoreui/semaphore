@@ -45,8 +45,10 @@ func SecretStorageMiddleware(next http.Handler) http.Handler {
 		}
 
 		if keys[0].SourceStorageKey != nil {
-			storage.SecretEnvironmentVariable = *keys[0].SourceStorageKey
+			storage.Secret = *keys[0].SourceStorageKey
 		}
+
+		storage.SourceStorageType = keys[0].SourceStorageType
 
 		r = helpers.SetContextValue(r, "secretStorage", storage)
 		next.ServeHTTP(w, r)

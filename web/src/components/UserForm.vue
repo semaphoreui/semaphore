@@ -86,7 +86,7 @@
             v-if="isNew"
             v-model="item.password"
             :label="$t('password')"
-            type="password"
+            class="masked-secret-input"
             :required="isNew && !item.external"
             :rules="isNew && !item.external ? [v => !!v || $t('password_required')] : []"
             :disabled="item.external || formSaving"

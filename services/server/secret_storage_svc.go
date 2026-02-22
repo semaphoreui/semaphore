@@ -58,15 +58,24 @@ func (s *SecretStorageServiceImpl) GetSecretStorage(projectID int, storageID int
 }
 
 func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.SecretStorage, err error) {
+	sourceStorageType := storage.SourceStorageType
+	sourceStorageKey := ""
 
-	if storage.Secret == "" && storage.SecretEnvironmentVariable == "" {
-		err = errors.New("secret or environment variable must be set")
+	if storage.Secret == "" {
+		err = errors.New("secret must be set")
 		return
 	}
 
-	if storage.Secret != "" && storage.SecretEnvironmentVariable != "" {
-		err = errors.New("only one of secret or environment variable can be set")
-		return
+	if sourceStorageType != nil {
+		switch *sourceStorageType {
+		case db.AccessKeySourceStorageEnv:
+			sourceStorageKey = storage.Secret
+		case db.AccessKeySourceStorageFile:
+			sourceStorageKey = storage.Secret
+		default:
+			err = errors.New("unsupported source storage type")
+			return
+		}
 	}
 
 	res, err = s.secretStorageRepo.CreateSecretStorage(storage)
@@ -76,16 +85,18 @@ func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.Secr
 	}
 
 	key := db.AccessKey{
-		Name:      random.String(10),
-		Type:      db.AccessKeyString,
-		ProjectID: &storage.ProjectID,
-		String:    storage.Secret,
-		Owner:     db.AccessKeySecretStorage,
-		StorageID: &res.ID,
+		Name:              random.String(10),
+		Type:              db.AccessKeyString,
+		ProjectID:         &storage.ProjectID,
+		Owner:             db.AccessKeySecretStorage,
+		StorageID:         &res.ID,
+		SourceStorageType: sourceStorageType,
 	}
 
-	if storage.SecretEnvironmentVariable != "" {
-		key.SourceStorageKey = &storage.SecretEnvironmentVariable
+	if sourceStorageKey != "" {
+		key.SourceStorageKey = &sourceStorageKey
+	} else {
+		key.String = storage.Secret
 	}
 
 	_, err = s.accessKeyService.Create(key)
@@ -109,19 +120,42 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 	}
 
 	if len(keys) == 0 {
-		if storage.Secret != "" {
-			_, err = s.accessKeyService.Create(db.AccessKey{
-				Name:      random.String(10),
-				Type:      db.AccessKeyString,
-				ProjectID: &storage.ProjectID,
-				String:    storage.Secret,
-				Owner:     db.AccessKeySecretStorage,
-				StorageID: &storage.ID,
-			})
-		} else {
+		if storage.Secret == "" {
 			// empty vault token means the user didn't set a new token,
 			// so we don't create a new access key.
+			return
 		}
+
+		sourceStorageType := storage.SourceStorageType
+		sourceStorageKey := ""
+
+		if sourceStorageType != nil {
+			switch *sourceStorageType {
+			case db.AccessKeySourceStorageEnv, db.AccessKeySourceStorageFile:
+				sourceStorageKey = storage.Secret
+			default:
+				err = errors.New("unsupported source storage type")
+				return
+			}
+		}
+
+		newKey := db.AccessKey{
+			Name:              random.String(10),
+			Type:              db.AccessKeyString,
+			ProjectID:         &storage.ProjectID,
+			Owner:             db.AccessKeySecretStorage,
+			StorageID:         &storage.ID,
+			SourceStorageType: sourceStorageType,
+		}
+
+		if sourceStorageKey != "" {
+			newKey.SourceStorageKey = &sourceStorageKey
+		} else {
+			newKey.String = storage.Secret
+		}
+
+		_, err = s.accessKeyService.Create(newKey)
+
 	} else {
 		vault := keys[0]
 		if storage.Secret == "" {
@@ -129,11 +163,35 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 			// as it means the user haven't set a new token.
 
 			//err = s.keyRepo.DeleteAccessKey(storage.ProjectID, vault.ID)
-		} else {
-			vault.OverrideSecret = true
-			vault.String = storage.Secret
-			err = s.accessKeyService.Update(vault)
+			return
 		}
+
+		sourceStorageType := storage.SourceStorageType
+		sourceStorageKey := ""
+
+		if sourceStorageType != nil {
+			switch *sourceStorageType {
+			case db.AccessKeySourceStorageEnv, db.AccessKeySourceStorageFile:
+				sourceStorageKey = storage.Secret
+			default:
+				err = errors.New("unsupported source storage type")
+				return
+			}
+		}
+
+		vault.OverrideSecret = true
+		vault.SourceStorageType = sourceStorageType
+		if sourceStorageKey != "" {
+			vault.SourceStorageKey = &sourceStorageKey
+			vault.String = ""
+			// Clear previously persisted encrypted secret when switching to env/file source.
+			vault.Secret = nil
+		} else {
+			vault.SourceStorageKey = nil
+			vault.String = storage.Secret
+		}
+
+		err = s.accessKeyService.Update(vault)
 	}
 
 	return
