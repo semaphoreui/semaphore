@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
 type AccessKeyService interface {
@@ -94,7 +95,7 @@ func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
 		}
 
 		if !oldSt.ReadOnly && *oldKey.SourceStorageID != *key.SourceStorageID {
-			err = errors.New("cannot override secret storage")
+			err = common_errors.NewUserErrorS("cannot override secret storage")
 			return
 		}
 	}
