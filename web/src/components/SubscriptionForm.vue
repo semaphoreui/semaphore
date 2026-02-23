@@ -132,7 +132,7 @@
             color="primary"
             :disabled="formSaving"
             target="_blank"
-            href="https://portal.semaphoreui.com/buy_pro"
+            href="https://portal.semaphoreui.com/buy_pro?utm_source=app"
             >Buy Pro</v-btn
           >
         </v-col>
@@ -146,7 +146,7 @@
         :disabled="formSaving"
         target="_blank"
         outlined
-        href="https://portal.semaphoreui.com/start_trial"
+        href="https://portal.semaphoreui.com/start_trial?utm_source=app"
       >
         Get 30-day free trial
       </v-btn>
