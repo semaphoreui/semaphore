@@ -69,5 +69,5 @@ func (e *EnvironmentExporter) exportDependsOn() []string {
 }
 
 func (e *EnvironmentExporter) importDependsOn() []string {
-	return []string{SecretStorage}
+	return []string{Project, SecretStorage}
 }

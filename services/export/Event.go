@@ -19,7 +19,29 @@ func (e *EventExporter) load(store db.Store, exporter DataExporter, progress Pro
 		return err
 	}
 
-	return e.appendValuesAndCheck(envs, GlobalScope, false)
+	eventsByProject := make(map[string][]db.Event)
+
+	for _, event := range envs {
+
+		scope := GlobalScope
+		if event.ProjectID != nil {
+			scope = strconv.Itoa(*event.ProjectID)
+		}
+
+		if eventsByProject[scope] == nil {
+			eventsByProject[scope] = make([]db.Event, 0)
+		}
+		eventsByProject[scope] = append(eventsByProject[scope], event)
+	}
+
+	for scope, events := range eventsByProject {
+		err = e.appendValues(events, scope)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (e *EventExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
@@ -28,7 +50,10 @@ func (e *EventExporter) restore(store db.Store, exporter DataExporter, progress 
 	for index, val := range e.values {
 		old := val.value
 
-		old.ID = -1
+		scope := GlobalScope
+		if old.ProjectID != nil {
+			scope = strconv.Itoa(*old.ProjectID)
+		}
 
 		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
 		if err != nil {
@@ -38,11 +63,6 @@ func (e *EventExporter) restore(store db.Store, exporter DataExporter, progress 
 		old.UserID, err = exporter.getNewKeyIntRef(User, GlobalScope, old.UserID, e)
 		if err != nil {
 			return err
-		}
-
-		scope := GlobalScope
-		if old.ProjectID != nil {
-			scope = strconv.Itoa(*old.ProjectID)
 		}
 
 		old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, scope, old.IntegrationID, e)

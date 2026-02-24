@@ -97,6 +97,8 @@ type TypeExporter interface {
 	getErrors() []string
 
 	clear()
+
+	setUniqueKeys(uniqueKeys bool)
 }
 
 var KeyNotFound = -1
@@ -214,6 +216,7 @@ type ValueMap[T EntityType] struct {
 	values      []EntityObject[T]
 	keyScopeMap map[string]bool
 	errs        []string
+	uniqueKeys  bool
 }
 
 func (t *ValueMap[T]) getLoadedKeys(scope string) ([]EntityKey, error) {
@@ -259,7 +262,7 @@ func (t *ValueMap[T]) getLoadedValues(scope string) ([]EntityType, error) {
 }
 
 func (t *ValueMap[T]) appendValues(values []T, scope string) error {
-	return t.appendValuesAndCheck(values, scope, true)
+	return t.appendValuesAndCheck(values, scope, t.uniqueKeys)
 }
 
 func (t *ValueMap[T]) appendValuesAndCheck(values []T, scope string, checkDuplicates bool) error {
@@ -304,6 +307,10 @@ func (t *ValueMap[T]) clear() {
 	t.keyScopeMap = nil
 	t.values = nil
 	t.errs = nil
+}
+
+func (t *ValueMap[T]) setUniqueKeys(uniqueKeys bool) {
+	t.uniqueKeys = uniqueKeys
 }
 
 type ExporterChain struct {
@@ -391,6 +398,16 @@ func getSortedKeys(exporters map[string]TypeExporter, dependsOn func(t TypeExpor
 	return sorted, nil
 }
 
+func getUniqueKeys(exporters map[string]TypeExporter) map[string]bool {
+	uniqueKeys := make(map[string]bool)
+	for _, e := range exporters {
+		for _, dep := range e.importDependsOn() {
+			uniqueKeys[dep] = true
+		}
+	}
+	return uniqueKeys
+}
+
 func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool) *ExporterChain {
 
 	exporters := map[string]TypeExporter{
@@ -413,14 +430,20 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool) *ExporterChain 
 		IntegrationMatcher:      &IntegrationMatcherExporter{},
 		IntegrationAlias:        &IntegrationAliasExporter{},
 		Task:                    &TaskExporter{},
-		TaskStage:               &TaskStageExporter{},
-		Option:                  &OptionExporter{},
-		Event:                   &EventExporter{},
-		Runner:                  &RunnerExporter{},
+		//TaskStage:               &TaskStageExporter{},
+		Option: &OptionExporter{},
+		Event:  &EventExporter{},
+		Runner: &RunnerExporter{},
 	}
 
 	if !skipTaskOutput {
 		exporters[TaskOutput] = &TaskOutputExporter{}
+	}
+
+	uniqueKeys := getUniqueKeys(exporters)
+
+	for _, e := range exporters {
+		e.setUniqueKeys(uniqueKeys[e.getName()])
 	}
 
 	return &ExporterChain{exporters: exporters, KeyMapper: mapper}
@@ -447,9 +470,11 @@ func (p *ProgressBar) updateForce(progress float32) {
 }
 
 func (p *ExporterChain) Load(store db.Store) (err error) {
+
 	keys, err := getSortedKeys(p.exporters, func(t TypeExporter) []string {
 		return t.exportDependsOn()
 	})
+
 	if err != nil {
 		return
 	}

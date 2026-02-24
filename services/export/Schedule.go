@@ -97,5 +97,5 @@ func (e *ScheduleExporter) exportDependsOn() []string {
 }
 
 func (e *ScheduleExporter) importDependsOn() []string {
-	return []string{SecretStorage, Repository, Project, Inventory, Template}
+	return []string{Repository, Project, Inventory, Template}
 }

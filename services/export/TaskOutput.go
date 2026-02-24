@@ -44,7 +44,7 @@ func (e *TaskOutputExporter) load(store db.Store, exporter DataExporter, progres
 			progress.update(float32(taskIndex) / float32(taskCount))
 		}
 
-		err = e.appendValuesAndCheck(allValues, strconv.Itoa(projId), false)
+		err = e.appendValues(allValues, strconv.Itoa(projId))
 		if err != nil {
 			return err
 		}
@@ -88,10 +88,11 @@ func (e *TaskOutputExporter) restore(store db.Store, exporter DataExporter, prog
 			return err
 		}
 
-		old.StageID, err = exporter.getNewKeyIntRef(TaskStage, val.scope, old.StageID, e)
-		if err != nil {
-			return err
-		}
+		// boltDb currently doesn't support task stages
+		old.StageID = nil //, err = exporter.getNewKeyIntRef(TaskStage, val.scope, old.StageID, e)
+		//if err != nil {
+		//	return err
+		//}
 
 		outputs = append(outputs, old)
 

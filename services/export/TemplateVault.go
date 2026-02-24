@@ -81,7 +81,7 @@ func (e *TemplateVaultExporter) getName() string {
 }
 
 func (e *TemplateVaultExporter) importDependsOn() []string {
-	return []string{Template, AccessKey}
+	return []string{Project, Template, AccessKey}
 }
 
 func (e *TemplateVaultExporter) exportDependsOn() []string {
