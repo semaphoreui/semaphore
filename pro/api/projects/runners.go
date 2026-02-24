@@ -1,10 +1,11 @@
 package projects
 
 import (
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
-	"net/http"
 )
 
 // NewProjectRunnerController creates a new ProjectRunnerController instance.
@@ -57,13 +58,5 @@ func (c *ProjectRunnerControllerImpl) ClearRunnerCache(w http.ResponseWriter, r 
 }
 
 func (c *ProjectRunnerControllerImpl) GetRunnerTags(w http.ResponseWriter, r *http.Request) {
-	project := helpers.GetFromContext(r, "project").(db.Project)
-	tags, err := helpers.Store(r).GetRunnerTags(project.ID)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	helpers.WriteJSON(w, http.StatusOK, tags)
+	helpers.WriteJSON(w, http.StatusOK, []any{})
 }

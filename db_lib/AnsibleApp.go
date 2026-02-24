@@ -75,10 +75,10 @@ func (t *AnsibleApp) Clear() {
 }
 
 func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
-	if err := t.installCollectionsRequirements(); err != nil {
+	if err := t.installCollectionsRequirements(args.EnvironmentVars); err != nil {
 		return err
 	}
-	if err := t.installRolesRequirements(); err != nil {
+	if err := t.installRolesRequirements(args.EnvironmentVars); err != nil {
 		return err
 	}
 	return nil
@@ -88,7 +88,7 @@ func (t *AnsibleApp) getRepoPath() string {
 	return t.Repository.GetFullPath(t.Template.ID)
 }
 
-func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string) error {
+func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string, environmentVars []string) error {
 	requirementsHashFilePath := fmt.Sprintf("%s_%s.md5", requirementsFilePath, requirementsType)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
@@ -103,7 +103,7 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequir
 			"-r",
 			requirementsFilePath,
 			"--force",
-		}); err != nil {
+		}, environmentVars); err != nil {
 			return err
 		}
 		if err := writeMD5Hash(requirementsFilePath, requirementsHashFilePath); err != nil {
@@ -129,46 +129,46 @@ const (
 	GalaxyCollection GalaxyRequirementsType = "collection"
 )
 
-func (t *AnsibleApp) installRolesRequirements() (err error) {
+func (t *AnsibleApp) installRolesRequirements(environmentVars []string) (err error) {
 	// default roles path
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"), environmentVars)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars)
 	if err != nil {
 		return
 	}
 
 	// alternative roles path
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "roles", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "roles", "requirements.yml"), environmentVars)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars)
 	return
 }
 
-func (t *AnsibleApp) installCollectionsRequirements() (err error) {
+func (t *AnsibleApp) installCollectionsRequirements(environmentVars []string) (err error) {
 	// default collections path
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"), environmentVars)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars)
 	if err != nil {
 		return
 	}
 
 	// alternative collections path
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "collections", "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "collections", "requirements.yml"), environmentVars)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "requirements.yml"))
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars)
 	return
 }
 
-func (t *AnsibleApp) runGalaxy(args []string) error {
-	return t.Playbook.RunGalaxy(args)
+func (t *AnsibleApp) runGalaxy(args []string, environmentVars []string) error {
+	return t.Playbook.RunGalaxy(args, environmentVars)
 }

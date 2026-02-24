@@ -16,8 +16,9 @@ import (
 )
 
 type projectImportArgs struct {
-	dir  string
-	file string
+	dir         string
+	file        string
+	projectName string
 }
 
 var targetProjectImportArgs projectImportArgs
@@ -25,6 +26,7 @@ var targetProjectImportArgs projectImportArgs
 func init() {
 	projectImportCmd.PersistentFlags().StringVar(&targetProjectImportArgs.dir, "dir", "", "Directory path with project backups to import")
 	projectImportCmd.PersistentFlags().StringVar(&targetProjectImportArgs.file, "file", "", "Backup file path to import")
+	projectImportCmd.PersistentFlags().StringVar(&targetProjectImportArgs.projectName, "project-name", "", "Override project name (only valid with --file)")
 	projectCmd.AddCommand(projectImportCmd)
 }
 
@@ -41,6 +43,11 @@ var projectImportCmd = &cobra.Command{
 
 		if targetProjectImportArgs.dir != "" && targetProjectImportArgs.file != "" {
 			fmt.Println("Only one of --dir or --file can be specified")
+			ok = false
+		}
+
+		if targetProjectImportArgs.projectName != "" && targetProjectImportArgs.dir != "" {
+			fmt.Println("Option --project-name can only be used with --file, not --dir")
 			ok = false
 		}
 
@@ -94,7 +101,7 @@ var projectImportCmd = &cobra.Command{
 
 		okCount := 0
 		for _, f := range files {
-			if err := importProjectFromFile(f, user, store); err != nil {
+			if err := importProjectFromFile(f, targetProjectImportArgs.projectName, user, store); err != nil {
 				log.Errorf("failed to import %s: %v", f, err)
 				continue
 			}
@@ -134,7 +141,7 @@ func resolveImportUser(store db.Store) (res db.User, err error) {
 	return
 }
 
-func importProjectFromFile(path string, user db.User, store db.Store) error {
+func importProjectFromFile(path string, projectName string, user db.User, store db.Store) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -145,6 +152,9 @@ func importProjectFromFile(path string, user db.User, store db.Store) error {
 	}
 	if err := backup.Verify(); err != nil {
 		return err
+	}
+	if projectName != "" {
+		backup.Meta.Name = projectName
 	}
 	_, err = backup.Restore(user, store)
 	return err

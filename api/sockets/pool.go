@@ -2,6 +2,28 @@ package sockets
 
 import log "github.com/sirupsen/logrus"
 
+// Broadcaster provides cross-node WebSocket message delivery for HA setups.
+// When configured, Message() delegates to the broadcaster which publishes
+// messages to all nodes in the cluster via Redis Pub/Sub.
+type Broadcaster interface {
+	// Start begins listening for messages from other nodes.
+	Start()
+	// Publish delivers a message to all nodes in the cluster.
+	// The implementation must also deliver the message to local clients
+	// by calling LocalBroadcast.
+	Publish(userID int, msg []byte)
+	// Stop shuts down the broadcaster.
+	Stop()
+}
+
+var broadcaster Broadcaster
+
+// SetBroadcaster configures a cross-node broadcaster for HA mode.
+// When set, Message() delegates to the broadcaster instead of the local hub.
+func SetBroadcaster(b Broadcaster) {
+	broadcaster = b
+}
+
 // hub maintains the set of active connections and broadcasts messages to the
 // connections.
 type hub struct {
@@ -67,4 +89,14 @@ func (h *hub) run() {
 // StartWS starts the web sockets in a goroutine
 func StartWS() {
 	h.run()
+}
+
+// LocalBroadcast delivers a message to locally-connected WebSocket clients
+// only. Used by Broadcaster implementations to relay messages received from
+// other nodes without re-publishing them.
+func LocalBroadcast(userID int, message []byte) {
+	h.broadcast <- &sendRequest{
+		userID: userID,
+		msg:    message,
+	}
 }

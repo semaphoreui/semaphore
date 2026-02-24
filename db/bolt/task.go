@@ -293,3 +293,11 @@ func (d *BoltDb) GetTaskStageResult(projectID int, taskID int, stageID int) (res
 func (d *BoltDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (res []db.TaskOutput, err error) {
 	return
 }
+
+func (d *BoltDb) GetNodeCount() (int, error) {
+	return 0, nil
+}
+
+func (d *BoltDb) GetUiCount() (int, error) {
+	return 1, nil
+}

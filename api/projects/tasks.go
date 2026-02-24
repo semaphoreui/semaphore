@@ -53,7 +53,9 @@ func AddTask(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, common_errors.ErrInvalidSubscription) {
 		helpers.WriteErrorStatus(w, "No active subscription available.", http.StatusForbidden)
 		return
-	} else if err != nil {
+	}
+
+	if err != nil {
 		log.WithFields(log.Fields{
 			"context":     "AddTask",
 			"project_id":  project.ID,

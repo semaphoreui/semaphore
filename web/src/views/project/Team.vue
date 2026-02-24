@@ -1,12 +1,12 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div v-if="items != null && roles != null">
     <EditTeamMemberDialog
       v-model="editDialog"
       :project-id="projectId"
       :item-id="itemId"
       :invites-enabled="systemInfo.teams.invites_enabled"
       :invite-type="systemInfo.teams.invite_type"
-      :roles="systemInfo.roles"
+      :roles="userRoles"
       @save="openInvites()"
     />
 
@@ -27,23 +27,19 @@
         @click="leftProject()"
         class="mr-2"
         :disabled="userRole === 'owner'"
-      >{{ $t('LeaveProject') }}
+        >{{ $t('LeaveProject') }}
       </v-btn>
       <v-btn
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectUsers)"
-      >{{ $t('newTeamMember') }}
+        >{{ $t('newTeamMember') }}
       </v-btn>
     </v-toolbar>
 
-    <TeamMenu
-      v-if="isPro"
-      :project-id="projectId"
-      :system-info="systemInfo"
-    />
+    <TeamMenu v-if="isPro" :project-id="projectId" :system-info="systemInfo" />
 
-    <v-divider style="margin-top: -1px;"/>
+    <v-divider style="margin-top: -1px" />
 
     <v-data-table
       :headers="headers"
@@ -51,7 +47,7 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
+      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.role="{ item }">
         <v-select
@@ -60,12 +56,12 @@
           :items="userRoles"
           item-value="slug"
           item-text="name"
-          :style="{width: '200px'}"
+          :style="{ width: '200px' }"
           @change="updateProjectUser(item)"
           v-if="can(USER_PERMISSIONS.manageProjectUsers)"
           class="pt-0 mt-0"
         />
-        <div v-else>{{ userRoles.find(r => r.slug === item.role).name }}</div>
+        <div v-else>{{ userRoles.find((r) => r.slug === item.role).name }}</div>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -77,7 +73,6 @@
       </template>
     </v-data-table>
   </div>
-
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
@@ -94,14 +89,30 @@ export default {
     systemInfo: Object,
   },
 
+  data() {
+    return {
+      roles: null,
+    };
+  },
+
   computed: {
     userRoles() {
-      return [...USER_ROLES, ...this.systemInfo.roles];
+      return [...USER_ROLES, ...this.roles];
     },
 
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
     },
+  },
+
+  async created() {
+    this.roles = (
+      await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/roles/all`,
+        responseType: 'json',
+      })
+    ).data;
   },
 
   methods: {
@@ -157,7 +168,8 @@ export default {
           value: 'actions',
           sortable: false,
           width: '0%',
-        }];
+        },
+      ];
     },
 
     getSingleItemUrl() {

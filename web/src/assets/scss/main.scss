@@ -71,4 +71,8 @@ $mdi-font-path: "~@mdi/font/fonts";
   opacity: 1 !important;
 }
 
+.masked-secret-input input {
+  -webkit-text-security: disc;
+}
+
 @import "components";

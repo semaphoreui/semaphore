@@ -831,8 +831,9 @@ definitions:
         type: string
       message:
         type: string
-      inventory_id:
-        type: integer
+#      inventory_id:
+#        type: integer
+#        x-nullable: true
       arguments:
         type: string
       params:
@@ -2434,6 +2435,16 @@ paths:
       tags:
         - template
       summary: Stop all active tasks of template
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              force:
+                type: boolean
+                description: Force stop (kill) all tasks immediately
       responses:
         204:
           description: tasks stopped
@@ -2670,6 +2681,16 @@ paths:
       tags:
         - task
       summary: Stop a job
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              force:
+                type: boolean
+                description: Force stop (kill) the task immediately
       responses:
         204:
           description: Task queued

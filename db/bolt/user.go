@@ -1,7 +1,9 @@
 package bolt
 
 import (
+	"errors"
 	"fmt"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"golang.org/x/crypto/bcrypt"
@@ -36,6 +38,10 @@ func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err e
 
 	newUser = usr.(db.User)
 	return
+}
+
+func (d *BoltDb) ImportUser(user db.UserWithPwd) (newUser db.User, err error) {
+	return db.User{}, errors.New("unsupported operation")
 }
 
 func (d *BoltDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {

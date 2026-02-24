@@ -271,12 +271,18 @@ fi
 
 
 # Import project if environment variable SEMAPHORE_IMPORT_PROJECT_FILE is defined.
+# Optionally use SEMAPHORE_IMPORT_PROJECT_NAME to specify the project name.
 if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ]; then
     echoerr "Importing project from ${SEMAPHORE_IMPORT_PROJECT_FILE}"
+    IMPORT_ARGS="--file ${SEMAPHORE_IMPORT_PROJECT_FILE}"
+    if [ -n "${SEMAPHORE_IMPORT_PROJECT_NAME:-}" ]; then
+        echoerr "Using project name: ${SEMAPHORE_IMPORT_PROJECT_NAME}"
+        IMPORT_ARGS="${IMPORT_ARGS} --project-name ${SEMAPHORE_IMPORT_PROJECT_NAME}"
+    fi
     if test "$#" -ne 1; then
-        /usr/local/bin/semaphore project import --file "${SEMAPHORE_IMPORT_PROJECT_FILE}" || echoerr "Project import failed"
+        /usr/local/bin/semaphore project import ${IMPORT_ARGS} --config "${SEMAPHORE_CONFIG_PATH}/config.json" || echoerr "Project import failed"
     else
-        "$1" project import --file "${SEMAPHORE_IMPORT_PROJECT_FILE}" || echoerr "Project import failed"
+        "$1" project import ${IMPORT_ARGS} || echoerr "Project import failed"
     fi
 fi
 

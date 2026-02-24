@@ -2,11 +2,12 @@ package sql
 
 import (
 	"errors"
+	"strings"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"golang.org/x/crypto/bcrypt"
-	"strings"
 )
 
 func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
@@ -43,6 +44,24 @@ func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 	}
 
 	user.Password = string(pwdHash)
+	user.Created = db.GetParsedTime(tz.Now())
+
+	err = d.Sql().Insert(&user.User)
+
+	if err != nil {
+		return
+	}
+
+	newUser = user.User
+	return
+}
+
+func (d *SqlDb) ImportUser(user db.UserWithPwd) (newUser db.User, err error) {
+	err = db.ValidateUser(user.User)
+	if err != nil {
+		return
+	}
+
 	user.Created = db.GetParsedTime(tz.Now())
 
 	err = d.Sql().Insert(&user.User)

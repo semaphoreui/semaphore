@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -113,11 +114,12 @@ func GetMigrations(dialect string) []Migration {
 		{Version: "2.16.1"},
 		{Version: "2.16.2"},
 		{Version: "2.16.3"},
-		{Version: "2.16.50"},
 		{Version: "2.16.8"},
+		{Version: "2.16.50"},
 		{Version: "2.17.0"},
 		{Version: "2.17.1"},
 		{Version: "2.17.2"},
+		{Version: "2.17.15"},
 	}
 
 	return append(initScripts, commonScripts...)
@@ -159,6 +161,7 @@ func (m Migration) ParseVersion() (res MigrationVersion, err error) {
 	}
 
 	if len(parts) < 3 {
+		res.Patch = math.MaxInt
 		return
 	}
 

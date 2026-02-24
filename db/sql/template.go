@@ -156,7 +156,13 @@ func (d *SqlDb) SetTemplateDescription(projectID int, templateID int, descriptio
 	return
 }
 
-func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.TemplateWithPerms, err error) {
+func (d *SqlDb) getTemplates(
+	projectID int,
+	userID *int,
+	filter db.TemplateFilter,
+	params db.RetrieveQueryParams,
+	loadVaults bool,
+) (templates []db.TemplateWithPerms, err error) {
 
 	pp, err := params.Validate(db.TemplateProps)
 	if err != nil {
@@ -205,15 +211,16 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id",
 	}
 
-	//if userID != nil {
-	//	fields = append(fields, "pr.permissions permissions")
-	//}
+	if userID != nil {
+		fields = append(fields, "ptr.permissions permissions")
+	}
 
 	q := squirrel.Select(fields...).From("project__template pt")
 
-	//if userID != nil {
-	//	q = q.LeftJoin("project__template_role pr ON (pr.template_id = pt.id)")
-	//}
+	if userID != nil {
+		q = q.LeftJoin("project__user pu ON (pu.project_id = pt.project_id AND pu.user_id = ?)", *userID).
+			LeftJoin("project__template_role ptr ON (ptr.template_id = pt.id AND ptr.role_slug = pu.`role`)")
+	}
 
 	if filter.App != nil {
 		q = q.Where("pt.app=?", *filter.App)
@@ -308,10 +315,10 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 		if tpl.LastTaskID != nil {
 			for _, tsk := range tasks {
 				if tsk.ID == *tpl.LastTaskID {
-					err = tsk.Fill(d)
-					if err != nil {
-						return
-					}
+					// err = tsk.Fill(d)
+					// if err != nil {
+					// 	return
+					// }
 					template.LastTask = &tsk
 					break
 				}
@@ -329,9 +336,11 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 			}
 		}
 
-		template.Vaults, err = d.GetTemplateVaults(projectID, template.ID)
-		if err != nil {
-			return
+		if loadVaults {
+			template.Vaults, err = d.GetTemplateVaults(projectID, template.ID)
+			if err != nil {
+				return
+			}
 		}
 
 		templates = append(templates, template)
@@ -341,11 +350,11 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 }
 
 func (d *SqlDb) GetTemplatesWithPermissions(projectID int, userID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.TemplateWithPerms, err error) {
-	return d.getTemplates(projectID, &userID, filter, params)
+	return d.getTemplates(projectID, &userID, filter, params, false)
 }
 
 func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
-	res, err := d.getTemplates(projectID, nil, filter, params)
+	res, err := d.getTemplates(projectID, nil, filter, params, true)
 	if err != nil {
 		return
 	}

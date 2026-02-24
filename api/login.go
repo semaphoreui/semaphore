@@ -329,7 +329,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if util.Config.LdapEnable {
 		ldapUser, err = tryFindLDAPUser(login.Auth, login.Password)
 		if err != nil {
-			log.Warn(err.Error())
+			log.WithError(err).WithFields(log.Fields{
+				"context": "ldap",
+				"auth":    login.Auth,
+			}).Warn("Failed to find user in LDAP")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

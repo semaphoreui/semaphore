@@ -5,6 +5,9 @@ name: Community Beta
     tags:
       - v*-beta*
 
+permissions:
+  contents: write
+
 jobs:
   prerelease:
     runs-on: ubuntu-latest
@@ -49,7 +52,7 @@ jobs:
 
       - name: Run release
         run: |
-          GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
+          GITHUB_TOKEN=${{ github.token }} \
           PROJECT_NAME=semaphore_community \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
           task release:prod
