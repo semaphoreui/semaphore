@@ -1,8 +1,6 @@
 package export
 
 import (
-	"strconv"
-
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -12,22 +10,14 @@ type RunnerExporter struct {
 
 func (e *RunnerExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
-	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
+	envs, err := store.GetAllRunners(false, false)
 	if err != nil {
 		return err
 	}
 
-	for _, proj := range projs {
-
-		envs, err := store.GetRunners(proj, false, nil)
-		if err != nil {
-			return err
-		}
-
-		err = e.appendValues(envs, strconv.Itoa(proj))
-		if err != nil {
-			return err
-		}
+	err = e.appendValues(envs, GlobalScope)
+	if err != nil {
+		return err
 	}
 	return nil
 }
