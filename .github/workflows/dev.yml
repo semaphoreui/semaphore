@@ -537,6 +537,7 @@ jobs:
       - integrate-mysql
       - integrate-mariadb
       - integrate-postgres
+      - integrate-sqlite
 
     steps:
       - name: Checkout source
