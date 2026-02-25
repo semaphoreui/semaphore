@@ -288,6 +288,29 @@ fi
 
 
 #
+# Migrate from BoltDB if SEMAPHORE_MIGRATE_FROM_BOLTDB is set (SQLite only, skipped if DB file already exists)
+#
+if [ -n "${SEMAPHORE_MIGRATE_FROM_BOLTDB:-}" ]; then
+    if [ "${SEMAPHORE_DB_DIALECT}" != "sqlite" ]; then
+        echoerr "SEMAPHORE_MIGRATE_FROM_BOLTDB is only supported with SQLite dialect, ignoring"
+    elif [ -f "${SEMAPHORE_DB_HOST}" ]; then
+        echoerr "SQLite database ${SEMAPHORE_DB_HOST} already exists, skipping BoltDB migration"
+    else
+        echoerr "Migrating from BoltDB: ${SEMAPHORE_MIGRATE_FROM_BOLTDB}"
+        MIGRATE_ARGS="--from-boltdb=${SEMAPHORE_MIGRATE_FROM_BOLTDB}"
+        if [ -n "${SEMAPHORE_MIGRATE_SKIP_TASK_OUTPUT:-}" ]; then
+            MIGRATE_ARGS="${MIGRATE_ARGS} --skip-task-output"
+        fi
+        if test "$#" -ne 1; then
+            /usr/local/bin/semaphore migrate ${MIGRATE_ARGS} --config "${SEMAPHORE_CONFIG_PATH}/config.json"
+        else
+            "$1" migrate ${MIGRATE_ARGS} --config "${SEMAPHORE_CONFIG_PATH}/config.json"
+        fi
+    fi
+fi
+
+
+#
 # Start Semaphore server
 #
 echoerr "Starting semaphore server"
