@@ -1145,6 +1145,175 @@ definitions:
       premium_features:
         type: object
 
+  ObjectReferrer:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+
+  ObjectReferrers:
+    type: object
+    properties:
+      templates:
+        type: array
+        items:
+          $ref: "#/definitions/ObjectReferrer"
+      inventories:
+        type: array
+        items:
+          $ref: "#/definitions/ObjectReferrer"
+      repositories:
+        type: array
+        items:
+          $ref: "#/definitions/ObjectReferrer"
+      integrations:
+        type: array
+        items:
+          $ref: "#/definitions/ObjectReferrer"
+      schedules:
+        type: array
+        items:
+          $ref: "#/definitions/ObjectReferrer"
+      access_keys:
+        type: array
+        items:
+          $ref: "#/definitions/ObjectReferrer"
+
+  IntegrationReferrers:
+    type: object
+    properties:
+      matchers:
+        type: array
+        items:
+          $ref: "#/definitions/ObjectReferrer"
+      values:
+        type: array
+        items:
+          $ref: "#/definitions/ObjectReferrer"
+
+  IntegrationExtractorChildReferrers:
+    type: object
+    properties:
+      integrations:
+        type: array
+        items:
+          $ref: "#/definitions/ObjectReferrer"
+
+  TaskStage:
+    type: object
+    properties:
+      id:
+        type: integer
+      task_id:
+        type: integer
+      start:
+        type: string
+        format: date-time
+      end:
+        type: string
+        format: date-time
+      start_output_id:
+        type: integer
+      end_output_id:
+        type: integer
+      type:
+        type: string
+        enum: [init, terraform_plan, running, print_result]
+      result:
+        type: object
+
+  TaskStat:
+    type: object
+    properties:
+      date:
+        type: string
+      count_by_status:
+        type: object
+      avg_duration:
+        type: integer
+
+  AnsibleTaskHost:
+    type: object
+    properties:
+      id:
+        type: integer
+      task_id:
+        type: integer
+      project_id:
+        type: integer
+      host:
+        type: string
+      changed:
+        type: integer
+      failed:
+        type: integer
+      ignored:
+        type: integer
+      ok:
+        type: integer
+      rescued:
+        type: integer
+      skipped:
+        type: integer
+      unreachable:
+        type: integer
+      created:
+        type: string
+        format: date-time
+
+  AnsibleTaskError:
+    type: object
+    properties:
+      id:
+        type: integer
+      task_id:
+        type: integer
+      project_id:
+        type: integer
+      host:
+        type: string
+      task:
+        type: string
+      error:
+        type: string
+      created:
+        type: string
+        format: date-time
+
+  TemplateRolePerm:
+    type: object
+    properties:
+      id:
+        type: integer
+      role_slug:
+        type: string
+      template_id:
+        type: integer
+      project_id:
+        type: integer
+      permissions:
+        type: integer
+
+  Role:
+    type: object
+    properties:
+      name:
+        type: string
+      slug:
+        type: string
+      project_id:
+        type: integer
+
+  Option:
+    type: object
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+
 securityDefinitions:
   cookie:
     type: apiKey
@@ -1265,6 +1434,69 @@ parameters:
     type: integer
     required: true
     x-example: 14
+  runner_id:
+    name: runner_id
+    description: runner ID
+    in: path
+    type: integer
+    required: true
+    x-example: 1
+  app_id:
+    name: app_id
+    description: App ID
+    in: path
+    type: string
+    required: true
+    x-example: my-app
+  role_slug:
+    name: role_slug
+    description: role slug
+    in: path
+    type: string
+    required: true
+    x-example: my-role
+  totp_id:
+    name: totp_id
+    description: TOTP device ID
+    in: path
+    type: integer
+    required: true
+    x-example: 1
+  perm_id:
+    name: perm_id
+    description: template permission ID
+    in: path
+    type: integer
+    required: true
+    x-example: 1
+  storage_id:
+    name: storage_id
+    description: secret storage ID
+    in: path
+    type: integer
+    required: true
+    x-example: 1
+  state_id:
+    name: state_id
+    description: terraform state ID
+    in: path
+    type: integer
+    required: true
+    x-example: 1
+  value_id:
+    name: value_id
+    description: integration extract value ID
+    in: path
+    type: integer
+    required: true
+    x-example: 1
+  integration_alias:
+    name: integration_alias
+    description: integration alias
+    in: path
+    type: string
+    required: true
+    x-example: dj02fh
 
 paths:
   /debug/gc:
@@ -1274,6 +1506,351 @@ paths:
       responses:
         204:
           description: Successful "OK" reply
+
+  /debug/pprof/dump:
+    post:
+      tags:
+        - admin
+      summary: Dump pprof profiling data
+      responses:
+        204:
+          description: Dump started
+
+  /options:
+    get:
+      tags:
+        - admin
+      summary: Get all application options
+      responses:
+        200:
+          description: Application options
+          schema:
+            type: object
+    post:
+      tags:
+        - admin
+      summary: Set application option
+      parameters:
+        - name: Option
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Option"
+      responses:
+        200:
+          description: Option set
+          schema:
+            $ref: "#/definitions/Option"
+
+  /cache:
+    delete:
+      tags:
+        - admin
+      summary: Clear global cache
+      responses:
+        204:
+          description: Cache cleared
+
+  /runners:
+    get:
+      tags:
+        - admin
+      summary: Get all global runners
+      responses:
+        200:
+          description: Global runners
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Runner"
+    post:
+      tags:
+        - admin
+      summary: Register a global runner
+      responses:
+        201:
+          description: Runner registered
+          schema:
+            $ref: "#/definitions/Runner"
+
+  /runners/{runner_id}:
+    parameters:
+      - $ref: "#/parameters/runner_id"
+    get:
+      tags:
+        - admin
+      summary: Get a global runner
+      responses:
+        200:
+          description: Runner
+          schema:
+            $ref: "#/definitions/Runner"
+    put:
+      tags:
+        - admin
+      summary: Update a global runner
+      parameters:
+        - name: Runner
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Runner"
+      responses:
+        204:
+          description: Runner updated
+    delete:
+      tags:
+        - admin
+      summary: Delete a global runner
+      responses:
+        204:
+          description: Runner deleted
+
+  /runners/{runner_id}/active:
+    parameters:
+      - $ref: "#/parameters/runner_id"
+    post:
+      tags:
+        - admin
+      summary: Set global runner active/inactive
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              active:
+                type: boolean
+      responses:
+        204:
+          description: Runner active status updated
+
+  /runners/{runner_id}/cache:
+    parameters:
+      - $ref: "#/parameters/runner_id"
+    delete:
+      tags:
+        - admin
+      summary: Clear global runner cache
+      responses:
+        204:
+          description: Runner cache cleared
+
+  /roles:
+    get:
+      tags:
+        - admin
+      summary: Get all global roles
+      responses:
+        200:
+          description: Global roles
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Role"
+    post:
+      tags:
+        - admin
+      summary: Add a global role
+      parameters:
+        - name: Role
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Role"
+      responses:
+        201:
+          description: Role created
+          schema:
+            $ref: "#/definitions/Role"
+
+  /roles/{role_slug}:
+    parameters:
+      - $ref: "#/parameters/role_slug"
+    get:
+      tags:
+        - admin
+      summary: Get a global role
+      responses:
+        200:
+          description: Role
+          schema:
+            $ref: "#/definitions/Role"
+    put:
+      tags:
+        - admin
+      summary: Update a global role
+      parameters:
+        - name: Role
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Role"
+      responses:
+        204:
+          description: Role updated
+    delete:
+      tags:
+        - admin
+      summary: Delete a global role
+      responses:
+        204:
+          description: Role deleted
+
+  /apps/{app_id}:
+    parameters:
+      - $ref: "#/parameters/app_id"
+    get:
+      tags:
+        - admin
+      summary: Get an app
+      responses:
+        200:
+          description: App
+          schema:
+            $ref: "#/definitions/App"
+    put:
+      tags:
+        - admin
+      summary: Update an app
+      parameters:
+        - name: App
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/App"
+      responses:
+        204:
+          description: App updated
+    delete:
+      tags:
+        - admin
+      summary: Delete an app
+      responses:
+        204:
+          description: App deleted
+
+  /apps/{app_id}/active:
+    parameters:
+      - $ref: "#/parameters/app_id"
+    post:
+      tags:
+        - admin
+      summary: Set app active/inactive
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              active:
+                type: boolean
+      responses:
+        204:
+          description: App active status updated
+
+  /tasks:
+    get:
+      tags:
+        - admin
+      summary: Get all running and queued tasks (admin)
+      responses:
+        200:
+          description: Tasks
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                task_id:
+                  type: integer
+                project_id:
+                  type: integer
+                username:
+                  type: string
+                runner_id:
+                  type: integer
+                status:
+                  type: string
+                location:
+                  type: string
+                  enum: [queue, running]
+                runner_name:
+                  type: string
+                project_name:
+                  type: string
+
+  /tasks/{task_id}:
+    parameters:
+      - $ref: "#/parameters/task_id"
+    get:
+      tags:
+        - admin
+      summary: Get a running or queued task (admin)
+      responses:
+        200:
+          description: Task
+    delete:
+      tags:
+        - admin
+      summary: Delete (cancel) a running or queued task (admin)
+      responses:
+        204:
+          description: Task deleted
+
+  /subscription:
+    get:
+      tags:
+        - subscription
+      summary: Get current subscription
+      responses:
+        200:
+          description: Subscription
+    post:
+      tags:
+        - subscription
+      summary: Activate subscription
+      responses:
+        200:
+          description: Subscription activated
+    delete:
+      tags:
+        - subscription
+      summary: Delete subscription
+      responses:
+        204:
+          description: Subscription deleted
+
+  /subscription/refresh:
+    post:
+      tags:
+        - subscription
+      summary: Refresh subscription
+      responses:
+        200:
+          description: Subscription refreshed
+
+  /integrations/{integration_alias}:
+    parameters:
+      - $ref: "#/parameters/integration_alias"
+    get:
+      tags:
+        - integration
+      summary: Receive integration (webhook) via GET
+      security: []
+      responses:
+        200:
+          description: Integration received
+    post:
+      tags:
+        - integration
+      summary: Receive integration (webhook) via POST
+      security: []
+      responses:
+        200:
+          description: Integration received
 
   /ping:
     get:
@@ -1384,6 +1961,48 @@ paths:
       responses:
         302:
           description: Redirection to the Semaphore root URL on success, or to the login page on error
+
+  /auth/verify:
+    post:
+      tags:
+        - authentication
+      summary: Verify 2FA (TOTP passcode)
+      security: []
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              passcode:
+                type: string
+      responses:
+        204:
+          description: Verification successful
+        401:
+          description: Invalid passcode
+
+  /auth/recovery:
+    post:
+      tags:
+        - authentication
+      summary: Recover session using 2FA recovery code
+      security: []
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              recovery_code:
+                type: string
+      responses:
+        204:
+          description: Recovery successful
+        401:
+          description: Invalid recovery code
 
   # User Tokens
   /user/:
@@ -1528,6 +2147,47 @@ paths:
       responses:
         204:
           description: Password updated
+
+  /users/{user_id}/2fas/totp:
+    parameters:
+      - $ref: "#/parameters/user_id"
+    post:
+      tags:
+        - user
+      summary: Enable TOTP 2FA for the user
+      responses:
+        200:
+          description: TOTP enabled
+          schema:
+            type: object
+
+  /users/{user_id}/2fas/totp/{totp_id}/qr:
+    parameters:
+      - $ref: "#/parameters/user_id"
+      - $ref: "#/parameters/totp_id"
+    get:
+      tags:
+        - user
+      summary: Get TOTP QR code image
+      produces:
+        - image/png
+      responses:
+        200:
+          description: QR code image
+        404:
+          description: TOTP device not found
+
+  /users/{user_id}/2fas/totp/{totp_id}:
+    parameters:
+      - $ref: "#/parameters/user_id"
+      - $ref: "#/parameters/totp_id"
+    delete:
+      tags:
+        - user
+      summary: Disable TOTP 2FA for the user
+      responses:
+        204:
+          description: TOTP disabled
 
   # Projects
   /projects:
@@ -1687,6 +2347,73 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Event'
+
+  /project/{project_id}/events/last:
+    parameters:
+      - $ref: '#/parameters/project_id'
+    get:
+      tags:
+        - project
+      summary: Get last events related to this project
+      responses:
+        200:
+          description: Array of events in chronological order
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Event'
+
+  /project/{project_id}/stats:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get task statistics for project
+      parameters:
+        - name: start
+          in: query
+          required: false
+          type: string
+          format: date
+        - name: end
+          in: query
+          required: false
+          type: string
+          format: date
+        - name: user_id
+          in: query
+          required: false
+          type: integer
+      responses:
+        200:
+          description: Task statistics
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/TaskStat"
+
+  /project/{project_id}/me:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    delete:
+      tags:
+        - project
+      summary: Leave project
+      responses:
+        204:
+          description: Left project
+
+  /project/{project_id}/cache:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    delete:
+      tags:
+        - project
+      summary: Clear project cache
+      responses:
+        204:
+          description: Cache cleared
 
   # User management
   /project/{project_id}/users:
@@ -2135,6 +2862,237 @@ paths:
         204:
           description: integration alias removed
 
+  /project/{project_id}/integrations/{integration_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+    get:
+      tags:
+        - integration
+      summary: Get objects that reference this integration
+      responses:
+        200:
+          description: Integration referrers
+          schema:
+            $ref: "#/definitions/IntegrationReferrers"
+
+  /project/{project_id}/integrations/{integration_id}/matchers/{matcher_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/matcher_id"
+    get:
+      tags:
+        - integration
+      summary: Get objects that reference this integration matcher
+      responses:
+        200:
+          description: Integration matcher referrers
+          schema:
+            $ref: "#/definitions/IntegrationExtractorChildReferrers"
+
+  /project/{project_id}/integrations/{integration_id}/values/{value_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/value_id"
+    get:
+      tags:
+        - integration
+      summary: Get objects that reference this integration extract value
+      responses:
+        200:
+          description: Integration extract value referrers
+          schema:
+            $ref: "#/definitions/IntegrationExtractorChildReferrers"
+
+  # project runners
+  /project/{project_id}/runners:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - runner
+      summary: Get project runners
+      responses:
+        200:
+          description: Runners
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Runner"
+    post:
+      tags:
+        - runner
+      summary: Add a project runner
+      responses:
+        201:
+          description: Runner created
+          schema:
+            $ref: "#/definitions/Runner"
+
+  /project/{project_id}/runner_tags:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - runner
+      summary: Get runner tags available for project
+      responses:
+        200:
+          description: Runner tags
+          schema:
+            type: array
+            items:
+              type: string
+
+  /project/{project_id}/runners/{runner_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    get:
+      tags:
+        - runner
+      summary: Get a project runner
+      responses:
+        200:
+          description: Runner
+          schema:
+            $ref: "#/definitions/Runner"
+    put:
+      tags:
+        - runner
+      summary: Update a project runner
+      parameters:
+        - name: Runner
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Runner"
+      responses:
+        204:
+          description: Runner updated
+    delete:
+      tags:
+        - runner
+      summary: Delete a project runner
+      responses:
+        204:
+          description: Runner deleted
+
+  /project/{project_id}/runners/{runner_id}/active:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    post:
+      tags:
+        - runner
+      summary: Set project runner active/inactive
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              active:
+                type: boolean
+      responses:
+        204:
+          description: Runner active status updated
+
+  /project/{project_id}/runners/{runner_id}/cache:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    delete:
+      tags:
+        - runner
+      summary: Clear project runner cache
+      responses:
+        204:
+          description: Runner cache cleared
+
+  # project roles
+  /project/{project_id}/roles:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - role
+      summary: Get project roles
+      responses:
+        200:
+          description: Project roles
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Role"
+    post:
+      tags:
+        - role
+      summary: Add a project role
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Role"
+      responses:
+        201:
+          description: Role created
+          schema:
+            $ref: "#/definitions/Role"
+
+  /project/{project_id}/roles/all:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - role
+      summary: Get project and global roles
+      responses:
+        200:
+          description: Project and global roles
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Role"
+
+  /project/{project_id}/roles/{role_slug}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/role_slug"
+    get:
+      tags:
+        - role
+      summary: Get a project role
+      responses:
+        200:
+          description: Role
+          schema:
+            $ref: "#/definitions/Role"
+    put:
+      tags:
+        - role
+      summary: Update a project role
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Role"
+      responses:
+        204:
+          description: Role updated
+    delete:
+      tags:
+        - role
+      summary: Delete a project role
+      responses:
+        204:
+          description: Role deleted
+
   # project access keys
   /project/{project_id}/keys:
     parameters:
@@ -2217,6 +3175,20 @@ paths:
         204:
           description: access key removed
 
+  /project/{project_id}/keys/{key_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/key_id"
+    get:
+      tags:
+        - key-store
+      summary: Get objects that reference this access key
+      responses:
+        200:
+          description: Referencing objects
+          schema:
+            $ref: "#/definitions/ObjectReferrers"
+
   # project repositories
   /project/{project_id}/repositories:
     parameters:
@@ -2298,6 +3270,36 @@ paths:
         204:
           description: repository removed
 
+  /project/{project_id}/repositories/{repository_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/repository_id"
+    get:
+      tags:
+        - repository
+      summary: Get objects that reference this repository
+      responses:
+        200:
+          description: Referencing objects
+          schema:
+            $ref: "#/definitions/ObjectReferrers"
+
+  /project/{project_id}/repositories/{repository_id}/branches:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/repository_id"
+    get:
+      tags:
+        - repository
+      summary: Get branches of repository
+      responses:
+        200:
+          description: Branches
+          schema:
+            type: array
+            items:
+              type: string
+
   # project inventory
   /project/{project_id}/inventory:
     parameters:
@@ -2374,6 +3376,126 @@ paths:
       responses:
         204:
           description: inventory removed
+
+  /project/{project_id}/inventory/{inventory_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    get:
+      tags:
+        - inventory
+      summary: Get objects that reference this inventory
+      responses:
+        200:
+          description: Referencing objects
+          schema:
+            $ref: "#/definitions/ObjectReferrers"
+
+  /project/{project_id}/inventory/{inventory_id}/terraform/aliases:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    get:
+      tags:
+        - inventory
+      summary: Get terraform inventory aliases
+      responses:
+        200:
+          description: Terraform inventory aliases
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationAlias"
+    post:
+      tags:
+        - inventory
+      summary: Add terraform inventory alias
+      responses:
+        200:
+          description: Terraform inventory alias created
+          schema:
+            $ref: "#/definitions/IntegrationAlias"
+
+  /project/{project_id}/inventory/{inventory_id}/terraform/aliases/{alias_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/alias_id"
+    get:
+      tags:
+        - inventory
+      summary: Get terraform inventory alias
+      responses:
+        200:
+          description: Terraform inventory alias
+          schema:
+            $ref: "#/definitions/IntegrationAlias"
+    put:
+      tags:
+        - inventory
+      summary: Set access key for terraform inventory alias
+      responses:
+        204:
+          description: Access key set
+    delete:
+      tags:
+        - inventory
+      summary: Delete terraform inventory alias
+      responses:
+        204:
+          description: Terraform inventory alias deleted
+
+  /project/{project_id}/inventory/{inventory_id}/terraform/states:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    get:
+      tags:
+        - inventory
+      summary: Get terraform inventory states
+      responses:
+        200:
+          description: Terraform inventory states
+          schema:
+            type: array
+            items:
+              type: object
+
+  /project/{project_id}/inventory/{inventory_id}/terraform/states/latest:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    get:
+      tags:
+        - inventory
+      summary: Get latest terraform inventory state
+      responses:
+        200:
+          description: Latest terraform inventory state
+          schema:
+            type: object
+
+  /project/{project_id}/inventory/{inventory_id}/terraform/states/{state_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/state_id"
+    get:
+      tags:
+        - inventory
+      summary: Get terraform inventory state
+      responses:
+        200:
+          description: Terraform inventory state
+          schema:
+            type: object
+    delete:
+      tags:
+        - inventory
+      summary: Delete terraform inventory state
+      responses:
+        204:
+          description: Terraform inventory state deleted
 
   # project environment
   /project/{project_id}/environment:
@@ -2453,6 +3575,87 @@ paths:
       responses:
         204:
           description: environment removed
+
+  /project/{project_id}/environment/{environment_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/environment_id"
+    get:
+      tags:
+        - variable-group
+      summary: Get objects that reference this environment
+      responses:
+        200:
+          description: Referencing objects
+          schema:
+            $ref: "#/definitions/ObjectReferrers"
+
+  # project secret storages
+  /project/{project_id}/secret_storages:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - secret-storage
+      summary: Get secret storages linked to project
+      responses:
+        200:
+          description: Secret storages
+          schema:
+            type: array
+            items:
+              type: object
+    post:
+      tags:
+        - secret-storage
+      summary: Add secret storage
+      responses:
+        201:
+          description: Secret storage created
+          schema:
+            type: object
+
+  /project/{project_id}/secret_storages/{storage_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/storage_id"
+    get:
+      tags:
+        - secret-storage
+      summary: Get secret storage
+      responses:
+        200:
+          description: Secret storage
+          schema:
+            type: object
+    put:
+      tags:
+        - secret-storage
+      summary: Update secret storage
+      responses:
+        204:
+          description: Secret storage updated
+    delete:
+      tags:
+        - secret-storage
+      summary: Remove secret storage
+      responses:
+        204:
+          description: Secret storage removed
+
+  /project/{project_id}/secret_storages/{storage_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/storage_id"
+    get:
+      tags:
+        - secret-storage
+      summary: Get objects that reference this secret storage
+      responses:
+        200:
+          description: Referencing objects
+          schema:
+            $ref: "#/definitions/ObjectReferrers"
 
   # project templates
   /project/{project_id}/templates:
@@ -2538,6 +3741,225 @@ paths:
         204:
           description: template removed
 
+  /project/{project_id}/templates/{template_id}/description:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    put:
+      tags:
+        - template
+      summary: Update template description
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              description:
+                type: string
+      responses:
+        204:
+          description: Description updated
+
+  /project/{project_id}/templates/{template_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    get:
+      tags:
+        - template
+      summary: Get objects that reference this template
+      responses:
+        200:
+          description: Referencing objects
+          schema:
+            $ref: "#/definitions/ObjectReferrers"
+
+  /project/{project_id}/templates/{template_id}/tasks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    get:
+      tags:
+        - template
+      summary: Get tasks for template
+      responses:
+        200:
+          description: Tasks
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Task"
+
+  /project/{project_id}/templates/{template_id}/tasks/last:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    get:
+      tags:
+        - template
+      summary: Get last tasks for template
+      responses:
+        200:
+          description: Last tasks
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Task"
+
+  /project/{project_id}/templates/{template_id}/schedules:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    get:
+      tags:
+        - template
+      summary: Get schedules for template
+      responses:
+        200:
+          description: Schedules
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Schedule"
+
+  /project/{project_id}/templates/{template_id}/stats:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    get:
+      tags:
+        - template
+      summary: Get task statistics for template
+      parameters:
+        - name: start
+          in: query
+          required: false
+          type: string
+          format: date
+        - name: end
+          in: query
+          required: false
+          type: string
+          format: date
+        - name: user_id
+          in: query
+          required: false
+          type: integer
+      responses:
+        200:
+          description: Task statistics
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/TaskStat"
+
+  /project/{project_id}/templates/{template_id}/perms:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    get:
+      tags:
+        - template
+      summary: Get template role permissions
+      responses:
+        200:
+          description: Template permissions
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/TemplateRolePerm"
+    post:
+      tags:
+        - template
+      summary: Add template role permission
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/TemplateRolePerm"
+      responses:
+        201:
+          description: Template permission created
+          schema:
+            $ref: "#/definitions/TemplateRolePerm"
+
+  /project/{project_id}/templates/{template_id}/perms/{perm_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+      - $ref: "#/parameters/perm_id"
+    get:
+      tags:
+        - template
+      summary: Get template role permission
+      responses:
+        200:
+          description: Template permission
+          schema:
+            $ref: "#/definitions/TemplateRolePerm"
+    put:
+      tags:
+        - template
+      summary: Update template role permission
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/TemplateRolePerm"
+      responses:
+        204:
+          description: Template permission updated
+    delete:
+      tags:
+        - template
+      summary: Delete template role permission
+      responses:
+        204:
+          description: Template permission deleted
+
+  /project/{project_id}/templates/{template_id}/inventory/{inventory_id}/set_default:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+      - $ref: "#/parameters/inventory_id"
+    post:
+      tags:
+        - template
+      summary: Set default inventory for template
+      responses:
+        204:
+          description: Default inventory set
+
+  /project/{project_id}/templates/{template_id}/inventory/{inventory_id}/attach:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+      - $ref: "#/parameters/inventory_id"
+    post:
+      tags:
+        - template
+      summary: Attach inventory to template
+      responses:
+        204:
+          description: Inventory attached
+
+  /project/{project_id}/templates/{template_id}/inventory/{inventory_id}/detach:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+      - $ref: "#/parameters/inventory_id"
+    post:
+      tags:
+        - template
+      summary: Detach inventory from template
+      responses:
+        204:
+          description: Inventory detached
+
   /project/{project_id}/templates/{template_id}/stop_all_tasks:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -2596,6 +4018,27 @@ paths:
         204:
           description: schedule updated
 
+  /project/{project_id}/schedules/{schedule_id}/active:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/schedule_id"
+    put:
+      tags:
+        - schedule
+      summary: Set schedule active/inactive
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              active:
+                type: boolean
+      responses:
+        204:
+          description: Schedule active status updated
+
   /project/{project_id}/schedules:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -2614,6 +4057,25 @@ paths:
           description: schedule created
           schema:
             $ref: "#/definitions/Schedule"
+
+  /project/{project_id}/schedules/validate:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    post:
+      tags:
+        - schedule
+      summary: Validate cron format for schedule
+      parameters:
+        - name: schedule
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ScheduleRequest"
+      responses:
+        204:
+          description: Valid cron format
+        400:
+          description: Invalid cron format
 
   # project views
   /project/{project_id}/views:
@@ -2645,6 +4107,24 @@ paths:
           description: view created
           schema:
             $ref: "#/definitions/View"
+
+  /project/{project_id}/views/positions:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    post:
+      tags:
+        - project
+      summary: Set view positions
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+      responses:
+        204:
+          description: View positions updated
+
   /project/{project_id}/views/{view_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -2679,6 +4159,21 @@ paths:
         204:
           description: view removed
 
+  /project/{project_id}/views/{view_id}/templates:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/view_id"
+    get:
+      tags:
+        - project
+      summary: Get templates for view
+      responses:
+        200:
+          description: Templates
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Template"
 
   # tasks
   /project/{project_id}/tasks:
@@ -2825,6 +4320,79 @@ paths:
             content-type:
               type: string
               x-example: text/plain; charset=utf-8
+
+  /project/{project_id}/tasks/{task_id}/confirm:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/task_id"
+    post:
+      tags:
+        - task
+      summary: Confirm a task waiting for approval
+      responses:
+        204:
+          description: Task confirmed
+
+  /project/{project_id}/tasks/{task_id}/reject:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/task_id"
+    post:
+      tags:
+        - task
+      summary: Reject a task waiting for approval
+      responses:
+        204:
+          description: Task rejected
+
+  /project/{project_id}/tasks/{task_id}/stages:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/task_id"
+    get:
+      tags:
+        - task
+      summary: Get task stages
+      responses:
+        200:
+          description: Task stages
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/TaskStage"
+
+  /project/{project_id}/tasks/{task_id}/ansible/hosts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/task_id"
+    get:
+      tags:
+        - task
+      summary: Get ansible task hosts
+      responses:
+        200:
+          description: Ansible task hosts
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/AnsibleTaskHost"
+
+  /project/{project_id}/tasks/{task_id}/ansible/errors:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/task_id"
+    get:
+      tags:
+        - task
+      summary: Get ansible task errors
+      responses:
+        200:
+          description: Ansible task errors
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/AnsibleTaskError"
+
   /apps:
     get:
       summary: Get apps
