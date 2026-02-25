@@ -86,5 +86,5 @@ func (e *IntegrationExporter) exportDependsOn() []string {
 }
 
 func (e *IntegrationExporter) importDependsOn() []string {
-	return []string{Project, SecretStorage, Environment, Template}
+	return []string{Project, SecretStorage, Template, Inventory, AccessKey}
 }

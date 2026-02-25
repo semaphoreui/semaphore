@@ -84,5 +84,5 @@ func (e *InventoryExporter) exportDependsOn() []string {
 }
 
 func (e *InventoryExporter) importDependsOn() []string {
-	return []string{AccessKey, Repository}
+	return []string{Project, AccessKey, Repository}
 }

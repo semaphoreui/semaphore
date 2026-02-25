@@ -80,7 +80,7 @@ func (e *TemplateRoleExporter) getName() string {
 }
 
 func (e *TemplateRoleExporter) importDependsOn() []string {
-	return []string{Template, Project}
+	return []string{Role, Template, Project}
 }
 
 func (e *TemplateRoleExporter) exportDependsOn() []string {

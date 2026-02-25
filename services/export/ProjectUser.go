@@ -23,7 +23,7 @@ func (e *ProjectUserExporter) load(store db.Store, exporter DataExporter, progre
 			return err
 		}
 
-		err = e.appendValuesAndCheck(getUsers(users, projId), strconv.Itoa(projId), false)
+		err = e.appendValues(getUsers(users, projId), strconv.Itoa(projId))
 		if err != nil {
 			return err
 		}

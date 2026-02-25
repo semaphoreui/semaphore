@@ -66,7 +66,7 @@ func (e *RepositoryExporter) exportDependsOn() []string {
 }
 
 func (e *RepositoryExporter) importDependsOn() []string {
-	return []string{AccessKey}
+	return []string{Project, AccessKey}
 }
 
 func (e *RepositoryExporter) getName() string {

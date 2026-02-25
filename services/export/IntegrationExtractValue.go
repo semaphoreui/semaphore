@@ -51,7 +51,7 @@ func (e *IntegrationExtractValueExporter) restore(store db.Store, exporter DataE
 		if err != nil {
 			return err
 		}
-		// TODO projectId?
+
 		newVault, err := store.CreateIntegrationExtractValue(0, old)
 		if err != nil {
 			return err

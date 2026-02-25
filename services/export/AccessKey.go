@@ -84,5 +84,5 @@ func (e *AccessKeyExporter) exportDependsOn() []string {
 }
 
 func (e *AccessKeyExporter) importDependsOn() []string {
-	return []string{Project, SecretStorage, Environment}
+	return []string{User, Project, SecretStorage, Environment}
 }
