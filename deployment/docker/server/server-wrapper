@@ -259,7 +259,6 @@ EOF
     rm -f "${TMP_STDIN_CONFIG_FILE}"
 fi
 
-
 #
 # Install additional python dependencies
 #
@@ -270,7 +269,6 @@ if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.txt"; then
 else
     echoerr "No additional python dependencies to install"
 fi
-
 
 #
 # Migrate from BoltDB if SEMAPHORE_MIGRATE_FROM_BOLTDB is set (first run only, SQLite only, skipped if DB file already exists)
@@ -292,10 +290,9 @@ if [ -n "${SEMAPHORE_MIGRATE_FROM_BOLTDB:-}" ] && [ "${SEMAPHORE_FIRST_RUN}" = "
     fi
 fi
 
-
 # Import project if environment variable SEMAPHORE_IMPORT_PROJECT_FILE is defined.
 # Optionally use SEMAPHORE_IMPORT_PROJECT_NAME to specify the project name.
-if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ]; then
+if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ]; && [ "${SEMAPHORE_FIRST_RUN}" = "yes" ]; then
     echoerr "Importing project from ${SEMAPHORE_IMPORT_PROJECT_FILE}"
     IMPORT_ARGS="--file ${SEMAPHORE_IMPORT_PROJECT_FILE}"
     if [ -n "${SEMAPHORE_IMPORT_PROJECT_NAME:-}" ]; then
