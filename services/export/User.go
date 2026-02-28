@@ -30,7 +30,7 @@ func (a *UserExporter) restore(store db.Store, exporter DataExporter, progress P
 				return err
 			}
 
-			existing, lookupErr := store.GetUserByLoginOrEmail(old.Username, old.Email)
+			existing, lookupErr := store.GetUserByLoginOrEmail(old.Username, "")
 			if lookupErr != nil {
 				return fmt.Errorf("import user failed: %w; lookup existing user: %w", err, lookupErr)
 			}
