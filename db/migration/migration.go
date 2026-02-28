@@ -9,8 +9,9 @@ type Migrator struct {
 	OldStore db.Store
 	NewStore db.Store
 
-	ErrLogSize     int
-	SkipTaskOutput bool
+	ErrLogSize         int
+	SkipTaskOutput     bool
+	MergeExistingUsers bool
 }
 
 func (m *Migrator) Migrate() error {
@@ -24,7 +25,7 @@ func (m *Migrator) Migrate() error {
 func (m *Migrator) migrateProject() error {
 
 	mapper := export.NewKeyMapper()
-	p := export.InitProjectExporters(mapper, m.SkipTaskOutput)
+	p := export.InitProjectExporters(mapper, m.SkipTaskOutput, m.MergeExistingUsers)
 
 	err := p.Load(m.OldStore)
 	if err != nil {
