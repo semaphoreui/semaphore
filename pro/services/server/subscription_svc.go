@@ -5,7 +5,7 @@ import (
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 )
 
-func NewSubscriptionService(userRepo db.UserManager, optionsRepo db.OptionsManager) pro_interfaces.SubscriptionService {
+func NewSubscriptionService(userRepo db.UserManager, optionsRepo db.OptionsManager, runnerRepo db.RunnerManager, tfRepo db.TerraformStore) pro_interfaces.SubscriptionService {
 	return &SubscriptionServiceImpl{}
 }
 
@@ -38,9 +38,5 @@ func (s *SubscriptionServiceImpl) CanAddRunner() (ok bool, err error) {
 }
 
 func (s *SubscriptionServiceImpl) CanAddTerraformHTTPBackend() (ok bool, err error) {
-	return
-}
-
-func (s *SubscriptionServiceImpl) GetPlan() (plan string, err error) {
 	return
 }

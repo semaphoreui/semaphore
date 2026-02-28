@@ -719,6 +719,14 @@ definitions:
         type: string
         example: value
 
+  IntegrationAlias:
+    type: object
+    properties:
+      id:
+        type: integer
+      url:
+        type: string
+
   RepositoryRequest:
     type: object
     properties:
@@ -831,8 +839,9 @@ definitions:
         type: string
       message:
         type: string
-      inventory_id:
-        type: integer
+#      inventory_id:
+#        type: integer
+#        x-nullable: true
       arguments:
         type: string
       params:
@@ -1253,6 +1262,13 @@ parameters:
     type: integer
     required: true
     x-example: 13
+  alias_id:
+    name: alias_id
+    description: Integration Alias ID
+    in: path
+    type: integer
+    required: true
+    x-example: 15
   invite_id:
     name: invite_id
     description: Invite ID
@@ -2056,6 +2072,80 @@ paths:
         204:
           description: integration matcher removed
 
+  /project/{project_id}/integrations/aliases:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - integration
+      summary: Get all integration aliases for the project
+      responses:
+        200:
+          description: Integration Aliases
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationAlias"
+    post:
+      tags:
+        - integration
+      summary: Create a new integration alias for the project
+      responses:
+        200:
+          description: Integration Alias Created
+          schema:
+            $ref: "#/definitions/IntegrationAlias"
+
+  /project/{project_id}/integrations/aliases/{alias_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/alias_id"
+    delete:
+      tags:
+        - integration
+      summary: Remove integration alias
+      responses:
+        204:
+          description: integration alias removed
+
+  /project/{project_id}/integrations/{integration_id}/aliases:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+    get:
+      tags:
+        - integration
+      summary: Get all aliases for an integration
+      responses:
+        200:
+          description: Integration Aliases
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationAlias"
+    post:
+      tags:
+        - integration
+      summary: Create a new alias for an integration
+      responses:
+        200:
+          description: Integration Alias Created
+          schema:
+            $ref: "#/definitions/IntegrationAlias"
+
+  /project/{project_id}/integrations/{integration_id}/aliases/{alias_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/alias_id"
+    delete:
+      tags:
+        - integration
+      summary: Remove integration alias
+      responses:
+        204:
+          description: integration alias removed
+
   # project access keys
   /project/{project_id}/keys:
     parameters:
@@ -2434,6 +2524,16 @@ paths:
       tags:
         - template
       summary: Stop all active tasks of template
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              force:
+                type: boolean
+                description: Force stop (kill) all tasks immediately
       responses:
         204:
           description: tasks stopped
@@ -2670,6 +2770,16 @@ paths:
       tags:
         - task
       summary: Stop a job
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              force:
+                type: boolean
+                description: Force stop (kill) the task immediately
       responses:
         204:
           description: Task queued

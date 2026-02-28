@@ -158,6 +158,11 @@ export default {
   duration: 'Czas trwania',
   stop: 'Zatrzymaj',
   forceStop: 'Wymuś zatrzymanie',
+  stopAll: 'Zatrzymaj wszystko',
+  stopAllTasks: 'Zatrzymaj wszystkie zadania',
+  askStopAllTasks: 'Czy na pewno chcesz zatrzymać wszystkie zadania?',
+  forceStopAllTasks: 'Wymuś zatrzymanie wszystkich zadań',
+  askForceStopAllTasks: 'Czy na pewno chcesz wymusić zatrzymanie wszystkich zadań?',
   raw_log: 'Surowy dziennik',
 
   confirmTask: 'Potwierdź',

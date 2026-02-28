@@ -185,7 +185,9 @@ func Route(
 	authenticatedAPI.Path("/info").HandlerFunc(systemInfoController.GetSystemInfo).Methods("GET", "HEAD")
 
 	authenticatedAPI.Path("/subscription").HandlerFunc(subscriptionController.Activate).Methods("POST")
+	authenticatedAPI.Path("/subscription/refresh").HandlerFunc(subscriptionController.Refresh).Methods("POST")
 	authenticatedAPI.Path("/subscription").HandlerFunc(subscriptionController.GetSubscription).Methods("GET")
+	authenticatedAPI.Path("/subscription").HandlerFunc(subscriptionController.Delete).Methods("DELETE")
 
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.GetProjects).Methods("GET", "HEAD")
 	authenticatedAPI.Path("/projects").HandlerFunc(projectsController.AddProject).Methods("POST")

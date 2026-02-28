@@ -158,6 +158,11 @@ export default {
   duration: '持续时间',
   stop: '停止',
   forceStop: '强制停止',
+  stopAll: '停止全部',
+  stopAllTasks: '停止所有任务',
+  askStopAllTasks: '您确定要停止所有任务吗？',
+  forceStopAllTasks: '强制停止所有任务',
+  askForceStopAllTasks: '您确定要强制停止所有任务吗？',
   raw_log: '原始日志',
 
   confirmTask: '确认',

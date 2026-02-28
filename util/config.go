@@ -39,12 +39,20 @@ const (
 	DbDriverSQLite   = "sqlite"
 )
 
-type EventLogAction string
-
 const (
-	EventLogCreate EventLogAction = "create"
-	EventLogUpdate EventLogAction = "update"
-	EventLogDelete EventLogAction = "delete"
+	// HomeDirModeUserHome does not override HOME.
+	// Sets ANSIBLE_HOME per template to isolate .ansible/ across parallel tasks.
+	HomeDirModeUserHome = "user_home"
+
+	// HomeDirModeProjectHome sets HOME to the project temp directory.
+	// This is the legacy behavior. Parallel ansible-galaxy runs may conflict.
+	HomeDirModeProjectHome = "project_home"
+
+	// HomeDirModeTemplateDir does not override HOME.
+	// Sets ANSIBLE_HOME to a per-template "_home/.ansible" directory
+	// (e.g. repository_15_template_114_home/.ansible) to isolate
+	// .ansible/ artifacts across parallel tasks.
+	HomeDirModeTemplateDir = "template_dir"
 )
 
 type DbConfig struct {
@@ -161,11 +169,19 @@ type ConfigLog struct {
 	Tasks  *TaskLogType  `json:"tasks,omitempty"`
 }
 
+type SyslogFormat string
+
+const (
+	SyslogDefault SyslogFormat = ""
+	SyslogRFC5424 SyslogFormat = "rfc5424"
+)
+
 type SyslogConfig struct {
-	Enabled bool   `json:"enabled" env:"SEMAPHORE_SYSLOG_ENABLED"`
-	Network string `json:"network,omitempty" env:"SEMAPHORE_SYSLOG_NETWORK"`
-	Address string `json:"address,omitempty" env:"SEMAPHORE_SYSLOG_ADDRESS"`
-	Tag     string `json:"tag,omitempty" env:"SEMAPHORE_SYSLOG_TAG"`
+	Enabled bool         `json:"enabled" env:"SEMAPHORE_SYSLOG_ENABLED"`
+	Network string       `json:"network,omitempty" env:"SEMAPHORE_SYSLOG_NETWORK"`
+	Address string       `json:"address,omitempty" env:"SEMAPHORE_SYSLOG_ADDRESS"`
+	Tag     string       `json:"tag,omitempty" env:"SEMAPHORE_SYSLOG_TAG"`
+	Format  SyslogFormat `json:"format,omitempty" env:"SEMAPHORE_SYSLOG_FORMAT"`
 }
 
 type ConfigProcess struct {
@@ -195,7 +211,24 @@ type HARedisConfig struct {
 
 type HAConfig struct {
 	Enabled bool           `json:"enabled" env:"SEMAPHORE_HA_ENABLED"`
+	NodeID  string         `json:"node_id,omitempty" env:"SEMAPHORE_HA_NODE_ID"` // auto-generated if empty
 	Redis   *HARedisConfig `json:"redis,omitempty"`
+}
+
+// HAEnabled returns true when high-availability mode is configured.
+func HAEnabled() bool {
+	return Config.HA != nil && Config.HA.Enabled
+}
+
+// InitHANodeID generates a unique node identifier for this instance if one
+// was not explicitly configured. Must be called after ConfigInit.
+func InitHANodeID() {
+	if Config.HA == nil {
+		return
+	}
+	if Config.HA.NodeID == "" {
+		Config.HA.NodeID = RandString(16)
+	}
 }
 
 type TeamInviteType string
@@ -210,6 +243,11 @@ type TeamsConfig struct {
 	InvitesEnabled  bool           `json:"invites_enabled,omitempty" env:"SEMAPHORE_TEAMS_INVITES_ENABLED"`
 	InviteType      TeamInviteType `json:"invite_type,omitempty" env:"SEMAPHORE_TEAMS_INVITE_TYPE" default:"username"`
 	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
+}
+
+type ConfigDirs struct {
+	SecretsPath string `json:"secrets_path,omitempty" env:"SEMAPHORE_SECRETS_PATH" default:"/tmp/semaphore"`
+	ReposPath   string `json:"repos_path,omitempty" env:"SEMAPHORE_REPOS_PATH"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -234,6 +272,16 @@ type ConfigType struct {
 
 	// semaphore stores ephemeral projects here
 	TmpPath string `json:"tmp_path,omitempty" default:"/tmp/semaphore" env:"SEMAPHORE_TMP_PATH"`
+
+	// HomeDirMode controls how the HOME environment variable is set for tasks.
+	//   "template_home" (default) — HOME is set to a per-template directory,
+	//       isolating .ansible/ across parallel tasks. Repo is cloned into a
+	//       "src" subdirectory under HOME.
+	//   "project_home" — HOME is set to the project temp directory (legacy
+	//       behavior). Parallel ansible-galaxy runs in the same project may conflict.
+	//   "user_home" — HOME is not overridden (keeps the real user HOME).
+	//       ANSIBLE_HOME is set per template to isolate .ansible/ for Ansible tasks.
+	HomeDirMode string `json:"home_dir_mode,omitempty" rule:"^(user_home|project_home|template_dir)?$" env:"SEMAPHORE_HOME_DIR_MODE" default:"template_dir"`
 
 	// SshConfigPath is a path to the custom SSH config file.
 	// Default path is ~/.ssh/config.
@@ -331,7 +379,10 @@ type ConfigType struct {
 
 	// SubscriptionKey is a subscription key or token that can be set via config.
 	// When this is set, subscription activation from the web interface is disabled.
-	SubscriptionKey string `json:"subscription_key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY"`
+	SubscriptionKey     string `json:"subscription_key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY"`
+	SubscriptionKeyFile string `json:"subscription_key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
+
+	Dirs *ConfigDirs `json:"dirs,omitempty"`
 }
 
 func NewConfigType() *ConfigType {
@@ -443,6 +494,15 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		}
 	}
 
+	if Config.SubscriptionKeyFile != "" {
+		subscriptionKeyBytes, err := os.ReadFile(Config.SubscriptionKeyFile)
+		if err != nil {
+			panic(err)
+		}
+
+		Config.SubscriptionKey = strings.TrimSpace(string(subscriptionKeyBytes))
+	}
+
 	return
 }
 
@@ -501,17 +561,34 @@ func loadDefaultsToObject(obj any) error {
 		fieldInfo := t.Field(i)
 		fieldValue := v.Field(i)
 
-		if !fieldValue.IsZero() && fieldInfo.Type.Kind() != reflect.Struct && fieldInfo.Type.Kind() != reflect.Map {
+		if !fieldInfo.IsExported() {
 			continue
 		}
 
-		if fieldInfo.Type.Kind() == reflect.Struct {
+		fieldKind := fieldInfo.Type.Kind()
+		isPtrToStruct := fieldKind == reflect.Ptr && fieldInfo.Type.Elem().Kind() == reflect.Struct
+
+		if !fieldValue.IsZero() && fieldKind != reflect.Struct && fieldKind != reflect.Map && !isPtrToStruct {
+			continue
+		}
+
+		if fieldKind == reflect.Struct {
 			err := loadDefaultsToObject(fieldValue.Addr().Interface())
 			if err != nil {
 				return err
 			}
 			continue
-		} else if fieldInfo.Type.Kind() == reflect.Map {
+		} else if isPtrToStruct {
+			if fieldValue.IsNil() {
+				continue
+			}
+
+			err := loadDefaultsToObject(fieldValue.Interface())
+			if err != nil {
+				return err
+			}
+			continue
+		} else if fieldKind == reflect.Map {
 			for _, key := range fieldValue.MapKeys() {
 				val := fieldValue.MapIndex(key)
 
@@ -812,7 +889,14 @@ func setConfigValue(attribute reflect.Value, value string) {
 			attribute.Set(mapValue.Elem())
 		default:
 			newValue, _ := CastValueToKind(value, kind)
-			attribute.Set(reflect.ValueOf(newValue))
+			convertedValue := reflect.ValueOf(newValue)
+			if convertedValue.Type().AssignableTo(attribute.Type()) {
+				attribute.Set(convertedValue)
+			} else if convertedValue.Type().ConvertibleTo(attribute.Type()) {
+				attribute.Set(convertedValue.Convert(attribute.Type()))
+			} else {
+				panic(fmt.Errorf("cannot assign value of type %s to field of type %s", convertedValue.Type(), attribute.Type()))
+			}
 		}
 
 	} else {

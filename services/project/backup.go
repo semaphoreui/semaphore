@@ -280,7 +280,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			repoName,
 		}
 
-		if o.TaskParams.InventoryID != nil {
+		if o.TaskParams != nil && o.TaskParams.InventoryID != nil {
 			schedules[i].TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
 		}
 	}

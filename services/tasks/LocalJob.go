@@ -71,18 +71,8 @@ func (t *LocalJob) SetCommit(hash, message string) {
 	t.Logger.SetCommit(hash, message)
 }
 
-func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]any, err error) {
-
-	extraVars = make(map[string]any)
-
-	if t.Environment.JSON != "" {
-		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
-		if err != nil {
-			return
-		}
-	}
-
-	taskDetails := make(map[string]any)
+func (t *LocalJob) getTaskDetails(username string, incomingVersion *string) (taskDetails map[string]any) {
+	taskDetails = make(map[string]any)
 
 	taskDetails["id"] = t.Task.ID
 
@@ -109,8 +99,22 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 		}
 	}
 
+	return
+}
+
+func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]any, err error) {
+
+	extraVars = make(map[string]any)
+
+	if t.Environment.JSON != "" {
+		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
+		if err != nil {
+			return
+		}
+	}
+
 	vars := make(map[string]any)
-	vars["task_details"] = taskDetails
+	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
 
 	return
@@ -136,35 +140,8 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 
 	maps.Copy(extraVars, extraSecretVars)
 
-	taskDetails := make(map[string]any)
-
-	taskDetails["id"] = t.Task.ID
-
-	if t.Task.Message != "" {
-		taskDetails["message"] = t.Task.Message
-	}
-
-	taskDetails["username"] = username
-	taskDetails["url"] = t.Task.GetUrl()
-	taskDetails["commit_hash"] = t.Task.CommitHash
-	taskDetails["commit_message"] = t.Task.CommitMessage
-	taskDetails["inventory_name"] = t.Inventory.Name
-	taskDetails["inventory_id"] = t.Inventory.ID
-	taskDetails["repository_name"] = t.Repository.Name
-	taskDetails["repository_id"] = t.Repository.ID
-
-	if t.Template.Type != db.TemplateTask {
-		taskDetails["type"] = t.Template.Type
-		if incomingVersion != nil {
-			taskDetails["incoming_version"] = incomingVersion
-		}
-		if t.Template.Type == db.TemplateBuild {
-			taskDetails["target_version"] = t.Task.Version
-		}
-	}
-
 	vars := make(map[string]any)
-	vars["task_details"] = taskDetails
+	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
 
 	ev, err := json.Marshal(extraVars)
@@ -196,6 +173,40 @@ func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 			continue
 		}
 		res = append(res, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	}
+
+	return
+}
+
+func (t *LocalJob) getShellEnvironmentExtraENV(username string, incomingVersion *string) (extraShellVars []string) {
+	taskDetails := t.getTaskDetails(username, incomingVersion)
+
+	for taskDetail, taskDetailValue := range taskDetails {
+		envVarName := fmt.Sprintf("SEMAPHORE_TASK_DETAILS_%s", strings.ToUpper(taskDetail))
+
+		detailAsStr := ""
+		switch taskDetailValueOfType := taskDetailValue.(type) {
+		case string:
+			detailAsStr = taskDetailValueOfType
+		case *string:
+			if taskDetailValueOfType != nil {
+				detailAsStr = *taskDetailValueOfType
+			}
+
+		case int:
+			detailAsStr = strconv.Itoa(taskDetailValueOfType)
+		case *int:
+			if taskDetailValueOfType != nil {
+				detailAsStr = strconv.Itoa(*taskDetailValueOfType)
+			}
+
+		default:
+			continue
+		}
+
+		if detailAsStr != "" {
+			extraShellVars = append(extraShellVars, fmt.Sprintf("%s=%s", envVarName, util.ShellQuote(util.ShellStripUnsafe(detailAsStr))))
+		}
 	}
 
 	return
@@ -730,6 +741,18 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		argsMap = map[string][]string{"default": args}
 	}
 
+	// Get extra environment vars for non-Terraform apps
+	switch t.Template.App {
+	case db.AppAnsible:
+		// Semaphore vars / task details were already passed
+		// as 'extra vars' in JSON format
+		break
+	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
+		break
+	default:
+		environmentVariables = append(environmentVariables, t.getShellEnvironmentExtraENV(username, incomingVersion)...)
+	}
+
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
 	}
@@ -776,6 +799,13 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 	if err := checkTmpDir(util.Config.GetProjectTmpDir(t.Template.ProjectID)); err != nil {
 		t.Log("Creating tmp dir failed: " + err.Error())
 		return err
+	}
+
+	if util.Config.HomeDirMode != util.HomeDirModeProjectHome {
+		if err := checkTmpDir(t.Repository.GetHomePath(t.Template.ID)); err != nil {
+			t.Log("Creating task home dir failed: " + err.Error())
+			return err
+		}
 	}
 
 	// Override git branch from template if set
@@ -829,6 +859,13 @@ func (t *LocalJob) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArg
 	if err := checkTmpDir(util.Config.GetProjectTmpDir(t.Template.ProjectID)); err != nil {
 		t.Log("Creating tmp dir failed: " + err.Error())
 		return err
+	}
+
+	if util.Config.HomeDirMode != util.HomeDirModeProjectHome {
+		if err := checkTmpDir(t.Repository.GetHomePath(t.Template.ID)); err != nil {
+			t.Log("Creating task home dir failed: " + err.Error())
+			return err
+		}
 	}
 
 	// Override git branch from template if set

@@ -158,6 +158,11 @@ export default {
   duration: 'Duur',
   stop: 'Stop',
   forceStop: 'Force Stop',
+  stopAll: 'Alles stoppen',
+  stopAllTasks: 'Alle taken stoppen',
+  askStopAllTasks: 'Weet u zeker dat u alle taken wilt stoppen?',
+  forceStopAllTasks: 'Alle taken geforceerd stoppen',
+  askForceStopAllTasks: 'Weet u zeker dat u alle taken geforceerd wilt stoppen?',
   raw_log: 'Ruwe log',
 
   confirmTask: 'Bevestigen',

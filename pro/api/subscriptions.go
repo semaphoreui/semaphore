@@ -19,6 +19,18 @@ func NewSubscriptionController(
 type subscriptionControllerImpl struct {
 }
 
-func (ctrl *subscriptionControllerImpl) Activate(w http.ResponseWriter, r *http.Request) {}
+func (ctrl *subscriptionControllerImpl) Delete(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+}
 
-func (ctrl *subscriptionControllerImpl) GetSubscription(w http.ResponseWriter, r *http.Request) {}
+func (ctrl *subscriptionControllerImpl) Activate(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+}
+
+func (ctrl *subscriptionControllerImpl) GetSubscription(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+}
+
+func (ctrl *subscriptionControllerImpl) Refresh(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+}

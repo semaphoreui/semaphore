@@ -133,15 +133,38 @@ func (r ScheduleRunner) Run() {
 	tpl, err := r.pool.store.GetTemplate(schedule.ProjectID, schedule.TemplateID)
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
-			"context":      common_errors.GetErrorContext(),
-			"project_id":   schedule.ProjectID,
-			"schedule_id":  schedule.ID,
-			"template_id":  schedule.TemplateID,
+			"context":     common_errors.GetErrorContext(),
+			"project_id":  schedule.ProjectID,
+			"schedule_id": schedule.ID,
+			"template_id": schedule.TemplateID,
 		}).Error("failed to get template")
 		return
 	}
 
-	task := schedule.TaskParams.CreateTask(schedule.TemplateID)
+	// In HA mode, ensure only one node fires this schedule occurrence.
+	if r.pool.dedup != nil && !r.pool.dedup.TryLockExecution(r.scheduleID) {
+		log.WithFields(log.Fields{
+			"project_id":  r.projectID,
+			"schedule_id": r.scheduleID,
+		}).Debug("schedule already executed by another node")
+		// For one-time schedules the winning node deactivates/deletes
+		// the schedule in the DB after execution. Refresh so this
+		// node's cron picks up that change and drops the stale entry.
+		if scheduleType == db.ScheduleTypeRunAt {
+			r.pool.Refresh()
+		}
+		return
+	}
+
+	var task db.Task
+	if schedule.TaskParams != nil {
+		task = schedule.TaskParams.CreateTask(schedule.TemplateID)
+	} else {
+		task = db.Task{
+			ProjectID:  schedule.ProjectID,
+			TemplateID: schedule.TemplateID,
+		}
+	}
 	task.ScheduleID = &schedule.ID
 
 	_, err = r.pool.taskPool.AddTask(
@@ -161,18 +184,73 @@ func (r ScheduleRunner) Run() {
 		}).Error("failed to add task")
 	}
 
+	// For "RunAt" schedules, the schedule should only trigger once at the specified time and be deactivated afterwards.
+	// Calling Refresh here ensures that after the job has fired, the pool reloads the active schedules
+	// from the database (where this run-at schedule may now be disabled) so it is not executed again.
 	if scheduleType == db.ScheduleTypeRunAt {
 		r.pool.Refresh()
 	}
 }
 
+// ScheduleDeduplicator prevents the same schedule from being executed on
+// multiple nodes simultaneously in an HA cluster. When configured, each
+// ScheduleRunner calls TryLockExecution before creating a task.
+//
+// The deduplication lock is intended to cover a *single execution attempt*
+// of a schedule occurrence: a node should acquire the lock immediately
+// before creating a task and release it once the attempt has either
+// completed or failed. Implementations are free to choose the underlying
+// mechanism (in‑memory, database, distributed store, etc.), but they should
+// be robust to node failures and process restarts (for example by using
+// leases with automatic expiry).
+//
+// Callers MUST treat the lock as advisory and best‑effort: if the
+// implementation becomes unavailable or releases the lock early, at‑most‑once
+// execution across the cluster is not guaranteed.
+type ScheduleDeduplicator interface {
+	// TryLockExecution attempts to acquire an execution lock for the given
+	// schedule occurrence.
+	//
+	// Lock duration:
+	//   - The lock is expected to remain held for the duration of the current
+	//     schedule execution attempt (from just before task creation until
+	//     the attempt finishes or fails).
+	//   - Implementations will typically release the lock explicitly when the
+	//     attempt ends and/or rely on a lease with automatic expiry to avoid
+	//     permanent deadlocks.
+	//
+	// Timeouts and crash behavior:
+	//   - If the node that acquired the lock crashes or loses connectivity,
+	//     the behavior is implementation‑specific. Recommended practice is to
+	//     use a finite TTL/lease so that the lock eventually expires and
+	//     future executions can proceed.
+	//
+	// Idempotency:
+	//   - TryLockExecution may be called multiple times for the same
+	//     scheduleID (for example, after retries or rescheduling). The
+	//     implementation SHOULD behave idempotently such that, for a single
+	//     schedule occurrence, at most one call across the cluster returns
+	//     true.
+	//
+	// Returns true if this node successfully acquired the lock and should
+	// execute the schedule, and false otherwise.
+	TryLockExecution(scheduleID int) bool
+}
+
 type SchedulePool struct {
 	cron              *cron.Cron
 	locker            sync.Locker
+	dedup             ScheduleDeduplicator
 	store             db.Store
 	taskPool          *tasks.TaskPool
 	encryptionService server.AccessKeyEncryptionService
 	keyInstaller      db_lib.AccessKeyInstaller
+}
+
+// SetDeduplicator configures a distributed schedule deduplicator for HA mode.
+// When set, only one node in the cluster fires each schedule occurrence.
+func (p *SchedulePool) SetDeduplicator(d ScheduleDeduplicator) {
+	p.dedup = d
 }
 
 func (p *SchedulePool) init() {

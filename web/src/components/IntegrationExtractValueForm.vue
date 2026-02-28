@@ -107,10 +107,10 @@ export default {
       }],
       variableTypes: [{
         id: 'environment',
-        text: 'Environment',
+        text: 'Variables',
       }, {
         id: 'task',
-        text: 'Task',
+        text: 'Task Params',
       }],
     };
   },

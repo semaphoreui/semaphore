@@ -130,7 +130,9 @@
                 <tr>
                   <td><b>Limit</b></td>
                   <td>
-                    {{ item.params.limit ? 'Yes' : 'No' }}
+                    <span v-if="Array.isArray(item.params.limit) && item.params.limit.length > 0">
+                      {{ item.params.limit.join(', ') }}</span>
+                    <span v-else>'No'</span>
                   </td>
                 </tr>
                 <tr>
