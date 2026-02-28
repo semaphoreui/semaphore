@@ -21,7 +21,7 @@ func (a *UserExporter) load(store db.Store, exporter DataExporter, progress Prog
 func (a *UserExporter) restore(store db.Store, exporter DataExporter, progress Progress) error {
 
 	var userMap = make(map[string]*db.User)
-	if !a.MergeExisting {
+	if a.MergeExisting {
 		users, err := store.GetUsers(db.RetrieveQueryParams{})
 		if err != nil {
 			return err
