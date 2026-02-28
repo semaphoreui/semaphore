@@ -1,8 +1,6 @@
 package export
 
 import (
-	"fmt"
-
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -21,21 +19,30 @@ func (a *UserExporter) load(store db.Store, exporter DataExporter, progress Prog
 }
 
 func (a *UserExporter) restore(store db.Store, exporter DataExporter, progress Progress) error {
-	for _, val := range a.values {
-		old := val.value
 
-		obj, err := store.ImportUser(db.UserWithPwd{Pwd: old.Password, User: old})
+	var userMap = make(map[string]*db.User)
+	if !a.MergeExisting {
+		users, err := store.GetUsers(db.RetrieveQueryParams{})
 		if err != nil {
-			if !a.MergeExisting {
+			return err
+		}
+		for _, user := range users {
+			userMap[user.Username] = &user
+		}
+	}
+
+	for _, val := range a.values {
+		var err error
+		old := val.value
+		var obj db.User
+
+		if u, ok := userMap[old.Username]; ok && a.MergeExisting {
+			obj = *u
+		} else {
+			obj, err = store.ImportUser(db.UserWithPwd{Pwd: old.Password, User: old})
+			if err != nil {
 				return err
 			}
-
-			existing, lookupErr := store.GetUserByLoginOrEmail(old.Username, "")
-			if lookupErr != nil {
-				return fmt.Errorf("import user failed: %w; lookup existing user: %w", err, lookupErr)
-			}
-
-			obj = existing
 		}
 
 		err = exporter.mapIntKeys(a.getName(), GlobalScope, old.ID, obj.ID)
