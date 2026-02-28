@@ -408,10 +408,10 @@ func getUniqueKeys(exporters map[string]TypeExporter) map[string]bool {
 	return uniqueKeys
 }
 
-func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool) *ExporterChain {
+func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUsers bool) *ExporterChain {
 
 	exporters := map[string]TypeExporter{
-		User:                    &UserExporter{},
+		User:                    &UserExporter{MergeExisting: mergeExistingUsers},
 		Project:                 &ProjectExporter{},
 		Template:                &TemplateExporter{},
 		TemplateVault:           &TemplateVaultExporter{},
