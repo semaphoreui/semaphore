@@ -491,6 +491,7 @@ func (p *ExporterChain) Load(store db.Store) (err error) {
 		exporter := p.exporters[name]
 		err = exporter.load(store, p, progress)
 		if err != nil {
+			fmt.Println()
 			return fmt.Errorf("failed to export %s: %s", name, err.Error())
 		}
 		progress.updateForce(1)
@@ -520,6 +521,7 @@ func (p *ExporterChain) Restore(store db.Store, errLogSize int) error {
 		exporter := p.exporters[name]
 		err := exporter.restore(store, p, progress)
 		if err != nil {
+			fmt.Println()
 			return fmt.Errorf("failed to import %s: %s", name, err.Error())
 		}
 		progress.updateForce(1)

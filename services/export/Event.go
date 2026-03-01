@@ -134,13 +134,15 @@ func (e *EventExporter) restoreEventObject(event *db.Event, exporter DataExporte
 	if event.ObjectType != nil {
 		entityName, ok := eventObjectTypeToEntityName(*event.ObjectType)
 		if !ok {
-			return fmt.Errorf("unknown event object type: %s", *event.ObjectType)
+			event.ObjectID = nil
+			e.onError(fmt.Sprintf("Unknown event object type: %s", *event.ObjectType))
+		} else {
+			event.ObjectID, err = exporter.getNewKeyIntRef(entityName, getScope(entityName, scope), event.ObjectID, e)
+			if err != nil {
+				event.ObjectID = nil
+				e.onError(fmt.Sprintf("Unable to restore event object %s, %s", entityName, err.Error()))
+			}
 		}
-		event.ObjectID, err = exporter.getNewKeyIntRef(entityName, getScope(entityName, scope), event.ObjectID, e)
-		if err != nil {
-			return err
-		}
-
 	}
 	return nil
 }
