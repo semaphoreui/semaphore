@@ -17,7 +17,11 @@ type OidcProvider struct {
 	EmailClaim       string       `json:"email_claim" default:"email"`
 	Order            int          `json:"order"`
 	// ReturnViaState when true, passes the return path via the OAuth state parameter instead of the redirect URL path. This is useful for OAuth providers that have strict redirect URL validation.
-	ReturnViaState   bool         `json:"return_via_state" default:"true"`
+	ReturnViaState bool `json:"return_via_state" default:"true"`
+	// AllowIdpInitiated when true, permits IdP-initiated OIDC login (e.g. clicking the app
+	// tile in Okta). This skips CSRF state validation since the flow does not originate from
+	// Semaphore. Only enable this for trusted identity providers.
+	AllowIdpInitiated bool `json:"allow_idp_initiated"`
 }
 
 type ClaimsProvider interface {
