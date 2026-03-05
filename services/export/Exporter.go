@@ -43,20 +43,16 @@ func NewKeyFromInt(key int) EntityKey {
 	return strconv.Itoa(key)
 }
 
-func NewKey(key string) EntityKey {
-	return key
-}
-
 type KeyMapper interface {
-	getNewKey(name string, scope string, oldKey EntityKey, errHandler ErrorHandler) (EntityKey, error)
+	getNewKey(name string, scope string, oldKey EntityKey) (EntityKey, error)
 
-	getNewKeyInt(name string, scope string, oldKey int, errHandler ErrorHandler) (int, error)
+	getNewKeyInt(name string, scope string, oldKey int) (int, error)
 
 	getNewKeyIntRef(name string, scope string, oldKey *int, errHandler ErrorHandler) (*int, error)
 
 	mapKeys(name string, scope string, oldKey EntityKey, newKey EntityKey) error
 
-	mapIntKeys(name string, scope string, oldKey int, newKey int) error
+	//mapIntKeys(name string, scope string, oldKey int, newKey int) error
 
 	ignoreKeyNotFound() bool
 }
@@ -72,7 +68,7 @@ type DataExporter interface {
 }
 
 type Progress interface {
-	update(progress float32)
+	update(progress float32, count int64)
 }
 
 type ErrorHandler interface {
@@ -113,15 +109,11 @@ type TypeKeyMapper struct {
 	IgnoreKeyNotFoundErr bool
 }
 
-func (d *TypeKeyMapper) getNewKeyInt(name string, scope string, oldKey int, errHandler ErrorHandler) (int, error) {
-	key, err := d.getNewKey(name, scope, NewKeyFromInt(oldKey), errHandler)
+func (d *TypeKeyMapper) getNewKeyInt(name string, scope string, oldKey int) (int, error) {
+	key, err := d.getNewKey(name, scope, NewKeyFromInt(oldKey))
 
 	if err != nil {
 		return KeyNotFound, err
-	}
-
-	if key == "" && d.ignoreKeyNotFound() {
-		return 0, nil
 	}
 
 	newKey, err := strconv.Atoi(key)
@@ -137,14 +129,14 @@ func (d *TypeKeyMapper) getNewKeyIntRef(name string, scope string, oldKey *int, 
 		return nil, nil
 	}
 
-	key, err := d.getNewKey(name, scope, NewKeyFromInt(*oldKey), errHandler)
+	key, err := d.getNewKey(name, scope, NewKeyFromInt(*oldKey))
 
 	if err != nil {
+		if d.ignoreKeyNotFound() {
+			errHandler.onError(err.Error())
+			return nil, nil
+		}
 		return nil, err
-	}
-
-	if key == "" && d.ignoreKeyNotFound() {
-		return nil, nil
 	}
 
 	newKey, err := strconv.Atoi(key)
@@ -155,25 +147,13 @@ func (d *TypeKeyMapper) getNewKeyIntRef(name string, scope string, oldKey *int, 
 	return &newKey, nil
 }
 
-func (d *TypeKeyMapper) getCheckAndNewKey(name string, scope string, oldKey EntityKey, errHandler ErrorHandler) (EntityKey, error) {
+func (d *TypeKeyMapper) getNewKey(name string, scope string, oldKey EntityKey) (EntityKey, error) {
 	newKey, ok := d.Keys[name][scope][oldKey]
 	if !ok {
 		msg := fmt.Sprintf("%s key %s not found", name, oldKey)
-		errHandler.onError(msg)
 		return "", errors.New(msg)
 	}
 
-	return newKey, nil
-}
-
-func (d *TypeKeyMapper) getNewKey(name string, scope string, oldKey EntityKey, errHandler ErrorHandler) (EntityKey, error) {
-	newKey, err := d.getCheckAndNewKey(name, scope, oldKey, errHandler)
-	if err != nil {
-		if d.ignoreKeyNotFound() {
-			return "", nil
-		}
-		return "", err
-	}
 	return newKey, nil
 }
 
@@ -192,15 +172,10 @@ func (d *TypeKeyMapper) mapKeys(name string, scope string, oldKey EntityKey, new
 	return nil
 }
 
-func (d *TypeKeyMapper) mapIntKeys(name string, scope string, oldKey int, newKey int) error {
-	newStrKey := strconv.Itoa(newKey)
-	oldStrKey := strconv.Itoa(oldKey)
-	return d.mapKeys(name, scope, oldStrKey, newStrKey)
-}
-
-//func (d *TypeKeyMapper) hasKey(name string, scope string, oldKey EntityKey) bool {
-//	_, ok := d.Keys[name][scope][oldKey]
-//	return ok
+//func (d *TypeKeyMapper) mapIntKeys(name string, scope string, oldKey int, newKey int) error {
+//	newStrKey := strconv.Itoa(newKey)
+//	oldStrKey := strconv.Itoa(oldKey)
+//	return d.mapKeys(name, scope, oldStrKey, newStrKey)
 //}
 
 func (d *TypeKeyMapper) ignoreKeyNotFound() bool {
@@ -210,6 +185,12 @@ func (d *TypeKeyMapper) ignoreKeyNotFound() bool {
 type EntityObject[T EntityType] struct {
 	value T
 	scope string
+}
+
+type ValueExporter[T EntityType] interface {
+	restoreValue(val EntityObject[T], store db.Store, exporter DataExporter) (err error)
+
+	getName() string
 }
 
 type ValueMap[T EntityType] struct {
@@ -311,6 +292,23 @@ func (t *ValueMap[T]) clear() {
 
 func (t *ValueMap[T]) setUniqueKeys(uniqueKeys bool) {
 	t.uniqueKeys = uniqueKeys
+}
+
+func (t *ValueMap[T]) restoreValues(store db.Store, exporter DataExporter, progress Progress, valueExporter ValueExporter[T]) (err error) {
+
+	size := len(t.values)
+
+	for index, val := range t.values {
+		progress.update(float32(index)/float32(size), int64(index))
+
+		err := valueExporter.restoreValue(val, store, exporter)
+		if err != nil {
+			t.onError(fmt.Sprintf("Unable to restore %s: %s", valueExporter.getName(), err.Error()))
+			continue
+		}
+	}
+
+	return nil
 }
 
 type ExporterChain struct {
@@ -455,18 +453,20 @@ func NewKeyMapper() *TypeKeyMapper {
 
 type ProgressBar struct {
 	progress float32
-	printer  func(float32)
+	printer  func(float32, int64)
+	count    int64
 }
 
-func (p *ProgressBar) update(progress float32) {
+func (p *ProgressBar) update(progress float32, count int64) {
 	if progress-p.progress > 0.01 {
-		p.updateForce(progress)
+		p.updateForce(progress, count)
 	}
 }
 
-func (p *ProgressBar) updateForce(progress float32) {
-	p.printer(progress)
+func (p *ProgressBar) updateForce(progress float32, count int64) {
+	p.printer(progress, count)
 	p.progress = progress
+	p.count = count
 }
 
 func (p *ExporterChain) Load(store db.Store) (err error) {
@@ -480,21 +480,21 @@ func (p *ExporterChain) Load(store db.Store) (err error) {
 	}
 
 	for _, name := range keys {
-		progress := &ProgressBar{printer: func(progress float32) {
+		progress := &ProgressBar{printer: func(progress float32, count int64) {
 			strLen := len(name)
 			spaces := fmt.Sprintf("%*s", 36-strLen, " ")
 
 			fmt.Printf("\rExporting %s%s %d%%", name, spaces, int(progress*100))
 		}, progress: 0}
 
-		progress.updateForce(0)
+		progress.updateForce(0, 0)
 		exporter := p.exporters[name]
 		err = exporter.load(store, p, progress)
 		if err != nil {
 			fmt.Println()
 			return fmt.Errorf("failed to export %s: %s", name, err.Error())
 		}
-		progress.updateForce(1)
+		progress.updateForce(1, 0)
 		fmt.Println()
 	}
 	return
@@ -510,21 +510,21 @@ func (p *ExporterChain) Restore(store db.Store, errLogSize int) error {
 
 	for _, name := range keys {
 
-		progress := &ProgressBar{printer: func(progress float32) {
+		progress := &ProgressBar{printer: func(progress float32, count int64) {
 			strLen := len(name)
 			spaces := fmt.Sprintf("%*s", 36-strLen, " ")
 
 			fmt.Printf("\rImporting %s%s %d%%", name, spaces, int(progress*100))
 		}, progress: 0}
 
-		progress.updateForce(0)
+		progress.updateForce(0, 0)
 		exporter := p.exporters[name]
 		err := exporter.restore(store, p, progress)
 		if err != nil {
 			fmt.Println()
 			return fmt.Errorf("failed to import %s: %s", name, err.Error())
 		}
-		progress.updateForce(1)
+		progress.updateForce(1, progress.count)
 		fmt.Println()
 
 		errCount := len(exporter.getErrors())

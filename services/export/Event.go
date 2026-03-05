@@ -45,45 +45,39 @@ func (e *EventExporter) load(store db.Store, exporter DataExporter, progress Pro
 }
 
 func (e *EventExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	size := len(e.values)
-	for index, val := range e.values {
-		old := val.value
+func (e *EventExporter) restoreValue(val EntityObject[db.Event], store db.Store, exporter DataExporter) (err error) {
+	old := val.value
 
-		scope := GlobalScope
-		if old.ProjectID != nil {
-			scope = strconv.Itoa(*old.ProjectID)
-		}
-
-		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
-
-		old.UserID, err = exporter.getNewKeyIntRef(User, GlobalScope, old.UserID, e)
-		if err != nil {
-			return err
-		}
-
-		old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, scope, old.IntegrationID, e)
-		if err != nil {
-			return err
-		}
-
-		err = e.restoreEventObject(&old, exporter, scope)
-		if err != nil {
-			return err
-		}
-
-		_, err := store.CreateEvent(old)
-		if err != nil {
-			return err
-		}
-
-		progress.update(float32(index) / float32(size))
+	scope := GlobalScope
+	if old.ProjectID != nil {
+		scope = strconv.Itoa(*old.ProjectID)
 	}
 
-	return nil
+	old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
+	if err != nil {
+		return err
+	}
+
+	old.UserID, err = exporter.getNewKeyIntRef(User, GlobalScope, old.UserID, e)
+	if err != nil {
+		return err
+	}
+
+	old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, scope, old.IntegrationID, e)
+	if err != nil {
+		return err
+	}
+
+	err = e.restoreEventObject(&old, exporter, scope)
+	if err != nil {
+		return err
+	}
+
+	_, err = store.CreateEvent(old)
+	return err
 }
 
 func eventObjectTypeToEntityName(t db.EventObjectType) (string, bool) {

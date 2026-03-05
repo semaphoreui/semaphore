@@ -49,32 +49,30 @@ func (e *IntegrationAliasExporter) load(store db.Store, exporter DataExporter, p
 }
 
 func (e *IntegrationAliasExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	for _, val := range e.values {
-		old := val.value
+func (e *IntegrationAliasExporter) restoreValue(val EntityObject[db.IntegrationAlias], store db.Store, exporter DataExporter) (err error) {
 
-		old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, val.scope, old.IntegrationID, e)
-		if err != nil {
-			return err
-		}
+	old := val.value
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
-
-		newVault, err := store.CreateIntegrationAlias(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
-		if err != nil {
-			return err
-		}
+	old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, val.scope, old.IntegrationID, e)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	newVault, err := store.CreateIntegrationAlias(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newVault.GetDbKey())
+
 }
 
 func (e *IntegrationAliasExporter) getName() string {

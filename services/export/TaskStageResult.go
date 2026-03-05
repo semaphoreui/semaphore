@@ -60,43 +60,35 @@ func getStageResults(vals []db.TaskStageWithResult) []db.TaskStageResult {
 }
 
 func (e *TaskStageResultExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
-	for _, val := range e.values {
-		old := val.value
-
-		old.TaskID, err = exporter.getNewKeyInt(Task, val.scope, old.TaskID, e)
-		if err != nil {
-			return err
-		}
-
-		res := make(map[string]any)
-		err = json.Unmarshal([]byte(old.JSON), &res)
-		if err != nil {
-			fmt.Println("Unable to parse TaskStageResult " + old.JSON)
-			//return err
-		}
-
-		err = store.CreateTaskStageResult(old.TaskID, old.StageID, res)
-		if err != nil {
-			return err
-		}
-
-		//err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
-		//if err != nil {
-		//	return err
-		//}
-	}
-
-	return nil
+	return e.restoreValues(store, exporter, progress, e)
 }
 
-func (t *TaskStageResultExporter) getName() string {
+func (e *TaskStageResultExporter) restoreValue(val EntityObject[db.TaskStageResult], store db.Store, exporter DataExporter) (err error) {
+
+	old := val.value
+
+	old.TaskID, err = exporter.getNewKeyInt(Task, val.scope, old.TaskID)
+	if err != nil {
+		return err
+	}
+
+	res := make(map[string]any)
+	err = json.Unmarshal([]byte(old.JSON), &res)
+	if err != nil {
+		fmt.Println("Unable to parse TaskStageResult " + old.JSON)
+	}
+
+	return store.CreateTaskStageResult(old.TaskID, old.StageID, res)
+}
+
+func (e *TaskStageResultExporter) getName() string {
 	return TaskStageResult
 }
 
-func (t *TaskStageResultExporter) exportDependsOn() []string {
+func (e *TaskStageResultExporter) exportDependsOn() []string {
 	return []string{Task, Project}
 }
 
-func (t *TaskStageResultExporter) importDependsOn() []string {
+func (e *TaskStageResultExporter) importDependsOn() []string {
 	return []string{Task, TaskStage}
 }

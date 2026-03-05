@@ -38,63 +38,54 @@ func (e *TaskExporter) load(store db.Store, exporter DataExporter, progress Prog
 
 	return nil
 }
-
 func (e *TaskExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	size := len(e.values)
+func (e *TaskExporter) restoreValue(val EntityObject[db.Task], store db.Store, exporter DataExporter) (err error) {
+	old := val.value
 
-	for index, val := range e.values {
-		old := val.value
-
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
-
-		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID, e)
-		if err != nil {
-			return err
-		}
-
-		old.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.InventoryID, e)
-		if err != nil {
-			return err
-		}
-
-		old.ScheduleID, err = exporter.getNewKeyIntRef(Schedule, val.scope, old.ScheduleID, e)
-		if err != nil {
-			return err
-		}
-
-		old.UserID, err = exporter.getNewKeyIntRef(User, GlobalScope, old.UserID, e)
-		if err != nil {
-			return err
-		}
-
-		old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, val.scope, old.IntegrationID, e)
-		if err != nil {
-			return err
-		}
-
-		old.BuildTaskID, err = exporter.getNewKeyIntRef(Task, val.scope, old.BuildTaskID, e)
-		if err != nil {
-			return err
-		}
-
-		newVault, err := store.CreateTask(old, 0)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
-		if err != nil {
-			return err
-		}
-
-		progress.update(float32(index) / float32(size))
+	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID)
+	if err != nil {
+		return err
+	}
+
+	old.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.InventoryID, e)
+	if err != nil {
+		return err
+	}
+
+	old.ScheduleID, err = exporter.getNewKeyIntRef(Schedule, val.scope, old.ScheduleID, e)
+	if err != nil {
+		return err
+	}
+
+	old.UserID, err = exporter.getNewKeyIntRef(User, GlobalScope, old.UserID, e)
+	if err != nil {
+		return err
+	}
+
+	old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, val.scope, old.IntegrationID, e)
+	if err != nil {
+		return err
+	}
+
+	old.BuildTaskID, err = exporter.getNewKeyIntRef(Task, val.scope, old.BuildTaskID, e)
+	if err != nil {
+		return err
+	}
+
+	newObj, err := store.CreateTask(old, 0)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
 }
 
 func (e *TaskExporter) getName() string {

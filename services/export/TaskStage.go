@@ -60,26 +60,23 @@ func getStages(vals []db.TaskStageWithResult) []db.TaskStage {
 }
 
 func (e *TaskStageExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
-	for _, val := range e.values {
-		old := val.value
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-		old.TaskID, err = exporter.getNewKeyInt(Task, val.scope, old.TaskID, e)
-		if err != nil {
-			return err
-		}
+func (e *TaskStageExporter) restoreValue(val EntityObject[db.TaskStage], store db.Store, exporter DataExporter) (err error) {
+	old := val.value
 
-		newVault, err := store.CreateTaskStage(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
-		if err != nil {
-			return err
-		}
+	old.TaskID, err = exporter.getNewKeyInt(Task, val.scope, old.TaskID)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	newObj, err := store.CreateTaskStage(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
 }
 
 func (e *TaskStageExporter) getName() string {

@@ -23,27 +23,23 @@ func (e *RunnerExporter) load(store db.Store, exporter DataExporter, progress Pr
 }
 
 func (e *RunnerExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	for _, val := range e.values {
-		old := val.value
+func (e *RunnerExporter) restoreValue(val EntityObject[db.Runner], store db.Store, exporter DataExporter) (err error) {
+	old := val.value
 
-		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
-
-		newView, err := store.CreateRunner(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newView.ID)
-		if err != nil {
-			return err
-		}
+	old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	newObj, err := store.CreateRunner(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
 }
 
 func (e *RunnerExporter) exportDependsOn() []string {

@@ -33,32 +33,29 @@ func (e *RepositoryExporter) load(store db.Store, exporter DataExporter, progres
 }
 
 func (e *RepositoryExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	for _, val := range e.values {
-		old := val.value
+func (e *RepositoryExporter) restoreValue(val EntityObject[db.Repository], store db.Store, exporter DataExporter) (err error) {
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
+	old := val.value
 
-		old.SSHKeyID, err = exporter.getNewKeyInt(AccessKey, val.scope, old.SSHKeyID, e)
-		if err != nil {
-			return err
-		}
-
-		newVault, err := store.CreateRepository(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
-		if err != nil {
-			return err
-		}
+	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	old.SSHKeyID, err = exporter.getNewKeyInt(AccessKey, val.scope, old.SSHKeyID)
+	if err != nil {
+		return err
+	}
+
+	newObj, err := store.CreateRepository(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
 }
 
 func (e *RepositoryExporter) exportDependsOn() []string {

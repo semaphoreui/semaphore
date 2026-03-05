@@ -108,7 +108,7 @@ func migrateBoltDb(boltDbPath string) {
 	}
 
 	sqlStore := factory.CreateStore()
-	sqlStore.Connect("migrate")
+	sqlStore.Connect("import")
 
 	// 3. Connect and migrate
 	fmt.Println("Starting migration...")
@@ -126,7 +126,7 @@ func migrateBoltDb(boltDbPath string) {
 		return
 	}
 
-	defer sqlStore.Close("migrate")
+	defer sqlStore.Close("import")
 
 	fmt.Println("Migration finished successfully.")
 }
