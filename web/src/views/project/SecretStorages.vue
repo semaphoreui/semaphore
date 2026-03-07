@@ -146,6 +146,9 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
+          <v-btn @click="syncItem(item.id)">
+            <v-icon>mdi-sync</v-icon>
+          </v-btn>
           <v-btn @click="askDeleteItem(item.id)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
@@ -161,9 +164,11 @@
 <style scoped lang="scss"></style>
 
 <script>
+import axios from 'axios';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import SecretStorageForm from '@/components/SecretStorageForm.vue';
 import EventBus from '@/event-bus';
+import { getErrorMessage } from '@/lib/error';
 
 export default {
   components: { SecretStorageForm },
@@ -185,6 +190,28 @@ export default {
   },
 
   methods: {
+    async syncItem(itemId) {
+      try {
+        const item = this.items.find((x) => x.id === itemId);
+        await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/secret_storages/${itemId}/sync`,
+          data: item,
+          responseType: 'json',
+        });
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'Secrets synced successfully',
+        });
+        await this.loadItems();
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      }
+    },
+
     getIcon(item) {
       switch (item.type) {
         case 'vault':
