@@ -14,6 +14,7 @@ type SecretStorageService interface {
 	Delete(projectID int, storageID int) error
 	GetSecretStorages(projectID int) ([]db.SecretStorage, error)
 	Create(storage db.SecretStorage) (res db.SecretStorage, err error)
+	SyncSecrets(storage db.SecretStorage) error
 }
 
 func NewSecretStorageService(
@@ -29,6 +30,11 @@ func NewSecretStorageService(
 type SecretStorageServiceImpl struct {
 	secretStorageRepo db.SecretStorageRepository
 	accessKeyService  AccessKeyService
+}
+
+func (s *SecretStorageServiceImpl) SyncSecrets(storage db.SecretStorage) error {
+	//TODO implement me
+	return nil
 }
 
 func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err error) {
