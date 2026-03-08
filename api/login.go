@@ -777,7 +777,6 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			Name:     claims.name,
 			Email:    claims.email,
 			External: true,
-			Pro:      true,
 		}
 		user, err = helpers.Store(r).CreateUserWithoutPassword(user)
 		if err != nil {
