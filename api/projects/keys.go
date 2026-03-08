@@ -92,6 +92,9 @@ func (c *KeyController) AddKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Plain cannot be passed via a request
+	key.Plain = nil
+
 	//if err := key.Validate(true); err != nil {
 	//	helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 	//		"error": err.Error(),
@@ -133,6 +136,9 @@ func (c *KeyController) UpdateKey(w http.ResponseWriter, r *http.Request) {
 	if !helpers.Bind(w, r, &key) {
 		return
 	}
+
+	// Plain cannot be passed via a request
+	key.Plain = nil
 
 	repos, err := helpers.Store(r).GetRepositories(*key.ProjectID, db.RetrieveQueryParams{})
 	if err != nil {

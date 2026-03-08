@@ -143,12 +143,41 @@
     </div>
 
     <v-checkbox v-model="item.readonly" :label="$t('Read only')" :disabled="formSaving" />
+
+    <v-btn
+        text
+        color="primary"
+        @click="syncSettingsDialog = true"
+        :disabled="formSaving"
+        style="margin-bottom: -70px; margin-left: -12px;"
+    >
+      <v-icon left>mdi-cog-sync</v-icon>
+      Sync paths ({{ item.params.sync_paths.length }})
+    </v-btn>
+
+    <v-dialog v-model="syncSettingsDialog" max-width="500" persistent>
+      <v-card>
+        <v-card-title>Sync paths</v-card-title>
+        <v-card-text class="pt-4 pb-0">
+          <SecretStorageSyncOptionsForm v-model="item.params.sync_paths" />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text color="blue darken-1" @click="syncSettingsDialog = false">
+            {{ $t('close') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-form>
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import SecretStorageSyncOptionsForm from '@/components/SecretStorageSyncOptionsForm.vue';
 
 export default {
+  components: { SecretStorageSyncOptionsForm },
+
   props: {
     itemType: String,
   },
@@ -159,19 +188,26 @@ export default {
     return {
       secretStorage: 'database',
       secretStorageReady: false,
+      syncSettingsDialog: false,
     };
   },
 
   methods: {
     getNewItem() {
       return {
-        params: {},
+        params: {
+          sync_paths: [],
+        },
       };
     },
 
     afterLoadData() {
       if (!this.item.params) {
         this.item.params = {};
+      }
+
+      if (!this.item.params.sync_paths) {
+        this.$set(this.item.params, 'sync_paths', []);
       }
 
       if (this.itemId === 'new') {

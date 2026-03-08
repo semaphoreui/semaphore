@@ -36,6 +36,10 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 		}
 	}
 
+	if options.SourceStorageID != nil {
+		q = q.Where(squirrel.Eq{"pe.source_storage_id": *options.SourceStorageID})
+	}
+
 	query, args, err := q.ToSql()
 
 	if err != nil {
@@ -93,17 +97,19 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 			"type, "+
 			"project_id, "+
 			"secret, "+
+			"plain, "+
 			"environment_id, "+
 			"owner, "+
 			"storage_id, "+
 			"source_storage_id, "+
 			"source_storage_key, "+
 			"source_storage_type) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		key.Name,
 		key.Type,
 		key.ProjectID,
 		key.Secret,
+		key.Plain,
 		key.EnvironmentID,
 		key.Owner,
 		key.StorageID,

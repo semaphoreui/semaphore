@@ -326,10 +326,11 @@ type EnvironmentManager interface {
 }
 
 type GetAccessKeyOptions struct {
-	Owner         AccessKeyOwner
-	IgnoreOwner   bool
-	EnvironmentID *int
-	StorageID     *int
+	Owner            AccessKeyOwner
+	IgnoreOwner      bool
+	EnvironmentID    *int
+	StorageID        *int
+	SourceStorageID  *int
 }
 
 // AccessKeyManager handles access key-related operations

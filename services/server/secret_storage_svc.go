@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -14,21 +15,37 @@ type SecretStorageService interface {
 	Delete(projectID int, storageID int) error
 	GetSecretStorages(projectID int) ([]db.SecretStorage, error)
 	Create(storage db.SecretStorage) (res db.SecretStorage, err error)
+	SyncSecrets(storage db.SecretStorage) error
 }
 
 func NewSecretStorageService(
 	secretStorageRepo db.SecretStorageRepository,
+	accessKeyRepo db.AccessKeyManager,
 	accessKeyService AccessKeyService,
+	encryptionService AccessKeyEncryptionService,
 ) SecretStorageService {
 	return &SecretStorageServiceImpl{
 		secretStorageRepo: secretStorageRepo,
+		accessKeyRepo:     accessKeyRepo,
 		accessKeyService:  accessKeyService,
+		encryptionService: encryptionService,
 	}
 }
 
 type SecretStorageServiceImpl struct {
 	secretStorageRepo db.SecretStorageRepository
+	accessKeyRepo     db.AccessKeyManager
 	accessKeyService  AccessKeyService
+	encryptionService AccessKeyEncryptionService
+}
+
+func (s *SecretStorageServiceImpl) SyncSecrets(storage db.SecretStorage) error {
+	switch storage.Type {
+	case db.SecretStorageTypeDvls:
+		return pro.SyncDvlsSecrets(storage, s.accessKeyRepo, s.encryptionService)
+	default:
+		return fmt.Errorf("sync is not supported for storage type %q", storage.Type)
+	}
 }
 
 func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err error) {
