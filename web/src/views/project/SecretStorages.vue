@@ -146,9 +146,10 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false" style="">
-          <v-btn 
+          <v-btn
             @click="syncItem(item.id)"
-            :disabled="item.type !== 'dvls' || !(item.params.sync_paths && item.params.sync_paths.length > 0)"
+            :disabled="item.type !== 'dvls' ||
+              !(item.params.sync_paths && item.params.sync_paths.length > 0)"
           >
             <v-icon>mdi-sync</v-icon>
           </v-btn>
