@@ -292,7 +292,7 @@ fi
 
 # Import project if environment variable SEMAPHORE_IMPORT_PROJECT_FILE is defined.
 # Optionally use SEMAPHORE_IMPORT_PROJECT_NAME to specify the project name.
-if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ]; && [ "${SEMAPHORE_FIRST_RUN}" = "yes" ]; then
+if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ] && [ "${SEMAPHORE_FIRST_RUN}" = "yes" ]; then
     echoerr "Importing project from ${SEMAPHORE_IMPORT_PROJECT_FILE}"
     IMPORT_ARGS="--file ${SEMAPHORE_IMPORT_PROJECT_FILE}"
     if [ -n "${SEMAPHORE_IMPORT_PROJECT_NAME:-}" ]; then
