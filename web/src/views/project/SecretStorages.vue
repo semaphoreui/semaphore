@@ -145,8 +145,11 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="syncItem(item.id)">
+        <v-btn-toggle dense :value-comparator="() => false" style="">
+          <v-btn 
+            @click="syncItem(item.id)"
+            :disabled="item.type !== 'dvls' || !(item.params.sync_paths && item.params.sync_paths.length > 0)"
+          >
             <v-icon>mdi-sync</v-icon>
           </v-btn>
           <v-btn @click="askDeleteItem(item.id)">
