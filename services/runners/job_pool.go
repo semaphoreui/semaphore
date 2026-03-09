@@ -598,7 +598,7 @@ func (p *JobPool) checkNewJobs() {
 
 		switch runJob.status {
 		case task_logger.TaskRunningStatus:
-			if currJob.Status == task_logger.TaskStartingStatus || currJob.Status == task_logger.TaskWaitingStatus {
+			if currJob.Status == task_logger.TaskStartingStatus || currJob.Status == task_logger.TaskWaitingStatus || currJob.Status == task_logger.TaskConfirmed {
 				continue
 			}
 		case task_logger.TaskStoppingStatus:
@@ -607,6 +607,10 @@ func (p *JobPool) checkNewJobs() {
 			}
 		case task_logger.TaskConfirmed:
 			if currJob.Status == task_logger.TaskWaitingConfirmation {
+				continue
+			}
+		case task_logger.TaskWaitingConfirmation:
+			if currJob.Status == task_logger.TaskRunningStatus {
 				continue
 			}
 		}
