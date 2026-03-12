@@ -374,7 +374,8 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		time.Sleep(time.Second * 3)
 		if t.reader.status.IsFinished() ||
 			t.reader.status == task_logger.TaskConfirmed ||
-			t.reader.status == task_logger.TaskRejected {
+			t.reader.status == task_logger.TaskRejected ||
+			t.reader.status == task_logger.TaskStoppingStatus {
 			break
 		}
 	}

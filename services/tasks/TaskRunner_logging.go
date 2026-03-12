@@ -94,7 +94,7 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 			return
 		}
 	case task_logger.TaskStoppingStatus:
-		if status == task_logger.TaskWaitingStatus || status == task_logger.TaskRunningStatus {
+		if status == task_logger.TaskWaitingStatus || status == task_logger.TaskRunningStatus || status == task_logger.TaskWaitingConfirmation {
 			//panic("stopping TaskRunner cannot be " + status)
 			return
 		}

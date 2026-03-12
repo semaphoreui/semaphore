@@ -208,7 +208,11 @@ func (p *JobPool) Run() {
 						runningJob.SetStatus(task_logger.TaskFailStatus)
 					}
 				} else {
-					runningJob.SetStatus(task_logger.TaskSuccessStatus)
+					if runningJob.status == task_logger.TaskStoppingStatus {
+						runningJob.SetStatus(task_logger.TaskStoppedStatus)
+					} else {
+						runningJob.SetStatus(task_logger.TaskSuccessStatus)
+					}
 				}
 
 				logger.TaskInfo("Task finished", runningJob.job.Task.ID, string(runningJob.status))
