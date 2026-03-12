@@ -16,7 +16,10 @@ export default {
     ObjectRefsDialog,
   },
 
-  mixins: [PermissionsCheck, ProjectMixin],
+  mixins: [
+    PermissionsCheck,
+    ProjectMixin,
+  ],
 
   props: {
     projectType: String,
