@@ -112,7 +112,7 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 				"source_storage_id, "+
 				"source_storage_key, "+
 				"source_storage_type) "+
-				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			key.Name,
 			key.Type,
 			key.ProjectID,
