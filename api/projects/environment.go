@@ -3,11 +3,12 @@ package projects
 import (
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/services/server"
-	"net/http"
 )
 
 type EnvironmentController struct {
@@ -52,15 +53,22 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 				sourceStorageKey = &tmp
 			}
 
+			var storageType *db.AccessKeySourceStorageType
+			if env.SecretStorageID != nil {
+				tmp := db.AccessKeySourceStorageVault
+				storageType = &tmp
+			}
+
 			key, err = c.accessKeyService.Create(db.AccessKey{
-				Name:             secret.Name,
-				String:           secret.Secret,
-				EnvironmentID:    &env.ID,
-				ProjectID:        &env.ProjectID,
-				Type:             db.AccessKeyString,
-				Owner:            secret.Type.GetAccessKeyOwner(),
-				SourceStorageID:  env.SecretStorageID,
-				SourceStorageKey: sourceStorageKey,
+				Name:              secret.Name,
+				String:            secret.Secret,
+				EnvironmentID:     &env.ID,
+				ProjectID:         &env.ProjectID,
+				Type:              db.AccessKeyString,
+				Owner:             secret.Type.GetAccessKeyOwner(),
+				SourceStorageID:   env.SecretStorageID,
+				SourceStorageKey:  sourceStorageKey,
+				SourceStorageType: storageType,
 			})
 
 			if err != nil {
