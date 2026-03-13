@@ -135,7 +135,12 @@
       v-if="!isReadOnly && item.type === 'ssh'"
     />
 
-    <v-checkbox v-model="item.override_secret" :label="$t('override')" v-if="!isNew" />
+    <v-checkbox
+        v-model="item.override_secret"
+        :label="$t('override')"
+        v-if="!isNew"
+        :disabled="isSynced"
+    />
 
     <v-alert dense text type="info" v-if="item.type === 'none'">
       {{ $t('useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook') }}
@@ -171,6 +176,7 @@ export default {
         },
       ],
       secretStorages: null,
+      isSynced: false,
     };
   },
 
@@ -228,6 +234,10 @@ export default {
   },
 
   methods: {
+    afterLoadData() {
+      this.isSynced = JSON.parse(this.item.plain || '{}').dvls_id != null;
+    },
+
     getNewItem() {
       return {
         ssh: {},
