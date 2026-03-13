@@ -68,6 +68,11 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 	query := "update access_key set name=?"
 	args = append(args, key.Name)
 
+	if !key.IgnorePlain {
+		query += ", plain=?"
+		args = append(args, key.Plain)
+	}
+
 	if key.OverrideSecret {
 
 		query += ", type=?, secret=?, source_storage_id=?, source_storage_key=?, source_storage_type=?"
@@ -90,33 +95,65 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
-	insertID, err := d.insert(
-		"id",
-		"insert into access_key ("+
-			"name, "+
-			"type, "+
-			"project_id, "+
-			"secret, "+
-			"plain, "+
-			"environment_id, "+
-			"owner, "+
-			"storage_id, "+
-			"source_storage_id, "+
-			"source_storage_key, "+
-			"source_storage_type) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		key.Name,
-		key.Type,
-		key.ProjectID,
-		key.Secret,
-		key.Plain,
-		key.EnvironmentID,
-		key.Owner,
-		key.StorageID,
-		key.SourceStorageID,
-		key.SourceStorageKey,
-		key.SourceStorageType,
-	)
+
+	var insertID int
+
+	if key.IgnorePlain {
+		insertID, err = d.insert(
+			"id",
+			"insert into access_key ("+
+				"name, "+
+				"type, "+
+				"project_id, "+
+				"secret, "+
+				"environment_id, "+
+				"owner, "+
+				"storage_id, "+
+				"source_storage_id, "+
+				"source_storage_key, "+
+				"source_storage_type) "+
+				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			key.Name,
+			key.Type,
+			key.ProjectID,
+			key.Secret,
+			key.EnvironmentID,
+			key.Owner,
+			key.StorageID,
+			key.SourceStorageID,
+			key.SourceStorageKey,
+			key.SourceStorageType,
+		)
+	} else {
+		insertID, err = d.insert(
+			"id",
+			"insert into access_key ("+
+				"name, "+
+				"type, "+
+				"project_id, "+
+				"secret, "+
+				"plain, "+
+				"environment_id, "+
+				"owner, "+
+				"storage_id, "+
+				"source_storage_id, "+
+				"source_storage_key, "+
+				"source_storage_type) "+
+				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			key.Name,
+			key.Type,
+			key.ProjectID,
+			key.Secret,
+			key.Plain,
+			key.EnvironmentID,
+			key.Owner,
+			key.StorageID,
+			key.SourceStorageID,
+			key.SourceStorageKey,
+			key.SourceStorageType,
+		)
+
+	}
 
 	if err != nil {
 		return
