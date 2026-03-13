@@ -22,11 +22,16 @@
       :color="$vuetify.theme.dark ? '#212121' : 'white'"
       style="background: #8585850f"
     >
-      <v-tabs fixed-tabs v-model="sourceStorageTypeIndex" :disabled="formSaving || !canEditSecrets">
-        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">Local</v-tab>
-        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">Storage</v-tab>
-        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">Env</v-tab>
-        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">File</v-tab>
+      <v-tabs
+          fixed-tabs
+          v-model="sourceStorageTypeIndex"
+      >
+        <v-tab
+            :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">Local</v-tab>
+        <v-tab
+            :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">Storage</v-tab>
+        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">Env</v-tab>
+        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">File</v-tab>
       </v-tabs>
 
       <div class="ml-4 mr-4 mt-6" v-if="sourceStorageType">
@@ -37,7 +42,7 @@
           :items="secretStorages"
           item-value="id"
           item-text="name"
-          :disabled="formSaving || !canEditSecrets"
+          :disabled="formSaving || !canEditSecrets || isSynced"
           outlined
           dense
           clearable
@@ -47,7 +52,7 @@
           v-if="supportStorages && sourceStorageType === 'vault' && item.source_storage_id != null"
           v-model="item.source_storage_key"
           :label="$t('Source Key')"
-          :disabled="formSaving || !canEditSecrets"
+          :disabled="formSaving || !canEditSecrets || isSynced"
           outlined
           dense
         />
@@ -135,7 +140,11 @@
       v-if="!isReadOnly && item.type === 'ssh'"
     />
 
-    <v-checkbox v-model="item.override_secret" :label="$t('override')" v-if="!isNew" />
+    <v-checkbox
+        v-model="item.override_secret"
+        :label="$t('override')"
+        v-if="!isNew"
+    />
 
     <v-alert dense text type="info" v-if="item.type === 'none'">
       {{ $t('useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook') }}
@@ -171,6 +180,7 @@ export default {
         },
       ],
       secretStorages: null,
+      isSynced: false,
     };
   },
 
@@ -228,6 +238,10 @@ export default {
   },
 
   methods: {
+    afterLoadData() {
+      this.isSynced = JSON.parse(this.item.plain || '{}').dvls_id != null;
+    },
+
     getNewItem() {
       return {
         ssh: {},
