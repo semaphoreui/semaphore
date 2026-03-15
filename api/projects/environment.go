@@ -103,11 +103,12 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 			}
 
 			updateKey := db.AccessKey{
-				ID:        key.ID,
-				ProjectID: key.ProjectID,
-				Name:      secret.Name,
-				Type:      db.AccessKeyString,
-				Owner:     key.Owner,
+				ID:              key.ID,
+				ProjectID:       key.ProjectID,
+				Name:            secret.Name,
+				Type:            db.AccessKeyString,
+				Owner:           key.Owner,
+				SourceStorageID: env.SecretStorageID,
 			}
 			if secret.Secret != "" {
 				updateKey.String = secret.Secret

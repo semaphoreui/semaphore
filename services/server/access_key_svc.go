@@ -94,7 +94,7 @@ func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
 			return
 		}
 
-		if !oldSt.ReadOnly && *oldKey.SourceStorageID != *key.SourceStorageID {
+		if !oldSt.ReadOnly && (key.SourceStorageID == nil || *oldKey.SourceStorageID != *key.SourceStorageID) {
 			err = common_errors.NewUserErrorS("cannot override secret storage")
 			return
 		}
