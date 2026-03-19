@@ -199,7 +199,24 @@ func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
 func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []string) error {
 	args := []string{"workspace", "select", "-or-create=true", workspace}
 	if t.Name == string(db.AppTerragrunt) {
-		args = append([]string{"run", "--"}, args...)
+
+		tgArgs := []string{"run"}
+
+		hasTfPath := false
+		for i := 0; i < len(tgArgs); i++ {
+			a := tgArgs[i]
+			if a == "--tf-path" || strings.HasPrefix(a, "--tf-path=") {
+				hasTfPath = true
+				break
+			}
+		}
+		if !hasTfPath {
+			tgArgs = append(tgArgs, "--tf-path=terraform")
+		}
+
+		tgArgs = append(tgArgs, "--")
+
+		args = append(tgArgs, args...)
 	}
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	t.Logger.LogCmd(cmd)
