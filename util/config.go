@@ -969,9 +969,34 @@ func validate(value any) error {
 	return nil
 }
 
+func validateAccessKeyEncryption(key string) error {
+	if key == "" {
+		return nil
+	}
+
+	encryption, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return fmt.Errorf("access_key_encryption must be a valid base64 string: %w", err)
+	}
+
+	switch len(encryption) {
+	case 16, 24, 32:
+		return nil
+	default:
+		return fmt.Errorf(
+			"access_key_encryption has invalid decoded length %d bytes; AES requires 16, 24, or 32 bytes (use `openssl rand -base64 32` to generate a valid key)",
+			len(encryption),
+		)
+	}
+}
+
 func validateConfig() {
 	err := validate(Config)
 	if err != nil {
+		panic(err)
+	}
+
+	if err := validateAccessKeyEncryption(Config.AccessKeyEncryption); err != nil {
 		panic(err)
 	}
 }
