@@ -133,6 +133,12 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 	for _, l := range t.statusListeners {
 		l(status)
 	}
+
+	log.WithFields(log.Fields{
+		"task_id": t.Task.ID,
+		"context": "task_logger",
+		"status":  status,
+	}).Info("Task status updated")
 }
 
 func (t *TaskRunner) panicOnError(err error, msg string) {

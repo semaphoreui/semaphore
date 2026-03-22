@@ -93,7 +93,11 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 
 func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
 
-	tsk := t.taskPool.GetTask(t.Task.ID)
+	tsk, err := t.taskPool.GetTask(t.Task.ID)
+
+	if err != nil {
+		return
+	}
 
 	if tsk == nil {
 		return fmt.Errorf("task not found")
@@ -175,7 +179,11 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		}
 
 		time.Sleep(1_000_000_000)
-		tsk = t.taskPool.GetTask(t.Task.ID)
+		tsk, err = t.taskPool.GetTask(t.Task.ID)
+
+		if err != nil {
+			return
+		}
 
 		if tsk == nil {
 			err = fmt.Errorf("task %d not found", t.Task.ID)
@@ -189,10 +197,15 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 				row, rowErr = t.taskPool.store.GetTask(tsk.Task.ProjectID, t.Task.ID)
 			})
 			if rowErr == nil {
-				tsk.Task.Status = row.Status
-				tsk.Task.Start = row.Start
-				tsk.Task.End = row.End
-				tsk.Task.RunnerID = row.RunnerID
+				// Never regress (e.g. running → starting) if the DB read is briefly stale.
+				if task_logger.TaskStatusProgressRank(row.Status) >= task_logger.TaskStatusProgressRank(tsk.Task.Status) {
+					tsk.Task.Status = row.Status
+					tsk.Task.Start = row.Start
+					tsk.Task.End = row.End
+				}
+				if row.RunnerID != nil {
+					tsk.Task.RunnerID = row.RunnerID
+				}
 			}
 		}
 

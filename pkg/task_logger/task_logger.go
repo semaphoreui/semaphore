@@ -100,6 +100,30 @@ func (s TaskStatus) IsFinished() bool {
 	return s == TaskStoppedStatus || s == TaskSuccessStatus || s == TaskFailStatus
 }
 
+// TaskStatusProgressRank orders statuses for comparing how far execution has progressed
+// (higher = further). Used in HA / remote-runner paths to avoid regressing status when
+// merging DB state with stale runtime-store snapshots.
+func TaskStatusProgressRank(s TaskStatus) int {
+	switch s {
+	case TaskWaitingStatus:
+		return 10
+	case TaskStartingStatus:
+		return 20
+	case TaskWaitingConfirmation:
+		return 25
+	case TaskConfirmed, TaskRejected:
+		return 26
+	case TaskRunningStatus:
+		return 40
+	case TaskStoppingStatus:
+		return 50
+	case TaskStoppedStatus, TaskSuccessStatus, TaskFailStatus:
+		return 100
+	default:
+		return 0
+	}
+}
+
 type StatusListener func(status TaskStatus)
 type LogListener func(new time.Time, msg string)
 

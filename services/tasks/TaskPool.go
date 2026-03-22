@@ -132,7 +132,7 @@ func (p *TaskPool) GetRunningTasks() (res []*TaskRunner) {
 	return p.state.RunningRange()
 }
 
-func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
+func (p *TaskPool) GetTask(id int) (task *TaskRunner, err error) {
 	for _, t := range p.state.QueueRange() {
 		if t.Task.ID == id {
 			task = t
@@ -146,6 +146,12 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 				task = t
 				break
 			}
+		}
+	}
+
+	if util.HAEnabled() {
+		if task == nil {
+			task, err = p.HydrateTaskRunnerFromDB(id)
 		}
 	}
 
@@ -170,12 +176,11 @@ func (p *TaskPool) Run() {
 		case task := <-p.register: // new task created by API or schedule
 
 			db.StoreSession(p.store, "new task", func() {
-				//p.Queue = append(p.Queue, task)
-				msg := "Task " + task.Template.Name + " added to queue"
-				task.Log(msg)
+				task.Log("Task " + task.Template.Name + " added to queue")
 				log.WithFields(log.Fields{
-					"task_id": task.Task.ID,
-				}).Info(msg)
+					"task_id":   task.Task.ID,
+					"task_name": task.Template.Name,
+				}).Info("Task added to queue")
 				task.saveStatus()
 			})
 			p.queueEvents <- PoolEvent{EventTypeNew, task}
@@ -188,7 +193,7 @@ func (p *TaskPool) Run() {
 }
 
 func getTaskName(t *TaskRunner) string {
-	return t.Template.Name + " " + strconv.Itoa(t.Task.ID)
+	return t.Template.Name + " (" + strconv.Itoa(t.Task.ID) + ")"
 }
 
 func (p *TaskPool) handleQueue() {
@@ -340,10 +345,18 @@ func (p *TaskPool) writeLogs(logs []logRecord) {
 }
 
 func runTask(task *TaskRunner, p *TaskPool) {
-	log.Info("Set resource locker with TaskRunner " + getTaskName(task))
+	log.WithFields(log.Fields{
+		"context":   "task_pool",
+		"task_id":   task.Task.ID,
+		"task_name": task.Template.Name,
+	}).Info("Set resource locker")
 	p.onTaskRun(task)
 
-	log.Info("Task " + getTaskName(task) + " started")
+	log.WithFields(log.Fields{
+		"context":   "task_pool",
+		"task_id":   task.Task.ID,
+		"task_name": task.Template.Name,
+	}).Info("Task started")
 	go func() {
 		time.Sleep(1 * time.Second)
 		task.run()
@@ -367,6 +380,15 @@ func (p *TaskPool) onTaskStop(t *TaskRunner) {
 	}
 }
 
+func applyDBPersistedTaskSnapshot(dst *db.Task, src db.Task) {
+	dst.Status = src.Status
+	dst.Start = src.Start
+	dst.End = src.End
+	dst.RunnerID = src.RunnerID
+	dst.CommitHash = src.CommitHash
+	dst.CommitMessage = src.CommitMessage
+}
+
 // hydrateTaskRunner builds a TaskRunner for an existing task from DB without starting it
 func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, error) {
 	task, err := p.store.GetTask(projectID, taskID)
@@ -381,6 +403,9 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 	if p.state != nil {
 		p.state.LoadRuntimeFields(tr)
 	}
+	// Persisted row from DB must win over runtime-store fields: Redis may still hold a
+	// snapshot from enqueue time (e.g. status "starting") after the runner updated the DB.
+	//applyDBPersistedTaskSnapshot(&tr.Task, task)
 	// set appropriate job handler for consistency (not run)
 	var job Job
 	if util.Config.UseRemoteRunner || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
@@ -460,7 +485,11 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 }
 
 func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
-	tsk := p.GetTask(targetTask.ID)
+	tsk, err := p.GetTask(targetTask.ID)
+
+	if err != nil {
+		return err
+	}
 
 	if tsk == nil { // task not active, but exists in database
 		return fmt.Errorf("task is not active")
@@ -472,7 +501,11 @@ func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
 }
 
 func (p *TaskPool) RejectTask(targetTask db.Task) error {
-	tsk := p.GetTask(targetTask.ID)
+	tsk, err := p.GetTask(targetTask.ID)
+
+	if err != nil {
+		return err
+	}
 
 	if tsk == nil { // task not active, but exists in database
 		return fmt.Errorf("task is not active")
@@ -484,7 +517,11 @@ func (p *TaskPool) RejectTask(targetTask db.Task) error {
 }
 
 func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
-	tsk := p.GetTask(targetTask.ID)
+	tsk, err := p.GetTask(targetTask.ID)
+	if err != nil {
+		return err
+	}
+
 	if tsk == nil { // task not active, but exists in database
 
 		tsk = NewTaskRunner(targetTask, p, "", p.keyInstallationService)
@@ -568,7 +605,16 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		for _, twt := range tasks {
 
 			// if task is managed locally (queued/running), it was handled above
-			if p.GetTask(twt.Task.ID) != nil {
+			tsk, taskErr := p.GetTask(twt.ID)
+			if taskErr != nil {
+				log.WithError(err).WithFields(log.Fields{
+					"task_id": twt.ID,
+					"context": "task_pool",
+				}).Warn("can't get task")
+
+				continue
+			}
+			if tsk != nil {
 				continue
 			}
 
