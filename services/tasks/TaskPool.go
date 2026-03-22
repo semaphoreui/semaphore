@@ -373,6 +373,15 @@ func (p *TaskPool) onTaskStop(t *TaskRunner) {
 	}
 }
 
+func applyDBPersistedTaskSnapshot(dst *db.Task, src db.Task) {
+	dst.Status = src.Status
+	dst.Start = src.Start
+	dst.End = src.End
+	dst.RunnerID = src.RunnerID
+	dst.CommitHash = src.CommitHash
+	dst.CommitMessage = src.CommitMessage
+}
+
 // hydrateTaskRunner builds a TaskRunner for an existing task from DB without starting it
 func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, error) {
 	task, err := p.store.GetTask(projectID, taskID)
@@ -387,6 +396,9 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 	if p.state != nil {
 		p.state.LoadRuntimeFields(tr)
 	}
+	// Persisted row from DB must win over runtime-store fields: Redis may still hold a
+	// snapshot from enqueue time (e.g. status "starting") after the runner updated the DB.
+	applyDBPersistedTaskSnapshot(&tr.Task, task)
 	// set appropriate job handler for consistency (not run)
 	var job Job
 	if util.Config.UseRemoteRunner || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
