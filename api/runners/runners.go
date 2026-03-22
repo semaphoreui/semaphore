@@ -283,7 +283,7 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		if !job.Status.IsFinished() {
+		if !tsk.Task.Status.IsFinished() {
 			tsk.SetStatus(job.Status)
 
 			if job.Commit != nil {
