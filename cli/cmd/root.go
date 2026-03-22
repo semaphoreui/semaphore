@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/semaphoreui/semaphore/api"
@@ -135,6 +136,20 @@ func runService() {
 
 	if dedup := proHA.NewScheduleDeduplicator(); dedup != nil {
 		schedulePool.SetDeduplicator(dedup)
+	}
+
+	// Each process holds its own in-memory cron table. Schedule CRUD handlers only
+	// call Refresh on the node that served the HTTP request, so other HA nodes
+	// would keep stale jobs until restart. Reload from the shared DB on an interval.
+	if util.HAEnabled() {
+		const haSchedulePoolSyncInterval = 60 * time.Second
+		go func() {
+			ticker := time.NewTicker(haSchedulePoolSyncInterval)
+			defer ticker.Stop()
+			for range ticker.C {
+				schedulePool.Refresh()
+			}
+		}()
 	}
 
 	if orphanCleaner := proHA.NewOrphanCleaner(store); orphanCleaner != nil {
