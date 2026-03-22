@@ -176,12 +176,11 @@ func (p *TaskPool) Run() {
 		case task := <-p.register: // new task created by API or schedule
 
 			db.StoreSession(p.store, "new task", func() {
-				//p.Queue = append(p.Queue, task)
-				msg := "Task " + task.Template.Name + " added to queue"
-				task.Log(msg)
+				task.Log("Task " + task.Template.Name + " added to queue")
 				log.WithFields(log.Fields{
-					"task_id": task.Task.ID,
-				}).Info(msg)
+					"task_id":   task.Task.ID,
+					"task_name": task.Template.Name,
+				}).Info("Task added to queue")
 				task.saveStatus()
 			})
 			p.queueEvents <- PoolEvent{EventTypeNew, task}
@@ -194,7 +193,7 @@ func (p *TaskPool) Run() {
 }
 
 func getTaskName(t *TaskRunner) string {
-	return t.Template.Name + " " + strconv.Itoa(t.Task.ID)
+	return t.Template.Name + " (" + strconv.Itoa(t.Task.ID) + ")"
 }
 
 func (p *TaskPool) handleQueue() {
@@ -346,10 +345,18 @@ func (p *TaskPool) writeLogs(logs []logRecord) {
 }
 
 func runTask(task *TaskRunner, p *TaskPool) {
-	log.Info("Set resource locker with TaskRunner " + getTaskName(task))
+	log.WithFields(log.Fields{
+		"context":   "task_pool",
+		"task_id":   task.Task.ID,
+		"task_name": task.Template.Name,
+	}).Info("Set resource locker")
 	p.onTaskRun(task)
 
-	log.Info("Task " + getTaskName(task) + " started")
+	log.WithFields(log.Fields{
+		"context":   "task_pool",
+		"task_id":   task.Task.ID,
+		"task_name": task.Template.Name,
+	}).Info("Task started")
 	go func() {
 		time.Sleep(1 * time.Second)
 		task.run()
@@ -398,7 +405,7 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 	}
 	// Persisted row from DB must win over runtime-store fields: Redis may still hold a
 	// snapshot from enqueue time (e.g. status "starting") after the runner updated the DB.
-	applyDBPersistedTaskSnapshot(&tr.Task, task)
+	//applyDBPersistedTaskSnapshot(&tr.Task, task)
 	// set appropriate job handler for consistency (not run)
 	var job Job
 	if util.Config.UseRemoteRunner || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
