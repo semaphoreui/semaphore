@@ -151,6 +151,15 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	}
 
 	tsk.RunnerID = runner.ID
+	tsk.Task.RunnerID = &runner.ID
+	db.StoreSession(t.taskPool.store, "remote job assign runner", func() {
+		err = t.taskPool.store.UpdateTask(tsk.Task)
+	})
+
+	if err != nil {
+		return
+	}
+
 	if t.taskPool != nil && t.taskPool.state != nil {
 		t.taskPool.state.UpdateRuntimeFields(tsk)
 	}
@@ -171,6 +180,20 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		if tsk == nil {
 			err = fmt.Errorf("task %d not found", t.Task.ID)
 			return
+		}
+
+		if util.HAEnabled() {
+			var row db.Task
+			var rowErr error
+			db.StoreSession(t.taskPool.store, "remote job status sync", func() {
+				row, rowErr = t.taskPool.store.GetTask(tsk.Task.ProjectID, t.Task.ID)
+			})
+			if rowErr == nil {
+				tsk.Task.Status = row.Status
+				tsk.Task.Start = row.Start
+				tsk.Task.End = row.End
+				tsk.Task.RunnerID = row.RunnerID
+			}
 		}
 
 		if tsk.Task.Status == task_logger.TaskSuccessStatus ||

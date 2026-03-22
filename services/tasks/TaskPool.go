@@ -407,6 +407,23 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 	return tr, nil
 }
 
+// HydrateTaskRunnerFromDB loads a task row by ID and builds a TaskRunner for API-side updates
+// (e.g. runner progress on an HA node that did not enqueue the task).
+func (p *TaskPool) HydrateTaskRunnerFromDB(taskID int) (*TaskRunner, error) {
+	row, err := p.store.GetTaskByID(taskID)
+	if err != nil {
+		return nil, err
+	}
+	tr, err := p.hydrateTaskRunner(taskID, row.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+	if row.RunnerID != nil {
+		tr.RunnerID = *row.RunnerID
+	}
+	return tr, nil
+}
+
 func (p *TaskPool) blocks(t *TaskRunner) bool {
 
 	if util.Config.MaxParallelTasks > 0 && p.state.RunningCount() >= util.Config.MaxParallelTasks {

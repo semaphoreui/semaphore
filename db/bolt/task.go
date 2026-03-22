@@ -229,6 +229,11 @@ func (d *BoltDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	return
 }
 
+func (d *BoltDb) GetTaskByID(taskID int) (task db.Task, err error) {
+	err = d.getObject(0, db.TaskProps, intObjectID(taskID), &task)
+	return
+}
+
 func (d *BoltDb) GetTemplateTasks(projectID int, templateID int, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
 	return d.getTasks(projectID, &templateID, params)
 }

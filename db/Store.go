@@ -399,6 +399,7 @@ type TaskManager interface {
 	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetTask(projectID int, taskID int) (Task, error)
+	GetTaskByID(taskID int) (Task, error)
 	DeleteTaskWithOutputs(projectID int, taskID int) error
 	GetTaskOutputs(projectID int, taskID int, params RetrieveQueryParams) ([]TaskOutput, error)
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)

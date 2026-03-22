@@ -196,19 +196,21 @@ func (d *SqlDb) UpdateTask(task db.Task) error {
 
 	if task.CommitHash != nil {
 		_, err = d.exec(
-			"update task set status=?, start=?, `end`=?, commit_hash=?, commit_message=? where id=?",
+			"update task set status=?, start=?, `end`=?, commit_hash=?, commit_message=?, runner_id=? where id=?",
 			task.Status,
 			task.Start,
 			task.End,
 			task.CommitHash,
 			task.CommitMessage,
+			task.RunnerID,
 			task.ID)
 	} else {
 		_, err = d.exec(
-			"update task set status=?, start=?, `end`=? where id=?",
+			"update task set status=?, start=?, `end`=?, runner_id=? where id=?",
 			task.Status,
 			task.Start,
 			task.End,
+			task.RunnerID,
 			task.ID)
 	}
 
@@ -318,6 +320,11 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 
 	err = d.selectOne(&task, query, args...)
 
+	return
+}
+
+func (d *SqlDb) GetTaskByID(taskID int) (task db.Task, err error) {
+	err = d.selectOne(&task, d.PrepareQuery("select * from task where id=?"), taskID)
 	return
 }
 
