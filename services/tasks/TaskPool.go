@@ -132,7 +132,7 @@ func (p *TaskPool) GetRunningTasks() (res []*TaskRunner) {
 	return p.state.RunningRange()
 }
 
-func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
+func (p *TaskPool) GetTask(id int) (task *TaskRunner, err error) {
 	for _, t := range p.state.QueueRange() {
 		if t.Task.ID == id {
 			task = t
@@ -146,6 +146,12 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 				task = t
 				break
 			}
+		}
+	}
+
+	if util.HAEnabled() {
+		if task == nil {
+			task, err = p.HydrateTaskRunnerFromDB(id)
 		}
 	}
 
@@ -460,7 +466,11 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 }
 
 func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
-	tsk := p.GetTask(targetTask.ID)
+	tsk, err := p.GetTask(targetTask.ID)
+
+	if err != nil {
+		return err
+	}
 
 	if tsk == nil { // task not active, but exists in database
 		return fmt.Errorf("task is not active")
@@ -472,7 +482,11 @@ func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
 }
 
 func (p *TaskPool) RejectTask(targetTask db.Task) error {
-	tsk := p.GetTask(targetTask.ID)
+	tsk, err := p.GetTask(targetTask.ID)
+
+	if err != nil {
+		return err
+	}
 
 	if tsk == nil { // task not active, but exists in database
 		return fmt.Errorf("task is not active")
@@ -484,7 +498,11 @@ func (p *TaskPool) RejectTask(targetTask db.Task) error {
 }
 
 func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
-	tsk := p.GetTask(targetTask.ID)
+	tsk, err := p.GetTask(targetTask.ID)
+	if err != nil {
+		return err
+	}
+
 	if tsk == nil { // task not active, but exists in database
 
 		tsk = NewTaskRunner(targetTask, p, "", p.keyInstallationService)
@@ -568,7 +586,16 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		for _, twt := range tasks {
 
 			// if task is managed locally (queued/running), it was handled above
-			if p.GetTask(twt.Task.ID) != nil {
+			tsk, taskErr := p.GetTask(twt.ID)
+			if taskErr != nil {
+				log.WithError(err).WithFields(log.Fields{
+					"task_id": twt.ID,
+					"context": "task_pool",
+				}).Warn("can't get task")
+
+				continue
+			}
+			if tsk != nil {
 				continue
 			}
 

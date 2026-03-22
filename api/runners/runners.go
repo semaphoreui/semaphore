@@ -258,18 +258,15 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 	}
 
 	for _, job := range body.Jobs {
-		tsk := taskPool.GetTask(job.ID)
-		if tsk == nil {
-			var err error
-			tsk, err = taskPool.HydrateTaskRunnerFromDB(job.ID)
-			if err != nil {
-				log.WithError(err).WithFields(log.Fields{
-					"task_id":   job.ID,
-					"runner_id": runner.ID,
-					"context":   "runner",
-				}).Warn("runner progress: task not in local pool and could not be loaded from database")
-				continue
-			}
+		tsk, err := taskPool.GetTask(job.ID)
+
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"task_id":   job.ID,
+				"runner_id": runner.ID,
+				"context":   "runner",
+			}).Warn("runner progress: task not in local pool and could not be loaded from database")
+			continue
 		}
 
 		if tsk.RunnerID != runner.ID {
@@ -286,10 +283,12 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		tsk.SetStatus(job.Status)
+		if !job.Status.IsFinished() {
+			tsk.SetStatus(job.Status)
 
-		if job.Commit != nil {
-			tsk.SetCommit(job.Commit.Hash, job.Commit.Message)
+			if job.Commit != nil {
+				tsk.SetCommit(job.Commit.Hash, job.Commit.Message)
+			}
 		}
 	}
 
