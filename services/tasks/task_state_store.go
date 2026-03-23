@@ -9,7 +9,7 @@ type TaskRunnerHydrator func(taskID int, projectID int) (*TaskRunner, error)
 // TaskStateStore defines pluggable storage for task pool state
 type TaskStateStore interface {
 	// Start allows the store to initialize, restore its in-memory
-	// pointers from the underlying backend and start background
+	// pointers from the underlying backend, and start background
 	// sync listeners (e.g., Redis Pub/Sub). Implementations may no-op.
 	Start(hydrator TaskRunnerHydrator) error
 
@@ -44,6 +44,7 @@ type TaskStateStore interface {
 	// UpdateRuntimeFields persists transient fields of TaskRunner so
 	// they can be restored after restart in HA mode.
 	UpdateRuntimeFields(task *TaskRunner)
+
 	// LoadRuntimeFields fills runtime fields (RunnerID, Username, IncomingVersion, Alias)
 	// from the backend into the provided task. No-op if not supported.
 	LoadRuntimeFields(task *TaskRunner)
