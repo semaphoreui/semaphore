@@ -162,6 +162,11 @@ func (task *Task) GetUrl() *string {
 }
 
 func (task *Task) ValidateNewTask(template Template) error {
+	if task.GitBranch != nil {
+		if err := ValidateGitBranch(*task.GitBranch, "task"); err != nil {
+			return err
+		}
+	}
 
 	var params any
 	switch template.App {
