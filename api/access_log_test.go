@@ -51,11 +51,14 @@ func TestAccessLogMiddleware_SkipsPing(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest("GET", "/api/ping", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	for _, path := range []string{"/api/ping", "/semaphore/api/ping"} {
+		hook.Reset()
+		req := httptest.NewRequest("GET", path, nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
 
-	if len(hook.Entries) != 0 {
-		t.Errorf("expected no log entries for /api/ping, got %d", len(hook.Entries))
+		if len(hook.Entries) != 0 {
+			t.Errorf("expected no log entries for %s, got %d", path, len(hook.Entries))
+		}
 	}
 }

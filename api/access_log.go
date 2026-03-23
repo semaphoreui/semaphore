@@ -3,6 +3,7 @@ package api
 import (
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -10,7 +11,7 @@ import (
 )
 
 func accessLogFormatter(_ io.Writer, params handlers.LogFormatterParams) {
-	if params.URL.Path == "/api/ping" {
+	if strings.HasSuffix(params.URL.Path, "/api/ping") {
 		return
 	}
 	log.WithFields(log.Fields{
