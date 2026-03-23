@@ -173,7 +173,17 @@ func (task *Task) ValidateNewTask(template Template) error {
 		params = &DefaultTaskParams{}
 	}
 
-	return task.ExtractParams(params)
+	if err := task.ExtractParams(params); err != nil {
+		return err
+	}
+
+	if task.GitBranch != nil && *task.GitBranch != "" {
+		if err := ValidateGitBranchName(*task.GitBranch); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (task *TaskWithTpl) Fill(d Store) error {

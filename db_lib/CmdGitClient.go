@@ -112,7 +112,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 func (c CmdGitClient) Pull(r GitRepository) error {
 	r.Logger.Log("Updating Repository " + r.Repository.GitURL)
 
-	err := c.run(r, GitRepositoryFullPath, "pull", "origin", r.Repository.GitBranch)
+	err := c.run(r, GitRepositoryFullPath, "pull", "origin", "--", r.Repository.GitBranch)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {
 	r.Logger.Log("Checkout repository to " + target)
 
-	return c.run(r, GitRepositoryFullPath, "checkout", target)
+	return c.run(r, GitRepositoryFullPath, "checkout", "--", target)
 }
 
 func (c CmdGitClient) CanBePulled(r GitRepository) bool {
@@ -159,7 +159,7 @@ func (c CmdGitClient) GetLastCommitHash(r GitRepository) (hash string, err error
 }
 
 func (c CmdGitClient) GetLastRemoteCommitHash(r GitRepository) (hash string, err error) {
-	out, err := c.output(r, GitRepositoryTmpPath, "ls-remote", r.Repository.GetGitURL(false), r.Repository.GitBranch)
+	out, err := c.output(r, GitRepositoryTmpPath, "ls-remote", r.Repository.GetGitURL(false), "--", r.Repository.GitBranch)
 	if err != nil {
 		return
 	}

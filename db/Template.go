@@ -216,6 +216,12 @@ func (tpl *Template) Validate() error {
 		}
 	}
 
+	if tpl.GitBranch != nil && *tpl.GitBranch != "" {
+		if err := ValidateGitBranchName(*tpl.GitBranch); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

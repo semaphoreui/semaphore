@@ -121,6 +121,19 @@ func (r Repository) GetType() RepositoryType {
 	}
 }
 
+// ValidateGitBranchName rejects values that would be unsafe as git branch/ref
+// arguments (argument injection / CWE-88), e.g. "--upload-pack=...".
+func ValidateGitBranchName(name string) error {
+	t := strings.TrimSpace(name)
+	if t == "" {
+		return nil
+	}
+	if strings.HasPrefix(t, "-") {
+		return &ValidationError{"git branch name must not start with '-'"}
+	}
+	return nil
+}
+
 func (r Repository) Validate() error {
 	if r.Name == "" {
 		return &ValidationError{"repository name can't be empty"}
@@ -132,6 +145,10 @@ func (r Repository) Validate() error {
 
 	if r.GetType() != RepositoryLocal && r.GitBranch == "" {
 		return &ValidationError{"repository branch can't be empty"}
+	}
+
+	if err := ValidateGitBranchName(r.GitBranch); err != nil {
+		return err
 	}
 
 	return nil
