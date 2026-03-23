@@ -417,4 +417,21 @@ func TestValidateConfig(t *testing.T) {
 	Config.Dialect = "someOtherDB"
 	ensureConfigValidationFailure(t, "Dialect", Config.Dialect)
 	Config.Dialect = testDbDialect
+
+	// AccessKeyEncryption: empty is allowed (no encryption)
+	Config.AccessKeyEncryption = ""
+	validateConfig()
+
+	// AccessKeyEncryption: valid 32-byte key
+	Config.AccessKeyEncryption = testCookieHash
+	validateConfig()
+
+	// AccessKeyEncryption: invalid base64
+	Config.AccessKeyEncryption = "not-valid-base64!!!"
+	ensureConfigValidationFailure(t, "AccessKeyEncryption", Config.AccessKeyEncryption)
+
+	// AccessKeyEncryption: valid base64 but wrong size (48 bytes)
+	Config.AccessKeyEncryption = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	ensureConfigValidationFailure(t, "AccessKeyEncryption", Config.AccessKeyEncryption)
+	Config.AccessKeyEncryption = testCookieHash
 }
