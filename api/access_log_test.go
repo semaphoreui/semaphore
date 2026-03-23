@@ -10,6 +10,7 @@ import (
 )
 
 func TestAccessLogMiddleware(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	hook := test.NewLocal(log.StandardLogger())
 
 	handler := AccessLogMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -27,6 +28,9 @@ func TestAccessLogMiddleware(t *testing.T) {
 	}
 
 	entry := hook.LastEntry()
+	if entry.Level != log.DebugLevel {
+		t.Errorf("expected debug level, got %v", entry.Level)
+	}
 	for _, field := range []string{"method", "path", "status", "size", "duration", "remote"} {
 		if _, ok := entry.Data[field]; !ok {
 			t.Errorf("missing expected log field %q", field)

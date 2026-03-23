@@ -21,7 +21,7 @@ func accessLogFormatter(_ io.Writer, params handlers.LogFormatterParams) {
 		"size":     params.Size,
 		"duration": time.Since(params.TimeStamp).String(),
 		"remote":   params.Request.RemoteAddr,
-	}).Info("http request")
+	}).Debug("http request")
 }
 
 func AccessLogMiddleware(next http.Handler) http.Handler {
