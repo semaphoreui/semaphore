@@ -39,7 +39,7 @@ func Restore(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	if !user.Admin && !util.Config.NonAdminCanCreateProject {
-		log.Warn(user.Username + " is not permitted to to restore the project")
+		log.Warn(user.Username + " is not permitted to restore the project")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
