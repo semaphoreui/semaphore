@@ -66,6 +66,10 @@ func (r Repository) GetFullPath(templateID int) string {
 func (r Repository) GetGitURL(secure bool) string {
 	url := r.GitURL
 
+	if r.GetType() == RepositoryLocal {
+		return util.NormalizeLocalFilesystemPath(url)
+	}
+
 	if secure {
 		return url
 	}
@@ -102,6 +106,10 @@ func (r Repository) GetGitURL(secure bool) string {
 
 func (r Repository) GetType() RepositoryType {
 	if strings.HasPrefix(r.GitURL, "/") {
+		return RepositoryLocal
+	}
+
+	if util.IsWindowsLocalRepositoryPath(r.GitURL) {
 		return RepositoryLocal
 	}
 
