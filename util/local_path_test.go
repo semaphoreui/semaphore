@@ -14,6 +14,8 @@ func TestIsWindowsLocalRepositoryPath(t *testing.T) {
 		{`D:\repo`, true},
 		{`D:/repo`, true},
 		{`D:`, true},
+		{`D:repo`, false},
+		{`a://example/repo.git`, false},
 		{`c:\`, true},
 		{`\\server\share`, true},
 		{`\\`, false},

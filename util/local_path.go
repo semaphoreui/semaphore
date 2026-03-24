@@ -41,5 +41,17 @@ func IsWindowsLocalRepositoryPath(p string) bool {
 	if p[0] == '\\' && p[1] == '\\' {
 		return len(p) > 2
 	}
-	return isDriveLetter(p[0]) && p[1] == ':'
+	if !isDriveLetter(p[0]) || p[1] != ':' {
+		return false
+	}
+	if len(p) == 2 {
+		return true
+	}
+	if p[2] != '\\' && p[2] != '/' {
+		return false
+	}
+	if len(p) > 3 && p[2] == '/' && p[3] == '/' {
+		return false
+	}
+	return true
 }
