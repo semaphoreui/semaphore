@@ -134,5 +134,9 @@ func (r Repository) Validate() error {
 		return &ValidationError{"repository branch can't be empty"}
 	}
 
+	if err := ValidateGitBranch(r.GitBranch, "repository"); err != nil {
+		return err
+	}
+
 	return nil
 }

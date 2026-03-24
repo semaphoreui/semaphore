@@ -395,18 +395,22 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 	if err != nil {
 		return nil, err
 	}
+
 	tr := NewTaskRunner(task, p, "", p.keyInstallationService)
-	if err := tr.populateDetails(); err != nil {
+	if err = tr.populateDetails(); err != nil {
 		return nil, err
 	}
-	// load runtime fields from HA store (e.g., Redis)
+
+	// load runtime fields from the HA store (e.g., Redis)
 	if p.state != nil {
 		p.state.LoadRuntimeFields(tr)
 	}
+
 	// Persisted row from DB must win over runtime-store fields: Redis may still hold a
 	// snapshot from enqueue time (e.g. status "starting") after the runner updated the DB.
-	//applyDBPersistedTaskSnapshot(&tr.Task, task)
-	// set appropriate job handler for consistency (not run)
+	applyDBPersistedTaskSnapshot(&tr.Task, task)
+
+	// set the appropriate job handler for consistency (not run)
 	var job Job
 	if util.Config.UseRemoteRunner || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
 		tag := tr.Template.RunnerTag
@@ -554,6 +558,9 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 // stopped immediately and running tasks are killed; otherwise tasks are marked
 // as stopping and will gracefully transition to stopped.
 func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop bool) {
+
+	stoppedTasks := map[int]struct{}{}
+
 	// Handle queued tasks
 	for _, t := range p.state.QueueRange() {
 		if t == nil {
@@ -570,6 +577,8 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		} else {
 			t.SetStatus(task_logger.TaskStoppingStatus)
 		}
+
+		stoppedTasks[t.Task.ID] = struct{}{}
 		// Queued tasks will be dequeued and immediately finalize to Stopped in run()
 	}
 
@@ -593,43 +602,50 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		if prevStatus == task_logger.TaskRunningStatus {
 			t.kill()
 		}
+
+		stoppedTasks[t.Task.ID] = struct{}{}
 	}
 
 	// Update tasks in DB that are neither queued nor running but still active
 	// (e.g., created but not present in this instance's memory state).
-	if tasks, err := p.store.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{
+
+	tasks, err := p.store.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{
 		TaskFilter: &db.TaskFilter{
 			Status: task_logger.UnfinishedTaskStatuses(),
 		},
-	}); err == nil {
-		for _, twt := range tasks {
+	})
 
-			// if task is managed locally (queued/running), it was handled above
-			tsk, taskErr := p.GetTask(twt.ID)
-			if taskErr != nil {
-				log.WithError(err).WithFields(log.Fields{
-					"task_id": twt.ID,
-					"context": "task_pool",
-				}).Warn("can't get task")
-
-				continue
-			}
-			if tsk != nil {
-				continue
-			}
-
-			// mark non-local task as stopped and write event for history
-			tr := NewTaskRunner(twt.Task, p, "", p.keyInstallationService)
-			if err := tr.populateDetails(); err != nil {
-				log.Error(err)
-				continue
-			}
-
-			tr.SetStatus(task_logger.TaskStoppedStatus)
-			tr.createTaskEvent()
-		}
-	} else {
+	if err != nil {
 		log.Error(err)
+		return
+	}
+
+	for _, twt := range tasks {
+
+		if _, ok := stoppedTasks[twt.ID]; ok { // already stopped
+			continue
+		}
+
+		tsk, taskErr := p.GetTask(twt.ID)
+		if taskErr != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"task_id": twt.ID,
+				"context": "task_pool",
+			}).Warn("can't get task")
+
+			continue
+		}
+
+		if tsk == nil {
+			tsk = NewTaskRunner(twt.Task, p, "", p.keyInstallationService)
+			if trErr := tsk.populateDetails(); trErr != nil {
+				log.Error(trErr)
+				continue
+			}
+		}
+
+		tsk.SetStatus(task_logger.TaskStoppedStatus)
+		tsk.createTaskEvent()
 	}
 }
 
