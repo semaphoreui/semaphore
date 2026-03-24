@@ -17,6 +17,13 @@ func TestRepository_GetSchema(t *testing.T) {
 	assert.Equal(t, RepositoryHTTP, schema)
 }
 
+func TestRepository_GetType_WindowsLocalPath(t *testing.T) {
+	assert.Equal(t, RepositoryLocal, Repository{GitURL: `D:\repo`}.GetType())
+	assert.Equal(t, RepositoryLocal, Repository{GitURL: `D:/repo`}.GetType())
+	assert.Equal(t, RepositoryLocal, Repository{GitURL: `D:`}.GetType())
+	assert.Equal(t, RepositoryLocal, Repository{GitURL: `\\server\share`}.GetType())
+}
+
 func TestRepository_ClearCache(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: path.Join(os.TempDir(), util.RandString(rand.Intn(10-4)+4)),
