@@ -12,7 +12,7 @@ func NormalizeLocalFilesystemPath(p string) string {
 	if runtime.GOOS != "windows" {
 		return p
 	}
-	// "/D:/path" or "/d:\path" -> "D:/path"
+	// "/D:/path" -> "D:/path", "/d:\path" -> "d:\path" (strip leading "/")
 	if len(p) >= 3 && p[0] == '/' && isDriveLetter(p[1]) && p[2] == ':' {
 		return p[1:]
 	}
