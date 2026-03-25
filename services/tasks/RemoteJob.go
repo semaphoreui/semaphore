@@ -2,10 +2,11 @@ package tasks
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand/v2"
+	"math/big"
 	"net/http"
 	"time"
 
@@ -97,9 +98,14 @@ func shuffleRunners(rs []db.Runner) []db.Runner {
 		return rs
 	}
 
-	rand.Shuffle(len(rs), func(i, j int) {
-		rs[i], rs[j] = rs[j], rs[i]
-	})
+	for i, _ := range rs {
+		j, err := rand.Int(rand.Reader, big.NewInt(int64(len(rs))))
+		if err != nil {
+			panic(err)
+		}
+
+		rs[i], rs[j.Int64()] = rs[j.Int64()], rs[i]
+	}
 
 	return rs
 }
