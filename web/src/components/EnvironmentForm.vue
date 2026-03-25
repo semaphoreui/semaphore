@@ -233,10 +233,10 @@
 
         <div v-if="!isNew && secretStorage" class="pb-3">
           <div style="font-weight: bold; font-size: 20px;">
-            <v-icon small class="mr-1">$vuetify.icons.hashicorp_vault</v-icon>
+            <v-icon small class="mr-1">{{ getIcon(secretStorage.type) }}</v-icon>
             {{ secretStorage.name }}
           </div>
-          <pre>{{ item.secret_storage_key_prefix }}*</pre>
+          <pre>Source path pattern: <b>{{ item.secret_storage_key_prefix }}*</b></pre>
         </div>
 
         <div>
@@ -505,6 +505,18 @@ export default {
   },
 
   methods: {
+
+    getIcon(type) {
+      switch (type) {
+        case 'vault':
+          return '$vuetify.icons.hashicorp_vault';
+        case 'dvls':
+          return '$vuetify.icons.dvls';
+        default:
+          return '';
+      }
+    },
+
     addExtraVar(name = '', value = '') {
       this.extraVars.push({ name, value });
     },
