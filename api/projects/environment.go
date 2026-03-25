@@ -48,15 +48,18 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 		switch secret.Operation {
 		case db.EnvironmentSecretCreate:
 			var sourceStorageKey *string
-			if env.SecretStorageKeyPrefix != nil {
-				tmp := *env.SecretStorageKeyPrefix + random.String(10)
-				sourceStorageKey = &tmp
-			}
-
 			var storageType *db.AccessKeySourceStorageType
+
 			if env.SecretStorageID != nil {
-				tmp := db.AccessKeySourceStorageVault
-				storageType = &tmp
+				keyPrefix := ""
+				if env.SecretStorageKeyPrefix != nil {
+					keyPrefix = *env.SecretStorageKeyPrefix
+				}
+				keyPath := keyPrefix + random.String(10)
+				sourceStorageKey = &keyPath
+
+				keyType := db.AccessKeySourceStorageVault
+				storageType = &keyType
 			}
 
 			key, err = c.accessKeyService.Create(db.AccessKey{
