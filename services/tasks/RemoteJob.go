@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"time"
 
@@ -91,6 +92,18 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	return
 }
 
+func shuffleRunners(rs []db.Runner) []db.Runner {
+	if len(rs) < 2 {
+		return rs
+	}
+
+	rand.Shuffle(len(rs), func(i, j int) {
+		rs[i], rs[j] = rs[j], rs[i]
+	})
+
+	return rs
+}
+
 func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
 
 	tsk, err := t.taskPool.GetTask(t.Task.ID)
@@ -115,11 +128,15 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		if err != nil {
 			return
 		}
+		projectRunners = shuffleRunners(projectRunners)
+
 		var globalRunners []db.Runner
 		globalRunners, err = t.taskPool.store.GetAllRunners(true, true)
 		if err != nil {
 			return
 		}
+		globalRunners = shuffleRunners(globalRunners)
+
 		runners = append(runners, projectRunners...)
 		runners = append(runners, globalRunners...)
 	})
