@@ -269,6 +269,15 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 			continue
 		}
 
+		if tsk == nil {
+			log.WithFields(log.Fields{
+				"task_id":   job.ID,
+				"runner_id": runner.ID,
+				"context":   "runner",
+			}).Warn("runner progress: task not found in pool")
+			continue
+		}
+
 		if tsk.RunnerID != runner.ID {
 			helpers.WriteErrorStatus(w, "Task not assigned to this runner", http.StatusBadRequest)
 			return
