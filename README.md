@@ -11,11 +11,9 @@ Modern UI for Ansible, Terraform/OpenTofu/Terragrunt, PowerShell and other DevOp
 
 If your project has grown and deploying from the terminal is no longer feasible, then Semaphore UI is the tool you need.
 
-## Gratitude
+## Demo
 
-Thank you, [Stefan](https://github.com/stefanux) and [steadfasterX](https://github.com/steadfasterX), for supporting the project. Your support is invaluable.
-
-Thank you, [Thomas](https://github.com/tboerger) and [Brian](https://github.com/Omicron7), for your excellent contributions. You solved issues that no one else would have taken on.
+[Try Semaphore UI online](https://portal.semaphoreui.com/demo)
 
 <!--
 ## Live Demo
