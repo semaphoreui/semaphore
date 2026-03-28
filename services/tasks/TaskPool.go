@@ -628,7 +628,7 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 
 		tsk, taskErr := p.GetTask(twt.ID)
 		if taskErr != nil {
-			log.WithError(err).WithFields(log.Fields{
+			log.WithError(taskErr).WithFields(log.Fields{
 				"task_id": twt.ID,
 				"context": "task_pool",
 			}).Warn("can't get task")
