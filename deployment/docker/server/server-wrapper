@@ -156,15 +156,87 @@ fi
 
 
 #
-# Generate new config.json if it does not exist
+# Build a config.json from environment variables using jq.
+#
+generate_config_json() {
+    local COOKIE_HASH="${SEMAPHORE_COOKIE_HASH:-$(head -c 32 /dev/urandom | base64 | tr -d '\n')}"
+    local COOKIE_ENC="${SEMAPHORE_COOKIE_ENCRYPTION:-$(head -c 32 /dev/urandom | base64 | tr -d '\n')}"
+    local AK_ENC="${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-}"
+
+    local DB_JSON
+    DB_JSON=$(jq -n \
+        --arg host "${SEMAPHORE_DB_HOST}" \
+        --arg user "${SEMAPHORE_DB_USER:-}" \
+        --arg pass "${SEMAPHORE_DB_PASS:-}" \
+        --arg name "${SEMAPHORE_DB:-semaphore}" \
+        '{host: $host, user: $user, pass: $pass, name: $name}')
+
+    local CONFIG_JSON
+    CONFIG_JSON=$(jq -n \
+        --arg dialect "${SEMAPHORE_DB_DIALECT}" \
+        --argjson db_config "${DB_JSON}" \
+        --arg tmp_path "${SEMAPHORE_TMP_PATH:-/tmp/semaphore}" \
+        --arg web_host "${SEMAPHORE_WEB_ROOT:-}" \
+        --arg cookie_hash "${COOKIE_HASH}" \
+        --arg cookie_encryption "${COOKIE_ENC}" \
+        --arg access_key_encryption "${AK_ENC}" \
+        '{
+            dialect: $dialect,
+            ($dialect): $db_config,
+            tmp_path: $tmp_path,
+            web_host: $web_host,
+            cookie_hash: $cookie_hash,
+            cookie_encryption: $cookie_encryption,
+            access_key_encryption: $access_key_encryption
+        }')
+
+    if [ "${SEMAPHORE_LDAP_ACTIVATED}" = "yes" ]; then
+        local LDAP_NEEDTLS=false
+        [ "${SEMAPHORE_LDAP_NEEDTLS:-no}" = "yes" ] && LDAP_NEEDTLS=true
+
+        CONFIG_JSON=$(echo "${CONFIG_JSON}" | jq \
+            --arg ldap_server "${SEMAPHORE_LDAP_HOST:-}:${SEMAPHORE_LDAP_PORT:-}" \
+            --argjson ldap_needtls "${LDAP_NEEDTLS}" \
+            --arg ldap_binddn "${SEMAPHORE_LDAP_DN_BIND:-}" \
+            --arg ldap_bindpassword "${SEMAPHORE_LDAP_PASSWORD:-}" \
+            --arg ldap_searchdn "${SEMAPHORE_LDAP_DN_SEARCH:-}" \
+            --arg ldap_searchfilter "${SEMAPHORE_LDAP_SEARCH_FILTER:-(uid=%s)}" \
+            --arg ldap_mapping_dn "${SEMAPHORE_LDAP_MAPPING_DN:-dn}" \
+            --arg ldap_mapping_uid "${SEMAPHORE_LDAP_MAPPING_USERNAME:-uid}" \
+            --arg ldap_mapping_cn "${SEMAPHORE_LDAP_MAPPING_FULLNAME:-cn}" \
+            --arg ldap_mapping_mail "${SEMAPHORE_LDAP_MAPPING_EMAIL:-mail}" \
+            '. + {
+                ldap_enable: true,
+                ldap_server: $ldap_server,
+                ldap_needtls: $ldap_needtls,
+                ldap_binddn: $ldap_binddn,
+                ldap_bindpassword: $ldap_bindpassword,
+                ldap_searchdn: $ldap_searchdn,
+                ldap_searchfilter: $ldap_searchfilter,
+                ldap_mappings: {
+                    dn: $ldap_mapping_dn,
+                    uid: $ldap_mapping_uid,
+                    cn: $ldap_mapping_cn,
+                    mail: $ldap_mapping_mail
+                }
+            }')
+    fi
+
+    echo "${CONFIG_JSON}" > "${SEMAPHORE_CONFIG_PATH}/config.json"
+}
+
+
+#
+# Generate config.json if it does not exist and create admin user if needed.
+#
+# Instead of relying on config.json existence as a proxy for "first run", we
+# always regenerate config.json from env vars when it is missing, then check
+# the database for existing users.  This correctly handles the case where the
+# container is recreated without a config volume while the database (on a
+# separate volume or external server) still holds data.
 #
 SEMAPHORE_FIRST_RUN=no
 if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
-    SEMAPHORE_FIRST_RUN=yes
-    echoerr "Generating setup file ${TMP_STDIN_CONFIG_FILE} ..."
-
-    TMP_STDIN_CONFIG_FILE=$(mktemp)
-
 
     SEMAPHORE_TMP_PATH=${SEMAPHORE_TMP_PATH:-/tmp/semaphore}
     [ -d "${SEMAPHORE_TMP_PATH}" ] || mkdir -p "${SEMAPHORE_TMP_PATH}" || {
@@ -172,91 +244,38 @@ if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
         exit 1
     }
 
+    echoerr "Generating ${SEMAPHORE_CONFIG_PATH}/config.json from environment variables..."
+    generate_config_json
 
-    case ${SEMAPHORE_DB_DIALECT} in
-        mysql)
-            SEMAPHORE_DB_DIALECT_ID=1
-            ;;
-        bolt)
-            SEMAPHORE_DB_DIALECT_ID=2
-            ;;
-        postgres)
-            SEMAPHORE_DB_DIALECT_ID=3
-            ;;
-        sqlite)
-            SEMAPHORE_DB_DIALECT_ID=4
-            ;;
-        *)
-            echoerr "Unknown database dialect: ${SEMAPHORE_DB_DIALECT}"
-            exit 1
-            ;;
-    esac
-
-
-    cat << EOF > "${TMP_STDIN_CONFIG_FILE}"
-${SEMAPHORE_DB_DIALECT_ID}
-EOF
-
-    if [ "${SEMAPHORE_DB_DIALECT}" = "bolt" ]; then
-        cat << EOF >> "${TMP_STDIN_CONFIG_FILE}"
-${SEMAPHORE_DB_HOST}
-EOF
-    elif [ "${SEMAPHORE_DB_DIALECT}" = "sqlite" ]; then
-        cat << EOF >> "${TMP_STDIN_CONFIG_FILE}"
-${SEMAPHORE_DB_HOST}
-EOF
-    else
-        cat << EOF >> "${TMP_STDIN_CONFIG_FILE}"
-${SEMAPHORE_DB_HOST}
-${SEMAPHORE_DB_USER}
-${SEMAPHORE_DB_PASS}
-${SEMAPHORE_DB:-semaphore}
-EOF
-    fi
-
-    cat << EOF >> "${TMP_STDIN_CONFIG_FILE}"
-${SEMAPHORE_TMP_PATH}
-${SEMAPHORE_WEB_ROOT:-}
-no
-no
-no
-no
-no
-${SEMAPHORE_LDAP_ACTIVATED}
-EOF
-
-    if [ "${SEMAPHORE_LDAP_ACTIVATED}" = "yes" ]; then
-        cat << EOF >> "${TMP_STDIN_CONFIG_FILE}"
-${SEMAPHORE_LDAP_HOST}:${SEMAPHORE_LDAP_PORT}
-${SEMAPHORE_LDAP_NEEDTLS:-no}
-${SEMAPHORE_LDAP_DN_BIND}
-${SEMAPHORE_LDAP_PASSWORD}
-${SEMAPHORE_LDAP_DN_SEARCH}
-${SEMAPHORE_LDAP_SEARCH_FILTER:-(uid=%s)}
-${SEMAPHORE_LDAP_MAPPING_DN:-dn}
-${SEMAPHORE_LDAP_MAPPING_USERNAME}
-${SEMAPHORE_LDAP_MAPPING_FULLNAME}
-${SEMAPHORE_LDAP_MAPPING_EMAIL}
-EOF
-    fi;
-
-    cat << EOF >> "${TMP_STDIN_CONFIG_FILE}"
-${SEMAPHORE_CONFIG_PATH}
-${SEMAPHORE_ADMIN}
-${SEMAPHORE_ADMIN_EMAIL}
-${SEMAPHORE_ADMIN_NAME}
-${SEMAPHORE_ADMIN_PASSWORD}
-EOF
-
-
-    echoerr "Executing semaphore setup"
     if test "$#" -ne 1; then
-        /usr/local/bin/semaphore setup - < "${TMP_STDIN_CONFIG_FILE}"
+        SEMAPHORE_BIN="/usr/local/bin/semaphore"
     else
-        "$1" setup - < "${TMP_STDIN_CONFIG_FILE}"
+        SEMAPHORE_BIN="$1"
     fi
 
-    rm -f "${TMP_STDIN_CONFIG_FILE}"
+    # semaphore user list runs migrations as a side-effect and prints one
+    # username per line.  An empty result means the database is fresh.
+    echoerr "Checking database for existing users..."
+    EXISTING_USERS=$("${SEMAPHORE_BIN}" user list --config "${SEMAPHORE_CONFIG_PATH}/config.json" 2>/dev/null) || EXISTING_USERS=""
+
+    if [ -n "${EXISTING_USERS}" ]; then
+        echoerr "Existing users found in database. Skipping initial setup."
+        if [ -z "${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-}" ]; then
+            echoerr "WARNING: SEMAPHORE_ACCESS_KEY_ENCRYPTION is not set."
+            echoerr "If the database contains encrypted access keys from a previous run,"
+            echoerr "they will not be decryptable without the original encryption key."
+        fi
+    else
+        SEMAPHORE_FIRST_RUN=yes
+        echoerr "No existing users found. Creating admin user..."
+        "${SEMAPHORE_BIN}" user add \
+            --admin \
+            --login "${SEMAPHORE_ADMIN}" \
+            --name "${SEMAPHORE_ADMIN_NAME}" \
+            --email "${SEMAPHORE_ADMIN_EMAIL}" \
+            --password "${SEMAPHORE_ADMIN_PASSWORD}" \
+            --config "${SEMAPHORE_CONFIG_PATH}/config.json"
+    fi
 fi
 
 #
