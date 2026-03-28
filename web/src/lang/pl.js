@@ -205,6 +205,7 @@ export default {
   editViews: 'Edytuj widoki',
   newTemplate: 'Nowy szablon',
   taskTemplates2: 'Szablony zadań',
+  search: 'Szukaj',
   all: 'Wszystko',
   notLaunched: 'Nie uruchomiono',
   by: 'przez {user_name}',

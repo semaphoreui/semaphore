@@ -51,6 +51,17 @@
       </v-toolbar-title>
       <v-spacer></v-spacer>
 
+      <v-text-field
+        v-model="search"
+        append-icon="mdi-magnify"
+        :label="$t('search')"
+        clearable
+        single-line
+        hide-details
+        class="mr-4"
+        style="max-width: 300px;"
+      ></v-text-field>
+
       <v-menu
         offset-y
       >
@@ -138,6 +149,7 @@
       :headers="filteredHeaders"
       :items="items"
       :items-per-page="Number.MAX_VALUE"
+      :search="search"
       :expanded.sync="openedItems"
       :style="{
         opacity: viewItemsLoading ? 0.3 : 1,
@@ -311,6 +323,7 @@ export default {
       viewTab: null,
       apps: null,
       itemApp: '',
+      search: '',
     };
   },
 

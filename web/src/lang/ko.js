@@ -205,6 +205,7 @@ export default {
   editViews: '보기 수정',
   newTemplate: '새 템플릿',
   taskTemplates2: '작업 템플릿',
+  search: '검색',
   all: '모두',
   notLaunched: '시작되지 않음',
   by: '{user_name}에 의해',

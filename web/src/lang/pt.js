@@ -205,6 +205,7 @@ export default {
   editViews: 'Editar Visualizações',
   newTemplate: 'Novo modelo',
   taskTemplates2: 'Modelos de Tarefa',
+  search: 'Pesquisar',
   all: 'Todos',
   notLaunched: 'Não lançado',
   by: 'por {user_name}',

@@ -205,6 +205,7 @@ export default {
   editViews: 'Editar Vistas',
   newTemplate: 'Nueva plantilla',
   taskTemplates2: 'Plantillas de Tareas',
+  search: 'Buscar',
   all: 'Todo',
   notLaunched: 'No lanzado',
   by: 'por {user_name}',
