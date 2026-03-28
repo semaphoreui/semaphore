@@ -34,6 +34,76 @@ file_env() {
     unset "${1}_FILE"
 }
 
+#
+# Build a config.json from environment variables using jq.
+#
+generate_config_json() {
+    local COOKIE_HASH="${SEMAPHORE_COOKIE_HASH:-$(head -c 32 /dev/urandom | base64 | tr -d '\n')}"
+    local COOKIE_ENC="${SEMAPHORE_COOKIE_ENCRYPTION:-$(head -c 32 /dev/urandom | base64 | tr -d '\n')}"
+    local AK_ENC="${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-}"
+
+    local DB_JSON
+    DB_JSON=$(jq -n \
+        --arg host "${SEMAPHORE_DB_HOST}" \
+        --arg user "${SEMAPHORE_DB_USER:-}" \
+        --arg pass "${SEMAPHORE_DB_PASS:-}" \
+        --arg name "${SEMAPHORE_DB:-semaphore}" \
+        '{host: $host, user: $user, pass: $pass, name: $name}')
+
+    local CONFIG_JSON
+    CONFIG_JSON=$(jq -n \
+        --arg dialect "${SEMAPHORE_DB_DIALECT}" \
+        --argjson db_config "${DB_JSON}" \
+        --arg tmp_path "${SEMAPHORE_TMP_PATH:-/tmp/semaphore}" \
+        --arg web_host "${SEMAPHORE_WEB_ROOT:-}" \
+        --arg cookie_hash "${COOKIE_HASH}" \
+        --arg cookie_encryption "${COOKIE_ENC}" \
+        --arg access_key_encryption "${AK_ENC}" \
+        '{
+            dialect: $dialect,
+            ($dialect): $db_config,
+            tmp_path: $tmp_path,
+            web_host: $web_host,
+            cookie_hash: $cookie_hash,
+            cookie_encryption: $cookie_encryption,
+            access_key_encryption: $access_key_encryption
+        }')
+
+    if [ "${SEMAPHORE_LDAP_ACTIVATED}" = "yes" ]; then
+        local LDAP_NEEDTLS=false
+        [ "${SEMAPHORE_LDAP_NEEDTLS:-no}" = "yes" ] && LDAP_NEEDTLS=true
+
+        CONFIG_JSON=$(echo "${CONFIG_JSON}" | jq \
+            --arg ldap_server "${SEMAPHORE_LDAP_HOST:-}:${SEMAPHORE_LDAP_PORT:-}" \
+            --argjson ldap_needtls "${LDAP_NEEDTLS}" \
+            --arg ldap_binddn "${SEMAPHORE_LDAP_DN_BIND:-}" \
+            --arg ldap_bindpassword "${SEMAPHORE_LDAP_PASSWORD:-}" \
+            --arg ldap_searchdn "${SEMAPHORE_LDAP_DN_SEARCH:-}" \
+            --arg ldap_searchfilter "${SEMAPHORE_LDAP_SEARCH_FILTER:-(uid=%s)}" \
+            --arg ldap_mapping_dn "${SEMAPHORE_LDAP_MAPPING_DN:-dn}" \
+            --arg ldap_mapping_uid "${SEMAPHORE_LDAP_MAPPING_USERNAME:-uid}" \
+            --arg ldap_mapping_cn "${SEMAPHORE_LDAP_MAPPING_FULLNAME:-cn}" \
+            --arg ldap_mapping_mail "${SEMAPHORE_LDAP_MAPPING_EMAIL:-mail}" \
+            '. + {
+                ldap_enable: true,
+                ldap_server: $ldap_server,
+                ldap_needtls: $ldap_needtls,
+                ldap_binddn: $ldap_binddn,
+                ldap_bindpassword: $ldap_bindpassword,
+                ldap_searchdn: $ldap_searchdn,
+                ldap_searchfilter: $ldap_searchfilter,
+                ldap_mappings: {
+                    dn: $ldap_mapping_dn,
+                    uid: $ldap_mapping_uid,
+                    cn: $ldap_mapping_cn,
+                    mail: $ldap_mapping_mail
+                }
+            }')
+    fi
+
+    echo "${CONFIG_JSON}" > "${SEMAPHORE_CONFIG_PATH}/config.json"
+}
+
 export SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
 export SEMAPHORE_DB_PATH="${SEMAPHORE_DB_PATH:-/var/lib/semaphore}"
 export SEMAPHORE_DB_PORT="${SEMAPHORE_DB_PORT:-}"
@@ -153,77 +223,6 @@ if [ "${SEMAPHORE_DB_DIALECT}" != 'bolt' ] && [ "${SEMAPHORE_DB_DIALECT}" != 'sq
     
     export SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST}:${SEMAPHORE_DB_PORT}"
 fi
-
-
-#
-# Build a config.json from environment variables using jq.
-#
-generate_config_json() {
-    local COOKIE_HASH="${SEMAPHORE_COOKIE_HASH:-$(head -c 32 /dev/urandom | base64 | tr -d '\n')}"
-    local COOKIE_ENC="${SEMAPHORE_COOKIE_ENCRYPTION:-$(head -c 32 /dev/urandom | base64 | tr -d '\n')}"
-    local AK_ENC="${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-}"
-
-    local DB_JSON
-    DB_JSON=$(jq -n \
-        --arg host "${SEMAPHORE_DB_HOST}" \
-        --arg user "${SEMAPHORE_DB_USER:-}" \
-        --arg pass "${SEMAPHORE_DB_PASS:-}" \
-        --arg name "${SEMAPHORE_DB:-semaphore}" \
-        '{host: $host, user: $user, pass: $pass, name: $name}')
-
-    local CONFIG_JSON
-    CONFIG_JSON=$(jq -n \
-        --arg dialect "${SEMAPHORE_DB_DIALECT}" \
-        --argjson db_config "${DB_JSON}" \
-        --arg tmp_path "${SEMAPHORE_TMP_PATH:-/tmp/semaphore}" \
-        --arg web_host "${SEMAPHORE_WEB_ROOT:-}" \
-        --arg cookie_hash "${COOKIE_HASH}" \
-        --arg cookie_encryption "${COOKIE_ENC}" \
-        --arg access_key_encryption "${AK_ENC}" \
-        '{
-            dialect: $dialect,
-            ($dialect): $db_config,
-            tmp_path: $tmp_path,
-            web_host: $web_host,
-            cookie_hash: $cookie_hash,
-            cookie_encryption: $cookie_encryption,
-            access_key_encryption: $access_key_encryption
-        }')
-
-    if [ "${SEMAPHORE_LDAP_ACTIVATED}" = "yes" ]; then
-        local LDAP_NEEDTLS=false
-        [ "${SEMAPHORE_LDAP_NEEDTLS:-no}" = "yes" ] && LDAP_NEEDTLS=true
-
-        CONFIG_JSON=$(echo "${CONFIG_JSON}" | jq \
-            --arg ldap_server "${SEMAPHORE_LDAP_HOST:-}:${SEMAPHORE_LDAP_PORT:-}" \
-            --argjson ldap_needtls "${LDAP_NEEDTLS}" \
-            --arg ldap_binddn "${SEMAPHORE_LDAP_DN_BIND:-}" \
-            --arg ldap_bindpassword "${SEMAPHORE_LDAP_PASSWORD:-}" \
-            --arg ldap_searchdn "${SEMAPHORE_LDAP_DN_SEARCH:-}" \
-            --arg ldap_searchfilter "${SEMAPHORE_LDAP_SEARCH_FILTER:-(uid=%s)}" \
-            --arg ldap_mapping_dn "${SEMAPHORE_LDAP_MAPPING_DN:-dn}" \
-            --arg ldap_mapping_uid "${SEMAPHORE_LDAP_MAPPING_USERNAME:-uid}" \
-            --arg ldap_mapping_cn "${SEMAPHORE_LDAP_MAPPING_FULLNAME:-cn}" \
-            --arg ldap_mapping_mail "${SEMAPHORE_LDAP_MAPPING_EMAIL:-mail}" \
-            '. + {
-                ldap_enable: true,
-                ldap_server: $ldap_server,
-                ldap_needtls: $ldap_needtls,
-                ldap_binddn: $ldap_binddn,
-                ldap_bindpassword: $ldap_bindpassword,
-                ldap_searchdn: $ldap_searchdn,
-                ldap_searchfilter: $ldap_searchfilter,
-                ldap_mappings: {
-                    dn: $ldap_mapping_dn,
-                    uid: $ldap_mapping_uid,
-                    cn: $ldap_mapping_cn,
-                    mail: $ldap_mapping_mail
-                }
-            }')
-    fi
-
-    echo "${CONFIG_JSON}" > "${SEMAPHORE_CONFIG_PATH}/config.json"
-}
 
 
 #
