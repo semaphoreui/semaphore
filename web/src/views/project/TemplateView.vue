@@ -84,6 +84,7 @@
             v-on="on"
             color="grey"
             class="mr-3 pr-2"
+            :disabled="stopAllTasksProgress"
           >
             {{ $t('stopAll') }}
             <v-icon>mdi-chevron-down</v-icon>
@@ -175,6 +176,7 @@
       :premium-features="premiumFeatures"
       :is-admin="isAdmin"
       @update-template="loadData"
+      :need-update="needLoadData"
     ></router-view>
   </div>
 </template>
@@ -250,6 +252,9 @@ export default {
       stopAllDialog: null,
       forceStopAllDialog: null,
       USER_PERMISSIONS,
+
+      needLoadData: false,
+      stopAllTasksProgress: false,
     };
   },
 
@@ -314,6 +319,7 @@ export default {
 
     async stopAllTasks(force) {
       try {
+        this.stopAllTasksProgress = true;
         await axios({
           method: 'post',
           url: `/api/project/${this.projectId}/templates/${this.itemId}/stop_all_tasks`,
@@ -327,6 +333,8 @@ export default {
           color: 'success',
           text: 'All running tasks have been requested to stop',
         });
+
+        this.needLoadData = true;
       } catch (err) {
         EventBus.$emit('i-snackbar', {
           color: 'error',
@@ -335,6 +343,11 @@ export default {
       } finally {
         this.stopAllDialog = false;
         this.forceStopAllDialog = false;
+        this.stopAllTasksProgress = false;
+
+        setTimeout(() => {
+          this.needLoadData = false;
+        }, 100);
       }
     },
 
