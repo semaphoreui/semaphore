@@ -200,10 +200,11 @@ func getRepositoryBranchNames(branches []string) []string {
 			continue
 		}
 
-		refPath := parts[1]
+		refPath := strings.TrimSpace(parts[1])
 
-		if idx := strings.LastIndex(refPath, "/"); idx != -1 {
-			branchName := refPath[idx+1:]
+		const refsHeadsPrefix = "refs/heads/"
+		if strings.HasPrefix(refPath, refsHeadsPrefix) {
+			branchName := strings.TrimPrefix(refPath, refsHeadsPrefix)
 			branchNames = append(branchNames, branchName)
 		}
 	}

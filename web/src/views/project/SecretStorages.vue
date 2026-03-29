@@ -130,7 +130,7 @@
     >
       <template v-slot:item.name="{ item }">
         <v-icon class="mr-3" small>
-          {{ getIcon(item) }}
+          {{ getIcon(item.type) }}
         </v-icon>
 
         <span class="mr-2">{{ item.name }}</span>
@@ -216,8 +216,8 @@ export default {
       }
     },
 
-    getIcon(item) {
-      switch (item.type) {
+    getIcon(type) {
+      switch (type) {
         case 'vault':
           return '$vuetify.icons.hashicorp_vault';
         case 'dvls':
