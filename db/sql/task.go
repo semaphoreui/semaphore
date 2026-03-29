@@ -7,6 +7,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
 func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error) {
@@ -214,6 +215,17 @@ func (d *SqlDb) UpdateTask(task db.Task) error {
 			task.ID)
 	}
 
+	return err
+}
+
+func (d *SqlDb) SetWaitingTasksToStopped(projectID int, templateID int) error {
+	_, err := d.exec(
+		"update task set status=?, `end`=? where template_id=? and project_id=? and status=?",
+		task_logger.TaskStoppedStatus,
+		time.Now().UTC(),
+		templateID,
+		projectID,
+		task_logger.TaskWaitingStatus)
 	return err
 }
 

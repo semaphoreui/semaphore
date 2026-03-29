@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"go.etcd.io/bbolt"
 )
 
@@ -128,6 +130,29 @@ func (d *BoltDb) CreateTask(task db.Task, maxTasks int) (newTask db.Task, err er
 
 func (d *BoltDb) UpdateTask(task db.Task) error {
 	return d.updateObject(0, db.TaskProps, task)
+}
+
+func (d *BoltDb) SetWaitingTasksToStopped(projectID int, templateID int) error {
+	var tasks []db.Task
+	err := d.getObjects(0, db.TaskProps, db.RetrieveQueryParams{}, func(tsk any) bool {
+		task := tsk.(db.Task)
+		return task.ProjectID == projectID &&
+			task.TemplateID == templateID &&
+			task.Status == task_logger.TaskWaitingStatus
+	}, &tasks)
+	if err != nil {
+		return err
+	}
+
+	now := tz.Now()
+	for _, task := range tasks {
+		task.Status = task_logger.TaskStoppedStatus
+		task.End = &now
+		if err := d.updateObject(0, db.TaskProps, task); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *BoltDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {

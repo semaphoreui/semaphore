@@ -557,32 +557,53 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 // the specified project and template. If forceStop is true, tasks are marked as
 // stopped immediately and running tasks are killed; otherwise tasks are marked
 // as stopping and will gracefully transition to stopped.
+//
+// Waiting tasks (which have no running process) are dequeued and bulk-updated in
+// the database in a single query, avoiding expensive per-task hydration.
+// Non-waiting tasks go through the regular per-task SetStatus path.
 func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop bool) {
 
 	stoppedTasks := map[int]struct{}{}
 
-	// Handle queued tasks
-	for _, t := range p.state.QueueRange() {
+	// Bulk-update all waiting tasks in DB in a single query.
+	// This is the fast path -- waiting tasks have no running process.
+	if err := p.store.SetWaitingTasksToStopped(projectID, templateID); err != nil {
+		log.Error(err)
+	}
+
+	// Dequeue waiting tasks from the in-memory queue.
+	i := 0
+	for i < p.state.QueueLen() {
+		t := p.state.QueueGet(i)
 		if t == nil {
+			i++
 			continue
 		}
 		if t.Task.ProjectID != projectID || t.Task.TemplateID != templateID {
+			i++
 			continue
 		}
 		if t.Task.Status.IsFinished() {
+			i++
 			continue
 		}
+
+		if t.Task.Status == task_logger.TaskWaitingStatus {
+			stoppedTasks[t.Task.ID] = struct{}{}
+			_ = p.state.DequeueAt(i)
+			continue
+		}
+
 		if forceStop {
 			t.SetStatus(task_logger.TaskStoppedStatus)
 		} else {
 			t.SetStatus(task_logger.TaskStoppingStatus)
 		}
-
 		stoppedTasks[t.Task.ID] = struct{}{}
-		// Queued tasks will be dequeued and immediately finalize to Stopped in run()
+		i++
 	}
 
-	// Handle running tasks
+	// Handle running tasks -- these need per-task SetStatus and kill.
 	for _, t := range p.state.RunningRange() {
 		if t == nil {
 			continue
@@ -606,9 +627,8 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		stoppedTasks[t.Task.ID] = struct{}{}
 	}
 
-	// Update tasks in DB that are neither queued nor running but still active
-	// (e.g., created but not present in this instance's memory state).
-
+	// Handle non-waiting tasks in DB that are neither queued nor running locally
+	// (e.g., HA mode or tasks created but not present in this instance's memory).
 	tasks, err := p.store.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{
 		TaskFilter: &db.TaskFilter{
 			Status: task_logger.UnfinishedTaskStatuses(),
@@ -622,7 +642,7 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 
 	for _, twt := range tasks {
 
-		if _, ok := stoppedTasks[twt.ID]; ok { // already stopped
+		if _, ok := stoppedTasks[twt.ID]; ok {
 			continue
 		}
 
