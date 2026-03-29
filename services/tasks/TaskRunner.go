@@ -253,32 +253,34 @@ func (t *TaskRunner) run() {
 		t.SetStatus(task_logger.TaskSuccessStatus)
 	}
 
-	tpls, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
-		BuildTemplateID: &t.Task.TemplateID,
-		AutorunOnly:     true,
-	}, db.RetrieveQueryParams{})
+	if t.Task.Status == task_logger.TaskSuccessStatus {
+		tpls, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
+			BuildTemplateID: &t.Task.TemplateID,
+			AutorunOnly:     true,
+		}, db.RetrieveQueryParams{})
 
-	if err != nil {
-		t.Log("Running app failed: " + err.Error())
-		return
-	}
-
-	for _, tpl := range tpls {
-		task := db.Task{
-			TemplateID:  tpl.ID,
-			ProjectID:   tpl.ProjectID,
-			BuildTaskID: &t.Task.ID,
-		}
-		_, err = t.pool.AddTask(
-			task,
-			nil,
-			"",
-			tpl.ProjectID,
-			tpl.App.NeedTaskAlias(),
-		)
 		if err != nil {
 			t.Log("Running app failed: " + err.Error())
-			continue
+			return
+		}
+
+		for _, tpl := range tpls {
+			task := db.Task{
+				TemplateID:  tpl.ID,
+				ProjectID:   tpl.ProjectID,
+				BuildTaskID: &t.Task.ID,
+			}
+			_, err = t.pool.AddTask(
+				task,
+				nil,
+				"",
+				tpl.ProjectID,
+				tpl.App.NeedTaskAlias(),
+			)
+			if err != nil {
+				t.Log("Running app failed: " + err.Error())
+				continue
+			}
 		}
 	}
 }
