@@ -705,7 +705,7 @@ func getNextBuildVersion(startVersion string, currentVersion string) string {
 		newVer = curr + 1
 	}
 
-	return prefix + strconv.Itoa(newVer) + suffix
+	return prefix + fmt.Sprintf("%0*d", len(body), newVer) + suffix
 }
 
 // AddTask creates and queues a new task for execution in the task pool.
