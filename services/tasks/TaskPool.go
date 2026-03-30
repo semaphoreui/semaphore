@@ -526,8 +526,8 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 		return err
 	}
 
-	if tsk == nil { // task not active, but exists in database
-
+	// task not active, but exists in database. For non-HA mode
+	if tsk == nil {
 		tsk = NewTaskRunner(targetTask, p, "", p.keyInstallationService)
 
 		err := tsk.populateDetails()
@@ -536,18 +536,19 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 		}
 		tsk.SetStatus(task_logger.TaskStoppedStatus)
 		tsk.createTaskEvent()
+		return nil
+	}
+
+	status := tsk.Task.Status
+
+	if forceStop {
+		tsk.SetStatus(task_logger.TaskStoppedStatus)
 	} else {
-		status := tsk.Task.Status
+		tsk.SetStatus(task_logger.TaskStoppingStatus)
+	}
 
-		if forceStop {
-			tsk.SetStatus(task_logger.TaskStoppedStatus)
-		} else {
-			tsk.SetStatus(task_logger.TaskStoppingStatus)
-		}
-
-		if status == task_logger.TaskRunningStatus {
-			tsk.kill()
-		}
+	if status == task_logger.TaskRunningStatus {
+		tsk.kill()
 	}
 
 	return nil

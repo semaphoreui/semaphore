@@ -164,9 +164,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		return
 	}
 
-	if t.taskPool != nil && t.taskPool.state != nil {
-		t.taskPool.state.UpdateRuntimeFields(tsk)
-	}
+	t.taskPool.state.UpdateRuntimeFields(tsk)
 
 	startTime := tz.Now()
 
