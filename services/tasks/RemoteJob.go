@@ -2,9 +2,11 @@ package tasks
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"time"
 
@@ -91,6 +93,31 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	return
 }
 
+func shuffleRunners(rs []db.Runner) []db.Runner {
+	if len(rs) < 2 {
+		return rs
+	}
+
+	// Work on a copy so that if randomness fails, we can safely return the original order.
+	shuffled := make([]db.Runner, len(rs))
+	copy(shuffled, rs)
+
+	// Fisher–Yates shuffle using crypto/rand: for each i, pick j in [0, i].
+	for i := len(shuffled) - 1; i > 0; i-- {
+		max := big.NewInt(int64(i + 1))
+		j, err := rand.Int(rand.Reader, max)
+		if err != nil {
+			log.WithError(err).Warn("failed to shuffle runners, using original order")
+			return rs
+		}
+
+		ji := int(j.Int64())
+		shuffled[i], shuffled[ji] = shuffled[ji], shuffled[i]
+	}
+
+	return shuffled
+}
+
 func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
 
 	tsk, err := t.taskPool.GetTask(t.Task.ID)
@@ -115,11 +142,15 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		if err != nil {
 			return
 		}
+		projectRunners = shuffleRunners(projectRunners)
+
 		var globalRunners []db.Runner
 		globalRunners, err = t.taskPool.store.GetAllRunners(true, true)
 		if err != nil {
 			return
 		}
+		globalRunners = shuffleRunners(globalRunners)
+
 		runners = append(runners, projectRunners...)
 		runners = append(runners, globalRunners...)
 	})
