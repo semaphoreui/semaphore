@@ -10,15 +10,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/semaphoreui/semaphore/pkg/tz"
-	log "github.com/sirupsen/logrus"
-
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/util"
 )
 
-// ErrAllRunnersBusy is returned when all available runners are busy
+// ErrAllRunnersBusy is returned when all available runners are busy. Used for logic
 var ErrAllRunnersBusy = errors.New("all runners busy")
 
 type RemoteJob struct {
@@ -40,12 +38,6 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	if runner.Webhook == "" {
 		return
 	}
-
-	log.WithFields(log.Fields{
-		"runner_id": runner.ID,
-		"task_id":   tsk.Task.ID,
-		"action":    action,
-	}).Infof("Calling runner webhook")
 
 	var jsonBytes []byte
 	jsonBytes, err = json.Marshal(runnerWebhookPayload{
@@ -84,12 +76,6 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"runner_id": runner.ID,
-		"task_id":   tsk.Task.ID,
-		"action":    action,
-	}).Infof("Runner webhook returned %d", resp.StatusCode)
-
 	return
 }
 
@@ -119,7 +105,6 @@ func shuffleRunners(rs []db.Runner) []db.Runner {
 }
 
 func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
-
 	tsk, err := t.taskPool.GetTask(t.Task.ID)
 
 	if err != nil {
@@ -137,6 +122,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {
+
 		var projectRunners []db.Runner
 		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, t.RunnerTag)
 		if err != nil {
@@ -185,8 +171,8 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		return
 	}
 
-	tsk.RunnerID = runner.ID
 	tsk.Task.RunnerID = &runner.ID
+
 	db.StoreSession(t.taskPool.store, "remote job assign runner", func() {
 		err = t.taskPool.store.UpdateTask(tsk.Task)
 	})
