@@ -121,7 +121,7 @@ func CreateTaskPoolWithState(
 }
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
 	for _, task := range p.state.RunningRange() {
-		if task.RunnerID == runnerID {
+		if task.Task.RunnerID != nil && *task.Task.RunnerID == runnerID {
 			res++
 		}
 	}
@@ -448,7 +448,7 @@ func (p *TaskPool) HydrateTaskRunnerFromDB(taskID int) (*TaskRunner, error) {
 		return nil, err
 	}
 	if row.RunnerID != nil {
-		tr.RunnerID = *row.RunnerID
+		tr.Task.RunnerID = row.RunnerID
 	}
 	return tr, nil
 }

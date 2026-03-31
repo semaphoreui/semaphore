@@ -93,6 +93,12 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 
 func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
 
+	log.WithFields(log.Fields{
+		"task_id": t.Task.ID,
+		"action":  "run",
+		"context": "remote_job",
+	}).Info("Getting task from task pool")
+
 	tsk, err := t.taskPool.GetTask(t.Task.ID)
 
 	if err != nil {
@@ -103,6 +109,12 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		return fmt.Errorf("task not found")
 	}
 
+	log.WithFields(log.Fields{
+		"task_id": t.Task.ID,
+		"action":  "run",
+		"context": "remote_job",
+	}).Info("Update task pool's state")
+
 	tsk.IncomingVersion = incomingVersion
 	tsk.Username = username
 	tsk.Alias = alias
@@ -110,6 +122,13 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {
+
+		log.WithFields(log.Fields{
+			"task_id": t.Task.ID,
+			"action":  "run",
+			"context": "remote_job",
+		}).Info("Getting runner")
+
 		var projectRunners []db.Runner
 		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, t.RunnerTag)
 		if err != nil {
@@ -148,14 +167,26 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		return
 	}
 
+	log.WithFields(log.Fields{
+		"task_id": t.Task.ID,
+		"action":  "run",
+		"context": "remote_job",
+	}).Info("call runner webhook")
+
 	err = callRunnerWebhook(runner, tsk, "start")
 
 	if err != nil {
 		return
 	}
 
-	tsk.RunnerID = runner.ID
 	tsk.Task.RunnerID = &runner.ID
+
+	log.WithFields(log.Fields{
+		"task_id": t.Task.ID,
+		"action":  "run",
+		"context": "remote_job",
+	}).Info("Update runner ID for task")
+
 	db.StoreSession(t.taskPool.store, "remote job assign runner", func() {
 		err = t.taskPool.store.UpdateTask(tsk.Task)
 	})
@@ -163,6 +194,12 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	if err != nil {
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"task_id": t.Task.ID,
+		"action":  "run",
+		"context": "remote_job",
+	}).Info("Update state again")
 
 	t.taskPool.state.UpdateRuntimeFields(tsk)
 

@@ -139,7 +139,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 	tasks := c.taskPool.GetRunningTasks()
 
 	for _, tsk := range tasks {
-		if tsk.RunnerID != runner.ID {
+		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runner.ID {
 			continue
 		}
 
@@ -278,7 +278,7 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 			continue
 		}
 
-		if tsk.RunnerID != runner.ID {
+		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runner.ID {
 			helpers.WriteErrorStatus(w, "Task not assigned to this runner", http.StatusBadRequest)
 			return
 		}

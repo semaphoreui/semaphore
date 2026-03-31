@@ -46,7 +46,6 @@ type TaskRunner struct {
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
 
-	RunnerID        int
 	Username        string
 	IncomingVersion *string
 
@@ -135,11 +134,6 @@ func (t *TaskRunner) createTaskEvent() {
 		Description: &desc,
 	}
 
-	var runnerID *int
-	if t.RunnerID > 0 {
-		runnerID = &t.RunnerID
-	}
-
 	if err := t.pool.logWriteService.WriteTaskLog(pro_interfaces.TaskLogRecord{
 		ProjectID:    t.Task.ProjectID,
 		TemplateID:   t.Template.ID,
@@ -148,7 +142,7 @@ func (t *TaskRunner) createTaskEvent() {
 		UserID:       t.Task.UserID,
 		Description:  &desc,
 		Username:     t.Username,
-		RunnerID:     runnerID,
+		RunnerID:     t.Task.RunnerID,
 		Status:       t.Task.Status,
 	}); err != nil {
 		log.Error(err)
@@ -202,8 +196,7 @@ func (t *TaskRunner) run() {
 	t.SetStatus(task_logger.TaskStartingStatus)
 	t.createTaskEvent()
 
-	t.Log("Started: " + strconv.Itoa(t.Task.ID))
-	t.Log("Run TaskRunner with template: " + t.Template.Name + "\n")
+	t.Log("Started task #" + strconv.Itoa(t.Task.ID) + " of template '" + t.Template.Name + "'\n")
 
 	var err error
 	var username string
