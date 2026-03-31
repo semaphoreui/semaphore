@@ -1,6 +1,6 @@
 name: Dev
 
-'on':
+on:
   push:
     branches:
       - develop
@@ -20,7 +20,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -254,7 +254,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -335,7 +335,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -415,7 +415,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -480,7 +480,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4

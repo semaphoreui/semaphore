@@ -1,6 +1,6 @@
 name: Pro Self-Hosted Release
 
-'on':
+on:
   push:
     tags:
       - v*-beta*
@@ -20,7 +20,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -97,8 +97,6 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
-
-
       - name: Server meta
         id: server
         uses: docker/metadata-action@v5
@@ -174,8 +172,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
-
-
 
       - name: Runner meta
         id: runner
