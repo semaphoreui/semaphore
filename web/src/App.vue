@@ -1,5 +1,7 @@
 <template>
   <v-app v-if="state === 'success'" class="app">
+    <IntroDialog v-model="introDialog" />
+
     <YesNoDialog
       :title="$t('projectRestoreResult')"
       v-model="restoreProjectResultDialog"
@@ -859,6 +861,7 @@ import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import TaskLogDialog from '@/components/TaskLogDialog.vue';
 import delay from '@/lib/delay';
+import IntroDialog from '@/components/IntroDialog.vue';
 
 const PROJECT_COLORS = ['red', 'blue', 'orange', 'green'];
 
@@ -930,6 +933,7 @@ function getSystemLang() {
 export default {
   name: 'App',
   components: {
+    IntroDialog,
     SubscriptionForm,
     TaskLogDialog,
     YesNoDialog,
@@ -976,6 +980,8 @@ export default {
           ...LANGUAGES[lang],
         })),
       ],
+
+      introDialog: null,
     };
   },
 
@@ -1066,6 +1072,7 @@ export default {
     try {
       await this.loadData();
       this.state = 'success';
+      this.introDialog = !this.systemInfo.seen_intro;
     } catch (err) {
       if (err.response && err.response.status === 401) {
         if (this.$route.path !== '/auth/login') {
