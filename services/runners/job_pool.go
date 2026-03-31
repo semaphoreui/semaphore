@@ -239,7 +239,7 @@ func (p *JobPool) Run() {
 					fmt.Println("Runner connected")
 				}
 
-				if util.Config.Runner.OneOff && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
+				if util.Config.Runner.OneOff && ok && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
 					os.Exit(0)
 				}
 
