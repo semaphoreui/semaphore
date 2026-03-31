@@ -14,7 +14,7 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-// ErrAllRunnersBusy is returned when all available runners are busy
+// ErrAllRunnersBusy is returned when all available runners are busy. Used for logic
 var ErrAllRunnersBusy = errors.New("all runners busy")
 
 type RemoteJob struct {
