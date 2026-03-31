@@ -50,7 +50,7 @@ FROM alpine:3.21
 
 ARG TARGETARCH="amd64"
 # renovate: datasource=pypi depName=ansible
-ARG ANSIBLE_VERSION=11.1.0
+ARG ANSIBLE_VERSION=13.5.0
 ENV ANSIBLE_VERSION=${ANSIBLE_VERSION}
 ARG ANSIBLE_VENV_PATH=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv
 
