@@ -14,6 +14,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 )
 
 // ErrAllRunnersBusy is returned when all available runners are busy. Used for logic
