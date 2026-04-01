@@ -6,116 +6,117 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 )
 
+const taskOutputBatchSize = 1000
+
 type TaskOutputExporter struct {
 	ValueMap[db.TaskOutput]
+	sourceStore  db.Store
+	projectTasks map[string][]int
+	totalTasks   int
 }
 
+// load saves the source store reference and collects the task IDs per project
+// without loading any task output rows into memory.  The actual data transfer
+// is deferred to restore() which streams rows in small batches.
 func (e *TaskOutputExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
 	if err != nil {
 		return err
 	}
 
-	taskCount, err := taskCount(exporter)
-	if err != nil {
-		return err
+	e.sourceStore = store
+	e.projectTasks = make(map[string][]int)
+	e.totalTasks = 0
+
+	for _, projId := range projs {
+		tasks, err := exporter.getLoadedKeysInt(Task, strconv.Itoa(projId))
+		if err != nil {
+			return err
+		}
+
+		projScope := strconv.Itoa(projId)
+		e.projectTasks[projScope] = tasks
+		e.totalTasks += len(tasks)
+	}
+
+	return nil
+}
+
+// restore streams task output rows from the source store to the destination
+// store in pages of taskOutputBatchSize rows, so that only a small number of
+// rows are held in memory at any one time regardless of table size.
+func (e *TaskOutputExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	if e.sourceStore == nil || e.projectTasks == nil {
+		return nil
 	}
 
 	taskIndex := 0
+	batch := make([]db.TaskOutput, 0, taskOutputBatchSize)
 
-	for _, projId := range projs {
+	for projScope, tasks := range e.projectTasks {
+		// projScope was produced by strconv.Itoa in load(), so this conversion is always safe.
+		projId, _ := strconv.Atoi(projScope)
 
-		tasks, err := exporter.getLoadedKeysInt(Task, strconv.Itoa(projId))
-		if err != nil {
-			return err
-		}
+		for _, taskID := range tasks {
+			offset := 0
 
-		allValues := make([]db.TaskOutput, 0)
-		for _, task := range tasks {
+			for {
+				outputs, loadErr := e.sourceStore.GetTaskOutputs(projId, taskID, db.RetrieveQueryParams{
+					Count:  taskOutputBatchSize,
+					Offset: offset,
+				})
+				if loadErr != nil {
+					return loadErr
+				}
 
-			outputRes, err := store.GetTaskOutputs(projId, task, db.RetrieveQueryParams{})
-			if err != nil {
-				return err
+				if len(outputs) == 0 {
+					break
+				}
+
+				for _, old := range outputs {
+					old.TaskID, err = exporter.getNewKeyInt(Task, projScope, old.TaskID)
+					if err != nil {
+						return err
+					}
+
+					// boltDb currently doesn't support task stages
+					old.StageID = nil
+
+					batch = append(batch, old)
+
+					if len(batch) == taskOutputBatchSize {
+						if err = store.InsertTaskOutputBatch(batch); err != nil {
+							return err
+						}
+						batch = batch[:0]
+					}
+				}
+
+				offset += len(outputs)
+				if len(outputs) < taskOutputBatchSize {
+					break
+				}
 			}
 
-			allValues = append(allValues, outputRes...)
-
-			taskIndex = taskIndex + 1
-			progress.update(float32(taskIndex)/float32(taskCount), 0)
-		}
-
-		err = e.appendValues(allValues, strconv.Itoa(projId))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func taskCount(exporter DataExporter) (int, error) {
-
-	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
-	if err != nil {
-		return 0, err
-	}
-
-	count := 0
-
-	for _, projId := range projs {
-
-		tasks, err := exporter.getLoadedKeysInt(Task, strconv.Itoa(projId))
-		if err != nil {
-			return 0, err
-		}
-		count = count + len(tasks)
-	}
-
-	return count, nil
-}
-
-func (e *TaskOutputExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
-
-	outputs := make([]db.TaskOutput, 0)
-
-	size := len(e.values)
-
-	for index, val := range e.values {
-		old := val.value
-
-		old.TaskID, err = exporter.getNewKeyInt(Task, val.scope, old.TaskID)
-		if err != nil {
-			return err
-		}
-
-		// boltDb currently doesn't support task stages
-		old.StageID = nil //, err = exporter.getNewKeyIntRef(TaskStage, val.scope, old.StageID, e)
-		//if err != nil {
-		//	return err
-		//}
-
-		outputs = append(outputs, old)
-
-		if len(outputs) >= 1000 {
-			err = store.InsertTaskOutputBatch(outputs)
-			if err != nil {
-				return err
+			taskIndex++
+			if e.totalTasks > 0 {
+				progress.update(float32(taskIndex)/float32(e.totalTasks), int64(taskIndex))
 			}
-
-			outputs = make([]db.TaskOutput, 0)
-		}
-
-		progress.update(float32(index)/float32(size), int64(index))
-	}
-
-	if len(outputs) > 0 {
-		err = store.InsertTaskOutputBatch(outputs)
-		if err != nil {
-			return err
 		}
 	}
 
-	return nil
+	if len(batch) > 0 {
+		err = store.InsertTaskOutputBatch(batch)
+	}
+
+	return err
+}
+
+func (e *TaskOutputExporter) clear() {
+	e.ValueMap.clear()
+	e.sourceStore = nil
+	e.projectTasks = nil
+	e.totalTasks = 0
 }
 
 func (e *TaskOutputExporter) getName() string {
