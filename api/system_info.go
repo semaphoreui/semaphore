@@ -80,16 +80,17 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 	}
 
 	body := map[string]any{
-		"version":           util.Version(),
-		"ansible":           util.AnsibleVersion(),
-		"web_host":          util.Config.WebHost,
-		"use_remote_runner": util.Config.UseRemoteRunner,
-		"auth_methods":      authMethods,
-		"premium_features":  proFeatures.GetFeatures(user, plan),
-		"git_client":        util.Config.GitClientId,
-		"schedule_timezone": timezone,
-		"teams":             util.Config.Teams,
-		"roles":             roles,
+		"version":             util.Version(),
+		"ansible":             util.AnsibleVersion(),
+		"web_host":            util.Config.WebHost,
+		"use_remote_runner":   util.Config.UseRemoteRunner,
+		"auth_methods":        authMethods,
+		"login_with_password": !util.Config.PasswordLoginDisable,
+		"premium_features":    proFeatures.GetFeatures(user, plan),
+		"git_client":          util.Config.GitClientId,
+		"schedule_timezone":   timezone,
+		"teams":               util.Config.Teams,
+		"roles":               roles,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

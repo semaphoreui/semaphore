@@ -37,6 +37,7 @@
           :need-reset="needReset"
           :is-admin="user.admin"
           :auth-methods="(systemInfo || { auth_methods: {} }).auth_methods"
+          :login-with-password="(systemInfo || {}).login_with_password"
           @hide-action-buttons="hideUserDialogButtons = true"
           @show-action-buttons="hideUserDialogButtons = false"
         />
