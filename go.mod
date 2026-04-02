@@ -4,12 +4,15 @@ go 1.24.6
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
+	github.com/MicahParks/jwkset v0.11.0
+	github.com/MicahParks/keyfunc/v3 v3.8.0
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/creack/pty v1.1.24
 	github.com/go-git/go-git/v5 v5.16.5
 	github.com/go-gorp/gorp/v3 v3.1.0
 	github.com/go-ldap/ldap/v3 v3.4.12
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
@@ -72,6 +75,7 @@ require (
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/term v0.40.0 // indirect
+	golang.org/x/time v0.9.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.66.10 // indirect

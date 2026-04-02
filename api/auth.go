@@ -213,9 +213,25 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 
 	req = r
 
+	var jwtConfig *util.JWTAuthConfig
+	if util.Config.Auth != nil {
+		jwtConfig = util.Config.Auth.JWT
+	}
 	authHeader := strings.ToLower(r.Header.Get("authorization"))
 
-	if len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
+	if jwtConfig != nil && jwtConfig.Enabled && r.Header.Get(jwtConfig.GetHeader()) != "" {
+		// JWT proxy auth: if the header is present, commit to this path.
+		var err error
+		userID, err = authenticateByJWT(r)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"path":   r.URL.Path,
+				"remote": r.RemoteAddr,
+			}).Warn("JWT auth failed: ", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+	} else if len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
 		token, err := helpers.Store(r).GetAPIToken(strings.Replace(authHeader, "bearer ", "", 1))
 
 		if err != nil {

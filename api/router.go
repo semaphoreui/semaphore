@@ -95,6 +95,9 @@ func Route(
 	environmentService server.EnvironmentService,
 	subscriptionService pro_interfaces.SubscriptionService,
 ) *mux.Router {
+	if util.Config.Auth != nil && util.Config.Auth.JWT != nil && util.Config.Auth.JWT.Enabled {
+		initJWKSCache(util.Config.Auth.JWT.JWKSURL)
+	}
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
 	runnerController := runners.NewRunnerController(store, taskPool, encryptionService)
