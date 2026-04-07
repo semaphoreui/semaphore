@@ -93,6 +93,8 @@ func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) (Acc
 		return pro.NewDvlsAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), storage.ReadOnly, nil
 	case db.SecretStorageTypeAwsSm:
 		return pro.NewAwsSmAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), storage.ReadOnly, nil
+	case db.SecretStorageTypeAzureKv:
+		return pro.NewAzureKvAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), storage.ReadOnly, nil
 	}
 
 	return nil, false, fmt.Errorf("unsupported secret storage type '%s'", storage.Type)

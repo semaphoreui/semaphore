@@ -22,3 +22,11 @@ func SyncAwsSmSecrets(
 ) error {
 	return nil
 }
+
+func SyncAzureKvSecrets(
+	storage db.SecretStorage,
+	accessKeyRepo db.AccessKeyManager,
+	decryptor AzureKvStorageTokenDeserializer,
+) error {
+	return nil
+}
