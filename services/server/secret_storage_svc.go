@@ -43,6 +43,8 @@ func (s *SecretStorageServiceImpl) SyncSecrets(storage db.SecretStorage) error {
 	switch storage.Type {
 	case db.SecretStorageTypeDvls:
 		return pro.SyncDvlsSecrets(storage, s.accessKeyRepo, s.encryptionService)
+	case db.SecretStorageTypeAwsSm:
+		return pro.SyncAwsSmSecrets(storage, s.accessKeyRepo, s.encryptionService)
 	default:
 		return fmt.Errorf("sync is not supported for storage type %q", storage.Type)
 	}
