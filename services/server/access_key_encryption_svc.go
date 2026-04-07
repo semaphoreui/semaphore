@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	pro "github.com/semaphoreui/semaphore/pro/services/server"
 )
 
@@ -111,7 +112,7 @@ func (s *accessKeyEncryptionServiceImpl) SerializeSecret(key *db.AccessKey) erro
 		return err
 	}
 	if readonly {
-		return nil
+		return common_errors.NewUserErrorS("cannot modify secret in read-only storage")
 	}
 
 	err = key.Validate(true)
