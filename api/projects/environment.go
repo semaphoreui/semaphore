@@ -106,12 +106,14 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 			}
 
 			updateKey := db.AccessKey{
-				ID:              key.ID,
-				ProjectID:       key.ProjectID,
-				Name:            secret.Name,
-				Type:            db.AccessKeyString,
-				Owner:           key.Owner,
-				SourceStorageID: env.SecretStorageID,
+				ID:                key.ID,
+				ProjectID:         key.ProjectID,
+				Name:              secret.Name,
+				Type:              db.AccessKeyString,
+				Owner:             key.Owner,
+				SourceStorageID:   env.SecretStorageID,
+				SourceStorageType: key.SourceStorageType,
+				SourceStorageKey:  key.SourceStorageKey,
 			}
 			if secret.Secret != "" {
 				updateKey.String = secret.Secret
@@ -119,6 +121,10 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 			}
 
 			err = c.accessKeyService.Update(updateKey)
+			if err != nil {
+				errors = append(errors, err)
+				continue
+			}
 		}
 	}
 

@@ -17,7 +17,7 @@ func TestSetSecret(t *testing.T) {
 		},
 	}
 
-	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil)
+	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil, nil)
 
 	util.Config = &util.ConfigType{}
 	err := encryptionService.SerializeSecret(&accessKey)
@@ -44,7 +44,7 @@ func TestGetSecret(t *testing.T) {
 }`))
 	util.Config = &util.ConfigType{}
 
-	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil)
+	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil, nil)
 
 	accessKey := db.AccessKey{
 		Secret: &secret,
@@ -68,7 +68,7 @@ func TestGetSecret(t *testing.T) {
 
 func TestSetGetSecretWithEncryption(t *testing.T) {
 
-	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil)
+	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil, nil)
 
 	accessKey := db.AccessKey{
 		Name: "test",

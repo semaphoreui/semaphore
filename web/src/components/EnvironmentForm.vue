@@ -6,17 +6,14 @@
     v-if="item != null && (!supportStorages || secretStorages != null)"
     class="pb-3"
   >
-    <v-alert
-      :value="formError"
-      color="error"
-      data-testid="varGroup-error"
-    >{{ formError }}
+    <v-alert :value="formError" color="error" data-testid="varGroup-error"
+      >{{ formError }}
     </v-alert>
 
     <v-text-field
       v-model="item.name"
       :label="$t('environmentName')"
-      :rules="[v => !!v || $t('name_required')]"
+      :rules="[(v) => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
       outlined
@@ -41,7 +38,7 @@
         <v-text-field
           v-model="item.secret_storage_key_prefix"
           :label="$t('Secret key prefix')"
-          :disabled="formSaving || !item.secret_storage_id|| !isNew"
+          :disabled="formSaving || !item.secret_storage_id || !isNew"
           outlined
           dense
         />
@@ -53,22 +50,16 @@
       <v-tab key="secrets">Secrets</v-tab>
     </v-tabs>
 
-    <v-divider style="margin-top: -1px;" class="mb-7"/>
+    <v-divider style="margin-top: -1px" class="mb-7" />
 
     <v-tabs-items v-model="tab">
       <v-tab-item key="variables">
-
         <v-subheader class="px-0">
           {{ $t('extraVariables') }}
 
           <v-tooltip v-if="needHelp" bottom color="black" open-delay="300" max-width="400">
             <template v-slot:activator="{ on, attrs }">
-              <v-icon
-                class="ml-1"
-                v-bind="attrs"
-                v-on="on"
-              >mdi-help-box
-              </v-icon>
+              <v-icon class="ml-1" v-bind="attrs" v-on="on">mdi-help-box </v-icon>
             </template>
             <div>
               <div><code>--extra-vars</code> for Ansible</div>
@@ -76,33 +67,22 @@
             </div>
           </v-tooltip>
 
-          <v-spacer/>
+          <v-spacer />
 
-          <v-btn-toggle
-            v-model="extraVarsEditMode"
-            tile
-            group
-          >
-            <v-btn value="table" small class="mr-0" style="border-radius: 4px;">
-              Table
-            </v-btn>
-            <v-btn value="json" small class="mr-0" style="border-radius: 4px;">
-              JSON
-            </v-btn>
+          <v-btn-toggle v-model="extraVarsEditMode" tile group>
+            <v-btn value="table" small class="mr-0" style="border-radius: 4px"> Table </v-btn>
+            <v-btn value="json" small class="mr-0" style="border-radius: 4px"> JSON </v-btn>
           </v-btn-toggle>
 
           <v-btn icon @click="addExtraVar()" data-testid="varGroup-addVar">
-            <v-icon>
-              mdi-plus
-            </v-icon>
+            <v-icon> mdi-plus </v-icon>
           </v-btn>
-
         </v-subheader>
 
-        <div v-if="extraVarsEditMode === 'json'" style="position: relative;">
+        <div v-if="extraVarsEditMode === 'json'" style="position: relative">
           <codemirror
             :class="{
-              'EnvironmentEditor': true,
+              EnvironmentEditor: true,
             }"
             :style="{ border: '1px solid lightgray' }"
             v-model="json"
@@ -114,12 +94,7 @@
             v-model="json"
             type="json"
             v-if="extraVarsEditMode === 'json'"
-            style="
-              position: absolute;
-              right: 0;
-              top: 0;
-              margin: 10px;
-            "
+            style="position: absolute; right: 0; top: 0; margin: 10px"
           />
         </div>
         <div v-else-if="extraVarsEditMode === 'table'">
@@ -154,12 +129,8 @@
                     :placeholder="$t('Value')"
                   ></v-text-field>
                 </td>
-                <td style="width: 38px;">
-                  <v-icon
-                    small
-                    class="pa-1"
-                    @click="removeExtraVar(props.item)"
-                  >
+                <td style="width: 38px">
+                  <v-icon small class="pa-1" @click="removeExtraVar(props.item)">
                     mdi-delete
                   </v-icon>
                 </td>
@@ -176,12 +147,10 @@
           <v-subheader class="px-0 mt-4">
             {{ $t('environmentVariables') }}
 
-            <v-spacer/>
+            <v-spacer />
 
             <v-btn icon @click="addEnvVar()" data-testid="varGroup-addEnv">
-              <v-icon>
-                mdi-plus
-              </v-icon>
+              <v-icon> mdi-plus </v-icon>
             </v-btn>
           </v-subheader>
           <v-data-table
@@ -214,14 +183,8 @@
                     :placeholder="$t('Value')"
                   ></v-text-field>
                 </td>
-                <td style="width: 38px;">
-                  <v-icon
-                    small
-                    class="pa-1"
-                    @click="removeEnvVar(props.item)"
-                  >
-                    mdi-delete
-                  </v-icon>
+                <td style="width: 38px">
+                  <v-icon small class="pa-1" @click="removeEnvVar(props.item)"> mdi-delete </v-icon>
                 </td>
               </tr>
             </template>
@@ -230,9 +193,8 @@
       </v-tab-item>
 
       <v-tab-item key="secrets">
-
         <div v-if="!isNew && secretStorage" class="pb-3">
-          <div style="font-weight: bold; font-size: 20px;">
+          <div style="font-weight: bold; font-size: 20px">
             <v-icon small class="mr-1">{{ getIcon(secretStorage.type) }}</v-icon>
             {{ secretStorage.name }}
           </div>
@@ -245,12 +207,7 @@
 
             <v-tooltip v-if="needHelp" bottom color="black" open-delay="300" max-width="400">
               <template v-slot:activator="{ on, attrs }">
-                <v-icon
-                  class="ml-1"
-                  v-bind="attrs"
-                  v-on="on"
-                >mdi-help-box
-                </v-icon>
+                <v-icon class="ml-1" v-bind="attrs" v-on="on">mdi-help-box </v-icon>
               </template>
               <div>
                 <div><code>--extra-vars</code> for Ansible</div>
@@ -258,16 +215,14 @@
               </div>
             </v-tooltip>
 
-            <v-spacer/>
+            <v-spacer />
             <v-btn icon @click="addSecret('var')" data-testid="varGroup-addSecretVar">
-              <v-icon>
-                mdi-plus
-              </v-icon>
+              <v-icon> mdi-plus </v-icon>
             </v-btn>
           </v-subheader>
 
           <v-data-table
-            :items="secrets.filter(s => !s.remove && s.type === 'var')"
+            :items="secrets.filter((s) => !s.remove && s.type === 'var')"
             :items-per-page="-1"
             class="elevation-1 FieldTable"
             hide-default-footer
@@ -298,14 +253,8 @@
                   ></v-text-field>
                 </td>
 
-                <td style="width: 38px;">
-                  <v-icon
-                    small
-                    class="pa-1"
-                    @click="removeSecret(props.item)"
-                  >
-                    mdi-delete
-                  </v-icon>
+                <td style="width: 38px">
+                  <v-icon small class="pa-1" @click="removeSecret(props.item)"> mdi-delete </v-icon>
                 </td>
               </tr>
             </template>
@@ -316,17 +265,15 @@
           <v-subheader class="px-0 mt-4">
             {{ $t('environmentVariables') }}
 
-            <v-spacer/>
+            <v-spacer />
 
             <v-btn icon @click="addSecret('env')" data-testid="varGroup-addSecretEnv">
-              <v-icon>
-                mdi-plus
-              </v-icon>
+              <v-icon> mdi-plus </v-icon>
             </v-btn>
           </v-subheader>
 
           <v-data-table
-            :items="secrets.filter(s => !s.remove && s.type === 'env')"
+            :items="secrets.filter((s) => !s.remove && s.type === 'env')"
             :items-per-page="-1"
             class="elevation-1 FieldTable"
             hide-default-footer
@@ -357,23 +304,15 @@
                   ></v-text-field>
                 </td>
 
-                <td style="width: 38px;">
-                  <v-icon
-                    small
-                    class="pa-1"
-                    @click="removeSecret(props.item)"
-                  >
-                    mdi-delete
-                  </v-icon>
+                <td style="width: 38px">
+                  <v-icon small class="pa-1" @click="removeSecret(props.item)"> mdi-delete </v-icon>
                 </td>
               </tr>
             </template>
           </v-data-table>
         </div>
-
       </v-tab-item>
     </v-tabs-items>
-
   </v-form>
 </template>
 <style lang="scss">
@@ -427,10 +366,17 @@ export default {
             return;
           }
 
-          this.json = JSON.stringify(this.extraVars.reduce((prev, curr) => ({
-            ...prev,
-            [curr.name]: curr.value,
-          }), {}), null, 2);
+          this.json = JSON.stringify(
+            this.extraVars.reduce(
+              (prev, curr) => ({
+                ...prev,
+                [curr.name]: curr.value,
+              }),
+              {},
+            ),
+            null,
+            2,
+          );
           break;
         case 'table':
           try {
@@ -444,11 +390,10 @@ export default {
           if (Object.keys(extraVars).some((x) => typeof extraVars[x] === 'object')) {
             this.extraVars = null;
           } else {
-            this.extraVars = Object.keys(extraVars)
-              .map((x) => ({
-                name: x,
-                value: extraVars[x],
-              }));
+            this.extraVars = Object.keys(extraVars).map((x) => ({
+              name: x,
+              value: extraVars[x],
+            }));
           }
           break;
         default:
@@ -505,9 +450,10 @@ export default {
   },
 
   methods: {
-
     getIcon(type) {
       switch (type) {
+        case 'aws_sm':
+          return '$vuetify.icons.aws_sm';
         case 'vault':
           return '$vuetify.icons.hashicorp_vault';
         case 'dvls':
@@ -541,7 +487,10 @@ export default {
 
     addSecret(type) {
       this.secrets.push({
-        type, name: '', value: '', new: true,
+        type,
+        name: '',
+        value: '',
+        new: true,
       });
     },
 
@@ -569,38 +518,48 @@ export default {
           if (this.extraVars == null) {
             this.item.json = this.json;
           } else {
-            this.item.json = JSON.stringify(this.extraVars.reduce((prev, curr) => ({
-              ...prev,
-              [curr.name]: curr.value,
-            }), {}));
+            this.item.json = JSON.stringify(
+              this.extraVars.reduce(
+                (prev, curr) => ({
+                  ...prev,
+                  [curr.name]: curr.value,
+                }),
+                {},
+              ),
+            );
           }
           break;
         default:
           throw new Error(`Invalid extra variables edit mode: ${this.extraVarsEditMode}`);
       }
 
-      const env = (this.env || []).reduce((prev, curr) => ({
-        ...prev,
-        [curr.name]: curr.value,
-      }), {});
+      const env = (this.env || []).reduce(
+        (prev, curr) => ({
+          ...prev,
+          [curr.name]: curr.value,
+        }),
+        {},
+      );
 
-      const secrets = (this.secrets || []).map((s) => {
-        let operation;
-        if (s.new) {
-          operation = 'create';
-        } else if (s.remove) {
-          operation = 'delete';
-        } else {
-          operation = 'update';
-        }
-        return {
-          id: s.id,
-          name: s.name,
-          secret: s.value,
-          type: s.type,
-          operation,
-        };
-      }).filter((s) => s.operation != null);
+      const secrets = (this.secrets || [])
+        .map((s) => {
+          let operation;
+          if (s.new) {
+            operation = 'create';
+          } else if (s.remove) {
+            operation = 'delete';
+          } else {
+            operation = 'update';
+          }
+          return {
+            id: s.id,
+            name: s.name,
+            secret: s.value,
+            type: s.type,
+            operation,
+          };
+        })
+        .filter((s) => s.operation != null);
 
       this.item.env = JSON.stringify(env);
       this.item.secrets = secrets;
@@ -608,11 +567,7 @@ export default {
 
     async afterLoadData() {
       if (this.itemId === 'new') {
-        [
-          this.secretStorages,
-        ] = await Promise.all([
-          this.loadProjectResources('secret_storages'),
-        ]);
+        [this.secretStorages] = await Promise.all([this.loadProjectResources('secret_storages')]);
       } else {
         this.secretStorages = [];
 
@@ -635,11 +590,10 @@ export default {
         this.extraVars = null;
         this.extraVarsEditMode = 'json';
       } else {
-        this.extraVars = Object.keys(json)
-          .map((x) => ({
-            name: x,
-            value: json[x],
-          }));
+        this.extraVars = Object.keys(json).map((x) => ({
+          name: x,
+          value: json[x],
+        }));
         this.extraVarsEditMode = 'table';
       }
 

@@ -14,3 +14,11 @@ func SyncDvlsSecrets(
 ) error {
 	return nil
 }
+
+func SyncAwsSmSecrets(
+	storage db.SecretStorage,
+	accessKeyRepo db.AccessKeyManager,
+	decryptor AwsSmStorageTokenDeserializer,
+) error {
+	return nil
+}
