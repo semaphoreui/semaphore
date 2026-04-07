@@ -37,6 +37,10 @@ func (s *InventoryServiceMock) GetInventory(projectID int, inventoryID int) (inv
 type EncryptionServiceMock struct {
 }
 
+func (s *EncryptionServiceMock) RekeyAccessKeys(oldKey string) (err error) {
+	return nil
+}
+
 func (s *EncryptionServiceMock) DeleteSecret(key *db.AccessKey) error {
 	return nil
 }
