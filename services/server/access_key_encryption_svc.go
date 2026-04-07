@@ -19,6 +19,7 @@ type AccessKeyEncryptionService interface {
 	DeserializeSecret(key *db.AccessKey) error
 	FillEnvironmentSecrets(env *db.Environment, deserializeSecret bool) error
 	DeleteSecret(key *db.AccessKey) error
+	RekeyAccessKeys(oldKey string) (err error)
 }
 
 func NewAccessKeyEncryptionService(

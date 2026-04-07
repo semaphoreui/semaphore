@@ -326,11 +326,11 @@ type EnvironmentManager interface {
 }
 
 type GetAccessKeyOptions struct {
-	Owner            AccessKeyOwner
-	IgnoreOwner      bool
-	EnvironmentID    *int
-	StorageID        *int
-	SourceStorageID  *int
+	Owner           AccessKeyOwner
+	IgnoreOwner     bool
+	EnvironmentID   *int
+	StorageID       *int
+	SourceStorageID *int
 }
 
 // AccessKeyManager handles access key-related operations
@@ -338,7 +338,6 @@ type AccessKeyManager interface {
 	GetAccessKey(projectID int, accessKeyID int) (AccessKey, error)
 	GetAccessKeyRefs(projectID int, accessKeyID int) (ObjectReferrers, error)
 	GetAccessKeys(projectID int, options GetAccessKeyOptions, params RetrieveQueryParams) ([]AccessKey, error)
-	RekeyAccessKeys(oldKey string) error
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
 	DeleteAccessKey(projectID int, accessKeyID int) error
