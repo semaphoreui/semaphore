@@ -80,6 +80,20 @@
             </v-list-item-icon>
             <v-list-item-title>Devolutions Server</v-list-item-title>
           </v-list-item>
+
+          <v-list-item
+              link
+              @click="
+              editItem('new');
+              itemType = 'aws_sm';
+            "
+              :disabled="!premiumFeatures.secret_storage_management"
+          >
+            <v-list-item-icon>
+              <v-icon>$vuetify.icons.aws_sm</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>AWS Secrets Manager</v-list-item-title>
+          </v-list-item>
         </v-list>
       </v-menu>
     </v-toolbar>
@@ -222,6 +236,8 @@ export default {
           return '$vuetify.icons.hashicorp_vault';
         case 'dvls':
           return '$vuetify.icons.dvls';
+        case 'aws_sm':
+          return '$vuetify.icons.aws_sm';
         default:
           return '';
       }

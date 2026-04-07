@@ -13,6 +13,7 @@
     ></v-text-field>
 
     <v-text-field
+      v-if="item.type !== 'aws_sm'"
       v-model="item.params.url"
       :label="$t('Server URL')"
       :disabled="formSaving"
@@ -142,17 +143,105 @@
       ></v-text-field>
     </div>
 
+    <div v-else-if="item.type === 'aws_sm'">
+      <v-text-field
+        v-model="item.params.region"
+        label="Region"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Region is required']"
+        required
+        placeholder="us-east-1"
+        data-testid="secretStorage-awsRegion"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.endpoint_url"
+        label="Endpoint URL (optional)"
+        :disabled="formSaving"
+        hint="Leave empty to use the default AWS endpoint"
+        data-testid="secretStorage-awsEndpointURL"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-checkbox
+        class="pt-0 mb-2"
+        style="margin-top: -5px"
+        v-model="useIamRole"
+        label="Use IAM Role / Instance Profile"
+        :disabled="formSaving"
+      />
+
+      <template v-if="!useIamRole">
+        <v-text-field
+          v-model="item.params.access_key_id"
+          label="Access Key ID"
+          :disabled="formSaving"
+          :rules="[(v) => !!v || 'Access Key ID is required']"
+          required
+          data-testid="secretStorage-awsAccessKeyId"
+          outlined
+          dense
+        ></v-text-field>
+
+        <div class="d-flex justify-space-between align-center">
+          <b style="font-size: 13px; margin-left: 5px">Secret Key</b>
+          <v-btn-toggle v-model="secretStorage" tile group mandatory>
+            <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
+              Store in DB
+            </v-btn>
+            <v-btn value="env" small class="mr-0 mt-0" style="border-radius: 4px"> From ENV </v-btn>
+            <v-btn value="file" small class="mr-0 mt-0" style="border-radius: 4px">
+              From File
+            </v-btn>
+          </v-btn-toggle>
+        </div>
+
+        <v-text-field
+          v-if="secretStorage === 'database'"
+          class="TextInput TextInput--no-legend masked-secret-input"
+          v-model="item.secret"
+          label="Secret Access Key"
+          :disabled="formSaving"
+          :rules="[(v) => !!v || itemId !== 'new' || 'Secret Access Key is required']"
+          required
+          data-testid="secretStorage-awsSecretKey"
+          outlined
+          dense
+          append-icon="mdi-lock"
+        ></v-text-field>
+
+        <v-text-field
+          v-else
+          class="TextInput TextInput--no-legend"
+          v-model="item.secret"
+          :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
+          :disabled="formSaving"
+          :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
+          required
+          data-testid="secretStorage-awsSecretKeySource"
+          outlined
+          dense
+        ></v-text-field>
+      </template>
+    </div>
+
     <v-checkbox v-model="item.readonly" :label="$t('Read only')" :disabled="formSaving" />
 
     <v-btn
-        text
-        color="primary"
-        @click="syncSettingsDialog = true"
-        :disabled="formSaving"
-        style="margin-bottom: -70px; margin-left: -12px;"
+      text
+      color="primary"
+      @click="syncSettingsDialog = true"
+      :disabled="formSaving"
+      style="margin-bottom: -70px; margin-left: -12px"
     >
       <v-icon left>mdi-cog-sync</v-icon>
-      Sync paths ({{ item.params.sync_paths.length }})
+      Sync paths <v-chip class="ml-2"
+                         outlined
+                         style="transform: translateY(-1px)" color="primary" small>
+      {{ item.params.sync_paths.length }}</v-chip>
     </v-btn>
 
     <v-dialog v-model="syncSettingsDialog" max-width="500" persistent>
@@ -189,6 +278,7 @@ export default {
       secretStorage: 'database',
       secretStorageReady: false,
       syncSettingsDialog: false,
+      useIamRole: false,
     };
   },
 
@@ -216,6 +306,7 @@ export default {
 
       this.secretStorageReady = false;
       this.secretStorage = this.item.source_storage_type || 'database';
+      this.useIamRole = !this.item.params.access_key_id;
       this.$nextTick(() => {
         this.secretStorageReady = true;
       });
@@ -239,6 +330,13 @@ export default {
       }
 
       this.item.secret = '';
+    },
+
+    useIamRole(value) {
+      if (value) {
+        this.item.params.access_key_id = '';
+        this.item.secret = '';
+      }
     },
   },
 };

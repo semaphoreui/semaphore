@@ -6,6 +6,7 @@ const (
 	SecretStorageTypeLocal SecretStorageType = "local"
 	SecretStorageTypeVault SecretStorageType = "vault"
 	SecretStorageTypeDvls  SecretStorageType = "dvls"
+	SecretStorageTypeAwsSm SecretStorageType = "aws_sm"
 )
 
 type SecretStorage struct {

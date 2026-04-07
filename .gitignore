@@ -51,3 +51,4 @@ __debug_bin*
 /go.work.x
 /go.work
 /go.work.sum
+/.claude
