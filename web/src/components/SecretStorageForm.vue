@@ -1,6 +1,6 @@
 <template>
   <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
-    <v-alert :value="formError" color="error" class="pb-2">{{ formError }} </v-alert>
+    <v-alert :value="formError" type="error" class="mb-6" dismissible>{{ formError }} </v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -166,15 +166,15 @@
         dense
       ></v-text-field>
 
-      <v-checkbox
-        class="pt-0 mb-2"
-        style="margin-top: -5px"
-        v-model="useIamRole"
-        label="Use IAM Role / Instance Profile"
-        :disabled="formSaving"
-      />
+<!--      <v-checkbox-->
+<!--        class="pt-0 mb-2"-->
+<!--        style="margin-top: -5px"-->
+<!--        v-model="item.params.use_iam_role"-->
+<!--        label="Use IAM Role / Instance Profile"-->
+<!--        :disabled="formSaving"-->
+<!--      />-->
 
-      <template v-if="!useIamRole">
+      <template>
         <v-text-field
           v-model="item.params.access_key_id"
           label="Access Key ID"
@@ -238,10 +238,10 @@
       style="margin-bottom: -70px; margin-left: -12px"
     >
       <v-icon left>mdi-cog-sync</v-icon>
-      Sync paths <v-chip class="ml-2"
-                         outlined
-                         style="transform: translateY(-1px)" color="primary" small>
-      {{ item.params.sync_paths.length }}</v-chip>
+      Sync paths
+      <v-chip class="ml-2" outlined style="transform: translateY(-1px)" color="primary" small>
+        {{ item.params.sync_paths.length }}</v-chip
+      >
     </v-btn>
 
     <v-dialog v-model="syncSettingsDialog" max-width="500" persistent>
@@ -278,7 +278,6 @@ export default {
       secretStorage: 'database',
       secretStorageReady: false,
       syncSettingsDialog: false,
-      useIamRole: false,
     };
   },
 
@@ -306,7 +305,6 @@ export default {
 
       this.secretStorageReady = false;
       this.secretStorage = this.item.source_storage_type || 'database';
-      this.useIamRole = !this.item.params.access_key_id;
       this.$nextTick(() => {
         this.secretStorageReady = true;
       });
@@ -330,6 +328,12 @@ export default {
       }
 
       this.item.secret = '';
+    },
+
+    computed: {
+      useIamRole() {
+        return this.item?.params?.use_iam_role;
+      },
     },
 
     useIamRole(value) {

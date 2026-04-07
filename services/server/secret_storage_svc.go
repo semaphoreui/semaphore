@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	pro "github.com/semaphoreui/semaphore/pro/services/server"
 )
@@ -81,7 +82,7 @@ func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.Secr
 	sourceStorageKey := ""
 
 	if storage.Secret == "" {
-		err = errors.New("secret must be set")
+		err = common_errors.NewUserErrorS("secret must be set")
 		return
 	}
 
@@ -92,7 +93,7 @@ func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.Secr
 		case db.AccessKeySourceStorageFile:
 			sourceStorageKey = storage.Secret
 		default:
-			err = errors.New("unsupported source storage type")
+			err = common_errors.NewUserErrorS("unsupported source storage type")
 			return
 		}
 	}
