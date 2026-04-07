@@ -25,11 +25,13 @@ func NewAccessKeyEncryptionService(
 	accessKeyRepo db.AccessKeyManager,
 	environmentRepo db.EnvironmentManager,
 	secretStorageRepo db.SecretStorageRepository,
+	projectRepo db.ProjectStore,
 ) AccessKeyEncryptionService {
 	return &accessKeyEncryptionServiceImpl{
 		accessKeyRepo:     accessKeyRepo,
 		environmentRepo:   environmentRepo,
 		secretStorageRepo: secretStorageRepo,
+		projectRepo:       projectRepo,
 	}
 }
 
@@ -57,6 +59,7 @@ type accessKeyEncryptionServiceImpl struct {
 	accessKeyRepo     db.AccessKeyManager
 	environmentRepo   db.EnvironmentManager
 	secretStorageRepo db.SecretStorageRepository
+	projectRepo       db.ProjectStore
 }
 
 func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) (AccessKeyDeserializer, bool, error) {
@@ -180,39 +183,58 @@ func (s *accessKeyEncryptionServiceImpl) FillEnvironmentSecrets(env *db.Environm
 
 func (s *accessKeyEncryptionServiceImpl) RekeyAccessKeys(oldKey string) (err error) {
 
-	//var globalProps = db.AccessKeyProps
-	//globalProps.IsGlobal = true
-	//
-	//for i := 0; ; i++ {
-	//
-	//	var keys []db.AccessKey
-	//	err = d.getObjects(-1, globalProps, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize}, nil, &keys)
-	//
-	//	if err != nil {
-	//		return
-	//	}
-	//
-	//	if len(keys) == 0 {
-	//		break
-	//	}
-	//
-	//	for _, key := range keys {
-	//
-	//		err = s.DeserializeSecret(oldKey)
-	//		err = key.DeserializeSecret2(oldKey)
-	//
-	//		if err != nil {
-	//			return err
-	//		}
-	//
-	//		key.OverrideSecret = true
-	//		err = s.accessKeyRepo.UpdateAccessKey(key)
-	//
-	//		if err != nil && !errors.Is(err, db.ErrNotFound) {
-	//			return err
-	//		}
-	//	}
-	//}
+	deserializer := NewLocalAccessKeyDeserializer()
+
+	projects, err := s.projectRepo.GetAllProjects()
+	if err != nil {
+		return
+	}
+
+	for _, project := range projects {
+
+		for i := 0; ; i++ {
+
+			var keys []db.AccessKey
+			keys, err = s.accessKeyRepo.GetAccessKeys(project.ID, db.GetAccessKeyOptions{IgnoreOwner: true}, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize})
+
+			if err != nil {
+				return
+			}
+
+			if len(keys) == 0 {
+				break
+			}
+
+			for _, key := range keys {
+
+				var secret string
+				secret, err = deserializer.DeserializeSecret2(&key, oldKey)
+
+				if err != nil {
+					return err
+				}
+
+				err = unmarshalAppropriateField(&key, []byte(secret))
+
+				if err != nil {
+					return err
+				}
+
+				key.OverrideSecret = true
+				err = deserializer.SerializeSecret(&key)
+
+				if err != nil {
+					return err
+				}
+
+				err = s.accessKeyRepo.UpdateAccessKey(key)
+
+				if err != nil && !errors.Is(err, db.ErrNotFound) {
+					return err
+				}
+			}
+		}
+	}
 
 	return
 }
