@@ -51,6 +51,7 @@ type JWTAuthConfig struct {
 	UsernameClaim string `json:"username_claim" env:"SEMAPHORE_JWT_AUTH_USERNAME_CLAIM"`
 	NameClaim     string `json:"name_claim" env:"SEMAPHORE_JWT_AUTH_NAME_CLAIM"`
 	EmailClaim    string `json:"email_claim" env:"SEMAPHORE_JWT_AUTH_EMAIL_CLAIM"`
+	SignoutURL    string `json:"signout_url" env:"SEMAPHORE_JWT_AUTH_SIGNOUT_URL"`
 }
 
 // Validate checks the settings JWT proxy auth cannot work without. It does

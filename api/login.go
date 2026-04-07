@@ -361,6 +361,7 @@ type loginMetadata struct {
 	LoginWithPassword bool                        `json:"login_with_password"`
 	LoginWithLdap     bool                        `json:"login_with_ldap"`
 	AuthMethods       LoginAuthMethods            `json:"auth_methods"`
+	JwtSignoutURL     string                      `json:"jwt_signout_url,omitempty"`
 }
 
 // nolint: gocyclo
@@ -404,6 +405,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 			b := util.Config.OidcProviders[config.OidcProviders[j].ID]
 			return a.Order < b.Order
 		})
+
+		if util.Config.Auth != nil && util.Config.Auth.JWT != nil && util.Config.Auth.JWT.Enabled {
+			config.JwtSignoutURL = util.Config.Auth.JWT.SignoutURL
+		}
 
 		if util.Config.Mfa.Totp.Enabled {
 			config.AuthMethods.Totp = &LoginTotpAuthMethod{
