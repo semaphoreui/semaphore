@@ -382,7 +382,8 @@ type ConfigType struct {
 	SubscriptionKey     string `json:"subscription_key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY"`
 	SubscriptionKeyFile string `json:"subscription_key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
 
-	Dirs *ConfigDirs `json:"dirs,omitempty"`
+	Dirs                  *ConfigDirs `json:"dirs,omitempty"`
+	SubscriptionServerURL string      `json:"subscription_server_url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_SERVER_URL" default:"https://portal.semaphoreui.com/billing"`
 }
 
 func NewConfigType() *ConfigType {
