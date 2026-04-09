@@ -1,1 +1,1 @@
-alter table `project__repository` add `pull_submodules` int not null DEFAULT 1;
+alter table `project__repository` add `pull_submodules` boolean not null DEFAULT true;
