@@ -100,9 +100,17 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 		dirName = r.TmpDirName
 	}
 
+	if r.Repository.PullSubmodules {
+		return c.run(r, GitRepositoryTmpPath,
+			"clone",
+			"--recursive",
+			"--branch",
+			r.Repository.GitBranch,
+			r.Repository.GetGitURL(false),
+			dirName)
+	}
 	return c.run(r, GitRepositoryTmpPath,
 		"clone",
-		"--recursive",
 		"--branch",
 		r.Repository.GitBranch,
 		r.Repository.GetGitURL(false),
@@ -116,7 +124,11 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 	if err != nil {
 		return err
 	}
-	return c.run(r, GitRepositoryFullPath, "submodule", "update", "--init", "--recursive")
+
+	if r.Repository.PullSubmodules {
+		return c.run(r, GitRepositoryFullPath, "submodule", "update", "--init", "--recursive")
+	}
+	return nil
 }
 
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {

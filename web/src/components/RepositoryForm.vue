@@ -69,6 +69,12 @@
       dense
     ></v-text-field>
 
+    <v-checkbox
+        v-model="item.pull_submodules"
+        :label="$t('pullSubmodules')"
+        v-if="item.git_url && type !== 'local'"
+    />
+
     <v-autocomplete
         v-model="item.ssh_key_id"
         :label="$t('accessKey')"
@@ -172,6 +178,10 @@ export default {
     showHelpDialog(key) {
       this.helpKey = key;
       this.helpDialog = true;
+    },
+
+    getNewItem() {
+      return { pull_submodules: true };
     },
 
     getItemsUrl() {

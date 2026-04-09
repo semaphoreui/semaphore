@@ -113,6 +113,7 @@ export default {
   absPath: 'abs. path',
   branch: 'Branch',
   accessKey: 'Access Key',
+  pullSubmodules: 'Pull Submodules',
   credentialsToAccessToTheGitRepositoryItShouldBe: 'Credentials to access to the Git repository. It should be:',
   ifYouUseGitOrSshUrl: 'if you use Git or SSH URL.',
   ifYouUseHttpsOrFileUrl: 'if you use HTTPS or file URL.',
