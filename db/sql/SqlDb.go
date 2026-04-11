@@ -244,12 +244,12 @@ func (d *SqlDbConnection) DeleteObject(projectID int, props db.ObjectProps, obje
 	if props.IsGlobal {
 		return validateMutationResult(
 			d.Exec(
-				"delete from "+props.TableName+" where "+primaryColumnName+"=?",
+				"delete from "+props.TableName+" where `"+primaryColumnName+"`=?",
 				objectID))
 	} else {
 		return validateMutationResult(
 			d.Exec(
-				"delete from "+props.TableName+" where project_id=? and "+primaryColumnName+"=?",
+				"delete from "+props.TableName+" where project_id=? and `"+primaryColumnName+"`=?",
 				projectID,
 				objectID))
 	}

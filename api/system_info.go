@@ -54,17 +54,6 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	token, err := c.subscriptionService.GetToken()
 
-	if errors.Is(err, db.ErrNotFound) {
-		err = nil
-	}
-
-	if err != nil {
-		log.WithError(err).Error("Failed to get subscription plan")
-		err = nil
-		//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		//return
-	}
-
 	switch {
 	case errors.Is(err, db.ErrNotFound):
 		err = nil
@@ -73,23 +62,28 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		log.WithError(err).Error("Failed to get subscription plan")
 		err = nil
 		plan = ""
-		//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	default:
-		plan = token.Plan
+		if token.State == "expired" {
+			plan = ""
+		} else {
+			plan = token.Plan
+		}
 	}
 
 	body := map[string]any{
-		"version":           util.Version(),
-		"ansible":           util.AnsibleVersion(),
-		"web_host":          util.Config.WebHost,
-		"use_remote_runner": util.Config.UseRemoteRunner,
-		"auth_methods":      authMethods,
-		"premium_features":  proFeatures.GetFeatures(user, plan),
-		"git_client":        util.Config.GitClientId,
-		"schedule_timezone": timezone,
-		"teams":             util.Config.Teams,
-		"roles":             roles,
+		"version":             util.Version(),
+		"ansible":             util.AnsibleVersion(),
+		"web_host":            util.Config.WebHost,
+		"use_remote_runner":   util.Config.UseRemoteRunner,
+		"auth_methods":        authMethods,
+		"login_with_password": !util.Config.PasswordLoginDisable,
+		"premium_features":    proFeatures.GetFeatures(user, plan),
+		"subscription_state":  token.State,
+		"git_client":          util.Config.GitClientId,
+		"schedule_timezone":   timezone,
+		"teams":               util.Config.Teams,
+		"roles":               roles,
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)
