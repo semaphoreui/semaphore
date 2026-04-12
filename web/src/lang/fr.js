@@ -57,7 +57,7 @@ export default {
   howToFixSigninIssues: 'Comment résoudre les problèmes de connexion',
   firstlyYouNeedAccessToTheServerWhereSemaphoreRunni: 'Tout d\'abord, vous devez avoir accès au serveur où Semaphore fonctionne.',
   executeTheFollowingCommandOnTheServerToSeeExisting: 'Exécutez la commande suivante sur le serveur pour voir les utilisateurs existants :',
-  semaphoreUserList: 'liste des utilisateurs semaphore',
+  semaphoreUserList: 'semaphore user list',
   youCanChangePasswordOfExistingUser: 'Vous pouvez changer le mot de passe de l\'utilisateur existant :',
   semaphoreUserChangebyloginLoginUser123Password: 'semaphore user change-by-login --login user123 --password {makePasswordExample}',
   orCreateNewAdminUser: 'Ou créez un nouvel utilisateur administrateur :',
