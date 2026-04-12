@@ -43,14 +43,16 @@
       >
         You {{ item.plan.startsWith('enterprise_') ? 'Enterprise' : 'PRO' }} subscription is active.
       </div>
+
       <div
-        v-if="item.state === 'expired'"
+        v-else-if="item.state === 'expired'"
         style="line-height: 1.3; font-weight: bold; color: rgb(188, 0, 0)"
         class="mb-5"
       >
         You {{ item.plan.startsWith('enterprise_') ? 'Enterprise' : 'PRO' }}
         subscription has expired.
       </div>
+
       <div v-else style="line-height: 1.3">
         Enter your subscription key to unlock advanced features, or get a new one instantly.
       </div>
