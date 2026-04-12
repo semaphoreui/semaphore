@@ -43,6 +43,14 @@
       >
         You {{ item.plan.startsWith('enterprise_') ? 'Enterprise' : 'PRO' }} subscription is active.
       </div>
+      <div
+        v-if="item.state === 'expired'"
+        style="line-height: 1.3; font-weight: bold; color: rgb(188, 0, 0)"
+        class="mb-5"
+      >
+        You {{ item.plan.startsWith('enterprise_') ? 'Enterprise' : 'PRO' }}
+        subscription has expired.
+      </div>
       <div v-else style="line-height: 1.3">
         Enter your subscription key to unlock advanced features, or get a new one instantly.
       </div>
@@ -60,7 +68,7 @@
         dense
       ></v-textarea>
 
-      <v-menu offset-y v-if="item.state === 'active'">
+      <v-menu offset-y v-if="item.state === 'active' || item.state === 'expired'">
         <template v-slot:activator="{ on, attrs }">
           <v-btn
             color="primary"
@@ -99,8 +107,6 @@
       <v-btn
         v-else
         color="primary"
-        v-bind="attrs"
-        v-on="on"
         fab
         small
         style="position: absolute; top: 30px; right: -15px"
@@ -208,10 +214,12 @@
                         border-radius: 100px;
                         width: 8px;
                         height: 8px;
-                        background: #00bc00;
                         margin-right: 5px;
                         margin-top: 1px;
                       "
+                      :style="{
+                        backgroundColor: item.state === 'active' ? '#00bc00' : '#ff0000'
+                      }"
                     ></div>
                     <div>{{ item.state }}</div>
                   </v-list-item-subtitle>
@@ -243,8 +251,11 @@
           </v-col>
         </v-row>
 
-        <div style="margin-top: 20px; font-weight: bold; color: #00bc00">
-          Renews in {{ (new Date() - new Date(item.expiresAt)) | formatMilliseconds }}
+        <div
+          v-if="subscriptionTimeRemainingMs > 0"
+          style="margin-top: 20px; font-weight: bold; color: #00bc00"
+        >
+          Renews in {{ subscriptionTimeRemainingMs | formatMilliseconds }}
           <span>(if auto-renew is activated)</span>
         </div>
       </v-card-text>
@@ -287,6 +298,11 @@ export default {
   },
 
   computed: {
+    subscriptionTimeRemainingMs() {
+      const ret = new Date(this.item.expiresAt) - new Date();
+      return ret;
+    },
+
     isNew() {
       return false;
     },
