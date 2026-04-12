@@ -62,7 +62,6 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		log.WithError(err).Error("Failed to get subscription plan")
 		err = nil
 		plan = ""
-		return
 	default:
 		if token.State == "expired" {
 			plan = ""
