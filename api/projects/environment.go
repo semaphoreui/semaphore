@@ -86,8 +86,8 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 				continue
 			}
 
-			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
-				errors = append(errors, err)
+			if key.EnvironmentID == nil || *key.EnvironmentID != env.ID {
+				errors = append(errors, fmt.Errorf("secret does not belong to this environment"))
 				continue
 			}
 
@@ -100,8 +100,8 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 				continue
 			}
 
-			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
-				errors = append(errors, err)
+			if key.EnvironmentID == nil || *key.EnvironmentID != env.ID {
+				errors = append(errors, fmt.Errorf("secret does not belong to this environment"))
 				continue
 			}
 
