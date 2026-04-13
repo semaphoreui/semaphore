@@ -139,19 +139,12 @@ func TestLoadEnvironmentToObject_PointerInt(t *testing.T) {
 		GID *int `env:"TEST_GID"`
 	}
 
-	err := os.Setenv("TEST_UID", "1234")
-	if err != nil {
-		panic(err)
-	}
+	t.Setenv("TEST_UID", "1234")
+	t.Setenv("TEST_GID", "5678")
 
-	err = os.Setenv("TEST_GID", "5678")
+	err := loadEnvironmentToObject(&val)
 	if err != nil {
-		panic(err)
-	}
-
-	err = loadEnvironmentToObject(&val)
-	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	if val.UID == nil || *val.UID != 1234 {
