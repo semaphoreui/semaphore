@@ -888,6 +888,11 @@ func setConfigValue(attribute reflect.Value, value string) {
 				panic(err)
 			}
 			attribute.Set(mapValue.Elem())
+		case reflect.Ptr:
+			if attribute.IsNil() {
+				attribute.Set(reflect.New(attribute.Type().Elem()))
+			}
+			setConfigValue(attribute.Elem(), value)
 		default:
 			newValue, _ := CastValueToKind(value, kind)
 			convertedValue := reflect.ValueOf(newValue)

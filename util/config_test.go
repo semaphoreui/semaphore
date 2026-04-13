@@ -133,6 +133,36 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 	}
 }
 
+func TestLoadEnvironmentToObject_PointerInt(t *testing.T) {
+	var val struct {
+		UID *int `env:"TEST_UID"`
+		GID *int `env:"TEST_GID"`
+	}
+
+	err := os.Setenv("TEST_UID", "1234")
+	if err != nil {
+		panic(err)
+	}
+
+	err = os.Setenv("TEST_GID", "5678")
+	if err != nil {
+		panic(err)
+	}
+
+	err = loadEnvironmentToObject(&val)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if val.UID == nil || *val.UID != 1234 {
+		t.Errorf("Invalid UID value: %v", val.UID)
+	}
+
+	if val.GID == nil || *val.GID != 5678 {
+		t.Errorf("Invalid GID value: %v", val.GID)
+	}
+}
+
 func TestCastStringToInt(t *testing.T) {
 	errMsg := "Cast string => int failed"
 
