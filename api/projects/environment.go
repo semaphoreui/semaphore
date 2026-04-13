@@ -92,6 +92,10 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 			}
 
 			err = c.accessKeyService.Delete(env.ProjectID, secret.ID)
+			if err != nil {
+				errors = append(errors, err)
+				continue
+			}
 		case db.EnvironmentSecretUpdate:
 			key, err = c.accessKeyRepo.GetAccessKey(env.ProjectID, secret.ID)
 
