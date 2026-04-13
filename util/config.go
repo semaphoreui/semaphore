@@ -205,6 +205,7 @@ type HARedisConfig struct {
 	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
 	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS"`
 	User          string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
+	ClusterMode   bool   `json:"cluster_mode,omitempty" env:"SEMAPHORE_HA_REDIS_CLUSTER_MODE"`
 	TLS           bool   `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
 	TLSSkipVerify bool   `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
 }

@@ -133,6 +133,21 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 	}
 }
 
+func TestLoadEnvironmentToObject_HARedisClusterMode(t *testing.T) {
+	var redisConfig HARedisConfig
+
+	t.Setenv("SEMAPHORE_HA_REDIS_CLUSTER_MODE", "1")
+
+	err := loadEnvironmentToObject(&redisConfig)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !redisConfig.ClusterMode {
+		t.Error("Invalid cluster mode value")
+	}
+}
+
 func TestCastStringToInt(t *testing.T) {
 	errMsg := "Cast string => int failed"
 
