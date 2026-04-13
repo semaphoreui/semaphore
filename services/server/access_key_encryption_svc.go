@@ -114,7 +114,7 @@ func (s *accessKeyEncryptionServiceImpl) SerializeSecret(key *db.AccessKey) erro
 		return err
 	}
 	if readonly {
-		return common_errors.NewUserErrorS("cannot modify secret in read-only storage")
+		return common_errors.NewUserError(ErrReadOnlyStorage)
 	}
 
 	err = key.Validate(true)
