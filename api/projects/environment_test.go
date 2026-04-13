@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -181,4 +182,37 @@ func TestUpdateEnvironmentSecrets_UpdateRejectsKeyWithNilEnvironmentID(t *testin
 	if len(svc.updated) != 0 {
 		t.Fatalf("expected no updates, got %d", len(svc.updated))
 	}
+}
+
+func TestUpdateEnvironmentSecrets_DeleteErrorIsReported(t *testing.T) {
+	envID := 1
+	repo := &mockAccessKeyRepo{
+		keys: map[int]db.AccessKey{
+			42: {ID: 42, EnvironmentID: &envID},
+		},
+	}
+	svc := &mockAccessKeyServiceWithDeleteError{deleteErr: fmt.Errorf("storage backend unavailable")}
+	ctrl := &EnvironmentController{accessKeyRepo: repo, accessKeyService: svc}
+
+	env := db.Environment{
+		ID:        1,
+		ProjectID: 10,
+		Secrets: []db.EnvironmentSecret{
+			{ID: 42, Type: db.EnvironmentSecretVar, Operation: db.EnvironmentSecretDelete},
+		},
+	}
+
+	err := ctrl.updateEnvironmentSecrets(env)
+	if err == nil {
+		t.Fatal("expected error when Delete fails, got nil")
+	}
+}
+
+type mockAccessKeyServiceWithDeleteError struct {
+	mockAccessKeyService
+	deleteErr error
+}
+
+func (m *mockAccessKeyServiceWithDeleteError) Delete(_ int, _ int) error {
+	return m.deleteErr
 }
