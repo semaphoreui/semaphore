@@ -160,6 +160,11 @@ func InteractiveSetup(conf *util.ConfigType) {
 		askValue("Slack Webhook URL", "", &conf.SlackUrl)
 	}
 
+	askConfirmation("Enable discord alerts?", false, &conf.DiscordAlert)
+	if conf.DiscordAlert {
+		askValue("Discord Webhook URL", "", &conf.DiscordUrl)
+	}
+
 	askConfirmation("Enable Rocket.Chat alerts?", false, &conf.RocketChatAlert)
 	if conf.RocketChatAlert {
 		askValue("Rocket.Chat Webhook URL", "", &conf.RocketChatUrl)

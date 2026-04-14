@@ -46,6 +46,7 @@ func SendProjectTestAlerts(project db.Project, store db.Store) (err error) {
 	tr.sendMicrosoftTeamsAlert()
 	tr.sendDingTalkAlert()
 	tr.sendGotifyAlert()
+	tr.sendDiscordAlert()
 	tr.sendMailAlert()
 
 	return
