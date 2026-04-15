@@ -85,7 +85,7 @@ func runService() {
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
 
 	projectService := server.NewProjectService(store, store)
-	encryptionService := server.NewAccessKeyEncryptionService(store, store, store)
+	encryptionService := server.NewAccessKeyEncryptionService(store, store, store, store)
 	accessKeyInstallationService := server.NewAccessKeyInstallationService(encryptionService)
 	integrationService := server.NewIntegrationService(store, encryptionService)
 	inventoryService := server.NewInventoryService(

@@ -86,12 +86,16 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 				continue
 			}
 
-			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
-				errors = append(errors, err)
+			if key.EnvironmentID == nil || *key.EnvironmentID != env.ID {
+				errors = append(errors, fmt.Errorf("secret does not belong to this environment"))
 				continue
 			}
 
 			err = c.accessKeyService.Delete(env.ProjectID, secret.ID)
+			if err != nil {
+				errors = append(errors, err)
+				continue
+			}
 		case db.EnvironmentSecretUpdate:
 			key, err = c.accessKeyRepo.GetAccessKey(env.ProjectID, secret.ID)
 
@@ -100,18 +104,20 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 				continue
 			}
 
-			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
-				errors = append(errors, err)
+			if key.EnvironmentID == nil || *key.EnvironmentID != env.ID {
+				errors = append(errors, fmt.Errorf("secret does not belong to this environment"))
 				continue
 			}
 
 			updateKey := db.AccessKey{
-				ID:              key.ID,
-				ProjectID:       key.ProjectID,
-				Name:            secret.Name,
-				Type:            db.AccessKeyString,
-				Owner:           key.Owner,
-				SourceStorageID: env.SecretStorageID,
+				ID:                key.ID,
+				ProjectID:         key.ProjectID,
+				Name:              secret.Name,
+				Type:              db.AccessKeyString,
+				Owner:             key.Owner,
+				SourceStorageID:   env.SecretStorageID,
+				SourceStorageType: key.SourceStorageType,
+				SourceStorageKey:  key.SourceStorageKey,
 			}
 			if secret.Secret != "" {
 				updateKey.String = secret.Secret
@@ -119,6 +125,10 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 			}
 
 			err = c.accessKeyService.Update(updateKey)
+			if err != nil {
+				errors = append(errors, err)
+				continue
+			}
 		}
 	}
 

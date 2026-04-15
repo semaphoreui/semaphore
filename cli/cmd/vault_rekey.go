@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/spf13/cobra"
 )
 
@@ -18,9 +19,10 @@ var vaultRekeyCmd = &cobra.Command{
 		"pre-existing keys stored in the database.",
 	Run: func(cmd *cobra.Command, args []string) {
 		store := createStore("")
+		encryptionService := server.NewAccessKeyEncryptionService(store, store, store, store)
 		defer store.Close("")
 
-		err := store.RekeyAccessKeys(targetVaultArgs.oldKey)
+		err := encryptionService.RekeyAccessKeys(targetVaultArgs.oldKey)
 
 		if err != nil {
 			panic(err)
