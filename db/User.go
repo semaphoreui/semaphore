@@ -33,11 +33,14 @@ type UserTotp struct {
 }
 
 type UserEmailOtp struct {
-	ID      int       `db:"id" json:"id"`
-	Created time.Time `db:"created" json:"created"`
-	UserID  int       `db:"user_id" json:"user_id"`
-	Code    string    `db:"code" json:"code"`
+	ID       int       `db:"id" json:"id"`
+	Created  time.Time `db:"created" json:"created"`
+	UserID   int       `db:"user_id" json:"user_id"`
+	Code     string    `db:"code" json:"code"`
+	Attempts int       `db:"attempts" json:"attempts"`
 }
+
+const EmailOtpMaxAttempts = 5
 
 type UserWithProjectRole struct {
 	Role ProjectUserRole `db:"role" json:"role"`

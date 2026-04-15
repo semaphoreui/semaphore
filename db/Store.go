@@ -239,6 +239,7 @@ type UserManager interface {
 	DeleteTotpVerification(userID int, totpID int) error
 	AddEmailOtpVerification(userID int, code string) (UserEmailOtp, error)
 	DeleteEmailOtpVerification(userID int, totpID int) error
+	IncrementEmailOtpAttempts(userID int) error
 	GetUser(userID int) (User, error)
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 	GetAllAdmins() ([]User, error)
