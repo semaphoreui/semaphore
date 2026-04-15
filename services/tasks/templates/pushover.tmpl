@@ -1,0 +1,8 @@
+{
+  "html": 1,
+  "priority": {{ if eq .Task.Status "error" }}1{{ else }}0{{ end }},
+  "title": "Task: {{ .Name }}",
+  "message": "Execution #: {{ .Task.ID }}\n<font color=\"{{ .Color }}\"><b>{{ .Task.Result }}</b></font>\n{{ if .Task.Version }}Version: {{ .Task.Version }}\n{{ end }}\nDescription: {{ .Task.Desc }}\nAuthor: {{ .Author }}",
+  "url": "{{ .Task.URL }}",
+  "url_title": "Task URL"
+}
