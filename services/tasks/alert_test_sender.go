@@ -1,6 +1,8 @@
 package tasks
 
 import (
+	"strconv"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
@@ -40,12 +42,31 @@ func SendProjectTestAlerts(project db.Project, store db.Store) (err error) {
 		},
 	}
 
-	tr.sendTelegramAlert()
-	tr.sendSlackAlert()
-	tr.sendRocketChatAlert()
-	tr.sendMicrosoftTeamsAlert()
-	tr.sendDingTalkAlert()
-	tr.sendGotifyAlert()
+	if tr.notificationService != nil && tr.notificationService.HasNotifiers() {
+		author, version := tr.alertInfos()
+		alert := Alert{
+			Name:   tr.Template.Name,
+			Author: author,
+			Task: alertTask{
+				ID:      strconv.Itoa(tr.Task.ID),
+				URL:     tr.taskLink(),
+				Result:  tr.Task.Status.Format(),
+				Version: version,
+				Desc:    tr.Task.Message,
+			},
+		}
+		if tr.alertChat != nil && *tr.alertChat != "" {
+			alert.Chat = alertChat{ID: *tr.alertChat}
+		}
+		tr.notificationService.SendAll(alert)
+	} else {
+		tr.sendTelegramAlert()
+		tr.sendSlackAlert()
+		tr.sendRocketChatAlert()
+		tr.sendMicrosoftTeamsAlert()
+		tr.sendDingTalkAlert()
+		tr.sendGotifyAlert()
+	}
 	tr.sendMailAlert()
 
 	return

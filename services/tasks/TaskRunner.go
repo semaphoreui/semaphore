@@ -57,6 +57,9 @@ type TaskRunner struct {
 	Alias string
 
 	logWG sync.WaitGroup
+
+	// new notifications service (service-based notifiers)
+	notificationService *NotificationService
 }
 
 func NewTaskRunner(
@@ -66,10 +69,11 @@ func NewTaskRunner(
 	keyInstaller db_lib.AccessKeyInstaller,
 ) *TaskRunner {
 	return &TaskRunner{
-		Task:         newTask,
-		pool:         p,
-		Username:     username,
-		keyInstaller: keyInstaller,
+		Task:                 newTask,
+		pool:                 p,
+		Username:            username,
+		keyInstaller:        keyInstaller,
+		notificationService: NewNotificationService(),
 	}
 }
 

@@ -200,6 +200,74 @@ type DebuggingConfig struct {
 	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
 }
 
+type NotificationType string
+
+const (
+	NotificationWebhook  NotificationType = "webhook"
+	NotificationTelegram NotificationType = "telegram"
+	NotificationSlack    NotificationType = "slack"
+)
+
+type NotificationConfig struct {
+	Enabled  bool             `json:"enabled" envSuffix:"_ENABLED"`
+	Type     NotificationType `json:"type" envSuffix:"_TYPE"`
+	Template string           `json:"template" env:"_TEMPLATE"`
+}
+
+type WebhookNotifConfig struct {
+	NotificationConfig
+	URL string `json:"url,omitempty" envSuffix:"_URL"`
+}
+
+type TelegramNotifConfig struct {
+	NotificationConfig
+	Token string `json:"token,omitempty" envSuffix:"_TOKEN"`
+	Chat  string `json:"chat,omitempty" envSuffix:"_CHAT"`
+}
+
+type SlackNotifConfig struct {
+	NotificationConfig
+	Token string `json:"token,omitempty" envSuffix:"_TOKEN"`
+	Chat  string `json:"chat,omitempty" envSuffix:"_CHAT"`
+}
+
+//// New unified notifications configuration
+//// These options are only configurable via config file (no env tags)
+//// and will be used by the new Notification Service implementation.
+//type NotificationsConfig struct {
+//	Telegram *TelegramNotificationConfig `json:"telegram,omitempty"`
+//	Slack    *SlackNotificationConfig    `json:"slack,omitempty"`
+//	Gotify   *GotifyNotificationConfig   `json:"gotify,omitempty"`
+//	DingTalk *DingTalkNotificationConfig `json:"dingtalk,omitempty"`
+//}
+//
+//type TelegramNotificationConfig struct {
+//	Token string `json:"token,omitempty"`
+//	Chat  string `json:"chat,omitempty"`
+//}
+//
+//type SlackNotificationConfig struct {
+//	Token   string `json:"token,omitempty"`
+//	Channel string `json:"channel,omitempty"`
+//}
+
+type GotifyNotificationConfig struct {
+	// Base server URL, e.g. https://gotify.example.com
+	Server string `json:"server,omitempty"`
+	// Application token (sent in header, not as URL param)
+	Token string `json:"token,omitempty"`
+	// Optional title and priority
+	Title    string `json:"title,omitempty"`
+	Priority *int   `json:"priority,omitempty"`
+}
+
+type DingTalkNotificationConfig struct {
+	// Access token for the bot/webhook
+	Token string `json:"token,omitempty"`
+	// Optional: a channel/room identifier if applicable in your setup
+	Channel string `json:"channel,omitempty"`
+}
+
 type HARedisConfig struct {
 	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
 	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
@@ -299,6 +367,16 @@ type ConfigType struct {
 	// for encrypting and decrypting access keys stored in database.
 	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
 
+	// ldap settings
+	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"SEMAPHORE_LDAP_ENABLE"`
+	LdapBindDN       string        `json:"ldap_binddn,omitempty" env:"SEMAPHORE_LDAP_BIND_DN"`
+	LdapBindPassword string        `json:"ldap_bindpassword,omitempty" env:"SEMAPHORE_LDAP_BIND_PASSWORD"`
+	LdapServer       string        `json:"ldap_server,omitempty" env:"SEMAPHORE_LDAP_SERVER"`
+	LdapSearchDN     string        `json:"ldap_searchdn,omitempty" env:"SEMAPHORE_LDAP_SEARCH_DN"`
+	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
+	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
+	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
+
 	// email alerting
 	EmailAlert         bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
 	EmailSender        string `json:"email_sender,omitempty" env:"SEMAPHORE_EMAIL_SENDER"`
@@ -309,16 +387,6 @@ type ConfigType struct {
 	EmailSecure        bool   `json:"email_secure,omitempty" env:"SEMAPHORE_EMAIL_SECURE"`
 	EmailTls           bool   `json:"email_tls,omitempty" env:"SEMAPHORE_EMAIL_TLS"`
 	EmailTlsMinVersion string `json:"email_tls_min_version,omitempty" default:"1.2" rule:"^(1\\.[0123])$" env:"SEMAPHORE_EMAIL_TLS_MIN_VERSION"`
-
-	// ldap settings
-	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"SEMAPHORE_LDAP_ENABLE"`
-	LdapBindDN       string        `json:"ldap_binddn,omitempty" env:"SEMAPHORE_LDAP_BIND_DN"`
-	LdapBindPassword string        `json:"ldap_bindpassword,omitempty" env:"SEMAPHORE_LDAP_BIND_PASSWORD"`
-	LdapServer       string        `json:"ldap_server,omitempty" env:"SEMAPHORE_LDAP_SERVER"`
-	LdapSearchDN     string        `json:"ldap_searchdn,omitempty" env:"SEMAPHORE_LDAP_SEARCH_DN"`
-	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
-	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
-	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
 	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
@@ -336,8 +404,11 @@ type ConfigType struct {
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
 
+	// New, structured notification settings for the service-based notifiers
+	Notifications map[string]map[string]any `json:"notifications,omitempty" env:"SEMAPHORE_NOTIFICATIONS" envPrefix:"SEMAPHORE_NOTIF_"`
+
 	// oidc settings
-	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
+	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS" envPrefix:"SEMAPHORE_OIDC_"`
 
 	MaxTaskDurationSec  int `json:"max_task_duration_sec,omitempty" env:"SEMAPHORE_MAX_TASK_DURATION_SEC"`
 	MaxTasksPerTemplate int `json:"max_tasks_per_template,omitempty" env:"SEMAPHORE_MAX_TASKS_PER_TEMPLATE"`

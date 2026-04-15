@@ -7,6 +7,7 @@ import (
 	"io"
 	"os/exec"
 	"time"
+	"strconv"
 
 	"github.com/semaphoreui/semaphore/pkg/tz"
 
@@ -122,12 +123,34 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 	}
 
 	if status.IsNotifiable() {
-		t.sendTelegramAlert()
-		t.sendSlackAlert()
-		t.sendRocketChatAlert()
-		t.sendMicrosoftTeamsAlert()
-		t.sendDingTalkAlert()
-		t.sendGotifyAlert()
+		// Prefer new notification service if configured; otherwise fallback to legacy methods
+		if t.notificationService != nil && t.notificationService.HasNotifiers() {
+			author, version := t.alertInfos()
+			alert := Alert{
+				Name:   t.Template.Name,
+				Author: author,
+				Color:  t.alertColor("slack"),
+				Task: alertTask{
+					ID:      strconv.Itoa(t.Task.ID),
+					URL:     t.taskLink(),
+					Result:  t.Task.Status.Format(),
+					Version: version,
+					Desc:    t.Task.Message,
+				},
+			}
+			// If chat override is present, set it for telegram
+			if t.alertChat != nil && *t.alertChat != "" {
+				alert.Chat = alertChat{ID: *t.alertChat}
+			}
+			t.notificationService.SendAll(alert)
+		} else {
+			t.sendTelegramAlert()
+			t.sendSlackAlert()
+			t.sendRocketChatAlert()
+			t.sendMicrosoftTeamsAlert()
+			t.sendDingTalkAlert()
+			t.sendGotifyAlert()
+		}
 	}
 
 	for _, l := range t.statusListeners {
