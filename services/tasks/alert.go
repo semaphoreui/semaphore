@@ -36,6 +36,7 @@ type alertTask struct {
 
 type alertChat struct {
 	ID string
+        ThreadID string // ID темы (опционально)
 }
 
 func (t *TaskRunner) sendMailAlert() {
@@ -110,82 +111,168 @@ func (t *TaskRunner) sendMailAlert() {
 	}
 }
 
+//func (t *TaskRunner) sendTelegramAlert() {
+//	if !util.Config.TelegramAlert || !t.alert {
+//		return
+//	}
+//
+//	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+//		return
+//	}
+//
+//	chatID := util.Config.TelegramChat
+//	if t.alertChat != nil && *t.alertChat != "" {
+//		chatID = *t.alertChat
+//	}
+//
+//	if chatID == "" {
+//		return
+//	}
+//
+//	body := bytes.NewBufferString("")
+//	author, version := t.alertInfos()
+//
+//	alert := Alert{
+//		Name:   t.Template.Name,
+//		Author: author,
+//		Color:  t.alertColor("telegram"),
+//		Task: alertTask{
+//			ID:      strconv.Itoa(t.Task.ID),
+//			URL:     t.taskLink(),
+//			Result:  t.Task.Status.Format(),
+//			Version: version,
+//			Desc:    t.Task.Message,
+//		},
+//		Chat: alertChat{
+//			ID: chatID,
+//		},
+//	}
+//
+//	tpl, err := template.ParseFS(templates, "templates/telegram.tmpl")
+//
+//	if err != nil {
+//		t.Log("Can't parse telegram alert template!")
+//		panic(err)
+//	}
+//
+//	if err := tpl.Execute(body, alert); err != nil {
+//		t.Log("Can't generate telegram alert template!")
+//		panic(err)
+//	}
+//
+//	if body.Len() == 0 {
+//		t.Log("Buffer for telegram alert is empty")
+//		return
+//	}
+//
+//	t.Log("Attempting to send telegram alert")
+//
+//	resp, err := http.Post(
+//		fmt.Sprintf(
+//			"https://api.telegram.org/bot%s/sendMessage",
+//			util.Config.TelegramToken,
+//		),
+//		"application/json",
+//		body,
+//	)
+//
+//	if err != nil {
+//		t.Log("Can't send telegram alert! Error: " + err.Error())
+//	} else if resp.StatusCode != 200 {
+//		t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode))
+//	}
+//
+//	t.Log("Sent successfully telegram alert")
+//}
+
 func (t *TaskRunner) sendTelegramAlert() {
-	if !util.Config.TelegramAlert || !t.alert {
-		return
-	}
+    if !util.Config.TelegramAlert || !t.alert {
+        return
+    }
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
-		return
-	}
+    if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+        return
+    }
 
-	chatID := util.Config.TelegramChat
-	if t.alertChat != nil && *t.alertChat != "" {
-		chatID = *t.alertChat
-	}
+    chatID := util.Config.TelegramChat
+    threadID := util.Config.TelegramThreadID // Из верхней версии
+    
+    if t.alertChat != nil && *t.alertChat != "" {
+        chatID = *t.alertChat
+    }
 
-	if chatID == "" {
-		return
-	}
+    if chatID == "" {
+        return
+    }
 
-	body := bytes.NewBufferString("")
-	author, version := t.alertInfos()
+    body := bytes.NewBufferString("")
+    author, version := t.alertInfos()
 
-	alert := Alert{
-		Name:   t.Template.Name,
-		Author: author,
-		Color:  t.alertColor("telegram"),
-		Task: alertTask{
-			ID:      strconv.Itoa(t.Task.ID),
-			URL:     t.taskLink(),
-			Result:  t.Task.Status.Format(),
-			Version: version,
-			Desc:    t.Task.Message,
-		},
-		Chat: alertChat{
-			ID: chatID,
-		},
-	}
+    alert := Alert{
+        Name:   t.Template.Name,
+        Author: author,
+        Color:  t.alertColor("telegram"),
+        Task: alertTask{
+            ID:      strconv.Itoa(t.Task.ID),
+            URL:     t.taskLink(),
+            Result:  t.Task.Status.Format(),
+            Version: version,
+            Desc:    t.Task.Message,
+        },
+        Chat: alertChat{
+            ID:      chatID,
+            ThreadID: threadID, // Из верхней версии
+        },
+    }
 
-	tpl, err := template.ParseFS(templates, "templates/telegram.tmpl")
+    tpl, err := template.ParseFS(templates, "templates/telegram.tmpl")
 
-	if err != nil {
-		t.Log("Can't parse telegram alert template!")
-		panic(err)
-	}
+    if err != nil {
+        t.Log("Can't parse telegram alert template!")
+        panic(err)
+    }
 
-	if err := tpl.Execute(body, alert); err != nil {
-		t.Log("Can't generate telegram alert template!")
-		panic(err)
-	}
+    if err := tpl.Execute(body, alert); err != nil {
+        t.Log("Can't generate telegram alert template!")
+        panic(err)
+    }
 
-	if body.Len() == 0 {
-		t.Log("Buffer for telegram alert is empty")
-		return
-	}
+    if body.Len() == 0 {
+        t.Log("Buffer for telegram alert is empty")
+        return
+    }
 
-	t.Log("Attempting to send telegram alert")
+    t.Log("Attempting to send telegram alert")
 
-	resp, err := http.Post(
-		fmt.Sprintf(
-			"https://api.telegram.org/bot%s/sendMessage",
-			util.Config.TelegramToken,
-		),
-		"application/json",
-		body,
-	)
+    // Формируем базовый URL (из верхней версии)
+    apiUrl := fmt.Sprintf(
+        "https://api.telegram.org/bot%s/sendMessage",
+        util.Config.TelegramToken,
+    )
 
-	if err != nil {
-		t.Log("Can't send telegram alert! Error: " + err.Error())
-	} else if resp.StatusCode != 200 {
-		t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode))
-	} else {
-		t.Log("Sent successfully telegram alert")
-	}
+    // Если указан threadID, добавляем его как параметр запроса (из верхней версии)
+    if threadID != "" {
+        apiUrl += fmt.Sprintf("?message_thread_id=%s", threadID)
+    }
 
-	if resp != nil {
-		defer resp.Body.Close() //nolint:errcheck
-	}
+    resp, err := http.Post(
+        apiUrl,
+        "application/json",
+        body,
+    )
+
+    if err != nil {
+        t.Log("Can't send telegram alert! Error: " + err.Error())
+    } else if resp.StatusCode != 200 {
+        t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode))
+    } else {
+        t.Log("Sent successfully telegram alert")
+    }
+
+    // Добавляем закрытие ответа из нижней версии
+    if resp != nil {
+        defer resp.Body.Close()
+    }
 }
 
 func (t *TaskRunner) sendSlackAlert() {
