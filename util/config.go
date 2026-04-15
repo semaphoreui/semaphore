@@ -320,7 +320,7 @@ type ConfigType struct {
 	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
-	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
+	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, Gotify and Lark alerting
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN"`
@@ -335,6 +335,8 @@ type ConfigType struct {
 	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
+	LarkAlert           bool   `json:"lark_alert,omitempty" env:"SEMAPHORE_LARK_ALERT"`
+	LarkUrl             string `json:"lark_url,omitempty" env:"SEMAPHORE_LARK_URL"`
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`

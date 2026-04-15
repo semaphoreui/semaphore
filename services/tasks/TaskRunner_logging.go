@@ -128,6 +128,7 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 		t.sendMicrosoftTeamsAlert()
 		t.sendDingTalkAlert()
 		t.sendGotifyAlert()
+		t.sendLarkAlert()
 	}
 
 	for _, l := range t.statusListeners {
