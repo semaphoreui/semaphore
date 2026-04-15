@@ -71,6 +71,8 @@ type JobPool struct {
 
 	processing int32
 
+	privateKey *rsa.PrivateKey
+
 	keyInstaller db_lib.AccessKeyInstaller
 }
 
@@ -154,6 +156,20 @@ func (p *JobPool) Run() {
 
 	if util.Config.Runner.Token == "" {
 		logger.Panic(fmt.Errorf("no token provided"), "read input", "can not retrieve runner token")
+	}
+
+	if util.Config.Runner.PrivateKeyFile != "" {
+		var err error
+		p.privateKey, err = loadPrivateKey(util.Config.Runner.PrivateKeyFile)
+		if err != nil {
+			logger.Panic(err, "read input", "can not load private key")
+		}
+
+		if util.Config.Runner.SecureMode {
+			if err := os.Remove(util.Config.Runner.PrivateKeyFile); err != nil {
+				panic("secure mode enabled: failed to remove private key file: " + err.Error())
+			}
+		}
 	}
 
 	queueTicker := time.NewTicker(5 * time.Second)
@@ -553,16 +569,8 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	if util.Config.Runner.PrivateKeyFile != "" {
-		var pk *rsa.PrivateKey
-
-		pk, err = loadPrivateKey(util.Config.Runner.PrivateKeyFile)
-		if err != nil {
-			logger.ActionError(err, "decrypt response body", "can not read private key")
-			return
-		}
-
-		body, err = decryptChunkedBytes(body, pk)
+	if p.privateKey != nil {
+		body, err = decryptChunkedBytes(body, p.privateKey)
 
 		if err != nil {
 			logger.ActionError(err, "decrypt response body", "can not decrypt server's response body")

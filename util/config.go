@@ -114,10 +114,13 @@ const (
 // */
 
 type RunnerConfig struct {
-	RegistrationToken string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
-	Token             string `json:"token,omitempty" env:"SEMAPHORE_RUNNER_TOKEN"`
-	TokenFile         string `json:"token_file,omitempty" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
-	PrivateKeyFile    string `json:"private_key_file,omitempty" env:"SEMAPHORE_RUNNER_PRIVATE_KEY_FILE"`
+	RegistrationToken     string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
+	RegistrationTokenFile string `json:"registration_token_file,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN_FILE"`
+	Token                 string `json:"token,omitempty" env:"SEMAPHORE_RUNNER_TOKEN"`
+	TokenFile             string `json:"token_file,omitempty" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
+	PrivateKeyFile        string `json:"private_key_file,omitempty" env:"SEMAPHORE_RUNNER_PRIVATE_KEY_FILE"`
+
+	SecureMode bool `json:"secure_mode,omitempty" env:"SEMAPHORE_RUNNER_SECURE_MODE"`
 
 	// OneOff indicates than runner runs only one job and exit. It is very useful for dynamic runners.
 	// How it works?
@@ -488,10 +491,41 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		WebHostURL = nil
 	}
 
-	if Config.Runner != nil && Config.Runner.TokenFile != "" {
-		runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
-		if err == nil {
-			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
+	if Config.Runner != nil {
+
+		if Config.Runner.SecureMode {
+			if Config.Runner.Token != "" {
+				panic("secure mode enabled: token must be provided via token_file, not directly")
+			}
+			if Config.Runner.RegistrationToken != "" {
+				panic("secure mode enabled: registration token must be provided via registration_token_file, not directly")
+			}
+		}
+
+		if Config.Runner.TokenFile != "" {
+			runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
+			if err == nil {
+				Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
+			}
+
+			if Config.Runner.SecureMode {
+				if err := os.Remove(Config.Runner.TokenFile); err != nil {
+					panic("secure mode enabled: failed to remove token file: " + err.Error())
+				}
+			}
+		}
+
+		if Config.Runner.RegistrationTokenFile != "" {
+			regTokenBytes, err := os.ReadFile(Config.Runner.RegistrationTokenFile)
+			if err == nil {
+				Config.Runner.RegistrationToken = strings.TrimSpace(string(regTokenBytes))
+			}
+
+			if Config.Runner.SecureMode {
+				if err := os.Remove(Config.Runner.RegistrationTokenFile); err != nil {
+					panic("secure mode enabled: failed to remove registration token file: " + err.Error())
+				}
+			}
 		}
 	}
 
