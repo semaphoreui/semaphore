@@ -147,6 +147,90 @@ func TestCreateSkipsSerializationForReadOnlyStorage(t *testing.T) {
 	}
 }
 
+func TestRekeyAccessKeysSkipsExternalStorageKeys(t *testing.T) {
+	vaultType := db.AccessKeySourceStorageVault
+	envType := db.AccessKeySourceStorageEnv
+	fileType := db.AccessKeySourceStorageFile
+	projectID := 1
+
+	localSecret := base64.StdEncoding.EncodeToString([]byte("local-secret-value"))
+	vaultSecret := "vault-ciphertext-should-not-be-touched"
+	envSecret := "env-ciphertext-should-not-be-touched"
+	fileSecret := "file-ciphertext-should-not-be-touched"
+
+	allKeys := []db.AccessKey{
+		{
+			ID:        1,
+			Name:      "local-key",
+			Type:      db.AccessKeyString,
+			ProjectID: &projectID,
+			Secret:    &localSecret,
+		},
+		{
+			ID:                2,
+			Name:              "vault-key",
+			Type:              db.AccessKeyString,
+			ProjectID:         &projectID,
+			Secret:            &vaultSecret,
+			SourceStorageType: &vaultType,
+			SourceStorageID:   intPtr(10),
+		},
+		{
+			ID:                3,
+			Name:              "env-key",
+			Type:              db.AccessKeyString,
+			ProjectID:         &projectID,
+			Secret:            &envSecret,
+			SourceStorageType: &envType,
+			SourceStorageKey:  strPtr("MY_ENV_VAR"),
+		},
+		{
+			ID:                4,
+			Name:              "file-key",
+			Type:              db.AccessKeyString,
+			ProjectID:         &projectID,
+			Secret:            &fileSecret,
+			SourceStorageType: &fileType,
+			SourceStorageKey:  strPtr("/etc/secret"),
+		},
+	}
+
+	var updatedIDs []int
+	keyMgr := &mockAccessKeyManager{
+		GetAccessKeysFn: func(_ int, _ db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
+			if params.Offset > 0 {
+				return nil, nil
+			}
+			return allKeys, nil
+		},
+		UpdateAccessKeyFn: func(key db.AccessKey) error {
+			updatedIDs = append(updatedIDs, key.ID)
+			return nil
+		},
+	}
+
+	projectStore := &mockProjectStore{
+		GetAllProjectsFn: func() ([]db.Project, error) {
+			return []db.Project{{ID: projectID}}, nil
+		},
+	}
+
+	util.Config = &util.ConfigType{}
+	svc := NewAccessKeyEncryptionService(keyMgr, nil, nil, projectStore)
+
+	err := svc.RekeyAccessKeys("")
+	if err != nil {
+		t.Fatalf("RekeyAccessKeys returned error: %v", err)
+	}
+
+	if len(updatedIDs) != 1 || updatedIDs[0] != 1 {
+		t.Fatalf("expected only local key (ID=1) to be updated, got updates for IDs: %v", updatedIDs)
+	}
+}
+
+func intPtr(i int) *int       { return &i }
+func strPtr(s string) *string { return &s }
+
 type mockAccessKeyRepo struct {
 	keys []db.AccessKey
 }

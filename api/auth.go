@@ -183,6 +183,11 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if user.Totp == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		key, err := otp.NewKeyFromURL(user.Totp.URL)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)

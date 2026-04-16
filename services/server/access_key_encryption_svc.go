@@ -211,6 +211,10 @@ func (s *accessKeyEncryptionServiceImpl) RekeyAccessKeys(oldKey string) (err err
 
 			for _, key := range keys {
 
+				if key.SourceStorageType != nil {
+					continue
+				}
+
 				var secret string
 				secret, err = deserializer.DeserializeSecret2(&key, oldKey)
 

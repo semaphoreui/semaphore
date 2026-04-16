@@ -115,6 +115,8 @@
       </template>
     </EditDialog>
 
+    <SystemInfoDialog v-model="systemInfoDialog" v-if="user && user.admin" />
+
     <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" top>
       {{ snackbarText }}
       <v-btn text @click="snackbar = false">
@@ -435,7 +437,17 @@
             </template>
 
             <v-list>
-              <v-list-item key="version">
+              <v-list-item key="system-info" v-if="user.admin" @click="systemInfoDialog = true">
+                <v-list-item-icon>
+                  <v-icon>mdi-server</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('systemInfo') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item v-else key="version">
                 <v-list-item-icon>
                   <v-icon>mdi-information-variant</v-icon>
                 </v-list-item-icon>
@@ -859,6 +871,7 @@ import SubscriptionForm from '@/components/SubscriptionForm.vue';
 import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import TaskLogDialog from '@/components/TaskLogDialog.vue';
+import SystemInfoDialog from '@/components/SystemInfoDialog.vue';
 import delay from '@/lib/delay';
 
 const PROJECT_COLORS = ['red', 'blue', 'orange', 'green'];
@@ -938,6 +951,7 @@ export default {
     UserForm,
     EditDialog,
     ProjectForm,
+    SystemInfoDialog,
   },
   data() {
     return {
@@ -956,6 +970,7 @@ export default {
       hideUserDialogButtons: false,
 
       subscriptionDialog: null,
+      systemInfoDialog: null,
 
       restoreProjectDialog: null,
       restoreProjectResult: null,
