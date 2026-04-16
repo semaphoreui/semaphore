@@ -63,19 +63,8 @@
         <!-- Ansible -->
         <v-subheader class="px-0 mt-2">Ansible</v-subheader>
         <v-card style="background: var(--highlighted-card-bg-color)">
-          <v-card-text class="px-0 py-2">
-            <v-simple-table dense style="background: transparent" v-if="info.system.ansible">
-              <tbody>
-                <tr>
-                  <td class="font-weight-medium" style="width: 200px">
-                    {{ $t('version') }}
-                  </td>
-                  <td>
-                    <pre class="ansible-version">{{ info.system.ansible.trim() }}</pre>
-                  </td>
-                </tr>
-              </tbody>
-            </v-simple-table>
+          <v-card-text class="py-2">
+            <pre v-if="info.system.ansible" class="ansible-version">{{ info.system.ansible.trim() }}</pre>
             <div v-else class="px-0 text--secondary text-body-2">
               {{ $t('ansibleNotFound') }}
             </div>
@@ -302,9 +291,9 @@
 <style scoped>
 .ansible-version {
   font-size: 12px;
-  white-space: pre-wrap;
   margin: 0;
   font-family: monospace;
+  overflow-x: auto;
 }
 </style>
 
