@@ -12,31 +12,28 @@ import (
 
 func (conf *ConfigType) getProcessCredential() (uid uint32, gid uint32) {
 
-	if conf.Process.User == "" {
-		return
-	}
+	if conf.Process.User != "" {
+		usr, err := user.Lookup(conf.Process.User)
+		if err != nil {
+			return
+		}
+		u, err := strconv.Atoi(usr.Uid)
+		if err != nil {
+			return
+		}
 
-	usr, err := user.Lookup(conf.Process.User)
-	if err != nil {
-		return
-	}
+		if u > 0 && u <= math.MaxUint32 {
+			uid = uint32(u)
+		}
 
-	u, err := strconv.Atoi(usr.Uid)
-	if err != nil {
-		return
-	}
+		g, err := strconv.Atoi(usr.Gid)
+		if err != nil {
+			return
+		}
 
-	if u > 0 && u <= math.MaxUint32 {
-		uid = uint32(u)
-	}
-
-	g, err := strconv.Atoi(usr.Gid)
-	if err != nil {
-		return
-	}
-
-	if g > 0 && g <= math.MaxUint32 {
-		gid = uint32(g)
+		if g > 0 && g <= math.MaxUint32 {
+			gid = uint32(g)
+		}
 	}
 
 	if conf.Process.UID != nil {
