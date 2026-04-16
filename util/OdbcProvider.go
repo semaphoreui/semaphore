@@ -3,7 +3,7 @@ package util
 type OidcProvider struct {
 	ClientID         string       `json:"client_id"`
 	ClientIDFile     string       `json:"client_id_file"`
-	ClientSecret     string       `json:"client_secret" secure:"true"`
+	ClientSecret     string       `json:"client_secret"`
 	ClientSecretFile string       `json:"client_secret_file"`
 	RedirectURL      string       `json:"redirect_url"`
 	Scopes           []string     `json:"scopes"`

@@ -60,7 +60,7 @@ type DbConfig struct {
 
 	Hostname string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST" default:"0.0.0.0"`
 	Username string            `json:"user,omitempty" env:"SEMAPHORE_DB_USER"`
-	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS" secure:"true"`
+	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS,sensitive"`
 	DbName   string            `json:"name,omitempty" env:"SEMAPHORE_DB" default:"semaphore"`
 	Options  map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
 }
@@ -114,8 +114,8 @@ const (
 // */
 
 type RunnerConfig struct {
-	RegistrationToken string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN" secure:"true"`
-	Token             string `json:"token,omitempty" env:"SEMAPHORE_RUNNER_TOKEN" secure:"true"`
+	RegistrationToken string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN,sensitive"`
+	Token             string `json:"token,omitempty" env:"SEMAPHORE_RUNNER_TOKEN,sensitive"`
 	TokenFile         string `json:"token_file,omitempty" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
 	PrivateKeyFile    string `json:"private_key_file,omitempty" env:"SEMAPHORE_RUNNER_PRIVATE_KEY_FILE"`
 
@@ -203,7 +203,7 @@ type DebuggingConfig struct {
 type HARedisConfig struct {
 	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
 	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
-	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS" secure:"true"`
+	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS,sensitive"`
 	User          string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
 	TLS           bool   `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
 	TLSSkipVerify bool   `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
@@ -293,11 +293,11 @@ type ConfigType struct {
 	WebHost string `json:"web_host,omitempty" env:"SEMAPHORE_WEB_ROOT"`
 
 	// cookie hashing & encryption
-	CookieHash       string `json:"cookie_hash,omitempty" env:"SEMAPHORE_COOKIE_HASH" secure:"true"`
-	CookieEncryption string `json:"cookie_encryption,omitempty" env:"SEMAPHORE_COOKIE_ENCRYPTION" secure:"true"`
+	CookieHash       string `json:"cookie_hash,omitempty" env:"SEMAPHORE_COOKIE_HASH,sensitive"`
+	CookieEncryption string `json:"cookie_encryption,omitempty" env:"SEMAPHORE_COOKIE_ENCRYPTION,sensitive"`
 	// AccessKeyEncryption is BASE64 encoded byte array used
 	// for encrypting and decrypting access keys stored in database.
-	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION" secure:"true"`
+	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION,sensitive"`
 
 	// email alerting
 	EmailAlert         bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
@@ -305,7 +305,7 @@ type ConfigType struct {
 	EmailHost          string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
 	EmailPort          string `json:"email_port,omitempty" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
 	EmailUsername      string `json:"email_username,omitempty" env:"SEMAPHORE_EMAIL_USERNAME"`
-	EmailPassword      string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD" secure:"true"`
+	EmailPassword      string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD,sensitive"`
 	EmailSecure        bool   `json:"email_secure,omitempty" env:"SEMAPHORE_EMAIL_SECURE"`
 	EmailTls           bool   `json:"email_tls,omitempty" env:"SEMAPHORE_EMAIL_TLS"`
 	EmailTlsMinVersion string `json:"email_tls_min_version,omitempty" default:"1.2" rule:"^(1\\.[0123])$" env:"SEMAPHORE_EMAIL_TLS_MIN_VERSION"`
@@ -313,7 +313,7 @@ type ConfigType struct {
 	// ldap settings
 	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"SEMAPHORE_LDAP_ENABLE"`
 	LdapBindDN       string        `json:"ldap_binddn,omitempty" env:"SEMAPHORE_LDAP_BIND_DN"`
-	LdapBindPassword string        `json:"ldap_bindpassword,omitempty" env:"SEMAPHORE_LDAP_BIND_PASSWORD" secure:"true"`
+	LdapBindPassword string        `json:"ldap_bindpassword,omitempty" env:"SEMAPHORE_LDAP_BIND_PASSWORD,sensitive"`
 	LdapServer       string        `json:"ldap_server,omitempty" env:"SEMAPHORE_LDAP_SERVER"`
 	LdapSearchDN     string        `json:"ldap_searchdn,omitempty" env:"SEMAPHORE_LDAP_SEARCH_DN"`
 	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
@@ -323,7 +323,7 @@ type ConfigType struct {
 	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
-	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN" secure:"true"`
+	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN,sensitive"`
 	SlackAlert          bool   `json:"slack_alert,omitempty" env:"SEMAPHORE_SLACK_ALERT"`
 	SlackUrl            string `json:"slack_url,omitempty" env:"SEMAPHORE_SLACK_URL"`
 	RocketChatAlert     bool   `json:"rocketchat_alert,omitempty" env:"SEMAPHORE_ROCKETCHAT_ALERT"`
@@ -334,7 +334,7 @@ type ConfigType struct {
 	DingTalkUrl         string `json:"dingtalk_url,omitempty" env:"SEMAPHORE_DINGTALK_URL"`
 	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
-	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN" secure:"true"`
+	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN,sensitive"`
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
@@ -345,7 +345,7 @@ type ConfigType struct {
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
-	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN" secure:"true"`
+	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN,sensitive"`
 
 	// feature switches
 	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
@@ -379,7 +379,7 @@ type ConfigType struct {
 
 	// SubscriptionKey is a subscription key or token that can be set via config.
 	// When this is set, subscription activation from the web interface is disabled.
-	SubscriptionKey     string `json:"subscription_key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY" secure:"true"`
+	SubscriptionKey     string `json:"subscription_key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY,sensitive"`
 	SubscriptionKeyFile string `json:"subscription_key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
 
 	Dirs                  *ConfigDirs `json:"dirs,omitempty"`
@@ -1002,6 +1002,17 @@ func validateConfig() {
 	}
 }
 
+// parseEnvTag splits an env tag value like "SEMAPHORE_DB_PASS,sensitive"
+// into the environment variable name and whether it is sensitive.
+func parseEnvTag(tag string) (envVar string, sensitive bool) {
+	parts := strings.SplitN(tag, ",", 2)
+	envVar = parts[0]
+	if len(parts) > 1 && parts[1] == "sensitive" {
+		sensitive = true
+	}
+	return
+}
+
 func loadEnvironmentToObject(obj any) error {
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
@@ -1031,8 +1042,9 @@ func loadEnvironmentToObject(obj any) error {
 				fieldValue.Set(newValue)
 			}
 
-			envVar := fieldType.Tag.Get("env")
-			if envVar != "" {
+			envTag := fieldType.Tag.Get("env")
+			if envTag != "" {
+				envVar, sensitive := parseEnvTag(envTag)
 				if envValue, exists := os.LookupEnv(envVar); exists {
 					newValue := reflect.New(fieldType.Type.Elem())
 					err := json.Unmarshal([]byte(envValue), newValue.Interface())
@@ -1040,6 +1052,9 @@ func loadEnvironmentToObject(obj any) error {
 						return err
 					}
 					fieldValue.Set(newValue)
+					if sensitive {
+						os.Unsetenv(envVar) //nolint:errcheck
+					}
 				}
 			}
 
@@ -1050,10 +1065,12 @@ func loadEnvironmentToObject(obj any) error {
 			continue
 		}
 
-		envVar := fieldType.Tag.Get("env")
-		if envVar == "" {
+		envTag := fieldType.Tag.Get("env")
+		if envTag == "" {
 			continue
 		}
+
+		envVar, sensitive := parseEnvTag(envTag)
 
 		envValue, exists := os.LookupEnv(envVar)
 
@@ -1063,7 +1080,7 @@ func loadEnvironmentToObject(obj any) error {
 
 		setConfigValue(fieldValue, envValue) // envValue always string!!!
 
-		if fieldType.Tag.Get("secure") == "true" {
+		if sensitive {
 			os.Unsetenv(envVar) //nolint:errcheck
 		}
 	}
