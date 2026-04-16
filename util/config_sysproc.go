@@ -4,14 +4,13 @@ package util
 
 import (
 	"os"
+	"math"
 	"os/user"
 	"strconv"
 	"syscall"
 )
 
-func (conf *ConfigType) getProcessCredential() (uid *int, gid *int) {
-	uid = conf.Process.UID
-	gid = conf.Process.GID
+func (conf *ConfigType) getProcessCredential() (uid uint32, gid uint32) {
 
 	if conf.Process.User == "" {
 		return
@@ -25,16 +24,29 @@ func (conf *ConfigType) getProcessCredential() (uid *int, gid *int) {
 	u, err := strconv.Atoi(usr.Uid)
 	if err != nil {
 		return
+  }
+  
+  if u > 0 && u <= math.MaxUint32 {
+	  uid = uint32(u)
 	}
-
+  
 	g, err := strconv.Atoi(usr.Gid)
 	if err != nil {
 		return
 	}
 
-	uid = &u
-	gid = &g
+  if g > 0 && g <= math.MaxUint32 {
+	  uid = uint32(g)
+	}
+  
+	if conf.Process.UID != nil {
+		uid = *conf.Process.UID
+	}
 
+	if conf.Process.GID != nil {
+		gid = *conf.Process.GID
+	}
+  
 	return
 }
 
@@ -47,14 +59,14 @@ func (conf *ConfigType) GetSysProcAttr() (res *syscall.SysProcAttr) {
 
 	uid, gid := conf.getProcessCredential()
 
-	if uid != nil && gid != nil {
+	if uid > 0 && gid > 0 {
 		if res == nil {
 			res = &syscall.SysProcAttr{}
 		}
 
 		res.Credential = &syscall.Credential{
-			Uid: uint32(*uid),
-			Gid: uint32(*gid),
+			Uid: uid,
+			Gid: gid,
 		}
 	}
 
