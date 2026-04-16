@@ -45,7 +45,10 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	roles, err := helpers.Store(r).GetGlobalRoles()
 	if err != nil {
-		log.WithError(err).Error("Failed to get roles")
+		log.WithFields(log.Fields{
+			"context": "system_info",
+			"user_id": user.ID,
+		}).WithError(err).Error("Failed to get roles")
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -59,7 +62,10 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		err = nil
 		plan = ""
 	case err != nil:
-		log.WithError(err).Error("Failed to get subscription plan")
+		log.WithFields(log.Fields{
+			"context": "system_info",
+			"user_id": user.ID,
+		}).WithError(err).Error("Failed to get subscription plan")
 		err = nil
 		plan = ""
 	default:
