@@ -3,8 +3,8 @@
 package util
 
 import (
-	"os"
 	"math"
+	"os"
 	"os/user"
 	"strconv"
 	"syscall"
@@ -24,21 +24,21 @@ func (conf *ConfigType) getProcessCredential() (uid uint32, gid uint32) {
 	u, err := strconv.Atoi(usr.Uid)
 	if err != nil {
 		return
-  }
-  
-  if u > 0 && u <= math.MaxUint32 {
-	  uid = uint32(u)
 	}
-  
+
+	if u > 0 && u <= math.MaxUint32 {
+		uid = uint32(u)
+	}
+
 	g, err := strconv.Atoi(usr.Gid)
 	if err != nil {
 		return
 	}
 
-  if g > 0 && g <= math.MaxUint32 {
-	  uid = uint32(g)
+	if g > 0 && g <= math.MaxUint32 {
+		uid = uint32(g)
 	}
-  
+
 	if conf.Process.UID != nil {
 		uid = *conf.Process.UID
 	}
@@ -46,7 +46,7 @@ func (conf *ConfigType) getProcessCredential() (uid uint32, gid uint32) {
 	if conf.Process.GID != nil {
 		gid = *conf.Process.GID
 	}
-  
+
 	return
 }
 
@@ -79,9 +79,9 @@ func (conf *ConfigType) GetSysProcAttr() (res *syscall.SysProcAttr) {
 func ChownDir(path string) error {
 	uid, gid := Config.getProcessCredential()
 
-	if uid == nil || gid == nil {
+	if uid <= 0 || gid <= 0 || uid > math.MaxInt32 || gid > math.MaxInt32 {
 		return nil
 	}
 
-	return os.Chown(path, *uid, *gid)
+	return os.Chown(path, int(uid), int(gid))
 }
