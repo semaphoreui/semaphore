@@ -4,20 +4,37 @@ package util
 
 import (
 	"math"
+	"os"
 	"os/user"
 	"strconv"
 	"syscall"
 )
 
-func (conf *ConfigType) GetSysProcAttr() (res *syscall.SysProcAttr) {
+func (conf *ConfigType) getProcessCredential() (uid uint32, gid uint32) {
 
-	if conf.Process.Chroot != "" {
-		res = &syscall.SysProcAttr{}
-		res.Chroot = conf.Process.Chroot
+	if conf.Process.User != "" {
+		usr, err := user.Lookup(conf.Process.User)
+		if err != nil {
+			return
+		}
+		u, err := strconv.Atoi(usr.Uid)
+		if err != nil {
+			return
+		}
+
+		if u > 0 && u <= math.MaxUint32 {
+			uid = uint32(u)
+		}
+
+		g, err := strconv.Atoi(usr.Gid)
+		if err != nil {
+			return
+		}
+
+		if g > 0 && g <= math.MaxUint32 {
+			gid = uint32(g)
+		}
 	}
-
-	var uid uint32
-	var gid uint32
 
 	if conf.Process.UID != nil {
 		uid = *conf.Process.UID
@@ -27,31 +44,17 @@ func (conf *ConfigType) GetSysProcAttr() (res *syscall.SysProcAttr) {
 		gid = *conf.Process.GID
 	}
 
-	if conf.Process.User != "" {
-		usr, err := user.Lookup(conf.Process.User)
-		if err != nil {
-			return
-		}
+	return
+}
 
-		u, err := strconv.Atoi(usr.Uid)
-		if err != nil {
-			return
-		}
+func (conf *ConfigType) GetSysProcAttr() (res *syscall.SysProcAttr) {
 
-		g, err := strconv.Atoi(usr.Gid)
-		if err != nil {
-			return
-		}
-
-		if u > 0 && u <= math.MaxUint32 {
-			uid = uint32(u)
-		}
-
-		if g > 0 && g <= math.MaxUint32 {
-			gid = uint32(g)
-		}
-
+	if conf.Process.Chroot != "" {
+		res = &syscall.SysProcAttr{}
+		res.Chroot = conf.Process.Chroot
 	}
+
+	uid, gid := conf.getProcessCredential()
 
 	if uid > 0 && gid > 0 {
 		if res == nil {
@@ -65,4 +68,17 @@ func (conf *ConfigType) GetSysProcAttr() (res *syscall.SysProcAttr) {
 	}
 
 	return
+}
+
+// ChownDir changes ownership of the directory to the process config user/group.
+// This is needed because directories are created by the main Semaphore process,
+// but child processes (git, ansible, etc.) run as the configured process user.
+func ChownDir(path string) error {
+	uid, gid := Config.getProcessCredential()
+
+	if uid <= 0 || gid <= 0 || uid > math.MaxInt32 || gid > math.MaxInt32 {
+		return nil
+	}
+
+	return os.Chown(path, int(uid), int(gid))
 }
