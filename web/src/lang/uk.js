@@ -206,6 +206,7 @@ export default {
   editViews: 'Редагувати перегляди',
   newTemplate: 'Новий шаблон',
   taskTemplates2: 'Шаблони завдань',
+  search: 'Пошук',
   all: 'Усі',
   notLaunched: 'Не запущено',
   by: 'від {user_name}',

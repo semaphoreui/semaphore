@@ -205,6 +205,7 @@ export default {
   editViews: '编辑视图',
   newTemplate: '新模板',
   taskTemplates2: '任务模板',
+  search: '搜索',
   all: '所有',
   notLaunched: '未启动',
   by: '由 {user_name}',

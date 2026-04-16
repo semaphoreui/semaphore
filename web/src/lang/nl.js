@@ -205,6 +205,7 @@ export default {
   editViews: 'Weergaven Bewerken',
   newTemplate: 'Nieuw sjabloon',
   taskTemplates2: 'Taak Sjablonen',
+  search: 'Zoeken',
   all: 'Alle',
   notLaunched: 'Niet gelanceerd',
   by: 'door {user_name}',

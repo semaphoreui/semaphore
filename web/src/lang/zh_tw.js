@@ -207,6 +207,7 @@ export default {
   editViews: '編輯檢視',
   newTemplate: '新增範本',
   taskTemplates2: '任務範本',
+  search: '搜尋',
   all: '所有',
   notLaunched: '未啟動',
   by: '由 {user_name}',

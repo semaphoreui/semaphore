@@ -205,6 +205,7 @@ export default {
   editViews: 'ビューを編集',
   newTemplate: '新しいテンプレート',
   taskTemplates2: 'タスクテンプレート',
+  search: '検索',
   all: 'すべて',
   notLaunched: '未起動',
   by: '{user_name}による',

@@ -214,6 +214,7 @@ export default {
   editViews: 'Ansichten bearbeiten',
   newTemplate: 'Neue Vorlage',
   taskTemplates2: 'Task-Vorlagen',
+  search: 'Suche',
   all: 'Alle',
   notLaunched: 'Nicht gestartet',
   by: 'von {user_name}',

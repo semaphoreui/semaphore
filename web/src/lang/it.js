@@ -205,6 +205,7 @@ export default {
   editViews: 'Modifica viste',
   newTemplate: 'Nuovo modello',
   taskTemplates2: 'Modelli di compito',
+  search: 'Cerca',
   all: 'Tutti',
   notLaunched: 'Non avviato',
   by: 'da {user_name}',

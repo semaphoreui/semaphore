@@ -385,4 +385,5 @@ export default {
   role_required: 'Role is required',
 
   templatePermission: 'Template permissions',
+  search: 'Search',
 };
