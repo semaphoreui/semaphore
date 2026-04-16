@@ -185,10 +185,11 @@ type SyslogConfig struct {
 }
 
 type ConfigProcess struct {
-	User   string `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
-	UID    *int   `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
-	Chroot string `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
-	GID    *int   `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
+	User       string `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
+	UID        *int   `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
+	Chroot     string `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
+	GID        *int   `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
+	NoNewPrivs bool   `json:"no_new_privs,omitempty" env:"SEMAPHORE_PROCESS_NO_NEW_PRIVS"`
 }
 
 type ScheduleConfig struct {
@@ -464,6 +465,12 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 
 	//fmt.Println("Validating config")
 	validateConfig()
+
+	if Config.Process.NoNewPrivs {
+		if err := SetNoNewPrivs(); err != nil {
+			panic(fmt.Errorf("failed to set no_new_privs: %w", err))
+		}
+	}
 
 	var encryption []byte
 
