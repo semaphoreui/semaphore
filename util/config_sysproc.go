@@ -10,28 +10,30 @@ import (
 )
 
 func (conf *ConfigType) getProcessCredential() (uid *int, gid *int) {
-
+	uid = conf.Process.UID
 	gid = conf.Process.GID
 
-	if conf.Process.User != "" {
-		usr, err := user.Lookup(conf.Process.User)
-		if err != nil {
-			return
-		}
-
-		u, err := strconv.Atoi(usr.Uid)
-		if err != nil {
-			return
-		}
-
-		g, err := strconv.Atoi(usr.Gid)
-		if err != nil {
-			return
-		}
-
-		uid = &u
-		gid = &g
+	if conf.Process.User == "" {
+		return
 	}
+
+	usr, err := user.Lookup(conf.Process.User)
+	if err != nil {
+		return
+	}
+
+	u, err := strconv.Atoi(usr.Uid)
+	if err != nil {
+		return
+	}
+
+	g, err := strconv.Atoi(usr.Gid)
+	if err != nil {
+		return
+	}
+
+	uid = &u
+	gid = &g
 
 	return
 }
@@ -63,10 +65,6 @@ func (conf *ConfigType) GetSysProcAttr() (res *syscall.SysProcAttr) {
 // This is needed because directories are created by the main Semaphore process,
 // but child processes (git, ansible, etc.) run as the configured process user.
 func ChownDir(path string) error {
-	if Config == nil {
-		return nil
-	}
-
 	uid, gid := Config.getProcessCredential()
 
 	if uid == nil || gid == nil {
@@ -75,4 +73,3 @@ func ChownDir(path string) error {
 
 	return os.Chown(path, *uid, *gid)
 }
-
