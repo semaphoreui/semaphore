@@ -25,9 +25,8 @@ func (e *TemplateVaultExporter) load(store db.Store, exporter DataExporter, prog
 
 		vaultsArr := make([]db.TemplateVault, 0)
 
-		for key := range templates {
-
-			vaults, err := store.GetTemplateVaults(projId, key)
+		for _, template := range templates {
+			vaults, err := store.GetTemplateVaults(projId, template)
 			if err != nil {
 				return err
 			}
