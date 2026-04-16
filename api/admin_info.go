@@ -76,22 +76,11 @@ func getAdminInfo(w http.ResponseWriter, r *http.Request) {
 	runnersInfo := map[string]any{
 		"use_remote_runner": util.Config.UseRemoteRunner,
 	}
-	globalRunners, err := store.GetRunners(0, false, nil)
-	if err == nil {
-		activeCount := 0
-		for _, runner := range globalRunners {
-			if runner.Active {
-				activeCount++
-			}
-		}
-		runnersInfo["total"] = len(globalRunners)
-		runnersInfo["active"] = activeCount
-	}
 
 	// Task settings
 	taskSettings := map[string]any{
-		"max_parallel_tasks":    util.Config.MaxParallelTasks,
-		"max_task_duration_sec": util.Config.MaxTaskDurationSec,
+		"max_parallel_tasks":     util.Config.MaxParallelTasks,
+		"max_task_duration_sec":  util.Config.MaxTaskDurationSec,
 		"max_tasks_per_template": util.Config.MaxTasksPerTemplate,
 	}
 
