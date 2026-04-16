@@ -25,8 +25,8 @@ func (e *TemplateRoleExporter) load(store db.Store, exporter DataExporter, progr
 
 		roles := make([]db.TemplateRolePerm, 0)
 
-		for key := range templates {
-			templateRoles, err := store.GetTemplateRoles(projId, key)
+		for _, template := range templates {
+			templateRoles, err := store.GetTemplateRoles(projId, template)
 			if err != nil {
 				return err
 			}
