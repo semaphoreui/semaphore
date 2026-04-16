@@ -64,7 +64,9 @@
         <v-subheader class="px-0 mt-2">Ansible</v-subheader>
         <v-card style="background: var(--highlighted-card-bg-color)">
           <v-card-text class="py-2">
-            <pre v-if="info.system.ansible" class="ansible-version">{{ info.system.ansible.trim() }}</pre>
+            <pre v-if="info.system.ansible" class="ansible-version">
+              {{ info.system.ansible.trim() }}
+            </pre>
             <div v-else class="px-0 text--secondary text-body-2">
               {{ $t('ansibleNotFound') }}
             </div>
