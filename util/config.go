@@ -185,11 +185,11 @@ type SyslogConfig struct {
 }
 
 type ConfigProcess struct {
-	User       string `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
-	UID        *int   `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
-	Chroot     string `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
-	GID        *int   `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
-	NoNewPrivs bool   `json:"no_new_privs,omitempty" env:"SEMAPHORE_PROCESS_NO_NEW_PRIVS"`
+	User       string  `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
+	UID        *uint32 `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
+	Chroot     string  `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
+	GID        *uint32 `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
+	NoNewPrivs bool    `json:"no_new_privs,omitempty" env:"SEMAPHORE_PROCESS_NO_NEW_PRIVS"`
 }
 
 type ScheduleConfig struct {
