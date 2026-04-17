@@ -88,8 +88,18 @@ func (t *AnsibleApp) getRepoPath() string {
 	return t.Repository.GetFullPath(t.Template.ID)
 }
 
+// requirementsHashFilePath is the path to the cached hash of a requirements file. Hashes are kept
+// under GetInternalPath (repository_<id>_template_<id>_internal) so they are not written next to
+// repository files (especially local paths shared by multiple templates). Legacy *.md5 files beside
+// requirements.yml are not read.
+func (t *AnsibleApp) requirementsHashFilePath(requirementsType GalaxyRequirementsType, requirementsFilePath string) string {
+	sum := md5.Sum([]byte(requirementsFilePath))
+	internalDir := t.Repository.GetInternalPath(t.Template.ID)
+	return path.Join(internalDir, fmt.Sprintf("requirements_%x_%s.md5", sum, requirementsType))
+}
+
 func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string, environmentVars []string) error {
-	requirementsHashFilePath := fmt.Sprintf("%s_%s.md5", requirementsFilePath, requirementsType)
+	requirementsHashFilePath := t.requirementsHashFilePath(requirementsType, requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
 		t.Log("No " + requirementsFilePath + " file found. Skip galaxy install process.\n")
@@ -104,6 +114,9 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequir
 			requirementsFilePath,
 			"--force",
 		}, environmentVars); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(t.Repository.GetInternalPath(t.Template.ID), 0o755); err != nil {
 			return err
 		}
 		if err := writeMD5Hash(requirementsFilePath, requirementsHashFilePath); err != nil {

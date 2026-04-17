@@ -19,7 +19,7 @@ ARG TARGETARCH
 ARG GH_TOKEN
 
 RUN if [ -n "$APP_BUILD_TYPE" ]; then \
-      git clone https://${GH_TOKEN}@github.com/semaphoreui/semaphorepro-module.git pro_impl && \
+      git clone -b 2-17-stable https://${GH_TOKEN}@github.com/semaphoreui/semaphorepro-module.git pro_impl && \
       go work init . ./pro_impl; \
     fi
 

@@ -86,12 +86,16 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 				continue
 			}
 
-			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
-				errors = append(errors, err)
+			if key.EnvironmentID == nil || *key.EnvironmentID != env.ID {
+				errors = append(errors, fmt.Errorf("secret does not belong to this environment"))
 				continue
 			}
 
 			err = c.accessKeyService.Delete(env.ProjectID, secret.ID)
+			if err != nil {
+				errors = append(errors, err)
+				continue
+			}
 		case db.EnvironmentSecretUpdate:
 			key, err = c.accessKeyRepo.GetAccessKey(env.ProjectID, secret.ID)
 
@@ -100,8 +104,8 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 				continue
 			}
 
-			if key.EnvironmentID == nil && *key.EnvironmentID == env.ID {
-				errors = append(errors, err)
+			if key.EnvironmentID == nil || *key.EnvironmentID != env.ID {
+				errors = append(errors, fmt.Errorf("secret does not belong to this environment"))
 				continue
 			}
 
