@@ -363,6 +363,8 @@ definitions:
       user_id:
         type: integer
         minimum: 1
+      name:
+        type: string
 
   ProjectRequest:
     type: object
@@ -1426,6 +1428,16 @@ paths:
         - authentication
         - user
       summary: Create an API token
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "my CI token"
       responses:
         201:
           description: API Token

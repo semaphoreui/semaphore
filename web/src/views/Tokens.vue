@@ -21,9 +21,26 @@
 
       <v-btn
         color="primary"
-        @click="newToken()"
+        @click="newTokenDialog = true"
       >{{ $t('New Token') }}</v-btn>
     </v-toolbar>
+
+    <v-dialog v-model="newTokenDialog" max-width="400" persistent>
+      <v-card>
+        <v-card-title>{{ $t('New Token') }}</v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="newTokenName"
+            :label="$t('tokenName')"
+          ></v-text-field>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="cancelNewToken()">{{ $t('cancel') }}</v-btn>
+          <v-btn color="primary" @click="newToken()">{{ $t('create') }}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <v-divider />
 
@@ -107,6 +124,8 @@ export default {
   data() {
     return {
       newRunnerTokenDialog: null,
+      newTokenDialog: false,
+      newTokenName: '',
     };
   },
 
@@ -124,13 +143,22 @@ export default {
       });
     },
 
+    cancelNewToken() {
+      this.newTokenDialog = false;
+      this.newTokenName = '';
+    },
+
     async newToken() {
       const res = (await axios({
         method: 'post',
         url: '/api/user/tokens',
         responseType: 'json',
-        data: {},
+        data: { name: this.newTokenName },
       })).data;
+
+      this.newTokenDialog = false;
+      this.newTokenName = '';
+
       await this.loadItems();
 
       const i = this.items.findIndex((item) => res.id.startsWith(item.id));
@@ -148,6 +176,9 @@ export default {
       return [{
         text: this.$i18n.t('token'),
         value: 'id',
+      }, {
+        text: this.$i18n.t('name'),
+        value: 'name',
       }, {
         text: this.$i18n.t('created'),
         value: 'created',

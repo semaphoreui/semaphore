@@ -3,6 +3,7 @@ package api
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -66,6 +67,12 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 
 func createAPIToken(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
+
+	var body struct {
+		Name string `json:"name"`
+	}
+	json.NewDecoder(r.Body).Decode(&body)
+
 	tokenID := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
 		panic(err)
@@ -75,6 +82,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		ID:      strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
 		UserID:  user.ID,
 		Expired: false,
+		Name:    body.Name,
 	})
 	if err != nil {
 		panic(err)

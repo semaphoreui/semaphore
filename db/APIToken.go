@@ -8,4 +8,5 @@ type APIToken struct {
 	Created time.Time `db:"created" json:"created"`
 	Expired bool      `db:"expired" json:"expired"`
 	UserID  int       `db:"user_id" json:"user_id"`
+	Name    string    `db:"name" json:"name"`
 }
