@@ -2,7 +2,6 @@ package server
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -41,16 +40,7 @@ type SecretStorageServiceImpl struct {
 }
 
 func (s *SecretStorageServiceImpl) SyncSecrets(storage db.SecretStorage) error {
-	switch storage.Type {
-	case db.SecretStorageTypeDvls:
-		return pro.SyncDvlsSecrets(storage, s.accessKeyRepo, s.encryptionService)
-	case db.SecretStorageTypeAwsSm:
-		return pro.SyncAwsSmSecrets(storage, s.accessKeyRepo, s.encryptionService)
-	case db.SecretStorageTypeAzureKv:
-		return pro.SyncAzureKvSecrets(storage, s.accessKeyRepo, s.encryptionService)
-	default:
-		return fmt.Errorf("sync is not supported for storage type %q", storage.Type)
-	}
+	return pro.SyncSecrets(storage, s.accessKeyRepo, s.encryptionService)
 }
 
 func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err error) {

@@ -1,32 +1,29 @@
 package server
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"fmt"
+
+	"github.com/semaphoreui/semaphore/db"
+)
 
 func GetSecretStorages(repo db.SecretStorageRepository, projectID int) (storages []db.SecretStorage, err error) {
 	storages = make([]db.SecretStorage, 0)
 	return
 }
 
-func SyncDvlsSecrets(
+func SyncSecrets(
 	storage db.SecretStorage,
 	accessKeyRepo db.AccessKeyManager,
 	decryptor DvlsStorageTokenDeserializer,
 ) error {
-	return nil
-}
-
-func SyncAwsSmSecrets(
-	storage db.SecretStorage,
-	accessKeyRepo db.AccessKeyManager,
-	decryptor AwsSmStorageTokenDeserializer,
-) error {
-	return nil
-}
-
-func SyncAzureKvSecrets(
-	storage db.SecretStorage,
-	accessKeyRepo db.AccessKeyManager,
-	decryptor AzureKvStorageTokenDeserializer,
-) error {
-	return nil
+	switch storage.Type {
+	case db.SecretStorageTypeDvls:
+		return nil
+	case db.SecretStorageTypeAwsSm:
+		return nil
+	case db.SecretStorageTypeAzureKv:
+		return nil
+	default:
+		return fmt.Errorf("sync is not supported for storage type %q", storage.Type)
+	}
 }
