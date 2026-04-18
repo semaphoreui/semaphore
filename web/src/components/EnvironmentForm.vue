@@ -458,6 +458,8 @@ export default {
           return '$vuetify.icons.hashicorp_vault';
         case 'dvls':
           return '$vuetify.icons.dvls';
+        case 'azure_kv':
+          return '$vuetify.icons.azure_kv';
         default:
           return '';
       }

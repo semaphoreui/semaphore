@@ -13,7 +13,7 @@
     ></v-text-field>
 
     <v-text-field
-      v-if="item.type !== 'aws_sm'"
+      v-if="item.type !== 'aws_sm' && item.type !== 'azure_kv'"
       v-model="item.params.url"
       :label="$t('Server URL')"
       :disabled="formSaving"
@@ -226,6 +226,82 @@
           dense
         ></v-text-field>
       </template>
+    </div>
+
+    <div v-else-if="item.type === 'azure_kv'">
+      <v-text-field
+        v-model="item.params.vault_url"
+        label="Vault URL"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Vault URL is required']"
+        required
+        placeholder="https://my-vault.vault.azure.net"
+        data-testid="secretStorage-azureVaultURL"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.tenant_id"
+        label="Tenant ID"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Tenant ID is required']"
+        required
+        data-testid="secretStorage-azureTenantId"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.client_id"
+        label="Client ID"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Client ID is required']"
+        required
+        data-testid="secretStorage-azureClientId"
+        outlined
+        dense
+      ></v-text-field>
+
+      <div class="d-flex justify-space-between align-center">
+        <b style="font-size: 13px; margin-left: 5px">Client Secret</b>
+        <v-btn-toggle v-model="secretStorage" tile group mandatory>
+          <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
+            Store in DB
+          </v-btn>
+          <v-btn value="env" small class="mr-0 mt-0" style="border-radius: 4px"> From ENV </v-btn>
+          <v-btn value="file" small class="mr-0 mt-0" style="border-radius: 4px">
+            From File
+          </v-btn>
+        </v-btn-toggle>
+      </div>
+
+      <v-text-field
+        v-if="secretStorage === 'database'"
+        class="TextInput TextInput--no-legend masked-secret-input"
+        v-model="item.secret"
+        label="Client Secret"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || 'Client Secret is required']"
+        required
+        data-testid="secretStorage-azureClientSecret"
+        outlined
+        dense
+        append-icon="mdi-lock"
+      ></v-text-field>
+
+      <v-text-field
+        v-else
+        class="TextInput TextInput--no-legend"
+        v-model="item.secret"
+        :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
+        required
+        data-testid="secretStorage-azureClientSecretSource"
+        outlined
+        dense
+      ></v-text-field>
     </div>
 
     <v-checkbox v-model="item.readonly" :label="$t('Read only')" :disabled="formSaving" />
