@@ -305,18 +305,23 @@
     </div>
 
     <v-checkbox v-model="item.readonly" :label="$t('Read only')" :disabled="formSaving" />
+    <v-checkbox
+      v-model="item.sync_enabled"
+      :label="$t('Sync enabled')"
+      :disabled="formSaving"
+    />
 
     <v-btn
       text
       color="primary"
       @click="syncSettingsDialog = true"
-      :disabled="formSaving"
+      :disabled="formSaving || !item.sync_enabled"
       style="margin-bottom: -70px; margin-left: -12px"
     >
       <v-icon left>mdi-cog-sync</v-icon>
       Sync paths
       <v-chip class="ml-2" outlined style="transform: translateY(-1px)" color="primary" small>
-        {{ item.params.sync_paths.length }}</v-chip
+        {{ item.sync_paths.length }}</v-chip
       >
     </v-btn>
 
@@ -324,7 +329,7 @@
       <v-card>
         <v-card-title>Sync paths</v-card-title>
         <v-card-text class="pt-4 pb-0">
-          <SecretStorageSyncOptionsForm v-model="item.params.sync_paths" />
+          <SecretStorageSyncOptionsForm v-model="item.sync_paths" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -360,9 +365,9 @@ export default {
   methods: {
     getNewItem() {
       return {
-        params: {
-          sync_paths: [],
-        },
+        sync_enabled: false,
+        sync_paths: [],
+        params: {},
       };
     },
 
@@ -371,8 +376,8 @@ export default {
         this.item.params = {};
       }
 
-      if (!this.item.params.sync_paths) {
-        this.$set(this.item.params, 'sync_paths', []);
+      if (!this.item.sync_paths) {
+        this.$set(this.item, 'sync_paths', []);
       }
 
       if (this.itemId === 'new') {

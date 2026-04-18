@@ -28,3 +28,11 @@ func (d *BoltDb) UpdateSecretStorage(storage db.SecretStorage) error {
 func (d *BoltDb) GetSecretStorageRefs(projectID int, storageID int) (db.ObjectReferrers, error) {
 	return d.getObjectRefs(projectID, db.SecretStorageProps, storageID)
 }
+
+func (d *BoltDb) GetSecretStorageSyncPaths(storageID int) ([]db.SecretStorageSyncPath, error) {
+	return []db.SecretStorageSyncPath{}, nil
+}
+
+func (d *BoltDb) ReplaceSecretStorageSyncPaths(storageID int, paths []db.SecretStorageSyncPath) error {
+	return nil
+}

@@ -476,6 +476,9 @@ type SecretStorageRepository interface {
 	UpdateSecretStorage(storage SecretStorage) error
 	GetSecretStorageRefs(projectID int, storageID int) (ObjectReferrers, error)
 	DeleteSecretStorage(projectID int, storageID int) error
+
+	GetSecretStorageSyncPaths(storageID int) ([]SecretStorageSyncPath, error)
+	ReplaceSecretStorageSyncPaths(storageID int, paths []SecretStorageSyncPath) error
 }
 
 type RoleRepository interface {

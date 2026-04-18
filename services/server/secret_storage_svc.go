@@ -44,6 +44,28 @@ func (s *SecretStorageServiceImpl) SyncSecrets(storage db.SecretStorage) error {
 }
 
 func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err error) {
+	storage, err := s.secretStorageRepo.GetSecretStorage(projectID, storageID)
+	if err != nil {
+		return
+	}
+
+	if storage.SyncEnabled {
+		var syncedKeys []db.AccessKey
+		syncedKeys, err = s.accessKeyRepo.GetAccessKeys(projectID, db.GetAccessKeyOptions{
+			IgnoreOwner:     true,
+			SourceStorageID: &storageID,
+		}, db.RetrieveQueryParams{})
+		if err != nil {
+			return
+		}
+
+		for _, key := range syncedKeys {
+			if err = s.accessKeyRepo.DeleteAccessKey(projectID, key.ID); err != nil {
+				return
+			}
+		}
+	}
+
 	err = s.secretStorageRepo.DeleteSecretStorage(projectID, storageID)
 	if err != nil {
 		return
