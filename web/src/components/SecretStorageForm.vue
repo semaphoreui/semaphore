@@ -38,11 +38,11 @@
       <div class="d-flex justify-space-between align-center mb-2">
         <b style="font-size: 13px; margin-left: 5px">Token</b>
         <v-btn-toggle v-model="secretStorage" tile group mandatory>
-          <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
+          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
             Store in DB
           </v-btn>
-          <v-btn value="env" small class="mr-0 mt-0" style="border-radius: 4px"> From ENV </v-btn>
-          <v-btn value="file" small class="mr-0 mt-0" style="border-radius: 4px"> From File </v-btn>
+          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
         </v-btn-toggle>
       </div>
 
@@ -104,14 +104,14 @@
         dense
       ></v-text-field>
 
-      <div class="d-flex justify-space-between align-center">
+      <div class="d-flex justify-space-between align-center mb-2">
         <b style="font-size: 13px; margin-left: 5px">App secret</b>
         <v-btn-toggle v-model="secretStorage" tile group mandatory>
-          <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
+          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
             Store in DB
           </v-btn>
-          <v-btn value="env" small class="mr-0 mt-0" style="border-radius: 4px"> From ENV </v-btn>
-          <v-btn value="file" small class="mr-0 mt-0" style="border-radius: 4px"> From File </v-btn>
+          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
         </v-btn-toggle>
       </div>
 
@@ -186,14 +186,14 @@
           dense
         ></v-text-field>
 
-        <div class="d-flex justify-space-between align-center">
+        <div class="d-flex justify-space-between align-center mb-2">
           <b style="font-size: 13px; margin-left: 5px">Secret Key</b>
           <v-btn-toggle v-model="secretStorage" tile group mandatory>
-            <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
+            <v-btn value="database" small class="ma-0" style="border-radius: 4px">
               Store in DB
             </v-btn>
-            <v-btn value="env" small class="mr-0 mt-0" style="border-radius: 4px"> From ENV </v-btn>
-            <v-btn value="file" small class="mr-0 mt-0" style="border-radius: 4px">
+            <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+            <v-btn value="file" small class="ma-0" style="border-radius: 4px">
               From File
             </v-btn>
           </v-btn-toggle>
@@ -263,14 +263,14 @@
         dense
       ></v-text-field>
 
-      <div class="d-flex justify-space-between align-center">
+      <div class="d-flex justify-space-between align-center mb-2">
         <b style="font-size: 13px; margin-left: 5px">Client Secret</b>
         <v-btn-toggle v-model="secretStorage" tile group mandatory>
-          <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
+          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
             Store in DB
           </v-btn>
-          <v-btn value="env" small class="mr-0 mt-0" style="border-radius: 4px"> From ENV </v-btn>
-          <v-btn value="file" small class="mr-0 mt-0" style="border-radius: 4px">
+          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+          <v-btn value="file" small class="ma-0" style="border-radius: 4px">
             From File
           </v-btn>
         </v-btn-toggle>
