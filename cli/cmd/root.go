@@ -96,6 +96,7 @@ func runService() {
 	)
 	accessKeyService := server.NewAccessKeyService(store, encryptionService, store)
 	secretStorageService := server.NewSecretStorageService(store, store, accessKeyService, encryptionService)
+	secretStorageSyncScheduler := server.NewSecretStorageSyncScheduler(store, secretStorageService)
 	environmentService := server.NewEnvironmentService(store, encryptionService)
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
@@ -184,6 +185,9 @@ func runService() {
 
 	go schedulePool.Run()
 	go taskPool.Run()
+
+	secretStorageSyncScheduler.Start()
+	defer secretStorageSyncScheduler.Stop()
 
 	route := api.Route(
 		store,

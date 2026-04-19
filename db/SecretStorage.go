@@ -1,5 +1,7 @@
 package db
 
+import "time"
+
 type SecretStorageType string
 
 const (
@@ -26,6 +28,10 @@ type SecretStorage struct {
 	Params      MapStringAnyField `db:"params" json:"params"`
 	ReadOnly    bool              `db:"readonly" json:"readonly"`
 	SyncEnabled bool              `db:"sync_enabled" json:"sync_enabled"`
+	// SyncInterval is the auto-sync period in minutes. Zero disables auto-sync.
+	SyncInterval     int        `db:"sync_interval" json:"sync_interval"`
+	LastSyncedAt     *time.Time `db:"last_synced_at" json:"last_synced_at,omitempty"`
+	LastSyncFailedAt *time.Time `db:"last_sync_failed_at" json:"last_sync_failed_at,omitempty"`
 
 	SyncPaths []SecretStorageSyncPath `db:"-" json:"sync_paths"`
 

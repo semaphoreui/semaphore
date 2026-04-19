@@ -479,6 +479,9 @@ type SecretStorageRepository interface {
 
 	GetSecretStorageSyncPaths(storageID int) ([]SecretStorageSyncPath, error)
 	ReplaceSecretStorageSyncPaths(storageID int, paths []SecretStorageSyncPath) error
+
+	GetSyncEnabledSecretStorages() ([]SecretStorage, error)
+	MarkSecretStorageSynced(storageID int, success bool, at time.Time) error
 }
 
 type RoleRepository interface {

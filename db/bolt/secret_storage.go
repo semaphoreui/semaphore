@@ -1,6 +1,10 @@
 package bolt
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"time"
+
+	"github.com/semaphoreui/semaphore/db"
+)
 
 func (d *BoltDb) GetSecretStorages(projectID int) ([]db.SecretStorage, error) {
 	return []db.SecretStorage{}, nil
@@ -34,5 +38,13 @@ func (d *BoltDb) GetSecretStorageSyncPaths(storageID int) ([]db.SecretStorageSyn
 }
 
 func (d *BoltDb) ReplaceSecretStorageSyncPaths(storageID int, paths []db.SecretStorageSyncPath) error {
+	return nil
+}
+
+func (d *BoltDb) GetSyncEnabledSecretStorages() ([]db.SecretStorage, error) {
+	return []db.SecretStorage{}, nil
+}
+
+func (d *BoltDb) MarkSecretStorageSynced(storageID int, success bool, at time.Time) error {
 	return nil
 }

@@ -1,4 +1,7 @@
 alter table `project__secret_storage` add `sync_enabled` boolean not null default false;
+alter table `project__secret_storage` add `sync_interval` int not null default 0;
+alter table `project__secret_storage` add `last_synced_at` datetime null;
+alter table `project__secret_storage` add `last_sync_failed_at` datetime null;
 
 create table `project__secret_storage__sync_path` (
   `id` integer primary key autoincrement,
@@ -10,3 +13,5 @@ create table `project__secret_storage__sync_path` (
 
   foreign key (`storage_id`) references `project__secret_storage`(`id`) on delete cascade
 );
+
+
