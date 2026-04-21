@@ -160,7 +160,7 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encry
 			if err != nil {
 				return
 			}
-			res = string(data)
+			res = strings.TrimSuffix(string(data), "\n")
 			return
 		}
 	}

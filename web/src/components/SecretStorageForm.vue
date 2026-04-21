@@ -29,7 +29,17 @@
         :label="$t('Mount')"
         hint="'secret' by default"
         :disabled="formSaving"
-        data-testid="secretStorage-dvlsKey"
+        data-testid="secretStorage-vaultMount"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.namespace"
+        :label="$t('Namespace')"
+        hint="For Vault Enterprise and HCP Dedicated only"
+        :disabled="formSaving"
+        data-testid="secretStorage-vaultNamespace"
         outlined
         dense
       ></v-text-field>
@@ -145,11 +155,11 @@
     <v-checkbox v-model="item.readonly" :label="$t('Read only')" :disabled="formSaving" />
 
     <v-btn
-        text
-        color="primary"
-        @click="syncSettingsDialog = true"
-        :disabled="formSaving"
-        style="margin-bottom: -70px; margin-left: -12px;"
+      text
+      color="primary"
+      @click="syncSettingsDialog = true"
+      :disabled="formSaving"
+      style="margin-bottom: -70px; margin-left: -12px"
     >
       <v-icon left>mdi-cog-sync</v-icon>
       Sync paths ({{ item.params.sync_paths.length }})
