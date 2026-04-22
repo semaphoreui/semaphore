@@ -172,10 +172,9 @@
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false" style="">
           <v-btn
+            v-if="item.sync_enabled"
             @click="syncItem(item.id)"
             :disabled="
-              (item.type !== 'dvls' && item.type !== 'aws_sm' && item.type !== 'azure_kv') ||
-              !item.sync_enabled ||
               !(item.sync_paths && item.sync_paths.length > 0)
             "
           >
@@ -279,6 +278,7 @@ export default {
           value: 'actions',
           sortable: false,
           width: '0%',
+          align: 'end',
         },
       ];
     },
