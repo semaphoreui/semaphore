@@ -5,9 +5,9 @@ import "time"
 type SecretStorageType string
 
 const (
-	SecretStorageTypeLocal SecretStorageType = "local"
-	SecretStorageTypeVault SecretStorageType = "vault"
-	SecretStorageTypeDvls  SecretStorageType = "dvls"
+	SecretStorageTypeLocal   SecretStorageType = "local"
+	SecretStorageTypeVault   SecretStorageType = "vault"
+	SecretStorageTypeDvls    SecretStorageType = "dvls"
 	SecretStorageTypeAwsSm   SecretStorageType = "aws_sm"
 	SecretStorageTypeAzureKv SecretStorageType = "azure_kv"
 )
