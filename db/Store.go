@@ -324,6 +324,12 @@ type EnvironmentManager interface {
 	CreateEnvironment(env Environment) (Environment, error)
 	DeleteEnvironment(projectID int, templateID int) error
 	GetEnvironmentSecrets(projectID int, environmentID int) ([]AccessKey, error)
+
+	GetEnvironmentSyncPaths(environmentID int) ([]EnvironmentSyncPath, error)
+	ReplaceEnvironmentSyncPaths(environmentID int, paths []EnvironmentSyncPath) error
+
+	GetSyncEnabledEnvironments() ([]Environment, error)
+	MarkEnvironmentSynced(environmentID int, success bool, at time.Time) error
 }
 
 type GetAccessKeyOptions struct {

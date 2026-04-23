@@ -1,6 +1,10 @@
 package bolt
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"time"
+
+	"github.com/semaphoreui/semaphore/db"
+)
 
 func (d *BoltDb) GetEnvironment(projectID int, environmentID int) (environment db.Environment, err error) {
 	err = d.getObject(projectID, db.EnvironmentProps, intObjectID(environmentID), &environment)
@@ -48,4 +52,20 @@ func (d *BoltDb) GetEnvironmentSecrets(projectID int, environmentID int) ([]db.A
 		return k.EnvironmentID != nil && *k.EnvironmentID == environmentID
 	}, &keys)
 	return keys, err
+}
+
+func (d *BoltDb) GetEnvironmentSyncPaths(environmentID int) ([]db.EnvironmentSyncPath, error) {
+	return []db.EnvironmentSyncPath{}, nil
+}
+
+func (d *BoltDb) ReplaceEnvironmentSyncPaths(environmentID int, paths []db.EnvironmentSyncPath) error {
+	return nil
+}
+
+func (d *BoltDb) GetSyncEnabledEnvironments() ([]db.Environment, error) {
+	return []db.Environment{}, nil
+}
+
+func (d *BoltDb) MarkEnvironmentSynced(environmentID int, success bool, at time.Time) error {
+	return nil
 }

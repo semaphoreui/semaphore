@@ -16,3 +16,12 @@ func SyncSecrets(
 ) error {
 	return nil
 }
+
+func SyncEnvironmentSecrets(
+	env db.Environment,
+	secretStorageRepo db.SecretStorageRepository,
+	accessKeyRepo db.AccessKeyManager,
+	decryptor DvlsStorageTokenDeserializer,
+) error {
+	return nil
+}

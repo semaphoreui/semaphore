@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"errors"
+	"time"
 )
 
 type EnvironmentSecretOperation string
@@ -39,6 +40,14 @@ type EnvironmentSecret struct {
 	Operation EnvironmentSecretOperation `json:"operation"`
 }
 
+type EnvironmentSyncPath struct {
+	ID            int    `db:"id" json:"id" backup:"-"`
+	EnvironmentID int    `db:"environment_id" json:"environment_id" backup:"-"`
+	Path          string `db:"path" json:"path"`
+	Prefix        string `db:"prefix" json:"prefix"`
+	Separator     string `db:"separator" json:"separator"`
+}
+
 // Environment is used to pass additional arguments, in json form to ansible
 type Environment struct {
 	ID        int     `db:"id" json:"id" backup:"-"`
@@ -53,6 +62,14 @@ type Environment struct {
 
 	SecretStorageID        *int    `db:"secret_storage_id" json:"secret_storage_id,omitempty" backup:"-"`
 	SecretStorageKeyPrefix *string `db:"secret_storage_key_prefix" json:"secret_storage_key_prefix,omitempty"`
+
+	SyncEnabled bool `db:"sync_enabled" json:"sync_enabled"`
+	// SyncInterval is the auto-sync period in minutes. Zero disables auto-sync.
+	SyncInterval     int        `db:"sync_interval" json:"sync_interval"`
+	LastSyncedAt     *time.Time `db:"last_synced_at" json:"last_synced_at,omitempty"`
+	LastSyncFailedAt *time.Time `db:"last_sync_failed_at" json:"last_sync_failed_at,omitempty"`
+
+	SyncPaths []EnvironmentSyncPath `db:"-" json:"sync_paths"`
 }
 
 func (s *EnvironmentSecret) Validate() error {
