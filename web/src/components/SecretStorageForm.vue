@@ -30,7 +30,17 @@
         :label="$t('Mount')"
         hint="'secret' by default"
         :disabled="formSaving"
-        data-testid="secretStorage-dvlsKey"
+        data-testid="secretStorage-vaultMount"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.namespace"
+        :label="$t('Namespace')"
+        hint="For Vault Enterprise and HCP Dedicated only"
+        :disabled="formSaving"
+        data-testid="secretStorage-vaultNamespace"
         outlined
         dense
       ></v-text-field>
