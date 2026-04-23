@@ -193,7 +193,15 @@
       </v-tab-item>
 
       <v-tab-item key="secrets">
-        <div v-if="!isNew && secretStorage" class="pb-3">
+        <div
+          v-if="!isNew && secretStorage"
+          class="px-4 py-3"
+          style="
+            background: rgba(133, 133, 133, 0.06);
+            border-color: rgb(33, 33, 33);
+            border-radius: 6px;
+          "
+        >
           <div style="font-weight: bold; font-size: 20px">
             <v-icon small class="mr-1">{{ getIcon(secretStorage.type) }}</v-icon>
             {{ secretStorage.name }}
@@ -201,10 +209,9 @@
           <pre>Source path pattern: <b>{{ item.secret_storage_key_prefix }}*</b></pre>
         </div>
 
-        <div>
+        <div v-if="secrets.filter((s) => !s.remove && s.type === 'var').length > 0">
           <v-subheader class="px-0">
             {{ $t('extraVariables') }}
-
             <v-tooltip v-if="needHelp" bottom color="black" open-delay="300" max-width="400">
               <template v-slot:activator="{ on, attrs }">
                 <v-icon class="ml-1" v-bind="attrs" v-on="on">mdi-help-box </v-icon>
@@ -220,6 +227,11 @@
               <v-icon> mdi-plus </v-icon>
             </v-btn>
           </v-subheader>
+
+          <v-alert type="error" text>
+            Passing secrets using this method is not secure. This feature will be removed in version
+            2.19.
+          </v-alert>
 
           <v-data-table
             :items="secrets.filter((s) => !s.remove && s.type === 'var')"

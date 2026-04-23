@@ -321,7 +321,7 @@
       <v-checkbox
         class="mt-0"
         v-model="item.sync_enabled"
-        :label="$t('Sync enabled')"
+        :label="$t('Sync keys enabled')"
         :disabled="formSaving"
       />
 
@@ -347,11 +347,11 @@
         <v-card-text class="pt-4 pb-0">
 
           <v-text-field
-            style="width: 120px;"
+            style="width: 140px;"
             v-if="item.sync_enabled"
             v-model.number="item.sync_interval"
             min="0"
-            :label="$t('Sync interval')"
+            :label="$t('Auto-sync interval')"
             persistent-hint
             :disabled="formSaving"
             suffix="minutes"

@@ -10,7 +10,8 @@ create table `project__secret_storage__sync_path` (
   path          varchar(1000)   not null default '',
   prefix        varchar(1000)   not null default '',
   `separator`   varchar(20)     not null default '',
-
+  environment_id int,
+  foreign key (`environment_id`) references `project__environment`(`id`) on delete cascade,
   foreign key (`storage_id`) references `project__secret_storage`(`id`) on delete cascade
 );
 
