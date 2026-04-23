@@ -10,16 +10,8 @@ func GetSecretStorages(repo db.SecretStorageRepository, projectID int) (storages
 }
 
 func SyncSecrets(
-	storage db.SecretStorage,
-	accessKeyRepo db.AccessKeyManager,
-	decryptor DvlsStorageTokenDeserializer,
-) error {
-	return nil
-}
-
-func SyncEnvironmentSecrets(
-	env db.Environment,
-	secretStorageRepo db.SecretStorageRepository,
+	sync db.SecretSync,
+	storageRepo db.SecretStorageRepository,
 	accessKeyRepo db.AccessKeyManager,
 	decryptor DvlsStorageTokenDeserializer,
 ) error {

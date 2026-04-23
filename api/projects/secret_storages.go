@@ -204,7 +204,13 @@ func (c *SecretStorageController) SyncSecrets(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err := c.secretStorageService.SyncSecrets(storage)
+	sync, err := helpers.Store(r).GetStorageSecretSync(storage.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	err = c.secretStorageService.SyncSecrets(sync)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

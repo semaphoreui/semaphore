@@ -1,8 +1,6 @@
 package sql
 
 import (
-	"time"
-
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -12,7 +10,7 @@ func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (environment db
 		return
 	}
 
-	environment.SyncPaths, err = d.GetEnvironmentSyncPaths(environment.ID)
+	err = d.fillEnvironmentSync(&environment)
 	return
 }
 
@@ -28,8 +26,7 @@ func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([
 	}
 
 	for i := range environments {
-		environments[i].SyncPaths, err = d.GetEnvironmentSyncPaths(environments[i].ID)
-		if err != nil {
+		if err = d.fillEnvironmentSync(&environments[i]); err != nil {
 			return environments, err
 		}
 	}
@@ -45,23 +42,18 @@ func (d *SqlDb) UpdateEnvironment(env db.Environment) error {
 	}
 
 	_, err = d.exec(
-		"update project__environment set "+
-			"name=?, json=?, env=?, password=?, "+
-			"sync_enabled=?, sync_interval=? "+
-			"where id=?",
+		"update project__environment set name=?, json=?, env=?, password=? where id=?",
 		env.Name,
 		env.JSON,
 		env.ENV,
 		env.Password,
-		env.SyncEnabled,
-		env.SyncInterval,
 		env.ID)
 
 	if err != nil {
 		return err
 	}
 
-	return d.ReplaceEnvironmentSyncPaths(env.ID, env.SyncPaths)
+	return d.saveEnvironmentSync(env)
 }
 
 func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, err error) {
@@ -74,18 +66,15 @@ func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, er
 	insertID, err := d.insert(
 		"id",
 		"insert into project__environment "+
-			"(project_id, name, json, env, password, secret_storage_id, secret_storage_key_prefix, "+
-			"sync_enabled, sync_interval) values "+
-			"(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"(project_id, name, json, env, password, secret_storage_id, secret_storage_key_prefix) values "+
+			"(?, ?, ?, ?, ?, ?, ?)",
 		env.ProjectID,
 		env.Name,
 		env.JSON,
 		env.ENV,
 		env.Password,
 		env.SecretStorageID,
-		env.SecretStorageKeyPrefix,
-		env.SyncEnabled,
-		env.SyncInterval)
+		env.SecretStorageKeyPrefix)
 
 	if err != nil {
 		return
@@ -94,12 +83,11 @@ func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, er
 	newEnv = env
 	newEnv.ID = insertID
 
-	err = d.ReplaceEnvironmentSyncPaths(newEnv.ID, env.SyncPaths)
-	if err != nil {
+	if err = d.saveEnvironmentSync(newEnv); err != nil {
 		return
 	}
 
-	newEnv.SyncPaths, err = d.GetEnvironmentSyncPaths(newEnv.ID)
+	err = d.fillEnvironmentSync(&newEnv)
 	return
 }
 
@@ -129,64 +117,41 @@ func (d *SqlDb) GetEnvironmentSecrets(projectID int, environmentID int) (keys []
 	return
 }
 
-func (d *SqlDb) GetEnvironmentSyncPaths(environmentID int) (paths []db.EnvironmentSyncPath, err error) {
-	paths = make([]db.EnvironmentSyncPath, 0)
-	_, err = d.selectAll(
-		&paths,
-		"select id, environment_id, path, prefix, `separator` "+
-			"from project__environment__sync_path where environment_id=? order by id",
-		environmentID,
-	)
-	return
-}
-
-func (d *SqlDb) ReplaceEnvironmentSyncPaths(environmentID int, paths []db.EnvironmentSyncPath) error {
-	if _, err := d.exec("delete from project__environment__sync_path where environment_id=?", environmentID); err != nil {
+func (d *SqlDb) fillEnvironmentSync(env *db.Environment) error {
+	sync, err := d.GetEnvironmentSecretSync(env.ID)
+	if err == db.ErrNotFound {
+		env.SyncEnabled = false
+		env.SyncInterval = 0
+		env.LastSyncedAt = nil
+		env.LastSyncFailedAt = nil
+		env.SyncPaths = []db.SecretSyncPath{}
+		return nil
+	}
+	if err != nil {
 		return err
 	}
-
-	for _, p := range paths {
-		if _, err := d.insert(
-			"id",
-			"insert into project__environment__sync_path (environment_id, path, prefix, `separator`) values (?, ?, ?, ?)",
-			environmentID,
-			p.Path,
-			p.Prefix,
-			p.Separator,
-		); err != nil {
-			return err
-		}
+	env.SyncEnabled = sync.SyncEnabled
+	env.SyncInterval = sync.SyncInterval
+	env.LastSyncedAt = sync.LastSyncedAt
+	env.LastSyncFailedAt = sync.LastSyncFailedAt
+	env.SyncPaths = sync.Paths
+	if env.SyncPaths == nil {
+		env.SyncPaths = []db.SecretSyncPath{}
 	}
-
 	return nil
 }
 
-func (d *SqlDb) GetSyncEnabledEnvironments() (environments []db.Environment, err error) {
-	environments = make([]db.Environment, 0)
-	_, err = d.selectAll(
-		&environments,
-		"select * from project__environment where sync_enabled=? and sync_interval>0",
-		true,
-	)
-	if err != nil {
-		return
+// saveEnvironmentSync persists sync settings for an environment. Syncs
+// require a linked SecretStorage; without one, any pending sync row is
+// removed.
+func (d *SqlDb) saveEnvironmentSync(env db.Environment) error {
+	payload := db.SecretSync{
+		SyncEnabled:  env.SyncEnabled,
+		SyncInterval: env.SyncInterval,
+		Paths:        env.SyncPaths,
 	}
-	for i := range environments {
-		environments[i].SyncPaths, err = d.GetEnvironmentSyncPaths(environments[i].ID)
-		if err != nil {
-			return
-		}
+	if env.SecretStorageID == nil {
+		return d.SaveEnvironmentSecretSync(0, env.ID, db.SecretSync{})
 	}
-	return
-}
-
-func (d *SqlDb) MarkEnvironmentSynced(environmentID int, success bool, at time.Time) error {
-	var query string
-	if success {
-		query = "update project__environment set last_synced_at=? where id=?"
-	} else {
-		query = "update project__environment set last_sync_failed_at=? where id=?"
-	}
-	_, err := d.exec(query, at, environmentID)
-	return err
+	return d.SaveEnvironmentSecretSync(*env.SecretStorageID, env.ID, payload)
 }

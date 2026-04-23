@@ -1,8 +1,6 @@
 package sql
 
 import (
-	"time"
-
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -28,8 +26,7 @@ func (d *SqlDb) GetSecretStorages(projectID int) (storages []db.SecretStorage, e
 	}
 
 	for i := range storages {
-		storages[i].SyncPaths, err = d.GetSecretStorageSyncPaths(storages[i].ID)
-		if err != nil {
+		if err = d.fillStorageSync(&storages[i]); err != nil {
 			return
 		}
 	}
@@ -40,14 +37,12 @@ func (d *SqlDb) GetSecretStorages(projectID int) (storages []db.SecretStorage, e
 func (d *SqlDb) CreateSecretStorage(storage db.SecretStorage) (newStorage db.SecretStorage, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__secret_storage (name, type, project_id, params, readonly, sync_enabled, sync_interval) values (?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__secret_storage (name, type, project_id, params, readonly) values (?, ?, ?, ?, ?)",
 		storage.Name,
 		storage.Type,
 		storage.ProjectID,
 		storage.Params,
 		storage.ReadOnly,
-		storage.SyncEnabled,
-		storage.SyncInterval,
 	)
 
 	if err != nil {
@@ -57,23 +52,22 @@ func (d *SqlDb) CreateSecretStorage(storage db.SecretStorage) (newStorage db.Sec
 	newStorage = storage
 	newStorage.ID = insertID
 
-	err = d.ReplaceSecretStorageSyncPaths(newStorage.ID, storage.SyncPaths)
-	if err != nil {
+	if err = d.SaveStorageSecretSync(newStorage.ID, secretSyncFromStorage(storage)); err != nil {
 		return
 	}
 
-	newStorage.SyncPaths, err = d.GetSecretStorageSyncPaths(newStorage.ID)
+	err = d.fillStorageSync(&newStorage)
 	return
 }
 
-func (d *SqlDb) GetSecretStorage(projectID int, storageID int) (key db.SecretStorage, err error) {
+func (d *SqlDb) GetSecretStorage(projectID int, storageID int) (storage db.SecretStorage, err error) {
 
-	err = d.getObject(projectID, db.SecretStorageProps, storageID, &key)
+	err = d.getObject(projectID, db.SecretStorageProps, storageID, &storage)
 	if err != nil {
 		return
 	}
 
-	key.SyncPaths, err = d.GetSecretStorageSyncPaths(key.ID)
+	err = d.fillStorageSync(&storage)
 	return
 }
 
@@ -90,16 +84,12 @@ func (d *SqlDb) UpdateSecretStorage(storage db.SecretStorage) error {
 		"name=?, "+
 		"type=?, "+
 		"params=?, "+
-		"readonly=?, "+
-		"sync_enabled=?, "+
-		"sync_interval=? "+
+		"readonly=? "+
 		"where project_id=? and id=?",
 		storage.Name,
 		storage.Type,
 		storage.Params,
 		storage.ReadOnly,
-		storage.SyncEnabled,
-		storage.SyncInterval,
 		storage.ProjectID,
 		storage.ID)
 
@@ -107,67 +97,41 @@ func (d *SqlDb) UpdateSecretStorage(storage db.SecretStorage) error {
 		return err
 	}
 
-	return d.ReplaceSecretStorageSyncPaths(storage.ID, storage.SyncPaths)
+	return d.SaveStorageSecretSync(storage.ID, secretSyncFromStorage(storage))
 }
 
-func (d *SqlDb) GetSyncEnabledSecretStorages() (storages []db.SecretStorage, err error) {
-	storages = make([]db.SecretStorage, 0)
-	_, err = d.selectAll(
-		&storages,
-		"select * from project__secret_storage where sync_enabled=? and sync_interval>0",
-		true,
-	)
+// secretSyncFromStorage projects a SecretStorage's transfer-only sync fields
+// onto a SecretSync payload for persistence.
+func secretSyncFromStorage(storage db.SecretStorage) db.SecretSync {
+	return db.SecretSync{
+		SyncEnabled:      storage.SyncEnabled,
+		SyncInterval:     storage.SyncInterval,
+		LastSyncedAt:     storage.LastSyncedAt,
+		LastSyncFailedAt: storage.LastSyncFailedAt,
+		Paths:            storage.SyncPaths,
+	}
+}
+
+func (d *SqlDb) fillStorageSync(storage *db.SecretStorage) error {
+	sync, err := d.GetStorageSecretSync(storage.ID)
+	if err == db.ErrNotFound {
+		storage.SyncEnabled = false
+		storage.SyncInterval = 0
+		storage.LastSyncedAt = nil
+		storage.LastSyncFailedAt = nil
+		storage.SyncPaths = []db.SecretSyncPath{}
+		return nil
+	}
 	if err != nil {
-		return
-	}
-	for i := range storages {
-		storages[i].SyncPaths, err = d.GetSecretStorageSyncPaths(storages[i].ID)
-		if err != nil {
-			return
-		}
-	}
-	return
-}
-
-func (d *SqlDb) MarkSecretStorageSynced(storageID int, success bool, at time.Time) error {
-	var query string
-	if success {
-		query = "update project__secret_storage set last_synced_at=? where id=?"
-	} else {
-		query = "update project__secret_storage set last_sync_failed_at=? where id=?"
-	}
-	_, err := d.exec(query, at, storageID)
-	return err
-}
-
-func (d *SqlDb) GetSecretStorageSyncPaths(storageID int) (paths []db.SecretStorageSyncPath, err error) {
-	paths = make([]db.SecretStorageSyncPath, 0)
-	_, err = d.selectAll(
-		&paths,
-		"select id, storage_id, path, prefix, `separator` "+
-			"from project__secret_storage__sync_path where storage_id=? order by id",
-		storageID,
-	)
-	return
-}
-
-func (d *SqlDb) ReplaceSecretStorageSyncPaths(storageID int, paths []db.SecretStorageSyncPath) error {
-	if _, err := d.exec("delete from project__secret_storage__sync_path where storage_id=?", storageID); err != nil {
 		return err
 	}
-
-	for _, p := range paths {
-		if _, err := d.insert(
-			"id",
-			"insert into project__secret_storage__sync_path (storage_id, path, prefix, `separator`) values (?, ?, ?, ?)",
-			storageID,
-			p.Path,
-			p.Prefix,
-			p.Separator,
-		); err != nil {
-			return err
-		}
+	storage.SyncEnabled = sync.SyncEnabled
+	storage.SyncInterval = sync.SyncInterval
+	storage.LastSyncedAt = sync.LastSyncedAt
+	storage.LastSyncFailedAt = sync.LastSyncFailedAt
+	storage.SyncPaths = sync.Paths
+	if storage.SyncPaths == nil {
+		storage.SyncPaths = []db.SecretSyncPath{}
 	}
-
 	return nil
 }

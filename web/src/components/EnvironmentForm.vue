@@ -246,7 +246,6 @@
             <v-card-text class="pt-4 pb-0">
               <v-text-field
                 style="width: 140px"
-                v-if="item.sync_enabled"
                 v-model.number="item.sync_interval"
                 min="0"
                 :label="$t('Auto-sync interval')"

@@ -324,12 +324,6 @@ type EnvironmentManager interface {
 	CreateEnvironment(env Environment) (Environment, error)
 	DeleteEnvironment(projectID int, templateID int) error
 	GetEnvironmentSecrets(projectID int, environmentID int) ([]AccessKey, error)
-
-	GetEnvironmentSyncPaths(environmentID int) ([]EnvironmentSyncPath, error)
-	ReplaceEnvironmentSyncPaths(environmentID int, paths []EnvironmentSyncPath) error
-
-	GetSyncEnabledEnvironments() ([]Environment, error)
-	MarkEnvironmentSynced(environmentID int, success bool, at time.Time) error
 }
 
 type GetAccessKeyOptions struct {
@@ -482,12 +476,26 @@ type SecretStorageRepository interface {
 	UpdateSecretStorage(storage SecretStorage) error
 	GetSecretStorageRefs(projectID int, storageID int) (ObjectReferrers, error)
 	DeleteSecretStorage(projectID int, storageID int) error
+}
 
-	GetSecretStorageSyncPaths(storageID int) ([]SecretStorageSyncPath, error)
-	ReplaceSecretStorageSyncPaths(storageID int, paths []SecretStorageSyncPath) error
+type SecretSyncRepository interface {
+	// GetSyncEnabledSecretSyncs returns every sync config (storage-level
+	// and env-scoped) that is enabled with a positive interval.
+	GetSyncEnabledSecretSyncs() ([]SecretSync, error)
+	MarkSecretSyncSynced(syncID int, success bool, at time.Time) error
 
-	GetSyncEnabledSecretStorages() ([]SecretStorage, error)
-	MarkSecretStorageSynced(storageID int, success bool, at time.Time) error
+	// GetStorageSecretSync returns the storage-level sync (EnvironmentID=nil)
+	// for the given storage, or ErrNotFound.
+	GetStorageSecretSync(storageID int) (SecretSync, error)
+	// GetEnvironmentSecretSync returns the env-scoped sync for the env,
+	// or ErrNotFound.
+	GetEnvironmentSecretSync(environmentID int) (SecretSync, error)
+
+	// SaveStorageSecretSync upserts the storage-level sync and its paths.
+	// Passing an empty SecretSync (all zero fields + no paths) deletes it.
+	SaveStorageSecretSync(storageID int, sync SecretSync) error
+	// SaveEnvironmentSecretSync upserts the env-scoped sync and its paths.
+	SaveEnvironmentSecretSync(storageID int, environmentID int, sync SecretSync) error
 }
 
 type RoleRepository interface {
@@ -523,6 +531,7 @@ type Store interface {
 	RunnerManager
 	EventManager
 	SecretStorageRepository
+	SecretSyncRepository
 	RoleRepository
 }
 
