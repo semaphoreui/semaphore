@@ -1,31 +1,26 @@
 <template>
-  <v-form
-    ref="form"
-    lazy-validation
-    v-model="formValid"
-    v-if="item != null"
-  >
-    <v-alert
-      :value="formError"
-      color="error"
-      class="pb-2"
-    >{{ formError }}</v-alert>
+  <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
+    <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
 
     <v-text-field
       v-model="item.name"
       :label="$t('name')"
-      :rules="[v => !!v || $t('name_required')]"
+      :rules="[(v) => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
+      outlined
+      dense
     ></v-text-field>
 
     <v-text-field
       v-if="projectId"
       v-model="item.tag"
       :label="$t('tag')"
-      :rules="[v => !!v || $t('tag_required')]"
+      :rules="[(v) => !!v || $t('tag_required')]"
       required
       :disabled="formSaving"
+      outlined
+      dense
     ></v-text-field>
 
     <v-text-field
@@ -33,6 +28,8 @@
       :label="$t('Webhook')"
       required
       :disabled="formSaving"
+      outlined
+      dense
     ></v-text-field>
 
     <v-text-field
@@ -41,6 +38,8 @@
       :label="$t('maxNumberOfParallelTasksOptional')"
       required
       :disabled="formSaving"
+      outlined
+      dense
     ></v-text-field>
 
     <v-checkbox
