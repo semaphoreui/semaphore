@@ -137,6 +137,7 @@ func runService() {
 
 	if dedup := proHA.NewScheduleDeduplicator(); dedup != nil {
 		schedulePool.SetDeduplicator(dedup)
+		secretStorageSyncScheduler.SetTickDeduplicator(dedup)
 	}
 
 	// Each process holds its own in-memory cron table. Schedule CRUD handlers only

@@ -16,6 +16,7 @@ const secretStorageSyncTickInterval = 60 * time.Second
 type SecretStorageSyncScheduler struct {
 	secretStorageRepo    db.SecretStorageRepository
 	secretStorageService SecretStorageService
+	tickDeduplicator     interface{ TryLockExecution(scheduleID int) bool }
 
 	stop chan struct{}
 	wg   sync.WaitGroup
@@ -30,6 +31,12 @@ func NewSecretStorageSyncScheduler(
 		secretStorageService: secretStorageService,
 		stop:                 make(chan struct{}),
 	}
+}
+
+const secretStorageSyncTickLockID = 0
+
+func (s *SecretStorageSyncScheduler) SetTickDeduplicator(d interface{ TryLockExecution(scheduleID int) bool }) {
+	s.tickDeduplicator = d
 }
 
 func (s *SecretStorageSyncScheduler) Start() {
@@ -59,6 +66,10 @@ func (s *SecretStorageSyncScheduler) run() {
 }
 
 func (s *SecretStorageSyncScheduler) tick() {
+	if s.tickDeduplicator != nil && !s.tickDeduplicator.TryLockExecution(secretStorageSyncTickLockID) {
+		return
+	}
+
 	storages, err := s.secretStorageRepo.GetSyncEnabledSecretStorages()
 	if err != nil {
 		log.WithError(err).Warn("secret storage sync: failed to list sync-enabled storages")
