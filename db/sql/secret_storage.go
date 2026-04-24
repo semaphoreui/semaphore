@@ -52,7 +52,7 @@ func (d *SqlDb) CreateSecretStorage(storage db.SecretStorage) (newStorage db.Sec
 	newStorage = storage
 	newStorage.ID = insertID
 
-	if err = d.SaveStorageSecretSync(newStorage.ID, secretSyncFromStorage(storage)); err != nil {
+	if err = d.SaveSecretSync(secretSyncFromStorage(newStorage)); err != nil {
 		return
 	}
 
@@ -97,13 +97,15 @@ func (d *SqlDb) UpdateSecretStorage(storage db.SecretStorage) error {
 		return err
 	}
 
-	return d.SaveStorageSecretSync(storage.ID, secretSyncFromStorage(storage))
+	return d.SaveSecretSync(secretSyncFromStorage(storage))
 }
 
 // secretSyncFromStorage projects a SecretStorage's transfer-only sync fields
 // onto a SecretSync payload for persistence.
 func secretSyncFromStorage(storage db.SecretStorage) db.SecretSync {
 	return db.SecretSync{
+		ProjectID:        storage.ProjectID,
+		StorageID:        storage.ID,
 		SyncEnabled:      storage.SyncEnabled,
 		SyncInterval:     storage.SyncInterval,
 		LastSyncedAt:     storage.LastSyncedAt,

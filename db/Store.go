@@ -491,11 +491,11 @@ type SecretSyncRepository interface {
 	// or ErrNotFound.
 	GetEnvironmentSecretSync(environmentID int) (SecretSync, error)
 
-	// SaveStorageSecretSync upserts the storage-level sync and its paths.
-	// Passing an empty SecretSync (all zero fields + no paths) deletes it.
-	SaveStorageSecretSync(storageID int, sync SecretSync) error
-	// SaveEnvironmentSecretSync upserts the env-scoped sync and its paths.
-	SaveEnvironmentSecretSync(storageID int, environmentID int, sync SecretSync) error
+	// SaveSecretSync upserts a sync config (and its paths) identified by
+	// (StorageID, EnvironmentID) on the passed struct. When SyncEnabled
+	// is false, SyncInterval is zero, and Paths is empty, the row is
+	// deleted instead of being written.
+	SaveSecretSync(sync SecretSync) error
 }
 
 type RoleRepository interface {

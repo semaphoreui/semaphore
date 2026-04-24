@@ -145,13 +145,16 @@ func (d *SqlDb) fillEnvironmentSync(env *db.Environment) error {
 // require a linked SecretStorage; without one, any pending sync row is
 // removed.
 func (d *SqlDb) saveEnvironmentSync(env db.Environment) error {
-	payload := db.SecretSync{
-		SyncEnabled:  env.SyncEnabled,
-		SyncInterval: env.SyncInterval,
-		Paths:        env.SyncPaths,
+	envID := env.ID
+	sync := db.SecretSync{
+		ProjectID:     env.ProjectID,
+		EnvironmentID: &envID,
 	}
-	if env.SecretStorageID == nil {
-		return d.SaveEnvironmentSecretSync(0, env.ID, db.SecretSync{})
+	if env.SecretStorageID != nil {
+		sync.StorageID = *env.SecretStorageID
+		sync.SyncEnabled = env.SyncEnabled
+		sync.SyncInterval = env.SyncInterval
+		sync.Paths = env.SyncPaths
 	}
-	return d.SaveEnvironmentSecretSync(*env.SecretStorageID, env.ID, payload)
+	return d.SaveSecretSync(sync)
 }

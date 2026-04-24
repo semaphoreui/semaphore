@@ -49,10 +49,6 @@ func (d *BoltDb) GetEnvironmentSecretSync(environmentID int) (db.SecretSync, err
 	return db.SecretSync{}, db.ErrNotFound
 }
 
-func (d *BoltDb) SaveStorageSecretSync(storageID int, sync db.SecretSync) error {
-	return nil
-}
-
-func (d *BoltDb) SaveEnvironmentSecretSync(storageID int, environmentID int, sync db.SecretSync) error {
+func (d *BoltDb) SaveSecretSync(sync db.SecretSync) error {
 	return nil
 }

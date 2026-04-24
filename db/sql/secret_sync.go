@@ -10,12 +10,7 @@ func (d *SqlDb) GetSyncEnabledSecretSyncs() (syncs []db.SecretSync, err error) {
 	syncs = make([]db.SecretSync, 0)
 	_, err = d.selectAll(
 		&syncs,
-		"select s.id, s.storage_id, s.environment_id, "+
-			"s.sync_enabled, s.sync_interval, s.last_synced_at, s.last_sync_failed_at, "+
-			"st.project_id as project_id "+
-			"from project__secret_sync s "+
-			"join project__secret_storage st on st.id = s.storage_id "+
-			"where s.sync_enabled=? and s.sync_interval>0",
+		"select * from project__secret_sync where sync_enabled=? and sync_interval>0",
 		true,
 	)
 	if err != nil {
@@ -69,22 +64,14 @@ func (d *SqlDb) getSecretSyncByOwner(storageID int, environmentID *int) (sync db
 	return
 }
 
-func (d *SqlDb) SaveStorageSecretSync(storageID int, sync db.SecretSync) error {
-	return d.upsertSecretSync(storageID, nil, sync)
-}
-
-func (d *SqlDb) SaveEnvironmentSecretSync(storageID int, environmentID int, sync db.SecretSync) error {
-	return d.upsertSecretSync(storageID, &environmentID, sync)
-}
-
-func (d *SqlDb) upsertSecretSync(storageID int, environmentID *int, sync db.SecretSync) error {
+func (d *SqlDb) SaveSecretSync(sync db.SecretSync) error {
 	// If the row can't carry any info (disabled with no paths), remove it
 	// entirely instead of keeping a blank row around.
 	if !sync.SyncEnabled && sync.SyncInterval == 0 && len(sync.Paths) == 0 {
-		return d.deleteSecretSync(storageID, environmentID)
+		return d.deleteSecretSync(sync.StorageID, sync.EnvironmentID)
 	}
 
-	existing, err := d.getSecretSyncByOwner(ownerStorageID(storageID, environmentID), environmentID)
+	existing, err := d.getSecretSyncByOwner(sync.StorageID, sync.EnvironmentID)
 
 	var syncID int
 	switch err {
@@ -100,8 +87,10 @@ func (d *SqlDb) upsertSecretSync(storageID int, environmentID *int, sync db.Secr
 		syncID, err = d.insert(
 			"id",
 			"insert into project__secret_sync "+
-				"(storage_id, environment_id, sync_enabled, sync_interval) values (?, ?, ?, ?)",
-			storageID, environmentID, sync.SyncEnabled, sync.SyncInterval,
+				"(project_id, storage_id, environment_id, sync_enabled, sync_interval) "+
+				"values (?, ?, ?, ?, ?)",
+			sync.ProjectID, sync.StorageID, sync.EnvironmentID,
+			sync.SyncEnabled, sync.SyncInterval,
 		)
 		if err != nil {
 			return err
@@ -111,15 +100,6 @@ func (d *SqlDb) upsertSecretSync(storageID int, environmentID *int, sync db.Secr
 	}
 
 	return d.replaceSecretSyncPaths(syncID, sync.Paths)
-}
-
-// ownerStorageID picks the storage id to query by. For env-scoped syncs we
-// look up by environment_id alone (environments have a 1:1 sync row).
-func ownerStorageID(storageID int, environmentID *int) int {
-	if environmentID != nil {
-		return 0
-	}
-	return storageID
 }
 
 func (d *SqlDb) deleteSecretSync(storageID int, environmentID *int) error {

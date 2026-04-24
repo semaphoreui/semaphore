@@ -8,11 +8,9 @@ import "time"
 // (imports environment variables for that variable group).
 type SecretSync struct {
 	ID            int  `db:"id" json:"id" backup:"-"`
+	ProjectID     int  `db:"project_id" json:"project_id" backup:"-"`
 	StorageID     int  `db:"storage_id" json:"storage_id" backup:"-"`
 	EnvironmentID *int `db:"environment_id" json:"environment_id,omitempty" backup:"-"`
-	// ProjectID is joined in from the linked storage; the table itself
-	// has no project_id column.
-	ProjectID int `db:"project_id" json:"project_id,omitempty" backup:"-"`
 
 	SyncEnabled bool `db:"sync_enabled" json:"sync_enabled"`
 	// SyncInterval is the auto-sync period in minutes. Zero disables auto-sync.
