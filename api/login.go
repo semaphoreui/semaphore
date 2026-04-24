@@ -360,6 +360,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 		log.Error(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	createSession(w, r, user, false)
