@@ -24,3 +24,5 @@ create table `project__secret_sync_path` (
 
   foreign key (`sync_id`) references `project__secret_sync`(`id`) on delete cascade
 );
+
+alter table `access_key` add `synchronized` boolean not null default false;
