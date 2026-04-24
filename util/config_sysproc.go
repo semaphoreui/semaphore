@@ -70,6 +70,7 @@ func (conf *ConfigType) GetSysProcAttr() (res *syscall.SysProcAttr) {
 	return
 }
 
+
 // ChownDir changes ownership of the directory to the process config user/group.
 // This is needed because directories are created by the main Semaphore process,
 // but child processes (git, ansible, etc.) run as the configured process user.
