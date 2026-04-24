@@ -68,7 +68,7 @@ type AccessKey struct {
 	SourceStorageKey  *string                     `db:"source_storage_key" json:"source_storage_key,omitempty"`
 	SourceStorageType *AccessKeySourceStorageType `db:"source_storage_type" json:"source_storage_type,omitempty"`
 
-	Synchronized bool `db:"synchronized" json:"synchronized"`
+	Synchronized bool `db:"synchronized" json:"synchronized,omitempty"`
 }
 
 func (key *AccessKey) IsNativelyReadOnly() bool {
