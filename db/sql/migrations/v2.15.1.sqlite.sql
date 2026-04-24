@@ -449,8 +449,7 @@ CREATE TABLE user__token (
                              id      VARCHAR(44)   NOT NULL PRIMARY KEY,
                              created DATETIME      NOT NULL,
                              expired INTEGER NOT NULL DEFAULT 0,
-                             user_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-                             name    VARCHAR(255)  NOT NULL DEFAULT ''
+                             user_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE
 );
 
 CREATE INDEX user__token__user_id

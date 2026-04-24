@@ -6,6 +6,7 @@ import TerragruntIcon from '@/components/TerragruntIcon.vue';
 import HashicorpVaultIcon from '@/components/HashicorpVaultIcon.vue';
 import DvlsIcon from '../components/DvlsIcon.vue';
 import AwsSmIcon from '../components/AwsSmIcon.vue';
+import AzureKvIcon from '../components/AzureKvIcon.vue';
 
 Vue.use(Vuetify);
 
@@ -29,6 +30,9 @@ export default new Vuetify({
       },
       aws_sm: {
         component: AwsSmIcon,
+      },
+      azure_kv: {
+        component: AzureKvIcon,
       },
     },
   },

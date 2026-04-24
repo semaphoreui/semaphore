@@ -13,7 +13,7 @@
     ></v-text-field>
 
     <v-text-field
-      v-if="item.type !== 'aws_sm'"
+      v-if="item.type !== 'aws_sm' && item.type !== 'azure_kv'"
       v-model="item.params.url"
       :label="$t('Server URL')"
       :disabled="formSaving"
@@ -30,7 +30,17 @@
         :label="$t('Mount')"
         hint="'secret' by default"
         :disabled="formSaving"
-        data-testid="secretStorage-dvlsKey"
+        data-testid="secretStorage-vaultMount"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.namespace"
+        :label="$t('Namespace')"
+        hint="For Vault Enterprise and HCP Dedicated only"
+        :disabled="formSaving"
+        data-testid="secretStorage-vaultNamespace"
         outlined
         dense
       ></v-text-field>
@@ -38,11 +48,11 @@
       <div class="d-flex justify-space-between align-center mb-2">
         <b style="font-size: 13px; margin-left: 5px">Token</b>
         <v-btn-toggle v-model="secretStorage" tile group mandatory>
-          <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
+          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
             Store in DB
           </v-btn>
-          <v-btn value="env" small class="mr-0 mt-0" style="border-radius: 4px"> From ENV </v-btn>
-          <v-btn value="file" small class="mr-0 mt-0" style="border-radius: 4px"> From File </v-btn>
+          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
         </v-btn-toggle>
       </div>
 
@@ -104,14 +114,14 @@
         dense
       ></v-text-field>
 
-      <div class="d-flex justify-space-between align-center">
+      <div class="d-flex justify-space-between align-center mb-2">
         <b style="font-size: 13px; margin-left: 5px">App secret</b>
         <v-btn-toggle v-model="secretStorage" tile group mandatory>
-          <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
+          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
             Store in DB
           </v-btn>
-          <v-btn value="env" small class="mr-0 mt-0" style="border-radius: 4px"> From ENV </v-btn>
-          <v-btn value="file" small class="mr-0 mt-0" style="border-radius: 4px"> From File </v-btn>
+          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
         </v-btn-toggle>
       </div>
 
@@ -166,13 +176,13 @@
         dense
       ></v-text-field>
 
-<!--      <v-checkbox-->
-<!--        class="pt-0 mb-2"-->
-<!--        style="margin-top: -5px"-->
-<!--        v-model="item.params.use_iam_role"-->
-<!--        label="Use IAM Role / Instance Profile"-->
-<!--        :disabled="formSaving"-->
-<!--      />-->
+      <!--      <v-checkbox-->
+      <!--        class="pt-0 mb-2"-->
+      <!--        style="margin-top: -5px"-->
+      <!--        v-model="item.params.use_iam_role"-->
+      <!--        label="Use IAM Role / Instance Profile"-->
+      <!--        :disabled="formSaving"-->
+      <!--      />-->
 
       <template>
         <v-text-field
@@ -186,16 +196,14 @@
           dense
         ></v-text-field>
 
-        <div class="d-flex justify-space-between align-center">
+        <div class="d-flex justify-space-between align-center mb-2">
           <b style="font-size: 13px; margin-left: 5px">Secret Key</b>
           <v-btn-toggle v-model="secretStorage" tile group mandatory>
-            <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px">
+            <v-btn value="database" small class="ma-0" style="border-radius: 4px">
               Store in DB
             </v-btn>
-            <v-btn value="env" small class="mr-0 mt-0" style="border-radius: 4px"> From ENV </v-btn>
-            <v-btn value="file" small class="mr-0 mt-0" style="border-radius: 4px">
-              From File
-            </v-btn>
+            <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+            <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
           </v-btn-toggle>
         </div>
 
@@ -228,27 +236,130 @@
       </template>
     </div>
 
-    <v-checkbox v-model="item.readonly" :label="$t('Read only')" :disabled="formSaving" />
+    <div v-else-if="item.type === 'azure_kv'">
+      <v-text-field
+        v-model="item.params.vault_url"
+        label="Vault URL"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Vault URL is required']"
+        required
+        placeholder="https://my-vault.vault.azure.net"
+        data-testid="secretStorage-azureVaultURL"
+        outlined
+        dense
+      ></v-text-field>
 
-    <v-btn
-      text
-      color="primary"
-      @click="syncSettingsDialog = true"
+      <v-text-field
+        v-model="item.params.tenant_id"
+        label="Tenant ID"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Tenant ID is required']"
+        required
+        data-testid="secretStorage-azureTenantId"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.client_id"
+        label="Client ID"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Client ID is required']"
+        required
+        data-testid="secretStorage-azureClientId"
+        outlined
+        dense
+      ></v-text-field>
+
+      <div class="d-flex justify-space-between align-center mb-2">
+        <b style="font-size: 13px; margin-left: 5px">Client Secret</b>
+        <v-btn-toggle v-model="secretStorage" tile group mandatory>
+          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
+            Store in DB
+          </v-btn>
+          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
+        </v-btn-toggle>
+      </div>
+
+      <v-text-field
+        v-if="secretStorage === 'database'"
+        class="TextInput TextInput--no-legend masked-secret-input"
+        v-model="item.secret"
+        label="Client Secret"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || 'Client Secret is required']"
+        required
+        data-testid="secretStorage-azureClientSecret"
+        outlined
+        dense
+        append-icon="mdi-lock"
+      ></v-text-field>
+
+      <v-text-field
+        v-else
+        class="TextInput TextInput--no-legend"
+        v-model="item.secret"
+        :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
+        required
+        data-testid="secretStorage-azureClientSecretSource"
+        outlined
+        dense
+      ></v-text-field>
+    </div>
+
+    <v-checkbox
+      v-model="item.readonly"
+      :label="$t('Read only')"
       :disabled="formSaving"
-      style="margin-bottom: -70px; margin-left: -12px"
-    >
-      <v-icon left>mdi-cog-sync</v-icon>
-      Sync paths
-      <v-chip class="ml-2" outlined style="transform: translateY(-1px)" color="primary" small>
-        {{ item.params.sync_paths.length }}</v-chip
+      style="position: absolute; bottom: -5px; margin: 0; left: 25px"
+    />
+
+    <div class="d-flex items-center justify-space-between">
+      <v-checkbox
+        class="mt-0"
+        v-model="item.sync_enabled"
+        :label="$t('Sync keys enabled')"
+        :disabled="formSaving"
+      />
+
+      <v-btn
+        style="margin-right: -10px"
+        text
+        color="primary"
+        @click="syncSettingsDialog = true"
+        :disabled="formSaving"
+        v-if="item.sync_enabled"
       >
-    </v-btn>
+        <v-icon left>mdi-cog-sync</v-icon>
+        Sync paths
+        <v-chip class="ml-2" outlined style="transform: translateY(-1px)" color="primary" small>
+          {{ item.sync_paths.length }}</v-chip
+        >
+      </v-btn>
+    </div>
 
     <v-dialog v-model="syncSettingsDialog" max-width="500" persistent>
       <v-card>
         <v-card-title>Sync paths</v-card-title>
         <v-card-text class="pt-4 pb-0">
-          <SecretStorageSyncOptionsForm v-model="item.params.sync_paths" />
+
+          <v-text-field
+            style="width: 140px;"
+            v-if="item.sync_enabled"
+            v-model.number="item.sync_interval"
+            min="0"
+            :label="$t('Auto-sync interval')"
+            persistent-hint
+            :disabled="formSaving"
+            suffix="minutes"
+            outlined
+            dense
+          ></v-text-field>
+
+          <SecretStorageSyncOptionsForm v-model="item.sync_paths" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -284,9 +395,10 @@ export default {
   methods: {
     getNewItem() {
       return {
-        params: {
-          sync_paths: [],
-        },
+        sync_enabled: false,
+        sync_interval: 0,
+        sync_paths: [],
+        params: {},
       };
     },
 
@@ -295,8 +407,8 @@ export default {
         this.item.params = {};
       }
 
-      if (!this.item.params.sync_paths) {
-        this.$set(this.item.params, 'sync_paths', []);
+      if (!this.item.sync_paths) {
+        this.$set(this.item, 'sync_paths', []);
       }
 
       if (this.itemId === 'new') {

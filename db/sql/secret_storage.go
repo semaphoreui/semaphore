@@ -1,6 +1,8 @@
 package sql
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"github.com/semaphoreui/semaphore/db"
+)
 
 func (d *SqlDb) GetSecretStorages(projectID int) (storages []db.SecretStorage, err error) {
 	storages = make([]db.SecretStorage, 0)
@@ -18,6 +20,16 @@ func (d *SqlDb) GetSecretStorages(projectID int) (storages []db.SecretStorage, e
 	}
 
 	_, err = d.selectAll(&storages, query, args...)
+
+	if err != nil {
+		return
+	}
+
+	for i := range storages {
+		if err = d.fillStorageSync(&storages[i]); err != nil {
+			return
+		}
+	}
 
 	return
 }
@@ -39,13 +51,23 @@ func (d *SqlDb) CreateSecretStorage(storage db.SecretStorage) (newStorage db.Sec
 
 	newStorage = storage
 	newStorage.ID = insertID
+
+	if err = d.SaveSecretSync(secretSyncFromStorage(newStorage)); err != nil {
+		return
+	}
+
+	err = d.fillStorageSync(&newStorage)
 	return
 }
 
-func (d *SqlDb) GetSecretStorage(projectID int, storageID int) (key db.SecretStorage, err error) {
+func (d *SqlDb) GetSecretStorage(projectID int, storageID int) (storage db.SecretStorage, err error) {
 
-	err = d.getObject(projectID, db.SecretStorageProps, storageID, &key)
+	err = d.getObject(projectID, db.SecretStorageProps, storageID, &storage)
+	if err != nil {
+		return
+	}
 
+	err = d.fillStorageSync(&storage)
 	return
 }
 
@@ -70,5 +92,48 @@ func (d *SqlDb) UpdateSecretStorage(storage db.SecretStorage) error {
 		storage.ReadOnly,
 		storage.ProjectID,
 		storage.ID)
-	return err
+
+	if err != nil {
+		return err
+	}
+
+	return d.SaveSecretSync(secretSyncFromStorage(storage))
+}
+
+// secretSyncFromStorage projects a SecretStorage's transfer-only sync fields
+// onto a SecretSync payload for persistence.
+func secretSyncFromStorage(storage db.SecretStorage) db.SecretSync {
+	return db.SecretSync{
+		ProjectID:        storage.ProjectID,
+		StorageID:        storage.ID,
+		SyncEnabled:      storage.SyncEnabled,
+		SyncInterval:     storage.SyncInterval,
+		LastSyncedAt:     storage.LastSyncedAt,
+		LastSyncFailedAt: storage.LastSyncFailedAt,
+		Paths:            storage.SyncPaths,
+	}
+}
+
+func (d *SqlDb) fillStorageSync(storage *db.SecretStorage) error {
+	sync, err := d.GetStorageSecretSync(storage.ID)
+	if err == db.ErrNotFound {
+		storage.SyncEnabled = false
+		storage.SyncInterval = 0
+		storage.LastSyncedAt = nil
+		storage.LastSyncFailedAt = nil
+		storage.SyncPaths = []db.SecretSyncPath{}
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	storage.SyncEnabled = sync.SyncEnabled
+	storage.SyncInterval = sync.SyncInterval
+	storage.LastSyncedAt = sync.LastSyncedAt
+	storage.LastSyncFailedAt = sync.LastSyncFailedAt
+	storage.SyncPaths = sync.Paths
+	if storage.SyncPaths == nil {
+		storage.SyncPaths = []db.SecretSyncPath{}
+	}
+	return nil
 }
