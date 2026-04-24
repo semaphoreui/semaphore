@@ -30,7 +30,7 @@
 
     <v-text-field
       v-model="item.webhook"
-      :label="$t('webhook')"
+      :label="$t('Webhook')"
       required
       :disabled="formSaving"
     ></v-text-field>

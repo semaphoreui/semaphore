@@ -535,7 +535,7 @@ semaphore runner start --no-config`;
           value: 'project_id',
         }]),
         {
-          text: this.$i18n.t('webhook'),
+          text: this.$i18n.t('Webhook'),
           value: 'webhook',
         }, {
           text: this.$i18n.t('tag'),

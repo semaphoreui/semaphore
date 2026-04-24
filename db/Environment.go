@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"errors"
+	"time"
 )
 
 type EnvironmentSecretOperation string
@@ -53,6 +54,13 @@ type Environment struct {
 
 	SecretStorageID        *int    `db:"secret_storage_id" json:"secret_storage_id,omitempty" backup:"-"`
 	SecretStorageKeyPrefix *string `db:"secret_storage_key_prefix" json:"secret_storage_key_prefix,omitempty"`
+
+	// Sync fields are transfer-only; persisted in project__secret_sync.
+	SyncEnabled      bool             `db:"-" json:"sync_enabled"`
+	SyncInterval     int              `db:"-" json:"sync_interval"`
+	LastSyncedAt     *time.Time       `db:"-" json:"last_synced_at,omitempty"`
+	LastSyncFailedAt *time.Time       `db:"-" json:"last_sync_failed_at,omitempty"`
+	SyncPaths        []SecretSyncPath `db:"-" json:"sync_paths"`
 }
 
 func (s *EnvironmentSecret) Validate() error {

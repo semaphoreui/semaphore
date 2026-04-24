@@ -10,7 +10,8 @@ func GetSecretStorages(repo db.SecretStorageRepository, projectID int) (storages
 }
 
 func SyncSecrets(
-	storage db.SecretStorage,
+	sync db.SecretSync,
+	storageRepo db.SecretStorageRepository,
 	accessKeyRepo db.AccessKeyManager,
 	decryptor DvlsStorageTokenDeserializer,
 ) error {

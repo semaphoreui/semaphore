@@ -30,7 +30,17 @@
         :label="$t('Mount')"
         hint="'secret' by default"
         :disabled="formSaving"
-        data-testid="secretStorage-dvlsKey"
+        data-testid="secretStorage-vaultMount"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.namespace"
+        :label="$t('Namespace')"
+        hint="For Vault Enterprise and HCP Dedicated only"
+        :disabled="formSaving"
+        data-testid="secretStorage-vaultNamespace"
         outlined
         dense
       ></v-text-field>
@@ -311,7 +321,7 @@
       <v-checkbox
         class="mt-0"
         v-model="item.sync_enabled"
-        :label="$t('Sync enabled')"
+        :label="$t('Sync keys enabled')"
         :disabled="formSaving"
       />
 
@@ -337,11 +347,11 @@
         <v-card-text class="pt-4 pb-0">
 
           <v-text-field
-            style="width: 120px;"
+            style="width: 140px;"
             v-if="item.sync_enabled"
             v-model.number="item.sync_interval"
             min="0"
-            :label="$t('Sync interval')"
+            :label="$t('Auto-sync interval')"
             persistent-hint
             :disabled="formSaving"
             suffix="minutes"

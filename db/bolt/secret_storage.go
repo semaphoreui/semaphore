@@ -33,18 +33,22 @@ func (d *BoltDb) GetSecretStorageRefs(projectID int, storageID int) (db.ObjectRe
 	return d.getObjectRefs(projectID, db.SecretStorageProps, storageID)
 }
 
-func (d *BoltDb) GetSecretStorageSyncPaths(storageID int) ([]db.SecretStorageSyncPath, error) {
-	return []db.SecretStorageSyncPath{}, nil
+func (d *BoltDb) GetSyncEnabledSecretSyncs() ([]db.SecretSync, error) {
+	return []db.SecretSync{}, nil
 }
 
-func (d *BoltDb) ReplaceSecretStorageSyncPaths(storageID int, paths []db.SecretStorageSyncPath) error {
+func (d *BoltDb) MarkSecretSyncSynced(syncID int, success bool, at time.Time) error {
 	return nil
 }
 
-func (d *BoltDb) GetSyncEnabledSecretStorages() ([]db.SecretStorage, error) {
-	return []db.SecretStorage{}, nil
+func (d *BoltDb) GetStorageSecretSync(storageID int) (db.SecretSync, error) {
+	return db.SecretSync{}, db.ErrNotFound
 }
 
-func (d *BoltDb) MarkSecretStorageSynced(storageID int, success bool, at time.Time) error {
+func (d *BoltDb) GetEnvironmentSecretSync(environmentID int) (db.SecretSync, error) {
+	return db.SecretSync{}, db.ErrNotFound
+}
+
+func (d *BoltDb) SaveSecretSync(sync db.SecretSync) error {
 	return nil
 }

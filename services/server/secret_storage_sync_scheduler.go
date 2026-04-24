@@ -11,10 +11,11 @@ import (
 
 const secretStorageSyncTickInterval = 60 * time.Second
 
-// SecretStorageSyncScheduler periodically runs SyncSecrets on every
-// sync-enabled secret storage whose configured interval has elapsed.
+// SecretStorageSyncScheduler walks every sync-enabled SecretSync row
+// (storage-level and env-scoped) and runs SyncSecrets when the configured
+// interval has elapsed.
 type SecretStorageSyncScheduler struct {
-	secretStorageRepo    db.SecretStorageRepository
+	secretSyncRepo       db.SecretSyncRepository
 	secretStorageService SecretStorageService
 	tickDeduplicator     interface{ TryLockExecution(scheduleID int) bool }
 
@@ -23,11 +24,11 @@ type SecretStorageSyncScheduler struct {
 }
 
 func NewSecretStorageSyncScheduler(
-	secretStorageRepo db.SecretStorageRepository,
+	secretSyncRepo db.SecretSyncRepository,
 	secretStorageService SecretStorageService,
 ) *SecretStorageSyncScheduler {
 	return &SecretStorageSyncScheduler{
-		secretStorageRepo:    secretStorageRepo,
+		secretSyncRepo:       secretSyncRepo,
 		secretStorageService: secretStorageService,
 		stop:                 make(chan struct{}),
 	}
@@ -70,53 +71,53 @@ func (s *SecretStorageSyncScheduler) tick() {
 		return
 	}
 
-	storages, err := s.secretStorageRepo.GetSyncEnabledSecretStorages()
+	syncs, err := s.secretSyncRepo.GetSyncEnabledSecretSyncs()
 	if err != nil {
-		log.WithError(err).Warn("secret storage sync: failed to list sync-enabled storages")
+		log.WithError(err).Warn("secret sync: failed to list sync-enabled configs")
 		return
 	}
 
 	now := tz.Now()
-	for _, storage := range storages {
-		if !secretStorageSyncDue(storage, now) {
+	for _, sync := range syncs {
+		if !secretSyncDue(sync, now) {
 			continue
 		}
 
-		syncErr := s.secretStorageService.SyncSecrets(storage)
+		syncErr := s.secretStorageService.SyncSecrets(sync)
 		markTime := tz.Now()
 		success := syncErr == nil
 
 		if syncErr != nil {
 			log.WithError(syncErr).
-				WithField("storage_id", storage.ID).
-				WithField("project_id", storage.ProjectID).
-				Warn("secret storage sync failed")
+				WithField("sync_id", sync.ID).
+				WithField("storage_id", sync.StorageID).
+				Warn("secret sync failed")
 		}
 
-		if err := s.secretStorageRepo.MarkSecretStorageSynced(storage.ID, success, markTime); err != nil {
+		if err := s.secretSyncRepo.MarkSecretSyncSynced(sync.ID, success, markTime); err != nil {
 			log.WithError(err).
-				WithField("storage_id", storage.ID).
-				Warn("secret storage sync: failed to record sync timestamp")
+				WithField("sync_id", sync.ID).
+				Warn("secret sync: failed to record sync timestamp")
 		}
 	}
 }
 
-func secretStorageSyncDue(storage db.SecretStorage, now time.Time) bool {
-	if storage.SyncInterval <= 0 {
+func secretSyncDue(sync db.SecretSync, now time.Time) bool {
+	if sync.SyncInterval <= 0 {
 		return false
 	}
 
 	var lastAttempt time.Time
-	if storage.LastSyncedAt != nil {
-		lastAttempt = *storage.LastSyncedAt
+	if sync.LastSyncedAt != nil {
+		lastAttempt = *sync.LastSyncedAt
 	}
-	if storage.LastSyncFailedAt != nil && storage.LastSyncFailedAt.After(lastAttempt) {
-		lastAttempt = *storage.LastSyncFailedAt
+	if sync.LastSyncFailedAt != nil && sync.LastSyncFailedAt.After(lastAttempt) {
+		lastAttempt = *sync.LastSyncFailedAt
 	}
 
 	if lastAttempt.IsZero() {
 		return true
 	}
 
-	return now.Sub(lastAttempt) >= time.Duration(storage.SyncInterval)*time.Minute
+	return now.Sub(lastAttempt) >= time.Duration(sync.SyncInterval)*time.Minute
 }
