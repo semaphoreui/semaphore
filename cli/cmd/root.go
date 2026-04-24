@@ -96,6 +96,7 @@ func runService() {
 	)
 	accessKeyService := server.NewAccessKeyService(store, encryptionService, store)
 	secretStorageService := server.NewSecretStorageService(store, store, accessKeyService, encryptionService)
+	secretStorageSyncScheduler := server.NewSecretStorageSyncScheduler(store, secretStorageService)
 	environmentService := server.NewEnvironmentService(store, encryptionService)
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
@@ -136,6 +137,7 @@ func runService() {
 
 	if dedup := proHA.NewScheduleDeduplicator(); dedup != nil {
 		schedulePool.SetDeduplicator(dedup)
+		secretStorageSyncScheduler.SetTickDeduplicator(dedup)
 	}
 
 	// Each process holds its own in-memory cron table. Schedule CRUD handlers only
@@ -184,6 +186,9 @@ func runService() {
 
 	go schedulePool.Run()
 	go taskPool.Run()
+
+	secretStorageSyncScheduler.Start()
+	defer secretStorageSyncScheduler.Stop()
 
 	route := api.Route(
 		store,

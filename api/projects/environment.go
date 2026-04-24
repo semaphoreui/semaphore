@@ -254,6 +254,7 @@ func (c *EnvironmentController) AddEnvironment(w http.ResponseWriter, r *http.Re
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Project ID in body and URL must be the same",
 		})
+		return
 	}
 
 	newEnv, err := helpers.Store(r).CreateEnvironment(env)
