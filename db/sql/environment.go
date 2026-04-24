@@ -9,8 +9,39 @@ func (d *SqlDb) GetEnvironment(projectID int, environmentID int) (environment db
 	return
 }
 
-func (d *SqlDb) GetEnvironmentRefs(projectID int, environmentID int) (db.ObjectReferrers, error) {
-	return d.getObjectRefs(projectID, db.EnvironmentProps, environmentID)
+func (d *SqlDb) GetEnvironmentRefs(projectID int, environmentID int) (refs db.ObjectReferrers, err error) {
+	refs, err = d.getObjectRefs(projectID, db.EnvironmentProps, environmentID)
+	if err != nil {
+		return
+	}
+
+	var extra []db.ObjectReferrer
+	_, err = d.selectAll(
+		&extra,
+		"select t.id, t.name from project__template t "+
+			"join project__template_environment pte "+
+			"on pte.template_id = t.id and pte.project_id = t.project_id "+
+			"where t.project_id = ? and pte.environment_id = ?",
+		projectID,
+		environmentID,
+	)
+
+	if err != nil {
+		return
+	}
+
+	seen := make(map[int]bool)
+	for _, r := range refs.Templates {
+		seen[r.ID] = true
+	}
+	for _, r := range extra {
+		if seen[r.ID] {
+			continue
+		}
+		refs.Templates = append(refs.Templates, r)
+	}
+
+	return
 }
 
 func (d *SqlDb) GetEnvironments(projectID int, params db.RetrieveQueryParams) ([]db.Environment, error) {

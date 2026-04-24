@@ -117,6 +117,11 @@ type Template struct {
 	RepositoryID  int  `db:"repository_id" json:"repository_id" backup:"-"`
 	EnvironmentID *int `db:"environment_id" json:"environment_id,omitempty" backup:"-"`
 
+	// EnvironmentIDs is an optional list of additional Variable Groups
+	// (environments) that are merged into the primary EnvironmentID at task
+	// run time. Stored in a separate junction table in SQL.
+	EnvironmentIDs []int `db:"-" json:"environment_ids,omitempty" backup:"-"`
+
 	// Name as described in https://github.com/semaphoreui/semaphore/issues/188
 	Name string `db:"name" json:"name"`
 	// playbook name in the form of "some_play.yml"
@@ -232,6 +237,13 @@ func FillTemplate(d Store, template *Template) (err error) {
 		return
 	}
 	template.Vaults = vaults
+
+	var envIDs []int
+	envIDs, err = d.GetTemplateEnvironments(template.ProjectID, template.ID)
+	if err != nil {
+		return
+	}
+	template.EnvironmentIDs = envIDs
 
 	var tasks []TaskWithTpl
 	tasks, err = d.GetTemplateTasks(template.ProjectID, template.ID, RetrieveQueryParams{Count: 1})

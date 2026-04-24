@@ -191,6 +191,8 @@ export default {
   inventory2: 'Inventory *',
   repository: 'Repository',
   environment3: 'Variable Group *',
+  additionalEnvironments: 'Additional Variable Groups',
+  additionalEnvironmentsHint: 'Values from additional Variable Groups are merged first; the primary Variable Group overrides them on conflicts.',
   vaultPassword: 'Vault Password',
   vaultPassword2: 'Vault Password',
   view: 'View',

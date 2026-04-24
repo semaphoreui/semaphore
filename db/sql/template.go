@@ -68,6 +68,11 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		return
 	}
 
+	err = d.UpdateTemplateEnvironments(template.ProjectID, insertID, template.EnvironmentIDs)
+	if err != nil {
+		return
+	}
+
 	err = db.FillTemplate(d, &newTemplate)
 
 	if err != nil {
@@ -140,9 +145,72 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	}
 
 	err = d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
+	if err != nil {
+		return err
+	}
+
+	err = d.UpdateTemplateEnvironments(template.ProjectID, template.ID, template.EnvironmentIDs)
 
 	return err
 }
+
+func (d *SqlDb) GetTemplateEnvironments(projectID int, templateID int) (environmentIDs []int, err error) {
+	environmentIDs = make([]int, 0)
+
+	var rows []struct {
+		EnvironmentID int `db:"environment_id"`
+	}
+
+	_, err = d.selectAll(
+		&rows,
+		"select environment_id from project__template_environment "+
+			"where project_id=? and template_id=? order by environment_id",
+		projectID,
+		templateID,
+	)
+
+	if err != nil {
+		return
+	}
+
+	for _, r := range rows {
+		environmentIDs = append(environmentIDs, r.EnvironmentID)
+	}
+
+	return
+}
+
+func (d *SqlDb) UpdateTemplateEnvironments(projectID int, templateID int, environmentIDs []int) (err error) {
+	_, err = d.exec(
+		"delete from project__template_environment where project_id=? and template_id=?",
+		projectID,
+		templateID,
+	)
+	if err != nil {
+		return
+	}
+
+	seen := make(map[int]bool)
+	for _, envID := range environmentIDs {
+		if seen[envID] {
+			continue
+		}
+		seen[envID] = true
+
+		_, err = d.exec(
+			"insert into project__template_environment (project_id, template_id, environment_id) values (?, ?, ?)",
+			projectID,
+			templateID,
+			envID,
+		)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
 func (d *SqlDb) SetTemplateDescription(projectID int, templateID int, description string) (err error) {
 
 	_, err = d.exec("update project__template set "+

@@ -298,9 +298,11 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 	}
 
 	tplEnvironment := make(map[string]any)
-	err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
-	if err != nil {
-		return
+	if t.Environment.JSON != "" {
+		err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
+		if err != nil {
+			return
+		}
 	}
 
 	taskEnvironment := make(map[string]any)
@@ -405,22 +407,130 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
-	// get environment
-	if t.Template.EnvironmentID != nil {
-		t.Environment, err = t.pool.store.GetEnvironment(t.Template.ProjectID, *t.Template.EnvironmentID)
-		if err != nil {
-			return err
-		}
-
-		err = t.pool.encryptionService.FillEnvironmentSecrets(&t.Environment, true)
-		if err != nil {
-			return err
-		}
+	// get environment (primary + additional)
+	err = t.loadEnvironments()
+	if err != nil {
+		return err
 	}
 
 	err = t.populateTaskEnvironment()
 
 	return err
+}
+
+// loadEnvironments loads the primary environment (from Template.EnvironmentID)
+// and any additional Variable Groups (from Template.EnvironmentIDs) and merges
+// them into t.Environment. Additional environments are applied first so that
+// the primary environment wins on key conflicts.
+func (t *TaskRunner) loadEnvironments() error {
+	seen := make(map[int]bool)
+
+	mergedJSON := make(map[string]any)
+	mergedENV := make(map[string]string)
+	var mergedSecrets []db.EnvironmentSecret
+
+	apply := func(env db.Environment) error {
+		if env.JSON != "" {
+			partial := make(map[string]any)
+			if err := json.Unmarshal([]byte(env.JSON), &partial); err != nil {
+				return err
+			}
+			for k, v := range partial {
+				mergedJSON[k] = v
+			}
+		}
+
+		if env.ENV != nil && *env.ENV != "" {
+			partial := make(map[string]string)
+			if err := json.Unmarshal([]byte(*env.ENV), &partial); err != nil {
+				return err
+			}
+			for k, v := range partial {
+				mergedENV[k] = v
+			}
+		}
+
+		existing := make(map[string]int)
+		for i, s := range mergedSecrets {
+			existing[string(s.Type)+":"+s.Name] = i
+		}
+		for _, s := range env.Secrets {
+			key := string(s.Type) + ":" + s.Name
+			if idx, ok := existing[key]; ok {
+				mergedSecrets[idx] = s
+			} else {
+				mergedSecrets = append(mergedSecrets, s)
+				existing[key] = len(mergedSecrets) - 1
+			}
+		}
+
+		return nil
+	}
+
+	// Additional environments are applied first; the primary one is applied
+	// last so that it can override values from the additional ones.
+	for _, envID := range t.Template.EnvironmentIDs {
+		if seen[envID] {
+			continue
+		}
+		if t.Template.EnvironmentID != nil && *t.Template.EnvironmentID == envID {
+			// Primary environment will be applied below; skip duplicate.
+			continue
+		}
+		seen[envID] = true
+
+		env, err := t.pool.store.GetEnvironment(t.Template.ProjectID, envID)
+		if err != nil {
+			return err
+		}
+
+		err = t.pool.encryptionService.FillEnvironmentSecrets(&env, true)
+		if err != nil {
+			return err
+		}
+
+		if err = apply(env); err != nil {
+			return err
+		}
+	}
+
+	if t.Template.EnvironmentID != nil {
+		primary, err := t.pool.store.GetEnvironment(t.Template.ProjectID, *t.Template.EnvironmentID)
+		if err != nil {
+			return err
+		}
+
+		err = t.pool.encryptionService.FillEnvironmentSecrets(&primary, true)
+		if err != nil {
+			return err
+		}
+
+		t.Environment = primary
+		if err = apply(primary); err != nil {
+			return err
+		}
+	}
+
+	if len(mergedJSON) > 0 {
+		b, err := json.Marshal(mergedJSON)
+		if err != nil {
+			return err
+		}
+		t.Environment.JSON = string(b)
+	}
+
+	if len(mergedENV) > 0 {
+		b, err := json.Marshal(mergedENV)
+		if err != nil {
+			return err
+		}
+		s := string(b)
+		t.Environment.ENV = &s
+	}
+
+	t.Environment.Secrets = mergedSecrets
+
+	return nil
 }
 
 // checkTmpDir checks to see if the temporary directory exists

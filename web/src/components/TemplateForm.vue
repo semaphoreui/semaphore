@@ -255,6 +255,26 @@
         ></v-autocomplete>
 
         <v-autocomplete
+          v-model="item.environment_ids"
+          :label="$t('additionalEnvironments')"
+          :items="additionalEnvironmentItems"
+          item-value="id"
+          item-text="name"
+          :hint="$t('additionalEnvironmentsHint')"
+          persistent-hint
+          multiple
+          chips
+          small-chips
+          deletable-chips
+          clearable
+          outlined
+          dense
+          class="mb-3"
+          :disabled="formSaving"
+          v-if="needField('environment')"
+        ></v-autocomplete>
+
+        <v-autocomplete
           class="mb-3"
           style="max-height: 60px;"
           v-model="item.view_id"
@@ -620,6 +640,13 @@ export default {
     itemTypeIndex(val) {
       this.item.type = Object.keys(TEMPLATE_TYPE_ICONS)[val];
     },
+
+    'item.environment_id': function onPrimaryEnvChange(newValue) {
+      if (newValue == null || !Array.isArray(this.item.environment_ids)) {
+        return;
+      }
+      this.item.environment_ids = this.item.environment_ids.filter((id) => id !== newValue);
+    },
   },
 
   async created() {
@@ -651,6 +678,17 @@ export default {
       set(newValue) {
         this.item.task_params.allow_override_inventory = newValue;
       },
+    },
+
+    additionalEnvironmentItems() {
+      if (!Array.isArray(this.environment)) {
+        return [];
+      }
+      const primaryId = this.item ? this.item.environment_id : null;
+      if (primaryId == null) {
+        return this.environment;
+      }
+      return this.environment.filter((e) => e.id !== primaryId);
     },
 
     loaderHeight() {
@@ -772,6 +810,7 @@ export default {
     getNewItem() {
       return {
         task_params: {},
+        environment_ids: [],
       };
     },
 
@@ -856,6 +895,10 @@ export default {
 
       if (!this.item.task_params) {
         this.item.task_params = {};
+      }
+
+      if (!Array.isArray(this.item.environment_ids)) {
+        this.$set(this.item, 'environment_ids', []);
       }
 
       this.args = JSON.parse(this.item.arguments || '[]');
