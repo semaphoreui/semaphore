@@ -146,6 +146,11 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		return err
 	}
 
+	// For backward compatibility
+	if template.EnvironmentIDs == nil && template.EnvironmentID > 0 {
+		template.EnvironmentIDs = []int{template.EnvironmentID}
+	}
+
 	err = d.UpdateTemplateEnvironments(template.ProjectID, template.ID, template.EnvironmentIDs)
 
 	return err
@@ -406,6 +411,11 @@ func (d *SqlDb) getTemplates(
 		template.EnvironmentIDs, err = d.GetTemplateEnvironments(projectID, template.ID)
 		if err != nil {
 			return
+		}
+
+		// For backward compatibility
+		if len(template.EnvironmentIDs) == 1 {
+			template.EnvironmentID = template.EnvironmentIDs[0]
 		}
 
 		templates = append(templates, template)
