@@ -26,6 +26,9 @@ func (m migration_2_18_4) PreApply(tx *gorp.Transaction) error {
 	case gorp.PostgresDialect:
 		_, _ = tx.Exec(
 			m.db.PrepareQuery("alter table `project__template` drop constraint if exists `project__template_environment_id_fkey`"))
+	case gorp.SqliteDialect:
+		_, _ = tx.Exec(
+			m.db.PrepareQuery("drop index if exists `project__template__environment_id`"))
 	}
 	return nil
 }
