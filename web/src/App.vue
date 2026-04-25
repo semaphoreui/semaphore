@@ -557,6 +557,28 @@
     </v-navigation-drawer>
 
     <v-main>
+      <v-alert
+        type="error"
+        prominent
+        dense
+        class="ma-0 PageAlert"
+        style="border-radius: 0"
+        v-if="systemInfo?.boltdb_used"
+      >
+        BoltDB is deprecated and will be removed in version 2.19.
+        Please migrate to SQLite to continue receiving updates.
+        <v-btn
+          dark
+          depressed
+          class="pr-3 my-1"
+          color="red darken-1"
+          href="https://semaphoreui.com/docs/admin-guide/cli/migrations#migration-from-boltdb-to-sqlitemysqlpostgresql"
+          target="_blank"
+        >
+          Migrate
+          <v-icon class="ml-2">mdi-open-in-new</v-icon>
+        </v-btn>
+      </v-alert>
       <router-view
         :projectId="projectId"
         :projectType="(project || {}).type || ''"
