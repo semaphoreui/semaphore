@@ -75,6 +75,10 @@
         />
       </template>
 
+      <template v-slot:item.name="{ item }">
+        {{ item.name || '—' }}
+      </template>
+
       <template v-slot:item.created="{ item }">
         {{ item.created | formatDate }}
       </template>
@@ -192,7 +196,10 @@ export default {
             method: 'post',
             url: '/api/user/tokens',
             responseType: 'json',
-            data: { expires_at: expiresAt },
+            data: {
+              expires_at: expiresAt,
+              name: this.newTokenName,
+            },
           })
         ).data;
         await this.loadItems();
