@@ -249,14 +249,12 @@
           :rules="isFieldRequired('environment')
             ? [v => (Array.isArray(v) && v.length > 0) || $t('environment_required')]
             : []"
-          :hint="$t('environmentsHint')"
           persistent-hint
           multiple
           chips
-          small-chips
           deletable-chips
           outlined
-          dense
+          small-chips
           class="mb-3"
           :required="isFieldRequired('environment')"
           :disabled="formSaving"

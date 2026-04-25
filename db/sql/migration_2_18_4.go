@@ -6,11 +6,11 @@ import (
 	"github.com/go-gorp/gorp/v3"
 )
 
-type migration_2_18_3 struct {
+type migration_2_18_4 struct {
 	db *SqlDb
 }
 
-func (m migration_2_18_3) PreApply(tx *gorp.Transaction) error {
+func (m migration_2_18_4) PreApply(tx *gorp.Transaction) error {
 	switch m.db.Sql().Dialect.(type) {
 	case gorp.MySQLDialect:
 		fkName, err := tx.SelectStr(
