@@ -330,6 +330,7 @@ export default {
   status_stopped: 'Stopped',
 
   api_tokens: 'API Tokens',
+  tokenName: 'Token Name',
 
   // Terraform/OpenTofu/Terragrunt
   auto_approve: 'Auto approve',

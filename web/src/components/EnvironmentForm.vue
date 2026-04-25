@@ -193,18 +193,83 @@
       </v-tab-item>
 
       <v-tab-item key="secrets">
-        <div v-if="!isNew && secretStorage" class="pb-3">
+        <div
+          v-if="!isNew && secretStorage"
+          class="px-4 py-3"
+          style="
+            background: rgba(133, 133, 133, 0.06);
+            border-color: rgb(33, 33, 33);
+            border-radius: 6px;
+          "
+        >
           <div style="font-weight: bold; font-size: 20px">
             <v-icon small class="mr-1">{{ getIcon(secretStorage.type) }}</v-icon>
             {{ secretStorage.name }}
           </div>
           <pre>Source path pattern: <b>{{ item.secret_storage_key_prefix }}*</b></pre>
+
+          <div class="d-flex items-center justify-space-between mt-2">
+            <v-checkbox
+              class="mt-0"
+              v-model="item.sync_enabled"
+              :label="$t('Sync keys enabled')"
+              :disabled="formSaving"
+              hide-details
+            />
+
+            <v-btn
+              style="margin-right: -10px"
+              text
+              color="primary"
+              @click="syncSettingsDialog = true"
+              :disabled="formSaving"
+              v-if="item.sync_enabled"
+            >
+              <v-icon left>mdi-cog-sync</v-icon>
+              Sync paths
+              <v-chip
+                class="ml-2"
+                outlined
+                style="transform: translateY(-1px)"
+                color="primary"
+                small
+              >
+                {{ (item.sync_paths || []).length }}
+              </v-chip>
+            </v-btn>
+          </div>
         </div>
 
-        <div>
+        <v-dialog v-model="syncSettingsDialog" max-width="500" persistent>
+          <v-card>
+            <v-card-title>Sync paths</v-card-title>
+            <v-card-text class="pt-4 pb-0">
+              <v-text-field
+                style="width: 140px"
+                v-model.number="item.sync_interval"
+                min="0"
+                :label="$t('Auto-sync interval')"
+                persistent-hint
+                :disabled="formSaving"
+                suffix="minutes"
+                outlined
+                dense
+              ></v-text-field>
+
+              <SecretStorageSyncOptionsForm v-model="item.sync_paths" />
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer />
+              <v-btn text color="blue darken-1" @click="syncSettingsDialog = false">
+                {{ $t('close') }}
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+
+        <div v-if="secrets.filter((s) => !s.remove && s.type === 'var').length > 0">
           <v-subheader class="px-0">
             {{ $t('extraVariables') }}
-
             <v-tooltip v-if="needHelp" bottom color="black" open-delay="300" max-width="400">
               <template v-slot:activator="{ on, attrs }">
                 <v-icon class="ml-1" v-bind="attrs" v-on="on">mdi-help-box </v-icon>
@@ -220,6 +285,11 @@
               <v-icon> mdi-plus </v-icon>
             </v-btn>
           </v-subheader>
+
+          <v-alert type="error" text>
+            Passing secrets using this method is not secure. This feature will be removed in version
+            2.19.
+          </v-alert>
 
           <v-data-table
             :items="secrets.filter((s) => !s.remove && s.type === 'var')"
@@ -333,6 +403,7 @@ import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/display/placeholder.js';
 import { getErrorMessage } from '@/lib/error';
 import RichEditor from '@/components/RichEditor.vue';
+import SecretStorageSyncOptionsForm from '@/components/SecretStorageSyncOptionsForm.vue';
 
 export default {
   mixins: [ItemFormBase],
@@ -345,6 +416,7 @@ export default {
   components: {
     RichEditor,
     codemirror,
+    SecretStorageSyncOptionsForm,
   },
 
   computed: {
@@ -446,10 +518,19 @@ export default {
       extraVarsEditMode: 'json',
 
       secretStorages: null,
+
+      syncSettingsDialog: false,
     };
   },
 
   methods: {
+    getNewItem() {
+      return {
+        sync_enabled: false,
+        sync_interval: 0,
+        sync_paths: [],
+      };
+    },
     getIcon(type) {
       switch (type) {
         case 'aws_sm':
@@ -578,6 +659,16 @@ export default {
             await this.loadProjectResource('secret_storages', this.item.secret_storage_id),
           );
         }
+      }
+
+      if (!this.item.sync_paths) {
+        this.$set(this.item, 'sync_paths', []);
+      }
+      if (this.item.sync_enabled == null) {
+        this.$set(this.item, 'sync_enabled', false);
+      }
+      if (this.item.sync_interval == null) {
+        this.$set(this.item, 'sync_interval', 0);
       }
 
       this.json = JSON.stringify(JSON.parse(this.item?.json || '{}'), null, 2);

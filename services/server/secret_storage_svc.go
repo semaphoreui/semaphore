@@ -15,7 +15,7 @@ type SecretStorageService interface {
 	Delete(projectID int, storageID int) error
 	GetSecretStorages(projectID int) ([]db.SecretStorage, error)
 	Create(storage db.SecretStorage) (res db.SecretStorage, err error)
-	SyncSecrets(storage db.SecretStorage) error
+	SyncSecrets(sync db.SecretSync) error
 }
 
 func NewSecretStorageService(
@@ -39,11 +39,33 @@ type SecretStorageServiceImpl struct {
 	encryptionService AccessKeyEncryptionService
 }
 
-func (s *SecretStorageServiceImpl) SyncSecrets(storage db.SecretStorage) error {
-	return pro.SyncSecrets(storage, s.accessKeyRepo, s.encryptionService)
+func (s *SecretStorageServiceImpl) SyncSecrets(sync db.SecretSync) error {
+	return pro.SyncSecrets(sync, s.secretStorageRepo, s.accessKeyRepo, s.encryptionService)
 }
 
 func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err error) {
+	storage, err := s.secretStorageRepo.GetSecretStorage(projectID, storageID)
+	if err != nil {
+		return
+	}
+
+	if storage.SyncEnabled {
+		var syncedKeys []db.AccessKey
+		syncedKeys, err = s.accessKeyRepo.GetAccessKeys(projectID, db.GetAccessKeyOptions{
+			IgnoreOwner:     true,
+			SourceStorageID: &storageID,
+		}, db.RetrieveQueryParams{})
+		if err != nil {
+			return
+		}
+
+		for _, key := range syncedKeys {
+			if err = s.accessKeyRepo.DeleteAccessKey(projectID, key.ID); err != nil {
+				return
+			}
+		}
+	}
+
 	err = s.secretStorageRepo.DeleteSecretStorage(projectID, storageID)
 	if err != nil {
 		return
