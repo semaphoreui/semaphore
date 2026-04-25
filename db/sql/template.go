@@ -403,6 +403,11 @@ func (d *SqlDb) getTemplates(
 			}
 		}
 
+		template.EnvironmentIDs, err = d.GetTemplateEnvironments(projectID, template.ID)
+		if err != nil {
+			return
+		}
+
 		templates = append(templates, template)
 	}
 
