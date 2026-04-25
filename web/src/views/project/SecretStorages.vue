@@ -172,10 +172,10 @@
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false" style="">
           <v-btn
+            v-if="item.sync_enabled"
             @click="syncItem(item.id)"
             :disabled="
-              (item.type !== 'dvls' && item.type !== 'aws_sm' && item.type !== 'azure_kv') ||
-              !(item.params.sync_paths && item.params.sync_paths.length > 0)
+              !(item.sync_paths && item.sync_paths.length > 0)
             "
           >
             <v-icon>mdi-sync</v-icon>
@@ -278,6 +278,7 @@ export default {
           value: 'actions',
           sortable: false,
           width: '0%',
+          align: 'end',
         },
       ];
     },

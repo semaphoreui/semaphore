@@ -105,7 +105,7 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []
 		cmd.Env = append(cmd.Env, environmentVars...)
 	}
 
-	cmd.SysProcAttr = util.Config.GetSysProcAttr()
+	cmd.SysProcAttr = util.Config.GetAppSysProcAttr()
 
 	return cmd
 }
@@ -391,7 +391,8 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		time.Sleep(time.Second * 3)
 		if t.reader.status.IsFinished() ||
 			t.reader.status == task_logger.TaskConfirmed ||
-			t.reader.status == task_logger.TaskRejected {
+			t.reader.status == task_logger.TaskRejected ||
+			t.reader.status == task_logger.TaskStoppingStatus {
 			break
 		}
 	}
