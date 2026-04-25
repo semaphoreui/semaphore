@@ -149,7 +149,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				ProjectID:               userProject.ID,
 				InventoryID:             &inventoryID,
 				RepositoryID:            repoID,
-				EnvironmentID:           &environmentID,
+				EnvironmentIDs:          []int{environmentID},
 				Name:                    "Test-" + uid,
 				Playbook:                "test-playbook.yml",
 				Arguments:               &args,

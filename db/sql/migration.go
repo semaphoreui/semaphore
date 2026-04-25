@@ -198,6 +198,8 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 	switch migration.Version {
 	case "2.10.24":
 		err = migration_2_10_24{db: d}.PreApply(tx)
+	case "2.18.3":
+		err = migration_2_18_3{db: d}.PreApply(tx)
 	}
 
 	if err != nil {

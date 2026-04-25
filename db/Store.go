@@ -596,7 +596,7 @@ var TemplateProps = ObjectProps{
 	Type:                  reflect.TypeOf(Template{}),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "template_id",
-	SortableColumns:       []string{"name", "playbook", "inventory", "environment", "repository"},
+	SortableColumns:       []string{"name", "playbook", "inventory", "repository"},
 	DefaultSortingColumn:  "name",
 }
 

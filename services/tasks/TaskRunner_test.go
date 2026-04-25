@@ -268,7 +268,7 @@ func TestPopulateDetails(t *testing.T) {
 		ProjectID:     proj.ID,
 		RepositoryID:  repo.ID,
 		InventoryID:   &inv.ID,
-		EnvironmentID: &env.ID,
+		EnvironmentIDs: []int{env.ID},
 	})
 
 	if err != nil {
@@ -373,7 +373,7 @@ func TestPopulateDetailsInventory(t *testing.T) {
 		ProjectID:     proj.ID,
 		RepositoryID:  repo.ID,
 		InventoryID:   &inv.ID,
-		EnvironmentID: &env.ID,
+		EnvironmentIDs: []int{env.ID},
 		TaskParams: map[string]any{
 			"allow_override_inventory": true,
 		},
@@ -475,7 +475,7 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 		ProjectID:     proj.ID,
 		RepositoryID:  repo.ID,
 		InventoryID:   &inv.ID,
-		EnvironmentID: &env.ID,
+		EnvironmentIDs: []int{env.ID},
 	})
 
 	if err != nil {

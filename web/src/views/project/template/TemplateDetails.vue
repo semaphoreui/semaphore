@@ -55,13 +55,7 @@
             <v-list-item-content>
               <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
               <v-list-item-subtitle>
-                {{ primaryEnvironmentName }}
-              </v-list-item-subtitle>
-              <v-list-item-subtitle
-                v-if="additionalEnvironmentNames"
-                class="text--secondary"
-              >
-                + {{ additionalEnvironmentNames }}
+                {{ environmentNames }}
               </v-list-item-subtitle>
             </v-list-item-content>
           </v-list-item>
@@ -130,28 +124,18 @@ export default {
   },
 
   computed: {
-    primaryEnvironmentName() {
-      if (!this.template || this.template.environment_id == null) {
-        return '—';
-      }
-      const env = this.environment.find((x) => x.id === this.template.environment_id);
-      return env ? env.name : '—';
-    },
-
-    additionalEnvironmentNames() {
+    environmentNames() {
       if (!this.template || !Array.isArray(this.template.environment_ids)
           || this.template.environment_ids.length === 0) {
-        return '';
+        return '—';
       }
-      const primaryId = this.template.environment_id;
-      return this.template.environment_ids
-        .filter((id) => id !== primaryId)
+      const names = this.template.environment_ids
         .map((id) => {
           const env = this.environment.find((x) => x.id === id);
           return env ? env.name : null;
         })
-        .filter((name) => name != null)
-        .join(', ');
+        .filter((name) => name != null);
+      return names.length > 0 ? names.join(', ') : '—';
     },
   },
 };

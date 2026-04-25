@@ -241,35 +241,24 @@
         </div>
 
         <v-autocomplete
-          v-model="item.environment_id"
+          v-model="item.environment_ids"
           :label="fieldLabel('environment')"
           :items="environment"
           item-value="id"
           item-text="name"
-          :rules="isFieldRequired('environment') ? [v => !!v || $t('environment_required')] : []"
-          outlined
-          dense
-          :required="isFieldRequired('environment')"
-          :disabled="formSaving"
-          v-if="needField('environment')"
-        ></v-autocomplete>
-
-        <v-autocomplete
-          v-model="item.environment_ids"
-          :label="$t('additionalEnvironments')"
-          :items="additionalEnvironmentItems"
-          item-value="id"
-          item-text="name"
-          :hint="$t('additionalEnvironmentsHint')"
+          :rules="isFieldRequired('environment')
+            ? [v => (Array.isArray(v) && v.length > 0) || $t('environment_required')]
+            : []"
+          :hint="$t('environmentsHint')"
           persistent-hint
           multiple
           chips
           small-chips
           deletable-chips
-          clearable
           outlined
           dense
           class="mb-3"
+          :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="needField('environment')"
         ></v-autocomplete>
@@ -640,13 +629,6 @@ export default {
     itemTypeIndex(val) {
       this.item.type = Object.keys(TEMPLATE_TYPE_ICONS)[val];
     },
-
-    'item.environment_id': function onPrimaryEnvChange(newValue) {
-      if (newValue == null || !Array.isArray(this.item.environment_ids)) {
-        return;
-      }
-      this.item.environment_ids = this.item.environment_ids.filter((id) => id !== newValue);
-    },
   },
 
   async created() {
@@ -678,17 +660,6 @@ export default {
       set(newValue) {
         this.item.task_params.allow_override_inventory = newValue;
       },
-    },
-
-    additionalEnvironmentItems() {
-      if (!Array.isArray(this.environment)) {
-        return [];
-      }
-      const primaryId = this.item ? this.item.environment_id : null;
-      if (primaryId == null) {
-        return this.environment;
-      }
-      return this.environment.filter((e) => e.id !== primaryId);
     },
 
     loaderHeight() {

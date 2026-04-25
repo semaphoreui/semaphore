@@ -286,14 +286,14 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 		}
 	}
 
-	var EnvironmentID *int
-	if e.Environment != nil {
-		if k := findEntityByName[db.Environment](e.Environment, b.environments); k == nil {
+	var EnvironmentIDs []int
+	for i := range e.Environments {
+		envName := &e.Environments[i]
+		k := findEntityByName[db.Environment](envName, b.environments)
+		if k == nil {
 			return fmt.Errorf("environment does not exist in environments[].name")
-		} else {
-			id := k.GetID()
-			EnvironmentID = &id
 		}
+		EnvironmentIDs = append(EnvironmentIDs, k.GetID())
 	}
 
 	var RepositoryID int
@@ -322,7 +322,7 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 	template := e.Template
 	template.ProjectID = b.meta.ID
 	template.RepositoryID = RepositoryID
-	template.EnvironmentID = EnvironmentID
+	template.EnvironmentIDs = EnvironmentIDs
 	template.InventoryID = InventoryID
 	template.ViewID = ViewID
 	template.BuildTemplateID = BuildTemplateID

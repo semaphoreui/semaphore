@@ -112,15 +112,16 @@ type TemplateFilter struct {
 type Template struct {
 	ID int `db:"id" json:"id" backup:"-"`
 
-	ProjectID     int  `db:"project_id" json:"project_id" backup:"-"`
-	InventoryID   *int `db:"inventory_id" json:"inventory_id,omitempty" backup:"-"`
-	RepositoryID  int  `db:"repository_id" json:"repository_id" backup:"-"`
-	EnvironmentID *int `db:"environment_id" json:"environment_id,omitempty" backup:"-"`
+	ProjectID    int  `db:"project_id" json:"project_id" backup:"-"`
+	InventoryID  *int `db:"inventory_id" json:"inventory_id,omitempty" backup:"-"`
+	RepositoryID int  `db:"repository_id" json:"repository_id" backup:"-"`
 
-	// EnvironmentIDs is an optional list of additional Variable Groups
-	// (environments) that are merged into the primary EnvironmentID at task
-	// run time. Stored in a separate junction table in SQL.
-	EnvironmentIDs []int `db:"-" json:"environment_ids,omitempty" backup:"-"`
+	// EnvironmentIDs is the list of Variable Groups (environments) used by the
+	// template. At task run time their JSON, ENV vars, and secrets are merged
+	// into a single environment, with later entries overriding earlier ones.
+	// Persisted via the project__template_environment junction table in SQL,
+	// and serialized inline on the template object in BoltDB.
+	EnvironmentIDs []int `db:"-" bolt:"include" json:"environment_ids" backup:"-"`
 
 	// Name as described in https://github.com/semaphoreui/semaphore/issues/188
 	Name string `db:"name" json:"name"`

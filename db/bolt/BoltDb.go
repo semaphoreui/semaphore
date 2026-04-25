@@ -309,6 +309,13 @@ func createObjectType(t reflect.Type) reflect.Type {
 
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
+		// A field tagged `bolt:"include"` keeps its original `json:"..."` tag
+		// and is serialized into BoltDB even if its `db` tag would otherwise
+		// exclude it (e.g. when the field is persisted via a side table in SQL).
+		if f.Tag.Get("bolt") == "include" {
+			fields[i] = f
+			continue
+		}
 		tag := f.Tag.Get("db")
 		if tag != "" {
 			f.Tag = reflect.StructTag(`json:"` + tag + `"`)

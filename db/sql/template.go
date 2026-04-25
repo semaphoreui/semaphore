@@ -20,13 +20,13 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 	insertID, err := d.insert(
 		"id",
 		"insert into project__template ("+
-			"project_id, inventory_id, repository_id, environment_id, name, "+
+			"project_id, inventory_id, repository_id, name, "+
 			"playbook, arguments, allow_override_args_in_task, description, `type`, "+
 			"start_version, build_template_id, view_id, autorun, survey_vars, "+
 			"suppress_success_alerts, app, git_branch, runner_tag, task_params, "+
 			"allow_override_branch_in_task, allow_parallel_tasks)"+
 			"values ("+
-			"?, ?, ?, ?, ?, "+
+			"?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?,"+
@@ -34,7 +34,6 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
-		template.EnvironmentID,
 		template.Name,
 
 		template.Playbook,
@@ -95,7 +94,6 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	_, err = d.exec("update project__template set "+
 		"inventory_id=?, "+
 		"repository_id=?, "+
-		"environment_id=?, "+
 		"name=?, "+
 		"playbook=?, "+
 		"arguments=?, "+
@@ -117,7 +115,6 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"where id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
-		template.EnvironmentID,
 		template.Name,
 		template.Playbook,
 		template.Arguments,
@@ -258,7 +255,6 @@ func (d *SqlDb) getTemplates(
 		"pt.project_id",
 		"pt.inventory_id",
 		"pt.repository_id",
-		"pt.environment_id",
 		"pt.name",
 		"pt.description",
 		"pt.playbook",
@@ -335,10 +331,6 @@ func (d *SqlDb) getTemplates(
 		q = q.LeftJoin("project__inventory pi ON (pt.inventory_id = pi.id)").
 			Where("pt.project_id=?", projectID).
 			OrderBy("pi.name " + order)
-	case "environment":
-		q = q.LeftJoin("project__environment pe ON (pt.environment_id = pe.id)").
-			Where("pt.project_id=?", projectID).
-			OrderBy("pe.name " + order)
 	case "repository":
 		q = q.LeftJoin("project__repository pr ON (pt.repository_id = pr.id)").
 			Where("pt.project_id=?", projectID).

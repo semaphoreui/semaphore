@@ -56,12 +56,12 @@ func TestBackupProject(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		RepositoryID:  repo.ID,
-		InventoryID:   &inv.ID,
-		EnvironmentID: &env.ID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		InventoryID:    &inv.ID,
+		EnvironmentIDs: []int{env.ID},
 	})
 	assert.NoError(t, err)
 
