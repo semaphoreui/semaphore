@@ -9,6 +9,7 @@ type APIToken struct {
 	Expired   bool       `db:"expired" json:"expired"`
 	ExpiresAt *time.Time `db:"expires_at" json:"expires_at,omitempty"`
 	UserID    int        `db:"user_id" json:"user_id"`
+	Name      string     `db:"name" json:"name"`
 }
 
 // IsExpiredAt reports whether the token is revoked or past its expiry.

@@ -71,6 +71,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	var body struct {
+		Name      string     `json:"name"`
 		ExpiresAt *time.Time `json:"expires_at"`
 	}
 	if r.ContentLength > 0 {
@@ -94,6 +95,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		UserID:    user.ID,
 		Expired:   false,
 		ExpiresAt: body.ExpiresAt,
+		Name:      body.Name,
 	})
 	if err != nil {
 		panic(err)

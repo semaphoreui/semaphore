@@ -4,6 +4,8 @@
       <v-card>
         <v-card-title>{{ $t('New Token') }}</v-card-title>
         <v-card-text class="pb-0 pt-4">
+          <v-text-field v-model="newTokenName" :label="$t('tokenName')" outlined dense />
+
           <v-select
             v-model="expiresInDays"
             :items="expiryOptions"
@@ -73,6 +75,10 @@
         />
       </template>
 
+      <template v-slot:item.name="{ item }">
+        {{ item.name || '—' }}
+      </template>
+
       <template v-slot:item.created="{ item }">
         {{ item.created | formatDate }}
       </template>
@@ -137,6 +143,7 @@ export default {
 
   data() {
     return {
+      newTokenName: '',
       newTokenDialog: false,
       creatingToken: false,
       expiresInDays: 0,
@@ -163,6 +170,7 @@ export default {
     },
 
     newToken() {
+      this.newTokenName = '';
       this.expiresInDays = 0;
       this.customExpiresAt = null;
       this.newTokenDialog = true;
@@ -188,7 +196,10 @@ export default {
             method: 'post',
             url: '/api/user/tokens',
             responseType: 'json',
-            data: { expires_at: expiresAt },
+            data: {
+              expires_at: expiresAt,
+              name: this.newTokenName,
+            },
           })
         ).data;
         await this.loadItems();
@@ -208,6 +219,10 @@ export default {
 
     getHeaders() {
       return [
+        {
+          text: this.$i18n.t('name'),
+          value: 'name',
+        },
         {
           text: this.$i18n.t('token'),
           value: 'id',
