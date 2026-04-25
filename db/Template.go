@@ -270,5 +270,10 @@ func FillTemplate(d Store, template *Template) (err error) {
 		}
 	}
 
+	// For backward compatibility
+	if len(template.EnvironmentIDs) > 0 {
+		template.EnvironmentID = template.EnvironmentIDs[0]
+	}
+
 	return
 }

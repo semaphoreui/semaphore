@@ -414,7 +414,7 @@ func (d *SqlDb) getTemplates(
 		}
 
 		// For backward compatibility
-		if len(template.EnvironmentIDs) == 1 {
+		if len(template.EnvironmentIDs) > 0 {
 			template.EnvironmentID = template.EnvironmentIDs[0]
 		}
 
