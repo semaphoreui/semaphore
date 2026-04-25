@@ -4,6 +4,8 @@
       <v-card>
         <v-card-title>{{ $t('New Token') }}</v-card-title>
         <v-card-text class="pb-0 pt-4">
+          <v-text-field v-model="newTokenName" :label="$t('tokenName')" outlined dense />
+
           <v-select
             v-model="expiresInDays"
             :items="expiryOptions"
@@ -49,20 +51,6 @@
 
       <v-btn color="primary" @click="newToken()">{{ $t('New Token') }}</v-btn>
     </v-toolbar>
-
-    <v-dialog v-model="newTokenDialog" max-width="400" persistent>
-      <v-card>
-        <v-card-title>{{ $t('New Token') }}</v-card-title>
-        <v-card-text>
-          <v-text-field v-model="newTokenName" :label="$t('tokenName')"></v-text-field>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn text @click="cancelNewToken()">{{ $t('cancel') }}</v-btn>
-          <v-btn color="primary" @click="newToken()">{{ $t('create') }}</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
 
     <v-divider />
 
