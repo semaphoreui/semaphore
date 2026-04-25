@@ -12,6 +12,4 @@ insert into `project__template_environment` (`project_id`, `template_id`, `envir
 select `project_id`, `id` as template_id, `environment_id`
 from `project__template` where `environment_id` is not null;
 
-drop index if exists `project__template__environment_id`;
-
 alter table `project__template` drop column `environment_id`;
