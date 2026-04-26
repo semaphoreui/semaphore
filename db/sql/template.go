@@ -190,7 +190,6 @@ func (d *SqlDb) getTemplates(
 		"pt.project_id",
 		"pt.inventory_id",
 		"pt.repository_id",
-		"pt.environment_id",
 		"pt.name",
 		"pt.description",
 		"pt.playbook",
@@ -267,10 +266,6 @@ func (d *SqlDb) getTemplates(
 		q = q.LeftJoin("project__inventory pi ON (pt.inventory_id = pi.id)").
 			Where("pt.project_id=?", projectID).
 			OrderBy("pi.name " + order)
-	case "environment":
-		q = q.LeftJoin("project__environment pe ON (pt.environment_id = pe.id)").
-			Where("pt.project_id=?", projectID).
-			OrderBy("pe.name " + order)
 	case "repository":
 		q = q.LeftJoin("project__repository pr ON (pt.repository_id = pr.id)").
 			Where("pt.project_id=?", projectID).
