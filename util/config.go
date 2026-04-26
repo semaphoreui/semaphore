@@ -268,8 +268,9 @@ type TeamsConfig struct {
 }
 
 type ConfigDirs struct {
-	SecretsPath string `json:"secrets_path,omitempty" env:"SEMAPHORE_SECRETS_PATH" default:"/tmp/semaphore"`
-	ReposPath   string `json:"repos_path,omitempty" env:"SEMAPHORE_REPOS_PATH"`
+	Secrets         string `json:"secrets,omitempty" env:"SEMAPHORE_SECRETS_PATH" default:"/tmp/semaphore"`
+	Repos           string `json:"repos,omitempty" env:"SEMAPHORE_REPOS_DIR"`
+	SSHAgentSockets string `json:"ssh_agent_sockets,omitempty" env:"SEMAPHORE_SSH_AGENT_SOCKETS_DIR" default:"/tmp/semaphore"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
