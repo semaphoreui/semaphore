@@ -11,7 +11,7 @@ import (
 )
 
 func getAllRunners(w http.ResponseWriter, r *http.Request) {
-	runners, err := helpers.Store(r).GetAllRunners(false, false)
+	runners, err := helpers.Store(r).GetAllRunners(false, false, nil)
 
 	if err != nil {
 		panic(err)

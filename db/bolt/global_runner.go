@@ -43,7 +43,7 @@ func (d *BoltDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	return
 }
 
-func (d *BoltDb) GetAllRunners(activeOnly bool, globalOnly bool) (runners []db.Runner, err error) {
+func (d *BoltDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string) (runners []db.Runner, err error) {
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(i any) bool {
 		runner := i.(db.Runner)
 
@@ -51,8 +51,13 @@ func (d *BoltDb) GetAllRunners(activeOnly bool, globalOnly bool) (runners []db.R
 			return false
 		}
 
-		if activeOnly {
-			return runner.Active
+		if activeOnly && !runner.Active {
+			return false
+		}
+
+		// Empty tag on a global runner = wildcard (matches any template tag).
+		if tag != nil && *tag != "" && runner.Tag != *tag && runner.Tag != "" {
+			return false
 		}
 
 		return true

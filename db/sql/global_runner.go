@@ -34,7 +34,7 @@ func (d *SqlDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	return
 }
 
-func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool) (runners []db.Runner, err error) {
+func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string) (runners []db.Runner, err error) {
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
 
 		if globalOnly {
@@ -43,6 +43,18 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool) (runners []db.Ru
 
 		if activeOnly {
 			builder = builder.Where("active=?", activeOnly)
+		}
+
+		if tag != nil && *tag != "" {
+			// A global runner with an empty tag acts as a wildcard and is
+			// included regardless of the requested tag. A project runner with
+			// an empty tag is not exposed via this method (project runners go
+			// through GetRunners), so the wildcard rule only loosens
+			// matching for global runners.
+			builder = builder.Where(squirrel.Or{
+				squirrel.Eq{"tag": *tag},
+				squirrel.Eq{"tag": ""},
+			})
 		}
 
 		return builder

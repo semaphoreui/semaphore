@@ -451,7 +451,7 @@ type RunnerManager interface {
 	DeleteRunner(projectID int, runnerID int) error
 	GetRunnerByToken(token string) (Runner, error)
 	GetGlobalRunner(runnerID int) (Runner, error)
-	GetAllRunners(activeOnly bool, globalOnly bool) ([]Runner, error)
+	GetAllRunners(activeOnly bool, globalOnly bool, tag *string) ([]Runner, error)
 	DeleteGlobalRunner(runnerID int) error
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)

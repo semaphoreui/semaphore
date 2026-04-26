@@ -70,13 +70,25 @@ func (d *BoltDb) DeleteRunner(projectID int, runnerID int) error {
 }
 
 func (d *BoltDb) GetRunnerTags(projectID int) ([]db.RunnerTag, error) {
-	runners, err := d.GetRunners(projectID, false, nil)
+	projectRunners, err := d.GetRunners(projectID, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Global runners (project_id IS NULL) also contribute tags so the template/inventory
+	// tag autocomplete sees every runner that could be selected for this project.
+	globalRunners, err := d.GetAllRunners(false, true, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	tagMap := make(map[string]int)
-	for _, runner := range runners {
+	for _, runner := range projectRunners {
+		if runner.Tag != "" {
+			tagMap[runner.Tag]++
+		}
+	}
+	for _, runner := range globalRunners {
 		if runner.Tag != "" {
 			tagMap[runner.Tag]++
 		}

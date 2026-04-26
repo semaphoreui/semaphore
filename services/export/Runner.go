@@ -10,7 +10,7 @@ type RunnerExporter struct {
 
 func (e *RunnerExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
-	envs, err := store.GetAllRunners(false, false)
+	envs, err := store.GetAllRunners(false, false, nil)
 	if err != nil {
 		return err
 	}

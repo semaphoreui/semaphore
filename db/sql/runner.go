@@ -72,9 +72,15 @@ func (d *SqlDb) GetRunnerCount() (res int, err error) {
 }
 
 func (d *SqlDb) GetRunnerTags(projectID int) (res []db.RunnerTag, err error) {
+	// Project runners (scoped to this project) plus global runners (project_id IS NULL)
+	// both contribute tags here so the template/inventory tag autocomplete sees every
+	// runner that could be selected for this project's tasks.
 	query, args, err := squirrel.Select("tag").
 		From("runner as r").
-		Where(squirrel.Eq{"r.project_id": projectID}).
+		Where(squirrel.Or{
+			squirrel.Eq{"r.project_id": projectID},
+			squirrel.Eq{"r.project_id": nil},
+		}).
 		Where(squirrel.NotEq{"r.tag": ""}).
 		ToSql()
 
@@ -84,11 +90,20 @@ func (d *SqlDb) GetRunnerTags(projectID int) (res []db.RunnerTag, err error) {
 
 	runners := make([]db.Runner, 0)
 	_, err = d.selectAll(&runners, query, args...)
+	if err != nil {
+		return
+	}
 
-	res = make([]db.RunnerTag, 0)
+	tagMap := make(map[string]int)
 	for _, r := range runners {
+		tagMap[r.Tag]++
+	}
+
+	res = make([]db.RunnerTag, 0, len(tagMap))
+	for tag, count := range tagMap {
 		res = append(res, db.RunnerTag{
-			Tag: r.Tag,
+			Tag:             tag,
+			NumberOfRunners: count,
 		})
 	}
 

@@ -13,11 +13,10 @@
     ></v-text-field>
 
     <v-text-field
-      v-if="projectId"
       v-model="item.tag"
       :label="$t('tag')"
-      :rules="[(v) => !!v || $t('tag_required')]"
-      required
+      :rules="projectId ? [(v) => !!v || $t('tag_required')] : []"
+      :required="!!projectId"
       :disabled="formSaving"
       outlined
       dense
