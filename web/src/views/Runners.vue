@@ -7,13 +7,6 @@
       </v-toolbar-title>
     </v-toolbar>
 
-    <DashboardMenu
-      v-if="projectId"
-      :project-id="projectId"
-      project-type=""
-      :can-update-project="can(USER_PERMISSIONS.updateProject)"
-    />
-
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
@@ -381,7 +374,6 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import RunnerForm from '@/components/RunnerForm.vue';
 import axios from 'axios';
-import DashboardMenu from '@/components/DashboardMenu.vue';
 import delay from '@/lib/delay';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import PageMixin from '@/components/PageMixin';
@@ -391,7 +383,6 @@ export default {
 
   components: {
     CopyClipboardButton,
-    DashboardMenu,
     RunnerForm,
     YesNoDialog,
     EditDialog,
