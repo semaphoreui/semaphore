@@ -279,14 +279,29 @@ semaphore runner start --config ./config.runner.json</pre
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
       <template v-slot:item.active="{ item }">
-        <v-switch
-          v-model="item.active"
-          inset
-          @change="setActive(item.id, item.active)"
-        ></v-switch>
+        <v-switch v-model="item.active" inset @change="setActive(item.id, item.active)"></v-switch>
       </template>
 
-      <template v-slot:item.name="{ item }">{{ item.name || '&mdash;' }}</template>
+      <template v-slot:item.name="{ item }">
+        {{ item.name || '&mdash;' }}
+        <v-chip
+          v-if="item.tags == null || item.tags.length === 0"
+          class="ml-2"
+          small
+          color="warning"
+        >
+          default
+        </v-chip>
+
+        <v-chip
+          v-if="item.project_id == null"
+          class="ml-2"
+          small
+          color="info"
+        >
+          global
+        </v-chip>
+      </template>
 
       <template v-slot:item.webhook="{ item }">{{ item.webhook || '&mdash;' }}</template>
 
@@ -307,13 +322,7 @@ semaphore runner start --config ./config.runner.json</pre
 
       <template v-slot:item.tags="{ item }">
         <template v-if="item.tags && item.tags.length">
-          <v-chip
-            v-for="t in item.tags"
-            :key="t"
-            x-small
-            label
-            class="mr-1 mb-1"
-          >{{ t }}</v-chip>
+          <v-chip v-for="t in item.tags" :key="t" x-small label class="mr-1 mb-1">{{ t }}</v-chip>
         </template>
         <span v-else>&mdash;</span>
       </template>
@@ -440,7 +449,6 @@ semaphore runner start --no-config`;
   },
 
   methods: {
-
     upgradeToPro() {
       EventBus.$emit('i-subscription', {});
     },
@@ -537,30 +545,39 @@ semaphore runner start --no-config`;
       return [
         {
           value: 'active',
-        }, {
+        },
+        {
           text: this.$i18n.t('name'),
           value: 'name',
           width: '50%',
         },
-        ...(this.projectId ? [] : [{
-          text: this.$i18n.t('project'),
-          value: 'project_id',
-        }]),
+        ...(this.projectId
+          ? []
+          : [
+            {
+              text: this.$i18n.t('project'),
+              value: 'project_id',
+            },
+          ]),
         {
           text: this.$i18n.t('Webhook'),
           value: 'webhook',
-        }, {
+        },
+        {
           text: this.$i18n.t('tag'),
           value: 'tags',
           sortable: false,
-        }, {
+        },
+        {
           text: this.$i18n.t('activity'),
           value: 'touched',
-        }, {
+        },
+        {
           text: this.$i18n.t('actions'),
           value: 'actions',
           sortable: false,
-        }];
+        },
+      ];
     },
 
     async returnToProjects() {
