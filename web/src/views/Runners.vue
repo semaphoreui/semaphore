@@ -234,7 +234,7 @@ semaphore runner start --config ./config.runner.json</pre
       >{{ $t('newRunner') }}
     </v-btn>
 
-    <v-divider v-if="!projectId" />
+    <v-divider />
 
     <v-alert
       v-if="projectId && !premiumFeatures.project_runners"

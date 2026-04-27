@@ -369,22 +369,22 @@
             <v-list-item-title>{{ $t('team') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
+
+        <v-list-item
+          v-if="isPro && project.type === ''"
+          key="runners"
+          :to="`/project/${projectId}/runners`"
+          data-testid="sidebar-runners"
+        >
+          <v-list-item-icon>
+            <v-icon>mdi-cogs</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>{{ $t('runners') }}</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
       </v-list>
-
-      <v-list-item
-        v-if="isPro && project.type === ''"
-        key="keys"
-        :to="`/project/${projectId}/runners`"
-        data-testid="sidebar-keys"
-      >
-        <v-list-item-icon>
-          <v-icon>mdi-key-change</v-icon>
-        </v-list-item-icon>
-
-        <v-list-item-content>
-          <v-list-item-title>{{ $t('runners') }}</v-list-item-title>
-        </v-list-item-content>
-      </v-list-item>
 
       <template v-slot:append>
         <v-list class="pa-0">
