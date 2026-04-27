@@ -20,6 +20,8 @@ import (
 // ErrAllRunnersBusy is returned when all available runners are busy. Used for logic
 var ErrAllRunnersBusy = errors.New("all runners busy")
 
+const runnerActiveThreshold = 30 * time.Minute
+
 type RemoteJob struct {
 	RunnerTag *string
 	Task      db.Task
@@ -155,11 +157,23 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	}
 
 	var runner *db.Runner
+	now := tz.Now()
 
-	for _, r := range runners {
-		n := t.taskPool.GetNumberOfRunningTasksOfRunner(r.ID)
-		if n < r.MaxParallelTasks || r.MaxParallelTasks == 0 {
-			runner = &r
+	// First pass: prefer runners with a recent heartbeat.
+	// Second pass: fall back to runners that haven't reported recently.
+	for pass := range 2 {
+		for i := range runners {
+			r := &runners[i]
+			active := r.Touched != nil && now.Sub(*r.Touched) < runnerActiveThreshold || r.Webhook != ""
+			if (pass == 0) == active {
+				n := t.taskPool.GetNumberOfRunningTasksOfRunner(r.ID)
+				if n < r.MaxParallelTasks || r.MaxParallelTasks == 0 {
+					runner = r
+					break
+				}
+			}
+		}
+		if runner != nil {
 			break
 		}
 	}
