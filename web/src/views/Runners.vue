@@ -283,7 +283,7 @@ semaphore runner start --config ./config.runner.json</pre
       <template v-slot:item.name="{ item }">
         {{ item.name || '&mdash;' }}
         <v-chip
-          v-if="item.tags == null || item.tags.length === 0"
+          v-if="item.is_default"
           class="ml-2"
           small
           color="warning"
