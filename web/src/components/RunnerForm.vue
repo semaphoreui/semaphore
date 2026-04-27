@@ -18,11 +18,11 @@
       :items="tagSuggestions || []"
       :rules="
         projectId ? [
-          (v) => (isDefault || Array.isArray(v) && v.length > 0) || $t('tag_required')
+          (v) => (item.is_default || Array.isArray(v) && v.length > 0) || $t('tag_required')
         ] : []
       "
       :required="!!projectId"
-      :disabled="formSaving || isDefault"
+      :disabled="formSaving"
       :loading="tagSuggestions == null"
       multiple
       chips
@@ -33,7 +33,7 @@
       hide-details
     ></v-combobox>
 
-    <v-checkbox class="mt-1 mb-2" label="Is default" v-model="isDefault" />
+    <v-checkbox label="Is default" v-model="item.is_default" />
 
     <v-text-field
       v-model="item.webhook"
@@ -55,6 +55,7 @@
     ></v-text-field>
 
     <v-checkbox
+      style="position: absolute; left: 24px; bottom: 15px;"
       class="mt-0"
       v-model="item.active"
       :label="$t('enabled')"
@@ -78,7 +79,6 @@ export default {
   data() {
     return {
       tagSuggestions: null,
-      isDefault: false,
     };
   },
 
@@ -104,21 +104,15 @@ export default {
       return '/api/runners';
     },
 
-    afterLoadData() {
-      this.isDefault = this.item.tags == null || (Array.isArray(this.item.tags) && this.item.tags.length === 0);
-    },
-
     beforeSave() {
       if (!this.item.max_parallel_tasks) {
         this.item.max_parallel_tasks = 0;
       }
-      if (!Array.isArray(this.item.tags) || this.isDefault) {
-        this.item.tags = [];
-      }
+
       // v-combobox emits the typed token only after blur — coerce to trimmed,
       // de-duped strings so the API never sees blank or duplicate tags.
       const seen = new Set();
-      this.item.tags = this.item.tags
+      this.item.tags = (this.item.tags || [])
         .map((t) => (typeof t === 'string' ? t.trim() : ''))
         .filter((t) => {
           if (!t || seen.has(t)) {

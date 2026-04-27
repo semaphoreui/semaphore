@@ -13,7 +13,7 @@ const (
 	RunnerFilterTagCompleteMatch RunnerTagFilterMode = "complete_match"
 	RunnerFilterHasAnyTag        RunnerTagFilterMode = "has_any_tag"
 	RunnerFilterIgnoreTags       RunnerTagFilterMode = "ignore_tags"
-	RunnerFilterHasNoTags        RunnerTagFilterMode = "has_no_tags"
+	RunnerFilterIsDefault        RunnerTagFilterMode = "is_default"
 )
 
 type Runner struct {
@@ -23,6 +23,7 @@ type Runner struct {
 	Webhook           string     `db:"webhook" json:"webhook"`
 	MaxParallelTasks  int        `db:"max_parallel_tasks" json:"max_parallel_tasks"`
 	Active            bool       `db:"active" json:"active"`
+	IsDefault         bool       `db:"is_default" json:"is_default"`
 	Name              string     `db:"name" json:"name"`
 	Tags              []string   `db:"-" json:"tags" backup:"tags"`
 	Touched           *time.Time `db:"touched" json:"touched"`

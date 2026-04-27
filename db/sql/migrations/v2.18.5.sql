@@ -1,3 +1,7 @@
+alter table `runner` add column `is_default` boolean not null default false;
+
+update `runner` set `is_default` = true where tag == '';
+
 create table `runner__tag` (
   `id`        integer primary key autoincrement,
   `runner_id` int          not null,

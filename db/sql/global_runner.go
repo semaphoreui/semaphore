@@ -60,19 +60,18 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode db
 		switch tagFilterMode {
 		case db.RunnerFilterHasAnyTag:
 			builder = builder.Where(runnerHasAnyTagExpr())
-		case db.RunnerFilterHasNoTags:
-			builder = builder.Where(runnerHasNoTagsExpr())
+		case db.RunnerFilterIsDefault:
+			builder = builder.Where(runnerIsDefaultExpr())
 		case db.RunnerFilterIgnoreTags:
 			// No tag filtering applied.
 		case db.RunnerFilterTagCompleteMatch:
-			// A global runner with no tags acts as a wildcard and is included
-			// regardless of the requested tag. Project runners with no tags
-			// are not exposed via this method (project runners go through
-			// GetRunners), so the wildcard rule only loosens matching for
+			// A default global runner is included regardless of the requested
+			// tag. Project runners are not exposed via this method (they go
+			// through GetRunners), so the rule only loosens matching for
 			// global runners.
 			builder = builder.Where(squirrel.Or{
 				runnerHasTagExpr(*tag),
-				runnerHasNoTagsExpr(),
+				runnerIsDefaultExpr(),
 			})
 		default:
 			panic("invalid tag filter mode: " + tagFilterMode)
@@ -130,9 +129,10 @@ func (d *SqlDb) TouchRunner(runner db.Runner) (err error) {
 
 func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
 	_, err = d.exec(
-		"update `runner` set `name`=?, `active`=?, webhook=?, max_parallel_tasks=? where id=?",
+		"update `runner` set `name`=?, `active`=?, `is_default`=?, webhook=?, max_parallel_tasks=? where id=?",
 		runner.Name,
 		runner.Active,
+		runner.IsDefault,
 		runner.Webhook,
 		runner.MaxParallelTasks,
 		runner.ID)
@@ -150,13 +150,14 @@ func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) 
 
 	insertID, err := d.insert(
 		"id",
-		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, public_key) values (?, ?, ?, ?, ?, ?, ?)",
+		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, `is_default`, public_key) values (?, ?, ?, ?, ?, ?, ?, ?)",
 		runner.ProjectID,
 		token,
 		runner.Webhook,
 		runner.MaxParallelTasks,
 		runner.Name,
 		runner.Active,
+		runner.IsDefault,
 		runner.PublicKey)
 
 	if err != nil {

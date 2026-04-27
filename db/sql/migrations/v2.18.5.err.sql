@@ -9,3 +9,5 @@ update `runner` set `tag` = (
 drop index if exists `runner__tag_tag_idx`;
 drop index if exists `runner__tag_runner_id_tag_idx`;
 drop table `runner__tag`;
+
+alter table `runner` drop `is_default`;

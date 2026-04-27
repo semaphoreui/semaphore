@@ -33,11 +33,8 @@ func runnerHasTagExpr(tag string) squirrel.Sqlizer {
 	)
 }
 
-// runnerHasNoTagsExpr matches runners with an empty tag set.
-func runnerHasNoTagsExpr() squirrel.Sqlizer {
-	return squirrel.Expr(
-		"not exists (select 1 from runner__tag rt where rt.runner_id = pe.id)",
-	)
+func runnerIsDefaultExpr() squirrel.Sqlizer {
+	return squirrel.Expr("pe.is_default = true")
 }
 
 // runnerHasAnyTagExpr matches runners whose tag set is non-empty.
@@ -66,8 +63,8 @@ func (d *SqlDb) GetRunners(projectID int, activeOnly bool, tagFilterMode db.Runn
 		switch tagFilterMode {
 		case db.RunnerFilterTagCompleteMatch:
 			builder = builder.Where(runnerHasTagExpr(*tag))
-		case db.RunnerFilterHasNoTags:
-			builder = builder.Where(runnerHasNoTagsExpr())
+		case db.RunnerFilterIsDefault:
+			builder = builder.Where(runnerIsDefaultExpr())
 		case db.RunnerFilterIgnoreTags:
 			// No tag filtering applied.
 		default:
