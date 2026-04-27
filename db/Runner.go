@@ -1,6 +1,9 @@
 package db
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 type RunnerState string
 
@@ -12,11 +15,16 @@ type Runner struct {
 	MaxParallelTasks  int        `db:"max_parallel_tasks" json:"max_parallel_tasks"`
 	Active            bool       `db:"active" json:"active"`
 	Name              string     `db:"name" json:"name"`
-	Tag               string     `db:"tag" json:"tag"`
+	Tags              []string   `db:"-" json:"tags" backup:"tags"`
 	Touched           *time.Time `db:"touched" json:"touched"`
 	CleaningRequested *time.Time `db:"cleaning_requested" json:"cleaning_requested"`
 
 	PublicKey *string `db:"public_key" json:"-"`
+}
+
+// HasTag reports whether the runner is tagged with the given tag.
+func (r Runner) HasTag(tag string) bool {
+	return slices.Contains(r.Tags, tag)
 }
 
 type RunnerTag struct {

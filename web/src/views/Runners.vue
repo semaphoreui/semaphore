@@ -301,8 +301,16 @@ semaphore runner start --config ./config.runner.json</pre
         {{ item.project_id ? `#${item.project_id}` : '&mdash;' }}
       </template>
 
-      <template v-slot:item.tag="{ item }">
-        <code v-if="item.tag">{{ item.tag }}</code>
+      <template v-slot:item.tags="{ item }">
+        <template v-if="item.tags && item.tags.length">
+          <v-chip
+            v-for="t in item.tags"
+            :key="t"
+            x-small
+            label
+            class="mr-1 mb-1"
+          >{{ t }}</v-chip>
+        </template>
         <span v-else>&mdash;</span>
       </template>
 
@@ -539,7 +547,8 @@ semaphore runner start --no-config`;
           value: 'webhook',
         }, {
           text: this.$i18n.t('tag'),
-          value: 'tag',
+          value: 'tags',
+          sortable: false,
         }, {
           text: this.$i18n.t('activity'),
           value: 'touched',

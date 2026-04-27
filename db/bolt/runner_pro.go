@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"fmt"
+
 	"github.com/semaphoreui/semaphore/db"
 	"go.etcd.io/bbolt"
 )
@@ -27,6 +28,9 @@ func validateTag(tag string) error {
 	return nil
 }
 
+// GetRunners returns the project's runners, optionally filtered by activity.
+// Tag filtering is a SQL-only feature; the Bolt store is a development/test
+// stand-in and ignores the tag argument apart from validation.
 func (d *BoltDb) GetRunners(projectID int, activeOnly bool, tag *string) (runners []db.Runner, err error) {
 	if tag != nil {
 		err = validateTag(*tag)
@@ -40,10 +44,6 @@ func (d *BoltDb) GetRunners(projectID int, activeOnly bool, tag *string) (runner
 		runner := i.(db.Runner)
 
 		if runner.ProjectID == nil || *runner.ProjectID != projectID {
-			return false
-		}
-
-		if tag != nil && runner.Tag != *tag {
 			return false
 		}
 
@@ -69,40 +69,10 @@ func (d *BoltDb) DeleteRunner(projectID int, runnerID int) error {
 	})
 }
 
+// GetRunnerTags is a stub for the Bolt store. Tag aggregation is implemented
+// only in the SQL store; here we return an empty list so callers don't error.
 func (d *BoltDb) GetRunnerTags(projectID int) ([]db.RunnerTag, error) {
-	projectRunners, err := d.GetRunners(projectID, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// Global runners (project_id IS NULL) also contribute tags so the template/inventory
-	// tag autocomplete sees every runner that could be selected for this project.
-	globalRunners, err := d.GetAllRunners(false, true, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	tagMap := make(map[string]int)
-	for _, runner := range projectRunners {
-		if runner.Tag != "" {
-			tagMap[runner.Tag]++
-		}
-	}
-	for _, runner := range globalRunners {
-		if runner.Tag != "" {
-			tagMap[runner.Tag]++
-		}
-	}
-
-	res := make([]db.RunnerTag, 0, len(tagMap))
-	for tag, count := range tagMap {
-		res = append(res, db.RunnerTag{
-			Tag:             tag,
-			NumberOfRunners: count,
-		})
-	}
-
-	return res, nil
+	return []db.RunnerTag{}, nil
 }
 
 func (d *BoltDb) GetRunnerCount() (res int, err error) {

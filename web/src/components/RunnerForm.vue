@@ -12,15 +12,20 @@
       dense
     ></v-text-field>
 
-    <v-text-field
-      v-model="item.tag"
+    <v-combobox
+      v-model="item.tags"
       :label="$t('tag')"
-      :rules="projectId ? [(v) => !!v || $t('tag_required')] : []"
+      :rules="projectId ? [(v) => (Array.isArray(v) && v.length > 0) || $t('tag_required')] : []"
       :required="!!projectId"
       :disabled="formSaving"
+      multiple
+      chips
+      deletable-chips
+      small-chips
+      hide-selected
       outlined
       dense
-    ></v-text-field>
+    ></v-combobox>
 
     <v-text-field
       v-model="item.webhook"
@@ -74,6 +79,21 @@ export default {
       if (!this.item.max_parallel_tasks) {
         this.item.max_parallel_tasks = 0;
       }
+      if (!Array.isArray(this.item.tags)) {
+        this.item.tags = [];
+      }
+      // v-combobox emits the typed token only after blur — coerce to trimmed,
+      // de-duped strings so the API never sees blank or duplicate tags.
+      const seen = new Set();
+      this.item.tags = this.item.tags
+        .map((t) => (typeof t === 'string' ? t.trim() : ''))
+        .filter((t) => {
+          if (!t || seen.has(t)) {
+            return false;
+          }
+          seen.add(t);
+          return true;
+        });
     },
 
     getSingleItemUrl() {

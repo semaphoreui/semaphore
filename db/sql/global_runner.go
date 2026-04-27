@@ -2,6 +2,7 @@ package sql
 
 import (
 	"encoding/base64"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"
@@ -26,11 +27,16 @@ func (d *SqlDb) GetRunnerByToken(token string) (runner db.Runner, err error) {
 	}
 
 	runner = runners[0]
+	err = d.loadRunnerTagsSingle(&runner)
 	return
 }
 
 func (d *SqlDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	err = d.getObject(0, db.GlobalRunnerProps, runnerID, &runner)
+	if err != nil {
+		return
+	}
+	err = d.loadRunnerTagsSingle(&runner)
 	return
 }
 
@@ -46,19 +52,23 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string) (ru
 		}
 
 		if tag != nil && *tag != "" {
-			// A global runner with an empty tag acts as a wildcard and is
-			// included regardless of the requested tag. A project runner with
-			// an empty tag is not exposed via this method (project runners go
-			// through GetRunners), so the wildcard rule only loosens
-			// matching for global runners.
+			// A global runner with no tags acts as a wildcard and is included
+			// regardless of the requested tag. Project runners with no tags
+			// are not exposed via this method (project runners go through
+			// GetRunners), so the wildcard rule only loosens matching for
+			// global runners.
 			builder = builder.Where(squirrel.Or{
-				squirrel.Eq{"tag": *tag},
-				squirrel.Eq{"tag": ""},
+				runnerHasTagExpr(*tag),
+				runnerHasNoTagsExpr(),
 			})
 		}
 
 		return builder
 	}, &runners)
+	if err != nil {
+		return
+	}
+	err = d.loadRunnerTags(runners)
 	return
 }
 
@@ -105,14 +115,18 @@ func (d *SqlDb) TouchRunner(runner db.Runner) (err error) {
 
 func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
 	_, err = d.exec(
-		"update `runner` set `name`=?, `active`=?, webhook=?, max_parallel_tasks=?, tag=? where id=?",
+		"update `runner` set `name`=?, `active`=?, webhook=?, max_parallel_tasks=? where id=?",
 		runner.Name,
 		runner.Active,
 		runner.Webhook,
 		runner.MaxParallelTasks,
-		runner.Tag,
 		runner.ID)
 
+	if err != nil {
+		return
+	}
+
+	err = d.replaceRunnerTags(runner.ID, runner.Tags)
 	return
 }
 
@@ -121,15 +135,14 @@ func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) 
 
 	insertID, err := d.insert(
 		"id",
-		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, public_key, tag) values (?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, public_key) values (?, ?, ?, ?, ?, ?, ?)",
 		runner.ProjectID,
 		token,
 		runner.Webhook,
 		runner.MaxParallelTasks,
 		runner.Name,
 		runner.Active,
-		runner.PublicKey,
-		runner.Tag)
+		runner.PublicKey)
 
 	if err != nil {
 		return
@@ -138,5 +151,11 @@ func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) 
 	newRunner = runner
 	newRunner.ID = insertID
 	newRunner.Token = token
+	newRunner.Tags = normalizeTags(runner.Tags)
+
+	if err = d.replaceRunnerTags(newRunner.ID, newRunner.Tags); err != nil {
+		return
+	}
+
 	return
 }
