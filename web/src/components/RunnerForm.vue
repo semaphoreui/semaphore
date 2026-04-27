@@ -15,9 +15,11 @@
     <v-combobox
       v-model="item.tags"
       :label="$t('tag')"
+      :items="tagSuggestions || []"
       :rules="projectId ? [(v) => (Array.isArray(v) && v.length > 0) || $t('tag_required')] : []"
       :required="!!projectId"
       :disabled="formSaving"
+      :loading="tagSuggestions == null"
       multiple
       chips
       deletable-chips
@@ -56,6 +58,7 @@
   </v-form>
 </template>
 <script>
+import axios from 'axios';
 import ItemFormBase from '@/components/ItemFormBase';
 
 export default {
@@ -65,6 +68,25 @@ export default {
   },
 
   mixins: [ItemFormBase],
+
+  data() {
+    return {
+      tagSuggestions: null,
+    };
+  },
+
+  async created() {
+    try {
+      const url = this.projectId
+        ? `/api/project/${this.projectId}/runner_tags`
+        : '/api/runner_tags';
+      const { data } = await axios.get(url);
+      // The endpoint returns [{tag, number_of_runners}]; v-combobox just needs strings.
+      this.tagSuggestions = Array.isArray(data) ? data.map((t) => t.tag) : [];
+    } catch (err) {
+      this.tagSuggestions = [];
+    }
+  },
 
   methods: {
     getItemsUrl() {
