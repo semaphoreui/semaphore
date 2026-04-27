@@ -51,23 +51,21 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string, tag
 			builder = builder.Where("active=?", activeOnly)
 		}
 
-		if tag != nil && *tag != "" {
-			// A global runner with no tags acts as a wildcard and is included
-			// regardless of the requested tag. Project runners with no tags
-			// are not exposed via this method (project runners go through
-			// GetRunners), so the wildcard rule only loosens matching for
-			// global runners.
-			var tagMatchExpr squirrel.Sqlizer
-			switch tagFilterMode {
-			case db.RunnerTagFilterModeStartsWith:
-				tagMatchExpr = runnerHasTagPrefixExpr(*tag)
-			default:
-				tagMatchExpr = runnerHasTagExpr(*tag)
+		switch tagFilterMode {
+		case db.RunnerTagFilterModeHasAnyTag:
+			builder = builder.Where(runnerHasAnyTagExpr())
+		default:
+			if tag != nil && *tag != "" {
+				// A global runner with no tags acts as a wildcard and is included
+				// regardless of the requested tag. Project runners with no tags
+				// are not exposed via this method (project runners go through
+				// GetRunners), so the wildcard rule only loosens matching for
+				// global runners.
+				builder = builder.Where(squirrel.Or{
+					runnerHasTagExpr(*tag),
+					runnerHasNoTagsExpr(),
+				})
 			}
-			builder = builder.Where(squirrel.Or{
-				tagMatchExpr,
-				runnerHasNoTagsExpr(),
-			})
 		}
 
 		return builder

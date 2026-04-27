@@ -40,28 +40,11 @@ func runnerHasNoTagsExpr() squirrel.Sqlizer {
 	)
 }
 
-// runnerHasTagPrefixExpr renders a parameterised EXISTS clause that checks
-// whether the runner row identified by `pe.id` has a tag starting with the
-// given prefix.
-func runnerHasTagPrefixExpr(prefix string) squirrel.Sqlizer {
+// runnerHasAnyTagExpr matches runners whose tag set is non-empty.
+func runnerHasAnyTagExpr() squirrel.Sqlizer {
 	return squirrel.Expr(
-		"exists (select 1 from runner__tag rt where rt.runner_id = pe.id and rt.tag like ?)",
-		escapeLikePrefix(prefix)+"%",
+		"exists (select 1 from runner__tag rt where rt.runner_id = pe.id)",
 	)
-}
-
-// escapeLikePrefix escapes the LIKE wildcards in a user-supplied prefix so
-// that callers can safely use it as the literal portion of a LIKE pattern.
-func escapeLikePrefix(s string) string {
-	out := make([]byte, 0, len(s))
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c == '\\' || c == '%' || c == '_' {
-			out = append(out, '\\')
-		}
-		out = append(out, c)
-	}
-	return string(out)
 }
 
 func (d *SqlDb) GetRunner(projectID int, runnerID int) (runner db.Runner, err error) {

@@ -11,7 +11,7 @@ type RunnerTagFilterMode string
 
 const (
 	RunnerTagFilterModeCompleteMatch RunnerTagFilterMode = "complete_match"
-	RunnerTagFilterModeStartsWith    RunnerTagFilterMode = "starts_with"
+	RunnerTagFilterModeHasAnyTag     RunnerTagFilterMode = "has_any_tag"
 )
 
 type Runner struct {
