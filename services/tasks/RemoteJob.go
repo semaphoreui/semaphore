@@ -126,9 +126,9 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {
 
-		tagFilterMode := db.RunnerFilterIsDefault
+		tagFilterMode := db.RunnerFilterTagCompleteMatch
 		if t.RunnerTag == nil {
-			tagFilterMode = db.RunnerFilterTagCompleteMatch
+			tagFilterMode = db.RunnerFilterIsDefault
 		}
 
 		var projectRunners []db.Runner
