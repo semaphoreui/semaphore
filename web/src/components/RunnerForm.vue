@@ -14,11 +14,11 @@
 
     <v-combobox
       v-model="item.tags"
-      :label="$t('tag')"
+      :label="$t('Tags')"
       :items="tagSuggestions || []"
       :rules="projectId ? [(v) => (Array.isArray(v) && v.length > 0) || $t('tag_required')] : []"
       :required="!!projectId"
-      :disabled="formSaving"
+      :disabled="formSaving || isDefault"
       :loading="tagSuggestions == null"
       multiple
       chips
@@ -26,8 +26,10 @@
       small-chips
       hide-selected
       outlined
-      dense
+      hide-details
     ></v-combobox>
+
+    <v-checkbox class="mt-1 mb-2" label="Is default" v-model="isDefault" />
 
     <v-text-field
       v-model="item.webhook"
@@ -72,6 +74,7 @@ export default {
   data() {
     return {
       tagSuggestions: null,
+      isDefault: false,
     };
   },
 
@@ -97,11 +100,16 @@ export default {
       return '/api/runners';
     },
 
+    afterLoadData() {
+      this.isDefault = this.item.tags == null
+        || (Array.isArray(this.item.tags) && this.item.tags.length === 0);
+    },
+
     beforeSave() {
       if (!this.item.max_parallel_tasks) {
         this.item.max_parallel_tasks = 0;
       }
-      if (!Array.isArray(this.item.tags)) {
+      if (!Array.isArray(this.item.tags) || this.isDefault) {
         this.item.tags = [];
       }
       // v-combobox emits the typed token only after blur — coerce to trimmed,
