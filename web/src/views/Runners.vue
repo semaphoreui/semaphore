@@ -282,14 +282,7 @@ semaphore runner start --config ./config.runner.json</pre
 
       <template v-slot:item.name="{ item }">
         {{ item.name || '&mdash;' }}
-        <v-chip
-          v-if="item.is_default"
-          class="ml-2"
-          small
-          color="warning"
-        >
-          default
-        </v-chip>
+        <v-chip v-if="item.is_default" class="ml-2" small color="warning"> default </v-chip>
 
         <v-chip v-if="item.project_id == null" class="ml-2" small color="info"> global </v-chip>
       </template>
@@ -301,7 +294,7 @@ semaphore runner start --config ./config.runner.json</pre
       <template v-slot:item.touched="{ item }">
         <v-chip :color="getStatusColor(item)" style="font-weight: bold">
           <span v-if="item.touched">{{ item.touched | formatDate }}</span>
-          <span v-else>{{ $t('never') }}</span>
+          <span v-else>{{ $t('Never') }}</span>
         </v-chip>
       </template>
 
@@ -483,7 +476,7 @@ semaphore runner start --no-config`;
 
     getStatusColor(runner) {
       if (!runner.touched) {
-        return '';
+        return 'blue-grey lighten-3';
       }
 
       const d = Date.now() - new Date(runner.touched);
@@ -496,7 +489,7 @@ semaphore runner start --no-config`;
         return 'warning';
       }
 
-      return 'grey';
+      return 'blue-grey lighten-3';
     },
 
     getProjectIdOfItem(itemId) {
