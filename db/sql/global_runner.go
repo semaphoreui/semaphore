@@ -2,6 +2,7 @@ package sql
 
 import (
 	"encoding/base64"
+	"fmt"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/gorilla/securecookie"
@@ -40,7 +41,12 @@ func (d *SqlDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	return
 }
 
-func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string, tagFilterMode db.RunnerTagFilterMode) (runners []db.Runner, err error) {
+func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode db.RunnerTagFilterMode, tag *string) (runners []db.Runner, err error) {
+	if tag == nil && tagFilterMode == db.RunnerFilterTagCompleteMatch {
+		err = fmt.Errorf("tag filter mode is complete match but no tag was provided")
+		return
+	}
+
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
 
 		if globalOnly {
@@ -52,20 +58,24 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string, tag
 		}
 
 		switch tagFilterMode {
-		case db.RunnerTagFilterModeHasAnyTag:
+		case db.RunnerFilterHasAnyTag:
 			builder = builder.Where(runnerHasAnyTagExpr())
+		case db.RunnerFilterHasNoTags:
+			builder = builder.Where(runnerHasNoTagsExpr())
+		case db.RunnerFilterIgnoreTags:
+			// No tag filtering applied.
+		case db.RunnerFilterTagCompleteMatch:
+			// A global runner with no tags acts as a wildcard and is included
+			// regardless of the requested tag. Project runners with no tags
+			// are not exposed via this method (project runners go through
+			// GetRunners), so the wildcard rule only loosens matching for
+			// global runners.
+			builder = builder.Where(squirrel.Or{
+				runnerHasTagExpr(*tag),
+				runnerHasNoTagsExpr(),
+			})
 		default:
-			if tag != nil && *tag != "" {
-				// A global runner with no tags acts as a wildcard and is included
-				// regardless of the requested tag. Project runners with no tags
-				// are not exposed via this method (project runners go through
-				// GetRunners), so the wildcard rule only loosens matching for
-				// global runners.
-				builder = builder.Where(squirrel.Or{
-					runnerHasTagExpr(*tag),
-					runnerHasNoTagsExpr(),
-				})
-			}
+			panic("invalid tag filter mode: " + tagFilterMode)
 		}
 
 		return builder

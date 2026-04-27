@@ -18,7 +18,7 @@ type ProjectRunnerControllerImpl struct {
 
 func (c *ProjectRunnerControllerImpl) GetRunners(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	runners, err := helpers.Store(r).GetRunners(project.ID, false, nil)
+	runners, err := helpers.Store(r).GetRunners(project.ID, false, db.RunnerFilterIgnoreTags, nil)
 
 	if err != nil {
 		panic(err)

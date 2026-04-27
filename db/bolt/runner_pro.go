@@ -31,7 +31,7 @@ func validateTag(tag string) error {
 // GetRunners returns the project's runners, optionally filtered by activity.
 // Tag filtering is a SQL-only feature; the Bolt store is a development/test
 // stand-in and ignores the tag argument apart from validation.
-func (d *BoltDb) GetRunners(projectID int, activeOnly bool, tag *string) (runners []db.Runner, err error) {
+func (d *BoltDb) GetRunners(projectID int, activeOnly bool, tagFilterMode db.RunnerTagFilterMode, tag *string) (runners []db.Runner, err error) {
 	if tag != nil {
 		err = validateTag(*tag)
 		if err != nil {

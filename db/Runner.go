@@ -10,8 +10,10 @@ type RunnerState string
 type RunnerTagFilterMode string
 
 const (
-	RunnerTagFilterModeCompleteMatch RunnerTagFilterMode = "complete_match"
-	RunnerTagFilterModeHasAnyTag     RunnerTagFilterMode = "has_any_tag"
+	RunnerFilterTagCompleteMatch RunnerTagFilterMode = "complete_match"
+	RunnerFilterHasAnyTag        RunnerTagFilterMode = "has_any_tag"
+	RunnerFilterIgnoreTags       RunnerTagFilterMode = "ignore_tags"
+	RunnerFilterHasNoTags        RunnerTagFilterMode = "has_no_tags"
 )
 
 type Runner struct {

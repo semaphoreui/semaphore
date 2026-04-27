@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"encoding/base64"
+
 	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
@@ -47,7 +48,7 @@ func (d *BoltDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 // Tag filtering is implemented in the SQL store; in this Bolt stub the tag
 // and tagFilterMode arguments are accepted for API compatibility but not
 // applied.
-func (d *BoltDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string, tagFilterMode db.RunnerTagFilterMode) (runners []db.Runner, err error) {
+func (d *BoltDb) GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode db.RunnerTagFilterMode, tag *string) (runners []db.Runner, err error) {
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(i any) bool {
 		runner := i.(db.Runner)
 

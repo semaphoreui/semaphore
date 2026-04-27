@@ -56,18 +56,22 @@ func (d *SqlDb) GetRunner(projectID int, runnerID int) (runner db.Runner, err er
 	return
 }
 
-func (d *SqlDb) GetRunners(projectID int, activeOnly bool, tag *string) (runners []db.Runner, err error) {
-	if tag != nil {
-		err = validateTag(*tag)
-		if err != nil {
-			return
-		}
+func (d *SqlDb) GetRunners(projectID int, activeOnly bool, tagFilterMode db.RunnerTagFilterMode, tag *string) (runners []db.Runner, err error) {
+	if tag == nil && tagFilterMode == db.RunnerFilterTagCompleteMatch {
+		err = fmt.Errorf("tag filter mode is complete match but no tag was provided")
+		return
 	}
 
 	err = d.getObjects(projectID, runnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
-		if tag != nil {
-			// Project runners must explicitly carry the requested tag — no wildcard.
+		switch tagFilterMode {
+		case db.RunnerFilterTagCompleteMatch:
 			builder = builder.Where(runnerHasTagExpr(*tag))
+		case db.RunnerFilterHasNoTags:
+			builder = builder.Where(runnerHasNoTagsExpr())
+		case db.RunnerFilterIgnoreTags:
+			// No tag filtering applied.
+		default:
+			panic("invalid tag filter mode for GetRunners: " + tagFilterMode)
 		}
 
 		if activeOnly {
