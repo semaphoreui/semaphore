@@ -124,41 +124,25 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {
 
+		tagFilterMode := db.RunnerFilterHasNoTags
 		if t.RunnerTag == nil {
-			var projectRunners []db.Runner
-			projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, db.RunnerFilterHasNoTags, nil)
-			if err != nil {
-				return
-			}
-			projectRunners = shuffleRunners(projectRunners)
-
-			var globalTaggedRunners []db.Runner
-			globalTaggedRunners, err = t.taskPool.store.GetAllRunners(true, true, db.RunnerFilterHasNoTags, nil)
-			if err != nil {
-				return
-			}
-			globalTaggedRunners = shuffleRunners(globalTaggedRunners)
-
-			runners = append(runners, projectRunners...)
-			runners = append(runners, globalTaggedRunners...)
-		} else {
-			var projectRunners []db.Runner
-			projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, db.RunnerFilterTagCompleteMatch, t.RunnerTag)
-			if err != nil {
-				return
-			}
-			projectRunners = shuffleRunners(projectRunners)
-
-			var globalTaggedRunners []db.Runner
-			globalTaggedRunners, err = t.taskPool.store.GetAllRunners(true, true, db.RunnerFilterTagCompleteMatch, t.RunnerTag)
-			if err != nil {
-				return
-			}
-			globalTaggedRunners = shuffleRunners(globalTaggedRunners)
-
-			runners = append(runners, projectRunners...)
-			runners = append(runners, globalTaggedRunners...)
+			tagFilterMode = db.RunnerFilterTagCompleteMatch
 		}
+
+		var projectRunners []db.Runner
+		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, tagFilterMode, t.RunnerTag)
+		if err != nil {
+			return
+		}
+
+		var globalRunners []db.Runner
+		globalRunners, err = t.taskPool.store.GetAllRunners(true, true, tagFilterMode, t.RunnerTag)
+		if err != nil {
+			return
+		}
+
+		runners = append(runners, shuffleRunners(projectRunners)...)
+		runners = append(runners, shuffleRunners(globalRunners)...)
 	})
 
 	if err != nil {
