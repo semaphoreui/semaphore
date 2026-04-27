@@ -321,7 +321,7 @@ semaphore runner start --config ./config.runner.json</pre
       </template>
 
       <template v-slot:item.tags="{ item }">
-        <template v-if="item.tags && item.tags.length">
+        <div v-if="item.tags && item.tags.length" style="white-space: normal;">
           <v-chip
             v-for="t in item.tags"
             :key="t"
@@ -331,7 +331,7 @@ semaphore runner start --config ./config.runner.json</pre
           >
             {{ t }}
           </v-chip>
-        </template>
+        </div>
         <span v-else>&mdash;</span>
       </template>
 
