@@ -132,7 +132,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		projectRunners = shuffleRunners(projectRunners)
 
 		var globalRunners []db.Runner
-		globalRunners, err = t.taskPool.store.GetAllRunners(true, true, t.RunnerTag)
+		globalRunners, err = t.taskPool.store.GetAllRunners(true, true, t.RunnerTag, db.RunnerTagFilterModeCompleteMatch)
 		if err != nil {
 			return
 		}

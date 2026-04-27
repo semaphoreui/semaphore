@@ -11,7 +11,7 @@ import (
 )
 
 func getAllRunners(w http.ResponseWriter, r *http.Request) {
-	runners, err := helpers.Store(r).GetAllRunners(false, false, nil)
+	runners, err := helpers.Store(r).GetAllRunners(false, false, nil, db.RunnerTagFilterModeCompleteMatch)
 
 	if err != nil {
 		panic(err)

@@ -45,8 +45,9 @@ func (d *BoltDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 
 // GetAllRunners returns runners optionally filtered by active/global flags.
 // Tag filtering is implemented in the SQL store; in this Bolt stub the tag
-// argument is accepted for API compatibility but not applied.
-func (d *BoltDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string) (runners []db.Runner, err error) {
+// and tagFilterMode arguments are accepted for API compatibility but not
+// applied.
+func (d *BoltDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string, tagFilterMode db.RunnerTagFilterMode) (runners []db.Runner, err error) {
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(i any) bool {
 		runner := i.(db.Runner)
 

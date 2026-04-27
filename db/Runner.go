@@ -7,6 +7,13 @@ import (
 
 type RunnerState string
 
+type RunnerTagFilterMode string
+
+const (
+	RunnerTagFilterModeCompleteMatch RunnerTagFilterMode = "complete_match"
+	RunnerTagFilterModeStartsWith    RunnerTagFilterMode = "starts_with"
+)
+
 type Runner struct {
 	ID                int        `db:"id" json:"id"`
 	Token             string     `db:"token" json:"-"`

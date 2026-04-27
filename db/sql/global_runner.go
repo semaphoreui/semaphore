@@ -40,7 +40,7 @@ func (d *SqlDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	return
 }
 
-func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string) (runners []db.Runner, err error) {
+func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string, tagFilterMode db.RunnerTagFilterMode) (runners []db.Runner, err error) {
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
 
 		if globalOnly {
@@ -57,8 +57,15 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tag *string) (ru
 			// are not exposed via this method (project runners go through
 			// GetRunners), so the wildcard rule only loosens matching for
 			// global runners.
+			var tagMatchExpr squirrel.Sqlizer
+			switch tagFilterMode {
+			case db.RunnerTagFilterModeStartsWith:
+				tagMatchExpr = runnerHasTagPrefixExpr(*tag)
+			default:
+				tagMatchExpr = runnerHasTagExpr(*tag)
+			}
 			builder = builder.Where(squirrel.Or{
-				runnerHasTagExpr(*tag),
+				tagMatchExpr,
 				runnerHasNoTagsExpr(),
 			})
 		}
