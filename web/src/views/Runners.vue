@@ -310,7 +310,7 @@ semaphore runner start --config ./config.runner.json</pre
       </template>
 
       <template v-slot:item.touched="{ item }">
-        <v-chip v-if="item.touched" :color="getStatusColor(item)" style="font-weight: bold">
+        <v-chip :color="getStatusColor(item)" style="font-weight: bold">
           <span v-if="item.touched">{{ item.touched | formatDate }}</span>
           <span v-else>{{ $t('never') }}</span>
         </v-chip>
@@ -322,7 +322,15 @@ semaphore runner start --config ./config.runner.json</pre
 
       <template v-slot:item.tags="{ item }">
         <template v-if="item.tags && item.tags.length">
-          <v-chip v-for="t in item.tags" :key="t" x-small label class="mr-1 mb-1">{{ t }}</v-chip>
+          <v-chip
+            v-for="t in item.tags"
+            :key="t"
+            x-small
+            label
+            class="mr-1 mb-1"
+          >
+            {{ t }}
+          </v-chip>
         </template>
         <span v-else>&mdash;</span>
       </template>
@@ -477,7 +485,7 @@ semaphore runner start --no-config`;
 
     getStatusColor(runner) {
       if (!runner.touched) {
-        return 'grey';
+        return '';
       }
 
       const d = Date.now() - new Date(runner.touched);
@@ -559,10 +567,6 @@ semaphore runner start --no-config`;
               value: 'project_id',
             },
           ]),
-        {
-          text: this.$i18n.t('Webhook'),
-          value: 'webhook',
-        },
         {
           text: this.$i18n.t('tag'),
           value: 'tags',
