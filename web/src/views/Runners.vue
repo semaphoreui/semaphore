@@ -279,7 +279,11 @@ semaphore runner start --config ./config.runner.json</pre
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
       <template v-slot:item.active="{ item }">
-        <v-switch v-model="item.active" inset @change="setActive(item.id, item.active)"></v-switch>
+        <v-switch
+          v-model="item.active"
+          inset
+          @change="setActive(item.id, item.active)"
+        ></v-switch>
       </template>
 
       <template v-slot:item.name="{ item }">{{ item.name || '&mdash;' }}</template>
