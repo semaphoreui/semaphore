@@ -16,7 +16,11 @@
       v-model="item.tags"
       :label="$t('Tags')"
       :items="tagSuggestions || []"
-      :rules="projectId ? [(v) => (Array.isArray(v) && v.length > 0) || $t('tag_required')] : []"
+      :rules="
+        projectId ? [
+          (v) => (isDefault || Array.isArray(v) && v.length > 0) || $t('tag_required')
+        ] : []
+      "
       :required="!!projectId"
       :disabled="formSaving || isDefault"
       :loading="tagSuggestions == null"
@@ -101,8 +105,7 @@ export default {
     },
 
     afterLoadData() {
-      this.isDefault = this.item.tags == null
-        || (Array.isArray(this.item.tags) && this.item.tags.length === 0);
+      this.isDefault = this.item.tags == null || (Array.isArray(this.item.tags) && this.item.tags.length === 0);
     },
 
     beforeSave() {
