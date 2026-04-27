@@ -7,13 +7,6 @@
       </v-toolbar-title>
     </v-toolbar>
 
-    <DashboardMenu
-      v-if="projectId"
-      :project-id="projectId"
-      project-type=""
-      :can-update-project="can(USER_PERMISSIONS.updateProject)"
-    />
-
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
@@ -241,7 +234,7 @@ semaphore runner start --config ./config.runner.json</pre
       >{{ $t('newRunner') }}
     </v-btn>
 
-    <v-divider v-if="!projectId" />
+    <v-divider />
 
     <v-alert
       v-if="projectId && !premiumFeatures.project_runners"
@@ -279,21 +272,29 @@ semaphore runner start --config ./config.runner.json</pre
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
       <template v-slot:item.active="{ item }">
-        <v-switch v-model="item.active" inset @change="setActive(item.id, item.active)"></v-switch>
+        <v-switch
+          v-model="item.active"
+          inset
+          @change="setActive(item.id, item.active)"
+          :disabled="item.project_id == null && !isAdmin"
+        />
       </template>
 
-      <template v-slot:item.name="{ item }">{{ item.name || '&mdash;' }}</template>
+      <template v-slot:item.name="{ item }">
+        {{ item.name || '&mdash;' }}
+        <v-chip v-if="item.is_default" class="ml-2" small color="warning"> default </v-chip>
 
-      <template v-slot:item.webhook="{ item }">{{ item.webhook || '&mdash;' }}</template>
+        <v-chip v-if="item.project_id == null" class="ml-2" small color="info"> global </v-chip>
+      </template>
 
       <template v-slot:item.max_parallel_tasks="{ item }">
         {{ item.max_parallel_tasks || '∞' }}
       </template>
 
       <template v-slot:item.touched="{ item }">
-        <v-chip v-if="item.touched" :color="getStatusColor(item)" style="font-weight: bold">
+        <v-chip :color="getStatusColor(item)" style="font-weight: bold">
           <span v-if="item.touched">{{ item.touched | formatDate }}</span>
-          <span v-else>{{ $t('never') }}</span>
+          <span v-else>{{ $t('Never') }}</span>
         </v-chip>
       </template>
 
@@ -301,24 +302,45 @@ semaphore runner start --config ./config.runner.json</pre
         {{ item.project_id ? `#${item.project_id}` : '&mdash;' }}
       </template>
 
-      <template v-slot:item.tag="{ item }">
-        <code v-if="item.tag">{{ item.tag }}</code>
+      <template v-slot:item.tags="{ item }">
+        <div v-if="item.tags && item.tags.length" style="white-space: normal">
+          <v-chip v-for="t in item.tags" :key="t" x-small label class="mr-1 mb-1">
+            {{ t }}
+          </v-chip>
+        </div>
         <span v-else>&mdash;</span>
       </template>
 
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)">
+          <v-btn
+            icon
+            class="mr-1"
+            @click="askDeleteItem(item.id)"
+            :disabled="item.project_id == null && !isAdmin"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item.id)">
+          <v-btn
+            icon
+            class="mr-1"
+            @click="editItem(item.id)"
+            :disabled="item.project_id == null && !isAdmin"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
 
           <v-tooltip bottom :max-width="150">
             <template v-slot:activator="{ on, attrs }">
-              <v-btn v-bind="attrs" v-on="on" icon class="mr-1" @click="clearCache(item)">
+              <v-btn
+                v-bind="attrs"
+                v-on="on"
+                icon
+                class="mr-1"
+                @click="clearCache(item)"
+                :disabled="item.project_id == null && !isAdmin"
+              >
                 <v-icon>mdi-broom</v-icon>
               </v-btn>
             </template>
@@ -345,7 +367,6 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import RunnerForm from '@/components/RunnerForm.vue';
 import axios from 'axios';
-import DashboardMenu from '@/components/DashboardMenu.vue';
 import delay from '@/lib/delay';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import PageMixin from '@/components/PageMixin';
@@ -355,7 +376,6 @@ export default {
 
   components: {
     CopyClipboardButton,
-    DashboardMenu,
     RunnerForm,
     YesNoDialog,
     EditDialog,
@@ -428,7 +448,6 @@ semaphore runner start --no-config`;
   },
 
   methods: {
-
     upgradeToPro() {
       EventBus.$emit('i-subscription', {});
     },
@@ -457,7 +476,7 @@ semaphore runner start --no-config`;
 
     getStatusColor(runner) {
       if (!runner.touched) {
-        return 'grey';
+        return 'blue-grey lighten-3';
       }
 
       const d = Date.now() - new Date(runner.touched);
@@ -470,7 +489,7 @@ semaphore runner start --no-config`;
         return 'warning';
       }
 
-      return 'grey';
+      return 'blue-grey lighten-3';
     },
 
     getProjectIdOfItem(itemId) {
@@ -525,29 +544,35 @@ semaphore runner start --no-config`;
       return [
         {
           value: 'active',
-        }, {
+        },
+        {
           text: this.$i18n.t('name'),
           value: 'name',
           width: '50%',
         },
-        ...(this.projectId ? [] : [{
-          text: this.$i18n.t('project'),
-          value: 'project_id',
-        }]),
+        ...(this.projectId
+          ? []
+          : [
+            {
+              text: this.$i18n.t('project'),
+              value: 'project_id',
+            },
+          ]),
         {
-          text: this.$i18n.t('Webhook'),
-          value: 'webhook',
-        }, {
           text: this.$i18n.t('tag'),
-          value: 'tag',
-        }, {
+          value: 'tags',
+          sortable: false,
+        },
+        {
           text: this.$i18n.t('activity'),
           value: 'touched',
-        }, {
+        },
+        {
           text: this.$i18n.t('actions'),
           value: 'actions',
           sortable: false,
-        }];
+        },
+      ];
     },
 
     async returnToProjects() {

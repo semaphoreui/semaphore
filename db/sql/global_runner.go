@@ -2,6 +2,8 @@ package sql
 
 import (
 	"encoding/base64"
+	"fmt"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"
@@ -26,15 +28,25 @@ func (d *SqlDb) GetRunnerByToken(token string) (runner db.Runner, err error) {
 	}
 
 	runner = runners[0]
+	err = d.loadRunnerTagsSingle(&runner)
 	return
 }
 
 func (d *SqlDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	err = d.getObject(0, db.GlobalRunnerProps, runnerID, &runner)
+	if err != nil {
+		return
+	}
+	err = d.loadRunnerTagsSingle(&runner)
 	return
 }
 
-func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool) (runners []db.Runner, err error) {
+func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode db.RunnerTagFilterMode, tag *string) (runners []db.Runner, err error) {
+	if tag == nil && tagFilterMode == db.RunnerFilterTagCompleteMatch {
+		err = fmt.Errorf("tag filter mode is complete match but no tag was provided")
+		return
+	}
+
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
 
 		if globalOnly {
@@ -45,8 +57,32 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool) (runners []db.Ru
 			builder = builder.Where("active=?", activeOnly)
 		}
 
+		switch tagFilterMode {
+		case db.RunnerFilterHasAnyTag:
+			builder = builder.Where(runnerHasAnyTagExpr())
+		case db.RunnerFilterIsDefault:
+			builder = builder.Where(runnerIsDefaultExpr())
+		case db.RunnerFilterIgnoreTags:
+			// No tag filtering applied.
+		case db.RunnerFilterTagCompleteMatch:
+			// A default global runner is included regardless of the requested
+			// tag. Project runners are not exposed via this method (they go
+			// through GetRunners), so the rule only loosens matching for
+			// global runners.
+			builder = builder.Where(squirrel.Or{
+				runnerHasTagExpr(*tag),
+				runnerIsDefaultExpr(),
+			})
+		default:
+			panic("invalid tag filter mode: " + tagFilterMode)
+		}
+
 		return builder
 	}, &runners)
+	if err != nil {
+		return
+	}
+	err = d.loadRunnerTags(runners)
 	return
 }
 
@@ -93,14 +129,19 @@ func (d *SqlDb) TouchRunner(runner db.Runner) (err error) {
 
 func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
 	_, err = d.exec(
-		"update `runner` set `name`=?, `active`=?, webhook=?, max_parallel_tasks=?, tag=? where id=?",
+		"update `runner` set `name`=?, `active`=?, `is_default`=?, webhook=?, max_parallel_tasks=? where id=?",
 		runner.Name,
 		runner.Active,
+		runner.IsDefault,
 		runner.Webhook,
 		runner.MaxParallelTasks,
-		runner.Tag,
 		runner.ID)
 
+	if err != nil {
+		return
+	}
+
+	err = d.replaceRunnerTags(runner.ID, runner.Tags)
 	return
 }
 
@@ -109,15 +150,15 @@ func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) 
 
 	insertID, err := d.insert(
 		"id",
-		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, public_key, tag) values (?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, `is_default`, public_key) values (?, ?, ?, ?, ?, ?, ?, ?)",
 		runner.ProjectID,
 		token,
 		runner.Webhook,
 		runner.MaxParallelTasks,
 		runner.Name,
 		runner.Active,
-		runner.PublicKey,
-		runner.Tag)
+		runner.IsDefault,
+		runner.PublicKey)
 
 	if err != nil {
 		return
@@ -126,5 +167,11 @@ func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) 
 	newRunner = runner
 	newRunner.ID = insertID
 	newRunner.Token = token
+	newRunner.Tags = normalizeTags(runner.Tags)
+
+	if err = d.replaceRunnerTags(newRunner.ID, newRunner.Tags); err != nil {
+		return
+	}
+
 	return
 }

@@ -369,6 +369,21 @@
             <v-list-item-title>{{ $t('team') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
+
+        <v-list-item
+          v-if="isPro && project.type === ''"
+          key="runners"
+          :to="`/project/${projectId}/runners`"
+          data-testid="sidebar-runners"
+        >
+          <v-list-item-icon>
+            <v-icon>mdi-cogs</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>{{ $t('runners') }}</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
       </v-list>
 
       <template v-slot:append>
@@ -565,8 +580,8 @@
         style="border-radius: 0"
         v-if="systemInfo?.boltdb_used"
       >
-        BoltDB is deprecated and will be removed in version 2.19.
-        Please migrate to SQLite to continue receiving updates.
+        BoltDB is deprecated and will be removed in version 2.19. Please migrate to SQLite to
+        continue receiving updates.
         <v-btn
           dark
           depressed
