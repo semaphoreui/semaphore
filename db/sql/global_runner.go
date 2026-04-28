@@ -65,9 +65,7 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode db
 		case db.RunnerFilterIgnoreTags:
 			// No tag filtering applied.
 		case db.RunnerFilterTagCompleteMatch:
-			builder = builder.Where(squirrel.Or{
-				runnerHasTagExpr(*tag),
-			})
+			builder = builder.Where(runnerHasTagExpr(*tag))
 		default:
 			panic("invalid tag filter mode: " + tagFilterMode)
 		}
