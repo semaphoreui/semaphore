@@ -297,13 +297,12 @@ type ConfigType struct {
 	TmpPath string `json:"tmp_path,omitempty" default:"/tmp/semaphore" env:"SEMAPHORE_TMP_PATH"`
 
 	// HomeDirMode controls how the HOME environment variable is set for tasks.
-	//   "template_home" (default) — HOME is set to a per-template directory,
-	//       isolating .ansible/ across parallel tasks. Repo is cloned into a
-	//       "src" subdirectory under HOME.
-	//   "project_home" — HOME is set to the project temp directory (legacy
-	//       behavior). Parallel ansible-galaxy runs in the same project may conflict.
-	//   "user_home" — HOME is not overridden (keeps the real user HOME).
-	//       ANSIBLE_HOME is set per template to isolate .ansible/ for Ansible tasks.
+	//   "template_dir" (default) — HOME is not overridden; ANSIBLE_HOME points to
+	//       a per-template ".ansible" directory under the repo home path.
+	//   "project_home" — HOME is the project temp directory (legacy behavior;
+	//       parallel ansible-galaxy runs in the same project may conflict).
+	//   "user_home" — HOME is not overridden; ANSIBLE_HOME is set per template like
+	//       template_dir to isolate .ansible/ for Ansible tasks.
 	HomeDirMode string `json:"home_dir_mode,omitempty" rule:"^(user_home|project_home|template_dir)?$" env:"SEMAPHORE_HOME_DIR_MODE" default:"template_dir"`
 
 	// SshConfigPath is a path to the custom SSH config file.
