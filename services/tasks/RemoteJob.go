@@ -20,6 +20,8 @@ import (
 // ErrAllRunnersBusy is returned when all available runners are busy. Used for logic
 var ErrAllRunnersBusy = errors.New("all runners busy")
 
+const runnerActiveThreshold = 30 * time.Minute
+
 type RemoteJob struct {
 	RunnerTag *string
 	Task      db.Task
@@ -124,22 +126,25 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {
 
+		tagFilterMode := db.RunnerFilterTagCompleteMatch
+		if t.RunnerTag == nil {
+			tagFilterMode = db.RunnerFilterIsDefault
+		}
+
 		var projectRunners []db.Runner
-		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, t.RunnerTag)
+		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, tagFilterMode, t.RunnerTag)
 		if err != nil {
 			return
 		}
-		projectRunners = shuffleRunners(projectRunners)
 
 		var globalRunners []db.Runner
-		globalRunners, err = t.taskPool.store.GetAllRunners(true, true)
+		globalRunners, err = t.taskPool.store.GetAllRunners(true, true, tagFilterMode, t.RunnerTag)
 		if err != nil {
 			return
 		}
-		globalRunners = shuffleRunners(globalRunners)
 
-		runners = append(runners, projectRunners...)
-		runners = append(runners, globalRunners...)
+		runners = append(runners, shuffleRunners(projectRunners)...)
+		runners = append(runners, shuffleRunners(globalRunners)...)
 	})
 
 	if err != nil {
@@ -152,11 +157,23 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	}
 
 	var runner *db.Runner
+	now := tz.Now()
 
-	for _, r := range runners {
-		n := t.taskPool.GetNumberOfRunningTasksOfRunner(r.ID)
-		if n < r.MaxParallelTasks || r.MaxParallelTasks == 0 {
-			runner = &r
+	// First pass: prefer runners with a recent heartbeat.
+	// Second pass: fall back to runners that haven't reported recently.
+	for pass := range 2 {
+		for i := range runners {
+			r := &runners[i]
+			active := r.Touched != nil && now.Sub(*r.Touched) < runnerActiveThreshold || r.Webhook != ""
+			if (pass == 0) == active {
+				n := t.taskPool.GetNumberOfRunningTasksOfRunner(r.ID)
+				if n < r.MaxParallelTasks || r.MaxParallelTasks == 0 {
+					runner = r
+					break
+				}
+			}
+		}
+		if runner != nil {
 			break
 		}
 	}
