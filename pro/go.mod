@@ -2,7 +2,7 @@ module github.com/semaphoreui/semaphore/pro
 
 go 1.24.6
 
-require github.com/semaphoreui/semaphore v0.0.0-20250712180151-72836311c5b9
+require github.com/semaphoreui/semaphore v0.0.0-20260428134951-2b99a7a08abc
 
 require (
 	dario.cat/mergo v1.0.1 // indirect
