@@ -24,6 +24,7 @@ type BackupDB struct {
 	globalRoles    []db.Role
 	roles          []db.Role
 	templateRoles  map[int][]db.TemplateRolePerm
+	runners        []db.Runner
 }
 
 type BackupFormat struct {
@@ -39,6 +40,7 @@ type BackupFormat struct {
 	Schedules          []BackupSchedule      `backup:"schedules"`
 	SecretStorages     []BackupSecretStorage `backup:"secret_storages"`
 	Roles              []BackupRole          `backup:"roles"`
+	Runners            []BackupRunner        `backup:"runners"`
 }
 
 type BackupMeta struct {
@@ -121,6 +123,10 @@ type BackupRole struct {
 	db.Role
 }
 
+type BackupRunner struct {
+	db.Runner
+}
+
 type BackupEntry interface {
 	GetName() string
 	Verify(backup *BackupFormat) error
@@ -156,5 +162,9 @@ func (e BackupSecretStorage) GetName() string {
 }
 
 func (e BackupRole) GetName() string {
+	return e.Name
+}
+
+func (e BackupRunner) GetName() string {
 	return e.Name
 }
