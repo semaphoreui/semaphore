@@ -385,6 +385,12 @@ export default {
     projectId: Number,
   },
 
+  watch: {
+    async projectId() {
+      await this.loadItems();
+    },
+  },
+
   computed: {
     webHost() {
       return this.systemInfo?.web_host || window.location.origin;
