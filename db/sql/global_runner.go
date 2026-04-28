@@ -65,13 +65,8 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode db
 		case db.RunnerFilterIgnoreTags:
 			// No tag filtering applied.
 		case db.RunnerFilterTagCompleteMatch:
-			// A default global runner is included regardless of the requested
-			// tag. Project runners are not exposed via this method (they go
-			// through GetRunners), so the rule only loosens matching for
-			// global runners.
 			builder = builder.Where(squirrel.Or{
 				runnerHasTagExpr(*tag),
-				runnerIsDefaultExpr(),
 			})
 		default:
 			panic("invalid tag filter mode: " + tagFilterMode)
