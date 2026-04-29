@@ -265,9 +265,17 @@ semaphore runner start --config ./config.runner.json</pre
       >.
     </v-alert>
 
+    <div class="mt-4 ml-4 d-flex align-center">
+      <span class="mr-2">{{ $t('scope') }}:</span>
+      <v-btn-toggle v-model="typeFilter" dense>
+        <v-btn value="project" small>{{ $t('project') }}</v-btn>
+        <v-btn value="global" small>{{ $t('global') }}</v-btn>
+      </v-btn-toggle>
+    </div>
+
     <v-data-table
       :headers="headers"
-      :items="items"
+      :items="filteredItems"
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
@@ -438,6 +446,19 @@ SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/path/to/private/key \\
 semaphore runner start --no-config`;
     },
 
+    filteredItems() {
+      if (!this.items) {
+        return [];
+      }
+      if (!this.typeFilter) {
+        return this.items;
+      }
+      if (this.typeFilter === 'project') {
+        return this.items.filter((item) => item.project_id != null);
+      }
+      return this.items.filter((item) => item.project_id == null);
+    },
+
     runnerDockerCommand() {
       return `docker run \\
 -e SEMAPHORE_WEB_ROOT=${this.webHost} \\
@@ -453,6 +474,7 @@ semaphore runner start --no-config`;
       newRunnerTokenDialog: null,
       newRunner: null,
       usageTab: null,
+      typeFilter: null,
     };
   },
 
