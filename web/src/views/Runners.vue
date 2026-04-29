@@ -273,6 +273,7 @@ semaphore runner start --config ./config.runner.json</pre
     >
       <template v-slot:item.active="{ item }">
         <v-switch
+          v-if="item.project_id != null || projectId == null"
           v-model="item.active"
           inset
           @change="setActive(item.id, item.active)"
@@ -314,6 +315,7 @@ semaphore runner start --config ./config.runner.json</pre
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn
+            v-if="item.project_id != null || projectId == null"
             icon
             class="mr-1"
             @click="askDeleteItem(item.id)"
@@ -323,6 +325,7 @@ semaphore runner start --config ./config.runner.json</pre
           </v-btn>
 
           <v-btn
+            v-if="item.project_id != null || projectId == null"
             icon
             class="mr-1"
             @click="editItem(item.id)"
@@ -331,7 +334,7 @@ semaphore runner start --config ./config.runner.json</pre
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
 
-          <v-tooltip bottom :max-width="150">
+          <v-tooltip v-if="item.project_id != null || projectId == null" bottom :max-width="150">
             <template v-slot:activator="{ on, attrs }">
               <v-btn
                 v-bind="attrs"
@@ -459,7 +462,7 @@ semaphore runner start --no-config`;
     },
 
     async clearCache(runner) {
-      const projectId = this.projectId || this.getProjectIdOfItem(runner.id);
+      const projectId = this.getProjectIdOfItem(runner.id);
 
       const url = projectId
         ? `/api/project/${projectId}/runners/${runner.id}/cache`
@@ -530,7 +533,7 @@ semaphore runner start --no-config`;
     },
 
     async setActive(runnerId, active) {
-      const projectId = this.projectId || this.getProjectIdOfItem(runnerId);
+      const projectId = this.getProjectIdOfItem(runnerId);
 
       const url = projectId
         ? `/api/project/${projectId}/runners/${runnerId}/active`
