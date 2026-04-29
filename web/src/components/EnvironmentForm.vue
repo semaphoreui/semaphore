@@ -217,26 +217,42 @@
               hide-details
             />
 
-            <v-btn
-              style="margin-right: -10px"
-              text
-              color="primary"
-              @click="syncSettingsDialog = true"
-              :disabled="formSaving"
-              v-if="item.sync_enabled"
-            >
-              <v-icon left>mdi-cog-sync</v-icon>
-              Sync paths
-              <v-chip
-                class="ml-2"
-                outlined
-                style="transform: translateY(-1px)"
+            <div class="d-flex align-center">
+              <v-btn
+                v-if="item.sync_enabled && !isNew"
+                icon
+                style="position: absolute; top: 10px; right: 10px"
                 color="primary"
-                small
+                @click="syncKeys()"
+                :disabled="
+                  formSaving || syncing || !(item.sync_paths && item.sync_paths.length > 0)
+                "
+                :loading="syncing"
               >
-                {{ (item.sync_paths || []).length }}
-              </v-chip>
-            </v-btn>
+                <v-icon>mdi-sync</v-icon>
+              </v-btn>
+
+              <v-btn
+                style="margin-right: -10px"
+                text
+                color="primary"
+                @click="syncSettingsDialog = true"
+                :disabled="formSaving"
+                v-if="item.sync_enabled"
+              >
+                <v-icon left>mdi-cog-sync</v-icon>
+                Sync paths
+                <v-chip
+                  class="ml-2"
+                  outlined
+                  style="transform: translateY(-1px)"
+                  color="primary"
+                  small
+                >
+                  {{ (item.sync_paths || []).length }}
+                </v-chip>
+              </v-btn>
+            </div>
           </div>
         </div>
 
@@ -401,6 +417,8 @@ import { codemirror } from 'vue-codemirror';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/display/placeholder.js';
+import axios from 'axios';
+import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import RichEditor from '@/components/RichEditor.vue';
 import SecretStorageSyncOptionsForm from '@/components/SecretStorageSyncOptionsForm.vue';
@@ -520,10 +538,33 @@ export default {
       secretStorages: null,
 
       syncSettingsDialog: false,
+      syncing: false,
     };
   },
 
   methods: {
+    async syncKeys() {
+      this.syncing = true;
+      try {
+        await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/environment/${this.itemId}/sync`,
+          responseType: 'json',
+        });
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'Keys synced successfully',
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      } finally {
+        this.syncing = false;
+      }
+    },
+
     getNewItem() {
       return {
         sync_enabled: false,

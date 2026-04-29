@@ -12,10 +12,11 @@ import (
 )
 
 type EnvironmentController struct {
-	accessKeyRepo      db.AccessKeyManager
-	accessKeyService   server.AccessKeyService
-	encryptionService  server.AccessKeyEncryptionService
-	environmentService server.EnvironmentService
+	accessKeyRepo        db.AccessKeyManager
+	accessKeyService     server.AccessKeyService
+	encryptionService    server.AccessKeyEncryptionService
+	environmentService   server.EnvironmentService
+	secretStorageService server.SecretStorageService
 }
 
 func NewEnvironmentController(
@@ -23,12 +24,14 @@ func NewEnvironmentController(
 	encryptionService server.AccessKeyEncryptionService,
 	accessKeyService server.AccessKeyService,
 	environmentService server.EnvironmentService,
+	secretStorageService server.SecretStorageService,
 ) *EnvironmentController {
 	return &EnvironmentController{
-		accessKeyRepo:      accessKeyRepo,
-		accessKeyService:   accessKeyService,
-		encryptionService:  encryptionService,
-		environmentService: environmentService,
+		accessKeyRepo:        accessKeyRepo,
+		accessKeyService:     accessKeyService,
+		encryptionService:    encryptionService,
+		environmentService:   environmentService,
+		secretStorageService: secretStorageService,
 	}
 }
 
@@ -314,6 +317,33 @@ func (c *EnvironmentController) RemoveEnvironment(w http.ResponseWriter, r *http
 		ObjectType:  db.EventEnvironment,
 		ObjectID:    env.ID,
 		Description: fmt.Sprintf("Environment %s deleted", env.Name),
+	})
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// SyncEnvironment triggers a sync of secrets for the environment
+func (c *EnvironmentController) SyncEnvironment(w http.ResponseWriter, r *http.Request) {
+	env := helpers.GetFromContext(r, "environment").(db.Environment)
+
+	sync, err := helpers.Store(r).GetEnvironmentSecretSync(env.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	err = c.secretStorageService.SyncSecrets(sync)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   env.ProjectID,
+		ObjectType:  db.EventEnvironment,
+		ObjectID:    env.ID,
+		Description: fmt.Sprintf("Environment %s secrets synced", env.Name),
 	})
 
 	w.WriteHeader(http.StatusNoContent)
