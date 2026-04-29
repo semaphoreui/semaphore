@@ -227,6 +227,7 @@ semaphore runner start --config ./config.runner.json</pre
     </v-toolbar>
 
     <v-btn
+      v-else
       :disabled="!premiumFeatures.project_runners"
       style="position: absolute; right: 15px; top: 15px"
       color="primary"
@@ -265,12 +266,37 @@ semaphore runner start --config ./config.runner.json</pre
       >.
     </v-alert>
 
-    <div class="mt-4 ml-4 d-flex align-center">
-      <span class="mr-2">{{ $t('scope') }}:</span>
-      <v-btn-toggle v-model="typeFilter" dense>
-        <v-btn value="project" small>{{ $t('project') }}</v-btn>
-        <v-btn value="global" small>{{ $t('global') }}</v-btn>
-      </v-btn-toggle>
+    <div v-if="typeFilter || tagFilter" class="mt-4 ml-4 d-flex align-center">
+      <v-chip
+        v-if="typeFilter === 'global'"
+        class="mr-2"
+        small
+        close
+        color="info"
+        @click:close="typeFilter = null"
+      >
+        {{ $t('global') }}
+      </v-chip>
+      <v-chip
+        v-if="typeFilter === 'default'"
+        class="mr-2"
+        small
+        close
+        color="warning"
+        @click:close="typeFilter = null"
+      >
+        {{ $t('default') }}
+      </v-chip>
+      <v-chip
+        v-if="tagFilter"
+        small
+        close
+        label
+        color="primary"
+        @click:close="tagFilter = null"
+      >
+        {{ tagFilter }}
+      </v-chip>
     </div>
 
     <v-data-table
@@ -291,9 +317,27 @@ semaphore runner start --config ./config.runner.json</pre
 
       <template v-slot:item.name="{ item }">
         {{ item.name || '&mdash;' }}
-        <v-chip v-if="item.is_default" class="ml-2" small color="warning"> default </v-chip>
+        <v-chip
+          v-if="item.is_default"
+          class="ml-2"
+          small
+          color="warning"
+          style="cursor: pointer"
+          @click="typeFilter = typeFilter === 'default' ? null : 'default'"
+        >
+          {{ $t('default') }}
+        </v-chip>
 
-        <v-chip v-if="item.project_id == null" class="ml-2" small color="info"> global </v-chip>
+        <v-chip
+          v-if="item.project_id == null"
+          class="ml-2"
+          small
+          color="info"
+          style="cursor: pointer"
+          @click="typeFilter = typeFilter === 'global' ? null : 'global'"
+        >
+          {{ $t('global') }}
+        </v-chip>
       </template>
 
       <template v-slot:item.max_parallel_tasks="{ item }">
@@ -313,7 +357,17 @@ semaphore runner start --config ./config.runner.json</pre
 
       <template v-slot:item.tags="{ item }">
         <div v-if="item.tags && item.tags.length" style="white-space: normal">
-          <v-chip v-for="t in item.tags" :key="t" x-small label class="mr-1 mb-1">
+          <v-chip
+            v-for="t in item.tags"
+            :key="t"
+            x-small
+            label
+            class="mr-1 mb-1"
+            style="cursor: pointer"
+            :color="tagFilter === t ? 'primary' : undefined"
+            :dark="tagFilter === t"
+            @click="tagFilter = tagFilter === t ? null : t"
+          >
             {{ t }}
           </v-chip>
         </div>
@@ -450,13 +504,16 @@ semaphore runner start --no-config`;
       if (!this.items) {
         return [];
       }
-      if (!this.typeFilter) {
-        return this.items;
+      let result = this.items;
+      if (this.typeFilter === 'global') {
+        result = result.filter((item) => item.project_id == null);
+      } else if (this.typeFilter === 'default') {
+        result = result.filter((item) => item.is_default);
       }
-      if (this.typeFilter === 'project') {
-        return this.items.filter((item) => item.project_id != null);
+      if (this.tagFilter) {
+        result = result.filter((item) => item.tags && item.tags.includes(this.tagFilter));
       }
-      return this.items.filter((item) => item.project_id == null);
+      return result;
     },
 
     runnerDockerCommand() {
@@ -475,6 +532,7 @@ semaphore runner start --no-config`;
       newRunner: null,
       usageTab: null,
       typeFilter: null,
+      tagFilter: null,
     };
   },
 
