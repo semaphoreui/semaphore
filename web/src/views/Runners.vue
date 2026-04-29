@@ -266,24 +266,24 @@ semaphore runner start --config ./config.runner.json</pre
       >.
     </v-alert>
 
-    <div v-if="typeFilter || tagFilter" class="mt-4 ml-4 d-flex align-center">
+    <div v-if="globalFilter || defaultFilter || tagFilter" class="mt-4 ml-4 d-flex align-center">
       <v-chip
-        v-if="typeFilter === 'global'"
+        v-if="globalFilter"
         class="mr-2"
         small
         close
         color="info"
-        @click:close="typeFilter = null"
+        @click:close="globalFilter = false"
       >
         {{ $t('global') }}
       </v-chip>
       <v-chip
-        v-if="typeFilter === 'default'"
+        v-if="defaultFilter"
         class="mr-2"
         small
         close
         color="warning"
-        @click:close="typeFilter = null"
+        @click:close="defaultFilter = false"
       >
         {{ $t('default') }}
       </v-chip>
@@ -323,7 +323,7 @@ semaphore runner start --config ./config.runner.json</pre
           small
           color="warning"
           style="cursor: pointer"
-          @click="typeFilter = typeFilter === 'default' ? null : 'default'"
+          @click="defaultFilter = !defaultFilter"
         >
           {{ $t('default') }}
         </v-chip>
@@ -334,7 +334,7 @@ semaphore runner start --config ./config.runner.json</pre
           small
           color="info"
           style="cursor: pointer"
-          @click="typeFilter = typeFilter === 'global' ? null : 'global'"
+          @click="globalFilter = !globalFilter"
         >
           {{ $t('global') }}
         </v-chip>
@@ -505,9 +505,10 @@ semaphore runner start --no-config`;
         return [];
       }
       let result = this.items;
-      if (this.typeFilter === 'global') {
+      if (this.globalFilter) {
         result = result.filter((item) => item.project_id == null);
-      } else if (this.typeFilter === 'default') {
+      }
+      if (this.defaultFilter) {
         result = result.filter((item) => item.is_default);
       }
       if (this.tagFilter) {
@@ -531,7 +532,8 @@ semaphore runner start --no-config`;
       newRunnerTokenDialog: null,
       newRunner: null,
       usageTab: null,
-      typeFilter: null,
+      globalFilter: false,
+      defaultFilter: false,
       tagFilter: null,
     };
   },
