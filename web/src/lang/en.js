@@ -291,6 +291,7 @@ export default {
   matchValue: 'Value',
   matchOn: 'Match on',
   global: 'Global',
+  synchronized: 'Synchronized',
   default: 'Default',
   project: 'Project',
   runners: 'Runners',

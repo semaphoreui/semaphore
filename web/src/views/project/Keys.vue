@@ -65,6 +65,12 @@
           style="font-weight: bold;"
           class="ml-2"
         >{{ $t('empty') }}</v-chip>
+        <v-chip
+          v-if="item.synchronized"
+          small
+          color="info"
+          class="ml-2"
+        >{{ $t('synchronized') }}</v-chip>
       </template>
       <template v-slot:item.type="{ item }">
         <code>{{ item.type }}</code>
