@@ -67,8 +67,7 @@
         >{{ $t('empty') }}</v-chip>
         <v-chip
           v-if="item.synchronized"
-          small
-          color="info"
+          x-small
           class="ml-2"
         >{{ $t('synchronized') }}</v-chip>
       </template>
