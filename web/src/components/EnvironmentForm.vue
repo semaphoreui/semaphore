@@ -210,7 +210,7 @@
 
           <div class="d-flex items-center justify-space-between mt-2">
             <v-checkbox
-              class="mt-0"
+              class="mt-0 mb-2"
               v-model="item.sync_enabled"
               :label="$t('Sync keys enabled')"
               :disabled="formSaving"
@@ -218,20 +218,6 @@
             />
 
             <div class="d-flex align-center">
-              <v-btn
-                v-if="item.sync_enabled && !isNew"
-                icon
-                style="position: absolute; top: 10px; right: 10px"
-                color="primary"
-                @click="syncKeys()"
-                :disabled="
-                  formSaving || syncing || !(item.sync_paths && item.sync_paths.length > 0)
-                "
-                :loading="syncing"
-              >
-                <v-icon>mdi-sync</v-icon>
-              </v-btn>
-
               <v-btn
                 style="margin-right: -10px"
                 text
@@ -417,8 +403,6 @@ import { codemirror } from 'vue-codemirror';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/addon/display/placeholder.js';
-import axios from 'axios';
-import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import RichEditor from '@/components/RichEditor.vue';
 import SecretStorageSyncOptionsForm from '@/components/SecretStorageSyncOptionsForm.vue';
@@ -543,29 +527,6 @@ export default {
   },
 
   methods: {
-    async syncKeys() {
-      this.syncing = true;
-      try {
-        await axios({
-          method: 'post',
-          url: `/api/project/${this.projectId}/environment/${this.itemId}/sync`,
-          responseType: 'json',
-        });
-        await this.loadData();
-        EventBus.$emit('i-snackbar', {
-          color: 'success',
-          text: 'Keys synced successfully',
-        });
-      } catch (err) {
-        EventBus.$emit('i-snackbar', {
-          color: 'error',
-          text: getErrorMessage(err),
-        });
-      } finally {
-        this.syncing = false;
-      }
-    },
-
     getNewItem() {
       return {
         sync_enabled: false,

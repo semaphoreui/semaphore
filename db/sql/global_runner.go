@@ -79,6 +79,40 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode db
 	return
 }
 
+func (d *SqlDb) GetGlobalRunnerTags() (res []db.RunnerTag, err error) {
+	query, args, err := squirrel.Select("rt.tag", "count(distinct rt.runner_id) as cnt").
+		From("runner__tag rt").
+		Join("runner r on r.id = rt.runner_id").
+		Where("r.project_id is null").
+		GroupBy("rt.tag").
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	type row struct {
+		Tag string `db:"tag"`
+		Cnt int    `db:"cnt"`
+	}
+
+	rows := make([]row, 0)
+	_, err = d.selectAll(&rows, query, args...)
+	if err != nil {
+		return
+	}
+
+	res = make([]db.RunnerTag, 0, len(rows))
+	for _, r := range rows {
+		res = append(res, db.RunnerTag{
+			Tag:             r.Tag,
+			NumberOfRunners: r.Cnt,
+		})
+	}
+
+	return
+}
+
 func (d *SqlDb) DeleteGlobalRunner(runnerID int) (err error) {
 	err = d.deleteObject(0, db.GlobalRunnerProps, runnerID)
 	return
