@@ -163,6 +163,17 @@ func deleteGlobalRunner(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func getGlobalRunnerTags(w http.ResponseWriter, r *http.Request) {
+	tags, err := helpers.Store(r).GetGlobalRunnerTags()
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, tags)
+}
+
 func setGlobalRunnerActive(w http.ResponseWriter, r *http.Request) {
 	runner := helpers.GetFromContext(r, "runner").(*db.Runner)
 
