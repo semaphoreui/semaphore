@@ -383,6 +383,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		Tags:              util.Config.Runner.Tags,
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 		PublicKey:         &publicKey,
+		ProjectID:         util.Config.Runner.ProjectID,
 	})
 
 	if err != nil {

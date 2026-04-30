@@ -22,7 +22,7 @@ func (conf *ConfigType) getProcessCredential() (uid uint32, gid uint32) {
 			return
 		}
 
-		if u > 0 && u <= math.MaxUint32 {
+		if u > 0 {
 			uid = uint32(u)
 		}
 
@@ -31,7 +31,7 @@ func (conf *ConfigType) getProcessCredential() (uid uint32, gid uint32) {
 			return
 		}
 
-		if g > 0 && g <= math.MaxUint32 {
+		if g > 0 {
 			gid = uint32(g)
 		}
 	}

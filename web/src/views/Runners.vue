@@ -227,6 +227,7 @@ semaphore runner start --config ./config.runner.json</pre
     </v-toolbar>
 
     <v-btn
+      v-else
       :disabled="!premiumFeatures.project_runners"
       style="position: absolute; right: 15px; top: 15px"
       color="primary"
@@ -265,14 +266,48 @@ semaphore runner start --config ./config.runner.json</pre
       >.
     </v-alert>
 
+    <div v-if="globalFilter || defaultFilter || tagFilter" class="mt-4 ml-4 d-flex align-center">
+      <v-chip
+        v-if="globalFilter"
+        class="mr-2"
+        small
+        close
+        color="info"
+        @click:close="globalFilter = false"
+      >
+        {{ $t('global') }}
+      </v-chip>
+      <v-chip
+        v-if="defaultFilter"
+        class="mr-2"
+        small
+        close
+        color="warning"
+        @click:close="defaultFilter = false"
+      >
+        {{ $t('default') }}
+      </v-chip>
+      <v-chip
+        v-if="tagFilter"
+        small
+        close
+        label
+        color="primary"
+        @click:close="tagFilter = null"
+      >
+        {{ tagFilter }}
+      </v-chip>
+    </div>
+
     <v-data-table
       :headers="headers"
-      :items="items"
+      :items="filteredItems"
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
       <template v-slot:item.active="{ item }">
         <v-switch
+          v-if="item.project_id != null || projectId == null"
           v-model="item.active"
           inset
           @change="setActive(item.id, item.active)"
@@ -282,9 +317,27 @@ semaphore runner start --config ./config.runner.json</pre
 
       <template v-slot:item.name="{ item }">
         {{ item.name || '&mdash;' }}
-        <v-chip v-if="item.is_default" class="ml-2" small color="warning"> default </v-chip>
+        <v-chip
+          v-if="item.is_default"
+          class="ml-2"
+          small
+          color="warning"
+          style="cursor: pointer"
+          @click="defaultFilter = !defaultFilter"
+        >
+          {{ $t('default') }}
+        </v-chip>
 
-        <v-chip v-if="item.project_id == null" class="ml-2" small color="info"> global </v-chip>
+        <v-chip
+          v-if="item.project_id == null"
+          class="ml-2"
+          small
+          color="info"
+          style="cursor: pointer"
+          @click="globalFilter = !globalFilter"
+        >
+          {{ $t('global') }}
+        </v-chip>
       </template>
 
       <template v-slot:item.max_parallel_tasks="{ item }">
@@ -304,7 +357,17 @@ semaphore runner start --config ./config.runner.json</pre
 
       <template v-slot:item.tags="{ item }">
         <div v-if="item.tags && item.tags.length" style="white-space: normal">
-          <v-chip v-for="t in item.tags" :key="t" x-small label class="mr-1 mb-1">
+          <v-chip
+            v-for="t in item.tags"
+            :key="t"
+            x-small
+            label
+            class="mr-1 mb-1"
+            style="cursor: pointer"
+            :color="tagFilter === t ? 'primary' : undefined"
+            :dark="tagFilter === t"
+            @click="tagFilter = tagFilter === t ? null : t"
+          >
             {{ t }}
           </v-chip>
         </div>
@@ -314,6 +377,7 @@ semaphore runner start --config ./config.runner.json</pre
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn
+            v-if="item.project_id != null || projectId == null"
             icon
             class="mr-1"
             @click="askDeleteItem(item.id)"
@@ -323,6 +387,7 @@ semaphore runner start --config ./config.runner.json</pre
           </v-btn>
 
           <v-btn
+            v-if="item.project_id != null || projectId == null"
             icon
             class="mr-1"
             @click="editItem(item.id)"
@@ -331,7 +396,7 @@ semaphore runner start --config ./config.runner.json</pre
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
 
-          <v-tooltip bottom :max-width="150">
+          <v-tooltip v-if="item.project_id != null || projectId == null" bottom :max-width="150">
             <template v-slot:activator="{ on, attrs }">
               <v-btn
                 v-bind="attrs"
@@ -435,6 +500,23 @@ SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/path/to/private/key \\
 semaphore runner start --no-config`;
     },
 
+    filteredItems() {
+      if (!this.items) {
+        return [];
+      }
+      let result = this.items;
+      if (this.globalFilter) {
+        result = result.filter((item) => item.project_id == null);
+      }
+      if (this.defaultFilter) {
+        result = result.filter((item) => item.is_default);
+      }
+      if (this.tagFilter) {
+        result = result.filter((item) => item.tags && item.tags.includes(this.tagFilter));
+      }
+      return result;
+    },
+
     runnerDockerCommand() {
       return `docker run \\
 -e SEMAPHORE_WEB_ROOT=${this.webHost} \\
@@ -450,6 +532,9 @@ semaphore runner start --no-config`;
       newRunnerTokenDialog: null,
       newRunner: null,
       usageTab: null,
+      globalFilter: false,
+      defaultFilter: false,
+      tagFilter: null,
     };
   },
 
@@ -459,7 +544,7 @@ semaphore runner start --no-config`;
     },
 
     async clearCache(runner) {
-      const projectId = this.projectId || this.getProjectIdOfItem(runner.id);
+      const projectId = this.getProjectIdOfItem(runner.id);
 
       const url = projectId
         ? `/api/project/${projectId}/runners/${runner.id}/cache`
@@ -530,7 +615,7 @@ semaphore runner start --no-config`;
     },
 
     async setActive(runnerId, active) {
-      const projectId = this.projectId || this.getProjectIdOfItem(runnerId);
+      const projectId = this.getProjectIdOfItem(runnerId);
 
       const url = projectId
         ? `/api/project/${projectId}/runners/${runnerId}/active`

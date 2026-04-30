@@ -45,12 +45,16 @@ func (s *AccessKeyServiceImpl) Delete(projectID int, keyID int) (err error) {
 			return
 		}
 
-		if storage.ReadOnly {
-			err = common_errors.NewUserErrorS("cannot delete secret from read-only storage")
-			return
+		if storage.ReadOnly || key.Synchronized {
+			// Do nothing
+
+			//if key.Synchronized {
+			//	err = common_errors.NewUserErrorS("cannot delete synchronized secret from read-only storage")
+			//}
+		} else {
+			err = s.encryptionService.DeleteSecret(&key)
 		}
 
-		err = s.encryptionService.DeleteSecret(&key)
 		if err != nil {
 			return
 		}

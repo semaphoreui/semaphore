@@ -210,33 +210,35 @@
 
           <div class="d-flex items-center justify-space-between mt-2">
             <v-checkbox
-              class="mt-0"
+              class="mt-0 mb-2"
               v-model="item.sync_enabled"
               :label="$t('Sync keys enabled')"
               :disabled="formSaving"
               hide-details
             />
 
-            <v-btn
-              style="margin-right: -10px"
-              text
-              color="primary"
-              @click="syncSettingsDialog = true"
-              :disabled="formSaving"
-              v-if="item.sync_enabled"
-            >
-              <v-icon left>mdi-cog-sync</v-icon>
-              Sync paths
-              <v-chip
-                class="ml-2"
-                outlined
-                style="transform: translateY(-1px)"
+            <div class="d-flex align-center">
+              <v-btn
+                style="margin-right: -10px"
+                text
                 color="primary"
-                small
+                @click="syncSettingsDialog = true"
+                :disabled="formSaving"
+                v-if="item.sync_enabled"
               >
-                {{ (item.sync_paths || []).length }}
-              </v-chip>
-            </v-btn>
+                <v-icon left>mdi-cog-sync</v-icon>
+                Sync paths
+                <v-chip
+                  class="ml-2"
+                  outlined
+                  style="transform: translateY(-1px)"
+                  color="primary"
+                  small
+                >
+                  {{ (item.sync_paths || []).length }}
+                </v-chip>
+              </v-btn>
+            </div>
           </div>
         </div>
 
@@ -520,6 +522,7 @@ export default {
       secretStorages: null,
 
       syncSettingsDialog: false,
+      syncing: false,
     };
   },
 

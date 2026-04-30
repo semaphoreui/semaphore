@@ -62,6 +62,7 @@ type RunnerRegistration struct {
 	Tags              []string `json:"tags,omitempty"`
 	MaxParallelTasks  int      `json:"max_parallel_tasks"`
 	PublicKey         *string  `json:"public_key,omitempty"`
+	ProjectID         *int    `json:"project_id,omitempty"`
 }
 
 type jobLogRecord struct {

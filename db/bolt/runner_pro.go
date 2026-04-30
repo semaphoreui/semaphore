@@ -75,6 +75,10 @@ func (d *BoltDb) GetRunnerTags(projectID int) ([]db.RunnerTag, error) {
 	return []db.RunnerTag{}, nil
 }
 
+func (d *BoltDb) GetGlobalRunnerTags() ([]db.RunnerTag, error) {
+	return []db.RunnerTag{}, nil
+}
+
 func (d *BoltDb) GetRunnerCount() (res int, err error) {
 	runners := make([]db.Runner, 0)
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(i interface{}) bool {

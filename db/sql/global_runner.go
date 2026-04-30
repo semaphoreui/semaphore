@@ -65,14 +65,7 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode db
 		case db.RunnerFilterIgnoreTags:
 			// No tag filtering applied.
 		case db.RunnerFilterTagCompleteMatch:
-			// A default global runner is included regardless of the requested
-			// tag. Project runners are not exposed via this method (they go
-			// through GetRunners), so the rule only loosens matching for
-			// global runners.
-			builder = builder.Where(squirrel.Or{
-				runnerHasTagExpr(*tag),
-				runnerIsDefaultExpr(),
-			})
+			builder = builder.Where(runnerHasTagExpr(*tag))
 		default:
 			panic("invalid tag filter mode: " + tagFilterMode)
 		}
@@ -83,6 +76,40 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode db
 		return
 	}
 	err = d.loadRunnerTags(runners)
+	return
+}
+
+func (d *SqlDb) GetGlobalRunnerTags() (res []db.RunnerTag, err error) {
+	query, args, err := squirrel.Select("rt.tag", "count(distinct rt.runner_id) as cnt").
+		From("runner__tag rt").
+		Join("runner r on r.id = rt.runner_id").
+		Where("r.project_id is null").
+		GroupBy("rt.tag").
+		ToSql()
+
+	if err != nil {
+		return
+	}
+
+	type row struct {
+		Tag string `db:"tag"`
+		Cnt int    `db:"cnt"`
+	}
+
+	rows := make([]row, 0)
+	_, err = d.selectAll(&rows, query, args...)
+	if err != nil {
+		return
+	}
+
+	res = make([]db.RunnerTag, 0, len(rows))
+	for _, r := range rows {
+		res = append(res, db.RunnerTag{
+			Tag:             r.Tag,
+			NumberOfRunners: r.Cnt,
+		})
+	}
+
 	return
 }
 

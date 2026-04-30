@@ -39,7 +39,7 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('environment') }}</v-toolbar-title>
       <v-spacer></v-spacer>
@@ -47,7 +47,7 @@
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >{{ $t('newEnvironment') }}
+        >{{ $t('newEnvironment') }}
       </v-btn>
     </v-toolbar>
 
@@ -59,13 +59,20 @@
       hide-default-footer
       class="mt-4 CenterToScreen"
       :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width) - 200px); margin: auto;"
+      style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.name="{ item }">
         <a @click="editItem(item.id)">{{ item.name }}</a>
       </template>
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
+          <v-btn
+            v-if="item.sync_enabled"
+            @click="syncItem(item.id)"
+            :disabled="!(item.sync_paths && item.sync_paths.length > 0)"
+          >
+            <v-icon>mdi-sync</v-icon>
+          </v-btn>
           <v-btn @click="askDeleteItem(item.id)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
@@ -76,12 +83,14 @@
       </template>
     </v-data-table>
   </div>
-
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EnvironmentForm from '@/components/EnvironmentForm.vue';
 import PageMixin from '@/components/PageMixin';
+import axios from 'axios';
+import EventBus from '@/event-bus';
+import { getErrorMessage } from '@/lib/error';
 
 export default {
   components: { EnvironmentForm },
@@ -92,16 +101,38 @@ export default {
     };
   },
   methods: {
+    async syncItem(itemId) {
+      try {
+        await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/environment/${itemId}/sync`,
+          responseType: 'json',
+        });
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: 'Variable group synced successfully',
+        });
+        await this.loadItems();
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      }
+    },
     getHeaders() {
-      return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
-        width: '100%',
-      },
-      {
-        value: 'actions',
-        sortable: false,
-      }];
+      return [
+        {
+          text: this.$i18n.t('name'),
+          value: 'name',
+          width: '100%',
+        },
+        {
+          value: 'actions',
+          sortable: false,
+          align: 'end',
+        },
+      ];
     },
     getItemsUrl() {
       return `/api/project/${this.projectId}/environment`;

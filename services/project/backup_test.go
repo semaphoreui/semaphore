@@ -156,6 +156,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
   },
   "repositories": [],
   "roles": [],
+  "runners": [],
   "schedules": [],
   "secret_storages": [
     {
