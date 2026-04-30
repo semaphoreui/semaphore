@@ -690,6 +690,10 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 }
 
 func TestCheckTmpDir(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
 	//It should be able to create a random dir in /tmp
 	dirName := path.Join(os.TempDir(), util.RandString(rand.Intn(10-4)+4))
 	err := checkTmpDir(dirName)
