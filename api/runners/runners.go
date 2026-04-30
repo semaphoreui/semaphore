@@ -325,6 +325,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		Webhook:          register.Webhook,
 		MaxParallelTasks: register.MaxParallelTasks,
 		PublicKey:        register.PublicKey,
+		ProjectID:        register.ProjectID,
 	})
 
 	if err != nil {

@@ -11,10 +11,12 @@ import (
 
 var runnerRegisterArgs struct {
 	stdinRegistrationToken bool
+	projectID              int
 }
 
 func init() {
 	runnerRegisterCmd.PersistentFlags().BoolVar(&runnerRegisterArgs.stdinRegistrationToken, "stdin-registration-token", false, "Read registration token from stdin")
+	runnerRegisterCmd.PersistentFlags().IntVar(&runnerRegisterArgs.projectID, "project-id", 0, "Project ID for project-level runner (global runner if not provided)")
 	runnerCmd.AddCommand(runnerRegisterCmd)
 }
 
@@ -40,6 +42,10 @@ func registerRunner() {
 	configFile := util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
 	initRunnerRegistrationToken()
+
+	if runnerRegisterArgs.projectID > 0 {
+		util.Config.Runner.ProjectID = &runnerRegisterArgs.projectID
+	}
 
 	taskPool := createRunnerJobPool()
 

@@ -381,6 +381,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		Webhook:           util.Config.Runner.Webhook,
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 		PublicKey:         &publicKey,
+		ProjectID:         util.Config.Runner.ProjectID,
 	})
 
 	if err != nil {
