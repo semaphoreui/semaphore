@@ -551,6 +551,7 @@ export default {
           url: `/api/project/${this.projectId}/environment/${this.itemId}/sync`,
           responseType: 'json',
         });
+        await this.loadData();
         EventBus.$emit('i-snackbar', {
           color: 'success',
           text: 'Keys synced successfully',
