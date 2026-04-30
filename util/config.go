@@ -131,6 +131,9 @@ type RunnerConfig struct {
 
 	Webhook string `json:"webhook,omitempty" env:"SEMAPHORE_RUNNER_WEBHOOK"`
 
+	Name string   `json:"name,omitempty" env:"SEMAPHORE_RUNNER_NAME"`
+	Tags []string `json:"tags,omitempty" env:"SEMAPHORE_RUNNER_TAGS"`
+
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 
 	ProjectID *int `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
