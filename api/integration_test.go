@@ -401,7 +401,10 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 	env1 := make(map[string]any)
 
 	if taskDef1.Environment != "" {
-		json.Unmarshal([]byte(taskDef1.Environment), &env1)
+		err := json.Unmarshal([]byte(taskDef1.Environment), &env1)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal environment: %v", err)
+		}
 	}
 
 	// Add extracted environment variables only if they don't conflict with
@@ -417,7 +420,9 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 
 	// Verify that extracted values ARE now in the environment
 	var envCheck1 map[string]any
-	json.Unmarshal([]byte(taskDef1.Environment), &envCheck1)
+	if err := json.Unmarshal([]byte(taskDef1.Environment), &envCheck1); err != nil {
+		t.Fatalf("Failed to unmarshal environment: %v", err)
+	}
 
 	if envCheck1["BRANCH_NAME"] != "main" {
 		t.Errorf("Expected BRANCH_NAME to be 'main' in environment, got '%v'", envCheck1["BRANCH_NAME"])
@@ -441,7 +446,9 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 	env2 := make(map[string]any)
 
 	if taskDef2.Environment != "" {
-		json.Unmarshal([]byte(taskDef2.Environment), &env2)
+		if err := json.Unmarshal([]byte(taskDef2.Environment), &env2); err != nil {
+			t.Fatalf("Failed to unmarshal environment: %v", err)
+		}
 	}
 
 	// Add extracted environment variables only if they don't conflict with
@@ -457,7 +464,9 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 
 	// Verify that both existing and extracted values are in the environment
 	var envCheck2 map[string]any
-	json.Unmarshal([]byte(taskDef2.Environment), &envCheck2)
+	if err := json.Unmarshal([]byte(taskDef2.Environment), &envCheck2); err != nil {
+		t.Fatalf("Failed to unmarshal environment: %v", err)
+	}
 
 	if envCheck2["EXISTING_VAR"] != "existing_value" {
 		t.Errorf("Expected EXISTING_VAR to be 'existing_value' in environment, got '%v'", envCheck2["EXISTING_VAR"])
@@ -484,7 +493,9 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 	env3 := make(map[string]any)
 
 	if taskDef3.Environment != "" {
-		json.Unmarshal([]byte(taskDef3.Environment), &env3)
+		if err := json.Unmarshal([]byte(taskDef3.Environment), &env3); err != nil {
+			t.Fatalf("Failed to unmarshal environment: %v", err)
+		}
 	}
 
 	// Add extracted environment variables only if they don't conflict with
@@ -500,7 +511,9 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 
 	// Verify that task definition values take precedence over extracted values
 	var envCheck3 map[string]any
-	json.Unmarshal([]byte(taskDef3.Environment), &envCheck3)
+	if err := json.Unmarshal([]byte(taskDef3.Environment), &envCheck3); err != nil {
+		t.Fatalf("Failed to unmarshal environment: %v", err)
+	}
 
 	// BRANCH_NAME should remain "production" from task definition, not "main" from extracted
 	if envCheck3["BRANCH_NAME"] != "production" {

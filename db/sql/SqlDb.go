@@ -126,7 +126,10 @@ func CreateTestStore() *SqlDb {
 
 	store.Connect("")
 
-	db.Migrate(store, nil)
+	err := db.Migrate(store, nil)
+	if err != nil {
+		panic(err)
+	}
 
 	return store
 }

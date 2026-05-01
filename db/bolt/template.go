@@ -280,7 +280,10 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		if integration.TemplateID != templateID {
 			continue
 		}
-		d.deleteIntegration(projectID, integration.ID, tx)
+		err = d.deleteIntegration(projectID, integration.ID, tx)
+		if err != nil {
+			return
+		}
 	}
 
 	return d.deleteObject(projectID, db.TemplateProps, intObjectID(templateID), tx)
