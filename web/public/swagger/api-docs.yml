@@ -1269,14 +1269,6 @@ parameters:
     x-example: 14
 
 paths:
-  /debug/gc:
-    post:
-      summary: Garbage collector
-      description: Run the garbage collector
-      responses:
-        204:
-          description: Successful "OK" reply
-
   /ping:
     get:
       summary: PING test
