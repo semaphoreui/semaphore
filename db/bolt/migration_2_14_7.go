@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"fmt"
+
 	"github.com/semaphoreui/semaphore/pkg/conv"
 )
 

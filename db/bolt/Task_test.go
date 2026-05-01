@@ -1,8 +1,9 @@
 package bolt
 
 import (
-	"github.com/semaphoreui/semaphore/db"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func TestTask_GetVersion(t *testing.T) {

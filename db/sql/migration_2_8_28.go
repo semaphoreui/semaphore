@@ -1,8 +1,9 @@
 package sql
 
 import (
-	"github.com/go-gorp/gorp/v3"
 	"strings"
+
+	"github.com/go-gorp/gorp/v3"
 )
 
 type migration_2_8_26 struct {

@@ -1,8 +1,9 @@
 package bolt
 
 import (
-	"github.com/semaphoreui/semaphore/db"
 	"reflect"
+
+	"github.com/semaphoreui/semaphore/db"
 )
 
 var integrationAliasProps = db.ObjectProps{
