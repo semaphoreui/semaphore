@@ -230,9 +230,7 @@ func (d *SqlDb) getTemplates(
 		case db.ViewTypeCustom:
 			q = q.Where("pt.view_id=?", *filter.ViewID)
 		case db.ViewTypeAll:
-			if view.Filter != nil {
-				// TODO: implement filter
-			}
+			// TODO: implement filter
 		}
 	}
 

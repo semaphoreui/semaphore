@@ -156,13 +156,14 @@ func (s *accessKeyEncryptionServiceImpl) FillEnvironmentSecrets(env *db.Environm
 		var secretName string
 		var secretType db.EnvironmentSecretType
 
-		if k.Owner == db.AccessKeyVariable {
+		switch k.Owner {
+		case db.AccessKeyVariable:
 			secretType = db.EnvironmentSecretVar
 			secretName = strings.TrimPrefix(k.Name, string(db.EnvironmentSecretVar)+".")
-		} else if k.Owner == db.AccessKeyEnvironment {
+		case db.AccessKeyEnvironment:
 			secretType = db.EnvironmentSecretEnv
 			secretName = strings.TrimPrefix(k.Name, string(db.EnvironmentSecretEnv)+".")
-		} else {
+		default:
 			secretType = db.EnvironmentSecretVar
 			secretName = k.Name
 		}

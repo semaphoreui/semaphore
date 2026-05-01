@@ -37,7 +37,7 @@ func getUsers(vals []db.UserWithProjectRole, projId int) []db.ProjectUser {
 
 	for _, val := range vals {
 		values = append(values, db.ProjectUser{
-			UserID:    val.User.ID,
+			UserID:    val.ID,
 			Role:      val.Role,
 			ProjectID: projId,
 		})

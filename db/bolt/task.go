@@ -1,6 +1,7 @@
 package bolt
 
 import (
+	"errors"
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -282,7 +283,7 @@ func (d *BoltDb) deleteTaskWithOutputs(projectID int, taskID int, checkTaskExist
 	}
 
 	err = tx.DeleteBucket(makeBucketId(db.TaskOutputProps, taskID))
-	if err == bbolt.ErrBucketNotFound {
+	if errors.Is(err, bbolt.ErrBucketNotFound) {
 		err = nil
 	}
 

@@ -153,7 +153,7 @@ func TestProjectInviteWithUser_Structure(t *testing.T) {
 		User:          nil, // Email-based invite
 	}
 
-	if inviteWithUser.ProjectInvite.ID != invite.ID {
+	if inviteWithUser.ID != invite.ID {
 		t.Error("ProjectInvite should be embedded correctly")
 	}
 

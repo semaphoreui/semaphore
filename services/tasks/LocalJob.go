@@ -304,19 +304,15 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 	}
 
 	// Merge template and task args maps
-	if templateArgsMap != nil {
-		for stage, stageArgs := range templateArgsMap {
-			argsMap[stage] = append([]string{}, stageArgs...)
-		}
+	for stage, stageArgs := range templateArgsMap {
+		argsMap[stage] = append([]string{}, stageArgs...)
 	}
 
-	if taskArgsMap != nil {
-		for stage, stageArgs := range taskArgsMap {
-			if existing, ok := argsMap[stage]; ok {
-				argsMap[stage] = append(existing, stageArgs...)
-			} else {
-				argsMap[stage] = append([]string{}, stageArgs...)
-			}
+	for stage, stageArgs := range taskArgsMap {
+		if existing, ok := argsMap[stage]; ok {
+			argsMap[stage] = append(existing, stageArgs...)
+		} else {
+			argsMap[stage] = append([]string{}, stageArgs...)
 		}
 	}
 

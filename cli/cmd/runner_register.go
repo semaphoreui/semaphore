@@ -10,15 +10,15 @@ import (
 )
 
 var runnerRegisterArgs struct {
-	stdinRegistrationToken bool
+	stdinRegistrationToken    bool
 	registrationTokenFilePath string
 	projectID                 int
-	name                   string
-	tags                   []string
-	webhook                string
-	nameSet                bool
-	webhookSet             bool
-	tagsSet                bool
+	name                      string
+	tags                      []string
+	webhook                   string
+	nameSet                   bool
+	webhookSet                bool
+	tagsSet                   bool
 }
 
 func init() {
@@ -88,7 +88,6 @@ func registerRunner(cmd *cobra.Command) {
 	configFile := util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
 	initRunnerRegistrationToken()
-
 
 	applyRunnerRegisterFlags(cmd)
 

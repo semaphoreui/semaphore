@@ -104,8 +104,6 @@ func InteractiveRunnerSetup(conf *util.ConfigType) {
 
 		return
 	}
-
-	return
 }
 
 func InteractiveSetup(conf *util.ConfigType) {

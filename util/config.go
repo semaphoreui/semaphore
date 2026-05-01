@@ -1442,9 +1442,7 @@ func GetPublicHost() string {
 		port = "3000"
 	}
 
-	if strings.HasPrefix(port, ":") {
-		port = port[1:]
-	}
+	port = strings.TrimPrefix(port, ":")
 
 	if aliasURL == "" {
 		aliasURL = "http://localhost:" + port
