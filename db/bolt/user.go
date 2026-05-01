@@ -271,6 +271,9 @@ func (d *BoltDb) AddTotpVerification(userID int, url string, recoveryHash string
 
 	current := make([]db.UserTotp, 0)
 	err = d.getObjects(userID, db.UserTotpProps, db.RetrieveQueryParams{}, nil, &current)
+	if err != nil {
+		return
+	}
 
 	if len(current) > 0 {
 		err = fmt.Errorf("already exists")
