@@ -111,8 +111,9 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 				"storage_id, "+
 				"source_storage_id, "+
 				"source_storage_key, "+
-				"source_storage_type) "+
-				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"source_storage_type, "+
+				"synchronized) "+
+				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			key.Name,
 			key.Type,
 			key.ProjectID,
@@ -123,6 +124,7 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 			key.SourceStorageID,
 			key.SourceStorageKey,
 			key.SourceStorageType,
+			key.Synchronized,
 		)
 	} else {
 		insertID, err = d.insert(
@@ -138,8 +140,9 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 				"storage_id, "+
 				"source_storage_id, "+
 				"source_storage_key, "+
-				"source_storage_type) "+
-				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"source_storage_type, "+
+				"synchronized) "+
+				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			key.Name,
 			key.Type,
 			key.ProjectID,
@@ -151,6 +154,7 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 			key.SourceStorageID,
 			key.SourceStorageKey,
 			key.SourceStorageType,
+			key.Synchronized,
 		)
 
 	}

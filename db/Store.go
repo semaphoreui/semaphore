@@ -239,6 +239,7 @@ type UserManager interface {
 	DeleteTotpVerification(userID int, totpID int) error
 	AddEmailOtpVerification(userID int, code string) (UserEmailOtp, error)
 	DeleteEmailOtpVerification(userID int, totpID int) error
+	IncrementEmailOtpAttempts(userID int) error
 	GetUser(userID int) (User, error)
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 	GetAllAdmins() ([]User, error)
@@ -446,17 +447,18 @@ type ViewManager interface {
 // RunnerManager handles runner-related operations
 type RunnerManager interface {
 	GetRunner(projectID int, runnerID int) (Runner, error)
-	GetRunners(projectID int, activeOnly bool, tag *string) ([]Runner, error)
+	GetRunners(projectID int, activeOnly bool, tagFilterMode RunnerTagFilterMode, tag *string) ([]Runner, error)
 	DeleteRunner(projectID int, runnerID int) error
 	GetRunnerByToken(token string) (Runner, error)
 	GetGlobalRunner(runnerID int) (Runner, error)
-	GetAllRunners(activeOnly bool, globalOnly bool) ([]Runner, error)
+	GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode RunnerTagFilterMode, tag *string) ([]Runner, error)
 	DeleteGlobalRunner(runnerID int) error
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)
 	TouchRunner(runner Runner) (err error)
 	ClearRunnerCache(runner Runner) (err error)
 	GetRunnerTags(projectID int) ([]RunnerTag, error)
+	GetGlobalRunnerTags() ([]RunnerTag, error)
 	GetRunnerCount() (int, error)
 }
 
@@ -475,6 +477,26 @@ type SecretStorageRepository interface {
 	UpdateSecretStorage(storage SecretStorage) error
 	GetSecretStorageRefs(projectID int, storageID int) (ObjectReferrers, error)
 	DeleteSecretStorage(projectID int, storageID int) error
+}
+
+type SecretSyncRepository interface {
+	// GetSyncEnabledSecretSyncs returns every sync config (storage-level
+	// and env-scoped) that is enabled with a positive interval.
+	GetSyncEnabledSecretSyncs() ([]SecretSync, error)
+	MarkSecretSyncSynced(syncID int, success bool, at time.Time) error
+
+	// GetStorageSecretSync returns the storage-level sync (EnvironmentID=nil)
+	// for the given storage, or ErrNotFound.
+	GetStorageSecretSync(storageID int) (SecretSync, error)
+	// GetEnvironmentSecretSync returns the env-scoped sync for the env,
+	// or ErrNotFound.
+	GetEnvironmentSecretSync(environmentID int) (SecretSync, error)
+
+	// SaveSecretSync upserts a sync config (and its paths) identified by
+	// (StorageID, EnvironmentID) on the passed struct. When SyncEnabled
+	// is false, SyncInterval is zero, and Paths is empty, the row is
+	// deleted instead of being written.
+	SaveSecretSync(sync SecretSync) error
 }
 
 type RoleRepository interface {
@@ -510,6 +532,7 @@ type Store interface {
 	RunnerManager
 	EventManager
 	SecretStorageRepository
+	SecretSyncRepository
 	RoleRepository
 }
 

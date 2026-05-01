@@ -95,6 +95,7 @@ func (c *KeyController) AddKey(w http.ResponseWriter, r *http.Request) {
 	// Plain cannot be passed via a request
 	key.Plain = nil
 	key.IgnorePlain = true
+	key.Synchronized = false
 
 	//if err := key.Validate(true); err != nil {
 	//	helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -138,9 +139,19 @@ func (c *KeyController) UpdateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if oldKey.Synchronized {
+		if key.Name != oldKey.Name || key.Type != oldKey.Type {
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Name and type of synchronized key cannot be changed",
+			})
+			return
+		}
+	}
+
 	// Plain cannot be passed via a request
 	key.Plain = nil
 	key.IgnorePlain = true
+	key.Synchronized = oldKey.Synchronized
 
 	repos, err := helpers.Store(r).GetRepositories(*key.ProjectID, db.RetrieveQueryParams{})
 	if err != nil {

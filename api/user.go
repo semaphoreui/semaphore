@@ -3,13 +3,16 @@ package api
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -66,15 +69,33 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 
 func createAPIToken(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
+
+	var body struct {
+		Name      string     `json:"name"`
+		ExpiresAt *time.Time `json:"expires_at"`
+	}
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil && err != io.EOF {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+	if body.ExpiresAt != nil && !body.ExpiresAt.After(tz.Now()) {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	tokenID := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
 		panic(err)
 	}
 
 	token, err := helpers.Store(r).CreateAPIToken(db.APIToken{
-		ID:      strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
-		UserID:  user.ID,
-		Expired: false,
+		ID:        strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
+		UserID:    user.ID,
+		Expired:   false,
+		ExpiresAt: body.ExpiresAt,
+		Name:      body.Name,
 	})
 	if err != nil {
 		panic(err)

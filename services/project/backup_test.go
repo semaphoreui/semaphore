@@ -144,6 +144,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
       "name": "Test Key",
       "owner": "vault",
       "storage": "Test",
+      "synchronized": false,
       "type": "none"
     }
   ],
@@ -155,12 +156,15 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
   },
   "repositories": [],
   "roles": [],
+  "runners": [],
   "schedules": [],
   "secret_storages": [
     {
       "name": "Test",
       "params": {},
       "readonly": false,
+      "sync_enabled": false,
+      "sync_interval": 0,
       "type": "vault"
     }
   ],

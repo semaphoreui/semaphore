@@ -1010,6 +1010,7 @@ func CreateTestStore() *BoltDb {
 			Events: &util.EventLogType{},
 			Tasks:  &util.TaskLogType{},
 		},
+		Process: &util.ConfigProcess{},
 	}
 
 	fn := "/tmp/test_semaphore_db_" + util.RandString(5)

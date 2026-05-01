@@ -1,32 +1,19 @@
 package server
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"github.com/semaphoreui/semaphore/db"
+)
 
 func GetSecretStorages(repo db.SecretStorageRepository, projectID int) (storages []db.SecretStorage, err error) {
 	storages = make([]db.SecretStorage, 0)
 	return
 }
 
-func SyncDvlsSecrets(
-	storage db.SecretStorage,
+func SyncSecrets(
+	sync db.SecretSync,
+	storageRepo db.SecretStorageRepository,
 	accessKeyRepo db.AccessKeyManager,
 	decryptor DvlsStorageTokenDeserializer,
-) error {
-	return nil
-}
-
-func SyncAwsSmSecrets(
-	storage db.SecretStorage,
-	accessKeyRepo db.AccessKeyManager,
-	decryptor AwsSmStorageTokenDeserializer,
-) error {
-	return nil
-}
-
-func SyncAzureKvSecrets(
-	storage db.SecretStorage,
-	accessKeyRepo db.AccessKeyManager,
-	decryptor AzureKvStorageTokenDeserializer,
 ) error {
 	return nil
 }

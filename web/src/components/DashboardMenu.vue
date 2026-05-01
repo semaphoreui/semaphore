@@ -25,15 +25,6 @@
         data-testid="dashboard-settings"
       >{{ $t('settings') }}
       </v-tab>
-
-      <v-tab
-        v-if="isPro && canUpdateProject && projectType === ''"
-        key="runners"
-        :to="`/project/${projectId}/runners`"
-        data-testid="dashboard-runners"
-      >
-        {{ $t('runners') }}
-      </v-tab>
     </v-tabs>
 
     <v-divider style="margin-top: -1px;" />

@@ -212,7 +212,11 @@ func (p *JobPool) Run() {
 						runningJob.SetStatus(task_logger.TaskFailStatus)
 					}
 				} else {
-					runningJob.SetStatus(task_logger.TaskSuccessStatus)
+					if runningJob.status == task_logger.TaskStoppingStatus {
+						runningJob.SetStatus(task_logger.TaskStoppedStatus)
+					} else {
+						runningJob.SetStatus(task_logger.TaskSuccessStatus)
+					}
 				}
 
 				logger.TaskInfo("Task finished", runningJob.job.Task.ID, string(runningJob.status))
@@ -375,8 +379,11 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 	jsonBytes, err := json.Marshal(RunnerRegistration{
 		RegistrationToken: util.Config.Runner.RegistrationToken,
 		Webhook:           util.Config.Runner.Webhook,
+		Name:              util.Config.Runner.Name,
+		Tags:              util.Config.Runner.Tags,
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 		PublicKey:         &publicKey,
+		ProjectID:         util.Config.Runner.ProjectID,
 	})
 
 	if err != nil {

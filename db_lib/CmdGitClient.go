@@ -100,6 +100,14 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 		dirName = r.TmpDirName
 	}
 
+	targetPath := r.GetFullPath()
+	if err := os.MkdirAll(targetPath, 0755); err != nil {
+		return err
+	}
+	if err := util.ChownDir(targetPath); err != nil {
+		return err
+	}
+
 	if r.Repository.PullSubmodules {
 		return c.run(r, GitRepositoryTmpPath,
 			"clone",
@@ -109,6 +117,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 			r.Repository.GetGitURL(false),
 			dirName)
 	}
+
 	return c.run(r, GitRepositoryTmpPath,
 		"clone",
 		"--branch",

@@ -11,14 +11,50 @@ import (
 
 var runnerRegisterArgs struct {
 	stdinRegistrationToken bool
+	registrationTokenFilePath string
+	projectID                 int
+	name                   string
+	tags                   []string
+	webhook                string
+	nameSet                bool
+	webhookSet             bool
+	tagsSet                bool
 }
 
 func init() {
 	runnerRegisterCmd.PersistentFlags().BoolVar(&runnerRegisterArgs.stdinRegistrationToken, "stdin-registration-token", false, "Read registration token from stdin")
+	runnerRegisterCmd.PersistentFlags().StringVar(&runnerRegisterArgs.name, "name", "", "Runner name to register with")
+	runnerRegisterCmd.PersistentFlags().StringSliceVar(&runnerRegisterArgs.tags, "tags", nil, "Runner tags (comma-separated or repeat the flag)")
+	runnerRegisterCmd.PersistentFlags().StringVar(&runnerRegisterArgs.webhook, "webhook", "", "Runner webhook URL")
+	runnerRegisterCmd.PersistentFlags().StringVar(&runnerRegisterArgs.registrationTokenFilePath, "registration-token-file", "", "Read registration token from a file")
+	runnerRegisterCmd.PersistentFlags().IntVar(&runnerRegisterArgs.projectID, "project-id", 0, "Project ID for project-level runner (global runner if not provided)")
 	runnerCmd.AddCommand(runnerRegisterCmd)
 }
 
+func readRegistrationTokenFromFile(path string) {
+	tokenBytes, err := os.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(tokenBytes) == 0 {
+		panic("Empty token")
+	}
+
+	util.Config.Runner.RegistrationToken = strings.TrimSpace(string(tokenBytes))
+}
+
 func initRunnerRegistrationToken() {
+	if runnerRegisterArgs.registrationTokenFilePath != "" {
+		readRegistrationTokenFromFile(runnerRegisterArgs.registrationTokenFilePath)
+		return
+	}
+
+	if util.Config.Runner.RegistrationTokenFile != "" {
+		readRegistrationTokenFromFile(util.Config.Runner.RegistrationTokenFile)
+		return
+	}
+
 	if !runnerRegisterArgs.stdinRegistrationToken {
 		return
 	}
@@ -35,11 +71,30 @@ func initRunnerRegistrationToken() {
 	util.Config.Runner.RegistrationToken = strings.TrimSpace(string(tokenBytes))
 }
 
-func registerRunner() {
+func applyRunnerRegisterFlags(cmd *cobra.Command) {
+	if cmd.PersistentFlags().Changed("name") {
+		util.Config.Runner.Name = runnerRegisterArgs.name
+	}
+	if cmd.PersistentFlags().Changed("webhook") {
+		util.Config.Runner.Webhook = runnerRegisterArgs.webhook
+	}
+	if cmd.PersistentFlags().Changed("tags") {
+		util.Config.Runner.Tags = runnerRegisterArgs.tags
+	}
+}
+
+func registerRunner(cmd *cobra.Command) {
 
 	configFile := util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
 	initRunnerRegistrationToken()
+
+
+	applyRunnerRegisterFlags(cmd)
+
+	if runnerRegisterArgs.projectID > 0 {
+		util.Config.Runner.ProjectID = &runnerRegisterArgs.projectID
+	}
 
 	taskPool := createRunnerJobPool()
 
@@ -54,6 +109,6 @@ var runnerRegisterCmd = &cobra.Command{
 	Use:   "register",
 	Short: "Register runner on the server",
 	Run: func(cmd *cobra.Command, args []string) {
-		registerRunner()
+		registerRunner(cmd)
 	},
 }

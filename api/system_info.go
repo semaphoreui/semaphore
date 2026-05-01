@@ -45,7 +45,10 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	roles, err := helpers.Store(r).GetGlobalRoles()
 	if err != nil {
-		log.WithError(err).Error("Failed to get roles")
+		log.WithFields(log.Fields{
+			"context": "system_info",
+			"user_id": user.ID,
+		}).WithError(err).Error("Failed to get roles")
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -54,29 +57,23 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	token, err := c.subscriptionService.GetToken()
 
-	if errors.Is(err, db.ErrNotFound) {
-		err = nil
-	}
-
-	if err != nil {
-		log.WithError(err).Error("Failed to get subscription plan")
-		err = nil
-		//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		//return
-	}
-
 	switch {
 	case errors.Is(err, db.ErrNotFound):
 		err = nil
 		plan = ""
 	case err != nil:
-		log.WithError(err).Error("Failed to get subscription plan")
+		log.WithFields(log.Fields{
+			"context": "system_info",
+			"user_id": user.ID,
+		}).WithError(err).Error("Failed to get subscription plan")
 		err = nil
 		plan = ""
-		//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
 	default:
-		plan = token.Plan
+		if token.State == "expired" {
+			plan = ""
+		} else {
+			plan = token.Plan
+		}
 	}
 
 	body := map[string]any{
@@ -87,10 +84,12 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		"auth_methods":        authMethods,
 		"login_with_password": !util.Config.PasswordLoginDisable,
 		"premium_features":    proFeatures.GetFeatures(user, plan),
+		"subscription_state":  token.State,
 		"git_client":          util.Config.GitClientId,
 		"schedule_timezone":   timezone,
 		"teams":               util.Config.Teams,
 		"roles":               roles,
+		"boltdb_used":         util.Config.Dialect == "bolt",
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

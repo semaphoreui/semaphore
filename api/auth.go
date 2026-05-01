@@ -9,6 +9,7 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	proApi "github.com/semaphoreui/semaphore/pro/api"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -183,6 +184,11 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if user.Totp == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		key, err := otp.NewKeyFromURL(user.Totp.URL)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -223,6 +229,11 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 				log.Error(err)
 			}
 
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		if token.IsExpiredAt(tz.Now()) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

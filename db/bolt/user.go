@@ -304,3 +304,7 @@ func (d *BoltDb) DeleteEmailOtpVerification(userID int, totpID int) (err error) 
 	err = db.ErrNotFound
 	return
 }
+func (d *BoltDb) IncrementEmailOtpAttempts(userID int) (err error) {
+	err = db.ErrNotFound
+	return
+}

@@ -323,8 +323,11 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 
 	runner, err := helpers.Store(r).CreateRunner(db.Runner{
 		Webhook:          register.Webhook,
+		Name:             register.Name,
+		Tags:             register.Tags,
 		MaxParallelTasks: register.MaxParallelTasks,
 		PublicKey:        register.PublicKey,
+		ProjectID:        register.ProjectID,
 	})
 
 	if err != nil {
