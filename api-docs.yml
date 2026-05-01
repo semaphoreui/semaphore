@@ -881,6 +881,10 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
+      environment_ids:
+        type: array
+        items:
+          type: integer
       view_id:
         type: integer
         minimum: 1
@@ -945,6 +949,10 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
+      environment_ids:
+        type: array
+        items:
+          type: integer
       view_id:
         type: integer
         minimum: 1

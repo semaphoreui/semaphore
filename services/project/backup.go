@@ -377,9 +377,12 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			})
 
 		}
-		var Environment *string = nil
-		if o.EnvironmentID != nil {
-			Environment, _ = findNameByID[db.Environment](*o.EnvironmentID, b.environments)
+		var Environments []string
+		for _, envID := range o.EnvironmentIDs {
+			name, _ := findNameByID[db.Environment](envID, b.environments)
+			if name != nil {
+				Environments = append(Environments, *name)
+			}
 		}
 		var BuildTemplate *string = nil
 		if o.BuildTemplateID != nil {
@@ -430,7 +433,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			View:          View,
 			Repository:    *Repository,
 			Inventory:     Inventory,
-			Environment:   Environment,
+			Environments:  Environments,
 			BuildTemplate: BuildTemplate,
 			Vaults:        vaults,
 			Roles:         roles,

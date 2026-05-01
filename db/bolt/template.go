@@ -296,6 +296,35 @@ func (d *BoltDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferr
 	return d.getObjectRefs(projectID, db.TemplateProps, templateID)
 }
 
+// GetTemplateEnvironments is not implemented for BoltDB.
+// The junction of template to additional environments is stored inline on the
+// Template struct itself (via encoding/json) when using BoltDB, so this method
+// simply returns the value already attached to the template.
+func (d *BoltDb) GetTemplateEnvironments(projectID int, templateID int) (environmentIDs []int, err error) {
+	environmentIDs = []int{}
+
+	var template db.Template
+	err = d.getObject(projectID, db.TemplateProps, intObjectID(templateID), &template)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			err = nil
+		}
+		return
+	}
+
+	if template.EnvironmentIDs != nil {
+		environmentIDs = template.EnvironmentIDs
+	}
+
+	return
+}
+
+// UpdateTemplateEnvironments is a no-op for BoltDB. The additional environment
+// list is persisted as part of the Template object itself.
+func (d *BoltDb) UpdateTemplateEnvironments(projectID int, templateID int, environmentIDs []int) error {
+	return nil
+}
+
 func (d *BoltDb) GetTemplatePermission(projectID int, templateID int, userID int) (perm db.ProjectUserPermission, err error) {
 	return
 }

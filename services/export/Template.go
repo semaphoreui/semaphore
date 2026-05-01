@@ -51,9 +51,16 @@ func (e *TemplateExporter) restoreValue(val EntityObject[db.Template], store db.
 		return err
 	}
 
-	old.EnvironmentID, err = exporter.getNewKeyIntRef(Environment, val.scope, old.EnvironmentID, e)
-	if err != nil {
-		return err
+	if len(old.EnvironmentIDs) > 0 {
+		mapped := make([]int, 0, len(old.EnvironmentIDs))
+		for _, envID := range old.EnvironmentIDs {
+			id, mapErr := exporter.getNewKeyInt(Environment, val.scope, envID)
+			if mapErr != nil {
+				return mapErr
+			}
+			mapped = append(mapped, id)
+		}
+		old.EnvironmentIDs = mapped
 	}
 
 	old.RepositoryID, err = exporter.getNewKeyInt(Repository, val.scope, old.RepositoryID)

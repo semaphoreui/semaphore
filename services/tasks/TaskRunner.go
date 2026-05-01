@@ -297,7 +297,7 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 	}
 
 	tplEnvironment := make(map[string]any)
-
+  
 	if t.Environment.JSON != "" {
 		err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
 	}
@@ -411,22 +411,109 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
-	// get environment
-	if t.Template.EnvironmentID != nil {
-		t.Environment, err = t.pool.store.GetEnvironment(t.Template.ProjectID, *t.Template.EnvironmentID)
-		if err != nil {
-			return err
-		}
-
-		err = t.pool.encryptionService.FillEnvironmentSecrets(&t.Environment, true)
-		if err != nil {
-			return err
-		}
+	// load and merge all configured environments
+	err = t.loadEnvironments()
+	if err != nil {
+		return err
 	}
 
 	err = t.populateTaskEnvironment()
 
 	return err
+}
+
+// loadEnvironments loads all Variable Groups configured on the template
+// (Template.EnvironmentIDs) and merges their JSON, ENV vars, and secrets
+// into t.Environment. Later entries override earlier ones on key conflicts.
+func (t *TaskRunner) loadEnvironments() error {
+	if len(t.Template.EnvironmentIDs) == 0 {
+		return nil
+	}
+
+	seen := make(map[int]bool)
+
+	mergedJSON := make(map[string]any)
+	mergedENV := make(map[string]string)
+	var mergedSecrets []db.EnvironmentSecret
+	secretIndex := make(map[string]int)
+
+	var lastEnv db.Environment
+
+	for _, envID := range t.Template.EnvironmentIDs {
+		if seen[envID] {
+			continue
+		}
+		seen[envID] = true
+
+		env, err := t.pool.store.GetEnvironment(t.Template.ProjectID, envID)
+		if err != nil {
+			return err
+		}
+
+		err = t.pool.encryptionService.FillEnvironmentSecrets(&env, true)
+		if err != nil {
+			return err
+		}
+
+		if env.JSON != "" {
+			partial := make(map[string]any)
+			if err := json.Unmarshal([]byte(env.JSON), &partial); err != nil {
+				return err
+			}
+			for k, v := range partial {
+				mergedJSON[k] = v
+			}
+		}
+
+		if env.ENV != nil && *env.ENV != "" {
+			partial := make(map[string]string)
+			if err := json.Unmarshal([]byte(*env.ENV), &partial); err != nil {
+				return err
+			}
+			for k, v := range partial {
+				mergedENV[k] = v
+			}
+		}
+
+		for _, s := range env.Secrets {
+			key := string(s.Type) + ":" + s.Name
+			if idx, ok := secretIndex[key]; ok {
+				mergedSecrets[idx] = s
+			} else {
+				mergedSecrets = append(mergedSecrets, s)
+				secretIndex[key] = len(mergedSecrets) - 1
+			}
+		}
+
+		lastEnv = env
+	}
+
+	t.Environment = lastEnv
+
+	if len(mergedJSON) > 0 {
+		b, err := json.Marshal(mergedJSON)
+		if err != nil {
+			return err
+		}
+		t.Environment.JSON = string(b)
+	} else {
+		t.Environment.JSON = ""
+	}
+
+	if len(mergedENV) > 0 {
+		b, err := json.Marshal(mergedENV)
+		if err != nil {
+			return err
+		}
+		s := string(b)
+		t.Environment.ENV = &s
+	} else {
+		t.Environment.ENV = nil
+	}
+
+	t.Environment.Secrets = mergedSecrets
+
+	return nil
 }
 
 // checkTmpDir checks to see if the temporary directory exists
