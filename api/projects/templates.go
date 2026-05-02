@@ -239,6 +239,8 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		template.StartVersion = nil
 	}
 
+	mergeTemplateEnvironmentIDs(&template, oldTemplate)
+
 	err := helpers.Store(r).UpdateTemplate(template)
 	if err != nil {
 		helpers.WriteError(w, err)
