@@ -138,6 +138,12 @@ func (b *BackupDB) makeUniqueNames() {
 		item.Name = name
 	})
 
+	makeUniqueNames(b.runners, func(item *db.Runner) string {
+		return item.Name
+	}, func(item *db.Runner, name string) {
+		item.Name = name
+	})
+
 }
 
 func (b *BackupDB) load(projectID int, store db.Store) (err error) {
@@ -245,6 +251,11 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 		if err != nil {
 			return
 		}
+	}
+
+	b.runners, err = store.GetRunners(projectID, false, db.RunnerFilterIgnoreTags, nil)
+	if err != nil {
+		return
 	}
 
 	b.makeUniqueNames()
@@ -366,9 +377,12 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			})
 
 		}
-		var Environment *string = nil
-		if o.EnvironmentID != nil {
-			Environment, _ = findNameByID[db.Environment](*o.EnvironmentID, b.environments)
+		var Environments []string
+		for _, envID := range o.EnvironmentIDs {
+			name, _ := findNameByID[db.Environment](envID, b.environments)
+			if name != nil {
+				Environments = append(Environments, *name)
+			}
 		}
 		var BuildTemplate *string = nil
 		if o.BuildTemplateID != nil {
@@ -419,7 +433,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			View:          View,
 			Repository:    *Repository,
 			Inventory:     Inventory,
-			Environment:   Environment,
+			Environments:  Environments,
 			BuildTemplate: BuildTemplate,
 			Vaults:        vaults,
 			Roles:         roles,
@@ -467,6 +481,13 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		integrationAliases = append(integrationAliases, alias.Alias)
 	}
 
+	runners := make([]BackupRunner, len(b.runners))
+	for i, o := range b.runners {
+		runners[i] = BackupRunner{
+			Runner: o,
+		}
+	}
+
 	return &BackupFormat{
 		Meta: BackupMeta{
 			b.meta,
@@ -482,6 +503,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		Schedules:          schedules,
 		SecretStorages:     secretStorages,
 		Roles:              roles,
+		Runners:            runners,
 	}, nil
 }
 

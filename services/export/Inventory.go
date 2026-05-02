@@ -31,48 +31,45 @@ func (e *InventoryExporter) load(store db.Store, exporter DataExporter, progress
 }
 
 func (e *InventoryExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	for _, val := range e.values {
-		old := val.value
+func (e *InventoryExporter) restoreValue(val EntityObject[db.Inventory], store db.Store, exporter DataExporter) (err error) {
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
+	old := val.value
 
-		old.SSHKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.SSHKeyID, e)
-		if err != nil {
-			return err
-		}
-
-		old.BecomeKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.BecomeKeyID, e)
-		if err != nil {
-			return err
-		}
-
-		old.RepositoryID, err = exporter.getNewKeyIntRef(Repository, val.scope, old.RepositoryID, e)
-		if err != nil {
-			return err
-		}
-
-		//templateId, err := exporter.getKeyMapForType(Template, *old.BecomeKeyID)
-		//if err != nil {
-		//	return err
-		//}
-		//old.TemplateID = &templateId
-
-		newVault, err := store.CreateInventory(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
-		if err != nil {
-			return err
-		}
+	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	old.SSHKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.SSHKeyID, e)
+	if err != nil {
+		return err
+	}
+
+	old.BecomeKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.BecomeKeyID, e)
+	if err != nil {
+		return err
+	}
+
+	old.RepositoryID, err = exporter.getNewKeyIntRef(Repository, val.scope, old.RepositoryID, e)
+	if err != nil {
+		return err
+	}
+
+	//templateId, err := exporter.getKeyMapForType(Template, *old.BecomeKeyID)
+	//if err != nil {
+	//	return err
+	//}
+	//old.TemplateID = &templateId
+
+	newObj, err := store.CreateInventory(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
 }
 
 func (e *InventoryExporter) getName() string {
@@ -84,5 +81,5 @@ func (e *InventoryExporter) exportDependsOn() []string {
 }
 
 func (e *InventoryExporter) importDependsOn() []string {
-	return []string{AccessKey, Repository}
+	return []string{Project, AccessKey, Repository}
 }

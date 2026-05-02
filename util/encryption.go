@@ -42,7 +42,9 @@ func GeneratePrivateKey(privateKeyFile io.Writer) (publicKey string, err error) 
 		return
 	}
 
-	publicKeyFile.Flush()
+	if err = publicKeyFile.Flush(); err != nil {
+		return
+	}
 
 	publicKey = b.String()
 	return

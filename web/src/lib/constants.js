@@ -163,7 +163,8 @@ const BASE_FIELDS = {
     label: 'repository',
   },
   environment: {
-    label: 'environment3',
+    label: 'environment',
+    optional: true,
   },
   git_branch: {
     label: 'branch',

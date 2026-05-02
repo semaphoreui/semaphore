@@ -12,13 +12,16 @@ func (d *BoltDb) GetTemplateVaults(projectID int, templateID int) (vaults []db.T
 	if err != nil {
 		return
 	}
+	res := make([]db.TemplateVault, 0)
 	for i := range vaults {
 		err = db.FillTemplateVault(d, projectID, &vaults[i])
 		if err != nil {
-			return
+			continue
 		}
+
+		res = append(res, vaults[i])
 	}
-	return
+	return res, nil
 }
 
 func (d *BoltDb) CreateTemplateVault(vault db.TemplateVault) (newVault db.TemplateVault, err error) {

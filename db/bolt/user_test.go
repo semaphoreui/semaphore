@@ -1,10 +1,11 @@
 package bolt
 
 import (
+	"testing"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestBoltDb_UpdateProjectUser(t *testing.T) {

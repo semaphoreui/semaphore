@@ -43,27 +43,24 @@ func (e *IntegrationMatcherExporter) load(store db.Store, exporter DataExporter,
 }
 
 func (e *IntegrationMatcherExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	for _, val := range e.values {
-		old := val.value
+func (e *IntegrationMatcherExporter) restoreValue(val EntityObject[db.IntegrationMatcher], store db.Store, exporter DataExporter) (err error) {
 
-		old.IntegrationID, err = exporter.getNewKeyInt(Integration, val.scope, old.IntegrationID, e)
-		if err != nil {
-			return err
-		}
+	old := val.value
 
-		newVault, err := store.CreateIntegrationMatcher(0, old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
-		if err != nil {
-			return err
-		}
+	old.IntegrationID, err = exporter.getNewKeyInt(Integration, val.scope, old.IntegrationID)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	newVault, err := store.CreateIntegrationMatcher(0, old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newVault.GetDbKey())
 }
 
 func (e *IntegrationMatcherExporter) getName() string {

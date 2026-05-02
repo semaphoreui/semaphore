@@ -138,12 +138,12 @@ export default {
     },
 
     getRoleName(roleId) {
-      const role = this.availableRoles.find((r) => r.id === roleId);
+      const role = this.availableRoles.find((r) => r.slug === roleId);
       return role ? role.name : `Role ${roleId}`;
     },
 
     getRoleColor(roleId) {
-      const role = this.availableRoles.find((r) => r.id === roleId);
+      const role = this.availableRoles.find((r) => r.slug === roleId);
       if (!role) return 'gray';
 
       // Color based on role slug or default colors

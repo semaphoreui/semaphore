@@ -17,6 +17,7 @@ api/public/**/*
 /runner.json
 /runner.token
 /runner.key
+/runner.registration_token
 /.dredd/config.json
 /database.boltdb
 /database.sqlite
@@ -51,3 +52,4 @@ __debug_bin*
 /go.work.x
 /go.work
 /go.work.sum
+/.claude

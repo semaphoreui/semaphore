@@ -85,5 +85,3 @@ func TestTaskPool_RequeuedEventCleansRunningStateAndSkipsImmediateRetry(t *testi
 	assert.Equal(t, 1, state.QueueLen(), "requeued task must remain queued")
 	assert.Equal(t, 0, state.tryClaimCalls, "requeued task should not be immediately retried in the same queue pass")
 }
-
-

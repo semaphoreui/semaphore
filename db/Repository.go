@@ -53,6 +53,12 @@ func (r Repository) GetHomePath(templateID int) string {
 	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetDirName(templateID)+"_home")
 }
 
+// GetInternalPath returns a per-template directory under the project tmp dir for Semaphore-owned
+// metadata (e.g. galaxy requirements hashes). It is not a copy of the repository.
+func (r Repository) GetInternalPath(templateID int) string {
+	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetDirName(templateID)+"_internal")
+}
+
 // GetFullPath returns the path where the repository source code lives.
 // The repository is cloned directly into the template directory
 // (e.g. repository_15_template_114) without any subdirectory.
@@ -65,6 +71,10 @@ func (r Repository) GetFullPath(templateID int) string {
 
 func (r Repository) GetGitURL(secure bool) string {
 	url := r.GitURL
+
+	if r.GetType() == RepositoryLocal {
+		return util.NormalizeLocalFilesystemPath(url)
+	}
 
 	if secure {
 		return url
@@ -105,6 +115,10 @@ func (r Repository) GetType() RepositoryType {
 		return RepositoryLocal
 	}
 
+	if util.IsWindowsLocalRepositoryPath(r.GitURL) {
+		return RepositoryLocal
+	}
+
 	re := regexp.MustCompile(`^(\w+)://`)
 	m := re.FindStringSubmatch(r.GitURL)
 	if m == nil {
@@ -132,6 +146,10 @@ func (r Repository) Validate() error {
 
 	if r.GetType() != RepositoryLocal && r.GitBranch == "" {
 		return &ValidationError{"repository branch can't be empty"}
+	}
+
+	if err := ValidateGitBranch(r.GitBranch, "repository"); err != nil {
+		return err
 	}
 
 	return nil

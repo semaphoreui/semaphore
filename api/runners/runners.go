@@ -113,8 +113,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 
 	clearCache := false
 
-	err := c.runnerRepo.TouchRunner(runner)
-	if err != nil {
+	if err := c.runnerRepo.TouchRunner(runner); err != nil {
 		log.WithFields(log.Fields{
 			"runner_id": runner.ID,
 			"context":   "runner",
@@ -139,7 +138,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 	tasks := c.taskPool.GetRunningTasks()
 
 	for _, tsk := range tasks {
-		if tsk.RunnerID != runner.ID {
+		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runner.ID {
 			continue
 		}
 
@@ -160,7 +159,15 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			if tsk.Inventory.SSHKeyID != nil {
 				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.SSHKey)
 				if err != nil {
-					// TODO: return error
+					log.WithFields(log.Fields{
+						"runner_id":     runner.ID,
+						"task_id":       tsk.Task.ID,
+						"inventory_id":  tsk.Inventory.ID,
+						"access_key_id": tsk.Inventory.SSHKey.ID,
+						"context":       "runner",
+					}).WithError(err).Error("Failed to decrypt inventory key")
+					helpers.WriteError(w, err)
+					return
 				}
 				data.AccessKeys[*tsk.Inventory.SSHKeyID] = tsk.Inventory.SSHKey
 			}
@@ -168,7 +175,15 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			if tsk.Inventory.BecomeKeyID != nil {
 				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.BecomeKey)
 				if err != nil {
-					// TODO: return error
+					log.WithFields(log.Fields{
+						"runner_id":     runner.ID,
+						"task_id":       tsk.Task.ID,
+						"inventory_id":  tsk.Inventory.ID,
+						"access_key_id": tsk.Inventory.BecomeKey.ID,
+						"context":       "runner",
+					}).WithError(err).Error("Failed to decrypt become key")
+					helpers.WriteError(w, err)
+					return
 				}
 				data.AccessKeys[*tsk.Inventory.BecomeKeyID] = tsk.Inventory.BecomeKey
 			}
@@ -178,7 +193,14 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 					if vault.VaultKeyID != nil {
 						err := c.encryptionService.DeserializeSecret(vault.Vault)
 						if err != nil {
-							// TODO: return error
+							log.WithFields(log.Fields{
+								"runner_id":     runner.ID,
+								"task_id":       tsk.Task.ID,
+								"access_key_id": vault.Vault.ID,
+								"context":       "runner",
+							}).WithError(err).Error("Failed to decrypt vault")
+							helpers.WriteError(w, err)
+							return
 						}
 						data.AccessKeys[*vault.VaultKeyID] = *vault.Vault
 					}
@@ -188,7 +210,15 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			if tsk.Inventory.RepositoryID != nil {
 				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.Repository.SSHKey)
 				if err != nil {
-					// TODO: return error
+					log.WithFields(log.Fields{
+						"runner_id":     runner.ID,
+						"task_id":       tsk.Task.ID,
+						"repository_id": tsk.Inventory.Repository.ID,
+						"access_key_id": tsk.Inventory.Repository.SSHKey.ID,
+						"context":       "runner",
+					}).WithError(err).Error("Failed to decrypt repository key")
+					helpers.WriteError(w, err)
+					return
 				}
 				data.AccessKeys[tsk.Inventory.Repository.SSHKeyID] = tsk.Inventory.Repository.SSHKey
 			}
@@ -258,13 +288,27 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 	}
 
 	for _, job := range body.Jobs {
-		tsk := taskPool.GetTask(job.ID)
+		tsk, err := taskPool.GetTask(job.ID)
 
-		if tsk == nil {
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"task_id":   job.ID,
+				"runner_id": runner.ID,
+				"context":   "runner",
+			}).Warn("runner progress: task not in local pool and could not be loaded from database")
 			continue
 		}
 
-		if tsk.RunnerID != runner.ID {
+		if tsk == nil {
+			log.WithFields(log.Fields{
+				"task_id":   job.ID,
+				"runner_id": runner.ID,
+				"context":   "runner",
+			}).Warn("runner progress: task not found in pool")
+			continue
+		}
+
+		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runner.ID {
 			helpers.WriteErrorStatus(w, "Task not assigned to this runner", http.StatusBadRequest)
 			return
 		}
@@ -278,10 +322,12 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		tsk.SetStatus(job.Status)
+		if !tsk.Task.Status.IsFinished() {
+			tsk.SetStatus(job.Status)
 
-		if job.Commit != nil {
-			tsk.SetCommit(job.Commit.Hash, job.Commit.Message)
+			if job.Commit != nil {
+				tsk.SetCommit(job.Commit.Hash, job.Commit.Message)
+			}
 		}
 	}
 
@@ -307,8 +353,12 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 
 	runner, err := helpers.Store(r).CreateRunner(db.Runner{
 		Webhook:          register.Webhook,
+		Name:             register.Name,
+		Tags:             register.Tags,
 		MaxParallelTasks: register.MaxParallelTasks,
+		Active:           register.Enabled,
 		PublicKey:        register.PublicKey,
+		ProjectID:        register.ProjectID,
 	})
 
 	if err != nil {

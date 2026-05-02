@@ -19,51 +19,65 @@ func (e *EventExporter) load(store db.Store, exporter DataExporter, progress Pro
 		return err
 	}
 
-	return e.appendValuesAndCheck(envs, GlobalScope, false)
-}
+	eventsByProject := make(map[string][]db.Event)
 
-func (e *EventExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
-
-	size := len(e.values)
-	for index, val := range e.values {
-		old := val.value
-
-		old.ID = -1
-
-		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
-
-		old.UserID, err = exporter.getNewKeyIntRef(User, GlobalScope, old.UserID, e)
-		if err != nil {
-			return err
-		}
+	for _, event := range envs {
 
 		scope := GlobalScope
-		if old.ProjectID != nil {
-			scope = strconv.Itoa(*old.ProjectID)
+		if event.ProjectID != nil {
+			scope = strconv.Itoa(*event.ProjectID)
 		}
 
-		old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, scope, old.IntegrationID, e)
+		if eventsByProject[scope] == nil {
+			eventsByProject[scope] = make([]db.Event, 0)
+		}
+		eventsByProject[scope] = append(eventsByProject[scope], event)
+	}
+
+	for scope, events := range eventsByProject {
+		err = e.appendValues(events, scope)
 		if err != nil {
 			return err
 		}
-
-		err = e.restoreEventObject(&old, exporter, scope)
-		if err != nil {
-			return err
-		}
-
-		_, err := store.CreateEvent(old)
-		if err != nil {
-			return err
-		}
-
-		progress.update(float32(index) / float32(size))
 	}
 
 	return nil
+}
+
+func (e *EventExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
+
+func (e *EventExporter) restoreValue(val EntityObject[db.Event], store db.Store, exporter DataExporter) (err error) {
+	old := val.value
+
+	scope := GlobalScope
+	if old.ProjectID != nil {
+		scope = strconv.Itoa(*old.ProjectID)
+	}
+
+	old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
+	if err != nil {
+		return err
+	}
+
+	old.UserID, err = exporter.getNewKeyIntRef(User, GlobalScope, old.UserID, e)
+	if err != nil {
+		return err
+	}
+
+	old.IntegrationID, err = exporter.getNewKeyIntRef(Integration, scope, old.IntegrationID, e)
+	if err != nil {
+		return err
+	}
+
+	err = e.restoreEventObject(&old, exporter, scope)
+	if err != nil {
+		return err
+	}
+
+	_, err = store.CreateEvent(old)
+	return err
 }
 
 func eventObjectTypeToEntityName(t db.EventObjectType) (string, bool) {
@@ -114,13 +128,15 @@ func (e *EventExporter) restoreEventObject(event *db.Event, exporter DataExporte
 	if event.ObjectType != nil {
 		entityName, ok := eventObjectTypeToEntityName(*event.ObjectType)
 		if !ok {
-			return fmt.Errorf("unknown event object type: %s", *event.ObjectType)
+			event.ObjectID = nil
+			e.onError(fmt.Sprintf("Unknown event object type: %s", *event.ObjectType))
+		} else {
+			event.ObjectID, err = exporter.getNewKeyIntRef(entityName, getScope(entityName, scope), event.ObjectID, e)
+			if err != nil {
+				event.ObjectID = nil
+				e.onError(fmt.Sprintf("Unable to restore event object %s, %s", entityName, err.Error()))
+			}
 		}
-		event.ObjectID, err = exporter.getNewKeyIntRef(entityName, getScope(entityName, scope), event.ObjectID, e)
-		if err != nil {
-			return err
-		}
-
 	}
 	return nil
 }

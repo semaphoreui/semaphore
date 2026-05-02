@@ -37,6 +37,7 @@
           :need-reset="needReset"
           :is-admin="user.admin"
           :auth-methods="(systemInfo || { auth_methods: {} }).auth_methods"
+          :login-with-password="(systemInfo || {}).login_with_password"
           @hide-action-buttons="hideUserDialogButtons = true"
           @show-action-buttons="hideUserDialogButtons = false"
         />
@@ -113,6 +114,8 @@
         />
       </template>
     </EditDialog>
+
+    <SystemInfoDialog v-model="systemInfoDialog" v-if="user && user.admin" />
 
     <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" top>
       {{ snackbarText }}
@@ -366,6 +369,21 @@
             <v-list-item-title>{{ $t('team') }}</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
+
+        <v-list-item
+          v-if="isPro && project.type === ''"
+          key="runners"
+          :to="`/project/${projectId}/runners`"
+          data-testid="sidebar-runners"
+        >
+          <v-list-item-icon>
+            <v-icon>mdi-cogs</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>{{ $t('runners') }}</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
       </v-list>
 
       <template v-slot:append>
@@ -434,7 +452,17 @@
             </template>
 
             <v-list>
-              <v-list-item key="version">
+              <v-list-item key="system-info" v-if="user.admin" @click="systemInfoDialog = true">
+                <v-list-item-icon>
+                  <v-icon>mdi-server</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('systemInfo') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item v-else key="version">
                 <v-list-item-icon>
                   <v-icon>mdi-information-variant</v-icon>
                 </v-list-item-icon>
@@ -544,6 +572,28 @@
     </v-navigation-drawer>
 
     <v-main>
+      <v-alert
+        type="error"
+        prominent
+        dense
+        class="ma-0 PageAlert"
+        style="border-radius: 0"
+        v-if="systemInfo?.boltdb_used"
+      >
+        BoltDB is deprecated and will be removed in version 2.19. Please migrate to SQLite to
+        continue receiving updates.
+        <v-btn
+          dark
+          depressed
+          class="pr-3 my-1"
+          color="red darken-1"
+          href="https://semaphoreui.com/docs/admin-guide/cli/migrations#migration-from-boltdb-to-sqlitemysqlpostgresql"
+          target="_blank"
+        >
+          Migrate
+          <v-icon class="ml-2">mdi-open-in-new</v-icon>
+        </v-btn>
+      </v-alert>
       <router-view
         :projectId="projectId"
         :projectType="(project || {}).type || ''"
@@ -858,6 +908,7 @@ import SubscriptionForm from '@/components/SubscriptionForm.vue';
 import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import TaskLogDialog from '@/components/TaskLogDialog.vue';
+import SystemInfoDialog from '@/components/SystemInfoDialog.vue';
 import delay from '@/lib/delay';
 
 const PROJECT_COLORS = ['red', 'blue', 'orange', 'green'];
@@ -937,6 +988,7 @@ export default {
     UserForm,
     EditDialog,
     ProjectForm,
+    SystemInfoDialog,
   },
   data() {
     return {
@@ -955,6 +1007,7 @@ export default {
       hideUserDialogButtons: false,
 
       subscriptionDialog: null,
+      systemInfoDialog: null,
 
       restoreProjectDialog: null,
       restoreProjectResult: null,

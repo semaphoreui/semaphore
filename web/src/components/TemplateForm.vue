@@ -241,14 +241,21 @@
         </div>
 
         <v-autocomplete
-          v-model="item.environment_id"
+          v-model="item.environment_ids"
           :label="fieldLabel('environment')"
           :items="environment"
           item-value="id"
           item-text="name"
-          :rules="isFieldRequired('environment') ? [v => !!v || $t('environment_required')] : []"
+          :rules="isFieldRequired('environment')
+            ? [v => (Array.isArray(v) && v.length > 0) || $t('environment_required')]
+            : []"
+          persistent-hint
+          multiple
+          chips
+          deletable-chips
           outlined
-          dense
+          small-chips
+          class="mb-3"
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="needField('environment')"
@@ -772,6 +779,7 @@ export default {
     getNewItem() {
       return {
         task_params: {},
+        environment_ids: [],
       };
     },
 
@@ -856,6 +864,10 @@ export default {
 
       if (!this.item.task_params) {
         this.item.task_params = {};
+      }
+
+      if (!Array.isArray(this.item.environment_ids)) {
+        this.$set(this.item, 'environment_ids', []);
       }
 
       this.args = JSON.parse(this.item.arguments || '[]');

@@ -1,9 +1,12 @@
 package bolt
 
 import (
+	"errors"
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"go.etcd.io/bbolt"
 )
 
@@ -130,6 +133,29 @@ func (d *BoltDb) UpdateTask(task db.Task) error {
 	return d.updateObject(0, db.TaskProps, task)
 }
 
+func (d *BoltDb) SetWaitingTasksToStopped(projectID int, templateID int) error {
+	var tasks []db.Task
+	err := d.getObjects(0, db.TaskProps, db.RetrieveQueryParams{}, func(tsk any) bool {
+		task := tsk.(db.Task)
+		return task.ProjectID == projectID &&
+			task.TemplateID == templateID &&
+			task.Status == task_logger.TaskWaitingStatus
+	}, &tasks)
+	if err != nil {
+		return err
+	}
+
+	now := tz.Now()
+	for _, task := range tasks {
+		task.Status = task_logger.TaskStoppedStatus
+		task.End = &now
+		if err := d.updateObject(0, db.TaskProps, task); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (d *BoltDb) CreateTaskOutput(output db.TaskOutput) (db.TaskOutput, error) {
 	newOutput, err := d.createObject(output.TaskID, db.TaskOutputProps, output)
 	if err != nil {
@@ -229,6 +255,11 @@ func (d *BoltDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 	return
 }
 
+func (d *BoltDb) GetTaskByID(taskID int) (task db.Task, err error) {
+	err = d.getObject(0, db.TaskProps, intObjectID(taskID), &task)
+	return
+}
+
 func (d *BoltDb) GetTemplateTasks(projectID int, templateID int, params db.RetrieveQueryParams) ([]db.TaskWithTpl, error) {
 	return d.getTasks(projectID, &templateID, params)
 }
@@ -252,7 +283,7 @@ func (d *BoltDb) deleteTaskWithOutputs(projectID int, taskID int, checkTaskExist
 	}
 
 	err = tx.DeleteBucket(makeBucketId(db.TaskOutputProps, taskID))
-	if err == bbolt.ErrBucketNotFound {
+	if errors.Is(err, bbolt.ErrBucketNotFound) {
 		err = nil
 	}
 

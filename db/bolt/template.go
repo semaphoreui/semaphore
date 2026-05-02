@@ -76,6 +76,10 @@ func (d *BoltDb) GetTemplatesWithPermissions(projectID int, userID int, filter d
 		return
 	}
 
+	// Initialize as a non-nil slice so an empty result marshals to `[]` rather than `null`.
+	// The web UI's templates page hangs when the API returns `null` (issue #3245).
+	templates = make([]db.TemplateWithPerms, 0, len(res))
+
 	for _, tpl := range res {
 		var tplWithPerms db.TemplateWithPerms
 		tplWithPerms.Template = tpl
@@ -280,7 +284,10 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		if integration.TemplateID != templateID {
 			continue
 		}
-		d.deleteIntegration(projectID, integration.ID, tx)
+		err = d.deleteIntegration(projectID, integration.ID, tx)
+		if err != nil {
+			return
+		}
 	}
 
 	return d.deleteObject(projectID, db.TemplateProps, intObjectID(templateID), tx)
@@ -294,6 +301,35 @@ func (d *BoltDb) DeleteTemplate(projectID int, templateID int) error {
 
 func (d *BoltDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferrers, error) {
 	return d.getObjectRefs(projectID, db.TemplateProps, templateID)
+}
+
+// GetTemplateEnvironments is not implemented for BoltDB.
+// The junction of template to additional environments is stored inline on the
+// Template struct itself (via encoding/json) when using BoltDB, so this method
+// simply returns the value already attached to the template.
+func (d *BoltDb) GetTemplateEnvironments(projectID int, templateID int) (environmentIDs []int, err error) {
+	environmentIDs = []int{}
+
+	var template db.Template
+	err = d.getObject(projectID, db.TemplateProps, intObjectID(templateID), &template)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			err = nil
+		}
+		return
+	}
+
+	if template.EnvironmentIDs != nil {
+		environmentIDs = template.EnvironmentIDs
+	}
+
+	return
+}
+
+// UpdateTemplateEnvironments is a no-op for BoltDB. The additional environment
+// list is persisted as part of the Template object itself.
+func (d *BoltDb) UpdateTemplateEnvironments(projectID int, templateID int, environmentIDs []int) error {
+	return nil
 }
 
 func (d *BoltDb) GetTemplatePermission(projectID int, templateID int, userID int) (perm db.ProjectUserPermission, err error) {

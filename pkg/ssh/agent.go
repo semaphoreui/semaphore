@@ -2,12 +2,13 @@ package ssh
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/pkg/random"
-	"github.com/semaphoreui/semaphore/util"
 	"io"
 	"net"
 	"path"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/util"
 
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"golang.org/x/crypto/ssh"

@@ -228,7 +228,7 @@
 
               </div>
 
-              <div v-else>
+              <div v-else-if="isPortal">
                 <v-text-field
                   v-model="email"
                   :label="$t('Email')"
@@ -265,7 +265,7 @@
 
               <div
                 class="auth__divider"
-                v-if="oidcProviders.length > 0"
+                v-if="(loginWithPassword || isPortal) && oidcProviders.length > 0"
               >or</div>
 
               <v-btn

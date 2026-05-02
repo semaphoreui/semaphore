@@ -33,7 +33,7 @@ type taskRes struct {
 	TaskID      int                    `json:"task_id"`
 	ProjectID   int                    `json:"project_id"`
 	Username    string                 `json:"username,omitempty"`
-	RunnerID    int                    `json:"runner_id,omitempty"`
+	RunnerID    *int                   `json:"runner_id,omitempty"`
 	Status      task_logger.TaskStatus `json:"status"`
 	Location    taskLocation           `json:"location"`
 	RunnerName  string                 `json:"runner_name,omitempty"`
@@ -49,7 +49,7 @@ func GetTasks(w http.ResponseWriter, r *http.Request) {
 		res = append(res, taskRes{
 			TaskID:    task.Task.ID,
 			ProjectID: task.Task.ProjectID,
-			RunnerID:  task.RunnerID,
+			RunnerID:  task.Task.RunnerID,
 			Username:  task.Username,
 			Status:    task.Task.Status,
 			Location:  taskQueue,
@@ -60,7 +60,7 @@ func GetTasks(w http.ResponseWriter, r *http.Request) {
 		res = append(res, taskRes{
 			TaskID:    task.Task.ID,
 			ProjectID: task.Task.ProjectID,
-			RunnerID:  task.RunnerID,
+			RunnerID:  task.Task.RunnerID,
 			Username:  task.Username,
 			Status:    task.Task.Status,
 			Location:  taskRunning,

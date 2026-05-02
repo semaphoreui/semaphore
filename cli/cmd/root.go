@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/semaphoreui/semaphore/api"
@@ -84,7 +85,7 @@ func runService() {
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
 
 	projectService := server.NewProjectService(store, store)
-	encryptionService := server.NewAccessKeyEncryptionService(store, store, store)
+	encryptionService := server.NewAccessKeyEncryptionService(store, store, store, store)
 	accessKeyInstallationService := server.NewAccessKeyInstallationService(encryptionService)
 	integrationService := server.NewIntegrationService(store, encryptionService)
 	inventoryService := server.NewInventoryService(
@@ -94,7 +95,8 @@ func runService() {
 		encryptionService,
 	)
 	accessKeyService := server.NewAccessKeyService(store, encryptionService, store)
-	secretStorageService := server.NewSecretStorageService(store, accessKeyService)
+	secretStorageService := server.NewSecretStorageService(store, store, accessKeyService, encryptionService)
+	secretStorageSyncScheduler := server.NewSecretStorageSyncScheduler(store, secretStorageService)
 	environmentService := server.NewEnvironmentService(store, encryptionService)
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
@@ -135,6 +137,21 @@ func runService() {
 
 	if dedup := proHA.NewScheduleDeduplicator(); dedup != nil {
 		schedulePool.SetDeduplicator(dedup)
+		secretStorageSyncScheduler.SetTickDeduplicator(dedup)
+	}
+
+	// Each process holds its own in-memory cron table. Schedule CRUD handlers only
+	// call Refresh on the node that served the HTTP request, so other HA nodes
+	// would keep stale jobs until restart. Reload from the shared DB on an interval.
+	if util.HAEnabled() {
+		const haSchedulePoolSyncInterval = 60 * time.Second
+		go func() {
+			ticker := time.NewTicker(haSchedulePoolSyncInterval)
+			defer ticker.Stop()
+			for range ticker.C {
+				schedulePool.Refresh()
+			}
+		}()
 	}
 
 	if orphanCleaner := proHA.NewOrphanCleaner(store); orphanCleaner != nil {
@@ -169,6 +186,9 @@ func runService() {
 
 	go schedulePool.Run()
 	go taskPool.Run()
+
+	secretStorageSyncScheduler.Start()
+	defer secretStorageSyncScheduler.Stop()
 
 	route := api.Route(
 		store,

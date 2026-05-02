@@ -41,51 +41,46 @@ func getSchedules(vals []db.ScheduleWithTpl) []db.Schedule {
 
 	return values
 }
-
 func (e *ScheduleExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	for _, val := range e.values {
-		old := val.value
+func (e *ScheduleExporter) restoreValue(val EntityObject[db.Schedule], store db.Store, exporter DataExporter) (err error) {
+	old := val.value
 
-		if old.TaskParamsID != nil {
-			old.TaskParams.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.TaskParams.InventoryID, e)
-			if err != nil {
-				return err
-			}
-
-			old.TaskParams.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
-			if err != nil {
-				return err
-			}
-		}
-
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
+	if old.TaskParamsID != nil {
+		old.TaskParams.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.TaskParams.InventoryID, e)
 		if err != nil {
 			return err
 		}
 
-		old.RepositoryID, err = exporter.getNewKeyIntRef(Repository, val.scope, old.RepositoryID, e)
-		if err != nil {
-			return err
-		}
-
-		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID, e)
-		if err != nil {
-			return err
-		}
-
-		newVault, err := store.CreateSchedule(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
+		old.TaskParams.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
 		if err != nil {
 			return err
 		}
 	}
 
-	return nil
+	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	old.RepositoryID, err = exporter.getNewKeyIntRef(Repository, val.scope, old.RepositoryID, e)
+	if err != nil {
+		return err
+	}
+
+	old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID)
+	if err != nil {
+		return err
+	}
+
+	newObj, err := store.CreateSchedule(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
 }
 
 func (e *ScheduleExporter) getName() string {
@@ -97,5 +92,5 @@ func (e *ScheduleExporter) exportDependsOn() []string {
 }
 
 func (e *ScheduleExporter) importDependsOn() []string {
-	return []string{SecretStorage, Repository, Project, Inventory, Template}
+	return []string{Repository, Project, Inventory, Template}
 }

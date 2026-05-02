@@ -1,6 +1,10 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="integration != null">
-    <IntegrationExtractorCrumb :integration="integration" />
+    <IntegrationExtractorCrumb
+      :integration="integration"
+      :integration-id="integrationId"
+      :project-id="projectId"
+    />
 
     <div class="px-4 pt-3 pb-2">
       <v-switch
@@ -50,9 +54,19 @@
 
     <v-divider />
 
-    <IntegrationMatcher class="mb-6" v-if="integration.searchable" :is-admin="isAdmin" />
+    <IntegrationMatcher
+      class="mb-6"
+      v-if="integration.searchable"
+      :is-admin="isAdmin"
+      :userPermissions="userPermissions"
+      :project-id="projectId"
+    />
 
-    <IntegrationExtractValue :is-admin="isAdmin" />
+    <IntegrationExtractValue
+      :is-admin="isAdmin"
+      :userPermissions="userPermissions"
+      :project-id="projectId"
+    />
   </div>
 </template>
 <script>

@@ -1,10 +1,11 @@
 package bolt
 
 import (
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/pkg/tz"
 	"sort"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
 func TestGetViews(t *testing.T) {

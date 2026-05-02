@@ -13,7 +13,7 @@
     <v-text-field
       v-model="item.password"
       :label="$t('password2')"
-      :type="showPassword ? 'text' : 'password'"
+      :class="{ 'masked-secret-input': !showPassword }"
       :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
       @click:append="showPassword = !showPassword"
       :rules="[v => !!v || $t('password_required')]"

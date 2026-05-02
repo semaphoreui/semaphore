@@ -1,9 +1,12 @@
 package export
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"github.com/semaphoreui/semaphore/db"
+)
 
 type UserExporter struct {
 	ValueMap[db.User]
+	MergeExisting bool
 }
 
 func (a *UserExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
@@ -16,15 +19,33 @@ func (a *UserExporter) load(store db.Store, exporter DataExporter, progress Prog
 }
 
 func (a *UserExporter) restore(store db.Store, exporter DataExporter, progress Progress) error {
-	for _, val := range a.values {
-		old := val.value
 
-		obj, err := store.ImportUser(db.UserWithPwd{Pwd: old.Password, User: old})
+	var userMap = make(map[string]*db.User)
+	if a.MergeExisting {
+		users, err := store.GetUsers(db.RetrieveQueryParams{})
 		if err != nil {
 			return err
 		}
+		for _, user := range users {
+			userMap[user.Username] = &user
+		}
+	}
 
-		err = exporter.mapIntKeys(a.getName(), GlobalScope, old.ID, obj.ID)
+	for _, val := range a.values {
+		var err error
+		old := val.value
+		var obj db.User
+
+		if u, ok := userMap[old.Username]; ok && a.MergeExisting {
+			obj = *u
+		} else {
+			obj, err = store.ImportUser(db.UserWithPwd{Pwd: old.Password, User: old})
+			if err != nil {
+				return err
+			}
+		}
+
+		err = exporter.mapKeys(a.getName(), GlobalScope, old.GetDbKey(), obj.GetDbKey())
 		if err != nil {
 			return err
 		}

@@ -304,19 +304,15 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 	}
 
 	// Merge template and task args maps
-	if templateArgsMap != nil {
-		for stage, stageArgs := range templateArgsMap {
-			argsMap[stage] = append([]string{}, stageArgs...)
-		}
+	for stage, stageArgs := range templateArgsMap {
+		argsMap[stage] = append([]string{}, stageArgs...)
 	}
 
-	if taskArgsMap != nil {
-		for stage, stageArgs := range taskArgsMap {
-			if existing, ok := argsMap[stage]; ok {
-				argsMap[stage] = append(existing, stageArgs...)
-			} else {
-				argsMap[stage] = append([]string{}, stageArgs...)
-			}
+	for stage, stageArgs := range taskArgsMap {
+		if existing, ok := argsMap[stage]; ok {
+			argsMap[stage] = append(existing, stageArgs...)
+		} else {
+			argsMap[stage] = append([]string{}, stageArgs...)
 		}
 	}
 
@@ -806,6 +802,10 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 			t.Log("Creating task home dir failed: " + err.Error())
 			return err
 		}
+		if err := util.ChownDir(t.Repository.GetHomePath(t.Template.ID)); err != nil {
+			t.Log("Chowning task home dir failed: " + err.Error())
+			return err
+		}
 	}
 
 	// Override git branch from template if set
@@ -819,8 +819,9 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
-		if _, err := os.Stat(t.Repository.GitURL); err != nil {
-			t.Log("Failed in finding static repository at " + t.Repository.GitURL + ": " + err.Error())
+		localPath := t.Repository.GetGitURL(true)
+		if _, err := os.Stat(localPath); err != nil {
+			t.Log("Failed in finding static repository at " + localPath + ": " + err.Error())
 			return err
 		}
 	} else {
@@ -866,6 +867,10 @@ func (t *LocalJob) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArg
 			t.Log("Creating task home dir failed: " + err.Error())
 			return err
 		}
+		if err := util.ChownDir(t.Repository.GetHomePath(t.Template.ID)); err != nil {
+			t.Log("Chowning task home dir failed: " + err.Error())
+			return err
+		}
 	}
 
 	// Override git branch from template if set
@@ -879,8 +884,9 @@ func (t *LocalJob) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArg
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
-		if _, err := os.Stat(t.Repository.GitURL); err != nil {
-			t.Log("Failed in finding static repository at " + t.Repository.GitURL + ": " + err.Error())
+		localPath := t.Repository.GetGitURL(true)
+		if _, err := os.Stat(localPath); err != nil {
+			t.Log("Failed in finding static repository at " + localPath + ": " + err.Error())
 			return err
 		}
 	} else {

@@ -365,7 +365,12 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 	editor := helpers.GetFromContext(r, "user").(*db.User)
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
-	activeTask := taskPool(r).GetTask(targetTask.ID)
+	activeTask, err := taskPool(r).GetTask(targetTask.ID)
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
 	if activeTask != nil {
 		// can't delete task in queue or running
@@ -380,7 +385,7 @@ func RemoveTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := helpers.Store(r).DeleteTaskWithOutputs(project.ID, targetTask.ID)
+	err = helpers.Store(r).DeleteTaskWithOutputs(project.ID, targetTask.ID)
 	if err != nil {
 		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
 		w.WriteHeader(http.StatusBadRequest)

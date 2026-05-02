@@ -149,7 +149,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				ProjectID:               userProject.ID,
 				InventoryID:             &inventoryID,
 				RepositoryID:            repoID,
-				EnvironmentID:           &environmentID,
+				EnvironmentIDs:          []int{environmentID},
 				Name:                    "Test-" + uid,
 				Playbook:                "test-playbook.yml",
 				Arguments:               &args,
@@ -239,6 +239,7 @@ func alterRequestBody(t *trans.Transaction) {
 		bodyFieldProcessor("invite_id", 4, &request)
 	}
 	bodyFieldProcessor("environment_id", environmentID, &request)
+	bodyFieldProcessor("environment_ids", []int{environmentID}, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
 	bodyFieldProcessor("repository_id", repoID, &request)
 	bodyFieldProcessor("template_id", templateID, &request)

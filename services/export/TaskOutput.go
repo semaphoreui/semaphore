@@ -41,10 +41,10 @@ func (e *TaskOutputExporter) load(store db.Store, exporter DataExporter, progres
 			allValues = append(allValues, outputRes...)
 
 			taskIndex = taskIndex + 1
-			progress.update(float32(taskIndex) / float32(taskCount))
+			progress.update(float32(taskIndex)/float32(taskCount), 0)
 		}
 
-		err = e.appendValuesAndCheck(allValues, strconv.Itoa(projId), false)
+		err = e.appendValues(allValues, strconv.Itoa(projId))
 		if err != nil {
 			return err
 		}
@@ -83,15 +83,16 @@ func (e *TaskOutputExporter) restore(store db.Store, exporter DataExporter, prog
 	for index, val := range e.values {
 		old := val.value
 
-		old.TaskID, err = exporter.getNewKeyInt(Task, val.scope, old.TaskID, e)
+		old.TaskID, err = exporter.getNewKeyInt(Task, val.scope, old.TaskID)
 		if err != nil {
 			return err
 		}
 
-		old.StageID, err = exporter.getNewKeyIntRef(TaskStage, val.scope, old.StageID, e)
-		if err != nil {
-			return err
-		}
+		// boltDb currently doesn't support task stages
+		old.StageID = nil //, err = exporter.getNewKeyIntRef(TaskStage, val.scope, old.StageID, e)
+		//if err != nil {
+		//	return err
+		//}
 
 		outputs = append(outputs, old)
 
@@ -104,7 +105,7 @@ func (e *TaskOutputExporter) restore(store db.Store, exporter DataExporter, prog
 			outputs = make([]db.TaskOutput, 0)
 		}
 
-		progress.update(float32(index) / float32(size))
+		progress.update(float32(index)/float32(size), int64(index))
 	}
 
 	if len(outputs) > 0 {

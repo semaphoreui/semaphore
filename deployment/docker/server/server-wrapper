@@ -158,7 +158,9 @@ fi
 #
 # Generate new config.json if it does not exist
 #
+SEMAPHORE_FIRST_RUN=no
 if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
+    SEMAPHORE_FIRST_RUN=yes
     echoerr "Generating setup file ${TMP_STDIN_CONFIG_FILE} ..."
 
     TMP_STDIN_CONFIG_FILE=$(mktemp)
@@ -257,7 +259,6 @@ EOF
     rm -f "${TMP_STDIN_CONFIG_FILE}"
 fi
 
-
 #
 # Install additional python dependencies
 #
@@ -269,10 +270,29 @@ else
     echoerr "No additional python dependencies to install"
 fi
 
+#
+# Migrate from BoltDB if SEMAPHORE_MIGRATE_FROM_BOLTDB is set (first run only, SQLite only, skipped if DB file already exists)
+#
+if [ -n "${SEMAPHORE_MIGRATE_FROM_BOLTDB:-}" ] && [ "${SEMAPHORE_FIRST_RUN}" = "yes" ]; then
+    if [ "${SEMAPHORE_DB_DIALECT}" != "sqlite" ]; then
+        echoerr "SEMAPHORE_MIGRATE_FROM_BOLTDB is only supported with SQLite dialect, ignoring"
+    else
+        echoerr "Migrating from BoltDB: ${SEMAPHORE_MIGRATE_FROM_BOLTDB}"
+        MIGRATE_ARGS="--from-boltdb=${SEMAPHORE_MIGRATE_FROM_BOLTDB} --merge-existing-users"
+        if [ -n "${SEMAPHORE_MIGRATE_SKIP_TASK_OUTPUT:-}" ]; then
+            MIGRATE_ARGS="${MIGRATE_ARGS} --skip-task-output"
+        fi
+        if test "$#" -ne 1; then
+            /usr/local/bin/semaphore migrate ${MIGRATE_ARGS} --config "${SEMAPHORE_CONFIG_PATH}/config.json"
+        else
+            "$1" migrate ${MIGRATE_ARGS} --config "${SEMAPHORE_CONFIG_PATH}/config.json"
+        fi
+    fi
+fi
 
 # Import project if environment variable SEMAPHORE_IMPORT_PROJECT_FILE is defined.
 # Optionally use SEMAPHORE_IMPORT_PROJECT_NAME to specify the project name.
-if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ]; then
+if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ] && [ "${SEMAPHORE_FIRST_RUN}" = "yes" ]; then
     echoerr "Importing project from ${SEMAPHORE_IMPORT_PROJECT_FILE}"
     IMPORT_ARGS="--file ${SEMAPHORE_IMPORT_PROJECT_FILE}"
     if [ -n "${SEMAPHORE_IMPORT_PROJECT_NAME:-}" ]; then

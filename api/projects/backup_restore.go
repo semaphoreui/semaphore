@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/util"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	projectService "github.com/semaphoreui/semaphore/services/project"
@@ -36,6 +38,12 @@ func GetBackup(w http.ResponseWriter, r *http.Request) {
 
 func Restore(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
+
+	if !user.Admin && !util.Config.NonAdminCanCreateProject {
+		log.Warn(user.Username + " is not permitted to restore the project")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
 	var backup projectService.BackupFormat
 

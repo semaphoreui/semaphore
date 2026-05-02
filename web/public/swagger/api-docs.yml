@@ -363,6 +363,8 @@ definitions:
       user_id:
         type: integer
         minimum: 1
+      name:
+        type: string
 
   ProjectRequest:
     type: object
@@ -718,6 +720,14 @@ definitions:
       value:
         type: string
         example: value
+
+  IntegrationAlias:
+    type: object
+    properties:
+      id:
+        type: integer
+      url:
+        type: string
 
   RepositoryRequest:
     type: object
@@ -1243,6 +1253,13 @@ parameters:
     type: integer
     required: true
     x-example: 13
+  alias_id:
+    name: alias_id
+    description: Integration Alias ID
+    in: path
+    type: integer
+    required: true
+    x-example: 15
   invite_id:
     name: invite_id
     description: Invite ID
@@ -1252,14 +1269,6 @@ parameters:
     x-example: 14
 
 paths:
-  /debug/gc:
-    post:
-      summary: Garbage collector
-      description: Run the garbage collector
-      responses:
-        204:
-          description: Successful "OK" reply
-
   /ping:
     get:
       summary: PING test
@@ -1400,6 +1409,16 @@ paths:
         - authentication
         - user
       summary: Create an API token
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "my CI token"
       responses:
         201:
           description: API Token
@@ -2045,6 +2064,80 @@ paths:
       responses:
         204:
           description: integration matcher removed
+
+  /project/{project_id}/integrations/aliases:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - integration
+      summary: Get all integration aliases for the project
+      responses:
+        200:
+          description: Integration Aliases
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationAlias"
+    post:
+      tags:
+        - integration
+      summary: Create a new integration alias for the project
+      responses:
+        200:
+          description: Integration Alias Created
+          schema:
+            $ref: "#/definitions/IntegrationAlias"
+
+  /project/{project_id}/integrations/aliases/{alias_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/alias_id"
+    delete:
+      tags:
+        - integration
+      summary: Remove integration alias
+      responses:
+        204:
+          description: integration alias removed
+
+  /project/{project_id}/integrations/{integration_id}/aliases:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+    get:
+      tags:
+        - integration
+      summary: Get all aliases for an integration
+      responses:
+        200:
+          description: Integration Aliases
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationAlias"
+    post:
+      tags:
+        - integration
+      summary: Create a new alias for an integration
+      responses:
+        200:
+          description: Integration Alias Created
+          schema:
+            $ref: "#/definitions/IntegrationAlias"
+
+  /project/{project_id}/integrations/{integration_id}/aliases/{alias_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/alias_id"
+    delete:
+      tags:
+        - integration
+      summary: Remove integration alias
+      responses:
+        204:
+          description: integration alias removed
 
   # project access keys
   /project/{project_id}/keys:

@@ -1,10 +1,11 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func createRunnerJobPool() *runners.JobPool {

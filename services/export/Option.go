@@ -36,17 +36,11 @@ func getOption(opts map[string]string) []db.Option {
 }
 
 func (e *OptionExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	for _, val := range e.values {
-		old := val.value
-
-		err := store.SetOption(old.Key, old.Value)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+func (e *OptionExporter) restoreValue(val EntityObject[db.Option], store db.Store, exporter DataExporter) (err error) {
+	return store.SetOption(val.value.Key, val.value.Value)
 }
 
 func (e *OptionExporter) exportDependsOn() []string {

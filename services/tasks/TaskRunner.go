@@ -46,7 +46,6 @@ type TaskRunner struct {
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
 
-	RunnerID        int
 	Username        string
 	IncomingVersion *string
 
@@ -103,10 +102,8 @@ func (t *TaskRunner) saveStatus() {
 	if err := t.pool.store.UpdateTask(t.Task); err != nil {
 		t.panicOnError(err, "Failed to update TaskRunner status")
 	}
-	// persist runtime fields in HA store
-	if t.pool != nil && t.pool.state != nil {
-		t.pool.state.UpdateRuntimeFields(t)
-	}
+
+	t.pool.state.UpdateRuntimeFields(t)
 }
 
 func (t *TaskRunner) kill() {
@@ -137,11 +134,6 @@ func (t *TaskRunner) createTaskEvent() {
 		Description: &desc,
 	}
 
-	var runnerID *int
-	if t.RunnerID > 0 {
-		runnerID = &t.RunnerID
-	}
-
 	if err := t.pool.logWriteService.WriteTaskLog(pro_interfaces.TaskLogRecord{
 		ProjectID:    t.Task.ProjectID,
 		TemplateID:   t.Template.ID,
@@ -150,7 +142,7 @@ func (t *TaskRunner) createTaskEvent() {
 		UserID:       t.Task.UserID,
 		Description:  &desc,
 		Username:     t.Username,
-		RunnerID:     runnerID,
+		RunnerID:     t.Task.RunnerID,
 		Status:       t.Task.Status,
 	}); err != nil {
 		log.Error(err)
@@ -182,8 +174,11 @@ func (t *TaskRunner) run() {
 			return
 		}
 
-		log.Info("Stopped running TaskRunner " + strconv.Itoa(t.Task.ID))
-		log.Info("Release resource locker with TaskRunner " + strconv.Itoa(t.Task.ID))
+		log.WithFields(log.Fields{
+			"task_id": t.Task.ID,
+		}).Info("Stopped running task " + t.Template.Name)
+
+		//log.Info("Release resource locker with " + strconv.Itoa(t.Task.ID))
 
 		now := tz.Now()
 		t.Task.End = &now
@@ -201,8 +196,7 @@ func (t *TaskRunner) run() {
 	t.SetStatus(task_logger.TaskStartingStatus)
 	t.createTaskEvent()
 
-	t.Log("Started: " + strconv.Itoa(t.Task.ID))
-	t.Log("Run TaskRunner with template: " + t.Template.Name + "\n")
+	t.Log("Started task #" + strconv.Itoa(t.Task.ID) + " of template '" + t.Template.Name + "'\n")
 
 	var err error
 	var username string
@@ -250,32 +244,34 @@ func (t *TaskRunner) run() {
 		t.SetStatus(task_logger.TaskSuccessStatus)
 	}
 
-	tpls, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
-		BuildTemplateID: &t.Task.TemplateID,
-		AutorunOnly:     true,
-	}, db.RetrieveQueryParams{})
+	if t.Task.Status == task_logger.TaskSuccessStatus {
+		tpls, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
+			BuildTemplateID: &t.Task.TemplateID,
+			AutorunOnly:     true,
+		}, db.RetrieveQueryParams{})
 
-	if err != nil {
-		t.Log("Running app failed: " + err.Error())
-		return
-	}
-
-	for _, tpl := range tpls {
-		task := db.Task{
-			TemplateID:  tpl.ID,
-			ProjectID:   tpl.ProjectID,
-			BuildTaskID: &t.Task.ID,
-		}
-		_, err = t.pool.AddTask(
-			task,
-			nil,
-			"",
-			tpl.ProjectID,
-			tpl.App.NeedTaskAlias(),
-		)
 		if err != nil {
 			t.Log("Running app failed: " + err.Error())
-			continue
+			return
+		}
+
+		for _, tpl := range tpls {
+			task := db.Task{
+				TemplateID:  tpl.ID,
+				ProjectID:   tpl.ProjectID,
+				BuildTaskID: &t.Task.ID,
+			}
+			_, err = t.pool.AddTask(
+				task,
+				nil,
+				"",
+				tpl.ProjectID,
+				tpl.App.NeedTaskAlias(),
+			)
+			if err != nil {
+				t.Log("Running app failed: " + err.Error())
+				continue
+			}
 		}
 	}
 }
@@ -298,17 +294,23 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 
 	if t.Task.Environment == "" {
 		return
-
 	}
 
 	tplEnvironment := make(map[string]any)
-	err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
+  
+	if t.Environment.JSON != "" {
+		err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
+	}
+
 	if err != nil {
 		return
 	}
 
 	taskEnvironment := make(map[string]any)
-	err = json.Unmarshal([]byte(t.Task.Environment), &taskEnvironment)
+	if t.Task.Environment != "" {
+		err = json.Unmarshal([]byte(t.Task.Environment), &taskEnvironment)
+	}
+
 	if err != nil {
 		return
 	}
@@ -409,22 +411,109 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
-	// get environment
-	if t.Template.EnvironmentID != nil {
-		t.Environment, err = t.pool.store.GetEnvironment(t.Template.ProjectID, *t.Template.EnvironmentID)
-		if err != nil {
-			return err
-		}
-
-		err = t.pool.encryptionService.FillEnvironmentSecrets(&t.Environment, true)
-		if err != nil {
-			return err
-		}
+	// load and merge all configured environments
+	err = t.loadEnvironments()
+	if err != nil {
+		return err
 	}
 
 	err = t.populateTaskEnvironment()
 
 	return err
+}
+
+// loadEnvironments loads all Variable Groups configured on the template
+// (Template.EnvironmentIDs) and merges their JSON, ENV vars, and secrets
+// into t.Environment. Later entries override earlier ones on key conflicts.
+func (t *TaskRunner) loadEnvironments() error {
+	if len(t.Template.EnvironmentIDs) == 0 {
+		return nil
+	}
+
+	seen := make(map[int]bool)
+
+	mergedJSON := make(map[string]any)
+	mergedENV := make(map[string]string)
+	var mergedSecrets []db.EnvironmentSecret
+	secretIndex := make(map[string]int)
+
+	var lastEnv db.Environment
+
+	for _, envID := range t.Template.EnvironmentIDs {
+		if seen[envID] {
+			continue
+		}
+		seen[envID] = true
+
+		env, err := t.pool.store.GetEnvironment(t.Template.ProjectID, envID)
+		if err != nil {
+			return err
+		}
+
+		err = t.pool.encryptionService.FillEnvironmentSecrets(&env, true)
+		if err != nil {
+			return err
+		}
+
+		if env.JSON != "" {
+			partial := make(map[string]any)
+			if err := json.Unmarshal([]byte(env.JSON), &partial); err != nil {
+				return err
+			}
+			for k, v := range partial {
+				mergedJSON[k] = v
+			}
+		}
+
+		if env.ENV != nil && *env.ENV != "" {
+			partial := make(map[string]string)
+			if err := json.Unmarshal([]byte(*env.ENV), &partial); err != nil {
+				return err
+			}
+			for k, v := range partial {
+				mergedENV[k] = v
+			}
+		}
+
+		for _, s := range env.Secrets {
+			key := string(s.Type) + ":" + s.Name
+			if idx, ok := secretIndex[key]; ok {
+				mergedSecrets[idx] = s
+			} else {
+				mergedSecrets = append(mergedSecrets, s)
+				secretIndex[key] = len(mergedSecrets) - 1
+			}
+		}
+
+		lastEnv = env
+	}
+
+	t.Environment = lastEnv
+
+	if len(mergedJSON) > 0 {
+		b, err := json.Marshal(mergedJSON)
+		if err != nil {
+			return err
+		}
+		t.Environment.JSON = string(b)
+	} else {
+		t.Environment.JSON = ""
+	}
+
+	if len(mergedENV) > 0 {
+		b, err := json.Marshal(mergedENV)
+		if err != nil {
+			return err
+		}
+		s := string(b)
+		t.Environment.ENV = &s
+	} else {
+		t.Environment.ENV = nil
+	}
+
+	t.Environment.Secrets = mergedSecrets
+
+	return nil
 }
 
 // checkTmpDir checks to see if the temporary directory exists

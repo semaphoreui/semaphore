@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup golang
         uses: actions/setup-go@v5
@@ -53,34 +53,6 @@ jobs:
           name: semaphore
           path: bin/semaphore
           retention-days: 1
-
-  migrate-boltdb:
-    runs-on: ubuntu-latest
-
-    needs:
-      - build-local
-
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: semaphore
-
-      - name: Write config
-        run: |
-          cat > config.json <<EOF
-            {
-              "bolt": {
-                "host": "/tmp/database.bolt"
-              },
-              "dialect": "bolt",
-              "email_alert": false
-            }
-          EOF
-
-      - name: Migrate database
-        run: |
-          chmod +x ./semaphore && ./semaphore migrate --config config.json
 
   migrate-mysql:
     runs-on: ubuntu-latest
@@ -253,71 +225,6 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore migrate --config config.json
 
-  integrate-boltdb:
-    runs-on: ubuntu-latest
-
-    needs:
-      - migrate-boltdb
-
-    env:
-      SEMAPHORE_DB_OPTIONS: '{"sessionConnection": "true"}'
-
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Setup golang
-        uses: actions/setup-go@v5
-        with:
-          go-version: '^1.24.6'
-
-      - name: Setup nodejs
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
-
-      - name: Install go-task
-        run: |
-          go install github.com/go-task/task/v3/cmd/task@latest
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: semaphore
-
-      - name: Write config
-        run: |
-          cat > config.stdin <<EOF
-          2
-          /tmp/database.bolt
-          /tmp/semaphore
-          http://localhost:3000
-          no
-          no
-          no
-          no
-          no
-          no
-          $(pwd)/.dredd
-          admin
-          admin@localhost
-          Developer
-          password
-          EOF
-
-      - name: Execute setup
-        run: |
-          chmod +x ./semaphore && ./semaphore setup - < config.stdin
-
-      - name: Launch dredd
-        run: |
-          task dredd:goodman
-          task dredd:deps
-          task dredd:hooks
-          task dredd:test
-
   integrate-mysql:
     runs-on: ubuntu-latest
 
@@ -342,7 +249,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup golang
         uses: actions/setup-go@v5
@@ -423,7 +330,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup golang
         uses: actions/setup-go@v5
@@ -503,7 +410,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup golang
         uses: actions/setup-go@v5
@@ -568,7 +475,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup golang
         uses: actions/setup-go@v5
@@ -627,14 +534,14 @@ jobs:
     if: github.repository_owner == 'semaphoreui'
 
     needs:
-      - integrate-boltdb
       - integrate-mysql
       - integrate-mariadb
       - integrate-postgres
+      - integrate-sqlite
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup qemu
         id: qemu
@@ -682,14 +589,13 @@ jobs:
     if: github.repository_owner == 'semaphoreui'
 
     needs:
-      - integrate-boltdb
       - integrate-mysql
       - integrate-mariadb
       - integrate-postgres
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup qemu
         id: qemu

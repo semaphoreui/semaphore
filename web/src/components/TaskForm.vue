@@ -70,7 +70,7 @@
         :hint="v.description"
         v-model="editedSecretEnvironment[v.name]"
         :required="v.required"
-        type="password"
+        class="masked-secret-input"
         :rules="[
             val => !v.required || !!val || v.title + $t('isRequired'),
           ]"

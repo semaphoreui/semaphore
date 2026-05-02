@@ -54,6 +54,9 @@ type Task struct {
 	UserID        *int `db:"user_id" json:"user_id,omitempty"`
 	IntegrationID *int `db:"integration_id" json:"integration_id,omitempty"`
 	ScheduleID    *int `db:"schedule_id" json:"schedule_id,omitempty"`
+	// RunnerID is set while a task is assigned to a remote runner (cleared when the task finishes).
+	// Used so runner progress API can authorize updates on any HA node.
+	RunnerID *int `db:"runner_id" json:"-"`
 
 	Created time.Time  `db:"created" json:"created"`
 	Start   *time.Time `db:"start" json:"start,omitempty"`
@@ -159,6 +162,11 @@ func (task *Task) GetUrl() *string {
 }
 
 func (task *Task) ValidateNewTask(template Template) error {
+	if task.GitBranch != nil {
+		if err := ValidateGitBranch(*task.GitBranch, "task"); err != nil {
+			return err
+		}
+	}
 
 	var params any
 	switch template.App {

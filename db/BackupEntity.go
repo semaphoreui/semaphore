@@ -38,12 +38,12 @@ func (e Inventory) GetName() string {
 	return e.Name
 }
 
-func (e AccessKey) GetID() int {
-	return e.ID
+func (key AccessKey) GetID() int {
+	return key.ID
 }
 
-func (e AccessKey) GetName() string {
-	return e.Name
+func (key AccessKey) GetName() string {
+	return key.Name
 }
 
 func (e Repository) GetID() int {
@@ -95,6 +95,14 @@ func (e Task) GetID() int {
 
 func (e Integration) GetID() int {
 	return e.ID
+}
+
+func (e Runner) GetID() int {
+	return e.ID
+}
+
+func (e Runner) GetName() string {
+	return e.Name
 }
 
 func (e Project) GetID() int {

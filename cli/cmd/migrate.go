@@ -13,11 +13,12 @@ import (
 )
 
 var migrationArgs struct {
-	undoTo         string
-	applyTo        string
-	fromBoltDb     string
-	errLogSize     int
-	skipTaskOutput bool
+	undoTo             string
+	applyTo            string
+	fromBoltDb         string
+	errLogSize         int
+	skipTaskOutput     bool
+	mergeExistingUsers bool
 }
 
 func init() {
@@ -26,6 +27,7 @@ func init() {
 	migrateCmd.PersistentFlags().StringVar(&migrationArgs.fromBoltDb, "from-boltdb", "", "Path to boltDB data file")
 	migrateCmd.PersistentFlags().IntVar(&migrationArgs.errLogSize, "err-log-size", 0, "Error log size")
 	migrateCmd.PersistentFlags().BoolVar(&migrationArgs.skipTaskOutput, "skip-task-output", false, "Skip task output importing during migration")
+	migrateCmd.PersistentFlags().BoolVar(&migrationArgs.mergeExistingUsers, "merge-existing-users", false, "Reuse existing users matched by username instead of failing on conflict")
 
 	rootCmd.AddCommand(migrateCmd)
 }
@@ -106,15 +108,16 @@ func migrateBoltDb(boltDbPath string) {
 	}
 
 	sqlStore := factory.CreateStore()
-	sqlStore.Connect("migrate")
+	sqlStore.Connect("import")
 
 	// 3. Connect and migrate
 	fmt.Println("Starting migration...")
 	migrator := &migration.Migrator{
-		OldStore:       boltStore,
-		NewStore:       sqlStore,
-		ErrLogSize:     migrationArgs.errLogSize,
-		SkipTaskOutput: migrationArgs.skipTaskOutput,
+		OldStore:           boltStore,
+		NewStore:           sqlStore,
+		ErrLogSize:         migrationArgs.errLogSize,
+		SkipTaskOutput:     migrationArgs.skipTaskOutput,
+		MergeExistingUsers: migrationArgs.mergeExistingUsers,
 	}
 
 	err = migrator.Migrate()
@@ -123,7 +126,7 @@ func migrateBoltDb(boltDbPath string) {
 		return
 	}
 
-	defer sqlStore.Close("migrate")
+	defer sqlStore.Close("import")
 
 	fmt.Println("Migration finished successfully.")
 }

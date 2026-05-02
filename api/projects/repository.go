@@ -3,11 +3,12 @@ package projects
 import (
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/util"
-	"net/http"
 )
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
@@ -187,7 +188,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 	repository := helpers.GetFromContext(r, "repository").(db.Repository)
 
-	var err error = helpers.Store(r).DeleteRepository(repository.ProjectID, repository.ID)
+	err := helpers.Store(r).DeleteRepository(repository.ProjectID, repository.ID)
 	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Repository is in use by one or more templates",

@@ -42,8 +42,8 @@ func (e SecretStorage) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
 
-func (e AccessKey) GetDbKey() string {
-	return NewKeyFromInt(e.ID)
+func (key AccessKey) GetDbKey() string {
+	return NewKeyFromInt(key.ID)
 }
 
 func (e Inventory) GetDbKey() string {

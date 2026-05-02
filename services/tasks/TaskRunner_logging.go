@@ -94,7 +94,7 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 			return
 		}
 	case task_logger.TaskStoppingStatus:
-		if status == task_logger.TaskWaitingStatus || status == task_logger.TaskRunningStatus {
+		if status == task_logger.TaskWaitingStatus || status == task_logger.TaskRunningStatus || status == task_logger.TaskWaitingConfirmation {
 			//panic("stopping TaskRunner cannot be " + status)
 			return
 		}
@@ -133,6 +133,12 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 	for _, l := range t.statusListeners {
 		l(status)
 	}
+
+	log.WithFields(log.Fields{
+		"task_id": t.Task.ID,
+		"context": "task_logger",
+		"status":  status,
+	}).Info("Task status updated")
 }
 
 func (t *TaskRunner) panicOnError(err error, msg string) {

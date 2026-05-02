@@ -115,11 +115,11 @@ func TestIsObjectInUse(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		InventoryID:   &inventoryID,
-		EnvironmentID: &environmentID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		InventoryID:    &inventoryID,
+		EnvironmentIDs: []int{environmentID},
 	})
 	require.NoError(t, err)
 
@@ -128,38 +128,17 @@ func TestIsObjectInUse(t *testing.T) {
 	assert.True(t, isUse)
 }
 
-func TestIsObjectInUse_Environment(t *testing.T) {
+func TestIsObjectInUse_EnvironmentEmpty(t *testing.T) {
 	store := CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{Name: "test"})
 	require.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		InventoryID:   &inventoryID,
-		EnvironmentID: &environmentID,
-	})
-	require.NoError(t, err)
-
-	isUse, err := store.isObjectInUse(proj.ID, db.EnvironmentProps, intObjectID(10), db.TemplateProps)
-	require.NoError(t, err)
-	assert.True(t, isUse)
-}
-
-func TestIsObjectInUse_EnvironmentNil(t *testing.T) {
-	store := CreateTestStore()
-
-	proj, err := store.CreateProject(db.Project{Name: "test"})
-	require.NoError(t, err)
-
-	_, err = store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		InventoryID:   &inventoryID,
-		EnvironmentID: nil,
+		Name:        "Test",
+		Playbook:    "test.yml",
+		ProjectID:   proj.ID,
+		InventoryID: &inventoryID,
 	})
 	require.NoError(t, err)
 
@@ -223,23 +202,23 @@ func TestBoltDb_GetRepositoryRefs(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
-		Type:          db.TemplateBuild,
-		Name:          "tpl1",
-		Playbook:      "build.yml",
-		RepositoryID:  repo1.ID,
-		ProjectID:     1,
-		InventoryID:   &inventoryID,
-		EnvironmentID: &environmentID,
+		Type:           db.TemplateBuild,
+		Name:           "tpl1",
+		Playbook:       "build.yml",
+		RepositoryID:   repo1.ID,
+		ProjectID:      1,
+		InventoryID:    &inventoryID,
+		EnvironmentIDs: []int{environmentID},
 	})
 	require.NoError(t, err)
 
 	tpl2, err := store.CreateTemplate(db.Template{
-		Type:          db.TemplateBuild,
-		Name:          "tpl12",
-		Playbook:      "build.yml",
-		ProjectID:     1,
-		InventoryID:   &inventoryID,
-		EnvironmentID: &environmentID,
+		Type:           db.TemplateBuild,
+		Name:           "tpl12",
+		Playbook:       "build.yml",
+		ProjectID:      1,
+		InventoryID:    &inventoryID,
+		EnvironmentIDs: []int{environmentID},
 	})
 	require.NoError(t, err)
 

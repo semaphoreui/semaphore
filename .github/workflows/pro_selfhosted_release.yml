@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup golang
         uses: actions/setup-go@v5
@@ -38,7 +38,7 @@ jobs:
 
       - name: Add PRO implementation
         run: |
-          git clone https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
+          git clone -b main https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
           go work init . ./pro_impl
 
       - name: Install deps
@@ -69,7 +69,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup qemu
         id: qemu

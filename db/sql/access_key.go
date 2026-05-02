@@ -36,6 +36,10 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 		}
 	}
 
+	if options.SourceStorageID != nil {
+		q = q.Where(squirrel.Eq{"pe.source_storage_id": *options.SourceStorageID})
+	}
+
 	query, args, err := q.ToSql()
 
 	if err != nil {
@@ -45,9 +49,7 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 	_, err = d.selectAll(&keys, query, args...)
 
 	for i := range keys {
-		if keys[i].SourceStorageID == nil && keys[i].Secret == nil {
-			keys[i].Empty = true
-		}
+		keys[i].Empty = keys[i].IsEmpty()
 	}
 
 	return
@@ -66,11 +68,19 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 	query := "update access_key set name=?"
 	args = append(args, key.Name)
 
+	if !key.IgnorePlain {
+		query += ", plain=?"
+		args = append(args, key.Plain)
+	}
+
 	if key.OverrideSecret {
-		query += ", type=?, secret=?, plain=?"
+		query += ", type=?, secret=?, source_storage_id=?, source_storage_key=?, source_storage_type=?"
 		args = append(args, key.Type)
 		args = append(args, key.Secret)
 		args = append(args, key.Plain)
+		args = append(args, key.SourceStorageID)
+		args = append(args, key.SourceStorageKey)
+		args = append(args, key.SourceStorageType)
 	}
 
 	query += " where id=?"
@@ -85,36 +95,69 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
-	//err = key.SerializeSecret()
-	//if err != nil {
-	//	return
-	//}
 
-	insertID, err := d.insert(
-		"id",
-		"insert into access_key ("+
-			"name, "+
-			"type, "+
-			"project_id, "+
-			"secret, "+
-			"plain, "+
-			"environment_id, "+
-			"owner, "+
-			"storage_id, "+
-			"source_storage_id, "+
-			"source_storage_key) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		key.Name,
-		key.Type,
-		key.ProjectID,
-		key.Secret,
-		key.Plain,
-		key.EnvironmentID,
-		key.Owner,
-		key.StorageID,
-		key.SourceStorageID,
-		key.SourceStorageKey,
-	)
+	var insertID int
+
+	if key.IgnorePlain {
+		insertID, err = d.insert(
+			"id",
+			"insert into access_key ("+
+				"name, "+
+				"type, "+
+				"project_id, "+
+				"secret, "+
+				"environment_id, "+
+				"owner, "+
+				"storage_id, "+
+				"source_storage_id, "+
+				"source_storage_key, "+
+				"source_storage_type, "+
+				"synchronized) "+
+				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			key.Name,
+			key.Type,
+			key.ProjectID,
+			key.Secret,
+			key.EnvironmentID,
+			key.Owner,
+			key.StorageID,
+			key.SourceStorageID,
+			key.SourceStorageKey,
+			key.SourceStorageType,
+			key.Synchronized,
+		)
+	} else {
+		insertID, err = d.insert(
+			"id",
+			"insert into access_key ("+
+				"name, "+
+				"type, "+
+				"project_id, "+
+				"secret, "+
+				"plain, "+
+				"environment_id, "+
+				"owner, "+
+				"storage_id, "+
+				"source_storage_id, "+
+				"source_storage_key, "+
+				"source_storage_type, "+
+				"synchronized) "+
+				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			key.Name,
+			key.Type,
+			key.ProjectID,
+			key.Secret,
+			key.Plain,
+			key.EnvironmentID,
+			key.Owner,
+			key.StorageID,
+			key.SourceStorageID,
+			key.SourceStorageKey,
+			key.SourceStorageType,
+			key.Synchronized,
+		)
+
+	}
 
 	if err != nil {
 		return
@@ -127,44 +170,4 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 
 func (d *SqlDb) DeleteAccessKey(projectID int, accessKeyID int) error {
 	return d.deleteObject(projectID, db.AccessKeyProps, accessKeyID)
-}
-
-const RekeyBatchSize = 100
-
-func (d *SqlDb) RekeyAccessKeys(oldKey string) (err error) {
-
-	//var globalProps = db.AccessKeyProps
-	//globalProps.IsGlobal = true
-	//
-	//for i := 0; ; i++ {
-	//
-	//	var keys []db.AccessKey
-	//	err = d.getObjects(-1, globalProps, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize}, nil, &keys)
-	//
-	//	if err != nil {
-	//		return
-	//	}
-	//
-	//	if len(keys) == 0 {
-	//		break
-	//	}
-	//
-	//	for _, key := range keys {
-	//
-	//		err = key.DeserializeSecret2(oldKey)
-	//
-	//		if err != nil {
-	//			return err
-	//		}
-	//
-	//		key.OverrideSecret = true
-	//		err = d.UpdateAccessKey(key)
-	//
-	//		if err != nil && !errors.Is(err, db.ErrNotFound) {
-	//			return err
-	//		}
-	//	}
-	//}
-
-	return
 }

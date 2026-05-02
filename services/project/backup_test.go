@@ -56,12 +56,12 @@ func TestBackupProject(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		RepositoryID:  repo.ID,
-		InventoryID:   &inv.ID,
-		EnvironmentID: &env.ID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		InventoryID:    &inv.ID,
+		EnvironmentIDs: []int{env.ID},
 	})
 	assert.NoError(t, err)
 
@@ -93,6 +93,17 @@ func TestBackupProject(t *testing.T) {
 	restoredProj, err := restoredBackup.Restore(user, store)
 	assert.NoError(t, err)
 	assert.Equal(t, restoredProj.Name, "Test 1234")
+
+	restoredTemplates, err := store.GetTemplates(restoredProj.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	assert.NoError(t, err)
+	assert.Len(t, restoredTemplates, 1)
+	assert.Len(t, restoredTemplates[0].EnvironmentIDs, 1)
+
+	restoredEnvs, err := store.GetEnvironments(restoredProj.ID, db.RetrieveQueryParams{})
+	assert.NoError(t, err)
+	assert.Len(t, restoredEnvs, 1)
+	assert.Equal(t, restoredEnvs[0].ID, restoredTemplates[0].EnvironmentIDs[0])
+	assert.Equal(t, "test", restoredEnvs[0].Name)
 }
 
 func TestBackup_BackupSecretStorage(t *testing.T) {
@@ -132,7 +143,9 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 	assert.NoError(t, err)
 
 	var res map[string]any
-	json.Unmarshal([]byte(str), &res)
+	if err := json.Unmarshal([]byte(str), &res); err != nil {
+		t.Fatal(err)
+	}
 
 	assert.Equal(t, `{
   "environments": [],
@@ -144,6 +157,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
       "name": "Test Key",
       "owner": "vault",
       "storage": "Test",
+      "synchronized": false,
       "type": "none"
     }
   ],
@@ -155,12 +169,15 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
   },
   "repositories": [],
   "roles": [],
+  "runners": [],
   "schedules": [],
   "secret_storages": [
     {
       "name": "Test",
       "params": {},
       "readonly": false,
+      "sync_enabled": false,
+      "sync_interval": 0,
       "type": "vault"
     }
   ],
