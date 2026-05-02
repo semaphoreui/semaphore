@@ -76,6 +76,10 @@ func (d *BoltDb) GetTemplatesWithPermissions(projectID int, userID int, filter d
 		return
 	}
 
+	// Initialize as a non-nil slice so an empty result marshals to `[]` rather than `null`.
+	// The web UI's templates page hangs when the API returns `null` (issue #3245).
+	templates = make([]db.TemplateWithPerms, 0, len(res))
+
 	for _, tpl := range res {
 		var tplWithPerms db.TemplateWithPerms
 		tplWithPerms.Template = tpl

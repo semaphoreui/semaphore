@@ -40,3 +40,31 @@ func Test_SetTemplateDescription(t *testing.T) {
 		t.Fatalf("expected description to be 'New description', got '%s'", *tpl.Description)
 	}
 }
+
+// Regression test for #3245: GetTemplatesWithPermissions used to return a nil
+// slice when no templates matched, which JSON-marshals to `null` and wedges
+// the web UI's templates page. The API contract is an array; an empty result
+// must serialize to `[]`.
+func Test_GetTemplatesWithPermissions_EmptyReturnsNonNilSlice(t *testing.T) {
+	store := CreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{
+		Created: tz.Now(),
+		Name:    "TestProject",
+	})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	templates, err := store.GetTemplatesWithPermissions(proj.ID, 0, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if templates == nil {
+		t.Fatal("expected empty (non-nil) slice for project with no templates, got nil")
+	}
+	if len(templates) != 0 {
+		t.Fatalf("expected zero templates, got %d", len(templates))
+	}
+}
