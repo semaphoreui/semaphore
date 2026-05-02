@@ -2,6 +2,7 @@ package sql
 
 import (
 	"errors"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )

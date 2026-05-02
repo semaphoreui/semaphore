@@ -1,10 +1,11 @@
 package helpers
 
 import (
-	"github.com/semaphoreui/semaphore/db"
 	"net/url"
 	"slices"
 	"strconv"
+
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func QueryParamsForProps(url *url.URL, props db.ObjectProps) (params db.RetrieveQueryParams) {

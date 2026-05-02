@@ -9,7 +9,7 @@ import (
 
 func validateTag(tag string) error {
 	if tag == "" {
-		return fmt.Errorf("Tag cannot be empty")
+		return fmt.Errorf("tag cannot be empty")
 	}
 
 	return nil

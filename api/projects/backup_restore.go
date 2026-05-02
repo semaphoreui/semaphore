@@ -1,10 +1,11 @@
 package projects
 
 import (
-	"github.com/semaphoreui/semaphore/util"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/util"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"

@@ -1,10 +1,11 @@
 package util
 
 import (
-	log "github.com/sirupsen/logrus"
 	"runtime"
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Goid() (int, error) {

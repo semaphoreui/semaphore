@@ -2,8 +2,9 @@ package bolt
 
 import (
 	"encoding/json"
-	"go.etcd.io/bbolt"
 	"testing"
+
+	"go.etcd.io/bbolt"
 )
 
 func TestMigration_2_10_33_Apply(t *testing.T) {

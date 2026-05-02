@@ -2,8 +2,9 @@ package project
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/db"
 	"reflect"
+
+	"github.com/semaphoreui/semaphore/db"
 )
 
 func marshalValue(v reflect.Value) (any, error) {

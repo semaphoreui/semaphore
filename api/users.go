@@ -2,15 +2,15 @@ package api
 
 import (
 	"bytes"
-	"fmt"
+	"image/png"
+	"net/http"
+
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	log "github.com/sirupsen/logrus"
-	"image/png"
-	"net/http"
 
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -80,8 +80,11 @@ func (c *UsersController) AddUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !ok {
-			helpers.WriteErrorStatus(w,
-				fmt.Sprintf("You have reached the limit of Pro users for your subscription."), http.StatusForbidden)
+			helpers.WriteErrorStatus(
+				w,
+				"You have reached the limit of Pro users for your subscription.",
+				http.StatusForbidden,
+			)
 			return
 		}
 	}
@@ -185,8 +188,11 @@ func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !ok {
-			helpers.WriteErrorStatus(w,
-				fmt.Sprintf("You have reached the limit of Pro users for your subscription."), http.StatusForbidden)
+			helpers.WriteErrorStatus(
+				w,
+				"You have reached the limit of Pro users for your subscription.",
+				http.StatusForbidden,
+			)
 			return
 		}
 	}

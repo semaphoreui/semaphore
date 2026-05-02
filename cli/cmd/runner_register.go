@@ -10,15 +10,16 @@ import (
 )
 
 var runnerRegisterArgs struct {
-	stdinRegistrationToken bool
+	stdinRegistrationToken    bool
 	registrationTokenFilePath string
 	projectID                 int
-	name                   string
-	tags                   []string
-	webhook                string
-	nameSet                bool
-	webhookSet             bool
-	tagsSet                bool
+	name                      string
+	tags                      []string
+	webhook                   string
+	enabled                   bool
+	nameSet                   bool
+	webhookSet                bool
+	tagsSet                   bool
 }
 
 func init() {
@@ -27,6 +28,7 @@ func init() {
 	runnerRegisterCmd.PersistentFlags().StringSliceVar(&runnerRegisterArgs.tags, "tags", nil, "Runner tags (comma-separated or repeat the flag)")
 	runnerRegisterCmd.PersistentFlags().StringVar(&runnerRegisterArgs.webhook, "webhook", "", "Runner webhook URL")
 	runnerRegisterCmd.PersistentFlags().StringVar(&runnerRegisterArgs.registrationTokenFilePath, "registration-token-file", "", "Read registration token from a file")
+	runnerRegisterCmd.PersistentFlags().BoolVar(&runnerRegisterArgs.enabled, "enabled", true, "Enable or disable the runner on the server")
 	runnerRegisterCmd.PersistentFlags().IntVar(&runnerRegisterArgs.projectID, "project-id", 0, "Project ID for project-level runner (global runner if not provided)")
 	runnerCmd.AddCommand(runnerRegisterCmd)
 }
@@ -81,6 +83,9 @@ func applyRunnerRegisterFlags(cmd *cobra.Command) {
 	if cmd.PersistentFlags().Changed("tags") {
 		util.Config.Runner.Tags = runnerRegisterArgs.tags
 	}
+	if cmd.PersistentFlags().Changed("enabled") {
+		util.Config.Runner.Enabled = runnerRegisterArgs.enabled
+	}
 }
 
 func registerRunner(cmd *cobra.Command) {
@@ -88,7 +93,6 @@ func registerRunner(cmd *cobra.Command) {
 	configFile := util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
 
 	initRunnerRegistrationToken()
-
 
 	applyRunnerRegisterFlags(cmd)
 

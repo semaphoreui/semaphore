@@ -136,6 +136,8 @@ type RunnerConfig struct {
 
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 
+	Enabled bool `json:"enabled,omitempty" env:"SEMAPHORE_RUNNER_ENABLED"`
+
 	ProjectID *int `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
 }
 
@@ -1442,9 +1444,7 @@ func GetPublicHost() string {
 		port = "3000"
 	}
 
-	if strings.HasPrefix(port, ":") {
-		port = port[1:]
-	}
+	port = strings.TrimPrefix(port, ":")
 
 	if aliasURL == "" {
 		aliasURL = "http://localhost:" + port

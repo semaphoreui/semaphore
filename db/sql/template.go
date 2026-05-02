@@ -6,7 +6,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
-	common_errors "github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -300,9 +300,7 @@ func (d *SqlDb) getTemplates(
 		case db.ViewTypeCustom:
 			q = q.Where("pt.view_id=?", *filter.ViewID)
 		case db.ViewTypeAll:
-			if view.Filter != nil {
-				// TODO: implement filter
-			}
+			// TODO: implement filter
 		}
 	}
 

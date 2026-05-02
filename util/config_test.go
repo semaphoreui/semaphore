@@ -127,6 +127,9 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 	}
 
 	err = loadEnvironmentToObject(&val)
+	if err != nil {
+		panic(err)
+	}
 
 	if val.Users["test"].Name != "test" {
 		t.Error("Invalid field value")

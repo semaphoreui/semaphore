@@ -49,7 +49,7 @@ func TestAgent_Close_FailedInitialization(t *testing.T) {
 	// 1. StartSSHAgent() fails during Listen() but returns incomplete agent
 	// 2. Install() method assigns the incomplete agent to installation.SSHAgent
 	// 3. Later, destroyKeys() calls Destroy() which calls Close() on incomplete agent
-	
+
 	// Create an agent that would be returned by StartSSHAgent() if Listen() failed
 	incompleteAgent := Agent{
 		Keys: []AgentKey{

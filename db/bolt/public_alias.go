@@ -3,8 +3,9 @@ package bolt
 import (
 	"errors"
 	"fmt"
-	"github.com/semaphoreui/semaphore/db"
 	"reflect"
+
+	"github.com/semaphoreui/semaphore/db"
 )
 
 type publicAlias struct {

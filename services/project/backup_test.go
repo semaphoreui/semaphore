@@ -143,7 +143,9 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 	assert.NoError(t, err)
 
 	var res map[string]any
-	json.Unmarshal([]byte(str), &res)
+	if err := json.Unmarshal([]byte(str), &res); err != nil {
+		t.Fatal(err)
+	}
 
 	assert.Equal(t, `{
   "environments": [],

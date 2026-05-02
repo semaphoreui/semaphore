@@ -189,11 +189,8 @@ func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
 
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	err := cmd.Run()
-	if err != nil {
-		return false
-	}
 
-	return true
+	return err == nil
 }
 
 func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []string) error {

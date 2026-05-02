@@ -16,8 +16,9 @@ type OidcProvider struct {
 	NameClaim        string       `json:"name_claim" default:"preferred_username"`
 	EmailClaim       string       `json:"email_claim" default:"email"`
 	Order            int          `json:"order"`
+
 	// ReturnViaState when true, passes the return path via the OAuth state parameter instead of the redirect URL path. This is useful for OAuth providers that have strict redirect URL validation.
-	ReturnViaState   bool         `json:"return_via_state" default:"true"`
+	ReturnViaState bool `json:"return_via_state" default:"true"`
 }
 
 type ClaimsProvider interface {

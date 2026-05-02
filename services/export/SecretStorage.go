@@ -40,6 +40,9 @@ func (e *SecretStorageExporter) restoreValue(val EntityObject[db.SecretStorage],
 
 	old := val.value
 	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+	if err != nil {
+		return err
+	}
 
 	newObj, err := store.CreateSecretStorage(old)
 	if err != nil {

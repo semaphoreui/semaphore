@@ -707,7 +707,7 @@ func TestCheckTmpDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = os.Chmod(dirName, os.FileMode(int(0550)))
+	err = os.Chmod(dirName, os.FileMode(0550))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -715,7 +715,7 @@ func TestCheckTmpDir(t *testing.T) {
 	//nolint: vetshadow
 	if stat, err := os.Stat(dirName); err != nil {
 		t.Fatal(err)
-	} else if stat.Mode() != os.FileMode(int(0550)) {
+	} else if stat.Mode() != os.FileMode(0550) {
 		// File System is not support 0550 mode, skip this test
 		return
 	}

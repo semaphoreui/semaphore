@@ -2,11 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pquerna/otp/totp"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func init() {

@@ -17,7 +17,6 @@ import (
 	"github.com/semaphoreui/semaphore/services/server"
 	taskServices "github.com/semaphoreui/semaphore/services/tasks"
 
-	"github.com/semaphoreui/semaphore/api/debug"
 	"github.com/semaphoreui/semaphore/api/tasks"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	log "github.com/sirupsen/logrus"
@@ -220,10 +219,6 @@ func Route(
 	adminAPI.Path("/roles").HandlerFunc(rolesController.AddRole).Methods("POST", "HEAD")
 
 	adminAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
-
-	debugAPI := adminAPI.PathPrefix("/debug").Subrouter()
-	debugAPI.Path("/gc").HandlerFunc(debug.GC).Methods("POST")
-	debugAPI.Path("/pprof/dump").HandlerFunc(debug.Dump).Methods("POST")
 
 	globalRunnersAPI := adminAPI.PathPrefix("/runners").Subrouter()
 	globalRunnersAPI.Use(globalRunnerMiddleware)
