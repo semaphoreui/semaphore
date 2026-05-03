@@ -292,6 +292,7 @@
             dense
             :disabled="formSaving"
             :placeholder="$t('runner_tag')"
+            clearable
           ></v-autocomplete>
 
           <SurveyVars
