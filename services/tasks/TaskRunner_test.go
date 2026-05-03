@@ -237,7 +237,7 @@ func TestPopulateDetails(t *testing.T) {
 
 	repo, err := store.CreateRepository(db.Repository{
 		ProjectID: proj.ID,
-		SSHKeyID:  key.ID,
+		SSHKeyID:  &key.ID,
 		Name:      "Test",
 		GitURL:    "git@example.com:test/test",
 		GitBranch: "master",
@@ -263,11 +263,11 @@ func TestPopulateDetails(t *testing.T) {
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		RepositoryID:  repo.ID,
-		InventoryID:   &inv.ID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		InventoryID:    &inv.ID,
 		EnvironmentIDs: []int{env.ID},
 	})
 
@@ -335,7 +335,7 @@ func TestPopulateDetailsInventory(t *testing.T) {
 
 	repo, err := store.CreateRepository(db.Repository{
 		ProjectID: proj.ID,
-		SSHKeyID:  key.ID,
+		SSHKeyID:  &key.ID,
 		Name:      "Test",
 		GitURL:    "git@example.com:test/test",
 		GitBranch: "master",
@@ -368,11 +368,11 @@ func TestPopulateDetailsInventory(t *testing.T) {
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		RepositoryID:  repo.ID,
-		InventoryID:   &inv.ID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		InventoryID:    &inv.ID,
 		EnvironmentIDs: []int{env.ID},
 		TaskParams: map[string]any{
 			"allow_override_inventory": true,
@@ -444,7 +444,7 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 
 	repo, err := store.CreateRepository(db.Repository{
 		ProjectID: proj.ID,
-		SSHKeyID:  key.ID,
+		SSHKeyID:  &key.ID,
 		Name:      "Test",
 		GitURL:    "git@example.com:test/test",
 		GitBranch: "master",
@@ -470,11 +470,11 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		RepositoryID:  repo.ID,
-		InventoryID:   &inv.ID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		InventoryID:    &inv.ID,
 		EnvironmentIDs: []int{env.ID},
 	})
 
