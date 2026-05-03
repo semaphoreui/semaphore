@@ -190,6 +190,13 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		}
 	}
 
+	if d.GetDialect() == util.DbDriverSQLite {
+		_, err = d.Sql().Exec("PRAGMA foreign_keys = OFF")
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	tx, err := d.Sql().Begin()
 	if err != nil {
 		return err
@@ -249,7 +256,16 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 
 	fmt.Println()
 
-	return tx.Commit()
+	res := tx.Commit()
+
+	if d.GetDialect() == util.DbDriverSQLite {
+		_, err = d.Sql().Exec("PRAGMA foreign_keys = ON")
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return res
 }
 
 // TryRollbackMigration attempts to rollback the database to an earlier version if a rollback exists
