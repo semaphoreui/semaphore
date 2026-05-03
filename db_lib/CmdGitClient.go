@@ -61,10 +61,14 @@ func (c CmdGitClient) makeCmd(
 
 func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args ...string) error {
 	var err error
-	keyInstallation, err := c.keyInstaller.Install(r.Repository.SSHKey, db.AccessKeyRoleGit, r.Logger)
+	var keyInstallation ssh.AccessKeyInstallation
 
-	if err != nil {
-		return err
+	if r.Repository.SSHKey != nil {
+		keyInstallation, err = c.keyInstaller.Install(*r.Repository.SSHKey, db.AccessKeyRoleGit, r.Logger)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	defer keyInstallation.Destroy() //nolint: errcheck
@@ -77,9 +81,15 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 }
 
 func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, args ...string) (out string, err error) {
-	keyInstallation, err := c.keyInstaller.Install(r.Repository.SSHKey, db.AccessKeyRoleGit, r.Logger)
-	if err != nil {
-		return
+
+	var keyInstallation ssh.AccessKeyInstallation
+
+	if r.Repository.SSHKey != nil {
+		keyInstallation, err = c.keyInstaller.Install(*r.Repository.SSHKey, db.AccessKeyRoleGit, r.Logger)
+
+		if err != nil {
+			return
+		}
 	}
 
 	defer keyInstallation.Destroy() //nolint: errcheck

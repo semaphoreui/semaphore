@@ -102,7 +102,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		ProjectID: projectID,
 		GitURL:    "https://github.com/semaphoreui/semaphore-demo.git",
 		GitBranch: "main",
-		SSHKeyID:  noneKeyID,
+		SSHKeyID:  nil,
 	})
 
 	if err != nil {
@@ -149,15 +149,15 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 
 	desc = "Pings the website to provide a real-world example of using Semaphore."
 	_, err = store.CreateTemplate(db.Template{
-		Name:          "Ping semaphoreui.com",
-		Playbook:      "ping.yml",
-		Description:   &desc,
-		ProjectID:     projectID,
-		InventoryID:   &prodInv.ID,
+		Name:           "Ping semaphoreui.com",
+		Playbook:       "ping.yml",
+		Description:    &desc,
+		ProjectID:      projectID,
+		InventoryID:    &prodInv.ID,
 		EnvironmentIDs: []int{emptyEnvID},
-		RepositoryID:  demoRepo.ID,
-		App:           db.AppAnsible,
-		ViewID:        &toolsView.ID,
+		RepositoryID:   demoRepo.ID,
+		App:            db.AppAnsible,
+		ViewID:         &toolsView.ID,
 	})
 
 	if err != nil {
@@ -168,16 +168,16 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 
 	var startVersion = "1.0.0"
 	buildTpl, err := store.CreateTemplate(db.Template{
-		Name:          "Build demo app",
-		Playbook:      "build.yml",
-		Type:          db.TemplateBuild,
-		ProjectID:     projectID,
-		InventoryID:   &buildInv.ID,
+		Name:           "Build demo app",
+		Playbook:       "build.yml",
+		Type:           db.TemplateBuild,
+		ProjectID:      projectID,
+		InventoryID:    &buildInv.ID,
 		EnvironmentIDs: []int{emptyEnvID},
-		RepositoryID:  demoRepo.ID,
-		StartVersion:  &startVersion,
-		App:           db.AppAnsible,
-		ViewID:        &buildView.ID,
+		RepositoryID:   demoRepo.ID,
+		StartVersion:   &startVersion,
+		App:            db.AppAnsible,
+		ViewID:         &buildView.ID,
 	})
 
 	if err != nil {

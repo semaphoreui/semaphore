@@ -64,7 +64,9 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 		return
 	}
 
-	err = r.pool.encryptionService.DeserializeSecret(&repo.SSHKey)
+	if repo.SSHKey != nil {
+		err = r.pool.encryptionService.DeserializeSecret(repo.SSHKey)
+	}
 	if err != nil {
 		return
 	}

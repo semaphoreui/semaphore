@@ -790,7 +790,11 @@ func StoreSession(store Store, token string, callback func()) {
 }
 
 func ValidateRepository(store Store, repo *Repository) (err error) {
-	_, err = store.GetAccessKey(repo.ProjectID, repo.SSHKeyID)
+	if repo.SSHKeyID == nil {
+		return
+	}
+
+	_, err = store.GetAccessKey(repo.ProjectID, *repo.SSHKeyID)
 
 	return
 }

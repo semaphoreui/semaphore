@@ -13,7 +13,11 @@ func (d *SqlDb) GetRepository(projectID int, repositoryID int) (db.Repository, e
 		return repository, err
 	}
 
-	repository.SSHKey, err = d.GetAccessKey(projectID, repository.SSHKeyID)
+	if repository.SSHKeyID != nil {
+		var key db.AccessKey
+		key, err = d.GetAccessKey(projectID, *repository.SSHKeyID)
+		repository.SSHKey = &key
+	}
 
 	return repository, err
 }

@@ -27,9 +27,9 @@ type Repository struct {
 	ProjectID int    `db:"project_id" json:"project_id" backup:"-"`
 	GitURL    string `db:"git_url" json:"git_url" binding:"required"`
 	GitBranch string `db:"git_branch" json:"git_branch" binding:"required"`
-	SSHKeyID  int    `db:"ssh_key_id" json:"ssh_key_id" binding:"required" backup:"-"`
+	SSHKeyID  *int   `db:"ssh_key_id" json:"ssh_key_id" binding:"required" backup:"-"`
 
-	SSHKey AccessKey `db:"-" json:"-" backup:"-"`
+	SSHKey *AccessKey `db:"-" json:"-" backup:"-"`
 }
 
 func (r Repository) ClearCache() error {

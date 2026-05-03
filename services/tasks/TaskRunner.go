@@ -297,7 +297,7 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 	}
 
 	tplEnvironment := make(map[string]any)
-  
+
 	if t.Environment.JSON != "" {
 		err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
 	}
@@ -407,8 +407,10 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
-	if err = t.pool.encryptionService.DeserializeSecret(&t.Repository.SSHKey); err != nil {
-		return err
+	if t.Repository.SSHKey != nil {
+		if err = t.pool.encryptionService.DeserializeSecret(t.Repository.SSHKey); err != nil {
+			return err
+		}
 	}
 
 	// load and merge all configured environments
