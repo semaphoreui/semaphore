@@ -331,7 +331,11 @@ func createObjectType(t reflect.Type) reflect.Type {
 }
 
 func unmarshalObject(data []byte, obj any, fields []string) error {
-	newType := createObjectType(reflect.TypeOf(obj))
+	objType := reflect.TypeOf(obj)
+	if objType == nil {
+		return fmt.Errorf("unmarshalObject: destination object is nil")
+	}
+	newType := createObjectType(objType)
 	ptr := reflect.New(newType).Interface()
 
 	err := json.Unmarshal(data, ptr)

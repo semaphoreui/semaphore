@@ -43,7 +43,7 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, projects)
 }
 
-func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emptyEnvID int, store db.Store) (err error) {
+func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, store db.Store) (err error) {
 	var demoRepo db.Repository
 
 	var buildInv db.Inventory
@@ -154,7 +154,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		Description:    &desc,
 		ProjectID:      projectID,
 		InventoryID:    &prodInv.ID,
-		EnvironmentIDs: []int{emptyEnvID},
+		EnvironmentIDs: []int{},
 		RepositoryID:   demoRepo.ID,
 		App:            db.AppAnsible,
 		ViewID:         &toolsView.ID,
@@ -173,7 +173,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		Type:           db.TemplateBuild,
 		ProjectID:      projectID,
 		InventoryID:    &buildInv.ID,
-		EnvironmentIDs: []int{emptyEnvID},
+		EnvironmentIDs: []int{},
 		RepositoryID:   demoRepo.ID,
 		StartVersion:   &startVersion,
 		App:            db.AppAnsible,
@@ -191,7 +191,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		Playbook:        "deploy.yml",
 		ProjectID:       projectID,
 		InventoryID:     &devInv.ID,
-		EnvironmentIDs:  []int{emptyEnvID},
+		EnvironmentIDs:  []int{},
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		Autorun:         true,
@@ -221,7 +221,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		Playbook:        "deploy.yml",
 		ProjectID:       projectID,
 		InventoryID:     &prodInv.ID,
-		EnvironmentIDs:  []int{emptyEnvID},
+		EnvironmentIDs:  []int{},
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		App:             db.AppAnsible,
@@ -249,7 +249,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		Type:            db.TemplateTask,
 		Playbook:        "",
 		ProjectID:       projectID,
-		EnvironmentIDs:  []int{emptyEnvID},
+		EnvironmentIDs:  []int{},
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		App:             db.AppTofu,
@@ -265,7 +265,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		Type:            db.TemplateTask,
 		Playbook:        "",
 		ProjectID:       projectID,
-		EnvironmentIDs:  []int{emptyEnvID},
+		EnvironmentIDs:  []int{},
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		App:             db.AppTerragrunt,
@@ -282,7 +282,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		Playbook:        "print_system_info.sh",
 		ProjectID:       projectID,
 		InventoryID:     &prodInv.ID,
-		EnvironmentIDs:  []int{emptyEnvID},
+		EnvironmentIDs:  []int{},
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		App:             db.AppBash,
@@ -299,7 +299,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, emp
 		Playbook:        "print_system_info.ps1",
 		ProjectID:       projectID,
 		InventoryID:     &prodInv.ID,
-		EnvironmentIDs:  []int{emptyEnvID},
+		EnvironmentIDs:  []int{},
 		RepositoryID:    demoRepo.ID,
 		BuildTemplateID: &buildTpl.ID,
 		App:             db.AppPowerShell,
@@ -367,32 +367,12 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	//_, err = store.CreateInventory(db.Inventory{
-	//	Name:      "None",
-	//	ProjectID: body.ID,
-	//	Type:      "none",
-	//	SSHKeyID:  &noneKey.ID,
-	//})
-
-	//if err != nil {
-	//	helpers.WriteError(w, err)
-	//	return
-	//}
-
-	envStr := "{}"
-	emptyEnv, err := store.CreateEnvironment(db.Environment{
-		Name:      "Empty",
-		ProjectID: body.ID,
-		JSON:      "{}",
-		ENV:       &envStr,
-	})
-
 	if err != nil {
 		return
 	}
 
 	if bodyWithDemo.Demo {
-		err = c.createDemoProject(body.ID, noneKey.ID, emptyEnv.ID, store)
+		err = c.createDemoProject(body.ID, noneKey.ID, store)
 
 		if err != nil {
 			helpers.WriteError(w, err)
