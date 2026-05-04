@@ -31,34 +31,58 @@ type SqlDb struct {
 	connection SqlDbConnection
 }
 
+const (
+	connectMaxAttempts  = 12
+	connectRetryBackoff = 5 * time.Second
+)
+
 func (d *SqlDb) Sql() *gorp.DbMap {
 	return d.connection.sql
 }
 
 func (d *SqlDbConnection) Connect() {
-	sqlDb, err := connect()
-	if err != nil {
-		panic(err)
+	var (
+		sqlDb   *sql.DB
+		err     error
+		lastErr error
+	)
+
+	for i := 0; i < connectMaxAttempts; i++ {
+		sqlDb, err = connect()
+		if err == nil {
+			err = sqlDb.Ping()
+		}
+
+		if err == nil {
+			break
+		}
+
+		lastErr = err
+
+		if sqlDb != nil {
+			if closeErr := sqlDb.Close(); closeErr != nil {
+				log.Warn("Cannot close database connection: " + closeErr.Error())
+			}
+		}
+
+		if createErr := createDb(); createErr != nil {
+			log.Warn("Cannot create database: " + createErr.Error())
+		}
+
+		if i < connectMaxAttempts-1 {
+			log.Warnf(
+				"Cannot connect to database (attempt %d/%d): %v. Retrying in %s",
+				i+1,
+				connectMaxAttempts,
+				lastErr,
+				connectRetryBackoff,
+			)
+			time.Sleep(connectRetryBackoff)
+		}
 	}
 
-	err = sqlDb.Ping()
-	if err != nil {
-		if err = sqlDb.Close(); err != nil {
-			log.Warn("Cannot close database connection: " + err.Error())
-		}
-
-		if err = createDb(); err != nil {
-			panic(err)
-		}
-
-		sqlDb, err = connect()
-		if err != nil {
-			panic(err)
-		}
-
-		if err = sqlDb.Ping(); err != nil {
-			panic(err)
-		}
+	if lastErr != nil {
+		panic(fmt.Errorf("cannot connect to database after %d attempts: %w", connectMaxAttempts, lastErr))
 	}
 
 	cfg, err := util.Config.GetDBConfig()
@@ -105,10 +129,15 @@ func (d *SqlDbConnection) Connect() {
 }
 
 func (d *SqlDbConnection) Close() {
+	if d.sql == nil || d.sql.Db == nil {
+		return
+	}
 	err := d.sql.Db.Close()
 	if err != nil {
 		panic(err)
 	}
+
+	d.sql = nil
 }
 
 func CreateTestStore() *SqlDb {
