@@ -39,6 +39,10 @@ func (t ProgressWrapper) Write(p []byte) (n int, err error) {
 }
 
 func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
+	if r.Repository.SSHKey == nil {
+		return nil, nil
+	}
+
 	switch r.Repository.SSHKey.Type {
 	case db.AccessKeySSH:
 
