@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go list:*)",
+      "Bash(go build:*)",
+      "Bash(go get:*)",
+      "Bash(go mod:*)",
+      "Bash(go test *)",
+      "Bash(go doc *)",
+      "Bash(go version *)",
+      "Bash(grep -E \"\\\\.sql$\")",
+      "Bash(xargs ls *)",
+      "Bash(go vet *)",
+      "Bash(xargs cat *)",
+      "Bash(npx eslint *)",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && head -5 \"{}\"')",
+      "Bash(git stash *)",
+      "Bash(npm run *)",
+      "Bash(npm --version)",
+      "Bash(go install *)",
+      "Bash(npm install *)",
+      "Bash(go env *)",
+      "Bash(export PATH=\"$\\(go env GOPATH\\)/bin:$PATH\")",
+      "Bash(export GOWORK=off)",
+      "Bash(bash .claude/skills/semaphore-ui-third-party-licenses/scripts/collect_licenses.sh)",
+      "Bash(python3 *)",
+      "Bash(echo \"exit=$?\")"
+    ]
+  }
+}
