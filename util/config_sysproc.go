@@ -10,6 +10,17 @@ import (
 	"syscall"
 )
 
+// parseLinuxCredentialUint parses a UID/GID string from the password database.
+// It rejects zero and values that do not fit in uint32 so they are never
+// silently truncated when passed to syscall.Credential.
+func parseLinuxCredentialUint(s string) (v uint32, ok bool) {
+	u64, err := strconv.ParseUint(s, 10, 32)
+	if err != nil || u64 == 0 {
+		return 0, false
+	}
+	return uint32(u64), true
+}
+
 func (conf *ConfigType) getProcessCredential() (uid uint32, gid uint32) {
 
 	if conf.Process.User != "" {
@@ -17,22 +28,12 @@ func (conf *ConfigType) getProcessCredential() (uid uint32, gid uint32) {
 		if err != nil {
 			return
 		}
-		u, err := strconv.Atoi(usr.Uid)
-		if err != nil {
-			return
+		if u, ok := parseLinuxCredentialUint(usr.Uid); ok {
+			uid = u
 		}
 
-		if u > 0 {
-			uid = uint32(u)
-		}
-
-		g, err := strconv.Atoi(usr.Gid)
-		if err != nil {
-			return
-		}
-
-		if g > 0 {
-			gid = uint32(g)
+		if g, ok := parseLinuxCredentialUint(usr.Gid); ok {
+			gid = g
 		}
 	}
 
