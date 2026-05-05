@@ -809,20 +809,40 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		redirectPath = mux.Vars(r)["redirect_path"]
 	}
 
-	if !strings.HasPrefix(redirectPath, "/") {
-		redirectPath = "/" + redirectPath
-	}
-
-	redirectURL, err := url.JoinPath(util.Config.WebHost, redirectPath)
+	redirectURL, err := buildOidcRedirectURL(util.Config.WebHost, redirectPath)
 	if err != nil {
 		log.Error(err)
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
+	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
+}
+
+// buildOidcRedirectURL builds the post-OIDC-login redirect target.
+//
+// When webHost is empty (Semaphore mounted at root, per docs), url.JoinPath
+// drops the leading slash from redirectPath, producing a relative URL that
+// the browser resolves against the current /api/auth/oidc/<id>/redirect URL,
+// resulting in a 404. In that case return an absolute path beginning with /.
+// See https://github.com/semaphoreui/semaphore/issues/2681.
+func buildOidcRedirectURL(webHost, redirectPath string) (string, error) {
+	if !strings.HasPrefix(redirectPath, "/") {
+		redirectPath = "/" + redirectPath
+	}
+
+	if webHost == "" {
+		return redirectPath, nil
+	}
+
+	redirectURL, err := url.JoinPath(webHost, redirectPath)
+	if err != nil {
+		return "", err
+	}
+
 	if redirectURL == "" {
 		redirectURL = "/"
 	}
 
-	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
+	return redirectURL, nil
 }

@@ -174,3 +174,56 @@ func TestGenerateStateOauthCookieUniqueness(t *testing.T) {
 	// Verify states are different
 	assert.NotEqual(t, state1Str, state2Str, "Multiple calls should generate different state strings")
 }
+
+func TestBuildOidcRedirectURL(t *testing.T) {
+	tests := []struct {
+		name         string
+		webHost      string
+		redirectPath string
+		want         string
+	}{
+		{
+			name:         "empty web_host returns absolute path (issue #2681)",
+			webHost:      "",
+			redirectPath: "/project/1/history",
+			want:         "/project/1/history",
+		},
+		{
+			name:         "empty web_host with empty path returns root",
+			webHost:      "",
+			redirectPath: "",
+			want:         "/",
+		},
+		{
+			name:         "empty web_host with path missing leading slash",
+			webHost:      "",
+			redirectPath: "project/1",
+			want:         "/project/1",
+		},
+		{
+			name:         "configured web_host joins absolute URL",
+			webHost:      "https://semaphore.example.com",
+			redirectPath: "/project/1",
+			want:         "https://semaphore.example.com/project/1",
+		},
+		{
+			name:         "configured web_host with subpath",
+			webHost:      "https://example.com/semaphore",
+			redirectPath: "/project/1",
+			want:         "https://example.com/semaphore/project/1",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := buildOidcRedirectURL(tc.webHost, tc.redirectPath)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+			// Critical: result must never be an obviously-relative path
+			// that the browser would resolve under /api/auth/oidc/...
+			if tc.webHost == "" {
+				assert.True(t, len(got) > 0 && got[0] == '/',
+					"empty web_host must produce absolute path, got %q", got)
+			}
+		})
+	}
+}
