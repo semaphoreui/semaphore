@@ -60,7 +60,7 @@ type DbConfig struct {
 
 	Hostname string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST" default:"0.0.0.0"`
 	Username string            `json:"user,omitempty" env:"SEMAPHORE_DB_USER"`
-	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS,sensitive"`
+	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS"`
 	DbName   string            `json:"name,omitempty" env:"SEMAPHORE_DB" default:"semaphore"`
 	Options  map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
 }
@@ -1130,6 +1130,8 @@ func loadConfigEnvironment() {
 	if err != nil {
 		panic(err)
 	}
+
+	os.Unsetenv("SEMAPHORE_DB_PASS")
 }
 
 func exitOnConfigError(msg string) {
