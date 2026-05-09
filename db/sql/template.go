@@ -17,6 +17,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		return
 	}
 
+	template.ApplyLegacyEnvironmentField()
+
 	insertID, err := d.insert(
 		"id",
 		"insert into project__template ("+
@@ -146,10 +148,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		return err
 	}
 
-	// For backward compatibility
-	if template.EnvironmentIDs == nil && template.EnvironmentID > 0 {
-		template.EnvironmentIDs = []int{template.EnvironmentID}
-	}
+	template.ApplyLegacyEnvironmentField()
 
 	err = d.UpdateTemplateEnvironments(template.ProjectID, template.ID, template.EnvironmentIDs)
 
