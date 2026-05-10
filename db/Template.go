@@ -235,6 +235,15 @@ func (tpl *Template) Validate() error {
 	return nil
 }
 
+// ApplyLegacyEnvironmentField copies deprecated environment_id into environment_ids when
+// the client omitted environment_ids (nil). An explicit empty JSON array unmarshals as a
+// non-nil empty slice and is left unchanged so clients can clear all variable groups.
+func (tpl *Template) ApplyLegacyEnvironmentField() {
+	if tpl.EnvironmentIDs == nil && tpl.EnvironmentID > 0 {
+		tpl.EnvironmentIDs = []int{tpl.EnvironmentID}
+	}
+}
+
 func FillTemplate(d Store, template *Template) (err error) {
 	var vaults []TemplateVault
 	vaults, err = d.GetTemplateVaults(template.ProjectID, template.ID)

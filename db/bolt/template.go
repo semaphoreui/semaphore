@@ -16,6 +16,8 @@ func (d *BoltDb) CreateTemplate(template db.Template) (newTemplate db.Template, 
 		return
 	}
 
+	template.ApplyLegacyEnvironmentField()
+
 	template.SurveyVarsJSON = db.ObjectToJSON(template.SurveyVars)
 	newTpl, err := d.createObject(template.ProjectID, db.TemplateProps, template)
 	if err != nil {
@@ -36,6 +38,8 @@ func (d *BoltDb) UpdateTemplate(template db.Template) error {
 	if err != nil {
 		return err
 	}
+
+	template.ApplyLegacyEnvironmentField()
 
 	template.SurveyVarsJSON = db.ObjectToJSON(template.SurveyVars)
 	err = d.updateObject(template.ProjectID, db.TemplateProps, template)
