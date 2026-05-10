@@ -155,9 +155,7 @@ func (c CmdGitClient) GetLastCommitMessage(r GitRepository) (msg string, err err
 		return
 	}
 
-	if len(msg) > 100 {
-		msg = msg[0:100]
-	}
+	msg = truncateCommitMessage(msg)
 
 	return
 }
