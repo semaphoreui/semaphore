@@ -1263,19 +1263,25 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 	case DbDriverBolt:
 		connectionString = dbHost
 	case DbDriverMySQL:
+		// If the host already specifies a network type (e.g. unix(/var/run/mysqld/mysqld.sock)),
+		// use it as-is; otherwise wrap it with tcp().
+		hostStr := dbHost
+		if !strings.Contains(dbHost, "(") {
+			hostStr = "tcp(" + dbHost + ")"
+		}
 		if includeDbName {
 			connectionString = fmt.Sprintf(
-				"%s:%s@tcp(%s)/%s",
+				"%s:%s@%s/%s",
 				dbUser,
 				dbPass,
-				dbHost,
+				hostStr,
 				dbName)
 		} else {
 			connectionString = fmt.Sprintf(
-				"%s:%s@tcp(%s)/",
+				"%s:%s@%s/",
 				dbUser,
 				dbPass,
-				dbHost)
+				hostStr)
 		}
 		options := map[string]string{
 			"parseTime":         "true",
