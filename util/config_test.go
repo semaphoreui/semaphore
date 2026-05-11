@@ -347,7 +347,9 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 
 func TestMySQLGetConnectionString(t *testing.T) {
 	// Ensure environment variable doesn't interfere with Hostname field
-	os.Unsetenv("SEMAPHORE_DB_HOST") //nolint:errcheck
+	if err := os.Unsetenv("SEMAPHORE_DB_HOST"); err != nil {
+		t.Fatal(err)
+	}
 
 	// TCP host should be wrapped with tcp()
 	tcpCfg := &DbConfig{
