@@ -48,11 +48,12 @@ RUN wget -O /tmp/terragrunt https://github.com/gruntwork-io/terragrunt/releases/
 FROM alpine:3.21
 
 ARG TARGETARCH="amd64"
+ARG USER_ID=1001
 
 RUN apk add --no-cache -U \
     bash curl git gnupg mysql-client openssh-client-default python3 python3-dev py3-pip rsync sshpass tar tini tzdata unzip wget zip && \
     rm -rf /var/cache/apk/* && \
-    adduser -D -u 1001 -G root semaphore && \
+    adduser -D -u ${USER_ID} -G root semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
     mkdir -p /var/lib/semaphore && \
@@ -63,7 +64,7 @@ RUN apk add --no-cache -U \
     chown -R semaphore:0 /opt/semaphore && \
     find /usr/lib/python* -iname __pycache__ | xargs rm -rf
 
-COPY --chown=1001:0 ./deployment/docker/runner/ansible.cfg /etc/ansible/ansible.cfg
+COPY --chown=${USER_ID}:0 ./deployment/docker/runner/ansible.cfg /etc/ansible/ansible.cfg
 COPY --from=builder /go/src/semaphore/deployment/docker/runner/runner-wrapper /usr/local/bin/
 COPY --from=builder /go/src/semaphore/bin/semaphore /usr/local/bin/
 COPY --from=builder /tmp/tofu /usr/local/bin/
@@ -94,7 +95,7 @@ RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo &&
 
 RUN echo 'Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null' > /etc/ssh/ssh_config.d/semaphore.conf
 
-USER 1001
+USER ${USER_ID}
 
 ENV VIRTUAL_ENV="$ANSIBLE_VENV_PATH"
 ENV PATH="$ANSIBLE_VENV_PATH/bin:$PATH"

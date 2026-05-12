@@ -49,6 +49,7 @@ RUN wget -O /tmp/terragrunt https://github.com/gruntwork-io/terragrunt/releases/
 FROM alpine:3.21
 
 ARG TARGETARCH="amd64"
+ARG USER_ID=1001
 # renovate: datasource=pypi depName=ansible
 ARG ANSIBLE_VERSION=13.5.0
 ENV ANSIBLE_VERSION=${ANSIBLE_VERSION}
@@ -57,7 +58,7 @@ ARG ANSIBLE_VENV_PATH=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv
 RUN apk add --no-cache -U \
     bash curl git gnupg mysql-client openssh-client-default python3 py3-pip rsync sshpass tar tini tzdata unzip wget zip jq && \
     rm -rf /var/cache/apk/* && \
-    adduser -D -u 1001 -G root semaphore && \
+    adduser -D -u ${USER_ID} -G root semaphore && \
     mkdir -p /tmp/semaphore && \
     mkdir -p /etc/semaphore && \
     mkdir -p /var/lib/semaphore && \
@@ -70,7 +71,7 @@ RUN apk add --no-cache -U \
 
 RUN echo $'Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null' > /etc/ssh/ssh_config.d/semaphore.conf
 
-COPY --chown=1001:0 ./deployment/docker/server/ansible.cfg /etc/ansible/ansible.cfg
+COPY --chown=${USER_ID}:0 ./deployment/docker/server/ansible.cfg /etc/ansible/ansible.cfg
 COPY --from=builder /go/src/semaphore/deployment/docker/server/server-wrapper /usr/local/bin/
 COPY --from=builder /go/src/semaphore/bin/semaphore /usr/local/bin/
 COPY --from=builder /tmp/tofu /usr/local/bin/
@@ -94,7 +95,7 @@ RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo &&
      find ${ANSIBLE_VENV_PATH} -iname __pycache__ | xargs rm -rf && \
      chown -R semaphore:0 /opt/semaphore
 
-USER 1001
+USER ${USER_ID}
 EXPOSE 3000
 
 ENV VIRTUAL_ENV="$ANSIBLE_VENV_PATH"
