@@ -376,6 +376,7 @@ definitions:
         type: boolean
       alert_chat:
         type: string
+        x-nullable: true
         example: Test
       max_parallel_tasks:
         type: integer
@@ -402,6 +403,7 @@ definitions:
         type: boolean
       alert_chat:
         type: string
+        x-nullable: true
         example: Test
       max_parallel_tasks:
         type: integer
@@ -609,12 +611,24 @@ definitions:
       template_id:
         type: integer
         minimum: 1
+      auth_method:
+        type: string
+        example: none
+      auth_secret_id:
+        type: integer
+        x-nullable: true
+      auth_header:
+        type: string
+      searchable:
+        type: boolean
       task_params:
         $ref: '#/definitions/TaskPrams'
 
   IntegrationRequest:
     type: object
     properties:
+      id:
+        type: integer
       name:
         type: string
         example: deploy
@@ -622,7 +636,17 @@ definitions:
         type: integer
       template_id:
         type: integer
-      params:
+      auth_method:
+        type: string
+        example: none
+      auth_secret_id:
+        type: integer
+        x-nullable: true
+      auth_header:
+        type: string
+      searchable:
+        type: boolean
+      task_params:
         $ref: '#/definitions/TaskPrams'
 
   IntegrationExtractValueRequest:
@@ -931,6 +955,8 @@ definitions:
         type: integer
       autorun:
         type: boolean
+      task_params:
+        $ref: '#/definitions/TaskPrams'
 
   Template:
     type: object
@@ -995,6 +1021,8 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/TemplateVault"
+      task_params:
+        $ref: '#/definitions/TaskPrams'
 
   TemplateSurveyVar:
     type: object
@@ -1095,6 +1123,9 @@ definitions:
   ViewRequest:
     type: object
     properties:
+      id:
+        type: integer
+        minimum: 1
       title:
         type: string
         example: Test
