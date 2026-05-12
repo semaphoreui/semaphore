@@ -234,6 +234,10 @@ func alterRequestBody(t *trans.Transaction) {
 	if userKey != nil {
 		bodyFieldProcessor("ssh_key_id", userKey.ID, &request)
 		bodyFieldProcessor("become_key_id", userKey.ID, &request)
+		// IntegrationRequest.auth_secret_id references an access key for
+		// token/HMAC webhook verification. Without a valid key reference,
+		// integration POST/PUT fail on the access_key FK constraint.
+		bodyFieldProcessor("auth_secret_id", userKey.ID, &request)
 	}
 	if invite != nil {
 		bodyFieldProcessor("invite_id", 4, &request)
