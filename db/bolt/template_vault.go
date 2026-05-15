@@ -5,21 +5,29 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-func (d *BoltDb) GetTemplateVaults(projectID int, templateID int) (vaults []db.TemplateVault, err error) {
+// listRawTemplateVaults returns all template vault rows for the template without resolving
+// references (e.g. vault password keys). Callers that replace or delete vaults must use
+// this list so rows that fail FillTemplateVault are still removed from the store.
+func (d *BoltDb) listRawTemplateVaults(projectID int, templateID int) (vaults []db.TemplateVault, err error) {
 	err = d.getObjects(projectID, db.TemplateVaultProps, db.RetrieveQueryParams{}, func(referringObj any) bool {
 		return referringObj.(db.TemplateVault).TemplateID == templateID
 	}, &vaults)
+	return
+}
+
+func (d *BoltDb) GetTemplateVaults(projectID int, templateID int) (vaults []db.TemplateVault, err error) {
+	all, err := d.listRawTemplateVaults(projectID, templateID)
 	if err != nil {
 		return
 	}
 	res := make([]db.TemplateVault, 0)
-	for i := range vaults {
-		err = db.FillTemplateVault(d, projectID, &vaults[i])
+	for i := range all {
+		err = db.FillTemplateVault(d, projectID, &all[i])
 		if err != nil {
 			continue
 		}
 
-		res = append(res, vaults[i])
+		res = append(res, all[i])
 	}
 	return res, nil
 }
@@ -40,7 +48,10 @@ func (d *BoltDb) UpdateTemplateVaults(projectID int, templateID int, vaults []db
 	}
 
 	var oldVaults []db.TemplateVault
-	oldVaults, err = d.GetTemplateVaults(projectID, templateID)
+	oldVaults, err = d.listRawTemplateVaults(projectID, templateID)
+	if err != nil {
+		return err
+	}
 
 	err = d.db.Update(func(tx *bbolt.Tx) error {
 		for _, vault := range oldVaults {
