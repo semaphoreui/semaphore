@@ -6,7 +6,7 @@ Start the HTTP server first, then paste the prompt below into Claude.
 ## Prerequisites
 
 ```bash
-# Terminal 1: Run Semaphore
+# Run Semaphore
 docker run -d --name semaphore-qa \
   -p 3000:3000 \
   -e SEMAPHORE_DB_DIALECT=bolt \
@@ -16,11 +16,13 @@ docker run -d --name semaphore-qa \
   -e SEMAPHORE_ADMIN_EMAIL=admin@localhost \
   -e SEMAPHORE_ACCESS_KEY_ENCRYPTION=gs72mPntFATGJs9qK0pQ0rKtfidlexiMjYCH9gWKhTU= \
   semaphoreui/semaphore:latest
+```
 
-# Terminal 2: Serve test cases
+No local server needed — test cases are read directly from GitHub. But if you want to test local test cases,
+you can use following command:
+
 cd test/test-cases
 python3 -m http.server 8080
-```
 
 ## Configuration
 
@@ -38,7 +40,7 @@ Before using the prompt, fill in your Telegram bot credentials:
 You are an automated QA tester for Semaphore UI.
 
 **Application under test:** http://localhost:3000
-**Test cases server:** http://localhost:8080
+**Test cases:** https://raw.githubusercontent.com/semaphoreui/semaphore/refs/heads/develop/test/test-cases/
 
 **Credentials:**
 - Username: `admin`
@@ -50,19 +52,22 @@ You are an automated QA tester for Semaphore UI.
 
 ## Instructions
 
-1. Navigate to http://localhost:8080/README.md and read the test case index.
-2. Starting from TC-001, for each test case:
-   a. Navigate to http://localhost:8080/<filename>.md (e.g., http://localhost:8080/TC-001-admin-login-valid.md)
+1. Fetch the test case index from:
+   https://raw.githubusercontent.com/semaphoreui/semaphore/refs/heads/develop/test/test-cases/README.md
+2. Parse the index table to extract all test case filenames (e.g., `TC-001-admin-login-valid.md`).
+3. Starting from TC-001, for each test case:
+   a. Fetch the test case from GitHub raw URL:
+      `https://raw.githubusercontent.com/semaphoreui/semaphore/refs/heads/develop/test/test-cases/<filename>`
    b. Read and understand the preconditions, steps, and expected results.
    c. Switch to the Semaphore UI tab (http://localhost:3000).
    d. Execute each step described in the test case.
    e. After completing all steps, evaluate whether expected results are met.
    f. Record the result as PASS or FAIL with a brief note if FAIL.
    g. **If FAIL:** immediately send a Telegram notification (see below).
-3. Continue to the next test case. Respect preconditions — if a test case depends on a prior one (e.g., "logged in as admin"), ensure that state exists.
-4. After all test cases are complete, produce a summary report.
-5. Send the final summary to Telegram.
-6. Save the report as PDF (see below).
+4. Continue to the next test case. Respect preconditions — if a test case depends on a prior one (e.g., "logged in as admin"), ensure that state exists.
+5. After all test cases are complete, produce a summary report.
+6. Send the final summary to Telegram.
+7. Send the report as a document to Telegram (see below).
 
 ## Telegram notifications
 
@@ -133,7 +138,7 @@ th,td{border:1px solid #ccc;padding:8px;text-align:left}
 </body></html>`;
 ```
 
-2. Convert to PDF blob using the browser's print API:
+Then convert to PDF blob using the browser's print API:
 
 ```javascript
 const printWindow = window.open('', '_blank');
@@ -142,7 +147,7 @@ printWindow.document.close();
 printWindow.print(); // Save as PDF when print dialog opens
 ```
 
-3. After saving the PDF, send it to Telegram as a document:
+Then send it to Telegram as a document:
 
 ```javascript
 const formData = new FormData();
