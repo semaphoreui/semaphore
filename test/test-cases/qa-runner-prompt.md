@@ -113,68 +113,110 @@ Failed tests:
 - TC-YYY: <title> — <brief reason>
 ```
 
-## Saving and sending results as PDF via Telegram
+## Saving and sending results via Telegram
 
-After producing the final summary report, generate an HTML report and send it
-as a document to Telegram:
+After producing the final summary report, generate an HTML report, convert it to
+both a screenshot (JPG) and a PDF, then send both to Telegram.
 
-1. Build the full HTML report as a string variable in the browser console:
+### Step 1 — Build the HTML report
 
 ```javascript
 const reportHtml = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>QA Report</title>
-<style>body{font-family:sans-serif;margin:2em}table{border-collapse:collapse;width:100%}
+<style>body{font-family:sans-serif;margin:2em;background:#fff}
+table{border-collapse:collapse;width:100%}
 th,td{border:1px solid #ccc;padding:8px;text-align:left}
-.pass{color:green}.fail{color:red}.skip{color:orange}.blocked{color:gray}</style>
+th{background:#f5f5f5}
+.pass{color:#2e7d32;font-weight:bold}.fail{color:#c62828;font-weight:bold}
+.skip{color:#f57c00;font-weight:bold}.blocked{color:#757575;font-weight:bold}</style>
 </head><body>
 <h1>QA Run Summary — Semaphore UI</h1>
 <p>Date: ${new Date().toISOString().slice(0,10)}</p>
 <p>Build: <VERSION></p>
 <table>
 <tr><th>#</th><th>ID</th><th>Title</th><th>Result</th><th>Notes</th></tr>
-<!-- INSERT ROWS HERE -->
+<!-- INSERT ROWS HERE with class="pass|fail|skip|blocked" on Result cells -->
 </table>
 <p><strong>Total: X PASS / Y FAIL / Z SKIPPED / W BLOCKED</strong></p>
 </body></html>`;
 ```
 
-Then convert to PDF blob using the browser's print API:
+### Step 2 — Render to JPG and send as photo with the summary message
 
 ```javascript
-const printWindow = window.open('', '_blank');
-printWindow.document.write(reportHtml);
-printWindow.document.close();
-printWindow.print(); // Save as PDF when print dialog opens
-```
+// Render HTML in an iframe and capture as image using html2canvas approach
+const iframe = document.createElement('iframe');
+iframe.style.cssText = 'position:fixed;top:0;left:0;width:1200px;height:900px;opacity:0;z-index:-1';
+document.body.appendChild(iframe);
+iframe.contentDocument.open();
+iframe.contentDocument.write(reportHtml);
+iframe.contentDocument.close();
 
-Then send it to Telegram as a document:
+// Wait for render, then capture via canvas
+await new Promise(r => setTimeout(r, 500));
+const canvas = document.createElement('canvas');
+const rect = iframe.contentDocument.body.getBoundingClientRect();
+canvas.width = 1200;
+canvas.height = Math.max(rect.height + 40, 900);
+const ctx = canvas.getContext('2d');
+ctx.fillStyle = '#fff';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-```javascript
-const formData = new FormData();
-formData.append('chat_id', '<CHAT_ID>');
-formData.append('caption', '📋 QA Report — Semaphore UI — ' + new Date().toISOString().slice(0,10));
-formData.append('document', new File([pdfBlob], 'semaphore-qa-report-' + new Date().toISOString().slice(0,10) + '.pdf', {type: 'application/pdf'}));
-fetch('https://api.telegram.org/bot<BOT_TOKEN>/sendDocument', {
+// Draw using SVG foreignObject
+const svgData = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}">
+  <foreignObject width="100%" height="100%">
+    ${new XMLSerializer().serializeToString(iframe.contentDocument.documentElement)}
+  </foreignObject>
+</svg>`;
+const img = new Image();
+img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+await new Promise(r => { img.onload = r; });
+ctx.drawImage(img, 0, 0);
+document.body.removeChild(iframe);
+
+// Convert canvas to JPG blob
+const jpgBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
+
+// Send photo to Telegram with summary caption
+const photoForm = new FormData();
+photoForm.append('chat_id', '<CHAT_ID>');
+photoForm.append('caption', '📋 *QA Run Complete — Semaphore UI*\n' +
+  'Date: ' + new Date().toISOString().slice(0,10) + '\n' +
+  '✅ Passed: X | ❌ Failed: Y | ⏭ Skipped: Z | 🚫 Blocked: W');
+photoForm.append('parse_mode', 'Markdown');
+photoForm.append('photo', new File([jpgBlob], 'qa-report.jpg', {type: 'image/jpeg'}));
+await fetch('https://api.telegram.org/bot<BOT_TOKEN>/sendPhoto', {
   method: 'POST',
-  body: formData
+  body: photoForm
 });
 ```
 
-**Simpler alternative** — send the report as an HTML file (no print dialog needed):
+### Step 3 — Print to PDF and send as document
+
+1. Open a new tab with the HTML report content.
+2. Use Ctrl+P (Cmd+P on Mac) to open the print dialog.
+3. Select "Save as PDF" as the destination.
+4. Click "Save" — save as `semaphore-qa-report-<YYYY-MM-DD>.pdf`.
+
+Then send the PDF to Telegram:
 
 ```javascript
-const blob = new Blob([reportHtml], {type: 'text/html'});
-const formData = new FormData();
-formData.append('chat_id', '<CHAT_ID>');
-formData.append('caption', '📋 QA Report — Semaphore UI — ' + new Date().toISOString().slice(0,10));
-formData.append('document', new File([blob], 'semaphore-qa-report-' + new Date().toISOString().slice(0,10) + '.html', {type: 'text/html'}));
-fetch('https://api.telegram.org/bot<BOT_TOKEN>/sendDocument', {
-  method: 'POST',
-  body: formData
-});
+const input = document.createElement('input');
+input.type = 'file';
+input.accept = '.pdf';
+input.onchange = async () => {
+  const file = input.files[0];
+  const formData = new FormData();
+  formData.append('chat_id', '<CHAT_ID>');
+  formData.append('caption', '📋 QA Report — Semaphore UI — ' + new Date().toISOString().slice(0,10));
+  formData.append('document', file);
+  await fetch('https://api.telegram.org/bot<BOT_TOKEN>/sendDocument', {
+    method: 'POST',
+    body: formData
+  });
+};
+input.click(); // Select the PDF you just saved
 ```
-
-Use the HTML alternative if the print-to-PDF dialog cannot be automated.
 
 ## Execution rules
 

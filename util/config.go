@@ -525,6 +525,10 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		WebHostURL = nil
 	}
 
+	if Config.Runner != nil && Config.Runner.Token != "" && Config.Runner.TokenFile != "" {
+		panic("SEMAPHORE_RUNNER_TOKEN and SEMAPHORE_RUNNER_TOKEN_FILE are mutually exclusive")
+	}
+
 	if Config.Runner != nil && Config.Runner.TokenFile != "" {
 		runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
 		if err == nil {
