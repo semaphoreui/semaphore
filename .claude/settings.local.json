@@ -24,7 +24,8 @@
       "Bash(export GOWORK=off)",
       "Bash(bash .claude/skills/semaphore-ui-third-party-licenses/scripts/collect_licenses.sh)",
       "Bash(python3 *)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "WebFetch(domain:semaphoreui.com)"
     ]
   }
 }
