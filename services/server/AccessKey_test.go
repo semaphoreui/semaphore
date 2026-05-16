@@ -254,3 +254,158 @@ func (m *mockAccessKeyRepo) CreateAccessKey(k db.AccessKey) (db.AccessKey, error
 	return k, nil
 }
 func (m *mockAccessKeyRepo) DeleteAccessKey(int, int) error { return nil }
+
+// --- AccessKeyServiceImpl.Delete (secret storage + synchronized key behavior) ---
+
+type mockSecretStorageRepoDelete struct {
+	storage db.SecretStorage
+}
+
+func (m *mockSecretStorageRepoDelete) GetSecretStorages(int) ([]db.SecretStorage, error) {
+	return nil, nil
+}
+func (m *mockSecretStorageRepoDelete) CreateSecretStorage(db.SecretStorage) (db.SecretStorage, error) {
+	return db.SecretStorage{}, nil
+}
+func (m *mockSecretStorageRepoDelete) GetSecretStorage(_ int, _ int) (db.SecretStorage, error) {
+	return m.storage, nil
+}
+func (m *mockSecretStorageRepoDelete) UpdateSecretStorage(db.SecretStorage) error { return nil }
+func (m *mockSecretStorageRepoDelete) GetSecretStorageRefs(int, int) (db.ObjectReferrers, error) {
+	return db.ObjectReferrers{}, nil
+}
+func (m *mockSecretStorageRepoDelete) DeleteSecretStorage(int, int) error { return nil }
+
+type mockAccessKeyRepoDelete struct {
+	key            db.AccessKey
+	deleteKeyCalls int
+}
+
+func (m *mockAccessKeyRepoDelete) GetAccessKey(_ int, keyID int) (db.AccessKey, error) {
+	if keyID == m.key.ID {
+		return m.key, nil
+	}
+	return db.AccessKey{}, db.ErrNotFound
+}
+func (m *mockAccessKeyRepoDelete) GetAccessKeyRefs(int, int) (db.ObjectReferrers, error) {
+	return db.ObjectReferrers{}, nil
+}
+func (m *mockAccessKeyRepoDelete) GetAccessKeys(int, db.GetAccessKeyOptions, db.RetrieveQueryParams) ([]db.AccessKey, error) {
+	return nil, nil
+}
+func (m *mockAccessKeyRepoDelete) UpdateAccessKey(db.AccessKey) error { return nil }
+func (m *mockAccessKeyRepoDelete) CreateAccessKey(k db.AccessKey) (db.AccessKey, error) {
+	return k, nil
+}
+func (m *mockAccessKeyRepoDelete) DeleteAccessKey(_ int, _ int) error {
+	m.deleteKeyCalls++
+	return nil
+}
+
+type mockEncryptionDeleteSecret struct {
+	deleteSecretCalls int
+}
+
+func (m *mockEncryptionDeleteSecret) SerializeSecret(*db.AccessKey) error   { return nil }
+func (m *mockEncryptionDeleteSecret) DeserializeSecret(*db.AccessKey) error { return nil }
+func (m *mockEncryptionDeleteSecret) FillEnvironmentSecrets(*db.Environment, bool) error {
+	return nil
+}
+func (m *mockEncryptionDeleteSecret) DeleteSecret(*db.AccessKey) error {
+	m.deleteSecretCalls++
+	return nil
+}
+func (m *mockEncryptionDeleteSecret) RekeyAccessKeys(string) error { return nil }
+
+func TestAccessKeyServiceDelete_WritableSynchronizedStillCallsDeleteSecret(t *testing.T) {
+	projectID := 1
+	storageID := 99
+	st := db.AccessKeySourceStorageVault
+	key := db.AccessKey{
+		ID:                5,
+		ProjectID:         &projectID,
+		SourceStorageType: &st,
+		SourceStorageID:   &storageID,
+		Synchronized:      true,
+	}
+
+	repo := &mockAccessKeyRepoDelete{key: key}
+	enc := &mockEncryptionDeleteSecret{}
+	stRepo := &mockSecretStorageRepoDelete{
+		storage: db.SecretStorage{ID: storageID, ReadOnly: false},
+	}
+
+	svc := NewAccessKeyService(repo, enc, stRepo)
+	err := svc.Delete(projectID, key.ID)
+	if err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if enc.deleteSecretCalls != 1 {
+		t.Fatalf("expected DeleteSecret once for writable+synchronized, got %d", enc.deleteSecretCalls)
+	}
+	if repo.deleteKeyCalls != 1 {
+		t.Fatalf("expected DeleteAccessKey once, got %d", repo.deleteKeyCalls)
+	}
+}
+
+func TestAccessKeyServiceDelete_ReadOnlyNonSynchronizedSkipsDeleteSecret(t *testing.T) {
+	projectID := 1
+	storageID := 99
+	st := db.AccessKeySourceStorageVault
+	key := db.AccessKey{
+		ID:                5,
+		ProjectID:         &projectID,
+		SourceStorageType: &st,
+		SourceStorageID:   &storageID,
+		Synchronized:      false,
+	}
+
+	repo := &mockAccessKeyRepoDelete{key: key}
+	enc := &mockEncryptionDeleteSecret{}
+	stRepo := &mockSecretStorageRepoDelete{
+		storage: db.SecretStorage{ID: storageID, ReadOnly: true},
+	}
+
+	svc := NewAccessKeyService(repo, enc, stRepo)
+	err := svc.Delete(projectID, key.ID)
+	if err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if enc.deleteSecretCalls != 0 {
+		t.Fatalf("expected no DeleteSecret for read-only non-sync, got %d", enc.deleteSecretCalls)
+	}
+	if repo.deleteKeyCalls != 1 {
+		t.Fatalf("expected DeleteAccessKey once, got %d", repo.deleteKeyCalls)
+	}
+}
+
+func TestAccessKeyServiceDelete_ReadOnlySynchronizedReturnsError(t *testing.T) {
+	projectID := 1
+	storageID := 99
+	st := db.AccessKeySourceStorageVault
+	key := db.AccessKey{
+		ID:                5,
+		ProjectID:         &projectID,
+		SourceStorageType: &st,
+		SourceStorageID:   &storageID,
+		Synchronized:      true,
+	}
+
+	repo := &mockAccessKeyRepoDelete{key: key}
+	enc := &mockEncryptionDeleteSecret{}
+	stRepo := &mockSecretStorageRepoDelete{
+		storage: db.SecretStorage{ID: storageID, ReadOnly: true},
+	}
+
+	svc := NewAccessKeyService(repo, enc, stRepo)
+	err := svc.Delete(projectID, key.ID)
+	if err == nil {
+		t.Fatal("expected error for read-only synchronized key")
+	}
+	if enc.deleteSecretCalls != 0 {
+		t.Fatalf("expected no DeleteSecret, got %d", enc.deleteSecretCalls)
+	}
+	if repo.deleteKeyCalls != 0 {
+		t.Fatalf("expected DeleteAccessKey not called on error, got %d", repo.deleteKeyCalls)
+	}
+}
