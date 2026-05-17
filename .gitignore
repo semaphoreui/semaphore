@@ -17,6 +17,8 @@ api/public/**/*
 /runner.json
 /runner.token
 /runner.key
+/runner-old.token
+/runner-old.key
 /runner.registration_token
 /.dredd/config.json
 /database.boltdb
