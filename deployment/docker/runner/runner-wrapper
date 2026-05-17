@@ -21,6 +21,7 @@ if [ -n "${SEMAPHORE_RUNNER_REGISTRATION_TOKEN:-}" ]; then
   if [ -z "${SEMAPHORE_RUNNER_TOKEN:-}" ] && [ -z "${SEMAPHORE_RUNNER_TOKEN_FILE:-}" ]; then
     export SEMAPHORE_RUNNER_TOKEN_FILE="${SEMAPHORE_DATA_PATH}/runner_token.txt"
   fi
+  echoerr "Registration token provided, starting runner in registration mode"
   exec ${RUNNER_CMD} --register
 else
   exec ${RUNNER_CMD}
