@@ -39,9 +39,12 @@ valid registration token, becomes visible in **Runners**, and picks up tasks.
 ## Expected results
 
 * Step 3: the new runner appears `Active=true`, `Touched` updates within
-  10 seconds; a public key is recorded server-side and a one-time
-  registration token file is replaced with a long-lived `runner.token` on
-  disk.
+  10 seconds; a public key is recorded server-side and the one-time
+  registration credential is consumed. The long-lived runner token is stored
+  where the runner is configured to persist it: e.g. `runner.token` in
+  `config.json` when no `token_file` is set, or the path in `token_file` /
+  `SEMAPHORE_RUNNER_TOKEN_FILE` (the official Docker image defaults this to
+  `runner_token.txt` under `SEMAPHORE_DATA_PATH` when using `--no-config`).
 * Step 5: task is assigned to the new runner; `runner_id` on the task matches.
 * Step 6-7: task stays in `waiting` because no eligible runner is online; once
   the runner restarts, the task is picked up.

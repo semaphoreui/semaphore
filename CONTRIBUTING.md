@@ -91,7 +91,7 @@ As Dredd and the application database config may differ it expects it's own conf
     ```
 4) Start Semaphore server (add `--config` option if required):
 
-5) ```bash
+    ```bash
     ./bin/semaphore server
     ```
 5) Start Dredd tests

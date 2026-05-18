@@ -48,6 +48,17 @@ variables for `INSTALL_PATH` (`/usr/local/bin`) and `REQUIRE_SUDO` (true).
 task docker:test
 ```
 
+## Runner image
+
+The `semaphoreui/runner` image uses `deployment/docker/runner/runner-wrapper` as
+its command. The script exports `SEMAPHORE_CONFIG_PATH`, `SEMAPHORE_TMP_PATH`, and
+`SEMAPHORE_DATA_PATH` (default `/var/lib/semaphore`), optionally installs Python
+packages from `requirements.txt` under the config path, then starts the runner.
+Registration mode is entered when a registration token is supplied by
+environment or file and no runner token is set yet; see the **Runner
+environment** subsection in `deployment/compose/README.md` for persistence and
+token-file behavior.
+
 [dockerhub]: https://hub.docker.com/r/semaphoreui/semaphore
 [docker]: https://docs.docker.com/engine/install/
 [podman]: https://podman.io/docs/installation
