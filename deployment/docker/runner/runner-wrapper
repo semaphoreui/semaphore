@@ -17,7 +17,7 @@ echoerr "Starting semaphore runner"
 
 RUNNER_CMD="/usr/local/bin/semaphore runner start --no-config"
 
-if [ -n "${SEMAPHORE_RUNNER_REGISTRATION_TOKEN:-}" ]; then
+if [ -n "${SEMAPHORE_RUNNER_REGISTRATION_TOKEN:-}" ] || [ -n "${SEMAPHORE_RUNNER_REGISTRATION_TOKEN_FILE:-}" ]; then
   if [ -z "${SEMAPHORE_RUNNER_TOKEN:-}" ] && [ -z "${SEMAPHORE_RUNNER_TOKEN_FILE:-}" ]; then
     export SEMAPHORE_RUNNER_TOKEN_FILE="${SEMAPHORE_DATA_PATH}/runner_token.txt"
   fi
