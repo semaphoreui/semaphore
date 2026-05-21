@@ -205,7 +205,7 @@ func TestGetConfigValue(t *testing.T) {
 	Config.CookieHash = testCookieHash
 	Config.MaxParallelTasks = testMaxParallelTasks
 	Config.LdapNeedTLS = testLdapNeedTls
-	Config.BoltDb = &DbConfig{
+	Config.SQLite = &DbConfig{
 		Hostname: testDbHost,
 	}
 
@@ -220,10 +220,6 @@ func TestGetConfigValue(t *testing.T) {
 	}
 	if getConfigValue("LdapNeedTLS") != fmt.Sprintf("%v", testLdapNeedTls) {
 		t.Error("Could not get value for config attribute 'LdapNeedTLS'!")
-	}
-
-	if getConfigValue("BoltDb.Hostname") != fmt.Sprintf("%v", testDbHost) {
-		t.Error("Could not get value for config attribute 'BoltDb.Hostname'!")
 	}
 
 	defer func() {
@@ -298,8 +294,8 @@ func TestSetConfigValue(t *testing.T) {
 
 func TestLoadConfigEnvironmet(t *testing.T) {
 	Config = new(ConfigType)
-	Config.BoltDb = &DbConfig{}
-	Config.Dialect = DbDriverBolt
+	Config.SQLite = &DbConfig{}
+	Config.Dialect = DbDriverSQLite
 
 	envPort := "1337"
 	envCookieHash := "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
@@ -334,8 +330,8 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 	if Config.LdapNeedTLS != expectLdapNeedTls {
 		t.Error("Setting 'LdapNeedTLS' was not loaded from environment-vars!")
 	}
-	if Config.BoltDb.Hostname != envDbHost {
-		t.Error("Setting 'BoltDb.Hostname' was not loaded from environment-vars!")
+	if Config.SQLite.Hostname != envDbHost {
+		t.Error("Setting 'SQLite.Hostname' was not loaded from environment-vars!")
 	}
 
 	//if Config.MySQL.Hostname == envDbHost || Config.Postgres.Hostname == envDbHost {
@@ -376,7 +372,7 @@ func TestValidateConfig(t *testing.T) {
 	Config = new(ConfigType)
 
 	testPort := ":3000"
-	testDbDialect := DbDriverBolt
+	testDbDialect := DbDriverSQLite
 	testCookieHash := "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
 	testMaxParallelTasks := 0
 	testEmailTlsMinVersion := "1.2"

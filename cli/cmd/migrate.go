@@ -8,7 +8,6 @@ import (
 var migrationArgs struct {
 	undoTo             string
 	applyTo            string
-	fromBoltDb         string
 	errLogSize         int
 	skipTaskOutput     bool
 	mergeExistingUsers bool

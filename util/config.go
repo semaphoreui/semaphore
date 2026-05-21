@@ -1264,7 +1264,8 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 
 	switch d.Dialect {
 	case DbDriverBolt:
-		connectionString = dbHost
+		err = errors.New("BoltDB not supported")
+		return
 	case DbDriverMySQL:
 		if includeDbName {
 			connectionString = fmt.Sprintf(
