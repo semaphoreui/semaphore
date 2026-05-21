@@ -26,7 +26,10 @@
       "Bash(python3 *)",
       "Bash(echo \"exit=$?\")",
       "WebFetch(domain:semaphoreui.com)",
-      "Bash(gh issue *)"
+      "Bash(gh issue *)",
+      "Bash(grep -E \"\\\\.go$\")",
+      "Bash(grep -E \"\\\\.vue$|\\\\.ts$|\\\\.js$\")",
+      "Bash(awk '{print $NF}')"
     ]
   }
 }
