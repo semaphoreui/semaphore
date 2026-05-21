@@ -92,9 +92,7 @@ func TestTaskRunnerRun(t *testing.T) {
 
 	var err error
 
-	db.StoreSession(store, "", func() {
-		task, err = store.CreateTask(db.Task{}, 0)
-	})
+	task, err = store.CreateTask(db.Task{}, 0)
 
 	if err != nil {
 		t.Fatal(err)
@@ -263,11 +261,11 @@ func TestPopulateDetails(t *testing.T) {
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		RepositoryID:  repo.ID,
-		InventoryID:   &inv.ID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		InventoryID:    &inv.ID,
 		EnvironmentIDs: []int{env.ID},
 	})
 
@@ -368,11 +366,11 @@ func TestPopulateDetailsInventory(t *testing.T) {
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		RepositoryID:  repo.ID,
-		InventoryID:   &inv.ID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		InventoryID:    &inv.ID,
 		EnvironmentIDs: []int{env.ID},
 		TaskParams: map[string]any{
 			"allow_override_inventory": true,
@@ -470,11 +468,11 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		RepositoryID:  repo.ID,
-		InventoryID:   &inv.ID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		InventoryID:    &inv.ID,
 		EnvironmentIDs: []int{env.ID},
 	})
 

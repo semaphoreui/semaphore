@@ -1,12 +1,12 @@
 version: "3.4"
 
 volumes:
-  boltdb:
+  sqlite:
 
 services:
   server:
     environment:
-      SEMAPHORE_DB_DIALECT: bolt
+      SEMAPHORE_DB_DIALECT: sqlite
       SEMAPHORE_DB_PATH: /var/lib/database
     volumes:
-      - boltdb:/var/lib/database
+      - sqlite:/var/lib/database

@@ -124,28 +124,25 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	t.taskPool.state.UpdateRuntimeFields(tsk)
 
 	var runners []db.Runner
-	db.StoreSession(t.taskPool.store, "run remote job", func() {
+	tagFilterMode := db.RunnerFilterTagCompleteMatch
+	if t.RunnerTag == nil {
+		tagFilterMode = db.RunnerFilterIsDefault
+	}
 
-		tagFilterMode := db.RunnerFilterTagCompleteMatch
-		if t.RunnerTag == nil {
-			tagFilterMode = db.RunnerFilterIsDefault
-		}
+	var projectRunners []db.Runner
+	projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, tagFilterMode, t.RunnerTag)
+	if err != nil {
+		return
+	}
 
-		var projectRunners []db.Runner
-		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, tagFilterMode, t.RunnerTag)
-		if err != nil {
-			return
-		}
+	var globalRunners []db.Runner
+	globalRunners, err = t.taskPool.store.GetAllRunners(true, true, tagFilterMode, t.RunnerTag)
+	if err != nil {
+		return
+	}
 
-		var globalRunners []db.Runner
-		globalRunners, err = t.taskPool.store.GetAllRunners(true, true, tagFilterMode, t.RunnerTag)
-		if err != nil {
-			return
-		}
-
-		runners = append(runners, shuffleRunners(projectRunners)...)
-		runners = append(runners, shuffleRunners(globalRunners)...)
-	})
+	runners = append(runners, shuffleRunners(projectRunners)...)
+	runners = append(runners, shuffleRunners(globalRunners)...)
 
 	if err != nil {
 		return
@@ -191,9 +188,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 
 	tsk.Task.RunnerID = &runner.ID
 
-	db.StoreSession(t.taskPool.store, "remote job assign runner", func() {
-		err = t.taskPool.store.UpdateTask(tsk.Task)
-	})
+	err = t.taskPool.store.UpdateTask(tsk.Task)
 
 	if err != nil {
 		return
@@ -226,9 +221,9 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		if util.HAEnabled() {
 			var row db.Task
 			var rowErr error
-			db.StoreSession(t.taskPool.store, "remote job status sync", func() {
-				row, rowErr = t.taskPool.store.GetTask(tsk.Task.ProjectID, t.Task.ID)
-			})
+
+			row, rowErr = t.taskPool.store.GetTask(tsk.Task.ProjectID, t.Task.ID)
+
 			if rowErr == nil {
 				// Never regress (e.g. running → starting) if the DB read is briefly stale.
 				if task_logger.TaskStatusProgressRank(row.Status) >= task_logger.TaskStatusProgressRank(tsk.Task.Status) {

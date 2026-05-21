@@ -777,18 +777,6 @@ func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, er
 	return
 }
 
-func StoreSession(store Store, token string, callback func()) {
-	if !store.PermanentConnection() {
-		store.Connect(token)
-	}
-
-	callback()
-
-	if !store.PermanentConnection() {
-		store.Close(token)
-	}
-}
-
 func ValidateRepository(store Store, repo *Repository) (err error) {
 	_, err = store.GetAccessKey(repo.ProjectID, repo.SSHKeyID)
 
