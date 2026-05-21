@@ -121,11 +121,11 @@ type Template struct {
 	// into a single environment, with later entries overriding earlier ones.
 	// Persisted via the project__template_environment junction table in SQL,
 	// and serialized inline on the template object in BoltDB.
-	EnvironmentIDs []int `db:"-" bolt:"include" json:"environment_ids" backup:"-"`
+	EnvironmentIDs []int `db:"-" json:"environment_ids" backup:"-"`
 
 	// EnvironmentID is the ID of the environment associated with the template.
 	// Deprecated: Use EnvironmentIDs instead.
-	EnvironmentID int `db:"-" bolt:"include" json:"environment_id" backup:"-"`
+	EnvironmentID int `db:"-" json:"environment_id" backup:"-"`
 
 	// Name as described in https://github.com/semaphoreui/semaphore/issues/188
 	Name string `db:"name" json:"name"`

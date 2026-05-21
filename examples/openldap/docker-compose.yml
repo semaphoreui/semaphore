@@ -29,7 +29,7 @@ services:
     image: semaphoreui/semaphore:latest
 #    container_name: semaphore
     environment:
-      SEMAPHORE_DB_DIALECT: "bolt"
+      SEMAPHORE_DB_DIALECT: "sqlite"
       SEMAPHORE_ADMIN_PASSWORD: "changeme"
       SEMAPHORE_ADMIN_NAME: "admin"
       SEMAPHORE_ADMIN_EMAIL: "admin@example.org"

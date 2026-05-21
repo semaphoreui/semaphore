@@ -284,11 +284,10 @@ type ConfigDirs struct {
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
-	BoltDb   *DbConfig `json:"bolt,omitempty"` // Deprecated
 	Postgres *DbConfig `json:"postgres,omitempty"`
 	SQLite   *DbConfig `json:"sqlite,omitempty"`
 
-	Dialect string `json:"dialect,omitempty" default:"bolt" rule:"^mysql|bolt|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect string `json:"dialect,omitempty" default:"sqlite" rule:"^mysql|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -1329,7 +1328,7 @@ func (conf *ConfigType) PrintDbInfo() {
 	case DbDriverMySQL:
 		fmt.Printf("MySQL %v@%v %v\n", conf.MySQL.GetUsername(), conf.MySQL.GetHostname(), conf.MySQL.GetDbName())
 	case DbDriverBolt:
-		fmt.Printf("BoltDB %v\n", conf.BoltDb.GetHostname())
+		fmt.Printf("BoltDB not supported\n")
 	case DbDriverPostgres:
 		fmt.Printf("Postgres %v@%v %v\n", conf.Postgres.GetUsername(), conf.Postgres.GetHostname(), conf.Postgres.GetDbName())
 	case DbDriverSQLite:
@@ -1344,8 +1343,6 @@ func (conf *ConfigType) GetDialect() (dialect string, err error) {
 		switch {
 		case conf.MySQL.IsPresent():
 			dialect = DbDriverMySQL
-		case conf.BoltDb.IsPresent():
-			dialect = DbDriverBolt
 		case conf.Postgres.IsPresent():
 			dialect = DbDriverPostgres
 		case conf.SQLite.IsPresent():
@@ -1369,7 +1366,7 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 
 	switch dialect {
 	case DbDriverBolt:
-		dbConfig = *conf.BoltDb
+		err = errors.New("BoltDB not supported")
 	case DbDriverPostgres:
 		dbConfig = *conf.Postgres
 	case DbDriverSQLite:

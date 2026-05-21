@@ -89,7 +89,6 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		"schedule_timezone":   timezone,
 		"teams":               util.Config.Teams,
 		"roles":               roles,
-		"boltdb_used":         util.Config.Dialect == "bolt",
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)
