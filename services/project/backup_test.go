@@ -215,6 +215,109 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 	assert.Equal(t, *restoredKeys[0].StorageID, restoredStorages[0].ID)
 }
 
+// TestBackup_RestoreScheduleWithoutTaskParams is a regression test for
+// https://github.com/semaphoreui/semaphore/issues/3858 . Backups written by
+// older Semaphore versions omit the per-schedule "task_params" object; on
+// restore, BackupSchedule.Restore used to dereference the nil pointer and
+// crash the HTTP handler with a runtime nil-pointer panic.
+func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	store := sql.CreateTestStore()
+
+	// An old-format backup payload: a single template plus a single
+	// schedule with no "task_params" object at all. Restore() should
+	// succeed and recreate the schedule, not panic.
+	payload := `{
+  "environments": [],
+  "integration_aliases": [],
+  "integrations": [],
+  "inventories": [],
+  "keys": [
+    {
+      "name": "noop",
+      "owner": "",
+      "type": "none"
+    }
+  ],
+  "meta": {
+    "alert": false,
+    "max_parallel_tasks": 0,
+    "name": "Restored Project",
+    "type": ""
+  },
+  "repositories": [
+    {
+      "git_branch": "master",
+      "git_url": "git@example.com:test/test.git",
+      "name": "Test Repo",
+      "ssh_key": "noop"
+    }
+  ],
+  "roles": [],
+  "runners": [],
+  "schedules": [
+    {
+      "active": true,
+      "cron_format": "0 0 * * *",
+      "delete_after_run": false,
+      "name": "nightly",
+      "template": "Test Template",
+      "type": ""
+    }
+  ],
+  "secret_storages": [],
+  "templates": [
+    {
+      "allow_override_args_in_task": false,
+      "app": "",
+      "autorun": false,
+      "name": "Test Template",
+      "playbook": "test.yml",
+      "repository": "Test Repo",
+      "roles": [],
+      "suppress_success_alerts": false,
+      "type": "",
+      "vaults": [],
+      "view": null,
+      "environments": []
+    }
+  ],
+  "views": []
+}`
+
+	restoredBackup := &BackupFormat{}
+	err := restoredBackup.Unmarshal(payload)
+	assert.NoError(t, err)
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "schedrestore",
+			Name:     "Test",
+			Email:    "schedrestore@example.com",
+			Admin:    true,
+		},
+	})
+	assert.NoError(t, err)
+
+	restoredProj, err := restoredBackup.Restore(user, store)
+	assert.NoError(t, err)
+
+	restoredSchedules, err := store.GetSchedules()
+	assert.NoError(t, err)
+	var found bool
+	for _, s := range restoredSchedules {
+		if s.ProjectID == restoredProj.ID && s.Name == "nightly" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "restored schedule should be persisted")
+}
+
 func isUnique(items []testItem) bool {
 	for i, item := range items {
 		for k, other := range items {
