@@ -31,7 +31,8 @@
       "Bash(gh issue *)",
       "Bash(grep -E \"\\\\.go$\")",
       "Bash(grep -E \"\\\\.vue$|\\\\.ts$|\\\\.js$\")",
-      "Bash(awk '{print $NF}')"
+      "Bash(awk '{print $NF}')",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }
