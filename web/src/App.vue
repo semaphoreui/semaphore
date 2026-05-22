@@ -257,133 +257,75 @@
         </v-list-item>
 
         <v-list-item
-          v-if="project.type === ''"
-          key="templates"
-          :to="templatesUrl"
-          data-testid="sidebar-templates"
+          v-for="item in pinnedNavItemsList"
+          :key="item.key"
+          :to="item.to"
+          :data-testid="item.testId"
+          class="nav-item--pinnable"
         >
           <v-list-item-icon>
-            <v-icon>mdi-check-all</v-icon>
+            <v-icon>{{ item.icon }}</v-icon>
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>{{ $t('taskTemplates') }}</v-list-item-title>
+            <v-list-item-title>{{ item.title }}</v-list-item-title>
           </v-list-item-content>
+
+          <div class="nav-pin-wrap" v-if="navItems.length > 1">
+            <v-btn
+              icon
+              @click.stop.prevent="togglePin(item.key)"
+              :title="$t('unpin')"
+            >
+              <v-icon small>mdi-pin-off-outline</v-icon>
+            </v-btn>
+          </div>
         </v-list-item>
 
-        <v-list-item
-          v-if="project.type === ''"
-          key="schedule"
-          :to="`/project/${projectId}/schedule`"
-          data-testid="sidebar-schedule"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-clock-outline</v-icon>
-          </v-list-item-icon>
+        <template v-if="unpinnedNavItems.length > 0">
+          <v-list-item
+            @click="showMoreToggle = !showMoreToggle"
+            class="nav-more-toggle"
+          >
+            <v-list-item-icon>
+              <v-icon>{{ showMoreToggle ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+            </v-list-item-icon>
 
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('schedule') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
+            <v-list-item-content>
+              <v-list-item-title class="nav-more-title">
+                {{ $t('more') }}
+              </v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
 
-        <v-list-item
-          v-if="project.type === ''"
-          key="inventory"
-          :to="`/project/${projectId}/inventory`"
-          data-testid="sidebar-inventory"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-monitor-multiple</v-icon>
-          </v-list-item-icon>
+          <template v-if="showMoreToggle">
+            <v-list-item
+              v-for="item in unpinnedNavItems"
+              :key="'unpinned-' + item.key"
+              :to="item.to"
+              :data-testid="item.testId"
+              class="nav-item--pinnable"
+            >
+              <v-list-item-icon>
+                <v-icon>{{ item.icon }}</v-icon>
+              </v-list-item-icon>
 
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
+              <v-list-item-content>
+                <v-list-item-title>{{ item.title }}</v-list-item-title>
+              </v-list-item-content>
 
-        <v-list-item
-          v-if="project.type === ''"
-          key="environment"
-          :to="`/project/${projectId}/environment`"
-          data-testid="sidebar-environment"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-code-braces</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-
-        <v-list-item
-          v-if="project.type === ''"
-          key="keys"
-          :to="`/project/${projectId}/keys`"
-          data-testid="sidebar-keys"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-key-change</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('keyStore') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-
-        <v-list-item
-          v-if="project.type === ''"
-          key="repositories"
-          :to="`/project/${projectId}/repositories`"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-git</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('repositories') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-
-        <v-list-item
-          v-if="project.type === ''"
-          key="integrations"
-          :to="`/project/${projectId}/integrations`"
-          data-testid="sidebar-integrations"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-connection</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('integrations') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-
-        <v-list-item key="team" :to="`/project/${projectId}/team`" data-testid="sidebar-team">
-          <v-list-item-icon>
-            <v-icon>mdi-account-multiple</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('team') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-
-        <v-list-item
-          v-if="isPro && project.type === ''"
-          key="runners"
-          :to="`/project/${projectId}/runners`"
-          data-testid="sidebar-runners"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-cogs</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('runners') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
+              <div class="nav-pin-wrap">
+                <v-btn
+                  icon
+                  @click.stop.prevent="togglePin(item.key)"
+                  :title="$t('pin')"
+                >
+                  <v-icon small>mdi-pin-outline</v-icon>
+                </v-btn>
+              </div>
+            </v-list-item>
+          </template>
+        </template>
       </v-list>
 
       <template v-slot:append>
@@ -649,6 +591,32 @@
 <style lang="scss">
 .NavDrawer {
   height: 100dvh !important;
+}
+
+.nav-item--pinnable {
+  .nav-pin-wrap {
+    opacity: 0;
+    transition: opacity 0.15s;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+  }
+
+  &:hover .nav-pin-wrap {
+    opacity: 0.7;
+  }
+
+  .nav-pin-wrap:hover {
+    opacity: 1 !important;
+  }
+}
+
+.nav-more-toggle {
+  min-height: 36px;
+
+  .nav-more-title {
+    opacity: 0.6;
+  }
 }
 
 .NewProSubscriptionMenuItem {
@@ -1017,6 +985,8 @@ export default {
       taskId: null,
       template: null,
       darkMode: false,
+      pinnedNavKeys: JSON.parse(localStorage.getItem('nav__pinnedItems') || 'null'),
+      showMoreToggle: false,
       languages: [
         {
           id: '',
@@ -1060,6 +1030,10 @@ export default {
 
       if ((this.projects || []).length > 0 && this.$route.query.new_project) {
         EventBus.$emit('i-new-project', { projectType: this.$route.query.new_project });
+      }
+
+      if (this.unpinnedNavItems.some((item) => val.path.includes(`/${item.key}`))) {
+        this.showMoreToggle = true;
       }
     },
 
@@ -1108,6 +1082,66 @@ export default {
         }
       }
       return `/project/${this.projectId}/templates`;
+    },
+
+    navItems() {
+      if (!this.project) return [];
+      const base = `/project/${this.projectId}`;
+      const items = [];
+
+      if (this.project.type === '') {
+        items.push(
+          {
+            key: 'templates', icon: 'mdi-check-all', title: this.$t('taskTemplates'), to: this.templatesUrl, testId: 'sidebar-templates',
+          },
+          {
+            key: 'schedule', icon: 'mdi-clock-outline', title: this.$t('schedule'), to: `${base}/schedule`, testId: 'sidebar-schedule',
+          },
+          {
+            key: 'inventory', icon: 'mdi-monitor-multiple', title: this.$t('inventory'), to: `${base}/inventory`, testId: 'sidebar-inventory',
+          },
+          {
+            key: 'environment', icon: 'mdi-code-braces', title: this.$t('environment'), to: `${base}/environment`, testId: 'sidebar-environment',
+          },
+          {
+            key: 'keys', icon: 'mdi-key-change', title: this.$t('keyStore'), to: `${base}/keys`, testId: 'sidebar-keys',
+          },
+          {
+            key: 'repositories', icon: 'mdi-git', title: this.$t('repositories'), to: `${base}/repositories`,
+          },
+          {
+            key: 'integrations', icon: 'mdi-connection', title: this.$t('integrations'), to: `${base}/integrations`, testId: 'sidebar-integrations',
+          },
+        );
+      }
+
+      items.push({
+        key: 'team', icon: 'mdi-account-multiple', title: this.$t('team'), to: `${base}/team`, testId: 'sidebar-team',
+      });
+
+      if (this.isPro && this.project.type === '') {
+        items.push({
+          key: 'runners', icon: 'mdi-cogs', title: this.$t('runners'), to: `${base}/runners`, testId: 'sidebar-runners',
+        });
+      }
+
+      return items;
+    },
+
+    pinnedNavItemsList() {
+      if (this.pinnedNavKeys === null) {
+        return this.navItems;
+      }
+      return this.pinnedNavKeys
+        .map((key) => this.navItems.find((item) => item.key === key))
+        .filter(Boolean);
+    },
+
+    unpinnedNavItems() {
+      if (this.pinnedNavKeys === null) {
+        return [];
+      }
+      return this.navItems.filter((item) => !this.pinnedNavKeys.includes(item.key));
     },
   },
 
@@ -1282,6 +1316,19 @@ export default {
     showNewProjectDialogue(projectType = '') {
       this.newProjectDialog = true;
       this.newProjectType = projectType;
+    },
+
+    togglePin(key) {
+      let pinned = this.pinnedNavKeys;
+      if (pinned === null) {
+        pinned = this.navItems.map((i) => i.key).filter((k) => k !== key);
+      } else if (pinned.includes(key)) {
+        pinned = pinned.filter((k) => k !== key);
+      } else {
+        pinned = [...pinned, key];
+      }
+      this.pinnedNavKeys = pinned;
+      localStorage.setItem('nav__pinnedItems', JSON.stringify(pinned));
     },
 
     selectLanguage(lang) {
