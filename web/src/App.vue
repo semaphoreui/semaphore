@@ -985,7 +985,7 @@ export default {
       taskId: null,
       template: null,
       darkMode: false,
-      pinnedNavKeys: JSON.parse(localStorage.getItem('nav__pinnedItems') || 'null'),
+      pinnedNavKeys: null,
       showMoreToggle: false,
       languages: [
         {
@@ -1318,7 +1318,7 @@ export default {
       this.newProjectType = projectType;
     },
 
-    togglePin(key) {
+    async togglePin(key) {
       let pinned = this.pinnedNavKeys;
       if (pinned === null) {
         pinned = this.navItems.map((i) => i.key).filter((k) => k !== key);
@@ -1328,7 +1328,52 @@ export default {
         pinned = [...pinned, key];
       }
       this.pinnedNavKeys = pinned;
-      localStorage.setItem('nav__pinnedItems', JSON.stringify(pinned));
+      await this.savePinnedNavKeys();
+    },
+
+    async savePinnedNavKeys() {
+      try {
+        await axios({
+          method: 'post',
+          url: '/api/user/options',
+          responseType: 'json',
+          data: { key: 'nav.pinnedItems', value: JSON.stringify(this.pinnedNavKeys) },
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+      }
+    },
+
+    async loadUserOptions() {
+      let options;
+      try {
+        options = (await axios({
+          method: 'get',
+          url: '/api/user/options',
+          responseType: 'json',
+        })).data;
+      } catch (err) {
+        // Old backend without the per-user options endpoint: fall back to
+        // localStorage-only behaviour.
+        const local = localStorage.getItem('nav__pinnedItems');
+        if (local != null) {
+          this.pinnedNavKeys = JSON.parse(local);
+        }
+        return;
+      }
+
+      if (options['nav.pinnedItems'] != null) {
+        this.pinnedNavKeys = JSON.parse(options['nav.pinnedItems']);
+        return;
+      }
+
+      // One-time migration of the legacy localStorage value.
+      const legacy = localStorage.getItem('nav__pinnedItems');
+      if (legacy != null) {
+        this.pinnedNavKeys = JSON.parse(legacy);
+        await this.savePinnedNavKeys();
+        localStorage.removeItem('nav__pinnedItems');
+      }
     },
 
     selectLanguage(lang) {
@@ -1348,6 +1393,7 @@ export default {
 
     async loadData() {
       await this.loadUserInfo();
+      await this.loadUserOptions();
 
       // Activate session and start socket only after confirming user is authenticated
       socket.setSessionActive(true);

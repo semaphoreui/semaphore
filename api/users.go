@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 	"image/png"
 	"net/http"
 
@@ -270,6 +271,11 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := helpers.Store(r).DeleteUser(user.ID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := helpers.Store(r).DeleteOptions(fmt.Sprintf("user%d", user.ID)); err != nil {
+		log.WithError(err).Warn("can not delete options of removed user")
 	}
 
 	w.WriteHeader(http.StatusNoContent)

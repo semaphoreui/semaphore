@@ -204,6 +204,8 @@ func Route(
 	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
 	tokenAPI.HandleFunc("/tokens/{token_id}", deleteAPIToken).Methods("DELETE")
+	tokenAPI.Path("/options").HandlerFunc(getUserOptions).Methods("GET", "HEAD")
+	tokenAPI.Path("/options").HandlerFunc(setUserOption).Methods("POST")
 
 	adminAPI := authenticatedAPI.NewRoute().Subrouter()
 	adminAPI.Use(adminMiddleware)
