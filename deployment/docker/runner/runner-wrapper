@@ -4,7 +4,7 @@ echoerr() { printf "%s\n" "$*" >&2; }
 
 export SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
 export SEMAPHORE_TMP_PATH="${SEMAPHORE_TMP_PATH:-/tmp/semaphore}"
-export SEMAPHORE_DATA_PATH="${SEMAPHORE_TMP_PATH:-/var/lib/semaphore}"
+export SEMAPHORE_DATA_PATH="${SEMAPHORE_DATA_PATH:-/var/lib/semaphore}"
 
 if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.txt"; then
     echoerr "Installing additional python dependencies"
