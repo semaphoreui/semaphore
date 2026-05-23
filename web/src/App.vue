@@ -271,7 +271,7 @@
             <v-list-item-title>{{ item.title }}</v-list-item-title>
           </v-list-item-content>
 
-          <div class="nav-pin-wrap" v-if="navItems.length > 1">
+          <div class="nav-pin-wrap" v-if="navEditMode && navItems.length > 1">
             <v-btn
               icon
               @click.stop.prevent="togglePin(item.key)"
@@ -314,7 +314,7 @@
                 <v-list-item-title>{{ item.title }}</v-list-item-title>
               </v-list-item-content>
 
-              <div class="nav-pin-wrap">
+              <div class="nav-pin-wrap" v-if="navEditMode">
                 <v-btn
                   icon
                   @click.stop.prevent="togglePin(item.key)"
@@ -339,6 +339,16 @@
             ></v-switch>
 
             <v-spacer />
+
+            <v-btn
+              icon
+              class="mr-1"
+              :color="navEditMode ? 'primary' : undefined"
+              :title="navEditMode ? $t('finishEditingMenu') : $t('editMenu')"
+              @click="navEditMode = !navEditMode"
+            >
+              <v-icon>{{ navEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}</v-icon>
+            </v-btn>
 
             <v-menu top min-width="150" max-width="235" nudge-top="12" :position-x="50" absolute>
               <template v-slot:activator="{ on, attrs }">
@@ -595,20 +605,20 @@
 
 .nav-item--pinnable {
   .nav-pin-wrap {
-    opacity: 0;
-    transition: opacity 0.15s;
+    //opacity: 0;
+    //transition: opacity 0.15s;
     margin-left: auto;
     display: flex;
     align-items: center;
   }
 
-  &:hover .nav-pin-wrap {
-    opacity: 0.7;
-  }
-
-  .nav-pin-wrap:hover {
-    opacity: 1 !important;
-  }
+  //&:hover .nav-pin-wrap {
+  //  opacity: 0.7;
+  //}
+  //
+  //.nav-pin-wrap:hover {
+  //  opacity: 1 !important;
+  //}
 }
 
 .nav-more-toggle {
@@ -987,6 +997,7 @@ export default {
       darkMode: false,
       pinnedNavKeys: null,
       showMoreToggle: false,
+      navEditMode: false,
       languages: [
         {
           id: '',

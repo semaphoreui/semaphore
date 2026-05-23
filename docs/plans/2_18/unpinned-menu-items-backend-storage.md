@@ -250,6 +250,79 @@ The UI update is optimistic so the menu stays responsive; a failed save surfaces
 snackbar error. `localStorage` is not touched — the backend is the sole source of
 truth.
 
+**2.4 Edit-mode toggle for the side menu**
+
+Currently the pin / unpin button (`.nav-pin-wrap`, `web/src/App.vue:274` and
+`web/src/App.vue:317`) is always visible in every nav row, which makes accidental
+clicks (intending to navigate, hitting the pin icon instead) easy and frequent.
+Hide these controls behind an explicit **edit mode** that the user opts into.
+
+**Where the toggle lives.** Add a new `v-btn icon` in the bottom action strip of
+the side menu (`web/src/App.vue:333`, the `v-list-item` inside the `append` slot),
+**between the Light/Dark mode `v-switch`** and **the language flag `v-menu`**:
+
+```html
+<v-list-item>
+  <v-switch class="DarkModeSwitch" v-model="darkMode" ... />
+
+  <v-spacer />
+
+  <!-- NEW: edit-mode toggle -->
+  <v-btn
+    icon
+    :color="navEditMode ? 'primary' : undefined"
+    :title="navEditMode ? $t('finishEditingMenu') : $t('editMenu')"
+    @click="navEditMode = !navEditMode"
+  >
+    <v-icon>{{ navEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}</v-icon>
+  </v-btn>
+
+  <v-menu top min-width="150" max-width="235" ...> <!-- language picker --> </v-menu>
+</v-list-item>
+```
+
+Icon choice: `mdi-pencil-outline` when off, `mdi-check` (or `mdi-pencil`) when on.
+The active state is also color-highlighted so it's obvious the menu is in edit
+mode.
+
+**State.** Add `navEditMode: false` to `data()` (near `pinnedNavKeys`). This is a
+session-local UI flag and is intentionally **not** persisted — every page load
+starts in normal (non-edit) mode so navigation is the default behaviour.
+
+**Show pin buttons only in edit mode.** Wrap the existing `.nav-pin-wrap` blocks
+with `v-if="navEditMode"` so the unpin / pin `v-btn` only renders while the user
+is editing:
+
+```html
+<div class="nav-pin-wrap" v-if="navEditMode && navItems.length > 1">
+  <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('unpin')">
+    <v-icon small>mdi-pin-off-outline</v-icon>
+  </v-btn>
+</div>
+```
+
+And for the "More" group (`web/src/App.vue:317`), the same `v-if="navEditMode"`
+guard. The rows themselves still navigate normally; only the pin/unpin controls
+appear/disappear.
+
+**"More" visibility while editing.** The "More" section is **not** auto-expanded
+in edit mode. The user opens it explicitly via the existing chevron if they want
+to pin currently-unpinned items.
+
+**i18n.** Add two new strings:
+
+- `editMenu` — "Edit menu" (tooltip + aria-label when off)
+- `finishEditingMenu` — "Done" (tooltip when on)
+
+Add to every `web/src/lang/*.js` file alongside existing `pin` / `unpin` keys.
+
+**Result for the user.**
+
+- Normal use: no pin buttons visible anywhere — rows are pure navigation, zero
+  accidental unpinning.
+- To customize: click the pencil icon, pin/unpin freely (open the "More" group
+  manually via the chevron if needed), click the check icon to finish.
+
 ### Phase 3 — Tests
 
 **Backend** (`api/user_options_test.go`, using `net/http/httptest` per
