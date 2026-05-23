@@ -39,7 +39,7 @@ jobs:
 
       - name: Add PRO implementation
         run: |
-          git clone -b main https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
+          git clone -b remove_boltdb https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
           go work init . ./pro_impl
 
       - name: Install deps
