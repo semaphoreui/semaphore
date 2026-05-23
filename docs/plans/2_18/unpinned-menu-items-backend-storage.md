@@ -3,16 +3,17 @@
 ## Goal
 
 The side-menu "pin / unpin" feature lets a user move navigation items into a **More**
-sub-menu. The set of pinned items is currently persisted **only in the browser's
-`localStorage`** (`nav__pinnedItems`). This means the preference is:
+sub-menu. The set of pinned items was previously persisted only in the browser's
+`localStorage` (`nav__pinnedItems`). This means the preference was:
 
-- lost when the user switches browser / device,
-- lost when local storage is cleared,
+- lost when the user switched browser / device,
+- lost when local storage was cleared,
 - not shared across sessions of the same account.
 
 The goal is to persist the pinned-items list **on the backend, per user**, so it
-follows the account everywhere — while keeping `localStorage` as a fast fallback and
-migrating existing values transparently.
+follows the account everywhere. `localStorage` is no longer used for this setting —
+the backend is the sole source of truth. No backward compatibility with the legacy
+`nav__pinnedItems` key is kept.
 
 > The user explicitly asked to **use the existing `option` table** as the storage
 > backend. This plan does exactly that — no new table is introduced.
@@ -205,18 +206,12 @@ async loadUserOptions() {
 
   if (options['nav.pinnedItems'] != null) {
     this.pinnedNavKeys = JSON.parse(options['nav.pinnedItems']);
-    return;
-  }
-
-  // --- one-time migration of legacy localStorage value ---
-  const legacy = localStorage.getItem('nav__pinnedItems');
-  if (legacy != null) {
-    this.pinnedNavKeys = JSON.parse(legacy);
-    await this.savePinnedNavKeys();          // push to backend
-    localStorage.removeItem('nav__pinnedItems');
   }
 }
 ```
+
+The legacy `nav__pinnedItems` `localStorage` key is **not** read. Users who pinned
+items on the old client will see the default layout once and can re-pin as needed.
 
 **2.3 Persist changes through the API**
 
@@ -252,9 +247,8 @@ async savePinnedNavKeys() {
 ```
 
 The UI update is optimistic so the menu stays responsive; a failed save surfaces a
-snackbar error. Optionally also mirror the value into `localStorage` as an offline
-cache (read it as an instant default before the API responds), but the backend is
-the source of truth.
+snackbar error. `localStorage` is not touched — the backend is the sole source of
+truth.
 
 ### Phase 3 — Tests
 
@@ -282,22 +276,23 @@ the source of truth.
 ### Phase 4 — Docs / API spec
 
 - Add the two endpoints to `api-docs.yml` (`GET` / `POST /user/options`).
-- Note in the PR description that `nav__pinnedItems` in `localStorage` is migrated
-  automatically and then removed.
+- Note in the PR description that the legacy `nav__pinnedItems` `localStorage` key
+  is no longer read — existing users who had unpinned items will see the default
+  layout once and can re-pin as desired.
 
 ---
 
-## Backward Compatibility & Rollout
+## Rollout
 
 - **No DB migration** — the `option` table is reused as-is.
-- **Existing users:** on first load after the update, `loadUserOptions()` finds no
-  backend value, reads the legacy `localStorage` key, uploads it, and clears the
-  local copy. Fully transparent.
+- **No backward compatibility** — the frontend reads and writes the backend only.
+  The legacy `nav__pinnedItems` `localStorage` entry is ignored; users who had it
+  set will see the default (all items pinned) on first load and can re-pin.
 - **Old frontend + new backend:** harmless — the old UI just keeps using
   `localStorage` and ignores the new endpoint.
-- **New frontend + old backend:** the `GET`/`POST /user/options` calls 404; wrap
-  them in `try/catch` so the menu silently falls back to `localStorage`-only
-  behaviour. (Relevant only for mismatched deployments.)
+- **New frontend + old backend:** unsupported — frontend and backend must be
+  deployed together. The `GET /api/user/options` call will fail and the user will
+  see the default layout.
 
 ## Risks & Notes
 

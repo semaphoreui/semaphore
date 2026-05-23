@@ -1345,34 +1345,14 @@ export default {
     },
 
     async loadUserOptions() {
-      let options;
-      try {
-        options = (await axios({
-          method: 'get',
-          url: '/api/user/options',
-          responseType: 'json',
-        })).data;
-      } catch (err) {
-        // Old backend without the per-user options endpoint: fall back to
-        // localStorage-only behaviour.
-        const local = localStorage.getItem('nav__pinnedItems');
-        if (local != null) {
-          this.pinnedNavKeys = JSON.parse(local);
-        }
-        return;
-      }
+      const options = (await axios({
+        method: 'get',
+        url: '/api/user/options',
+        responseType: 'json',
+      })).data;
 
       if (options['nav.pinnedItems'] != null) {
         this.pinnedNavKeys = JSON.parse(options['nav.pinnedItems']);
-        return;
-      }
-
-      // One-time migration of the legacy localStorage value.
-      const legacy = localStorage.getItem('nav__pinnedItems');
-      if (legacy != null) {
-        this.pinnedNavKeys = JSON.parse(legacy);
-        await this.savePinnedNavKeys();
-        localStorage.removeItem('nav__pinnedItems');
       }
     },
 
