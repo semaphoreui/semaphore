@@ -16,7 +16,6 @@ import (
 	"github.com/semaphoreui/semaphore/db_lib"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
 	"github.com/semaphoreui/semaphore/util"
 )
 
