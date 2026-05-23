@@ -119,7 +119,7 @@
       <v-divider style="margin-top: -1px;" />
 
       <AnsibleStageView
-        :premium-features="systemInfo.premium_features"
+        :premium-features="systemInfo.features"
         :project-id="projectId"
         :task-id="itemId"
       />

@@ -6,7 +6,7 @@ export default {
   computed: {
 
     premiumFeatures() {
-      return this.systemInfo?.premium_features || {};
+      return this.systemInfo?.features || {};
     },
 
   },
