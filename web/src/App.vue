@@ -512,7 +512,7 @@
       </template>
     </v-navigation-drawer>
 
-    <v-main style="background-color: #f5f5f5">
+    <v-main>
       <v-alert
         type="error"
         prominent
