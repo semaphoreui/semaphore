@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
-	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	taskServices "github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -13,11 +13,11 @@ import (
 
 // clusterInspector is the process-wide ClusterInspector. It is nil when HA is
 // disabled or when the pro_impl overlay is not present.
-var clusterInspector proHA.ClusterInspector
+var clusterInspector pro_interfaces.ClusterInspector
 
 // SetClusterInspector wires the cluster inspector singleton. Called once at
 // startup from cli/cmd/root.go.
-func SetClusterInspector(ci proHA.ClusterInspector) {
+func SetClusterInspector(ci pro_interfaces.ClusterInspector) {
 	clusterInspector = ci
 }
 
