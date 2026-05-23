@@ -1,4 +1,9 @@
-# Semaphore — Claude Code Instructions
+# Claude Code Instructions
+
+## Code Style
+
+1. Do not use global variables. Global variables are forbidden.
+
 
 ## Writing Tests
 

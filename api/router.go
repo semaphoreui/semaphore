@@ -213,6 +213,10 @@ func Route(
 	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
 	adminAPI.Path("/admin/info").HandlerFunc(getAdminInfo).Methods("GET", "HEAD")
 
+	adminAPI.Path("/cluster").HandlerFunc(getClusterStatus).Methods("GET", "HEAD")
+	adminAPI.Path("/cluster/tasks").HandlerFunc(getClusterTasks).Methods("GET", "HEAD")
+	adminAPI.Path("/cluster/tasks").HandlerFunc(clearClusterTasks).Methods("DELETE")
+
 	adminAPI.Path("/runners").HandlerFunc(getAllRunners).Methods("GET", "HEAD")
 	adminAPI.Path("/runners").HandlerFunc(addGlobalRunner).Methods("POST", "HEAD")
 	adminAPI.Path("/runner_tags").HandlerFunc(getGlobalRunnerTags).Methods("GET", "HEAD")
