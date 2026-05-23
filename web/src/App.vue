@@ -272,21 +272,14 @@
           </v-list-item-content>
 
           <div class="nav-pin-wrap" v-if="navEditMode && navItems.length > 1">
-            <v-btn
-              icon
-              @click.stop.prevent="togglePin(item.key)"
-              :title="$t('unpin')"
-            >
+            <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('unpin')">
               <v-icon small>mdi-pin-off-outline</v-icon>
             </v-btn>
           </div>
         </v-list-item>
 
         <template v-if="unpinnedNavItems.length > 0">
-          <v-list-item
-            @click="showMoreToggle = !showMoreToggle"
-            class="nav-more-toggle"
-          >
+          <v-list-item @click="showMoreToggle = !showMoreToggle" class="nav-more-toggle">
             <v-list-item-icon>
               <v-icon>{{ showMoreToggle ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
             </v-list-item-icon>
@@ -315,11 +308,7 @@
               </v-list-item-content>
 
               <div class="nav-pin-wrap" v-if="navEditMode">
-                <v-btn
-                  icon
-                  @click.stop.prevent="togglePin(item.key)"
-                  :title="$t('pin')"
-                >
+                <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('pin')">
                   <v-icon small>mdi-pin-outline</v-icon>
                 </v-btn>
               </div>
@@ -331,24 +320,36 @@
       <template v-slot:append>
         <v-list class="pa-0">
           <v-list-item>
-            <v-switch
-              class="DarkModeSwitch"
-              v-model="darkMode"
-              prepend-icon="mdi-white-balance-sunny"
-              append-icon="mdi-weather-night"
-            ></v-switch>
+            <div class="DarkModeSwitchWrap" :class="{ 'DarkModeSwitchWrap--dark': darkMode }">
+              <v-switch
+                class="DarkModeSwitch"
+                v-model="darkMode"
+                inset
+                flat
+                hide-details
+                dense
+              ></v-switch>
+              <v-icon class="DarkModeSwitchWrap__icon" small>
+                {{ darkMode ? 'mdi-weather-night' : 'mdi-white-balance-sunny' }}
+              </v-icon>
+            </div>
 
             <v-spacer />
 
             <v-btn
               icon
+              style="margin-left: -15px"
               class="mr-1"
               :color="navEditMode ? 'primary' : undefined"
               :title="navEditMode ? $t('finishEditingMenu') : $t('editMenu')"
               @click="navEditMode = !navEditMode"
             >
-              <v-icon>{{ navEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}</v-icon>
+              <v-icon style="transform: scale(1.3);">
+                {{ navEditMode ? 'mdi-check' : 'mdi-playlist-edit' }}
+              </v-icon>
             </v-btn>
+
+            <v-spacer />
 
             <v-menu top min-width="150" max-width="235" nudge-top="12" :position-x="50" absolute>
               <template v-slot:activator="{ on, attrs }">
@@ -665,22 +666,28 @@
   --highlighted-card-bg-color: #f3f3f3;
 }
 
-.DarkModeSwitch {
-  .v-input__prepend-outer {
-    transform: translateY(1px);
+.DarkModeSwitchWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 
-    .v-icon {
-      color: #cacaca !important;
-    }
+  .DarkModeSwitch {
+    margin: 0;
+    padding: 0;
   }
 
-  .v-input__append-outer {
-    margin-left: 5px;
-    transform: translateY(-1px);
+  &__icon {
+    position: absolute !important;
+    top: calc(50% - 1px);
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #fff !important;
+    transition: left 0.2s ease;
+    left: 1px;
+  }
 
-    .v-icon {
-      color: #2196f3 !important;
-    }
+  &--dark .DarkModeSwitchWrap__icon {
+    left: 22px;
   }
 }
 
@@ -1103,36 +1110,71 @@ export default {
       if (this.project.type === '') {
         items.push(
           {
-            key: 'templates', icon: 'mdi-check-all', title: this.$t('taskTemplates'), to: this.templatesUrl, testId: 'sidebar-templates',
+            key: 'templates',
+            icon: 'mdi-check-all',
+            title: this.$t('taskTemplates'),
+            to: this.templatesUrl,
+            testId: 'sidebar-templates',
           },
           {
-            key: 'schedule', icon: 'mdi-clock-outline', title: this.$t('schedule'), to: `${base}/schedule`, testId: 'sidebar-schedule',
+            key: 'schedule',
+            icon: 'mdi-clock-outline',
+            title: this.$t('schedule'),
+            to: `${base}/schedule`,
+            testId: 'sidebar-schedule',
           },
           {
-            key: 'inventory', icon: 'mdi-monitor-multiple', title: this.$t('inventory'), to: `${base}/inventory`, testId: 'sidebar-inventory',
+            key: 'inventory',
+            icon: 'mdi-monitor-multiple',
+            title: this.$t('inventory'),
+            to: `${base}/inventory`,
+            testId: 'sidebar-inventory',
           },
           {
-            key: 'environment', icon: 'mdi-code-braces', title: this.$t('environment'), to: `${base}/environment`, testId: 'sidebar-environment',
+            key: 'environment',
+            icon: 'mdi-code-braces',
+            title: this.$t('environment'),
+            to: `${base}/environment`,
+            testId: 'sidebar-environment',
           },
           {
-            key: 'keys', icon: 'mdi-key-change', title: this.$t('keyStore'), to: `${base}/keys`, testId: 'sidebar-keys',
+            key: 'keys',
+            icon: 'mdi-key-change',
+            title: this.$t('keyStore'),
+            to: `${base}/keys`,
+            testId: 'sidebar-keys',
           },
           {
-            key: 'repositories', icon: 'mdi-git', title: this.$t('repositories'), to: `${base}/repositories`,
+            key: 'repositories',
+            icon: 'mdi-git',
+            title: this.$t('repositories'),
+            to: `${base}/repositories`,
           },
           {
-            key: 'integrations', icon: 'mdi-connection', title: this.$t('integrations'), to: `${base}/integrations`, testId: 'sidebar-integrations',
+            key: 'integrations',
+            icon: 'mdi-connection',
+            title: this.$t('integrations'),
+            to: `${base}/integrations`,
+            testId: 'sidebar-integrations',
           },
         );
       }
 
       items.push({
-        key: 'team', icon: 'mdi-account-multiple', title: this.$t('team'), to: `${base}/team`, testId: 'sidebar-team',
+        key: 'team',
+        icon: 'mdi-account-multiple',
+        title: this.$t('team'),
+        to: `${base}/team`,
+        testId: 'sidebar-team',
       });
 
       if (this.isPro && this.project.type === '') {
         items.push({
-          key: 'runners', icon: 'mdi-cogs', title: this.$t('runners'), to: `${base}/runners`, testId: 'sidebar-runners',
+          key: 'runners',
+          icon: 'mdi-cogs',
+          title: this.$t('runners'),
+          to: `${base}/runners`,
+          testId: 'sidebar-runners',
         });
       }
 
@@ -1356,11 +1398,13 @@ export default {
     },
 
     async loadUserOptions() {
-      const options = (await axios({
-        method: 'get',
-        url: '/api/user/options',
-        responseType: 'json',
-      })).data;
+      const options = (
+        await axios({
+          method: 'get',
+          url: '/api/user/options',
+          responseType: 'json',
+        })
+      ).data;
 
       if (options['nav.pinnedItems'] != null) {
         this.pinnedNavKeys = JSON.parse(options['nav.pinnedItems']);
