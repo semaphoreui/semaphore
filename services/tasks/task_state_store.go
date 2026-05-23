@@ -2,6 +2,73 @@ package tasks
 
 import "sync"
 
+// TaskStateInspector is optionally implemented by a TaskStateStore to
+// expose its records for the Cluster Dashboard. Callers must type-assert,
+// so stores that do not implement it are unaffected.
+type TaskStateInspector interface {
+	// Snapshot returns a serializable view of all task records.
+	Snapshot() TaskStateSnapshot
+	// ClearTasks removes task records from the backend. scope selects
+	// which record groups to clear.
+	ClearTasks(scope ClearScope) (ClearResult, error)
+}
+
+// TaskStateSnapshot is a serializable view of all task pool records.
+type TaskStateSnapshot struct {
+	Queue        []TaskRecord         `json:"queue"`
+	Running      []TaskRecord         `json:"running"`
+	ActiveByProj map[int][]TaskRecord `json:"active_by_project"`
+	Aliases      map[string]int       `json:"aliases"` // alias -> taskID
+	Claims       []int                `json:"claims"`  // claimed taskIDs
+}
+
+// TaskRecord is a single task entry in a TaskStateSnapshot.
+type TaskRecord struct {
+	TaskID     int    `json:"task_id"`
+	ProjectID  int    `json:"project_id"`
+	TemplateID int    `json:"template_id"`
+	Status     string `json:"status"`
+	RunnerID   int    `json:"runner_id"`
+	Username   string `json:"username"`
+	Alias      string `json:"alias"`
+	NodeID     string `json:"node_id"` // owning node, "" if unknown
+}
+
+// ClearScope selects which record groups ClearTasks removes.
+type ClearScope struct {
+	Queue         bool `json:"queue"`
+	Running       bool `json:"running"`
+	Active        bool `json:"active"`
+	Aliases       bool `json:"aliases"`
+	Claims        bool `json:"claims"`
+	RuntimeFields bool `json:"runtime_fields"`
+}
+
+// ClearResult reports what ClearTasks removed.
+type ClearResult struct {
+	DeletedKeys int            `json:"deleted_keys"`
+	PerGroup    map[string]int `json:"per_group"`
+}
+
+// taskToRecord builds a TaskRecord from a TaskRunner.
+func taskToRecord(t *TaskRunner) TaskRecord {
+	if t == nil {
+		return TaskRecord{}
+	}
+	rec := TaskRecord{
+		TaskID:     t.Task.ID,
+		ProjectID:  t.Task.ProjectID,
+		TemplateID: t.Task.TemplateID,
+		Status:     string(t.Task.Status),
+		Username:   t.Username,
+		Alias:      t.Alias,
+	}
+	if t.Task.RunnerID != nil {
+		rec.RunnerID = *t.Task.RunnerID
+	}
+	return rec
+}
+
 // TaskRunnerHydrator constructs a TaskRunner for an existing task
 // identified by taskID and projectID without starting it.
 type TaskRunnerHydrator func(taskID int, projectID int) (*TaskRunner, error)
@@ -212,4 +279,85 @@ func (s *MemoryTaskStateStore) DeleteAlias(alias string) {
 	s.mu.Lock()
 	delete(s.aliases, alias)
 	s.mu.Unlock()
+}
+
+// Snapshot returns a serializable view of all in-memory task records.
+// The memory store does not track claims, so Claims is always empty.
+func (s *MemoryTaskStateStore) Snapshot() TaskStateSnapshot {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	snap := TaskStateSnapshot{
+		Queue:        make([]TaskRecord, 0, len(s.queue)),
+		Running:      make([]TaskRecord, 0, len(s.running)),
+		ActiveByProj: make(map[int][]TaskRecord),
+		Aliases:      make(map[string]int),
+		Claims:       []int{},
+	}
+
+	for _, t := range s.queue {
+		snap.Queue = append(snap.Queue, taskToRecord(t))
+	}
+	for _, t := range s.running {
+		snap.Running = append(snap.Running, taskToRecord(t))
+	}
+	for projectID, tasks := range s.activeProj {
+		recs := make([]TaskRecord, 0, len(tasks))
+		for _, t := range tasks {
+			recs = append(recs, taskToRecord(t))
+		}
+		snap.ActiveByProj[projectID] = recs
+	}
+	for alias, t := range s.aliases {
+		if t != nil {
+			snap.Aliases[alias] = t.Task.ID
+		}
+	}
+
+	return snap
+}
+
+// ClearTasks removes the selected record groups from the in-memory store.
+func (s *MemoryTaskStateStore) ClearTasks(scope ClearScope) (ClearResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	res := ClearResult{PerGroup: map[string]int{}}
+
+	if scope.Queue {
+		n := len(s.queue)
+		s.queue = make([]*TaskRunner, 0)
+		res.PerGroup["queue"] = n
+		res.DeletedKeys += n
+	}
+	if scope.Running {
+		n := len(s.running)
+		s.running = make(map[int]*TaskRunner)
+		res.PerGroup["running"] = n
+		res.DeletedKeys += n
+	}
+	if scope.Active {
+		n := 0
+		for _, tasks := range s.activeProj {
+			n += len(tasks)
+		}
+		s.activeProj = make(map[int]map[int]*TaskRunner)
+		res.PerGroup["active"] = n
+		res.DeletedKeys += n
+	}
+	if scope.Aliases {
+		n := len(s.aliases)
+		s.aliases = make(map[string]*TaskRunner)
+		res.PerGroup["aliases"] = n
+		res.DeletedKeys += n
+	}
+	// The memory store has no separate claims or runtime fields.
+	if scope.Claims {
+		res.PerGroup["claims"] = 0
+	}
+	if scope.RuntimeFields {
+		res.PerGroup["runtime_fields"] = 0
+	}
+
+	return res, nil
 }

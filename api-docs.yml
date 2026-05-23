@@ -1197,6 +1197,27 @@ definitions:
       premium_features:
         type: object
 
+  ClusterTaskRecord:
+    type: object
+    properties:
+      task_id:
+        type: integer
+      project_id:
+        type: integer
+      template_id:
+        type: integer
+      status:
+        type: string
+      runner_id:
+        type: integer
+      username:
+        type: string
+      alias:
+        type: string
+      node_id:
+        type: string
+        description: owning node, empty if unknown
+
 securityDefinitions:
   cookie:
     type: apiKey
@@ -1356,6 +1377,143 @@ paths:
           description: ok
           schema:
             $ref: "#/definitions/InfoType"
+
+  # Cluster Dashboard (admin only)
+  /cluster:
+    get:
+      tags:
+        - cluster
+      summary: Fetches cluster (HA) status
+      description: >
+        Admin only. Returns HA mode, this node's ID, cluster membership and
+        Redis stats. When HA is disabled only ha_enabled is returned.
+      responses:
+        200:
+          description: Cluster status
+          schema:
+            type: object
+            properties:
+              ha_enabled:
+                type: boolean
+              node_id:
+                type: string
+              nodes:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    node_id:
+                      type: string
+                    alive:
+                      type: boolean
+                    is_self:
+                      type: boolean
+                    last_heartbeat:
+                      type: string
+                      format: date-time
+                    started_at:
+                      type: string
+                      format: date-time
+                    version:
+                      type: string
+              redis:
+                type: object
+                properties:
+                  addr:
+                    type: string
+                  connected:
+                    type: boolean
+                  version:
+                    type: string
+                  used_memory:
+                    type: string
+                  total_keys:
+                    type: integer
+                  key_groups:
+                    type: object
+                    additionalProperties:
+                      type: integer
+
+  /cluster/tasks:
+    get:
+      tags:
+        - cluster
+      summary: Fetches a snapshot of task pool records
+      description: >
+        Admin only. Returns queued, running and active tasks, aliases and
+        claims kept by the task state store (Redis in HA mode, in-memory
+        otherwise).
+      responses:
+        200:
+          description: Task state snapshot
+          schema:
+            type: object
+            properties:
+              queue:
+                type: array
+                items:
+                  $ref: "#/definitions/ClusterTaskRecord"
+              running:
+                type: array
+                items:
+                  $ref: "#/definitions/ClusterTaskRecord"
+              active_by_project:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    $ref: "#/definitions/ClusterTaskRecord"
+              aliases:
+                type: object
+                additionalProperties:
+                  type: integer
+              claims:
+                type: array
+                items:
+                  type: integer
+    delete:
+      tags:
+        - cluster
+      summary: Clears task records from the backend
+      description: >
+        Admin only. Maintenance action to recover from a stuck cluster state.
+        The request body scope selects which record groups to clear.
+      parameters:
+        - name: Clear Scope
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              scope:
+                type: object
+                properties:
+                  queue:
+                    type: boolean
+                  running:
+                    type: boolean
+                  active:
+                    type: boolean
+                  aliases:
+                    type: boolean
+                  claims:
+                    type: boolean
+                  runtime_fields:
+                    type: boolean
+      responses:
+        200:
+          description: Clear result
+          schema:
+            type: object
+            properties:
+              deleted_keys:
+                type: integer
+              per_group:
+                type: object
+                additionalProperties:
+                  type: integer
+        400:
+          description: missing body or no record groups selected
 
   # Authentication
   /auth/login:

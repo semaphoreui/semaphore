@@ -1,8 +1,9 @@
 {
     "version": "0.2.0",
     "configurations": [
+      
         {
-            "name": "Launch Server",
+            "name": "Launch Server (Container)",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -15,7 +16,7 @@
             }
         }, 
         {
-            "name": "Launch Server with remote Runner",
+            "name": "Launch Server with remote Runner (Container)",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -28,7 +29,7 @@
             }
         }, 
         {
-            "name": "Launch Runner",
+            "name": "Launch Runner (Container)",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -40,14 +41,14 @@
             }
         }, 
         {
-            "name": "Launch Dredd Tests without Server",
-            "type": "pwa-node",
+            "name": "Launch Dredd Tests without Server (LOCAL)",
+            "type": "node",
             "request": "launch",
             "runtimeExecutable": "task",
             "args": ["dredd:test:local"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
-        }, 
+        },
         {
             "name": "Launch Server (LOCAL)",
             "type": "go",
@@ -59,6 +60,16 @@
             "env": {
                 "DEBUG_DELAY": "1s"
             }
-        }, 
+        },
+        {
+            "name": "Launch Frontend",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "serve"],
+            "cwd": "${workspaceFolder}/web",
+            "console": "integratedTerminal"
+        },
+
     ]
 }

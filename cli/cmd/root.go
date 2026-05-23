@@ -135,6 +135,10 @@ func runService() {
 		log.WithField("node_id", nodeRegistry.NodeID()).Info("HA active-active mode enabled")
 	}
 
+	// Cluster inspector powers the admin Cluster Dashboard. It is nil when HA
+	// is disabled; the dashboard then falls back to the local task pool.
+	api.SetClusterInspector(proHA.NewClusterInspector())
+
 	if dedup := proHA.NewScheduleDeduplicator(); dedup != nil {
 		schedulePool.SetDeduplicator(dedup)
 		secretStorageSyncScheduler.SetTickDeduplicator(dedup)
