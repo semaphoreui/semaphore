@@ -536,6 +536,26 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		}
 	}
 
+	// Runner registration token may be supplied only via registration_token_file / env file path.
+	// The registration API compares against RunnerRegistrationToken; the runner client sends
+	// Runner.RegistrationToken — both must be populated from the file when the inline token is omitted.
+	if Config.Runner != nil && Config.Runner.RegistrationTokenFile != "" {
+		regTokBytes, err := os.ReadFile(Config.Runner.RegistrationTokenFile)
+		if err != nil {
+			panic(fmt.Errorf("read runner registration_token_file: %w", err))
+		}
+		tok := strings.TrimSpace(string(regTokBytes))
+		if tok == "" {
+			panic("runner registration_token_file is empty")
+		}
+		if Config.RunnerRegistrationToken == "" {
+			Config.RunnerRegistrationToken = tok
+		}
+		if Config.Runner.RegistrationToken == "" {
+			Config.Runner.RegistrationToken = tok
+		}
+	}
+
 	if Config.SubscriptionKeyFile != "" {
 		subscriptionKeyBytes, err := os.ReadFile(Config.SubscriptionKeyFile)
 		if err != nil {
