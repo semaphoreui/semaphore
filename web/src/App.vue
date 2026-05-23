@@ -344,7 +344,7 @@
               :title="navEditMode ? $t('finishEditingMenu') : $t('editMenu')"
               @click="navEditMode = !navEditMode"
             >
-              <v-icon style="transform: scale(1.3);">
+              <v-icon style="transform: scale(1.3)">
                 {{ navEditMode ? 'mdi-check' : 'mdi-playlist-edit' }}
               </v-icon>
             </v-btn>
@@ -1395,7 +1395,11 @@ export default {
       ).data;
 
       if (options['nav.unpinnedItems'] != null) {
-        this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
+        try {
+          this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
+        } catch (e) {
+          console.log(e);
+        }
       }
     },
 

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -50,6 +51,13 @@ func setUserOption(w http.ResponseWriter, r *http.Request) {
 	if !allowedUserOptionKeys[opt.Key] {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "unknown user option key",
+		})
+		return
+	}
+
+	if !json.Valid([]byte(opt.Value)) {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "user option value must be valid JSON",
 		})
 		return
 	}

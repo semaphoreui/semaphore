@@ -75,6 +75,9 @@ Add a new controller for **current-user options**. Every handler:
    impossible to read or write another user's options or a global option.
 3. Restricts the `<suffix>` to an **allowlist** of known user-setting keys
    (initially just `nav.unpinnedItems`). Unknown suffixes are rejected with `400`.
+4. Requires `value` to be **valid JSON** (`json.Valid([]byte(opt.Value))`). The
+   handler stores the raw JSON string; non-JSON bodies are rejected with `400`.
+   This is a hard invariant — all user options are JSON-encoded, full stop.
 
 This keeps the surface tight and intentional rather than a generic per-user KV API.
 
@@ -148,6 +151,12 @@ func setUserOption(w http.ResponseWriter, r *http.Request) {
     if !allowedUserOptionKeys[opt.Key] {
         helpers.WriteJSON(w, http.StatusBadRequest,
             map[string]string{"error": "unknown user option key"})
+        return
+    }
+
+    if !json.Valid([]byte(opt.Value)) {
+        helpers.WriteJSON(w, http.StatusBadRequest,
+            map[string]string{"error": "user option value must be valid JSON"})
         return
     }
 
