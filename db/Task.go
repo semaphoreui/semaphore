@@ -203,6 +203,7 @@ type TaskWithTpl struct {
 	TemplateType     TemplateType `db:"tpl_type" json:"tpl_type,omitempty"`
 	TemplateApp      TemplateApp  `db:"tpl_app" json:"tpl_app,omitempty"`
 	UserName         *string      `db:"user_name" json:"user_name,omitempty"`
+	RunnerName       *string      `db:"runner_name" json:"runner_name,omitempty"`
 	BuildTask        *Task        `db:"-" json:"build_task,omitempty"`
 }
 

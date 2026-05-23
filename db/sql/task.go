@@ -276,6 +276,7 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 	fields := "task.*"
 	fields += ", tpl.playbook as tpl_playbook" +
 		", `user`.name as user_name" +
+		", runner.name as runner_name" +
 		", tpl.name as tpl_alias" +
 		", tpl.type as tpl_type" +
 		", tpl.app as tpl_app"
@@ -284,6 +285,7 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		From("task").
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("`user` on task.user_id=`user`.id").
+		LeftJoin("runner on task.runner_id=runner.id").
 		OrderBy("id desc")
 
 	if params.TaskFilter != nil && len(params.TaskFilter.Status) > 0 {
