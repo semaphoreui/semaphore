@@ -271,11 +271,7 @@
             <v-list-item-title>{{ item.title }}</v-list-item-title>
           </v-list-item-content>
 
-<<<<<<< HEAD
-          <div class="nav-pin-wrap" v-if="navItems.length > 1">
-=======
           <div class="nav-pin-wrap" v-if="navEditMode && navItems.length > 1">
->>>>>>> develop
             <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('unpin')">
               <v-icon small>mdi-pin-off-outline</v-icon>
             </v-btn>
