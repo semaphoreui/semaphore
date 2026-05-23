@@ -3,17 +3,21 @@
 ## Goal
 
 The side-menu "pin / unpin" feature lets a user move navigation items into a **More**
-sub-menu. The set of pinned items was previously persisted only in the browser's
-`localStorage` (`nav__pinnedItems`). This means the preference was:
+sub-menu. The customization must persist **per user on the backend**, so it
+follows the account across browsers, devices, and sessions.
 
-- lost when the user switched browser / device,
-- lost when local storage was cleared,
-- not shared across sessions of the same account.
+### Why we store *unpinned* items, not pinned items
 
-The goal is to persist the pinned-items list **on the backend, per user**, so it
-follows the account everywhere. `localStorage` is no longer used for this setting —
-the backend is the sole source of truth. No backward compatibility with the legacy
-`nav__pinnedItems` key is kept.
+The default state for every user is "everything pinned, nothing in **More**". The
+*unpinned* set is therefore typically the **smaller** list, and is exactly the
+delta from the default. Storing this delta instead of the full pinned list has
+two concrete benefits:
+
+1. **Storage stays compact and well under the `varchar(255)` limit** — most users
+   have an empty list; even heavy customizers store only a few keys.
+2. **New navigation items added in future releases automatically appear in the
+   user's pinned section** rather than being silently moved into **More** because
+   they're "not on the stored pinned list". Users opt items *out*, never *in*.
 
 > The user explicitly asked to **use the existing `option` table** as the storage
 > backend. This plan does exactly that — no new table is introduced.
@@ -37,13 +41,18 @@ and implemented for both SQL (`db/sql/option.go`) and Bolt (`db/bolt/option.go`)
 filter.%`), which is exactly what we need to scope options to one user.
 
 **Key convention:** per-user options use the key
-`user<userID>.<setting>`. The pinned-items list is stored as:
+`user<userID>.<setting>`. The list of items the user has moved into **More** is
+stored as:
 
-| Key                              | Value                                  |
-|----------------------------------|----------------------------------------|
-| `user<userID>.nav.pinnedItems`  | JSON array, e.g. `["dashboard","history"]` |
+| Key                                | Value                                  |
+|------------------------------------|----------------------------------------|
+| `user<userID>.nav.unpinnedItems`   | JSON array, e.g. `["environment","keys"]` |
 
-`ValidateOptionKey` accepts `^[\w.]+$`, so `user42.nav.pinnedItems` is a valid key —
+The value is the set of navigation keys the user has explicitly **unpinned**.
+Default (every item pinned, nothing in **More**) is represented by an empty array
+or by no row at all.
+
+`ValidateOptionKey` accepts `^[\w.]+$`, so `user42.nav.unpinnedItems` is a valid key —
 **no DB or store-layer change is required at all.** The entire `OptionsManager`
 interface already does everything we need.
 
@@ -65,7 +74,7 @@ Add a new controller for **current-user options**. Every handler:
    user ID comes from the session, never from the request body. This makes it
    impossible to read or write another user's options or a global option.
 3. Restricts the `<suffix>` to an **allowlist** of known user-setting keys
-   (initially just `nav.pinnedItems`). Unknown suffixes are rejected with `400`.
+   (initially just `nav.unpinnedItems`). Unknown suffixes are rejected with `400`.
 
 This keeps the surface tight and intentional rather than a generic per-user KV API.
 
@@ -80,9 +89,9 @@ This keeps the surface tight and intentional rather than a generic per-user KV A
 - `api/user.go` — `UserController`; a good home for the new handlers, or a new
   `api/user_options.go` file.
 - `api/users.go` — `deleteUser` handler; must clean up per-user options.
-- `web/src/App.vue` — `data().pinnedNavKeys` (line ~988), `pinnedNavItemsList` /
-  `unpinnedNavItems` computed (lines ~1131-1145), `loadData` / `loadUserInfo`
-  (lines ~1349, ~1458), `togglePin` (line ~1321).
+- `web/src/App.vue` — `data().unpinnedNavKeys`, `pinnedNavItemsList` /
+  `unpinnedNavItems` computed properties, `loadUserOptions`, `togglePin`,
+  `saveUnpinnedNavKeys`.
 
 ---
 
@@ -97,7 +106,7 @@ In `api/user_options.go` (new file) define the set of permitted user-option keys
 ```go
 // keys a user is allowed to store via the per-user options API
 var allowedUserOptionKeys = map[string]bool{
-    "nav.pinnedItems": true,
+    "nav.unpinnedItems": true,
 }
 
 func userOptionKey(userID int, suffix string) string {
@@ -124,7 +133,7 @@ func getUserOptions(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-Returns e.g. `{"nav.pinnedItems": "[\"dashboard\",\"history\"]"}`. If the user has
+Returns e.g. `{"nav.unpinnedItems": "[\"dashboard\",\"history\"]"}`. If the user has
 no stored options, returns `{}`.
 
 **1.3 `POST /api/user/options` — write one option**
@@ -149,7 +158,7 @@ func setUserOption(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-Note: the request body's `key` is the **suffix only** (`nav.pinnedItems`); the
+Note: the request body's `key` is the **suffix only** (`nav.unpinnedItems`); the
 handler prepends the user namespace. The body never controls the user ID.
 
 **1.4 (optional) `DELETE /api/user/options/{key}` — reset a setting**
@@ -179,19 +188,31 @@ leave orphaned option rows. `DeleteOptions` already does prefix deletion.
 
 ### Phase 2 — Frontend (`web/src/App.vue`)
 
-**2.1 Stop seeding `pinnedNavKeys` from `localStorage` directly**
+**2.1 State: track unpinned keys, not pinned keys**
 
-Change the `data()` initializer (line ~988) to start as `null` and load the real
-value asynchronously:
+The component holds the user's customization as the list of keys they have
+unpinned. Default is an empty array — "nothing unpinned, everything visible in
+the main section".
 
 ```js
-pinnedNavKeys: null,
+unpinnedNavKeys: [],
 ```
 
-`null` keeps the current "everything pinned, nothing in More" default behaviour
-(see `pinnedNavItemsList` / `unpinnedNavItems`).
+The computed properties derive both lists from `navItems` and `unpinnedNavKeys`:
 
-**2.2 Load pinned items from the backend**
+```js
+pinnedNavItemsList() {
+  return this.navItems.filter((item) => !this.unpinnedNavKeys.includes(item.key));
+},
+unpinnedNavItems() {
+  return this.navItems.filter((item) =>  this.unpinnedNavKeys.includes(item.key));
+},
+```
+
+A nav item that is unknown to the current `unpinnedNavKeys` array (e.g. introduced
+in a later release) is automatically pinned — exactly the desired behaviour.
+
+**2.2 Load the user's unpinned items from the backend**
 
 Add a `loadUserOptions()` method and call it from `loadData()` (after
 `loadUserInfo()`, since it needs an authenticated session):
@@ -204,41 +225,36 @@ async loadUserOptions() {
     responseType: 'json',
   })).data;
 
-  if (options['nav.pinnedItems'] != null) {
-    this.pinnedNavKeys = JSON.parse(options['nav.pinnedItems']);
+  if (options['nav.unpinnedItems'] != null) {
+    this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
   }
 }
 ```
 
-The legacy `nav__pinnedItems` `localStorage` key is **not** read. Users who pinned
-items on the old client will see the default layout once and can re-pin as needed.
+If the user has no stored value, they start with the default layout (every item
+pinned).
 
 **2.3 Persist changes through the API**
 
-Replace the `localStorage.setItem` call in `togglePin` (line ~1331) with a backend
-write:
+`togglePin` mutates `unpinnedNavKeys` and pushes it to the backend:
 
 ```js
 async togglePin(key) {
-  let pinned = this.pinnedNavKeys;
-  if (pinned === null) {
-    pinned = this.navItems.map((i) => i.key).filter((k) => k !== key);
-  } else if (pinned.includes(key)) {
-    pinned = pinned.filter((k) => k !== key);
+  if (this.unpinnedNavKeys.includes(key)) {
+    this.unpinnedNavKeys = this.unpinnedNavKeys.filter((k) => k !== key);
   } else {
-    pinned = [...pinned, key];
+    this.unpinnedNavKeys = [...this.unpinnedNavKeys, key];
   }
-  this.pinnedNavKeys = pinned;     // optimistic UI update
-  await this.savePinnedNavKeys();
+  await this.saveUnpinnedNavKeys();
 },
 
-async savePinnedNavKeys() {
+async saveUnpinnedNavKeys() {
   try {
     await axios({
       method: 'post',
       url: '/api/user/options',
       responseType: 'json',
-      data: { key: 'nav.pinnedItems', value: JSON.stringify(this.pinnedNavKeys) },
+      data: { key: 'nav.unpinnedItems', value: JSON.stringify(this.unpinnedNavKeys) },
     });
   } catch (err) {
     EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
@@ -247,8 +263,7 @@ async savePinnedNavKeys() {
 ```
 
 The UI update is optimistic so the menu stays responsive; a failed save surfaces a
-snackbar error. `localStorage` is not touched — the backend is the sole source of
-truth.
+snackbar error.
 
 **2.4 Edit-mode toggle for the side menu**
 
@@ -328,7 +343,7 @@ Add to every `web/src/lang/*.js` file alongside existing `pin` / `unpin` keys.
 **Backend** (`api/user_options_test.go`, using `net/http/httptest` per
 `.claude/CLAUDE.md`):
 
-- `setUserOption` with an allowlisted key stores `user<id>.nav.pinnedItems` and
+- `setUserOption` with an allowlisted key stores `user<id>.nav.unpinnedItems` and
   returns `200`.
 - `setUserOption` with a non-allowlisted key returns `400` and writes nothing.
 - `getUserOptions` returns only the current user's keys, with the `user<id>.`
@@ -349,23 +364,15 @@ Add to every `web/src/lang/*.js` file alongside existing `pin` / `unpin` keys.
 ### Phase 4 — Docs / API spec
 
 - Add the two endpoints to `api-docs.yml` (`GET` / `POST /user/options`).
-- Note in the PR description that the legacy `nav__pinnedItems` `localStorage` key
-  is no longer read — existing users who had unpinned items will see the default
-  layout once and can re-pin as desired.
 
 ---
 
 ## Rollout
 
 - **No DB migration** — the `option` table is reused as-is.
-- **No backward compatibility** — the frontend reads and writes the backend only.
-  The legacy `nav__pinnedItems` `localStorage` entry is ignored; users who had it
-  set will see the default (all items pinned) on first load and can re-pin.
-- **Old frontend + new backend:** harmless — the old UI just keeps using
-  `localStorage` and ignores the new endpoint.
-- **New frontend + old backend:** unsupported — frontend and backend must be
-  deployed together. The `GET /api/user/options` call will fail and the user will
-  see the default layout.
+- **Frontend + backend must be deployed together** — the frontend depends on
+  `GET`/`POST /api/user/options`. If the backend lacks the endpoint, the call
+  fails and the user sees the default layout (every item pinned).
 
 ## Risks & Notes
 
@@ -378,7 +385,7 @@ Add to every `web/src/lang/*.js` file alongside existing `pin` / `unpin` keys.
 
 ## Out of Scope (possible follow-ups)
 
-- Migrating other `localStorage` preferences (`darkMode`, `lang`, `projectId`,
+- Migrating other client-only preferences (`darkMode`, `lang`, `projectId`,
   `project<id>__lastVisitedViewId`) to the same per-user options mechanism — the
   endpoint added here is intentionally generic enough to absorb them later by
   extending `allowedUserOptionKeys`.

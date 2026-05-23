@@ -1002,7 +1002,7 @@ export default {
       taskId: null,
       template: null,
       darkMode: false,
-      pinnedNavKeys: null,
+      unpinnedNavKeys: [],
       showMoreToggle: false,
       navEditMode: false,
       languages: [
@@ -1182,19 +1182,11 @@ export default {
     },
 
     pinnedNavItemsList() {
-      if (this.pinnedNavKeys === null) {
-        return this.navItems;
-      }
-      return this.pinnedNavKeys
-        .map((key) => this.navItems.find((item) => item.key === key))
-        .filter(Boolean);
+      return this.navItems.filter((item) => !this.unpinnedNavKeys.includes(item.key));
     },
 
     unpinnedNavItems() {
-      if (this.pinnedNavKeys === null) {
-        return [];
-      }
-      return this.navItems.filter((item) => !this.pinnedNavKeys.includes(item.key));
+      return this.navItems.filter((item) => this.unpinnedNavKeys.includes(item.key));
     },
   },
 
@@ -1372,25 +1364,21 @@ export default {
     },
 
     async togglePin(key) {
-      let pinned = this.pinnedNavKeys;
-      if (pinned === null) {
-        pinned = this.navItems.map((i) => i.key).filter((k) => k !== key);
-      } else if (pinned.includes(key)) {
-        pinned = pinned.filter((k) => k !== key);
+      if (this.unpinnedNavKeys.includes(key)) {
+        this.unpinnedNavKeys = this.unpinnedNavKeys.filter((k) => k !== key);
       } else {
-        pinned = [...pinned, key];
+        this.unpinnedNavKeys = [...this.unpinnedNavKeys, key];
       }
-      this.pinnedNavKeys = pinned;
-      await this.savePinnedNavKeys();
+      await this.saveUnpinnedNavKeys();
     },
 
-    async savePinnedNavKeys() {
+    async saveUnpinnedNavKeys() {
       try {
         await axios({
           method: 'post',
           url: '/api/user/options',
           responseType: 'json',
-          data: { key: 'nav.pinnedItems', value: JSON.stringify(this.pinnedNavKeys) },
+          data: { key: 'nav.unpinnedItems', value: JSON.stringify(this.unpinnedNavKeys) },
         });
       } catch (err) {
         EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
@@ -1406,8 +1394,8 @@ export default {
         })
       ).data;
 
-      if (options['nav.pinnedItems'] != null) {
-        this.pinnedNavKeys = JSON.parse(options['nav.pinnedItems']);
+      if (options['nav.unpinnedItems'] != null) {
+        this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
       }
     },
 
