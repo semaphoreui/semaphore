@@ -1427,6 +1427,9 @@ paths:
                     type: string
                   used_memory:
                     type: string
+                  used_memory_bytes:
+                    type: integer
+                    format: int64
                   total_keys:
                     type: integer
                   key_groups:

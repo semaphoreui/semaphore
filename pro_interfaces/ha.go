@@ -42,10 +42,11 @@ type NodeInfo struct {
 
 // RedisInfo describes the Redis backend shared by the cluster.
 type RedisInfo struct {
-	Addr       string         `json:"addr"`
-	Connected  bool           `json:"connected"`
-	Version    string         `json:"version"`
-	UsedMemory string         `json:"used_memory"`
-	TotalKeys  int            `json:"total_keys"`
-	KeyGroups  map[string]int `json:"key_groups"`
+	Addr            string         `json:"addr"`
+	Connected       bool           `json:"connected"`
+	Version         string         `json:"version"`
+	UsedMemory      string         `json:"used_memory"`
+	UsedMemoryBytes int64          `json:"used_memory_bytes"`
+	TotalKeys       int            `json:"total_keys"`
+	KeyGroups       map[string]int `json:"key_groups"`
 }

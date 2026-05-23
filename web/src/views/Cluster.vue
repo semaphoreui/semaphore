@@ -8,35 +8,21 @@
             {{ $t('clearTasksWarning') }}
           </v-alert>
           <div class="mb-2">{{ $t('clearTasksGroups') }}</div>
-          <v-checkbox
-            v-model="clearScope.queue"
-            :label="$t('queue')"
-            hide-details dense
-          />
-          <v-checkbox
-            v-model="clearScope.running"
-            :label="$t('running')"
-            hide-details dense
-          />
+          <v-checkbox v-model="clearScope.queue" :label="$t('queue')" hide-details dense />
+          <v-checkbox v-model="clearScope.running" :label="$t('running')" hide-details dense />
           <v-checkbox
             v-model="clearScope.active"
             :label="$t('activeByProject')"
-            hide-details dense
+            hide-details
+            dense
           />
-          <v-checkbox
-            v-model="clearScope.aliases"
-            :label="$t('aliases')"
-            hide-details dense
-          />
-          <v-checkbox
-            v-model="clearScope.claims"
-            :label="$t('claims')"
-            hide-details dense
-          />
+          <v-checkbox v-model="clearScope.aliases" :label="$t('aliases')" hide-details dense />
+          <v-checkbox v-model="clearScope.claims" :label="$t('claims')" hide-details dense />
           <v-checkbox
             v-model="clearScope.runtime_fields"
             :label="$t('runtimeFields')"
-            hide-details dense
+            hide-details
+            dense
           />
         </v-card-text>
         <v-card-actions>
@@ -74,38 +60,33 @@
       </v-alert>
 
       <!-- Overview -->
-      <v-card class="mb-4" outlined>
-        <v-card-title class="subtitle-1">{{ $t('clusterOverview') }}</v-card-title>
-        <v-card-text v-if="status">
-          <v-row dense>
-            <v-col cols="12" sm="4">
-              <div class="text-caption grey--text">{{ $t('haEnabled') }}</div>
-              <v-chip small :color="status.ha_enabled ? 'success' : 'grey'" dark>
-                {{ status.ha_enabled ? 'ON' : 'OFF' }}
-              </v-chip>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <div class="text-caption grey--text">{{ $t('nodeId') }}</div>
-              <code v-if="status.node_id">{{ status.node_id }}</code>
-              <span v-else>—</span>
-            </v-col>
-            <v-col cols="12" sm="4">
-              <div class="text-caption grey--text">{{ $t('nodes') }}</div>
-              <span>{{ (status.nodes || []).length || 1 }}</span>
-            </v-col>
-          </v-row>
-        </v-card-text>
-      </v-card>
+<!--      <v-card class="mb-4" outlined>-->
+<!--        <v-card-title class="subtitle-1">{{ $t('clusterOverview') }}</v-card-title>-->
+<!--        <v-card-text v-if="status">-->
+<!--          <v-row dense>-->
+<!--            <v-col cols="12" sm="4">-->
+<!--              <div class="text-caption grey&#45;&#45;text">{{ $t('haEnabled') }}</div>-->
+<!--              <v-chip small :color="status.ha_enabled ? 'success' : 'grey'" dark>-->
+<!--                {{ status.ha_enabled ? 'ON' : 'OFF' }}-->
+<!--              </v-chip>-->
+<!--            </v-col>-->
+<!--            <v-col cols="12" sm="4">-->
+<!--              <div class="text-caption grey&#45;&#45;text">{{ $t('nodeId') }}</div>-->
+<!--              <code v-if="status.node_id">{{ status.node_id }}</code>-->
+<!--              <span v-else>—</span>-->
+<!--            </v-col>-->
+<!--            <v-col cols="12" sm="4">-->
+<!--              <div class="text-caption grey&#45;&#45;text">{{ $t('nodes') }}</div>-->
+<!--              <span>{{ (status.nodes || []).length || 1 }}</span>-->
+<!--            </v-col>-->
+<!--          </v-row>-->
+<!--        </v-card-text>-->
+<!--      </v-card>-->
 
       <!-- Nodes -->
       <v-card v-if="status && status.nodes" class="mb-4" outlined>
         <v-card-title class="subtitle-1">{{ $t('nodes') }}</v-card-title>
-        <v-data-table
-          :headers="nodeHeaders"
-          :items="status.nodes"
-          :items-per-page="20"
-          dense
-        >
+        <v-data-table :headers="nodeHeaders" :items="status.nodes" :items-per-page="20" dense>
           <template v-slot:item.node_id="{ item }">
             <code>{{ item.node_id }}</code>
             <v-chip v-if="item.is_self" x-small class="ml-2">{{ $t('thisNode') }}</v-chip>
@@ -129,38 +110,50 @@
         <v-card-title class="subtitle-1">{{ $t('redisStatus') }}</v-card-title>
         <v-card-text>
           <v-row dense>
-            <v-col cols="6" sm="3">
-              <div class="text-caption grey--text">Addr</div>
-              <code>{{ status.redis.addr }}</code>
-            </v-col>
-            <v-col cols="6" sm="2">
-              <div class="text-caption grey--text">{{ $t('connected') }}</div>
-              <v-chip x-small :color="status.redis.connected ? 'success' : 'error'" dark>
-                {{ status.redis.connected ? 'YES' : 'NO' }}
+            <v-col cols="12" md="6">
+              <v-row dense>
+                <v-col>
+                  <div class="text-caption grey--text">Addr</div>
+                  <code>{{ status.redis.addr }}</code>
+                </v-col>
+                <v-col>
+                  <div class="text-caption grey--text">{{ $t('connected') }}</div>
+                  <v-chip x-small :color="status.redis.connected ? 'success' : 'error'" dark>
+                    {{ status.redis.connected ? 'YES' : 'NO' }}
+                  </v-chip>
+                </v-col>
+                <v-col>
+                  <div class="text-caption grey--text">{{ $t('version') }}</div>
+                  {{ status.redis.version || '—' }}
+                </v-col>
+                <v-col>
+                  <div class="text-caption grey--text">{{ $t('usedMemory') }}</div>
+                  {{ status.redis.used_memory || '—' }}
+                </v-col>
+                <v-col>
+                  <div class="text-caption grey--text">{{ $t('totalKeys') }}</div>
+                  {{ status.redis.total_keys }}
+                </v-col>
+              </v-row>
+              <div class="text-caption grey--text mt-3">{{ $t('keyGroups') }}</div>
+              <v-chip
+                v-for="(count, group) in status.redis.key_groups || {}"
+                :key="group"
+                small
+                class="mr-2 mt-1"
+              >
+                {{ group }}: {{ count }}
               </v-chip>
             </v-col>
-            <v-col cols="6" sm="2">
-              <div class="text-caption grey--text">{{ $t('version') }}</div>
-              {{ status.redis.version || '—' }}
-            </v-col>
-            <v-col cols="6" sm="2">
-              <div class="text-caption grey--text">{{ $t('usedMemory') }}</div>
-              {{ status.redis.used_memory || '—' }}
-            </v-col>
-            <v-col cols="6" sm="3">
-              <div class="text-caption grey--text">{{ $t('totalKeys') }}</div>
-              {{ status.redis.total_keys }}
+            <v-col cols="12" md="6">
+              <div class="text-caption grey--text">{{ $t('redisMemoryChart') }}</div>
+              <RedisMemoryChart
+                :history="memoryHistory"
+                :window-ms="memoryWindowMs"
+                :now-ts="memoryNow"
+              />
             </v-col>
           </v-row>
-          <div class="text-caption grey--text mt-3">{{ $t('keyGroups') }}</div>
-          <v-chip
-            v-for="(count, group) in (status.redis.key_groups || {})"
-            :key="group"
-            small
-            class="mr-2 mt-1"
-          >
-            {{ group }}: {{ count }}
-          </v-chip>
         </v-card-text>
       </v-card>
 
@@ -199,8 +192,13 @@
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';
+import RedisMemoryChart from '@/components/RedisMemoryChart.vue';
+
+const MEMORY_WINDOW_MS = 60 * 60 * 1000;
 
 export default {
+  components: { RedisMemoryChart },
+
   data() {
     return {
       status: null,
@@ -217,6 +215,9 @@ export default {
         runtime_fields: false,
       },
       updateTimer: null,
+      memoryHistory: [],
+      memoryNow: Date.now(),
+      memoryWindowMs: MEMORY_WINDOW_MS,
     };
   },
 
@@ -308,22 +309,46 @@ export default {
 
     async reload() {
       try {
-        this.status = (await axios({
-          method: 'get',
-          url: '/api/cluster',
-          responseType: 'json',
-        })).data;
+        this.status = (
+          await axios({
+            method: 'get',
+            url: '/api/cluster',
+            responseType: 'json',
+          })
+        ).data;
 
-        this.tasks = (await axios({
-          method: 'get',
-          url: '/api/cluster/tasks',
-          responseType: 'json',
-        })).data;
+        this.recordMemorySample();
+
+        this.tasks = (
+          await axios({
+            method: 'get',
+            url: '/api/cluster/tasks',
+            responseType: 'json',
+          })
+        ).data;
       } catch (err) {
         EventBus.$emit('i-snackbar', {
           color: 'error',
           text: `Failed to load cluster status: ${err.message}`,
         });
+      }
+    },
+
+    recordMemorySample() {
+      const now = Date.now();
+      this.memoryNow = now;
+      const redis = this.status && this.status.redis;
+      if (!redis || !redis.connected) {
+        return;
+      }
+      this.memoryHistory.push({
+        time: now,
+        bytes: redis.used_memory_bytes || 0,
+      });
+      const cutoff = now - this.memoryWindowMs;
+      const firstInWindow = this.memoryHistory.findIndex((p) => p.time >= cutoff);
+      if (firstInWindow > 0) {
+        this.memoryHistory.splice(0, firstInWindow);
       }
     },
 
@@ -342,12 +367,14 @@ export default {
     async clearTasks() {
       this.clearing = true;
       try {
-        const res = (await axios({
-          method: 'delete',
-          url: '/api/cluster/tasks',
-          responseType: 'json',
-          data: { scope: this.clearScope },
-        })).data;
+        const res = (
+          await axios({
+            method: 'delete',
+            url: '/api/cluster/tasks',
+            responseType: 'json',
+            data: { scope: this.clearScope },
+          })
+        ).data;
 
         EventBus.$emit('i-snackbar', {
           color: 'success',

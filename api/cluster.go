@@ -94,8 +94,12 @@ func clearClusterTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	scope := req.Scope
-	if !scope.Queue && !scope.Running && !scope.Active &&
-		!scope.Aliases && !scope.Claims && !scope.RuntimeFields {
+	if !scope.Queue &&
+		!scope.Running &&
+		!scope.Active &&
+		!scope.Aliases &&
+		!scope.Claims &&
+		!scope.RuntimeFields {
 		helpers.WriteErrorStatus(w, "no record groups selected", http.StatusBadRequest)
 		return
 	}
