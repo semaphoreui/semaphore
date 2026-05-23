@@ -420,7 +420,7 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 		job = &RemoteJob{RunnerTag: tag, Task: tr.Task, taskPool: p}
 	} else {
 		app := db_lib.CreateApp(tr.Template, tr.Repository, tr.Inventory, tr)
-		job = &LocalJob{
+		job = &LocalExecutor{
 			Task:         tr.Task,
 			Template:     tr.Template,
 			Inventory:    tr.Inventory,
@@ -829,7 +829,7 @@ func (p *TaskPool) AddTask(
 			taskRunner.Inventory,
 			taskRunner)
 
-		job = &LocalJob{
+		job = &LocalExecutor{
 			Task:         taskRunner.Task,
 			Template:     taskRunner.Template,
 			Inventory:    taskRunner.Inventory,

@@ -139,6 +139,12 @@ type RunnerConfig struct {
 	Enabled bool `json:"enabled,omitempty" env:"SEMAPHORE_RUNNER_ENABLED"`
 
 	ProjectID *int `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
+
+	// Executor selects the strategy used to execute each task on this runner. The
+	// default "local" runs the tool (ansible-playbook, terraform, shell) as a
+	// subprocess on the runner host. Future values (e.g. "kubernetes") will
+	// dispatch each task into an ephemeral pod. Empty string is treated as "local".
+	Executor string `json:"executor,omitempty" default:"local" env:"SEMAPHORE_RUNNER_EXECUTOR"`
 }
 
 type TLSConfig struct {

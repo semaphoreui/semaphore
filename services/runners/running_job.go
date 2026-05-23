@@ -18,7 +18,7 @@ import (
 type runningJob struct {
 	status     task_logger.TaskStatus
 	logRecords []LogRecord
-	job        *tasks.LocalJob
+	job        *tasks.LocalExecutor
 	commit     *CommitInfo
 
 	statusListeners []task_logger.StatusListener

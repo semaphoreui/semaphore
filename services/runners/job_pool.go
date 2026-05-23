@@ -19,7 +19,6 @@ import (
 
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
-	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -659,24 +658,17 @@ func (p *JobPool) checkNewJobs() {
 
 		newJob.Inventory.Repository = newJob.InventoryRepository
 
+		executor, err := newExecutor(newJob, p.keyInstaller)
+		if err != nil {
+			logger.ActionError(err, "build executor", "cannot construct executor for task")
+			continue
+		}
+
 		taskRunner := job{
 			username:        newJob.Username,
 			incomingVersion: newJob.IncomingVersion,
 			alias:           newJob.Alias,
-
-			job: &tasks.LocalJob{
-				Task:         newJob.Task,
-				Template:     newJob.Template,
-				Inventory:    newJob.Inventory,
-				Repository:   newJob.Repository,
-				Environment:  newJob.Environment,
-				KeyInstaller: p.keyInstaller,
-				App: db_lib.CreateApp(
-					newJob.Template,
-					newJob.Repository,
-					newJob.Inventory,
-					nil),
-			},
+			job:             executor,
 		}
 
 		taskRunner.job.Repository.SSHKey = response.AccessKeys[taskRunner.job.Repository.SSHKeyID]

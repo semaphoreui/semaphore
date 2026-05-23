@@ -105,7 +105,7 @@ func TestTaskRunnerRun(t *testing.T) {
 		pool:         &pool,
 		keyInstaller: keyInstaller,
 	}
-	taskRunner.job = &LocalJob{
+	taskRunner.job = &LocalExecutor{
 		Task:         taskRunner.Task,
 		Template:     taskRunner.Template,
 		Inventory:    taskRunner.Inventory,
@@ -148,7 +148,7 @@ func TestGetRepoPath(t *testing.T) {
 			Playbook: "deploy/test.yml",
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -167,7 +167,7 @@ func TestGetRepoPath(t *testing.T) {
 		},
 	}
 
-	dir := tsk.job.(*LocalJob).App.(*db_lib.AnsibleApp).GetPlaybookDir()
+	dir := tsk.job.(*LocalExecutor).App.(*db_lib.AnsibleApp).GetPlaybookDir()
 	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
@@ -194,7 +194,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 			Playbook: "/deploy/test.yml",
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -213,7 +213,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 		},
 	}
 
-	dir := tsk.job.(*LocalJob).App.(*db_lib.AnsibleApp).GetPlaybookDir()
+	dir := tsk.job.(*LocalExecutor).App.(*db_lib.AnsibleApp).GetPlaybookDir()
 	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
@@ -289,7 +289,7 @@ func TestPopulateDetails(t *testing.T) {
 			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -398,7 +398,7 @@ func TestPopulateDetailsInventory(t *testing.T) {
 			InventoryID: &inv2.ID,
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Repository:  tsk.Repository,
@@ -496,7 +496,7 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Repository:  tsk.Repository,
@@ -545,7 +545,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 			Playbook: "test.yml",
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -564,7 +564,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 		},
 	}
 
-	args, _, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
+	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
@@ -601,7 +601,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 			Playbook: "test.yml",
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -620,7 +620,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 		},
 	}
 
-	args, _, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
+	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
@@ -658,7 +658,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 		},
 	}
 
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -677,7 +677,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 		},
 	}
 
-	args, _, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
+	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)

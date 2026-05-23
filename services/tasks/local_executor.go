@@ -18,7 +18,7 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-type LocalJob struct {
+type LocalExecutor struct {
 	Task        db.Task
 	Template    db.Template
 	Inventory   db.Inventory
@@ -37,13 +37,25 @@ type LocalJob struct {
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
 	KeyInstaller db_lib.AccessKeyInstaller
+
+	// Prepared state — populated by Prepare(), consumed by Run(). Lifted out of Run()
+	// local variables so the lifecycle phases (Prepare / underlying App.Run / Cleanup)
+	// can be invoked independently by callers that want phased execution (e.g. the
+	// upcoming KubernetesExecutor, which will call Prepare to compute args/env on the
+	// runner host and then dispatch them into a Pod).
+	preparedEnv       []string
+	preparedArgsMap   map[string][]string
+	preparedInputs    map[string]string
+	preparedParams    any
+	preparedTplParams any
+	prepared          bool
 }
 
-func (t *LocalJob) IsKilled() bool {
+func (t *LocalExecutor) IsKilled() bool {
 	return t.killed
 }
 
-func (t *LocalJob) Kill() {
+func (t *LocalExecutor) Kill() {
 	t.killed = true
 
 	if t.Process == nil {
@@ -56,22 +68,22 @@ func (t *LocalJob) Kill() {
 	}
 }
 
-func (t *LocalJob) Log(msg string) {
+func (t *LocalExecutor) Log(msg string) {
 	t.Logger.Log(msg)
 }
 
-func (t *LocalJob) SetStatus(status task_logger.TaskStatus) {
+func (t *LocalExecutor) SetStatus(status task_logger.TaskStatus) {
 	t.Logger.SetStatus(status)
 }
 
-func (t *LocalJob) SetCommit(hash, message string) {
+func (t *LocalExecutor) SetCommit(hash, message string) {
 	// TODO: is this the correct place to do?
 	t.Task.CommitHash = &hash
 	t.Task.CommitMessage = message
 	t.Logger.SetCommit(hash, message)
 }
 
-func (t *LocalJob) getTaskDetails(username string, incomingVersion *string) (taskDetails map[string]any) {
+func (t *LocalExecutor) getTaskDetails(username string, incomingVersion *string) (taskDetails map[string]any) {
 	taskDetails = make(map[string]any)
 
 	taskDetails["id"] = t.Task.ID
@@ -102,7 +114,7 @@ func (t *LocalJob) getTaskDetails(username string, incomingVersion *string) (tas
 	return
 }
 
-func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]any, err error) {
+func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]any, err error) {
 
 	extraVars = make(map[string]any)
 
@@ -120,7 +132,7 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 	return
 }
 
-func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion *string) (str string, err error) {
+func (t *LocalExecutor) getEnvironmentExtraVarsJSON(username string, incomingVersion *string) (str string, err error) {
 	extraVars := make(map[string]any)
 	extraSecretVars := make(map[string]any)
 
@@ -154,7 +166,7 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 	return
 }
 
-func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
+func (t *LocalExecutor) getEnvironmentENV() (res []string, err error) {
 	environmentVars := make(map[string]string)
 
 	if t.Environment.ENV != nil {
@@ -178,7 +190,7 @@ func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 	return
 }
 
-func (t *LocalJob) getShellEnvironmentExtraENV(username string, incomingVersion *string) (extraShellVars []string) {
+func (t *LocalExecutor) getShellEnvironmentExtraENV(username string, incomingVersion *string) (extraShellVars []string) {
 	taskDetails := t.getTaskDetails(username, incomingVersion)
 
 	for taskDetail, taskDetailValue := range taskDetails {
@@ -213,7 +225,7 @@ func (t *LocalJob) getShellEnvironmentExtraENV(username string, incomingVersion 
 }
 
 // nolint: gocyclo
-func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args []string, err error) {
+func (t *LocalExecutor) getShellArgs(username string, incomingVersion *string) (args []string, err error) {
 	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
 
 	if err != nil {
@@ -255,7 +267,7 @@ func (t *LocalJob) getShellArgs(username string, incomingVersion *string) (args 
 }
 
 // nolint: gocyclo
-func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (argsMap map[string][]string, err error) {
+func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *string) (argsMap map[string][]string, err error) {
 
 	argsMap = make(map[string][]string)
 
@@ -337,7 +349,7 @@ func (t *LocalJob) getTerraformArgs(username string, incomingVersion *string) (a
 }
 
 // nolint: gocyclo
-func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (args []string, inputs map[string]string, err error) {
+func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string) (args []string, inputs map[string]string, err error) {
 
 	inputMap := make(map[db.AccessKeyRole]string)
 	inputs = make(map[string]string)
@@ -533,7 +545,7 @@ func (t *LocalJob) getPlaybookArgs(username string, incomingVersion *string) (ar
 	return
 }
 
-func (t *LocalJob) getCLIArgs() (templateArgs []string, taskArgs []string, err error) {
+func (t *LocalExecutor) getCLIArgs() (templateArgs []string, taskArgs []string, err error) {
 
 	if t.Template.Arguments != nil {
 		err = json.Unmarshal([]byte(*t.Template.Arguments), &templateArgs)
@@ -582,7 +594,7 @@ func convertArgsJSONIfArray(argsJSON string) (map[string][]string, error) {
 // getCLIArgsMap returns args that support both array and map formats
 // Array format is automatically converted to map with "default" key for backward compatibility
 // Returns: templateArgsMap (map), taskArgsMap (map), err
-func (t *LocalJob) getCLIArgsMap() (templateArgsMap map[string][]string, taskArgsMap map[string][]string, err error) {
+func (t *LocalExecutor) getCLIArgsMap() (templateArgsMap map[string][]string, taskArgsMap map[string][]string, err error) {
 
 	// Convert template arguments if needed
 	if t.Template.Arguments != nil {
@@ -603,7 +615,7 @@ func (t *LocalJob) getCLIArgsMap() (templateArgsMap map[string][]string, taskArg
 	return
 }
 
-func (t *LocalJob) getTemplateParams() (any, error) {
+func (t *LocalExecutor) getTemplateParams() (any, error) {
 	var params any
 	switch t.Template.App {
 	case db.AppAnsible:
@@ -618,7 +630,7 @@ func (t *LocalJob) getTemplateParams() (any, error) {
 	return params, err
 }
 
-func (t *LocalJob) getParams() (params any, err error) {
+func (t *LocalExecutor) getParams() (params any, err error) {
 	switch t.Template.App {
 	case db.AppAnsible:
 		params = &db.AnsibleTaskParams{}
@@ -637,13 +649,47 @@ func (t *LocalJob) getParams() (params any, err error) {
 	return
 }
 
-func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (err error) {
+// Run executes the task: prepares the working environment, dispatches it to the underlying
+// app (Ansible / Terraform / shell), and tears everything down. It is the entry point the
+// job pool uses (satisfying the Job interface); the lifecycle methods Prepare/Cleanup are
+// available for callers that want to drive the phases explicitly.
+func (t *LocalExecutor) Run(username string, incomingVersion *string, alias string) (err error) {
+	defer t.Cleanup()
 
-	defer func() {
-		t.destroyKeys()
-		t.destroyInventoryFile()
-		t.App.Clear()
-	}()
+	if err = t.Prepare(username, incomingVersion, alias); err != nil {
+		return
+	}
+
+	if t.killed {
+		t.SetStatus(task_logger.TaskStoppedStatus)
+		return nil
+	}
+
+	return t.App.Run(db_lib.LocalAppRunningArgs{
+		CliArgs:         t.preparedArgsMap,
+		EnvironmentVars: t.preparedEnv,
+		Inputs:          t.preparedInputs,
+		TaskParams:      t.preparedParams,
+		TemplateParams:  t.preparedTplParams,
+		Callback: func(p *os.Process) {
+			t.Process = p
+		},
+	})
+}
+
+// Prepare resolves everything the executor needs to start the underlying app: environment
+// variables, task / template parameters, repository checkout, inventory file, access key
+// and vault password installation, and the final CLI args / extra env. The result is
+// stashed on the receiver so a subsequent Run() (or, in the future, a non-local executor)
+// can consume it without recomputing.
+//
+// Prepare is idempotent: a second call is a no-op once the first one has succeeded. It
+// also performs the SetStatus(running) transition the legacy Run() did inline, since
+// callers driving the lifecycle manually still expect that signal to fire here.
+func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias string) (err error) {
+	if t.prepared {
+		return nil
+	}
 
 	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
 
@@ -770,25 +816,28 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		}
 	}
 
-	if t.killed {
-		t.SetStatus(task_logger.TaskStoppedStatus)
-		return nil
-	}
+	t.preparedEnv = environmentVariables
+	t.preparedArgsMap = argsMap
+	t.preparedInputs = inputs
+	t.preparedParams = params
+	t.preparedTplParams = tplParams
+	t.prepared = true
 
-	return t.App.Run(db_lib.LocalAppRunningArgs{
-		CliArgs:         argsMap,
-		EnvironmentVars: environmentVariables,
-		Inputs:          inputs,
-		TaskParams:      params,
-		TemplateParams:  tplParams,
-		Callback: func(p *os.Process) {
-			t.Process = p
-		},
-	})
-
+	return nil
 }
 
-func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) error {
+// Cleanup releases every resource Prepare allocated: installed access keys, written
+// inventory files, app-level working dirs. Safe to invoke on a partially-prepared
+// executor — the underlying destroyers tolerate missing state.
+func (t *LocalExecutor) Cleanup() {
+	t.destroyKeys()
+	t.destroyInventoryFile()
+	if t.App != nil {
+		t.App.Clear()
+	}
+}
+
+func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) error {
 
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
 
@@ -853,7 +902,7 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 	return nil
 }
 
-func (t *LocalJob) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArgs db_lib.LocalAppInstallingArgs, initArgs []string) error {
+func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArgs db_lib.LocalAppInstallingArgs, initArgs []string) error {
 
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
 
@@ -919,7 +968,7 @@ func (t *LocalJob) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArg
 	return nil
 }
 
-func (t *LocalJob) updateRepository() error {
+func (t *LocalExecutor) updateRepository() error {
 	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
 		TemplateID: t.Template.ID,
@@ -954,7 +1003,7 @@ func (t *LocalJob) updateRepository() error {
 	return repo.Clone()
 }
 
-func (t *LocalJob) checkoutRepository() error {
+func (t *LocalExecutor) checkoutRepository() error {
 
 	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
@@ -993,7 +1042,7 @@ func (t *LocalJob) checkoutRepository() error {
 	return nil
 }
 
-func (t *LocalJob) installVaultKeyFiles() (err error) {
+func (t *LocalExecutor) installVaultKeyFiles() (err error) {
 	t.vaultFileInstallations = make(map[string]ssh.AccessKeyInstallation)
 
 	if len(t.Template.Vaults) == 0 {

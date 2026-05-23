@@ -76,7 +76,11 @@ type job struct {
 	incomingVersion *string
 	alias           string
 
-	// job presents remote or local job information
-	job    *tasks.LocalJob
+	// job is the executor that will run this task on the runner host (LocalExecutor
+	// today; KubernetesExecutor in the future). Kept as the concrete LocalExecutor
+	// type because the runner-side pool currently calls methods (SetLogger via App,
+	// Repository field access) that live on LocalExecutor, not on the Executor
+	// interface. Will be lifted to tasks.Executor once K8s support lands.
+	job    *tasks.LocalExecutor
 	status task_logger.TaskStatus
 }
