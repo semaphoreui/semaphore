@@ -203,6 +203,7 @@ func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQuer
 
 	var templates = make(map[int]db.Template)
 	var users = make(map[int]db.User)
+	var runners = make(map[int]db.Runner)
 
 	tasksWithTpl = make([]db.TaskWithTpl, len(tasks))
 	for i, task := range tasks {
@@ -229,6 +230,20 @@ func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQuer
 				users[*task.UserID] = usr
 			}
 			tasksWithTpl[i].UserName = &usr.Name
+		}
+		if task.RunnerID != nil {
+			id := *task.RunnerID
+			tasksWithTpl[i].UsedRunnerID = &id
+			runner, ok := runners[*task.RunnerID]
+			if !ok {
+				// best-effort: runner may have been deleted
+				runner, _ = d.GetGlobalRunner(*task.RunnerID)
+				runners[*task.RunnerID] = runner
+			}
+			if runner.Name != "" {
+				name := runner.Name
+				tasksWithTpl[i].UsedRunnerName = &name
+			}
 		}
 
 		err = tasksWithTpl[i].Fill(d)

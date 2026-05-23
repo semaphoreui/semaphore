@@ -103,6 +103,10 @@
                   <td><b>{{ $t('duration') }}</b></td>
                   <td>{{ [item.start, item.end] | formatMilliseconds }}</td>
                 </tr>
+                <tr v-if="item.used_runner_name">
+                  <td><b>Runner</b></td>
+                  <td>{{ item.used_runner_name }}</td>
+                </tr>
                 </tbody>
               </template>
             </v-simple-table>
