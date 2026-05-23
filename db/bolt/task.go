@@ -232,6 +232,8 @@ func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQuer
 			tasksWithTpl[i].UserName = &usr.Name
 		}
 		if task.RunnerID != nil {
+			id := *task.RunnerID
+			tasksWithTpl[i].UsedRunnerID = &id
 			runner, ok := runners[*task.RunnerID]
 			if !ok {
 				// best-effort: runner may have been deleted
@@ -240,7 +242,7 @@ func (d *BoltDb) getTasks(projectID int, templateID *int, params db.RetrieveQuer
 			}
 			if runner.Name != "" {
 				name := runner.Name
-				tasksWithTpl[i].RunnerName = &name
+				tasksWithTpl[i].UsedRunnerName = &name
 			}
 		}
 

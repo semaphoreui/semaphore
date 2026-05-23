@@ -276,7 +276,8 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 	fields := "task.*"
 	fields += ", tpl.playbook as tpl_playbook" +
 		", `user`.name as user_name" +
-		", runner.name as runner_name" +
+		", task.runner_id as used_runner_id" +
+		", runner.name as used_runner_name" +
 		", tpl.name as tpl_alias" +
 		", tpl.type as tpl_type" +
 		", tpl.app as tpl_app"

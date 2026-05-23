@@ -203,8 +203,12 @@ type TaskWithTpl struct {
 	TemplateType     TemplateType `db:"tpl_type" json:"tpl_type,omitempty"`
 	TemplateApp      TemplateApp  `db:"tpl_app" json:"tpl_app,omitempty"`
 	UserName         *string      `db:"user_name" json:"user_name,omitempty"`
-	RunnerName       *string      `db:"runner_name" json:"runner_name,omitempty"`
-	BuildTask        *Task        `db:"-" json:"build_task,omitempty"`
+	// UsedRunnerID exposes Task.RunnerID through the API. Task.RunnerID itself
+	// stays unexported (json:"-"); we re-select it under a distinct column so the
+	// embedded struct's mapping is not duplicated.
+	UsedRunnerID   *int    `db:"used_runner_id" json:"used_runner_id,omitempty"`
+	UsedRunnerName *string `db:"used_runner_name" json:"used_runner_name,omitempty"`
+	BuildTask      *Task   `db:"-" json:"build_task,omitempty"`
 }
 
 // TaskOutput is the ansible log output from the task
