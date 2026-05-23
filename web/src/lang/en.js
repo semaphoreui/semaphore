@@ -51,6 +51,8 @@ export default {
   more: 'More',
   pin: 'Pin to sidebar',
   unpin: 'Unpin from sidebar',
+  editMenu: 'Edit menu',
+  finishEditingMenu: 'Done',
   users: 'Users',
   editAccount: 'Edit Account',
   signOut: 'Sign Out',

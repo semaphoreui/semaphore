@@ -51,6 +51,8 @@ export default {
   more: 'Ещё',
   pin: 'Закрепить',
   unpin: 'Открепить',
+  editMenu: 'Настроить меню',
+  finishEditingMenu: 'Готово',
   users: 'Пользователи',
   editAccount: 'Редактировать аккаунт',
   signOut: 'Выйти',

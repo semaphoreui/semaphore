@@ -271,7 +271,11 @@
             <v-list-item-title>{{ item.title }}</v-list-item-title>
           </v-list-item-content>
 
+<<<<<<< HEAD
           <div class="nav-pin-wrap" v-if="navItems.length > 1">
+=======
+          <div class="nav-pin-wrap" v-if="navEditMode && navItems.length > 1">
+>>>>>>> develop
             <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('unpin')">
               <v-icon small>mdi-pin-off-outline</v-icon>
             </v-btn>
@@ -307,7 +311,7 @@
                 <v-list-item-title>{{ item.title }}</v-list-item-title>
               </v-list-item-content>
 
-              <div class="nav-pin-wrap">
+              <div class="nav-pin-wrap" v-if="navEditMode">
                 <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('pin')">
                   <v-icon small>mdi-pin-outline</v-icon>
                 </v-btn>
@@ -320,12 +324,34 @@
       <template v-slot:append>
         <v-list class="pa-0">
           <v-list-item>
-            <v-switch
-              class="DarkModeSwitch"
-              v-model="darkMode"
-              prepend-icon="mdi-white-balance-sunny"
-              append-icon="mdi-weather-night"
-            ></v-switch>
+            <div class="DarkModeSwitchWrap" :class="{ 'DarkModeSwitchWrap--dark': darkMode }">
+              <v-switch
+                class="DarkModeSwitch"
+                v-model="darkMode"
+                inset
+                flat
+                hide-details
+                dense
+              ></v-switch>
+              <v-icon class="DarkModeSwitchWrap__icon" small>
+                {{ darkMode ? 'mdi-weather-night' : 'mdi-white-balance-sunny' }}
+              </v-icon>
+            </div>
+
+            <v-spacer />
+
+            <v-btn
+              icon
+              style="margin-left: -15px"
+              class="mr-1"
+              :color="navEditMode ? 'primary' : undefined"
+              :title="navEditMode ? $t('finishEditingMenu') : $t('editMenu')"
+              @click="navEditMode = !navEditMode"
+            >
+              <v-icon style="transform: scale(1.3)">
+                {{ navEditMode ? 'mdi-check' : 'mdi-playlist-edit' }}
+              </v-icon>
+            </v-btn>
 
             <v-spacer />
 
@@ -594,20 +620,20 @@
 
 .nav-item--pinnable {
   .nav-pin-wrap {
-    opacity: 0;
-    transition: opacity 0.15s;
+    //opacity: 0;
+    //transition: opacity 0.15s;
     margin-left: auto;
     display: flex;
     align-items: center;
   }
 
-  &:hover .nav-pin-wrap {
-    opacity: 0.7;
-  }
-
-  .nav-pin-wrap:hover {
-    opacity: 1 !important;
-  }
+  //&:hover .nav-pin-wrap {
+  //  opacity: 0.7;
+  //}
+  //
+  //.nav-pin-wrap:hover {
+  //  opacity: 1 !important;
+  //}
 }
 
 .nav-more-toggle {
@@ -654,22 +680,28 @@
   --highlighted-card-bg-color: #f3f3f3;
 }
 
-.DarkModeSwitch {
-  .v-input__prepend-outer {
-    transform: translateY(1px);
+.DarkModeSwitchWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 
-    .v-icon {
-      color: #cacaca !important;
-    }
+  .DarkModeSwitch {
+    margin: 0;
+    padding: 0;
   }
 
-  .v-input__append-outer {
-    margin-left: 5px;
-    transform: translateY(-1px);
+  &__icon {
+    position: absolute !important;
+    top: calc(50% - 1px);
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #fff !important;
+    transition: left 0.2s ease;
+    left: 1px;
+  }
 
-    .v-icon {
-      color: #2196f3 !important;
-    }
+  &--dark .DarkModeSwitchWrap__icon {
+    left: 22px;
   }
 }
 
@@ -984,8 +1016,9 @@ export default {
       taskId: null,
       template: null,
       darkMode: false,
-      pinnedNavKeys: JSON.parse(localStorage.getItem('nav__pinnedItems') || 'null'),
+      unpinnedNavKeys: [],
       showMoreToggle: false,
+      navEditMode: false,
       languages: [
         {
           id: '',
@@ -1163,19 +1196,11 @@ export default {
     },
 
     pinnedNavItemsList() {
-      if (this.pinnedNavKeys === null) {
-        return this.navItems;
-      }
-      return this.pinnedNavKeys
-        .map((key) => this.navItems.find((item) => item.key === key))
-        .filter(Boolean);
+      return this.navItems.filter((item) => !this.unpinnedNavKeys.includes(item.key));
     },
 
     unpinnedNavItems() {
-      if (this.pinnedNavKeys === null) {
-        return [];
-      }
-      return this.navItems.filter((item) => !this.pinnedNavKeys.includes(item.key));
+      return this.navItems.filter((item) => this.unpinnedNavKeys.includes(item.key));
     },
   },
 
@@ -1352,17 +1377,44 @@ export default {
       this.newProjectType = projectType;
     },
 
-    togglePin(key) {
-      let pinned = this.pinnedNavKeys;
-      if (pinned === null) {
-        pinned = this.navItems.map((i) => i.key).filter((k) => k !== key);
-      } else if (pinned.includes(key)) {
-        pinned = pinned.filter((k) => k !== key);
+    async togglePin(key) {
+      if (this.unpinnedNavKeys.includes(key)) {
+        this.unpinnedNavKeys = this.unpinnedNavKeys.filter((k) => k !== key);
       } else {
-        pinned = [...pinned, key];
+        this.unpinnedNavKeys = [...this.unpinnedNavKeys, key];
       }
-      this.pinnedNavKeys = pinned;
-      localStorage.setItem('nav__pinnedItems', JSON.stringify(pinned));
+      await this.saveUnpinnedNavKeys();
+    },
+
+    async saveUnpinnedNavKeys() {
+      try {
+        await axios({
+          method: 'post',
+          url: '/api/user/options',
+          responseType: 'json',
+          data: { key: 'nav.unpinnedItems', value: JSON.stringify(this.unpinnedNavKeys) },
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+      }
+    },
+
+    async loadUserOptions() {
+      const options = (
+        await axios({
+          method: 'get',
+          url: '/api/user/options',
+          responseType: 'json',
+        })
+      ).data;
+
+      if (options['nav.unpinnedItems'] != null) {
+        try {
+          this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
+        } catch (e) {
+          console.log(e);
+        }
+      }
     },
 
     selectLanguage(lang) {
@@ -1382,6 +1434,7 @@ export default {
 
     async loadData() {
       await this.loadUserInfo();
+      await this.loadUserOptions();
 
       // Activate session and start socket only after confirming user is authenticated
       socket.setSessionActive(true);

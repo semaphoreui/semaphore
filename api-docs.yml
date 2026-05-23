@@ -33,6 +33,16 @@ definitions:
   App:
     type: object
 
+  Option:
+    type: object
+    properties:
+      key:
+        type: string
+        example: "nav.unpinnedItems"
+      value:
+        type: string
+        example: "[\"dashboard\",\"history\"]"
+
   Pong:
     type: string
     x-example: pong
@@ -1651,6 +1661,51 @@ paths:
       responses:
         204:
           description: Expired API Token
+
+  /user/options:
+    get:
+      tags:
+        - user
+      summary: Fetches the current user's stored options
+      description: >
+        Returns the per-user options of the authenticated user as a
+        key/value map. Keys are returned without the internal
+        `user<id>.` namespace prefix. Returns an empty object when the
+        user has no stored options.
+      responses:
+        200:
+          description: User options
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+            example:
+              nav.unpinnedItems: "[\"dashboard\",\"history\"]"
+    post:
+      tags:
+        - user
+      summary: Stores a single option for the current user
+      description: >
+        Stores one option for the authenticated user. The `key` is an
+        allowlisted suffix (e.g. `nav.unpinnedItems`); the server prepends
+        the user namespace, so a request can never read or write another
+        user's options or a global option. Unknown keys are rejected
+        with 400.
+      consumes:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Option"
+      responses:
+        200:
+          description: Stored option
+          schema:
+            $ref: "#/definitions/Option"
+        400:
+          description: Unknown user option key
 
   # User Profiles
   /users:
