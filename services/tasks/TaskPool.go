@@ -119,6 +119,13 @@ func CreateTaskPoolWithState(
 	_ = p.state.Start(p.hydrateTaskRunner)
 	return p
 }
+
+// StateStore returns the pluggable task state backend. Used by the Cluster
+// Dashboard to reach an optional TaskStateInspector implementation.
+func (p *TaskPool) StateStore() TaskStateStore {
+	return p.state
+}
+
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
 	for _, task := range p.state.RunningRange() {
 		if task.Task.RunnerID != nil && *task.Task.RunnerID == runnerID {

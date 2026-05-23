@@ -457,6 +457,16 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item key="cluster" to="/cluster" v-if="user.admin">
+                <v-list-item-icon>
+                  <v-icon>mdi-server-network</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('cluster') }}
+                </v-list-item-content>
+              </v-list-item>
+
               <v-list-item key="tasks" to="/tasks" v-if="user.admin">
                 <v-list-item-icon>
                   <v-icon>mdi-check-all</v-icon>
