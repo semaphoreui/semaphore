@@ -46,14 +46,14 @@ func TestSetUserOption_AllowedKey(t *testing.T) {
 	user := createUserOptionsTestUser(t, store, "alice")
 
 	r := newUserOptionsRequest(t, store, &user, http.MethodPost,
-		`{"key":"nav.pinnedItems","value":"[\"dashboard\"]"}`)
+		`{"key":"nav.unpinnedItems","value":"[\"dashboard\"]"}`)
 	w := httptest.NewRecorder()
 
 	setUserOption(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	val, err := store.GetOption(userOptionKey(user.ID, "nav.pinnedItems"))
+	val, err := store.GetOption(userOptionKey(user.ID, "nav.unpinnedItems"))
 	require.NoError(t, err)
 	assert.Equal(t, `["dashboard"]`, val)
 }
@@ -84,7 +84,7 @@ func TestGetUserOptions_StripsPrefix(t *testing.T) {
 	store := bolt.CreateTestStore()
 	user := createUserOptionsTestUser(t, store, "carol")
 
-	require.NoError(t, store.SetOption(userOptionKey(user.ID, "nav.pinnedItems"), `["history"]`))
+	require.NoError(t, store.SetOption(userOptionKey(user.ID, "nav.unpinnedItems"), `["history"]`))
 
 	r := newUserOptionsRequest(t, store, &user, http.MethodGet, "")
 	w := httptest.NewRecorder()
@@ -95,7 +95,7 @@ func TestGetUserOptions_StripsPrefix(t *testing.T) {
 
 	var res map[string]string
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
-	assert.Equal(t, map[string]string{"nav.pinnedItems": `["history"]`}, res)
+	assert.Equal(t, map[string]string{"nav.unpinnedItems": `["history"]`}, res)
 }
 
 func TestGetUserOptions_Isolation(t *testing.T) {
@@ -103,8 +103,8 @@ func TestGetUserOptions_Isolation(t *testing.T) {
 	user1 := createUserOptionsTestUser(t, store, "dave")
 	user2 := createUserOptionsTestUser(t, store, "erin")
 
-	require.NoError(t, store.SetOption(userOptionKey(user1.ID, "nav.pinnedItems"), `["one"]`))
-	require.NoError(t, store.SetOption(userOptionKey(user2.ID, "nav.pinnedItems"), `["two"]`))
+	require.NoError(t, store.SetOption(userOptionKey(user1.ID, "nav.unpinnedItems"), `["one"]`))
+	require.NoError(t, store.SetOption(userOptionKey(user2.ID, "nav.unpinnedItems"), `["two"]`))
 
 	r := newUserOptionsRequest(t, store, &user1, http.MethodGet, "")
 	w := httptest.NewRecorder()
@@ -113,7 +113,7 @@ func TestGetUserOptions_Isolation(t *testing.T) {
 
 	var res map[string]string
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
-	assert.Equal(t, map[string]string{"nav.pinnedItems": `["one"]`}, res)
+	assert.Equal(t, map[string]string{"nav.unpinnedItems": `["one"]`}, res)
 }
 
 func TestDeleteUser_RemovesOptions(t *testing.T) {
@@ -122,7 +122,7 @@ func TestDeleteUser_RemovesOptions(t *testing.T) {
 	admin.Admin = true
 
 	target := createUserOptionsTestUser(t, store, "frank")
-	require.NoError(t, store.SetOption(userOptionKey(target.ID, "nav.pinnedItems"), `["x"]`))
+	require.NoError(t, store.SetOption(userOptionKey(target.ID, "nav.unpinnedItems"), `["x"]`))
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/users/1", nil)
 	r = helpers.SetContextValue(r, "store", store)
@@ -134,7 +134,7 @@ func TestDeleteUser_RemovesOptions(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
-	val, err := store.GetOption(userOptionKey(target.ID, "nav.pinnedItems"))
+	val, err := store.GetOption(userOptionKey(target.ID, "nav.unpinnedItems"))
 	require.NoError(t, err)
 	assert.Empty(t, val)
 }

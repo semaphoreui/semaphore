@@ -11,14 +11,14 @@ import (
 func TestGetOptions_PrefixCollision(t *testing.T) {
 	store := CreateTestStore()
 
-	require.NoError(t, store.SetOption("user1.nav.pinnedItems", "a"))
-	require.NoError(t, store.SetOption("user10.nav.pinnedItems", "b"))
+	require.NoError(t, store.SetOption("user1.nav.unpinnedItems", "a"))
+	require.NoError(t, store.SetOption("user10.nav.unpinnedItems", "b"))
 
 	res, err := store.GetOptions(db.RetrieveQueryParams{Filter: "user1"})
 	require.NoError(t, err)
 
 	// filter "user1" must match only "user1.*" and not the sibling "user10.*"
-	assert.Equal(t, map[string]string{"user1.nav.pinnedItems": "a"}, res)
+	assert.Equal(t, map[string]string{"user1.nav.unpinnedItems": "a"}, res)
 }
 
 func TestGetOption(t *testing.T) {

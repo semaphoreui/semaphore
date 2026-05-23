@@ -38,7 +38,7 @@ definitions:
     properties:
       key:
         type: string
-        example: "nav.pinnedItems"
+        example: "nav.unpinnedItems"
       value:
         type: string
         example: "[\"dashboard\",\"history\"]"
@@ -1519,14 +1519,14 @@ paths:
             additionalProperties:
               type: string
             example:
-              nav.pinnedItems: "[\"dashboard\",\"history\"]"
+              nav.unpinnedItems: "[\"dashboard\",\"history\"]"
     post:
       tags:
         - user
       summary: Stores a single option for the current user
       description: >
         Stores one option for the authenticated user. The `key` is an
-        allowlisted suffix (e.g. `nav.pinnedItems`); the server prepends
+        allowlisted suffix (e.g. `nav.unpinnedItems`); the server prepends
         the user namespace, so a request can never read or write another
         user's options or a global option. Unknown keys are rejected
         with 400.
