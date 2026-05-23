@@ -20,8 +20,8 @@ var skipTests = []string{
 	"authentication > /api/auth/login > Performs Login > 204 > application/json",
 	"authentication > /api/auth/logout > Destroys current session > 204 > application/json",
 	"/project/{project_id}/notifications/test",
-	"/cluster",
-	"/cluster/tasks",
+	"/api/cluster",
+	"/api/cluster/tasks",
 	//"/api/upgrade > Upgrade the server > 200 > application/json",
 	// TODO - Skipping this while we work out how to get a 204 response from the api for testing
 	//"/api/upgrade > Check if new updates available and fetch /info > 204 > application/json",
