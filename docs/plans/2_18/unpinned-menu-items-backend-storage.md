@@ -352,9 +352,11 @@ Add to every `web/src/lang/*.js` file alongside existing `pin` / `unpin` keys.
 **Backend** (`api/user_options_test.go`, using `net/http/httptest` per
 `.claude/CLAUDE.md`):
 
-- `setUserOption` with an allowlisted key stores `user<id>.nav.unpinnedItems` and
-  returns `200`.
+- `setUserOption` with an allowlisted key and a valid JSON value stores
+  `user<id>.nav.unpinnedItems` and returns `200`.
 - `setUserOption` with a non-allowlisted key returns `400` and writes nothing.
+- `setUserOption` with a non-JSON value (e.g. `"not json"`, trailing garbage,
+  empty string) returns `400` and writes nothing.
 - `getUserOptions` returns only the current user's keys, with the `user<id>.`
   prefix stripped.
 - Two different users do not see each other's options (namespacing isolation).
