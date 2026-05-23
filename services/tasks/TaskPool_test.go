@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +35,7 @@ func TestTaskPool_RequeuedEventCleansRunningStateAndSkipsImmediateRetry(t *testi
 	t.Cleanup(func() { util.Config = prevCfg })
 	util.Config = &util.ConfigType{MaxParallelTasks: 0}
 
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 	proj, err := store.CreateProject(db.Project{})
 	assert.NoError(t, err)
 

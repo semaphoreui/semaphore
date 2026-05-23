@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -72,7 +73,7 @@ func (l *mockLogWriteService) WriteResult(task any) error {
 
 func TestTaskRunnerRun(t *testing.T) {
 
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 	keyInstaller := &KeyInstallerMock{}
 
 	pool := CreateTaskPool(
@@ -87,11 +88,52 @@ func TestTaskRunnerRun(t *testing.T) {
 
 	go pool.Run()
 
-	var task db.Task
+	proj, err := store.CreateProject(db.Project{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	var err error
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Type:      db.AccessKeyNone,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	task, err = store.CreateTask(db.Task{}, 0)
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inv, err := store.CreateInventory(db.Inventory{
+		ProjectID: proj.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:         "Test",
+		Playbook:     "test.yml",
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+		InventoryID:  &inv.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	task, err := store.CreateTask(db.Task{
+		ProjectID:  proj.ID,
+		TemplateID: tpl.ID,
+	}, 0)
 
 	if err != nil {
 		t.Fatal(err)
@@ -217,7 +259,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 }
 
 func TestPopulateDetails(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {
@@ -315,7 +357,7 @@ func TestPopulateDetails(t *testing.T) {
 }
 
 func TestPopulateDetailsInventory(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {
@@ -424,7 +466,7 @@ func TestPopulateDetailsInventory(t *testing.T) {
 }
 
 func TestPopulateDetailsInventory1(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {

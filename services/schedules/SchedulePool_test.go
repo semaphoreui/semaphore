@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/tasks"
@@ -102,7 +103,7 @@ func (m *mockAccessKeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRol
 }
 
 func setupTestSchedulePool(t *testing.T) (*SchedulePool, db.Store) {
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 
 	// Store original config and restore after test
 	originalSchedule := util.Config.Schedule
