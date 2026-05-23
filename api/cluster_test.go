@@ -20,7 +20,6 @@ func setupClusterTestConfig() {
 		util.Config = &util.ConfigType{}
 	}
 	util.Config.HA = nil
-	clusterInspector = nil
 }
 
 // poolWithTasks builds a TaskPool backed by an in-memory store pre-populated

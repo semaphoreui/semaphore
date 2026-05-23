@@ -11,19 +11,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// clusterInspector is the process-wide ClusterInspector. It is nil when HA is
-// disabled or when the pro_impl overlay is not present.
-var clusterInspector pro_interfaces.ClusterInspector
-
-// SetClusterInspector wires the cluster inspector singleton. Called once at
-// startup from cli/cmd/root.go.
-func SetClusterInspector(ci pro_interfaces.ClusterInspector) {
-	clusterInspector = ci
+// clusterInspectorFromContext returns the ClusterInspector injected by the
+// router middleware, or nil if HA is disabled / the overlay is absent.
+func clusterInspectorFromContext(r *http.Request) pro_interfaces.ClusterInspector {
+	ci, _ := helpers.GetFromContext(r, "cluster_inspector").(pro_interfaces.ClusterInspector)
+	return ci
 }
 
-// taskStateInspector returns the TaskStateInspector for the running task pool,
-// or nil if the store does not support introspection.
-func taskStateInspector(r *http.Request) taskServices.TaskStateInspector {
+// taskStateInspectorFromContext returns the TaskStateInspector for the running
+// task pool, or nil if the store does not support introspection.
+func taskStateInspectorFromContext(r *http.Request) taskServices.TaskStateInspector {
 	pool, ok := helpers.GetFromContext(r, "task_pool").(*taskServices.TaskPool)
 	if !ok || pool == nil {
 		return nil
@@ -42,18 +39,23 @@ func getClusterStatus(w http.ResponseWriter, r *http.Request) {
 		body["node_id"] = util.Config.HA.NodeID
 	}
 
-	if clusterInspector != nil {
-		if nodes, err := clusterInspector.Nodes(); err != nil {
-			log.WithError(err).Error("cluster: failed to list nodes")
-		} else {
-			body["nodes"] = nodes
-		}
+	ci := clusterInspectorFromContext(r)
 
-		if redisInfo, err := clusterInspector.RedisInfo(); err != nil {
-			log.WithError(err).Error("cluster: failed to read redis info")
-		} else {
-			body["redis"] = redisInfo
-		}
+	if ci == nil {
+		helpers.WriteErrorStatus(w, "cluster inspection is unavailable (HA mode disabled or overlay missing)", http.StatusServiceUnavailable)
+		return
+	}
+
+	if nodes, err := ci.Nodes(); err != nil {
+		log.WithError(err).Error("cluster: failed to list nodes")
+	} else {
+		body["nodes"] = nodes
+	}
+
+	if redisInfo, err := ci.RedisInfo(); err != nil {
+		log.WithError(err).Error("cluster: failed to read redis info")
+	} else {
+		body["redis"] = redisInfo
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)
@@ -62,7 +64,7 @@ func getClusterStatus(w http.ResponseWriter, r *http.Request) {
 // getClusterTasks returns a snapshot of the task pool records (queue, running,
 // active, aliases, claims). Works in both HA and non-HA mode.
 func getClusterTasks(w http.ResponseWriter, r *http.Request) {
-	inspector := taskStateInspector(r)
+	inspector := taskStateInspectorFromContext(r)
 	if inspector == nil {
 		helpers.WriteJSON(w, http.StatusOK, taskServices.TaskStateSnapshot{
 			Queue:        []taskServices.TaskRecord{},
@@ -98,7 +100,7 @@ func clearClusterTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inspector := taskStateInspector(r)
+	inspector := taskStateInspectorFromContext(r)
 	if inspector == nil {
 		helpers.WriteErrorStatus(w, "task state store does not support clearing", http.StatusNotImplemented)
 		return

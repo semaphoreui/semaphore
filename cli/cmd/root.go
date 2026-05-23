@@ -136,8 +136,9 @@ func runService() {
 	}
 
 	// Cluster inspector powers the admin Cluster Dashboard. It is nil when HA
-	// is disabled; the dashboard then falls back to the local task pool.
-	api.SetClusterInspector(proHA.NewClusterInspector())
+	// is disabled; the dashboard then falls back to the local task pool. The
+	// instance is injected per-request below.
+	clusterInspector := proHA.NewClusterInspector()
 
 	if dedup := proHA.NewScheduleDeduplicator(); dedup != nil {
 		schedulePool.SetDeduplicator(dedup)
@@ -215,6 +216,8 @@ func runService() {
 			r = helpers.SetContextValue(r, "schedule_pool", schedulePool)
 			r = helpers.SetContextValue(r, "task_pool", &taskPool)
 			r = helpers.SetContextValue(r, "log_writer", logWriteService)
+			r = helpers.SetContextValue(r, "cluster_inspector", clusterInspector)
+
 			next.ServeHTTP(w, r)
 		})
 	})

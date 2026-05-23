@@ -62,13 +62,16 @@
             }
         },
         {
-            "name": "Launch Frontend",
+            "name": "Launch Frontend (PRO)",
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "npm",
             "runtimeArgs": ["run", "serve"],
             "cwd": "${workspaceFolder}/web",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "env": {
+                "VUE_APP_BULID_TYPE": "pro_selfhosted"
+            }
         },
 
     ]
