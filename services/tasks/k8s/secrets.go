@@ -154,11 +154,14 @@ func sshAgentSetupScript(installs []sshKeyInstallation) string {
 		// invoke ssh-add via `setsid -w` so OpenSSH detaches from the controlling
 		// terminal and consults the helper. SSH_ASKPASS_REQUIRE=force is required on
 		// OpenSSH ≥8.4 to bypass the "no DISPLAY" guard.
+		//
+		// Helper is emitted via `printf` (one line) rather than a heredoc so the
+		// whole snippet survives being indented when nested inside the `command -v`
+		// guard — a heredoc terminator at column >0 would never match and would
+		// swallow the rest of the script.
 		askpass := fmt.Sprintf("/tmp/askpass-%d.sh", inst.key.ID)
-		fmt.Fprintf(&b, "cat > %s <<'__SEMASKPASS__'\n", askpass)
-		b.WriteString("#!/bin/sh\n")
-		fmt.Fprintf(&b, "cat %s/%s\n", mount, sshSecretFilePassphrase)
-		b.WriteString("__SEMASKPASS__\n")
+		fmt.Fprintf(&b, "printf '#!/bin/sh\\ncat %s/%s\\n' > %s\n",
+			mount, sshSecretFilePassphrase, askpass)
 		fmt.Fprintf(&b, "chmod 700 %s\n", askpass)
 		fmt.Fprintf(&b, "DISPLAY=:0 SSH_ASKPASS=%s SSH_ASKPASS_REQUIRE=force setsid -w ssh-add %s/%s </dev/null\n",
 			askpass, mount, sshSecretFilePrivateKey)

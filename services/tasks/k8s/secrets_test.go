@@ -211,3 +211,16 @@ func TestSSHAgentSetupScript_EmptyInstallsReturnsEmpty(t *testing.T) {
 	assert.Empty(t, sshAgentSetupScript(nil),
 		"no installs → empty snippet so plain images without ssh-agent still work")
 }
+
+func TestSSHAgentSetupScript_NoHeredocSoIndentingIsSafe(t *testing.T) {
+	// Regression: when nested inside `if command -v ssh-agent…; then … fi`, the
+	// snippet is indented two spaces. A heredoc terminator pushed off column 0
+	// would never match — busybox sh would swallow the rest of the script and
+	// fail with "Syntax error: end of file unexpected (expecting fi)".
+	installs := []sshKeyInstallation{
+		{key: sshAccessKey(11, "s3cret"), origin: "repository"},
+	}
+	script := sshAgentSetupScript(installs)
+
+	assert.NotContains(t, script, "<<", "ssh-agent snippet must be heredoc-free so it can be safely indented")
+}
