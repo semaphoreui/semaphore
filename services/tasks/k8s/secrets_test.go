@@ -157,6 +157,25 @@ func TestPrepare_SetsAnsibleHostKeyCheckingEnv(t *testing.T) {
 	assert.True(t, found, "ANSIBLE_HOST_KEY_CHECKING=False must be set when SSH keys are installed")
 }
 
+func TestPrepare_ForcesAnsibleColors(t *testing.T) {
+	cfg := newTestConfig()
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{}, db.Repository{}, db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, err := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	envByName := map[string]string{}
+	for _, env := range pod.Spec.Containers[0].Env {
+		envByName[env.Name] = env.Value
+	}
+	// ansible-playbook auto-disables ANSI escape codes when stdout is not a TTY (and
+	// pods/log streams aren't). These env vars override that detection so the K8s
+	// path matches the colored output users see from LocalExecutor's PTY.
+	assert.Equal(t, "True", envByName["ANSIBLE_FORCE_COLOR"])
+	assert.Equal(t, "1", envByName["PY_COLORS"])
+}
+
 func TestPrepare_NoSSHKeys_NoSecret(t *testing.T) {
 	cfg := newTestConfig()
 	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{}, db.Repository{}, db.Environment{})
