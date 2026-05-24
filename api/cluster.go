@@ -38,6 +38,7 @@ func getClusterStatus(w http.ResponseWriter, r *http.Request) {
 
 	if !util.HAEnabled() {
 		helpers.WriteJSON(w, http.StatusOK, body)
+		return
 	}
 
 	if util.Config.HA != nil {
