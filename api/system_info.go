@@ -17,19 +17,19 @@ type SystemInfoController struct {
 }
 
 type SystemInfo struct {
-	Version           string               `json:"version"`
-	Ansible           string               `json:"ansible"`
-	WebHost           string               `json:"web_host"`
-	UseRemoteRunner   bool                 `json:"use_remote_runner"`
-	AuthMethods       LoginAuthMethods     `json:"auth_methods"`
-	LoginWithPassword bool                 `json:"login_with_password"`
-	Features          proFeatures.Features `json:"features"`
-	SubscriptionState string               `json:"subscription_state"`
-	GitClient         string               `json:"git_client"`
-	ScheduleTimezone  string               `json:"schedule_timezone"`
-	Teams             *util.TeamsConfig    `json:"teams"`
-	Roles             []db.Role            `json:"roles"`
-	BoltdbUsed        bool                 `json:"boltdb_used"`
+	Version           string                  `json:"version"`
+	Ansible           string                  `json:"ansible"`
+	WebHost           string                  `json:"web_host"`
+	UseRemoteRunner   bool                    `json:"use_remote_runner"`
+	AuthMethods       LoginAuthMethods        `json:"auth_methods"`
+	LoginWithPassword bool                    `json:"login_with_password"`
+	Features          pro_interfaces.Features `json:"features"`
+	SubscriptionState string                  `json:"subscription_state"`
+	GitClient         string                  `json:"git_client"`
+	ScheduleTimezone  string                  `json:"schedule_timezone"`
+	Teams             *util.TeamsConfig       `json:"teams"`
+	Roles             []db.Role               `json:"roles"`
+	BoltdbUsed        bool                    `json:"boltdb_used"`
 }
 
 func NewSystemInfoController(subscriptionService pro_interfaces.SubscriptionService) *SystemInfoController {

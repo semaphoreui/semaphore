@@ -169,7 +169,6 @@
           </v-card-text>
         </v-card>
 
-        <!-- Cluster / HA -->
         <v-subheader class="px-0 mt-2">{{ $t('cluster') }}</v-subheader>
         <v-card style="background: var(--highlighted-card-bg-color)">
           <v-card-text class="px-0 py-2">
