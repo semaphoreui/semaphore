@@ -141,3 +141,119 @@ func TestGeneratePodName_Format(t *testing.T) {
 	assert.Contains(t, name, "semaphore-job-42-")
 	assert.Len(t, name, len("semaphore-job-42-")+6, "6 hex chars suffix")
 }
+
+// --- Phase 3: workspace volume + git-clone init container -----------------------
+
+func TestPrepare_AttachesWorkspaceVolume(t *testing.T) {
+	cfg := newTestConfig()
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{GitURL: "https://example.com/repo.git", GitBranch: "main"},
+		db.Environment{})
+
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, err := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	require.Len(t, pod.Spec.Volumes, 1, "skeleton pod must declare exactly the workspace volume")
+	assert.Equal(t, workspaceVolumeName, pod.Spec.Volumes[0].Name)
+	require.NotNil(t, pod.Spec.Volumes[0].EmptyDir, "workspace is an emptyDir")
+
+	require.Len(t, pod.Spec.Containers[0].VolumeMounts, 1)
+	assert.Equal(t, workspaceVolumeName, pod.Spec.Containers[0].VolumeMounts[0].Name)
+	assert.Equal(t, "/workspace", pod.Spec.Containers[0].VolumeMounts[0].MountPath)
+	assert.Equal(t, "/workspace/repo", pod.Spec.Containers[0].WorkingDir,
+		"build container starts inside the cloned repo")
+}
+
+func TestPrepare_AddsGitCloneInitContainerForRemoteRepo(t *testing.T) {
+	cfg := newTestConfig()
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{GitURL: "https://example.com/playbooks.git", GitBranch: "develop"},
+		db.Environment{})
+
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, err := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	require.Len(t, pod.Spec.InitContainers, 1, "remote HTTPS repo must trigger a git-clone init container")
+	init := pod.Spec.InitContainers[0]
+	assert.Equal(t, gitCloneInitContainerName, init.Name)
+	assert.Equal(t, cfg.HelperImage, init.Image)
+	require.Len(t, init.Args, 1)
+	assert.Contains(t, init.Args[0], "https://example.com/playbooks.git",
+		"clone script must reference the repository URL")
+	assert.Contains(t, init.Args[0], "develop", "clone script must target the configured branch")
+	assert.Contains(t, init.Args[0], "/workspace/repo", "clone script targets workspace subdirectory")
+
+	require.Len(t, init.VolumeMounts, 1)
+	assert.Equal(t, workspaceVolumeName, init.VolumeMounts[0].Name)
+}
+
+func TestPrepare_TaskBranchOverridesTemplateAndRepoBranch(t *testing.T) {
+	cfg := newTestConfig()
+	tplBranch := "release"
+	taskBranch := "hotfix"
+	exec := New(cfg, db.Task{ID: 1, GitBranch: &taskBranch},
+		db.Template{GitBranch: &tplBranch},
+		db.Inventory{},
+		db.Repository{GitURL: "https://example.com/repo.git", GitBranch: "main"},
+		db.Environment{})
+
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, err := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	require.Len(t, pod.Spec.InitContainers, 1)
+	script := pod.Spec.InitContainers[0].Args[0]
+	assert.Contains(t, script, "hotfix", "task branch must win over template/repo branch")
+	assert.NotContains(t, script, "release")
+	assert.NotContains(t, script, " main ")
+}
+
+func TestPrepare_SkipsInitContainerForLocalRepo(t *testing.T) {
+	cfg := newTestConfig()
+	// A leading slash classifies the repository as RepositoryLocal — see db.Repository.GetType.
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{GitURL: "/srv/repos/local"},
+		db.Environment{})
+
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, err := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	assert.Empty(t, pod.Spec.InitContainers, "local repos cannot be cloned into a Pod; init container must be omitted")
+	assert.Equal(t, workspaceVolumeName, pod.Spec.Volumes[0].Name,
+		"workspace volume is still attached so the build container has /workspace")
+}
+
+func TestBuildGitCloneScript_ProducesValidCommand(t *testing.T) {
+	tests := []struct {
+		name       string
+		url        string
+		branch     string
+		wantBranch bool
+	}{
+		{"branch supplied", "https://x/y.git", "main", true},
+		{"empty branch falls back to HEAD", "https://x/y.git", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			script := buildGitCloneScript(tt.url, tt.branch, "/workspace/repo")
+			assert.Contains(t, script, "set -e", "script must abort on first failure")
+			assert.Contains(t, script, "git clone")
+			assert.Contains(t, script, tt.url)
+			assert.Contains(t, script, "/workspace/repo")
+			if tt.wantBranch {
+				assert.Contains(t, script, "--branch")
+				assert.Contains(t, script, tt.branch)
+			} else {
+				assert.NotContains(t, script, "--branch")
+			}
+		})
+	}
+}

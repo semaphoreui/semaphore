@@ -31,6 +31,25 @@ const (
 	// buildContainerName is the name of the Pod's primary container. Stays constant
 	// across tasks so attach/log calls don't need to discover it.
 	buildContainerName = "build"
+
+	// gitCloneInitContainerName is the init container that materializes the task
+	// repository into the shared workspace volume. Lives only for the lifetime of
+	// the clone and exits — the build container starts once it succeeds.
+	gitCloneInitContainerName = "git-clone"
+
+	// workspaceVolumeName is the emptyDir shared between the init container (writes
+	// the repository into it) and the build container (consumes it).
+	workspaceVolumeName = "workspace"
+
+	// workspaceMountPath is where the shared workspace appears inside containers.
+	// The repository is cloned into workspaceMountPath/repo so future phases can
+	// also drop helper files (inventory, extra-vars JSON, .exit marker) alongside
+	// it without colliding with repo contents.
+	workspaceMountPath = "/workspace"
+
+	// workspaceRepoSubpath is the subdirectory under workspaceMountPath where the
+	// task repository ends up.
+	workspaceRepoSubpath = "repo"
 )
 
 // Executor runs one Semaphore task inside an ephemeral Kubernetes Pod. The skeleton
@@ -225,10 +244,22 @@ func (e *Executor) Cleanup() {
 
 // --- helpers ---------------------------------------------------------------------
 
-// buildPodSpec constructs the Pod object the skeleton runs. Phase 3+ will replace the
-// hardcoded "echo hello" command with a keeper-shell entrypoint that ansible commands
-// are streamed into via attach (see docs/plans/kubernetes-executor-spec.md section 7).
+// buildPodSpec constructs the Pod object the executor runs. The Pod always contains a
+// shared workspace emptyDir; for any non-local repository it also gets a git-clone init
+// container that materializes the repo into /workspace/repo before the build container
+// starts. Local repos (file paths on the runner host) are not meaningful inside a Pod —
+// the init container is skipped and the build container will see an empty workspace.
+//
+// Phases 4+ replace the build container's command with a keeper-shell entrypoint that
+// ansible commands are streamed into via attach (see spec section 7).
 func (e *Executor) buildPodSpec(podName string) *corev1.Pod {
+	workspaceMount := corev1.VolumeMount{
+		Name:      workspaceVolumeName,
+		MountPath: workspaceMountPath,
+	}
+
+	repoPath := workspaceMountPath + "/" + workspaceRepoSubpath
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
@@ -241,16 +272,25 @@ func (e *Executor) buildPodSpec(podName string) *corev1.Pod {
 		Spec: corev1.PodSpec{
 			RestartPolicy:      corev1.RestartPolicyNever,
 			ServiceAccountName: e.Config.ServiceAccount,
+			Volumes: []corev1.Volume{{
+				Name: workspaceVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			}},
 			Containers: []corev1.Container{{
-				Name:    buildContainerName,
-				Image:   e.Config.Image,
-				Command: []string{"sh", "-c"},
-				Args: []string{fmt.Sprintf(
-					"echo 'semaphore k8s executor skeleton: task %d, template %d'",
-					e.Task.ID, e.Template.ID,
-				)},
+				Name:         buildContainerName,
+				Image:        e.Config.Image,
+				WorkingDir:   repoPath,
+				Command:      []string{"sh", "-c"},
+				Args:         []string{e.buildContainerScript(repoPath)},
+				VolumeMounts: []corev1.VolumeMount{workspaceMount},
 			}},
 		},
+	}
+
+	if initContainer, ok := e.gitCloneInitContainer(repoPath, workspaceMount); ok {
+		pod.Spec.InitContainers = []corev1.Container{initContainer}
 	}
 
 	for _, name := range e.Config.PullSecrets {
@@ -258,6 +298,72 @@ func (e *Executor) buildPodSpec(podName string) *corev1.Pod {
 	}
 
 	return pod
+}
+
+// buildContainerScript returns the inline shell program the build container runs. The
+// skeleton just proves the workspace volume is reachable and the repository has been
+// cloned into it; subsequent phases swap this out for a keeper shell that runs ansible
+// commands fed in via pods/attach.
+func (e *Executor) buildContainerScript(repoPath string) string {
+	return fmt.Sprintf(
+		"echo 'semaphore k8s executor: task %d, template %d'\n"+
+			"echo 'workspace contents:'\n"+
+			"ls -la %s 2>/dev/null || echo '(workspace is empty)'\n"+
+			"if [ -d %s ]; then echo 'repo cloned at %s:'; ls -la %s; fi",
+		e.Task.ID, e.Template.ID,
+		workspaceMountPath, repoPath, repoPath, repoPath,
+	)
+}
+
+// gitCloneInitContainer builds the init container that fetches the task repository
+// into the workspace volume. Returns ok=false for repositories that have no remote
+// URL (db.RepositoryLocal): cloning a host filesystem path from inside a Pod makes
+// no sense, and the skeleton lets the build container handle the resulting empty
+// workspace gracefully (the future Phase 5 will surface a clear error to the user).
+//
+// Authentication is intentionally absent here. Phase 4 wires SSH and HTTP credentials
+// in via mounted K8s Secrets; until then, only public HTTPS clones will actually
+// succeed at runtime. The Pod spec itself is still produced correctly for SSH/private
+// repos so factory / test coverage works against any repository shape.
+func (e *Executor) gitCloneInitContainer(repoPath string, workspaceMount corev1.VolumeMount) (corev1.Container, bool) {
+	if e.Repository.GetType() == db.RepositoryLocal {
+		return corev1.Container{}, false
+	}
+
+	url := e.Repository.GetGitURL(true) // secure=true: do not embed credentials yet
+	if url == "" {
+		return corev1.Container{}, false
+	}
+
+	branch := e.Repository.GitBranch
+	if e.Template.GitBranch != nil && *e.Template.GitBranch != "" {
+		branch = *e.Template.GitBranch
+	}
+	if e.Task.GitBranch != nil && *e.Task.GitBranch != "" {
+		branch = *e.Task.GitBranch
+	}
+
+	script := buildGitCloneScript(url, branch, repoPath)
+
+	return corev1.Container{
+		Name:         gitCloneInitContainerName,
+		Image:        e.Config.HelperImage,
+		Command:      []string{"sh", "-c"},
+		Args:         []string{script},
+		VolumeMounts: []corev1.VolumeMount{workspaceMount},
+	}, true
+}
+
+// buildGitCloneScript renders the shell script the init container runs. Kept as a
+// function (not a constant) so future phases can layer in commit-hash checkout,
+// authentication, and submodule init without rewiring the container plumbing.
+func buildGitCloneScript(url, branch, repoPath string) string {
+	if branch == "" {
+		// `git clone --branch` is mandatory only when the branch differs from HEAD;
+		// omitting it lets the remote's default branch take over.
+		return fmt.Sprintf("set -e\ngit clone --depth 1 %q %q", url, repoPath)
+	}
+	return fmt.Sprintf("set -e\ngit clone --depth 1 --branch %q %q %q", branch, url, repoPath)
 }
 
 // waitForPodCompletion polls Pod status until it enters a terminal phase or the
