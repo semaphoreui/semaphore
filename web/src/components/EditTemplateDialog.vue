@@ -26,7 +26,7 @@
         :need-reset="needReset"
         :source-item-id="sourceItemId"
         :app="itemApp"
-        :premium-features="premiumFeatures"
+        :features="features"
         :task-type="taskType"
       />
     </template>
@@ -54,7 +54,7 @@ export default {
     projectId: Number,
     itemId: [String, Number],
     sourceItemId: Number,
-    premiumFeatures: Object,
+    features: Object,
     taskType: String,
   },
 

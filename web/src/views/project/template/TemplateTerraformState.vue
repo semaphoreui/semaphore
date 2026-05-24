@@ -194,7 +194,7 @@
           text
           color="hsl(348deg, 86%, 61%)"
           style="border-radius: 0;"
-          v-if="!premiumFeatures.terraform_backend"
+          v-if="!features.terraform_backend"
         >
             <span class="mr-2">
               Terraform/OpenTofu HTTP backend available only in <b>PRO</b> version.
@@ -229,7 +229,7 @@
           <v-btn
             color="primary"
             @click="addAlias()"
-            :disabled="!premiumFeatures.terraform_backend"
+            :disabled="!features.terraform_backend"
             class="mb-8"
           >
             {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
@@ -244,7 +244,7 @@
             style="
               background: transparent;
             "
-            v-if="premiumFeatures.terraform_backend"
+            v-if="features.terraform_backend"
             :headers="headers"
             :items="states"
             :footer-props="{ itemsPerPageOptions: [20] }"
@@ -350,7 +350,7 @@ export default {
 
   props: {
     template: Object,
-    premiumFeatures: Object,
+    features: Object,
   },
 
   watch: {

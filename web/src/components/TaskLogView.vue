@@ -119,7 +119,7 @@
       <v-divider style="margin-top: -1px;" />
 
       <AnsibleStageView
-        :premium-features="systemInfo.features"
+        :features="systemInfo.features"
         :project-id="projectId"
         :task-id="itemId"
       />
@@ -245,7 +245,7 @@ export default {
     item: Object,
     projectId: Number,
     systemInfo: Object,
-    premiumFeatures: null,
+    features: null,
   },
 
   data() {

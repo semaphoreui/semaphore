@@ -60,15 +60,18 @@ export default {
   refreshPage: 'Refresh Page',
   relogin: 'Relogin',
   howToFixSigninIssues: 'How to fix sign-in issues',
-  firstlyYouNeedAccessToTheServerWhereSemaphoreRunni: 'Firstly, you need access to the server where Semaphore running.',
-  executeTheFollowingCommandOnTheServerToSeeExisting: 'Execute the following command on the server to see existing users:',
+  firstlyYouNeedAccessToTheServerWhereSemaphoreRunni:
+    'Firstly, you need access to the server where Semaphore running.',
+  executeTheFollowingCommandOnTheServerToSeeExisting:
+    'Execute the following command on the server to see existing users:',
   semaphoreUserList: 'semaphore user list',
   youCanChangePasswordOfExistingUser: 'You can change password of existing user:',
-  semaphoreUserChangebyloginLoginUser123Password: 'semaphore user change-by-login --login user123 --password {makePasswordExample}',
+  semaphoreUserChangebyloginLoginUser123Password:
+    'semaphore user change-by-login --login user123 --password {makePasswordExample}',
   orCreateNewAdminUser: 'Or create new admin user:',
   close2: 'Close',
   semaphore: 'SEMAPHORE',
-  dontHaveAccountOrCantSignIn: 'Don\'t have account or can\'t sign in?',
+  dontHaveAccountOrCantSignIn: "Don't have account or can't sign in?",
   password2: 'Password',
   cancel: 'Cancel',
   noViews: 'No views',
@@ -82,10 +85,12 @@ export default {
   enterExtraVariablesJson: 'Enter extra variables JSON...',
   environmentVariables: 'Environment variables',
   enterEnvJson: 'Enter env JSON...',
-  environmentAndExtraVariablesMustBeValidJsonExample: 'Environment and extra variables must be valid JSON. Example:',
+  environmentAndExtraVariablesMustBeValidJsonExample:
+    'Environment and extra variables must be valid JSON. Example:',
   dashboard2: 'Dashboard',
   ansibleSemaphore: 'Semaphore UI',
-  wereSorryButHtmlwebpackpluginoptionstitleDoesntWor: 'We\'re sorry but <%= htmlWebpackPlugin.options.title %> doesn\'t work properly without JavaScript enabled. Please enable it to continue.',
+  wereSorryButHtmlwebpackpluginoptionstitleDoesntWor:
+    "We're sorry but <%= htmlWebpackPlugin.options.title %> doesn't work properly without JavaScript enabled. Please enable it to continue.",
   deleteInventory: 'Delete inventory',
   newInventory: 'New Inventory',
   name: 'Name',
@@ -101,13 +106,15 @@ export default {
   usernameOptional: 'Username (Optional)',
   privateKey: 'Private Key',
   override: 'Override',
-  useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook: 'Use this type of key for HTTPS repositories and for playbooks which use non-SSH connections.',
+  useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook:
+    'Use this type of key for HTTPS repositories and for playbooks which use non-SSH connections.',
   deleteKey: 'Delete key',
   newKey: 'New Key',
   create: 'Create',
   newTask: 'New Task',
-  cantDeleteThe: 'Can\'t delete the {objectTitle}',
-  theCantBeDeletedBecauseItUsedByTheResourcesBelow: 'The {objectTitle} can\'t be deleted because it used by the resources below',
+  cantDeleteThe: "Can't delete the {objectTitle}",
+  theCantBeDeletedBecauseItUsedByTheResourcesBelow:
+    "The {objectTitle} can't be deleted because it used by the resources below",
   projectName: 'Project Name',
   allowAlertsForThisProject: 'Allow alerts for this project',
   telegramChatIdOptional: 'Telegram Chat ID (Optional)',
@@ -118,7 +125,8 @@ export default {
   absPath: 'abs. path',
   branch: 'Branch / Tag',
   accessKey: 'Access Key',
-  credentialsToAccessToTheGitRepositoryItShouldBe: 'Credentials to access to the Git repository. It should be:',
+  credentialsToAccessToTheGitRepositoryItShouldBe:
+    'Credentials to access to the Git repository. It should be:',
   ifYouUseGitOrSshUrl: 'if you use Git or SSH URL.',
   ifYouUseHttpsOrFileUrl: 'if you use HTTPS or file URL.',
   none: 'None',
@@ -126,10 +134,12 @@ export default {
   deleteProject: 'Delete project',
   save: 'Save',
   deleteProject2: 'Delete Project',
-  onceYouDeleteAProjectThereIsNoGoingBackPleaseBeCer: 'Once you delete a project, there is no going back. Please be certain.',
+  onceYouDeleteAProjectThereIsNoGoingBackPleaseBeCer:
+    'Once you delete a project, there is no going back. Please be certain.',
 
   clear_cache: 'Clear cache',
-  clear_cache_message: 'Delete all cache files related to this project. This action is irreversible.',
+  clear_cache_message:
+    'Delete all cache files related to this project. This action is irreversible.',
 
   name2: 'Name *',
   title: 'Title *',
@@ -146,7 +156,7 @@ export default {
   vaultTypeScript: 'Client Script',
   vaultScript: 'Script Path',
   vaultScriptRequired: 'Script Path is required',
-  vaultScriptClientRequired: 'Script path must end with \'-client\' and extension',
+  vaultScriptClientRequired: "Script path must end with '-client' and extension",
   vaults: 'Vaults',
   vaultAdd: 'Add Vault',
   vaultRequired: 'Vault Password is required',
@@ -158,8 +168,10 @@ export default {
   diff: 'Diff',
   advanced: 'Advanced',
   hide: 'Hide',
-  pleaseAllowOverridingCliArgumentInTaskTemplateSett: 'To allow overriding CLI argument in Task Template settings',
-  cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe: 'CLI Args (JSON array). Example: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
+  pleaseAllowOverridingCliArgumentInTaskTemplateSett:
+    'To allow overriding CLI argument in Task Template settings',
+  cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe:
+    'CLI Args (JSON array). Example: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   started: 'Started',
   author: 'Author',
   duration: 'Duration',
@@ -178,10 +190,12 @@ export default {
   newTeamMember: 'New Team Member',
   user: 'User',
   administrator: 'Administrator',
-  definesStartVersionOfYourArtifactEachRunIncrements: 'Defines start version of your artifact. Each run increments the artifact version.',
+  definesStartVersionOfYourArtifactEachRunIncrements:
+    'Defines start version of your artifact. Each run increments the artifact version.',
   forMoreInformationAboutBuildingSeeThe: 'For more information about building, see the',
   taskTemplateReference: 'Task Template reference',
-  definesWhatArtifactShouldBeDeployedWhenTheTaskRun: 'Defines what artifact should be deployed when the task run.',
+  definesWhatArtifactShouldBeDeployedWhenTheTaskRun:
+    'Defines what artifact should be deployed when the task run.',
   forMoreInformationAboutDeployingSeeThe: 'For more information about deploying, see the',
   taskTemplateReference2: 'Task Template reference',
   definesAutorunSchedule: 'Defines autorun schedule.',
@@ -196,18 +210,21 @@ export default {
   inventory2: 'Inventory *',
   repository: 'Repository',
   environment3: 'Variable Groups *',
-  environmentsHint: 'Variables from each selected group are merged in order; later groups override earlier ones on conflicts.',
+  environmentsHint:
+    'Variables from each selected group are merged in order; later groups override earlier ones on conflicts.',
   vaultPassword: 'Vault Password',
   vaultPassword2: 'Vault Password',
   view: 'View',
   cron: 'Cron',
-  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome: 'Auto-run task if new git commit have been found',
+  iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome:
+    'Auto-run task if new git commit have been found',
   repository2: 'Repository',
   cronChecksNewCommitBeforeRun: 'Cron checks new commit before run',
   readThe: 'Read the',
   toLearnMoreAboutCron: 'to learn more about Cron.',
   suppressSuccessAlerts: 'Suppress success notifications',
-  cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2: 'CLI Args (JSON array). Example: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
+  cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2:
+    'CLI Args (JSON array). Example: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'CLI args',
   docs: 'docs',
   editViews: 'Edit Views',
@@ -326,7 +343,8 @@ export default {
   owningNode: 'Node',
   clearTasksFromRedis: 'Clear Tasks from Redis',
   clearTasksTitle: 'Clear tasks from Redis',
-  clearTasksWarning: 'Clearing Running or Claims can desync cluster nodes. '
+  clearTasksWarning:
+    'Clearing Running or Claims can desync cluster nodes. '
     + 'Use this only to recover from a stuck state.',
   clearTasksGroups: 'Select the record groups to clear:',
   runtimeFields: 'Runtime fields',
@@ -342,9 +360,11 @@ export default {
   newRunnerToken: 'New Runner',
   askDeleteRunner: 'Do you really want to delete runner {runner}?',
   roles_only_enterprise: 'Roles are only available in <b>Enterprise</b> edition.',
+  ha_only_enterprise: 'High availability are only available in <b>Enterprise</b> edition.',
   project_runners_only_pro: 'Project-level runners are only available for <b>PRO</b> users.',
   secret_storage_only_pro: 'Secret storages are only available for <b>PRO</b> users.',
-  foss_runners_limited: 'The open-source version has limited functionality; full functionality is in the <b>PRO</b> version.',
+  foss_runners_limited:
+    'The open-source version has limited functionality; full functionality is in the <b>PRO</b> version.',
   learn_more_about_pro: 'Learn more',
   upgrade_to_pro: 'Upgrade',
   contact_admin_to_upgrade: 'Contact your admin to activate PRO features.',

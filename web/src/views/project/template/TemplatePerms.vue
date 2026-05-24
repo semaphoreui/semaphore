@@ -16,7 +16,7 @@
     />
 
     <v-alert
-      v-if="!premiumFeatures.custom_roles_management"
+      v-if="!features.custom_roles_management"
       text
       color="amber darken-3"
       class="PageAlert"
@@ -40,7 +40,7 @@
     </v-alert>
 
     <v-btn
-      :disabled="!premiumFeatures.custom_roles_management"
+      :disabled="!features.custom_roles_management"
       color="primary"
       @click="editItem('new')"
       style="position: absolute; right: 16px;"
@@ -105,7 +105,7 @@ export default {
     repositories: Array,
     inventory: Array,
     environment: Array,
-    premiumFeatures: Object,
+    features: Object,
     isAdmin: Boolean,
   },
 

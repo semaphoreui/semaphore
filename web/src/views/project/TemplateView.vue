@@ -15,7 +15,7 @@
       :item-app="item.app"
       :item-id="itemId"
       @save="loadData()"
-      :premium-features="premiumFeatures"
+      :features="features"
       :task-type="item.type"
     ></EditTemplateDialog>
 
@@ -26,7 +26,7 @@
       item-id="new"
       :source-item-id="itemId"
       @save="onTemplateCopied"
-      :premium-features="premiumFeatures"
+      :features="features"
       :task-type="item.type"
     ></EditTemplateDialog>
 
@@ -173,7 +173,7 @@
       :inventory="inventory"
       :environment="environment"
       :repositories="repositories"
-      :premium-features="premiumFeatures"
+      :features="features"
       :is-admin="isAdmin"
       @update-template="loadData"
       :need-update="needLoadData"
@@ -229,7 +229,7 @@ export default {
   props: {
     projectId: Number,
     userPermissions: Number,
-    premiumFeatures: Object,
+    features: Object,
   },
 
   mixins: [PermissionsCheck, ProjectMixin],

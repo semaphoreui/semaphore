@@ -34,7 +34,7 @@
       <v-spacer></v-spacer>
       <v-btn
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
-        :disabled="!premiumFeatures.custom_roles_management"
+        :disabled="!features.custom_roles_management"
         color="primary"
         @click="editItem('new')"
         >{{ $t('newRole') }}</v-btn
@@ -46,7 +46,7 @@
     <v-divider style="margin-top: -1px" />
 
     <v-alert
-      v-if="!premiumFeatures.custom_roles_management"
+      v-if="!features.custom_roles_management"
       text
       color="amber darken-3"
       class="PageAlert"
@@ -105,7 +105,7 @@ export default {
   mixins: [ItemListPageBase],
 
   props: {
-    premiumFeatures: Object,
+    features: Object,
     projectId: Number,
     systemInfo: Object,
   },

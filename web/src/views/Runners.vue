@@ -228,7 +228,7 @@ semaphore runner start --config ./config.runner.json</pre
 
     <v-btn
       v-else
-      :disabled="!premiumFeatures.project_runners"
+      :disabled="!features.project_runners"
       style="position: absolute; right: 15px; top: 15px"
       color="primary"
       @click="editItem('new')"
@@ -238,7 +238,7 @@ semaphore runner start --config ./config.runner.json</pre
     <v-divider />
 
     <v-alert
-      v-if="projectId && !premiumFeatures.project_runners"
+      v-if="projectId && !features.project_runners"
       text
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"

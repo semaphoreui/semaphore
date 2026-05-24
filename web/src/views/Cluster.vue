@@ -46,7 +46,11 @@
       </v-btn>
       <v-toolbar-title>{{ $t('clusterDashboard') }}</v-toolbar-title>
       <v-spacer />
-      <v-btn color="error" @click="openClearDialog()">
+      <v-btn
+        color="error"
+        @click="openClearDialog()"
+        :disabled="!features.high_availability || !status.ha_enabled"
+      >
         <v-icon left>mdi-delete-sweep</v-icon>
         {{ $t('clearTasksFromRedis') }}
       </v-btn>
@@ -54,35 +58,30 @@
 
     <v-divider />
 
+    <v-alert v-if="!features.high_availability" text color="amber darken-3" class="PageAlert">
+      <span class="mr-1" v-html="$t('ha_only_enterprise')"></span>
+
+      <v-btn
+        dark
+        depressed
+        v-if="isAdmin"
+        color="amber darken-3"
+        href="https://semaphoreui.com/enterprise"
+        target="_blank"
+      >
+        {{ $t('upgrade_to_pro') }}
+      </v-btn>
+
+      <span v-else style="font-weight: bold">
+        {{ $t('contact_admin_to_upgrade_enterprise') }}
+      </span>
+    </v-alert>
+
+    <v-alert v-if="status && !status.ha_enabled" type="info" dense text>
+      {{ $t('haDisabledBanner') }}
+    </v-alert>
+
     <div class="pa-4">
-      <v-alert v-if="status && !status.ha_enabled" type="info" dense text>
-        {{ $t('haDisabledBanner') }}
-      </v-alert>
-
-      <!-- Overview -->
-<!--      <v-card class="mb-4" outlined>-->
-<!--        <v-card-title class="subtitle-1">{{ $t('clusterOverview') }}</v-card-title>-->
-<!--        <v-card-text v-if="status">-->
-<!--          <v-row dense>-->
-<!--            <v-col cols="12" sm="4">-->
-<!--              <div class="text-caption grey&#45;&#45;text">{{ $t('haEnabled') }}</div>-->
-<!--              <v-chip small :color="status.ha_enabled ? 'success' : 'grey'" dark>-->
-<!--                {{ status.ha_enabled ? 'ON' : 'OFF' }}-->
-<!--              </v-chip>-->
-<!--            </v-col>-->
-<!--            <v-col cols="12" sm="4">-->
-<!--              <div class="text-caption grey&#45;&#45;text">{{ $t('nodeId') }}</div>-->
-<!--              <code v-if="status.node_id">{{ status.node_id }}</code>-->
-<!--              <span v-else>—</span>-->
-<!--            </v-col>-->
-<!--            <v-col cols="12" sm="4">-->
-<!--              <div class="text-caption grey&#45;&#45;text">{{ $t('nodes') }}</div>-->
-<!--              <span>{{ (status.nodes || []).length || 1 }}</span>-->
-<!--            </v-col>-->
-<!--          </v-row>-->
-<!--        </v-card-text>-->
-<!--      </v-card>-->
-
       <!-- Nodes -->
       <v-card v-if="status && status.nodes" class="mb-4" outlined>
         <v-card-title class="subtitle-1">{{ $t('nodes') }}</v-card-title>
@@ -198,6 +197,11 @@ const MEMORY_WINDOW_MS = 60 * 60 * 1000;
 
 export default {
   components: { RedisMemoryChart },
+
+  props: {
+    features: Object,
+    isAdmin: Boolean,
+  },
 
   data() {
     return {
