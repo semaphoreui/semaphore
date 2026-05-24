@@ -7,12 +7,23 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+// init ensures util.Config is non-nil for K8s tests — production code reads
+// util.Config.WebHost (Task.GetUrl) eagerly when building extra-vars JSON, and an
+// uninitialized global would NPE the whole suite. A blank Config is enough: GetUrl
+// returns nil when WebHost is empty, which is fine for the assertions we make.
+func init() {
+	if util.Config == nil {
+		util.Config = &util.ConfigType{}
+	}
+}
 
 // TestExecutorImplementsTasksExecutor is a compile-time guard: if Executor stops
 // satisfying tasks.Executor the K8s executor can no longer be plugged into the runner
