@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -75,6 +76,12 @@ type Executor struct {
 	// podName is generated in Prepare and reused by Run / Cleanup. Empty until prepared.
 	podName string
 
+	// secretNames are the K8s Secrets this executor created for the task (today: one
+	// per installed SSH key). Tracked so Cleanup can delete them — ownerReferences
+	// would also work but Phase 4 keeps things explicit so a half-failed Prepare
+	// doesn't strand resources.
+	secretNames []string
+
 	// cancelRun fires when the user requests a stop. The log-stream / status-poll
 	// goroutines watch this context and bail out.
 	cancelRun context.CancelFunc
@@ -139,11 +146,15 @@ func (e *Executor) Kill() {
 
 // --- Executor interface methods --------------------------------------------------
 
-// Prepare creates the task Pod and waits for it to leave the Pending phase. The
-// username / incomingVersion / alias arguments are kept for interface compatibility
-// with LocalExecutor; this skeleton ignores them. They become relevant once the K8s
-// executor learns to surface task-details env vars (Phase 6) and TF_HTTP_ADDRESS
-// (Terraform alias support).
+// Prepare creates the per-task K8s resources: one Secret per installed SSH key, then
+// the build Pod that references them. The order matters — Pod creation references
+// the Secrets by name, so they must exist first (otherwise the kubelet would block
+// the Pod in ContainerCreating until they appear). On failure, any Secrets already
+// created are torn down via Cleanup (caller invokes it via defer).
+//
+// The username / incomingVersion / alias arguments are kept for interface compatibility
+// with LocalExecutor. They become relevant once the K8s executor learns to surface
+// task-details env vars (Phase 6) and TF_HTTP_ADDRESS (Terraform alias support).
 func (e *Executor) Prepare(username string, incomingVersion *string, alias string) error {
 	if e.Config.Clientset == nil {
 		return errors.New("k8s executor: clientset is not configured")
@@ -159,17 +170,35 @@ func (e *Executor) Prepare(username string, incomingVersion *string, alias strin
 	}
 	e.podName = podName
 
-	pod := e.buildPodSpec(podName)
+	sshInstalls := e.collectSSHKeys()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, err = e.Config.Clientset.CoreV1().Pods(e.Config.Namespace).Create(ctx, pod, metav1.CreateOptions{})
-	if err != nil {
+	if err = e.createSSHSecrets(ctx, sshInstalls); err != nil {
+		return err
+	}
+
+	pod := e.buildPodSpec(podName, sshInstalls)
+	if _, err = e.Config.Clientset.CoreV1().Pods(e.Config.Namespace).Create(ctx, pod, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("create pod %q: %w", podName, err)
 	}
 
-	e.log(fmt.Sprintf("k8s: created pod %s/%s", e.Config.Namespace, podName))
+	e.log(fmt.Sprintf("k8s: created pod %s/%s (%d ssh keys installed)", e.Config.Namespace, podName, len(sshInstalls)))
+	return nil
+}
+
+// createSSHSecrets writes one K8s Secret per installed SSH key. Each name created is
+// recorded on the executor so Cleanup can delete it even when this method bails out
+// partway through.
+func (e *Executor) createSSHSecrets(ctx context.Context, installs []sshKeyInstallation) error {
+	for _, inst := range installs {
+		secret := buildSSHSecret(e.podName, e.Config.Namespace, inst)
+		if _, err := e.Config.Clientset.CoreV1().Secrets(e.Config.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+			return fmt.Errorf("create ssh secret for key %d: %w", inst.key.ID, err)
+		}
+		e.secretNames = append(e.secretNames, secret.Name)
+	}
 	return nil
 }
 
@@ -220,26 +249,41 @@ func (e *Executor) Run(username string, incomingVersion *string, alias string) (
 	return nil
 }
 
-// Cleanup deletes the Pod. It is invoked unconditionally by Run via defer; calling
-// it on an unprepared executor (where podName is still empty) is a no-op so that
-// failed Prepare calls don't leave the deletion error masking the real error.
+// Cleanup deletes the Pod and every Secret this executor created (one per installed
+// SSH key today). Invoked unconditionally by Run via defer; calling it on an
+// unprepared executor is a no-op so that failed Prepare calls don't leave the
+// deletion error masking the real error.
+//
+// Deletion order is Pod-first so the kubelet is the one to unmount the Secret
+// volumes; deleting Secrets while a running Pod still mounts them is allowed by
+// K8s but produces confusing kubelet logs. NotFound errors are ignored so the
+// method is safe to call repeatedly and on partially-prepared executors.
 func (e *Executor) Cleanup() {
-	if e.podName == "" || e.Config.Clientset == nil {
+	if e.Config.Clientset == nil {
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	grace := int64(e.Config.CleanupGrace.Seconds())
-	err := e.Config.Clientset.CoreV1().Pods(e.Config.Namespace).Delete(ctx, e.podName, metav1.DeleteOptions{
-		GracePeriodSeconds: &grace,
-	})
-	if err != nil && !apierrors.IsNotFound(err) {
-		e.log(fmt.Sprintf("k8s: failed to delete pod %s: %v", e.podName, err))
-		return
+	if e.podName != "" {
+		grace := int64(e.Config.CleanupGrace.Seconds())
+		err := e.Config.Clientset.CoreV1().Pods(e.Config.Namespace).Delete(ctx, e.podName, metav1.DeleteOptions{
+			GracePeriodSeconds: &grace,
+		})
+		if err != nil && !apierrors.IsNotFound(err) {
+			e.log(fmt.Sprintf("k8s: failed to delete pod %s: %v", e.podName, err))
+		} else {
+			e.log(fmt.Sprintf("k8s: deleted pod %s/%s", e.Config.Namespace, e.podName))
+		}
 	}
-	e.log(fmt.Sprintf("k8s: deleted pod %s/%s", e.Config.Namespace, e.podName))
+
+	for _, name := range e.secretNames {
+		err := e.Config.Clientset.CoreV1().Secrets(e.Config.Namespace).Delete(ctx, name, metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			e.log(fmt.Sprintf("k8s: failed to delete secret %s: %v", name, err))
+		}
+	}
 }
 
 // --- helpers ---------------------------------------------------------------------
@@ -247,12 +291,14 @@ func (e *Executor) Cleanup() {
 // buildPodSpec constructs the Pod object the executor runs. The Pod always contains a
 // shared workspace emptyDir; for any non-local repository it also gets a git-clone init
 // container that materializes the repo into /workspace/repo before the build container
-// starts. Local repos (file paths on the runner host) are not meaningful inside a Pod —
-// the init container is skipped and the build container will see an empty workspace.
+// starts. Each installed SSH key gets a Secret-backed volume mounted at
+// /secrets/ssh/<id>/, mode 0400. Local repos (file paths on the runner host) are not
+// meaningful inside a Pod — the init container is skipped and the build container
+// will see an empty workspace.
 //
-// Phases 4+ replace the build container's command with a keeper-shell entrypoint that
+// Phases 5+ replace the build container's command with a keeper-shell entrypoint that
 // ansible commands are streamed into via attach (see spec section 7).
-func (e *Executor) buildPodSpec(podName string) *corev1.Pod {
+func (e *Executor) buildPodSpec(podName string, sshInstalls []sshKeyInstallation) *corev1.Pod {
 	workspaceMount := corev1.VolumeMount{
 		Name:      workspaceVolumeName,
 		MountPath: workspaceMountPath,
@@ -260,31 +306,39 @@ func (e *Executor) buildPodSpec(podName string) *corev1.Pod {
 
 	repoPath := workspaceMountPath + "/" + workspaceRepoSubpath
 
+	volumes := []corev1.Volume{{
+		Name: workspaceVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}}
+	volumes = append(volumes, sshSecretVolumes(podName, sshInstalls)...)
+
+	buildMounts := []corev1.VolumeMount{workspaceMount}
+	buildMounts = append(buildMounts, sshSecretVolumeMounts(sshInstalls)...)
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: e.Config.Namespace,
 			Labels: map[string]string{
-				LabelTaskID: fmt.Sprintf("%d", e.Task.ID),
-				LabelRunner: "semaphore",
+				LabelTaskID:  fmt.Sprintf("%d", e.Task.ID),
+				LabelRunner:  "semaphore",
+				labelPodName: podName,
 			},
 		},
 		Spec: corev1.PodSpec{
 			RestartPolicy:      corev1.RestartPolicyNever,
 			ServiceAccountName: e.Config.ServiceAccount,
-			Volumes: []corev1.Volume{{
-				Name: workspaceVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			}},
+			Volumes:            volumes,
 			Containers: []corev1.Container{{
 				Name:         buildContainerName,
 				Image:        e.Config.Image,
 				WorkingDir:   repoPath,
 				Command:      []string{"sh", "-c"},
-				Args:         []string{e.buildContainerScript(repoPath)},
-				VolumeMounts: []corev1.VolumeMount{workspaceMount},
+				Args:         []string{e.buildContainerScript(repoPath, sshInstalls)},
+				VolumeMounts: buildMounts,
+				Env:          buildContainerEnv(sshInstalls),
 			}},
 		},
 	}
@@ -300,19 +354,40 @@ func (e *Executor) buildPodSpec(podName string) *corev1.Pod {
 	return pod
 }
 
+// buildContainerEnv returns the environment variables that should always be set on
+// the build container. Currently only ANSIBLE_HOST_KEY_CHECKING=False, and only when
+// SSH keys are present: without it Ansible refuses to connect to never-before-seen
+// hosts because the Pod has no persistent known_hosts file. Phases 6+ will add
+// SEMAPHORE_TASK_* env vars sourced from db.Task.
+func buildContainerEnv(installs []sshKeyInstallation) []corev1.EnvVar {
+	if len(installs) == 0 {
+		return nil
+	}
+	return []corev1.EnvVar{
+		{Name: "ANSIBLE_HOST_KEY_CHECKING", Value: "False"},
+	}
+}
+
 // buildContainerScript returns the inline shell program the build container runs. The
-// skeleton just proves the workspace volume is reachable and the repository has been
-// cloned into it; subsequent phases swap this out for a keeper shell that runs ansible
-// commands fed in via pods/attach.
-func (e *Executor) buildContainerScript(repoPath string) string {
-	return fmt.Sprintf(
-		"echo 'semaphore k8s executor: task %d, template %d'\n"+
-			"echo 'workspace contents:'\n"+
-			"ls -la %s 2>/dev/null || echo '(workspace is empty)'\n"+
-			"if [ -d %s ]; then echo 'repo cloned at %s:'; ls -la %s; fi",
-		e.Task.ID, e.Template.ID,
-		workspaceMountPath, repoPath, repoPath, repoPath,
-	)
+// script:
+//  1. Boots an ssh-agent and loads every installed SSH key (Phase 4).
+//  2. Reports back the workspace contents to prove init-container clone landed.
+//
+// Subsequent phases swap step 2 for a keeper shell that runs ansible commands fed in
+// via pods/attach.
+func (e *Executor) buildContainerScript(repoPath string, installs []sshKeyInstallation) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "echo 'semaphore k8s executor: task %d, template %d'\n", e.Task.ID, e.Template.ID)
+
+	if agent := sshAgentSetupScript(installs); agent != "" {
+		b.WriteString(agent)
+	}
+
+	b.WriteString("echo 'workspace contents:'\n")
+	fmt.Fprintf(&b, "ls -la %s 2>/dev/null || echo '(workspace is empty)'\n", workspaceMountPath)
+	fmt.Fprintf(&b, "if [ -d %s ]; then echo 'repo cloned at %s:'; ls -la %s; fi\n", repoPath, repoPath, repoPath)
+
+	return b.String()
 }
 
 // gitCloneInitContainer builds the init container that fetches the task repository
