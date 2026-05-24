@@ -67,6 +67,19 @@ func (e *Executor) collectSSHKeys() []sshKeyInstallation {
 	return out
 }
 
+// repositorySSHInstall returns the SSH install originating from the playbook
+// Repository (origin="repository"), if any. Used by the git-clone init container
+// to pick out just the key it needs — the inventory user/become keys are irrelevant
+// for cloning and stay scoped to the build container (least-privilege).
+func repositorySSHInstall(installs []sshKeyInstallation) (sshKeyInstallation, bool) {
+	for _, inst := range installs {
+		if inst.origin == "repository" {
+			return inst, true
+		}
+	}
+	return sshKeyInstallation{}, false
+}
+
 // sshSecretName produces the K8s Secret name for an installed key. Format binds the
 // Secret to its owning Pod so orphan cleanup (Phase 5+) can list-by-prefix and so
 // concurrent tasks on the same runner never collide.

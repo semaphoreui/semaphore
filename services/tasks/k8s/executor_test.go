@@ -10,6 +10,7 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -241,6 +242,209 @@ func TestPrepare_SkipsInitContainerForLocalRepo(t *testing.T) {
 		"workspace volume is still attached so the build container has /workspace")
 }
 
+// --- Appendix A.1: private SSH clone --------------------------------------------
+
+func TestPrepare_InitContainerMountsRepositorySSHKey(t *testing.T) {
+	cfg := newTestConfig()
+	key := sshAccessKey(77, "")
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{GitURL: "git@example.com:org/playbooks.git", GitBranch: "main", SSHKey: key},
+		db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, err := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	require.Len(t, pod.Spec.InitContainers, 1)
+	init := pod.Spec.InitContainers[0]
+
+	// Init container must mount workspace + the repository's SSH key (and only that key).
+	mountByName := map[string]string{}
+	for _, m := range init.VolumeMounts {
+		mountByName[m.Name] = m.MountPath
+	}
+	assert.Equal(t, "/workspace", mountByName[workspaceVolumeName])
+	assert.Equal(t, sshMountPath(key.ID), mountByName[sshVolumeName(key.ID)],
+		"init container must mount the repository SSH key at /secrets/ssh/<key_id>/")
+}
+
+func TestPrepare_InitContainerScriptStartsSSHAgentForPrivateRepo(t *testing.T) {
+	cfg := newTestConfig()
+	key := sshAccessKey(7, "")
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{GitURL: "git@example.com:org/repo.git", GitBranch: "main", SSHKey: key},
+		db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, _ := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	script := pod.Spec.InitContainers[0].Args[0]
+
+	assert.Contains(t, script, "command -v ssh-agent", "ssh-agent guard mirrors the build container's defensive pattern")
+	assert.Contains(t, script, "ssh-add "+sshMountPath(key.ID)+"/"+sshSecretFilePrivateKey,
+		"private key must be added to the agent before clone")
+	assert.Contains(t, script, "GIT_SSH_COMMAND", "GIT_SSH_COMMAND must override ssh options")
+	assert.Contains(t, script, "StrictHostKeyChecking=accept-new",
+		"unknown-host prompt must be suppressed — no stdin in a Pod")
+	assert.Contains(t, script, "git clone")
+}
+
+func TestPrepare_InitContainerNoSSHForPublicHTTPSRepo(t *testing.T) {
+	cfg := newTestConfig()
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{GitURL: "https://example.com/public.git", GitBranch: "main"}, // no SSH key
+		db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, _ := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	init := pod.Spec.InitContainers[0]
+
+	assert.NotContains(t, init.Args[0], "ssh-agent",
+		"public repos must not boot ssh-agent — keeps the helper image's footprint clear of unused setup")
+	assert.NotContains(t, init.Args[0], "GIT_SSH_COMMAND")
+
+	// Only the workspace mount is present; no SSH key Secret was installed so no
+	// extra mounts get attached either.
+	require.Len(t, init.VolumeMounts, 1)
+	assert.Equal(t, workspaceVolumeName, init.VolumeMounts[0].Name)
+}
+
+func TestPrepare_InitContainerOnlyRepoKey_NotInventoryKey(t *testing.T) {
+	cfg := newTestConfig()
+	repoKey := sshAccessKey(11, "")
+	invKey := sshAccessKey(22, "")
+	exec := New(cfg, db.Task{ID: 1}, db.Template{},
+		db.Inventory{SSHKey: invKey},
+		db.Repository{GitURL: "git@example.com:org/r.git", GitBranch: "main", SSHKey: repoKey},
+		db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, _ := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	init := pod.Spec.InitContainers[0]
+
+	mountNames := map[string]bool{}
+	for _, m := range init.VolumeMounts {
+		mountNames[m.Name] = true
+	}
+	assert.True(t, mountNames[sshVolumeName(repoKey.ID)], "repo key mounted in init container")
+	assert.False(t, mountNames[sshVolumeName(invKey.ID)],
+		"inventory key must NOT leak into the init container (least-privilege per spec A.1)")
+
+	// And the ssh-add line references only the repo key, not the inventory key.
+	script := init.Args[0]
+	assert.Contains(t, script, "ssh-add "+sshMountPath(repoKey.ID)+"/"+sshSecretFilePrivateKey)
+	assert.NotContains(t, script, sshMountPath(invKey.ID))
+}
+
+func TestPrepare_InitContainerPassphraseProtectedRepoKeyUsesAskPass(t *testing.T) {
+	cfg := newTestConfig()
+	key := sshAccessKey(9, "s3cret")
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{GitURL: "git@example.com:org/r.git", GitBranch: "main", SSHKey: key},
+		db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, _ := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	script := pod.Spec.InitContainers[0].Args[0]
+
+	assert.Contains(t, script, "SSH_ASKPASS",
+		"passphrase-protected repo keys reuse the same askpass flow as the build container")
+	assert.Contains(t, script, sshMountPath(key.ID)+"/"+sshSecretFilePassphrase)
+}
+
+func TestStreamPodLogs_FetchesInitContainerAndBuildContainer(t *testing.T) {
+	cfg := newTestConfig()
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{GitURL: "https://example.com/r.git", GitBranch: "main"},
+		db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	// The fake clientset doesn't actually return Pod log bytes (it returns an empty
+	// stream), so we don't assert on the log content. What we DO assert is that the
+	// executor requested logs for every container — init container first, then build.
+	// Without this, a failed `git clone` would land users with a Pod-failed status
+	// and zero diagnostic output.
+	err := exec.streamPodLogs(context.Background())
+	require.NoError(t, err)
+
+	wantContainers := map[string]bool{
+		gitCloneInitContainerName: false,
+		buildContainerName:        false,
+	}
+	for _, action := range cfg.Clientset.(*fake.Clientset).Actions() {
+		if action.GetVerb() != "get" || action.GetSubresource() != "log" {
+			continue
+		}
+		// The fake clientset records GetLogs with options accessible via the action's
+		// underlying type. Inspect the recorded container name via the action's value.
+		if logAction, ok := action.(interface {
+			GetName() string
+		}); ok {
+			_ = logAction.GetName() // pod name; container name lives in options
+		}
+		// k8s.io/client-go/testing.GetAction exposes the value via .GetValue() only
+		// on certain action types; for logs the container name reaches us via the
+		// GetLogsAction concrete type. Fall back to checking the *PodLogOptions
+		// stored in the action.
+		if logAction, ok := action.(interface {
+			GetValue() interface{}
+		}); ok {
+			if opts, ok := logAction.GetValue().(*corev1.PodLogOptions); ok {
+				wantContainers[opts.Container] = true
+			}
+		}
+	}
+
+	assert.True(t, wantContainers[gitCloneInitContainerName],
+		"init container logs must be streamed so failed clones surface their errors to the user")
+	assert.True(t, wantContainers[buildContainerName],
+		"build container logs must still be streamed")
+}
+
+func TestStreamPodLogs_NoInitContainersStreamOnlyBuild(t *testing.T) {
+	cfg := newTestConfig()
+	// Local repo → no init container is added; only the build container exists.
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{GitURL: "/srv/local/repo"},
+		db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	require.NoError(t, exec.streamPodLogs(context.Background()))
+
+	// Walk the recorded logs at the test logger level — when there's no init
+	// container the header "=== build ===" is omitted (header only appears when
+	// there's something to separate from).
+	// Note: the fake clientset doesn't produce log bytes; we only verify the call
+	// shape didn't error and didn't try to fetch from a phantom init container.
+	sawInitFetch := false
+	for _, action := range cfg.Clientset.(*fake.Clientset).Actions() {
+		if action.GetVerb() != "get" || action.GetSubresource() != "log" {
+			continue
+		}
+		if logAction, ok := action.(interface {
+			GetValue() interface{}
+		}); ok {
+			if opts, ok := logAction.GetValue().(*corev1.PodLogOptions); ok {
+				if opts.Container == gitCloneInitContainerName {
+					sawInitFetch = true
+				}
+			}
+		}
+	}
+	assert.False(t, sawInitFetch, "init container fetch must be skipped when there are no init containers")
+}
+
+func TestRepositorySSHInstall_FiltersByOrigin(t *testing.T) {
+	repo := sshKeyInstallation{key: sshAccessKey(1, ""), origin: "repository"}
+	inv := sshKeyInstallation{key: sshAccessKey(2, ""), origin: "inventory"}
+
+	got, ok := repositorySSHInstall([]sshKeyInstallation{inv, repo})
+	require.True(t, ok)
+	assert.Equal(t, 1, got.key.ID, "must return the entry with origin=repository regardless of order")
+
+	_, ok = repositorySSHInstall([]sshKeyInstallation{inv})
+	assert.False(t, ok, "no repo entry → ok=false")
+}
+
 func TestBuildGitCloneScript_ProducesValidCommand(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -254,7 +458,7 @@ func TestBuildGitCloneScript_ProducesValidCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			script := buildGitCloneScript(tt.url, tt.branch, "/workspace/repo")
+			script := buildGitCloneScript(tt.url, tt.branch, "/workspace/repo", sshKeyInstallation{}, false)
 			assert.Contains(t, script, "set -e", "script must abort on first failure")
 			assert.Contains(t, script, "git clone")
 			assert.Contains(t, script, tt.url)

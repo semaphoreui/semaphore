@@ -397,7 +397,7 @@ func (e *Executor) buildPodSpec(podName string, sshInstalls []sshKeyInstallation
 		},
 	}
 
-	if initContainer, ok := e.gitCloneInitContainer(repoPath, workspaceMount); ok {
+	if initContainer, ok := e.gitCloneInitContainer(repoPath, workspaceMount, sshInstalls); ok {
 		pod.Spec.InitContainers = []corev1.Container{initContainer}
 	}
 
@@ -519,18 +519,23 @@ func shellJoin(argv []string) string {
 // into the workspace volume. Returns ok=false for repositories that have no remote
 // URL (db.RepositoryLocal): cloning a host filesystem path from inside a Pod makes
 // no sense, and the skeleton lets the build container handle the resulting empty
-// workspace gracefully (the future Phase 5 will surface a clear error to the user).
+// workspace gracefully.
 //
-// Authentication is intentionally absent here. Phase 4 wires SSH and HTTP credentials
-// in via mounted K8s Secrets; until then, only public HTTPS clones will actually
-// succeed at runtime. The Pod spec itself is still produced correctly for SSH/private
-// repos so factory / test coverage works against any repository shape.
-func (e *Executor) gitCloneInitContainer(repoPath string, workspaceMount corev1.VolumeMount) (corev1.Container, bool) {
+// Private SSH repositories are supported via the same SSH-key Secret the build
+// container uses (see spec appendix A.1): when Repository.SSHKey is present in the
+// installs list, the init container also mounts /secrets/ssh/<key_id>/, runs
+// ssh-agent + ssh-add before the clone, and forces GIT_SSH_COMMAND to bypass the
+// interactive unknown-host prompt. Only the repository key is mounted here — inventory
+// keys land in the build container only, so each container holds only the secrets it
+// actually needs (least privilege).
+//
+// HTTPS basic-auth for private HTTP repos is not yet wired in (planned in appendix A.2).
+func (e *Executor) gitCloneInitContainer(repoPath string, workspaceMount corev1.VolumeMount, installs []sshKeyInstallation) (corev1.Container, bool) {
 	if e.Repository.GetType() == db.RepositoryLocal {
 		return corev1.Container{}, false
 	}
 
-	url := e.Repository.GetGitURL(true) // secure=true: do not embed credentials yet
+	url := e.Repository.GetGitURL(false)
 	if url == "" {
 		return corev1.Container{}, false
 	}
@@ -543,27 +548,68 @@ func (e *Executor) gitCloneInitContainer(repoPath string, workspaceMount corev1.
 		branch = *e.Task.GitBranch
 	}
 
-	script := buildGitCloneScript(url, branch, repoPath)
+	repoKey, hasRepoKey := repositorySSHInstall(installs)
+
+	script := buildGitCloneScript(url, branch, repoPath, repoKey, hasRepoKey)
+
+	mounts := []corev1.VolumeMount{workspaceMount}
+	if hasRepoKey {
+		// Reuse the existing ssh-key Volume the build container already declared
+		// (sshSecretVolumes appended it to pod.Spec.Volumes). Init container needs
+		// a sibling VolumeMount on the same Volume name.
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      sshVolumeName(repoKey.key.ID),
+			MountPath: sshMountPath(repoKey.key.ID),
+			ReadOnly:  true,
+		})
+	}
 
 	return corev1.Container{
 		Name:         gitCloneInitContainerName,
 		Image:        e.Config.HelperImage,
 		Command:      []string{"sh", "-c"},
 		Args:         []string{script},
-		VolumeMounts: []corev1.VolumeMount{workspaceMount},
+		VolumeMounts: mounts,
 	}, true
 }
 
-// buildGitCloneScript renders the shell script the init container runs. Kept as a
-// function (not a constant) so future phases can layer in commit-hash checkout,
-// authentication, and submodule init without rewiring the container plumbing.
-func buildGitCloneScript(url, branch, repoPath string) string {
+// buildGitCloneScript renders the shell script the init container runs. When the
+// repository has an SSH key (private repo), the script also boots ssh-agent and
+// loads the key before the clone, plus sets GIT_SSH_COMMAND to bypass the unknown-
+// host prompt — Pods have no persistent /root/.ssh/known_hosts and `git clone` would
+// otherwise hang waiting for stdin.
+//
+// hasRepoKey controls whether the SSH preamble is emitted. When false, the script
+// is the same minimal "set -e + git clone" form used for public HTTPS clones.
+func buildGitCloneScript(url, branch, repoPath string, repoKey sshKeyInstallation, hasRepoKey bool) string {
+	var b strings.Builder
+	b.WriteString("set -e\n")
+
+	if hasRepoKey {
+		// ssh-agent guard: the default helper image (alpine/git) ships openssh-client
+		// but a user-overridden image may not — fall through with a warning rather
+		// than abort the whole task. Same pattern as the build container.
+		b.WriteString("if command -v ssh-agent >/dev/null 2>&1 && command -v ssh-add >/dev/null 2>&1; then\n")
+		b.WriteString(indent(sshAgentSetupScript([]sshKeyInstallation{repoKey}), "  "))
+		b.WriteString("else\n")
+		b.WriteString("  echo 'k8s: ssh-agent / ssh-add not found in helper image; private clone may fail'\n")
+		b.WriteString("fi\n")
+		// StrictHostKeyChecking=accept-new (not =no): trusts the host on first connect
+		// while still detecting key changes on subsequent connections within the same
+		// process. For a one-shot init container the distinction is academic, but it's
+		// the more correct default. UserKnownHostsFile=/dev/null keeps the runner from
+		// ever caring about persistence.
+		b.WriteString("export GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null'\n")
+	}
+
 	if branch == "" {
 		// `git clone --branch` is mandatory only when the branch differs from HEAD;
 		// omitting it lets the remote's default branch take over.
-		return fmt.Sprintf("set -e\ngit clone --depth 1 %q %q", url, repoPath)
+		fmt.Fprintf(&b, "git clone --depth 1 %q %q\n", url, repoPath)
+	} else {
+		fmt.Fprintf(&b, "git clone --depth 1 --branch %q %q %q\n", branch, url, repoPath)
 	}
-	return fmt.Sprintf("set -e\ngit clone --depth 1 --branch %q %q %q", branch, url, repoPath)
+	return b.String()
 }
 
 // waitForPodCompletion polls Pod status until it enters a terminal phase or the
@@ -590,13 +636,47 @@ func (e *Executor) waitForPodCompletion(ctx context.Context) (corev1.PodPhase, e
 	}
 }
 
-// streamPodLogs pulls the build container's log stream and forwards each line into
-// the task logger. The Pod has already terminated by the time we get here (the
-// skeleton serializes log read after completion to keep the flow simple); future
-// phases will stream logs concurrently with execution via pods/attach.
+// streamPodLogs forwards every container's log stream into the task logger, in the
+// order containers ran: init containers first (git-clone today), then the build
+// container. This is critical for diagnostics — if `git clone` fails the build
+// container never starts, and without these init-container logs the task just
+// shows "pod failed" with no clue why.
+//
+// Each container's output is bracketed by a small header so the boundary is visible
+// in the Semaphore UI. A failure to read one container's logs is recorded but does
+// not short-circuit the rest: e.g. a still-pending init container that timed out
+// shouldn't hide the build container's output.
+//
+// The Pod has already terminated by the time we get here (the executor serializes
+// log read after Pod completion to keep the flow simple); future phases will stream
+// logs concurrently with execution via pods/attach.
 func (e *Executor) streamPodLogs(ctx context.Context) error {
+	pod, err := e.Config.Clientset.CoreV1().Pods(e.Config.Namespace).Get(ctx, e.podName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("get pod for log streaming: %w", err)
+	}
+
+	// Init containers run in spec order, sequentially; preserve that order so the
+	// log timeline matches what actually happened inside the Pod.
+	for _, c := range pod.Spec.InitContainers {
+		e.log(fmt.Sprintf("=== %s (init) ===", c.Name))
+		if err := e.streamContainerLogs(ctx, c.Name); err != nil {
+			e.log(fmt.Sprintf("k8s: failed to read init container %s logs: %v", c.Name, err))
+		}
+	}
+
+	if len(pod.Spec.InitContainers) > 0 {
+		e.log(fmt.Sprintf("=== %s ===", buildContainerName))
+	}
+	return e.streamContainerLogs(ctx, buildContainerName)
+}
+
+// streamContainerLogs pumps a single container's pods/log stream into the task
+// logger, line-by-line. Extracted from streamPodLogs so the per-container behaviour
+// (request → stream → bufio scan) is shared by init- and build-container readers.
+func (e *Executor) streamContainerLogs(ctx context.Context, container string) error {
 	req := e.Config.Clientset.CoreV1().Pods(e.Config.Namespace).GetLogs(e.podName, &corev1.PodLogOptions{
-		Container: buildContainerName,
+		Container: container,
 	})
 	stream, err := req.Stream(ctx)
 	if err != nil {
