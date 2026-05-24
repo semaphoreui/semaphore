@@ -3,14 +3,16 @@ package runners
 import (
 	"fmt"
 
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/services/tasks/k8s"
 	"github.com/semaphoreui/semaphore/util"
 )
 
 // ExecutorType identifies the strategy the runner uses to execute each task. The default
-// "local" executor runs tasks as subprocesses on the runner host. Future values (e.g.
-// "kubernetes") will dispatch each task into an ephemeral pod, GitLab-runner-style.
+// "local" executor runs tasks as subprocesses on the runner host. "kubernetes" dispatches
+// each task into an ephemeral pod, GitLab-runner-style.
 type ExecutorType string
 
 const (
@@ -31,25 +33,28 @@ func resolveExecutorType() ExecutorType {
 	return t
 }
 
-// newExecutor builds the per-task executor the runner will dispatch into. The result is
-// a *tasks.LocalExecutor today (the only implementation); the factory exists so adding a
-// KubernetesExecutor in a future phase is a single switch arm here, not a series of
-// edits in checkNewJobs.
-//
-// Returning the concrete type (rather than the tasks.Executor interface) is intentional
-// for Phase 1: downstream code in this package still touches LocalExecutor's fields
-// (Task, Template, Logger, App, Repository, …) directly. Lifting that to the interface
-// is a follow-up step, scheduled for the phase that adds the second executor.
-func newExecutor(jobData JobData, keyInstaller db_lib.AccessKeyInstaller) (*tasks.LocalExecutor, error) {
-	executorType := resolveExecutorType()
+// newExecutor builds the per-task executor the runner will dispatch into. Access keys
+// retrieved from the server are wired into the JobData up front so each concrete
+// constructor sees a fully-hydrated record — this keeps job_pool.go agnostic of which
+// executor it ends up dispatching to.
+func newExecutor(
+	jobData JobData,
+	accessKeys map[int]db.AccessKey,
+	keyInstaller db_lib.AccessKeyInstaller,
+	k8sCfg *k8s.Config,
+) (tasks.Executor, error) {
+	hydrateJobAccessKeys(&jobData, accessKeys)
 
-	switch executorType {
+	switch resolveExecutorType() {
 	case ExecutorTypeLocal:
 		return newLocalExecutor(jobData, keyInstaller), nil
 	case ExecutorTypeKubernetes:
-		return nil, fmt.Errorf("kubernetes executor is not implemented yet")
+		if k8sCfg == nil {
+			return nil, fmt.Errorf("kubernetes executor requested but k8s config is not initialized")
+		}
+		return newK8sExecutor(jobData, *k8sCfg), nil
 	default:
-		return nil, fmt.Errorf("unknown runner executor type %q", executorType)
+		return nil, fmt.Errorf("unknown runner executor type %q", resolveExecutorType())
 	}
 }
 
@@ -69,3 +74,39 @@ func newLocalExecutor(jobData JobData, keyInstaller db_lib.AccessKeyInstaller) *
 	}
 }
 
+func newK8sExecutor(jobData JobData, cfg k8s.Config) *k8s.Executor {
+	return k8s.New(cfg, jobData.Task, jobData.Template, jobData.Inventory, jobData.Repository, jobData.Environment)
+}
+
+// hydrateJobAccessKeys decrypts/wires the access keys the server sent us into the
+// per-task data. Lives in the factory (not the per-executor constructor) so the
+// behaviour is identical across executor types: ansible vault passwords, SSH keys,
+// inventory keys, and the inventory repo SSH key all get attached to the JobData
+// regardless of whether the task ends up running locally or in a Pod.
+func hydrateJobAccessKeys(jobData *JobData, accessKeys map[int]db.AccessKey) {
+	jobData.Repository.SSHKey = accessKeys[jobData.Repository.SSHKeyID]
+
+	if jobData.Inventory.SSHKeyID != nil {
+		jobData.Inventory.SSHKey = accessKeys[*jobData.Inventory.SSHKeyID]
+	}
+	if jobData.Inventory.BecomeKeyID != nil {
+		jobData.Inventory.BecomeKey = accessKeys[*jobData.Inventory.BecomeKeyID]
+	}
+
+	if jobData.Template.Vaults != nil {
+		vaults := make([]db.TemplateVault, 0, len(jobData.Template.Vaults))
+		for _, vault := range jobData.Template.Vaults {
+			v := vault
+			if v.VaultKeyID != nil {
+				key := accessKeys[*v.VaultKeyID]
+				v.Vault = &key
+			}
+			vaults = append(vaults, v)
+		}
+		jobData.Template.Vaults = vaults
+	}
+
+	if jobData.Inventory.RepositoryID != nil && jobData.Inventory.Repository != nil {
+		jobData.Inventory.Repository.SSHKey = accessKeys[jobData.Inventory.Repository.SSHKeyID]
+	}
+}

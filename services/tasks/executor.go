@@ -1,5 +1,7 @@
 package tasks
 
+import "github.com/semaphoreui/semaphore/pkg/task_logger"
+
 // Executor encapsulates the strategy used to run a single task. The job pool dispatches
 // every queued task to an Executor, which orchestrates the full lifecycle: preparation
 // of the working environment, execution of the underlying tool (ansible-playbook,
@@ -31,4 +33,16 @@ type Executor interface {
 	// at the end of Run (via defer); implementations must tolerate being called even
 	// when Prepare failed partway through.
 	Cleanup()
+
+	// SetLogger wires the per-task log sink into the executor. Called by the job
+	// pool after the executor is constructed but before Run is invoked. For local
+	// execution this also flows the logger into the underlying App (Ansible /
+	// Terraform / shell); for K8s execution the logger captures Pod log output.
+	SetLogger(logger task_logger.Logger)
+
+	// SetStatus forwards the task status transition into the executor. Most
+	// implementations simply re-dispatch to their bound Logger, but exposing it
+	// on the interface lets observers downstream (TaskRunner_logging) propagate
+	// status without type-asserting back to the concrete executor.
+	SetStatus(status task_logger.TaskStatus)
 }

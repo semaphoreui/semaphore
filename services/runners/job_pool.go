@@ -15,10 +15,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/semaphoreui/semaphore/db"
-
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/tasks/k8s"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -71,20 +70,39 @@ type JobPool struct {
 	processing int32
 
 	keyInstaller db_lib.AccessKeyInstaller
+
+	// k8sConfig is built once at startup when SEMAPHORE_RUNNER_EXECUTOR=kubernetes
+	// (nil otherwise). Holding a single shared Config — including the K8s clientset —
+	// means we don't re-dial the API server for every task. Nil for local runners.
+	k8sConfig *k8s.Config
 }
 
+// NewJobPool wires a runner-side job pool. The K8s config is materialized eagerly
+// when the runner is configured for Kubernetes execution; failures here surface at
+// process startup rather than at first-task dispatch.
 func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
-	return &JobPool{
+	pool := &JobPool{
 		runningJobs:  make(map[int]*runningJob),
 		queue:        make([]*job, 0),
 		processing:   0,
 		keyInstaller: keyInstaller,
 	}
+
+	if resolveExecutorType() == ExecutorTypeKubernetes {
+		cfg, err := k8s.ConfigFromRunnerConfig(util.Config.Runner.K8s)
+		if err != nil {
+			log.WithError(err).Error("failed to initialize Kubernetes executor config; runner will reject K8s jobs until restarted with a valid config")
+		} else {
+			pool.k8sConfig = &cfg
+		}
+	}
+
+	return pool
 }
 
 func (p *JobPool) existsInQueue(taskID int) bool {
 	for _, j := range p.queue {
-		if j.job.Task.ID == taskID {
+		if j.taskID == taskID {
 			return true
 		}
 	}
@@ -178,52 +196,54 @@ func (p *JobPool) Run() {
 			if t.status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
-				logger.TaskInfo("Task dequeued", t.job.Task.ID, "failed")
+				logger.TaskInfo("Task dequeued", t.taskID, "failed")
 				break
 			}
 
 			// Default to starting so sendProgress never emits an empty status (invalid JSON)
 			// before the job goroutine's first SetStatus(running). A rejected PUT fails the
 			// whole batch and can leave the server stuck on "starting" forever.
-			p.runningJobs[t.job.Task.ID] = &runningJob{
+			running := &runningJob{
 				job:    t.job,
+				taskID: t.taskID,
 				status: task_logger.TaskStartingStatus,
 			}
+			p.runningJobs[t.taskID] = running
 
-			t.job.Logger = t.job.App.SetLogger(p.runningJobs[t.job.Task.ID])
+			t.job.SetLogger(running)
 
-			go func(runningJob *runningJob) {
-				runningJob.SetStatus(task_logger.TaskRunningStatus)
+			go func(running *runningJob) {
+				running.SetStatus(task_logger.TaskRunningStatus)
 
-				err := runningJob.job.Run(t.username, t.incomingVersion, t.alias)
+				err := running.job.Run(t.username, t.incomingVersion, t.alias)
 
-				if runningJob.status.IsFinished() {
+				if running.status.IsFinished() {
 					return
 				}
 
 				if err != nil {
 					logger.ActionError(err, "launch job", "job failed")
-					t.job.Logger.Log("Unable to launch the application. Please contact your system administrator for assistance.")
+					running.Log("Unable to launch the application. Please contact your system administrator for assistance.")
 
-					if runningJob.status == task_logger.TaskStoppingStatus {
-						runningJob.SetStatus(task_logger.TaskStoppedStatus)
+					if running.status == task_logger.TaskStoppingStatus {
+						running.SetStatus(task_logger.TaskStoppedStatus)
 					} else {
-						runningJob.SetStatus(task_logger.TaskFailStatus)
+						running.SetStatus(task_logger.TaskFailStatus)
 					}
 				} else {
-					if runningJob.status == task_logger.TaskStoppingStatus {
-						runningJob.SetStatus(task_logger.TaskStoppedStatus)
+					if running.status == task_logger.TaskStoppingStatus {
+						running.SetStatus(task_logger.TaskStoppedStatus)
 					} else {
-						runningJob.SetStatus(task_logger.TaskSuccessStatus)
+						running.SetStatus(task_logger.TaskSuccessStatus)
 					}
 				}
 
-				logger.TaskInfo("Task finished", runningJob.job.Task.ID, string(runningJob.status))
-			}(p.runningJobs[t.job.Task.ID])
+				logger.TaskInfo("Task finished", running.taskID, string(running.status))
+			}(running)
 
 			p.queue = p.queue[1:]
-			logger.TaskInfo("Task dequeued", t.job.Task.ID, string(t.job.Task.Status))
-			logger.TaskInfo("Task started", t.job.Task.ID, string(t.job.Task.Status))
+			logger.TaskInfo("Task dequeued", t.taskID, string(t.status))
+			logger.TaskInfo("Task started", t.taskID, string(t.status))
 
 		case <-requestTimer.C:
 
@@ -658,7 +678,7 @@ func (p *JobPool) checkNewJobs() {
 
 		newJob.Inventory.Repository = newJob.InventoryRepository
 
-		executor, err := newExecutor(newJob, p.keyInstaller)
+		executor, err := newExecutor(newJob, response.AccessKeys, p.keyInstaller, p.k8sConfig)
 		if err != nil {
 			logger.ActionError(err, "build executor", "cannot construct executor for task")
 			continue
@@ -669,37 +689,12 @@ func (p *JobPool) checkNewJobs() {
 			incomingVersion: newJob.IncomingVersion,
 			alias:           newJob.Alias,
 			job:             executor,
-		}
-
-		taskRunner.job.Repository.SSHKey = response.AccessKeys[taskRunner.job.Repository.SSHKeyID]
-
-		if taskRunner.job.Inventory.SSHKeyID != nil {
-			taskRunner.job.Inventory.SSHKey = response.AccessKeys[*taskRunner.job.Inventory.SSHKeyID]
-		}
-
-		if taskRunner.job.Inventory.BecomeKeyID != nil {
-			taskRunner.job.Inventory.BecomeKey = response.AccessKeys[*taskRunner.job.Inventory.BecomeKeyID]
-		}
-
-		var vaults []db.TemplateVault
-		if taskRunner.job.Template.Vaults != nil {
-			for _, vault := range taskRunner.job.Template.Vaults {
-				vault2 := vault
-				if vault2.VaultKeyID != nil {
-					key := response.AccessKeys[*vault2.VaultKeyID]
-					vault2.Vault = &key
-				}
-				vaults = append(vaults, vault2)
-			}
-		}
-		taskRunner.job.Template.Vaults = vaults
-
-		if taskRunner.job.Inventory.RepositoryID != nil {
-			taskRunner.job.Inventory.Repository.SSHKey = response.AccessKeys[taskRunner.job.Inventory.Repository.SSHKeyID]
+			taskID:          newJob.Task.ID,
+			status:          newJob.Task.Status,
 		}
 
 		p.queue = append(p.queue, &taskRunner)
 
-		logger.TaskInfo("Task enqueued", taskRunner.job.Task.ID, string(taskRunner.job.Task.Status))
+		logger.TaskInfo("Task enqueued", taskRunner.taskID, string(taskRunner.status))
 	}
 }

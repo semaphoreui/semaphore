@@ -142,9 +142,46 @@ type RunnerConfig struct {
 
 	// Executor selects the strategy used to execute each task on this runner. The
 	// default "local" runs the tool (ansible-playbook, terraform, shell) as a
-	// subprocess on the runner host. Future values (e.g. "kubernetes") will
-	// dispatch each task into an ephemeral pod. Empty string is treated as "local".
+	// subprocess on the runner host. "kubernetes" dispatches each task into an
+	// ephemeral Pod (one Pod per task). Empty string is treated as "local".
 	Executor string `json:"executor,omitempty" default:"local" env:"SEMAPHORE_RUNNER_EXECUTOR"`
+
+	// K8s holds Kubernetes-executor knobs. Populated only when Executor=kubernetes;
+	// kept on RunnerConfig (rather than in its own struct) for the same reason the
+	// other runner fields are: it's read once at process startup and never changes.
+	K8s RunnerK8sConfig `json:"k8s,omitempty"`
+}
+
+// RunnerK8sConfig holds runner-side configuration for the Kubernetes executor. Field
+// shape mirrors the GitLab runner Kubernetes executor for familiarity. Empty values
+// fall back to the documented defaults at consumption time (see services/tasks/k8s).
+type RunnerK8sConfig struct {
+	// KubeconfigPath is the path to a kubeconfig file. When empty, in-cluster
+	// configuration is used (ServiceAccount token + CA cert mounted by Kubernetes).
+	KubeconfigPath string `json:"kubeconfig,omitempty" env:"SEMAPHORE_RUNNER_K8S_KUBECONFIG"`
+
+	// Namespace is where ephemeral task Pods are created.
+	Namespace string `json:"namespace,omitempty" default:"semaphore" env:"SEMAPHORE_RUNNER_K8S_NAMESPACE"`
+
+	// Image is the default container image used for the build container of each
+	// task Pod. Templates may override this in a future phase.
+	Image string `json:"image,omitempty" default:"alpine:latest" env:"SEMAPHORE_RUNNER_K8S_IMAGE"`
+
+	// HelperImage is the image used for the git-clone init container (Phase 3+).
+	HelperImage string `json:"helper_image,omitempty" default:"alpine/git:latest" env:"SEMAPHORE_RUNNER_K8S_HELPER_IMAGE"`
+
+	// ServiceAccount that task Pods run under. Defaults to the namespace's default SA.
+	ServiceAccount string `json:"service_account,omitempty" default:"default" env:"SEMAPHORE_RUNNER_K8S_SERVICE_ACCOUNT"`
+
+	// PullSecrets is a comma-separated list of imagePullSecrets attached to each Pod.
+	PullSecrets string `json:"pull_secrets,omitempty" env:"SEMAPHORE_RUNNER_K8S_PULL_SECRETS"`
+
+	// PollIntervalSeconds controls how often the executor polls Pod status. Defaults
+	// to 3 seconds. Kept as a plain int (not time.Duration) for env-binding simplicity.
+	PollIntervalSeconds int `json:"poll_interval_seconds,omitempty" default:"3" env:"SEMAPHORE_RUNNER_K8S_POLL_INTERVAL_SECONDS"`
+
+	// CleanupGraceSeconds is the grace period when deleting Pods. Defaults to 30s.
+	CleanupGraceSeconds int `json:"cleanup_grace_seconds,omitempty" default:"30" env:"SEMAPHORE_RUNNER_K8S_CLEANUP_GRACE_SECONDS"`
 }
 
 type TLSConfig struct {

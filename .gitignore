@@ -14,6 +14,9 @@ api/public/**/*
 /config.runner.json
 /config.runner.token
 /config.runner.key
+/runner-config.json
+/runner-token.txt
+/runner-key.pem
 /runner.json
 /runner.token
 /runner.key

@@ -76,6 +76,17 @@ func (t *LocalExecutor) SetStatus(status task_logger.TaskStatus) {
 	t.Logger.SetStatus(status)
 }
 
+// SetLogger wires the task log sink into the executor and threads it through to the
+// underlying App so framework-specific logging (PTY output for Ansible, structured
+// stages for Terraform) lands in the same stream.
+func (t *LocalExecutor) SetLogger(logger task_logger.Logger) {
+	if t.App != nil {
+		t.Logger = t.App.SetLogger(logger)
+		return
+	}
+	t.Logger = logger
+}
+
 func (t *LocalExecutor) SetCommit(hash, message string) {
 	// TODO: is this the correct place to do?
 	t.Task.CommitHash = &hash
