@@ -157,7 +157,7 @@ func TestPrepare_SetsAnsibleHostKeyCheckingEnv(t *testing.T) {
 	assert.True(t, found, "ANSIBLE_HOST_KEY_CHECKING=False must be set when SSH keys are installed")
 }
 
-func TestPrepare_NoSSHKeys_NoEnvNoSecret(t *testing.T) {
+func TestPrepare_NoSSHKeys_NoSecret(t *testing.T) {
 	cfg := newTestConfig()
 	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{}, db.Repository{}, db.Environment{})
 	require.NoError(t, exec.Prepare("", nil, ""))
@@ -165,12 +165,23 @@ func TestPrepare_NoSSHKeys_NoEnvNoSecret(t *testing.T) {
 	pod, err := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
 	require.NoError(t, err)
 
-	// No SSH-keyed volumes, no env var, no secrets list.
+	// No SSH-keyed volumes, no secrets list.
 	for _, v := range pod.Spec.Volumes {
 		assert.Nil(t, v.Secret, "no SSH keys means no Secret-backed volumes")
 	}
-	assert.Empty(t, pod.Spec.Containers[0].Env, "env vars are added only when SSH keys present")
 	assert.Empty(t, exec.secretNames)
+
+	// HOME / ANSIBLE_LOCAL_TEMP must be set even without SSH keys so OpenShift's
+	// random-UID Pods can write Ansible's local tmp dir. ANSIBLE_HOST_KEY_CHECKING
+	// must NOT be set — it's only relevant when keys are loaded.
+	envByName := map[string]string{}
+	for _, env := range pod.Spec.Containers[0].Env {
+		envByName[env.Name] = env.Value
+	}
+	assert.Equal(t, workspaceMountPath, envByName["HOME"])
+	assert.Equal(t, workspaceMountPath+"/.ansible/tmp", envByName["ANSIBLE_LOCAL_TEMP"])
+	_, hasHostKeyCheck := envByName["ANSIBLE_HOST_KEY_CHECKING"]
+	assert.False(t, hasHostKeyCheck, "ANSIBLE_HOST_KEY_CHECKING is only set when SSH keys are present")
 }
 
 func TestCleanup_DeletesAllSSHSecrets(t *testing.T) {

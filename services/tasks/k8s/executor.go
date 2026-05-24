@@ -409,17 +409,27 @@ func (e *Executor) buildPodSpec(podName string, sshInstalls []sshKeyInstallation
 }
 
 // buildContainerEnv returns the environment variables that should always be set on
-// the build container. Currently only ANSIBLE_HOST_KEY_CHECKING=False, and only when
-// SSH keys are present: without it Ansible refuses to connect to never-before-seen
-// hosts because the Pod has no persistent known_hosts file. Phases 6+ will add
-// SEMAPHORE_TASK_* env vars sourced from db.Task.
+// the build container.
+//
+// HOME and ANSIBLE_LOCAL_TEMP point into the writable workspace volume because some
+// clusters (notably OpenShift's restricted-v2 SCC) assign each Pod a random UID that
+// has no /etc/passwd entry. Without HOME, getpwuid() fails and Ansible falls back to
+// writing to "/" (or an empty string), which it cannot do — surfacing as
+// "Permission denied: '/.ansible'". The workspace emptyDir is writable by any UID.
+//
+// ANSIBLE_HOST_KEY_CHECKING=False is added only when SSH keys are present: without it
+// Ansible refuses to connect to never-before-seen hosts because the Pod has no
+// persistent known_hosts file. Phases 6+ will add SEMAPHORE_TASK_* env vars sourced
+// from db.Task.
 func buildContainerEnv(installs []sshKeyInstallation) []corev1.EnvVar {
-	if len(installs) == 0 {
-		return nil
+	env := []corev1.EnvVar{
+		{Name: "HOME", Value: workspaceMountPath},
+		{Name: "ANSIBLE_LOCAL_TEMP", Value: workspaceMountPath + "/.ansible/tmp"},
 	}
-	return []corev1.EnvVar{
-		{Name: "ANSIBLE_HOST_KEY_CHECKING", Value: "False"},
+	if len(installs) > 0 {
+		env = append(env, corev1.EnvVar{Name: "ANSIBLE_HOST_KEY_CHECKING", Value: "False"})
 	}
+	return env
 }
 
 // buildContainerScript returns the inline shell program the build container runs.
