@@ -102,10 +102,15 @@ func (c GoGitClient) Clone(r GitRepository) error {
 		return authErr
 	}
 
+	submoduleDepth := git.DefaultSubmoduleRecursionDepth
+	if !r.Repository.PullSubmodules {
+		submoduleDepth = git.NoRecurseSubmodules
+	}
+
 	cloneOpt := &git.CloneOptions{
 		URL:               r.Repository.GetGitURL(true),
 		Progress:          ProgressWrapper{r.Logger},
-		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+		RecurseSubmodules: submoduleDepth,
 		ReferenceName:     plumbing.NewBranchReferenceName(r.Repository.GitBranch),
 		Auth:              authMethod,
 	}
@@ -137,9 +142,16 @@ func (c GoGitClient) Pull(r GitRepository) error {
 	}
 
 	// Pull the latest changes from the origin remote and merge into the current branch
-	err = wt.Pull(&git.PullOptions{RemoteName: "origin",
+	pullOpts := &git.PullOptions{
+		RemoteName:        "origin",
 		Auth:              authMethod,
-		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth})
+		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+	}
+	if !r.Repository.PullSubmodules {
+		pullOpts.RecurseSubmodules = git.NoRecurseSubmodules
+	}
+
+	err = wt.Pull(pullOpts)
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		r.Logger.Log("Unable to pull latest changes")
 		return err

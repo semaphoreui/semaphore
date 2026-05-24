@@ -22,12 +22,13 @@ const (
 
 // Repository is the model for code stored in a git repository
 type Repository struct {
-	ID        int    `db:"id" json:"id" backup:"-"`
-	Name      string `db:"name" json:"name" binding:"required"`
-	ProjectID int    `db:"project_id" json:"project_id" backup:"-"`
-	GitURL    string `db:"git_url" json:"git_url" binding:"required"`
-	GitBranch string `db:"git_branch" json:"git_branch" binding:"required"`
-	SSHKeyID  int    `db:"ssh_key_id" json:"ssh_key_id" binding:"required" backup:"-"`
+	ID             int    `db:"id" json:"id" backup:"-"`
+	Name           string `db:"name" json:"name" binding:"required"`
+	ProjectID      int    `db:"project_id" json:"project_id" backup:"-"`
+	GitURL         string `db:"git_url" json:"git_url" binding:"required"`
+	GitBranch      string `db:"git_branch" json:"git_branch" binding:"required"`
+	SSHKeyID       int    `db:"ssh_key_id" json:"ssh_key_id" binding:"required" backup:"-"`
+	PullSubmodules bool   `db:"pull_submodules" json:"pull_submodules"`
 
 	SSHKey AccessKey `db:"-" json:"-" backup:"-"`
 }

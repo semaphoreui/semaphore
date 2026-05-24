@@ -771,6 +771,8 @@ definitions:
         example: master
       ssh_key_id:
         type: integer
+      pull_submodules:
+        type: boolean
   
   Repository:
     type: object
@@ -790,6 +792,8 @@ definitions:
         example: master
       ssh_key_id:
         type: integer
+      pull_submodules:
+        type: boolean
 
   Task:
     type: object
