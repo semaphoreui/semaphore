@@ -441,6 +441,28 @@ func buildContainerEnv(installs []sshKeyInstallation) []corev1.EnvVar {
 	return env
 }
 
+// passwdFixupScript writes an /etc/passwd entry for the current UID when one is
+// missing — the standard OpenShift random-UID Pod gotcha. Without this entry
+// getpwuid() returns NULL and OpenSSH refuses to start with
+// "No user exists for uid <N>"; git, gpg, and a few other tools share the same
+// failure mode.
+//
+// The fixup writes to /etc/passwd if it is group-writable (the default on most
+// images, since the SCC assigns gid=0 to all Pods). When /etc/passwd is read-only
+// the redirect fails silently and the caller is left in the original broken state —
+// at that point the image needs nss_wrapper or a baked-in numeric-UID-tolerant
+// build. We surface the situation with a warning so users running into it see why.
+func passwdFixupScript() string {
+	return `if ! whoami >/dev/null 2>&1; then
+  if echo "default:x:$(id -u):0:default:${HOME:-/tmp}:/bin/sh" >> /etc/passwd 2>/dev/null; then
+    echo "k8s: added /etc/passwd entry for uid $(id -u)"
+  else
+    echo "k8s: WARNING — uid $(id -u) has no passwd entry and /etc/passwd is not writable; OpenSSH / git may fail"
+  fi
+fi
+`
+}
+
 // buildContainerScript returns the inline shell program the build container runs.
 //
 // Layout:
@@ -456,6 +478,7 @@ func buildContainerEnv(installs []sshKeyInstallation) []corev1.EnvVar {
 func (e *Executor) buildContainerScript(repoPath string, installs []sshKeyInstallation, ansible *ansiblePrep) string {
 	var b strings.Builder
 	b.WriteString("set -e\n")
+	b.WriteString(passwdFixupScript())
 	fmt.Fprintf(&b, "echo 'semaphore k8s executor: task %d, template %d'\n", e.Task.ID, e.Template.ID)
 
 	if agent := sshAgentSetupScript(installs); agent != "" {
@@ -565,10 +588,17 @@ func (e *Executor) gitCloneInitContainer(repoPath string, workspaceMount corev1.
 	}
 
 	return corev1.Container{
-		Name:         gitCloneInitContainerName,
-		Image:        e.Config.HelperImage,
-		Command:      []string{"sh", "-c"},
-		Args:         []string{script},
+		Name:    gitCloneInitContainerName,
+		Image:   e.Config.HelperImage,
+		Command: []string{"sh", "-c"},
+		Args:    []string{script},
+		// HOME points into the writable workspace volume so the passwd fixup line
+		// (passwdFixupScript) ends up writing a usable home dir into /etc/passwd,
+		// and so OpenSSH inside the helper image has somewhere to put a known_hosts
+		// scratch file. Same rationale as buildContainerEnv on the build container.
+		Env: []corev1.EnvVar{
+			{Name: "HOME", Value: workspaceMountPath},
+		},
 		VolumeMounts: mounts,
 	}, true
 }
@@ -584,6 +614,7 @@ func (e *Executor) gitCloneInitContainer(repoPath string, workspaceMount corev1.
 func buildGitCloneScript(url, branch, repoPath string, repoKey sshKeyInstallation, hasRepoKey bool) string {
 	var b strings.Builder
 	b.WriteString("set -e\n")
+	b.WriteString(passwdFixupScript())
 
 	if hasRepoKey {
 		// ssh-agent guard: the default helper image (alpine/git) ships openssh-client

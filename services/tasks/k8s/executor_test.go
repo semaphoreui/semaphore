@@ -445,6 +445,62 @@ func TestRepositorySSHInstall_FiltersByOrigin(t *testing.T) {
 	assert.False(t, ok, "no repo entry → ok=false")
 }
 
+// --- Appendix A.3: OpenShift random-UID passwd fixup ----------------------------
+
+func TestPrepare_BuildScriptIncludesPasswdFixup(t *testing.T) {
+	cfg := newTestConfig()
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{}, db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, _ := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	script := pod.Spec.Containers[0].Args[0]
+
+	// The fixup must run before anything that might invoke ssh/git, since both shell
+	// out to getpwuid which trips "No user exists for uid" under OpenShift random UIDs.
+	assert.Contains(t, script, "whoami >/dev/null 2>&1",
+		"passwd fixup uses whoami as a getpwuid proxy")
+	assert.Contains(t, script, ">> /etc/passwd",
+		"fixup appends a synthetic passwd entry rather than rewriting")
+	assert.Contains(t, script, "$(id -u)")
+}
+
+func TestPrepare_InitScriptIncludesPasswdFixup(t *testing.T) {
+	cfg := newTestConfig()
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{GitURL: "https://example.com/r.git", GitBranch: "main"},
+		db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, _ := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	script := pod.Spec.InitContainers[0].Args[0]
+
+	// Init container needs the fixup just as badly — git over ssh fails first.
+	assert.Contains(t, script, ">> /etc/passwd")
+	assert.Contains(t, script, "whoami >/dev/null")
+}
+
+func TestPrepare_InitContainerSetsHomeEnv(t *testing.T) {
+	cfg := newTestConfig()
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
+		db.Repository{GitURL: "https://example.com/r.git"},
+		db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	pod, _ := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), exec.podName, metav1.GetOptions{})
+	init := pod.Spec.InitContainers[0]
+
+	var sawHome bool
+	for _, env := range init.Env {
+		if env.Name == "HOME" {
+			assert.Equal(t, "/workspace", env.Value,
+				"HOME must point at the writable workspace volume so the passwd fixup synthesizes a usable entry")
+			sawHome = true
+		}
+	}
+	assert.True(t, sawHome, "init container must set HOME for the passwd fixup to land a usable home dir")
+}
+
 func TestBuildGitCloneScript_ProducesValidCommand(t *testing.T) {
 	tests := []struct {
 		name       string
