@@ -351,79 +351,102 @@ func TestPrepare_InitContainerPassphraseProtectedRepoKeyUsesAskPass(t *testing.T
 	assert.Contains(t, script, sshMountPath(key.ID)+"/"+sshSecretFilePassphrase)
 }
 
-func TestStreamPodLogs_FetchesInitContainerAndBuildContainer(t *testing.T) {
+// terminate marks the Pod's containers as terminated and pushes a final phase via
+// the fake clientset's UpdateStatus path. Used by tests to simulate the real
+// kubelet/scheduler updating container state — the fake clientset doesn't do any
+// of that automatically.
+func terminate(t *testing.T, cfg Config, podName string, phase corev1.PodPhase, initNames, buildNames []string) {
+	t.Helper()
+	pod, err := cfg.Clientset.CoreV1().Pods(cfg.Namespace).Get(context.Background(), podName, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	mk := func(name string) corev1.ContainerStatus {
+		return corev1.ContainerStatus{
+			Name: name,
+			State: corev1.ContainerState{
+				Terminated: &corev1.ContainerStateTerminated{ExitCode: 0},
+			},
+		}
+	}
+	for _, n := range initNames {
+		pod.Status.InitContainerStatuses = append(pod.Status.InitContainerStatuses, mk(n))
+	}
+	for _, n := range buildNames {
+		pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, mk(n))
+	}
+	pod.Status.Phase = phase
+
+	_, err = cfg.Clientset.CoreV1().Pods(cfg.Namespace).UpdateStatus(context.Background(), pod, metav1.UpdateOptions{})
+	require.NoError(t, err)
+}
+
+func TestStreamPodLogsLive_FetchesInitContainerAndBuildContainer(t *testing.T) {
 	cfg := newTestConfig()
+	cfg.PollInterval = 5 * time.Millisecond
 	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
 		db.Repository{GitURL: "https://example.com/r.git", GitBranch: "main"},
 		db.Environment{})
 	require.NoError(t, exec.Prepare("", nil, ""))
 
-	// The fake clientset doesn't actually return Pod log bytes (it returns an empty
-	// stream), so we don't assert on the log content. What we DO assert is that the
-	// executor requested logs for every container — init container first, then build.
-	// Without this, a failed `git clone` would land users with a Pod-failed status
-	// and zero diagnostic output.
-	err := exec.streamPodLogs(context.Background())
-	require.NoError(t, err)
+	// Simulate the kubelet reporting both containers as terminated and the Pod as
+	// Succeeded. Without this the streamer loop never sees a containerHasStarted
+	// transition and would block forever.
+	terminate(t, cfg, exec.podName, corev1.PodSucceeded,
+		[]string{gitCloneInitContainerName},
+		[]string{buildContainerName})
 
-	wantContainers := map[string]bool{
-		gitCloneInitContainerName: false,
-		buildContainerName:        false,
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	phase, err := exec.streamPodLogsLive(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, corev1.PodSucceeded, phase)
+
+	// What we assert here is that the executor requested logs for both containers
+	// — init first, then build. Without this, a failed `git clone` would land users
+	// with a Pod-failed status and zero diagnostic output. We also verify Follow=true
+	// so users see logs *live* rather than as a post-mortem dump.
+	want := map[string]bool{gitCloneInitContainerName: false, buildContainerName: false}
 	for _, action := range cfg.Clientset.(*fake.Clientset).Actions() {
 		if action.GetVerb() != "get" || action.GetSubresource() != "log" {
 			continue
 		}
-		// The fake clientset records GetLogs with options accessible via the action's
-		// underlying type. Inspect the recorded container name via the action's value.
-		if logAction, ok := action.(interface {
-			GetName() string
-		}); ok {
-			_ = logAction.GetName() // pod name; container name lives in options
-		}
-		// k8s.io/client-go/testing.GetAction exposes the value via .GetValue() only
-		// on certain action types; for logs the container name reaches us via the
-		// GetLogsAction concrete type. Fall back to checking the *PodLogOptions
-		// stored in the action.
-		if logAction, ok := action.(interface {
-			GetValue() interface{}
-		}); ok {
-			if opts, ok := logAction.GetValue().(*corev1.PodLogOptions); ok {
-				wantContainers[opts.Container] = true
+		if v, ok := action.(interface{ GetValue() interface{} }); ok {
+			if opts, ok := v.GetValue().(*corev1.PodLogOptions); ok {
+				want[opts.Container] = true
+				assert.True(t, opts.Follow, "log stream for %s must use Follow=true for live tailing", opts.Container)
 			}
 		}
 	}
-
-	assert.True(t, wantContainers[gitCloneInitContainerName],
-		"init container logs must be streamed so failed clones surface their errors to the user")
-	assert.True(t, wantContainers[buildContainerName],
-		"build container logs must still be streamed")
+	assert.True(t, want[gitCloneInitContainerName], "init container log stream must be opened")
+	assert.True(t, want[buildContainerName], "build container log stream must be opened")
 }
 
-func TestStreamPodLogs_NoInitContainersStreamOnlyBuild(t *testing.T) {
+func TestStreamPodLogsLive_NoInitContainersStreamOnlyBuild(t *testing.T) {
 	cfg := newTestConfig()
+	cfg.PollInterval = 5 * time.Millisecond
 	// Local repo → no init container is added; only the build container exists.
 	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{},
 		db.Repository{GitURL: "/srv/local/repo"},
 		db.Environment{})
 	require.NoError(t, exec.Prepare("", nil, ""))
 
-	require.NoError(t, exec.streamPodLogs(context.Background()))
+	terminate(t, cfg, exec.podName, corev1.PodSucceeded, nil, []string{buildContainerName})
 
-	// Walk the recorded logs at the test logger level — when there's no init
-	// container the header "=== build ===" is omitted (header only appears when
-	// there's something to separate from).
-	// Note: the fake clientset doesn't produce log bytes; we only verify the call
-	// shape didn't error and didn't try to fetch from a phantom init container.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	phase, err := exec.streamPodLogsLive(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, corev1.PodSucceeded, phase)
+
 	sawInitFetch := false
 	for _, action := range cfg.Clientset.(*fake.Clientset).Actions() {
 		if action.GetVerb() != "get" || action.GetSubresource() != "log" {
 			continue
 		}
-		if logAction, ok := action.(interface {
-			GetValue() interface{}
-		}); ok {
-			if opts, ok := logAction.GetValue().(*corev1.PodLogOptions); ok {
+		if v, ok := action.(interface{ GetValue() interface{} }); ok {
+			if opts, ok := v.GetValue().(*corev1.PodLogOptions); ok {
 				if opts.Container == gitCloneInitContainerName {
 					sawInitFetch = true
 				}
@@ -431,6 +454,36 @@ func TestStreamPodLogs_NoInitContainersStreamOnlyBuild(t *testing.T) {
 		}
 	}
 	assert.False(t, sawInitFetch, "init container fetch must be skipped when there are no init containers")
+}
+
+func TestStreamPodLogsLive_PropagatesFailedPhase(t *testing.T) {
+	cfg := newTestConfig()
+	cfg.PollInterval = 5 * time.Millisecond
+	exec := New(cfg, db.Task{ID: 1}, db.Template{}, db.Inventory{}, db.Repository{}, db.Environment{})
+	require.NoError(t, exec.Prepare("", nil, ""))
+
+	terminate(t, cfg, exec.podName, corev1.PodFailed, nil, []string{buildContainerName})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	phase, err := exec.streamPodLogsLive(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, corev1.PodFailed, phase, "PodFailed must propagate so Run can return an error")
+}
+
+func TestContainerHasStarted(t *testing.T) {
+	assert.False(t, containerHasStarted(corev1.ContainerState{
+		Waiting: &corev1.ContainerStateWaiting{Reason: "PodInitializing"},
+	}), "waiting containers have no logs to stream yet")
+
+	assert.True(t, containerHasStarted(corev1.ContainerState{
+		Running: &corev1.ContainerStateRunning{},
+	}), "running containers are streamable")
+
+	assert.True(t, containerHasStarted(corev1.ContainerState{
+		Terminated: &corev1.ContainerStateTerminated{ExitCode: 1},
+	}), "fast-exiting containers (Waiting→Terminated without observed Running) must still be streamed")
 }
 
 func TestRepositorySSHInstall_FiltersByOrigin(t *testing.T) {

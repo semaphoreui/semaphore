@@ -73,6 +73,12 @@ type Executor struct {
 	mu     sync.Mutex
 	killed bool
 
+	// logMu serializes calls to the task logger across the live-streaming
+	// goroutines. The downstream Logger / runningJob has no internal locking, so
+	// the moment we stream from multiple containers (init + build) in parallel we
+	// need to coordinate writes at this layer.
+	logMu sync.Mutex
+
 	// podName is generated in Prepare and reused by Run / Cleanup. Empty until prepared.
 	podName string
 
@@ -122,6 +128,8 @@ func (e *Executor) SetStatus(status task_logger.TaskStatus) {
 }
 
 func (e *Executor) log(msg string) {
+	e.logMu.Lock()
+	defer e.logMu.Unlock()
 	if e.Logger != nil {
 		e.Logger.Log(msg)
 	}
@@ -271,18 +279,13 @@ func (e *Executor) Run(username string, incomingVersion *string, alias string) (
 	e.mu.Unlock()
 	defer cancel()
 
-	finalPhase, err := e.waitForPodCompletion(ctx)
+	finalPhase, err := e.streamPodLogsLive(ctx)
 	if err != nil {
 		if e.IsKilled() {
 			// Cancellation is expected; surface as a clean stop.
 			return nil
 		}
-		return fmt.Errorf("wait for pod completion: %w", err)
-	}
-
-	if streamErr := e.streamPodLogs(ctx); streamErr != nil {
-		// Log streaming failure should not mask the pod result; just record it.
-		e.log(fmt.Sprintf("k8s: failed to stream logs: %v", streamErr))
+		return fmt.Errorf("stream pod logs: %w", err)
 	}
 
 	if finalPhase == corev1.PodFailed {
@@ -643,71 +646,115 @@ func buildGitCloneScript(url, branch, repoPath string, repoKey sshKeyInstallatio
 	return b.String()
 }
 
-// waitForPodCompletion polls Pod status until it enters a terminal phase or the
-// context is cancelled. Polling (not watch) is fine for the skeleton; a future phase
-// will switch to a SharedInformer for efficiency on busy runners.
-func (e *Executor) waitForPodCompletion(ctx context.Context) (corev1.PodPhase, error) {
-	ticker := time.NewTicker(e.Config.PollInterval)
+// streamPodLogsLive watches the Pod and streams every container's log into the task
+// logger in real time. As soon as a container leaves the Waiting state (transitions to
+// Running, or jumps straight to Terminated if it crashed quickly) a dedicated goroutine
+// opens a Follow=true log stream and pumps each line into the Semaphore log. The main
+// loop polls Pod phase and returns once it reaches Succeeded or Failed — but only after
+// every in-flight streamer goroutine has finished, so trailing log lines aren't lost.
+//
+// Replaces the previous "wait then stream" design (waitForPodCompletion → streamPodLogs).
+// That two-pass approach meant users saw a long silent gap during ansible-playbook runs
+// and only got the full log dump at the end — which made debugging long playbooks
+// effectively impossible.
+//
+// Returns the Pod's final phase plus any error from the watch loop. Streamer errors are
+// logged into the task and do not propagate, because losing one container's tail is not
+// worth aborting the whole task.
+func (e *Executor) streamPodLogsLive(ctx context.Context) (corev1.PodPhase, error) {
+	pollInterval := e.Config.PollInterval
+	if pollInterval <= 0 {
+		pollInterval = time.Second
+	}
+
+	var wg sync.WaitGroup
+	started := make(map[string]bool)
+	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
+	streamerCtx, cancelStreamers := context.WithCancel(ctx)
+	defer cancelStreamers()
+
+	// Poll the Pod, react to container state transitions, return when terminal.
 	for {
 		select {
 		case <-ctx.Done():
+			wg.Wait()
 			return "", ctx.Err()
 		case <-ticker.C:
-			pod, err := e.Config.Clientset.CoreV1().Pods(e.Config.Namespace).Get(ctx, e.podName, metav1.GetOptions{})
-			if err != nil {
-				return "", err
+		}
+
+		pod, err := e.Config.Clientset.CoreV1().Pods(e.Config.Namespace).Get(ctx, e.podName, metav1.GetOptions{})
+		if err != nil {
+			cancelStreamers()
+			wg.Wait()
+			return "", err
+		}
+
+		hasInit := len(pod.Spec.InitContainers) > 0
+		for _, c := range pod.Status.InitContainerStatuses {
+			if started[c.Name] || !containerHasStarted(c.State) {
+				continue
 			}
-			switch pod.Status.Phase {
-			case corev1.PodSucceeded, corev1.PodFailed:
-				return pod.Status.Phase, nil
+			started[c.Name] = true
+			wg.Add(1)
+			go e.streamOneContainer(streamerCtx, &wg, c.Name, "init")
+		}
+		for _, c := range pod.Status.ContainerStatuses {
+			if started[c.Name] || !containerHasStarted(c.State) {
+				continue
 			}
+			started[c.Name] = true
+			wg.Add(1)
+			label := ""
+			if hasInit {
+				// Only emit a header for the build container when there were init
+				// containers above; otherwise the header is redundant.
+				label = "build"
+			}
+			go e.streamOneContainer(streamerCtx, &wg, c.Name, label)
+		}
+
+		switch pod.Status.Phase {
+		case corev1.PodSucceeded, corev1.PodFailed:
+			// Pod is done. Give the in-flight streamers a chance to drain (their
+			// streams will close as the kubelet closes the log endpoint for the
+			// terminated containers) before returning. ctx is still alive here so
+			// the streamers can finish naturally.
+			wg.Wait()
+			return pod.Status.Phase, nil
 		}
 	}
 }
 
-// streamPodLogs forwards every container's log stream into the task logger, in the
-// order containers ran: init containers first (git-clone today), then the build
-// container. This is critical for diagnostics — if `git clone` fails the build
-// container never starts, and without these init-container logs the task just
-// shows "pod failed" with no clue why.
+// streamOneContainer opens a Follow=true log stream for one container and pumps each
+// line into the task logger. Writes a single header line on entry so users can tell
+// where each container's output starts. Errors are logged but do not propagate — losing
+// one container's tail is worse logged than silently aborting the whole task.
 //
-// Each container's output is bracketed by a small header so the boundary is visible
-// in the Semaphore UI. A failure to read one container's logs is recorded but does
-// not short-circuit the rest: e.g. a still-pending init container that timed out
-// shouldn't hide the build container's output.
-//
-// The Pod has already terminated by the time we get here (the executor serializes
-// log read after Pod completion to keep the flow simple); future phases will stream
-// logs concurrently with execution via pods/attach.
-func (e *Executor) streamPodLogs(ctx context.Context) error {
-	pod, err := e.Config.Clientset.CoreV1().Pods(e.Config.Namespace).Get(ctx, e.podName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("get pod for log streaming: %w", err)
+// label, when non-empty, is rendered in the header as "<name> (<label>)" — used to
+// distinguish init- and build-container sections at a glance.
+func (e *Executor) streamOneContainer(ctx context.Context, wg *sync.WaitGroup, name, label string) {
+	defer wg.Done()
+
+	if label != "" {
+		e.log(fmt.Sprintf("=== %s (%s) ===", name, label))
+	} else {
+		e.log(fmt.Sprintf("=== %s ===", name))
 	}
 
-	// Init containers run in spec order, sequentially; preserve that order so the
-	// log timeline matches what actually happened inside the Pod.
-	for _, c := range pod.Spec.InitContainers {
-		e.log(fmt.Sprintf("=== %s (init) ===", c.Name))
-		if err := e.streamContainerLogs(ctx, c.Name); err != nil {
-			e.log(fmt.Sprintf("k8s: failed to read init container %s logs: %v", c.Name, err))
-		}
+	if err := e.followContainerLogs(ctx, name); err != nil && !errors.Is(err, context.Canceled) {
+		e.log(fmt.Sprintf("k8s: log stream for %s ended with error: %v", name, err))
 	}
-
-	if len(pod.Spec.InitContainers) > 0 {
-		e.log(fmt.Sprintf("=== %s ===", buildContainerName))
-	}
-	return e.streamContainerLogs(ctx, buildContainerName)
 }
 
-// streamContainerLogs pumps a single container's pods/log stream into the task
-// logger, line-by-line. Extracted from streamPodLogs so the per-container behaviour
-// (request → stream → bufio scan) is shared by init- and build-container readers.
-func (e *Executor) streamContainerLogs(ctx context.Context, container string) error {
+// followContainerLogs opens a long-lived log stream for one container with Follow=true
+// and forwards each line to the task logger until the stream closes (container exits)
+// or the context is cancelled (user stopped the task).
+func (e *Executor) followContainerLogs(ctx context.Context, container string) error {
 	req := e.Config.Clientset.CoreV1().Pods(e.Config.Namespace).GetLogs(e.podName, &corev1.PodLogOptions{
 		Container: container,
+		Follow:    true,
 	})
 	stream, err := req.Stream(ctx)
 	if err != nil {
@@ -716,6 +763,10 @@ func (e *Executor) streamContainerLogs(ctx context.Context, container string) er
 	defer func() { _ = stream.Close() }()
 
 	scanner := bufio.NewScanner(stream)
+	// Ansible's structured output can produce long lines (a single task header with
+	// lots of host vars); 1 MiB per line is a safe ceiling that still bounds memory.
+	const maxLine = 1024 * 1024
+	scanner.Buffer(make([]byte, 64*1024), maxLine)
 	for scanner.Scan() {
 		e.log(scanner.Text())
 	}
@@ -723,6 +774,14 @@ func (e *Executor) streamContainerLogs(ctx context.Context, container string) er
 		return err
 	}
 	return nil
+}
+
+// containerHasStarted reports whether a container has transitioned past its Waiting
+// state — meaning a `pods/log` stream is openable. Both Running and Terminated count:
+// for fast-exiting containers we may observe Terminated without ever catching the
+// Running phase, but the kubelet still serves the log endpoint and we still want it.
+func containerHasStarted(state corev1.ContainerState) bool {
+	return state.Running != nil || state.Terminated != nil
 }
 
 // generatePodName produces a DNS-1123-compatible Pod name. Format mirrors the spec:
