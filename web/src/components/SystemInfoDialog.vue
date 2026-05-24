@@ -189,14 +189,6 @@
                   <td class="font-weight-medium">{{ $t('nodeId') }}</td>
                   <td>{{ info.cluster.node_id }}</td>
                 </tr>
-                <tr v-if="info.cluster.ha_enabled && info.cluster.node_count != null">
-                  <td class="font-weight-medium">{{ $t('nodeCount') }}</td>
-                  <td>{{ info.cluster.node_count }}</td>
-                </tr>
-                <tr v-if="info.cluster.ha_enabled && info.cluster.ui_count != null">
-                  <td class="font-weight-medium">{{ $t('uiInstances') }}</td>
-                  <td>{{ info.cluster.ui_count }}</td>
-                </tr>
               </tbody>
             </v-simple-table>
           </v-card-text>
