@@ -9,8 +9,6 @@ import (
 )
 
 func getAdminInfo(w http.ResponseWriter, r *http.Request) {
-	store := helpers.Store(r)
-
 	// Database info
 	dbInfo := map[string]any{
 		"dialect": util.Config.Dialect,
@@ -62,14 +60,6 @@ func getAdminInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	if haEnabled && util.Config.HA != nil {
 		clusterInfo["node_id"] = util.Config.HA.NodeID
-		nodeCount, err := store.GetNodeCount()
-		if err == nil {
-			clusterInfo["node_count"] = nodeCount
-		}
-		uiCount, err := store.GetUiCount()
-		if err == nil {
-			clusterInfo["ui_count"] = uiCount
-		}
 	}
 
 	// Runners
