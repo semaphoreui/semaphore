@@ -4,6 +4,7 @@ When creating a pull-request you should:
 
 - __Open an issue first:__ Confirm that the change or feature will be accepted
 - __Update API documentation:__ If your pull-request adding/modifying an API request, make sure you update the Swagger documentation (`api-docs.yml`)
+- __Developer notes:__ For admin-only or HA-related HTTP APIs, update or add a short note under `docs/developer/` when behavior is non-obvious from code alone.
 - __Run API Tests:__ If your pull request modifies the API make sure you run the integration tests using **dredd**.
 
 ## Installation in a development environment
