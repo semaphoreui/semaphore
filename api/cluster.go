@@ -30,7 +30,8 @@ func taskStateInspectorFromContext(r *http.Request) taskServices.TaskStateInspec
 }
 
 // getClusterStatus reports HA mode, cluster membership and Redis stats.
-// It never fails: with HA disabled or no inspector it returns ha_enabled:false.
+// When HA is off it returns 200 with ha_enabled:false. When HA is on but no
+// ClusterInspector is wired (typical OSS), it returns 503.
 func getClusterStatus(w http.ResponseWriter, r *http.Request) {
 	body := map[string]any{
 		"ha_enabled": util.HAEnabled(),
@@ -38,6 +39,7 @@ func getClusterStatus(w http.ResponseWriter, r *http.Request) {
 
 	if !util.HAEnabled() {
 		helpers.WriteJSON(w, http.StatusOK, body)
+		return
 	}
 
 	if util.Config.HA != nil {
