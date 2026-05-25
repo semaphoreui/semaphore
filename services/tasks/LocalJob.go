@@ -642,6 +642,10 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 		t.Repository.GitBranch = *t.Task.GitBranch
 	}
 
+	if t.Repository.GitBranch != "main" {
+		return fmt.Errorf("branch must be 'main', got '%s'", t.Repository.GitBranch)
+	}
+
 	if t.Repository.GetType() == db.RepositoryLocal {
 		if _, err := os.Stat(t.Repository.GitURL); err != nil {
 			t.Log("Failed in finding static repository at " + t.Repository.GitURL + ": " + err.Error())

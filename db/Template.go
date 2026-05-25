@@ -208,6 +208,10 @@ func (tpl *Template) Validate() error {
 		}
 	}
 
+	if tpl.GitBranch != nil && *tpl.GitBranch != "" && *tpl.GitBranch != "main" {
+		return &ValidationError{"template git branch must be 'main'"}
+	}
+
 	return nil
 }
 
