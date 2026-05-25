@@ -287,14 +287,7 @@ semaphore runner start --config ./config.runner.json</pre
       >
         {{ $t('default') }}
       </v-chip>
-      <v-chip
-        v-if="tagFilter"
-        small
-        close
-        label
-        color="primary"
-        @click:close="tagFilter = null"
-      >
+      <v-chip v-if="tagFilter" small close label color="primary" @click:close="tagFilter = null">
         {{ tagFilter }}
       </v-chip>
     </div>
@@ -679,8 +672,10 @@ semaphore runner start --no-config`;
     },
 
     getSingleItemUrl() {
-      if (this.projectId) {
-        return `/api/project/${this.projectId}/runners/${this.itemId}`;
+      const projectId = this.getProjectIdOfItem(this.itemId);
+
+      if (projectId) {
+        return `/api/project/${projectId}/runners/${this.itemId}`;
       }
 
       return `/api/runners/${this.itemId}`;
