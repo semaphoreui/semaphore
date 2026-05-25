@@ -276,17 +276,30 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 
 	if t.Task.Environment == "" {
 		return
-
-	}
-
-	tplEnvironment := make(map[string]any)
-	err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
-	if err != nil {
-		return
 	}
 
 	taskEnvironment := make(map[string]any)
 	err = json.Unmarshal([]byte(t.Task.Environment), &taskEnvironment)
+	if err != nil {
+		return
+	}
+
+	allowed := make(map[string]bool)
+	for _, sv := range t.Template.SurveyVars {
+		allowed[sv.Name] = true
+	}
+	for k := range taskEnvironment {
+		if !allowed[k] {
+			delete(taskEnvironment, k)
+		}
+	}
+
+	if len(taskEnvironment) == 0 {
+		return
+	}
+
+	tplEnvironment := make(map[string]any)
+	err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
 	if err != nil {
 		return
 	}

@@ -178,6 +178,11 @@ func GetEnvironment(w http.ResponseWriter, r *http.Request) {
 
 // UpdateEnvironment updates an existing environment in the database
 func (c *EnvironmentController) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
+	if !isOwnerOrAdmin(r) {
+		helpers.WriteErrorStatus(w, "only owners can edit variable groups", http.StatusForbidden)
+		return
+	}
+
 	oldEnv := helpers.GetFromContext(r, "environment").(db.Environment)
 	var env db.Environment
 	if !helpers.Bind(w, r, &env) {
@@ -221,6 +226,11 @@ func (c *EnvironmentController) UpdateEnvironment(w http.ResponseWriter, r *http
 
 // AddEnvironment creates an environment in the database
 func (c *EnvironmentController) AddEnvironment(w http.ResponseWriter, r *http.Request) {
+	if !isOwnerOrAdmin(r) {
+		helpers.WriteErrorStatus(w, "only owners can create variable groups", http.StatusForbidden)
+		return
+	}
+
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	var env db.Environment
 
@@ -267,6 +277,11 @@ func (c *EnvironmentController) AddEnvironment(w http.ResponseWriter, r *http.Re
 
 // RemoveEnvironment deletes an environment from the database
 func (c *EnvironmentController) RemoveEnvironment(w http.ResponseWriter, r *http.Request) {
+	if !isOwnerOrAdmin(r) {
+		helpers.WriteErrorStatus(w, "only owners can delete variable groups", http.StatusForbidden)
+		return
+	}
+
 	env := helpers.GetFromContext(r, "environment").(db.Environment)
 
 	err := c.environmentService.Delete(env.ProjectID, env.ID)

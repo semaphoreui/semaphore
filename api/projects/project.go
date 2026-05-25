@@ -64,6 +64,27 @@ func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFu
 	}
 }
 
+func isOwnerOrAdmin(r *http.Request) bool {
+	user := helpers.GetFromContext(r, "user").(*db.User)
+	if user.Admin {
+		return true
+	}
+	role := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
+	return role.Can(db.CanManageProjectConfiguration)
+}
+
+func surveyVarsEqual(a, b []db.SurveyVar) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Name != b[i].Name {
+			return false
+		}
+	}
+	return true
+}
+
 type ProjectController struct {
 	ProjectService server.ProjectService
 }

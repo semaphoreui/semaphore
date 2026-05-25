@@ -74,6 +74,21 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !isOwnerOrAdmin(r) {
+		if template.Arguments != nil && *template.Arguments != "" && *template.Arguments != "[]" {
+			helpers.WriteErrorStatus(w, "only owners can set CLI arguments on a template", http.StatusForbidden)
+			return
+		}
+		if template.AllowOverrideArgsInTask {
+			helpers.WriteErrorStatus(w, "only owners can allow CLI argument overrides on a template", http.StatusForbidden)
+			return
+		}
+		if len(template.SurveyVars) > 0 {
+			helpers.WriteErrorStatus(w, "only owners can set survey variables on a template", http.StatusForbidden)
+			return
+		}
+	}
+
 	var err error
 
 	template.ProjectID = project.ID
@@ -182,6 +197,23 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	var template db.Template
 	if !helpers.Bind(w, r, &template) {
 		return
+	}
+
+	if !isOwnerOrAdmin(r) {
+		if template.Arguments != nil && *template.Arguments != "" && *template.Arguments != "[]" {
+			helpers.WriteErrorStatus(w, "only owners can set CLI arguments on a template", http.StatusForbidden)
+			return
+		}
+		if template.AllowOverrideArgsInTask && !oldTemplate.AllowOverrideArgsInTask {
+			helpers.WriteErrorStatus(w, "only owners can allow CLI argument overrides on a template", http.StatusForbidden)
+			return
+		}
+		if len(template.SurveyVars) > 0 && !surveyVarsEqual(template.SurveyVars, oldTemplate.SurveyVars) {
+			helpers.WriteErrorStatus(w, "only owners can set survey variables on a template", http.StatusForbidden)
+			return
+		}
+		template.AllowOverrideArgsInTask = oldTemplate.AllowOverrideArgsInTask
+		template.SurveyVars = oldTemplate.SurveyVars
 	}
 
 	if _, ok := util.Config.Apps[string(template.App)]; !ok {

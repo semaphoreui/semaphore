@@ -707,6 +707,10 @@ func ValidateRepository(store Store, repo *Repository) (err error) {
 }
 
 func ValidateInventory(store Store, inventory *Inventory) (err error) {
+	if err = inventory.Validate(); err != nil {
+		return
+	}
+
 	if inventory.SSHKeyID != nil {
 		_, err = store.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
 	}

@@ -121,6 +121,15 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 		if err != nil {
 			return
 		}
+		allowed := make(map[string]bool)
+		for _, sv := range t.Template.SurveyVars {
+			allowed[sv.Name] = true
+		}
+		for k := range extraSecretVars {
+			if !allowed[k] {
+				delete(extraSecretVars, k)
+			}
+		}
 	}
 	t.Secret = "{}"
 
