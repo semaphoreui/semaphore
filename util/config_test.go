@@ -3,8 +3,10 @@ package util
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -405,6 +407,92 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 	//	// inactive db-dialects could be set as they share the same env-vars; but should be ignored
 	//	t.Error("DB-Hostname was loaded for inactive DB-dialects!")
 	//}
+}
+
+func TestIsYAMLConfig(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"config.yaml", true},
+		{"config.yml", true},
+		{"/etc/semaphore/config.YAML", true},
+		{"config.json", false},
+		{"config", false},
+		{"", false},
+		{"config.yaml.bak", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			assert.Equal(t, tt.want, isYAMLConfig(tt.path))
+		})
+	}
+}
+
+func TestDecodeConfig_JSON(t *testing.T) {
+	Config = new(ConfigType)
+
+	jsonBody := `{"port":":1337","cookie_hash":"abc","max_parallel_tasks":7}`
+	decodeConfig(strings.NewReader(jsonBody), "config.json")
+
+	assert.Equal(t, ":1337", Config.Port)
+	assert.Equal(t, "abc", Config.CookieHash)
+	assert.Equal(t, 7, Config.MaxParallelTasks)
+}
+
+func TestDecodeConfig_YAML(t *testing.T) {
+	Config = new(ConfigType)
+
+	yamlBody := `
+port: ":1337"
+cookie_hash: abc
+max_parallel_tasks: 7
+bolt:
+  host: /tmp/db.bolt
+`
+	decodeConfig(strings.NewReader(yamlBody), "config.yaml")
+
+	assert.Equal(t, ":1337", Config.Port)
+	assert.Equal(t, "abc", Config.CookieHash)
+	assert.Equal(t, 7, Config.MaxParallelTasks)
+	require.NotNil(t, Config.BoltDb)
+	assert.Equal(t, "/tmp/db.bolt", Config.BoltDb.Hostname)
+}
+
+func TestDecodeConfig_YAML_YmlExtension(t *testing.T) {
+	Config = new(ConfigType)
+
+	yamlBody := "port: \":4242\"\n"
+	decodeConfig(strings.NewReader(yamlBody), "config.yml")
+
+	assert.Equal(t, ":4242", Config.Port)
+}
+
+func TestLoadConfigFile_YAML(t *testing.T) {
+	Config = new(ConfigType)
+
+	dir := t.TempDir()
+	p := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(p, []byte("port: \":9999\"\ncookie_hash: yaml-hash\n"), 0600))
+
+	used := loadConfigFile(p)
+	require.NotNil(t, used)
+	assert.Equal(t, p, *used)
+	assert.Equal(t, ":9999", Config.Port)
+	assert.Equal(t, "yaml-hash", Config.CookieHash)
+}
+
+func TestLoadConfigFile_JSON(t *testing.T) {
+	Config = new(ConfigType)
+
+	dir := t.TempDir()
+	p := filepath.Join(dir, "config.json")
+	require.NoError(t, os.WriteFile(p, []byte(`{"port":":8888"}`), 0600))
+
+	used := loadConfigFile(p)
+	require.NotNil(t, used)
+	assert.Equal(t, p, *used)
+	assert.Equal(t, ":8888", Config.Port)
 }
 
 func TestLoadConfigDefaults(t *testing.T) {
