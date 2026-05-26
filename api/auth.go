@@ -103,7 +103,7 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 
 	switch session.VerificationMethod {
 	case db.SessionVerificationTotp:
-		if !util.Config.Auth.Totp.Enabled || !util.Config.Auth.Totp.AllowRecovery {
+		if !util.Config.Mfa.Totp.Enabled || !util.Config.Mfa.Totp.AllowRecovery {
 			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
 			return
 		}
@@ -167,7 +167,7 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case db.SessionVerificationTotp:
-		if !util.Config.Auth.Totp.Enabled {
+		if !util.Config.Mfa.Totp.Enabled {
 			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
 			return
 		}

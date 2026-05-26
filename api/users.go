@@ -316,7 +316,7 @@ func totpQr(w http.ResponseWriter, r *http.Request) {
 func enableTotp(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "_user").(db.User)
 
-	if !util.Config.Auth.Totp.Enabled {
+	if !util.Config.Mfa.Totp.Enabled {
 		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusBadRequest)
 		return
 	}
@@ -338,7 +338,7 @@ func enableTotp(w http.ResponseWriter, r *http.Request) {
 
 	var code, hash string
 
-	if util.Config.Auth.Totp.AllowRecovery {
+	if util.Config.Mfa.Totp.AllowRecovery {
 		code, hash, err = util.GenerateRecoveryCode()
 		if err != nil {
 			helpers.WriteError(w, err)

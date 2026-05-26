@@ -43,13 +43,13 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	var authMethods LoginAuthMethods
 
-	if util.Config.Auth.Totp.Enabled {
+	if util.Config.Mfa.Totp.Enabled {
 		authMethods.Totp = &LoginTotpAuthMethod{
-			AllowRecovery: util.Config.Auth.Totp.AllowRecovery,
+			AllowRecovery: util.Config.Mfa.Totp.AllowRecovery,
 		}
 	}
 
-	if util.Config.Auth.Email.Enabled {
+	if util.Config.Mfa.Email.Enabled {
 		authMethods.Email = &LoginEmailAuthMethod{}
 	}
 

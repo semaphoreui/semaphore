@@ -156,7 +156,7 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 	verified := false
 
 	switch {
-	case user.Totp != nil && util.Config.Auth.Totp.Enabled:
+	case user.Totp != nil && util.Config.Mfa.Totp.Enabled:
 		verificationMethod = db.SessionVerificationTotp
 	default:
 		verificationMethod = db.SessionVerificationNone
@@ -293,9 +293,9 @@ func login(w http.ResponseWriter, r *http.Request) {
 			return a.Order < b.Order
 		})
 
-		if util.Config.Auth.Totp.Enabled {
+		if util.Config.Mfa.Totp.Enabled {
 			config.AuthMethods.Totp = &LoginTotpAuthMethod{
-				AllowRecovery: util.Config.Auth.Totp.AllowRecovery,
+				AllowRecovery: util.Config.Mfa.Totp.AllowRecovery,
 			}
 		}
 

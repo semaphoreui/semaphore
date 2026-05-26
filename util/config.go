@@ -297,7 +297,7 @@ type ConfigType struct {
 	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 	TLS  *TLSConfig `json:"tls,omitempty"`
 
-	Auth *AuthConfig `json:"auth,omitempty"`
+	Mfa *MultifactorAuthConfig `json:"mfa,omitempty"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
