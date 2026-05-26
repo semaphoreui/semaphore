@@ -163,6 +163,7 @@ func decryptJWTKey(stored string) ([]byte, error) {
 		return ciphertext, nil
 	}
 
+	// this is duplicated from LocalAccessKeyDeserializer
 	keyBytes, err := base64.StdEncoding.DecodeString(encryptionKey)
 	if err != nil {
 		return nil, fmt.Errorf("decode encryption key: %w", err)
