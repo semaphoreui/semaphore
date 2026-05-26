@@ -61,24 +61,20 @@ func jwtSignerOptions() jwt.SignerOptions {
 		}
 	}
 
-	issuer := Config.JWTIssuer
-	if issuer == "" {
-		if Config.WebHost != "" {
-			issuer = Config.WebHost
+	maxTTL := 24 * time.Hour
+	if Config.JWTMaxTTL != "" {
+		if parsed, err := time.ParseDuration(Config.JWTMaxTTL); err == nil && parsed > 0 {
+			maxTTL = parsed
 		} else {
-			issuer = "semaphore"
+			fmt.Fprintf(os.Stderr, "jwt: invalid jwt_max_ttl %q, falling back to 24h: %v\n", Config.JWTMaxTTL, err)
 		}
 	}
 
-	audience := Config.JWTAudience
-	if audience == "" {
-		audience = "semaphore"
-	}
-
 	return jwt.SignerOptions{
-		Issuer:   issuer,
-		Audience: audience,
+		Issuer:   Config.JWTIssuer,
+		Audience: jwt.Audience{Config.JWTAudience},
 		TTL:      ttl,
+		MaxTTL:   maxTTL,
 	}
 }
 

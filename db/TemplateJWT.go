@@ -1,6 +1,9 @@
 package db
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -19,36 +22,39 @@ type TemplateJWTParams struct {
 	TTL      string   `json:"ttl,omitempty"`
 }
 
-// var _ sql.Scanner = (*TemplateJWTParams)(nil)
-// var _ driver.Valuer = (*TemplateJWTParams)(nil)
+// Scan implements sql.Scanner so TemplateJWTParams can be read from a TEXT
+// column. NULL or empty values produce a zero-valued struct.
+func (p *TemplateJWTParams) Scan(value any) error {
+	if value == nil {
+		*p = TemplateJWTParams{}
+		return nil
+	}
+	switch v := value.(type) {
+	case []byte:
+		if len(v) == 0 {
+			*p = TemplateJWTParams{}
+			return nil
+		}
+		return json.Unmarshal(v, p)
+	case string:
+		if v == "" {
+			*p = TemplateJWTParams{}
+			return nil
+		}
+		return json.Unmarshal([]byte(v), p)
+	default:
+		return errors.New("unsupported type for TemplateJWTParams")
+	}
+}
 
-// Scan implements sql.Scanner.
-// func (p *TemplateJWTParams) Scan(value any) error {
-// 	if value == nil {
-// 		*p = TemplateJWTParams{}
-// 		return nil
-// 	}
-// 	switch v := value.(type) {
-// 	case []byte:
-// 		return json.Unmarshal(v, p)
-// 	case string:
-// 		if v == "" {
-// 			*p = TemplateJWTParams{}
-// 			return nil
-// 		}
-// 		return json.Unmarshal([]byte(v), p)
-// 	default:
-// 		return errors.New("unsupported type for TemplateJWTParams")
-// 	}
-// }
-
-// Value implements driver.Valuer.
-// func (p *TemplateJWTParams) Value() (driver.Value, error) {
-// 	if p == nil {
-// 		return nil, nil
-// 	}
-// 	return json.Marshal(p)
-// }
+// Value implements driver.Valuer so TemplateJWTParams is JSON-encoded when
+// written to a TEXT column. A nil pointer is stored as SQL NULL.
+func (p *TemplateJWTParams) Value() (driver.Value, error) {
+	if p == nil {
+		return nil, nil
+	}
+	return json.Marshal(p)
+}
 
 // ParsedTTL returns the parsed TTL or zero when unset. An error is returned
 // when the value is not a valid Go duration.

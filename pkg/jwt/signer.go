@@ -50,17 +50,21 @@ func GenerateKeyPEM() ([]byte, error) {
 	}), nil
 }
 
+const defaultMaxTTL = 24 * time.Hour
+
 // NewRSASignerFromPEM creates a Signer from a PEM-encoded RSA private key that
 // the caller has already loaded (and decrypted, if stored encrypted). This is
 // the primary constructor used by the server; key management (generation,
 // encryption, storage) is handled by the util layer.
 func NewRSASignerFromPEM(pemBytes []byte, opts SignerOptions) (Signer, error) {
+	if opts.MaxTTL <= 0 {
+		opts.MaxTTL = defaultMaxTTL
+	}
 	if opts.TTL <= 0 {
 		opts.TTL = time.Hour
 	}
-	const maxTTL = 24 * time.Hour
-	if opts.TTL > maxTTL {
-		opts.TTL = maxTTL
+	if opts.TTL > opts.MaxTTL {
+		opts.TTL = opts.MaxTTL
 	}
 
 	key, err := parsePrivateKey(pemBytes)
@@ -101,13 +105,26 @@ func (s *rsaSigner) Sign(info TaskInfo) (string, error) {
 		return "", err
 	}
 
+	audience := s.options.Audience
+	if len(info.Audience) > 0 {
+		audience = info.Audience
+	}
+
+	ttl := s.options.TTL
+	if info.TTL > 0 {
+		ttl = info.TTL
+	}
+	if s.options.MaxTTL > 0 && ttl > s.options.MaxTTL {
+		ttl = s.options.MaxTTL
+	}
+
 	claims := TaskClaims{
 		Issuer:    s.options.Issuer,
-		Audience:  s.options.Audience,
+		Audience:  audience,
 		Subject:   fmt.Sprintf("task:%d", info.TaskID),
 		IssuedAt:  now.Unix(),
 		NotBefore: now.Unix(),
-		ExpiresAt: now.Add(s.options.TTL).Unix(),
+		ExpiresAt: now.Add(ttl).Unix(),
 		JWTID:     jti,
 
 		TaskID:       info.TaskID,
