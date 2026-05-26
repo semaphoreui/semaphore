@@ -22,6 +22,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :is-admin="true"
+          :is-tags-available="features.project_runners"
         />
       </template>
     </EditDialog>
