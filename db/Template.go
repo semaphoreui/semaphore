@@ -171,6 +171,8 @@ type Template struct {
 
 	AllowOverrideBranchInTask bool `db:"allow_override_branch_in_task" json:"allow_override_branch_in_task,omitempty"`
 	AllowParallelTasks        bool `db:"allow_parallel_tasks" json:"allow_parallel_tasks,omitempty"`
+
+	JWTParams *TemplateJWTParams `db:"jwt_params" json:"jwt_params,omitempty"`
 }
 
 type TemplateWithPerms struct {
@@ -230,6 +232,10 @@ func (tpl *Template) Validate() error {
 		if err := ValidateGitBranch(*tpl.GitBranch, "template"); err != nil {
 			return err
 		}
+	}
+
+	if err := tpl.JWTParams.Validate(); err != nil {
+		return err
 	}
 
 	return nil
