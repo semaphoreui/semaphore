@@ -12,6 +12,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	semjwt "github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/services/server"
@@ -137,6 +138,9 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 
 	tasks := c.taskPool.GetRunningTasks()
 
+	store := helpers.Store(r)
+	projectNames := make(map[int]string)
+
 	for _, tsk := range tasks {
 		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runner.ID {
 			continue
@@ -144,7 +148,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 
 		if tsk.Task.Status == task_logger.TaskStartingStatus {
 
-			data.NewJobs = append(data.NewJobs, runners.JobData{
+			jobData := runners.JobData{
 				Username:            tsk.Username,
 				IncomingVersion:     tsk.IncomingVersion,
 				Alias:               tsk.Alias,
@@ -154,7 +158,37 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 				InventoryRepository: tsk.Inventory.Repository,
 				Repository:          tsk.Repository,
 				Environment:         tsk.Environment,
-			})
+			}
+
+			if signer := semjwt.Default(); signer != nil {
+				projectName, ok := projectNames[tsk.Task.ProjectID]
+				if !ok {
+					if project, err := store.GetProject(tsk.Task.ProjectID); err == nil {
+						projectName = project.Name
+					}
+					projectNames[tsk.Task.ProjectID] = projectName
+				}
+
+				token, err := signer.Sign(semjwt.TaskInfo{
+					TaskID:       tsk.Task.ID,
+					ProjectID:    tsk.Task.ProjectID,
+					ProjectName:  projectName,
+					TemplateID:   tsk.Template.ID,
+					TemplateName: tsk.Template.Name,
+					UserID:       tsk.Task.UserID,
+					Username:     tsk.Username,
+				})
+				if err != nil {
+					log.WithError(err).WithFields(log.Fields{
+						"task_id": tsk.Task.ID,
+						"context": "jwt",
+					}).Error("failed to sign task JWT")
+				} else {
+					jobData.JWT = token
+				}
+			}
+
+			data.NewJobs = append(data.NewJobs, jobData)
 
 			if tsk.Inventory.SSHKeyID != nil {
 				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.SSHKey)

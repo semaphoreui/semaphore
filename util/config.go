@@ -391,6 +391,13 @@ type ConfigType struct {
 
 	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
+	// JWT issuance for task executions (used by playbooks to authenticate to
+	// external systems such as HashiCorp Vault via the JWT auth method).
+	JWTEnabled  bool   `json:"jwt_enabled,omitempty" env:"SEMAPHORE_JWT_ENABLED"`
+	JWTIssuer   string `json:"jwt_issuer,omitempty" env:"SEMAPHORE_JWT_ISSUER"`
+	JWTAudience       string `json:"jwt_audience,omitempty" env:"SEMAPHORE_JWT_AUDIENCE" default:"semaphore"`
+	JWTTTL            string `json:"jwt_ttl,omitempty" env:"SEMAPHORE_JWT_TTL" default:"1h"`
+
 	// feature switches
 	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
 	NonAdminCanCreateProject bool `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`

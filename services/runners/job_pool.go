@@ -689,6 +689,7 @@ func (p *JobPool) checkNewJobs() {
 				Inventory:    newJob.Inventory,
 				Repository:   newJob.Repository,
 				Environment:  newJob.Environment,
+				JWT:          newJob.JWT,
 				KeyInstaller: p.keyInstaller,
 				App: db_lib.CreateApp(
 					newJob.Template,

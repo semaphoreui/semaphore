@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/semaphoreui/semaphore/db_lib"
+	semjwt "github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/tasks/hooks"
@@ -213,6 +214,35 @@ func (t *TaskRunner) run() {
 	if t.Template.Type != db.TemplateTask {
 		incomingVersion = t.Task.GetIncomingVersion(t.pool.store)
 
+	}
+
+	// For locally-executed tasks, mint a JWT and pass it to the LocalJob so it
+	// can be exposed to the playbook as SEMAPHORE_JWT. Remote runners receive
+	// the JWT inside the JobData payload returned by the API.
+	if localJob, ok := t.job.(*LocalJob); ok {
+		if signer := semjwt.Default(); signer != nil {
+			var projectName string
+			if project, perr := t.pool.store.GetProject(t.Task.ProjectID); perr == nil {
+				projectName = project.Name
+			}
+			token, jerr := signer.Sign(semjwt.TaskInfo{
+				TaskID:       t.Task.ID,
+				ProjectID:    t.Task.ProjectID,
+				ProjectName:  projectName,
+				TemplateID:   t.Template.ID,
+				TemplateName: t.Template.Name,
+				UserID:       t.Task.UserID,
+				Username:     username,
+			})
+			if jerr != nil {
+				log.WithError(jerr).WithFields(log.Fields{
+					"task_id": t.Task.ID,
+					"context": "jwt",
+				}).Error("failed to sign task JWT")
+			} else {
+				localJob.JWT = token
+			}
+		}
 	}
 
 	err = t.job.Run(username, incomingVersion, t.Alias)

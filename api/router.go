@@ -139,6 +139,8 @@ func Route(
 
 	r.Use(mux.CORSMethodMiddleware(r))
 
+	r.Path("/.well-known/jwks.json").Methods("GET", "HEAD").HandlerFunc(jwksHandler)
+
 	pingRouter := r.Path(webPath + "api/ping").Subrouter()
 	pingRouter.Use(plainTextMiddleware)
 	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)

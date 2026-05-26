@@ -75,6 +75,10 @@ func Execute() {
 func runService() {
 	store := createStore("root")
 
+	if err := util.InitJWTSignerFromStore(store); err != nil {
+		log.WithError(err).Fatal("failed to initialise JWT signer")
+	}
+
 	initSyslog(util.Config.Syslog)
 
 	// Initialize HA node identity before any component that uses it.
