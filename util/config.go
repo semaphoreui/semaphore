@@ -384,11 +384,7 @@ type ConfigType struct {
 
 	UseRemoteRunner bool `json:"use_remote_runner,omitempty" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
-	IntegrationAlias string `json:"global_integration_alias,omitempty" env:"SEMAPHORE_INTEGRATION_ALIAS"`
-
 	Apps map[string]App `json:"apps,omitempty" env:"SEMAPHORE_APPS"`
-
-	Runner *RunnerConfig `json:"runner,omitempty"`
 
 	EnvVars map[string]string `json:"env_vars,omitempty" env:"SEMAPHORE_ENV_VARS"`
 
@@ -411,6 +407,8 @@ type ConfigType struct {
 	Subscription *SubscriptionConfig `json:"subscription,omitempty"`
 
 	Dirs *ConfigDirs `json:"dirs,omitempty"`
+
+	Runner *RunnerConfig `json:"runner,omitempty"`
 }
 
 type SubscriptionConfig struct {
