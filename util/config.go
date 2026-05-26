@@ -1251,6 +1251,19 @@ func (d *DbConfig) GetHostname() string {
 	return d.Hostname
 }
 
+// mysqlHasNetworkPrefix reports whether the host string already contains a
+// MySQL driver network-type prefix (tcp, tcp4, tcp6, unix, pipe) of the form
+// "<protocol>(<address>)".  In that case the host should be passed as-is to
+// the driver instead of being wrapped with "tcp(...)".
+func mysqlHasNetworkPrefix(host string) bool {
+	for _, prefix := range []string{"tcp(", "tcp4(", "tcp6(", "unix(", "pipe("} {
+		if strings.HasPrefix(host, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // GetConnectionString constructs the database connection string based on the current configuration.
 // It supports MySQL, BoltDB, and PostgreSQL dialects.
 // If the dialect is unsupported, it returns an error.
@@ -1271,19 +1284,26 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 	case DbDriverBolt:
 		connectionString = dbHost
 	case DbDriverMySQL:
+		// If the host already specifies a network type (e.g. unix(/var/run/mysqld/mysqld.sock)),
+		// use it as-is; otherwise wrap it with tcp().
+		// Supported MySQL driver protocols: tcp, tcp4, tcp6, unix, pipe.
+		hostStr := dbHost
+		if !mysqlHasNetworkPrefix(dbHost) {
+			hostStr = "tcp(" + dbHost + ")"
+		}
 		if includeDbName {
 			connectionString = fmt.Sprintf(
-				"%s:%s@tcp(%s)/%s",
+				"%s:%s@%s/%s",
 				dbUser,
 				dbPass,
-				dbHost,
+				hostStr,
 				dbName)
 		} else {
 			connectionString = fmt.Sprintf(
-				"%s:%s@tcp(%s)/",
+				"%s:%s@%s/",
 				dbUser,
 				dbPass,
-				dbHost)
+				hostStr)
 		}
 		options := map[string]string{
 			"parseTime":         "true",

@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -342,6 +343,48 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 	//	// inactive db-dialects could be set as they share the same env-vars; but should be ignored
 	//	t.Error("DB-Hostname was loaded for inactive DB-dialects!")
 	//}
+}
+
+func TestMySQLGetConnectionString(t *testing.T) {
+	// Ensure environment variable doesn't interfere with Hostname field
+	if err := os.Unsetenv("SEMAPHORE_DB_HOST"); err != nil {
+		t.Fatal(err)
+	}
+
+	// TCP host should be wrapped with tcp()
+	tcpCfg := &DbConfig{
+		Dialect:  DbDriverMySQL,
+		Hostname: "127.0.0.1:3306",
+		Username: "user",
+		Password: "pass",
+		DbName:   "semaphore",
+	}
+	connStr, err := tcpCfg.GetConnectionString(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(connStr, "@tcp(127.0.0.1:3306)/semaphore") {
+		t.Errorf("Expected tcp wrapper in connection string, got: %s", connStr)
+	}
+
+	// Unix socket host should NOT be wrapped with tcp()
+	unixCfg := &DbConfig{
+		Dialect:  DbDriverMySQL,
+		Hostname: "unix(/var/run/mysqld/mysqld.sock)",
+		Username: "user",
+		Password: "pass",
+		DbName:   "semaphore",
+	}
+	connStr, err = unixCfg.GetConnectionString(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(connStr, "@tcp(") {
+		t.Errorf("Unexpected tcp wrapper in unix socket connection string, got: %s", connStr)
+	}
+	if !strings.Contains(connStr, "@unix(/var/run/mysqld/mysqld.sock)/semaphore") {
+		t.Errorf("Expected unix socket in connection string, got: %s", connStr)
+	}
 }
 
 func TestLoadConfigDefaults(t *testing.T) {
