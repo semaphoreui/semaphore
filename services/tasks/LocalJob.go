@@ -27,6 +27,11 @@ type LocalJob struct {
 	Secret      string             // Secret contains secrets received from Survey variables
 	Logger      task_logger.Logger // Logger allows to send logs and status to the server
 
+	// JWT is the server-signed token for this task. When non-empty it is
+	// exposed to the task subprocess via the SEMAPHORE_JWT environment
+	// variable.
+	JWT string
+
 	App db_lib.LocalApp
 
 	killed  bool // killed means that API request to stop the job has been received
@@ -173,6 +178,10 @@ func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
 			continue
 		}
 		res = append(res, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	}
+
+	if t.JWT != "" {
+		res = append(res, fmt.Sprintf("SEMAPHORE_JWT=%s", t.JWT))
 	}
 
 	return
