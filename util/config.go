@@ -408,13 +408,17 @@ type ConfigType struct {
 
 	HA *HAConfig `json:"ha,omitempty"`
 
-	// SubscriptionKey is a subscription key or token that can be set via config.
-	// When this is set, subscription activation from the web interface is disabled.
-	SubscriptionKey     string `json:"subscription_key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY,sensitive"`
-	SubscriptionKeyFile string `json:"subscription_key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
+	Subscription *SubscriptionConfig `json:"subscription,omitempty"`
 
-	Dirs                  *ConfigDirs `json:"dirs,omitempty"`
-	SubscriptionServerURL string      `json:"subscription_server_url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_SERVER_URL" default:"https://portal.semaphoreui.com/billing"`
+	Dirs *ConfigDirs `json:"dirs,omitempty"`
+}
+
+type SubscriptionConfig struct {
+	// Key is a subscription key or token that can be set via config.
+	// When this is set, subscription activation from the web interface is disabled.
+	Key       string `json:"key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY,sensitive"`
+	KeyFile   string `json:"key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
+	ServerURL string `json:"server_url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_SERVER_URL" default:"https://portal.semaphoreui.com/billing"`
 }
 
 func NewConfigType() *ConfigType {
@@ -536,13 +540,13 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		}
 	}
 
-	if Config.SubscriptionKeyFile != "" {
-		subscriptionKeyBytes, err := os.ReadFile(Config.SubscriptionKeyFile)
+	if Config.Subscription.KeyFile != "" {
+		subscriptionKeyBytes, err := os.ReadFile(Config.Subscription.KeyFile)
 		if err != nil {
 			panic(err)
 		}
 
-		Config.SubscriptionKey = strings.TrimSpace(string(subscriptionKeyBytes))
+		Config.Subscription.Key = strings.TrimSpace(string(subscriptionKeyBytes))
 	}
 
 	return
