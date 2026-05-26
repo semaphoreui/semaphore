@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -60,7 +61,7 @@ type DbConfig struct {
 
 	Hostname string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST" default:"0.0.0.0"`
 	Username string            `json:"user,omitempty" env:"SEMAPHORE_DB_USER"`
-	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS"`
+	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS,sensitive"`
 	DbName   string            `json:"name,omitempty" env:"SEMAPHORE_DB" default:"semaphore"`
 	Options  map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
 }
@@ -1056,7 +1057,9 @@ func parseEnvTag(tag string) (envVar string, sensitive bool) {
 	return
 }
 
-func loadEnvironmentToObject(obj any) error {
+func loadEnvironmentToObject(obj any) (resultSensitiveEnvs []string, err error) {
+	var currSensitiveEnvs []string
+
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
 
@@ -1074,10 +1077,11 @@ func loadEnvironmentToObject(obj any) error {
 		}
 
 		if fieldType.Type.Kind() == reflect.Struct {
-			err := loadEnvironmentToObject(fieldValue.Addr().Interface())
+			currSensitiveEnvs, err = loadEnvironmentToObject(fieldValue.Addr().Interface())
 			if err != nil {
-				return err
+				return
 			}
+			resultSensitiveEnvs = append(resultSensitiveEnvs, currSensitiveEnvs...)
 			continue
 		} else if fieldType.Type.Kind() == reflect.Ptr && fieldType.Type.Elem().Kind() == reflect.Struct {
 			if fieldValue.IsZero() {
@@ -1090,21 +1094,23 @@ func loadEnvironmentToObject(obj any) error {
 				envVar, sensitive := parseEnvTag(envTag)
 				if envValue, exists := os.LookupEnv(envVar); exists {
 					newValue := reflect.New(fieldType.Type.Elem())
-					err := json.Unmarshal([]byte(envValue), newValue.Interface())
+					err = json.Unmarshal([]byte(envValue), newValue.Interface())
 					if err != nil {
-						return err
+						return
 					}
 					fieldValue.Set(newValue)
 					if sensitive {
-						os.Unsetenv(envVar) //nolint:errcheck
+						resultSensitiveEnvs = append(resultSensitiveEnvs, envVar)
 					}
 				}
 			}
 
-			err := loadEnvironmentToObject(fieldValue.Interface())
+			currSensitiveEnvs, err = loadEnvironmentToObject(fieldValue.Interface())
 			if err != nil {
-				return err
+				return
 			}
+
+			resultSensitiveEnvs = append(resultSensitiveEnvs, currSensitiveEnvs...)
 			continue
 		}
 
@@ -1124,20 +1130,26 @@ func loadEnvironmentToObject(obj any) error {
 		setConfigValue(fieldValue, envValue) // envValue always string!!!
 
 		if sensitive {
-			os.Unsetenv(envVar) //nolint:errcheck
+			resultSensitiveEnvs = append(resultSensitiveEnvs, envVar)
 		}
 	}
 
-	return nil
+	slices.Sort(resultSensitiveEnvs)
+	resultSensitiveEnvs = slices.Compact(resultSensitiveEnvs)
+	return
 }
 
 func loadConfigEnvironment() {
-	err := loadEnvironmentToObject(Config)
+	sensitiveEnvs, err := loadEnvironmentToObject(Config)
 	if err != nil {
 		panic(err)
 	}
 
-	os.Unsetenv("SEMAPHORE_DB_PASS")
+	for _, sensitiveEnv := range sensitiveEnvs {
+		os.Setenv(sensitiveEnv, sensitiveEnv)
+	}
+
+	//os.Unsetenv("SEMAPHORE_DB_PASS")
 }
 
 func exitOnConfigError(msg string) {

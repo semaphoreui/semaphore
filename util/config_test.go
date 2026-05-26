@@ -6,6 +6,9 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func mockError(msg string) {
@@ -54,7 +57,7 @@ func TestLoadEnvironmentToObject(t *testing.T) {
 		panic(err)
 	}
 
-	err = loadEnvironmentToObject(&val)
+	_, err = loadEnvironmentToObject(&val)
 	if err != nil {
 		t.Error(err)
 	}
@@ -94,7 +97,7 @@ func TestLoadEnvironmentToObject_Arr(t *testing.T) {
 		panic(err)
 	}
 
-	err = loadEnvironmentToObject(&val)
+	_, err = loadEnvironmentToObject(&val)
 	if err != nil {
 		t.Error(err)
 	}
@@ -126,7 +129,7 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 		panic(err)
 	}
 
-	err = loadEnvironmentToObject(&val)
+	_, err = loadEnvironmentToObject(&val)
 	if err != nil {
 		panic(err)
 	}
@@ -134,6 +137,66 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 	if val.Users["test"].Name != "test" {
 		t.Error("Invalid field value")
 	}
+}
+
+func TestLoadEnvironmentToObject_SensitiveEnvs(t *testing.T) {
+	type sub struct {
+		Field string `json:"field"`
+	}
+	var val struct {
+		Secret    *sub `env:"TEST_SECRET_SUB,sensitive"`
+		NotSecret *sub `env:"TEST_PUBLIC_SUB"`
+	}
+
+	require.NoError(t, os.Setenv("TEST_SECRET_SUB", `{"field":"s"}`))
+	require.NoError(t, os.Setenv("TEST_PUBLIC_SUB", `{"field":"p"}`))
+	defer os.Unsetenv("TEST_SECRET_SUB")
+	defer os.Unsetenv("TEST_PUBLIC_SUB")
+
+	sensitive, err := loadEnvironmentToObject(&val)
+	require.NoError(t, err)
+
+	assert.Contains(t, sensitive, "TEST_SECRET_SUB")
+	assert.NotContains(t, sensitive, "TEST_PUBLIC_SUB")
+}
+
+func TestLoadEnvironmentToObject_SensitiveEnvs_NoDuplicates(t *testing.T) {
+	type sub struct {
+		Field string `json:"field"`
+	}
+	var val struct {
+		A *sub `env:"TEST_SHARED_SECRET,sensitive"`
+		B *sub `env:"TEST_SHARED_SECRET,sensitive"`
+	}
+
+	require.NoError(t, os.Setenv("TEST_SHARED_SECRET", `{"field":"x"}`))
+	defer os.Unsetenv("TEST_SHARED_SECRET")
+
+	sensitive, err := loadEnvironmentToObject(&val)
+	require.NoError(t, err)
+
+	count := 0
+	for _, env := range sensitive {
+		if env == "TEST_SHARED_SECRET" {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count, "duplicate sensitive env names must be deduplicated")
+	assert.Equal(t, &sub{Field: "x"}, val.A)
+	assert.Equal(t, &sub{Field: "x"}, val.B)
+}
+
+func TestLoadEnvironmentToObject_SensitiveEnvs_Empty(t *testing.T) {
+	var val struct {
+		Plain string `env:"TEST_PLAIN_VAR"`
+	}
+
+	require.NoError(t, os.Setenv("TEST_PLAIN_VAR", "value"))
+	defer os.Unsetenv("TEST_PLAIN_VAR")
+
+	sensitive, err := loadEnvironmentToObject(&val)
+	require.NoError(t, err)
+	assert.Empty(t, sensitive)
 }
 
 func TestCastStringToInt(t *testing.T) {
