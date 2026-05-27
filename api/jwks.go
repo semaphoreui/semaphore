@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	semjwt "github.com/semaphoreui/semaphore/pkg/jwt"
+	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -15,7 +15,7 @@ func jwksHandler(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	signer := semjwt.Default()
+	signer := jwt.Default()
 	if signer == nil {
 		http.NotFound(w, nil)
 		return
