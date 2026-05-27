@@ -41,24 +41,18 @@ type TaskClaims struct {
 	JWTID     string   `json:"jti,omitempty"`
 
 	// Semaphore-specific claims
-	TaskID       int    `json:"task_id"`
-	ProjectID    int    `json:"project_id"`
-	ProjectName  string `json:"project_name,omitempty"`
-	TemplateID   int    `json:"template_id"`
-	TemplateName string `json:"template_name,omitempty"`
-	UserID       *int   `json:"user_id,omitempty"`
-	Username     string `json:"username,omitempty"`
+	TaskID     int  `json:"task_id"`
+	ProjectID  int  `json:"project_id"`
+	TemplateID int  `json:"template_id"`
+	UserID     *int `json:"user_id,omitempty"`
 }
 
 // TaskInfo bundles the data needed to mint a TaskClaims set.
 type TaskInfo struct {
-	TaskID       int
-	ProjectID    int
-	ProjectName  string
-	TemplateID   int
-	TemplateName string
-	UserID       *int
-	Username     string
+	TaskID     int
+	ProjectID  int
+	TemplateID int
+	UserID     *int
 
 	Audience Audience
 	TTL      time.Duration

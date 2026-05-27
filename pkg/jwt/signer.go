@@ -127,13 +127,10 @@ func (s *rsaSigner) Sign(info TaskInfo) (string, error) {
 		ExpiresAt: now.Add(ttl).Unix(),
 		JWTID:     jti,
 
-		TaskID:       info.TaskID,
-		ProjectID:    info.ProjectID,
-		ProjectName:  info.ProjectName,
-		TemplateID:   info.TemplateID,
-		TemplateName: info.TemplateName,
-		UserID:       info.UserID,
-		Username:     info.Username,
+		TaskID:     info.TaskID,
+		ProjectID:  info.ProjectID,
+		TemplateID: info.TemplateID,
+		UserID:     info.UserID,
 	}
 
 	return josejwt.Signed(s.signer).Claims(claims).Serialize()

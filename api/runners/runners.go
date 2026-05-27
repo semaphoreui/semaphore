@@ -137,10 +137,6 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tasks := c.taskPool.GetRunningTasks()
-
-	store := helpers.Store(r)
-	projectNames := make(map[int]string)
-
 	for _, tsk := range tasks {
 		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runner.ID {
 			continue
@@ -161,14 +157,6 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if signer := semjwt.Default(); signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {
-				projectName, ok := projectNames[tsk.Task.ProjectID]
-				if !ok {
-					if project, err := store.GetProject(tsk.Task.ProjectID); err == nil {
-						projectName = project.Name
-					}
-					projectNames[tsk.Task.ProjectID] = projectName
-				}
-
 				ttl, terr := tsk.Template.JWTParams.ParsedTTL()
 				if terr != nil {
 					log.WithError(terr).WithFields(log.Fields{
@@ -178,15 +166,12 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 					}).Error("invalid template jwt_params.ttl; skipping token issuance")
 				} else {
 					token, err := signer.Sign(semjwt.TaskInfo{
-						TaskID:       tsk.Task.ID,
-						ProjectID:    tsk.Task.ProjectID,
-						ProjectName:  projectName,
-						TemplateID:   tsk.Template.ID,
-						TemplateName: tsk.Template.Name,
-						UserID:       tsk.Task.UserID,
-						Username:     tsk.Username,
-						Audience:     semjwt.Audience(tsk.Template.JWTParams.Audience),
-						TTL:          ttl,
+						TaskID:     tsk.Task.ID,
+						ProjectID:  tsk.Task.ProjectID,
+						TemplateID: tsk.Template.ID,
+						UserID:     tsk.Task.UserID,
+						Audience:   semjwt.Audience(tsk.Template.JWTParams.Audience),
+						TTL:        ttl,
 					})
 					if err != nil {
 						log.WithError(err).WithFields(log.Fields{
