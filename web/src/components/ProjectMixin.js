@@ -17,8 +17,8 @@ export default {
       ).data;
     },
 
-    upgradeToPro(source) {
-      EventBus.$emit('i-subscription', { source });
+    upgradeToPro(feature) {
+      EventBus.$emit('i-subscription', { feature });
     },
 
     async loadProjectEndpoint(endpoint) {

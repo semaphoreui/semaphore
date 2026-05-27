@@ -45,12 +45,7 @@
 
     <v-divider style="margin-top: -1px" />
 
-    <v-alert
-      v-if="!features.custom_roles_management"
-      text
-      color="amber darken-3"
-      class="PageAlert"
-    >
+    <v-alert v-if="!features.custom_roles_management" text color="amber darken-3" class="PageAlert">
       <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
 
       <v-btn
@@ -58,7 +53,7 @@
         depressed
         v-if="isAdmin"
         color="amber darken-3"
-        href="https://semaphoreui.com/enterprise"
+        href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
         target="_blank"
       >
         {{ $t('upgrade_to_pro') }}

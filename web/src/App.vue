@@ -94,6 +94,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :feature="subscriptionDialog_feature"
         />
       </template>
     </EditDialog>
@@ -1002,6 +1003,7 @@ export default {
       hideUserDialogButtons: false,
 
       subscriptionDialog: null,
+      subscriptionDialog_feature: null,
       systemInfoDialog: null,
 
       restoreProjectDialog: null,
@@ -1230,7 +1232,8 @@ export default {
   },
 
   mounted() {
-    EventBus.$on('i-subscription', () => {
+    EventBus.$on('i-subscription', (e) => {
+      this.subscriptionDialog_feature = e.feature;
       this.subscriptionDialog = true;
     });
 

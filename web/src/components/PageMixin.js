@@ -12,8 +12,8 @@ export default {
   },
 
   methods: {
-    upgradeToPro(source) {
-      EventBus.$emit('i-subscription', { source });
+    upgradeToPro(feature) {
+      EventBus.$emit('i-subscription', { feature });
     },
   },
 };
