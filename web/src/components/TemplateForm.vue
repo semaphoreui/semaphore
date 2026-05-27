@@ -310,6 +310,46 @@
             </template>
           </v-checkbox>
 
+          <template v-if="systemInfo && systemInfo.jwt && systemInfo.jwt.enabled">
+            <v-checkbox
+              class="mt-0"
+              v-model="item.jwt_params.enabled"
+            >
+              <template v-slot:label>
+                {{ $t('jwt_enabled') }}
+                <v-chip class="ml-2" small color="error">New</v-chip>
+              </template>
+            </v-checkbox>
+
+            <template v-if="item.jwt_params.enabled">
+              <v-combobox
+                v-model="item.jwt_params.audience"
+                :label="$t('jwt_audience')"
+                :hint="$t('jwt_audience_hint')"
+                persistent-hint
+                multiple
+                chips
+                small-chips
+                deletable-chips
+                outlined
+                dense
+                :disabled="formSaving"
+              ></v-combobox>
+
+              <v-text-field
+                class="mt-4"
+                v-model="item.jwt_params.ttl"
+                :label="$t('jwt_ttl')"
+                :hint="jwtTtlHint"
+                persistent-hint
+                placeholder="1h"
+                outlined
+                dense
+                :disabled="formSaving"
+              ></v-text-field>
+            </template>
+          </template>
+
           <v-checkbox
             class="mt-0"
             :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
@@ -580,7 +620,9 @@ export default {
       },
       item: {
         task_params: {},
+        jwt_params: { enabled: false, audience: [], ttl: '' },
       },
+      systemInfo: null,
       inventory: null,
       repositories: null,
       environment: null,
@@ -642,6 +684,14 @@ export default {
       set(val) {
         this.args = JSON.parse(val);
       },
+    },
+
+    jwtTtlHint() {
+      const max = this.systemInfo?.jwt?.max_ttl;
+      if (!max) {
+        return this.$t('jwt_ttl_hint_no_max');
+      }
+      return this.$t('jwt_ttl_hint', { max });
     },
 
     repositoryId() {
@@ -780,6 +830,7 @@ export default {
     getNewItem() {
       return {
         task_params: {},
+        jwt_params: { enabled: false, audience: [], ttl: '' },
         environment_ids: [],
       };
     },
@@ -865,6 +916,27 @@ export default {
 
       if (!this.item.task_params) {
         this.item.task_params = {};
+      }
+
+      if (!this.item.jwt_params) {
+        this.$set(this.item, 'jwt_params', { enabled: false, audience: [], ttl: '' });
+      } else {
+        if (!Array.isArray(this.item.jwt_params.audience)) {
+          this.$set(this.item.jwt_params, 'audience', []);
+        }
+        if (typeof this.item.jwt_params.ttl !== 'string') {
+          this.$set(this.item.jwt_params, 'ttl', '');
+        }
+      }
+
+      try {
+        this.systemInfo = (await axios({
+          method: 'get',
+          url: '/api/info',
+          responseType: 'json',
+        })).data;
+      } catch (e) {
+        this.systemInfo = null;
       }
 
       if (!Array.isArray(this.item.environment_ids)) {

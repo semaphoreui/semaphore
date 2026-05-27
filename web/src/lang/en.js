@@ -428,6 +428,12 @@ export default {
 
   runner_tag: 'Runner tag',
   allow_parallel_tasks: 'Allow parallel tasks',
+  jwt_enabled: 'Issue JWT to task runner',
+  jwt_audience: 'JWT audience',
+  jwt_audience_hint: 'Press Enter to add another audience value.',
+  jwt_ttl: 'JWT TTL',
+  jwt_ttl_hint: 'Go duration (e.g. 30m, 1h). Maximum: {max}.',
+  jwt_ttl_hint_no_max: 'Go duration (e.g. 30m, 1h).',
   task_prompts: 'Prompts',
   template_advanced: 'Advanced options',
   template_app_options: '{app} options',
