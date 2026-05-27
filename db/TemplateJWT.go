@@ -22,8 +22,7 @@ type TemplateJWTParams struct {
 	TTL      string   `json:"ttl,omitempty"`
 }
 
-// Scan implements sql.Scanner so TemplateJWTParams can be read from a TEXT
-// column. NULL or empty values produce a zero-valued struct.
+// Scan implements sql.Scanner so TemplateJWTParams can be read from the database.
 func (p *TemplateJWTParams) Scan(value any) error {
 	if value == nil {
 		*p = TemplateJWTParams{}
@@ -47,8 +46,7 @@ func (p *TemplateJWTParams) Scan(value any) error {
 	}
 }
 
-// Value implements driver.Valuer so TemplateJWTParams is JSON-encoded when
-// written to a TEXT column. A nil pointer is stored as SQL NULL.
+// Value implements driver.Valuer so TemplateJWTParams can be written to the database.
 func (p *TemplateJWTParams) Value() (driver.Value, error) {
 	if p == nil {
 		return nil, nil
@@ -56,25 +54,19 @@ func (p *TemplateJWTParams) Value() (driver.Value, error) {
 	return json.Marshal(p)
 }
 
-// ParsedTTL returns the parsed TTL or zero when unset. An error is returned
-// when the value is not a valid Go duration.
+// ParsedTTL returns the parsed TTL or zero when unset.
 func (p *TemplateJWTParams) ParsedTTL() (time.Duration, error) {
 	if p == nil || p.TTL == "" {
 		return 0, nil
 	}
 	d, err := time.ParseDuration(p.TTL)
 	if err != nil {
-		return 0, fmt.Errorf("invalid jwt_params.ttl %q: %w", p.TTL, err)
+		return 0, fmt.Errorf("invalid JWT TTL %q: %w", p.TTL, err)
 	}
 	return d, nil
 }
 
-// Validate enforces the per-template JWT invariants:
-//   - audience entries are non-empty and within the size cap;
-//   - TTL is a positive Go duration not exceeding the configured global
-//     ceiling (util.Config.JWTMaxTTL, default 24h).
-//
-// Validation is skipped entirely when Enabled is false.
+// Validate enforces some sanity checks on the JWT parameters to prevent misconfiguration and abuse.
 func (p *TemplateJWTParams) Validate() error {
 	if p == nil || !p.Enabled {
 		return nil
@@ -104,9 +96,7 @@ func (p *TemplateJWTParams) Validate() error {
 	return nil
 }
 
-// globalJWTMaxTTL returns the configured ceiling, falling back to 24h when
-// unset or unparseable. Returns 0 only if util.Config is nil (e.g. in tests
-// that don't bootstrap config) — callers treat 0 as "no ceiling enforced".
+// globalJWTMaxTTL returns the configured max TTL for JWTs.
 func globalJWTMaxTTL() time.Duration {
 	if util.Config == nil {
 		return 0

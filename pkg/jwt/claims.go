@@ -1,7 +1,3 @@
-// Package jwt provides JWT issuance for Semaphore task executions so that
-// playbooks can authenticate to external systems (e.g. HashiCorp Vault) using
-// the JWT auth method. Tokens are signed with RS256 and the corresponding
-// public key is published at the /.well-known/jwks.json endpoint.
 package jwt
 
 import (
@@ -60,8 +56,7 @@ type TaskInfo struct {
 
 // SignerOptions controls token issuance defaults.
 type SignerOptions struct {
-	Issuer   string
-	Audience Audience
-	TTL      time.Duration
-	MaxTTL   time.Duration
+	Issuer     string
+	DefaultTTL time.Duration
+	MaxTTL     time.Duration
 }

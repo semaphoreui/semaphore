@@ -26,11 +26,7 @@ type LocalJob struct {
 	Environment db.Environment
 	Secret      string             // Secret contains secrets received from Survey variables
 	Logger      task_logger.Logger // Logger allows to send logs and status to the server
-
-	// JWT is the server-signed token for this task. When non-empty it is
-	// exposed to the task subprocess via the SEMAPHORE_JWT environment
-	// variable.
-	JWT string
+	JWT         string             // server-signed JWT
 
 	App db_lib.LocalApp
 
