@@ -81,10 +81,10 @@ func (p *TemplateJWTParams) Validate() error {
 	}
 
 	if len(p.Audience) > maxJWTAudienceEntries {
-		return &ValidationError{fmt.Sprintf("jwt_params.audience must contain at most %d entries", maxJWTAudienceEntries)}
+		return &ValidationError{fmt.Sprintf("JWT audience must contain at most %d entries", maxJWTAudienceEntries)}
 	}
 	if slices.Contains(p.Audience, "") {
-		return &ValidationError{"jwt_params.audience entries must not be empty"}
+		return &ValidationError{"JWT audience entries must not be empty"}
 	}
 
 	if p.TTL != "" {
@@ -93,11 +93,11 @@ func (p *TemplateJWTParams) Validate() error {
 			return &ValidationError{err.Error()}
 		}
 		if ttl <= 0 {
-			return &ValidationError{"jwt_params.ttl must be positive"}
+			return &ValidationError{"JWT TTL must be positive"}
 		}
 		max := globalJWTMaxTTL()
 		if max > 0 && ttl > max {
-			return &ValidationError{fmt.Sprintf("jwt_params.ttl %s exceeds configured maximum %s", ttl, max)}
+			return &ValidationError{fmt.Sprintf("JWT TTL %s exceeds configured maximum %s", ttl, max)}
 		}
 	}
 
