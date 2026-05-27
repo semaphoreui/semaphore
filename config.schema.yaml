@@ -34,8 +34,7 @@ properties:
   # ==========================================================================
   # Authentication
   # ==========================================================================
-  auth: { $ref: "#/$defs/AuthConfig" }
-  mfa:  { $ref: "#/$defs/MultifactorAuthConfig" }
+  mfa: { $ref: "#/$defs/MultifactorAuthConfig" }
 
   # ==========================================================================
   # Paths and runtime layout
@@ -210,16 +209,14 @@ $defs:
       enabled:   { type: boolean }
       cert_file: { type: string }
       key_file:  { type: string }
+      http_redirect_addr:
+        type: string
+        description: Address (host[:port]) for the HTTP→HTTPS redirect listener. Mutually exclusive with http_redirect_port.
       http_redirect_port:
-        type: integer
+        type: [integer, "null"]
         minimum: 1
         maximum: 65535
-
-  AuthConfig:
-    type: object
-    description: Authentication settings (legacy; prefer 'mfa').
-    properties:
-      email: { $ref: "#/$defs/EmailAuthConfig" }
+        description: Port for the HTTP→HTTPS redirect listener. Mutually exclusive with http_redirect_addr.
 
   MultifactorAuthConfig:
     type: object
