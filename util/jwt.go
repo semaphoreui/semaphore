@@ -1,12 +1,7 @@
 package util
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
-	"io"
 	"os"
 	"time"
 
@@ -25,9 +20,8 @@ type OptionStore interface {
 // encrypted ECDSA P-256 private key PEM is stored.
 const jwtSigningKeyOption = "system.jwt_signing_key"
 
-// InitJWTSignerFromStore initialises the process-wide JWT signer using the
-// ECDSA private key stored (encrypted) in the database. It must be called once
-// after the db.Store has been opened and after ConfigInit has run.
+// InitJWTSignerFromStore initialises the global JWT signer.
+// It must be called once after the db.Store has been opened and after ConfigInit has run.
 func InitJWTSignerFromStore(store OptionStore) error {
 	if !Config.JWTEnabled {
 		jwt.SetDefault(nil)
@@ -91,7 +85,7 @@ func loadOrCreateJWTKey(store OptionStore) ([]byte, error) {
 		return decryptJWTKey(stored)
 	}
 
-	// No key in DB yet – generate, encrypt and persist.
+	// No key in DB yet
 	pemBytes, err := jwt.GenerateKeyPEM()
 	if err != nil {
 		return nil, err
@@ -109,81 +103,16 @@ func loadOrCreateJWTKey(store OptionStore) ([]byte, error) {
 	return pemBytes, nil
 }
 
-// encryptJWTKey encrypts pemBytes using AES-256-GCM with the configured
-// AccessKeyEncryption key and returns a base64-encoded ciphertext identical in
-// format to the one used for access keys. When AccessKeyEncryption is not set
-// the plaintext PEM is stored as plain base64 (same fallback as access keys).
+// encryptJWTKey encrypts pemBytes using the configured AccessKeyEncryption key.
 func encryptJWTKey(pemBytes []byte) (string, error) {
-	encryptionKey := Config.AccessKeyEncryption
-
-	if encryptionKey == "" {
-		return base64.StdEncoding.EncodeToString(pemBytes), nil
-	}
-
-	keyBytes, err := base64.StdEncoding.DecodeString(encryptionKey)
-	if err != nil {
-		return "", fmt.Errorf("decode encryption key: %w", err)
-	}
-
-	block, err := aes.NewCipher(keyBytes)
-	if err != nil {
-		return "", err
-	}
-
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", err
-	}
-
-	ciphertext := gcm.Seal(nonce, nonce, pemBytes, nil)
-	return base64.StdEncoding.EncodeToString(ciphertext), nil
+	return EncryptAESGCM(pemBytes, Config.AccessKeyEncryption)
 }
 
 // decryptJWTKey reverses encryptJWTKey.
 func decryptJWTKey(stored string) ([]byte, error) {
-	ciphertext, err := base64.StdEncoding.DecodeString(stored)
-	if err != nil {
-		return nil, fmt.Errorf("base64 decode stored key: %w", err)
-	}
-
-	encryptionKey := Config.AccessKeyEncryption
-
-	if encryptionKey == "" {
-		// Stored as plain base64.
-		return ciphertext, nil
-	}
-
-	// this is duplicated from LocalAccessKeyDeserializer
-	keyBytes, err := base64.StdEncoding.DecodeString(encryptionKey)
-	if err != nil {
-		return nil, fmt.Errorf("decode encryption key: %w", err)
-	}
-
-	block, err := aes.NewCipher(keyBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
-	nonceSize := gcm.NonceSize()
-	if len(ciphertext) < nonceSize {
-		return nil, fmt.Errorf("jwt: stored key is too short")
-	}
-
-	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	plaintext, err := DecryptAESGCM(stored, Config.AccessKeyEncryption)
 	if err != nil {
 		return nil, fmt.Errorf("jwt: decrypt signing key: %w", err)
 	}
-
 	return plaintext, nil
 }
