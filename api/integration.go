@@ -374,8 +374,8 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 	return
 }
 
-func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]string) {
-	result = make(map[string]string)
+func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]any) {
+	result = make(map[string]any)
 
 	for _, extractValue := range extractValues {
 		switch extractValue.ValueSource {
@@ -386,7 +386,14 @@ func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload 
 			case db.IntegrationBodyDataJSON:
 				val := gojsonq.New().JSONString(string(payload)).Find(extractValue.Key)
 				if val != nil {
-					result[extractValue.Variable] = fmt.Sprintf("%v", val)
+					// Preserve native type (objects/arrays stay as map/slice so JSON
+					// marshalling produces real nested structures rather than
+					// "map[id:2 name:test]" Go-stringified output).
+					if intValue, ok := conv.ConvertFloatToIntIfPossible(val); ok {
+						result[extractValue.Variable] = intValue
+					} else {
+						result[extractValue.Variable] = val
+					}
 				}
 			case db.IntegrationBodyDataString:
 				result[extractValue.Variable] = string(payload)

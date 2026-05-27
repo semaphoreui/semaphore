@@ -102,24 +102,31 @@ func TestExtract_JSONBody_VariousTypesAndMissing(t *testing.T) {
 
 	got := Extract(values, http.Header{}, payload)
 
-	// Basic scalar assertions
-	assert.Equal(t, "42", got["NUM"], "NUM should equal stringified number")
+	// Basic scalar assertions: numeric values are preserved as int64 when
+	// representable, booleans as bool, strings as string. This allows
+	// downstream JSON marshalling to produce real types rather than "%v" output.
+	assert.Equal(t, int64(42), got["NUM"], "NUM should be preserved as int64")
 	assert.Equal(t, "hello", got["STR"], "STR should match")
-	assert.Equal(t, "true", got["BOOL"], "BOOL should be string 'true'")
+	assert.Equal(t, true, got["BOOL"], "BOOL should be preserved as bool")
 
 	// Indexed lookups
-	assert.Equal(t, "123", got["NESTED_C"], "NESTED_C should equal nested.items[0].c")
-	assert.Equal(t, "1", got["ARR0"], "ARR0 should equal arr[0]")
+	assert.Equal(t, int64(123), got["NESTED_C"], "NESTED_C should equal nested.items[0].c")
+	assert.Equal(t, int64(1), got["ARR0"], "ARR0 should equal arr[0]")
 
 	// Null should be absent
 	assert.NotContains(t, got, "NULLV", "NULLV should not be present for null JSON value")
 
-	// Array/object string formats: we assert non-empty presence rather than exact formatting,
-	// because %v formatting of gojsonq return types may vary across versions.
-	assert.Contains(t, got, "ARR", "ARR key should be present")
-	assert.NotEmpty(t, got["ARR"], "ARR value should be non-empty")
+	// Object/array values must be preserved as native Go types so that they
+	// JSON-marshal back to real nested structures (regression test for #3816).
 	assert.Contains(t, got, "OBJ", "OBJ key should be present")
-	assert.NotEmpty(t, got["OBJ"], "OBJ value should be non-empty")
+	objMap, ok := got["OBJ"].(map[string]any)
+	if assert.True(t, ok, "OBJ should be a map[string]any, got %T", got["OBJ"]) {
+		assert.Equal(t, "v", objMap["k"])
+	}
+	assert.Contains(t, got, "ARR", "ARR key should be present")
+	arrSlice, ok := got["ARR"].([]any)
+	assert.True(t, ok, "ARR should be a []any, got %T", got["ARR"])
+	assert.Len(t, arrSlice, 3)
 
 	// Missing should not appear
 	assert.NotContains(t, got, "MISSING", "MISSING should not be present for missing key")
@@ -137,7 +144,7 @@ func TestExtract_BodyString_ReturnsFullPayload(t *testing.T) {
 	}
 	got := Extract(values, http.Header{}, payload)
 	if got["BODY"] != string(payload) {
-		t.Fatalf("expected BODY to equal full payload; got %q", got["BODY"])
+		t.Fatalf("expected BODY to equal full payload; got %v", got["BODY"])
 	}
 }
 
@@ -155,6 +162,43 @@ func TestExtract_MalformedJSON_SkipsSetting(t *testing.T) {
 	if _, ok := got["BAD"]; ok {
 		t.Fatalf("expected BAD to be absent for malformed JSON payload")
 	}
+}
+
+// TestGetTaskDefinitionForwardsJSONObjectAsDict is a regression test for
+// https://github.com/semaphoreui/semaphore/issues/3816. When an integration
+// extracts a JSON object/array into an environment variable, the value must
+// reach the task template as a real nested structure, not as the Go default
+// "%v" formatting like "map[id:2 name:test]".
+func TestGetTaskDefinitionForwardsJSONObjectAsDict(t *testing.T) {
+	integration := db.Integration{
+		ID:         1,
+		ProjectID:  1,
+		TemplateID: 1,
+	}
+	payload := []byte(`{"data":{"id":2,"name":"test"}}`)
+
+	task, err := GetTaskDefinition(integration, payload, http.Header{}, func(projectID, integrationID int) ([]db.IntegrationExtractValue, error) {
+		return []db.IntegrationExtractValue{
+			{
+				VariableType: db.IntegrationVariableEnvironment,
+				ValueSource:  db.IntegrationExtractBodyValue,
+				BodyDataType: db.IntegrationBodyDataJSON,
+				Key:          "data",
+				Variable:     "data",
+			},
+		}, nil
+	})
+	require.NoError(t, err)
+
+	var env map[string]any
+	require.NoError(t, json.Unmarshal([]byte(task.Environment), &env))
+
+	// The extracted "data" key must be a real JSON object in the rendered
+	// environment, not a Go-stringified "map[id:2 name:test]".
+	dataObj, ok := env["data"].(map[string]any)
+	require.True(t, ok, "expected env[data] to be a JSON object, got %T (%v)", env["data"], env["data"])
+	assert.Equal(t, "test", dataObj["name"])
+	assert.EqualValues(t, 2, dataObj["id"])
 }
 
 func TestIntegrationMatch(t *testing.T) {
