@@ -41,13 +41,18 @@
         small
         label
         style="position: absolute; top: -10px; right: 15px"
-        @click="alert('wtf?');"
+        @click="upgradeToPro('runners')"
       >
         Upgrade to PRO
       </v-chip>
     </div>
 
-    <v-checkbox label="Is default" v-model="item.is_default" />
+    <v-checkbox v-model="item.is_default">
+      <template v-slot:label>
+        Is default
+        <v-chip class="ml-2" small color="error">New</v-chip>
+      </template>
+    </v-checkbox>
 
     <v-text-field
       v-model="item.webhook"
