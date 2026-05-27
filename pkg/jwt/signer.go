@@ -1,8 +1,9 @@
 package jwt
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
@@ -17,10 +18,9 @@ import (
 	josejwt "github.com/go-jose/go-jose/v4/jwt"
 )
 
-// Signer mints signed JWTs and exposes its public key as a JWKS document.
+// Signer mints signed JWTs and exposes its public key as a JWKS endpoint.
 type Signer interface {
-	// Sign produces a serialized compact JWS for the given task. It applies
-	// the configured Issuer, Audience and TTL.
+	// Sign produces a serialized compact JWS for the given task.
 	Sign(info TaskInfo) (string, error)
 	// JWKS returns the JSON Web Key Set containing the current public key.
 	JWKS() ([]byte, error)
@@ -28,43 +28,42 @@ type Signer interface {
 	KeyID() string
 }
 
-type rsaSigner struct {
+type ecdsaSigner struct {
 	mu      sync.Mutex
-	key     *rsa.PrivateKey
+	key     *ecdsa.PrivateKey
 	kid     string
 	signer  jose.Signer
 	options SignerOptions
 }
 
-// GenerateKeyPEM generates a new 2048-bit RSA private key and returns it as a
-// PKCS#1 PEM-encoded byte slice. Use this when bootstrapping a new signing key
-// that will be stored (encrypted) in the database.
+// GenerateKeyPEM generates a new ECDSA P-256 private key encoded as PKCS#8 PEM.
 func GenerateKeyPEM() ([]byte, error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("jwt: generate key: %w", err)
 	}
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("jwt: marshal key: %w", err)
+	}
 	return pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(key),
+		Type:  "PRIVATE KEY",
+		Bytes: der,
 	}), nil
 }
 
-const defaultMaxTTL = 24 * time.Hour
+const defaultTTL = 24 * time.Hour
 
-// NewRSASignerFromPEM creates a Signer from a PEM-encoded RSA private key that
-// the caller has already loaded (and decrypted, if stored encrypted). This is
-// the primary constructor used by the server; key management (generation,
-// encryption, storage) is handled by the util layer.
-func NewRSASignerFromPEM(pemBytes []byte, opts SignerOptions) (Signer, error) {
+// NewECDSASignerFromPEM creates a Signer from a PEM-encoded ECDSA P-256 private key.
+func NewECDSASignerFromPEM(pemBytes []byte, opts SignerOptions) (Signer, error) {
 	if opts.MaxTTL <= 0 {
-		opts.MaxTTL = defaultMaxTTL
+		opts.MaxTTL = defaultTTL
 	}
-	if opts.TTL <= 0 {
-		opts.TTL = time.Hour
+	if opts.DefaultTTL <= 0 {
+		opts.DefaultTTL = defaultTTL
 	}
-	if opts.TTL > opts.MaxTTL {
-		opts.TTL = opts.MaxTTL
+	if opts.DefaultTTL > opts.MaxTTL {
+		opts.DefaultTTL = opts.MaxTTL
 	}
 
 	key, err := parsePrivateKey(pemBytes)
@@ -78,8 +77,13 @@ func NewRSASignerFromPEM(pemBytes []byte, opts SignerOptions) (Signer, error) {
 	}
 
 	signingKey := jose.SigningKey{
-		Algorithm: jose.RS256,
-		Key:       jose.JSONWebKey{Key: key, KeyID: kid, Algorithm: string(jose.RS256), Use: "sig"},
+		Algorithm: jose.ES256,
+		Key: jose.JSONWebKey{
+			Key:       key,
+			KeyID:     kid,
+			Algorithm: string(jose.ES256),
+			Use:       "sig",
+		},
 	}
 	sigOpts := (&jose.SignerOptions{}).WithType("JWT")
 	js, err := jose.NewSigner(signingKey, sigOpts)
@@ -87,7 +91,7 @@ func NewRSASignerFromPEM(pemBytes []byte, opts SignerOptions) (Signer, error) {
 		return nil, fmt.Errorf("jwt: create signer: %w", err)
 	}
 
-	return &rsaSigner{
+	return &ecdsaSigner{
 		key:     key,
 		kid:     kid,
 		signer:  js,
@@ -95,9 +99,9 @@ func NewRSASignerFromPEM(pemBytes []byte, opts SignerOptions) (Signer, error) {
 	}, nil
 }
 
-func (s *rsaSigner) KeyID() string { return s.kid }
+func (s *ecdsaSigner) KeyID() string { return s.kid }
 
-func (s *rsaSigner) Sign(info TaskInfo) (string, error) {
+func (s *ecdsaSigner) Sign(info TaskInfo) (string, error) {
 	now := time.Now().UTC()
 
 	jti, err := randomJTI()
@@ -105,12 +109,7 @@ func (s *rsaSigner) Sign(info TaskInfo) (string, error) {
 		return "", err
 	}
 
-	audience := s.options.Audience
-	if len(info.Audience) > 0 {
-		audience = info.Audience
-	}
-
-	ttl := s.options.TTL
+	ttl := s.options.DefaultTTL
 	if info.TTL > 0 {
 		ttl = info.TTL
 	}
@@ -120,7 +119,7 @@ func (s *rsaSigner) Sign(info TaskInfo) (string, error) {
 
 	claims := TaskClaims{
 		Issuer:    s.options.Issuer,
-		Audience:  audience,
+		Audience:  info.Audience,
 		Subject:   fmt.Sprintf("task:%d", info.TaskID),
 		IssuedAt:  now.Unix(),
 		NotBefore: now.Unix(),
@@ -136,42 +135,37 @@ func (s *rsaSigner) Sign(info TaskInfo) (string, error) {
 	return josejwt.Signed(s.signer).Claims(claims).Serialize()
 }
 
-// JWKS returns the JWKS document containing the current public key.
-func (s *rsaSigner) JWKS() ([]byte, error) {
+func (s *ecdsaSigner) JWKS() ([]byte, error) {
 	jwk := jose.JSONWebKey{
 		Key:       &s.key.PublicKey,
 		KeyID:     s.kid,
-		Algorithm: string(jose.RS256),
+		Algorithm: string(jose.ES256),
 		Use:       "sig",
 	}
 	set := jose.JSONWebKeySet{Keys: []jose.JSONWebKey{jwk}}
 	return json.Marshal(set)
 }
 
-func parsePrivateKey(data []byte) (*rsa.PrivateKey, error) {
+func parsePrivateKey(data []byte) (*ecdsa.PrivateKey, error) {
 	block, _ := pem.Decode(data)
 	if block == nil {
 		return nil, errors.New("jwt: no PEM block found in key file")
 	}
-	switch block.Type {
-	case "RSA PRIVATE KEY":
-		return x509.ParsePKCS1PrivateKey(block.Bytes)
-	case "PRIVATE KEY":
-		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-		rsaKey, ok := key.(*rsa.PrivateKey)
-		if !ok {
-			return nil, fmt.Errorf("jwt: key is not RSA (got %T)", key)
-		}
-		return rsaKey, nil
-	default:
-		return nil, fmt.Errorf("jwt: unsupported PEM block type %q", block.Type)
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
 	}
+	ecKey, ok := key.(*ecdsa.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("jwt: key is not ECDSA (got %T)", key)
+	}
+	if ecKey.Curve != elliptic.P256() {
+		return nil, fmt.Errorf("jwt: unsupported curve %q, expected P-256", ecKey.Curve.Params().Name)
+	}
+	return ecKey, nil
 }
 
-func computeKID(pub *rsa.PublicKey) (string, error) {
+func computeKID(pub *ecdsa.PublicKey) (string, error) {
 	der, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
 		return "", err

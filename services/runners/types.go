@@ -18,12 +18,7 @@ type JobData struct {
 	InventoryRepository *db.Repository `json:"inventory_repository" binding:"required"`
 	Repository          db.Repository  `json:"repository" binding:"required"`
 	Environment         db.Environment `json:"environment" binding:"required"`
-
-	// JWT is a server-signed JWT (RS256) describing this task. It is exposed
-	// to the executing playbook via the SEMAPHORE_JWT environment variable so
-	// that downstream consumers (e.g. HashiCorp Vault's JWT auth method) can
-	// authenticate the task. Empty when JWT issuance is disabled.
-	JWT string `json:"jwt,omitempty"`
+	JWT                 string         `json:"jwt,omitempty"`
 }
 
 type RunnerState struct {

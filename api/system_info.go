@@ -33,8 +33,7 @@ type SystemInfo struct {
 	JWT               SystemInfoJWT           `json:"jwt"`
 }
 
-// SystemInfoJWT exposes the global JWT configuration the WebUI needs to
-// render and validate per-template JWT settings.
+// SystemInfoJWT exposes the global JWT configuration for the WebUI.
 type SystemInfoJWT struct {
 	Enabled bool   `json:"enabled"`
 	MaxTTL  string `json:"max_ttl,omitempty"`

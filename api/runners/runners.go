@@ -137,6 +137,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tasks := c.taskPool.GetRunningTasks()
+
 	for _, tsk := range tasks {
 		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runner.ID {
 			continue

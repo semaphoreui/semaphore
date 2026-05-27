@@ -392,11 +392,10 @@ type ConfigType struct {
 	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
 	// JWT issuance for task executions (used by playbooks to authenticate to
-	JWTEnabled  bool   `json:"jwt_enabled,omitempty" env:"SEMAPHORE_JWT_ENABLED"`
-	JWTIssuer   string `json:"jwt_issuer,omitempty" env:"SEMAPHORE_JWT_ISSUER"`
-	JWTAudience string `json:"jwt_audience,omitempty" env:"SEMAPHORE_JWT_AUDIENCE" default:"semaphore"`
-	JWTTTL      string `json:"jwt_ttl,omitempty" env:"SEMAPHORE_JWT_TTL" default:"1h"`
-	JWTMaxTTL   string `json:"jwt_max_ttl,omitempty" env:"SEMAPHORE_JWT_MAX_TTL" default:"24h"`
+	JWTEnabled    bool   `json:"jwt_enabled,omitempty" env:"SEMAPHORE_JWT_ENABLED"`
+	JWTIssuer     string `json:"jwt_issuer,omitempty" env:"SEMAPHORE_JWT_ISSUER"`
+	JWTDefaultTTL string `json:"jwt_default_ttl,omitempty" env:"SEMAPHORE_JWT_DEFAULT_TTL" default:"1h"`
+	JWTMaxTTL     string `json:"jwt_max_ttl,omitempty" env:"SEMAPHORE_JWT_MAX_TTL" default:"24h"`
 
 	// feature switches
 	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`

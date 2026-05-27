@@ -22,11 +22,11 @@ type OptionStore interface {
 }
 
 // jwtSigningKeyOption is the database option key under which the AES-GCM
-// encrypted RSA private key PEM is stored.
+// encrypted ECDSA P-256 private key PEM is stored.
 const jwtSigningKeyOption = "system.jwt_signing_key"
 
 // InitJWTSignerFromStore initialises the process-wide JWT signer using the
-// RSA private key stored (encrypted) in the database. It must be called once
+// ECDSA private key stored (encrypted) in the database. It must be called once
 // after the db.Store has been opened and after ConfigInit has run.
 func InitJWTSignerFromStore(store OptionStore) error {
 	if !Config.JWTEnabled {
@@ -41,7 +41,7 @@ func InitJWTSignerFromStore(store OptionStore) error {
 		return fmt.Errorf("jwt: could not load or create signing key: %w", err)
 	}
 
-	signer, err := jwt.NewRSASignerFromPEM(pemBytes, opts)
+	signer, err := jwt.NewECDSASignerFromPEM(pemBytes, opts)
 	if err != nil {
 		return fmt.Errorf("jwt: failed to initialise signer: %w", err)
 	}
@@ -53,11 +53,11 @@ func InitJWTSignerFromStore(store OptionStore) error {
 // jwtSignerOptions builds SignerOptions from the current Config.
 func jwtSignerOptions() jwt.SignerOptions {
 	ttl := time.Hour
-	if Config.JWTTTL != "" {
-		if parsed, err := time.ParseDuration(Config.JWTTTL); err == nil {
+	if Config.JWTDefaultTTL != "" {
+		if parsed, err := time.ParseDuration(Config.JWTDefaultTTL); err == nil {
 			ttl = parsed
 		} else {
-			fmt.Fprintf(os.Stderr, "jwt: invalid jwt_ttl %q, falling back to 1h: %v\n", Config.JWTTTL, err)
+			fmt.Fprintf(os.Stderr, "jwt: invalid jwt_default_ttl %q, falling back to 1h: %v\n", Config.JWTDefaultTTL, err)
 		}
 	}
 
@@ -71,10 +71,9 @@ func jwtSignerOptions() jwt.SignerOptions {
 	}
 
 	return jwt.SignerOptions{
-		Issuer:   Config.JWTIssuer,
-		Audience: jwt.Audience{Config.JWTAudience},
-		TTL:      ttl,
-		MaxTTL:   maxTTL,
+		Issuer:     Config.JWTIssuer,
+		DefaultTTL: ttl,
+		MaxTTL:     maxTTL,
 	}
 }
 
