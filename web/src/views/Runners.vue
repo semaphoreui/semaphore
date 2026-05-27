@@ -297,6 +297,7 @@ semaphore runner start --config ./config.runner.json</pre
       :headers="headers"
       :items="filteredItems"
       class="mt-4"
+      :style="projectId && !features.project_runners ? 'opacity: 0.4' : ''"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
       <template v-slot:item.active="{ item }">

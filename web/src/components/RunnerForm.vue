@@ -86,7 +86,7 @@ export default {
   props: {
     isAdmin: Boolean,
     projectId: Number,
-    isTagsAvailable: Object,
+    isTagsAvailable: Boolean,
   },
 
   mixins: [ItemFormBase],
