@@ -1,4 +1,5 @@
 import axios from 'axios';
+import EventBus from '@/event-bus';
 
 export default {
   props: {
@@ -7,11 +8,17 @@ export default {
 
   methods: {
     async loadEndpoint(endpoint) {
-      return (await axios({
-        method: 'get',
-        url: endpoint,
-        responseType: 'json',
-      })).data;
+      return (
+        await axios({
+          method: 'get',
+          url: endpoint,
+          responseType: 'json',
+        })
+      ).data;
+    },
+
+    upgradeToPro(source) {
+      EventBus.$emit('i-subscription', { source });
     },
 
     async loadProjectEndpoint(endpoint) {
