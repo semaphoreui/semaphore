@@ -12,7 +12,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	semjwt "github.com/semaphoreui/semaphore/pkg/jwt"
+	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/services/server"
@@ -157,7 +157,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 				Environment:         tsk.Environment,
 			}
 
-			if signer := semjwt.Default(); signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {
+			if signer := jwt.Default(); signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {
 				ttl, terr := tsk.Template.JWTParams.ParsedTTL()
 				if terr != nil {
 					log.WithError(terr).WithFields(log.Fields{
@@ -166,12 +166,12 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 						"context":     "jwt",
 					}).Error("invalid template jwt_params.ttl; skipping token issuance")
 				} else {
-					token, err := signer.Sign(semjwt.TaskInfo{
+					token, err := signer.Sign(jwt.TaskInfo{
 						TaskID:     tsk.Task.ID,
 						ProjectID:  tsk.Task.ProjectID,
 						TemplateID: tsk.Template.ID,
 						UserID:     tsk.Task.UserID,
-						Audience:   semjwt.Audience(tsk.Template.JWTParams.Audience),
+						Audience:   jwt.Audience(tsk.Template.JWTParams.Audience),
 						TTL:        ttl,
 					})
 					if err != nil {
