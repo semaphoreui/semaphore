@@ -41,7 +41,7 @@
         small
         label
         style="position: absolute; top: -10px; right: 15px"
-        @click="alert('wtf?');"
+        @click="upgradeToPro()"
       >
         Upgrade to PRO
       </v-chip>
@@ -81,12 +81,16 @@
 <script>
 import axios from 'axios';
 import ItemFormBase from '@/components/ItemFormBase';
+import EventBus from '@/event-bus';
 
 export default {
   props: {
     isAdmin: Boolean,
     projectId: Number,
-    isTagsAvailable: Object,
+    isTagsAvailable: {
+      type: Boolean,
+      default: true,
+    },
   },
 
   mixins: [ItemFormBase],
@@ -111,6 +115,10 @@ export default {
   },
 
   methods: {
+    upgradeToPro() {
+      EventBus.$emit('i-subscription', {});
+    },
+
     getItemsUrl() {
       if (this.projectId) {
         return `/api/project/${this.projectId}/runners`;
