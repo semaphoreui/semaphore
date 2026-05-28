@@ -13,10 +13,14 @@ properties:
     enum: [mysql, bolt, postgres, sqlite]
     default: bolt
     description: Database engine used by Semaphore.
-  mysql:    { $ref: "#/$defs/DbConfig" }
-  bolt:     { $ref: "#/$defs/DbConfig", description: "Deprecated — embedded BoltDB store." }
+  mysql: { $ref: "#/$defs/DbConfig" }
+  bolt:
+    {
+      $ref: "#/$defs/DbConfig",
+      description: "Deprecated — embedded BoltDB store.",
+    }
   postgres: { $ref: "#/$defs/DbConfig" }
-  sqlite:   { $ref: "#/$defs/DbConfig" }
+  sqlite: { $ref: "#/$defs/DbConfig" }
 
   # ==========================================================================
   # HTTP server
@@ -77,9 +81,9 @@ properties:
   # ==========================================================================
   # Alerting — Email (SMTP)
   # ==========================================================================
-  email_alert:    { type: boolean }
-  email_sender:   { type: string }
-  email_host:     { type: string }
+  email_alert: { type: boolean }
+  email_sender: { type: string }
+  email_host: { type: string }
   email_port:
     type: string
     pattern: "^(|[0-9]{1,5})$"
@@ -87,8 +91,8 @@ properties:
   email_password:
     type: string
     description: SMTP password (sensitive).
-  email_secure:   { type: boolean }
-  email_tls:      { type: boolean }
+  email_secure: { type: boolean }
+  email_tls: { type: boolean }
   email_tls_min_version:
     type: string
     pattern: "^(1\\.[0123])$"
@@ -97,35 +101,35 @@ properties:
   # ==========================================================================
   # LDAP
   # ==========================================================================
-  ldap_enable:       { type: boolean }
-  ldap_binddn:       { type: string }
+  ldap_enable: { type: boolean }
+  ldap_binddn: { type: string }
   ldap_bindpassword:
     type: string
     description: LDAP bind password (sensitive).
-  ldap_server:       { type: string }
-  ldap_searchdn:     { type: string }
+  ldap_server: { type: string }
+  ldap_searchdn: { type: string }
   ldap_searchfilter: { type: string }
-  ldap_mappings:     { $ref: "#/$defs/LdapMappings" }
-  ldap_needtls:      { type: boolean }
+  ldap_mappings: { $ref: "#/$defs/LdapMappings" }
+  ldap_needtls: { type: boolean }
 
   # ==========================================================================
   # Alerting — Chat integrations
   # ==========================================================================
-  telegram_alert:        { type: boolean }
-  telegram_chat:         { type: string }
+  telegram_alert: { type: boolean }
+  telegram_chat: { type: string }
   telegram_token:
     type: string
     description: Telegram bot token (sensitive).
-  slack_alert:           { type: boolean }
-  slack_url:             { type: string, format: uri }
-  rocketchat_alert:      { type: boolean }
-  rocketchat_url:        { type: string, format: uri }
+  slack_alert: { type: boolean }
+  slack_url: { type: string, format: uri }
+  rocketchat_alert: { type: boolean }
+  rocketchat_url: { type: string, format: uri }
   microsoft_teams_alert: { type: boolean }
-  microsoft_teams_url:   { type: string, format: uri }
-  dingtalk_alert:        { type: boolean }
-  dingtalk_url:          { type: string, format: uri }
-  gotify_alert:          { type: boolean }
-  gotify_url:            { type: string, format: uri }
+  microsoft_teams_url: { type: string, format: uri }
+  dingtalk_alert: { type: boolean }
+  dingtalk_url: { type: string, format: uri }
+  gotify_alert: { type: boolean }
+  gotify_url: { type: string, format: uri }
   gotify_token:
     type: string
     description: Gotify app token (sensitive).
@@ -141,7 +145,7 @@ properties:
   # ==========================================================================
   # Task scheduling
   # ==========================================================================
-  max_task_duration_sec:  { type: integer, minimum: 0 }
+  max_task_duration_sec: { type: integer, minimum: 0 }
   max_tasks_per_template: { type: integer, minimum: 0 }
   max_parallel_tasks:
     type: integer
@@ -153,11 +157,37 @@ properties:
     description: Bootstrap token used by runners to register with the server.
 
   # ==========================================================================
+  # JWT issuance for task executions
+  # ==========================================================================
+  jwt_enabled:
+    type: boolean
+    description: >
+      When true, Semaphore mints a short-lived JWT for each task run and exposes
+      its public key via /.well-known/jwks.json.
+  jwt_issuer:
+    type: string
+    description: Value emitted in the `iss` claim of issued JWTs.
+  jwt_default_ttl:
+    type: string
+    pattern: "^[0-9]+(|s|m|h)$"
+    default: "1h"
+    description: >
+      Default lifetime of an issued task JWT, as a Go duration (e.g. 30m, 1h).
+      Overridden per-template by `jwt_params.ttl`.
+  jwt_max_ttl:
+    type: string
+    pattern: "^[0-9]+(s|m|h)$"
+    default: "24h"
+    description: >
+      Hard upper bound on per-template JWT TTL, as a Go duration. Any
+      configured `jwt_params.ttl` above this is rejected.
+
+  # ==========================================================================
   # Feature toggles
   # ==========================================================================
-  password_login_disable:       { type: boolean }
+  password_login_disable: { type: boolean }
   non_admin_can_create_project: { type: boolean }
-  use_remote_runner:            { type: boolean }
+  use_remote_runner: { type: boolean }
 
   # ==========================================================================
   # Apps and environment
@@ -178,16 +208,16 @@ properties:
   # ==========================================================================
   # Nested subsystems
   # ==========================================================================
-  teams:        { $ref: "#/$defs/TeamsConfig" }
-  syslog:       { $ref: "#/$defs/SyslogConfig" }
-  log:          { $ref: "#/$defs/ConfigLog" }
-  process:      { $ref: "#/$defs/ConfigProcess" }
-  schedule:     { $ref: "#/$defs/ScheduleConfig" }
-  debugging:    { $ref: "#/$defs/DebuggingConfig" }
-  ha:           { $ref: "#/$defs/HAConfig" }
+  teams: { $ref: "#/$defs/TeamsConfig" }
+  syslog: { $ref: "#/$defs/SyslogConfig" }
+  log: { $ref: "#/$defs/ConfigLog" }
+  process: { $ref: "#/$defs/ConfigProcess" }
+  schedule: { $ref: "#/$defs/ScheduleConfig" }
+  debugging: { $ref: "#/$defs/DebuggingConfig" }
+  ha: { $ref: "#/$defs/HAConfig" }
   subscription: { $ref: "#/$defs/SubscriptionConfig" }
-  dirs:         { $ref: "#/$defs/ConfigDirs" }
-  runner:       { $ref: "#/$defs/RunnerConfig" }
+  dirs: { $ref: "#/$defs/ConfigDirs" }
+  runner: { $ref: "#/$defs/RunnerConfig" }
 
 $defs:
   DbConfig:
@@ -206,9 +236,9 @@ $defs:
   TLSConfig:
     type: object
     properties:
-      enabled:   { type: boolean }
+      enabled: { type: boolean }
       cert_file: { type: string }
-      key_file:  { type: string }
+      key_file: { type: string }
       http_redirect_addr:
         type: string
         description: Address (host[:port]) for the HTTP→HTTPS redirect listener. Mutually exclusive with http_redirect_port.
@@ -222,13 +252,13 @@ $defs:
     type: object
     description: Multi-factor authentication settings.
     properties:
-      totp:  { $ref: "#/$defs/TotpConfig" }
+      totp: { $ref: "#/$defs/TotpConfig" }
       email: { $ref: "#/$defs/EmailAuthConfig" }
 
   TotpConfig:
     type: object
     properties:
-      enabled:        { type: boolean }
+      enabled: { type: boolean }
       allow_recovery: { type: boolean }
       app_name:
         type: string
@@ -237,57 +267,57 @@ $defs:
   EmailAuthConfig:
     type: object
     properties:
-      enabled:                      { type: boolean }
+      enabled: { type: boolean }
       allow_login_as_external_user: { type: boolean }
-      allow_create_external_user:   { type: boolean }
+      allow_create_external_user: { type: boolean }
       allowed_domains:
         type: array
         items: { type: string }
-      disable_for_oidc:             { type: boolean }
+      disable_for_oidc: { type: boolean }
 
   LdapMappings:
     type: object
     properties:
-      dn:   { type: string, default: dn }
+      dn: { type: string, default: dn }
       mail: { type: string, default: mail }
-      uid:  { type: string, default: uid }
-      cn:   { type: string, default: cn }
+      uid: { type: string, default: uid }
+      cn: { type: string, default: cn }
 
   OidcProvider:
     type: object
     properties:
-      client_id:          { type: string }
-      client_id_file:     { type: string }
+      client_id: { type: string }
+      client_id_file: { type: string }
       client_secret:
         type: string
         description: OIDC client secret (sensitive).
       client_secret_file: { type: string }
-      redirect_url:       { type: string, format: uri }
+      redirect_url: { type: string, format: uri }
       scopes:
         type: array
         items: { type: string }
       display_name: { type: string }
-      color:        { type: string }
-      icon:         { type: string }
+      color: { type: string }
+      icon: { type: string }
       provider_url:
         type: string
         format: uri
         description: OIDC autodiscovery URL.
-      endpoint:         { $ref: "#/$defs/OidcEndpoint" }
-      username_claim:   { type: string, default: preferred_username }
-      name_claim:       { type: string, default: preferred_username }
-      email_claim:      { type: string, default: email }
-      order:            { type: integer }
+      endpoint: { $ref: "#/$defs/OidcEndpoint" }
+      username_claim: { type: string, default: preferred_username }
+      name_claim: { type: string, default: preferred_username }
+      email_claim: { type: string, default: email }
+      order: { type: integer }
       return_via_state: { type: boolean, default: true }
 
   OidcEndpoint:
     type: object
     properties:
-      issuer:   { type: string, format: uri }
-      auth:     { type: string, format: uri }
-      token:    { type: string, format: uri }
+      issuer: { type: string, format: uri }
+      auth: { type: string, format: uri }
+      token: { type: string, format: uri }
       userinfo: { type: string, format: uri }
-      jwks:     { type: string, format: uri }
+      jwks: { type: string, format: uri }
       algorithms:
         type: array
         items: { type: string }
@@ -295,11 +325,11 @@ $defs:
   App:
     type: object
     properties:
-      active:     { type: boolean }
-      priority:   { type: integer }
-      title:      { type: string }
-      icon:       { type: string }
-      color:      { type: string }
+      active: { type: boolean }
+      priority: { type: integer }
+      title: { type: string }
+      icon: { type: string }
+      color: { type: string }
       dark_color: { type: string }
       path:
         type: string
@@ -326,7 +356,7 @@ $defs:
         type: string
         description: tcp / udp / unix (empty = local).
       address: { type: string }
-      tag:     { type: string }
+      tag: { type: string }
       format:
         type: string
         enum: ["", rfc5424]
@@ -335,7 +365,7 @@ $defs:
     type: object
     properties:
       events: { $ref: "#/$defs/EventLogType" }
-      tasks:  { $ref: "#/$defs/TaskLogType" }
+      tasks: { $ref: "#/$defs/TaskLogType" }
 
   EventLogType:
     type: object
@@ -353,7 +383,7 @@ $defs:
       format:
         type: string
         enum: ["", json]
-      logger:        { $ref: "#/$defs/LumberjackLogger" }
+      logger: { $ref: "#/$defs/LumberjackLogger" }
       result_logger: { $ref: "#/$defs/LumberjackLogger" }
 
   LumberjackLogger:
@@ -371,27 +401,27 @@ $defs:
         type: integer
         description: Max number of old log files to retain.
       localtime: { type: boolean }
-      compress:  { type: boolean }
+      compress: { type: boolean }
 
   ConfigProcess:
     type: object
     properties:
-      user:           { type: string }
-      uid:            { type: integer, minimum: 0 }
-      chroot:         { type: string }
-      gid:            { type: integer, minimum: 0 }
-      no_new_privs:   { type: boolean }
+      user: { type: string }
+      uid: { type: integer, minimum: 0 }
+      chroot: { type: string }
+      gid: { type: integer, minimum: 0 }
+      no_new_privs: { type: boolean }
       app_namespaces: { $ref: "#/$defs/ConfigAppNamespaces" }
 
   ConfigAppNamespaces:
     type: object
     description: Linux CLONE_NEW* flags applied to app runs. No-op on non-Linux.
     properties:
-      user:  { type: boolean }
+      user: { type: boolean }
       mount: { type: boolean }
-      pid:   { type: boolean }
-      ipc:   { type: boolean }
-      uts:   { type: boolean }
+      pid: { type: boolean }
+      ipc: { type: boolean }
+      uts: { type: boolean }
 
   ScheduleConfig:
     type: object
@@ -419,12 +449,12 @@ $defs:
     type: object
     properties:
       addr: { type: string }
-      db:   { type: integer, minimum: 0 }
+      db: { type: integer, minimum: 0 }
       user: { type: string }
       pass:
         type: string
         description: Redis password (sensitive).
-      tls:             { type: boolean }
+      tls: { type: boolean }
       tls_skip_verify: { type: boolean }
 
   SubscriptionConfig:
@@ -442,8 +472,8 @@ $defs:
   ConfigDirs:
     type: object
     properties:
-      secrets:           { type: string, default: /tmp/semaphore }
-      repos:             { type: string }
+      secrets: { type: string, default: /tmp/semaphore }
+      repos: { type: string }
       ssh_agent_sockets: { type: string, default: /tmp/semaphore }
 
   RunnerConfig:
@@ -453,17 +483,17 @@ $defs:
       token:
         type: string
         description: Runner authentication token (sensitive).
-      token_file:       { type: string }
+      token_file: { type: string }
       private_key_file: { type: string }
       one_off:
         type: boolean
         description: Runner processes a single job and exits.
       webhook: { type: string, format: uri }
-      name:    { type: string }
+      name: { type: string }
       tags:
         type: array
         items: { type: string }
       max_parallel_tasks: { type: integer, minimum: 1, default: 1 }
-      enabled:            { type: boolean }
+      enabled: { type: boolean }
       project_id:
         type: [integer, "null"]
