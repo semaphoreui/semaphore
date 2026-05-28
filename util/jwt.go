@@ -18,7 +18,7 @@ type OptionStore interface {
 
 // jwtSigningKeyOption is the database option key under which the AES-GCM
 // encrypted ECDSA P-256 private key PEM is stored.
-const jwtSigningKeyOption = "system.jwt_signing_key"
+const jwtSigningKeyOption = "jwt_signing_key"
 
 // InitJWTSignerFromStore initialises the global JWT signer.
 // It must be called once after the db.Store has been opened and after ConfigInit has run.
