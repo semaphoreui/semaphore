@@ -495,6 +495,73 @@ func TestLoadConfigFile_JSON(t *testing.T) {
 	assert.Equal(t, ":8888", Config.Port)
 }
 
+func TestMigrateLegacyConfig_AuthToMfa(t *testing.T) {
+	Config = &ConfigType{
+		Auth: &MultifactorAuthConfig{
+			Totp: &TotpConfig{Enabled: true, AllowRecovery: true},
+		},
+	}
+
+	migrateLegacyConfig()
+
+	require.NotNil(t, Config.Mfa)
+	require.NotNil(t, Config.Mfa.Totp)
+	assert.True(t, Config.Mfa.Totp.Enabled)
+	assert.True(t, Config.Mfa.Totp.AllowRecovery)
+}
+
+func TestMigrateLegacyConfig_MfaTakesPrecedenceOverAuth(t *testing.T) {
+	Config = &ConfigType{
+		Mfa: &MultifactorAuthConfig{
+			Totp: &TotpConfig{Enabled: true},
+		},
+		Auth: &MultifactorAuthConfig{
+			Totp: &TotpConfig{Enabled: false},
+		},
+	}
+
+	migrateLegacyConfig()
+
+	require.NotNil(t, Config.Mfa.Totp)
+	assert.True(t, Config.Mfa.Totp.Enabled)
+}
+
+func TestMigrateLegacyConfig_SubscriptionFields(t *testing.T) {
+	Config = &ConfigType{
+		SubscriptionKey:       "legacy-key",
+		SubscriptionKeyFile:   "/etc/semaphore/subscription.key",
+		SubscriptionServerURL: "https://billing.example.com",
+	}
+
+	migrateLegacyConfig()
+
+	require.NotNil(t, Config.Subscription)
+	assert.Equal(t, "legacy-key", Config.Subscription.Key)
+	assert.Equal(t, "/etc/semaphore/subscription.key", Config.Subscription.KeyFile)
+	assert.Equal(t, "https://billing.example.com", Config.Subscription.ServerURL)
+}
+
+func TestLegacyAuthSurvivesConfigFileLoadAndEnvAllocation(t *testing.T) {
+	Config = new(ConfigType)
+
+	decodeConfig(strings.NewReader(`{
+		"auth": {
+			"totp": {
+				"enabled": true,
+				"allow_recovery": true
+			}
+		}
+	}`), "config.json")
+
+	migrateLegacyConfig()
+	loadConfigEnvironment()
+
+	require.NotNil(t, Config.Mfa)
+	require.NotNil(t, Config.Mfa.Totp)
+	assert.True(t, Config.Mfa.Totp.Enabled)
+	assert.True(t, Config.Mfa.Totp.AllowRecovery)
+}
+
 func TestLoadConfigDefaults(t *testing.T) {
 	Config = new(ConfigType)
 	errMsg := "Failed to load config-default"

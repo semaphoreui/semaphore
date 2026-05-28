@@ -299,6 +299,8 @@ type ConfigType struct {
 	TLS  *TLSConfig `json:"tls,omitempty"`
 
 	Mfa *MultifactorAuthConfig `json:"mfa,omitempty"`
+	// Auth is the legacy config key for MFA settings (pre-2.19). Prefer mfa.
+	Auth *MultifactorAuthConfig `json:"auth,omitempty"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
@@ -408,6 +410,10 @@ type ConfigType struct {
 	HA *HAConfig `json:"ha,omitempty"`
 
 	Subscription *SubscriptionConfig `json:"subscription,omitempty"`
+	// Legacy flat subscription fields (pre-2.19). Prefer subscription.*.
+	SubscriptionKey       string `json:"subscription_key,omitempty"`
+	SubscriptionKeyFile   string `json:"subscription_key_file,omitempty"`
+	SubscriptionServerURL string `json:"subscription_server_url,omitempty"`
 
 	Dirs *ConfigDirs `json:"dirs,omitempty"`
 
@@ -493,6 +499,7 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 
 	if !noConfigFile {
 		usedConfigPath = loadConfigFile(configPath)
+		migrateLegacyConfig()
 	}
 
 	loadConfigEnvironment()
@@ -541,6 +548,7 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		}
 	}
 
+	ensureSubscriptionConfig()
 	if Config.Subscription.KeyFile != "" {
 		subscriptionKeyBytes, err := os.ReadFile(Config.Subscription.KeyFile)
 		if err != nil {
@@ -551,6 +559,36 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 	}
 
 	return
+}
+
+// migrateLegacyConfig maps pre-2.19 config keys to their current locations.
+// Must run after loading the config file and before loadConfigEnvironment, which
+// allocates empty nested structs that would otherwise mask unset legacy fields.
+func migrateLegacyConfig() {
+	if Config.Mfa == nil && Config.Auth != nil {
+		Config.Mfa = Config.Auth
+	}
+
+	if Config.SubscriptionKey != "" || Config.SubscriptionKeyFile != "" || Config.SubscriptionServerURL != "" {
+		if Config.Subscription == nil {
+			Config.Subscription = &SubscriptionConfig{}
+		}
+		if Config.Subscription.Key == "" {
+			Config.Subscription.Key = Config.SubscriptionKey
+		}
+		if Config.Subscription.KeyFile == "" {
+			Config.Subscription.KeyFile = Config.SubscriptionKeyFile
+		}
+		if Config.Subscription.ServerURL == "" {
+			Config.Subscription.ServerURL = Config.SubscriptionServerURL
+		}
+	}
+}
+
+func ensureSubscriptionConfig() {
+	if Config.Subscription == nil {
+		Config.Subscription = &SubscriptionConfig{}
+	}
 }
 
 func loadConfigFile(configPath string) (usedConfigPath *string) {
