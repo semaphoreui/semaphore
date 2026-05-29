@@ -1204,7 +1204,7 @@ definitions:
         type: string
       schedule_timezone:
         type: string
-      premium_features:
+      features:
         type: object
 
   ClusterTaskRecord:

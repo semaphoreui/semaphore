@@ -35,6 +35,12 @@ func getClusterStatus(w http.ResponseWriter, r *http.Request) {
 	body := map[string]any{
 		"ha_enabled": util.HAEnabled(),
 	}
+
+	if !util.HAEnabled() {
+		helpers.WriteJSON(w, http.StatusOK, body)
+		return
+	}
+
 	if util.Config.HA != nil {
 		body["node_id"] = util.Config.HA.NodeID
 	}

@@ -22,6 +22,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :is-admin="true"
+          :is-tags-available="features.project_runners"
         />
       </template>
     </EditDialog>
@@ -228,7 +229,7 @@ semaphore runner start --config ./config.runner.json</pre
 
     <v-btn
       v-else
-      :disabled="!premiumFeatures.project_runners"
+      :disabled="!features.project_runners"
       style="position: absolute; right: 15px; top: 15px"
       color="primary"
       @click="editItem('new')"
@@ -238,7 +239,7 @@ semaphore runner start --config ./config.runner.json</pre
     <v-divider />
 
     <v-alert
-      v-if="projectId && !premiumFeatures.project_runners"
+      v-if="projectId && !features.project_runners"
       text
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
@@ -287,14 +288,7 @@ semaphore runner start --config ./config.runner.json</pre
       >
         {{ $t('default') }}
       </v-chip>
-      <v-chip
-        v-if="tagFilter"
-        small
-        close
-        label
-        color="primary"
-        @click:close="tagFilter = null"
-      >
+      <v-chip v-if="tagFilter" small close label color="primary" @click:close="tagFilter = null">
         {{ tagFilter }}
       </v-chip>
     </div>
@@ -679,8 +673,10 @@ semaphore runner start --no-config`;
     },
 
     getSingleItemUrl() {
-      if (this.projectId) {
-        return `/api/project/${this.projectId}/runners/${this.itemId}`;
+      const projectId = this.getProjectIdOfItem(this.itemId);
+
+      if (projectId) {
+        return `/api/project/${projectId}/runners/${this.itemId}`;
       }
 
       return `/api/runners/${this.itemId}`;

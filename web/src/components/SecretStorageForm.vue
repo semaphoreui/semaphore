@@ -2,6 +2,13 @@
   <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
     <v-alert :value="formError" type="error" class="mb-6" dismissible>{{ formError }} </v-alert>
 
+    <v-alert text color="amber darken-3" class="PageAlert">
+      <span v-html="$t('project_runners_only_pro')"></span>
+      <v-btn dark class="ml-2" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro()">
+        {{ $t('upgrade_to_pro') }}
+      </v-btn>
+    </v-alert>
+
     <v-text-field
       v-model="item.name"
       :label="$t('name')"
@@ -345,9 +352,8 @@
       <v-card>
         <v-card-title>Sync paths</v-card-title>
         <v-card-text class="pt-4 pb-0">
-
           <v-text-field
-            style="width: 140px;"
+            style="width: 140px"
             v-if="item.sync_enabled"
             v-model.number="item.sync_interval"
             min="0"

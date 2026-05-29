@@ -1,5 +1,5 @@
 ---
-name: semaphore-ui-third-party-licenses
+name: semaphore-third-party-licenses
 description: >
   Generate or update the THIRD-PARTY-LICENSES.md file for the Semaphore UI repository. Use this skill whenever the user 
   asks to create, update, regenerate, audit, or refresh third-party license attributions, OSS notices, SBOM-style 

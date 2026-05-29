@@ -32,7 +32,7 @@
       :item-app="itemApp"
       item-id="new"
       @save="loadItems()"
-      :premium-features="premiumFeatures"
+      :features="features"
     ></EditTemplateDialog>
 
     <NewTaskDialog
@@ -290,7 +290,7 @@ export default {
     NewTaskDialog,
   },
   props: {
-    premiumFeatures: Object,
+    features: Object,
   },
   mixins: [ItemListPageBase, AppsMixin],
 

@@ -59,7 +59,7 @@
               editItem('new');
               itemType = 'vault';
             "
-            :disabled="!premiumFeatures.secret_storage_management"
+            :disabled="!features.secret_storage_management"
           >
             <v-list-item-icon>
               <v-icon>$vuetify.icons.hashicorp_vault</v-icon>
@@ -73,7 +73,7 @@
               editItem('new');
               itemType = 'aws_sm';
             "
-            :disabled="!premiumFeatures.secret_storage_management"
+            :disabled="!features.secret_storage_management"
           >
             <v-list-item-icon>
               <v-icon>$vuetify.icons.aws_sm</v-icon>
@@ -87,7 +87,7 @@
               editItem('new');
               itemType = 'azure_kv';
             "
-            :disabled="!premiumFeatures.secret_storage_management"
+            :disabled="!features.secret_storage_management"
           >
             <v-list-item-icon>
               <v-icon>$vuetify.icons.azure_kv</v-icon>
@@ -101,7 +101,7 @@
               editItem('new');
               itemType = 'dvls';
             "
-            :disabled="!premiumFeatures.secret_storage_management"
+            :disabled="!features.secret_storage_management"
           >
             <v-list-item-icon>
               <v-icon>$vuetify.icons.dvls</v-icon>
@@ -129,7 +129,7 @@
     <v-divider style="margin-top: -1px" />
 
     <v-alert
-      v-if="!premiumFeatures.secret_storage_management"
+      v-if="!features.secret_storage_management"
       text
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
@@ -215,8 +215,8 @@ export default {
   },
 
   computed: {
-    premiumFeatures() {
-      return this.systemInfo?.premium_features || {};
+    features() {
+      return this.systemInfo?.features || {};
     },
   },
 

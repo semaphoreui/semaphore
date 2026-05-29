@@ -565,7 +565,7 @@
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
         :user="user"
-        :premiumFeatures="(systemInfo || { premium_features: {} }).premium_features"
+        :features="(systemInfo || { features: {} }).features"
         :authMethods="(systemInfo || { auth_methods: {} }).auth_methods"
         :systemInfo="systemInfo"
       ></router-view>

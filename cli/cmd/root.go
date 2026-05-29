@@ -237,11 +237,24 @@ func runService() {
 
 	var err error
 	if util.Config.TLS.Enabled {
+
+		if util.Config.TLS.HTTPRedirectPort != nil && util.Config.TLS.HTTPRedirectAddr != "" {
+			panic("You can't use both HTTP redirect address and port at the same time")
+		}
+
+		var httpRedirectAddr string
+
 		if util.Config.TLS.HTTPRedirectPort != nil {
+			httpRedirectAddr = fmt.Sprintf(":%d", *util.Config.TLS.HTTPRedirectPort)
+		} else if util.Config.TLS.HTTPRedirectAddr != "" {
+			httpRedirectAddr = util.Config.TLS.HTTPRedirectAddr
+		}
+
+		if httpRedirectAddr != "" {
 
 			go func() {
-				httpRedirectPort := fmt.Sprintf(":%d", *util.Config.TLS.HTTPRedirectPort)
-				err = http.ListenAndServe(httpRedirectPort, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+				err = http.ListenAndServe(httpRedirectAddr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					target := "https://"
 
 					if util.Config.WebHost != "" {
