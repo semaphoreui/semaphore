@@ -4,6 +4,9 @@ file:
     owner: semaphore
     group: root
     filetype: file
+    contains:
+      # Data path must default from SEMAPHORE_DATA_PATH, not tmp (runner token persistence).
+      - 'SEMAPHORE_DATA_PATH="${SEMAPHORE_DATA_PATH:-/var/lib/semaphore}"'
   /usr/local/bin/semaphore:
     exists: true
     owner: semaphore

@@ -188,6 +188,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 
 	tsk.Task.RunnerID = &runner.ID
 
+	tsk.Logf("Task #%d is assigned to runner #%d", tsk.Task.ID, runner.ID)
 	err = t.taskPool.store.UpdateTask(tsk.Task)
 
 	if err != nil {

@@ -140,7 +140,7 @@
             color="primary"
             :disabled="formSaving"
             target="_blank"
-            href="https://portal.semaphoreui.com/buy_pro?utm_source=app"
+            :href="`https://portal.semaphoreui.com/buy_pro?utm_source=app&utm_content=feature_${feature}`"
             >Buy Pro</v-btn
           >
         </v-col>
@@ -154,7 +154,7 @@
         :disabled="formSaving"
         target="_blank"
         outlined
-        href="https://portal.semaphoreui.com/start_trial?utm_source=app"
+        :href="`https://portal.semaphoreui.com/start_trial?utm_source=app&utm_content=feature_${feature}`"
       >
         Get 30-day free trial
       </v-btn>
@@ -220,7 +220,7 @@
                         margin-top: 1px;
                       "
                       :style="{
-                        backgroundColor: item.state === 'active' ? '#00bc00' : '#ff0000'
+                        backgroundColor: item.state === 'active' ? '#00bc00' : '#ff0000',
                       }"
                     ></div>
                     <div>{{ item.state }}</div>
@@ -269,9 +269,11 @@
         <a
           target="_blank"
           class="LinkHoverable"
-          href="https://portal.semaphoreui.com/auth/login?new_project=premium"
-          >Contact support</a
+          href="https://semaphoreui.com/contact/"
         >
+          Contact support
+          <v-icon small color="primary" style="transform: translateY(-1px)">mdi-open-in-new</v-icon>
+        </a>
       </div>
     </div>
   </v-form>
@@ -291,6 +293,10 @@ import axios from 'axios';
 
 export default {
   mixins: [ItemFormBase],
+
+  props: {
+    feature: String,
+  },
 
   data() {
     return {

@@ -10,6 +10,8 @@ web/.nyc_output
 api/public/**/*
 /server.json
 /config.json
+/config.yml
+/config.yaml
 /config-secondary.json
 /config.runner.json
 /config.runner.token

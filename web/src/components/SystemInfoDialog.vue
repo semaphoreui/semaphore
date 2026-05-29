@@ -169,7 +169,6 @@
           </v-card-text>
         </v-card>
 
-        <!-- Cluster / HA -->
         <v-subheader class="px-0 mt-2">{{ $t('cluster') }}</v-subheader>
         <v-card style="background: var(--highlighted-card-bg-color)">
           <v-card-text class="px-0 py-2">
@@ -188,14 +187,6 @@
                 <tr v-if="info.cluster.ha_enabled">
                   <td class="font-weight-medium">{{ $t('nodeId') }}</td>
                   <td>{{ info.cluster.node_id }}</td>
-                </tr>
-                <tr v-if="info.cluster.ha_enabled && info.cluster.node_count != null">
-                  <td class="font-weight-medium">{{ $t('nodeCount') }}</td>
-                  <td>{{ info.cluster.node_count }}</td>
-                </tr>
-                <tr v-if="info.cluster.ha_enabled && info.cluster.ui_count != null">
-                  <td class="font-weight-medium">{{ $t('uiInstances') }}</td>
-                  <td>{{ info.cluster.ui_count }}</td>
                 </tr>
               </tbody>
             </v-simple-table>

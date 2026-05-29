@@ -59,7 +59,7 @@
               editItem('new');
               itemType = 'vault';
             "
-            :disabled="!premiumFeatures.secret_storage_management"
+            :disabled="!features.secret_storage_management"
           >
             <v-list-item-icon>
               <v-icon>$vuetify.icons.hashicorp_vault</v-icon>
@@ -73,7 +73,7 @@
               editItem('new');
               itemType = 'aws_sm';
             "
-            :disabled="!premiumFeatures.secret_storage_management"
+            :disabled="!features.secret_storage_management"
           >
             <v-list-item-icon>
               <v-icon>$vuetify.icons.aws_sm</v-icon>
@@ -87,7 +87,7 @@
               editItem('new');
               itemType = 'azure_kv';
             "
-            :disabled="!premiumFeatures.secret_storage_management"
+            :disabled="!features.secret_storage_management"
           >
             <v-list-item-icon>
               <v-icon>$vuetify.icons.azure_kv</v-icon>
@@ -101,7 +101,7 @@
               editItem('new');
               itemType = 'dvls';
             "
-            :disabled="!premiumFeatures.secret_storage_management"
+            :disabled="!features.secret_storage_management"
           >
             <v-list-item-icon>
               <v-icon>$vuetify.icons.dvls</v-icon>
@@ -129,14 +129,19 @@
     <v-divider style="margin-top: -1px" />
 
     <v-alert
-      v-if="!premiumFeatures.secret_storage_management"
+      v-if="!features.secret_storage_management"
       text
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
     >
       <span class="mr-1" v-html="$t('secret_storage_only_pro')"></span>
 
-      <v-btn dark v-if="isAdmin" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro()">
+      <v-btn
+        dark
+        v-if="isAdmin"
+        color="hsl(348deg, 86%, 61%)"
+        @click="upgradeToPro('secret_storage_management')"
+      >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
@@ -174,9 +179,7 @@
           <v-btn
             v-if="item.sync_enabled"
             @click="syncItem(item.id)"
-            :disabled="
-              !(item.sync_paths && item.sync_paths.length > 0)
-            "
+            :disabled="!(item.sync_paths && item.sync_paths.length > 0)"
           >
             <v-icon>mdi-sync</v-icon>
           </v-btn>
@@ -215,8 +218,8 @@ export default {
   },
 
   computed: {
-    premiumFeatures() {
-      return this.systemInfo?.premium_features || {};
+    features() {
+      return this.systemInfo?.features || {};
     },
   },
 
@@ -256,10 +259,6 @@ export default {
         default:
           return '';
       }
-    },
-
-    upgradeToPro() {
-      EventBus.$emit('i-subscription', {});
     },
 
     getHeaders() {

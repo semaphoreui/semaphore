@@ -1,13 +1,19 @@
+import EventBus from '@/event-bus';
+
 export default {
   props: {
     systemInfo: Object,
   },
 
   computed: {
-
-    premiumFeatures() {
-      return this.systemInfo?.premium_features || {};
+    features() {
+      return this.systemInfo?.features || {};
     },
+  },
 
+  methods: {
+    upgradeToPro(feature) {
+      EventBus.$emit('i-subscription', { feature });
+    },
   },
 };

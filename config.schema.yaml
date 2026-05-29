@@ -1,0 +1,469 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://semaphoreui.com/schemas/config.schema.json"
+title: Semaphore configuration
+description: Schema for Semaphore UI config.json / config.yaml. Generated from util.ConfigType.
+type: object
+
+properties:
+  # ==========================================================================
+  # Database
+  # ==========================================================================
+  dialect:
+    type: string
+    enum: [mysql, bolt, postgres, sqlite]
+    default: bolt
+    description: Database engine used by Semaphore.
+  mysql:    { $ref: "#/$defs/DbConfig" }
+  bolt:     { $ref: "#/$defs/DbConfig", description: "Deprecated — embedded BoltDB store." }
+  postgres: { $ref: "#/$defs/DbConfig" }
+  sqlite:   { $ref: "#/$defs/DbConfig" }
+
+  # ==========================================================================
+  # HTTP server
+  # ==========================================================================
+  port:
+    type: string
+    pattern: "^:?([0-9]{1,5})$"
+    default: ":3000"
+    description: TCP port the HTTP server listens on. Leading ':' optional.
+  interface:
+    type: string
+    description: Bind address (empty = all interfaces).
+  tls: { $ref: "#/$defs/TLSConfig" }
+
+  # ==========================================================================
+  # Authentication
+  # ==========================================================================
+  mfa: { $ref: "#/$defs/MultifactorAuthConfig" }
+
+  # ==========================================================================
+  # Paths and runtime layout
+  # ==========================================================================
+  tmp_path:
+    type: string
+    default: /tmp/semaphore
+    description: Working directory for ephemeral project data.
+  home_dir_mode:
+    type: string
+    enum: ["", user_home, project_home, template_dir]
+    default: template_dir
+    description: How HOME is set for task runs.
+  ssh_config_path:
+    type: string
+    description: Path to custom SSH config (default ~/.ssh/config).
+  git_client:
+    type: string
+    enum: [go_git, cmd_git]
+    default: cmd_git
+    description: Git client implementation.
+  web_host:
+    type: string
+    format: uri
+    description: Public URL of this Semaphore instance.
+
+  # ==========================================================================
+  # Cookie / access-key secrets (base64-encoded, sensitive)
+  # ==========================================================================
+  cookie_hash:
+    type: string
+    description: Base64-encoded HMAC key for session cookies (sensitive).
+  cookie_encryption:
+    type: string
+    description: Base64-encoded encryption key for session cookies (sensitive).
+  access_key_encryption:
+    type: string
+    description: Base64-encoded 32-byte key used to encrypt stored access keys (sensitive).
+
+  # ==========================================================================
+  # Alerting — Email (SMTP)
+  # ==========================================================================
+  email_alert:    { type: boolean }
+  email_sender:   { type: string }
+  email_host:     { type: string }
+  email_port:
+    type: string
+    pattern: "^(|[0-9]{1,5})$"
+  email_username: { type: string }
+  email_password:
+    type: string
+    description: SMTP password (sensitive).
+  email_secure:   { type: boolean }
+  email_tls:      { type: boolean }
+  email_tls_min_version:
+    type: string
+    pattern: "^(1\\.[0123])$"
+    default: "1.2"
+
+  # ==========================================================================
+  # LDAP
+  # ==========================================================================
+  ldap_enable:       { type: boolean }
+  ldap_binddn:       { type: string }
+  ldap_bindpassword:
+    type: string
+    description: LDAP bind password (sensitive).
+  ldap_server:       { type: string }
+  ldap_searchdn:     { type: string }
+  ldap_searchfilter: { type: string }
+  ldap_mappings:     { $ref: "#/$defs/LdapMappings" }
+  ldap_needtls:      { type: boolean }
+
+  # ==========================================================================
+  # Alerting — Chat integrations
+  # ==========================================================================
+  telegram_alert:        { type: boolean }
+  telegram_chat:         { type: string }
+  telegram_token:
+    type: string
+    description: Telegram bot token (sensitive).
+  slack_alert:           { type: boolean }
+  slack_url:             { type: string, format: uri }
+  rocketchat_alert:      { type: boolean }
+  rocketchat_url:        { type: string, format: uri }
+  microsoft_teams_alert: { type: boolean }
+  microsoft_teams_url:   { type: string, format: uri }
+  dingtalk_alert:        { type: boolean }
+  dingtalk_url:          { type: string, format: uri }
+  gotify_alert:          { type: boolean }
+  gotify_url:            { type: string, format: uri }
+  gotify_token:
+    type: string
+    description: Gotify app token (sensitive).
+
+  # ==========================================================================
+  # OIDC providers
+  # ==========================================================================
+  oidc_providers:
+    type: object
+    additionalProperties: { $ref: "#/$defs/OidcProvider" }
+    description: OIDC identity providers, keyed by provider id used in callback URLs.
+
+  # ==========================================================================
+  # Task scheduling
+  # ==========================================================================
+  max_task_duration_sec:  { type: integer, minimum: 0 }
+  max_tasks_per_template: { type: integer, minimum: 0 }
+  max_parallel_tasks:
+    type: integer
+    minimum: 0
+    default: 10
+
+  runner_registration_token:
+    type: string
+    description: Bootstrap token used by runners to register with the server.
+
+  # ==========================================================================
+  # Feature toggles
+  # ==========================================================================
+  password_login_disable:       { type: boolean }
+  non_admin_can_create_project: { type: boolean }
+  use_remote_runner:            { type: boolean }
+
+  # ==========================================================================
+  # Apps and environment
+  # ==========================================================================
+  apps:
+    type: object
+    additionalProperties: { $ref: "#/$defs/App" }
+    description: Pre-registered app templates, keyed by app id.
+  env_vars:
+    type: object
+    additionalProperties: { type: string }
+    description: Environment variables exposed to task runs.
+  forwarded_env_vars:
+    type: array
+    items: { type: string }
+    description: Host environment variables forwarded into task runs.
+
+  # ==========================================================================
+  # Nested subsystems
+  # ==========================================================================
+  teams:        { $ref: "#/$defs/TeamsConfig" }
+  syslog:       { $ref: "#/$defs/SyslogConfig" }
+  log:          { $ref: "#/$defs/ConfigLog" }
+  process:      { $ref: "#/$defs/ConfigProcess" }
+  schedule:     { $ref: "#/$defs/ScheduleConfig" }
+  debugging:    { $ref: "#/$defs/DebuggingConfig" }
+  ha:           { $ref: "#/$defs/HAConfig" }
+  subscription: { $ref: "#/$defs/SubscriptionConfig" }
+  dirs:         { $ref: "#/$defs/ConfigDirs" }
+  runner:       { $ref: "#/$defs/RunnerConfig" }
+
+$defs:
+  DbConfig:
+    type: object
+    properties:
+      host: { type: string, default: "0.0.0.0" }
+      user: { type: string }
+      pass:
+        type: string
+        description: Database password (sensitive).
+      name: { type: string, default: semaphore }
+      options:
+        type: object
+        additionalProperties: { type: string }
+
+  TLSConfig:
+    type: object
+    properties:
+      enabled:   { type: boolean }
+      cert_file: { type: string }
+      key_file:  { type: string }
+      http_redirect_addr:
+        type: string
+        description: Address (host[:port]) for the HTTP→HTTPS redirect listener. Mutually exclusive with http_redirect_port.
+      http_redirect_port:
+        type: [integer, "null"]
+        minimum: 1
+        maximum: 65535
+        description: Port for the HTTP→HTTPS redirect listener. Mutually exclusive with http_redirect_addr.
+
+  MultifactorAuthConfig:
+    type: object
+    description: Multi-factor authentication settings.
+    properties:
+      totp:  { $ref: "#/$defs/TotpConfig" }
+      email: { $ref: "#/$defs/EmailAuthConfig" }
+
+  TotpConfig:
+    type: object
+    properties:
+      enabled:        { type: boolean }
+      allow_recovery: { type: boolean }
+      app_name:
+        type: string
+        description: Issuer label shown in authenticator apps.
+
+  EmailAuthConfig:
+    type: object
+    properties:
+      enabled:                      { type: boolean }
+      allow_login_as_external_user: { type: boolean }
+      allow_create_external_user:   { type: boolean }
+      allowed_domains:
+        type: array
+        items: { type: string }
+      disable_for_oidc:             { type: boolean }
+
+  LdapMappings:
+    type: object
+    properties:
+      dn:   { type: string, default: dn }
+      mail: { type: string, default: mail }
+      uid:  { type: string, default: uid }
+      cn:   { type: string, default: cn }
+
+  OidcProvider:
+    type: object
+    properties:
+      client_id:          { type: string }
+      client_id_file:     { type: string }
+      client_secret:
+        type: string
+        description: OIDC client secret (sensitive).
+      client_secret_file: { type: string }
+      redirect_url:       { type: string, format: uri }
+      scopes:
+        type: array
+        items: { type: string }
+      display_name: { type: string }
+      color:        { type: string }
+      icon:         { type: string }
+      provider_url:
+        type: string
+        format: uri
+        description: OIDC autodiscovery URL.
+      endpoint:         { $ref: "#/$defs/OidcEndpoint" }
+      username_claim:   { type: string, default: preferred_username }
+      name_claim:       { type: string, default: preferred_username }
+      email_claim:      { type: string, default: email }
+      order:            { type: integer }
+      return_via_state: { type: boolean, default: true }
+
+  OidcEndpoint:
+    type: object
+    properties:
+      issuer:   { type: string, format: uri }
+      auth:     { type: string, format: uri }
+      token:    { type: string, format: uri }
+      userinfo: { type: string, format: uri }
+      jwks:     { type: string, format: uri }
+      algorithms:
+        type: array
+        items: { type: string }
+
+  App:
+    type: object
+    properties:
+      active:     { type: boolean }
+      priority:   { type: integer }
+      title:      { type: string }
+      icon:       { type: string }
+      color:      { type: string }
+      dark_color: { type: string }
+      path:
+        type: string
+        description: Path to the app binary or working directory.
+      args:
+        type: array
+        items: { type: string }
+
+  TeamsConfig:
+    type: object
+    properties:
+      invites_enabled: { type: boolean }
+      invite_type:
+        type: string
+        enum: [email, username, both]
+        default: username
+      members_can_leave: { type: boolean }
+
+  SyslogConfig:
+    type: object
+    properties:
+      enabled: { type: boolean }
+      network:
+        type: string
+        description: tcp / udp / unix (empty = local).
+      address: { type: string }
+      tag:     { type: string }
+      format:
+        type: string
+        enum: ["", rfc5424]
+
+  ConfigLog:
+    type: object
+    properties:
+      events: { $ref: "#/$defs/EventLogType" }
+      tasks:  { $ref: "#/$defs/TaskLogType" }
+
+  EventLogType:
+    type: object
+    properties:
+      enabled: { type: boolean }
+      format:
+        type: string
+        enum: ["", json]
+      logger: { $ref: "#/$defs/LumberjackLogger" }
+
+  TaskLogType:
+    type: object
+    properties:
+      enabled: { type: boolean }
+      format:
+        type: string
+        enum: ["", json]
+      logger:        { $ref: "#/$defs/LumberjackLogger" }
+      result_logger: { $ref: "#/$defs/LumberjackLogger" }
+
+  LumberjackLogger:
+    type: object
+    description: natefinch/lumberjack rotating-file logger.
+    properties:
+      filename: { type: string }
+      maxsize:
+        type: integer
+        description: Max megabytes before rotation.
+      maxage:
+        type: integer
+        description: Max days to retain old log files.
+      maxbackups:
+        type: integer
+        description: Max number of old log files to retain.
+      localtime: { type: boolean }
+      compress:  { type: boolean }
+
+  ConfigProcess:
+    type: object
+    properties:
+      user:           { type: string }
+      uid:            { type: integer, minimum: 0 }
+      chroot:         { type: string }
+      gid:            { type: integer, minimum: 0 }
+      no_new_privs:   { type: boolean }
+      app_namespaces: { $ref: "#/$defs/ConfigAppNamespaces" }
+
+  ConfigAppNamespaces:
+    type: object
+    description: Linux CLONE_NEW* flags applied to app runs. No-op on non-Linux.
+    properties:
+      user:  { type: boolean }
+      mount: { type: boolean }
+      pid:   { type: boolean }
+      ipc:   { type: boolean }
+      uts:   { type: boolean }
+
+  ScheduleConfig:
+    type: object
+    properties:
+      timezone: { type: string, default: UTC }
+
+  DebuggingConfig:
+    type: object
+    properties:
+      api_delay:
+        type: string
+        description: Artificial delay applied to API responses (e.g. "200ms").
+      pprof_dump_dir: { type: string }
+
+  HAConfig:
+    type: object
+    properties:
+      enabled: { type: boolean }
+      node_id:
+        type: string
+        description: Cluster node id; auto-generated if empty.
+      redis: { $ref: "#/$defs/HARedisConfig" }
+
+  HARedisConfig:
+    type: object
+    properties:
+      addr: { type: string }
+      db:   { type: integer, minimum: 0 }
+      user: { type: string }
+      pass:
+        type: string
+        description: Redis password (sensitive).
+      tls:             { type: boolean }
+      tls_skip_verify: { type: boolean }
+
+  SubscriptionConfig:
+    type: object
+    properties:
+      key:
+        type: string
+        description: Subscription key (sensitive). Setting this disables in-UI activation.
+      key_file: { type: string }
+      server_url:
+        type: string
+        format: uri
+        default: "https://portal.semaphoreui.com/billing"
+
+  ConfigDirs:
+    type: object
+    properties:
+      secrets:           { type: string, default: /tmp/semaphore }
+      repos:             { type: string }
+      ssh_agent_sockets: { type: string, default: /tmp/semaphore }
+
+  RunnerConfig:
+    type: object
+    properties:
+      registration_token_file: { type: string }
+      token:
+        type: string
+        description: Runner authentication token (sensitive).
+      token_file:       { type: string }
+      private_key_file: { type: string }
+      one_off:
+        type: boolean
+        description: Runner processes a single job and exits.
+      webhook: { type: string, format: uri }
+      name:    { type: string }
+      tags:
+        type: array
+        items: { type: string }
+      max_parallel_tasks: { type: integer, minimum: 1, default: 1 }
+      enabled:            { type: boolean }
+      project_id:
+        type: [integer, "null"]

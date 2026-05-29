@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 	"image/png"
 	"net/http"
 
@@ -270,6 +271,11 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := helpers.Store(r).DeleteUser(user.ID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := helpers.Store(r).DeleteOptions(fmt.Sprintf("user%d", user.ID)); err != nil {
+		log.WithError(err).Warn("can not delete options of removed user")
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -310,7 +316,7 @@ func totpQr(w http.ResponseWriter, r *http.Request) {
 func enableTotp(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "_user").(db.User)
 
-	if !util.Config.Auth.Totp.Enabled {
+	if !util.Config.Mfa.Totp.Enabled {
 		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusBadRequest)
 		return
 	}
@@ -332,7 +338,7 @@ func enableTotp(w http.ResponseWriter, r *http.Request) {
 
 	var code, hash string
 
-	if util.Config.Auth.Totp.AllowRecovery {
+	if util.Config.Mfa.Totp.AllowRecovery {
 		code, hash, err = util.GenerateRecoveryCode()
 		if err != nil {
 			helpers.WriteError(w, err)

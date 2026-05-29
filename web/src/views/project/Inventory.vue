@@ -38,7 +38,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
-          :premium-features="premiumFeatures"
+          :features="features"
         />
       </template>
     </EditDialog>
@@ -164,7 +164,7 @@ export default {
   components: { TemplateSelectForm, InventoryForm },
 
   props: {
-    premiumFeatures: Object,
+    features: Object,
   },
 
   data() {
