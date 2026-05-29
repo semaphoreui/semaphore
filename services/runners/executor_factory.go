@@ -10,29 +10,6 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-// ExecutorType identifies the strategy the runner uses to execute each task. The default
-// "local" executor runs tasks as subprocesses on the runner host. "kubernetes" dispatches
-// each task into an ephemeral pod, GitLab-runner-style.
-type ExecutorType string
-
-const (
-	ExecutorTypeLocal      ExecutorType = "local"
-	ExecutorTypeKubernetes ExecutorType = "kubernetes"
-)
-
-// resolveExecutorType returns the executor type configured for this runner process. Empty
-// (or unset) config falls back to local so existing deployments keep their behaviour.
-func resolveExecutorType() ExecutorType {
-	if util.Config == nil || util.Config.Runner == nil {
-		return ExecutorTypeLocal
-	}
-	t := ExecutorType(util.Config.Runner.Executor)
-	if t == "" {
-		return ExecutorTypeLocal
-	}
-	return t
-}
-
 // newExecutor builds the per-task executor the runner will dispatch into. Access keys
 // retrieved from the server are wired into the JobData up front so each concrete
 // constructor sees a fully-hydrated record — this keeps job_pool.go agnostic of which
@@ -45,16 +22,16 @@ func newExecutor(
 ) (tasks.Executor, error) {
 	hydrateJobAccessKeys(&jobData, accessKeys)
 
-	switch resolveExecutorType() {
-	case ExecutorTypeLocal:
+	switch util.Config.Runner.Executor.Type {
+	case util.ExecutorTypeLocal:
 		return newLocalExecutor(jobData, keyInstaller), nil
-	case ExecutorTypeKubernetes:
+	case util.ExecutorTypeKubernetes:
 		if k8sCfg == nil {
 			return nil, fmt.Errorf("kubernetes executor requested but k8s config is not initialized")
 		}
 		return newK8sExecutor(jobData, *k8sCfg), nil
 	default:
-		return nil, fmt.Errorf("unknown runner executor type %q", resolveExecutorType())
+		return nil, fmt.Errorf("unknown runner executor type %q", util.Config.Runner.Executor.Type)
 	}
 }
 

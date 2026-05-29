@@ -107,8 +107,8 @@ func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
 		keyInstaller: keyInstaller,
 	}
 
-	if resolveExecutorType() == ExecutorTypeKubernetes {
-		cfg, err := k8s.ConfigFromRunnerConfig(util.Config.Runner.K8s)
+	if util.Config.Runner.Executor.Type == util.ExecutorTypeKubernetes {
+		cfg, err := k8s.ConfigFromRunnerConfig(util.Config.Runner.Executor.K8s)
 		if err != nil {
 			log.WithError(err).Error("failed to initialize Kubernetes executor config; runner will reject K8s jobs until restarted with a valid config")
 		} else {

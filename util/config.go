@@ -127,6 +127,21 @@ type RunnerConnectionConfig struct {
 	SkipTLSVerify bool `json:"skip_tls_verify,omitempty" env:"SEMAPHORE_RUNNER_SKIP_TLS_VERIFY"`
 }
 
+// ExecutorType identifies the strategy the runner uses to execute each task. The default
+// "local" executor runs tasks as subprocesses on the runner host. "kubernetes" dispatches
+// each task into an ephemeral pod, GitLab-runner-style.
+type ExecutorType string
+
+const (
+	ExecutorTypeLocal      ExecutorType = "local"
+	ExecutorTypeKubernetes ExecutorType = "kubernetes"
+)
+
+type ExecutorConfig struct {
+	Type ExecutorType    `json:"type" default:"local"`
+	K8s  RunnerK8sConfig `json:"k8s,omitempty"`
+}
+
 type RunnerConfig struct {
 	RegistrationToken     string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 	RegistrationTokenFile string `json:"registration_token_file,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN_FILE"`
@@ -152,16 +167,7 @@ type RunnerConfig struct {
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
 
-	// Executor selects the strategy used to execute each task on this runner. The
-	// default "local" runs the tool (ansible-playbook, terraform, shell) as a
-	// subprocess on the runner host. "kubernetes" dispatches each task into an
-	// ephemeral Pod (one Pod per task). Empty string is treated as "local".
-	Executor string `json:"executor,omitempty" default:"local" env:"SEMAPHORE_RUNNER_EXECUTOR"`
-
-	// K8s holds Kubernetes-executor knobs. Populated only when Executor=kubernetes;
-	// kept on RunnerConfig (rather than in its own struct) for the same reason the
-	// other runner fields are: it's read once at process startup and never changes.
-	K8s RunnerK8sConfig `json:"k8s,omitempty"`
+	Executor *ExecutorConfig `json:"executor,omitempty"`
 }
 
 // RunnerK8sConfig holds runner-side configuration for the Kubernetes executor. Field
