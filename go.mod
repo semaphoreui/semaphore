@@ -1,10 +1,10 @@
 module github.com/semaphoreui/semaphore
 
-go 1.24.6
+go 1.25.0
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/coreos/go-oidc/v3 v3.17.0
+	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/creack/pty v1.1.24
 	github.com/go-git/go-git/v5 v5.18.0
 	github.com/go-gorp/gorp/v3 v3.1.0
@@ -27,7 +27,7 @@ require (
 	github.com/thedevsaddam/gojsonq/v2 v2.5.2
 	go.etcd.io/bbolt v1.4.1
 	golang.org/x/crypto v0.48.0
-	golang.org/x/oauth2 v0.35.0
+	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sys v0.41.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
