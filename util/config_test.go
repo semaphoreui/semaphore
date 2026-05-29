@@ -443,7 +443,7 @@ func TestDecodeConfig_YAML(t *testing.T) {
 port: ":1337"
 cookie_hash: abc
 max_parallel_tasks: 7
-bolt:
+sqlite:
   host: /tmp/db.bolt
 `
 	decodeConfig(strings.NewReader(yamlBody), "config.yaml")
@@ -451,8 +451,8 @@ bolt:
 	assert.Equal(t, ":1337", Config.Port)
 	assert.Equal(t, "abc", Config.CookieHash)
 	assert.Equal(t, 7, Config.MaxParallelTasks)
-	require.NotNil(t, Config.BoltDb)
-	assert.Equal(t, "/tmp/db.bolt", Config.BoltDb.Hostname)
+	require.NotNil(t, Config.SQLite)
+	assert.Equal(t, "/tmp/db.bolt", Config.SQLite.Hostname)
 }
 
 func TestDecodeConfig_YAML_YmlExtension(t *testing.T) {
