@@ -19,16 +19,22 @@ In scope:
 
 - New column `token_hash` on the `runner` table. Populated on registration
   and on every token rotation.
-- `GetRunnerByToken` replaced by a lookup that derives a stable hash and
-  matches against `token_hash` (or, where the hash is salted per row, a scan
-  bounded by an indexed prefix — see Design).
-- Plaintext `token` column dropped after the cutover migration.
-- Both SQL (MySQL/Postgres/SQLite) and Bolt backends updated.
-- Existing runners keep working through the migration — their plaintext
-  tokens are hashed in place during the migration, no re-registration needed.
+- `GetRunnerByToken` derives a stable hash and matches against `token_hash`,
+  with a **fallback to the existing plaintext `token` column** for any row
+  that does not yet have a hash. This is the backward-compatibility hinge —
+  see Backward Compatibility below.
+- SQL backends only (MySQL, Postgres, SQLite). The Bolt backend is out of
+  scope — no changes to `db/bolt/*`.
+- Existing runners keep working through and after the migration — no
+  re-registration, no operator action required, no flag day.
 
 Out of scope:
 
+- **Dropping the plaintext `token` column.** Not part of this plan. The
+  column stays in the schema indefinitely so older Semaphore binaries
+  reading the same database continue to authenticate runners. A separate,
+  later plan can revisit removal once a hard minimum supported version is
+  declared.
 - Rotating tokens for existing runners. The migration preserves the secret;
   the operator can rotate later if they choose.
 - Changing the on-the-wire token format or length. Runners keep sending the
@@ -39,6 +45,50 @@ Out of scope:
 - Hashing `ProjectInvite.Token` and similar bearer tokens elsewhere in the
   codebase. Same shape of problem; tracked as a follow-up so this change
   stays reviewable.
+
+## Backward Compatibility
+
+Backward compatibility is a hard requirement for this change. The plan must
+not break any of the following, on any in-scope backend (MySQL, Postgres,
+SQLite):
+
+1. **Existing registered runners** continue to authenticate with the token
+   they already hold, with no re-registration. Their `runner.cfg` files on
+   disk are untouched.
+2. **Older Semaphore server binaries** sharing the same database (e.g.
+   during a rolling upgrade, or after a rollback) can still read and write
+   the `token` column. The schema stays a superset of the v2.18 schema —
+   only additive changes.
+3. **The public API shape** (`db.Runner` JSON, the `RegisterRunner` response
+   body, the `X-Runner-Token` request header) is unchanged. External
+   tooling that issues these calls keeps working.
+4. **The `db.Runner` Go struct** keeps its `Token` field. Callers that read
+   it at registration time (e.g. `RegisterRunner` returning the token to the
+   CLI) still work. After fetch, the field carries whatever the column
+   holds (plaintext for legacy rows, empty for new rows).
+
+The mechanism that delivers all four:
+
+- The migration **adds** `token_hash` and **leaves `token` alone**. No
+  column rename, no drop, no `NOT NULL` flip on `token`.
+- The backfill computes `token_hash` for every existing row from its
+  plaintext `token`. After backfill, every row has both columns populated.
+- `CreateRunner` (new registrations going forward) writes `token_hash` and
+  also writes the plaintext `token` so an older binary running against the
+  same DB can still authenticate that runner. The plaintext write is a
+  compatibility shim, gated by a config flag (see below) so an operator who
+  has fully cut over can disable it.
+- `GetRunnerByToken` (the auth hot path) prefers `token_hash`. If no row
+  matches the hash, it falls back to a plaintext `token = ?` lookup. The
+  fallback handles two cases: rows the backfill hasn't touched yet (e.g.
+  an interrupted migration), and rows written by an older binary after this
+  one started up.
+
+Config flag: `runner.store_plaintext_token` (default `true` in 2.19; flip to
+`false` in a future release once the deprecation window passes). When
+`false`, `CreateRunner` writes only `token_hash`, and any new registration
+done by this binary is invisible to older binaries — the operator has
+opted into "no rollback past this point" explicitly.
 
 ## Design Summary
 
@@ -81,77 +131,80 @@ working without re-registration.
 ### 1. Schema migration
 
 Add migration `v2.19.0.sql` (and the SQLite variant if needed) to all three
-dialects:
+dialects. **Additive only — `token` is left untouched.**
 
 ```sql
 ALTER TABLE runner ADD COLUMN token_hash CHAR(64) NOT NULL DEFAULT '';
-CREATE UNIQUE INDEX runner_token_hash_idx ON runner (token_hash);
+CREATE INDEX runner_token_hash_idx ON runner (token_hash);
 ```
+
+Notes:
+
+- The index is **not** `UNIQUE`. New rows start with `token_hash = ''`
+  (default) until the backfill or a write fills it in; a unique index on
+  empty strings would collide. After full cutover, an operator can convert
+  it to unique manually if they choose, but the auth path does not require
+  uniqueness (a SHA-256 collision in practice would itself be a bug).
+- `token` keeps its existing constraints. No `NOT NULL` change, no rename.
 
 Plus a one-shot data migration that hashes existing `token` values into
 `token_hash`. Two options:
 
-- **SQL-native** where the dialect supports it: `UPDATE runner SET
-  token_hash = LOWER(HEX(SHA2(token, 256)))` (MySQL/Postgres). SQLite has
-  no built-in SHA-256, so the SQLite migration cannot do this inline.
 - **Go-side backfill** in the migrator: read every runner row, compute
   `sha256.Sum256([]byte(row.token))`, write back. Works uniformly across all
   dialects. Preferred.
 
-After the backfill is confirmed (operator runs the new server, sees runners
-poll successfully), a follow-up migration `v2.19.1.sql` drops the plaintext
-column:
-
-```sql
-ALTER TABLE runner DROP COLUMN token;
-```
-
-Splitting into two migrations is deliberate: the first is reversible (the
-plaintext is still there), the second is the point of no return. If the
-hashing path breaks in production, the operator can roll back the binary
-without losing tokens.
-
-For Bolt: add a `TokenHash` field to the stored runner struct, backfill on
-first read where empty, drop `Token` from the persisted shape in v2.19.1.
+The backfill is idempotent and re-runnable (`WHERE token_hash = ''`), which
+matters if the process is interrupted, or if an older binary writes a new
+runner row that this binary later needs to hash on the fly.
 
 ### 2. Token issuance (`CreateRunner`)
 
-Both `sql/global_runner.go:CreateRunner` and `bolt/global_runner.go:CreateRunner`:
+In `sql/global_runner.go:CreateRunner`:
 
 - Generate the random token exactly as today
   (`base64(securecookie.GenerateRandomKey(32))`).
 - Compute `tokenHash := sha256hex(token)`.
-- Persist **only** `token_hash`.
-- Return the runner with `Token` populated (in-memory only) so
-  `RegisterRunner` can send it back to the caller once. After this response,
-  the server can never reproduce the raw token — which is the point.
+- Persist `token_hash` always; persist the plaintext `token` too **when
+  `util.Config.Runner.StorePlaintextToken` is true** (the default in 2.19).
+  See Backward Compatibility for the rationale on the flag.
+- Return the runner with `Token` populated (in-memory) so `RegisterRunner`
+  can send it back to the caller once.
 
-Update the `db.Runner` struct: keep `Token` as a transient field
-(`db:"-" json:"-"`, populated only at creation), and add
-`TokenHash string` with `db:"token_hash" json:"-"`.
+Update the `db.Runner` struct: keep `Token` as `db:"token" json:"-"` (its
+current shape — still mapped to the DB column so legacy reads work) and add
+`TokenHash string` with `db:"token_hash" json:"-"`. Both fields are present
+on the struct; either or both may be populated depending on which binary
+wrote the row.
 
 ### 3. Token lookup (`GetRunnerByToken`)
 
-Rename for clarity is optional; the signature stays the same — callers pass
-the raw token, the implementation hashes and looks up:
+Signature unchanged — callers pass the raw token. Implementation:
 
 ```go
 func (d *SqlDb) GetRunnerByToken(token string) (db.Runner, error) {
     hash := sha256hex(token)
-    // WHERE token_hash = ?
+    // 1. WHERE token_hash = ?  — fast path, matches rows written by this binary
+    //    and rows touched by the backfill.
+    // 2. If not found AND token is not empty: WHERE token = ?  — legacy path,
+    //    matches rows written by an older binary running against the same DB,
+    //    or rows the backfill hasn't reached yet.
+    // 3. On a successful fallback hit, opportunistically UPDATE token_hash
+    //    so subsequent lookups take the fast path.
 }
 ```
 
-For Bolt: iterate and compare `sha256hex(token)` against stored
-`TokenHash`, using `subtle.ConstantTimeCompare`.
+The opportunistic update is best-effort: a failure to write the hash should
+log but not fail the lookup. The next request will retry.
 
 ### 4. Middleware cleanup
 
 In `api/runners/runners.go:RunnerMiddleware` (lines 23–56):
 
 - The redundant `runner.Token != token` check at line 46 goes away. It is
-  already dead weight (the DB lookup is authoritative) and becomes
-  impossible once `Token` is never persisted.
+  already dead weight (the DB lookup is authoritative). With the
+  hash-first / plaintext-fallback lookup, `runner.Token` may legitimately
+  be empty for hash-only rows, which would make the check spuriously fail.
 - Keep the "not found" branch as the single unauthorized signal. Same HTTP
   status code as today to avoid leaking whether a token exists.
 
@@ -168,8 +221,8 @@ Expected hits:
 ### 6. Helper
 
 Put the hash function in one place, e.g. `db.HashRunnerToken(string) string`,
-so the SQL and Bolt implementations and any future caller agree on encoding
-(hex, lowercase, no prefix). One function, one test.
+so the SQL implementation and any future caller agree on encoding (hex,
+lowercase, no prefix). One function, one test.
 
 ### 7. Tests
 
@@ -184,38 +237,57 @@ so the SQL and Bolt implementations and any future caller agree on encoding
 - Integration test: hit the runner middleware with a valid token and an
   invalid one; assert 200 / 401.
 
-Run with both SQL and Bolt backends.
+Run against MySQL, Postgres, and SQLite.
 
 ## Verification
 
-- Fresh install on each dialect (MySQL, Postgres, SQLite, Bolt):
-  register a runner via `semaphore runner register`, confirm the runner
-  polls successfully, confirm `SELECT token FROM runner` returns the
-  plaintext column gone (after v2.19.1) and `token_hash` populated.
+- Fresh install on each dialect (MySQL, Postgres, SQLite): register a
+  runner via `semaphore runner register`, confirm the runner polls
+  successfully, confirm `token_hash` is populated, confirm `token` is also
+  populated (default flag) and matches what the CLI received.
 - Upgrade path: take a v2.18.5 database with a registered, actively-polling
   runner; upgrade to v2.19.x; confirm the runner keeps polling without
-  re-registration. Confirm `token_hash` is populated and `token` is empty
-  (or dropped, post-v2.19.1).
+  re-registration. Confirm `token_hash` is populated by the backfill and
+  `token` is preserved unchanged.
+- Rollback path: register a runner on v2.19.0, then start a v2.18.5 binary
+  against the same DB. Confirm the runner still authenticates (it should,
+  because the plaintext column was written).
+- Mixed-binary path: run v2.18.5 and v2.19.0 against the same DB
+  simultaneously. Register a runner via each. Confirm both runners
+  authenticate against both binaries.
+- Flag-off path: set `store_plaintext_token = false`, register a runner,
+  confirm `token` is empty / NULL in the row, confirm the runner still
+  authenticates against the v2.19.0 binary, confirm an older binary cannot
+  authenticate that specific runner.
 - Confirm the registration response still returns the raw token exactly
-  once.
+  once with the existing JSON shape.
 - Confirm the runner config file written by `runner register` (which
   embeds the token) still authenticates after a server restart.
 - Inspect logs during a poll cycle and confirm no raw token is logged.
 
 ## Rollout
 
-- Ship v2.19.0 (additive: new column + backfill, keeps plaintext column).
-  Auth path switches to hash lookup immediately on first start.
-- Bake for one release. If a regression surfaces, the operator can roll
-  back the binary; tokens are intact.
-- Ship v2.19.1 to drop the plaintext column.
+Single release. v2.19.0 ships:
 
-Mismatched-version behaviour during the bake period:
+- The additive schema migration (`token_hash` column + non-unique index).
+- The Go-side backfill (idempotent, re-runnable).
+- The hash-first / plaintext-fallback auth path.
+- The `runner.store_plaintext_token` config flag, defaulting to `true`.
 
-- Old binary + new schema → plaintext column still present; old binary
-  reads/writes it; runners keep working.
-- New binary + old schema → migration runs on startup, hashes existing
-  tokens, then the new auth path takes over.
+No follow-up migration to drop `token` is planned in 2.19 (or 2.x). The
+plaintext column stays in the schema so older binaries reading the same DB
+keep working. Removal is a separate, future decision tied to a documented
+minimum-supported-version policy.
+
+Mismatched-version behaviour:
+
+| Scenario | Behaviour |
+|----------|-----------|
+| Old binary + new schema | Old binary ignores `token_hash`, reads/writes `token` as today. Runners keep working. |
+| New binary + old schema | Startup migration adds `token_hash`, backfill populates it. New auth path takes over. |
+| Mixed binaries (rolling upgrade) reading the same DB | New binary writes both columns (flag default). Old binary sees plaintext rows it can authenticate. New rows registered while the rollout is in flight are visible to both. |
+| Operator rolls back to an older binary after running 2.19.0 | Older binary reads plaintext column, which is still populated for every row. Zero data loss, zero re-registration. |
+| Operator flips `store_plaintext_token` to `false` then rolls back | Rows created while the flag was off have an empty `token` column and are invisible to the older binary. Documented as the one-way step. |
 
 ## Risks & Notes
 
@@ -225,16 +297,20 @@ Mismatched-version behaviour during the bake period:
 | Operator skips v2.19.0 and jumps to a release where the plaintext column is already gone | Migrations run sequentially via the existing migrator; skipping is not supported today. No new risk. |
 | Index collision on `token_hash` | SHA-256 of 256-bit random inputs; collision probability is not a real concern. The unique index is there to catch programming bugs, not adversaries. |
 | Token leaked in logs prior to this change is still in old log files | Out of scope. Worth a one-line note in release notes asking operators to rotate if they have ever shipped runner logs to a third party. |
-| Bolt backend lookup becomes O(n) scans because there is no index on the hash | Same as today (Bolt already scans for `GetRunnerByToken`). Runner counts are small (tens, maybe hundreds); not a hot-path concern. |
-| Someone later "fixes" the code to log `runner.Token` after fetching from the DB | After v2.19.1 the field is empty post-fetch, so this fails closed. Add a comment on the struct field documenting that it is populated only at creation. |
+| Someone later "fixes" the code to log `runner.Token` after fetching from the DB | While `store_plaintext_token` is on, this leak is possible. Add a comment on the struct field warning that it MUST NOT be logged, and add a grep-friendly lint check (`runner.Token`) to the review checklist. |
+| Operator expects the plaintext column to be gone after upgrade (security audit finding) | Document explicitly in release notes: 2.19 adds hashed storage but retains plaintext for backward compatibility; operators who want plaintext gone can set `store_plaintext_token = false` and accept the no-rollback consequence. |
+| The plaintext fallback in `GetRunnerByToken` masks a bug where the hash backfill silently failed | The opportunistic-update step on fallback hits means the hash column self-heals on use. Metrics or a startup log line counting rows with empty `token_hash` makes the gap visible without breaking auth. |
 
 ## Follow-ups (not part of this plan)
 
+- **Drop the plaintext `token` column.** Gated on a published
+  minimum-supported-version policy. Needs its own migration, release note,
+  and a "you cannot roll back past this" warning.
 - **Hash `ProjectInvite.Token`** with the same helper. Same shape of
   problem, same fix; kept separate so this PR stays focused.
 - **Token rotation endpoint** for runners — `POST /api/runners/:id/rotate`
-  returning a new token and invalidating the old hash. The hash-only
-  storage here is the prerequisite that makes rotation meaningful.
+  returning a new token and replacing the stored hash. The hashed storage
+  here is the prerequisite that makes rotation meaningful.
 - **Hash the global registration token** (`util.Config.RunnerRegistrationToken`).
   Different storage model (config file / env var, not DB), different
   trade-offs; tracked separately.
