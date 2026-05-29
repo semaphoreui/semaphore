@@ -1176,7 +1176,59 @@ func decodeConfig(file io.Reader, configPath string) {
 		decodeConfigYAML(file)
 		return
 	}
-	if err := json.NewDecoder(file).Decode(&Config); err != nil {
+	var raw map[string]any
+	if err := json.NewDecoder(file).Decode(&raw); err != nil {
+		fmt.Println("Could not decode configuration!")
+		panic(err)
+	}
+	unmarshalConfigMap(raw)
+}
+
+// migrateLegacyConfigKeys rewrites deprecated top-level config keys so file-based
+// settings survive struct renames (auth→mfa, flat subscription fields→subscription).
+func migrateLegacyConfigKeys(m map[string]any) {
+	if _, ok := m["mfa"]; !ok {
+		if auth, ok := m["auth"]; ok {
+			m["mfa"] = auth
+		}
+	}
+
+	if _, ok := m["subscription"]; ok {
+		return
+	}
+
+	sub := map[string]any{}
+	var migrated bool
+
+	if v, ok := m["subscription_key"]; ok {
+		sub["key"] = v
+		delete(m, "subscription_key")
+		migrated = true
+	}
+	if v, ok := m["subscription_key_file"]; ok {
+		sub["key_file"] = v
+		delete(m, "subscription_key_file")
+		migrated = true
+	}
+	if v, ok := m["subscription_server_url"]; ok {
+		sub["server_url"] = v
+		delete(m, "subscription_server_url")
+		migrated = true
+	}
+
+	if migrated {
+		m["subscription"] = sub
+	}
+}
+
+func unmarshalConfigMap(raw map[string]any) {
+	migrateLegacyConfigKeys(raw)
+	data, err := json.Marshal(raw)
+	if err != nil {
+		fmt.Println("Could not decode configuration!")
+		panic(err)
+	}
+	if err := json.Unmarshal(data, &Config); err != nil {
 		fmt.Println("Could not decode configuration!")
 		panic(err)
 	}
@@ -1198,10 +1250,12 @@ func decodeConfigYAML(file io.Reader) {
 		fmt.Println("Could not decode configuration!")
 		panic(err)
 	}
-	if err := json.Unmarshal(data, &Config); err != nil {
+	var configMap map[string]any
+	if err := json.Unmarshal(data, &configMap); err != nil {
 		fmt.Println("Could not decode configuration!")
 		panic(err)
 	}
+	unmarshalConfigMap(configMap)
 }
 
 func mapToQueryString(m map[string]string) (str string) {

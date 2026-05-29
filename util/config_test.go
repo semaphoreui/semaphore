@@ -495,6 +495,62 @@ func TestLoadConfigFile_JSON(t *testing.T) {
 	assert.Equal(t, ":8888", Config.Port)
 }
 
+func TestLoadConfigFile_LegacyAuthKey(t *testing.T) {
+	t.Setenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION", "")
+	Config = NewConfigType()
+
+	dir := t.TempDir()
+	p := filepath.Join(dir, "config.json")
+	payload := `{
+		"port": ":8888",
+		"cookie_hash": "5WJjXCLpvf3Cn5t+C/IV9F0asZUQLakOhCT+eSdIwP0=",
+		"cookie_encryption": "6x6mmQWGn6YcsHN1rN0HiQjhYA+7HukcbCxUGHuT2CE=",
+		"dialect": "bolt",
+		"bolt": {"host": "` + filepath.Join(dir, "db.bolt") + `"},
+		"auth": {
+			"totp": {"enabled": true, "allow_recovery": true}
+		}
+	}`
+	require.NoError(t, os.WriteFile(p, []byte(payload), 0600))
+
+	used := loadConfigFile(p)
+	require.NotNil(t, used)
+	loadConfigEnvironment()
+	loadConfigDefaults()
+	validateConfig()
+
+	require.NotNil(t, Config.Mfa)
+	require.NotNil(t, Config.Mfa.Totp)
+	assert.True(t, Config.Mfa.Totp.Enabled)
+	assert.True(t, Config.Mfa.Totp.AllowRecovery)
+}
+
+func TestLoadConfigFile_LegacySubscriptionKey(t *testing.T) {
+	t.Setenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION", "")
+	Config = NewConfigType()
+
+	dir := t.TempDir()
+	p := filepath.Join(dir, "config.json")
+	payload := `{
+		"port": ":8888",
+		"cookie_hash": "5WJjXCLpvf3Cn5t+C/IV9F0asZUQLakOhCT+eSdIwP0=",
+		"cookie_encryption": "6x6mmQWGn6YcsHN1rN0HiQjhYA+7HukcbCxUGHuT2CE=",
+		"dialect": "bolt",
+		"bolt": {"host": "` + filepath.Join(dir, "db.bolt") + `"},
+		"subscription_key": "legacy-subscription-token"
+	}`
+	require.NoError(t, os.WriteFile(p, []byte(payload), 0600))
+
+	used := loadConfigFile(p)
+	require.NotNil(t, used)
+	loadConfigEnvironment()
+	loadConfigDefaults()
+	validateConfig()
+
+	require.NotNil(t, Config.Subscription)
+	assert.Equal(t, "legacy-subscription-token", Config.Subscription.Key)
+}
+
 func TestLoadConfigDefaults(t *testing.T) {
 	Config = new(ConfigType)
 	errMsg := "Failed to load config-default"
