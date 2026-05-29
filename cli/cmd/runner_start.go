@@ -12,7 +12,8 @@ var runnerStartArgs struct {
 }
 
 func init() {
-	runnerStartCmd.PersistentFlags().BoolVar(&runnerStartArgs.register, "register", false, "Register new runner if not registered")
+	runnerStartCmd.PersistentFlags().BoolVar(&runnerStartArgs.register, "auto-register", false, "Register new runner if not registered")
+	runnerStartCmd.PersistentFlags().BoolVar(&runnerStartArgs.register, "register", false, "Alias of --auto-register")
 	runnerCmd.AddCommand(runnerStartCmd)
 }
 

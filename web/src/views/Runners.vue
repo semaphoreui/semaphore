@@ -245,7 +245,13 @@ semaphore runner start --config ./config.runner.json</pre
       class="PageAlert"
     >
       <span v-html="$t('project_runners_only_pro')"></span>
-      <v-btn dark v-if="isAdmin" class="ml-2" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro()">
+      <v-btn
+        dark
+        v-if="isAdmin"
+        class="ml-2"
+        color="hsl(348deg, 86%, 61%)"
+        @click="upgradeToPro('project_runners')"
+      >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
       <span v-else style="font-weight: bold">
@@ -297,6 +303,7 @@ semaphore runner start --config ./config.runner.json</pre
       :headers="headers"
       :items="filteredItems"
       class="mt-4"
+      :style="projectId && !features.project_runners ? 'opacity: 0.4' : ''"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
       <template v-slot:item.active="{ item }">
@@ -533,10 +540,6 @@ semaphore runner start --no-config`;
   },
 
   methods: {
-    upgradeToPro() {
-      EventBus.$emit('i-subscription', {});
-    },
-
     async clearCache(runner) {
       const projectId = this.getProjectIdOfItem(runner.id);
 

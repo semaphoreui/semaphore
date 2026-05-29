@@ -115,6 +115,18 @@ const (
 //
 // */
 
+// RunnerConnectionConfig controls how the runner connects to the
+// Semaphore server.
+type RunnerConnectionConfig struct {
+	// ServerCACertFile is a PEM bundle used to verify the Semaphore
+	// server's certificate, in addition to the system trust store.
+	// Set this when the server uses a self-signed or internal-CA cert.
+	ServerCACertFile string `json:"server_ca_cert_file,omitempty" env:"SEMAPHORE_RUNNER_SERVER_CA_CERT_FILE"`
+	// SkipTLSVerify disables server certificate verification entirely.
+	// This is insecure (vulnerable to MITM) — use only for testing.
+	SkipTLSVerify bool `json:"skip_tls_verify,omitempty" env:"SEMAPHORE_RUNNER_SKIP_TLS_VERIFY"`
+}
+
 type RunnerConfig struct {
 	RegistrationToken     string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 	RegistrationTokenFile string `json:"registration_token_file,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN_FILE"`
@@ -131,16 +143,14 @@ type RunnerConfig struct {
 	// 4) The runner connects to the Semaphore server and handles the enqueued task(s).
 	OneOff bool `json:"one_off,omitempty" env:"SEMAPHORE_RUNNER_ONE_OFF"`
 
-	Webhook string `json:"webhook,omitempty" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+	Enabled          bool     `json:"enabled,omitempty" env:"SEMAPHORE_RUNNER_ENABLED"`
+	Webhook          string   `json:"webhook,omitempty" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+	Name             string   `json:"name,omitempty" env:"SEMAPHORE_RUNNER_NAME"`
+	Tags             []string `json:"tags,omitempty" env:"SEMAPHORE_RUNNER_TAGS"`
+	MaxParallelTasks int      `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
+	ProjectID        *int     `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
 
-	Name string   `json:"name,omitempty" env:"SEMAPHORE_RUNNER_NAME"`
-	Tags []string `json:"tags,omitempty" env:"SEMAPHORE_RUNNER_TAGS"`
-
-	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
-
-	Enabled bool `json:"enabled,omitempty" env:"SEMAPHORE_RUNNER_ENABLED"`
-
-	ProjectID *int `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
+	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
 
 	// Executor selects the strategy used to execute each task on this runner. The
 	// default "local" runs the tool (ansible-playbook, terraform, shell) as a

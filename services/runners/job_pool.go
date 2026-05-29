@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -24,6 +25,24 @@ import (
 
 type JobLogger struct {
 	Context string
+}
+
+func newHTTPClient() *http.Client {
+	tlsConfig := &tls.Config{}
+	if util.Config.Runner.Connection.SkipTLSVerify {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	if util.Config.Runner.Connection.ServerCACertFile != "" {
+		caCert, err := os.ReadFile(util.Config.Runner.Connection.ServerCACertFile)
+		if err == nil {
+			pool := x509.NewCertPool()
+			pool.AppendCertsFromPEM(caCert)
+			tlsConfig.RootCAs = pool
+		}
+	}
+	return &http.Client{
+		Transport: &http.Transport{TLSClientConfig: tlsConfig},
+	}
 }
 
 func (e *JobLogger) ActionError(err error, action string, message string) {
@@ -138,7 +157,7 @@ func (p *JobPool) Unregister() (err error) {
 		return fmt.Errorf("runner is not registered")
 	}
 
-	client := &http.Client{}
+	client := newHTTPClient()
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
@@ -277,7 +296,7 @@ func (p *JobPool) sendProgress() (ok bool) {
 
 	logger := JobLogger{Context: "sending_progress"}
 
-	client := &http.Client{}
+	client := newHTTPClient()
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
@@ -391,7 +410,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		return
 	}
 
-	client := &http.Client{}
+	client := newHTTPClient()
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
@@ -546,7 +565,7 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	client := &http.Client{}
+	client := newHTTPClient()
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
