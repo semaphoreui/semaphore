@@ -294,6 +294,14 @@ type ConfigDirs struct {
 	SSHAgentSockets string `json:"ssh_agent_sockets,omitempty" env:"SEMAPHORE_SSH_AGENT_SOCKETS_DIR" default:"/tmp/semaphore"`
 }
 
+// JWTConfig issuance for task executions (used by playbooks to authenticate to
+type JWTConfig struct {
+	Enabled    bool   `json:"enabled,omitempty" env:"SEMAPHORE_JWT_ENABLED"`
+	Issuer     string `json:"issuer,omitempty" env:"SEMAPHORE_JWT_ISSUER"`
+	DefaultTTL string `json:"default_ttl,omitempty" env:"SEMAPHORE_JWT_DEFAULT_TTL" default:"1h"`
+	MaxTTL     string `json:"max_ttl,omitempty" env:"SEMAPHORE_JWT_MAX_TTL" default:"24h"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -391,11 +399,7 @@ type ConfigType struct {
 
 	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
-	// JWT issuance for task executions (used by playbooks to authenticate to
-	JWTEnabled    bool   `json:"jwt_enabled,omitempty" env:"SEMAPHORE_JWT_ENABLED"`
-	JWTIssuer     string `json:"jwt_issuer,omitempty" env:"SEMAPHORE_JWT_ISSUER"`
-	JWTDefaultTTL string `json:"jwt_default_ttl,omitempty" env:"SEMAPHORE_JWT_DEFAULT_TTL" default:"1h"`
-	JWTMaxTTL     string `json:"jwt_max_ttl,omitempty" env:"SEMAPHORE_JWT_MAX_TTL" default:"24h"`
+	JWT *JWTConfig `json:"jwt,omitempty"`
 
 	// feature switches
 	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`

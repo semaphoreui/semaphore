@@ -101,10 +101,10 @@ func globalJWTMaxTTL() time.Duration {
 	if util.Config == nil {
 		return 0
 	}
-	if util.Config.JWTMaxTTL == "" {
+	if util.Config.JWT.MaxTTL == "" {
 		return 24 * time.Hour
 	}
-	d, err := time.ParseDuration(util.Config.JWTMaxTTL)
+	d, err := time.ParseDuration(util.Config.JWT.MaxTTL)
 	if err != nil || d <= 0 {
 		return 24 * time.Hour
 	}
