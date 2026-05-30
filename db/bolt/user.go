@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/password_hash"
 	"github.com/semaphoreui/semaphore/pkg/tz"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func (d *BoltDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
@@ -62,13 +62,13 @@ func (d *BoltDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 		return
 	}
 
-	pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
+	pwdHash, err := password_hash.Hash(user.Pwd)
 
 	if err != nil {
 		return
 	}
 
-	user.Password = string(pwdHash)
+	user.Password = pwdHash
 	user.Created = db.GetParsedTime(tz.Now())
 
 	usr, err := d.createObject(0, db.UserProps, user)
@@ -100,12 +100,11 @@ func (d *BoltDb) UpdateUser(user db.UserWithPwd) error {
 	var password string
 
 	if user.Pwd != "" {
-		var pwdHash []byte
-		pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
+		pwdHash, err := password_hash.Hash(user.Pwd)
 		if err != nil {
 			return err
 		}
-		password = string(pwdHash)
+		password = pwdHash
 	} else {
 		oldUser, err := d.GetUser(user.ID)
 		if err != nil {
@@ -120,7 +119,7 @@ func (d *BoltDb) UpdateUser(user db.UserWithPwd) error {
 }
 
 func (d *BoltDb) SetUserPassword(userID int, password string) error {
-	pwdHash, err := bcrypt.GenerateFromPassword([]byte(password), 11)
+	pwdHash, err := password_hash.Hash(password)
 	if err != nil {
 		return err
 	}
@@ -128,7 +127,7 @@ func (d *BoltDb) SetUserPassword(userID int, password string) error {
 	if err != nil {
 		return err
 	}
-	user.Password = string(pwdHash)
+	user.Password = pwdHash
 	return d.updateObject(0, db.UserProps, user)
 }
 

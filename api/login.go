@@ -27,7 +27,6 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 )
 
@@ -215,10 +214,17 @@ func loginByPassword(store db.Store, login string, password string) (user db.Use
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
-	if err != nil {
+	ok, needsRehash, vErr := password_hash.Verify(password, user.Password)
+	if vErr != nil || !ok {
 		err = db.ErrNotFound
 		return
+	}
+
+	if needsRehash {
+		if rErr := store.SetUserPassword(user.ID, password); rErr != nil {
+			log.WithError(rErr).WithField("user_id", user.ID).
+				Warn("password rehash failed; will retry on next login")
+		}
 	}
 
 	return
