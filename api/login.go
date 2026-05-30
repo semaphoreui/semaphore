@@ -17,6 +17,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/password_hash"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/coreos/go-oidc/v3/oidc"
