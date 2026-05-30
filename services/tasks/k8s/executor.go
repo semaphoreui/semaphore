@@ -203,7 +203,18 @@ func (e *Executor) Prepare(username string, incomingVersion *string, alias strin
 		return err
 	}
 
-	pod := e.buildPodSpec(podName, sshInstalls, ansible)
+	// Variable Group env-typed secrets land in their own Secret + envFrom ref.
+	// Created here (not inside createAnsibleResources) because env vars apply to
+	// every executor app — bash, terraform, ansible — not just Ansible.
+	envSecret, envFrom := e.buildEnvSecret()
+	if envSecret != nil {
+		if _, err = e.Config.Clientset.CoreV1().Secrets(e.Config.Namespace).Create(ctx, envSecret, metav1.CreateOptions{}); err != nil {
+			return fmt.Errorf("create env secret %q: %w", envSecret.Name, err)
+		}
+		e.secretNames = append(e.secretNames, envSecret.Name)
+	}
+
+	pod := e.buildPodSpec(podName, sshInstalls, ansible, envFrom)
 	if _, err = e.Config.Clientset.CoreV1().Pods(e.Config.Namespace).Create(ctx, pod, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("create pod %q: %w", podName, err)
 	}
@@ -350,7 +361,7 @@ func (e *Executor) Cleanup() {
 //
 // Phases 5+ replace the build container's command with a keeper-shell entrypoint that
 // ansible commands are streamed into via attach (see spec section 7).
-func (e *Executor) buildPodSpec(podName string, sshInstalls []sshKeyInstallation, ansible *ansiblePrep) *corev1.Pod {
+func (e *Executor) buildPodSpec(podName string, sshInstalls []sshKeyInstallation, ansible *ansiblePrep, envFrom *corev1.EnvFromSource) *corev1.Pod {
 	workspaceMount := corev1.VolumeMount{
 		Name:      workspaceVolumeName,
 		MountPath: workspaceMountPath,
@@ -395,7 +406,8 @@ func (e *Executor) buildPodSpec(podName string, sshInstalls []sshKeyInstallation
 				Command:      []string{"sh", "-c"},
 				Args:         []string{e.buildContainerScript(repoPath, sshInstalls, ansible)},
 				VolumeMounts: buildMounts,
-				Env:          buildContainerEnv(sshInstalls),
+				Env:          e.buildContainerEnv(sshInstalls),
+				EnvFrom:      envFromList(envFrom),
 			}},
 		},
 	}
@@ -429,9 +441,12 @@ func (e *Executor) buildPodSpec(podName string, sshInstalls []sshKeyInstallation
 //
 // ANSIBLE_HOST_KEY_CHECKING=False is added only when SSH keys are present: without it
 // Ansible refuses to connect to never-before-seen hosts because the Pod has no
-// persistent known_hosts file. Phases 6+ will add SEMAPHORE_TASK_* env vars sourced
-// from db.Task.
-func buildContainerEnv(installs []sshKeyInstallation) []corev1.EnvVar {
+// persistent known_hosts file.
+//
+// Plain Environment.ENV values from the task's Variable Group are appended last so a
+// user-set value wins over our defaults. Secret env-typed values come in via envFrom
+// (see buildEnvSecret) and are not duplicated here.
+func (e *Executor) buildContainerEnv(installs []sshKeyInstallation) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{Name: "HOME", Value: workspaceMountPath},
 		{Name: "ANSIBLE_LOCAL_TEMP", Value: workspaceMountPath + "/.ansible/tmp"},
@@ -441,7 +456,18 @@ func buildContainerEnv(installs []sshKeyInstallation) []corev1.EnvVar {
 	if len(installs) > 0 {
 		env = append(env, corev1.EnvVar{Name: "ANSIBLE_HOST_KEY_CHECKING", Value: "False"})
 	}
+	env = append(env, environmentEnvFromJSON(e.Environment.ENV)...)
 	return env
+}
+
+// envFromList wraps the optional env-secrets envFrom ref into a slice for the Pod
+// spec field, which is always a list. Returns nil so an empty container.EnvFrom
+// serialises cleanly instead of an empty slice.
+func envFromList(ref *corev1.EnvFromSource) []corev1.EnvFromSource {
+	if ref == nil {
+		return nil
+	}
+	return []corev1.EnvFromSource{*ref}
 }
 
 // passwdFixupScript writes an /etc/passwd entry for the current UID when one is
