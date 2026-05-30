@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro/pkg/stage_parsers"
@@ -61,6 +62,7 @@ type TaskPool struct {
 	inventoryService       server.InventoryService
 	encryptionService      server.AccessKeyEncryptionService
 	keyInstallationService server.AccessKeyInstallationService
+	signer                 jwt.Signer
 
 	queueEvents chan PoolEvent
 
@@ -76,6 +78,7 @@ func CreateTaskPool(
 	encryptionService server.AccessKeyEncryptionService,
 	keyInstallationService server.AccessKeyInstallationService,
 	logWriteService pro_interfaces.LogWriteService,
+	signer jwt.Signer,
 ) TaskPool {
 	p := TaskPool{
 		register:               make(chan *TaskRunner),      // add TaskRunner to queue
@@ -88,6 +91,7 @@ func CreateTaskPool(
 		encryptionService:      encryptionService,
 		logWriteService:        logWriteService,
 		keyInstallationService: keyInstallationService,
+		signer:                 signer,
 	}
 	// attempt to start HA state store (no-op for memory)
 	_ = p.state.Start(p.hydrateTaskRunner)
@@ -103,6 +107,7 @@ func CreateTaskPoolWithState(
 	encryptionService server.AccessKeyEncryptionService,
 	keyInstallationService server.AccessKeyInstallationService,
 	logWriteService pro_interfaces.LogWriteService,
+	signer jwt.Signer,
 ) TaskPool {
 	p := TaskPool{
 		register:               make(chan *TaskRunner),      // add TaskRunner to queue
@@ -115,6 +120,7 @@ func CreateTaskPoolWithState(
 		encryptionService:      encryptionService,
 		logWriteService:        logWriteService,
 		keyInstallationService: keyInstallationService,
+		signer:                 signer,
 	}
 	_ = p.state.Start(p.hydrateTaskRunner)
 	return p

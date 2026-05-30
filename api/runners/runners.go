@@ -99,13 +99,15 @@ type RunnerController struct {
 	runnerRepo        db.RunnerManager
 	taskPool          *tasks.TaskPool
 	encryptionService server.AccessKeyEncryptionService
+	signer            jwt.Signer
 }
 
-func NewRunnerController(runnerRepo db.RunnerManager, taskPool *tasks.TaskPool, encryptionService server.AccessKeyEncryptionService) *RunnerController {
+func NewRunnerController(runnerRepo db.RunnerManager, taskPool *tasks.TaskPool, encryptionService server.AccessKeyEncryptionService, signer jwt.Signer) *RunnerController {
 	return &RunnerController{
 		runnerRepo:        runnerRepo,
 		taskPool:          taskPool,
 		encryptionService: encryptionService,
+		signer:            signer,
 	}
 }
 
@@ -157,7 +159,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 				Environment:         tsk.Environment,
 			}
 
-			if signer := jwt.Default(); signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {
+			if c.signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {
 				ttl, terr := tsk.Template.JWTParams.ParsedTTL()
 				if terr != nil {
 					log.WithError(terr).WithFields(log.Fields{
@@ -166,7 +168,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 						"context":     "jwt",
 					}).Error("invalid template jwt_params.ttl; skipping token issuance")
 				} else {
-					token, err := signer.Sign(jwt.TaskInfo{
+					token, err := c.signer.Sign(jwt.TaskInfo{
 						TaskID:     tsk.Task.ID,
 						ProjectID:  tsk.Task.ProjectID,
 						TemplateID: tsk.Template.ID,

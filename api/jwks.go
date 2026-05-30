@@ -8,20 +8,27 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// jwksHandler serves the JSON Web Key Set.
-func jwksHandler(w http.ResponseWriter, _ *http.Request) {
-	if !util.Config.JWT.Enabled {
+type JwksController struct {
+	signer jwt.Signer
+}
+
+func NewJwksController(signer jwt.Signer) *JwksController {
+	return &JwksController{signer: signer}
+}
+
+// GetJWKS serves the JSON Web Key Set.
+func (c *JwksController) GetJWKS(w http.ResponseWriter, _ *http.Request) {
+	if util.Config == nil || util.Config.JWT == nil || !util.Config.JWT.Enabled {
 		http.NotFound(w, nil)
 		return
 	}
 
-	signer := jwt.Default()
-	if signer == nil {
+	if c.signer == nil {
 		http.NotFound(w, nil)
 		return
 	}
 
-	body, err := signer.JWKS()
+	body, err := c.signer.JWKS()
 	if err != nil {
 		log.WithError(err).WithField("context", "jwt").Error("failed to marshal JWKS")
 		http.Error(w, "internal error", http.StatusInternalServerError)

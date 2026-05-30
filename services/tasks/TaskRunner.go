@@ -220,7 +220,7 @@ func (t *TaskRunner) run() {
 	// can be exposed to the playbook as SEMAPHORE_JWT. Remote runners receive
 	// the JWT inside the JobData payload returned by the API.
 	if localJob, ok := t.job.(*LocalJob); ok {
-		if signer := jwt.Default(); signer != nil && t.Template.JWTParams != nil && t.Template.JWTParams.Enabled {
+		if t.pool.signer != nil && t.Template.JWTParams != nil && t.Template.JWTParams.Enabled {
 			ttl, terr := t.Template.JWTParams.ParsedTTL()
 			if terr != nil {
 				log.WithError(terr).WithFields(log.Fields{
@@ -229,7 +229,7 @@ func (t *TaskRunner) run() {
 					"context":     "jwt",
 				}).Error("invalid template jwt_params.ttl; skipping token issuance")
 			} else {
-				token, jerr := signer.Sign(jwt.TaskInfo{
+				token, jerr := t.pool.signer.Sign(jwt.TaskInfo{
 					TaskID:     t.Task.ID,
 					ProjectID:  t.Task.ProjectID,
 					TemplateID: t.Template.ID,
