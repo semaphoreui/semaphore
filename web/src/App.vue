@@ -478,16 +478,6 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="tokens" to="/tokens" data-testid="sidebar-tokens">
-                <v-list-item-icon>
-                  <v-icon>mdi-api</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
-                  {{ $t('api_tokens') }}
-                </v-list-item-content>
-              </v-list-item>
-
               <v-list-item key="users" to="/users" v-if="user.admin">
                 <v-list-item-icon>
                   <v-icon>mdi-account-multiple</v-icon>
@@ -505,6 +495,18 @@
 
                 <v-list-item-content>
                   {{ $t('Roles') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-divider />
+
+              <v-list-item key="tokens" to="/tokens" data-testid="sidebar-tokens">
+                <v-list-item-icon>
+                  <v-icon>mdi-api</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('api_tokens') }}
                 </v-list-item-content>
               </v-list-item>
 
