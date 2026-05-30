@@ -94,11 +94,12 @@ func Route(
 	accessKeyService server.AccessKeyService,
 	environmentService server.EnvironmentService,
 	subscriptionService pro_interfaces.SubscriptionService,
+	jwtSigner jwt.Signer,
 ) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
-	runnerController := runners.NewRunnerController(store, taskPool, encryptionService, jwt.Default())
-	jwksController := NewJwksController(jwt.Default())
+	runnerController := runners.NewRunnerController(store, taskPool, encryptionService, jwtSigner)
+	jwksController := NewJwksController(jwtSigner)
 	integrationController := NewIntegrationController(integrationService)
 	environmentController := projects.NewEnvironmentController(store, encryptionService, accessKeyService, environmentService, secretStorageService)
 	secretStorageController := projects.NewSecretStorageController(store, secretStorageService)

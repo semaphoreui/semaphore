@@ -75,8 +75,9 @@ func Execute() {
 func runService() {
 	store := createStore("root")
 
-	if err := util.InitJWTSignerFromStore(store); err != nil {
-		log.WithError(err).Fatal("failed to initialise JWT signer")
+	jwtSigner, jwtErr := util.InitJWTSignerFromStore(store)
+	if jwtErr != nil {
+		log.WithError(jwtErr).Fatal("failed to initialise JWT signer")
 	}
 
 	initSyslog(util.Config.Syslog)
@@ -113,6 +114,7 @@ func runService() {
 		encryptionService,
 		accessKeyInstallationService,
 		logWriteService,
+		jwtSigner,
 	)
 
 	schedulePool := schedules.CreateSchedulePool(
@@ -212,6 +214,7 @@ func runService() {
 		accessKeyService,
 		environmentService,
 		subscriptionService,
+		jwtSigner,
 	)
 
 	route.Use(func(next http.Handler) http.Handler {

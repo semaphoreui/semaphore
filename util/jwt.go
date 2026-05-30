@@ -22,26 +22,24 @@ const jwtSigningKeyOption = "jwt_signing_key"
 
 // InitJWTSignerFromStore initialises the global JWT signer.
 // It must be called once after the db.Store has been opened and after ConfigInit has run.
-func InitJWTSignerFromStore(store OptionStore) error {
+func InitJWTSignerFromStore(store OptionStore) (singer jwt.Signer, err error) {
 	if !Config.JWT.Enabled {
-		jwt.SetDefault(nil)
-		return nil
+		return
 	}
 
 	opts := jwtSignerOptions()
 
 	pemBytes, err := loadOrCreateJWTKey(store)
 	if err != nil {
-		return fmt.Errorf("jwt: could not load or create signing key: %w", err)
+		return nil, fmt.Errorf("jwt: could not load or create signing key: %w", err)
 	}
 
 	signer, err := jwt.NewECDSASignerFromPEM(pemBytes, opts)
 	if err != nil {
-		return fmt.Errorf("jwt: failed to initialise signer: %w", err)
+		return nil, fmt.Errorf("jwt: failed to initialise signer: %w", err)
 	}
 
-	jwt.SetDefault(signer)
-	return nil
+	return signer, nil
 }
 
 // jwtSignerOptions builds SignerOptions from the current Config.
