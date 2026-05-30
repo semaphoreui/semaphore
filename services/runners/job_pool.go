@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -26,6 +27,24 @@ import (
 
 type JobLogger struct {
 	Context string
+}
+
+func newHTTPClient() *http.Client {
+	tlsConfig := &tls.Config{}
+	if util.Config.Runner.Connection.SkipTLSVerify {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	if util.Config.Runner.Connection.ServerCACertFile != "" {
+		caCert, err := os.ReadFile(util.Config.Runner.Connection.ServerCACertFile)
+		if err == nil {
+			pool := x509.NewCertPool()
+			pool.AppendCertsFromPEM(caCert)
+			tlsConfig.RootCAs = pool
+		}
+	}
+	return &http.Client{
+		Transport: &http.Transport{TLSClientConfig: tlsConfig},
+	}
 }
 
 func (e *JobLogger) ActionError(err error, action string, message string) {
@@ -121,7 +140,7 @@ func (p *JobPool) Unregister() (err error) {
 		return fmt.Errorf("runner is not registered")
 	}
 
-	client := &http.Client{}
+	client := newHTTPClient()
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
@@ -183,8 +202,12 @@ func (p *JobPool) Run() {
 				break
 			}
 
+			// Default to starting so sendProgress never emits an empty status (invalid JSON)
+			// before the job goroutine's first SetStatus(running). A rejected PUT fails the
+			// whole batch and can leave the server stuck on "starting" forever.
 			p.runningJobs[t.job.Task.ID] = &runningJob{
-				job: t.job,
+				job:    t.job,
+				status: task_logger.TaskStartingStatus,
 			}
 
 			t.job.Logger = t.job.App.SetLogger(p.runningJobs[t.job.Task.ID])
@@ -208,7 +231,11 @@ func (p *JobPool) Run() {
 						runningJob.SetStatus(task_logger.TaskFailStatus)
 					}
 				} else {
-					runningJob.SetStatus(task_logger.TaskSuccessStatus)
+					if runningJob.status == task_logger.TaskStoppingStatus {
+						runningJob.SetStatus(task_logger.TaskStoppedStatus)
+					} else {
+						runningJob.SetStatus(task_logger.TaskSuccessStatus)
+					}
 				}
 
 				logger.TaskInfo("Task finished", runningJob.job.Task.ID, string(runningJob.status))
@@ -235,7 +262,7 @@ func (p *JobPool) Run() {
 					fmt.Println("Runner connected")
 				}
 
-				if util.Config.Runner.OneOff && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
+				if util.Config.Runner.OneOff && ok && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
 					os.Exit(0)
 				}
 
@@ -250,7 +277,7 @@ func (p *JobPool) sendProgress() (ok bool) {
 
 	logger := JobLogger{Context: "sending_progress"}
 
-	client := &http.Client{}
+	client := newHTTPClient()
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
@@ -266,13 +293,6 @@ func (p *JobPool) sendProgress() (ok bool) {
 			Status:     j.status,
 			Commit:     j.commit,
 		})
-
-		j.logRecords = make([]LogRecord, 0)
-
-		if j.status.IsFinished() {
-			logger.TaskInfo("Task removed from running list", id, string(j.status))
-			delete(p.runningJobs, id)
-		}
 	}
 
 	jsonBytes, err := json.Marshal(body)
@@ -295,14 +315,33 @@ func (p *JobPool) sendProgress() (ok bool) {
 		logger.ActionError(err, "send request", "the server returned error")
 		return
 	}
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode >= 400 {
 		logger.ActionError(fmt.Errorf("invalid status code"), "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
-	} else {
-		ok = true
+		return
 	}
 
-	defer resp.Body.Close() //nolint:errcheck
+	ok = true
+
+	for _, jp := range body.Jobs {
+		j := p.runningJobs[jp.ID]
+		if j == nil {
+			continue
+		}
+		sent := len(jp.LogRecords)
+		if sent > 0 {
+			if sent <= len(j.logRecords) {
+				j.logRecords = j.logRecords[sent:]
+			} else {
+				j.logRecords = nil
+			}
+		}
+		if jp.Status.IsFinished() {
+			logger.TaskInfo("Task removed from running list", jp.ID, string(jp.Status))
+			delete(p.runningJobs, jp.ID)
+		}
+	}
 
 	return
 }
@@ -352,15 +391,19 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		return
 	}
 
-	client := &http.Client{}
+	client := newHTTPClient()
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
 		RegistrationToken: util.Config.Runner.RegistrationToken,
 		Webhook:           util.Config.Runner.Webhook,
+		Name:              util.Config.Runner.Name,
+		Tags:              util.Config.Runner.Tags,
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
+		Enabled:           util.Config.Runner.Enabled,
 		PublicKey:         &publicKey,
+		ProjectID:         util.Config.Runner.ProjectID,
 	})
 
 	if err != nil {
@@ -503,7 +546,7 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	client := &http.Client{}
+	client := newHTTPClient()
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
@@ -598,7 +641,7 @@ func (p *JobPool) checkNewJobs() {
 
 		switch runJob.status {
 		case task_logger.TaskRunningStatus:
-			if currJob.Status == task_logger.TaskStartingStatus || currJob.Status == task_logger.TaskWaitingStatus {
+			if currJob.Status == task_logger.TaskStartingStatus || currJob.Status == task_logger.TaskWaitingStatus || currJob.Status == task_logger.TaskConfirmed {
 				continue
 			}
 		case task_logger.TaskStoppingStatus:
@@ -607,6 +650,10 @@ func (p *JobPool) checkNewJobs() {
 			}
 		case task_logger.TaskConfirmed:
 			if currJob.Status == task_logger.TaskWaitingConfirmation {
+				continue
+			}
+		case task_logger.TaskWaitingConfirmation:
+			if currJob.Status == task_logger.TaskRunningStatus {
 				continue
 			}
 		}

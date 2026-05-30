@@ -181,3 +181,48 @@ func (c *SecretStorageController) Remove(w http.ResponseWriter, r *http.Request)
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (c *SecretStorageController) SyncSecrets(w http.ResponseWriter, r *http.Request) {
+	oldStorage := helpers.GetFromContext(r, "secretStorage").(db.SecretStorage)
+
+	var storage db.SecretStorage
+	if !helpers.Bind(w, r, &storage) {
+		return
+	}
+
+	if storage.ID != oldStorage.ID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Secret storage id in URL and in body must be the same",
+		})
+		return
+	}
+
+	if storage.ProjectID != oldStorage.ProjectID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "You can not move secret storage to other project",
+		})
+		return
+	}
+
+	sync, err := helpers.Store(r).GetStorageSecretSync(storage.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	err = c.secretStorageService.SyncSecrets(sync)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   oldStorage.ProjectID,
+		ObjectType:  db.EventSchedule,
+		ObjectID:    oldStorage.ID,
+		Description: fmt.Sprintf("Secret storage with ID %d has been synced", storage.ID),
+	})
+
+	helpers.WriteJSON(w, http.StatusOK, storage)
+}

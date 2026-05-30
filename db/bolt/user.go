@@ -271,6 +271,9 @@ func (d *BoltDb) AddTotpVerification(userID int, url string, recoveryHash string
 
 	current := make([]db.UserTotp, 0)
 	err = d.getObjects(userID, db.UserTotpProps, db.RetrieveQueryParams{}, nil, &current)
+	if err != nil {
+		return
+	}
 
 	if len(current) > 0 {
 		err = fmt.Errorf("already exists")
@@ -301,6 +304,10 @@ func (d *BoltDb) AddEmailOtpVerification(userID int, code string) (res db.UserEm
 	return
 }
 func (d *BoltDb) DeleteEmailOtpVerification(userID int, totpID int) (err error) {
+	err = db.ErrNotFound
+	return
+}
+func (d *BoltDb) IncrementEmailOtpAttempts(userID int) (err error) {
 	err = db.ErrNotFound
 	return
 }

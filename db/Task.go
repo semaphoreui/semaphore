@@ -54,6 +54,9 @@ type Task struct {
 	UserID        *int `db:"user_id" json:"user_id,omitempty"`
 	IntegrationID *int `db:"integration_id" json:"integration_id,omitempty"`
 	ScheduleID    *int `db:"schedule_id" json:"schedule_id,omitempty"`
+	// RunnerID is set while a task is assigned to a remote runner (cleared when the task finishes).
+	// Used so runner progress API can authorize updates on any HA node.
+	RunnerID *int `db:"runner_id" json:"-"`
 
 	Created time.Time  `db:"created" json:"created"`
 	Start   *time.Time `db:"start" json:"start,omitempty"`
@@ -159,6 +162,11 @@ func (task *Task) GetUrl() *string {
 }
 
 func (task *Task) ValidateNewTask(template Template) error {
+	if task.GitBranch != nil {
+		if err := ValidateGitBranch(*task.GitBranch, "task"); err != nil {
+			return err
+		}
+	}
 
 	var params any
 	switch template.App {
@@ -195,7 +203,12 @@ type TaskWithTpl struct {
 	TemplateType     TemplateType `db:"tpl_type" json:"tpl_type,omitempty"`
 	TemplateApp      TemplateApp  `db:"tpl_app" json:"tpl_app,omitempty"`
 	UserName         *string      `db:"user_name" json:"user_name,omitempty"`
-	BuildTask        *Task        `db:"-" json:"build_task,omitempty"`
+	// UsedRunnerID exposes Task.RunnerID through the API. Task.RunnerID itself
+	// stays unexported (json:"-"); we re-select it under a distinct column so the
+	// embedded struct's mapping is not duplicated.
+	UsedRunnerID   *int    `db:"used_runner_id" json:"used_runner_id,omitempty"`
+	UsedRunnerName *string `db:"used_runner_name" json:"used_runner_name,omitempty"`
+	BuildTask      *Task   `db:"-" json:"build_task,omitempty"`
 }
 
 // TaskOutput is the ansible log output from the task

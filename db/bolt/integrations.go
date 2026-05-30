@@ -162,7 +162,10 @@ func (d *BoltDb) deleteIntegration(projectID int, integrationID int, tx *bbolt.T
 	}
 
 	for m := range matchers {
-		d.deleteIntegrationMatcher(projectID, matchers[m].ID, integrationID, tx)
+		err = d.deleteIntegrationMatcher(projectID, matchers[m].ID, integrationID, tx)
+		if err != nil {
+			return err
+		}
 	}
 
 	return d.deleteObject(projectID, db.IntegrationProps, intObjectID(integrationID), tx)

@@ -37,7 +37,7 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 
 	cmd.Env = append(cmd.Env, environmentVars...)
 
-	cmd.SysProcAttr = util.Config.GetSysProcAttr()
+	cmd.SysProcAttr = util.Config.GetAppSysProcAttr()
 
 	return cmd
 }

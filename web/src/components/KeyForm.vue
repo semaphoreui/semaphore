@@ -22,14 +22,33 @@
       :color="$vuetify.theme.dark ? '#212121' : 'white'"
       style="background: #8585850f"
     >
-      <v-tabs fixed-tabs v-model="sourceStorageTypeIndex" :disabled="formSaving || !canEditSecrets">
-        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">Local</v-tab>
-        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">Storage</v-tab>
-        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">Env</v-tab>
-        <v-tab :disabled="formSaving || !canEditSecrets" style="padding: 0">File</v-tab>
+      <v-tabs fixed-tabs v-model="sourceStorageTypeIndex">
+        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0"
+          >Local</v-tab
+        >
+        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0"
+          >Storage</v-tab
+        >
+        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">Env</v-tab>
+        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">File</v-tab>
       </v-tabs>
 
-      <div class="ml-4 mr-4 mt-6" v-if="sourceStorageType">
+      <div
+        :class="!supportStorages && sourceStorageType === 'vault' ? '' : 'ml-4 mr-4 mt-6'"
+        v-if="sourceStorageType"
+      >
+        <v-alert
+          text
+          color="hsl(348deg, 86%, 61%)"
+          class="PageAlert PageAlert--flat-top"
+          v-if="!supportStorages && sourceStorageType === 'vault'"
+        >
+          <span v-html="$t('project_runners_only_pro')"></span>
+          <v-btn dark class="ml-2" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro()">
+            {{ $t('upgrade_to_pro') }}
+          </v-btn>
+        </v-alert>
+
         <v-autocomplete
           v-if="supportStorages && sourceStorageType === 'vault'"
           v-model="item.source_storage_id"
@@ -37,7 +56,7 @@
           :items="secretStorages"
           item-value="id"
           item-text="name"
-          :disabled="formSaving || !canEditSecrets"
+          :disabled="formSaving || !canEditSecrets || isSynced"
           outlined
           dense
           clearable
@@ -47,13 +66,13 @@
           v-if="supportStorages && sourceStorageType === 'vault' && item.source_storage_id != null"
           v-model="item.source_storage_key"
           :label="$t('Source Key')"
-          :disabled="formSaving || !canEditSecrets"
+          :disabled="formSaving || !canEditSecrets || isSynced"
           outlined
           dense
         />
 
         <v-text-field
-          v-if="supportStorages && ['env', 'file'].includes(sourceStorageType)"
+          v-if="['env', 'file'].includes(sourceStorageType)"
           v-model="item.source_storage_key"
           :label="
             sourceStorageType === 'env' ? $t('Environment variable name') : $t('Path to the file')
@@ -171,6 +190,7 @@ export default {
         },
       ],
       secretStorages: null,
+      isSynced: false,
     };
   },
 
@@ -228,6 +248,10 @@ export default {
   },
 
   methods: {
+    afterLoadData() {
+      this.isSynced = JSON.parse(this.item.plain || '{}').dvls_id != null;
+    },
+
     getNewItem() {
       return {
         ssh: {},

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	pro "github.com/semaphoreui/semaphore/pro/services/server"
 )
@@ -14,24 +15,57 @@ type SecretStorageService interface {
 	Delete(projectID int, storageID int) error
 	GetSecretStorages(projectID int) ([]db.SecretStorage, error)
 	Create(storage db.SecretStorage) (res db.SecretStorage, err error)
+	SyncSecrets(sync db.SecretSync) error
 }
 
 func NewSecretStorageService(
 	secretStorageRepo db.SecretStorageRepository,
+	accessKeyRepo db.AccessKeyManager,
 	accessKeyService AccessKeyService,
+	encryptionService AccessKeyEncryptionService,
 ) SecretStorageService {
 	return &SecretStorageServiceImpl{
 		secretStorageRepo: secretStorageRepo,
+		accessKeyRepo:     accessKeyRepo,
 		accessKeyService:  accessKeyService,
+		encryptionService: encryptionService,
 	}
 }
 
 type SecretStorageServiceImpl struct {
 	secretStorageRepo db.SecretStorageRepository
+	accessKeyRepo     db.AccessKeyManager
 	accessKeyService  AccessKeyService
+	encryptionService AccessKeyEncryptionService
+}
+
+func (s *SecretStorageServiceImpl) SyncSecrets(sync db.SecretSync) error {
+	return pro.SyncSecrets(sync, s.secretStorageRepo, s.accessKeyRepo, s.encryptionService)
 }
 
 func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err error) {
+	storage, err := s.secretStorageRepo.GetSecretStorage(projectID, storageID)
+	if err != nil {
+		return
+	}
+
+	if storage.SyncEnabled {
+		var syncedKeys []db.AccessKey
+		syncedKeys, err = s.accessKeyRepo.GetAccessKeys(projectID, db.GetAccessKeyOptions{
+			IgnoreOwner:     true,
+			SourceStorageID: &storageID,
+		}, db.RetrieveQueryParams{})
+		if err != nil {
+			return
+		}
+
+		for _, key := range syncedKeys {
+			if err = s.accessKeyRepo.DeleteAccessKey(projectID, key.ID); err != nil {
+				return
+			}
+		}
+	}
+
 	err = s.secretStorageRepo.DeleteSecretStorage(projectID, storageID)
 	if err != nil {
 		return
@@ -62,7 +96,7 @@ func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.Secr
 	sourceStorageKey := ""
 
 	if storage.Secret == "" {
-		err = errors.New("secret must be set")
+		err = common_errors.NewUserErrorS("secret must be set")
 		return
 	}
 
@@ -73,7 +107,7 @@ func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.Secr
 		case db.AccessKeySourceStorageFile:
 			sourceStorageKey = storage.Secret
 		default:
-			err = errors.New("unsupported source storage type")
+			err = common_errors.NewUserErrorS("unsupported source storage type")
 			return
 		}
 	}

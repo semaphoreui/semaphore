@@ -34,7 +34,7 @@
       <v-spacer></v-spacer>
       <v-btn
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
-        :disabled="!premiumFeatures.custom_roles_management"
+        :disabled="!features.custom_roles_management"
         color="primary"
         @click="editItem('new')"
         >{{ $t('newRole') }}</v-btn
@@ -45,12 +45,7 @@
 
     <v-divider style="margin-top: -1px" />
 
-    <v-alert
-      v-if="!premiumFeatures.custom_roles_management"
-      text
-      color="amber darken-3"
-      class="PageAlert"
-    >
+    <v-alert v-if="!features.custom_roles_management" text color="amber darken-3" class="PageAlert">
       <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
 
       <v-btn
@@ -58,7 +53,7 @@
         depressed
         v-if="isAdmin"
         color="amber darken-3"
-        href="https://semaphoreui.com/enterprise"
+        href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
         target="_blank"
       >
         {{ $t('upgrade_to_pro') }}
@@ -105,7 +100,7 @@ export default {
   mixins: [ItemListPageBase],
 
   props: {
-    premiumFeatures: Object,
+    features: Object,
     projectId: Number,
     systemInfo: Object,
   },

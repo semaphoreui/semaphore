@@ -149,7 +149,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				ProjectID:               userProject.ID,
 				InventoryID:             &inventoryID,
 				RepositoryID:            repoID,
-				EnvironmentID:           &environmentID,
+				EnvironmentIDs:          []int{environmentID},
 				Name:                    "Test-" + uid,
 				Playbook:                "test-playbook.yml",
 				Arguments:               &args,
@@ -234,11 +234,16 @@ func alterRequestBody(t *trans.Transaction) {
 	if userKey != nil {
 		bodyFieldProcessor("ssh_key_id", userKey.ID, &request)
 		bodyFieldProcessor("become_key_id", userKey.ID, &request)
+		// IntegrationRequest.auth_secret_id references an access key for
+		// token/HMAC webhook verification. Without a valid key reference,
+		// integration POST/PUT fail on the access_key FK constraint.
+		bodyFieldProcessor("auth_secret_id", userKey.ID, &request)
 	}
 	if invite != nil {
 		bodyFieldProcessor("invite_id", 4, &request)
 	}
 	bodyFieldProcessor("environment_id", environmentID, &request)
+	bodyFieldProcessor("environment_ids", []int{environmentID}, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
 	bodyFieldProcessor("repository_id", repoID, &request)
 	bodyFieldProcessor("template_id", templateID, &request)

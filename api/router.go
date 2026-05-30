@@ -17,7 +17,6 @@ import (
 	"github.com/semaphoreui/semaphore/services/server"
 	taskServices "github.com/semaphoreui/semaphore/services/tasks"
 
-	"github.com/semaphoreui/semaphore/api/debug"
 	"github.com/semaphoreui/semaphore/api/tasks"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	log "github.com/sirupsen/logrus"
@@ -99,7 +98,7 @@ func Route(
 	projectController := &projects.ProjectController{ProjectService: projectService}
 	runnerController := runners.NewRunnerController(store, taskPool, encryptionService)
 	integrationController := NewIntegrationController(integrationService)
-	environmentController := projects.NewEnvironmentController(store, encryptionService, accessKeyService, environmentService)
+	environmentController := projects.NewEnvironmentController(store, encryptionService, accessKeyService, environmentService, secretStorageService)
 	secretStorageController := projects.NewSecretStorageController(store, secretStorageService)
 	repositoryController := projects.NewRepositoryController(accessKeyInstallationService)
 	keyController := projects.NewKeyController(accessKeyService)
@@ -205,23 +204,27 @@ func Route(
 	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
 	tokenAPI.HandleFunc("/tokens/{token_id}", deleteAPIToken).Methods("DELETE")
+	tokenAPI.Path("/options").HandlerFunc(getUserOptions).Methods("GET", "HEAD")
+	tokenAPI.Path("/options").HandlerFunc(setUserOption).Methods("POST")
 
 	adminAPI := authenticatedAPI.NewRoute().Subrouter()
 	adminAPI.Use(adminMiddleware)
 	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
 	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
+	adminAPI.Path("/admin/info").HandlerFunc(getAdminInfo).Methods("GET", "HEAD")
+
+	adminAPI.Path("/cluster").HandlerFunc(getClusterStatus).Methods("GET", "HEAD")
+	adminAPI.Path("/cluster/tasks").HandlerFunc(getClusterTasks).Methods("GET", "HEAD")
+	adminAPI.Path("/cluster/tasks").HandlerFunc(clearClusterTasks).Methods("DELETE")
 
 	adminAPI.Path("/runners").HandlerFunc(getAllRunners).Methods("GET", "HEAD")
 	adminAPI.Path("/runners").HandlerFunc(addGlobalRunner).Methods("POST", "HEAD")
+	adminAPI.Path("/runner_tags").HandlerFunc(getGlobalRunnerTags).Methods("GET", "HEAD")
 
 	adminAPI.Path("/roles").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
 	adminAPI.Path("/roles").HandlerFunc(rolesController.AddRole).Methods("POST", "HEAD")
 
 	adminAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
-
-	debugAPI := adminAPI.PathPrefix("/debug").Subrouter()
-	debugAPI.Path("/gc").HandlerFunc(debug.GC).Methods("POST")
-	debugAPI.Path("/pprof/dump").HandlerFunc(debug.Dump).Methods("POST")
 
 	globalRunnersAPI := adminAPI.PathPrefix("/runners").Subrouter()
 	globalRunnersAPI.Use(globalRunnerMiddleware)
@@ -396,6 +399,7 @@ func Route(
 	projectSecretStorageManagement.HandleFunc("/{storage_id}/refs", secretStorageController.GetRefs).Methods("GET", "HEAD")
 	projectSecretStorageManagement.HandleFunc("/{storage_id}", secretStorageController.Update).Methods("PUT")
 	projectSecretStorageManagement.HandleFunc("/{storage_id}", secretStorageController.Remove).Methods("DELETE")
+	projectSecretStorageManagement.HandleFunc("/{storage_id}/sync", secretStorageController.SyncSecrets).Methods("POST")
 
 	projectRepoManagement := projectUserAPI.PathPrefix("/repositories").Subrouter()
 	projectRepoManagement.Use(projects.RepositoryMiddleware)
@@ -432,6 +436,7 @@ func Route(
 	projectEnvManagement.HandleFunc("/{environment_id}/refs", projects.GetEnvironmentRefs).Methods("GET", "HEAD")
 	projectEnvManagement.HandleFunc("/{environment_id}", environmentController.UpdateEnvironment).Methods("PUT")
 	projectEnvManagement.HandleFunc("/{environment_id}", environmentController.RemoveEnvironment).Methods("DELETE")
+	projectEnvManagement.HandleFunc("/{environment_id}/sync", environmentController.SyncEnvironment).Methods("POST")
 
 	projectTmplManagement := projectUserAPI.PathPrefix("/templates").Subrouter()
 	projectTmplManagement.Use(projects.TemplatesMiddleware)

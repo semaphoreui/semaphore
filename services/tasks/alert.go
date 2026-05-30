@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
+	htmltemplate "html/template"
 	"net/http"
 	"strconv"
 	"text/template"
@@ -59,7 +60,7 @@ func (t *TaskRunner) sendMailAlert() {
 		},
 	}
 
-	tpl, err := template.ParseFS(templates, "templates/email.tmpl")
+	tpl, err := htmltemplate.ParseFS(templates, "templates/email.tmpl")
 
 	if err != nil {
 		t.Log("Can't parse email alert template!")
@@ -90,6 +91,7 @@ func (t *TaskRunner) sendMailAlert() {
 
 		t.Logf("Attempting to send email alert to %s", user.Email)
 
+		str := body.String()
 		if err := mailer.Send(
 			util.Config.EmailSecure,
 			util.Config.EmailTls,
@@ -100,7 +102,7 @@ func (t *TaskRunner) sendMailAlert() {
 			util.Config.EmailSender,
 			user.Email,
 			fmt.Sprintf("Task '%s' failed", t.Template.Name),
-			body.String(),
+			str,
 		); err != nil {
 			util.LogError(err)
 			continue

@@ -45,11 +45,18 @@ func (s *AccessKeyServiceImpl) Delete(projectID int, keyID int) (err error) {
 			return
 		}
 
-		if !storage.ReadOnly {
+		if storage.ReadOnly || key.Synchronized {
+			// Do nothing
+
+			//if key.Synchronized {
+			//	err = common_errors.NewUserErrorS("cannot delete synchronized secret from read-only storage")
+			//}
+		} else {
 			err = s.encryptionService.DeleteSecret(&key)
-			if err != nil {
-				return
-			}
+		}
+
+		if err != nil {
+			return
 		}
 	}
 
@@ -64,6 +71,9 @@ func (s *AccessKeyServiceImpl) GetAll(projectID int, options db.GetAccessKeyOpti
 
 func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, err error) {
 
+	// SerializeSecret encrypts/persists the secret for writable backends. For read-only
+	// external storage the secret is not stored in Semaphore, so SerializeSecret fails
+	// with ErrReadOnlyStorage; we still create the access key row (metadata / reference).
 	err = s.encryptionService.SerializeSecret(&key)
 	if err != nil && !errors.Is(err, ErrReadOnlyStorage) {
 		return
@@ -94,7 +104,7 @@ func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
 			return
 		}
 
-		if !oldSt.ReadOnly && *oldKey.SourceStorageID != *key.SourceStorageID {
+		if !oldSt.ReadOnly && (key.SourceStorageID == nil || *oldKey.SourceStorageID != *key.SourceStorageID) {
 			err = common_errors.NewUserErrorS("cannot override secret storage")
 			return
 		}

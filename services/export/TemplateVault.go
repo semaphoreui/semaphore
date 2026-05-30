@@ -25,9 +25,8 @@ func (e *TemplateVaultExporter) load(store db.Store, exporter DataExporter, prog
 
 		vaultsArr := make([]db.TemplateVault, 0)
 
-		for key := range templates {
-
-			vaults, err := store.GetTemplateVaults(projId, key)
+		for _, template := range templates {
+			vaults, err := store.GetTemplateVaults(projId, template)
 			if err != nil {
 				return err
 			}
@@ -44,36 +43,33 @@ func (e *TemplateVaultExporter) load(store db.Store, exporter DataExporter, prog
 }
 
 func (e *TemplateVaultExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
-	for _, val := range e.values {
-		old := val.value
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-		old.VaultKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.VaultKeyID, e)
-		if err != nil {
-			return err
-		}
+func (e *TemplateVaultExporter) restoreValue(val EntityObject[db.TemplateVault], store db.Store, exporter DataExporter) (err error) {
+	old := val.value
 
-		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID, e)
-		if err != nil {
-			return err
-		}
-
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
-
-		newVault, err := store.CreateTemplateVault(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
-		if err != nil {
-			return err
-		}
+	old.VaultKeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.VaultKeyID, e)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID)
+	if err != nil {
+		return err
+	}
+
+	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	newObj, err := store.CreateTemplateVault(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
 }
 
 func (e *TemplateVaultExporter) getName() string {

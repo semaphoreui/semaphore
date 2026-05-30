@@ -115,9 +115,11 @@ func (e BackupSchedule) Restore(store db.Store, b *BackupDB) error {
 		v.RepositoryID = &repo.ID
 	}
 
-	inv := findEntityByName[db.Inventory](e.TaskParams.InventoryName, b.inventories)
-	if inv != nil {
-		v.TaskParams.InventoryID = &inv.ID
+	if e.TaskParams != nil {
+		inv := findEntityByName[db.Inventory](e.TaskParams.InventoryName, b.inventories)
+		if inv != nil {
+			v.TaskParams.InventoryID = &inv.ID
+		}
 	}
 
 	newSchedule, err := store.CreateSchedule(v)
@@ -286,14 +288,14 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 		}
 	}
 
-	var EnvironmentID *int
-	if e.Environment != nil {
-		if k := findEntityByName[db.Environment](e.Environment, b.environments); k == nil {
+	var EnvironmentIDs []int
+	for i := range e.Environments {
+		envName := &e.Environments[i]
+		k := findEntityByName[db.Environment](envName, b.environments)
+		if k == nil {
 			return fmt.Errorf("environment does not exist in environments[].name")
-		} else {
-			id := k.GetID()
-			EnvironmentID = &id
 		}
+		EnvironmentIDs = append(EnvironmentIDs, k.GetID())
 	}
 
 	var RepositoryID int
@@ -322,7 +324,7 @@ func (e BackupTemplate) Restore(store db.Store, b *BackupDB) error {
 	template := e.Template
 	template.ProjectID = b.meta.ID
 	template.RepositoryID = RepositoryID
-	template.EnvironmentID = EnvironmentID
+	template.EnvironmentIDs = EnvironmentIDs
 	template.InventoryID = InventoryID
 	template.ViewID = ViewID
 	template.BuildTemplateID = BuildTemplateID
@@ -453,6 +455,21 @@ func (e BackupIntegration) Restore(store db.Store, b *BackupDB) error {
 	return nil
 }
 
+func (e BackupRunner) Verify(backup *BackupFormat) error {
+	return verifyDuplicate[BackupRunner](e.Name, backup.Runners)
+}
+
+func (e BackupRunner) Restore(store db.Store, b *BackupDB) error {
+	runner := e.Runner
+	runner.ProjectID = &b.meta.ID
+	newRunner, err := store.CreateRunner(runner)
+	if err != nil {
+		return err
+	}
+	b.runners = append(b.runners, newRunner)
+	return nil
+}
+
 func (backup *BackupFormat) Verify() error {
 	for i, o := range backup.Environments {
 		if err := o.Verify(backup); err != nil {
@@ -497,6 +514,11 @@ func (backup *BackupFormat) Verify() error {
 	for i, o := range backup.Roles {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at roles[%d]: %s", i, err.Error())
+		}
+	}
+	for i, o := range backup.Runners {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at runners[%d]: %s", i, err.Error())
 		}
 	}
 
@@ -610,6 +632,12 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store) (*db.Project, 
 	for i, o := range backup.Schedules {
 		if err := o.Restore(store, &b); err != nil {
 			return nil, fmt.Errorf("error at schedules[%d]: %s", i, err.Error())
+		}
+	}
+
+	for i, o := range backup.Runners {
+		if err := o.Restore(store, &b); err != nil {
+			return nil, fmt.Errorf("error at runners[%d]: %s", i, err.Error())
 		}
 	}
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
 func (d *SqlDb) CreateTaskStage(stage db.TaskStage) (res db.TaskStage, err error) {
@@ -196,22 +197,35 @@ func (d *SqlDb) UpdateTask(task db.Task) error {
 
 	if task.CommitHash != nil {
 		_, err = d.exec(
-			"update task set status=?, start=?, `end`=?, commit_hash=?, commit_message=? where id=?",
+			"update task set status=?, start=?, `end`=?, commit_hash=?, commit_message=?, runner_id=? where id=?",
 			task.Status,
 			task.Start,
 			task.End,
 			task.CommitHash,
 			task.CommitMessage,
+			task.RunnerID,
 			task.ID)
 	} else {
 		_, err = d.exec(
-			"update task set status=?, start=?, `end`=? where id=?",
+			"update task set status=?, start=?, `end`=?, runner_id=? where id=?",
 			task.Status,
 			task.Start,
 			task.End,
+			task.RunnerID,
 			task.ID)
 	}
 
+	return err
+}
+
+func (d *SqlDb) SetWaitingTasksToStopped(projectID int, templateID int) error {
+	_, err := d.exec(
+		"update task set status=?, `end`=? where template_id=? and project_id=? and status=?",
+		task_logger.TaskStoppedStatus,
+		time.Now().UTC(),
+		templateID,
+		projectID,
+		task_logger.TaskWaitingStatus)
 	return err
 }
 
@@ -262,6 +276,8 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 	fields := "task.*"
 	fields += ", tpl.playbook as tpl_playbook" +
 		", `user`.name as user_name" +
+		", task.runner_id as used_runner_id" +
+		", runner.name as used_runner_name" +
 		", tpl.name as tpl_alias" +
 		", tpl.type as tpl_type" +
 		", tpl.app as tpl_app"
@@ -270,6 +286,7 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		From("task").
 		Join("project__template as tpl on task.template_id=tpl.id").
 		LeftJoin("`user` on task.user_id=`user`.id").
+		LeftJoin("runner on task.runner_id=runner.id").
 		OrderBy("id desc")
 
 	if params.TaskFilter != nil && len(params.TaskFilter.Status) > 0 {
@@ -318,6 +335,11 @@ func (d *SqlDb) GetTask(projectID int, taskID int) (task db.Task, err error) {
 
 	err = d.selectOne(&task, query, args...)
 
+	return
+}
+
+func (d *SqlDb) GetTaskByID(taskID int) (task db.Task, err error) {
+	err = d.selectOne(&task, d.PrepareQuery("select * from task where id=?"), taskID)
 	return
 }
 

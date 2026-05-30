@@ -2,7 +2,6 @@ package bolt
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
 	"go.etcd.io/bbolt"
@@ -104,11 +103,6 @@ func (d migration) createObjectTx(tx *bbolt.Tx, projectID string, objectPrefix s
 		return
 	}
 	objID = intObjectID(id)
-
-	if objID == nil {
-		err = fmt.Errorf("object ID can not be nil")
-		return
-	}
 
 	object["id"] = objID
 

@@ -32,25 +32,24 @@ func (e *SecretStorageExporter) load(store db.Store, exporter DataExporter, prog
 
 	return nil
 }
-
 func (e *SecretStorageExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	for _, val := range e.values {
-		old := val.value
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
+func (e *SecretStorageExporter) restoreValue(val EntityObject[db.SecretStorage], store db.Store, exporter DataExporter) (err error) {
 
-		newVault, err := store.CreateSecretStorage(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
-		if err != nil {
-			return err
-		}
+	old := val.value
+	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	newObj, err := store.CreateSecretStorage(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
 }
 
 func (e *SecretStorageExporter) exportDependsOn() []string {

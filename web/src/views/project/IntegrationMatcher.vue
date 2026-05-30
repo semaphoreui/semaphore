@@ -10,6 +10,7 @@
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <IntegrationMatcherForm
+          :project-id="projectId"
           :integration-id="integrationId"
           :item-id="itemId"
           @save="onSave"
@@ -89,12 +90,12 @@ export default {
   mixins: [ItemListPageBase],
   components: { IntegrationMatcherForm },
   computed: {
-    projectId() {
-      if (/^-?\d+$/.test(this.$route.params.projectId)) {
-        return parseInt(this.$route.params.projectId, 10);
-      }
-      return this.$route.params.projectId;
-    },
+    // projectId() {
+    //   if (/^-?\d+$/.test(this.$route.params.projectId)) {
+    //     return parseInt(this.$route.params.projectId, 10);
+    //   }
+    //   return this.$route.params.projectId;
+    // },
     integrationId() {
       if (/^-?\d+$/.test(this.$route.params.integrationId)) {
         return parseInt(this.$route.params.integrationId, 10);

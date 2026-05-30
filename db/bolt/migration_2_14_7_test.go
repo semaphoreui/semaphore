@@ -1,8 +1,9 @@
 package bolt
 
 import (
-	"go.etcd.io/bbolt"
 	"testing"
+
+	"go.etcd.io/bbolt"
 )
 
 func TestMigration_2_14_7_Apply(t *testing.T) {
@@ -41,6 +42,9 @@ func TestMigration_2_14_7_Apply(t *testing.T) {
 
 		err = r.Put([]byte("0000000001"),
 			[]byte("{\"id\":\"1\",\"project_id\":\"1\",\"template_id\":1}")) // correct
+		if err != nil {
+			return err
+		}
 
 		err = r.Put([]byte("0000000002"),
 			[]byte("{\"id\":\"1\",\"project_id\":\"1\",\"template_id\":100}")) // incorrect

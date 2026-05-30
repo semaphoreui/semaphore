@@ -1,9 +1,10 @@
 package bolt
 
 import (
+	"testing"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func Test_GetRunnerByToken_ReturnsGlobalRunnerWhenTokenExists(t *testing.T) {

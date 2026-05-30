@@ -29,4 +29,19 @@ func TestGetNextBuildVersion(t *testing.T) {
 	if s != "8" {
 		t.Fatal()
 	}
+
+	s = getNextBuildVersion("1.2.0001", "1.2.0005")
+	if s != "1.2.0006" {
+		t.Fatal("expected 1.2.0006, got " + s)
+	}
+
+	s = getNextBuildVersion("0001", "0099")
+	if s != "0100" {
+		t.Fatal("expected 0100, got " + s)
+	}
+
+	s = getNextBuildVersion("build-0010-rc", "build-0042-rc")
+	if s != "build-0043-rc" {
+		t.Fatal("expected build-0043-rc, got " + s)
+	}
 }

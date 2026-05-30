@@ -3,14 +3,15 @@ package api
 import (
 	"bytes"
 	"fmt"
+	"image/png"
+	"net/http"
+
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	log "github.com/sirupsen/logrus"
-	"image/png"
-	"net/http"
 
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -80,8 +81,11 @@ func (c *UsersController) AddUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !ok {
-			helpers.WriteErrorStatus(w,
-				fmt.Sprintf("You have reached the limit of Pro users for your subscription."), http.StatusForbidden)
+			helpers.WriteErrorStatus(
+				w,
+				"You have reached the limit of Pro users for your subscription.",
+				http.StatusForbidden,
+			)
 			return
 		}
 	}
@@ -185,8 +189,11 @@ func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !ok {
-			helpers.WriteErrorStatus(w,
-				fmt.Sprintf("You have reached the limit of Pro users for your subscription."), http.StatusForbidden)
+			helpers.WriteErrorStatus(
+				w,
+				"You have reached the limit of Pro users for your subscription.",
+				http.StatusForbidden,
+			)
 			return
 		}
 	}
@@ -264,6 +271,11 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := helpers.Store(r).DeleteUser(user.ID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := helpers.Store(r).DeleteOptions(fmt.Sprintf("user%d", user.ID)); err != nil {
+		log.WithError(err).Warn("can not delete options of removed user")
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -304,7 +316,7 @@ func totpQr(w http.ResponseWriter, r *http.Request) {
 func enableTotp(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "_user").(db.User)
 
-	if !util.Config.Auth.Totp.Enabled {
+	if !util.Config.Mfa.Totp.Enabled {
 		helpers.WriteErrorStatus(w, "TOTP not enabled", http.StatusBadRequest)
 		return
 	}
@@ -326,7 +338,7 @@ func enableTotp(w http.ResponseWriter, r *http.Request) {
 
 	var code, hash string
 
-	if util.Config.Auth.Totp.AllowRecovery {
+	if util.Config.Mfa.Totp.AllowRecovery {
 		code, hash, err = util.GenerateRecoveryCode()
 		if err != nil {
 			helpers.WriteError(w, err)

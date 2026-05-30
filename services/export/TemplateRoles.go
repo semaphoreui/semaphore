@@ -25,8 +25,8 @@ func (e *TemplateRoleExporter) load(store db.Store, exporter DataExporter, progr
 
 		roles := make([]db.TemplateRolePerm, 0)
 
-		for key := range templates {
-			templateRoles, err := store.GetTemplateRoles(projId, key)
+		for _, template := range templates {
+			templateRoles, err := store.GetTemplateRoles(projId, template)
 			if err != nil {
 				return err
 			}
@@ -43,36 +43,33 @@ func (e *TemplateRoleExporter) load(store db.Store, exporter DataExporter, progr
 }
 
 func (e *TemplateRoleExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
-	for _, val := range e.values {
-		old := val.value
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-		old.RoleSlug, err = exporter.getNewKey(Role, val.scope, old.RoleSlug, e)
-		if err != nil {
-			return err
-		}
+func (e *TemplateRoleExporter) restoreValue(val EntityObject[db.TemplateRolePerm], store db.Store, exporter DataExporter) (err error) {
+	old := val.value
 
-		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID, e)
-		if err != nil {
-			return err
-		}
-
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
-
-		newVault, err := store.CreateTemplateRole(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
-		if err != nil {
-			return err
-		}
+	old.RoleSlug, err = exporter.getNewKey(Role, val.scope, old.RoleSlug)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID)
+	if err != nil {
+		return err
+	}
+
+	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	newObj, err := store.CreateTemplateRole(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
 }
 
 func (e *TemplateRoleExporter) getName() string {

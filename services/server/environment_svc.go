@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -25,8 +26,6 @@ type EnvironmentServiceImpl struct {
 }
 
 func (s *EnvironmentServiceImpl) Delete(projectID int, environmentID int) (err error) {
-	// Implement the logic to delete an environment
-	// This is a placeholder implementation
 	if projectID <= 0 || environmentID <= 0 {
 		return fmt.Errorf("invalid project or environment ID")
 	}

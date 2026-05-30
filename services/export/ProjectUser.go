@@ -37,7 +37,7 @@ func getUsers(vals []db.UserWithProjectRole, projId int) []db.ProjectUser {
 
 	for _, val := range vals {
 		values = append(values, db.ProjectUser{
-			UserID:    val.User.ID,
+			UserID:    val.ID,
 			Role:      val.Role,
 			ProjectID: projId,
 		})
@@ -47,31 +47,28 @@ func getUsers(vals []db.UserWithProjectRole, projId int) []db.ProjectUser {
 }
 
 func (e *ProjectUserExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
-	for _, val := range e.values {
-		old := val.value
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
+func (e *ProjectUserExporter) restoreValue(val EntityObject[db.ProjectUser], store db.Store, exporter DataExporter) (err error) {
+	old := val.value
 
-		old.UserID, err = exporter.getNewKeyInt(User, GlobalScope, old.UserID, e)
-		if err != nil {
-			return err
-		}
-
-		obj, err := store.CreateProjectUser(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, obj.ID)
-		if err != nil {
-			return err
-		}
+	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	old.UserID, err = exporter.getNewKeyInt(User, GlobalScope, old.UserID)
+	if err != nil {
+		return err
+	}
+
+	newObj, err := store.CreateProjectUser(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
 }
 
 func (e *ProjectUserExporter) exportDependsOn() []string {

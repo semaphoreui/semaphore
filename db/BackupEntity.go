@@ -97,6 +97,14 @@ func (e Integration) GetID() int {
 	return e.ID
 }
 
+func (e Runner) GetID() int {
+	return e.ID
+}
+
+func (e Runner) GetName() string {
+	return e.Name
+}
+
 func (e Project) GetID() int {
 	return e.ID
 }

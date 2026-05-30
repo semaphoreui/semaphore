@@ -2,22 +2,25 @@ package tasks
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"time"
 
-	"github.com/semaphoreui/semaphore/pkg/tz"
-	log "github.com/sirupsen/logrus"
-
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 )
 
-// ErrAllRunnersBusy is returned when all available runners are busy
+// ErrAllRunnersBusy is returned when all available runners are busy. Used for logic
 var ErrAllRunnersBusy = errors.New("all runners busy")
+
+const runnerActiveThreshold = 30 * time.Minute
 
 type RemoteJob struct {
 	RunnerTag *string
@@ -38,12 +41,6 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	if runner.Webhook == "" {
 		return
 	}
-
-	log.WithFields(log.Fields{
-		"runner_id": runner.ID,
-		"task_id":   tsk.Task.ID,
-		"action":    action,
-	}).Infof("Calling runner webhook")
 
 	var jsonBytes []byte
 	jsonBytes, err = json.Marshal(runnerWebhookPayload{
@@ -82,18 +79,40 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"runner_id": runner.ID,
-		"task_id":   tsk.Task.ID,
-		"action":    action,
-	}).Infof("Runner webhook returned %d", resp.StatusCode)
-
 	return
 }
 
-func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
+func shuffleRunners(rs []db.Runner) []db.Runner {
+	if len(rs) < 2 {
+		return rs
+	}
 
-	tsk := t.taskPool.GetTask(t.Task.ID)
+	// Work on a copy so that if randomness fails, we can safely return the original order.
+	shuffled := make([]db.Runner, len(rs))
+	copy(shuffled, rs)
+
+	// Fisher–Yates shuffle using crypto/rand: for each i, pick j in [0, i].
+	for i := len(shuffled) - 1; i > 0; i-- {
+		max := big.NewInt(int64(i + 1))
+		j, err := rand.Int(rand.Reader, max)
+		if err != nil {
+			log.WithError(err).Warn("failed to shuffle runners, using original order")
+			return rs
+		}
+
+		ji := int(j.Int64())
+		shuffled[i], shuffled[ji] = shuffled[ji], shuffled[i]
+	}
+
+	return shuffled
+}
+
+func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
+	tsk, err := t.taskPool.GetTask(t.Task.ID)
+
+	if err != nil {
+		return
+	}
 
 	if tsk == nil {
 		return fmt.Errorf("task not found")
@@ -106,18 +125,26 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 
 	var runners []db.Runner
 	db.StoreSession(t.taskPool.store, "run remote job", func() {
+
+		tagFilterMode := db.RunnerFilterTagCompleteMatch
+		if t.RunnerTag == nil {
+			tagFilterMode = db.RunnerFilterIsDefault
+		}
+
 		var projectRunners []db.Runner
-		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, t.RunnerTag)
+		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, tagFilterMode, t.RunnerTag)
 		if err != nil {
 			return
 		}
+
 		var globalRunners []db.Runner
-		globalRunners, err = t.taskPool.store.GetAllRunners(true, true)
+		globalRunners, err = t.taskPool.store.GetAllRunners(true, true, tagFilterMode, t.RunnerTag)
 		if err != nil {
 			return
 		}
-		runners = append(runners, projectRunners...)
-		runners = append(runners, globalRunners...)
+
+		runners = append(runners, shuffleRunners(projectRunners)...)
+		runners = append(runners, shuffleRunners(globalRunners)...)
 	})
 
 	if err != nil {
@@ -130,11 +157,23 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	}
 
 	var runner *db.Runner
+	now := tz.Now()
 
-	for _, r := range runners {
-		n := t.taskPool.GetNumberOfRunningTasksOfRunner(r.ID)
-		if n < r.MaxParallelTasks || r.MaxParallelTasks == 0 {
-			runner = &r
+	// First pass: prefer runners with a recent heartbeat.
+	// Second pass: fall back to runners that haven't reported recently.
+	for pass := range 2 {
+		for i := range runners {
+			r := &runners[i]
+			active := r.Touched != nil && now.Sub(*r.Touched) < runnerActiveThreshold || r.Webhook != ""
+			if (pass == 0) == active {
+				n := t.taskPool.GetNumberOfRunningTasksOfRunner(r.ID)
+				if n < r.MaxParallelTasks || r.MaxParallelTasks == 0 {
+					runner = r
+					break
+				}
+			}
+		}
+		if runner != nil {
 			break
 		}
 	}
@@ -150,10 +189,18 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		return
 	}
 
-	tsk.RunnerID = runner.ID
-	if t.taskPool != nil && t.taskPool.state != nil {
-		t.taskPool.state.UpdateRuntimeFields(tsk)
+	tsk.Task.RunnerID = &runner.ID
+
+	db.StoreSession(t.taskPool.store, "remote job assign runner", func() {
+		tsk.Logf("Task #%d is assigned to runner #%d", tsk.Task.ID, runner.ID)
+		err = t.taskPool.store.UpdateTask(tsk.Task)
+	})
+
+	if err != nil {
+		return
 	}
+
+	t.taskPool.state.UpdateRuntimeFields(tsk)
 
 	startTime := tz.Now()
 
@@ -166,11 +213,34 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		}
 
 		time.Sleep(1_000_000_000)
-		tsk = t.taskPool.GetTask(t.Task.ID)
+		tsk, err = t.taskPool.GetTask(t.Task.ID)
+
+		if err != nil {
+			return
+		}
 
 		if tsk == nil {
 			err = fmt.Errorf("task %d not found", t.Task.ID)
 			return
+		}
+
+		if util.HAEnabled() {
+			var row db.Task
+			var rowErr error
+			db.StoreSession(t.taskPool.store, "remote job status sync", func() {
+				row, rowErr = t.taskPool.store.GetTask(tsk.Task.ProjectID, t.Task.ID)
+			})
+			if rowErr == nil {
+				// Never regress (e.g. running → starting) if the DB read is briefly stale.
+				if task_logger.TaskStatusProgressRank(row.Status) >= task_logger.TaskStatusProgressRank(tsk.Task.Status) {
+					tsk.Task.Status = row.Status
+					tsk.Task.Start = row.Start
+					tsk.Task.End = row.End
+				}
+				if row.RunnerID != nil {
+					tsk.Task.RunnerID = row.RunnerID
+				}
+			}
 		}
 
 		if tsk.Task.Status == task_logger.TaskSuccessStatus ||

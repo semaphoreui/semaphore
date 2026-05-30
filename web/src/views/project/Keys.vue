@@ -15,7 +15,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
-          :support-storages="premiumFeatures.secret_storages"
+          :support-storages="features.secret_storages"
         />
       </template>
     </EditDialog>
@@ -65,6 +65,11 @@
           style="font-weight: bold;"
           class="ml-2"
         >{{ $t('empty') }}</v-chip>
+        <v-chip
+          v-if="item.synchronized"
+          x-small
+          class="ml-2"
+        >{{ $t('synchronized') }}</v-chip>
       </template>
       <template v-slot:item.type="{ item }">
         <code>{{ item.type }}</code>

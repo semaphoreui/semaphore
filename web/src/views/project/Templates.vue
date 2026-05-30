@@ -32,7 +32,7 @@
       :item-app="itemApp"
       item-id="new"
       @save="loadItems()"
-      :premium-features="premiumFeatures"
+      :features="features"
     ></EditTemplateDialog>
 
     <NewTaskDialog
@@ -208,8 +208,8 @@
         {{ (inventory.find((x) => x.id === item.inventory_id) || {name: '—'}).name }}
       </template>
 
-      <template v-slot:item.environment_id="{ item }">
-        {{ (environment.find((x) => x.id === item.environment_id) || {name: '—'}).name }}
+      <template v-slot:item.environment_ids="{ item }">
+        {{ formatEnvironmentNames(item) }}
       </template>
 
       <template v-slot:item.repository_id="{ item }">
@@ -290,7 +290,7 @@ export default {
     NewTaskDialog,
   },
   props: {
-    premiumFeatures: Object,
+    features: Object,
   },
   mixins: [ItemListPageBase, AppsMixin],
 
@@ -379,6 +379,19 @@ export default {
 
     allowActions() {
       return true;
+    },
+
+    formatEnvironmentNames(item) {
+      if (!Array.isArray(item.environment_ids) || item.environment_ids.length === 0) {
+        return '—';
+      }
+      const names = item.environment_ids
+        .map((id) => {
+          const env = this.environment.find((x) => x.id === id);
+          return env ? env.name : null;
+        })
+        .filter((n) => n != null);
+      return names.length > 0 ? names.join(', ') : '—';
     },
 
     getViewUrl(viewId) {
@@ -504,7 +517,7 @@ export default {
         },
         {
           text: this.$i18n.t('environment'),
-          value: 'environment_id',
+          value: 'environment_ids',
           sortable: false,
         },
         {

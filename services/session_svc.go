@@ -1,11 +1,12 @@
 package services
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"time"
 )
 
 type SessionService interface {

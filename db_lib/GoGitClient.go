@@ -230,10 +230,7 @@ func (c GoGitClient) GetLastCommitMessage(r GitRepository) (msg string, err erro
 		return
 	}
 
-	msg = headCommit.Message
-	if len(msg) > 100 {
-		msg = msg[0:100]
-	}
+	msg = truncateCommitMessage(headCommit.Message)
 
 	r.Logger.Log("Message: " + msg)
 

@@ -43,27 +43,24 @@ func (e *IntegrationExtractValueExporter) load(store db.Store, exporter DataExpo
 }
 
 func (e *IntegrationExtractValueExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	for _, val := range e.values {
-		old := val.value
+func (e *IntegrationExtractValueExporter) restoreValue(val EntityObject[db.IntegrationExtractValue], store db.Store, exporter DataExporter) (err error) {
 
-		old.IntegrationID, err = exporter.getNewKeyInt(Integration, val.scope, old.IntegrationID, e)
-		if err != nil {
-			return err
-		}
+	old := val.value
 
-		newVault, err := store.CreateIntegrationExtractValue(0, old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, newVault.ID)
-		if err != nil {
-			return err
-		}
+	old.IntegrationID, err = exporter.getNewKeyInt(Integration, val.scope, old.IntegrationID)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	newVault, err := store.CreateIntegrationExtractValue(0, old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newVault.GetDbKey())
 }
 
 func (e *IntegrationExtractValueExporter) getName() string {

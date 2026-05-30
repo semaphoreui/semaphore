@@ -7,13 +7,6 @@
       </v-toolbar-title>
     </v-toolbar>
 
-    <DashboardMenu
-      v-if="projectId"
-      :project-id="projectId"
-      project-type=""
-      :can-update-project="can(USER_PERMISSIONS.updateProject)"
-    />
-
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
@@ -29,6 +22,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :is-admin="true"
+          :is-tags-available="features.project_runners"
         />
       </template>
     </EditDialog>
@@ -234,23 +228,30 @@ semaphore runner start --config ./config.runner.json</pre
     </v-toolbar>
 
     <v-btn
-      :disabled="!premiumFeatures.project_runners"
+      v-else
+      :disabled="!features.project_runners"
       style="position: absolute; right: 15px; top: 15px"
       color="primary"
       @click="editItem('new')"
       >{{ $t('newRunner') }}
     </v-btn>
 
-    <v-divider v-if="!projectId" />
+    <v-divider />
 
     <v-alert
-      v-if="projectId && !premiumFeatures.project_runners"
+      v-if="projectId && !features.project_runners"
       text
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
     >
       <span v-html="$t('project_runners_only_pro')"></span>
-      <v-btn dark v-if="isAdmin" class="ml-2" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro()">
+      <v-btn
+        dark
+        v-if="isAdmin"
+        class="ml-2"
+        color="hsl(348deg, 86%, 61%)"
+        @click="upgradeToPro('project_runners')"
+      >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
       <span v-else style="font-weight: bold">
@@ -272,28 +273,82 @@ semaphore runner start --config ./config.runner.json</pre
       >.
     </v-alert>
 
+    <div v-if="globalFilter || defaultFilter || tagFilter" class="mt-4 ml-4 d-flex align-center">
+      <v-chip
+        v-if="globalFilter"
+        class="mr-2"
+        small
+        close
+        color="info"
+        @click:close="globalFilter = false"
+      >
+        {{ $t('global') }}
+      </v-chip>
+      <v-chip
+        v-if="defaultFilter"
+        class="mr-2"
+        small
+        close
+        color="warning"
+        @click:close="defaultFilter = false"
+      >
+        {{ $t('default') }}
+      </v-chip>
+      <v-chip v-if="tagFilter" small close label color="primary" @click:close="tagFilter = null">
+        {{ tagFilter }}
+      </v-chip>
+    </div>
+
     <v-data-table
       :headers="headers"
-      :items="items"
+      :items="filteredItems"
       class="mt-4"
+      :style="projectId && !features.project_runners ? 'opacity: 0.4' : ''"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
       <template v-slot:item.active="{ item }">
-        <v-switch v-model="item.active" inset @change="setActive(item.id, item.active)"></v-switch>
+        <v-switch
+          v-if="item.project_id != null || projectId == null"
+          v-model="item.active"
+          inset
+          @change="setActive(item.id, item.active)"
+          :disabled="item.project_id == null && !isAdmin"
+        />
       </template>
 
-      <template v-slot:item.name="{ item }">{{ item.name || '&mdash;' }}</template>
+      <template v-slot:item.name="{ item }">
+        {{ item.name || '&mdash;' }}
+        <v-chip
+          v-if="item.is_default"
+          class="ml-2"
+          small
+          color="warning"
+          style="cursor: pointer"
+          @click="defaultFilter = !defaultFilter"
+        >
+          {{ $t('default') }}
+        </v-chip>
 
-      <template v-slot:item.webhook="{ item }">{{ item.webhook || '&mdash;' }}</template>
+        <v-chip
+          v-if="item.project_id == null"
+          class="ml-2"
+          small
+          color="info"
+          style="cursor: pointer"
+          @click="globalFilter = !globalFilter"
+        >
+          {{ $t('global') }}
+        </v-chip>
+      </template>
 
       <template v-slot:item.max_parallel_tasks="{ item }">
         {{ item.max_parallel_tasks || '∞' }}
       </template>
 
       <template v-slot:item.touched="{ item }">
-        <v-chip v-if="item.touched" :color="getStatusColor(item)" style="font-weight: bold">
+        <v-chip :color="getStatusColor(item)" style="font-weight: bold">
           <span v-if="item.touched">{{ item.touched | formatDate }}</span>
-          <span v-else>{{ $t('never') }}</span>
+          <span v-else>{{ $t('Never') }}</span>
         </v-chip>
       </template>
 
@@ -301,24 +356,57 @@ semaphore runner start --config ./config.runner.json</pre
         {{ item.project_id ? `#${item.project_id}` : '&mdash;' }}
       </template>
 
-      <template v-slot:item.tag="{ item }">
-        <code v-if="item.tag">{{ item.tag }}</code>
+      <template v-slot:item.tags="{ item }">
+        <div v-if="item.tags && item.tags.length" style="white-space: normal">
+          <v-chip
+            v-for="t in item.tags"
+            :key="t"
+            x-small
+            label
+            class="mr-1 mb-1"
+            style="cursor: pointer"
+            :color="tagFilter === t ? 'primary' : undefined"
+            :dark="tagFilter === t"
+            @click="tagFilter = tagFilter === t ? null : t"
+          >
+            {{ t }}
+          </v-chip>
+        </div>
         <span v-else>&mdash;</span>
       </template>
 
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)">
+          <v-btn
+            v-if="item.project_id != null || projectId == null"
+            icon
+            class="mr-1"
+            @click="askDeleteItem(item.id)"
+            :disabled="item.project_id == null && !isAdmin"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item.id)">
+          <v-btn
+            v-if="item.project_id != null || projectId == null"
+            icon
+            class="mr-1"
+            @click="editItem(item.id)"
+            :disabled="item.project_id == null && !isAdmin"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
 
-          <v-tooltip bottom :max-width="150">
+          <v-tooltip v-if="item.project_id != null || projectId == null" bottom :max-width="150">
             <template v-slot:activator="{ on, attrs }">
-              <v-btn v-bind="attrs" v-on="on" icon class="mr-1" @click="clearCache(item)">
+              <v-btn
+                v-bind="attrs"
+                v-on="on"
+                icon
+                class="mr-1"
+                @click="clearCache(item)"
+                :disabled="item.project_id == null && !isAdmin"
+              >
                 <v-icon>mdi-broom</v-icon>
               </v-btn>
             </template>
@@ -345,7 +433,6 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import RunnerForm from '@/components/RunnerForm.vue';
 import axios from 'axios';
-import DashboardMenu from '@/components/DashboardMenu.vue';
 import delay from '@/lib/delay';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import PageMixin from '@/components/PageMixin';
@@ -355,7 +442,6 @@ export default {
 
   components: {
     CopyClipboardButton,
-    DashboardMenu,
     RunnerForm,
     YesNoDialog,
     EditDialog,
@@ -363,6 +449,12 @@ export default {
 
   props: {
     projectId: Number,
+  },
+
+  watch: {
+    async projectId() {
+      await this.loadItems();
+    },
   },
 
   computed: {
@@ -409,6 +501,23 @@ SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/path/to/private/key \\
 semaphore runner start --no-config`;
     },
 
+    filteredItems() {
+      if (!this.items) {
+        return [];
+      }
+      let result = this.items;
+      if (this.globalFilter) {
+        result = result.filter((item) => item.project_id == null);
+      }
+      if (this.defaultFilter) {
+        result = result.filter((item) => item.is_default);
+      }
+      if (this.tagFilter) {
+        result = result.filter((item) => item.tags && item.tags.includes(this.tagFilter));
+      }
+      return result;
+    },
+
     runnerDockerCommand() {
       return `docker run \\
 -e SEMAPHORE_WEB_ROOT=${this.webHost} \\
@@ -424,17 +533,15 @@ semaphore runner start --no-config`;
       newRunnerTokenDialog: null,
       newRunner: null,
       usageTab: null,
+      globalFilter: false,
+      defaultFilter: false,
+      tagFilter: null,
     };
   },
 
   methods: {
-
-    upgradeToPro() {
-      EventBus.$emit('i-subscription', {});
-    },
-
     async clearCache(runner) {
-      const projectId = this.projectId || this.getProjectIdOfItem(runner.id);
+      const projectId = this.getProjectIdOfItem(runner.id);
 
       const url = projectId
         ? `/api/project/${projectId}/runners/${runner.id}/cache`
@@ -457,7 +564,7 @@ semaphore runner start --no-config`;
 
     getStatusColor(runner) {
       if (!runner.touched) {
-        return 'grey';
+        return 'blue-grey lighten-3';
       }
 
       const d = Date.now() - new Date(runner.touched);
@@ -470,7 +577,7 @@ semaphore runner start --no-config`;
         return 'warning';
       }
 
-      return 'grey';
+      return 'blue-grey lighten-3';
     },
 
     getProjectIdOfItem(itemId) {
@@ -505,7 +612,7 @@ semaphore runner start --no-config`;
     },
 
     async setActive(runnerId, active) {
-      const projectId = this.projectId || this.getProjectIdOfItem(runnerId);
+      const projectId = this.getProjectIdOfItem(runnerId);
 
       const url = projectId
         ? `/api/project/${projectId}/runners/${runnerId}/active`
@@ -525,29 +632,35 @@ semaphore runner start --no-config`;
       return [
         {
           value: 'active',
-        }, {
+        },
+        {
           text: this.$i18n.t('name'),
           value: 'name',
           width: '50%',
         },
-        ...(this.projectId ? [] : [{
-          text: this.$i18n.t('project'),
-          value: 'project_id',
-        }]),
+        ...(this.projectId
+          ? []
+          : [
+            {
+              text: this.$i18n.t('project'),
+              value: 'project_id',
+            },
+          ]),
         {
-          text: this.$i18n.t('webhook'),
-          value: 'webhook',
-        }, {
           text: this.$i18n.t('tag'),
-          value: 'tag',
-        }, {
+          value: 'tags',
+          sortable: false,
+        },
+        {
           text: this.$i18n.t('activity'),
           value: 'touched',
-        }, {
+        },
+        {
           text: this.$i18n.t('actions'),
           value: 'actions',
           sortable: false,
-        }];
+        },
+      ];
     },
 
     async returnToProjects() {
@@ -563,8 +676,10 @@ semaphore runner start --no-config`;
     },
 
     getSingleItemUrl() {
-      if (this.projectId) {
-        return `/api/project/${this.projectId}/runners/${this.itemId}`;
+      const projectId = this.getProjectIdOfItem(this.itemId);
+
+      if (projectId) {
+        return `/api/project/${projectId}/runners/${this.itemId}`;
       }
 
       return `/api/runners/${this.itemId}`;

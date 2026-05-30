@@ -1,8 +1,9 @@
 package db
 
 import (
-	"github.com/semaphoreui/semaphore/util"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/util"
 )
 
 func ConvertFlatToNested(flatMap map[string]string) map[string]any {

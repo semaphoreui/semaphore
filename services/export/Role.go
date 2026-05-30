@@ -37,27 +37,24 @@ func (e *RoleExporter) load(store db.Store, exporter DataExporter, progress Prog
 }
 
 func (e *RoleExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	for _, val := range e.values {
-		old := val.value
+func (e *RoleExporter) restoreValue(val EntityObject[db.Role], store db.Store, exporter DataExporter) (err error) {
 
-		old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
+	old := val.value
 
-		newRole, err := store.CreateRole(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapKeys(e.getName(), val.scope, old.Slug, newRole.Slug)
-		if err != nil {
-			return err
-		}
+	old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	newObj, err := store.CreateRole(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
 }
 
 func (e *RoleExporter) exportDependsOn() []string {

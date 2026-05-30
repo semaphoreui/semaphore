@@ -9,6 +9,7 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	proApi "github.com/semaphoreui/semaphore/pro/api"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -102,7 +103,7 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 
 	switch session.VerificationMethod {
 	case db.SessionVerificationTotp:
-		if !util.Config.Auth.Totp.Enabled || !util.Config.Auth.Totp.AllowRecovery {
+		if !util.Config.Mfa.Totp.Enabled || !util.Config.Mfa.Totp.AllowRecovery {
 			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
 			return
 		}
@@ -166,7 +167,7 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case db.SessionVerificationTotp:
-		if !util.Config.Auth.Totp.Enabled {
+		if !util.Config.Mfa.Totp.Enabled {
 			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
 			return
 		}
@@ -180,6 +181,11 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		user, err := helpers.Store(r).GetUser(session.UserID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if user.Totp == nil {
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -223,6 +229,11 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 				log.Error(err)
 			}
 
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		if token.IsExpiredAt(tz.Now()) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

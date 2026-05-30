@@ -1,6 +1,5 @@
 <template>
   <div>
-
     <EditDialog
       v-model="passwordDialog"
       save-button-text="Save"
@@ -22,35 +21,20 @@
 
     <v-tabs v-model="tab">
       <v-tab key="settings">Settings</v-tab>
-      <v-tab
-        key="2fa"
-        v-if="!isNew || authMethods.totp"
-      >
-        Security
-      </v-tab>
+      <v-tab key="2fa" v-if="canChangePassword || authMethods.totp"> Security </v-tab>
     </v-tabs>
 
-    <v-divider class="mb-6" style="margin-top: -1px;"/>
+    <v-divider class="mb-6" style="margin-top: -1px" />
 
-    <v-tabs-items v-model="tab" style="overflow: unset;">
+    <v-tabs-items v-model="tab" style="overflow: unset">
       <v-tab-item key="settings">
-        <v-form
-          ref="form"
-          lazy-validation
-          v-model="formValid"
-          v-if="item != null"
-        >
-          <v-alert
-            :value="formError"
-            color="error"
-            class="pb-2"
-          >{{ formError }}
-          </v-alert>
+        <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
+          <v-alert :value="formError" color="error" class="pb-2">{{ formError }} </v-alert>
 
           <v-text-field
             v-model="item.name"
             :label="$t('name')"
-            :rules="[v => !!v || $t('name_required')]"
+            :rules="[(v) => !!v || $t('name_required')]"
             required
             :disabled="formSaving"
             outlined
@@ -60,7 +44,7 @@
           <v-text-field
             v-model="item.username"
             :label="$t('username')"
-            :rules="[v => !!v || $t('user_name_required')]"
+            :rules="[(v) => !!v || $t('user_name_required')]"
             required
             :disabled="formSaving"
             outlined
@@ -70,13 +54,12 @@
           <v-text-field
             v-model="item.email"
             :label="$t('email')"
-            :rules="[v => !!v || $t('email_required')]"
+            :rules="[(v) => !!v || $t('email_required')]"
             required
-            :disabled="!isNew && item.external || formSaving"
+            :disabled="(!isNew && item.external) || formSaving"
             outlined
             dense
           >
-
             <template v-slot:append>
               <v-chip outlined color="green" disabled small style="opacity: 1">private</v-chip>
             </template>
@@ -88,7 +71,7 @@
             :label="$t('password')"
             class="masked-secret-input"
             :required="isNew && !item.external"
-            :rules="isNew && !item.external ? [v => !!v || $t('password_required')] : []"
+            :rules="isNew && !item.external ? [(v) => !!v || $t('password_required')] : []"
             :disabled="item.external || formSaving"
             outlined
             dense
@@ -133,17 +116,13 @@
         </v-form>
       </v-tab-item>
 
-      <v-tab-item key="2fa" v-if="item != null">
-
-        <div v-if="!isNew">
+      <v-tab-item key="2fa" v-if="item != null && (canChangePassword || authMethods.totp)">
+        <div v-if="canChangePassword">
           <div class="title mb-3">Password</div>
-          <v-btn color="primary" @click="passwordDialog = true;">Change password</v-btn>
+          <v-btn color="primary" @click="passwordDialog = true">Change password</v-btn>
         </div>
 
-        <div
-          :class="{'pt-10': !isNew}"
-          v-if="authMethods.totp"
-        >
+        <div :class="{ 'pt-10': !isNew }" v-if="authMethods.totp">
           <div class="title mb-2">Two-factor authentication</div>
 
           <v-switch
@@ -156,14 +135,14 @@
             v-if="totpQrUrl"
             :src="totpQrUrl"
             style="
-        width: 100%;
-        aspect-ratio: 1;
-        border-radius: 4px;
-        display: block;
-        margin: 0 auto 10px auto;
-        border: 10px solid white;
-        background-color: white;
-      "
+              width: 100%;
+              aspect-ratio: 1;
+              border-radius: 4px;
+              display: block;
+              margin: 0 auto 10px auto;
+              border: 10px solid white;
+              background-color: white;
+            "
             alt="QR code"
           />
 
@@ -172,15 +151,13 @@
             class="mt-5 pb-3"
           >
             <div class="subtitle-1 mb-2">Recovery code</div>
-            <div style="position: relative;">
-              <code
-                style="font-size: 18px; background-color: #e03755;"
-              >
+            <div style="position: relative">
+              <code style="font-size: 18px; background-color: #e03755">
                 {{ item.totp.recovery_code }}
               </code>
 
               <CopyClipboardButton
-                style="position: absolute; right: -4px; top: -12px;"
+                style="position: absolute; right: -4px; top: -12px"
                 :text="item.totp.recovery_code"
                 large
                 color="white"
@@ -204,6 +181,7 @@ export default {
   props: {
     isAdmin: Boolean,
     authMethods: Object,
+    LoginWithPassword: Boolean,
   },
 
   mixins: [ItemFormBase],
@@ -230,11 +208,13 @@ export default {
     async totpEnabled(val) {
       if (val) {
         if (this.item.totp == null) {
-          this.item.totp = (await axios({
-            method: 'post',
-            url: `/api/users/${this.itemId}/2fas/totp`,
-            responseType: 'json',
-          })).data;
+          this.item.totp = (
+            await axios({
+              method: 'post',
+              url: `/api/users/${this.itemId}/2fas/totp`,
+              responseType: 'json',
+            })
+          ).data;
 
           // let baseURI = document.baseURI;
           // if (baseURI.endsWith('/')) {
@@ -256,15 +236,16 @@ export default {
   },
 
   computed: {
-
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
     },
 
+    canChangePassword() {
+      return !this.isNew && !this.item.external && this.LoginWithPassword;
+    },
   },
 
   methods: {
-
     afterLoadData() {
       if (this.item.totp == null) {
         this.totpEnabled = false;

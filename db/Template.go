@@ -112,10 +112,20 @@ type TemplateFilter struct {
 type Template struct {
 	ID int `db:"id" json:"id" backup:"-"`
 
-	ProjectID     int  `db:"project_id" json:"project_id" backup:"-"`
-	InventoryID   *int `db:"inventory_id" json:"inventory_id,omitempty" backup:"-"`
-	RepositoryID  int  `db:"repository_id" json:"repository_id" backup:"-"`
-	EnvironmentID *int `db:"environment_id" json:"environment_id,omitempty" backup:"-"`
+	ProjectID    int  `db:"project_id" json:"project_id" backup:"-"`
+	InventoryID  *int `db:"inventory_id" json:"inventory_id,omitempty" backup:"-"`
+	RepositoryID int  `db:"repository_id" json:"repository_id" backup:"-"`
+
+	// EnvironmentIDs is the list of Variable Groups (environments) used by the
+	// template. At task run time their JSON, ENV vars, and secrets are merged
+	// into a single environment, with later entries overriding earlier ones.
+	// Persisted via the project__template_environment junction table in SQL,
+	// and serialized inline on the template object in BoltDB.
+	EnvironmentIDs []int `db:"-" bolt:"include" json:"environment_ids" backup:"-"`
+
+	// EnvironmentID is the ID of the environment associated with the template.
+	// Deprecated: Use EnvironmentIDs instead.
+	EnvironmentID int `db:"-" bolt:"include" json:"environment_id" backup:"-"`
 
 	// Name as described in https://github.com/semaphoreui/semaphore/issues/188
 	Name string `db:"name" json:"name"`
@@ -216,7 +226,22 @@ func (tpl *Template) Validate() error {
 		}
 	}
 
+	if tpl.GitBranch != nil {
+		if err := ValidateGitBranch(*tpl.GitBranch, "template"); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+// ApplyLegacyEnvironmentField copies deprecated environment_id into environment_ids when
+// the client omitted environment_ids (nil). An explicit empty JSON array unmarshals as a
+// non-nil empty slice and is left unchanged so clients can clear all variable groups.
+func (tpl *Template) ApplyLegacyEnvironmentField() {
+	if tpl.EnvironmentIDs == nil && tpl.EnvironmentID > 0 {
+		tpl.EnvironmentIDs = []int{tpl.EnvironmentID}
+	}
 }
 
 func FillTemplate(d Store, template *Template) (err error) {
@@ -226,6 +251,13 @@ func FillTemplate(d Store, template *Template) (err error) {
 		return
 	}
 	template.Vaults = vaults
+
+	var envIDs []int
+	envIDs, err = d.GetTemplateEnvironments(template.ProjectID, template.ID)
+	if err != nil {
+		return
+	}
+	template.EnvironmentIDs = envIDs
 
 	var tasks []TaskWithTpl
 	tasks, err = d.GetTemplateTasks(template.ProjectID, template.ID, RetrieveQueryParams{Count: 1})
@@ -245,6 +277,11 @@ func FillTemplate(d Store, template *Template) (err error) {
 				"hint":        "validate JSON array in project__template.survey_vars",
 			}).Error("failed to unmarshal template survey vars")
 		}
+	}
+
+	// For backward compatibility
+	if len(template.EnvironmentIDs) > 0 {
+		template.EnvironmentID = template.EnvironmentIDs[0]
 	}
 
 	return

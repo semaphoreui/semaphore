@@ -72,7 +72,7 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	searchRequest := ldap.NewSearchRequest(
 		util.Config.LdapSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf(util.Config.LdapSearchFilter, username),
+		fmt.Sprintf(util.Config.LdapSearchFilter, ldap.EscapeFilter(username)),
 		[]string{util.Config.LdapMappings.DN},
 		nil,
 	)
@@ -105,7 +105,7 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	searchRequest = ldap.NewSearchRequest(
 		util.Config.LdapSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf(util.Config.LdapSearchFilter, username),
+		fmt.Sprintf(util.Config.LdapSearchFilter, ldap.EscapeFilter(username)),
 		[]string{util.Config.LdapMappings.DN, util.Config.LdapMappings.Mail, util.Config.LdapMappings.UID, util.Config.LdapMappings.CN},
 		nil,
 	)
@@ -156,7 +156,7 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 	verified := false
 
 	switch {
-	case user.Totp != nil && util.Config.Auth.Totp.Enabled:
+	case user.Totp != nil && util.Config.Mfa.Totp.Enabled:
 		verificationMethod = db.SessionVerificationTotp
 	default:
 		verificationMethod = db.SessionVerificationNone
@@ -293,9 +293,9 @@ func login(w http.ResponseWriter, r *http.Request) {
 			return a.Order < b.Order
 		})
 
-		if util.Config.Auth.Totp.Enabled {
+		if util.Config.Mfa.Totp.Enabled {
 			config.AuthMethods.Totp = &LoginTotpAuthMethod{
-				AllowRecovery: util.Config.Auth.Totp.AllowRecovery,
+				AllowRecovery: util.Config.Mfa.Totp.AllowRecovery,
 			}
 		}
 
@@ -333,7 +333,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 				"context": "ldap",
 				"auth":    login.Auth,
 			}).Warn("Failed to find user in LDAP")
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 	}
@@ -360,6 +360,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 		log.Error(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	createSession(w, r, user, false)
@@ -785,7 +786,6 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			Name:     claims.name,
 			Email:    claims.email,
 			External: true,
-			Pro:      true,
 		}
 		user, err = helpers.Store(r).CreateUserWithoutPassword(user)
 		if err != nil {

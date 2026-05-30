@@ -87,6 +87,7 @@ export default {
     template: Object,
     limit: Number,
     hideFooter: Boolean,
+    needUpdate: Boolean,
   },
   data() {
     return {
@@ -137,6 +138,11 @@ export default {
   watch: {
     async template() {
       await this.loadData();
+    },
+    async needUpdate(val) {
+      if (val) {
+        await this.loadData();
+      }
     },
   },
   async created() {

@@ -32,49 +32,47 @@ func (e *IntegrationExporter) load(store db.Store, exporter DataExporter, progre
 }
 
 func (e *IntegrationExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {
+	return e.restoreValues(store, exporter, progress, e)
+}
 
-	for _, val := range e.values {
-		old := val.value
+func (e *IntegrationExporter) restoreValue(val EntityObject[db.Integration], store db.Store, exporter DataExporter) (err error) {
 
-		if old.TaskParams != nil {
-			old.TaskParams.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.TaskParams.InventoryID, e)
-			if err != nil {
-				return err
-			}
+	old := val.value
 
-			old.TaskParams.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
-			if err != nil {
-				return err
-			}
-		}
-
-		old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID, e)
+	if old.TaskParams != nil {
+		old.TaskParams.InventoryID, err = exporter.getNewKeyIntRef(Inventory, val.scope, old.TaskParams.InventoryID, e)
 		if err != nil {
 			return err
 		}
 
-		old.AuthSecretID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.AuthSecretID, e)
-		if err != nil {
-			return err
-		}
-
-		old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID, e)
-		if err != nil {
-			return err
-		}
-
-		integration, err := store.CreateIntegration(old)
-		if err != nil {
-			return err
-		}
-
-		err = exporter.mapIntKeys(e.getName(), val.scope, old.ID, integration.ID)
+		old.TaskParams.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
 		if err != nil {
 			return err
 		}
 	}
 
-	return nil
+	old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID)
+	if err != nil {
+		return err
+	}
+
+	old.AuthSecretID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.AuthSecretID, e)
+	if err != nil {
+		return err
+	}
+
+	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	integration, err := store.CreateIntegration(old)
+	if err != nil {
+		return err
+	}
+
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), integration.GetDbKey())
+
 }
 
 func (e *IntegrationExporter) getName() string {

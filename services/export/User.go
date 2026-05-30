@@ -45,7 +45,7 @@ func (a *UserExporter) restore(store db.Store, exporter DataExporter, progress P
 			}
 		}
 
-		err = exporter.mapIntKeys(a.getName(), GlobalScope, old.ID, obj.ID)
+		err = exporter.mapKeys(a.getName(), GlobalScope, old.GetDbKey(), obj.GetDbKey())
 		if err != nil {
 			return err
 		}

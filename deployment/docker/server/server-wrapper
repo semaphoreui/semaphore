@@ -273,6 +273,12 @@ fi
 #
 # Migrate from BoltDB if SEMAPHORE_MIGRATE_FROM_BOLTDB is set (first run only, SQLite only, skipped if DB file already exists)
 #
+case "${SEMAPHORE_MIGRATE_FROM_BOLTDB:-}" in
+    [Tt][Rr][Uu][Ee]|[Yy][Ee][Ss])
+        SEMAPHORE_MIGRATE_FROM_BOLTDB="${SEMAPHORE_DB_PATH}/database.boltdb"
+        ;;
+esac
+
 if [ -n "${SEMAPHORE_MIGRATE_FROM_BOLTDB:-}" ] && [ "${SEMAPHORE_FIRST_RUN}" = "yes" ]; then
     if [ "${SEMAPHORE_DB_DIALECT}" != "sqlite" ]; then
         echoerr "SEMAPHORE_MIGRATE_FROM_BOLTDB is only supported with SQLite dialect, ignoring"
@@ -292,7 +298,7 @@ fi
 
 # Import project if environment variable SEMAPHORE_IMPORT_PROJECT_FILE is defined.
 # Optionally use SEMAPHORE_IMPORT_PROJECT_NAME to specify the project name.
-if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ]; && [ "${SEMAPHORE_FIRST_RUN}" = "yes" ]; then
+if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ] && [ "${SEMAPHORE_FIRST_RUN}" = "yes" ]; then
     echoerr "Importing project from ${SEMAPHORE_IMPORT_PROJECT_FILE}"
     IMPORT_ARGS="--file ${SEMAPHORE_IMPORT_PROJECT_FILE}"
     if [ -n "${SEMAPHORE_IMPORT_PROJECT_NAME:-}" ]; then

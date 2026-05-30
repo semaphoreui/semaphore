@@ -119,9 +119,16 @@ func CreateTaskPoolWithState(
 	_ = p.state.Start(p.hydrateTaskRunner)
 	return p
 }
+
+// StateStore returns the pluggable task state backend. Used by the Cluster
+// Dashboard to reach an optional TaskStateInspector implementation.
+func (p *TaskPool) StateStore() TaskStateStore {
+	return p.state
+}
+
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
 	for _, task := range p.state.RunningRange() {
-		if task.RunnerID == runnerID {
+		if task.Task.RunnerID != nil && *task.Task.RunnerID == runnerID {
 			res++
 		}
 	}
@@ -132,7 +139,7 @@ func (p *TaskPool) GetRunningTasks() (res []*TaskRunner) {
 	return p.state.RunningRange()
 }
 
-func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
+func (p *TaskPool) GetTask(id int) (task *TaskRunner, err error) {
 	for _, t := range p.state.QueueRange() {
 		if t.Task.ID == id {
 			task = t
@@ -146,6 +153,12 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner) {
 				task = t
 				break
 			}
+		}
+	}
+
+	if util.HAEnabled() {
+		if task == nil {
+			task, err = p.HydrateTaskRunnerFromDB(id)
 		}
 	}
 
@@ -170,12 +183,11 @@ func (p *TaskPool) Run() {
 		case task := <-p.register: // new task created by API or schedule
 
 			db.StoreSession(p.store, "new task", func() {
-				//p.Queue = append(p.Queue, task)
-				msg := "Task " + task.Template.Name + " added to queue"
-				task.Log(msg)
+				task.Log("Task " + task.Template.Name + " added to queue")
 				log.WithFields(log.Fields{
-					"task_id": task.Task.ID,
-				}).Info(msg)
+					"task_id":   task.Task.ID,
+					"task_name": task.Template.Name,
+				}).Info("Task added to queue")
 				task.saveStatus()
 			})
 			p.queueEvents <- PoolEvent{EventTypeNew, task}
@@ -188,7 +200,7 @@ func (p *TaskPool) Run() {
 }
 
 func getTaskName(t *TaskRunner) string {
-	return t.Template.Name + " " + strconv.Itoa(t.Task.ID)
+	return t.Template.Name + " (" + strconv.Itoa(t.Task.ID) + ")"
 }
 
 func (p *TaskPool) handleQueue() {
@@ -340,10 +352,18 @@ func (p *TaskPool) writeLogs(logs []logRecord) {
 }
 
 func runTask(task *TaskRunner, p *TaskPool) {
-	log.Info("Set resource locker with TaskRunner " + getTaskName(task))
+	log.WithFields(log.Fields{
+		"context":   "task_pool",
+		"task_id":   task.Task.ID,
+		"task_name": task.Template.Name,
+	}).Info("Set resource locker")
 	p.onTaskRun(task)
 
-	log.Info("Task " + getTaskName(task) + " started")
+	log.WithFields(log.Fields{
+		"context":   "task_pool",
+		"task_id":   task.Task.ID,
+		"task_name": task.Template.Name,
+	}).Info("Task started")
 	go func() {
 		time.Sleep(1 * time.Second)
 		task.run()
@@ -367,21 +387,37 @@ func (p *TaskPool) onTaskStop(t *TaskRunner) {
 	}
 }
 
+func applyDBPersistedTaskSnapshot(dst *db.Task, src db.Task) {
+	dst.Status = src.Status
+	dst.Start = src.Start
+	dst.End = src.End
+	dst.RunnerID = src.RunnerID
+	dst.CommitHash = src.CommitHash
+	dst.CommitMessage = src.CommitMessage
+}
+
 // hydrateTaskRunner builds a TaskRunner for an existing task from DB without starting it
 func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, error) {
 	task, err := p.store.GetTask(projectID, taskID)
 	if err != nil {
 		return nil, err
 	}
+
 	tr := NewTaskRunner(task, p, "", p.keyInstallationService)
-	if err := tr.populateDetails(); err != nil {
+	if err = tr.populateDetails(); err != nil {
 		return nil, err
 	}
-	// load runtime fields from HA store (e.g., Redis)
+
+	// load runtime fields from the HA store (e.g., Redis)
 	if p.state != nil {
 		p.state.LoadRuntimeFields(tr)
 	}
-	// set appropriate job handler for consistency (not run)
+
+	// Persisted row from DB must win over runtime-store fields: Redis may still hold a
+	// snapshot from enqueue time (e.g. status "starting") after the runner updated the DB.
+	applyDBPersistedTaskSnapshot(&tr.Task, task)
+
+	// set the appropriate job handler for consistency (not run)
 	var job Job
 	if util.Config.UseRemoteRunner || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
 		tag := tr.Template.RunnerTag
@@ -404,6 +440,23 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 		}
 	}
 	tr.job = job
+	return tr, nil
+}
+
+// HydrateTaskRunnerFromDB loads a task row by ID and builds a TaskRunner for API-side updates
+// (e.g. runner progress on an HA node that did not enqueue the task).
+func (p *TaskPool) HydrateTaskRunnerFromDB(taskID int) (*TaskRunner, error) {
+	row, err := p.store.GetTaskByID(taskID)
+	if err != nil {
+		return nil, err
+	}
+	tr, err := p.hydrateTaskRunner(taskID, row.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+	if row.RunnerID != nil {
+		tr.Task.RunnerID = row.RunnerID
+	}
 	return tr, nil
 }
 
@@ -443,7 +496,11 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 }
 
 func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
-	tsk := p.GetTask(targetTask.ID)
+	tsk, err := p.GetTask(targetTask.ID)
+
+	if err != nil {
+		return err
+	}
 
 	if tsk == nil { // task not active, but exists in database
 		return fmt.Errorf("task is not active")
@@ -455,7 +512,11 @@ func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
 }
 
 func (p *TaskPool) RejectTask(targetTask db.Task) error {
-	tsk := p.GetTask(targetTask.ID)
+	tsk, err := p.GetTask(targetTask.ID)
+
+	if err != nil {
+		return err
+	}
 
 	if tsk == nil { // task not active, but exists in database
 		return fmt.Errorf("task is not active")
@@ -467,9 +528,13 @@ func (p *TaskPool) RejectTask(targetTask db.Task) error {
 }
 
 func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
-	tsk := p.GetTask(targetTask.ID)
-	if tsk == nil { // task not active, but exists in database
+	tsk, err := p.GetTask(targetTask.ID)
+	if err != nil {
+		return err
+	}
 
+	// task not active, but exists in database. For non-HA mode
+	if tsk == nil {
 		tsk = NewTaskRunner(targetTask, p, "", p.keyInstallationService)
 
 		err := tsk.populateDetails()
@@ -478,18 +543,19 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 		}
 		tsk.SetStatus(task_logger.TaskStoppedStatus)
 		tsk.createTaskEvent()
+		return nil
+	}
+
+	status := tsk.Task.Status
+
+	if forceStop {
+		tsk.SetStatus(task_logger.TaskStoppedStatus)
 	} else {
-		status := tsk.Task.Status
+		tsk.SetStatus(task_logger.TaskStoppingStatus)
+	}
 
-		if forceStop {
-			tsk.SetStatus(task_logger.TaskStoppedStatus)
-		} else {
-			tsk.SetStatus(task_logger.TaskStoppingStatus)
-		}
-
-		if status == task_logger.TaskRunningStatus {
-			tsk.kill()
-		}
+	if status == task_logger.TaskRunningStatus {
+		tsk.kill()
 	}
 
 	return nil
@@ -499,27 +565,53 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 // the specified project and template. If forceStop is true, tasks are marked as
 // stopped immediately and running tasks are killed; otherwise tasks are marked
 // as stopping and will gracefully transition to stopped.
+//
+// Waiting tasks (which have no running process) are dequeued and bulk-updated in
+// the database in a single query, avoiding expensive per-task hydration.
+// Non-waiting tasks go through the regular per-task SetStatus path.
 func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop bool) {
-	// Handle queued tasks
-	for _, t := range p.state.QueueRange() {
+
+	stoppedTasks := map[int]struct{}{}
+
+	// Bulk-update all waiting tasks in DB in a single query.
+	// This is the fast path -- waiting tasks have no running process.
+	if err := p.store.SetWaitingTasksToStopped(projectID, templateID); err != nil {
+		log.Error(err)
+	}
+
+	// Dequeue waiting tasks from the in-memory queue.
+	i := 0
+	for i < p.state.QueueLen() {
+		t := p.state.QueueGet(i)
 		if t == nil {
+			i++
 			continue
 		}
 		if t.Task.ProjectID != projectID || t.Task.TemplateID != templateID {
+			i++
 			continue
 		}
 		if t.Task.Status.IsFinished() {
+			i++
 			continue
 		}
+
+		if t.Task.Status == task_logger.TaskWaitingStatus {
+			stoppedTasks[t.Task.ID] = struct{}{}
+			_ = p.state.DequeueAt(i)
+			continue
+		}
+
 		if forceStop {
 			t.SetStatus(task_logger.TaskStoppedStatus)
 		} else {
 			t.SetStatus(task_logger.TaskStoppingStatus)
 		}
-		// Queued tasks will be dequeued and immediately finalize to Stopped in run()
+		stoppedTasks[t.Task.ID] = struct{}{}
+		i++
 	}
 
-	// Handle running tasks
+	// Handle running tasks -- these need per-task SetStatus and kill.
 	for _, t := range p.state.RunningRange() {
 		if t == nil {
 			continue
@@ -539,34 +631,49 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		if prevStatus == task_logger.TaskRunningStatus {
 			t.kill()
 		}
+
+		stoppedTasks[t.Task.ID] = struct{}{}
 	}
 
-	// Update tasks in DB that are neither queued nor running but still active
-	// (e.g., created but not present in this instance's memory state).
-	if tasks, err := p.store.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{
+	// Handle non-waiting tasks in DB that are neither queued nor running locally
+	// (e.g., HA mode or tasks created but not present in this instance's memory).
+	tasks, err := p.store.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{
 		TaskFilter: &db.TaskFilter{
 			Status: task_logger.UnfinishedTaskStatuses(),
 		},
-	}); err == nil {
-		for _, twt := range tasks {
+	})
 
-			// if task is managed locally (queued/running), it was handled above
-			if p.GetTask(twt.Task.ID) != nil {
-				continue
-			}
-
-			// mark non-local task as stopped and write event for history
-			tr := NewTaskRunner(twt.Task, p, "", p.keyInstallationService)
-			if err := tr.populateDetails(); err != nil {
-				log.Error(err)
-				continue
-			}
-
-			tr.SetStatus(task_logger.TaskStoppedStatus)
-			tr.createTaskEvent()
-		}
-	} else {
+	if err != nil {
 		log.Error(err)
+		return
+	}
+
+	for _, twt := range tasks {
+
+		if _, ok := stoppedTasks[twt.ID]; ok {
+			continue
+		}
+
+		tsk, taskErr := p.GetTask(twt.ID)
+		if taskErr != nil {
+			log.WithError(taskErr).WithFields(log.Fields{
+				"task_id": twt.ID,
+				"context": "task_pool",
+			}).Warn("can't get task")
+
+			continue
+		}
+
+		if tsk == nil {
+			tsk = NewTaskRunner(twt.Task, p, "", p.keyInstallationService)
+			if trErr := tsk.populateDetails(); trErr != nil {
+				log.Error(trErr)
+				continue
+			}
+		}
+
+		tsk.SetStatus(task_logger.TaskStoppedStatus)
+		tsk.createTaskEvent()
 	}
 }
 
@@ -626,7 +733,7 @@ func getNextBuildVersion(startVersion string, currentVersion string) string {
 		newVer = curr + 1
 	}
 
-	return prefix + strconv.Itoa(newVer) + suffix
+	return prefix + fmt.Sprintf("%0*d", len(body), newVer) + suffix
 }
 
 // AddTask creates and queues a new task for execution in the task pool.

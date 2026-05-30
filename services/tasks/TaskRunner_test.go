@@ -37,6 +37,10 @@ func (s *InventoryServiceMock) GetInventory(projectID int, inventoryID int) (inv
 type EncryptionServiceMock struct {
 }
 
+func (s *EncryptionServiceMock) RekeyAccessKeys(oldKey string) (err error) {
+	return nil
+}
+
 func (s *EncryptionServiceMock) DeleteSecret(key *db.AccessKey) error {
 	return nil
 }
@@ -264,7 +268,7 @@ func TestPopulateDetails(t *testing.T) {
 		ProjectID:     proj.ID,
 		RepositoryID:  repo.ID,
 		InventoryID:   &inv.ID,
-		EnvironmentID: &env.ID,
+		EnvironmentIDs: []int{env.ID},
 	})
 
 	if err != nil {
@@ -369,7 +373,7 @@ func TestPopulateDetailsInventory(t *testing.T) {
 		ProjectID:     proj.ID,
 		RepositoryID:  repo.ID,
 		InventoryID:   &inv.ID,
-		EnvironmentID: &env.ID,
+		EnvironmentIDs: []int{env.ID},
 		TaskParams: map[string]any{
 			"allow_override_inventory": true,
 		},
@@ -471,7 +475,7 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 		ProjectID:     proj.ID,
 		RepositoryID:  repo.ID,
 		InventoryID:   &inv.ID,
-		EnvironmentID: &env.ID,
+		EnvironmentIDs: []int{env.ID},
 	})
 
 	if err != nil {
@@ -686,6 +690,10 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 }
 
 func TestCheckTmpDir(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
 	//It should be able to create a random dir in /tmp
 	dirName := path.Join(os.TempDir(), util.RandString(rand.Intn(10-4)+4))
 	err := checkTmpDir(dirName)
@@ -699,7 +707,7 @@ func TestCheckTmpDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = os.Chmod(dirName, os.FileMode(int(0550)))
+	err = os.Chmod(dirName, os.FileMode(0550))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -707,7 +715,7 @@ func TestCheckTmpDir(t *testing.T) {
 	//nolint: vetshadow
 	if stat, err := os.Stat(dirName); err != nil {
 		t.Fatal(err)
-	} else if stat.Mode() != os.FileMode(int(0550)) {
+	} else if stat.Mode() != os.FileMode(0550) {
 		// File System is not support 0550 mode, skip this test
 		return
 	}

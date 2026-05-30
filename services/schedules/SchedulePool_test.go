@@ -17,6 +17,10 @@ import (
 // mockEncryptionService is a test implementation of AccessKeyEncryptionService
 type mockEncryptionService struct{}
 
+func (m *mockEncryptionService) RekeyAccessKeys(oldKey string) (err error) {
+	return nil
+}
+
 func (m *mockEncryptionService) SerializeSecret(key *db.AccessKey) error {
 	return nil
 }

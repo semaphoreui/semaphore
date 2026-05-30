@@ -394,7 +394,7 @@ func (d *SqlDb) AddEmailOtpVerification(userID int, code string) (res db.UserEma
 
 	if err == nil {
 		now := db.GetParsedTime(tz.Now())
-		_, err = d.exec("update user__email_otp set code=?, created=? where user_id=?", code, now, userID)
+		_, err = d.exec("update user__email_otp set code=?, created=?, attempts=0 where user_id=?", code, now, userID)
 	} else if errors.Is(err, db.ErrNotFound) {
 		err = nil
 		res, err = d.insertEmailOtp(userID, code)
@@ -403,6 +403,11 @@ func (d *SqlDb) AddEmailOtpVerification(userID int, code string) (res db.UserEma
 	}
 
 	return
+}
+
+func (d *SqlDb) IncrementEmailOtpAttempts(userID int) error {
+	_, err := d.exec("update user__email_otp set attempts = attempts + 1 where user_id=?", userID)
+	return err
 }
 
 func (d *SqlDb) DeleteEmailOtpVerification(userID int, totpID int) error {

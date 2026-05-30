@@ -1,11 +1,12 @@
 package bolt
 
 import (
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/pkg/tz"
 	"reflect"
 	"slices"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
 type globalToken struct {

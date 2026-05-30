@@ -10,6 +10,7 @@
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <IntegrationExtractValueForm
+          :projectId="projectId"
           :integration-id="integrationId"
           :item-id="itemId"
           :project-id="projectId"
@@ -87,12 +88,6 @@ export default {
   components: { IntegrationExtractValueForm },
 
   computed: {
-    projectId() {
-      if (/^-?\d+$/.test(this.$route.params.projectId)) {
-        return parseInt(this.$route.params.projectId, 10);
-      }
-      return this.$route.params.projectId;
-    },
     integrationId() {
       if (/^-?\d+$/.test(this.$route.params.integrationId)) {
         return parseInt(this.$route.params.integrationId, 10);

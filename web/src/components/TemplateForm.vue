@@ -241,14 +241,21 @@
         </div>
 
         <v-autocomplete
-          v-model="item.environment_id"
+          v-model="item.environment_ids"
           :label="fieldLabel('environment')"
           :items="environment"
           item-value="id"
           item-text="name"
-          :rules="isFieldRequired('environment') ? [v => !!v || $t('environment_required')] : []"
+          :rules="isFieldRequired('environment')
+            ? [v => (Array.isArray(v) && v.length > 0) || $t('environment_required')]
+            : []"
+          persistent-hint
+          multiple
+          chips
+          deletable-chips
           outlined
-          dense
+          small-chips
+          class="mb-3"
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="needField('environment')"
@@ -275,7 +282,7 @@
         <div class="mb-4">
 
           <v-autocomplete
-            v-if="premiumFeatures.project_runners"
+            v-if="features.project_runners"
             v-model="item.runner_tag"
             :items="runnerTags"
             :label="fieldLabel('runner_tag')"
@@ -285,6 +292,7 @@
             dense
             :disabled="formSaving"
             :placeholder="$t('runner_tag')"
+            clearable
           ></v-autocomplete>
 
           <SurveyVars
@@ -440,7 +448,7 @@
             v-model="item.task_params.override_backend"
             :true-value="true"
             :false-value="false"
-            v-if="needField('override_backend') && premiumFeatures.terraform_backend"
+            v-if="needField('override_backend') && features.terraform_backend"
           />
 
           <v-text-field
@@ -451,7 +459,7 @@
             :disabled="formSaving || !item.task_params.override_backend"
             placeholder="backend.tf"
             :rules="[v => validateBackendFilename(v) || $t('terraform_invalid_backend_filename')]"
-            v-if="needField('backend_filename') && premiumFeatures.terraform_backend"
+            v-if="needField('backend_filename') && features.terraform_backend"
           ></v-text-field>
 
         </div>
@@ -537,7 +545,7 @@ export default {
   props: {
     sourceItemId: Number,
     app: String,
-    premiumFeatures: Object,
+    features: Object,
     taskType: String,
   },
 
@@ -772,6 +780,7 @@ export default {
     getNewItem() {
       return {
         task_params: {},
+        environment_ids: [],
       };
     },
 
@@ -856,6 +865,10 @@ export default {
 
       if (!this.item.task_params) {
         this.item.task_params = {};
+      }
+
+      if (!Array.isArray(this.item.environment_ids)) {
+        this.$set(this.item, 'environment_ids', []);
       }
 
       this.args = JSON.parse(this.item.arguments || '[]');

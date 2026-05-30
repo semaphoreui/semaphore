@@ -3,8 +3,9 @@ package bolt
 import (
 	"errors"
 	"fmt"
-	"github.com/semaphoreui/semaphore/db"
 	"reflect"
+
+	"github.com/semaphoreui/semaphore/db"
 )
 
 type publicAlias struct {
@@ -38,10 +39,16 @@ func (d *publicAlias) createAlias(aliasObj any) (newAlias any, err error) {
 
 	alias := aliasObj.(db.Aliasable).ToAlias()
 
-	err = d.getPublicAlias(alias.Alias, newAlias)
+	// Allocate a typed receiver so unmarshalObject can populate it via reflection.
+	// Passing the uninitialized `newAlias` (a nil interface) caused a nil pointer
+	// dereference inside createObjectType when the public alias bucket already
+	// contained an entry. See semaphoreui/semaphore#3580.
+	existing := reflect.New(d.publicAliasProps.Type).Interface()
+	err = d.getPublicAlias(alias.Alias, existing)
 
 	if err == nil {
 		err = fmt.Errorf("alias already exists")
+		return
 	}
 
 	if !errors.Is(err, db.ErrNotFound) {
