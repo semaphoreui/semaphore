@@ -222,10 +222,10 @@ type RunnerDockerConfig struct {
 	CertPath string `json:"cert_path,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_CERT_PATH"`
 
 	// Image is the default image used for the build container of each task.
-	Image string `json:"image,omitempty" default:"semaphoreui/ansible-runner:latest" env:"SEMAPHORE_RUNNER_DOCKER_IMAGE"`
+	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_IMAGE"`
 
 	// HelperImage is the image used for the transient git-clone container.
-	HelperImage string `json:"helper_image,omitempty" default:"alpine/git:latest" env:"SEMAPHORE_RUNNER_DOCKER_HELPER_IMAGE"`
+	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_HELPER_IMAGE"`
 
 	// Network is the Docker network the build container joins. Defaults to "bridge".
 	Network string `json:"network,omitempty" default:"bridge" env:"SEMAPHORE_RUNNER_DOCKER_NETWORK"`
