@@ -18,7 +18,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
-	"github.com/semaphoreui/semaphore/pro/services/tasks/k8s"
+	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -88,32 +88,27 @@ type JobPool struct {
 
 	processing int32
 
-	keyInstaller db_lib.AccessKeyInstaller
-
-	// k8sConfig is built once at startup when SEMAPHORE_RUNNER_EXECUTOR=kubernetes
-	// (nil otherwise). Holding a single shared Config — including the K8s clientset —
-	// means we don't re-dial the API server for every task. Nil for local runners.
-	k8sConfig *k8s.Config
+	// provider is the strategy that produces per-task Executors. Built once at
+	// startup from the runner's executor config. Nil when initialisation failed —
+	// dispatch refuses cleanly in that case instead of panicking on first task.
+	provider tasks.ExecutorProvider
 }
 
-// NewJobPool wires a runner-side job pool. The K8s config is materialized eagerly
-// when the runner is configured for Kubernetes execution; failures here surface at
-// process startup rather than at first-task dispatch.
+// NewJobPool wires a runner-side job pool. The ExecutorProvider is materialised
+// eagerly so config errors (bad kubeconfig, missing in-cluster credentials, etc.)
+// surface in the runner logs at startup rather than at first-task dispatch.
 func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
 	pool := &JobPool{
-		runningJobs:  make(map[int]*runningJob),
-		queue:        make([]*job, 0),
-		processing:   0,
-		keyInstaller: keyInstaller,
+		runningJobs: make(map[int]*runningJob),
+		queue:       make([]*job, 0),
+		processing:  0,
 	}
 
-	if util.Config.Runner.Executor.Type == util.ExecutorTypeKubernetes {
-		cfg, err := k8s.ConfigFromRunnerConfig(util.Config.Runner.Executor.K8s)
-		if err != nil {
-			log.WithError(err).Error("failed to initialize Kubernetes executor config; runner will reject K8s jobs until restarted with a valid config")
-		} else {
-			pool.k8sConfig = &cfg
-		}
+	provider, err := newExecutorProvider(util.Config.Runner.Executor, keyInstaller)
+	if err != nil {
+		log.WithError(err).Error("failed to initialise executor provider; runner will reject jobs until restarted with a valid config")
+	} else {
+		pool.provider = provider
 	}
 
 	return pool
@@ -697,7 +692,7 @@ func (p *JobPool) checkNewJobs() {
 
 		newJob.Inventory.Repository = newJob.InventoryRepository
 
-		executor, err := newExecutor(newJob, response.AccessKeys, p.keyInstaller, p.k8sConfig)
+		executor, err := newExecutor(newJob, response.AccessKeys, p.provider)
 		if err != nil {
 			logger.ActionError(err, "build executor", "cannot construct executor for task")
 			continue

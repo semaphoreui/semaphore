@@ -10,56 +10,64 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-// newExecutor builds the per-task executor the runner will dispatch into. Access keys
-// retrieved from the server are wired into the JobData up front so each concrete
-// constructor sees a fully-hydrated record — this keeps job_pool.go agnostic of which
-// executor it ends up dispatching to.
+// newExecutorProvider picks the ExecutorProvider implementation that matches the
+// runner's configured executor type. Called once at runner startup; the resulting
+// Provider lives on the JobPool for the process lifetime.
+//
+// Adding a new executor strategy means: write a Provider, add a case here. Nothing
+// else (JobPool, executor lifecycle, access-key hydration) needs to change.
+func newExecutorProvider(executorCfg *util.ExecutorConfig, keyInstaller db_lib.AccessKeyInstaller) (tasks.ExecutorProvider, error) {
+	switch resolveExecutorType(executorCfg) {
+	case util.ExecutorTypeLocal:
+		return tasks.NewLocalExecutorProvider(keyInstaller), nil
+	case util.ExecutorTypeKubernetes:
+		k8sCfg := util.RunnerK8sConfig{}
+		if executorCfg != nil {
+			k8sCfg = executorCfg.K8s
+		}
+		return k8s.NewProvider(k8sCfg)
+	default:
+		return nil, fmt.Errorf("unknown runner executor type %q", resolveExecutorType(executorCfg))
+	}
+}
+
+// resolveExecutorType returns the executor type from config, defaulting to "local"
+// when the field is missing or empty. Defaulting in one place keeps the rest of the
+// runner code free of nil-checks against the config tree.
+func resolveExecutorType(executorCfg *util.ExecutorConfig) util.ExecutorType {
+	if executorCfg == nil || executorCfg.Type == "" {
+		return util.ExecutorTypeLocal
+	}
+	return executorCfg.Type
+}
+
+// newExecutor wires per-task data through the Provider. Access keys are hydrated
+// here (not inside each Provider) so the behaviour is identical regardless of
+// strategy: ansible vault passwords, SSH keys, inventory keys, and the inventory
+// repo SSH key all land on the JobData before the Executor is built.
 func newExecutor(
 	jobData JobData,
 	accessKeys map[int]db.AccessKey,
-	keyInstaller db_lib.AccessKeyInstaller,
-	k8sCfg *k8s.Config,
+	provider tasks.ExecutorProvider,
 ) (tasks.Executor, error) {
+	if provider == nil {
+		return nil, fmt.Errorf("executor provider is not initialised (check runner executor config)")
+	}
+
 	hydrateJobAccessKeys(&jobData, accessKeys)
 
-	switch util.Config.Runner.Executor.Type {
-	case util.ExecutorTypeLocal:
-		return newLocalExecutor(jobData, keyInstaller), nil
-	case util.ExecutorTypeKubernetes:
-		if k8sCfg == nil {
-			return nil, fmt.Errorf("kubernetes executor requested but k8s config is not initialized")
-		}
-		return newK8sExecutor(jobData, *k8sCfg), nil
-	default:
-		return nil, fmt.Errorf("unknown runner executor type %q", util.Config.Runner.Executor.Type)
-	}
-}
-
-func newLocalExecutor(jobData JobData, keyInstaller db_lib.AccessKeyInstaller) *tasks.LocalExecutor {
-	return &tasks.LocalExecutor{
-		Task:         jobData.Task,
-		Template:     jobData.Template,
-		Inventory:    jobData.Inventory,
-		Repository:   jobData.Repository,
-		Environment:  jobData.Environment,
-		KeyInstaller: keyInstaller,
-		App: db_lib.CreateApp(
-			jobData.Template,
-			jobData.Repository,
-			jobData.Inventory,
-			nil),
-	}
-}
-
-func newK8sExecutor(jobData JobData, cfg k8s.Config) *k8s.Executor {
-	return k8s.New(cfg, jobData.Task, jobData.Template, jobData.Inventory, jobData.Repository, jobData.Environment)
+	return provider.NewExecutor(
+		jobData.Task,
+		jobData.Template,
+		jobData.Inventory,
+		jobData.Repository,
+		jobData.Environment,
+	)
 }
 
 // hydrateJobAccessKeys decrypts/wires the access keys the server sent us into the
-// per-task data. Lives in the factory (not the per-executor constructor) so the
-// behaviour is identical across executor types: ansible vault passwords, SSH keys,
-// inventory keys, and the inventory repo SSH key all get attached to the JobData
-// regardless of whether the task ends up running locally or in a Pod.
+// per-task data. Lives in the factory (not the Provider) so the behaviour is
+// identical across strategies — every executor sees the same shape of JobData.
 func hydrateJobAccessKeys(jobData *JobData, accessKeys map[int]db.AccessKey) {
 	jobData.Repository.SSHKey = accessKeys[jobData.Repository.SSHKeyID]
 

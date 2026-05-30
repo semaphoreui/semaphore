@@ -1,6 +1,7 @@
 package runners
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -9,70 +10,64 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
-// restoreConfig captures the global util.Config so tests that mutate it can restore
-// the original between runs. The runner-side code reads util.Config eagerly, so leaking
-// state between tests is a real risk.
-func restoreConfig(t *testing.T) {
-	original := util.Config
-	t.Cleanup(func() {
-		util.Config = original
-	})
-}
-
 func TestResolveExecutorType_Default(t *testing.T) {
-	restoreConfig(t)
-
 	tests := []struct {
-		name   string
-		config *util.ConfigType
-		want   ExecutorType
+		name string
+		cfg  *util.ExecutorConfig
+		want util.ExecutorType
 	}{
-		{
-			name:   "nil config falls back to local",
-			config: nil,
-			want:   ExecutorTypeLocal,
-		},
-		{
-			name:   "nil Runner falls back to local",
-			config: &util.ConfigType{},
-			want:   ExecutorTypeLocal,
-		},
-		{
-			name:   "empty Executor field falls back to local",
-			config: &util.ConfigType{Runner: &util.RunnerConfig{Executor: ""}},
-			want:   ExecutorTypeLocal,
-		},
-		{
-			name:   "explicit local is honored",
-			config: &util.ConfigType{Runner: &util.RunnerConfig{Executor: "local"}},
-			want:   ExecutorTypeLocal,
-		},
-		{
-			name:   "kubernetes is honored",
-			config: &util.ConfigType{Runner: &util.RunnerConfig{Executor: "kubernetes"}},
-			want:   ExecutorTypeKubernetes,
-		},
-		{
-			name:   "unknown values pass through (factory rejects them)",
-			config: &util.ConfigType{Runner: &util.RunnerConfig{Executor: "docker"}},
-			want:   ExecutorType("docker"),
-		},
+		{"nil config falls back to local", nil, util.ExecutorTypeLocal},
+		{"empty type falls back to local", &util.ExecutorConfig{Type: ""}, util.ExecutorTypeLocal},
+		{"explicit local is honored", &util.ExecutorConfig{Type: util.ExecutorTypeLocal}, util.ExecutorTypeLocal},
+		{"kubernetes is honored", &util.ExecutorConfig{Type: util.ExecutorTypeKubernetes}, util.ExecutorTypeKubernetes},
+		{"unknown values pass through (factory rejects them)", &util.ExecutorConfig{Type: util.ExecutorType("docker")}, util.ExecutorType("docker")},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			util.Config = tt.config
-			assert.Equal(t, tt.want, resolveExecutorType())
+			assert.Equal(t, tt.want, resolveExecutorType(tt.cfg))
 		})
 	}
 }
 
-func TestNewExecutor_Local(t *testing.T) {
-	restoreConfig(t)
-	util.Config = &util.ConfigType{Runner: &util.RunnerConfig{Executor: "local"}}
+func TestNewExecutorProvider_Local(t *testing.T) {
+	provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeLocal}, nil)
+	require.NoError(t, err)
+	_, ok := provider.(*tasks.LocalExecutorProvider)
+	assert.True(t, ok, "local executor type must yield a LocalExecutorProvider")
+}
+
+func TestNewExecutorProvider_NilConfigDefaultsToLocal(t *testing.T) {
+	// Old runner deployments may have no Executor block at all; we must not refuse
+	// to start them — that would be a silent regression.
+	provider, err := newExecutorProvider(nil, nil)
+	require.NoError(t, err)
+	_, ok := provider.(*tasks.LocalExecutorProvider)
+	assert.True(t, ok)
+}
+
+func TestNewExecutorProvider_KubernetesStubBuildErrors(t *testing.T) {
+	// In the OSS stub build (what these tests run against) the K8s provider
+	// constructor always errors with ErrNotAvailable. The proprietary build returns
+	// a real provider — different test suite, lives in pro_impl.
+	provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeKubernetes}, nil)
+	assert.Nil(t, provider)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, k8s.ErrNotAvailable),
+		"OSS stub must surface k8s.ErrNotAvailable so operators see why the runner refuses k8s jobs")
+}
+
+func TestNewExecutorProvider_UnknownType(t *testing.T) {
+	provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorType("docker")}, nil)
+	assert.Nil(t, provider)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "docker", "error must name the offending type")
+}
+
+func TestNewExecutor_DispatchesToProvider(t *testing.T) {
+	provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeLocal}, nil)
+	require.NoError(t, err)
 
 	jobData := JobData{
 		Task:       db.Task{ID: 42},
@@ -81,62 +76,27 @@ func TestNewExecutor_Local(t *testing.T) {
 		Repository: db.Repository{ID: 5},
 	}
 
-	exec, err := newExecutor(jobData, nil, nil, nil)
+	exec, err := newExecutor(jobData, nil, provider)
 	require.NoError(t, err)
 	require.NotNil(t, exec)
 
 	local, ok := exec.(*tasks.LocalExecutor)
-	require.True(t, ok, "local executor type expected when config is local")
+	require.True(t, ok, "local provider must return a *LocalExecutor")
 	assert.Equal(t, 42, local.Task.ID)
 	assert.Equal(t, 7, local.Template.ID)
 	assert.Equal(t, 3, local.Inventory.ID)
 	assert.Equal(t, 5, local.Repository.ID)
-	assert.NotNil(t, local.App, "factory must populate App so prepareRun has somewhere to install requirements")
+	assert.NotNil(t, local.App, "provider must populate App so Prepare has somewhere to install requirements")
 }
 
-func TestNewExecutor_Kubernetes(t *testing.T) {
-	restoreConfig(t)
-	util.Config = &util.ConfigType{Runner: &util.RunnerConfig{Executor: "kubernetes"}}
-
-	k8sCfg := &k8s.Config{
-		Clientset: fake.NewSimpleClientset(),
-		Namespace: "semaphore-test",
-		Image:     "alpine:latest",
-	}
-
-	jobData := JobData{
-		Task:     db.Task{ID: 99},
-		Template: db.Template{ID: 1, App: db.AppAnsible},
-	}
-
-	exec, err := newExecutor(jobData, nil, nil, k8sCfg)
-	require.NoError(t, err)
-	require.NotNil(t, exec)
-
-	_, ok := exec.(*k8s.Executor)
-	assert.True(t, ok, "kubernetes executor type expected when config is kubernetes")
-}
-
-func TestNewExecutor_KubernetesMissingConfig(t *testing.T) {
-	restoreConfig(t)
-	util.Config = &util.ConfigType{Runner: &util.RunnerConfig{Executor: "kubernetes"}}
-
-	exec, err := newExecutor(JobData{}, nil, nil, nil)
-
+func TestNewExecutor_RejectsNilProvider(t *testing.T) {
+	// JobPool may end up with a nil provider when the runner config is malformed at
+	// startup. Dispatch must refuse cleanly with a useful message instead of
+	// panicking on a nil-interface call.
+	exec, err := newExecutor(JobData{}, nil, nil)
 	assert.Nil(t, exec)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "k8s config")
-}
-
-func TestNewExecutor_UnknownType(t *testing.T) {
-	restoreConfig(t)
-	util.Config = &util.ConfigType{Runner: &util.RunnerConfig{Executor: "docker"}}
-
-	exec, err := newExecutor(JobData{}, nil, nil, nil)
-
-	assert.Nil(t, exec)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "docker", "error should name the offending type")
+	assert.Contains(t, err.Error(), "provider")
 }
 
 func TestHydrateJobAccessKeys_WiresKeysIntoJobData(t *testing.T) {

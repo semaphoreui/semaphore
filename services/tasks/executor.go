@@ -1,6 +1,29 @@
 package tasks
 
-import "github.com/semaphoreui/semaphore/pkg/task_logger"
+import (
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+)
+
+// ExecutorProvider is the long-lived factory that produces per-task Executors. One
+// Provider is built at runner startup and owns whatever shared, expensive state its
+// strategy needs (the K8s clientset for Kubernetes, the AccessKey installer for
+// local, a Docker client for the future Docker provider). The JobPool holds a single
+// ExecutorProvider regardless of strategy — adding a new executor type means writing
+// a new Provider, not threading another field through the pool.
+//
+// NewExecutor receives only per-task data because everything cross-task is already
+// inside the Provider. It returns an Executor or a wiring error; transient runtime
+// failures are surfaced later via Executor.Run.
+type ExecutorProvider interface {
+	NewExecutor(
+		task db.Task,
+		template db.Template,
+		inventory db.Inventory,
+		repository db.Repository,
+		environment db.Environment,
+	) (Executor, error)
+}
 
 // Executor encapsulates the strategy used to run a single task. The job pool dispatches
 // every queued task to an Executor, which orchestrates the full lifecycle: preparation
