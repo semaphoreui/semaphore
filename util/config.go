@@ -172,7 +172,7 @@ type RunnerConfig struct {
 
 // RunnerK8sConfig holds runner-side configuration for the Kubernetes executor. Field
 // shape mirrors the GitLab runner Kubernetes executor for familiarity. Empty values
-// fall back to the documented defaults at consumption time (see services/tasks/k8s).
+// fall back to the documented defaults at consumption time (see pro/services/tasks/k8s).
 type RunnerK8sConfig struct {
 	// KubeconfigPath is the path to a kubeconfig file. When empty, in-cluster
 	// configuration is used (ServiceAccount token + CA cert mounted by Kubernetes).
