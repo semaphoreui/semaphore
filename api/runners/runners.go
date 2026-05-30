@@ -393,6 +393,12 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
+
+		log.WithError(err).WithFields(log.Fields{
+			"runner_id": runner.ID,
+			"context":   "runner",
+		}).Error("Can't create runner")
+
 		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": "Unexpected error",
 		})

@@ -136,7 +136,12 @@
     >
       <span class="mr-1" v-html="$t('secret_storage_only_pro')"></span>
 
-      <v-btn dark v-if="isAdmin" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro()">
+      <v-btn
+        dark
+        v-if="isAdmin"
+        color="hsl(348deg, 86%, 61%)"
+        @click="upgradeToPro('secret_storage_management')"
+      >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
@@ -174,9 +179,7 @@
           <v-btn
             v-if="item.sync_enabled"
             @click="syncItem(item.id)"
-            :disabled="
-              !(item.sync_paths && item.sync_paths.length > 0)
-            "
+            :disabled="!(item.sync_paths && item.sync_paths.length > 0)"
           >
             <v-icon>mdi-sync</v-icon>
           </v-btn>
@@ -256,10 +259,6 @@ export default {
         default:
           return '';
       }
-    },
-
-    upgradeToPro() {
-      EventBus.$emit('i-subscription', {});
     },
 
     getHeaders() {
