@@ -10,7 +10,7 @@ import (
 
 // jwksHandler serves the JSON Web Key Set.
 func jwksHandler(w http.ResponseWriter, _ *http.Request) {
-	if !util.Config.JWTEnabled {
+	if !util.Config.JWT.Enabled {
 		http.NotFound(w, nil)
 		return
 	}

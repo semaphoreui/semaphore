@@ -114,8 +114,8 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		Roles:             roles,
 		BoltdbUsed:        util.Config.Dialect == "bolt",
 		JWT: SystemInfoJWT{
-			Enabled: util.Config.JWTEnabled,
-			MaxTTL:  util.Config.JWTMaxTTL,
+			Enabled: util.Config.JWT.Enabled,
+			MaxTTL:  util.Config.JWT.MaxTTL,
 		},
 	}
 

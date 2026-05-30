@@ -23,7 +23,7 @@ const jwtSigningKeyOption = "jwt_signing_key"
 // InitJWTSignerFromStore initialises the global JWT signer.
 // It must be called once after the db.Store has been opened and after ConfigInit has run.
 func InitJWTSignerFromStore(store OptionStore) error {
-	if !Config.JWTEnabled {
+	if !Config.JWT.Enabled {
 		jwt.SetDefault(nil)
 		return nil
 	}
@@ -47,25 +47,25 @@ func InitJWTSignerFromStore(store OptionStore) error {
 // jwtSignerOptions builds SignerOptions from the current Config.
 func jwtSignerOptions() jwt.SignerOptions {
 	ttl := time.Hour
-	if Config.JWTDefaultTTL != "" {
-		if parsed, err := time.ParseDuration(Config.JWTDefaultTTL); err == nil {
+	if Config.JWT.DefaultTTL != "" {
+		if parsed, err := time.ParseDuration(Config.JWT.DefaultTTL); err == nil {
 			ttl = parsed
 		} else {
-			fmt.Fprintf(os.Stderr, "jwt: invalid jwt_default_ttl %q, falling back to 1h: %v\n", Config.JWTDefaultTTL, err)
+			fmt.Fprintf(os.Stderr, "jwt: invalid jwt_default_ttl %q, falling back to 1h: %v\n", Config.JWT.DefaultTTL, err)
 		}
 	}
 
 	maxTTL := 24 * time.Hour
-	if Config.JWTMaxTTL != "" {
-		if parsed, err := time.ParseDuration(Config.JWTMaxTTL); err == nil && parsed > 0 {
+	if Config.JWT.MaxTTL != "" {
+		if parsed, err := time.ParseDuration(Config.JWT.MaxTTL); err == nil && parsed > 0 {
 			maxTTL = parsed
 		} else {
-			fmt.Fprintf(os.Stderr, "jwt: invalid jwt_max_ttl %q, falling back to 24h: %v\n", Config.JWTMaxTTL, err)
+			fmt.Fprintf(os.Stderr, "jwt: invalid jwt_max_ttl %q, falling back to 24h: %v\n", Config.JWT.MaxTTL, err)
 		}
 	}
 
 	return jwt.SignerOptions{
-		Issuer:     Config.JWTIssuer,
+		Issuer:     Config.JWT.Issuer,
 		DefaultTTL: ttl,
 		MaxTTL:     maxTTL,
 	}
