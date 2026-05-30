@@ -134,7 +134,7 @@ type ExecutorType string
 
 const (
 	ExecutorTypeLocal      ExecutorType = "local"
-	ExecutorTypeKubernetes ExecutorType = "kubernetes"
+	ExecutorTypeKubernetes ExecutorType = "k8s"
 )
 
 type ExecutorConfig struct {
