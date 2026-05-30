@@ -673,7 +673,7 @@
 }
 
 .theme--light {
-  --highlighted-card-bg-color: #f3f3f3;
+  --highlighted-card-bg-color: #f8f8f8;
 }
 
 .DarkModeSwitchWrap {
