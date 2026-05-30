@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pro/services/tasks/docker"
 	"github.com/semaphoreui/semaphore/pro/services/tasks/k8s"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
@@ -22,7 +23,8 @@ func TestResolveExecutorType_Default(t *testing.T) {
 		{"empty type falls back to local", &util.ExecutorConfig{Type: ""}, util.ExecutorTypeLocal},
 		{"explicit local is honored", &util.ExecutorConfig{Type: util.ExecutorTypeLocal}, util.ExecutorTypeLocal},
 		{"kubernetes is honored", &util.ExecutorConfig{Type: util.ExecutorTypeKubernetes}, util.ExecutorTypeKubernetes},
-		{"unknown values pass through (factory rejects them)", &util.ExecutorConfig{Type: util.ExecutorType("docker")}, util.ExecutorType("docker")},
+		{"docker is honored", &util.ExecutorConfig{Type: util.ExecutorTypeDocker}, util.ExecutorTypeDocker},
+		{"unknown values pass through (factory rejects them)", &util.ExecutorConfig{Type: util.ExecutorType("nomad")}, util.ExecutorType("nomad")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -58,11 +60,21 @@ func TestNewExecutorProvider_KubernetesStubBuildErrors(t *testing.T) {
 		"OSS stub must surface k8s.ErrNotAvailable so operators see why the runner refuses k8s jobs")
 }
 
-func TestNewExecutorProvider_UnknownType(t *testing.T) {
-	provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorType("docker")}, nil)
+func TestNewExecutorProvider_DockerStubBuildErrors(t *testing.T) {
+	// Like the K8s case: in the OSS stub build the Docker provider constructor always
+	// errors with ErrNotAvailable. The proprietary build returns a real provider.
+	provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeDocker}, nil)
 	assert.Nil(t, provider)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "docker", "error must name the offending type")
+	assert.True(t, errors.Is(err, docker.ErrNotAvailable),
+		"OSS stub must surface docker.ErrNotAvailable so operators see why the runner refuses docker jobs")
+}
+
+func TestNewExecutorProvider_UnknownType(t *testing.T) {
+	provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorType("nomad")}, nil)
+	assert.Nil(t, provider)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nomad", "error must name the offending type")
 }
 
 func TestNewExecutor_DispatchesToProvider(t *testing.T) {

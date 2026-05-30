@@ -5,6 +5,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pro/services/tasks/docker"
 	"github.com/semaphoreui/semaphore/pro/services/tasks/k8s"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
@@ -26,6 +27,12 @@ func newExecutorProvider(executorCfg *util.ExecutorConfig, keyInstaller db_lib.A
 			k8sCfg = executorCfg.K8s
 		}
 		return k8s.NewProvider(k8sCfg)
+	case util.ExecutorTypeDocker:
+		dockerCfg := util.RunnerDockerConfig{}
+		if executorCfg != nil {
+			dockerCfg = executorCfg.Docker
+		}
+		return docker.NewProvider(dockerCfg)
 	default:
 		return nil, fmt.Errorf("unknown runner executor type %q", resolveExecutorType(executorCfg))
 	}
