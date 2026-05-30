@@ -1,20 +1,11 @@
 <template>
-  <v-form
-    ref="form"
-    lazy-validation
-    v-model="formValid"
-    v-if="item != null"
-  >
-    <v-alert
-      :value="formError"
-      color="error"
-      class="pb-2"
-    >{{ formError }}</v-alert>
+  <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
+    <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
 
     <v-text-field
       v-model="item.name"
       :label="$t(projectNameTitle)"
-      :rules="[v => !!v || $t('project_name_required')]"
+      :rules="[(v) => !!v || $t('project_name_required')]"
       required
       :disabled="formSaving"
       data-testid="newProject-name"
@@ -27,8 +18,8 @@
       :label="$t('maxNumberOfParallelTasksOptional')"
       :disabled="formSaving"
       :rules="[
-        v => (v == null || v === '' || Math.floor(v) === v) || $t('mustBeInteger'),
-        v => (v == null || v === '' || v >= 0) || $t('mustBe0OrGreater'),
+        (v) => v == null || v === '' || Math.floor(v) === v || $t('mustBeInteger'),
+        (v) => v == null || v === '' || v >= 0 || $t('mustBe0OrGreater'),
       ]"
       hint="Should be 0 or greater, 0 - unlimited."
       type="number"
@@ -54,13 +45,12 @@
     ></v-checkbox>
 
     <v-switch
-      v-if="itemId === 'new'"
+      v-if="itemId === 'new' && !hideDemoSwitch"
       v-model="item.demo"
       label="Demo"
-      style="position: absolute; left: 24px; bottom: 15px;"
+      style="position: absolute; left: 24px; bottom: 15px"
       hide-details
     />
-
   </v-form>
 </template>
 <script>
@@ -73,6 +63,7 @@ export default {
       type: String,
       default: 'projectName',
     },
+    hideDemoSwitch: Boolean,
   },
   methods: {
     getItemsUrl() {

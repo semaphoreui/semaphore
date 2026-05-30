@@ -3,9 +3,14 @@ package util
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func mockError(msg string) {
@@ -54,7 +59,7 @@ func TestLoadEnvironmentToObject(t *testing.T) {
 		panic(err)
 	}
 
-	err = loadEnvironmentToObject(&val)
+	_, err = loadEnvironmentToObject(&val)
 	if err != nil {
 		t.Error(err)
 	}
@@ -94,7 +99,7 @@ func TestLoadEnvironmentToObject_Arr(t *testing.T) {
 		panic(err)
 	}
 
-	err = loadEnvironmentToObject(&val)
+	_, err = loadEnvironmentToObject(&val)
 	if err != nil {
 		t.Error(err)
 	}
@@ -126,7 +131,7 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 		panic(err)
 	}
 
-	err = loadEnvironmentToObject(&val)
+	_, err = loadEnvironmentToObject(&val)
 	if err != nil {
 		panic(err)
 	}
@@ -134,6 +139,66 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 	if val.Users["test"].Name != "test" {
 		t.Error("Invalid field value")
 	}
+}
+
+func TestLoadEnvironmentToObject_SensitiveEnvs(t *testing.T) {
+	type sub struct {
+		Field string `json:"field"`
+	}
+	var val struct {
+		Secret    *sub `env:"TEST_SECRET_SUB,sensitive"`
+		NotSecret *sub `env:"TEST_PUBLIC_SUB"`
+	}
+
+	require.NoError(t, os.Setenv("TEST_SECRET_SUB", `{"field":"s"}`))
+	require.NoError(t, os.Setenv("TEST_PUBLIC_SUB", `{"field":"p"}`))
+	defer os.Unsetenv("TEST_SECRET_SUB")
+	defer os.Unsetenv("TEST_PUBLIC_SUB")
+
+	sensitive, err := loadEnvironmentToObject(&val)
+	require.NoError(t, err)
+
+	assert.Contains(t, sensitive, "TEST_SECRET_SUB")
+	assert.NotContains(t, sensitive, "TEST_PUBLIC_SUB")
+}
+
+func TestLoadEnvironmentToObject_SensitiveEnvs_NoDuplicates(t *testing.T) {
+	type sub struct {
+		Field string `json:"field"`
+	}
+	var val struct {
+		A *sub `env:"TEST_SHARED_SECRET,sensitive"`
+		B *sub `env:"TEST_SHARED_SECRET,sensitive"`
+	}
+
+	require.NoError(t, os.Setenv("TEST_SHARED_SECRET", `{"field":"x"}`))
+	defer os.Unsetenv("TEST_SHARED_SECRET")
+
+	sensitive, err := loadEnvironmentToObject(&val)
+	require.NoError(t, err)
+
+	count := 0
+	for _, env := range sensitive {
+		if env == "TEST_SHARED_SECRET" {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count, "duplicate sensitive env names must be deduplicated")
+	assert.Equal(t, &sub{Field: "x"}, val.A)
+	assert.Equal(t, &sub{Field: "x"}, val.B)
+}
+
+func TestLoadEnvironmentToObject_SensitiveEnvs_Empty(t *testing.T) {
+	var val struct {
+		Plain string `env:"TEST_PLAIN_VAR"`
+	}
+
+	require.NoError(t, os.Setenv("TEST_PLAIN_VAR", "value"))
+	defer os.Unsetenv("TEST_PLAIN_VAR")
+
+	sensitive, err := loadEnvironmentToObject(&val)
+	require.NoError(t, err)
+	assert.Empty(t, sensitive)
 }
 
 func TestCastStringToInt(t *testing.T) {
@@ -342,6 +407,92 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 	//	// inactive db-dialects could be set as they share the same env-vars; but should be ignored
 	//	t.Error("DB-Hostname was loaded for inactive DB-dialects!")
 	//}
+}
+
+func TestIsYAMLConfig(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"config.yaml", true},
+		{"config.yml", true},
+		{"/etc/semaphore/config.YAML", true},
+		{"config.json", false},
+		{"config", false},
+		{"", false},
+		{"config.yaml.bak", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			assert.Equal(t, tt.want, isYAMLConfig(tt.path))
+		})
+	}
+}
+
+func TestDecodeConfig_JSON(t *testing.T) {
+	Config = new(ConfigType)
+
+	jsonBody := `{"port":":1337","cookie_hash":"abc","max_parallel_tasks":7}`
+	decodeConfig(strings.NewReader(jsonBody), "config.json")
+
+	assert.Equal(t, ":1337", Config.Port)
+	assert.Equal(t, "abc", Config.CookieHash)
+	assert.Equal(t, 7, Config.MaxParallelTasks)
+}
+
+func TestDecodeConfig_YAML(t *testing.T) {
+	Config = new(ConfigType)
+
+	yamlBody := `
+port: ":1337"
+cookie_hash: abc
+max_parallel_tasks: 7
+bolt:
+  host: /tmp/db.bolt
+`
+	decodeConfig(strings.NewReader(yamlBody), "config.yaml")
+
+	assert.Equal(t, ":1337", Config.Port)
+	assert.Equal(t, "abc", Config.CookieHash)
+	assert.Equal(t, 7, Config.MaxParallelTasks)
+	require.NotNil(t, Config.BoltDb)
+	assert.Equal(t, "/tmp/db.bolt", Config.BoltDb.Hostname)
+}
+
+func TestDecodeConfig_YAML_YmlExtension(t *testing.T) {
+	Config = new(ConfigType)
+
+	yamlBody := "port: \":4242\"\n"
+	decodeConfig(strings.NewReader(yamlBody), "config.yml")
+
+	assert.Equal(t, ":4242", Config.Port)
+}
+
+func TestLoadConfigFile_YAML(t *testing.T) {
+	Config = new(ConfigType)
+
+	dir := t.TempDir()
+	p := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(p, []byte("port: \":9999\"\ncookie_hash: yaml-hash\n"), 0600))
+
+	used := loadConfigFile(p)
+	require.NotNil(t, used)
+	assert.Equal(t, p, *used)
+	assert.Equal(t, ":9999", Config.Port)
+	assert.Equal(t, "yaml-hash", Config.CookieHash)
+}
+
+func TestLoadConfigFile_JSON(t *testing.T) {
+	Config = new(ConfigType)
+
+	dir := t.TempDir()
+	p := filepath.Join(dir, "config.json")
+	require.NoError(t, os.WriteFile(p, []byte(`{"port":":8888"}`), 0600))
+
+	used := loadConfigFile(p)
+	require.NotNil(t, used)
+	assert.Equal(t, p, *used)
+	assert.Equal(t, ":8888", Config.Port)
 }
 
 func TestLoadConfigDefaults(t *testing.T) {

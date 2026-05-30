@@ -135,6 +135,11 @@ func runService() {
 		log.WithField("node_id", nodeRegistry.NodeID()).Info("HA active-active mode enabled")
 	}
 
+	// Cluster inspector powers the admin Cluster Dashboard. It is nil when HA
+	// is disabled; the dashboard then falls back to the local task pool. The
+	// instance is injected per-request below.
+	clusterInspector := proHA.NewClusterInspector()
+
 	if dedup := proHA.NewScheduleDeduplicator(); dedup != nil {
 		schedulePool.SetDeduplicator(dedup)
 		secretStorageSyncScheduler.SetTickDeduplicator(dedup)
@@ -211,6 +216,8 @@ func runService() {
 			r = helpers.SetContextValue(r, "schedule_pool", schedulePool)
 			r = helpers.SetContextValue(r, "task_pool", &taskPool)
 			r = helpers.SetContextValue(r, "log_writer", logWriteService)
+			r = helpers.SetContextValue(r, "cluster_inspector", clusterInspector)
+
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -230,11 +237,24 @@ func runService() {
 
 	var err error
 	if util.Config.TLS.Enabled {
+
+		if util.Config.TLS.HTTPRedirectPort != nil && util.Config.TLS.HTTPRedirectAddr != "" {
+			panic("You can't use both HTTP redirect address and port at the same time")
+		}
+
+		var httpRedirectAddr string
+
 		if util.Config.TLS.HTTPRedirectPort != nil {
+			httpRedirectAddr = fmt.Sprintf(":%d", *util.Config.TLS.HTTPRedirectPort)
+		} else if util.Config.TLS.HTTPRedirectAddr != "" {
+			httpRedirectAddr = util.Config.TLS.HTTPRedirectAddr
+		}
+
+		if httpRedirectAddr != "" {
 
 			go func() {
-				httpRedirectPort := fmt.Sprintf(":%d", *util.Config.TLS.HTTPRedirectPort)
-				err = http.ListenAndServe(httpRedirectPort, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+				err = http.ListenAndServe(httpRedirectAddr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					target := "https://"
 
 					if util.Config.WebHost != "" {

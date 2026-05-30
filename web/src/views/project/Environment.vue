@@ -19,7 +19,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :need-help="needHelp"
-          :support-storages="premiumFeatures.secret_storages"
+          :support-storages="features.secret_storages"
           @maximize="editNoEscape = $event.maximized"
         />
       </template>

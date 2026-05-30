@@ -4,27 +4,25 @@ echoerr() { printf "%s\n" "$*" >&2; }
 
 export SEMAPHORE_CONFIG_PATH="${SEMAPHORE_CONFIG_PATH:-/etc/semaphore}"
 export SEMAPHORE_TMP_PATH="${SEMAPHORE_TMP_PATH:-/tmp/semaphore}"
+export SEMAPHORE_DATA_PATH="${SEMAPHORE_DATA_PATH:-/var/lib/semaphore}"
 
 if test -f "${SEMAPHORE_CONFIG_PATH}/requirements.txt"; then
     echoerr "Installing additional python dependencies"
-    pip3 install --upgrade \
-        -r "${SEMAPHORE_CONFIG_PATH}/requirements.txt"
+    pip3 install --upgrade -r "${SEMAPHORE_CONFIG_PATH}/requirements.txt"
 else
     echoerr "No additional python dependencies to install"
 fi
 
 echoerr "Starting semaphore runner"
-if test "$#" -ne 1; then
-    if [ -n "${SEMAPHORE_RUNNER_REGISTRATION_TOKEN:-}" ]; then
 
-      if [ -z "${SEMAPHORE_RUNNER_TOKEN:-}" ] && [ -z "${SEMAPHORE_RUNNER_TOKEN_FILE:-}" ]; then
-        export SEMAPHORE_RUNNER_TOKEN_FILE="${SEMAPHORE_TMP_PATH}/runner_token.txt"
-      fi
+RUNNER_CMD="/usr/local/bin/semaphore runner start --no-config"
 
-      exec /usr/local/bin/semaphore runner start --no-config --register
-    else
-      exec /usr/local/bin/semaphore runner start --no-config
-    fi
+if [ -n "${SEMAPHORE_RUNNER_REGISTRATION_TOKEN:-}" ] || [ -n "${SEMAPHORE_RUNNER_REGISTRATION_TOKEN_FILE:-}" ]; then
+  if [ -z "${SEMAPHORE_RUNNER_TOKEN:-}" ] && [ -z "${SEMAPHORE_RUNNER_TOKEN_FILE:-}" ]; then
+    export SEMAPHORE_RUNNER_TOKEN_FILE="${SEMAPHORE_DATA_PATH}/runner_token.txt"
+  fi
+  echoerr "Registration token provided, starting runner in registration mode"
+  exec ${RUNNER_CMD} --register
 else
-    exec "$@"
+  exec ${RUNNER_CMD}
 fi

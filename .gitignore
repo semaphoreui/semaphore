@@ -10,6 +10,8 @@ web/.nyc_output
 api/public/**/*
 /server.json
 /config.json
+/config.yml
+/config.yaml
 /config-secondary.json
 /config.runner.json
 /config.runner.token
@@ -17,6 +19,8 @@ api/public/**/*
 /runner.json
 /runner.token
 /runner.key
+/runner-old.token
+/runner-old.key
 /runner.registration_token
 /.dredd/config.json
 /database.boltdb
@@ -52,4 +56,4 @@ __debug_bin*
 /go.work.x
 /go.work
 /go.work.sum
-/.claude
+/.licenses-cache

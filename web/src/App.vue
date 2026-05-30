@@ -94,6 +94,7 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
+          :feature="subscriptionDialog_feature"
         />
       </template>
     </EditDialog>
@@ -257,144 +258,97 @@
         </v-list-item>
 
         <v-list-item
-          v-if="project.type === ''"
-          key="templates"
-          :to="templatesUrl"
-          data-testid="sidebar-templates"
+          v-for="item in pinnedNavItemsList"
+          :key="item.key"
+          :to="item.to"
+          :data-testid="item.testId"
+          class="nav-item--pinnable"
         >
           <v-list-item-icon>
-            <v-icon>mdi-check-all</v-icon>
+            <v-icon>{{ item.icon }}</v-icon>
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>{{ $t('taskTemplates') }}</v-list-item-title>
+            <v-list-item-title>{{ item.title }}</v-list-item-title>
           </v-list-item-content>
+
+          <div class="nav-pin-wrap" v-if="navEditMode && navItems.length > 1">
+            <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('unpin')">
+              <v-icon small>mdi-pin-off-outline</v-icon>
+            </v-btn>
+          </div>
         </v-list-item>
 
-        <v-list-item
-          v-if="project.type === ''"
-          key="schedule"
-          :to="`/project/${projectId}/schedule`"
-          data-testid="sidebar-schedule"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-clock-outline</v-icon>
-          </v-list-item-icon>
+        <template v-if="unpinnedNavItems.length > 0">
+          <v-list-item @click="showMoreToggle = !showMoreToggle" class="nav-more-toggle">
+            <v-list-item-icon>
+              <v-icon>{{ showMoreToggle ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+            </v-list-item-icon>
 
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('schedule') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
+            <v-list-item-content>
+              <v-list-item-title class="nav-more-title">
+                {{ $t('more') }}
+              </v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
 
-        <v-list-item
-          v-if="project.type === ''"
-          key="inventory"
-          :to="`/project/${projectId}/inventory`"
-          data-testid="sidebar-inventory"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-monitor-multiple</v-icon>
-          </v-list-item-icon>
+          <template v-if="showMoreToggle">
+            <v-list-item
+              v-for="item in unpinnedNavItems"
+              :key="'unpinned-' + item.key"
+              :to="item.to"
+              :data-testid="item.testId"
+              class="nav-item--pinnable"
+            >
+              <v-list-item-icon>
+                <v-icon>{{ item.icon }}</v-icon>
+              </v-list-item-icon>
 
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
+              <v-list-item-content>
+                <v-list-item-title>{{ item.title }}</v-list-item-title>
+              </v-list-item-content>
 
-        <v-list-item
-          v-if="project.type === ''"
-          key="environment"
-          :to="`/project/${projectId}/environment`"
-          data-testid="sidebar-environment"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-code-braces</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-
-        <v-list-item
-          v-if="project.type === ''"
-          key="keys"
-          :to="`/project/${projectId}/keys`"
-          data-testid="sidebar-keys"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-key-change</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('keyStore') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-
-        <v-list-item
-          v-if="project.type === ''"
-          key="repositories"
-          :to="`/project/${projectId}/repositories`"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-git</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('repositories') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-
-        <v-list-item
-          v-if="project.type === ''"
-          key="integrations"
-          :to="`/project/${projectId}/integrations`"
-          data-testid="sidebar-integrations"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-connection</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('integrations') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-
-        <v-list-item key="team" :to="`/project/${projectId}/team`" data-testid="sidebar-team">
-          <v-list-item-icon>
-            <v-icon>mdi-account-multiple</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('team') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-
-        <v-list-item
-          v-if="isPro && project.type === ''"
-          key="runners"
-          :to="`/project/${projectId}/runners`"
-          data-testid="sidebar-runners"
-        >
-          <v-list-item-icon>
-            <v-icon>mdi-cogs</v-icon>
-          </v-list-item-icon>
-
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('runners') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
+              <div class="nav-pin-wrap" v-if="navEditMode">
+                <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('pin')">
+                  <v-icon small>mdi-pin-outline</v-icon>
+                </v-btn>
+              </div>
+            </v-list-item>
+          </template>
+        </template>
       </v-list>
 
       <template v-slot:append>
         <v-list class="pa-0">
           <v-list-item>
-            <v-switch
-              class="DarkModeSwitch"
-              v-model="darkMode"
-              prepend-icon="mdi-white-balance-sunny"
-              append-icon="mdi-weather-night"
-            ></v-switch>
+            <div class="DarkModeSwitchWrap" :class="{ 'DarkModeSwitchWrap--dark': darkMode }">
+              <v-switch
+                class="DarkModeSwitch"
+                v-model="darkMode"
+                inset
+                flat
+                hide-details
+                dense
+              ></v-switch>
+              <v-icon class="DarkModeSwitchWrap__icon" small>
+                {{ darkMode ? 'mdi-weather-night' : 'mdi-white-balance-sunny' }}
+              </v-icon>
+            </div>
+
+            <v-spacer />
+
+            <v-btn
+              icon
+              style="margin-left: -15px"
+              class="mr-1"
+              :color="navEditMode ? 'primary' : undefined"
+              :title="navEditMode ? $t('finishEditingMenu') : $t('editMenu')"
+              @click="navEditMode = !navEditMode"
+            >
+              <v-icon style="transform: scale(1.3)">
+                {{ navEditMode ? 'mdi-check' : 'mdi-playlist-edit' }}
+              </v-icon>
+            </v-btn>
 
             <v-spacer />
 
@@ -504,6 +458,16 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item key="cluster" to="/cluster" v-if="user.admin">
+                <v-list-item-icon>
+                  <v-icon>mdi-server-network</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('cluster') }}
+                </v-list-item-content>
+              </v-list-item>
+
               <v-list-item key="tasks" to="/tasks" v-if="user.admin">
                 <v-list-item-icon>
                   <v-icon>mdi-check-all</v-icon>
@@ -602,7 +566,7 @@
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
         :user="user"
-        :premiumFeatures="(systemInfo || { premium_features: {} }).premium_features"
+        :features="(systemInfo || { features: {} }).features"
         :authMethods="(systemInfo || { auth_methods: {} }).auth_methods"
         :systemInfo="systemInfo"
       ></router-view>
@@ -651,6 +615,32 @@
   height: 100dvh !important;
 }
 
+.nav-item--pinnable {
+  .nav-pin-wrap {
+    //opacity: 0;
+    //transition: opacity 0.15s;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+  }
+
+  //&:hover .nav-pin-wrap {
+  //  opacity: 0.7;
+  //}
+  //
+  //.nav-pin-wrap:hover {
+  //  opacity: 1 !important;
+  //}
+}
+
+.nav-more-toggle {
+  min-height: 36px;
+
+  .nav-more-title {
+    opacity: 0.6;
+  }
+}
+
 .NewProSubscriptionMenuItem {
   transition: 0.2s transform;
 
@@ -687,22 +677,28 @@
   --highlighted-card-bg-color: #f3f3f3;
 }
 
-.DarkModeSwitch {
-  .v-input__prepend-outer {
-    transform: translateY(1px);
+.DarkModeSwitchWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 
-    .v-icon {
-      color: #cacaca !important;
-    }
+  .DarkModeSwitch {
+    margin: 0;
+    padding: 0;
   }
 
-  .v-input__append-outer {
-    margin-left: 5px;
-    transform: translateY(-1px);
+  &__icon {
+    position: absolute !important;
+    top: calc(50% - 1px);
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #fff !important;
+    transition: left 0.2s ease;
+    left: 1px;
+  }
 
-    .v-icon {
-      color: #2196f3 !important;
-    }
+  &--dark .DarkModeSwitchWrap__icon {
+    left: 22px;
   }
 }
 
@@ -1007,6 +1003,7 @@ export default {
       hideUserDialogButtons: false,
 
       subscriptionDialog: null,
+      subscriptionDialog_feature: null,
       systemInfoDialog: null,
 
       restoreProjectDialog: null,
@@ -1017,6 +1014,9 @@ export default {
       taskId: null,
       template: null,
       darkMode: false,
+      unpinnedNavKeys: [],
+      showMoreToggle: false,
+      navEditMode: false,
       languages: [
         {
           id: '',
@@ -1060,6 +1060,10 @@ export default {
 
       if ((this.projects || []).length > 0 && this.$route.query.new_project) {
         EventBus.$emit('i-new-project', { projectType: this.$route.query.new_project });
+      }
+
+      if (this.unpinnedNavItems.some((item) => val.path.includes(`/${item.key}`))) {
+        this.showMoreToggle = true;
       }
     },
 
@@ -1109,6 +1113,93 @@ export default {
       }
       return `/project/${this.projectId}/templates`;
     },
+
+    navItems() {
+      if (!this.project) return [];
+      const base = `/project/${this.projectId}`;
+      const items = [];
+
+      if (this.project.type === '') {
+        items.push(
+          {
+            key: 'templates',
+            icon: 'mdi-check-all',
+            title: this.$t('taskTemplates'),
+            to: this.templatesUrl,
+            testId: 'sidebar-templates',
+          },
+          {
+            key: 'schedule',
+            icon: 'mdi-clock-outline',
+            title: this.$t('schedule'),
+            to: `${base}/schedule`,
+            testId: 'sidebar-schedule',
+          },
+          {
+            key: 'inventory',
+            icon: 'mdi-monitor-multiple',
+            title: this.$t('inventory'),
+            to: `${base}/inventory`,
+            testId: 'sidebar-inventory',
+          },
+          {
+            key: 'environment',
+            icon: 'mdi-code-braces',
+            title: this.$t('environment'),
+            to: `${base}/environment`,
+            testId: 'sidebar-environment',
+          },
+          {
+            key: 'keys',
+            icon: 'mdi-key-change',
+            title: this.$t('keyStore'),
+            to: `${base}/keys`,
+            testId: 'sidebar-keys',
+          },
+          {
+            key: 'repositories',
+            icon: 'mdi-git',
+            title: this.$t('repositories'),
+            to: `${base}/repositories`,
+          },
+          {
+            key: 'integrations',
+            icon: 'mdi-connection',
+            title: this.$t('integrations'),
+            to: `${base}/integrations`,
+            testId: 'sidebar-integrations',
+          },
+        );
+      }
+
+      items.push({
+        key: 'team',
+        icon: 'mdi-account-multiple',
+        title: this.$t('team'),
+        to: `${base}/team`,
+        testId: 'sidebar-team',
+      });
+
+      if (this.isPro && this.project.type === '') {
+        items.push({
+          key: 'runners',
+          icon: 'mdi-cogs',
+          title: this.$t('runners'),
+          to: `${base}/runners`,
+          testId: 'sidebar-runners',
+        });
+      }
+
+      return items;
+    },
+
+    pinnedNavItemsList() {
+      return this.navItems.filter((item) => !this.unpinnedNavKeys.includes(item.key));
+    },
+
+    unpinnedNavItems() {
+      return this.navItems.filter((item) => this.unpinnedNavKeys.includes(item.key));
+    },
   },
 
   async created() {
@@ -1141,7 +1232,8 @@ export default {
   },
 
   mounted() {
-    EventBus.$on('i-subscription', () => {
+    EventBus.$on('i-subscription', (e) => {
+      this.subscriptionDialog_feature = e.feature;
       this.subscriptionDialog = true;
     });
 
@@ -1284,6 +1376,46 @@ export default {
       this.newProjectType = projectType;
     },
 
+    async togglePin(key) {
+      if (this.unpinnedNavKeys.includes(key)) {
+        this.unpinnedNavKeys = this.unpinnedNavKeys.filter((k) => k !== key);
+      } else {
+        this.unpinnedNavKeys = [...this.unpinnedNavKeys, key];
+      }
+      await this.saveUnpinnedNavKeys();
+    },
+
+    async saveUnpinnedNavKeys() {
+      try {
+        await axios({
+          method: 'post',
+          url: '/api/user/options',
+          responseType: 'json',
+          data: { key: 'nav.unpinnedItems', value: JSON.stringify(this.unpinnedNavKeys) },
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+      }
+    },
+
+    async loadUserOptions() {
+      const options = (
+        await axios({
+          method: 'get',
+          url: '/api/user/options',
+          responseType: 'json',
+        })
+      ).data;
+
+      if (options['nav.unpinnedItems'] != null) {
+        try {
+          this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
+        } catch (e) {
+          console.log(e);
+        }
+      }
+    },
+
     selectLanguage(lang) {
       localStorage.setItem('lang', lang);
       window.location.reload();
@@ -1301,6 +1433,7 @@ export default {
 
     async loadData() {
       await this.loadUserInfo();
+      await this.loadUserOptions();
 
       // Activate session and start socket only after confirming user is authenticated
       socket.setSessionActive(true);

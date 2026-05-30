@@ -115,9 +115,11 @@ func (e BackupSchedule) Restore(store db.Store, b *BackupDB) error {
 		v.RepositoryID = &repo.ID
 	}
 
-	inv := findEntityByName[db.Inventory](e.TaskParams.InventoryName, b.inventories)
-	if inv != nil {
-		v.TaskParams.InventoryID = &inv.ID
+	if e.TaskParams != nil {
+		inv := findEntityByName[db.Inventory](e.TaskParams.InventoryName, b.inventories)
+		if inv != nil {
+			v.TaskParams.InventoryID = &inv.ID
+		}
 	}
 
 	newSchedule, err := store.CreateSchedule(v)

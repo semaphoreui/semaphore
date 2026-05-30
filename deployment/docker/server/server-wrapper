@@ -273,6 +273,12 @@ fi
 #
 # Migrate from BoltDB if SEMAPHORE_MIGRATE_FROM_BOLTDB is set (first run only, SQLite only, skipped if DB file already exists)
 #
+case "${SEMAPHORE_MIGRATE_FROM_BOLTDB:-}" in
+    [Tt][Rr][Uu][Ee]|[Yy][Ee][Ss])
+        SEMAPHORE_MIGRATE_FROM_BOLTDB="${SEMAPHORE_DB_PATH}/database.boltdb"
+        ;;
+esac
+
 if [ -n "${SEMAPHORE_MIGRATE_FROM_BOLTDB:-}" ] && [ "${SEMAPHORE_FIRST_RUN}" = "yes" ]; then
     if [ "${SEMAPHORE_DB_DIALECT}" != "sqlite" ]; then
         echoerr "SEMAPHORE_MIGRATE_FROM_BOLTDB is only supported with SQLite dialect, ignoring"

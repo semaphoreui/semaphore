@@ -9,8 +9,6 @@ import (
 )
 
 func getAdminInfo(w http.ResponseWriter, r *http.Request) {
-	store := helpers.Store(r)
-
 	// Database info
 	dbInfo := map[string]any{
 		"dialect": util.Config.Dialect,
@@ -21,14 +19,14 @@ func getAdminInfo(w http.ResponseWriter, r *http.Request) {
 		"password_login_enabled": !util.Config.PasswordLoginDisable,
 	}
 
-	if util.Config.Auth != nil {
-		if util.Config.Auth.Totp != nil {
-			authInfo["totp_enabled"] = util.Config.Auth.Totp.Enabled
+	if util.Config.Mfa != nil {
+		if util.Config.Mfa.Totp != nil {
+			authInfo["totp_enabled"] = util.Config.Mfa.Totp.Enabled
 		} else {
 			authInfo["totp_enabled"] = false
 		}
-		if util.Config.Auth.Email != nil {
-			authInfo["email_otp_enabled"] = util.Config.Auth.Email.Enabled
+		if util.Config.Mfa.Email != nil {
+			authInfo["email_otp_enabled"] = util.Config.Mfa.Email.Enabled
 		} else {
 			authInfo["email_otp_enabled"] = false
 		}
@@ -62,14 +60,6 @@ func getAdminInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	if haEnabled && util.Config.HA != nil {
 		clusterInfo["node_id"] = util.Config.HA.NodeID
-		nodeCount, err := store.GetNodeCount()
-		if err == nil {
-			clusterInfo["node_count"] = nodeCount
-		}
-		uiCount, err := store.GetUiCount()
-		if err == nil {
-			clusterInfo["ui_count"] = uiCount
-		}
 	}
 
 	// Runners

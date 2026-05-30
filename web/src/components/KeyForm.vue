@@ -22,19 +22,33 @@
       :color="$vuetify.theme.dark ? '#212121' : 'white'"
       style="background: #8585850f"
     >
-      <v-tabs
-          fixed-tabs
-          v-model="sourceStorageTypeIndex"
-      >
-        <v-tab
-            :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">Local</v-tab>
-        <v-tab
-            :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">Storage</v-tab>
+      <v-tabs fixed-tabs v-model="sourceStorageTypeIndex">
+        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0"
+          >Local</v-tab
+        >
+        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0"
+          >Storage</v-tab
+        >
         <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">Env</v-tab>
         <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">File</v-tab>
       </v-tabs>
 
-      <div class="ml-4 mr-4 mt-6" v-if="sourceStorageType">
+      <div
+        :class="!supportStorages && sourceStorageType === 'vault' ? '' : 'ml-4 mr-4 mt-6'"
+        v-if="sourceStorageType"
+      >
+        <v-alert
+          text
+          color="hsl(348deg, 86%, 61%)"
+          class="PageAlert PageAlert--flat-top"
+          v-if="!supportStorages && sourceStorageType === 'vault'"
+        >
+          <span v-html="$t('project_runners_only_pro')"></span>
+          <v-btn dark class="ml-2" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro()">
+            {{ $t('upgrade_to_pro') }}
+          </v-btn>
+        </v-alert>
+
         <v-autocomplete
           v-if="supportStorages && sourceStorageType === 'vault'"
           v-model="item.source_storage_id"
@@ -58,7 +72,7 @@
         />
 
         <v-text-field
-          v-if="supportStorages && ['env', 'file'].includes(sourceStorageType)"
+          v-if="['env', 'file'].includes(sourceStorageType)"
           v-model="item.source_storage_key"
           :label="
             sourceStorageType === 'env' ? $t('Environment variable name') : $t('Path to the file')
@@ -151,7 +165,6 @@
       v-if="item.type === 'ssh' && !isNew && hasGeneratedPublicKey"
       class="mb-4"
     >
-<!--      <div>Public Key</div>-->
       <div style="position: relative">
         <pre
           style="
@@ -172,11 +185,8 @@
       </div>
     </div>
 
-    <v-checkbox
-        v-model="item.override_secret"
-        :label="$t('override')"
-        v-if="!isNew"
-    />
+    <v-checkbox v-model="item.override_secret" :label="$t('override')" v-if="!isNew" />
+
 
     <v-alert dense text type="info" v-if="item.type === 'none'">
       {{ $t('useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook') }}

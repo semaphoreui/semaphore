@@ -22,6 +22,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :is-admin="true"
+          :is-tags-available="features.project_runners"
         />
       </template>
     </EditDialog>
@@ -228,7 +229,7 @@ semaphore runner start --config ./config.runner.json</pre
 
     <v-btn
       v-else
-      :disabled="!premiumFeatures.project_runners"
+      :disabled="!features.project_runners"
       style="position: absolute; right: 15px; top: 15px"
       color="primary"
       @click="editItem('new')"
@@ -238,13 +239,19 @@ semaphore runner start --config ./config.runner.json</pre
     <v-divider />
 
     <v-alert
-      v-if="projectId && !premiumFeatures.project_runners"
+      v-if="projectId && !features.project_runners"
       text
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
     >
       <span v-html="$t('project_runners_only_pro')"></span>
-      <v-btn dark v-if="isAdmin" class="ml-2" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro()">
+      <v-btn
+        dark
+        v-if="isAdmin"
+        class="ml-2"
+        color="hsl(348deg, 86%, 61%)"
+        @click="upgradeToPro('project_runners')"
+      >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
       <span v-else style="font-weight: bold">
@@ -287,14 +294,7 @@ semaphore runner start --config ./config.runner.json</pre
       >
         {{ $t('default') }}
       </v-chip>
-      <v-chip
-        v-if="tagFilter"
-        small
-        close
-        label
-        color="primary"
-        @click:close="tagFilter = null"
-      >
+      <v-chip v-if="tagFilter" small close label color="primary" @click:close="tagFilter = null">
         {{ tagFilter }}
       </v-chip>
     </div>
@@ -303,6 +303,7 @@ semaphore runner start --config ./config.runner.json</pre
       :headers="headers"
       :items="filteredItems"
       class="mt-4"
+      :style="projectId && !features.project_runners ? 'opacity: 0.4' : ''"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
       <template v-slot:item.active="{ item }">
@@ -539,10 +540,6 @@ semaphore runner start --no-config`;
   },
 
   methods: {
-    upgradeToPro() {
-      EventBus.$emit('i-subscription', {});
-    },
-
     async clearCache(runner) {
       const projectId = this.getProjectIdOfItem(runner.id);
 
@@ -679,8 +676,10 @@ semaphore runner start --no-config`;
     },
 
     getSingleItemUrl() {
-      if (this.projectId) {
-        return `/api/project/${this.projectId}/runners/${this.itemId}`;
+      const projectId = this.getProjectIdOfItem(this.itemId);
+
+      if (projectId) {
+        return `/api/project/${projectId}/runners/${this.itemId}`;
       }
 
       return `/api/runners/${this.itemId}`;
