@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 )
 
@@ -17,14 +16,7 @@ type ProjectRunnerControllerImpl struct {
 }
 
 func (c *ProjectRunnerControllerImpl) GetRunners(w http.ResponseWriter, r *http.Request) {
-	project := helpers.GetFromContext(r, "project").(db.Project)
-	runners, err := helpers.Store(r).GetRunners(project.ID, false, db.RunnerFilterIgnoreTags, nil)
-
-	if err != nil {
-		panic(err)
-	}
-
-	helpers.WriteJSON(w, http.StatusOK, runners)
+	helpers.WriteJSON(w, http.StatusOK, []any{})
 }
 
 func (c *ProjectRunnerControllerImpl) AddRunner(w http.ResponseWriter, r *http.Request) {
