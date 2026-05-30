@@ -1,5 +1,5 @@
 {
-  "image": "mcr.microsoft.com/devcontainers/universal:4",
+  "image": "mcr.microsoft.com/devcontainers/universal:6",
   "features": {
     "ghcr.io/devcontainers/features/go:1": {
       "version": "1.26"
