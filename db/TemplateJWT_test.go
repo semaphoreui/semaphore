@@ -10,7 +10,9 @@ import (
 
 func resetConfig(maxTTL string) {
 	util.Config = &util.ConfigType{
-		JWTMaxTTL: maxTTL,
+		JWT: &util.JWTConfig{
+			MaxTTL: maxTTL,
+		},
 	}
 }
 
