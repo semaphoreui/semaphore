@@ -1192,6 +1192,7 @@ definitions:
         type: boolean
       tags:
         type: array
+        x-nullable: true
         items:
           type: string
       touched:
@@ -3332,6 +3333,8 @@ paths:
 #          description: Runner cache cleared
 
   # global runners (admin)
+
+
   /runners:
     get:
       tags:
@@ -3389,47 +3392,47 @@ paths:
             $ref: "#/definitions/Runner"
         404:
           description: Runner not found
-    put:
-      tags:
-        - runner
-      summary: Update global runner
-      parameters:
-        - name: Runner
-          in: body
-          required: true
-          schema:
-            $ref: "#/definitions/RunnerRequest"
-      responses:
-        204:
-          description: Runner updated
-        400:
-          description: Runner not updated
-    delete:
-      tags:
-        - runner
-      summary: Delete global runner
-      responses:
-        204:
-          description: Runner deleted
-
-  /runners/{runner_id}/active:
-    parameters:
-      - $ref: "#/parameters/global_runner_id"
-    post:
-      tags:
-        - runner
-      summary: Set global runner active state
-      parameters:
-        - name: Active
-          in: body
-          required: true
-          schema:
-            $ref: "#/definitions/RunnerActive"
-      responses:
-        204:
-          description: Runner active state updated
-        400:
-          description: Invalid request body
+#    put:
+#      tags:
+#        - runner
+#      summary: Update global runner
+#      parameters:
+#        - name: Runner
+#          in: body
+#          required: true
+#          schema:
+#            $ref: "#/definitions/RunnerRequest"
+#      responses:
+#        204:
+#          description: Runner updated
+#        400:
+#          description: Runner not updated
+#    delete:
+#      tags:
+#        - runner
+#      summary: Delete global runner
+#      responses:
+#        204:
+#          description: Runner deleted
+#
+#  /runners/{runner_id}/active:
+#    parameters:
+#      - $ref: "#/parameters/global_runner_id"
+#    post:
+#      tags:
+#        - runner
+#      summary: Set global runner active state
+#      parameters:
+#        - name: Active
+#          in: body
+#          required: true
+#          schema:
+#            $ref: "#/definitions/RunnerActive"
+#      responses:
+#        204:
+#          description: Runner active state updated
+#        400:
+#          description: Invalid request body
 
   /runners/{runner_id}/cache:
     parameters:
