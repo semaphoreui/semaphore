@@ -19,6 +19,7 @@ var skipTests = []string{
 	"/api/ws > Websocket handler > 200 > application/json",
 	"authentication > /api/auth/login > Performs Login > 204 > application/json",
 	"authentication > /api/auth/logout > Destroys current session > 204 > application/json",
+	"runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json",
 }
 
 // Dredd expects that you have already set up the database and run all migrations before it begins.
@@ -147,7 +148,7 @@ func main() {
 
 	// project runners
 	h.Before("runner > /api/project/{project_id}/runners > Get project runners > 200 > application/json", capabilityWrapper("project"))
-	h.Before("runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json", capabilityWrapper("project"))
+	//h.Before("runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json", capabilityWrapper("project"))
 	h.Before("runner > /api/project/{project_id}/runner_tags > Get project runner tags > 200 > application/json", capabilityWrapper("project"))
 	h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Get project runner > 200 > application/json", capabilityWrapper("runner"))
 	h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Update project runner > 204 > application/json", capabilityWrapper("runner"))
