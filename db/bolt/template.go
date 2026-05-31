@@ -267,8 +267,8 @@ func (d *BoltDb) deleteTemplate(projectID int, templateID int, tx *bbolt.Tx) (er
 		}
 	}
 
-	// Delete template vaults
-	vaults, err := d.GetTemplateVaults(projectID, templateID)
+	// Delete template vaults (including rows that fail FillTemplateVault, e.g. dangling vault_key_id)
+	vaults, err := d.listRawTemplateVaults(projectID, templateID)
 	if err != nil {
 		return
 	}
