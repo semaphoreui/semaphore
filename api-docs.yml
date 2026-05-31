@@ -1047,10 +1047,12 @@ definitions:
         type: string
       type:
         type: string
-        enum: ["", int, enum, secret] # String => "", Integer => "int"
+        enum: ["", int, enum, secret, json] # String => "", Integer => "int", JSON => "json"
         example: int
       required:
         type: boolean
+      default_value:
+        description: Default survey value. JSON survey variables may use any valid JSON value.
       values:
         type: array
         items:

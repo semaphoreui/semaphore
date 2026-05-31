@@ -129,6 +129,7 @@ export default {
   title: 'Título *',
   description: 'Descripción',
   required: 'Requerido',
+  invalidJson: 'JSON inválido',
   key: '{expr}',
   surveyVariables: 'Variables de Encuesta',
   addVariable: 'Agregar variable',

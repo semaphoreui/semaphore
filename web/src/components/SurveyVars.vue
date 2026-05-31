@@ -115,6 +115,17 @@
               v-model="editedVar.default_value"
             />
 
+            <v-textarea
+              v-else-if="editedVar.type === 'json'"
+              :label="$t('default_value')"
+              v-model="editedDefaultValue"
+              :rules="[validateJSON]"
+              auto-grow
+              rows="4"
+              outlined
+              dense
+            />
+
             <v-text-field
               v-else-if="editedVar.type !== 'secret'"
               :label="$t('default_value')"
@@ -218,6 +229,7 @@ export default {
     return {
       editDialog: null,
       editedVar: null,
+      editedDefaultValue: '',
       editedValues: [],
       editedVarIndex: null,
       modifiedVars: null,
@@ -233,6 +245,9 @@ export default {
       }, {
         id: 'enum',
         name: 'Enum',
+      }, {
+        id: 'json',
+        name: 'JSON',
       }],
       formError: null,
     };
@@ -258,6 +273,9 @@ export default {
       this.editedValues = [];
       this.editedValues.push(...(this.editedVar.values || []));
       this.editedVar.values = this.editedValues;
+      this.editedDefaultValue = this.editedVar.default_value == null
+        ? ''
+        : JSON.stringify(this.editedVar.default_value, null, 2);
 
       this.editedVarIndex = index;
 
@@ -301,6 +319,22 @@ export default {
         this.editedVar.values = [];
       }
 
+      if (this.editedVar.type === 'json') {
+        if (this.editedDefaultValue.trim() === '') {
+          delete this.editedVar.default_value;
+        } else {
+          try {
+            this.editedVar.default_value = JSON.parse(this.editedDefaultValue);
+          } catch (e) {
+            this.formError = this.$t('invalidJson');
+            return;
+          }
+        }
+      } else if (this.editedVar.default_value != null
+        && typeof this.editedVar.default_value === 'object') {
+        delete this.editedVar.default_value;
+      }
+
       if (this.editedVarIndex != null) {
         this.modifiedVars[this.editedVarIndex] = this.editedVar;
       } else {
@@ -319,6 +353,18 @@ export default {
 
     onDragEnd() {
       this.$emit('change', this.modifiedVars);
+    },
+
+    validateJSON(val) {
+      if (val == null || val.trim() === '') {
+        return true;
+      }
+      try {
+        JSON.parse(val);
+        return true;
+      } catch (e) {
+        return this.$t('invalidJson');
+      }
     },
   },
 };

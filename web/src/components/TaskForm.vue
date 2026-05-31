@@ -95,6 +95,22 @@
         dense
       />
 
+      <v-textarea
+        v-else-if="v.type === 'json'"
+        :label="v.title + (v.required ? ' *' : '')"
+        :hint="v.description"
+        v-model="editedJsonEnvironment[v.name]"
+        :required="v.required"
+        :rules="[
+          val => !v.required || !!(val || '').trim() || v.title + ' ' + $t('isRequired'),
+          validateJSON,
+        ]"
+        outlined
+        dense
+        auto-grow
+        rows="4"
+      />
+
       <v-text-field
         v-else
         :label="v.title + (v.required ? ' *' : '')"
@@ -196,6 +212,7 @@ export default {
       hasCommit: null,
       editedEnvironment: null,
       editedSecretEnvironment: null,
+      editedJsonEnvironment: {},
       cmOptions: {
         tabSize: 2,
         mode: 'application/json',
@@ -316,6 +333,7 @@ export default {
 
       this.editedEnvironment = JSON.parse(v.environment || '{}');
       this.editedSecretEnvironment = JSON.parse(v.secret || '{}');
+      this.syncJsonEnvironment();
       this.hasCommit = v.commit_hash != null;
     },
 
@@ -324,6 +342,9 @@ export default {
     },
 
     beforeSave() {
+      if (!this.applyJsonEnvironment()) {
+        throw new Error(this.$t('invalidJson'));
+      }
       this.item.environment = JSON.stringify(this.editedEnvironment);
       this.item.secret = JSON.stringify(this.editedSecretEnvironment);
     },
@@ -378,7 +399,7 @@ export default {
       });
 
       const defaultVars = (this.template.survey_vars || [])
-        .filter((s) => s.default_value)
+        .filter((s) => this.hasDefaultValue(s))
         .reduce((res, curr) => ({
           ...res,
           [curr.name]: curr.default_value,
@@ -388,6 +409,53 @@ export default {
         ...defaultVars,
         ...this.editedEnvironment,
       };
+      this.syncJsonEnvironment();
+    },
+
+    syncJsonEnvironment() {
+      const res = {};
+      (this.template?.survey_vars || [])
+        .filter((v) => v.type === 'json')
+        .forEach((v) => {
+          const value = this.editedEnvironment?.[v.name];
+          res[v.name] = value == null ? '' : JSON.stringify(value, null, 2);
+        });
+      this.editedJsonEnvironment = res;
+    },
+
+    applyJsonEnvironment() {
+      try {
+        (this.template?.survey_vars || [])
+          .filter((v) => v.type === 'json')
+          .forEach((v) => {
+            const val = this.editedJsonEnvironment[v.name];
+            if (val == null || val.trim() === '') {
+              delete this.editedEnvironment[v.name];
+            } else {
+              this.editedEnvironment[v.name] = JSON.parse(val);
+            }
+          });
+      } catch (e) {
+        this.formError = this.$t('invalidJson');
+        return false;
+      }
+      return true;
+    },
+
+    validateJSON(val) {
+      if (val == null || val.trim() === '') {
+        return true;
+      }
+      try {
+        JSON.parse(val);
+        return true;
+      } catch (e) {
+        return this.$t('invalidJson');
+      }
+    },
+
+    hasDefaultValue(surveyVar) {
+      return surveyVar.default_value != null && surveyVar.default_value !== '';
     },
 
     getInventoryUrl() {

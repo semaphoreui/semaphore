@@ -62,9 +62,10 @@ func (t TemplateApp) IsTerraform() bool {
 type SurveyVarType string
 
 const (
-	SurveyVarStr  TemplateType = ""
-	SurveyVarInt  TemplateType = "int"
-	SurveyVarEnum TemplateType = "enum"
+	SurveyVarStr  SurveyVarType = ""
+	SurveyVarInt  SurveyVarType = "int"
+	SurveyVarEnum SurveyVarType = "enum"
+	SurveyVarJSON SurveyVarType = "json"
 )
 
 type AnsibleTemplateParams struct {
@@ -98,7 +99,7 @@ type SurveyVar struct {
 	Type         SurveyVarType        `json:"type,omitempty" backup:"type"`
 	Description  string               `json:"description,omitempty" backup:"description"`
 	Values       []SurveyVarEnumValue `json:"values,omitempty" backup:"values"`
-	DefaultValue string               `json:"default_value,omitempty" backup:"default_value"`
+	DefaultValue any                  `json:"default_value,omitempty" backup:"default_value"`
 }
 
 type TemplateFilter struct {
