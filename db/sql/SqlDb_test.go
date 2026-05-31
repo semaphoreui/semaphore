@@ -13,3 +13,9 @@ func TestValidatePort(t *testing.T) {
 		t.Error("invalid postgres query")
 	}
 }
+
+func TestCloseWithoutConnect(t *testing.T) {
+	d := SqlDb{}
+
+	d.connection.Close()
+}
