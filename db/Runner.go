@@ -30,6 +30,16 @@ type Runner struct {
 	CleaningRequested *time.Time `db:"cleaning_requested" json:"cleaning_requested"`
 
 	PublicKey *string `db:"public_key" json:"-"`
+
+	// Unregistered is a transient flag (never persisted) used at creation time to
+	// request a runner without a token. Such a runner gets an empty token and must
+	// be registered later via `semaphore runner register --runner-id <id>`.
+	Unregistered bool `db:"-" json:"unregistered"`
+}
+
+// IsRegistered reports whether the runner has been registered (has a token).
+func (r Runner) IsRegistered() bool {
+	return r.Token != ""
 }
 
 // HasTag reports whether the runner is tagged with the given tag.

@@ -150,6 +150,10 @@ type RunnerConfig struct {
 	MaxParallelTasks int      `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 	ProjectID        *int     `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
 
+	// RunnerID, when set, registers a previously created tokenless ("unregistered")
+	// runner with this ID instead of creating a new runner on the server.
+	RunnerID *int `json:"runner_id,omitempty" env:"SEMAPHORE_RUNNER_ID"`
+
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
 }
 

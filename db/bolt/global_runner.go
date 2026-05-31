@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"encoding/base64"
+	"fmt"
 
 	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"
@@ -131,7 +132,11 @@ func (d *BoltDb) UpdateRunner(runner db.Runner) (err error) {
 }
 
 func (d *BoltDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) {
-	runner.Token = base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
+	if runner.Unregistered {
+		runner.Token = ""
+	} else {
+		runner.Token = base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
+	}
 
 	res, err := d.createObject(0, db.GlobalRunnerProps, runner)
 
@@ -139,5 +144,26 @@ func (d *BoltDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error)
 		return
 	}
 	newRunner = res.(db.Runner)
+	return
+}
+
+func (d *BoltDb) RegisterRunner(runnerID int, publicKey *string, active bool) (runner db.Runner, err error) {
+	err = d.db.Update(func(tx *bbolt.Tx) error {
+		err = d.getObjectTx(tx, 0, db.GlobalRunnerProps, intObjectID(runnerID), &runner)
+		if err != nil {
+			return err
+		}
+
+		if runner.IsRegistered() {
+			return fmt.Errorf("runner is already registered")
+		}
+
+		runner.Token = base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
+		runner.PublicKey = publicKey
+		runner.Active = active
+
+		return d.updateObjectTx(tx, 0, db.GlobalRunnerProps, runner)
+	})
+
 	return
 }

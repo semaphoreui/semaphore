@@ -351,15 +351,23 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runner, err := helpers.Store(r).CreateRunner(db.Runner{
-		Webhook:          register.Webhook,
-		Name:             register.Name,
-		Tags:             register.Tags,
-		MaxParallelTasks: register.MaxParallelTasks,
-		Active:           register.Enabled,
-		PublicKey:        register.PublicKey,
-		ProjectID:        register.ProjectID,
-	})
+	var runner db.Runner
+	var err error
+
+	if register.RunnerID != nil {
+		// Register a previously created tokenless runner by its ID.
+		runner, err = helpers.Store(r).RegisterRunner(*register.RunnerID, register.PublicKey, register.Enabled)
+	} else {
+		runner, err = helpers.Store(r).CreateRunner(db.Runner{
+			Webhook:          register.Webhook,
+			Name:             register.Name,
+			Tags:             register.Tags,
+			MaxParallelTasks: register.MaxParallelTasks,
+			Active:           register.Enabled,
+			PublicKey:        register.PublicKey,
+			ProjectID:        register.ProjectID,
+		})
+	}
 
 	if err != nil {
 

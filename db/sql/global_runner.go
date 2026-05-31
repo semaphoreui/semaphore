@@ -172,8 +172,43 @@ func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
 	return
 }
 
-func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) {
+func (d *SqlDb) RegisterRunner(runnerID int, publicKey *string, active bool) (runner db.Runner, err error) {
+	err = d.getObject(0, db.GlobalRunnerProps, runnerID, &runner)
+	if err != nil {
+		return
+	}
+
+	if runner.IsRegistered() {
+		err = fmt.Errorf("runner is already registered")
+		return
+	}
+
 	token := base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
+
+	_, err = d.exec(
+		"update `runner` set `token`=?, `public_key`=?, `active`=? where id=?",
+		token,
+		publicKey,
+		active,
+		runnerID)
+
+	if err != nil {
+		return
+	}
+
+	runner.Token = token
+	runner.PublicKey = publicKey
+	runner.Active = active
+
+	err = d.loadRunnerTagsSingle(&runner)
+	return
+}
+
+func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) {
+	token := ""
+	if !runner.Unregistered {
+		token = base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
+	}
 
 	insertID, err := d.insert(
 		"id",

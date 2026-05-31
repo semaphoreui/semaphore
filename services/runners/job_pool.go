@@ -397,6 +397,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
 		RegistrationToken: util.Config.Runner.RegistrationToken,
+		RunnerID:          util.Config.Runner.RunnerID,
 		Webhook:           util.Config.Runner.Webhook,
 		Name:              util.Config.Runner.Name,
 		Tags:              util.Config.Runner.Tags,

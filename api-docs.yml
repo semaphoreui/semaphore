@@ -1223,6 +1223,14 @@ definitions:
         type: array
         items:
           type: string
+      unregistered:
+        type: boolean
+        description: >
+          When true, the runner is created without a token and stays inactive.
+          The token is not stored; the runner must be registered later via
+          `semaphore runner register --runner-id <id>`. Useful for tools like
+          Terraform that create the runner up front and pass its ID to the
+          runner host via cloud-init.
 
   RunnerWithToken:
     allOf:

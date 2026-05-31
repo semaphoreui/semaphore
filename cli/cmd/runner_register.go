@@ -13,6 +13,7 @@ var runnerRegisterArgs struct {
 	stdinRegistrationToken    bool
 	registrationTokenFilePath string
 	projectID                 int
+	runnerID                  int
 	name                      string
 	tags                      []string
 	webhook                   string
@@ -30,6 +31,7 @@ func init() {
 	runnerRegisterCmd.PersistentFlags().StringVar(&runnerRegisterArgs.registrationTokenFilePath, "registration-token-file", "", "Read registration token from a file")
 	runnerRegisterCmd.PersistentFlags().BoolVar(&runnerRegisterArgs.enabled, "enabled", true, "Enable or disable the runner on the server")
 	runnerRegisterCmd.PersistentFlags().IntVar(&runnerRegisterArgs.projectID, "project-id", 0, "Project ID for project-level runner (global runner if not provided)")
+	runnerRegisterCmd.PersistentFlags().IntVar(&runnerRegisterArgs.runnerID, "runner-id", 0, "ID of an existing unregistered runner to register (created beforehand, e.g. via Terraform)")
 	runnerCmd.AddCommand(runnerRegisterCmd)
 }
 
@@ -98,6 +100,10 @@ func registerRunner(cmd *cobra.Command) {
 
 	if runnerRegisterArgs.projectID > 0 {
 		util.Config.Runner.ProjectID = &runnerRegisterArgs.projectID
+	}
+
+	if runnerRegisterArgs.runnerID > 0 {
+		util.Config.Runner.RunnerID = &runnerRegisterArgs.runnerID
 	}
 
 	taskPool := createRunnerJobPool()
