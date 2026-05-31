@@ -153,6 +153,7 @@ func (p *JobPool) Unregister() (err error) {
 	if err != nil {
 		return
 	}
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode >= 400 && resp.StatusCode != 404 {
 		err = fmt.Errorf("encountered error while unregistering runner; server returned code %d", resp.StatusCode)
@@ -423,6 +424,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		logger.ActionError(err, "send request", "unexpected error")
 		return
 	}
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != 200 {
 		logger.ActionError(fmt.Errorf("invalid status code"), "send request", p.getResponseErrorMessage(resp))
@@ -480,8 +482,6 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 			return
 		}
 	}
-
-	defer resp.Body.Close() //nolint:errcheck
 
 	ok = true
 	return
@@ -565,14 +565,13 @@ func (p *JobPool) checkNewJobs() {
 		logger.ActionError(err, "send request", "unexpected error")
 		return
 	}
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode >= 400 {
 
 		logger.ActionError(fmt.Errorf("error status code"), "send request", p.getResponseErrorMessage(resp))
 		return
 	}
-
-	defer resp.Body.Close() //nolint:errcheck
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
