@@ -102,7 +102,7 @@ func (c *ProjectsController) createDemoProject(projectID int, noneKeyID int, sto
 		ProjectID: projectID,
 		GitURL:    "https://github.com/semaphoreui/semaphore-demo.git",
 		GitBranch: "main",
-		SSHKeyID:  noneKeyID,
+		SSHKeyID:  nil,
 	})
 
 	if err != nil {

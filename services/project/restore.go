@@ -220,11 +220,14 @@ func (e BackupRepository) Verify(backup *BackupFormat) error {
 }
 
 func (e BackupRepository) Restore(store db.Store, b *BackupDB) error {
-	var SSHKeyID int
-	if k := findEntityByName[db.AccessKey](e.SSHKey, b.keys); k == nil {
-		return fmt.Errorf("SSHKey does not exist in keys[].Name")
-	} else {
-		SSHKeyID = (*k).ID
+	var SSHKeyID *int
+
+	if e.SSHKey != nil {
+		if k := findEntityByName[db.AccessKey](e.SSHKey, b.keys); k == nil {
+			return fmt.Errorf("SSHKey does not exist in keys[].Name")
+		} else {
+			SSHKeyID = &(*k).ID
+		}
 	}
 
 	repo := e.Repository

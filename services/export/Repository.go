@@ -45,9 +45,13 @@ func (e *RepositoryExporter) restoreValue(val EntityObject[db.Repository], store
 		return err
 	}
 
-	old.SSHKeyID, err = exporter.getNewKeyInt(AccessKey, val.scope, old.SSHKeyID)
-	if err != nil {
-		return err
+	if old.SSHKeyID != nil {
+		var k int
+		k, err = exporter.getNewKeyInt(AccessKey, val.scope, *old.SSHKeyID)
+		if err != nil {
+			return err
+		}
+		old.SSHKeyID = &k
 	}
 
 	newObj, err := store.CreateRepository(old)

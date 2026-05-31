@@ -47,7 +47,7 @@ func TestRepository_GetGitURL(t *testing.T) {
 		ExpectedGitUrl string
 	}{
 		{
-			Repository: Repository{GitURL: "https://github.com/user/project.git", SSHKey: AccessKey{
+			Repository: Repository{GitURL: "https://github.com/user/project.git", SSHKey: &AccessKey{
 				Type: AccessKeyLoginPassword,
 				LoginPassword: LoginPassword{
 					Login:    "login",
@@ -58,7 +58,7 @@ func TestRepository_GetGitURL(t *testing.T) {
 			ExpectedGitUrl: "https://login:password@github.com/user/project.git",
 		},
 		{
-			Repository: Repository{GitURL: "https://github.com/user/project.git", SSHKey: AccessKey{
+			Repository: Repository{GitURL: "https://github.com/user/project.git", SSHKey: &AccessKey{
 				Type: AccessKeyLoginPassword,
 				LoginPassword: LoginPassword{
 					Password: "password",

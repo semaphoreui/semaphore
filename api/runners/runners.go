@@ -207,8 +207,8 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			if tsk.Inventory.RepositoryID != nil {
-				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.Repository.SSHKey)
+			if tsk.Inventory.RepositoryID != nil && tsk.Inventory.Repository.SSHKeyID != nil {
+				err := c.encryptionService.DeserializeSecret(tsk.Inventory.Repository.SSHKey)
 				if err != nil {
 					log.WithFields(log.Fields{
 						"runner_id":     runner.ID,
@@ -220,10 +220,12 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 					helpers.WriteError(w, err)
 					return
 				}
-				data.AccessKeys[tsk.Inventory.Repository.SSHKeyID] = tsk.Inventory.Repository.SSHKey
+				data.AccessKeys[*tsk.Inventory.Repository.SSHKeyID] = *tsk.Inventory.Repository.SSHKey
 			}
 
-			data.AccessKeys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
+			if tsk.Repository.SSHKeyID != nil {
+				data.AccessKeys[*tsk.Repository.SSHKeyID] = *tsk.Repository.SSHKey
+			}
 
 		} else {
 			data.CurrentJobs = append(data.CurrentJobs, runners.JobState{

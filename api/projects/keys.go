@@ -160,7 +160,7 @@ func (c *KeyController) UpdateKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, repo := range repos {
-		if repo.SSHKeyID != key.ID {
+		if repo.SSHKeyID == nil || *repo.SSHKeyID != key.ID {
 			continue
 		}
 		err = repo.ClearCache()

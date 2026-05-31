@@ -698,7 +698,10 @@ func (p *JobPool) checkNewJobs() {
 			},
 		}
 
-		taskRunner.job.Repository.SSHKey = response.AccessKeys[taskRunner.job.Repository.SSHKeyID]
+		if taskRunner.job.Repository.SSHKeyID != nil {
+			k := response.AccessKeys[*taskRunner.job.Repository.SSHKeyID]
+			taskRunner.job.Repository.SSHKey = &k
+		}
 
 		if taskRunner.job.Inventory.SSHKeyID != nil {
 			taskRunner.job.Inventory.SSHKey = response.AccessKeys[*taskRunner.job.Inventory.SSHKeyID]
@@ -721,8 +724,9 @@ func (p *JobPool) checkNewJobs() {
 		}
 		taskRunner.job.Template.Vaults = vaults
 
-		if taskRunner.job.Inventory.RepositoryID != nil {
-			taskRunner.job.Inventory.Repository.SSHKey = response.AccessKeys[taskRunner.job.Inventory.Repository.SSHKeyID]
+		if taskRunner.job.Inventory.RepositoryID != nil && taskRunner.job.Inventory.Repository.SSHKeyID != nil {
+			k := response.AccessKeys[*taskRunner.job.Inventory.Repository.SSHKeyID]
+			taskRunner.job.Inventory.Repository.SSHKey = &k
 		}
 
 		p.queue = append(p.queue, &taskRunner)

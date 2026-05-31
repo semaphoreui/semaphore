@@ -61,7 +61,10 @@ func (s *InventoryServiceImpl) fillInventory(inventory *db.Inventory) (err error
 			return
 		}
 
-		err = s.encryptionService.DeserializeSecret(&repo.SSHKey)
+		if repo.SSHKeyID != nil {
+			err = s.encryptionService.DeserializeSecret(repo.SSHKey)
+		}
+
 		if err != nil {
 			return
 		}

@@ -352,10 +352,13 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 
 	repositories := make([]BackupRepository, len(b.repositories))
 	for i, o := range b.repositories {
-		SSHKey, _ := findNameByID[db.AccessKey](o.SSHKeyID, b.keys)
+		var key *string
+		if o.SSHKeyID != nil {
+			key, _ = findNameByID[db.AccessKey](*o.SSHKeyID, b.keys)
+		}
 		repositories[i] = BackupRepository{
 			Repository: o,
-			SSHKey:     SSHKey,
+			SSHKey:     key,
 		}
 	}
 
