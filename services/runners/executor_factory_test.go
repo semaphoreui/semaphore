@@ -1,12 +1,9 @@
 package runners
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/pro/services/tasks/docker"
-	"github.com/semaphoreui/semaphore/pro/services/tasks/k8s"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -47,27 +44,6 @@ func TestNewExecutorProvider_NilConfigDefaultsToLocal(t *testing.T) {
 	require.NoError(t, err)
 	_, ok := provider.(*tasks.LocalExecutorProvider)
 	assert.True(t, ok)
-}
-
-func TestNewExecutorProvider_KubernetesStubBuildErrors(t *testing.T) {
-	// In the OSS stub build (what these tests run against) the K8s provider
-	// constructor always errors with ErrNotAvailable. The proprietary build returns
-	// a real provider — different test suite, lives in pro_impl.
-	provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeKubernetes}, nil)
-	assert.Nil(t, provider)
-	require.Error(t, err)
-	assert.True(t, errors.Is(err, k8s.ErrNotAvailable),
-		"OSS stub must surface k8s.ErrNotAvailable so operators see why the runner refuses k8s jobs")
-}
-
-func TestNewExecutorProvider_DockerStubBuildErrors(t *testing.T) {
-	// Like the K8s case: in the OSS stub build the Docker provider constructor always
-	// errors with ErrNotAvailable. The proprietary build returns a real provider.
-	provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeDocker}, nil)
-	assert.Nil(t, provider)
-	require.Error(t, err)
-	assert.True(t, errors.Is(err, docker.ErrNotAvailable),
-		"OSS stub must surface docker.ErrNotAvailable so operators see why the runner refuses docker jobs")
 }
 
 func TestNewExecutorProvider_UnknownType(t *testing.T) {

@@ -12,19 +12,10 @@
 package docker
 
 import (
-	"errors"
-
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 )
 
-// ErrNotAvailable is returned by NewProvider in the OSS build. The proprietary build
-// replaces this whole package with a working one.
-var ErrNotAvailable = errors.New("docker executor: docker executor is not available in this build")
-
-// NewProvider always returns ErrNotAvailable. Callers (job_pool, executor_factory)
-// log the error and treat the provider as unavailable — no panics, no half-built
-// state, just a clean refusal to dispatch Docker tasks.
 func NewProvider(_ util.RunnerDockerConfig) (tasks.ExecutorProvider, error) {
-	return nil, ErrNotAvailable
+	return nil, nil
 }
