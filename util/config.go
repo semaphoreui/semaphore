@@ -1164,10 +1164,8 @@ func loadConfigEnvironment() {
 	}
 
 	for _, sensitiveEnv := range sensitiveEnvs {
-		os.Setenv(sensitiveEnv, sensitiveEnv)
+		os.Unsetenv(sensitiveEnv)
 	}
-
-	//os.Unsetenv("SEMAPHORE_DB_PASS")
 }
 
 func exitOnConfigError(msg string) {
