@@ -2,6 +2,7 @@ package sql
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
@@ -218,6 +219,15 @@ func (d *SqlDb) RegisterRunner(registrationTokenHash string, publicKey *string, 
 	runner.RegistrationTokenExpiresAt = nil
 
 	err = d.loadRunnerTagsSingle(&runner)
+	return
+}
+
+func (d *SqlDb) SetRunnerRegistrationToken(runnerID int, registrationTokenHash string, expiresAt time.Time) (err error) {
+	_, err = d.exec(
+		"update `runner` set `registration_token`=?, `registration_token_expires_at`=? where id=?",
+		registrationTokenHash,
+		expiresAt,
+		runnerID)
 	return
 }
 

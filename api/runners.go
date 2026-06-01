@@ -154,6 +154,21 @@ func (c *GlobalRunnerController) DeleteRunner(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (c *GlobalRunnerController) RegenerateRegistrationToken(w http.ResponseWriter, r *http.Request) {
+	runner := helpers.GetFromContext(r, "runner").(*db.Runner)
+
+	token, err := c.runnerService.RegenerateRegistrationToken(*runner)
+
+	if err != nil {
+		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, map[string]string{
+		"registration_token": token,
+	})
+}
+
 func (c *GlobalRunnerController) GetRunnerTags(w http.ResponseWriter, r *http.Request) {
 	tags, err := helpers.Store(r).GetGlobalRunnerTags()
 

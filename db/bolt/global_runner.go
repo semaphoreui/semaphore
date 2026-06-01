@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
@@ -126,6 +127,22 @@ func (d *BoltDb) UpdateRunner(runner db.Runner) (err error) {
 	return d.updateRunner(runner, func(targetRunner *db.Runner, foundRunner db.Runner) {
 		targetRunner.PublicKey = foundRunner.PublicKey
 		targetRunner.Token = foundRunner.Token
+	})
+}
+
+func (d *BoltDb) SetRunnerRegistrationToken(runnerID int, registrationTokenHash string, expiresAt time.Time) (err error) {
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		var runner db.Runner
+
+		e := d.getObjectTx(tx, 0, db.GlobalRunnerProps, intObjectID(runnerID), &runner)
+		if e != nil {
+			return e
+		}
+
+		runner.RegistrationTokenHash = &registrationTokenHash
+		runner.RegistrationTokenExpiresAt = &expiresAt
+
+		return d.updateObjectTx(tx, 0, db.GlobalRunnerProps, runner)
 	})
 }
 

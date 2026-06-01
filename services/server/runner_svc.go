@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/gorilla/securecookie"
@@ -46,6 +47,11 @@ type RunnerService interface {
 	// privateKey is non-empty only when the service generated a key pair for the
 	// runner (and must be handed to the caller exactly once).
 	CreateRunner(runner db.Runner) (newRunner db.Runner, privateKey string, err error)
+
+	// RegenerateRegistrationToken issues a fresh one-time registration token for an
+	// unregistered runner and returns its plaintext (handed to the caller once). It
+	// fails if the runner is already registered.
+	RegenerateRegistrationToken(runner db.Runner) (registrationToken string, err error)
 }
 
 type RunnerServiceImpl struct {
@@ -85,6 +91,23 @@ func (s *RunnerServiceImpl) CreateRunner(runner db.Runner) (newRunner db.Runner,
 	}
 
 	newRunner, err = s.runnerRepo.CreateRunner(runner)
+	return
+}
+
+func (s *RunnerServiceImpl) RegenerateRegistrationToken(runner db.Runner) (registrationToken string, err error) {
+	if runner.IsRegistered() {
+		err = fmt.Errorf("runner is already registered")
+		return
+	}
+
+	token, hash := generateRunnerRegistrationToken()
+	expiresAt := tz.Now().Add(runnerRegistrationTokenTTL)
+
+	if err = s.runnerRepo.SetRunnerRegistrationToken(runner.ID, hash, expiresAt); err != nil {
+		return
+	}
+
+	registrationToken = token
 	return
 }
 

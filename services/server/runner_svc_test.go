@@ -58,3 +58,36 @@ func TestRunnerService_CreateRunner_Unregistered(t *testing.T) {
 	assert.Equal(t, HashRunnerRegistrationToken(runner.RegistrationToken), *runner.RegistrationTokenHash)
 	assert.NotNil(t, runner.RegistrationTokenExpiresAt)
 }
+
+func TestRunnerService_RegenerateRegistrationToken(t *testing.T) {
+	store := bolt.CreateTestStore()
+	svc := NewRunnerService(store)
+
+	runner, _, err := svc.CreateRunner(db.Runner{Registered: false})
+	require.NoError(t, err)
+	require.NotNil(t, runner.RegistrationTokenHash)
+	oldHash := *runner.RegistrationTokenHash
+
+	token, err := svc.RegenerateRegistrationToken(runner)
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(token, RunnerRegistrationTokenPrefix))
+
+	stored, err := store.GetGlobalRunner(runner.ID)
+	require.NoError(t, err)
+	assert.Empty(t, stored.Token)
+	require.NotNil(t, stored.RegistrationTokenHash)
+	// A fresh token (and hash) replaces the previous one.
+	assert.Equal(t, HashRunnerRegistrationToken(token), *stored.RegistrationTokenHash)
+	assert.NotEqual(t, oldHash, *stored.RegistrationTokenHash)
+	assert.NotNil(t, stored.RegistrationTokenExpiresAt)
+}
+
+func TestRunnerService_RegenerateRegistrationToken_FailsForRegistered(t *testing.T) {
+	svc := NewRunnerService(bolt.CreateTestStore())
+
+	runner, _, err := svc.CreateRunner(db.Runner{Registered: true})
+	require.NoError(t, err)
+
+	_, err = svc.RegenerateRegistrationToken(runner)
+	assert.Error(t, err)
+}

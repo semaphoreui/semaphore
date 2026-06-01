@@ -464,6 +464,9 @@ type RunnerManager interface {
 	// clears the registration token. It fails if no matching runner exists, the
 	// token has expired, or the runner is already registered.
 	RegisterRunner(registrationTokenHash string, publicKey *string, active bool) (Runner, error)
+	// SetRunnerRegistrationToken stores a new one-time registration token hash and
+	// its expiry for an existing runner (used to regenerate the token).
+	SetRunnerRegistrationToken(runnerID int, registrationTokenHash string, expiresAt time.Time) error
 	TouchRunner(runner Runner) (err error)
 	ClearRunnerCache(runner Runner) (err error)
 	GetRunnerTags(projectID int) ([]RunnerTag, error)

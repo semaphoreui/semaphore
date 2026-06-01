@@ -1255,6 +1255,13 @@ definitions:
       active:
         type: boolean
 
+  RunnerRegistrationToken:
+    type: object
+    properties:
+      registration_token:
+        type: string
+        description: One-time, short-lived token used to register the runner.
+
   RunnerTag:
     type: object
     properties:
@@ -3333,6 +3340,22 @@ paths:
         400:
           description: Invalid request body
 
+  /project/{project_id}/runners/{runner_id}/registration-token:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    post:
+      tags:
+        - runner
+      summary: Regenerate the one-time registration token of an unregistered project runner
+      responses:
+        200:
+          description: New registration token
+          schema:
+            $ref: "#/definitions/RunnerRegistrationToken"
+        400:
+          description: Runner is already registered
+
   /project/{project_id}/runners/{runner_id}/cache:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -3444,6 +3467,21 @@ paths:
           description: Runner active state updated
         400:
           description: Invalid request body
+
+  /runners/{runner_id}/registration-token:
+    parameters:
+      - $ref: "#/parameters/global_runner_id"
+    post:
+      tags:
+        - runner
+      summary: Regenerate the one-time registration token of an unregistered global runner
+      responses:
+        200:
+          description: New registration token
+          schema:
+            $ref: "#/definitions/RunnerRegistrationToken"
+        400:
+          description: Runner is already registered
 
   /runners/{runner_id}/cache:
     parameters:

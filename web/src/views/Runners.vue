@@ -528,7 +528,7 @@ semaphore runner start --config ./config.runner.json</pre
             @click="askDeleteItem(item.id)"
             :disabled="item.project_id == null && !isAdmin"
           >
-            <v-icon>mdi-refresh</v-icon>
+            <v-icon>mdi-sync</v-icon>
           </v-btn>
 
           <v-btn
@@ -857,6 +857,7 @@ semaphore runner start --no-config`;
           text: this.$i18n.t('actions'),
           value: 'actions',
           sortable: false,
+          align: 'end',
         },
       ];
     },
