@@ -28,7 +28,7 @@ func TestRunnerService_CreateRunner_RegisteredWithProvidedPublicKey(t *testing.T
 	svc := NewRunnerService(bolt.CreateTestStore())
 
 	pub := "provided-public-key"
-	runner, privateKey, err := svc.CreateRunner(db.Runner{PublicKey: &pub})
+	runner, privateKey, err := svc.CreateRunner(db.Runner{PublicKey: &pub, Registered: true})
 	require.NoError(t, err)
 
 	// When the caller provides a public key, the service does not generate one.
@@ -53,6 +53,6 @@ func TestRunnerService_CreateRunner_Unregistered(t *testing.T) {
 	assert.Nil(t, runner.PublicKey)
 	assert.NotEmpty(t, runner.RegistrationToken)
 	require.NotNil(t, runner.RegistrationTokenHash)
-	//assert.Equal(t, db.HashRunnerRegistrationToken(runner.RegistrationToken), *runner.RegistrationTokenHash)
+	assert.Equal(t, HashRunnerRegistrationToken(runner.RegistrationToken), *runner.RegistrationTokenHash)
 	assert.NotNil(t, runner.RegistrationTokenExpiresAt)
 }

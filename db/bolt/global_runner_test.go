@@ -6,6 +6,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -52,7 +53,7 @@ func Test_GetGlobalRunner_ReturnsErrorWhenTryingGetProjectRunner(t *testing.T) {
 func Test_CreateRunner_PersistsRegistrationTokenFields(t *testing.T) {
 	store := CreateTestStore()
 
-	hash := db.HashRunnerRegistrationToken("plaintext-token")
+	hash := server.HashRunnerRegistrationToken("plaintext-token")
 	expiresAt := tz.Now().Add(time.Hour)
 
 	testRunner, err := store.CreateRunner(db.Runner{
