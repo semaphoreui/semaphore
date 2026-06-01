@@ -55,10 +55,21 @@ When creating a pull-request you should:
    go run cli/main.go service --config ./config.json
    ```
 
+   Setup writes `config.json` by default. You can also use `config.yaml`; see [docs/configuration.md](docs/configuration.md) for discovery paths, environment overrides, and [`config.schema.yaml`](config.schema.yaml).
+
 Open [localhost:3000](http://localhost:3000)
 
 Note: for Windows, you may need [Cygwin](https://www.cygwin.com/) to run certain commands because the [reflex](github.com/cespare/reflex) package probably doesn't work on Windows.
 You may encounter issues when running `task watch`, but running `task build` etc... will still be OK.
+
+## Developer documentation
+
+Repository guides for contributors and operators:
+
+- [docs/README.md](docs/README.md) — index
+- [docs/configuration.md](docs/configuration.md) — config file, schema, env vars
+- [docs/runners-and-tags.md](docs/runners-and-tags.md) — remote runners and tag routing
+- [docs/cluster-dashboard.md](docs/cluster-dashboard.md) — HA cluster admin API
 
 ## Integration tests
 
