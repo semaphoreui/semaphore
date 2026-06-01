@@ -5,6 +5,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/server"
 )
 
 // NewProjectRunnerController creates a new ProjectRunnerController instance.

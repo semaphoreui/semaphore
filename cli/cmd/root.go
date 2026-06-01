@@ -219,7 +219,6 @@ func runService() {
 			r = helpers.SetContextValue(r, "task_pool", &taskPool)
 			r = helpers.SetContextValue(r, "log_writer", logWriteService)
 			r = helpers.SetContextValue(r, "cluster_inspector", clusterInspector)
-			r = helpers.SetContextValue(r, "runner_service", runnerService)
 
 			next.ServeHTTP(w, r)
 		})
