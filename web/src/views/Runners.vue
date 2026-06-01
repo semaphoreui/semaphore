@@ -521,15 +521,27 @@ semaphore runner start --config ./config.runner.json</pre
 
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-btn
-            v-if="!item.registered"
-            icon
-            class="mr-1"
-            @click="askDeleteItem(item.id)"
-            :disabled="item.project_id == null && !isAdmin"
+          <v-tooltip
+            v-if="!item.registered && (item.project_id != null || projectId == null)"
+            bottom
+            :max-width="200"
           >
-            <v-icon>mdi-sync</v-icon>
-          </v-btn>
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn
+                v-bind="attrs"
+                v-on="on"
+                icon
+                class="mr-1"
+                @click="regenerateRegistrationToken(item)"
+                :disabled="item.project_id == null && !isAdmin"
+              >
+                <v-icon>mdi-sync</v-icon>
+              </v-btn>
+            </template>
+            <div style="font-weight: bold">
+              {{ $t('regenerateRegistrationToken') }}
+            </div>
+          </v-tooltip>
 
           <v-btn
             v-if="item.project_id != null || projectId == null"
@@ -754,6 +766,32 @@ semaphore runner start --no-config`;
         EventBus.$emit('i-snackbar', {
           color: 'error',
           text: `Cannot clear cache: ${e.message}`,
+        });
+      }
+    },
+
+    async regenerateRegistrationToken(runner) {
+      const projectId = this.getProjectIdOfItem(runner.id);
+
+      const url = projectId
+        ? `/api/project/${projectId}/runners/${runner.id}/registration-token`
+        : `/api/runners/${runner.id}/registration-token`;
+
+      try {
+        const { data } = await axios({
+          method: 'post',
+          url,
+          responseType: 'json',
+        });
+
+        // Reuse the same dialog shown right after creating an unregistered runner.
+        this.newRunner = { ...runner, registration_token: data.registration_token };
+        this.registerTab = null;
+        this.newRunnerTokenDialog = true;
+      } catch (e) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: `Cannot regenerate registration token: ${e.message}`,
         });
       }
     },

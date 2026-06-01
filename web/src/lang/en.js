@@ -368,6 +368,7 @@ export default {
     'This one-time token is shown only once and expires in 1 hour. '
     + 'Use it to register the runner.',
   howToRegister: 'How to register',
+  regenerateRegistrationToken: 'Regenerate registration token',
   askDeleteRunner: 'Do you really want to delete runner {runner}?',
   roles_only_enterprise: 'Roles are only available in <b>Enterprise</b> edition.',
   ha_only_enterprise: 'High availability are only available in <b>Enterprise</b> edition.',

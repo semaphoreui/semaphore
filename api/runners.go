@@ -37,6 +37,10 @@ func (c *GlobalRunnerController) GetRunners(w http.ResponseWriter, r *http.Reque
 
 	result = append(result, runners...)
 
+	for i := range result {
+		result[i].Registered = result[i].IsRegistered()
+	}
+
 	helpers.WriteJSON(w, http.StatusOK, result)
 }
 
@@ -92,6 +96,8 @@ func (c *GlobalRunnerController) RunnerMiddleware(next http.Handler) http.Handle
 
 func (c *GlobalRunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 	runner := helpers.GetFromContext(r, "runner").(*db.Runner)
+
+	runner.Registered = runner.IsRegistered()
 
 	helpers.WriteJSON(w, http.StatusOK, runner)
 }
