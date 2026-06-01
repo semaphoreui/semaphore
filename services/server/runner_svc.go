@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 	"time"
 
 	"github.com/gorilla/securecookie"
@@ -48,9 +47,10 @@ type RunnerService interface {
 	// runner (and must be handed to the caller exactly once).
 	CreateRunner(runner db.Runner) (newRunner db.Runner, privateKey string, err error)
 
-	// RegenerateRegistrationToken issues a fresh one-time registration token for an
-	// unregistered runner and returns its plaintext (handed to the caller once). It
-	// fails if the runner is already registered.
+	// RegenerateRegistrationToken issues a fresh one-time registration token and
+	// returns its plaintext (handed to the caller once). If the runner was already
+	// registered, it is reset to the unregistered state (auth token and key pair
+	// cleared, deactivated) so it can be registered again.
 	RegenerateRegistrationToken(runner db.Runner) (registrationToken string, err error)
 }
 
@@ -94,15 +94,13 @@ func (s *RunnerServiceImpl) CreateRunner(runner db.Runner) (newRunner db.Runner,
 }
 
 func (s *RunnerServiceImpl) RegenerateRegistrationToken(runner db.Runner) (registrationToken string, err error) {
-	if runner.IsRegistered() {
-		err = fmt.Errorf("runner is already registered")
-		return
-	}
-
 	token, hash := generateRunnerRegistrationToken()
 	expiresAt := tz.Now().Add(runnerRegistrationTokenTTL)
 
-	if err = s.runnerRepo.SetRunnerRegistrationToken(runner.ID, hash, expiresAt); err != nil {
+	// This works for both unregistered and already-registered runners: a registered
+	// runner is reset to the unregistered state (its auth token and key pair are
+	// cleared and it is deactivated) and gets a fresh one-time registration token.
+	if err = s.runnerRepo.ResetRunnerRegistration(runner.ID, hash, expiresAt); err != nil {
 		return
 	}
 

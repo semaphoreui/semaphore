@@ -130,7 +130,7 @@ func (d *BoltDb) UpdateRunner(runner db.Runner) (err error) {
 	})
 }
 
-func (d *BoltDb) SetRunnerRegistrationToken(runnerID int, registrationTokenHash string, expiresAt time.Time) (err error) {
+func (d *BoltDb) ResetRunnerRegistration(runnerID int, registrationTokenHash string, expiresAt time.Time) (err error) {
 	return d.db.Update(func(tx *bbolt.Tx) error {
 		var runner db.Runner
 
@@ -139,6 +139,8 @@ func (d *BoltDb) SetRunnerRegistrationToken(runnerID int, registrationTokenHash 
 			return e
 		}
 
+		runner.Token = ""
+		runner.PublicKey = nil
 		runner.RegistrationTokenHash = &registrationTokenHash
 		runner.RegistrationTokenExpiresAt = &expiresAt
 

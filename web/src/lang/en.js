@@ -369,6 +369,10 @@ export default {
     + 'Use it to register the runner.',
   howToRegister: 'How to register',
   regenerateRegistrationToken: 'Regenerate registration token',
+  askResetRunnerRegistration:
+    'This runner is registered. Regenerating the token will reset it: its current '
+    + 'token stops working and the runner goes offline until it re-registers with '
+    + 'the new token. Continue?',
   askDeleteRunner: 'Do you really want to delete runner {runner}?',
   roles_only_enterprise: 'Roles are only available in <b>Enterprise</b> edition.',
   ha_only_enterprise: 'High availability are only available in <b>Enterprise</b> edition.',

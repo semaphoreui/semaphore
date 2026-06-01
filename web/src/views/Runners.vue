@@ -337,6 +337,13 @@ semaphore runner start --config ./config.runner.json</pre
       @yes="deleteItem(itemId)"
     />
 
+    <YesNoDialog
+      :title="$t('regenerateRegistrationToken')"
+      :text="$t('askResetRunnerRegistration')"
+      v-model="resetRegistrationDialog"
+      @yes="regenerateRegistrationToken(resetRegistrationRunner)"
+    />
+
     <v-toolbar flat v-if="!projectId">
       <v-btn icon class="mr-4" @click="returnToProjects()">
         <v-icon>mdi-arrow-left</v-icon>
@@ -522,7 +529,7 @@ semaphore runner start --config ./config.runner.json</pre
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-tooltip
-            v-if="!item.registered && (item.project_id != null || projectId == null)"
+            v-if="item.project_id != null || projectId == null"
             bottom
             :max-width="200"
           >
@@ -532,7 +539,7 @@ semaphore runner start --config ./config.runner.json</pre
                 v-on="on"
                 icon
                 class="mr-1"
-                @click="regenerateRegistrationToken(item)"
+                @click="askRegenerateRegistrationToken(item)"
                 :disabled="item.project_id == null && !isAdmin"
               >
                 <v-icon>mdi-sync</v-icon>
@@ -540,6 +547,9 @@ semaphore runner start --config ./config.runner.json</pre
             </template>
             <div style="font-weight: bold">
               {{ $t('regenerateRegistrationToken') }}
+            </div>
+            <div v-if="item.registered" style="font-size: 12px; line-height: 1.2">
+              {{ $t('askResetRunnerRegistration') }}
             </div>
           </v-tooltip>
 
@@ -744,6 +754,8 @@ semaphore runner start --no-config`;
       defaultFilter: false,
       tagFilter: null,
       unregisteredFilter: false,
+      resetRegistrationDialog: false,
+      resetRegistrationRunner: null,
     };
   },
 
@@ -770,6 +782,18 @@ semaphore runner start --no-config`;
       }
     },
 
+    askRegenerateRegistrationToken(runner) {
+      // Regenerating for an already-registered runner is destructive (it resets the
+      // runner's token and forces it offline), so confirm first. For an unregistered
+      // runner there is nothing to lose, so do it right away.
+      if (runner.registered) {
+        this.resetRegistrationRunner = runner;
+        this.resetRegistrationDialog = true;
+      } else {
+        this.regenerateRegistrationToken(runner);
+      }
+    },
+
     async regenerateRegistrationToken(runner) {
       const projectId = this.getProjectIdOfItem(runner.id);
 
@@ -788,6 +812,9 @@ semaphore runner start --no-config`;
         this.newRunner = { ...runner, registration_token: data.registration_token };
         this.registerTab = null;
         this.newRunnerTokenDialog = true;
+
+        // The runner's registration state may have changed (registered -> unregistered).
+        await this.loadItems();
       } catch (e) {
         EventBus.$emit('i-snackbar', {
           color: 'error',
