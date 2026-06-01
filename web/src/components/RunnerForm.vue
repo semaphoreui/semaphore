@@ -57,11 +57,7 @@
         </v-checkbox>
       </v-col>
       <v-col>
-        <v-checkbox
-          v-if="isNew"
-          v-model="item.registered"
-          :disabled="formSaving"
-        >
+        <v-checkbox v-if="isNew" v-model="item.registered" :disabled="formSaving">
           <template v-slot:label>
             {{ $t('register') }}
             <v-chip class="ml-2" small color="error">New</v-chip>
@@ -140,7 +136,10 @@ export default {
       // New runners default to "registered": the server returns an auth token as
       // usual. Unchecking it creates an unregistered runner that must register
       // itself later using a one-time registration token.
-      return { registered: true };
+      return {
+        registered: true,
+        is_default: this.projectId == null,
+      };
     },
 
     getItemsUrl() {

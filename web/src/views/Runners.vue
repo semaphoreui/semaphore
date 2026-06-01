@@ -52,7 +52,7 @@
             </div>
           </div>
 
-          <v-alert type="warning" text dense>
+          <v-alert color="warning" text dense>
             {{ $t('registrationTokenHint') }}
           </v-alert>
 
@@ -393,7 +393,10 @@ semaphore runner start --config ./config.runner.json</pre
       >.
     </v-alert>
 
-    <div v-if="globalFilter || defaultFilter || tagFilter" class="mt-4 ml-4 d-flex align-center">
+    <div
+      v-if="globalFilter || defaultFilter || tagFilter || unregisteredFilter"
+      class="mt-4 ml-4 d-flex align-center"
+    >
       <v-chip
         v-if="globalFilter"
         class="mr-2"
@@ -414,6 +417,17 @@ semaphore runner start --config ./config.runner.json</pre
       >
         {{ $t('default') }}
       </v-chip>
+
+      <v-chip
+        v-if="unregisteredFilter"
+        class="mr-2"
+        small
+        close
+        @click:close="unregisteredFilter = false"
+      >
+        {{ $t('unregistered') }}
+      </v-chip>
+
       <v-chip v-if="tagFilter" small close label color="primary" @click:close="tagFilter = null">
         {{ tagFilter }}
       </v-chip>
@@ -428,7 +442,7 @@ semaphore runner start --config ./config.runner.json</pre
     >
       <template v-slot:item.active="{ item }">
         <v-switch
-          v-if="item.project_id != null || projectId == null"
+          v-if="item.registered && (item.project_id != null || projectId == null)"
           v-model="item.active"
           inset
           @change="setActive(item.id, item.active)"
@@ -458,6 +472,16 @@ semaphore runner start --config ./config.runner.json</pre
           @click="globalFilter = !globalFilter"
         >
           {{ $t('global') }}
+        </v-chip>
+
+        <v-chip
+          v-if="!item.registered"
+          class="ml-2"
+          small
+          style="cursor: pointer"
+          @click="unregisteredFilter = !unregisteredFilter"
+        >
+          {{ $t('unregistered') }}
         </v-chip>
       </template>
 
@@ -497,6 +521,16 @@ semaphore runner start --config ./config.runner.json</pre
 
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
+          <v-btn
+            v-if="!item.registered"
+            icon
+            class="mr-1"
+            @click="askDeleteItem(item.id)"
+            :disabled="item.project_id == null && !isAdmin"
+          >
+            <v-icon>mdi-refresh</v-icon>
+          </v-btn>
+
           <v-btn
             v-if="item.project_id != null || projectId == null"
             icon
@@ -669,6 +703,9 @@ semaphore runner start --no-config`;
       if (this.defaultFilter) {
         result = result.filter((item) => item.is_default);
       }
+      if (this.unregisteredFilter) {
+        result = result.filter((item) => !item.registered);
+      }
       if (this.tagFilter) {
         result = result.filter((item) => item.tags && item.tags.includes(this.tagFilter));
       }
@@ -694,6 +731,7 @@ semaphore runner start --no-config`;
       globalFilter: false,
       defaultFilter: false,
       tagFilter: null,
+      unregisteredFilter: false,
     };
   },
 
