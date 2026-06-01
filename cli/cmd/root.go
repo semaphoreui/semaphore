@@ -98,6 +98,7 @@ func runService() {
 	secretStorageService := server.NewSecretStorageService(store, store, accessKeyService, encryptionService)
 	secretStorageSyncScheduler := server.NewSecretStorageSyncScheduler(store, secretStorageService)
 	environmentService := server.NewEnvironmentService(store, encryptionService)
+	runnerService := server.NewRunnerService(store)
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
 
@@ -208,6 +209,7 @@ func runService() {
 		accessKeyService,
 		environmentService,
 		subscriptionService,
+		runnerService,
 	)
 
 	route.Use(func(next http.Handler) http.Handler {
@@ -217,6 +219,7 @@ func runService() {
 			r = helpers.SetContextValue(r, "task_pool", &taskPool)
 			r = helpers.SetContextValue(r, "log_writer", logWriteService)
 			r = helpers.SetContextValue(r, "cluster_inspector", clusterInspector)
+			r = helpers.SetContextValue(r, "runner_service", runnerService)
 
 			next.ServeHTTP(w, r)
 		})

@@ -1204,6 +1204,11 @@ definitions:
         type: string
         format: date-time
         x-nullable: true
+      registered:
+        type: boolean
+      registration_token:
+        type: string
+        x-nullable: true
 
   RunnerRequest:
     type: object
@@ -1223,7 +1228,7 @@ definitions:
         type: array
         items:
           type: string
-      unregistered:
+      registered:
         type: boolean
         description: >
           When true, the runner is created without a token and stays inactive.

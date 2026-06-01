@@ -359,6 +359,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		runner, err = helpers.Store(r).RegisterRunner(*register.RunnerID, register.PublicKey, register.Enabled)
 	} else {
 		runner, err = helpers.Store(r).CreateRunner(db.Runner{
+			Token:            db.GenerateRunnerToken(),
 			Webhook:          register.Webhook,
 			Name:             register.Name,
 			Tags:             register.Tags,

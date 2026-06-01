@@ -93,6 +93,7 @@ func Route(
 	accessKeyService server.AccessKeyService,
 	environmentService server.EnvironmentService,
 	subscriptionService pro_interfaces.SubscriptionService,
+	runnerService server.RunnerService,
 ) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
@@ -108,7 +109,7 @@ func Route(
 	userController := NewUserController(subscriptionService)
 	usersController := NewUsersController(subscriptionService)
 	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore)
-	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService)
+	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService, runnerService)
 	taskController := projects.NewTaskController(ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
 	templateController := projects.NewTemplateController(store, store)

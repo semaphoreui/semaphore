@@ -132,12 +132,6 @@ func (d *BoltDb) UpdateRunner(runner db.Runner) (err error) {
 }
 
 func (d *BoltDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) {
-	if runner.Unregistered {
-		runner.Token = ""
-	} else {
-		runner.Token = base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
-	}
-
 	res, err := d.createObject(0, db.GlobalRunnerProps, runner)
 
 	if err != nil {

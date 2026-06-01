@@ -1,8 +1,11 @@
 package db
 
 import (
+	"encoding/base64"
 	"slices"
 	"time"
+
+	"github.com/gorilla/securecookie"
 )
 
 type RunnerState string
@@ -31,15 +34,29 @@ type Runner struct {
 
 	PublicKey *string `db:"public_key" json:"-"`
 
-	// Unregistered is a transient flag (never persisted) used at creation time to
-	// request a runner without a token. Such a runner gets an empty token and must
-	// be registered later via `semaphore runner register --runner-id <id>`.
-	Unregistered bool `db:"-" json:"unregistered"`
+	// Registered is a transient flag (never persisted) used at creation time to
+	// request a runner without an auth token. Such a runner gets a one-time,
+	// short-lived registration token instead and must be registered later by
+	// presenting that token to `semaphore runner register`.
+	Registered bool `db:"-" json:"registered"`
+
+	// RegistrationTokenHash is the stored SHA-256 hash of the one-time registration
+	// token (the plaintext is never persisted).
+	RegistrationTokenHash *string `db:"registration_token" json:"-"`
+	// RegistrationToken is the transient plaintext registration token, returned to
+	// the caller only once at creation time.
+	RegistrationToken          string     `db:"-" json:"registration_token,omitempty"`
+	RegistrationTokenExpiresAt *time.Time `db:"registration_token_expires_at" json:"-"`
 }
 
 // IsRegistered reports whether the runner has been registered (has a token).
 func (r Runner) IsRegistered() bool {
 	return r.Token != ""
+}
+
+// GenerateRunnerToken creates a new runner authentication token.
+func GenerateRunnerToken() string {
+	return base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
 }
 
 // HasTag reports whether the runner is tagged with the given tag.

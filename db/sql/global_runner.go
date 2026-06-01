@@ -205,22 +205,19 @@ func (d *SqlDb) RegisterRunner(runnerID int, publicKey *string, active bool) (ru
 }
 
 func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) {
-	token := ""
-	if !runner.Unregistered {
-		token = base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
-	}
-
 	insertID, err := d.insert(
 		"id",
-		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, `is_default`, public_key) values (?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, `is_default`, public_key, registration_token, registration_token_expires_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		runner.ProjectID,
-		token,
+		runner.Token,
 		runner.Webhook,
 		runner.MaxParallelTasks,
 		runner.Name,
 		runner.Active,
 		runner.IsDefault,
-		runner.PublicKey)
+		runner.PublicKey,
+		runner.RegistrationTokenHash,
+		runner.RegistrationTokenExpiresAt)
 
 	if err != nil {
 		return
@@ -228,7 +225,6 @@ func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) 
 
 	newRunner = runner
 	newRunner.ID = insertID
-	newRunner.Token = token
 	newRunner.Tags = normalizeTags(runner.Tags)
 
 	if err = d.replaceRunnerTags(newRunner.ID, newRunner.Tags); err != nil {
