@@ -18,11 +18,15 @@ import (
 // an unregistered runner stays valid.
 const runnerRegistrationTokenTTL = time.Hour
 
+// RunnerRegistrationTokenPrefix prefixes every one-time registration token so it
+// is easy to recognize (e.g. in cloud-init scripts or logs).
+const RunnerRegistrationTokenPrefix = "smrs_"
+
 // generateRunnerRegistrationToken creates a new one-time registration token and
 // returns the plaintext token (handed to the caller once) together with its hash
 // (stored in the database, never the plaintext).
 func generateRunnerRegistrationToken() (token string, hash string) {
-	token = base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
+	token = RunnerRegistrationTokenPrefix + base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
 	hash = HashRunnerRegistrationToken(token)
 	return
 }

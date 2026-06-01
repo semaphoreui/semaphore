@@ -1,10 +1,8 @@
 package bolt
 
 import (
-	"encoding/base64"
 	"fmt"
 
-	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"go.etcd.io/bbolt"
@@ -141,20 +139,38 @@ func (d *BoltDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error)
 	return
 }
 
-func (d *BoltDb) RegisterRunner(runnerID int, publicKey *string, active bool) (runner db.Runner, err error) {
+func (d *BoltDb) RegisterRunner(registrationTokenHash string, publicKey *string, active bool) (runner db.Runner, err error) {
 	err = d.db.Update(func(tx *bbolt.Tx) error {
-		err = d.getObjectTx(tx, 0, db.GlobalRunnerProps, intObjectID(runnerID), &runner)
-		if err != nil {
-			return err
+		runners := make([]db.Runner, 0)
+
+		e := d.getObjectsTx(tx, 0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(i any) bool {
+			r := i.(db.Runner)
+			return r.RegistrationTokenHash != nil && *r.RegistrationTokenHash == registrationTokenHash
+		}, &runners)
+
+		if e != nil {
+			return e
 		}
+
+		if len(runners) == 0 {
+			return db.ErrNotFound
+		}
+
+		runner = runners[0]
 
 		if runner.IsRegistered() {
 			return fmt.Errorf("runner is already registered")
 		}
 
-		runner.Token = base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
+		if runner.RegistrationTokenExpiresAt == nil || !runner.RegistrationTokenExpiresAt.After(tz.Now()) {
+			return fmt.Errorf("registration token expired")
+		}
+
+		runner.Token = db.GenerateRunnerToken()
 		runner.PublicKey = publicKey
 		runner.Active = active
+		runner.RegistrationTokenHash = nil
+		runner.RegistrationTokenExpiresAt = nil
 
 		return d.updateObjectTx(tx, 0, db.GlobalRunnerProps, runner)
 	})

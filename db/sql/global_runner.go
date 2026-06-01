@@ -1,11 +1,9 @@
 package sql
 
 import (
-	"encoding/base64"
 	"fmt"
 
 	"github.com/Masterminds/squirrel"
-	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 )
@@ -172,25 +170,42 @@ func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
 	return
 }
 
-func (d *SqlDb) RegisterRunner(runnerID int, publicKey *string, active bool) (runner db.Runner, err error) {
-	err = d.getObject(0, db.GlobalRunnerProps, runnerID, &runner)
+func (d *SqlDb) RegisterRunner(registrationTokenHash string, publicKey *string, active bool) (runner db.Runner, err error) {
+	runners := make([]db.Runner, 0)
+
+	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
+		return builder.Where("registration_token=?", registrationTokenHash)
+	}, &runners)
+
 	if err != nil {
 		return
 	}
+
+	if len(runners) == 0 {
+		err = db.ErrNotFound
+		return
+	}
+
+	runner = runners[0]
 
 	if runner.IsRegistered() {
 		err = fmt.Errorf("runner is already registered")
 		return
 	}
 
-	token := base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
+	if runner.RegistrationTokenExpiresAt == nil || !runner.RegistrationTokenExpiresAt.After(tz.Now()) {
+		err = fmt.Errorf("registration token expired")
+		return
+	}
+
+	token := db.GenerateRunnerToken()
 
 	_, err = d.exec(
-		"update `runner` set `token`=?, `public_key`=?, `active`=? where id=?",
+		"update `runner` set `token`=?, `public_key`=?, `active`=?, `registration_token`=null, `registration_token_expires_at`=null where id=?",
 		token,
 		publicKey,
 		active,
-		runnerID)
+		runner.ID)
 
 	if err != nil {
 		return
@@ -199,6 +214,8 @@ func (d *SqlDb) RegisterRunner(runnerID int, publicKey *string, active bool) (ru
 	runner.Token = token
 	runner.PublicKey = publicKey
 	runner.Active = active
+	runner.RegistrationTokenHash = nil
+	runner.RegistrationTokenExpiresAt = nil
 
 	err = d.loadRunnerTagsSingle(&runner)
 	return

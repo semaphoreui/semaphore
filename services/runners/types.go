@@ -56,11 +56,10 @@ type JobProgress struct {
 }
 
 type RunnerRegistration struct {
-	RegistrationToken string `json:"registration_token" binding:"required"`
-	// RunnerID, when set, registers a previously created tokenless ("unregistered")
-	// runner instead of creating a new one. Used by the Terraform provider, which
-	// creates the runner up front and passes its ID to the runner via cloud-init.
-	RunnerID          *int     `json:"runner_id,omitempty"`
+	// RegistrationToken is either the shared global registration token (which
+	// creates a new runner) or a one-time token issued for a specific unregistered
+	// runner (which registers that runner).
+	RegistrationToken string   `json:"registration_token" binding:"required"`
 	Webhook           string   `json:"webhook,omitempty"`
 	Name              string   `json:"name,omitempty"`
 	Tags              []string `json:"tags,omitempty"`

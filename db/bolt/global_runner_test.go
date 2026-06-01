@@ -74,11 +74,16 @@ func Test_CreateRunner_PersistsRegistrationTokenFields(t *testing.T) {
 func Test_RegisterRunner_SetsTokenAndActivates(t *testing.T) {
 	store := CreateTestStore()
 
-	testRunner, err := store.CreateRunner(db.Runner{})
+	hash := server.HashRunnerRegistrationToken("sms_test")
+	expiresAt := tz.Now().Add(time.Hour)
+	testRunner, err := store.CreateRunner(db.Runner{
+		RegistrationTokenHash:      &hash,
+		RegistrationTokenExpiresAt: &expiresAt,
+	})
 	require.NoError(t, err)
 
 	publicKey := "test-public-key"
-	registered, err := store.RegisterRunner(testRunner.ID, &publicKey, true)
+	registered, err := store.RegisterRunner(hash, &publicKey, true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, registered.Token)
 	assert.True(t, registered.Active)
@@ -88,15 +93,29 @@ func Test_RegisterRunner_SetsTokenAndActivates(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, registered.Token, stored.Token)
 	assert.True(t, stored.Active)
+	// The one-time registration token is cleared after use.
+	assert.Nil(t, stored.RegistrationTokenHash)
+	assert.Nil(t, stored.RegistrationTokenExpiresAt)
 }
 
-func Test_RegisterRunner_FailsWhenAlreadyRegistered(t *testing.T) {
+func Test_RegisterRunner_FailsWhenTokenUnknown(t *testing.T) {
 	store := CreateTestStore()
 
-	testRunner, err := store.CreateRunner(db.Runner{Token: db.GenerateRunnerToken()})
-	require.NoError(t, err)
-	assert.NotEmpty(t, testRunner.Token)
+	_, err := store.RegisterRunner(server.HashRunnerRegistrationToken("sms_nope"), nil, true)
+	assert.ErrorIs(t, err, db.ErrNotFound)
+}
 
-	_, err = store.RegisterRunner(testRunner.ID, nil, true)
+func Test_RegisterRunner_FailsWhenExpired(t *testing.T) {
+	store := CreateTestStore()
+
+	hash := server.HashRunnerRegistrationToken("sms_expired")
+	expiresAt := tz.Now().Add(-time.Hour)
+	_, err := store.CreateRunner(db.Runner{
+		RegistrationTokenHash:      &hash,
+		RegistrationTokenExpiresAt: &expiresAt,
+	})
+	require.NoError(t, err)
+
+	_, err = store.RegisterRunner(hash, nil, true)
 	assert.Error(t, err)
 }

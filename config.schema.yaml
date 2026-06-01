@@ -467,6 +467,3 @@ $defs:
       enabled:            { type: boolean }
       project_id:
         type: [integer, "null"]
-      runner_id:
-        type: [integer, "null"]
-        description: ID of an existing unregistered runner to register instead of creating a new one.

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -52,6 +53,7 @@ func TestRunnerService_CreateRunner_Unregistered(t *testing.T) {
 	assert.Empty(t, privateKey)
 	assert.Nil(t, runner.PublicKey)
 	assert.NotEmpty(t, runner.RegistrationToken)
+	assert.True(t, strings.HasPrefix(runner.RegistrationToken, RunnerRegistrationTokenPrefix))
 	require.NotNil(t, runner.RegistrationTokenHash)
 	assert.Equal(t, HashRunnerRegistrationToken(runner.RegistrationToken), *runner.RegistrationTokenHash)
 	assert.NotNil(t, runner.RegistrationTokenExpiresAt)

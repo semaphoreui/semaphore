@@ -459,8 +459,11 @@ type RunnerManager interface {
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)
 	// RegisterRunner finalizes a previously created tokenless ("unregistered")
-	// runner by generating its token, storing its public key and activating it.
-	RegisterRunner(runnerID int, publicKey *string, active bool) (Runner, error)
+	// runner, looked up by the hash of the one-time registration token it presents:
+	// it generates the runner's auth token, stores its public key, activates it and
+	// clears the registration token. It fails if no matching runner exists, the
+	// token has expired, or the runner is already registered.
+	RegisterRunner(registrationTokenHash string, publicKey *string, active bool) (Runner, error)
 	TouchRunner(runner Runner) (err error)
 	ClearRunnerCache(runner Runner) (err error)
 	GetRunnerTags(projectID int) ([]RunnerTag, error)
