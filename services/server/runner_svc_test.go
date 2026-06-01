@@ -49,7 +49,7 @@ func TestRunnerService_CreateRunner_Unregistered(t *testing.T) {
 	// pair, and receives a one-time registration token instead.
 	assert.Empty(t, runner.Token)
 	assert.False(t, runner.IsRegistered())
-	assert.False(t, runner.Active)
+	assert.True(t, runner.Active)
 	assert.Empty(t, privateKey)
 	assert.Nil(t, runner.PublicKey)
 	assert.NotEmpty(t, runner.RegistrationToken)
