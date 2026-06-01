@@ -358,6 +358,16 @@ export default {
   editRunner: 'Edit Runner',
   deleteRunner: 'Delete Runner',
   newRunnerToken: 'New Runner',
+  register: 'Register',
+  unregisteredRunnerHint:
+    'The runner will be created without a token. Instead a one-time registration '
+    + 'token will be issued, which the runner uses to register itself later.',
+  runnerRegistrationToken: 'New Runner',
+  registrationToken: 'Registration token:',
+  registrationTokenHint:
+    'This one-time token is shown only once and expires in 1 hour. '
+    + 'Use it to register the runner.',
+  howToRegister: 'How to register',
   askDeleteRunner: 'Do you really want to delete runner {runner}?',
   roles_only_enterprise: 'Roles are only available in <b>Enterprise</b> edition.',
   ha_only_enterprise: 'High availability are only available in <b>Enterprise</b> edition.',

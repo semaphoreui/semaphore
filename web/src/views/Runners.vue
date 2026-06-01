@@ -31,11 +31,131 @@
       :max-width="600"
       v-model="newRunnerTokenDialog"
       :save-button-text="null"
-      :title="$t('newRunnerToken')"
+      :title="isUnregisteredRunner ? $t('runnerRegistrationToken') : $t('newRunnerToken')"
       hide-buttons
     >
       <template v-slot:form="{}">
-        <div>
+        <div v-if="isUnregisteredRunner">
+          <div class="mb-4">
+            <div>{{ $t('registrationToken') }}</div>
+            <div style="position: relative">
+              <code
+                class="pa-2 mt-2"
+                style="background: gray; color: white; display: block; font-size: 14px"
+                >{{ (newRunner || {}).registration_token }}</code
+              >
+
+              <CopyClipboardButton
+                style="position: absolute; right: 10px; top: 2px"
+                :text="(newRunner || {}).registration_token"
+              />
+            </div>
+          </div>
+
+          <v-alert type="warning" text dense>
+            {{ $t('registrationTokenHint') }}
+          </v-alert>
+
+          <h2 class="mt-8 mb-4">{{ $t('howToRegister') }}</h2>
+
+          <v-tabs v-model="registerTab" :show-arrows="false">
+            <v-tab key="env">Env Vars</v-tab>
+            <v-tab key="config">Config file</v-tab>
+            <v-tab key="docker">Docker</v-tab>
+          </v-tabs>
+
+          <v-divider style="margin-top: -1px" />
+
+          <v-tabs-items v-model="registerTab">
+            <v-tab-item key="env">
+              <div class="mt-3">Register and start the runner:</div>
+              <div style="position: relative">
+                <pre
+                  style="
+                    overflow: auto;
+                    background: gray;
+                    color: white;
+                    border-radius: 10px;
+                    margin-top: 5px;
+                  "
+                  class="pa-2"
+                  >{{ runnerRegisterEnvCommand }}</pre
+                >
+
+                <CopyClipboardButton
+                  style="position: absolute; right: 10px; top: 10px"
+                  :text="runnerRegisterEnvCommand"
+                />
+              </div>
+            </v-tab-item>
+
+            <v-tab-item key="config">
+              <div class="mt-3">Config file content:</div>
+              <div style="position: relative">
+                <pre
+                  style="
+                    overflow: auto;
+                    background: gray;
+                    color: white;
+                    border-radius: 10px;
+                    margin-top: 5px;
+                  "
+                  class="pa-2"
+                  >{{ runnerRegisterConfigContent }}</pre
+                >
+
+                <CopyClipboardButton
+                  style="position: absolute; right: 10px; top: 10px"
+                  :text="runnerRegisterConfigContent"
+                />
+              </div>
+
+              <div class="mt-3">Register and start the runner:</div>
+              <div style="position: relative">
+                <pre
+                  style="
+                    overflow: auto;
+                    background: gray;
+                    color: white;
+                    border-radius: 10px;
+                    margin-top: 5px;
+                  "
+                  class="pa-2"
+                  >{{ runnerRegisterConfigCommand }}</pre
+                >
+
+                <CopyClipboardButton
+                  style="position: absolute; right: 10px; top: 10px"
+                  :text="runnerRegisterConfigCommand"
+                />
+              </div>
+            </v-tab-item>
+
+            <v-tab-item key="docker">
+              <div class="mt-3">Register and start the runner:</div>
+              <div style="position: relative">
+                <pre
+                  style="
+                    overflow: auto;
+                    background: gray;
+                    color: white;
+                    border-radius: 10px;
+                    margin-top: 5px;
+                  "
+                  class="pa-2"
+                  >{{ runnerRegisterDockerCommand }}</pre
+                >
+
+                <CopyClipboardButton
+                  style="position: absolute; right: 10px; top: 10px"
+                  :text="runnerRegisterDockerCommand"
+                />
+              </div>
+            </v-tab-item>
+          </v-tabs-items>
+        </div>
+
+        <div v-else>
           <div class="mb-4">
             <div>{{ $t('runnerToken') }}</div>
             <div style="position: relative">
@@ -470,6 +590,43 @@ export default {
       return this.getProjectIdOfItem(this.itemId);
     },
 
+    isUnregisteredRunner() {
+      return !!(this.newRunner || {}).registration_token;
+    },
+
+    runnerRegisterEnvCommand() {
+      return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
+SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
+semaphore runner register --config ./config.runner.json
+
+semaphore runner start --config ./config.runner.json`;
+    },
+
+    runnerRegisterConfigContent() {
+      return `{
+  "web_host": "${this.webHost || window.location.origin}",
+  "runner": {
+    "private_key_file": "/path/to/private/key"
+  }
+}`;
+    },
+
+    runnerRegisterConfigCommand() {
+      return `SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
+semaphore runner register --config ./config.runner.json
+
+semaphore runner start --config ./config.runner.json`;
+    },
+
+    runnerRegisterDockerCommand() {
+      return `docker run \\
+-e SEMAPHORE_WEB_ROOT=${this.webHost} \\
+-e SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
+-e SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/config.runner.key \\
+-v "/path/to/private/key:/config.runner.key" \\
+-d semaphoreui/runner:${this.version}`;
+    },
+
     runnerConfigCommand() {
       return `{
   "web_host": "${this.webHost || window.location.origin}",
@@ -533,6 +690,7 @@ semaphore runner start --no-config`;
       newRunnerTokenDialog: null,
       newRunner: null,
       usageTab: null,
+      registerTab: null,
       globalFilter: false,
       defaultFilter: false,
       tagFilter: null,
@@ -604,7 +762,9 @@ semaphore runner start --no-config`;
     },
 
     async loadItemsAndShowRunnerDetails(e) {
-      if (e.item.token) {
+      // A registered runner returns an auth token; an unregistered one returns a
+      // one-time registration token. Either way we show the details dialog.
+      if (e.item.token || e.item.registration_token) {
         this.newRunnerTokenDialog = true;
         this.newRunner = e.item;
       }
