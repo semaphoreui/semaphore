@@ -299,7 +299,7 @@ func (t *ValueMap[T]) restoreValues(store db.Store, exporter DataExporter, progr
 	size := len(t.values)
 
 	for index, val := range t.values {
-		progress.update(float32(index)/float32(size), int64(index))
+		progress.update(float32(index)/float32(size), int64(index)+1)
 
 		err := valueExporter.restoreValue(val, store, exporter)
 		if err != nil {
@@ -482,7 +482,7 @@ func (p *ExporterChain) Load(store db.Store) (err error) {
 	for _, name := range keys {
 		progress := &ProgressBar{printer: func(progress float32, count int64) {
 			strLen := len(name)
-			spaces := fmt.Sprintf("%*s", 36-strLen, " ")
+			spaces := fmt.Sprintf("%*s", 45-strLen, " ")
 
 			fmt.Printf("\rExporting %s%s %d%%", name, spaces, int(progress*100))
 		}, progress: 0}
@@ -494,7 +494,7 @@ func (p *ExporterChain) Load(store db.Store) (err error) {
 			fmt.Println()
 			return fmt.Errorf("failed to export %s: %s", name, err.Error())
 		}
-		progress.updateForce(1, 0)
+		progress.updateForce(1, progress.count)
 		fmt.Println()
 	}
 	return
@@ -512,9 +512,13 @@ func (p *ExporterChain) Restore(store db.Store, errLogSize int) error {
 
 		progress := &ProgressBar{printer: func(progress float32, count int64) {
 			strLen := len(name)
-			spaces := fmt.Sprintf("%*s", 36-strLen, " ")
-
-			fmt.Printf("\rImporting %s%s %d%%", name, spaces, int(progress*100))
+			if progress == 1 {
+				spaces := fmt.Sprintf("%*s", 50-strLen-len(strconv.FormatInt(count, 10)), " ")
+				fmt.Printf("\rImported %s%s %d", name, spaces, count)
+			} else {
+				spaces := fmt.Sprintf("%*s", 45-strLen, " ")
+				fmt.Printf("\rImporting %s%s %d%%", name, spaces, int(progress*100))
+			}
 		}, progress: 0}
 
 		progress.updateForce(0, 0)
