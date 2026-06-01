@@ -110,11 +110,6 @@ func (c *GlobalRunnerController) UpdateRunner(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if runner.Active && !oldRunner.IsRegistered() {
-		helpers.WriteErrorStatus(w, "Unregistered runner cannot be activated", http.StatusBadRequest)
-		return
-	}
-
 	store := helpers.Store(r)
 
 	runner.ID = oldRunner.ID
@@ -197,11 +192,6 @@ func (c *GlobalRunnerController) SetRunnerActive(w http.ResponseWriter, r *http.
 
 	if !helpers.Bind(w, r, &body) {
 		helpers.WriteErrorStatus(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if body.Active && !runner.IsRegistered() {
-		helpers.WriteErrorStatus(w, "Unregistered runner cannot be activated", http.StatusBadRequest)
 		return
 	}
 
