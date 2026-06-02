@@ -81,6 +81,12 @@ type Task struct {
 
 	Params MapStringAnyField `db:"params" json:"params,omitempty"`
 
+	// Artifacts holds the JSON object produced by the task and made available
+	// as workflow-scoped variables to downstream task templates within the
+	// same WorkflowRun (AWX-style "set_stats"/workflow artifacts). Stored as a
+	// raw JSON string so existing UpdateTask code paths can ignore it.
+	Artifacts *string `db:"artifacts" json:"artifacts,omitempty"`
+
 	// Limit is deprecated, use Params.Limit instead
 	Limit string `db:"-" json:"limit"`
 }

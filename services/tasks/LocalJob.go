@@ -15,6 +15,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/tasks/artifacts"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -37,6 +38,17 @@ type LocalJob struct {
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
 	KeyInstaller db_lib.AccessKeyInstaller
+
+	// WorkflowArtifacts holds the merged artifact map produced by upstream
+	// tasks in the same WorkflowRun. It is injected into Ansible extra vars
+	// and shell environment so downstream templates can consume values
+	// produced by their predecessors (AWX-style set_stats).
+	WorkflowArtifacts map[string]any
+
+	// ArtifactsCapturePath is the absolute path that will be exposed to the
+	// running task as SEMAPHORE_ARTIFACTS_FILE. After the task exits the file
+	// is read, validated and persisted on the task row.
+	ArtifactsCapturePath string
 }
 
 func (t *LocalJob) IsKilled() bool {
@@ -113,6 +125,8 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 		}
 	}
 
+	t.applyWorkflowArtifacts(extraVars)
+
 	vars := make(map[string]any)
 	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
@@ -140,6 +154,8 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 
 	maps.Copy(extraVars, extraSecretVars)
 
+	t.applyWorkflowArtifacts(extraVars)
+
 	vars := make(map[string]any)
 	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
@@ -152,6 +168,27 @@ func (t *LocalJob) getEnvironmentExtraVarsJSON(username string, incomingVersion 
 	str = string(ev)
 
 	return
+}
+
+// applyWorkflowArtifacts injects upstream workflow artifacts into the extra
+// vars map. AWX flattens stats at the top level; we do the same so playbooks
+// can reference them as plain Jinja vars (e.g. {{ my_key }}). Keys reserved
+// by Semaphore are never overridden — they have already been filtered out by
+// artifacts.Parse, but we double-guard here in case persisted blobs predate
+// validation. Also exposes the full map under the namespaced key
+// `semaphore_workflow_artifacts` for callers that prefer explicitness.
+func (t *LocalJob) applyWorkflowArtifacts(extraVars map[string]any) {
+	if len(t.WorkflowArtifacts) == 0 {
+		return
+	}
+	for k, v := range t.WorkflowArtifacts {
+		switch k {
+		case "semaphore_vars", "semaphore_workflow_artifacts", "task_details":
+			continue
+		}
+		extraVars[k] = v
+	}
+	extraVars["semaphore_workflow_artifacts"] = t.WorkflowArtifacts
 }
 
 func (t *LocalJob) getEnvironmentENV() (res []string, err error) {
@@ -207,6 +244,17 @@ func (t *LocalJob) getShellEnvironmentExtraENV(username string, incomingVersion 
 		if detailAsStr != "" {
 			extraShellVars = append(extraShellVars, fmt.Sprintf("%s=%s", envVarName, util.ShellQuote(util.ShellStripUnsafe(detailAsStr))))
 		}
+	}
+
+	for _, kv := range artifacts.ToShellEnv(t.WorkflowArtifacts) {
+		// Quote the value half so shell-style scripts can safely consume it.
+		eq := strings.IndexByte(kv, '=')
+		if eq <= 0 {
+			continue
+		}
+		key := kv[:eq]
+		val := kv[eq+1:]
+		extraShellVars = append(extraShellVars, fmt.Sprintf("%s=%s", key, util.ShellQuote(util.ShellStripUnsafe(val))))
 	}
 
 	return
@@ -652,6 +700,21 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 		return
 	}
 
+	// Expose the artifacts capture file path to the running task. The task is
+	// expected to write a JSON object into that path; after the task exits we
+	// read it back, validate it and persist on the task row so downstream
+	// templates in the same WorkflowRun can consume the values.
+	if t.ArtifactsCapturePath != "" {
+		// Best-effort: pre-create the directory and remove any leftover file
+		// from a previous attempt so we never read stale artifacts.
+		_ = os.MkdirAll(path.Dir(t.ArtifactsCapturePath), 0o755)
+		_ = os.Remove(t.ArtifactsCapturePath)
+		environmentVariables = append(
+			environmentVariables,
+			fmt.Sprintf("SEMAPHORE_ARTIFACTS_FILE=%s", t.ArtifactsCapturePath),
+		)
+	}
+
 	tplParams, err := t.getTemplateParams()
 	if err != nil {
 		return
@@ -742,6 +805,14 @@ func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (
 	case db.AppAnsible:
 		// Semaphore vars / task details were already passed
 		// as 'extra vars' in JSON format
+		if t.ArtifactsCapturePath != "" {
+			callbackEnv, cbErr := artifacts.AnsibleCallbackEnv(path.Dir(t.ArtifactsCapturePath))
+			if cbErr != nil {
+				t.Log("Workflow artifacts: failed to install ansible callback plugin: " + cbErr.Error())
+			} else {
+				environmentVariables = append(environmentVariables, callbackEnv...)
+			}
+		}
 		break
 	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		break
@@ -1023,4 +1094,24 @@ func (t *LocalJob) installVaultKeyFiles() (err error) {
 	}
 
 	return
+}
+
+// ReadCapturedArtifacts loads, validates and returns the JSON object the task
+// wrote to ArtifactsCapturePath, alongside its canonical JSON representation
+// (suitable for persistence). When no file is present or capture is disabled
+// it returns (nil, nil, nil); validation errors are surfaced so the caller
+// can log a warning. The captured file is removed after a successful read.
+func (t *LocalJob) ReadCapturedArtifacts() (map[string]any, []byte, error) {
+if t.ArtifactsCapturePath == "" {
+return nil, nil, nil
+}
+obj, raw, err := artifacts.LoadFile(t.ArtifactsCapturePath)
+// Always best-effort delete the file to avoid leaving sensitive payloads on
+// disk; ignore the error since the task tmp dir is project-scoped and gets
+// cleaned independently.
+_ = os.Remove(t.ArtifactsCapturePath)
+if err != nil {
+return nil, nil, err
+}
+return obj, raw, nil
 }
