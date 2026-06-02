@@ -356,13 +356,34 @@ export default {
         && this.isAppsLoaded;
     },
 
+    inventoryNameById() {
+      return this.getResourceNameMap(this.inventory);
+    },
+
+    repositoryNameById() {
+      return this.getResourceNameMap(this.repositories);
+    },
+
+    environmentNameById() {
+      return this.getResourceNameMap(this.environment);
+    },
+
+    templateSearchIndex() {
+      return (this.items || []).map((item) => ({
+        item,
+        searchText: this.getTemplateSearchText(item),
+      }));
+    },
+
     searchedItems() {
       const search = (this.search || '').trim().toLowerCase();
       if (!search) {
         return this.items;
       }
 
-      return (this.items || []).filter((item) => this.getTemplateSearchText(item).includes(search));
+      return this.templateSearchIndex
+        .filter(({ searchText }) => searchText.includes(search))
+        .map(({ item }) => item);
     },
   },
   watch: {
@@ -505,12 +526,16 @@ export default {
       this.newTaskDialog = true;
     },
 
+    getResourceNameMap(resources) {
+      return new Map((resources || []).map(({ id, name }) => [id, name]));
+    },
+
     getTemplateSearchText(item) {
-      const inventory = this.inventory?.find((x) => x.id === item.inventory_id)?.name || '';
-      const repository = this.repositories?.find((x) => x.id === item.repository_id)?.name || '';
+      const inventory = this.inventoryNameById.get(item.inventory_id) || '';
+      const repository = this.repositoryNameById.get(item.repository_id) || '';
       const environments = Array.isArray(item.environment_ids)
         ? item.environment_ids
-          .map((id) => this.environment?.find((x) => x.id === id)?.name || '')
+          .map((id) => this.environmentNameById.get(id) || '')
           .join(' ')
         : '';
 
