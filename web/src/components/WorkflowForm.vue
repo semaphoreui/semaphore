@@ -152,7 +152,7 @@
       outlined
       class="mb-3 pa-3"
     >
-      <div class="d-flex">
+      <div class="d-flex flex-wrap align-start workflow-edge-row">
         <v-select
           v-model="edge.source_node_id"
           :items="nodeOptions"
@@ -164,7 +164,7 @@
           outlined
           dense
           hide-details="auto"
-          class="mr-2"
+          class="mr-2 mb-2 workflow-edge-select"
         />
         <v-select
           v-model="edge.destination_node_id"
@@ -177,7 +177,7 @@
           outlined
           dense
           hide-details="auto"
-          class="mr-2"
+          class="mr-2 mb-2 workflow-edge-select"
         />
         <v-select
           v-model="edge.condition"
@@ -190,14 +190,14 @@
           outlined
           dense
           hide-details="auto"
-          class="mr-2"
+          class="mr-2 mb-2 workflow-edge-select"
         />
         <v-btn
           icon
           small
           @click="removeEdge(idx)"
           :disabled="formSaving"
-          class="mt-1"
+          class="mt-1 mb-2 workflow-edge-delete"
         >
           <v-icon small>mdi-delete</v-icon>
         </v-btn>
@@ -317,3 +317,17 @@ export default {
   },
 };
 </script>
+<style scoped>
+.workflow-edge-row {
+  width: 100%;
+}
+
+.workflow-edge-select {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.workflow-edge-delete {
+  flex: 0 0 auto;
+}
+</style>
