@@ -201,6 +201,22 @@ func TestLoadEnvironmentToObject_SensitiveEnvs_Empty(t *testing.T) {
 	assert.Empty(t, sensitive)
 }
 
+func TestLoadConfigEnvironment_UnsetsSensitiveEnvs(t *testing.T) {
+	const secret = "super-secret-value"
+
+	Config = NewConfigType()
+	Config.BoltDb = &DbConfig{}
+	Config.Dialect = DbDriverBolt
+
+	require.NoError(t, os.Setenv("SEMAPHORE_DB_PASS", secret))
+
+	loadConfigEnvironment()
+
+	_, exists := os.LookupEnv("SEMAPHORE_DB_PASS")
+	assert.False(t, exists, "sensitive env vars must be removed after loadConfigEnvironment")
+	assert.Equal(t, secret, Config.BoltDb.Password)
+}
+
 func TestCastStringToInt(t *testing.T) {
 	errMsg := "Cast string => int failed"
 

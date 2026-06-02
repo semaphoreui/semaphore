@@ -31,10 +31,13 @@ type JobLogger struct {
 
 func newHTTPClient() *http.Client {
 	tlsConfig := &tls.Config{}
-	if util.Config.Runner.Connection.SkipTLSVerify {
-		tlsConfig.InsecureSkipVerify = true
+	if util.Config.Runner != nil && util.Config.Runner.Connection != nil {
+		if util.Config.Runner.Connection.SkipTLSVerify {
+			tlsConfig.InsecureSkipVerify = true
+		}
 	}
-	if util.Config.Runner.Connection.ServerCACertFile != "" {
+	if util.Config.Runner != nil && util.Config.Runner.Connection != nil &&
+		util.Config.Runner.Connection.ServerCACertFile != "" {
 		caCert, err := os.ReadFile(util.Config.Runner.Connection.ServerCACertFile)
 		if err == nil {
 			pool := x509.NewCertPool()
