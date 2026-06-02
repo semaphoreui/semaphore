@@ -264,6 +264,24 @@ func GetWorkflowApprovals(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, approvals)
 }
 
+// GetWorkflowRunArtifacts returns the merged artifacts map produced by every
+// finished task in a WorkflowRun. The result mirrors what would be injected
+// into a hypothetical downstream task; primarily useful for UI/debugging.
+func GetWorkflowRunArtifacts(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	run := helpers.GetFromContext(r, "workflow_run").(db.WorkflowRun)
+
+	artifacts, err := taskPool(r).GetWorkflowRunArtifacts(project.ID, run.ID, nil)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+	if artifacts == nil {
+		artifacts = map[string]any{}
+	}
+	helpers.WriteJSON(w, http.StatusOK, artifacts)
+}
+
 type workflowApprovalResolutionRequest struct {
 	Status db.WorkflowApprovalStatus `json:"status"`
 }

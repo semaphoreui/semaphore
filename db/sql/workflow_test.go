@@ -47,7 +47,7 @@ func TestWorkflowTemplateCRUD(t *testing.T) {
 		ProjectID: project.ID,
 		Name:      "wf",
 		Nodes: []db.WorkflowNode{
-			{ID: 1, TemplateID: tplA.ID},
+			{ID: 1, TemplateID: tplA.ID, Limit: db.StringArrayField{"web*", "db"}},
 			{ID: 2, Kind: db.WorkflowNodeApprovalKind, ApprovalTimeout: intPtr(30), ApprovalMessage: strPtr("need approval"), ConvergenceMode: db.WorkflowConvergenceAny},
 			{ID: 3, TemplateID: tplB.ID, ConvergenceMode: db.WorkflowConvergenceAll},
 		},
@@ -89,6 +89,9 @@ func TestWorkflowTemplateCRUD(t *testing.T) {
 	}
 	if updated.Nodes[1].ApprovalTimeout == nil || *updated.Nodes[1].ApprovalTimeout != 30 {
 		t.Fatal("approval timeout was not persisted")
+	}
+	if len(updated.Nodes[0].Limit) != 2 || updated.Nodes[0].Limit[0] != "web*" || updated.Nodes[0].Limit[1] != "db" {
+		t.Fatal("workflow node limit was not persisted")
 	}
 	if updated.Nodes[2].ConvergenceMode != db.WorkflowConvergenceAll {
 		t.Fatal("convergence mode was not persisted")

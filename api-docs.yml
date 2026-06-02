@@ -833,6 +833,13 @@ definitions:
         allOf:
           - $ref: '#/definitions/AnsibleTaskParams'
           - $ref: '#/definitions/TerraformTaskParams'
+      artifacts:
+        type: string
+        description: |
+          JSON object produced by the task and made available as workflow-scoped
+          variables to downstream task templates within the same WorkflowRun
+          (AWX-style "set_stats" / workflow artifacts). Empty when the task did
+          not produce any.
       limit:
         type: string
 
@@ -3203,6 +3210,26 @@ paths:
             type: array
             items:
               $ref: "#/definitions/WorkflowApproval"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/artifacts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    get:
+      tags:
+        - workflow
+      summary: Get merged workflow run artifacts
+      description: |
+        Returns the JSON object that aggregates `set_stats`-style artifacts
+        produced by every finished task in the run. Later tasks override
+        earlier ones, mirroring AWX's workflow artifacts behaviour.
+      responses:
+        200:
+          description: merged artifacts
+          schema:
+            type: object
+            additionalProperties: true
 
   /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id}:
     parameters:

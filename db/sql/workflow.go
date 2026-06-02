@@ -44,7 +44,7 @@ func (d *SqlDb) writeWorkflowGraph(workflow db.WorkflowTemplate) (err error) {
 
 		insertID, err2 := d.insert(
 			"id",
-			"insert into project__workflow_node (workflow_template_id, template_id, inventory_id, environment_id, kind, convergence_mode, approval_timeout, approval_message) values (?, ?, ?, ?, ?, ?, ?, ?)",
+			"insert into project__workflow_node (workflow_template_id, template_id, inventory_id, environment_id, kind, convergence_mode, approval_timeout, approval_message, `limit`) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			node.WorkflowTemplateID,
 			node.TemplateID,
 			node.InventoryID,
@@ -53,6 +53,7 @@ func (d *SqlDb) writeWorkflowGraph(workflow db.WorkflowTemplate) (err error) {
 			node.EffectiveConvergenceMode(),
 			node.ApprovalTimeout,
 			node.ApprovalMessage,
+			&node.Limit,
 		)
 		if err2 != nil {
 			err = err2

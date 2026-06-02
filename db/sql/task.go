@@ -218,6 +218,17 @@ func (d *SqlDb) UpdateTask(task db.Task) error {
 	return err
 }
 
+// UpdateTaskArtifacts persists the JSON artifacts blob produced by a task.
+// A nil artifacts pointer clears the column.
+func (d *SqlDb) UpdateTaskArtifacts(projectID int, taskID int, artifacts *string) error {
+	// Make sure the task belongs to the project before touching it.
+	if _, err := d.GetTask(projectID, taskID); err != nil {
+		return err
+	}
+	_, err := d.exec("update task set artifacts=? where id=?", artifacts, taskID)
+	return err
+}
+
 func (d *SqlDb) SetWaitingTasksToStopped(projectID int, templateID int) error {
 	_, err := d.exec(
 		"update task set status=?, `end`=? where template_id=? and project_id=? and status=?",
