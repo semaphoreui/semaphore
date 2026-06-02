@@ -101,6 +101,16 @@ func (d *SqlDbConnection) Connect() {
 		if err != nil {
 			panic(err)
 		}
+
+		_, err = d.Exec("PRAGMA busy_timeout = 5000")
+		if err != nil {
+			panic(err)
+		}
+
+		_, err = d.Exec("PRAGMA journal_mode = WAL")
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
