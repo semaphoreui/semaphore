@@ -1,4 +1,4 @@
-name: Pro Self-Hosted Release
+name: Pro Self-Hosted Beta
 
 'on':
   push:
@@ -39,7 +39,7 @@ jobs:
 
       - name: Add PRO implementation
         run: |
-          git clone -b feat/unregistered_runners https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
+          git clone -b feat/main https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
           go work init . ./pro_impl
 
       - name: Install deps
