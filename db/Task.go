@@ -69,8 +69,10 @@ type Task struct {
 	CommitHash *string `db:"commit_hash" json:"commit_hash,omitempty"`
 	// CommitMessage contains message retrieved from git repository after checkout to CommitHash.
 	// It is readonly by API.
-	CommitMessage string `db:"commit_message" json:"commit_message,omitempty"`
-	BuildTaskID   *int   `db:"build_task_id" json:"build_task_id,omitempty"`
+	CommitMessage  string `db:"commit_message" json:"commit_message,omitempty"`
+	BuildTaskID    *int   `db:"build_task_id" json:"build_task_id,omitempty"`
+	WorkflowRunID  *int   `db:"workflow_run_id" json:"workflow_run_id,omitempty"`
+	WorkflowNodeID *int   `db:"workflow_node_id" json:"workflow_node_id,omitempty"`
 	// Version is a build version.
 	// This field available only for Build tasks.
 	Version *string `db:"version" json:"version,omitempty"`
