@@ -7,6 +7,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/tasks/artifacts"
 )
 
 func (p *TaskPool) StartWorkflow(workflow db.WorkflowTemplate, user *db.User) (run db.WorkflowRun, err error) {
@@ -77,6 +78,22 @@ func (p *TaskPool) getWorkflowRunTasks(projectID int, runID int) (tasks []db.Tas
 	}
 
 	return
+}
+
+// GetWorkflowRunArtifacts merges artifact JSON blobs from every finished task
+// in the given WorkflowRun. The currentTaskID, when non-nil, is skipped so a
+// running task does not feed its own artifacts back into itself. Later tasks
+// (higher ID) override earlier ones, mirroring AWX's set_stats merge.
+func (p *TaskPool) GetWorkflowRunArtifacts(projectID int, runID int, currentTaskID *int) (map[string]any, error) {
+	tasks, err := p.getWorkflowRunTasks(projectID, runID)
+	if err != nil {
+		return nil, err
+	}
+	plain := make([]db.Task, 0, len(tasks))
+	for _, t := range tasks {
+		plain = append(plain, t.Task)
+	}
+	return artifacts.CollectFromTasks(plain, currentTaskID), nil
 }
 
 func mapLatestNodeTaskStatus(tasks []db.TaskWithTpl) map[int]task_logger.TaskStatus {
