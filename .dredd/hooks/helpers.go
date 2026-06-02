@@ -385,7 +385,7 @@ func addWorkflowRun() *db.WorkflowRun {
 
 func addWorkflowApproval() *db.WorkflowApproval {
 	if workflow == nil {
-		panic("workflow fixture is not initialized")
+		panic("workflow fixture is nil; ensure addWorkflow() is called before addWorkflowApproval()")
 	}
 
 	approvalNodeID := 0
@@ -396,7 +396,7 @@ func addWorkflowApproval() *db.WorkflowApproval {
 		}
 	}
 	if approvalNodeID == 0 {
-		panic("workflow approval node not found")
+		panic("no approval node found in workflow.Nodes; workflow must include at least one approval node")
 	}
 
 	approval, err := store.CreateWorkflowApproval(db.WorkflowApproval{
