@@ -145,6 +145,7 @@ export default {
   title: 'Title *',
   description: 'Description',
   required: 'Required',
+  search: 'Search',
   key: '{expr}',
   surveyVariables: 'Survey Variables',
   addVariable: 'Add variable',
