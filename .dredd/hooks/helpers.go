@@ -357,8 +357,8 @@ func addWorkflow() *db.WorkflowTemplate {
 		},
 		Edges: []db.WorkflowEdge{
 			{
-				SourceNodeID:      1,
-				DestinationNodeID: 2,
+				SourceNodeID:      2,
+				DestinationNodeID: 1,
 				Condition:         db.WorkflowEdgeOnSuccess,
 			},
 		},
@@ -384,10 +384,25 @@ func addWorkflowRun() *db.WorkflowRun {
 }
 
 func addWorkflowApproval() *db.WorkflowApproval {
+	if workflow == nil {
+		panic("workflow fixture is nil; ensure addWorkflow() is called before addWorkflowApproval()")
+	}
+
+	approvalNodeID := 0
+	for _, node := range workflow.Nodes {
+		if node.EffectiveKind() == db.WorkflowNodeApprovalKind {
+			approvalNodeID = node.ID
+			break
+		}
+	}
+	if approvalNodeID == 0 {
+		panic("no approval node found in workflow.Nodes; workflow must include at least one approval node")
+	}
+
 	approval, err := store.CreateWorkflowApproval(db.WorkflowApproval{
 		ProjectID:      userProject.ID,
 		WorkflowRunID:  workflowRunID,
-		WorkflowNodeID: 2,
+		WorkflowNodeID: approvalNodeID,
 		Status:         db.WorkflowApprovalPending,
 		Created:        tz.Now(),
 	})
