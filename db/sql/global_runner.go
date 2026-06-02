@@ -1,11 +1,10 @@
 package sql
 
 import (
-	"encoding/base64"
 	"fmt"
+	"time"
 
 	"github.com/Masterminds/squirrel"
-	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 )
@@ -172,20 +171,80 @@ func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
 	return
 }
 
-func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) {
-	token := base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
+func (d *SqlDb) RegisterRunner(registrationTokenHash string, publicKey *string, active bool) (runner db.Runner, err error) {
+	runners := make([]db.Runner, 0)
 
+	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
+		return builder.Where("registration_token=?", registrationTokenHash)
+	}, &runners)
+
+	if err != nil {
+		return
+	}
+
+	if len(runners) == 0 {
+		err = db.ErrNotFound
+		return
+	}
+
+	runner = runners[0]
+
+	if runner.IsRegistered() {
+		err = fmt.Errorf("runner is already registered")
+		return
+	}
+
+	if runner.RegistrationTokenExpiresAt == nil || !runner.RegistrationTokenExpiresAt.After(tz.Now()) {
+		err = fmt.Errorf("registration token expired")
+		return
+	}
+
+	token := db.GenerateRunnerToken()
+
+	_, err = d.exec(
+		"update `runner` set `token`=?, `public_key`=?, `active`=?, `registration_token`=null, `registration_token_expires_at`=null where id=?",
+		token,
+		publicKey,
+		active,
+		runner.ID)
+
+	if err != nil {
+		return
+	}
+
+	runner.Token = token
+	runner.PublicKey = publicKey
+	runner.Active = active
+	runner.RegistrationTokenHash = nil
+	runner.RegistrationTokenExpiresAt = nil
+
+	err = d.loadRunnerTagsSingle(&runner)
+	return
+}
+
+func (d *SqlDb) ResetRunnerRegistration(runnerID int, registrationTokenHash string, expiresAt time.Time) (err error) {
+	_, err = d.exec(
+		"update `runner` set `token`='', `active`=false, `public_key`=null, `registration_token`=?, `registration_token_expires_at`=? where id=?",
+		registrationTokenHash,
+		expiresAt,
+		runnerID)
+	return
+}
+
+func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, `is_default`, public_key) values (?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, `is_default`, public_key, registration_token, registration_token_expires_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		runner.ProjectID,
-		token,
+		runner.Token,
 		runner.Webhook,
 		runner.MaxParallelTasks,
 		runner.Name,
 		runner.Active,
 		runner.IsDefault,
-		runner.PublicKey)
+		runner.PublicKey,
+		runner.RegistrationTokenHash,
+		runner.RegistrationTokenExpiresAt)
 
 	if err != nil {
 		return
@@ -193,7 +252,6 @@ func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) 
 
 	newRunner = runner
 	newRunner.ID = insertID
-	newRunner.Token = token
 	newRunner.Tags = normalizeTags(runner.Tags)
 
 	if err = d.replaceRunnerTags(newRunner.ID, newRunner.Tags); err != nil {

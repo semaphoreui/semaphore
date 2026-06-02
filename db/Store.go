@@ -458,6 +458,16 @@ type RunnerManager interface {
 	DeleteGlobalRunner(runnerID int) error
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)
+	// RegisterRunner finalizes a previously created tokenless ("unregistered")
+	// runner, looked up by the hash of the one-time registration token it presents:
+	// it generates the runner's auth token, stores its public key, activates it and
+	// clears the registration token. It fails if no matching runner exists, the
+	// token has expired, or the runner is already registered.
+	RegisterRunner(registrationTokenHash string, publicKey *string, active bool) (Runner, error)
+	// ResetRunnerRegistration moves a runner (back) to the unregistered state: it
+	// clears the auth token, public key and active flag, and stores a new one-time
+	// registration token hash and its expiry.
+	ResetRunnerRegistration(runnerID int, registrationTokenHash string, expiresAt time.Time) error
 	TouchRunner(runner Runner) (err error)
 	ClearRunnerCache(runner Runner) (err error)
 	GetRunnerTags(projectID int) ([]RunnerTag, error)

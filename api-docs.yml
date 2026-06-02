@@ -1204,6 +1204,9 @@ definitions:
         type: string
         format: date-time
         x-nullable: true
+      registered:
+        type: boolean
+        description: Whether the runner has been registered (has an auth token).
 
   RunnerRequest:
     type: object
@@ -1223,6 +1226,14 @@ definitions:
         type: array
         items:
           type: string
+      registered:
+        type: boolean
+        description: >
+          Defaults to true. When false, the runner is created with no credentials
+          at all (no auth token and no registration token) and stays inactive. A
+          one-time registration token must then be generated for it (see the
+          registration-token endpoint) and used to register the runner. Useful for
+          tools like Terraform that create the runner up front.
 
   RunnerWithToken:
     allOf:
@@ -1241,6 +1252,20 @@ definitions:
     properties:
       active:
         type: boolean
+
+  RunnerRegistrationToken:
+    type: object
+    properties:
+      registration_token:
+        type: string
+        description: One-time, short-lived token used to register the runner.
+      runner_id:
+        type: integer
+        readOnly: true
+      project_id:
+        type: integer
+        description: Owning project. Null for global runners.
+        x-nullable: true
 
   RunnerTag:
     type: object
@@ -3320,6 +3345,22 @@ paths:
         400:
           description: Invalid request body
 
+  /project/{project_id}/runners/{runner_id}/registration-token:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    post:
+      tags:
+        - runner
+      summary: Regenerate the one-time registration token of an unregistered project runner
+      responses:
+        200:
+          description: New registration token
+          schema:
+            $ref: "#/definitions/RunnerRegistrationToken"
+        400:
+          description: Runner is already registered
+
   /project/{project_id}/runners/{runner_id}/cache:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -3431,6 +3472,21 @@ paths:
           description: Runner active state updated
         400:
           description: Invalid request body
+
+  /runners/{runner_id}/registration-token:
+    parameters:
+      - $ref: "#/parameters/global_runner_id"
+    post:
+      tags:
+        - runner
+      summary: Regenerate the one-time registration token of an unregistered global runner
+      responses:
+        200:
+          description: New registration token
+          schema:
+            $ref: "#/definitions/RunnerRegistrationToken"
+        400:
+          description: Runner is already registered
 
   /runners/{runner_id}/cache:
     parameters:
