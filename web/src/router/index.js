@@ -31,6 +31,8 @@ import Stats from '../views/project/Stats.vue';
 import Tokens from '../views/Tokens.vue';
 import AcceptInvite from '../views/AcceptInvite.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
+import Workflows from '../views/project/Workflows.vue';
+import WorkflowRun from '../views/project/WorkflowRun.vue';
 
 Vue.use(VueRouter);
 
@@ -78,6 +80,14 @@ const routes = [
   {
     path: '/project/:projectId/templates',
     component: Templates,
+  },
+  {
+    path: '/project/:projectId/workflows',
+    component: Workflows,
+  },
+  {
+    path: '/project/:projectId/workflows/:workflowId/runs/:runId',
+    component: WorkflowRun,
   },
   {
     path: '/project/:projectId/views/:viewId/templates',

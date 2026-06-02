@@ -132,7 +132,40 @@ will build from your checked-out branch.
 
 ---
 
-## 5. Smoke-test the new workflow API
+## 5. Smoke-test the new UI
+
+Once the server is running and you've logged in:
+
+1. Pick (or create) a project. In the left navigation drawer you'll now see a
+   new **Workflows** entry (graph icon, between *Templates* and *Schedule*).
+2. Create at least two task templates from the **Templates** page — the
+   workflow form lets you pick from existing templates only.
+3. Open **Workflows -> New Workflow**. In the dialog:
+   * give it a name and (optional) description,
+   * click **Add node** for each template you want in the graph (each node
+     gets an auto-incremented id and a template picker),
+   * click **Add edge** to connect two nodes and choose a condition
+     (**On success**, **On failure**, or **Always**).
+   * Save. The backend will reject cycles, multi-root graphs, and edges
+     referencing unknown nodes — errors show up inline in the dialog.
+4. Back on the list, the row actions are **Run** (▶), **Delete**, **Edit**.
+   Click **Run** to start a workflow run; you're redirected to the run-detail
+   page at `/project/<id>/workflows/<wid>/runs/<rid>`.
+5. The run-detail page shows the aggregated run status (`running` / `success`
+   / `failed`) and a per-node table with each node's task status, a link to
+   the underlying task, and the originating template. The page auto-refreshes
+   every 5 s while the run is `running`; use the **refresh** icon to force a
+   reload.
+
+What to verify visually:
+* On a successful root task, only `on_success` (and `always`) downstream
+  nodes get a task; `on_failure`-only nodes stay `Pending`.
+* On a failing root task, only `on_failure` (and `always`) downstream nodes
+  get a task; `on_success`-only nodes stay `Pending`.
+* Once every reachable node has terminated, the run chip flips to `success`
+  or `failed`.
+
+## 6. Smoke-test the new workflow API
 
 Create a project + two task templates from the UI first (any two trivial
 templates will do), then grab their IDs from `/project/<id>/templates`.
@@ -198,7 +231,7 @@ What to verify:
 
 ---
 
-## 6. Reset / cleanup
+## 7. Reset / cleanup
 
 ```bash
 docker rm -f semaphore-workflows

@@ -1131,6 +1131,13 @@ export default {
             testId: 'sidebar-templates',
           },
           {
+            key: 'workflows',
+            icon: 'mdi-graph-outline',
+            title: this.$t('workflows'),
+            to: `${base}/workflows`,
+            testId: 'sidebar-workflows',
+          },
+          {
             key: 'schedule',
             icon: 'mdi-clock-outline',
             title: this.$t('schedule'),
