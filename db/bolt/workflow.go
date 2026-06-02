@@ -92,3 +92,43 @@ func (d *BoltDb) CreateWorkflowRun(run db.WorkflowRun) (newRun db.WorkflowRun, e
 func (d *BoltDb) UpdateWorkflowRun(run db.WorkflowRun) error {
 	return d.updateObject(run.ProjectID, db.WorkflowRunProps, run)
 }
+
+func (d *BoltDb) GetWorkflowApprovals(projectID int, runID int) (approvals []db.WorkflowApproval, err error) {
+	approvals = make([]db.WorkflowApproval, 0)
+	err = d.getObjects(projectID, db.WorkflowApprovalProps, db.RetrieveQueryParams{}, func(i any) bool {
+		approval := i.(db.WorkflowApproval)
+		return approval.WorkflowRunID == runID
+	}, &approvals)
+	return
+}
+
+func (d *BoltDb) GetWorkflowApproval(projectID int, runID int, nodeID int) (approval db.WorkflowApproval, err error) {
+	approvals, err := d.GetWorkflowApprovals(projectID, runID)
+	if err != nil {
+		return
+	}
+
+	for _, item := range approvals {
+		if item.WorkflowNodeID == nodeID {
+			approval = item
+			return
+		}
+	}
+
+	err = db.ErrNotFound
+	return
+}
+
+func (d *BoltDb) CreateWorkflowApproval(approval db.WorkflowApproval) (newApproval db.WorkflowApproval, err error) {
+	res, err := d.createObject(approval.ProjectID, db.WorkflowApprovalProps, approval)
+	if err != nil {
+		return
+	}
+
+	newApproval = res.(db.WorkflowApproval)
+	return
+}
+
+func (d *BoltDb) UpdateWorkflowApproval(approval db.WorkflowApproval) error {
+	return d.updateObject(approval.ProjectID, db.WorkflowApprovalProps, approval)
+}

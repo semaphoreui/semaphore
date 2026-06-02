@@ -310,6 +310,11 @@ type WorkflowManager interface {
 	GetWorkflowRunByID(projectID int, runID int) (WorkflowRun, error)
 	CreateWorkflowRun(run WorkflowRun) (WorkflowRun, error)
 	UpdateWorkflowRun(run WorkflowRun) error
+
+	GetWorkflowApprovals(projectID int, runID int) ([]WorkflowApproval, error)
+	GetWorkflowApproval(projectID int, runID int, nodeID int) (WorkflowApproval, error)
+	CreateWorkflowApproval(approval WorkflowApproval) (WorkflowApproval, error)
+	UpdateWorkflowApproval(approval WorkflowApproval) error
 }
 
 // InventoryManager handles inventory-related operations
@@ -658,6 +663,13 @@ var WorkflowRunProps = ObjectProps{
 	Type:                  reflect.TypeOf(WorkflowRun{}),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "workflow_run_id",
+}
+
+var WorkflowApprovalProps = ObjectProps{
+	TableName:             "project__workflow_approval",
+	Type:                  reflect.TypeOf(WorkflowApproval{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "workflow_approval_id",
 }
 
 var ProjectUserProps = ObjectProps{

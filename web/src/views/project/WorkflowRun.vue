@@ -54,20 +54,45 @@
         <template v-slot:item.id="{ item }">
           #{{ item.node.id }}
         </template>
+        <template v-slot:item.kind="{ item }">
+          {{ nodeKindText(item.node.kind) }}
+        </template>
         <template v-slot:item.template="{ item }">
           <router-link
             v-if="item.task"
             :to="`/project/${projectId}/templates/${item.task.template_id}`"
           >{{ item.task.tpl_alias || item.task.template_id }}</router-link>
-          <span v-else>{{ templateName(item.node.template_id) }}</span>
+          <span v-else-if="item.node.kind !== 'approval'">
+            {{ templateName(item.node.template_id) }}
+          </span>
+          <span v-else>{{ item.node.approval_message || '—' }}</span>
         </template>
         <template v-slot:item.status="{ item }">
           <v-chip
-            v-if="item.task"
-            :color="statusColor(item.task.status)"
+            v-if="item.task || item.approval"
+            :color="statusColor(nodeStatusRaw(item))"
             small
-          >{{ item.task.status }}</v-chip>
+          >{{ nodeStatus(item) }}</v-chip>
           <span v-else class="text-caption text--secondary">{{ $t('workflowNodePending') }}</span>
+        </template>
+        <template v-slot:item.approval_actions="{ item }">
+          <div
+            v-if="item.approval && item.approval.status === 'pending' && canResolveApprovals"
+            class="d-flex"
+          >
+            <v-btn
+              x-small
+              color="success"
+              class="mr-2"
+              @click="resolveApproval(item.node.id, 'approved')"
+            >{{ $t('workflowApprove') }}</v-btn>
+            <v-btn
+              x-small
+              color="error"
+              @click="resolveApproval(item.node.id, 'rejected')"
+            >{{ $t('workflowReject') }}</v-btn>
+          </div>
+          <span v-else>—</span>
         </template>
         <template v-slot:item.task="{ item }">
           <router-link
@@ -88,8 +113,11 @@
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
+import PermissionsCheck from '@/components/PermissionsCheck';
+import { USER_PERMISSIONS } from '@/lib/constants';
 
 export default {
+  mixins: [PermissionsCheck],
   props: {
     projectId: Number,
   },
@@ -99,6 +127,7 @@ export default {
       workflow: null,
       templates: [],
       pollHandle: null,
+      USER_PERMISSIONS,
     };
   },
   computed: {
@@ -111,10 +140,15 @@ export default {
     headers() {
       return [
         { text: this.$i18n.t('workflowNodeId'), value: 'id', sortable: false },
+        { text: this.$i18n.t('workflowNodeKind'), value: 'kind', sortable: false },
         { text: this.$i18n.t('taskTemplate'), value: 'template', sortable: false },
         { text: this.$i18n.t('status'), value: 'status', sortable: false },
+        { text: this.$i18n.t('workflowApprovalActions'), value: 'approval_actions', sortable: false },
         { text: this.$i18n.t('workflowTaskColumn'), value: 'task', sortable: false },
       ];
+    },
+    canResolveApprovals() {
+      return this.can(USER_PERMISSIONS.runProjectTasks);
     },
   },
   async created() {
@@ -138,12 +172,15 @@ export default {
     statusColor(status) {
       switch (status) {
         case 'success':
+        case 'approved':
           return 'success';
         case 'failed':
         case 'error':
         case 'stopped':
+        case 'rejected':
           return 'error';
         case 'running':
+        case 'pending':
           return 'primary';
         default:
           return 'grey';
@@ -152,6 +189,39 @@ export default {
     templateName(id) {
       const t = this.templates.find((x) => x.id === id);
       return t ? t.name : `#${id}`;
+    },
+    nodeKindText(kind) {
+      return kind === 'approval' ? this.$t('workflowNodeKindApproval') : this.$t('workflowNodeKindTask');
+    },
+    nodeStatus(item) {
+      const rawStatus = this.nodeStatusRaw(item);
+      if (rawStatus === 'pending') {
+        return this.$t('workflowApprovalPending');
+      }
+      return rawStatus;
+    },
+    nodeStatusRaw(item) {
+      if (item.task) {
+        return item.task.status;
+      }
+      if (item.approval) {
+        return item.approval.status;
+      }
+      return this.$t('workflowNodePending');
+    },
+    async resolveApproval(nodeId, status) {
+      try {
+        await axios.post(
+          `/api/project/${this.projectId}/workflows/${this.workflowId}/runs/${this.runId}/approvals/${nodeId}`,
+          { status },
+        );
+        await this.loadData();
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      }
     },
     async loadData() {
       try {
