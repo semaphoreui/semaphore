@@ -122,6 +122,9 @@ export default {
     this.pollHandle = setInterval(() => {
       if (this.details && this.details.run.status === 'running') {
         this.loadData();
+      } else if (this.pollHandle) {
+        clearInterval(this.pollHandle);
+        this.pollHandle = null;
       }
     }, 5000);
   },

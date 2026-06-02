@@ -139,15 +139,26 @@ func (p *TaskPool) updateWorkflowRunStatus(run db.WorkflowRun, workflowTasks []d
 		return nil
 	}
 
-	runStatus := db.WorkflowRunSuccess
+	hasUnfinished := false
+	hasFailed := false
 	for _, task := range workflowTasks {
 		if !task.Status.IsFinished() {
-			runStatus = db.WorkflowRunRunning
-			break
+			hasUnfinished = true
+			continue
 		}
 		if task.Status != task_logger.TaskSuccessStatus {
-			runStatus = db.WorkflowRunFailed
+			hasFailed = true
 		}
+	}
+
+	var runStatus db.WorkflowRunStatus
+	switch {
+	case hasUnfinished:
+		runStatus = db.WorkflowRunRunning
+	case hasFailed:
+		runStatus = db.WorkflowRunFailed
+	default:
+		runStatus = db.WorkflowRunSuccess
 	}
 
 	if run.Status == runStatus {
