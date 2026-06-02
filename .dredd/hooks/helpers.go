@@ -314,6 +314,7 @@ func addIntegrationMatcher() *db.IntegrationMatcher {
 
 func addRunner() *db.Runner {
 	runner, err := store.CreateRunner(db.Runner{
+		Token:            db.GenerateRunnerToken(),
 		ProjectID:        &userProject.ID,
 		Name:             "ITRN-" + getUUID(),
 		Active:           true,
@@ -329,6 +330,7 @@ func addRunner() *db.Runner {
 
 func addGlobalRunner() *db.Runner {
 	runner, err := store.CreateRunner(db.Runner{
+		Token:            db.GenerateRunnerToken(),
 		ProjectID:        nil,
 		Name:             "ITGRN-" + getUUID(),
 		Active:           true,

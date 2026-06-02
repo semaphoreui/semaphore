@@ -12,4 +12,5 @@ type ProjectRunnerController interface {
 	SetRunnerActive(w http.ResponseWriter, r *http.Request)
 	ClearRunnerCache(w http.ResponseWriter, r *http.Request)
 	GetRunnerTags(w http.ResponseWriter, r *http.Request)
+	RegenerateRegistrationToken(w http.ResponseWriter, r *http.Request)
 }

@@ -1,9 +1,9 @@
 package bolt
 
 import (
-	"encoding/base64"
+	"fmt"
+	"time"
 
-	"github.com/gorilla/securecookie"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"go.etcd.io/bbolt"
@@ -130,14 +130,69 @@ func (d *BoltDb) UpdateRunner(runner db.Runner) (err error) {
 	})
 }
 
-func (d *BoltDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) {
-	runner.Token = base64.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32))
+func (d *BoltDb) ResetRunnerRegistration(runnerID int, registrationTokenHash string, expiresAt time.Time) (err error) {
+	return d.db.Update(func(tx *bbolt.Tx) error {
+		var runner db.Runner
 
+		e := d.getObjectTx(tx, 0, db.GlobalRunnerProps, intObjectID(runnerID), &runner)
+		if e != nil {
+			return e
+		}
+
+		runner.Token = ""
+		runner.PublicKey = nil
+		runner.RegistrationTokenHash = &registrationTokenHash
+		runner.RegistrationTokenExpiresAt = &expiresAt
+
+		return d.updateObjectTx(tx, 0, db.GlobalRunnerProps, runner)
+	})
+}
+
+func (d *BoltDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) {
 	res, err := d.createObject(0, db.GlobalRunnerProps, runner)
 
 	if err != nil {
 		return
 	}
 	newRunner = res.(db.Runner)
+	return
+}
+
+func (d *BoltDb) RegisterRunner(registrationTokenHash string, publicKey *string, active bool) (runner db.Runner, err error) {
+	err = d.db.Update(func(tx *bbolt.Tx) error {
+		runners := make([]db.Runner, 0)
+
+		e := d.getObjectsTx(tx, 0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(i any) bool {
+			r := i.(db.Runner)
+			return r.RegistrationTokenHash != nil && *r.RegistrationTokenHash == registrationTokenHash
+		}, &runners)
+
+		if e != nil {
+			return e
+		}
+
+		if len(runners) == 0 {
+			return db.ErrNotFound
+		}
+
+		runner = runners[0]
+
+		if runner.IsRegistered() {
+			return fmt.Errorf("runner is already registered")
+		}
+
+		if runner.RegistrationTokenExpiresAt == nil || !runner.RegistrationTokenExpiresAt.After(tz.Now()) {
+			return fmt.Errorf("registration token expired")
+		}
+
+		runner.Token = db.GenerateRunnerToken()
+		runner.PublicKey = publicKey
+		runner.Active = active
+		runner.RegistrationTokenHash = nil
+		runner.RegistrationTokenExpiresAt = nil
+
+		return d.updateObjectTx(tx, 0, db.GlobalRunnerProps, runner)
+	})
+
 	return
 }
