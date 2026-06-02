@@ -273,6 +273,13 @@ func (t *TaskRunner) run() {
 				continue
 			}
 		}
+
+		if t.Task.Status.IsFinished() {
+			err = t.pool.HandleWorkflowTaskCompletion(t.Task)
+			if err != nil {
+				t.Log("Workflow progression failed: " + err.Error())
+			}
+		}
 	}
 }
 
@@ -297,7 +304,7 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 	}
 
 	tplEnvironment := make(map[string]any)
-  
+
 	if t.Environment.JSON != "" {
 		err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
 	}

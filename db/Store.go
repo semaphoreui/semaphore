@@ -298,6 +298,20 @@ type TemplateManager interface {
 	GetTemplateRole(projectID int, templateID int, permID int) (TemplateRolePerm, error)
 }
 
+type WorkflowManager interface {
+	GetWorkflowTemplates(projectID int, params RetrieveQueryParams) ([]WorkflowTemplate, error)
+	GetWorkflowTemplate(projectID int, workflowID int) (WorkflowTemplate, error)
+	CreateWorkflowTemplate(workflow WorkflowTemplate) (WorkflowTemplate, error)
+	UpdateWorkflowTemplate(workflow WorkflowTemplate) error
+	DeleteWorkflowTemplate(projectID int, workflowID int) error
+
+	GetWorkflowRuns(projectID int, workflowTemplateID int, params RetrieveQueryParams) ([]WorkflowRun, error)
+	GetWorkflowRun(projectID int, workflowTemplateID int, runID int) (WorkflowRun, error)
+	GetWorkflowRunByID(projectID int, runID int) (WorkflowRun, error)
+	CreateWorkflowRun(run WorkflowRun) (WorkflowRun, error)
+	UpdateWorkflowRun(run WorkflowRun) error
+}
+
 // InventoryManager handles inventory-related operations
 type InventoryManager interface {
 	GetInventory(projectID int, inventoryID int) (Inventory, error)
@@ -522,6 +536,7 @@ type Store interface {
 	ProjectStore
 	ProjectInviteRepository
 	TemplateManager
+	WorkflowManager
 	InventoryManager
 	RepositoryManager
 	EnvironmentManager
@@ -620,6 +635,29 @@ var TemplateProps = ObjectProps{
 	ReferringColumnSuffix: "template_id",
 	SortableColumns:       []string{"name", "playbook", "inventory", "repository"},
 	DefaultSortingColumn:  "name",
+}
+
+var WorkflowTemplateProps = ObjectProps{
+	TableName:             "project__workflow_template",
+	Type:                  reflect.TypeOf(WorkflowTemplate{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "workflow_template_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
+}
+
+var WorkflowNodeProps = ObjectProps{
+	TableName:             "project__workflow_node",
+	Type:                  reflect.TypeOf(WorkflowNode{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "workflow_node_id",
+}
+
+var WorkflowRunProps = ObjectProps{
+	TableName:             "project__workflow_run",
+	Type:                  reflect.TypeOf(WorkflowRun{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "workflow_run_id",
 }
 
 var ProjectUserProps = ObjectProps{

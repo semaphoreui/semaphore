@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -66,6 +67,8 @@ type TaskPool struct {
 
 	// state provides pluggable storage for Queue, active projects, running tasks and aliases
 	state TaskStateStore
+
+	workflowMu sync.Mutex
 }
 
 func CreateTaskPool(

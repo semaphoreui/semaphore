@@ -319,6 +319,8 @@ func Route(
 
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
+	projectUserAPI.Path("/workflows").HandlerFunc(projects.GetWorkflows).Methods("GET", "HEAD")
+	projectUserAPI.Path("/workflows").HandlerFunc(projects.AddWorkflow).Methods("POST")
 
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.GetProjectSchedules).Methods("GET", "HEAD")
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
@@ -463,6 +465,21 @@ func Route(
 	projectTmplInvManagement.HandleFunc("/{inventory_id}/set_default", projects.SetTemplateInventory).Methods("POST")
 	projectTmplInvManagement.HandleFunc("/{inventory_id}/attach", projects.AttachInventory).Methods("POST")
 	projectTmplInvManagement.HandleFunc("/{inventory_id}/detach", projects.DetachInventory).Methods("POST")
+
+	projectWorkflowManagement := projectUserAPI.PathPrefix("/workflows").Subrouter()
+	projectWorkflowManagement.Use(projects.WorkflowsMiddleware)
+	projectWorkflowManagement.HandleFunc("/{workflow_id}", projects.UpdateWorkflow).Methods("PUT")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}", projects.RemoveWorkflow).Methods("DELETE")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}", projects.GetWorkflow).Methods("GET")
+
+	projectWorkflowRunAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
+	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, projects.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
+	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/run", projects.RunWorkflow).Methods("POST")
+	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", projects.GetWorkflowRuns).Methods("GET", "HEAD")
+
+	projectWorkflowRunManagement := projectWorkflowRunAPI.PathPrefix("/{workflow_id}/runs").Subrouter()
+	projectWorkflowRunManagement.Use(projects.WorkflowRunsMiddleware)
+	projectWorkflowRunManagement.HandleFunc("/{run_id}", projects.GetWorkflowRun).Methods("GET", "HEAD")
 
 	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
 	projectTaskManagement.Use(projects.GetTaskMiddleware)
