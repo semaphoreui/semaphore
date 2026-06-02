@@ -165,8 +165,9 @@ func (c *GlobalRunnerController) RegenerateRegistrationToken(w http.ResponseWrit
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, map[string]string{
+	helpers.WriteJSON(w, http.StatusOK, map[string]any{
 		"registration_token": token,
+		"runner_id":          runner.ID,
 	})
 }
 

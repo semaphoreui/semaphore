@@ -1261,6 +1261,13 @@ definitions:
       registration_token:
         type: string
         description: One-time, short-lived token used to register the runner.
+      runner_id:
+        type: integer
+        readOnly: true
+      project_id:
+        type: integer
+        description: Owning project. Null for global runners.
+        x-nullable: true
 
   RunnerTag:
     type: object
