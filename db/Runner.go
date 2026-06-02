@@ -41,11 +41,9 @@ type Runner struct {
 	Registered bool `db:"-" json:"registered"`
 
 	// RegistrationTokenHash is the stored SHA-256 hash of the one-time registration
-	// token (the plaintext is never persisted).
-	RegistrationTokenHash *string `db:"registration_token" json:"-"`
-	// RegistrationToken is the transient plaintext registration token, returned to
-	// the caller only once at creation time.
-	RegistrationToken          string     `db:"-" json:"registration_token,omitempty"`
+	// token (the plaintext is never persisted). It is issued on demand via
+	// RegenerateRegistrationToken, not at creation time.
+	RegistrationTokenHash      *string    `db:"registration_token" json:"-"`
 	RegistrationTokenExpiresAt *time.Time `db:"registration_token_expires_at" json:"-"`
 }
 

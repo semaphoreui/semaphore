@@ -21,7 +21,6 @@ func TestRunnerService_CreateRunner_Registered(t *testing.T) {
 	assert.True(t, runner.IsRegistered())
 	assert.NotEmpty(t, privateKey)
 	assert.NotNil(t, runner.PublicKey)
-	assert.Empty(t, runner.RegistrationToken)
 	assert.Nil(t, runner.RegistrationTokenHash)
 }
 
@@ -45,18 +44,15 @@ func TestRunnerService_CreateRunner_Unregistered(t *testing.T) {
 	runner, privateKey, err := svc.CreateRunner(db.Runner{Registered: false, Active: true})
 	require.NoError(t, err)
 
-	// An unregistered runner has no auth token, is forced inactive, gets no key
-	// pair, and receives a one-time registration token instead.
+	// An unregistered runner is created with no credentials at all: no auth token,
+	// no registration token, no key pair, and inactive.
 	assert.Empty(t, runner.Token)
 	assert.False(t, runner.IsRegistered())
-	assert.True(t, runner.Active)
+	assert.False(t, runner.Active)
 	assert.Empty(t, privateKey)
 	assert.Nil(t, runner.PublicKey)
-	assert.NotEmpty(t, runner.RegistrationToken)
-	assert.True(t, strings.HasPrefix(runner.RegistrationToken, RunnerRegistrationTokenPrefix))
-	require.NotNil(t, runner.RegistrationTokenHash)
-	assert.Equal(t, HashRunnerRegistrationToken(runner.RegistrationToken), *runner.RegistrationTokenHash)
-	assert.NotNil(t, runner.RegistrationTokenExpiresAt)
+	assert.Nil(t, runner.RegistrationTokenHash)
+	assert.Nil(t, runner.RegistrationTokenExpiresAt)
 }
 
 func TestRunnerService_RegenerateRegistrationToken(t *testing.T) {
@@ -65,8 +61,8 @@ func TestRunnerService_RegenerateRegistrationToken(t *testing.T) {
 
 	runner, _, err := svc.CreateRunner(db.Runner{Registered: false})
 	require.NoError(t, err)
-	require.NotNil(t, runner.RegistrationTokenHash)
-	oldHash := *runner.RegistrationTokenHash
+	// Created without any registration token.
+	require.Nil(t, runner.RegistrationTokenHash)
 
 	token, err := svc.RegenerateRegistrationToken(runner)
 	require.NoError(t, err)
@@ -76,9 +72,7 @@ func TestRunnerService_RegenerateRegistrationToken(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, stored.Token)
 	require.NotNil(t, stored.RegistrationTokenHash)
-	// A fresh token (and hash) replaces the previous one.
 	assert.Equal(t, HashRunnerRegistrationToken(token), *stored.RegistrationTokenHash)
-	assert.NotEqual(t, oldHash, *stored.RegistrationTokenHash)
 	assert.NotNil(t, stored.RegistrationTokenExpiresAt)
 }
 

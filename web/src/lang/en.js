@@ -360,14 +360,15 @@ export default {
   newRunnerToken: 'New Runner',
   register: 'Register',
   unregisteredRunnerHint:
-    'The runner will be created without a token. Instead a one-time registration '
-    + 'token will be issued, which the runner uses to register itself later.',
+    'The runner will be created without any token. You can then generate a one-time '
+    + 'registration token for it and use that to register the runner later.',
   runnerRegistrationToken: 'New Runner',
   registrationToken: 'Registration token:',
   registrationTokenHint:
     'This one-time token is shown only once and expires in 1 hour. '
     + 'Use it to register the runner.',
   howToRegister: 'How to register',
+  runnerCreated: 'Runner created',
   regenerateRegistrationToken: 'Regenerate registration token',
   askResetRunnerRegistration:
     'This runner is registered. Regenerating the token will reset it: its current '

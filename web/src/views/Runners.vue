@@ -865,11 +865,18 @@ semaphore runner start --no-config`;
     },
 
     async loadItemsAndShowRunnerDetails(e) {
-      // A registered runner returns an auth token; an unregistered one returns a
-      // one-time registration token. Either way we show the details dialog.
       if (e.item.token || e.item.registration_token) {
+        // A registered runner returns an auth token (and private key); show the
+        // details dialog with the connection instructions.
         this.newRunnerTokenDialog = true;
         this.newRunner = e.item;
+      } else if (e.action === 'new') {
+        // An unregistered runner is created with no token at all, so there is
+        // nothing to show — just confirm it was created.
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: this.$t('runnerCreated'),
+        });
       }
       return this.loadItems();
     },
