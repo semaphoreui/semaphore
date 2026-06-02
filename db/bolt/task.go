@@ -133,6 +133,17 @@ func (d *BoltDb) UpdateTask(task db.Task) error {
 	return d.updateObject(0, db.TaskProps, task)
 }
 
+// UpdateTaskArtifacts persists the JSON artifacts blob produced by a task.
+// A nil artifacts pointer clears the field.
+func (d *BoltDb) UpdateTaskArtifacts(projectID int, taskID int, artifacts *string) error {
+	task, err := d.GetTask(projectID, taskID)
+	if err != nil {
+		return err
+	}
+	task.Artifacts = artifacts
+	return d.updateObject(0, db.TaskProps, task)
+}
+
 func (d *BoltDb) SetWaitingTasksToStopped(projectID int, templateID int) error {
 	var tasks []db.Task
 	err := d.getObjects(0, db.TaskProps, db.RetrieveQueryParams{}, func(tsk any) bool {

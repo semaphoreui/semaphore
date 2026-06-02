@@ -51,8 +51,9 @@ type WorkflowNode struct {
 	ApprovalTimeout    *int                    `db:"approval_timeout" json:"approval_timeout,omitempty" backup:"approval_timeout"`
 	ApprovalMessage    *string                 `db:"approval_message" json:"approval_message,omitempty" backup:"approval_message"`
 
-	InventoryID   *int `db:"inventory_id" json:"inventory_id,omitempty" backup:"inventory_id"`
-	EnvironmentID *int `db:"environment_id" json:"environment_id,omitempty" backup:"environment_id"`
+	InventoryID   *int             `db:"inventory_id" json:"inventory_id,omitempty" backup:"inventory_id"`
+	EnvironmentID *int             `db:"environment_id" json:"environment_id,omitempty" backup:"environment_id"`
+	Limit         StringArrayField `db:"limit" json:"limit,omitempty" backup:"limit"`
 }
 
 type WorkflowEdge struct {
@@ -219,7 +220,7 @@ func ValidateWorkflowTemplate(d Store, workflow WorkflowTemplate) error {
 				return NewValidationError("workflow node template must belong to workflow project")
 			}
 		} else {
-			if node.TemplateID != 0 || node.InventoryID != nil || node.EnvironmentID != nil {
+			if node.TemplateID != 0 || node.InventoryID != nil || node.EnvironmentID != nil || (node.Limit != nil && len(node.Limit) > 0) {
 				return NewValidationError("workflow approval node can not contain task node fields")
 			}
 			if node.ApprovalTimeout != nil && *node.ApprovalTimeout <= 0 {

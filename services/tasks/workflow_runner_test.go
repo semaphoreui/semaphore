@@ -141,7 +141,7 @@ func TestWorkflowApprovalProgressionAndEdgeMatching(t *testing.T) {
 		Nodes: []db.WorkflowNode{
 			{ID: 1, TemplateID: tplRoot.ID},
 			{ID: 2, Kind: db.WorkflowNodeApprovalKind},
-			{ID: 3, TemplateID: tplSuccess.ID},
+			{ID: 3, TemplateID: tplSuccess.ID, Limit: db.StringArrayField{"web"}},
 			{ID: 4, TemplateID: tplFailure.ID},
 		},
 		Edges: []db.WorkflowEdge{
@@ -213,12 +213,22 @@ func TestWorkflowApprovalProgressionAndEdgeMatching(t *testing.T) {
 	}
 	foundSuccessBranch := false
 	foundFailureBranch := false
+	successBranchHasLimit := false
 	for _, task := range tasks {
 		if task.WorkflowRunID == nil || *task.WorkflowRunID != run.ID || task.WorkflowNodeID == nil {
 			continue
 		}
 		if *task.WorkflowNodeID == workflow.Nodes[2].ID {
 			foundSuccessBranch = true
+			limitRaw, ok := task.Params["limit"]
+			if ok {
+				switch limit := limitRaw.(type) {
+				case []any:
+					successBranchHasLimit = len(limit) == 1 && limit[0] == "web"
+				case []string:
+					successBranchHasLimit = len(limit) == 1 && limit[0] == "web"
+				}
+			}
 		}
 		if *task.WorkflowNodeID == workflow.Nodes[3].ID {
 			foundFailureBranch = true
@@ -226,5 +236,8 @@ func TestWorkflowApprovalProgressionAndEdgeMatching(t *testing.T) {
 	}
 	if !foundSuccessBranch || foundFailureBranch {
 		t.Fatal("approved node should only enqueue on_success branch")
+	}
+	if !successBranchHasLimit {
+		t.Fatal("expected workflow task limit to be added to task params")
 	}
 }

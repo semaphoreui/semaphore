@@ -480,6 +480,7 @@ func Route(
 	projectWorkflowRunManagement := projectWorkflowRunAPI.PathPrefix("/{workflow_id}/runs").Subrouter()
 	projectWorkflowRunManagement.Use(projects.WorkflowRunsMiddleware)
 	projectWorkflowRunManagement.HandleFunc("/{run_id}", projects.GetWorkflowRun).Methods("GET", "HEAD")
+	projectWorkflowRunManagement.HandleFunc("/{run_id}/artifacts", projects.GetWorkflowRunArtifacts).Methods("GET", "HEAD")
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/approvals", projects.GetWorkflowApprovals).Methods("GET", "HEAD")
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/approvals/{node_id}", projects.ResolveWorkflowApproval).Methods("POST")
 
