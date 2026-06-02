@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -32,11 +33,6 @@ func (p *TaskPool) StartWorkflow(workflow db.WorkflowTemplate, user *db.User) (r
 		return
 	}
 
-	tpl, err := p.store.GetTemplate(workflow.ProjectID, rootNode.TemplateID)
-	if err != nil {
-		return
-	}
-
 	var userID *int
 	var username string
 	if user != nil {
@@ -44,18 +40,25 @@ func (p *TaskPool) StartWorkflow(workflow db.WorkflowTemplate, user *db.User) (r
 		username = user.Username
 	}
 
-	createdTask, err := p.AddTask(db.Task{
-		TemplateID:     rootNode.TemplateID,
-		ProjectID:      workflow.ProjectID,
-		WorkflowRunID:  &run.ID,
-		WorkflowNodeID: &rootNode.ID,
-	}, userID, username, workflow.ProjectID, tpl.App.NeedTaskAlias())
+	err = p.startWorkflowNode(run, rootNode, nil, userID, username)
 	if err != nil {
 		return
 	}
 
-	run.RootTaskID = &createdTask.ID
-	err = p.store.UpdateWorkflowRun(run)
+	approvals, err := p.store.GetWorkflowApprovals(run.ProjectID, run.ID)
+	if err != nil {
+		return
+	}
+
+	workflowTasks, err := p.getWorkflowRunTasks(run.ProjectID, run.ID)
+	if err != nil {
+		return
+	}
+	run, err = p.store.GetWorkflowRunByID(run.ProjectID, run.ID)
+	if err != nil {
+		return
+	}
+	err = p.updateWorkflowRunStatus(run, workflowTasks, approvals)
 	return
 }
 
@@ -110,8 +113,12 @@ func mapLatestNodeTask(tasks []db.TaskWithTpl) map[int]db.TaskWithTpl {
 	return taskByNodeID
 }
 
-func (p *TaskPool) isWorkflowNodeReady(workflow db.WorkflowTemplate, destinationNodeID int, statusByNodeID map[int]task_logger.TaskStatus) (ready bool, blocked bool) {
+func (p *TaskPool) isWorkflowNodeReady(workflow db.WorkflowTemplate, destinationNode db.WorkflowNode, statusByNodeID map[int]task_logger.TaskStatus) (ready bool, blocked bool) {
+	destinationNodeID := destinationNode.ID
 	hasInbound := false
+	hasMatchingInbound := false
+	hasUnfinishedInbound := false
+
 	for _, edge := range workflow.Edges {
 		if edge.DestinationNodeID != destinationNodeID {
 			continue
@@ -120,10 +127,22 @@ func (p *TaskPool) isWorkflowNodeReady(workflow db.WorkflowTemplate, destination
 
 		status, exists := statusByNodeID[edge.SourceNodeID]
 		if !exists || !status.IsFinished() {
-			return false, false
+			hasUnfinishedInbound = true
+			if destinationNode.EffectiveConvergenceMode() == db.WorkflowConvergenceAll {
+				return false, false
+			}
+			continue
 		}
 		if !db.WorkflowConditionMatches(status, edge.Condition) {
-			return false, true
+			if destinationNode.EffectiveConvergenceMode() == db.WorkflowConvergenceAll {
+				return false, true
+			}
+			continue
+		}
+
+		hasMatchingInbound = true
+		if destinationNode.EffectiveConvergenceMode() == db.WorkflowConvergenceAny {
+			return true, false
 		}
 	}
 
@@ -131,14 +150,17 @@ func (p *TaskPool) isWorkflowNodeReady(workflow db.WorkflowTemplate, destination
 		return false, true
 	}
 
-	return true, false
-}
-
-func (p *TaskPool) updateWorkflowRunStatus(run db.WorkflowRun, workflowTasks []db.TaskWithTpl) error {
-	if len(workflowTasks) == 0 {
-		return nil
+	if destinationNode.EffectiveConvergenceMode() == db.WorkflowConvergenceAny {
+		if hasUnfinishedInbound {
+			return false, false
+		}
+		return false, true
 	}
 
+	return hasMatchingInbound, !hasMatchingInbound
+}
+
+func (p *TaskPool) updateWorkflowRunStatus(run db.WorkflowRun, workflowTasks []db.TaskWithTpl, approvals []db.WorkflowApproval) error {
 	hasUnfinished := false
 	hasFailed := false
 	for _, task := range workflowTasks {
@@ -147,6 +169,14 @@ func (p *TaskPool) updateWorkflowRunStatus(run db.WorkflowRun, workflowTasks []d
 			continue
 		}
 		if task.Status != task_logger.TaskSuccessStatus {
+			hasFailed = true
+		}
+	}
+	for _, approval := range approvals {
+		switch approval.Status {
+		case db.WorkflowApprovalPending:
+			hasUnfinished = true
+		case db.WorkflowApprovalRejected:
 			hasFailed = true
 		}
 	}
@@ -196,62 +226,264 @@ func (p *TaskPool) HandleWorkflowTaskCompletion(task db.Task) error {
 		return err
 	}
 
-	workflowTasks, err := p.getWorkflowRunTasks(task.ProjectID, run.ID)
+	return p.progressWorkflowRunLocked(run, workflow, &task, nil)
+}
+
+func (p *TaskPool) evaluateWorkflowApprovalTimeouts(workflow db.WorkflowTemplate, approvals []db.WorkflowApproval) ([]db.WorkflowApproval, error) {
+	nodeByID := make(map[int]db.WorkflowNode, len(workflow.Nodes))
+	for _, node := range workflow.Nodes {
+		nodeByID[node.ID] = node
+	}
+
+	now := time.Now().UTC()
+	for i := range approvals {
+		approval := approvals[i]
+		if approval.Status != db.WorkflowApprovalPending {
+			continue
+		}
+
+		node, ok := nodeByID[approval.WorkflowNodeID]
+		if !ok || node.ApprovalTimeout == nil {
+			continue
+		}
+
+		// Timeout resolution is evaluated lazily during run progression/detail reads.
+		// This avoids introducing a background scheduler while keeping timeout behavior deterministic.
+		timeoutAt := approval.Created.Add(time.Duration(*node.ApprovalTimeout) * time.Second)
+		if now.Before(timeoutAt) {
+			continue
+		}
+
+		approval.Status = db.WorkflowApprovalRejected
+		approval.Resolved = &now
+		approval.ResolvedByUserID = nil
+		if err := p.store.UpdateWorkflowApproval(approval); err != nil {
+			return nil, err
+		}
+		approvals[i] = approval
+	}
+
+	return approvals, nil
+}
+
+func mapLatestNodeApprovalStatus(approvals []db.WorkflowApproval) map[int]task_logger.TaskStatus {
+	statusByNodeID := make(map[int]task_logger.TaskStatus)
+	for _, approval := range approvals {
+		switch approval.Status {
+		case db.WorkflowApprovalApproved:
+			statusByNodeID[approval.WorkflowNodeID] = task_logger.TaskSuccessStatus
+		case db.WorkflowApprovalRejected:
+			statusByNodeID[approval.WorkflowNodeID] = task_logger.TaskFailStatus
+		}
+	}
+	return statusByNodeID
+}
+
+func mapNodeApproval(approvals []db.WorkflowApproval) map[int]db.WorkflowApproval {
+	approvalsByNodeID := make(map[int]db.WorkflowApproval)
+	for _, approval := range approvals {
+		approvalsByNodeID[approval.WorkflowNodeID] = approval
+	}
+	return approvalsByNodeID
+}
+
+func findWorkflowNode(workflow db.WorkflowTemplate, nodeID int) *db.WorkflowNode {
+	for i := range workflow.Nodes {
+		if workflow.Nodes[i].ID == nodeID {
+			return &workflow.Nodes[i]
+		}
+	}
+	return nil
+}
+
+func (p *TaskPool) startWorkflowNode(
+	run db.WorkflowRun,
+	node db.WorkflowNode,
+	buildTaskID *int,
+	userID *int,
+	username string,
+) error {
+	switch node.EffectiveKind() {
+	case db.WorkflowNodeTaskKind:
+		tpl, err := p.store.GetTemplate(run.ProjectID, node.TemplateID)
+		if err != nil {
+			return err
+		}
+
+		newTask, err := p.AddTask(db.Task{
+			TemplateID:     node.TemplateID,
+			ProjectID:      run.ProjectID,
+			BuildTaskID:    buildTaskID,
+			WorkflowRunID:  &run.ID,
+			WorkflowNodeID: &node.ID,
+		}, userID, username, run.ProjectID, tpl.App.NeedTaskAlias())
+		if err != nil {
+			return fmt.Errorf("failed to enqueue workflow node %d: %w", node.ID, err)
+		}
+
+		if run.RootTaskID == nil {
+			run.RootTaskID = &newTask.ID
+			if err = p.store.UpdateWorkflowRun(run); err != nil {
+				return err
+			}
+		}
+
+	case db.WorkflowNodeApprovalKind:
+		_, err := p.store.GetWorkflowApproval(run.ProjectID, run.ID, node.ID)
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, db.ErrNotFound) {
+			return err
+		}
+
+		_, err = p.store.CreateWorkflowApproval(db.WorkflowApproval{
+			ProjectID:      run.ProjectID,
+			WorkflowRunID:  run.ID,
+			WorkflowNodeID: node.ID,
+			Status:         db.WorkflowApprovalPending,
+			Created:        time.Now().UTC(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *TaskPool) progressWorkflowRunLocked(
+	run db.WorkflowRun,
+	workflow db.WorkflowTemplate,
+	triggerTask *db.Task,
+	user *db.User,
+) error {
+	workflowTasks, err := p.getWorkflowRunTasks(run.ProjectID, run.ID)
+	if err != nil {
+		return err
+	}
+	approvals, err := p.store.GetWorkflowApprovals(run.ProjectID, run.ID)
+	if err != nil {
+		return err
+	}
+	approvals, err = p.evaluateWorkflowApprovalTimeouts(workflow, approvals)
 	if err != nil {
 		return err
 	}
 
 	nodeStatusByID := mapLatestNodeTaskStatus(workflowTasks)
+	for nodeID, status := range mapLatestNodeApprovalStatus(approvals) {
+		nodeStatusByID[nodeID] = status
+	}
+
 	nodeTaskByID := mapLatestNodeTask(workflowTasks)
+	nodeApprovalByID := mapNodeApproval(approvals)
 
-	for _, edge := range workflow.Edges {
-		if edge.SourceNodeID != *task.WorkflowNodeID {
+	var buildTaskID *int
+	var userID *int
+	var username string
+	if triggerTask != nil {
+		buildTaskID = &triggerTask.ID
+		userID = triggerTask.UserID
+	}
+	if user != nil {
+		userID = &user.ID
+		username = user.Username
+	}
+
+	for _, node := range workflow.Nodes {
+		if _, exists := nodeTaskByID[node.ID]; exists {
 			continue
 		}
-		if !db.WorkflowConditionMatches(task.Status, edge.Condition) {
-			continue
-		}
-		if _, exists := nodeTaskByID[edge.DestinationNodeID]; exists {
+		if _, exists := nodeApprovalByID[node.ID]; exists {
 			continue
 		}
 
-		ready, blocked := p.isWorkflowNodeReady(workflow, edge.DestinationNodeID, nodeStatusByID)
+		ready, blocked := p.isWorkflowNodeReady(workflow, node, nodeStatusByID)
 		if !ready || blocked {
 			continue
 		}
 
-		var destinationNode *db.WorkflowNode
-		for i := range workflow.Nodes {
-			if workflow.Nodes[i].ID == edge.DestinationNodeID {
-				destinationNode = &workflow.Nodes[i]
-				break
-			}
-		}
-		if destinationNode == nil {
-			continue
-		}
-
-		tpl, err2 := p.store.GetTemplate(task.ProjectID, destinationNode.TemplateID)
-		if err2 != nil {
-			return err2
-		}
-
-		_, err2 = p.AddTask(db.Task{
-			TemplateID:     destinationNode.TemplateID,
-			ProjectID:      task.ProjectID,
-			BuildTaskID:    &task.ID,
-			WorkflowRunID:  task.WorkflowRunID,
-			WorkflowNodeID: &destinationNode.ID,
-		}, task.UserID, "", task.ProjectID, tpl.App.NeedTaskAlias())
-		if err2 != nil {
-			return fmt.Errorf("failed to enqueue workflow node %d: %w", destinationNode.ID, err2)
+		if err = p.startWorkflowNode(run, node, buildTaskID, userID, username); err != nil {
+			return err
 		}
 	}
 
-	workflowTasks, err = p.getWorkflowRunTasks(task.ProjectID, run.ID)
+	workflowTasks, err = p.getWorkflowRunTasks(run.ProjectID, run.ID)
+	if err != nil {
+		return err
+	}
+	approvals, err = p.store.GetWorkflowApprovals(run.ProjectID, run.ID)
+	if err != nil {
+		return err
+	}
+	return p.updateWorkflowRunStatus(run, workflowTasks, approvals)
+}
+
+func (p *TaskPool) ProgressWorkflowRun(projectID int, runID int, user *db.User) error {
+	p.workflowMu.Lock()
+	defer p.workflowMu.Unlock()
+
+	run, err := p.store.GetWorkflowRunByID(projectID, runID)
 	if err != nil {
 		return err
 	}
 
-	return p.updateWorkflowRunStatus(run, workflowTasks)
+	workflow, err := p.store.GetWorkflowTemplate(projectID, run.WorkflowTemplateID)
+	if err != nil {
+		return err
+	}
+
+	return p.progressWorkflowRunLocked(run, workflow, nil, user)
+}
+
+func (p *TaskPool) ResolveWorkflowApproval(projectID int, workflowID int, runID int, nodeID int, status db.WorkflowApprovalStatus, user *db.User) (approval db.WorkflowApproval, err error) {
+	if err = status.Validate(); err != nil {
+		return
+	}
+	if status == db.WorkflowApprovalPending {
+		err = db.NewValidationError("approval can not be resolved to pending")
+		return
+	}
+
+	p.workflowMu.Lock()
+	defer p.workflowMu.Unlock()
+
+	run, err := p.store.GetWorkflowRun(projectID, workflowID, runID)
+	if err != nil {
+		return
+	}
+	workflow, err := p.store.GetWorkflowTemplate(projectID, workflowID)
+	if err != nil {
+		return
+	}
+	node := findWorkflowNode(workflow, nodeID)
+	if node == nil || node.EffectiveKind() != db.WorkflowNodeApprovalKind {
+		err = db.NewValidationError("workflow node is not an approval node")
+		return
+	}
+
+	approval, err = p.store.GetWorkflowApproval(projectID, run.ID, nodeID)
+	if err != nil {
+		return
+	}
+	if approval.Status != db.WorkflowApprovalPending {
+		err = db.NewValidationError("approval has already been resolved")
+		return
+	}
+
+	now := time.Now().UTC()
+	approval.Status = status
+	approval.Resolved = &now
+	if user != nil {
+		approval.ResolvedByUserID = &user.ID
+	}
+
+	err = p.store.UpdateWorkflowApproval(approval)
+	if err != nil {
+		return
+	}
+
+	err = p.progressWorkflowRunLocked(run, workflow, nil, user)
+	return
 }

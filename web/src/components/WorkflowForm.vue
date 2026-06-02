@@ -65,13 +65,60 @@
           <v-icon small>mdi-delete</v-icon>
         </v-btn>
       </div>
+      <v-select
+        v-model="node.kind"
+        :items="kindOptions"
+        item-value="value"
+        item-text="text"
+        :label="$t('workflowNodeKind')"
+        @change="onNodeKindChanged(idx)"
+        :disabled="formSaving"
+        outlined
+        dense
+        hide-details="auto"
+        class="mb-2"
+      />
+      <v-select
+        v-model="node.convergence_mode"
+        :items="convergenceOptions"
+        item-value="value"
+        item-text="text"
+        :label="$t('workflowConvergence')"
+        :disabled="formSaving"
+        outlined
+        dense
+        hide-details="auto"
+        class="mb-2"
+      />
       <v-autocomplete
+        v-if="node.kind !== 'approval'"
         v-model="node.template_id"
         :items="templates"
         item-value="id"
         item-text="name"
         :label="$t('taskTemplate')"
         :rules="[(v) => !!v || $t('workflowTemplateRequired')]"
+        :disabled="formSaving"
+        outlined
+        dense
+        hide-details="auto"
+      />
+      <v-text-field
+        v-else
+        v-model.number="node.approval_timeout"
+        type="number"
+        min="1"
+        :label="$t('workflowApprovalTimeout')"
+        :disabled="formSaving"
+        outlined
+        dense
+        hide-details="auto"
+        class="mb-2"
+      />
+      <v-text-field
+        v-if="node.kind === 'approval'"
+        v-model="node.approval_message"
+        :label="$t('workflowApprovalMessage')"
         :disabled="formSaving"
         outlined
         dense
@@ -186,6 +233,18 @@ export default {
         { value: 'always', text: this.$t('workflowConditionAlways') },
       ];
     },
+    kindOptions() {
+      return [
+        { value: 'task', text: this.$t('workflowNodeKindTask') },
+        { value: 'approval', text: this.$t('workflowNodeKindApproval') },
+      ];
+    },
+    convergenceOptions() {
+      return [
+        { value: 'all', text: this.$t('workflowConvergenceAll') },
+        { value: 'any', text: this.$t('workflowConvergenceAny') },
+      ];
+    },
   },
   async created() {
     this.templates = await this.loadProjectResources('templates');
@@ -202,6 +261,12 @@ export default {
     afterLoadData() {
       if (!Array.isArray(this.item.nodes)) this.item.nodes = [];
       if (!Array.isArray(this.item.edges)) this.item.edges = [];
+      this.item.nodes = this.item.nodes.map((node) => ({
+        kind: 'task',
+        convergence_mode: 'all',
+        ...node,
+        template_id: node.kind === 'approval' ? null : node.template_id,
+      }));
     },
     nextNodeId() {
       const ids = (this.item.nodes || []).map((n) => n.id || 0);
@@ -211,6 +276,8 @@ export default {
       this.item.nodes.push({
         id: this.nextNodeId(),
         template_id: null,
+        kind: 'task',
+        convergence_mode: 'all',
       });
     },
     removeNode(idx) {
@@ -231,6 +298,15 @@ export default {
     },
     removeEdge(idx) {
       this.item.edges.splice(idx, 1);
+    },
+    onNodeKindChanged(idx) {
+      const node = this.item.nodes[idx];
+      if (node.kind === 'approval') {
+        node.template_id = null;
+      } else {
+        node.approval_timeout = null;
+        node.approval_message = null;
+      }
     },
     getItemsUrl() {
       return `/api/project/${this.projectId}/workflows`;

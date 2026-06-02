@@ -101,3 +101,59 @@ func TestValidateWorkflowTemplateRejectsCrossProjectTemplate(t *testing.T) {
 		t.Fatal("expected cross-project validation error")
 	}
 }
+
+func TestValidateWorkflowTemplateAllowsApprovalNodeWithoutTemplate(t *testing.T) {
+	store, projectID, tplA, _, _, _ := setupWorkflowValidationFixtures(t)
+	timeout := 60
+
+	err := db.ValidateWorkflowTemplate(store, db.WorkflowTemplate{
+		ProjectID: projectID,
+		Name:      "wf",
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: tplA},
+			{ID: 2, Kind: db.WorkflowNodeApprovalKind, ApprovalTimeout: &timeout},
+		},
+		Edges: []db.WorkflowEdge{
+			{SourceNodeID: 1, DestinationNodeID: 2, Condition: db.WorkflowEdgeOnSuccess},
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("expected valid approval workflow, got %v", err)
+	}
+}
+
+func TestValidateWorkflowTemplateRejectsInvalidNodeKindCombinations(t *testing.T) {
+	store, projectID, tplA, _, _, _ := setupWorkflowValidationFixtures(t)
+	timeout := 60
+
+	err := db.ValidateWorkflowTemplate(store, db.WorkflowTemplate{
+		ProjectID: projectID,
+		Name:      "wf",
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: tplA},
+			{ID: 2, Kind: db.WorkflowNodeApprovalKind, TemplateID: tplA},
+		},
+		Edges: []db.WorkflowEdge{
+			{SourceNodeID: 1, DestinationNodeID: 2, Condition: db.WorkflowEdgeOnSuccess},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected approval node with template_id to fail validation")
+	}
+
+	err = db.ValidateWorkflowTemplate(store, db.WorkflowTemplate{
+		ProjectID: projectID,
+		Name:      "wf",
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: tplA},
+			{ID: 2, Kind: db.WorkflowNodeTaskKind, TemplateID: tplA, ApprovalTimeout: &timeout},
+		},
+		Edges: []db.WorkflowEdge{
+			{SourceNodeID: 1, DestinationNodeID: 2, Condition: db.WorkflowEdgeOnSuccess},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected task node with approval fields to fail validation")
+	}
+}

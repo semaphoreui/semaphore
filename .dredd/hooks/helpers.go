@@ -65,6 +65,11 @@ func truncateAll() {
 		"project__integration",
 		"project__integration_extract_value",
 		"project__integration_matcher",
+		"project__workflow_approval",
+		"project__workflow_run",
+		"project__workflow_edge",
+		"project__workflow_node",
+		"project__workflow_template",
 		"runner",
 	}
 
@@ -342,6 +347,56 @@ func addGlobalRunner() *db.Runner {
 	return &runner
 }
 
+func addWorkflow() *db.WorkflowTemplate {
+	wf, err := store.CreateWorkflowTemplate(db.WorkflowTemplate{
+		ProjectID: userProject.ID,
+		Name:      "ITW-" + getUUID(),
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: templateID},
+			{ID: 2, Kind: db.WorkflowNodeApprovalKind, ApprovalMessage: strPtr("approve")},
+		},
+		Edges: []db.WorkflowEdge{
+			{
+				SourceNodeID:      1,
+				DestinationNodeID: 2,
+				Condition:         db.WorkflowEdgeOnSuccess,
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &wf
+}
+
+func addWorkflowRun() *db.WorkflowRun {
+	start := tz.Now()
+	run, err := store.CreateWorkflowRun(db.WorkflowRun{
+		ProjectID:          userProject.ID,
+		WorkflowTemplateID: workflowID,
+		Status:             db.WorkflowRunRunning,
+		Start:              &start,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &run
+}
+
+func addWorkflowApproval() *db.WorkflowApproval {
+	approval, err := store.CreateWorkflowApproval(db.WorkflowApproval{
+		ProjectID:      userProject.ID,
+		WorkflowRunID:  workflowRunID,
+		WorkflowNodeID: 2,
+		Status:         db.WorkflowApprovalPending,
+		Created:        tz.Now(),
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &approval
+}
+
 // Token Handling
 func addToken(tok string, user int) {
 	_, err := store.CreateAPIToken(db.APIToken{
@@ -363,6 +418,10 @@ func getUUID() string {
 		randSetup = true
 	}
 	return random.String(8)
+}
+
+func strPtr(v string) *string {
+	return &v
 }
 
 func loadConfig() {

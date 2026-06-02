@@ -174,8 +174,9 @@ func GetWorkflowRuns(w http.ResponseWriter, r *http.Request) {
 }
 
 type workflowNodeRunStatus struct {
-	Node db.WorkflowNode `json:"node"`
-	Task *db.TaskWithTpl `json:"task,omitempty"`
+	Node     db.WorkflowNode      `json:"node"`
+	Task     *db.TaskWithTpl      `json:"task,omitempty"`
+	Approval *db.WorkflowApproval `json:"approval,omitempty"`
 }
 
 type workflowRunDetails struct {
@@ -187,6 +188,16 @@ func GetWorkflowRun(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	workflow := helpers.GetFromContext(r, "workflow").(db.WorkflowTemplate)
 	run := helpers.GetFromContext(r, "workflow_run").(db.WorkflowRun)
+	err := taskPool(r).ProgressWorkflowRun(project.ID, run.ID, helpers.UserFromContext(r))
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+	run, err = helpers.Store(r).GetWorkflowRunByID(project.ID, run.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
 	tasks, err := helpers.Store(r).GetProjectTasks(project.ID, db.RetrieveQueryParams{})
 	if err != nil {
@@ -205,12 +216,26 @@ func GetWorkflowRun(w http.ResponseWriter, r *http.Request) {
 		taskByNodeID[*task.WorkflowNodeID] = task
 	}
 
+	approvals, err := helpers.Store(r).GetWorkflowApprovals(project.ID, run.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+	approvalByNodeID := make(map[int]db.WorkflowApproval, len(approvals))
+	for _, approval := range approvals {
+		approvalByNodeID[approval.WorkflowNodeID] = approval
+	}
+
 	nodeStatuses := make([]workflowNodeRunStatus, 0, len(workflow.Nodes))
 	for _, node := range workflow.Nodes {
 		ns := workflowNodeRunStatus{Node: node}
 		if task, ok := taskByNodeID[node.ID]; ok {
 			t := task
 			ns.Task = &t
+		}
+		if approval, ok := approvalByNodeID[node.ID]; ok {
+			a := approval
+			ns.Approval = &a
 		}
 		nodeStatuses = append(nodeStatuses, ns)
 	}
@@ -219,4 +244,58 @@ func GetWorkflowRun(w http.ResponseWriter, r *http.Request) {
 		Run:   run,
 		Nodes: nodeStatuses,
 	})
+}
+
+func GetWorkflowApprovals(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	run := helpers.GetFromContext(r, "workflow_run").(db.WorkflowRun)
+	err := taskPool(r).ProgressWorkflowRun(project.ID, run.ID, helpers.UserFromContext(r))
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	approvals, err := helpers.Store(r).GetWorkflowApprovals(project.ID, run.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, approvals)
+}
+
+type workflowApprovalResolutionRequest struct {
+	Status db.WorkflowApprovalStatus `json:"status"`
+}
+
+func ResolveWorkflowApproval(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	workflow := helpers.GetFromContext(r, "workflow").(db.WorkflowTemplate)
+	run := helpers.GetFromContext(r, "workflow_run").(db.WorkflowRun)
+	user := helpers.UserFromContext(r)
+	nodeID, err := helpers.GetIntParam("node_id", w, r)
+	if err != nil {
+		return
+	}
+
+	var req workflowApprovalResolutionRequest
+	if !helpers.Bind(w, r, &req) {
+		return
+	}
+
+	approval, err := taskPool(r).ResolveWorkflowApproval(project.ID, workflow.ID, run.ID, nodeID, req.Status, user)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      user.ID,
+		ProjectID:   project.ID,
+		ObjectType:  db.EventWorkflow,
+		ObjectID:    workflow.ID,
+		Description: fmt.Sprintf("Workflow run #%d approval for node #%d set to %s", run.ID, nodeID, req.Status),
+	})
+
+	helpers.WriteJSON(w, http.StatusOK, approval)
 }

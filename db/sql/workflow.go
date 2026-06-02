@@ -44,11 +44,15 @@ func (d *SqlDb) writeWorkflowGraph(workflow db.WorkflowTemplate) (err error) {
 
 		insertID, err2 := d.insert(
 			"id",
-			"insert into project__workflow_node (workflow_template_id, template_id, inventory_id, environment_id) values (?, ?, ?, ?)",
+			"insert into project__workflow_node (workflow_template_id, template_id, inventory_id, environment_id, kind, convergence_mode, approval_timeout, approval_message) values (?, ?, ?, ?, ?, ?, ?, ?)",
 			node.WorkflowTemplateID,
 			node.TemplateID,
 			node.InventoryID,
 			node.EnvironmentID,
+			node.EffectiveKind(),
+			node.EffectiveConvergenceMode(),
+			node.ApprovalTimeout,
+			node.ApprovalMessage,
 		)
 		if err2 != nil {
 			err = err2
@@ -262,6 +266,63 @@ func (d *SqlDb) UpdateWorkflowRun(run db.WorkflowRun) error {
 		run.ProjectID,
 		run.WorkflowTemplateID,
 		run.ID,
+	)
+	return err
+}
+
+func (d *SqlDb) GetWorkflowApprovals(projectID int, runID int) (approvals []db.WorkflowApproval, err error) {
+	approvals = make([]db.WorkflowApproval, 0)
+	_, err = d.selectAll(
+		&approvals,
+		"select * from project__workflow_approval where project_id=? and workflow_run_id=? order by id",
+		projectID,
+		runID,
+	)
+	return
+}
+
+func (d *SqlDb) GetWorkflowApproval(projectID int, runID int, nodeID int) (approval db.WorkflowApproval, err error) {
+	err = d.selectOne(
+		&approval,
+		"select * from project__workflow_approval where project_id=? and workflow_run_id=? and workflow_node_id=?",
+		projectID,
+		runID,
+		nodeID,
+	)
+	return
+}
+
+func (d *SqlDb) CreateWorkflowApproval(approval db.WorkflowApproval) (newApproval db.WorkflowApproval, err error) {
+	insertID, err := d.insert(
+		"id",
+		"insert into project__workflow_approval (project_id, workflow_run_id, workflow_node_id, status, created, resolved, resolved_by_user_id) values (?, ?, ?, ?, ?, ?, ?)",
+		approval.ProjectID,
+		approval.WorkflowRunID,
+		approval.WorkflowNodeID,
+		approval.Status,
+		approval.Created,
+		approval.Resolved,
+		approval.ResolvedByUserID,
+	)
+	if err != nil {
+		return
+	}
+
+	approval.ID = insertID
+	newApproval = approval
+	return
+}
+
+func (d *SqlDb) UpdateWorkflowApproval(approval db.WorkflowApproval) error {
+	_, err := d.exec(
+		"update project__workflow_approval set status=?, resolved=?, resolved_by_user_id=? where project_id=? and workflow_run_id=? and workflow_node_id=? and id=?",
+		approval.Status,
+		approval.Resolved,
+		approval.ResolvedByUserID,
+		approval.ProjectID,
+		approval.WorkflowRunID,
+		approval.WorkflowNodeID,
+		approval.ID,
 	)
 	return err
 }
