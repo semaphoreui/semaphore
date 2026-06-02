@@ -103,6 +103,15 @@
         dense
         hide-details="auto"
       />
+      <ArgsPicker
+        v-if="node.kind !== 'approval'"
+        :vars="node.limit || []"
+        @change="setNodeLimit(idx, $event)"
+        :title="$t('workflowNodeLimit')"
+        :arg-title="$t('limit')"
+        :add-arg-title="$t('addLimit')"
+        class="mt-2"
+      />
       <v-text-field
         v-else
         v-model.number="node.approval_timeout"
@@ -206,10 +215,12 @@
   </v-form>
 </template>
 <script>
+import ArgsPicker from '@/components/ArgsPicker.vue';
 import ItemFormBase from '@/components/ItemFormBase';
 
 export default {
   mixins: [ItemFormBase],
+  components: { ArgsPicker },
   data() {
     return {
       templates: null,
@@ -264,6 +275,7 @@ export default {
       this.item.nodes = this.item.nodes.map((node) => ({
         kind: 'task',
         convergence_mode: 'all',
+        limit: [],
         ...node,
         template_id: node.kind === 'approval' ? null : node.template_id,
       }));
@@ -278,7 +290,11 @@ export default {
         template_id: null,
         kind: 'task',
         convergence_mode: 'all',
+        limit: [],
       });
+    },
+    setNodeLimit(idx, limit) {
+      this.$set(this.item.nodes[idx], 'limit', limit);
     },
     removeNode(idx) {
       const removed = this.item.nodes[idx];
@@ -303,6 +319,7 @@ export default {
       const node = this.item.nodes[idx];
       if (node.kind === 'approval') {
         node.template_id = null;
+        node.limit = [];
       } else {
         node.approval_timeout = null;
         node.approval_message = null;

@@ -327,12 +327,18 @@ func (p *TaskPool) startWorkflowNode(
 			return err
 		}
 
+		taskParams := db.MapStringAnyField{}
+		if len(node.Limit) > 0 {
+			taskParams["limit"] = []string(node.Limit)
+		}
+
 		newTask, err := p.AddTask(db.Task{
 			TemplateID:     node.TemplateID,
 			ProjectID:      run.ProjectID,
 			BuildTaskID:    buildTaskID,
 			WorkflowRunID:  &run.ID,
 			WorkflowNodeID: &node.ID,
+			Params:         taskParams,
 		}, userID, username, run.ProjectID, tpl.App.NeedTaskAlias())
 		if err != nil {
 			return fmt.Errorf("failed to enqueue workflow node %d: %w", node.ID, err)

@@ -156,4 +156,19 @@ func TestValidateWorkflowTemplateRejectsInvalidNodeKindCombinations(t *testing.T
 	if err == nil {
 		t.Fatal("expected task node with approval fields to fail validation")
 	}
+
+	err = db.ValidateWorkflowTemplate(store, db.WorkflowTemplate{
+		ProjectID: projectID,
+		Name:      "wf",
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: tplA},
+			{ID: 2, Kind: db.WorkflowNodeApprovalKind, Limit: db.StringArrayField{"web"}},
+		},
+		Edges: []db.WorkflowEdge{
+			{SourceNodeID: 1, DestinationNodeID: 2, Condition: db.WorkflowEdgeOnSuccess},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected approval node with limit to fail validation")
+	}
 }

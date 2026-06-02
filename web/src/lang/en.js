@@ -509,6 +509,7 @@ export default {
   workflowApprove: 'Approve',
   workflowReject: 'Reject',
   workflowApprovalPending: 'Pending approval',
+  workflowNodeLimit: 'Ansible Limit',
   workflowTemplateRequired: 'Template is required',
   workflowRunNow: 'Run workflow',
   workflowRunStarted: 'Workflow run started',
