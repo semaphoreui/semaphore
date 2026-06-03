@@ -140,6 +140,7 @@ func (d *BoltDb) ResetRunnerRegistration(runnerID int, registrationTokenHash str
 		}
 
 		runner.Token = ""
+		runner.Active = false
 		runner.PublicKey = nil
 		runner.RegistrationTokenHash = &registrationTokenHash
 		runner.RegistrationTokenExpiresAt = &expiresAt
