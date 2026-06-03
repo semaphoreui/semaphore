@@ -201,14 +201,26 @@ func (d *SqlDb) RegisterRunner(registrationTokenHash string, publicKey *string, 
 
 	token := db.GenerateRunnerToken()
 
-	_, err = d.exec(
-		"update `runner` set `token`=?, `public_key`=?, `active`=?, `registration_token`=null, `registration_token_expires_at`=null where id=?",
+	res, err := d.exec(
+		"update `runner` set `token`=?, `public_key`=?, `active`=?, `registration_token`=null, `registration_token_expires_at`=null where id=? and registration_token=?",
 		token,
 		publicKey,
 		active,
-		runner.ID)
+		runner.ID,
+		registrationTokenHash)
 
 	if err != nil {
+		return
+	}
+
+	var rowsAffected int64
+	rowsAffected, err = res.RowsAffected()
+	if err != nil {
+		return
+	}
+
+	if rowsAffected == 0 {
+		err = fmt.Errorf("registration token already used")
 		return
 	}
 
