@@ -149,6 +149,8 @@ func (p *JobPool) Unregister() (err error) {
 		return
 	}
 
+	req.Header.Set("X-Runner-Token", util.Config.Runner.Token)
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return

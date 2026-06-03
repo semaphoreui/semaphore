@@ -119,3 +119,26 @@ func Test_RegisterRunner_FailsWhenExpired(t *testing.T) {
 	_, err = store.RegisterRunner(hash, nil, true)
 	assert.Error(t, err)
 }
+
+func Test_ResetRunnerRegistration_DeactivatesRunner(t *testing.T) {
+	store := CreateTestStore()
+
+	runner, err := store.CreateRunner(db.Runner{
+		Token:  db.GenerateRunnerToken(),
+		Active: true,
+	})
+	require.NoError(t, err)
+	require.True(t, runner.Active)
+
+	hash := server.HashRunnerRegistrationToken("sms_reset")
+	expiresAt := tz.Now().Add(time.Hour)
+	err = store.ResetRunnerRegistration(runner.ID, hash, expiresAt)
+	require.NoError(t, err)
+
+	stored, err := store.GetGlobalRunner(runner.ID)
+	require.NoError(t, err)
+	assert.Empty(t, stored.Token)
+	assert.False(t, stored.Active)
+	require.NotNil(t, stored.RegistrationTokenHash)
+	assert.Equal(t, hash, *stored.RegistrationTokenHash)
+}

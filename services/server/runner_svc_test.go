@@ -94,7 +94,7 @@ func TestRunnerService_RegenerateRegistrationToken_ResetsRegisteredRunner(t *tes
 	// The runner is reset to the unregistered state.
 	assert.Empty(t, stored.Token)
 	assert.False(t, stored.IsRegistered())
-	//assert.False(t, stored.Active)
+	assert.False(t, stored.Active)
 	assert.Nil(t, stored.PublicKey)
 	require.NotNil(t, stored.RegistrationTokenHash)
 	assert.Equal(t, HashRunnerRegistrationToken(token), *stored.RegistrationTokenHash)
