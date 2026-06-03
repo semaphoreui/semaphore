@@ -44,61 +44,102 @@ var tokenCmd = &cobra.Command{
 	},
 }
 
-func getTokenUser(store db.Store) db.User {
-	if targetTokenArgs.login == "" {
-		fmt.Println("Argument --login required")
-		os.Exit(1)
+func getTokenUser(store db.Store, login string) (db.User, error) {
+	if login == "" {
+		return db.User{}, errors.New("argument --login required")
 	}
 
-	user, err := store.GetUserByLoginOrEmail(targetTokenArgs.login, "")
+	user, err := store.GetUserByLoginOrEmail(login, "")
 	if errors.Is(err, db.ErrNotFound) {
-		fmt.Printf("User with login %s not found\n", targetTokenArgs.login)
-		os.Exit(1)
+		return db.User{}, fmt.Errorf("user with login %s not found", login)
 	}
 	if err != nil {
-		panic(err)
+		return db.User{}, err
 	}
 
-	return user
+	return user, nil
+}
+
+func createUserToken(store db.Store, out io.Writer, args tokenArgs) error {
+	user, err := getTokenUser(store, args.login)
+	if err != nil {
+		return err
+	}
+
+	var expiresAt *time.Time
+	if args.ttl != "" {
+		d, err := time.ParseDuration(args.ttl)
+		if err != nil {
+			return fmt.Errorf("invalid --ttl value: %w", err)
+		}
+		t := tz.Now().Add(d)
+		expiresAt = &t
+	}
+
+	tokenID := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
+		return err
+	}
+
+	token, err := store.CreateAPIToken(db.APIToken{
+		ID:        strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
+		UserID:    user.ID,
+		Expired:   false,
+		ExpiresAt: expiresAt,
+		Name:      args.name,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(out, token.ID)
+	return nil
+}
+
+func listUserTokens(store db.Store, out io.Writer, args tokenArgs) error {
+	user, err := getTokenUser(store, args.login)
+	if err != nil {
+		return err
+	}
+
+	tokens, err := store.GetAPITokens(user.ID)
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		return err
+	}
+
+	now := tz.Now()
+	for _, token := range tokens {
+		status := "active"
+		if token.IsExpiredAt(now) {
+			status = "expired"
+		}
+
+		expires := "never"
+		if token.ExpiresAt != nil {
+			expires = token.ExpiresAt.Format(time.RFC3339)
+		}
+
+		fmt.Fprintf(out, "%s\t%s\t%s\n", token.Name, status, expires)
+	}
+
+	return nil
+}
+
+func runTokenCmd(fn func(db.Store, io.Writer, tokenArgs) error) {
+	store := createStore("")
+	defer store.Close("")
+
+	if err := fn(store, os.Stdout, targetTokenArgs); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 var tokenCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create new API token",
 	Run: func(cmd *cobra.Command, args []string) {
-		store := createStore("")
-		defer store.Close("")
-
-		user := getTokenUser(store)
-
-		var expiresAt *time.Time
-		if targetTokenArgs.ttl != "" {
-			d, err := time.ParseDuration(targetTokenArgs.ttl)
-			if err != nil {
-				fmt.Printf("Invalid --ttl value: %s\n", err)
-				os.Exit(1)
-			}
-			t := tz.Now().Add(d)
-			expiresAt = &t
-		}
-
-		tokenID := make([]byte, 32)
-		if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
-			panic(err)
-		}
-
-		token, err := store.CreateAPIToken(db.APIToken{
-			ID:        strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
-			UserID:    user.ID,
-			Expired:   false,
-			ExpiresAt: expiresAt,
-			Name:      targetTokenArgs.name,
-		})
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Println(token.ID)
+		runTokenCmd(createUserToken)
 	},
 }
 
@@ -106,29 +147,6 @@ var tokenListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List user API tokens",
 	Run: func(cmd *cobra.Command, args []string) {
-		store := createStore("")
-		defer store.Close("")
-
-		user := getTokenUser(store)
-
-		tokens, err := store.GetAPITokens(user.ID)
-		if err != nil && !errors.Is(err, db.ErrNotFound) {
-			panic(err)
-		}
-
-		now := tz.Now()
-		for _, token := range tokens {
-			status := "active"
-			if token.IsExpiredAt(now) {
-				status = "expired"
-			}
-
-			expires := "never"
-			if token.ExpiresAt != nil {
-				expires = token.ExpiresAt.Format(time.RFC3339)
-			}
-
-			fmt.Printf("%s\t%s\t%s\n", token.Name, status, expires)
-		}
+		runTokenCmd(listUserTokens)
 	},
 }
