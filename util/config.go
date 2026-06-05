@@ -102,6 +102,10 @@ const (
 	// CmdGitClientId is external Git client.
 	// Default Git client. It is use external Git binary to clone repositories.
 	CmdGitClientId = "cmd_git"
+	// ProxyGitClientId is proxy Git client.
+	// It requests repository data from Semaphore server instead of cloning directly from git server.
+	// Useful when runner cannot access git server directly.
+	ProxyGitClientId = "proxy_git"
 )
 
 // // basic config validation using regex
@@ -331,7 +335,7 @@ type ConfigType struct {
 	// Default path is ~/.ssh/config.
 	SshConfigPath string `json:"ssh_config_path,omitempty" env:"SEMAPHORE_SSH_PATH"`
 
-	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
+	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git|proxy_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
 	// web host
 	WebHost string `json:"web_host,omitempty" env:"SEMAPHORE_WEB_ROOT"`

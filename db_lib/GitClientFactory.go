@@ -8,6 +8,8 @@ func CreateDefaultGitClient(keyInstaller AccessKeyInstaller) GitClient {
 		return CreateGoGitClient(keyInstaller)
 	case util.CmdGitClientId:
 		return CreateCmdGitClient(keyInstaller)
+	case util.ProxyGitClientId:
+		return CreateProxyGitClient(keyInstaller)
 	default:
 		return CreateCmdGitClient(keyInstaller)
 	}
@@ -21,6 +23,12 @@ func CreateGoGitClient(keyInstaller AccessKeyInstaller) GitClient {
 
 func CreateCmdGitClient(keyInstaller AccessKeyInstaller) GitClient {
 	return CmdGitClient{
+		keyInstaller: keyInstaller,
+	}
+}
+
+func CreateProxyGitClient(keyInstaller AccessKeyInstaller) GitClient {
+	return ProxyGitClient{
 		keyInstaller: keyInstaller,
 	}
 }

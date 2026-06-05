@@ -1,17 +1,26 @@
 package runners
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"time"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/services/server"
@@ -424,4 +433,258 @@ func UnregisterRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type RepositoryRequest struct {
+	GitURL    string `json:"git_url" binding:"required"`
+	GitBranch string `json:"git_branch" binding:"required"`
+	SSHKeyID  *int   `json:"ssh_key_id,omitempty"`
+}
+
+type RepositoryResponse struct {
+	Hash    string `json:"hash"`
+	Message string `json:"message"`
+	Archive []byte `json:"archive"`
+}
+
+func GetRepositoryArchive(w http.ResponseWriter, r *http.Request) {
+	runner := helpers.GetFromContext(r, "runner").(db.Runner)
+
+	var req RepositoryRequest
+	if !helpers.Bind(w, r, &req) {
+		return
+	}
+
+	store := helpers.Store(r)
+
+	// Create a temporary repository record for cloning
+	tempRepo := db.Repository{
+		GitURL:    req.GitURL,
+		GitBranch: req.GitBranch,
+	}
+
+	// Set SSH key if provided
+	if req.SSHKeyID != nil && runner.ProjectID != nil {
+		accessKey, err := store.GetAccessKey(*runner.ProjectID, *req.SSHKeyID)
+		if err != nil {
+			helpers.WriteErrorStatus(w, "Access key not found", http.StatusNotFound)
+			return
+		}
+		tempRepo.SSHKeyID = *req.SSHKeyID
+		tempRepo.SSHKey = accessKey
+	}
+
+	// Create a temporary directory for cloning
+	tempDir, err := os.MkdirTemp("", "semaphore-repo-*")
+	if err != nil {
+		log.WithError(err).Error("Failed to create temp directory")
+		helpers.WriteErrorStatus(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a simple logger for the git operations
+	logger := &simpleLogger{}
+
+	// Create git repository with the appropriate git client (but not proxy to avoid recursion)
+	var gitClient db_lib.GitClient
+	switch util.Config.GitClientId {
+	case util.GoGitClientId:
+		gitClient = db_lib.CreateGoGitClient(&simpleKeyInstaller{})
+	default:
+		gitClient = db_lib.CreateCmdGitClient(&simpleKeyInstaller{})
+	}
+
+	gitRepo := db_lib.GitRepository{
+		Repository: tempRepo,
+		Logger:     logger,
+		Client:     gitClient,
+	}
+
+	// Create a custom GitRepository that returns our temp directory
+	customGitRepo := customGitRepository{
+		GitRepository: gitRepo,
+		customPath:    tempDir,
+	}
+
+	// Clone the repository
+	err = customGitRepo.Clone()
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"git_url":    req.GitURL,
+			"git_branch": req.GitBranch,
+		}).Error("Failed to clone repository")
+		helpers.WriteErrorStatus(w, "Failed to clone repository: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Get commit information
+	hash, err := customGitRepo.GetLastCommitHash()
+	if err != nil {
+		log.WithError(err).Error("Failed to get commit hash")
+		hash = "unknown"
+	}
+
+	message, err := customGitRepo.GetLastCommitMessage()
+	if err != nil {
+		log.WithError(err).Error("Failed to get commit message")
+		message = "unknown"
+	}
+
+	// Create tar.gz archive of the repository
+	archiveData, err := createRepositoryArchive(tempDir)
+	if err != nil {
+		log.WithError(err).Error("Failed to create repository archive")
+		helpers.WriteErrorStatus(w, "Failed to create archive", http.StatusInternalServerError)
+		return
+	}
+
+	// Prepare response
+	response := RepositoryResponse{
+		Hash:    hash,
+		Message: message,
+		Archive: archiveData,
+	}
+
+	log.WithFields(log.Fields{
+		"git_url":     req.GitURL,
+		"git_branch":  req.GitBranch,
+		"commit_hash": hash,
+		"runner_id":   runner.ID,
+	}).Info("Repository archive served to runner")
+
+	helpers.WriteJSON(w, http.StatusOK, response)
+}
+
+// Simple logger implementation for git operations
+type simpleLogger struct {
+	status task_logger.TaskStatus
+}
+
+type StatusListener = task_logger.StatusListener
+type LogListener = task_logger.LogListener
+type TaskStatus = task_logger.TaskStatus
+
+func (l *simpleLogger) Log(message string) {
+	log.Info(message)
+}
+
+func (l *simpleLogger) Logf(format string, a ...any) {
+	log.Infof(format, a...)
+}
+
+func (l *simpleLogger) LogWithTime(time time.Time, message string) {
+	log.Info(message)
+}
+
+func (l *simpleLogger) LogfWithTime(time time.Time, format string, a ...any) {
+	log.Infof(format, a...)
+}
+
+func (l *simpleLogger) LogCmd(cmd *exec.Cmd) {
+	log.Infof("Executing command: %v", cmd)
+}
+
+func (l *simpleLogger) SetStatus(status TaskStatus) {
+	l.status = status
+}
+
+func (l *simpleLogger) AddStatusListener(listener StatusListener) {
+	// No-op for simple implementation
+}
+
+func (l *simpleLogger) AddLogListener(listener LogListener) {
+	// No-op for simple implementation
+}
+
+func (l *simpleLogger) SetCommit(hash, message string) {
+	// No-op for simple implementation
+}
+
+func (l *simpleLogger) WaitLog() {
+	// No-op for simple implementation
+}
+
+// Simple key installer implementation for git operations
+type simpleKeyInstaller struct{}
+
+func (k *simpleKeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	// For now, return a simple implementation that doesn't install keys
+	// This will work for public repositories or repositories that don't require authentication
+	return ssh.AccessKeyInstallation{}, nil
+}
+
+// Custom GitRepository wrapper that overrides GetFullPath
+type customGitRepository struct {
+	db_lib.GitRepository
+	customPath string
+}
+
+func (c customGitRepository) GetFullPath() string {
+	return c.customPath
+}
+
+func createRepositoryArchive(repoPath string) ([]byte, error) {
+	var buf bytes.Buffer
+
+	// Create gzip writer
+	gzWriter := gzip.NewWriter(&buf)
+	defer gzWriter.Close()
+
+	// Create tar writer
+	tarWriter := tar.NewWriter(gzWriter)
+	defer tarWriter.Close()
+
+	// Walk through the repository directory
+	err := filepath.Walk(repoPath, func(file string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Create tar header
+		header, err := tar.FileInfoHeader(fi, "")
+		if err != nil {
+			return err
+		}
+
+		// Calculate relative path
+		relPath, err := filepath.Rel(repoPath, file)
+		if err != nil {
+			return err
+		}
+
+		header.Name = relPath
+
+		// Write header
+		err = tarWriter.WriteHeader(header)
+		if err != nil {
+			return err
+		}
+
+		// If it's a regular file, write its contents
+		if fi.Mode().IsRegular() {
+			fileData, err := os.Open(file)
+			if err != nil {
+				return err
+			}
+			defer fileData.Close()
+
+			_, err = io.Copy(tarWriter, fileData)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Close writers to flush data
+	tarWriter.Close()
+	gzWriter.Close()
+
+	return buf.Bytes(), nil
 }
