@@ -105,6 +105,29 @@ func Test_RegisterRunner_FailsWhenTokenUnknown(t *testing.T) {
 	assert.ErrorIs(t, err, db.ErrNotFound)
 }
 
+func Test_ResetRunnerRegistration_DeactivatesRunner(t *testing.T) {
+	store := CreateTestStore()
+
+	testRunner, err := store.CreateRunner(db.Runner{
+		Token:  db.GenerateRunnerToken(),
+		Active: true,
+	})
+	require.NoError(t, err)
+
+	hash := server.HashRunnerRegistrationToken("sms_reset")
+	expiresAt := tz.Now().Add(time.Hour)
+	err = store.ResetRunnerRegistration(testRunner.ID, hash, expiresAt)
+	require.NoError(t, err)
+
+	stored, err := store.GetGlobalRunner(testRunner.ID)
+	require.NoError(t, err)
+	assert.Empty(t, stored.Token)
+	assert.False(t, stored.Active)
+	assert.Nil(t, stored.PublicKey)
+	require.NotNil(t, stored.RegistrationTokenHash)
+	assert.Equal(t, hash, *stored.RegistrationTokenHash)
+}
+
 func Test_RegisterRunner_FailsWhenExpired(t *testing.T) {
 	store := CreateTestStore()
 
