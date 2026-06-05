@@ -948,6 +948,9 @@ const LANGUAGES = {
   pt_br: {
     title: 'Português do Brasil',
   },
+  cs: {
+    title: 'Czech',
+  },
 };
 
 function getLangInfo(locale) {
