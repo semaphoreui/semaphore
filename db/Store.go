@@ -463,7 +463,7 @@ type RunnerManager interface {
 	// it generates the runner's auth token, stores its public key, activates it and
 	// clears the registration token. It fails if no matching runner exists, the
 	// token has expired, or the runner is already registered.
-	RegisterRunner(registrationTokenHash string, publicKey *string, active bool) (Runner, error)
+	RegisterRunner(registrationTokenHash string, publicKey *string) (Runner, error)
 	// ResetRunnerRegistration moves a runner (back) to the unregistered state: it
 	// clears the auth token, public key and active flag, and stores a new one-time
 	// registration token hash and its expiry.
