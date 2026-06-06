@@ -222,7 +222,7 @@ func (d *SqlDb) RegisterRunner(registrationTokenHash string, publicKey *string) 
 
 func (d *SqlDb) ResetRunnerRegistration(runnerID int, registrationTokenHash string, expiresAt time.Time) (err error) {
 	_, err = d.exec(
-		"update `runner` set `token`='', `active`=false, `public_key`=null, `registration_token`=?, `registration_token_expires_at`=? where id=?",
+		"update `runner` set `token`='', `public_key`=null, `registration_token`=?, `registration_token_expires_at`=? where id=?",
 		registrationTokenHash,
 		expiresAt,
 		runnerID)
