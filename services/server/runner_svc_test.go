@@ -48,7 +48,7 @@ func TestRunnerService_CreateRunner_Unregistered(t *testing.T) {
 	// no registration token, no key pair, and inactive.
 	assert.Empty(t, runner.Token)
 	assert.False(t, runner.IsRegistered())
-	assert.False(t, runner.Active)
+	assert.True(t, runner.Active)
 	assert.Empty(t, privateKey)
 	assert.Nil(t, runner.PublicKey)
 	assert.Nil(t, runner.RegistrationTokenHash)

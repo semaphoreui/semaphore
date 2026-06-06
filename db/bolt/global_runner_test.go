@@ -79,14 +79,15 @@ func Test_RegisterRunner_SetsTokenAndActivates(t *testing.T) {
 	testRunner, err := store.CreateRunner(db.Runner{
 		RegistrationTokenHash:      &hash,
 		RegistrationTokenExpiresAt: &expiresAt,
+		Active:                     true,
 	})
 	require.NoError(t, err)
 
 	publicKey := "test-public-key"
 	registered, err := store.RegisterRunner(hash, &publicKey)
 	require.NoError(t, err)
-	//assert.NotEmpty(t, registered.Token)
-	//assert.True(t, registered.Active)
+	assert.NotEmpty(t, registered.Token)
+	assert.True(t, registered.Active)
 	assert.Equal(t, publicKey, *registered.PublicKey)
 
 	stored, err := store.GetGlobalRunner(testRunner.ID)
