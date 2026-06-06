@@ -143,7 +143,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if tsk.Task.Status == task_logger.TaskStartingStatus {
+		if tsk.Task.Status == task_logger.TaskWaitingStatus || tsk.Task.Status == task_logger.TaskStartingStatus {
 
 			data.NewJobs = append(data.NewJobs, runners.JobData{
 				Username:            tsk.Username,

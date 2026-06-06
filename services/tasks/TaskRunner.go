@@ -188,15 +188,19 @@ func (t *TaskRunner) run() {
 		if handedOff {
 			// Task is now running on a remote runner. Completion is driven by the
 			// runner's status report, not by this goroutine, so do not finalize.
-			log.WithField("task_id", t.Task.ID).Info("Task dispatched to runner; awaiting remote completion")
+			l := log.WithField("task_id", t.Task.ID).WithField("status", t.Task.Status)
+
+			if t.Task.RunnerID != nil {
+				l = log.WithField("runner_id", *t.Task.RunnerID)
+			}
+
+			l.Info("Task dispatched to runner; awaiting remote completion")
 			return
 		}
 
 		log.WithFields(log.Fields{
 			"task_id": t.Task.ID,
 		}).Info("Stopped running task " + t.Template.Name)
-
-		//log.Info("Release resource locker with " + strconv.Itoa(t.Task.ID))
 
 		t.finishRun()
 	}()
