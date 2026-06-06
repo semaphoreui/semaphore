@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -66,6 +67,11 @@ type TaskPool struct {
 
 	// state provides pluggable storage for Queue, active projects, running tasks and aliases
 	state TaskStateStore
+
+	// finalizing guards FinalizeRemoteTask so a remote task is finalized at most
+	// once per process when several signals (runner report, timeout, force stop)
+	// race. Keyed by task ID.
+	finalizing sync.Map
 }
 
 func CreateTaskPool(
@@ -226,43 +232,39 @@ func (p *TaskPool) handleQueue() {
 			p.onTaskStop(t.task)
 		}
 
-		if p.state.QueueLen() == 0 {
-			continue
-		}
-
-		var i = 0
-		for i < p.state.QueueLen() {
-			curr := p.state.QueueGet(i)
-			if curr == nil { // item may no longer be local, move ahead
-				i = i + 1
+		// Snapshot the queue once per pass and address every task by ID. In HA
+		// mode multiple nodes mutate the shared Redis queue concurrently, so a
+		// position-based walk (QueueGet(i) + DequeueAt(i)) races: the list can
+		// shift between the read and the dequeue, removing a different task than
+		// the one that was claimed. Iterating a snapshot and claiming by ID
+		// (ClaimAndDequeue) removes that hazard.
+		for _, curr := range p.state.QueueRange() {
+			if curr == nil { // item may no longer be available, move ahead
 				continue
 			}
 
 			// When handling a requeue event, don't immediately start the same task again.
 			if skipTaskID != 0 && curr.Task.ID == skipTaskID {
-				i = i + 1
 				continue
 			}
 
 			if curr.Task.Status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
-				_ = p.state.DequeueAt(i)
+				p.state.DequeueByID(curr.Task.ID)
 				log.Info("Task " + getTaskName(curr) + " removed from queue")
 				continue
 			}
 
 			if p.blocks(curr) {
-				i = i + 1
 				continue
 			}
 
-			// ensure only one instance claims the task before dequeue
-			if !p.state.TryClaim(curr.Task.ID) {
-				i = i + 1
+			// Atomically claim and remove the task so exactly one node runs it.
+			// On failure another node owns it (or it is already gone); leave it.
+			if !p.state.ClaimAndDequeue(curr.Task.ID) {
 				continue
 			}
 
-			_ = p.state.DequeueAt(i)
 			runTask(curr, p)
 		}
 	}
@@ -385,6 +387,36 @@ func (p *TaskPool) onTaskStop(t *TaskRunner) {
 	if t.Alias != "" {
 		p.state.DeleteAlias(t.Alias)
 	}
+}
+
+// FinalizeRemoteTask completes a remote (runner) task once it has reached a
+// terminal status. It runs the finish webhook (when a runner is provided),
+// queues any autorun child templates, and releases the task's pool/Redis state
+// (End time, EventTypeFinished -> onTaskStop).
+//
+// Because remote completion is reported by the runner to an arbitrary node,
+// this is what decouples a task's lifecycle from the node that dispatched it:
+// whichever node receives the terminal report finalizes the task. It is safe to
+// call from several racing signals (runner report, timeout, force stop) — a
+// per-process guard ensures it runs at most once per task here.
+func (p *TaskPool) FinalizeRemoteTask(tsk *TaskRunner, runner *db.Runner) {
+	if tsk == nil {
+		return
+	}
+
+	if _, loaded := p.finalizing.LoadOrStore(tsk.Task.ID, struct{}{}); loaded {
+		return
+	}
+	defer p.finalizing.Delete(tsk.Task.ID)
+
+	if runner != nil {
+		if err := callRunnerWebhook(runner, tsk, "finish"); err != nil {
+			log.WithError(err).WithField("task_id", tsk.Task.ID).Warn("remote task finish webhook failed")
+		}
+	}
+
+	tsk.startAutorunTasks()
+	tsk.finishRun()
 }
 
 func applyDBPersistedTaskSnapshot(dst *db.Task, src db.Task) {
@@ -556,6 +588,14 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 
 	if status == task_logger.TaskRunningStatus {
 		tsk.kill()
+	}
+
+	// A force-stopped remote task reaches a terminal status immediately and will
+	// not get a runner completion report, so finalize (cleanup) it here. A
+	// graceful stop stays "stopping" and is finalized when the runner reports it
+	// stopped via the runner API.
+	if forceStop && tsk.job != nil && tsk.job.Async() && tsk.Task.Status.IsFinished() {
+		go p.FinalizeRemoteTask(tsk, nil)
 	}
 
 	return nil

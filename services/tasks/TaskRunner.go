@@ -24,6 +24,12 @@ type Job interface {
 	Run(username string, incomingVersion *string, alias string) error
 	Kill()
 	IsKilled() bool
+	// Async reports whether the job completes asynchronously after Run returns.
+	// Remote runner jobs return true: Run only dispatches the task to a runner,
+	// and completion is reported back via the runner API and finalized by
+	// TaskPool.FinalizeRemoteTask. When true, TaskRunner.run must NOT finalize
+	// the task when Run returns. Local jobs return false (synchronous).
+	Async() bool
 }
 
 type TaskRunner struct {
@@ -166,11 +172,23 @@ func (t *TaskRunner) run() {
 	// requeued indicates task should go back to waiting state (e.g., all runners busy)
 	requeued := false
 
+	// handedOff indicates the task was dispatched to a remote runner and will be
+	// finalized asynchronously when the runner reports completion (see
+	// TaskPool.FinalizeRemoteTask). In that case run() must not finalize it here.
+	handedOff := false
+
 	defer func() {
 		if requeued {
 			// Task is being re-queued, don't mark as finished
 			log.Info("Task " + strconv.Itoa(t.Task.ID) + " re-queued (waiting for available runner)")
 			t.pool.queueEvents <- PoolEvent{EventTypeRequeued, t}
+			return
+		}
+
+		if handedOff {
+			// Task is now running on a remote runner. Completion is driven by the
+			// runner's status report, not by this goroutine, so do not finalize.
+			log.WithField("task_id", t.Task.ID).Info("Task dispatched to runner; awaiting remote completion")
 			return
 		}
 
@@ -180,11 +198,7 @@ func (t *TaskRunner) run() {
 
 		//log.Info("Release resource locker with " + strconv.Itoa(t.Task.ID))
 
-		now := tz.Now()
-		t.Task.End = &now
-		t.saveStatus()
-		t.createTaskEvent()
-		t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
+		t.finishRun()
 	}()
 
 	// Mark task as stopped if user stopped task during preparation (before task run).
@@ -240,38 +254,65 @@ func (t *TaskRunner) run() {
 		return
 	}
 
+	// Remote jobs only dispatch the task to a runner; their completion is
+	// reported asynchronously via the runner API and finalized there. Hand off
+	// and let the deferred cleanup skip finalization.
+	if t.job.Async() {
+		handedOff = true
+		return
+	}
+
 	if t.Task.Status == task_logger.TaskRunningStatus {
 		t.SetStatus(task_logger.TaskSuccessStatus)
 	}
 
-	if t.Task.Status == task_logger.TaskSuccessStatus {
-		tpls, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
-			BuildTemplateID: &t.Task.TemplateID,
-			AutorunOnly:     true,
-		}, db.RetrieveQueryParams{})
+	t.startAutorunTasks()
+}
 
+// finishRun records the end of a task run, persists it, and notifies the pool
+// to release the task's resources (EventTypeFinished -> onTaskStop). It is used
+// by the synchronous local path and by FinalizeRemoteTask for remote tasks.
+func (t *TaskRunner) finishRun() {
+	now := tz.Now()
+	t.Task.End = &now
+	t.saveStatus()
+	t.createTaskEvent()
+	t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
+}
+
+// startAutorunTasks queues the autorun child templates of a successfully
+// finished build task. It is a no-op unless the task succeeded.
+func (t *TaskRunner) startAutorunTasks() {
+	if t.Task.Status != task_logger.TaskSuccessStatus {
+		return
+	}
+
+	tpls, err := t.pool.store.GetTemplates(t.Task.ProjectID, db.TemplateFilter{
+		BuildTemplateID: &t.Task.TemplateID,
+		AutorunOnly:     true,
+	}, db.RetrieveQueryParams{})
+
+	if err != nil {
+		t.Log("Running app failed: " + err.Error())
+		return
+	}
+
+	for _, tpl := range tpls {
+		task := db.Task{
+			TemplateID:  tpl.ID,
+			ProjectID:   tpl.ProjectID,
+			BuildTaskID: &t.Task.ID,
+		}
+		_, err = t.pool.AddTask(
+			task,
+			nil,
+			"",
+			tpl.ProjectID,
+			tpl.App.NeedTaskAlias(),
+		)
 		if err != nil {
 			t.Log("Running app failed: " + err.Error())
-			return
-		}
-
-		for _, tpl := range tpls {
-			task := db.Task{
-				TemplateID:  tpl.ID,
-				ProjectID:   tpl.ProjectID,
-				BuildTaskID: &t.Task.ID,
-			}
-			_, err = t.pool.AddTask(
-				task,
-				nil,
-				"",
-				tpl.ProjectID,
-				tpl.App.NeedTaskAlias(),
-			)
-			if err != nil {
-				t.Log("Running app failed: " + err.Error())
-				continue
-			}
+			continue
 		}
 	}
 }
@@ -297,7 +338,7 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 	}
 
 	tplEnvironment := make(map[string]any)
-  
+
 	if t.Environment.JSON != "" {
 		err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
 	}

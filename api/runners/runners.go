@@ -329,6 +329,15 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 			if job.Commit != nil {
 				tsk.SetCommit(job.Commit.Hash, job.Commit.Message)
 			}
+
+			// When the runner reports a terminal status, finalize the task here:
+			// finish webhook, autorun children, and pool/Redis state cleanup.
+			// This is what completes a task independently of the node that
+			// originally dispatched it.
+			if tsk.Task.Status.IsFinished() {
+				runner := runner
+				go taskPool.FinalizeRemoteTask(tsk, &runner)
+			}
 		}
 	}
 
