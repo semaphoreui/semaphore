@@ -40,7 +40,7 @@ func (d *SqlDb) GetGlobalRunner(runnerID int) (runner db.Runner, err error) {
 	return
 }
 
-func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode db.RunnerTagFilterMode, tag *string) (runners []db.Runner, err error) {
+func (d *SqlDb) GetAllRunners(activeAndRegisteredOnly bool, globalOnly bool, tagFilterMode db.RunnerTagFilterMode, tag *string) (runners []db.Runner, err error) {
 	if tag == nil && tagFilterMode == db.RunnerFilterTagCompleteMatch {
 		err = fmt.Errorf("tag filter mode is complete match but no tag was provided")
 		return
@@ -52,8 +52,8 @@ func (d *SqlDb) GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode db
 			builder = builder.Where("project_id is null")
 		}
 
-		if activeOnly {
-			builder = builder.Where("active=?", activeOnly)
+		if activeAndRegisteredOnly {
+			builder = builder.Where("active=true and token != ''")
 		}
 
 		switch tagFilterMode {
