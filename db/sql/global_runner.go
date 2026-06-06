@@ -171,7 +171,7 @@ func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
 	return
 }
 
-func (d *SqlDb) RegisterRunner(registrationTokenHash string, publicKey *string, active bool) (runner db.Runner, err error) {
+func (d *SqlDb) RegisterRunner(registrationTokenHash string, publicKey *string) (runner db.Runner, err error) {
 	runners := make([]db.Runner, 0)
 
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
@@ -202,10 +202,9 @@ func (d *SqlDb) RegisterRunner(registrationTokenHash string, publicKey *string, 
 	token := db.GenerateRunnerToken()
 
 	_, err = d.exec(
-		"update `runner` set `token`=?, `public_key`=?, `active`=?, `registration_token`=null, `registration_token_expires_at`=null where id=?",
+		"update `runner` set `token`=?, `public_key`=?, `registration_token`=null, `registration_token_expires_at`=null where id=?",
 		token,
 		publicKey,
-		active,
 		runner.ID)
 
 	if err != nil {
@@ -214,7 +213,6 @@ func (d *SqlDb) RegisterRunner(registrationTokenHash string, publicKey *string, 
 
 	runner.Token = token
 	runner.PublicKey = publicKey
-	runner.Active = active
 	runner.RegistrationTokenHash = nil
 	runner.RegistrationTokenExpiresAt = nil
 

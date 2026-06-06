@@ -83,7 +83,7 @@ func Test_RegisterRunner_SetsTokenAndActivates(t *testing.T) {
 	require.NoError(t, err)
 
 	publicKey := "test-public-key"
-	registered, err := store.RegisterRunner(hash, &publicKey, true)
+	registered, err := store.RegisterRunner(hash, &publicKey)
 	require.NoError(t, err)
 	assert.NotEmpty(t, registered.Token)
 	assert.True(t, registered.Active)
@@ -101,7 +101,7 @@ func Test_RegisterRunner_SetsTokenAndActivates(t *testing.T) {
 func Test_RegisterRunner_FailsWhenTokenUnknown(t *testing.T) {
 	store := CreateTestStore()
 
-	_, err := store.RegisterRunner(server.HashRunnerRegistrationToken("sms_nope"), nil, true)
+	_, err := store.RegisterRunner(server.HashRunnerRegistrationToken("sms_nope"), nil)
 	assert.ErrorIs(t, err, db.ErrNotFound)
 }
 
@@ -116,6 +116,6 @@ func Test_RegisterRunner_FailsWhenExpired(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = store.RegisterRunner(hash, nil, true)
+	_, err = store.RegisterRunner(hash, nil)
 	assert.Error(t, err)
 }

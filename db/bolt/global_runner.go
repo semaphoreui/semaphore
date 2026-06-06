@@ -158,7 +158,7 @@ func (d *BoltDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error)
 	return
 }
 
-func (d *BoltDb) RegisterRunner(registrationTokenHash string, publicKey *string, active bool) (runner db.Runner, err error) {
+func (d *BoltDb) RegisterRunner(registrationTokenHash string, publicKey *string) (runner db.Runner, err error) {
 	err = d.db.Update(func(tx *bbolt.Tx) error {
 		runners := make([]db.Runner, 0)
 
@@ -187,7 +187,6 @@ func (d *BoltDb) RegisterRunner(registrationTokenHash string, publicKey *string,
 
 		runner.Token = db.GenerateRunnerToken()
 		runner.PublicKey = publicKey
-		runner.Active = active
 		runner.RegistrationTokenHash = nil
 		runner.RegistrationTokenExpiresAt = nil
 
