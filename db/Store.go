@@ -450,11 +450,11 @@ type ViewManager interface {
 // RunnerManager handles runner-related operations
 type RunnerManager interface {
 	GetRunner(projectID int, runnerID int) (Runner, error)
-	GetRunners(projectID int, activeOnly bool, tagFilterMode RunnerTagFilterMode, tag *string) ([]Runner, error)
+	GetRunners(projectID int, activeAndRegisteredOnly bool, tagFilterMode RunnerTagFilterMode, tag *string) ([]Runner, error)
 	DeleteRunner(projectID int, runnerID int) error
 	GetRunnerByToken(token string) (Runner, error)
 	GetGlobalRunner(runnerID int) (Runner, error)
-	GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode RunnerTagFilterMode, tag *string) ([]Runner, error)
+	GetAllRunners(activeAndRegisteredOnly bool, globalOnly bool, tagFilterMode RunnerTagFilterMode, tag *string) ([]Runner, error)
 	DeleteGlobalRunner(runnerID int) error
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)
