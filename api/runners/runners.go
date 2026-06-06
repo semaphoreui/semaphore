@@ -391,6 +391,11 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
+	} else {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid registration token",
+		})
+		return
 	}
 
 	log.WithFields(log.Fields{

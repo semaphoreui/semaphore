@@ -45,10 +45,11 @@ func TestRunnerService_CreateRunner_Unregistered(t *testing.T) {
 	require.NoError(t, err)
 
 	// An unregistered runner is created with no credentials at all: no auth token,
-	// no registration token, no key pair, and inactive.
+	// no registration token, and no key pair. Active is preserved so callers can
+	// pre-enable a runner before it registers itself.
 	assert.Empty(t, runner.Token)
 	assert.False(t, runner.IsRegistered())
-	assert.False(t, runner.Active)
+	assert.True(t, runner.Active)
 	assert.Empty(t, privateKey)
 	assert.Nil(t, runner.PublicKey)
 	assert.Nil(t, runner.RegistrationTokenHash)

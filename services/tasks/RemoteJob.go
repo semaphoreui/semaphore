@@ -82,6 +82,18 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 	return
 }
 
+// filterRegisteredRunners drops runners that have not completed registration yet.
+// Unregistered runners have no auth token and cannot pick up remote tasks.
+func filterRegisteredRunners(runners []db.Runner) []db.Runner {
+	registered := make([]db.Runner, 0, len(runners))
+	for _, r := range runners {
+		if r.IsRegistered() {
+			registered = append(registered, r)
+		}
+	}
+	return registered
+}
+
 func shuffleRunners(rs []db.Runner) []db.Runner {
 	if len(rs) < 2 {
 		return rs
@@ -145,6 +157,7 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 
 		runners = append(runners, shuffleRunners(projectRunners)...)
 		runners = append(runners, shuffleRunners(globalRunners)...)
+		runners = filterRegisteredRunners(runners)
 	})
 
 	if err != nil {
