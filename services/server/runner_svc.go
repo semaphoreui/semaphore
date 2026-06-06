@@ -79,7 +79,6 @@ func (s *RunnerServiceImpl) CreateRunner(runner db.Runner) (newRunner db.Runner,
 		// and no registration token. It is inactive and has no key pair. A one-time
 		// registration token is issued later on demand via RegenerateRegistrationToken.
 		runner.Token = ""
-		runner.Active = false
 		runner.PublicKey = nil
 		runner.RegistrationTokenHash = nil
 		runner.RegistrationTokenExpiresAt = nil
