@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -356,7 +357,18 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 	var runner db.Runner
 	var err error
 
-	if util.Config.RunnerRegistrationToken != "" && register.RegistrationToken == util.Config.RunnerRegistrationToken {
+	if strings.HasPrefix(register.RegistrationToken, "smrs_") {
+		// Otherwise the value is a one-time registration token issued for a specific
+		// unregistered runner. The global token cannot be used to register it.
+		runner, err = store.RegisterRunner(server.HashRunnerRegistrationToken(register.RegistrationToken), register.PublicKey)
+
+		if err != nil {
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Invalid registration token",
+			})
+			return
+		}
+	} else if util.Config.RunnerRegistrationToken != "" && register.RegistrationToken == util.Config.RunnerRegistrationToken {
 		// The shared, global registration token creates a brand-new runner.
 		runner, err = store.CreateRunner(db.Runner{
 			Token:            db.GenerateRunnerToken(),
@@ -376,21 +388,6 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 
 			helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 				"error": "Unexpected error",
-			})
-			return
-		}
-	} else {
-		// Otherwise the value is a one-time registration token issued for a specific
-		// unregistered runner. The global token cannot be used to register it.
-		runner, err = store.RegisterRunner(
-			server.HashRunnerRegistrationToken(register.RegistrationToken),
-			register.PublicKey,
-			register.Enabled,
-		)
-
-		if err != nil {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "Invalid registration token",
 			})
 			return
 		}
