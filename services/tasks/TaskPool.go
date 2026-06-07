@@ -571,6 +571,27 @@ func (p *TaskPool) RejectTask(targetTask db.Task) error {
 	return nil
 }
 
+func (p *TaskPool) stopTaskRunner(t *TaskRunner, forceStop bool) {
+	prevStatus := t.Task.Status
+	if forceStop {
+		t.SetStatus(task_logger.TaskStoppedStatus)
+	} else {
+		t.SetStatus(task_logger.TaskStoppingStatus)
+	}
+	if prevStatus == task_logger.TaskRunningStatus {
+		t.kill()
+	}
+
+	// A force-stopped remote task reaches "stopped" immediately (SetStatus
+	// above always transitions to it) and will not get a runner completion
+	// report, so finalize (cleanup) it here — otherwise it leaks in the
+	// running/active sets. A graceful stop stays "stopping" and is finalized
+	// when the runner reports it stopped via the runner API.
+	if forceStop && t.job != nil && t.job.Async() && t.Task.Status.IsFinished() {
+		go p.FinalizeRemoteTask(t, nil)
+	}
+}
+
 func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	tsk, err := p.GetTask(targetTask.ID)
 	if err != nil {
@@ -590,25 +611,7 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 		return nil
 	}
 
-	status := tsk.Task.Status
-
-	if forceStop {
-		tsk.SetStatus(task_logger.TaskStoppedStatus)
-	} else {
-		tsk.SetStatus(task_logger.TaskStoppingStatus)
-	}
-
-	if status == task_logger.TaskRunningStatus {
-		tsk.kill()
-	}
-
-	// A force-stopped remote task reaches a terminal status immediately and will
-	// not get a runner completion report, so finalize (cleanup) it here. A
-	// graceful stop stays "stopping" and is finalized when the runner reports it
-	// stopped via the runner API.
-	if forceStop && tsk.job != nil && tsk.job.Async() && tsk.Task.Status.IsFinished() {
-		go p.FinalizeRemoteTask(tsk, nil)
-	}
+	p.stopTaskRunner(tsk, forceStop)
 
 	return nil
 }
@@ -674,24 +677,8 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		if t.Task.Status.IsFinished() {
 			continue
 		}
-		prevStatus := t.Task.Status
-		if forceStop {
-			t.SetStatus(task_logger.TaskStoppedStatus)
-		} else {
-			t.SetStatus(task_logger.TaskStoppingStatus)
-		}
-		if prevStatus == task_logger.TaskRunningStatus {
-			t.kill()
-		}
 
-		// A force-stopped remote task reaches "stopped" immediately (SetStatus
-		// above always transitions to it) and will not get a runner completion
-		// report, so finalize (cleanup) it here — otherwise it leaks in the
-		// running/active sets. A graceful stop stays "stopping" and is finalized
-		// when the runner reports it stopped via the runner API.
-		if forceStop && t.job != nil && t.job.Async() && t.Task.Status.IsFinished() {
-			go p.FinalizeRemoteTask(t, nil)
-		}
+		p.stopTaskRunner(t, forceStop)
 
 		stoppedTasks[t.Task.ID] = struct{}{}
 	}
@@ -734,7 +721,21 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		}
 
 		tsk.SetStatus(task_logger.TaskStoppedStatus)
-		tsk.createTaskEvent()
+
+		// In HA a remote task dispatched on another node lives in the shared
+		// running/active/claim sets but has no goroutine on any node that will
+		// run finishRun for it. Once we mark it finished in the DB the runner's
+		// terminal report is ignored (UpdateRunner skips finished tasks) and the
+		// timeout backstop bails on IsFinished(), so without finalizing here the
+		// shared pool state (parallel-task capacity, runner slots) would leak
+		// until restart. FinalizeRemoteTask releases it (finishRun -> onTaskStop)
+		// and also emits the finished task event; TryFinalize dedups across nodes
+		// and against the running-tasks loop above, so it runs at most once.
+		if tsk.job != nil && tsk.job.Async() {
+			go p.FinalizeRemoteTask(tsk, nil)
+		} else {
+			tsk.createTaskEvent()
+		}
 	}
 }
 
