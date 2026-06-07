@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -67,11 +66,6 @@ type TaskPool struct {
 
 	// state provides pluggable storage for Queue, active projects, running tasks and aliases
 	state TaskStateStore
-
-	// finalizing guards FinalizeRemoteTask so a remote task is finalized at most
-	// once per process when several signals (runner report, timeout, force stop)
-	// race. Keyed by task ID.
-	finalizing sync.Map
 }
 
 func CreateTaskPool(
@@ -392,17 +386,25 @@ func (p *TaskPool) onTaskStop(t *TaskRunner) {
 // Because remote completion is reported by the runner to an arbitrary node,
 // this is what decouples a task's lifecycle from the node that dispatched it:
 // whichever node receives the terminal report finalizes the task. It is safe to
-// call from several racing signals (runner report, timeout, force stop) — a
-// per-process guard ensures it runs at most once per task here.
+// call from several racing signals (runner report, timeout, force stop) — the
+// state store's TryFinalize guard ensures it runs at most once per task across
+// the cluster (Redis SETNX in HA) and within a process (in-memory sync.Map).
 func (p *TaskPool) FinalizeRemoteTask(tsk *TaskRunner, runner *db.Runner) {
 	if tsk == nil {
 		return
 	}
 
-	if _, loaded := p.finalizing.LoadOrStore(tsk.Task.ID, struct{}{}); loaded {
+	if !p.state.TryFinalize(tsk.Task.ID) {
 		return
 	}
-	defer p.finalizing.Delete(tsk.Task.ID)
+	defer p.state.DeleteFinalize(tsk.Task.ID)
+
+	if util.HAEnabled() {
+		p.refreshTaskStatusFromDB(tsk)
+		if tsk.Task.End != nil {
+			return
+		}
+	}
 
 	if runner != nil {
 		if err := callRunnerWebhook(runner, tsk, "finish"); err != nil {

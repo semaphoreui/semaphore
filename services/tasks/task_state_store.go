@@ -120,6 +120,14 @@ type TaskStateStore interface {
 	TryClaim(taskID int) bool
 	DeleteClaim(taskID int)
 
+	// TryFinalize attempts to acquire a cluster-wide finalization lock for a
+	// remote task. Returns true iff this node should run FinalizeRemoteTask
+	// (webhook, autorun, pool cleanup). Redis-backed stores should use SETNX
+	// (or equivalent) keyed by task ID; the in-memory store deduplicates within
+	// a single process only.
+	TryFinalize(taskID int) bool
+	DeleteFinalize(taskID int)
+
 	// UpdateRuntimeFields persists transient fields of TaskRunner so
 	// they can be restored after restart in HA mode.
 	UpdateRuntimeFields(task *TaskRunner)
@@ -136,6 +144,7 @@ type MemoryTaskStateStore struct {
 	running    map[int]*TaskRunner
 	activeProj map[int]map[int]*TaskRunner // projectID -> taskID -> task
 	aliases    map[string]*TaskRunner
+	finalizing sync.Map // taskID -> struct{}; per-process FinalizeRemoteTask guard
 }
 
 func NewMemoryTaskStateStore() *MemoryTaskStateStore {
@@ -151,8 +160,18 @@ func NewMemoryTaskStateStore() *MemoryTaskStateStore {
 func (s *MemoryTaskStateStore) Start(_ TaskRunnerHydrator) error { return nil }
 
 // Claims always succeed in memory single-process mode
-func (s *MemoryTaskStateStore) TryClaim(_ int) bool               { return true }
-func (s *MemoryTaskStateStore) DeleteClaim(_ int)                 {}
+func (s *MemoryTaskStateStore) TryClaim(_ int) bool { return true }
+func (s *MemoryTaskStateStore) DeleteClaim(_ int)   {}
+
+func (s *MemoryTaskStateStore) TryFinalize(taskID int) bool {
+	_, loaded := s.finalizing.LoadOrStore(taskID, struct{}{})
+	return !loaded
+}
+
+func (s *MemoryTaskStateStore) DeleteFinalize(taskID int) {
+	s.finalizing.Delete(taskID)
+}
+
 func (s *MemoryTaskStateStore) UpdateRuntimeFields(_ *TaskRunner) {}
 func (s *MemoryTaskStateStore) LoadRuntimeFields(_ *TaskRunner)   {}
 

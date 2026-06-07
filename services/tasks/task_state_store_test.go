@@ -239,5 +239,41 @@ func TestMemoryTaskStateStore_ClaimAndDequeue_ExactlyOnce(t *testing.T) {
 	}
 }
 
+// TestMemoryTaskStateStore_TryFinalize_ExactlyOnce ensures concurrent
+// finalizers never both succeed — the contract Redis-backed stores must honor
+// across HA nodes.
+func TestMemoryTaskStateStore_TryFinalize_ExactlyOnce(t *testing.T) {
+	s := NewMemoryTaskStateStore()
+	const n = 200
+
+	var mu sync.Mutex
+	finalized := map[int]int{}
+
+	var wg sync.WaitGroup
+	for w := 0; w < 8; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for id := 1; id <= n; id++ {
+				if s.TryFinalize(id) {
+					mu.Lock()
+					finalized[id]++
+					mu.Unlock()
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	for id := 1; id <= n; id++ {
+		s.DeleteFinalize(id)
+	}
+
+	assert.Len(t, finalized, n, "every task must be finalized exactly once")
+	for id, count := range finalized {
+		assert.Equal(t, 1, count, "task %d must be finalized exactly once", id)
+	}
+}
+
 // MemoryTaskStateStore must satisfy the TaskStateInspector contract.
 var _ TaskStateInspector = (*MemoryTaskStateStore)(nil)
