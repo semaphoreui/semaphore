@@ -412,8 +412,12 @@ func (p *TaskPool) FinalizeRemoteTask(tsk *TaskRunner, runner *db.Runner) {
 		}
 	}
 
-	tsk.startAutorunTasks()
+	// Persist End before enqueueing autorun children so the HA DB backstop
+	// above (tsk.Task.End != nil) becomes a real second guard: a late
+	// duplicate finalize on another node observes End set and skips autorun,
+	// even if the cluster-wide finalize lock has already been released.
 	tsk.finishRun()
+	tsk.startAutorunTasks()
 }
 
 func applyDBPersistedTaskSnapshot(dst *db.Task, src db.Task) {

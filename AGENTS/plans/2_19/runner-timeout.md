@@ -119,9 +119,14 @@ All three converge on a single idempotent helper, `failTaskRunnerLost`, that:
   the race where a real terminal status arrives concurrently),
 - logs a clear line (`"Runner #X lost: marking task failed"`),
 - sets `Status = TaskFailStatus`, `End = now`, a descriptive `Message`,
-- runs the existing finalization (`TaskPool.FinalizeRemoteTask`, which already
-  has a `finalizing sync.Map` guard at `services/tasks/TaskPool.go:71`) so
-  webhooks/autorun/state cleanup happen exactly once.
+- runs the existing finalization (`TaskPool.FinalizeRemoteTask`,
+  `services/tasks/TaskPool.go:392`), which already deduplicates **across the
+  cluster** via the state store's `TryFinalize`/`DeleteFinalize` lock
+  (`task_state_store.go:123-129` — Redis `SETNX` keyed by task ID in HA, an
+  in-process `sync.Map` in single-node) and, in HA mode, re-reads the task row
+  and bails if it is already ended (`TaskPool.go:402-407`). So
+  webhooks/autorun/state cleanup happen exactly once per task even when several
+  nodes detect the lost runner in the same pass.
 
 ## Steps
 
@@ -241,7 +246,7 @@ killed prematurely. Grace ≈ a small multiple of the poll interval.
 | Risk | Mitigation |
 |------|------------|
 | Killing a healthy runner's task during a transient network blip | `RunnerDeadTimeoutSec` is a multiple of the poll interval + a dispatch grace window; a single missed poll never trips it. |
-| Race: runner reports completion at the same instant the reconciler fails the task | `failTaskRunnerLost` re-loads and bails on `IsFinished()`; `FinalizeRemoteTask`'s `finalizing` guard ensures single finalization. |
+| Race: runner reports completion at the same instant the reconciler fails the task — or two HA nodes detect the lost runner together | `failTaskRunnerLost` re-loads and bails on `IsFinished()`; `FinalizeRemoteTask` then dedups cluster-wide via the state store's `TryFinalize`/`DeleteFinalize` lock (Redis `SETNX` in HA, `sync.Map` in single-node) plus the HA DB re-check, so finalization runs at most once. |
 | Clock skew between runner-reported `started_at` and `task.Start` (server clock) | Compare with a small margin; or use an opaque `session_id` (step 2 fallback) which is skew-immune. |
 | `starting` tasks being failed when they would have self-healed via `NewJobs` on restart | Re-running a `starting` task is acceptable; let layer 1's grace window cover the brief gap, and only fail if the runner is genuinely dead. Failing `running` tasks is the priority. |
 | Layer 3 grace-window subtlety (just-dispatched task not yet reported) | Gate layer 3 on dispatch age; ship it as a follow-up after layers 1+2 are proven. |
