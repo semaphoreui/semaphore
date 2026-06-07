@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
+	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRunnerService_CreateRunner_Registered(t *testing.T) {
-	svc := NewRunnerService(bolt.CreateTestStore())
+	svc := NewRunnerService(sql.CreateTestStore())
 
 	runner, privateKey, err := svc.CreateRunner(db.Runner{Name: "r1", Registered: true})
 	require.NoError(t, err)
@@ -25,7 +25,7 @@ func TestRunnerService_CreateRunner_Registered(t *testing.T) {
 }
 
 func TestRunnerService_CreateRunner_RegisteredWithProvidedPublicKey(t *testing.T) {
-	svc := NewRunnerService(bolt.CreateTestStore())
+	svc := NewRunnerService(sql.CreateTestStore())
 
 	pub := "provided-public-key"
 	runner, privateKey, err := svc.CreateRunner(db.Runner{PublicKey: &pub, Registered: true})
@@ -39,7 +39,7 @@ func TestRunnerService_CreateRunner_RegisteredWithProvidedPublicKey(t *testing.T
 }
 
 func TestRunnerService_CreateRunner_Unregistered(t *testing.T) {
-	svc := NewRunnerService(bolt.CreateTestStore())
+	svc := NewRunnerService(sql.CreateTestStore())
 
 	runner, privateKey, err := svc.CreateRunner(db.Runner{Registered: false, Active: true})
 	require.NoError(t, err)
@@ -56,7 +56,7 @@ func TestRunnerService_CreateRunner_Unregistered(t *testing.T) {
 }
 
 func TestRunnerService_RegenerateRegistrationToken(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 	svc := NewRunnerService(store)
 
 	runner, _, err := svc.CreateRunner(db.Runner{Registered: false})
@@ -77,7 +77,7 @@ func TestRunnerService_RegenerateRegistrationToken(t *testing.T) {
 }
 
 func TestRunnerService_RegenerateRegistrationToken_ResetsRegisteredRunner(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 	svc := NewRunnerService(store)
 
 	runner, privateKey, err := svc.CreateRunner(db.Runner{Registered: true, Active: true})

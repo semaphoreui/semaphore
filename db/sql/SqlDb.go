@@ -121,6 +121,7 @@ func CreateTestStore() *SqlDb {
 			Events: &util.EventLogType{},
 			Tasks:  &util.TaskLogType{},
 		},
+		Process: &util.ConfigProcess{},
 	}
 	store := CreateDb(util.DbDriverSQLite)
 
