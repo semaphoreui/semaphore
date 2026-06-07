@@ -14,6 +14,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/factory"
+	"github.com/semaphoreui/semaphore/pkg/debuglog"
 	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
@@ -27,9 +28,10 @@ import (
 )
 
 var persistentFlags struct {
-	configPath string
-	noConfig   bool
-	logLevel   string
+	configPath  string
+	noConfig    bool
+	logLevel    string
+	debugFilter string
 }
 
 var rootCmd = &cobra.Command{
@@ -48,22 +50,56 @@ Complete documentation is available at https://semaphoreui.com.`,
 		if str == "" {
 			str = os.Getenv("SEMAPHORE_LOG_LEVEL")
 		}
-		if str == "" {
-			return
+
+		if str != "" {
+			lvl, err := log.ParseLevel(str)
+			if err != nil {
+				log.Panic(err)
+			}
+
+			fmt.Println("Log level set to", lvl)
+			log.SetLevel(lvl)
 		}
 
-		lvl, err := log.ParseLevel(str)
-		if err != nil {
-			log.Panic(err)
-		}
-
-		fmt.Println("Log level set to", lvl)
-		log.SetLevel(lvl)
+		initDebugFilter()
 	},
+}
+
+// initDebugFilter installs a Node.js-`debug`-style namespace filter for DEBUG
+// logs, driven by the --debug-filter flag or SEMAPHORE_DEBUG_FILTER env var.
+// The filter only narrows DEBUG-level output and only takes effect when the log
+// level is already DEBUG; otherwise there are no debug entries to filter and the
+// logger is left untouched.
+func initDebugFilter() {
+	spec, filter := configuredDebugFilter()
+	if filter == nil {
+		return
+	}
+
+	log.SetFormatter(debuglog.NewFilteringFormatter(
+		log.StandardLogger().Formatter,
+		filter,
+	))
+
+	fmt.Println("Debug filter active:", spec)
+}
+
+func configuredDebugFilter() (string, *debuglog.Filter) {
+	spec := persistentFlags.debugFilter
+	if spec == "" {
+		spec = os.Getenv("SEMAPHORE_DEBUG_FILTER")
+	}
+
+	if spec == "" || log.GetLevel() < log.DebugLevel {
+		return "", nil
+	}
+
+	return spec, debuglog.Parse(spec)
 }
 
 func Execute() {
 	rootCmd.PersistentFlags().StringVar(&persistentFlags.logLevel, "log-level", "", "Log level: DEBUG, INFO, WARN, ERROR, FATAL, PANIC")
+	rootCmd.PersistentFlags().StringVar(&persistentFlags.debugFilter, "debug-filter", "", "Debug namespace filter (only with DEBUG level), e.g. 'runner,task_*' or '*,-db'")
 	rootCmd.PersistentFlags().StringVar(&persistentFlags.configPath, "config", "", "Configuration file path")
 	rootCmd.PersistentFlags().BoolVar(&persistentFlags.noConfig, "no-config", false, "Don't use configuration file")
 	if err := rootCmd.Execute(); err != nil {
