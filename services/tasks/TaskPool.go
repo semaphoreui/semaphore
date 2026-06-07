@@ -684,6 +684,15 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 			t.kill()
 		}
 
+		// A force-stopped remote task reaches "stopped" immediately (SetStatus
+		// above always transitions to it) and will not get a runner completion
+		// report, so finalize (cleanup) it here — otherwise it leaks in the
+		// running/active sets. A graceful stop stays "stopping" and is finalized
+		// when the runner reports it stopped via the runner API.
+		if forceStop && t.job != nil && t.job.Async() && t.Task.Status.IsFinished() {
+			go p.FinalizeRemoteTask(t, nil)
+		}
+
 		stoppedTasks[t.Task.ID] = struct{}{}
 	}
 
