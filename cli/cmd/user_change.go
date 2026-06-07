@@ -68,7 +68,7 @@ var userChangeByLoginCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		user, err := store.GetUserByLoginOrEmail(targetUserArgs.login, "")
 
@@ -98,7 +98,7 @@ var userChangeByEmailCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		user, err := store.GetUserByLoginOrEmail("", targetUserArgs.email)
 		if err != nil {

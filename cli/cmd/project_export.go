@@ -46,7 +46,7 @@ var projectExportCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		projectID := targetProjectExportArgs.projectID
 

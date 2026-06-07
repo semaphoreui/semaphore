@@ -38,7 +38,7 @@ var totpEnableCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		user, err := store.GetUserByLoginOrEmail(targetUserArgs.login, "")
 
@@ -102,7 +102,7 @@ var totpDisableCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		user, err := store.GetUserByLoginOrEmail(targetUserArgs.login, "")
 
@@ -132,7 +132,7 @@ var totpShowCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		user, err := store.GetUserByLoginOrEmail(targetUserArgs.login, "")
 

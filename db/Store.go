@@ -190,13 +190,8 @@ type ConnectionManager interface {
 	// Connect connects to the database.
 	// Token parameter used if PermanentConnection returns false.
 	// Token used for debugging of session connections.
-	Connect(token string)
-	Close(token string)
-
-	// PermanentConnection returns true if connection should be kept from start to finish of the app.
-	// This mode is suitable for MySQL and Postgres but not for BoltDB.
-	// For BoltDB we should reconnect for each request because BoltDB support only one connection at time.
-	PermanentConnection() bool
+	Connect()
+	Close()
 }
 
 // MigrationManager handles database migrations

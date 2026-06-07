@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-label="Czech flag">
+  <rect width="640" height="240" fill="#fff"/>
+  <rect y="240" width="640" height="240" fill="#d7141a"/>
+  <path d="M0 0 320 240 0 480Z" fill="#11457e"/>
+</svg>
