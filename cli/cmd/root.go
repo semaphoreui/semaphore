@@ -34,6 +34,8 @@ var persistentFlags struct {
 	debugFilter string
 }
 
+var activeDebugFilter *debuglog.Filter
+
 var rootCmd = &cobra.Command{
 	Use:   "semaphore",
 	Short: "Semaphore UI is a beautiful web UI for Ansible",
@@ -71,6 +73,8 @@ Complete documentation is available at https://semaphoreui.com.`,
 // level is already DEBUG; otherwise there are no debug entries to filter and the
 // logger is left untouched.
 func initDebugFilter() {
+	activeDebugFilter = nil
+
 	spec := persistentFlags.debugFilter
 	if spec == "" {
 		spec = os.Getenv("SEMAPHORE_DEBUG_FILTER")
@@ -80,9 +84,10 @@ func initDebugFilter() {
 		return
 	}
 
+	activeDebugFilter = debuglog.Parse(spec)
 	log.SetFormatter(debuglog.NewFilteringFormatter(
 		log.StandardLogger().Formatter,
-		debuglog.Parse(spec),
+		activeDebugFilter,
 	))
 
 	fmt.Println("Debug filter active:", spec)
