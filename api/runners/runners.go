@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -344,34 +345,52 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if util.Config.RunnerRegistrationToken == "" || register.RegistrationToken != util.Config.RunnerRegistrationToken {
+	if register.RegistrationToken == "" {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid registration token",
 		})
 		return
 	}
 
-	runner, err := helpers.Store(r).CreateRunner(db.Runner{
-		Webhook:          register.Webhook,
-		Name:             register.Name,
-		Tags:             register.Tags,
-		MaxParallelTasks: register.MaxParallelTasks,
-		Active:           register.Enabled,
-		PublicKey:        register.PublicKey,
-		ProjectID:        register.ProjectID,
-	})
+	store := helpers.Store(r)
 
-	if err != nil {
+	var runner db.Runner
+	var err error
 
-		log.WithError(err).WithFields(log.Fields{
-			"runner_id": runner.ID,
-			"context":   "runner",
-		}).Error("Can't create runner")
+	if strings.HasPrefix(register.RegistrationToken, "smrs_") {
+		// Otherwise the value is a one-time registration token issued for a specific
+		// unregistered runner. The global token cannot be used to register it.
+		runner, err = store.RegisterRunner(server.HashRunnerRegistrationToken(register.RegistrationToken), register.PublicKey)
 
-		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "Unexpected error",
+		if err != nil {
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Invalid registration token",
+			})
+			return
+		}
+	} else if util.Config.RunnerRegistrationToken != "" && register.RegistrationToken == util.Config.RunnerRegistrationToken {
+		// The shared, global registration token creates a brand-new runner.
+		runner, err = store.CreateRunner(db.Runner{
+			Token:            db.GenerateRunnerToken(),
+			Webhook:          register.Webhook,
+			Name:             register.Name,
+			Tags:             register.Tags,
+			MaxParallelTasks: register.MaxParallelTasks,
+			Active:           register.Enabled,
+			PublicKey:        register.PublicKey,
+			ProjectID:        register.ProjectID,
 		})
-		return
+
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"context": "runner",
+			}).Error("Can't create runner")
+
+			helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Unexpected error",
+			})
+			return
+		}
 	}
 
 	log.WithFields(log.Fields{

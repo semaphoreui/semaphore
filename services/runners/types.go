@@ -56,6 +56,9 @@ type JobProgress struct {
 }
 
 type RunnerRegistration struct {
+	// RegistrationToken is either the shared global registration token (which
+	// creates a new runner) or a one-time token issued for a specific unregistered
+	// runner (which registers that runner).
 	RegistrationToken string   `json:"registration_token" binding:"required"`
 	Webhook           string   `json:"webhook,omitempty"`
 	Name              string   `json:"name,omitempty"`

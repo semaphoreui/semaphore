@@ -64,6 +64,7 @@ func truncateAll() {
 		"project__integration",
 		"project__integration_extract_value",
 		"project__integration_matcher",
+		"runner",
 	}
 
 	switch store.(type) {
@@ -306,6 +307,38 @@ func addIntegrationMatcher() *db.IntegrationMatcher {
 	}
 
 	return &integrationmatch
+}
+
+func addRunner() *db.Runner {
+	runner, err := store.CreateRunner(db.Runner{
+		Token:            db.GenerateRunnerToken(),
+		ProjectID:        &userProject.ID,
+		Name:             "ITRN-" + getUUID(),
+		Active:           true,
+		MaxParallelTasks: 1,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &runner
+}
+
+func addGlobalRunner() *db.Runner {
+	runner, err := store.CreateRunner(db.Runner{
+		Token:            db.GenerateRunnerToken(),
+		ProjectID:        nil,
+		Name:             "ITGRN-" + getUUID(),
+		Active:           true,
+		MaxParallelTasks: 1,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &runner
 }
 
 // Token Handling

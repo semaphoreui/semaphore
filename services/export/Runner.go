@@ -34,6 +34,7 @@ func (e *RunnerExporter) restoreValue(val EntityObject[db.Runner], store db.Stor
 		return err
 	}
 
+	old.Token = db.GenerateRunnerToken()
 	newObj, err := store.CreateRunner(old)
 	if err != nil {
 		return err

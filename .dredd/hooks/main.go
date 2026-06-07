@@ -19,6 +19,7 @@ var skipTests = []string{
 	"/api/ws > Websocket handler > 200 > application/json",
 	"authentication > /api/auth/login > Performs Login > 204 > application/json",
 	"authentication > /api/auth/logout > Destroys current session > 204 > application/json",
+	"runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json",
 }
 
 // Dredd expects that you have already set up the database and run all migrations before it begins.
@@ -144,6 +145,23 @@ func main() {
 	h.Before("project > /api/project/{project_id}/backup > Get backup > 200 > application/json", func(t *trans.Transaction) {
 		addCapabilities([]string{"repository", "inventory", "environment", "view", "template"})
 	})
+
+	// project runners
+	h.Before("runner > /api/project/{project_id}/runners > Get project runners > 200 > application/json", capabilityWrapper("project"))
+	//h.Before("runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json", capabilityWrapper("project"))
+	h.Before("runner > /api/project/{project_id}/runner_tags > Get project runner tags > 200 > application/json", capabilityWrapper("project"))
+	h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Get project runner > 200 > application/json", capabilityWrapper("runner"))
+	h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Update project runner > 204 > application/json", capabilityWrapper("runner"))
+	h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Delete project runner > 204 > application/json", capabilityWrapper("runner"))
+	h.Before("runner > /api/project/{project_id}/runners/{runner_id}/active > Set project runner active state > 204 > application/json", capabilityWrapper("runner"))
+	h.Before("runner > /api/project/{project_id}/runners/{runner_id}/cache > Clear project runner cache > 204 > application/json", capabilityWrapper("runner"))
+
+	// global runners (admin)
+	h.Before("runner > /api/runners/{runner_id} > Get global runner > 200 > application/json", capabilityWrapper("global_runner"))
+	h.Before("runner > /api/runners/{runner_id} > Update global runner > 204 > application/json", capabilityWrapper("global_runner"))
+	h.Before("runner > /api/runners/{runner_id} > Delete global runner > 204 > application/json", capabilityWrapper("global_runner"))
+	h.Before("runner > /api/runners/{runner_id}/active > Set global runner active state > 204 > application/json", capabilityWrapper("global_runner"))
+	h.Before("runner > /api/runners/{runner_id}/cache > Clear global runner cache > 204 > application/json", capabilityWrapper("global_runner"))
 
 	//Add these last as they normalize the requests and path values after hook processing
 	h.BeforeAll(func(transactions []*trans.Transaction) {

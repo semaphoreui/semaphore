@@ -87,6 +87,7 @@ func Route(
 	accessKeyService server.AccessKeyService,
 	environmentService server.EnvironmentService,
 	subscriptionService pro_interfaces.SubscriptionService,
+	runnerService server.RunnerService,
 ) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
@@ -102,7 +103,8 @@ func Route(
 	userController := NewUserController(subscriptionService)
 	usersController := NewUsersController(subscriptionService)
 	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore)
-	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService)
+	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService, runnerService)
+	globalRunnerController := NewGlobalRunnerController(runnerService)
 	taskController := projects.NewTaskController(ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
 	templateController := projects.NewTemplateController(store, store)
@@ -211,9 +213,9 @@ func Route(
 	adminAPI.Path("/cluster/tasks").HandlerFunc(getClusterTasks).Methods("GET", "HEAD")
 	adminAPI.Path("/cluster/tasks").HandlerFunc(clearClusterTasks).Methods("DELETE")
 
-	adminAPI.Path("/runners").HandlerFunc(getAllRunners).Methods("GET", "HEAD")
-	adminAPI.Path("/runners").HandlerFunc(addGlobalRunner).Methods("POST", "HEAD")
-	adminAPI.Path("/runner_tags").HandlerFunc(getGlobalRunnerTags).Methods("GET", "HEAD")
+	adminAPI.Path("/runners").HandlerFunc(globalRunnerController.GetRunners).Methods("GET", "HEAD")
+	adminAPI.Path("/runners").HandlerFunc(globalRunnerController.AddRunner).Methods("POST", "HEAD")
+	adminAPI.Path("/runner_tags").HandlerFunc(globalRunnerController.GetRunnerTags).Methods("GET", "HEAD")
 
 	adminAPI.Path("/roles").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
 	adminAPI.Path("/roles").HandlerFunc(rolesController.AddRole).Methods("POST", "HEAD")
@@ -221,12 +223,13 @@ func Route(
 	adminAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
 
 	globalRunnersAPI := adminAPI.PathPrefix("/runners").Subrouter()
-	globalRunnersAPI.Use(globalRunnerMiddleware)
-	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(getGlobalRunner).Methods("GET", "HEAD")
-	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(updateGlobalRunner).Methods("PUT", "POST")
-	globalRunnersAPI.Path("/{runner_id}/active").HandlerFunc(setGlobalRunnerActive).Methods("POST")
-	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(deleteGlobalRunner).Methods("DELETE")
-	globalRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(clearGlobalRunnerCache).Methods("DELETE")
+	globalRunnersAPI.Use(globalRunnerController.RunnerMiddleware)
+	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(globalRunnerController.GetRunner).Methods("GET", "HEAD")
+	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(globalRunnerController.UpdateRunner).Methods("PUT", "POST")
+	globalRunnersAPI.Path("/{runner_id}/active").HandlerFunc(globalRunnerController.SetRunnerActive).Methods("POST")
+	globalRunnersAPI.Path("/{runner_id}/registration-token").HandlerFunc(globalRunnerController.RegenerateRegistrationToken).Methods("POST")
+	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(globalRunnerController.DeleteRunner).Methods("DELETE")
+	globalRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(globalRunnerController.ClearRunnerCache).Methods("DELETE")
 
 	rolesAPI := adminAPI.PathPrefix("/roles").Subrouter()
 	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.GetGlobalRole).Methods("GET", "HEAD")
@@ -336,6 +339,7 @@ func Route(
 	projectRunnersAPI.Path("/{runner_id}").HandlerFunc(projectRunnerController.GetRunner).Methods("GET", "HEAD")
 	projectRunnersAPI.Path("/{runner_id}").HandlerFunc(projectRunnerController.UpdateRunner).Methods("PUT", "POST")
 	projectRunnersAPI.Path("/{runner_id}/active").HandlerFunc(projectRunnerController.SetRunnerActive).Methods("POST")
+	projectRunnersAPI.Path("/{runner_id}/registration-token").HandlerFunc(projectRunnerController.RegenerateRegistrationToken).Methods("POST")
 	projectRunnersAPI.Path("/{runner_id}").HandlerFunc(projectRunnerController.DeleteRunner).Methods("DELETE")
 	projectRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(projectRunnerController.ClearRunnerCache).Methods("DELETE")
 
