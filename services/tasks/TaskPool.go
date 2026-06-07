@@ -182,14 +182,13 @@ func (p *TaskPool) Run() {
 		select {
 		case task := <-p.register: // new task created by API or schedule
 
-			db.StoreSession(p.store, "new task", func() {
-				task.Log("Task " + task.Template.Name + " added to queue")
-				log.WithFields(log.Fields{
-					"task_id":   task.Task.ID,
-					"task_name": task.Template.Name,
-				}).Info("Task added to queue")
-				task.saveStatus()
-			})
+			task.Log("Task " + task.Template.Name + " added to queue")
+			log.WithFields(log.Fields{
+				"task_id":   task.Task.ID,
+				"task_name": task.Template.Name,
+			}).Info("Task added to queue")
+			task.saveStatus()
+
 			p.queueEvents <- PoolEvent{EventTypeNew, task}
 
 		case <-ticker.C: // timer 5 seconds
@@ -311,44 +310,40 @@ func (p *TaskPool) writeLogs(logs []logRecord) {
 		currentOutput := record.task.currentOutput
 		record.task.currentOutput = &newOutput
 
-		db.StoreSession(p.store, "logger", func() {
+		newStage, newState, err := stage_parsers.MoveToNextStage(
+			p.store,
+			p.ansibleTaskRepo,
+			p.logWriteService,
+			record.task.Template.App,
+			record.task.Task.ProjectID,
+			record.task.currentState,
+			record.task.currentStage,
+			currentOutput,
+			newOutput)
 
-			newStage, newState, err := stage_parsers.MoveToNextStage(
-				p.store,
-				p.ansibleTaskRepo,
-				p.logWriteService,
-				record.task.Template.App,
-				record.task.Task.ProjectID,
-				record.task.currentState,
-				record.task.currentStage,
-				currentOutput,
-				newOutput)
-
-			if err != nil {
-				log.Error(err)
-				return
-			}
-
-			record.task.currentState = newState
-
-			if newStage != nil {
-				record.task.currentStage = newStage
-			}
-
-			if record.task.currentStage != nil {
-				newOutput.StageID = &record.task.currentStage.ID
-			}
-		})
-		taskOutput = append(taskOutput, newOutput)
-	}
-
-	db.StoreSession(p.store, "logger", func() {
-		err := p.store.InsertTaskOutputBatch(taskOutput)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-	})
+
+		record.task.currentState = newState
+
+		if newStage != nil {
+			record.task.currentStage = newStage
+		}
+
+		if record.task.currentStage != nil {
+			newOutput.StageID = &record.task.currentStage.ID
+		}
+
+		taskOutput = append(taskOutput, newOutput)
+	}
+
+	err := p.store.InsertTaskOutputBatch(taskOutput)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 }
 
 func runTask(task *TaskRunner, p *TaskPool) {

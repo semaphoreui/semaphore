@@ -9,7 +9,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
+	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,7 +42,7 @@ func createUserOptionsTestUser(t *testing.T, store db.Store, username string) db
 }
 
 func TestSetUserOption_AllowedKey(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 	user := createUserOptionsTestUser(t, store, "alice")
 
 	r := newUserOptionsRequest(t, store, &user, http.MethodPost,
@@ -59,7 +59,7 @@ func TestSetUserOption_AllowedKey(t *testing.T) {
 }
 
 func TestSetUserOption_UnknownKey(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 	user := createUserOptionsTestUser(t, store, "bob")
 
 	r := newUserOptionsRequest(t, store, &user, http.MethodPost,
@@ -81,7 +81,7 @@ func TestSetUserOption_UnknownKey(t *testing.T) {
 }
 
 func TestGetUserOptions_StripsPrefix(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 	user := createUserOptionsTestUser(t, store, "carol")
 
 	require.NoError(t, store.SetOption(userOptionKey(user.ID, "nav.unpinnedItems"), `["history"]`))
@@ -99,7 +99,7 @@ func TestGetUserOptions_StripsPrefix(t *testing.T) {
 }
 
 func TestGetUserOptions_Isolation(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 	user1 := createUserOptionsTestUser(t, store, "dave")
 	user2 := createUserOptionsTestUser(t, store, "erin")
 
@@ -117,7 +117,7 @@ func TestGetUserOptions_Isolation(t *testing.T) {
 }
 
 func TestDeleteUser_RemovesOptions(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 	admin := createUserOptionsTestUser(t, store, "admin")
 	admin.Admin = true
 

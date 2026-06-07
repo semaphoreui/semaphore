@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-gorp/gorp/v3"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
 	"github.com/semaphoreui/semaphore/db/factory"
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -69,8 +68,6 @@ func truncateAll() {
 	}
 
 	switch store.(type) {
-	case *bolt.BoltDb:
-		// Do nothing
 	case *sql.SqlDb:
 		switch store.(*sql.SqlDb).Sql().Dialect.(type) {
 		case gorp.PostgresDialect:

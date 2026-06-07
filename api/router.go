@@ -24,7 +24,6 @@ import (
 	"github.com/semaphoreui/semaphore/api/runners"
 
 	"github.com/gorilla/mux"
-	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/api/projects"
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
@@ -39,12 +38,7 @@ var publicAssets embed.FS
 // StoreMiddleware WTF?
 func StoreMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		store := helpers.Store(r)
-		//var url = r.URL.String()
-
-		db.StoreSession(store, util.RandString(12), func() {
-			next.ServeHTTP(w, r)
-		})
+		next.ServeHTTP(w, r)
 	})
 }
 

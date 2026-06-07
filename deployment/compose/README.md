@@ -89,13 +89,13 @@ backend.
 docker-compose <server/runner from above> -f deployment/compose/store/sqlite.yml up
 ```
 
-### BoltDB
+### SQLite
 
-This simply configures a named volume for the BoltDB storage used as a database
+This simply configures a named volume for the SQLite storage used as a database
 backend.
 
 ```console
-docker-compose <server/runner from above> -f deployment/compose/store/boltdb.yml up
+docker-compose <server/runner from above> -f deployment/compose/store/sqlite.yml up
 ```
 
 ### MariaDB
