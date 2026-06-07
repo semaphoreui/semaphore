@@ -231,11 +231,7 @@ func runService() {
 
 	fmt.Println("Server is running")
 
-	if store.PermanentConnection() {
-		defer store.Close("root")
-	} else {
-		store.Close("root")
-	}
+	defer store.Close()
 
 	var err error
 	if util.Config.TLS.Enabled {
@@ -308,7 +304,7 @@ func createStoreWithMigrationVersion(token string, undoTo *string, applyTo *stri
 
 	store := factory.CreateStore()
 
-	store.Connect(token)
+	store.Connect()
 
 	var err error
 	if undoTo != nil {

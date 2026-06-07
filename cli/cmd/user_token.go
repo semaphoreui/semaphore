@@ -127,7 +127,7 @@ func listUserTokens(store db.Store, out io.Writer, args tokenArgs) error {
 
 func runTokenCmd(fn func(db.Store, io.Writer, tokenArgs) error) {
 	store := createStore("")
-	defer store.Close("")
+	defer store.Close()
 
 	if err := fn(store, os.Stdout, targetTokenArgs); err != nil {
 		fmt.Println(err)

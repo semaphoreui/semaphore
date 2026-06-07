@@ -158,10 +158,6 @@ func (t *TaskRunner) createTaskEvent() {
 }
 
 func (t *TaskRunner) run() {
-	if !t.pool.store.PermanentConnection() {
-		t.pool.store.Connect("run task " + strconv.Itoa(t.Task.ID))
-		defer t.pool.store.Close("run task " + strconv.Itoa(t.Task.ID))
-	}
 
 	// requeued indicates task should go back to waiting state (e.g., all runners busy)
 	requeued := false
@@ -297,7 +293,7 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 	}
 
 	tplEnvironment := make(map[string]any)
-  
+
 	if t.Environment.JSON != "" {
 		err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
 	}
