@@ -46,8 +46,9 @@ func initSyslog(conf *util.SyslogConfig) {
 }
 
 func addSyslogHook(hook log.Hook) {
-	if activeDebugFilter != nil {
-		hook = debuglog.NewFilteringHook(hook, activeDebugFilter)
+	_, filter := configuredDebugFilter()
+	if filter != nil {
+		hook = debuglog.NewFilteringHook(hook, filter)
 	}
 
 	log.AddHook(hook)
