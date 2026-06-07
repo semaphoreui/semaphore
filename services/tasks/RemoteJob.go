@@ -220,7 +220,13 @@ func (t *RemoteJob) scheduleTimeout(runner *db.Runner) {
 	pool := t.taskPool
 	time.AfterFunc(d, func() {
 		tsk, err := pool.GetTask(taskID)
-		if err != nil || tsk == nil || tsk.Task.Status.IsFinished() {
+		if err != nil || tsk == nil {
+			return
+		}
+		if util.HAEnabled() {
+			pool.refreshTaskStatusFromDB(tsk)
+		}
+		if tsk.Task.Status.IsFinished() {
 			return
 		}
 		tsk.Log("Task timed out")

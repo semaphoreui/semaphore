@@ -423,6 +423,17 @@ func applyDBPersistedTaskSnapshot(dst *db.Task, src db.Task) {
 	dst.CommitMessage = src.CommitMessage
 }
 
+// refreshTaskStatusFromDB updates tsk with the persisted task row. In HA mode
+// the in-memory pool can be stale after another node finalizes the task.
+func (p *TaskPool) refreshTaskStatusFromDB(tsk *TaskRunner) {
+	row, err := p.store.GetTaskByID(tsk.Task.ID)
+	if err != nil {
+		log.WithError(err).WithField("task_id", tsk.Task.ID).Warn("failed to refresh task status from DB")
+		return
+	}
+	applyDBPersistedTaskSnapshot(&tsk.Task, row)
+}
+
 // hydrateTaskRunner builds a TaskRunner for an existing task from DB without starting it
 func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, error) {
 	task, err := p.store.GetTask(projectID, taskID)
