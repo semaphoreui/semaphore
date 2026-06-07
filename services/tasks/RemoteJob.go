@@ -197,67 +197,42 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 
 	t.taskPool.state.UpdateRuntimeFields(tsk)
 
-	startTime := tz.Now()
+	// The task now runs on the remote runner. Its completion is reported back
+	// via the runner API (PUT /runners) and finalized by
+	// TaskPool.FinalizeRemoteTask on whichever node receives the terminal
+	// status. Returning here instead of polling means the task survives the
+	// death or restart of the node that dispatched it: no node-local goroutine
+	// owns its completion.
+	t.scheduleTimeout(runner)
+	return
+}
 
-	taskTimedOut := false
-
-	for {
-		if util.Config.MaxTaskDurationSec > 0 && int(tz.Now().Sub(startTime).Seconds()) > util.Config.MaxTaskDurationSec {
-			taskTimedOut = true
-			break
-		}
-
-		time.Sleep(1_000_000_000)
-		tsk, err = t.taskPool.GetTask(t.Task.ID)
-
-		if err != nil {
-			return
-		}
-
-		if tsk == nil {
-			err = fmt.Errorf("task %d not found", t.Task.ID)
-			return
-		}
-
-		if util.HAEnabled() {
-			var row db.Task
-			var rowErr error
-
-			row, rowErr = t.taskPool.store.GetTask(tsk.Task.ProjectID, t.Task.ID)
-
-			if rowErr == nil {
-				// Never regress (e.g. running → starting) if the DB read is briefly stale.
-				if task_logger.TaskStatusProgressRank(row.Status) >= task_logger.TaskStatusProgressRank(tsk.Task.Status) {
-					tsk.Task.Status = row.Status
-					tsk.Task.Start = row.Start
-					tsk.Task.End = row.End
-				}
-				if row.RunnerID != nil {
-					tsk.Task.RunnerID = row.RunnerID
-				}
-			}
-		}
-
-		if tsk.Task.Status == task_logger.TaskSuccessStatus ||
-			tsk.Task.Status == task_logger.TaskStoppedStatus ||
-			tsk.Task.Status == task_logger.TaskFailStatus {
-			break
-		}
-	}
-
-	err = callRunnerWebhook(runner, tsk, "finish")
-
-	if err != nil {
+// scheduleTimeout enforces util.Config.MaxTaskDurationSec for a dispatched
+// remote task. The timer runs node-locally; if this node dies before it fires,
+// the HA orphan cleaner applies the same limit as a backstop. Firing on an
+// already-finished task is a no-op.
+func (t *RemoteJob) scheduleTimeout(runner *db.Runner) {
+	if util.Config.MaxTaskDurationSec <= 0 {
 		return
 	}
-
-	if tsk.Task.Status == task_logger.TaskFailStatus {
-		err = fmt.Errorf("task failed")
-	} else if taskTimedOut {
-		err = fmt.Errorf("task timed out")
-	}
-
-	return
+	d := time.Duration(util.Config.MaxTaskDurationSec) * time.Second
+	taskID := t.Task.ID
+	pool := t.taskPool
+	time.AfterFunc(d, func() {
+		tsk, err := pool.GetTask(taskID)
+		if err != nil || tsk == nil {
+			return
+		}
+		if util.HAEnabled() {
+			pool.refreshTaskStatusFromDB(tsk)
+		}
+		if tsk.Task.Status.IsFinished() {
+			return
+		}
+		tsk.Log("Task timed out")
+		tsk.SetStatus(task_logger.TaskFailStatus)
+		pool.FinalizeRemoteTask(tsk, runner)
+	})
 }
 
 func (t *RemoteJob) Kill() {
@@ -267,4 +242,10 @@ func (t *RemoteJob) Kill() {
 
 func (t *RemoteJob) IsKilled() bool {
 	return t.killed
+}
+
+// Async is true: RemoteJob.Run only dispatches the task to a runner; its
+// completion is reported asynchronously via the runner API.
+func (t *RemoteJob) Async() bool {
+	return true
 }

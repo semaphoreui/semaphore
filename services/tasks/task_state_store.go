@@ -87,6 +87,18 @@ type TaskStateStore interface {
 	QueueGet(index int) *TaskRunner
 	QueueLen() int
 
+	// ClaimAndDequeue atomically claims a task for this node and removes it
+	// from the waiting queue, addressed by ID (never by list position).
+	// Returns true iff this node now exclusively owns the task and it has been
+	// removed from the queue. On false the queue is left untouched. This is the
+	// only safe way to pull a task for execution when multiple HA nodes share
+	// one queue: position-based claim+dequeue races as the shared list shifts.
+	ClaimAndDequeue(taskID int) bool
+
+	// DequeueByID removes a task from the queue by value (task ID), avoiding
+	// the index races inherent to DequeueAt under concurrent multi-node access.
+	DequeueByID(taskID int)
+
 	// Running tasks map operations
 	SetRunning(task *TaskRunner)
 	DeleteRunning(taskID int)
@@ -108,6 +120,14 @@ type TaskStateStore interface {
 	TryClaim(taskID int) bool
 	DeleteClaim(taskID int)
 
+	// TryFinalize attempts to acquire a cluster-wide finalization lock for a
+	// remote task. Returns true iff this node should run FinalizeRemoteTask
+	// (webhook, autorun, pool cleanup). Redis-backed stores should use SETNX
+	// (or equivalent) keyed by task ID; the in-memory store deduplicates within
+	// a single process only.
+	TryFinalize(taskID int) bool
+	DeleteFinalize(taskID int)
+
 	// UpdateRuntimeFields persists transient fields of TaskRunner so
 	// they can be restored after restart in HA mode.
 	UpdateRuntimeFields(task *TaskRunner)
@@ -124,6 +144,7 @@ type MemoryTaskStateStore struct {
 	running    map[int]*TaskRunner
 	activeProj map[int]map[int]*TaskRunner // projectID -> taskID -> task
 	aliases    map[string]*TaskRunner
+	finalizing sync.Map // taskID -> struct{}; per-process FinalizeRemoteTask guard
 }
 
 func NewMemoryTaskStateStore() *MemoryTaskStateStore {
@@ -139,8 +160,18 @@ func NewMemoryTaskStateStore() *MemoryTaskStateStore {
 func (s *MemoryTaskStateStore) Start(_ TaskRunnerHydrator) error { return nil }
 
 // Claims always succeed in memory single-process mode
-func (s *MemoryTaskStateStore) TryClaim(_ int) bool               { return true }
-func (s *MemoryTaskStateStore) DeleteClaim(_ int)                 {}
+func (s *MemoryTaskStateStore) TryClaim(_ int) bool { return true }
+func (s *MemoryTaskStateStore) DeleteClaim(_ int)   {}
+
+func (s *MemoryTaskStateStore) TryFinalize(taskID int) bool {
+	_, loaded := s.finalizing.LoadOrStore(taskID, struct{}{})
+	return !loaded
+}
+
+func (s *MemoryTaskStateStore) DeleteFinalize(taskID int) {
+	s.finalizing.Delete(taskID)
+}
+
 func (s *MemoryTaskStateStore) UpdateRuntimeFields(_ *TaskRunner) {}
 func (s *MemoryTaskStateStore) LoadRuntimeFields(_ *TaskRunner)   {}
 
@@ -160,6 +191,34 @@ func (s *MemoryTaskStateStore) DequeueAt(index int) error {
 	s.queue = append(s.queue[:index], s.queue[index+1:]...)
 	s.mu.Unlock()
 	return nil
+}
+
+// ClaimAndDequeue removes the task with the given ID from the queue and marks
+// it running. In the single-process memory store there is no contention, so a
+// claim always succeeds as long as the task is still queued.
+func (s *MemoryTaskStateStore) ClaimAndDequeue(taskID int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, t := range s.queue {
+		if t != nil && t.Task.ID == taskID {
+			s.queue = append(s.queue[:i], s.queue[i+1:]...)
+			s.running[t.Task.ID] = t
+			return true
+		}
+	}
+	return false
+}
+
+// DequeueByID removes the task with the given ID from the queue, if present.
+func (s *MemoryTaskStateStore) DequeueByID(taskID int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, t := range s.queue {
+		if t != nil && t.Task.ID == taskID {
+			s.queue = append(s.queue[:i], s.queue[i+1:]...)
+			return
+		}
+	}
 }
 
 func (s *MemoryTaskStateStore) QueueRange() []*TaskRunner {

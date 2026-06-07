@@ -29,6 +29,13 @@ func (s *spyTaskStateStore) TryClaim(_ int) bool {
 	return false
 }
 
+// ClaimAndDequeue is the path the queue loop actually uses. Returning false
+// keeps tests from starting real tasks while still counting claim attempts.
+func (s *spyTaskStateStore) ClaimAndDequeue(_ int) bool {
+	s.tryClaimCalls++
+	return false
+}
+
 func TestTaskPool_RequeuedEventCleansRunningStateAndSkipsImmediateRetry(t *testing.T) {
 	// Ensure util.Config is non-nil for p.blocks() checks.
 	prevCfg := util.Config
