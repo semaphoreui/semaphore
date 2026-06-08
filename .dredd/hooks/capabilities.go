@@ -101,7 +101,7 @@ func addCapabilities(caps []string) {
 			panic(err)
 		}
 
-		time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
+		time.Sleep(time.Duration(1<<attempt) * 100 * time.Millisecond)
 	}
 
 	panic(errors.New("database remained locked after retries"))
@@ -113,7 +113,9 @@ func isSQLiteBusyError(err error) bool {
 	}
 
 	errText := strings.ToLower(err.Error())
-	return strings.Contains(errText, "sqlite_busy") || strings.Contains(errText, "database is locked")
+	return strings.Contains(errText, "sqlite_busy") ||
+		strings.Contains(errText, "database is locked") ||
+		strings.Contains(errText, "database table is locked")
 }
 
 func resolveCapability(caps []string, resolved []string, uid string) {
