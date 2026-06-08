@@ -339,6 +339,7 @@ export default {
   allowLimitInTask: 'Лимит',
   addLimit: 'Добавить лимит',
   allowDebug: 'Отладка',
+  skipGalaxyInstall: 'Пропустить установку Galaxy',
   addTag: 'Добавить тег',
   skipTags: 'Пропустить теги',
   addSkippedTag: 'Добавить пропущенный тег',

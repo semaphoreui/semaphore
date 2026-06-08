@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-gorp/gorp/v3"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
 	"github.com/semaphoreui/semaphore/db/factory"
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -29,7 +28,7 @@ func addTestRunnerUser() {
 	}
 
 	dbConnect()
-	defer store.Close("")
+	defer store.Close()
 
 	truncateAll()
 
@@ -74,8 +73,6 @@ func truncateAll() {
 	}
 
 	switch store.(type) {
-	case *bolt.BoltDb:
-		// Do nothing
 	case *sql.SqlDb:
 		switch store.(*sql.SqlDb).Sql().Dialect.(type) {
 		case gorp.PostgresDialect:
@@ -103,7 +100,7 @@ func truncateAll() {
 
 func removeTestRunnerUser(transactions []*transaction.Transaction) {
 	dbConnect()
-	defer store.Close("")
+	defer store.Close()
 	_ = store.DeleteAPIToken(testRunnerUser.ID, adminToken)
 	_ = store.DeleteUser(testRunnerUser.ID)
 }
@@ -319,6 +316,7 @@ func addIntegrationMatcher() *db.IntegrationMatcher {
 
 func addRunner() *db.Runner {
 	runner, err := store.CreateRunner(db.Runner{
+		Token:            db.GenerateRunnerToken(),
 		ProjectID:        &userProject.ID,
 		Name:             "ITRN-" + getUUID(),
 		Active:           true,
@@ -334,6 +332,7 @@ func addRunner() *db.Runner {
 
 func addGlobalRunner() *db.Runner {
 	runner, err := store.CreateRunner(db.Runner{
+		Token:            db.GenerateRunnerToken(),
 		ProjectID:        nil,
 		Name:             "ITGRN-" + getUUID(),
 		Active:           true,
@@ -453,7 +452,7 @@ var store db.Store
 func dbConnect() {
 	store = factory.CreateStore()
 
-	store.Connect("")
+	store.Connect()
 }
 
 func stringInSlice(a string, list []string) (int, bool) {

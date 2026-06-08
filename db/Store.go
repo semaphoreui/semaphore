@@ -190,13 +190,8 @@ type ConnectionManager interface {
 	// Connect connects to the database.
 	// Token parameter used if PermanentConnection returns false.
 	// Token used for debugging of session connections.
-	Connect(token string)
-	Close(token string)
-
-	// PermanentConnection returns true if connection should be kept from start to finish of the app.
-	// This mode is suitable for MySQL and Postgres but not for BoltDB.
-	// For BoltDB we should reconnect for each request because BoltDB support only one connection at time.
-	PermanentConnection() bool
+	Connect()
+	Close()
 }
 
 // MigrationManager handles database migrations
@@ -470,14 +465,24 @@ type ViewManager interface {
 // RunnerManager handles runner-related operations
 type RunnerManager interface {
 	GetRunner(projectID int, runnerID int) (Runner, error)
-	GetRunners(projectID int, activeOnly bool, tagFilterMode RunnerTagFilterMode, tag *string) ([]Runner, error)
+	GetRunners(projectID int, activeAndRegisteredOnly bool, tagFilterMode RunnerTagFilterMode, tag *string) ([]Runner, error)
 	DeleteRunner(projectID int, runnerID int) error
 	GetRunnerByToken(token string) (Runner, error)
 	GetGlobalRunner(runnerID int) (Runner, error)
-	GetAllRunners(activeOnly bool, globalOnly bool, tagFilterMode RunnerTagFilterMode, tag *string) ([]Runner, error)
+	GetAllRunners(activeAndRegisteredOnly bool, globalOnly bool, tagFilterMode RunnerTagFilterMode, tag *string) ([]Runner, error)
 	DeleteGlobalRunner(runnerID int) error
 	UpdateRunner(runner Runner) error
 	CreateRunner(runner Runner) (Runner, error)
+	// RegisterRunner finalizes a previously created tokenless ("unregistered")
+	// runner, looked up by the hash of the one-time registration token it presents:
+	// it generates the runner's auth token, stores its public key, activates it and
+	// clears the registration token. It fails if no matching runner exists, the
+	// token has expired, or the runner is already registered.
+	RegisterRunner(registrationTokenHash string, publicKey *string) (Runner, error)
+	// ResetRunnerRegistration moves a runner (back) to the unregistered state: it
+	// clears the auth token, public key and active flag, and stores a new one-time
+	// registration token hash and its expiry.
+	ResetRunnerRegistration(runnerID int, registrationTokenHash string, expiresAt time.Time) error
 	TouchRunner(runner Runner) (err error)
 	ClearRunnerCache(runner Runner) (err error)
 	GetRunnerTags(projectID int) ([]RunnerTag, error)
@@ -826,18 +831,6 @@ func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, er
 	}
 
 	return
-}
-
-func StoreSession(store Store, token string, callback func()) {
-	if !store.PermanentConnection() {
-		store.Connect(token)
-	}
-
-	callback()
-
-	if !store.PermanentConnection() {
-		store.Close(token)
-	}
 }
 
 func ValidateRepository(store Store, repo *Repository) (err error) {

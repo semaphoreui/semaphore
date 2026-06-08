@@ -55,6 +55,12 @@ func (t *LocalJob) IsKilled() bool {
 	return t.killed
 }
 
+// Async is false: LocalJob.Run executes the task synchronously and returns only
+// once it has finished, so the task is finalized by TaskRunner.run.
+func (t *LocalJob) Async() bool {
+	return false
+}
+
 func (t *LocalJob) Kill() {
 	t.killed = true
 

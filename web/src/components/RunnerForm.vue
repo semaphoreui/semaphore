@@ -47,12 +47,28 @@
       </v-chip>
     </div>
 
-    <v-checkbox v-model="item.is_default">
-      <template v-slot:label>
-        Is default
-        <v-chip class="ml-2" small color="error">New</v-chip>
-      </template>
-    </v-checkbox>
+    <v-row>
+      <v-col>
+        <v-checkbox v-model="item.is_default">
+          <template v-slot:label>
+            Is default
+            <v-chip class="ml-2" small color="error">New</v-chip>
+          </template>
+        </v-checkbox>
+      </v-col>
+      <v-col>
+        <v-checkbox v-if="isNew" v-model="item.registered" :disabled="formSaving">
+          <template v-slot:label>
+            {{ $t('register') }}
+            <v-chip class="ml-2" small color="error">New</v-chip>
+          </template>
+        </v-checkbox>
+      </v-col>
+    </v-row>
+
+    <v-alert v-if="isNew && !item.registered" color="info" text dense class="mb-4">
+      {{ $t('unregisteredRunnerHint') }}
+    </v-alert>
 
     <v-text-field
       v-model="item.webhook"
@@ -116,6 +132,16 @@ export default {
   },
 
   methods: {
+    getNewItem() {
+      // New runners default to "registered": the server returns an auth token as
+      // usual. Unchecking it creates an unregistered runner that must register
+      // itself later using a one-time registration token.
+      return {
+        registered: true,
+        is_default: this.projectId == null,
+      };
+    },
+
     getItemsUrl() {
       if (this.projectId) {
         return `/api/project/${this.projectId}/runners`;

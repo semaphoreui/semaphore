@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
+	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -29,13 +29,20 @@ func (s *spyTaskStateStore) TryClaim(_ int) bool {
 	return false
 }
 
+// ClaimAndDequeue is the path the queue loop actually uses. Returning false
+// keeps tests from starting real tasks while still counting claim attempts.
+func (s *spyTaskStateStore) ClaimAndDequeue(_ int) bool {
+	s.tryClaimCalls++
+	return false
+}
+
 func TestTaskPool_RequeuedEventCleansRunningStateAndSkipsImmediateRetry(t *testing.T) {
 	// Ensure util.Config is non-nil for p.blocks() checks.
 	prevCfg := util.Config
 	t.Cleanup(func() { util.Config = prevCfg })
 	util.Config = &util.ConfigType{MaxParallelTasks: 0}
 
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
 	proj, err := store.CreateProject(db.Project{})
 	assert.NoError(t, err)
 

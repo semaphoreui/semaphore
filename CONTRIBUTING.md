@@ -80,13 +80,13 @@ As Dredd and the application database config may differ it expects it's own conf
     npm install -g dredd
     ```
 3) Create `./dredd/config.json` for Dredd. It must contain database connection same as used in Semaphore server.
-   You can use any supported database dialect for tests. For example BoltDB.
+   You can use any supported database dialect for tests. For example SQLite.
     ```json
    {
-        "bolt": {
-            "host": "/tmp/database.boltdb"
+        "sqlite": {
+            "host": "/tmp/database.sqlite"
         },
-        "dialect": "bolt"
+        "dialect": "sqlite"
     }
     ```
 4) Start Semaphore server (add `--config` option if required):

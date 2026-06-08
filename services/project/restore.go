@@ -462,6 +462,7 @@ func (e BackupRunner) Verify(backup *BackupFormat) error {
 func (e BackupRunner) Restore(store db.Store, b *BackupDB) error {
 	runner := e.Runner
 	runner.ProjectID = &b.meta.ID
+	runner.Token = "" // Unregistered runner
 	newRunner, err := store.CreateRunner(runner)
 	if err != nil {
 		return err

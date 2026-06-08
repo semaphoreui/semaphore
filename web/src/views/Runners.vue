@@ -31,11 +31,131 @@
       :max-width="600"
       v-model="newRunnerTokenDialog"
       :save-button-text="null"
-      :title="$t('newRunnerToken')"
+      :title="isUnregisteredRunner ? $t('runnerRegistrationToken') : $t('newRunnerToken')"
       hide-buttons
     >
       <template v-slot:form="{}">
-        <div>
+        <div v-if="isUnregisteredRunner">
+          <div class="mb-4">
+            <div>{{ $t('registrationToken') }}</div>
+            <div style="position: relative">
+              <code
+                class="pa-2 mt-2"
+                style="background: gray; color: white; display: block; font-size: 14px"
+                >{{ (newRunner || {}).registration_token }}</code
+              >
+
+              <CopyClipboardButton
+                style="position: absolute; right: 10px; top: 2px"
+                :text="(newRunner || {}).registration_token"
+              />
+            </div>
+          </div>
+
+          <v-alert color="warning" text dense>
+            {{ $t('registrationTokenHint') }}
+          </v-alert>
+
+          <h2 class="mt-8 mb-4">{{ $t('howToRegister') }}</h2>
+
+          <v-tabs v-model="registerTab" :show-arrows="false">
+            <v-tab key="env">Env Vars</v-tab>
+            <v-tab key="config">Config file</v-tab>
+            <v-tab key="docker">Docker</v-tab>
+          </v-tabs>
+
+          <v-divider style="margin-top: -1px" />
+
+          <v-tabs-items v-model="registerTab">
+            <v-tab-item key="env">
+              <div class="mt-3">Register and start the runner:</div>
+              <div style="position: relative">
+                <pre
+                  style="
+                    overflow: auto;
+                    background: gray;
+                    color: white;
+                    border-radius: 10px;
+                    margin-top: 5px;
+                  "
+                  class="pa-2"
+                  >{{ runnerRegisterEnvCommand }}</pre
+                >
+
+                <CopyClipboardButton
+                  style="position: absolute; right: 10px; top: 10px"
+                  :text="runnerRegisterEnvCommand"
+                />
+              </div>
+            </v-tab-item>
+
+            <v-tab-item key="config">
+              <div class="mt-3">Config file content:</div>
+              <div style="position: relative">
+                <pre
+                  style="
+                    overflow: auto;
+                    background: gray;
+                    color: white;
+                    border-radius: 10px;
+                    margin-top: 5px;
+                  "
+                  class="pa-2"
+                  >{{ runnerRegisterConfigContent }}</pre
+                >
+
+                <CopyClipboardButton
+                  style="position: absolute; right: 10px; top: 10px"
+                  :text="runnerRegisterConfigContent"
+                />
+              </div>
+
+              <div class="mt-3">Register and start the runner:</div>
+              <div style="position: relative">
+                <pre
+                  style="
+                    overflow: auto;
+                    background: gray;
+                    color: white;
+                    border-radius: 10px;
+                    margin-top: 5px;
+                  "
+                  class="pa-2"
+                  >{{ runnerRegisterConfigCommand }}</pre
+                >
+
+                <CopyClipboardButton
+                  style="position: absolute; right: 10px; top: 10px"
+                  :text="runnerRegisterConfigCommand"
+                />
+              </div>
+            </v-tab-item>
+
+            <v-tab-item key="docker">
+              <div class="mt-3">Register and start the runner:</div>
+              <div style="position: relative">
+                <pre
+                  style="
+                    overflow: auto;
+                    background: gray;
+                    color: white;
+                    border-radius: 10px;
+                    margin-top: 5px;
+                  "
+                  class="pa-2"
+                  >{{ runnerRegisterDockerCommand }}</pre
+                >
+
+                <CopyClipboardButton
+                  style="position: absolute; right: 10px; top: 10px"
+                  :text="runnerRegisterDockerCommand"
+                />
+              </div>
+            </v-tab-item>
+          </v-tabs-items>
+        </div>
+
+        <div v-else>
           <div class="mb-4">
             <div>{{ $t('runnerToken') }}</div>
             <div style="position: relative">
@@ -217,6 +337,13 @@ semaphore runner start --config ./config.runner.json</pre
       @yes="deleteItem(itemId)"
     />
 
+    <YesNoDialog
+      :title="$t('regenerateRegistrationToken')"
+      :text="$t('askResetRunnerRegistration')"
+      v-model="resetRegistrationDialog"
+      @yes="regenerateRegistrationToken(resetRegistrationRunner)"
+    />
+
     <v-toolbar flat v-if="!projectId">
       <v-btn icon class="mr-4" @click="returnToProjects()">
         <v-icon>mdi-arrow-left</v-icon>
@@ -273,7 +400,10 @@ semaphore runner start --config ./config.runner.json</pre
       >.
     </v-alert>
 
-    <div v-if="globalFilter || defaultFilter || tagFilter" class="mt-4 ml-4 d-flex align-center">
+    <div
+      v-if="globalFilter || defaultFilter || tagFilter || unregisteredFilter"
+      class="mt-4 ml-4 d-flex align-center"
+    >
       <v-chip
         v-if="globalFilter"
         class="mr-2"
@@ -294,6 +424,17 @@ semaphore runner start --config ./config.runner.json</pre
       >
         {{ $t('default') }}
       </v-chip>
+
+      <v-chip
+        v-if="unregisteredFilter"
+        class="mr-2"
+        small
+        close
+        @click:close="unregisteredFilter = false"
+      >
+        {{ $t('unregistered') }}
+      </v-chip>
+
       <v-chip v-if="tagFilter" small close label color="primary" @click:close="tagFilter = null">
         {{ tagFilter }}
       </v-chip>
@@ -339,6 +480,16 @@ semaphore runner start --config ./config.runner.json</pre
         >
           {{ $t('global') }}
         </v-chip>
+
+        <v-chip
+          v-if="!item.registered"
+          class="ml-2"
+          small
+          style="cursor: pointer"
+          @click="unregisteredFilter = !unregisteredFilter"
+        >
+          {{ $t('unregistered') }}
+        </v-chip>
       </template>
 
       <template v-slot:item.max_parallel_tasks="{ item }">
@@ -377,6 +528,31 @@ semaphore runner start --config ./config.runner.json</pre
 
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
+          <v-tooltip
+            v-if="item.project_id != null || projectId == null"
+            bottom
+            :max-width="200"
+          >
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn
+                v-bind="attrs"
+                v-on="on"
+                icon
+                class="mr-1"
+                @click="askRegenerateRegistrationToken(item)"
+                :disabled="item.project_id == null && !isAdmin"
+              >
+                <v-icon>mdi-sync</v-icon>
+              </v-btn>
+            </template>
+            <div style="font-weight: bold">
+              {{ $t('regenerateRegistrationToken') }}
+            </div>
+            <div v-if="item.registered" style="font-size: 12px; line-height: 1.2">
+              {{ $t('askResetRunnerRegistration') }}
+            </div>
+          </v-tooltip>
+
           <v-btn
             v-if="item.project_id != null || projectId == null"
             icon
@@ -470,6 +646,43 @@ export default {
       return this.getProjectIdOfItem(this.itemId);
     },
 
+    isUnregisteredRunner() {
+      return !!(this.newRunner || {}).registration_token;
+    },
+
+    runnerRegisterEnvCommand() {
+      return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
+SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
+semaphore runner register --config ./config.runner.json
+
+semaphore runner start --config ./config.runner.json`;
+    },
+
+    runnerRegisterConfigContent() {
+      return `{
+  "web_host": "${this.webHost || window.location.origin}",
+  "runner": {
+    "private_key_file": "/path/to/private/key"
+  }
+}`;
+    },
+
+    runnerRegisterConfigCommand() {
+      return `SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
+semaphore runner register --config ./config.runner.json
+
+semaphore runner start --config ./config.runner.json`;
+    },
+
+    runnerRegisterDockerCommand() {
+      return `docker run \\
+-e SEMAPHORE_WEB_ROOT=${this.webHost} \\
+-e SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
+-e SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/config.runner.key \\
+-v "/path/to/private/key:/config.runner.key" \\
+-d semaphoreui/runner:${this.version}`;
+    },
+
     runnerConfigCommand() {
       return `{
   "web_host": "${this.webHost || window.location.origin}",
@@ -512,6 +725,9 @@ semaphore runner start --no-config`;
       if (this.defaultFilter) {
         result = result.filter((item) => item.is_default);
       }
+      if (this.unregisteredFilter) {
+        result = result.filter((item) => !item.registered);
+      }
       if (this.tagFilter) {
         result = result.filter((item) => item.tags && item.tags.includes(this.tagFilter));
       }
@@ -533,9 +749,13 @@ semaphore runner start --no-config`;
       newRunnerTokenDialog: null,
       newRunner: null,
       usageTab: null,
+      registerTab: null,
       globalFilter: false,
       defaultFilter: false,
       tagFilter: null,
+      unregisteredFilter: false,
+      resetRegistrationDialog: false,
+      resetRegistrationRunner: null,
     };
   },
 
@@ -558,6 +778,47 @@ semaphore runner start --no-config`;
         EventBus.$emit('i-snackbar', {
           color: 'error',
           text: `Cannot clear cache: ${e.message}`,
+        });
+      }
+    },
+
+    askRegenerateRegistrationToken(runner) {
+      // Regenerating for an already-registered runner is destructive (it resets the
+      // runner's token and forces it offline), so confirm first. For an unregistered
+      // runner there is nothing to lose, so do it right away.
+      if (runner.registered) {
+        this.resetRegistrationRunner = runner;
+        this.resetRegistrationDialog = true;
+      } else {
+        this.regenerateRegistrationToken(runner);
+      }
+    },
+
+    async regenerateRegistrationToken(runner) {
+      const projectId = this.getProjectIdOfItem(runner.id);
+
+      const url = projectId
+        ? `/api/project/${projectId}/runners/${runner.id}/registration-token`
+        : `/api/runners/${runner.id}/registration-token`;
+
+      try {
+        const { data } = await axios({
+          method: 'post',
+          url,
+          responseType: 'json',
+        });
+
+        // Reuse the same dialog shown right after creating an unregistered runner.
+        this.newRunner = { ...runner, registration_token: data.registration_token };
+        this.registerTab = null;
+        this.newRunnerTokenDialog = true;
+
+        // The runner's registration state may have changed (registered -> unregistered).
+        await this.loadItems();
+      } catch (e) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: `Cannot regenerate registration token: ${e.message}`,
         });
       }
     },
@@ -604,9 +865,18 @@ semaphore runner start --no-config`;
     },
 
     async loadItemsAndShowRunnerDetails(e) {
-      if (e.item.token) {
+      if (e.item.token || e.item.registration_token) {
+        // A registered runner returns an auth token (and private key); show the
+        // details dialog with the connection instructions.
         this.newRunnerTokenDialog = true;
         this.newRunner = e.item;
+      } else if (e.action === 'new') {
+        // An unregistered runner is created with no token at all, so there is
+        // nothing to show — just confirm it was created.
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: this.$t('runnerCreated'),
+        });
       }
       return this.loadItems();
     },
@@ -659,6 +929,7 @@ semaphore runner start --no-config`;
           text: this.$i18n.t('actions'),
           value: 'actions',
           sortable: false,
+          align: 'end',
         },
       ];
     },
