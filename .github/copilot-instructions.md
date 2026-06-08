@@ -17,7 +17,7 @@ Semaphore UI is a modern web interface for managing popular DevOps tools like An
 ### Run the application:
 - ALWAYS run the bootstrapping steps first
 - Setup database and admin user: `./bin/semaphore setup` (interactive, use BoltDB option 2 for development)
-- Start server: `./bin/semaphore server --config ./config.json`
+- Start server: `./bin/semaphore server --config ./config.json` (or `config.yaml`; see `docs/configuration.md`)
 - Web UI: http://localhost:3000 (login: admin / changeme)
 - API: http://localhost:3000/api/ (test with: `curl http://localhost:3000/api/ping`)
 
@@ -78,8 +78,10 @@ curl -I http://localhost:3000/       # Should return HTTP 200
 ├── db/                - Database models and interfaces
 ├── services/          - Business logic services
 ├── util/              - Utility functions and configuration
+├── docs/              - Developer guides (configuration, runners, HA)
+├── config.schema.yaml - JSON Schema for config.json / config.yaml
 ├── bin/               - Built binaries (after build)
-└── config.json       - Runtime configuration (after setup)
+└── config.json       - Runtime configuration (after setup; YAML also supported)
 ```
 
 ### Key Commands Reference
@@ -150,7 +152,8 @@ During setup, choose option 2 (BoltDB) for simplest development setup:
 - **NEVER CANCEL** long-running builds or dependency installations
 - Set appropriate timeouts: deps (5+ min), build (3+ min), tests (2+ min)  
 - The application serves the frontend from the Go backend - no separate frontend server needed
-- Configuration is stored in `config.json` after running setup
+- Configuration is stored in `config.json` after running setup (or use `config.yaml`; validate with `config.schema.yaml`)
+- Developer docs: `docs/README.md`
 - Default admin credentials after setup: admin / changeme
 - Linting has known issues - focus on not introducing new ones
 - Always test changes by running the full application, not just unit tests
