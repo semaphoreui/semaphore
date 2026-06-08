@@ -220,6 +220,7 @@ import WorkflowGraph from '@/components/WorkflowGraph.vue';
 import ProjectMixin from '@/components/ProjectMixin';
 import PermissionsCheck from '@/components/PermissionsCheck';
 import { USER_PERMISSIONS } from '@/lib/constants';
+import { layoutWorkflowNodes, needsAutoLayout } from '@/lib/workflowLayout';
 
 export default {
   components: { ArgsPicker, WorkflowGraph },
@@ -354,45 +355,16 @@ export default {
       this.graphKey += 1;
     },
     // Seed positions for legacy workflows whose nodes were created before the
-    // graphical editor (all coordinates 0). Lay them out in topological columns.
+    // graphical editor (all coordinates 0) so the computed layout persists on
+    // the next save. Uses the same algorithm as the read-only run view.
     autoLayout() {
       const nodes = this.item.nodes;
-      const allZero = nodes.every((n) => !n.position_x && !n.position_y);
-      if (!allZero || nodes.length === 0) return;
-
-      const incoming = {};
-      const adjacency = {};
-      nodes.forEach((n) => {
-        incoming[n.id] = 0;
-        adjacency[n.id] = [];
-      });
-      this.item.edges.forEach((e) => {
-        if (incoming[e.destination_node_id] != null) incoming[e.destination_node_id] += 1;
-        if (adjacency[e.source_node_id]) adjacency[e.source_node_id].push(e.destination_node_id);
-      });
-
-      const depth = {};
-      const queue = nodes.filter((n) => !incoming[n.id]).map((n) => n.id);
-      queue.forEach((id) => {
-        depth[id] = 0;
-      });
-      const pending = { ...incoming };
-      while (queue.length) {
-        const id = queue.shift();
-        (adjacency[id] || []).forEach((next) => {
-          depth[next] = Math.max(depth[next] || 0, (depth[id] || 0) + 1);
-          pending[next] -= 1;
-          if (pending[next] <= 0) queue.push(next);
-        });
-      }
-      const perColumn = {};
+      if (!needsAutoLayout(nodes)) return;
+      const layout = layoutWorkflowNodes(nodes, this.item.edges);
       nodes.forEach((n, i) => {
-        const col = depth[n.id] || 0;
-        const row = perColumn[col] || 0;
         // Assign through the array (not the forEach param) to satisfy no-param-reassign.
-        nodes[i].position_x = 80 + col * 240;
-        nodes[i].position_y = 60 + row * 130;
-        perColumn[col] = row + 1;
+        nodes[i].position_x = layout[n.id].x;
+        nodes[i].position_y = layout[n.id].y;
       });
     },
 

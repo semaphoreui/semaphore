@@ -27,6 +27,7 @@
 <script>
 import Drawflow from 'drawflow';
 import 'drawflow/dist/drawflow.min.css';
+import { layoutWorkflowNodes, needsAutoLayout } from '@/lib/workflowLayout';
 
 const CONDITION_DEFAULT = 'on_success';
 
@@ -103,13 +104,23 @@ export default {
         this.conditions = {};
         const dfIdByNodeId = {};
 
+        // Lay out nodes when no coordinates are stored (legacy workflows, or runs
+        // of workflows that were never positioned in the editor) so they don't
+        // all stack at the origin.
+        const layout = needsAutoLayout(this.nodes)
+          ? layoutWorkflowNodes(this.nodes, this.edges)
+          : null;
+
         this.nodes.forEach((node) => {
+          const pos = layout
+            ? layout[node.id]
+            : { x: node.position_x || 0, y: node.position_y || 0 };
           const dfId = this.editor.addNode(
             `wf-${node.id}`,
-            this.editable ? 1 : 1,
             1,
-            node.position_x || 0,
-            node.position_y || 0,
+            1,
+            pos.x,
+            pos.y,
             this.nodeClass(node),
             { nodeId: node.id, node: this.stripPosition(node) },
             this.nodeHtml(node),
