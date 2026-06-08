@@ -595,55 +595,55 @@ func checkTmpDir(path string) error {
 // task can deposit its own outputs for downstream nodes. No-op for jobs other
 // than LocalJob (RemoteJob does not yet stream artifacts back).
 func (t *TaskRunner) prepareWorkflowArtifacts() {
-local, ok := t.job.(*LocalJob)
-if !ok {
-return
-}
+	local, ok := t.job.(*LocalJob)
+	if !ok {
+		return
+	}
 
-// Set capture path for every task. We use a per-task filename inside the
-// project tmp dir so concurrently-running tasks can never collide.
-local.ArtifactsCapturePath = filepath.Join(
-util.Config.GetProjectTmpDir(t.Task.ProjectID),
-fmt.Sprintf("artifacts_%d.json", t.Task.ID),
-)
+	// Set capture path for every task. We use a per-task filename inside the
+	// project tmp dir so concurrently-running tasks can never collide.
+	local.ArtifactsCapturePath = filepath.Join(
+		util.Config.GetProjectTmpDir(t.Task.ProjectID),
+		fmt.Sprintf("artifacts_%d.json", t.Task.ID),
+	)
 
-// Merge upstream workflow artifacts only for tasks that belong to a run.
-if t.Task.WorkflowRunID != nil {
-merged, err := t.pool.GetWorkflowRunArtifacts(t.Task.ProjectID, *t.Task.WorkflowRunID, &t.Task.ID)
-if err != nil {
-t.Log("Workflow artifacts: failed to load upstream artifacts: " + err.Error())
-} else if len(merged) > 0 {
-local.WorkflowArtifacts = merged
-t.Log(fmt.Sprintf("Workflow artifacts: %d key(s) injected from upstream tasks", len(merged)))
-}
-}
+	// Merge upstream workflow artifacts only for tasks that belong to a run.
+	if t.Task.WorkflowRunID != nil {
+		merged, err := t.pool.GetWorkflowRunArtifacts(t.Task.ProjectID, *t.Task.WorkflowRunID, &t.Task.ID)
+		if err != nil {
+			t.Log("Workflow artifacts: failed to load upstream artifacts: " + err.Error())
+		} else if len(merged) > 0 {
+			local.WorkflowArtifacts = merged
+			t.Log(fmt.Sprintf("Workflow artifacts: %d key(s) injected from upstream tasks", len(merged)))
+		}
+	}
 }
 
 // persistCapturedArtifacts reads the artifacts file the task wrote (if any),
 // validates it and stores the canonical JSON blob on the task row so
 // downstream tasks can consume it via GetWorkflowRunArtifacts.
 func (t *TaskRunner) persistCapturedArtifacts() {
-local, ok := t.job.(*LocalJob)
-if !ok {
-return
-}
-obj, raw, err := local.ReadCapturedArtifacts()
-if err != nil {
-t.Log("Workflow artifacts: " + err.Error())
-return
-}
-if obj == nil || len(raw) == 0 {
-return
-}
-rawStr := string(raw)
-if err := t.pool.store.UpdateTaskArtifacts(t.Task.ProjectID, t.Task.ID, &rawStr); err != nil {
-log.WithError(err).WithFields(log.Fields{
-"task_id": t.Task.ID,
-"context": "task_runner",
-}).Warn("Workflow artifacts: failed to persist task artifacts")
-t.Log("Workflow artifacts: failed to persist: " + err.Error())
-return
-}
-t.Task.Artifacts = &rawStr
-t.Log(fmt.Sprintf("Workflow artifacts: %d key(s) captured for downstream tasks", len(obj)))
+	local, ok := t.job.(*LocalJob)
+	if !ok {
+		return
+	}
+	obj, raw, err := local.ReadCapturedArtifacts()
+	if err != nil {
+		t.Log("Workflow artifacts: " + err.Error())
+		return
+	}
+	if obj == nil || len(raw) == 0 {
+		return
+	}
+	rawStr := string(raw)
+	if err := t.pool.store.UpdateTaskArtifacts(t.Task.ProjectID, t.Task.ID, &rawStr); err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"task_id": t.Task.ID,
+			"context": "task_runner",
+		}).Warn("Workflow artifacts: failed to persist task artifacts")
+		t.Log("Workflow artifacts: failed to persist: " + err.Error())
+		return
+	}
+	t.Task.Artifacts = &rawStr
+	t.Log(fmt.Sprintf("Workflow artifacts: %d key(s) captured for downstream tasks", len(obj)))
 }

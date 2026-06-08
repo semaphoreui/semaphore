@@ -1108,16 +1108,16 @@ func (t *LocalJob) installVaultKeyFiles() (err error) {
 // it returns (nil, nil, nil); validation errors are surfaced so the caller
 // can log a warning. The captured file is removed after a successful read.
 func (t *LocalJob) ReadCapturedArtifacts() (map[string]any, []byte, error) {
-if t.ArtifactsCapturePath == "" {
-return nil, nil, nil
-}
-obj, raw, err := artifacts.LoadFile(t.ArtifactsCapturePath)
-// Always best-effort delete the file to avoid leaving sensitive payloads on
-// disk; ignore the error since the task tmp dir is project-scoped and gets
-// cleaned independently.
-_ = os.Remove(t.ArtifactsCapturePath)
-if err != nil {
-return nil, nil, err
-}
-return obj, raw, nil
+	if t.ArtifactsCapturePath == "" {
+		return nil, nil, nil
+	}
+	obj, raw, err := artifacts.LoadFile(t.ArtifactsCapturePath)
+	// Always best-effort delete the file to avoid leaving sensitive payloads on
+	// disk; ignore the error since the task tmp dir is project-scoped and gets
+	// cleaned independently.
+	_ = os.Remove(t.ArtifactsCapturePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	return obj, raw, nil
 }
