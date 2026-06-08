@@ -48,6 +48,18 @@ func writeMD5Hash(requirementsFile string, requirementsHashFile string) error {
 	return os.WriteFile(requirementsHashFile, []byte(newFileMD5Hash), 0o644)
 }
 
+// fileExists reports whether the path exists and is a regular file (not a directory).
+func fileExists(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && !info.IsDir()
+}
+
+// dirExists reports whether the path exists and is a directory.
+func dirExists(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && info.IsDir()
+}
+
 type AnsibleApp struct {
 	Logger     task_logger.Logger
 	Playbook   *AnsiblePlaybook
@@ -75,10 +87,12 @@ func (t *AnsibleApp) Clear() {
 }
 
 func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
-	if err := t.installCollectionsRequirements(args.EnvironmentVars); err != nil {
+	rolePaths, collectionPaths := t.resolveGalaxyRequirements()
+
+	if err := t.installCollectionsRequirements(collectionPaths, args.EnvironmentVars); err != nil {
 		return err
 	}
-	if err := t.installRolesRequirements(args.EnvironmentVars); err != nil {
+	if err := t.installRolesRequirements(rolePaths, args.EnvironmentVars); err != nil {
 		return err
 	}
 	return nil
@@ -98,21 +112,19 @@ func (t *AnsibleApp) requirementsHashFilePath(requirementsType GalaxyRequirement
 	return path.Join(internalDir, fmt.Sprintf("requirements_%x_%s.md5", sum, requirementsType))
 }
 
+// installGalaxyRequirementsFile installs a single requirements file. The file is assumed to exist:
+// existence and logging of missing files is handled by resolveGalaxyRequirements. Installation is
+// skipped when the file content has not changed since the last successful install.
 func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string, environmentVars []string) error {
 	requirementsHashFilePath := t.requirementsHashFilePath(requirementsType, requirementsFilePath)
-
-	if _, err := os.Stat(requirementsFilePath); err != nil {
-		t.Log("No " + requirementsFilePath + " file found. Skip galaxy install process.\n")
-		return nil
-	}
 
 	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
 		if err := t.runGalaxy([]string{
 			string(requirementsType),
-			"install",
-			"-r",
-			requirementsFilePath,
-			"--force",
+				      "install",
+				      "-r",
+				      requirementsFilePath,
+				      "--force",
 		}, environmentVars); err != nil {
 			return err
 		}
@@ -142,44 +154,101 @@ const (
 	GalaxyCollection GalaxyRequirementsType = "collection"
 )
 
-func (t *AnsibleApp) installRolesRequirements(environmentVars []string) (err error) {
-	// default roles path
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"), environmentVars)
-	if err != nil {
-		return
-	}
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars)
-	if err != nil {
-		return
+// resolveGalaxyRequirements collects the requirements files that should be installed and returns
+// the existing paths split by type (roles, collections).
+//
+// Search rules:
+//   - <dir>/roles/requirements.yml and <dir>/collections/requirements.yml are type-specific
+//     subdirectory paths. If the subdirectory does not exist, the path is skipped silently.
+//     If the subdirectory exists but contains no requirements.yml, a warning is logged.
+//   - <dir>/requirements.yml is a shared file that may contain both roles and collections, so it
+//     is offered to both types. If none of the shared files exist anywhere, a single message
+//     listing the searched paths is logged.
+//
+// <dir> is checked both as the playbook directory and as the repository root.
+func (t *AnsibleApp) resolveGalaxyRequirements() (rolePaths []string, collectionPaths []string) {
+	playbookDir := t.GetPlaybookDir()
+	repoPath := t.getRepoPath()
+
+	// Base directories to search, de-duplicated (playbook dir may equal repo root).
+	baseDirs := []string{playbookDir}
+	if repoPath != playbookDir {
+		baseDirs = append(baseDirs, repoPath)
 	}
 
-	// alternative roles path
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "roles", "requirements.yml"), environmentVars)
-	if err != nil {
-		return
+	// --- Type-specific subdirectory requirements: <dir>/roles|collections/requirements.yml ---
+	type subdir struct {
+		reqType GalaxyRequirementsType
+		dirName string
+		target  *[]string
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars)
+	subdirs := []subdir{
+		{GalaxyRole, "roles", &rolePaths},
+		{GalaxyCollection, "collections", &collectionPaths},
+	}
+
+	for _, base := range baseDirs {
+		for _, sd := range subdirs {
+			dir := path.Join(base, sd.dirName)
+			if !dirExists(dir) {
+				// No roles/ or collections/ directory: nothing to install, stay silent.
+				continue
+			}
+			reqFile := path.Join(dir, "requirements.yml")
+			if fileExists(reqFile) {
+				*sd.target = append(*sd.target, reqFile)
+			} else {
+				// Directory exists but has no requirements.yml: worth highlighting.
+				t.Log("Warning: " + dir + " exists but contains no requirements.yml.\n")
+			}
+		}
+	}
+
+	// --- Shared requirements: <dir>/requirements.yml (may hold roles and collections) ---
+	var sharedSearched []string
+	var sharedFound []string
+	for _, base := range baseDirs {
+		reqFile := path.Join(base, "requirements.yml")
+		sharedSearched = append(sharedSearched, reqFile)
+		if fileExists(reqFile) {
+			sharedFound = append(sharedFound, reqFile)
+		}
+	}
+
+	if len(sharedFound) == 0 {
+		// None of the shared requirements files exist: log once, listing where we looked.
+		msg := "No requirements.yml found. Skip galaxy install process. Searched:"
+		for _, p := range sharedSearched {
+			msg += "\n  " + p
+		}
+		t.Log(msg + "\n")
+	} else {
+		// A shared file may contain both roles and collections, so offer it to both types.
+		for _, p := range sharedFound {
+			rolePaths = append(rolePaths, p)
+			collectionPaths = append(collectionPaths, p)
+		}
+	}
+
 	return
 }
 
-func (t *AnsibleApp) installCollectionsRequirements(environmentVars []string) (err error) {
-	// default collections path
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"), environmentVars)
-	if err != nil {
-		return
+func (t *AnsibleApp) installRolesRequirements(paths []string, environmentVars []string) error {
+	for _, p := range paths {
+		if err := t.installGalaxyRequirementsFile(GalaxyRole, p, environmentVars); err != nil {
+			return err
+		}
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars)
-	if err != nil {
-		return
-	}
+	return nil
+}
 
-	// alternative collections path
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "collections", "requirements.yml"), environmentVars)
-	if err != nil {
-		return
+func (t *AnsibleApp) installCollectionsRequirements(paths []string, environmentVars []string) error {
+	for _, p := range paths {
+		if err := t.installGalaxyRequirementsFile(GalaxyCollection, p, environmentVars); err != nil {
+			return err
+		}
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars)
-	return
+	return nil
 }
 
 func (t *AnsibleApp) runGalaxy(args []string, environmentVars []string) error {
