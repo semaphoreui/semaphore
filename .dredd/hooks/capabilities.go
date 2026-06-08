@@ -2,9 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	trans "github.com/snikch/goodman/transaction"
@@ -35,6 +39,8 @@ var integrationID int
 var integrationExtractValueID int
 var integrationMatchID int
 
+var capabilitiesMu sync.Mutex
+
 var capabilities = map[string][]string{
 	"user":                    {},
 	"project":                 {"user"},
@@ -60,11 +66,54 @@ func capabilityWrapper(cap string) func(t *trans.Transaction) {
 }
 
 func addCapabilities(caps []string) {
-	dbConnect()
-	defer store.Close()
-	resolved := make([]string, 0)
-	uid := getUUID()
-	resolveCapability(caps, resolved, uid)
+	capabilitiesMu.Lock()
+	defer capabilitiesMu.Unlock()
+
+	const maxAttempts = 5
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		dbConnect()
+		resolved := make([]string, 0)
+		uid := getUUID()
+
+		err := func() (err error) {
+			defer store.Close()
+			defer func() {
+				if p := recover(); p != nil {
+					switch panicErr := p.(type) {
+					case error:
+						err = panicErr
+					default:
+						err = fmt.Errorf("%v", p)
+					}
+				}
+			}()
+
+			resolveCapability(caps, resolved, uid)
+			return nil
+		}()
+
+		if err == nil {
+			return
+		}
+
+		if !isSQLiteBusyError(err) {
+			panic(err)
+		}
+
+		time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
+	}
+
+	panic(errors.New("database remained locked after retries"))
+}
+
+func isSQLiteBusyError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errText := strings.ToLower(err.Error())
+	return strings.Contains(errText, "sqlite_busy") || strings.Contains(errText, "database is locked")
 }
 
 func resolveCapability(caps []string, resolved []string, uid string) {
