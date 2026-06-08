@@ -55,6 +55,18 @@
         {{ $t('workflowArtifactsRemoteRunnerWarning') }}
       </v-alert>
 
+      <v-card class="mb-4" outlined>
+        <WorkflowGraph
+          v-if="workflow"
+          :nodes="workflow.nodes || []"
+          :edges="workflow.edges || []"
+          :templates="templates"
+          :node-statuses="nodeStatuses"
+          :editable="false"
+          style="height: 420px"
+        />
+      </v-card>
+
       <v-data-table
         :headers="headers"
         :items="details.nodes"
@@ -179,9 +191,11 @@ import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import PermissionsCheck from '@/components/PermissionsCheck';
+import WorkflowGraph from '@/components/WorkflowGraph.vue';
 import { USER_PERMISSIONS } from '@/lib/constants';
 
 export default {
+  components: { WorkflowGraph },
   mixins: [PermissionsCheck],
   props: {
     projectId: Number,
@@ -229,6 +243,14 @@ export default {
         return '';
       }
       return JSON.stringify(this.mergedArtifacts, null, 2);
+    },
+    nodeStatuses() {
+      const map = {};
+      (this.details?.nodes || []).forEach((n) => {
+        if (n.task) map[n.node.id] = n.task.status;
+        else if (n.approval) map[n.node.id] = n.approval.status;
+      });
+      return map;
     },
   },
   async created() {

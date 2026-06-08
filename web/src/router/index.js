@@ -33,6 +33,7 @@ import AcceptInvite from '../views/AcceptInvite.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
 import Workflows from '../views/project/Workflows.vue';
 import WorkflowRun from '../views/project/WorkflowRun.vue';
+import WorkflowEditor from '../views/project/WorkflowEditor.vue';
 
 Vue.use(VueRouter);
 
@@ -84,6 +85,14 @@ const routes = [
   {
     path: '/project/:projectId/workflows',
     component: Workflows,
+  },
+  {
+    path: '/project/:projectId/workflows/new',
+    component: WorkflowEditor,
+  },
+  {
+    path: '/project/:projectId/workflows/:workflowId/edit',
+    component: WorkflowEditor,
   },
   {
     path: '/project/:projectId/workflows/:workflowId/runs/:runId',

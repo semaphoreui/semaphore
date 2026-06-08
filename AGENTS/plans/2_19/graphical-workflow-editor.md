@@ -1,6 +1,46 @@
 # Graphical workflow editor
 
-Status: planned.
+Status: implemented (initial cut). Built with Drawflow (decision D4).
+
+## What shipped
+
+- **Backend positions.** `WorkflowNode.PositionX/PositionY` (`int`), migration
+  `db/sql/migrations/v2.18.16.sql` (+ `.err.sql`) registered in
+  `db/Migration.go`, and `writeWorkflowGraph` persists the columns. Positions
+  ride along in the node `INSERT`, so they survive the delete-and-reinsert.
+- **Shared renderer** `web/src/components/WorkflowGraph.vue` — wraps Drawflow,
+  treats the canvas as the source of truth and emits `{nodes, edges}` on every
+  change. Used editable in the editor and read-only (status overlay) in the run
+  view.
+- **Full-page editor** `web/src/views/project/WorkflowEditor.vue` at routes
+  `/workflows/new` and `/workflows/:workflowId/edit`; palette drag-and-drop,
+  node property panel, edge condition selector, live self-edge/cycle guards,
+  a problems panel mirroring `ValidateWorkflowTemplate`, and topological
+  auto-layout for legacy (position-less) workflows.
+- `Workflows.vue` now routes to the editor (dialog path removed); `WorkflowRun.vue`
+  draws the DAG; i18n keys added; `WorkflowForm.vue` retired.
+
+## Deviations from the design below
+
+- **Positions are `int`, not `float64`/`double`.** Postgres has no bare `double`
+  type and the migration dialect transformer (`db/sql/migration.go`) doesn't
+  rewrite it; `int` pixel coordinates are dialect-safe and match the schema.
+- **`UpdateWorkflow` API contract kept at `204`** (backend change 5 not applied).
+  Instead the editor re-fetches via the existing `GET` after every save to
+  rebind the reassigned node ids — a self-contained client concern that avoids
+  changing the documented API / swagger / Dredd contract.
+- **Edge conditions** render as color-coded connection paths + a legend + a
+  click-to-edit selector, rather than mid-path text labels (labels-on-path
+  remain a follow-up).
+- **Pre-existing fix:** `db/workflow_test.go` imported the removed `db/bolt`
+  package (dead since the bolt removal), which prevented the `db` test package
+  from building. Switched it to `sql.CreateTestStore()` and made the fixtures
+  FK-compatible, restoring 5 workflow-validation tests + adding a positions
+  regression test.
+
+---
+
+Status (original design): planned.
 
 ## Why
 

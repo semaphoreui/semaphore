@@ -20,6 +20,8 @@ create table `project__workflow_node` (
   `approval_timeout` int null,
   `approval_message` text null,
   `limit` text null,
+  `position_x` int not null default 0,
+  `position_у` int not null default 0,
 
   foreign key (`workflow_template_id`) references `project__workflow_template`(`id`) on delete cascade,
   foreign key (`inventory_id`) references `project__inventory`(`id`) on delete set null,

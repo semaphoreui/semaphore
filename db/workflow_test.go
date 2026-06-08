@@ -4,43 +4,68 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
+	"github.com/semaphoreui/semaphore/db/sql"
+	"github.com/stretchr/testify/require"
 )
 
 func setupWorkflowValidationFixtures(t *testing.T) (db.Store, int, int, int, int, int) {
 	t.Helper()
 
-	store := bolt.CreateTestStore()
+	store := sql.CreateTestStore()
+
+	mkRepo := func(projectID int, name string) int {
+		key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &projectID, Type: db.AccessKeyNone})
+		require.NoError(t, err)
+		repo, err := store.CreateRepository(db.Repository{
+			ProjectID: projectID,
+			Name:      name,
+			GitURL:    "https://example.com/repo.git",
+			GitBranch: "main",
+			SSHKeyID:  key.ID,
+		})
+		require.NoError(t, err)
+		return repo.ID
+	}
 
 	project, err := store.CreateProject(db.Project{Name: "proj"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+	repoID := mkRepo(project.ID, "repo")
 
-	invID := 0
-	tplA, err := store.CreateTemplate(db.Template{ProjectID: project.ID, Name: "A", Playbook: "a.yml", InventoryID: &invID})
-	if err != nil {
-		t.Fatal(err)
-	}
-	tplB, err := store.CreateTemplate(db.Template{ProjectID: project.ID, Name: "B", Playbook: "b.yml", InventoryID: &invID})
-	if err != nil {
-		t.Fatal(err)
-	}
-	tplC, err := store.CreateTemplate(db.Template{ProjectID: project.ID, Name: "C", Playbook: "c.yml", InventoryID: &invID})
-	if err != nil {
-		t.Fatal(err)
-	}
+	tplA, err := store.CreateTemplate(db.Template{ProjectID: project.ID, RepositoryID: repoID, Name: "A", Playbook: "a.yml"})
+	require.NoError(t, err)
+	tplB, err := store.CreateTemplate(db.Template{ProjectID: project.ID, RepositoryID: repoID, Name: "B", Playbook: "b.yml"})
+	require.NoError(t, err)
+	tplC, err := store.CreateTemplate(db.Template{ProjectID: project.ID, RepositoryID: repoID, Name: "C", Playbook: "c.yml"})
+	require.NoError(t, err)
 
 	otherProject, err := store.CreateProject(db.Project{Name: "other"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	tplOther, err := store.CreateTemplate(db.Template{ProjectID: otherProject.ID, Name: "X", Playbook: "x.yml", InventoryID: &invID})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+	otherRepoID := mkRepo(otherProject.ID, "other-repo")
+	tplOther, err := store.CreateTemplate(db.Template{ProjectID: otherProject.ID, RepositoryID: otherRepoID, Name: "X", Playbook: "x.yml"})
+	require.NoError(t, err)
 
 	return store, project.ID, tplA.ID, tplB.ID, tplC.ID, tplOther.ID
+}
+
+// TestValidateWorkflowTemplateIgnoresNodePositions ensures the graphical
+// editor's canvas coordinates are pure layout metadata and never influence
+// validation (a valid graph stays valid regardless of node positions).
+func TestValidateWorkflowTemplateIgnoresNodePositions(t *testing.T) {
+	store, projectID, tplA, tplB, _, _ := setupWorkflowValidationFixtures(t)
+
+	err := db.ValidateWorkflowTemplate(store, db.WorkflowTemplate{
+		ProjectID: projectID,
+		Name:      "wf",
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: tplA, PositionX: -50, PositionY: 9999},
+			{ID: 2, TemplateID: tplB, PositionX: 1234, PositionY: 0},
+		},
+		Edges: []db.WorkflowEdge{
+			{SourceNodeID: 1, DestinationNodeID: 2, Condition: db.WorkflowEdgeOnSuccess},
+		},
+	})
+
+	require.NoError(t, err)
 }
 
 func TestValidateWorkflowTemplateRejectsCycle(t *testing.T) {

@@ -54,6 +54,12 @@ type WorkflowNode struct {
 	InventoryID   *int             `db:"inventory_id" json:"inventory_id,omitempty" backup:"inventory_id"`
 	EnvironmentID *int             `db:"environment_id" json:"environment_id,omitempty" backup:"environment_id"`
 	Limit         StringArrayField `db:"limit" json:"limit,omitempty" backup:"limit"`
+
+	// PositionX/PositionY are the node's coordinates on the graphical editor
+	// canvas. They are pure layout metadata and do not participate in validation
+	// or execution. Stored as integer pixels for cross-dialect safety.
+	PositionX int `db:"position_x" json:"position_x" backup:"position_x"`
+	PositionY int `db:"position_y" json:"position_y" backup:"position_y"`
 }
 
 type WorkflowEdge struct {

@@ -1,24 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <div v-if="items != null">
-    <EditDialog
-      v-model="editDialog"
-      :save-button-text="$t('save')"
-      :title="itemId === 'new' ? $t('newWorkflow') : $t('editWorkflow')"
-      :max-width="700"
-      @save="loadItems"
-    >
-      <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <WorkflowForm
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-        />
-      </template>
-    </EditDialog>
-
     <YesNoDialog
       :title="$t('deleteWorkflow')"
       :text="$t('askDeleteWorkflow')"
@@ -32,7 +13,7 @@
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
-        @click="editItem('new')"
+        @click="openEditor('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
       >{{ $t('newWorkflow') }}
       </v-btn>
@@ -49,7 +30,7 @@
       style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.name="{ item }">
-        <a @click="editItem(item.id)">{{ item.name }}</a>
+        <a @click="openEditor(item.id)">{{ item.name }}</a>
       </template>
       <template v-slot:item.description="{ item }">
         <span>{{ item.description || '—' }}</span>
@@ -73,7 +54,7 @@
             <v-icon>mdi-delete</v-icon>
           </v-btn>
           <v-btn
-            @click="editItem(item.id)"
+            @click="openEditor(item.id)"
             :disabled="!can(USER_PERMISSIONS.manageProjectResources)"
           >
             <v-icon>mdi-pencil</v-icon>
@@ -85,15 +66,20 @@
 </template>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
-import WorkflowForm from '@/components/WorkflowForm.vue';
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 
 export default {
-  components: { WorkflowForm },
   mixins: [ItemListPageBase],
   methods: {
+    openEditor(id) {
+      this.$router.push(
+        id === 'new'
+          ? `/project/${this.projectId}/workflows/new`
+          : `/project/${this.projectId}/workflows/${id}/edit`,
+      );
+    },
     getHeaders() {
       return [
         {
