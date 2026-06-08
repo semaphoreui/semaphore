@@ -27,6 +27,8 @@ func runRunner() {
 	if runnerStartArgs.register {
 
 		initRunnerRegistrationToken()
+		// runner start has no --enabled flag; new registrations should be active.
+		util.Config.Runner.Enabled = true
 
 		if util.Config.Runner.Token == "" {
 
