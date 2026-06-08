@@ -426,6 +426,10 @@ export default {
   tags: 'Tags',
   limit: 'Limit',
 
+  sshAgentKeys: 'SSH Agent Keys',
+  sshAgentKeysHint: 'SSH keys to load into SSH Agent during task execution. Enables automatic SSH authentication for git clone and other SSH operations.',
+  others: 'others',
+
   runner_tag: 'Runner tag',
   allow_parallel_tasks: 'Allow parallel tasks',
   task_prompts: 'Prompts',

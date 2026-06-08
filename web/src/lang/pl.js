@@ -340,6 +340,10 @@ export default {
   tags: 'Tagi',
   limit: 'Limit',
 
+  sshAgentKeys: 'Klucze SSH Agent',
+  sshAgentKeysHint: 'Klucze SSH do załadowania do SSH Agent podczas wykonywania taska. Umożliwia automatyczną autentykację SSH dla git clone i innych operacji SSH.',
+  others: 'innych',
+
   runner_tag: 'Tag uruchamiacza',
   task_prompts: 'Podpowiedzi',
   template_advanced: 'Opcje zaawansowane',

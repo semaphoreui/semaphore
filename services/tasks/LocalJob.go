@@ -15,6 +15,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -36,7 +37,9 @@ type LocalJob struct {
 	becomeKeyInstallation  ssh.AccessKeyInstallation
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
-	KeyInstaller db_lib.AccessKeyInstaller
+	KeyInstaller       db_lib.AccessKeyInstaller
+	store              db.Store
+	encryptionService  server.AccessKeyEncryptionService
 }
 
 func (t *LocalJob) IsKilled() bool {
@@ -641,6 +644,31 @@ func (t *LocalJob) getParams() (params any, err error) {
 	}
 
 	return
+}
+
+// getProcessSSHKeyIDs extracts SSH Agent key IDs from template params
+func (t *LocalJob) getProcessSSHKeyIDs() ([]int, error) {
+	switch t.Template.App {
+	case db.AppAnsible:
+		var params db.AnsibleTemplateParams
+		if err := t.Template.FillParams(&params); err != nil {
+			return nil, err
+		}
+		return params.SSHAgentKeyIDs, nil
+	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
+		var params db.TerraformTemplateParams
+		if err := t.Template.FillParams(&params); err != nil {
+			return nil, err
+		}
+		return params.SSHAgentKeyIDs, nil
+	default:
+		// For other apps (bash, powershell, python, pulumi), use DefaultTemplateParams
+		var params db.DefaultTemplateParams
+		if err := t.Template.FillParams(&params); err != nil {
+			return nil, err
+		}
+		return params.SSHAgentKeyIDs, nil
+	}
 }
 
 func (t *LocalJob) Run(username string, incomingVersion *string, alias string) (err error) {
