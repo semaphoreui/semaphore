@@ -25,6 +25,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 func newHTTPClient() *http.Client {
 	tlsConfig := &tls.Config{}
 	if util.Config.Runner.Connection.SkipTLSVerify {
@@ -109,6 +116,11 @@ func (p *JobPool) Unregister() (err error) {
 		return
 	}
 
+	log.WithFields(log.Fields{
+		"context": "unregistration",
+		"url":     url,
+	}).Debug("Sending unregistration request to the server")
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return
@@ -118,6 +130,11 @@ func (p *JobPool) Unregister() (err error) {
 		err = fmt.Errorf("encountered error while unregistering runner; server returned code %d", resp.StatusCode)
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"context":     "unregistration",
+		"status_code": resp.StatusCode,
+	}).Debug("Runner unregistered on the server")
 
 	if util.Config.Runner.TokenFile != "" {
 		err = os.Remove(util.Config.Runner.TokenFile)
@@ -165,6 +182,13 @@ func (p *JobPool) Run() {
 				break
 			}
 
+			log.WithFields(log.Fields{
+				"context":      "job_running",
+				"task_id":      t.job.Task.ID,
+				"queue_length": len(p.queue),
+				"running_jobs": len(p.runningJobs),
+			}).Debug("Dequeuing task for execution")
+
 			// Default to starting so sendProgress never emits an empty status (invalid JSON)
 			// before the job goroutine's first SetStatus(running). A rejected PUT fails the
 			// whole batch and can leave the server stuck on "starting" forever.
@@ -178,7 +202,21 @@ func (p *JobPool) Run() {
 			go func(runningJob *runningJob) {
 				runningJob.SetStatus(task_logger.TaskRunningStatus)
 
+				log.WithFields(log.Fields{
+					"context":          "job_running",
+					"task_id":          runningJob.job.Task.ID,
+					"username":         t.username,
+					"alias":            t.alias,
+					"incoming_version": derefString(t.incomingVersion),
+				}).Debug("Running job")
+
 				err := runningJob.job.Run(t.username, t.incomingVersion, t.alias)
+
+				log.WithError(err).WithFields(log.Fields{
+					"context": "job_running",
+					"task_id": runningJob.job.Task.ID,
+					"status":  string(runningJob.status),
+				}).Debug("Job run returned")
 
 				if runningJob.status.IsFinished() {
 					return
@@ -231,6 +269,9 @@ func (p *JobPool) Run() {
 			go func() {
 
 				if !atomic.CompareAndSwapInt32(&p.processing, 0, 1) {
+					log.WithFields(log.Fields{
+						"context": "job_running",
+					}).Debug("Skipping poll cycle, previous one is still in progress")
 					return
 				}
 
@@ -272,7 +313,19 @@ func (p *JobPool) sendProgress() (ok bool) {
 			Status:     j.status,
 			Commit:     j.commit,
 		})
+
+		log.WithFields(log.Fields{
+			"context":     "sending_progress",
+			"task_id":     id,
+			"status":      string(j.status),
+			"log_records": len(j.logRecords),
+		}).Debug("Including job in progress report")
 	}
+
+	log.WithFields(log.Fields{
+		"context": "sending_progress",
+		"jobs":    len(body.Jobs),
+	}).Debug("Sending job progress to the server")
 
 	jsonBytes, err := json.Marshal(body)
 
@@ -313,6 +366,12 @@ func (p *JobPool) sendProgress() (ok bool) {
 
 	ok = true
 
+	log.WithFields(log.Fields{
+		"context":     "sending_progress",
+		"jobs":        len(body.Jobs),
+		"status_code": resp.StatusCode,
+	}).Debug("Job progress accepted by the server")
+
 	for _, jp := range body.Jobs {
 		j := p.runningJobs[jp.ID]
 		if j == nil {
@@ -325,6 +384,13 @@ func (p *JobPool) sendProgress() (ok bool) {
 			} else {
 				j.logRecords = nil
 			}
+
+			log.WithFields(log.Fields{
+				"context":      "sending_progress",
+				"task_id":      jp.ID,
+				"acknowledged": sent,
+				"pending":      len(j.logRecords),
+			}).Debug("Trimmed acknowledged log records")
 		}
 		if jp.Status.IsFinished() {
 			log.WithFields(log.Fields{
@@ -416,6 +482,12 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		return
 	}
 
+	log.WithFields(log.Fields{
+		"context":     "registration",
+		"runner_name": util.Config.Runner.Name,
+		"url":         url,
+	}).Debug("Sending registration request to the server")
+
 	resp, err := client.Do(req)
 
 	if err != nil {
@@ -502,6 +574,11 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 
 	defer resp.Body.Close() //nolint:errcheck
 
+	log.WithFields(log.Fields{
+		"context":     "registration",
+		"runner_name": util.Config.Runner.Name,
+	}).Debug("Runner registered successfully")
+
 	ok = true
 	return
 }
@@ -580,6 +657,12 @@ func (p *JobPool) checkNewJobs() {
 
 	req.Header.Set("X-Runner-Token", util.Config.Runner.Token)
 
+	log.WithFields(log.Fields{
+		"context":      "checking_new_jobs",
+		"running_jobs": len(p.runningJobs),
+		"queued_jobs":  len(p.queue),
+	}).Debug("Fetching new jobs from the server")
+
 	resp, err := client.Do(req)
 
 	if err != nil {
@@ -627,6 +710,11 @@ func (p *JobPool) checkNewJobs() {
 			}).Error("failed to decrypt new jobs response body")
 			return
 		}
+
+		log.WithFields(log.Fields{
+			"context": "checking_new_jobs",
+			"bytes":   len(body),
+		}).Debug("Decrypted new jobs response body")
 	}
 
 	var response RunnerState
@@ -637,6 +725,14 @@ func (p *JobPool) checkNewJobs() {
 		}).Error("failed to parse new jobs response from the server")
 		return
 	}
+
+	log.WithFields(log.Fields{
+		"context":      "checking_new_jobs",
+		"current_jobs": len(response.CurrentJobs),
+		"new_jobs":     len(response.NewJobs),
+		"clear_cache":  response.ClearCache,
+		"access_keys":  len(response.AccessKeys),
+	}).Debug("Received runner state from the server")
 
 	if response.ClearCache {
 		if response.CacheCleanProjectID == nil {
@@ -663,6 +759,11 @@ func (p *JobPool) checkNewJobs() {
 		}
 
 		if runJob.status == task_logger.TaskStoppingStatus || runJob.status == task_logger.TaskStoppedStatus {
+			log.WithFields(log.Fields{
+				"context": "checking_new_jobs",
+				"task_id": currJob.ID,
+				"status":  string(runJob.status),
+			}).Debug("Killing job because it is stopping or stopped")
 			p.runningJobs[currJob.ID].job.Kill()
 		}
 
@@ -689,6 +790,13 @@ func (p *JobPool) checkNewJobs() {
 			}
 		}
 
+		log.WithFields(log.Fields{
+			"context":    "checking_new_jobs",
+			"task_id":    currJob.ID,
+			"old_status": string(runJob.status),
+			"new_status": string(currJob.Status),
+		}).Debug("Applying job status reported by the server")
+
 		runJob.SetStatus(currJob.Status)
 	}
 
@@ -700,12 +808,27 @@ func (p *JobPool) checkNewJobs() {
 
 	for _, newJob := range response.NewJobs {
 		if _, exists := p.runningJobs[newJob.Task.ID]; exists {
+			log.WithFields(log.Fields{
+				"context": "checking_new_jobs",
+				"task_id": newJob.Task.ID,
+			}).Debug("Skipping new job, already running")
 			continue
 		}
 
 		if p.existsInQueue(newJob.Task.ID) {
+			log.WithFields(log.Fields{
+				"context": "checking_new_jobs",
+				"task_id": newJob.Task.ID,
+			}).Debug("Skipping new job, already queued")
 			continue
 		}
+
+		log.WithFields(log.Fields{
+			"context":     "checking_new_jobs",
+			"task_id":     newJob.Task.ID,
+			"template_id": newJob.Task.TemplateID,
+			"project_id":  newJob.Task.ProjectID,
+		}).Debug("Accepting new job from the server")
 
 		newJob.Inventory.Repository = newJob.InventoryRepository
 
