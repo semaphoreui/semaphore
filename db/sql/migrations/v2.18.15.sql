@@ -12,12 +12,16 @@ create index `project__workflow_template__project_id` on `project__workflow_temp
 create table `project__workflow_node` (
   `id` integer primary key autoincrement,
   `workflow_template_id` int not null,
-  `template_id` int not null,
+  `template_id` int not null default 0,
   `inventory_id` int null,
   `environment_id` int null,
+  `kind` varchar(30) not null default 'task',
+  `convergence_mode` varchar(30) not null default 'all',
+  `approval_timeout` int null,
+  `approval_message` text null,
+  `limit` text null,
 
   foreign key (`workflow_template_id`) references `project__workflow_template`(`id`) on delete cascade,
-  foreign key (`template_id`) references `project__template`(`id`) on delete cascade,
   foreign key (`inventory_id`) references `project__inventory`(`id`) on delete set null,
   foreign key (`environment_id`) references `project__environment`(`id`) on delete set null
 );
@@ -58,8 +62,29 @@ create table `project__workflow_run` (
 create index `project__workflow_run__project_id` on `project__workflow_run`(`project_id`);
 create index `project__workflow_run__workflow_template_id` on `project__workflow_run`(`workflow_template_id`);
 
+create table `project__workflow_approval` (
+  `id` integer primary key autoincrement,
+  `project_id` int not null,
+  `workflow_run_id` int not null,
+  `workflow_node_id` int not null,
+  `status` varchar(30) not null,
+  `created` datetime not null,
+  `resolved` datetime null,
+  `resolved_by_user_id` int null,
+
+  foreign key (`project_id`) references `project`(`id`) on delete cascade,
+  foreign key (`workflow_run_id`) references `project__workflow_run`(`id`) on delete cascade,
+  foreign key (`workflow_node_id`) references `project__workflow_node`(`id`) on delete cascade,
+  foreign key (`resolved_by_user_id`) references `user`(`id`) on delete set null
+);
+
+create unique index `project__workflow_approval__run_node` on `project__workflow_approval`(`workflow_run_id`, `workflow_node_id`);
+create index `project__workflow_approval__project_id` on `project__workflow_approval`(`project_id`);
+create index `project__workflow_approval__run_id` on `project__workflow_approval`(`workflow_run_id`);
+
 alter table `task` add column `workflow_run_id` int null;
 alter table `task` add column `workflow_node_id` int null;
+alter table `task` add column `artifacts` text null;
 
 create index `task__workflow_run_id` on `task`(`workflow_run_id`);
 create index `task__workflow_node_id` on `task`(`workflow_node_id`);
