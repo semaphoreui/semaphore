@@ -41,6 +41,8 @@ var integrationMatchID int
 
 var capabilitiesMu sync.Mutex
 
+const sqliteBusyRetryBaseDelay = 100 * time.Millisecond
+
 var capabilities = map[string][]string{
 	"user":                    {},
 	"project":                 {"user"},
@@ -101,7 +103,7 @@ func addCapabilities(caps []string) {
 			panic(err)
 		}
 
-		time.Sleep(time.Duration(1<<attempt) * 100 * time.Millisecond)
+		time.Sleep(time.Duration(1<<attempt) * sqliteBusyRetryBaseDelay)
 	}
 
 	panic(errors.New("database remained locked after retries"))
