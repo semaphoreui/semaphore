@@ -3,6 +3,7 @@ name: Community Beta
 'on':
   push:
     tags:
+      - v*-alpha*
       - v*-beta*
 
 permissions:
