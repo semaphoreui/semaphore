@@ -17,8 +17,21 @@ Status: implemented (initial cut). Built with Drawflow (decision D4).
   node property panel, edge condition selector, live self-edge/cycle guards,
   a problems panel mirroring `ValidateWorkflowTemplate`, and topological
   auto-layout for legacy (position-less) workflows.
-- `Workflows.vue` now routes to the editor (dialog path removed); `WorkflowRun.vue`
-  draws the DAG; i18n keys added; `WorkflowForm.vue` retired.
+- **Full-screen run view** `web/src/views/project/WorkflowRun.vue` — the node/edge
+  table and the artifact cards were removed; the page is now a full-viewport
+  (`100vh`) graph. The currently-active node is highlighted with a Concourse-style
+  animation (pulsing glow + moving diagonal stripes for running/waiting; amber
+  pulse for pending approvals). Approve/Reject buttons render on the canvas itself
+  (overlay bar pinned to the bottom of the schema). Zoom in/out/reset controls
+  live in the toolbar (primary zoom UX); Drawflow's `fixed` mode also gives drag
+  to pan and Ctrl+wheel to zoom. Status is repainted in place on each 5s poll so
+  pan/zoom is preserved.
+- **Shared layout helper** `web/src/lib/workflowLayout.js` — the layered
+  topological layout is used by both the editor (seeds + persists positions on
+  save) and `WorkflowGraph` (lays out any consumer whose stored positions are all
+  zero, so the run view of a legacy workflow no longer piles nodes at the origin).
+- `Workflows.vue` now routes to the editor (dialog path removed); i18n keys added;
+  `WorkflowForm.vue` retired.
 
 ## Deviations from the design below
 
@@ -387,3 +400,8 @@ node badges, block Save, and always show the backend's response in the existing
 - Auto-arrange beyond a simple layered layout (e.g. dagre).
 - Undo/redo history, multi-select drag, copy/paste of subgraphs.
 - Minimap for large workflows.
+- **Run-view per-node details panel.** Removing the run-view table also removed
+  where per-task status detail, the task link, and per-task / merged artifacts
+  (`set_stats`) were shown. A click-a-node side panel on the run view should
+  bring these back (task link, status, artifacts) without reintroducing the
+  table.

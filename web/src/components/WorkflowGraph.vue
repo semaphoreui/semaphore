@@ -64,6 +64,11 @@ export default {
         this.buildCanvas();
       }
     },
+    // Run view polls for fresh statuses; repaint nodes in place (status color +
+    // active animation) without rebuilding, so the user's pan/zoom is preserved.
+    nodeStatuses() {
+      if (this.built && !this.editable) this.refreshStatuses();
+    },
   },
 
   mounted() {
@@ -434,6 +439,26 @@ export default {
         conn.classList.add(`WorkflowGraph__conn--${this.conditions[key]}`);
       });
     },
+
+    // Repaint node status (color + active animation) in place, without
+    // rebuilding the canvas, so polling the run view preserves pan/zoom.
+    refreshStatuses() {
+      if (!this.editor) return;
+      const data = this.editor.export().drawflow.Home.data;
+      Object.keys(data).forEach((dfId) => {
+        const nodeId = data[dfId].data.nodeId;
+        const node = { ...data[dfId].data.node, id: nodeId };
+        const wrapper = this.$refs.canvas.querySelector(`#node-${dfId}`);
+        if (!wrapper) return;
+        wrapper.className = `drawflow-node ${this.nodeClass(node)}`;
+        const inner = wrapper.querySelector('.WorkflowGraph__node');
+        if (inner) {
+          const fresh = document.createElement('div');
+          fresh.innerHTML = this.nodeHtml(node);
+          inner.outerHTML = fresh.innerHTML;
+        }
+      });
+    },
   },
 };
 </script>
@@ -485,7 +510,12 @@ export default {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
   }
 
-  &__node { padding: 8px 12px; }
+  &__node {
+    padding: 8px 12px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 6px;
+  }
 
   &__nodeHeader {
     display: flex;
@@ -522,6 +552,48 @@ export default {
   .drawflow-node.WorkflowGraph__nodeWrap--status-failed,
   .drawflow-node.WorkflowGraph__nodeWrap--status-error,
   .drawflow-node.WorkflowGraph__nodeWrap--status-rejected { border-color: #f44336; }
+
+  // Active node — Concourse-style: glowing pulse + moving diagonal stripes.
+  .drawflow-node.WorkflowGraph__nodeWrap--status-running,
+  .drawflow-node.WorkflowGraph__nodeWrap--status-waiting {
+    border-color: #2196f3;
+    animation: WorkflowGraphPulse 1.6s ease-out infinite;
+  }
+  .drawflow-node.WorkflowGraph__nodeWrap--status-running .WorkflowGraph__node::after,
+  .drawflow-node.WorkflowGraph__nodeWrap--status-waiting .WorkflowGraph__node::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      rgba(33, 150, 243, 0.16) 0 8px,
+      transparent 8px 16px
+    );
+    background-size: 22px 22px;
+    animation: WorkflowGraphStripes 0.7s linear infinite;
+    pointer-events: none;
+  }
+
+  // Pending approval — awaiting user action: amber pulse.
+  .drawflow-node.WorkflowGraph__nodeWrap--status-pending {
+    border-color: #ff9800;
+    animation: WorkflowGraphPulseAmber 1.6s ease-out infinite;
+  }
+
+  @keyframes WorkflowGraphPulse {
+    0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.5); }
+    70% { box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
+  }
+  @keyframes WorkflowGraphPulseAmber {
+    0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.5); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+  }
+  @keyframes WorkflowGraphStripes {
+    from { background-position: 0 0; }
+    to { background-position: 22px 0; }
+  }
 
   // Connection condition colors
   .connection.WorkflowGraph__conn--on_success .main-path { stroke: #4caf50; }
