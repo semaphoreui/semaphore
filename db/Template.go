@@ -76,6 +76,13 @@ type AnsibleTemplateParams struct {
 	Limit                  []string `json:"limit"`
 	Tags                   []string `json:"tags"`
 	SkipTags               []string `json:"skip_tags"`
+
+	// SkipGalaxyInstall skips the Galaxy install step (role and collection
+	// requirements) before running the playbook.
+	SkipGalaxyInstall bool `json:"skip_galaxy_install"`
+	// AllowOverrideSkipGalaxyInstall lets the user toggle SkipGalaxyInstall when
+	// launching a task.
+	AllowOverrideSkipGalaxyInstall bool `json:"allow_override_skip_galaxy_install"`
 }
 
 type TerraformTemplateParams struct {

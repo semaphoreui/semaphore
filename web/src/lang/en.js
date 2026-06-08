@@ -420,6 +420,7 @@ export default {
   allowLimitInTask: 'Limit',
   addLimit: 'Add limit',
   allowDebug: 'Debug',
+  skipGalaxyInstall: 'Skip Galaxy install',
   addTag: 'Add tag',
   skipTags: 'Skip tags',
   addSkippedTag: 'Add skipped tag',
