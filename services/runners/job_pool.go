@@ -25,10 +25,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type JobLogger struct {
-	Context string
-}
-
 func newHTTPClient() *http.Client {
 	tlsConfig := &tls.Config{}
 	if util.Config.Runner.Connection.SkipTLSVerify {
@@ -45,42 +41,6 @@ func newHTTPClient() *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{TLSClientConfig: tlsConfig},
 	}
-}
-
-func (e *JobLogger) ActionError(err error, action string, message string) {
-	util.LogErrorF(err, log.Fields{
-		"type":    "action",
-		"context": e.Context,
-		"action":  action,
-		"error":   message,
-	})
-}
-
-func (e *JobLogger) Info(message string) {
-	log.WithFields(log.Fields{
-		"context": e.Context,
-	}).Info(message)
-}
-
-func (e *JobLogger) TaskInfo(message string, task int, status string) {
-	log.WithFields(log.Fields{
-		"type":    "task",
-		"context": e.Context,
-		"task":    task,
-		"status":  status,
-	}).Info(message)
-}
-
-func (e *JobLogger) Panic(err error, action string, message string) {
-	log.WithFields(log.Fields{
-		"context": e.Context,
-	}).Panic(message)
-}
-
-func (e *JobLogger) Debug(message string) {
-	log.WithFields(log.Fields{
-		"context": e.Context,
-	}).Debug(message)
 }
 
 type JobPool struct {
@@ -167,12 +127,12 @@ func (p *JobPool) Unregister() (err error) {
 }
 
 func (p *JobPool) Run() {
-	logger := JobLogger{Context: "running"}
-
 	launched := false
 
 	if util.Config.Runner.Token == "" {
-		logger.Panic(fmt.Errorf("no token provided"), "read input", "can not retrieve runner token")
+		log.WithFields(log.Fields{
+			"context": "job_running",
+		}).Panic("runner token is empty, cannot start the runner")
 	}
 
 	queueTicker := time.NewTicker(5 * time.Second)
@@ -188,7 +148,6 @@ func (p *JobPool) Run() {
 		select {
 
 		case <-queueTicker.C: // timer 5 seconds: get task from queue and run it
-			logger.Debug("Checking queue")
 
 			if len(p.queue) == 0 {
 				break
@@ -198,7 +157,11 @@ func (p *JobPool) Run() {
 			if t.status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
 				p.queue = p.queue[1:]
-				logger.TaskInfo("Task dequeued", t.job.Task.ID, "failed")
+				log.WithFields(log.Fields{
+					"context": "job_running",
+					"task_id": t.job.Task.ID,
+					"status":  "failed",
+				}).Info("Task dequeued")
 				break
 			}
 
@@ -222,7 +185,13 @@ func (p *JobPool) Run() {
 				}
 
 				if err != nil {
-					logger.ActionError(err, "launch job", "job failed")
+
+					log.WithFields(log.Fields{
+						"context":     "job_running",
+						"task_id":     t.job.Task.ID,
+						"task_status": t.job.Task.Status,
+					}).WithError(err).Error("launch job failed")
+
 					t.job.Logger.Log("Unable to launch the application. Please contact your system administrator for assistance.")
 
 					if runningJob.status == task_logger.TaskStoppingStatus {
@@ -238,12 +207,24 @@ func (p *JobPool) Run() {
 					}
 				}
 
-				logger.TaskInfo("Task finished", runningJob.job.Task.ID, string(runningJob.status))
+				log.WithFields(log.Fields{
+					"context": "job_running",
+					"task_id": runningJob.job.Task.ID,
+					"status":  string(runningJob.status),
+				}).Info("Task finished")
 			}(p.runningJobs[t.job.Task.ID])
 
 			p.queue = p.queue[1:]
-			logger.TaskInfo("Task dequeued", t.job.Task.ID, string(t.job.Task.Status))
-			logger.TaskInfo("Task started", t.job.Task.ID, string(t.job.Task.Status))
+			log.WithFields(log.Fields{
+				"context": "job_running",
+				"task_id": t.job.Task.ID,
+				"status":  string(t.job.Task.Status),
+			}).Info("Task dequeued")
+			log.WithFields(log.Fields{
+				"context": "job_running",
+				"task_id": t.job.Task.ID,
+				"status":  string(t.job.Task.Status),
+			}).Info("Task started")
 
 		case <-requestTimer.C:
 
@@ -275,8 +256,6 @@ func (p *JobPool) Run() {
 
 func (p *JobPool) sendProgress() (ok bool) {
 
-	logger := JobLogger{Context: "sending_progress"}
-
 	client := newHTTPClient()
 
 	url := util.Config.WebHost + "/api/internal/runners"
@@ -298,13 +277,17 @@ func (p *JobPool) sendProgress() (ok bool) {
 	jsonBytes, err := json.Marshal(body)
 
 	if err != nil {
-		logger.ActionError(err, "form request body", "can not marshal json")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "sending_progress",
+		}).Error("failed to marshal job progress request body")
 		return
 	}
 
 	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		logger.ActionError(err, "create request", "can not create request to the server")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "sending_progress",
+		}).Error("failed to build job progress request")
 		return
 	}
 
@@ -312,13 +295,19 @@ func (p *JobPool) sendProgress() (ok bool) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.ActionError(err, "send request", "the server returned error")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "sending_progress",
+		}).Error("failed to send job progress to the server")
 		return
 	}
 	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode >= 400 {
-		logger.ActionError(fmt.Errorf("invalid status code"), "send request", "the server returned error "+strconv.Itoa(resp.StatusCode))
+		log.WithError(fmt.Errorf("invalid status code")).WithFields(log.Fields{
+			"context":     "sending_progress",
+			"jobs":        len(body.Jobs),
+			"status_code": resp.StatusCode,
+		}).Error("server rejected job progress")
 		return
 	}
 
@@ -338,7 +327,11 @@ func (p *JobPool) sendProgress() (ok bool) {
 			}
 		}
 		if jp.Status.IsFinished() {
-			logger.TaskInfo("Task removed from running list", jp.ID, string(jp.Status))
+			log.WithFields(log.Fields{
+				"context": "sending_progress",
+				"task_id": jp.ID,
+				"status":  string(jp.Status),
+			}).Info("Task removed from running list")
 			delete(p.runningJobs, jp.ID)
 		}
 	}
@@ -370,12 +363,12 @@ func (p *JobPool) getResponseErrorMessage(resp *http.Response) (res string) {
 
 func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 
-	logger := JobLogger{Context: "registration"}
-
 	log.Info("Registering a new runner")
 
 	if util.Config.Runner.RegistrationToken == "" {
-		logger.ActionError(fmt.Errorf("registration token cannot be empty"), "read input", "can not retrieve registration token")
+		log.WithError(fmt.Errorf("registration token cannot be empty")).WithFields(log.Fields{
+			"context": "registration",
+		}).Error("registration token is not configured")
 		return
 	}
 
@@ -387,7 +380,9 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 	}
 
 	if err != nil {
-		logger.ActionError(err, "read input", "can not generate private key file")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "registration",
+		}).Error("failed to generate private key file")
 		return
 	}
 
@@ -407,31 +402,43 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 	})
 
 	if err != nil {
-		logger.ActionError(err, "form request", "can not marshal json")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "registration",
+		}).Error("failed to marshal registration request body")
 		return
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		logger.ActionError(err, "create request", "can not create request to the server")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "registration",
+		}).Error("failed to build registration request")
 		return
 	}
 
 	resp, err := client.Do(req)
 
 	if err != nil {
-		logger.ActionError(err, "send request", "unexpected error")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "registration",
+		}).Error("failed to send registration request to the server")
 		return
 	}
 
 	if resp.StatusCode != 200 {
-		logger.ActionError(fmt.Errorf("invalid status code"), "send request", p.getResponseErrorMessage(resp))
+		log.WithError(fmt.Errorf("invalid status code")).WithFields(log.Fields{
+			"context":     "registration",
+			"runner_name": util.Config.Runner.Name,
+			"status_code": resp.StatusCode,
+		}).Error("server rejected runner registration: " + p.getResponseErrorMessage(resp))
 		return
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.ActionError(err, "read response body", "can not read server's response body")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "registration",
+		}).Error("failed to read registration response body")
 		return
 	}
 
@@ -441,7 +448,9 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 
 	err = json.Unmarshal(body, &res)
 	if err != nil {
-		logger.ActionError(err, "parsing result json", "server's response has invalid format")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "registration",
+		}).Error("failed to parse registration response from the server")
 		return
 	}
 
@@ -449,34 +458,44 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		err = os.WriteFile(util.Config.Runner.TokenFile, []byte(res.Token), 0644)
 	} else {
 		if configFilePath == nil {
-			logger.ActionError(fmt.Errorf("config file path required"), "read input", "can not retrieve config file path")
+			log.WithError(fmt.Errorf("config file path required")).WithFields(log.Fields{
+				"context": "registration",
+			}).Error("config file path is required to store the runner token")
 			return
 		}
 
 		var configFileBuffer []byte
 		configFileBuffer, err = os.ReadFile(*configFilePath)
 		if err != nil {
-			logger.ActionError(err, "read config file", "can not read config file")
+			log.WithError(err).WithFields(log.Fields{
+				"context": "registration",
+			}).Error("failed to read config file")
 			return
 		}
 
 		config := util.ConfigType{}
 		err = json.Unmarshal(configFileBuffer, &config)
 		if err != nil {
-			logger.ActionError(err, "parse config file", "can not parse config file")
+			log.WithError(err).WithFields(log.Fields{
+				"context": "registration",
+			}).Error("failed to parse config file")
 			return
 		}
 
 		config.Runner.Token = res.Token
 		configFileBuffer, err = json.MarshalIndent(&config, " ", "\t")
 		if err != nil {
-			logger.ActionError(err, "marshal config file", "can not marshal config file")
+			log.WithError(err).WithFields(log.Fields{
+				"context": "registration",
+			}).Error("failed to marshal updated config file")
 			return
 		}
 
 		err = os.WriteFile(*configFilePath, configFileBuffer, 0644)
 		if err != nil {
-			logger.ActionError(err, "write config file", "can not write config file")
+			log.WithError(err).WithFields(log.Fields{
+				"context": "registration",
+			}).Error("failed to write config file with the runner token")
 			return
 		}
 	}
@@ -539,10 +558,10 @@ func decryptChunkedBytes(combinedCiphertext []byte, privateKey *rsa.PrivateKey) 
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
 
-	logger := JobLogger{Context: "checking new jobs"}
-
 	if util.Config.Runner.Token == "" {
-		logger.ActionError(fmt.Errorf("no token provided"), "read input", "can not retrieve runner token")
+		log.WithError(fmt.Errorf("no token provided")).WithFields(log.Fields{
+			"context": "checking_new_jobs",
+		}).Error("runner token is empty")
 		return
 	}
 
@@ -553,7 +572,9 @@ func (p *JobPool) checkNewJobs() {
 	req, err := http.NewRequest("GET", url, nil)
 
 	if err != nil {
-		logger.ActionError(err, "create request", "can not create request to the server")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "checking_new_jobs",
+		}).Error("failed to build new jobs request")
 		return
 	}
 
@@ -562,13 +583,18 @@ func (p *JobPool) checkNewJobs() {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		logger.ActionError(err, "send request", "unexpected error")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "checking_new_jobs",
+		}).Error("failed to fetch new jobs from the server")
 		return
 	}
 
 	if resp.StatusCode >= 400 {
 
-		logger.ActionError(fmt.Errorf("error status code"), "send request", p.getResponseErrorMessage(resp))
+		log.WithError(fmt.Errorf("error status code")).WithFields(log.Fields{
+			"context":     "checking_new_jobs",
+			"status_code": resp.StatusCode,
+		}).Error("server returned an error while fetching new jobs: " + p.getResponseErrorMessage(resp))
 		return
 	}
 
@@ -576,7 +602,9 @@ func (p *JobPool) checkNewJobs() {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.ActionError(err, "read response body", "can not read server's response body")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "checking_new_jobs",
+		}).Error("failed to read new jobs response body")
 		return
 	}
 
@@ -585,14 +613,18 @@ func (p *JobPool) checkNewJobs() {
 
 		pk, err = loadPrivateKey(util.Config.Runner.PrivateKeyFile)
 		if err != nil {
-			logger.ActionError(err, "decrypt response body", "can not read private key")
+			log.WithError(err).WithFields(log.Fields{
+				"context": "checking_new_jobs",
+			}).Error("failed to load private key")
 			return
 		}
 
 		body, err = decryptChunkedBytes(body, pk)
 
 		if err != nil {
-			logger.ActionError(err, "decrypt response body", "can not decrypt server's response body")
+			log.WithError(err).WithFields(log.Fields{
+				"context": "checking_new_jobs",
+			}).Error("failed to decrypt new jobs response body")
 			return
 		}
 	}
@@ -600,26 +632,25 @@ func (p *JobPool) checkNewJobs() {
 	var response RunnerState
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		logger.ActionError(err, "parsing result json", "server's response has invalid format")
+		log.WithError(err).WithFields(log.Fields{
+			"context": "checking_new_jobs",
+		}).Error("failed to parse new jobs response from the server")
 		return
 	}
 
 	if response.ClearCache {
 		if response.CacheCleanProjectID == nil {
 			if err2 := util.Config.ClearTmpDir(); err2 != nil {
-				logger.ActionError(
-					err2,
-					"cleaning cache",
-					"cannot clear tmp directory",
-				)
+				log.WithError(err2).WithFields(log.Fields{
+					"context": "checking_new_jobs",
+				}).Error("failed to clear tmp directory")
 			}
 		} else {
 			if err2 := util.Config.ClearProjectTmpDir(*response.CacheCleanProjectID); err2 != nil {
-				logger.ActionError(
-					err2,
-					"cleaning cache",
-					"cannot clear project "+strconv.Itoa(*response.CacheCleanProjectID)+" tmp directory",
-				)
+				log.WithError(err2).WithFields(log.Fields{
+					"context":    "checking_new_jobs",
+					"project_id": *response.CacheCleanProjectID,
+				}).Error("failed to clear project tmp directory")
 			}
 		}
 	}
@@ -727,6 +758,10 @@ func (p *JobPool) checkNewJobs() {
 
 		p.queue = append(p.queue, &taskRunner)
 
-		logger.TaskInfo("Task enqueued", taskRunner.job.Task.ID, string(taskRunner.job.Task.Status))
+		log.WithFields(log.Fields{
+			"context":     "checking_new_jobs",
+			"task_id":     taskRunner.job.Task.ID,
+			"task_status": string(taskRunner.job.Task.Status),
+		}).Info("Task enqueued")
 	}
 }
