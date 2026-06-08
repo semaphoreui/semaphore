@@ -843,6 +843,8 @@ definitions:
         type: array
         items:
           type: string
+      skip_galaxy_install:
+        type: boolean
 
   TerraformTaskParams:
     type: object

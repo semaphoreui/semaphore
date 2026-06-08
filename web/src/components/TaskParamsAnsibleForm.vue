@@ -77,6 +77,17 @@
           </template>
         </v-checkbox>
       </v-col>
+      <v-col v-if="templateParams.allow_override_skip_galaxy_install">
+        <v-checkbox
+          class="mt-0"
+          :input-value="params.skip_galaxy_install"
+          @change="updateValue('skip_galaxy_install', $event)"
+        >
+          <template v-slot:label>
+            <div class="text-no-wrap">{{ $t('skipGalaxyInstall') }}</div>
+          </template>
+        </v-checkbox>
+      </v-col>
     </v-row>
   </div>
 </template>
@@ -98,6 +109,7 @@ const APP_PARAMS = {
     'tags',
     'skip_tags',
     'limit',
+    'skip_galaxy_install',
   ],
 };
 

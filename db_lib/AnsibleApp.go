@@ -75,6 +75,11 @@ func (t *AnsibleApp) Clear() {
 }
 
 func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
+	if t.skipGalaxyInstall(args) {
+		t.Log("Galaxy install step is skipped.\n")
+		return nil
+	}
+
 	if err := t.installCollectionsRequirements(args.EnvironmentVars); err != nil {
 		return err
 	}
@@ -82,6 +87,26 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return err
 	}
 	return nil
+}
+
+// skipGalaxyInstall reports whether the Galaxy install step must be skipped.
+// The template-level flag provides the default; when the template allows
+// overriding it, the task-level flag takes precedence.
+func (t *AnsibleApp) skipGalaxyInstall(args LocalAppInstallingArgs) bool {
+	tplParams, ok := args.TplParams.(*db.AnsibleTemplateParams)
+	if !ok || tplParams == nil {
+		return false
+	}
+
+	skip := tplParams.SkipGalaxyInstall
+
+	if tplParams.AllowOverrideSkipGalaxyInstall {
+		if params, ok := args.Params.(*db.AnsibleTaskParams); ok && params != nil {
+			skip = params.SkipGalaxyInstall
+		}
+	}
+
+	return skip
 }
 
 func (t *AnsibleApp) getRepoPath() string {
