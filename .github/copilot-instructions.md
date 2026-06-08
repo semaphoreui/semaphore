@@ -16,7 +16,7 @@ Semaphore UI is a modern web interface for managing popular DevOps tools like An
 
 ### Run the application:
 - ALWAYS run the bootstrapping steps first
-- Setup database and admin user: `./bin/semaphore setup` (interactive, use BoltDB option 2 for development)
+- Setup database and admin user: `./bin/semaphore setup` (interactive, use SQLite option 4 for development)
 - Start server: `./bin/semaphore server --config ./config.json`
 - Web UI: http://localhost:3000 (login: admin / changeme)
 - API: http://localhost:3000/api/ (test with: `curl http://localhost:3000/api/ping`)
@@ -39,7 +39,7 @@ Semaphore UI is a modern web interface for managing popular DevOps tools like An
 task build
 
 # 2. Setup database (if config.json doesn't exist)
-./bin/semaphore setup  # Choose option 2 (BoltDB), use admin/changeme
+./bin/semaphore setup  # Choose option 4 (SQLite), use admin/changeme
 
 # 3. Start server
 ./bin/semaphore server --config ./config.json
@@ -110,10 +110,13 @@ task --list
 ```
 
 ### Database Options for Development
-During setup, choose option 2 (BoltDB) for simplest development setup:
-- No external database required
-- Database file stored as `database.boltdb` in project root
+During setup, choose option 4 (SQLite) for the simplest development setup:
+- No external database server required
+- Database file stored at the path configured in `config.json` (default under `/tmp/`)
 - Perfect for development and testing
+
+> **Note:** BoltDB (option 2) was removed in Semaphore 2.19. If you have an existing
+> `database.boltdb` file, migrate to SQLite, MySQL, or PostgreSQL before upgrading.
 
 ### Frontend Development
 - Vue.js 2.x application in `web/` directory
@@ -124,7 +127,7 @@ During setup, choose option 2 (BoltDB) for simplest development setup:
 ### Backend Development  
 - Go application with CLI and API server
 - Uses Gorilla Mux for routing
-- Supports multiple databases: MySQL, PostgreSQL, SQLite, BoltDB
+- Supports multiple databases: MySQL, PostgreSQL, SQLite (BoltDB was removed in 2.19)
 - Configuration via JSON file or environment variables
 
 ## Troubleshooting
@@ -141,9 +144,10 @@ During setup, choose option 2 (BoltDB) for simplest development setup:
 - If API returns errors: Check server logs for specific error messages
 
 ### Database Issues
-- For development, always use BoltDB (option 2) during setup
-- Database file will be created automatically
-- If database errors occur, delete `database.boltdb` and run setup again
+- For development, use SQLite (option 4) during setup
+- The SQLite database file is created automatically at the configured path
+- If database errors occur, remove the SQLite file and run setup again
+- Configs with `"dialect": "bolt"` will fail at startup — switch to `sqlite` and re-run setup
 
 ## Important Notes
 
