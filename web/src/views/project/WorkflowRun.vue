@@ -60,6 +60,7 @@
             :templates="templates"
             :node-statuses="nodeStatuses"
             :editable="false"
+            @node-selected="onNodeClicked"
           />
 
           <div
@@ -202,7 +203,8 @@ export default {
   async created() {
     await this.loadData();
     this.pollHandle = setInterval(() => {
-      if (this.details && this.details.run.status === 'running') {
+      const status = this.details && this.details.run.status;
+      if (status === 'running' || status === 'approval') {
         this.loadData();
       } else if (this.pollHandle) {
         clearInterval(this.pollHandle);
@@ -217,6 +219,14 @@ export default {
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },
+    // Clicking a node that has a task (running or finished) opens its task log.
+    onNodeClicked(nodeId) {
+      if (nodeId == null) return;
+      const entry = (this.details?.nodes || []).find((n) => n.node.id === nodeId);
+      if (entry && entry.task) {
+        EventBus.$emit('i-show-task', { taskId: entry.task.id });
+      }
+    },
     statusColor(status) {
       switch (status) {
         case 'success':
@@ -230,6 +240,8 @@ export default {
         case 'running':
         case 'pending':
           return 'primary';
+        case 'approval':
+          return 'warning';
         default:
           return 'grey';
       }

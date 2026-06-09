@@ -134,6 +134,17 @@ func (d *SqlDb) GetWorkflowTemplates(projectID int, params db.RetrieveQueryParam
 		if err != nil {
 			return
 		}
+
+		// Attach the most recent run (ordered by id desc) so the list can show
+		// last status/version, mirroring templates' last_task.
+		var runs []db.WorkflowRun
+		runs, err = d.GetWorkflowRuns(projectID, workflows[i].ID, db.RetrieveQueryParams{Count: 1})
+		if err != nil {
+			return
+		}
+		if len(runs) > 0 {
+			workflows[i].LastRun = &runs[0]
+		}
 	}
 
 	return

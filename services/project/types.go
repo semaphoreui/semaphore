@@ -25,6 +25,7 @@ type BackupDB struct {
 	roles          []db.Role
 	templateRoles  map[int][]db.TemplateRolePerm
 	runners        []db.Runner
+	workflows      []db.WorkflowTemplate
 }
 
 type BackupFormat struct {
@@ -41,6 +42,7 @@ type BackupFormat struct {
 	SecretStorages     []BackupSecretStorage `backup:"secret_storages"`
 	Roles              []BackupRole          `backup:"roles"`
 	Runners            []BackupRunner        `backup:"runners"`
+	Workflows          []BackupWorkflow      `backup:"workflows"`
 }
 
 type BackupMeta struct {
@@ -127,6 +129,26 @@ type BackupRunner struct {
 	db.Runner
 }
 
+// BackupWorkflow wraps a workflow template for export/import. Nodes are wrapped
+// separately so their template/inventory/environment references can be stored
+// by name instead of by project-scoped ID. Edges (carried by the embedded
+// WorkflowTemplate) reference nodes by ID, which is preserved verbatim and
+// remapped on restore.
+type BackupWorkflow struct {
+	db.WorkflowTemplate
+	Nodes []BackupWorkflowNode `backup:"nodes"`
+}
+
+// BackupWorkflowNode wraps a workflow node, replacing its template_id,
+// inventory_id and environment_id with name references that are portable
+// across projects.
+type BackupWorkflowNode struct {
+	db.WorkflowNode
+	Template    *string `backup:"template"`
+	Inventory   *string `backup:"inventory"`
+	Environment *string `backup:"environment"`
+}
+
 type BackupEntry interface {
 	GetName() string
 	Verify(backup *BackupFormat) error
@@ -166,5 +188,9 @@ func (e BackupRole) GetName() string {
 }
 
 func (e BackupRunner) GetName() string {
+	return e.Name
+}
+
+func (e BackupWorkflow) GetName() string {
 	return e.Name
 }

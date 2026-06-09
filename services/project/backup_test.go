@@ -9,6 +9,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testItem struct {
@@ -182,7 +183,8 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
     }
   ],
   "templates": [],
-  "views": []
+  "views": [],
+  "workflows": []
 }`, str)
 
 	restoredBackup := &BackupFormat{}
@@ -316,6 +318,134 @@ func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "restored schedule should be persisted")
+}
+
+func TestBackup_Workflow(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	store := sql.CreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{
+		Name: "Test WF",
+	})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Type:      db.AccessKeyNone,
+	})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Repo",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	require.NoError(t, err)
+
+	inv, err := store.CreateInventory(db.Inventory{
+		ProjectID: proj.ID,
+		Name:      "Inv",
+	})
+	require.NoError(t, err)
+
+	env, err := store.CreateEnvironment(db.Environment{
+		ProjectID: proj.ID,
+		Name:      "Env",
+		JSON:      `{}`,
+	})
+	require.NoError(t, err)
+
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:         "Tpl",
+		Playbook:     "test.yml",
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateWorkflowTemplate(db.WorkflowTemplate{
+		ProjectID: proj.ID,
+		Name:      "WF",
+		Nodes: []db.WorkflowNode{
+			{
+				ID:            1,
+				Kind:          db.WorkflowNodeTaskKind,
+				TemplateID:    tpl.ID,
+				InventoryID:   &inv.ID,
+				EnvironmentID: &env.ID,
+			},
+			{
+				ID:         2,
+				Kind:       db.WorkflowNodeTaskKind,
+				TemplateID: tpl.ID,
+			},
+		},
+		Edges: []db.WorkflowEdge{
+			{SourceNodeID: 1, DestinationNodeID: 2, Condition: db.WorkflowEdgeOnSuccess},
+		},
+	})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(proj.ID, store)
+	require.NoError(t, err)
+	require.Len(t, backup.Workflows, 1)
+	assert.Equal(t, "WF", backup.Workflows[0].Name)
+	require.Len(t, backup.Workflows[0].Nodes, 2)
+	// Node references must be exported by name, not ID.
+	require.NotNil(t, backup.Workflows[0].Nodes[0].Template)
+	assert.Equal(t, "Tpl", *backup.Workflows[0].Nodes[0].Template)
+	require.NotNil(t, backup.Workflows[0].Nodes[0].Inventory)
+	assert.Equal(t, "Inv", *backup.Workflows[0].Nodes[0].Inventory)
+	require.NotNil(t, backup.Workflows[0].Nodes[0].Environment)
+	assert.Equal(t, "Env", *backup.Workflows[0].Nodes[0].Environment)
+
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+
+	restoredBackup := &BackupFormat{}
+	require.NoError(t, restoredBackup.Unmarshal(str))
+
+	restoredBackup.Meta.Name = "Test WF Restored"
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "wf",
+			Name:     "WF",
+			Email:    "wf@example.com",
+			Admin:    true,
+		},
+	})
+	require.NoError(t, err)
+
+	restoredProj, err := restoredBackup.Restore(user, store)
+	require.NoError(t, err)
+
+	restoredWorkflows, err := store.GetWorkflowTemplates(restoredProj.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, restoredWorkflows, 1)
+	assert.Equal(t, "WF", restoredWorkflows[0].Name)
+	require.Len(t, restoredWorkflows[0].Nodes, 2)
+	require.Len(t, restoredWorkflows[0].Edges, 1)
+
+	// The restored task node must point at the restored template/inventory/env,
+	// whose IDs differ from the originals.
+	restoredTemplates, err := store.GetTemplates(restoredProj.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, restoredTemplates, 1)
+	assert.Equal(t, restoredTemplates[0].ID, restoredWorkflows[0].Nodes[0].TemplateID)
+	require.NotNil(t, restoredWorkflows[0].Nodes[0].InventoryID)
+	require.NotNil(t, restoredWorkflows[0].Nodes[0].EnvironmentID)
+
+	// The edge must still connect the two restored nodes (IDs were remapped).
+	edge := restoredWorkflows[0].Edges[0]
+	assert.Equal(t, restoredWorkflows[0].Nodes[0].ID, edge.SourceNodeID)
+	assert.Equal(t, restoredWorkflows[0].Nodes[1].ID, edge.DestinationNodeID)
 }
 
 func isUnique(items []testItem) bool {

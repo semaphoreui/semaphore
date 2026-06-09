@@ -539,6 +539,7 @@ export default {
   workflowMergedArtifactsHint: 'Combined view of all artifacts produced so far in this run. Later tasks override earlier ones.',
   workflowArtifactsRemoteRunnerWarning: 'This run contains tasks executed by remote runners. Workflow artifacts (set_stats values) will not flow across remote-runner steps yet — they are only passed between tasks executed locally on the Semaphore server.',
   workflowSaved: 'Workflow saved',
+  workflowLastRun: 'Last run',
   workflowEditorPalette: 'Palette',
   workflowPaletteTaskNode: 'Task node',
   workflowPaletteApprovalNode: 'Approval node',

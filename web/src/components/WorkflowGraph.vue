@@ -86,12 +86,19 @@ export default {
       editor.on('connectionSelected', (e) => this.onConnectionSelected(e));
       editor.on('nodeSelected', (id) => this.$emit('node-selected', this.nodeIdOf(id)));
       editor.on('click', (ev) => this.onCanvasClick(ev));
+    } else {
+      // Drawflow's "fixed" mode does not fire nodeSelected on node clicks, so
+      // detect node clicks via DOM delegation and emit node-selected ourselves.
+      this.$refs.canvas.addEventListener('click', this.onReadonlyClick);
     }
 
     this.buildCanvas();
   },
 
   beforeDestroy() {
+    if (this.$refs.canvas) {
+      this.$refs.canvas.removeEventListener('click', this.onReadonlyClick);
+    }
     if (this.editor) {
       this.editor.clear();
       this.editor = null;
@@ -305,6 +312,14 @@ export default {
           && !ev.target.closest('.connection')) {
         this.$emit('node-selected', null);
       }
+    },
+
+    // Read-only mode: emit node-selected when a node is clicked (see mounted()).
+    onReadonlyClick(ev) {
+      const el = ev.target && ev.target.closest ? ev.target.closest('.drawflow-node') : null;
+      if (!el) return;
+      const dfId = el.id.replace('node-', '');
+      this.$emit('node-selected', this.nodeIdOf(dfId));
     },
 
     onDrop(ev) {

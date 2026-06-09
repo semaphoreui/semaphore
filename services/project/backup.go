@@ -144,6 +144,12 @@ func (b *BackupDB) makeUniqueNames() {
 		item.Name = name
 	})
 
+	makeUniqueNames(b.workflows, func(item *db.WorkflowTemplate) string {
+		return item.Name
+	}, func(item *db.WorkflowTemplate, name string) {
+		item.Name = name
+	})
+
 }
 
 func (b *BackupDB) load(projectID int, store db.Store) (err error) {
@@ -254,6 +260,11 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 	}
 
 	b.runners, err = store.GetRunners(projectID, false, db.RunnerFilterIgnoreTags, nil)
+	if err != nil {
+		return
+	}
+
+	b.workflows, err = store.GetWorkflowTemplates(projectID, db.RetrieveQueryParams{})
 	if err != nil {
 		return
 	}
@@ -488,6 +499,30 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 	}
 
+	workflows := make([]BackupWorkflow, len(b.workflows))
+	for i, o := range b.workflows {
+		nodes := make([]BackupWorkflowNode, len(o.Nodes))
+		for j, n := range o.Nodes {
+			node := BackupWorkflowNode{
+				WorkflowNode: n,
+			}
+			if n.TemplateID != 0 {
+				node.Template, _ = findNameByID[db.Template](n.TemplateID, b.templates)
+			}
+			if n.InventoryID != nil {
+				node.Inventory, _ = findNameByID[db.Inventory](*n.InventoryID, b.inventories)
+			}
+			if n.EnvironmentID != nil {
+				node.Environment, _ = findNameByID[db.Environment](*n.EnvironmentID, b.environments)
+			}
+			nodes[j] = node
+		}
+		workflows[i] = BackupWorkflow{
+			WorkflowTemplate: o,
+			Nodes:            nodes,
+		}
+	}
+
 	return &BackupFormat{
 		Meta: BackupMeta{
 			b.meta,
@@ -504,6 +539,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		SecretStorages:     secretStorages,
 		Roles:              roles,
 		Runners:            runners,
+		Workflows:          workflows,
 	}, nil
 }
 

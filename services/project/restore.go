@@ -471,6 +471,81 @@ func (e BackupRunner) Restore(store db.Store, b *BackupDB) error {
 	return nil
 }
 
+func (e BackupWorkflow) Verify(backup *BackupFormat) error {
+	if err := verifyDuplicate[BackupWorkflow](e.Name, backup.Workflows); err != nil {
+		return err
+	}
+
+	for _, n := range e.Nodes {
+		if n.Template != nil && getEntryByName[BackupTemplate](n.Template, backup.Templates) == nil {
+			return fmt.Errorf("template does not exist in templates[].name")
+		}
+		if n.Inventory != nil && getEntryByName[BackupInventory](n.Inventory, backup.Inventories) == nil {
+			return fmt.Errorf("inventory does not exist in inventories[].name")
+		}
+		if n.Environment != nil && getEntryByName[BackupEnvironment](n.Environment, backup.Environments) == nil {
+			return fmt.Errorf("environment does not exist in environments[].name")
+		}
+	}
+
+	return nil
+}
+
+func (e BackupWorkflow) Restore(store db.Store, b *BackupDB) error {
+	workflow := e.WorkflowTemplate
+	workflow.ID = 0
+	workflow.ProjectID = b.meta.ID
+
+	nodes := make([]db.WorkflowNode, len(e.Nodes))
+	for i, bn := range e.Nodes {
+		// Keep the node ID (used by edges) but clear all project-scoped
+		// references; they are re-resolved from names below.
+		node := bn.WorkflowNode
+		node.WorkflowTemplateID = 0
+		node.TemplateID = 0
+		node.InventoryID = nil
+		node.EnvironmentID = nil
+
+		if bn.Template != nil {
+			tpl := findEntityByName[db.Template](bn.Template, b.templates)
+			if tpl == nil {
+				return fmt.Errorf("template does not exist in templates[].name")
+			}
+			node.TemplateID = tpl.ID
+		}
+
+		if bn.Inventory != nil {
+			inv := findEntityByName[db.Inventory](bn.Inventory, b.inventories)
+			if inv == nil {
+				return fmt.Errorf("inventory does not exist in inventories[].name")
+			}
+			node.InventoryID = &inv.ID
+		}
+
+		if bn.Environment != nil {
+			env := findEntityByName[db.Environment](bn.Environment, b.environments)
+			if env == nil {
+				return fmt.Errorf("environment does not exist in environments[].name")
+			}
+			node.EnvironmentID = &env.ID
+		}
+
+		nodes[i] = node
+	}
+
+	workflow.Nodes = nodes
+	// workflow.Edges is carried by the embedded WorkflowTemplate and references
+	// nodes by the IDs preserved above; writeWorkflowGraph remaps them.
+
+	newWorkflow, err := store.CreateWorkflowTemplate(workflow)
+	if err != nil {
+		return err
+	}
+
+	b.workflows = append(b.workflows, newWorkflow)
+	return nil
+}
+
 func (backup *BackupFormat) Verify() error {
 	for i, o := range backup.Environments {
 		if err := o.Verify(backup); err != nil {
@@ -520,6 +595,11 @@ func (backup *BackupFormat) Verify() error {
 	for i, o := range backup.Runners {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at runners[%d]: %s", i, err.Error())
+		}
+	}
+	for i, o := range backup.Workflows {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at workflows[%d]: %s", i, err.Error())
 		}
 	}
 
@@ -639,6 +719,14 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store) (*db.Project, 
 	for i, o := range backup.Runners {
 		if err := o.Restore(store, &b); err != nil {
 			return nil, fmt.Errorf("error at runners[%d]: %s", i, err.Error())
+		}
+	}
+
+	// Workflows are restored last: their nodes reference templates, inventories
+	// and environments by name, all of which must already exist in the project.
+	for i, o := range backup.Workflows {
+		if err := o.Restore(store, &b); err != nil {
+			return nil, fmt.Errorf("error at workflows[%d]: %s", i, err.Error())
 		}
 	}
 

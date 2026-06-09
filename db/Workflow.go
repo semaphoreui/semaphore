@@ -46,22 +46,38 @@ type WorkflowTemplate struct {
 	// segment via GetNextBuildVersion.
 	StartVersion *string `db:"start_version" json:"start_version,omitempty" backup:"start_version"`
 
-	Nodes []WorkflowNode `db:"-" bolt:"include" json:"nodes" backup:"nodes"`
+	// Nodes carries the backup:"-" tag because the export/import layer wraps each
+	// node (see project.BackupWorkflowNode) to translate template/inventory/
+	// environment references from IDs to names. Edges only reference node IDs,
+	// which are kept verbatim in the backup, so they are exported as-is.
+	Nodes []WorkflowNode `db:"-" bolt:"include" json:"nodes" backup:"-"`
 	Edges []WorkflowEdge `db:"-" bolt:"include" json:"edges" backup:"edges"`
+
+	// LastRun is the most recent run of this workflow, attached when listing
+	// workflows so the list can show status/version (nil otherwise). Read-only,
+	// not persisted.
+	LastRun *WorkflowRun `db:"-" json:"last_run,omitempty" backup:"-"`
 }
 
 type WorkflowNode struct {
-	ID int `db:"id" json:"id" backup:"-"`
+	// ID is kept in the backup (backup:"id") so that edges, which reference
+	// nodes by ID, stay resolvable after export/import. The ID is only
+	// meaningful within a single workflow and is remapped to a fresh value when
+	// the graph is persisted (see SqlDb.writeWorkflowGraph).
+	ID int `db:"id" json:"id" backup:"id"`
 
-	WorkflowTemplateID int                     `db:"workflow_template_id" json:"workflow_template_id" backup:"-"`
-	TemplateID         int                     `db:"template_id" json:"template_id,omitempty" backup:"template_id"`
-	Kind               WorkflowNodeKind        `db:"kind" json:"kind,omitempty" backup:"kind"`
-	ConvergenceMode    WorkflowConvergenceMode `db:"convergence_mode" json:"convergence_mode,omitempty" backup:"convergence_mode"`
-	ApprovalTimeout    *int                    `db:"approval_timeout" json:"approval_timeout,omitempty" backup:"approval_timeout"`
-	ApprovalMessage    *string                 `db:"approval_message" json:"approval_message,omitempty" backup:"approval_message"`
+	WorkflowTemplateID int `db:"workflow_template_id" json:"workflow_template_id" backup:"-"`
+	// TemplateID, InventoryID and EnvironmentID are excluded from the backup
+	// (backup:"-") because they are project-scoped IDs. The export/import layer
+	// translates them to/from names (see project.BackupWorkflowNode).
+	TemplateID      int                     `db:"template_id" json:"template_id,omitempty" backup:"-"`
+	Kind            WorkflowNodeKind        `db:"kind" json:"kind,omitempty" backup:"kind"`
+	ConvergenceMode WorkflowConvergenceMode `db:"convergence_mode" json:"convergence_mode,omitempty" backup:"convergence_mode"`
+	ApprovalTimeout *int                    `db:"approval_timeout" json:"approval_timeout,omitempty" backup:"approval_timeout"`
+	ApprovalMessage *string                 `db:"approval_message" json:"approval_message,omitempty" backup:"approval_message"`
 
-	InventoryID   *int             `db:"inventory_id" json:"inventory_id,omitempty" backup:"inventory_id"`
-	EnvironmentID *int             `db:"environment_id" json:"environment_id,omitempty" backup:"environment_id"`
+	InventoryID   *int             `db:"inventory_id" json:"inventory_id,omitempty" backup:"-"`
+	EnvironmentID *int             `db:"environment_id" json:"environment_id,omitempty" backup:"-"`
 	Limit         StringArrayField `db:"limit" json:"limit,omitempty" backup:"limit"`
 
 	// Note holds the free-form text of a "note" node. It is only valid on note
@@ -89,9 +105,20 @@ type WorkflowRunStatus string
 
 const (
 	WorkflowRunRunning WorkflowRunStatus = "running"
-	WorkflowRunSuccess WorkflowRunStatus = "success"
-	WorkflowRunFailed  WorkflowRunStatus = "failed"
+	// WorkflowRunApproval marks a run that is paused waiting for human input:
+	// it has at least one pending approval. Like running, it is non-terminal
+	// (the run has not ended).
+	WorkflowRunApproval WorkflowRunStatus = "approval"
+	WorkflowRunSuccess  WorkflowRunStatus = "success"
+	WorkflowRunFailed   WorkflowRunStatus = "failed"
 )
+
+// IsFinished reports whether the run has reached a terminal state. Running and
+// approval are non-terminal: the run is still in progress (approval is merely
+// blocked on a human decision).
+func (status WorkflowRunStatus) IsFinished() bool {
+	return status == WorkflowRunSuccess || status == WorkflowRunFailed
+}
 
 type WorkflowRun struct {
 	ID int `db:"id" json:"id" backup:"-"`

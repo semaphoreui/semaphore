@@ -45,8 +45,16 @@ Status: implemented (initial cut). Built with Drawflow (decision D4).
   topological layout is used by both the editor (seeds + persists positions on
   save) and `WorkflowGraph` (lays out any consumer whose stored positions are all
   zero, so the run view of a legacy workflow no longer piles nodes at the origin).
-- `Workflows.vue` now routes to the editor (dialog path removed); i18n keys added;
-  `WorkflowForm.vue` retired.
+- **List page** `web/src/views/project/Workflows.vue` mirrors the Templates list:
+  toolbar (title + New Workflow + a column-settings cog backed by
+  `TableSettingsSheet`, `table-name: project__workflow`), a `v-data-table` with
+  `show-expand`, columns Name (→ editor), Version / Status / Last run (from the
+  workflow's `last_run`), Nodes, Start Version, and a run/delete actions column.
+  Expanding a row lists that workflow's recent runs (linking to the run view).
+  Backend: `WorkflowTemplate.LastRun` (`json:"last_run"`, not persisted) is
+  attached by `GetWorkflowTemplates` (the latest run per workflow), mirroring how
+  templates carry `last_task`. `Workflows.vue` routes to the editor (dialog path
+  removed); `WorkflowForm.vue` retired.
 
 ## Pro feature gating
 
