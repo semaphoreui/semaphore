@@ -148,6 +148,13 @@ func runService() {
 		logWriteService,
 	)
 
+	// The workflow service orchestrates workflow runs and launches each node's
+	// task through the pool; the pool calls back into it when a workflow task
+	// finishes. Wire the cycle: pool first, then service (with the pool as its
+	// enqueuer), then inject the service back into the pool.
+	workflowService := proServer.NewWorkflowService(store, &taskPool)
+	taskPool.SetWorkflowService(workflowService)
+
 	schedulePool := schedules.CreateSchedulePool(
 		store,
 		&taskPool,
@@ -246,6 +253,7 @@ func runService() {
 		environmentService,
 		subscriptionService,
 		runnerService,
+		workflowService,
 	)
 
 	route.Use(func(next http.Handler) http.Handler {

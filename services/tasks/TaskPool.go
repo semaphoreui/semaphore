@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -68,7 +67,10 @@ type TaskPool struct {
 	// state provides pluggable storage for Queue, active projects, running tasks and aliases
 	state TaskStateStore
 
-	workflowMu sync.Mutex
+	// workflowService orchestrates workflow runs (a Pro feature). It is injected
+	// after construction via SetWorkflowService; the pool only calls back into it
+	// when a workflow task finishes. nil in tests / before wiring.
+	workflowService pro_interfaces.WorkflowService
 }
 
 func CreateTaskPool(
@@ -127,6 +129,34 @@ func CreateTaskPoolWithState(
 // Dashboard to reach an optional TaskStateInspector implementation.
 func (p *TaskPool) StateStore() TaskStateStore {
 	return p.state
+}
+
+// SetWorkflowService injects the workflow orchestration service. It is wired
+// after the pool is created (the service needs the pool as its task enqueuer,
+// and the pool needs the service to progress runs as tasks finish).
+func (p *TaskPool) SetWorkflowService(svc pro_interfaces.WorkflowService) {
+	p.workflowService = svc
+}
+
+// HandleWorkflowTaskCompletion notifies the workflow service that a task that
+// belongs to a workflow run has finished, so it can progress the run. It is a
+// thin delegator so the open task lifecycle (TaskRunner) need not know about the
+// Pro workflow service; a no-op when no service is wired.
+func (p *TaskPool) HandleWorkflowTaskCompletion(task db.Task) error {
+	if p.workflowService == nil {
+		return nil
+	}
+	return p.workflowService.HandleWorkflowTaskCompletion(task)
+}
+
+// GetWorkflowRunArtifacts returns the merged upstream artifacts for a workflow
+// run, delegating to the workflow service. Returns an empty map when no service
+// is wired.
+func (p *TaskPool) GetWorkflowRunArtifacts(projectID int, runID int, currentTaskID *int) (map[string]any, error) {
+	if p.workflowService == nil {
+		return nil, nil
+	}
+	return p.workflowService.GetWorkflowRunArtifacts(projectID, runID, currentTaskID)
 }
 
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {

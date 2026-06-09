@@ -1180,7 +1180,9 @@ export default {
         });
       }
 
-      return items;
+      // Workflows is a Pro feature; hide the nav item unless it is licensed.
+      const features = (this.systemInfo || {}).features || {};
+      return items.filter((it) => it.key !== 'workflows' || features.workflows);
     },
 
     pinnedNavItemsList() {

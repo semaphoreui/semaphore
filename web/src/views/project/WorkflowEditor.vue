@@ -2,11 +2,22 @@
   <div>
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>
+      <v-toolbar-title class="WorkflowEditor__title d-flex align-center">
         <router-link :to="`/project/${projectId}/workflows`">
           {{ $t('workflows') }}
         </router-link>
-        <span class="ml-2">/ {{ titleText }}</span>
+        <span class="mx-2">/</span>
+        <v-text-field
+          v-if="item != null"
+          v-model="item.name"
+          :placeholder="$t('newWorkflow')"
+          :disabled="!canManage"
+          hide-details
+          dense
+          flat
+          solo
+          class="WorkflowEditor__nameInput"
+        />
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
@@ -233,7 +244,6 @@ export default {
       item: null,
       templates: null,
       saving: false,
-      formValid: false,
       graphKey: 0,
       selectedNodeId: null,
       editingNode: null,
@@ -248,10 +258,6 @@ export default {
     },
     isNew() {
       return this.workflowId == null;
-    },
-    titleText() {
-      if (this.isNew) return this.$t('newWorkflow');
-      return (this.item && this.item.name) || this.$t('editWorkflow');
     },
     canManage() {
       return this.can(USER_PERMISSIONS.manageProjectResources);
@@ -447,7 +453,6 @@ export default {
 
     // ---- save -----------------------------------------------------------------
     async save() {
-      if (!this.$refs.form.validate()) return;
       if (this.problems.length > 0) return;
       this.saving = true;
       try {
@@ -477,6 +482,26 @@ export default {
 
 <style lang="scss" scoped>
 .WorkflowEditor {
+
+  // Inline, borderless name editor in the toolbar title.
+  &__title {
+    overflow: visible;
+  }
+
+  &__nameInput {
+    max-width: 420px;
+
+    ::v-deep .v-input__slot {
+      background: transparent !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+    }
+
+    ::v-deep input {
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+  }
 
   &__body {
     display: flex;

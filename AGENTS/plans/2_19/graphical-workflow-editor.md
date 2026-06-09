@@ -4,10 +4,11 @@ Status: implemented (initial cut). Built with Drawflow (decision D4).
 
 ## What shipped
 
-- **Backend positions.** `WorkflowNode.PositionX/PositionY` (`int`), migration
-  `db/sql/migrations/v2.18.16.sql` (+ `.err.sql`) registered in
-  `db/Migration.go`, and `writeWorkflowGraph` persists the columns. Positions
-  ride along in the node `INSERT`, so they survive the delete-and-reinsert.
+- **Backend positions.** `WorkflowNode.PositionX/PositionY` (`int`); the
+  `position_x` / `position_y` columns are part of the (unreleased) workflow
+  tables in `db/sql/migrations/v2.18.15.sql`, and `writeWorkflowGraph` persists
+  them. Positions ride along in the node `INSERT`, so they survive the
+  delete-and-reinsert.
 - **Shared renderer** `web/src/components/WorkflowGraph.vue` — wraps Drawflow,
   treats the canvas as the source of truth and emits `{nodes, edges}` on every
   change. Used editable in the editor and read-only (status overlay) in the run
@@ -32,6 +33,60 @@ Status: implemented (initial cut). Built with Drawflow (decision D4).
   zero, so the run view of a legacy workflow no longer piles nodes at the origin).
 - `Workflows.vue` now routes to the editor (dialog path removed); i18n keys added;
   `WorkflowForm.vue` retired.
+
+## Pro feature gating
+
+Workflows are a Pro feature, gated with the same mechanism as
+`terraform_backend` / `project_runners`: a controller interface in
+`pro_interfaces`, a real implementation in `pro_impl`, a no-op stub in `pro`
+(swapped at build time via `replace github.com/semaphoreui/semaphore/pro =>
+./pro` vs `./pro_impl`), plus a feature flag.
+
+- **`pro_interfaces`** — `WorkflowController` (the 11 HTTP handlers) and
+  `WorkflowTaskPool` (the narrow subset of `*services/tasks.TaskPool` the
+  controller needs — declared here so the pro modules depend only on
+  `pro_interfaces` + `db`, avoiding a `services/tasks` import / cycle). Added
+  `Workflows bool` to `Features`.
+- **`pro_impl/api/projects/workflows.go`** — the real controller (the request
+  logic moved out of `api/projects/workflows.go`); it delegates orchestration to
+  the `WorkflowService`. `pro_impl/pkg/features` sets `Workflows:
+  planDetails.IsPro()`.
+- **`pro_impl/services/server/workflow_svc.go`** — the real `WorkflowService`:
+  the orchestration engine extracted from `TaskPool` (start/progress runs,
+  approvals, artifact merge). It depends only on `db.Store` and a
+  `WorkflowTaskEnqueuer` (the pool's `AddTask`), holds its own mutex, and is a
+  self-contained entity rather than methods on the open task pool.
+- **`pro/api/projects/workflows.go`** and **`pro/services/server/workflow_svc.go`**
+  — the open-source stubs: list endpoints return `[]`, the rest `404`; the
+  service methods are safe no-ops. `pro/pkg/features` already returns an empty
+  `Features{}` (so `Workflows` is `false` in open builds).
+- **`api/router.go`** constructs `workflowController :=
+  proProjects.NewWorkflowController(workflowService)` and registers its methods.
+  `api/projects/workflows.go` keeps only the two context-loader middlewares
+  (`WorkflowsMiddleware`, `WorkflowRunsMiddleware`), which use the open
+  `db.Store`.
+- **Wiring (`cli/cmd/root.go`)** — resolves the pool↔service cycle: create the
+  pool, then `workflowService := proServer.NewWorkflowService(store, &taskPool)`,
+  then `taskPool.SetWorkflowService(workflowService)`; the service is also passed
+  to `api.Route(...)` for the controller.
+- **Frontend** — `App.vue` hides the Workflows nav item unless
+  `features.workflows` is set.
+
+**What stays in the open module, and why.** Only thin glue remains open:
+`TaskPool` keeps two delegators (`HandleWorkflowTaskCompletion`,
+`GetWorkflowRunArtifacts`) that forward to the injected service, because the open
+task-execution lifecycle (`TaskRunner`) calls them on every finished task. They
+are safe no-ops when the stub service is wired (open builds). The workflow
+`db.Store` methods (`WorkflowManager`) also stay open — they are plain CRUD over
+the open schema, consumed by both the service and the context-loader middlewares.
+The orchestration engine itself now lives entirely in `pro_impl`
+(`workflow_runner.go` was removed from `services/tasks`).
+
+**Migration note (fixed in passing).** The `position_x`/`position_y` columns had
+been folded into the unreleased `v2.18.15.sql`, but `position_y` was written with
+a Cyrillic `у`, so the Latin `position_y` column the Go code expects was never
+created. Corrected to ASCII; the redundant standalone `v2.18.16` migration and
+its `Migration.go` entry were removed.
 
 ## Deviations from the design below
 
