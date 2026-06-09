@@ -7,17 +7,23 @@
           {{ $t('workflows') }}
         </router-link>
         <span class="mx-2">/</span>
-        <v-text-field
+        <span
           v-if="item != null"
-          v-model="item.name"
-          :placeholder="$t('newWorkflow')"
-          :disabled="!canManage"
-          hide-details
-          dense
-          flat
-          solo
-          class="WorkflowEditor__nameInput"
-        />
+          class="WorkflowEditor__nameWrap"
+          :class="{ 'WorkflowEditor__nameWrap--disabled': !canManage }"
+        >
+          <v-icon small class="WorkflowEditor__nameIcon">mdi-pencil</v-icon>
+          <span class="WorkflowEditor__nameSizer" :data-value="item.name || $t('newWorkflow')">
+            <input
+              v-model="item.name"
+              :placeholder="$t('newWorkflow')"
+              :disabled="!canManage"
+              :aria-label="$t('name')"
+              size="1"
+              class="WorkflowEditor__nameField"
+            />
+          </span>
+        </span>
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
@@ -46,7 +52,6 @@
     <div class="WorkflowEditor__body" v-if="item != null && templates != null">
       <!-- Palette + meta -->
       <div class="WorkflowEditor__side WorkflowEditor__side--left">
-
         <div class="pa-3">
           <div class="text-subtitle-2 mb-2">{{ $t('workflowEditorPalette') }}</div>
           <div class="text-caption text--secondary mb-2">
@@ -245,6 +250,9 @@ export default {
       templates: null,
       saving: false,
       graphKey: 0,
+      // Set before navigating new -> /edit after a create, so the route watcher
+      // does not reload (which would reset the selection and rebuild the canvas).
+      skipNextRouteReload: false,
       selectedNodeId: null,
       editingNode: null,
       editingEdge: null,
@@ -311,6 +319,10 @@ export default {
   },
   watch: {
     '$route.params.workflowId': function reloadOnRoute() {
+      if (this.skipNextRouteReload) {
+        this.skipNextRouteReload = false;
+        return;
+      }
       this.loadData();
     },
   },
@@ -461,14 +473,17 @@ export default {
           const created = (await axios.post(`/api/project/${this.projectId}/workflows`, payload))
             .data;
           EventBus.$emit('i-snackbar', { color: 'success', text: this.$t('workflowSaved') });
-          // Navigate to the edit route; the route watcher reloads with the
-          // server-assigned node ids (the backend reassigns ids on every save).
+          // Adopt the server id so subsequent saves PUT to the right workflow,
+          // then switch the URL to the edit route — but keep the current canvas
+          // and selection (skip the route-triggered reload). The backend remaps
+          // client node ids on every save, so no reload is needed.
+          this.item.id = created.id;
+          this.skipNextRouteReload = true;
           this.$router.replace(`/project/${this.projectId}/workflows/${created.id}/edit`);
         } else {
           await axios.put(`/api/project/${this.projectId}/workflows/${this.workflowId}`, payload);
           EventBus.$emit('i-snackbar', { color: 'success', text: this.$t('workflowSaved') });
-          // Re-fetch to rebind reassigned node ids onto the canvas.
-          await this.loadData();
+          // No reload: keep the canvas and the selected element intact.
         }
       } catch (err) {
         EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
@@ -482,24 +497,88 @@ export default {
 
 <style lang="scss" scoped>
 .WorkflowEditor {
-
   // Inline, borderless name editor in the toolbar title.
   &__title {
     overflow: visible;
   }
 
-  &__nameInput {
-    max-width: 420px;
+  // Inline name editor: looks like a title, but the pencil + dashed underline +
+  // hover/focus affordances make it clear it is editable. The field auto-sizes
+  // to the width of its text via the grid-sizer trick below.
+  &__nameWrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 60vw;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(127, 127, 127, 0.12);
+    //border-bottom: 2px solid transparent;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
 
-    ::v-deep .v-input__slot {
-      background: transparent !important;
-      box-shadow: none !important;
-      padding: 0 !important;
+    &:hover {
+      background: rgba(127, 127, 127, 0.12);
+      //border-bottom-color: rgba(127, 127, 127, 0.9);
     }
 
-    ::v-deep input {
-      font-size: 1.1rem;
+    &:focus-within {
+      background: rgba(127, 127, 127, 0.12);
+      //border-bottom: 2px solid var(--v-primary-base, #1976d2);
+    }
+
+    &--disabled {
+      pointer-events: none;
+      //border-bottom-style: solid;
+      opacity: 0.7;
+    }
+  }
+
+  &__nameIcon {
+    opacity: 0.6;
+    flex: 0 0 auto;
+  }
+
+  &__nameWrap:focus-within &__nameIcon {
+    opacity: 1;
+  }
+
+  // The sizer ::after mirrors the value and gives the grid cell the text width;
+  // the input shares the same cell, so it is exactly as wide as the text.
+  &__nameSizer {
+    display: inline-grid;
+    align-items: center;
+    min-width: 0;
+
+    &::after,
+    & > .WorkflowEditor__nameField {
+      grid-area: 1 / 1;
+      width: auto;
+      min-width: 1ch;
+      font: inherit;
       font-weight: 500;
+      letter-spacing: inherit;
+      padding: 0;
+      margin: 0;
+      border: 0;
+      background: transparent;
+      white-space: pre;
+    }
+
+    &::after {
+      content: attr(data-value);
+      visibility: hidden;
+    }
+  }
+
+  &__nameField {
+    color: inherit;
+    outline: none;
+
+    &::placeholder {
+      color: inherit;
+      opacity: 0.5;
     }
   }
 
