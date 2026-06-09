@@ -77,6 +77,7 @@
                 <strong>#{{ a.nodeId }}</strong>
                 <span class="ml-2">{{ a.message || $t('workflowApprovalPending') }}</span>
               </div>
+              <v-spacer />
               <v-btn
                 small
                 color="success"
