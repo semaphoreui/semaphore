@@ -24,6 +24,14 @@ Status: implemented (initial cut). Built with Drawflow (decision D4).
   they have no canvas ports, can not be connected by edges, never count as a
   root, and are skipped by `ValidateWorkflowTemplate`, `WorkflowRootNode`, and
   the `WorkflowService` runner.
+- **Run versioning** (mirrors build templates). `WorkflowTemplate.StartVersion`
+  (column `start_version`) seeds versioning; each `WorkflowRun.Version` (column
+  `version`) is derived from it and the latest prior run via the shared
+  `db.GetNextBuildVersion` (extracted from `services/tasks` so both the build
+  task path and the workflow runner reuse it). `WorkflowService.StartWorkflow`
+  computes the run version and propagates it to every task the run launches
+  (`task.version`). The editor exposes a `start_version` field; the run view
+  shows the run's version.
 - **Full-screen run view** `web/src/views/project/WorkflowRun.vue` — the node/edge
   table and the artifact cards were removed; the page is now a full-viewport
   (`100vh`) graph. The currently-active node is highlighted with a Concourse-style

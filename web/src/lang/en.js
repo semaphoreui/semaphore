@@ -542,6 +542,7 @@ export default {
   workflowEditorPalette: 'Palette',
   workflowPaletteTaskNode: 'Task node',
   workflowPaletteApprovalNode: 'Approval node',
+  workflowStartVersionHint: 'Seeds run versioning (e.g. 1.0.0). Leave empty to disable.',
   workflowPaletteNoteNode: 'Note',
   workflowNodeKindNote: 'Note',
   workflowNoteText: 'Note text',

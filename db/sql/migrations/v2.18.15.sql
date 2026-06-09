@@ -3,6 +3,7 @@ create table `project__workflow_template` (
   `project_id` int not null,
   `name` varchar(255) not null,
   `description` text null,
+  `start_version` varchar(20) null,
 
   foreign key (`project_id`) references `project`(`id`) on delete cascade
 );
@@ -53,6 +54,7 @@ create table `project__workflow_run` (
   `project_id` int not null,
   `workflow_template_id` int not null,
   `status` varchar(30) not null,
+  `version` varchar(20) null,
   `start` datetime null,
   `end` datetime null,
   `root_task_id` int null,

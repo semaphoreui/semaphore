@@ -41,6 +41,11 @@ type WorkflowTemplate struct {
 
 	Description *string `db:"description" json:"description,omitempty" backup:"description"`
 
+	// StartVersion seeds run versioning, mirroring a build template's
+	// start_version. The first run takes this value; later runs bump its numeric
+	// segment via GetNextBuildVersion.
+	StartVersion *string `db:"start_version" json:"start_version,omitempty" backup:"start_version"`
+
 	Nodes []WorkflowNode `db:"-" bolt:"include" json:"nodes" backup:"nodes"`
 	Edges []WorkflowEdge `db:"-" bolt:"include" json:"edges" backup:"edges"`
 }
@@ -95,6 +100,10 @@ type WorkflowRun struct {
 	WorkflowTemplateID int `db:"workflow_template_id" json:"workflow_template_id" backup:"workflow_template_id"`
 
 	Status WorkflowRunStatus `db:"status" json:"status" backup:"status"`
+
+	// Version is the build version assigned to this run (derived from the
+	// template's StartVersion) and propagated to every task the run launches.
+	Version *string `db:"version" json:"version,omitempty" backup:"version"`
 
 	Start *time.Time `db:"start" json:"start,omitempty" backup:"start"`
 	End   *time.Time `db:"end" json:"end,omitempty" backup:"end"`

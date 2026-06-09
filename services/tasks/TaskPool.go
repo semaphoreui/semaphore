@@ -2,9 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -777,60 +775,6 @@ func (p *TaskPool) GetQueuedTasks() []*TaskRunner {
 	return p.state.QueueRange()
 }
 
-func getNextBuildVersion(startVersion string, currentVersion string) string {
-	re := regexp.MustCompile(`^(.*[^\d])?(\d+)([^\d].*)?$`)
-	m := re.FindStringSubmatch(startVersion)
-
-	if m == nil {
-		return startVersion
-	}
-
-	var prefix, suffix, body string
-
-	switch len(m) - 1 {
-	case 3:
-		prefix = m[1]
-		body = m[2]
-		suffix = m[3]
-	case 2:
-		if _, err := strconv.Atoi(m[1]); err == nil {
-			body = m[1]
-			suffix = m[2]
-		} else {
-			prefix = m[1]
-			body = m[2]
-		}
-	case 1:
-		body = m[1]
-	default:
-		return startVersion
-	}
-
-	if !strings.HasPrefix(currentVersion, prefix) ||
-		!strings.HasSuffix(currentVersion, suffix) {
-		return startVersion
-	}
-
-	curr, err := strconv.Atoi(currentVersion[len(prefix) : len(currentVersion)-len(suffix)])
-	if err != nil {
-		return startVersion
-	}
-
-	start, err := strconv.Atoi(body)
-	if err != nil {
-		panic(err)
-	}
-
-	var newVer int
-	if start > curr {
-		newVer = start
-	} else {
-		newVer = curr + 1
-	}
-
-	return prefix + fmt.Sprintf("%0*d", len(body), newVer) + suffix
-}
-
 // AddTask creates and queues a new task for execution in the task pool.
 //
 // Parameters:
@@ -884,7 +828,7 @@ func (p *TaskPool) AddTask(
 		if len(builds) == 0 || builds[0].Version == nil {
 			taskObj.Version = tpl.StartVersion
 		} else {
-			v := getNextBuildVersion(*tpl.StartVersion, *builds[0].Version)
+			v := db.GetNextBuildVersion(*tpl.StartVersion, *builds[0].Version)
 			taskObj.Version = &v
 		}
 	}

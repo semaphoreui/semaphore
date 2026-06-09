@@ -53,6 +53,20 @@
       <!-- Palette + meta -->
       <div class="WorkflowEditor__side WorkflowEditor__side--left">
         <div class="pa-3">
+          <v-text-field
+            v-model="item.start_version"
+            :label="$t('startVersion')"
+            :hint="$t('workflowStartVersionHint')"
+            persistent-hint
+            :disabled="!canManage"
+            outlined
+            dense
+          />
+        </div>
+
+        <v-divider />
+
+        <div class="pa-3">
           <div class="text-subtitle-2 mb-2">{{ $t('workflowEditorPalette') }}</div>
           <div class="text-caption text--secondary mb-2">
             {{ $t('workflowDragToCanvasHint') }}
@@ -494,6 +508,8 @@ export default {
       this.saving = true;
       try {
         const payload = { ...this.item, project_id: this.projectId };
+        // An empty start_version means "no run versioning" — send null, not "".
+        if (!payload.start_version) delete payload.start_version;
         if (this.isNew) {
           const created = (await axios.post(`/api/project/${this.projectId}/workflows`, payload))
             .data;

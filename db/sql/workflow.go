@@ -157,10 +157,11 @@ func (d *SqlDb) CreateWorkflowTemplate(workflow db.WorkflowTemplate) (newWorkflo
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__workflow_template (project_id, name, description) values (?, ?, ?)",
+		"insert into project__workflow_template (project_id, name, description, start_version) values (?, ?, ?, ?)",
 		workflow.ProjectID,
 		workflow.Name,
 		workflow.Description,
+		workflow.StartVersion,
 	)
 	if err != nil {
 		return
@@ -183,9 +184,10 @@ func (d *SqlDb) UpdateWorkflowTemplate(workflow db.WorkflowTemplate) (err error)
 	}
 
 	_, err = d.exec(
-		"update project__workflow_template set name=?, description=? where project_id=? and id=?",
+		"update project__workflow_template set name=?, description=?, start_version=? where project_id=? and id=?",
 		workflow.Name,
 		workflow.Description,
+		workflow.StartVersion,
 		workflow.ProjectID,
 		workflow.ID,
 	)
@@ -243,10 +245,11 @@ func (d *SqlDb) GetWorkflowRunByID(projectID int, runID int) (run db.WorkflowRun
 func (d *SqlDb) CreateWorkflowRun(run db.WorkflowRun) (newRun db.WorkflowRun, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__workflow_run (project_id, workflow_template_id, status, start, `end`, root_task_id) values (?, ?, ?, ?, ?, ?)",
+		"insert into project__workflow_run (project_id, workflow_template_id, status, version, start, `end`, root_task_id) values (?, ?, ?, ?, ?, ?, ?)",
 		run.ProjectID,
 		run.WorkflowTemplateID,
 		run.Status,
+		run.Version,
 		run.Start,
 		run.End,
 		run.RootTaskID,

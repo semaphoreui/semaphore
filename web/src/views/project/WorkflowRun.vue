@@ -8,6 +8,9 @@
         </router-link>
         <span class="ml-2">
           / {{ workflow ? workflow.name : $t('workflowRun') }} #{{ runId }}
+          <span v-if="details && details.run.version" class="text--secondary">
+            · {{ details.run.version }}
+          </span>
         </span>
       </v-toolbar-title>
 
