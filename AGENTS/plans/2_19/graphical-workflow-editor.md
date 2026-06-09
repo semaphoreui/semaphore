@@ -57,6 +57,16 @@ Status: implemented (initial cut). Built with Drawflow (decision D4).
   was never created and the run looked "done" — unless the run-view poll
   (`GetWorkflowRun` → `ProgressWorkflowRun`) happened to be open. That poll
   remains as a backstop.)
+- **Progression closes the launch/status race.** `progressWorkflowRunLocked`
+  launches ready nodes in a loop, re-reading until a pass launches nothing, and
+  computes the run status from that **same** final snapshot. This removes the
+  intermittent bug where a node finished between "decide what to launch" and
+  "read state to compute status", letting the run flip to `success` while a
+  downstream node had not been launched yet. `StartWorkflow` delegates to the
+  same routine (after launching the root) instead of a bare status update, so an
+  instantly-finishing root cannot prematurely finalize the run either. Together
+  with the stopped-only freeze, any premature terminal also self-corrects on the
+  next progression.
 - **Run versioning** (mirrors build templates). `WorkflowTemplate.StartVersion`
   (column `start_version`) seeds versioning; each `WorkflowRun.Version` (column
   `version`) is derived from it and the latest prior run via the shared
