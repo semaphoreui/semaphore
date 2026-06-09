@@ -10,6 +10,9 @@ import "github.com/semaphoreui/semaphore/db"
 type WorkflowService interface {
 	StartWorkflow(workflow db.WorkflowTemplate, user *db.User) (db.WorkflowRun, error)
 	ProgressWorkflowRun(projectID int, runID int, user *db.User) error
+	// StopWorkflowRun stops a non-finished run: it signals every in-flight task
+	// of the run to stop and marks the run as stopped (terminal).
+	StopWorkflowRun(projectID int, runID int, user *db.User) (db.WorkflowRun, error)
 	ResolveWorkflowApproval(projectID int, workflowID int, runID int, nodeID int, status db.WorkflowApprovalStatus, user *db.User) (db.WorkflowApproval, error)
 	HandleWorkflowTaskCompletion(task db.Task) error
 	GetWorkflowRunArtifacts(projectID int, runID int, currentTaskID *int) (map[string]any, error)
@@ -21,4 +24,8 @@ type WorkflowService interface {
 // avoiding an import of (and a cycle with) the services/tasks package.
 type WorkflowTaskEnqueuer interface {
 	AddTask(task db.Task, userID *int, username string, projectID int, needAlias bool) (db.Task, error)
+	// StopTasksByWorkflowRun stops every active (queued or running) task that
+	// belongs to the given workflow run. forceStop kills running tasks
+	// immediately instead of letting them stop gracefully.
+	StopTasksByWorkflowRun(projectID int, runID int, forceStop bool)
 }

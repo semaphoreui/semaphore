@@ -111,13 +111,18 @@ const (
 	WorkflowRunApproval WorkflowRunStatus = "approval"
 	WorkflowRunSuccess  WorkflowRunStatus = "success"
 	WorkflowRunFailed   WorkflowRunStatus = "failed"
+	// WorkflowRunStopped marks a run that a user manually stopped: its in-flight
+	// tasks were signalled to stop and no further nodes are launched. Like
+	// success/failed it is terminal.
+	WorkflowRunStopped WorkflowRunStatus = "stopped"
 )
 
 // IsFinished reports whether the run has reached a terminal state. Running and
 // approval are non-terminal: the run is still in progress (approval is merely
-// blocked on a human decision).
+// blocked on a human decision). Stopped is terminal — a stopped run is never
+// progressed or re-evaluated.
 func (status WorkflowRunStatus) IsFinished() bool {
-	return status == WorkflowRunSuccess || status == WorkflowRunFailed
+	return status == WorkflowRunSuccess || status == WorkflowRunFailed || status == WorkflowRunStopped
 }
 
 type WorkflowRun struct {

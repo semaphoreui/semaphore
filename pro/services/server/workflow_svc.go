@@ -24,6 +24,10 @@ func (s *workflowService) ProgressWorkflowRun(projectID int, runID int, user *db
 	return nil
 }
 
+func (s *workflowService) StopWorkflowRun(projectID int, runID int, user *db.User) (db.WorkflowRun, error) {
+	return db.WorkflowRun{}, nil
+}
+
 func (s *workflowService) ResolveWorkflowApproval(projectID int, workflowID int, runID int, nodeID int, status db.WorkflowApprovalStatus, user *db.User) (db.WorkflowApproval, error) {
 	return db.WorkflowApproval{}, nil
 }

@@ -42,6 +42,10 @@ func (c *workflowController) RunWorkflow(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNotFound)
 }
 
+func (c *workflowController) StopWorkflowRun(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+}
+
 func (c *workflowController) GetWorkflowRuns(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, []struct{}{})
 }

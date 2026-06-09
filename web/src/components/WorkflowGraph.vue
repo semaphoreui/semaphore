@@ -52,6 +52,9 @@ export default {
       // guards re-entrancy while we mutate Drawflow programmatically
       syncing: false,
       built: false,
+      // viewport coords of the last mousedown, used to tell a node tap from a pan
+      // in read-only mode (see onReadonlyPointerDown/Up).
+      pointerDown: null,
     };
   },
 
@@ -87,9 +90,13 @@ export default {
       editor.on('nodeSelected', (id) => this.$emit('node-selected', this.nodeIdOf(id)));
       editor.on('click', (ev) => this.onCanvasClick(ev));
     } else {
-      // Drawflow's "fixed" mode does not fire nodeSelected on node clicks, so
-      // detect node clicks via DOM delegation and emit node-selected ourselves.
-      this.$refs.canvas.addEventListener('click', this.onReadonlyClick);
+      // Drawflow's "fixed" mode does not fire nodeSelected on node clicks, and a
+      // native `click` is unreliable here: Drawflow binds mousedown/mousemove on
+      // the canvas, so any sub-pixel movement during the press makes the browser
+      // suppress the synthetic click. Detect a node tap ourselves from
+      // mousedown+mouseup with a small movement threshold instead.
+      this.$refs.canvas.addEventListener('mousedown', this.onReadonlyPointerDown);
+      this.$refs.canvas.addEventListener('mouseup', this.onReadonlyPointerUp);
     }
 
     this.buildCanvas();
@@ -97,7 +104,8 @@ export default {
 
   beforeDestroy() {
     if (this.$refs.canvas) {
-      this.$refs.canvas.removeEventListener('click', this.onReadonlyClick);
+      this.$refs.canvas.removeEventListener('mousedown', this.onReadonlyPointerDown);
+      this.$refs.canvas.removeEventListener('mouseup', this.onReadonlyPointerUp);
     }
     if (this.editor) {
       this.editor.clear();
@@ -314,8 +322,19 @@ export default {
       }
     },
 
-    // Read-only mode: emit node-selected when a node is clicked (see mounted()).
-    onReadonlyClick(ev) {
+    // Read-only mode: detect a node tap (see mounted()). Record where the press
+    // started so the matching release can tell a tap from a canvas pan.
+    onReadonlyPointerDown(ev) {
+      this.pointerDown = { x: ev.clientX, y: ev.clientY };
+    },
+
+    // A release counts as a tap only if the pointer barely moved; that filters out
+    // pans/drags. On a tap over a node, emit node-selected with its node id.
+    onReadonlyPointerUp(ev) {
+      const down = this.pointerDown;
+      this.pointerDown = null;
+      if (!down) return;
+      if (Math.abs(ev.clientX - down.x) > 4 || Math.abs(ev.clientY - down.y) > 4) return;
       const el = ev.target && ev.target.closest ? ev.target.closest('.drawflow-node') : null;
       if (!el) return;
       const dfId = el.id.replace('node-', '');
@@ -591,6 +610,14 @@ export default {
 
   .drawflow-node.WorkflowGraph__nodeWrap--approval { border-left: 3px solid #ab47bc; }
   .drawflow-node.WorkflowGraph__nodeWrap--task { border-left: 3px solid #2196f3; }
+
+  // Run view (read-only): task/approval nodes open their task log on click, so
+  // hint that they are clickable. Drawflow's stylesheet sets `cursor: move`, so
+  // this rule needs the extra specificity to win.
+  &:not(.WorkflowGraph--editable) .drawflow .drawflow-node.WorkflowGraph__nodeWrap--task,
+  &:not(.WorkflowGraph--editable) .drawflow .drawflow-node.WorkflowGraph__nodeWrap--approval {
+    cursor: pointer;
+  }
 
   // Note node — sticky-note look, no execution status.
   .drawflow-node.WorkflowGraph__nodeWrap--note {

@@ -24,6 +24,25 @@ Status: implemented (initial cut). Built with Drawflow (decision D4).
   they have no canvas ports, can not be connected by edges, never count as a
   root, and are skipped by `ValidateWorkflowTemplate`, `WorkflowRootNode`, and
   the `WorkflowService` runner.
+- **Run statuses & stopping.** A `WorkflowRun.Status` is one of `running` /
+  `approval` (non-terminal) or `success` / `failed` / `stopped` (terminal —
+  `WorkflowRunStatus.IsFinished()`). A user with `run_project_tasks` can stop an
+  in-progress run via `POST
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop` →
+  `WorkflowController.StopWorkflowRun` → `WorkflowService.StopWorkflowRun`: it
+  force-stops every non-finished task of the run via
+  `WorkflowTaskEnqueuer.StopTasksByWorkflowRun` (a new `*TaskPool` method that
+  mirrors `StopTasksByTemplate` but scopes by `workflow_run_id`: waiting tasks
+  are stopped and dequeued, running tasks are killed, remote/not-in-memory tasks
+  are finalized — so every task reaches a terminal state at once instead of
+  lingering in `stopping`/`waiting`), rejects every still-pending approval of
+  the run (attributed to the stopping user), then marks the run `stopped` with
+  an end time. The runner is hardened so a terminal run is never
+  revived: `progressWorkflowRunLocked` returns early when
+  `run.Status.IsFinished()`, so the stopped tasks are not later re-read as a
+  failure and the run stays `stopped` across polls. The run view shows a **Stop**
+  button while the run is `running`/`approval` (`WorkflowRun.vue`), and the
+  status chip renders `stopped` in the error color.
 - **Run versioning** (mirrors build templates). `WorkflowTemplate.StartVersion`
   (column `start_version`) seeds versioning; each `WorkflowRun.Version` (column
   `version`) is derived from it and the latest prior run via the shared
@@ -64,11 +83,13 @@ Workflows are a Pro feature, gated with the same mechanism as
 (swapped at build time via `replace github.com/semaphoreui/semaphore/pro =>
 ./pro` vs `./pro_impl`), plus a feature flag.
 
-- **`pro_interfaces`** — `WorkflowController` (the 11 HTTP handlers) and
-  `WorkflowTaskPool` (the narrow subset of `*services/tasks.TaskPool` the
-  controller needs — declared here so the pro modules depend only on
-  `pro_interfaces` + `db`, avoiding a `services/tasks` import / cycle). Added
-  `Workflows bool` to `Features`.
+- **`pro_interfaces`** — `WorkflowController` (the 12 HTTP handlers, including
+  `StopWorkflowRun`) and `WorkflowTaskEnqueuer` (the narrow subset of
+  `*services/tasks.TaskPool` the service needs — `AddTask` to launch a node's
+  task and `StopTasksByWorkflowRun` to stop a run's tasks — declared here so the
+  pro modules
+  depend only on `pro_interfaces` + `db`, avoiding a `services/tasks` import /
+  cycle). Added `Workflows bool` to `Features`.
 - **`pro_impl/api/projects/workflows.go`** — the real controller (the request
   logic moved out of `api/projects/workflows.go`); it delegates orchestration to
   the `WorkflowService`. `pro_impl/pkg/features` sets `Workflows:

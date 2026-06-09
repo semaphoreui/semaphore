@@ -770,6 +770,98 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 	}
 }
 
+// StopTasksByWorkflowRun stops every active (queued or running) task that
+// belongs to the given workflow run. It mirrors StopTasksByTemplate but scopes
+// the selection by workflow_run_id instead of template_id, and is used when a
+// user stops a whole workflow run.
+//
+// Waiting tasks are marked stopped and dequeued from the in-memory queue (so the
+// queue loop never starts them); running tasks go through stopTaskRunner (kill +
+// status transition); tasks that exist in the DB but are not in this instance's
+// memory (HA, or a remote task dispatched elsewhere) are marked stopped and
+// finalized so their pool bookkeeping is released.
+func (p *TaskPool) StopTasksByWorkflowRun(projectID int, runID int, forceStop bool) {
+	stoppedTasks := map[int]struct{}{}
+
+	belongsToRun := func(t *TaskRunner) bool {
+		return t != nil &&
+			t.Task.ProjectID == projectID &&
+			t.Task.WorkflowRunID != nil && *t.Task.WorkflowRunID == runID &&
+			!t.Task.Status.IsFinished()
+	}
+
+	// Waiting tasks have no running process: mark them stopped and remove them
+	// from the queue so the queue loop does not later pick them up and run them
+	// (run() only converts the "stopping" status to "stopped", not a queued task
+	// already set to "stopped").
+	for _, t := range p.state.QueueRange() {
+		if !belongsToRun(t) || t.Task.Status != task_logger.TaskWaitingStatus {
+			continue
+		}
+		t.SetStatus(task_logger.TaskStoppedStatus)
+		p.state.DequeueByID(t.Task.ID)
+		stoppedTasks[t.Task.ID] = struct{}{}
+	}
+
+	// Running tasks need a per-task stop (kill + status transition).
+	for _, t := range p.state.RunningRange() {
+		if !belongsToRun(t) {
+			continue
+		}
+		p.stopTaskRunner(t, forceStop)
+		stoppedTasks[t.Task.ID] = struct{}{}
+	}
+
+	// Unfinished tasks in the DB that are neither queued nor running locally
+	// (e.g. HA mode, or a remote task dispatched on another node).
+	tasks, err := p.store.GetProjectTasks(projectID, db.RetrieveQueryParams{
+		TaskFilter: &db.TaskFilter{
+			Status: task_logger.UnfinishedTaskStatuses(),
+		},
+	})
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	for _, twt := range tasks {
+		if twt.WorkflowRunID == nil || *twt.WorkflowRunID != runID {
+			continue
+		}
+		if _, ok := stoppedTasks[twt.ID]; ok {
+			continue
+		}
+
+		tsk, taskErr := p.GetTask(twt.ID)
+		if taskErr != nil {
+			log.WithError(taskErr).WithFields(log.Fields{
+				"task_id": twt.ID,
+				"context": "task_pool",
+			}).Warn("can't get task")
+			continue
+		}
+
+		if tsk == nil {
+			tsk = NewTaskRunner(twt.Task, p, "", p.keyInstallationService)
+			if trErr := tsk.populateDetails(); trErr != nil {
+				log.Error(trErr)
+				continue
+			}
+		}
+
+		tsk.SetStatus(task_logger.TaskStoppedStatus)
+
+		// A remote task has no goroutine on this node that would run finishRun,
+		// so finalize it here to release the shared pool state; a local task is
+		// already done from the pool's perspective and only needs its event.
+		if tsk.job != nil && tsk.job.Async() {
+			go p.FinalizeRemoteTask(tsk, nil)
+		} else {
+			tsk.createTaskEvent()
+		}
+	}
+}
+
 // GetQueuedTasks returns a snapshot of tasks currently queued
 func (p *TaskPool) GetQueuedTasks() []*TaskRunner {
 	return p.state.QueueRange()

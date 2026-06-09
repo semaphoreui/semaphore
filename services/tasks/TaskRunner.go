@@ -291,6 +291,18 @@ func (t *TaskRunner) finishRun() {
 	t.saveStatus()
 	t.createTaskEvent()
 	t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
+
+	// Notify the workflow service that this task finished so it can progress the
+	// run (launch downstream nodes, create the next approval, or finalize the
+	// run). This is the single completion point shared by the local (deferred
+	// run()) and remote (FinalizeRemoteTask) paths and fires for every terminal
+	// status — success and failure drive different edges, so progression must
+	// not be limited to success or to tasks that have autorun children. It is a
+	// no-op for non-workflow tasks. Done after the EventTypeFinished event so the
+	// finished task's pool slot is released before any downstream node is queued.
+	if err := t.pool.HandleWorkflowTaskCompletion(t.Task); err != nil {
+		t.Log("Workflow progression failed: " + err.Error())
+	}
 }
 
 // startAutorunTasks queues the autorun child templates of a successfully
@@ -326,13 +338,6 @@ func (t *TaskRunner) startAutorunTasks() {
 		if err != nil {
 			t.Log("Running app failed: " + err.Error())
 			continue
-		}
-
-		if t.Task.Status.IsFinished() {
-			err = t.pool.HandleWorkflowTaskCompletion(t.Task)
-			if err != nil {
-				t.Log("Workflow progression failed: " + err.Error())
-			}
 		}
 	}
 }

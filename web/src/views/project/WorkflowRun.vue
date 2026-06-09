@@ -23,6 +23,19 @@
         class="mr-3"
       >{{ details.run.status }}</v-chip>
 
+      <v-btn
+        v-if="canStopRun"
+        color="error"
+        small
+        outlined
+        class="mr-3"
+        :loading="stopping"
+        @click="stopRun()"
+      >
+        <v-icon left small>mdi-stop</v-icon>
+        {{ $t('stop') }}
+      </v-btn>
+
       <v-btn icon :title="$t('workflowToolbarZoomOut')" @click="zoomOut()">
         <v-icon>mdi-magnify-minus-outline</v-icon>
       </v-btn>
@@ -106,7 +119,7 @@
 .WorkflowRun {
 
   &__body {
-    height: calc(100vh - 64px);
+    height: calc(100vh - 65px);
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
@@ -165,6 +178,7 @@ export default {
       workflow: null,
       templates: [],
       pollHandle: null,
+      stopping: false,
       USER_PERMISSIONS,
     };
   },
@@ -177,6 +191,14 @@ export default {
     },
     canResolveApprovals() {
       return this.can(USER_PERMISSIONS.runProjectTasks);
+    },
+    // A run can be stopped while it is still in progress (executing tasks or
+    // blocked on an approval) and the user may run project tasks.
+    canStopRun() {
+      if (!this.details) return false;
+      const status = this.details.run.status;
+      return (status === 'running' || status === 'approval')
+        && this.can(USER_PERMISSIONS.runProjectTasks);
     },
     hasRemoteRunnerNodes() {
       if (!this.details) return false;
@@ -253,6 +275,22 @@ export default {
     },
     zoomReset() {
       if (this.$refs.graph) this.$refs.graph.zoomReset();
+    },
+    async stopRun() {
+      this.stopping = true;
+      try {
+        await axios.post(
+          `/api/project/${this.projectId}/workflows/${this.workflowId}/runs/${this.runId}/stop`,
+        );
+        await this.loadData();
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      } finally {
+        this.stopping = false;
+      }
     },
     async resolveApproval(nodeId, status) {
       try {
