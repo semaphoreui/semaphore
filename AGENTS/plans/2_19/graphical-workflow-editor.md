@@ -37,12 +37,26 @@ Status: implemented (initial cut). Built with Drawflow (decision D4).
   are finalized — so every task reaches a terminal state at once instead of
   lingering in `stopping`/`waiting`), rejects every still-pending approval of
   the run (attributed to the stopping user), then marks the run `stopped` with
-  an end time. The runner is hardened so a terminal run is never
+  an end time. The runner is hardened so a stopped run is never
   revived: `progressWorkflowRunLocked` returns early when
-  `run.Status.IsFinished()`, so the stopped tasks are not later re-read as a
-  failure and the run stays `stopped` across polls. The run view shows a **Stop**
+  `run.Status == WorkflowRunStopped`, so the stopped tasks are not later re-read
+  as a failure and the run stays `stopped` across polls. (Only `stopped` is
+  guarded — re-progressing `success`/`failed` runs stays allowed and is
+  idempotent, so it must not be blocked.) The run view shows a **Stop**
   button while the run is `running`/`approval` (`WorkflowRun.vue`), and the
   status chip renders `stopped` in the error color.
+- **Run progression is server-driven on task completion.** When any workflow
+  task finishes, `TaskRunner.finishRun` calls `HandleWorkflowTaskCompletion`,
+  which progresses the run (launch downstream nodes, create the next approval,
+  finalize). This fires from the single completion point shared by the local and
+  remote (`FinalizeRemoteTask`) paths and for **every** terminal status —
+  success and failure drive different edges, so it must not be gated on success
+  or on a task having autorun children. (It was previously buried inside the
+  success-only autorun-children loop in `startAutorunTasks`, so a workflow task
+  with no autorun children never advanced the run — an approval node after it
+  was never created and the run looked "done" — unless the run-view poll
+  (`GetWorkflowRun` → `ProgressWorkflowRun`) happened to be open. That poll
+  remains as a backstop.)
 - **Run versioning** (mirrors build templates). `WorkflowTemplate.StartVersion`
   (column `start_version`) seeds versioning; each `WorkflowRun.Version` (column
   `version`) is derived from it and the latest prior run via the shared
