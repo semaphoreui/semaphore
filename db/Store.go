@@ -324,6 +324,15 @@ type EnvironmentManager interface {
 	GetEnvironmentSecrets(projectID int, environmentID int) ([]AccessKey, error)
 }
 
+// NotificationManager handles notification-related operations
+type NotificationManager interface {
+	GetNotifications(projectID int, params RetrieveQueryParams) ([]Notification, error)
+	GetNotification(projectID int, notificationID int) (Notification, error)
+	CreateNotification(notification Notification) (Notification, error)
+	UpdateNotification(notification Notification) error
+	DeleteNotification(projectID int, notificationID int) error
+}
+
 type GetAccessKeyOptions struct {
 	Owner           AccessKeyOwner
 	IgnoreOwner     bool
@@ -530,6 +539,7 @@ type Store interface {
 	InventoryManager
 	RepositoryManager
 	EnvironmentManager
+	NotificationManager
 	AccessKeyManager
 	IntegrationManager
 	SessionManager
