@@ -20,6 +20,10 @@ type WorkflowNodeKind string
 const (
 	WorkflowNodeTaskKind     WorkflowNodeKind = "task"
 	WorkflowNodeApprovalKind WorkflowNodeKind = "approval"
+	// WorkflowNodeNoteKind is a pure annotation node: it holds free-form text,
+	// does not execute, and is excluded from the run graph (no edges, never a
+	// root, ignored by the runner).
+	WorkflowNodeNoteKind WorkflowNodeKind = "note"
 )
 
 type WorkflowConvergenceMode string
@@ -54,6 +58,10 @@ type WorkflowNode struct {
 	InventoryID   *int             `db:"inventory_id" json:"inventory_id,omitempty" backup:"inventory_id"`
 	EnvironmentID *int             `db:"environment_id" json:"environment_id,omitempty" backup:"environment_id"`
 	Limit         StringArrayField `db:"limit" json:"limit,omitempty" backup:"limit"`
+
+	// Note holds the free-form text of a "note" node. It is only valid on note
+	// nodes and is ignored during execution.
+	Note *string `db:"note" json:"note,omitempty" backup:"note"`
 
 	// PositionX/PositionY are the node's coordinates on the graphical editor
 	// canvas. They are pure layout metadata and do not participate in validation
@@ -134,7 +142,7 @@ func (condition WorkflowEdgeCondition) Validate() error {
 
 func (kind WorkflowNodeKind) Validate() error {
 	switch kind {
-	case WorkflowNodeTaskKind, WorkflowNodeApprovalKind:
+	case WorkflowNodeTaskKind, WorkflowNodeApprovalKind, WorkflowNodeNoteKind:
 		return nil
 	default:
 		return NewValidationError("workflow node kind is invalid")
@@ -210,12 +218,20 @@ func ValidateWorkflowTemplate(d Store, workflow WorkflowTemplate) error {
 			return err
 		}
 
-		if kind == WorkflowNodeTaskKind {
+		hasTaskFields := node.TemplateID != 0 || node.InventoryID != nil ||
+			node.EnvironmentID != nil || (node.Limit != nil && len(node.Limit) > 0)
+		hasApprovalFields := node.ApprovalTimeout != nil || node.ApprovalMessage != nil
+
+		switch kind {
+		case WorkflowNodeTaskKind:
 			if node.TemplateID == 0 {
 				return NewValidationError("workflow task node requires template_id")
 			}
-			if node.ApprovalTimeout != nil || node.ApprovalMessage != nil {
+			if hasApprovalFields {
 				return NewValidationError("workflow task node can not contain approval fields")
+			}
+			if node.Note != nil {
+				return NewValidationError("only note nodes can contain note text")
 			}
 
 			tpl, err := d.GetTemplate(workflow.ProjectID, node.TemplateID)
@@ -225,12 +241,22 @@ func ValidateWorkflowTemplate(d Store, workflow WorkflowTemplate) error {
 			if tpl.ProjectID != workflow.ProjectID {
 				return NewValidationError("workflow node template must belong to workflow project")
 			}
-		} else {
-			if node.TemplateID != 0 || node.InventoryID != nil || node.EnvironmentID != nil || (node.Limit != nil && len(node.Limit) > 0) {
+		case WorkflowNodeApprovalKind:
+			if hasTaskFields {
 				return NewValidationError("workflow approval node can not contain task node fields")
 			}
 			if node.ApprovalTimeout != nil && *node.ApprovalTimeout <= 0 {
 				return NewValidationError("workflow approval timeout must be greater than zero")
+			}
+			if node.Note != nil {
+				return NewValidationError("only note nodes can contain note text")
+			}
+		case WorkflowNodeNoteKind:
+			if hasTaskFields {
+				return NewValidationError("workflow note node can not contain task node fields")
+			}
+			if hasApprovalFields {
+				return NewValidationError("workflow note node can not contain approval fields")
 			}
 		}
 
@@ -253,6 +279,10 @@ func ValidateWorkflowTemplate(d Store, workflow WorkflowTemplate) error {
 		if _, ok := nodeByID[edge.DestinationNodeID]; !ok {
 			return NewValidationError("workflow edge destination node does not belong to workflow")
 		}
+		if nodeByID[edge.SourceNodeID].EffectiveKind() == WorkflowNodeNoteKind ||
+			nodeByID[edge.DestinationNodeID].EffectiveKind() == WorkflowNodeNoteKind {
+			return NewValidationError("workflow note node can not be connected by edges")
+		}
 		if err := edge.Condition.Validate(); err != nil {
 			return err
 		}
@@ -261,8 +291,13 @@ func ValidateWorkflowTemplate(d Store, workflow WorkflowTemplate) error {
 		adjacency[edge.SourceNodeID] = append(adjacency[edge.SourceNodeID], edge.DestinationNodeID)
 	}
 
+	// Note nodes are pure annotations: they never execute and are excluded from
+	// the run graph, so they do not count toward the single-root requirement.
 	roots := 0
-	for id := range nodeByID {
+	for id, node := range nodeByID {
+		if node.EffectiveKind() == WorkflowNodeNoteKind {
+			continue
+		}
 		if incomingCount[id] == 0 {
 			roots++
 		}
@@ -299,7 +334,10 @@ func ValidateWorkflowTemplate(d Store, workflow WorkflowTemplate) error {
 		return false
 	}
 
-	for id := range nodeByID {
+	for id, node := range nodeByID {
+		if node.EffectiveKind() == WorkflowNodeNoteKind {
+			continue
+		}
 		if visit(id) {
 			return NewValidationError("workflow graph must be a DAG")
 		}
@@ -318,6 +356,9 @@ func WorkflowRootNode(workflow WorkflowTemplate) (WorkflowNode, error) {
 	var root *WorkflowNode
 	for i := range workflow.Nodes {
 		node := &workflow.Nodes[i]
+		if node.EffectiveKind() == WorkflowNodeNoteKind {
+			continue
+		}
 		if incoming[node.ID] == 0 {
 			if root != nil {
 				return WorkflowNode{}, fmt.Errorf("workflow has multiple root nodes")

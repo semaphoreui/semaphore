@@ -68,6 +68,68 @@ func TestValidateWorkflowTemplateIgnoresNodePositions(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestValidateWorkflowTemplateNoteNode(t *testing.T) {
+	store, projectID, tplA, tplB, _, _ := setupWorkflowValidationFixtures(t)
+	note := "remember to bump the version"
+
+	// A note node alongside a normal graph is valid: it is a standalone
+	// annotation and does not count as a second root.
+	err := db.ValidateWorkflowTemplate(store, db.WorkflowTemplate{
+		ProjectID: projectID,
+		Name:      "wf",
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: tplA},
+			{ID: 2, TemplateID: tplB},
+			{ID: 3, Kind: db.WorkflowNodeNoteKind, Note: &note},
+		},
+		Edges: []db.WorkflowEdge{
+			{SourceNodeID: 1, DestinationNodeID: 2, Condition: db.WorkflowEdgeOnSuccess},
+		},
+	})
+	require.NoError(t, err)
+
+	// A workflow consisting only of note nodes has no root and is invalid.
+	err = db.ValidateWorkflowTemplate(store, db.WorkflowTemplate{
+		ProjectID: projectID,
+		Name:      "wf",
+		Nodes:     []db.WorkflowNode{{ID: 1, Kind: db.WorkflowNodeNoteKind, Note: &note}},
+	})
+	require.Error(t, err)
+
+	// Note nodes can not be connected by edges.
+	err = db.ValidateWorkflowTemplate(store, db.WorkflowTemplate{
+		ProjectID: projectID,
+		Name:      "wf",
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: tplA},
+			{ID: 2, Kind: db.WorkflowNodeNoteKind, Note: &note},
+		},
+		Edges: []db.WorkflowEdge{
+			{SourceNodeID: 1, DestinationNodeID: 2, Condition: db.WorkflowEdgeOnSuccess},
+		},
+	})
+	require.Error(t, err)
+
+	// A note node can not carry task fields.
+	err = db.ValidateWorkflowTemplate(store, db.WorkflowTemplate{
+		ProjectID: projectID,
+		Name:      "wf",
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: tplA},
+			{ID: 2, Kind: db.WorkflowNodeNoteKind, TemplateID: tplB},
+		},
+	})
+	require.Error(t, err)
+
+	// A task node can not carry note text.
+	err = db.ValidateWorkflowTemplate(store, db.WorkflowTemplate{
+		ProjectID: projectID,
+		Name:      "wf",
+		Nodes:     []db.WorkflowNode{{ID: 1, TemplateID: tplA, Note: &note}},
+	})
+	require.Error(t, err)
+}
+
 func TestValidateWorkflowTemplateRejectsCycle(t *testing.T) {
 	store, projectID, tplA, tplB, _, _ := setupWorkflowValidationFixtures(t)
 

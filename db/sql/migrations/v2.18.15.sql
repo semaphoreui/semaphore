@@ -19,6 +19,7 @@ create table `project__workflow_node` (
   `convergence_mode` varchar(30) not null default 'all',
   `approval_timeout` int null,
   `approval_message` text null,
+  `note` text null,
   `limit` text null,
   `position_x` int not null default 0,
   `position_y` int not null default 0,

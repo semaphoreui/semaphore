@@ -71,6 +71,13 @@
           >
             <v-icon small left>mdi-account-check</v-icon>{{ $t('workflowPaletteApprovalNode') }}
           </div>
+          <div
+            class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--note"
+            draggable="true"
+            @dragstart="onDragStart($event, 'note')"
+          >
+            <v-icon small left>mdi-note-text-outline</v-icon>{{ $t('workflowPaletteNoteNode') }}
+          </div>
         </div>
 
         <v-divider />
@@ -119,6 +126,21 @@
             </v-btn>
           </div>
 
+          <v-textarea
+            v-if="editingNode.kind === 'note'"
+            v-model="editingNode.note"
+            :label="$t('workflowNoteText')"
+            :placeholder="$t('workflowNotePlaceholder')"
+            :disabled="!canManage"
+            outlined
+            dense
+            auto-grow
+            rows="4"
+            hide-details="auto"
+            @input="applyNodeEdit"
+          />
+
+          <template v-if="editingNode.kind !== 'note'">
           <v-select
             v-model="editingNode.kind"
             :items="kindOptions"
@@ -194,6 +216,7 @@
               hide-details="auto"
               @change="applyNodeEdit"
             />
+          </template>
           </template>
         </div>
 
@@ -303,11 +326,13 @@ export default {
       edges.forEach((e) => {
         incoming[e.destination_node_id] = (incoming[e.destination_node_id] || 0) + 1;
       });
-      const roots = nodes.filter((n) => !incoming[n.id]).length;
+      // Note nodes are annotations: excluded from the run graph (root count) and
+      // from the task-completeness check.
+      const roots = nodes.filter((n) => n.kind !== 'note' && !incoming[n.id]).length;
       if (roots === 0) out.push(this.$t('workflowErrorNoRoot'));
       else if (roots > 1) out.push(this.$t('workflowErrorMultipleRoots', { count: roots }));
 
-      const incompleteTask = nodes.some((n) => (n.kind || 'task') !== 'approval' && !n.template_id);
+      const incompleteTask = nodes.some((n) => (n.kind || 'task') === 'task' && !n.template_id);
       if (incompleteTask) out.push(this.$t('workflowErrorTaskNeedsTemplate'));
 
       const badTimeout = nodes.some(
@@ -623,6 +648,9 @@ export default {
     }
     &--approval {
       border-left: 3px solid #ab47bc;
+    }
+    &--note {
+      border-left: 3px solid #e6d873;
     }
   }
 }

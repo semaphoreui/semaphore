@@ -171,6 +171,51 @@ func TestWorkflowNodePositionsRoundTrip(t *testing.T) {
 	assert.Equal(t, 300, updated.Nodes[1].PositionY)
 }
 
+// TestWorkflowNoteNodeRoundTrip verifies that a note node's kind and text are
+// persisted and read back.
+func TestWorkflowNoteNodeRoundTrip(t *testing.T) {
+	store := CreateTestStore()
+
+	project, err := store.CreateProject(db.Project{Name: "proj"})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &project.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: project.ID,
+		Name:      "repo",
+		GitURL:    "https://example.com/repo.git",
+		GitBranch: "main",
+		SSHKeyID:  key.ID,
+	})
+	require.NoError(t, err)
+	tpl, err := store.CreateTemplate(db.Template{ProjectID: project.ID, RepositoryID: repo.ID, Name: "A", Playbook: "a.yml"})
+	require.NoError(t, err)
+
+	note := "deploy checklist"
+	workflow, err := store.CreateWorkflowTemplate(db.WorkflowTemplate{
+		ProjectID: project.ID,
+		Name:      "wf",
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: tpl.ID, PositionX: 40, PositionY: 40},
+			{ID: 2, Kind: db.WorkflowNodeNoteKind, Note: &note, PositionX: 300, PositionY: 80},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, workflow.Nodes, 2)
+
+	var noteNode db.WorkflowNode
+	for _, n := range workflow.Nodes {
+		if n.EffectiveKind() == db.WorkflowNodeNoteKind {
+			noteNode = n
+		}
+	}
+	require.Equal(t, db.WorkflowNodeNoteKind, noteNode.EffectiveKind())
+	require.NotNil(t, noteNode.Note)
+	assert.Equal(t, note, *noteNode.Note)
+	assert.Equal(t, 300, noteNode.PositionX)
+}
+
 func TestWorkflowApprovalCRUD(t *testing.T) {
 	store := CreateTestStore()
 

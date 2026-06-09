@@ -18,6 +18,12 @@ Status: implemented (initial cut). Built with Drawflow (decision D4).
   node property panel, edge condition selector, live self-edge/cycle guards,
   a problems panel mirroring `ValidateWorkflowTemplate`, and topological
   auto-layout for legacy (position-less) workflows.
+- **Node kinds.** `task` (runs a template), `approval` (gates the run), and
+  `note` — a pure annotation that holds free-form text (`WorkflowNode.Note`,
+  column `note`). Note nodes do not execute and are excluded from the run graph:
+  they have no canvas ports, can not be connected by edges, never count as a
+  root, and are skipped by `ValidateWorkflowTemplate`, `WorkflowRootNode`, and
+  the `WorkflowService` runner.
 - **Full-screen run view** `web/src/views/project/WorkflowRun.vue` — the node/edge
   table and the artifact cards were removed; the page is now a full-viewport
   (`100vh`) graph. The currently-active node is highlighted with a Concourse-style

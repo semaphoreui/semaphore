@@ -120,10 +120,12 @@ export default {
           const pos = layout
             ? layout[node.id]
             : { x: node.position_x || 0, y: node.position_y || 0 };
+          // Note nodes have no ports so they can not be connected on the canvas.
+          const ports = node.kind === 'note' ? 0 : 1;
           const dfId = this.editor.addNode(
             `wf-${node.id}`,
-            1,
-            1,
+            ports,
+            ports,
             pos.x,
             pos.y,
             this.nodeClass(node),
@@ -188,17 +190,21 @@ export default {
 
     addNode(kind, posX, posY) {
       const nodeId = this.nextNodeId();
-      const node = {
-        id: nodeId,
-        kind,
-        convergence_mode: 'all',
-        template_id: kind === 'approval' ? null : null,
-        limit: [],
-      };
+      const node = kind === 'note'
+        ? { id: nodeId, kind, note: '' }
+        : {
+          id: nodeId,
+          kind,
+          convergence_mode: 'all',
+          template_id: null,
+          limit: [],
+        };
+      // Note nodes have no ports so they can not be connected on the canvas.
+      const ports = kind === 'note' ? 0 : 1;
       this.editor.addNode(
         `wf-${nodeId}`,
-        1,
-        1,
+        ports,
+        ports,
         posX,
         posY,
         this.nodeClass(node),
@@ -238,7 +244,16 @@ export default {
 
     zoomIn() { this.editor.zoom_in(); },
     zoomOut() { this.editor.zoom_out(); },
-    zoomReset() { this.editor.zoom_reset(); },
+    // Reset both zoom AND pan. Drawflow's zoom_reset() only restores zoom=1 and
+    // keeps the canvas translation, so zero canvas_x/canvas_y as well.
+    zoomReset() {
+      if (!this.editor) return;
+      this.editor.canvas_x = 0;
+      this.editor.canvas_y = 0;
+      this.editor.zoom = 1;
+      this.editor.zoom_last_value = 1;
+      this.editor.zoom_refresh();
+    },
 
     // ---- Drawflow event handlers ---------------------------------------------
 
@@ -389,6 +404,19 @@ export default {
 
     nodeHtml(node) {
       const kind = node.kind || 'task';
+
+      if (kind === 'note') {
+        const text = node.note ? this.escape(node.note) : this.escape(this.$t('workflowNotePlaceholder'));
+        const empty = node.note ? '' : ' WorkflowGraph__noteText--empty';
+        return `
+          <div class="WorkflowGraph__node WorkflowGraph__node--note">
+            <div class="WorkflowGraph__noteHeader">
+              <i class="mdi mdi-note-text-outline"></i>
+            </div>
+            <div class="WorkflowGraph__noteText${empty}">${text}</div>
+          </div>`;
+      }
+
       const isApproval = kind === 'approval';
       const icon = isApproval ? 'mdi-account-check' : 'mdi-cog';
       const title = isApproval
@@ -548,6 +576,30 @@ export default {
 
   .drawflow-node.WorkflowGraph__nodeWrap--approval { border-left: 3px solid #ab47bc; }
   .drawflow-node.WorkflowGraph__nodeWrap--task { border-left: 3px solid #2196f3; }
+
+  // Note node — sticky-note look, no execution status.
+  .drawflow-node.WorkflowGraph__nodeWrap--note {
+    background: #fff8c4;
+    border-color: #e6d873;
+    color: #5b5320;
+  }
+
+  &__noteHeader {
+    font-size: 12px;
+    opacity: 0.6;
+  }
+
+  &__noteText {
+    margin-top: 2px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+
+    &--empty {
+      font-style: italic;
+      opacity: 0.6;
+    }
+  }
   .drawflow-node.WorkflowGraph__nodeWrap--status-success { border-color: #4caf50; }
   .drawflow-node.WorkflowGraph__nodeWrap--status-failed,
   .drawflow-node.WorkflowGraph__nodeWrap--status-error,
