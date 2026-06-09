@@ -1,5 +1,5 @@
 <template>
-  <div class="WorkflowRun">
+  <div>
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>
@@ -103,11 +103,9 @@
 
 <style lang="scss">
 .WorkflowRun {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
 
   &__body {
+    height: calc(100vh - 64px);
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
