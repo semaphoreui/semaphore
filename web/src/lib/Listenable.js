@@ -26,6 +26,7 @@ export default class Listenable {
   }
 
   hasListeners() {
-    return Object.keys(this.listeners).length > 0;
+    // Listener ids are symbols, which Object.keys() does not return.
+    return Object.getOwnPropertySymbols(this.listeners).length > 0;
   }
 }
