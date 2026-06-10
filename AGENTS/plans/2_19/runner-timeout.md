@@ -13,10 +13,18 @@ non-finished state when its runner disappears. Two operator-visible scenarios:
   (`JobPool.runningJobs` is empty after a restart). It no longer reports the
   task it was executing and never will. The task stays `running` forever.
 
-In both cases the work did **not** complete, so the task must be failed with a
-clear message, its `End` set, and the usual finalization (finish webhook,
-autorun children, state/Redis cleanup) run — exactly as if the task had
-errored.
+In both cases the work did **not** complete. The required behavior depends on
+how far the task got:
+
+- A `starting` task never began executing on the runner — it is safe to
+  **reassign** it to another (healthy) runner as soon as the original runner
+  is considered offline.
+- A `running` task may still be executing on a temporarily-unreachable runner
+  — offline does **not** mean the job stopped. It gets a **recovery window**:
+  if the runner comes back within the window it keeps reporting and the task
+  continues; only after the window expires is the task failed with a clear
+  message, its `End` set, and the usual finalization (finish webhook, autorun
+  children, state/Redis cleanup) run — exactly as if the task had errored.
 
 ## Why this happens today
 
@@ -46,8 +54,9 @@ Crucially, the two unfinished statuses behave differently on a **restart**:
 
 - `starting` — the `GetRunner` handler still returns the task in `NewJobs`
   (`runners.go:146-158` keys `NewJobs` on `waiting`/`starting`), so a restarted
-  runner re-pulls and re-runs it. This case largely self-heals (but can still
-  hang if the runner never returns — covered by the liveness timeout below).
+  runner re-pulls and re-runs it. This case self-heals on a *restart*; when
+  the runner goes *offline* instead, the task hangs — fixed below by
+  **reassigning** it to another runner.
 - `running` — the handler returns it only in `CurrentJobs`
   (`runners.go:229-234`), which the runner uses for monitoring, not execution.
   A restarted runner never re-runs it. **This is the core hang to fix**, and
@@ -58,48 +67,72 @@ Crucially, the two unfinished statuses behave differently on a **restart**:
 
 In scope:
 
-- A server-side **runner-task reconciler** that fails non-finished tasks whose
-  assigned runner is dead (stale heartbeat) or has restarted since the task
-  started.
+- An **offline runner state**, derived from heartbeat staleness (default
+  threshold **2 min**). Offline runners receive **no new tasks**, and their
+  `starting` tasks are **reassigned** to another runner. Offline does *not*
+  imply the runner's running jobs stopped — it may come back and continue.
+- A server-side **runner-task reconciler** that (a) reassigns `starting`
+  tasks off offline runners, and (b) fails `running` tasks whose runner has
+  been silent past the recovery window (default **7 min**) or has restarted
+  since the task started.
 - A **runner liveness signal** strong enough to distinguish "alive",
-  "dead/silent", and "restarted" — heartbeat staleness plus a per-process
+  "offline/silent", and "restarted" — heartbeat staleness plus a per-process
   generation marker.
+- A **simplified runner selection**: replace `RemoteJob.Run`'s two-pass
+  prefer-active/fall-back-to-stale logic with a single pass over online
+  runners. Offline runners are excluded from selection outright — no
+  fallback.
 - Wiring the reconciler into both the single-node task pool and the HA orphan
   cleaner, funnelling every failure through one idempotent helper.
-- A configuration knob for the death threshold, with a safe default.
+- Configuration knobs for both thresholds, with safe defaults.
 
 Out of scope:
 
-- Resuming or retrying a task on another runner. We fail; retry policy is a
-  separate decision.
+- Resuming or retrying a **`running`** task on another runner — a
+  partially-run job must not silently restart; we fail it. (Reassigning
+  `starting` tasks *is* in scope — they never began executing.)
 - Killing the actual remote process (a dead/restarted runner has none to
   kill).
-- Changing how runners are *selected* for dispatch (`RemoteJob.Run` two-pass
-  logic stays as is).
 - The cosmetic runner Version/Platform/Uptime UI work — tracked in
   `runner-version-platform-uptime.md`. This plan *reuses* the `started_at`
   field proposed there (see "Dependency" below).
 
 ## Design Summary
 
+Two thresholds with distinct semantics, both derived from `runner.touched`:
+
+- **Offline** — `now - touched > RunnerOfflineTimeoutSec` (default **2 min**).
+  The runner stops receiving new tasks (excluded from dispatch selection) and
+  its `starting` tasks are reassigned to another runner. Offline does **not**
+  mean its running jobs stopped — the runner may still be executing them and
+  may come back.
+- **Lost** — `now - touched > RunnerTaskFailTimeoutSec` (default **7 min**).
+  The runner is presumed dead; its `running` tasks are failed. If the runner
+  returns *within* the window, it still has its in-memory job pool (it didn't
+  restart, just lost connectivity), resumes reporting, and the tasks simply
+  continue — nothing is failed.
+
 Three layers, each independently valuable, sharing one failure path:
 
-1. **Heartbeat-staleness death detection (handles "fell off").** Each runner
+1. **Heartbeat-staleness detection (handles "fell off").** Each runner
    already updates `runner.touched` on every `GetRunner` poll
    (`api/runners/runners.go:117`). A reconciler periodically scans every
-   non-finished task with a `RunnerID` and loads its runner. If
-   `now - runner.touched > RunnerDeadTimeoutSec`, the runner is presumed dead
-   and the task is failed.
+   non-finished task with a `RunnerID` and loads its runner, then applies the
+   two thresholds above: past **offline** ⇒ reassign the task if `starting`;
+   past **lost** ⇒ fail the task if `running`.
 
 2. **Generation-based restart detection (handles "restarted").** The runner
    reports a marker that changes on every process start — its `started_at`
    timestamp (reused from `runner-version-platform-uptime.md`) or, if that
    field is not present, a per-process random `session_id`. The server stores
-   the current marker on the runner row. The reconciler fails any non-finished
+   the current marker on the runner row. The reconciler fails any `running`
    task whose owning runner's current generation is **newer** than the task's
    start: `runner.started_at > task.Start` ⇒ the runner booted after the task
-   began ⇒ it cannot still be running it ⇒ fail. This catches the restart case
-   even though `touched` is fresh.
+   began ⇒ it cannot still be running it ⇒ fail **immediately** (no 7-minute
+   wait — the job pool is provably gone, there is nothing to wait for). This
+   catches the restart case even though `touched` is fresh. `starting` tasks
+   are exempt: a restarted runner re-pulls them from `NewJobs` and they
+   self-heal.
 
 3. **Reported-jobs reconciliation (defense in depth, optional).** Treat an
    actively-polling runner's reported job set as authoritative. Remove the
@@ -114,7 +147,19 @@ Recommended: ship **layers 1 + 2** as the core fix (they fully cover both
 scenarios and are simple to reason about); treat **layer 3** as a follow-up
 reinforcement.
 
-All three converge on a single idempotent helper, `failTaskRunnerLost`, that:
+Two outcomes, two helpers:
+
+**Reassignment** (`starting` on an offline runner) goes through
+`requeueTaskRunnerOffline`, which:
+- re-loads the task and returns if it is no longer `starting` (the runner may
+  have just picked it up and reported `running`),
+- clears `task.RunnerID` and resets `Status` to the queued state, so the
+  normal dispatch loop selects another (healthy) runner,
+- relies on the existing per-job ownership check in `UpdateRunner`
+  (`runners.go:312-315`) to reject any late progress from the old runner.
+
+**Failure** (everything else) converges on a single idempotent helper,
+`failTaskRunnerLost`, that:
 - re-loads the task and returns immediately if `Status.IsFinished()` (guards
   the race where a real terminal status arrives concurrently),
 - logs a clear line (`"Runner #X lost: marking task failed"`),
@@ -160,8 +205,9 @@ All three converge on a single idempotent helper, `failTaskRunnerLost`, that:
 
 ### 3. The reconciler core (shared helper)
 
-In `services/tasks/` add a `reconcileRunnerTasks` routine and the
-`failTaskRunnerLost(tsk, runner, reason)` helper described in the Design
+In `services/tasks/` add a `reconcileRunnerTasks` routine plus the
+`failTaskRunnerLost(tsk, runner, reason)` and
+`requeueTaskRunnerOffline(tsk, runner)` helpers described in the Design
 Summary. The reconcile pass:
 
 ```
@@ -169,21 +215,56 @@ for each tsk in pool.GetRunningTasks():               // services/tasks/TaskPool
     if tsk.Task.Status.IsFinished():          continue
     if tsk.Task.RunnerID == nil:              continue  // not dispatched yet
     runner := load(tsk.Task.RunnerID)
-    if runner missing/deleted:                fail("runner no longer exists")
-    // Layer 1 — dead/silent runner
-    if now - runner.Touched > deadTimeout:    fail("runner stopped responding")
-    // Layer 2 — restarted runner
+    if runner missing/deleted:
+        if tsk.Task.Status == starting:       requeue("runner no longer exists")
+        else:                                 fail("runner no longer exists")
+    // Layer 2 — restarted runner: job pool provably gone, no point waiting
     if runner.StartedAt != nil && tsk.Task.Start != nil &&
        runner.StartedAt.After(*tsk.Task.Start):
-                                              fail("runner restarted; task lost")
+        if tsk.Task.Status == running:        fail("runner restarted; task lost")
+        continue                              // starting self-heals via NewJobs
+    silence := now - runner.Touched
+    // Layer 1a — offline runner (2 min): reassign starting tasks
+    if silence > offlineTimeout && tsk.Task.Status == starting:
+                                              requeue("runner offline; reassigning")
+    // Layer 1b — lost runner (7 min): fail running tasks
+    if silence > taskFailTimeout && tsk.Task.Status == running:
+                                              fail("runner stopped responding")
 ```
+
+Note the asymmetry: between 2 and 7 minutes of silence a `running` task is
+deliberately left alone — the runner is offline (gets no new work) but its
+jobs may still be executing; if it reconnects within the window it resumes
+reporting and the task finishes normally.
 
 Apply a **dispatch grace period** before layer 1/2 can fire on a brand-new
 task (e.g. skip tasks whose `Start`/assignment is younger than the grace
 window) so a task dispatched to a runner that is briefly between polls is not
 killed prematurely. Grace ≈ a small multiple of the poll interval.
 
-### 4. Run the reconciler in both deployment modes
+### 4. Rework runner selection: single pass, offline excluded
+
+Replace the two-pass selection in `RemoteJob.Run`
+(`services/tasks/RemoteJob.go:159-176`) — pass 0 "prefer recently-touched
+runners", pass 1 "fall back to stale ones" — with a **single pass**. The
+stale-runner fallback is exactly how a task lands on a dead runner today;
+with an explicit offline state it makes no sense and is removed.
+
+- A runner is a candidate iff it is **online** — `touched` within
+  `RunnerOfflineTimeoutSec` — and has capacity
+  (`GetNumberOfRunningTasksOfRunner(r.ID) < r.MaxParallelTasks` or unlimited).
+  Webhook-driven runners (`r.Webhook != ""`) don't poll, so `touched`
+  staleness doesn't apply — they remain candidates as today.
+- Delete the `runnerActiveThreshold = 30 * time.Minute` constant
+  (`RemoteJob.go:23`); the config knob `RunnerOfflineTimeoutSec` replaces it.
+- If no online runner has capacity, return `ErrAllRunnersBusy` as today — the
+  task stays queued and is retried by the pool, picking up runners that come
+  back online.
+- The offline state is **derived** from `touched` at read time — no new DB
+  column, no state machine to keep in sync. Optionally surface it in the
+  runners API/UI (pairs with the uptime plan's health column).
+
+### 5. Run the reconciler in both deployment modes
 
 - **Single node:** start a background goroutine from `TaskPool` (alongside the
   existing queue loop, `services/tasks/TaskPool.go:212`) ticking every
@@ -197,7 +278,7 @@ killed prematurely. Grace ≈ a small multiple of the poll interval.
   Redis. The cleaner already runs every 60s and already loads each task — this
   is a localized change, not a new loop.
 
-### 5. (Optional, layer 3) Authoritative reported-jobs reconciliation
+### 6. (Optional, layer 3) Authoritative reported-jobs reconciliation
 
 - In `UpdateRunner` (`api/runners/runners.go:271-345`) replace the
   `body.Jobs == nil` early return with logic that still reconciles: for every
@@ -209,24 +290,54 @@ killed prematurely. Grace ≈ a small multiple of the poll interval.
   (it already does — `sendProgress` runs on the request timer regardless),
   and the server to treat "absent from a fresh runner's set" as lost.
 
-### 6. Configuration
+### 7. Configuration
 
-- Add `RunnerDeadTimeoutSec` (default e.g. **60s**) and `ReconcileIntervalSec`
-  (default **30s**) under `RunnerConfig` / top-level config
-  (`util/config.go`), with env vars
-  `SEMAPHORE_RUNNER_DEAD_TIMEOUT_SEC` / `SEMAPHORE_RUNNER_RECONCILE_INTERVAL_SEC`.
-- Constraint: `RunnerDeadTimeoutSec` must be comfortably larger than the runner
-  poll interval (a few multiples) so a healthy-but-slow runner is never killed.
-  Document this. Regenerate `config.schema.yaml` via the config-schema skill.
+These are **server-side** settings describing how the server treats its
+runner fleet. They must **not** live in `RunnerConfig`
+(`util/config.go:120-151`) — that struct configures a runner *process* and
+owns the `SEMAPHORE_RUNNER_*` env prefix. Server-side runner settings use the
+**`SEMAPHORE_RUNNERS_*`** prefix (plural) to avoid collisions between the two
+config surfaces.
 
-### 7. Tests
+- Add a new nested section in `ConfigType` (`util/config.go`), e.g.
+  `RunnersConfig`, json key `runners`:
+  - `OfflineTimeoutSec` — default **120** (2 min). Past this the runner is
+    offline: no new dispatches, its `starting` tasks are reassigned. Env var
+    `SEMAPHORE_RUNNERS_OFFLINE_TIMEOUT_SEC`.
+  - `TaskFailTimeoutSec` — default **420** (7 min). Past this the runner's
+    `running` tasks are failed. Env var
+    `SEMAPHORE_RUNNERS_TASK_FAIL_TIMEOUT_SEC`.
+  - `ReconcileIntervalSec` — default **30**. Env var
+    `SEMAPHORE_RUNNERS_RECONCILE_INTERVAL_SEC`.
+- Elsewhere in this plan these knobs are referred to as
+  `RunnerOfflineTimeoutSec` / `RunnerTaskFailTimeoutSec` for brevity; the
+  actual fields live on the `runners` section as above.
+- Constraints: `OfflineTimeoutSec` must be comfortably larger than the runner
+  poll interval (a few multiples) so a healthy-but-slow runner is never
+  marked offline; `TaskFailTimeoutSec` must be ≥ `OfflineTimeoutSec`
+  (validate at config load). Document both. Regenerate `config.schema.yaml`
+  via the config-schema skill.
+
+### 8. Tests
 
 - Unit-test `failTaskRunnerLost`: idempotent (no double-finalize when called
   twice), no-op on an already-finished task, sets `Status`/`End`/`Message`.
-- Table-driven tests for the reconcile decision: alive runner (no-op), stale
-  `touched` past threshold (fail), `started_at` after `task.Start` (fail),
-  `started_at` before `task.Start` (no-op), task within grace window (no-op),
-  runner deleted (fail), task already finished (no-op).
+- Unit-test `requeueTaskRunnerOffline`: clears `RunnerID`, resets status to
+  queued; no-op if the task is no longer `starting` (runner picked it up
+  concurrently).
+- Table-driven tests for the reconcile decision: alive runner (no-op);
+  `starting` + silence past offline threshold (reassign); `running` + silence
+  between offline and fail thresholds (**no-op** — recovery window);
+  `running` + silence past fail threshold (fail); `started_at` after
+  `task.Start` + `running` (fail immediately); `started_at` after
+  `task.Start` + `starting` (no-op — self-heals); `started_at` before
+  `task.Start` (no-op); task within grace window (no-op); runner deleted
+  (reassign if `starting`, fail if `running`); task already finished (no-op).
+- Dispatch selection (single pass): offline runner excluded; webhook runner
+  remains a candidate regardless of `touched`; online-but-at-capacity runner
+  skipped; all runners offline ⇒ `ErrAllRunnersBusy` (task stays queued, not
+  failed); previously-offline runner becomes selectable again after a fresh
+  poll.
 - Initialize `util.Config` / `util.Config.Runner` in a helper per the project
   test conventions; reset between tests.
 - HA: a focused test of the modified `cleanupRunning` branch covering
@@ -237,18 +348,22 @@ killed prematurely. Grace ≈ a small multiple of the poll interval.
 - Backend-only behavioral change plus one additive runner column
   (`started_at`/`session_id`). No backfill: a runner with a NULL marker simply
   skips layer 2 until it next polls; layer 1 still protects it.
-- Defaults are conservative (60s death threshold) so the change is safe to
-  enable by default. Operators with very long poll intervals can raise it.
+- Defaults are conservative (**2 min** offline threshold, **7 min** recovery
+  window before failing running tasks) so the change is safe to enable by
+  default. Operators with very long poll intervals can raise both.
 - Single-node and HA reconcilers ship together and share the helper.
 
 ## Risks & Notes
 
 | Risk | Mitigation |
 |------|------------|
-| Killing a healthy runner's task during a transient network blip | `RunnerDeadTimeoutSec` is a multiple of the poll interval + a dispatch grace window; a single missed poll never trips it. |
+| Failing a healthy runner's `running` task during a transient network blip | The 7-minute `RunnerTaskFailTimeoutSec` recovery window — many multiples of the poll interval; a runner that reconnects within it resumes reporting and nothing is failed. |
+| Double execution: a `starting` task is reassigned, but the old runner had actually pulled it and starts it too | The window is narrow (`starting` flips to `running` on first progress report). `requeueTaskRunnerOffline` re-checks status before requeuing; clearing `RunnerID` removes the task from the old runner's `NewJobs`; the per-job ownership check in `UpdateRunner` rejects late reports from the old runner. Residual risk is inherent to reassignment and accepted for not-yet-running work. |
+| `running` task on a truly dead runner shows as running for up to 7 min | Accepted trade-off: the runner is offline within 2 min (no new work lands on it); the extra wait is the price of letting a live-but-disconnected runner finish its jobs. Layer 2 shortcuts this to immediate failure when a *restart* is detected. |
 | Race: runner reports completion at the same instant the reconciler fails the task — or two HA nodes detect the lost runner together | `failTaskRunnerLost` re-loads and bails on `IsFinished()`; `FinalizeRemoteTask` then dedups cluster-wide via the state store's `TryFinalize`/`DeleteFinalize` lock (Redis `SETNX` in HA, `sync.Map` in single-node) plus the HA DB re-check, so finalization runs at most once. |
 | Clock skew between runner-reported `started_at` and `task.Start` (server clock) | Compare with a small margin; or use an opaque `session_id` (step 2 fallback) which is skew-immune. |
-| `starting` tasks being failed when they would have self-healed via `NewJobs` on restart | Re-running a `starting` task is acceptable; let layer 1's grace window cover the brief gap, and only fail if the runner is genuinely dead. Failing `running` tasks is the priority. |
+| Reassigned `starting` task loops forever across dying runners | The reassignment goes through the normal queue, so each hop re-selects among *online* runners only; optionally cap reassignment attempts (small counter or rely on `MaxTaskDurationSec`). |
+| Behavior change: tasks that previously fell back to a stale runner now wait in the queue (`ErrAllRunnersBusy`) when every runner is offline | Intended: queued-and-waiting is recoverable, dispatched-to-a-dead-runner is the hang this plan fixes. The task is picked up as soon as any runner polls again. |
 | Layer 3 grace-window subtlety (just-dispatched task not yet reported) | Gate layer 3 on dispatch age; ship it as a follow-up after layers 1+2 are proven. |
 | HA cleaner now writes task failures (previously only re-enqueued/GC'd) | Goes through the same idempotent helper and `removeStaleState`; covered by the new HA test. |
 
@@ -261,8 +376,9 @@ killed prematurely. Grace ≈ a small multiple of the poll interval.
 
 ## Follow-ups (not part of this plan)
 
-- **Retry-on-runner-loss policy:** optionally re-enqueue (rather than fail) a
-  task whose runner died, controlled per-template.
+- **Retry-on-runner-loss policy for `running` tasks:** optionally re-enqueue
+  (rather than fail) a *partially-run* task whose runner died, controlled
+  per-template. (`starting` tasks are already reassigned by this plan.)
 - **Operator visibility:** surface "runner lost" as a distinct task failure
   reason in the UI and in the runners table (pairs with the uptime plan's
   health column).
