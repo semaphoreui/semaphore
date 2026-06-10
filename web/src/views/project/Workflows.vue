@@ -47,7 +47,7 @@
       :expanded.sync="openedItems"
     >
       <template v-slot:item.name="{ item }">
-        <router-link :to="`/project/${projectId}/workflows/${item.id}/edit`">
+        <router-link :to="`/project/${projectId}/workflows/${item.id}`">
           {{ item.name }}
         </router-link>
       </template>
