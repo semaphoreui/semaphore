@@ -12,8 +12,14 @@ import (
 // Workflows feature flag.
 type workflowService struct{}
 
-func NewWorkflowService(workflowRepo db.WorkflowManager, templateReceiver db.WorkflowTemplateValidationStore, enqueuer pro_interfaces.WorkflowTaskEnqueuer) pro_interfaces.WorkflowService {
+func NewWorkflowService(workflowRepo db.WorkflowManager, templateReceiver db.WorkflowTemplateValidationStore, enqueuer pro_interfaces.WorkflowTaskEnqueuer, locker pro_interfaces.WorkflowRunLocker) pro_interfaces.WorkflowService {
 	return &workflowService{}
+}
+
+// NewWorkflowReconciler is the open-source no-op stub: workflows are a Pro
+// feature, so there is nothing to reconcile. Callers must nil-check.
+func NewWorkflowReconciler(_ db.WorkflowManager, _ pro_interfaces.WorkflowService) pro_interfaces.WorkflowReconciler {
+	return nil
 }
 
 func (s *workflowService) StartWorkflow(workflow db.WorkflowTemplate, user *db.User) (db.WorkflowRun, error) {

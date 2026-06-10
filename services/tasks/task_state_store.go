@@ -69,6 +69,20 @@ func taskToRecord(t *TaskRunner) TaskRecord {
 	return rec
 }
 
+// TaskStopBroadcaster is optionally implemented by a TaskStateStore to relay
+// force-stop requests to the node that owns a task (HA). Callers must
+// type-assert, so stores that do not implement it (the in-memory store, where
+// every task is local) are unaffected.
+type TaskStopBroadcaster interface {
+	// BroadcastTaskStop asks every other node to force-stop the task if it
+	// owns it locally (queued or running). Fire-and-forget fast path: the
+	// DB status sweep and the orphan cleaner remain the at-least-once backstops.
+	BroadcastTaskStop(taskID int)
+	// SetTaskStopHandler registers the callback invoked when another node
+	// broadcasts a stop for a task.
+	SetTaskStopHandler(handler func(taskID int))
+}
+
 // TaskRunnerHydrator constructs a TaskRunner for an existing task
 // identified by taskID and projectID without starting it.
 type TaskRunnerHydrator func(taskID int, projectID int) (*TaskRunner, error)

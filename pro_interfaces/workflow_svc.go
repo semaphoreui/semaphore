@@ -29,3 +29,25 @@ type WorkflowTaskEnqueuer interface {
 	// immediately instead of letting them stop gracefully.
 	StopTasksByWorkflowRun(projectID int, runID int, forceStop bool)
 }
+
+// WorkflowRunLocker provides cluster-wide mutual exclusion for workflow run
+// progression. In HA mode every progression trigger (task completion, API
+// poll, reconciler tick) may fire on any node; the locker ensures only one
+// node progresses a given run at a time. The lock is an optimization, not a
+// correctness guarantee — conditional DB updates remain the source of truth.
+type WorkflowRunLocker interface {
+	// TryLockRun acquires the progression lock for a run. Returns ok=false
+	// when another holder owns it; release must be called when ok.
+	TryLockRun(projectID int, runID int) (release func(), ok bool)
+	// TryLockStart acquires a short-lived lock serializing run creation per
+	// workflow template (run version minting). Returns ok=false on contention.
+	TryLockStart(projectID int, templateID int) (release func(), ok bool)
+}
+
+// WorkflowReconciler periodically progresses every non-terminal workflow run
+// so approval timeouts fire and run statuses converge without requiring an
+// open browser or a task completion (and after a node crash mid-progression).
+type WorkflowReconciler interface {
+	Start()
+	Stop()
+}

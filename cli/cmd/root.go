@@ -151,8 +151,10 @@ func runService() {
 	// The workflow service orchestrates workflow runs and launches each node's
 	// task through the pool; the pool calls back into it when a workflow task
 	// finishes. Wire the cycle: pool first, then service (with the pool as its
-	// enqueuer), then inject the service back into the pool.
-	workflowService := proServer.NewWorkflowService(store, store, &taskPool)
+	// enqueuer), then inject the service back into the pool. The run locker is
+	// Redis-backed in HA mode (cluster-wide progression locks) and nil
+	// otherwise, which makes the service fall back to its in-process locker.
+	workflowService := proServer.NewWorkflowService(store, store, &taskPool, proHA.NewWorkflowRunLocker())
 	taskPool.SetWorkflowService(workflowService)
 
 	schedulePool := schedules.CreateSchedulePool(
@@ -206,6 +208,15 @@ func runService() {
 	if orphanCleaner := proHA.NewOrphanCleaner(store); orphanCleaner != nil {
 		orphanCleaner.Start()
 		defer orphanCleaner.Stop()
+	}
+
+	// The workflow reconciler periodically progresses non-terminal runs so
+	// approval timeouts fire and statuses converge without a browser poll or a
+	// task completion. Cluster-safe: each pass takes the per-run lock. Nil in
+	// the open-source build (workflows are Pro-gated).
+	if workflowReconciler := proServer.NewWorkflowReconciler(store, workflowService); workflowReconciler != nil {
+		workflowReconciler.Start()
+		defer workflowReconciler.Stop()
 	}
 
 	util.Config.PrintDbInfo()

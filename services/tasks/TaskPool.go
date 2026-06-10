@@ -206,6 +206,12 @@ func (p *TaskPool) Run() {
 
 	defer ticker.Stop()
 
+	// In HA mode the state store relays cross-node stop requests: when another
+	// node stops a workflow run, tasks owned by this node must be killed here.
+	if broadcaster, ok := p.state.(TaskStopBroadcaster); ok {
+		broadcaster.SetTaskStopHandler(p.stopLocalTask)
+	}
+
 	go p.handleQueue()
 	go p.handleLogs()
 
@@ -623,6 +629,26 @@ func (p *TaskPool) stopTaskRunner(t *TaskRunner, forceStop bool) {
 	}
 }
 
+// stopLocalTask force-stops a task in response to a cross-node stop broadcast
+// (TaskStopBroadcaster). Only tasks this node actually holds are affected:
+// queued waiting tasks are dequeued, running ones go through stopTaskRunner.
+// Tasks not found locally are ignored — the broadcast reaches their owner too.
+func (p *TaskPool) stopLocalTask(taskID int) {
+	for _, t := range p.state.QueueRange() {
+		if t != nil && t.Task.ID == taskID && t.Task.Status == task_logger.TaskWaitingStatus {
+			t.SetStatus(task_logger.TaskStoppedStatus)
+			p.state.DequeueByID(taskID)
+			return
+		}
+	}
+	for _, t := range p.state.RunningRange() {
+		if t != nil && t.Task.ID == taskID && !t.Task.Status.IsFinished() {
+			p.stopTaskRunner(t, true)
+			return
+		}
+	}
+}
+
 func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	tsk, err := p.GetTask(targetTask.ID)
 	if err != nil {
@@ -830,6 +856,13 @@ func (p *TaskPool) StopTasksByWorkflowRun(projectID int, runID int, forceStop bo
 		}
 		if _, ok := stoppedTasks[twt.ID]; ok {
 			continue
+		}
+
+		// A task not handled locally may be queued or running on another HA
+		// node: ask its owner to kill it. Fire-and-forget — the stopped status
+		// persisted below and the orphan cleaner remain the backstops.
+		if broadcaster, ok := p.state.(TaskStopBroadcaster); ok {
+			broadcaster.BroadcastTaskStop(twt.ID)
 		}
 
 		tsk, taskErr := p.GetTask(twt.ID)

@@ -356,3 +356,180 @@ func TestWorkflowApprovalCRUD(t *testing.T) {
 func intPtr(v int) *int { return &v }
 
 func strPtr(v string) *string { return &v }
+
+// createWorkflowRunFixture builds the minimal project/template/workflow/run
+// scaffolding the conditional-update tests need.
+func createWorkflowRunFixture(t *testing.T, store *SqlDb) (db.Project, db.WorkflowTemplate, db.WorkflowRun) {
+	t.Helper()
+
+	project, err := store.CreateProject(db.Project{Name: "proj"})
+	require.NoError(t, err)
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &project.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: project.ID,
+		Name:      "repo",
+		GitURL:    "https://example.com/repo.git",
+		GitBranch: "main",
+		SSHKeyID:  key.ID,
+	})
+	require.NoError(t, err)
+	tpl, err := store.CreateTemplate(db.Template{ProjectID: project.ID, RepositoryID: repo.ID, Name: "A", Playbook: "a.yml"})
+	require.NoError(t, err)
+
+	workflow, err := store.CreateWorkflowTemplate(db.WorkflowTemplate{
+		ProjectID: project.ID,
+		Name:      "wf",
+		Nodes:     []db.WorkflowNode{{ID: 1, TemplateID: tpl.ID}},
+	})
+	require.NoError(t, err)
+
+	run, err := store.CreateWorkflowRun(db.WorkflowRun{
+		ProjectID:          project.ID,
+		WorkflowTemplateID: workflow.ID,
+		Status:             db.WorkflowRunRunning,
+	})
+	require.NoError(t, err)
+
+	return project, workflow, run
+}
+
+func TestUpdateWorkflowRunStatusUnless(t *testing.T) {
+	store := CreateTestStore()
+	project, _, run := createWorkflowRunFixture(t, store)
+
+	// A non-excluded current status is updated.
+	now := time.Now().UTC()
+	run.Status = db.WorkflowRunFailed
+	run.End = &now
+	updated, err := store.UpdateWorkflowRunStatusUnless(run, []db.WorkflowRunStatus{db.WorkflowRunStopped})
+	require.NoError(t, err)
+	assert.True(t, updated)
+
+	reloaded, err := store.GetWorkflowRunByID(project.ID, run.ID)
+	require.NoError(t, err)
+	assert.Equal(t, db.WorkflowRunFailed, reloaded.Status)
+	require.NotNil(t, reloaded.End)
+
+	// Move the run to stopped, then try a stale "running" write excluding
+	// stopped: the fence must hold.
+	reloaded.Status = db.WorkflowRunStopped
+	require.NoError(t, store.UpdateWorkflowRun(reloaded))
+
+	stale := reloaded
+	stale.Status = db.WorkflowRunRunning
+	stale.End = nil
+	updated, err = store.UpdateWorkflowRunStatusUnless(stale, []db.WorkflowRunStatus{db.WorkflowRunStopped})
+	require.NoError(t, err)
+	assert.False(t, updated, "a stopped run must not be revived by a conditional write")
+
+	reloaded, err = store.GetWorkflowRunByID(project.ID, run.ID)
+	require.NoError(t, err)
+	assert.Equal(t, db.WorkflowRunStopped, reloaded.Status)
+}
+
+func TestSetWorkflowRunRootTask(t *testing.T) {
+	store := CreateTestStore()
+	project, workflow, run := createWorkflowRunFixture(t, store)
+
+	task1, err := store.CreateTask(db.Task{ProjectID: project.ID, TemplateID: workflow.Nodes[0].TemplateID}, 0)
+	require.NoError(t, err)
+	task2, err := store.CreateTask(db.Task{ProjectID: project.ID, TemplateID: workflow.Nodes[0].TemplateID}, 0)
+	require.NoError(t, err)
+
+	// First write wins.
+	updated, err := store.SetWorkflowRunRootTask(project.ID, run.ID, task1.ID)
+	require.NoError(t, err)
+	assert.True(t, updated)
+
+	// A second writer must not overwrite the recorded root.
+	updated, err = store.SetWorkflowRunRootTask(project.ID, run.ID, task2.ID)
+	require.NoError(t, err)
+	assert.False(t, updated)
+
+	reloaded, err := store.GetWorkflowRunByID(project.ID, run.ID)
+	require.NoError(t, err)
+	require.NotNil(t, reloaded.RootTaskID)
+	assert.Equal(t, task1.ID, *reloaded.RootTaskID)
+}
+
+func TestResolveWorkflowApprovalIfPending(t *testing.T) {
+	store := CreateTestStore()
+	project, workflow, run := createWorkflowRunFixture(t, store)
+
+	approval, err := store.CreateWorkflowApproval(db.WorkflowApproval{
+		ProjectID:      project.ID,
+		WorkflowRunID:  run.ID,
+		WorkflowNodeID: workflow.Nodes[0].ID,
+		Status:         db.WorkflowApprovalPending,
+		Created:        time.Now().UTC(),
+	})
+	require.NoError(t, err)
+
+	// The first resolution wins.
+	now := time.Now().UTC()
+	approval.Status = db.WorkflowApprovalApproved
+	approval.Resolved = &now
+	resolved, err := store.ResolveWorkflowApprovalIfPending(approval)
+	require.NoError(t, err)
+	assert.True(t, resolved)
+
+	// A concurrent (now stale) rejection loses without overwriting.
+	approval.Status = db.WorkflowApprovalRejected
+	resolved, err = store.ResolveWorkflowApprovalIfPending(approval)
+	require.NoError(t, err)
+	assert.False(t, resolved, "a resolved approval must not be re-resolved")
+
+	reloaded, err := store.GetWorkflowApproval(project.ID, run.ID, workflow.Nodes[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, db.WorkflowApprovalApproved, reloaded.Status)
+}
+
+func TestGetActiveWorkflowRuns(t *testing.T) {
+	store := CreateTestStore()
+	project, workflow, run := createWorkflowRunFixture(t, store)
+
+	statuses := []db.WorkflowRunStatus{
+		db.WorkflowRunApproval,
+		db.WorkflowRunSuccess,
+		db.WorkflowRunFailed,
+		db.WorkflowRunStopped,
+	}
+	for _, status := range statuses {
+		_, err := store.CreateWorkflowRun(db.WorkflowRun{
+			ProjectID:          project.ID,
+			WorkflowTemplateID: workflow.ID,
+			Status:             status,
+		})
+		require.NoError(t, err)
+	}
+
+	active, err := store.GetActiveWorkflowRuns()
+	require.NoError(t, err)
+	require.Len(t, active, 2, "only running and approval runs are active")
+	assert.Equal(t, db.WorkflowRunRunning, active[0].Status)
+	assert.Equal(t, run.ID, active[0].ID)
+	assert.Equal(t, db.WorkflowRunApproval, active[1].Status)
+}
+
+// TestCreateWorkflowApprovalDuplicate documents the unique index on
+// (workflow_run_id, workflow_node_id): a concurrent duplicate insert fails
+// instead of producing two pending approvals for one node.
+func TestCreateWorkflowApprovalDuplicate(t *testing.T) {
+	store := CreateTestStore()
+	project, workflow, run := createWorkflowRunFixture(t, store)
+
+	approval := db.WorkflowApproval{
+		ProjectID:      project.ID,
+		WorkflowRunID:  run.ID,
+		WorkflowNodeID: workflow.Nodes[0].ID,
+		Status:         db.WorkflowApprovalPending,
+		Created:        time.Now().UTC(),
+	}
+
+	_, err := store.CreateWorkflowApproval(approval)
+	require.NoError(t, err)
+
+	_, err = store.CreateWorkflowApproval(approval)
+	assert.Error(t, err, "the (run, node) unique index must reject duplicates")
+}

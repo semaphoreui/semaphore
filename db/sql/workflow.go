@@ -288,6 +288,54 @@ func (d *SqlDb) UpdateWorkflowRun(run db.WorkflowRun) error {
 	return err
 }
 
+func (d *SqlDb) GetActiveWorkflowRuns() (runs []db.WorkflowRun, err error) {
+	runs = make([]db.WorkflowRun, 0)
+	_, err = d.selectAll(
+		&runs,
+		"select * from project__workflow_run where status in (?, ?) order by id",
+		db.WorkflowRunRunning,
+		db.WorkflowRunApproval,
+	)
+	return
+}
+
+func (d *SqlDb) UpdateWorkflowRunStatusUnless(run db.WorkflowRun, excluded []db.WorkflowRunStatus) (bool, error) {
+	q := squirrel.Update("project__workflow_run").
+		Set("status", run.Status).
+		Set("`end`", run.End).
+		Where("project_id=? and id=?", run.ProjectID, run.ID)
+
+	if len(excluded) > 0 {
+		q = q.Where(squirrel.NotEq{"status": excluded})
+	}
+
+	query, args, err := q.ToSql()
+	if err != nil {
+		return false, err
+	}
+
+	res, err := d.exec(query, args...)
+	if err != nil {
+		return false, err
+	}
+	affected, err := res.RowsAffected()
+	return affected > 0, err
+}
+
+func (d *SqlDb) SetWorkflowRunRootTask(projectID int, runID int, taskID int) (bool, error) {
+	res, err := d.exec(
+		"update project__workflow_run set root_task_id=? where project_id=? and id=? and root_task_id is null",
+		taskID,
+		projectID,
+		runID,
+	)
+	if err != nil {
+		return false, err
+	}
+	affected, err := res.RowsAffected()
+	return affected > 0, err
+}
+
 func (d *SqlDb) GetWorkflowApprovals(projectID int, runID int) (approvals []db.WorkflowApproval, err error) {
 	approvals = make([]db.WorkflowApproval, 0)
 	_, err = d.selectAll(
@@ -343,4 +391,24 @@ func (d *SqlDb) UpdateWorkflowApproval(approval db.WorkflowApproval) error {
 		approval.ID,
 	)
 	return err
+}
+
+func (d *SqlDb) ResolveWorkflowApprovalIfPending(approval db.WorkflowApproval) (bool, error) {
+	res, err := d.exec(
+		"update project__workflow_approval set status=?, resolved=?, resolved_by_user_id=? "+
+			"where project_id=? and workflow_run_id=? and workflow_node_id=? and id=? and status=?",
+		approval.Status,
+		approval.Resolved,
+		approval.ResolvedByUserID,
+		approval.ProjectID,
+		approval.WorkflowRunID,
+		approval.WorkflowNodeID,
+		approval.ID,
+		db.WorkflowApprovalPending,
+	)
+	if err != nil {
+		return false, err
+	}
+	affected, err := res.RowsAffected()
+	return affected > 0, err
 }
