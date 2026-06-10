@@ -402,6 +402,12 @@ func (p *TaskPool) FinalizeRemoteTask(tsk *TaskRunner, runner *db.Runner) {
 	if util.HAEnabled() {
 		p.refreshTaskStatusFromDB(tsk)
 		if tsk.Task.End != nil {
+			// Another node (or this one before a crash) already persisted End via
+			// finishRun, but pool/Redis running/active state is only released in
+			// onTaskStop. If that node died after saveStatus and before the
+			// EventTypeFinished handler ran, skip re-finalizing the task row and
+			// autorun children yet still release the leaked pool bookkeeping.
+			p.onTaskStop(tsk)
 			return
 		}
 	}
