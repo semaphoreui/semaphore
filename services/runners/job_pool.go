@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -51,6 +52,12 @@ func newHTTPClient() *http.Client {
 }
 
 type JobPool struct {
+	// mu guards runningJobs and queue. They are mutated from the Run loop
+	// goroutine, the progress/poll goroutine and (indirectly) the per-job
+	// goroutines, so every read and write must hold the lock. Go maps and
+	// slices are not safe for concurrent access — without this lock the runtime
+	// aborts the process with "concurrent map read and map write".
+	mu          sync.Mutex
 	runningJobs map[int]*runningJob
 
 	queue []*job
@@ -69,7 +76,83 @@ func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
 	}
 }
 
+// addRunningJob registers a running job under the lock.
+func (p *JobPool) addRunningJob(id int, j *runningJob) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.runningJobs[id] = j
+}
+
+// getRunningJob returns the running job for id, or nil if absent.
+func (p *JobPool) getRunningJob(id int) *runningJob {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.runningJobs[id]
+}
+
+// deleteRunningJob removes a running job under the lock.
+func (p *JobPool) deleteRunningJob(id int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.runningJobs, id)
+}
+
+// snapshotRunningJobs returns a shallow copy of the running jobs map so callers
+// can iterate without holding the lock across slow operations (HTTP, Kill).
+func (p *JobPool) snapshotRunningJobs() map[int]*runningJob {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	snapshot := make(map[int]*runningJob, len(p.runningJobs))
+	for id, j := range p.runningJobs {
+		snapshot[id] = j
+	}
+	return snapshot
+}
+
+// runningJobsCount returns the number of running jobs under the lock.
+func (p *JobPool) runningJobsCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.runningJobs)
+}
+
+// resetRunningJobs replaces the running jobs map under the lock.
+func (p *JobPool) resetRunningJobs() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.runningJobs = make(map[int]*runningJob)
+}
+
+// enqueue appends a job to the queue under the lock.
+func (p *JobPool) enqueue(j *job) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.queue = append(p.queue, j)
+}
+
+// dequeue removes and returns the job at the front of the queue. The second
+// return value is false when the queue is empty.
+func (p *JobPool) dequeue() (*job, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.queue) == 0 {
+		return nil, false
+	}
+	t := p.queue[0]
+	p.queue = p.queue[1:]
+	return t, true
+}
+
+// queueLen returns the queue length under the lock.
+func (p *JobPool) queueLen() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.queue)
+}
+
 func (p *JobPool) existsInQueue(taskID int) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	for _, j := range p.queue {
 		if j.job.Task.ID == taskID {
 			return true
@@ -80,8 +163,8 @@ func (p *JobPool) existsInQueue(taskID int) bool {
 }
 
 func (p *JobPool) hasRunningJobs() bool {
-	for _, j := range p.runningJobs {
-		if !j.status.IsFinished() {
+	for _, j := range p.snapshotRunningJobs() {
+		if !j.getStatus().IsFinished() {
 			return true
 		}
 	}
@@ -154,7 +237,7 @@ func (p *JobPool) Run() {
 
 	queueTicker := time.NewTicker(5 * time.Second)
 	requestTimer := time.NewTicker(1 * time.Second)
-	p.runningJobs = make(map[int]*runningJob)
+	p.resetRunningJobs()
 
 	defer func() {
 		queueTicker.Stop()
@@ -166,14 +249,13 @@ func (p *JobPool) Run() {
 
 		case <-queueTicker.C: // timer 5 seconds: get task from queue and run it
 
-			if len(p.queue) == 0 {
+			t, ok := p.dequeue()
+			if !ok {
 				break
 			}
 
-			t := p.queue[0]
 			if t.status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
-				p.queue = p.queue[1:]
 				log.WithFields(log.Fields{
 					"context": "job_running",
 					"task_id": t.job.Task.ID,
@@ -185,19 +267,20 @@ func (p *JobPool) Run() {
 			log.WithFields(log.Fields{
 				"context":      "job_running",
 				"task_id":      t.job.Task.ID,
-				"queue_length": len(p.queue),
-				"running_jobs": len(p.runningJobs),
+				"queue_length": p.queueLen(),
+				"running_jobs": p.runningJobsCount(),
 			}).Debug("Dequeuing task for execution")
 
 			// Default to starting so sendProgress never emits an empty status (invalid JSON)
 			// before the job goroutine's first SetStatus(running). A rejected PUT fails the
 			// whole batch and can leave the server stuck on "starting" forever.
-			p.runningJobs[t.job.Task.ID] = &runningJob{
+			rj := &runningJob{
 				job:    t.job,
 				status: task_logger.TaskStartingStatus,
 			}
+			p.addRunningJob(t.job.Task.ID, rj)
 
-			t.job.Logger = t.job.App.SetLogger(p.runningJobs[t.job.Task.ID])
+			t.job.Logger = t.job.App.SetLogger(rj)
 
 			go func(runningJob *runningJob) {
 				runningJob.SetStatus(task_logger.TaskRunningStatus)
@@ -215,10 +298,10 @@ func (p *JobPool) Run() {
 				log.WithError(err).WithFields(log.Fields{
 					"context": "job_running",
 					"task_id": runningJob.job.Task.ID,
-					"status":  string(runningJob.status),
+					"status":  string(runningJob.getStatus()),
 				}).Debug("Job run returned")
 
-				if runningJob.status.IsFinished() {
+				if runningJob.getStatus().IsFinished() {
 					return
 				}
 
@@ -232,13 +315,13 @@ func (p *JobPool) Run() {
 
 					t.job.Logger.Log("Unable to launch the application. Please contact your system administrator for assistance.")
 
-					if runningJob.status == task_logger.TaskStoppingStatus {
+					if runningJob.getStatus() == task_logger.TaskStoppingStatus {
 						runningJob.SetStatus(task_logger.TaskStoppedStatus)
 					} else {
 						runningJob.SetStatus(task_logger.TaskFailStatus)
 					}
 				} else {
-					if runningJob.status == task_logger.TaskStoppingStatus {
+					if runningJob.getStatus() == task_logger.TaskStoppingStatus {
 						runningJob.SetStatus(task_logger.TaskStoppedStatus)
 					} else {
 						runningJob.SetStatus(task_logger.TaskSuccessStatus)
@@ -248,11 +331,10 @@ func (p *JobPool) Run() {
 				log.WithFields(log.Fields{
 					"context": "job_running",
 					"task_id": runningJob.job.Task.ID,
-					"status":  string(runningJob.status),
+					"status":  string(runningJob.getStatus()),
 				}).Info("Task finished")
-			}(p.runningJobs[t.job.Task.ID])
+			}(rj)
 
-			p.queue = p.queue[1:]
 			log.WithFields(log.Fields{
 				"context": "job_running",
 				"task_id": t.job.Task.ID,
@@ -284,7 +366,7 @@ func (p *JobPool) Run() {
 					fmt.Println("Runner connected")
 				}
 
-				if util.Config.Runner.OneOff && ok && len(p.runningJobs) > 0 && !p.hasRunningJobs() {
+				if util.Config.Runner.OneOff && ok && p.runningJobsCount() > 0 && !p.hasRunningJobs() {
 					os.Exit(0)
 				}
 
@@ -305,20 +387,22 @@ func (p *JobPool) sendProgress() (ok bool) {
 		Jobs: nil,
 	}
 
-	for id, j := range p.runningJobs {
+	for id, j := range p.snapshotRunningJobs() {
+
+		status, logRecords, commit := j.getProgress()
 
 		body.Jobs = append(body.Jobs, JobProgress{
 			ID:         id,
-			LogRecords: j.logRecords,
-			Status:     j.status,
-			Commit:     j.commit,
+			LogRecords: logRecords,
+			Status:     status,
+			Commit:     commit,
 		})
 
 		log.WithFields(log.Fields{
 			"context":     "sending_progress",
 			"task_id":     id,
-			"status":      string(j.status),
-			"log_records": len(j.logRecords),
+			"status":      string(status),
+			"log_records": len(logRecords),
 		}).Debug("Including job in progress report")
 	}
 
@@ -373,23 +457,19 @@ func (p *JobPool) sendProgress() (ok bool) {
 	}).Debug("Job progress accepted by the server")
 
 	for _, jp := range body.Jobs {
-		j := p.runningJobs[jp.ID]
+		j := p.getRunningJob(jp.ID)
 		if j == nil {
 			continue
 		}
 		sent := len(jp.LogRecords)
 		if sent > 0 {
-			if sent <= len(j.logRecords) {
-				j.logRecords = j.logRecords[sent:]
-			} else {
-				j.logRecords = nil
-			}
+			pending := j.ackLogRecords(sent)
 
 			log.WithFields(log.Fields{
 				"context":      "sending_progress",
 				"task_id":      jp.ID,
 				"acknowledged": sent,
-				"pending":      len(j.logRecords),
+				"pending":      pending,
 			}).Debug("Trimmed acknowledged log records")
 		}
 		if jp.Status.IsFinished() {
@@ -398,7 +478,7 @@ func (p *JobPool) sendProgress() (ok bool) {
 				"task_id": jp.ID,
 				"status":  string(jp.Status),
 			}).Info("Task removed from running list")
-			delete(p.runningJobs, jp.ID)
+			p.deleteRunningJob(jp.ID)
 		}
 	}
 
@@ -659,8 +739,8 @@ func (p *JobPool) checkNewJobs() {
 
 	log.WithFields(log.Fields{
 		"context":      "checking_new_jobs",
-		"running_jobs": len(p.runningJobs),
-		"queued_jobs":  len(p.queue),
+		"running_jobs": p.runningJobsCount(),
+		"queued_jobs":  p.queueLen(),
 	}).Debug("Fetching new jobs from the server")
 
 	resp, err := client.Do(req)
@@ -751,27 +831,31 @@ func (p *JobPool) checkNewJobs() {
 		}
 	}
 
+	runningJobs := p.snapshotRunningJobs()
+
 	for _, currJob := range response.CurrentJobs {
-		runJob, exists := p.runningJobs[currJob.ID]
+		runJob, exists := runningJobs[currJob.ID]
 
 		if !exists {
 			continue
 		}
 
-		if runJob.status == task_logger.TaskStoppingStatus || runJob.status == task_logger.TaskStoppedStatus {
+		status := runJob.getStatus()
+
+		if status == task_logger.TaskStoppingStatus || status == task_logger.TaskStoppedStatus {
 			log.WithFields(log.Fields{
 				"context": "checking_new_jobs",
 				"task_id": currJob.ID,
-				"status":  string(runJob.status),
+				"status":  string(status),
 			}).Debug("Killing job because it is stopping or stopped")
-			p.runningJobs[currJob.ID].job.Kill()
+			runJob.job.Kill()
 		}
 
-		if runJob.status.IsFinished() {
+		if status.IsFinished() {
 			continue
 		}
 
-		switch runJob.status {
+		switch status {
 		case task_logger.TaskRunningStatus:
 			if currJob.Status == task_logger.TaskStartingStatus || currJob.Status == task_logger.TaskWaitingStatus || currJob.Status == task_logger.TaskConfirmed {
 				continue
@@ -793,7 +877,7 @@ func (p *JobPool) checkNewJobs() {
 		log.WithFields(log.Fields{
 			"context":    "checking_new_jobs",
 			"task_id":    currJob.ID,
-			"old_status": string(runJob.status),
+			"old_status": string(status),
 			"new_status": string(currJob.Status),
 		}).Debug("Applying job status reported by the server")
 
@@ -801,13 +885,13 @@ func (p *JobPool) checkNewJobs() {
 	}
 
 	if util.Config.Runner.OneOff {
-		if len(p.queue) > 0 || len(p.runningJobs) > 0 {
+		if p.queueLen() > 0 || p.runningJobsCount() > 0 {
 			return
 		}
 	}
 
 	for _, newJob := range response.NewJobs {
-		if _, exists := p.runningJobs[newJob.Task.ID]; exists {
+		if p.getRunningJob(newJob.Task.ID) != nil {
 			log.WithFields(log.Fields{
 				"context": "checking_new_jobs",
 				"task_id": newJob.Task.ID,
@@ -879,7 +963,7 @@ func (p *JobPool) checkNewJobs() {
 			taskRunner.job.Inventory.Repository.SSHKey = response.AccessKeys[taskRunner.job.Inventory.Repository.SSHKeyID]
 		}
 
-		p.queue = append(p.queue, &taskRunner)
+		p.enqueue(&taskRunner)
 
 		log.WithFields(log.Fields{
 			"context":     "checking_new_jobs",

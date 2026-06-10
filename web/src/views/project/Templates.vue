@@ -356,8 +356,12 @@ export default {
   },
 
   async created() {
-    socket.addListener((data) => this.onWebsocketDataReceived(data));
+    this.socketListenerId = socket.addListener((data) => this.onWebsocketDataReceived(data));
     await this.loadData();
+  },
+
+  beforeDestroy() {
+    socket.removeListener(this.socketListenerId);
   },
 
   methods: {
@@ -431,6 +435,10 @@ export default {
       }
 
       if (data.task_id !== template.last_task_id) {
+        // Set the id before awaiting so a burst of events for the same task
+        // doesn't trigger duplicate requests while the first one is in flight.
+        template.last_task_id = data.task_id;
+
         const lastTask = (await axios({
           method: 'get',
           url: `/api/project/${this.projectId}/tasks/${data.task_id}`,
@@ -442,14 +450,14 @@ export default {
         } else {
           template.last_task = lastTask;
         }
-
-        template.last_task_id = data.task_id;
       }
 
-      Object.assign(template.last_task, {
-        ...data,
-        type: undefined,
-      });
+      if (template.last_task) {
+        Object.assign(template.last_task, {
+          ...data,
+          type: undefined,
+        });
+      }
     },
 
     showTaskLog(taskId) {
