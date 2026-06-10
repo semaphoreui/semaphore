@@ -47,7 +47,6 @@
       :expanded.sync="openedItems"
     >
       <template v-slot:item.name="{ item }">
-        <v-icon class="mr-3" small>mdi-graph-outline</v-icon>
         <router-link :to="`/project/${projectId}/workflows/${item.id}/edit`">
           {{ item.name }}
         </router-link>
@@ -87,13 +86,6 @@
             :title="$t('workflowRunNow')"
           >
             <v-icon>mdi-play</v-icon>
-          </v-btn>
-          <v-btn
-            v-if="can(USER_PERMISSIONS.manageProjectResources)"
-            @click="askDeleteItem(item.id)"
-            :title="$t('deleteWorkflow')"
-          >
-            <v-icon>mdi-delete</v-icon>
           </v-btn>
         </v-btn-toggle>
       </template>

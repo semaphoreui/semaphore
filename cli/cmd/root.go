@@ -152,7 +152,7 @@ func runService() {
 	// task through the pool; the pool calls back into it when a workflow task
 	// finishes. Wire the cycle: pool first, then service (with the pool as its
 	// enqueuer), then inject the service back into the pool.
-	workflowService := proServer.NewWorkflowService(store, &taskPool)
+	workflowService := proServer.NewWorkflowService(store, store, &taskPool)
 	taskPool.SetWorkflowService(workflowService)
 
 	schedulePool := schedules.CreateSchedulePool(

@@ -12,7 +12,7 @@ import (
 // Workflows feature flag.
 type workflowService struct{}
 
-func NewWorkflowService(store db.Store, enqueuer pro_interfaces.WorkflowTaskEnqueuer) pro_interfaces.WorkflowService {
+func NewWorkflowService(workflowRepo db.WorkflowManager, templateReceiver db.WorkflowTemplateValidationStore, enqueuer pro_interfaces.WorkflowTaskEnqueuer) pro_interfaces.WorkflowService {
 	return &workflowService{}
 }
 

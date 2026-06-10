@@ -294,6 +294,8 @@ type TemplateManager interface {
 }
 
 type WorkflowManager interface {
+	GetWorkflowRunTasks(projectID int, runID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
+
 	GetWorkflowTemplates(projectID int, params RetrieveQueryParams) ([]WorkflowTemplate, error)
 	GetWorkflowTemplate(projectID int, workflowID int) (WorkflowTemplate, error)
 	CreateWorkflowTemplate(workflow WorkflowTemplate) (WorkflowTemplate, error)
@@ -417,7 +419,6 @@ type TaskManager interface {
 	SetWaitingTasksToStopped(projectID int, templateID int) error
 	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
-	GetWorkflowRunTasks(projectID int, runID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetTask(projectID int, taskID int) (Task, error)
 	GetTaskByID(taskID int) (Task, error)
 	DeleteTaskWithOutputs(projectID int, taskID int) error

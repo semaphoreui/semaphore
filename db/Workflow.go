@@ -235,7 +235,14 @@ func WorkflowConditionMatches(status task_logger.TaskStatus, condition WorkflowE
 	}
 }
 
-func ValidateWorkflowTemplate(d Store, workflow WorkflowTemplate) error {
+// WorkflowTemplateValidationStore is the slice of Store workflow template
+// validation depends on. Narrowing the dependency lets callers (and tests)
+// validate against a minimal mock instead of a full store.
+type WorkflowTemplateValidationStore interface {
+	GetTemplate(projectID int, templateID int) (Template, error)
+}
+
+func ValidateWorkflowTemplate(d WorkflowTemplateValidationStore, workflow WorkflowTemplate) error {
 	if workflow.Name == "" {
 		return NewValidationError("workflow name can not be empty")
 	}
