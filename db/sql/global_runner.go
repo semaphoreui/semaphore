@@ -138,15 +138,17 @@ func (d *SqlDb) ClearRunnerCache(runner db.Runner) (err error) {
 func (d *SqlDb) TouchRunner(runner db.Runner) (err error) {
 	if runner.ProjectID == nil {
 		_, err = d.exec(
-			"update `runner` set `touched`=? where id=?",
+			"update `runner` set `touched`=?, `started_at`=? where id=?",
 			tz.Now(),
+			runner.StartedAt,
 			runner.ID)
 		return
 	}
 
 	_, err = d.exec(
-		"update `runner` set `touched`=? where id=? and project_id=?",
+		"update `runner` set `touched`=?, `started_at`=? where id=? and project_id=?",
 		tz.Now(),
+		runner.StartedAt,
 		runner.ID,
 		runner.ProjectID)
 

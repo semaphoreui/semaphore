@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -113,6 +114,20 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 	runner := helpers.GetFromContext(r, "runner").(db.Runner)
 
 	clearCache := false
+
+	// The runner reports its process start time on every poll. It changes on
+	// every restart and is persisted next to "touched", so the task reconciler
+	// can detect runners that restarted and lost their in-memory job pool.
+	if v := r.Header.Get("X-Runner-Started-At"); v != "" {
+		if startedAt, parseErr := time.Parse(time.RFC3339, v); parseErr == nil {
+			runner.StartedAt = &startedAt
+		} else {
+			log.WithFields(log.Fields{
+				"runner_id": runner.ID,
+				"context":   "runner",
+			}).WithError(parseErr).Warn("invalid X-Runner-Started-At header")
+		}
+	}
 
 	if err := c.runnerRepo.TouchRunner(runner); err != nil {
 		log.WithFields(log.Fields{

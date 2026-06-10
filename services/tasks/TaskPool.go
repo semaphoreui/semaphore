@@ -177,6 +177,7 @@ func (p *TaskPool) Run() {
 
 	go p.handleQueue()
 	go p.handleLogs()
+	go p.runnerTasksReconcileLoop()
 
 	for {
 		select {
