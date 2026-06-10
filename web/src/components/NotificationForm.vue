@@ -108,18 +108,6 @@ export default {
             },
           ],
         },
-        slack: {
-          name: 'Slack',
-          fields: [
-            {
-              key: 'slack_url',
-              label: 'Slack Webhook URL',
-              placeholder:
-              'https://hooks.slack.com/services/...',
-              required: true,
-            },
-          ],
-        },
       },
     };
   },
@@ -165,7 +153,8 @@ export default {
         if (this.currentFields) {
           this.currentFields.forEach((field) => {
             if (this.configData[field.key] === undefined) {
-              this.$set(this.configData, field.key, '');
+              const defaultValue = field.type === 'checkbox' ? false : '';
+              this.$set(this.configData, field.key, defaultValue);
             }
           });
         }

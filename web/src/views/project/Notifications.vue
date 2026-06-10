@@ -124,7 +124,6 @@ export default {
       item: {},
       notificationProviders: [
         { id: 'email', name: 'Email', icon: 'mdi-email' },
-        { id: 'slack', name: 'Slack', icon: 'mdi-slack' },
       ],
     };
   },

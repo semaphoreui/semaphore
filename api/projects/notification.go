@@ -69,7 +69,7 @@ func AddNotification(w http.ResponseWriter, r *http.Request) {
 	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
 		UserID:      helpers.UserFromContext(r).ID,
 		ProjectID:   project.ID,
-		ObjectType:  db.EventInventory,
+		ObjectType:  db.EventNotification,
 		ObjectID:    newNotification.ID,
 		Description: fmt.Sprintf("Notification %s created", notification.Name),
 	})
@@ -103,7 +103,7 @@ func UpdateNotification(w http.ResponseWriter, r *http.Request) {
 	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
 		UserID:      helpers.UserFromContext(r).ID,
 		ProjectID:   oldNotification.ProjectID,
-		ObjectType:  db.EventInventory,
+		ObjectType:  db.EventNotification,
 		ObjectID:    oldNotification.ID,
 		Description: fmt.Sprintf("Notification %s updated", notification.Name),
 	})

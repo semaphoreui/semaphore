@@ -130,6 +130,10 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 		t.sendGotifyAlert()
 	}
 
+	if status == task_logger.TaskSuccessStatus || status == task_logger.TaskFailStatus || status == task_logger.TaskStoppedStatus {
+		t.sendTemplateNotifications()
+	}
+
 	for _, l := range t.statusListeners {
 		l(status)
 	}
