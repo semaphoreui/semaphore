@@ -125,10 +125,23 @@ All green (`GOWORK=off go test ./db/... ./services/tasks/ ./services/runners/
 
 ## HA (cluster) verification
 
-`go p.runnerTasksReconcileLoop()` starts on **every** node, and in HA
-`GetRunningTasks()` (`RedisTaskStateStore.RunningRange`) returns the
-**cluster-wide** running set — so N nodes reconcile every task each ~30s.
-Audit of the two action paths:
+`go p.runnerTasksReconcileLoop()` starts on **every** node. Initially the
+loop scanned `RunningRange()` — the **cluster-wide** running set — so N nodes
+reconciled every task each ~30s (N× duplicated work and a requeue race, see
+below). The work is now **partitioned by the existing claims**: the loop uses
+the new `TaskStateStore.OwnedRunningRange()`, which in HA filters the shared
+running set by the per-task claim value (`tasks:claim:<id>` = owning node ID,
+set in `ClaimAndDequeue`, kept alive by `refreshClaims`; claims read in one
+Redis pipeline, foreign tasks are not even hydrated). The memory store owns
+everything, so single-node behavior is unchanged.
+
+Resulting partition: each task is reconciled by exactly **one** live node
+(its claim owner); tasks whose claim expired (owner died) are picked up by
+the HA orphan cleaner's `reconcileDispatchedTask`. With 10 nodes that is ~1
+reconcile pass per task per interval instead of 10.
+
+Audit of the two action paths (locks kept as defense for the remaining
+cross-actor overlap — cleaner vs. owner around claim expiry):
 
 - **Fail path — safe as designed.** Concurrent `failTaskRunnerLost` on several
   nodes is serialized by `FinalizeRemoteTask`'s `TryFinalize` (Redis `SETNX`)

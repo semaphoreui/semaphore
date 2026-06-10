@@ -117,14 +117,18 @@ func (p *TaskPool) runnerTasksReconcileLoop() {
 }
 
 // reconcileRunnerTasks applies DecideRunnerTaskAction to every dispatched,
-// unfinished task in the pool. Safe to run concurrently on several nodes:
-// the fail path dedups via the state store's finalize lock and the requeue
-// path re-checks the persisted task row first.
+// unfinished task this node owns (OwnedRunningRange: in HA, the tasks whose
+// claim names this node; single-node, everything). Tasks of dead nodes have
+// no live claim and are reconciled by the HA orphan cleaner instead, so the
+// work is partitioned across the cluster rather than repeated on every node.
+// The remaining cross-actor races (cleaner vs. owner around claim expiry)
+// are covered by the state store's finalize lock and the DB re-checks in the
+// action helpers.
 func (p *TaskPool) reconcileRunnerTasks(now time.Time) {
 	offlineTimeout := util.Config.RunnersOfflineTimeout()
 	taskFailTimeout := util.Config.RunnersTaskFailTimeout()
 
-	for _, tsk := range p.GetRunningTasks() {
+	for _, tsk := range p.state.OwnedRunningRange() {
 		if tsk == nil || tsk.Task.RunnerID == nil || tsk.Task.Status.IsFinished() {
 			continue
 		}
