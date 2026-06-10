@@ -28,8 +28,23 @@
     ></v-text-field>
 
     <div v-for="field in currentFields" :key="field.key">
+      <v-autocomplete
+        v-if="field.type === 'key'"
+        v-model="configData[field.key]"
+        :label="field.label"
+        :items="loginPasswordKeys"
+        item-value="id"
+        item-text="name"
+        :rules="field.required ? [v => !!v || `${field.label} is required`] : []"
+        :required="field.required"
+        :disabled="formSaving"
+        outlined
+        dense
+        clearable
+      ></v-autocomplete>
+
       <v-checkbox
-        v-if="field.type === 'checkbox'"
+        v-else-if="field.type === 'checkbox'"
         v-model="configData[field.key]"
         :label="field.label"
         :disabled="formSaving"
@@ -65,6 +80,7 @@ export default {
   data() {
     return {
       configData: {},
+      keys: null,
       providerSchemas: {
         email: {
           name: 'Email',
@@ -78,9 +94,8 @@ export default {
             {
               key: 'email_port', label: 'SMTP Port', placeholder: '587', type: 'number', required: true,
             },
-            { key: 'email_username', label: 'SMTP Username', required: false },
             {
-              key: 'email_password', label: 'SMTP Password', type: 'password', required: false,
+              key: 'email_password_key_id', label: 'SMTP Credentials', type: 'key', required: false,
             },
             {
               key: 'email_secure', label: 'Secure Connection (SSL/TLS)', type: 'checkbox', required: false,
@@ -97,7 +112,11 @@ export default {
           name: 'Slack',
           fields: [
             {
-              key: 'slack_url', label: 'Slack Webhook URL', placeholder: 'https://hooks.slack.com/services/...', required: true,
+              key: 'slack_url',
+              label: 'Slack Webhook URL',
+              placeholder:
+              'https://hooks.slack.com/services/...',
+              required: true,
             },
           ],
         },
@@ -106,13 +125,23 @@ export default {
   },
 
   computed: {
-    isLoaded() {
-      return this.item != null;
+    loginPasswordKeys() {
+      if (this.keys == null) return null;
+      return this.keys.filter((key) => key.type === 'login_password');
     },
+
+    isLoaded() {
+      return this.item != null && this.keys != null;
+    },
+
     currentFields() {
       const provider = this.providerSchemas[this.itemApp];
       return provider ? provider.fields : [];
     },
+  },
+
+  async created() {
+    this.keys = await this.loadProjectResources('keys');
   },
 
   watch: {
