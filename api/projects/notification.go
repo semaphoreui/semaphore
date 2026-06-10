@@ -3,6 +3,7 @@ package projects
 import (
 	"fmt"
 	"net/http"
+	"errors"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -114,6 +115,14 @@ func RemoveNotification(w http.ResponseWriter, r *http.Request) {
 	notification := helpers.GetFromContext(r, "notification").(db.Notification)
 	
 	err := helpers.Store(r).DeleteNotification(notification.ProjectID, notification.ID)
+	if errors.Is(err, db.ErrInvalidOperation) {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
+			"error": "Notification is in use by one or more templates",
+			"inUse": true,
+		})
+		return
+	}
+
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -122,10 +131,22 @@ func RemoveNotification(w http.ResponseWriter, r *http.Request) {
 	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
 		UserID:      helpers.UserFromContext(r).ID,
 		ProjectID:   notification.ProjectID,
-		ObjectType:  db.EventInventory,
+		ObjectType:  db.EventNotification,
 		ObjectID:    notification.ID,
 		Description: fmt.Sprintf("Notification %s deleted", notification.Name),
 	})
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func GetNotificationRefs(w http.ResponseWriter, r *http.Request) {
+	notification := helpers.GetFromContext(r, "notification").(db.Notification)
+	
+	refs, err := helpers.Store(r).GetNotificationRefs(notification.ProjectID, notification.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, refs)
 }

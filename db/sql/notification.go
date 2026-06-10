@@ -65,6 +65,44 @@ func (d *SqlDb) UpdateNotification(notification db.Notification) error {
 }
 
 func (d *SqlDb) DeleteNotification(projectID int, notificationID int) (err error) {
+	refs, err := d.GetNotificationRefs(projectID, notificationID)
+	if err != nil {
+		return err
+	}
+	if len(refs.Templates) > 0 {
+		return db.ErrInvalidOperation
+	}
+
 	_, err = d.exec("DELETE FROM project__notification WHERE project_id = ? AND id = ?", projectID, notificationID)
+	return
+}
+
+func (d *SqlDb) GetNotificationRefs(projectID int, notificationID int) (refs db.ObjectReferrers, err error) {
+	var templates []db.Template
+	templates, err = d.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
+	// Initialize slices to avoid null values in JSON responses
+	refs.Templates = make([]db.ObjectReferrer, 0)
+	refs.Inventories = make([]db.ObjectReferrer, 0)
+	refs.Repositories = make([]db.ObjectReferrer, 0)
+	refs.Integrations = make([]db.ObjectReferrer, 0)
+	refs.Schedules = make([]db.ObjectReferrer, 0)
+	refs.AccessKeys = make([]db.ObjectReferrer, 0)
+
+	for _, tpl := range templates {
+		for _, id := range tpl.NotificationIDs {
+			if id == notificationID {
+				refs.Templates = append(refs.Templates, db.ObjectReferrer{
+					ID:   tpl.ID,
+					Name: tpl.Name,
+				})
+				break
+			}
+		}
+	}
+
 	return
 }

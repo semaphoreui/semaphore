@@ -423,6 +423,7 @@ func Route(
 	projectNotificationManagement.Use(projects.NotificationMiddleware)
 
 	projectNotificationManagement.HandleFunc("/{notification_id}", projects.GetNotifications).Methods("GET", "HEAD")
+	projectNotificationManagement.HandleFunc("/{notification_id}/refs", projects.GetNotificationRefs).Methods("GET", "HEAD")
 	projectNotificationManagement.HandleFunc("/{notification_id}", projects.UpdateNotification).Methods("PUT")
 	projectNotificationManagement.HandleFunc("/{notification_id}", projects.RemoveNotification).Methods("DELETE")
 

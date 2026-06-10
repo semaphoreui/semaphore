@@ -333,6 +333,7 @@ type NotificationManager interface {
 	CreateNotification(notification Notification) (Notification, error)
 	UpdateNotification(notification Notification) error
 	DeleteNotification(projectID int, notificationID int) error
+	GetNotificationRefs(projectID int, notificationID int) (ObjectReferrers, error)
 }
 
 type GetAccessKeyOptions struct {

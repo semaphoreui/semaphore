@@ -28,6 +28,13 @@
       @yes="deleteItem(itemId)"
     />
 
+    <ObjectRefsDialog
+      v-model="itemRefsDialog"
+      :object-refs="itemRefs"
+      :project-id="projectId"
+      object-title="notification"
+    />
+
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('notifications') }}</v-toolbar-title>
@@ -101,10 +108,11 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import AppsMixin from '@/components/AppsMixin';
 import NotificationForm from '@/components/NotificationForm.vue';
+import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 
 export default {
   mixins: [ItemListPageBase, AppsMixin],
-  components: { NotificationForm },
+  components: { NotificationForm, ObjectRefsDialog },
 
   props: {
     features: Object,
