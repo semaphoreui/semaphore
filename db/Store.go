@@ -285,6 +285,8 @@ type TemplateManager interface {
 	GetTemplateEnvironments(projectID int, templateID int) ([]int, error)
 	UpdateTemplateEnvironments(projectID int, templateID int, environmentIDs []int) error
 
+	GetTemplateNotifications(projectID int, templateID int) ([]int, error)
+
 	GetTemplatePermission(projectID int, templateID int, userID int) (ProjectUserPermission, error)
 	GetTemplateRoles(projectID int, templateID int) ([]TemplateRolePerm, error)
 	CreateTemplateRole(role TemplateRolePerm) (TemplateRolePerm, error)

@@ -153,6 +153,8 @@ type Template struct {
 
 	ViewID *int `db:"view_id" json:"view_id,omitempty" backup:"-"`
 
+	NotificationIDs []int `db:"-" json:"notification_ids"`
+
 	LastTask *TaskWithTpl `db:"-" json:"last_task,omitempty" backup:"-"`
 
 	Autorun bool `db:"autorun" json:"autorun,omitempty"`
@@ -265,6 +267,13 @@ func FillTemplate(d Store, template *Template) (err error) {
 		return
 	}
 	template.EnvironmentIDs = envIDs
+
+	var notificationIDs []int
+	notificationIDs, err = d.GetTemplateNotifications(template.ProjectID, template.ID)
+	if err != nil {
+		return
+	}
+	template.NotificationIDs = notificationIDs
 
 	var tasks []TaskWithTpl
 	tasks, err = d.GetTemplateTasks(template.ProjectID, template.ID, RetrieveQueryParams{Count: 1})

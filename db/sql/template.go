@@ -74,6 +74,11 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		return
 	}
 
+	err = d.UpdateTemplateNotifications(template.ProjectID, insertID, template.NotificationIDs)
+	if err != nil {
+		return
+	}
+
 	err = db.FillTemplate(d, &newTemplate)
 
 	if err != nil {
@@ -152,6 +157,8 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 
 	err = d.UpdateTemplateEnvironments(template.ProjectID, template.ID, template.EnvironmentIDs)
 
+	err = d.UpdateTemplateNotifications(template.ProjectID, template.ID, template.NotificationIDs)
+
 	return err
 }
 
@@ -203,6 +210,63 @@ func (d *SqlDb) UpdateTemplateEnvironments(projectID int, templateID int, enviro
 			projectID,
 			templateID,
 			envID,
+		)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func (d *SqlDb) GetTemplateNotifications(projectID int, templateID int) (notificationIDs []int, err error) {
+	notificationIDs = make([]int, 0)
+
+	var rows []struct {
+		NotificationID int `db:"notification_id"`
+	}
+
+	_, err = d.selectAll(
+		&rows,
+		"select notification_id from project__template_notification "+
+			"where project_id=? and template_id=? order by notification_id",
+		projectID,
+		templateID,
+	)
+
+	if err != nil {
+		return
+	}
+
+	for _, r := range rows {
+		notificationIDs = append(notificationIDs, r.NotificationID)
+	}
+
+	return
+}
+
+func (d *SqlDb) UpdateTemplateNotifications(projectID int, templateID int, notificationIDs []int) (err error) {
+	_, err = d.exec(
+		"delete from project__template_notification where project_id=? and template_id=?",
+		projectID,
+		templateID,
+	)
+	if err != nil {
+		return
+	}
+
+	seen := make(map[int]bool)
+	for _, notificationID := range notificationIDs {
+		if seen[notificationID] {
+			continue
+		}
+		seen[notificationID] = true
+
+		_, err = d.exec(
+			"insert into project__template_notification (project_id, template_id, notification_id) values (?, ?, ?)",
+			projectID,
+			templateID,
+			notificationID,
 		)
 		if err != nil {
 			return
@@ -406,6 +470,11 @@ func (d *SqlDb) getTemplates(
 		}
 
 		template.EnvironmentIDs, err = d.GetTemplateEnvironments(projectID, template.ID)
+		if err != nil {
+			return
+		}
+
+		template.NotificationIDs, err = d.GetTemplateNotifications(projectID, template.ID)
 		if err != nil {
 			return
 		}

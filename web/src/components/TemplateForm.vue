@@ -274,6 +274,23 @@
           outlined
           dense
         ></v-autocomplete>
+
+        <v-select
+          v-model="item.notification_ids"
+          :items="notifications"
+          item-value="id"
+          item-text="name"
+          :label="$t('Notifications')"
+          placeholder="Select notification channels"
+          multiple
+          chips
+          deletable-chips
+          small-chips
+          clearable
+          :disabled="formSaving"
+          outlined
+          dense
+        ></v-select>
       </v-col>
 
       <v-col>
@@ -594,6 +611,7 @@ export default {
       },
       item: {
         task_params: {},
+        notification_ids: [],
       },
       inventory: null,
       repositories: null,
@@ -601,6 +619,7 @@ export default {
       views: null,
       schedules: null,
       buildTemplates: null,
+      notifications: null,
       cronFormat: '* * * * *',
       cronRepositoryId: null,
       cronVisible: false,
@@ -734,7 +753,8 @@ export default {
         && this.item != null
         && this.schedules != null
         && this.views != null
-        && this.runnerTags != null;
+        && this.runnerTags != null
+        && this.notifications != null;
     },
 
   },
@@ -795,6 +815,7 @@ export default {
       return {
         task_params: {},
         environment_ids: [],
+        notification_ids: [],
       };
     },
 
@@ -812,6 +833,7 @@ export default {
         this.environment,
         templates,
         this.runnerTags,
+        this.notifications,
       ] = await Promise.all([
         this.loadProjectResources('repositories'),
         this.loadProjectEndpoint(`/inventory?app=${this.app}&template_id=${this.itemId}`),
@@ -821,6 +843,7 @@ export default {
         this.loadProjectResources('environment'),
         this.loadProjectResources('templates'),
         this.loadProjectResources('runner_tags'),
+        this.loadProjectResources('notifications'),
       ]);
 
       this.inventory = [...inventory1, ...inventory2];
@@ -883,6 +906,10 @@ export default {
 
       if (!Array.isArray(this.item.environment_ids)) {
         this.$set(this.item, 'environment_ids', []);
+      }
+
+      if (!Array.isArray(this.item.notification_ids)) {
+        this.$set(this.item, 'notification_ids', []);
       }
 
       this.args = JSON.parse(this.item.arguments || '[]');
