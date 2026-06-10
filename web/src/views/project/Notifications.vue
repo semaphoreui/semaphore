@@ -124,7 +124,7 @@ export default {
   methods: {
     getProviderIcon(type) {
       if (!type) return 'mdi-bell';
-      const provider = this.notificationProviders.find(p => p.id === type.toLowerCase());
+      const provider = this.notificationProviders.find((p) => p.id === type.toLowerCase());
       return provider ? provider.icon : 'mdi-bell';
     },
 

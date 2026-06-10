@@ -69,23 +69,39 @@ export default {
         email: {
           name: 'Email',
           fields: [
-            { key: 'email_sender', label: 'Sender Address', placeholder: 'noreply@example.com', required: true },
-            { key: 'email_host', label: 'SMTP Host', placeholder: 'smtp.example.com', required: true },
-            { key: 'email_port', label: 'SMTP Port', placeholder: '587', type: 'number', required: true },
+            {
+              key: 'email_sender', label: 'Sender Address', placeholder: 'noreply@example.com', required: true,
+            },
+            {
+              key: 'email_host', label: 'SMTP Host', placeholder: 'smtp.example.com', required: true,
+            },
+            {
+              key: 'email_port', label: 'SMTP Port', placeholder: '587', type: 'number', required: true,
+            },
             { key: 'email_username', label: 'SMTP Username', required: false },
-            { key: 'email_password', label: 'SMTP Password', type: 'password', required: false },
-            { key: 'email_secure', label: 'Secure Connection (SSL/TLS)', type: 'checkbox', required: false },
-            { key: 'email_tls', label: 'Force TLS', type: 'checkbox', required: false },
-            { key: 'email_tls_min_version', label: 'Min TLS Version', placeholder: '1.2', required: false }
-          ]
+            {
+              key: 'email_password', label: 'SMTP Password', type: 'password', required: false,
+            },
+            {
+              key: 'email_secure', label: 'Secure Connection (SSL/TLS)', type: 'checkbox', required: false,
+            },
+            {
+              key: 'email_tls', label: 'Force TLS', type: 'checkbox', required: false,
+            },
+            {
+              key: 'email_tls_min_version', label: 'Min TLS Version', placeholder: '1.2', required: false,
+            },
+          ],
         },
         slack: {
           name: 'Slack',
           fields: [
-            { key: 'slack_url', label: 'Slack Webhook URL', placeholder: 'https://hooks.slack.com/services/...', required: true }
-          ]
+            {
+              key: 'slack_url', label: 'Slack Webhook URL', placeholder: 'https://hooks.slack.com/services/...', required: true,
+            },
+          ],
         },
-      }
+      },
     };
   },
 
@@ -96,7 +112,7 @@ export default {
     currentFields() {
       const provider = this.providerSchemas[this.itemApp];
       return provider ? provider.fields : [];
-    }
+    },
   },
 
   watch: {
@@ -109,14 +125,16 @@ export default {
               ? JSON.parse(newItem.config)
               : newItem.config;
 
-            Object.keys(parsedConfig).forEach(key => {
+            Object.keys(parsedConfig).forEach((key) => {
               this.$set(this.configData, key, parsedConfig[key]);
             });
-          } catch (e) {}
+          } catch (e) {
+            // Ignore JSON-parsing-Error
+          }
         }
 
         if (this.currentFields) {
-          this.currentFields.forEach(field => {
+          this.currentFields.forEach((field) => {
             if (this.configData[field.key] === undefined) {
               this.$set(this.configData, field.key, '');
             }
