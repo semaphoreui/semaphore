@@ -31,6 +31,7 @@ import Stats from '../views/project/Stats.vue';
 import Tokens from '../views/Tokens.vue';
 import AcceptInvite from '../views/AcceptInvite.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
+import Notifications from '../views/project/Notifications.vue';
 
 Vue.use(VueRouter);
 
@@ -130,6 +131,10 @@ const routes = [
   {
     path: '/project/:projectId/integrations',
     component: Integrations,
+  },
+  {
+    path: '/project/:projectId/notifications',
+    component: Notifications,
   },
   {
     path: '/project/:projectId/integrations/:integrationId',
