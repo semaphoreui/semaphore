@@ -125,7 +125,13 @@ export default {
   },
 
   created() {
-    socket.addListener((data) => this.onWebsocketDataReceived(data));
+    this.itemsLoading = null;
+    this.itemsReloadRequested = false;
+    this.socketListenerId = socket.addListener((data) => this.onWebsocketDataReceived(data));
+  },
+
+  beforeDestroy() {
+    socket.removeListener(this.socketListenerId);
   },
 
   methods: {
@@ -135,13 +141,37 @@ export default {
       });
     },
 
+    async reloadItems() {
+      // Coalesce concurrent reloads: share the in-flight request and
+      // do at most one trailing reload for events received meanwhile.
+      if (this.itemsLoading) {
+        this.itemsReloadRequested = true;
+        await this.itemsLoading;
+        return;
+      }
+
+      this.itemsLoading = (async () => {
+        try {
+          do {
+            this.itemsReloadRequested = false;
+            // eslint-disable-next-line no-await-in-loop
+            await this.loadItems();
+          } while (this.itemsReloadRequested);
+        } finally {
+          this.itemsLoading = null;
+        }
+      })();
+
+      await this.itemsLoading;
+    },
+
     async onWebsocketDataReceived(data) {
       if (data.project_id !== this.projectId || data.type !== 'update') {
         return;
       }
 
       if (!this.items.some((item) => item.id === data.task_id)) {
-        await this.loadItems();
+        await this.reloadItems();
       }
 
       const task = this.items.find((item) => item.id === data.task_id);

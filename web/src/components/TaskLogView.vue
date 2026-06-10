@@ -352,12 +352,13 @@ export default {
         });
       });
     }, 1000);
-    socket.addListener((data) => this.onWebsocketDataReceived(data));
+    this.socketListenerId = socket.addListener((data) => this.onWebsocketDataReceived(data));
     await this.loadData();
   },
 
   beforeDestroy() {
     clearInterval(this.outputInterval);
+    socket.removeListener(this.socketListenerId);
   },
 
   methods: {
