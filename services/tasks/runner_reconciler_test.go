@@ -132,7 +132,7 @@ func TestDecideRunnerTaskAction(t *testing.T) {
 			"running task, restart within skew margin",
 			task_logger.TaskRunningStatus, ago(time.Minute),
 			&db.Runner{Touched: ago(5 * time.Second), StartedAt: ago(50 * time.Second)},
-			RunnerTaskKeep,
+			RunnerTaskFail,
 		},
 		{
 			"starting task, runner restarted (self-heals via NewJobs)",

@@ -24,11 +24,6 @@ const (
 	RunnerTaskFail
 )
 
-// runnerRestartSkewMargin absorbs clock skew between the runner-reported
-// started_at (runner clock) and the task start time (server clock) when
-// detecting restarts.
-const runnerRestartSkewMargin = 30 * time.Second
-
 // DecideRunnerTaskAction classifies a dispatched, unfinished task against its
 // runner's liveness. runner == nil means the runner row no longer exists.
 //
@@ -69,7 +64,7 @@ func DecideRunnerTaskAction(
 	}
 
 	if running && runner.StartedAt != nil && taskStart != nil &&
-		runner.StartedAt.After(taskStart.Add(runnerRestartSkewMargin)) {
+		runner.StartedAt.After(*taskStart) {
 		return RunnerTaskFail, "runner restarted and lost the task"
 	}
 
@@ -107,12 +102,18 @@ func DecideRunnerTaskAction(
 // runnerTasksReconcileLoop periodically reconciles dispatched tasks against
 // runner liveness: tasks on an offline runner are requeued (starting) or
 // failed (running, after the recovery window). Started from TaskPool.Run.
-func (p *TaskPool) runnerTasksReconcileLoop() {
+// A nil stop channel means run forever.
+func (p *TaskPool) runnerTasksReconcileLoop(stop <-chan struct{}) {
 	ticker := time.NewTicker(util.Config.RunnersReconcileInterval())
 	defer ticker.Stop()
 
-	for range ticker.C {
-		p.reconcileRunnerTasks(tz.Now())
+	for {
+		select {
+		case <-ticker.C:
+			p.reconcileRunnerTasks(tz.Now())
+		case <-stop:
+			return
+		}
 	}
 }
 
