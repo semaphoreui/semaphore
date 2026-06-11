@@ -161,7 +161,7 @@ func GetTaskMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// GetTaskMiddleware is middleware that gets a task by id and sets the context to it or panics
+// NewTaskMiddleware is middleware that binds a task from the request body and sets the context to it
 func NewTaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
