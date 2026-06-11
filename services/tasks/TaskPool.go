@@ -409,6 +409,10 @@ func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) 
 	if util.HAEnabled() {
 		p.refreshTaskStatusFromDB(tsk)
 		if tsk.Task.End != nil {
+			// Another node may have persisted End before onTaskStop ran (e.g.
+			// crash between saveStatus and the queue drain). Release any stale
+			// shared pool state without re-running finish or autorun.
+			p.onTaskStop(tsk)
 			return
 		}
 	}
@@ -641,26 +645,22 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		log.Error(err)
 	}
 
-	// Dequeue waiting tasks from the in-memory queue.
-	i := 0
-	for i < p.state.QueueLen() {
-		t := p.state.QueueGet(i)
+	// Snapshot the queue and dequeue by task ID. In HA mode the shared queue can
+	// shift between QueueGet(i) and DequeueAt(i); DequeueByID matches handleQueue.
+	for _, t := range p.state.QueueRange() {
 		if t == nil {
-			i++
 			continue
 		}
 		if t.Task.ProjectID != projectID || t.Task.TemplateID != templateID {
-			i++
 			continue
 		}
 		if t.Task.Status.IsFinished() {
-			i++
 			continue
 		}
 
 		if t.Task.Status == task_logger.TaskWaitingStatus {
 			stoppedTasks[t.Task.ID] = struct{}{}
-			_ = p.state.DequeueAt(i)
+			p.state.DequeueByID(t.Task.ID)
 			continue
 		}
 
@@ -670,7 +670,6 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 			t.SetStatus(task_logger.TaskStoppingStatus)
 		}
 		stoppedTasks[t.Task.ID] = struct{}{}
-		i++
 	}
 
 	// Handle running tasks -- these need per-task SetStatus and kill.
