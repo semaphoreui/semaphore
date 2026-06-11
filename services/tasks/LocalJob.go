@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/ssh"
@@ -62,8 +63,14 @@ func (t *LocalJob) Kill() {
 	}
 }
 
+var httpURLCredentialsRe = regexp.MustCompile(`(https?://)([^/\s@]+)@`)
+
+func (t *LocalJob) sanitizeLogMessage(msg string) string {
+	return httpURLCredentialsRe.ReplaceAllString(msg, `${1}***@`)
+}
+
 func (t *LocalJob) Log(msg string) {
-	t.Logger.Log(msg)
+	t.Logger.Log(t.sanitizeLogMessage(msg))
 }
 
 func (t *LocalJob) SetStatus(status task_logger.TaskStatus) {
