@@ -343,6 +343,44 @@ func TestRequeueTaskRunnerOffline_NoopWhenAlreadyRunning(t *testing.T) {
 	assert.Empty(t, pool.queueEvents)
 }
 
+func TestFailTaskRunnerLost_NoopWhenFinalizeLockHeld(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	store := sql.CreateTestStore()
+	state := NewMemoryTaskStateStore()
+
+	pool := TaskPool{
+		queueEvents:     make(chan PoolEvent, 10),
+		logger:          make(chan logRecord, 100),
+		state:           state,
+		store:           store,
+		logWriteService: &mockLogWriteService{},
+	}
+
+	now := time.Now()
+	newTask, _ := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
+
+	tsk := &TaskRunner{
+		Task: newTask,
+		pool: &pool,
+	}
+	state.SetRunning(tsk)
+
+	require.True(t, state.TryFinalize(tsk.Task.ID))
+	defer state.DeleteFinalize(tsk.Task.ID)
+
+	pool.failTaskRunnerLost(tsk, nil, "runner stopped responding")
+
+	assert.Equal(t, task_logger.TaskRunningStatus, tsk.Task.Status)
+	assert.Nil(t, tsk.Task.End)
+	assert.Empty(t, pool.queueEvents)
+
+	row, err := store.GetTaskByID(newTask.ID)
+	require.NoError(t, err)
+	assert.Equal(t, task_logger.TaskRunningStatus, row.Status)
+	assert.Nil(t, row.End)
+}
+
 func TestFailTaskRunnerLost(t *testing.T) {
 	setupReconcilerConfig(t)
 
