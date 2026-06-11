@@ -16,6 +16,10 @@
     <v-data-table
       :headers="headers"
       :items="items"
+
+      :options.sync="options"
+      :server-items-length="totalItems"
+      :loading="loading"
       :footer-props="{ itemsPerPageOptions: [20] }"
       class="mt-4 HistoryTable"
     >
@@ -100,6 +104,7 @@
 </style>
 
 <script>
+import axios from 'axios';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
@@ -109,18 +114,33 @@ import { TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import AppsMixin from '@/components/AppsMixin';
 import DashboardMenu from '@/components/DashboardMenu.vue';
 
+const PER_PAGE = 20;
+
 export default {
   mixins: [ItemListPageBase, AppsMixin],
 
   data() {
-    return { TEMPLATE_TYPE_ICONS };
+    return {
+      TEMPLATE_TYPE_ICONS,
+      totalItems: 0,
+      loading: false,
+      options: {},
+    };
   },
 
   components: { DashboardMenu, TaskStatus, TaskLink },
 
   watch: {
     async projectId() {
-      await this.loadItems();
+      this.options = { ...this.options, page: 1 };
+      await this.loadItems(true);
+    },
+
+    options: {
+      deep: true,
+      handler() {
+        this.loadItems();
+      },
     },
   },
 
@@ -155,7 +175,7 @@ export default {
           do {
             this.itemsReloadRequested = false;
             // eslint-disable-next-line no-await-in-loop
-            await this.loadItems();
+            await this.loadItems(true);
           } while (this.itemsReloadRequested);
         } finally {
           this.itemsLoading = null;
@@ -221,6 +241,36 @@ export default {
 
     getItemsUrl() {
       return `/api/project/${this.projectId}/tasks/last`;
+    },
+
+    // Override ItemListPageBase.loadItems to fetch a single page from the
+    // backend and read the total count from the X-Total-Count header.
+    async loadItems(force = false) {
+      const page = this.options.page || 1;
+      const count = this.options.itemsPerPage > 0 ? this.options.itemsPerPage : PER_PAGE;
+      const offset = (page - 1) * count;
+
+      const key = `${this.projectId}:${offset}:${count}`;
+      if (!force && key === this.loadedKey) {
+        return;
+      }
+      this.loadedKey = key;
+
+      this.loading = true;
+      try {
+        const response = await axios({
+          method: 'get',
+          url: `${this.getItemsUrl()}?count=${count}&offset=${offset}`,
+          responseType: 'json',
+        });
+
+        this.items = response.data;
+
+        const total = parseInt(response.headers['x-total-count'], 10);
+        this.totalItems = Number.isNaN(total) ? this.items.length : total;
+      } finally {
+        this.loading = false;
+      }
     },
   },
 };
