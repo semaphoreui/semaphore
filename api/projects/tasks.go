@@ -75,29 +75,27 @@ func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusCreated, newTask)
 }
 
-// writeTasksList retrieves the tasks list (project-wide or per-template depending
-// on the request context) applying the given pagination/sort params, exposes the
-// total number of matching tasks via the X-Total-Count header and writes the
-// resulting page as JSON.
-func (c *TaskController) writeTasksList(w http.ResponseWriter, r *http.Request, params db.RetrieveQueryParams) {
+// writeTasksList retrieves the tasks list (project-wide or per-template
+// depending on the request context) applying the given query params and writes
+// the result as JSON.
+//
+// When pageSize > 0 it implements keyset pagination: params.Count is expected to
+// already request one extra row (pageSize + 1) so that the presence of a next
+// page can be detected without an expensive COUNT(*). The extra row is trimmed
+// off and whether it existed is reported via the X-Has-Next header. No total
+// count is computed — that would not scale to projects with millions of tasks.
+func (c *TaskController) writeTasksList(w http.ResponseWriter, r *http.Request, params db.RetrieveQueryParams, pageSize int) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	tpl := helpers.GetFromContext(r, "template")
 
 	var err error
-	var total int
 	var taskList []db.TaskWithTpl
 
 	if tpl != nil {
 		template := tpl.(db.Template)
-		total, err = c.store.GetTemplateTasksCount(template.ProjectID, template.ID, params)
-		if err == nil {
-			taskList, err = c.store.GetTemplateTasks(template.ProjectID, template.ID, params)
-		}
+		taskList, err = c.store.GetTemplateTasks(template.ProjectID, template.ID, params)
 	} else {
-		total, err = c.store.GetProjectTasksCount(project.ID, params)
-		if err == nil {
-			taskList, err = c.store.GetProjectTasks(project.ID, params)
-		}
+		taskList, err = c.store.GetProjectTasks(project.ID, params)
 	}
 
 	if err != nil {
@@ -106,7 +104,14 @@ func (c *TaskController) writeTasksList(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	w.Header().Set("X-Total-Count", strconv.Itoa(total))
+	if pageSize > 0 {
+		hasNext := len(taskList) > pageSize
+		if hasNext {
+			taskList = taskList[:pageSize]
+		}
+		w.Header().Set("X-Has-Next", strconv.FormatBool(hasNext))
+	}
+
 	helpers.WriteJSON(w, http.StatusOK, taskList)
 }
 
@@ -114,46 +119,51 @@ func (c *TaskController) writeTasksList(w http.ResponseWriter, r *http.Request, 
 func (c *TaskController) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 	params := helpers.QueryParams(r.URL)
 	params.Count = 1000
-	c.writeTasksList(w, r, params)
+	c.writeTasksList(w, r, params, 0)
 }
 
-// parseTasksPageParams fills pagination (Count/Offset) into the given base
-// params from the request query. It supports the `offset` and `count`
-// parameters and keeps backward compatibility with the legacy `limit`
-// parameter. The page size is capped at maxTasksPageSize.
-func parseTasksPageParams(query url.Values, base db.RetrieveQueryParams) db.RetrieveQueryParams {
-	count := maxTasksPageSize
+// parseTasksPageParams fills keyset pagination fields into the given base params
+// from the request query and returns the effective page size. It supports the
+// `count` parameter (with backward compatibility for the legacy `limit`) and the
+// `before` cursor (a task id; only older tasks are returned). The page size is
+// capped at maxTasksPageSize. params.Count is set to pageSize + 1 so the caller
+// can detect whether a next page exists.
+func parseTasksPageParams(query url.Values, base db.RetrieveQueryParams) (db.RetrieveQueryParams, int) {
+	pageSize := maxTasksPageSize
 
 	if str := query.Get("count"); str != "" {
 		if v, err := strconv.Atoi(str); err == nil && v > 0 {
-			count = v
+			pageSize = v
 		}
 	} else if str := query.Get("limit"); str != "" {
 		if v, err := strconv.Atoi(str); err == nil && v > 0 {
-			count = v
+			pageSize = v
 		}
 	}
 
-	if count > maxTasksPageSize {
-		count = maxTasksPageSize
+	if pageSize > maxTasksPageSize {
+		pageSize = maxTasksPageSize
 	}
-	base.Count = count
 
-	if str := query.Get("offset"); str != "" {
+	// Fetch one extra row to detect the presence of a next page.
+	base.Count = pageSize + 1
+
+	if str := query.Get("before"); str != "" {
 		if v, err := strconv.Atoi(str); err == nil && v > 0 {
-			base.Offset = v
+			base.BeforeID = v
 		}
 	}
 
-	return base
+	return base, pageSize
 }
 
-// GetLastTasks returns a page of the most recent tasks. It supports real
-// pagination via the `offset` and `count` query parameters and keeps backward
-// compatibility with the legacy `limit` parameter.
+// GetLastTasks returns a page of the most recent tasks using keyset pagination.
+// The page size is controlled by the `count` query parameter (legacy `limit` is
+// still accepted) and the `before` cursor selects the next, older page. The
+// X-Has-Next response header reports whether more (older) tasks are available.
 func (c *TaskController) GetLastTasks(w http.ResponseWriter, r *http.Request) {
-	params := parseTasksPageParams(r.URL.Query(), helpers.QueryParams(r.URL))
-	c.writeTasksList(w, r, params)
+	params, pageSize := parseTasksPageParams(r.URL.Query(), helpers.QueryParams(r.URL))
+	c.writeTasksList(w, r, params, pageSize)
 }
 
 // GetTask returns a task based on its id

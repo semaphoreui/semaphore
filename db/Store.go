@@ -53,6 +53,12 @@ type RetrieveQueryParams struct {
 	Filter       string
 	Ownership    OwnershipFilter
 	TaskFilter   *TaskFilter
+
+	// BeforeID enables keyset (cursor) pagination for id-ordered lists.
+	// When greater than zero, only rows with primary key id strictly less
+	// than BeforeID are returned. It is an alternative to Offset that does
+	// not get more expensive as the caller paginates deeper.
+	BeforeID int
 }
 
 type ObjectReferrer struct {
@@ -397,8 +403,6 @@ type TaskManager interface {
 	SetWaitingTasksToStopped(projectID int, templateID int) error
 	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
-	GetTemplateTasksCount(projectID int, templateID int, params RetrieveQueryParams) (int, error)
-	GetProjectTasksCount(projectID int, params RetrieveQueryParams) (int, error)
 	GetTask(projectID int, taskID int) (Task, error)
 	GetTaskByID(taskID int) (Task, error)
 	DeleteTaskWithOutputs(projectID int, taskID int) error

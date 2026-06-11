@@ -175,6 +175,7 @@ export default {
   started: 'Started',
   author: 'Author',
   duration: 'Duration',
+  rowsPerPage: 'Rows per page:',
   stop: 'Stop',
   forceStop: 'Force Stop',
   stopAll: 'Stop All',

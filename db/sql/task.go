@@ -303,12 +303,17 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		q = q.Where(squirrel.Eq{"task.id": taskIDs})
 	}
 
-	if params.Count > 0 {
-		q = q.Limit(uint64(params.Count))
+	// Keyset (cursor) pagination: return only tasks strictly older than the
+	// given cursor. Combined with the `id desc` ordering this walks backwards
+	// through the table using the primary key index, so it stays cheap even
+	// for projects with millions of tasks (unlike OFFSET, which scans and
+	// discards all skipped rows).
+	if params.BeforeID > 0 {
+		q = q.Where("task.id < ?", params.BeforeID)
 	}
 
-	if params.Offset > 0 {
-		q = q.Offset(uint64(params.Offset))
+	if params.Count > 0 {
+		q = q.Limit(uint64(params.Count))
 	}
 
 	query, args, _ := q.ToSql()
@@ -356,43 +361,6 @@ func (d *SqlDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) (t
 	tasks = make([]db.TaskWithTpl, 0)
 	err = d.getTasks(projectID, nil, nil, params, &tasks)
 	return
-}
-
-// getTasksCount returns the total number of tasks matching the same filters as
-// getTasks (project, optional template and optional status filter), ignoring
-// pagination (Offset/Count). It is used to expose the total count for pagination.
-func (d *SqlDb) getTasksCount(projectID int, templateID *int, params db.RetrieveQueryParams) (count int, err error) {
-	q := squirrel.Select("count(*)").
-		From("task").
-		Join("project__template as tpl on task.template_id=tpl.id")
-
-	if params.TaskFilter != nil && len(params.TaskFilter.Status) > 0 {
-		q = q.Where(squirrel.Eq{"status": params.TaskFilter.Status})
-	}
-
-	if templateID == nil {
-		q = q.Where("tpl.project_id=?", projectID)
-	} else {
-		q = q.Where("tpl.project_id=? AND task.template_id=?", projectID, templateID)
-	}
-
-	query, args, err := q.ToSql()
-	if err != nil {
-		return
-	}
-
-	cnt, err := d.Sql().SelectInt(d.PrepareQuery(query), args...)
-	count = int(cnt)
-
-	return
-}
-
-func (d *SqlDb) GetTemplateTasksCount(projectID int, templateID int, params db.RetrieveQueryParams) (int, error) {
-	return d.getTasksCount(projectID, &templateID, params)
-}
-
-func (d *SqlDb) GetProjectTasksCount(projectID int, params db.RetrieveQueryParams) (int, error) {
-	return d.getTasksCount(projectID, nil, params)
 }
 
 func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
