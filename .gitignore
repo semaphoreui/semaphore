@@ -58,5 +58,3 @@ __debug_bin*
 /go.work.sum
 /.licenses-cache
 /node*-config.yaml
-
-settings.local.json
