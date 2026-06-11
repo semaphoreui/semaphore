@@ -462,6 +462,17 @@ func (p *JobPool) sendProgress() (ok bool) {
 		return
 	}
 
+	// New servers reply 200 with a body listing jobs they no longer accept
+	// results for; old servers reply 204 with an empty body.
+	var progressResp RunnerProgressResponse
+	if respBody, readErr := io.ReadAll(resp.Body); readErr == nil && len(respBody) > 0 {
+		if parseErr := json.Unmarshal(respBody, &progressResp); parseErr != nil {
+			log.WithError(parseErr).WithFields(log.Fields{
+				"context": "sending_progress",
+			}).Warn("failed to parse job progress response from the server")
+		}
+	}
+
 	ok = true
 
 	log.WithFields(log.Fields{
@@ -496,7 +507,41 @@ func (p *JobPool) sendProgress() (ok bool) {
 		}
 	}
 
+	p.applyTerminatedJobs(progressResp.TerminatedJobs)
+
 	return
+}
+
+// applyTerminatedJobs emergency-stops jobs the server no longer accepts
+// results for — the task reached a terminal status on the server (e.g. force
+// stopped) while the runner was offline. The job's process is killed and the
+// job is dropped from the running list without further progress reports.
+func (p *JobPool) applyTerminatedJobs(taskIDs []int) {
+	for _, id := range taskIDs {
+		j := p.getRunningJob(id)
+		if j == nil {
+			continue
+		}
+
+		if !j.getStatus().IsFinished() {
+			log.WithFields(log.Fields{
+				"context": "sending_progress",
+				"task_id": id,
+				"status":  string(j.getStatus()),
+			}).Warn("Server reported the task as terminated, emergency stopping the job")
+
+			j.job.Kill()
+			j.SetStatus(task_logger.TaskStoppedStatus)
+		}
+
+		log.WithFields(log.Fields{
+			"context": "sending_progress",
+			"task_id": id,
+			"status":  string(j.getStatus()),
+		}).Info("Task removed from running list")
+
+		p.deleteRunningJob(id)
+	}
 }
 
 func (p *JobPool) getResponseErrorMessage(resp *http.Response) (res string) {

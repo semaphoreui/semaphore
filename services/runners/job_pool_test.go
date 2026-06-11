@@ -90,6 +90,33 @@ func TestJobPool_HasRunningJobs(t *testing.T) {
 	assert.True(t, p.hasRunningJobs())
 }
 
+func TestJobPool_ApplyTerminatedJobs(t *testing.T) {
+	p := NewJobPool(nil)
+
+	// Running job: must be emergency stopped and removed.
+	lj := &tasks.LocalJob{Task: db.Task{ID: 1}}
+	rj := &runningJob{job: lj, status: task_logger.TaskRunningStatus}
+	lj.Logger = rj
+	p.addRunningJob(1, rj)
+
+	// Already finished job: must be removed without a status change or kill.
+	lj2 := &tasks.LocalJob{Task: db.Task{ID: 2}}
+	rj2 := &runningJob{job: lj2, status: task_logger.TaskSuccessStatus}
+	lj2.Logger = rj2
+	p.addRunningJob(2, rj2)
+
+	// Unknown task ID (99) must be a no-op.
+	p.applyTerminatedJobs([]int{1, 2, 99})
+
+	assert.Equal(t, task_logger.TaskStoppedStatus, rj.getStatus())
+	assert.True(t, lj.IsKilled())
+
+	assert.Equal(t, task_logger.TaskSuccessStatus, rj2.getStatus())
+	assert.False(t, lj2.IsKilled())
+
+	assert.Equal(t, 0, p.runningJobsCount())
+}
+
 // TestJobPool_ConcurrentAccess models the three actors that touch the pool
 // concurrently in production: the Run loop (dequeue + addRunningJob), the poll
 // goroutine (snapshot + delete + enqueue) and status readers. Run with -race to

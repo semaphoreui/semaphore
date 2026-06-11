@@ -48,6 +48,16 @@ type RunnerProgress struct {
 	Jobs []JobProgress
 }
 
+// RunnerProgressResponse is the server's reply to a progress report (PUT).
+// TerminatedJobs lists task IDs the server considers finished (e.g. stopped
+// while the runner was offline) and whose results it no longer accepts; the
+// runner must emergency-stop those jobs. Old servers reply 204 with an empty
+// body and old runners ignore the body, so the field is backward compatible
+// in both directions.
+type RunnerProgressResponse struct {
+	TerminatedJobs []int `json:"terminated_jobs,omitempty"`
+}
+
 type JobProgress struct {
 	ID         int
 	Status     task_logger.TaskStatus

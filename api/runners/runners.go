@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -303,10 +304,17 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	var response runners.RunnerProgressResponse
+
 	for _, job := range body.Jobs {
 		tsk, err := taskPool.GetTask(job.ID)
 
 		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				// The task no longer exists at all — the runner's job is orphaned.
+				response.TerminatedJobs = append(response.TerminatedJobs, job.ID)
+				continue
+			}
 			log.WithError(err).WithFields(log.Fields{
 				"task_id":   job.ID,
 				"runner_id": runner.ID,
@@ -316,11 +324,29 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 		}
 
 		if tsk == nil {
-			log.WithFields(log.Fields{
-				"task_id":   job.ID,
-				"runner_id": runner.ID,
-				"context":   "runner",
-			}).Warn("runner progress: task not found in pool")
+			// Not in the pool. The task may have been stopped and finalized while
+			// the runner was offline; check the persisted row so the runner can be
+			// told to emergency-stop instead of running the job forever.
+			row, rowErr := helpers.Store(r).GetTaskByID(job.ID)
+			switch {
+			case rowErr != nil && errors.Is(rowErr, db.ErrNotFound):
+				// The task no longer exists at all — the runner's job is orphaned.
+				response.TerminatedJobs = append(response.TerminatedJobs, job.ID)
+			case rowErr == nil && row.Status.IsFinished():
+				response.TerminatedJobs = append(response.TerminatedJobs, job.ID)
+			case rowErr != nil:
+				log.WithError(rowErr).WithFields(log.Fields{
+					"task_id":   job.ID,
+					"runner_id": runner.ID,
+					"context":   "runner",
+				}).Warn("runner progress: task not in pool and could not be loaded from database")
+			default:
+				log.WithFields(log.Fields{
+					"task_id":   job.ID,
+					"runner_id": runner.ID,
+					"context":   "runner",
+				}).Warn("runner progress: task not found in pool")
+			}
 			continue
 		}
 
@@ -329,34 +355,41 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		for _, logRecord := range job.LogRecords {
-			tsk.LogWithTime(logRecord.Time, logRecord.Message)
-		}
-
 		if !job.Status.IsValid() {
 			helpers.WriteErrorStatus(w, "Invalid task status", http.StatusBadRequest)
 			return
 		}
 
-		if !tsk.Task.Status.IsFinished() {
-			tsk.SetStatus(job.Status)
+		// The task already reached a terminal status on the server (e.g. force
+		// stopped while the runner was offline, or failed by the reconciler).
+		// Reject the report — logs included — and tell the runner to
+		// emergency-stop the job.
+		if tsk.Task.Status.IsFinished() {
+			response.TerminatedJobs = append(response.TerminatedJobs, job.ID)
+			continue
+		}
 
-			if job.Commit != nil {
-				tsk.SetCommit(job.Commit.Hash, job.Commit.Message)
-			}
+		for _, logRecord := range job.LogRecords {
+			tsk.LogWithTime(logRecord.Time, logRecord.Message)
+		}
 
-			// When the runner reports a terminal status, finalize the task here:
-			// finish webhook, autorun children, and pool/Redis state cleanup.
-			// This is what completes a task independently of the node that
-			// originally dispatched it.
-			if tsk.Task.Status.IsFinished() {
-				runner := runner
-				go taskPool.FinalizeRemoteTask(tsk, &runner)
-			}
+		tsk.SetStatus(job.Status)
+
+		if job.Commit != nil {
+			tsk.SetCommit(job.Commit.Hash, job.Commit.Message)
+		}
+
+		// When the runner reports a terminal status, finalize the task here:
+		// finish webhook, autorun children, and pool/Redis state cleanup.
+		// This is what completes a task independently of the node that
+		// originally dispatched it.
+		if tsk.Task.Status.IsFinished() {
+			runner := runner
+			go taskPool.FinalizeRemoteTask(tsk, &runner)
 		}
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	helpers.WriteJSON(w, http.StatusOK, response)
 }
 
 func RegisterRunner(w http.ResponseWriter, r *http.Request) {
