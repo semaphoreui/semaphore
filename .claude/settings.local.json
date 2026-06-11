@@ -40,7 +40,11 @@
       "Bash(gofmt -l api/cluster.go api/cluster_test.go services/tasks/task_state_store.go services/tasks/task_state_store_test.go services/tasks/TaskPool.go pro/services/ha/ha.go pro_impl/services/ha/ha.go pro_impl/services/ha/node_registry.go pro_impl/services/ha/cluster_inspector.go pro_impl/services/tasks/redis_task_state_inspector.go pro_impl/services/tasks/redis_task_state_store.go cli/cmd/root.go api/router.go)",
       "Bash(gofmt -d services/tasks/TaskPool.go)",
       "Bash(gofmt -l services/tasks/TaskPool.go)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "mcp__semaphore__run_task"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "semaphore"
+  ]
 }
