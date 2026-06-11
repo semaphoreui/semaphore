@@ -52,7 +52,10 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 		return
 	}
 
-	client := &http.Client{}
+	// Bound the dispatch: a webhook that connects but never responds would
+	// otherwise keep the dispatch goroutine alive forever, hanging the task in
+	// "starting" with no runner assigned.
+	client := &http.Client{Timeout: 30 * time.Second}
 
 	var req *http.Request
 	req, err = http.NewRequest("POST", runner.Webhook, bytes.NewBuffer(jsonBytes))

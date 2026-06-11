@@ -130,7 +130,22 @@ func (p *TaskPool) reconcileRunnerTasks(now time.Time) {
 	taskFailTimeout := util.Config.RunnersTaskFailTimeout()
 
 	for _, tsk := range p.state.OwnedRunningRange() {
-		if tsk == nil || tsk.Task.RunnerID == nil || tsk.Task.Status.IsFinished() {
+		if tsk == nil || tsk.Task.Status.IsFinished() {
+			continue
+		}
+
+		if tsk.Task.RunnerID == nil {
+			// An undispatched task this node still claims. Normally this is a task
+			// being dispatched right now by a live goroutine of this process — leave
+			// it. But if no such goroutine exists, the task is a "starting" stub
+			// restored from Redis after this node restarted mid-dispatch: its
+			// dispatch goroutine died with the previous process, so no runner will
+			// ever be assigned and neither the runner-liveness branch below (no
+			// runner to check) nor the HA orphan cleaner (claim is alive, owner is
+			// this live node) will recover it. Return it to the queue.
+			if !tsk.isDispatching() {
+				p.requeueUndispatchedTask(tsk)
+			}
 			continue
 		}
 
@@ -265,6 +280,62 @@ func (p *TaskPool) requeueTaskRunnerOffline(tsk *TaskRunner, runnerID int, reaso
 	// Same flow as the ErrAllRunnersBusy requeue in TaskRunner.run:
 	// put the task back into the queue, then let the pool release its
 	// running/active bookkeeping (EventTypeRequeued -> onTaskStop).
+	p.state.Enqueue(tsk)
+	p.queueEvents <- PoolEvent{EventTypeRequeued, tsk}
+}
+
+// requeueUndispatchedTask returns a task that this node claims and that sits in
+// the running set in a not-yet-running state without an assigned runner, but
+// for which this process holds no live dispatch goroutine. That happens when a
+// node restarts mid-dispatch: the in-memory dispatch goroutine is lost while the
+// task's Redis state (running-set membership + a still-refreshed claim) survives,
+// leaving the task stuck in "starting" forever — invisible to both the
+// runner-liveness reconcile (no runner to check) and the HA orphan cleaner (the
+// claim is alive and owned by this live node).
+//
+// The cluster-wide finalize lock plus a DB re-check make this idempotent and
+// safe against a concurrent dispatch that just assigned a runner.
+func (p *TaskPool) requeueUndispatchedTask(tsk *TaskRunner) {
+	if !p.state.TryFinalize(tsk.Task.ID) {
+		return // another node/goroutine is requeueing or finalizing this task
+	}
+	defer p.state.DeleteFinalize(tsk.Task.ID)
+
+	if util.HAEnabled() {
+		p.refreshTaskStatusFromDB(tsk)
+	}
+
+	// Only a not-yet-running task without a runner may be reassigned; a
+	// concurrent dispatch may have moved it to running or assigned a runner.
+	if tsk.Task.Status != task_logger.TaskStartingStatus &&
+		tsk.Task.Status != task_logger.TaskWaitingStatus {
+		return
+	}
+	if tsk.Task.RunnerID != nil {
+		return
+	}
+
+	log.WithFields(log.Fields{
+		"task_id": tsk.Task.ID,
+		"context": "runner_reconciler",
+	}).Warn("Dispatch lost: returning undispatched task to queue")
+
+	tsk.Log("Dispatch goroutine lost (node restarted mid-dispatch). Returning task to queue.")
+
+	tsk.SetStatus(task_logger.TaskWaitingStatus)
+
+	// SetStatus is a no-op when the status is already "waiting"; persist
+	// explicitly so the cleared state is durable before re-enqueueing.
+	if err := p.store.UpdateTask(tsk.Task); err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"task_id": tsk.Task.ID,
+			"context": "runner_reconciler",
+		}).Error("failed to persist requeued task")
+		return
+	}
+
+	// EventTypeRequeued -> onTaskStop releases the running/active bookkeeping and
+	// the claim, so the task can be re-claimed from the queue by any live node.
 	p.state.Enqueue(tsk)
 	p.queueEvents <- PoolEvent{EventTypeRequeued, tsk}
 }

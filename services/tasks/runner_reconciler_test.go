@@ -101,6 +101,51 @@ func createReconcilerTestTask(
 	return task, runner.ID
 }
 
+// createReconcilerTestTaskNoRunner persists the FK chain and a task row with no
+// runner assigned (runner_id NULL) — the state of a task whose dispatch never
+// reached a runner.
+func createReconcilerTestTaskNoRunner(
+	t *testing.T,
+	store *sql.SqlDb,
+	status task_logger.TaskStatus,
+) db.Task {
+	proj, err := store.CreateProject(db.Project{})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	require.NoError(t, err)
+
+	inv, err := store.CreateInventory(db.Inventory{ProjectID: proj.ID})
+	require.NoError(t, err)
+
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:         "Test",
+		Playbook:     "test.yml",
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+		InventoryID:  &inv.ID,
+	})
+	require.NoError(t, err)
+
+	task, err := store.CreateTask(db.Task{
+		ProjectID:  proj.ID,
+		TemplateID: tpl.ID,
+		Status:     status,
+	}, 0)
+	require.NoError(t, err)
+
+	return task
+}
+
 func TestDecideRunnerTaskAction(t *testing.T) {
 	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
 	offlineTimeout := 2 * time.Minute
@@ -480,12 +525,17 @@ func TestReconcileRunnerTasks(t *testing.T) {
 	keepTsk := &TaskRunner{Task: keepTask, pool: &pool}
 	state.SetRunning(keepTsk)
 
-	// Skipped: no runner assigned.
-	noRunnerTsk := &TaskRunner{
-		Task: db.Task{ID: 900001, Status: task_logger.TaskStartingStatus},
-		pool: &pool,
-	}
-	state.SetRunning(noRunnerTsk)
+	// Kept: no runner assigned but a live goroutine is dispatching it right now.
+	dispatchingTask := createReconcilerTestTaskNoRunner(t, store, task_logger.TaskStartingStatus)
+	dispatchingTsk := &TaskRunner{Task: dispatchingTask, pool: &pool}
+	dispatchingTsk.dispatching.Store(true)
+	state.SetRunning(dispatchingTsk)
+
+	// Requeued: starting task with no runner and no live dispatch goroutine — a
+	// stub left in the running set after the node restarted mid-dispatch.
+	stuckTask := createReconcilerTestTaskNoRunner(t, store, task_logger.TaskStartingStatus)
+	stuckTsk := &TaskRunner{Task: stuckTask, pool: &pool}
+	state.SetRunning(stuckTsk)
 
 	// Skipped: already finished.
 	finishedRunnerID := 1
@@ -514,12 +564,18 @@ func TestReconcileRunnerTasks(t *testing.T) {
 	assert.Equal(t, task_logger.TaskRunningStatus, keepTsk.Task.Status)
 	assert.NotNil(t, keepTsk.Task.RunnerID)
 
-	assert.Equal(t, task_logger.TaskStartingStatus, noRunnerTsk.Task.Status)
+	// Actively dispatching: left alone.
+	assert.Equal(t, task_logger.TaskStartingStatus, dispatchingTsk.Task.Status)
+
 	assert.Equal(t, task_logger.TaskSuccessStatus, finishedTsk.Task.Status)
+
+	// Stuck stub: returned to the queue.
+	assert.Equal(t, task_logger.TaskWaitingStatus, stuckTsk.Task.Status)
 
 	assert.Equal(t, task_logger.TaskWaitingStatus, requeueTsk.Task.Status)
 	assert.Nil(t, requeueTsk.Task.RunnerID)
-	assert.Equal(t, 1, state.QueueLen())
+	// Two tasks requeued (the deleted-runner task and the stuck stub).
+	assert.Equal(t, 2, state.QueueLen())
 
 	assert.Equal(t, task_logger.TaskFailStatus, failTsk.Task.Status)
 	assert.NotNil(t, failTsk.Task.End)
@@ -528,7 +584,8 @@ func TestReconcileRunnerTasks(t *testing.T) {
 	for len(pool.queueEvents) > 0 {
 		events = append(events, (<-pool.queueEvents).eventType)
 	}
-	assert.ElementsMatch(t, []EventType{EventTypeRequeued, EventTypeFinished}, events)
+	assert.ElementsMatch(t,
+		[]EventType{EventTypeRequeued, EventTypeRequeued, EventTypeFinished}, events)
 }
 
 func TestReconcileRunnerTasks_StoreErrorSkipsTask(t *testing.T) {
@@ -741,6 +798,107 @@ func TestFailTaskRunnerLost_HA(t *testing.T) {
 		assert.Equal(t, task_logger.TaskSuccessStatus, tsk.Task.Status)
 		assert.Empty(t, pool.queueEvents)
 	})
+}
+
+func TestRequeueUndispatchedTask(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	store := sql.CreateTestStore()
+	state := NewMemoryTaskStateStore()
+	pool := newReconcilerTestPool(store, state)
+
+	newTask := createReconcilerTestTaskNoRunner(t, store, task_logger.TaskStartingStatus)
+	tsk := &TaskRunner{Task: newTask, pool: &pool}
+	state.SetRunning(tsk)
+
+	pool.requeueUndispatchedTask(tsk)
+
+	// Reset to waiting and returned to the queue.
+	assert.Equal(t, task_logger.TaskWaitingStatus, tsk.Task.Status)
+	assert.Nil(t, tsk.Task.RunnerID)
+	assert.Equal(t, 1, state.QueueLen())
+
+	select {
+	case ev := <-pool.queueEvents:
+		assert.Equal(t, EventTypeRequeued, ev.eventType)
+		assert.Equal(t, tsk.Task.ID, ev.task.Task.ID)
+	default:
+		t.Fatal("expected EventTypeRequeued in queueEvents")
+	}
+
+	row, err := store.GetTaskByID(newTask.ID)
+	require.NoError(t, err)
+	assert.Equal(t, task_logger.TaskWaitingStatus, row.Status)
+}
+
+func TestReconcileRunnerTasks_DispatchingTaskKept(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	store := sql.CreateTestStore()
+	state := NewMemoryTaskStateStore()
+	pool := newReconcilerTestPool(store, state)
+
+	// A task with no runner that this process is actively dispatching must not
+	// be requeued out from under its live goroutine.
+	newTask := createReconcilerTestTaskNoRunner(t, store, task_logger.TaskStartingStatus)
+	tsk := &TaskRunner{Task: newTask, pool: &pool}
+	tsk.dispatching.Store(true)
+	state.SetRunning(tsk)
+
+	pool.reconcileRunnerTasks(time.Now())
+
+	assert.Equal(t, task_logger.TaskStartingStatus, tsk.Task.Status)
+	assert.Equal(t, 0, state.QueueLen())
+	assert.Empty(t, pool.queueEvents)
+}
+
+func TestRequeueUndispatchedTask_NoopWhenRunnerAssignedConcurrently(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	// CreateTestStore replaces util.Config, so HA is enabled after it.
+	store := sql.CreateTestStore()
+	util.Config.HA = &util.HAConfig{Enabled: true}
+	state := NewMemoryTaskStateStore()
+	pool := newReconcilerTestPool(store, state)
+
+	// A concurrent dispatch assigned a runner and persisted it in the DB while
+	// our in-memory stub still shows "starting" with no runner.
+	persisted, runnerID := createReconcilerTestTask(t, store, task_logger.TaskStartingStatus, nil)
+
+	stale := persisted
+	stale.RunnerID = nil
+	tsk := &TaskRunner{Task: stale, pool: &pool}
+	state.SetRunning(tsk)
+
+	pool.requeueUndispatchedTask(tsk)
+
+	// The DB refresh observed the assigned runner: the requeue bailed out.
+	assert.NotNil(t, tsk.Task.RunnerID)
+	assert.Equal(t, runnerID, *tsk.Task.RunnerID)
+	assert.Equal(t, 0, state.QueueLen())
+	assert.Empty(t, pool.queueEvents)
+}
+
+func TestRequeueUndispatchedTask_FinalizeLockHeld(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	state := NewMemoryTaskStateStore()
+	pool := newReconcilerTestPool(sql.CreateTestStore(), state)
+
+	tsk := &TaskRunner{
+		Task: db.Task{ID: 11, Status: task_logger.TaskStartingStatus},
+		pool: &pool,
+	}
+
+	// Another actor holds the finalize lock: requeue must bail out untouched.
+	require.True(t, state.TryFinalize(tsk.Task.ID))
+	defer state.DeleteFinalize(tsk.Task.ID)
+
+	pool.requeueUndispatchedTask(tsk)
+
+	assert.Equal(t, task_logger.TaskStartingStatus, tsk.Task.Status)
+	assert.Equal(t, 0, state.QueueLen())
+	assert.Empty(t, pool.queueEvents)
 }
 
 func intPtr(v int) *int { return &v }

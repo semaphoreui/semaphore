@@ -344,6 +344,12 @@ func (p *TaskPool) writeLogs(logs []logRecord) {
 }
 
 func runTask(task *TaskRunner, p *TaskPool) {
+	// Mark the task as actively dispatched by this process before it becomes
+	// visible in the running set (onTaskRun -> SetRunning). The reconciler relies
+	// on this to distinguish a live dispatch from a stale "starting" stub left in
+	// the running set by a previous process that died mid-dispatch.
+	task.dispatching.Store(true)
+
 	log.WithFields(log.Fields{
 		"context":   "task_pool",
 		"task_id":   task.Task.ID,
