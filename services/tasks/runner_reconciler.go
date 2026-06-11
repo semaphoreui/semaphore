@@ -188,6 +188,14 @@ func (p *TaskPool) failTaskRunnerLost(tsk *TaskRunner, runner *db.Runner, reason
 
 	tsk.Log("Runner lost: " + reason)
 	tsk.Task.Message = reason
+
+	if runner == nil {
+		// The runner row no longer exists and the DB has already nulled
+		// task.runner_id (the FK is "on delete set null"); persisting the
+		// stale ID would violate the FK and panic in saveStatus.
+		tsk.Task.RunnerID = nil
+	}
+
 	tsk.SetStatus(task_logger.TaskFailStatus)
 
 	p.FinalizeRemoteTask(tsk, runner)

@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -11,6 +12,37 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// reconcilerStoreStub wraps a real store and forces errors on selected methods.
+type reconcilerStoreStub struct {
+	db.Store
+	globalRunnerErr error
+	updateTaskErr   error
+}
+
+func (s *reconcilerStoreStub) GetGlobalRunner(runnerID int) (db.Runner, error) {
+	if s.globalRunnerErr != nil {
+		return db.Runner{}, s.globalRunnerErr
+	}
+	return s.Store.GetGlobalRunner(runnerID)
+}
+
+func (s *reconcilerStoreStub) UpdateTask(task db.Task) error {
+	if s.updateTaskErr != nil {
+		return s.updateTaskErr
+	}
+	return s.Store.UpdateTask(task)
+}
+
+func newReconcilerTestPool(store db.Store, state TaskStateStore) TaskPool {
+	return TaskPool{
+		queueEvents:     make(chan PoolEvent, 10),
+		logger:          make(chan logRecord, 100),
+		state:           state,
+		store:           store,
+		logWriteService: &mockLogWriteService{},
+	}
+}
 
 func setupReconcilerConfig(t *testing.T) {
 	prevCfg := util.Config
@@ -388,3 +420,327 @@ func TestFailTaskRunnerLost(t *testing.T) {
 	pool.failTaskRunnerLost(tsk, nil, "runner stopped responding")
 	assert.Empty(t, pool.queueEvents)
 }
+
+func TestFinalizeRemoteTask_DoesNotOverwriteConcurrentTerminalSuccess(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	store := sql.CreateTestStore()
+	state := NewMemoryTaskStateStore()
+
+	pool := TaskPool{
+		queueEvents:     make(chan PoolEvent, 10),
+		logger:          make(chan logRecord, 100),
+		state:           state,
+		store:           store,
+		logWriteService: &mockLogWriteService{},
+	}
+
+	now := time.Now()
+	newTask, _ := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
+
+	// Simulate a runner report on another node that has already persisted a
+	// terminal success and won the finalization lock, while a stale finalizer
+	// snapshot still says the task failed.
+	require.True(t, state.TryFinalize(newTask.ID))
+	defer state.DeleteFinalize(newTask.ID)
+	completedTask := newTask
+	completedTask.Status = task_logger.TaskSuccessStatus
+	require.NoError(t, store.UpdateTask(completedTask))
+
+	staleFinalizerTask := &TaskRunner{
+		Task: newTask,
+		pool: &pool,
+	}
+	staleFinalizerTask.Task.Status = task_logger.TaskFailStatus
+	state.SetRunning(staleFinalizerTask)
+
+	pool.FinalizeRemoteTask(staleFinalizerTask, nil)
+
+	assert.Equal(t, task_logger.TaskFailStatus, staleFinalizerTask.Task.Status)
+	assert.Nil(t, staleFinalizerTask.Task.End)
+	assert.Empty(t, pool.queueEvents)
+
+	row, err := store.GetTaskByID(newTask.ID)
+	require.NoError(t, err)
+	assert.Equal(t, task_logger.TaskSuccessStatus, row.Status)
+	assert.Nil(t, row.End)
+}
+
+func TestReconcileRunnerTasks(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	store := sql.CreateTestStore()
+	state := NewMemoryTaskStateStore()
+	pool := newReconcilerTestPool(store, state)
+
+	now := time.Now()
+
+	// Kept: running task on an existing runner that never polled.
+	keepTask, _ := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
+	keepTsk := &TaskRunner{Task: keepTask, pool: &pool}
+	state.SetRunning(keepTsk)
+
+	// Skipped: no runner assigned.
+	noRunnerTsk := &TaskRunner{
+		Task: db.Task{ID: 900001, Status: task_logger.TaskStartingStatus},
+		pool: &pool,
+	}
+	state.SetRunning(noRunnerTsk)
+
+	// Skipped: already finished.
+	finishedRunnerID := 1
+	finishedTsk := &TaskRunner{
+		Task: db.Task{ID: 900002, Status: task_logger.TaskSuccessStatus, RunnerID: &finishedRunnerID},
+		pool: &pool,
+	}
+	state.SetRunning(finishedTsk)
+
+	// Requeued: starting task whose runner row was deleted. The in-memory
+	// copy keeps the stale RunnerID while the DB nulls it (FK on delete
+	// set null) — exactly the production state after a runner removal.
+	requeueTask, requeueRunnerID := createReconcilerTestTask(t, store, task_logger.TaskStartingStatus, nil)
+	require.NoError(t, store.DeleteGlobalRunner(requeueRunnerID))
+	requeueTsk := &TaskRunner{Task: requeueTask, pool: &pool}
+	state.SetRunning(requeueTsk)
+
+	// Failed: running task whose runner row was deleted.
+	failTask, failRunnerID := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
+	require.NoError(t, store.DeleteGlobalRunner(failRunnerID))
+	failTsk := &TaskRunner{Task: failTask, pool: &pool}
+	state.SetRunning(failTsk)
+
+	pool.reconcileRunnerTasks(time.Now())
+
+	assert.Equal(t, task_logger.TaskRunningStatus, keepTsk.Task.Status)
+	assert.NotNil(t, keepTsk.Task.RunnerID)
+
+	assert.Equal(t, task_logger.TaskStartingStatus, noRunnerTsk.Task.Status)
+	assert.Equal(t, task_logger.TaskSuccessStatus, finishedTsk.Task.Status)
+
+	assert.Equal(t, task_logger.TaskWaitingStatus, requeueTsk.Task.Status)
+	assert.Nil(t, requeueTsk.Task.RunnerID)
+	assert.Equal(t, 1, state.QueueLen())
+
+	assert.Equal(t, task_logger.TaskFailStatus, failTsk.Task.Status)
+	assert.NotNil(t, failTsk.Task.End)
+
+	var events []EventType
+	for len(pool.queueEvents) > 0 {
+		events = append(events, (<-pool.queueEvents).eventType)
+	}
+	assert.ElementsMatch(t, []EventType{EventTypeRequeued, EventTypeFinished}, events)
+}
+
+func TestReconcileRunnerTasks_StoreErrorSkipsTask(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	store := sql.CreateTestStore()
+	state := NewMemoryTaskStateStore()
+	pool := newReconcilerTestPool(
+		&reconcilerStoreStub{Store: store, globalRunnerErr: errors.New("connection lost")},
+		state,
+	)
+
+	runnerID := 42
+	tsk := &TaskRunner{
+		Task: db.Task{ID: 1, Status: task_logger.TaskStartingStatus, RunnerID: &runnerID},
+		pool: &pool,
+	}
+	state.SetRunning(tsk)
+
+	pool.reconcileRunnerTasks(time.Now())
+
+	// The runner state is unknown: the task must be left alone.
+	assert.Equal(t, task_logger.TaskStartingStatus, tsk.Task.Status)
+	assert.NotNil(t, tsk.Task.RunnerID)
+	assert.Equal(t, 0, state.QueueLen())
+	assert.Empty(t, pool.queueEvents)
+}
+
+func TestRunnerTasksReconcileLoop(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	// CreateTestStore replaces util.Config, so the interval is set after it.
+	store := sql.CreateTestStore()
+	util.Config.Runners = &util.RunnersConfig{ReconcileIntervalSec: 1}
+	state := NewMemoryTaskStateStore()
+	pool := newReconcilerTestPool(store, state)
+
+	// A starting task on a never-polled runner is requeued on the first tick.
+	newTask, _ := createReconcilerTestTask(t, store, task_logger.TaskStartingStatus, nil)
+	tsk := &TaskRunner{Task: newTask, pool: &pool}
+	state.SetRunning(tsk)
+
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		pool.runnerTasksReconcileLoop(stop)
+		close(done)
+	}()
+
+	assert.Eventually(t, func() bool {
+		return state.QueueLen() == 1
+	}, 5*time.Second, 50*time.Millisecond)
+
+	close(stop)
+	<-done
+}
+
+func TestRequeueTaskRunnerOffline_FinalizeLockHeld(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	state := NewMemoryTaskStateStore()
+	pool := newReconcilerTestPool(sql.CreateTestStore(), state)
+
+	runnerID := 42
+	tsk := &TaskRunner{
+		Task: db.Task{ID: 7, Status: task_logger.TaskStartingStatus, RunnerID: &runnerID},
+		pool: &pool,
+	}
+
+	// Another actor holds the finalize lock: requeue must bail out untouched.
+	require.True(t, state.TryFinalize(tsk.Task.ID))
+	defer state.DeleteFinalize(tsk.Task.ID)
+
+	pool.requeueTaskRunnerOffline(tsk, runnerID, "runner is offline")
+
+	assert.Equal(t, task_logger.TaskStartingStatus, tsk.Task.Status)
+	assert.NotNil(t, tsk.Task.RunnerID)
+	assert.Equal(t, 0, state.QueueLen())
+	assert.Empty(t, pool.queueEvents)
+}
+
+func TestRequeueTaskRunnerOffline_NoopWhenReassigned(t *testing.T) {
+	tests := []struct {
+		name     string
+		runnerID *int
+	}{
+		{"task moved to another runner", intPtr(43)},
+		{"runner already cleared", nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupReconcilerConfig(t)
+
+			state := NewMemoryTaskStateStore()
+			pool := newReconcilerTestPool(sql.CreateTestStore(), state)
+
+			tsk := &TaskRunner{
+				Task: db.Task{ID: 8, Status: task_logger.TaskStartingStatus, RunnerID: tt.runnerID},
+				pool: &pool,
+			}
+
+			pool.requeueTaskRunnerOffline(tsk, 42, "runner is offline")
+
+			assert.Equal(t, task_logger.TaskStartingStatus, tsk.Task.Status)
+			assert.Equal(t, tt.runnerID, tsk.Task.RunnerID)
+			assert.Equal(t, 0, state.QueueLen())
+			assert.Empty(t, pool.queueEvents)
+		})
+	}
+}
+
+func TestRequeueTaskRunnerOffline_PersistError(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	state := NewMemoryTaskStateStore()
+	pool := newReconcilerTestPool(
+		&reconcilerStoreStub{Store: sql.CreateTestStore(), updateTaskErr: errors.New("db down")},
+		state,
+	)
+
+	runnerID := 42
+	// Waiting status makes SetStatus a no-op, so the only UpdateTask call is
+	// the explicit persist of the cleared RunnerID.
+	tsk := &TaskRunner{
+		Task: db.Task{ID: 9, Status: task_logger.TaskWaitingStatus, RunnerID: &runnerID},
+		pool: &pool,
+	}
+
+	pool.requeueTaskRunnerOffline(tsk, runnerID, "runner is offline")
+
+	// Persist failed: the task must not be enqueued (the old runner could
+	// still pull it), and no requeue event must be emitted.
+	assert.Equal(t, 0, state.QueueLen())
+	assert.Empty(t, pool.queueEvents)
+}
+
+func TestRequeueTaskRunnerOffline_HA(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	// CreateTestStore replaces util.Config, so HA is enabled after it.
+	store := sql.CreateTestStore()
+	util.Config.HA = &util.HAConfig{Enabled: true}
+	state := NewMemoryTaskStateStore()
+	pool := newReconcilerTestPool(store, state)
+
+	newTask, runnerID := createReconcilerTestTask(t, store, task_logger.TaskStartingStatus, nil)
+
+	// Stale in-memory copy: in HA mode the DB row is authoritative.
+	staleTask := newTask
+	staleTask.Status = task_logger.TaskRunningStatus
+	tsk := &TaskRunner{Task: staleTask, pool: &pool}
+	state.SetRunning(tsk)
+
+	pool.requeueTaskRunnerOffline(tsk, runnerID, "runner is offline")
+
+	// The DB refresh restored "starting", so the requeue proceeded.
+	assert.Nil(t, tsk.Task.RunnerID)
+	assert.Equal(t, task_logger.TaskWaitingStatus, tsk.Task.Status)
+	assert.Equal(t, 1, state.QueueLen())
+}
+
+func TestFailTaskRunnerLost_HA(t *testing.T) {
+	t.Run("DB row still running: task failed", func(t *testing.T) {
+		setupReconcilerConfig(t)
+
+		// CreateTestStore replaces util.Config, so HA is enabled after it.
+		store := sql.CreateTestStore()
+		util.Config.HA = &util.HAConfig{Enabled: true}
+		state := NewMemoryTaskStateStore()
+		pool := newReconcilerTestPool(store, state)
+
+		now := time.Now()
+		newTask, _ := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
+
+		tsk := &TaskRunner{Task: newTask, pool: &pool}
+		state.SetRunning(tsk)
+
+		pool.failTaskRunnerLost(tsk, nil, "runner stopped responding")
+
+		assert.Equal(t, task_logger.TaskFailStatus, tsk.Task.Status)
+		assert.NotNil(t, tsk.Task.End)
+	})
+
+	t.Run("DB row already finished: no-op", func(t *testing.T) {
+		setupReconcilerConfig(t)
+
+		// CreateTestStore replaces util.Config, so HA is enabled after it.
+		store := sql.CreateTestStore()
+		util.Config.HA = &util.HAConfig{Enabled: true}
+		state := NewMemoryTaskStateStore()
+		pool := newReconcilerTestPool(store, state)
+
+		now := time.Now()
+		newTask, _ := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
+
+		// Another node already finished the task in the DB.
+		finished := newTask
+		finished.Status = task_logger.TaskSuccessStatus
+		finished.End = &now
+		require.NoError(t, store.UpdateTask(finished))
+
+		// Stale in-memory copy still says "running".
+		tsk := &TaskRunner{Task: newTask, pool: &pool}
+		state.SetRunning(tsk)
+
+		pool.failTaskRunnerLost(tsk, nil, "runner stopped responding")
+
+		// The DB refresh observed the terminal status: nothing was failed.
+		assert.Equal(t, task_logger.TaskSuccessStatus, tsk.Task.Status)
+		assert.Empty(t, pool.queueEvents)
+	})
+}
+
+func intPtr(v int) *int { return &v }
