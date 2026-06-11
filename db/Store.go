@@ -285,6 +285,8 @@ type TemplateManager interface {
 	GetTemplateEnvironments(projectID int, templateID int) ([]int, error)
 	UpdateTemplateEnvironments(projectID int, templateID int, environmentIDs []int) error
 
+	GetTemplateNotifications(projectID int, templateID int) ([]int, error)
+
 	GetTemplatePermission(projectID int, templateID int, userID int) (ProjectUserPermission, error)
 	GetTemplateRoles(projectID int, templateID int) ([]TemplateRolePerm, error)
 	CreateTemplateRole(role TemplateRolePerm) (TemplateRolePerm, error)
@@ -322,6 +324,16 @@ type EnvironmentManager interface {
 	CreateEnvironment(env Environment) (Environment, error)
 	DeleteEnvironment(projectID int, templateID int) error
 	GetEnvironmentSecrets(projectID int, environmentID int) ([]AccessKey, error)
+}
+
+// NotificationManager handles notification-related operations
+type NotificationManager interface {
+	GetNotifications(projectID int, params RetrieveQueryParams) ([]Notification, error)
+	GetNotification(projectID int, notificationID int) (Notification, error)
+	CreateNotification(notification Notification) (Notification, error)
+	UpdateNotification(notification Notification) error
+	DeleteNotification(projectID int, notificationID int) error
+	GetNotificationRefs(projectID int, notificationID int) (ObjectReferrers, error)
 }
 
 type GetAccessKeyOptions struct {
@@ -530,6 +542,7 @@ type Store interface {
 	InventoryManager
 	RepositoryManager
 	EnvironmentManager
+	NotificationManager
 	AccessKeyManager
 	IntegrationManager
 	SessionManager

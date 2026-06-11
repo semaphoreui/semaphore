@@ -306,6 +306,9 @@ func Route(
 	projectUserAPI.Path("/inventory").HandlerFunc(projects.GetInventory).Methods("GET", "HEAD")
 	projectUserAPI.Path("/inventory").HandlerFunc(projects.AddInventory).Methods("POST")
 
+	projectUserAPI.Path("/notifications").HandlerFunc(projects.GetNotifications).Methods("GET", "HEAD")
+	projectUserAPI.Path("/notifications").HandlerFunc(projects.AddNotification).Methods("POST")
+
 	projectUserAPI.Path("/environment").HandlerFunc(projects.GetEnvironment).Methods("GET", "HEAD")
 	projectUserAPI.Path("/environment").HandlerFunc(environmentController.AddEnvironment).Methods("POST")
 
@@ -415,6 +418,14 @@ func Route(
 	projectInventoryManagement.HandleFunc("/{inventory_id}/refs", projects.GetInventoryRefs).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.UpdateInventory).Methods("PUT")
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.RemoveInventory).Methods("DELETE")
+
+	projectNotificationManagement := projectUserAPI.PathPrefix("/notifications").Subrouter()
+	projectNotificationManagement.Use(projects.NotificationMiddleware)
+
+	projectNotificationManagement.HandleFunc("/{notification_id}", projects.GetNotifications).Methods("GET", "HEAD")
+	projectNotificationManagement.HandleFunc("/{notification_id}/refs", projects.GetNotificationRefs).Methods("GET", "HEAD")
+	projectNotificationManagement.HandleFunc("/{notification_id}", projects.UpdateNotification).Methods("PUT")
+	projectNotificationManagement.HandleFunc("/{notification_id}", projects.RemoveNotification).Methods("DELETE")
 
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.GetTerraformInventoryAliases).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.AddTerraformInventoryAlias).Methods("POST")

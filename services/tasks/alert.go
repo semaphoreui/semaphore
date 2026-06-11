@@ -3,6 +3,7 @@ package tasks
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	htmltemplate "html/template"
 	"net/http"
@@ -582,4 +583,122 @@ func (t *TaskRunner) taskLink() string {
 		t.Template.ID,
 		t.Task.ID,
 	)
+}
+
+func (t *TaskRunner) sendCustomMailAlert(notification db.Notification) {
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("email"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  t.Task.Status.Format(),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+	}
+
+	tpl, err := htmltemplate.ParseFS(templates, "templates/email.tmpl")
+	if err != nil {
+		t.Log("Can't parse custom email alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate custom email alert template!")
+		panic(err)
+	}
+
+	if body.Len() == 0 {
+		t.Log("Buffer for custom email alert is empty")
+		return
+	}
+
+	var config struct {
+		EmailSender        string `json:"email_sender"`
+		EmailHost          string `json:"email_host"`
+		EmailPort          string `json:"email_port"`
+		EmailPasswordKeyID *int   `json:"email_password_key_id"`
+		EmailSecure        bool   `json:"email_secure"`
+		EmailTls           bool   `json:"email_tls"`
+	}
+
+	if err := json.Unmarshal([]byte(notification.Config), &config); err != nil {
+		t.Logf("Failed to parse config JSON for notification %d: %s", notification.ID, err.Error())
+		return
+	}
+
+	username := ""
+	password := ""
+
+	if config.EmailPasswordKeyID != nil {
+		key, err := t.pool.store.GetAccessKey(t.Template.ProjectID, *config.EmailPasswordKeyID)
+		if err != nil {
+			t.Logf("Warning: Could not load SMTP credentials from Key Store (ID: %d): %s", *config.EmailPasswordKeyID, err.Error())
+		} else {
+			if err := t.pool.encryptionService.DeserializeSecret(&key); err != nil {
+				t.Logf("Warning: Could not decrypt SMTP credentials: %s", err.Error())
+			}
+
+			if key.Type == db.AccessKeyLoginPassword {
+				username = key.LoginPassword.Login
+				password = key.LoginPassword.Password
+			} else if key.Type == db.AccessKeyString {
+				username = config.EmailSender
+				password = key.String
+			}
+
+		}
+	}
+
+	t.Logf("Attempting to send alert via SMTP Host: %s to %s", config.EmailHost, config.EmailSender)
+
+	str := body.String()
+	if err := mailer.Send(
+		config.EmailSecure,
+		config.EmailTls,
+		config.EmailHost,
+		config.EmailPort,
+		username,
+		password,
+		config.EmailSender,
+		config.EmailSender,
+		fmt.Sprintf("Task '%s' - %s", t.Template.Name, t.Task.Status.Format()),
+		str,
+	); err != nil {
+		util.LogError(err)
+		t.Logf("Failed to send email alert: %s", err.Error())
+		return
+	}
+
+	t.Logf("Successfully sent email alert via %s", config.EmailHost)
+}
+
+func (t *TaskRunner) sendTemplateNotifications() {
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+		return
+	}
+
+	if len(t.Template.NotificationIDs) == 0 {
+		return
+	}
+
+	for _, notificationID := range t.Template.NotificationIDs {
+		notification, err := t.pool.store.GetNotification(t.Template.ProjectID, notificationID)
+		if err != nil {
+			t.Logf("Can't load template notification %d: %s", notificationID, err.Error())
+			continue
+		}
+
+		switch notification.Type {
+		case "email":
+			t.sendCustomMailAlert(notification)
+		default:
+			t.Logf("Notification type '%s' not yet supported for custom template templates", notification.Type)
+		}
+	}
 }

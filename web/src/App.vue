@@ -1152,6 +1152,13 @@ export default {
             to: `${base}/integrations`,
             testId: 'sidebar-integrations',
           },
+          {
+            key: 'notifications',
+            icon: 'mdi-bell-ring-outline',
+            title: this.$t('notifications'),
+            to: `${base}/notifications`,
+            testId: 'sidebar-integrations',
+          },
         );
       }
 

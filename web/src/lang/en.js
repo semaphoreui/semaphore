@@ -494,4 +494,5 @@ export default {
   unlimited: 'Unlimited',
   featureFlags: 'Feature Flags',
   nonAdminCanCreateProject: 'Non-admin Can Create Project',
+  newNotification: 'New Notification',
 };
