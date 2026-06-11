@@ -177,6 +177,7 @@ func (p *TaskPool) Run() {
 
 	go p.handleQueue()
 	go p.handleLogs()
+	go p.runnerTasksReconcileLoop(nil)
 
 	for {
 		select {
@@ -399,6 +400,12 @@ func (p *TaskPool) FinalizeRemoteTask(tsk *TaskRunner, runner *db.Runner) {
 	}
 	defer p.state.DeleteFinalize(tsk.Task.ID)
 
+	p.finalizeRemoteTaskLocked(tsk, runner)
+}
+
+// finalizeRemoteTaskLocked completes a remote task after the caller has won
+// the state store's finalize lock for tsk.Task.ID.
+func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) {
 	if util.HAEnabled() {
 		p.refreshTaskStatusFromDB(tsk)
 		if tsk.Task.End != nil {

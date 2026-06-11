@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -64,6 +65,11 @@ type JobPool struct {
 
 	processing int32
 
+	// startedAt is the process start time, sent to the server on every poll
+	// (X-Runner-Started-At header). It changes on every restart, letting the
+	// server detect that this runner lost its in-memory job pool.
+	startedAt time.Time
+
 	keyInstaller db_lib.AccessKeyInstaller
 }
 
@@ -72,8 +78,16 @@ func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
 		runningJobs:  make(map[int]*runningJob),
 		queue:        make([]*job, 0),
 		processing:   0,
+		startedAt:    tz.Now(),
 		keyInstaller: keyInstaller,
 	}
+}
+
+// setCommonHeaders sets the headers every runner→server request carries:
+// the auth token and the process start time (restart detection).
+func (p *JobPool) setCommonHeaders(req *http.Request) {
+	req.Header.Set("X-Runner-Token", util.Config.Runner.Token)
+	req.Header.Set("X-Runner-Started-At", p.startedAt.UTC().Format(time.RFC3339))
 }
 
 // addRunningJob registers a running job under the lock.
@@ -428,7 +442,7 @@ func (p *JobPool) sendProgress() (ok bool) {
 		return
 	}
 
-	req.Header.Set("X-Runner-Token", util.Config.Runner.Token)
+	p.setCommonHeaders(req)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -735,7 +749,7 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	req.Header.Set("X-Runner-Token", util.Config.Runner.Token)
+	p.setCommonHeaders(req)
 
 	log.WithFields(log.Fields{
 		"context":      "checking_new_jobs",
