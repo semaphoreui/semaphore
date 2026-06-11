@@ -166,9 +166,15 @@ func (p *TaskPool) reconcileRunnerTasks(now time.Time) {
 
 // failTaskRunnerLost fails a dispatched task whose runner is lost and runs the
 // usual finalization (finish webhook, autorun children, pool/Redis cleanup).
-// Idempotent: it re-checks the persisted status first and FinalizeRemoteTask
-// dedups cluster-wide via the state store's finalize lock.
+// Idempotent: it takes the state store's finalize lock before writing the
+// failure so a concurrent terminal runner report can win without being
+// overwritten by the reconciler.
 func (p *TaskPool) failTaskRunnerLost(tsk *TaskRunner, runner *db.Runner, reason string) {
+	if !p.state.TryFinalize(tsk.Task.ID) {
+		return
+	}
+	defer p.state.DeleteFinalize(tsk.Task.ID)
+
 	if util.HAEnabled() {
 		p.refreshTaskStatusFromDB(tsk)
 	}
@@ -198,7 +204,7 @@ func (p *TaskPool) failTaskRunnerLost(tsk *TaskRunner, runner *db.Runner, reason
 
 	tsk.SetStatus(task_logger.TaskFailStatus)
 
-	p.FinalizeRemoteTask(tsk, runner)
+	p.finalizeRemoteTaskLocked(tsk, runner)
 }
 
 // requeueTaskRunnerOffline returns a not-yet-running task dispatched to an

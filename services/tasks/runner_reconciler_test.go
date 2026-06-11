@@ -375,6 +375,51 @@ func TestRequeueTaskRunnerOffline_NoopWhenAlreadyRunning(t *testing.T) {
 	assert.Empty(t, pool.queueEvents)
 }
 
+func TestFinalizeRemoteTask_DoesNotOverwriteConcurrentTerminalSuccess(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	store := sql.CreateTestStore()
+	state := NewMemoryTaskStateStore()
+
+	pool := TaskPool{
+		queueEvents:     make(chan PoolEvent, 10),
+		logger:          make(chan logRecord, 100),
+		state:           state,
+		store:           store,
+		logWriteService: &mockLogWriteService{},
+	}
+
+	now := time.Now()
+	newTask, _ := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
+
+	// Simulate a runner report on another node that has already persisted a
+	// terminal success and won the finalization lock, while a stale finalizer
+	// snapshot still says the task failed.
+	require.True(t, state.TryFinalize(newTask.ID))
+	defer state.DeleteFinalize(newTask.ID)
+	completedTask := newTask
+	completedTask.Status = task_logger.TaskSuccessStatus
+	require.NoError(t, store.UpdateTask(completedTask))
+
+	staleFinalizerTask := &TaskRunner{
+		Task: newTask,
+		pool: &pool,
+	}
+	staleFinalizerTask.Task.Status = task_logger.TaskFailStatus
+	state.SetRunning(staleFinalizerTask)
+
+	pool.FinalizeRemoteTask(staleFinalizerTask, nil)
+
+	assert.Equal(t, task_logger.TaskFailStatus, staleFinalizerTask.Task.Status)
+	assert.Nil(t, staleFinalizerTask.Task.End)
+	assert.Empty(t, pool.queueEvents)
+
+	row, err := store.GetTaskByID(newTask.ID)
+	require.NoError(t, err)
+	assert.Equal(t, task_logger.TaskSuccessStatus, row.Status)
+	assert.Nil(t, row.End)
+}
+
 func TestFailTaskRunnerLost(t *testing.T) {
 	setupReconcilerConfig(t)
 
