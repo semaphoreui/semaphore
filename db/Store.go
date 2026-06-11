@@ -53,6 +53,12 @@ type RetrieveQueryParams struct {
 	Filter       string
 	Ownership    OwnershipFilter
 	TaskFilter   *TaskFilter
+
+	// BeforeID enables keyset (cursor) pagination for id-ordered lists.
+	// When greater than zero, only rows with primary key id strictly less
+	// than BeforeID are returned. It is an alternative to Offset that does
+	// not get more expensive as the caller paginates deeper.
+	BeforeID int
 }
 
 type ObjectReferrer struct {

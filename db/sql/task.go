@@ -303,6 +303,15 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		q = q.Where(squirrel.Eq{"task.id": taskIDs})
 	}
 
+	// Keyset (cursor) pagination: return only tasks strictly older than the
+	// given cursor. Combined with the `id desc` ordering this walks backwards
+	// through the table using the primary key index, so it stays cheap even
+	// for projects with millions of tasks (unlike OFFSET, which scans and
+	// discards all skipped rows).
+	if params.BeforeID > 0 {
+		q = q.Where("task.id < ?", params.BeforeID)
+	}
+
 	if params.Count > 0 {
 		q = q.Limit(uint64(params.Count))
 	}

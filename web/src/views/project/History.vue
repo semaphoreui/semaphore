@@ -16,7 +16,10 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      :footer-props="{ itemsPerPageOptions: [20] }"
+
+      :loading="loading"
+      :items-per-page="-1"
+      hide-default-footer
       class="mt-4 HistoryTable"
     >
       <template v-slot:item.tpl_alias="{ item }">
@@ -90,6 +93,38 @@
         {{ [item.start, item.end] | formatMilliseconds }}
       </template>
     </v-data-table>
+
+    <div class="d-flex align-center justify-end mt-2 mr-2 mb-4 HistoryPagination">
+      <span class="text--secondary mr-2">{{ $t('rowsPerPage') }}</span>
+
+      <v-select
+        v-model="perPage"
+        :items="perPageOptions"
+        :disabled="loading"
+        dense
+        hide-details
+        class="HistoryPerPage mr-4"
+        style="max-width: 72px;"
+      ></v-select>
+
+      <v-btn
+        icon
+        :disabled="loading || pageIndex === 0"
+        @click="goPrev()"
+      >
+        <v-icon>mdi-chevron-left</v-icon>
+      </v-btn>
+
+      <span class="mx-2 text--secondary">{{ rangeStart }} - {{ rangeEnd }}</span>
+
+      <v-btn
+        icon
+        :disabled="loading || !hasNext"
+        @click="goNext()"
+      >
+        <v-icon>mdi-chevron-right</v-icon>
+      </v-btn>
+    </div>
   </div>
 </template>
 
@@ -100,6 +135,7 @@
 </style>
 
 <script>
+import axios from 'axios';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
@@ -113,14 +149,43 @@ export default {
   mixins: [ItemListPageBase, AppsMixin],
 
   data() {
-    return { TEMPLATE_TYPE_ICONS };
+    return {
+      TEMPLATE_TYPE_ICONS,
+      loading: false,
+      // Keyset (cursor) pagination state. `cursors[i]` is the `before` task id
+      // used to load page i (null for the first page). `hasNext` comes from the
+      // backend X-Has-Next header so we never need an expensive total count.
+      cursors: [null],
+      pageIndex: 0,
+      hasNext: false,
+      perPage: 20,
+      perPageOptions: [10, 20, 50, 100],
+    };
   },
 
   components: { DashboardMenu, TaskStatus, TaskLink },
 
+  computed: {
+    // Positional range of the current page relative to the start of navigation
+    // (page 1 = newest). Keyset pagination has no real offset, so this is the
+    // virtual offset `pageIndex * perPage` .. that plus the rows actually
+    // loaded on the current page.
+    rangeStart() {
+      return this.pageIndex * this.perPage;
+    },
+
+    rangeEnd() {
+      return this.rangeStart + (this.items ? this.items.length : 0);
+    },
+  },
+
   watch: {
     async projectId() {
-      await this.loadItems();
+      await this.resetAndLoad();
+    },
+
+    async perPage() {
+      await this.resetAndLoad();
     },
   },
 
@@ -221,6 +286,65 @@ export default {
 
     getItemsUrl() {
       return `/api/project/${this.projectId}/tasks/last`;
+    },
+
+    // Reset to the first page and reload. Used when the project or the page
+    // size changes, since existing cursors become meaningless.
+    async resetAndLoad() {
+      this.cursors = [null];
+      this.pageIndex = 0;
+      await this.loadItems();
+    },
+
+    // Override ItemListPageBase.loadItems to fetch the current page using keyset
+    // pagination. `hasNext` is read from the X-Has-Next header.
+    async loadItems() {
+      const before = this.cursors[this.pageIndex];
+
+      let url = `${this.getItemsUrl()}?count=${this.perPage}`;
+      if (before != null) {
+        url += `&before=${before}`;
+      }
+
+      this.loading = true;
+      try {
+        const response = await axios({
+          method: 'get',
+          url,
+          responseType: 'json',
+        });
+
+        this.items = response.data;
+        this.hasNext = response.headers['x-has-next'] === 'true';
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async goNext() {
+      if (!this.hasNext || this.loading || this.items.length === 0) {
+        return;
+      }
+
+      // Tasks are ordered by id desc, so the last row holds the smallest id on
+      // the current page — that becomes the cursor for the next (older) page.
+      const before = this.items[this.items.length - 1].id;
+
+      // Drop any forward history before pushing the new cursor.
+      this.cursors = this.cursors.slice(0, this.pageIndex + 1);
+      this.cursors.push(before);
+      this.pageIndex += 1;
+
+      await this.loadItems();
+    },
+
+    async goPrev() {
+      if (this.pageIndex === 0 || this.loading) {
+        return;
+      }
+
+      this.pageIndex -= 1;
+      await this.loadItems();
     },
   },
 };
