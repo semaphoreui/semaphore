@@ -343,7 +343,7 @@ func TestRequeueTaskRunnerOffline_NoopWhenAlreadyRunning(t *testing.T) {
 	assert.Empty(t, pool.queueEvents)
 }
 
-func TestFailTaskRunnerLost_NoopWhenFinalizeLockHeld(t *testing.T) {
+func TestFailTaskRunnerLost_DoesNotOverwriteConcurrentTerminalSuccess(t *testing.T) {
 	setupReconcilerConfig(t)
 
 	store := sql.CreateTestStore()
@@ -360,24 +360,30 @@ func TestFailTaskRunnerLost_NoopWhenFinalizeLockHeld(t *testing.T) {
 	now := time.Now()
 	newTask, _ := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
 
-	tsk := &TaskRunner{
+	// Simulate a runner report on another node that has already persisted a
+	// terminal success and won the finalization lock, while this reconciler still
+	// holds a stale in-memory snapshot that says the task is running.
+	require.True(t, state.TryFinalize(newTask.ID))
+	defer state.DeleteFinalize(newTask.ID)
+	completedTask := newTask
+	completedTask.Status = task_logger.TaskSuccessStatus
+	require.NoError(t, store.UpdateTask(completedTask))
+
+	staleReconcilerTask := &TaskRunner{
 		Task: newTask,
 		pool: &pool,
 	}
-	state.SetRunning(tsk)
+	state.SetRunning(staleReconcilerTask)
 
-	require.True(t, state.TryFinalize(tsk.Task.ID))
-	defer state.DeleteFinalize(tsk.Task.ID)
+	pool.failTaskRunnerLost(staleReconcilerTask, nil, "runner stopped responding")
 
-	pool.failTaskRunnerLost(tsk, nil, "runner stopped responding")
-
-	assert.Equal(t, task_logger.TaskRunningStatus, tsk.Task.Status)
-	assert.Nil(t, tsk.Task.End)
+	assert.Equal(t, task_logger.TaskRunningStatus, staleReconcilerTask.Task.Status)
+	assert.Nil(t, staleReconcilerTask.Task.End)
 	assert.Empty(t, pool.queueEvents)
 
 	row, err := store.GetTaskByID(newTask.ID)
 	require.NoError(t, err)
-	assert.Equal(t, task_logger.TaskRunningStatus, row.Status)
+	assert.Equal(t, task_logger.TaskSuccessStatus, row.Status)
 	assert.Nil(t, row.End)
 }
 
