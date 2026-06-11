@@ -32,6 +32,12 @@ type Runner struct {
 	Touched           *time.Time `db:"touched" json:"touched"`
 	CleaningRequested *time.Time `db:"cleaning_requested" json:"cleaning_requested"`
 
+	// StartedAt is the runner process's start time, reported by the runner on
+	// every poll (X-Runner-Started-At header) and persisted next to Touched.
+	// It changes on every restart, which is how the server detects that a
+	// runner lost its in-memory job pool while still polling.
+	StartedAt *time.Time `db:"started_at" json:"started_at"`
+
 	PublicKey *string `db:"public_key" json:"-"`
 
 	// Registered is a transient flag (never persisted) used at creation time to
@@ -60,6 +66,17 @@ func GenerateRunnerToken() string {
 // HasTag reports whether the runner is tagged with the given tag.
 func (r Runner) HasTag(tag string) bool {
 	return slices.Contains(r.Tags, tag)
+}
+
+// IsOnline reports whether the runner is considered reachable for dispatch.
+// A poll-based runner is online while its last poll (Touched) is within
+// offlineTimeout. Webhook-driven runners do not poll, so heartbeat staleness
+// does not apply to them — they are always dispatch candidates.
+func (r Runner) IsOnline(now time.Time, offlineTimeout time.Duration) bool {
+	if r.Webhook != "" {
+		return true
+	}
+	return r.Touched != nil && now.Sub(*r.Touched) <= offlineTimeout
 }
 
 type RunnerTag struct {

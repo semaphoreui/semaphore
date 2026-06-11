@@ -19,6 +19,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -151,6 +152,30 @@ type RunnerConfig struct {
 	ProjectID        *int     `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
+}
+
+// RunnersConfig holds server-side settings describing how the server treats
+// its runner fleet. It is unrelated to RunnerConfig, which configures a runner
+// process itself: server-side fleet settings use the SEMAPHORE_RUNNERS_* env
+// prefix, runner-process settings use SEMAPHORE_RUNNER_*.
+type RunnersConfig struct {
+	// OfflineTimeoutSec is the heartbeat staleness after which a runner is
+	// considered offline: it receives no new tasks and its "starting" tasks
+	// are reassigned to another runner. Must be comfortably larger than the
+	// runner poll interval (a few multiples) so a healthy-but-slow runner is
+	// never marked offline.
+	OfflineTimeoutSec int `json:"offline_timeout_sec,omitempty" default:"120" env:"SEMAPHORE_RUNNERS_OFFLINE_TIMEOUT_SEC"`
+
+	// TaskFailTimeoutSec is the heartbeat staleness after which a runner's
+	// "running" tasks are failed. Between OfflineTimeoutSec and this value a
+	// running task is deliberately left alone: an offline runner may still be
+	// executing its jobs and resumes reporting if it reconnects in time.
+	// Values below OfflineTimeoutSec are clamped to it.
+	TaskFailTimeoutSec int `json:"task_fail_timeout_sec,omitempty" default:"420" env:"SEMAPHORE_RUNNERS_TASK_FAIL_TIMEOUT_SEC"`
+
+	// ReconcileIntervalSec is how often the server scans dispatched tasks
+	// against runner liveness.
+	ReconcileIntervalSec int `json:"reconcile_interval_sec,omitempty" default:"30" env:"SEMAPHORE_RUNNERS_RECONCILE_INTERVAL_SEC"`
 }
 
 type TLSConfig struct {
@@ -421,6 +446,50 @@ type ConfigType struct {
 	Dirs *ConfigDirs `json:"dirs,omitempty"`
 
 	Runner *RunnerConfig `json:"runner,omitempty"`
+
+	Runners *RunnersConfig `json:"runners,omitempty"`
+}
+
+// Default values for RunnersConfig, applied when the "runners" config section
+// or its fields are absent.
+const (
+	defaultRunnersOfflineTimeoutSec    = 120
+	defaultRunnersTaskFailTimeoutSec   = 420
+	defaultRunnersReconcileIntervalSec = 30
+)
+
+// RunnersOfflineTimeout returns the heartbeat staleness after which a runner
+// is considered offline (no new tasks; its "starting" tasks are reassigned).
+func (conf *ConfigType) RunnersOfflineTimeout() time.Duration {
+	sec := defaultRunnersOfflineTimeoutSec
+	if conf.Runners != nil && conf.Runners.OfflineTimeoutSec > 0 {
+		sec = conf.Runners.OfflineTimeoutSec
+	}
+	return time.Duration(sec) * time.Second
+}
+
+// RunnersTaskFailTimeout returns the heartbeat staleness after which a
+// runner's "running" tasks are failed. It is never below the offline timeout.
+func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
+	sec := defaultRunnersTaskFailTimeoutSec
+	if conf.Runners != nil && conf.Runners.TaskFailTimeoutSec > 0 {
+		sec = conf.Runners.TaskFailTimeoutSec
+	}
+	res := time.Duration(sec) * time.Second
+	if offline := conf.RunnersOfflineTimeout(); res < offline {
+		res = offline
+	}
+	return res
+}
+
+// RunnersReconcileInterval returns how often the server reconciles dispatched
+// tasks against runner liveness.
+func (conf *ConfigType) RunnersReconcileInterval() time.Duration {
+	sec := defaultRunnersReconcileIntervalSec
+	if conf.Runners != nil && conf.Runners.ReconcileIntervalSec > 0 {
+		sec = conf.Runners.ReconcileIntervalSec
+	}
+	return time.Duration(sec) * time.Second
 }
 
 type SubscriptionConfig struct {
