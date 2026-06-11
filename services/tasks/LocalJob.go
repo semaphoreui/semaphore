@@ -111,6 +111,7 @@ func (t *LocalJob) getTaskDetails(username string, incomingVersion *string) (tas
 func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *string) (extraVars map[string]any, err error) {
 
 	extraVars = make(map[string]any)
+	extraSecretVars := make(map[string]any)
 
 	if t.Environment.JSON != "" {
 		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
@@ -118,6 +119,15 @@ func (t *LocalJob) getEnvironmentExtraVars(username string, incomingVersion *str
 			return
 		}
 	}
+	if t.Secret != "" {
+		err = json.Unmarshal([]byte(t.Secret), &extraSecretVars)
+		if err != nil {
+			return
+		}
+	}
+	t.Secret = "{}"
+
+	maps.Copy(extraVars, extraSecretVars)
 
 	vars := make(map[string]any)
 	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
