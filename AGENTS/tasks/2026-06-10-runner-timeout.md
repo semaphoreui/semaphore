@@ -26,7 +26,7 @@ when the runner fell off or restarted. Now:
 - **`db/Runner.go`** — new `StartedAt *time.Time` (`db:"started_at"`) +
   `Runner.IsOnline(now, offlineTimeout)` (webhook runners are always "online";
   poll-based runners need a fresh `Touched`).
-- **`db/sql/migrations/v2.18.8.sql`** (+ `.err.sql`) — nullable
+- **`db/sql/migrations/v2.19.2.sql`** (+ `.err.sql`) — nullable
   `runner.started_at` column; registered in **`db/Migration.go`**.
 - **`db/sql/global_runner.go`** — `TouchRunner` now persists `started_at`
   together with `touched` (same UPDATE).
