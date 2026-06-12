@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-gorp/gorp/v3"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
 	"github.com/semaphoreui/semaphore/db/factory"
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -29,7 +28,7 @@ func addTestRunnerUser() {
 	}
 
 	dbConnect()
-	defer store.Close("")
+	defer store.Close()
 
 	truncateAll()
 
@@ -65,11 +64,10 @@ func truncateAll() {
 		"project__integration",
 		"project__integration_extract_value",
 		"project__integration_matcher",
+		"runner",
 	}
 
 	switch store.(type) {
-	case *bolt.BoltDb:
-		// Do nothing
 	case *sql.SqlDb:
 		switch store.(*sql.SqlDb).Sql().Dialect.(type) {
 		case gorp.PostgresDialect:
@@ -97,7 +95,7 @@ func truncateAll() {
 
 func removeTestRunnerUser(transactions []*transaction.Transaction) {
 	dbConnect()
-	defer store.Close("")
+	defer store.Close()
 	_ = store.DeleteAPIToken(testRunnerUser.ID, adminToken)
 	_ = store.DeleteUser(testRunnerUser.ID)
 }
@@ -311,6 +309,38 @@ func addIntegrationMatcher() *db.IntegrationMatcher {
 	return &integrationmatch
 }
 
+func addRunner() *db.Runner {
+	runner, err := store.CreateRunner(db.Runner{
+		Token:            db.GenerateRunnerToken(),
+		ProjectID:        &userProject.ID,
+		Name:             "ITRN-" + getUUID(),
+		Active:           true,
+		MaxParallelTasks: 1,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &runner
+}
+
+func addGlobalRunner() *db.Runner {
+	runner, err := store.CreateRunner(db.Runner{
+		Token:            db.GenerateRunnerToken(),
+		ProjectID:        nil,
+		Name:             "ITGRN-" + getUUID(),
+		Active:           true,
+		MaxParallelTasks: 1,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &runner
+}
+
 // Token Handling
 func addToken(tok string, user int) {
 	_, err := store.CreateAPIToken(db.APIToken{
@@ -348,7 +378,7 @@ var store db.Store
 func dbConnect() {
 	store = factory.CreateStore()
 
-	store.Connect("")
+	store.Connect()
 }
 
 func stringInSlice(a string, list []string) (int, bool) {

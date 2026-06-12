@@ -436,6 +436,13 @@
           ></TemplateVaults>
 
           <v-checkbox
+            v-if="needField('skip_galaxy_install')"
+            v-model="item.task_params.skip_galaxy_install"
+            :label="$t('skipGalaxyInstall')"
+            class="mt-0"
+          />
+
+          <v-checkbox
             class="mt-0"
             :label="$t('auto_approve')"
             v-model="item.task_params.auto_approve"
@@ -497,6 +504,13 @@
           />
 
           <v-checkbox
+            v-if="needField('allow_override_skip_galaxy_install')"
+            v-model="item.task_params.allow_override_skip_galaxy_install"
+            :label="$t('skipGalaxyInstall')"
+            class="mt-0"
+          />
+
+          <v-checkbox
             class="mt-0"
             :label="$t('auto_approve')"
             v-model="item.task_params.allow_auto_approve"
@@ -526,7 +540,7 @@ import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/addon/display/placeholder.js';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 import TemplateVaults from '@/components/TemplateVaults.vue';
-import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
+import {TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES} from '@/lib/constants';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import AppsMixin from '@/components/AppsMixin';
 import RichEditor from '@/components/RichEditor.vue';

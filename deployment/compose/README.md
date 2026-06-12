@@ -47,6 +47,24 @@ add this snippet to get a runner up and connected to semaphore. Similar to the
 examples above for the server you got different options like building the runner
 from the source or using our prebuilt images.
 
+### Registration modes
+
+Runners connect to the server in one of two ways:
+
+1. **Global registration token** — set `runner_registration_token` in the server config
+   (or use the token shown in **Admin → Runners**). The runner process presents this
+   token on first connect and receives a long-lived auth token in return.
+
+2. **Per-runner registration token** (`smrs_…`) — create an *unregistered* runner in the
+   UI (uncheck "Registered") or via the API with `"registered": false`. Generate a
+   one-time registration token for that runner and pass it to `semaphore runner register`.
+   This mode is useful for Terraform-provisioned infrastructure where each host gets its
+   own token. Tokens expire after one hour; regenerate from the UI if needed.
+
+A runner is considered *registered* when it has an auth token (`runner.token` in the
+database). Unregistered runners appear in the UI with a filter and cannot pick up tasks
+until registration completes.
+
 ### Build
 
 This simply takes the currently cloned source and builds a new image including
@@ -89,13 +107,13 @@ backend.
 docker-compose <server/runner from above> -f deployment/compose/store/sqlite.yml up
 ```
 
-### BoltDB
+### SQLite
 
-This simply configures a named volume for the BoltDB storage used as a database
+This simply configures a named volume for the SQLite storage used as a database
 backend.
 
 ```console
-docker-compose <server/runner from above> -f deployment/compose/store/boltdb.yml up
+docker-compose <server/runner from above> -f deployment/compose/store/sqlite.yml up
 ```
 
 ### MariaDB

@@ -22,6 +22,8 @@ tags:
     description: User-related API
   - name: integration
     description: Integration API
+  - name: runner
+    description: Runner management (project and global runners)
 
 schemes:
   - http
@@ -853,6 +855,8 @@ definitions:
         type: array
         items:
           type: string
+      skip_galaxy_install:
+        type: boolean
 
   TerraformTaskParams:
     type: object
@@ -1170,8 +1174,108 @@ definitions:
   Runner:
     type: object
     properties:
-      token:
+      id:
+        type: integer
+        readOnly: true
+      project_id:
+        type: integer
+        description: Owning project. Null for global runners.
+        x-nullable: true
+      name:
         type: string
+      webhook:
+        type: string
+        description: URL called by the runner to report task events.
+      max_parallel_tasks:
+        type: integer
+      active:
+        type: boolean
+      is_default:
+        type: boolean
+      tags:
+        type: array
+        x-nullable: true
+        items:
+          type: string
+      touched:
+        type: string
+        format: date-time
+        description: Last time the runner contacted the server.
+        x-nullable: true
+      cleaning_requested:
+        type: string
+        format: date-time
+        x-nullable: true
+      registered:
+        type: boolean
+        description: Whether the runner has been registered (has an auth token).
+
+  RunnerRequest:
+    type: object
+    properties:
+      project_id:
+        type: integer
+        description: Required for project runners and must match the URL project. Ignored for global runners.
+      name:
+        type: string
+      webhook:
+        type: string
+      max_parallel_tasks:
+        type: integer
+      active:
+        type: boolean
+      tags:
+        type: array
+        items:
+          type: string
+      registered:
+        type: boolean
+        description: >
+          Defaults to true. When false, the runner is created with no credentials
+          at all (no auth token and no registration token) and stays inactive. A
+          one-time registration token must then be generated for it (see the
+          registration-token endpoint) and used to register the runner. Useful for
+          tools like Terraform that create the runner up front.
+
+  RunnerWithToken:
+    allOf:
+      - $ref: "#/definitions/Runner"
+      - type: object
+        properties:
+          token:
+            type: string
+            description: Token the runner uses to authenticate.
+          private_key:
+            type: string
+            description: Generated private key, returned only when the server creates the key pair.
+
+  RunnerActive:
+    type: object
+    properties:
+      active:
+        type: boolean
+
+  RunnerRegistrationToken:
+    type: object
+    properties:
+      registration_token:
+        type: string
+        description: One-time, short-lived token used to register the runner.
+      runner_id:
+        type: integer
+        readOnly: true
+      project_id:
+        type: integer
+        description: Owning project. Null for global runners.
+        x-nullable: true
+
+  RunnerTag:
+    type: object
+    properties:
+      tag:
+        type: string
+      number_of_runners:
+        type: integer
 
   Event:
     type: object
@@ -1348,6 +1452,20 @@ parameters:
     type: integer
     required: true
     x-example: 14
+  runner_id:
+    name: runner_id
+    description: Project runner ID
+    in: path
+    type: integer
+    required: true
+    x-example: 16
+  global_runner_id:
+    name: runner_id
+    description: Global runner ID
+    in: path
+    type: integer
+    required: true
+    x-example: 17
 
 paths:
   /ping:
@@ -3119,3 +3237,266 @@ paths:
           description: Alerts not enabled for the project
 #        204:
 #          description: Test notification dispatched (or alerts disabled)
+
+  # project runners
+  /project/{project_id}/runners:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - runner
+      summary: Get project runners
+      description: Returns runners owned by the project together with global runners that have tags.
+      responses:
+        200:
+          description: Runners
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Runner"
+    post:
+      tags:
+        - runner
+      summary: Add project runner
+      parameters:
+        - name: Runner
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerRequest"
+      responses:
+        201:
+          description: Runner created
+          schema:
+            $ref: "#/definitions/RunnerWithToken"
+        400:
+          description: Invalid request body or mismatched project ID
+        403:
+          description: Plan does not allow adding more runners
+
+  /project/{project_id}/runner_tags:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - runner
+      summary: Get project runner tags
+      responses:
+        200:
+          description: Runner tags
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/RunnerTag"
+
+  /project/{project_id}/runners/{runner_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    get:
+      tags:
+        - runner
+      summary: Get project runner
+      responses:
+        200:
+          description: Runner
+          schema:
+            $ref: "#/definitions/Runner"
+        404:
+          description: Runner not found
+    put:
+      tags:
+        - runner
+      summary: Update project runner
+      parameters:
+        - name: Runner
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerRequest"
+      responses:
+        204:
+          description: Runner updated
+        400:
+          description: Invalid request body or mismatched project ID
+    delete:
+      tags:
+        - runner
+      summary: Delete project runner
+      responses:
+        204:
+          description: Runner deleted
+
+  /project/{project_id}/runners/{runner_id}/active:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    post:
+      tags:
+        - runner
+      summary: Set project runner active state
+      parameters:
+        - name: Active
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerActive"
+      responses:
+        204:
+          description: Runner active state updated
+        400:
+          description: Invalid request body
+
+  /project/{project_id}/runners/{runner_id}/registration-token:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    post:
+      tags:
+        - runner
+      summary: Regenerate the one-time registration token of an unregistered project runner
+      responses:
+        200:
+          description: New registration token
+          schema:
+            $ref: "#/definitions/RunnerRegistrationToken"
+        400:
+          description: Runner is already registered
+
+  /project/{project_id}/runners/{runner_id}/cache:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    delete:
+      tags:
+        - runner
+      summary: Clear project runner cache
+      responses:
+        204:
+          description: Runner cache cleared
+
+  # global runners (admin)
+  /runners:
+    get:
+      tags:
+        - runner
+      summary: Get all global runners
+      responses:
+        200:
+          description: Runners
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Runner"
+    post:
+      tags:
+        - runner
+      summary: Add global runner
+      parameters:
+        - name: Runner
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerRequest"
+      responses:
+        201:
+          description: Runner created
+          schema:
+            $ref: "#/definitions/RunnerWithToken"
+        400:
+          description: Runner not created
+
+  /runner_tags:
+    get:
+      tags:
+        - runner
+      summary: Get global runner tags
+      responses:
+        200:
+          description: Runner tags
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/RunnerTag"
+
+  /runners/{runner_id}:
+    parameters:
+      - $ref: "#/parameters/global_runner_id"
+    get:
+      tags:
+        - runner
+      summary: Get global runner
+      responses:
+        200:
+          description: Runner
+          schema:
+            $ref: "#/definitions/Runner"
+        404:
+          description: Runner not found
+    put:
+      tags:
+        - runner
+      summary: Update global runner
+      parameters:
+        - name: Runner
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerRequest"
+      responses:
+        204:
+          description: Runner updated
+        400:
+          description: Runner not updated
+    delete:
+      tags:
+        - runner
+      summary: Delete global runner
+      responses:
+        204:
+          description: Runner deleted
+
+  /runners/{runner_id}/active:
+    parameters:
+      - $ref: "#/parameters/global_runner_id"
+    post:
+      tags:
+        - runner
+      summary: Set global runner active state
+      parameters:
+        - name: Active
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerActive"
+      responses:
+        204:
+          description: Runner active state updated
+        400:
+          description: Invalid request body
+
+  /runners/{runner_id}/registration-token:
+    parameters:
+      - $ref: "#/parameters/global_runner_id"
+    post:
+      tags:
+        - runner
+      summary: Regenerate the one-time registration token of an unregistered global runner
+      responses:
+        200:
+          description: New registration token
+          schema:
+            $ref: "#/definitions/RunnerRegistrationToken"
+        400:
+          description: Runner is already registered
+
+  /runners/{runner_id}/cache:
+    parameters:
+      - $ref: "#/parameters/global_runner_id"
+    delete:
+      tags:
+        - runner
+      summary: Clear global runner cache
+      responses:
+        204:
+          description: Runner cache cleared

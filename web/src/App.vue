@@ -478,16 +478,6 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="tokens" to="/tokens" data-testid="sidebar-tokens">
-                <v-list-item-icon>
-                  <v-icon>mdi-api</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
-                  {{ $t('api_tokens') }}
-                </v-list-item-content>
-              </v-list-item>
-
               <v-list-item key="users" to="/users" v-if="user.admin">
                 <v-list-item-icon>
                   <v-icon>mdi-account-multiple</v-icon>
@@ -505,6 +495,18 @@
 
                 <v-list-item-content>
                   {{ $t('Roles') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-divider/>
+
+              <v-list-item key="tokens" data-testid="sidebar-tokens" to="/tokens">
+                <v-list-item-icon>
+                  <v-icon>mdi-api</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('api_tokens') }}
                 </v-list-item-content>
               </v-list-item>
 
@@ -536,28 +538,6 @@
     </v-navigation-drawer>
 
     <v-main>
-      <v-alert
-        type="error"
-        prominent
-        dense
-        class="ma-0 PageAlert"
-        style="border-radius: 0"
-        v-if="systemInfo?.boltdb_used"
-      >
-        BoltDB is deprecated and will be removed in version 2.19. Please migrate to SQLite to
-        continue receiving updates.
-        <v-btn
-          dark
-          depressed
-          class="pr-3 my-1"
-          color="red darken-1"
-          href="https://semaphoreui.com/docs/admin-guide/cli/migrations#migration-from-boltdb-to-sqlitemysqlpostgresql"
-          target="_blank"
-        >
-          Migrate
-          <v-icon class="ml-2">mdi-open-in-new</v-icon>
-        </v-btn>
-      </v-alert>
       <router-view
         :projectId="projectId"
         :projectType="(project || {}).type || ''"
@@ -893,7 +873,7 @@
 
 <script>
 import axios from 'axios';
-import { getErrorMessage } from '@/lib/error';
+import {getErrorMessage} from '@/lib/error';
 import EditDialog from '@/components/EditDialog.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
@@ -945,6 +925,9 @@ const LANGUAGES = {
   },
   pt_br: {
     title: 'Português do Brasil',
+  },
+  cs: {
+    title: 'Czech',
   },
 };
 

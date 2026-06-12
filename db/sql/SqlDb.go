@@ -121,10 +121,11 @@ func CreateTestStore() *SqlDb {
 			Events: &util.EventLogType{},
 			Tasks:  &util.TaskLogType{},
 		},
+		Process: &util.ConfigProcess{},
 	}
 	store := CreateDb(util.DbDriverSQLite)
 
-	store.Connect("")
+	store.Connect()
 
 	err := db.Migrate(store, nil)
 	if err != nil {
@@ -347,7 +348,7 @@ func (d *SqlDb) GetDialect() string {
 	return d.connection.GetDialect()
 }
 
-func (d *SqlDb) Close(token string) {
+func (d *SqlDb) Close() {
 	d.connection.Close()
 }
 
@@ -560,11 +561,7 @@ func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID any) 
 	return d.connection.DeleteObject(projectID, props, objectID)
 }
 
-func (d *SqlDb) PermanentConnection() bool {
-	return true
-}
-
-func (d *SqlDb) Connect(_ string) {
+func (d *SqlDb) Connect() {
 	d.connection.Connect()
 }
 

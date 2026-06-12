@@ -57,7 +57,7 @@ var projectImportCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		user, err := resolveImportUser(store)
 		if err != nil {

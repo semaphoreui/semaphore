@@ -23,6 +23,8 @@ var integration *db.Integration
 var integrationextractvalue *db.IntegrationExtractValue
 var integrationmatch *db.IntegrationMatcher
 var invite *db.ProjectInvite
+var runner *db.Runner
+var globalRunner *db.Runner
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
@@ -47,6 +49,8 @@ var capabilities = map[string][]string{
 	"integrationextractvalue": {"integration"},
 	"integrationmatcher":      {"integration"},
 	"invite":                  {"user", "project"},
+	"runner":                  {"project"},
+	"global_runner":           {},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -57,7 +61,7 @@ func capabilityWrapper(cap string) func(t *trans.Transaction) {
 
 func addCapabilities(caps []string) {
 	dbConnect()
-	defer store.Close("")
+	defer store.Close()
 	resolved := make([]string, 0)
 	uid := getUUID()
 	resolveCapability(caps, resolved, uid)
@@ -174,6 +178,10 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "integrationmatcher":
 			integrationmatch = addIntegrationMatcher()
 			integrationMatchID = integrationmatch.ID
+		case "runner":
+			runner = addRunner()
+		case "global_runner":
+			globalRunner = addGlobalRunner()
 		default:
 			panic("unknown capability " + v)
 		}
@@ -204,6 +212,12 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(integrationextractvalue.ID) },
 	func() string { return strconv.Itoa(integrationmatch.ID) },
 	func() string { return strconv.Itoa(invite.ID) }, // invite_id, x-example: 14
+	// alias_id, x-example: 15 — integration aliases are not set up by these
+	// hooks, so leave the path segment untouched (kept here only to preserve
+	// the positional mapping of the entries that follow).
+	func() string { return strconv.Itoa(15) },
+	func() string { return strconv.Itoa(runner.ID) },       // runner_id (project), x-example: 16
+	func() string { return strconv.Itoa(globalRunner.ID) }, // global runner_id, x-example: 17
 }
 
 // alterRequestPath with the above slice of functions
@@ -224,7 +238,7 @@ func alterRequestPath(t *trans.Transaction) {
 }
 
 func alterRequestBody(t *trans.Transaction) {
-	var request map[string]interface{}
+	var request map[string]any
 	json.Unmarshal([]byte(t.Request.Body), &request)
 
 	if userProject != nil {
@@ -289,7 +303,7 @@ func alterRequestBody(t *trans.Transaction) {
 	t.Request.Body = string(out)
 }
 
-func bodyFieldProcessor(id string, sub interface{}, request *map[string]interface{}) {
+func bodyFieldProcessor(id string, sub any, request *map[string]any) {
 	if _, ok := (*request)[id]; ok {
 		(*request)[id] = sub
 	}

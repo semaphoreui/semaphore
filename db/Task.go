@@ -27,13 +27,14 @@ type TerraformTaskParams struct {
 }
 
 type AnsibleTaskParams struct {
-	Debug      bool     `json:"debug"`
-	DebugLevel int      `json:"debug_level"`
-	DryRun     bool     `json:"dry_run"`
-	Diff       bool     `json:"diff"`
-	Limit      []string `json:"limit"`
-	Tags       []string `json:"tags"`
-	SkipTags   []string `json:"skip_tags"`
+	Debug             bool     `json:"debug"`
+	DebugLevel        int      `json:"debug_level"`
+	DryRun            bool     `json:"dry_run"`
+	Diff              bool     `json:"diff"`
+	Limit             []string `json:"limit"`
+	Tags              []string `json:"tags"`
+	SkipTags          []string `json:"skip_tags"`
+	SkipGalaxyInstall bool     `json:"skip_galaxy_install"`
 }
 
 // Task is a model of a task which will be executed by the runner

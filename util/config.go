@@ -19,6 +19,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -164,7 +165,7 @@ type RunnerConfig struct {
 	Webhook          string   `json:"webhook,omitempty" env:"SEMAPHORE_RUNNER_WEBHOOK"`
 	Name             string   `json:"name,omitempty" env:"SEMAPHORE_RUNNER_NAME"`
 	Tags             []string `json:"tags,omitempty" env:"SEMAPHORE_RUNNER_TAGS"`
-	MaxParallelTasks int      `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
+	MaxParallelTasks int      `json:"max_parallel_tasks,omitempty" default:"9999" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 	ProjectID        *int     `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
@@ -247,6 +248,30 @@ type RunnerDockerConfig struct {
 
 	// Privileged runs the build container with --privileged. Dangerous; off by default.
 	Privileged bool `json:"privileged,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_PRIVILEGED"`
+}
+
+// RunnersConfig holds server-side settings describing how the server treats
+// its runner fleet. It is unrelated to RunnerConfig, which configures a runner
+// process itself: server-side fleet settings use the SEMAPHORE_RUNNERS_* env
+// prefix, runner-process settings use SEMAPHORE_RUNNER_*.
+type RunnersConfig struct {
+	// OfflineTimeoutSec is the heartbeat staleness after which a runner is
+	// considered offline: it receives no new tasks and its "starting" tasks
+	// are reassigned to another runner. Must be comfortably larger than the
+	// runner poll interval (a few multiples) so a healthy-but-slow runner is
+	// never marked offline.
+	OfflineTimeoutSec int `json:"offline_timeout_sec,omitempty" default:"120" env:"SEMAPHORE_RUNNERS_OFFLINE_TIMEOUT_SEC"`
+
+	// TaskFailTimeoutSec is the heartbeat staleness after which a runner's
+	// "running" tasks are failed. Between OfflineTimeoutSec and this value a
+	// running task is deliberately left alone: an offline runner may still be
+	// executing its jobs and resumes reporting if it reconnects in time.
+	// Values below OfflineTimeoutSec are clamped to it.
+	TaskFailTimeoutSec int `json:"task_fail_timeout_sec,omitempty" default:"420" env:"SEMAPHORE_RUNNERS_TASK_FAIL_TIMEOUT_SEC"`
+
+	// ReconcileIntervalSec is how often the server scans dispatched tasks
+	// against runner liveness.
+	ReconcileIntervalSec int `json:"reconcile_interval_sec,omitempty" default:"30" env:"SEMAPHORE_RUNNERS_RECONCILE_INTERVAL_SEC"`
 }
 
 type TLSConfig struct {
@@ -393,11 +418,10 @@ type ConfigDirs struct {
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
-	BoltDb   *DbConfig `json:"bolt,omitempty"` // Deprecated
 	Postgres *DbConfig `json:"postgres,omitempty"`
 	SQLite   *DbConfig `json:"sqlite,omitempty"`
 
-	Dialect string `json:"dialect,omitempty" default:"bolt" rule:"^mysql|bolt|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect string `json:"dialect,omitempty" default:"sqlite" rule:"^mysql|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
@@ -483,7 +507,7 @@ type ConfigType struct {
 	MaxTasksPerTemplate int `json:"max_tasks_per_template,omitempty" env:"SEMAPHORE_MAX_TASKS_PER_TEMPLATE"`
 
 	// task concurrency
-	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
+	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"9999" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
 	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
@@ -518,6 +542,50 @@ type ConfigType struct {
 	Dirs *ConfigDirs `json:"dirs,omitempty"`
 
 	Runner *RunnerConfig `json:"runner,omitempty"`
+
+	Runners *RunnersConfig `json:"runners,omitempty"`
+}
+
+// Default values for RunnersConfig, applied when the "runners" config section
+// or its fields are absent.
+const (
+	defaultRunnersOfflineTimeoutSec    = 120
+	defaultRunnersTaskFailTimeoutSec   = 420
+	defaultRunnersReconcileIntervalSec = 30
+)
+
+// RunnersOfflineTimeout returns the heartbeat staleness after which a runner
+// is considered offline (no new tasks; its "starting" tasks are reassigned).
+func (conf *ConfigType) RunnersOfflineTimeout() time.Duration {
+	sec := defaultRunnersOfflineTimeoutSec
+	if conf.Runners != nil && conf.Runners.OfflineTimeoutSec > 0 {
+		sec = conf.Runners.OfflineTimeoutSec
+	}
+	return time.Duration(sec) * time.Second
+}
+
+// RunnersTaskFailTimeout returns the heartbeat staleness after which a
+// runner's "running" tasks are failed. It is never below the offline timeout.
+func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
+	sec := defaultRunnersTaskFailTimeoutSec
+	if conf.Runners != nil && conf.Runners.TaskFailTimeoutSec > 0 {
+		sec = conf.Runners.TaskFailTimeoutSec
+	}
+	res := time.Duration(sec) * time.Second
+	if offline := conf.RunnersOfflineTimeout(); res < offline {
+		res = offline
+	}
+	return res
+}
+
+// RunnersReconcileInterval returns how often the server reconciles dispatched
+// tasks against runner liveness.
+func (conf *ConfigType) RunnersReconcileInterval() time.Duration {
+	sec := defaultRunnersReconcileIntervalSec
+	if conf.Runners != nil && conf.Runners.ReconcileIntervalSec > 0 {
+		sec = conf.Runners.ReconcileIntervalSec
+	}
+	return time.Duration(sec) * time.Second
 }
 
 type SubscriptionConfig struct {
@@ -1260,10 +1328,8 @@ func loadConfigEnvironment() {
 	}
 
 	for _, sensitiveEnv := range sensitiveEnvs {
-		os.Setenv(sensitiveEnv, sensitiveEnv)
+		os.Unsetenv(sensitiveEnv)
 	}
-
-	//os.Unsetenv("SEMAPHORE_DB_PASS")
 }
 
 func exitOnConfigError(msg string) {
@@ -1419,7 +1485,8 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 
 	switch d.Dialect {
 	case DbDriverBolt:
-		connectionString = dbHost
+		err = errors.New("BoltDB not supported")
+		return
 	case DbDriverMySQL:
 		if includeDbName {
 			connectionString = fmt.Sprintf(
@@ -1483,7 +1550,7 @@ func (conf *ConfigType) PrintDbInfo() {
 	case DbDriverMySQL:
 		fmt.Printf("MySQL %v@%v %v\n", conf.MySQL.GetUsername(), conf.MySQL.GetHostname(), conf.MySQL.GetDbName())
 	case DbDriverBolt:
-		fmt.Printf("BoltDB %v\n", conf.BoltDb.GetHostname())
+		fmt.Printf("BoltDB not supported\n")
 	case DbDriverPostgres:
 		fmt.Printf("Postgres %v@%v %v\n", conf.Postgres.GetUsername(), conf.Postgres.GetHostname(), conf.Postgres.GetDbName())
 	case DbDriverSQLite:
@@ -1498,8 +1565,6 @@ func (conf *ConfigType) GetDialect() (dialect string, err error) {
 		switch {
 		case conf.MySQL.IsPresent():
 			dialect = DbDriverMySQL
-		case conf.BoltDb.IsPresent():
-			dialect = DbDriverBolt
 		case conf.Postgres.IsPresent():
 			dialect = DbDriverPostgres
 		case conf.SQLite.IsPresent():
@@ -1523,7 +1588,7 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 
 	switch dialect {
 	case DbDriverBolt:
-		dbConfig = *conf.BoltDb
+		err = errors.New("BoltDB not supported")
 	case DbDriverPostgres:
 		dbConfig = *conf.Postgres
 	case DbDriverSQLite:

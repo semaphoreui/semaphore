@@ -177,19 +177,19 @@ func (p *TaskPool) Run() {
 
 	go p.handleQueue()
 	go p.handleLogs()
+	go p.runnerTasksReconcileLoop(nil)
 
 	for {
 		select {
 		case task := <-p.register: // new task created by API or schedule
 
-			db.StoreSession(p.store, "new task", func() {
-				task.Log("Task " + task.Template.Name + " added to queue")
-				log.WithFields(log.Fields{
-					"task_id":   task.Task.ID,
-					"task_name": task.Template.Name,
-				}).Info("Task added to queue")
-				task.saveStatus()
-			})
+			task.Log("Task " + task.Template.Name + " added to queue")
+			log.WithFields(log.Fields{
+				"task_id":   task.Task.ID,
+				"task_name": task.Template.Name,
+			}).Info("Task added to queue")
+			task.saveStatus()
+
 			p.queueEvents <- PoolEvent{EventTypeNew, task}
 
 		case <-ticker.C: // timer 5 seconds
@@ -226,43 +226,39 @@ func (p *TaskPool) handleQueue() {
 			p.onTaskStop(t.task)
 		}
 
-		if p.state.QueueLen() == 0 {
-			continue
-		}
-
-		var i = 0
-		for i < p.state.QueueLen() {
-			curr := p.state.QueueGet(i)
-			if curr == nil { // item may no longer be local, move ahead
-				i = i + 1
+		// Snapshot the queue once per pass and address every task by ID. In HA
+		// mode multiple nodes mutate the shared Redis queue concurrently, so a
+		// position-based walk (QueueGet(i) + DequeueAt(i)) races: the list can
+		// shift between the read and the dequeue, removing a different task than
+		// the one that was claimed. Iterating a snapshot and claiming by ID
+		// (ClaimAndDequeue) removes that hazard.
+		for _, curr := range p.state.QueueRange() {
+			if curr == nil { // item may no longer be available, move ahead
 				continue
 			}
 
 			// When handling a requeue event, don't immediately start the same task again.
 			if skipTaskID != 0 && curr.Task.ID == skipTaskID {
-				i = i + 1
 				continue
 			}
 
 			if curr.Task.Status == task_logger.TaskFailStatus {
 				//delete failed TaskRunner from queue
-				_ = p.state.DequeueAt(i)
+				p.state.DequeueByID(curr.Task.ID)
 				log.Info("Task " + getTaskName(curr) + " removed from queue")
 				continue
 			}
 
 			if p.blocks(curr) {
-				i = i + 1
 				continue
 			}
 
-			// ensure only one instance claims the task before dequeue
-			if !p.state.TryClaim(curr.Task.ID) {
-				i = i + 1
+			// Atomically claim and remove the task so exactly one node runs it.
+			// On failure another node owns it (or it is already gone); leave it.
+			if !p.state.ClaimAndDequeue(curr.Task.ID) {
 				continue
 			}
 
-			_ = p.state.DequeueAt(i)
 			runTask(curr, p)
 		}
 	}
@@ -311,47 +307,49 @@ func (p *TaskPool) writeLogs(logs []logRecord) {
 		currentOutput := record.task.currentOutput
 		record.task.currentOutput = &newOutput
 
-		db.StoreSession(p.store, "logger", func() {
+		newStage, newState, err := stage_parsers.MoveToNextStage(
+			p.store,
+			p.ansibleTaskRepo,
+			p.logWriteService,
+			record.task.Template.App,
+			record.task.Task.ProjectID,
+			record.task.currentState,
+			record.task.currentStage,
+			currentOutput,
+			newOutput)
 
-			newStage, newState, err := stage_parsers.MoveToNextStage(
-				p.store,
-				p.ansibleTaskRepo,
-				p.logWriteService,
-				record.task.Template.App,
-				record.task.Task.ProjectID,
-				record.task.currentState,
-				record.task.currentStage,
-				currentOutput,
-				newOutput)
-
-			if err != nil {
-				log.Error(err)
-				return
-			}
-
-			record.task.currentState = newState
-
-			if newStage != nil {
-				record.task.currentStage = newStage
-			}
-
-			if record.task.currentStage != nil {
-				newOutput.StageID = &record.task.currentStage.ID
-			}
-		})
-		taskOutput = append(taskOutput, newOutput)
-	}
-
-	db.StoreSession(p.store, "logger", func() {
-		err := p.store.InsertTaskOutputBatch(taskOutput)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-	})
+
+		record.task.currentState = newState
+
+		if newStage != nil {
+			record.task.currentStage = newStage
+		}
+
+		if record.task.currentStage != nil {
+			newOutput.StageID = &record.task.currentStage.ID
+		}
+
+		taskOutput = append(taskOutput, newOutput)
+	}
+
+	err := p.store.InsertTaskOutputBatch(taskOutput)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 }
 
 func runTask(task *TaskRunner, p *TaskPool) {
+	// Mark the task as actively dispatched by this process before it becomes
+	// visible in the running set (onTaskRun -> SetRunning). The reconciler relies
+	// on this to distinguish a live dispatch from a stale "starting" stub left in
+	// the running set by a previous process that died mid-dispatch.
+	task.dispatching.Store(true)
+
 	log.WithFields(log.Fields{
 		"context":   "task_pool",
 		"task_id":   task.Task.ID,
@@ -387,6 +385,58 @@ func (p *TaskPool) onTaskStop(t *TaskRunner) {
 	}
 }
 
+// FinalizeRemoteTask completes a remote (runner) task once it has reached a
+// terminal status. It runs the finish webhook (when a runner is provided),
+// queues any autorun child templates, and releases the task's pool/Redis state
+// (End time, EventTypeFinished -> onTaskStop).
+//
+// Because remote completion is reported by the runner to an arbitrary node,
+// this is what decouples a task's lifecycle from the node that dispatched it:
+// whichever node receives the terminal report finalizes the task. It is safe to
+// call from several racing signals (runner report, timeout, force stop) — the
+// state store's TryFinalize guard ensures it runs at most once per task across
+// the cluster (Redis SETNX in HA) and within a process (in-memory sync.Map).
+func (p *TaskPool) FinalizeRemoteTask(tsk *TaskRunner, runner *db.Runner) {
+	if tsk == nil {
+		return
+	}
+
+	if !p.state.TryFinalize(tsk.Task.ID) {
+		return
+	}
+	defer p.state.DeleteFinalize(tsk.Task.ID)
+
+	p.finalizeRemoteTaskLocked(tsk, runner)
+}
+
+// finalizeRemoteTaskLocked completes a remote task after the caller has won
+// the state store's finalize lock for tsk.Task.ID.
+func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) {
+	if util.HAEnabled() {
+		p.refreshTaskStatusFromDB(tsk)
+		if tsk.Task.End != nil {
+			// Another node may have persisted End before onTaskStop ran (e.g.
+			// crash between saveStatus and the queue drain). Release any stale
+			// shared pool state without re-running finish or autorun.
+			p.onTaskStop(tsk)
+			return
+		}
+	}
+
+	if runner != nil {
+		if err := callRunnerWebhook(runner, tsk, "finish"); err != nil {
+			log.WithError(err).WithField("task_id", tsk.Task.ID).Warn("remote task finish webhook failed")
+		}
+	}
+
+	// Persist End before enqueueing autorun children so the HA DB backstop
+	// above (tsk.Task.End != nil) becomes a real second guard: a late
+	// duplicate finalize on another node observes End set and skips autorun,
+	// even if the cluster-wide finalize lock has already been released.
+	tsk.finishRun()
+	tsk.startAutorunTasks()
+}
+
 func applyDBPersistedTaskSnapshot(dst *db.Task, src db.Task) {
 	dst.Status = src.Status
 	dst.Start = src.Start
@@ -394,6 +444,17 @@ func applyDBPersistedTaskSnapshot(dst *db.Task, src db.Task) {
 	dst.RunnerID = src.RunnerID
 	dst.CommitHash = src.CommitHash
 	dst.CommitMessage = src.CommitMessage
+}
+
+// refreshTaskStatusFromDB updates tsk with the persisted task row. In HA mode
+// the in-memory pool can be stale after another node finalizes the task.
+func (p *TaskPool) refreshTaskStatusFromDB(tsk *TaskRunner) {
+	row, err := p.store.GetTaskByID(tsk.Task.ID)
+	if err != nil {
+		log.WithError(err).WithField("task_id", tsk.Task.ID).Warn("failed to refresh task status from DB")
+		return
+	}
+	applyDBPersistedTaskSnapshot(&tsk.Task, row)
 }
 
 // hydrateTaskRunner builds a TaskRunner for an existing task from DB without starting it
@@ -527,6 +588,27 @@ func (p *TaskPool) RejectTask(targetTask db.Task) error {
 	return nil
 }
 
+func (p *TaskPool) stopTaskRunner(t *TaskRunner, forceStop bool) {
+	prevStatus := t.Task.Status
+	if forceStop {
+		t.SetStatus(task_logger.TaskStoppedStatus)
+	} else {
+		t.SetStatus(task_logger.TaskStoppingStatus)
+	}
+	if prevStatus == task_logger.TaskRunningStatus {
+		t.kill()
+	}
+
+	// A force-stopped remote task reaches "stopped" immediately (SetStatus
+	// above always transitions to it) and will not get a runner completion
+	// report, so finalize (cleanup) it here — otherwise it leaks in the
+	// running/active sets. A graceful stop stays "stopping" and is finalized
+	// when the runner reports it stopped via the runner API.
+	if forceStop && t.job != nil && t.job.Async() && t.Task.Status.IsFinished() {
+		go p.FinalizeRemoteTask(t, nil)
+	}
+}
+
 func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	tsk, err := p.GetTask(targetTask.ID)
 	if err != nil {
@@ -546,17 +628,7 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 		return nil
 	}
 
-	status := tsk.Task.Status
-
-	if forceStop {
-		tsk.SetStatus(task_logger.TaskStoppedStatus)
-	} else {
-		tsk.SetStatus(task_logger.TaskStoppingStatus)
-	}
-
-	if status == task_logger.TaskRunningStatus {
-		tsk.kill()
-	}
+	p.stopTaskRunner(tsk, forceStop)
 
 	return nil
 }
@@ -579,26 +651,22 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		log.Error(err)
 	}
 
-	// Dequeue waiting tasks from the in-memory queue.
-	i := 0
-	for i < p.state.QueueLen() {
-		t := p.state.QueueGet(i)
+	// Snapshot the queue and dequeue by task ID. In HA mode the shared queue can
+	// shift between QueueGet(i) and DequeueAt(i); DequeueByID matches handleQueue.
+	for _, t := range p.state.QueueRange() {
 		if t == nil {
-			i++
 			continue
 		}
 		if t.Task.ProjectID != projectID || t.Task.TemplateID != templateID {
-			i++
 			continue
 		}
 		if t.Task.Status.IsFinished() {
-			i++
 			continue
 		}
 
 		if t.Task.Status == task_logger.TaskWaitingStatus {
 			stoppedTasks[t.Task.ID] = struct{}{}
-			_ = p.state.DequeueAt(i)
+			p.state.DequeueByID(t.Task.ID)
 			continue
 		}
 
@@ -608,7 +676,6 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 			t.SetStatus(task_logger.TaskStoppingStatus)
 		}
 		stoppedTasks[t.Task.ID] = struct{}{}
-		i++
 	}
 
 	// Handle running tasks -- these need per-task SetStatus and kill.
@@ -622,15 +689,8 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		if t.Task.Status.IsFinished() {
 			continue
 		}
-		prevStatus := t.Task.Status
-		if forceStop {
-			t.SetStatus(task_logger.TaskStoppedStatus)
-		} else {
-			t.SetStatus(task_logger.TaskStoppingStatus)
-		}
-		if prevStatus == task_logger.TaskRunningStatus {
-			t.kill()
-		}
+
+		p.stopTaskRunner(t, forceStop)
 
 		stoppedTasks[t.Task.ID] = struct{}{}
 	}
@@ -673,7 +733,21 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		}
 
 		tsk.SetStatus(task_logger.TaskStoppedStatus)
-		tsk.createTaskEvent()
+
+		// In HA a remote task dispatched on another node lives in the shared
+		// running/active/claim sets but has no goroutine on any node that will
+		// run finishRun for it. Once we mark it finished in the DB the runner's
+		// terminal report is ignored (UpdateRunner skips finished tasks) and the
+		// timeout backstop bails on IsFinished(), so without finalizing here the
+		// shared pool state (parallel-task capacity, runner slots) would leak
+		// until restart. FinalizeRemoteTask releases it (finishRun -> onTaskStop)
+		// and also emits the finished task event; TryFinalize dedups across nodes
+		// and against the running-tasks loop above, so it runs at most once.
+		if tsk.job != nil && tsk.job.Async() {
+			go p.FinalizeRemoteTask(tsk, nil)
+		} else {
+			tsk.createTaskEvent()
+		}
 	}
 }
 

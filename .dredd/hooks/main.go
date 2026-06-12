@@ -19,6 +19,7 @@ var skipTests = []string{
 	"/api/ws > Websocket handler > 200 > application/json",
 	"authentication > /api/auth/login > Performs Login > 204 > application/json",
 	"authentication > /api/auth/logout > Destroys current session > 204 > application/json",
+	"runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json",
 }
 
 // Dredd expects that you have already set up the database and run all migrations before it begins.
@@ -52,13 +53,13 @@ func main() {
 
 	h.Before("user > /api/user/tokens/{api_token_id} > Expires API token > 204 > application/json", func(transaction *trans.Transaction) {
 		dbConnect()
-		defer store.Close("")
+		defer store.Close()
 		addToken(expiredToken, testRunnerUser.ID)
 	})
 
 	h.After("user > /api/user/tokens/{api_token_id} > Expires API token > 204 > application/json", func(transaction *trans.Transaction) {
 		dbConnect()
-		defer store.Close("")
+		defer store.Close()
 		//tokens are expired and not deleted so we need to clean up
 		_ = store.DeleteAPIToken(testRunnerUser.ID, expiredToken)
 	})
@@ -71,7 +72,7 @@ func main() {
 	// delete the auto generated association and insert the user id into the query
 	h.Before("project > /api/project/{project_id}/users > Link user to project > 204 > application/json", func(transaction *trans.Transaction) {
 		dbConnect()
-		defer store.Close("")
+		defer store.Close()
 		deleteUserProjectRelation(userProject.ID, userPathTestUser.ID)
 		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"role\": \"owner\"}"
 	})
@@ -144,6 +145,23 @@ func main() {
 	h.Before("project > /api/project/{project_id}/backup > Get backup > 200 > application/json", func(t *trans.Transaction) {
 		addCapabilities([]string{"repository", "inventory", "environment", "view", "template"})
 	})
+
+	// project runners
+	h.Before("runner > /api/project/{project_id}/runners > Get project runners > 200 > application/json", capabilityWrapper("project"))
+	//h.Before("runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json", capabilityWrapper("project"))
+	h.Before("runner > /api/project/{project_id}/runner_tags > Get project runner tags > 200 > application/json", capabilityWrapper("project"))
+	h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Get project runner > 200 > application/json", capabilityWrapper("runner"))
+	h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Update project runner > 204 > application/json", capabilityWrapper("runner"))
+	h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Delete project runner > 204 > application/json", capabilityWrapper("runner"))
+	h.Before("runner > /api/project/{project_id}/runners/{runner_id}/active > Set project runner active state > 204 > application/json", capabilityWrapper("runner"))
+	h.Before("runner > /api/project/{project_id}/runners/{runner_id}/cache > Clear project runner cache > 204 > application/json", capabilityWrapper("runner"))
+
+	// global runners (admin)
+	h.Before("runner > /api/runners/{runner_id} > Get global runner > 200 > application/json", capabilityWrapper("global_runner"))
+	h.Before("runner > /api/runners/{runner_id} > Update global runner > 204 > application/json", capabilityWrapper("global_runner"))
+	h.Before("runner > /api/runners/{runner_id} > Delete global runner > 204 > application/json", capabilityWrapper("global_runner"))
+	h.Before("runner > /api/runners/{runner_id}/active > Set global runner active state > 204 > application/json", capabilityWrapper("global_runner"))
+	h.Before("runner > /api/runners/{runner_id}/cache > Clear global runner cache > 204 > application/json", capabilityWrapper("global_runner"))
 
 	//Add these last as they normalize the requests and path values after hook processing
 	h.BeforeAll(func(transactions []*trans.Transaction) {

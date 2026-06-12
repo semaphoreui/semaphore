@@ -20,7 +20,7 @@ var vaultRekeyCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		store := createStore("")
 		encryptionService := server.NewAccessKeyEncryptionService(store, store, store, store)
-		defer store.Close("")
+		defer store.Close()
 
 		err := encryptionService.RekeyAccessKeys(targetVaultArgs.oldKey)
 
