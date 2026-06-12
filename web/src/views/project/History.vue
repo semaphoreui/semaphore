@@ -115,7 +115,7 @@ import EventBus from '@/event-bus';
 import TaskStatus from '@/components/TaskStatus.vue';
 import TaskLink from '@/components/TaskLink.vue';
 import socket from '@/socket';
-import {TEMPLATE_TYPE_ICONS} from '@/lib/constants';
+import { TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import AppsMixin from '@/components/AppsMixin';
 import DashboardMenu from '@/components/DashboardMenu.vue';
 

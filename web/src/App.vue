@@ -498,7 +498,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-divider/>
+              <v-divider />
 
               <v-list-item key="tokens" data-testid="sidebar-tokens" to="/tokens">
                 <v-list-item-icon>
@@ -873,7 +873,7 @@
 
 <script>
 import axios from 'axios';
-import {getErrorMessage} from '@/lib/error';
+import { getErrorMessage } from '@/lib/error';
 import EditDialog from '@/components/EditDialog.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';

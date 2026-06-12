@@ -162,7 +162,7 @@
               <code
                 class="pa-2 mt-2"
                 style="background: gray; color: white; display: block; font-size: 14px"
-                >{{ (newRunner || {}).token }}</code
+              >{{ (newRunner || {}).token }}</code
               >
 
               <CopyClipboardButton
@@ -178,7 +178,7 @@
               <code
                 class="px-2 py-3 mt-2"
                 style="background: gray; color: white; display: block; font-size: 14px"
-                >{{ (newRunner || { private_key: '' }).private_key.substring(0, 90) + '...' }}</code
+              >{{ (newRunner || {private_key: ''}).private_key.substring(0, 90) + '...' }}</code
               >
 
               <v-btn style="position: absolute; right: 10px; top: 2px" icon color="white">
@@ -205,7 +205,7 @@
             <v-tab key="docker">Docker</v-tab>
           </v-tabs>
 
-          <v-divider style="margin-top: -1px" />
+          <v-divider style="margin-top: -1px"/>
 
           <v-tabs-items v-model="usageTab">
             <v-tab-item key="config">
@@ -220,7 +220,7 @@
                     margin-top: 5px;
                   "
                   class="pa-2"
-                  >{{ runnerConfigCommand }}</pre
+                >{{ runnerConfigCommand }}</pre
                 >
 
                 <CopyClipboardButton
@@ -257,7 +257,7 @@ semaphore runner start --config /path/to/config/file</pre
                     margin-top: 5px;
                   "
                   class="pa-2"
-                  >{{ runnerSetupCommand }}</pre
+                >{{ runnerSetupCommand }}</pre
                 >
 
                 <CopyClipboardButton
@@ -294,7 +294,7 @@ semaphore runner start --config ./config.runner.json</pre
                     margin-top: 5px;
                   "
                   class="pa-2"
-                  >{{ runnerEnvCommand }}</pre
+                >{{ runnerEnvCommand }}</pre
                 >
 
                 <CopyClipboardButton
@@ -316,7 +316,7 @@ semaphore runner start --config ./config.runner.json</pre
                     margin-top: 5px;
                   "
                   class="pa-2"
-                  >{{ runnerDockerCommand }}</pre
+                >{{ runnerDockerCommand }}</pre
                 >
 
                 <CopyClipboardButton
@@ -351,7 +351,7 @@ semaphore runner start --config ./config.runner.json</pre
 
       <v-toolbar-title>{{ $t('runners') }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn color="primary" @click="editItem('new')">{{ $t('newRunner') }} </v-btn>
+      <v-btn color="primary" @click="editItem('new')">{{ $t('newRunner') }}</v-btn>
     </v-toolbar>
 
     <v-btn
@@ -360,10 +360,10 @@ semaphore runner start --config ./config.runner.json</pre
       style="position: absolute; right: 15px; top: 15px"
       color="primary"
       @click="editItem('new')"
-      >{{ $t('newRunner') }}
+    >{{ $t('newRunner') }}
     </v-btn>
 
-    <v-divider />
+    <v-divider/>
 
     <v-alert
       v-if="projectId && !features.project_runners"
@@ -396,7 +396,7 @@ semaphore runner start --config ./config.runner.json</pre
       <a
         target="_blank"
         href="https://docs.semaphoreui.com/administration-guide/runners/#set-up-a-server"
-        >disabled</a
+      >disabled</a
       >.
     </v-alert>
 
@@ -802,14 +802,14 @@ semaphore runner start --no-config`;
         : `/api/runners/${runner.id}/registration-token`;
 
       try {
-        const {data} = await axios({
+        const { data } = await axios({
           method: 'post',
           url,
           responseType: 'json',
         });
 
         // Reuse the same dialog shown right after creating an unregistered runner.
-        this.newRunner = {...runner, registration_token: data.registration_token};
+        this.newRunner = { ...runner, registration_token: data.registration_token };
         this.registerTab = null;
         this.newRunnerTokenDialog = true;
 

@@ -7,17 +7,24 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/tasks"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func newTestJob(id int) *job {
 	return &job{
-		job: &tasks.LocalJob{Task: db.Task{ID: id}},
+		job: &tasks.LocalExecutor{Task: db.Task{ID: id}},
 	}
 }
 
 func TestJobPool_QueueOrder(t *testing.T) {
+	util.Config = &util.ConfigType{
+		Runner: &util.RunnerConfig{
+			Executor: &util.ExecutorConfig{},
+		},
+	}
+
 	p := NewJobPool(nil)
 
 	assert.Equal(t, 0, p.queueLen())
@@ -33,15 +40,15 @@ func TestJobPool_QueueOrder(t *testing.T) {
 	// FIFO order.
 	j, ok := p.dequeue()
 	require.True(t, ok)
-	assert.Equal(t, 1, j.job.Task.ID)
+	assert.Equal(t, 1, j.taskID)
 
 	j, ok = p.dequeue()
 	require.True(t, ok)
-	assert.Equal(t, 2, j.job.Task.ID)
+	assert.Equal(t, 2, j.taskID)
 
 	j, ok = p.dequeue()
 	require.True(t, ok)
-	assert.Equal(t, 3, j.job.Task.ID)
+	assert.Equal(t, 3, j.taskID)
 
 	_, ok = p.dequeue()
 	assert.False(t, ok)
@@ -54,7 +61,7 @@ func TestJobPool_RunningJobsLifecycle(t *testing.T) {
 	assert.Nil(t, p.getRunningJob(1))
 
 	rj := &runningJob{
-		job:    &tasks.LocalJob{Task: db.Task{ID: 1}},
+		job:    &tasks.LocalExecutor{Task: db.Task{ID: 1}},
 		status: task_logger.TaskRunningStatus,
 	}
 	p.addRunningJob(1, rj)
@@ -78,13 +85,13 @@ func TestJobPool_HasRunningJobs(t *testing.T) {
 	assert.False(t, p.hasRunningJobs())
 
 	p.addRunningJob(1, &runningJob{
-		job:    &tasks.LocalJob{Task: db.Task{ID: 1}},
+		job:    &tasks.LocalExecutor{Task: db.Task{ID: 1}},
 		status: task_logger.TaskSuccessStatus, // finished
 	})
 	assert.False(t, p.hasRunningJobs())
 
 	p.addRunningJob(2, &runningJob{
-		job:    &tasks.LocalJob{Task: db.Task{ID: 2}},
+		job:    &tasks.LocalExecutor{Task: db.Task{ID: 2}},
 		status: task_logger.TaskRunningStatus, // not finished
 	})
 	assert.True(t, p.hasRunningJobs())
@@ -94,13 +101,13 @@ func TestJobPool_ApplyTerminatedJobs(t *testing.T) {
 	p := NewJobPool(nil)
 
 	// Running job: must be emergency stopped and removed.
-	lj := &tasks.LocalJob{Task: db.Task{ID: 1}}
+	lj := &tasks.LocalExecutor{Task: db.Task{ID: 1}}
 	rj := &runningJob{job: lj, status: task_logger.TaskRunningStatus}
 	lj.Logger = rj
 	p.addRunningJob(1, rj)
 
 	// Already finished job: must be removed without a status change or kill.
-	lj2 := &tasks.LocalJob{Task: db.Task{ID: 2}}
+	lj2 := &tasks.LocalExecutor{Task: db.Task{ID: 2}}
 	rj2 := &runningJob{job: lj2, status: task_logger.TaskSuccessStatus}
 	lj2.Logger = rj2
 	p.addRunningJob(2, rj2)
@@ -141,7 +148,7 @@ func TestJobPool_ConcurrentAccess(t *testing.T) {
 			for i := 0; i < iterations; i++ {
 				id := base*iterations + i
 				p.addRunningJob(id, &runningJob{
-					job:    &tasks.LocalJob{Task: db.Task{ID: id}},
+					job:    &tasks.LocalExecutor{Task: db.Task{ID: id}},
 					status: task_logger.TaskRunningStatus,
 				})
 				p.getRunningJob(id)

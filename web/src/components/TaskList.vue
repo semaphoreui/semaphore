@@ -9,17 +9,17 @@
     />
 
     <v-data-table
-        :headers="headers"
-        :items="tasks"
-        :items-per-page="-1"
-        :loading="loading"
-        hide-default-footer
-        class="mt-0 TaskListTable"
+      :headers="headers"
+      :items="tasks"
+      :items-per-page="-1"
+      :loading="loading"
+      hide-default-footer
+      class="mt-0 TaskListTable"
     >
       <template v-slot:item.id="{ item }">
         <TaskLink
-            :task-id="item.id"
-            :label="'#' + item.id"
+          :task-id="item.id"
+          :label="'#' + item.id"
         />
         <div style="font-size: 14px;">
           <span v-if="item.message">
@@ -34,11 +34,11 @@
       <template v-slot:item.version="{ item }">
         <div v-if="item.tpl_type !== ''">
           <TaskLink
-              :disabled="item.tpl_type === 'build'"
-              :task-id="item.build_task_id"
-              :tooltip="item.tpl_type === 'build' ? item.message : (item.build_task || {}).message"
-              :label="item.tpl_type === 'build' ? item.version : (item.build_task || {}).version"
-              :status="item.status"
+            :disabled="item.tpl_type === 'build'"
+            :task-id="item.build_task_id"
+            :tooltip="item.tpl_type === 'build' ? item.message : (item.build_task || {}).message"
+            :label="item.tpl_type === 'build' ? item.version : (item.build_task || {}).version"
+            :status="item.status"
           />
         </div>
         <div v-else>&mdash;</div>
@@ -103,7 +103,7 @@ import axios from 'axios';
 import TaskStatus from '@/components/TaskStatus.vue';
 import TaskLink from '@/components/TaskLink.vue';
 import socket from '@/socket';
-import {TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS} from '@/lib/constants';
+import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
 
 export default {
