@@ -16,7 +16,6 @@
     <v-data-table
       :headers="headers"
       :items="items"
-
       :loading="loading"
       :items-per-page="-1"
       hide-default-footer
@@ -24,10 +23,7 @@
     >
       <template v-slot:item.tpl_alias="{ item }">
         <div class="d-flex align-center">
-          <v-icon
-            class="mr-3"
-            small
-          >
+          <v-icon class="mr-3" small>
             {{ getAppIcon(item.tpl_app) }}
           </v-icon>
 
@@ -35,27 +31,22 @@
           <!--            {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}-->
           <!--          </v-icon>-->
 
-          <TaskLink
-            :task-id="item.id"
-            :label="'#' + item.id"
-          />
+          <TaskLink :task-id="item.id" :label="'#' + item.id" />
 
           <v-icon small class="ml-1 mr-1">mdi-arrow-left</v-icon>
 
-          <router-link :to="
-            '/project/' + item.project_id +
-            '/templates/' + item.template_id"
-          >{{ item.tpl_alias }}
+          <router-link :to="'/project/' + item.project_id + '/templates/' + item.template_id"
+            >{{ item.tpl_alias }}
           </router-link>
         </div>
 
-        <div style="font-size: 14px;" class="ml-7">
-            <span v-if="item.message">
-              <v-icon x-small>mdi-message-outline</v-icon> {{ item.message }}
-            </span>
+        <div style="font-size: 14px" class="ml-7">
+          <span v-if="item.message">
+            <v-icon x-small>mdi-message-outline</v-icon> {{ item.message }}
+          </span>
           <span v-else-if="item.commit_hash">
-              <v-icon x-small>mdi-source-fork</v-icon> {{ item.commit_message }}
-            </span>
+            <v-icon x-small>mdi-source-fork</v-icon> {{ item.commit_message }}
+          </span>
         </div>
       </template>
 
@@ -65,24 +56,15 @@
           class="ml-2"
           v-if="item.tpl_type !== ''"
           :status="item.status"
-
-          :task-id="item.tpl_type === 'build'
-              ? item.id
-              : (item.build_task || {}).id"
-
-          :label="item.tpl_type === 'build'
-              ? item.version
-              : (item.build_task || {}).version"
-
-          :tooltip="item.tpl_type === 'build'
-              ? item.message
-              : (item.build_task || {}).message"
+          :task-id="item.tpl_type === 'build' ? item.id : (item.build_task || {}).id"
+          :label="item.tpl_type === 'build' ? item.version : (item.build_task || {}).version"
+          :tooltip="item.tpl_type === 'build' ? item.message : (item.build_task || {}).message"
         />
         <div class="ml-2" v-else>&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
-        <TaskStatus :status="item.status"/>
+        <TaskStatus :status="item.status" />
       </template>
 
       <template v-slot:item.start="{ item }">
@@ -104,24 +86,16 @@
         dense
         hide-details
         class="HistoryPerPage mr-4"
-        style="max-width: 72px;"
+        style="max-width: 72px"
       ></v-select>
 
-      <v-btn
-        icon
-        :disabled="loading || pageIndex === 0"
-        @click="goPrev()"
-      >
+      <v-btn icon :disabled="loading || pageIndex === 0" @click="goPrev()">
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
 
       <span class="mx-2 text--secondary">{{ rangeStart }} - {{ rangeEnd }}</span>
 
-      <v-btn
-        icon
-        :disabled="loading || !hasNext"
-        @click="goNext()"
-      >
+      <v-btn icon :disabled="loading || !hasNext" @click="goNext()">
         <v-icon>mdi-chevron-right</v-icon>
       </v-btn>
     </div>
@@ -197,6 +171,10 @@ export default {
 
   beforeDestroy() {
     socket.removeListener(this.socketListenerId);
+    if (this.reloadTimer) {
+      clearTimeout(this.reloadTimer);
+      this.reloadTimer = null;
+    }
   },
 
   methods: {
@@ -230,13 +208,34 @@ export default {
       await this.itemsLoading;
     },
 
+    // Throttle reloads: a burst of websocket updates triggers at most one
+    // reload per 5 seconds (with a trailing reload for events received while
+    // the interval is cooling down).
+    reloadItemsThrottled() {
+      const RELOAD_INTERVAL = 5000;
+
+      if (this.reloadTimer) {
+        // A trailing reload is already scheduled — it will pick up this event.
+        return;
+      }
+
+      const elapsed = Date.now() - this.lastReloadTime;
+      const delay = Math.max(0, RELOAD_INTERVAL - elapsed);
+
+      this.reloadTimer = setTimeout(async () => {
+        this.reloadTimer = null;
+        this.lastReloadTime = Date.now();
+        await this.reloadItems();
+      }, delay);
+    },
+
     async onWebsocketDataReceived(data) {
       if (data.project_id !== this.projectId || data.type !== 'update') {
         return;
       }
 
       if (!this.items.some((item) => item.id === data.task_id)) {
-        await this.reloadItems();
+        this.reloadItemsThrottled();
       }
 
       const task = this.items.find((item) => item.id === data.task_id);
