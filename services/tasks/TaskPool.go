@@ -2,9 +2,7 @@ package tasks
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -67,6 +65,10 @@ type TaskPool struct {
 	// state provides pluggable storage for Queue, active projects, running tasks and aliases
 	state TaskStateStore
 
+	// workflowService orchestrates workflow runs (a Pro feature). It is injected
+	// after construction via SetWorkflowService; the pool only calls back into it
+	// when a workflow task finishes. nil in tests / before wiring.
+	workflowService pro_interfaces.WorkflowService
 	// stop signals the background loops started by Run to exit. Closing it (via
 	// Stop) terminates the runner-task reconcile loop and Run's own select.
 	// Channels are used rather than sync.WaitGroup/sync.Once because TaskPool is
@@ -113,6 +115,34 @@ func CreateTaskPool(
 // Dashboard to reach an optional TaskStateInspector implementation.
 func (p *TaskPool) StateStore() TaskStateStore {
 	return p.state
+}
+
+// SetWorkflowService injects the workflow orchestration service. It is wired
+// after the pool is created (the service needs the pool as its task enqueuer,
+// and the pool needs the service to progress runs as tasks finish).
+func (p *TaskPool) SetWorkflowService(svc pro_interfaces.WorkflowService) {
+	p.workflowService = svc
+}
+
+// HandleWorkflowTaskCompletion notifies the workflow service that a task that
+// belongs to a workflow run has finished, so it can progress the run. It is a
+// thin delegator so the open task lifecycle (TaskRunner) need not know about the
+// Pro workflow service; a no-op when no service is wired.
+func (p *TaskPool) HandleWorkflowTaskCompletion(task db.Task) error {
+	if p.workflowService == nil {
+		return nil
+	}
+	return p.workflowService.HandleWorkflowTaskCompletion(task)
+}
+
+// GetWorkflowRunArtifacts returns the merged upstream artifacts for a workflow
+// run, delegating to the workflow service. Returns an empty map when no service
+// is wired.
+func (p *TaskPool) GetWorkflowRunArtifacts(projectID int, runID int, currentTaskID *int) (map[string]any, error) {
+	if p.workflowService == nil {
+		return nil, nil
+	}
+	return p.workflowService.GetWorkflowRunArtifacts(projectID, runID, currentTaskID)
 }
 
 func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
@@ -163,6 +193,12 @@ func (p *TaskPool) Run() {
 	ticker := time.NewTicker(5 * time.Second)
 
 	defer ticker.Stop()
+
+	// In HA mode the state store relays cross-node stop requests: when another
+	// node stops a workflow run, tasks owned by this node must be killed here.
+	if broadcaster, ok := p.state.(TaskStopBroadcaster); ok {
+		broadcaster.SetTaskStopHandler(p.stopLocalTask)
+	}
 
 	go p.handleQueue()
 	go p.handleLogs()
@@ -618,6 +654,26 @@ func (p *TaskPool) stopTaskRunner(t *TaskRunner, forceStop bool) {
 	}
 }
 
+// stopLocalTask force-stops a task in response to a cross-node stop broadcast
+// (TaskStopBroadcaster). Only tasks this node actually holds are affected:
+// queued waiting tasks are dequeued, running ones go through stopTaskRunner.
+// Tasks not found locally are ignored — the broadcast reaches their owner too.
+func (p *TaskPool) stopLocalTask(taskID int) {
+	for _, t := range p.state.QueueRange() {
+		if t != nil && t.Task.ID == taskID && t.Task.Status == task_logger.TaskWaitingStatus {
+			t.SetStatus(task_logger.TaskStoppedStatus)
+			p.state.DequeueByID(taskID)
+			return
+		}
+	}
+	for _, t := range p.state.RunningRange() {
+		if t != nil && t.Task.ID == taskID && !t.Task.Status.IsFinished() {
+			p.stopTaskRunner(t, true)
+			return
+		}
+	}
+}
+
 func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 	tsk, err := p.GetTask(targetTask.ID)
 	if err != nil {
@@ -760,63 +816,108 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 	}
 }
 
+// StopTasksByWorkflowRun stops every active (queued or running) task that
+// belongs to the given workflow run. It mirrors StopTasksByTemplate but scopes
+// the selection by workflow_run_id instead of template_id, and is used when a
+// user stops a whole workflow run.
+//
+// Waiting tasks are marked stopped and dequeued from the in-memory queue (so the
+// queue loop never starts them); running tasks go through stopTaskRunner (kill +
+// status transition); tasks that exist in the DB but are not in this instance's
+// memory (HA, or a remote task dispatched elsewhere) are marked stopped and
+// finalized so their pool bookkeeping is released.
+func (p *TaskPool) StopTasksByWorkflowRun(projectID int, runID int, forceStop bool) {
+	stoppedTasks := map[int]struct{}{}
+
+	belongsToRun := func(t *TaskRunner) bool {
+		return t != nil &&
+			t.Task.ProjectID == projectID &&
+			t.Task.WorkflowRunID != nil && *t.Task.WorkflowRunID == runID &&
+			!t.Task.Status.IsFinished()
+	}
+
+	// Waiting tasks have no running process: mark them stopped and remove them
+	// from the queue so the queue loop does not later pick them up and run them
+	// (run() only converts the "stopping" status to "stopped", not a queued task
+	// already set to "stopped").
+	for _, t := range p.state.QueueRange() {
+		if !belongsToRun(t) || t.Task.Status != task_logger.TaskWaitingStatus {
+			continue
+		}
+		t.SetStatus(task_logger.TaskStoppedStatus)
+		p.state.DequeueByID(t.Task.ID)
+		stoppedTasks[t.Task.ID] = struct{}{}
+	}
+
+	// Running tasks need a per-task stop (kill + status transition).
+	for _, t := range p.state.RunningRange() {
+		if !belongsToRun(t) {
+			continue
+		}
+		p.stopTaskRunner(t, forceStop)
+		stoppedTasks[t.Task.ID] = struct{}{}
+	}
+
+	// Unfinished tasks in the DB that are neither queued nor running locally
+	// (e.g. HA mode, or a remote task dispatched on another node).
+	tasks, err := p.store.GetProjectTasks(projectID, db.RetrieveQueryParams{
+		TaskFilter: &db.TaskFilter{
+			Status: task_logger.UnfinishedTaskStatuses(),
+		},
+	})
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	for _, twt := range tasks {
+		if twt.WorkflowRunID == nil || *twt.WorkflowRunID != runID {
+			continue
+		}
+		if _, ok := stoppedTasks[twt.ID]; ok {
+			continue
+		}
+
+		// A task not handled locally may be queued or running on another HA
+		// node: ask its owner to kill it. Fire-and-forget — the stopped status
+		// persisted below and the orphan cleaner remain the backstops.
+		if broadcaster, ok := p.state.(TaskStopBroadcaster); ok {
+			broadcaster.BroadcastTaskStop(twt.ID)
+		}
+
+		tsk, taskErr := p.GetTask(twt.ID)
+		if taskErr != nil {
+			log.WithError(taskErr).WithFields(log.Fields{
+				"task_id": twt.ID,
+				"context": "task_pool",
+			}).Warn("can't get task")
+			continue
+		}
+
+		if tsk == nil {
+			tsk = NewTaskRunner(twt.Task, p, "", p.keyInstallationService)
+			if trErr := tsk.populateDetails(); trErr != nil {
+				log.Error(trErr)
+				continue
+			}
+		}
+
+		tsk.SetStatus(task_logger.TaskStoppedStatus)
+
+		// A remote task has no goroutine on this node that would run finishRun,
+		// so finalize it here to release the shared pool state; a local task is
+		// already done from the pool's perspective and only needs its event.
+		if tsk.job != nil && tsk.job.Async() {
+			go p.FinalizeRemoteTask(tsk, nil)
+		} else {
+			tsk.createTaskEvent()
+		}
+	}
+}
+
 // GetQueuedTasks returns a snapshot of tasks currently queued
 func (p *TaskPool) GetQueuedTasks() []*TaskRunner {
 	return p.state.QueueRange()
-}
-
-func getNextBuildVersion(startVersion string, currentVersion string) string {
-	re := regexp.MustCompile(`^(.*[^\d])?(\d+)([^\d].*)?$`)
-	m := re.FindStringSubmatch(startVersion)
-
-	if m == nil {
-		return startVersion
-	}
-
-	var prefix, suffix, body string
-
-	switch len(m) - 1 {
-	case 3:
-		prefix = m[1]
-		body = m[2]
-		suffix = m[3]
-	case 2:
-		if _, err := strconv.Atoi(m[1]); err == nil {
-			body = m[1]
-			suffix = m[2]
-		} else {
-			prefix = m[1]
-			body = m[2]
-		}
-	case 1:
-		body = m[1]
-	default:
-		return startVersion
-	}
-
-	if !strings.HasPrefix(currentVersion, prefix) ||
-		!strings.HasSuffix(currentVersion, suffix) {
-		return startVersion
-	}
-
-	curr, err := strconv.Atoi(currentVersion[len(prefix) : len(currentVersion)-len(suffix)])
-	if err != nil {
-		return startVersion
-	}
-
-	start, err := strconv.Atoi(body)
-	if err != nil {
-		panic(err)
-	}
-
-	var newVer int
-	if start > curr {
-		newVer = start
-	} else {
-		newVer = curr + 1
-	}
-
-	return prefix + fmt.Sprintf("%0*d", len(body), newVer) + suffix
 }
 
 // AddTask creates and queues a new task for execution in the task pool.
@@ -872,7 +973,7 @@ func (p *TaskPool) AddTask(
 		if len(builds) == 0 || builds[0].Version == nil {
 			taskObj.Version = tpl.StartVersion
 		} else {
-			v := getNextBuildVersion(*tpl.StartVersion, *builds[0].Version)
+			v := db.GetNextBuildVersion(*tpl.StartVersion, *builds[0].Version)
 			taskObj.Version = &v
 		}
 	}

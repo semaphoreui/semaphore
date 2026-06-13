@@ -365,7 +365,7 @@ func (d *SqlDb) getTemplates(
 	}
 
 	var tasks []db.TaskWithTpl
-	err = d.getTasks(projectID, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
+	err = d.getTasks(projectID, nil, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
 
 	if err != nil {
 		return

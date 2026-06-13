@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/db/factory"
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/random"
+	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/snikch/goodman/transaction"
 )
@@ -64,6 +65,11 @@ func truncateAll() {
 		"project__integration",
 		"project__integration_extract_value",
 		"project__integration_matcher",
+		"project__workflow_approval",
+		"project__workflow_run",
+		"project__workflow_edge",
+		"project__workflow_node",
+		"project__workflow_template",
 		"runner",
 	}
 
@@ -341,6 +347,71 @@ func addGlobalRunner() *db.Runner {
 	return &runner
 }
 
+func addWorkflow() *db.WorkflowTemplate {
+	wf, err := workflowStore.CreateWorkflowTemplate(db.WorkflowTemplate{
+		ProjectID: userProject.ID,
+		Name:      "ITW-" + getUUID(),
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: templateID},
+			{ID: 2, Kind: db.WorkflowNodeApprovalKind, ApprovalMessage: strPtr("approve")},
+		},
+		Edges: []db.WorkflowEdge{
+			{
+				SourceNodeID:      2,
+				DestinationNodeID: 1,
+				Condition:         db.WorkflowEdgeOnSuccess,
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &wf
+}
+
+func addWorkflowRun() *db.WorkflowRun {
+	start := tz.Now()
+	run, err := workflowStore.CreateWorkflowRun(db.WorkflowRun{
+		ProjectID:          userProject.ID,
+		WorkflowTemplateID: workflowID,
+		Status:             db.WorkflowRunRunning,
+		Start:              &start,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &run
+}
+
+func addWorkflowApproval() *db.WorkflowApproval {
+	if workflow == nil {
+		panic("workflow fixture is nil; ensure addWorkflow() is called before addWorkflowApproval()")
+	}
+
+	approvalNodeID := 0
+	for _, node := range workflow.Nodes {
+		if node.EffectiveKind() == db.WorkflowNodeApprovalKind {
+			approvalNodeID = node.ID
+			break
+		}
+	}
+	if approvalNodeID == 0 {
+		panic("no approval node found in workflow.Nodes; workflow must include at least one approval node")
+	}
+
+	approval, err := workflowStore.CreateWorkflowApproval(db.WorkflowApproval{
+		ProjectID:      userProject.ID,
+		WorkflowRunID:  workflowRunID,
+		WorkflowNodeID: approvalNodeID,
+		Status:         db.WorkflowApprovalPending,
+		Created:        tz.Now(),
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &approval
+}
+
 // Token Handling
 func addToken(tok string, user int) {
 	_, err := store.CreateAPIToken(db.APIToken{
@@ -364,6 +435,10 @@ func getUUID() string {
 	return random.String(8)
 }
 
+func strPtr(v string) *string {
+	return &v
+}
+
 func loadConfig() {
 	cwd, _ := os.Getwd()
 	file, _ := os.Open(cwd + "/.dredd/config.json")
@@ -374,11 +449,14 @@ func loadConfig() {
 }
 
 var store db.Store
+var workflowStore db.WorkflowManager
 
 func dbConnect() {
 	store = factory.CreateStore()
 
 	store.Connect()
+
+	workflowStore = proFactory.NewWorkflowStore(store)
 }
 
 func stringInSlice(a string, list []string) (int, bool) {

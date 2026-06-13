@@ -119,6 +119,7 @@ func runService() {
 	state := proTasks.NewTaskStateStore()
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
+	workflowStore := proFactory.NewWorkflowStore(store)
 
 	projectService := server.NewProjectService(store, store)
 	encryptionService := server.NewAccessKeyEncryptionService(store, store, store, store)
@@ -147,6 +148,15 @@ func runService() {
 		accessKeyInstallationService,
 		logWriteService,
 	)
+
+	// The workflow service orchestrates workflow runs and launches each node's
+	// task through the pool; the pool calls back into it when a workflow task
+	// finishes. Wire the cycle: pool first, then service (with the pool as its
+	// enqueuer), then inject the service back into the pool. The run locker is
+	// Redis-backed in HA mode (cluster-wide progression locks) and nil
+	// otherwise, which makes the service fall back to its in-process locker.
+	workflowService := proServer.NewWorkflowService(workflowStore, store, &taskPool, proHA.NewWorkflowRunLocker())
+	taskPool.SetWorkflowService(workflowService)
 
 	schedulePool := schedules.CreateSchedulePool(
 		store,
@@ -202,6 +212,15 @@ func runService() {
 		defer orphanCleaner.Stop()
 	}
 
+	// The workflow reconciler periodically progresses non-terminal runs so
+	// approval timeouts fire and statuses converge without a browser poll or a
+	// task completion. Cluster-safe: each pass takes the per-run lock. Nil in
+	// the open-source build (workflows are Pro-gated).
+	if workflowReconciler := proServer.NewWorkflowReconciler(workflowStore, workflowService); workflowReconciler != nil {
+		workflowReconciler.Start()
+		defer workflowReconciler.Stop()
+	}
+
 	util.Config.PrintDbInfo()
 
 	port := util.Config.Port
@@ -236,6 +255,7 @@ func runService() {
 	route := api.Route(
 		store,
 		terraformStore,
+		workflowStore,
 		ansibleTaskRepo,
 		&taskPool,
 		projectService,
@@ -247,6 +267,7 @@ func runService() {
 		environmentService,
 		subscriptionService,
 		runnerService,
+		workflowService,
 	)
 
 	route.Use(func(next http.Handler) http.Handler {

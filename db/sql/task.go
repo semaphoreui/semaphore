@@ -218,6 +218,14 @@ func (d *SqlDb) UpdateTask(task db.Task) error {
 	return err
 }
 
+func (d *SqlDb) UpdateTaskArtifacts(projectID int, taskID int, artifacts *string) error {
+	if _, err := d.GetTask(projectID, taskID); err != nil {
+		return err
+	}
+	_, err := d.exec("update task set artifacts=? where id=?", artifacts, taskID)
+	return err
+}
+
 func (d *SqlDb) SetWaitingTasksToStopped(projectID int, templateID int) error {
 	_, err := d.exec(
 		"update task set status=?, `end`=? where template_id=? and project_id=? and status=?",
@@ -266,7 +274,7 @@ func (d *SqlDb) InsertTaskOutputBatch(output []db.TaskOutput) error {
 // getTasks retrieves tasks for a given project, optionally filtered by template and/or task IDs.
 // The taskIDs parameter has three-way semantics: nil means no filtering by ID,
 // and a non-nil non-empty slice restricts the query to only those task IDs.
-func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
+func (d *SqlDb) getTasks(projectID int, templateID *int, workflowRunID *int, taskIDs []int, params db.RetrieveQueryParams, tasks *[]db.TaskWithTpl) (err error) {
 
 	if taskIDs != nil && len(taskIDs) == 0 {
 		*tasks = []db.TaskWithTpl{}
@@ -297,6 +305,10 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, taskIDs []int, params d
 		q = q.Where("tpl.project_id=?", projectID)
 	} else {
 		q = q.Where("tpl.project_id=? AND task.template_id=?", projectID, templateID)
+	}
+
+	if workflowRunID != nil {
+		q = q.Where("task.workflow_run_id=?", workflowRunID)
 	}
 
 	if taskIDs != nil {
@@ -353,13 +365,19 @@ func (d *SqlDb) GetTaskByID(taskID int) (task db.Task, err error) {
 }
 
 func (d *SqlDb) GetTemplateTasks(projectID int, templateID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
-	err = d.getTasks(projectID, &templateID, nil, params, &tasks)
+	err = d.getTasks(projectID, &templateID, nil, nil, params, &tasks)
 	return
 }
 
 func (d *SqlDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
 	tasks = make([]db.TaskWithTpl, 0)
-	err = d.getTasks(projectID, nil, nil, params, &tasks)
+	err = d.getTasks(projectID, nil, nil, nil, params, &tasks)
+	return
+}
+
+func (d *SqlDb) GetWorkflowRunTasks(projectID int, runID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
+	tasks = make([]db.TaskWithTpl, 0)
+	err = d.getTasks(projectID, nil, &runID, nil, params, &tasks)
 	return
 }
 

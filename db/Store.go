@@ -400,6 +400,7 @@ type TokenManager interface {
 type TaskManager interface {
 	CreateTask(task Task, maxTasks int) (Task, error)
 	UpdateTask(task Task) error
+	UpdateTaskArtifacts(projectID int, taskID int, artifacts *string) error
 	SetWaitingTasksToStopped(projectID int, templateID int) error
 	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
@@ -630,6 +631,15 @@ var TemplateProps = ObjectProps{
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "template_id",
 	SortableColumns:       []string{"name", "playbook", "inventory", "repository"},
+	DefaultSortingColumn:  "name",
+}
+
+var WorkflowTemplateProps = ObjectProps{
+	TableName:             "project__workflow_template",
+	Type:                  reflect.TypeOf(WorkflowTemplate{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "workflow_template_id",
+	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
 }
 
