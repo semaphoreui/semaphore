@@ -1,11 +1,20 @@
 # Semaphore UI
 
 Modern UI for Ansible, Terraform/OpenTofu/Terragrunt, PowerShell and other DevOps tools.
+<!--
+[![](https://img.shields.io/github/license/semaphoreui/semaphore)](LICENSE)
+-->
 
+[![Dev](https://github.com/semaphoreui/semaphore/actions/workflows/dev.yml/badge.svg)](https://github.com/semaphoreui/semaphore/actions/workflows/dev.yml)
+[![](https://img.shields.io/docker/pulls/semaphoreui/semaphore.svg)](https://hub.docker.com/r/semaphoreui/semaphore)
+[![Go Report Card](https://goreportcard.com/badge/github.com/semaphoreui/semaphore)](https://goreportcard.com/report/github.com/semaphoreui/semaphore)
+
+<!-- 
 [![roadmap](https://img.shields.io/badge/roadmap-gray?style=for-the-badge&logo=github)](https://github.com/orgs/semaphoreui/projects/11)
 [![telegram](https://img.shields.io/badge/discord_community-510b80?style=for-the-badge&logo=discord)](https://discord.gg/5R6k7hNGcH) 
 [![youtube](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
-<!-- [![docker](https://img.shields.io/badge/container_configurator-white?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/) -->
+[![docker](https://img.shields.io/badge/container_configurator-white?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/)
+-->
 
 ![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
 
