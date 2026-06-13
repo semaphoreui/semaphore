@@ -1,8 +1,12 @@
 package runners
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -125,6 +129,42 @@ func TestJobPool_ApplyTerminatedJobs(t *testing.T) {
 	assert.Equal(t, 0, p.runningJobsCount())
 }
 
+func TestJobPool_CheckNewJobsExecutorErrorUsesTaskProjectID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		err := json.NewEncoder(w).Encode(RunnerState{
+			NewJobs: []JobData{{
+				Task: db.Task{
+					ID:        42,
+					ProjectID: 7,
+				},
+			}},
+		})
+		require.NoError(t, err)
+	}))
+	defer server.Close()
+
+	previousConfig := util.Config
+	util.Config = &util.ConfigType{
+		WebHost: server.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "test-token",
+			Connection: &util.RunnerConnectionConfig{},
+		},
+	}
+	defer func() {
+		util.Config = previousConfig
+	}()
+
+	p := &JobPool{
+		runningJobs: make(map[int]*runningJob),
+		queue:       make([]*job, 0),
+		startedAt:   time.Now(),
+	}
+
+	require.NotPanics(t, p.checkNewJobs)
+	assert.Equal(t, 0, p.queueLen())
+}
+
 // TestJobPool_ConcurrentAccess models the three actors that touch the pool
 // concurrently in production: the Run loop (dequeue + addRunningJob), the poll
 // goroutine (snapshot + delete + enqueue) and status readers. Run with -race to
@@ -180,4 +220,43 @@ func TestJobPool_ConcurrentAccess(t *testing.T) {
 
 	close(start)
 	wg.Wait()
+}
+
+func TestJobPool_checkNewJobs_ExecutorErrorWithoutCacheCleanProjectID(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		state := RunnerState{
+			NewJobs: []JobData{
+				{
+					Task:        db.Task{ID: 1, ProjectID: 42, TemplateID: 1},
+					Template:    db.Template{ID: 1, App: db.AppAnsible},
+					Inventory:   db.Inventory{ID: 1},
+					Repository:  db.Repository{ID: 1},
+					Environment: db.Environment{ID: 1},
+				},
+			},
+			AccessKeys: map[int]db.AccessKey{},
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(state))
+	}))
+	t.Cleanup(srv.Close)
+
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "test-token",
+			Executor:   &util.ExecutorConfig{},
+			Connection: &util.RunnerConnectionConfig{},
+		},
+	}
+
+	p := NewJobPool(nil)
+	p.provider = nil // simulate OSS k8s/docker stub or failed provider init
+
+	require.NotPanics(t, func() {
+		p.checkNewJobs()
+	})
+	assert.Equal(t, 0, p.queueLen())
 }
