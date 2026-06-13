@@ -14,7 +14,8 @@ import (
 
 func newTestJob(id int) *job {
 	return &job{
-		job: &tasks.LocalExecutor{Task: db.Task{ID: id}},
+		job:    &tasks.LocalExecutor{Task: db.Task{ID: id}},
+		taskID: id,
 	}
 }
 
