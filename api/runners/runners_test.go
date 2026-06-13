@@ -130,6 +130,49 @@ func TestUpdateRunner_UnknownTaskReportedAsTerminated(t *testing.T) {
 	assert.Equal(t, []int{999}, decodeProgressResponse(t, w).TerminatedJobs)
 }
 
+func TestUpdateRunner_ReassignedTaskReportedAsTerminated(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	store := sql.CreateTestStore()
+
+	pool := tasks.CreateTaskPool(store, tasks.NewMemoryTaskStateStore(), nil, nil, nil, nil, nil)
+	ctrl := NewRunnerController(nil, &pool, nil)
+
+	oldRunnerID := 1
+	newRunnerID := 2
+
+	// Task was reassigned from runner 1 to runner 2 while runner 1 still had
+	// the job in its local pool (e.g. after requeueTaskRunnerOffline).
+	tr := tasks.NewTaskRunner(db.Task{
+		ID:        8,
+		ProjectID: 1,
+		RunnerID:  &newRunnerID,
+		Status:    task_logger.TaskStartingStatus,
+	}, &pool, "", nil)
+	pool.StateStore().SetRunning(tr)
+
+	req := newProgressRequest(t, store, db.Runner{ID: oldRunnerID}, runners.RunnerProgress{
+		Jobs: []runners.JobProgress{{
+			ID:     8,
+			Status: task_logger.TaskRunningStatus,
+			LogRecords: []runners.LogRecord{
+				{Time: tz.Now(), Message: "stale runner output"},
+			},
+		}},
+	})
+	w := httptest.NewRecorder()
+
+	ctrl.UpdateRunner(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, []int{8}, decodeProgressResponse(t, w).TerminatedJobs)
+
+	// The late report must not overwrite status or assignee.
+	assert.Equal(t, task_logger.TaskStartingStatus, tr.Task.Status)
+	assert.Equal(t, newRunnerID, *tr.Task.RunnerID)
+}
+
 func TestUpdateRunner_RunningTaskAcceptedWithoutTermination(t *testing.T) {
 	prevCfg := util.Config
 	t.Cleanup(func() { util.Config = prevCfg })

@@ -351,8 +351,13 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 		}
 
 		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runner.ID {
-			helpers.WriteErrorStatus(w, "Task not assigned to this runner", http.StatusBadRequest)
-			return
+			// The task was reassigned (e.g. reconciler requeued it off an offline
+			// runner). Tell this runner to emergency-stop the job instead of
+			// rejecting the whole progress batch with 400 — sendProgress treats
+			// >=400 as total failure and never applies terminated_jobs, so the
+			// old runner would keep executing alongside the new assignee.
+			response.TerminatedJobs = append(response.TerminatedJobs, job.ID)
+			continue
 		}
 
 		if !job.Status.IsValid() {
