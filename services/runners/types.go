@@ -48,6 +48,16 @@ type RunnerProgress struct {
 	Jobs []JobProgress
 }
 
+// RunnerProgressResponse is the server's reply to a progress report (PUT).
+// TerminatedJobs lists task IDs the server considers finished (e.g. stopped
+// while the runner was offline) and whose results it no longer accepts; the
+// runner must emergency-stop those jobs. Old servers reply 204 with an empty
+// body and old runners ignore the body, so the field is backward compatible
+// in both directions.
+type RunnerProgressResponse struct {
+	TerminatedJobs []int `json:"terminated_jobs,omitempty"`
+}
+
 type JobProgress struct {
 	ID         int
 	Status     task_logger.TaskStatus
@@ -56,6 +66,9 @@ type JobProgress struct {
 }
 
 type RunnerRegistration struct {
+	// RegistrationToken is either the shared global registration token (which
+	// creates a new runner) or a one-time token issued for a specific unregistered
+	// runner (which registers that runner).
 	RegistrationToken string   `json:"registration_token" binding:"required"`
 	Webhook           string   `json:"webhook,omitempty"`
 	Name              string   `json:"name,omitempty"`
@@ -76,7 +89,13 @@ type job struct {
 	incomingVersion *string
 	alias           string
 
-	// job presents remote or local job information
-	job    *tasks.LocalJob
+	// job is the executor that will run this task on the runner host. The concrete
+	// type is selected by the factory at enqueue time (LocalExecutor for local
+	// execution, KubernetesExecutor when the runner is configured to dispatch into
+	// Pods). Field accesses that need the original db.Task/db.Template/... go
+	// through taskID/template — kept here so progress reporting and orphan cleanup
+	// don't need to type-assert back to the concrete executor.
+	job    tasks.Executor
+	taskID int
 	status task_logger.TaskStatus
 }

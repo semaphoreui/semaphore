@@ -188,6 +188,7 @@ properties:
   subscription: { $ref: "#/$defs/SubscriptionConfig" }
   dirs:         { $ref: "#/$defs/ConfigDirs" }
   runner:       { $ref: "#/$defs/RunnerConfig" }
+  runners: { $ref: "#/$defs/RunnersConfig" }
 
 $defs:
   DbConfig:
@@ -467,3 +468,32 @@ $defs:
       enabled:            { type: boolean }
       project_id:
         type: [integer, "null"]
+
+  RunnersConfig:
+    type: object
+    description: >
+      Server-side settings describing how the server treats its runner fleet.
+      Unrelated to "runner", which configures a runner process itself.
+    properties:
+      offline_timeout_sec:
+        type: integer
+        minimum: 0
+        default: 120
+        description: >
+          Heartbeat staleness (seconds) after which a runner is considered
+          offline. An offline runner receives no new tasks and its "starting"
+          tasks are reassigned to another runner. Must be comfortably larger
+          than the runner poll interval.
+      task_fail_timeout_sec:
+        type: integer
+        minimum: 0
+        default: 420
+        description: >
+          Heartbeat staleness (seconds) after which a runner's "running" tasks
+          are failed. A runner that reconnects within this window continues its
+          tasks. Values below offline_timeout_sec are clamped to it.
+      reconcile_interval_sec:
+        type: integer
+        minimum: 0
+        default: 30
+        description: How often (seconds) dispatched tasks are reconciled against runner liveness.

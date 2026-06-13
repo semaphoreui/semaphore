@@ -27,13 +27,14 @@ type TerraformTaskParams struct {
 }
 
 type AnsibleTaskParams struct {
-	Debug      bool     `json:"debug"`
-	DebugLevel int      `json:"debug_level"`
-	DryRun     bool     `json:"dry_run"`
-	Diff       bool     `json:"diff"`
-	Limit      []string `json:"limit"`
-	Tags       []string `json:"tags"`
-	SkipTags   []string `json:"skip_tags"`
+	Debug             bool     `json:"debug"`
+	DebugLevel        int      `json:"debug_level"`
+	DryRun            bool     `json:"dry_run"`
+	Diff              bool     `json:"diff"`
+	Limit             []string `json:"limit"`
+	Tags              []string `json:"tags"`
+	SkipTags          []string `json:"skip_tags"`
+	SkipGalaxyInstall bool     `json:"skip_galaxy_install"`
 }
 
 // Task is a model of a task which will be executed by the runner
@@ -69,8 +70,10 @@ type Task struct {
 	CommitHash *string `db:"commit_hash" json:"commit_hash,omitempty"`
 	// CommitMessage contains message retrieved from git repository after checkout to CommitHash.
 	// It is readonly by API.
-	CommitMessage string `db:"commit_message" json:"commit_message,omitempty"`
-	BuildTaskID   *int   `db:"build_task_id" json:"build_task_id,omitempty"`
+	CommitMessage  string `db:"commit_message" json:"commit_message,omitempty"`
+	BuildTaskID    *int   `db:"build_task_id" json:"build_task_id,omitempty"`
+	WorkflowRunID  *int   `db:"workflow_run_id" json:"workflow_run_id,omitempty"`
+	WorkflowNodeID *int   `db:"workflow_node_id" json:"workflow_node_id,omitempty"`
 	// Version is a build version.
 	// This field available only for Build tasks.
 	Version *string `db:"version" json:"version,omitempty"`
@@ -78,6 +81,12 @@ type Task struct {
 	InventoryID *int `db:"inventory_id" json:"inventory_id,omitempty"`
 
 	Params MapStringAnyField `db:"params" json:"params,omitempty"`
+
+	// Artifacts holds the JSON object produced by the task and made available
+	// as workflow-scoped variables to downstream task templates within the
+	// same WorkflowRun (AWX-style "set_stats"/workflow artifacts). Stored as a
+	// raw JSON string so existing UpdateTask code paths can ignore it.
+	Artifacts *string `db:"artifacts" json:"artifacts,omitempty"`
 
 	// Limit is deprecated, use Params.Limit instead
 	Limit string `db:"-" json:"limit"`

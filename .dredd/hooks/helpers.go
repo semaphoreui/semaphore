@@ -9,10 +9,10 @@ import (
 
 	"github.com/go-gorp/gorp/v3"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
 	"github.com/semaphoreui/semaphore/db/factory"
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/random"
+	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/snikch/goodman/transaction"
 )
@@ -29,7 +29,7 @@ func addTestRunnerUser() {
 	}
 
 	dbConnect()
-	defer store.Close("")
+	defer store.Close()
 
 	truncateAll()
 
@@ -65,12 +65,15 @@ func truncateAll() {
 		"project__integration",
 		"project__integration_extract_value",
 		"project__integration_matcher",
+		"project__workflow_approval",
+		"project__workflow_run",
+		"project__workflow_edge",
+		"project__workflow_node",
+		"project__workflow_template",
 		"runner",
 	}
 
 	switch store.(type) {
-	case *bolt.BoltDb:
-		// Do nothing
 	case *sql.SqlDb:
 		switch store.(*sql.SqlDb).Sql().Dialect.(type) {
 		case gorp.PostgresDialect:
@@ -98,7 +101,7 @@ func truncateAll() {
 
 func removeTestRunnerUser(transactions []*transaction.Transaction) {
 	dbConnect()
-	defer store.Close("")
+	defer store.Close()
 	_ = store.DeleteAPIToken(testRunnerUser.ID, adminToken)
 	_ = store.DeleteUser(testRunnerUser.ID)
 }
@@ -314,6 +317,7 @@ func addIntegrationMatcher() *db.IntegrationMatcher {
 
 func addRunner() *db.Runner {
 	runner, err := store.CreateRunner(db.Runner{
+		Token:            db.GenerateRunnerToken(),
 		ProjectID:        &userProject.ID,
 		Name:             "ITRN-" + getUUID(),
 		Active:           true,
@@ -329,6 +333,7 @@ func addRunner() *db.Runner {
 
 func addGlobalRunner() *db.Runner {
 	runner, err := store.CreateRunner(db.Runner{
+		Token:            db.GenerateRunnerToken(),
 		ProjectID:        nil,
 		Name:             "ITGRN-" + getUUID(),
 		Active:           true,
@@ -340,6 +345,71 @@ func addGlobalRunner() *db.Runner {
 	}
 
 	return &runner
+}
+
+func addWorkflow() *db.WorkflowTemplate {
+	wf, err := workflowStore.CreateWorkflowTemplate(db.WorkflowTemplate{
+		ProjectID: userProject.ID,
+		Name:      "ITW-" + getUUID(),
+		Nodes: []db.WorkflowNode{
+			{ID: 1, TemplateID: templateID},
+			{ID: 2, Kind: db.WorkflowNodeApprovalKind, ApprovalMessage: strPtr("approve")},
+		},
+		Edges: []db.WorkflowEdge{
+			{
+				SourceNodeID:      2,
+				DestinationNodeID: 1,
+				Condition:         db.WorkflowEdgeOnSuccess,
+			},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &wf
+}
+
+func addWorkflowRun() *db.WorkflowRun {
+	start := tz.Now()
+	run, err := workflowStore.CreateWorkflowRun(db.WorkflowRun{
+		ProjectID:          userProject.ID,
+		WorkflowTemplateID: workflowID,
+		Status:             db.WorkflowRunRunning,
+		Start:              &start,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &run
+}
+
+func addWorkflowApproval() *db.WorkflowApproval {
+	if workflow == nil {
+		panic("workflow fixture is nil; ensure addWorkflow() is called before addWorkflowApproval()")
+	}
+
+	approvalNodeID := 0
+	for _, node := range workflow.Nodes {
+		if node.EffectiveKind() == db.WorkflowNodeApprovalKind {
+			approvalNodeID = node.ID
+			break
+		}
+	}
+	if approvalNodeID == 0 {
+		panic("no approval node found in workflow.Nodes; workflow must include at least one approval node")
+	}
+
+	approval, err := workflowStore.CreateWorkflowApproval(db.WorkflowApproval{
+		ProjectID:      userProject.ID,
+		WorkflowRunID:  workflowRunID,
+		WorkflowNodeID: approvalNodeID,
+		Status:         db.WorkflowApprovalPending,
+		Created:        tz.Now(),
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &approval
 }
 
 // Token Handling
@@ -365,6 +435,10 @@ func getUUID() string {
 	return random.String(8)
 }
 
+func strPtr(v string) *string {
+	return &v
+}
+
 func loadConfig() {
 	cwd, _ := os.Getwd()
 	file, _ := os.Open(cwd + "/.dredd/config.json")
@@ -375,11 +449,14 @@ func loadConfig() {
 }
 
 var store db.Store
+var workflowStore db.WorkflowManager
 
 func dbConnect() {
 	store = factory.CreateStore()
 
-	store.Connect("")
+	store.Connect()
+
+	workflowStore = proFactory.NewWorkflowStore(store)
 }
 
 func stringInSlice(a string, list []string) (int, bool) {

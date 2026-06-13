@@ -1,8 +1,9 @@
-name: Pro Self-Hosted Release
+name: Pro Self-Hosted Beta
 
 'on':
   push:
     tags:
+      - v*-alpha*
       - v*-beta*
       - v*-rc*
 
@@ -20,7 +21,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '^1.26.4'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4

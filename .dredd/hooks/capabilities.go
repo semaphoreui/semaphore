@@ -25,6 +25,9 @@ var integrationmatch *db.IntegrationMatcher
 var invite *db.ProjectInvite
 var runner *db.Runner
 var globalRunner *db.Runner
+var workflow *db.WorkflowTemplate
+var workflowRun *db.WorkflowRun
+var workflowApproval *db.WorkflowApproval
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
@@ -34,6 +37,9 @@ var templateID int
 var integrationID int
 var integrationExtractValueID int
 var integrationMatchID int
+var workflowID int
+var workflowRunID int
+var workflowNodeID int
 
 var capabilities = map[string][]string{
 	"user":                    {},
@@ -51,6 +57,9 @@ var capabilities = map[string][]string{
 	"invite":                  {"user", "project"},
 	"runner":                  {"project"},
 	"global_runner":           {},
+	"workflow":                {"template"},
+	"workflow_run":            {"workflow"},
+	"workflow_approval":       {"workflow_run"},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -61,7 +70,7 @@ func capabilityWrapper(cap string) func(t *trans.Transaction) {
 
 func addCapabilities(caps []string) {
 	dbConnect()
-	defer store.Close("")
+	defer store.Close()
 	resolved := make([]string, 0)
 	uid := getUUID()
 	resolveCapability(caps, resolved, uid)
@@ -182,6 +191,15 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			runner = addRunner()
 		case "global_runner":
 			globalRunner = addGlobalRunner()
+		case "workflow":
+			workflow = addWorkflow()
+			workflowID = workflow.ID
+		case "workflow_run":
+			workflowRun = addWorkflowRun()
+			workflowRunID = workflowRun.ID
+		case "workflow_approval":
+			workflowApproval = addWorkflowApproval()
+			workflowNodeID = workflowApproval.WorkflowNodeID
 		default:
 			panic("unknown capability " + v)
 		}
@@ -218,6 +236,9 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(15) },
 	func() string { return strconv.Itoa(runner.ID) },       // runner_id (project), x-example: 16
 	func() string { return strconv.Itoa(globalRunner.ID) }, // global runner_id, x-example: 17
+	func() string { return strconv.Itoa(workflow.ID) },     // workflow_id, x-example: 18
+	func() string { return strconv.Itoa(workflowRun.ID) },  // run_id, x-example: 19
+	func() string { return strconv.Itoa(workflowNodeID) },  // node_id, x-example: 20
 }
 
 // alterRequestPath with the above slice of functions
@@ -238,7 +259,7 @@ func alterRequestPath(t *trans.Transaction) {
 }
 
 func alterRequestBody(t *trans.Transaction) {
-	var request map[string]interface{}
+	var request map[string]any
 	json.Unmarshal([]byte(t.Request.Body), &request)
 
 	if userProject != nil {
@@ -303,7 +324,7 @@ func alterRequestBody(t *trans.Transaction) {
 	t.Request.Body = string(out)
 }
 
-func bodyFieldProcessor(id string, sub interface{}, request *map[string]interface{}) {
+func bodyFieldProcessor(id string, sub any, request *map[string]any) {
 	if _, ok := (*request)[id]; ok {
 		(*request)[id] = sub
 	}

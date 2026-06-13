@@ -24,6 +24,8 @@ tags:
     description: Integration API
   - name: runner
     description: Runner management (project and global runners)
+  - name: workflow
+    description: Workflows
 
 schemes:
   - http
@@ -855,6 +857,8 @@ definitions:
         type: array
         items:
           type: string
+      skip_galaxy_install:
+        type: boolean
 
   TerraformTaskParams:
     type: object
@@ -1204,6 +1208,9 @@ definitions:
         type: string
         format: date-time
         x-nullable: true
+      registered:
+        type: boolean
+        description: Whether the runner has been registered (has an auth token).
 
   RunnerRequest:
     type: object
@@ -1223,6 +1230,14 @@ definitions:
         type: array
         items:
           type: string
+      registered:
+        type: boolean
+        description: >
+          Defaults to true. When false, the runner is created with no credentials
+          at all (no auth token and no registration token) and stays inactive. A
+          one-time registration token must then be generated for it (see the
+          registration-token endpoint) and used to register the runner. Useful for
+          tools like Terraform that create the runner up front.
 
   RunnerWithToken:
     allOf:
@@ -1241,6 +1256,20 @@ definitions:
     properties:
       active:
         type: boolean
+
+  RunnerRegistrationToken:
+    type: object
+    properties:
+      registration_token:
+        type: string
+        description: One-time, short-lived token used to register the runner.
+      runner_id:
+        type: integer
+        readOnly: true
+      project_id:
+        type: integer
+        description: Owning project. Null for global runners.
+        x-nullable: true
 
   RunnerTag:
     type: object
@@ -1304,6 +1333,138 @@ definitions:
       node_id:
         type: string
         description: owning node, empty if unknown
+
+  WorkflowNode:
+    type: object
+    properties:
+      id:
+        type: integer
+      workflow_template_id:
+        type: integer
+      template_id:
+        type: integer
+      kind:
+        type: string
+        enum: [task, approval]
+      convergence_mode:
+        type: string
+        enum: [all, any]
+      approval_timeout:
+        type: integer
+      approval_message:
+        type: string
+      inventory_id:
+        type: integer
+      environment_id:
+        type: integer
+
+  WorkflowEdge:
+    type: object
+    properties:
+      id:
+        type: integer
+      workflow_template_id:
+        type: integer
+      source_node_id:
+        type: integer
+      destination_node_id:
+        type: integer
+      condition:
+        type: string
+        enum: [on_success, on_failure, always]
+
+  WorkflowTemplate:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+      description:
+        type: string
+      nodes:
+        type: array
+        items:
+          $ref: "#/definitions/WorkflowNode"
+      edges:
+        type: array
+        items:
+          $ref: "#/definitions/WorkflowEdge"
+
+  WorkflowRun:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      workflow_template_id:
+        type: integer
+      status:
+        type: string
+        enum: [running, success, failed]
+      start:
+        type: string
+        format: date-time
+      end:
+        type: string
+        format: date-time
+      root_task_id:
+        type: integer
+
+  WorkflowApproval:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      workflow_run_id:
+        type: integer
+      workflow_node_id:
+        type: integer
+      status:
+        type: string
+        enum: [pending, approved, rejected]
+      created:
+        type: string
+        format: date-time
+      resolved:
+        type: string
+        format: date-time
+      resolved_by_user_id:
+        type: integer
+
+  WorkflowNodeRunStatus:
+    type: object
+    properties:
+      node:
+        $ref: "#/definitions/WorkflowNode"
+      task:
+        $ref: "#/definitions/Task"
+      approval:
+        $ref: "#/definitions/WorkflowApproval"
+
+  WorkflowRunDetails:
+    type: object
+    properties:
+      run:
+        $ref: "#/definitions/WorkflowRun"
+      nodes:
+        type: array
+        items:
+          $ref: "#/definitions/WorkflowNodeRunStatus"
+
+  WorkflowApprovalResolveRequest:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        type: string
+        enum: [approved, rejected]
 
 securityDefinitions:
   cookie:
@@ -1369,6 +1530,27 @@ parameters:
     type: integer
     required: true
     x-example: 7
+  workflow_id:
+    name: workflow_id
+    description: workflow template ID
+    in: path
+    type: integer
+    required: true
+    x-example: 18
+  run_id:
+    name: run_id
+    description: workflow run ID
+    in: path
+    type: integer
+    required: true
+    x-example: 19
+  node_id:
+    name: node_id
+    description: workflow node ID
+    in: path
+    type: integer
+    required: true
+    x-example: 20
   task_id:
     name: task_id
     description: task ID
@@ -2922,6 +3104,175 @@ paths:
         204:
           description: template removed
 
+  # project workflows
+  /project/{project_id}/workflows:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflows
+      responses:
+        200:
+          description: workflow templates
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WorkflowTemplate"
+    post:
+      tags:
+        - workflow
+      summary: Add workflow
+      parameters:
+        - name: workflow
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowTemplate"
+      responses:
+        201:
+          description: Workflow template created
+          schema:
+            $ref: "#/definitions/WorkflowTemplate"
+
+  /project/{project_id}/workflows/{workflow_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflow
+      responses:
+        200:
+          description: workflow template
+          schema:
+            $ref: "#/definitions/WorkflowTemplate"
+    put:
+      tags:
+        - workflow
+      summary: Update workflow
+      parameters:
+        - name: workflow
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowTemplate"
+      responses:
+        204:
+          description: Workflow updated
+    delete:
+      tags:
+        - workflow
+      summary: Remove workflow
+      responses:
+        204:
+          description: workflow removed
+
+  /project/{project_id}/workflows/{workflow_id}/run:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+    post:
+      tags:
+        - workflow
+      summary: Run workflow
+      responses:
+        201:
+          description: workflow run created
+          schema:
+            $ref: "#/definitions/WorkflowRun"
+
+  /project/{project_id}/workflows/{workflow_id}/runs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflow runs
+      responses:
+        200:
+          description: workflow runs
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WorkflowRun"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflow run details
+      responses:
+        200:
+          description: workflow run details
+          schema:
+            $ref: "#/definitions/WorkflowRunDetails"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflow run approvals
+      responses:
+        200:
+          description: workflow approvals
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WorkflowApproval"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/artifacts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    get:
+      tags:
+        - workflow
+      summary: Get merged workflow run artifacts
+      description: |
+        Returns the JSON object that aggregates `set_stats`-style artifacts
+        produced by every finished task in the run. Later tasks override
+        earlier ones, mirroring AWX's workflow artifacts behaviour.
+      responses:
+        200:
+          description: merged artifacts
+          schema:
+            type: object
+            additionalProperties: true
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+      - $ref: "#/parameters/node_id"
+    post:
+      tags:
+        - workflow
+      summary: Resolve workflow approval
+      parameters:
+        - name: approval
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowApprovalResolveRequest"
+      responses:
+        200:
+          description: approval resolved
+          schema:
+            $ref: "#/definitions/WorkflowApproval"
+
   # project schedules
   /project/{project_id}/schedules/{schedule_id}:
     parameters:
@@ -3320,6 +3671,22 @@ paths:
         400:
           description: Invalid request body
 
+  /project/{project_id}/runners/{runner_id}/registration-token:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    post:
+      tags:
+        - runner
+      summary: Regenerate the one-time registration token of an unregistered project runner
+      responses:
+        200:
+          description: New registration token
+          schema:
+            $ref: "#/definitions/RunnerRegistrationToken"
+        400:
+          description: Runner is already registered
+
   /project/{project_id}/runners/{runner_id}/cache:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -3431,6 +3798,21 @@ paths:
           description: Runner active state updated
         400:
           description: Invalid request body
+
+  /runners/{runner_id}/registration-token:
+    parameters:
+      - $ref: "#/parameters/global_runner_id"
+    post:
+      tags:
+        - runner
+      summary: Regenerate the one-time registration token of an unregistered global runner
+      responses:
+        200:
+          description: New registration token
+          schema:
+            $ref: "#/definitions/RunnerRegistrationToken"
+        400:
+          description: Runner is already registered
 
   /runners/{runner_id}/cache:
     parameters:

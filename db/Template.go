@@ -76,6 +76,13 @@ type AnsibleTemplateParams struct {
 	Limit                  []string `json:"limit"`
 	Tags                   []string `json:"tags"`
 	SkipTags               []string `json:"skip_tags"`
+
+	// SkipGalaxyInstall skips the Galaxy install step (role and collection
+	// requirements) before running the playbook.
+	SkipGalaxyInstall bool `json:"skip_galaxy_install"`
+	// AllowOverrideSkipGalaxyInstall lets the user toggle SkipGalaxyInstall when
+	// launching a task.
+	AllowOverrideSkipGalaxyInstall bool `json:"allow_override_skip_galaxy_install"`
 }
 
 type TerraformTemplateParams struct {
@@ -121,11 +128,11 @@ type Template struct {
 	// into a single environment, with later entries overriding earlier ones.
 	// Persisted via the project__template_environment junction table in SQL,
 	// and serialized inline on the template object in BoltDB.
-	EnvironmentIDs []int `db:"-" bolt:"include" json:"environment_ids" backup:"-"`
+	EnvironmentIDs []int `db:"-" json:"environment_ids" backup:"-"`
 
 	// EnvironmentID is the ID of the environment associated with the template.
 	// Deprecated: Use EnvironmentIDs instead.
-	EnvironmentID int `db:"-" bolt:"include" json:"environment_id" backup:"-"`
+	EnvironmentID int `db:"-" json:"environment_id" backup:"-"`
 
 	// Name as described in https://github.com/semaphoreui/semaphore/issues/188
 	Name string `db:"name" json:"name"`
