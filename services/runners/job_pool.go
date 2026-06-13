@@ -992,7 +992,7 @@ func (p *JobPool) checkNewJobs() {
 		if execErr != nil {
 			log.WithError(execErr).WithFields(log.Fields{
 				"context":    "checking_new_jobs",
-				"project_id": *response.CacheCleanProjectID,
+				"project_id": newJob.Task.ProjectID,
 				"task_id":    newJob.Task.ID,
 			}).Error("cannot construct executor for task")
 			continue
