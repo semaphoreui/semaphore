@@ -87,6 +87,10 @@ func TestTaskRunnerRun(t *testing.T) {
 	)
 
 	go pool.Run()
+	// Stop the pool's background loops (notably the runner-task reconcile loop)
+	// before the test returns, so the loop does not outlive this test and race
+	// with later tests that mutate the util.Config global.
+	t.Cleanup(pool.Stop)
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {

@@ -41,6 +41,8 @@ func newReconcilerTestPool(store db.Store, state TaskStateStore) TaskPool {
 		state:           state,
 		store:           store,
 		logWriteService: &mockLogWriteService{},
+		stop:            make(chan struct{}),
+		reconcileDone:   make(chan struct{}),
 	}
 }
 
@@ -628,10 +630,9 @@ func TestRunnerTasksReconcileLoop(t *testing.T) {
 	tsk := &TaskRunner{Task: newTask, pool: &pool}
 	state.SetRunning(tsk)
 
-	stop := make(chan struct{})
 	done := make(chan struct{})
 	go func() {
-		pool.runnerTasksReconcileLoop(stop)
+		pool.runnerTasksReconcileLoop()
 		close(done)
 	}()
 
@@ -639,7 +640,7 @@ func TestRunnerTasksReconcileLoop(t *testing.T) {
 		return state.QueueLen() == 1
 	}, 5*time.Second, 50*time.Millisecond)
 
-	close(stop)
+	close(pool.stop)
 	<-done
 }
 

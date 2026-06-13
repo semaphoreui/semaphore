@@ -102,8 +102,8 @@ func DecideRunnerTaskAction(
 // runnerTasksReconcileLoop periodically reconciles dispatched tasks against
 // runner liveness: tasks on an offline runner are requeued (starting) or
 // failed (running, after the recovery window). Started from TaskPool.Run.
-// A nil stop channel means run forever.
-func (p *TaskPool) runnerTasksReconcileLoop(stop <-chan struct{}) {
+// It returns when p.stop is closed (a nil p.stop means run forever).
+func (p *TaskPool) runnerTasksReconcileLoop() {
 	ticker := time.NewTicker(util.Config.RunnersReconcileInterval())
 	defer ticker.Stop()
 
@@ -111,7 +111,7 @@ func (p *TaskPool) runnerTasksReconcileLoop(stop <-chan struct{}) {
 		select {
 		case <-ticker.C:
 			p.reconcileRunnerTasks(tz.Now())
-		case <-stop:
+		case <-p.stop:
 			return
 		}
 	}
