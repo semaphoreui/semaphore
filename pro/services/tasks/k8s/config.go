@@ -12,10 +12,12 @@
 package k8s
 
 import (
+	"errors"
+
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 )
 
 func NewProvider(_ util.RunnerK8sConfig) (tasks.ExecutorProvider, error) {
-	return nil, nil
+	return nil, errors.New("k8s executor is only available in the proprietary build")
 }
