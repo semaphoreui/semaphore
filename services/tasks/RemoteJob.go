@@ -20,8 +20,6 @@ import (
 // ErrAllRunnersBusy is returned when all available runners are busy. Used for logic
 var ErrAllRunnersBusy = errors.New("all runners busy")
 
-const runnerActiveThreshold = 30 * time.Minute
-
 type RemoteJob struct {
 	RunnerTag *string
 	Task      db.Task
@@ -54,7 +52,10 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 		return
 	}
 
-	client := &http.Client{}
+	// Bound the dispatch: a webhook that connects but never responds would
+	// otherwise keep the dispatch goroutine alive forever, hanging the task in
+	// "starting" with no runner assigned.
+	client := &http.Client{Timeout: 30 * time.Second}
 
 	var req *http.Request
 	req, err = http.NewRequest("POST", runner.Webhook, bytes.NewBuffer(jsonBytes))
@@ -107,6 +108,29 @@ func shuffleRunners(rs []db.Runner) []db.Runner {
 	return shuffled
 }
 
+// selectRunner returns the first runner that is online (see db.Runner.IsOnline)
+// and has free capacity, or nil when there is none. Offline runners are
+// excluded outright — dispatching to a silent runner is exactly how tasks used
+// to hang forever; a task with no online runner stays queued instead and is
+// retried by the pool.
+func selectRunner(
+	runners []db.Runner,
+	now time.Time,
+	offlineTimeout time.Duration,
+	busyTasks func(runnerID int) int,
+) *db.Runner {
+	for i := range runners {
+		r := &runners[i]
+		if !r.IsOnline(now, offlineTimeout) {
+			continue
+		}
+		if n := busyTasks(r.ID); n < r.MaxParallelTasks || r.MaxParallelTasks == 0 {
+			return r
+		}
+	}
+	return nil
+}
+
 func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
 	tsk, err := t.taskPool.GetTask(t.Task.ID)
 
@@ -153,27 +177,11 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		return
 	}
 
-	var runner *db.Runner
-	now := tz.Now()
-
-	// First pass: prefer runners with a recent heartbeat.
-	// Second pass: fall back to runners that haven't reported recently.
-	for pass := range 2 {
-		for i := range runners {
-			r := &runners[i]
-			active := r.Touched != nil && now.Sub(*r.Touched) < runnerActiveThreshold || r.Webhook != ""
-			if (pass == 0) == active {
-				n := t.taskPool.GetNumberOfRunningTasksOfRunner(r.ID)
-				if n < r.MaxParallelTasks || r.MaxParallelTasks == 0 {
-					runner = r
-					break
-				}
-			}
-		}
-		if runner != nil {
-			break
-		}
-	}
+	runner := selectRunner(
+		runners,
+		tz.Now(),
+		util.Config.RunnersOfflineTimeout(),
+		t.taskPool.GetNumberOfRunningTasksOfRunner)
 
 	if runner == nil {
 		err = ErrAllRunnersBusy

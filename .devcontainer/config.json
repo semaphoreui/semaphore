@@ -1,8 +1,8 @@
 {
-   "sqlite": {
-       "host": "/workspaces/semaphore/database.sqlite"
+  "sqlite": {
+    "host": "/workspaces/semaphore/database.sqlite"
    },
-   "dialect": "sqlite",
+  "dialect": "sqlite",
    "cookie_hash": "5WJjXCLpvf3Cn5t+C/IV9F0asZUQLakOhCT+eSdIwP0=",
    "cookie_encryption": "6x6mmQWGn6YcsHN1rN0HiQjhYA+7HukcbCxUGHuT2CE="
 }

@@ -110,7 +110,9 @@ task --list
 ```
 
 ### Database Options for Development
+
 During setup, choose option 4 (SQLite) for the simplest development setup:
+
 - No external database server required
 - Database file stored at the path configured in `config.json` (default under `/tmp/`)
 - Perfect for development and testing
@@ -144,6 +146,7 @@ During setup, choose option 4 (SQLite) for the simplest development setup:
 - If API returns errors: Check server logs for specific error messages
 
 ### Database Issues
+
 - For development, use SQLite (option 4) during setup
 - The SQLite database file is created automatically at the configured path
 - If database errors occur, remove the SQLite file and run setup again

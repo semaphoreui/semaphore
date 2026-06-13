@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/tz"
@@ -65,6 +66,20 @@ type TaskRunner struct {
 	Alias string
 
 	logWG sync.WaitGroup
+
+	// dispatching is true while this process owns a live goroutine that is
+	// dispatching/running the task (set in runTask). A TaskRunner restored from
+	// Redis after a node restart (getOrHydrate / RedisTaskStateStore.Start) is an
+	// inert stub with no goroutine and leaves this false. The runner-task
+	// reconciler uses it to tell a task it is actively dispatching from a stale
+	// "starting" task whose dispatch goroutine died with a previous process.
+	dispatching atomic.Bool
+}
+
+// isDispatching reports whether this process has a live goroutine
+// dispatching/running the task. See the dispatching field.
+func (t *TaskRunner) isDispatching() bool {
+	return t.dispatching.Load()
 }
 
 func NewTaskRunner(
@@ -600,7 +615,7 @@ func checkTmpDir(path string) error {
 // task can deposit its own outputs for downstream nodes. No-op for jobs other
 // than LocalJob (RemoteJob does not yet stream artifacts back).
 func (t *TaskRunner) prepareWorkflowArtifacts() {
-	local, ok := t.job.(*LocalJob)
+	local, ok := t.job.(*LocalExecutor)
 	if !ok {
 		return
 	}
@@ -628,7 +643,7 @@ func (t *TaskRunner) prepareWorkflowArtifacts() {
 // validates it and stores the canonical JSON blob on the task row so
 // downstream tasks can consume it via GetWorkflowRunArtifacts.
 func (t *TaskRunner) persistCapturedArtifacts() {
-	local, ok := t.job.(*LocalJob)
+	local, ok := t.job.(*LocalExecutor)
 	if !ok {
 		return
 	}

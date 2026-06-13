@@ -281,25 +281,25 @@ minimum-supported-version policy.
 
 Mismatched-version behaviour:
 
-| Scenario | Behaviour |
-|----------|-----------|
-| Old binary + new schema | Old binary ignores `token_hash`, reads/writes `token` as today. Runners keep working. |
-| New binary + old schema | Startup migration adds `token_hash`, backfill populates it. New auth path takes over. |
-| Mixed binaries (rolling upgrade) reading the same DB | New binary writes both columns (flag default). Old binary sees plaintext rows it can authenticate. New rows registered while the rollout is in flight are visible to both. |
-| Operator rolls back to an older binary after running 2.19.0 | Older binary reads plaintext column, which is still populated for every row. Zero data loss, zero re-registration. |
-| Operator flips `store_plaintext_token` to `false` then rolls back | Rows created while the flag was off have an empty `token` column and are invisible to the older binary. Documented as the one-way step. |
+| Scenario                                                          | Behaviour                                                                                                                                                                  |
+|-------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Old binary + new schema                                           | Old binary ignores `token_hash`, reads/writes `token` as today. Runners keep working.                                                                                      |
+| New binary + old schema                                           | Startup migration adds `token_hash`, backfill populates it. New auth path takes over.                                                                                      |
+| Mixed binaries (rolling upgrade) reading the same DB              | New binary writes both columns (flag default). Old binary sees plaintext rows it can authenticate. New rows registered while the rollout is in flight are visible to both. |
+| Operator rolls back to an older binary after running 2.19.0       | Older binary reads plaintext column, which is still populated for every row. Zero data loss, zero re-registration.                                                         |
+| Operator flips `store_plaintext_token` to `false` then rolls back | Rows created while the flag was off have an empty `token` column and are invisible to the older binary. Documented as the one-way step.                                    |
 
 ## Risks & Notes
 
-| Risk | Mitigation |
-|------|------------|
-| Backfill silently truncates or mis-encodes a token, locking a runner out | Backfill is deterministic and reversible (plaintext column still present after v2.19.0). Migration test covers a known vector. |
-| Operator skips v2.19.0 and jumps to a release where the plaintext column is already gone | Migrations run sequentially via the existing migrator; skipping is not supported today. No new risk. |
-| Index collision on `token_hash` | SHA-256 of 256-bit random inputs; collision probability is not a real concern. The unique index is there to catch programming bugs, not adversaries. |
-| Token leaked in logs prior to this change is still in old log files | Out of scope. Worth a one-line note in release notes asking operators to rotate if they have ever shipped runner logs to a third party. |
-| Someone later "fixes" the code to log `runner.Token` after fetching from the DB | While `store_plaintext_token` is on, this leak is possible. Add a comment on the struct field warning that it MUST NOT be logged, and add a grep-friendly lint check (`runner.Token`) to the review checklist. |
-| Operator expects the plaintext column to be gone after upgrade (security audit finding) | Document explicitly in release notes: 2.19 adds hashed storage but retains plaintext for backward compatibility; operators who want plaintext gone can set `store_plaintext_token = false` and accept the no-rollback consequence. |
-| The plaintext fallback in `GetRunnerByToken` masks a bug where the hash backfill silently failed | The opportunistic-update step on fallback hits means the hash column self-heals on use. Metrics or a startup log line counting rows with empty `token_hash` makes the gap visible without breaking auth. |
+| Risk                                                                                             | Mitigation                                                                                                                                                                                                                         |
+|--------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Backfill silently truncates or mis-encodes a token, locking a runner out                         | Backfill is deterministic and reversible (plaintext column still present after v2.19.0). Migration test covers a known vector.                                                                                                     |
+| Operator skips v2.19.0 and jumps to a release where the plaintext column is already gone         | Migrations run sequentially via the existing migrator; skipping is not supported today. No new risk.                                                                                                                               |
+| Index collision on `token_hash`                                                                  | SHA-256 of 256-bit random inputs; collision probability is not a real concern. The unique index is there to catch programming bugs, not adversaries.                                                                               |
+| Token leaked in logs prior to this change is still in old log files                              | Out of scope. Worth a one-line note in release notes asking operators to rotate if they have ever shipped runner logs to a third party.                                                                                            |
+| Someone later "fixes" the code to log `runner.Token` after fetching from the DB                  | While `store_plaintext_token` is on, this leak is possible. Add a comment on the struct field warning that it MUST NOT be logged, and add a grep-friendly lint check (`runner.Token`) to the review checklist.                     |
+| Operator expects the plaintext column to be gone after upgrade (security audit finding)          | Document explicitly in release notes: 2.19 adds hashed storage but retains plaintext for backward compatibility; operators who want plaintext gone can set `store_plaintext_token = false` and accept the no-rollback consequence. |
+| The plaintext fallback in `GetRunnerByToken` masks a bug where the hash backfill silently failed | The opportunistic-update step on fallback hits means the hash column self-heals on use. Metrics or a startup log line counting rows with empty `token_hash` makes the gap visible without breaking auth.                           |
 
 ## Follow-ups (not part of this plan)
 

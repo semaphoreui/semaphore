@@ -69,6 +69,18 @@ type TaskPool struct {
 	// after construction via SetWorkflowService; the pool only calls back into it
 	// when a workflow task finishes. nil in tests / before wiring.
 	workflowService pro_interfaces.WorkflowService
+	// stop signals the background loops started by Run to exit. Closing it (via
+	// Stop) terminates the runner-task reconcile loop and Run's own select.
+	// Channels are used rather than sync.WaitGroup/sync.Once because TaskPool is
+	// returned by value from the constructors, and copying a struct that embeds
+	// a lock is flagged by go vet (copylocks).
+	stop chan struct{}
+
+	// reconcileDone is closed by runnerTasksReconcileLoop when it exits, so Stop
+	// can block until the loop has actually finished reading shared state (e.g.
+	// util.Config). It is never closed if Run was not started, so Stop must only
+	// be called after Run.
+	reconcileDone chan struct{}
 }
 
 func CreateTaskPool(
@@ -91,34 +103,10 @@ func CreateTaskPool(
 		encryptionService:      encryptionService,
 		logWriteService:        logWriteService,
 		keyInstallationService: keyInstallationService,
+		stop:                   make(chan struct{}),
+		reconcileDone:          make(chan struct{}),
 	}
 	// attempt to start HA state store (no-op for memory)
-	_ = p.state.Start(p.hydrateTaskRunner)
-	return p
-}
-
-// CreateTaskPoolWithState allows passing a custom TaskStateStore (e.g., Redis-backed)
-func CreateTaskPoolWithState(
-	stateStore TaskStateStore,
-	store db.Store,
-	ansibleTaskRepo db.AnsibleTaskRepository,
-	inventoryService server.InventoryService,
-	encryptionService server.AccessKeyEncryptionService,
-	keyInstallationService server.AccessKeyInstallationService,
-	logWriteService pro_interfaces.LogWriteService,
-) TaskPool {
-	p := TaskPool{
-		register:               make(chan *TaskRunner),      // add TaskRunner to queue
-		logger:                 make(chan logRecord, 10000), // store log records to database
-		store:                  store,
-		queueEvents:            make(chan PoolEvent),
-		state:                  stateStore,
-		inventoryService:       inventoryService,
-		ansibleTaskRepo:        ansibleTaskRepo,
-		encryptionService:      encryptionService,
-		logWriteService:        logWriteService,
-		keyInstallationService: keyInstallationService,
-	}
 	_ = p.state.Start(p.hydrateTaskRunner)
 	return p
 }
@@ -214,6 +202,14 @@ func (p *TaskPool) Run() {
 
 	go p.handleQueue()
 	go p.handleLogs()
+	go func() {
+		// reconcileDone lets Stop block until the reconcile loop has actually
+		// finished reading shared state (e.g. util.Config). Closing it here,
+		// rather than inside the loop, keeps runnerTasksReconcileLoop reusable
+		// by tests that call it directly with their own lifecycle channels.
+		defer close(p.reconcileDone)
+		p.runnerTasksReconcileLoop()
+	}()
 
 	for {
 		select {
@@ -231,8 +227,21 @@ func (p *TaskPool) Run() {
 		case <-ticker.C: // timer 5 seconds
 			p.queueEvents <- PoolEvent{EventTypeEmpty, nil}
 
+		case <-p.stop:
+			return
 		}
 	}
+}
+
+// Stop signals Run's background loops to exit and blocks until the runner-task
+// reconcile loop has finished. It must be called at most once, and only after
+// Run has been started (it waits on reconcileDone, which only the reconcile
+// loop closes). Production runs the pool for the whole process lifetime and
+// never calls Stop; it exists so tests can terminate the reconcile goroutine
+// before they mutate shared globals such as util.Config.
+func (p *TaskPool) Stop() {
+	close(p.stop)
+	<-p.reconcileDone
 }
 
 func getTaskName(t *TaskRunner) string {
@@ -380,6 +389,12 @@ func (p *TaskPool) writeLogs(logs []logRecord) {
 }
 
 func runTask(task *TaskRunner, p *TaskPool) {
+	// Mark the task as actively dispatched by this process before it becomes
+	// visible in the running set (onTaskRun -> SetRunning). The reconciler relies
+	// on this to distinguish a live dispatch from a stale "starting" stub left in
+	// the running set by a previous process that died mid-dispatch.
+	task.dispatching.Store(true)
+
 	log.WithFields(log.Fields{
 		"context":   "task_pool",
 		"task_id":   task.Task.ID,
@@ -436,9 +451,19 @@ func (p *TaskPool) FinalizeRemoteTask(tsk *TaskRunner, runner *db.Runner) {
 	}
 	defer p.state.DeleteFinalize(tsk.Task.ID)
 
+	p.finalizeRemoteTaskLocked(tsk, runner)
+}
+
+// finalizeRemoteTaskLocked completes a remote task after the caller has won
+// the state store's finalize lock for tsk.Task.ID.
+func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) {
 	if util.HAEnabled() {
 		p.refreshTaskStatusFromDB(tsk)
 		if tsk.Task.End != nil {
+			// Another node may have persisted End before onTaskStop ran (e.g.
+			// crash between saveStatus and the queue drain). Release any stale
+			// shared pool state without re-running finish or autorun.
+			p.onTaskStop(tsk)
 			return
 		}
 	}
@@ -508,7 +533,7 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 		job = &RemoteJob{RunnerTag: tag, Task: tr.Task, taskPool: p}
 	} else {
 		app := db_lib.CreateApp(tr.Template, tr.Repository, tr.Inventory, tr)
-		job = &LocalJob{
+		job = &LocalExecutor{
 			Task:         tr.Task,
 			Template:     tr.Template,
 			Inventory:    tr.Inventory,
@@ -691,26 +716,22 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 		log.Error(err)
 	}
 
-	// Dequeue waiting tasks from the in-memory queue.
-	i := 0
-	for i < p.state.QueueLen() {
-		t := p.state.QueueGet(i)
+	// Snapshot the queue and dequeue by task ID. In HA mode the shared queue can
+	// shift between QueueGet(i) and DequeueAt(i); DequeueByID matches handleQueue.
+	for _, t := range p.state.QueueRange() {
 		if t == nil {
-			i++
 			continue
 		}
 		if t.Task.ProjectID != projectID || t.Task.TemplateID != templateID {
-			i++
 			continue
 		}
 		if t.Task.Status.IsFinished() {
-			i++
 			continue
 		}
 
 		if t.Task.Status == task_logger.TaskWaitingStatus {
 			stoppedTasks[t.Task.ID] = struct{}{}
-			_ = p.state.DequeueAt(i)
+			p.state.DequeueByID(t.Task.ID)
 			continue
 		}
 
@@ -720,7 +741,6 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 			t.SetStatus(task_logger.TaskStoppingStatus)
 		}
 		stoppedTasks[t.Task.ID] = struct{}{}
-		i++
 	}
 
 	// Handle running tasks -- these need per-task SetStatus and kill.
@@ -1000,7 +1020,7 @@ func (p *TaskPool) AddTask(
 			taskRunner.Inventory,
 			taskRunner)
 
-		job = &LocalJob{
+		job = &LocalExecutor{
 			Task:         taskRunner.Task,
 			Template:     taskRunner.Template,
 			Inventory:    taskRunner.Inventory,

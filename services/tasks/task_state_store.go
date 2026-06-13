@@ -119,6 +119,14 @@ type TaskStateStore interface {
 	RunningRange() []*TaskRunner
 	RunningCount() int
 
+	// OwnedRunningRange returns the running tasks this node is responsible
+	// for. The in-memory store owns everything; the HA store filters the
+	// shared running set by the per-task claim value (the owning node's ID),
+	// so each cluster node reconciles only its own tasks instead of every
+	// node scanning the whole cluster. Tasks whose claim expired (dead owner)
+	// are owned by nobody — the HA orphan cleaner reconciles those.
+	OwnedRunningRange() []*TaskRunner
+
 	// Active-by-project operations
 	AddActive(projectID int, task *TaskRunner)
 	RemoveActive(projectID int, taskID int)
@@ -280,6 +288,11 @@ func (s *MemoryTaskStateStore) RunningRange() []*TaskRunner {
 	}
 	s.mu.RUnlock()
 	return res
+}
+
+// OwnedRunningRange: a single process owns every running task.
+func (s *MemoryTaskStateStore) OwnedRunningRange() []*TaskRunner {
+	return s.RunningRange()
 }
 
 func (s *MemoryTaskStateStore) RunningCount() int {

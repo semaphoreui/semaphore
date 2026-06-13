@@ -259,7 +259,7 @@ func alterRequestPath(t *trans.Transaction) {
 }
 
 func alterRequestBody(t *trans.Transaction) {
-	var request map[string]interface{}
+	var request map[string]any
 	json.Unmarshal([]byte(t.Request.Body), &request)
 
 	if userProject != nil {
@@ -324,7 +324,7 @@ func alterRequestBody(t *trans.Transaction) {
 	t.Request.Body = string(out)
 }
 
-func bodyFieldProcessor(id string, sub interface{}, request *map[string]interface{}) {
+func bodyFieldProcessor(id string, sub any, request *map[string]any) {
 	if _, ok := (*request)[id]; ok {
 		(*request)[id] = sub
 	}

@@ -3,12 +3,15 @@ package tasks
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type spyTaskStateStore struct {
@@ -91,4 +94,119 @@ func TestTaskPool_RequeuedEventCleansRunningStateAndSkipsImmediateRetry(t *testi
 	assert.Nil(t, state.GetByAlias(tr.Alias), "requeued task alias mapping must be cleared")
 	assert.Equal(t, 1, state.QueueLen(), "requeued task must remain queued")
 	assert.Equal(t, 0, state.tryClaimCalls, "requeued task should not be immediately retried in the same queue pass")
+}
+
+func TestTaskPool_FinalizeRemoteTask_HA_ReleasesStalePoolStateWhenEndPersisted(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	store := sql.CreateTestStore()
+	util.Config.MaxParallelTasks = 0
+	util.Config.HA = &util.HAConfig{Enabled: true}
+	proj, err := store.CreateProject(db.Project{})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Name:      "test-key",
+		Type:      db.AccessKeyNone,
+	})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "test-repo",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	require.NoError(t, err)
+
+	tpl, err := store.CreateTemplate(db.Template{
+		ProjectID:    proj.ID,
+		Name:         "remote tpl",
+		Playbook:     "pb.yml",
+		RepositoryID: repo.ID,
+	})
+	require.NoError(t, err)
+
+	task, err := store.CreateTask(db.Task{
+		ProjectID:  proj.ID,
+		TemplateID: tpl.ID,
+		Status:     task_logger.TaskSuccessStatus,
+	}, 0)
+	require.NoError(t, err)
+
+	end := tz.Now()
+	task.End = &end
+	require.NoError(t, store.UpdateTask(task))
+
+	persisted, err := store.GetTaskByID(task.ID)
+	require.NoError(t, err)
+	require.NotNil(t, persisted.End, "test setup must persist task end timestamp in DB")
+
+	state := NewMemoryTaskStateStore()
+	pool := TaskPool{
+		queueEvents: make(chan PoolEvent, 1),
+		state:       state,
+		store:       store,
+	}
+
+	tr := &TaskRunner{
+		Task: db.Task{
+			ID:         task.ID,
+			ProjectID:  task.ProjectID,
+			TemplateID: task.TemplateID,
+			Status:     task_logger.TaskSuccessStatus,
+			// End intentionally unset in memory: DB already has it from another node.
+		},
+		Template: tpl,
+		Alias:    "stale-alias",
+		job:      &RemoteJob{Task: task},
+	}
+	state.SetRunning(tr)
+	state.AddActive(tr.Task.ProjectID, tr)
+	state.SetAlias(tr.Alias, tr)
+
+	pool.FinalizeRemoteTask(tr, nil)
+
+	assert.Equal(t, 0, state.RunningCount(), "stale running entry must be cleared when End is already persisted")
+	assert.Equal(t, 0, state.ActiveCount(tr.Task.ProjectID), "stale active entry must be cleared when End is already persisted")
+	assert.Nil(t, state.GetByAlias(tr.Alias), "stale alias mapping must be cleared when End is already persisted")
+
+	select {
+	case ev := <-pool.queueEvents:
+		t.Fatalf("expected no finish event when End already set, got %+v", ev)
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestTaskPool_StopTasksByTemplate_DequeuesWaitingTasksByID(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	util.Config = &util.ConfigType{MaxParallelTasks: 0}
+
+	store := sql.CreateTestStore()
+	proj, err := store.CreateProject(db.Project{})
+	require.NoError(t, err)
+
+	state := NewMemoryTaskStateStore()
+	pool := TaskPool{
+		state: state,
+		store: store,
+	}
+
+	stopMe := &TaskRunner{
+		Task: db.Task{ID: 1, ProjectID: proj.ID, TemplateID: 10, Status: task_logger.TaskWaitingStatus},
+	}
+	keepMe := &TaskRunner{
+		Task: db.Task{ID: 2, ProjectID: proj.ID, TemplateID: 20, Status: task_logger.TaskWaitingStatus},
+	}
+	state.Enqueue(stopMe)
+	state.Enqueue(keepMe)
+
+	pool.StopTasksByTemplate(proj.ID, 10, true)
+
+	assert.Equal(t, 1, state.QueueLen(), "only the targeted template's waiting task should be dequeued")
+	assert.Equal(t, keepMe.Task.ID, state.QueueGet(0).Task.ID)
 }
