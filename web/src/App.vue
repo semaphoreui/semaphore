@@ -500,7 +500,7 @@
 
               <v-divider />
 
-              <v-list-item key="tokens" to="/tokens" data-testid="sidebar-tokens">
+              <v-list-item key="tokens" data-testid="sidebar-tokens" to="/tokens">
                 <v-list-item-icon>
                   <v-icon>mdi-api</v-icon>
                 </v-list-item-icon>

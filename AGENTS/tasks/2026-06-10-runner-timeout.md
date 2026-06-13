@@ -50,30 +50,30 @@ when the runner fell off or restarted. Now:
 ### Reconciler
 
 - **`services/tasks/runner_reconciler.go`** (new):
-  - `DecideRunnerTaskAction(status, taskStart, runner, now, offlineTimeout,
+    - `DecideRunnerTaskAction(status, taskStart, runner, now, offlineTimeout,
     taskFailTimeout)` — exported pure decision function (also used by the HA
-    cleaner). Encodes the table from the plan, incl.: runner deleted
-    (requeue/fail by status), restart detection with a 30s clock-skew margin,
-    webhook-runner exception for `starting` tasks (a one-off runner may still
-    be booting in response to the dispatch webhook), `Touched == nil`
-    handling, and the deliberate no-op for `running` tasks between 2 and
-    7 minutes of silence (recovery window).
-  - `TaskPool.reconcileRunnerTasks(now)` — scans `GetRunningTasks()`, skips
-    undispatched/finished tasks, loads each runner, applies the decision.
-  - `TaskPool.failTaskRunnerLost(tsk, runner, reason)` — re-checks the
-    persisted status (HA: re-reads the DB row), sets `TaskFailStatus` +
-    message, runs `FinalizeRemoteTask` (dedups cluster-wide via the state
-    store's `TryFinalize` lock).
-  - `TaskPool.requeueTaskRunnerOffline(tsk, runnerID, reason)` — no-op unless
-    the task is still `starting`/`waiting` and still owned by that runner;
-    clears `RunnerID`, resets to `waiting`, persists, then re-enqueues via the
-    same `EventTypeRequeued` flow as the `ErrAllRunnersBusy` path. Clearing
-    `RunnerID` removes the task from the old runner's `NewJobs`; late progress
-    reports are rejected by `UpdateRunner`'s ownership check.
-  - Loop wired in **`services/tasks/TaskPool.go`** `Run()`
-    (`go p.runnerTasksReconcileLoop()`, ticking every
-    `runners.reconcile_interval_sec`, default 30s). No globals — everything
-    lives on the pool instance.
+      cleaner). Encodes the table from the plan, incl.: runner deleted
+      (requeue/fail by status), restart detection with a 30s clock-skew margin,
+      webhook-runner exception for `starting` tasks (a one-off runner may still
+      be booting in response to the dispatch webhook), `Touched == nil`
+      handling, and the deliberate no-op for `running` tasks between 2 and
+      7 minutes of silence (recovery window).
+    - `TaskPool.reconcileRunnerTasks(now)` — scans `GetRunningTasks()`, skips
+      undispatched/finished tasks, loads each runner, applies the decision.
+    - `TaskPool.failTaskRunnerLost(tsk, runner, reason)` — re-checks the
+      persisted status (HA: re-reads the DB row), sets `TaskFailStatus` +
+      message, runs `FinalizeRemoteTask` (dedups cluster-wide via the state
+      store's `TryFinalize` lock).
+    - `TaskPool.requeueTaskRunnerOffline(tsk, runnerID, reason)` — no-op unless
+      the task is still `starting`/`waiting` and still owned by that runner;
+      clears `RunnerID`, resets to `waiting`, persists, then re-enqueues via the
+      same `EventTypeRequeued` flow as the `ErrAllRunnersBusy` path. Clearing
+      `RunnerID` removes the task from the old runner's `NewJobs`; late progress
+      reports are rejected by `UpdateRunner`'s ownership check.
+    - Loop wired in **`services/tasks/TaskPool.go`** `Run()`
+      (`go p.runnerTasksReconcileLoop()`, ticking every
+      `runners.reconcile_interval_sec`, default 30s). No globals — everything
+      lives on the pool instance.
 
 ### HA orphan cleaner
 
@@ -92,12 +92,12 @@ when the runner fell off or restarted. Now:
   **separate from `RunnerConfig`**: server-side fleet settings use the
   `SEMAPHORE_RUNNERS_*` env prefix; `SEMAPHORE_RUNNER_*` stays for the runner
   process itself.
-  - `offline_timeout_sec` — default **120** — `SEMAPHORE_RUNNERS_OFFLINE_TIMEOUT_SEC`
-  - `task_fail_timeout_sec` — default **420** — `SEMAPHORE_RUNNERS_TASK_FAIL_TIMEOUT_SEC`
-  - `reconcile_interval_sec` — default **30** — `SEMAPHORE_RUNNERS_RECONCILE_INTERVAL_SEC`
-  - Accessors `RunnersOfflineTimeout()` / `RunnersTaskFailTimeout()` /
-    `RunnersReconcileInterval()` apply defaults when the section is absent and
-    clamp `task_fail` to ≥ `offline` (the plan's "validate at config load").
+    - `offline_timeout_sec` — default **120** — `SEMAPHORE_RUNNERS_OFFLINE_TIMEOUT_SEC`
+    - `task_fail_timeout_sec` — default **420** — `SEMAPHORE_RUNNERS_TASK_FAIL_TIMEOUT_SEC`
+    - `reconcile_interval_sec` — default **30** — `SEMAPHORE_RUNNERS_RECONCILE_INTERVAL_SEC`
+    - Accessors `RunnersOfflineTimeout()` / `RunnersTaskFailTimeout()` /
+      `RunnersReconcileInterval()` apply defaults when the section is absent and
+      clamp `task_fail` to ≥ `offline` (the plan's "validate at config load").
 - **`config.schema.yaml`** — `runners` property + `$defs/RunnersConfig`
   (meta-validated against JSON Schema draft 2020-12).
 
@@ -109,19 +109,19 @@ All green (`GOWORK=off go test ./db/... ./services/tasks/ ./services/runners/
 - **`db/Runner_test.go`** — `IsOnline` table (fresh/at-threshold/stale/never
   polled/webhook variants).
 - **`services/tasks/runner_reconciler_test.go`**:
-  - `TestDecideRunnerTaskAction` — 18-case table: alive (no-op), offline
-    `starting` (requeue), 2–7 min silence on `running` (**no-op**, recovery
-    window), >7 min (fail), restart → fail running immediately / keep starting,
-    restart within skew margin (no-op), runner deleted (requeue/fail),
-    finished/stopping (no-op), webhook-runner exception, never-polled.
-  - `TestSelectRunner` — offline excluded; all-offline ⇒ nil
-    (`ErrAllRunnersBusy`, task stays queued); webhook selectable regardless of
-    heartbeat; at-capacity skipped; revived runner selectable again.
-  - `TestRequeueTaskRunnerOffline` (+ noop-when-running) — clears and
-    **persists** `RunnerID=nil`, resets to `waiting`, enqueues, emits
-    `EventTypeRequeued`; refuses to touch a task that started running.
-  - `TestFailTaskRunnerLost` — fails + finalizes (`EventTypeFinished`),
-    persists status/End; second call is a no-op (idempotent).
+    - `TestDecideRunnerTaskAction` — 18-case table: alive (no-op), offline
+      `starting` (requeue), 2–7 min silence on `running` (**no-op**, recovery
+      window), >7 min (fail), restart → fail running immediately / keep starting,
+      restart within skew margin (no-op), runner deleted (requeue/fail),
+      finished/stopping (no-op), webhook-runner exception, never-polled.
+    - `TestSelectRunner` — offline excluded; all-offline ⇒ nil
+      (`ErrAllRunnersBusy`, task stays queued); webhook selectable regardless of
+      heartbeat; at-capacity skipped; revived runner selectable again.
+    - `TestRequeueTaskRunnerOffline` (+ noop-when-running) — clears and
+      **persists** `RunnerID=nil`, resets to `waiting`, enqueues, emits
+      `EventTypeRequeued`; refuses to touch a task that started running.
+    - `TestFailTaskRunnerLost` — fails + finalizes (`EventTypeFinished`),
+      persists status/End; second call is a no-op (idempotent).
 
 ## HA (cluster) verification
 

@@ -110,6 +110,7 @@ returns more than `pageSize`, a next page exists; the extra row is trimmed and
 the fact is reported via the `X-Has-Next` header. No `COUNT(*)` is ever issued.
 
 `parseTasksPageParams(query, base) (params, pageSize)`:
+
 - `count` (or legacy `limit`) → `pageSize`, capped at `maxTasksPageSize` (200),
   default 200.
 - `before` (a task id) → `params.BeforeID`.

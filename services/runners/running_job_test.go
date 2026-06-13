@@ -17,7 +17,7 @@ import (
 // calls Logger.SetStatus, so runningJob.SetStatus re-enters itself; the test
 // exercises that path.
 func newTestRunningJob(id int) *runningJob {
-	lj := &tasks.LocalJob{Task: db.Task{ID: id}}
+	lj := &tasks.LocalExecutor{Task: db.Task{ID: id}}
 	rj := &runningJob{job: lj}
 	lj.Logger = rj
 	return rj

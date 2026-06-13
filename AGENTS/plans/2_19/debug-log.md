@@ -28,12 +28,12 @@ This must be additive and backward compatible: existing behavior (`SEMAPHORE_LOG
   `--log-level` flag or `SEMAPHORE_LOG_LEVEL` env var via `log.SetLevel`.
 - There is already a **de-facto namespace convention**: most structured log calls attach
   a `"context"` field, e.g.
-  - `services/tasks/TaskRunner_logging.go` → `"context": "task_logger"`
-  - `services/tasks/TaskPool.go` → `"context": "task_pool"`
-  - `db_lib/TerraformApp.go` → `"context": "terraform"`
-  - `db_lib/CmdGitClient.go` → `"context": "git"`
-  - `api/runners/runners.go` → `"context": "runner"`
-  - `api/login.go` → `"context": "session"`, `"context": "ldap"`
+    - `services/tasks/TaskRunner_logging.go` → `"context": "task_logger"`
+    - `services/tasks/TaskPool.go` → `"context": "task_pool"`
+    - `db_lib/TerraformApp.go` → `"context": "terraform"`
+    - `db_lib/CmdGitClient.go` → `"context": "git"`
+    - `api/runners/runners.go` → `"context": "runner"`
+    - `api/login.go` → `"context": "session"`, `"context": "ldap"`
 - Helpers in `util/errorLogging.go` (`LogDebugF`, `LogWarningF`, `LogErrorF`, `LogPanicF`)
   already take a `log.Fields` for context.
 
@@ -66,6 +66,7 @@ A comma- (or space-) separated list of namespace patterns:
 - `*,-task_pool` — enable everything **except** `task_pool` (a leading `-` excludes).
 
 Matching rules (same precedence as Node `debug`):
+
 1. A namespace is enabled if it matches at least one positive (non-`-`) pattern.
 2. A namespace is disabled if it matches any negative (`-`) pattern, which always wins.
 3. `*` matches any sequence of characters within a single namespace token.
@@ -90,9 +91,9 @@ Mechanism:
    `DebugLevel`, it checks the entry's `context` against the compiled filter; if not
    allowed, it returns empty bytes (or a sentinel that the writer skips), so nothing is
    written. All non-debug entries pass through untouched.
-   - Alternative implementation (equivalent): set logrus `Out` to a filtering
-     `io.Writer`, or replace the global logger with a thin wrapper. The formatter approach
-     is the least invasive and keeps a single global logger.
+    - Alternative implementation (equivalent): set logrus `Out` to a filtering
+      `io.Writer`, or replace the global logger with a thin wrapper. The formatter approach
+      is the least invasive and keeps a single global logger.
 
    > Decision: use the **wrapping formatter** approach — no new global state, no change to
    > the hundreds of existing `log.*` call sites, and it composes with the existing
@@ -152,6 +153,7 @@ func (f *Filter) Active() bool
 - `Enabled(ns)`: `true` iff some include matches `ns` **and** no exclude matches `ns`.
 
 Unit tests `pkg/debuglog/filter_test.go` (table-driven, `testify`):
+
 - exact match, multiple includes, `*` wildcard, prefix `task_*`, `*` global,
   exclusion `*,-task_pool`, empty spec → always false, context-less namespace handling.
 
@@ -221,19 +223,20 @@ Audit the key subsystems and add `log.WithFields(log.Fields{"context": "<ns>", .
 statements at decision points and state transitions. Reuse the existing `context` values
 so namespaces stay stable. High-value targets:
 
-| Namespace      | Where                                            | What to trace                                              |
-|----------------|--------------------------------------------------|------------------------------------------------------------|
-| `runner`       | `api/runners/runners.go`, `services/runners/`    | registration, token checks, job hand-off, polling, status  |
-| `task_pool`    | `services/tasks/TaskPool.go`                      | queueing, scheduling decisions, capacity, waiting→running  |
-| `task_runner`  | `services/tasks/TaskRunner.go`                    | lifecycle, status transitions, kill, timeout               |
-| `git`          | `db_lib/CmdGitClient.go`                          | clone/checkout commands, args, refs                        |
-| `terraform`    | `db_lib/TerraformApp.go`                          | plan/apply invocation, state handling                      |
-| `session`/`ldap`| `api/login.go`, `api/auth.go`                    | auth flow, provider selection, failures                    |
-| `schedule`     | `services/schedules/`                             | cron parsing, dedup decisions, fire/skip                   |
-| `db`           | `db/sql/SqlDb.go`, `db/Store.go`                  | slow/failed queries, migrations (guard against secrets)    |
-| `ha`           | `pro/services/ha/`                                | node registry heartbeats, dedup, orphan cleanup, broadcast |
+| Namespace        | Where                                         | What to trace                                              |
+|------------------|-----------------------------------------------|------------------------------------------------------------|
+| `runner`         | `api/runners/runners.go`, `services/runners/` | registration, token checks, job hand-off, polling, status  |
+| `task_pool`      | `services/tasks/TaskPool.go`                  | queueing, scheduling decisions, capacity, waiting→running  |
+| `task_runner`    | `services/tasks/TaskRunner.go`                | lifecycle, status transitions, kill, timeout               |
+| `git`            | `db_lib/CmdGitClient.go`                      | clone/checkout commands, args, refs                        |
+| `terraform`      | `db_lib/TerraformApp.go`                      | plan/apply invocation, state handling                      |
+| `session`/`ldap` | `api/login.go`, `api/auth.go`                 | auth flow, provider selection, failures                    |
+| `schedule`       | `services/schedules/`                         | cron parsing, dedup decisions, fire/skip                   |
+| `db`             | `db/sql/SqlDb.go`, `db/Store.go`              | slow/failed queries, migrations (guard against secrets)    |
+| `ha`             | `pro/services/ha/`                            | node registry heartbeats, dedup, orphan cleanup, broadcast |
 
 Guidelines for the new statements:
+
 - Always set `"context"` to the namespace so the filter can target it.
 - Use `Debug` level only; never downgrade existing `Info`/`Warn`/`Error`.
 - Include identifying fields (`task_id`, `project_id`, `runner_id`, `node_id`, etc.).
@@ -248,9 +251,9 @@ Guidelines for the new statements:
 - State clearly that the filter requires `SEMAPHORE_LOG_LEVEL=DEBUG` (or `--log-level
   DEBUG`); without it the variable is ignored.
 - Provide examples (each assumes the level is `DEBUG`):
-  - `SEMAPHORE_LOG_LEVEL=DEBUG SEMAPHORE_DEBUG_FILTER=runner` — debug only the runner subsystem.
-  - `SEMAPHORE_LOG_LEVEL=DEBUG SEMAPHORE_DEBUG_FILTER='task_*'` — all task-related namespaces.
-  - `SEMAPHORE_LOG_LEVEL=DEBUG SEMAPHORE_DEBUG_FILTER='*,-db'` — everything except database tracing.
+    - `SEMAPHORE_LOG_LEVEL=DEBUG SEMAPHORE_DEBUG_FILTER=runner` — debug only the runner subsystem.
+    - `SEMAPHORE_LOG_LEVEL=DEBUG SEMAPHORE_DEBUG_FILTER='task_*'` — all task-related namespaces.
+    - `SEMAPHORE_LOG_LEVEL=DEBUG SEMAPHORE_DEBUG_FILTER='*,-db'` — everything except database tracing.
 - List the available namespaces (the table above) so users know what they can target.
 
 ### 7. Optional: `--debug-filter` flag

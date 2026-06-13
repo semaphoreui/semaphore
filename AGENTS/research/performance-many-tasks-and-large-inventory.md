@@ -18,15 +18,15 @@ The backend is architecturally sound in outline (batched output inserts, a buffe
 persist channel, single-key SSH agent, opaque inventory blob). The scaling problems
 come from a small number of recurring patterns rather than isolated bugs:
 
-| Theme | What it is | Where it hurts |
-|-------|-----------|----------------|
-| **A. 1-second polling everywhere** | Runner→server poll, `RemoteJob` status poll, and UI all poll every 1–10 s instead of pushing events. | Cost grows as `O(runners × running_tasks)` and `O(clients)` per second. |
-| **B. O(n) scans/copies through one mutex + one scheduler goroutine** | The in-memory task state store answers every lookup by copying the whole queue/running collection under a single `RWMutex`; the scheduler re-scans the whole queue on every event. | Degrades as `O(tasks²)` with many tasks. |
-| **C. Missing DB indexes on hot columns** | `runner.token`, `task.status`, `task.created`, `task__output.stage_id` are unindexed but filtered/sorted on hot paths. | Full table scans grow with history & runner count. |
-| **D. Per-poll / per-request writes** | `TouchRunner` and `TouchSession` issue an `UPDATE` on every poll/request. | Serializes writers (catastrophic on SQLite's single write lock). |
-| **E. Unbounded reads & payloads** | `GetTaskOutput`, `GetTaskStats`, `/events`, and the runner job payload (full inventory) are returned without limit/cache. | Memory + CPU spikes that grow with output volume / inventory size. |
-| **F. Synchronous work on hot paths** | Per-line × per-user websocket marshal, per-line `StoreSession`, timeout-less alerts. | Throttles the subprocess reader and serializes the whole instance. |
-| **G. No DB pool limits + "unlimited parallel tasks" default** | MySQL/Postgres pool is never bounded; default `MaxParallelTasks` is now `9999`. | Unbounded goroutines & DB connections under load. |
+| Theme                                                                | What it is                                                                                                                                                                         | Where it hurts                                                          |
+|----------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------|
+| **A. 1-second polling everywhere**                                   | Runner→server poll, `RemoteJob` status poll, and UI all poll every 1–10 s instead of pushing events.                                                                               | Cost grows as `O(runners × running_tasks)` and `O(clients)` per second. |
+| **B. O(n) scans/copies through one mutex + one scheduler goroutine** | The in-memory task state store answers every lookup by copying the whole queue/running collection under a single `RWMutex`; the scheduler re-scans the whole queue on every event. | Degrades as `O(tasks²)` with many tasks.                                |
+| **C. Missing DB indexes on hot columns**                             | `runner.token`, `task.status`, `task.created`, `task__output.stage_id` are unindexed but filtered/sorted on hot paths.                                                             | Full table scans grow with history & runner count.                      |
+| **D. Per-poll / per-request writes**                                 | `TouchRunner` and `TouchSession` issue an `UPDATE` on every poll/request.                                                                                                          | Serializes writers (catastrophic on SQLite's single write lock).        |
+| **E. Unbounded reads & payloads**                                    | `GetTaskOutput`, `GetTaskStats`, `/events`, and the runner job payload (full inventory) are returned without limit/cache.                                                          | Memory + CPU spikes that grow with output volume / inventory size.      |
+| **F. Synchronous work on hot paths**                                 | Per-line × per-user websocket marshal, per-line `StoreSession`, timeout-less alerts.                                                                                               | Throttles the subprocess reader and serializes the whole instance.      |
+| **G. No DB pool limits + "unlimited parallel tasks" default**        | MySQL/Postgres pool is never bounded; default `MaxParallelTasks` is now `9999`.                                                                                                    | Unbounded goroutines & DB connections under load.                       |
 
 **The single highest-leverage theme is G acting as an amplifier.** Commit `42e6c00d`
 ("unlimited number of parallel tasks by default") removed the only cheap global cap on
@@ -36,18 +36,18 @@ now unbounded by default.
 
 ### Top 10 fixes by leverage
 
-| # | Fix | Severity | Effort |
-|---|-----|----------|--------|
-| 1 | Add unique index on `runner(token)` (+ cache token→runner) | Critical | Trivial |
-| 2 | Marshal websocket log frame **once per line**, deliver async/lossy, skip when no subscriber | Critical | Medium |
-| 3 | Bound MySQL/Postgres connection pool (`SetMaxOpenConns/Idle/Lifetime`) | High | Trivial |
-| 4 | Add indexes: `task(status)`, `task(template_id, created)`, `task(project_id, created)`, `task__output(task_id, stage_id)` | High | Trivial |
-| 5 | Hoist `StoreSession` out of the per-record `writeLogs` loop | High | Trivial |
-| 6 | Debounce `TouchRunner` & `TouchSession` (write only if stale > 60 s) | High | Easy |
-| 7 | Drop `unique(task_id, time)`; order output by `id`; per-row fallback on batch failure | High | Easy |
-| 8 | Paginate `GetTaskOutput` (the JSON endpoint loads the whole log) | High | Easy |
-| 9 | Replace 1 s `RemoteJob`/runner polls with push/long-poll; stop shipping full inventory each poll | High | Larger |
-| 10 | O(1) `GetByID` + per-runner counters in the task state store; cache parallel-limits out of `blocks()` | High | Medium |
+| #  | Fix                                                                                                                       | Severity | Effort  |
+|----|---------------------------------------------------------------------------------------------------------------------------|----------|---------|
+| 1  | Add unique index on `runner(token)` (+ cache token→runner)                                                                | Critical | Trivial |
+| 2  | Marshal websocket log frame **once per line**, deliver async/lossy, skip when no subscriber                               | Critical | Medium  |
+| 3  | Bound MySQL/Postgres connection pool (`SetMaxOpenConns/Idle/Lifetime`)                                                    | High     | Trivial |
+| 4  | Add indexes: `task(status)`, `task(template_id, created)`, `task(project_id, created)`, `task__output(task_id, stage_id)` | High     | Trivial |
+| 5  | Hoist `StoreSession` out of the per-record `writeLogs` loop                                                               | High     | Trivial |
+| 6  | Debounce `TouchRunner` & `TouchSession` (write only if stale > 60 s)                                                      | High     | Easy    |
+| 7  | Drop `unique(task_id, time)`; order output by `id`; per-row fallback on batch failure                                     | High     | Easy    |
+| 8  | Paginate `GetTaskOutput` (the JSON endpoint loads the whole log)                                                          | High     | Easy    |
+| 9  | Replace 1 s `RemoteJob`/runner polls with push/long-poll; stop shipping full inventory each poll                          | High     | Larger  |
+| 10 | O(1) `GetByID` + per-runner counters in the task state store; cache parallel-limits out of `blocks()`                     | High     | Medium  |
 
 ---
 
@@ -129,7 +129,9 @@ expensive path is always taken.
 refresh on update. Reorder so the in-memory `ActiveCount >= cachedMax` check happens
 before any DB access.
 
-### TP-3 — `RemoteJob.Run` busy-polls `GetTask` every second; `GetTask` is an O(n) scan that copies the whole collection — **High** (dominant cost for remote/HA at scale)
+### TP-3 — `RemoteJob.Run` busy-polls `GetTask` every second;
+
+`GetTask` is an O(n) scan that copies the whole collection — **High** (dominant cost for remote/HA at scale)
 
 ```go
 // services/tasks/RemoteJob.go:209-251 — one goroutine PER running remote task
@@ -159,7 +161,9 @@ remote tasks: ~300 DB reads/sec and ~300×600 pointer copies/sec just to poll st
 Replace the 1 s poll with event-driven updates — the runner already PUTs progress to the
 API (`api/runners/runners.go:326`); signal the waiting goroutine via channel/cond instead.
 
-### TP-4 — `GetNumberOfRunningTasksOfRunner` is an O(running) scan called per candidate runner during selection — **Medium**
+### TP-4 — `GetNumberOfRunningTasksOfRunner` is an O(running) scan called per candidate runner during selection — *
+
+*Medium**
 
 ```go
 // services/tasks/TaskPool.go:129-136
@@ -214,7 +218,9 @@ critical section is "slow."
 **Fix:** Eliminate the high-frequency full-copy callers (TP-3, TP-4); split into
 finer-grained locks or `sync.Map` for the running set; expose count/lookup methods that don't allocate.
 
-### TP-7 — Default `MaxParallelTasks` is `9999` (effectively unlimited): unbounded goroutines + per-task `Sleep`, no admission control — **High** (amplifier for everything)
+### TP-7 — Default `MaxParallelTasks` is `9999` (effectively unlimited): unbounded goroutines + per-task
+
+`Sleep`, no admission control — **High** (amplifier for everything)
 
 ```go
 // util/config.go:150  (runner) and :390 (server)
@@ -226,6 +232,7 @@ go func() { time.Sleep(1 * time.Second); task.run() }()
 
 **Mechanism:** With the old default of 10, `blocks()` capped concurrency. Now the global
 gate never fires. Consequences:
+
 - **Goroutines:** ~1 per running task, plus per-task log-pipe goroutines
   (`TaskRunner_logging.go:64-65,158`) each with a 100k-buffered channel (OUT-7) → memory
   grows fast at hundreds of tasks.
@@ -252,6 +259,7 @@ task in the running set longer and inflating every O(running) scan above.
 timeouts; reuse the already-loaded user list instead of per-alert DB reads.
 
 ### Positive findings (task pool)
+
 - **Log batching is well designed:** `handleLogs` flushes by size (500) or every 500 ms
   with a 10000-buffered `logger` channel (`TaskPool.go:271-298, 82`). DB writes are off the per-line path.
 - **In-memory locks are never held across I/O** — the critical sections are pure map/slice work.
@@ -356,7 +364,9 @@ per-record DB work here is a global serialization point.
 stage parsing when the app uses stages; batch its DB effects. Consider sharding
 `writeLogs` per task so one chatty task can't starve others.
 
-### OUT-4 — `unique(task_id, time)` silently drops whole 500-line batches when two lines share a timestamp — **High** (correctness + perf)
+### OUT-4 — `unique(task_id, time)` silently drops whole 500-line batches when two lines share a timestamp — **High
+
+** (correctness + perf)
 
 ```go
 // db/sql/SqlDb.go:93
@@ -367,8 +377,9 @@ d.sql.AddTableWithName(db.TaskOutput{}, "task__output").SetUniqueTogether("task_
 the same `time`. `InsertTaskOutputBatch` (`task.go:244-264`) is one multi-row `INSERT`,
 so a batch containing two equal timestamps **fails entirely**; the error is only logged
 (`TaskPool.go:347-350`) and the whole 500-line batch is **silently dropped** — data loss
+
 + perf cliff (lost work + log spam). Even when timestamps differ, the unique index adds
-write amplification on a table taking 100k+ inserts/task.
+  write amplification on a table taking 100k+ inserts/task.
 
 **Fix:** Drop the `(task_id, time)` unique constraint (rows are already unique by
 autoincrement `id`); order output by `id`; on batch failure fall back to per-row insert.
@@ -448,12 +459,12 @@ Files: `db/sql/SqlDb.go`, `task.go`, `template.go`, `event.go`, `schedule.go`,
 
 ### Index inventory — EXISTS vs MISSING on hot tables
 
-| Table | Indexed (EXISTS) | **MISSING** on hot columns |
-|-------|------------------|----------------------------|
-| `task` | `template_id`, `project_id`, `integration_id`, `inventory_id`, `schedule_id` (`v2.15.1.sqlite.sql:370-383`, `v2.17.15.sql:7-8`) | **`status`, `created`, `user_id`, composite `(template_id, id)` / `(template_id, created)` / `(project_id, created)`** |
-| `task__output` | `task_id` (`v2.15.1.sqlite.sql:413`), `time` (`v2.14.12.sql:1`) | **`stage_id`**, composite `(task_id, time, id)` |
-| `event` | `project_id`, `user_id` (`v2.15.1.sqlite.sql:116-120`) | composite `(project_id, id desc)` |
-| `runner` | `project_id`, `registration_token` (`v2.18.7.sql:3`) | **`token`** (see API-1 — used on every poll) |
+| Table          | Indexed (EXISTS)                                                                                                                | **MISSING** on hot columns                                                                                             |
+|----------------|---------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
+| `task`         | `template_id`, `project_id`, `integration_id`, `inventory_id`, `schedule_id` (`v2.15.1.sqlite.sql:370-383`, `v2.17.15.sql:7-8`) | **`status`, `created`, `user_id`, composite `(template_id, id)` / `(template_id, created)` / `(project_id, created)`** |
+| `task__output` | `task_id` (`v2.15.1.sqlite.sql:413`), `time` (`v2.14.12.sql:1`)                                                                 | **`stage_id`**, composite `(task_id, time, id)`                                                                        |
+| `event`        | `project_id`, `user_id` (`v2.15.1.sqlite.sql:116-120`)                                                                          | composite `(project_id, id desc)`                                                                                      |
+| `runner`       | `project_id`, `registration_token` (`v2.18.7.sql:3`)                                                                            | **`token`** (see API-1 — used on every poll)                                                                           |
 
 Good news: the feared "`task__output` with no `task_id` index" is **not** present — that index exists.
 
@@ -540,6 +551,7 @@ The batched `InsertTaskOutputBatch` is correct; the per-record `StoreSession` +
 `MoveToNextStage` loop above it is the problem (see OUT-3).
 
 ### Positive findings (DB)
+
 - `task__output(task_id)` **is** indexed — the catastrophic missing-index case is absent.
 - `loadRunnerTags` uses a single `WHERE runner_id IN (...)` batch — no N+1 listing runners.
 - For SQL backends `PermanentConnection()` is `true`, so `StoreMiddleware`/`StoreSession`
@@ -553,7 +565,9 @@ Files: `api/runners/runners.go`, `api/tasks/tasks.go`, `api/projects/tasks.go`,
 `api/events.go`, `api/auth.go`, `api/cache.go`, `db/sql/global_runner.go`,
 `db/sql/session.go`, `services/runners/job_pool.go`.
 
-### API-1 — Runner poll auth does a full table scan on the unindexed `token` column, every poll, every runner — **Critical**
+### API-1 — Runner poll auth does a full table scan on the unindexed `token` column, every poll, every runner — *
+
+*Critical**
 
 ```go
 // api/runners/runners.go:37 — on EVERY runner request
@@ -593,7 +607,10 @@ second per starting job per polling runner ⇒ `O(runners × running_tasks)` cry
 **Fix:** index running set by runner id; mark a job "dispatched" after first hand-off and
 stop rebuilding it; move to long-poll/push so the payload is built once per job.
 
-### API-4 — `RemoteJob.Run` polls the DB once/sec/task + re-fetches the full runner list per task start (same as TP-3/TP-4) — **High**
+### API-4 —
+
+`RemoteJob.Run` polls the DB once/sec/task + re-fetches the full runner list per task start (same as TP-3/TP-4) — **High
+**
 
 See TP-3 (1 s `GetTask` DB poll per running task, doubled in HA) and TP-4 (re-fetch
 `GetRunners` + `GetAllRunners` + per-candidate running-count scan at task start,
@@ -646,6 +663,7 @@ for the project/user; non-admins also incur an extra `GetProjectUser` read per c
 **Fix:** default limit + pagination; index `(project_id, id desc)`.
 
 ### Positive findings (API)
+
 - For SQL backends `PermanentConnection()` is true ⇒ no per-request DB connect.
 - API-token auth (`auth.go:225`) avoids the `TouchSession` write — the right model.
 - Note: `api/sockets/pool.go:19,48` use module-level `var h hub` / `var broadcaster`,
@@ -719,6 +737,7 @@ to the previous run. **Fix (optional):** skip the rewrite when a stored content 
 matches (mirror the `requirements.md5` pattern in `db_lib/AnsibleApp.go:42-49`).
 
 ### INV-4 / INV-5 — Positive findings (no per-host multiplier)
+
 - **SSH/become key install is per-inventory, not per-host** (`LocalJob_inventory.go:15-28`):
   at most one SSH key + one become key, installed into a **single** in-process SSH agent
   (`pkg/ssh/agent.go:170-212`) — one Unix socket, one goroutine, one key — that all 5000
@@ -730,18 +749,19 @@ matches (mirror the `requirements.md5` pattern in `db_lib/AnsibleApp.go:42-49`).
 
 ### Inventory cost ranking at 5000 hosts
 
-| Path | Dominant cost | Scales with |
-|------|---------------|-------------|
-| **Remote runner** (`UseRemoteRunner`/`RunnerTag`) | JSON-encode full inventory on every poll (INV-1) | `inventory_bytes × polls × runners` — **worst** |
-| **Local static** | one `os.WriteFile` + one `[]byte` copy per run (INV-3) | `inventory_bytes × tasks` |
-| **Local file** (`InventoryFile`) | none — Ansible reads from the repo; Semaphore only joins a path | nothing in Go |
-| **Dynamic / Terraform** | n/a — state is a separate blob, not host-expanded in Go | nothing per-host |
+| Path                                              | Dominant cost                                                   | Scales with                                     |
+|---------------------------------------------------|-----------------------------------------------------------------|-------------------------------------------------|
+| **Remote runner** (`UseRemoteRunner`/`RunnerTag`) | JSON-encode full inventory on every poll (INV-1)                | `inventory_bytes × polls × runners` — **worst** |
+| **Local static**                                  | one `os.WriteFile` + one `[]byte` copy per run (INV-3)          | `inventory_bytes × tasks`                       |
+| **Local file** (`InventoryFile`)                  | none — Ansible reads from the repo; Semaphore only joins a path | nothing in Go                                   |
+| **Dynamic / Terraform**                           | n/a — state is a separate blob, not host-expanded in Go         | nothing per-host                                |
 
 ---
 
 ## 8. Prioritized remediation roadmap
 
 ### Phase 1 — Quick wins (indexes + small, isolated changes)
+
 1. **Index `runner(token)`** unique (API-1) — eliminates a full scan on the busiest endpoint.
 2. **Bound the MySQL/Postgres pool** at `SqlDb.go:82` (DB-8/TP-7) — `SetMaxOpenConns/Idle/Lifetime`, configurable.
 3. **Add task/output indexes** (DB-3/4/6): `task(status)`, `task(template_id, created)`,
@@ -755,6 +775,7 @@ matches (mirror the `requirements.md5` pattern in `db_lib/AnsibleApp.go:42-49`).
 9. **Remove `fmt.Println`** on the ws read path (OUT-8); **drop the per-task `time.Sleep(1s)`** (TP-7).
 
 ### Phase 2 — Medium refactors
+
 10. **O(1) `GetByID` + per-runner running-count map** in the task state store (TP-3/TP-4); buffer `queueEvents`.
 11. **Cache project/template parallel limits** out of `blocks()`'s hot loop (TP-2).
 12. **Buffer the ws hub + index connections by userID** (OUT-2); make broadcast async/lossy.
@@ -765,6 +786,7 @@ matches (mirror the `requirements.md5` pattern in `db_lib/AnsibleApp.go:42-49`).
 17. **Fan alerts out to a bounded worker pool** with HTTP timeouts (TP-8).
 
 ### Phase 3 — Larger architectural changes
+
 18. **Replace 1-second polling with push / long-poll** across the runner protocol, `RemoteJob`
     status, and the UI (API-3/API-4/TP-3) — the single biggest structural win for "many tasks."
 19. **Real admission control** for the unlimited-parallelism default — a bounded worker pool /
@@ -774,6 +796,7 @@ matches (mirror the `requirements.md5` pattern in `db_lib/AnsibleApp.go:42-49`).
 21. **Stream task output** end-to-end (cap runner buffers, keyset pagination, drop slow ws clients) (OUT-6/OUT-7).
 
 ### What's already good (don't regress)
+
 Log batching (`handleLogs`), the single batched `InsertTaskOutputBatch`, locks never held
 across I/O, HA distributed claim placement, the single-key SSH agent, the opaque-blob
 inventory design (no per-host Go iteration), and `task__output(task_id)` being indexed.
@@ -782,41 +805,41 @@ inventory design (no per-host Go iteration), and `task__output(task_id)` being i
 
 ## 9. Finding index
 
-| ID | Title | Severity | Primary location |
-|----|-------|----------|------------------|
-| API-1 | Runner token full table scan every poll | **Critical** | `api/runners/runners.go:37`, `db/sql/global_runner.go:12` |
-| OUT-1 | Per-line × per-user synchronous ws marshal | **Critical** | `services/tasks/TaskRunner_logging.go:27-54` |
-| TP-1 | O(n²) queue re-scan through one goroutine | High | `services/tasks/TaskPool.go:206-268` |
-| TP-2 | `GetProject` DB call in scheduler hot loop | High | `services/tasks/TaskPool.go:463-496` |
-| TP-3 | 1 s busy-poll + O(n) `GetTask` per running task | High | `RemoteJob.go:209-251`, `TaskPool.go:142-166` |
-| TP-7 | Unlimited parallel default + per-task Sleep, no admission control | High | `util/config.go:150,390`, `TaskPool.go:368` |
-| OUT-2 | Unbuffered ws hub, single goroutine | High | `api/sockets/pool.go:48-87` |
-| OUT-3 | Per-record `StoreSession` defeats batching | High | `services/tasks/TaskPool.go:300-352` |
-| OUT-4 | `unique(task_id, time)` drops whole batches | High | `db/sql/SqlDb.go:93` |
-| OUT-5 / DB-5 | `GetTaskOutput` loads entire log | High | `api/projects/tasks.go:237` |
-| OUT-6 | Runner buffers entire output uncapped | High | `services/runners/job_pool.go:288-338` |
-| DB-1 | `getTemplates` subquery + env/vault N+1 | High | `db/sql/template.go:283,406,412` |
-| DB-3 | `task.status`/`task.created` unindexed | High | `db/sql/task.go:152,292`, `SqlDb.go:934` |
-| DB-8 | MySQL/Postgres pool unbounded | High | `db/sql/SqlDb.go:82-84` |
-| API-2 | `TouchRunner` write every poll | High | `api/runners/runners.go:111`, `global_runner.go:138` |
-| API-3 | Full job payload RSA-encrypted every poll | High | `api/runners/runners.go:138-262` |
-| API-4 | `RemoteJob` DB poll/sec + runner re-fetch | High | `services/tasks/RemoteJob.go:135-251` |
-| INV-1 | Full inventory re-marshaled every runner poll | High | `api/runners/runners.go:138-157` |
-| TP-4 | O(running) scan per candidate runner | Medium | `services/tasks/TaskPool.go:129-136` |
-| TP-5 | O(n) splice dequeue → O(n²) drain | Medium | `services/tasks/task_state_store.go:154-163` |
-| TP-6 | Single RWMutex + full-collection copies | Medium | `services/tasks/task_state_store.go:121-127` |
-| TP-8 | Synchronous timeout-less alerts in hot path | Medium | `TaskRunner_logging.go:114-131`, `alert.go` |
-| OUT-7 | 10 MB scanner buffer + 100k channel per pipe | Medium | `TaskRunner_logging.go:153-201` |
-| DB-2 | `getTasks.Fill` N+1 | Medium | `db/sql/task.go:314`, `db/Task.go:184` |
-| DB-4 | Retention on the write path | Medium | `db/sql/task.go:121-168` |
-| DB-6 | `task__output.stage_id` unindexed | Medium | `db/sql/task.go:405-408` |
-| DB-7 | `FillEvents` per-event task N+1 | Medium | `db/Event.go:73-114` |
-| API-5 | Admin all-tasks: no page/cache, 10 s poll | Medium | `api/tasks/tasks.go:43-71` |
-| API-6 | Per-project list: 1000 rows, no pagination | Medium | `api/projects/tasks.go:100`, `task.go:269` |
-| API-7 | `TouchSession` write every request | Medium | `api/auth.go:264`, `session.go:74` |
-| API-8 | `GetTaskStats` full-history aggregation, no cache | Medium | `api/projects/tasks.go:398`, `SqlDb.go:934` |
-| INV-2 | Inventory string copied by value × 5 hops | Medium | `TaskRunner.go:404`, `runners.go:153` |
-| OUT-8 | Stray `fmt.Println` on ws read path | Low | `api/sockets/handler.go:91` |
-| API-9 | No read-path cache; sync `ClearTmpDir` | Low | `api/cache.go:12-32` |
-| API-10 | `/events` all-events unbounded | Low | `api/events.go:30-49` |
-| INV-3 | Static inventory rewritten every run | Low | `services/tasks/LocalJob_inventory.go:92-98` |
+| ID           | Title                                                             | Severity     | Primary location                                          |
+|--------------|-------------------------------------------------------------------|--------------|-----------------------------------------------------------|
+| API-1        | Runner token full table scan every poll                           | **Critical** | `api/runners/runners.go:37`, `db/sql/global_runner.go:12` |
+| OUT-1        | Per-line × per-user synchronous ws marshal                        | **Critical** | `services/tasks/TaskRunner_logging.go:27-54`              |
+| TP-1         | O(n²) queue re-scan through one goroutine                         | High         | `services/tasks/TaskPool.go:206-268`                      |
+| TP-2         | `GetProject` DB call in scheduler hot loop                        | High         | `services/tasks/TaskPool.go:463-496`                      |
+| TP-3         | 1 s busy-poll + O(n) `GetTask` per running task                   | High         | `RemoteJob.go:209-251`, `TaskPool.go:142-166`             |
+| TP-7         | Unlimited parallel default + per-task Sleep, no admission control | High         | `util/config.go:150,390`, `TaskPool.go:368`               |
+| OUT-2        | Unbuffered ws hub, single goroutine                               | High         | `api/sockets/pool.go:48-87`                               |
+| OUT-3        | Per-record `StoreSession` defeats batching                        | High         | `services/tasks/TaskPool.go:300-352`                      |
+| OUT-4        | `unique(task_id, time)` drops whole batches                       | High         | `db/sql/SqlDb.go:93`                                      |
+| OUT-5 / DB-5 | `GetTaskOutput` loads entire log                                  | High         | `api/projects/tasks.go:237`                               |
+| OUT-6        | Runner buffers entire output uncapped                             | High         | `services/runners/job_pool.go:288-338`                    |
+| DB-1         | `getTemplates` subquery + env/vault N+1                           | High         | `db/sql/template.go:283,406,412`                          |
+| DB-3         | `task.status`/`task.created` unindexed                            | High         | `db/sql/task.go:152,292`, `SqlDb.go:934`                  |
+| DB-8         | MySQL/Postgres pool unbounded                                     | High         | `db/sql/SqlDb.go:82-84`                                   |
+| API-2        | `TouchRunner` write every poll                                    | High         | `api/runners/runners.go:111`, `global_runner.go:138`      |
+| API-3        | Full job payload RSA-encrypted every poll                         | High         | `api/runners/runners.go:138-262`                          |
+| API-4        | `RemoteJob` DB poll/sec + runner re-fetch                         | High         | `services/tasks/RemoteJob.go:135-251`                     |
+| INV-1        | Full inventory re-marshaled every runner poll                     | High         | `api/runners/runners.go:138-157`                          |
+| TP-4         | O(running) scan per candidate runner                              | Medium       | `services/tasks/TaskPool.go:129-136`                      |
+| TP-5         | O(n) splice dequeue → O(n²) drain                                 | Medium       | `services/tasks/task_state_store.go:154-163`              |
+| TP-6         | Single RWMutex + full-collection copies                           | Medium       | `services/tasks/task_state_store.go:121-127`              |
+| TP-8         | Synchronous timeout-less alerts in hot path                       | Medium       | `TaskRunner_logging.go:114-131`, `alert.go`               |
+| OUT-7        | 10 MB scanner buffer + 100k channel per pipe                      | Medium       | `TaskRunner_logging.go:153-201`                           |
+| DB-2         | `getTasks.Fill` N+1                                               | Medium       | `db/sql/task.go:314`, `db/Task.go:184`                    |
+| DB-4         | Retention on the write path                                       | Medium       | `db/sql/task.go:121-168`                                  |
+| DB-6         | `task__output.stage_id` unindexed                                 | Medium       | `db/sql/task.go:405-408`                                  |
+| DB-7         | `FillEvents` per-event task N+1                                   | Medium       | `db/Event.go:73-114`                                      |
+| API-5        | Admin all-tasks: no page/cache, 10 s poll                         | Medium       | `api/tasks/tasks.go:43-71`                                |
+| API-6        | Per-project list: 1000 rows, no pagination                        | Medium       | `api/projects/tasks.go:100`, `task.go:269`                |
+| API-7        | `TouchSession` write every request                                | Medium       | `api/auth.go:264`, `session.go:74`                        |
+| API-8        | `GetTaskStats` full-history aggregation, no cache                 | Medium       | `api/projects/tasks.go:398`, `SqlDb.go:934`               |
+| INV-2        | Inventory string copied by value × 5 hops                         | Medium       | `TaskRunner.go:404`, `runners.go:153`                     |
+| OUT-8        | Stray `fmt.Println` on ws read path                               | Low          | `api/sockets/handler.go:91`                               |
+| API-9        | No read-path cache; sync `ClearTmpDir`                            | Low          | `api/cache.go:12-32`                                      |
+| API-10       | `/events` all-events unbounded                                    | Low          | `api/events.go:30-49`                                     |
+| INV-3        | Static inventory rewritten every run                              | Low          | `services/tasks/LocalJob_inventory.go:92-98`              |

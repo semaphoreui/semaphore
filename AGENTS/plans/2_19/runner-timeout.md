@@ -151,6 +151,7 @@ Two outcomes, two helpers:
 
 **Reassignment** (`starting` on an offline runner) goes through
 `requeueTaskRunnerOffline`, which:
+
 - re-loads the task and returns if it is no longer `starting` (the runner may
   have just picked it up and reported `running`),
 - clears `task.RunnerID` and resets `Status` to the queued state, so the
@@ -160,6 +161,7 @@ Two outcomes, two helpers:
 
 **Failure** (everything else) converges on a single idempotent helper,
 `failTaskRunnerLost`, that:
+
 - re-loads the task and returns immediately if `Status.IsFinished()` (guards
   the race where a real terminal status arrives concurrently),
 - logs a clear line (`"Runner #X lost: marking task failed"`),
@@ -301,14 +303,14 @@ config surfaces.
 
 - Add a new nested section in `ConfigType` (`util/config.go`), e.g.
   `RunnersConfig`, json key `runners`:
-  - `OfflineTimeoutSec` — default **120** (2 min). Past this the runner is
-    offline: no new dispatches, its `starting` tasks are reassigned. Env var
-    `SEMAPHORE_RUNNERS_OFFLINE_TIMEOUT_SEC`.
-  - `TaskFailTimeoutSec` — default **420** (7 min). Past this the runner's
-    `running` tasks are failed. Env var
-    `SEMAPHORE_RUNNERS_TASK_FAIL_TIMEOUT_SEC`.
-  - `ReconcileIntervalSec` — default **30**. Env var
-    `SEMAPHORE_RUNNERS_RECONCILE_INTERVAL_SEC`.
+    - `OfflineTimeoutSec` — default **120** (2 min). Past this the runner is
+      offline: no new dispatches, its `starting` tasks are reassigned. Env var
+      `SEMAPHORE_RUNNERS_OFFLINE_TIMEOUT_SEC`.
+    - `TaskFailTimeoutSec` — default **420** (7 min). Past this the runner's
+      `running` tasks are failed. Env var
+      `SEMAPHORE_RUNNERS_TASK_FAIL_TIMEOUT_SEC`.
+    - `ReconcileIntervalSec` — default **30**. Env var
+      `SEMAPHORE_RUNNERS_RECONCILE_INTERVAL_SEC`.
 - Elsewhere in this plan these knobs are referred to as
   `RunnerOfflineTimeoutSec` / `RunnerTaskFailTimeoutSec` for brevity; the
   actual fields live on the `runners` section as above.
@@ -355,17 +357,17 @@ config surfaces.
 
 ## Risks & Notes
 
-| Risk | Mitigation |
-|------|------------|
-| Failing a healthy runner's `running` task during a transient network blip | The 7-minute `RunnerTaskFailTimeoutSec` recovery window — many multiples of the poll interval; a runner that reconnects within it resumes reporting and nothing is failed. |
-| Double execution: a `starting` task is reassigned, but the old runner had actually pulled it and starts it too | The window is narrow (`starting` flips to `running` on first progress report). `requeueTaskRunnerOffline` re-checks status before requeuing; clearing `RunnerID` removes the task from the old runner's `NewJobs`; the per-job ownership check in `UpdateRunner` rejects late reports from the old runner. Residual risk is inherent to reassignment and accepted for not-yet-running work. |
-| `running` task on a truly dead runner shows as running for up to 7 min | Accepted trade-off: the runner is offline within 2 min (no new work lands on it); the extra wait is the price of letting a live-but-disconnected runner finish its jobs. Layer 2 shortcuts this to immediate failure when a *restart* is detected. |
-| Race: runner reports completion at the same instant the reconciler fails the task — or two HA nodes detect the lost runner together | `failTaskRunnerLost` re-loads and bails on `IsFinished()`; `FinalizeRemoteTask` then dedups cluster-wide via the state store's `TryFinalize`/`DeleteFinalize` lock (Redis `SETNX` in HA, `sync.Map` in single-node) plus the HA DB re-check, so finalization runs at most once. |
-| Clock skew between runner-reported `started_at` and `task.Start` (server clock) | Compare with a small margin; or use an opaque `session_id` (step 2 fallback) which is skew-immune. |
-| Reassigned `starting` task loops forever across dying runners | The reassignment goes through the normal queue, so each hop re-selects among *online* runners only; optionally cap reassignment attempts (small counter or rely on `MaxTaskDurationSec`). |
-| Behavior change: tasks that previously fell back to a stale runner now wait in the queue (`ErrAllRunnersBusy`) when every runner is offline | Intended: queued-and-waiting is recoverable, dispatched-to-a-dead-runner is the hang this plan fixes. The task is picked up as soon as any runner polls again. |
-| Layer 3 grace-window subtlety (just-dispatched task not yet reported) | Gate layer 3 on dispatch age; ship it as a follow-up after layers 1+2 are proven. |
-| HA cleaner now writes task failures (previously only re-enqueued/GC'd) | Goes through the same idempotent helper and `removeStaleState`; covered by the new HA test. |
+| Risk                                                                                                                                        | Mitigation                                                                                                                                                                                                                                                                                                                                                                                  |
+|---------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Failing a healthy runner's `running` task during a transient network blip                                                                   | The 7-minute `RunnerTaskFailTimeoutSec` recovery window — many multiples of the poll interval; a runner that reconnects within it resumes reporting and nothing is failed.                                                                                                                                                                                                                  |
+| Double execution: a `starting` task is reassigned, but the old runner had actually pulled it and starts it too                              | The window is narrow (`starting` flips to `running` on first progress report). `requeueTaskRunnerOffline` re-checks status before requeuing; clearing `RunnerID` removes the task from the old runner's `NewJobs`; the per-job ownership check in `UpdateRunner` rejects late reports from the old runner. Residual risk is inherent to reassignment and accepted for not-yet-running work. |
+| `running` task on a truly dead runner shows as running for up to 7 min                                                                      | Accepted trade-off: the runner is offline within 2 min (no new work lands on it); the extra wait is the price of letting a live-but-disconnected runner finish its jobs. Layer 2 shortcuts this to immediate failure when a *restart* is detected.                                                                                                                                          |
+| Race: runner reports completion at the same instant the reconciler fails the task — or two HA nodes detect the lost runner together         | `failTaskRunnerLost` re-loads and bails on `IsFinished()`; `FinalizeRemoteTask` then dedups cluster-wide via the state store's `TryFinalize`/`DeleteFinalize` lock (Redis `SETNX` in HA, `sync.Map` in single-node) plus the HA DB re-check, so finalization runs at most once.                                                                                                             |
+| Clock skew between runner-reported `started_at` and `task.Start` (server clock)                                                             | Compare with a small margin; or use an opaque `session_id` (step 2 fallback) which is skew-immune.                                                                                                                                                                                                                                                                                          |
+| Reassigned `starting` task loops forever across dying runners                                                                               | The reassignment goes through the normal queue, so each hop re-selects among *online* runners only; optionally cap reassignment attempts (small counter or rely on `MaxTaskDurationSec`).                                                                                                                                                                                                   |
+| Behavior change: tasks that previously fell back to a stale runner now wait in the queue (`ErrAllRunnersBusy`) when every runner is offline | Intended: queued-and-waiting is recoverable, dispatched-to-a-dead-runner is the hang this plan fixes. The task is picked up as soon as any runner polls again.                                                                                                                                                                                                                              |
+| Layer 3 grace-window subtlety (just-dispatched task not yet reported)                                                                       | Gate layer 3 on dispatch age; ship it as a follow-up after layers 1+2 are proven.                                                                                                                                                                                                                                                                                                           |
+| HA cleaner now writes task failures (previously only re-enqueued/GC'd)                                                                      | Goes through the same idempotent helper and `removeStaleState`; covered by the new HA test.                                                                                                                                                                                                                                                                                                 |
 
 ## Dependency
 

@@ -12,7 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-func (t *LocalJob) installInventory() (err error) {
+func (t *LocalExecutor) installInventory() (err error) {
 	if t.Inventory.SSHKeyID != nil {
 		t.sshKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.SSHKey, db.AccessKeyRoleAnsibleUser, t.Logger)
 		if err != nil {
@@ -37,14 +37,14 @@ func (t *LocalJob) installInventory() (err error) {
 	return
 }
 
-func (t *LocalJob) tmpInventoryFilename() string {
+func (t *LocalExecutor) tmpInventoryFilename() string {
 	if t.Inventory.Repository == nil {
 		return "inventory_" + strconv.Itoa(t.Inventory.ID)
 	}
 	return t.Inventory.Repository.GetDirName(t.Template.ID) + "_inventory_" + strconv.Itoa(t.Inventory.ID)
 }
 
-func (t *LocalJob) tmpInventoryFullPath() string {
+func (t *LocalExecutor) tmpInventoryFullPath() string {
 	if t.Inventory.Repository != nil && t.Inventory.Repository.GetType() == db.RepositoryLocal {
 		return t.Inventory.Repository.GetGitURL(true)
 	}
@@ -55,7 +55,7 @@ func (t *LocalJob) tmpInventoryFullPath() string {
 	return pathname
 }
 
-func (t *LocalJob) cloneInventoryRepo(keyInstaller db_lib.AccessKeyInstaller) error {
+func (t *LocalExecutor) cloneInventoryRepo(keyInstaller db_lib.AccessKeyInstaller) error {
 	if t.Inventory.Repository == nil {
 		return nil
 	}
@@ -89,7 +89,7 @@ func (t *LocalJob) cloneInventoryRepo(keyInstaller db_lib.AccessKeyInstaller) er
 	return repo.Clone()
 }
 
-func (t *LocalJob) installStaticInventory() error {
+func (t *LocalExecutor) installStaticInventory() error {
 	t.Log("installing static inventory")
 
 	fullPath := t.tmpInventoryFullPath()
@@ -98,7 +98,7 @@ func (t *LocalJob) installStaticInventory() error {
 	return os.WriteFile(fullPath, []byte(t.Inventory.Inventory), 0664)
 }
 
-func (t *LocalJob) destroyInventoryFile() {
+func (t *LocalExecutor) destroyInventoryFile() {
 	if !t.Inventory.Type.IsStatic() {
 		return
 	}
@@ -116,7 +116,7 @@ func (t *LocalJob) destroyInventoryFile() {
 	}
 }
 
-func (t *LocalJob) destroyKeys() {
+func (t *LocalExecutor) destroyKeys() {
 	err := t.sshKeyInstallation.Destroy()
 	if err != nil {
 		t.Log("Can't destroy inventory user key, error: " + err.Error())

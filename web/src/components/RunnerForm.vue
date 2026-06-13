@@ -52,7 +52,7 @@
         <v-checkbox v-model="item.is_default">
           <template v-slot:label>
             Is default
-            <v-chip class="ml-2" small color="error">New</v-chip>
+            <v-chip class="ml-2" color="error" small>New</v-chip>
           </template>
         </v-checkbox>
       </v-col>
@@ -60,13 +60,13 @@
         <v-checkbox v-if="isNew" v-model="item.registered" :disabled="formSaving">
           <template v-slot:label>
             {{ $t('register') }}
-            <v-chip class="ml-2" small color="error">New</v-chip>
+            <v-chip class="ml-2" color="error" small>New</v-chip>
           </template>
         </v-checkbox>
       </v-col>
     </v-row>
 
-    <v-alert v-if="isNew && !item.registered" color="info" text dense class="mb-4">
+    <v-alert v-if="isNew && !item.registered" class="mb-4" color="info" dense text>
       {{ $t('unregisteredRunnerHint') }}
     </v-alert>
 

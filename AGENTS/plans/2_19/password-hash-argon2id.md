@@ -71,13 +71,13 @@ is the OWASP-recommended default.
 Starting parameters (OWASP "second option" profile, balanced for server
 hardware):
 
-| Parameter | Value | Note |
-|-----------|-------|------|
-| `memory` (KiB) | 19456 (≈19 MiB) | OWASP-recommended floor |
-| `iterations` (`time`) | 2 | OWASP-recommended |
-| `parallelism` | 1 | Single-threaded; matches a per-request login |
-| `salt length` | 16 bytes | From `crypto/rand` |
-| `key length` | 32 bytes | Argon2 output |
+| Parameter             | Value           | Note                                         |
+|-----------------------|-----------------|----------------------------------------------|
+| `memory` (KiB)        | 19456 (≈19 MiB) | OWASP-recommended floor                      |
+| `iterations` (`time`) | 2               | OWASP-recommended                            |
+| `parallelism`         | 1               | Single-threaded; matches a per-request login |
+| `salt length`         | 16 bytes        | From `crypto/rand`                           |
+| `key length`          | 32 bytes        | Argon2 output                                |
 
 These are constants in `pkg/passwordhash`, **not** stored globals — per
 project convention, no global variables. Tweak only with a follow-up
@@ -263,13 +263,13 @@ until v2.19+ is restored or the password is reset."
 - Round-trip on a real database: create a user with `semaphore user add`,
   confirm the stored password starts with `$argon2id$`.
 - Backward compatibility on a real database:
-  1. Start v2.18.x, create a user, confirm the hash starts with `$2a$`
-     or `$2b$`.
-  2. Stop, upgrade binary to v2.19.x (no migration needed — the column
-     is a string).
-  3. Log in with the same password. Login succeeds.
-  4. Inspect `SELECT password FROM user WHERE id=...`: now starts with
-     `$argon2id$`.
+    1. Start v2.18.x, create a user, confirm the hash starts with `$2a$`
+       or `$2b$`.
+    2. Stop, upgrade binary to v2.19.x (no migration needed — the column
+       is a string).
+    3. Log in with the same password. Login succeeds.
+    4. Inspect `SELECT password FROM user WHERE id=...`: now starts with
+       `$argon2id$`.
 - Wrong password still rejected (manual: `curl -X POST /api/auth/login`
   with a bad password; expect 401).
 - Login latency: measure p50/p99 of `loginByPassword` before and after.
@@ -298,15 +298,15 @@ Mismatched-version behaviour:
 
 ## Risks & Notes
 
-| Risk | Mitigation |
-|------|------------|
-| Argon2id ~50ms verify is slower than bcrypt at startup-time, causing login latency complaints | Benchmark before merging. Parameters chosen at the OWASP floor, not the recommended high-security profile. Tunable later if needed. |
-| Memory pressure on small Semaphore deployments (19 MiB per concurrent login) | At our login rate this is negligible. If it ever isn't, the parameter knob is in `pkg/passwordhash` and a future config option is straightforward. |
-| Downgrade to v2.18 locks out users whose passwords were rehashed | Release notes warn operators to snapshot. The lock-out is recoverable via `semaphore user change-by-login --password` (admin-side reset). |
-| Silent rehash on login fails (DB error) and we keep retrying every login | The failure is logged and the bcrypt branch keeps verifying. No user-visible impact; operator sees the log line. |
+| Risk                                                                                                                                                   | Mitigation                                                                                                                                                                                                                                                                      |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Argon2id ~50ms verify is slower than bcrypt at startup-time, causing login latency complaints                                                          | Benchmark before merging. Parameters chosen at the OWASP floor, not the recommended high-security profile. Tunable later if needed.                                                                                                                                             |
+| Memory pressure on small Semaphore deployments (19 MiB per concurrent login)                                                                           | At our login rate this is negligible. If it ever isn't, the parameter knob is in `pkg/passwordhash` and a future config option is straightforward.                                                                                                                              |
+| Downgrade to v2.18 locks out users whose passwords were rehashed                                                                                       | Release notes warn operators to snapshot. The lock-out is recoverable via `semaphore user change-by-login --password` (admin-side reset).                                                                                                                                       |
+| Silent rehash on login fails (DB error) and we keep retrying every login                                                                               | The failure is logged and the bcrypt branch keeps verifying. No user-visible impact; operator sees the log line.                                                                                                                                                                |
 | Long passphrase truncation bug (>72 bytes in bcrypt) means a user's "old" password was effectively a different (shorter) one than their "new" password | Both bcrypt verify and Argon2id hash run on the same plaintext from the same login request, so the upgrade path is consistent — whatever bcrypt accepted, Argon2id will hash the full version. Worth a one-line release note that very long passphrases are now hashed in full. |
-| PHC parsing bugs (malformed stored hash crashes the login path) | `Verify` returns an error rather than panicking on any malformed input. Login treats verify errors the same as wrong password — 401, not 500. |
-| Someone copy-pastes the bcrypt import back in for a new password field | Add a `// Deprecated: use pkg/passwordhash` comment if we keep any direct bcrypt usage outside `pkg/passwordhash`. (Realistically: there will be none after this change.) |
+| PHC parsing bugs (malformed stored hash crashes the login path)                                                                                        | `Verify` returns an error rather than panicking on any malformed input. Login treats verify errors the same as wrong password — 401, not 500.                                                                                                                                   |
+| Someone copy-pastes the bcrypt import back in for a new password field                                                                                 | Add a `// Deprecated: use pkg/passwordhash` comment if we keep any direct bcrypt usage outside `pkg/passwordhash`. (Realistically: there will be none after this change.)                                                                                                       |
 
 ## Follow-ups (not part of this plan)
 

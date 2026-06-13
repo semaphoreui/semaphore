@@ -89,7 +89,13 @@ type job struct {
 	incomingVersion *string
 	alias           string
 
-	// job presents remote or local job information
-	job    *tasks.LocalJob
+	// job is the executor that will run this task on the runner host. The concrete
+	// type is selected by the factory at enqueue time (LocalExecutor for local
+	// execution, KubernetesExecutor when the runner is configured to dispatch into
+	// Pods). Field accesses that need the original db.Task/db.Template/... go
+	// through taskID/template — kept here so progress reporting and orphan cleanup
+	// don't need to type-assert back to the concrete executor.
+	job    tasks.Executor
+	taskID int
 	status task_logger.TaskStatus
 }
