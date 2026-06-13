@@ -1,8 +1,12 @@
 package runners
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -122,6 +126,42 @@ func TestJobPool_ApplyTerminatedJobs(t *testing.T) {
 	assert.False(t, lj2.IsKilled())
 
 	assert.Equal(t, 0, p.runningJobsCount())
+}
+
+func TestJobPool_CheckNewJobsExecutorErrorUsesTaskProjectID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		err := json.NewEncoder(w).Encode(RunnerState{
+			NewJobs: []JobData{{
+				Task: db.Task{
+					ID:        42,
+					ProjectID: 7,
+				},
+			}},
+		})
+		require.NoError(t, err)
+	}))
+	defer server.Close()
+
+	previousConfig := util.Config
+	util.Config = &util.ConfigType{
+		WebHost: server.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "test-token",
+			Connection: &util.RunnerConnectionConfig{},
+		},
+	}
+	defer func() {
+		util.Config = previousConfig
+	}()
+
+	p := &JobPool{
+		runningJobs: make(map[int]*runningJob),
+		queue:       make([]*job, 0),
+		startedAt:   time.Now(),
+	}
+
+	require.NotPanics(t, p.checkNewJobs)
+	assert.Equal(t, 0, p.queueLen())
 }
 
 // TestJobPool_ConcurrentAccess models the three actors that touch the pool
