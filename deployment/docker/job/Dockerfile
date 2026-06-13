@@ -1,4 +1,4 @@
-FROM debian:12-slim
+FROM debian:13-slim
 
 ARG ANSIBLE_VERSION=9.5.1
 ARG DEBIAN_FRONTEND=noninteractive
