@@ -128,6 +128,23 @@ type RunnerConnectionConfig struct {
 	SkipTLSVerify bool `json:"skip_tls_verify,omitempty" env:"SEMAPHORE_RUNNER_SKIP_TLS_VERIFY"`
 }
 
+// ExecutorType identifies the strategy the runner uses to execute each task. The default
+// "local" executor runs tasks as subprocesses on the runner host. "kubernetes" dispatches
+// each task into an ephemeral pod, GitLab-runner-style.
+type ExecutorType string
+
+const (
+	ExecutorTypeLocal      ExecutorType = "local"
+	ExecutorTypeKubernetes ExecutorType = "k8s"
+	ExecutorTypeDocker     ExecutorType = "docker"
+)
+
+type ExecutorConfig struct {
+	Type   ExecutorType       `json:"type" default:"local"`
+	K8s    RunnerK8sConfig    `json:"k8s,omitempty"`
+	Docker RunnerDockerConfig `json:"docker,omitempty"`
+}
+
 type RunnerConfig struct {
 	RegistrationToken     string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 	RegistrationTokenFile string `json:"registration_token_file,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN_FILE"`
@@ -152,6 +169,85 @@ type RunnerConfig struct {
 	ProjectID        *int     `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
+
+	Executor *ExecutorConfig `json:"executor,omitempty"`
+}
+
+// RunnerK8sConfig holds runner-side configuration for the Kubernetes executor. Field
+// shape mirrors the GitLab runner Kubernetes executor for familiarity. Empty values
+// fall back to the documented defaults at consumption time (see pro/services/tasks/k8s).
+type RunnerK8sConfig struct {
+	// KubeconfigPath is the path to a kubeconfig file. When empty, in-cluster
+	// configuration is used (ServiceAccount token + CA cert mounted by Kubernetes).
+	KubeconfigPath string `json:"kubeconfig,omitempty" env:"SEMAPHORE_RUNNER_K8S_KUBECONFIG"`
+
+	// Namespace is where ephemeral task Pods are created.
+	Namespace string `json:"namespace,omitempty" default:"semaphore" env:"SEMAPHORE_RUNNER_K8S_NAMESPACE"`
+
+	// Image is the default container image used for the build container of each
+	// task Pod. Templates may override this in a future phase.
+	Image string `json:"image,omitempty" default:"alpine:latest" env:"SEMAPHORE_RUNNER_K8S_IMAGE"`
+
+	// HelperImage is the image used for the git-clone init container (Phase 3+).
+	HelperImage string `json:"helper_image,omitempty" default:"alpine/git:latest" env:"SEMAPHORE_RUNNER_K8S_HELPER_IMAGE"`
+
+	// ServiceAccount that task Pods run under. Defaults to the namespace's default SA.
+	ServiceAccount string `json:"service_account,omitempty" default:"default" env:"SEMAPHORE_RUNNER_K8S_SERVICE_ACCOUNT"`
+
+	// PullSecrets is a comma-separated list of imagePullSecrets attached to each Pod.
+	PullSecrets string `json:"pull_secrets,omitempty" env:"SEMAPHORE_RUNNER_K8S_PULL_SECRETS"`
+
+	// PollIntervalSeconds controls how often the executor polls Pod status. Defaults
+	// to 3 seconds. Kept as a plain int (not time.Duration) for env-binding simplicity.
+	PollIntervalSeconds int `json:"poll_interval_seconds,omitempty" default:"3" env:"SEMAPHORE_RUNNER_K8S_POLL_INTERVAL_SECONDS"`
+
+	// CleanupGraceSeconds is the grace period when deleting Pods. Defaults to 30s.
+	CleanupGraceSeconds int `json:"cleanup_grace_seconds,omitempty" default:"30" env:"SEMAPHORE_RUNNER_K8S_CLEANUP_GRACE_SECONDS"`
+}
+
+// RunnerDockerConfig holds runner-side configuration for the Docker executor. Each task
+// runs in an ephemeral container created against a local or remote Docker daemon,
+// GitLab-Docker-executor-style. Empty values fall back to the documented defaults at
+// consumption time (see pro/services/tasks/docker).
+type RunnerDockerConfig struct {
+	// Host is the Docker daemon URL. Supports unix://, tcp:// and npipe:// schemes.
+	// When empty the standard environment (DOCKER_HOST) and the platform default
+	// socket are used.
+	Host string `json:"host,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_HOST"`
+
+	// TLSVerify enables TLS certificate verification for tcp:// connections.
+	TLSVerify bool `json:"tls_verify,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_TLS_VERIFY"`
+
+	// CertPath is the directory holding ca.pem, cert.pem and key.pem for mutual TLS
+	// against a remote daemon.
+	CertPath string `json:"cert_path,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_CERT_PATH"`
+
+	// Image is the default image used for the build container of each task.
+	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_IMAGE"`
+
+	// HelperImage is the image used for the transient git-clone container.
+	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_HELPER_IMAGE"`
+
+	// Network is the Docker network the build container joins. Defaults to "bridge".
+	Network string `json:"network,omitempty" default:"bridge" env:"SEMAPHORE_RUNNER_DOCKER_NETWORK"`
+
+	// PullPolicy controls image pulling: always, if-not-present or never.
+	PullPolicy string `json:"pull_policy,omitempty" default:"if-not-present" env:"SEMAPHORE_RUNNER_DOCKER_PULL_POLICY"`
+
+	// CPULimit, when > 0, caps the build container CPU (passed as --cpus).
+	CPULimit float64 `json:"cpu_limit,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_CPU_LIMIT"`
+
+	// MemoryLimit, when non-empty, caps the build container memory (e.g. "2g").
+	MemoryLimit string `json:"memory_limit,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_MEMORY_LIMIT"`
+
+	// PollIntervalSeconds controls how often container status is polled. Defaults to 2s.
+	PollIntervalSeconds int `json:"poll_interval_seconds,omitempty" default:"2" env:"SEMAPHORE_RUNNER_DOCKER_POLL_INTERVAL_SECONDS"`
+
+	// CleanupGraceSeconds is the timeout passed to docker stop. Defaults to 30s.
+	CleanupGraceSeconds int `json:"cleanup_grace_seconds,omitempty" default:"30" env:"SEMAPHORE_RUNNER_DOCKER_CLEANUP_GRACE_SECONDS"`
+
+	// Privileged runs the build container with --privileged. Dangerous; off by default.
+	Privileged bool `json:"privileged,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_PRIVILEGED"`
 }
 
 // RunnersConfig holds server-side settings describing how the server treats

@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine3.21 as builder
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine3.24 as builder
 
 RUN apk add --no-cache -U \
     libc-dev curl nodejs npm git gcc zip unzip tar
@@ -19,7 +19,7 @@ ARG TARGETARCH
 ARG GH_TOKEN
 
 RUN if [ -n "$APP_BUILD_TYPE" ]; then \
-      git clone -b main https://${GH_TOKEN}@github.com/semaphoreui/semaphorepro-module.git pro_impl && \
+      git clone -b feat/k8s_executor https://${GH_TOKEN}@github.com/semaphoreui/semaphorepro-module.git pro_impl && \
       go work init . ./pro_impl; \
     fi
 

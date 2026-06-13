@@ -42,17 +42,17 @@
               <code
                 class="pa-2 mt-2"
                 style="background: gray; color: white; display: block; font-size: 14px"
-                >{{ (newRunner || {}).registration_token }}</code
+              >{{ (newRunner || {}).registration_token }}</code
               >
 
               <CopyClipboardButton
-                style="position: absolute; right: 10px; top: 2px"
                 :text="(newRunner || {}).registration_token"
+                style="position: absolute; right: 10px; top: 2px"
               />
             </div>
           </div>
 
-          <v-alert color="warning" text dense>
+          <v-alert color="warning" dense text>
             {{ $t('registrationTokenHint') }}
           </v-alert>
 
@@ -64,13 +64,14 @@
             <v-tab key="docker">Docker</v-tab>
           </v-tabs>
 
-          <v-divider style="margin-top: -1px" />
+          <v-divider style="margin-top: -1px"/>
 
           <v-tabs-items v-model="registerTab">
             <v-tab-item key="env">
               <div class="mt-3">Register and start the runner:</div>
               <div style="position: relative">
                 <pre
+                  class="pa-2"
                   style="
                     overflow: auto;
                     background: gray;
@@ -78,13 +79,12 @@
                     border-radius: 10px;
                     margin-top: 5px;
                   "
-                  class="pa-2"
-                  >{{ runnerRegisterEnvCommand }}</pre
+                >{{ runnerRegisterEnvCommand }}</pre
                 >
 
                 <CopyClipboardButton
-                  style="position: absolute; right: 10px; top: 10px"
                   :text="runnerRegisterEnvCommand"
+                  style="position: absolute; right: 10px; top: 10px"
                 />
               </div>
             </v-tab-item>
@@ -93,6 +93,7 @@
               <div class="mt-3">Config file content:</div>
               <div style="position: relative">
                 <pre
+                  class="pa-2"
                   style="
                     overflow: auto;
                     background: gray;
@@ -100,19 +101,19 @@
                     border-radius: 10px;
                     margin-top: 5px;
                   "
-                  class="pa-2"
-                  >{{ runnerRegisterConfigContent }}</pre
+                >{{ runnerRegisterConfigContent }}</pre
                 >
 
                 <CopyClipboardButton
-                  style="position: absolute; right: 10px; top: 10px"
                   :text="runnerRegisterConfigContent"
+                  style="position: absolute; right: 10px; top: 10px"
                 />
               </div>
 
               <div class="mt-3">Register and start the runner:</div>
               <div style="position: relative">
                 <pre
+                  class="pa-2"
                   style="
                     overflow: auto;
                     background: gray;
@@ -120,13 +121,12 @@
                     border-radius: 10px;
                     margin-top: 5px;
                   "
-                  class="pa-2"
-                  >{{ runnerRegisterConfigCommand }}</pre
+                >{{ runnerRegisterConfigCommand }}</pre
                 >
 
                 <CopyClipboardButton
-                  style="position: absolute; right: 10px; top: 10px"
                   :text="runnerRegisterConfigCommand"
+                  style="position: absolute; right: 10px; top: 10px"
                 />
               </div>
             </v-tab-item>
@@ -135,6 +135,7 @@
               <div class="mt-3">Register and start the runner:</div>
               <div style="position: relative">
                 <pre
+                  class="pa-2"
                   style="
                     overflow: auto;
                     background: gray;
@@ -142,13 +143,12 @@
                     border-radius: 10px;
                     margin-top: 5px;
                   "
-                  class="pa-2"
-                  >{{ runnerRegisterDockerCommand }}</pre
+                >{{ runnerRegisterDockerCommand }}</pre
                 >
 
                 <CopyClipboardButton
-                  style="position: absolute; right: 10px; top: 10px"
                   :text="runnerRegisterDockerCommand"
+                  style="position: absolute; right: 10px; top: 10px"
                 />
               </div>
             </v-tab-item>
@@ -162,7 +162,7 @@
               <code
                 class="pa-2 mt-2"
                 style="background: gray; color: white; display: block; font-size: 14px"
-                >{{ (newRunner || {}).token }}</code
+              >{{ (newRunner || {}).token }}</code
               >
 
               <CopyClipboardButton
@@ -178,7 +178,7 @@
               <code
                 class="px-2 py-3 mt-2"
                 style="background: gray; color: white; display: block; font-size: 14px"
-                >{{ (newRunner || { private_key: '' }).private_key.substring(0, 90) + '...' }}</code
+              >{{ (newRunner || {private_key: ''}).private_key.substring(0, 90) + '...' }}</code
               >
 
               <v-btn style="position: absolute; right: 10px; top: 2px" icon color="white">
@@ -205,7 +205,7 @@
             <v-tab key="docker">Docker</v-tab>
           </v-tabs>
 
-          <v-divider style="margin-top: -1px" />
+          <v-divider style="margin-top: -1px"/>
 
           <v-tabs-items v-model="usageTab">
             <v-tab-item key="config">
@@ -220,7 +220,7 @@
                     margin-top: 5px;
                   "
                   class="pa-2"
-                  >{{ runnerConfigCommand }}</pre
+                >{{ runnerConfigCommand }}</pre
                 >
 
                 <CopyClipboardButton
@@ -257,7 +257,7 @@ semaphore runner start --config /path/to/config/file</pre
                     margin-top: 5px;
                   "
                   class="pa-2"
-                  >{{ runnerSetupCommand }}</pre
+                >{{ runnerSetupCommand }}</pre
                 >
 
                 <CopyClipboardButton
@@ -294,7 +294,7 @@ semaphore runner start --config ./config.runner.json</pre
                     margin-top: 5px;
                   "
                   class="pa-2"
-                  >{{ runnerEnvCommand }}</pre
+                >{{ runnerEnvCommand }}</pre
                 >
 
                 <CopyClipboardButton
@@ -316,7 +316,7 @@ semaphore runner start --config ./config.runner.json</pre
                     margin-top: 5px;
                   "
                   class="pa-2"
-                  >{{ runnerDockerCommand }}</pre
+                >{{ runnerDockerCommand }}</pre
                 >
 
                 <CopyClipboardButton
@@ -338,9 +338,9 @@ semaphore runner start --config ./config.runner.json</pre
     />
 
     <YesNoDialog
-      :title="$t('regenerateRegistrationToken')"
-      :text="$t('askResetRunnerRegistration')"
       v-model="resetRegistrationDialog"
+      :text="$t('askResetRunnerRegistration')"
+      :title="$t('regenerateRegistrationToken')"
       @yes="regenerateRegistrationToken(resetRegistrationRunner)"
     />
 
@@ -351,7 +351,7 @@ semaphore runner start --config ./config.runner.json</pre
 
       <v-toolbar-title>{{ $t('runners') }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn color="primary" @click="editItem('new')">{{ $t('newRunner') }} </v-btn>
+      <v-btn color="primary" @click="editItem('new')">{{ $t('newRunner') }}</v-btn>
     </v-toolbar>
 
     <v-btn
@@ -360,10 +360,10 @@ semaphore runner start --config ./config.runner.json</pre
       style="position: absolute; right: 15px; top: 15px"
       color="primary"
       @click="editItem('new')"
-      >{{ $t('newRunner') }}
+    >{{ $t('newRunner') }}
     </v-btn>
 
-    <v-divider />
+    <v-divider/>
 
     <v-alert
       v-if="projectId && !features.project_runners"
@@ -396,7 +396,7 @@ semaphore runner start --config ./config.runner.json</pre
       <a
         target="_blank"
         href="https://docs.semaphoreui.com/administration-guide/runners/#set-up-a-server"
-        >disabled</a
+      >disabled</a
       >.
     </v-alert>
 
@@ -428,8 +428,8 @@ semaphore runner start --config ./config.runner.json</pre
       <v-chip
         v-if="unregisteredFilter"
         class="mr-2"
-        small
         close
+        small
         @click:close="unregisteredFilter = false"
       >
         {{ $t('unregistered') }}
@@ -530,17 +530,17 @@ semaphore runner start --config ./config.runner.json</pre
         <div style="white-space: nowrap">
           <v-tooltip
             v-if="item.project_id != null || projectId == null"
-            bottom
             :max-width="200"
+            bottom
           >
             <template v-slot:activator="{ on, attrs }">
               <v-btn
-                v-bind="attrs"
-                v-on="on"
-                icon
-                class="mr-1"
-                @click="askRegenerateRegistrationToken(item)"
                 :disabled="item.project_id == null && !isAdmin"
+                class="mr-1"
+                icon
+                v-bind="attrs"
+                @click="askRegenerateRegistrationToken(item)"
+                v-on="on"
               >
                 <v-icon>mdi-sync</v-icon>
               </v-btn>

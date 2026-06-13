@@ -25,8 +25,13 @@ type runningJob struct {
 	mu         sync.Mutex
 	status     task_logger.TaskStatus
 	logRecords []LogRecord
-	job        *tasks.LocalJob
-	commit     *CommitInfo
+
+	// taskID is captured at enqueue time so log/error paths don't need to reach into
+	// the executor for it. Necessary because executor is now an interface and the
+	// id-bearing db.Task is owned by the concrete type.
+	taskID int
+	job    tasks.Executor
+	commit *CommitInfo
 
 	statusListeners []task_logger.StatusListener
 	logListeners    []task_logger.LogListener
@@ -181,7 +186,7 @@ func (p *runningJob) logPipe(reader io.Reader) {
 		p.job.Kill() // kill the job because stdout cannot be read.
 
 		log.WithError(err).WithFields(log.Fields{
-			"task_id": p.job.Task.ID,
+			"task_id": p.taskID,
 			"context": "task_logger",
 		}).Error(msg)
 

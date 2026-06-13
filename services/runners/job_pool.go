@@ -17,7 +17,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/semaphoreui/semaphore/db_lib"
@@ -65,22 +64,35 @@ type JobPool struct {
 
 	processing int32
 
+	// provider is the strategy that produces per-task Executors. Built once at
+	// startup from the runner's executor config. Nil when initialisation failed —
+	// dispatch refuses cleanly in that case instead of panicking on first task.
+	provider tasks.ExecutorProvider
 	// startedAt is the process start time, sent to the server on every poll
 	// (X-Runner-Started-At header). It changes on every restart, letting the
 	// server detect that this runner lost its in-memory job pool.
 	startedAt time.Time
-
-	keyInstaller db_lib.AccessKeyInstaller
 }
 
+// NewJobPool wires a runner-side job pool. The ExecutorProvider is materialised
+// eagerly so config errors (bad kubeconfig, missing in-cluster credentials, etc.)
+// surface in the runner logs at startup rather than at first-task dispatch.
 func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
-	return &JobPool{
-		runningJobs:  make(map[int]*runningJob),
-		queue:        make([]*job, 0),
-		processing:   0,
-		startedAt:    tz.Now(),
-		keyInstaller: keyInstaller,
+	pool := &JobPool{
+		runningJobs: make(map[int]*runningJob),
+		queue:       make([]*job, 0),
+		processing:  0,
+		startedAt:   tz.Now(),
 	}
+
+	provider, err := newExecutorProvider(util.Config.Runner.Executor, keyInstaller)
+	if err != nil {
+		log.WithError(err).Error("failed to initialise executor provider; runner will reject jobs until restarted with a valid config")
+	} else {
+		pool.provider = provider
+	}
+
+	return pool
 }
 
 // setCommonHeaders sets the headers every runner→server request carries:
@@ -168,7 +180,7 @@ func (p *JobPool) existsInQueue(taskID int) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _, j := range p.queue {
-		if j.job.Task.ID == taskID {
+		if j.taskID == taskID {
 			return true
 		}
 	}
@@ -272,7 +284,7 @@ func (p *JobPool) Run() {
 				//delete failed TaskRunner from queue
 				log.WithFields(log.Fields{
 					"context": "job_running",
-					"task_id": t.job.Task.ID,
+					"task_id": t.taskID,
 					"status":  "failed",
 				}).Info("Task dequeued")
 				break
@@ -280,7 +292,7 @@ func (p *JobPool) Run() {
 
 			log.WithFields(log.Fields{
 				"context":      "job_running",
-				"task_id":      t.job.Task.ID,
+				"task_id":      t.taskID,
 				"queue_length": p.queueLen(),
 				"running_jobs": p.runningJobsCount(),
 			}).Debug("Dequeuing task for execution")
@@ -290,32 +302,33 @@ func (p *JobPool) Run() {
 			// whole batch and can leave the server stuck on "starting" forever.
 			rj := &runningJob{
 				job:    t.job,
+				taskID: t.taskID,
 				status: task_logger.TaskStartingStatus,
 			}
-			p.addRunningJob(t.job.Task.ID, rj)
+			p.addRunningJob(t.taskID, rj)
 
-			t.job.Logger = t.job.App.SetLogger(rj)
+			t.job.SetLogger(rj)
 
-			go func(runningJob *runningJob) {
-				runningJob.SetStatus(task_logger.TaskRunningStatus)
+			go func(running *runningJob) {
+				running.SetStatus(task_logger.TaskRunningStatus)
 
 				log.WithFields(log.Fields{
 					"context":          "job_running",
-					"task_id":          runningJob.job.Task.ID,
+					"task_id":          running.taskID,
 					"username":         t.username,
 					"alias":            t.alias,
 					"incoming_version": derefString(t.incomingVersion),
 				}).Debug("Running job")
 
-				err := runningJob.job.Run(t.username, t.incomingVersion, t.alias)
+				err := running.job.Run(t.username, t.incomingVersion, t.alias)
 
 				log.WithError(err).WithFields(log.Fields{
 					"context": "job_running",
-					"task_id": runningJob.job.Task.ID,
-					"status":  string(runningJob.getStatus()),
+					"task_id": running.taskID,
+					"status":  string(running.getStatus()),
 				}).Debug("Job run returned")
 
-				if runningJob.getStatus().IsFinished() {
+				if running.getStatus().IsFinished() {
 					return
 				}
 
@@ -323,41 +336,41 @@ func (p *JobPool) Run() {
 
 					log.WithFields(log.Fields{
 						"context":     "job_running",
-						"task_id":     t.job.Task.ID,
-						"task_status": t.job.Task.Status,
+						"task_id":     t.taskID,
+						"task_status": t.status,
 					}).WithError(err).Error("launch job failed")
 
-					t.job.Logger.Log("Unable to launch the application. Please contact your system administrator for assistance.")
+					running.Log("Unable to launch the application. Please contact your system administrator for assistance.")
 
-					if runningJob.getStatus() == task_logger.TaskStoppingStatus {
-						runningJob.SetStatus(task_logger.TaskStoppedStatus)
+					if running.getStatus() == task_logger.TaskStoppingStatus {
+						running.SetStatus(task_logger.TaskStoppedStatus)
 					} else {
-						runningJob.SetStatus(task_logger.TaskFailStatus)
+						running.SetStatus(task_logger.TaskFailStatus)
 					}
 				} else {
-					if runningJob.getStatus() == task_logger.TaskStoppingStatus {
-						runningJob.SetStatus(task_logger.TaskStoppedStatus)
+					if running.getStatus() == task_logger.TaskStoppingStatus {
+						running.SetStatus(task_logger.TaskStoppedStatus)
 					} else {
-						runningJob.SetStatus(task_logger.TaskSuccessStatus)
+						running.SetStatus(task_logger.TaskSuccessStatus)
 					}
 				}
 
 				log.WithFields(log.Fields{
 					"context": "job_running",
-					"task_id": runningJob.job.Task.ID,
-					"status":  string(runningJob.getStatus()),
+					"task_id": running.taskID,
+					"status":  string(running.getStatus()),
 				}).Info("Task finished")
 			}(rj)
 
 			log.WithFields(log.Fields{
 				"context": "job_running",
-				"task_id": t.job.Task.ID,
-				"status":  string(t.job.Task.Status),
+				"task_id": t.taskID,
+				"status":  string(t.status),
 			}).Info("Task dequeued")
 			log.WithFields(log.Fields{
 				"context": "job_running",
-				"task_id": t.job.Task.ID,
-				"status":  string(t.job.Task.Status),
+				"task_id": t.taskID,
+				"status":  string(t.status),
 			}).Info("Task started")
 
 		case <-requestTimer.C:
@@ -975,59 +988,31 @@ func (p *JobPool) checkNewJobs() {
 
 		newJob.Inventory.Repository = newJob.InventoryRepository
 
+		executor, execErr := newExecutor(newJob, response.AccessKeys, p.provider)
+		if execErr != nil {
+			log.WithError(execErr).WithFields(log.Fields{
+				"context":    "checking_new_jobs",
+				"project_id": newJob.Task.ProjectID,
+				"task_id":    newJob.Task.ID,
+			}).Error("cannot construct executor for task")
+			continue
+		}
+
 		taskRunner := job{
 			username:        newJob.Username,
 			incomingVersion: newJob.IncomingVersion,
 			alias:           newJob.Alias,
-
-			job: &tasks.LocalJob{
-				Task:         newJob.Task,
-				Template:     newJob.Template,
-				Inventory:    newJob.Inventory,
-				Repository:   newJob.Repository,
-				Environment:  newJob.Environment,
-				KeyInstaller: p.keyInstaller,
-				App: db_lib.CreateApp(
-					newJob.Template,
-					newJob.Repository,
-					newJob.Inventory,
-					nil),
-			},
-		}
-
-		taskRunner.job.Repository.SSHKey = response.AccessKeys[taskRunner.job.Repository.SSHKeyID]
-
-		if taskRunner.job.Inventory.SSHKeyID != nil {
-			taskRunner.job.Inventory.SSHKey = response.AccessKeys[*taskRunner.job.Inventory.SSHKeyID]
-		}
-
-		if taskRunner.job.Inventory.BecomeKeyID != nil {
-			taskRunner.job.Inventory.BecomeKey = response.AccessKeys[*taskRunner.job.Inventory.BecomeKeyID]
-		}
-
-		var vaults []db.TemplateVault
-		if taskRunner.job.Template.Vaults != nil {
-			for _, vault := range taskRunner.job.Template.Vaults {
-				vault2 := vault
-				if vault2.VaultKeyID != nil {
-					key := response.AccessKeys[*vault2.VaultKeyID]
-					vault2.Vault = &key
-				}
-				vaults = append(vaults, vault2)
-			}
-		}
-		taskRunner.job.Template.Vaults = vaults
-
-		if taskRunner.job.Inventory.RepositoryID != nil {
-			taskRunner.job.Inventory.Repository.SSHKey = response.AccessKeys[taskRunner.job.Inventory.Repository.SSHKeyID]
+			job:             executor,
+			taskID:          newJob.Task.ID,
+			status:          newJob.Task.Status,
 		}
 
 		p.enqueue(&taskRunner)
 
 		log.WithFields(log.Fields{
 			"context":     "checking_new_jobs",
-			"task_id":     taskRunner.job.Task.ID,
-			"task_status": string(taskRunner.job.Task.Status),
+			"task_id":     taskRunner.taskID,
+			"task_status": string(taskRunner.status),
 		}).Info("Task enqueued")
 	}
 }

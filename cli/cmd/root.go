@@ -156,6 +156,7 @@ func runService() {
 	)
 
 	defer schedulePool.Destroy()
+	defer taskPool.Stop()
 
 	// --- Active-Active HA Setup ---
 	// When HA is enabled, multiple Semaphore nodes share the same Redis-backed

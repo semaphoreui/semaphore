@@ -188,7 +188,7 @@ properties:
   subscription: { $ref: "#/$defs/SubscriptionConfig" }
   dirs:         { $ref: "#/$defs/ConfigDirs" }
   runner:       { $ref: "#/$defs/RunnerConfig" }
-  runners:      { $ref: "#/$defs/RunnersConfig" }
+  runners: { $ref: "#/$defs/RunnersConfig" }
 
 $defs:
   DbConfig:

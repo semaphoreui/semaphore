@@ -19,7 +19,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '^1.26.4'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -38,7 +38,7 @@ jobs:
 
       - name: Add PRO implementation
         run: |
-          git clone -b main https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
+          git clone -b feat/k8s_executor https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
           go work init . ./pro_impl
 
       - name: Install deps

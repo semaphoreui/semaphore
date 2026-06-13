@@ -16,8 +16,8 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      :loading="loading"
       :items-per-page="-1"
+      :loading="loading"
       hide-default-footer
       class="mt-4 HistoryTable"
     >
@@ -31,16 +31,16 @@
           <!--            {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}-->
           <!--          </v-icon>-->
 
-          <TaskLink :task-id="item.id" :label="'#' + item.id" />
+          <TaskLink :label="'#' + item.id" :task-id="item.id"/>
 
           <v-icon small class="ml-1 mr-1">mdi-arrow-left</v-icon>
 
           <router-link :to="'/project/' + item.project_id + '/templates/' + item.template_id"
-            >{{ item.tpl_alias }}
+          >{{ item.tpl_alias }}
           </router-link>
         </div>
 
-        <div style="font-size: 14px" class="ml-7">
+        <div class="ml-7" style="font-size: 14px">
           <span v-if="item.message">
             <v-icon x-small>mdi-message-outline</v-icon> {{ item.message }}
           </span>
@@ -56,15 +56,15 @@
           class="ml-2"
           v-if="item.tpl_type !== ''"
           :status="item.status"
-          :task-id="item.tpl_type === 'build' ? item.id : (item.build_task || {}).id"
           :label="item.tpl_type === 'build' ? item.version : (item.build_task || {}).version"
+          :task-id="item.tpl_type === 'build' ? item.id : (item.build_task || {}).id"
           :tooltip="item.tpl_type === 'build' ? item.message : (item.build_task || {}).message"
         />
         <div class="ml-2" v-else>&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
-        <TaskStatus :status="item.status" />
+        <TaskStatus :status="item.status"/>
       </template>
 
       <template v-slot:item.start="{ item }">
@@ -81,21 +81,21 @@
 
       <v-select
         v-model="perPage"
-        :items="perPageOptions"
         :disabled="loading"
+        :items="perPageOptions"
+        class="HistoryPerPage mr-4"
         dense
         hide-details
-        class="HistoryPerPage mr-4"
         style="max-width: 72px"
       ></v-select>
 
-      <v-btn icon :disabled="loading || pageIndex === 0" @click="goPrev()">
+      <v-btn :disabled="loading || pageIndex === 0" icon @click="goPrev()">
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
 
       <span class="mx-2 text--secondary">{{ rangeStart }} - {{ rangeEnd }}</span>
 
-      <v-btn icon :disabled="loading || !hasNext" @click="goNext()">
+      <v-btn :disabled="loading || !hasNext" icon @click="goNext()">
         <v-icon>mdi-chevron-right</v-icon>
       </v-btn>
     </div>

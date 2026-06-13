@@ -9,17 +9,17 @@
     />
 
     <v-data-table
-        :headers="headers"
-        :items="tasks"
-        :loading="loading"
-        :items-per-page="-1"
-        hide-default-footer
-        class="mt-0 TaskListTable"
+      :headers="headers"
+      :items="tasks"
+      :items-per-page="-1"
+      :loading="loading"
+      hide-default-footer
+      class="mt-0 TaskListTable"
     >
       <template v-slot:item.id="{ item }">
         <TaskLink
-            :task-id="item.id"
-            :label="'#' + item.id"
+          :task-id="item.id"
+          :label="'#' + item.id"
         />
         <div style="font-size: 14px;">
           <span v-if="item.message">
@@ -34,11 +34,11 @@
       <template v-slot:item.version="{ item }">
         <div v-if="item.tpl_type !== ''">
           <TaskLink
-              :disabled="item.tpl_type === 'build'"
-              :task-id="item.build_task_id"
-              :tooltip="item.tpl_type === 'build' ? item.message : (item.build_task || {}).message"
-              :label="item.tpl_type === 'build' ? item.version : (item.build_task || {}).version"
-              :status="item.status"
+            :disabled="item.tpl_type === 'build'"
+            :task-id="item.build_task_id"
+            :tooltip="item.tpl_type === 'build' ? item.message : (item.build_task || {}).message"
+            :label="item.tpl_type === 'build' ? item.version : (item.build_task || {}).version"
+            :status="item.status"
           />
         </div>
         <div v-else>&mdash;</div>
@@ -73,21 +73,21 @@
 
       <v-select
         v-model="perPage"
-        :items="perPageOptions"
         :disabled="loading"
+        :items="perPageOptions"
+        class="TaskListPerPage mr-4"
         dense
         hide-details
-        class="TaskListPerPage mr-4"
         style="max-width: 72px;"
       ></v-select>
 
-      <v-btn icon :disabled="loading || pageIndex === 0" @click="goPrev()">
+      <v-btn :disabled="loading || pageIndex === 0" icon @click="goPrev()">
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
 
       <span class="mx-2 text--secondary">{{ rangeStart }} - {{ rangeEnd }}</span>
 
-      <v-btn icon :disabled="loading || !hasNext" @click="goNext()">
+      <v-btn :disabled="loading || !hasNext" icon @click="goNext()">
         <v-icon>mdi-chevron-right</v-icon>
       </v-btn>
     </div>

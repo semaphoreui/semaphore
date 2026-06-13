@@ -113,7 +113,7 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 
 	t.saveStatus()
 
-	if localJob, ok := t.job.(*LocalJob); ok {
+	if localJob, ok := t.job.(*LocalExecutor); ok {
 		localJob.SetStatus(status)
 	}
 

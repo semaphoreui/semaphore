@@ -41,7 +41,8 @@ When creating a pull-request you should:
    ```
    Windows users will additionally need to manually install goreleaser from https://github.com/goreleaser/goreleaser/releases
 
-4) Create database if you want to use MySQL or PostgreSQL (Semaphore also supports SQLite, which does not require additional setup)
+4) Create database if you want to use MySQL or PostgreSQL (Semaphore also supports SQLite, which does not require
+   additional setup)
 
    > **BoltDB removed in 2.19:** The embedded BoltDB backend was removed. Use SQLite for
    > local development or MySQL/PostgreSQL for production. Existing `database.boltdb`
@@ -112,8 +113,8 @@ variables (flags take precedence).
 
 ### Log level
 
-| Flag / env var | Values |
-|----------------|--------|
+| Flag / env var                        | Values                                             |
+|---------------------------------------|----------------------------------------------------|
 | `--log-level` / `SEMAPHORE_LOG_LEVEL` | `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `PANIC` |
 
 ```bash
@@ -126,8 +127,8 @@ When the log level is `DEBUG`, you can narrow output to specific subsystems usin
 [Node.js `debug`](https://www.npmjs.com/package/debug)-style namespace filter. The filter
 only acts on `DEBUG`-level entries; it does not raise the log level on its own.
 
-| Flag / env var | Example values |
-|----------------|----------------|
+| Flag / env var                              | Example values              |
+|---------------------------------------------|-----------------------------|
 | `--debug-filter` / `SEMAPHORE_DEBUG_FILTER` | `runner`, `task_*`, `*,-db` |
 
 Syntax: comma- or space-separated patterns; `*` is a wildcard; a leading `-` excludes a
@@ -143,16 +144,16 @@ SEMAPHORE_LOG_LEVEL=DEBUG SEMAPHORE_DEBUG_FILTER='task_*,*,-db' ./bin/semaphore 
 
 Debug entries use a `context` field as the namespace. Common namespaces:
 
-| Namespace | Subsystem |
-|-----------|-----------|
-| `runner` | Runner registration, job hand-off, polling |
-| `task_pool` | Task queueing, scheduling, capacity |
-| `task_runner` | Individual task lifecycle |
-| `git` | Repository clone/checkout |
-| `terraform` | Terraform/OpenTofu invocation |
-| `schedule` | Cron schedules, dedup, fire/skip |
-| `db` / `migration` | Database queries and migrations |
-| `websocket` | Real-time UI sockets |
+| Namespace          | Subsystem                                  |
+|--------------------|--------------------------------------------|
+| `runner`           | Runner registration, job hand-off, polling |
+| `task_pool`        | Task queueing, scheduling, capacity        |
+| `task_runner`      | Individual task lifecycle                  |
+| `git`              | Repository clone/checkout                  |
+| `terraform`        | Terraform/OpenTofu invocation              |
+| `schedule`         | Cron schedules, dedup, fire/skip           |
+| `db` / `migration` | Database queries and migrations            |
+| `websocket`        | Real-time UI sockets                       |
 
 When syslog is enabled (`syslog` in `config.json`), the same filter applies to syslog
 output as well as stdout.
