@@ -313,8 +313,8 @@ func (p *JobPool) Run() {
 				running.SetStatus(task_logger.TaskRunningStatus)
 
 				log.WithFields(log.Fields{
-					"context": "job_running",
-					//"task_id":          runningJob.getTaskID(),
+					"context":          "job_running",
+					"task_id":          running.taskID,
 					"username":         t.username,
 					"alias":            t.alias,
 					"incoming_version": derefString(t.incomingVersion),
