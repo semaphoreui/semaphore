@@ -12,10 +12,12 @@
 package docker
 
 import (
+	"errors"
+
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 )
 
 func NewProvider(_ util.RunnerDockerConfig) (tasks.ExecutorProvider, error) {
-	return nil, nil
+	return nil, errors.New("docker executor is only available in the proprietary build")
 }
