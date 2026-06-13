@@ -324,8 +324,8 @@ func (p *JobPool) Run() {
 
 				log.WithError(err).WithFields(log.Fields{
 					"context": "job_running",
-					//"task_id": runningJob.taskID,
-					//"status":  string(runningJob.getStatus()),
+					"task_id": running.taskID,
+					"status":  string(running.getStatus()),
 				}).Debug("Job run returned")
 
 				if running.getStatus().IsFinished() {
