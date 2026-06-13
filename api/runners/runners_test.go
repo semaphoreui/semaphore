@@ -12,6 +12,8 @@ import (
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
@@ -171,6 +173,128 @@ func TestUpdateRunner_ReassignedTaskReportedAsTerminated(t *testing.T) {
 	// The late report must not overwrite status or assignee.
 	assert.Equal(t, task_logger.TaskStartingStatus, tr.Task.Status)
 	assert.Equal(t, newRunnerID, *tr.Task.RunnerID)
+}
+
+func newProgressTestPool(store db.Store) tasks.TaskPool {
+	return tasks.CreateTaskPool(
+		store,
+		tasks.NewMemoryTaskStateStore(),
+		nil,
+		progressTestInventoryService{},
+		progressTestEncryptionService{},
+		progressTestKeyInstaller{},
+		progressTestLogWriteService{},
+	)
+}
+
+type progressTestLogWriteService struct{}
+
+func (progressTestLogWriteService) WriteEventLog(pro_interfaces.EventLogRecord) error { return nil }
+func (progressTestLogWriteService) WriteTaskLog(pro_interfaces.TaskLogRecord) error    { return nil }
+func (progressTestLogWriteService) WriteResult(any) error                              { return nil }
+
+type progressTestInventoryService struct{}
+
+func (progressTestInventoryService) GetInventory(int, int) (db.Inventory, error) {
+	return db.Inventory{}, nil
+}
+
+type progressTestEncryptionService struct{}
+
+func (progressTestEncryptionService) RekeyAccessKeys(string) error { return nil }
+func (progressTestEncryptionService) DeleteSecret(*db.AccessKey) error { return nil }
+func (progressTestEncryptionService) SerializeSecret(*db.AccessKey) error { return nil }
+func (progressTestEncryptionService) DeserializeSecret(*db.AccessKey) error { return nil }
+func (progressTestEncryptionService) FillEnvironmentSecrets(*db.Environment, bool) error {
+	return nil
+}
+
+type progressTestKeyInstaller struct{}
+
+func (progressTestKeyInstaller) Install(db.AccessKey, db.AccessKeyRole, task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	return ssh.AccessKeyInstallation{}, nil
+}
+
+func createProgressTestTaskInDB(
+	t *testing.T,
+	store *sql.SqlDb,
+	status task_logger.TaskStatus,
+) (db.Task, int) {
+	t.Helper()
+
+	proj, err := store.CreateProject(db.Project{})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	require.NoError(t, err)
+
+	inv, err := store.CreateInventory(db.Inventory{ProjectID: proj.ID})
+	require.NoError(t, err)
+
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:         "Test",
+		Playbook:     "test.yml",
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+		InventoryID:  &inv.ID,
+	})
+	require.NoError(t, err)
+
+	runner, err := store.CreateRunner(db.Runner{Name: "test-runner"})
+	require.NoError(t, err)
+
+	task, err := store.CreateTask(db.Task{
+		ProjectID:  proj.ID,
+		TemplateID: tpl.ID,
+		Status:     status,
+		RunnerID:   &runner.ID,
+	}, 0)
+	require.NoError(t, err)
+
+	return task, runner.ID
+}
+
+func TestUpdateRunner_RunningTaskInDBButNotInPoolAccepted(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	store := sql.CreateTestStore()
+
+	pool := newProgressTestPool(store)
+	ctrl := NewRunnerController(nil, &pool, nil)
+
+	// Simulate a single-node restart: the task row is still "running" in the DB
+	// and the remote runner is still executing, but the in-memory pool is empty.
+	task, runnerID := createProgressTestTaskInDB(t, store, task_logger.TaskRunningStatus)
+
+	req := newProgressRequest(t, store, db.Runner{ID: runnerID}, runners.RunnerProgress{
+		Jobs: []runners.JobProgress{{
+			ID:     task.ID,
+			Status: task_logger.TaskSuccessStatus,
+			LogRecords: []runners.LogRecord{
+				{Time: tz.Now(), Message: "output after restart"},
+			},
+		}},
+	})
+	w := httptest.NewRecorder()
+
+	ctrl.UpdateRunner(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Empty(t, decodeProgressResponse(t, w).TerminatedJobs)
+
+	row, err := store.GetTaskByID(task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, task_logger.TaskSuccessStatus, row.Status)
 }
 
 func TestUpdateRunner_RunningTaskAcceptedWithoutTermination(t *testing.T) {

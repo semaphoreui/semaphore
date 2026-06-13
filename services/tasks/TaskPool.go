@@ -156,10 +156,8 @@ func (p *TaskPool) GetTask(id int) (task *TaskRunner, err error) {
 		}
 	}
 
-	if util.HAEnabled() {
-		if task == nil {
-			task, err = p.HydrateTaskRunnerFromDB(id)
-		}
+	if task == nil {
+		task, err = p.HydrateTaskRunnerFromDB(id)
 	}
 
 	return
@@ -505,7 +503,8 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 }
 
 // HydrateTaskRunnerFromDB loads a task row by ID and builds a TaskRunner for API-side updates
-// (e.g. runner progress on an HA node that did not enqueue the task).
+// (e.g. runner progress on an HA node that did not enqueue the task, or after a single-node
+// restart when the in-memory pool is empty but remote runners are still executing).
 func (p *TaskPool) HydrateTaskRunnerFromDB(taskID int) (*TaskRunner, error) {
 	row, err := p.store.GetTaskByID(taskID)
 	if err != nil {
