@@ -1112,6 +1112,13 @@ export default {
             testId: 'sidebar-templates',
           },
           {
+            key: 'workflows',
+            icon: 'mdi-graph-outline',
+            title: this.$t('workflows'),
+            to: `${base}/workflows`,
+            testId: 'sidebar-workflows',
+          },
+          {
             key: 'schedule',
             icon: 'mdi-clock-outline',
             title: this.$t('schedule'),
@@ -1173,7 +1180,9 @@ export default {
         });
       }
 
-      return items;
+      // Workflows is a Pro feature; hide the nav item unless it is licensed.
+      const features = (this.systemInfo || {}).features || {};
+      return items.filter((it) => it.key !== 'workflows' || features.workflows);
     },
 
     pinnedNavItemsList() {

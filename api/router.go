@@ -77,6 +77,7 @@ func DelayMiddleware(delay time.Duration) func(http.Handler) http.Handler {
 func Route(
 	store db.Store,
 	terraformStore db.TerraformStore,
+	workflowStore db.WorkflowManager,
 	ansibleTaskRepo db.AnsibleTaskRepository,
 	taskPool *taskServices.TaskPool,
 	projectService server.ProjectService,
@@ -88,6 +89,7 @@ func Route(
 	environmentService server.EnvironmentService,
 	subscriptionService pro_interfaces.SubscriptionService,
 	runnerService server.RunnerService,
+	workflowService pro_interfaces.WorkflowService,
 ) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
@@ -100,6 +102,9 @@ func Route(
 	projectsController := projects.NewProjectsController(accessKeyService)
 	terraformController := proApi.NewTerraformController(encryptionService, terraformStore, store)
 	terraformInventoryController := proProjects.NewTerraformInventoryController(terraformStore)
+	workflowController := proProjects.NewWorkflowController(workflowService, workflowStore)
+	workflowMiddlewareController := projects.NewWorkflowController(workflowStore)
+	backupController := projects.NewBackupController(workflowStore)
 	userController := NewUserController(subscriptionService)
 	usersController := NewUsersController(subscriptionService)
 	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore)
@@ -186,7 +191,7 @@ func Route(
 
 	authenticatedAPI.Path("/projects").HandlerFunc(projects.GetProjects).Methods("GET", "HEAD")
 	authenticatedAPI.Path("/projects").HandlerFunc(projectsController.AddProject).Methods("POST")
-	authenticatedAPI.Path("/projects/restore").HandlerFunc(projects.Restore).Methods("POST")
+	authenticatedAPI.Path("/projects/restore").HandlerFunc(backupController.Restore).Methods("POST")
 	authenticatedAPI.Path("/events").HandlerFunc(getAllEvents).Methods("GET", "HEAD")
 	authenticatedAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
 
@@ -316,6 +321,8 @@ func Route(
 
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
+	projectUserAPI.Path("/workflows").HandlerFunc(workflowController.GetWorkflows).Methods("GET", "HEAD")
+	projectUserAPI.Path("/workflows").HandlerFunc(workflowController.AddWorkflow).Methods("POST")
 
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.GetProjectSchedules).Methods("GET", "HEAD")
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
@@ -327,7 +334,7 @@ func Route(
 
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.GetIntegrations).Methods("GET", "HEAD")
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.AddIntegration).Methods("POST")
-	projectUserAPI.Path("/backup").HandlerFunc(projects.GetBackup).Methods("GET", "HEAD")
+	projectUserAPI.Path("/backup").HandlerFunc(backupController.GetBackup).Methods("GET", "HEAD")
 	projectUserAPI.Path("/notifications/test").HandlerFunc(projectController.SendTestNotification).Methods("POST")
 
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.GetRunners).Methods("GET", "HEAD")
@@ -461,6 +468,25 @@ func Route(
 	projectTmplInvManagement.HandleFunc("/{inventory_id}/set_default", projects.SetTemplateInventory).Methods("POST")
 	projectTmplInvManagement.HandleFunc("/{inventory_id}/attach", projects.AttachInventory).Methods("POST")
 	projectTmplInvManagement.HandleFunc("/{inventory_id}/detach", projects.DetachInventory).Methods("POST")
+
+	projectWorkflowManagement := projectUserAPI.PathPrefix("/workflows").Subrouter()
+	projectWorkflowManagement.Use(workflowMiddlewareController.WorkflowsMiddleware)
+	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.UpdateWorkflow).Methods("PUT")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.RemoveWorkflow).Methods("DELETE")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.GetWorkflow).Methods("GET")
+
+	projectWorkflowRunAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
+	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
+	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/run", workflowController.RunWorkflow).Methods("POST")
+	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.GetWorkflowRuns).Methods("GET", "HEAD")
+
+	projectWorkflowRunManagement := projectWorkflowRunAPI.PathPrefix("/{workflow_id}/runs").Subrouter()
+	projectWorkflowRunManagement.Use(workflowMiddlewareController.WorkflowRunsMiddleware)
+	projectWorkflowRunManagement.HandleFunc("/{run_id}", workflowController.GetWorkflowRun).Methods("GET", "HEAD")
+	projectWorkflowRunManagement.HandleFunc("/{run_id}/stop", workflowController.StopWorkflowRun).Methods("POST")
+	projectWorkflowRunManagement.HandleFunc("/{run_id}/artifacts", workflowController.GetWorkflowRunArtifacts).Methods("GET", "HEAD")
+	projectWorkflowRunManagement.HandleFunc("/{run_id}/approvals", workflowController.GetWorkflowApprovals).Methods("GET", "HEAD")
+	projectWorkflowRunManagement.HandleFunc("/{run_id}/approvals/{node_id}", workflowController.ResolveWorkflowApproval).Methods("POST")
 
 	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
 	projectTaskManagement.Use(taskController.GetTaskMiddleware)

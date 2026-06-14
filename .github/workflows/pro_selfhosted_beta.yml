@@ -3,6 +3,7 @@ name: Pro Self-Hosted Beta
 'on':
   push:
     tags:
+      - v*-alpha*
       - v*-beta*
       - v*-rc*
 

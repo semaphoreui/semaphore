@@ -7,10 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/semaphoreui/semaphore/pkg/ssh"
-
 	"path"
 	"strconv"
+
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
@@ -37,6 +37,8 @@ type LocalExecutor struct {
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
 	KeyInstaller db_lib.AccessKeyInstaller
+
+	WorkflowArtifacts map[string]any
 
 	// Prepared state — populated by Prepare(), consumed by Run(). Lifted out of Run()
 	// local variables so the lifecycle phases (Prepare / underlying App.Run / Cleanup)
