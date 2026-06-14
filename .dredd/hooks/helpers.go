@@ -133,12 +133,10 @@ func deleteUserProjectRelation(pid int, user int) {
 
 func addAccessKey(pid *int) *db.AccessKey {
 	uid := getUUID()
-	secret := "5up3r53cr3t\n"
-
 	key, err := store.CreateAccessKey(db.AccessKey{
 		Name:      "ITK-" + uid,
 		Type:      "ssh",
-		Secret:    &secret,
+		Secret:    new("5up3r53cr3t\n"),
 		ProjectID: pid,
 	})
 
@@ -150,11 +148,10 @@ func addAccessKey(pid *int) *db.AccessKey {
 
 func addProject() *db.Project {
 	uid := getUUID()
-	chat := "Test"
 	project := db.Project{
 		Name:      "ITP-" + uid,
 		Created:   tz.Now(),
-		AlertChat: &chat,
+		AlertChat: new("Test"),
 	}
 	project, err := store.CreateProject(project)
 	if err != nil {
@@ -353,7 +350,7 @@ func addWorkflow() *db.WorkflowTemplate {
 		Name:      "ITW-" + getUUID(),
 		Nodes: []db.WorkflowNode{
 			{ID: 1, TemplateID: templateID},
-			{ID: 2, Kind: db.WorkflowNodeApprovalKind, ApprovalMessage: strPtr("approve")},
+			{ID: 2, Kind: db.WorkflowNodeApprovalKind, ApprovalMessage: new("approve")},
 		},
 		Edges: []db.WorkflowEdge{
 			{
@@ -370,12 +367,11 @@ func addWorkflow() *db.WorkflowTemplate {
 }
 
 func addWorkflowRun() *db.WorkflowRun {
-	start := tz.Now()
 	run, err := workflowStore.CreateWorkflowRun(db.WorkflowRun{
 		ProjectID:          userProject.ID,
 		WorkflowTemplateID: workflowID,
 		Status:             db.WorkflowRunRunning,
-		Start:              &start,
+		Start:              new(tz.Now()),
 	})
 	if err != nil {
 		panic(err)
