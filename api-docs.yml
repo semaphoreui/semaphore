@@ -1404,7 +1404,7 @@ definitions:
         type: integer
       status:
         type: string
-        enum: [running, success, failed]
+        enum: [running, success, failed, approval]
       start:
         type: string
         format: date-time
