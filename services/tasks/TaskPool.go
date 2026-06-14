@@ -250,62 +250,70 @@ func getTaskName(t *TaskRunner) string {
 
 func (p *TaskPool) handleQueue() {
 	for t := range p.queueEvents {
-		// When a task is re-queued (e.g., no remote runner available), we should
-		// clean up its "running" bookkeeping but avoid immediately retrying it in
-		// the same queue pass to prevent hot retry loops.
-		skipTaskID := 0
+		p.dispatchQueueEvent(t)
+	}
+}
 
-		switch t.eventType {
-		case EventTypeRequeued:
-			// Task was started but moved back to waiting. It must not remain in
-			// running/active sets and must release its claim so it can be picked
-			// up again later.
-			p.onTaskStop(t.task)
-			// Avoid immediate retry in this same event handling iteration; it
-			// will be retried on the next periodic tick or when another event
-			// triggers queue processing.
-			skipTaskID = t.task.Task.ID
-		case EventTypeNew:
-			p.state.Enqueue(t.task)
-		case EventTypeFinished:
-			p.onTaskStop(t.task)
+func (p *TaskPool) dispatchQueueEvent(t PoolEvent) {
+	// When a task is re-queued (e.g., no remote runner available), we should
+	// clean up its "running" bookkeeping but avoid immediately retrying it in
+	// the same queue pass to prevent hot retry loops.
+	skipTaskID := 0
+
+	switch t.eventType {
+	case EventTypeRequeued:
+		// Task was started but moved back to waiting. It must not remain in
+		// running/active sets and must release its claim so it can be picked
+		// up again later. Enqueue only after onTaskStop: if the task were
+		// queued before this event, a concurrent EventTypeEmpty pass (already
+		// sitting in queueEvents) could ClaimAndDequeue it while it still
+		// occupied the running/active sets and spawn a duplicate dispatch.
+		p.onTaskStop(t.task)
+		p.state.Enqueue(t.task)
+		// Avoid immediate retry in this same event handling iteration; it
+		// will be retried on the next periodic tick or when another event
+		// triggers queue processing.
+		skipTaskID = t.task.Task.ID
+	case EventTypeNew:
+		p.state.Enqueue(t.task)
+	case EventTypeFinished:
+		p.onTaskStop(t.task)
+	}
+
+	// Snapshot the queue once per pass and address every task by ID. In HA
+	// mode multiple nodes mutate the shared Redis queue concurrently, so a
+	// position-based walk (QueueGet(i) + DequeueAt(i)) races: the list can
+	// shift between the read and the dequeue, removing a different task than
+	// the one that was claimed. Iterating a snapshot and claiming by ID
+	// (ClaimAndDequeue) removes that hazard.
+	for _, curr := range p.state.QueueRange() {
+		if curr == nil { // item may no longer be available, move ahead
+			continue
 		}
 
-		// Snapshot the queue once per pass and address every task by ID. In HA
-		// mode multiple nodes mutate the shared Redis queue concurrently, so a
-		// position-based walk (QueueGet(i) + DequeueAt(i)) races: the list can
-		// shift between the read and the dequeue, removing a different task than
-		// the one that was claimed. Iterating a snapshot and claiming by ID
-		// (ClaimAndDequeue) removes that hazard.
-		for _, curr := range p.state.QueueRange() {
-			if curr == nil { // item may no longer be available, move ahead
-				continue
-			}
-
-			// When handling a requeue event, don't immediately start the same task again.
-			if skipTaskID != 0 && curr.Task.ID == skipTaskID {
-				continue
-			}
-
-			if curr.Task.Status == task_logger.TaskFailStatus {
-				//delete failed TaskRunner from queue
-				p.state.DequeueByID(curr.Task.ID)
-				log.Info("Task " + getTaskName(curr) + " removed from queue")
-				continue
-			}
-
-			if p.blocks(curr) {
-				continue
-			}
-
-			// Atomically claim and remove the task so exactly one node runs it.
-			// On failure another node owns it (or it is already gone); leave it.
-			if !p.state.ClaimAndDequeue(curr.Task.ID) {
-				continue
-			}
-
-			runTask(curr, p)
+		// When handling a requeue event, don't immediately start the same task again.
+		if skipTaskID != 0 && curr.Task.ID == skipTaskID {
+			continue
 		}
+
+		if curr.Task.Status == task_logger.TaskFailStatus {
+			//delete failed TaskRunner from queue
+			p.state.DequeueByID(curr.Task.ID)
+			log.Info("Task " + getTaskName(curr) + " removed from queue")
+			continue
+		}
+
+		if p.blocks(curr) {
+			continue
+		}
+
+		// Atomically claim and remove the task so exactly one node runs it.
+		// On failure another node owns it (or it is already gone); leave it.
+		if !p.state.ClaimAndDequeue(curr.Task.ID) {
+			continue
+		}
+
+		runTask(curr, p)
 	}
 }
 

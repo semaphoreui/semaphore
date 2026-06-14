@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -43,6 +44,19 @@ func newReconcilerTestPool(store db.Store, state TaskStateStore) TaskPool {
 		logWriteService: &mockLogWriteService{},
 		stop:            make(chan struct{}),
 		reconcileDone:   make(chan struct{}),
+	}
+}
+
+// dispatchPendingQueueEvents drains buffered queueEvents through the same logic
+// as handleQueue. Used by reconciler unit tests that do not start the full pool.
+func dispatchPendingQueueEvents(pool *TaskPool) {
+	for {
+		select {
+		case ev := <-pool.queueEvents:
+			pool.dispatchQueueEvent(ev)
+		default:
+			return
+		}
 	}
 }
 
@@ -368,19 +382,23 @@ func TestRequeueTaskRunnerOffline(t *testing.T) {
 
 	pool.requeueTaskRunnerOffline(tsk, runnerID, "runner is offline")
 
-	// RunnerID cleared, status reset to waiting, task back in the queue.
+	// RunnerID cleared, status reset to waiting; enqueue happens when the
+	// requeue event is processed.
 	assert.Nil(t, tsk.Task.RunnerID)
 	assert.Equal(t, task_logger.TaskWaitingStatus, tsk.Task.Status)
-	assert.Equal(t, 1, state.QueueLen())
+	assert.Equal(t, 0, state.QueueLen())
 
 	// EventTypeRequeued emitted so the pool releases running/active state.
 	select {
 	case ev := <-pool.queueEvents:
 		assert.Equal(t, EventTypeRequeued, ev.eventType)
 		assert.Equal(t, tsk.Task.ID, ev.task.Task.ID)
+		pool.dispatchQueueEvent(ev)
 	default:
 		t.Fatal("expected EventTypeRequeued in queueEvents")
 	}
+
+	assert.Equal(t, 1, state.QueueLen())
 
 	// Cleared RunnerID persisted: the old runner can no longer pull the task.
 	row, err := store.GetTaskByID(newTask.ID)
@@ -517,7 +535,7 @@ func TestReconcileRunnerTasks(t *testing.T) {
 	setupReconcilerConfig(t)
 
 	store := sql.CreateTestStore()
-	state := NewMemoryTaskStateStore()
+	state := newSpyTaskStateStore()
 	pool := newReconcilerTestPool(store, state)
 
 	now := time.Now()
@@ -576,18 +594,23 @@ func TestReconcileRunnerTasks(t *testing.T) {
 
 	assert.Equal(t, task_logger.TaskWaitingStatus, requeueTsk.Task.Status)
 	assert.Nil(t, requeueTsk.Task.RunnerID)
+
+	var pending []PoolEvent
+	for len(pool.queueEvents) > 0 {
+		pending = append(pending, <-pool.queueEvents)
+	}
+	var events []EventType
+	for _, ev := range pending {
+		events = append(events, ev.eventType)
+		pool.dispatchQueueEvent(ev)
+	}
+	assert.ElementsMatch(t,
+		[]EventType{EventTypeRequeued, EventTypeRequeued, EventTypeFinished}, events)
 	// Two tasks requeued (the deleted-runner task and the stuck stub).
 	assert.Equal(t, 2, state.QueueLen())
 
 	assert.Equal(t, task_logger.TaskFailStatus, failTsk.Task.Status)
 	assert.NotNil(t, failTsk.Task.End)
-
-	var events []EventType
-	for len(pool.queueEvents) > 0 {
-		events = append(events, (<-pool.queueEvents).eventType)
-	}
-	assert.ElementsMatch(t,
-		[]EventType{EventTypeRequeued, EventTypeRequeued, EventTypeFinished}, events)
 }
 
 func TestReconcileRunnerTasks_StoreErrorSkipsTask(t *testing.T) {
@@ -630,6 +653,13 @@ func TestRunnerTasksReconcileLoop(t *testing.T) {
 	tsk := &TaskRunner{Task: newTask, pool: &pool}
 	state.SetRunning(tsk)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		pool.handleQueue()
+	}()
+
 	done := make(chan struct{})
 	go func() {
 		pool.runnerTasksReconcileLoop()
@@ -642,6 +672,8 @@ func TestRunnerTasksReconcileLoop(t *testing.T) {
 
 	close(pool.stop)
 	<-done
+	close(pool.queueEvents)
+	wg.Wait()
 }
 
 func TestRequeueTaskRunnerOffline_FinalizeLockHeld(t *testing.T) {
@@ -746,6 +778,7 @@ func TestRequeueTaskRunnerOffline_HA(t *testing.T) {
 	// The DB refresh restored "starting", so the requeue proceeded.
 	assert.Nil(t, tsk.Task.RunnerID)
 	assert.Equal(t, task_logger.TaskWaitingStatus, tsk.Task.Status)
+	dispatchPendingQueueEvents(&pool)
 	assert.Equal(t, 1, state.QueueLen())
 }
 
@@ -814,18 +847,21 @@ func TestRequeueUndispatchedTask(t *testing.T) {
 
 	pool.requeueUndispatchedTask(tsk)
 
-	// Reset to waiting and returned to the queue.
+	// Reset to waiting; enqueue happens when the requeue event is processed.
 	assert.Equal(t, task_logger.TaskWaitingStatus, tsk.Task.Status)
 	assert.Nil(t, tsk.Task.RunnerID)
-	assert.Equal(t, 1, state.QueueLen())
+	assert.Equal(t, 0, state.QueueLen())
 
 	select {
 	case ev := <-pool.queueEvents:
 		assert.Equal(t, EventTypeRequeued, ev.eventType)
 		assert.Equal(t, tsk.Task.ID, ev.task.Task.ID)
+		pool.dispatchQueueEvent(ev)
 	default:
 		t.Fatal("expected EventTypeRequeued in queueEvents")
 	}
+
+	assert.Equal(t, 1, state.QueueLen())
 
 	row, err := store.GetTaskByID(newTask.ID)
 	require.NoError(t, err)

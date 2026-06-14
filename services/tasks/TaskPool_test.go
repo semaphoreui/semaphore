@@ -76,7 +76,6 @@ func TestTaskPool_RequeuedEventCleansRunningStateAndSkipsImmediateRetry(t *testi
 	state.SetRunning(tr)
 	state.AddActive(tr.Task.ProjectID, tr)
 	state.SetAlias(tr.Alias, tr)
-	state.Enqueue(tr)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -92,8 +91,61 @@ func TestTaskPool_RequeuedEventCleansRunningStateAndSkipsImmediateRetry(t *testi
 	assert.Equal(t, 0, state.RunningCount(), "requeued task must be removed from running set")
 	assert.Equal(t, 0, state.ActiveCount(tr.Task.ProjectID), "requeued task must be removed from active-by-project set")
 	assert.Nil(t, state.GetByAlias(tr.Alias), "requeued task alias mapping must be cleared")
-	assert.Equal(t, 1, state.QueueLen(), "requeued task must remain queued")
+	assert.Equal(t, 1, state.QueueLen(), "requeued task must be enqueued after onTaskStop")
 	assert.Equal(t, 0, state.tryClaimCalls, "requeued task should not be immediately retried in the same queue pass")
+}
+
+func TestTaskPool_RequeuedEventNotClaimedByConcurrentEmptyPass(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	util.Config = &util.ConfigType{MaxParallelTasks: 0}
+
+	store := sql.CreateTestStore()
+	proj, err := store.CreateProject(db.Project{})
+	assert.NoError(t, err)
+
+	state := newSpyTaskStateStore()
+
+	pool := TaskPool{
+		queueEvents: make(chan PoolEvent, 2),
+		state:       state,
+		store:       store,
+	}
+
+	tr := &TaskRunner{
+		Task: db.Task{
+			ID:         42,
+			ProjectID:  proj.ID,
+			TemplateID: 7,
+			Status:     task_logger.TaskWaitingStatus,
+		},
+		Template: db.Template{
+			ID:                   7,
+			Name:                 "Test Template",
+			AllowParallelTasks:   true,
+		},
+	}
+
+	state.SetRunning(tr)
+	state.AddActive(tr.Task.ProjectID, tr)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		pool.handleQueue()
+	}()
+
+	// EventTypeEmpty may already be waiting when the requeue event arrives
+	// (e.g. the 5s ticker). The task must not be claimable during that pass.
+	pool.queueEvents <- PoolEvent{EventTypeEmpty, nil}
+	pool.queueEvents <- PoolEvent{EventTypeRequeued, tr}
+	close(pool.queueEvents)
+	wg.Wait()
+
+	assert.Equal(t, 0, state.tryClaimCalls, "requeued task must not be claimed during a concurrent Empty pass")
+	assert.Equal(t, 1, state.QueueLen(), "requeued task must be enqueued after onTaskStop")
+	assert.Equal(t, 0, state.RunningCount())
 }
 
 func TestTaskPool_FinalizeRemoteTask_HA_ReleasesStalePoolStateWhenEndPersisted(t *testing.T) {
