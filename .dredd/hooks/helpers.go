@@ -211,14 +211,6 @@ func addInvite() *db.ProjectInvite {
 		AcceptedAt:    nil,
 	})
 
-	fmt.Println("***************************************")
-	fmt.Println("***************************************")
-	fmt.Println("***************************************")
-	fmt.Println(invite.ID)
-	fmt.Println("***************************************")
-	fmt.Println("***************************************")
-	fmt.Println("***************************************")
-
 	if err != nil {
 		panic(err)
 	}
