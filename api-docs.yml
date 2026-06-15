@@ -3449,10 +3449,23 @@ paths:
     get:
       tags:
         - task
-      summary: Get last 200 Tasks related to current project
+      summary: Get recent tasks for the current project (keyset pagination)
+      parameters:
+        - name: count
+          in: query
+          type: integer
+          description: Page size (default and max 200). Legacy alias `limit` is also accepted.
+        - name: before
+          in: query
+          type: integer
+          description: Cursor — return tasks with id strictly less than this value (older page).
       responses:
         200:
-          description: Array of tasks in chronological order
+          description: Array of tasks ordered by id descending (newest first). Check X-Has-Next header for more pages.
+          headers:
+            X-Has-Next:
+              type: string
+              description: "true if older tasks exist beyond this page; false otherwise"
           schema:
             type: array
             items:
