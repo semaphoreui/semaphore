@@ -16,6 +16,7 @@ Modern UI for Ansible, Terraform/OpenTofu/Terragrunt, PowerShell and other DevOp
 [![docker](https://img.shields.io/badge/container_configurator-white?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/)
 -->
 
+
 ![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
 
 If your project has grown and deploying from the terminal is no longer feasible, then Semaphore UI is the tool you need.
