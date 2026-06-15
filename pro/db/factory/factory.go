@@ -2,17 +2,19 @@ package factory
 
 import (
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/pro/db/sql"
+	coreSql "github.com/semaphoreui/semaphore/db/sql"
+	proSql "github.com/semaphoreui/semaphore/pro/db/sql"
 )
 
 func NewTerraformStore(store db.Store) db.TerraformStore {
-	return &sql.TerraformStoreImpl{}
+	return &proSql.TerraformStoreImpl{}
 }
 
 func NewAnsibleTaskRepository(store db.Store) db.AnsibleTaskRepository {
-	return &sql.AnsibleTaskStoreImpl{}
+	return &proSql.AnsibleTaskStoreImpl{}
 }
 
 func NewWorkflowStore(store db.Store) db.WorkflowManager {
-	return &sql.WorkflowStoreImpl{}
+	sqlDb := store.(*coreSql.SqlDb)
+	return proSql.NewWorkflowStoreImpl(sqlDb.GetConnection())
 }
