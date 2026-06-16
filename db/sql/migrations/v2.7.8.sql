@@ -1,7 +1,6 @@
-ALTER TABLE project__inventory DROP FOREIGN KEY IF EXISTS project__inventory_ibfk_2;
-
+-- The MySQL foreign keys on `key_id` / `ssh_key_id` are dropped in
+-- migration_2_7_8.PreApply (the constraint name is auto-generated and differs
+-- across DB versions). On Postgres dropping the column drops its FK as well.
 alter table `project__inventory` drop column `key_id`;
-
-ALTER TABLE project__template DROP FOREIGN KEY IF EXISTS project__template_ibfk_2;
 
 alter table `project__template` drop column `ssh_key_id`;
