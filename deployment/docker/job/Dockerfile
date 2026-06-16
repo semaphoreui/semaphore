@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         sshpass \
         tini \
         curl \
+        wget \
     && rm -rf /var/lib/apt/lists/*
 
 
