@@ -408,6 +408,7 @@ func runTask(task *TaskRunner, p *TaskPool) {
 		"task_name": task.Template.Name,
 	}).Info("Task started")
 	go func() {
+		defer task.dispatching.Store(false)
 		time.Sleep(1 * time.Second)
 		task.run()
 	}()
@@ -710,6 +711,14 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 
 	stoppedTasks := map[int]struct{}{}
 
+	// Snapshot waiting workflow tasks before bulk-stopping. Waiting tasks have no
+	// running goroutine, so they never reach finishRun and would otherwise leave
+	// their workflow run stuck in a non-terminal state.
+	waitingWorkflowTasks, err := p.getWaitingWorkflowTasks(projectID, templateID)
+	if err != nil {
+		log.Error(err)
+	}
+
 	// Bulk-update all waiting tasks in DB in a single query.
 	// This is the fast path -- waiting tasks have no running process.
 	if err := p.store.SetWaitingTasksToStopped(projectID, templateID); err != nil {
@@ -812,7 +821,52 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 			go p.FinalizeRemoteTask(tsk, nil)
 		} else {
 			tsk.createTaskEvent()
+			p.notifyWorkflowTaskStopped(tsk.Task)
 		}
+	}
+
+	for _, twt := range waitingWorkflowTasks {
+		task, taskErr := p.store.GetTask(projectID, twt.ID)
+		if taskErr != nil {
+			log.WithError(taskErr).WithFields(log.Fields{
+				"task_id": twt.ID,
+				"context": "task_pool",
+			}).Warn("can't reload stopped workflow task")
+			continue
+		}
+		p.notifyWorkflowTaskStopped(task)
+	}
+}
+
+func (p *TaskPool) getWaitingWorkflowTasks(projectID int, templateID int) ([]db.TaskWithTpl, error) {
+	tasks, err := p.store.GetTemplateTasks(projectID, templateID, db.RetrieveQueryParams{
+		TaskFilter: &db.TaskFilter{
+			Status: []task_logger.TaskStatus{task_logger.TaskWaitingStatus},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	waitingWorkflowTasks := make([]db.TaskWithTpl, 0, len(tasks))
+	for _, task := range tasks {
+		if task.WorkflowRunID != nil {
+			waitingWorkflowTasks = append(waitingWorkflowTasks, task)
+		}
+	}
+	return waitingWorkflowTasks, nil
+}
+
+func (p *TaskPool) notifyWorkflowTaskStopped(task db.Task) {
+	if task.WorkflowRunID == nil {
+		return
+	}
+	if err := p.HandleWorkflowTaskCompletion(task); err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"task_id":         task.ID,
+			"workflow_run_id": *task.WorkflowRunID,
+			"context":         "task_pool",
+		}).Error("workflow progression failed after template stop")
 	}
 }
 
