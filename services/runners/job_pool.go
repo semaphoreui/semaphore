@@ -322,16 +322,6 @@ func (p *JobPool) Run() {
 
 				err := running.job.Run(t.username, t.incomingVersion, t.alias)
 
-				log.WithError(err).WithFields(log.Fields{
-					"context": "job_running",
-					"task_id": running.taskID,
-					"status":  string(running.getStatus()),
-				}).Debug("Job run returned")
-
-				if running.getStatus().IsFinished() {
-					return
-				}
-
 				if err != nil {
 
 					log.WithFields(log.Fields{
@@ -348,6 +338,17 @@ func (p *JobPool) Run() {
 						running.SetStatus(task_logger.TaskFailStatus)
 					}
 				} else {
+
+					log.WithFields(log.Fields{
+						"context": "job_running",
+						"task_id": running.taskID,
+						"status":  string(running.getStatus()),
+					}).Debug("Job run returned")
+
+					if running.getStatus().IsFinished() {
+						return
+					}
+
 					if running.getStatus() == task_logger.TaskStoppingStatus {
 						running.SetStatus(task_logger.TaskStoppedStatus)
 					} else {
