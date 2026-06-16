@@ -685,11 +685,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'semaphoreui'
 
-    needs:
-      - integrate-mysql
-      - integrate-mariadb
-      - integrate-postgres
-
     steps:
       - name: Checkout source
         uses: actions/checkout@v6
@@ -738,11 +733,6 @@ jobs:
   deploy-helper:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'semaphoreui'
-
-    needs:
-      - integrate-mysql
-      - integrate-mariadb
-      - integrate-postgres
 
     steps:
       - name: Checkout source
