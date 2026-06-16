@@ -34,6 +34,25 @@ RUN set -eux; \
 RUN install -d -o nobody -g 0 -m 0775 /workspace \
  && chmod g=u /etc/passwd
 
+ENV OPENTOFU_VERSION="1.11.0"
+ENV TERRAFORM_VERSION="1.11.3"
+ENV TERRAGRUNT_VERSION="0.78.0"
+
+RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
+    tar xf tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz -C /tmp && \
+    rm tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz
+
+RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip && \
+    unzip terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip -d /tmp && \
+    rm terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip
+
+RUN wget -O /tmp/terragrunt https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_${TARGETARCH} && \
+    chmod +x /tmp/terragrunt
+
+RUN mv /tmp/tofu /usr/local/bin/
+RUN mv /tmp/terraform /usr/local/bin/
+RUN mv /tmp/terragrunt /usr/local/bin/
+
 WORKDIR /workspace
 USER nobody:0
 
