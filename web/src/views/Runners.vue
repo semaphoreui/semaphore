@@ -172,30 +172,6 @@
             </div>
           </div>
 
-          <div class="mb-4">
-            <div>{{ $t('Private Key') }}</div>
-            <div style="position: relative">
-              <code
-                class="px-2 py-3 mt-2"
-                style="background: gray; color: white; display: block; font-size: 14px"
-              >{{ (newRunner || {private_key: ''}).private_key.substring(0, 90) + '...' }}</code
-              >
-
-              <v-btn style="position: absolute; right: 10px; top: 2px" icon color="white">
-                <v-icon
-                  @click="downloadFile(newRunner.private_key, 'text/plain', 'config.runner.key')"
-                >
-                  mdi-download
-                </v-icon>
-              </v-btn>
-
-              <CopyClipboardButton
-                style="position: absolute; right: 50px; top: 2px"
-                :text="(newRunner || {}).private_key"
-              />
-            </div>
-          </div>
-
           <h2 class="mt-11 mb-4">Variants of usage</h2>
 
           <v-tabs v-model="usageTab" :show-arrows="false">
@@ -609,7 +585,6 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import RunnerForm from '@/components/RunnerForm.vue';
 import axios from 'axios';
-import delay from '@/lib/delay';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import PageMixin from '@/components/PageMixin';
 
@@ -660,10 +635,7 @@ semaphore runner start --config ./config.runner.json`;
 
     runnerRegisterConfigContent() {
       return `{
-  "web_host": "${this.webHost || window.location.origin}",
-  "runner": {
-    "private_key_file": "/path/to/private/key"
-  }
+  "web_host": "${this.webHost || window.location.origin}"
 }`;
     },
 
@@ -678,8 +650,6 @@ semaphore runner start --config ./config.runner.json`;
       return `docker run \\
 -e SEMAPHORE_WEB_ROOT=${this.webHost} \\
 -e SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
--e SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/config.runner.key \\
--v "/path/to/private/key:/config.runner.key" \\
 -d semaphoreui/runner:${this.version}`;
     },
 
@@ -687,8 +657,7 @@ semaphore runner start --config ./config.runner.json`;
       return `{
   "web_host": "${this.webHost || window.location.origin}",
   "runner": {
-    "token": "${(this.newRunner || {}).token}",
-    "private_key_file": "/path/to/private/key"
+    "token": "${(this.newRunner || {}).token}"
   }
 }`;
     },
@@ -699,8 +668,6 @@ ${this.webHost}
 no
 yes
 ${(this.newRunner || {}).token}
-yes
-/path/to/private/key
 ./
 EOF
 
@@ -710,7 +677,6 @@ semaphore runner setup --config ./config.runner.json < /tmp/config.runner.stdin`
     runnerEnvCommand() {
       return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
 SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
-SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/path/to/private/key \\
 semaphore runner start --no-config`;
     },
 
@@ -738,8 +704,6 @@ semaphore runner start --no-config`;
       return `docker run \\
 -e SEMAPHORE_WEB_ROOT=${this.webHost} \\
 -e SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
--e SEMAPHORE_RUNNER_PRIVATE_KEY_FILE=/config.runner.key \\
--v "/path/to/private/key:/config.runner.key" \\
 -d semaphoreui/runner:${this.version}`;
     },
   },
@@ -854,20 +818,10 @@ semaphore runner start --no-config`;
       return null;
     },
 
-    async downloadFile(content, type, name) {
-      const a = document.createElement('a');
-      const blob = new Blob([content], { type });
-      a.download = name;
-      a.href = URL.createObjectURL(blob);
-      a.click();
-
-      await delay(1000);
-    },
-
     async loadItemsAndShowRunnerDetails(e) {
       if (e.item.token || e.item.registration_token) {
-        // A registered runner returns an auth token (and private key); show the
-        // details dialog with the connection instructions.
+        // A registered runner returns an auth token; show the details dialog with
+        // the connection instructions.
         this.newRunnerTokenDialog = true;
         this.newRunner = e.item;
       } else if (e.action === 'new') {

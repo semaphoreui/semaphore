@@ -2,12 +2,9 @@ package runners
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -591,20 +588,6 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		return
 	}
 
-	var err error
-	publicKey := ""
-
-	if util.Config.Runner.PrivateKeyFile != "" {
-		publicKey, err = generatePrivateKey(util.Config.Runner.PrivateKeyFile)
-	}
-
-	if err != nil {
-		log.WithError(err).WithFields(log.Fields{
-			"context": "registration",
-		}).Error("failed to generate private key file")
-		return
-	}
-
 	client := newHTTPClient()
 
 	url := util.Config.WebHost + "/api/internal/runners"
@@ -616,7 +599,6 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		Tags:              util.Config.Runner.Tags,
 		MaxParallelTasks:  util.Config.Runner.MaxParallelTasks,
 		Enabled:           util.Config.Runner.Enabled,
-		PublicKey:         &publicKey,
 		ProjectID:         util.Config.Runner.ProjectID,
 	})
 
@@ -736,55 +718,6 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 	return
 }
 
-func loadPrivateKey(privateKeyFilePath string) (*rsa.PrivateKey, error) {
-	keyData, err := os.ReadFile(privateKeyFilePath)
-	if err != nil {
-		return nil, err
-	}
-	block, _ := pem.Decode(keyData)
-	if block == nil || block.Type != "RSA PRIVATE KEY" {
-		return nil, fmt.Errorf("invalid private key")
-	}
-	return x509.ParsePKCS1PrivateKey(block.Bytes)
-}
-
-func generatePrivateKey(privateKeyFilePath string) (publicKey string, err error) {
-
-	privateKeyFile, err := os.Create(privateKeyFilePath)
-	if err != nil {
-		return
-	}
-	defer privateKeyFile.Close() //nolint:errcheck
-
-	return util.GeneratePrivateKey(privateKeyFile)
-}
-
-func decryptChunkedBytes(combinedCiphertext []byte, privateKey *rsa.PrivateKey) (fullPlaintext []byte, err error) {
-
-	rsaBlockSize := privateKey.N.BitLen() / 8 // e.g. 256 for 2048-bit key
-
-	// 3. Decrypt all chunks
-	for i := 0; i < len(combinedCiphertext); i += rsaBlockSize {
-		end := i + rsaBlockSize
-		if end > len(combinedCiphertext) {
-			// In case of partial/corrupted data
-			end = len(combinedCiphertext)
-		}
-		chunk := combinedCiphertext[i:end]
-
-		var decryptedChunk []byte
-		decryptedChunk, err = rsa.DecryptPKCS1v15(rand.Reader, privateKey, chunk)
-		if err != nil {
-			return
-		}
-
-		// 4. Append decrypted chunk to our full plaintext buffer
-		fullPlaintext = append(fullPlaintext, decryptedChunk...)
-	}
-
-	return
-}
-
 // checkNewJobs tries to find runner to queued jobs
 func (p *JobPool) checkNewJobs() {
 
@@ -842,32 +775,6 @@ func (p *JobPool) checkNewJobs() {
 			"context": "checking_new_jobs",
 		}).Error("failed to read new jobs response body")
 		return
-	}
-
-	if util.Config.Runner.PrivateKeyFile != "" {
-		var pk *rsa.PrivateKey
-
-		pk, err = loadPrivateKey(util.Config.Runner.PrivateKeyFile)
-		if err != nil {
-			log.WithError(err).WithFields(log.Fields{
-				"context": "checking_new_jobs",
-			}).Error("failed to load private key")
-			return
-		}
-
-		body, err = decryptChunkedBytes(body, pk)
-
-		if err != nil {
-			log.WithError(err).WithFields(log.Fields{
-				"context": "checking_new_jobs",
-			}).Error("failed to decrypt new jobs response body")
-			return
-		}
-
-		log.WithFields(log.Fields{
-			"context": "checking_new_jobs",
-			"bytes":   len(body),
-		}).Debug("Decrypted new jobs response body")
 	}
 
 	var response RunnerState

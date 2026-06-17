@@ -11,8 +11,7 @@ import (
 
 type runnerWithToken struct {
 	db.Runner
-	Token      string `json:"token"`
-	PrivateKey string `json:"private_key"`
+	Token string `json:"token"`
 }
 
 // GlobalRunnerController handles CRUD for global (non-project) runners.
@@ -52,7 +51,7 @@ func (c *GlobalRunnerController) AddRunner(w http.ResponseWriter, r *http.Reques
 
 	runner.ProjectID = nil
 
-	newRunner, privateKey, err := c.runnerService.CreateRunner(runner)
+	newRunner, err := c.runnerService.CreateRunner(runner)
 
 	if err != nil {
 		log.Warn("Runner is not created: " + err.Error())
@@ -61,9 +60,8 @@ func (c *GlobalRunnerController) AddRunner(w http.ResponseWriter, r *http.Reques
 	}
 
 	helpers.WriteJSON(w, http.StatusCreated, runnerWithToken{
-		Runner:     newRunner,
-		Token:      newRunner.Token,
-		PrivateKey: privateKey,
+		Runner: newRunner,
+		Token:  newRunner.Token,
 	})
 }
 

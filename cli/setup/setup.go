@@ -51,23 +51,6 @@ func InteractiveRunnerSetup(conf *util.ConfigType) {
 
 		conf.Runner.Token = token
 
-		hasPrivateKey := false
-		askConfirmation("Do you have runner's private key file?", false, &hasPrivateKey)
-
-		if hasPrivateKey {
-			pkFile := ""
-			for {
-				askValue("Enter path to the private key file", "", &pkFile)
-
-				if pkFile == "" {
-					fmt.Println("Invalid private key file path")
-					continue
-				}
-				break
-			}
-			conf.Runner.PrivateKeyFile = pkFile
-		}
-
 		return
 	}
 
@@ -88,19 +71,6 @@ func InteractiveRunnerSetup(conf *util.ConfigType) {
 		}
 
 		conf.Runner.RegistrationToken = regToken
-
-		pkFile := ""
-		for {
-			askValue("Enter path to the private key file (will be generated if not exists)", "", &pkFile)
-
-			if pkFile == "" {
-				fmt.Println("Invalid private key file path")
-				continue
-			}
-			break
-		}
-
-		conf.Runner.PrivateKeyFile = pkFile
 
 		return
 	}
