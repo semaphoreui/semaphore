@@ -56,6 +56,7 @@ jobs:
           GITHUB_TOKEN=${{ github.token }} \
           PROJECT_NAME=semaphore_community \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
+          GPG_PASS="${{ secrets.GPG_PASS }}" \
           task release:prod
 
   deploy-beta:
