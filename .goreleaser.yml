@@ -58,6 +58,7 @@ signs:
     args: [
       "-u", "{{ .Env.GPG_KEY_ID }}",
       "--pinentry-mode", "loopback",
+      "--passphrase", "{{ .Env.GPG_PASS }}",
       "--yes",
       "--batch",
       "--output", "${signature}",
