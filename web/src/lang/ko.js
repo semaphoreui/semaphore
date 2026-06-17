@@ -105,6 +105,7 @@ export default {
   projectName: '프로젝트 이름',
   allowAlertsForThisProject: '이 프로젝트에 대한 알림 허용',
   telegramChatIdOptional: '텔레그램 채팅 ID (선택 사항)',
+  pushoverApiTokenOptional: 'Pushover API 토큰 (선택 사항)',
   maxNumberOfParallelTasksOptional: '최대 병렬 작업 수 (선택 사항)',
   deleteRepository: '리포지토리 삭제',
   newRepository: '새 리포지토리',

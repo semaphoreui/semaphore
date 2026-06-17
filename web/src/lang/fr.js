@@ -105,6 +105,7 @@ export default {
   projectName: 'Nom du projet',
   allowAlertsForThisProject: 'Autoriser les alertes pour ce projet',
   telegramChatIdOptional: 'ID de chat Telegram (optionnel)',
+  pushoverApiTokenOptional: 'Token API Pushover (optionnel)',
   maxNumberOfParallelTasksOptional: 'Nombre maximum de tâches parallèles (optionnel)',
   deleteRepository: 'Supprimer le dépôt',
   newRepository: 'Nouveau dépôt',

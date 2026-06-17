@@ -111,6 +111,7 @@ export default {
   projectName: 'Název projektu',
   allowAlertsForThisProject: 'Povolit upozornění pro tento projekt',
   telegramChatIdOptional: 'ID chatu Telegramu (volitelné)',
+  pushoverApiTokenOptional: 'Pushover API token (volitelné)',
   maxNumberOfParallelTasksOptional: 'Maximální počet paralelních úloh (volitelné)',
   deleteRepository: 'Odstranit repozitář',
   newRepository: 'Nový repozitář',

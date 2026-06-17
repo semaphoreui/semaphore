@@ -106,6 +106,7 @@ export default {
   projectName: 'Назва проєкту',
   allowAlertsForThisProject: 'Дозволити сповіщення для цього проєкту',
   telegramChatIdOptional: 'Telegram Chat ID (необов’язково)',
+  pushoverApiTokenOptional: 'Pushover API Token (необов’язково)',
   maxNumberOfParallelTasksOptional: 'Максимальна кількість паралельних завдань (необов’язково)',
   deleteRepository: 'Видалити репозиторій',
   newRepository: 'Новий репозиторій',
