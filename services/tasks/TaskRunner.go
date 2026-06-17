@@ -44,11 +44,12 @@ type TaskRunner struct {
 	currentOutput *db.TaskOutput
 	currentState  any
 
-	users        []int
-	alert        bool
-	alertChat    *string
-	pool         *TaskPool
-	keyInstaller db_lib.AccessKeyInstaller
+	users              []int
+	alert              bool
+	alertChat          *string
+	alertPushoverToken *string
+	pool               *TaskPool
+	keyInstaller       db_lib.AccessKeyInstaller
 
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
@@ -416,6 +417,7 @@ func (t *TaskRunner) populateDetails() error {
 
 	t.alert = project.Alert
 	t.alertChat = project.AlertChat
+	t.alertPushoverToken = project.AlertPushoverToken
 
 	// get project users
 	projectUsers, err := t.pool.store.GetProjectUsers(t.Template.ProjectID, db.RetrieveQueryParams{})
