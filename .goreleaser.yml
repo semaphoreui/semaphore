@@ -60,6 +60,7 @@ signs:
       "--pinentry-mode", "loopback",
       "--yes",
       "--batch",
+      "--passphrase", "{{ .Env.GPG_PASS }}",
       "--output", "${signature}",
       "--detach-sign", "${artifact}"
     ]
