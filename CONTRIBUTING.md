@@ -1,3 +1,7 @@
+## Developer documentation
+
+In-repo guides for contributors and operators live in [`docs/`](docs/README.md): configuration, runners, executors, workflows, API pagination, and HA cluster operations.
+
 ## Pull Requests
 
 When creating a pull-request you should:

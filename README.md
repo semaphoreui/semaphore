@@ -92,6 +92,7 @@ For more installation options, visit our [Installation page](https://semaphoreui
 
 * [User Guide](https://docs.semaphoreui.com)
 * [API Reference](https://semaphoreui.com/api-docs)
+* [Developer docs](docs/README.md) — configuration, runners, workflows, and operational guides (in-repo)
 * [Postman Collection](https://www.postman.com/semaphoreui)
 
 ## Awesome Semaphore
