@@ -4,6 +4,7 @@ drop index if exists `task__workflow_run_id`;
 alter table `task` drop column `artifacts`;
 alter table `task` drop column `workflow_node_id`;
 alter table `task` drop column `workflow_run_id`;
+alter table `project` drop column `alert_pushover_token`;
 
 drop index if exists `project__workflow_approval__run_id`;
 drop index if exists `project__workflow_approval__project_id`;
