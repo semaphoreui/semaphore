@@ -54,14 +54,10 @@ signs:
   -
     artifacts: checksum
     signature: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_checksums.txt.sig"
-    cmd: gpg
+    cmd: sh
     args: [
-      "-u", "{{ .Env.GPG_KEY_ID }}",
-      "--pinentry-mode", "loopback",
-      "--yes",
-      "--batch",
-      "--output", "${signature}",
-      "--detach-sign", "${artifact}"
+      "-c",
+      "printf '%s' \"$GPG_PASS\" | gpg -u \"{{ .Env.GPG_KEY_ID }}\" --pinentry-mode loopback --yes --batch --passphrase-fd 0 --output \"${signature}\" --detach-sign \"${artifact}\""
     ]
 
 checksum:
