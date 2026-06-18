@@ -1,0 +1,9 @@
+{
+    "token": "{{ .Pushover.Token }}",
+    "user": "{{ .Pushover.User }}",
+    "title": "{{ .Name }} #{{ .Task.ID }}: {{ .Task.Result }}",
+    "html": 1,
+    "message": "<b>{{ .Task.Result }}</b> {{ .Task.Version }} - {{ .Task.Desc }}\nby {{ .Author }}",
+    "url": "{{ .Task.URL }}",
+    "url_title": "View task in Semaphore"
+}

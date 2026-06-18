@@ -20,11 +20,12 @@ var templates embed.FS
 
 // Alert represents an alert that will be templated and sent to the appropriate service
 type Alert struct {
-	Name   string
-	Author string
-	Color  string
-	Task   alertTask
-	Chat   alertChat
+	Name     string
+	Author   string
+	Color    string
+	Task     alertTask
+	Chat     alertChat
+	Pushover alertPushover
 }
 
 type alertTask struct {
@@ -37,6 +38,11 @@ type alertTask struct {
 
 type alertChat struct {
 	ID string
+}
+
+type alertPushover struct {
+	Token string // application/API token
+	User  string // global user OR target group key
 }
 
 func (t *TaskRunner) sendMailAlert() {
@@ -183,6 +189,77 @@ func (t *TaskRunner) sendTelegramAlert() {
 		t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode))
 	} else {
 		t.Log("Sent successfully telegram alert")
+	}
+
+	if resp != nil {
+		defer resp.Body.Close() //nolint:errcheck
+	}
+}
+
+func (t *TaskRunner) sendPushoverAlert() {
+	if !util.Config.PushoverAlert || !t.alert {
+		return
+	}
+
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+		return
+	}
+
+	token := util.Config.PushoverAPIToken
+	user := util.Config.PushoverUserGroupKey
+
+	if token == "" || user == "" {
+		return
+	}
+
+	body := bytes.NewBufferString("")
+	author, version := t.alertInfos()
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("pushover"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  t.Task.Status.Format(),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+		Pushover: alertPushover{Token: token, User: user},
+	}
+
+	tpl, err := template.ParseFS(templates, "templates/pushover.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse pushover alert template!")
+		panic(err)
+	}
+
+	if err := tpl.Execute(body, alert); err != nil {
+		t.Log("Can't generate pushover alert template!")
+		panic(err)
+	}
+
+	if body.Len() == 0 {
+		t.Log("Buffer for pushover alert is empty")
+		return
+	}
+
+	t.Log("Attempting to send pushover alert")
+
+	resp, err := http.Post(
+		"https://api.pushover.net/1/messages.json",
+		"application/json",
+		body,
+	)
+
+	if err != nil {
+		t.Log("Can't send pushover alert! Error: " + err.Error())
+	} else if resp.StatusCode != 200 {
+		t.Log("Can't send pushover alert! Response code: " + strconv.Itoa(resp.StatusCode))
+	} else {
+		t.Log("Sent successfully pushover alert")
 	}
 
 	if resp != nil {

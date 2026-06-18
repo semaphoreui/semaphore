@@ -500,6 +500,10 @@ type ConfigType struct {
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN,sensitive"`
 
+	PushoverAlert        bool   `json:"pushover_alert,omitempty" env:"SEMAPHORE_PUSHOVER_ALERT"`
+	PushoverUserGroupKey string `json:"pushover_user_group_key,omitempty" env:"SEMAPHORE_PUSHOVER_USER_GROUP_KEY"`
+	PushoverAPIToken     string `json:"pushover_api_token,omitempty" env:"SEMAPHORE_PUSHOVER_API_TOKEN,sensitive"`
+
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
 
