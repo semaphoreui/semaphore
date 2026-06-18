@@ -91,7 +91,5 @@ alter table `task` add column `workflow_run_id` int null;
 alter table `task` add column `workflow_node_id` int null;
 alter table `task` add column `artifacts` text null;
 
-alter table `project` add column `alert_pushover_token` varchar(50) default '';
-
 create index `task__workflow_run_id` on `task`(`workflow_run_id`);
 create index `task__workflow_node_id` on `task`(`workflow_node_id`);

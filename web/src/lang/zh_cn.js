@@ -105,7 +105,6 @@ export default {
   projectName: '项目名称',
   allowAlertsForThisProject: '允许此项目的警报',
   telegramChatIdOptional: 'Telegram 聊天 ID（可选）',
-  pushoverApiTokenOptional: 'Pushover API 令牌（可选）',
   maxNumberOfParallelTasksOptional: '最大并行任务数（可选）',
   deleteRepository: '删除仓库',
   newRepository: '新仓库',

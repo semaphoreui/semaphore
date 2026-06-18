@@ -205,12 +205,7 @@ func (t *TaskRunner) sendPushoverAlert() {
 		return
 	}
 
-	// Token: per-project GUI override wins over global config.
 	token := util.Config.PushoverAPIToken
-	if t.alertPushoverToken != nil && *t.alertPushoverToken != "" {
-		token = *t.alertPushoverToken
-	}
-
 	user := util.Config.PushoverUserGroupKey
 
 	if token == "" || user == "" {

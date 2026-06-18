@@ -37,15 +37,6 @@
       dense
     ></v-text-field>
 
-    <v-text-field
-      v-model="item.alert_pushover_token"
-      :label="$t('pushoverApiTokenOptional')"
-      :disabled="formSaving"
-      data-testid="newProject-pushover"
-      outlined
-      dense
-    ></v-text-field>
-
     <v-checkbox
       class="mt-0"
       v-model="item.alert"

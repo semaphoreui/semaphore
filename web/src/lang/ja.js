@@ -105,7 +105,6 @@ export default {
   projectName: 'プロジェクト名',
   allowAlertsForThisProject: 'このプロジェクトのアラートを許可',
   telegramChatIdOptional: 'TelegramチャットID（オプション）',
-  pushoverApiTokenOptional: 'Pushover APIトークン（オプション）',
   maxNumberOfParallelTasksOptional: '最大並列タスク数（オプション）',
   deleteRepository: 'リポジトリを削除',
   newRepository: '新しいリポジトリ',
