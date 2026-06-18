@@ -391,7 +391,7 @@
       <v-col v-if="needAppBlock">
         <div class="mb-3">
           <h2 class="mb-4">
-            {{ $t('template_app_options', { app: getAppTitle(app, true) }) }}
+            {{ $t('template_app_options', {app: getAppTitle(app, true)}) }}
           </h2>
 
           <ArgsPicker
@@ -429,6 +429,13 @@
           ></TemplateVaults>
 
           <v-checkbox
+            v-if="needField('skip_galaxy_install')"
+            v-model="item.task_params.skip_galaxy_install"
+            :label="$t('skipGalaxyInstall')"
+            class="mt-0"
+          />
+
+          <v-checkbox
             class="mt-0"
             :label="$t('auto_approve')"
             v-model="item.task_params.auto_approve"
@@ -457,7 +464,7 @@
         </div>
 
         <h2 class="mb-4">
-          {{ $t('template_app_prompts', { app: getAppTitle(app, true) }) }}
+          {{ $t('template_app_prompts', {app: getAppTitle(app, true)}) }}
         </h2>
         <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
           <v-checkbox
@@ -486,6 +493,13 @@
             :label="$t('allowDebug')"
             v-model="item.task_params.allow_debug"
             v-if="needField('allow_debug')"
+          />
+
+          <v-checkbox
+            v-if="needField('allow_override_skip_galaxy_install')"
+            v-model="item.task_params.allow_override_skip_galaxy_install"
+            :label="$t('skipGalaxyInstall')"
+            class="mt-0"
           />
 
           <v-checkbox

@@ -8,4 +8,5 @@ type Features struct {
 	SecretStorageManagement bool `json:"secret_storage_management"`
 	CustomRolesManagement   bool `json:"custom_roles_management"`
 	HighAvailability        bool `json:"high_availability"`
+	Workflows               bool `json:"workflows"`
 }

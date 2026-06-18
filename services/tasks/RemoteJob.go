@@ -20,8 +20,6 @@ import (
 // ErrAllRunnersBusy is returned when all available runners are busy. Used for logic
 var ErrAllRunnersBusy = errors.New("all runners busy")
 
-const runnerActiveThreshold = 30 * time.Minute
-
 type RemoteJob struct {
 	RunnerTag *string
 	Task      db.Task
@@ -54,7 +52,10 @@ func callRunnerWebhook(runner *db.Runner, tsk *TaskRunner, action string) (err e
 		return
 	}
 
-	client := &http.Client{}
+	// Bound the dispatch: a webhook that connects but never responds would
+	// otherwise keep the dispatch goroutine alive forever, hanging the task in
+	// "starting" with no runner assigned.
+	client := &http.Client{Timeout: 30 * time.Second}
 
 	var req *http.Request
 	req, err = http.NewRequest("POST", runner.Webhook, bytes.NewBuffer(jsonBytes))
@@ -107,6 +108,29 @@ func shuffleRunners(rs []db.Runner) []db.Runner {
 	return shuffled
 }
 
+// selectRunner returns the first runner that is online (see db.Runner.IsOnline)
+// and has free capacity, or nil when there is none. Offline runners are
+// excluded outright — dispatching to a silent runner is exactly how tasks used
+// to hang forever; a task with no online runner stays queued instead and is
+// retried by the pool.
+func selectRunner(
+	runners []db.Runner,
+	now time.Time,
+	offlineTimeout time.Duration,
+	busyTasks func(runnerID int) int,
+) *db.Runner {
+	for i := range runners {
+		r := &runners[i]
+		if !r.IsOnline(now, offlineTimeout) {
+			continue
+		}
+		if n := busyTasks(r.ID); n < r.MaxParallelTasks || r.MaxParallelTasks == 0 {
+			return r
+		}
+	}
+	return nil
+}
+
 func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
 	tsk, err := t.taskPool.GetTask(t.Task.ID)
 
@@ -124,28 +148,25 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	t.taskPool.state.UpdateRuntimeFields(tsk)
 
 	var runners []db.Runner
-	db.StoreSession(t.taskPool.store, "run remote job", func() {
+	tagFilterMode := db.RunnerFilterTagCompleteMatch
+	if t.RunnerTag == nil {
+		tagFilterMode = db.RunnerFilterIsDefault
+	}
 
-		tagFilterMode := db.RunnerFilterTagCompleteMatch
-		if t.RunnerTag == nil {
-			tagFilterMode = db.RunnerFilterIsDefault
-		}
+	var projectRunners []db.Runner
+	projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, tagFilterMode, t.RunnerTag)
+	if err != nil {
+		return
+	}
 
-		var projectRunners []db.Runner
-		projectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, true, tagFilterMode, t.RunnerTag)
-		if err != nil {
-			return
-		}
+	var globalRunners []db.Runner
+	globalRunners, err = t.taskPool.store.GetAllRunners(true, true, tagFilterMode, t.RunnerTag)
+	if err != nil {
+		return
+	}
 
-		var globalRunners []db.Runner
-		globalRunners, err = t.taskPool.store.GetAllRunners(true, true, tagFilterMode, t.RunnerTag)
-		if err != nil {
-			return
-		}
-
-		runners = append(runners, shuffleRunners(projectRunners)...)
-		runners = append(runners, shuffleRunners(globalRunners)...)
-	})
+	runners = append(runners, shuffleRunners(projectRunners)...)
+	runners = append(runners, shuffleRunners(globalRunners)...)
 
 	if err != nil {
 		return
@@ -156,27 +177,11 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		return
 	}
 
-	var runner *db.Runner
-	now := tz.Now()
-
-	// First pass: prefer runners with a recent heartbeat.
-	// Second pass: fall back to runners that haven't reported recently.
-	for pass := range 2 {
-		for i := range runners {
-			r := &runners[i]
-			active := r.Touched != nil && now.Sub(*r.Touched) < runnerActiveThreshold || r.Webhook != ""
-			if (pass == 0) == active {
-				n := t.taskPool.GetNumberOfRunningTasksOfRunner(r.ID)
-				if n < r.MaxParallelTasks || r.MaxParallelTasks == 0 {
-					runner = r
-					break
-				}
-			}
-		}
-		if runner != nil {
-			break
-		}
-	}
+	runner := selectRunner(
+		runners,
+		tz.Now(),
+		util.Config.RunnersOfflineTimeout(),
+		t.taskPool.GetNumberOfRunningTasksOfRunner)
 
 	if runner == nil {
 		err = ErrAllRunnersBusy
@@ -191,9 +196,8 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 
 	tsk.Task.RunnerID = &runner.ID
 
-	db.StoreSession(t.taskPool.store, "remote job assign runner", func() {
-		err = t.taskPool.store.UpdateTask(tsk.Task)
-	})
+	tsk.Logf("Task #%d is assigned to runner #%d", tsk.Task.ID, runner.ID)
+	err = t.taskPool.store.UpdateTask(tsk.Task)
 
 	if err != nil {
 		return
@@ -201,67 +205,42 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 
 	t.taskPool.state.UpdateRuntimeFields(tsk)
 
-	startTime := tz.Now()
+	// The task now runs on the remote runner. Its completion is reported back
+	// via the runner API (PUT /runners) and finalized by
+	// TaskPool.FinalizeRemoteTask on whichever node receives the terminal
+	// status. Returning here instead of polling means the task survives the
+	// death or restart of the node that dispatched it: no node-local goroutine
+	// owns its completion.
+	t.scheduleTimeout(runner)
+	return
+}
 
-	taskTimedOut := false
-
-	for {
-		if util.Config.MaxTaskDurationSec > 0 && int(tz.Now().Sub(startTime).Seconds()) > util.Config.MaxTaskDurationSec {
-			taskTimedOut = true
-			break
-		}
-
-		time.Sleep(1_000_000_000)
-		tsk, err = t.taskPool.GetTask(t.Task.ID)
-
-		if err != nil {
-			return
-		}
-
-		if tsk == nil {
-			err = fmt.Errorf("task %d not found", t.Task.ID)
-			return
-		}
-
-		if util.HAEnabled() {
-			var row db.Task
-			var rowErr error
-			db.StoreSession(t.taskPool.store, "remote job status sync", func() {
-				row, rowErr = t.taskPool.store.GetTask(tsk.Task.ProjectID, t.Task.ID)
-			})
-			if rowErr == nil {
-				// Never regress (e.g. running → starting) if the DB read is briefly stale.
-				if task_logger.TaskStatusProgressRank(row.Status) >= task_logger.TaskStatusProgressRank(tsk.Task.Status) {
-					tsk.Task.Status = row.Status
-					tsk.Task.Start = row.Start
-					tsk.Task.End = row.End
-				}
-				if row.RunnerID != nil {
-					tsk.Task.RunnerID = row.RunnerID
-				}
-			}
-		}
-
-		if tsk.Task.Status == task_logger.TaskSuccessStatus ||
-			tsk.Task.Status == task_logger.TaskStoppedStatus ||
-			tsk.Task.Status == task_logger.TaskFailStatus {
-			break
-		}
-	}
-
-	err = callRunnerWebhook(runner, tsk, "finish")
-
-	if err != nil {
+// scheduleTimeout enforces util.Config.MaxTaskDurationSec for a dispatched
+// remote task. The timer runs node-locally; if this node dies before it fires,
+// the HA orphan cleaner applies the same limit as a backstop. Firing on an
+// already-finished task is a no-op.
+func (t *RemoteJob) scheduleTimeout(runner *db.Runner) {
+	if util.Config.MaxTaskDurationSec <= 0 {
 		return
 	}
-
-	if tsk.Task.Status == task_logger.TaskFailStatus {
-		err = fmt.Errorf("task failed")
-	} else if taskTimedOut {
-		err = fmt.Errorf("task timed out")
-	}
-
-	return
+	d := time.Duration(util.Config.MaxTaskDurationSec) * time.Second
+	taskID := t.Task.ID
+	pool := t.taskPool
+	time.AfterFunc(d, func() {
+		tsk, err := pool.GetTask(taskID)
+		if err != nil || tsk == nil {
+			return
+		}
+		if util.HAEnabled() {
+			pool.refreshTaskStatusFromDB(tsk)
+		}
+		if tsk.Task.Status.IsFinished() {
+			return
+		}
+		tsk.Log("Task timed out")
+		tsk.SetStatus(task_logger.TaskFailStatus)
+		pool.FinalizeRemoteTask(tsk, runner)
+	})
 }
 
 func (t *RemoteJob) Kill() {
@@ -271,4 +250,10 @@ func (t *RemoteJob) Kill() {
 
 func (t *RemoteJob) IsKilled() bool {
 	return t.killed
+}
+
+// Async is true: RemoteJob.Run only dispatches the task to a runner; its
+// completion is reported asynchronously via the runner API.
+func (t *RemoteJob) Async() bool {
+	return true
 }

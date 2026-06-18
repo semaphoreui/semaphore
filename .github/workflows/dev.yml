@@ -20,7 +20,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26.4'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -37,6 +37,11 @@ jobs:
         run: |
           task deps
 
+      - name: Add PRO implementation
+        run: |
+          git clone -b main https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
+          go work init . ./pro_impl
+
       - name: Run build
         run: task build
 
@@ -52,6 +57,20 @@ jobs:
         with:
           name: semaphore
           path: bin/semaphore
+          retention-days: 1
+
+      # The dredd hooks set up workflow fixtures through the Pro workflow store,
+      # so they must be built with the PRO implementation (go.work + pro_impl is
+      # set up above). The integration jobs only have the open-source stub, where
+      # those store methods are no-ops, so build the hooks here and share them.
+      - name: Build dredd hooks
+        run: task dredd:hooks
+
+      - name: Upload dredd hooks
+        uses: actions/upload-artifact@v4
+        with:
+          name: dredd-hooks
+          path: .dredd/compiled_hooks
           retention-days: 1
 
   migrate-mysql:
@@ -254,7 +273,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26.4'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -299,11 +318,17 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore setup - < config.stdin
 
+      - name: Download dredd hooks
+        uses: actions/download-artifact@v4
+        with:
+          name: dredd-hooks
+          path: .dredd
+
       - name: Launch dredd
         run: |
           task dredd:goodman
           task dredd:deps
-          task dredd:hooks
+          chmod +x .dredd/compiled_hooks
           task dredd:test
 
   integrate-mariadb:
@@ -335,7 +360,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26.4'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -380,11 +405,17 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore setup - < config.stdin
 
+      - name: Download dredd hooks
+        uses: actions/download-artifact@v4
+        with:
+          name: dredd-hooks
+          path: .dredd
+
       - name: Launch dredd
         run: |
           task dredd:goodman
           task dredd:deps
-          task dredd:hooks
+          chmod +x .dredd/compiled_hooks
           task dredd:test
 
   integrate-postgres:
@@ -415,7 +446,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26.4'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -460,11 +491,17 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore setup - < config.stdin
 
+      - name: Download dredd hooks
+        uses: actions/download-artifact@v4
+        with:
+          name: dredd-hooks
+          path: .dredd
+
       - name: Launch dredd
         run: |
           task dredd:goodman
           task dredd:deps
-          task dredd:hooks
+          chmod +x .dredd/compiled_hooks
           task dredd:test
 
   integrate-sqlite:
@@ -480,7 +517,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26.4'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -522,11 +559,17 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore setup - < config.stdin
 
+      - name: Download dredd hooks
+        uses: actions/download-artifact@v4
+        with:
+          name: dredd-hooks
+          path: .dredd
+
       - name: Launch dredd
         run: |
           task dredd:goodman
           task dredd:deps
-          task dredd:hooks
+          chmod +x .dredd/compiled_hooks
           task dredd:test
 
   deploy-server:
@@ -637,3 +680,101 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
           tags: ${{ steps.runner.outputs.tags }}
+
+  deploy-job:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'semaphoreui'
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Setup qemu
+        id: qemu
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Hub login
+        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Job meta
+        id: job
+        uses: docker/metadata-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/job
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semaphoreui.com>
+          tags: |
+            type=raw,value=develop
+          flavor: |
+            latest=false
+
+      - name: Job build
+        uses: docker/build-push-action@v5
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: deployment/docker/job/Dockerfile
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.job.outputs.labels }}
+          tags: ${{ steps.job.outputs.tags }}
+
+  deploy-helper:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'semaphoreui'
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Setup qemu
+        id: qemu
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Hub login
+        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Helper meta
+        id: helper
+        uses: docker/metadata-action@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/helper
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semaphoreui.com>
+          tags: |
+            type=raw,value=develop
+          flavor: |
+            latest=false
+
+      - name: Helper build
+        uses: docker/build-push-action@v5
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: deployment/docker/helper/Dockerfile
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.helper.outputs.labels }}
+          tags: ${{ steps.helper.outputs.tags }}

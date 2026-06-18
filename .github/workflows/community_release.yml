@@ -20,7 +20,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24.6'
+          go-version: '^1.26.4'
 
       - name: Setup nodejs
         uses: actions/setup-node@v4
@@ -54,6 +54,7 @@ jobs:
       - name: Run release
         run: |
           GITHUB_TOKEN=${{ github.token }} \
+          GPG_PASS="${{ secrets.GPG_PASS }}" \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
           PROJECT_NAME=semaphore_community \
             task release:prod

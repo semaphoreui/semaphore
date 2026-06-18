@@ -10,11 +10,10 @@ properties:
   # ==========================================================================
   dialect:
     type: string
-    enum: [mysql, bolt, postgres, sqlite]
-    default: bolt
+    enum: [mysql, postgres, sqlite]
+    default: sqlite
     description: Database engine used by Semaphore.
   mysql:    { $ref: "#/$defs/DbConfig" }
-  bolt:     { $ref: "#/$defs/DbConfig", description: "Deprecated — embedded BoltDB store." }
   postgres: { $ref: "#/$defs/DbConfig" }
   sqlite:   { $ref: "#/$defs/DbConfig" }
 
@@ -146,7 +145,7 @@ properties:
   max_parallel_tasks:
     type: integer
     minimum: 0
-    default: 10
+    default: 9999
 
   runner_registration_token:
     type: string
@@ -214,6 +213,7 @@ properties:
   subscription: { $ref: "#/$defs/SubscriptionConfig" }
   dirs:         { $ref: "#/$defs/ConfigDirs" }
   runner:       { $ref: "#/$defs/RunnerConfig" }
+  runners: { $ref: "#/$defs/RunnersConfig" }
 
 $defs:
   DbConfig:
@@ -489,7 +489,119 @@ $defs:
       tags:
         type: array
         items: { type: string }
-      max_parallel_tasks: { type: integer, minimum: 1, default: 1 }
+      max_parallel_tasks: { type: integer, minimum: 1, default: 9999 }
       enabled:            { type: boolean }
       project_id:
         type: [integer, "null"]
+      connection: { $ref: "#/$defs/RunnerConnectionConfig" }
+      executor:   { $ref: "#/$defs/ExecutorConfig" }
+
+  RunnerConnectionConfig:
+    type: object
+    description: Controls how the runner connects to the Semaphore server.
+    properties:
+      server_ca_cert_file:
+        type: string
+        description: >
+          PEM bundle used to verify the Semaphore server certificate, in
+          addition to the system trust store. Set when the server uses a
+          self-signed or internal-CA certificate.
+      skip_tls_verify:
+        type: boolean
+        description: >
+          Disables server certificate verification entirely. Insecure
+          (vulnerable to MITM) — use only for testing.
+
+  ExecutorConfig:
+    type: object
+    description: Strategy the runner uses to execute each task.
+    properties:
+      type:
+        type: string
+        enum: [local, k8s, docker]
+        default: local
+      k8s:    { $ref: "#/$defs/RunnerK8sConfig" }
+      docker: { $ref: "#/$defs/RunnerDockerConfig" }
+
+  RunnerK8sConfig:
+    type: object
+    description: Runner-side configuration for the Kubernetes executor.
+    properties:
+      kubeconfig:
+        type: string
+        description: Path to a kubeconfig file. Empty = in-cluster configuration.
+      namespace:    { type: string, default: semaphore }
+      image:        { type: string, default: "alpine:latest" }
+      helper_image: { type: string, default: "alpine/git:latest" }
+      service_account:
+        type: string
+        default: default
+        description: Service account that task Pods run under.
+      pull_secrets:
+        type: string
+        description: Comma-separated list of imagePullSecrets attached to each Pod.
+      poll_interval_seconds: { type: integer, minimum: 0, default: 3 }
+      cleanup_grace_seconds: { type: integer, minimum: 0, default: 30 }
+
+  RunnerDockerConfig:
+    type: object
+    description: Runner-side configuration for the Docker executor.
+    properties:
+      host:
+        type: string
+        description: >
+          Docker daemon URL (unix://, tcp:// or npipe://). Empty = standard
+          environment (DOCKER_HOST) and platform default socket.
+      tls_verify:
+        type: boolean
+        description: Enables TLS certificate verification for tcp:// connections.
+      cert_path:
+        type: string
+        description: Directory holding ca.pem, cert.pem and key.pem for mutual TLS.
+      image:        { type: string, default: "semaphoreui/job:latest" }
+      helper_image: { type: string, default: "semaphoreui/job:latest" }
+      network:      { type: string, default: bridge }
+      pull_policy:
+        type: string
+        default: if-not-present
+        description: Image pull policy — always, if-not-present or never.
+      cpu_limit:
+        type: number
+        description: When > 0, caps the build container CPU (passed as --cpus).
+      memory_limit:
+        type: string
+        description: When non-empty, caps the build container memory (e.g. "2g").
+      poll_interval_seconds: { type: integer, minimum: 0, default: 2 }
+      cleanup_grace_seconds: { type: integer, minimum: 0, default: 30 }
+      privileged:
+        type: boolean
+        description: Runs the build container with --privileged. Dangerous; off by default.
+
+  RunnersConfig:
+    type: object
+    description: >
+      Server-side settings describing how the server treats its runner fleet.
+      Unrelated to "runner", which configures a runner process itself.
+    properties:
+      offline_timeout_sec:
+        type: integer
+        minimum: 0
+        default: 120
+        description: >
+          Heartbeat staleness (seconds) after which a runner is considered
+          offline. An offline runner receives no new tasks and its "starting"
+          tasks are reassigned to another runner. Must be comfortably larger
+          than the runner poll interval.
+      task_fail_timeout_sec:
+        type: integer
+        minimum: 0
+        default: 420
+        description: >
+          Heartbeat staleness (seconds) after which a runner's "running" tasks
+          are failed. A runner that reconnects within this window continues its
+          tasks. Values below offline_timeout_sec are clamped to it.
+      reconcile_interval_sec:
+        type: integer
+        minimum: 0
+        default: 30
+        description: How often (seconds) dispatched tasks are reconciled against runner liveness.

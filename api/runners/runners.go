@@ -7,8 +7,11 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -116,6 +119,20 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 
 	clearCache := false
 
+	// The runner reports its process start time on every poll. It changes on
+	// every restart and is persisted next to "touched", so the task reconciler
+	// can detect runners that restarted and lost their in-memory job pool.
+	if v := r.Header.Get("X-Runner-Started-At"); v != "" {
+		if startedAt, parseErr := time.Parse(time.RFC3339, v); parseErr == nil {
+			runner.StartedAt = &startedAt
+		} else {
+			log.WithFields(log.Fields{
+				"runner_id": runner.ID,
+				"context":   "runner",
+			}).WithError(parseErr).Warn("invalid X-Runner-Started-At header")
+		}
+	}
+
 	if err := c.runnerRepo.TouchRunner(runner); err != nil {
 		log.WithFields(log.Fields{
 			"runner_id": runner.ID,
@@ -145,7 +162,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if tsk.Task.Status == task_logger.TaskStartingStatus {
+		if tsk.Task.Status == task_logger.TaskWaitingStatus || tsk.Task.Status == task_logger.TaskStartingStatus {
 
 			jobData := runners.JobData{
 				Username:            tsk.Username,
@@ -320,10 +337,17 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	var response runners.RunnerProgressResponse
+
 	for _, job := range body.Jobs {
 		tsk, err := taskPool.GetTask(job.ID)
 
 		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				// The task no longer exists at all — the runner's job is orphaned.
+				response.TerminatedJobs = append(response.TerminatedJobs, job.ID)
+				continue
+			}
 			log.WithError(err).WithFields(log.Fields{
 				"task_id":   job.ID,
 				"runner_id": runner.ID,
@@ -333,21 +357,40 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 		}
 
 		if tsk == nil {
-			log.WithFields(log.Fields{
-				"task_id":   job.ID,
-				"runner_id": runner.ID,
-				"context":   "runner",
-			}).Warn("runner progress: task not found in pool")
+			// Not in the pool. The task may have been stopped and finalized while
+			// the runner was offline; check the persisted row so the runner can be
+			// told to emergency-stop instead of running the job forever.
+			row, rowErr := helpers.Store(r).GetTaskByID(job.ID)
+			switch {
+			case rowErr != nil && errors.Is(rowErr, db.ErrNotFound):
+				// The task no longer exists at all — the runner's job is orphaned.
+				response.TerminatedJobs = append(response.TerminatedJobs, job.ID)
+			case rowErr == nil && row.Status.IsFinished():
+				response.TerminatedJobs = append(response.TerminatedJobs, job.ID)
+			case rowErr != nil:
+				log.WithError(rowErr).WithFields(log.Fields{
+					"task_id":   job.ID,
+					"runner_id": runner.ID,
+					"context":   "runner",
+				}).Warn("runner progress: task not in pool and could not be loaded from database")
+			default:
+				log.WithFields(log.Fields{
+					"task_id":   job.ID,
+					"runner_id": runner.ID,
+					"context":   "runner",
+				}).Warn("runner progress: task not found in pool")
+			}
 			continue
 		}
 
 		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runner.ID {
-			helpers.WriteErrorStatus(w, "Task not assigned to this runner", http.StatusBadRequest)
-			return
-		}
-
-		for _, logRecord := range job.LogRecords {
-			tsk.LogWithTime(logRecord.Time, logRecord.Message)
+			// The task was reassigned (e.g. reconciler requeued it off an offline
+			// runner). Tell this runner to emergency-stop the job instead of
+			// rejecting the whole progress batch with 400 — sendProgress treats
+			// >=400 as total failure and never applies terminated_jobs, so the
+			// old runner would keep executing alongside the new assignee.
+			response.TerminatedJobs = append(response.TerminatedJobs, job.ID)
+			continue
 		}
 
 		if !job.Status.IsValid() {
@@ -355,16 +398,36 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		if !tsk.Task.Status.IsFinished() {
-			tsk.SetStatus(job.Status)
+		// The task already reached a terminal status on the server (e.g. force
+		// stopped while the runner was offline, or failed by the reconciler).
+		// Reject the report — logs included — and tell the runner to
+		// emergency-stop the job.
+		if tsk.Task.Status.IsFinished() {
+			response.TerminatedJobs = append(response.TerminatedJobs, job.ID)
+			continue
+		}
 
-			if job.Commit != nil {
-				tsk.SetCommit(job.Commit.Hash, job.Commit.Message)
-			}
+		for _, logRecord := range job.LogRecords {
+			tsk.LogWithTime(logRecord.Time, logRecord.Message)
+		}
+
+		tsk.SetStatus(job.Status)
+
+		if job.Commit != nil {
+			tsk.SetCommit(job.Commit.Hash, job.Commit.Message)
+		}
+
+		// When the runner reports a terminal status, finalize the task here:
+		// finish webhook, autorun children, and pool/Redis state cleanup.
+		// This is what completes a task independently of the node that
+		// originally dispatched it.
+		if tsk.Task.Status.IsFinished() {
+			runner := runner
+			go taskPool.FinalizeRemoteTask(tsk, &runner)
 		}
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	helpers.WriteJSON(w, http.StatusOK, response)
 }
 
 func RegisterRunner(w http.ResponseWriter, r *http.Request) {
@@ -377,26 +440,55 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if util.Config.RunnerRegistrationToken == "" || register.RegistrationToken != util.Config.RunnerRegistrationToken {
+	if register.RegistrationToken == "" {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid registration token",
 		})
 		return
 	}
 
-	runner, err := helpers.Store(r).CreateRunner(db.Runner{
-		Webhook:          register.Webhook,
-		Name:             register.Name,
-		Tags:             register.Tags,
-		MaxParallelTasks: register.MaxParallelTasks,
-		Active:           register.Enabled,
-		PublicKey:        register.PublicKey,
-		ProjectID:        register.ProjectID,
-	})
+	store := helpers.Store(r)
 
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "Unexpected error",
+	var runner db.Runner
+	var err error
+
+	if strings.HasPrefix(register.RegistrationToken, "smrs_") {
+		// Otherwise the value is a one-time registration token issued for a specific
+		// unregistered runner. The global token cannot be used to register it.
+		runner, err = store.RegisterRunner(server.HashRunnerRegistrationToken(register.RegistrationToken), register.PublicKey)
+
+		if err != nil {
+			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Invalid registration token",
+			})
+			return
+		}
+	} else if util.Config.RunnerRegistrationToken != "" && register.RegistrationToken == util.Config.RunnerRegistrationToken {
+		// The shared, global registration token creates a brand-new runner.
+		runner, err = store.CreateRunner(db.Runner{
+			Token:            db.GenerateRunnerToken(),
+			Webhook:          register.Webhook,
+			Name:             register.Name,
+			Tags:             register.Tags,
+			MaxParallelTasks: register.MaxParallelTasks,
+			Active:           register.Enabled,
+			PublicKey:        register.PublicKey,
+			ProjectID:        register.ProjectID,
+		})
+
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"context": "runner",
+			}).Error("Can't create runner")
+
+			helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Unexpected error",
+			})
+			return
+		}
+	} else {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid registration token",
 		})
 		return
 	}
