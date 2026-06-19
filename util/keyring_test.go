@@ -469,6 +469,32 @@ func TestEncryptionKeysFile_ReferencedKeyFilesYAML(t *testing.T) {
 	assert.Equal(t, keyAccess2, Config.accessRing().primary)
 }
 
+// TestEncryptionKeysFile_FormatAgnostic confirms the keys file parses as either
+// YAML or JSON regardless of extension — important for Kubernetes secret mounts,
+// whose path usually has no .yaml/.yml extension.
+func TestEncryptionKeysFile_FormatAgnostic(t *testing.T) {
+	keyAccess := genKey(0x01)
+	dir := t.TempDir()
+
+	t.Run("YAML content, no extension", func(t *testing.T) {
+		path := filepath.Join(dir, "encryption_keys") // e.g. a mounted secret
+		require.NoError(t, os.WriteFile(path, []byte(
+			"access_key:\n  primary:\n    value: "+keyAccess+"\n"), 0o600))
+		Config = &ConfigType{EncryptionKeysFile: path}
+		resolveEncryptionKeys()
+		assert.Equal(t, keyAccess, Config.accessRing().primary)
+	})
+
+	t.Run("JSON content, no extension", func(t *testing.T) {
+		path := filepath.Join(dir, "keys_json")
+		require.NoError(t, os.WriteFile(path, []byte(
+			`{"access_key":{"primary":{"value":"`+keyAccess+`"}}}`), 0o600))
+		Config = &ConfigType{EncryptionKeysFile: path}
+		resolveEncryptionKeys()
+		assert.Equal(t, keyAccess, Config.accessRing().primary)
+	})
+}
+
 // TestReloadEncryptionKeys_ConcurrentReadsAreRaceFree hot-rotates the keyring
 // while many goroutines encrypt and decrypt — run with -race, this is the core
 // safety guarantee behind rotation without a restart. Both configs carry the

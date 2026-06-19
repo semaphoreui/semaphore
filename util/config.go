@@ -1437,23 +1437,22 @@ func readEncryptionKeysConfigFile(path string) (*EncryptionKeysConfig, error) {
 	}
 	defer file.Close()
 
+	// Parse via YAML regardless of extension: YAML 1.2 is a superset of JSON, so
+	// this accepts both formats. The file is often a Kubernetes secret mounted at
+	// a path with no .yaml/.yml extension, so extension-based detection is not
+	// reliable here.
+	var raw any
+	if err := yaml.NewDecoder(file).Decode(&raw); err != nil {
+		return nil, err
+	}
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return nil, err
+	}
+
 	var enc EncryptionKeysConfig
-	if isYAMLConfig(path) {
-		var raw any
-		if err := yaml.NewDecoder(file).Decode(&raw); err != nil {
-			return nil, err
-		}
-		data, err := json.Marshal(raw)
-		if err != nil {
-			return nil, err
-		}
-		if err := json.Unmarshal(data, &enc); err != nil {
-			return nil, err
-		}
-	} else {
-		if err := json.NewDecoder(file).Decode(&enc); err != nil {
-			return nil, err
-		}
+	if err := json.Unmarshal(data, &enc); err != nil {
+		return nil, err
 	}
 
 	return &enc, nil

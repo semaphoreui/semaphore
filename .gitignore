@@ -60,4 +60,6 @@ __debug_bin*
 /go.work
 /go.work.sum
 /.licenses-cache
-/node*-config.yaml
+/*-config.yaml
+/*-config.yml
+/*-config.config
