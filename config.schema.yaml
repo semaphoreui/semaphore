@@ -71,7 +71,18 @@ properties:
     description: Base64-encoded encryption key for session cookies (sensitive).
   access_key_encryption:
     type: string
-    description: Base64-encoded 32-byte key used to encrypt stored access keys (sensitive).
+    description: >-
+      Base64-encoded 32-byte key used to encrypt stored access keys (sensitive).
+      Legacy entry point; the access keyring is also configurable via
+      encryption_keys.access_key (with file support).
+  option_encryption:
+    type: string
+    description: >-
+      Base64-encoded key used to encrypt DB options (the JWT signing key) with the
+      old single-key scheme, no rotation (sensitive). Option-key counterpart of
+      access_key_encryption; rotation is configured instead via
+      encryption_keys_file (option_key). When unset, options fall back to the
+      access key.
 
   # ==========================================================================
   # Alerting — Email (SMTP)
@@ -214,8 +225,48 @@ properties:
   dirs:         { $ref: "#/$defs/ConfigDirs" }
   runner:       { $ref: "#/$defs/RunnerConfig" }
   runners: { $ref: "#/$defs/RunnersConfig" }
+  encryption_keys_file:
+    type: string
+    description: >-
+      Path to a separate file holding the encryption keyrings (JSON or YAML; its
+      content follows the EncryptionKeysConfig structure in $defs). This is the
+      only source for the keyrings and is watched for changes — edits are applied
+      without restarting the server. When unset, the legacy access_key_encryption
+      field is used.
 
 $defs:
+  KeySource:
+    type: object
+    description: >-
+      A single secret key supplied either inline (value) or from a file (file).
+      value and file are mutually exclusive.
+    properties:
+      value:
+        type: string
+        description: Base64-encoded key material (sensitive).
+      file:
+        type: string
+        description: Path to a file containing the base64-encoded key.
+  Keyring:
+    type: object
+    description: >-
+      One active primary key used for all new encryption, plus an ordered list of
+      retired secondary keys kept only for decryption (zero-downtime rotation).
+    properties:
+      primary: { $ref: "#/$defs/KeySource" }
+      secondary:
+        type: array
+        items: { $ref: "#/$defs/KeySource" }
+        description: Retired keys, tried in order when decrypting. Removed once `vault rekey` completes.
+  EncryptionKeysConfig:
+    type: object
+    description: >-
+      Encryption keyrings supporting file-based keys and rotation. access_key
+      protects stored access key secrets; option_key protects encrypted DB options
+      (the JWT signing key) and falls back to access_key when unset.
+    properties:
+      access_key: { $ref: "#/$defs/Keyring" }
+      option_key: { $ref: "#/$defs/Keyring" }
   DbConfig:
     type: object
     properties:

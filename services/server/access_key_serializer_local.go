@@ -69,9 +69,7 @@ func (d *LocalAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) error {
 		return fmt.Errorf("invalid access token type")
 	}
 
-	encryptionString := util.Config.AccessKeyEncryption
-
-	secret, err := util.EncryptAESGCM(plaintext, encryptionString)
+	secret, err := util.Config.EncryptAccessSecret(plaintext)
 	if err != nil {
 		return err
 	}
@@ -81,10 +79,19 @@ func (d *LocalAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) error {
 }
 
 func (d *LocalAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
-	return d.DeserializeSecret2(key, util.Config.AccessKeyEncryption)
+	return d.deserializeSecretWithKeys(key, util.Config.AccessSecretDecryptKeys())
 }
 
+// DeserializeSecret2 decrypts using a single explicit key. It is kept for the
+// rekey path (which supplies an old key) and for tests.
 func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encryptionString string) (res string, err error) {
+	return d.deserializeSecretWithKeys(key, []string{encryptionString})
+}
+
+// deserializeSecretWithKeys decrypts the secret, trying each key in
+// encryptionKeys in order (primary first, then retired secondaries) and
+// returning the first success.
+func (d *LocalAccessKeyDeserializer) deserializeSecretWithKeys(key *db.AccessKey, encryptionKeys []string) (res string, err error) {
 
 	if key.SourceStorageType != nil {
 		if key.SourceStorageKey == nil {
@@ -169,16 +176,24 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encry
 		return
 	}
 
-	plaintext, decErr := util.DecryptAESGCM(secret, encryptionString)
-	if decErr != nil {
-		if decErr.Error() == "cipher: message authentication failed" {
-			err = fmt.Errorf("cannot decrypt access key, perhaps encryption key was changed")
-		} else {
-			err = decErr
-		}
-		return
+	if len(encryptionKeys) == 0 {
+		encryptionKeys = []string{""}
 	}
 
-	res = string(plaintext)
+	var decErr error
+	for _, encryptionString := range encryptionKeys {
+		var plaintext []byte
+		plaintext, decErr = util.DecryptAESGCM(secret, encryptionString)
+		if decErr == nil {
+			res = string(plaintext)
+			return
+		}
+	}
+
+	if decErr.Error() == "cipher: message authentication failed" {
+		err = fmt.Errorf("cannot decrypt access key, perhaps encryption key was changed")
+	} else {
+		err = decErr
+	}
 	return
 }

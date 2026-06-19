@@ -1,12 +1,15 @@
 package server
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSetSecret(t *testing.T) {
@@ -226,6 +229,58 @@ func TestRekeyAccessKeysSkipsExternalStorageKeys(t *testing.T) {
 	if len(updatedIDs) != 1 || updatedIDs[0] != 1 {
 		t.Fatalf("expected only local key (ID=1) to be updated, got updates for IDs: %v", updatedIDs)
 	}
+}
+
+func TestRekeyAccessKeysReEncryptsWithExplicitOldKey(t *testing.T) {
+	keyOld := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32))
+	keyNew := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x02}, 32))
+	projectID := 1
+
+	oldCiphertext, err := util.EncryptAESGCM([]byte("my-string-secret"), keyOld)
+	require.NoError(t, err)
+
+	seedKey := db.AccessKey{
+		ID:        1,
+		Name:      "local-key",
+		Type:      db.AccessKeyString,
+		ProjectID: &projectID,
+		Secret:    &oldCiphertext,
+	}
+
+	var updated db.AccessKey
+	keyMgr := &mockAccessKeyManager{
+		GetAccessKeysFn: func(_ int, _ db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
+			if params.Offset > 0 {
+				return nil, nil
+			}
+			return []db.AccessKey{seedKey}, nil
+		},
+		UpdateAccessKeyFn: func(k db.AccessKey) error {
+			updated = k
+			return nil
+		},
+	}
+	projectStore := &mockProjectStore{
+		GetAllProjectsFn: func() ([]db.Project, error) {
+			return []db.Project{{ID: projectID}}, nil
+		},
+	}
+
+	// New primary key is the flat AccessKeyEncryption; the old key is supplied
+	// explicitly (the legacy `vault rekey --old-key` flow).
+	util.Config = &util.ConfigType{AccessKeyEncryption: keyNew}
+	svc := NewAccessKeyEncryptionService(keyMgr, nil, nil, projectStore)
+
+	require.NoError(t, svc.RekeyAccessKeys(keyOld))
+
+	require.NotNil(t, updated.Secret)
+	plain, err := util.DecryptAESGCM(*updated.Secret, keyNew)
+	require.NoError(t, err)
+	assert.Equal(t, "my-string-secret", string(plain))
+
+	// The re-encrypted secret must no longer be readable with the old key.
+	_, err = util.DecryptAESGCM(*updated.Secret, keyOld)
+	assert.Error(t, err)
 }
 
 func intPtr(i int) *int       { return &i }

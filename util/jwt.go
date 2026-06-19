@@ -101,14 +101,69 @@ func loadOrCreateJWTKey(store OptionStore) ([]byte, error) {
 	return pemBytes, nil
 }
 
-// encryptJWTKey encrypts pemBytes using the configured AccessKeyEncryption key.
-func encryptJWTKey(pemBytes []byte) (string, error) {
-	return EncryptAESGCM(pemBytes, Config.AccessKeyEncryption)
+// CheckJWTSigningKey reports which keyring slot decrypts the stored JWT signing
+// key, for `vault check`. Returns ("", nil) when no key is stored.
+func CheckJWTSigningKey(store OptionStore) (slot string, err error) {
+	stored, err := store.GetOption(jwtSigningKeyOption)
+	if err != nil {
+		return "", fmt.Errorf("read jwt signing key option: %w", err)
+	}
+	if stored == "" {
+		return "", nil
+	}
+	return Config.OptionSlot(stored), nil
 }
 
-// decryptJWTKey reverses encryptJWTKey.
+// RekeyJWTSigningKey re-encrypts the stored JWT signing key under the current
+// option keyring primary. It decrypts using the option keyring, the access
+// keyring fallback, and — when supplied — oldKey (the legacy
+// `vault rekey --old-key` flow). It is a no-op when no key is stored or when
+// the ciphertext already matches (e.g. encryption disabled).
+func RekeyJWTSigningKey(store OptionStore, oldKey string) error {
+	stored, err := store.GetOption(jwtSigningKeyOption)
+	if err != nil {
+		return fmt.Errorf("read jwt signing key option: %w", err)
+	}
+	if stored == "" {
+		return nil
+	}
+
+	keys := Config.OptionDecryptKeys()
+	if oldKey != "" {
+		keys = append(keys, oldKey)
+	}
+
+	pemBytes, err := decryptWithKeys(stored, keys)
+	if err != nil {
+		return fmt.Errorf("jwt: decrypt signing key for rekey: %w", err)
+	}
+
+	reEncrypted, err := Config.EncryptOption(pemBytes)
+	if err != nil {
+		return fmt.Errorf("jwt: re-encrypt signing key: %w", err)
+	}
+
+	if reEncrypted == stored {
+		return nil
+	}
+
+	if err := store.SetOption(jwtSigningKeyOption, reEncrypted); err != nil {
+		return fmt.Errorf("jwt: persist re-encrypted signing key: %w", err)
+	}
+	return nil
+}
+
+// encryptJWTKey encrypts pemBytes using the option keyring primary key (which
+// falls back to the access key when no separate option key is configured).
+func encryptJWTKey(pemBytes []byte) (string, error) {
+	return Config.EncryptOption(pemBytes)
+}
+
+// decryptJWTKey reverses encryptJWTKey. It tries the option keyring and then
+// the access keyring as a migration fallback, so a key written before the
+// option/access split (encrypted with the access key) still loads.
 func decryptJWTKey(stored string) ([]byte, error) {
-	plaintext, err := DecryptAESGCM(stored, Config.AccessKeyEncryption)
+	plaintext, err := Config.DecryptOption(stored)
 	if err != nil {
 		return nil, fmt.Errorf("jwt: decrypt signing key: %w", err)
 	}

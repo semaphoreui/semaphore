@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -108,8 +110,45 @@ func Execute() {
 	}
 }
 
+// encryptionKeysPollInterval is how often the encryption-keys file is checked
+// for changes by the watcher.
+const encryptionKeysPollInterval = 15 * time.Second
+
+// watchEncryptionKeyReload enables key rotation without restarting the server:
+//   - a SIGHUP forces an immediate reload;
+//   - a background poller applies changes to the encryption-keys file (and the
+//     key files it references) automatically.
+func watchEncryptionKeyReload() {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGHUP)
+	go func() {
+		for range sigCh {
+			if err := util.ReloadEncryptionKeys(); err != nil {
+				log.WithError(err).Error("failed to reload encryption keys")
+			} else {
+				log.Info("encryption keys reloaded (SIGHUP)")
+			}
+		}
+	}()
+
+	go func() {
+		ticker := time.NewTicker(encryptionKeysPollInterval)
+		defer ticker.Stop()
+		for range ticker.C {
+			changed, err := util.ReloadEncryptionKeysIfChanged()
+			if err != nil {
+				log.WithError(err).Error("failed to reload encryption keys")
+			} else if changed {
+				log.Info("encryption keys reloaded (file changed)")
+			}
+		}
+	}()
+}
+
 func runService() {
 	store := createStore("root")
+
+	watchEncryptionKeyReload()
 
 	jwtSigner, jwtErr := util.InitJWTSignerFromStore(store)
 	if jwtErr != nil {

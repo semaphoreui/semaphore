@@ -186,10 +186,10 @@ type RunnerK8sConfig struct {
 
 	// Image is the default container image used for the build container of each
 	// task Pod. Templates may override this in a future phase.
-	Image string `json:"image,omitempty" default:"alpine:latest" env:"SEMAPHORE_RUNNER_K8S_IMAGE"`
+	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_K8S_IMAGE"`
 
 	// HelperImage is the image used for the git-clone init container (Phase 3+).
-	HelperImage string `json:"helper_image,omitempty" default:"alpine/git:latest" env:"SEMAPHORE_RUNNER_K8S_HELPER_IMAGE"`
+	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_K8S_HELPER_IMAGE"`
 
 	// ServiceAccount that task Pods run under. Defaults to the namespace's default SA.
 	ServiceAccount string `json:"service_account,omitempty" default:"default" env:"SEMAPHORE_RUNNER_K8S_SERVICE_ACCOUNT"`
@@ -226,7 +226,7 @@ type RunnerDockerConfig struct {
 	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_IMAGE"`
 
 	// HelperImage is the image used for the transient git-clone container.
-	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_HELPER_IMAGE"`
+	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_DOCKER_HELPER_IMAGE"`
 
 	// Network is the Docker network the build container joins. Defaults to "bridge".
 	Network string `json:"network,omitempty" default:"bridge" env:"SEMAPHORE_RUNNER_DOCKER_NETWORK"`
@@ -423,6 +423,32 @@ type JWTConfig struct {
 	MaxTTL     string `json:"max_ttl,omitempty" env:"SEMAPHORE_JWT_MAX_TTL" default:"24h"`
 }
 
+// KeySource supplies a single secret key either inline (Value) or from a file
+// (File). Value and File are mutually exclusive.
+type KeySource struct {
+	Value string `json:"value,omitempty"`
+	File  string `json:"file,omitempty"`
+}
+
+// Keyring is one active (Primary) key used for all new encryption, plus an
+// ordered list of retired (Secondary) keys kept only for decryption. This
+// enables zero-downtime key rotation: add the new key as Primary, move the old
+// key to Secondary, restart, re-encrypt lazily with `vault rekey`, then drop
+// the Secondary once `vault check` confirms nothing depends on it.
+type Keyring struct {
+	Primary   KeySource   `json:"primary,omitempty"`
+	Secondary []KeySource `json:"secondary,omitempty"`
+}
+
+// EncryptionKeysConfig groups the encryption keyrings. AccessKey protects
+// Access Key secrets stored in the database; OptionKey protects encrypted DB
+// options (currently the JWT signing key). When OptionKey is not configured it
+// falls back to AccessKey, preserving pre-split behaviour.
+type EncryptionKeysConfig struct {
+	AccessKey *Keyring `json:"access_key,omitempty"`
+	OptionKey *Keyring `json:"option_key,omitempty"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -469,7 +495,17 @@ type ConfigType struct {
 	CookieEncryption string `json:"cookie_encryption,omitempty" env:"SEMAPHORE_COOKIE_ENCRYPTION,sensitive"`
 	// AccessKeyEncryption is BASE64 encoded byte array used
 	// for encrypting and decrypting access keys stored in database.
+	// Legacy entry point kept for backward compatibility; the access keyring is
+	// configured via EncryptionKeys.AccessKey (encryption_keys.access_key).
 	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION,sensitive"`
+
+	// OptionEncryption is a BASE64 encoded key used to encrypt/decrypt DB options
+	// (the JWT signing key) with the old single-key scheme (no rotation). It is
+	// the option-keyring counterpart of AccessKeyEncryption: when set the option
+	// keyring uses this one key; rotation is configured instead via the keys file
+	// (encryption_keys_file → option_key). When unset, options fall back to the
+	// access keyring.
+	OptionEncryption string `json:"option_encryption,omitempty" env:"SEMAPHORE_OPTION_ENCRYPTION,sensitive"`
 
 	// email alerting
 	EmailAlert         bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
@@ -554,6 +590,19 @@ type ConfigType struct {
 	Runner *RunnerConfig `json:"runner,omitempty"`
 
 	Runners *RunnersConfig `json:"runners,omitempty"`
+
+	// EncryptionKeysFile points to a separate file holding the EncryptionKeysConfig
+	// (the access-key and option encryption keyrings, as JSON or YAML). It is the
+	// only source for the keyrings and is watched for changes — edits are applied
+	// without restarting the server. When unset, the legacy flat AccessKeyEncryption
+	// field is used.
+	EncryptionKeysFile string `json:"encryption_keys_file,omitempty" env:"SEMAPHORE_ENCRYPTION_KEYS_FILE"`
+
+	// keys holds the resolved runtime keyrings behind atomic pointers so they
+	// can be hot-swapped during key rotation without restarting (see
+	// ReloadEncryptionKeys). Unexported so it is ignored by JSON, env, defaults
+	// and validation reflection.
+	keys *keyringStore
 }
 
 // Default values for RunnersConfig, applied when the "runners" config section
@@ -681,6 +730,10 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 
 	loadConfigEnvironment()
 	loadConfigDefaults()
+
+	// Resolve encryption keyrings (read key files, apply precedence, build the
+	// runtime keyrings) before validation consumes the keys.
+	resolveEncryptionKeys()
 
 	//fmt.Println("Validating config")
 	validateConfig()
@@ -1206,6 +1259,206 @@ func validate(value any) error {
 	return nil
 }
 
+// resolveKeySource returns the key material from a KeySource: the inline Value,
+// or the trimmed contents of File. Value and File are mutually exclusive.
+func resolveKeySource(ks KeySource, name string) (string, error) {
+	if ks.Value != "" && ks.File != "" {
+		return "", fmt.Errorf("%s: 'value' and 'file' are mutually exclusive", name)
+	}
+	if ks.File != "" {
+		data, err := os.ReadFile(ks.File)
+		if err != nil {
+			return "", fmt.Errorf("%s: read key file %q: %w", name, ks.File, err)
+		}
+		return strings.TrimSpace(string(data)), nil
+	}
+	return ks.Value, nil
+}
+
+// resolveKeyring builds a runtime keyring from a structured Keyring config plus
+// a flat fallback for the primary (the env/legacy field). Precedence: the
+// structured primary wins; the flat fallback is used only when the structured
+// primary is empty. (Structured-wins — rather than erroring on a mismatch — is
+// what makes hot rotation work: after a reload the new structured primary must
+// override the old flat value without a conflict.)
+func resolveKeyring(kr *Keyring, flatPrimary, name string) (*runtimeKeyring, error) {
+	rk := &runtimeKeyring{}
+
+	var structuredPrimary string
+	if kr != nil {
+		var err error
+		structuredPrimary, err = resolveKeySource(kr.Primary, name+".primary")
+		if err != nil {
+			return nil, err
+		}
+		for i, s := range kr.Secondary {
+			sv, err := resolveKeySource(s, fmt.Sprintf("%s.secondary[%d]", name, i))
+			if err != nil {
+				return nil, err
+			}
+			if sv != "" {
+				rk.secondary = append(rk.secondary, sv)
+			}
+		}
+	}
+
+	if structuredPrimary != "" {
+		rk.primary = structuredPrimary
+	} else {
+		rk.primary = flatPrimary
+	}
+
+	return rk, nil
+}
+
+// resolveEncryptionKeysFrom builds the access and option runtime keyrings from
+// the given EncryptionKeys config plus the flat access fallback, validating
+// every resolved key. It does not mutate global state.
+func resolveEncryptionKeysFrom(enc *EncryptionKeysConfig, flatAccess, flatOption string) (access, option *runtimeKeyring, err error) {
+	var accessCfg, optionCfg *Keyring
+	if enc != nil {
+		accessCfg = enc.AccessKey
+		optionCfg = enc.OptionKey
+	}
+
+	access, err = resolveKeyring(accessCfg, flatAccess, "encryption_keys.access_key")
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, key := range access.candidates() {
+		if err = validateAccessKeyEncryption(key); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// The option keyring comes from encryption_keys.option_key (with rotation),
+	// or the legacy flat OptionEncryption field (a single key, no rotation). When
+	// it carries no key material it is left nil so option encryption falls back to
+	// the access keyring (pre-split behaviour).
+	option, err = resolveKeyring(optionCfg, flatOption, "encryption_keys.option_key")
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, key := range option.candidates() {
+		if err = validateAccessKeyEncryption(key); err != nil {
+			return nil, nil, err
+		}
+	}
+	if option.primary == "" && len(option.secondary) == 0 {
+		option = nil
+	}
+
+	return access, option, nil
+}
+
+// loadEncryptionKeysSource returns the EncryptionKeysConfig to resolve from.
+// The keyrings live exclusively in EncryptionKeysFile, re-read from disk so its
+// edits (and edits to the key files it references) are picked up on reload.
+// When unset there is no structured config and the legacy flat
+// AccessKeyEncryption field is used instead.
+func loadEncryptionKeysSource() (*EncryptionKeysConfig, error) {
+	if Config.EncryptionKeysFile == "" {
+		return nil, nil
+	}
+	return readEncryptionKeysConfigFile(Config.EncryptionKeysFile)
+}
+
+// resolveEncryptionKeys builds the runtime keyrings once at startup and stores
+// them on Config. Invalid keys panic (fail fast at boot).
+func resolveEncryptionKeys() {
+	enc, err := loadEncryptionKeysSource()
+	if err != nil {
+		panic(err)
+	}
+
+	access, option, err := resolveEncryptionKeysFrom(enc, Config.AccessKeyEncryption, Config.OptionEncryption)
+	if err != nil {
+		panic(err)
+	}
+	if Config.keys == nil {
+		Config.keys = &keyringStore{}
+	}
+	Config.keys.access.Store(access)
+	Config.keys.option.Store(option)
+}
+
+// ReloadEncryptionKeys re-reads the encryption keys (the dedicated
+// EncryptionKeysFile or the encryption_keys section of the config file, plus any
+// referenced key files) and atomically swaps the runtime keyrings, without
+// restarting. It validates the new keys first and leaves the current keyrings
+// untouched on any error. Safe to call concurrently with encryption/decryption.
+func ReloadEncryptionKeys() error {
+	_, err := reloadEncryptionKeys(true)
+	return err
+}
+
+// ReloadEncryptionKeysIfChanged is like ReloadEncryptionKeys but performs the
+// atomic swap only when the resolved keys actually differ from the active ones,
+// returning whether a change was applied. It is the file watcher's entry point.
+func ReloadEncryptionKeysIfChanged() (changed bool, err error) {
+	return reloadEncryptionKeys(false)
+}
+
+func reloadEncryptionKeys(force bool) (bool, error) {
+	enc, err := loadEncryptionKeysSource()
+	if err != nil {
+		return false, err
+	}
+
+	access, option, err := resolveEncryptionKeysFrom(enc, Config.AccessKeyEncryption, Config.OptionEncryption)
+	if err != nil {
+		return false, err
+	}
+
+	if Config.keys == nil {
+		Config.keys = &keyringStore{}
+	}
+
+	Config.keys.reloadMu.Lock()
+	defer Config.keys.reloadMu.Unlock()
+
+	if !force &&
+		keyringsEqual(access, Config.keys.access.Load()) &&
+		keyringsEqual(option, Config.keys.option.Load()) {
+		return false, nil
+	}
+
+	Config.keys.access.Store(access)
+	Config.keys.option.Store(option)
+	return true, nil
+}
+
+// readEncryptionKeysConfigFile decodes a dedicated encryption-keys file (whose
+// whole content is an EncryptionKeysConfig), as JSON or YAML.
+func readEncryptionKeysConfigFile(path string) (*EncryptionKeysConfig, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var enc EncryptionKeysConfig
+	if isYAMLConfig(path) {
+		var raw any
+		if err := yaml.NewDecoder(file).Decode(&raw); err != nil {
+			return nil, err
+		}
+		data, err := json.Marshal(raw)
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(data, &enc); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := json.NewDecoder(file).Decode(&enc); err != nil {
+			return nil, err
+		}
+	}
+
+	return &enc, nil
+}
+
 func validateAccessKeyEncryption(key string) error {
 	if key == "" {
 		return nil
@@ -1233,8 +1486,16 @@ func validateConfig() {
 		panic(err)
 	}
 
-	if err := validateAccessKeyEncryption(Config.AccessKeyEncryption); err != nil {
-		panic(err)
+	for _, key := range Config.accessRing().candidates() {
+		if err := validateAccessKeyEncryption(key); err != nil {
+			panic(err)
+		}
+	}
+
+	for _, key := range Config.optionRing().candidates() {
+		if err := validateAccessKeyEncryption(key); err != nil {
+			panic(err)
+		}
 	}
 }
 

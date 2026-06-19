@@ -248,7 +248,7 @@ func (t *TaskRunner) run() {
 	// For locally-executed tasks, mint a JWT and pass it to the LocalJob so it
 	// can be exposed to the playbook as SEMAPHORE_JWT. Remote runners receive
 	// the JWT inside the JobData payload returned by the API.
-	if localJob, ok := t.job.(*LocalJob); ok {
+	if localJob, ok := t.job.(*LocalExecutor); ok {
 		if t.pool.signer != nil && t.Template.JWTParams != nil && t.Template.JWTParams.Enabled {
 			ttl, terr := t.Template.JWTParams.ParsedTTL()
 			if terr != nil {
