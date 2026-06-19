@@ -210,3 +210,106 @@ func TestTaskPool_StopTasksByTemplate_DequeuesWaitingTasksByID(t *testing.T) {
 	assert.Equal(t, 1, state.QueueLen(), "only the targeted template's waiting task should be dequeued")
 	assert.Equal(t, keepMe.Task.ID, state.QueueGet(0).Task.ID)
 }
+
+type spyWorkflowService struct {
+	completionCalls int
+}
+
+func (s *spyWorkflowService) StartWorkflow(workflow db.WorkflowTemplate, user *db.User) (db.WorkflowRun, error) {
+	return db.WorkflowRun{}, nil
+}
+
+func (s *spyWorkflowService) ProgressWorkflowRun(projectID int, runID int, user *db.User) error {
+	return nil
+}
+
+func (s *spyWorkflowService) StopWorkflowRun(projectID int, runID int, user *db.User) (db.WorkflowRun, error) {
+	return db.WorkflowRun{}, nil
+}
+
+func (s *spyWorkflowService) ResolveWorkflowApproval(projectID int, workflowID int, runID int, nodeID int, status db.WorkflowApprovalStatus, user *db.User) (db.WorkflowApproval, error) {
+	return db.WorkflowApproval{}, nil
+}
+
+func (s *spyWorkflowService) HandleWorkflowTaskCompletion(task db.Task) error {
+	s.completionCalls++
+	return nil
+}
+
+func (s *spyWorkflowService) GetWorkflowRunArtifacts(projectID int, runID int, currentTaskID *int) (map[string]any, error) {
+	return map[string]any{}, nil
+}
+
+func TestTaskPool_FinalizeRemoteTask_HA_ProgressesWorkflowOnDuplicateFinalize(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	store := sql.CreateTestStore()
+	util.Config.MaxParallelTasks = 0
+	util.Config.HA = &util.HAConfig{Enabled: true}
+	proj, err := store.CreateProject(db.Project{})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Name:      "test-key",
+		Type:      db.AccessKeyNone,
+	})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "test-repo",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	require.NoError(t, err)
+
+	tpl, err := store.CreateTemplate(db.Template{
+		ProjectID:    proj.ID,
+		Name:         "remote tpl",
+		Playbook:     "pb.yml",
+		RepositoryID: repo.ID,
+	})
+	require.NoError(t, err)
+
+	runID := 99
+	task, err := store.CreateTask(db.Task{
+		ProjectID:      proj.ID,
+		TemplateID:     tpl.ID,
+		Status:         task_logger.TaskSuccessStatus,
+		WorkflowRunID:  &runID,
+	}, 0)
+	require.NoError(t, err)
+
+	end := tz.Now()
+	task.End = &end
+	require.NoError(t, store.UpdateTask(task))
+
+	state := NewMemoryTaskStateStore()
+	spy := &spyWorkflowService{}
+	pool := TaskPool{
+		queueEvents:     make(chan PoolEvent, 1),
+		state:           state,
+		store:           store,
+		workflowService: spy,
+	}
+
+	tr := &TaskRunner{
+		Task: db.Task{
+			ID:            task.ID,
+			ProjectID:     task.ProjectID,
+			TemplateID:    task.TemplateID,
+			Status:        task_logger.TaskSuccessStatus,
+			WorkflowRunID: &runID,
+		},
+		Template: tpl,
+		job:      &RemoteJob{Task: task},
+	}
+	state.SetRunning(tr)
+
+	pool.FinalizeRemoteTask(tr, nil)
+
+	assert.Equal(t, 1, spy.completionCalls, "duplicate finalize must still progress the workflow when End is already persisted")
+}

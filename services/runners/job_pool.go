@@ -321,46 +321,7 @@ func (p *JobPool) Run() {
 				}).Debug("Running job")
 
 				err := running.job.Run(t.username, t.incomingVersion, t.alias)
-
-				if err != nil {
-
-					log.WithFields(log.Fields{
-						"context":     "job_running",
-						"task_id":     t.taskID,
-						"task_status": t.status,
-					}).WithError(err).Error("launch job failed")
-
-					running.Log("Unable to launch the application. Please contact your system administrator for assistance.")
-
-					if running.getStatus() == task_logger.TaskStoppingStatus {
-						running.SetStatus(task_logger.TaskStoppedStatus)
-					} else {
-						running.SetStatus(task_logger.TaskFailStatus)
-					}
-				} else {
-
-					log.WithFields(log.Fields{
-						"context": "job_running",
-						"task_id": running.taskID,
-						"status":  string(running.getStatus()),
-					}).Debug("Job run returned")
-
-					if running.getStatus().IsFinished() {
-						return
-					}
-
-					if running.getStatus() == task_logger.TaskStoppingStatus {
-						running.SetStatus(task_logger.TaskStoppedStatus)
-					} else {
-						running.SetStatus(task_logger.TaskSuccessStatus)
-					}
-				}
-
-				log.WithFields(log.Fields{
-					"context": "job_running",
-					"task_id": running.taskID,
-					"status":  string(running.getStatus()),
-				}).Info("Task finished")
+				applyJobRunResult(running, err, t.taskID, t.status)
 			}(rj)
 
 			log.WithFields(log.Fields{
@@ -1016,4 +977,53 @@ func (p *JobPool) checkNewJobs() {
 			"task_status": string(taskRunner.status),
 		}).Info("Task enqueued")
 	}
+}
+
+// applyJobRunResult updates the running job after executor.Run returns.
+func applyJobRunResult(running *runningJob, err error, queuedTaskID int, queuedStatus task_logger.TaskStatus) {
+	if err != nil {
+		log.WithFields(log.Fields{
+			"context":     "job_running",
+			"task_id":     queuedTaskID,
+			"task_status": queuedStatus,
+		}).WithError(err).Error("launch job failed")
+
+		running.Log("Unable to launch the application. Please contact your system administrator for assistance.")
+
+		if running.getStatus() == task_logger.TaskStoppingStatus {
+			running.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			running.SetStatus(task_logger.TaskFailStatus)
+		}
+	} else {
+		log.WithFields(log.Fields{
+			"context": "job_running",
+			"task_id": running.taskID,
+			"status":  string(running.getStatus()),
+		}).Debug("Job run returned")
+
+		// Async executors (e.g. Kubernetes) return once the workload is
+		// dispatched; completion is reported later via progress polls.
+		// Marking success here would tell the server the task finished
+		// while it is still running.
+		if running.job.Async() {
+			return
+		}
+
+		if running.getStatus().IsFinished() {
+			return
+		}
+
+		if running.getStatus() == task_logger.TaskStoppingStatus {
+			running.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			running.SetStatus(task_logger.TaskSuccessStatus)
+		}
+	}
+
+	log.WithFields(log.Fields{
+		"context": "job_running",
+		"task_id": running.taskID,
+		"status":  string(running.getStatus()),
+	}).Info("Task finished")
 }
