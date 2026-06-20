@@ -32,16 +32,17 @@ type accessKeyBackupEntry struct {
 
 var vaultRekeyCmd = &cobra.Command{
 	Use:   "rekey",
-	Short: "Re-encrypt the Key Store with the current encryption key",
-	Long: "Re-encrypt all locally stored secrets with the current access keyring primary key.\n\n" +
+	Short: "Re-encrypt all stored secrets under the active encryption key",
+	Long: "Re-encrypt all locally stored secrets (access keys and the JWT signing key)\n" +
+		"under the active key, stamping its key id into each value.\n\n" +
 		"Zero-downtime rotation:\n" +
-		"  1. Set the new key as encryption_keys.access_key.primary and move the old\n" +
-		"     key to encryption_keys.access_key.secondary, then restart.\n" +
-		"  2. Run `vault rekey` to re-encrypt everything (access keys and the JWT\n" +
-		"     signing key) under the new primary.\n" +
-		"  3. Run `vault check`; once everything reports the primary, remove the\n" +
-		"     secondary.\n\n" +
-		"Legacy: `vault rekey --old-key <old-key>` decrypts with an explicit old key.",
+		"  1. Add a new key to the keyset (a file in keys_folder, or a keys: entry) and\n" +
+		"     point active.access_key (or access_key_file) at it; reload applies it\n" +
+		"     within keys_poll_interval, or send `kill -HUP <pid>`.\n" +
+		"  2. Run `vault rekey` to re-encrypt existing data to the new key.\n" +
+		"  3. Run `vault check`; once the old key shows 0 rows it is safe to remove.\n\n" +
+		"Legacy: `vault rekey --old-key <old-key>` decrypts un-prefixed data with an\n" +
+		"explicit old key.",
 	Run: func(cmd *cobra.Command, args []string) {
 		store := createStore("")
 		defer store.Close()

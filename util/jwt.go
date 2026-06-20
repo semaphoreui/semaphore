@@ -101,8 +101,9 @@ func loadOrCreateJWTKey(store OptionStore) ([]byte, error) {
 	return pemBytes, nil
 }
 
-// CheckJWTSigningKey reports which keyring slot decrypts the stored JWT signing
-// key, for `vault check`. Returns ("", nil) when no key is stored.
+// CheckJWTSigningKey classifies the stored JWT signing key for `vault check`:
+// "" (none), "active:<id>", "rekey pending:<id>", "legacy (no id)", or
+// "MISSING KEY <id>". Read-only.
 func CheckJWTSigningKey(store OptionStore) (slot string, err error) {
 	stored, err := store.GetOption(jwtSigningKeyOption)
 	if err != nil {
@@ -111,14 +112,13 @@ func CheckJWTSigningKey(store OptionStore) (slot string, err error) {
 	if stored == "" {
 		return "", nil
 	}
-	return Config.OptionSlot(stored), nil
+	return Config.classifyOptionSecret(stored), nil
 }
 
-// RekeyJWTSigningKey re-encrypts the stored JWT signing key under the current
-// option keyring primary. It decrypts using the option keyring, the access
-// keyring fallback, and — when supplied — oldKey (the legacy
-// `vault rekey --old-key` flow). It is a no-op when no key is stored or when
-// the ciphertext already matches (e.g. encryption disabled).
+// RekeyJWTSigningKey re-encrypts the stored JWT signing key under the active
+// option key (stamping its id). It decrypts via the option keyset, the access
+// fallback, and — when supplied — oldKey (the legacy `vault rekey --old-key`
+// flow). No-op when no key is stored or the ciphertext is unchanged.
 func RekeyJWTSigningKey(store OptionStore, oldKey string) error {
 	stored, err := store.GetOption(jwtSigningKeyOption)
 	if err != nil {
@@ -128,12 +128,11 @@ func RekeyJWTSigningKey(store OptionStore, oldKey string) error {
 		return nil
 	}
 
-	keys := Config.OptionDecryptKeys()
-	if oldKey != "" {
-		keys = append(keys, oldKey)
+	pemBytes, err := Config.DecryptOption(stored)
+	if err != nil && oldKey != "" {
+		_, ct, _ := parseEnvelope(stored)
+		pemBytes, err = DecryptAESGCM(ct, oldKey)
 	}
-
-	pemBytes, err := decryptWithKeys(stored, keys)
 	if err != nil {
 		return fmt.Errorf("jwt: decrypt signing key for rekey: %w", err)
 	}

@@ -81,7 +81,7 @@ properties:
       Base64-encoded key used to encrypt DB options (the JWT signing key) with the
       old single-key scheme, no rotation (sensitive). Option-key counterpart of
       access_key_encryption; rotation is configured instead via
-      encryption_keys_file (option_key). When unset, options fall back to the
+      encryption.keys_file (option_key). When unset, options fall back to the
       access key.
 
   # ==========================================================================
@@ -225,16 +225,27 @@ properties:
   dirs:         { $ref: "#/$defs/ConfigDirs" }
   runner:       { $ref: "#/$defs/RunnerConfig" }
   runners: { $ref: "#/$defs/RunnersConfig" }
-  encryption_keys_file:
-    type: string
-    description: >-
-      Path to a separate file holding the encryption keyrings (JSON or YAML; its
-      content follows the EncryptionKeysConfig structure in $defs). This is the
-      only source for the keyrings and is watched for changes — edits are applied
-      without restarting the server. When unset, the legacy access_key_encryption
-      field is used.
+  encryption: { $ref: "#/$defs/EncryptionConfig" }
 
 $defs:
+  EncryptionConfig:
+    type: object
+    description: Encryption keys file location and reload-poll settings.
+    properties:
+      keys_file:
+        type: string
+        description: >-
+          Path to a separate file holding the encryption keyrings (YAML or JSON,
+          any extension; its content follows the EncryptionKeysConfig structure
+          below). The only source for the keyrings, watched for changes — edits
+          are applied without restarting the server. When unset, the legacy
+          access_key_encryption field is used.
+      keys_poll_interval:
+        type: string
+        default: "15s"
+        description: >-
+          How often keys_file is polled for changes (a Go duration like "15s").
+          "0" disables polling (a SIGHUP still forces a reload).
   KeySource:
     type: object
     description: >-
@@ -247,26 +258,37 @@ $defs:
       file:
         type: string
         description: Path to a file containing the base64-encoded key.
-  Keyring:
+  EncryptionKeysActive:
     type: object
     description: >-
-      One active primary key used for all new encryption, plus an ordered list of
-      retired secondary keys kept only for decryption (zero-downtime rotation).
+      Names the active (encrypting) key per purpose. Use a label (access_key /
+      option_key) into the keys map, or a filename (access_key_file /
+      option_key_file) in keys_folder, relative to it. access_key protects stored
+      Access Key secrets; option_key protects encrypted DB options (the JWT
+      signing key) and falls back to the access key when unset.
     properties:
-      primary: { $ref: "#/$defs/KeySource" }
-      secondary:
-        type: array
-        items: { $ref: "#/$defs/KeySource" }
-        description: Retired keys, tried in order when decrypting. Removed once `vault rekey` completes.
+      access_key:      { type: string, description: Label of the active access key in keys. }
+      option_key:      { type: string, description: Label of the active option key in keys. }
+      access_key_file: { type: string, description: Filename (in keys_folder) of the active access key. }
+      option_key_file: { type: string, description: Filename (in keys_folder) of the active option key. }
   EncryptionKeysConfig:
     type: object
     description: >-
-      Encryption keyrings supporting file-based keys and rotation. access_key
-      protects stored access key secrets; option_key protects encrypted DB options
-      (the JWT signing key) and falls back to access_key when unset.
+      Content of the encryption keys file: a registry of keys plus pointers to the
+      active key per purpose. The registry is an inline map (keys) and/or a folder
+      of key files (keys_folder, one regular file per key, labelled by filename);
+      the two combine. The key id stored in the database is derived from the key
+      material, so a key is retired simply by no longer being active while some
+      rows still reference it.
     properties:
-      access_key: { $ref: "#/$defs/Keyring" }
-      option_key: { $ref: "#/$defs/Keyring" }
+      keys:
+        type: object
+        additionalProperties: { $ref: "#/$defs/KeySource" }
+        description: Inline registry, label -> key source.
+      keys_folder:
+        type: string
+        description: Directory of key files (each regular file is one key, labelled by its filename).
+      active: { $ref: "#/$defs/EncryptionKeysActive" }
   DbConfig:
     type: object
     properties:

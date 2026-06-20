@@ -1,11 +1,19 @@
 # Plan — Encryption Key Rotation and File-Based Key Storage
 
-> Status: **implemented**. This document reflects the design as built (2.20),
-> not the original proposal. Notable changes from the first draft: the keyrings
-> live **only** in a separate file (`encryption_keys_file`) — there is no inline
-> `encryption_keys` section in the main config; the option key's legacy flat
-> field is `option_encryption` (single key, no rotation); rotation is applied
-> **without restarting** the server (atomic keyrings + SIGHUP + a file watcher).
+> Status: **phase 1 + phase 2 implemented**. Keys live only in a separate file
+> (`encryption.keys_file`) — no inline `encryption_keys` section in the main
+> config; the option key's legacy flat field is `option_encryption`; rotation
+> applies **without restarting** (atomic keyset + SIGHUP + a file watcher).
+>
+> **Phase 2 (built):** a **content-addressed key-ID keyset** replaced the
+> `primary`/`secondary` + trial-decryption model. The keys file is a **registry**
+> (inline `keys:` map and/or a `keys_folder:` of key files) plus `active:`
+> pointers per purpose; the **key id is stamped into the ciphertext** (`<id>:<ct>`)
+> so decryption is a direct lookup, not a trial; the id is **derived from the key
+> material** (a fingerprint, `util/keyid.go`), not operator-chosen. Un-prefixed
+> (pre-feature) ciphertext still decrypts via the legacy fallback. The "as built"
+> sections below describe phase 1's keyring; the "Target design" section is now
+> the shipped phase-2 model.
 
 ## Goal
 
@@ -31,7 +39,7 @@ Three weaknesses motivated the work:
 
 The implementation:
 
-- Loads the encryption keyrings from a **dedicated file** (`encryption_keys_file`),
+- Loads the encryption keyrings from a **dedicated file** (`encryption.keys_file`),
   the Docker/K8s secret-mount pattern, kept out of the main config.
 - Introduces a **keyring** per purpose — one primary used for all new
   encryption, plus retired keys kept only for decryption — for zero-downtime
@@ -49,7 +57,7 @@ The design mirrors how GitLab solved the same problem (see Background).
 - **Storage.** GitLab keeps every encryption key in a *separate* file from the
   main config: `/etc/gitlab/gitlab-secrets.json` (Omnibus), `config/secrets.yml`
   (source), or a dedicated `*-rails-secret` Kubernetes Secret (Helm) — never in
-  `gitlab.rb`/`values.yaml`. Our `encryption_keys_file` is the same idea, with
+  `gitlab.rb`/`values.yaml`. Our `encryption.keys_file` is the same idea, with
   per-key `file:` references so each key can be its own mount.
 - **Per-key rotation = keyring.** On decrypt, GitLab tries the current key, then
   a list of old values in order until the auth tag verifies; new writes use the
@@ -65,14 +73,19 @@ The design mirrors how GitLab solved the same problem (see Background).
 
 ## Configuration surface (as built)
 
-### Main config — three fields
+### Main config — flat legacy keys + an `encryption` section
 
 ```go
 // util/config.go — ConfigType
 AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION,sensitive"`
 OptionEncryption    string `json:"option_encryption,omitempty"    env:"SEMAPHORE_OPTION_ENCRYPTION,sensitive"`
-EncryptionKeysFile  string `json:"encryption_keys_file,omitempty" env:"SEMAPHORE_ENCRYPTION_KEYS_FILE"`
-keys                *keyringStore // unexported runtime state (atomic, hot-swappable)
+Encryption          *EncryptionConfig `json:"encryption,omitempty"`
+keys                *keyringStore     // unexported runtime state (atomic, hot-swappable)
+
+type EncryptionConfig struct {
+    KeysFile         string `json:"keys_file,omitempty"          env:"SEMAPHORE_ENCRYPTION_KEYS_FILE"`
+    KeysPollInterval string `json:"keys_poll_interval,omitempty" env:"SEMAPHORE_ENCRYPTION_KEYS_POLL_INTERVAL" default:"15s"`
+}
 ```
 
 - `access_key_encryption` — **legacy** single access key (no rotation). The
@@ -81,12 +94,19 @@ keys                *keyringStore // unexported runtime state (atomic, hot-swapp
   single-key scheme for DB options (the JWT signing key), the option-key
   counterpart of `access_key_encryption`. When unset, options fall back to the
   access key.
-- `encryption_keys_file` — path to the **only** file that carries the keyrings
+- `encryption.keys_file` — path to the **only** file that carries the keyrings
   (with rotation). Watched for changes; edits apply without a restart.
+- `encryption.keys_poll_interval` — how often `keys_file` is polled (Go duration,
+  default `15s`); `0` disables polling (SIGHUP still reloads). Accessed via
+  `Config.EncryptionKeysFile()` / `Config.EncryptionKeysPollInterval()`.
+
+(No separate `keys_poll_enabled` flag: polling is off automatically when no
+`keys_file` is set, and `keys_poll_interval: 0` disables it explicitly while
+keeping SIGHUP.)
 
 ### The keys file — `EncryptionKeysConfig` (YAML or JSON)
 
-The whole content of `encryption_keys_file` is an `EncryptionKeysConfig`. It is
+The whole content of `encryption.keys_file` is an `EncryptionKeysConfig`. It is
 parsed via YAML (a superset of JSON), so **both formats work regardless of file
 extension** — important for Kubernetes secret mounts, whose path usually has no
 `.yaml`/`.yml` extension (`readEncryptionKeysConfigFile`).
@@ -126,9 +146,9 @@ and is **not** `,sensitive` (redaction is about values).
 Per keyring, highest wins (structured **wins**, flat is a fallback — no
 "mismatch = error", because that would block hot rotation):
 
-- **access keyring primary:** `encryption_keys_file → access_key.primary` →
+- **access keyring primary:** `encryption.keys_file → access_key.primary` →
   else `access_key_encryption` flat.
-- **option keyring primary:** `encryption_keys_file → option_key.primary` →
+- **option keyring primary:** `encryption.keys_file → option_key.primary` →
   else `option_encryption` flat → else **fall back to the access keyring**.
 
 `resolveKeyring(structured, flat, name)` and
@@ -181,7 +201,7 @@ Decryption tries the primary, then each secondary; a GCM auth-tag failure means
 Keys are read once at boot, then re-read on demand and swapped atomically:
 
 - `resolveEncryptionKeys()` (startup, in `ConfigInit` before `validateConfig`) —
-  reads `encryption_keys_file` (or nil → flat fields), validates, stores. Invalid
+  reads `encryption.keys_file` (or nil → flat fields), validates, stores. Invalid
   keys **panic** (fail fast at boot).
 - `ReloadEncryptionKeys()` — force reload (used by SIGHUP). Re-reads the file,
   validates, atomically swaps. **Leaves the active keyrings untouched on any
@@ -190,17 +210,19 @@ Keys are read once at boot, then re-read on demand and swapped atomically:
   resolved keys actually differ (compare via `keyringsEqual`). Used by the watcher
   so identical re-reads are no-ops.
 - `loadEncryptionKeysSource()` — returns the `EncryptionKeysConfig` from
-  `encryption_keys_file`, or `nil` when unset (legacy flat fields then apply).
-  The inline section in the main config is intentionally **not** re-read — that
-  field was removed; hot rotation is done via the dedicated file.
+  `encryption.keys_file`, or `nil` when unset (legacy flat fields then apply).
+  There is no inline `encryption_keys` section in the main config; hot rotation is
+  done via the dedicated file.
 
 Triggers, wired in `cli/cmd/root.go:runService` via `watchEncryptionKeyReload()`:
 
 - **SIGHUP** → `ReloadEncryptionKeys()` (immediate force reload).
-- **Poller** (`encryptionKeysPollInterval = 15s`) → `ReloadEncryptionKeysIfChanged()`.
-  Polling-by-content (not fsnotify) is robust to the atomic-rename / symlink-swap
-  that Kubernetes Secret/ConfigMap mounts use, and adds no dependency. It detects
-  both structural edits to the keys file and content changes to the key files it
+- **Poller** (`Config.EncryptionKeysPollInterval()`, default `15s`) →
+  `ReloadEncryptionKeysIfChanged()`. Started only when a `keys_file` is set and
+  the interval is positive (`keys_poll_interval: 0` → SIGHUP-only). Polling-by-
+  content (not fsnotify) is robust to the atomic-rename / symlink-swap that
+  Kubernetes Secret/ConfigMap mounts use, and adds no dependency. It detects both
+  structural edits to the keys file and content changes to the key files it
   references.
 
 `vault rekey` runs as a **separate process** against the same DB, so it already
@@ -240,9 +262,106 @@ semaphore vault check     # 4. wait until everything reports the primary
   Non-zero exit on any failure. The `access-fallback` marker tells the operator
   the JWT option is not migrated yet (don't drop the access key).
 
+## Target design (phase 2) — content-addressed key-ID keyset
+
+Phase 1's `primary`/`secondary` + trial-decryption works but has three limits:
+decryption is O(number of keys) (try each until the GCM tag verifies); you cannot
+tell **which** key encrypted a given row without trying; and you cannot **prove** a
+key is unused before retiring it. Phase 2 fixes all three by stamping a **key id**
+into the ciphertext and looking the key up directly. This is the model Vault (key
+versions), JWKS (`kid`), and cloud KMS use.
+
+### File format — registry + active pointers
+
+The keys file is a **registry** of keys plus **pointers** to the active key per
+purpose. The registry is an inline `keys:` map and/or a `keys_folder:` of key
+files (both combine); `active:` names the encrypting key by label or by filename
+(`*_file`, relative to `keys_folder`):
+
+```yaml
+# inline map
+keys:
+  k_2026_06: { value: "<base64 key>" }     # or file: /run/secrets/k1
+  k_2026_01: { file: /run/secrets/old }
+active:
+  access_key: k_2026_06   # label into keys; encrypts NEW access-key secrets
+  option_key: k_2026_01
+
+# OR folder of key files (one regular file = one key, labelled by filename)
+keys_folder: /run/secrets/enc-keys
+active:
+  access_key_file: access_key_primary.txt   # filename in keys_folder (relative)
+  option_key_file: option_key_primary.txt
+```
+
+- Labels/filenames are **for humans only**, mutable, never stored in the DB.
+  `active.*` names the key used for new encryption (the old "primary").
+- Every other registry key is decrypt-capable (the old "secondary" set, now
+  implicit: a key is "retired" simply by no longer being `active` while some rows
+  still reference it). In the folder model, retired keys stay as files.
+- `keys_folder` skips dot-prefixed entries (Kubernetes' `..data`/`..2024_*`) and
+  follows symlinks (`loadKeysFolder` in `util/config.go`), so it works with
+  mounted secrets.
+
+### Ciphertext envelope — key id prefixed, no schema migration
+
+New ciphertext is `"<key_id>:" + base64(nonce||ciphertext)`. The id rides inside
+the existing `secret` string, so **no DB column is added** anywhere (access keys,
+the `jwt_signing_key` option, future encrypted fields). On decrypt: split on the
+first `:`, look up `key_id` in the registry, decrypt directly. **Backward compat:**
+ciphertext with **no** `id:` prefix is legacy (phase-1 / pre-feature) and decrypts
+via the existing path (flat key / trial), gaining a prefix on its next rewrite or
+`vault rekey`.
+
+### Key id is derived from the key material (not operator-chosen)
+
+The id is a **fingerprint** of the key, e.g. `base64url(SHA-256(key))[:8 bytes]`
+(KCV or `HMAC-SHA256(key, "semaphore-key-id")` are equivalent conservative
+choices). Why derived, not operator-assigned:
+
+- **No reuse footgun.** An operator-chosen id stored in the DB can be silently
+  repointed at different material → all rows stamped with it mis-decrypt (silent
+  data loss). A derived id is intrinsic: different material ⇒ different id, so the
+  binding cannot be broken. A removed key fails **loudly** ("key `<fp>` not found")
+  instead of decrypting wrong.
+- **Verifiable / content-addressed** — same idea as git/Docker digests, RFC 7638
+  JWK Thumbprint, X.509 `x5t#S256`. The codebase already does this for the JWT
+  key: `computeKID` = `base64url(SHA-256(public key))` in `pkg/jwt/signer.go`.
+- **Fits our model:** keys are **operator-supplied** (file/value), so there is no
+  central version counter like Vault's — the only thing intrinsic to a key is the
+  key itself. (Labels stay human-friendly; the fingerprint is what the DB holds.)
+
+The entropy caveat (a hash can confirm a *guessed* key) is moot: keys are validated
+as 16/24/32-byte high-entropy material, so enumeration is infeasible.
+
+### Rotation, decommission, and tooling under the keyset
+
+- **Rotate:** add a new key to `keys:`, point `active.access_key` at it, reload.
+  New writes carry the new id; old rows keep their old id and still decrypt.
+- **Decommission (now provable):** a key is safe to remove once **no row references
+  its id** — a direct `GROUP BY key_id` query, not a trial. `vault rekey` re-stamps
+  rows to the active id; `vault check` becomes "count rows per key id" (exact, no
+  decryption attempts).
+- **Migration from phase 1:** the `secondary` list maps to "keys present but not
+  `active`"; rows written by phase 1 have no id prefix and decrypt via the legacy
+  path until re-stamped.
+
+### Implementation sketch (what changes vs phase 1)
+
+- `util/keyring.go`: replace the `runtimeKeyring{primary, secondary}` with a
+  registry `map[id]key` + active-id per purpose; add `keyID(material)` (the
+  fingerprint) and encode/decode of the `id:ct` envelope.
+- Encrypt sites stamp `activeID + ":" + ct`; decrypt sites parse the id and look up
+  (fall back to legacy/trial when no prefix).
+- `util/config.go`: parse the `keys:` + `active:` file shape (the per-key
+  `value|file` `KeySource` is unchanged; ids are computed, labels resolve `active`).
+- `vault rekey`/`vault check`: switch to id-based reporting and re-stamping.
+- Risk: it changes the **ciphertext format**, so it needs the legacy-prefix
+  fallback above and a migration window; that is the cost of removing trial-decrypt.
+
 ## Backward compatibility
 
-1. **No `encryption_keys_file`** → `access_key_encryption` (and
+1. **No `encryption.keys_file`** → `access_key_encryption` (and
    `SEMAPHORE_ACCESS_KEY_ENCRYPTION`) drives the access keyring exactly as before.
 2. **Existing Access Key data** decrypts unchanged (single primary, no
    secondaries = today's path).
@@ -298,7 +417,7 @@ semaphore vault check     # 4. wait until everything reports the primary
 |------|------------|
 | Operator sets a separate option key and the JWT signer fails to load | `DecryptOption` falls back to the access keyring automatically; `vault check` marks the fallback so the operator runs `vault rekey`. |
 | Cross-keyring fallback weakens access/option separation | Not a new exposure (JWT is already access-decryptable today); temporary, closes after `vault rekey`, reported by `vault check`. |
-| Trial-decryption cost grows with keyring size | Secondaries are a transient rotation aid; primary is tried first. Key-ID envelope (follow-up) removes the trial loop. |
+| Trial-decryption cost grows with keyring size | Secondaries are a transient rotation aid; primary is tried first. **Phase 2 (key-ID keyset, see Target design) removes the trial loop entirely.** |
 | Reload reads a half-written file | Validation runs before swap; on any error the active keyrings are left untouched. Operators should write atomically (rename), as K8s does. |
 | Concurrent reloads (SIGHUP + poller) interleave | `keyringStore.reloadMu` serializes the compare-and-swap; reads stay lock-free. |
 | `File` path readable by the wrong users | Document `0400`; file storage is preferred over env. |
@@ -306,12 +425,13 @@ semaphore vault check     # 4. wait until everything reports the primary
 
 ## Follow-ups (not built)
 
-- **Key-ID envelope format** — prefix ciphertext with a key id to avoid
-  trial-decryption (ciphertext-format migration).
+- **Phase 2: content-addressed key-ID keyset** — the agreed next step; see the
+  "Target design" section above (registry + active pointers, ciphertext id prefix,
+  derived/fingerprint ids, no trial-decryption).
 - **External KMS / Vault as a `KeySource`** — a KEK that never lands on disk.
 - **Cookie key rotation** — apply `KeySource` + multiple `securecookie` codecs to
   `CookieHash`/`CookieEncryption` (separate blast radius).
-- **Configurable poll interval** (`encryptionKeysPollInterval` is currently a
-  constant) and an **admin API / UI button** that calls `ReloadEncryptionKeys`.
+- **Admin API / UI button** that calls `ReloadEncryptionKeys` (the poll interval
+  is already configurable via `encryption.keys_poll_interval`).
 - **Online/background rekey** for very large installs.
 ```

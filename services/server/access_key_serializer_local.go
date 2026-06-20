@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -79,19 +78,22 @@ func (d *LocalAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) error {
 }
 
 func (d *LocalAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
-	return d.deserializeSecretWithKeys(key, util.Config.AccessSecretDecryptKeys())
+	return d.deserialize(key, func(stored string) ([]byte, error) {
+		return util.Config.DecryptAccessSecret(stored)
+	})
 }
 
-// DeserializeSecret2 decrypts using a single explicit key. It is kept for the
-// rekey path (which supplies an old key) and for tests.
+// DeserializeSecret2 decrypts using a single explicit key (stripping any key-id
+// prefix). It is kept for the rekey `--old-key` path and for tests.
 func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encryptionString string) (res string, err error) {
-	return d.deserializeSecretWithKeys(key, []string{encryptionString})
+	return d.deserialize(key, func(stored string) ([]byte, error) {
+		return util.Config.DecryptAccessSecretWithKey(stored, encryptionString)
+	})
 }
 
-// deserializeSecretWithKeys decrypts the secret, trying each key in
-// encryptionKeys in order (primary first, then retired secondaries) and
-// returning the first success.
-func (d *LocalAccessKeyDeserializer) deserializeSecretWithKeys(key *db.AccessKey, encryptionKeys []string) (res string, err error) {
+// deserialize handles the source-storage / legacy / nil cases, then decrypts the
+// stored ciphertext with the supplied decryptor (keyset by id, or an explicit key).
+func (d *LocalAccessKeyDeserializer) deserialize(key *db.AccessKey, decrypt func(string) ([]byte, error)) (res string, err error) {
 
 	if key.SourceStorageType != nil {
 		if key.SourceStorageKey == nil {
@@ -171,29 +173,16 @@ func (d *LocalAccessKeyDeserializer) deserializeSecretWithKeys(key *db.AccessKey
 		return
 	}
 
-	// abort early if the secret is not valid base64
-	if _, err = base64.StdEncoding.DecodeString(secret); err != nil {
+	plaintext, decErr := decrypt(secret)
+	if decErr != nil {
+		if decErr.Error() == "cipher: message authentication failed" {
+			err = fmt.Errorf("cannot decrypt access key, perhaps encryption key was changed")
+		} else {
+			err = decErr
+		}
 		return
 	}
 
-	if len(encryptionKeys) == 0 {
-		encryptionKeys = []string{""}
-	}
-
-	var decErr error
-	for _, encryptionString := range encryptionKeys {
-		var plaintext []byte
-		plaintext, decErr = util.DecryptAESGCM(secret, encryptionString)
-		if decErr == nil {
-			res = string(plaintext)
-			return
-		}
-	}
-
-	if decErr.Error() == "cipher: message authentication failed" {
-		err = fmt.Errorf("cannot decrypt access key, perhaps encryption key was changed")
-	} else {
-		err = decErr
-	}
+	res = string(plaintext)
 	return
 }

@@ -110,14 +110,11 @@ func Execute() {
 	}
 }
 
-// encryptionKeysPollInterval is how often the encryption-keys file is checked
-// for changes by the watcher.
-const encryptionKeysPollInterval = 15 * time.Second
-
 // watchEncryptionKeyReload enables key rotation without restarting the server:
 //   - a SIGHUP forces an immediate reload;
 //   - a background poller applies changes to the encryption-keys file (and the
-//     key files it references) automatically.
+//     key files it references) automatically. The poller runs only when a keys
+//     file is configured and the poll interval is positive.
 func watchEncryptionKeyReload() {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGHUP)
@@ -131,8 +128,13 @@ func watchEncryptionKeyReload() {
 		}
 	}()
 
+	interval := util.Config.EncryptionKeysPollInterval()
+	if util.Config.EncryptionKeysFile() == "" || interval <= 0 {
+		return
+	}
+
 	go func() {
-		ticker := time.NewTicker(encryptionKeysPollInterval)
+		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for range ticker.C {
 			changed, err := util.ReloadEncryptionKeysIfChanged()

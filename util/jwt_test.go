@@ -24,40 +24,40 @@ func (m *mockOptionStore) SetOption(key string, value string) error {
 	return nil
 }
 
-func TestRekeyJWTSigningKey_MigratesAccessToOption(t *testing.T) {
+func TestRekeyJWTSigningKey_MigratesLegacyToOption(t *testing.T) {
 	keyAccess := genKey(0x01)
 	keyOption := genKey(0x02)
 
-	// JWT key stored encrypted under the access key (pre-split state).
+	// Legacy JWT: encrypted with the access key, no key-id prefix.
 	store := newMockOptionStore()
-	Config = configWithKeyrings(&runtimeKeyring{primary: keyAccess}, nil)
-	enc, err := Config.EncryptOption([]byte("pem-bytes"))
+	legacy, err := EncryptAESGCM([]byte("pem-bytes"), keyAccess)
 	require.NoError(t, err)
-	store.options[jwtSigningKeyOption] = enc
+	store.options[jwtSigningKeyOption] = legacy
 
-	// Configure a separate option key.
-	Config = configWithKeyrings(&runtimeKeyring{primary: keyAccess}, &runtimeKeyring{primary: keyOption})
+	// Keyset: access a + a separate option key b.
+	Config = mustKeyset(t, keysCfg(map[string]string{"a": keyAccess, "b": keyOption}, "a", "b"), "", "")
 
-	// Before rekey: the stored key decrypts only via the access fallback.
+	// Before rekey: classified as legacy (no id), but still loads via fallback.
 	slot, err := CheckJWTSigningKey(store)
 	require.NoError(t, err)
-	assert.Equal(t, "access-fallback (migrate)", slot)
+	assert.Equal(t, "legacy (no id)", slot)
 
-	// Rekey migrates it to the option primary.
+	// Rekey migrates it to the active option key (stamping its id).
 	require.NoError(t, RekeyJWTSigningKey(store, ""))
 
 	slot, err = CheckJWTSigningKey(store)
 	require.NoError(t, err)
-	assert.Equal(t, "option:primary", slot)
+	assert.Equal(t, "active:"+keyID(keyOption), slot)
 
 	// And it now decrypts under the option key directly.
-	plain, err := DecryptAESGCM(store.options[jwtSigningKeyOption], keyOption)
+	_, ct, _ := parseEnvelope(store.options[jwtSigningKeyOption])
+	plain, err := DecryptAESGCM(ct, keyOption)
 	require.NoError(t, err)
 	assert.Equal(t, "pem-bytes", string(plain))
 }
 
 func TestRekeyJWTSigningKey_NoOptionStored(t *testing.T) {
-	Config = configWithKeyrings(&runtimeKeyring{primary: genKey(0x01)}, nil)
+	Config = mustKeyset(t, keysCfg(map[string]string{"a": genKey(0x01)}, "a", ""), "", "")
 	store := newMockOptionStore()
 
 	require.NoError(t, RekeyJWTSigningKey(store, ""))

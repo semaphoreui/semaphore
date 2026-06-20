@@ -6,179 +6,234 @@ import (
 	"sync/atomic"
 )
 
-// runtimeKeyring holds resolved (post file-read) base64 keys. The primary key
-// is used for all new encryption; secondary keys are tried, in order, only when
-// decrypting. An empty primary with no secondaries means encryption is disabled
-// (EncryptAESGCM/DecryptAESGCM treat an empty key as base64 passthrough).
+// keyset is the resolved, immutable runtime key registry. byID maps a
+// content-addressed key id (see keyID) to its base64 key material; accessID and
+// optionID name the active (encrypting) key per purpose. legacyAccess/legacyOption
+// are the flat fields, used only to decrypt un-prefixed (pre-key-id) ciphertext.
 //
-// A runtimeKeyring is immutable once built; rotation swaps the whole value
-// behind an atomic pointer (see keyringStore) so it can change without a
-// restart and without locking the hot encryption/decryption paths.
-type runtimeKeyring struct {
-	primary   string
-	secondary []string
+// A keyset is swapped atomically on reload (see keyringStore) so rotation needs no
+// restart and the hot encryption/decryption paths never lock.
+type keyset struct {
+	byID         map[string]string // key id -> base64 material
+	accessID     string            // active access key id ("" => encryption disabled)
+	optionID     string            // active option key id ("" => falls back to access)
+	legacyAccess string            // flat access_key_encryption (un-prefixed access secrets)
+	legacyOption string            // flat option_encryption (un-prefixed option values)
 }
 
-// keyringStore holds the resolved keyrings behind atomic pointers so they can
-// be hot-swapped during key rotation without restarting the server. Reads
-// (encryption/decryption) are lock-free Loads; a reload Stores new values.
-// reloadMu serializes reloads (SIGHUP and the file watcher) so their
+// keyringStore holds the resolved keyset behind an atomic pointer so it can be
+// hot-swapped during rotation without restarting. Reads (encryption/decryption)
+// are lock-free Loads; reloadMu serializes reloads (SIGHUP + the watcher) so their
 // compare-and-swap does not interleave; it never touches the read path.
 type keyringStore struct {
-	access   atomic.Pointer[runtimeKeyring]
-	option   atomic.Pointer[runtimeKeyring]
+	current  atomic.Pointer[keyset]
 	reloadMu sync.Mutex
 }
 
-// keyringsEqual reports whether two keyrings carry the same key material.
-func keyringsEqual(a, b *runtimeKeyring) bool {
+func keysetsEqual(a, b *keyset) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	if a.primary != b.primary || len(a.secondary) != len(b.secondary) {
+	if a.accessID != b.accessID || a.optionID != b.optionID ||
+		a.legacyAccess != b.legacyAccess || a.legacyOption != b.legacyOption ||
+		len(a.byID) != len(b.byID) {
 		return false
 	}
-	for i := range a.secondary {
-		if a.secondary[i] != b.secondary[i] {
+	for id, mat := range a.byID {
+		if b.byID[id] != mat {
 			return false
 		}
 	}
 	return true
 }
 
-// candidates returns the decryption candidate keys, primary first.
-func (k *runtimeKeyring) candidates() []string {
-	out := make([]string, 0, 1+len(k.secondary))
-	out = append(out, k.primary)
-	out = append(out, k.secondary...)
-	return out
-}
-
-// dedupeKeys returns keys with later duplicates removed, preserving order.
-func dedupeKeys(keys []string) []string {
-	seen := make(map[string]struct{}, len(keys))
-	out := keys[:0]
-	for _, k := range keys {
-		if _, ok := seen[k]; ok {
-			continue
-		}
-		seen[k] = struct{}{}
-		out = append(out, k)
-	}
-	return out
-}
-
-// accessRing returns the currently active access keyring. When ConfigInit has
-// not run (e.g. a unit test that sets the flat AccessKeyEncryption field
-// directly) it falls back to a keyring built from that flat field.
-func (conf *ConfigType) accessRing() *runtimeKeyring {
+// currentKeyset returns the active keyset, or a fallback built from the flat
+// fields when ConfigInit has not run (e.g. a unit test that sets the flat field
+// directly).
+func (conf *ConfigType) currentKeyset() *keyset {
 	if conf.keys != nil {
-		if rk := conf.keys.access.Load(); rk != nil {
-			return rk
+		if ks := conf.keys.current.Load(); ks != nil {
+			return ks
 		}
 	}
-	return &runtimeKeyring{primary: conf.AccessKeyEncryption}
-}
-
-// optionRing returns the currently active option keyring. When no option key is
-// configured it falls back to the access keyring, so the JWT signing key keeps
-// using the access key exactly as before the option/access split.
-func (conf *ConfigType) optionRing() *runtimeKeyring {
-	if conf.keys != nil {
-		if rk := conf.keys.option.Load(); rk != nil {
-			return rk
-		}
+	ks := &keyset{
+		byID:         map[string]string{},
+		legacyAccess: conf.AccessKeyEncryption,
+		legacyOption: conf.OptionEncryption,
 	}
-	return conf.accessRing()
+	if conf.AccessKeyEncryption != "" {
+		id := keyID(conf.AccessKeyEncryption)
+		ks.byID[id] = conf.AccessKeyEncryption
+		ks.accessID = id
+	}
+	if conf.OptionEncryption != "" {
+		id := keyID(conf.OptionEncryption)
+		ks.byID[id] = conf.OptionEncryption
+		ks.optionID = id
+	}
+	return ks
 }
 
-// EncryptAccessSecret encrypts plaintext with the access keyring primary key.
+// --- encryption (stamps the active key id) ---
+
+// EncryptAccessSecret encrypts plaintext with the active access key and returns
+// the "<id>:<b64ct>" envelope (no prefix when encryption is disabled).
 func (conf *ConfigType) EncryptAccessSecret(plaintext []byte) (string, error) {
-	return EncryptAESGCM(plaintext, conf.accessRing().primary)
+	ks := conf.currentKeyset()
+	return ks.encrypt(plaintext, ks.accessID)
 }
 
-// AccessSecretPrimaryKey returns the base64 key used to encrypt access secrets.
-func (conf *ConfigType) AccessSecretPrimaryKey() string {
-	return conf.accessRing().primary
-}
-
-// AccessSecretDecryptKeys returns the candidate keys for decrypting an access
-// secret: the primary first, then each retired secondary.
-func (conf *ConfigType) AccessSecretDecryptKeys() []string {
-	return conf.accessRing().candidates()
-}
-
-// EncryptOption encrypts plaintext with the option keyring primary key (which
-// falls back to the access key when no option key is configured).
+// EncryptOption encrypts plaintext with the active option key, falling back to the
+// access key when no separate option key is configured.
 func (conf *ConfigType) EncryptOption(plaintext []byte) (string, error) {
-	return EncryptAESGCM(plaintext, conf.optionRing().primary)
-}
-
-// OptionPrimaryKey returns the base64 key used to encrypt options.
-func (conf *ConfigType) OptionPrimaryKey() string {
-	return conf.optionRing().primary
-}
-
-// OptionOwnDecryptKeys returns the option keyring's own candidate keys, without
-// the access keyring migration fallback.
-func (conf *ConfigType) OptionOwnDecryptKeys() []string {
-	return conf.optionRing().candidates()
-}
-
-// OptionDecryptKeys returns the candidate keys for decrypting an option: the
-// option keyring's keys first, then the access keyring's keys as a migration
-// fallback (a pre-split JWT key was encrypted with the access key). Duplicates
-// are removed, so when the option keyring falls back to the access keyring this
-// is just the access candidates.
-func (conf *ConfigType) OptionDecryptKeys() []string {
-	keys := append(conf.optionRing().candidates(), conf.accessRing().candidates()...)
-	return dedupeKeys(keys)
-}
-
-// DecryptOption decrypts ciphertext, trying the option keyring then the access
-// keyring fallback, returning the first success.
-func (conf *ConfigType) DecryptOption(ciphertext string) ([]byte, error) {
-	return decryptWithKeys(ciphertext, conf.OptionDecryptKeys())
-}
-
-// optionConfigured reports whether a separate option key is configured (as
-// opposed to falling back to the access keyring).
-func (conf *ConfigType) optionConfigured() bool {
-	return conf.keys != nil && conf.keys.option.Load() != nil
-}
-
-// OptionSlot returns a human-readable label for which key decrypts ciphertext
-// under the option keyring (with access fallback), for `vault check`:
-// "option:primary", "option:secondary[i]", "access-fallback (migrate)" when a
-// separate option key is configured, or "primary"/"secondary[i]" when it falls
-// back to the access keyring, or "FAILED".
-func (conf *ConfigType) OptionSlot(ciphertext string) string {
-	if conf.optionConfigured() {
-		for i, key := range conf.optionRing().candidates() {
-			if _, err := DecryptAESGCM(ciphertext, key); err == nil {
-				if i == 0 {
-					return "option:primary"
-				}
-				return fmt.Sprintf("option:secondary[%d]", i-1)
-			}
-		}
-		for _, key := range conf.accessRing().candidates() {
-			if _, err := DecryptAESGCM(ciphertext, key); err == nil {
-				return "access-fallback (migrate)"
-			}
-		}
-		return "FAILED"
+	ks := conf.currentKeyset()
+	id := ks.optionID
+	if id == "" {
+		id = ks.accessID
 	}
+	return ks.encrypt(plaintext, id)
+}
 
-	for i, key := range conf.accessRing().candidates() {
-		if _, err := DecryptAESGCM(ciphertext, key); err == nil {
-			if i == 0 {
-				return "primary"
-			}
-			return fmt.Sprintf("secondary[%d]", i-1)
+func (k *keyset) encrypt(plaintext []byte, id string) (string, error) {
+	ct, err := EncryptAESGCM(plaintext, k.byID[id]) // byID[""] == "" => passthrough
+	if err != nil {
+		return "", err
+	}
+	return encodeEnvelope(id, ct), nil
+}
+
+// --- decryption (id lookup, or legacy no-prefix trial) ---
+
+// DecryptAccessSecret decrypts a stored access secret: a direct key-id lookup when
+// the value carries an "<id>:" prefix, else the legacy no-prefix trial path.
+func (conf *ConfigType) DecryptAccessSecret(stored string) ([]byte, error) {
+	ks := conf.currentKeyset()
+	return ks.decrypt(stored, ks.legacyAccessCandidates())
+}
+
+// DecryptOption decrypts a stored option (JWT) value, with the legacy access
+// fallback for values written before the option/access split.
+func (conf *ConfigType) DecryptOption(stored string) ([]byte, error) {
+	ks := conf.currentKeyset()
+	return ks.decrypt(stored, ks.legacyOptionCandidates())
+}
+
+// DecryptAccessSecretWithKey decrypts a stored secret with a single explicit key,
+// stripping any id prefix. Used by the rekey `--old-key` path.
+func (conf *ConfigType) DecryptAccessSecretWithKey(stored, key string) ([]byte, error) {
+	_, ct, _ := parseEnvelope(stored)
+	return DecryptAESGCM(ct, key)
+}
+
+func (k *keyset) decrypt(stored string, legacy []string) ([]byte, error) {
+	id, ct, hasID := parseEnvelope(stored)
+	if hasID {
+		material, ok := k.byID[id]
+		if !ok {
+			return nil, fmt.Errorf("encryption key id %q not found in keyset (the key encrypting this value is missing)", id)
+		}
+		return DecryptAESGCM(ct, material)
+	}
+	return decryptWithKeys(ct, legacy)
+}
+
+// legacyAccessCandidates returns the keys to trial-decrypt an un-prefixed access
+// secret: the flat access key first, then every registry key. The empty
+// (passthrough) key is excluded unless there are no real keys at all, so a real
+// ciphertext is never "successfully" decrypted to garbage by the empty key.
+func (k *keyset) legacyAccessCandidates() []string {
+	return k.legacyCandidates(k.legacyAccess)
+}
+
+// legacyOptionCandidates is like legacyAccessCandidates but tries the flat option
+// key, then the flat access key, then the registry.
+func (k *keyset) legacyOptionCandidates() []string {
+	return k.legacyCandidates(k.legacyOption, k.legacyAccess)
+}
+
+func (k *keyset) legacyCandidates(flats ...string) []string {
+	out := make([]string, 0, len(flats)+len(k.byID))
+	for _, f := range flats {
+		if f != "" {
+			out = append(out, f)
 		}
 	}
-	return "FAILED"
+	for _, m := range k.byID {
+		if m != "" {
+			out = append(out, m)
+		}
+	}
+	out = dedupeKeys(out)
+	if len(out) == 0 {
+		return []string{""} // encryption genuinely disabled
+	}
+	return out
+}
+
+// --- diagnostics / accessors (used by vault check & rekey) ---
+
+// ActiveAccessKeyID returns the id of the key that encrypts new access secrets.
+func (conf *ConfigType) ActiveAccessKeyID() string { return conf.currentKeyset().accessID }
+
+// ActiveOptionKeyID returns the id of the key that encrypts new options (falling
+// back to the access key id when no option key is configured).
+func (conf *ConfigType) ActiveOptionKeyID() string {
+	ks := conf.currentKeyset()
+	if ks.optionID != "" {
+		return ks.optionID
+	}
+	return ks.accessID
+}
+
+// HasKeyID reports whether the keyset holds a key with the given id.
+func (conf *ConfigType) HasKeyID(id string) bool {
+	_, ok := conf.currentKeyset().byID[id]
+	return ok
+}
+
+// KeyIDs returns the ids of every key in the active keyset (the registry).
+func (conf *ConfigType) KeyIDs() []string {
+	ks := conf.currentKeyset()
+	out := make([]string, 0, len(ks.byID))
+	for id := range ks.byID {
+		out = append(out, id)
+	}
+	return out
+}
+
+// SecretKeyID returns the key id stamped on a stored value, or "" for a legacy
+// (un-prefixed) value.
+func SecretKeyID(stored string) string {
+	id, _, hasID := parseEnvelope(stored)
+	if !hasID {
+		return ""
+	}
+	return id
+}
+
+// ClassifyAccessSecret / ClassifyOptionSecret return a `vault check` status label
+// for a stored value: "active:<id>", "rekey pending:<id>", "legacy (no id)", or
+// "MISSING KEY <id>".
+func (conf *ConfigType) ClassifyAccessSecret(stored string) string {
+	return conf.currentKeyset().classify(stored, conf.ActiveAccessKeyID())
+}
+
+func (conf *ConfigType) classifyOptionSecret(stored string) string {
+	return conf.currentKeyset().classify(stored, conf.ActiveOptionKeyID())
+}
+
+func (k *keyset) classify(stored, activeID string) string {
+	id, _, hasID := parseEnvelope(stored)
+	if !hasID {
+		return "legacy (no id)"
+	}
+	if _, ok := k.byID[id]; !ok {
+		return "MISSING KEY " + id
+	}
+	if id == activeID {
+		return "active:" + id
+	}
+	return "rekey pending:" + id
 }
 
 // decryptWithKeys tries each key in order and returns the first successful
@@ -196,4 +251,18 @@ func decryptWithKeys(ciphertext string, keys []string) ([]byte, error) {
 		lastErr = err
 	}
 	return nil, lastErr
+}
+
+// dedupeKeys returns keys with later duplicates removed, preserving order.
+func dedupeKeys(keys []string) []string {
+	seen := make(map[string]struct{}, len(keys))
+	out := keys[:0]
+	for _, k := range keys {
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		out = append(out, k)
+	}
+	return out
 }

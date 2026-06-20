@@ -3,7 +3,8 @@ package server
 import (
 	"bytes"
 	"encoding/base64"
-	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -26,48 +27,33 @@ func TestSetSecret(t *testing.T) {
 	util.Config = &util.ConfigType{}
 	err := encryptionService.SerializeSecret(&accessKey)
 
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	secret, err := base64.StdEncoding.DecodeString(*accessKey.Secret)
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Error(err)
-	}
-
-	if string(secret) != "{\"login\":\"\",\"passphrase\":\"\",\"private_key\":\"qerphqeruqoweurqwerqqeuiqwpavqr\"}" {
-		t.Error("invalid secret")
-	}
+	assert.Equal(t, "{\"login\":\"\",\"passphrase\":\"\",\"private_key\":\"qerphqeruqoweurqwerqqeuiqwpavqr\"}", string(secret))
 }
 
 func TestGetSecret(t *testing.T) {
-	secret := base64.StdEncoding.EncodeToString([]byte(`{
-	"passphrase": "123456",
-	"private_key": "qerphqeruqoweurqwerqqeuiqwpavqr"
-}`))
 	util.Config = &util.ConfigType{}
 
 	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil, nil)
 
 	accessKey := db.AccessKey{
-		Secret: &secret,
-		Type:   db.AccessKeySSH,
+		Secret: new(base64.StdEncoding.EncodeToString([]byte(`{
+	"passphrase": "123456",
+	"private_key": "qerphqeruqoweurqwerqqeuiqwpavqr"
+}`))),
+		Type: db.AccessKeySSH,
 	}
 
 	err := encryptionService.DeserializeSecret(&accessKey)
 
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
-	if accessKey.SshKey.Passphrase != "123456" {
-		t.Errorf("")
-	}
-
-	if accessKey.SshKey.PrivateKey != "qerphqeruqoweurqwerqqeuiqwpavqr" {
-		t.Errorf("")
-	}
+	assert.Equal(t, "123456", accessKey.SshKey.Passphrase)
+	assert.Equal(t, "qerphqeruqoweurqwerqqeuiqwpavqr", accessKey.SshKey.PrivateKey)
 }
 
 func TestSetGetSecretWithEncryption(t *testing.T) {
@@ -87,52 +73,39 @@ func TestSetGetSecretWithEncryption(t *testing.T) {
 	}
 
 	err := encryptionService.SerializeSecret(&accessKey)
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Error(err)
-	}
+	accessKeyDes := accessKey
+	accessKeyDes.SshKey = db.SshKey{}
 
-	//accessKey.ClearSecret()
+	err = encryptionService.DeserializeSecret(&accessKeyDes)
+	require.NoError(t, err)
 
-	err = encryptionService.DeserializeSecret(&accessKey)
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	if accessKey.SshKey.PrivateKey != "qerphqeruqoweurqwerqqeuiqwpavqr" {
-		t.Error("invalid secret")
-	}
+	assert.Equal(t, "qerphqeruqoweurqwerqqeuiqwpavqr", accessKeyDes.SshKey.PrivateKey)
 }
 
 func TestSerializeSecretReadOnlyReturnsUnwrappableSentinel(t *testing.T) {
-	storageType := db.AccessKeySourceStorageEnv
 	accessKey := db.AccessKey{
 		Type:              db.AccessKeyString,
 		Name:              "test",
 		String:            "value",
-		SourceStorageType: &storageType,
+		SourceStorageType: new(db.AccessKeySourceStorageEnv),
 	}
 
 	util.Config = &util.ConfigType{}
 	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil, nil)
 
 	err := encryptionService.SerializeSecret(&accessKey)
-	if err == nil {
-		t.Fatal("expected error for read-only storage, got nil")
-	}
-	if !errors.Is(err, ErrReadOnlyStorage) {
-		t.Fatalf("expected error to wrap ErrReadOnlyStorage, got: %v", err)
-	}
+	require.Error(t, err, "expected error for read-only storage, got nil")
+	assert.ErrorIs(t, err, ErrReadOnlyStorage)
 }
 
 func TestCreateSkipsSerializationForReadOnlyStorage(t *testing.T) {
-	storageType := db.AccessKeySourceStorageEnv
 	key := db.AccessKey{
 		Type:              db.AccessKeyString,
 		Name:              "test",
 		String:            "value",
-		SourceStorageType: &storageType,
+		SourceStorageType: new(db.AccessKeySourceStorageEnv),
 	}
 
 	util.Config = &util.ConfigType{}
@@ -142,24 +115,12 @@ func TestCreateSkipsSerializationForReadOnlyStorage(t *testing.T) {
 	svc := NewAccessKeyService(repo, encryptionService, nil)
 
 	created, err := svc.Create(key)
-	if err != nil {
-		t.Fatalf("Create should succeed for read-only storage, got: %v", err)
-	}
-	if created.Name != "test" {
-		t.Fatalf("expected key name 'test', got '%s'", created.Name)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "test", created.Name)
 }
 
 func TestRekeyAccessKeysSkipsExternalStorageKeys(t *testing.T) {
-	vaultType := db.AccessKeySourceStorageVault
-	envType := db.AccessKeySourceStorageEnv
-	fileType := db.AccessKeySourceStorageFile
 	projectID := 1
-
-	localSecret := base64.StdEncoding.EncodeToString([]byte("local-secret-value"))
-	vaultSecret := "vault-ciphertext-should-not-be-touched"
-	envSecret := "env-ciphertext-should-not-be-touched"
-	fileSecret := "file-ciphertext-should-not-be-touched"
 
 	allKeys := []db.AccessKey{
 		{
@@ -167,34 +128,34 @@ func TestRekeyAccessKeysSkipsExternalStorageKeys(t *testing.T) {
 			Name:      "local-key",
 			Type:      db.AccessKeyString,
 			ProjectID: &projectID,
-			Secret:    &localSecret,
+			Secret:    new(base64.StdEncoding.EncodeToString([]byte("local-secret-value"))),
 		},
 		{
 			ID:                2,
 			Name:              "vault-key",
 			Type:              db.AccessKeyString,
 			ProjectID:         &projectID,
-			Secret:            &vaultSecret,
-			SourceStorageType: &vaultType,
-			SourceStorageID:   intPtr(10),
+			Secret:            new("vault-ciphertext-should-not-be-touched"),
+			SourceStorageType: new(db.AccessKeySourceStorageVault),
+			SourceStorageID:   new(10),
 		},
 		{
 			ID:                3,
 			Name:              "env-key",
 			Type:              db.AccessKeyString,
 			ProjectID:         &projectID,
-			Secret:            &envSecret,
-			SourceStorageType: &envType,
-			SourceStorageKey:  strPtr("MY_ENV_VAR"),
+			Secret:            new("env-ciphertext-should-not-be-touched"),
+			SourceStorageType: new(db.AccessKeySourceStorageEnv),
+			SourceStorageKey:  new("MY_ENV_VAR"),
 		},
 		{
 			ID:                4,
 			Name:              "file-key",
 			Type:              db.AccessKeyString,
 			ProjectID:         &projectID,
-			Secret:            &fileSecret,
-			SourceStorageType: &fileType,
-			SourceStorageKey:  strPtr("/etc/secret"),
+			Secret:            new("file-ciphertext-should-not-be-touched"),
+			SourceStorageType: new(db.AccessKeySourceStorageFile),
+			SourceStorageKey:  new("/etc/secret"),
 		},
 	}
 
@@ -222,13 +183,9 @@ func TestRekeyAccessKeysSkipsExternalStorageKeys(t *testing.T) {
 	svc := NewAccessKeyEncryptionService(keyMgr, nil, nil, projectStore)
 
 	err := svc.RekeyAccessKeys("")
-	if err != nil {
-		t.Fatalf("RekeyAccessKeys returned error: %v", err)
-	}
+	require.NoError(t, err)
 
-	if len(updatedIDs) != 1 || updatedIDs[0] != 1 {
-		t.Fatalf("expected only local key (ID=1) to be updated, got updates for IDs: %v", updatedIDs)
-	}
+	assert.Equal(t, []int{1}, updatedIDs)
 }
 
 func TestRekeyAccessKeysReEncryptsWithExplicitOldKey(t *testing.T) {
@@ -274,17 +231,63 @@ func TestRekeyAccessKeysReEncryptsWithExplicitOldKey(t *testing.T) {
 	require.NoError(t, svc.RekeyAccessKeys(keyOld))
 
 	require.NotNil(t, updated.Secret)
-	plain, err := util.DecryptAESGCM(*updated.Secret, keyNew)
+	// Re-encrypted under the new key and stamped with its content-addressed id.
+	assert.Equal(t, util.Config.ActiveAccessKeyID(), util.SecretKeyID(*updated.Secret))
+
+	plain, err := util.Config.DecryptAccessSecretWithKey(*updated.Secret, keyNew)
 	require.NoError(t, err)
 	assert.Equal(t, "my-string-secret", string(plain))
 
 	// The re-encrypted secret must no longer be readable with the old key.
-	_, err = util.DecryptAESGCM(*updated.Secret, keyOld)
+	_, err = util.Config.DecryptAccessSecretWithKey(*updated.Secret, keyOld)
 	assert.Error(t, err)
 }
 
-func intPtr(i int) *int       { return &i }
-func strPtr(s string) *string { return &s }
+func TestRekeyAccessKeysReStampsToActiveID(t *testing.T) {
+	keyOld := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32))
+	keyNew := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x02}, 32))
+	projectID := 1
+
+	// A value encrypted under the retired key, with no key-id prefix (legacy).
+	oldCiphertext, err := util.EncryptAESGCM([]byte("my-string-secret"), keyOld)
+	require.NoError(t, err)
+
+	seedKey := db.AccessKey{
+		ID: 1, Name: "k", Type: db.AccessKeyString, ProjectID: &projectID, Secret: &oldCiphertext,
+	}
+
+	var updated db.AccessKey
+	keyMgr := &mockAccessKeyManager{
+		GetAccessKeysFn: func(_ int, _ db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error) {
+			if params.Offset > 0 {
+				return nil, nil
+			}
+			return []db.AccessKey{seedKey}, nil
+		},
+		UpdateAccessKeyFn: func(k db.AccessKey) error { updated = k; return nil },
+	}
+	projectStore := &mockProjectStore{
+		GetAllProjectsFn: func() ([]db.Project, error) { return []db.Project{{ID: projectID}}, nil },
+	}
+
+	// Keyset with both keys, active = new (built via the exported reload path).
+	dir := t.TempDir()
+	keysPath := filepath.Join(dir, "keys.json")
+	require.NoError(t, os.WriteFile(keysPath,
+		[]byte(`{"keys":{"old":{"value":"`+keyOld+`"},"new":{"value":"`+keyNew+`"}},"active":{"access_key":"new"}}`), 0o600))
+	util.Config = &util.ConfigType{Encryption: &util.EncryptionConfig{KeysFile: keysPath}}
+	require.NoError(t, util.ReloadEncryptionKeys())
+
+	svc := NewAccessKeyEncryptionService(keyMgr, nil, nil, projectStore)
+	require.NoError(t, svc.RekeyAccessKeys("")) // keyset path (no explicit old key)
+
+	require.NotNil(t, updated.Secret)
+	assert.Equal(t, util.Config.ActiveAccessKeyID(), util.SecretKeyID(*updated.Secret))
+
+	got, err := util.Config.DecryptAccessSecretWithKey(*updated.Secret, keyNew)
+	require.NoError(t, err)
+	assert.Equal(t, "my-string-secret", string(got))
+}
 
 type mockAccessKeyRepo struct {
 	keys []db.AccessKey

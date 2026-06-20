@@ -5,8 +5,10 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,505 +19,361 @@ func genKey(b byte) string {
 	return base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{b}, 32))
 }
 
-// configWithKeyrings builds a Config whose runtime keyrings are set directly,
-// bypassing ConfigInit. option may be nil (falls back to the access keyring).
-func configWithKeyrings(access, option *runtimeKeyring) *ConfigType {
-	c := &ConfigType{keys: &keyringStore{}}
-	c.keys.access.Store(access)
-	c.keys.option.Store(option)
+// mustKeyset builds a Config whose runtime keyset is resolved from the given
+// keys-file config plus flat fields, bypassing ConfigInit.
+func mustKeyset(t *testing.T, enc *EncryptionKeysConfig, flatAccess, flatOption string) *ConfigType {
+	t.Helper()
+	ks, err := resolveEncryptionKeysFrom(enc, flatAccess, flatOption)
+	require.NoError(t, err)
+	c := &ConfigType{keys: &keyringStore{}, AccessKeyEncryption: flatAccess, OptionEncryption: flatOption}
+	c.keys.current.Store(ks)
 	return c
 }
 
-func TestKeyring_AccessEncryptDecryptRoundTrip(t *testing.T) {
-	keyA := genKey(0x01)
-	Config = configWithKeyrings(&runtimeKeyring{primary: keyA}, nil)
-
-	ciphertext, err := Config.EncryptAccessSecret([]byte("super-secret"))
-	require.NoError(t, err)
-
-	plaintext, err := decryptWithKeys(ciphertext, Config.AccessSecretDecryptKeys())
-	require.NoError(t, err)
-	assert.Equal(t, "super-secret", string(plaintext))
-}
-
-func TestKeyring_SecondaryDecryptsAfterRotation(t *testing.T) {
-	keyOld := genKey(0x01)
-	keyNew := genKey(0x02)
-
-	// Encrypt under the old key.
-	Config = configWithKeyrings(&runtimeKeyring{primary: keyOld}, nil)
-	ciphertext, err := Config.EncryptAccessSecret([]byte("rotate-me"))
-	require.NoError(t, err)
-
-	// Rotate: new primary, old key retired to secondary.
-	Config = configWithKeyrings(&runtimeKeyring{primary: keyNew, secondary: []string{keyOld}}, nil)
-
-	// Old data still decrypts via the secondary...
-	plaintext, err := decryptWithKeys(ciphertext, Config.AccessSecretDecryptKeys())
-	require.NoError(t, err)
-	assert.Equal(t, "rotate-me", string(plaintext))
-
-	// ...and decrypting with the primary alone fails.
-	_, err = DecryptAESGCM(ciphertext, Config.AccessSecretPrimaryKey())
-	assert.Error(t, err)
-}
-
-func TestKeyring_PrimaryTriedBeforeSecondary(t *testing.T) {
-	keyA := genKey(0x01)
-	keyB := genKey(0x02)
-	Config = configWithKeyrings(&runtimeKeyring{primary: keyA, secondary: []string{keyB}}, nil)
-
-	keys := Config.AccessSecretDecryptKeys()
-	require.Len(t, keys, 2)
-	assert.Equal(t, keyA, keys[0])
-	assert.Equal(t, keyB, keys[1])
-}
-
-func TestKeyring_EmptyKeyIsPassthrough(t *testing.T) {
-	Config = configWithKeyrings(&runtimeKeyring{}, nil)
-
-	ciphertext, err := Config.EncryptAccessSecret([]byte("plain"))
-	require.NoError(t, err)
-	// With no key, EncryptAESGCM returns base64 of the plaintext.
-	assert.Equal(t, base64.StdEncoding.EncodeToString([]byte("plain")), ciphertext)
-
-	plaintext, err := decryptWithKeys(ciphertext, Config.AccessSecretDecryptKeys())
-	require.NoError(t, err)
-	assert.Equal(t, "plain", string(plaintext))
-}
-
-func TestKeyring_OptionFallsBackToAccessWhenUnset(t *testing.T) {
-	keyA := genKey(0x01)
-	Config = configWithKeyrings(&runtimeKeyring{primary: keyA}, nil)
-
-	assert.False(t, Config.optionConfigured())
-	// Option encryption uses the access key when no option key is configured.
-	assert.Equal(t, keyA, Config.OptionPrimaryKey())
-
-	ciphertext, err := Config.EncryptOption([]byte("jwt-pem"))
-	require.NoError(t, err)
-
-	plaintext, err := Config.DecryptOption(ciphertext)
-	require.NoError(t, err)
-	assert.Equal(t, "jwt-pem", string(plaintext))
-}
-
-func TestKeyring_OptionDecryptsAccessFallback(t *testing.T) {
-	keyAccess := genKey(0x01)
-	keyOption := genKey(0x02)
-
-	// A JWT key written before the split — encrypted with the access key.
-	Config = configWithKeyrings(&runtimeKeyring{primary: keyAccess}, nil)
-	legacy, err := Config.EncryptOption([]byte("legacy-jwt"))
-	require.NoError(t, err)
-
-	// Now a separate option key is configured.
-	Config = configWithKeyrings(&runtimeKeyring{primary: keyAccess}, &runtimeKeyring{primary: keyOption})
-
-	// New encryption uses the option primary...
-	fresh, err := Config.EncryptOption([]byte("fresh-jwt"))
-	require.NoError(t, err)
-	freshPlain, err := DecryptAESGCM(fresh, keyOption)
-	require.NoError(t, err)
-	assert.Equal(t, "fresh-jwt", string(freshPlain))
-
-	// ...and the legacy key still decrypts via the access fallback.
-	plaintext, err := Config.DecryptOption(legacy)
-	require.NoError(t, err)
-	assert.Equal(t, "legacy-jwt", string(plaintext))
-}
-
-func TestKeyring_OptionSlotLabels(t *testing.T) {
-	keyAccess := genKey(0x01)
-	keyOption := genKey(0x02)
-	keyOptionOld := genKey(0x03)
-
-	t.Run("no option key configured", func(t *testing.T) {
-		Config = configWithKeyrings(&runtimeKeyring{primary: keyAccess}, nil)
-		ct, err := Config.EncryptOption([]byte("x"))
-		require.NoError(t, err)
-		assert.Equal(t, "primary", Config.OptionSlot(ct))
-	})
-
-	t.Run("option configured, on option primary", func(t *testing.T) {
-		Config = configWithKeyrings(
-			&runtimeKeyring{primary: keyAccess},
-			&runtimeKeyring{primary: keyOption, secondary: []string{keyOptionOld}},
-		)
-		ct, err := Config.EncryptOption([]byte("x"))
-		require.NoError(t, err)
-		assert.Equal(t, "option:primary", Config.OptionSlot(ct))
-	})
-
-	t.Run("option configured, on option secondary", func(t *testing.T) {
-		// Encrypt with the old option key, then make it a secondary.
-		Config = configWithKeyrings(&runtimeKeyring{primary: keyOptionOld}, nil)
-		ct, err := Config.EncryptOption([]byte("x"))
-		require.NoError(t, err)
-
-		Config = configWithKeyrings(
-			&runtimeKeyring{primary: keyAccess},
-			&runtimeKeyring{primary: keyOption, secondary: []string{keyOptionOld}},
-		)
-		assert.Equal(t, "option:secondary[0]", Config.OptionSlot(ct))
-	})
-
-	t.Run("option configured, access fallback", func(t *testing.T) {
-		Config = configWithKeyrings(&runtimeKeyring{primary: keyAccess}, nil)
-		ct, err := Config.EncryptOption([]byte("x"))
-		require.NoError(t, err)
-
-		Config = configWithKeyrings(&runtimeKeyring{primary: keyAccess}, &runtimeKeyring{primary: keyOption})
-		assert.Equal(t, "access-fallback (migrate)", Config.OptionSlot(ct))
-	})
-}
-
-func TestResolveKeySource(t *testing.T) {
-	t.Run("inline value", func(t *testing.T) {
-		v, err := resolveKeySource(KeySource{Value: "abc"}, "k")
-		require.NoError(t, err)
-		assert.Equal(t, "abc", v)
-	})
-
-	t.Run("from file, trimmed", func(t *testing.T) {
-		dir := t.TempDir()
-		path := filepath.Join(dir, "key")
-		require.NoError(t, os.WriteFile(path, []byte("  filekey\n"), 0o600))
-
-		v, err := resolveKeySource(KeySource{File: path}, "k")
-		require.NoError(t, err)
-		assert.Equal(t, "filekey", v)
-	})
-
-	t.Run("value and file are mutually exclusive", func(t *testing.T) {
-		_, err := resolveKeySource(KeySource{Value: "a", File: "/tmp/x"}, "k")
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "mutually exclusive")
-	})
-
-	t.Run("missing file errors", func(t *testing.T) {
-		_, err := resolveKeySource(KeySource{File: "/no/such/file/here"}, "k")
-		require.Error(t, err)
-	})
-
-	t.Run("empty source", func(t *testing.T) {
-		v, err := resolveKeySource(KeySource{}, "k")
-		require.NoError(t, err)
-		assert.Empty(t, v)
-	})
-}
-
-func TestResolveKeyring(t *testing.T) {
-	keyA := genKey(0x01)
-	keyB := genKey(0x02)
-
-	t.Run("structured primary wins over flat", func(t *testing.T) {
-		// Structured wins even when the flat fallback differs — this is what
-		// makes hot rotation possible.
-		rk, err := resolveKeyring(&Keyring{Primary: KeySource{Value: keyB}}, keyA, "k")
-		require.NoError(t, err)
-		assert.Equal(t, keyB, rk.primary)
-	})
-
-	t.Run("flat used when structured empty", func(t *testing.T) {
-		rk, err := resolveKeyring(nil, keyA, "k")
-		require.NoError(t, err)
-		assert.Equal(t, keyA, rk.primary)
-	})
-
-	t.Run("secondaries resolved and empty ones dropped", func(t *testing.T) {
-		rk, err := resolveKeyring(&Keyring{
-			Primary:   KeySource{Value: keyA},
-			Secondary: []KeySource{{Value: keyB}, {Value: ""}},
-		}, "", "k")
-		require.NoError(t, err)
-		assert.Equal(t, keyA, rk.primary)
-		assert.Equal(t, []string{keyB}, rk.secondary)
-	})
-}
-
-func TestResolveEncryptionKeys(t *testing.T) {
-	keyAccess := genKey(0x01)
-
-	t.Run("no keys file, legacy flat access key, option falls back", func(t *testing.T) {
-		Config = &ConfigType{AccessKeyEncryption: keyAccess}
-		resolveEncryptionKeys()
-		assert.Equal(t, keyAccess, Config.accessRing().primary)
-		assert.False(t, Config.optionConfigured())
-		assert.Equal(t, keyAccess, Config.OptionPrimaryKey())
-	})
-
-	t.Run("invalid keys file panics at boot", func(t *testing.T) {
-		dir := t.TempDir()
-		path := filepath.Join(dir, "keys.json")
-		require.NoError(t, os.WriteFile(path, []byte(`{"access_key":{"primary":{"value":"not-base64!!!"}}}`), 0o600))
-		Config = &ConfigType{EncryptionKeysFile: path}
-		assert.Panics(t, func() { resolveEncryptionKeys() })
-	})
-}
-
-func TestResolveEncryptionKeysFrom(t *testing.T) {
-	keyAccess := genKey(0x01)
-	keyOption := genKey(0x02)
-
-	t.Run("nil config, flat access only, option nil", func(t *testing.T) {
-		access, option, err := resolveEncryptionKeysFrom(nil, keyAccess, "")
-		require.NoError(t, err)
-		assert.Equal(t, keyAccess, access.primary)
-		assert.Nil(t, option)
-	})
-
-	t.Run("flat option key, old single-key scheme, no rotation", func(t *testing.T) {
-		access, option, err := resolveEncryptionKeysFrom(nil, keyAccess, keyOption)
-		require.NoError(t, err)
-		assert.Equal(t, keyAccess, access.primary)
-		require.NotNil(t, option)
-		assert.Equal(t, keyOption, option.primary)
-		assert.Empty(t, option.secondary)
-	})
-
-	t.Run("structured access from file", func(t *testing.T) {
-		dir := t.TempDir()
-		path := filepath.Join(dir, "access.key")
-		require.NoError(t, os.WriteFile(path, []byte(keyAccess+"\n"), 0o600))
-
-		access, _, err := resolveEncryptionKeysFrom(&EncryptionKeysConfig{
-			AccessKey: &Keyring{Primary: KeySource{File: path}},
-		}, "", "")
-		require.NoError(t, err)
-		assert.Equal(t, keyAccess, access.primary)
-	})
-
-	t.Run("structured option key wins over flat OptionEncryption", func(t *testing.T) {
-		keyOption2 := genKey(0x03)
-		_, option, err := resolveEncryptionKeysFrom(&EncryptionKeysConfig{
-			OptionKey: &Keyring{Primary: KeySource{Value: keyOption2}},
-		}, keyAccess, keyOption)
-		require.NoError(t, err)
-		require.NotNil(t, option)
-		assert.Equal(t, keyOption2, option.primary)
-	})
-
-	t.Run("option key from file", func(t *testing.T) {
-		dir := t.TempDir()
-		path := filepath.Join(dir, "option.key")
-		require.NoError(t, os.WriteFile(path, []byte(keyOption+"\n"), 0o600))
-
-		_, option, err := resolveEncryptionKeysFrom(&EncryptionKeysConfig{
-			OptionKey: &Keyring{Primary: KeySource{File: path}},
-		}, keyAccess, "")
-		require.NoError(t, err)
-		require.NotNil(t, option)
-		assert.Equal(t, keyOption, option.primary)
-	})
-
-	t.Run("mutually exclusive value+file errors", func(t *testing.T) {
-		_, _, err := resolveEncryptionKeysFrom(&EncryptionKeysConfig{
-			AccessKey: &Keyring{Primary: KeySource{Value: keyAccess, File: "/tmp/x"}},
-		}, "", "")
-		require.Error(t, err)
-	})
-
-	t.Run("invalid key errors", func(t *testing.T) {
-		_, _, err := resolveEncryptionKeysFrom(&EncryptionKeysConfig{
-			AccessKey: &Keyring{Primary: KeySource{Value: "not-base64!!!"}},
-		}, "", "")
-		require.Error(t, err)
-	})
-}
-
-func TestOptionEncryptionFlatKey(t *testing.T) {
-	keyAccess := genKey(0x01)
-	keyOption := genKey(0x02)
-
-	// Old single-key scheme for options: a distinct flat key, no keyring file.
-	Config = &ConfigType{
-		AccessKeyEncryption: keyAccess,
-		OptionEncryption:    keyOption,
+func keysCfg(keys map[string]string, accessLabel, optionLabel string) *EncryptionKeysConfig {
+	enc := &EncryptionKeysConfig{Keys: map[string]KeySource{}, Active: ActivePointers{AccessKey: accessLabel, OptionKey: optionLabel}}
+	for label, val := range keys {
+		enc.Keys[label] = KeySource{Value: val}
 	}
-	resolveEncryptionKeys()
+	return enc
+}
 
-	require.True(t, Config.optionConfigured())
-	assert.Equal(t, keyOption, Config.OptionPrimaryKey())
+func TestKeyset_AccessRoundTripWithIDPrefix(t *testing.T) {
+	keyA := genKey(0x01)
+	Config = mustKeyset(t, keysCfg(map[string]string{"a": keyA}, "a", ""), "", "")
+
+	ct, err := Config.EncryptAccessSecret([]byte("super-secret"))
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(ct, keyID(keyA)+":"), "stored value carries the key id prefix")
+
+	pt, err := Config.DecryptAccessSecret(ct)
+	require.NoError(t, err)
+	assert.Equal(t, "super-secret", string(pt))
+}
+
+func TestKeyset_RotationByID(t *testing.T) {
+	keyA, keyB := genKey(0x01), genKey(0x02)
+
+	Config = mustKeyset(t, keysCfg(map[string]string{"a": keyA}, "a", ""), "", "")
+	old, err := Config.EncryptAccessSecret([]byte("rotate-me"))
+	require.NoError(t, err)
+
+	// Rotate: both keys in the registry, active = b.
+	Config = mustKeyset(t, keysCfg(map[string]string{"a": keyA, "b": keyB}, "b", ""), "", "")
+
+	// Old value (id a) still decrypts via direct lookup.
+	pt, err := Config.DecryptAccessSecret(old)
+	require.NoError(t, err)
+	assert.Equal(t, "rotate-me", string(pt))
+
+	// New writes use b.
+	fresh, err := Config.EncryptAccessSecret([]byte("fresh"))
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(fresh, keyID(keyB)+":"))
+	assert.Equal(t, keyID(keyB), Config.ActiveAccessKeyID())
+}
+
+func TestKeyset_UnknownIDFailsLoud(t *testing.T) {
+	keyA, keyB := genKey(0x01), genKey(0x02)
+
+	Config = mustKeyset(t, keysCfg(map[string]string{"a": keyA}, "a", ""), "", "")
+	old, err := Config.EncryptAccessSecret([]byte("orphan"))
+	require.NoError(t, err)
+
+	// Key a removed from the registry.
+	Config = mustKeyset(t, keysCfg(map[string]string{"b": keyB}, "b", ""), "", "")
+
+	_, err = Config.DecryptAccessSecret(old)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestKeyset_LegacyNoPrefixDecrypts(t *testing.T) {
+	keyA := genKey(0x01)
+
+	// A value written before the key-id envelope: raw ciphertext, no prefix.
+	legacy, err := EncryptAESGCM([]byte("legacy"), keyA)
+	require.NoError(t, err)
+	assert.NotContains(t, legacy, ":")
+
+	t.Run("key in registry", func(t *testing.T) {
+		Config = mustKeyset(t, keysCfg(map[string]string{"a": keyA}, "a", ""), "", "")
+		pt, err := Config.DecryptAccessSecret(legacy)
+		require.NoError(t, err)
+		assert.Equal(t, "legacy", string(pt))
+	})
+
+	t.Run("key only in flat field", func(t *testing.T) {
+		Config = mustKeyset(t, nil, keyA, "")
+		pt, err := Config.DecryptAccessSecret(legacy)
+		require.NoError(t, err)
+		assert.Equal(t, "legacy", string(pt))
+	})
+}
+
+func TestKeyset_EmptyKeyPassthrough(t *testing.T) {
+	Config = mustKeyset(t, nil, "", "")
+
+	ct, err := Config.EncryptAccessSecret([]byte("plain"))
+	require.NoError(t, err)
+	// No key, no prefix: just base64 of the plaintext.
+	assert.Equal(t, base64.StdEncoding.EncodeToString([]byte("plain")), ct)
+	assert.Empty(t, Config.ActiveAccessKeyID())
+
+	pt, err := Config.DecryptAccessSecret(ct)
+	require.NoError(t, err)
+	assert.Equal(t, "plain", string(pt))
+}
+
+func TestKeyset_OptionFallsBackToAccess(t *testing.T) {
+	keyA := genKey(0x01)
+	Config = mustKeyset(t, keysCfg(map[string]string{"a": keyA}, "a", ""), "", "")
+
+	assert.Equal(t, keyID(keyA), Config.ActiveOptionKeyID())
 
 	ct, err := Config.EncryptOption([]byte("jwt-pem"))
 	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(ct, keyID(keyA)+":"))
 
-	// Encrypted under the option key, not the access key.
-	pt, err := DecryptAESGCM(ct, keyOption)
+	pt, err := Config.DecryptOption(ct)
 	require.NoError(t, err)
 	assert.Equal(t, "jwt-pem", string(pt))
+}
 
-	got, err := Config.DecryptOption(ct)
+func TestKeyset_SeparateOptionKey(t *testing.T) {
+	keyA, keyB := genKey(0x01), genKey(0x02)
+	Config = mustKeyset(t, keysCfg(map[string]string{"a": keyA, "b": keyB}, "a", "b"), "", "")
+
+	assert.Equal(t, keyID(keyB), Config.ActiveOptionKeyID())
+
+	ct, err := Config.EncryptOption([]byte("jwt"))
 	require.NoError(t, err)
-	assert.Equal(t, "jwt-pem", string(got))
+	assert.True(t, strings.HasPrefix(ct, keyID(keyB)+":"))
 
-	assert.Equal(t, "option:primary", Config.OptionSlot(ct))
+	// Encrypted with b, not a.
+	_, ctRaw, _ := parseEnvelope(ct)
+	pt, err := DecryptAESGCM(ctRaw, keyB)
+	require.NoError(t, err)
+	assert.Equal(t, "jwt", string(pt))
+}
+
+func TestKeyset_OptionLegacyAccessFallback(t *testing.T) {
+	keyA, keyB := genKey(0x01), genKey(0x02)
+
+	// Pre-split JWT: encrypted with the access key, no prefix.
+	legacy, err := EncryptAESGCM([]byte("legacy-jwt"), keyA)
+	require.NoError(t, err)
+
+	Config = mustKeyset(t, keysCfg(map[string]string{"a": keyA, "b": keyB}, "a", "b"), "", "")
+
+	pt, err := Config.DecryptOption(legacy)
+	require.NoError(t, err)
+	assert.Equal(t, "legacy-jwt", string(pt))
+}
+
+func TestKeyset_Classify(t *testing.T) {
+	keyA, keyB := genKey(0x01), genKey(0x02)
+
+	// Encrypt under a, then rotate active to b (a retired).
+	Config = mustKeyset(t, keysCfg(map[string]string{"a": keyA}, "a", ""), "", "")
+	underA, err := Config.EncryptAccessSecret([]byte("x"))
+	require.NoError(t, err)
+	legacy, err := EncryptAESGCM([]byte("x"), keyA)
+	require.NoError(t, err)
+
+	Config = mustKeyset(t, keysCfg(map[string]string{"a": keyA, "b": keyB}, "b", ""), "", "")
+	underB, err := Config.EncryptAccessSecret([]byte("x"))
+	require.NoError(t, err)
+
+	assert.Equal(t, "active:"+keyID(keyB), Config.ClassifyAccessSecret(underB))
+	assert.Equal(t, "rekey pending:"+keyID(keyA), Config.ClassifyAccessSecret(underA))
+	assert.Equal(t, "legacy (no id)", Config.ClassifyAccessSecret(legacy))
+
+	// Drop key a → a value under a is MISSING.
+	Config = mustKeyset(t, keysCfg(map[string]string{"b": keyB}, "b", ""), "", "")
+	assert.Contains(t, Config.ClassifyAccessSecret(underA), "MISSING KEY")
+}
+
+func TestResolveEncryptionKeysFrom(t *testing.T) {
+	keyA, keyB := genKey(0x01), genKey(0x02)
+
+	t.Run("flat access only", func(t *testing.T) {
+		ks, err := resolveEncryptionKeysFrom(nil, keyA, "")
+		require.NoError(t, err)
+		assert.Equal(t, keyID(keyA), ks.accessID)
+		assert.Equal(t, keyA, ks.byID[keyID(keyA)])
+		assert.Empty(t, ks.optionID)
+	})
+
+	t.Run("flat option key", func(t *testing.T) {
+		ks, err := resolveEncryptionKeysFrom(nil, keyA, keyB)
+		require.NoError(t, err)
+		assert.Equal(t, keyID(keyA), ks.accessID)
+		assert.Equal(t, keyID(keyB), ks.optionID)
+	})
+
+	t.Run("keys + active pointers", func(t *testing.T) {
+		ks, err := resolveEncryptionKeysFrom(keysCfg(map[string]string{"a": keyA, "b": keyB}, "a", "b"), "", "")
+		require.NoError(t, err)
+		assert.Equal(t, keyID(keyA), ks.accessID)
+		assert.Equal(t, keyID(keyB), ks.optionID)
+		assert.Len(t, ks.byID, 2)
+	})
+
+	t.Run("missing active label errors", func(t *testing.T) {
+		_, err := resolveEncryptionKeysFrom(keysCfg(map[string]string{"a": keyA}, "nope", ""), "", "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no key labelled")
+	})
+
+	t.Run("invalid key errors", func(t *testing.T) {
+		_, err := resolveEncryptionKeysFrom(&EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: "not-base64!!!"}}}, "", "")
+		require.Error(t, err)
+	})
+
+	t.Run("mutually exclusive value+file errors", func(t *testing.T) {
+		_, err := resolveEncryptionKeysFrom(&EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA, File: "/tmp/x"}}}, "", "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "mutually exclusive")
+	})
+
+	t.Run("key from file", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "k")
+		require.NoError(t, os.WriteFile(path, []byte(keyA+"\n"), 0o600))
+		ks, err := resolveEncryptionKeysFrom(&EncryptionKeysConfig{
+			Keys:   map[string]KeySource{"a": {File: path}},
+			Active: ActivePointers{AccessKey: "a"},
+		}, "", "")
+		require.NoError(t, err)
+		assert.Equal(t, keyID(keyA), ks.accessID)
+	})
+}
+
+func TestKeyset_KeysFolder(t *testing.T) {
+	keyA, keyB, keyOld := genKey(0x01), genKey(0x02), genKey(0x03)
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "access_key_primary.txt"), []byte(keyA), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "option_key_primary.txt"), []byte(keyB), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "access_key_old.txt"), []byte(keyOld), 0o600))
+	// Kubernetes-style hidden entry that must be skipped (else "garbage" would fail validation).
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "..data"), []byte("garbage"), 0o600))
+
+	enc := &EncryptionKeysConfig{
+		KeysFolder: dir,
+		Active:     ActivePointers{AccessKeyFile: "access_key_primary.txt", OptionKeyFile: "option_key_primary.txt"},
+	}
+	Config = mustKeyset(t, enc, "", "")
+
+	assert.Equal(t, keyID(keyA), Config.ActiveAccessKeyID())
+	assert.Equal(t, keyID(keyB), Config.ActiveOptionKeyID())
+	// Every folder file is in the registry (a retired key stays as a file).
+	assert.True(t, Config.HasKeyID(keyID(keyA)))
+	assert.True(t, Config.HasKeyID(keyID(keyB)))
+	assert.True(t, Config.HasKeyID(keyID(keyOld)))
+
+	// Data encrypted under the retired key still decrypts by id.
+	underOld, err := EncryptAESGCM([]byte("retired"), keyOld) // legacy, no prefix
+	require.NoError(t, err)
+	pt, err := Config.DecryptAccessSecret(underOld)
+	require.NoError(t, err)
+	assert.Equal(t, "retired", string(pt))
+
+	ct, err := Config.EncryptAccessSecret([]byte("s"))
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(ct, keyID(keyA)+":"))
 }
 
 func TestReloadEncryptionKeys(t *testing.T) {
-	keyA := genKey(0x01)
-	keyB := genKey(0x02)
+	keyA, keyB := genKey(0x01), genKey(0x02)
 
 	dir := t.TempDir()
-	keysPath := filepath.Join(dir, "encryption_keys.json")
-	write := func(body string) {
-		require.NoError(t, os.WriteFile(keysPath, []byte(body), 0o600))
-	}
+	keysPath := filepath.Join(dir, "keys.json")
+	write := func(body string) { require.NoError(t, os.WriteFile(keysPath, []byte(body), 0o600)) }
 
-	// Initial keys file: access primary keyA.
-	write(`{"access_key":{"primary":{"value":"` + keyA + `"}}}`)
-	Config = &ConfigType{EncryptionKeysFile: keysPath}
+	write(`{"keys":{"a":{"value":"` + keyA + `"}},"active":{"access_key":"a"}}`)
+	Config = &ConfigType{Encryption: &EncryptionConfig{KeysFile: keysPath}}
 	resolveEncryptionKeys()
-	require.Equal(t, keyA, Config.accessRing().primary)
-
-	// Encrypt some data under keyA.
-	oldCiphertext, err := Config.EncryptAccessSecret([]byte("rotate-me"))
-	require.NoError(t, err)
-
-	// Rotate via the keys file: new primary keyB, old keyA moved to secondary.
-	write(`{"access_key":{"primary":{"value":"` + keyB + `"},"secondary":[{"value":"` + keyA + `"}]}}`)
-	require.NoError(t, ReloadEncryptionKeys())
-
-	// New primary took effect without a restart.
-	assert.Equal(t, keyB, Config.accessRing().primary)
-	newCiphertext, err := Config.EncryptAccessSecret([]byte("fresh"))
-	require.NoError(t, err)
-	fresh, err := DecryptAESGCM(newCiphertext, keyB)
-	require.NoError(t, err)
-	assert.Equal(t, "fresh", string(fresh))
-
-	// Data encrypted under keyA still decrypts via the secondary.
-	plaintext, err := decryptWithKeys(oldCiphertext, Config.AccessSecretDecryptKeys())
-	require.NoError(t, err)
-	assert.Equal(t, "rotate-me", string(plaintext))
-
-	// An invalid reload is rejected and leaves the active keyring untouched.
-	write(`{"access_key":{"primary":{"value":"not-base64!!!"}}}`)
-	require.Error(t, ReloadEncryptionKeys())
-	assert.Equal(t, keyB, Config.accessRing().primary)
-}
-
-func TestEncryptionKeysFile_DedicatedFileRotation(t *testing.T) {
-	keyA := genKey(0x01)
-	keyB := genKey(0x02)
-
-	dir := t.TempDir()
-	keysPath := filepath.Join(dir, "encryption_keys.json")
-	write := func(body string) {
-		require.NoError(t, os.WriteFile(keysPath, []byte(body), 0o600))
-	}
-
-	// Startup: the keyring comes from the dedicated file, not the main config.
-	write(`{"access_key":{"primary":{"value":"` + keyA + `"}}}`)
-	Config = &ConfigType{EncryptionKeysFile: keysPath}
-	resolveEncryptionKeys()
-	require.Equal(t, keyA, Config.accessRing().primary)
+	require.Equal(t, keyID(keyA), Config.ActiveAccessKeyID())
 
 	old, err := Config.EncryptAccessSecret([]byte("rotate-me"))
 	require.NoError(t, err)
 
-	// No change yet — the watcher's check is a no-op.
-	changed, err := ReloadEncryptionKeysIfChanged()
-	require.NoError(t, err)
-	assert.False(t, changed)
+	// Rotate via the file: add b, make it active.
+	write(`{"keys":{"a":{"value":"` + keyA + `"},"b":{"value":"` + keyB + `"}},"active":{"access_key":"b"}}`)
+	require.NoError(t, ReloadEncryptionKeys())
 
-	// Rotate by editing the dedicated file: new primary keyB, old keyA secondary.
-	write(`{"access_key":{"primary":{"value":"` + keyB + `"},"secondary":[{"value":"` + keyA + `"}]}}`)
-	changed, err = ReloadEncryptionKeysIfChanged()
-	require.NoError(t, err)
-	assert.True(t, changed)
-	assert.Equal(t, keyB, Config.accessRing().primary)
-
-	// A subsequent check with no further edits is a no-op again.
-	changed, err = ReloadEncryptionKeysIfChanged()
-	require.NoError(t, err)
-	assert.False(t, changed)
-
-	// Data encrypted under keyA still decrypts via the secondary.
-	pt, err := decryptWithKeys(old, Config.AccessSecretDecryptKeys())
+	assert.Equal(t, keyID(keyB), Config.ActiveAccessKeyID())
+	pt, err := Config.DecryptAccessSecret(old)
 	require.NoError(t, err)
 	assert.Equal(t, "rotate-me", string(pt))
+
+	// Invalid reload is rejected; active keyset untouched.
+	write(`{"keys":{"a":{"value":"not-base64!!!"}},"active":{"access_key":"a"}}`)
+	require.Error(t, ReloadEncryptionKeys())
+	assert.Equal(t, keyID(keyB), Config.ActiveAccessKeyID())
 }
 
-func TestEncryptionKeysFile_ReferencedKeyFilesYAML(t *testing.T) {
-	keyAccess := genKey(0x01)
-	keyOption := genKey(0x02)
-
+func TestEncryptionKeysFile_FormatAgnostic(t *testing.T) {
+	keyA := genKey(0x01)
 	dir := t.TempDir()
-	accessKeyPath := filepath.Join(dir, "access.key")
-	optionKeyPath := filepath.Join(dir, "option.key")
-	require.NoError(t, os.WriteFile(accessKeyPath, []byte(keyAccess), 0o600))
-	require.NoError(t, os.WriteFile(optionKeyPath, []byte(keyOption), 0o600))
+
+	t.Run("YAML, no extension", func(t *testing.T) {
+		path := filepath.Join(dir, "encryption_keys")
+		require.NoError(t, os.WriteFile(path, []byte(
+			"keys:\n  a:\n    value: "+keyA+"\nactive:\n  access_key: a\n"), 0o600))
+		Config = &ConfigType{Encryption: &EncryptionConfig{KeysFile: path}}
+		resolveEncryptionKeys()
+		assert.Equal(t, keyID(keyA), Config.ActiveAccessKeyID())
+	})
+
+	t.Run("JSON, no extension", func(t *testing.T) {
+		path := filepath.Join(dir, "keys_json")
+		require.NoError(t, os.WriteFile(path, []byte(
+			`{"keys":{"a":{"value":"`+keyA+`"}},"active":{"access_key":"a"}}`), 0o600))
+		Config = &ConfigType{Encryption: &EncryptionConfig{KeysFile: path}}
+		resolveEncryptionKeys()
+		assert.Equal(t, keyID(keyA), Config.ActiveAccessKeyID())
+	})
+}
+
+func TestEncryptionKeysFile_ReferencedKeyFileContentChange(t *testing.T) {
+	keyA := genKey(0x01)
+	dir := t.TempDir()
+	keyPath := filepath.Join(dir, "access.key")
+	require.NoError(t, os.WriteFile(keyPath, []byte(keyA), 0o600))
 
 	keysPath := filepath.Join(dir, "keys.yaml")
 	require.NoError(t, os.WriteFile(keysPath, []byte(
-		"access_key:\n  primary:\n    file: "+accessKeyPath+"\n"+
-			"option_key:\n  primary:\n    file: "+optionKeyPath+"\n"), 0o600))
+		"keys:\n  a:\n    file: "+keyPath+"\nactive:\n  access_key: a\n"), 0o600))
 
-	Config = &ConfigType{EncryptionKeysFile: keysPath}
+	Config = &ConfigType{Encryption: &EncryptionConfig{KeysFile: keysPath}}
 	resolveEncryptionKeys()
-	assert.Equal(t, keyAccess, Config.accessRing().primary)
-	require.True(t, Config.optionConfigured())
-	assert.Equal(t, keyOption, Config.OptionPrimaryKey())
+	assert.Equal(t, keyID(keyA), Config.ActiveAccessKeyID())
 
-	// Changing a referenced key file's *content* (structure unchanged) is also
-	// detected and applied without a restart.
-	keyAccess2 := genKey(0x03)
-	require.NoError(t, os.WriteFile(accessKeyPath, []byte(keyAccess2), 0o600))
+	// Changing the referenced key file's content is detected and applied.
+	keyA2 := genKey(0x03)
+	require.NoError(t, os.WriteFile(keyPath, []byte(keyA2), 0o600))
 	changed, err := ReloadEncryptionKeysIfChanged()
 	require.NoError(t, err)
 	assert.True(t, changed)
-	assert.Equal(t, keyAccess2, Config.accessRing().primary)
+	assert.Equal(t, keyID(keyA2), Config.ActiveAccessKeyID())
 }
 
-// TestEncryptionKeysFile_FormatAgnostic confirms the keys file parses as either
-// YAML or JSON regardless of extension — important for Kubernetes secret mounts,
-// whose path usually has no .yaml/.yml extension.
-func TestEncryptionKeysFile_FormatAgnostic(t *testing.T) {
-	keyAccess := genKey(0x01)
-	dir := t.TempDir()
-
-	t.Run("YAML content, no extension", func(t *testing.T) {
-		path := filepath.Join(dir, "encryption_keys") // e.g. a mounted secret
-		require.NoError(t, os.WriteFile(path, []byte(
-			"access_key:\n  primary:\n    value: "+keyAccess+"\n"), 0o600))
-		Config = &ConfigType{EncryptionKeysFile: path}
-		resolveEncryptionKeys()
-		assert.Equal(t, keyAccess, Config.accessRing().primary)
-	})
-
-	t.Run("JSON content, no extension", func(t *testing.T) {
-		path := filepath.Join(dir, "keys_json")
-		require.NoError(t, os.WriteFile(path, []byte(
-			`{"access_key":{"primary":{"value":"`+keyAccess+`"}}}`), 0o600))
-		Config = &ConfigType{EncryptionKeysFile: path}
-		resolveEncryptionKeys()
-		assert.Equal(t, keyAccess, Config.accessRing().primary)
-	})
-}
-
-// TestReloadEncryptionKeys_ConcurrentReadsAreRaceFree hot-rotates the keyring
-// while many goroutines encrypt and decrypt — run with -race, this is the core
-// safety guarantee behind rotation without a restart. Both configs carry the
-// same two keys (primary/secondary swapped), so every ciphertext stays
-// decryptable through the rotation.
 func TestReloadEncryptionKeys_ConcurrentReadsAreRaceFree(t *testing.T) {
-	keyA := genKey(0x01)
-	keyB := genKey(0x02)
+	keyA, keyB := genKey(0x01), genKey(0x02)
 
 	dir := t.TempDir()
-	keysPath := filepath.Join(dir, "encryption_keys.json")
-	cfgA := `{"access_key":{"primary":{"value":"` + keyA + `"},"secondary":[{"value":"` + keyB + `"}]}}`
-	cfgB := `{"access_key":{"primary":{"value":"` + keyB + `"},"secondary":[{"value":"` + keyA + `"}]}}`
+	keysPath := filepath.Join(dir, "keys.json")
+	cfgA := `{"keys":{"a":{"value":"` + keyA + `"},"b":{"value":"` + keyB + `"}},"active":{"access_key":"a"}}`
+	cfgB := `{"keys":{"a":{"value":"` + keyA + `"},"b":{"value":"` + keyB + `"}},"active":{"access_key":"b"}}`
 
 	require.NoError(t, os.WriteFile(keysPath, []byte(cfgA), 0o600))
-	Config = &ConfigType{EncryptionKeysFile: keysPath}
+	Config = &ConfigType{Encryption: &EncryptionConfig{KeysFile: keysPath}}
 	resolveEncryptionKeys()
 
 	var wg sync.WaitGroup
 	stop := make(chan struct{})
-
 	for i := 0; i < 8; i++ {
 		wg.Add(1)
 		go func() {
@@ -531,7 +389,7 @@ func TestReloadEncryptionKeys_ConcurrentReadsAreRaceFree(t *testing.T) {
 					t.Errorf("encrypt: %v", err)
 					return
 				}
-				if _, err := decryptWithKeys(ct, Config.AccessSecretDecryptKeys()); err != nil {
+				if _, err := Config.DecryptAccessSecret(ct); err != nil {
 					t.Errorf("decrypt: %v", err)
 					return
 				}
@@ -547,7 +405,26 @@ func TestReloadEncryptionKeys_ConcurrentReadsAreRaceFree(t *testing.T) {
 		require.NoError(t, os.WriteFile(keysPath, []byte(body), 0o600))
 		require.NoError(t, ReloadEncryptionKeys())
 	}
-
 	close(stop)
 	wg.Wait()
+}
+
+func TestEncryptionConfigGetters(t *testing.T) {
+	t.Run("keys file path", func(t *testing.T) {
+		Config = &ConfigType{}
+		assert.Empty(t, Config.EncryptionKeysFile())
+		Config = &ConfigType{Encryption: &EncryptionConfig{KeysFile: "/x"}}
+		assert.Equal(t, "/x", Config.EncryptionKeysFile())
+	})
+
+	t.Run("poll interval default/custom/zero/invalid", func(t *testing.T) {
+		Config = &ConfigType{}
+		assert.Equal(t, 15*time.Second, Config.EncryptionKeysPollInterval())
+		Config = &ConfigType{Encryption: &EncryptionConfig{KeysPollInterval: "30s"}}
+		assert.Equal(t, 30*time.Second, Config.EncryptionKeysPollInterval())
+		Config = &ConfigType{Encryption: &EncryptionConfig{KeysPollInterval: "0"}}
+		assert.Equal(t, time.Duration(0), Config.EncryptionKeysPollInterval())
+		Config = &ConfigType{Encryption: &EncryptionConfig{KeysPollInterval: "nonsense"}}
+		assert.Equal(t, 15*time.Second, Config.EncryptionKeysPollInterval())
+	})
 }
