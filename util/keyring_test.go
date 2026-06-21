@@ -31,7 +31,7 @@ func mustKeyset(t *testing.T, enc *EncryptionKeysConfig, flatAccess, flatOption 
 }
 
 func keysCfg(keys map[string]string, accessLabel, optionLabel string) *EncryptionKeysConfig {
-	enc := &EncryptionKeysConfig{Keys: map[string]KeySource{}, Active: ActivePointers{SecretsKey: accessLabel, OptionsKey: optionLabel}}
+	enc := &EncryptionKeysConfig{Keys: map[string]KeySource{}, Active: ActivePointers{SecretKey: accessLabel, OptionKey: optionLabel}}
 	for label, val := range keys {
 		enc.Keys[label] = KeySource{Value: val}
 	}
@@ -243,7 +243,7 @@ func TestResolveEncryptionKeysFrom(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, []byte(keyA+"\n"), 0o600))
 		ks, err := resolveEncryptionKeysFrom(&EncryptionKeysConfig{
 			Keys:   map[string]KeySource{"a": {File: path}},
-			Active: ActivePointers{SecretsKey: "a"},
+			Active: ActivePointers{SecretKey: "a"},
 		}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, keyID(keyA), ks.accessID)
@@ -261,7 +261,7 @@ func TestKeyset_KeysFolder(t *testing.T) {
 
 	enc := &EncryptionKeysConfig{
 		KeysFolder: dir,
-		Active:     ActivePointers{SecretsKeyFile: "access_key_primary.txt", OptionsKeyFile: "option_key_primary.txt"},
+		Active:     ActivePointers{SecretKeyFile: "access_key_primary.txt", OptionKeyFile: "option_key_primary.txt"},
 	}
 	Config = mustKeyset(t, enc, "", "")
 

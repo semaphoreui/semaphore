@@ -59,7 +59,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 		{
 			name: "inline map, value, active access label",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{SecretsKey: "a"}}, "", ""
+				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{SecretKey: "a"}}, "", ""
 			},
 			accessActive: keyA,
 		},
@@ -68,7 +68,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
 				return &EncryptionKeysConfig{
 					Keys:   map[string]KeySource{"a": {Value: keyA}, "b": {Value: keyB}},
-					Active: ActivePointers{SecretsKey: "a", OptionsKey: "b"},
+					Active: ActivePointers{SecretKey: "a", OptionKey: "b"},
 				}, "", ""
 			},
 			accessActive: keyA,
@@ -77,7 +77,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 		{
 			name: "inline map, KeySource from file",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {File: mkKeyFile(t, keyA)}}, Active: ActivePointers{SecretsKey: "a"}}, "", ""
+				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {File: mkKeyFile(t, keyA)}}, Active: ActivePointers{SecretKey: "a"}}, "", ""
 			},
 			accessActive: keyA,
 		},
@@ -85,7 +85,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 			name: "keys_folder, active by *_file",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
 				dir := mkKeyFolder(t, map[string]string{"acc.txt": keyA, "opt.txt": keyB})
-				return &EncryptionKeysConfig{KeysFolder: dir, Active: ActivePointers{SecretsKeyFile: "acc.txt", OptionsKeyFile: "opt.txt"}}, "", ""
+				return &EncryptionKeysConfig{KeysFolder: dir, Active: ActivePointers{SecretKeyFile: "acc.txt", OptionKeyFile: "opt.txt"}}, "", ""
 			},
 			accessActive: keyA,
 			optionActive: keyB,
@@ -94,7 +94,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 			name: "keys_folder, active by label (filename)",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
 				dir := mkKeyFolder(t, map[string]string{"acc.txt": keyA})
-				return &EncryptionKeysConfig{KeysFolder: dir, Active: ActivePointers{SecretsKey: "acc.txt"}}, "", ""
+				return &EncryptionKeysConfig{KeysFolder: dir, Active: ActivePointers{SecretKey: "acc.txt"}}, "", ""
 			},
 			accessActive: keyA,
 		},
@@ -105,7 +105,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 				return &EncryptionKeysConfig{
 					Keys:       map[string]KeySource{"a": {Value: keyA}},
 					KeysFolder: dir,
-					Active:     ActivePointers{SecretsKey: "a", OptionsKeyFile: "opt.txt"},
+					Active:     ActivePointers{SecretKey: "a", OptionKeyFile: "opt.txt"},
 				}, "", ""
 			},
 			accessActive: keyA,
@@ -114,14 +114,14 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 		{
 			name: "active label wins over flat field",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{SecretsKey: "a"}}, keyC, ""
+				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{SecretKey: "a"}}, keyC, ""
 			},
 			accessActive: keyA, // the active label wins over the flat keyC
 		},
 		{
 			name: "active *_file absolute path, no keys_folder",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-				return &EncryptionKeysConfig{Active: ActivePointers{SecretsKeyFile: mkKeyFile(t, keyA)}}, "", ""
+				return &EncryptionKeysConfig{Active: ActivePointers{SecretKeyFile: mkKeyFile(t, keyA)}}, "", ""
 			},
 			accessActive: keyA,
 		},
@@ -185,13 +185,13 @@ func TestEncryptionKeyConfig_Errors(t *testing.T) {
 			return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA, File: "/tmp/x"}}}, "", ""
 		}},
 		{"active label not in keys", func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-			return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{SecretsKey: "nope"}}, "", ""
+			return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{SecretKey: "nope"}}, "", ""
 		}},
 		{"active option label not in keys", func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-			return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{OptionsKey: "nope"}}, "", ""
+			return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{OptionKey: "nope"}}, "", ""
 		}},
 		{"active file missing", func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-			return &EncryptionKeysConfig{Active: ActivePointers{SecretsKeyFile: "/no/such/file"}}, "", ""
+			return &EncryptionKeysConfig{Active: ActivePointers{SecretKeyFile: "/no/such/file"}}, "", ""
 		}},
 		{"keys_folder missing", func(t *testing.T) (*EncryptionKeysConfig, string, string) {
 			return &EncryptionKeysConfig{KeysFolder: "/no/such/folder"}, "", ""
