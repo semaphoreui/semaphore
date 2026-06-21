@@ -431,15 +431,15 @@ type KeySource struct {
 }
 
 // ActivePointers names the active (encrypting) key per purpose. A key may be
-// named by label (AccessKey/OptionKey, into the keys map) or by filename
-// (AccessKeyFile/OptionKeyFile, a file in KeysFolder, relative to it). The
+// named by label (SecretsKey/OptionKey, into the keys map) or by filename
+// (SecretsKeyFile/OptionKeyFile, a file in KeysFolder, relative to it). The
 // label/filename is human-facing only; the id stored in the database is derived
 // from the key material.
 type ActivePointers struct {
-	AccessKey     string `json:"access_key,omitempty"`
-	OptionKey     string `json:"option_key,omitempty"`
-	AccessKeyFile string `json:"access_key_file,omitempty"`
-	OptionKeyFile string `json:"option_key_file,omitempty"`
+	SecretsKey     string `json:"secrets_key,omitempty"`
+	OptionsKey     string `json:"options_key,omitempty"`
+	SecretsKeyFile string `json:"secrets_key_file,omitempty"`
+	OptionsKeyFile string `json:"options_key_file,omitempty"`
 }
 
 // EncryptionKeysConfig is the content of the keys file: a registry of keys plus
@@ -1344,14 +1344,14 @@ func resolveEncryptionKeysFrom(enc *EncryptionKeysConfig, flatAccess, flatOption
 	}
 
 	accessActive, err := resolveActiveKey(enc, flatAccess, byLabel, addLabeled,
-		activePointer(enc, func(a ActivePointers) (string, string) { return a.AccessKey, a.AccessKeyFile }), "access")
+		activePointer(enc, func(a ActivePointers) (string, string) { return a.SecretsKey, a.SecretsKeyFile }), "access")
 	if err != nil {
 		return nil, err
 	}
 	ks.accessID = keyID(accessActive) // "" => encryption disabled
 
 	optionActive, err := resolveActiveKey(enc, flatOption, byLabel, addLabeled,
-		activePointer(enc, func(a ActivePointers) (string, string) { return a.OptionKey, a.OptionKeyFile }), "option")
+		activePointer(enc, func(a ActivePointers) (string, string) { return a.OptionsKey, a.OptionsKeyFile }), "option")
 	if err != nil {
 		return nil, err
 	}

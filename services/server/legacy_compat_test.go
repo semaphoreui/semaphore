@@ -99,7 +99,7 @@ func TestLegacyData_DecryptsAfterMigratingToKeysFile(t *testing.T) {
 
 	keysPath := filepath.Join(t.TempDir(), "keys.json")
 	require.NoError(t, os.WriteFile(keysPath, []byte(
-		`{"keys":{"old":{"value":"`+oldKey+`"},"new":{"value":"`+newKey+`"}},"active":{"access_key":"new"}}`), 0o600))
+		`{"keys":{"old":{"value":"`+oldKey+`"},"new":{"value":"`+newKey+`"}},"active":{"secrets_key":"new"}}`), 0o600))
 	util.Config = &util.ConfigType{Encryption: &util.EncryptionConfig{KeysFile: keysPath}}
 	require.NoError(t, util.ReloadEncryptionKeys())
 

@@ -31,7 +31,7 @@ func mustKeyset(t *testing.T, enc *EncryptionKeysConfig, flatAccess, flatOption 
 }
 
 func keysCfg(keys map[string]string, accessLabel, optionLabel string) *EncryptionKeysConfig {
-	enc := &EncryptionKeysConfig{Keys: map[string]KeySource{}, Active: ActivePointers{AccessKey: accessLabel, OptionKey: optionLabel}}
+	enc := &EncryptionKeysConfig{Keys: map[string]KeySource{}, Active: ActivePointers{SecretsKey: accessLabel, OptionsKey: optionLabel}}
 	for label, val := range keys {
 		enc.Keys[label] = KeySource{Value: val}
 	}
@@ -243,7 +243,7 @@ func TestResolveEncryptionKeysFrom(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, []byte(keyA+"\n"), 0o600))
 		ks, err := resolveEncryptionKeysFrom(&EncryptionKeysConfig{
 			Keys:   map[string]KeySource{"a": {File: path}},
-			Active: ActivePointers{AccessKey: "a"},
+			Active: ActivePointers{SecretsKey: "a"},
 		}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, keyID(keyA), ks.accessID)
@@ -261,7 +261,7 @@ func TestKeyset_KeysFolder(t *testing.T) {
 
 	enc := &EncryptionKeysConfig{
 		KeysFolder: dir,
-		Active:     ActivePointers{AccessKeyFile: "access_key_primary.txt", OptionKeyFile: "option_key_primary.txt"},
+		Active:     ActivePointers{SecretsKeyFile: "access_key_primary.txt", OptionsKeyFile: "option_key_primary.txt"},
 	}
 	Config = mustKeyset(t, enc, "", "")
 
@@ -291,7 +291,7 @@ func TestReloadEncryptionKeys(t *testing.T) {
 	keysPath := filepath.Join(dir, "keys.json")
 	write := func(body string) { require.NoError(t, os.WriteFile(keysPath, []byte(body), 0o600)) }
 
-	write(`{"keys":{"a":{"value":"` + keyA + `"}},"active":{"access_key":"a"}}`)
+	write(`{"keys":{"a":{"value":"` + keyA + `"}},"active":{"secrets_key":"a"}}`)
 	Config = &ConfigType{Encryption: &EncryptionConfig{KeysFile: keysPath}}
 	resolveEncryptionKeys()
 	require.Equal(t, keyID(keyA), Config.ActiveAccessKeyID())
@@ -300,7 +300,7 @@ func TestReloadEncryptionKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	// Rotate via the file: add b, make it active.
-	write(`{"keys":{"a":{"value":"` + keyA + `"},"b":{"value":"` + keyB + `"}},"active":{"access_key":"b"}}`)
+	write(`{"keys":{"a":{"value":"` + keyA + `"},"b":{"value":"` + keyB + `"}},"active":{"secrets_key":"b"}}`)
 	require.NoError(t, ReloadEncryptionKeys())
 
 	assert.Equal(t, keyID(keyB), Config.ActiveAccessKeyID())
@@ -309,7 +309,7 @@ func TestReloadEncryptionKeys(t *testing.T) {
 	assert.Equal(t, "rotate-me", string(pt))
 
 	// Invalid reload is rejected; active keyset untouched.
-	write(`{"keys":{"a":{"value":"not-base64!!!"}},"active":{"access_key":"a"}}`)
+	write(`{"keys":{"a":{"value":"not-base64!!!"}},"active":{"secrets_key":"a"}}`)
 	require.Error(t, ReloadEncryptionKeys())
 	assert.Equal(t, keyID(keyB), Config.ActiveAccessKeyID())
 }
@@ -321,7 +321,7 @@ func TestEncryptionKeysFile_FormatAgnostic(t *testing.T) {
 	t.Run("YAML, no extension", func(t *testing.T) {
 		path := filepath.Join(dir, "encryption_keys")
 		require.NoError(t, os.WriteFile(path, []byte(
-			"keys:\n  a:\n    value: "+keyA+"\nactive:\n  access_key: a\n"), 0o600))
+			"keys:\n  a:\n    value: "+keyA+"\nactive:\n  secrets_key: a\n"), 0o600))
 		Config = &ConfigType{Encryption: &EncryptionConfig{KeysFile: path}}
 		resolveEncryptionKeys()
 		assert.Equal(t, keyID(keyA), Config.ActiveAccessKeyID())
@@ -330,7 +330,7 @@ func TestEncryptionKeysFile_FormatAgnostic(t *testing.T) {
 	t.Run("JSON, no extension", func(t *testing.T) {
 		path := filepath.Join(dir, "keys_json")
 		require.NoError(t, os.WriteFile(path, []byte(
-			`{"keys":{"a":{"value":"`+keyA+`"}},"active":{"access_key":"a"}}`), 0o600))
+			`{"keys":{"a":{"value":"`+keyA+`"}},"active":{"secrets_key":"a"}}`), 0o600))
 		Config = &ConfigType{Encryption: &EncryptionConfig{KeysFile: path}}
 		resolveEncryptionKeys()
 		assert.Equal(t, keyID(keyA), Config.ActiveAccessKeyID())
@@ -345,7 +345,7 @@ func TestEncryptionKeysFile_ReferencedKeyFileContentChange(t *testing.T) {
 
 	keysPath := filepath.Join(dir, "keys.yaml")
 	require.NoError(t, os.WriteFile(keysPath, []byte(
-		"keys:\n  a:\n    file: "+keyPath+"\nactive:\n  access_key: a\n"), 0o600))
+		"keys:\n  a:\n    file: "+keyPath+"\nactive:\n  secrets_key: a\n"), 0o600))
 
 	Config = &ConfigType{Encryption: &EncryptionConfig{KeysFile: keysPath}}
 	resolveEncryptionKeys()
@@ -365,8 +365,8 @@ func TestReloadEncryptionKeys_ConcurrentReadsAreRaceFree(t *testing.T) {
 
 	dir := t.TempDir()
 	keysPath := filepath.Join(dir, "keys.json")
-	cfgA := `{"keys":{"a":{"value":"` + keyA + `"},"b":{"value":"` + keyB + `"}},"active":{"access_key":"a"}}`
-	cfgB := `{"keys":{"a":{"value":"` + keyA + `"},"b":{"value":"` + keyB + `"}},"active":{"access_key":"b"}}`
+	cfgA := `{"keys":{"a":{"value":"` + keyA + `"},"b":{"value":"` + keyB + `"}},"active":{"secrets_key":"a"}}`
+	cfgB := `{"keys":{"a":{"value":"` + keyA + `"},"b":{"value":"` + keyB + `"}},"active":{"secrets_key":"b"}}`
 
 	require.NoError(t, os.WriteFile(keysPath, []byte(cfgA), 0o600))
 	Config = &ConfigType{Encryption: &EncryptionConfig{KeysFile: keysPath}}

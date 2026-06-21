@@ -59,7 +59,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 		{
 			name: "inline map, value, active access label",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{AccessKey: "a"}}, "", ""
+				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{SecretsKey: "a"}}, "", ""
 			},
 			accessActive: keyA,
 		},
@@ -68,7 +68,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
 				return &EncryptionKeysConfig{
 					Keys:   map[string]KeySource{"a": {Value: keyA}, "b": {Value: keyB}},
-					Active: ActivePointers{AccessKey: "a", OptionKey: "b"},
+					Active: ActivePointers{SecretsKey: "a", OptionsKey: "b"},
 				}, "", ""
 			},
 			accessActive: keyA,
@@ -77,7 +77,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 		{
 			name: "inline map, KeySource from file",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {File: mkKeyFile(t, keyA)}}, Active: ActivePointers{AccessKey: "a"}}, "", ""
+				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {File: mkKeyFile(t, keyA)}}, Active: ActivePointers{SecretsKey: "a"}}, "", ""
 			},
 			accessActive: keyA,
 		},
@@ -85,7 +85,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 			name: "keys_folder, active by *_file",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
 				dir := mkKeyFolder(t, map[string]string{"acc.txt": keyA, "opt.txt": keyB})
-				return &EncryptionKeysConfig{KeysFolder: dir, Active: ActivePointers{AccessKeyFile: "acc.txt", OptionKeyFile: "opt.txt"}}, "", ""
+				return &EncryptionKeysConfig{KeysFolder: dir, Active: ActivePointers{SecretsKeyFile: "acc.txt", OptionsKeyFile: "opt.txt"}}, "", ""
 			},
 			accessActive: keyA,
 			optionActive: keyB,
@@ -94,7 +94,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 			name: "keys_folder, active by label (filename)",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
 				dir := mkKeyFolder(t, map[string]string{"acc.txt": keyA})
-				return &EncryptionKeysConfig{KeysFolder: dir, Active: ActivePointers{AccessKey: "acc.txt"}}, "", ""
+				return &EncryptionKeysConfig{KeysFolder: dir, Active: ActivePointers{SecretsKey: "acc.txt"}}, "", ""
 			},
 			accessActive: keyA,
 		},
@@ -105,7 +105,7 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 				return &EncryptionKeysConfig{
 					Keys:       map[string]KeySource{"a": {Value: keyA}},
 					KeysFolder: dir,
-					Active:     ActivePointers{AccessKey: "a", OptionKeyFile: "opt.txt"},
+					Active:     ActivePointers{SecretsKey: "a", OptionsKeyFile: "opt.txt"},
 				}, "", ""
 			},
 			accessActive: keyA,
@@ -114,14 +114,14 @@ func TestEncryptionKeyConfig_Variants(t *testing.T) {
 		{
 			name: "active label wins over flat field",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{AccessKey: "a"}}, keyC, ""
+				return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{SecretsKey: "a"}}, keyC, ""
 			},
 			accessActive: keyA, // the active label wins over the flat keyC
 		},
 		{
 			name: "active *_file absolute path, no keys_folder",
 			setup: func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-				return &EncryptionKeysConfig{Active: ActivePointers{AccessKeyFile: mkKeyFile(t, keyA)}}, "", ""
+				return &EncryptionKeysConfig{Active: ActivePointers{SecretsKeyFile: mkKeyFile(t, keyA)}}, "", ""
 			},
 			accessActive: keyA,
 		},
@@ -185,13 +185,13 @@ func TestEncryptionKeyConfig_Errors(t *testing.T) {
 			return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA, File: "/tmp/x"}}}, "", ""
 		}},
 		{"active label not in keys", func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-			return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{AccessKey: "nope"}}, "", ""
+			return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{SecretsKey: "nope"}}, "", ""
 		}},
 		{"active option label not in keys", func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-			return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{OptionKey: "nope"}}, "", ""
+			return &EncryptionKeysConfig{Keys: map[string]KeySource{"a": {Value: keyA}}, Active: ActivePointers{OptionsKey: "nope"}}, "", ""
 		}},
 		{"active file missing", func(t *testing.T) (*EncryptionKeysConfig, string, string) {
-			return &EncryptionKeysConfig{Active: ActivePointers{AccessKeyFile: "/no/such/file"}}, "", ""
+			return &EncryptionKeysConfig{Active: ActivePointers{SecretsKeyFile: "/no/such/file"}}, "", ""
 		}},
 		{"keys_folder missing", func(t *testing.T) (*EncryptionKeysConfig, string, string) {
 			return &EncryptionKeysConfig{KeysFolder: "/no/such/folder"}, "", ""
@@ -236,13 +236,13 @@ func TestEncryptionKeysFile_AllFormats(t *testing.T) {
 		{"inline map, JSON", func(t *testing.T) string {
 			p := filepath.Join(t.TempDir(), "keys.json")
 			require.NoError(t, os.WriteFile(p, []byte(
-				`{"keys":{"a":{"value":"`+keyA+`"},"b":{"value":"`+keyB+`"}},"active":{"access_key":"a","option_key":"b"}}`), 0o600))
+				`{"keys":{"a":{"value":"`+keyA+`"},"b":{"value":"`+keyB+`"}},"active":{"secrets_key":"a","options_key":"b"}}`), 0o600))
 			return p
 		}},
 		{"inline map, YAML", func(t *testing.T) string {
 			p := filepath.Join(t.TempDir(), "keys.yaml")
 			require.NoError(t, os.WriteFile(p, []byte(
-				"keys:\n  a: {value: \""+keyA+"\"}\n  b: {value: \""+keyB+"\"}\nactive:\n  access_key: a\n  option_key: b\n"), 0o600))
+				"keys:\n  a: {value: \""+keyA+"\"}\n  b: {value: \""+keyB+"\"}\nactive:\n  secrets_key: a\n  options_key: b\n"), 0o600))
 			return p
 		}},
 		{"inline map with file refs", func(t *testing.T) string {
@@ -250,7 +250,7 @@ func TestEncryptionKeysFile_AllFormats(t *testing.T) {
 			ka := filepath.Join(dir, "a.key")
 			require.NoError(t, os.WriteFile(ka, []byte(keyA), 0o600))
 			p := filepath.Join(dir, "keys.yaml")
-			require.NoError(t, os.WriteFile(p, []byte("keys:\n  a: {file: "+ka+"}\nactive:\n  access_key: a\n"), 0o600))
+			require.NoError(t, os.WriteFile(p, []byte("keys:\n  a: {file: "+ka+"}\nactive:\n  secrets_key: a\n"), 0o600))
 			return p
 		}},
 		{"keys_folder, no extension (k8s-style)", func(t *testing.T) string {
@@ -261,7 +261,7 @@ func TestEncryptionKeysFile_AllFormats(t *testing.T) {
 			require.NoError(t, os.WriteFile(filepath.Join(folder, "opt.txt"), []byte(keyB), 0o600))
 			p := filepath.Join(dir, "encryption_keys") // no .yaml/.yml extension
 			require.NoError(t, os.WriteFile(p, []byte(
-				"keys_folder: "+folder+"\nactive:\n  access_key_file: acc.txt\n  option_key_file: opt.txt\n"), 0o600))
+				"keys_folder: "+folder+"\nactive:\n  secrets_key_file: acc.txt\n  options_key_file: opt.txt\n"), 0o600))
 			return p
 		}},
 		{"map + folder combined", func(t *testing.T) string {
@@ -271,7 +271,7 @@ func TestEncryptionKeysFile_AllFormats(t *testing.T) {
 			require.NoError(t, os.WriteFile(filepath.Join(folder, "opt.txt"), []byte(keyB), 0o600))
 			p := filepath.Join(dir, "keys.yaml")
 			require.NoError(t, os.WriteFile(p, []byte(
-				"keys:\n  a: {value: \""+keyA+"\"}\nkeys_folder: "+folder+"\nactive:\n  access_key: a\n  option_key_file: opt.txt\n"), 0o600))
+				"keys:\n  a: {value: \""+keyA+"\"}\nkeys_folder: "+folder+"\nactive:\n  secrets_key: a\n  options_key_file: opt.txt\n"), 0o600))
 			return p
 		}},
 	}

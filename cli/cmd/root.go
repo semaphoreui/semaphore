@@ -154,7 +154,7 @@ func runService() {
 
 	jwtSigner, jwtErr := util.InitJWTSignerFromStore(store)
 	if jwtErr != nil {
-		log.WithError(jwtErr).Fatal("failed to initialise JWT signer")
+		log.WithError(jwtErr).Warning("failed to initialise JWT signer")
 	}
 
 	initSyslog(util.Config.Syslog)
