@@ -152,7 +152,16 @@ func (k *keyset) legacyOptionCandidates() []string {
 }
 
 func (k *keyset) legacyCandidates(flats ...string) []string {
-	out := make([]string, 0, len(flats)+len(k.byID))
+	fl := len(flats)
+	by := len(k.byID)
+
+	var out []string
+	if fl > int(^uint(0)>>1)-by {
+		out = make([]string, 0)
+	} else {
+		out = make([]string, 0, fl+by)
+	}
+
 	for _, f := range flats {
 		if f != "" {
 			out = append(out, f)
