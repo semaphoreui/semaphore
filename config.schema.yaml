@@ -165,28 +165,7 @@ properties:
   # ==========================================================================
   # JWT issuance for task executions
   # ==========================================================================
-  jwt_enabled:
-    type: boolean
-    description: >
-      When true, Semaphore mints a short-lived JWT for each task run and exposes
-      its public key via /.well-known/jwks.json.
-  jwt_issuer:
-    type: string
-    description: Value emitted in the `iss` claim of issued JWTs.
-  jwt_default_ttl:
-    type: string
-    pattern: "^[0-9]+(|s|m|h)$"
-    default: "1h"
-    description: >
-      Default lifetime of an issued task JWT, as a Go duration (e.g. 30m, 1h).
-      Overridden per-template by `jwt_params.ttl`.
-  jwt_max_ttl:
-    type: string
-    pattern: "^[0-9]+(s|m|h)$"
-    default: "24h"
-    description: >
-      Hard upper bound on per-template JWT TTL, as a Go duration. Any
-      configured `jwt_params.ttl` above this is rejected.
+  jwt: { $ref: "#/$defs/JWTConfig" }
 
   # ==========================================================================
   # Feature toggles
@@ -246,6 +225,34 @@ $defs:
         description: >-
           How often keys_file is polled for changes (a Go duration like "15s").
           "0" disables polling (a SIGHUP still forces a reload).
+
+  JWTConfig:
+    type: object
+    description: JWT issuance settings for task executions.
+    properties:
+      enabled:
+        type: boolean
+        description: >
+          When true, Semaphore mints a short-lived JWT for each task run and
+          exposes its public key via /.well-known/jwks.json.
+      issuer:
+        type: string
+        description: Value emitted in the `iss` claim of issued JWTs.
+      default_ttl:
+        type: string
+        pattern: "^[0-9]+(|s|m|h)$"
+        default: "1h"
+        description: >
+          Default lifetime of an issued task JWT, as a Go duration (e.g. 30m,
+          1h). Overridden per-template by `jwt_params.ttl`.
+      max_ttl:
+        type: string
+        pattern: "^[0-9]+(s|m|h)$"
+        default: "24h"
+        description: >
+          Hard upper bound on per-template JWT TTL, as a Go duration. Any
+          configured `jwt_params.ttl` above this is rejected.
+
   KeySource:
     type: object
     description: >-
