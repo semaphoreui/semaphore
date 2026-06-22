@@ -154,13 +154,16 @@ func (k *keyset) legacyOptionCandidates() []string {
 func (k *keyset) legacyCandidates(flats ...string) []string {
 	fl := len(flats)
 	by := len(k.byID)
-	maxInt := int(^uint(0) >> 1)
+
+	byU := uint64(by)
+	flU := uint64(fl)
+	maxIntU := uint64(^uint(0) >> 1)
 
 	var out []string
-	if by > maxInt-fl {
+	if byU > maxIntU || flU > maxIntU || byU > maxIntU-flU {
 		out = make([]string, 0)
 	} else {
-		capOut := by + fl
+		capOut := int(byU + flU)
 		out = make([]string, 0, capOut)
 	}
 
