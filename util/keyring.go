@@ -160,7 +160,8 @@ func (k *keyset) legacyCandidates(flats ...string) []string {
 	if by > maxInt-fl {
 		out = make([]string, 0)
 	} else {
-		out = make([]string, 0, fl+by)
+		capOut := by + fl
+		out = make([]string, 0, capOut)
 	}
 
 	for _, f := range flats {
