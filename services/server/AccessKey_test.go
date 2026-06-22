@@ -274,7 +274,7 @@ func TestRekeyAccessKeysReStampsToActiveID(t *testing.T) {
 	dir := t.TempDir()
 	keysPath := filepath.Join(dir, "keys.json")
 	require.NoError(t, os.WriteFile(keysPath,
-		[]byte(`{"keys":{"old":{"value":"`+keyOld+`"},"new":{"value":"`+keyNew+`"}},"active":{"secrets_key":"new"}}`), 0o600))
+		[]byte(`{"keys":{"old":{"value":"`+keyOld+`"},"new":{"value":"`+keyNew+`"}},"active":{"secret_key":"new"}}`), 0o600))
 	util.Config = &util.ConfigType{Encryption: &util.EncryptionConfig{KeysFile: keysPath}}
 	require.NoError(t, util.ReloadEncryptionKeys())
 

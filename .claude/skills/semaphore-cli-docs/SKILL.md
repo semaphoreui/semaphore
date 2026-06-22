@@ -145,7 +145,7 @@ run `npm install` first (or tell the user the build couldn't run).
   that's a stale call site worth flagging to the user, but out of scope for the docs change.
 - **Stale help strings.** A command's `Short`/`Long` text can lag the code. Verify config-key names against the
   actual structs in `util/` (e.g. `vault rekey`'s `--old-key` help says `access_key`, but the real config field
-  is `secrets_key` / `secrets_key_file` in `util/config.go`). Document the struct, not the help string.
+  is `secret_key` / `secret_key_file` in `util/config.go`). Document the struct, not the help string.
 - **Group commands have no flags of their own.** `users`, `projects`, `vaults`, `runner`, `token`, `totp` just
   print help and dispatch to subcommands. Don't invent flags for them.
 - **Don't document the internal `server` runtime.** `server.go`/`root.go` wire a lot of services; the doc only

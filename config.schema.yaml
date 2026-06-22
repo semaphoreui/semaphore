@@ -74,14 +74,14 @@ properties:
     description: >-
       Base64-encoded 32-byte key used to encrypt stored access keys (sensitive).
       Legacy entry point; the secrets keyring is also configurable via
-      encryption.keys_file (active.secrets_key), with rotation.
+      encryption.keys_file (active.secret_key), with rotation.
   option_encryption:
     type: string
     description: >-
       Base64-encoded key used to encrypt DB options (the JWT signing key) with the
       old single-key scheme, no rotation (sensitive). Counterpart of
       access_key_encryption; rotation is configured instead via
-      encryption.keys_file (active.options_key). When unset, options fall back to
+      encryption.keys_file (active.option_key). When unset, options fall back to
       the secrets key.
 
   # ==========================================================================
@@ -261,16 +261,16 @@ $defs:
   EncryptionKeysActive:
     type: object
     description: >-
-      Names the active (encrypting) key per purpose. Use a label (secrets_key /
-      options_key) into the keys map, or a filename (secrets_key_file /
-      options_key_file) in keys_folder, relative to it. secrets_key protects
-      stored Access Key secrets; options_key protects encrypted DB options (the
+      Names the active (encrypting) key per purpose. Use a label (secret_key /
+      option_key) into the keys map, or a filename (secret_key_file /
+      option_key_file) in keys_folder, relative to it. secret_key protects
+      stored Access Key secrets; option_key protects encrypted DB options (the
       JWT signing key) and falls back to the secrets key when unset.
     properties:
-      secrets_key:      { type: string, description: Label of the active secrets key in keys. }
-      options_key:      { type: string, description: Label of the active options key in keys. }
-      secrets_key_file: { type: string, description: Filename (in keys_folder) of the active secrets key. }
-      options_key_file: { type: string, description: Filename (in keys_folder) of the active options key. }
+      secret_key:      { type: string, description: Label of the active secrets key in keys. }
+      option_key:      { type: string, description: Label of the active options key in keys. }
+      secret_key_file: { type: string, description: Filename (in keys_folder) of the active secrets key. }
+      option_key_file: { type: string, description: Filename (in keys_folder) of the active options key. }
   EncryptionKeysConfig:
     type: object
     description: >-

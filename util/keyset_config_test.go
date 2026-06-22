@@ -236,13 +236,13 @@ func TestEncryptionKeysFile_AllFormats(t *testing.T) {
 		{"inline map, JSON", func(t *testing.T) string {
 			p := filepath.Join(t.TempDir(), "keys.json")
 			require.NoError(t, os.WriteFile(p, []byte(
-				`{"keys":{"a":{"value":"`+keyA+`"},"b":{"value":"`+keyB+`"}},"active":{"secrets_key":"a","options_key":"b"}}`), 0o600))
+				`{"keys":{"a":{"value":"`+keyA+`"},"b":{"value":"`+keyB+`"}},"active":{"secret_key":"a","option_key":"b"}}`), 0o600))
 			return p
 		}},
 		{"inline map, YAML", func(t *testing.T) string {
 			p := filepath.Join(t.TempDir(), "keys.yaml")
 			require.NoError(t, os.WriteFile(p, []byte(
-				"keys:\n  a: {value: \""+keyA+"\"}\n  b: {value: \""+keyB+"\"}\nactive:\n  secrets_key: a\n  options_key: b\n"), 0o600))
+				"keys:\n  a: {value: \""+keyA+"\"}\n  b: {value: \""+keyB+"\"}\nactive:\n  secret_key: a\n  option_key: b\n"), 0o600))
 			return p
 		}},
 		{"inline map with file refs", func(t *testing.T) string {
@@ -250,7 +250,7 @@ func TestEncryptionKeysFile_AllFormats(t *testing.T) {
 			ka := filepath.Join(dir, "a.key")
 			require.NoError(t, os.WriteFile(ka, []byte(keyA), 0o600))
 			p := filepath.Join(dir, "keys.yaml")
-			require.NoError(t, os.WriteFile(p, []byte("keys:\n  a: {file: "+ka+"}\nactive:\n  secrets_key: a\n"), 0o600))
+			require.NoError(t, os.WriteFile(p, []byte("keys:\n  a: {file: "+ka+"}\nactive:\n  secret_key: a\n"), 0o600))
 			return p
 		}},
 		{"keys_folder, no extension (k8s-style)", func(t *testing.T) string {
@@ -261,7 +261,7 @@ func TestEncryptionKeysFile_AllFormats(t *testing.T) {
 			require.NoError(t, os.WriteFile(filepath.Join(folder, "opt.txt"), []byte(keyB), 0o600))
 			p := filepath.Join(dir, "encryption_keys") // no .yaml/.yml extension
 			require.NoError(t, os.WriteFile(p, []byte(
-				"keys_folder: "+folder+"\nactive:\n  secrets_key_file: acc.txt\n  options_key_file: opt.txt\n"), 0o600))
+				"keys_folder: "+folder+"\nactive:\n  secret_key_file: acc.txt\n  option_key_file: opt.txt\n"), 0o600))
 			return p
 		}},
 		{"map + folder combined", func(t *testing.T) string {
@@ -271,7 +271,7 @@ func TestEncryptionKeysFile_AllFormats(t *testing.T) {
 			require.NoError(t, os.WriteFile(filepath.Join(folder, "opt.txt"), []byte(keyB), 0o600))
 			p := filepath.Join(dir, "keys.yaml")
 			require.NoError(t, os.WriteFile(p, []byte(
-				"keys:\n  a: {value: \""+keyA+"\"}\nkeys_folder: "+folder+"\nactive:\n  secrets_key: a\n  options_key_file: opt.txt\n"), 0o600))
+				"keys:\n  a: {value: \""+keyA+"\"}\nkeys_folder: "+folder+"\nactive:\n  secret_key: a\n  option_key_file: opt.txt\n"), 0o600))
 			return p
 		}},
 	}
