@@ -93,6 +93,7 @@ For more installation options, visit our [Installation page](https://semaphoreui
 * [User Guide](https://docs.semaphoreui.com)
 * [API Reference](https://semaphoreui.com/api-docs)
 * [Postman Collection](https://www.postman.com/semaphoreui)
+* [Developer notes](docs/developer/README.md) — runner executors, Docker images, workflows, HA cluster API
 
 ## Awesome Semaphore
 

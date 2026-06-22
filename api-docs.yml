@@ -1345,7 +1345,7 @@ definitions:
         type: integer
       kind:
         type: string
-        enum: [task, approval]
+        enum: [task, approval, note]
       convergence_mode:
         type: string
         enum: [all, any]
@@ -1404,7 +1404,7 @@ definitions:
         type: integer
       status:
         type: string
-        enum: [running, success, failed, approval]
+        enum: [running, success, failed, approval, stopped]
       start:
         type: string
         format: date-time
@@ -3213,6 +3213,22 @@ paths:
           description: workflow run details
           schema:
             $ref: "#/definitions/WorkflowRunDetails"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    post:
+      tags:
+        - workflow
+      summary: Stop workflow run
+      description: Stops every active task in the run, rejects pending approvals, and marks the run stopped.
+      responses:
+        200:
+          description: workflow run stopped
+          schema:
+            $ref: "#/definitions/WorkflowRun"
 
   /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals:
     parameters:

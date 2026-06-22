@@ -107,15 +107,6 @@ backend.
 docker-compose <server/runner from above> -f deployment/compose/store/sqlite.yml up
 ```
 
-### SQLite
-
-This simply configures a named volume for the SQLite storage used as a database
-backend.
-
-```console
-docker-compose <server/runner from above> -f deployment/compose/store/sqlite.yml up
-```
-
 ### MariaDB
 
 This simply starts an additional container for a MariaDB instance used as a

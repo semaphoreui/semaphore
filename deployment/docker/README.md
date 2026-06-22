@@ -12,14 +12,38 @@ If you want to use [docker-compose][dockercompose] to start Semaphore you could
 also read about it on our [documentation][documentation] or take a look at our
 collection of [snippets][snippets] within this repository.
 
+## Images
+
+| Published name | Dockerfile | Role |
+| --- | --- | --- |
+| `semaphoreui/semaphore` | `deployment/docker/server/Dockerfile` | Server (API + web UI) |
+| `semaphoreui/runner` | `deployment/docker/runner/Dockerfile` | Runner process + toolchain |
+| `semaphoreui/job` | `deployment/docker/job/Dockerfile` | Task build container (Docker/K8s executors) |
+| `semaphoreui/helper` | `deployment/docker/helper/Dockerfile` | Git-clone init container (K8s executor) |
+
+The `job` image ships Ansible, Terraform, OpenTofu, Terragrunt, and Git on
+Debian slim. The `helper` image is a minimal git/SSH client image for repository
+checkout init containers. See [docs/developer/docker-images.md](../../docs/developer/docker-images.md)
+for defaults and executor configuration.
+
+`job` and `helper` are built and pushed by CI on the `develop` branch
+(`.github/workflows/dev.yml`). Server and runner images follow release tags.
+
 ## Build
 
-We have prepared multiple tasks to build an publish container images, including
+We have prepared multiple tasks to build and publish container images, including
 tasks to verify the image contains all required tools:
 
 ```console
 task docker:build
 task docker:push
+```
+
+Build the executor images locally:
+
+```console
+docker build -f deployment/docker/job/Dockerfile -t semaphoreui/job:test .
+docker build -f deployment/docker/helper/Dockerfile -t semaphoreui/helper:test .
 ```
 
 If you want to customize the image names or if you want to use [Podman][podman]
