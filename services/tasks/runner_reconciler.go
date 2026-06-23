@@ -278,8 +278,9 @@ func (p *TaskPool) requeueTaskRunnerOffline(tsk *TaskRunner, runnerID int, reaso
 	}
 
 	// Same flow as the ErrAllRunnersBusy requeue in TaskRunner.run:
-	// put the task back into the queue, then let the pool release its
-	// running/active bookkeeping (EventTypeRequeued -> onTaskStop).
+	// release running/active bookkeeping before enqueueing, then notify the
+	// pool so the current queue pass skips an immediate retry.
+	p.onTaskStop(tsk)
 	p.state.Enqueue(tsk)
 	p.queueEvents <- PoolEvent{EventTypeRequeued, tsk}
 }
@@ -336,6 +337,7 @@ func (p *TaskPool) requeueUndispatchedTask(tsk *TaskRunner) {
 
 	// EventTypeRequeued -> onTaskStop releases the running/active bookkeeping and
 	// the claim, so the task can be re-claimed from the queue by any live node.
+	p.onTaskStop(tsk)
 	p.state.Enqueue(tsk)
 	p.queueEvents <- PoolEvent{EventTypeRequeued, tsk}
 }
