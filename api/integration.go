@@ -48,11 +48,13 @@ func hmacHashPayload(secret string, payloadBody []byte) string {
 }
 
 type IntegrationController struct {
+	store              db.Store
 	integrationService server.IntegrationService
 }
 
-func NewIntegrationController(integrationService server.IntegrationService) *IntegrationController {
+func NewIntegrationController(store db.Store, integrationService server.IntegrationService) *IntegrationController {
 	return &IntegrationController{
+		store:              store,
 		integrationService: integrationService,
 	}
 }
@@ -70,9 +72,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 
 	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
 
-	store := helpers.Store(r)
-
-	integrations, level, err := store.GetIntegrationsByAlias(integrationAlias)
+	integrations, level, err := c.store.GetIntegrationsByAlias(integrationAlias)
 
 	if err != nil {
 		log.Error(err)
@@ -96,7 +96,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 
 		project, ok := projects[integration.ProjectID]
 		if !ok {
-			project, err = store.GetProject(integrations[0].ProjectID)
+			project, err = c.store.GetProject(integrations[0].ProjectID)
 			if err != nil {
 				log.Error(err)
 				return
@@ -185,7 +185,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 
 		if level != db.IntegrationAliasSingle {
 			var matchers []db.IntegrationMatcher
-			matchers, err = store.GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
+			matchers, err = c.store.GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
 			if err != nil {
 				log.WithFields(log.Fields{
 					"context": "integrations",
@@ -210,7 +210,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			}
 		}
 
-		task := RunIntegration(integration, project, r, payload)
+		task := c.RunIntegration(integration, project, r, payload)
 		if task != nil {
 			w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(task.ID))
 			w.Header().Add("X-Semaphore-Template-ID", strconv.Itoa(task.TemplateID))
@@ -338,14 +338,14 @@ func GetTaskDefinition(
 	return
 }
 
-func RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) (taskRef *db.Task) {
+func (c *IntegrationController) RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) (taskRef *db.Task) {
 	taskRef = nil
 
 	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
 
 	taskDefinition, err := GetTaskDefinition(
 		integration, payload, r.Header, func(projectID, integrationID int) ([]db.IntegrationExtractValue, error) {
-			return helpers.Store(r).GetIntegrationExtractValues(projectID, db.RetrieveQueryParams{}, integrationID)
+			return c.store.GetIntegrationExtractValues(projectID, db.RetrieveQueryParams{}, integrationID)
 		})
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
@@ -355,7 +355,7 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		return
 	}
 
-	tpl, err := helpers.Store(r).GetTemplate(integration.ProjectID, integration.TemplateID)
+	tpl, err := c.store.GetTemplate(integration.ProjectID, integration.TemplateID)
 	if err != nil {
 		log.Error(err)
 		return

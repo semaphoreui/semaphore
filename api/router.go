@@ -97,7 +97,7 @@ func Route(
 	projectController := &projects.ProjectController{ProjectService: projectService}
 	runnerController := runners.NewRunnerController(store, taskPool, encryptionService, jwtSigner)
 	jwksController := NewJwksController(jwtSigner)
-	integrationController := NewIntegrationController(integrationService)
+	integrationController := NewIntegrationController(store, integrationService)
 	environmentController := projects.NewEnvironmentController(store, encryptionService, accessKeyService, environmentService, secretStorageService)
 	secretStorageController := projects.NewSecretStorageController(store, secretStorageService)
 	repositoryController := projects.NewRepositoryController(accessKeyInstallationService)
