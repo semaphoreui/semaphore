@@ -560,7 +560,6 @@ $defs:
         type: string
         description: Runner authentication token (sensitive).
       token_file:       { type: string }
-      private_key_file: { type: string }
       one_off:
         type: boolean
         description: Runner processes a single job and exits.

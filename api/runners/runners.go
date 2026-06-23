@@ -1,14 +1,7 @@
 package runners
 
 import (
-	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/json"
-	"encoding/pem"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -57,45 +50,6 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 		r = helpers.SetContextValue(r, "runner", runner)
 		next.ServeHTTP(w, r)
 	})
-}
-
-func loadPublicKey(keyData []byte) (*rsa.PublicKey, error) {
-	block, _ := pem.Decode(keyData)
-	if block == nil || block.Type != "PUBLIC KEY" {
-		return nil, fmt.Errorf("invalid public key")
-	}
-	pub, err := x509.ParsePKCS1PublicKey(block.Bytes)
-	if err != nil {
-		return nil, err
-	}
-	return pub, nil
-}
-
-func chunkRSAEncrypt(pub *rsa.PublicKey, plaintext []byte) ([]byte, error) {
-	// For a 2048-bit key, pub.Size() == 256 bytes
-	// PKCS#1 v1.5 overhead = 11 bytes, so max plaintext per chunk = 256 - 11 = 245
-	rsaBlockSize := pub.Size()        // 256 for 2048-bit
-	maxChunkSize := rsaBlockSize - 11 // 245
-
-	var encryptedBuffer bytes.Buffer
-
-	for start := 0; start < len(plaintext); start += maxChunkSize {
-		end := start + maxChunkSize
-		if end > len(plaintext) {
-			end = len(plaintext)
-		}
-		chunk := plaintext[start:end]
-
-		encryptedChunk, err := rsa.EncryptPKCS1v15(rand.Reader, pub, chunk)
-		if err != nil {
-			return nil, fmt.Errorf("encrypt chunk failed: %w", err)
-		}
-
-		// Append the encrypted chunk (always 256 bytes for 2048-bit key)
-		encryptedBuffer.Write(encryptedChunk)
-	}
-
-	return encryptedBuffer.Bytes(), nil
 }
 
 type RunnerController struct {
@@ -283,38 +237,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if runner.PublicKey != nil {
-
-		publicKey, err := loadPublicKey([]byte(*runner.PublicKey))
-		if err != nil {
-			helpers.WriteError(w, err)
-			return
-		}
-
-		message, err := json.Marshal(data)
-		if err != nil {
-			helpers.WriteError(w, err)
-			return
-		}
-
-		encryptedBytes, err := chunkRSAEncrypt(publicKey, message)
-		if err != nil {
-			helpers.WriteError(w, err)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/octet-stream")
-
-		_, err = w.Write(encryptedBytes)
-		if err != nil {
-			helpers.WriteError(w, err)
-			return
-		}
-
-	} else {
-		helpers.WriteJSON(w, http.StatusOK, data)
-	}
-
+	helpers.WriteJSON(w, http.StatusOK, data)
 }
 
 func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) {
@@ -455,7 +378,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(register.RegistrationToken, "smrs_") {
 		// Otherwise the value is a one-time registration token issued for a specific
 		// unregistered runner. The global token cannot be used to register it.
-		runner, err = store.RegisterRunner(server.HashRunnerRegistrationToken(register.RegistrationToken), register.PublicKey)
+		runner, err = store.RegisterRunner(server.HashRunnerRegistrationToken(register.RegistrationToken), nil)
 
 		if err != nil {
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -472,7 +395,6 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 			Tags:             register.Tags,
 			MaxParallelTasks: register.MaxParallelTasks,
 			Active:           register.Enabled,
-			PublicKey:        register.PublicKey,
 			ProjectID:        register.ProjectID,
 		})
 
