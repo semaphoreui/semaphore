@@ -26,11 +26,7 @@ api/public/**/*
 /runner-old.key
 /runner.registration_token
 /.dredd/config.json
-/database.boltdb
-/database.sqlite
-/database.sqlite-journal
-/database.boltdb.lock
-/database_test.boltdb
+/database.sqlite*
 .DS_Store
 /backup.json
 node_modules/
