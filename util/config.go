@@ -185,10 +185,10 @@ type RunnerK8sConfig struct {
 
 	// Image is the default container image used for the build container of each
 	// task Pod. Templates may override this in a future phase.
-	Image string `json:"image,omitempty" default:"alpine:latest" env:"SEMAPHORE_RUNNER_K8S_IMAGE"`
+	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_K8S_IMAGE"`
 
 	// HelperImage is the image used for the git-clone init container (Phase 3+).
-	HelperImage string `json:"helper_image,omitempty" default:"alpine/git:latest" env:"SEMAPHORE_RUNNER_K8S_HELPER_IMAGE"`
+	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_K8S_HELPER_IMAGE"`
 
 	// ServiceAccount that task Pods run under. Defaults to the namespace's default SA.
 	ServiceAccount string `json:"service_account,omitempty" default:"default" env:"SEMAPHORE_RUNNER_K8S_SERVICE_ACCOUNT"`
@@ -225,7 +225,7 @@ type RunnerDockerConfig struct {
 	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_IMAGE"`
 
 	// HelperImage is the image used for the transient git-clone container.
-	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_HELPER_IMAGE"`
+	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_DOCKER_HELPER_IMAGE"`
 
 	// Network is the Docker network the build container joins. Defaults to "bridge".
 	Network string `json:"network,omitempty" default:"bridge" env:"SEMAPHORE_RUNNER_DOCKER_NETWORK"`
@@ -414,6 +414,57 @@ type ConfigDirs struct {
 	SSHAgentSockets string `json:"ssh_agent_sockets,omitempty" env:"SEMAPHORE_SSH_AGENT_SOCKETS_DIR" default:"/tmp/semaphore"`
 }
 
+// JWTConfig issuance for task executions (used by playbooks to authenticate to
+type JWTConfig struct {
+	Enabled    bool   `json:"enabled,omitempty" env:"SEMAPHORE_JWT_ENABLED"`
+	Issuer     string `json:"issuer,omitempty" env:"SEMAPHORE_JWT_ISSUER"`
+	DefaultTTL string `json:"default_ttl,omitempty" env:"SEMAPHORE_JWT_DEFAULT_TTL" default:"1h"`
+	MaxTTL     string `json:"max_ttl,omitempty" env:"SEMAPHORE_JWT_MAX_TTL" default:"24h"`
+}
+
+// KeySource supplies a single secret key either inline (Value) or from a file
+// (File). Value and File are mutually exclusive.
+type KeySource struct {
+	Value string `json:"value,omitempty"`
+	File  string `json:"file,omitempty"`
+}
+
+// ActivePointers names the active (encrypting) key per purpose. A key may be
+// named by label (SecretKey/OptionKey, into the keys map) or by filename
+// (SecretKeyFile/OptionKeyFile, a file in KeysFolder, relative to it). The
+// label/filename is human-facing only; the id stored in the database is derived
+// from the key material.
+type ActivePointers struct {
+	SecretKey     string `json:"secret_key,omitempty"`
+	OptionKey     string `json:"option_key,omitempty"`
+	SecretKeyFile string `json:"secret_key_file,omitempty"`
+	OptionKeyFile string `json:"option_key_file,omitempty"`
+}
+
+// EncryptionKeysConfig is the content of the keys file: a registry of keys plus
+// pointers to the active key per purpose. The registry can be an inline map
+// (Keys: label -> source) and/or a folder of key files (KeysFolder: each regular
+// file is one key, labelled by its filename); the two combine. Decryption looks a
+// key up by the content-addressed id stamped into each ciphertext, so a key is
+// "retired" simply by no longer being active while some rows still reference it.
+// access_key protects Access Key secrets in the database; option_key protects
+// encrypted DB options (the JWT signing key) and falls back to the access key.
+type EncryptionKeysConfig struct {
+	Keys       map[string]KeySource `json:"keys,omitempty"`
+	KeysFolder string               `json:"keys_folder,omitempty"`
+	Active     ActivePointers       `json:"active,omitempty"`
+}
+
+// EncryptionConfig is the main-config "encryption" section. It points at the
+// separate keys file and controls how often that file is polled for changes.
+type EncryptionConfig struct {
+	// KeysFile is the path to the EncryptionKeysConfig file (the keyrings).
+	KeysFile string `json:"keys_file,omitempty" env:"SEMAPHORE_ENCRYPTION_KEYS_FILE"`
+	// KeysPollInterval is how often the keys file is checked for changes (a Go
+	// duration like "15s"). "0" disables polling (SIGHUP still forces a reload).
+	KeysPollInterval string `json:"keys_poll_interval,omitempty" env:"SEMAPHORE_ENCRYPTION_KEYS_POLL_INTERVAL" default:"15s"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -460,7 +511,17 @@ type ConfigType struct {
 	CookieEncryption string `json:"cookie_encryption,omitempty" env:"SEMAPHORE_COOKIE_ENCRYPTION,sensitive"`
 	// AccessKeyEncryption is BASE64 encoded byte array used
 	// for encrypting and decrypting access keys stored in database.
+	// Legacy entry point kept for backward compatibility; the access keyring is
+	// configured via EncryptionKeys.AccessKey (encryption_keys.access_key).
 	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION,sensitive"`
+
+	// OptionEncryption is a BASE64 encoded key used to encrypt/decrypt DB options
+	// (the JWT signing key) with the old single-key scheme (no rotation). It is
+	// the option-keyring counterpart of AccessKeyEncryption: when set the option
+	// keyring uses this one key; rotation is configured instead via the keys file
+	// (encryption.keys_file → option_key). When unset, options fall back to the
+	// access keyring.
+	OptionEncryption string `json:"option_encryption,omitempty" env:"SEMAPHORE_OPTION_ENCRYPTION,sensitive"`
 
 	// email alerting
 	EmailAlert         bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
@@ -510,6 +571,8 @@ type ConfigType struct {
 
 	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
+	JWT *JWTConfig `json:"jwt,omitempty"`
+
 	// feature switches
 	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
 	NonAdminCanCreateProject bool `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
@@ -543,6 +606,18 @@ type ConfigType struct {
 	Runner *RunnerConfig `json:"runner,omitempty"`
 
 	Runners *RunnersConfig `json:"runners,omitempty"`
+
+	// Encryption groups the keys-file path and reload-poll settings. The keyrings
+	// live exclusively in Encryption.KeysFile (a separate file, JSON or YAML),
+	// which is watched for changes — edits are applied without restarting the
+	// server. When unset, the legacy flat AccessKeyEncryption field is used.
+	Encryption *EncryptionConfig `json:"encryption,omitempty"`
+
+	// keys holds the resolved runtime keyrings behind atomic pointers so they
+	// can be hot-swapped during key rotation without restarting (see
+	// ReloadEncryptionKeys). Unexported so it is ignored by JSON, env, defaults
+	// and validation reflection.
+	keys *keyringStore
 }
 
 // Default values for RunnersConfig, applied when the "runners" config section
@@ -670,6 +745,10 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 
 	loadConfigEnvironment()
 	loadConfigDefaults()
+
+	// Resolve encryption keyrings (read key files, apply precedence, build the
+	// runtime keyrings) before validation consumes the keys.
+	resolveEncryptionKeys()
 
 	//fmt.Println("Validating config")
 	validateConfig()
@@ -1195,6 +1274,295 @@ func validate(value any) error {
 	return nil
 }
 
+// resolveKeySource returns the key material from a KeySource: the inline Value,
+// or the trimmed contents of File. Value and File are mutually exclusive.
+func resolveKeySource(ks KeySource, name string) (string, error) {
+	if ks.Value != "" && ks.File != "" {
+		return "", fmt.Errorf("%s: 'value' and 'file' are mutually exclusive", name)
+	}
+	if ks.File != "" {
+		data, err := os.ReadFile(ks.File)
+		if err != nil {
+			return "", fmt.Errorf("%s: read key file %q: %w", name, ks.File, err)
+		}
+		return strings.TrimSpace(string(data)), nil
+	}
+	return ks.Value, nil
+}
+
+// resolveEncryptionKeysFrom builds the runtime keyset from the keys-file config
+// plus the legacy flat fields, validating every resolved key. It does not mutate
+// global state. The flat fields are added to the registry (so new writes can stamp
+// them) and recorded as the legacy no-prefix decrypt keys.
+func resolveEncryptionKeysFrom(enc *EncryptionKeysConfig, flatAccess, flatOption string) (*keyset, error) {
+	ks := &keyset{
+		byID:         map[string]string{},
+		legacyAccess: flatAccess,
+		legacyOption: flatOption,
+	}
+
+	// byLabel maps a human label (inline keys map key, or a folder filename) to its
+	// material, for resolving the active pointers.
+	byLabel := map[string]string{}
+	addLabeled := func(label, material string) error {
+		if material == "" {
+			return nil
+		}
+		if err := validateAccessKeyEncryption(material); err != nil {
+			return err
+		}
+		ks.byID[keyID(material)] = material
+		byLabel[label] = material
+		return nil
+	}
+
+	if enc != nil {
+		for label, src := range enc.Keys {
+			material, err := resolveKeySource(src, "encryption_keys.keys."+label)
+			if err != nil {
+				return nil, err
+			}
+			if err := addLabeled(label, material); err != nil {
+				return nil, err
+			}
+		}
+		if enc.KeysFolder != "" {
+			if err := loadKeysFolder(enc.KeysFolder, addLabeled); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Flat fields are registry entries (so new writes can stamp them); they are
+	// labelled "" so they never satisfy a named active pointer.
+	if err := addLabeled("", flatAccess); err != nil {
+		return nil, err
+	}
+	if err := addLabeled("", flatOption); err != nil {
+		return nil, err
+	}
+
+	accessActive, err := resolveActiveKey(enc, flatAccess, byLabel, addLabeled,
+		activePointer(enc, func(a ActivePointers) (string, string) { return a.SecretKey, a.SecretKeyFile }), "access")
+	if err != nil {
+		return nil, err
+	}
+	ks.accessID = keyID(accessActive) // "" => encryption disabled
+
+	optionActive, err := resolveActiveKey(enc, flatOption, byLabel, addLabeled,
+		activePointer(enc, func(a ActivePointers) (string, string) { return a.OptionKey, a.OptionKeyFile }), "option")
+	if err != nil {
+		return nil, err
+	}
+	ks.optionID = keyID(optionActive) // "" => option falls back to access
+
+	return ks, nil
+}
+
+func activePointer(enc *EncryptionKeysConfig, pick func(ActivePointers) (string, string)) [2]string {
+	if enc == nil {
+		return [2]string{}
+	}
+	l, f := pick(enc.Active)
+	return [2]string{l, f}
+}
+
+// resolveActiveKey resolves the active key material for one purpose: an active
+// label wins, then an active filename (in KeysFolder, relative), then the flat
+// fallback. A filename not already loaded from the folder is read and registered.
+func resolveActiveKey(enc *EncryptionKeysConfig, flat string, byLabel map[string]string,
+	addLabeled func(string, string) error, ptr [2]string, kind string) (string, error) {
+
+	label, file := ptr[0], ptr[1]
+
+	if label != "" {
+		material, ok := byLabel[label]
+		if !ok {
+			return "", fmt.Errorf("encryption_keys.active.%s_key: no key labelled %q", kind, label)
+		}
+		return material, nil
+	}
+
+	if file != "" {
+		if material, ok := byLabel[file]; ok {
+			return material, nil
+		}
+		path := file
+		if !filepath.IsAbs(path) && enc != nil {
+			path = filepath.Join(enc.KeysFolder, file)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("encryption_keys.active.%s_key_file: %w", kind, err)
+		}
+		material := strings.TrimSpace(string(data))
+		if err := addLabeled(file, material); err != nil {
+			return "", err
+		}
+		return material, nil
+	}
+
+	return flat, nil
+}
+
+// loadKeysFolder reads every regular file in folder as one key, labelled by its
+// filename. Dot-prefixed entries (e.g. Kubernetes' "..data" / "..2024_*") are
+// skipped; symlinks (how K8s mounts secret files) are followed via Stat.
+func loadKeysFolder(folder string, addLabeled func(string, string) error) error {
+	entries, err := os.ReadDir(folder)
+	if err != nil {
+		return fmt.Errorf("encryption_keys.keys_folder %q: %w", folder, err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+		path := filepath.Join(folder, name)
+		info, err := os.Stat(path) // follow symlink
+		if err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("encryption_keys.keys_folder: read %q: %w", name, err)
+		}
+		if err := addLabeled(name, strings.TrimSpace(string(data))); err != nil {
+			return fmt.Errorf("encryption_keys.keys_folder: key %q: %w", name, err)
+		}
+	}
+	return nil
+}
+
+// EncryptionKeysFile returns the configured keys-file path (encryption.keys_file),
+// or "" when no encryption section is configured.
+func (conf *ConfigType) EncryptionKeysFile() string {
+	if conf.Encryption == nil {
+		return ""
+	}
+	return conf.Encryption.KeysFile
+}
+
+// EncryptionKeysPollInterval returns how often the keys file is polled for
+// changes. It defaults to 15s, and returns 0 when polling is disabled
+// (encryption.keys_poll_interval set to "0"). An unparseable value falls back to
+// the default.
+func (conf *ConfigType) EncryptionKeysPollInterval() time.Duration {
+	const def = 15 * time.Second
+	if conf.Encryption == nil || conf.Encryption.KeysPollInterval == "" {
+		return def
+	}
+	d, err := time.ParseDuration(conf.Encryption.KeysPollInterval)
+	if err != nil {
+		return def
+	}
+	return d
+}
+
+// loadEncryptionKeysSource returns the EncryptionKeysConfig to resolve from.
+// The keyrings live exclusively in encryption.keys_file, re-read from disk so its
+// edits (and edits to the key files it references) are picked up on reload.
+// When unset there is no structured config and the legacy flat
+// AccessKeyEncryption field is used instead.
+func loadEncryptionKeysSource() (*EncryptionKeysConfig, error) {
+	path := Config.EncryptionKeysFile()
+	if path == "" {
+		return nil, nil
+	}
+	return readEncryptionKeysConfigFile(path)
+}
+
+// resolveEncryptionKeys builds the runtime keyrings once at startup and stores
+// them on Config. Invalid keys panic (fail fast at boot).
+func resolveEncryptionKeys() {
+	enc, err := loadEncryptionKeysSource()
+	if err != nil {
+		panic(err)
+	}
+
+	ks, err := resolveEncryptionKeysFrom(enc, Config.AccessKeyEncryption, Config.OptionEncryption)
+	if err != nil {
+		panic(err)
+	}
+	if Config.keys == nil {
+		Config.keys = &keyringStore{}
+	}
+	Config.keys.current.Store(ks)
+}
+
+// ReloadEncryptionKeys re-reads the encryption keys (the dedicated
+// EncryptionKeysFile or the encryption_keys section of the config file, plus any
+// referenced key files) and atomically swaps the runtime keyrings, without
+// restarting. It validates the new keys first and leaves the current keyrings
+// untouched on any error. Safe to call concurrently with encryption/decryption.
+func ReloadEncryptionKeys() error {
+	_, err := reloadEncryptionKeys(true)
+	return err
+}
+
+// ReloadEncryptionKeysIfChanged is like ReloadEncryptionKeys but performs the
+// atomic swap only when the resolved keys actually differ from the active ones,
+// returning whether a change was applied. It is the file watcher's entry point.
+func ReloadEncryptionKeysIfChanged() (changed bool, err error) {
+	return reloadEncryptionKeys(false)
+}
+
+func reloadEncryptionKeys(force bool) (bool, error) {
+	enc, err := loadEncryptionKeysSource()
+	if err != nil {
+		return false, err
+	}
+
+	ks, err := resolveEncryptionKeysFrom(enc, Config.AccessKeyEncryption, Config.OptionEncryption)
+	if err != nil {
+		return false, err
+	}
+
+	if Config.keys == nil {
+		Config.keys = &keyringStore{}
+	}
+
+	Config.keys.reloadMu.Lock()
+	defer Config.keys.reloadMu.Unlock()
+
+	if !force && keysetsEqual(ks, Config.keys.current.Load()) {
+		return false, nil
+	}
+
+	Config.keys.current.Store(ks)
+	return true, nil
+}
+
+// readEncryptionKeysConfigFile decodes a dedicated encryption-keys file (whose
+// whole content is an EncryptionKeysConfig), as JSON or YAML.
+func readEncryptionKeysConfigFile(path string) (*EncryptionKeysConfig, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// Parse via YAML regardless of extension: YAML 1.2 is a superset of JSON, so
+	// this accepts both formats. The file is often a Kubernetes secret mounted at
+	// a path with no .yaml/.yml extension, so extension-based detection is not
+	// reliable here.
+	var raw any
+	if err := yaml.NewDecoder(file).Decode(&raw); err != nil {
+		return nil, err
+	}
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	var enc EncryptionKeysConfig
+	if err := json.Unmarshal(data, &enc); err != nil {
+		return nil, err
+	}
+
+	return &enc, nil
+}
+
 func validateAccessKeyEncryption(key string) error {
 	if key == "" {
 		return nil
@@ -1224,6 +1592,18 @@ func validateConfig() {
 
 	if err := validateAccessKeyEncryption(Config.AccessKeyEncryption); err != nil {
 		panic(err)
+	}
+	if err := validateAccessKeyEncryption(Config.OptionEncryption); err != nil {
+		panic(err)
+	}
+	if Config.keys != nil {
+		if ks := Config.keys.current.Load(); ks != nil {
+			for _, material := range ks.byID {
+				if err := validateAccessKeyEncryption(material); err != nil {
+					panic(err)
+				}
+			}
+		}
 	}
 }
 

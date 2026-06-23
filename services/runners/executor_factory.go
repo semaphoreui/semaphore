@@ -69,6 +69,7 @@ func newExecutor(
 		jobData.Inventory,
 		jobData.Repository,
 		jobData.Environment,
+		jobData.JWT,
 	)
 }
 

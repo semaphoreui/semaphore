@@ -186,6 +186,11 @@ func (s *accessKeyEncryptionServiceImpl) FillEnvironmentSecrets(env *db.Environm
 	return nil
 }
 
+// RekeyAccessKeys re-encrypts every locally stored Access Key secret under the
+// current access keyring primary. When oldKey is empty, secrets are decrypted
+// with the access keyring (primary then retired secondaries); when oldKey is
+// supplied it is used as the single decryption key (the legacy
+// `vault rekey --old-key` flow). External secret storages are skipped.
 func (s *accessKeyEncryptionServiceImpl) RekeyAccessKeys(oldKey string) (err error) {
 
 	deserializer := NewLocalAccessKeyDeserializer()
@@ -217,7 +222,13 @@ func (s *accessKeyEncryptionServiceImpl) RekeyAccessKeys(oldKey string) (err err
 				}
 
 				var secret string
-				secret, err = deserializer.DeserializeSecret2(&key, oldKey)
+				if oldKey == "" {
+					// No explicit old key: decrypt with the access keyring
+					// (primary then retired secondaries).
+					secret, err = deserializer.DeserializeSecret(&key)
+				} else {
+					secret, err = deserializer.DeserializeSecret2(&key, oldKey)
+				}
 
 				if err != nil {
 					return err

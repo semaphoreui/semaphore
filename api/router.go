@@ -18,6 +18,7 @@ import (
 	taskServices "github.com/semaphoreui/semaphore/services/tasks"
 
 	"github.com/semaphoreui/semaphore/api/tasks"
+	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	log "github.com/sirupsen/logrus"
 
@@ -88,12 +89,14 @@ func Route(
 	accessKeyService server.AccessKeyService,
 	environmentService server.EnvironmentService,
 	subscriptionService pro_interfaces.SubscriptionService,
+	jwtSigner jwt.Signer,
 	runnerService server.RunnerService,
 	workflowService pro_interfaces.WorkflowService,
 ) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
-	runnerController := runners.NewRunnerController(store, taskPool, encryptionService)
+	runnerController := runners.NewRunnerController(store, taskPool, encryptionService, jwtSigner)
+	jwksController := NewJwksController(jwtSigner)
 	integrationController := NewIntegrationController(integrationService)
 	environmentController := projects.NewEnvironmentController(store, encryptionService, accessKeyService, environmentService, secretStorageService)
 	secretStorageController := projects.NewSecretStorageController(store, secretStorageService)
@@ -137,6 +140,8 @@ func Route(
 	}
 
 	r.Use(mux.CORSMethodMiddleware(r))
+
+	r.Path("/.well-known/jwks.json").Methods("GET", "HEAD").HandlerFunc(jwksController.GetJWKS)
 
 	pingRouter := r.Path(webPath + "api/ping").Subrouter()
 	pingRouter.Use(plainTextMiddleware)

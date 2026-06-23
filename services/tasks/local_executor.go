@@ -26,6 +26,7 @@ type LocalExecutor struct {
 	Environment db.Environment
 	Secret      string             // Secret contains secrets received from Survey variables
 	Logger      task_logger.Logger // Logger allows to send logs and status to the server
+	JWT         string             // server-signed JWT
 
 	App db_lib.LocalApp
 
@@ -204,6 +205,10 @@ func (t *LocalExecutor) getEnvironmentENV() (res []string, err error) {
 			continue
 		}
 		res = append(res, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	}
+
+	if t.JWT != "" {
+		res = append(res, fmt.Sprintf("SEMAPHORE_JWT=%s", t.JWT))
 	}
 
 	return

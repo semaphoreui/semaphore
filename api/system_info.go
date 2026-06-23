@@ -30,6 +30,13 @@ type SystemInfo struct {
 	Teams             *util.TeamsConfig       `json:"teams"`
 	Roles             []db.Role               `json:"roles"`
 	BoltdbUsed        bool                    `json:"boltdb_used"`
+	JWT               SystemInfoJWT           `json:"jwt"`
+}
+
+// SystemInfoJWT exposes the global JWT configuration for the WebUI.
+type SystemInfoJWT struct {
+	Enabled bool   `json:"enabled"`
+	MaxTTL  string `json:"max_ttl,omitempty"`
 }
 
 func NewSystemInfoController(subscriptionService pro_interfaces.SubscriptionService) *SystemInfoController {
@@ -106,6 +113,10 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		Teams:             util.Config.Teams,
 		Roles:             roles,
 		BoltdbUsed:        util.Config.Dialect == "bolt",
+		JWT: SystemInfoJWT{
+			Enabled: util.Config.JWT.Enabled,
+			MaxTTL:  util.Config.JWT.MaxTTL,
+		},
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

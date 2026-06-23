@@ -22,6 +22,7 @@ type ExecutorProvider interface {
 		inventory db.Inventory,
 		repository db.Repository,
 		environment db.Environment,
+		jwt string,
 	) (Executor, error)
 }
 

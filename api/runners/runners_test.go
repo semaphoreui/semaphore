@@ -73,8 +73,17 @@ func TestUpdateRunner_StoppedTaskReportedAsTerminated(t *testing.T) {
 
 	store := sql.CreateTestStore() // also initializes util.Config
 
-	pool := tasks.CreateTaskPool(store, tasks.NewMemoryTaskStateStore(), nil, nil, nil, nil, nil)
-	ctrl := NewRunnerController(nil, &pool, nil)
+	pool := tasks.CreateTaskPool(
+		store,
+		tasks.NewMemoryTaskStateStore(),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	ctrl := NewRunnerController(nil, &pool, nil, nil)
 
 	runnerID := 1
 
@@ -113,8 +122,17 @@ func TestUpdateRunner_UnknownTaskReportedAsTerminated(t *testing.T) {
 
 	store := sql.CreateTestStore()
 
-	pool := tasks.CreateTaskPool(store, tasks.NewMemoryTaskStateStore(), nil, nil, nil, nil, nil)
-	ctrl := NewRunnerController(nil, &pool, nil)
+	pool := tasks.CreateTaskPool(
+		store,
+		tasks.NewMemoryTaskStateStore(),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	ctrl := NewRunnerController(nil, &pool, nil, nil)
 
 	req := newProgressRequest(t, store, db.Runner{ID: 1}, runners.RunnerProgress{
 		Jobs: []runners.JobProgress{{
@@ -136,8 +154,17 @@ func TestUpdateRunner_ReassignedTaskReportedAsTerminated(t *testing.T) {
 
 	store := sql.CreateTestStore()
 
-	pool := tasks.CreateTaskPool(store, tasks.NewMemoryTaskStateStore(), nil, nil, nil, nil, nil)
-	ctrl := NewRunnerController(nil, &pool, nil)
+	pool := tasks.CreateTaskPool(
+		store,
+		tasks.NewMemoryTaskStateStore(),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	ctrl := NewRunnerController(nil, &pool, nil, nil)
 
 	oldRunnerID := 1
 	newRunnerID := 2
@@ -179,8 +206,17 @@ func TestUpdateRunner_RunningTaskAcceptedWithoutTermination(t *testing.T) {
 
 	store := sql.CreateTestStore()
 
-	pool := tasks.CreateTaskPool(store, tasks.NewMemoryTaskStateStore(), nil, nil, nil, nil, nil)
-	ctrl := NewRunnerController(nil, &pool, nil)
+	pool := tasks.CreateTaskPool(
+		store,
+		tasks.NewMemoryTaskStateStore(),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	ctrl := NewRunnerController(nil, &pool, nil, nil)
 
 	runnerID := 1
 

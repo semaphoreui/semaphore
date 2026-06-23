@@ -8,6 +8,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/services/server"
@@ -55,13 +56,15 @@ type RunnerController struct {
 	runnerRepo        db.RunnerManager
 	taskPool          *tasks.TaskPool
 	encryptionService server.AccessKeyEncryptionService
+	signer            jwt.Signer
 }
 
-func NewRunnerController(runnerRepo db.RunnerManager, taskPool *tasks.TaskPool, encryptionService server.AccessKeyEncryptionService) *RunnerController {
+func NewRunnerController(runnerRepo db.RunnerManager, taskPool *tasks.TaskPool, encryptionService server.AccessKeyEncryptionService, signer jwt.Signer) *RunnerController {
 	return &RunnerController{
 		runnerRepo:        runnerRepo,
 		taskPool:          taskPool,
 		encryptionService: encryptionService,
+		signer:            signer,
 	}
 }
 
@@ -115,7 +118,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 
 		if tsk.Task.Status == task_logger.TaskWaitingStatus || tsk.Task.Status == task_logger.TaskStartingStatus {
 
-			data.NewJobs = append(data.NewJobs, runners.JobData{
+			jobData := runners.JobData{
 				Username:            tsk.Username,
 				IncomingVersion:     tsk.IncomingVersion,
 				Alias:               tsk.Alias,
@@ -125,7 +128,37 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 				InventoryRepository: tsk.Inventory.Repository,
 				Repository:          tsk.Repository,
 				Environment:         tsk.Environment,
-			})
+			}
+
+			if c.signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {
+				ttl, terr := tsk.Template.JWTParams.ParsedTTL()
+				if terr != nil {
+					log.WithError(terr).WithFields(log.Fields{
+						"task_id":     tsk.Task.ID,
+						"template_id": tsk.Template.ID,
+						"context":     "jwt",
+					}).Error("invalid template jwt_params.ttl; skipping token issuance")
+				} else {
+					token, err := c.signer.Sign(jwt.TaskInfo{
+						TaskID:     tsk.Task.ID,
+						ProjectID:  tsk.Task.ProjectID,
+						TemplateID: tsk.Template.ID,
+						UserID:     tsk.Task.UserID,
+						Audience:   jwt.Audience(tsk.Template.JWTParams.Audience),
+						TTL:        ttl,
+					})
+					if err != nil {
+						log.WithError(err).WithFields(log.Fields{
+							"task_id": tsk.Task.ID,
+							"context": "jwt",
+						}).Error("failed to sign task JWT")
+					} else {
+						jobData.JWT = token
+					}
+				}
+			}
+
+			data.NewJobs = append(data.NewJobs, jobData)
 
 			if tsk.Inventory.SSHKeyID != nil {
 				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.SSHKey)

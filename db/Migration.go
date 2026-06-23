@@ -126,6 +126,7 @@ func GetMigrations(dialect string) []Migration {
 		{Version: "2.18.2"},
 		{Version: "2.18.4"},
 		{Version: "2.18.5"},
+		{Version: "2.18.6"},
 		{Version: "2.18.7"},
 		{Version: "2.18.15"},
 		{Version: "2.19.2"},

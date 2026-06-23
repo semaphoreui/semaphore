@@ -18,6 +18,7 @@ type JobData struct {
 	InventoryRepository *db.Repository `json:"inventory_repository" binding:"required"`
 	Repository          db.Repository  `json:"repository" binding:"required"`
 	Environment         db.Environment `json:"environment" binding:"required"`
+	JWT                 string         `json:"jwt,omitempty"`
 }
 
 type RunnerState struct {
