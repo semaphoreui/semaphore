@@ -977,8 +977,7 @@ func (p *TaskPool) AddTask(
 		if len(builds) == 0 || builds[0].Version == nil {
 			taskObj.Version = tpl.StartVersion
 		} else {
-			v := db.GetNextBuildVersion(*tpl.StartVersion, *builds[0].Version)
-			taskObj.Version = &v
+			taskObj.Version = new(db.GetNextBuildVersion(*tpl.StartVersion, *builds[0].Version))
 		}
 	}
 
