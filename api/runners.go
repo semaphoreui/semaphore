@@ -5,7 +5,9 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/services/server"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -36,8 +38,12 @@ func (c *GlobalRunnerController) GetRunners(w http.ResponseWriter, r *http.Reque
 
 	result = append(result, runners...)
 
+	now := tz.Now()
+	offlineTimeout := util.Config.RunnersOfflineTimeout()
+
 	for i := range result {
 		result[i].Registered = result[i].IsRegistered()
+		result[i].FillStatus(now, offlineTimeout)
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, result)
@@ -96,6 +102,7 @@ func (c *GlobalRunnerController) GetRunner(w http.ResponseWriter, r *http.Reques
 	runner := helpers.GetFromContext(r, "runner").(*db.Runner)
 
 	runner.Registered = runner.IsRegistered()
+	runner.FillStatus(tz.Now(), util.Config.RunnersOfflineTimeout())
 
 	helpers.WriteJSON(w, http.StatusOK, runner)
 }

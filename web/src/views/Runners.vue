@@ -472,11 +472,25 @@ semaphore runner start --config ./config.runner.json</pre
         {{ item.max_parallel_tasks || '∞' }}
       </template>
 
-      <template v-slot:item.touched="{ item }">
-        <v-chip :color="getStatusColor(item)" style="font-weight: bold">
-          <span v-if="item.touched">{{ item.touched | formatDate }}</span>
-          <span v-else>{{ $t('Never') }}</span>
-        </v-chip>
+      <template v-slot:item.status="{ item }">
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-chip
+              small
+              v-bind="attrs"
+              v-on="on"
+              :color="item.status === 'online' ? 'success' : 'blue-grey lighten-3'"
+              style="font-weight: bold"
+            >
+              {{ item.status === 'online' ? $t('online') : $t('offline') }}
+            </v-chip>
+          </template>
+          <div style="font-weight: bold">{{ $t('lastActivity') }}</div>
+          <div style="font-size: 12px; line-height: 1.2">
+            <span v-if="item.touched">{{ item.touched | formatDate }}</span>
+            <span v-else>{{ $t('Never') }}</span>
+          </div>
+        </v-tooltip>
       </template>
 
       <template v-slot:item.project_id="{ item }">
@@ -787,24 +801,6 @@ semaphore runner start --no-config`;
       }
     },
 
-    getStatusColor(runner) {
-      if (!runner.touched) {
-        return 'blue-grey lighten-3';
-      }
-
-      const d = Date.now() - new Date(runner.touched);
-
-      if (d < 1000 * 60 * 5) {
-        return 'success';
-      }
-
-      if (d < 1000 * 60 * 60) {
-        return 'warning';
-      }
-
-      return 'blue-grey lighten-3';
-    },
-
     getProjectIdOfItem(itemId) {
       if (!itemId || itemId === 'new') {
         return null;
@@ -876,8 +872,8 @@ semaphore runner start --no-config`;
           sortable: false,
         },
         {
-          text: this.$i18n.t('activity'),
-          value: 'touched',
+          text: this.$i18n.t('status'),
+          value: 'status',
         },
         {
           text: this.$i18n.t('actions'),

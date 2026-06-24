@@ -10,6 +10,14 @@ import (
 
 type RunnerState string
 
+// RunnerStatus reports whether a runner is currently reachable.
+type RunnerStatus string
+
+const (
+	RunnerStatusOnline  RunnerStatus = "online"
+	RunnerStatusOffline RunnerStatus = "offline"
+)
+
 type RunnerTagFilterMode string
 
 const (
@@ -46,6 +54,11 @@ type Runner struct {
 	// presenting that token to `semaphore runner register`.
 	Registered bool `db:"-" json:"registered"`
 
+	// Status is a transient field (never persisted) reporting whether the runner
+	// is currently online or offline, derived from heartbeat liveness. It is
+	// populated for API responses via FillStatus.
+	Status RunnerStatus `db:"-" json:"status"`
+
 	// RegistrationTokenHash is the stored SHA-256 hash of the one-time registration
 	// token (the plaintext is never persisted). It is issued on demand via
 	// RegenerateRegistrationToken, not at creation time.
@@ -77,6 +90,15 @@ func (r Runner) IsOnline(now time.Time, offlineTimeout time.Duration) bool {
 		return true
 	}
 	return r.Touched != nil && now.Sub(*r.Touched) <= offlineTimeout
+}
+
+// FillStatus populates the transient Status field from heartbeat liveness.
+func (r *Runner) FillStatus(now time.Time, offlineTimeout time.Duration) {
+	if r.IsOnline(now, offlineTimeout) {
+		r.Status = RunnerStatusOnline
+	} else {
+		r.Status = RunnerStatusOffline
+	}
 }
 
 type RunnerTag struct {
