@@ -385,6 +385,13 @@ $defs:
       email_claim:      { type: string, default: email }
       order:            { type: integer }
       return_via_state: { type: boolean, default: true }
+      allow_idp_initiated:
+        type: boolean
+        default: false
+        description: >-
+          Enable the Third-Party Initiated Login endpoint
+          (/api/auth/oidc/<id>/initiate) for this provider, allowing the
+          identity provider to start the login flow (OpenID Connect Core 1.0 §4).
 
   OidcEndpoint:
     type: object

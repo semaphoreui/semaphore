@@ -19,6 +19,25 @@ type OidcProvider struct {
 
 	// ReturnViaState when true, passes the return path via the OAuth state parameter instead of the redirect URL path. This is useful for OAuth providers that have strict redirect URL validation.
 	ReturnViaState bool `json:"return_via_state" default:"true"`
+
+	// AllowIdPInitiated enables the Third-Party Initiated Login endpoint
+	// (/api/auth/oidc/<id>/initiate) for this provider. When the identity
+	// provider redirects the browser to that endpoint (OpenID Connect Core 1.0
+	// §4), Semaphore starts a normal SP-initiated Authorization Code flow.
+	// Off by default for security.
+	AllowIdPInitiated bool `json:"allow_idp_initiated" default:"false"`
+}
+
+// ExpectedIssuer returns the issuer identifier that an IdP-initiated request
+// must carry in its "iss" parameter. When auto-discovery is used the discovery
+// URL is the issuer (go-oidc validates that the discovered "issuer" claim
+// equals the URL passed to oidc.NewProvider), otherwise the explicitly
+// configured issuer endpoint is used.
+func (p *OidcProvider) ExpectedIssuer() string {
+	if p.Endpoint.IssuerURL != "" {
+		return p.Endpoint.IssuerURL
+	}
+	return p.AutoDiscovery
 }
 
 type ClaimsProvider interface {

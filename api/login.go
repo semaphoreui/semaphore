@@ -479,13 +479,41 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 	return oidcProvider, &oauthConfig, nil
 }
 
-func oidcLogin(w http.ResponseWriter, r *http.Request) {
-	pid := mux.Vars(r)["provider"]
+// startOidcAuthFlow builds the OAuth2 config for the provider, sets the CSRF
+// state (and nonce) cookie, and redirects the browser to the identity
+// provider's authorization endpoint. It is shared by the SP-initiated
+// (oidcLogin) and IdP-initiated (oidcInitiate) entry points.
+//
+// extraAuthParams lets a caller add provider-specific parameters such as
+// login_hint to the authorization request.
+func startOidcAuthFlow(
+	w http.ResponseWriter,
+	r *http.Request,
+	pid string,
+	returnPath string,
+	redirectPath string,
+	extraAuthParams []oauth2.AuthCodeOption,
+) {
 	ctx := context.Background()
 	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
 
-	returnPath := ""
-	redirectPath := ""
+	_, oauth, err := getOidcProvider(pid, ctx, redirectPath)
+	if err != nil {
+		log.Error(err.Error())
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	state, nonce := generateStateOauthCookie(w, returnPath)
+
+	opts := append([]oauth2.AuthCodeOption{oidc.Nonce(nonce)}, extraAuthParams...)
+
+	http.Redirect(w, r, oauth.AuthCodeURL(state, opts...), http.StatusTemporaryRedirect)
+}
+
+func oidcLogin(w http.ResponseWriter, r *http.Request) {
+	pid := mux.Vars(r)["provider"]
+	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
 
 	config, ok := util.Config.OidcProviders[pid]
 	if !ok {
@@ -493,6 +521,9 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
+
+	returnPath := ""
+	redirectPath := ""
 
 	returnValue := r.URL.Query().Get("return")
 	if returnValue != "" {
@@ -503,35 +534,94 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	_, oauth, err := getOidcProvider(pid, ctx, redirectPath)
-	if err != nil {
-		log.Error(err.Error())
+	startOidcAuthFlow(w, r, pid, returnPath, redirectPath, nil)
+}
+
+// oidcInitiate handles IdP-initiated login (OpenID Connect Core 1.0 §4,
+// "Initiating Login from a Third Party"). The identity provider redirects the
+// browser here with an "iss" parameter (and optionally "login_hint" and
+// "target_link_uri"); Semaphore validates them and then starts a normal
+// SP-initiated Authorization Code flow.
+func oidcInitiate(w http.ResponseWriter, r *http.Request) {
+	pid := mux.Vars(r)["provider"]
+	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
+
+	config, ok := util.Config.OidcProviders[pid]
+	if !ok {
+		log.Error(fmt.Errorf("no such provider: %s", pid))
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
-	state := generateStateOauthCookie(w, returnPath)
-	u := oauth.AuthCodeURL(state)
-	http.Redirect(w, r, u, http.StatusTemporaryRedirect)
+
+	if !config.AllowIdPInitiated {
+		log.Warnf("IdP-initiated login is disabled for OIDC provider '%s'", pid)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Validate the issuer to defend against provider mix-up: the request must
+	// originate from the configured identity provider.
+	iss := r.FormValue("iss")
+	expectedIss := config.ExpectedIssuer()
+	if iss == "" || !sameIssuer(iss, expectedIss) {
+		log.Warnf("IdP-initiated login for provider '%s' rejected: iss mismatch (got %q, expected %q)", pid, iss, expectedIss)
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	returnPath := ""
+	redirectPath := ""
+
+	// target_link_uri tells Semaphore where to land the user after login. It
+	// must point back to Semaphore to avoid being abused as an open redirect.
+	if tlu := r.FormValue("target_link_uri"); tlu != "" {
+		if rel, valid := safeReturnPath(tlu); valid {
+			if config.ReturnViaState {
+				returnPath = rel
+			} else {
+				redirectPath = rel
+			}
+		} else {
+			log.Warnf("IdP-initiated login for provider '%s' ignored target_link_uri %q (not same-origin)", pid, tlu)
+		}
+	}
+
+	var extra []oauth2.AuthCodeOption
+	if hint := r.FormValue("login_hint"); hint != "" {
+		extra = append(extra, oauth2.SetAuthURLParam("login_hint", hint))
+	}
+
+	startOidcAuthFlow(w, r, pid, returnPath, redirectPath, extra)
 }
 
 type oAuthState struct {
 	Csrf   string `json:"csrf"`
 	Return string `json:"return"`
+	Nonce  string `json:"nonce"`
 }
 
-func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
+// generateStateOauthCookie creates a fresh CSRF state and OIDC nonce, stores the
+// CSRF token in a cookie, and returns the encoded state (round-tripped through
+// the identity provider as the OAuth "state" parameter) together with the raw
+// nonce to embed in the authorization request.
+func generateStateOauthCookie(w http.ResponseWriter, returnPath string) (encodedState string, nonce string) {
 
 	expiration := tz.Now().Add(365 * 24 * time.Hour)
 
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
+	csrf := make([]byte, 16)
+	if _, err := rand.Read(csrf); err != nil {
+		panic(err)
+	}
+
+	nonceBytes := make([]byte, 16)
+	if _, err := rand.Read(nonceBytes); err != nil {
 		panic(err)
 	}
 
 	state := oAuthState{
-		Csrf:   base64.URLEncoding.EncodeToString(b),
+		Csrf:   base64.URLEncoding.EncodeToString(csrf),
 		Return: returnPath,
+		Nonce:  base64.URLEncoding.EncodeToString(nonceBytes),
 	}
 
 	// Secure flag is not set to allow Semaphore to be used without HTTPS inside private networks
@@ -549,7 +639,74 @@ func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
 		panic(err)
 	}
 
-	return base64.URLEncoding.EncodeToString(stateBytes)
+	return base64.URLEncoding.EncodeToString(stateBytes), state.Nonce
+}
+
+// sameIssuer compares two OIDC issuer identifiers, tolerating a single trailing
+// slash difference.
+func sameIssuer(a, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+	return strings.TrimRight(a, "/") == strings.TrimRight(b, "/")
+}
+
+// safeReturnPath validates an externally supplied landing URL (e.g. the
+// target_link_uri sent by an IdP-initiated login) and returns the path (with
+// query and fragment) to redirect to after login. Only relative paths and
+// absolute URLs whose scheme and host match util.Config.WebHost are accepted,
+// preventing the parameter from being used as an open redirect.
+func safeReturnPath(raw string) (string, bool) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", false
+	}
+
+	appendQueryFragment := func(p string) string {
+		if u.RawQuery != "" {
+			p += "?" + u.RawQuery
+		}
+		if u.Fragment != "" {
+			p += "#" + u.EscapedFragment()
+		}
+		return p
+	}
+
+	// Relative reference such as "/dashboard?x=1". Scheme-relative "//host"
+	// forms are rejected below because url.Parse exposes a non-empty Host.
+	if u.Scheme == "" && u.Host == "" {
+		p := u.EscapedPath()
+		if !strings.HasPrefix(p, "/") {
+			p = "/" + p
+		}
+		return appendQueryFragment(p), true
+	}
+
+	webHost, err := url.Parse(util.Config.WebHost)
+	if err != nil || webHost.Host == "" {
+		return "", false
+	}
+
+	if !strings.EqualFold(u.Scheme, webHost.Scheme) || !strings.EqualFold(u.Host, webHost.Host) {
+		return "", false
+	}
+
+	p := u.EscapedPath()
+	if p == "" {
+		p = "/"
+	}
+	return appendQueryFragment(p), true
+}
+
+// checkNonce verifies the ID token nonce against the value bound to the auth
+// request. Verification is skipped when no nonce was issued or when the identity
+// provider did not echo one back (a token minted for our request would carry the
+// signed nonce, so a missing nonce cannot be a stripped replay).
+func checkNonce(expected, actual string) bool {
+	if expected == "" || actual == "" {
+		return true
+	}
+	return expected == actual
 }
 
 type claimResult struct {
@@ -742,6 +899,12 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		var idToken *oidc.IDToken
 		// Parse and verify ID Token payload.
 		idToken, err = verifier.Verify(ctx, rawIDToken)
+
+		if err == nil && !checkNonce(stateData.Nonce, idToken.Nonce) {
+			log.Error("OIDC ID token nonce mismatch")
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
 
 		if err == nil {
 			claims, err = claimOidcToken(idToken, provider)

@@ -107,6 +107,7 @@ func (c *UsersController) AddUser(w http.ResponseWriter, r *http.Request) {
 
 	helpers.WriteJSON(w, http.StatusCreated, newUser)
 }
+
 func readonlyUserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID, err := helpers.GetIntParam("user_id", w, r)

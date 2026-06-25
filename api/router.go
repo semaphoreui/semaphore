@@ -156,6 +156,7 @@ func Route(
 
 	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/login", oidcLogin).Methods("GET")
+	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/initiate", oidcInitiate).Methods("GET", "POST")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect/{redirect_path:.*}", oidcRedirect).Methods("GET")
 
