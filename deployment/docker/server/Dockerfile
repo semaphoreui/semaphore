@@ -28,10 +28,12 @@ RUN --mount=type=cache,target=/go/pkg \
     task deps APP_BUILD_TYPE=${APP_BUILD_TYPE} && \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH} APP_BUILD_TYPE=${APP_BUILD_TYPE}
 
-
-ENV OPENTOFU_VERSION="1.11.0"
-ENV TERRAFORM_VERSION="1.11.3"
-ENV TERRAGRUNT_VERSION="0.78.0"
+# renovate: datasource=github-releases depName=opentofu/opentofu
+ENV OPENTOFU_VERSION=1.11.0
+# renovate: datasource=github-releases depName=hashicorp/terraform
+ENV TERRAFORM_VERSION=1.11.3
+# renovate: datasource=github-releases depName=gruntwork-io/terragrunt
+ENV TERRAGRUNT_VERSION=0.78.0
 #ENV PULUMI_VERSION="3.116.1"
 #ENV POWERSHELL_VERSION="3.116.1"
 
