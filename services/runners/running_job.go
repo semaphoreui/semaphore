@@ -129,6 +129,30 @@ func (p *runningJob) getStatus() task_logger.TaskStatus {
 	return p.status
 }
 
+// finalizeAfterRun applies the terminal status after job.Run returns. If the job
+// was already brought to a terminal state (e.g. emergency-stopped via
+// terminated_jobs while Run was still unwinding), the status is left unchanged.
+func (p *runningJob) finalizeAfterRun(err error) {
+	if p.getStatus().IsFinished() {
+		return
+	}
+
+	if err != nil {
+		if p.getStatus() == task_logger.TaskStoppingStatus {
+			p.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			p.SetStatus(task_logger.TaskFailStatus)
+		}
+		return
+	}
+
+	if p.getStatus() == task_logger.TaskStoppingStatus {
+		p.SetStatus(task_logger.TaskStoppedStatus)
+	} else {
+		p.SetStatus(task_logger.TaskSuccessStatus)
+	}
+}
+
 // getProgress atomically snapshots the data needed to report progress to the
 // server. The returned slice is a copy, so the caller can read it freely while
 // the job keeps appending records.
