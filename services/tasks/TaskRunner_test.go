@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db/sql"
@@ -69,6 +70,47 @@ func (l *mockLogWriteService) WriteTaskLog(task pro_interfaces.TaskLogRecord) er
 }
 func (l *mockLogWriteService) WriteResult(task any) error {
 	return nil
+}
+
+func TestTaskRunner_ErrAllRunnersBusy_ReleasesRunningBeforeEnqueue(t *testing.T) {
+	state := NewMemoryTaskStateStore()
+	pool := TaskPool{
+		queueEvents: make(chan PoolEvent),
+		state:       state,
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		pool.handleQueue()
+	}()
+
+	tr := &TaskRunner{
+		Task: db.Task{
+			ID:         42,
+			ProjectID:  1,
+			TemplateID: 7,
+			Status:     task_logger.TaskStartingStatus,
+		},
+		Template: db.Template{ID: 7, Name: "tpl"},
+		pool:     &pool,
+	}
+
+	state.SetRunning(tr)
+	state.AddActive(tr.Task.ProjectID, tr)
+
+	// Mirrors the ErrAllRunnersBusy path in TaskRunner.run.
+	tr.Task.Status = task_logger.TaskWaitingStatus
+	pool.onTaskStop(tr)
+	state.Enqueue(tr)
+	pool.queueEvents <- PoolEvent{EventTypeRequeued, tr}
+
+	assert.Equal(t, 0, state.RunningCount(), "requeued task must not remain in running set")
+	assert.Equal(t, 1, state.QueueLen(), "requeued task must remain in the queue")
+
+	close(pool.queueEvents)
+	wg.Wait()
 }
 
 func TestTaskRunnerRun(t *testing.T) {
