@@ -320,7 +320,6 @@ func (p *JobPool) Run() {
 				err := running.job.Run(t.username, t.incomingVersion, t.alias)
 
 				if err != nil {
-
 					log.WithFields(log.Fields{
 						"context":     "job_running",
 						"task_id":     t.taskID,
@@ -328,30 +327,15 @@ func (p *JobPool) Run() {
 					}).WithError(err).Error("launch job failed")
 
 					running.Log("Unable to launch the application. Please contact your system administrator for assistance.")
-
-					if running.getStatus() == task_logger.TaskStoppingStatus {
-						running.SetStatus(task_logger.TaskStoppedStatus)
-					} else {
-						running.SetStatus(task_logger.TaskFailStatus)
-					}
 				} else {
-
 					log.WithFields(log.Fields{
 						"context": "job_running",
 						"task_id": running.taskID,
 						"status":  string(running.getStatus()),
 					}).Debug("Job run returned")
-
-					if running.getStatus().IsFinished() {
-						return
-					}
-
-					if running.getStatus() == task_logger.TaskStoppingStatus {
-						running.SetStatus(task_logger.TaskStoppedStatus)
-					} else {
-						running.SetStatus(task_logger.TaskSuccessStatus)
-					}
 				}
+
+				running.finalizeAfterRun(err)
 
 				log.WithFields(log.Fields{
 					"context": "job_running",
