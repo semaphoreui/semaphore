@@ -720,6 +720,37 @@ func TestRequeueTaskRunnerOffline_PersistError(t *testing.T) {
 
 	// Persist failed: the task must not be enqueued (the old runner could
 	// still pull it), and no requeue event must be emitted.
+	assert.NotNil(t, tsk.Task.RunnerID)
+	assert.Equal(t, runnerID, *tsk.Task.RunnerID)
+	assert.Equal(t, task_logger.TaskWaitingStatus, tsk.Task.Status)
+	assert.Equal(t, 0, state.QueueLen())
+	assert.Empty(t, pool.queueEvents)
+}
+
+func TestRequeueTaskRunnerOffline_HA_SkipsWhenDBShowsRunning(t *testing.T) {
+	setupReconcilerConfig(t)
+
+	store := sql.CreateTestStore()
+	util.Config.HA = &util.HAConfig{Enabled: true}
+	state := NewMemoryTaskStateStore()
+	pool := newReconcilerTestPool(store, state)
+
+	newTask, runnerID := createReconcilerTestTask(t, store, task_logger.TaskStartingStatus, nil)
+
+	// Another node persisted "running" while this node still has a stale "starting" copy.
+	running := newTask
+	running.Status = task_logger.TaskRunningStatus
+	require.NoError(t, store.UpdateTask(running))
+
+	staleTask := newTask
+	tsk := &TaskRunner{Task: staleTask, pool: &pool}
+	state.SetRunning(tsk)
+
+	pool.requeueTaskRunnerOffline(tsk, runnerID, "runner is offline")
+
+	assert.Equal(t, task_logger.TaskRunningStatus, tsk.Task.Status)
+	assert.NotNil(t, tsk.Task.RunnerID)
+	assert.Equal(t, runnerID, *tsk.Task.RunnerID)
 	assert.Equal(t, 0, state.QueueLen())
 	assert.Empty(t, pool.queueEvents)
 }
@@ -771,10 +802,9 @@ func TestFailTaskRunnerLost_HA(t *testing.T) {
 		assert.NotNil(t, tsk.Task.End)
 	})
 
-	t.Run("DB row already finished: no-op", func(t *testing.T) {
+	t.Run("DB row already finished with End: releases stale pool state", func(t *testing.T) {
 		setupReconcilerConfig(t)
 
-		// CreateTestStore replaces util.Config, so HA is enabled after it.
 		store := sql.CreateTestStore()
 		util.Config.HA = &util.HAConfig{Enabled: true}
 		state := NewMemoryTaskStateStore()
@@ -783,21 +813,60 @@ func TestFailTaskRunnerLost_HA(t *testing.T) {
 		now := time.Now()
 		newTask, _ := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
 
-		// Another node already finished the task in the DB.
 		finished := newTask
 		finished.Status = task_logger.TaskSuccessStatus
 		finished.End = &now
 		require.NoError(t, store.UpdateTask(finished))
 
-		// Stale in-memory copy still says "running".
-		tsk := &TaskRunner{Task: newTask, pool: &pool}
+		staleTask := newTask
+		tsk := &TaskRunner{Task: staleTask, pool: &pool}
 		state.SetRunning(tsk)
+		state.AddActive(tsk.Task.ProjectID, tsk)
 
 		pool.failTaskRunnerLost(tsk, nil, "runner stopped responding")
 
-		// The DB refresh observed the terminal status: nothing was failed.
 		assert.Equal(t, task_logger.TaskSuccessStatus, tsk.Task.Status)
+		assert.Equal(t, 0, state.RunningCount())
+		assert.Equal(t, 0, state.ActiveCount(tsk.Task.ProjectID))
 		assert.Empty(t, pool.queueEvents)
+	})
+
+	t.Run("DB row finished without End: completes finalization", func(t *testing.T) {
+		setupReconcilerConfig(t)
+
+		store := sql.CreateTestStore()
+		util.Config.HA = &util.HAConfig{Enabled: true}
+		state := NewMemoryTaskStateStore()
+		pool := newReconcilerTestPool(store, state)
+
+		now := time.Now()
+		newTask, _ := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
+
+		// Runner reported terminal success on another node but lost the finalize race.
+		reported := newTask
+		reported.Status = task_logger.TaskSuccessStatus
+		require.NoError(t, store.UpdateTask(reported))
+
+		staleTask := newTask
+		tsk := &TaskRunner{Task: staleTask, pool: &pool}
+		state.SetRunning(tsk)
+		state.AddActive(tsk.Task.ProjectID, tsk)
+
+		pool.failTaskRunnerLost(tsk, nil, "runner stopped responding")
+
+		assert.NotNil(t, tsk.Task.End)
+		assert.Equal(t, task_logger.TaskSuccessStatus, tsk.Task.Status)
+
+		select {
+		case ev := <-pool.queueEvents:
+			assert.Equal(t, EventTypeFinished, ev.eventType)
+			pool.onTaskStop(ev.task)
+		default:
+			t.Fatal("expected EventTypeFinished in queueEvents")
+		}
+
+		assert.Equal(t, 0, state.RunningCount())
+		assert.Equal(t, 0, state.ActiveCount(tsk.Task.ProjectID))
 	})
 }
 
