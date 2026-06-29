@@ -463,13 +463,14 @@ func (p *TaskPool) FinalizeRemoteTask(tsk *TaskRunner, runner *db.Runner) {
 func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) {
 	if util.HAEnabled() {
 		p.refreshTaskStatusFromDB(tsk)
-		if tsk.Task.End != nil {
-			// Another node may have persisted End before onTaskStop ran (e.g.
-			// crash between saveStatus and the queue drain). Release any stale
-			// shared pool state without re-running finish or autorun.
-			p.onTaskStop(tsk)
-			return
-		}
+	}
+
+	if tsk.Task.End != nil {
+		// Another node may have persisted End before onTaskStop ran (e.g.
+		// crash between saveStatus and the queue drain). Release any stale
+		// shared pool state without re-running finish or autorun.
+		p.onTaskStop(tsk)
+		return
 	}
 
 	if runner != nil {
