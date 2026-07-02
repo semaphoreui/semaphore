@@ -29,9 +29,12 @@ RUN --mount=type=cache,target=/go/pkg \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH} APP_BUILD_TYPE=${APP_BUILD_TYPE}
 
 
-ENV OPENTOFU_VERSION="1.11.0"
-ENV TERRAFORM_VERSION="1.10.3"
-ENV TERRAGRUNT_VERSION="0.78.0"
+# renovate: datasource=github-releases depName=opentofu/opentofu
+ENV OPENTOFU_VERSION=1.11.0
+# renovate: datasource=github-releases depName=hashicorp/terraform
+ENV TERRAFORM_VERSION=1.11.3
+# renovate: datasource=github-releases depName=gruntwork-io/terragrunt
+ENV TERRAGRUNT_VERSION=0.78.0
 #ENV PULUMI_VERSION="3.116.1"
 
 RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
