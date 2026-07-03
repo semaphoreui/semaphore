@@ -2,6 +2,7 @@ package runners
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -83,6 +84,59 @@ func TestJobPool_RunningJobsLifecycle(t *testing.T) {
 	p.deleteRunningJob(1)
 	assert.Equal(t, 0, p.runningJobsCount())
 	assert.Nil(t, p.getRunningJob(1))
+}
+
+func TestHandleJobRunComplete_PreservesFinishedStatusOnError(t *testing.T) {
+	// When the server already moved the job to stopped (e.g. user stop confirmed
+	// via checkNewJobs) and Executor.Run returns an error from the killed process,
+	// the stopped status must not be overwritten with failed.
+	rj := &runningJob{
+		taskID: 1,
+		job:    &tasks.LocalExecutor{Task: db.Task{ID: 1}},
+		status: task_logger.TaskStoppedStatus,
+	}
+	rj.handleJobRunComplete(errors.New("signal: killed"))
+
+	assert.Equal(t, task_logger.TaskStoppedStatus, rj.getStatus())
+}
+
+func TestHandleJobRunComplete_StoppingBecomesStoppedOnError(t *testing.T) {
+	lj := &tasks.LocalExecutor{Task: db.Task{ID: 2}}
+	rj := &runningJob{
+		taskID: 2,
+		job:    lj,
+		status: task_logger.TaskStoppingStatus,
+	}
+	lj.Logger = rj
+	rj.handleJobRunComplete(errors.New("prepare failed"))
+
+	assert.Equal(t, task_logger.TaskStoppedStatus, rj.getStatus())
+}
+
+func TestHandleJobRunComplete_RunningBecomesFailedOnError(t *testing.T) {
+	lj := &tasks.LocalExecutor{Task: db.Task{ID: 3}}
+	rj := &runningJob{
+		taskID: 3,
+		job:    lj,
+		status: task_logger.TaskRunningStatus,
+	}
+	lj.Logger = rj
+	rj.handleJobRunComplete(errors.New("prepare failed"))
+
+	assert.Equal(t, task_logger.TaskFailStatus, rj.getStatus())
+}
+
+func TestHandleJobRunComplete_RunningBecomesSuccess(t *testing.T) {
+	lj := &tasks.LocalExecutor{Task: db.Task{ID: 4}}
+	rj := &runningJob{
+		taskID: 4,
+		job:    lj,
+		status: task_logger.TaskRunningStatus,
+	}
+	lj.Logger = rj
+	rj.handleJobRunComplete(nil)
+
+	assert.Equal(t, task_logger.TaskSuccessStatus, rj.getStatus())
 }
 
 func TestJobPool_HasRunningJobs(t *testing.T) {
