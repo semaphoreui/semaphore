@@ -34,6 +34,8 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 		case db.AccessKeySecretStorage:
 			q = q.Where(squirrel.Eq{"pe.storage_id": options.StorageID})
 		}
+	} else if options.EnvironmentID != nil {
+		q = q.Where(squirrel.Eq{"pe.environment_id": *options.EnvironmentID})
 	}
 
 	if options.SourceStorageID != nil {
