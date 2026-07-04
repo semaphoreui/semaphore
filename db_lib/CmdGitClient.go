@@ -115,6 +115,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 		"--recursive",
 		"--branch",
 		r.Repository.GitBranch,
+		"--end-of-options",
 		r.Repository.GetGitURL(false),
 		dirName)
 }
@@ -122,7 +123,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 func (c CmdGitClient) Pull(r GitRepository) error {
 	r.Logger.Log("Updating Repository " + r.Repository.GitURL)
 
-	err := c.run(r, GitRepositoryFullPath, "pull", "origin", r.Repository.GitBranch)
+	err := c.run(r, GitRepositoryFullPath, "pull", "origin", "--end-of-options", r.Repository.GitBranch)
 	if err != nil {
 		return err
 	}
@@ -167,7 +168,7 @@ func (c CmdGitClient) GetLastCommitHash(r GitRepository) (hash string, err error
 }
 
 func (c CmdGitClient) GetLastRemoteCommitHash(r GitRepository) (hash string, err error) {
-	out, err := c.output(r, GitRepositoryTmpPath, "ls-remote", r.Repository.GetGitURL(false), r.Repository.GitBranch)
+	out, err := c.output(r, GitRepositoryTmpPath, "ls-remote", "--end-of-options", r.Repository.GetGitURL(false), r.Repository.GitBranch)
 	if err != nil {
 		return
 	}
@@ -185,7 +186,7 @@ func (c CmdGitClient) GetLastRemoteCommitHash(r GitRepository) (hash string, err
 }
 
 func (c CmdGitClient) GetRemoteBranches(r GitRepository) ([]string, error) {
-	out, err := c.output(r, GitRepositoryTmpPath, "ls-remote", "--heads", r.Repository.GetGitURL(false))
+	out, err := c.output(r, GitRepositoryTmpPath, "ls-remote", "--heads", "--end-of-options", r.Repository.GetGitURL(false))
 	if err != nil {
 		return nil, err
 	}
