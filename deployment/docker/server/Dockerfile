@@ -28,10 +28,12 @@ RUN --mount=type=cache,target=/go/pkg \
     task deps APP_BUILD_TYPE=${APP_BUILD_TYPE} && \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH} APP_BUILD_TYPE=${APP_BUILD_TYPE}
 
-
-ENV OPENTOFU_VERSION="1.11.0"
-ENV TERRAFORM_VERSION="1.11.3"
-ENV TERRAGRUNT_VERSION="0.78.0"
+# renovate: datasource=github-releases depName=opentofu/opentofu
+ENV OPENTOFU_VERSION=1.11.0
+# renovate: datasource=github-releases depName=hashicorp/terraform
+ENV TERRAFORM_VERSION=1.11.3
+# renovate: datasource=github-releases depName=gruntwork-io/terragrunt
+ENV TERRAGRUNT_VERSION=0.78.0
 #ENV PULUMI_VERSION="3.116.1"
 #ENV POWERSHELL_VERSION="3.116.1"
 
@@ -55,7 +57,7 @@ ENV ANSIBLE_VERSION=${ANSIBLE_VERSION}
 ARG ANSIBLE_VENV_PATH=/opt/semaphore/apps/ansible/${ANSIBLE_VERSION}/venv
 
 RUN apk add --no-cache -U \
-    bash curl git gnupg mysql-client openssh-client-default python3 py3-pip rsync sshpass tar tini tzdata unzip wget zip jq && \
+    bash curl git gnupg mysql-client openssh-client-default python3 py3-pip rsync sshpass tar tini tzdata unzip wget zip jq paramiko && \
     rm -rf /var/cache/apk/* && \
     adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \
@@ -88,7 +90,7 @@ RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo &&
      mkdir -p ${ANSIBLE_VENV_PATH} && \
      python3 -m venv ${ANSIBLE_VENV_PATH} --system-site-packages && \
      source ${ANSIBLE_VENV_PATH}/bin/activate && \
-     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests pywinrm passlib && \
+     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests pywinrm passlib paramiko && \
      apk del python3-dev build-base openssl-dev libffi-dev cargo && \
      rm -rf /var/cache/apk/* && \
      find ${ANSIBLE_VENV_PATH} -iname __pycache__ | xargs rm -rf && \
