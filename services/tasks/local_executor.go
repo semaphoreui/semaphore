@@ -717,6 +717,17 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 
 	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
 
+	// Defense in depth: reject playbook paths pointing outside the repository
+	// even if they were stored before validation was added.
+	if err = db.ValidatePlaybookPath(t.Template.Playbook, "template"); err != nil {
+		t.Log(err.Error())
+		return
+	}
+	if err = db.ValidatePlaybookPath(t.Task.Playbook, "task"); err != nil {
+		t.Log(err.Error())
+		return
+	}
+
 	environmentVariables, err := t.getEnvironmentENV()
 	if err != nil {
 		return
