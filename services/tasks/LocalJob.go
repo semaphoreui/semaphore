@@ -830,15 +830,7 @@ func (t *LocalJob) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) erro
 		}
 	}
 
-	// Override git branch from template if set
-	if t.Template.GitBranch != nil && *t.Template.GitBranch != "" {
-		t.Repository.GitBranch = *t.Template.GitBranch
-	}
-
-	// Override git branch from task if set
-	if t.Task.GitBranch != nil && *t.Task.GitBranch != "" {
-		t.Repository.GitBranch = *t.Task.GitBranch
-	}
+	t.Repository.GitBranch = resolveGitBranch(t.Repository.GitBranch, t.Template, t.Task)
 
 	if t.Repository.GetType() == db.RepositoryLocal {
 		localPath := t.Repository.GetGitURL(true)
@@ -895,15 +887,7 @@ func (t *LocalJob) prepareRunTerraform(tfApp *db_lib.TerraformApp, installingArg
 		}
 	}
 
-	// Override git branch from template if set
-	if t.Template.GitBranch != nil && *t.Template.GitBranch != "" {
-		t.Repository.GitBranch = *t.Template.GitBranch
-	}
-
-	// Override git branch from task if set
-	if t.Task.GitBranch != nil && *t.Task.GitBranch != "" {
-		t.Repository.GitBranch = *t.Task.GitBranch
-	}
+	t.Repository.GitBranch = resolveGitBranch(t.Repository.GitBranch, t.Template, t.Task)
 
 	if t.Repository.GetType() == db.RepositoryLocal {
 		localPath := t.Repository.GetGitURL(true)
