@@ -39,6 +39,28 @@ type LocalJob struct {
 	KeyInstaller db_lib.AccessKeyInstaller
 }
 
+// resolveGitBranch computes the effective git branch for a run, applying the
+// template-level and task-level overrides on top of the repository's configured
+// branch. The task-supplied branch is honored only when the template explicitly
+// permits it via AllowOverrideBranchInTask; otherwise it is ignored. This gate is
+// what prevents a user who may only run tasks (Task Runner) from redirecting a
+// branch-pinned template to an arbitrary branch of the repository.
+func resolveGitBranch(repoBranch string, template db.Template, task db.Task) string {
+	branch := repoBranch
+
+	// Override git branch from template if set.
+	if template.GitBranch != nil && *template.GitBranch != "" {
+		branch = *template.GitBranch
+	}
+
+	// Override git branch from task only if the template allows it.
+	if template.AllowOverrideBranchInTask && task.GitBranch != nil && *task.GitBranch != "" {
+		branch = *task.GitBranch
+	}
+
+	return branch
+}
+
 func (t *LocalJob) IsKilled() bool {
 	return t.killed
 }
