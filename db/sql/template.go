@@ -498,22 +498,31 @@ func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int)
 
 	perm = projectUser.Role.GetPermissions()
 
-	role, err := d.GetProjectOrGlobalRoleBySlug(projectUser.ProjectID, string(projectUser.Role))
+	roleSlug := string(projectUser.Role)
 
-	if errors.Is(err, db.ErrNotFound) {
-		err = nil
-		return
-	}
+	// Only custom roles are resolved from the database; built-in roles use their
+	// own slug directly so a same-named custom role cannot shadow them.
+	if !projectUser.Role.IsValid() {
+		var role db.Role
+		role, err = d.GetProjectOrGlobalRoleBySlug(projectUser.ProjectID, string(projectUser.Role))
 
-	if err != nil {
-		return
+		if errors.Is(err, db.ErrNotFound) {
+			err = nil
+			return
+		}
+
+		if err != nil {
+			return
+		}
+
+		roleSlug = role.Slug
 	}
 
 	query, args, err := squirrel.Select("permissions").
 		From("project__template_role").
 		Where("project_id = ?", projectID).
 		Where("template_id = ?", templateID).
-		Where("role_slug = ?", role.Slug).
+		Where("role_slug = ?", roleSlug).
 		ToSql()
 
 	if err != nil {

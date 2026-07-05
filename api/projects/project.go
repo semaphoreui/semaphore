@@ -46,14 +46,20 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 
 		permissions := roleSlug.GetPermissions()
 
-		role, err := helpers.Store(r).GetProjectOrGlobalRoleBySlug(projectID, string(projectUser.Role))
+		// Built-in roles are defined in code and are the source of truth for their
+		// permissions. Only custom roles are resolved from the database, otherwise a
+		// project role sharing a built-in slug (e.g. "manager") could override the
+		// built-in permissions and escalate privileges.
+		if !roleSlug.IsValid() {
+			role, err := helpers.Store(r).GetProjectOrGlobalRoleBySlug(projectID, string(projectUser.Role))
 
-		if err == nil {
-			roleSlug = db.ProjectUserRole(role.Slug)
-			permissions = role.Permissions
-		} else if !errors.Is(err, db.ErrNotFound) {
-			helpers.WriteError(w, err)
-			return
+			if err == nil {
+				roleSlug = db.ProjectUserRole(role.Slug)
+				permissions = role.Permissions
+			} else if !errors.Is(err, db.ErrNotFound) {
+				helpers.WriteError(w, err)
+				return
+			}
 		}
 
 		if helpers.HasParam("template_id", r) {
