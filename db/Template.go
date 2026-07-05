@@ -227,6 +227,10 @@ func (tpl *Template) Validate() error {
 		return &ValidationError{"template playbook can not be empty"}
 	}
 
+	if err := ValidatePlaybookPath(tpl.Playbook, "template"); err != nil {
+		return err
+	}
+
 	if tpl.Arguments != nil {
 		if !json.Valid([]byte(*tpl.Arguments)) {
 			return &ValidationError{"template arguments must be valid JSON"}
