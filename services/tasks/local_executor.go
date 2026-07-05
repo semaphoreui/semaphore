@@ -861,6 +861,28 @@ func (t *LocalExecutor) Cleanup() {
 	}
 }
 
+// resolveGitBranch computes the effective git branch for a run, applying the
+// template-level and task-level overrides on top of the repository's configured
+// branch. The task-supplied branch is honored only when the template explicitly
+// permits it via AllowOverrideBranchInTask; otherwise it is ignored. This gate is
+// what prevents a user who may only run tasks (Task Runner) from redirecting a
+// branch-pinned template to an arbitrary branch of the repository.
+func resolveGitBranch(repoBranch string, template db.Template, task db.Task) string {
+	branch := repoBranch
+
+	// Override git branch from template if set.
+	if template.GitBranch != nil && *template.GitBranch != "" {
+		branch = *template.GitBranch
+	}
+
+	// Override git branch from task only if the template allows it.
+	if template.AllowOverrideBranchInTask && task.GitBranch != nil && *task.GitBranch != "" {
+		branch = *task.GitBranch
+	}
+
+	return branch
+}
+
 func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) error {
 
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
@@ -881,15 +903,7 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 		}
 	}
 
-	// Override git branch from template if set
-	if t.Template.GitBranch != nil && *t.Template.GitBranch != "" {
-		t.Repository.GitBranch = *t.Template.GitBranch
-	}
-
-	// Override git branch from task if set
-	if t.Task.GitBranch != nil && *t.Task.GitBranch != "" {
-		t.Repository.GitBranch = *t.Task.GitBranch
-	}
+	t.Repository.GitBranch = resolveGitBranch(t.Repository.GitBranch, t.Template, t.Task)
 
 	if t.Repository.GetType() == db.RepositoryLocal {
 		localPath := t.Repository.GetGitURL(true)
@@ -946,15 +960,7 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 		}
 	}
 
-	// Override git branch from template if set
-	if t.Template.GitBranch != nil && *t.Template.GitBranch != "" {
-		t.Repository.GitBranch = *t.Template.GitBranch
-	}
-
-	// Override git branch from task if set
-	if t.Task.GitBranch != nil && *t.Task.GitBranch != "" {
-		t.Repository.GitBranch = *t.Task.GitBranch
-	}
+	t.Repository.GitBranch = resolveGitBranch(t.Repository.GitBranch, t.Template, t.Task)
 
 	if t.Repository.GetType() == db.RepositoryLocal {
 		localPath := t.Repository.GetGitURL(true)

@@ -3,8 +3,68 @@ package tasks
 import (
 	"testing"
 
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestResolveGitBranch(t *testing.T) {
+	tests := []struct {
+		name       string
+		repoBranch string
+		template   db.Template
+		task       db.Task
+		expected   string
+	}{
+		{
+			name:       "no overrides falls back to repository branch",
+			repoBranch: "main",
+			template:   db.Template{},
+			task:       db.Task{},
+			expected:   "main",
+		},
+		{
+			name:       "template branch overrides repository branch",
+			repoBranch: "main",
+			template:   db.Template{GitBranch: new("release")},
+			task:       db.Task{},
+			expected:   "release",
+		},
+		{
+			name:       "task branch ignored when override not allowed",
+			repoBranch: "main",
+			template:   db.Template{AllowOverrideBranchInTask: false},
+			task:       db.Task{GitBranch: new("attacker")},
+			expected:   "main",
+		},
+		{
+			name:       "task branch ignored over pinned template branch when not allowed",
+			repoBranch: "main",
+			template:   db.Template{GitBranch: new("release"), AllowOverrideBranchInTask: false},
+			task:       db.Task{GitBranch: new("attacker")},
+			expected:   "release",
+		},
+		{
+			name:       "task branch applied when override allowed",
+			repoBranch: "main",
+			template:   db.Template{AllowOverrideBranchInTask: true},
+			task:       db.Task{GitBranch: new("feature")},
+			expected:   "feature",
+		},
+		{
+			name:       "empty task branch ignored even when override allowed",
+			repoBranch: "main",
+			template:   db.Template{GitBranch: new("release"), AllowOverrideBranchInTask: true},
+			task:       db.Task{GitBranch: new("")},
+			expected:   "release",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, resolveGitBranch(tt.repoBranch, tt.template, tt.task))
+		})
+	}
+}
 
 // TestLocalExecutorImplementsExecutor is a compile-time guard: if LocalExecutor stops
 // satisfying the Executor interface, this file fails to build. It documents the
