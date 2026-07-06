@@ -1039,6 +1039,23 @@ definitions:
           $ref: "#/definitions/TemplateVault"
       task_params:
         $ref: '#/definitions/TaskPrams'
+      jwt_params:
+        $ref: '#/definitions/TemplateJWTParams'
+
+  TemplateJWTParams:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+        description: When true (and server jwt.enabled), a signed JWT is issued per task run.
+      audience:
+        type: array
+        items:
+          type: string
+        description: JWT aud claim (up to 32 entries).
+      ttl:
+        type: string
+        description: Token lifetime as a Go duration (e.g. 30m); capped by jwt.max_ttl.
 
   TemplateSurveyVar:
     type: object
@@ -1204,6 +1221,16 @@ definitions:
         format: date-time
         description: Last time the runner contacted the server.
         x-nullable: true
+      started_at:
+        type: string
+        format: date-time
+        description: Runner process start time reported on each poll (X-Runner-Started-At).
+        x-nullable: true
+      status:
+        type: string
+        enum: [online, offline]
+        description: Derived heartbeat liveness; not persisted.
+        readOnly: true
       cleaning_requested:
         type: string
         format: date-time
@@ -1246,10 +1273,7 @@ definitions:
         properties:
           token:
             type: string
-            description: Token the runner uses to authenticate.
-          private_key:
-            type: string
-            description: Generated private key, returned only when the server creates the key pair.
+            description: Token the runner uses to authenticate (X-Runner-Token).
 
   RunnerActive:
     type: object
@@ -1345,7 +1369,7 @@ definitions:
         type: integer
       kind:
         type: string
-        enum: [task, approval]
+        enum: [task, approval, note]
       convergence_mode:
         type: string
         enum: [all, any]
@@ -1404,7 +1428,7 @@ definitions:
         type: integer
       status:
         type: string
-        enum: [running, success, failed, approval]
+        enum: [running, success, failed, approval, stopped]
       start:
         type: string
         format: date-time
@@ -3213,6 +3237,22 @@ paths:
           description: workflow run details
           schema:
             $ref: "#/definitions/WorkflowRunDetails"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    post:
+      tags:
+        - workflow
+      summary: Stop workflow run
+      description: Stops every active task in the run, rejects pending approvals, and marks the run stopped.
+      responses:
+        200:
+          description: workflow run stopped
+          schema:
+            $ref: "#/definitions/WorkflowRun"
 
   /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals:
     parameters:
