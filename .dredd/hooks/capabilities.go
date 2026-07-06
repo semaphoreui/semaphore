@@ -236,9 +236,21 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(15) },
 	func() string { return strconv.Itoa(runner.ID) },       // runner_id (project), x-example: 16
 	func() string { return strconv.Itoa(globalRunner.ID) }, // global runner_id, x-example: 17
-	func() string { return strconv.Itoa(workflow.ID) },     // workflow_id, x-example: 18
-	func() string { return strconv.Itoa(workflowRun.ID) },  // run_id, x-example: 19
-	func() string { return strconv.Itoa(workflowNodeID) },  // node_id, x-example: 20
+	func() string {
+		if workflow == nil {
+			return "0"
+		}
+		return strconv.Itoa(workflow.ID)
+	}, // workflow_id, x-example: 18
+	func() string {
+		if workflowRun == nil {
+			return "0"
+		}
+		return strconv.Itoa(workflowRun.ID)
+	}, // run_id, x-example: 19
+	func() string {
+		return strconv.Itoa(workflowNodeID)
+	}, // node_id, x-example: 20
 }
 
 // alterRequestPath with the above slice of functions
