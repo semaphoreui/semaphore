@@ -125,25 +125,47 @@ func main() {
 	h.Before("template > /api/project/{project_id}/templates/{template_id} > Updates template > 204 > application/json", capabilityWrapper("template"))
 	h.Before("template > /api/project/{project_id}/templates/{template_id} > Removes template > 204 > application/json", capabilityWrapper("template"))
 
-	h.Before("workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json", capabilityWrapper("workflow"))
-	h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", capabilityWrapper("template"))
-	h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", func(t *trans.Transaction) {
-		t.Request.Body = "{\"name\":\"workflow-doc-test\",\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + "},{\"id\":2,\"kind\":\"approval\"}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
-	})
-	h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Get workflow > 200 > application/json", capabilityWrapper("workflow"))
-	h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json", capabilityWrapper("workflow"))
-	h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json", func(t *trans.Transaction) {
-		t.Request.Body = "{\"id\":" + strconv.Itoa(workflowID) + ",\"project_id\":" + strconv.Itoa(userProject.ID) + ",\"name\":\"workflow-updated\",\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + "},{\"id\":2,\"kind\":\"approval\",\"approval_timeout\":120}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
-	})
-	h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json", capabilityWrapper("workflow"))
-	h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/run > Run workflow > 201 > application/json", capabilityWrapper("workflow"))
-	h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json", capabilityWrapper("workflow_run"))
-	h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json", capabilityWrapper("workflow_run"))
-	h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json", capabilityWrapper("workflow_approval"))
-	h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", capabilityWrapper("workflow_approval"))
-	h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", func(t *trans.Transaction) {
-		t.Request.Body = "{\"status\":\"approved\"}"
-	})
+	if isProBuild() {
+		h.Before("workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", capabilityWrapper("template"))
+		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", func(t *trans.Transaction) {
+			t.Request.Body = "{\"name\":\"workflow-doc-test\",\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + "},{\"id\":2,\"kind\":\"approval\"}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
+		})
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Get workflow > 200 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json", func(t *trans.Transaction) {
+			t.Request.Body = "{\"id\":" + strconv.Itoa(workflowID) + ",\"project_id\":" + strconv.Itoa(userProject.ID) + ",\"name\":\"workflow-updated\",\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + "},{\"id\":2,\"kind\":\"approval\",\"approval_timeout\":120}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
+		})
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/run > Run workflow > 201 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json", capabilityWrapper("workflow_run"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json", capabilityWrapper("workflow_run"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json", capabilityWrapper("workflow_approval"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", capabilityWrapper("workflow_approval"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", func(t *trans.Transaction) {
+			t.Request.Body = "{\"status\":\"approved\"}"
+		})
+	} else {
+		// The workflow API is implemented by the PRO module. In a non-PRO
+		// build (e.g. PR builds without access to pro_impl) the workflow
+		// store methods are no-ops, so the fixtures cannot be set up and
+		// these tests must be skipped.
+		workflowTests := []string{
+			"workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Get workflow > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/run > Run workflow > 201 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json",
+		}
+		for _, v := range workflowTests {
+			h.Before(v, skipTest)
+		}
+	}
 
 	h.Before("task > /api/project/{project_id}/tasks > Starts a job > 201 > application/json", capabilityWrapper("template"))
 	h.Before("task > /api/project/{project_id}/tasks/last > Get last 200 Tasks related to current project > 200 > application/json", capabilityWrapper("template"))

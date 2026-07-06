@@ -173,6 +173,10 @@ func (task *Task) ValidateNewTask(template Template) error {
 		}
 	}
 
+	if err := ValidatePlaybookPath(task.Playbook, "task"); err != nil {
+		return err
+	}
+
 	var params any
 	switch template.App {
 	case AppAnsible:

@@ -11,6 +11,14 @@ func ValidateRole(role Role) error {
 	if role.Name == "" {
 		return &ValidationError{Message: "Role name cannot be empty"}
 	}
+	if role.Slug == "" {
+		return &ValidationError{Message: "Role slug cannot be empty"}
+	}
+	// Built-in role slugs are reserved. Allowing a custom role to reuse one lets
+	// it shadow the built-in role and escalate the permissions of its members.
+	if ProjectUserRole(role.Slug).IsValid() {
+		return &ValidationError{Message: "Role slug is reserved and cannot be used: " + role.Slug}
+	}
 	return nil
 }
 
