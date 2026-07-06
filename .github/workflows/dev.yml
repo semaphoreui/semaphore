@@ -62,8 +62,11 @@ jobs:
 
       # The dredd hooks set up workflow fixtures through the Pro workflow store,
       # so they must be built with the PRO implementation (go.work + pro_impl is
-      # set up above). The integration jobs only have the open-source stub, where
-      # those store methods are no-ops, so build the hooks here and share them.
+      # set up above for push builds). The integration jobs only have the
+      # open-source stub, where those store methods are no-ops, so build the
+      # hooks here and share them. On pull_request builds pro_impl is not
+      # available; the hooks are built with the stub and detect this at runtime
+      # (isProBuild), skipping the workflow tests.
       - name: Build dredd hooks
         run: task dredd:hooks
 
