@@ -145,12 +145,21 @@ func main() {
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", func(t *trans.Transaction) {
 			t.Request.Body = "{\"status\":\"approved\"}"
 		})
+
+		// project runners
+		h.Before("runner > /api/project/{project_id}/runners > Get project runners > 200 > application/json", capabilityWrapper("project"))
+		//h.Before("runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json", capabilityWrapper("project"))
+		h.Before("runner > /api/project/{project_id}/runner_tags > Get project runner tags > 200 > application/json", capabilityWrapper("project"))
+		h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Get project runner > 200 > application/json", capabilityWrapper("runner"))
+		h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Update project runner > 204 > application/json", capabilityWrapper("runner"))
+		h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Delete project runner > 204 > application/json", capabilityWrapper("runner"))
+		h.Before("runner > /api/project/{project_id}/runners/{runner_id}/active > Set project runner active state > 204 > application/json", capabilityWrapper("runner"))
+		h.Before("runner > /api/project/{project_id}/runners/{runner_id}/cache > Clear project runner cache > 204 > application/json", capabilityWrapper("runner"))
 	} else {
-		// The workflow API is implemented by the PRO module. In a non-PRO
-		// build (e.g. PR builds without access to pro_impl) the workflow
-		// store methods are no-ops, so the fixtures cannot be set up and
-		// these tests must be skipped.
-		workflowTests := []string{
+		// Workflows and project runners are implemented by the PRO module.
+		// In a non-PRO build (e.g. PR builds without access to pro_impl)
+		// these endpoints are not functional, so their tests must be skipped.
+		proOnlyTests := []string{
 			"workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Get workflow > 200 > application/json",
@@ -161,8 +170,17 @@ func main() {
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/artifacts > Get merged workflow run artifacts > 200 > application/json",
+			"runner > /api/project/{project_id}/runners > Get project runners > 200 > application/json",
+			"runner > /api/project/{project_id}/runner_tags > Get project runner tags > 200 > application/json",
+			"runner > /api/project/{project_id}/runners/{runner_id} > Get project runner > 200 > application/json",
+			"runner > /api/project/{project_id}/runners/{runner_id} > Update project runner > 204 > application/json",
+			"runner > /api/project/{project_id}/runners/{runner_id} > Delete project runner > 204 > application/json",
+			"runner > /api/project/{project_id}/runners/{runner_id}/active > Set project runner active state > 204 > application/json",
+			"runner > /api/project/{project_id}/runners/{runner_id}/registration-token > Regenerate the one-time registration token of an unregistered project runner > 200 > application/json",
+			"runner > /api/project/{project_id}/runners/{runner_id}/cache > Clear project runner cache > 204 > application/json",
 		}
-		for _, v := range workflowTests {
+		for _, v := range proOnlyTests {
 			h.Before(v, skipTest)
 		}
 	}
@@ -187,16 +205,6 @@ func main() {
 	h.Before("project > /api/project/{project_id}/backup > Get backup > 200 > application/json", func(t *trans.Transaction) {
 		addCapabilities([]string{"repository", "inventory", "environment", "view", "template"})
 	})
-
-	// project runners
-	h.Before("runner > /api/project/{project_id}/runners > Get project runners > 200 > application/json", capabilityWrapper("project"))
-	//h.Before("runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json", capabilityWrapper("project"))
-	h.Before("runner > /api/project/{project_id}/runner_tags > Get project runner tags > 200 > application/json", capabilityWrapper("project"))
-	h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Get project runner > 200 > application/json", capabilityWrapper("runner"))
-	h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Update project runner > 204 > application/json", capabilityWrapper("runner"))
-	h.Before("runner > /api/project/{project_id}/runners/{runner_id} > Delete project runner > 204 > application/json", capabilityWrapper("runner"))
-	h.Before("runner > /api/project/{project_id}/runners/{runner_id}/active > Set project runner active state > 204 > application/json", capabilityWrapper("runner"))
-	h.Before("runner > /api/project/{project_id}/runners/{runner_id}/cache > Clear project runner cache > 204 > application/json", capabilityWrapper("runner"))
 
 	// global runners (admin)
 	h.Before("runner > /api/runners/{runner_id} > Get global runner > 200 > application/json", capabilityWrapper("global_runner"))

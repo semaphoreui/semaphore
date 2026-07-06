@@ -234,7 +234,12 @@ var pathSubPatterns = []func() string{
 	// hooks, so leave the path segment untouched (kept here only to preserve
 	// the positional mapping of the entries that follow).
 	func() string { return strconv.Itoa(15) },
-	func() string { return strconv.Itoa(runner.ID) },       // runner_id (project), x-example: 16
+	func() string {
+		if runner == nil {
+			return "0"
+		}
+		return strconv.Itoa(runner.ID)
+	}, // runner_id (project), x-example: 16
 	func() string { return strconv.Itoa(globalRunner.ID) }, // global runner_id, x-example: 17
 	func() string {
 		if workflow == nil {
