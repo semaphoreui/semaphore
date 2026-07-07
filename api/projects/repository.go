@@ -95,9 +95,13 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 			branch = repo.GitBranch
 		}
 
+		if err := db.ValidateGitBranch(branch, "repository"); err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
 		repoCopy := repo
 		repoCopy.GitBranch = branch
-
 		// Clone() does a single-branch clone (git clone --branch <branch>), so a
 		// scratch checkout can only ever serve the branch it was first cloned
 		// with. Key the scratch dir by branch (hashed, since branch names can
