@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -12,6 +13,10 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
+
+// repoBrowseMu protects per-repo+branch scratch checkouts from concurrent
+// git operations that would race on .git/index.lock.
+var repoBrowseMu sync.Map // key: string (TmpDirName) → value: *sync.Mutex
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
 func RepositoryMiddleware(next http.Handler) http.Handler {
@@ -114,6 +119,13 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 			Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
 			Logger:     task_logger.NopLogger{},
 		}
+
+		// Serialize concurrent requests for the same repo+branch to avoid
+		// git lock conflicts on the shared scratch checkout.
+		lockKey := git.TmpDirName
+		mu, _ := repoBrowseMu.LoadOrStore(lockKey, &sync.Mutex{})
+		mu.(*sync.Mutex).Lock()
+		defer mu.(*sync.Mutex).Unlock()
 
 		var err error
 		if err = git.ValidateRepo(); err != nil {
