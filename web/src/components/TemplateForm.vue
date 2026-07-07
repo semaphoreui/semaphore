@@ -776,7 +776,11 @@ export default {
         return;
       }
 
-      this.branches = await this.loadProjectEndpoint(`/repositories/${this.repositoryId}/branches`);
+      try {
+        this.branches = await this.loadProjectEndpoint(`/repositories/${this.repositoryId}/branches`);
+      } catch (e) {
+        this.branches = null;
+      }
     },
 
     async loadPlaybooks() {
