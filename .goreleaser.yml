@@ -77,7 +77,8 @@ snapshot:
   name_template: "{{ .Timestamp }}-{{ .ShortCommit }}-SNAPSHOT"
 
 nfpms:
-  - file_name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: semaphore
+    file_name_template: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     package_name: "semaphore"
     description: Modern UI and powerful API for Ansible, Terraform, OpenTofu, PowerShell and other DevOps tools.
     homepage: https://github.com/semaphoreui/semaphore
@@ -96,6 +97,13 @@ nfpms:
       - ansible
 
     bindir: /usr/bin
+
+    # Embedded RPM signature (rpm -K). Skipped when GPG_KEY_PATH is not set
+    # (e.g. local `task release:test`). Passphrase comes from the
+    # NFPM_SEMAPHORE_PASSPHRASE environment variable.
+    rpm:
+      signature:
+        key_file: '{{ envOrDefault "GPG_KEY_PATH" "" }}'
 
 release:
   draft: true

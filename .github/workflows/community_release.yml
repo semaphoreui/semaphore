@@ -44,6 +44,7 @@ jobs:
       - name: Import gnupg
         run: |
           echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
+          echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d > "$RUNNER_TEMP/gpg.key"
           gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
@@ -56,6 +57,8 @@ jobs:
           GITHUB_TOKEN=${{ github.token }} \
           GPG_PASS="${{ secrets.GPG_PASS }}" \
           GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
+          GPG_KEY_PATH="$RUNNER_TEMP/gpg.key" \
+          NFPM_SEMAPHORE_PASSPHRASE="${{ secrets.GPG_PASS }}" \
           PROJECT_NAME=semaphore_community \
             task release:prod
 
