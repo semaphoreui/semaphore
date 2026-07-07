@@ -638,8 +638,9 @@ export default {
   watch: {
     gitBranch() {
       this.setBranch = false;
+      this.playbooks = null;
       this.loadPlaybooks();
-    },
+    }
 
     async repositoryId() {
       this.branches = null;
