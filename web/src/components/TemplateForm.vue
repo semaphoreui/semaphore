@@ -640,7 +640,7 @@ export default {
       this.setBranch = false;
       this.playbooks = null;
       this.loadPlaybooks();
-    }
+    },
 
     async repositoryId() {
       this.branches = null;
