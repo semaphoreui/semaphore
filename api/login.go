@@ -201,7 +201,21 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 		Value:    encoded,
 		Path:     "/",
 		HttpOnly: true,
+		// SameSite=Lax prevents the session cookie from being attached to
+		// cross-site POST requests, which mitigates CSRF (e.g. the password
+		// change endpoint). Top-level GET navigations still carry the cookie
+		// so following a link into Semaphore keeps the user logged in.
+		SameSite: http.SameSiteLaxMode,
+		// Secure is only enforced when Semaphore is served over HTTPS, so that
+		// it can still be used without TLS inside private networks.
+		Secure: isSecureWebHost(),
 	})
+}
+
+// isSecureWebHost reports whether Semaphore's public web host uses HTTPS, in
+// which case cookies should carry the Secure attribute.
+func isSecureWebHost() bool {
+	return util.WebHostURL != nil && util.WebHostURL.Scheme == "https"
 }
 
 func loginByPassword(store db.Store, login string, password string) (user db.User, err error) {
@@ -395,6 +409,8 @@ func logout(w http.ResponseWriter, r *http.Request) {
 		Expires:  tz.Now().Add(24 * 7 * time.Hour * -1),
 		Path:     "/",
 		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   isSecureWebHost(),
 	})
 
 	w.WriteHeader(http.StatusNoContent)
