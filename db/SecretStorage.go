@@ -7,6 +7,7 @@ type SecretStorageType string
 const (
 	SecretStorageTypeLocal   SecretStorageType = "local"
 	SecretStorageTypeVault   SecretStorageType = "vault"
+	SecretStorageTypeOpenBao SecretStorageType = "openbao"
 	SecretStorageTypeDvls    SecretStorageType = "dvls"
 	SecretStorageTypeAwsSm   SecretStorageType = "aws_sm"
 	SecretStorageTypeAzureKv SecretStorageType = "azure_kv"
