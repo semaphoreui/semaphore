@@ -140,19 +140,38 @@
           :disabled="formSaving"
         ></v-text-field>
 
-        <v-text-field
-          v-model="item.playbook"
-          :label="fieldLabel('playbook')"
-          :rules="
-            isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
-          "
-          outlined
-          dense
-          :required="isFieldRequired('playbook')"
-          :disabled="formSaving"
-          :placeholder="$t('exampleSiteyml')"
-          v-if="needField('playbook')"
-        ></v-text-field>
+        <div v-if="needField('playbook')">
+          <div v-if="playbooks != null">
+            <v-autocomplete
+              v-model="item.playbook"
+              :items="playbooks"
+              :label="fieldLabel('playbook')"
+              :rules="
+                isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
+              "
+              outlined
+              dense
+              clearable
+              :required="isFieldRequired('playbook')"
+              :disabled="formSaving"
+              :placeholder="$t('exampleSiteyml')"
+            ></v-autocomplete>
+          </div>
+          <div v-else>
+            <v-text-field
+              v-model="item.playbook"
+              :label="fieldLabel('playbook')"
+              :rules="
+                isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
+              "
+              outlined
+              dense
+              :required="isFieldRequired('playbook')"
+              :disabled="formSaving"
+              :placeholder="$t('exampleSiteyml')"
+            ></v-text-field>
+          </div>
+        </div>
 
         <v-autocomplete
           v-model="item.inventory_id"
@@ -611,6 +630,7 @@ export default {
       args: [],
       runnerTags: null,
       branches: null,
+      playbooks: null,
       setBranch: false,
     };
   },
@@ -618,12 +638,15 @@ export default {
   watch: {
     gitBranch() {
       this.setBranch = false;
+      this.playbooks = null;
+      this.loadPlaybooks();
     },
 
     async repositoryId() {
       this.branches = null;
+      this.playbooks = null;
 
-      await this.loadBranches();
+      await Promise.all([this.loadBranches(), this.loadPlaybooks()]);
     },
 
     needReset(val) {
@@ -645,7 +668,7 @@ export default {
   },
 
   async created() {
-    await this.loadBranches();
+    await Promise.all([this.loadBranches(), this.loadPlaybooks()]);
   },
 
   computed: {
@@ -754,7 +777,26 @@ export default {
         return;
       }
 
-      this.branches = await this.loadProjectEndpoint(`/repositories/${this.repositoryId}/branches`);
+      try {
+        this.branches = await this.loadProjectEndpoint(`/repositories/${this.repositoryId}/branches`);
+      } catch (e) {
+        this.branches = null;
+      }
+    },
+
+    async loadPlaybooks() {
+      if (this.repositoryId == null) {
+        this.playbooks = null;
+        return;
+      }
+
+      try {
+        this.playbooks = await this.loadProjectEndpoint(
+          `/repositories/${this.repositoryId}/playbooks?branch=${encodeURIComponent(this.item.git_branch || '')}`,
+        );
+      } catch (e) {
+        this.playbooks = null;
+      }
     },
 
     validateBackendFilename(v) {
