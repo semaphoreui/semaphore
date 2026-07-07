@@ -1,36 +1,57 @@
-package db
+package tasks
 
 import (
-	"path"
-	"strings"
+	"testing"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// ValidatePlaybookPath checks that a playbook (or script/subdirectory for
-// non-Ansible apps) path is relative and stays inside the repository bound
-// to the template. Absolute paths and paths escaping the repository via ".."
-// are rejected to prevent execution of arbitrary files on the host.
-func ValidatePlaybookPath(playbook string, objectName string) error {
-	if playbook == "" {
-		return nil
+func setupExecutorConfig() {
+	if util.Config == nil {
+		util.Config = &util.ConfigType{}
+	}
+}
+
+// TestGetShellArgs_PassesSurveySecretVar verifies that Survey variables of type
+// "Secret" (delivered via LocalExecutor.Secret) are passed to Bash/Shell tasks,
+// alongside plain survey vars that arrive in Environment.JSON.
+func TestGetShellArgs_PassesSurveySecretVar(t *testing.T) {
+	setupExecutorConfig()
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			Type:     db.TemplateTask,
+			Playbook: "date.sh",
+		},
+		Environment: db.Environment{
+			JSON: `{"PLAIN_VAR":"hello"}`,
+		},
+		Secret: `{"MY_VAR":"s3cr3t"}`,
 	}
 
-	// Treat backslashes as path separators so Windows-style paths
-	// (C:\..., ..\..\evil.ps1) can not bypass the checks below.
-	p := strings.ReplaceAll(playbook, "\\", "/")
+	args, err := exec.getShellArgs("admin", nil)
+	require.NoError(t, err)
 
-	if path.IsAbs(p) {
-		return NewValidationError(objectName + " playbook must be a relative path inside the repository")
+	assert.Contains(t, args, "PLAIN_VAR=hello", "plain survey var must be passed")
+	assert.Contains(t, args, "MY_VAR=s3cr3t", "secret survey var must be passed")
+}
+
+// TestGetEnvironmentExtraVars_MergesSecret checks the shared helper merges the
+// Secret field into the extra vars map used by Shell and Terraform tasks.
+func TestGetEnvironmentExtraVars_MergesSecret(t *testing.T) {
+	setupExecutorConfig()
+
+	exec := &LocalExecutor{
+		Environment: db.Environment{JSON: `{"PLAIN_VAR":"hello"}`},
+		Secret:      `{"MY_VAR":"s3cr3t"}`,
 	}
 
-	// Windows absolute paths like "C:/..." are not caught by path.IsAbs.
-	if len(p) >= 2 && p[1] == ':' {
-		return NewValidationError(objectName + " playbook must be a relative path inside the repository")
-	}
+	extraVars, err := exec.getEnvironmentExtraVars("admin", nil)
+	require.NoError(t, err)
 
-	cleaned := path.Clean(p)
-	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
-		return NewValidationError(objectName + " playbook must not point outside the repository")
-	}
-
-	return nil
+	assert.Equal(t, "hello", extraVars["PLAIN_VAR"])
+	assert.Equal(t, "s3cr3t", extraVars["MY_VAR"])
 }
