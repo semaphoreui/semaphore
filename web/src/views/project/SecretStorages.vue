@@ -71,6 +71,20 @@
             link
             @click="
               editItem('new');
+              itemType = 'openbao';
+            "
+            :disabled="!features.secret_storage_management"
+          >
+            <v-list-item-icon>
+              <v-icon>$vuetify.icons.openbao</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>OpenBao</v-list-item-title>
+          </v-list-item>
+
+          <v-list-item
+            link
+            @click="
+              editItem('new');
               itemType = 'aws_sm';
             "
             :disabled="!features.secret_storage_management"
@@ -250,6 +264,8 @@ export default {
       switch (type) {
         case 'vault':
           return '$vuetify.icons.hashicorp_vault';
+        case 'openbao':
+          return '$vuetify.icons.openbao';
         case 'dvls':
           return '$vuetify.icons.dvls';
         case 'aws_sm':
