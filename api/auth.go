@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -316,6 +317,93 @@ func adminMiddleware(next http.Handler) http.Handler {
 
 		if !user.Admin {
 			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// isStateChangingMethod reports whether an HTTP method can modify server state
+// and therefore requires CSRF protection. Safe methods (GET, HEAD, OPTIONS,
+// TRACE) are excluded.
+func isStateChangingMethod(method string) bool {
+	switch method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		return true
+	default:
+		return false
+	}
+}
+
+// requestOriginHost extracts the origin host (host[:port]) of the request from
+// the Origin header, falling back to the Referer header. The boolean is false
+// when neither header is present or parseable.
+func requestOriginHost(r *http.Request) (string, bool) {
+	for _, header := range []string{"Origin", "Referer"} {
+		value := r.Header.Get(header)
+		if value == "" {
+			continue
+		}
+
+		u, err := url.Parse(value)
+		if err != nil || u.Host == "" {
+			continue
+		}
+
+		return u.Host, true
+	}
+
+	return "", false
+}
+
+// isSameOriginHost reports whether host belongs to Semaphore itself. Both the
+// configured public web host and the host the request was addressed to are
+// accepted, so reverse-proxy deployments keep working.
+func isSameOriginHost(host string, r *http.Request) bool {
+	if host == r.Host {
+		return true
+	}
+
+	if util.WebHostURL != nil && host == util.WebHostURL.Host {
+		return true
+	}
+
+	return false
+}
+
+// csrfProtectionMiddleware blocks cross-site state-changing requests that rely
+// on the session cookie, providing defense-in-depth against CSRF on top of the
+// SameSite=Lax session cookie.
+//
+// Requests authenticated with an API token (Authorization: bearer) are exempt:
+// browsers never attach such tokens automatically, so token-based clients are
+// not vulnerable to CSRF and must keep working without an Origin header.
+//
+// When neither Origin nor Referer is present (e.g. non-browser clients using a
+// cookie), the request is allowed — the SameSite=Lax cookie already prevents a
+// browser from sending the session cookie cross-site in that case.
+func csrfProtectionMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !isStateChangingMethod(r.Method) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		authHeader := strings.ToLower(r.Header.Get("authorization"))
+		if strings.Contains(authHeader, "bearer") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if origin, ok := requestOriginHost(r); ok && !isSameOriginHost(origin, r) {
+			log.WithFields(log.Fields{
+				"origin": origin,
+				"host":   r.Host,
+				"path":   r.URL.Path,
+				"method": r.Method,
+			}).Warn("Blocked cross-origin request (possible CSRF)")
+			helpers.WriteErrorStatus(w, "CROSS_ORIGIN_REQUEST_BLOCKED", http.StatusForbidden)
 			return
 		}
 

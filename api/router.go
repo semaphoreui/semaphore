@@ -181,7 +181,7 @@ func Route(
 	authenticatedWS.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 
 	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
-	authenticatedAPI.Use(StoreMiddleware, JSONMiddleware, authentication)
+	authenticatedAPI.Use(csrfProtectionMiddleware, StoreMiddleware, JSONMiddleware, authentication)
 
 	authenticatedAPI.Path("/info").HandlerFunc(systemInfoController.GetSystemInfo).Methods("GET", "HEAD")
 
