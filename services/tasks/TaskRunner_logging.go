@@ -11,6 +11,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
+	"github.com/semaphoreui/semaphore/pkg/conv"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -72,7 +73,9 @@ func (t *TaskRunner) WaitLog() {
 func (t *TaskRunner) SetCommit(hash, message string) {
 
 	t.Task.CommitHash = &hash
-	t.Task.CommitMessage = message
+	// Sanitize here — the single point where a commit message is persisted, for
+	// both local tasks and remote-runner reports. See conv.TruncateValidUTF8.
+	t.Task.CommitMessage = conv.TruncateValidUTF8(message)
 
 	if err := t.pool.store.UpdateTask(t.Task); err != nil {
 		t.panicOnError(err, "Failed to update task commit")
