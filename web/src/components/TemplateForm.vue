@@ -645,8 +645,7 @@ export default {
       this.branches = null;
       this.playbooks = null;
 
-      await this.loadBranches();
-      await this.loadPlaybooks();
+      await Promise.all([this.loadBranches(), this.loadPlaybooks()]);
     },
 
     needReset(val) {
@@ -668,8 +667,7 @@ export default {
   },
 
   async created() {
-    await this.loadBranches();
-    await this.loadPlaybooks();
+    await Promise.all([this.loadBranches(), this.loadPlaybooks()]);
   },
 
   computed: {

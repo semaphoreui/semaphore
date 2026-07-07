@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os/exec"
-	"time"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -14,22 +12,6 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
-
-// nopLogger is a no-op task_logger.Logger used for git operations triggered
-// outside of a task run (e.g. browsing repository files for the playbook
-// picker), where there is no task log to write to.
-type nopLogger struct{}
-
-func (nopLogger) Log(string)                                   {}
-func (nopLogger) Logf(string, ...any)                          {}
-func (nopLogger) LogWithTime(time.Time, string)                {}
-func (nopLogger) LogfWithTime(time.Time, string, ...any)       {}
-func (nopLogger) LogCmd(*exec.Cmd)                             {}
-func (nopLogger) SetStatus(task_logger.TaskStatus)             {}
-func (nopLogger) AddStatusListener(task_logger.StatusListener) {}
-func (nopLogger) AddLogListener(task_logger.LogListener)       {}
-func (nopLogger) SetCommit(string, string)                     {}
-func (nopLogger) WaitLog()                                     {}
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
 func RepositoryMiddleware(next http.Handler) http.Handler {
@@ -126,7 +108,7 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 			Repository: repoCopy,
 			TmpDirName: fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
 			Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
-			Logger:     nopLogger{},
+			Logger:     task_logger.NopLogger{},
 		}
 
 		var err error

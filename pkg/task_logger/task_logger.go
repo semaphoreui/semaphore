@@ -141,3 +141,19 @@ type Logger interface {
 
 	WaitLog()
 }
+
+// NopLogger is a no-op Logger, useful for git operations triggered outside of
+// a task run (e.g. browsing repository files, or tests) where there is no
+// task log to write to.
+type NopLogger struct{}
+
+func (NopLogger) Log(string)                             {}
+func (NopLogger) Logf(string, ...any)                    {}
+func (NopLogger) LogWithTime(time.Time, string)          {}
+func (NopLogger) LogfWithTime(time.Time, string, ...any) {}
+func (NopLogger) LogCmd(*exec.Cmd)                       {}
+func (NopLogger) SetStatus(TaskStatus)                   {}
+func (NopLogger) AddStatusListener(StatusListener)       {}
+func (NopLogger) AddLogListener(LogListener)             {}
+func (NopLogger) SetCommit(string, string)               {}
+func (NopLogger) WaitLog()                               {}
