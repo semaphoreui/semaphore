@@ -65,6 +65,24 @@ A runner is considered *registered* when it has an auth token (`runner.token` in
 database). Unregistered runners appear in the UI with a filter and cannot pick up tasks
 until registration completes.
 
+### Runner liveness and status
+
+Poll-based runners send `X-Runner-Token` and `X-Runner-Started-At` on every request.
+The server updates `touched` and derives an `online` / `offline` status for the UI
+and dispatch logic. Webhook-driven runners are always treated as online.
+
+Tune server-side behaviour with the `runners` config section (env prefix
+`SEMAPHORE_RUNNERS_*`):
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `offline_timeout_sec` | 120 | Runner marked offline; no new tasks; `starting` tasks reassigned |
+| `task_fail_timeout_sec` | 420 | `running` tasks on a silent runner are failed |
+| `reconcile_interval_sec` | 30 | How often dispatched tasks are scanned |
+
+See [docs/developer/runner-auth-and-jwt.md](../../docs/developer/runner-auth-and-jwt.md)
+for the full protocol and task-JWT details.
+
 ### Build
 
 This simply takes the currently cloned source and builds a new image including
@@ -97,15 +115,6 @@ docker-compose <runner from above> -f deployment/compose/runner/config.yml up
 
 After deciding the base of it you should choose one of the supported databases.
 Here we got currently the following options so far.
-
-### SQLite
-
-This simply configures a named volume for the SQLite storage used as a database
-backend.
-
-```console
-docker-compose <server/runner from above> -f deployment/compose/store/sqlite.yml up
-```
 
 ### SQLite
 
