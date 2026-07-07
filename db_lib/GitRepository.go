@@ -49,7 +49,13 @@ func (r GitRepository) ValidateRepo() error {
 }
 
 func (r GitRepository) Clone() error {
-	return r.Client.Clone(r)
+	err := r.Client.Clone(r)
+	if err != nil {
+		// Remove any partial/corrupt clone so the next attempt starts fresh
+		// instead of getting stuck on ValidateRepo() passing against a broken dir.
+		os.RemoveAll(r.GetFullPath())
+	}
+	return err
 }
 
 func (r GitRepository) Pull() error {

@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -74,6 +76,68 @@ func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *h
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, branches)
+}
+
+// GetRepositoryPlaybooks returns the list of playbook (.yml/.yaml) file paths,
+// relative to the repository root, found in the repository. For git/ssh/https
+// repositories it checks out the requested branch (defaulting to the
+// repository's configured branch) into a scratch directory before scanning it.
+func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *http.Request) {
+	repo := helpers.GetFromContext(r, "repository").(db.Repository)
+
+	var rootDir string
+
+	if repo.GetType() == db.RepositoryLocal || repo.GetType() == db.RepositoryFile {
+		rootDir = repo.GetFullPath(0)
+	} else {
+		branch := r.URL.Query().Get("branch")
+		if branch == "" {
+			branch = repo.GitBranch
+		}
+
+		if err := db.ValidateGitBranch(branch, "repository"); err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		repoCopy := repo
+		repoCopy.GitBranch = branch
+		// Clone() does a single-branch clone (git clone --branch <branch>), so a
+		// scratch checkout can only ever serve the branch it was first cloned
+		// with. Key the scratch dir by branch (hashed, since branch names can
+		// contain slashes) so each branch gets its own cached checkout instead
+		// of failing to check out a branch that was never fetched.
+		branchHash := sha1.Sum([]byte(branch))
+		git := db_lib.GitRepository{
+			Repository: repoCopy,
+			TmpDirName: fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
+			Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
+			Logger:     task_logger.NopLogger{},
+		}
+
+		var err error
+		if err = git.ValidateRepo(); err != nil {
+			err = git.Clone()
+		} else {
+			err = git.Pull()
+		}
+
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		rootDir = git.GetFullPath()
+	}
+
+	playbooks, err := db_lib.FindPlaybooks(rootDir)
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, playbooks)
 }
 
 // GetRepositories returns all repositories in a project sorted by type

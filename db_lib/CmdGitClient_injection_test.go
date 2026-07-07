@@ -5,7 +5,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
@@ -21,20 +20,6 @@ type nopKeyInstaller struct{}
 func (nopKeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (ssh.AccessKeyInstallation, error) {
 	return ssh.AccessKeyInstallation{}, nil
 }
-
-// nopLogger is a no-op task_logger.Logger for tests.
-type nopLogger struct{}
-
-func (nopLogger) Log(string)                                   {}
-func (nopLogger) Logf(string, ...any)                          {}
-func (nopLogger) LogWithTime(time.Time, string)                {}
-func (nopLogger) LogfWithTime(time.Time, string, ...any)       {}
-func (nopLogger) LogCmd(*exec.Cmd)                             {}
-func (nopLogger) SetStatus(task_logger.TaskStatus)             {}
-func (nopLogger) AddStatusListener(task_logger.StatusListener) {}
-func (nopLogger) AddLogListener(task_logger.LogListener)       {}
-func (nopLogger) SetCommit(string, string)                     {}
-func (nopLogger) WaitLog()                                     {}
 
 func gitInit(t *testing.T, dir string) {
 	t.Helper()
@@ -61,7 +46,7 @@ func newTestGitRepo(t *testing.T, gitURL, gitBranch string) GitRepository {
 			GitBranch: gitBranch,
 			SSHKey:    db.AccessKey{Type: db.AccessKeyNone},
 		},
-		Logger: nopLogger{},
+		Logger: task_logger.NopLogger{},
 	}
 }
 

@@ -419,6 +419,7 @@ func Route(
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.UpdateRepository).Methods("PUT")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
 	projectRepoManagement.HandleFunc("/{repository_id}/branches", repositoryController.GetRepositoryBranches).Methods("GET", "HEAD")
+	projectRepoManagement.HandleFunc("/{repository_id}/playbooks", repositoryController.GetRepositoryPlaybooks).Methods("GET", "HEAD")
 
 	projectInventoryManagement := projectUserAPI.PathPrefix("/inventory").Subrouter()
 	projectInventoryManagement.Use(projects.InventoryMiddleware)
