@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseClaim(t *testing.T) {
@@ -74,6 +77,35 @@ func TestParseClaim5(t *testing.T) {
 
 	assert.True(t, ok, "parseClaim should succeed")
 	assert.Equal(t, "123456757343", res, "Result should match formatted ID")
+}
+
+func TestIsSecureWebHost(t *testing.T) {
+	orig := util.WebHostURL
+	defer func() { util.WebHostURL = orig }()
+
+	tests := []struct {
+		name     string
+		webHost  string
+		expected bool
+	}{
+		{"https host is secure", "https://semaphore.example.com", true},
+		{"http host is not secure", "http://semaphore.example.com:3000", false},
+		{"nil host is not secure", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.webHost == "" {
+				util.WebHostURL = nil
+			} else {
+				u, err := url.Parse(tt.webHost)
+				require.NoError(t, err)
+				util.WebHostURL = u
+			}
+
+			assert.Equal(t, tt.expected, isSecureWebHost())
+		})
+	}
 }
 
 func TestGenerateStateOauthCookie(t *testing.T) {
