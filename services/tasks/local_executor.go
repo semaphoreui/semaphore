@@ -154,7 +154,6 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 		if err = json.Unmarshal([]byte(t.Secret), &extraSecretVars); err != nil {
 			return
 		}
-		t.Secret = "{}"
 		maps.Copy(extraVars, extraSecretVars)
 	}
 
