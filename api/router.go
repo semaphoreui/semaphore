@@ -256,21 +256,21 @@ func Route(
 	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.DeleteTask).Methods("DELETE")
 
 	userUserAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
-	userUserAPI.Use(readonlyUserMiddleware)
+	userUserAPI.Use(usersController.ReadonlyUserMiddleware)
 	userUserAPI.Methods("GET", "HEAD").HandlerFunc(userController.GetUser)
 
 	userAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
-	userAPI.Use(getUserMiddleware)
+	userAPI.Use(usersController.GetUserMiddleware)
 
 	userAPI.Methods("PUT").HandlerFunc(usersController.UpdateUser)
-	userAPI.Methods("DELETE").HandlerFunc(deleteUser)
+	userAPI.Methods("DELETE").HandlerFunc(usersController.DeleteUser)
 
 	userPasswordAPI := authenticatedAPI.PathPrefix("/users/{user_id}").Subrouter()
-	userPasswordAPI.Use(getUserMiddleware)
-	userPasswordAPI.Path("/password").HandlerFunc(updateUserPassword).Methods("POST")
-	userPasswordAPI.Path("/2fas/totp").HandlerFunc(enableTotp).Methods("POST")
-	userPasswordAPI.Path("/2fas/totp/{totp_id}/qr").HandlerFunc(totpQr).Methods("GET")
-	userPasswordAPI.Path("/2fas/totp/{totp_id}").HandlerFunc(disableTotp).Methods("DELETE")
+	userPasswordAPI.Use(usersController.GetUserMiddleware)
+	userPasswordAPI.Path("/password").HandlerFunc(usersController.UpdateUserPassword).Methods("POST")
+	userPasswordAPI.Path("/2fas/totp").HandlerFunc(usersController.EnableTotp).Methods("POST")
+	userPasswordAPI.Path("/2fas/totp/{totp_id}/qr").HandlerFunc(usersController.TotpQr).Methods("GET")
+	userPasswordAPI.Path("/2fas/totp/{totp_id}").HandlerFunc(usersController.DisableTotp).Methods("DELETE")
 
 	projectGet := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectGet.Use(projects.ProjectMiddleware)
