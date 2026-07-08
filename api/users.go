@@ -362,7 +362,6 @@ func (c *UsersController) EnableTotp(w http.ResponseWriter, r *http.Request) {
 	if util.Config.Mfa.Totp.AllowRecovery {
 		code, hash, err = util.GenerateRecoveryCode()
 		if err != nil {
-			c.log.WithError(err).WithFields(log.Fields{"user_id": user.ID}).Error("Failed to generate recovery code")
 			helpers.WriteError(w, err)
 			return
 		}
