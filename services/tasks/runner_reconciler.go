@@ -152,7 +152,10 @@ func (p *TaskPool) reconcileRunnerTasks(now time.Time) {
 		runnerID := *tsk.Task.RunnerID
 
 		var runnerPtr *db.Runner
-		runner, err := p.store.GetGlobalRunner(runnerID)
+		runner, err := p.store.GetRunner(tsk.Task.ProjectID, runnerID)
+		if errors.Is(err, db.ErrNotFound) {
+			runner, err = p.store.GetGlobalRunner(runnerID)
+		}
 		switch {
 		case err == nil:
 			runnerPtr = &runner
@@ -175,6 +178,8 @@ func (p *TaskPool) reconcileRunnerTasks(now time.Time) {
 			p.requeueTaskRunnerOffline(tsk, runnerID, reason)
 		case RunnerTaskFail:
 			p.failTaskRunnerLost(tsk, runnerPtr, reason)
+		case RunnerTaskKeep:
+			// Do nothing
 		}
 	}
 }
