@@ -185,7 +185,7 @@ func Route(
 	authenticatedWS.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 
 	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
-	authenticatedAPI.Use(StoreMiddleware, JSONMiddleware, authentication)
+	authenticatedAPI.Use(csrfProtectionMiddleware, StoreMiddleware, JSONMiddleware, authentication)
 
 	authenticatedAPI.Path("/info").HandlerFunc(systemInfoController.GetSystemInfo).Methods("GET", "HEAD")
 
@@ -260,21 +260,21 @@ func Route(
 	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.DeleteTask).Methods("DELETE")
 
 	userUserAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
-	userUserAPI.Use(readonlyUserMiddleware)
+	userUserAPI.Use(usersController.ReadonlyUserMiddleware)
 	userUserAPI.Methods("GET", "HEAD").HandlerFunc(userController.GetUser)
 
 	userAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
-	userAPI.Use(getUserMiddleware)
+	userAPI.Use(usersController.GetUserMiddleware)
 
 	userAPI.Methods("PUT").HandlerFunc(usersController.UpdateUser)
-	userAPI.Methods("DELETE").HandlerFunc(deleteUser)
+	userAPI.Methods("DELETE").HandlerFunc(usersController.DeleteUser)
 
 	userPasswordAPI := authenticatedAPI.PathPrefix("/users/{user_id}").Subrouter()
-	userPasswordAPI.Use(getUserMiddleware)
-	userPasswordAPI.Path("/password").HandlerFunc(updateUserPassword).Methods("POST")
-	userPasswordAPI.Path("/2fas/totp").HandlerFunc(enableTotp).Methods("POST")
-	userPasswordAPI.Path("/2fas/totp/{totp_id}/qr").HandlerFunc(totpQr).Methods("GET")
-	userPasswordAPI.Path("/2fas/totp/{totp_id}").HandlerFunc(disableTotp).Methods("DELETE")
+	userPasswordAPI.Use(usersController.GetUserMiddleware)
+	userPasswordAPI.Path("/password").HandlerFunc(usersController.UpdateUserPassword).Methods("POST")
+	userPasswordAPI.Path("/2fas/totp").HandlerFunc(usersController.EnableTotp).Methods("POST")
+	userPasswordAPI.Path("/2fas/totp/{totp_id}/qr").HandlerFunc(usersController.TotpQr).Methods("GET")
+	userPasswordAPI.Path("/2fas/totp/{totp_id}").HandlerFunc(usersController.DisableTotp).Methods("DELETE")
 
 	projectGet := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectGet.Use(projects.ProjectMiddleware)
@@ -419,6 +419,7 @@ func Route(
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.UpdateRepository).Methods("PUT")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
 	projectRepoManagement.HandleFunc("/{repository_id}/branches", repositoryController.GetRepositoryBranches).Methods("GET", "HEAD")
+	projectRepoManagement.HandleFunc("/{repository_id}/playbooks", repositoryController.GetRepositoryPlaybooks).Methods("GET", "HEAD")
 
 	projectInventoryManagement := projectUserAPI.PathPrefix("/inventory").Subrouter()
 	projectInventoryManagement.Use(projects.InventoryMiddleware)
