@@ -269,7 +269,7 @@
           </v-card>
         </v-dialog>
 
-        <div v-if="secrets.filter((s) => !s.remove && s.type === 'var').length > 0">
+        <div>
           <v-subheader class="px-0">
             {{ $t('extraVariables') }}
             <v-tooltip v-if="needHelp" bottom color="black" open-delay="300" max-width="400">
@@ -288,9 +288,12 @@
             </v-btn>
           </v-subheader>
 
-          <v-alert type="error" text>
-            Passing secrets using this method is not secure. This feature will be removed in version
-            2.19.
+          <v-alert
+            color="warning"
+            text
+            v-if="secrets.filter((s) => !s.remove && s.type === 'var').length > 0"
+          >
+            Secrets passed this way may appear in plain text in Ansible logs.
           </v-alert>
 
           <v-data-table
