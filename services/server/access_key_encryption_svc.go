@@ -87,7 +87,7 @@ func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) (Acc
 	}
 
 	switch storage.Type {
-	case db.SecretStorageTypeVault:
+	case db.SecretStorageTypeVault, db.SecretStorageTypeOpenBao:
 		return pro.NewVaultAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), storage.ReadOnly, nil
 	case db.SecretStorageTypeDvls:
 		return pro.NewDvlsAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), storage.ReadOnly, nil

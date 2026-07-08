@@ -24,7 +24,7 @@
       dense
     ></v-text-field>
 
-    <div v-if="item.type === 'vault'">
+    <div v-if="item.type === 'vault' || item.type === 'openbao'">
       <v-text-field
         v-model="item.params.mount"
         :label="$t('Mount')"
@@ -38,7 +38,9 @@
       <v-text-field
         v-model="item.params.namespace"
         :label="$t('Namespace')"
-        hint="For Vault Enterprise and HCP Dedicated only"
+        :hint="item.type === 'openbao'
+          ? 'OpenBao namespaces (v2.3+)'
+          : 'For Vault Enterprise and HCP Dedicated only'"
         :disabled="formSaving"
         data-testid="secretStorage-vaultNamespace"
         outlined

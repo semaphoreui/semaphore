@@ -543,6 +543,8 @@ export default {
           return '$vuetify.icons.aws_sm';
         case 'vault':
           return '$vuetify.icons.hashicorp_vault';
+        case 'openbao':
+          return '$vuetify.icons.openbao';
         case 'dvls':
           return '$vuetify.icons.dvls';
         case 'azure_kv':
