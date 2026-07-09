@@ -157,6 +157,7 @@ func TestTaskRunnerRun(t *testing.T) {
 		Environment:  taskRunner.Environment,
 		Logger:       &taskRunner,
 		KeyInstaller: keyInstaller,
+		RepoLock:     &KeyLock{},
 		App: &db_lib.AnsibleApp{
 			Template:   taskRunner.Template,
 			Repository: taskRunner.Repository,
