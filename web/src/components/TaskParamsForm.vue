@@ -244,13 +244,19 @@ export default {
     assignItem(val) {
       const v = val || {};
 
-      if (this.item == null) {
-        this.item = {};
-      }
-
-      Object.keys(v).forEach((field) => {
-        this.item[field] = v[field];
-      });
+      // Build the item in one assignment so every edited key is reactive and
+      // the deep `item` watcher (which emits `input`) fires on any change.
+      // Keys added to an already-reactive object one by one are NOT reactive
+      // in Vue 2, which silently swallowed edits of params/message/branch/etc.
+      this.item = {
+        message: '',
+        arguments: null,
+        git_branch: null,
+        inventory_id: null,
+        params: {},
+        ...this.item,
+        ...v,
+      };
 
       this.editedEnvironment = JSON.parse(v.environment || '{}');
       this.editedSecretEnvironment = JSON.parse(v.secret || '{}');

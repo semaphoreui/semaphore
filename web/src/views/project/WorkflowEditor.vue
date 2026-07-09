@@ -198,17 +198,16 @@
             @change="applyNodeEdit"
           />
 
-          <ArgsPicker
-            v-if="editingNode.kind !== 'approval'"
-            :vars="editingNode.limit || []"
-            @change="setNodeLimit"
-            :title="$t('workflowNodeLimit')"
-            :arg-title="$t('limit')"
-            :add-arg-title="$t('addLimit')"
+          <TaskParamsForm
+            v-if="editingNode.kind !== 'approval' && editingNodeTemplate"
+            :key="`task-params-${editingNode.id}-${editingNode.template_id}`"
+            :template="editingNodeTemplate"
+            v-model="editingNode.task_params"
             class="mt-2"
+            @input="applyNodeEdit"
           />
 
-          <template v-else>
+          <template v-if="editingNode.kind === 'approval'">
             <v-text-field
               v-model.number="editingNode.approval_timeout"
               type="number"
@@ -268,7 +267,7 @@
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
-import ArgsPicker from '@/components/ArgsPicker.vue';
+import TaskParamsForm from '@/components/TaskParamsForm.vue';
 import WorkflowGraph from '@/components/WorkflowGraph.vue';
 import ProjectMixin from '@/components/ProjectMixin';
 import PermissionsCheck from '@/components/PermissionsCheck';
@@ -276,7 +275,7 @@ import { USER_PERMISSIONS } from '@/lib/constants';
 import { layoutWorkflowNodes, needsAutoLayout } from '@/lib/workflowLayout';
 
 export default {
-  components: { ArgsPicker, WorkflowGraph },
+  components: { TaskParamsForm, WorkflowGraph },
   mixins: [ProjectMixin, PermissionsCheck],
   props: {
     projectId: Number,
@@ -306,6 +305,10 @@ export default {
     },
     canManage() {
       return this.can(USER_PERMISSIONS.manageProjectResources);
+    },
+    editingNodeTemplate() {
+      if (!this.editingNode || !this.editingNode.template_id) return null;
+      return this.templates.find((t) => t.id === this.editingNode.template_id) || null;
     },
     kindOptions() {
       return [
@@ -397,7 +400,6 @@ export default {
           this.item.nodes = this.item.nodes.map((node) => ({
             kind: 'task',
             convergence_mode: 'all',
-            limit: [],
             position_x: 0,
             position_y: 0,
             ...node,
@@ -449,7 +451,13 @@ export default {
         return;
       }
       const node = this.item.nodes.find((n) => n.id === nodeId);
-      this.editingNode = node ? JSON.parse(JSON.stringify(node)) : null;
+      const clone = node ? JSON.parse(JSON.stringify(node)) : null;
+      // Define task_params up front so later assignments stay reactive.
+      // Approval/note nodes must not carry task params (backend validation).
+      if (clone && clone.task_params === undefined) {
+        clone.task_params = (clone.kind || 'task') === 'task' ? {} : null;
+      }
+      this.editingNode = clone;
     },
     onConnectionSelected(edge) {
       this.selectedNodeId = null;
@@ -463,15 +471,12 @@ export default {
     onKindChanged() {
       if (this.editingNode.kind === 'approval') {
         this.editingNode.template_id = null;
-        this.editingNode.limit = [];
+        this.editingNode.task_params = null;
       } else {
         this.editingNode.approval_timeout = null;
         this.editingNode.approval_message = null;
+        if (!this.editingNode.task_params) this.editingNode.task_params = {};
       }
-      this.applyNodeEdit();
-    },
-    setNodeLimit(limit) {
-      this.editingNode.limit = limit;
       this.applyNodeEdit();
     },
     applyNodeEdit() {
