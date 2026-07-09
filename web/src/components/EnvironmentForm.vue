@@ -119,15 +119,34 @@
                     :placeholder="$t('name')"
                   ></v-text-field>
                 </td>
-                <td class="pa-1">
-                  <v-text-field
+                <td class="pa-1" style="width: 130px">
+                  <v-select
                     solo-inverted
                     flat
                     hide-details
-                    v-model="props.item.value"
+                    v-model="props.item.type"
+                    :items="extraVarTypes"
                     class="v-text-field--solo--no-min-height"
-                    :placeholder="$t('Value')"
-                  ></v-text-field>
+                    data-testid="varGroup-varType"
+                  ></v-select>
+                </td>
+                <td class="pa-1">
+                  <div class="d-flex align-center">
+                    <v-text-field
+                      solo-inverted
+                      flat
+                      hide-details
+                      v-model="props.item.value"
+                      class="v-text-field--solo--no-min-height"
+                      :placeholder="extraVarValuePlaceholder(props.item.type)"
+                    ></v-text-field>
+                    <RichEditor
+                      v-if="props.item.type === 'list' || props.item.type === 'dict'"
+                      v-model="props.item.value"
+                      :type="props.item.type === 'list' ? 'json_array' : 'json'"
+                      class="ml-1 EnvVarExpandBtn"
+                    />
+                  </div>
                 </td>
                 <td style="width: 38px">
                   <v-icon small class="pa-1" @click="removeExtraVar(props.item)">
@@ -396,6 +415,18 @@
     height: 160px !important;
   }
 }
+
+// Compact the RichEditor "expand" fab so it fits inside a variables table row.
+.EnvVarExpandBtn {
+  .v-btn--fab.v-size--small {
+    height: 30px;
+    width: 30px;
+  }
+
+  .v-btn__content .v-icon {
+    font-size: 18px;
+  }
+}
 </style>
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
@@ -435,44 +466,46 @@ export default {
 
   watch: {
     extraVarsEditMode(val) {
-      let extraVars;
-
       switch (val) {
-        case 'json':
+        case 'json': {
           if (this.extraVars == null) {
             return;
           }
 
-          this.json = JSON.stringify(
-            this.extraVars.reduce(
-              (prev, curr) => ({
-                ...prev,
-                [curr.name]: curr.value,
-              }),
-              {},
-            ),
-            null,
-            2,
-          );
+          // Serialize leniently: a row whose list/dict value is not valid JSON yet
+          // keeps its raw text (as a string) instead of throwing. This prevents the
+          // toggle from blanking the JSON editor or dropping rows while the user is
+          // still typing. Strict validation happens on save (see beforeSave).
+          this.json = JSON.stringify(this.extraVarsToObjectLenient(this.extraVars), null, 2);
+          this.formError = null;
           break;
-        case 'table':
+        }
+        case 'table': {
+          let parsed;
           try {
-            extraVars = JSON.parse(this.json);
+            parsed = JSON.parse(this.json);
             this.formError = null;
           } catch (err) {
             this.formError = getErrorMessage(err);
             this.extraVars = null;
             return;
           }
-          if (Object.keys(extraVars).some((x) => typeof extraVars[x] === 'object')) {
-            this.extraVars = null;
-          } else {
-            this.extraVars = Object.keys(extraVars).map((x) => ({
-              name: x,
-              value: extraVars[x],
-            }));
+
+          // If the JSON text still matches what the current table represents, the
+          // user only switched tabs without editing it — keep the existing rows so
+          // their chosen types (e.g. Dict) and in-progress values are preserved
+          // instead of being re-inferred (and possibly downgraded to String).
+          if (
+            this.extraVars != null
+            && JSON.stringify(parsed)
+              === JSON.stringify(this.extraVarsToObjectLenient(this.extraVars))
+          ) {
+            return;
           }
+
+          this.extraVars = this.objectToExtraVars(parsed);
           break;
+        }
         default:
           throw new Error(`Invalid extra variables edit mode: ${val}`);
       }
@@ -522,6 +555,13 @@ export default {
 
       extraVarsEditMode: 'json',
 
+      extraVarTypes: [
+        { text: 'String', value: 'string' },
+        { text: 'Number', value: 'number' },
+        { text: 'List', value: 'list' },
+        { text: 'Dict', value: 'dict' },
+      ],
+
       secretStorages: null,
 
       syncSettingsDialog: false,
@@ -554,15 +594,123 @@ export default {
       }
     },
 
-    addExtraVar(name = '', value = '') {
-      this.extraVars.push({ name, value });
+    addExtraVar(name = '', value = '', type = 'string') {
+      this.extraVars.push({ name, value, type });
     },
 
     removeExtraVar(val) {
-      const i = this.extraVars.findIndex((v) => v.name === val.name);
+      const i = this.extraVars.indexOf(val);
       if (i > -1) {
         this.extraVars.splice(i, 1);
       }
+    },
+
+    extraVarValuePlaceholder(type) {
+      switch (type) {
+        case 'number':
+          return '42';
+        case 'list':
+          return '["a", "b"]';
+        case 'dict':
+          return '{"key": "value"}';
+        default:
+          return this.$t('Value');
+      }
+    },
+
+    // inferVarType maps a parsed JSON value to one of the editor's variable types
+    // so that a value stored as a list/dict is shown with the right type in the
+    // table editor. Numbers get the number type; other scalars are edited as strings.
+    inferVarType(value) {
+      if (Array.isArray(value)) {
+        return 'list';
+      }
+      if (value !== null && typeof value === 'object') {
+        return 'dict';
+      }
+      if (typeof value === 'number') {
+        return 'number';
+      }
+      return 'string';
+    },
+
+    // rowToVarValue converts a table row back to its typed JSON value. It throws a
+    // descriptive error (caught by save()/beforeSave) when the input is invalid.
+    rowToVarValue(row) {
+      switch (row.type) {
+        case 'number': {
+          const parsed = Number(row.value);
+          if (row.value === '' || Number.isNaN(parsed)) {
+            throw new Error(`Variable "${row.name}" must be a number, e.g. 42`);
+          }
+          return parsed;
+        }
+        case 'list': {
+          let parsed;
+          try {
+            parsed = JSON.parse(row.value);
+          } catch (e) {
+            throw new Error(`Variable "${row.name}" is not a valid list, e.g. ["a", "b"]`);
+          }
+          if (!Array.isArray(parsed)) {
+            throw new Error(`Variable "${row.name}" must be a list, e.g. ["a", "b"]`);
+          }
+          return parsed;
+        }
+        case 'dict': {
+          let parsed;
+          try {
+            parsed = JSON.parse(row.value);
+          } catch (e) {
+            throw new Error(`Variable "${row.name}" is not a valid dict, e.g. {"key": "value"}`);
+          }
+          if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            throw new Error(`Variable "${row.name}" must be a dict, e.g. {"key": "value"}`);
+          }
+          return parsed;
+        }
+        default:
+          // Scalars are passed through as-is: an untouched number/boolean keeps its
+          // original JSON type, while typed input stays a string.
+          return row.value;
+      }
+    },
+
+    extraVarsToObject(rows) {
+      return (rows || []).reduce(
+        (prev, curr) => ({
+          ...prev,
+          [curr.name]: this.rowToVarValue(curr),
+        }),
+        {},
+      );
+    },
+
+    // extraVarsToObjectLenient is like extraVarsToObject but never throws: a row
+    // whose typed value is still invalid keeps its raw text. Used when toggling to
+    // the JSON view so editing modes never lose data mid-typing.
+    extraVarsToObjectLenient(rows) {
+      return (rows || []).reduce((prev, curr) => {
+        let value;
+        try {
+          value = this.rowToVarValue(curr);
+        } catch (e) {
+          value = curr.value;
+        }
+        return { ...prev, [curr.name]: value };
+      }, {});
+    },
+
+    objectToExtraVars(obj) {
+      return Object.keys(obj).map((name) => {
+        const value = obj[name];
+        const type = this.inferVarType(value);
+        return {
+          name,
+          type,
+          value: type === 'string' ? value : JSON.stringify(value),
+        };
+      });
     },
 
     addEnvVar(name = '', value = '') {
@@ -609,15 +757,7 @@ export default {
           if (this.extraVars == null) {
             this.item.json = this.json;
           } else {
-            this.item.json = JSON.stringify(
-              this.extraVars.reduce(
-                (prev, curr) => ({
-                  ...prev,
-                  [curr.name]: curr.value,
-                }),
-                {},
-              ),
-            );
+            this.item.json = JSON.stringify(this.extraVarsToObject(this.extraVars));
           }
           break;
         default:
@@ -687,16 +827,8 @@ export default {
 
       const secrets = this.item?.secrets || [];
 
-      if (Object.keys(json).some((x) => typeof json[x] === 'object')) {
-        this.extraVars = null;
-        this.extraVarsEditMode = 'json';
-      } else {
-        this.extraVars = Object.keys(json).map((x) => ({
-          name: x,
-          value: json[x],
-        }));
-        this.extraVarsEditMode = 'table';
-      }
+      this.extraVars = this.objectToExtraVars(json);
+      this.extraVarsEditMode = 'table';
 
       this.env = Object.keys(env)
         // .filter((x) => {
