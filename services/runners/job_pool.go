@@ -32,16 +32,20 @@ func derefString(s *string) string {
 
 func newHTTPClient() *http.Client {
 	tlsConfig := &tls.Config{}
-	conn := util.Config.Runner.Connection
-	if conn.SkipTLSVerify {
-		tlsConfig.InsecureSkipVerify = true
-	}
-	if conn.ServerCACertFile != "" {
-		caCert, err := os.ReadFile(conn.ServerCACertFile)
-		if err == nil {
-			pool := x509.NewCertPool()
-			pool.AppendCertsFromPEM(caCert)
-			tlsConfig.RootCAs = pool
+	if util.Config != nil && util.Config.Runner != nil {
+		conn := util.Config.Runner.Connection
+		if conn != nil {
+			if conn.SkipTLSVerify {
+				tlsConfig.InsecureSkipVerify = true
+			}
+			if conn.ServerCACertFile != "" {
+				caCert, err := os.ReadFile(conn.ServerCACertFile)
+				if err == nil {
+					pool := x509.NewCertPool()
+					pool.AppendCertsFromPEM(caCert)
+					tlsConfig.RootCAs = pool
+				}
+			}
 		}
 	}
 	return &http.Client{
@@ -90,7 +94,11 @@ func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
 		client:      newHTTPClient(),
 	}
 
-	provider, err := newExecutorProvider(util.Config.Runner.Executor, keyInstaller)
+	var provider tasks.ExecutorProvider
+	var err error
+	if util.Config != nil && util.Config.Runner != nil {
+		provider, err = newExecutorProvider(util.Config.Runner.Executor, keyInstaller)
+	}
 	if err != nil {
 		log.WithError(err).Error("failed to initialise executor provider; runner will reject jobs until restarted with a valid config")
 	} else {
