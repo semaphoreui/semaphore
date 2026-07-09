@@ -2,9 +2,11 @@ package runners
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,9 +26,13 @@ func newTestJob(id int) *job {
 }
 
 func TestJobPool_QueueOrder(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
 	util.Config = &util.ConfigType{
 		Runner: &util.RunnerConfig{
-			Executor: &util.ExecutorConfig{},
+			Executor:   &util.ExecutorConfig{},
+			Connection: &util.RunnerConnectionConfig{},
 		},
 	}
 
@@ -159,6 +165,7 @@ func TestJobPool_CheckNewJobsExecutorErrorUsesTaskProjectID(t *testing.T) {
 		runningJobs: make(map[int]*runningJob),
 		queue:       make([]*job, 0),
 		startedAt:   time.Now(),
+		client:      newHTTPClient(),
 	}
 
 	require.NotPanics(t, p.checkNewJobs)
@@ -220,6 +227,45 @@ func TestJobPool_ConcurrentAccess(t *testing.T) {
 
 	close(start)
 	wg.Wait()
+}
+
+// TestJobPool_ReusesConnections guards against the TCP connection leak from
+// issue #3941: creating a new http.Client (and transport) per poll cycle left
+// one ESTABLISHED connection behind per request until ephemeral ports ran out.
+// With the shared client, many poll cycles must reuse a single connection.
+func TestJobPool_ReusesConnections(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	var newConns int32
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("{}"))
+	}))
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			atomic.AddInt32(&newConns, 1)
+		}
+	}
+	srv.Start()
+	t.Cleanup(srv.Close)
+
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "test-token",
+			Executor:   &util.ExecutorConfig{},
+			Connection: &util.RunnerConnectionConfig{},
+		},
+	}
+
+	p := NewJobPool(nil)
+
+	for i := 0; i < 10; i++ {
+		require.True(t, p.sendProgress())
+		p.checkNewJobs()
+	}
+
+	assert.Equal(t, int32(1), atomic.LoadInt32(&newConns))
 }
 
 func TestJobPool_checkNewJobs_ExecutorErrorWithoutCacheCleanProjectID(t *testing.T) {
