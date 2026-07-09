@@ -73,8 +73,11 @@ func (t *TaskRunner) WaitLog() {
 func (t *TaskRunner) SetCommit(hash, message string) {
 
 	t.Task.CommitHash = &hash
-	// Sanitize here — the single point where a commit message is persisted, for
-	// both local tasks and remote-runner reports. See conv.TruncateValidUTF8.
+	// Sanitize before persisting to the DB. This is the persistence point for
+	// remote-runner commit reports; local tasks reach it too via the task logger
+	// (LocalExecutor.SetCommit -> Logger.SetCommit), and that local mirror
+	// additionally sanitizes the copy it exposes as task extra vars.
+	// See conv.TruncateValidUTF8.
 	t.Task.CommitMessage = conv.TruncateValidUTF8(message)
 
 	if err := t.pool.store.UpdateTask(t.Task); err != nil {

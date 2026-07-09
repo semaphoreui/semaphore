@@ -9,10 +9,13 @@ import (
 
 const commitMessageMaxRunes = 100
 
-// TruncateValidUTF8 returns s guaranteed to be storable as UTF-8 text in a
-// column of commitMessageMaxRunes characters: NUL bytes are removed, invalid
-// UTF-8 byte sequences are replaced with U+FFFD, and the result is capped at
-// commitMessageMaxRunes runes.
+// TruncateValidUTF8 sanitizes s so it can be stored in the task.commit_message
+// column (VARCHAR(100)): NUL bytes are removed, invalid UTF-8 byte sequences are
+// replaced with U+FFFD, and the result is capped at commitMessageMaxRunes runes.
+//
+// This is not a general-purpose string helper: the hard cap is tied to the
+// commit-message column width, so reusing it elsewhere would truncate at 100
+// runes unexpectedly.
 //
 // It guards two failure modes that both make PostgreSQL reject the value with
 // `invalid byte sequence for encoding "UTF8"` and abort the transaction:
