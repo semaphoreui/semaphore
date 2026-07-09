@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"path"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -56,6 +57,10 @@ func (a *Agent) Listen() error {
 		}); err != nil {
 			return fmt.Errorf("adding private key: %w", err)
 		}
+	}
+
+	if err := os.MkdirAll(path.Dir(a.SocketFile), 0o755); err != nil {
+		return fmt.Errorf("creating socket directory: %w", err)
 	}
 
 	l, err := net.ListenUnix(
