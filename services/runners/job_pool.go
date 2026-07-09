@@ -32,11 +32,12 @@ func derefString(s *string) string {
 
 func newHTTPClient() *http.Client {
 	tlsConfig := &tls.Config{}
-	if util.Config.Runner.Connection.SkipTLSVerify {
+	conn := util.Config.Runner.Connection
+	if conn.SkipTLSVerify {
 		tlsConfig.InsecureSkipVerify = true
 	}
-	if util.Config.Runner.Connection.ServerCACertFile != "" {
-		caCert, err := os.ReadFile(util.Config.Runner.Connection.ServerCACertFile)
+	if conn.ServerCACertFile != "" {
+		caCert, err := os.ReadFile(conn.ServerCACertFile)
 		if err == nil {
 			pool := x509.NewCertPool()
 			pool.AppendCertsFromPEM(caCert)
@@ -69,6 +70,12 @@ type JobPool struct {
 	// (X-Runner-Started-At header). It changes on every restart, letting the
 	// server detect that this runner lost its in-memory job pool.
 	startedAt time.Time
+
+	// client is the shared HTTP client for all runner→server requests. It is
+	// created once so the transport's keep-alive pool reuses connections —
+	// creating a client per request leaks one ESTABLISHED connection per poll
+	// cycle (~2/sec) until the runner exhausts ephemeral ports (issue #3941).
+	client *http.Client
 }
 
 // NewJobPool wires a runner-side job pool. The ExecutorProvider is materialised
@@ -80,6 +87,7 @@ func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
 		queue:       make([]*job, 0),
 		processing:  0,
 		startedAt:   tz.Now(),
+		client:      newHTTPClient(),
 	}
 
 	provider, err := newExecutorProvider(util.Config.Runner.Executor, keyInstaller)
@@ -213,8 +221,6 @@ func (p *JobPool) Unregister() (err error) {
 		return fmt.Errorf("runner is not registered")
 	}
 
-	client := newHTTPClient()
-
 	url := util.Config.WebHost + "/api/internal/runners"
 
 	req, err := http.NewRequest("DELETE", url, nil)
@@ -227,10 +233,11 @@ func (p *JobPool) Unregister() (err error) {
 		"url":     url,
 	}).Debug("Sending unregistration request to the server")
 
-	resp, err := client.Do(req)
+	resp, err := p.client.Do(req)
 	if err != nil {
 		return
 	}
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode >= 400 && resp.StatusCode != 404 {
 		err = fmt.Errorf("encountered error while unregistering runner; server returned code %d", resp.StatusCode)
@@ -404,8 +411,6 @@ func (p *JobPool) Run() {
 
 func (p *JobPool) sendProgress() (ok bool) {
 
-	client := newHTTPClient()
-
 	url := util.Config.WebHost + "/api/internal/runners"
 
 	body := RunnerProgress{
@@ -455,7 +460,7 @@ func (p *JobPool) sendProgress() (ok bool) {
 
 	p.setCommonHeaders(req)
 
-	resp, err := client.Do(req)
+	resp, err := p.client.Do(req)
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
 			"context": "sending_progress",
@@ -588,8 +593,6 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		return
 	}
 
-	client := newHTTPClient()
-
 	url := util.Config.WebHost + "/api/internal/runners"
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
@@ -623,7 +626,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		"url":         url,
 	}).Debug("Sending registration request to the server")
 
-	resp, err := client.Do(req)
+	resp, err := p.client.Do(req)
 
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
@@ -631,6 +634,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		}).Error("failed to send registration request to the server")
 		return
 	}
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != 200 {
 		log.WithError(fmt.Errorf("invalid status code")).WithFields(log.Fields{
@@ -707,8 +711,6 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		}
 	}
 
-	defer resp.Body.Close() //nolint:errcheck
-
 	log.WithFields(log.Fields{
 		"context":     "registration",
 		"runner_name": util.Config.Runner.Name,
@@ -727,8 +729,6 @@ func (p *JobPool) checkNewJobs() {
 		}).Error("runner token is empty")
 		return
 	}
-
-	client := newHTTPClient()
 
 	url := util.Config.WebHost + "/api/internal/runners"
 
@@ -749,7 +749,7 @@ func (p *JobPool) checkNewJobs() {
 		"queued_jobs":  p.queueLen(),
 	}).Debug("Fetching new jobs from the server")
 
-	resp, err := client.Do(req)
+	resp, err := p.client.Do(req)
 
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
@@ -757,6 +757,7 @@ func (p *JobPool) checkNewJobs() {
 		}).Error("failed to fetch new jobs from the server")
 		return
 	}
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode >= 400 {
 
@@ -766,8 +767,6 @@ func (p *JobPool) checkNewJobs() {
 		}).Error("server returned an error while fetching new jobs: " + p.getResponseErrorMessage(resp))
 		return
 	}
-
-	defer resp.Body.Close() //nolint:errcheck
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
