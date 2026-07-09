@@ -25,7 +25,7 @@ func newTestJob(id int) *job {
 	}
 }
 
-func TestJobPool_QueueOrder(t *testing.T) {
+func initConfig(t *testing.T) {
 	prevCfg := util.Config
 	t.Cleanup(func() { util.Config = prevCfg })
 
@@ -35,6 +35,11 @@ func TestJobPool_QueueOrder(t *testing.T) {
 			Connection: &util.RunnerConnectionConfig{},
 		},
 	}
+
+}
+
+func TestJobPool_QueueOrder(t *testing.T) {
+	initConfig(t)
 
 	p := NewJobPool(nil)
 
@@ -66,6 +71,8 @@ func TestJobPool_QueueOrder(t *testing.T) {
 }
 
 func TestJobPool_RunningJobsLifecycle(t *testing.T) {
+	initConfig(t)
+
 	p := NewJobPool(nil)
 
 	assert.Equal(t, 0, p.runningJobsCount())
@@ -92,6 +99,8 @@ func TestJobPool_RunningJobsLifecycle(t *testing.T) {
 }
 
 func TestJobPool_HasRunningJobs(t *testing.T) {
+	initConfig(t)
+
 	p := NewJobPool(nil)
 	assert.False(t, p.hasRunningJobs())
 
@@ -109,6 +118,8 @@ func TestJobPool_HasRunningJobs(t *testing.T) {
 }
 
 func TestJobPool_ApplyTerminatedJobs(t *testing.T) {
+	initConfig(t)
+
 	p := NewJobPool(nil)
 
 	// Running job: must be emergency stopped and removed.
@@ -178,6 +189,8 @@ func TestJobPool_CheckNewJobsExecutorErrorUsesTaskProjectID(t *testing.T) {
 // catch concurrent map/slice access, which otherwise aborts the process with
 // "fatal error: concurrent map read and map write".
 func TestJobPool_ConcurrentAccess(t *testing.T) {
+	initConfig(t)
+
 	p := NewJobPool(nil)
 
 	const workers = 8
