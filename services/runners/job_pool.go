@@ -91,6 +91,12 @@ type JobPool struct {
 	processing int32
 
 	keyInstaller db_lib.AccessKeyInstaller
+
+	// client is the shared HTTP client for all runner→server requests. It is
+	// created once so the transport's keep-alive pool reuses connections —
+	// creating a client per request leaks one ESTABLISHED connection per poll
+	// cycle (~2/sec) until the runner exhausts ephemeral ports (issue #3941).
+	client *http.Client
 }
 
 func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
@@ -99,6 +105,7 @@ func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
 		queue:        make([]*job, 0),
 		processing:   0,
 		keyInstaller: keyInstaller,
+		client:       newHTTPClient(),
 	}
 }
 
@@ -140,8 +147,6 @@ func (p *JobPool) Unregister() (err error) {
 		return fmt.Errorf("runner is not registered")
 	}
 
-	client := newHTTPClient()
-
 	url := util.Config.WebHost + "/api/internal/runners"
 
 	req, err := http.NewRequest("DELETE", url, nil)
@@ -149,10 +154,11 @@ func (p *JobPool) Unregister() (err error) {
 		return
 	}
 
-	resp, err := client.Do(req)
+	resp, err := p.client.Do(req)
 	if err != nil {
 		return
 	}
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode >= 400 && resp.StatusCode != 404 {
 		err = fmt.Errorf("encountered error while unregistering runner; server returned code %d", resp.StatusCode)
@@ -277,8 +283,6 @@ func (p *JobPool) sendProgress() (ok bool) {
 
 	logger := JobLogger{Context: "sending_progress"}
 
-	client := newHTTPClient()
-
 	url := util.Config.WebHost + "/api/internal/runners"
 
 	body := RunnerProgress{
@@ -310,7 +314,7 @@ func (p *JobPool) sendProgress() (ok bool) {
 
 	req.Header.Set("X-Runner-Token", util.Config.Runner.Token)
 
-	resp, err := client.Do(req)
+	resp, err := p.client.Do(req)
 	if err != nil {
 		logger.ActionError(err, "send request", "the server returned error")
 		return
@@ -391,8 +395,6 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		return
 	}
 
-	client := newHTTPClient()
-
 	url := util.Config.WebHost + "/api/internal/runners"
 
 	jsonBytes, err := json.Marshal(RunnerRegistration{
@@ -417,12 +419,14 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		return
 	}
 
-	resp, err := client.Do(req)
+	resp, err := p.client.Do(req)
 
 	if err != nil {
 		logger.ActionError(err, "send request", "unexpected error")
 		return
 	}
+
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != 200 {
 		logger.ActionError(fmt.Errorf("invalid status code"), "send request", p.getResponseErrorMessage(resp))
@@ -480,8 +484,6 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 			return
 		}
 	}
-
-	defer resp.Body.Close() //nolint:errcheck
 
 	ok = true
 	return
@@ -546,8 +548,6 @@ func (p *JobPool) checkNewJobs() {
 		return
 	}
 
-	client := newHTTPClient()
-
 	url := util.Config.WebHost + "/api/internal/runners"
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -559,7 +559,9 @@ func (p *JobPool) checkNewJobs() {
 
 	req.Header.Set("X-Runner-Token", util.Config.Runner.Token)
 
-	resp, err := client.Do(req)
+	resp, err := p.client.Do(req)
+
+	defer resp.Body.Close() //nolint:errcheck
 
 	if err != nil {
 		logger.ActionError(err, "send request", "unexpected error")
@@ -571,8 +573,6 @@ func (p *JobPool) checkNewJobs() {
 		logger.ActionError(fmt.Errorf("error status code"), "send request", p.getResponseErrorMessage(resp))
 		return
 	}
-
-	defer resp.Body.Close() //nolint:errcheck
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
