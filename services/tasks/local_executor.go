@@ -145,6 +145,18 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 		}
 	}
 
+	// Merge Survey Secret variables. They arrive via the Secret field (kept
+	// separate from Environment.JSON so they can be masked in logs and the
+	// re-run dialog) but must still be passed to the task, including Shell and
+	// Terraform tasks.
+	if t.Secret != "" {
+		extraSecretVars := make(map[string]any)
+		if err = json.Unmarshal([]byte(t.Secret), &extraSecretVars); err != nil {
+			return
+		}
+		maps.Copy(extraVars, extraSecretVars)
+	}
+
 	vars := make(map[string]any)
 	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
@@ -153,28 +165,10 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 }
 
 func (t *LocalExecutor) getEnvironmentExtraVarsJSON(username string, incomingVersion *string) (str string, err error) {
-	extraVars := make(map[string]any)
-	extraSecretVars := make(map[string]any)
-
-	if t.Environment.JSON != "" {
-		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
-		if err != nil {
-			return
-		}
+	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
+	if err != nil {
+		return
 	}
-	if t.Secret != "" {
-		err = json.Unmarshal([]byte(t.Secret), &extraSecretVars)
-		if err != nil {
-			return
-		}
-	}
-	t.Secret = "{}"
-
-	maps.Copy(extraVars, extraSecretVars)
-
-	vars := make(map[string]any)
-	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
-	extraVars["semaphore_vars"] = vars
 
 	ev, err := json.Marshal(extraVars)
 	if err != nil {
