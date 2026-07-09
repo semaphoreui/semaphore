@@ -26,6 +26,9 @@ func newTestJob(id int) *job {
 }
 
 func TestJobPool_QueueOrder(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
 	util.Config = &util.ConfigType{
 		Runner: &util.RunnerConfig{
 			Executor:   &util.ExecutorConfig{},
