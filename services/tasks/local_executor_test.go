@@ -9,7 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupExecutorConfig() {
+func setupExecutorConfig(t *testing.T) {
+	t.Helper()
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
 	if util.Config == nil {
 		util.Config = &util.ConfigType{}
 	}
