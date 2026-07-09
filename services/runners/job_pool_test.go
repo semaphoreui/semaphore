@@ -249,8 +249,9 @@ func TestJobPool_ReusesConnections(t *testing.T) {
 	util.Config = &util.ConfigType{
 		WebHost: srv.URL,
 		Runner: &util.RunnerConfig{
-			Token:    "test-token",
-			Executor: &util.ExecutorConfig{},
+			Token:      "test-token",
+			Executor:   &util.ExecutorConfig{},
+			Connection: &util.RunnerConnectionConfig{},
 		},
 	}
 
