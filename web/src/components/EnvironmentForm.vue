@@ -557,6 +557,7 @@ export default {
 
       extraVarTypes: [
         { text: 'String', value: 'string' },
+        { text: 'Number', value: 'number' },
         { text: 'List', value: 'list' },
         { text: 'Dict', value: 'dict' },
       ],
@@ -606,6 +607,8 @@ export default {
 
     extraVarValuePlaceholder(type) {
       switch (type) {
+        case 'number':
+          return '42';
         case 'list':
           return '["a", "b"]';
         case 'dict':
@@ -617,13 +620,16 @@ export default {
 
     // inferVarType maps a parsed JSON value to one of the editor's variable types
     // so that a value stored as a list/dict is shown with the right type in the
-    // table editor. Any scalar (string, number, boolean) is edited as a string.
+    // table editor. Numbers get the number type; other scalars are edited as strings.
     inferVarType(value) {
       if (Array.isArray(value)) {
         return 'list';
       }
       if (value !== null && typeof value === 'object') {
         return 'dict';
+      }
+      if (typeof value === 'number') {
+        return 'number';
       }
       return 'string';
     },
@@ -632,6 +638,13 @@ export default {
     // descriptive error (caught by save()/beforeSave) when the input is invalid.
     rowToVarValue(row) {
       switch (row.type) {
+        case 'number': {
+          const parsed = Number(row.value);
+          if (row.value === '' || Number.isNaN(parsed)) {
+            throw new Error(`Variable "${row.name}" must be a number, e.g. 42`);
+          }
+          return parsed;
+        }
         case 'list': {
           let parsed;
           try {

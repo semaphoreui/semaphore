@@ -1,5 +1,6 @@
 <template>
   <EditDialog
+    noEscape
     v-if="isAppsLoaded"
     :max-width="dialogWidth"
     v-model="dialog"
