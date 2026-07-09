@@ -464,6 +464,10 @@ export default {
             this.extraVars = null;
             return;
           }
+          if (extraVars === null || typeof extraVars !== 'object' || Array.isArray(extraVars)) {
+            this.extraVarsEditMode = 'json';
+            return;
+          }
           if (Object.keys(extraVars).some((x) => typeof extraVars[x] === 'object')) {
             this.extraVars = null;
           } else {
