@@ -22,7 +22,7 @@ func setupExecutorConfig(t *testing.T) {
 // "Secret" (delivered via LocalExecutor.Secret) are passed to Bash/Shell tasks,
 // alongside plain survey vars that arrive in Environment.JSON.
 func TestGetShellArgs_PassesSurveySecretVar(t *testing.T) {
-	setupExecutorConfig()
+	setupExecutorConfig(t)
 
 	exec := &LocalExecutor{
 		Template: db.Template{
@@ -45,7 +45,7 @@ func TestGetShellArgs_PassesSurveySecretVar(t *testing.T) {
 // TestGetEnvironmentExtraVars_MergesSecret checks the shared helper merges the
 // Secret field into the extra vars map used by Shell and Terraform tasks.
 func TestGetEnvironmentExtraVars_MergesSecret(t *testing.T) {
-	setupExecutorConfig()
+	setupExecutorConfig(t)
 
 	exec := &LocalExecutor{
 		Environment: db.Environment{JSON: `{"PLAIN_VAR":"hello"}`},
