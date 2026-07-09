@@ -64,6 +64,9 @@ type TaskPool struct {
 
 	// repoLock serializes git operations on shared repository directories
 	// across parallel tasks of the same template.
+	// Intentionally separate from LocalExecutorProvider.repoLock: TaskPool
+	// (server process) and LocalExecutorProvider (runner process) never
+	// operate on the same directories, so they need no shared lock.
 	repoLock *KeyLock
 
 	queueEvents chan PoolEvent
