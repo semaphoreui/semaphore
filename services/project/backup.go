@@ -511,11 +511,8 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			if n.TemplateID != 0 {
 				node.Template, _ = findNameByID[db.Template](n.TemplateID, b.templates)
 			}
-			if n.InventoryID != nil {
-				node.Inventory, _ = findNameByID[db.Inventory](*n.InventoryID, b.inventories)
-			}
-			if n.EnvironmentID != nil {
-				node.Environment, _ = findNameByID[db.Environment](*n.EnvironmentID, b.environments)
+			if n.TaskParams != nil && n.TaskParams.InventoryID != nil {
+				node.TaskParams.InventoryName, _ = findNameByID[db.Inventory](*n.TaskParams.InventoryID, b.inventories)
 			}
 			nodes[j] = node
 		}

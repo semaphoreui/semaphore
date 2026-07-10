@@ -1,5 +1,13 @@
 # Claude Code Instructions
 
+## Writing Plans
+
+All plans, tasks, researches for AI agents stored in folder AGENTS.
+
+Each plan has markdown-format and stored in folder AGENTS/plans/<version>.
+
+Plan can be split to tasks. Each task describes in details how to implement some part of some plan.
+
 ## Code Style
 
 1. Do not use global variables. Global variables are forbidden.

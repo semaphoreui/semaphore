@@ -480,12 +480,6 @@ func (e BackupWorkflow) Verify(backup *BackupFormat) error {
 		if n.Template != nil && getEntryByName[BackupTemplate](n.Template, backup.Templates) == nil {
 			return fmt.Errorf("template does not exist in templates[].name")
 		}
-		if n.Inventory != nil && getEntryByName[BackupInventory](n.Inventory, backup.Inventories) == nil {
-			return fmt.Errorf("inventory does not exist in inventories[].name")
-		}
-		if n.Environment != nil && getEntryByName[BackupEnvironment](n.Environment, backup.Environments) == nil {
-			return fmt.Errorf("environment does not exist in environments[].name")
-		}
 	}
 
 	return nil
@@ -503,8 +497,7 @@ func (e BackupWorkflow) Restore(b *BackupDB) error {
 		node := bn.WorkflowNode
 		node.WorkflowTemplateID = 0
 		node.TemplateID = 0
-		node.InventoryID = nil
-		node.EnvironmentID = nil
+		node.TaskParamsID = nil
 
 		if bn.Template != nil {
 			tpl := findEntityByName[db.Template](bn.Template, b.templates)
@@ -514,20 +507,12 @@ func (e BackupWorkflow) Restore(b *BackupDB) error {
 			node.TemplateID = tpl.ID
 		}
 
-		if bn.Inventory != nil {
-			inv := findEntityByName[db.Inventory](bn.Inventory, b.inventories)
-			if inv == nil {
-				return fmt.Errorf("inventory does not exist in inventories[].name")
+		if node.TaskParams != nil {
+			node.TaskParams.InventoryID = nil
+			inv := findEntityByName[db.Inventory](node.TaskParams.InventoryName, b.inventories)
+			if inv != nil {
+				node.TaskParams.InventoryID = &inv.ID
 			}
-			node.InventoryID = &inv.ID
-		}
-
-		if bn.Environment != nil {
-			env := findEntityByName[db.Environment](bn.Environment, b.environments)
-			if env == nil {
-				return fmt.Errorf("environment does not exist in environments[].name")
-			}
-			node.EnvironmentID = &env.ID
 		}
 
 		nodes[i] = node

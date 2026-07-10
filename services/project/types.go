@@ -138,23 +138,20 @@ type BackupRunner struct {
 }
 
 // BackupWorkflow wraps a workflow template for export/import. Nodes are wrapped
-// separately so their template/inventory/environment references can be stored
-// by name instead of by project-scoped ID. Edges (carried by the embedded
-// WorkflowTemplate) reference nodes by ID, which is preserved verbatim and
-// remapped on restore.
+// separately so their template reference can be stored by name instead of by
+// project-scoped ID. Edges (carried by the embedded WorkflowTemplate) reference
+// nodes by ID, which is preserved verbatim and remapped on restore.
 type BackupWorkflow struct {
 	db.WorkflowTemplate
 	Nodes []BackupWorkflowNode `backup:"nodes"`
 }
 
-// BackupWorkflowNode wraps a workflow node, replacing its template_id,
-// inventory_id and environment_id with name references that are portable
-// across projects.
+// BackupWorkflowNode wraps a workflow node, replacing its template_id with a
+// name reference that is portable across projects. The task params inventory
+// is carried by name via TaskParams.InventoryName, like schedules do.
 type BackupWorkflowNode struct {
 	db.WorkflowNode
-	Template    *string `backup:"template"`
-	Inventory   *string `backup:"inventory"`
-	Environment *string `backup:"environment"`
+	Template *string `backup:"template"`
 }
 
 type BackupEntry interface {

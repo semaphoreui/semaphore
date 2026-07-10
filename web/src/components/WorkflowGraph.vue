@@ -212,7 +212,8 @@ export default {
           kind,
           convergence_mode: 'all',
           template_id: null,
-          limit: [],
+          // Approval nodes must not carry task params (backend validation).
+          task_params: kind === 'task' ? {} : null,
         };
       // Note nodes have no ports so they can not be connected on the canvas.
       const ports = kind === 'note' ? 0 : 1;
