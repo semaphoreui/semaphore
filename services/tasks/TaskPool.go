@@ -62,6 +62,13 @@ type TaskPool struct {
 	keyInstallationService server.AccessKeyInstallationService
 	signer                 jwt.Signer
 
+	// repoLock serializes git operations on shared repository directories
+	// across parallel tasks of the same template.
+	// Intentionally separate from LocalExecutorProvider.repoLock: TaskPool
+	// (server process) and LocalExecutorProvider (runner process) never
+	// operate on the same directories, so they need no shared lock.
+	repoLock *KeyLock
+
 	queueEvents chan PoolEvent
 
 	// state provides pluggable storage for Queue, active projects, running tasks and aliases
@@ -107,6 +114,7 @@ func CreateTaskPool(
 		logWriteService:        logWriteService,
 		keyInstallationService: keyInstallationService,
 		signer:                 signer,
+		repoLock:               &KeyLock{},
 		stop:                   make(chan struct{}),
 		reconcileDone:          make(chan struct{}),
 	}
@@ -547,6 +555,7 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 			Logger:       app.SetLogger(tr),
 			App:          app,
 			KeyInstaller: p.keyInstallationService,
+			RepoLock:     p.repoLock,
 		}
 	}
 	tr.job = job
@@ -1033,6 +1042,7 @@ func (p *TaskPool) AddTask(
 			Logger:       app.SetLogger(taskRunner),
 			App:          app,
 			KeyInstaller: p.keyInstallationService,
+			RepoLock:     p.repoLock,
 		}
 	}
 
