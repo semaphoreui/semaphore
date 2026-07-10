@@ -1,112 +1,99 @@
 <template>
   <div>
-    <v-text-field
-        v-model="item.message"
-        :label="$t('messageOptional')"
+    <v-text-field v-model="item.message" :label="$t('messageOptional')" outlined dense />
+
+    <div v-for="v in template.survey_vars || []" :key="v.name">
+      <v-text-field
+        v-if="v.type === 'secret'"
+        :label="v.title"
+        :hint="v.description"
+        v-model="editedSecretEnvironment[v.name]"
+        :required="v.required"
+        class="masked-secret-input"
+        :rules="[(val) => !v.required || !!val || v.title + $t('isRequired')]"
         outlined
         dense
-    />
-
-    <div v-for="(v) in template.survey_vars || []" :key="v.name">
-
-      <v-text-field
-          v-if="v.type === 'secret'"
-          :label="v.title"
-          :hint="v.description"
-          v-model="editedSecretEnvironment[v.name]"
-          :required="v.required"
-          class="masked-secret-input"
-          :rules="[
-            val => !v.required || !!val || v.title + $t('isRequired'),
-          ]"
-          outlined
-          dense
       />
 
       <v-select
-          clearable
-          v-else-if="v.type === 'enum'"
-          :label="v.title + (v.required ? ' *' : '')"
-          :hint="v.description"
-          v-model="editedEnvironment[v.name]"
-          :required="v.required"
-          :rules="[
-          val => !v.required || val != null || v.title + ' ' + $t('isRequired')
-        ]"
-          :items="v.values"
-          item-text="name"
-          item-value="value"
-          outlined
-          dense
+        clearable
+        v-else-if="v.type === 'enum'"
+        :label="v.title + (v.required ? ' *' : '')"
+        :hint="v.description"
+        v-model="editedEnvironment[v.name]"
+        :required="v.required"
+        :rules="[(val) => !v.required || val != null || v.title + ' ' + $t('isRequired')]"
+        :items="v.values"
+        item-text="name"
+        item-value="value"
+        outlined
+        dense
       />
 
       <v-text-field
-          v-else
-          :label="v.title + (v.required ? ' *' : '')"
-          :hint="v.description"
-          v-model="editedEnvironment[v.name]"
-          :required="v.required"
-          :rules="[
-          val => !v.required || !!val || v.title + ' ' + $t('isRequired'),
-          val => !val || v.type !== 'int' || /^\d+$/.test(val) ||
-          v.title + ' ' + $t('mustBeInteger'),
+        v-else
+        :label="v.title + (v.required ? ' *' : '')"
+        :hint="v.description"
+        v-model="editedEnvironment[v.name]"
+        :required="v.required"
+        :rules="[
+          (val) => !v.required || !!val || v.title + ' ' + $t('isRequired'),
+          (val) =>
+            !val || v.type !== 'int' || /^\d+$/.test(val) || v.title + ' ' + $t('mustBeInteger'),
         ]"
-          outlined
-          dense
+        outlined
+        dense
       />
     </div>
 
     <v-text-field
-        v-model="git_branch"
-        :label="fieldLabel('branch')"
-        outlined
-        dense
-        required
-        v-if="
-        needField('allow_override_branch')
-        && template.allow_override_branch_in_task"
+      v-model="git_branch"
+      :label="fieldLabel('branch')"
+      outlined
+      dense
+      required
+      v-if="needField('allow_override_branch') && template.allow_override_branch_in_task"
     />
 
     <v-autocomplete
-        v-model="inventory_id"
-        :label="fieldLabel('inventory')"
-        :items="inventory"
-        item-value="id"
-        item-text="name"
-        outlined
-        dense
-        required
-        v-if="inventory != null && needInventory"
+      v-model="inventory_id"
+      :label="fieldLabel('inventory')"
+      :items="inventory"
+      item-value="id"
+      item-text="name"
+      outlined
+      dense
+      required
+      v-if="inventory != null && needInventory"
     ></v-autocomplete>
 
     <v-skeleton-loader
-        v-else-if="needInventory"
-        type="card"
-        height="46"
-        style="margin-bottom: 16px; margin-top: 4px;"
+      v-else-if="needInventory"
+      type="card"
+      height="46"
+      style="margin-bottom: 16px; margin-top: 4px"
     ></v-skeleton-loader>
 
     <TaskParamsAnsibleForm
-        v-if="template.app === 'ansible'"
-        v-model="item.params"
-        :app="template.app"
-        :template-params="template.task_params || {}"
+      v-if="template.app === 'ansible'"
+      v-model="item.params"
+      :app="template.app"
+      :template-params="template.task_params || {}"
     />
 
     <TaskParamsTerraformForm
-        v-else-if="['terraform', 'tofu', 'terragrunt'].includes(template.app)"
-        v-model="item.params"
-        :app="template.app"
-        :template-params="template.task_params || {}"
+      v-else-if="['terraform', 'tofu', 'terragrunt'].includes(template.app)"
+      v-model="item.params"
+      :app="template.app"
+      :template-params="template.task_params || {}"
     />
 
     <ArgsPicker
-        v-if="template.allow_override_args_in_task"
-        :vars="args"
-        title="CLI args"
-        @change="setArgs"
+      v-if="template.allow_override_args_in_task"
+      :vars="args"
+      title="CLI args"
+      @change="setArgs"
     />
-
   </div>
 </template>
 <script>
@@ -236,7 +223,6 @@ export default {
   },
 
   methods: {
-
     setArgs(args) {
       this.item.arguments = JSON.stringify(args || []);
     },
@@ -283,22 +269,26 @@ export default {
     async afterLoadData() {
       this.refreshItem();
 
-      [
-        this.buildTasks,
-        this.inventory,
-      ] = await Promise.all([
+      [this.buildTasks, this.inventory] = await Promise.all([
+        this.template.type === 'deploy'
+          ? (
+            await axios({
+              keys: 'get',
+              url: `/api/project/${this.template.project_id}/templates/${this.template.build_template_id}/tasks?status=success&limit=20`,
+              responseType: 'json',
+            })
+          ).data.filter((task) => task.status === 'success')
+          : [],
 
-        this.template.type === 'deploy' ? (await axios({
-          keys: 'get',
-          url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks?status=success&limit=20`,
-          responseType: 'json',
-        })).data.filter((task) => task.status === 'success') : [],
-
-        this.needInventory ? (await axios({
-          keys: 'get',
-          url: this.getInventoryUrl(),
-          responseType: 'json',
-        })).data : [],
+        this.needInventory
+          ? (
+            await axios({
+              keys: 'get',
+              url: this.getInventoryUrl(),
+              responseType: 'json',
+            })
+          ).data
+          : [],
       ]);
 
       ['tags', 'limit', 'skip_tags'].forEach((param) => {
@@ -309,10 +299,13 @@ export default {
 
       const defaultVars = (this.template.survey_vars || [])
         .filter((s) => s.default_value)
-        .reduce((res, curr) => ({
-          ...res,
-          [curr.name]: curr.default_value,
-        }), {});
+        .reduce(
+          (res, curr) => ({
+            ...res,
+            [curr.name]: curr.default_value,
+          }),
+          {},
+        );
 
       this.editedEnvironment = {
         ...defaultVars,
