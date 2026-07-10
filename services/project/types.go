@@ -152,6 +152,9 @@ type BackupWorkflow struct {
 type BackupWorkflowNode struct {
 	db.WorkflowNode
 	Template *string `backup:"template"`
+	// Deprecated: pre-2.19.11 backups stored per-node overrides by name here.
+	Inventory   *string `backup:"inventory"`
+	Environment *string `backup:"environment"`
 }
 
 type BackupEntry interface {
