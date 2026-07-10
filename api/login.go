@@ -43,9 +43,9 @@ func convertEntryToMap(entity *ldap.Entry) map[string]any {
 	return res
 }
 
-func tryFindLDAPUser(username, password string) (*db.User, error) {
+func tryFindLDAPUser(username, password string) (*db.User, string, error) {
 	if !util.Config.LdapEnable {
-		return nil, fmt.Errorf("LDAP not configured")
+		return nil, "", fmt.Errorf("LDAP not configured")
 	}
 
 	var l *ldap.Conn
@@ -59,13 +59,13 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer l.Close() //nolint:errcheck
 
 	// First bind with a read only user
 	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Filter for the given username
@@ -79,26 +79,26 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if len(sr.Entries) < 1 {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	if len(sr.Entries) > 1 {
-		return nil, fmt.Errorf("too many entries returned")
+		return nil, "", fmt.Errorf("too many entries returned")
 	}
 
 	// Bind as the user
 	userDN := sr.Entries[0].DN
 	if err = l.Bind(userDN, password); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Second time bind as read only user
 	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Get user info
@@ -112,11 +112,11 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 
 	sr, err = l.Search(searchRequest)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if len(sr.Entries) <= 0 {
-		return nil, fmt.Errorf("ldap search returned no entries")
+		return nil, "", fmt.Errorf("ldap search returned no entries")
 	}
 
 	entry := convertEntryToMap(sr.Entries[0])
@@ -125,7 +125,7 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 
 	claims, err := parseClaims(entry, util.Config.LdapMappings)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	ldapUser := db.User{
@@ -141,11 +141,11 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	if err != nil {
 		jsonBytes, _ := json.Marshal(ldapUser)
 		log.Error("LDAP returned incorrect user data: " + string(jsonBytes))
-		return nil, err
+		return nil, "", err
 	}
 
 	log.Info("User " + ldapUser.Name + " with email " + ldapUser.Email + " authorized via LDAP correctly")
-	return &ldapUser, nil
+	return &ldapUser, userDN, nil
 }
 
 // createSession creates session for passed user and stores session details
@@ -238,23 +238,15 @@ func loginByPassword(store db.Store, login string, password string) (user db.Use
 	return
 }
 
-func loginByLDAP(store db.Store, ldapUser db.User) (user db.User, err error) {
-	user, err = store.GetUserByLoginOrEmail(ldapUser.Username, ldapUser.Email)
-
-	if errors.Is(err, db.ErrNotFound) {
-		user, err = store.CreateUserWithoutPassword(ldapUser)
-	}
-
-	if err != nil {
-		return
-	}
-
-	if !user.External {
-		err = db.ErrNotFound
-		return
-	}
-
-	return
+func loginByLDAP(store db.Store, ldapUser db.User, userDN string) (db.User, error) {
+	return resolveExternalUser(store, externalUserProfile{
+		Provider:        "ldap",
+		ExternalUID:     userDN,
+		Username:        ldapUser.Username,
+		Name:            ldapUser.Name,
+		Email:           ldapUser.Email,
+		MatchByUsername: true,
+	})
 }
 
 type loginMetadataOidcProvider struct {
@@ -339,9 +331,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	var ldapUser *db.User
+	var ldapUserDN string
 
 	if util.Config.LdapEnable {
-		ldapUser, err = tryFindLDAPUser(login.Auth, login.Password)
+		ldapUser, ldapUserDN, err = tryFindLDAPUser(login.Auth, login.Password)
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"context": "ldap",
@@ -357,7 +350,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if ldapUser == nil {
 		user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
 	} else {
-		user, err = loginByLDAP(helpers.Store(r), *ldapUser)
+		user, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN)
 	}
 
 	if err != nil {
