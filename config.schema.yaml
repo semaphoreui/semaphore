@@ -171,6 +171,17 @@ properties:
   # Feature toggles
   # ==========================================================================
   password_login_disable:       { type: boolean }
+  external_auth_email_matching:
+    type: string
+    enum: [auto, always, never]
+    default: auto
+    description: >
+      Whether an LDAP/OIDC login may be linked to an existing user by email when
+      no external identity record exists yet. "auto" links only external users
+      without any linked identity (one-time adoption of pre-2.20 accounts),
+      "always" links any external user, "never" matches strictly by provider ID.
+      Local (password) accounts are never matched. Provider key "ldap" is
+      reserved for the LDAP integration.
   non_admin_can_create_project: { type: boolean }
   use_remote_runner:            { type: boolean }
 
