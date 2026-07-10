@@ -21,9 +21,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		projectID, err := helpers.GetIntParam("project_id", w, r)
 
 		if err != nil {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "Invalid project ID",
-			})
+			// Header already written by GetIntParam
 			return
 		}
 

@@ -73,6 +73,11 @@ func (t *LocalExecutor) cloneInventoryRepo(keyInstaller db_lib.AccessKeyInstalle
 		Client:     db_lib.CreateDefaultGitClient(keyInstaller),
 	}
 
+	// Parallel tasks of the same template share this inventory directory —
+	// serialize the pull/remove/clone sequence, same as the main repo.
+	unlock := t.RepoLock.Lock(repo.GetFullPath())
+	defer unlock()
+
 	// Try to pull the repo before trying to clone it
 	if repo.CanBePulled() {
 		err := repo.Pull()

@@ -39,6 +39,13 @@ type LocalExecutor struct {
 
 	KeyInstaller db_lib.AccessKeyInstaller
 
+	// RepoLock serializes git operations on the shared per-template repository
+	// directory. Tasks of the same template may run in parallel
+	// (AllowParallelTasks) but share one working copy — concurrent `git pull`
+	// on it is a race. Wired by TaskPool (local) and LocalExecutorProvider
+	// (runner). Must be non-nil when Prepare is called for a git repository.
+	RepoLock *KeyLock
+
 	WorkflowArtifacts map[string]any
 
 	// Prepared state — populated by Prepare(), consumed by Run(). Lifted out of Run()
@@ -145,6 +152,18 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 		}
 	}
 
+	// Merge Survey Secret variables. They arrive via the Secret field (kept
+	// separate from Environment.JSON so they can be masked in logs and the
+	// re-run dialog) but must still be passed to the task, including Shell and
+	// Terraform tasks.
+	if t.Secret != "" {
+		extraSecretVars := make(map[string]any)
+		if err = json.Unmarshal([]byte(t.Secret), &extraSecretVars); err != nil {
+			return
+		}
+		maps.Copy(extraVars, extraSecretVars)
+	}
+
 	vars := make(map[string]any)
 	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
@@ -153,28 +172,10 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 }
 
 func (t *LocalExecutor) getEnvironmentExtraVarsJSON(username string, incomingVersion *string) (str string, err error) {
-	extraVars := make(map[string]any)
-	extraSecretVars := make(map[string]any)
-
-	if t.Environment.JSON != "" {
-		err = json.Unmarshal([]byte(t.Environment.JSON), &extraVars)
-		if err != nil {
-			return
-		}
+	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
+	if err != nil {
+		return
 	}
-	if t.Secret != "" {
-		err = json.Unmarshal([]byte(t.Secret), &extraSecretVars)
-		if err != nil {
-			return
-		}
-	}
-	t.Secret = "{}"
-
-	maps.Copy(extraVars, extraSecretVars)
-
-	vars := make(map[string]any)
-	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
-	extraVars["semaphore_vars"] = vars
 
 	ev, err := json.Marshal(extraVars)
 	if err != nil {
@@ -923,12 +924,7 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 			return err
 		}
 	} else {
-		if err := t.updateRepository(); err != nil {
-			t.Log("Failed updating repository: " + err.Error())
-			return err
-		}
-		if err := t.checkoutRepository(); err != nil {
-			t.Log("Failed to checkout repository to required commit: " + err.Error())
+		if err := t.updateAndCheckoutRepository(); err != nil {
 			return err
 		}
 	}
@@ -980,12 +976,7 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 			return err
 		}
 	} else {
-		if err := t.updateRepository(); err != nil {
-			t.Log("Failed updating repository: " + err.Error())
-			return err
-		}
-		if err := t.checkoutRepository(); err != nil {
-			t.Log("Failed to checkout repository to required commit: " + err.Error())
+		if err := t.updateAndCheckoutRepository(); err != nil {
 			return err
 		}
 	}
@@ -1003,6 +994,30 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 
 	if err := t.installVaultKeyFiles(); err != nil {
 		t.Log("Failed to install vault password files: " + err.Error())
+		return err
+	}
+
+	return nil
+}
+
+// updateAndCheckoutRepository runs the pull/clone + checkout sequence as one
+// critical section per repository directory, so parallel tasks of the same
+// template cannot run concurrent git operations on the shared working copy.
+//
+// ponytail: the lock covers git operations only; parallel tasks pinned to
+// different commits still share the working tree afterwards — per-task
+// worktrees if that ever matters.
+func (t *LocalExecutor) updateAndCheckoutRepository() error {
+	unlock := t.RepoLock.Lock(t.Repository.GetFullPath(t.Template.ID))
+	defer unlock()
+
+	if err := t.updateRepository(); err != nil {
+		t.Log("Failed updating repository: " + err.Error())
+		return err
+	}
+
+	if err := t.checkoutRepository(); err != nil {
+		t.Log("Failed to checkout repository to required commit: " + err.Error())
 		return err
 	}
 

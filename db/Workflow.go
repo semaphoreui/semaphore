@@ -54,9 +54,8 @@ type WorkflowNode struct {
 	ApprovalTimeout *int                    `db:"approval_timeout" json:"approval_timeout,omitempty" backup:"approval_timeout"`
 	ApprovalMessage *string                 `db:"approval_message" json:"approval_message,omitempty" backup:"approval_message"`
 
-	InventoryID   *int             `db:"inventory_id" json:"inventory_id,omitempty" backup:"-"`
-	EnvironmentID *int             `db:"environment_id" json:"environment_id,omitempty" backup:"-"`
-	Limit         StringArrayField `db:"limit" json:"limit,omitempty" backup:"limit"`
+	TaskParamsID *int        `db:"task_params_id" json:"-" backup:"-"`
+	TaskParams   *TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`
 
 	Note *string `db:"note" json:"note,omitempty" backup:"note"`
 
