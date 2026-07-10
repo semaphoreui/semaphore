@@ -574,7 +574,7 @@ type ConfigType struct {
 	JWT *JWTConfig `json:"jwt,omitempty"`
 
 	// feature switches
-	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
+	PasswordLoginDisable bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
 	// ExternalAuthEmailMatching controls whether an LDAP/OIDC login may be
 	// linked to an existing user by email when no external identity record
 	// exists yet:
@@ -585,7 +585,7 @@ type ConfigType struct {
 	//   "never"          - identities are matched strictly by provider ID.
 	// Local (password) accounts are never matched regardless of the mode.
 	ExternalAuthEmailMatching string `json:"external_auth_email_matching,omitempty" env:"SEMAPHORE_EXTERNAL_AUTH_EMAIL_MATCHING" rule:"^(auto|always|never)?$" default:"auto"`
-	NonAdminCanCreateProject bool `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
+	NonAdminCanCreateProject  bool   `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
 
 	UseRemoteRunner bool `json:"use_remote_runner,omitempty" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
