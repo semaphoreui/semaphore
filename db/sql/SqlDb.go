@@ -95,6 +95,7 @@ func (d *SqlDbConnection) Connect() {
 	d.sql.AddTableWithName(db.User{}, "user").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.Session{}, "session").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.TaskParams{}, "project__task_params").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.UserExternalIdentity{}, "user__external_identity").SetKeys(true, "id")
 
 	if d.GetDialect() == util.DbDriverSQLite {
 		_, err = d.Exec("PRAGMA foreign_keys = ON")

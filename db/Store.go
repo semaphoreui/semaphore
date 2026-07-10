@@ -396,6 +396,14 @@ type TokenManager interface {
 	DeleteAPIToken(userID int, tokenID string) error
 }
 
+// ExternalIdentityManager handles external identity-related operations
+type ExternalIdentityManager interface {
+	GetExternalIdentity(provider string, externalUID string) (UserExternalIdentity, error)
+	GetUserExternalIdentities(userID int) ([]UserExternalIdentity, error)
+	CreateExternalIdentity(identity UserExternalIdentity) (UserExternalIdentity, error)
+	DeleteExternalIdentity(userID int, provider string) error
+}
+
 // TaskManager handles task-related operations
 type TaskManager interface {
 	CreateTask(task Task, maxTasks int) (Task, error)
@@ -541,6 +549,7 @@ type Store interface {
 	IntegrationManager
 	SessionManager
 	TokenManager
+	ExternalIdentityManager
 	TaskManager
 	ScheduleManager
 	ViewManager
@@ -707,6 +716,12 @@ var SessionProps = ObjectProps{
 var TokenProps = ObjectProps{
 	TableName:         "user__token",
 	Type:              reflect.TypeOf(APIToken{}),
+	PrimaryColumnName: "id",
+}
+
+var UserExternalIdentityProps = ObjectProps{
+	TableName:         "user__external_identity",
+	Type:              reflect.TypeOf(UserExternalIdentity{}),
 	PrimaryColumnName: "id",
 }
 
