@@ -503,6 +503,16 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	linkMode := r.URL.Query().Get("link") != ""
+
+	if linkMode {
+		session, ok := getSession(r)
+		if !ok || !session.IsVerified() {
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+	}
+
 	returnValue := r.URL.Query().Get("return")
 	if returnValue != "" {
 		if config.ReturnViaState {
@@ -518,7 +528,7 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
-	state := generateStateOauthCookie(w, returnPath)
+	state := generateStateOauthCookie(w, returnPath, linkMode)
 	u := oauth.AuthCodeURL(state)
 	http.Redirect(w, r, u, http.StatusTemporaryRedirect)
 }
@@ -526,9 +536,10 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 type oAuthState struct {
 	Csrf   string `json:"csrf"`
 	Return string `json:"return"`
+	Link   bool   `json:"link,omitempty"`
 }
 
-func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
+func generateStateOauthCookie(w http.ResponseWriter, returnPath string, link bool) string {
 
 	expiration := tz.Now().Add(365 * 24 * time.Hour)
 
@@ -541,6 +552,7 @@ func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
 	state := oAuthState{
 		Csrf:   base64.URLEncoding.EncodeToString(b),
 		Return: returnPath,
+		Link:   link,
 	}
 
 	// Secure flag is not set to allow Semaphore to be used without HTTPS inside private networks
@@ -789,6 +801,35 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	if claims.sub == "" {
 		log.Error(fmt.Errorf("oidc provider %s returned no sub claim", pid))
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	if stateData.Link {
+		session, ok := getSession(r)
+		if !ok || !session.IsVerified() {
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+
+		sessionUser, err2 := helpers.Store(r).GetUser(session.UserID)
+		if err2 != nil {
+			log.Error(err2.Error())
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+
+		if err2 := linkExternalIdentity(helpers.Store(r), sessionUser, pid, claims.sub); err2 != nil {
+			log.WithError(err2).WithFields(log.Fields{
+				"user_id":  sessionUser.ID,
+				"provider": pid,
+				"context":  "oidc_link",
+			}).Error("Failed to link external identity")
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+
+		redirectURL, _ := url.JoinPath(util.Config.WebHost, "/")
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 		return
 	}
 

@@ -118,9 +118,52 @@ func matchExternalUserByEmail(store db.Store, p externalUserProfile) (db.User, e
 	return user, nil
 }
 
+// linkExternalIdentity attaches (provider, externalUID) to user. Proof of
+// ownership is the caller's job (active verified session + full auth flow
+// at the provider) - email is never proof, see Grafana CVE-2023-3128.
+func linkExternalIdentity(store db.Store, user db.User, provider string, externalUID string) error {
+	if externalUID == "" {
+		return errors.New("external identity: empty external UID")
+	}
+
+	existing, err := store.GetExternalIdentity(provider, externalUID)
+	switch {
+	case err == nil:
+		if existing.UserID == user.ID {
+			return nil // already linked - idempotent
+		}
+		return errors.New("external identity is already linked to another account")
+	case !errors.Is(err, db.ErrNotFound):
+		return err
+	}
+
+	identities, err := store.GetUserExternalIdentities(user.ID)
+	if err != nil {
+		return err
+	}
+	for _, identity := range identities {
+		if identity.Provider == provider {
+			return errors.New("account already has an identity for this provider, unlink it first")
+		}
+	}
+
+	_, err = store.CreateExternalIdentity(db.UserExternalIdentity{
+		UserID:      user.ID,
+		Provider:    provider,
+		ExternalUID: externalUID,
+	})
+	return err
+}
+
 // syncExternalUserAttrs updates name/email from the provider on each login,
 // so an email change at the IdP is reflected instead of orphaning the account.
 func syncExternalUserAttrs(store db.Store, user db.User, p externalUserProfile) (db.User, error) {
+	// A linked local account keeps its local profile - the IdP is not
+	// authoritative for non-External users.
+	if !user.External {
+		return user, nil
+	}
+
 	changed := false
 	if p.Email != "" && user.Email != p.Email {
 		user.Email = p.Email

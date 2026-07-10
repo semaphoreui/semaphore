@@ -156,3 +156,79 @@ func TestResolveExternalUser_NeverAdoptsLocalUser(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, ids)
 }
+
+func TestLinkExternalIdentity_LocalUser(t *testing.T) {
+	store := setupIdentityTest(t, "never")
+
+	local, err := store.CreateUser(db.UserWithPwd{
+		Pwd:  "verystrongpassword1",
+		User: db.User{Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com"},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, linkExternalIdentity(store, local, "keycloak", "sub-1"))
+
+	// Idempotent for the same user.
+	require.NoError(t, linkExternalIdentity(store, local, "keycloak", "sub-1"))
+
+	ids, err := store.GetUserExternalIdentities(local.ID)
+	require.NoError(t, err)
+	require.Len(t, ids, 1)
+
+	// User stays local: password login must still work.
+	fresh, err := store.GetUser(local.ID)
+	require.NoError(t, err)
+	assert.False(t, fresh.External)
+
+	// After linking, SSO login resolves to the local user...
+	resolved, err := resolveExternalUser(store, externalUserProfile{
+		Provider: "keycloak", ExternalUID: "sub-1",
+		Username: "x", Name: "IdP Name", Email: "idp@example.com",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, local.ID, resolved.ID)
+
+	// ...and the IdP does NOT overwrite the local profile.
+	fresh, err = store.GetUser(local.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "jdoe@example.com", fresh.Email)
+	assert.Equal(t, "John Doe", fresh.Name)
+}
+
+func TestLinkExternalIdentity_Conflicts(t *testing.T) {
+	store := setupIdentityTest(t, "never")
+
+	alice, err := store.CreateUserWithoutPassword(db.User{
+		Username: "alice", Name: "Alice", Email: "alice@example.com", External: true,
+	})
+	require.NoError(t, err)
+	bob, err := store.CreateUserWithoutPassword(db.User{
+		Username: "bob", Name: "Bob", Email: "bob@example.com", External: true,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, linkExternalIdentity(store, alice, "keycloak", "sub-a"))
+
+	// UID owned by another user.
+	assert.Error(t, linkExternalIdentity(store, bob, "keycloak", "sub-a"))
+
+	// Second identity for the same provider.
+	assert.Error(t, linkExternalIdentity(store, alice, "keycloak", "sub-a2"))
+}
+
+func TestSyncExternalUserAttrs_SkipsLocalUsers(t *testing.T) {
+	store := setupIdentityTest(t, "never")
+
+	local, err := store.CreateUser(db.UserWithPwd{
+		Pwd:  "verystrongpassword1",
+		User: db.User{Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com"},
+	})
+	require.NoError(t, err)
+
+	synced, err := syncExternalUserAttrs(store, local, externalUserProfile{
+		Provider: "keycloak", ExternalUID: "sub-1",
+		Email: "idp@example.com", Name: "IdP Name",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "jdoe@example.com", synced.Email)
+}

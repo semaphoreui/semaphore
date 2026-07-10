@@ -112,7 +112,7 @@ func TestGenerateStateOauthCookie(t *testing.T) {
 	w := httptest.NewRecorder()
 	returnPath := "/dashboard"
 
-	stateStr := generateStateOauthCookie(w, returnPath)
+	stateStr := generateStateOauthCookie(w, returnPath, false)
 
 	// Test 1: Verify returned state is valid base64
 	stateBytes, err := base64.URLEncoding.DecodeString(stateStr)
@@ -166,7 +166,7 @@ func TestGenerateStateOauthCookieEmptyReturnPath(t *testing.T) {
 	w := httptest.NewRecorder()
 	returnPath := ""
 
-	stateStr := generateStateOauthCookie(w, returnPath)
+	stateStr := generateStateOauthCookie(w, returnPath, false)
 
 	// Decode and verify state
 	stateBytes, err := base64.URLEncoding.DecodeString(stateStr)
@@ -185,8 +185,8 @@ func TestGenerateStateOauthCookieUniqueness(t *testing.T) {
 	w1 := httptest.NewRecorder()
 	w2 := httptest.NewRecorder()
 
-	state1Str := generateStateOauthCookie(w1, "/path1")
-	state2Str := generateStateOauthCookie(w2, "/path2")
+	state1Str := generateStateOauthCookie(w1, "/path1", false)
+	state2Str := generateStateOauthCookie(w2, "/path2", false)
 
 	// Decode states
 	state1Bytes, err1 := base64.URLEncoding.DecodeString(state1Str)
