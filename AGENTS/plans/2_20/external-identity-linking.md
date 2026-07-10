@@ -1053,12 +1053,354 @@ git commit -m "feat(auth): admin API to list and unlink external identities"
 
 ---
 
+---
+
+## Phase 2: self-service linking (GitLab model)
+
+Tasks 1–7 are implemented and merged into the branch (PR #4025). Phase 2 adds what no product except GitLab has: a logged-in user links an external identity to their CURRENT account. Proof of ownership is never email — it is a full OAuth flow to the IdP (OIDC) or LDAP bind with the user's directory credentials (LDAP), matching the industry pattern found in research (GitLab: OAuth flow under session; Gitea: password confirmation; email matching is nowhere accepted as proof).
+
+Design decisions (settled in research, do not relitigate):
+- **Local users may hold identities after explicit linking.** Their password login keeps working (`External` stays false); they can additionally log in via the linked provider. This is GitLab semantics.
+- **IdP never overwrites a local profile**: attribute sync (name/email) applies to `External` users only.
+- **One identity per provider per user** (GitLab rule): linking a second identity for the same provider requires unlinking first (`DELETE /api/users/{id}/identities/{provider}` already exists).
+- **Idempotent**: re-linking the same (provider, uid) to the same user succeeds silently.
+- **Conflict**: (provider, uid) already linked to another user → refused.
+- **MFA-verified session required** for link operations (`session.IsVerified()`).
+
+### Task 8: OIDC link flow under active session
+
+**Files:**
+- Modify: `api/login_identity.go` (shared `linkExternalIdentity` helper + External-only attr sync)
+- Modify: `api/login.go` (`oAuthState`, `generateStateOauthCookie`, `oidcLogin`, `oidcRedirect`)
+- Test: `api/login_identity_test.go` (extend)
+
+**Interfaces:**
+- Consumes: `getSession(r)` (`api/auth.go:21`), `session.IsVerified()` (`db/Session.go:27`), store identity methods (Task 2), `resolveExternalUser` internals.
+- Produces (used by Task 9):
+
+```go
+// linkExternalIdentity attaches (provider, externalUID) to user.
+// Idempotent for the same user; refuses a UID owned by another user and
+// a second identity for the same provider.
+func linkExternalIdentity(store db.Store, user db.User, provider string, externalUID string) error
+```
+
+- [ ] **Step 1: Write the failing tests** (append to `api/login_identity_test.go`)
+
+```go
+func TestLinkExternalIdentity_LocalUser(t *testing.T) {
+	store := setupIdentityTest(t, "never")
+
+	local, err := store.CreateUser(db.UserWithPwd{
+		Pwd:  "verystrongpassword1",
+		User: db.User{Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com"},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, linkExternalIdentity(store, local, "keycloak", "sub-1"))
+
+	// Idempotent for the same user.
+	require.NoError(t, linkExternalIdentity(store, local, "keycloak", "sub-1"))
+
+	ids, err := store.GetUserExternalIdentities(local.ID)
+	require.NoError(t, err)
+	require.Len(t, ids, 1)
+
+	// User stays local: password login must still work.
+	fresh, err := store.GetUser(local.ID)
+	require.NoError(t, err)
+	assert.False(t, fresh.External)
+
+	// After linking, SSO login resolves to the local user...
+	resolved, err := resolveExternalUser(store, externalUserProfile{
+		Provider: "keycloak", ExternalUID: "sub-1",
+		Username: "x", Name: "IdP Name", Email: "idp@example.com",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, local.ID, resolved.ID)
+
+	// ...and the IdP does NOT overwrite the local profile.
+	fresh, err = store.GetUser(local.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "jdoe@example.com", fresh.Email)
+	assert.Equal(t, "John Doe", fresh.Name)
+}
+
+func TestLinkExternalIdentity_Conflicts(t *testing.T) {
+	store := setupIdentityTest(t, "never")
+
+	alice, err := store.CreateUserWithoutPassword(db.User{
+		Username: "alice", Name: "Alice", Email: "alice@example.com", External: true,
+	})
+	require.NoError(t, err)
+	bob, err := store.CreateUserWithoutPassword(db.User{
+		Username: "bob", Name: "Bob", Email: "bob@example.com", External: true,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, linkExternalIdentity(store, alice, "keycloak", "sub-a"))
+
+	// UID owned by another user.
+	assert.Error(t, linkExternalIdentity(store, bob, "keycloak", "sub-a"))
+
+	// Second identity for the same provider.
+	assert.Error(t, linkExternalIdentity(store, alice, "keycloak", "sub-a2"))
+}
+
+func TestSyncExternalUserAttrs_SkipsLocalUsers(t *testing.T) {
+	store := setupIdentityTest(t, "never")
+
+	local, err := store.CreateUser(db.UserWithPwd{
+		Pwd:  "verystrongpassword1",
+		User: db.User{Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com"},
+	})
+	require.NoError(t, err)
+
+	synced, err := syncExternalUserAttrs(store, local, externalUserProfile{
+		Provider: "keycloak", ExternalUID: "sub-1",
+		Email: "idp@example.com", Name: "IdP Name",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "jdoe@example.com", synced.Email)
+}
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `go test ./api/ -run 'TestLinkExternalIdentity|TestSyncExternalUserAttrs' -v -count=1`
+Expected: compile error (`linkExternalIdentity` undefined)
+
+- [ ] **Step 3: Implement the helper and the External-only sync** (in `api/login_identity.go`)
+
+```go
+// linkExternalIdentity attaches (provider, externalUID) to user. Proof of
+// ownership is the caller's job (active verified session + full auth flow
+// at the provider) - email is never proof, see Grafana CVE-2023-3128.
+func linkExternalIdentity(store db.Store, user db.User, provider string, externalUID string) error {
+	if externalUID == "" {
+		return errors.New("external identity: empty external UID")
+	}
+
+	existing, err := store.GetExternalIdentity(provider, externalUID)
+	switch {
+	case err == nil:
+		if existing.UserID == user.ID {
+			return nil // already linked - idempotent
+		}
+		return errors.New("external identity is already linked to another account")
+	case !errors.Is(err, db.ErrNotFound):
+		return err
+	}
+
+	identities, err := store.GetUserExternalIdentities(user.ID)
+	if err != nil {
+		return err
+	}
+	for _, identity := range identities {
+		if identity.Provider == provider {
+			return errors.New("account already has an identity for this provider, unlink it first")
+		}
+	}
+
+	_, err = store.CreateExternalIdentity(db.UserExternalIdentity{
+		UserID:      user.ID,
+		Provider:    provider,
+		ExternalUID: externalUID,
+	})
+	return err
+}
+```
+
+And add the guard as the first statement of `syncExternalUserAttrs`:
+
+```go
+	// A linked local account keeps its local profile - the IdP is not
+	// authoritative for non-External users.
+	if !user.External {
+		return user, nil
+	}
+```
+
+- [ ] **Step 4: Run the new tests → PASS; full `go test ./api/... -count=1` → PASS**
+
+- [ ] **Step 5: Wire the OIDC flow** (`api/login.go`)
+
+`oAuthState` gains a link flag:
+
+```go
+type oAuthState struct {
+	Csrf   string `json:"csrf"`
+	Return string `json:"return"`
+	Link   bool   `json:"link,omitempty"`
+}
+```
+
+`generateStateOauthCookie(w http.ResponseWriter, returnPath string, link bool)` — add the parameter, set `Link: link`; update the existing call in `oidcLogin` to pass `false` by default.
+
+In `oidcLogin`, after the provider lookup succeeds, detect link mode:
+
+```go
+	linkMode := r.URL.Query().Get("link") != ""
+
+	if linkMode {
+		session, ok := getSession(r)
+		if !ok || !session.IsVerified() {
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+	}
+	...
+	state := generateStateOauthCookie(w, returnPath, linkMode)
+```
+
+In `oidcRedirect`, right after the `claims.sub == ""` guard and BEFORE `resolveExternalUser`:
+
+```go
+	if stateData.Link {
+		session, ok := getSession(r)
+		if !ok || !session.IsVerified() {
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+
+		sessionUser, err2 := helpers.Store(r).GetUser(session.UserID)
+		if err2 != nil {
+			log.Error(err2.Error())
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+
+		if err2 := linkExternalIdentity(helpers.Store(r), sessionUser, pid, claims.sub); err2 != nil {
+			log.WithError(err2).WithFields(log.Fields{
+				"user_id":  sessionUser.ID,
+				"provider": pid,
+				"context":  "oidc_link",
+			}).Error("Failed to link external identity")
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+
+		redirectURL, _ := url.JoinPath(util.Config.WebHost, "/")
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
+		return
+	}
+```
+
+No new route: link mode reuses `GET /api/auth/oidc/{provider}/login?link=1` and the registered redirect URL, so nothing changes at the IdP side.
+
+- [ ] **Step 6: Build + full test run**
+
+Run: `go build ./... && go test ./api/... -count=1`; `gofmt -l api/` clean.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add api/login_identity.go api/login_identity_test.go api/login.go
+git commit -m "feat(auth): self-service OIDC identity linking under active session"
+```
+
+### Task 9: LDAP link endpoint
+
+**Files:**
+- Modify: `api/users.go` (one handler)
+- Modify: `api/router.go` (one route on the authenticated `/user` prefix, next to `tokenAPI` at api/router.go:209)
+- Test: `api/users_identity_test.go` (extend)
+
+**Interfaces:**
+- Consumes: `linkExternalIdentity` (Task 8), `tryFindLDAPUser` (returns `(*db.User, string /*DN*/, error)`, Task 5).
+- Produces: `POST /api/user/identities/ldap` body `{"username": "...", "password": "..."}` → 204; 401 on bad LDAP credentials; 400 when LDAP is disabled.
+
+- [ ] **Step 1: Write the failing test** (append to `api/users_identity_test.go`; LDAP dial cannot run in tests, so test the guard paths through the handler and the happy path through `linkExternalIdentity` — already covered in Task 8)
+
+```go
+func TestLinkLdapIdentity_LdapDisabled(t *testing.T) {
+	store := sql.CreateTestStore()
+	util.Config.LdapEnable = false
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd:  "verystrongpassword1",
+		User: db.User{Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com"},
+	})
+	require.NoError(t, err)
+
+	r := httptest.NewRequest(http.MethodPost, "/api/user/identities/ldap",
+		bytes.NewBufferString(`{"username":"jdoe","password":"secret"}`))
+	r = helpers.SetContextValue(r, "store", store)
+	r = helpers.SetContextValue(r, "user", &user)
+	w := httptest.NewRecorder()
+
+	userController := NewUserController(nil) // mirror the actual constructor used for /user routes in api/router.go
+	userController.LinkLdapIdentity(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+```
+
+Before finalizing, check which controller serves `/user` routes (`api/router.go:205` uses `userController.GetUser`) and mirror its constructor and context reads exactly.
+
+- [ ] **Step 2: Run test to verify it fails** (compile error)
+
+- [ ] **Step 3: Implement the handler** (in `api/users.go`, style of the neighboring `/user` handlers — current user comes from context key `"user"` as `*db.User`)
+
+```go
+func (c *UserController) LinkLdapIdentity(w http.ResponseWriter, r *http.Request) {
+	currentUser := helpers.GetFromContext(r, "user").(*db.User)
+
+	if !util.Config.LdapEnable {
+		helpers.WriteErrorStatus(w, "LDAP is not enabled", http.StatusBadRequest)
+		return
+	}
+
+	var creds struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
+	if !helpers.Bind(w, r, &creds) {
+		return
+	}
+
+	// Proof of ownership: successful bind with the user's own LDAP credentials.
+	ldapUser, userDN, err := tryFindLDAPUser(creds.Username, creds.Password)
+	if err != nil || ldapUser == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if err := linkExternalIdentity(helpers.Store(r), *currentUser, "ldap", userDN); err != nil {
+		helpers.WriteErrorStatus(w, err.Error(), http.StatusConflict)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+```
+
+- [ ] **Step 4: Register the route** (`api/router.go`, next to the `tokenAPI` block on the authenticated `/user` prefix)
+
+```go
+	tokenAPI.Path("/identities/ldap").HandlerFunc(userController.LinkLdapIdentity).Methods("POST")
+```
+
+(Adjust the subrouter variable to whichever serves `/user/...` self routes — see api/router.go:209.)
+
+- [ ] **Step 5: Tests + build; commit**
+
+Run: `go test ./api/... -count=1 && go build ./...`
+
+```bash
+git add api/users.go api/router.go api/users_identity_test.go
+git commit -m "feat(auth): link LDAP identity to current account with directory credentials"
+```
+
+---
+
 ## Out of scope (deliberate, YAGNI)
 
 - Storing IdP tokens in the identity row — add together with a refresh-token feature.
 - UI for identities (frontend) — API first; UI is a separate plan.
 - Group/role mapping — separate plan (see research note "Дизайн маппинга ролей из LDAP/SSO"); this table is its prerequisite (mappings become per-provider).
 - Backfill migration that guesses identities for existing users — impossible to do safely (no stored sub/DN); `auto` mode handles it lazily and self-closes.
+- MFA re-prompt (fresh TOTP) right before linking — `session.IsVerified()` is enough for now; add a re-auth step if a security review demands it.
+- Rate limiting on the LDAP link endpoint — it accepts credentials, so it inherits the brute-force exposure of `/auth/login`; fix both together when lockout lands.
 
 ## Verification checklist (after all tasks)
 
@@ -1067,3 +1409,10 @@ git commit -m "feat(auth): admin API to list and unlink external identities"
 - [ ] Upgrade simulation: create user with `External=true` and no identity rows, log in via LDAP with matching email → adopted, identity created; repeat with `external_auth_email_matching: never` → login fails (no silent merge).
 - [ ] Email change at IdP: same account, updated email.
 - [ ] Local account with same email: LDAP/OIDC login never enters it in any mode.
+
+Phase 2:
+
+- [ ] Local user links OIDC identity via `?link=1` flow → identity row created, `External` stays false, password login still works, subsequent OIDC login enters the same account without touching local name/email.
+- [ ] Linking a UID already owned by another account → refused; second identity for the same provider → refused; re-link same UID → idempotent 204.
+- [ ] Link endpoints refuse unverified (pre-MFA) sessions.
+- [ ] `POST /api/user/identities/ldap` with wrong directory credentials → 401; with LDAP disabled → 400.
