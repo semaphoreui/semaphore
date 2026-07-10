@@ -48,6 +48,38 @@ func (c *UserController) GetUser(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, user)
 }
 
+// linkLdapIdentity attaches an LDAP identity to the current account.
+// Proof of ownership is a successful bind with the user's own LDAP credentials.
+func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
+	currentUser := helpers.GetFromContext(r, "user").(*db.User)
+
+	if !util.Config.LdapEnable {
+		helpers.WriteErrorStatus(w, "LDAP is not enabled", http.StatusBadRequest)
+		return
+	}
+
+	var creds struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
+	if !helpers.Bind(w, r, &creds) {
+		return
+	}
+
+	ldapUser, userDN, err := tryFindLDAPUser(creds.Username, creds.Password)
+	if err != nil || ldapUser == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if err := linkExternalIdentity(helpers.Store(r), *currentUser, "ldap", userDN); err != nil {
+		helpers.WriteErrorStatus(w, err.Error(), http.StatusConflict)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
 

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,4 +60,24 @@ func TestGetAndDeleteUserIdentities(t *testing.T) {
 	ids, err := store.GetUserExternalIdentities(target.ID)
 	require.NoError(t, err)
 	assert.Empty(t, ids)
+}
+
+func TestLinkLdapIdentity_LdapDisabled(t *testing.T) {
+	util.Config = &util.ConfigType{}
+	store := sql.CreateTestStore()
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd:  "verystrongpassword1",
+		User: db.User{Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com"},
+	})
+	require.NoError(t, err)
+
+	r := httptest.NewRequest(http.MethodPost, "/api/user/identities/ldap",
+		bytes.NewBufferString(`{"username":"jdoe","password":"secret"}`))
+	r = helpers.SetContextValue(r, "store", store)
+	r = helpers.SetContextValue(r, "user", &user)
+	w := httptest.NewRecorder()
+
+	linkLdapIdentity(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }

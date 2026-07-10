@@ -212,6 +212,7 @@ func Route(
 	tokenAPI.HandleFunc("/tokens/{token_id}", deleteAPIToken).Methods("DELETE")
 	tokenAPI.Path("/options").HandlerFunc(getUserOptions).Methods("GET", "HEAD")
 	tokenAPI.Path("/options").HandlerFunc(setUserOption).Methods("POST")
+	tokenAPI.Path("/identities/ldap").HandlerFunc(linkLdapIdentity).Methods("POST")
 
 	adminAPI := authenticatedAPI.NewRoute().Subrouter()
 	adminAPI.Use(adminMiddleware)
