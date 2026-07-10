@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -296,6 +297,32 @@ func (c *UsersController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := helpers.Store(r).DeleteOptions(fmt.Sprintf("user%d", user.ID)); err != nil {
 		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete options of removed user")
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (c *UsersController) GetUserIdentities(w http.ResponseWriter, r *http.Request) {
+	user := helpers.GetFromContext(r, "_user").(db.User)
+
+	identities, err := helpers.Store(r).GetUserExternalIdentities(user.ID)
+	if err != nil {
+		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to get user identities")
+		helpers.WriteErrorStatus(w, "Failed to get identities", http.StatusInternalServerError)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, identities)
+}
+
+func (c *UsersController) DeleteUserIdentity(w http.ResponseWriter, r *http.Request) {
+	user := helpers.GetFromContext(r, "_user").(db.User)
+	provider := mux.Vars(r)["provider"]
+
+	if err := helpers.Store(r).DeleteExternalIdentity(user.ID, provider); err != nil {
+		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete user identity")
+		helpers.WriteErrorStatus(w, "Failed to delete identity", http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
