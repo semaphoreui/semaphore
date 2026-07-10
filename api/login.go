@@ -562,6 +562,7 @@ func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
 }
 
 type claimResult struct {
+	sub      string
 	username string
 	name     string
 	email    string
@@ -650,7 +651,9 @@ func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res
 
 	prepareClaims(claims)
 
-	return parseClaims(claims, &provider)
+	res, err = parseClaims(claims, &provider)
+	res.sub = userInfo.Subject
+	return
 }
 
 func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res claimResult, err error) {
@@ -661,7 +664,9 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res clai
 
 	prepareClaims(claims)
 
-	return parseClaims(claims, &provider)
+	res, err = parseClaims(claims, &provider)
+	res.sub = idToken.Subject
+	return
 }
 
 func getRandomUsername() string {
@@ -765,6 +770,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			} else {
 				claims.email = userInfo.Email
 				claims.name = userInfo.Profile
+				claims.sub = userInfo.Subject
 			}
 		}
 
@@ -780,24 +786,23 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := helpers.Store(r).GetUserByLoginOrEmail("", claims.email) // ignore username because it creates a lot of problems
-	if err != nil {
-		user = db.User{
-			Username: claims.username,
-			Name:     claims.name,
-			Email:    claims.email,
-			External: true,
-		}
-		user, err = helpers.Store(r).CreateUserWithoutPassword(user)
-		if err != nil {
-			log.Error(err.Error())
-			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
-			return
-		}
+	if claims.sub == "" {
+		log.Error(fmt.Errorf("oidc provider %s returned no sub claim", pid))
+		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		return
 	}
 
-	if !user.External {
-		log.Error(fmt.Errorf("OIDC user '%s' conflicts with local user", user.Username))
+	user, err := resolveExternalUser(helpers.Store(r), externalUserProfile{
+		Provider:    pid,
+		ExternalUID: claims.sub,
+		Username:    claims.username,
+		Name:        claims.name,
+		Email:       claims.email,
+		// MatchByUsername stays false: OIDC matches by email only
+		// (username matching "creates a lot of problems" - see old comment).
+	})
+	if err != nil {
+		log.Error(err.Error())
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
