@@ -43,7 +43,8 @@
         :disabled="!canManage || saving || problems.length > 0"
         :loading="saving"
         @click="save()"
-        >{{ $t('save') }}</v-btn
+      >{{ $t('save') }}
+      </v-btn
       >
     </v-toolbar>
 
@@ -76,21 +77,24 @@
             draggable="true"
             @dragstart="onDragStart($event, 'task')"
           >
-            <v-icon small left>mdi-cog</v-icon>{{ $t('workflowPaletteTaskNode') }}
+            <v-icon small left>mdi-cog</v-icon>
+            {{ $t('workflowPaletteTaskNode') }}
           </div>
           <div
             class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--approval"
             draggable="true"
             @dragstart="onDragStart($event, 'approval')"
           >
-            <v-icon small left>mdi-account-check</v-icon>{{ $t('workflowPaletteApprovalNode') }}
+            <v-icon small left>mdi-account-check</v-icon>
+            {{ $t('workflowPaletteApprovalNode') }}
           </div>
           <div
             class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--note"
             draggable="true"
             @dragstart="onDragStart($event, 'note')"
           >
-            <v-icon small left>mdi-note-text-outline</v-icon>{{ $t('workflowPaletteNoteNode') }}
+            <v-icon small left>mdi-note-text-outline</v-icon>
+            {{ $t('workflowPaletteNoteNode') }}
           </div>
         </div>
 
@@ -108,7 +112,8 @@
             text
             dense
             class="mb-1"
-            >{{ p }}</v-alert
+          >{{ p }}
+          </v-alert
           >
         </div>
       </div>
@@ -130,7 +135,10 @@
       </div>
 
       <!-- Properties panel -->
-      <div class="WorkflowEditor__side WorkflowEditor__side--right">
+      <div
+        v-if="editingNode || editingEdge"
+        class="WorkflowEditor__side WorkflowEditor__side--right"
+      >
         <div v-if="editingNode" class="pa-3">
           <div class="d-flex align-center mb-2">
             <span class="text-subtitle-2"> {{ $t('workflowNodeId') }} #{{ editingNode.id }} </span>
@@ -155,81 +163,100 @@
           />
 
           <template v-if="editingNode.kind !== 'note'">
-          <v-select
-            v-model="editingNode.kind"
-            :items="kindOptions"
-            item-value="value"
-            item-text="text"
-            :label="$t('workflowNodeKind')"
-            :disabled="!canManage"
-            outlined
-            dense
-            hide-details="auto"
-            class="mb-2"
-            @change="onKindChanged"
-          />
-
-          <v-select
-            v-model="editingNode.convergence_mode"
-            :items="convergenceOptions"
-            item-value="value"
-            item-text="text"
-            :label="$t('workflowConvergence')"
-            :disabled="!canManage"
-            outlined
-            dense
-            hide-details="auto"
-            class="mb-2"
-            @change="applyNodeEdit"
-          />
-
-          <v-autocomplete
-            v-if="editingNode.kind !== 'approval'"
-            v-model="editingNode.template_id"
-            :items="templates"
-            item-value="id"
-            item-text="name"
-            :label="$t('taskTemplate')"
-            :disabled="!canManage"
-            outlined
-            dense
-            hide-details="auto"
-            class="mb-2"
-            @change="applyNodeEdit"
-          />
-
-          <TaskParamsForm
-            v-if="editingNode.kind !== 'approval' && editingNodeTemplate"
-            :key="`task-params-${editingNode.id}-${editingNode.template_id}`"
-            :template="editingNodeTemplate"
-            v-model="editingNode.task_params"
-            class="mt-2"
-            @input="applyNodeEdit"
-          />
-
-          <template v-if="editingNode.kind === 'approval'">
-            <v-text-field
-              v-model.number="editingNode.approval_timeout"
-              type="number"
-              min="1"
-              :label="$t('workflowApprovalTimeout')"
+            <v-select
+              v-model="editingNode.kind"
+              :items="kindOptions"
+              item-value="value"
+              item-text="text"
+              :label="$t('workflowNodeKind')"
               :disabled="!canManage"
               outlined
               dense
               hide-details="auto"
-              class="mb-2"
-              @change="applyNodeEdit"
+              class="mb-5"
+              @change="onKindChanged"
             />
-            <v-text-field
-              v-model="editingNode.approval_message"
-              :label="$t('workflowApprovalMessage')"
+
+            <v-select
+              v-model="editingNode.convergence_mode"
+              :items="convergenceOptions"
+              item-value="value"
+              item-text="text"
+              :label="$t('workflowConvergence')"
               :disabled="!canManage"
               outlined
               dense
               hide-details="auto"
+              class="mb-5"
               @change="applyNodeEdit"
             />
-          </template>
+
+            <v-autocomplete
+              v-if="editingNode.kind !== 'approval'"
+              v-model="editingNode.template_id"
+              :items="templates"
+              item-value="id"
+              item-text="name"
+              :label="$t('taskTemplate')"
+              :disabled="!canManage"
+              outlined
+              dense
+              hide-details="auto"
+              class="mb-5"
+              @change="applyNodeEdit"
+            />
+
+            <v-card
+              v-if="editingNode.kind !== 'approval' && editingNodeTemplate"
+              :key="`task-params-${editingNode.id}-${editingNode.template_id}`"
+              style="background: rgba(133, 133, 133, 0.06)"
+              class="mb-6 pt-3"
+            >
+
+              <div style="
+                position: absolute;
+                background: var(--highlighted-card-bg-color);
+                width: 28px;
+                height: 28px;
+                transform: rotate(45deg);
+                left: calc(50% - 14px);
+                top: -14px;
+                border-radius: 0;
+              "></div>
+
+              <v-card-text class="py-0">
+                <TaskParamsForm
+                  :template="editingNodeTemplate"
+                  v-model="editingNode.task_params"
+                  class="mt-2"
+                  @input="applyNodeEdit"
+                />
+              </v-card-text>
+            </v-card>
+
+            <template v-if="editingNode.kind === 'approval'">
+              <v-text-field
+                v-model.number="editingNode.approval_timeout"
+                type="number"
+                min="1"
+                :label="$t('workflowApprovalTimeout')"
+                :disabled="!canManage"
+                outlined
+                dense
+                hide-details="auto"
+                class="mb-2"
+                @change="applyNodeEdit"
+              />
+              <v-text-field
+                v-model="editingNode.approval_message"
+                :label="$t('workflowApprovalMessage')"
+                :disabled="!canManage"
+                outlined
+                dense
+                hide-details="auto"
+                @change="applyNodeEdit"
+              />
+            </template>
           </template>
         </div>
 
@@ -249,10 +276,6 @@
             hide-details="auto"
             @change="applyEdgeEdit"
           />
-        </div>
-
-        <div v-else class="pa-4 text-caption text--secondary">
-          {{ $t('workflowConnectHint') }}
         </div>
       </div>
     </div>
@@ -560,9 +583,8 @@ export default {
     border-radius: 4px;
     background: rgba(127, 127, 127, 0.12);
     //border-bottom: 2px solid transparent;
-    transition:
-      background-color 0.15s ease,
-      border-color 0.15s ease;
+    transition: background-color 0.15s ease,
+    border-color 0.15s ease;
 
     &:hover {
       background: rgba(127, 127, 127, 0.12);
@@ -632,7 +654,7 @@ export default {
     display: flex;
     flex: 1 1 auto;
     min-height: 0;
-    height: calc(100vh - 64px);
+    height: calc(100vh - 65px);
   }
 
   &__side {
@@ -667,9 +689,11 @@ export default {
     &--task {
       border-left: 3px solid #2196f3;
     }
+
     &--approval {
       border-left: 3px solid #ab47bc;
     }
+
     &--note {
       border-left: 3px solid #e6d873;
     }
