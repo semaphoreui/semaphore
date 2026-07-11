@@ -176,8 +176,8 @@
 
           <v-simple-table v-if="identities.length > 0" class="mb-3">
             <tbody>
-              <tr v-for="identity in identities" :key="identity.provider">
-                <td style="width: 30%">{{ providerName(identity.provider) }}</td>
+              <tr v-for="identity in identities" :key="identity.id">
+                <td style="width: 30%">{{ providerName(identity) }}</td>
                 <td
                   style="
                     max-width: 200px;
@@ -190,7 +190,7 @@
                   {{ identity.external_uid }}
                 </td>
                 <td style="text-align: right">
-                  <v-btn icon @click="unlinkIdentity(identity.provider)">
+                  <v-btn icon @click="unlinkIdentity(identity)">
                     <v-icon>mdi-link-off</v-icon>
                   </v-btn>
                 </td>
@@ -213,8 +213,19 @@
               Link {{ provider.name || provider.id }}
             </v-btn>
 
-            <div v-if="loginWithLdap && !linkedProviders.has('ldap')" class="mt-3">
+            <div v-if="unlinkedLdapProviders.length > 0" class="mt-3">
               <div class="subtitle-1 mb-2">Link LDAP account</div>
+
+              <v-select
+                v-if="unlinkedLdapProviders.length > 1"
+                v-model="ldapLinkProvider"
+                :items="unlinkedLdapProviders"
+                item-text="name"
+                item-value="id"
+                label="Provider"
+                outlined
+                dense
+              ></v-select>
 
               <v-text-field
                 v-model="ldapUsername"
@@ -273,7 +284,8 @@ export default {
 
       identities: [],
       oidcProviders: [],
-      loginWithLdap: false,
+      ldapProviders: [],
+      ldapLinkProvider: null,
       ldapUsername: '',
       ldapPassword: '',
       linkingLdap: false,
@@ -332,11 +344,15 @@ export default {
     },
 
     linkedProviders() {
-      return new Set(this.identities.map((identity) => identity.provider));
+      return new Set(this.identities.map((identity) => `${identity.type}:${identity.provider}`));
     },
 
     unlinkedOidcProviders() {
-      return this.oidcProviders.filter((provider) => !this.linkedProviders.has(provider.id));
+      return this.oidcProviders.filter((provider) => !this.linkedProviders.has(`oidc:${provider.id}`));
+    },
+
+    unlinkedLdapProviders() {
+      return this.ldapProviders.filter((provider) => !this.linkedProviders.has(`ldap:${provider.id}`));
     },
   },
 
@@ -375,15 +391,14 @@ export default {
         })
       ).data;
       this.oidcProviders = data.oidc_providers || [];
-      this.loginWithLdap = data.login_with_ldap || false;
+      this.ldapProviders = data.ldap_providers || [];
     },
 
-    providerName(provider) {
-      if (provider === 'ldap') {
-        return 'LDAP';
-      }
-      const oidcProvider = this.oidcProviders.find((p) => p.id === provider);
-      return (oidcProvider && oidcProvider.name) || provider;
+    providerName(identity) {
+      const providers = identity.type === 'ldap' ? this.ldapProviders : this.oidcProviders;
+      const provider = providers.find((p) => p.id === identity.provider);
+      const name = (provider && provider.name) || identity.provider;
+      return `${name} (${identity.type})`;
     },
 
     linkOidcIdentity(providerId) {
@@ -401,10 +416,14 @@ export default {
           data: {
             username: this.ldapUsername,
             password: this.ldapPassword,
+            provider: this.ldapLinkProvider
+              || (this.unlinkedLdapProviders[0] && this.unlinkedLdapProviders[0].id)
+              || undefined,
           },
         });
         this.ldapUsername = '';
         this.ldapPassword = '';
+        this.ldapLinkProvider = null;
         await this.loadIdentities();
       } catch (err) {
         if (err.response && err.response.status === 401) {
@@ -419,12 +438,12 @@ export default {
       }
     },
 
-    async unlinkIdentity(provider) {
+    async unlinkIdentity(identity) {
       this.linkError = null;
       try {
         await axios({
           method: 'delete',
-          url: `/api/users/${this.itemId}/identities/${provider}`,
+          url: `/api/users/${this.itemId}/identities/${identity.type}/${identity.provider}`,
           responseType: 'json',
         });
         await this.loadIdentities();

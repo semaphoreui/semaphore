@@ -117,6 +117,12 @@ properties:
   ldap_searchfilter: { type: string }
   ldap_mappings:     { $ref: "#/$defs/LdapMappings" }
   ldap_needtls:      { type: boolean }
+  ldap_providers:
+    type: object
+    additionalProperties: { $ref: "#/$defs/LdapProvider" }
+    description: >
+      LDAP directories, keyed by provider id. The key "ldap" is reserved for
+      the legacy flat ldap_* options and is ignored here.
 
   # ==========================================================================
   # Alerting — Chat integrations
@@ -369,6 +375,21 @@ $defs:
       mail: { type: string, default: mail }
       uid:  { type: string, default: uid }
       cn:   { type: string, default: cn }
+
+  LdapProvider:
+    type: object
+    properties:
+      display_name: { type: string }
+      server:       { type: string }
+      needtls:      { type: boolean }
+      binddn:       { type: string }
+      bindpassword:
+        type: string
+        description: LDAP bind password (sensitive).
+      searchdn:     { type: string }
+      searchfilter: { type: string }
+      mappings:     { $ref: "#/$defs/LdapMappings" }
+      order:        { type: integer }
 
   OidcProvider:
     type: object
