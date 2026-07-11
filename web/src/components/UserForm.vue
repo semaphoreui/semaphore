@@ -21,7 +21,7 @@
 
     <v-tabs v-model="tab">
       <v-tab key="settings">Settings</v-tab>
-      <v-tab key="2fa" v-if="canChangePassword || authMethods.totp"> Security </v-tab>
+      <v-tab key="2fa" v-if="canChangePassword || authMethods.totp || !isNew"> Security </v-tab>
     </v-tabs>
 
     <v-divider class="mb-6" style="margin-top: -1px" />
@@ -116,7 +116,10 @@
         </v-form>
       </v-tab-item>
 
-      <v-tab-item key="2fa" v-if="item != null && (canChangePassword || authMethods.totp)">
+      <v-tab-item
+        key="2fa"
+        v-if="item != null && (canChangePassword || authMethods.totp || !isNew)"
+      >
         <div v-if="canChangePassword">
           <div class="title mb-3">Password</div>
           <v-btn color="primary" @click="passwordDialog = true">Change password</v-btn>
@@ -165,6 +168,81 @@
             </div>
           </div>
         </div>
+
+        <div class="pt-10" v-if="!isNew">
+          <div class="title mb-2">Linked accounts</div>
+
+          <v-alert :value="!!linkError" color="error" dense text>{{ linkError }}</v-alert>
+
+          <v-simple-table v-if="identities.length > 0" class="mb-3">
+            <tbody>
+              <tr v-for="identity in identities" :key="identity.provider">
+                <td style="width: 30%">{{ providerName(identity.provider) }}</td>
+                <td
+                  style="
+                    max-width: 200px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                  "
+                  :title="identity.external_uid"
+                >
+                  {{ identity.external_uid }}
+                </td>
+                <td style="text-align: right">
+                  <v-btn icon @click="unlinkIdentity(identity.provider)">
+                    <v-icon>mdi-link-off</v-icon>
+                  </v-btn>
+                </td>
+              </tr>
+            </tbody>
+          </v-simple-table>
+
+          <div v-else class="text--secondary mb-3">No linked accounts.</div>
+
+          <div v-if="isSelf">
+            <v-btn
+              v-for="provider in unlinkedOidcProviders"
+              :key="provider.id"
+              :color="provider.color || 'secondary'"
+              dark
+              class="mr-3 mb-3"
+              @click="linkOidcIdentity(provider.id)"
+            >
+              <v-icon left dark v-if="provider.icon">mdi-{{ provider.icon }}</v-icon>
+              Link {{ provider.name || provider.id }}
+            </v-btn>
+
+            <div v-if="loginWithLdap && !linkedProviders.has('ldap')" class="mt-3">
+              <div class="subtitle-1 mb-2">Link LDAP account</div>
+
+              <v-text-field
+                v-model="ldapUsername"
+                label="LDAP username"
+                outlined
+                dense
+              ></v-text-field>
+
+              <v-text-field
+                v-model="ldapPassword"
+                label="LDAP password"
+                type="password"
+                autocomplete="new-password"
+                outlined
+                dense
+              ></v-text-field>
+
+              <v-btn
+                color="primary"
+                :disabled="!ldapUsername || !ldapPassword || linkingLdap"
+                :loading="linkingLdap"
+                @click="linkLdapIdentity()"
+              >
+                Link
+              </v-btn>
+            </div>
+          </div>
+        </div>
       </v-tab-item>
     </v-tabs-items>
   </div>
@@ -180,6 +258,7 @@ export default {
   components: { CopyClipboardButton, ChangePasswordForm, EditDialog },
   props: {
     isAdmin: Boolean,
+    isSelf: Boolean,
     authMethods: Object,
     LoginWithPassword: Boolean,
   },
@@ -191,6 +270,14 @@ export default {
       passwordDialog: null,
       totpEnabled: false,
       totpQrUrl: null,
+
+      identities: [],
+      oidcProviders: [],
+      loginWithLdap: false,
+      ldapUsername: '',
+      ldapPassword: '',
+      linkingLdap: false,
+      linkError: null,
 
       tab: null,
     };
@@ -243,6 +330,14 @@ export default {
     canChangePassword() {
       return !this.isNew && !this.item.external && this.LoginWithPassword;
     },
+
+    linkedProviders() {
+      return new Set(this.identities.map((identity) => identity.provider));
+    },
+
+    unlinkedOidcProviders() {
+      return this.oidcProviders.filter((provider) => !this.linkedProviders.has(provider.id));
+    },
   },
 
   methods: {
@@ -253,6 +348,90 @@ export default {
       } else {
         this.totpEnabled = true;
         this.totpQrUrl = `${document.baseURI}api/users/${this.itemId}/2fas/totp/${this.item.totp.id}/qr`;
+      }
+
+      if (!this.isNew) {
+        this.loadIdentities();
+        this.loadAuthMetadata();
+      }
+    },
+
+    async loadIdentities() {
+      this.identities = (
+        await axios({
+          method: 'get',
+          url: `/api/users/${this.itemId}/identities`,
+          responseType: 'json',
+        })
+      ).data || [];
+    },
+
+    async loadAuthMetadata() {
+      const data = (
+        await axios({
+          method: 'get',
+          url: '/api/auth/login',
+          responseType: 'json',
+        })
+      ).data;
+      this.oidcProviders = data.oidc_providers || [];
+      this.loginWithLdap = data.login_with_ldap || false;
+    },
+
+    providerName(provider) {
+      if (provider === 'ldap') {
+        return 'LDAP';
+      }
+      const oidcProvider = this.oidcProviders.find((p) => p.id === provider);
+      return (oidcProvider && oidcProvider.name) || provider;
+    },
+
+    linkOidcIdentity(providerId) {
+      document.location = `${document.baseURI}api/auth/oidc/${providerId}/login?link=1`;
+    },
+
+    async linkLdapIdentity() {
+      this.linkError = null;
+      this.linkingLdap = true;
+      try {
+        await axios({
+          method: 'post',
+          url: '/api/user/identities/ldap',
+          responseType: 'json',
+          data: {
+            username: this.ldapUsername,
+            password: this.ldapPassword,
+          },
+        });
+        this.ldapUsername = '';
+        this.ldapPassword = '';
+        await this.loadIdentities();
+      } catch (err) {
+        if (err.response && err.response.status === 401) {
+          this.linkError = 'Invalid LDAP credentials.';
+        } else {
+          this.linkError = (err.response
+            && err.response.data
+            && err.response.data.error) || 'Failed to link LDAP account.';
+        }
+      } finally {
+        this.linkingLdap = false;
+      }
+    },
+
+    async unlinkIdentity(provider) {
+      this.linkError = null;
+      try {
+        await axios({
+          method: 'delete',
+          url: `/api/users/${this.itemId}/identities/${provider}`,
+          responseType: 'json',
+        });
+        await this.loadIdentities();
+      } catch (err) {
+        this.linkError = (err.response
+          && err.response.data
+          && err.response.data.error) || 'Failed to unlink account.';
       }
     },
 
