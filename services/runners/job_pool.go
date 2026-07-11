@@ -32,16 +32,20 @@ func derefString(s *string) string {
 
 func newHTTPClient() *http.Client {
 	tlsConfig := &tls.Config{}
-	conn := util.Config.Runner.Connection
-	if conn.SkipTLSVerify {
-		tlsConfig.InsecureSkipVerify = true
-	}
-	if conn.ServerCACertFile != "" {
-		caCert, err := os.ReadFile(conn.ServerCACertFile)
-		if err == nil {
-			pool := x509.NewCertPool()
-			pool.AppendCertsFromPEM(caCert)
-			tlsConfig.RootCAs = pool
+	if util.Config != nil && util.Config.Runner != nil {
+		conn := util.Config.Runner.Connection
+		if conn != nil {
+			if conn.SkipTLSVerify {
+				tlsConfig.InsecureSkipVerify = true
+			}
+			if conn.ServerCACertFile != "" {
+				caCert, err := os.ReadFile(conn.ServerCACertFile)
+				if err == nil {
+					pool := x509.NewCertPool()
+					pool.AppendCertsFromPEM(caCert)
+					tlsConfig.RootCAs = pool
+				}
+			}
 		}
 	}
 	return &http.Client{
@@ -90,7 +94,11 @@ func NewJobPool(keyInstaller db_lib.AccessKeyInstaller) *JobPool {
 		client:      newHTTPClient(),
 	}
 
-	provider, err := newExecutorProvider(util.Config.Runner.Executor, keyInstaller)
+	var provider tasks.ExecutorProvider
+	var err error
+	if util.Config != nil && util.Config.Runner != nil {
+		provider, err = newExecutorProvider(util.Config.Runner.Executor, keyInstaller)
+	}
 	if err != nil {
 		log.WithError(err).Error("failed to initialise executor provider; runner will reject jobs until restarted with a valid config")
 	} else {
@@ -327,7 +335,6 @@ func (p *JobPool) Run() {
 				err := running.job.Run(t.username, t.incomingVersion, t.alias)
 
 				if err != nil {
-
 					log.WithFields(log.Fields{
 						"context":     "job_running",
 						"task_id":     t.taskID,
@@ -335,30 +342,15 @@ func (p *JobPool) Run() {
 					}).WithError(err).Error("launch job failed")
 
 					running.Log("Unable to launch the application. Please contact your system administrator for assistance.")
-
-					if running.getStatus() == task_logger.TaskStoppingStatus {
-						running.SetStatus(task_logger.TaskStoppedStatus)
-					} else {
-						running.SetStatus(task_logger.TaskFailStatus)
-					}
 				} else {
-
 					log.WithFields(log.Fields{
 						"context": "job_running",
 						"task_id": running.taskID,
 						"status":  string(running.getStatus()),
 					}).Debug("Job run returned")
-
-					if running.getStatus().IsFinished() {
-						return
-					}
-
-					if running.getStatus() == task_logger.TaskStoppingStatus {
-						running.SetStatus(task_logger.TaskStoppedStatus)
-					} else {
-						running.SetStatus(task_logger.TaskSuccessStatus)
-					}
 				}
+
+				running.finalizeAfterRun(err)
 
 				log.WithFields(log.Fields{
 					"context": "job_running",
