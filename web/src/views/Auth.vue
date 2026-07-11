@@ -190,7 +190,23 @@
 
             <div v-else>
 
-              <div v-if="loginWithPassword">
+              <v-btn-toggle
+                v-if="loginTabs.length > 1"
+                v-model="loginTab"
+                mandatory
+                class="mb-4 d-flex"
+              >
+                <v-btn
+                  v-for="tab in loginTabs"
+                  :key="tab.id || 'local'"
+                  small
+                  class="flex-grow-1"
+                >
+                  {{ tab.name }}
+                </v-btn>
+              </v-btn-toggle>
+
+              <div v-if="(activeLoginTab && activeLoginTab.ldap) || loginWithPassword">
                 <v-text-field
                   v-model="username"
                   v-bind:label='$t("username")'
@@ -355,6 +371,9 @@ export default {
       loginWithPassword: null,
       authMethods: {},
 
+      ldapProviders: [],
+      loginTab: 0,
+
       screen: null,
 
       verificationCode: null,
@@ -388,6 +407,19 @@ export default {
   computed: {
     isPortal() {
       return process.env.VUE_APP_BUILD_TYPE === 'pro_portal';
+    },
+
+    loginTabs() {
+      const tabs = [];
+      if (this.loginWithPassword || this.isPortal) {
+        tabs.push({ id: null, name: this.$t('signIn') });
+      }
+      this.ldapProviders.forEach((p) => tabs.push({ id: p.id, name: p.name, ldap: true }));
+      return tabs;
+    },
+
+    activeLoginTab() {
+      return this.loginTabs[this.loginTab] || this.loginTabs[0];
     },
   },
 
@@ -427,6 +459,7 @@ export default {
         this.oidcProviders = resp.data.oidc_providers;
         this.loginWithPassword = resp.data.login_with_password;
         this.authMethods = resp.data.auth_methods || {};
+        this.ldapProviders = resp.data.ldap_providers || [];
       });
     },
 
@@ -576,14 +609,24 @@ export default {
 
       this.signInProcess = true;
       try {
+        const body = {
+          auth: this.username,
+          password: this.password,
+        };
+        if (this.activeLoginTab && this.activeLoginTab.ldap) {
+          body.method = 'ldap';
+          body.provider = this.activeLoginTab.id;
+        } else if (this.loginTabs.length > 1) {
+          // Internal tab explicitly requests password auth so a typo never
+          // hits the LDAP directory (legacy single-form behavior).
+          body.method = 'password';
+        }
+
         await axios({
           method: 'post',
           url: '/api/auth/login',
           responseType: 'json',
-          data: {
-            auth: this.username,
-            password: this.password,
-          },
+          data: body,
         });
 
         this.redirectAfterLogin();
