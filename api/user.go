@@ -53,7 +53,8 @@ func (c *UserController) GetUser(w http.ResponseWriter, r *http.Request) {
 func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 	currentUser := helpers.GetFromContext(r, "user").(*db.User)
 
-	if !util.Config.LdapEnable {
+	provider, ok := util.Config.GetLdapProvider("ldap")
+	if !ok {
 		helpers.WriteErrorStatus(w, "LDAP is not enabled", http.StatusBadRequest)
 		return
 	}
@@ -66,7 +67,7 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ldapUser, userDN, err := tryFindLDAPUser(creds.Username, creds.Password)
+	ldapUser, userDN, err := tryFindLDAPUser(provider, creds.Username, creds.Password)
 	if err != nil || ldapUser == nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return

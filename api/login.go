@@ -43,19 +43,19 @@ func convertEntryToMap(entity *ldap.Entry) map[string]any {
 	return res
 }
 
-func tryFindLDAPUser(username, password string) (*db.User, string, error) {
-	if !util.Config.LdapEnable {
-		return nil, "", fmt.Errorf("LDAP not configured")
-	}
-
+func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db.User, string, error) {
 	var l *ldap.Conn
 	var err error
-	if util.Config.LdapNeedTLS {
-		l, err = ldap.DialTLS("tcp", util.Config.LdapServer, &tls.Config{
+	if provider.NeedTLS {
+		// SECURITY: InsecureSkipVerify=true is pre-existing behavior carried
+		// over from the flat config (api/login.go:54); it allows MITM on the
+		// LDAP connection. Do not extend it further; see the out-of-scope
+		// note about a per-provider tls_skip_verify option (default false).
+		l, err = ldap.DialTLS("tcp", provider.Server, &tls.Config{
 			InsecureSkipVerify: true,
 		})
 	} else {
-		l, err = ldap.Dial("tcp", util.Config.LdapServer)
+		l, err = ldap.Dial("tcp", provider.Server)
 	}
 
 	if err != nil {
@@ -64,16 +64,18 @@ func tryFindLDAPUser(username, password string) (*db.User, string, error) {
 	defer l.Close() //nolint:errcheck
 
 	// First bind with a read only user
-	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
+	if err = l.Bind(provider.BindDN, provider.BindPassword); err != nil {
 		return nil, "", err
 	}
 
+	mappings := provider.GetMappings()
+
 	// Filter for the given username
 	searchRequest := ldap.NewSearchRequest(
-		util.Config.LdapSearchDN,
+		provider.SearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf(util.Config.LdapSearchFilter, ldap.EscapeFilter(username)),
-		[]string{util.Config.LdapMappings.DN},
+		fmt.Sprintf(provider.SearchFilter, ldap.EscapeFilter(username)),
+		[]string{mappings.DN},
 		nil,
 	)
 
@@ -97,16 +99,16 @@ func tryFindLDAPUser(username, password string) (*db.User, string, error) {
 	}
 
 	// Second time bind as read only user
-	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
+	if err = l.Bind(provider.BindDN, provider.BindPassword); err != nil {
 		return nil, "", err
 	}
 
 	// Get user info
 	searchRequest = ldap.NewSearchRequest(
-		util.Config.LdapSearchDN,
+		provider.SearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf(util.Config.LdapSearchFilter, ldap.EscapeFilter(username)),
-		[]string{util.Config.LdapMappings.DN, util.Config.LdapMappings.Mail, util.Config.LdapMappings.UID, util.Config.LdapMappings.CN},
+		fmt.Sprintf(provider.SearchFilter, ldap.EscapeFilter(username)),
+		[]string{mappings.DN, mappings.Mail, mappings.UID, mappings.CN},
 		nil,
 	)
 
@@ -123,7 +125,7 @@ func tryFindLDAPUser(username, password string) (*db.User, string, error) {
 
 	prepareClaims(entry)
 
-	claims, err := parseClaims(entry, util.Config.LdapMappings)
+	claims, err := parseClaims(entry, mappings)
 	if err != nil {
 		return nil, "", err
 	}
@@ -269,8 +271,14 @@ type LoginAuthMethods struct {
 	Email *LoginEmailAuthMethod `json:"email,omitempty"`
 }
 
+type loginMetadataLdapProvider struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type loginMetadata struct {
 	OidcProviders     []loginMetadataOidcProvider `json:"oidc_providers"`
+	LdapProviders     []loginMetadataLdapProvider `json:"ldap_providers"`
 	LoginWithPassword bool                        `json:"login_with_password"`
 	LoginWithLdap     bool                        `json:"login_with_ldap"`
 	AuthMethods       LoginAuthMethods            `json:"auth_methods"`
@@ -282,8 +290,19 @@ func login(w http.ResponseWriter, r *http.Request) {
 		config := &loginMetadata{
 			OidcProviders:     make([]loginMetadataOidcProvider, len(util.Config.OidcProviders)),
 			LoginWithPassword: !util.Config.PasswordLoginDisable,
-			LoginWithLdap:     util.Config.LdapEnable,
 		}
+
+		ldapProviders := util.Config.ActiveLdapProviders()
+		config.LdapProviders = make([]loginMetadataLdapProvider, 0, len(ldapProviders))
+		for _, entry := range ldapProviders {
+			name := entry.Provider.DisplayName
+			if name == "" {
+				name = entry.ID
+			}
+			config.LdapProviders = append(config.LdapProviders, loginMetadataLdapProvider{ID: entry.ID, Name: name})
+		}
+		config.LoginWithLdap = len(ldapProviders) > 0
+
 		i := 0
 
 		for k, v := range util.Config.OidcProviders {
@@ -315,45 +334,76 @@ func login(w http.ResponseWriter, r *http.Request) {
 	var login struct {
 		Auth     string `json:"auth" binding:"required"`
 		Password string `json:"password" binding:"required"`
+		Method   string `json:"method"`   // "", "password" or "ldap"
+		Provider string `json:"provider"` // LDAP provider ID when method == "ldap"
 	}
 	if !helpers.Bind(w, r, &login) {
 		return
 	}
 
-	/*
-		logic:
-		- fetch user from ldap if enabled
-		- fetch user from database by username/email
-		- create user in database if doesn't exist & ldap record found
-		- check password if non-ldap user
-		- create session & send cookie
-	*/
-
 	login.Auth = strings.ToLower(login.Auth)
 
 	var err error
+	var user db.User
 
-	var ldapUser *db.User
-	var ldapUserDN string
-
-	if util.Config.LdapEnable {
-		ldapUser, ldapUserDN, err = tryFindLDAPUser(login.Auth, login.Password)
-		if err != nil {
-			log.WithError(err).WithFields(log.Fields{
-				"context": "ldap",
-				"auth":    login.Auth,
-			}).Warn("Failed to find user in LDAP")
+	switch login.Method {
+	case "password":
+		if util.Config.PasswordLoginDisable {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-	}
-
-	var user db.User
-
-	if ldapUser == nil {
 		user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
-	} else {
-		user, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, "ldap")
+
+	case "ldap":
+		providerID := login.Provider
+		if providerID == "" {
+			providerID = "ldap"
+		}
+		provider, ok := util.Config.GetLdapProvider(providerID)
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var ldapUser *db.User
+		var ldapUserDN string
+		ldapUser, ldapUserDN, err = tryFindLDAPUser(provider, login.Auth, login.Password)
+		if err != nil || ldapUser == nil {
+			if err != nil {
+				log.WithError(err).WithFields(log.Fields{
+					"context":  "ldap",
+					"provider": providerID,
+					"auth":     login.Auth,
+				}).Warn("Failed to find user in LDAP")
+			}
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		user, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, providerID)
+
+	default:
+		// Legacy clients without the method field: previous behavior —
+		// try the legacy flat LDAP first, fall back to password.
+		var ldapUser *db.User
+		var ldapUserDN string
+
+		if legacy, ok := util.Config.GetLdapProvider("ldap"); ok {
+			ldapUser, ldapUserDN, err = tryFindLDAPUser(legacy, login.Auth, login.Password)
+			if err != nil {
+				log.WithError(err).WithFields(log.Fields{
+					"context": "ldap",
+					"auth":    login.Auth,
+				}).Warn("Failed to find user in LDAP")
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+		}
+
+		if ldapUser == nil {
+			user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
+		} else {
+			user, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, "ldap")
+		}
 	}
 
 	if err != nil {
