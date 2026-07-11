@@ -282,9 +282,10 @@ func (t *TaskRunner) run() {
 
 	if err != nil {
 		if errors.Is(err, ErrAllRunnersBusy) {
-			// No runners available right now, put task back in waiting state
+			// No runners available right now, put task back in waiting state.
+			// Re-queue via EventTypeRequeued so handleQueue enqueues only after
+			// onTaskStop (see TaskPool.handleQueue).
 			t.SetStatus(task_logger.TaskWaitingStatus)
-			t.pool.state.Enqueue(t)
 			requeued = true
 			return
 		}
