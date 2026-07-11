@@ -12,7 +12,7 @@
 
 - Do not use global variables (project rule); `util.Config` is the existing exception. Sentinel errors and constants are allowed (existing pattern: `db.ErrNotFound`).
 - Tests: `github.com/stretchr/testify/assert` / `require`, table-driven with `t.Run` (project rule).
-- Migration SQL must run on MySQL, PostgreSQL and SQLite — backtick style, preprocessed per dialect. Statements that can fail on some dialect go to the `.err.sql` companion (see `v2.18.5.err.sql`).
+- Migration SQL must run on MySQL, PostgreSQL and SQLite — backtick style, preprocessed per dialect (Go text/template with `.Mysql`/`.Postgresql`/`.Sqlite`, precedent `v2.16.8.sql`). The `.err.sql` companion is the ROLLBACK script (executed only by `TryRollbackMigration`), not an "errors tolerated" apply file.
 - Migration version here is **v2.20.1** (current tail of `db/Migration.go` `commonScripts` is `{Version: "2.20.0"}`); if another feature claims it first, take the next free version.
 - Provider ID rules (GitLab model): IDs are the keys of the `ldap_providers` map. The ID `"ldap"` is **reserved** for the legacy flat config and is skipped if present in the map. IDs are stored in `user__external_identity.provider` with `type='ldap'`.
 - Identity `type` values are exactly `"ldap"` and `"oidc"` (constants `db.IdentityTypeLdap`, `db.IdentityTypeOidc`).
@@ -320,23 +320,36 @@ Expected: FAIL (`no such column: type`)
 
 - [ ] **Step 3: Create the migration SQL**
 
-`db/sql/migrations/v2.20.1.sql`:
+`db/sql/migrations/v2.20.1.sql` — `type` is varchar(4) ('ldap'/'oidc' are exactly 4 chars): with utf8mb4 the unique key is (4+64+700)×4 = 3072 bytes, exactly InnoDB's limit; varchar(16) would exceed it. The old index drop is dialect-forked because bare `drop index` is invalid MySQL:
 
 ```sql
-alter table `user__external_identity` add `type` varchar(16) not null default 'oidc';
+alter table `user__external_identity` add `type` varchar(4) not null default 'oidc';
 
 update `user__external_identity` set `type` = 'ldap' where `provider` = 'ldap';
+
+{{if .Mysql}}
+alter table `user__external_identity` drop index `user__external_identity__provider_uid`;
+{{else}}
+drop index `user__external_identity__provider_uid`;
+{{end}}
 
 create unique index `user__external_identity__type_provider_uid`
   on `user__external_identity`(`type`, `provider`, `external_uid`);
 ```
 
-`db/sql/migrations/v2.20.1.err.sql` (errors tolerated; each dialect accepts one of the two forms):
+`db/sql/migrations/v2.20.1.err.sql` — rollback (undo) script:
 
 ```sql
-drop index if exists `user__external_identity__provider_uid`;
+{{if .Mysql}}
+alter table `user__external_identity` drop index `user__external_identity__type_provider_uid`;
+{{else}}
+drop index `user__external_identity__type_provider_uid`;
+{{end}}
 
-alter table `user__external_identity` drop index `user__external_identity__provider_uid`;
+alter table `user__external_identity` drop column `type`;
+
+create unique index `user__external_identity__provider_uid`
+  on `user__external_identity`(`provider`, `external_uid`);
 ```
 
 - [ ] **Step 4: Register the migration**
