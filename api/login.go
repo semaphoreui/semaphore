@@ -493,7 +493,6 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
 	ctx := context.Background()
-	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
 
 	returnPath := ""
 	redirectPath := ""
@@ -501,7 +500,7 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	config, ok := util.Config.OidcProviders[pid]
 	if !ok {
 		log.Error(fmt.Errorf("no such provider: %s", pid))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "Unknown OIDC provider.", http.StatusNotFound)
 		return
 	}
 
@@ -510,7 +509,7 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	if linkMode {
 		session, ok := getSession(r)
 		if !ok || !session.IsVerified() {
-			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			http.Error(w, "You must be signed in to link an external account.", http.StatusUnauthorized)
 			return
 		}
 	}
@@ -527,7 +526,7 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	_, oauth, err := getOidcProvider(pid, ctx, redirectPath)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "Failed to initialize OIDC provider. Contact your administrator.", http.StatusInternalServerError)
 		return
 	}
 	state := generateStateOauthCookie(w, returnPath, linkMode)
@@ -703,11 +702,14 @@ func getSecretFromFile(source string) (string, error) {
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
 	oauthState, err := r.Cookie("oauthstate")
-	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
+
+	// Errors are shown as plain text at the current URL instead of a silent
+	// redirect to the login page, so the user can see what went wrong.
+	// Details stay in server logs.
 
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: state cookie is missing. Try signing in again.", http.StatusBadRequest)
 		return
 	}
 
@@ -716,7 +718,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: invalid state. Try signing in again.", http.StatusBadRequest)
 		return
 	}
 
@@ -725,12 +727,12 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: invalid state. Try signing in again.", http.StatusBadRequest)
 		return
 	}
 
 	if stateData.Csrf != oauthState.Value {
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: state mismatch. Try signing in again.", http.StatusBadRequest)
 		return
 	}
 
@@ -739,14 +741,14 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	_oidc, oauth, err := getOidcProvider(pid, ctx, r.URL.Path)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "Failed to initialize OIDC provider. Contact your administrator.", http.StatusInternalServerError)
 		return
 	}
 
 	provider, ok := util.Config.OidcProviders[pid]
 	if !ok {
 		log.Error(fmt.Errorf("no such provider: %s", pid))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "Unknown OIDC provider.", http.StatusNotFound)
 		return
 	}
 
@@ -757,7 +759,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	oauth2Token, err := oauth.Exchange(ctx, code)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: could not exchange authorization code. Contact your administrator.", http.StatusUnauthorized)
 		return
 	}
 
@@ -796,27 +798,27 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: could not read user info from the provider. Contact your administrator.", http.StatusBadGateway)
 		return
 	}
 
 	if claims.sub == "" {
 		log.Error(fmt.Errorf("oidc provider %s returned no sub claim", pid))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: the provider returned no user ID (sub claim). Contact your administrator.", http.StatusBadGateway)
 		return
 	}
 
 	if stateData.Link {
 		session, ok := getSession(r)
 		if !ok || !session.IsVerified() {
-			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			http.Error(w, "You must be signed in to link an external account.", http.StatusUnauthorized)
 			return
 		}
 
 		sessionUser, uErr := helpers.Store(r).GetUser(session.UserID)
 		if uErr != nil {
 			log.Error(uErr.Error())
-			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			http.Error(w, "Failed to link external account.", http.StatusInternalServerError)
 			return
 		}
 
@@ -826,7 +828,15 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 				"provider": pid,
 				"context":  "oidc_link",
 			}).Error("Failed to link external identity")
-			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+
+			switch {
+			case errors.Is(lErr, errIdentityLinkedToAnother):
+				http.Error(w, "This external account is already linked to another user.", http.StatusConflict)
+			case errors.Is(lErr, errProviderAlreadyLinked):
+				http.Error(w, "Your account already has a linked identity for this provider. Unlink it first.", http.StatusConflict)
+			default:
+				http.Error(w, "Failed to link external account.", http.StatusInternalServerError)
+			}
 			return
 		}
 
@@ -846,7 +856,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: could not find or create the user account. Contact your administrator.", http.StatusInternalServerError)
 		return
 	}
 
@@ -855,7 +865,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	config, ok := util.Config.OidcProviders[pid]
 	if !ok {
 		log.Error(fmt.Errorf("no such provider: %s", pid))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "Unknown OIDC provider.", http.StatusNotFound)
 		return
 	}
 
@@ -873,7 +883,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	redirectURL, err := url.JoinPath(util.Config.WebHost, redirectPath)
 	if err != nil {
 		log.Error(err)
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: invalid redirect URL.", http.StatusInternalServerError)
 		return
 	}
 

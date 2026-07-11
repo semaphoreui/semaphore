@@ -7,6 +7,13 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
+// Sentinel errors let the OIDC redirect handler map link failures to
+// user-visible error codes (see oidcRedirect).
+var (
+	errIdentityLinkedToAnother = errors.New("external identity is already linked to another account")
+	errProviderAlreadyLinked   = errors.New("account already has an identity for this provider, unlink it first")
+)
+
 // externalUserProfile is what an external auth flow (LDAP or OIDC) learned
 // about the user. ExternalUID must be the provider's stable ID: LDAP DN or
 // OIDC "sub" claim.
@@ -132,7 +139,7 @@ func linkExternalIdentity(store db.Store, user db.User, provider string, externa
 		if existing.UserID == user.ID {
 			return nil // already linked - idempotent
 		}
-		return errors.New("external identity is already linked to another account")
+		return errIdentityLinkedToAnother
 	case !errors.Is(err, db.ErrNotFound):
 		return err
 	}
@@ -143,7 +150,7 @@ func linkExternalIdentity(store db.Store, user db.User, provider string, externa
 	}
 	for _, identity := range identities {
 		if identity.Provider == provider {
-			return errors.New("account already has an identity for this provider, unlink it first")
+			return errProviderAlreadyLinked
 		}
 	}
 

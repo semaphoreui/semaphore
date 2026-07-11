@@ -209,11 +209,12 @@ func TestLinkExternalIdentity_Conflicts(t *testing.T) {
 
 	require.NoError(t, linkExternalIdentity(store, alice, "keycloak", "sub-a"))
 
-	// UID owned by another user.
-	assert.Error(t, linkExternalIdentity(store, bob, "keycloak", "sub-a"))
+	// UID owned by another user. The sentinel is what oidcRedirect maps
+	// to the user-visible "link_conflict" error code.
+	assert.ErrorIs(t, linkExternalIdentity(store, bob, "keycloak", "sub-a"), errIdentityLinkedToAnother)
 
-	// Second identity for the same provider.
-	assert.Error(t, linkExternalIdentity(store, alice, "keycloak", "sub-a2"))
+	// Second identity for the same provider → "link_provider_exists".
+	assert.ErrorIs(t, linkExternalIdentity(store, alice, "keycloak", "sub-a2"), errProviderAlreadyLinked)
 }
 
 func TestSyncExternalUserAttrs_SkipsLocalUsers(t *testing.T) {
