@@ -813,15 +813,15 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sessionUser, err2 := helpers.Store(r).GetUser(session.UserID)
-		if err2 != nil {
-			log.Error(err2.Error())
+		sessionUser, uErr := helpers.Store(r).GetUser(session.UserID)
+		if uErr != nil {
+			log.Error(uErr.Error())
 			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 			return
 		}
 
-		if err2 := linkExternalIdentity(helpers.Store(r), sessionUser, pid, claims.sub); err2 != nil {
-			log.WithError(err2).WithFields(log.Fields{
+		if lErr := linkExternalIdentity(helpers.Store(r), sessionUser, pid, claims.sub); lErr != nil {
+			log.WithError(lErr).WithFields(log.Fields{
 				"user_id":  sessionUser.ID,
 				"provider": pid,
 				"context":  "oidc_link",
