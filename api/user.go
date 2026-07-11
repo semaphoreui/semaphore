@@ -53,17 +53,23 @@ func (c *UserController) GetUser(w http.ResponseWriter, r *http.Request) {
 func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 	currentUser := helpers.GetFromContext(r, "user").(*db.User)
 
-	provider, ok := util.Config.GetLdapProvider("ldap")
-	if !ok {
-		helpers.WriteErrorStatus(w, "LDAP is not enabled", http.StatusBadRequest)
-		return
-	}
-
 	var creds struct {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
+		Provider string `json:"provider"` // LDAP provider ID, default "ldap"
 	}
 	if !helpers.Bind(w, r, &creds) {
+		return
+	}
+
+	providerID := creds.Provider
+	if providerID == "" {
+		providerID = "ldap"
+	}
+
+	provider, ok := util.Config.GetLdapProvider(providerID)
+	if !ok {
+		helpers.WriteErrorStatus(w, "LDAP provider not found", http.StatusBadRequest)
 		return
 	}
 
@@ -73,7 +79,7 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := linkExternalIdentity(helpers.Store(r), *currentUser, db.IdentityTypeLdap, "ldap", userDN); err != nil {
+	if err := linkExternalIdentity(helpers.Store(r), *currentUser, db.IdentityTypeLdap, providerID, userDN); err != nil {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusConflict)
 		return
 	}
