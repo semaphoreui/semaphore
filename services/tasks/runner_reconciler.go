@@ -200,6 +200,11 @@ func (p *TaskPool) failTaskRunnerLost(tsk *TaskRunner, runner *db.Runner, reason
 	}
 
 	if tsk.Task.Status.IsFinished() {
+		// Another node (or the runner report on this node) already persisted a
+		// terminal status. Complete finalization instead of bailing: if we won
+		// the finalize lock over FinalizeRemoteTask, that path will not run and
+		// pool/Redis state (running set, claims, End, autorun) would leak.
+		p.finalizeRemoteTaskLocked(tsk, runner)
 		return
 	}
 
@@ -269,6 +274,22 @@ func (p *TaskPool) requeueTaskRunnerOffline(tsk *TaskRunner, runnerID int, reaso
 
 	tsk.Logf("Runner #%d lost the task: %s. Returning task to queue.", runnerID, reason)
 
+	// Re-check the DB immediately before mutating: another node may have
+	// received a concurrent "running" report while we held the finalize lock.
+	if util.HAEnabled() {
+		p.refreshTaskStatusFromDB(tsk)
+		if tsk.Task.Status != task_logger.TaskStartingStatus &&
+			tsk.Task.Status != task_logger.TaskWaitingStatus {
+			return
+		}
+		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runnerID {
+			return
+		}
+	}
+
+	prevRunnerID := tsk.Task.RunnerID
+	prevStatus := tsk.Task.Status
+
 	tsk.Task.RunnerID = nil
 	tsk.SetStatus(task_logger.TaskWaitingStatus)
 
@@ -279,6 +300,10 @@ func (p *TaskPool) requeueTaskRunnerOffline(tsk *TaskRunner, runnerID int, reaso
 			"task_id": tsk.Task.ID,
 			"context": "runner_reconciler",
 		}).Error("failed to persist requeued task")
+		// Roll back in-memory changes so the next reconcile tick retries via
+		// the runner-liveness path instead of mis-routing as undispatched.
+		tsk.Task.RunnerID = prevRunnerID
+		tsk.Task.Status = prevStatus
 		return
 	}
 
