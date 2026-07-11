@@ -72,7 +72,7 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := linkExternalIdentity(helpers.Store(r), *currentUser, "ldap", userDN); err != nil {
+	if err := linkExternalIdentity(helpers.Store(r), *currentUser, db.IdentityTypeLdap, "ldap", userDN); err != nil {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusConflict)
 		return
 	}

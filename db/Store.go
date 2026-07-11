@@ -398,10 +398,10 @@ type TokenManager interface {
 
 // ExternalIdentityManager handles external identity-related operations
 type ExternalIdentityManager interface {
-	GetExternalIdentity(provider string, externalUID string) (UserExternalIdentity, error)
+	GetExternalIdentity(idType string, provider string, externalUID string) (UserExternalIdentity, error)
 	GetUserExternalIdentities(userID int) ([]UserExternalIdentity, error)
 	CreateExternalIdentity(identity UserExternalIdentity) (UserExternalIdentity, error)
-	DeleteExternalIdentity(userID int, provider string) error
+	DeleteExternalIdentity(userID int, idType string, provider string) error
 }
 
 // TaskManager handles task-related operations

@@ -31,7 +31,7 @@ func TestGetAndDeleteUserIdentities(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.CreateExternalIdentity(db.UserExternalIdentity{
-		UserID: target.ID, Provider: "ldap", ExternalUID: "cn=jdoe,dc=x",
+		UserID: target.ID, Type: db.IdentityTypeLdap, Provider: "ldap", ExternalUID: "cn=jdoe,dc=x",
 	})
 	require.NoError(t, err)
 
@@ -47,12 +47,22 @@ func TestGetAndDeleteUserIdentities(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "cn=jdoe,dc=x")
 
-	// DELETE unlink
-	r = httptest.NewRequest(http.MethodDelete, "/api/users/2/identities/ldap", nil)
+	// DELETE with an invalid identity type is rejected.
+	r = httptest.NewRequest(http.MethodDelete, "/api/users/2/identities/bogus/ldap", nil)
 	r = helpers.SetContextValue(r, "store", store)
 	r = helpers.SetContextValue(r, "user", &admin)
 	r = helpers.SetContextValue(r, "_user", target)
-	r = mux.SetURLVars(r, map[string]string{"provider": "ldap"})
+	r = mux.SetURLVars(r, map[string]string{"type": "bogus", "provider": "ldap"})
+	w = httptest.NewRecorder()
+	usersController.DeleteUserIdentity(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	// DELETE unlink
+	r = httptest.NewRequest(http.MethodDelete, "/api/users/2/identities/ldap/ldap", nil)
+	r = helpers.SetContextValue(r, "store", store)
+	r = helpers.SetContextValue(r, "user", &admin)
+	r = helpers.SetContextValue(r, "_user", target)
+	r = mux.SetURLVars(r, map[string]string{"type": "ldap", "provider": "ldap"})
 	w = httptest.NewRecorder()
 	usersController.DeleteUserIdentity(w, r)
 	assert.Equal(t, http.StatusNoContent, w.Code)

@@ -8,17 +8,17 @@ import (
 func (d *SqlDb) CreateExternalIdentity(identity db.UserExternalIdentity) (db.UserExternalIdentity, error) {
 	identity.Created = db.GetParsedTime(tz.Now())
 	if identity.Type == "" {
-		identity.Type = "oidc"
+		identity.Type = db.IdentityTypeOidc
 	}
 	err := d.Sql().Insert(&identity)
 	return identity, err
 }
 
-func (d *SqlDb) GetExternalIdentity(provider string, externalUID string) (identity db.UserExternalIdentity, err error) {
+func (d *SqlDb) GetExternalIdentity(idType string, provider string, externalUID string) (identity db.UserExternalIdentity, err error) {
 	err = d.selectOne(
 		&identity,
-		"select * from user__external_identity where provider=? and external_uid=?",
-		provider, externalUID)
+		"select * from user__external_identity where type=? and provider=? and external_uid=?",
+		idType, provider, externalUID)
 	return
 }
 
@@ -30,9 +30,9 @@ func (d *SqlDb) GetUserExternalIdentities(userID int) (identities []db.UserExter
 	return
 }
 
-func (d *SqlDb) DeleteExternalIdentity(userID int, provider string) error {
+func (d *SqlDb) DeleteExternalIdentity(userID int, idType string, provider string) error {
 	_, err := d.exec(
-		"delete from user__external_identity where user_id=? and provider=?",
-		userID, provider)
+		"delete from user__external_identity where user_id=? and type=? and provider=?",
+		userID, idType, provider)
 	return err
 }

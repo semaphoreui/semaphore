@@ -317,9 +317,15 @@ func (c *UsersController) GetUserIdentities(w http.ResponseWriter, r *http.Reque
 
 func (c *UsersController) DeleteUserIdentity(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "_user").(db.User)
+	idType := mux.Vars(r)["type"]
 	provider := mux.Vars(r)["provider"]
 
-	if err := helpers.Store(r).DeleteExternalIdentity(user.ID, provider); err != nil {
+	if idType != db.IdentityTypeLdap && idType != db.IdentityTypeOidc {
+		helpers.WriteErrorStatus(w, "Invalid identity type", http.StatusBadRequest)
+		return
+	}
+
+	if err := helpers.Store(r).DeleteExternalIdentity(user.ID, idType, provider); err != nil {
 		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete user identity")
 		helpers.WriteErrorStatus(w, "Failed to delete identity", http.StatusInternalServerError)
 		return

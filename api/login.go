@@ -238,9 +238,10 @@ func loginByPassword(store db.Store, login string, password string) (user db.Use
 	return
 }
 
-func loginByLDAP(store db.Store, ldapUser db.User, userDN string) (db.User, error) {
+func loginByLDAP(store db.Store, ldapUser db.User, userDN string, providerID string) (db.User, error) {
 	return resolveExternalUser(store, externalUserProfile{
-		Provider:        "ldap",
+		Type:            db.IdentityTypeLdap,
+		Provider:        providerID,
 		ExternalUID:     userDN,
 		Username:        ldapUser.Username,
 		Name:            ldapUser.Name,
@@ -352,7 +353,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if ldapUser == nil {
 		user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
 	} else {
-		user, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN)
+		user, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, "ldap")
 	}
 
 	if err != nil {
@@ -822,7 +823,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if lErr := linkExternalIdentity(helpers.Store(r), sessionUser, pid, claims.sub); lErr != nil {
+		if lErr := linkExternalIdentity(helpers.Store(r), sessionUser, db.IdentityTypeOidc, pid, claims.sub); lErr != nil {
 			log.WithError(lErr).WithFields(log.Fields{
 				"user_id":  sessionUser.ID,
 				"provider": pid,
@@ -846,6 +847,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := resolveExternalUser(helpers.Store(r), externalUserProfile{
+		Type:        db.IdentityTypeOidc,
 		Provider:    pid,
 		ExternalUID: claims.sub,
 		Username:    claims.username,

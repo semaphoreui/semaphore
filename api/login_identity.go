@@ -18,6 +18,7 @@ var (
 // about the user. ExternalUID must be the provider's stable ID: LDAP DN or
 // OIDC "sub" claim.
 type externalUserProfile struct {
+	Type            string // db.IdentityTypeLdap or db.IdentityTypeOidc
 	Provider        string
 	ExternalUID     string
 	Username        string
@@ -35,8 +36,11 @@ func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error)
 	if p.ExternalUID == "" {
 		return db.User{}, errors.New("external identity: empty external UID")
 	}
+	if p.Type == "" {
+		return db.User{}, errors.New("external identity: empty type")
+	}
 
-	identity, err := store.GetExternalIdentity(p.Provider, p.ExternalUID)
+	identity, err := store.GetExternalIdentity(p.Type, p.Provider, p.ExternalUID)
 
 	switch {
 	case err == nil:
@@ -55,6 +59,7 @@ func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error)
 	case err == nil:
 		if _, err = store.CreateExternalIdentity(db.UserExternalIdentity{
 			UserID:      user.ID,
+			Type:        p.Type,
 			Provider:    p.Provider,
 			ExternalUID: p.ExternalUID,
 		}); err != nil {
@@ -77,6 +82,7 @@ func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error)
 
 	_, err = store.CreateExternalIdentity(db.UserExternalIdentity{
 		UserID:      user.ID,
+		Type:        p.Type,
 		Provider:    p.Provider,
 		ExternalUID: p.ExternalUID,
 	})
@@ -125,15 +131,15 @@ func matchExternalUserByEmail(store db.Store, p externalUserProfile) (db.User, e
 	return user, nil
 }
 
-// linkExternalIdentity attaches (provider, externalUID) to user. Proof of
-// ownership is the caller's job (active verified session + full auth flow
+// linkExternalIdentity attaches (idType, provider, externalUID) to user. Proof
+// of ownership is the caller's job (active verified session + full auth flow
 // at the provider) - email is never proof, see Grafana CVE-2023-3128.
-func linkExternalIdentity(store db.Store, user db.User, provider string, externalUID string) error {
+func linkExternalIdentity(store db.Store, user db.User, idType string, provider string, externalUID string) error {
 	if externalUID == "" {
 		return errors.New("external identity: empty external UID")
 	}
 
-	existing, err := store.GetExternalIdentity(provider, externalUID)
+	existing, err := store.GetExternalIdentity(idType, provider, externalUID)
 	switch {
 	case err == nil:
 		if existing.UserID == user.ID {
@@ -149,13 +155,14 @@ func linkExternalIdentity(store db.Store, user db.User, provider string, externa
 		return err
 	}
 	for _, identity := range identities {
-		if identity.Provider == provider {
+		if identity.Type == idType && identity.Provider == provider {
 			return errProviderAlreadyLinked
 		}
 	}
 
 	_, err = store.CreateExternalIdentity(db.UserExternalIdentity{
 		UserID:      user.ID,
+		Type:        idType,
 		Provider:    provider,
 		ExternalUID: externalUID,
 	})

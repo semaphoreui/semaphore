@@ -2,6 +2,12 @@ package db
 
 import "time"
 
+// Identity type values stored in user__external_identity.type (varchar(4)).
+const (
+	IdentityTypeLdap = "ldap"
+	IdentityTypeOidc = "oidc"
+)
+
 // UserExternalIdentity links a Semaphore user to an identity at an external
 // auth provider. Provider is "ldap" or a key of the oidc_providers config map.
 // ExternalUID is the provider's stable user ID: the OIDC "sub" claim or the
