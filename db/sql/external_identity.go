@@ -7,6 +7,9 @@ import (
 
 func (d *SqlDb) CreateExternalIdentity(identity db.UserExternalIdentity) (db.UserExternalIdentity, error) {
 	identity.Created = db.GetParsedTime(tz.Now())
+	if identity.Type == "" {
+		identity.Type = "oidc"
+	}
 	err := d.Sql().Insert(&identity)
 	return identity, err
 }

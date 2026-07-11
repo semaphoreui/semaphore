@@ -30,12 +30,13 @@ func TestExternalIdentityCRUD(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.NotZero(t, created.Created)
+	assert.Equal(t, "oidc", created.Type) // defaults to oidc
 
 	found, err := store.GetExternalIdentity("ldap", "cn=jdoe,dc=example,dc=org")
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, found.UserID)
 
-	// Unique (provider, external_uid).
+	// Unique (type, provider, external_uid).
 	_, err = store.CreateExternalIdentity(db.UserExternalIdentity{
 		UserID:      user.ID,
 		Provider:    "ldap",

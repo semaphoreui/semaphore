@@ -10,6 +10,7 @@ import "time"
 type UserExternalIdentity struct {
 	ID          int       `db:"id" json:"id"`
 	UserID      int       `db:"user_id" json:"user_id"`
+	Type        string    `db:"type" json:"type"`
 	Provider    string    `db:"provider" json:"provider"`
 	ExternalUID string    `db:"external_uid" json:"external_uid"`
 	Created     time.Time `db:"created" json:"created"`
