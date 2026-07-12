@@ -8,11 +8,11 @@ import "sort"
 type LdapProvider struct {
 	DisplayName  string        `json:"display_name"`
 	Server       string        `json:"server"`
-	NeedTLS      bool          `json:"needtls"`
-	BindDN       string        `json:"binddn"`
-	BindPassword string        `json:"bindpassword"`
-	SearchDN     string        `json:"searchdn"`
-	SearchFilter string        `json:"searchfilter"`
+	NeedTLS      bool          `json:"need_tls"`
+	BindDN       string        `json:"bind_dn"`
+	BindPassword string        `json:"bind_password"`
+	SearchDN     string        `json:"search_dn"`
+	SearchFilter string        `json:"search_filter"`
 	Mappings     *LdapMappings `json:"mappings"`
 	Order        int           `json:"order"`
 }

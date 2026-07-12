@@ -169,7 +169,7 @@
           </div>
         </div>
 
-        <div class="pt-10" v-if="!isNew">
+        <div class="" v-if="!isNew">
           <div class="title mb-2">Linked accounts</div>
 
           <v-alert :value="!!linkError" color="error" dense text>{{ linkError }}</v-alert>

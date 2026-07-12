@@ -381,13 +381,13 @@ $defs:
     properties:
       display_name: { type: string }
       server:       { type: string }
-      needtls:      { type: boolean }
-      binddn:       { type: string }
-      bindpassword:
+      need_tls:      { type: boolean }
+      bind_dn:       { type: string }
+      bind_password:
         type: string
         description: LDAP bind password (sensitive).
-      searchdn:     { type: string }
-      searchfilter: { type: string }
+      search_dn:     { type: string }
+      search_filter: { type: string }
       mappings:     { $ref: "#/$defs/LdapMappings" }
       order:        { type: integer }
 
