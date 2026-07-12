@@ -389,6 +389,8 @@ $defs:
       search_dn:     { type: string }
       search_filter: { type: string }
       mappings:     { $ref: "#/$defs/LdapMappings" }
+      color:        { type: string }
+      icon:         { type: string, description: MDI icon name without the mdi- prefix. }
       order:        { type: integer }
 
   OidcProvider:

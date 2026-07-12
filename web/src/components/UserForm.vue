@@ -172,31 +172,23 @@
         <div class="" v-if="!isNew">
           <div class="title mb-2">Linked accounts</div>
 
-          <v-alert :value="!!linkError" color="error" dense text>{{ linkError }}</v-alert>
-
-          <v-simple-table v-if="identities.length > 0" class="mb-3">
-            <tbody>
-              <tr v-for="identity in identities" :key="identity.id">
-                <td style="width: 30%">{{ providerName(identity) }}</td>
-                <td
-                  style="
-                    max-width: 200px;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                  "
-                  :title="identity.external_uid"
-                >
-                  {{ identity.external_uid }}
-                </td>
-                <td style="text-align: right">
-                  <v-btn icon @click="unlinkIdentity(identity)">
-                    <v-icon>mdi-link-off</v-icon>
-                  </v-btn>
-                </td>
-              </tr>
-            </tbody>
-          </v-simple-table>
+          <div v-if="identities.length > 0" class="mb-3">
+            <v-chip
+              v-for="identity in identities"
+              :key="identity.id"
+              :color="identityProvider(identity).color"
+              :dark="!!identityProvider(identity).color"
+              :title="identity.external_uid"
+              class="mr-2 mb-2"
+              close
+              @click:close="unlinkIdentity(identity)"
+            >
+              <v-icon left v-if="identityProvider(identity).icon">
+                mdi-{{ identityProvider(identity).icon }}
+              </v-icon>
+              {{ identity.provider }}
+            </v-chip>
+          </div>
 
           <div v-else class="text--secondary mb-3">No linked accounts.</div>
 
@@ -215,6 +207,8 @@
 
             <div v-if="unlinkedLdapProviders.length > 0" class="mt-3">
               <div class="subtitle-1 mb-2">Link LDAP account</div>
+
+              <v-alert :value="!!linkError" color="error" dense text>{{ linkError }}</v-alert>
 
               <v-select
                 v-if="unlinkedLdapProviders.length > 1"
@@ -348,11 +342,15 @@ export default {
     },
 
     unlinkedOidcProviders() {
-      return this.oidcProviders.filter((provider) => !this.linkedProviders.has(`oidc:${provider.id}`));
+      return this.oidcProviders.filter(
+        (provider) => !this.linkedProviders.has(`oidc:${provider.id}`),
+      );
     },
 
     unlinkedLdapProviders() {
-      return this.ldapProviders.filter((provider) => !this.linkedProviders.has(`ldap:${provider.id}`));
+      return this.ldapProviders.filter(
+        (provider) => !this.linkedProviders.has(`ldap:${provider.id}`),
+      );
     },
   },
 
@@ -394,11 +392,9 @@ export default {
       this.ldapProviders = data.ldap_providers || [];
     },
 
-    providerName(identity) {
+    identityProvider(identity) {
       const providers = identity.type === 'ldap' ? this.ldapProviders : this.oidcProviders;
-      const provider = providers.find((p) => p.id === identity.provider);
-      const name = (provider && provider.name) || identity.provider;
-      return `${name} (${identity.type})`;
+      return providers.find((p) => p.id === identity.provider) || {};
     },
 
     linkOidcIdentity(providerId) {
@@ -416,7 +412,8 @@ export default {
           data: {
             username: this.ldapUsername,
             password: this.ldapPassword,
-            provider: this.ldapLinkProvider
+            provider:
+              this.ldapLinkProvider
               || (this.unlinkedLdapProviders[0] && this.unlinkedLdapProviders[0].id)
               || undefined,
           },
@@ -429,9 +426,8 @@ export default {
         if (err.response && err.response.status === 401) {
           this.linkError = 'Invalid LDAP credentials.';
         } else {
-          this.linkError = (err.response
-            && err.response.data
-            && err.response.data.error) || 'Failed to link LDAP account.';
+          this.linkError = (err.response && err.response.data && err.response.data.error)
+            || 'Failed to link LDAP account.';
         }
       } finally {
         this.linkingLdap = false;
@@ -448,9 +444,8 @@ export default {
         });
         await this.loadIdentities();
       } catch (err) {
-        this.linkError = (err.response
-          && err.response.data
-          && err.response.data.error) || 'Failed to unlink account.';
+        this.linkError = (err.response && err.response.data && err.response.data.error)
+          || 'Failed to unlink account.';
       }
     },
 

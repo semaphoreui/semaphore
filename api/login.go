@@ -272,8 +272,10 @@ type LoginAuthMethods struct {
 }
 
 type loginMetadataLdapProvider struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Color string `json:"color,omitempty"`
+	Icon  string `json:"icon,omitempty"`
 }
 
 type loginMetadata struct {
@@ -299,7 +301,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 			if name == "" {
 				name = entry.ID
 			}
-			config.LdapProviders = append(config.LdapProviders, loginMetadataLdapProvider{ID: entry.ID, Name: name})
+			config.LdapProviders = append(config.LdapProviders, loginMetadataLdapProvider{
+				ID:    entry.ID,
+				Name:  name,
+				Color: entry.Provider.Color,
+				Icon:  entry.Provider.Icon,
+			})
 		}
 		config.LoginWithLdap = len(ldapProviders) > 0
 

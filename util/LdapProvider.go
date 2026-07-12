@@ -14,6 +14,8 @@ type LdapProvider struct {
 	SearchDN     string        `json:"search_dn"`
 	SearchFilter string        `json:"search_filter"`
 	Mappings     *LdapMappings `json:"mappings"`
+	Color        string        `json:"color"`
+	Icon         string        `json:"icon"`
 	Order        int           `json:"order"`
 }
 
