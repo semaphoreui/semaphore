@@ -192,34 +192,28 @@
 
           <div v-else class="text--secondary mb-3">No linked accounts.</div>
 
+          <div class="title mb-2">Link account</div>
+
           <div v-if="isSelf">
-            <v-btn
-              v-for="provider in unlinkedOidcProviders"
-              :key="provider.id"
-              :color="provider.color || 'secondary'"
-              dark
-              class="mr-3 mb-3"
-              @click="linkOidcIdentity(provider.id)"
-            >
-              <v-icon left dark v-if="provider.icon">mdi-{{ provider.icon }}</v-icon>
-              Link {{ provider.name || provider.id }}
-            </v-btn>
-
             <div v-if="unlinkedLdapProviders.length > 0" class="mt-3">
-              <div class="subtitle-1 mb-2">Link LDAP account</div>
-
               <v-alert :value="!!linkError" color="error" dense text>{{ linkError }}</v-alert>
 
-              <v-select
+              <v-btn-toggle
                 v-if="unlinkedLdapProviders.length > 1"
                 v-model="ldapLinkProvider"
-                :items="unlinkedLdapProviders"
-                item-text="name"
-                item-value="id"
-                label="Provider"
-                outlined
-                dense
-              ></v-select>
+                mandatory
+                class="mb-4 d-flex"
+              >
+                <v-btn
+                  v-for="provider in unlinkedLdapProviders"
+                  :key="provider.id"
+                  :value="provider.id"
+                  small
+                  class="flex-grow-1"
+                >
+                  {{ provider.name }}
+                </v-btn>
+              </v-btn-toggle>
 
               <v-text-field
                 v-model="ldapUsername"
@@ -246,6 +240,21 @@
                 Link
               </v-btn>
             </div>
+
+            <v-btn
+              v-for="provider in unlinkedOidcProviders"
+              :key="provider.id"
+              :color="provider.color || 'secondary'"
+              dark
+              class="mr-3 mb-3"
+              rounded
+              style="width: 100%"
+              width="100%"
+              @click="linkOidcIdentity(provider.id)"
+            >
+              <v-icon left dark v-if="provider.icon">mdi-{{ provider.icon }}</v-icon>
+              Link {{ provider.name || provider.id }}
+            </v-btn>
           </div>
         </div>
       </v-tab-item>
