@@ -231,7 +231,10 @@
 
               <div
                 class="auth__divider"
-                v-if="(loginWithPassword || isPortal) && oidcProviders.length > 0"
+                v-if="
+                  (loginWithPassword || ldapProviders.length > 0 || isPortal) &&
+                  oidcProviders.length > 0
+                "
               >
                 or
               </div>

@@ -21,7 +21,7 @@
 
     <v-tabs v-model="tab">
       <v-tab key="settings">Settings</v-tab>
-      <v-tab key="2fa" v-if="canChangePassword || authMethods.totp || !isNew"> Security </v-tab>
+      <v-tab key="2fa" v-if="canChangePassword || authMethods.totp || !isNew"> Security</v-tab>
     </v-tabs>
 
     <v-divider class="mb-6" style="margin-top: -1px" />
@@ -29,7 +29,7 @@
     <v-tabs-items v-model="tab" style="overflow: unset">
       <v-tab-item key="settings">
         <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
-          <v-alert :value="formError" color="error" class="pb-2">{{ formError }} </v-alert>
+          <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
 
           <v-text-field
             v-model="item.name"
@@ -125,7 +125,7 @@
           <v-btn color="primary" @click="passwordDialog = true">Change password</v-btn>
         </div>
 
-        <div :class="{ 'pt-10': !isNew }" v-if="authMethods.totp">
+        <div :class="{ 'pt-10': canChangePassword }" v-if="authMethods.totp">
           <div class="title mb-2">Two-factor authentication</div>
 
           <v-switch
@@ -134,127 +134,162 @@
             label="Time-based one-time password"
           ></v-switch>
 
-          <img
+          <v-card
+            class="pt-2 mt-1"
+            style="background: var(--highlighted-card-bg-color)"
             v-if="totpQrUrl"
-            :src="totpQrUrl"
-            style="
-              width: 100%;
-              aspect-ratio: 1;
-              border-radius: 4px;
-              display: block;
-              margin: 0 auto 10px auto;
-              border: 10px solid white;
-              background-color: white;
-            "
-            alt="QR code"
-          />
-
-          <div
-            v-if="authMethods.totp.allow_recovery && item.totp && item.totp.recovery_code"
-            class="mt-5 pb-3"
           >
-            <div class="subtitle-1 mb-2">Recovery code</div>
-            <div style="position: relative">
-              <code style="font-size: 18px; background-color: #e03755">
-                {{ item.totp.recovery_code }}
-              </code>
+            <div
+              style="
+                position: absolute;
+                background: var(--highlighted-card-bg-color);
+                width: 28px;
+                height: 28px;
+                transform: rotate(45deg);
+                left: calc(50% - 14px);
+                top: -14px;
+                border-radius: 0;
+              "
+            ></div>
 
-              <CopyClipboardButton
-                style="position: absolute; right: -4px; top: -12px"
-                :text="item.totp.recovery_code"
-                large
-                color="white"
+            <v-card-text>
+              <img
+                :src="totpQrUrl"
+                style="
+                  width: 100%;
+                  aspect-ratio: 1;
+                  border-radius: 4px;
+                  display: block;
+                  margin: 0 auto 10px auto;
+                  border: 10px solid white;
+                  background-color: white;
+                "
+                alt="QR code"
               />
-            </div>
-          </div>
+
+              <div
+                v-if="authMethods.totp.allow_recovery && item.totp && item.totp.recovery_code"
+                class="mt-5 pb-3"
+              >
+                <div class="subtitle-1 mb-2">Recovery code</div>
+                <div style="position: relative">
+                  <code style="font-size: 18px; background-color: #e03755">
+                    {{ item.totp.recovery_code }}
+                  </code>
+
+                  <CopyClipboardButton
+                    style="position: absolute; right: -4px; top: -12px"
+                    :text="item.totp.recovery_code"
+                    large
+                    color="white"
+                  />
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
         </div>
 
-        <div class="" v-if="!isNew">
-          <div class="title mb-2">Linked accounts</div>
+        <div
+          v-if="!isNew"
+          :class="{
+            'pt-10': canChangePassword || authMethods.totp,
+          }"
+          :style="{ marginTop: (!authMethods.totp || totpEnabled) ? 0 : '-30px' }"
+        >
+          <template v-if="identities.length > 0">
+            <div class="title mb-2">Linked accounts</div>
 
-          <div v-if="identities.length > 0" class="mb-3">
-            <v-chip
-              v-for="identity in identities"
-              :key="identity.id"
-              :color="identityProvider(identity).color"
-              :dark="!!identityProvider(identity).color"
-              :title="identity.external_uid"
-              class="mr-2 mb-2"
-              close
-              @click:close="unlinkIdentity(identity)"
-            >
-              <v-icon left v-if="identityProvider(identity).icon">
-                mdi-{{ identityProvider(identity).icon }}
-              </v-icon>
-              {{ identity.provider }}
-            </v-chip>
-          </div>
-
-          <div v-else class="text--secondary mb-3">No linked accounts.</div>
-
-          <div class="title mb-2">Link account</div>
-
-          <div v-if="isSelf">
-            <div v-if="unlinkedLdapProviders.length > 0" class="mt-3">
-              <v-alert :value="!!linkError" color="error" dense text>{{ linkError }}</v-alert>
-
-              <v-btn-toggle
-                v-if="unlinkedLdapProviders.length > 1"
-                v-model="ldapLinkProvider"
-                mandatory
-                class="mb-4 d-flex"
+            <div style="margin-bottom: -8px;">
+              <v-chip
+                v-for="identity in identities"
+                :key="identity.id"
+                :color="identityProvider(identity).color"
+                :title="identity.external_uid"
+                class="mr-2 mb-2"
+                close
+                @click:close="unlinkIdentity(identity)"
               >
-                <v-btn
-                  v-for="provider in unlinkedLdapProviders"
-                  :key="provider.id"
-                  :value="provider.id"
-                  small
-                  class="flex-grow-1"
-                >
-                  {{ provider.name }}
-                </v-btn>
-              </v-btn-toggle>
+                <v-icon left v-if="identityProvider(identity).icon">
+                  mdi-{{ identityProvider(identity).icon }}
+                </v-icon>
+                {{ identity.provider }}
+              </v-chip>
+            </div>
+          </template>
 
-              <v-text-field
-                v-model="ldapUsername"
-                label="LDAP username"
-                outlined
-                dense
-              ></v-text-field>
+          <div
+            v-if="isSelf && (unlinkedLdapProviders.length > 0 || unlinkedOidcProviders.length > 0)"
+            :class="{ 'pt-10': identities.length > 0 }"
+          >
+            <div class="title mb-2">Link account</div>
 
-              <v-text-field
-                v-model="ldapPassword"
-                label="LDAP password"
-                type="password"
-                autocomplete="new-password"
-                outlined
-                dense
-              ></v-text-field>
+            <v-card class="mt-4" style="background: var(--highlighted-card-bg-color)">
+              <v-card-text>
+                <div>
+                  <v-alert :value="!!linkError" color="error" dense text>{{ linkError }}</v-alert>
 
+                  <v-btn-toggle
+                    v-model="ldapLinkProvider"
+                    mandatory
+                    borderless
+                    class="mb-7 d-flex"
+                    :background-color="$vuetify.theme.dark ? '#212121' : 'grey lighten-3'"
+                  >
+                    <v-btn
+                      v-for="provider in unlinkedLdapProviders"
+                      :key="provider.id"
+                      :value="provider.id"
+                      small
+                      class="flex-grow-1"
+                    >
+                      {{ provider.name }}
+                    </v-btn>
+                  </v-btn-toggle>
+
+                  <v-text-field
+                    v-model="ldapUsername"
+                    label="LDAP username"
+                    outlined
+                    dense
+                  ></v-text-field>
+
+                  <v-text-field
+                    v-model="ldapPassword"
+                    label="LDAP password"
+                    type="password"
+                    autocomplete="new-password"
+                    outlined
+                    dense
+                  ></v-text-field>
+
+                  <v-btn
+                    color="primary"
+                    :disabled="!ldapUsername || !ldapPassword || linkingLdap"
+                    :loading="linkingLdap"
+                    @click="linkLdapIdentity()"
+                  >
+                    Link
+                  </v-btn>
+                </div>
+              </v-card-text>
+            </v-card>
+
+            <div :class="{ 'pt-5': unlinkedLdapProviders.length > 0 }">
               <v-btn
-                color="primary"
-                :disabled="!ldapUsername || !ldapPassword || linkingLdap"
-                :loading="linkingLdap"
-                @click="linkLdapIdentity()"
+                v-for="provider in unlinkedOidcProviders"
+                :key="provider.id"
+                :color="provider.color || 'secondary'"
+                dark
+                class="mr-3 mb-3"
+                rounded
+                style="width: 100%"
+                width="100%"
+                @click="linkOidcIdentity(provider.id)"
               >
-                Link
+                <v-icon left dark v-if="provider.icon">mdi-{{ provider.icon }}</v-icon>
+                Link {{ provider.name || provider.id }}
               </v-btn>
             </div>
-
-            <v-btn
-              v-for="provider in unlinkedOidcProviders"
-              :key="provider.id"
-              :color="provider.color || 'secondary'"
-              dark
-              class="mr-3 mb-3"
-              rounded
-              style="width: 100%"
-              width="100%"
-              @click="linkOidcIdentity(provider.id)"
-            >
-              <v-icon left dark v-if="provider.icon">mdi-{{ provider.icon }}</v-icon>
-              Link {{ provider.name || provider.id }}
-            </v-btn>
           </div>
         </div>
       </v-tab-item>

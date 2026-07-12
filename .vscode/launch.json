@@ -55,7 +55,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "./cli/main.go",
-            "args": ["server", "--config", "./config.json"],
+            "args": ["server", "--config", "./node1-config.yaml"],
             "cwd": "${workspaceFolder}",
             "env": {
                 "DEBUG_DELAY": "1s"
