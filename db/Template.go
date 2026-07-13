@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -212,6 +213,17 @@ func (tpl *Template) Validate() error {
 	if tpl.RunnerTag != nil && *tpl.RunnerTag == "" {
 		return &ValidationError{"template runner tag can not be empty"}
 	}
+
+	// Reject apps that are not in the administrator-configured whitelist, otherwise
+	// an unknown app becomes a ShellApp that executes string(App) as a system binary
+	// (arbitrary command execution). util.Config is nil in some unit tests; an empty
+	// app is the legacy default and runs no command, so both are skipped.
+	if tpl.App != "" {
+		if _, ok := util.Config.Apps[string(tpl.App)]; !ok {
+			return &ValidationError{"invalid app: " + string(tpl.App)}
+		}
+	}
+
 	switch tpl.App {
 	case AppAnsible:
 		if tpl.InventoryID == nil {
