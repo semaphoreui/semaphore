@@ -57,7 +57,7 @@ func TestGetAndDeleteUserIdentities(t *testing.T) {
 	usersController.DeleteUserIdentity(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	// DELETE unlink
+	// DELETE unlink of the only identity is blocked for external users.
 	r = httptest.NewRequest(http.MethodDelete, "/api/users/2/identities/ldap/ldap", nil)
 	r = helpers.SetContextValue(r, "store", store)
 	r = helpers.SetContextValue(r, "user", &admin)
@@ -65,9 +65,82 @@ func TestGetAndDeleteUserIdentities(t *testing.T) {
 	r = mux.SetURLVars(r, map[string]string{"type": "ldap", "provider": "ldap"})
 	w = httptest.NewRecorder()
 	usersController.DeleteUserIdentity(w, r)
+	assert.Equal(t, http.StatusConflict, w.Code)
+	assert.Contains(t, w.Body.String(), errCannotUnlinkLastIdentity.Error())
+
+	ids, err := store.GetUserExternalIdentities(target.ID)
+	require.NoError(t, err)
+	assert.Len(t, ids, 1)
+}
+
+func TestDeleteUserIdentity_AllowsUnlinkWhenMultipleIdentities(t *testing.T) {
+	util.Config = &util.ConfigType{}
+	store := sql.CreateTestStore()
+
+	admin, err := store.CreateUser(db.UserWithPwd{
+		Pwd:  "verystrongpassword1",
+		User: db.User{Username: "root", Name: "Root", Email: "root@example.com", Admin: true},
+	})
+	require.NoError(t, err)
+
+	target, err := store.CreateUserWithoutPassword(db.User{
+		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", External: true,
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateExternalIdentity(db.UserExternalIdentity{
+		UserID: target.ID, Type: db.IdentityTypeLdap, Provider: "ldap", ExternalUID: "cn=jdoe,dc=x",
+	})
+	require.NoError(t, err)
+	_, err = store.CreateExternalIdentity(db.UserExternalIdentity{
+		UserID: target.ID, Type: db.IdentityTypeOidc, Provider: "keycloak", ExternalUID: "sub-1",
+	})
+	require.NoError(t, err)
+
+	usersController := NewUsersController(nil)
+
+	r := httptest.NewRequest(http.MethodDelete, "/api/users/2/identities/ldap/ldap", nil)
+	r = helpers.SetContextValue(r, "store", store)
+	r = helpers.SetContextValue(r, "user", &admin)
+	r = helpers.SetContextValue(r, "_user", target)
+	r = mux.SetURLVars(r, map[string]string{"type": "ldap", "provider": "ldap"})
+	w := httptest.NewRecorder()
+	usersController.DeleteUserIdentity(w, r)
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
 	ids, err := store.GetUserExternalIdentities(target.ID)
+	require.NoError(t, err)
+	assert.Len(t, ids, 1)
+	assert.Equal(t, db.IdentityTypeOidc, ids[0].Type)
+}
+
+func TestDeleteUserIdentity_AllowsLocalUserToUnlinkLastIdentity(t *testing.T) {
+	util.Config = &util.ConfigType{}
+	store := sql.CreateTestStore()
+
+	localUser, err := store.CreateUser(db.UserWithPwd{
+		Pwd:  "verystrongpassword1",
+		User: db.User{Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com"},
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateExternalIdentity(db.UserExternalIdentity{
+		UserID: localUser.ID, Type: db.IdentityTypeOidc, Provider: "keycloak", ExternalUID: "sub-1",
+	})
+	require.NoError(t, err)
+
+	usersController := NewUsersController(nil)
+
+	r := httptest.NewRequest(http.MethodDelete, "/api/users/1/identities/oidc/keycloak", nil)
+	r = helpers.SetContextValue(r, "store", store)
+	r = helpers.SetContextValue(r, "user", &localUser)
+	r = helpers.SetContextValue(r, "_user", localUser)
+	r = mux.SetURLVars(r, map[string]string{"type": "oidc", "provider": "keycloak"})
+	w := httptest.NewRecorder()
+	usersController.DeleteUserIdentity(w, r)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	ids, err := store.GetUserExternalIdentities(localUser.ID)
 	require.NoError(t, err)
 	assert.Empty(t, ids)
 }

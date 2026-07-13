@@ -13,6 +13,7 @@ import (
 var (
 	errIdentityLinkedToAnother = errors.New("external identity is already linked to another account")
 	errProviderAlreadyLinked   = errors.New("account already has an identity for this provider, unlink it first")
+	errCannotUnlinkLastIdentity = errors.New("cannot unlink the last external identity")
 )
 
 // externalUserProfile is what an external auth flow (LDAP or OIDC) learned

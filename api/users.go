@@ -338,6 +338,17 @@ func (c *UsersController) DeleteUserIdentity(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	identities, err := helpers.Store(r).GetUserExternalIdentities(user.ID)
+	if err != nil {
+		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to get user identities")
+		helpers.WriteErrorStatus(w, "Failed to delete identity", http.StatusInternalServerError)
+		return
+	}
+	if user.External && len(identities) <= 1 {
+		helpers.WriteErrorStatus(w, errCannotUnlinkLastIdentity.Error(), http.StatusConflict)
+		return
+	}
+
 	if err := helpers.Store(r).DeleteExternalIdentity(user.ID, idType, provider); err != nil {
 		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete user identity")
 		helpers.WriteErrorStatus(w, "Failed to delete identity", http.StatusInternalServerError)
