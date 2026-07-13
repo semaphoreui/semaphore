@@ -621,7 +621,7 @@ jobs:
             latest=false
 
       - name: Server build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -675,7 +675,7 @@ jobs:
             latest=false
 
       - name: Runner build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -724,7 +724,7 @@ jobs:
             latest=false
 
       - name: Job build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -773,7 +773,7 @@ jobs:
             latest=false
 
       - name: Helper build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
