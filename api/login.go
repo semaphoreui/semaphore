@@ -249,6 +249,8 @@ func loginByLDAP(store db.Store, ldapUser db.User, userDN string, providerID str
 		Name:            ldapUser.Name,
 		Email:           ldapUser.Email,
 		MatchByUsername: true,
+		// The email comes from the directory, not the user - authoritative.
+		EmailVerified: true,
 	})
 }
 
@@ -646,10 +648,26 @@ func generateStateOauthCookie(w http.ResponseWriter, returnPath string, link boo
 }
 
 type claimResult struct {
-	sub      string
-	username string
-	name     string
-	email    string
+	sub           string
+	username      string
+	name          string
+	email         string
+	emailVerified bool
+}
+
+// emailVerifiedClaim reads the standard OIDC email_verified claim. Only
+// consulted when the provider has require_verified_email enabled, so an
+// absent claim counts as NOT verified. Some providers (e.g. AWS Cognito)
+// send it as the string "true"/"false".
+func emailVerifiedClaim(claims map[string]any) bool {
+	switch v := claims["email_verified"].(type) {
+	case bool:
+		return v
+	case string:
+		return v == "true"
+	default:
+		return false
+	}
 }
 
 func parseClaim(str string, claims map[string]any) (string, bool) {
@@ -727,6 +745,22 @@ func parseClaims(claims map[string]any, provider util.ClaimsProvider) (res claim
 	return
 }
 
+// oidcEmailVerified reports whether the userinfo email may be used to match
+// existing accounts. Always true unless the provider opted into
+// require_verified_email; then the email_verified claim must be true.
+func oidcEmailVerified(userInfo *oidc.UserInfo, provider util.OidcProvider) bool {
+	if !provider.RequireVerifiedEmail {
+		return true
+	}
+
+	rawClaims := make(map[string]any)
+	if err := userInfo.Claims(&rawClaims); err != nil {
+		return false
+	}
+
+	return emailVerifiedClaim(rawClaims)
+}
+
 func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res claimResult, err error) {
 	claims := make(map[string]any)
 	if err = userInfo.Claims(&claims); err != nil {
@@ -737,6 +771,7 @@ func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res
 
 	res, err = parseClaims(claims, &provider)
 	res.sub = userInfo.Subject
+	res.emailVerified = !provider.RequireVerifiedEmail || emailVerifiedClaim(claims)
 	return
 }
 
@@ -750,6 +785,7 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res clai
 
 	res, err = parseClaims(claims, &provider)
 	res.sub = idToken.Subject
+	res.emailVerified = !provider.RequireVerifiedEmail || emailVerifiedClaim(claims)
 	return
 }
 
@@ -858,6 +894,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 				claims.email = userInfo.Email
 				claims.name = userInfo.Profile
 				claims.sub = userInfo.Subject
+				claims.emailVerified = oidcEmailVerified(userInfo, provider)
 			}
 		}
 
@@ -919,10 +956,11 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	user, err := resolveExternalUser(helpers.Store(r), externalUserProfile{
 		Type:        db.IdentityTypeOidc,
 		Provider:    pid,
-		ExternalUID: claims.sub,
-		Username:    claims.username,
-		Name:        claims.name,
-		Email:       claims.email,
+		ExternalUID:   claims.sub,
+		Username:      claims.username,
+		Name:          claims.name,
+		Email:         claims.email,
+		EmailVerified: claims.emailVerified,
 		// MatchByUsername stays false: OIDC matches by email only
 		// (username matching "creates a lot of problems" - see old comment).
 	})

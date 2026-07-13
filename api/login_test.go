@@ -15,6 +15,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestEmailVerifiedClaim(t *testing.T) {
+	tests := []struct {
+		name     string
+		claims   map[string]any
+		expected bool
+	}{
+		{"bool true", map[string]any{"email_verified": true}, true},
+		{"bool false", map[string]any{"email_verified": false}, false},
+		{"string true", map[string]any{"email_verified": "true"}, true},
+		{"string false", map[string]any{"email_verified": "false"}, false},
+		{"absent claim is not verified", map[string]any{"email": "x@y.z"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, emailVerifiedClaim(tt.claims))
+		})
+	}
+}
+
 func TestParseClaim(t *testing.T) {
 	claims := map[string]any{
 		"username": "fiftin",

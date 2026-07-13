@@ -419,6 +419,10 @@ $defs:
       email_claim:      { type: string, default: email }
       order:            { type: integer }
       return_via_state: { type: boolean, default: true }
+      require_verified_email:
+        type: boolean
+        default: false
+        description: Use the email for account matching only if the provider sent email_verified=true. Off by default because some providers (e.g. Okta) do not return the claim.
 
   OidcEndpoint:
     type: object

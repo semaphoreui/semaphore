@@ -25,6 +25,12 @@ type externalUserProfile struct {
 	Name            string
 	Email           string
 	MatchByUsername bool // LDAP legacy behavior: also match by username
+	// EmailVerified means the provider proved the user owns Email (OIDC
+	// email_verified claim; for LDAP the directory is authoritative).
+	// Unverified emails are never used to match existing accounts: an IdP
+	// that lets users type in any email must not be able to adopt someone
+	// else's account (Grafana CVE-2023-3128 class).
+	EmailVerified bool
 }
 
 // resolveExternalUser maps an external identity to a Semaphore user:
@@ -87,7 +93,15 @@ func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error)
 		Provider:    p.Provider,
 		ExternalUID: p.ExternalUID,
 	})
-	return user, err
+	if err != nil {
+		// Roll back the just-created user, otherwise it stays orphaned and
+		// (with email matching off) every retry dies on duplicate username.
+		// Best-effort: the login already failed, DeleteUser error adds nothing.
+		_ = store.DeleteUser(user.ID)
+		return db.User{}, err
+	}
+
+	return user, nil
 }
 
 // matchExternalUserByEmail implements the legacy email/username matching,
@@ -97,16 +111,21 @@ func matchExternalUserByEmail(store db.Store, p externalUserProfile) (db.User, e
 		return db.User{}, db.ErrNotFound
 	}
 
+	email := ""
+	if p.EmailVerified {
+		email = p.Email
+	}
+
 	username := ""
 	if p.MatchByUsername {
 		username = p.Username
 	}
 
-	if p.Email == "" && username == "" {
+	if email == "" && username == "" {
 		return db.User{}, db.ErrNotFound
 	}
 
-	user, err := store.GetUserByLoginOrEmail(username, p.Email)
+	user, err := store.GetUserByLoginOrEmail(username, email)
 	if err != nil {
 		return db.User{}, err
 	}

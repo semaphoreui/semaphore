@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -28,6 +29,7 @@ func ldapProfile(uid string, email string) externalUserProfile {
 		Name:            "John Doe",
 		Email:           email,
 		MatchByUsername: true,
+		EmailVerified:   true,
 	}
 }
 
@@ -81,14 +83,14 @@ func TestResolveExternalUser_AutoDoesNotAdoptPinnedUser(t *testing.T) {
 	// User already pinned to a different provider identity.
 	pinned, err := resolveExternalUser(store, externalUserProfile{
 		Type: db.IdentityTypeOidc, Provider: "keycloak", ExternalUID: "sub-1",
-		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com",
+		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", EmailVerified: true,
 	})
 	require.NoError(t, err)
 
 	// Same email arrives from another provider: must NOT reuse the account.
 	other, err := resolveExternalUser(store, externalUserProfile{
 		Type: db.IdentityTypeOidc, Provider: "okta", ExternalUID: "sub-2",
-		Username: "jdoe2", Name: "John Doe", Email: "jdoe@example.com",
+		Username: "jdoe2", Name: "John Doe", Email: "jdoe@example.com", EmailVerified: true,
 	})
 	if err == nil {
 		assert.NotEqual(t, pinned.ID, other.ID)
@@ -104,13 +106,13 @@ func TestResolveExternalUser_AlwaysLinksSecondProvider(t *testing.T) {
 
 	first, err := resolveExternalUser(store, externalUserProfile{
 		Type: db.IdentityTypeOidc, Provider: "keycloak", ExternalUID: "sub-1",
-		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com",
+		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", EmailVerified: true,
 	})
 	require.NoError(t, err)
 
 	second, err := resolveExternalUser(store, externalUserProfile{
 		Type: db.IdentityTypeOidc, Provider: "okta", ExternalUID: "sub-2",
-		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com",
+		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", EmailVerified: true,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, first.ID, second.ID)
@@ -118,6 +120,60 @@ func TestResolveExternalUser_AlwaysLinksSecondProvider(t *testing.T) {
 	ids, err := store.GetUserExternalIdentities(first.ID)
 	require.NoError(t, err)
 	assert.Len(t, ids, 2)
+}
+
+func TestResolveExternalUser_UnverifiedEmailNotMatched(t *testing.T) {
+	store := setupIdentityTest(t, "always")
+
+	// Existing external user owns this email.
+	victim, err := store.CreateUserWithoutPassword(db.User{
+		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", External: true,
+	})
+	require.NoError(t, err)
+
+	// IdP asserts the same email but email_verified=false: must NOT adopt.
+	res, err := resolveExternalUser(store, externalUserProfile{
+		Type: db.IdentityTypeOidc, Provider: "keycloak", ExternalUID: "sub-attacker",
+		Username: "attacker", Name: "Attacker", Email: "jdoe@example.com",
+	})
+	if err == nil {
+		assert.NotEqual(t, victim.ID, res.ID)
+	} else {
+		// Unique email constraint may forbid creating the second user -
+		// also acceptable, but it must NOT be a silent merge.
+		assert.Error(t, err)
+	}
+
+	ids, err := store.GetUserExternalIdentities(victim.ID)
+	require.NoError(t, err)
+	assert.Empty(t, ids)
+}
+
+// failingIdentityStore makes CreateExternalIdentity fail to simulate the
+// user-created-but-identity-insert-failed window.
+type failingIdentityStore struct {
+	db.Store
+}
+
+func (s failingIdentityStore) CreateExternalIdentity(db.UserExternalIdentity) (db.UserExternalIdentity, error) {
+	return db.UserExternalIdentity{}, errors.New("identity insert failed")
+}
+
+func TestResolveExternalUser_RollsBackUserOnIdentityFailure(t *testing.T) {
+	store := setupIdentityTest(t, "never")
+
+	_, err := resolveExternalUser(failingIdentityStore{store}, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
+	require.Error(t, err)
+
+	// The half-created user must be rolled back...
+	_, err = store.GetUserByLoginOrEmail("jdoe", "jdoe@example.com")
+	assert.ErrorIs(t, err, db.ErrNotFound)
+
+	// ...so a retry against a healthy store succeeds instead of dying on
+	// a duplicate username.
+	user, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
+	require.NoError(t, err)
+	assert.True(t, user.External)
 }
 
 func TestResolveExternalUser_NeverSkipsEmailMatching(t *testing.T) {
