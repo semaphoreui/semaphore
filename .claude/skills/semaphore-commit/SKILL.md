@@ -1,4 +1,6 @@
-# Git Commit Skill
+---
+name: semaphore-commit
+---
 
 Create well-formatted git commits following conventional commit standards.
 
