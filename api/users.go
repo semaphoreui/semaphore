@@ -13,6 +13,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -245,7 +246,8 @@ func (c *UsersController) UpdateUserPassword(w http.ResponseWriter, r *http.Requ
 	editor := helpers.GetFromContext(r, "user").(*db.User)
 
 	var pwd struct {
-		Pwd string `json:"password"`
+		Pwd        string `json:"password"`
+		CurrentPwd string `json:"current_password"`
 	}
 
 	if !editor.Admin && editor.ID != user.ID {
@@ -265,6 +267,17 @@ func (c *UsersController) UpdateUserPassword(w http.ResponseWriter, r *http.Requ
 
 	if !helpers.Bind(w, r, &pwd) {
 		return
+	}
+
+	// CWE-620: require the current password when a user changes their own,
+	// so a stolen session can't be used to take over the account. Admins
+	// changing someone else's password are exempt — they can't know it.
+	if editor.ID == user.ID {
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(pwd.CurrentPwd)); err != nil {
+			c.log.WithField("user_id", user.ID).Debug("Current password does not match")
+			helpers.WriteErrorStatus(w, "Current password is incorrect", http.StatusBadRequest)
+			return
+		}
 	}
 
 	if err := helpers.Store(r).SetUserPassword(user.ID, pwd.Pwd); err != nil {

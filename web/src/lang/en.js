@@ -76,6 +76,7 @@ export default {
   semaphore: 'SEMAPHORE',
   dontHaveAccountOrCantSignIn: "Don't have account or can't sign in?",
   password2: 'Password',
+  currentPassword: 'Current password',
   cancel: 'Cancel',
   noViews: 'No views',
   addView: 'Add view',
