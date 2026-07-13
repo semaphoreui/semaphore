@@ -690,36 +690,53 @@ func getSecretFromFile(source string) (string, error) {
 
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
-	oauthState, err := r.Cookie("oauthstate")
 	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
 
-	if err != nil {
-		log.Error(err.Error())
+	provider, ok := util.Config.OidcProviders[pid]
+	if !ok {
+		log.Error(fmt.Errorf("no such provider: %s", pid))
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
 
-	s := r.FormValue("state")
-	b, err := base64.URLEncoding.DecodeString(s)
-
-	if err != nil {
-		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
-		return
-	}
+	// IdP-initiated flow is detected by the absence of a state parameter.
+	// In SP-initiated flow, oidcLogin always sets state before redirecting to the IdP.
+	stateParam := r.FormValue("state")
+	idpInitiated := stateParam == ""
 
 	var stateData oAuthState
-	err = json.Unmarshal(b, &stateData)
 
-	if err != nil {
-		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
-		return
-	}
+	if idpInitiated {
+		if !provider.AllowIdpInitiated {
+			log.Warn("IdP-initiated OIDC login attempted but not allowed for provider: " + pid)
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+	} else {
+		oauthState, err := r.Cookie("oauthstate")
+		if err != nil {
+			log.Error(err.Error())
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
 
-	if stateData.Csrf != oauthState.Value {
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
-		return
+		b, err := base64.URLEncoding.DecodeString(stateParam)
+		if err != nil {
+			log.Error(err.Error())
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+
+		if err = json.Unmarshal(b, &stateData); err != nil {
+			log.Error(err.Error())
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
+
+		if stateData.Csrf != oauthState.Value {
+			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+			return
+		}
 	}
 
 	ctx := context.Background()
@@ -727,13 +744,6 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	_oidc, oauth, err := getOidcProvider(pid, ctx, r.URL.Path)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
-		return
-	}
-
-	provider, ok := util.Config.OidcProviders[pid]
-	if !ok {
-		log.Error(fmt.Errorf("no such provider: %s", pid))
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 		return
 	}
@@ -751,12 +761,10 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	var claims claimResult
 
-	// Extract the ID Token from OAuth2 token.
-	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+	rawIDToken, tokenOk := oauth2Token.Extra("id_token").(string)
 
-	if ok && rawIDToken != "" {
+	if tokenOk && rawIDToken != "" {
 		var idToken *oidc.IDToken
-		// Parse and verify ID Token payload.
 		idToken, err = verifier.Verify(ctx, rawIDToken)
 
 		if err == nil {
@@ -787,7 +795,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := helpers.Store(r).GetUserByLoginOrEmail("", claims.email) // ignore username because it creates a lot of problems
+	user, err := helpers.Store(r).GetUserByLoginOrEmail("", claims.email)
 	if err != nil {
 		user = db.User{
 			Username: claims.username,
@@ -811,18 +819,13 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	createSession(w, r, user, true)
 
-	config, ok := util.Config.OidcProviders[pid]
-	if !ok {
-		log.Error(fmt.Errorf("no such provider: %s", pid))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
-		return
-	}
-
 	redirectPath := ""
-	if config.ReturnViaState {
-		redirectPath = stateData.Return
-	} else {
-		redirectPath = mux.Vars(r)["redirect_path"]
+	if !idpInitiated {
+		if provider.ReturnViaState {
+			redirectPath = stateData.Return
+		} else {
+			redirectPath = mux.Vars(r)["redirect_path"]
+		}
 	}
 
 	if !strings.HasPrefix(redirectPath, "/") {
