@@ -442,7 +442,13 @@ export default {
     },
 
     linkOidcIdentity(providerId) {
-      document.location = `${document.baseURI}api/auth/oidc/${providerId}/login?link=1`;
+      // Top-level form POST: the backend requires POST for link mode so that
+      // SameSite=Lax blocks cross-site (CSRF) initiation of account linking.
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `${document.baseURI}api/auth/oidc/${providerId}/login?link=1`;
+      document.body.appendChild(form);
+      form.submit();
     },
 
     async linkLdapIdentity() {

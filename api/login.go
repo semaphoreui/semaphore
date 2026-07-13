@@ -565,6 +565,14 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	linkMode := r.URL.Query().Get("link") != ""
 
 	if linkMode {
+		// POST-only: SameSite=Lax attaches the session cookie to top-level
+		// cross-site GET navigations, so a GET here would let an attacker
+		// initiate linking (CSRF) and attach their IdP identity to the
+		// victim's account. Lax never sends the cookie on cross-site POST.
+		if r.Method != http.MethodPost {
+			http.Error(w, "Account linking must be initiated with a POST request.", http.StatusMethodNotAllowed)
+			return
+		}
 		session, ok := getSession(r)
 		if !ok || !session.IsVerified() {
 			http.Error(w, "You must be signed in to link an external account.", http.StatusUnauthorized)
@@ -589,7 +597,12 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	state := generateStateOauthCookie(w, returnPath, linkMode)
 	u := oauth.AuthCodeURL(state)
-	http.Redirect(w, r, u, http.StatusTemporaryRedirect)
+	status := http.StatusTemporaryRedirect
+	if r.Method == http.MethodPost {
+		// 303 turns the form POST into a GET on the IdP authorize URL.
+		status = http.StatusSeeOther
+	}
+	http.Redirect(w, r, u, status)
 }
 
 type oAuthState struct {

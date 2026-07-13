@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -178,6 +179,36 @@ func TestGenerateStateOauthCookieEmptyReturnPath(t *testing.T) {
 
 	// Verify empty return path is preserved
 	assert.Empty(t, state.Return, "Return path should be empty")
+}
+
+func TestOidcLoginLinkMode(t *testing.T) {
+	origConfig := util.Config
+	defer func() { util.Config = origConfig }()
+	util.Config = &util.ConfigType{
+		OidcProviders: map[string]util.OidcProvider{"test": {}},
+	}
+
+	tests := []struct {
+		name     string
+		method   string
+		expected int
+	}{
+		// CSRF protection: SameSite=Lax sends the session cookie on top-level
+		// cross-site GET navigations, so link mode must reject GET.
+		{"GET link is rejected", http.MethodGet, http.StatusMethodNotAllowed},
+		{"POST link without session is unauthorized", http.MethodPost, http.StatusUnauthorized},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, "/api/auth/oidc/test/login?link=1", nil)
+			req = mux.SetURLVars(req, map[string]string{"provider": "test"})
+			w := httptest.NewRecorder()
+
+			oidcLogin(w, req)
+
+			assert.Equal(t, tt.expected, w.Code)
+		})
+	}
 }
 
 func TestGenerateStateOauthCookieUniqueness(t *testing.T) {
