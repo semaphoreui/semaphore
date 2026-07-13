@@ -407,6 +407,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if ldapUser == nil {
+			if util.Config.PasswordLoginDisable {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
 			user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
 		} else {
 			user, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, "ldap")
