@@ -26,6 +26,7 @@ Create well-formatted git commits following conventional commit standards.
 - refactor: Code refactoring
 - test: Adding or modifying tests
 - chore: Maintenance tasks
+- agents: Changes related to AI agents work
 
 ## Example Output
 ```
