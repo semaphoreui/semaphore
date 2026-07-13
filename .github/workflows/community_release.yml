@@ -15,15 +15,15 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '^1.26.4'
 
       - name: Setup nodejs
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: 'npm'
@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup qemu
         id: qemu
@@ -79,7 +79,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Hub login
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKER_USER }}
@@ -89,7 +89,7 @@ jobs:
 
       - name: Server meta
         id: server
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
@@ -103,7 +103,7 @@ jobs:
             latest=true
 
       - name: Server build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -114,7 +114,7 @@ jobs:
           tags: ${{ steps.server.outputs.tags }}
 
       - name: Server build with Ansible 2.16.5
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -127,7 +127,7 @@ jobs:
           tags: semaphoreui/semaphore-community:${{ github.ref_name }}-ansible2.16.5
 
       - name: Server build with PowerShell 7.5.0
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -145,7 +145,7 @@ jobs:
 
       - name: Runner meta
         id: runner
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
@@ -159,7 +159,7 @@ jobs:
             latest=true
 
       - name: Runner build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -170,7 +170,7 @@ jobs:
           tags: ${{ steps.runner.outputs.tags }}
 
       - name: Runner build with Ansible 2.16.5
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -183,7 +183,7 @@ jobs:
           tags: semaphoreui/runner-community:${{ github.ref_name }}-ansible2.16.5
 
       - name: Runner build with PowerShell 7.5.0
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
