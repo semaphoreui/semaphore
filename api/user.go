@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 )
 
 type UserController struct {
@@ -79,8 +81,21 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := linkExternalIdentity(helpers.Store(r), *currentUser, db.IdentityTypeLdap, providerID, userDN); err != nil {
-		helpers.WriteErrorStatus(w, err.Error(), http.StatusConflict)
+	err = linkExternalIdentity(helpers.Store(r), *currentUser, db.IdentityTypeLdap, providerID, userDN)
+	if err != nil {
+		switch {
+		case errors.Is(err, errIdentityLinkedToAnother):
+			helpers.WriteErrorStatus(w, "This LDAP account is already linked to another user.", http.StatusConflict)
+		case errors.Is(err, errProviderAlreadyLinked):
+			helpers.WriteErrorStatus(w, "Your account already has a linked LDAP identity. Unlink it first.", http.StatusConflict)
+		default:
+			log.WithError(err).WithFields(log.Fields{
+				"provider": providerID,
+				"user_dn":  userDN,
+				"context":  "ldap",
+			}).Warn("Failed to link LDAP identity")
+			helpers.WriteErrorStatus(w, "Failed to link LDAP account", http.StatusInternalServerError)
+		}
 		return
 	}
 

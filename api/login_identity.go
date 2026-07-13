@@ -36,6 +36,7 @@ func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error)
 	if p.ExternalUID == "" {
 		return db.User{}, errors.New("external identity: empty external UID")
 	}
+
 	if p.Type == "" {
 		return db.User{}, errors.New("external identity: empty type")
 	}
@@ -44,9 +45,9 @@ func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error)
 
 	switch {
 	case err == nil:
-		user, err2 := store.GetUser(identity.UserID)
-		if err2 != nil {
-			return db.User{}, err2
+		user, uErr := store.GetUser(identity.UserID)
+		if uErr != nil {
+			return db.User{}, uErr
 		}
 		return syncExternalUserAttrs(store, user, p)
 	case !errors.Is(err, db.ErrNotFound):
@@ -92,21 +93,20 @@ func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error)
 // matchExternalUserByEmail implements the legacy email/username matching,
 // gated by the external_auth_email_matching config mode.
 func matchExternalUserByEmail(store db.Store, p externalUserProfile) (db.User, error) {
-	mode := util.Config.ExternalAuthEmailMatching
-	if mode == "" {
-		mode = "auto" // ponytail: default applied here, not via config tag
-	}
-
-	if mode == "never" {
+	if util.Config.ExternalAuthEmailMatching == "never" {
 		return db.User{}, db.ErrNotFound
 	}
 
-	login := ""
+	username := ""
 	if p.MatchByUsername {
-		login = p.Username
+		username = p.Username
 	}
 
-	user, err := store.GetUserByLoginOrEmail(login, p.Email)
+	if p.Email == "" && username == "" {
+		return db.User{}, db.ErrNotFound
+	}
+
+	user, err := store.GetUserByLoginOrEmail(username, p.Email)
 	if err != nil {
 		return db.User{}, err
 	}
@@ -117,10 +117,10 @@ func matchExternalUserByEmail(store db.Store, p externalUserProfile) (db.User, e
 		return db.User{}, db.ErrNotFound
 	}
 
-	if mode == "auto" {
-		identities, err2 := store.GetUserExternalIdentities(user.ID)
-		if err2 != nil {
-			return db.User{}, err2
+	if util.Config.ExternalAuthEmailMatching == "auto" {
+		identities, idErr := store.GetUserExternalIdentities(user.ID)
+		if idErr != nil {
+			return db.User{}, idErr
 		}
 		if len(identities) > 0 {
 			// Already pinned to some identity - email matching no longer applies.
