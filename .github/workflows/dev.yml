@@ -592,7 +592,7 @@ jobs:
 
       - name: Setup qemu
         id: qemu
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Setup buildx
         id: buildx
@@ -646,7 +646,7 @@ jobs:
 
       - name: Setup qemu
         id: qemu
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Setup buildx
         id: buildx
@@ -695,7 +695,7 @@ jobs:
 
       - name: Setup qemu
         id: qemu
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Setup buildx
         id: buildx
@@ -744,7 +744,7 @@ jobs:
 
       - name: Setup qemu
         id: qemu
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Setup buildx
         id: buildx
