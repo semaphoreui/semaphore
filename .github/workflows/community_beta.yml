@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup golang
         uses: actions/setup-go@v6
@@ -67,7 +67,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup qemu
         id: qemu
