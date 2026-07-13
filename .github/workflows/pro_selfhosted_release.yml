@@ -119,7 +119,7 @@ jobs:
             latest=true
 
       - name: Server build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -136,7 +136,7 @@ jobs:
           provenance: false
 
       - name: Server build with Ansible 2.16.5
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -157,7 +157,7 @@ jobs:
           provenance: false
 
       - name: Server build with PowerShell 7.5.0
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -199,7 +199,7 @@ jobs:
             latest=true
 
       - name: Runner build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -215,7 +215,7 @@ jobs:
           provenance: false
 
       - name: Runner build with Ansible 2.16.5
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -235,7 +235,7 @@ jobs:
           provenance: false
 
       - name: Runner build with PowerShell 7.5.0
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
