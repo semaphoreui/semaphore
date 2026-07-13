@@ -72,6 +72,28 @@ func TestGetAndDeleteUserIdentities(t *testing.T) {
 	assert.Empty(t, ids)
 }
 
+func TestLdapProfileMatchesSemaphoreUser(t *testing.T) {
+	semaphoreUser := db.User{Username: "jdoe", Email: "jdoe@example.com"}
+
+	assert.True(t, ldapProfileMatchesSemaphoreUser(
+		db.User{Username: "jdoe", Email: "jdoe@example.com"},
+		semaphoreUser,
+	))
+	assert.True(t, ldapProfileMatchesSemaphoreUser(
+		db.User{Username: "JDOE", Email: "other@example.com"},
+		semaphoreUser,
+	))
+	assert.True(t, ldapProfileMatchesSemaphoreUser(
+		db.User{Username: "other", Email: "JDOE@example.com"},
+		semaphoreUser,
+	))
+
+	assert.False(t, ldapProfileMatchesSemaphoreUser(
+		db.User{Username: "alice", Email: "alice@example.com"},
+		semaphoreUser,
+	))
+}
+
 func TestLinkLdapIdentity_LdapDisabled(t *testing.T) {
 	util.Config = &util.ConfigType{}
 	store := sql.CreateTestStore()

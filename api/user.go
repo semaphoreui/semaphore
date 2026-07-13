@@ -79,6 +79,11 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !ldapProfileMatchesSemaphoreUser(*ldapUser, *currentUser) {
+		helpers.WriteErrorStatus(w, "LDAP directory profile does not match your account", http.StatusForbidden)
+		return
+	}
+
 	if err := linkExternalIdentity(helpers.Store(r), *currentUser, db.IdentityTypeLdap, providerID, userDN); err != nil {
 		helpers.WriteErrorStatus(w, err.Error(), http.StatusConflict)
 		return
