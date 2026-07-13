@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -12,6 +13,7 @@ import (
 var (
 	errIdentityLinkedToAnother = errors.New("external identity is already linked to another account")
 	errProviderAlreadyLinked   = errors.New("account already has an identity for this provider, unlink it first")
+	errCannotUnlinkLastIdentity = errors.New("cannot unlink the last external identity")
 )
 
 // externalUserProfile is what an external auth flow (LDAP or OIDC) learned
@@ -148,6 +150,19 @@ func matchExternalUserByEmail(store db.Store, p externalUserProfile) (db.User, e
 	}
 
 	return user, nil
+}
+
+// ldapProfileMatchesSemaphoreUser checks that the LDAP directory profile
+// belongs to the Semaphore account being linked. A successful bind only proves
+// ownership of the LDAP credentials, not that they correspond to this account.
+func ldapProfileMatchesSemaphoreUser(ldapUser, semaphoreUser db.User) bool {
+	if ldapUser.Email != "" && strings.EqualFold(ldapUser.Email, semaphoreUser.Email) {
+		return true
+	}
+	if ldapUser.Username != "" && strings.EqualFold(ldapUser.Username, semaphoreUser.Username) {
+		return true
+	}
+	return false
 }
 
 // linkExternalIdentity attaches (idType, provider, externalUID) to user. Proof
