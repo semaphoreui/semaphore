@@ -17,6 +17,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/factory"
 	"github.com/semaphoreui/semaphore/pkg/debuglog"
+	"github.com/semaphoreui/semaphore/pkg/metrics"
 	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
@@ -184,6 +185,7 @@ func runService() {
 	runnerService := server.NewRunnerService(store)
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
+	appMetrics := metrics.NewMetrics()
 
 	taskPool := tasks.CreateTaskPool(
 		store,
@@ -316,6 +318,7 @@ func runService() {
 		jwtSigner,
 		runnerService,
 		workflowService,
+		appMetrics,
 	)
 
 	route.Use(func(next http.Handler) http.Handler {
