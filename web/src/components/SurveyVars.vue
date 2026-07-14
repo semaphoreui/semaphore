@@ -161,7 +161,7 @@
             />
           </v-form>
         </v-card-text>
-        <v-card-actions class="pt-0">
+        <v-card-actions class="py-0">
           <v-checkbox
             :label="$t('required')"
             v-model="editedVar.required"
