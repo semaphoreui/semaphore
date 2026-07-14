@@ -18,15 +18,22 @@ func TestMigration_2_20_0_CreatesExternalIdentityTable(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Table exists and accepts a row.
+	// Table exists and accepts a row; type is required.
 	_, err = store.exec(
-		"insert into user__external_identity (user_id, provider, external_uid, created) values (?, 'ldap', 'cn=admin,dc=example,dc=org', ?)",
+		"insert into user__external_identity (user_id, provider, external_uid, created) values (?, 'corp', 'cn=jdoe,dc=example,dc=org', ?)",
+		user.ID, user.Created)
+	require.Error(t, err)
+
+	// Same (provider, external_uid) under a different type is allowed:
+	// an OIDC provider may share a name with an LDAP provider.
+	_, err = store.exec(
+		"insert into user__external_identity (user_id, provider, external_uid, type, created) values (?, 'corp', 'cn=jdoe,dc=example,dc=org', 'ldap', ?)",
 		user.ID, user.Created)
 	assert.NoError(t, err)
 
-	// Unique (provider, external_uid) index rejects a duplicate.
+	// Duplicate (type, provider, external_uid) is rejected.
 	_, err = store.exec(
-		"insert into user__external_identity (user_id, provider, external_uid, created) values (?, 'ldap', 'cn=admin,dc=example,dc=org', ?)",
+		"insert into user__external_identity (user_id, provider, external_uid, type, created) values (?, 'corp', 'cn=jdoe,dc=example,dc=org', 'ldap', ?)",
 		user.ID, user.Created)
 	assert.Error(t, err)
 }
