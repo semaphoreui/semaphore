@@ -69,6 +69,16 @@ const (
 	SurveyVarText TemplateType = "text"
 )
 
+type SurveyVarTarget string
+
+const (
+	// SurveyVarTargetDefault passes the variable the app-specific way:
+	// --extra-vars for Ansible, -var for Terraform apps, CLI argument for shell apps.
+	SurveyVarTargetDefault SurveyVarTarget = ""
+	// SurveyVarTargetEnv passes the variable as a process environment variable.
+	SurveyVarTargetEnv SurveyVarTarget = "env"
+)
+
 type AnsibleTemplateParams struct {
 	AllowDebug             bool     `json:"allow_debug"`
 	AllowOverrideInventory bool     `json:"allow_override_inventory"`
@@ -105,6 +115,7 @@ type SurveyVar struct {
 	Title        string               `json:"title" backup:"title"`
 	Required     bool                 `json:"required,omitempty" backup:"required"`
 	Type         SurveyVarType        `json:"type,omitempty" backup:"type"`
+	Target       SurveyVarTarget      `json:"target,omitempty" backup:"target"`
 	Description  string               `json:"description,omitempty" backup:"description"`
 	Values       []SurveyVarEnumValue `json:"values,omitempty" backup:"values"`
 	DefaultValue string               `json:"default_value,omitempty" backup:"default_value"`
@@ -260,6 +271,14 @@ func (tpl *Template) Validate() error {
 
 	if err := tpl.JWTParams.Validate(); err != nil {
 		return err
+	}
+
+	for _, v := range tpl.SurveyVars {
+		switch v.Target {
+		case SurveyVarTargetDefault, SurveyVarTargetEnv:
+		default:
+			return &ValidationError{"invalid survey variable target: " + string(v.Target)}
+		}
 	}
 
 	return nil
