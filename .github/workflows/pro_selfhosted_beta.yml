@@ -40,7 +40,7 @@ jobs:
           key: task-${{ runner.os }}-${{ hashFiles('web/src/**', 'web/package-lock.json') }}
 
       - name: Setup nodejs
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
