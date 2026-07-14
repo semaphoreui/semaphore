@@ -43,6 +43,16 @@
               outlined
             ></v-select>
 
+            <v-select
+              v-model="editedVar.target"
+              :label="$t('survey_var_target')"
+              :items="varTargets"
+              item-value="id"
+              item-text="name"
+              dense
+              outlined
+            ></v-select>
+
             <v-card
               v-if="editedVar.type === 'enum'"
               style="background: var(--highlighted-card-bg-color);"
@@ -259,6 +269,16 @@ export default {
         {
           id: 'text',
           name: 'Text',
+        },
+      ],
+      varTargets: [
+        {
+          id: '',
+          name: 'CLI argument (extra-vars / -var / argument)',
+        },
+        {
+          id: 'env',
+          name: 'Environment variable',
         },
       ],
       formError: null,
