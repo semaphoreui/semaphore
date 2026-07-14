@@ -1,6 +1,7 @@
 package runners
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -151,4 +152,40 @@ func TestRunningJob_ConcurrentAccess(t *testing.T) {
 
 	close(start)
 	wg.Wait()
+}
+
+func TestRunningJob_finalizeAfterRun_KeepsFinishedStatusOnRunError(t *testing.T) {
+	rj := newTestRunningJob(1)
+	rj.SetStatus(task_logger.TaskStoppedStatus)
+
+	rj.finalizeAfterRun(errors.New("process killed"))
+
+	assert.Equal(t, task_logger.TaskStoppedStatus, rj.getStatus())
+}
+
+func TestRunningJob_finalizeAfterRun_SetsFailOnRunError(t *testing.T) {
+	rj := newTestRunningJob(2)
+	rj.SetStatus(task_logger.TaskRunningStatus)
+
+	rj.finalizeAfterRun(errors.New("ansible failed"))
+
+	assert.Equal(t, task_logger.TaskFailStatus, rj.getStatus())
+}
+
+func TestRunningJob_finalizeAfterRun_SetsSuccessOnCleanReturn(t *testing.T) {
+	rj := newTestRunningJob(3)
+	rj.SetStatus(task_logger.TaskRunningStatus)
+
+	rj.finalizeAfterRun(nil)
+
+	assert.Equal(t, task_logger.TaskSuccessStatus, rj.getStatus())
+}
+
+func TestRunningJob_finalizeAfterRun_StoppingBecomesStopped(t *testing.T) {
+	rj := newTestRunningJob(4)
+	rj.SetStatus(task_logger.TaskStoppingStatus)
+
+	rj.finalizeAfterRun(nil)
+
+	assert.Equal(t, task_logger.TaskStoppedStatus, rj.getStatus())
 }
