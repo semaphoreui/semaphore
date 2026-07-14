@@ -344,7 +344,15 @@ func (c *UsersController) DeleteUserIdentity(w http.ResponseWriter, r *http.Requ
 		helpers.WriteErrorStatus(w, "Failed to delete identity", http.StatusInternalServerError)
 		return
 	}
-	if user.External && len(identities) <= 1 {
+	// Only block unlinking when the requested identity exists and it is the last one.
+	targetExists := false
+	for _, identity := range identities {
+		if identity.Type == idType && identity.Provider == provider {
+			targetExists = true
+			break
+		}
+	}
+	if user.External && targetExists && len(identities) <= 1 {
 		helpers.WriteErrorStatus(w, errCannotUnlinkLastIdentity.Error(), http.StatusConflict)
 		return
 	}
