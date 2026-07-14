@@ -1053,6 +1053,10 @@ definitions:
         type: string
         enum: ["", int, enum, secret, text] # String => "", Integer => "int", Text (multiline) => "text"
         example: int
+      target:
+        type: string
+        enum: ["", env] # CLI (extra-vars / -var / argument) => "", Environment variable => "env"
+        example: env
       required:
         type: boolean
       values:
