@@ -196,6 +196,7 @@ func runService() {
 		accessKeyInstallationService,
 		logWriteService,
 		jwtSigner,
+		appMetrics,
 	)
 
 	// The workflow service orchestrates workflow runs and launches each node's

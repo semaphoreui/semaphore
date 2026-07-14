@@ -85,6 +85,7 @@ func TestTaskRunnerRun(t *testing.T) {
 		keyInstaller,
 		&mockLogWriteService{},
 		nil,
+		nil,
 	)
 
 	go pool.Run()
