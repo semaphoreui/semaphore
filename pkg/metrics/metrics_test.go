@@ -72,6 +72,17 @@ func TestMetrics_RecordTaskStatusChange_OutcomeCounter(t *testing.T) {
 	}
 }
 
+func TestMetrics_RecordTaskStatusChange_TerminalToTerminalNotDoubleCounted(t *testing.T) {
+	m := NewMetrics()
+
+	m.RecordTaskStatusChange(task_logger.TaskRunningStatus, task_logger.TaskSuccessStatus)
+	m.RecordTaskStatusChange(task_logger.TaskSuccessStatus, task_logger.TaskFailStatus)
+
+	body := scrape(m)
+	assert.Contains(t, body, `semaphore_tasks_total{status="success"} 1`)
+	assert.NotContains(t, body, `semaphore_tasks_total{status="error"}`)
+}
+
 func TestMetrics_RecordTaskStatusChange_NonFinishedStatusNotCounted(t *testing.T) {
 	m := NewMetrics()
 

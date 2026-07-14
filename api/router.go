@@ -149,7 +149,9 @@ func Route(
 	pingRouter.Use(plainTextMiddleware)
 	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)
 
-	r.Path(webPath+"api/metrics").Methods("GET", "HEAD").Handler(appMetrics)
+	metricsRouter := r.Path(webPath + "api/metrics").Subrouter()
+	metricsRouter.Use(metricsAuthMiddleware)
+	metricsRouter.Methods("GET", "HEAD").Handler(appMetrics)
 
 	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)

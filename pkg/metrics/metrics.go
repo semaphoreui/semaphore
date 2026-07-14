@@ -9,8 +9,6 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
-// Metrics owns Semaphore's Prometheus registry. It is constructed once and
-// injected wherever metrics need to be exposed or recorded
 type Metrics struct {
 	registry *prometheus.Registry
 	handler  http.Handler
@@ -64,13 +62,11 @@ func (m *Metrics) RecordTaskStatusChange(oldStatus, newStatus task_logger.TaskSt
 		m.tasksRunning.Inc()
 	}
 
-	if newStatus.IsFinished() {
+	if newStatus.IsFinished() && !oldStatus.IsFinished() {
 		m.tasksTotal.WithLabelValues(string(newStatus)).Inc()
 	}
 }
 
-// ServeHTTP makes Metrics itself an http.Handler, serving the current
-// metrics in the Prometheus text exposition format.
 func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.handler.ServeHTTP(w, r)
 }

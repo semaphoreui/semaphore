@@ -212,6 +212,7 @@ properties:
   # ==========================================================================
   teams:        { $ref: "#/$defs/TeamsConfig" }
   syslog:       { $ref: "#/$defs/SyslogConfig" }
+  metrics:      { $ref: "#/$defs/MetricsConfig" }
   log:          { $ref: "#/$defs/ConfigLog" }
   process:      { $ref: "#/$defs/ConfigProcess" }
   schedule:     { $ref: "#/$defs/ScheduleConfig" }
@@ -474,6 +475,14 @@ $defs:
       format:
         type: string
         enum: ["", rfc5424]
+
+  MetricsConfig:
+    type: object
+    properties:
+      username: { type: string }
+      password:
+        type: string
+        description: Basic Auth password for the /api/metrics endpoint (sensitive).
 
   ConfigLog:
     type: object
