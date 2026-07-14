@@ -33,41 +33,48 @@
               outlined
             />
 
-            <v-select
-              v-model="editedVar.type"
-              :label="$t('type')"
-              :items="varTypes"
-              item-value="id"
-              item-text="name"
-              dense
-              outlined
-            ></v-select>
-
-            <v-select
-              v-model="editedVar.target"
-              :label="$t('survey_var_target')"
-              :items="varTargets"
-              item-value="id"
-              item-text="name"
-              dense
-              outlined
-            ></v-select>
+            <v-row>
+              <v-col cols="5">
+                <v-select
+                  v-model="editedVar.type"
+                  :label="$t('type')"
+                  :items="varTypes"
+                  item-value="id"
+                  item-text="name"
+                  dense
+                  outlined
+                ></v-select>
+              </v-col>
+              <v-col cols="7">
+                <v-select
+                  v-model="editedVar.target"
+                  :label="$t('survey_var_target')"
+                  :items="varTargets"
+                  item-value="id"
+                  item-text="name"
+                  dense
+                  outlined
+                ></v-select>
+              </v-col>
+            </v-row>
 
             <v-card
               v-if="editedVar.type === 'enum'"
-              style="background: var(--highlighted-card-bg-color);"
+              style="background: var(--highlighted-card-bg-color)"
               class="mb-4 pt-3"
             >
-              <div style="
-                position: absolute;
-                background: var(--highlighted-card-bg-color);
-                width: 28px;
-                height: 28px;
-                transform: rotate(45deg);
-                left: calc(50% - 14px);
-                top: -14px;
-                border-radius: 0;
-              "></div>
+              <div
+                style="
+                  position: absolute;
+                  background: var(--highlighted-card-bg-color);
+                  width: 28px;
+                  height: 28px;
+                  transform: rotate(45deg);
+                  left: 60px;
+                  top: -14px;
+                  border-radius: 0;
+                "
+              ></div>
 
               <v-card-text class="pt-2">
                 <v-data-table
@@ -274,7 +281,7 @@ export default {
       varTargets: [
         {
           id: '',
-          name: 'CLI argument (extra-vars / -var / argument)',
+          name: 'Extra variable',
         },
         {
           id: 'env',
@@ -301,6 +308,10 @@ export default {
 
     editVar(index) {
       this.editedVar = index != null ? { ...this.modifiedVars[index] } : {};
+
+      if (!this.editedVar.target) {
+        this.editedVar.target = '';
+      }
 
       this.editedValues = [];
       this.editedValues.push(...(this.editedVar.values || []));
