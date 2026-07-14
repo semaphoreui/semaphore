@@ -1051,7 +1051,7 @@ definitions:
         type: string
       type:
         type: string
-        enum: ["", int, enum, secret] # String => "", Integer => "int"
+        enum: ["", int, enum, secret, text] # String => "", Integer => "int", Text (multiline) => "text"
         example: int
       required:
         type: boolean

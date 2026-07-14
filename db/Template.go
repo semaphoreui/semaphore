@@ -66,6 +66,7 @@ const (
 	SurveyVarStr  TemplateType = ""
 	SurveyVarInt  TemplateType = "int"
 	SurveyVarEnum TemplateType = "enum"
+	SurveyVarText TemplateType = "text"
 )
 
 type AnsibleTemplateParams struct {

@@ -125,6 +125,16 @@
               outlined
             />
 
+            <v-textarea
+              v-else-if="editedVar.type === 'text'"
+              :label="$t('default_value')"
+              v-model="editedVar.default_value"
+              rows="3"
+              auto-grow
+              dense
+              outlined
+            />
+
             <v-text-field
               v-else-if="editedVar.type !== 'secret'"
               :label="$t('default_value')"
@@ -245,6 +255,10 @@ export default {
         {
           id: 'enum',
           name: 'Enum',
+        },
+        {
+          id: 'text',
+          name: 'Text',
         },
       ],
       formError: null,
