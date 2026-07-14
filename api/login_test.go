@@ -9,10 +9,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestEmailVerifiedClaim(t *testing.T) {
+	tests := []struct {
+		name     string
+		claims   map[string]any
+		expected bool
+	}{
+		{"bool true", map[string]any{"email_verified": true}, true},
+		{"bool false", map[string]any{"email_verified": false}, false},
+		{"string true", map[string]any{"email_verified": "true"}, true},
+		{"string false", map[string]any{"email_verified": "false"}, false},
+		{"absent claim is not verified", map[string]any{"email": "x@y.z"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, emailVerifiedClaim(tt.claims))
+		})
+	}
+}
 
 func TestParseClaim(t *testing.T) {
 	claims := map[string]any{
@@ -112,7 +132,7 @@ func TestGenerateStateOauthCookie(t *testing.T) {
 	w := httptest.NewRecorder()
 	returnPath := "/dashboard"
 
-	stateStr := generateStateOauthCookie(w, returnPath)
+	stateStr := generateStateOauthCookie(w, returnPath, false)
 
 	// Test 1: Verify returned state is valid base64
 	stateBytes, err := base64.URLEncoding.DecodeString(stateStr)
@@ -166,7 +186,7 @@ func TestGenerateStateOauthCookieEmptyReturnPath(t *testing.T) {
 	w := httptest.NewRecorder()
 	returnPath := ""
 
-	stateStr := generateStateOauthCookie(w, returnPath)
+	stateStr := generateStateOauthCookie(w, returnPath, false)
 
 	// Decode and verify state
 	stateBytes, err := base64.URLEncoding.DecodeString(stateStr)
@@ -180,13 +200,43 @@ func TestGenerateStateOauthCookieEmptyReturnPath(t *testing.T) {
 	assert.Empty(t, state.Return, "Return path should be empty")
 }
 
+func TestOidcLoginLinkMode(t *testing.T) {
+	origConfig := util.Config
+	defer func() { util.Config = origConfig }()
+	util.Config = &util.ConfigType{
+		OidcProviders: map[string]util.OidcProvider{"test": {}},
+	}
+
+	tests := []struct {
+		name     string
+		method   string
+		expected int
+	}{
+		// CSRF protection: SameSite=Lax sends the session cookie on top-level
+		// cross-site GET navigations, so link mode must reject GET.
+		{"GET link is rejected", http.MethodGet, http.StatusMethodNotAllowed},
+		{"POST link without session is unauthorized", http.MethodPost, http.StatusUnauthorized},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, "/api/auth/oidc/test/login?link=1", nil)
+			req = mux.SetURLVars(req, map[string]string{"provider": "test"})
+			w := httptest.NewRecorder()
+
+			oidcLogin(w, req)
+
+			assert.Equal(t, tt.expected, w.Code)
+		})
+	}
+}
+
 func TestGenerateStateOauthCookieUniqueness(t *testing.T) {
 	// Generate two states and verify they have different CSRF tokens
 	w1 := httptest.NewRecorder()
 	w2 := httptest.NewRecorder()
 
-	state1Str := generateStateOauthCookie(w1, "/path1")
-	state2Str := generateStateOauthCookie(w2, "/path2")
+	state1Str := generateStateOauthCookie(w1, "/path1", false)
+	state2Str := generateStateOauthCookie(w2, "/path2", false)
 
 	// Decode states
 	state1Bytes, err1 := base64.URLEncoding.DecodeString(state1Str)

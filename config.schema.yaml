@@ -117,6 +117,12 @@ properties:
   ldap_searchfilter: { type: string }
   ldap_mappings:     { $ref: "#/$defs/LdapMappings" }
   ldap_needtls:      { type: boolean }
+  ldap_providers:
+    type: object
+    additionalProperties: { $ref: "#/$defs/LdapProvider" }
+    description: >
+      LDAP directories, keyed by provider id. The key "ldap" is reserved for
+      the legacy flat ldap_* options and is ignored here.
 
   # ==========================================================================
   # Alerting — Chat integrations
@@ -171,6 +177,17 @@ properties:
   # Feature toggles
   # ==========================================================================
   password_login_disable:       { type: boolean }
+  external_auth_email_matching:
+    type: string
+    enum: [auto, always, never]
+    default: auto
+    description: >
+      Whether an LDAP/OIDC login may be linked to an existing user by email when
+      no external identity record exists yet. "auto" links only external users
+      without any linked identity (one-time adoption of pre-2.20 accounts),
+      "always" links any external user, "never" matches strictly by provider ID.
+      Local (password) accounts are never matched. Provider key "ldap" is
+      reserved for the LDAP integration.
   non_admin_can_create_project: { type: boolean }
   use_remote_runner:            { type: boolean }
 
@@ -359,6 +376,23 @@ $defs:
       uid:  { type: string, default: uid }
       cn:   { type: string, default: cn }
 
+  LdapProvider:
+    type: object
+    properties:
+      display_name: { type: string }
+      server:       { type: string }
+      need_tls:      { type: boolean }
+      bind_dn:       { type: string }
+      bind_password:
+        type: string
+        description: LDAP bind password (sensitive).
+      search_dn:     { type: string }
+      search_filter: { type: string }
+      mappings:     { $ref: "#/$defs/LdapMappings" }
+      color:        { type: string }
+      icon:         { type: string, description: MDI icon name without the mdi- prefix. }
+      order:        { type: integer }
+
   OidcProvider:
     type: object
     properties:
@@ -385,6 +419,10 @@ $defs:
       email_claim:      { type: string, default: email }
       order:            { type: integer }
       return_via_state: { type: boolean, default: true }
+      require_verified_email:
+        type: boolean
+        default: false
+        description: Use the email for account matching only if the provider sent email_verified=true. Off by default because some providers (e.g. Okta) do not return the claim.
 
   OidcEndpoint:
     type: object

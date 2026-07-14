@@ -544,6 +544,11 @@ type ConfigType struct {
 	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
 
+	// LdapProviders configures multiple LDAP directories (like OidcProviders
+	// for OIDC). The key is the provider ID shown in identity records; the
+	// ID "ldap" is reserved for the legacy flat ldap_* config above.
+	LdapProviders map[string]LdapProvider `json:"ldap_providers,omitempty" env:"SEMAPHORE_LDAP_PROVIDERS"`
+
 	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
@@ -574,8 +579,18 @@ type ConfigType struct {
 	JWT *JWTConfig `json:"jwt,omitempty"`
 
 	// feature switches
-	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
-	NonAdminCanCreateProject bool `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
+	PasswordLoginDisable bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
+	// ExternalAuthEmailMatching controls whether an LDAP/OIDC login may be
+	// linked to an existing user by email when no external identity record
+	// exists yet:
+	//   "auto" (default) - only external users without any linked identity
+	//                      (one-time adoption of pre-2.20 accounts);
+	//   "always"         - any external user (needed when the same person
+	//                      logs in via several providers);
+	//   "never"          - identities are matched strictly by provider ID.
+	// Local (password) accounts are never matched regardless of the mode.
+	ExternalAuthEmailMatching string `json:"external_auth_email_matching,omitempty" env:"SEMAPHORE_EXTERNAL_AUTH_EMAIL_MATCHING" rule:"^(auto|always|never)?$" default:"auto"`
+	NonAdminCanCreateProject  bool   `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
 
 	UseRemoteRunner bool `json:"use_remote_runner,omitempty" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 

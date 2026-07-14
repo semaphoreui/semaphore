@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -309,6 +310,57 @@ func (c *UsersController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := helpers.Store(r).DeleteOptions(fmt.Sprintf("user%d", user.ID)); err != nil {
 		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete options of removed user")
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (c *UsersController) GetUserIdentities(w http.ResponseWriter, r *http.Request) {
+	user := helpers.GetFromContext(r, "_user").(db.User)
+
+	identities, err := helpers.Store(r).GetUserExternalIdentities(user.ID)
+	if err != nil {
+		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to get user identities")
+		helpers.WriteErrorStatus(w, "Failed to get identities", http.StatusInternalServerError)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, identities)
+}
+
+func (c *UsersController) DeleteUserIdentity(w http.ResponseWriter, r *http.Request) {
+	user := helpers.GetFromContext(r, "_user").(db.User)
+	idType := mux.Vars(r)["type"]
+	provider := mux.Vars(r)["provider"]
+
+	if idType != db.IdentityTypeLdap && idType != db.IdentityTypeOidc {
+		helpers.WriteErrorStatus(w, "Invalid identity type", http.StatusBadRequest)
+		return
+	}
+
+	identities, err := helpers.Store(r).GetUserExternalIdentities(user.ID)
+	if err != nil {
+		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to get user identities")
+		helpers.WriteErrorStatus(w, "Failed to delete identity", http.StatusInternalServerError)
+		return
+	}
+	// Only block unlinking when the requested identity exists and it is the last one.
+	targetExists := false
+	for _, identity := range identities {
+		if identity.Type == idType && identity.Provider == provider {
+			targetExists = true
+			break
+		}
+	}
+	if user.External && targetExists && len(identities) <= 1 {
+		helpers.WriteErrorStatus(w, errCannotUnlinkLastIdentity.Error(), http.StatusConflict)
+		return
+	}
+
+	if err := helpers.Store(r).DeleteExternalIdentity(user.ID, idType, provider); err != nil {
+		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete user identity")
+		helpers.WriteErrorStatus(w, "Failed to delete identity", http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)

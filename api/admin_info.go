@@ -33,7 +33,7 @@ func getAdminInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// LDAP
-	authInfo["ldap_enabled"] = util.Config.LdapEnable
+	authInfo["ldap_enabled"] = len(util.Config.ActiveLdapProviders()) > 0
 
 	// OpenID Connect providers
 	oidcProviders := []string{}

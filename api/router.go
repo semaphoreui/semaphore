@@ -155,7 +155,7 @@ func Route(
 	publicAPIRouter.HandleFunc("/auth/recovery", recoverySession).Methods("POST")
 
 	publicAPIRouter.HandleFunc("/auth/logout", logout).Methods("POST")
-	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/login", oidcLogin).Methods("GET")
+	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/login", oidcLogin).Methods("GET", "POST")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect", oidcRedirect).Methods("GET")
 	publicAPIRouter.HandleFunc("/auth/oidc/{provider}/redirect/{redirect_path:.*}", oidcRedirect).Methods("GET")
 
@@ -212,6 +212,7 @@ func Route(
 	tokenAPI.HandleFunc("/tokens/{token_id}", deleteAPIToken).Methods("DELETE")
 	tokenAPI.Path("/options").HandlerFunc(getUserOptions).Methods("GET", "HEAD")
 	tokenAPI.Path("/options").HandlerFunc(setUserOption).Methods("POST")
+	tokenAPI.Path("/identities/ldap").HandlerFunc(linkLdapIdentity).Methods("POST")
 
 	adminAPI := authenticatedAPI.NewRoute().Subrouter()
 	adminAPI.Use(adminMiddleware)
@@ -275,6 +276,8 @@ func Route(
 	userPasswordAPI.Path("/2fas/totp").HandlerFunc(usersController.EnableTotp).Methods("POST")
 	userPasswordAPI.Path("/2fas/totp/{totp_id}/qr").HandlerFunc(usersController.TotpQr).Methods("GET")
 	userPasswordAPI.Path("/2fas/totp/{totp_id}").HandlerFunc(usersController.DisableTotp).Methods("DELETE")
+	userPasswordAPI.Path("/identities").HandlerFunc(usersController.GetUserIdentities).Methods("GET", "HEAD")
+	userPasswordAPI.Path("/identities/{type}/{provider}").HandlerFunc(usersController.DeleteUserIdentity).Methods("DELETE")
 
 	projectGet := authenticatedAPI.Path("/project/{project_id}").Subrouter()
 	projectGet.Use(projects.ProjectMiddleware)
