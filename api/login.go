@@ -152,6 +152,17 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 
 // createSession creates session for passed user and stores session details
 // in cookies.
+// logAuthEvent records an authentication event (login/logout/failure) in the
+// event log. userID may be 0 when the user is unknown (failed attempt).
+func logAuthEvent(r *http.Request, action helpers.EventLogType, userID int, description string) {
+	helpers.EventLog(r, action, helpers.EventLogItem{
+		UserID:      userID,
+		ObjectType:  db.EventSession,
+		ObjectID:    userID,
+		Description: description,
+	})
+}
+
 func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bool) {
 	var err error
 	var verificationMethod db.SessionVerificationMethod
@@ -184,6 +195,8 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 		helpers.WriteErrorStatus(w, "Failed to create session", http.StatusInternalServerError)
 		return
 	}
+
+	logAuthEvent(r, helpers.EventLogLoginSuccess, user.ID, fmt.Sprintf("User %s logged in", user.Username))
 
 	encoded, err := util.Cookie.Encode("semaphore", map[string]any{
 		"user":    user.ID,
@@ -385,6 +398,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 					"auth":     login.Auth,
 				}).Warn("Failed to find user in LDAP")
 			}
+			logAuthEvent(r, helpers.EventLogLoginFail, 0, fmt.Sprintf("Failed LDAP login attempt for %s", login.Auth))
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -403,6 +417,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 					"context": "ldap",
 					"auth":    login.Auth,
 				}).Warn("Failed to find user in LDAP")
+				logAuthEvent(r, helpers.EventLogLoginFail, 0, fmt.Sprintf("Failed LDAP login attempt for %s", login.Auth))
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -421,6 +436,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
+			logAuthEvent(r, helpers.EventLogLoginFail, 0, fmt.Sprintf("Failed login attempt for %s", login.Auth))
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -460,6 +476,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+		logAuthEvent(r, helpers.EventLogLogout, session.UserID, "User logged out")
 	}
 
 	http.SetCookie(w, &http.Cookie{

@@ -26,6 +26,10 @@ const (
 	EventLogCreate EventLogType = "create"
 	EventLogUpdate EventLogType = "update"
 	EventLogDelete EventLogType = "delete"
+
+	EventLogLoginSuccess EventLogType = "login_success"
+	EventLogLoginFail    EventLogType = "login_fail"
+	EventLogLogout       EventLogType = "logout"
 )
 
 // extractClientIP returns the client address, preferring the reverse-proxy
@@ -82,7 +86,11 @@ func EventLog(r *http.Request, action EventLogType, item EventLogItem) {
 		log.WithFields(logFields).Error("Failed to store event")
 	}
 
-	logWriter := GetFromContext(r, "log_writer").(pro_interfaces.LogWriteService)
+	logWriterVal, ok := GetOkFromContext(r, "log_writer")
+	if !ok {
+		return
+	}
+	logWriter := logWriterVal.(pro_interfaces.LogWriteService)
 
 	objectType := string(item.ObjectType)
 

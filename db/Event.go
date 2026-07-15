@@ -73,6 +73,8 @@ const (
 	EventIntegrationMatcher      EventObjectType = "integrationmatcher"
 
 	EventTerraformInventoryAlias EventObjectType = "terraform_inventory_alias"
+
+	EventSession EventObjectType = "session"
 )
 
 func FillEvents(d Store, events []Event) (err error) {
