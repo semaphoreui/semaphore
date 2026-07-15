@@ -1292,6 +1292,14 @@ definitions:
         type: string
       description:
         type: string
+      action:
+        type: string
+        description: create, update, delete, login_success, login_fail or logout
+      ip:
+        type: string
+        description: Client IP address the action was performed from
+      user_agent:
+        type: string
 
   InfoType:
     type: object
