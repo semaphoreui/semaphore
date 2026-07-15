@@ -326,6 +326,7 @@ type SyslogConfig struct {
 }
 
 type MetricsConfig struct {
+	Enabled  bool   `json:"enabled" env:"SEMAPHORE_METRICS_ENABLED"`
 	Username string `json:"username,omitempty" env:"SEMAPHORE_METRICS_USERNAME"`
 	Password string `json:"password,omitempty" env:"SEMAPHORE_METRICS_PASSWORD,sensitive"`
 }

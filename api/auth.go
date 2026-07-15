@@ -323,17 +323,14 @@ func adminMiddleware(next http.Handler) http.Handler {
 
 func metricsAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		username, password := "", ""
-		if util.Config.Metrics != nil {
-			username = util.Config.Metrics.Username
-			password = util.Config.Metrics.Password
-		}
+		username := util.Config.Metrics.Username
+		password := util.Config.Metrics.Password
 
 		reqUser, reqPass, ok := r.BasicAuth()
 		userMatch := subtle.ConstantTimeCompare([]byte(reqUser), []byte(username)) == 1
 		passMatch := subtle.ConstantTimeCompare([]byte(reqPass), []byte(password)) == 1
 
-		if username == "" || password == "" || !ok || !userMatch || !passMatch {
+		if !util.Config.Metrics.Enabled || username == "" || password == "" || !ok || !userMatch || !passMatch {
 			w.Header().Set("WWW-Authenticate", `Basic realm="metrics"`)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return

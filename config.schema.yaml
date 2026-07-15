@@ -479,6 +479,7 @@ $defs:
   MetricsConfig:
     type: object
     properties:
+      enabled:  { type: boolean }
       username: { type: string }
       password:
         type: string
