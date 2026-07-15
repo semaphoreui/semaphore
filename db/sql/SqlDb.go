@@ -105,6 +105,9 @@ func (d *SqlDbConnection) Connect() {
 }
 
 func (d *SqlDbConnection) Close() {
+	if d.sql.Db == nil {
+		return
+	}
 	err := d.sql.Db.Close()
 	if err != nil {
 		panic(err)
