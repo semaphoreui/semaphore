@@ -305,9 +305,24 @@ type TaskLogType struct {
 	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"SEMAPHORE_TASK_RESULT_LOGGER"`
 }
 
+const (
+	AuditWebhookFormatJSON      string = ""
+	AuditWebhookFormatSplunkHec string = "splunk_hec"
+)
+
+// AuditWebhookConfig configures real-time forwarding of audit events to an
+// external HTTP receiver (SIEM): a generic JSON endpoint or Splunk HEC.
+type AuditWebhookConfig struct {
+	Enabled bool              `json:"enabled" env:"SEMAPHORE_AUDIT_WEBHOOK_ENABLED"`
+	URL     string            `json:"url,omitempty" env:"SEMAPHORE_AUDIT_WEBHOOK_URL"`
+	Headers map[string]string `json:"headers,omitempty" env:"SEMAPHORE_AUDIT_WEBHOOK_HEADERS"`
+	Format  string            `json:"format,omitempty" env:"SEMAPHORE_AUDIT_WEBHOOK_FORMAT"`
+}
+
 type ConfigLog struct {
-	Events *EventLogType `json:"events,omitempty"`
-	Tasks  *TaskLogType  `json:"tasks,omitempty"`
+	Events       *EventLogType       `json:"events,omitempty"`
+	Tasks        *TaskLogType        `json:"tasks,omitempty"`
+	AuditWebhook *AuditWebhookConfig `json:"audit_webhook,omitempty"`
 }
 
 type SyslogFormat string
