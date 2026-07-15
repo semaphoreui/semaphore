@@ -68,5 +68,9 @@ func (m *Metrics) RecordTaskStatusChange(oldStatus, newStatus task_logger.TaskSt
 }
 
 func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if m == nil || m.handler == nil {
+		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+		return
+	}
 	m.handler.ServeHTTP(w, r)
 }
