@@ -1,5 +1,17 @@
 # Plan — SIEM-Ready Audit Events
 
+> Status: **implemented** (16.07.2026, ветка `feature/siem-audit-events` в основном
+> репо и в `pro_impl`, docs — сабмодуль, ветка `feature/siem-audit-events`).
+> Отклонения от плана:
+> - `integration_id` не существовал ни в одном диалекте (не только не вставлялся) —
+>   колонка добавлена в v2.20.1 для всех диалектов.
+> - `log_writer` в контексте запроса стал опциональным (иначе хендлеры нельзя
+>   тестировать изолированно).
+> - Санитизация CR/LF сделана в `helpers.EventLog` (одна точка), а не в вебхуке.
+> - Graceful shutdown вебхука: `Close()` есть, но в lifecycle сервера не встроен
+>   (при остановке теряются максимум события из очереди).
+> - Frontend (показ action/IP в Activity) — не делался, опциональная часть Task 6.
+
 - **Branch:** `develop`
 - **Research:** MCP research «Поддержка SIEM в Semaphore UI» (RESEARCH@a39c0ef615f486972eaff4),
   16.07.2026: анализ кодовой базы, GitHub issues (#158, discussion #2194, #3410),
