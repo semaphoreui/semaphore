@@ -74,7 +74,8 @@ const (
 
 	EventTerraformInventoryAlias EventObjectType = "terraform_inventory_alias"
 
-	EventSession EventObjectType = "session"
+	EventSession  EventObjectType = "session"
+	EventAPIToken EventObjectType = "api_token"
 )
 
 func FillEvents(d Store, events []Event) (err error) {

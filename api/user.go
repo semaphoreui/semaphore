@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -160,7 +161,23 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      user.ID,
+		ObjectType:  db.EventAPIToken,
+		ObjectID:    user.ID,
+		Description: fmt.Sprintf("API token %s created", shortTokenID(token.ID)),
+	})
+
 	helpers.WriteJSON(w, http.StatusCreated, token)
+}
+
+// shortTokenID truncates a token to the same 8-char prefix the API exposes,
+// so the full secret never reaches the event log.
+func shortTokenID(id string) string {
+	if len(id) > 8 {
+		return id[:8]
+	}
+	return id
 }
 
 func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
@@ -174,6 +191,13 @@ func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      user.ID,
+		ObjectType:  db.EventAPIToken,
+		ObjectID:    user.ID,
+		Description: fmt.Sprintf("API token %s deleted", shortTokenID(tokenID)),
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
