@@ -39,8 +39,6 @@ builds:
         goarch: ppc64le
       - goos: windows
         goarch: ppc64le
-      - goos: windows
-        goarch: arm
 
 archives:
   - files:
