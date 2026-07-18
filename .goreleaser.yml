@@ -55,7 +55,7 @@ signs:
     artifacts: checksum
     signature: "{{ .Env.PROJECT_NAME }}_{{ .Version }}_checksums.txt.sig"
     cmd: gpg
-    stdin: '{{ .Env.GPG_PASS_2 }}'
+    stdin: '{{ .Env.GPG_PASS_3 }}'
     args:
       - "--batch"
       - "--pinentry-mode"
@@ -63,7 +63,7 @@ signs:
       - "--passphrase-fd"
       - "0"
       - "-u"
-      - "{{ .Env.GPG_KEY_ID_2 }}"
+      - "{{ .Env.GPG_KEY_ID_3 }}"
       - "--yes"
       - "--output"
       - "${signature}"
