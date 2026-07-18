@@ -65,9 +65,9 @@ jobs:
 
       - name: Import gnupg
         run: |
-          echo "${{ secrets.GPG_KEY_2 }}" | tr " " "\n" | base64 -d | gpg --import --batch
-          echo "${{ secrets.GPG_KEY_2 }}" | tr " " "\n" | base64 -d > "$RUNNER_TEMP/gpg.key"
-          gpg --sign -u "${{ vars.GPG_KEY_ID_2 }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS_2 }}" --output unlock.sig --detach-sign README.md
+          echo "${{ secrets.GPG_KEY_3 }}" | tr " " "\n" | base64 -d | gpg --import --batch
+          echo "${{ secrets.GPG_KEY_3 }}" | tr " " "\n" | base64 -d > "$RUNNER_TEMP/gpg.key"
+          gpg --sign -u "${{ vars.GPG_KEY_ID_3 }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS_3 }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
       - name: Reset repo
@@ -78,10 +78,10 @@ jobs:
         run: |
           APP_BUILD_TYPE=pro_selfhosted \
           GITHUB_TOKEN=${{ github.token }} \
-          GPG_PASS_2="${{ secrets.GPG_PASS_2 }}" \
-          GPG_KEY_ID_2="${{ vars.GPG_KEY_ID_2 }}" \
+          GPG_PASS_3="${{ secrets.GPG_PASS_3 }}" \
+          GPG_KEY_ID_3="${{ vars.GPG_KEY_ID_3 }}" \
           GPG_KEY_PATH="$RUNNER_TEMP/gpg.key" \
-          NFPM_SEMAPHORE_PASSPHRASE="${{ secrets.GPG_PASS_2 }}" \
+          NFPM_SEMAPHORE_PASSPHRASE="${{ secrets.GPG_PASS_3 }}" \
           PROJECT_NAME=semaphore \
             task release:prod
 
