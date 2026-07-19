@@ -60,6 +60,7 @@ jobs:
         run: |
           APP_BUILD_TYPE=pro_selfhosted \
           GITHUB_TOKEN=${{ github.token }} \
+          GPG_PASS_3="${{ secrets.GPG_PASS_3 }}" \
           GPG_KEY_ID_3="${{ vars.GPG_KEY_ID_3 }}" \
           GPG_KEY_PATH="$RUNNER_TEMP/gpg.key" \
           NFPM_SEMAPHORE_PASSPHRASE="${{ secrets.GPG_PASS_3 }}" \
