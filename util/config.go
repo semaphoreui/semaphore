@@ -21,12 +21,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-github/github"
+	"github.com/gorilla/securecookie"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/yaml.v3"
-
-	"github.com/google/go-github/github"
-	"github.com/gorilla/securecookie"
 )
 
 // Cookie is a runtime generated secure cookie used for authentication
@@ -465,6 +464,31 @@ type EncryptionConfig struct {
 	KeysPollInterval string `json:"keys_poll_interval,omitempty" env:"SEMAPHORE_ENCRYPTION_KEYS_POLL_INTERVAL" default:"15s"`
 }
 
+type SshStrictHostKeyChecking string
+
+const (
+	SshStrictHostKeyCheckingNo        SshStrictHostKeyChecking = "no"
+	SshStrictHostKeyCheckingYes       SshStrictHostKeyChecking = "yes"
+	SshStrictHostKeyCheckingAcceptNew SshStrictHostKeyChecking = "accept-new"
+)
+
+type SshConfig struct {
+	// SshConfigPath is a path to the custom SSH config file.
+	// Default path is ~/.ssh/config.
+	ConfigPath string `json:"config_path,omitempty" env:"SEMAPHORE_SSH_PATH"`
+
+	// SshKnownHostsFile is a path to the SSH known_hosts file used to verify git
+	// server host keys. When set, host-key checking is strict: a key that is
+	// missing from (or changed relative to) this file aborts the connection,
+	// preventing a network attacker from impersonating the git server. When
+	// empty, Semaphore uses a persistent trust-on-first-use file under TmpPath
+	// (StrictHostKeyChecking=accept-new): the first connection to a host is
+	// trusted and pinned, and any later host-key change is rejected.
+	KnownHostsFile string `json:"known_hosts_file,omitempty" env:"SEMAPHORE_SSH_KNOWN_HOSTS_FILE"`
+
+	StrictHostKeyChecking SshStrictHostKeyChecking `json:"strict_host_key_checking,omitempty" env:"" default:"no"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -500,6 +524,8 @@ type ConfigType struct {
 	// SshConfigPath is a path to the custom SSH config file.
 	// Default path is ~/.ssh/config.
 	SshConfigPath string `json:"ssh_config_path,omitempty" env:"SEMAPHORE_SSH_PATH"`
+
+	Ssh *SshConfig `json:"ssh"`
 
 	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
@@ -543,6 +569,10 @@ type ConfigType struct {
 	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
 	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
+	// LdapTLSSkipVerify disables verification of the LDAP server's TLS
+	// certificate for the legacy flat ldap_* config. Defaults to false
+	// (certificates are verified). See LdapProvider.TLSSkipVerify.
+	LdapTLSSkipVerify bool `json:"ldap_tls_skip_verify,omitempty" env:"SEMAPHORE_LDAP_TLS_SKIP_VERIFY"`
 
 	// LdapProviders configures multiple LDAP directories (like OidcProviders
 	// for OIDC). The key is the provider ID shown in identity records; the
@@ -642,6 +672,15 @@ const (
 	defaultRunnersTaskFailTimeoutSec   = 420
 	defaultRunnersReconcileIntervalSec = 30
 )
+
+// GetSshConfigPath return SSH config path from configuration.
+// Used for backward compatibility.
+func (conf *ConfigType) GetSshConfigPath() string {
+	if conf.Ssh.ConfigPath != "" {
+		return conf.Ssh.ConfigPath
+	}
+	return conf.SshConfigPath
+}
 
 // RunnersOfflineTimeout returns the heartbeat staleness after which a runner
 // is considered offline (no new tasks; its "starting" tasks are reassigned).
