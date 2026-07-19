@@ -422,6 +422,7 @@ export default {
   tag: 'Tag',
   tag_required: 'Tag is required',
   allowInventoryInTask: 'Inventory',
+  allowEnvInTask: 'Variable Groups',
   allowLimitInTask: 'Limit',
   addLimit: 'Add limit',
   allowDebug: 'Debug',

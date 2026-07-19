@@ -26,13 +26,13 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 			"playbook, arguments, allow_override_args_in_task, description, `type`, "+
 			"start_version, build_template_id, view_id, autorun, survey_vars, "+
 			"suppress_success_alerts, app, git_branch, runner_tag, task_params, "+
-			"allow_override_branch_in_task, allow_parallel_tasks, jwt_params)"+
+			"allow_override_branch_in_task, allow_override_env_in_task, allow_parallel_tasks, jwt_params)"+
 			"values ("+
 			"?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?,"+
-			"?, ?, ?)",
+			"?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -57,6 +57,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.TaskParams,
 
 		template.AllowOverrideBranchInTask,
+		template.AllowOverrideEnvInTask,
 		template.AllowParallelTasks,
 		template.JWTParams,
 	)
@@ -114,6 +115,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"task_params=?, "+
 		"runner_tag=?, "+
 		"allow_override_branch_in_task=?, "+
+		"allow_override_env_in_task=?, "+
 		"allow_parallel_tasks=?, "+
 		"jwt_params=? "+
 		"where id=? and project_id=?",
@@ -136,6 +138,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.TaskParams,
 		template.RunnerTag,
 		template.AllowOverrideBranchInTask,
+		template.AllowOverrideEnvInTask,
 		template.AllowParallelTasks,
 		template.JWTParams,
 

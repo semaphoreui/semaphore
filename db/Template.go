@@ -177,7 +177,8 @@ type Template struct {
 	RunnerTag *string `db:"runner_tag" json:"runner_tag,omitempty"`
 
 	AllowOverrideBranchInTask bool `db:"allow_override_branch_in_task" json:"allow_override_branch_in_task,omitempty"`
-	AllowParallelTasks        bool `db:"allow_parallel_tasks" json:"allow_parallel_tasks,omitempty"`
+	AllowOverrideEnvInTask   bool `db:"allow_override_env_in_task" json:"allow_override_env_in_task,omitempty"`
+	AllowParallelTasks       bool `db:"allow_parallel_tasks" json:"allow_parallel_tasks,omitempty"`
 
 	JWTParams *TemplateJWTParams `db:"jwt_params" json:"jwt_params,omitempty"`
 }

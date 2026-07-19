@@ -404,6 +404,12 @@
             v-model="allow_override_inventory"
             v-if="needField('allow_override_inventory')"
           />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('allowEnvInTask')"
+            v-model="item.allow_override_env_in_task"
+          />
         </div>
       </v-col>
 
