@@ -173,6 +173,12 @@ func (task *Task) ValidateNewTask(template Template) error {
 		}
 	}
 
+	if task.CommitHash != nil {
+		if err := ValidateCommitHash(*task.CommitHash, "task"); err != nil {
+			return err
+		}
+	}
+
 	if err := ValidatePlaybookPath(task.Playbook, "task"); err != nil {
 		return err
 	}
