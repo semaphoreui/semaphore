@@ -93,25 +93,24 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 	}
 	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 
-	var value db.IntegrationExtractValue
-	value, err = helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, integration.ID)
-	if err != nil {
-		helpers.WriteError(w, err)
+	var newValue db.IntegrationExtractValue
+	if !helpers.Bind(w, r, &newValue) {
 		return
 	}
 
-	if !helpers.Bind(w, r, &value) {
-		return
-	}
-
-	if value.ID != valueId {
+	if newValue.ID != valueId {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Value ID in body and URL must be the same",
 		})
 		return
 	}
 
-	err = helpers.Store(r).UpdateIntegrationExtractValue(project.ID, value)
+	if newValue.IntegrationID != integration.ID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{})
+		return
+	}
+
+	err = helpers.Store(r).UpdateIntegrationExtractValue(project.ID, newValue)
 
 	if err != nil {
 		helpers.WriteError(w, err)

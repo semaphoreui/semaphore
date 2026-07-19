@@ -126,6 +126,20 @@ func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if matcher.ID != matcherId {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Matcher ID in body and URL must be the same",
+		})
+		return
+	}
+
+	if matcher.IntegrationID != integration.ID {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Integration ID in body and URL must be the same",
+		})
+		return
+	}
+
 	log.Info(fmt.Sprintf("Updating API Matcher %v for Extractor %v, matcher ID: %v", matcherId, integration.ID, matcher.ID))
 
 	err = helpers.Store(r).UpdateIntegrationMatcher(project.ID, matcher)
