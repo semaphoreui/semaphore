@@ -117,6 +117,12 @@ properties:
   ldap_searchfilter: { type: string }
   ldap_mappings:     { $ref: "#/$defs/LdapMappings" }
   ldap_needtls:      { type: boolean }
+  ldap_tls_skip_verify:
+    type: boolean
+    default: false
+    description: >
+      Disable verification of the LDAP server's TLS certificate for the legacy
+      flat ldap_* config. Defaults to false (certificates are verified).
   ldap_providers:
     type: object
     additionalProperties: { $ref: "#/$defs/LdapProvider" }
@@ -382,6 +388,13 @@ $defs:
       display_name: { type: string }
       server:       { type: string }
       need_tls:      { type: boolean }
+      tls_skip_verify:
+        type: boolean
+        default: false
+        description: >
+          Disable verification of the LDAP server's TLS certificate. Defaults to
+          false (certificates are verified). Only enable on trusted networks
+          with self-signed certificates.
       bind_dn:       { type: string }
       bind_password:
         type: string

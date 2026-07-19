@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pkg/git"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -177,6 +178,7 @@ type Template struct {
 	RunnerTag *string `db:"runner_tag" json:"runner_tag,omitempty"`
 
 	AllowOverrideBranchInTask bool `db:"allow_override_branch_in_task" json:"allow_override_branch_in_task,omitempty"`
+	AllowOverrideEnvInTask    bool `db:"allow_override_env_in_task" json:"allow_override_env_in_task,omitempty"`
 	AllowParallelTasks        bool `db:"allow_parallel_tasks" json:"allow_parallel_tasks,omitempty"`
 
 	JWTParams *TemplateJWTParams `db:"jwt_params" json:"jwt_params,omitempty"`
@@ -212,21 +214,21 @@ func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
 
 func (tpl *Template) Validate() error {
 	if tpl.RunnerTag != nil && *tpl.RunnerTag == "" {
-		return &ValidationError{"template runner tag can not be empty"}
+		return &common_errors.ValidationError{"template runner tag can not be empty"}
 	}
 	switch tpl.App {
 	case AppAnsible:
 		if tpl.InventoryID == nil {
-			return &ValidationError{"template inventory can not be empty"}
+			return &common_errors.ValidationError{"template inventory can not be empty"}
 		}
 	}
 
 	if tpl.Name == "" {
-		return &ValidationError{"template name can not be empty"}
+		return &common_errors.ValidationError{"template name can not be empty"}
 	}
 
 	if !tpl.App.IsTerraform() && tpl.Playbook == "" {
-		return &ValidationError{"template playbook can not be empty"}
+		return &common_errors.ValidationError{"template playbook can not be empty"}
 	}
 
 	if err := ValidatePlaybookPath(tpl.Playbook, "template"); err != nil {
@@ -235,12 +237,12 @@ func (tpl *Template) Validate() error {
 
 	if tpl.Arguments != nil {
 		if !json.Valid([]byte(*tpl.Arguments)) {
-			return &ValidationError{"template arguments must be valid JSON"}
+			return &common_errors.ValidationError{"template arguments must be valid JSON"}
 		}
 	}
 
 	if tpl.GitBranch != nil {
-		if err := ValidateGitBranch(*tpl.GitBranch, "template"); err != nil {
+		if err := git.ValidateGitBranch(*tpl.GitBranch, "template"); err != nil {
 			return err
 		}
 	}

@@ -977,6 +977,15 @@ func (p *TaskPool) AddTask(
 		return
 	}
 
+	// A task-supplied commit hash redirects the checkout away from the
+	// template's pinned branch, so it is honored only when the template allows
+	// branch overrides — the same gate used for task.GitBranch (see
+	// resolveGitBranch). Otherwise a user who may only run tasks could pin a
+	// branch-locked template to an arbitrary commit/ref.
+	if !tpl.AllowOverrideBranchInTask {
+		taskObj.CommitHash = nil
+	}
+
 	if tpl.Type == db.TemplateBuild { // get next version for TaskRunner if it is a Build
 		var builds []db.TaskWithTpl
 		builds, err = p.store.GetTemplateTasks(tpl.ProjectID, tpl.ID, db.RetrieveQueryParams{Count: 1})

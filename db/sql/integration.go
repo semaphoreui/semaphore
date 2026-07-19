@@ -204,7 +204,7 @@ func (d *SqlDb) GetIntegrationExtractValues(projectID int, params db.RetrieveQue
 func (d *SqlDb) GetIntegrationExtractValue(projectID int, valueID int, integrationID int) (value db.IntegrationExtractValue, err error) {
 	query, args, err := squirrel.Select("v.*").
 		From("project__integration_extract_value as v").
-		Where(squirrel.Eq{"id": valueID}).
+		Where(squirrel.Eq{"id": valueID, "integration_id": integrationID}).
 		OrderBy("v.id").
 		ToSql()
 
@@ -234,13 +234,14 @@ func (d *SqlDb) UpdateIntegrationExtractValue(projectID int, integrationExtractV
 	}
 
 	_, err = d.exec(
-		"update project__integration_extract_value set value_source=?, body_data_type=?, `key`=?, `variable`=?, `name`=?, `variable_type`=? where `id`=?",
+		"update project__integration_extract_value set value_source=?, body_data_type=?, `key`=?, `variable`=?, `name`=?, `variable_type`=? where integration_id=? and `id`=?",
 		integrationExtractValue.ValueSource,
 		integrationExtractValue.BodyDataType,
 		integrationExtractValue.Key,
 		integrationExtractValue.Variable,
 		integrationExtractValue.Name,
 		integrationExtractValue.VariableType,
+		integrationExtractValue.IntegrationID,
 		integrationExtractValue.ID)
 
 	return err
@@ -295,7 +296,7 @@ func (d *SqlDb) GetIntegrationMatchers(projectID int, params db.RetrieveQueryPar
 func (d *SqlDb) GetIntegrationMatcher(projectID int, matcherID int, integrationID int) (matcher db.IntegrationMatcher, err error) {
 	query, args, err := squirrel.Select("m.*").
 		From("project__integration_matcher as m").
-		Where(squirrel.Eq{"id": matcherID}).
+		Where(squirrel.Eq{"id": matcherID, "integration_id": integrationID}).
 		OrderBy("m.id").
 		ToSql()
 

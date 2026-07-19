@@ -17,19 +17,48 @@ import (
 
 func TestEmailVerifiedClaim(t *testing.T) {
 	tests := []struct {
-		name     string
-		claims   map[string]any
-		expected bool
+		name          string
+		claims        map[string]any
+		expectedValue bool
+		expectedPres  bool
 	}{
-		{"bool true", map[string]any{"email_verified": true}, true},
-		{"bool false", map[string]any{"email_verified": false}, false},
-		{"string true", map[string]any{"email_verified": "true"}, true},
-		{"string false", map[string]any{"email_verified": "false"}, false},
-		{"absent claim is not verified", map[string]any{"email": "x@y.z"}, false},
+		{"bool true", map[string]any{"email_verified": true}, true, true},
+		{"bool false", map[string]any{"email_verified": false}, false, true},
+		{"string true", map[string]any{"email_verified": "true"}, true, true},
+		{"string false", map[string]any{"email_verified": "false"}, false, true},
+		{"absent claim", map[string]any{"email": "x@y.z"}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, emailVerifiedClaim(tt.claims))
+			value, present := emailVerifiedClaim(tt.claims)
+			assert.Equal(t, tt.expectedValue, value)
+			assert.Equal(t, tt.expectedPres, present)
+		})
+	}
+}
+
+func TestResolveEmailVerified(t *testing.T) {
+	tests := []struct {
+		name     string
+		claims   map[string]any
+		require  bool
+		expected bool
+	}{
+		// require_verified_email off (default): absent claim is trusted, but an
+		// explicit email_verified=false must NOT be trusted (takeover guard).
+		{"off, absent claim trusted", map[string]any{"email": "x@y.z"}, false, true},
+		{"off, explicit true", map[string]any{"email_verified": true}, false, true},
+		{"off, explicit false not trusted", map[string]any{"email_verified": false}, false, false},
+		{"off, string false not trusted", map[string]any{"email_verified": "false"}, false, false},
+		// require_verified_email on: claim must be explicitly present and true.
+		{"on, absent claim not trusted", map[string]any{"email": "x@y.z"}, true, false},
+		{"on, explicit true", map[string]any{"email_verified": true}, true, true},
+		{"on, explicit false", map[string]any{"email_verified": false}, true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := util.OidcProvider{RequireVerifiedEmail: tt.require}
+			assert.Equal(t, tt.expected, resolveEmailVerified(tt.claims, provider))
 		})
 	}
 }
