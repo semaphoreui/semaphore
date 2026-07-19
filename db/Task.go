@@ -80,6 +80,8 @@ type Task struct {
 
 	InventoryID *int `db:"inventory_id" json:"inventory_id,omitempty"`
 
+	EnvironmentIDs IntArrayField `db:"environment_ids" json:"environment_ids,omitempty"`
+
 	Params MapStringAnyField `db:"params" json:"params,omitempty"`
 
 	Artifacts *string `db:"artifacts" json:"artifacts,omitempty"`

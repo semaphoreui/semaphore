@@ -527,8 +527,17 @@ func (t *TaskRunner) populateDetails() error {
 // loadEnvironments loads all Variable Groups configured on the template
 // (Template.EnvironmentIDs) and merges their JSON, ENV vars, and secrets
 // into t.Environment. Later entries override earlier ones on key conflicts.
+// If the template allows overriding environments and the task specifies
+// environment_ids, those are used instead of the template's list.
 func (t *TaskRunner) loadEnvironments() error {
-	if len(t.Template.EnvironmentIDs) == 0 {
+	envIDs := t.Template.EnvironmentIDs
+
+	// Use task-level override when the template allows it
+	if t.Template.AllowOverrideEnvInTask && len(t.Task.EnvironmentIDs) > 0 {
+		envIDs = []int(t.Task.EnvironmentIDs)
+	}
+
+	if len(envIDs) == 0 {
 		return nil
 	}
 
@@ -541,7 +550,7 @@ func (t *TaskRunner) loadEnvironments() error {
 
 	var lastEnv db.Environment
 
-	for _, envID := range t.Template.EnvironmentIDs {
+	for _, envID := range envIDs {
 		if seen[envID] {
 			continue
 		}

@@ -17,20 +17,23 @@ type TaskParams struct {
 	InventoryID   *int    `db:"inventory_id" json:"inventory_id,omitempty" backup:"-"`
 	InventoryName *string `db:"-" json:"-" backup:"inventory_name"`
 
+	EnvironmentIDs IntArrayField `db:"environment_ids" json:"environment_ids,omitempty" backup:"-"`
+
 	Params MapStringAnyField `db:"params" json:"params,omitempty"`
 }
 
 func (p TaskParams) CreateTask(templateID int) (task Task) {
 	task = Task{
-		ProjectID:   p.ProjectID,
-		Environment: p.Environment,
-		Arguments:   p.Arguments,
-		GitBranch:   p.GitBranch,
-		Message:     p.Message,
-		Version:     p.Version,
-		InventoryID: p.InventoryID,
-		Params:      p.Params,
-		TemplateID:  templateID,
+		ProjectID:      p.ProjectID,
+		Environment:    p.Environment,
+		Arguments:      p.Arguments,
+		GitBranch:      p.GitBranch,
+		Message:        p.Message,
+		Version:        p.Version,
+		InventoryID:    p.InventoryID,
+		EnvironmentIDs: p.EnvironmentIDs,
+		Params:         p.Params,
+		TemplateID:     templateID,
 	}
 
 	return

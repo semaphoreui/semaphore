@@ -74,6 +74,28 @@
       style="margin-bottom: 16px; margin-top: 4px"
     ></v-skeleton-loader>
 
+    <v-autocomplete
+      v-model="environment_ids"
+      :label="$t('environment')"
+      :items="environments"
+      item-value="id"
+      item-text="name"
+      outlined
+      dense
+      multiple
+      chips
+      small-chips
+      deletable-chips
+      v-if="environments != null && needEnvironment"
+    ></v-autocomplete>
+
+    <v-skeleton-loader
+      v-else-if="needEnvironment"
+      type="card"
+      height="46"
+      style="margin-bottom: 16px; margin-top: 4px"
+    ></v-skeleton-loader>
+
     <TaskParamsAnsibleForm
       v-if="template.app === 'ansible'"
       v-model="item.params"
@@ -125,12 +147,17 @@ export default {
       editedEnvironment: null,
       editedSecretEnvironment: null,
       inventory: null,
+      environments: null,
     };
   },
 
   computed: {
     needInventory() {
       return this.template.task_params?.allow_override_inventory;
+    },
+
+    needEnvironment() {
+      return this.template.allow_override_env_in_task;
     },
 
     args() {
@@ -157,6 +184,20 @@ export default {
       },
       set(newValue) {
         this.item.inventory_id = newValue;
+      },
+    },
+
+    environment_ids: {
+      get() {
+        const ids = (this.item || {}).environment_ids;
+        if (ids != null && ids.length > 0) {
+          return ids;
+        }
+        return this.template.environment_ids || [];
+      },
+      set(newValue) {
+        this.item.environment_ids = newValue;
+        this.$emit('input', this.item);
       },
     },
 
@@ -269,7 +310,7 @@ export default {
     async afterLoadData() {
       this.refreshItem();
 
-      [this.buildTasks, this.inventory] = await Promise.all([
+      [this.buildTasks, this.inventory, this.environments] = await Promise.all([
         this.template.type === 'deploy'
           ? (
             await axios({
@@ -285,6 +326,16 @@ export default {
             await axios({
               keys: 'get',
               url: this.getInventoryUrl(),
+              responseType: 'json',
+            })
+          ).data
+          : [],
+
+        this.needEnvironment
+          ? (
+            await axios({
+              keys: 'get',
+              url: `/api/project/${this.template.project_id}/environment`,
               responseType: 'json',
             })
           ).data

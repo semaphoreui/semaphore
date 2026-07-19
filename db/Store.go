@@ -895,3 +895,30 @@ func (m MapStringAnyField) Value() (driver.Value, error) {
 	}
 	return json.Marshal(m)
 }
+
+// IntArrayField is a JSON-serialized []int stored as text in the database.
+type IntArrayField []int
+
+func (f *IntArrayField) Scan(value any) error {
+	if value == nil {
+		*f = nil
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, f)
+	case string:
+		return json.Unmarshal([]byte(v), f)
+	default:
+		return errors.New("unsupported type for IntArrayField")
+	}
+}
+
+// Value implements the driver.Valuer interface for IntArrayField
+func (f IntArrayField) Value() (driver.Value, error) {
+	if f == nil {
+		return nil, nil
+	}
+	return json.Marshal(f)
+}
