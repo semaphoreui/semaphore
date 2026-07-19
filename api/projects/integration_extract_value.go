@@ -1,12 +1,12 @@
 package projects
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	log "github.com/sirupsen/logrus"
 )
 
 func GetIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +91,7 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
 	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 
 	var newValue db.IntegrationExtractValue
@@ -98,17 +99,8 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if newValue.ID != valueId {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Value ID in body and URL must be the same",
-		})
-		return
-	}
-
-	if newValue.IntegrationID != integration.ID {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{})
-		return
-	}
+	newValue.ID = valueId
+	newValue.IntegrationID = integration.ID
 
 	err = helpers.Store(r).UpdateIntegrationExtractValue(project.ID, newValue)
 
@@ -155,22 +147,21 @@ func DeleteIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
 	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 
-	if err != nil {
-		log.Error(err)
+	err = helpers.Store(r).DeleteIntegrationExtractValue(project.ID, valueId, integration.ID)
+	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Integration Extract Value failed to be deleted",
 		})
 		return
 	}
 
-	err = helpers.Store(r).DeleteIntegrationExtractValue(project.ID, valueId, integration.ID)
-	if err == db.ErrInvalidOperation {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
-			"error": "Integration Extract Value failed to be deleted",
-		})
+	if err != nil {
+		helpers.WriteError(w, err)
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
