@@ -133,7 +133,7 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {
 	r.Logger.Log("Checkout repository to " + target)
 
-	return c.run(r, GitRepositoryFullPath, "checkout", target)
+	return c.run(r, GitRepositoryFullPath, "checkout", "--end-of-options", target)
 }
 
 func (c CmdGitClient) CanBePulled(r GitRepository) bool {
