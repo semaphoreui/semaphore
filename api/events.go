@@ -28,6 +28,8 @@ func getEvents(w http.ResponseWriter, r *http.Request, limit int) {
 		}
 
 		events, err = helpers.Store(r).GetEvents(project.ID, db.RetrieveQueryParams{Count: limit})
+	} else if user.Admin {
+		events, err = helpers.Store(r).GetAllEvents(db.RetrieveQueryParams{Count: limit})
 	} else {
 		events, err = helpers.Store(r).GetUserEvents(user.ID, db.RetrieveQueryParams{Count: limit})
 	}

@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -207,6 +208,8 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 			helpers.WriteError(w, err)
 			return
 		}
+
+		logAuthEvent(r, helpers.EventLogLoginSuccess, user.ID, fmt.Sprintf("User %s logged in", user.Username))
 
 	case db.SessionVerificationNone:
 		w.WriteHeader(http.StatusNoContent)

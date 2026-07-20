@@ -196,8 +196,6 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 		return
 	}
 
-	logAuthEvent(r, helpers.EventLogLoginSuccess, user.ID, fmt.Sprintf("User %s logged in", user.Username))
-
 	encoded, err := util.Cookie.Encode("semaphore", map[string]any{
 		"user":    user.ID,
 		"session": newSession.ID,
@@ -225,6 +223,10 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 		// it can still be used without TLS inside private networks.
 		Secure: isSecureWebHost(),
 	})
+
+	if verified {
+		logAuthEvent(r, helpers.EventLogLoginSuccess, user.ID, fmt.Sprintf("User %s logged in", user.Username))
+	}
 }
 
 // isSecureWebHost reports whether Semaphore's public web host uses HTTPS, in
@@ -371,6 +373,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	switch login.Method {
 	case "password":
 		if util.Config.PasswordLoginDisable {
+			logAuthEvent(r, helpers.EventLogLoginFail, 0, fmt.Sprintf("Failed login attempt for %s", login.Auth))
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -425,6 +428,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 		if ldapUser == nil {
 			if util.Config.PasswordLoginDisable {
+				logAuthEvent(r, helpers.EventLogLoginFail, 0, fmt.Sprintf("Failed login attempt for %s", login.Auth))
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -975,8 +979,8 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := resolveExternalUser(helpers.Store(r), externalUserProfile{
-		Type:        db.IdentityTypeOidc,
-		Provider:    pid,
+		Type:          db.IdentityTypeOidc,
+		Provider:      pid,
 		ExternalUID:   claims.sub,
 		Username:      claims.username,
 		Name:          claims.name,
