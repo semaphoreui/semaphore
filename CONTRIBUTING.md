@@ -4,6 +4,7 @@ When creating a pull-request you should:
 
 - __Open an issue first:__ Confirm that the change or feature will be accepted
 - __Update API documentation:__ If your pull-request adding/modifying an API request, make sure you update the Swagger documentation (`api-docs.yml`)
+- __Update developer docs:__ For behavioural or operational changes, update the matching page under [`docs/developer/`](docs/developer/README.md) (runner auth, executors, workflows, secret storages, validation, etc.)
 - __Run API Tests:__ If your pull request modifies the API make sure you run the integration tests using **dredd**.
 
 ## Installation in a development environment
