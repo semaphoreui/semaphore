@@ -248,6 +248,15 @@ type RunnerDockerConfig struct {
 	Privileged bool `json:"privileged,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_PRIVILEGED"`
 }
 
+type DefultGlobalRunnerMode string
+
+const (
+	DefultGlobalRunnerNone    DefultGlobalRunnerMode = ""
+	DefultGlobalRunnerDisable DefultGlobalRunnerMode = "disable"
+	DefultGlobalRunnerPrefer  DefultGlobalRunnerMode = "prefer"
+	DefultGlobalRunnerRequire DefultGlobalRunnerMode = "require"
+)
+
 // RunnersConfig holds server-side settings describing how the server treats
 // its runner fleet. It is unrelated to RunnerConfig, which configures a runner
 // process itself: server-side fleet settings use the SEMAPHORE_RUNNERS_* env
@@ -270,6 +279,11 @@ type RunnersConfig struct {
 	// ReconcileIntervalSec is how often the server scans dispatched tasks
 	// against runner liveness.
 	ReconcileIntervalSec int `json:"reconcile_interval_sec,omitempty" default:"30" env:"SEMAPHORE_RUNNERS_RECONCILE_INTERVAL_SEC"`
+
+	// RunnerRegistrationToken is deprecated, use Runners field instead of it.
+	RegistrationToken string `json:"registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
+
+	DefaultGlobalRunnersMode DefultGlobalRunnerMode `json:"default_global_runners_mode" env:"SEMAPHORE_DEFAULT_GLOBAL_RUNNERS_MODE"`
 }
 
 type TLSConfig struct {
@@ -334,7 +348,7 @@ type ConfigProcess struct {
 	// AppNamespaces controls Linux namespace isolation for child apps
 	// (ansible, terraform, shell templates). Git is never isolated —
 	// SSH agent forwarding and credential helpers need host access.
-	AppNamespaces ConfigAppNamespaces `json:"app_namespaces,omitempty"`
+	AppNamespaces ConfigAppNamespaces `json:"app_namespaces"`
 }
 
 // ConfigAppNamespaces mirrors the CLONE_NEW* flags applied to app runs.
@@ -451,7 +465,7 @@ type ActivePointers struct {
 type EncryptionKeysConfig struct {
 	Keys       map[string]KeySource `json:"keys,omitempty"`
 	KeysFolder string               `json:"keys_folder,omitempty"`
-	Active     ActivePointers       `json:"active,omitempty"`
+	Active     ActivePointers       `json:"active"`
 }
 
 // EncryptionConfig is the main-config "encryption" section. It points at the
@@ -604,6 +618,7 @@ type ConfigType struct {
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"9999" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
+	// RunnerRegistrationToken is deprecated, use Runners field instead of it.
 	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
 	JWT *JWTConfig `json:"jwt,omitempty"`
@@ -622,6 +637,7 @@ type ConfigType struct {
 	ExternalAuthEmailMatching string `json:"external_auth_email_matching,omitempty" env:"SEMAPHORE_EXTERNAL_AUTH_EMAIL_MATCHING" rule:"^(auto|always|never)?$" default:"auto"`
 	NonAdminCanCreateProject  bool   `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
 
+	// UseRemoteRunner is deprecated. Use Runners field instead of it.
 	UseRemoteRunner bool `json:"use_remote_runner,omitempty" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
 	Apps map[string]App `json:"apps,omitempty" env:"SEMAPHORE_APPS"`
@@ -680,6 +696,26 @@ func (conf *ConfigType) GetSshConfigPath() string {
 		return conf.Ssh.ConfigPath
 	}
 	return conf.SshConfigPath
+}
+
+func (conf *ConfigType) GetRunnerRegistrationToken() string {
+	if conf.Runners.RegistrationToken != "" {
+		return conf.Runners.RegistrationToken
+	}
+	return conf.RunnerRegistrationToken
+}
+
+func (conf *ConfigType) IsUseRemoteRunner() bool {
+	switch conf.Runners.DefaultGlobalRunnersMode {
+	case DefultGlobalRunnerDisable:
+		return false
+	case DefultGlobalRunnerRequire:
+		return true
+	case DefultGlobalRunnerPrefer:
+		return true
+	default:
+		return conf.UseRemoteRunner
+	}
 }
 
 // RunnersOfflineTimeout returns the heartbeat staleness after which a runner

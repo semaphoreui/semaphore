@@ -386,7 +386,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-	} else if util.Config.RunnerRegistrationToken != "" && register.RegistrationToken == util.Config.RunnerRegistrationToken {
+	} else if util.Config.GetRunnerRegistrationToken() != "" && register.RegistrationToken == util.Config.GetRunnerRegistrationToken() {
 		// The shared, global registration token creates a brand-new runner.
 		runner, err = store.CreateRunner(db.Runner{
 			Token:            db.GenerateRunnerToken(),

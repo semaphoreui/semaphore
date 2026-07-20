@@ -537,7 +537,7 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 
 	// set the appropriate job handler for consistency (not run)
 	var job Job
-	if util.Config.UseRemoteRunner || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
+	if util.Config.IsUseRemoteRunner() || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
 		tag := tr.Template.RunnerTag
 		if tag == nil {
 			tag = tr.Inventory.RunnerTag
@@ -1020,7 +1020,7 @@ func (p *TaskPool) AddTask(
 
 	var job Job
 
-	if util.Config.UseRemoteRunner ||
+	if util.Config.IsUseRemoteRunner() ||
 		taskRunner.Template.RunnerTag != nil ||
 		taskRunner.Inventory.RunnerTag != nil {
 
