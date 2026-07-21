@@ -812,6 +812,35 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res clai
 	return
 }
 
+// oidcClaimsFromUserInfo builds login claims from a UserInfo response when the
+// token has no id_token. The caller must pass the UserInfo error separately so
+// a failed fetch is not followed by a nil dereference on userInfo.
+func oidcClaimsFromUserInfo(userInfo *oidc.UserInfo, userInfoErr error, provider util.OidcProvider) (claimResult, error) {
+	if userInfoErr != nil {
+		return claimResult{}, userInfoErr
+	}
+
+	var claims claimResult
+	var err error
+	if userInfo.Email == "" {
+		claims, err = claimOidcUserInfo(userInfo, provider)
+		if err != nil {
+			return claimResult{}, err
+		}
+	} else {
+		claims.email = userInfo.Email
+		claims.name = userInfo.Profile
+		claims.sub = userInfo.Subject
+		claims.emailVerified = oidcEmailVerified(userInfo, provider)
+	}
+
+	claims.username = getRandomUsername()
+	if userInfo.Profile == "" {
+		claims.name = getRandomProfileName()
+	}
+	return claims, nil
+}
+
 func getRandomUsername() string {
 	return random.String(16)
 }
@@ -909,22 +938,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var userInfo *oidc.UserInfo
 		userInfo, err = _oidc.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token))
-
-		if err == nil {
-			if userInfo.Email == "" {
-				claims, err = claimOidcUserInfo(userInfo, provider)
-			} else {
-				claims.email = userInfo.Email
-				claims.name = userInfo.Profile
-				claims.sub = userInfo.Subject
-				claims.emailVerified = oidcEmailVerified(userInfo, provider)
-			}
-		}
-
-		claims.username = getRandomUsername()
-		if userInfo.Profile == "" {
-			claims.name = getRandomProfileName()
-		}
+		claims, err = oidcClaimsFromUserInfo(userInfo, err, provider)
 	}
 
 	if err != nil {
