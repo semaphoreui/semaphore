@@ -1,9 +1,10 @@
-package git
+package pkg
 
 import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -99,7 +100,7 @@ func TestValidateCommitHash(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateCommitHash(tt.hash, "task")
+			err := git.ValidateCommitHash(tt.hash, "task")
 			if tt.wantErr {
 				assert.EqualError(t, err, "task commit hash is invalid")
 			} else {

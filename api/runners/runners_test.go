@@ -24,6 +24,7 @@ func TestRegisterRunner_InvalidTokenReturnsBadRequest(t *testing.T) {
 	t.Cleanup(func() { util.Config = prevCfg })
 	util.Config = &util.ConfigType{
 		RunnerRegistrationToken: "global-reg-token",
+		Runners:                 &util.RunnersConfig{},
 	}
 
 	store := sql.CreateTestStore()
