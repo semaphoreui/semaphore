@@ -48,7 +48,7 @@ func createTestIntegration(t *testing.T, store *SqlDb) (db.Project, db.Integrati
 }
 
 func TestUpdateIntegrationMatcher(t *testing.T) {
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 
 	project, integration := createTestIntegration(t, store)
 
@@ -78,7 +78,7 @@ func TestUpdateIntegrationMatcher(t *testing.T) {
 }
 
 func TestUpdateIntegrationMatcher_InvalidMatcher(t *testing.T) {
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 
 	project, integration := createTestIntegration(t, store)
 
@@ -93,7 +93,7 @@ func TestUpdateIntegrationMatcher_InvalidMatcher(t *testing.T) {
 }
 
 func TestUpdateIntegrationMatcher_WrongProject(t *testing.T) {
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 
 	project, integration := createTestIntegration(t, store)
 
@@ -119,7 +119,7 @@ func TestUpdateIntegrationMatcher_WrongProject(t *testing.T) {
 }
 
 func TestGetIntegrationRefs(t *testing.T) {
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 
 	project, integration := createTestIntegration(t, store)
 
@@ -155,7 +155,7 @@ func TestGetIntegrationRefs(t *testing.T) {
 }
 
 func TestIntegrationMatcher_WrongProject(t *testing.T) {
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 
 	project, integration := createTestIntegration(t, store)
 
@@ -197,7 +197,7 @@ func TestIntegrationMatcher_WrongProject(t *testing.T) {
 }
 
 func TestIntegrationExtractValue_WrongProject(t *testing.T) {
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 
 	project, integration := createTestIntegration(t, store)
 

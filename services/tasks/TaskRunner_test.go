@@ -73,7 +73,7 @@ func (l *mockLogWriteService) WriteResult(task any) error {
 
 func TestTaskRunnerRun(t *testing.T) {
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	keyInstaller := &KeyInstallerMock{}
 
 	pool := CreateTaskPool(
@@ -265,7 +265,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 }
 
 func TestPopulateDetails(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {
@@ -363,7 +363,7 @@ func TestPopulateDetails(t *testing.T) {
 }
 
 func TestPopulateDetailsInventory(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {
@@ -472,7 +472,7 @@ func TestPopulateDetailsInventory(t *testing.T) {
 }
 
 func TestPopulateDetailsInventory1(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {

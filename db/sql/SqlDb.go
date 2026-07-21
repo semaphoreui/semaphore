@@ -125,7 +125,7 @@ func (d *SqlDbConnection) Close() {
 	}
 }
 
-func CreateTestStore() *SqlDb {
+func InitConfigCreateTestStore() *SqlDb {
 	util.Config = &util.ConfigType{
 		SQLite: &util.DbConfig{
 			Hostname: ":memory:",
@@ -136,6 +136,7 @@ func CreateTestStore() *SqlDb {
 			Tasks:  &util.TaskLogType{},
 		},
 		Process: &util.ConfigProcess{},
+		Runners: &util.RunnersConfig{},
 	}
 	store := CreateDb(util.DbDriverSQLite)
 
