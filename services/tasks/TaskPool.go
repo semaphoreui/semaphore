@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/jwt"
+	"github.com/semaphoreui/semaphore/pkg/metrics"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro/pkg/stage_parsers"
@@ -61,6 +62,7 @@ type TaskPool struct {
 	encryptionService      server.AccessKeyEncryptionService
 	keyInstallationService server.AccessKeyInstallationService
 	signer                 jwt.Signer
+	metrics                *metrics.Metrics
 
 	// repoLock serializes git operations on shared repository directories
 	// across parallel tasks of the same template.
@@ -101,6 +103,7 @@ func CreateTaskPool(
 	keyInstallationService server.AccessKeyInstallationService,
 	logWriteService pro_interfaces.LogWriteService,
 	signer jwt.Signer,
+	appMetrics *metrics.Metrics,
 ) TaskPool {
 	p := TaskPool{
 		register:               make(chan *TaskRunner),      // add TaskRunner to queue
@@ -114,6 +117,7 @@ func CreateTaskPool(
 		logWriteService:        logWriteService,
 		keyInstallationService: keyInstallationService,
 		signer:                 signer,
+		metrics:                appMetrics,
 		repoLock:               &KeyLock{},
 		stop:                   make(chan struct{}),
 		reconcileDone:          make(chan struct{}),

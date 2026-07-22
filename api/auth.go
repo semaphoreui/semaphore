@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/subtle"
 	"errors"
 	"net/http"
 	"net/url"
@@ -313,6 +314,25 @@ func adminMiddleware(next http.Handler) http.Handler {
 
 		if !user.Admin {
 			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func metricsAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username := util.Config.Metrics.Username
+		password := util.Config.Metrics.Password
+
+		reqUser, reqPass, ok := r.BasicAuth()
+		userMatch := subtle.ConstantTimeCompare([]byte(reqUser), []byte(username)) == 1
+		passMatch := subtle.ConstantTimeCompare([]byte(reqPass), []byte(password)) == 1
+
+		if !util.Config.Metrics.Enabled || username == "" || password == "" || !ok || !userMatch || !passMatch {
+			w.Header().Set("WWW-Authenticate", `Basic realm="metrics"`)
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 

@@ -338,6 +338,12 @@ type SyslogConfig struct {
 	Format  SyslogFormat `json:"format,omitempty" env:"SEMAPHORE_SYSLOG_FORMAT"`
 }
 
+type MetricsConfig struct {
+	Enabled  bool   `json:"enabled" env:"SEMAPHORE_METRICS_ENABLED"`
+	Username string `json:"username,omitempty" env:"SEMAPHORE_METRICS_USERNAME"`
+	Password string `json:"password,omitempty" env:"SEMAPHORE_METRICS_PASSWORD,sensitive"`
+}
+
 type ConfigProcess struct {
 	User       string  `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
 	UID        *uint32 `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
@@ -649,6 +655,8 @@ type ConfigType struct {
 	Teams *TeamsConfig `json:"teams,omitempty"`
 
 	Syslog *SyslogConfig `json:"syslog,omitempty"`
+
+	Metrics *MetricsConfig `json:"metrics,omitempty"`
 
 	Log *ConfigLog `json:"log,omitempty"`
 
