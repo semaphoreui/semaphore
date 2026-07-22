@@ -41,6 +41,7 @@ func poolWithTasks() *taskServices.TaskPool {
 		nil,
 		nil,
 		nil,
+		nil,
 	))
 }
 
