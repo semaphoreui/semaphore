@@ -699,23 +699,29 @@ func (conf *ConfigType) GetSshConfigPath() string {
 }
 
 func (conf *ConfigType) GetRunnerRegistrationToken() string {
-	if conf.Runners.RegistrationToken != "" {
+	if conf.Runners != nil && conf.Runners.RegistrationToken != "" {
 		return conf.Runners.RegistrationToken
 	}
 	return conf.RunnerRegistrationToken
 }
 
 func (conf *ConfigType) IsUseRemoteRunner() bool {
-	switch conf.Runners.DefaultGlobalRunnersMode {
-	case DefultGlobalRunnerDisable:
-		return false
-	case DefultGlobalRunnerRequire:
-		return true
-	case DefultGlobalRunnerPrefer:
-		return true
-	default:
-		return conf.UseRemoteRunner
+	if conf.Runners != nil {
+		switch conf.Runners.DefaultGlobalRunnersMode {
+		case DefultGlobalRunnerDisable:
+			return false
+		case DefultGlobalRunnerRequire, DefultGlobalRunnerPrefer:
+			return true
+		}
 	}
+	return conf.UseRemoteRunner
+}
+
+func (conf *ConfigType) DefaultGlobalRunnersMode() DefultGlobalRunnerMode {
+	if conf.Runners != nil {
+		return conf.Runners.DefaultGlobalRunnersMode
+	}
+	return DefultGlobalRunnerNone
 }
 
 // RunnersOfflineTimeout returns the heartbeat staleness after which a runner
