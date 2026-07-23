@@ -2,6 +2,7 @@ package runners
 
 import (
 	"errors"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -193,76 +194,20 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 				jobData.JWT = token
 			}
 
+			// Decrypt all keys of the task before publishing anything, so a
+			// task with an undecryptable key fails on its own instead of
+			// aborting the poll for the whole runner, and none of its keys
+			// leak into the response of a job that is not dispatched.
+			taskKeys := make(map[int]db.AccessKey)
+			if kerr := c.collectTaskAccessKeys(tsk, runner.ID, taskKeys); kerr != nil {
+				tsk.Log("Failed to decrypt access keys of the task. More details in the server logs.")
+				tsk.SetStatus(task_logger.TaskFailStatus)
+				c.taskPool.FinalizeRemoteTask(tsk, &runner)
+				continue
+			}
+
+			maps.Copy(data.AccessKeys, taskKeys)
 			data.NewJobs = append(data.NewJobs, jobData)
-
-			if tsk.Inventory.SSHKeyID != nil {
-				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.SSHKey)
-				if err != nil {
-					log.WithFields(log.Fields{
-						"runner_id":     runner.ID,
-						"task_id":       tsk.Task.ID,
-						"inventory_id":  tsk.Inventory.ID,
-						"access_key_id": tsk.Inventory.SSHKey.ID,
-						"context":       "runner",
-					}).WithError(err).Error("Failed to decrypt inventory key")
-					helpers.WriteError(w, err)
-					return
-				}
-				data.AccessKeys[*tsk.Inventory.SSHKeyID] = tsk.Inventory.SSHKey
-			}
-
-			if tsk.Inventory.BecomeKeyID != nil {
-				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.BecomeKey)
-				if err != nil {
-					log.WithFields(log.Fields{
-						"runner_id":     runner.ID,
-						"task_id":       tsk.Task.ID,
-						"inventory_id":  tsk.Inventory.ID,
-						"access_key_id": tsk.Inventory.BecomeKey.ID,
-						"context":       "runner",
-					}).WithError(err).Error("Failed to decrypt become key")
-					helpers.WriteError(w, err)
-					return
-				}
-				data.AccessKeys[*tsk.Inventory.BecomeKeyID] = tsk.Inventory.BecomeKey
-			}
-
-			if tsk.Template.Vaults != nil {
-				for _, vault := range tsk.Template.Vaults {
-					if vault.VaultKeyID != nil {
-						err := c.encryptionService.DeserializeSecret(vault.Vault)
-						if err != nil {
-							log.WithFields(log.Fields{
-								"runner_id":     runner.ID,
-								"task_id":       tsk.Task.ID,
-								"access_key_id": vault.Vault.ID,
-								"context":       "runner",
-							}).WithError(err).Error("Failed to decrypt vault")
-							helpers.WriteError(w, err)
-							return
-						}
-						data.AccessKeys[*vault.VaultKeyID] = *vault.Vault
-					}
-				}
-			}
-
-			if tsk.Inventory.RepositoryID != nil {
-				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.Repository.SSHKey)
-				if err != nil {
-					log.WithFields(log.Fields{
-						"runner_id":     runner.ID,
-						"task_id":       tsk.Task.ID,
-						"repository_id": tsk.Inventory.Repository.ID,
-						"access_key_id": tsk.Inventory.Repository.SSHKey.ID,
-						"context":       "runner",
-					}).WithError(err).Error("Failed to decrypt repository key")
-					helpers.WriteError(w, err)
-					return
-				}
-				data.AccessKeys[tsk.Inventory.Repository.SSHKeyID] = tsk.Inventory.Repository.SSHKey
-			}
-
-			data.AccessKeys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
 
 		} else {
 			data.CurrentJobs = append(data.CurrentJobs, runners.JobState{
@@ -273,6 +218,73 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, data)
+}
+
+// collectTaskAccessKeys decrypts every access key the dispatched task needs
+// and stages them into keys, so the caller publishes either all of them or
+// none. It returns the first decryption error.
+func (c *RunnerController) collectTaskAccessKeys(tsk *tasks.TaskRunner, runnerID int, keys map[int]db.AccessKey) error {
+	if tsk.Inventory.SSHKeyID != nil {
+		if err := c.encryptionService.DeserializeSecret(&tsk.Inventory.SSHKey); err != nil {
+			log.WithFields(log.Fields{
+				"runner_id":     runnerID,
+				"task_id":       tsk.Task.ID,
+				"inventory_id":  tsk.Inventory.ID,
+				"access_key_id": tsk.Inventory.SSHKey.ID,
+				"context":       "runner",
+			}).WithError(err).Error("Failed to decrypt inventory key")
+			return err
+		}
+		keys[*tsk.Inventory.SSHKeyID] = tsk.Inventory.SSHKey
+	}
+
+	if tsk.Inventory.BecomeKeyID != nil {
+		if err := c.encryptionService.DeserializeSecret(&tsk.Inventory.BecomeKey); err != nil {
+			log.WithFields(log.Fields{
+				"runner_id":     runnerID,
+				"task_id":       tsk.Task.ID,
+				"inventory_id":  tsk.Inventory.ID,
+				"access_key_id": tsk.Inventory.BecomeKey.ID,
+				"context":       "runner",
+			}).WithError(err).Error("Failed to decrypt become key")
+			return err
+		}
+		keys[*tsk.Inventory.BecomeKeyID] = tsk.Inventory.BecomeKey
+	}
+
+	for _, vault := range tsk.Template.Vaults {
+		if vault.VaultKeyID == nil {
+			continue
+		}
+		if err := c.encryptionService.DeserializeSecret(vault.Vault); err != nil {
+			log.WithFields(log.Fields{
+				"runner_id":     runnerID,
+				"task_id":       tsk.Task.ID,
+				"access_key_id": vault.Vault.ID,
+				"context":       "runner",
+			}).WithError(err).Error("Failed to decrypt vault")
+			return err
+		}
+		keys[*vault.VaultKeyID] = *vault.Vault
+	}
+
+	if tsk.Inventory.RepositoryID != nil {
+		if err := c.encryptionService.DeserializeSecret(&tsk.Inventory.Repository.SSHKey); err != nil {
+			log.WithFields(log.Fields{
+				"runner_id":     runnerID,
+				"task_id":       tsk.Task.ID,
+				"repository_id": tsk.Inventory.Repository.ID,
+				"access_key_id": tsk.Inventory.Repository.SSHKey.ID,
+				"context":       "runner",
+			}).WithError(err).Error("Failed to decrypt repository key")
+			return err
+		}
+		keys[tsk.Inventory.Repository.SSHKeyID] = tsk.Inventory.Repository.SSHKey
+	}
+
+	keys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
+
+	return nil
 }
 
 func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) {
