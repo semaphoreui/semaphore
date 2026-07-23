@@ -118,6 +118,23 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 
 		if tsk.Task.Status == task_logger.TaskWaitingStatus || tsk.Task.Status == task_logger.TaskStartingStatus {
 
+			// Survey secret variables are stored as a task-bound encrypted
+			// access key in the shared DB, so any HA node serving this poll can
+			// deliver them. An unreadable (e.g. expired) secret fails the task
+			// instead of dispatching it with silently empty variables.
+			surveySecrets, err := c.encryptionService.GetTaskSurveySecrets(tsk.Task.ProjectID, tsk.Task.ID)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"runner_id": runner.ID,
+					"task_id":   tsk.Task.ID,
+					"context":   "runner",
+				}).WithError(err).Error("Failed to read task survey secrets")
+				tsk.Log("Error: failed to read survey secrets: " + err.Error())
+				tsk.SetStatus(task_logger.TaskFailStatus)
+				c.taskPool.FinalizeRemoteTask(tsk, &runner)
+				continue
+			}
+
 			jobData := runners.JobData{
 				Username:            tsk.Username,
 				IncomingVersion:     tsk.IncomingVersion,
@@ -128,6 +145,10 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 				InventoryRepository: tsk.Inventory.Repository,
 				Repository:          tsk.Repository,
 				Environment:         tsk.Environment,
+			}
+
+			if surveySecrets != "" {
+				jobData.Task.Secret = surveySecrets
 			}
 
 			if c.signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {

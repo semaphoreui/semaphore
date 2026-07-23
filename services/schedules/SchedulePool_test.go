@@ -37,6 +37,18 @@ func (m *mockEncryptionService) DeleteSecret(key *db.AccessKey) error {
 	return nil
 }
 
+func (m *mockEncryptionService) CreateTaskSurveySecrets(projectID int, taskID int, secrets string, expireAt time.Time) error {
+	return nil
+}
+
+func (m *mockEncryptionService) GetTaskSurveySecrets(projectID int, taskID int) (string, error) {
+	return "", nil
+}
+
+func (m *mockEncryptionService) DeleteTaskSurveySecrets(projectID int, taskID int) error {
+	return nil
+}
+
 func TestValidateCronFormat(t *testing.T) {
 	err := ValidateCronFormat("* * * *")
 	if err == nil {

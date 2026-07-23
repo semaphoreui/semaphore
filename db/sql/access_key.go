@@ -5,6 +5,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
 func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
@@ -33,6 +34,8 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 			q = q.Where(squirrel.Eq{"pe.environment_id": *options.EnvironmentID})
 		case db.AccessKeySecretStorage:
 			q = q.Where(squirrel.Eq{"pe.storage_id": options.StorageID})
+		case db.AccessKeyTaskSecret:
+			q = q.Where(squirrel.Eq{"pe.task_id": options.TaskID})
 		}
 	} else if options.EnvironmentID != nil {
 		q = q.Where(squirrel.Eq{"pe.environment_id": *options.EnvironmentID})
@@ -114,8 +117,10 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 				"source_storage_id, "+
 				"source_storage_key, "+
 				"source_storage_type, "+
-				"synchronized) "+
-				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"synchronized, "+
+				"task_id, "+
+				"expire_at) "+
+				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			key.Name,
 			key.Type,
 			key.ProjectID,
@@ -127,6 +132,8 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 			key.SourceStorageKey,
 			key.SourceStorageType,
 			key.Synchronized,
+			key.TaskID,
+			key.ExpireAt,
 		)
 	} else {
 		insertID, err = d.insert(
@@ -143,8 +150,10 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 				"source_storage_id, "+
 				"source_storage_key, "+
 				"source_storage_type, "+
-				"synchronized) "+
-				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"synchronized, "+
+				"task_id, "+
+				"expire_at) "+
+				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			key.Name,
 			key.Type,
 			key.ProjectID,
@@ -157,6 +166,8 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 			key.SourceStorageKey,
 			key.SourceStorageType,
 			key.Synchronized,
+			key.TaskID,
+			key.ExpireAt,
 		)
 
 	}
@@ -172,4 +183,36 @@ func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err erro
 
 func (d *SqlDb) DeleteAccessKey(projectID int, accessKeyID int) error {
 	return d.deleteObject(projectID, db.AccessKeyProps, accessKeyID)
+}
+
+func (d *SqlDb) GetTaskAccessKey(projectID int, taskID int) (key db.AccessKey, err error) {
+	err = d.selectOne(
+		&key,
+		"select * from access_key where project_id=? and owner=? and task_id=?",
+		projectID,
+		db.AccessKeyTaskSecret,
+		taskID)
+
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
+
+	return
+}
+
+func (d *SqlDb) DeleteTaskAccessKeys(projectID int, taskID int) error {
+	_, err := d.exec(
+		"delete from access_key where project_id=? and owner=? and task_id=?",
+		projectID,
+		db.AccessKeyTaskSecret,
+		taskID)
+	return err
+}
+
+func (d *SqlDb) DeleteExpiredTaskAccessKeys() error {
+	_, err := d.exec(
+		"delete from access_key where owner=? and expire_at is not null and expire_at < ?",
+		db.AccessKeyTaskSecret,
+		tz.Now())
+	return err
 }

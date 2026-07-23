@@ -321,6 +321,7 @@ type GetAccessKeyOptions struct {
 	EnvironmentID   *int
 	StorageID       *int
 	SourceStorageID *int
+	TaskID          *int
 }
 
 // AccessKeyManager handles access key-related operations
@@ -331,6 +332,16 @@ type AccessKeyManager interface {
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
 	DeleteAccessKey(projectID int, accessKeyID int) error
+	// GetTaskAccessKey returns the AccessKeyTaskSecret-owned key of a task
+	// (survey secret variables), or ErrNotFound when the task has none.
+	GetTaskAccessKey(projectID int, taskID int) (AccessKey, error)
+	// DeleteTaskAccessKeys removes all AccessKeyTaskSecret-owned keys of a task.
+	// Deleting for a task without such keys is not an error.
+	DeleteTaskAccessKeys(projectID int, taskID int) error
+	// DeleteExpiredTaskAccessKeys removes all AccessKeyTaskSecret-owned keys
+	// whose expire_at is in the past, across all projects. Idempotent, safe to
+	// run concurrently on several HA nodes.
+	DeleteExpiredTaskAccessKeys() error
 }
 
 // IntegrationManager handles integration-related operations

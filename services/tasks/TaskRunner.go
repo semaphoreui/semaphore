@@ -325,6 +325,16 @@ func (t *TaskRunner) finishRun() {
 	now := tz.Now()
 	t.Task.End = &now
 	t.saveStatus()
+
+	// The task-bound survey-secret key is only needed until dispatch; drop it
+	// as soon as the task is terminal. Failure is non-fatal: the expired-key
+	// sweep and the task_id cascade remain as backstops.
+	if t.pool.encryptionService != nil {
+		if err := t.pool.encryptionService.DeleteTaskSurveySecrets(t.Task.ProjectID, t.Task.ID); err != nil {
+			log.WithError(err).WithField("task_id", t.Task.ID).Warn("failed to delete task survey secrets")
+		}
+	}
+
 	t.createTaskEvent()
 	t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
 
