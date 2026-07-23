@@ -123,20 +123,19 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			// deliver them. An unreadable (e.g. expired) secret fails the task
 			// instead of dispatching it with silently empty variables.
 			surveySecrets, err := c.encryptionService.GetTaskSurveySecrets(tsk.Task.ProjectID, tsk.Task.ID)
-			if err != nil {
-				if errors.Is(err, server.ErrTaskSurveySecretsNotFound) {
-					surveySecrets = ""
-				} else {
-					log.WithFields(log.Fields{
-						"runner_id": runner.ID,
-						"task_id":   tsk.Task.ID,
-						"context":   "runner",
-					}).WithError(err).Error("Failed to read task survey secrets")
-					tsk.Log("Error: failed to read survey secrets: " + err.Error())
-					tsk.SetStatus(task_logger.TaskFailStatus)
-					c.taskPool.FinalizeRemoteTask(tsk, &runner)
-					continue
-				}
+
+			if errors.Is(err, server.ErrTaskSurveySecretsNotFound) {
+				surveySecrets = ""
+			} else if err != nil {
+				log.WithFields(log.Fields{
+					"runner_id": runner.ID,
+					"task_id":   tsk.Task.ID,
+					"context":   "runner",
+				}).WithError(err).Error("Failed to read task survey secrets")
+				tsk.Log("Error: failed to read survey secrets: " + err.Error())
+				tsk.SetStatus(task_logger.TaskFailStatus)
+				c.taskPool.FinalizeRemoteTask(tsk, &runner)
+				continue
 			}
 
 			jobData := runners.JobData{

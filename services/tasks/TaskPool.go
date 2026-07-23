@@ -963,15 +963,20 @@ func hasSurveySecrets(secretVars string) bool {
 // at local dispatch time. Tasks without stored secrets yield "{}".
 func (p *TaskPool) loadTaskSurveySecretsForDispatch(projectID int, taskID int) (string, error) {
 	secrets, err := p.encryptionService.GetTaskSurveySecrets(projectID, taskID)
+
+	if errors.Is(err, server.ErrTaskSurveySecretsNotFound) {
+		return "{}", nil
+	}
+
 	if err != nil {
-		if errors.Is(err, server.ErrTaskSurveySecretsNotFound) {
-			return "{}", nil
-		}
+
 		return "", err
 	}
+
 	if secrets == "" {
 		return "{}", nil
 	}
+
 	return secrets, nil
 }
 
