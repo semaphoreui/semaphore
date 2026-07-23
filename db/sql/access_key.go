@@ -26,23 +26,26 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 		return
 	}
 
-	if !options.IgnoreOwner {
-		q = q.Where("pe.owner=?", options.Owner)
-
-		switch options.Owner {
-		case db.AccessKeyVariable, db.AccessKeyEnvironment:
-			q = q.Where(squirrel.Eq{"pe.environment_id": *options.EnvironmentID})
-		case db.AccessKeySecretStorage:
-			q = q.Where(squirrel.Eq{"pe.storage_id": options.StorageID})
-		case db.AccessKeyTaskSecret:
-			q = q.Where(squirrel.Eq{"pe.task_id": options.TaskID})
-		}
-	} else if options.EnvironmentID != nil {
-		q = q.Where(squirrel.Eq{"pe.environment_id": *options.EnvironmentID})
+	if err = options.Validate(); err != nil {
+		return
 	}
 
-	if options.SourceStorageID != nil {
-		q = q.Where(squirrel.Eq{"pe.source_storage_id": *options.SourceStorageID})
+	if !options.IgnoreOwner {
+		q = q.Where(squirrel.Eq{"pe.owner": options.Owner})
+	}
+
+	for _, f := range []struct {
+		column string
+		value  *int
+	}{
+		{"pe.environment_id", options.EnvironmentID},
+		{"pe.storage_id", options.StorageID},
+		{"pe.task_id", options.TaskID},
+		{"pe.source_storage_id", options.SourceStorageID},
+	} {
+		if f.value != nil {
+			q = q.Where(squirrel.Eq{f.column: *f.value})
+		}
 	}
 
 	query, args, err := q.ToSql()
