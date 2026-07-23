@@ -551,13 +551,19 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 		job = &RemoteJob{RunnerTag: tag, Task: tr.Task, taskPool: p}
 	} else {
 		app := db_lib.CreateApp(tr.Template, tr.Repository, tr.Inventory, tr)
+
+		secret, sErr := p.encryptionService.GetTaskSurveySecrets(projectID, taskID)
+		if sErr != nil {
+			return nil, sErr
+		}
+
 		job = &LocalExecutor{
 			Task:         tr.Task,
 			Template:     tr.Template,
 			Inventory:    tr.Inventory,
 			Repository:   tr.Repository,
 			Environment:  tr.Environment,
-			Secret:       "{}",
+			Secret:       secret,
 			Logger:       app.SetLogger(tr),
 			App:          app,
 			KeyInstaller: p.keyInstallationService,
@@ -942,7 +948,7 @@ func (p *TaskPool) GetQueuedTasks() []*TaskRunner {
 // hasSurveySecrets reports whether the task-supplied secret payload contains
 // at least one survey secret variable (a non-empty JSON object).
 func hasSurveySecrets(secretVars string) bool {
-	if secretVars == "" || secretVars == "{}" {
+	if secretVars == "" {
 		return false
 	}
 
@@ -1019,7 +1025,7 @@ func (p *TaskPool) AddTask(
 	taskObj.UserID = userID
 	taskObj.ProjectID = projectID
 	extraSecretVars := taskObj.Secret
-	taskObj.Secret = "{}"
+	taskObj.Secret = ""
 
 	tpl, err := p.store.GetTemplate(projectID, taskObj.TemplateID)
 	if err != nil {

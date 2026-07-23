@@ -210,8 +210,23 @@ func (d *SqlDb) DeleteTaskAccessKeys(projectID int, taskID int) error {
 }
 
 func (d *SqlDb) DeleteExpiredTaskAccessKeys() error {
+	// Do not delete keys for tasks that are still queued or running: an active
+	// task with an expired key must fail dispatch with ErrAccessKeyExpired, not
+	// silently run with empty survey variables after the row disappears.
 	_, err := d.exec(
-		"delete from access_key where owner=? and expire_at is not null and expire_at < ?",
+		`delete from access_key ak
+		 where ak.owner=?
+		   and ak.expire_at is not null
+		   and ak.expire_at < ?
+		   and (
+		     ak.task_id is null
+		     or exists (
+		       select 1 from task t
+		       where t.id = ak.task_id
+		         and t.project_id = ak.project_id
+		         and t.status in ('stopped', 'success', 'error')
+		     )
+		   )`,
 		db.AccessKeyTaskSecret,
 		tz.Now())
 	return err

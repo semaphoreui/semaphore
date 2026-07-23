@@ -263,7 +263,7 @@ func (t *TaskRunner) run() {
 					ProjectID:  t.Task.ProjectID,
 					TemplateID: t.Template.ID,
 					UserID:     t.Task.UserID,
-					Audience:   jwt.Audience(t.Template.JWTParams.Audience),
+					Audience:   t.Template.JWTParams.Audience,
 					TTL:        ttl,
 				})
 				if jerr != nil {

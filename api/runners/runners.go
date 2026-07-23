@@ -109,9 +109,9 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 		data.CacheCleanProjectID = runner.ProjectID
 	}
 
-	tasks := c.taskPool.GetRunningTasks()
+	runningTasks := c.taskPool.GetRunningTasks()
 
-	for _, tsk := range tasks {
+	for _, tsk := range runningTasks {
 		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runner.ID {
 			continue
 		}
@@ -147,9 +147,9 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 				Environment:         tsk.Environment,
 			}
 
-			if surveySecrets != "" {
-				jobData.Task.Secret = surveySecrets
-			}
+			// Always overwrite: the dispatched Secret must be exactly the
+			// DB-derived value, never whatever the in-memory task carries
+			jobData.Task.Secret = surveySecrets
 
 			if c.signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {
 				ttl, terr := tsk.Template.JWTParams.ParsedTTL()
