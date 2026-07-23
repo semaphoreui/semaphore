@@ -249,6 +249,14 @@ func (t *TaskRunner) run() {
 	// can be exposed to the playbook as SEMAPHORE_JWT. Remote runners receive
 	// the JWT inside the JobData payload returned by the API.
 	if localJob, ok := t.job.(*LocalExecutor); ok {
+		secret, err := t.pool.loadTaskSurveySecretsForDispatch(t.Task.ProjectID, t.Task.ID)
+		if err != nil {
+			t.Log("Error: failed to read survey secrets: " + err.Error())
+			t.SetStatus(task_logger.TaskFailStatus)
+			return
+		}
+		localJob.Secret = secret
+
 		if t.pool.signer != nil && t.Template.JWTParams != nil && t.Template.JWTParams.Enabled {
 			ttl, terr := t.Template.JWTParams.ParsedTTL()
 			if terr != nil {

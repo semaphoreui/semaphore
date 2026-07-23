@@ -89,7 +89,7 @@ func TestGetTaskSurveySecrets_NotFound(t *testing.T) {
 
 	secrets, err := svc.GetTaskSurveySecrets(1, 42)
 
-	require.NoError(t, err)
+	assert.ErrorIs(t, err, ErrTaskSurveySecretsNotFound)
 	assert.Empty(t, secrets)
 }
 

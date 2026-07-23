@@ -338,9 +338,10 @@ type AccessKeyManager interface {
 	// DeleteTaskAccessKeys removes all AccessKeyTaskSecret-owned keys of a task.
 	// Deleting for a task without such keys is not an error.
 	DeleteTaskAccessKeys(projectID int, taskID int) error
-	// DeleteExpiredTaskAccessKeys removes all AccessKeyTaskSecret-owned keys
-	// whose expire_at is in the past, across all projects. Idempotent, safe to
-	// run concurrently on several HA nodes.
+	// DeleteExpiredTaskAccessKeys removes expired AccessKeyTaskSecret-owned keys
+	// for finished or orphaned tasks only. Active tasks keep their rows so
+	// dispatch can fail clearly when a key is expired. Idempotent, safe to run
+	// concurrently on several HA nodes.
 	DeleteExpiredTaskAccessKeys() error
 }
 

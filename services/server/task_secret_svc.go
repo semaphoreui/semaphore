@@ -14,6 +14,11 @@ import (
 // other secret, and unusable after ExpireAt. This keeps them readable by any
 // HA node serving the runner dispatch while never persisting plaintext.
 
+// ErrTaskSurveySecretsNotFound is returned when a task has no stored survey-
+// secret key. Callers that require secrets must treat this as a dispatch
+// failure; callers dispatching tasks that never had survey secrets may ignore it.
+var ErrTaskSurveySecretsNotFound = errors.New("task survey secrets not found")
+
 // CreateTaskSurveySecrets stores the survey-secrets JSON of a task as an
 // encrypted task-bound access key. secrets must be a JSON object string.
 func (s *accessKeyEncryptionServiceImpl) CreateTaskSurveySecrets(
@@ -42,14 +47,14 @@ func (s *accessKeyEncryptionServiceImpl) CreateTaskSurveySecrets(
 }
 
 // GetTaskSurveySecrets returns the decrypted survey-secrets JSON of a task.
-// A task without survey secrets yields "" with no error; an expired secret
-// yields ErrAccessKeyExpired.
+// A task without survey secrets yields ErrTaskSurveySecretsNotFound; an
+// expired secret yields ErrAccessKeyExpired.
 func (s *accessKeyEncryptionServiceImpl) GetTaskSurveySecrets(projectID int, taskID int) (string, error) {
 	key, err := s.accessKeyRepo.GetTaskAccessKey(projectID, taskID)
 
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			return "", nil
+			return "", ErrTaskSurveySecretsNotFound
 		}
 		return "", err
 	}

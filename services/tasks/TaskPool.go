@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -551,13 +552,17 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 		job = &RemoteJob{RunnerTag: tag, Task: tr.Task, taskPool: p}
 	} else {
 		app := db_lib.CreateApp(tr.Template, tr.Repository, tr.Inventory, tr)
+		secret, err := p.loadTaskSurveySecretsForDispatch(projectID, taskID)
+		if err != nil {
+			return nil, err
+		}
 		job = &LocalExecutor{
 			Task:         tr.Task,
 			Template:     tr.Template,
 			Inventory:    tr.Inventory,
 			Repository:   tr.Repository,
 			Environment:  tr.Environment,
-			Secret:       "{}",
+			Secret:       secret,
 			Logger:       app.SetLogger(tr),
 			App:          app,
 			KeyInstaller: p.keyInstallationService,
@@ -952,6 +957,22 @@ func hasSurveySecrets(secretVars string) bool {
 	}
 
 	return len(vars) > 0
+}
+
+// loadTaskSurveySecretsForDispatch reads persisted survey secrets for a task
+// at local dispatch time. Tasks without stored secrets yield "{}".
+func (p *TaskPool) loadTaskSurveySecretsForDispatch(projectID int, taskID int) (string, error) {
+	secrets, err := p.encryptionService.GetTaskSurveySecrets(projectID, taskID)
+	if err != nil {
+		if errors.Is(err, server.ErrTaskSurveySecretsNotFound) {
+			return "{}", nil
+		}
+		return "", err
+	}
+	if secrets == "" {
+		return "{}", nil
+	}
+	return secrets, nil
 }
 
 // taskSecretExpireAt returns the expiry moment for a task's survey-secret key:
