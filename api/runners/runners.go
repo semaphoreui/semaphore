@@ -124,12 +124,18 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			// instead of dispatching it with silently empty variables.
 			surveySecrets, err := c.encryptionService.GetTaskSurveySecrets(tsk.Task.ProjectID, tsk.Task.ID)
 			if err != nil {
-				log.WithFields(log.Fields{
+				logger := log.WithError(err).WithFields(log.Fields{
 					"runner_id": runner.ID,
 					"task_id":   tsk.Task.ID,
-					"context":   "runner",
-				}).WithError(err).Error("Failed to read task survey secrets")
-				tsk.Log("Error: failed to read survey secrets: " + err.Error())
+					"context":   "survey_secrets",
+				})
+				if errors.Is(err, server.ErrAccessKeyExpired) {
+					logger.Warn("task survey secrets expired before dispatch")
+					tsk.Log("Survey secrets expired before the task started. Please run the task again.")
+				} else {
+					logger.Error("failed to read task survey secrets")
+					tsk.Log("Failed to read survey secrets. More details in the server logs.")
+				}
 				tsk.SetStatus(task_logger.TaskFailStatus)
 				c.taskPool.FinalizeRemoteTask(tsk, &runner)
 				continue
@@ -158,25 +164,33 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 						"task_id":     tsk.Task.ID,
 						"template_id": tsk.Template.ID,
 						"context":     "jwt",
-					}).Error("invalid template jwt_params.ttl; skipping token issuance")
-				} else {
-					token, err := c.signer.Sign(jwt.TaskInfo{
-						TaskID:     tsk.Task.ID,
-						ProjectID:  tsk.Task.ProjectID,
-						TemplateID: tsk.Template.ID,
-						UserID:     tsk.Task.UserID,
-						Audience:   jwt.Audience(tsk.Template.JWTParams.Audience),
-						TTL:        ttl,
-					})
-					if err != nil {
-						log.WithError(err).WithFields(log.Fields{
-							"task_id": tsk.Task.ID,
-							"context": "jwt",
-						}).Error("failed to sign task JWT")
-					} else {
-						jobData.JWT = token
-					}
+					}).Warn("invalid template jwt_params.ttl")
+					tsk.Log("Invalid JWT token lifetime in the template settings: " + terr.Error())
+					tsk.SetStatus(task_logger.TaskFailStatus)
+					c.taskPool.FinalizeRemoteTask(tsk, &runner)
+					continue
 				}
+
+				token, jerr := c.signer.Sign(jwt.TaskInfo{
+					TaskID:     tsk.Task.ID,
+					ProjectID:  tsk.Task.ProjectID,
+					TemplateID: tsk.Template.ID,
+					UserID:     tsk.Task.UserID,
+					Audience:   tsk.Template.JWTParams.Audience,
+					TTL:        ttl,
+				})
+				if jerr != nil {
+					log.WithError(jerr).WithFields(log.Fields{
+						"task_id": tsk.Task.ID,
+						"context": "jwt",
+					}).Error("failed to sign task JWT")
+					tsk.Log("Failed to sign the task JWT. More details in the server logs.")
+					tsk.SetStatus(task_logger.TaskFailStatus)
+					c.taskPool.FinalizeRemoteTask(tsk, &runner)
+					continue
+				}
+
+				jobData.JWT = token
 			}
 
 			data.NewJobs = append(data.NewJobs, jobData)
