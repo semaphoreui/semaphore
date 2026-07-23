@@ -248,6 +248,39 @@ func TestGetTaskDefinitionSuccess(t *testing.T) {
 	}
 }
 
+func TestGetTaskDefinitionTaskParamExtractionWithNilParamsMap(t *testing.T) {
+	integration := db.Integration{
+		ID:         111,
+		ProjectID:  222,
+		TemplateID: 333,
+		TaskParams: &db.TaskParams{
+			ProjectID: 222,
+			GitBranch: nil,
+		},
+	}
+
+	header := make(http.Header)
+	payload := []byte(`{"data":{"limit":"5"}}`)
+
+	task, err := GetTaskDefinition(integration, payload, header, func(projectID, integrationID int) ([]db.IntegrationExtractValue, error) {
+		return []db.IntegrationExtractValue{
+			{
+				VariableType: db.IntegrationVariableTaskParam,
+				ValueSource:  db.IntegrationExtractBodyValue,
+				BodyDataType: db.IntegrationBodyDataJSON,
+				Key:          "data.limit",
+				Variable:     "limit",
+			},
+		}, nil
+	})
+
+	require.NoError(t, err)
+
+	if assert.NotNil(t, task.Params) {
+		assert.Equal(t, "5", task.Params["limit"])
+	}
+}
+
 func TestGetTaskDefinitionExtractorError(t *testing.T) {
 	integration := db.Integration{
 		ID:         44,
