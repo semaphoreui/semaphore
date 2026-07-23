@@ -220,10 +220,6 @@ func (d *SqlDb) DeleteExpiredTaskAccessKeys() error {
 		   and ak.expire_at < ?
 		   and (
 		     ak.task_id is null
-		     or not exists (
-		       select 1 from task t
-		       where t.id = ak.task_id and t.project_id = ak.project_id
-		     )
 		     or exists (
 		       select 1 from task t
 		       where t.id = ak.task_id
