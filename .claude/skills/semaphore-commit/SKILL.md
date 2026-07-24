@@ -8,7 +8,7 @@ Create well-formatted git commits following conventional commit standards.
 1. Analyze staged changes with `git diff --staged`
 2. Generate a conventional commit message
 3. Create the commit with proper formatting
-4. Do not add "Co-Authored-By: Claude ... <noreply@anthropic.com> to the foolter"
+4. Do not add "Co-Authored-By: Claude ... <noreply@anthropic.com> to the footer"
 
 ## Commit Format
 ```

@@ -552,18 +552,18 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 	} else {
 		app := db_lib.CreateApp(tr.Template, tr.Repository, tr.Inventory, tr)
 
-		secret, sErr := p.encryptionService.GetTaskSurveySecrets(projectID, taskID)
-		if sErr != nil {
-			return nil, sErr
-		}
-
+		// Leave Secret empty. This snapshot is used only to change task status
+		// (stop/confirm/reject) and to restore tasks after restart -- it never runs
+		// the task, so it does not need the secrets. Reading them here would make
+		// those operations fail when a secret is expired or unreadable. The secrets
+		// are read by run(), right before the task actually starts.
 		job = &LocalExecutor{
 			Task:         tr.Task,
 			Template:     tr.Template,
 			Inventory:    tr.Inventory,
 			Repository:   tr.Repository,
 			Environment:  tr.Environment,
-			Secret:       secret,
+			Secret:       "",
 			Logger:       app.SetLogger(tr),
 			App:          app,
 			KeyInstaller: p.keyInstallationService,
