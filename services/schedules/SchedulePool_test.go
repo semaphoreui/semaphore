@@ -103,7 +103,7 @@ func (m *mockAccessKeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRol
 }
 
 func setupTestSchedulePool(t *testing.T) (*SchedulePool, db.Store) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	// Store original config and restore after test
 	originalSchedule := util.Config.Schedule

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/jwt"
+	"github.com/semaphoreui/semaphore/pkg/metrics"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro/pkg/stage_parsers"
@@ -61,6 +62,7 @@ type TaskPool struct {
 	encryptionService      server.AccessKeyEncryptionService
 	keyInstallationService server.AccessKeyInstallationService
 	signer                 jwt.Signer
+	metrics                *metrics.Metrics
 
 	// repoLock serializes git operations on shared repository directories
 	// across parallel tasks of the same template.
@@ -101,6 +103,7 @@ func CreateTaskPool(
 	keyInstallationService server.AccessKeyInstallationService,
 	logWriteService pro_interfaces.LogWriteService,
 	signer jwt.Signer,
+	appMetrics *metrics.Metrics,
 ) TaskPool {
 	p := TaskPool{
 		register:               make(chan *TaskRunner),      // add TaskRunner to queue
@@ -114,6 +117,7 @@ func CreateTaskPool(
 		logWriteService:        logWriteService,
 		keyInstallationService: keyInstallationService,
 		signer:                 signer,
+		metrics:                appMetrics,
 		repoLock:               &KeyLock{},
 		stop:                   make(chan struct{}),
 		reconcileDone:          make(chan struct{}),
@@ -537,7 +541,7 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 
 	// set the appropriate job handler for consistency (not run)
 	var job Job
-	if util.Config.UseRemoteRunner || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
+	if util.Config.IsUseRemoteRunner() || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
 		tag := tr.Template.RunnerTag
 		if tag == nil {
 			tag = tr.Inventory.RunnerTag
@@ -977,6 +981,15 @@ func (p *TaskPool) AddTask(
 		return
 	}
 
+	// A task-supplied commit hash redirects the checkout away from the
+	// template's pinned branch, so it is honored only when the template allows
+	// branch overrides — the same gate used for task.GitBranch (see
+	// resolveGitBranch). Otherwise a user who may only run tasks could pin a
+	// branch-locked template to an arbitrary commit/ref.
+	if !tpl.AllowOverrideBranchInTask {
+		taskObj.CommitHash = nil
+	}
+
 	if tpl.Type == db.TemplateBuild { // get next version for TaskRunner if it is a Build
 		var builds []db.TaskWithTpl
 		builds, err = p.store.GetTemplateTasks(tpl.ProjectID, tpl.ID, db.RetrieveQueryParams{Count: 1})
@@ -1011,7 +1024,7 @@ func (p *TaskPool) AddTask(
 
 	var job Job
 
-	if util.Config.UseRemoteRunner ||
+	if util.Config.IsUseRemoteRunner() ||
 		taskRunner.Template.RunnerTag != nil ||
 		taskRunner.Inventory.RunnerTag != nil {
 

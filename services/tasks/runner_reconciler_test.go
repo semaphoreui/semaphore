@@ -347,7 +347,7 @@ func TestSelectRunner(t *testing.T) {
 func TestRequeueTaskRunnerOffline(t *testing.T) {
 	setupReconcilerConfig(t)
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	state := NewMemoryTaskStateStore()
 
 	pool := TaskPool{
@@ -392,7 +392,7 @@ func TestRequeueTaskRunnerOffline(t *testing.T) {
 func TestRequeueTaskRunnerOffline_NoopWhenAlreadyRunning(t *testing.T) {
 	setupReconcilerConfig(t)
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	state := NewMemoryTaskStateStore()
 
 	pool := TaskPool{
@@ -425,7 +425,7 @@ func TestRequeueTaskRunnerOffline_NoopWhenAlreadyRunning(t *testing.T) {
 func TestFinalizeRemoteTask_DoesNotOverwriteConcurrentTerminalSuccess(t *testing.T) {
 	setupReconcilerConfig(t)
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	state := NewMemoryTaskStateStore()
 
 	pool := TaskPool{
@@ -470,7 +470,7 @@ func TestFinalizeRemoteTask_DoesNotOverwriteConcurrentTerminalSuccess(t *testing
 func TestFailTaskRunnerLost(t *testing.T) {
 	setupReconcilerConfig(t)
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	state := NewMemoryTaskStateStore()
 
 	pool := TaskPool{
@@ -516,7 +516,7 @@ func TestFailTaskRunnerLost(t *testing.T) {
 func TestReconcileRunnerTasks(t *testing.T) {
 	setupReconcilerConfig(t)
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	state := NewMemoryTaskStateStore()
 	pool := newReconcilerTestPool(store, state)
 
@@ -593,7 +593,7 @@ func TestReconcileRunnerTasks(t *testing.T) {
 func TestReconcileRunnerTasks_StoreErrorSkipsTask(t *testing.T) {
 	setupReconcilerConfig(t)
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	state := NewMemoryTaskStateStore()
 	pool := newReconcilerTestPool(
 		&reconcilerStoreStub{Store: store, globalRunnerErr: errors.New("connection lost")},
@@ -620,7 +620,7 @@ func TestRunnerTasksReconcileLoop(t *testing.T) {
 	setupReconcilerConfig(t)
 
 	// CreateTestStore replaces util.Config, so the interval is set after it.
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	util.Config.Runners = &util.RunnersConfig{ReconcileIntervalSec: 1}
 	state := NewMemoryTaskStateStore()
 	pool := newReconcilerTestPool(store, state)
@@ -648,7 +648,7 @@ func TestRequeueTaskRunnerOffline_FinalizeLockHeld(t *testing.T) {
 	setupReconcilerConfig(t)
 
 	state := NewMemoryTaskStateStore()
-	pool := newReconcilerTestPool(sql.CreateTestStore(), state)
+	pool := newReconcilerTestPool(sql.InitConfigCreateTestStore(), state)
 
 	runnerID := 42
 	tsk := &TaskRunner{
@@ -682,7 +682,7 @@ func TestRequeueTaskRunnerOffline_NoopWhenReassigned(t *testing.T) {
 			setupReconcilerConfig(t)
 
 			state := NewMemoryTaskStateStore()
-			pool := newReconcilerTestPool(sql.CreateTestStore(), state)
+			pool := newReconcilerTestPool(sql.InitConfigCreateTestStore(), state)
 
 			tsk := &TaskRunner{
 				Task: db.Task{ID: 8, Status: task_logger.TaskStartingStatus, RunnerID: tt.runnerID},
@@ -704,7 +704,7 @@ func TestRequeueTaskRunnerOffline_PersistError(t *testing.T) {
 
 	state := NewMemoryTaskStateStore()
 	pool := newReconcilerTestPool(
-		&reconcilerStoreStub{Store: sql.CreateTestStore(), updateTaskErr: errors.New("db down")},
+		&reconcilerStoreStub{Store: sql.InitConfigCreateTestStore(), updateTaskErr: errors.New("db down")},
 		state,
 	)
 
@@ -728,7 +728,7 @@ func TestRequeueTaskRunnerOffline_HA(t *testing.T) {
 	setupReconcilerConfig(t)
 
 	// CreateTestStore replaces util.Config, so HA is enabled after it.
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	util.Config.HA = &util.HAConfig{Enabled: true}
 	state := NewMemoryTaskStateStore()
 	pool := newReconcilerTestPool(store, state)
@@ -754,7 +754,7 @@ func TestFailTaskRunnerLost_HA(t *testing.T) {
 		setupReconcilerConfig(t)
 
 		// CreateTestStore replaces util.Config, so HA is enabled after it.
-		store := sql.CreateTestStore()
+		store := sql.InitConfigCreateTestStore()
 		util.Config.HA = &util.HAConfig{Enabled: true}
 		state := NewMemoryTaskStateStore()
 		pool := newReconcilerTestPool(store, state)
@@ -775,7 +775,7 @@ func TestFailTaskRunnerLost_HA(t *testing.T) {
 		setupReconcilerConfig(t)
 
 		// CreateTestStore replaces util.Config, so HA is enabled after it.
-		store := sql.CreateTestStore()
+		store := sql.InitConfigCreateTestStore()
 		util.Config.HA = &util.HAConfig{Enabled: true}
 		state := NewMemoryTaskStateStore()
 		pool := newReconcilerTestPool(store, state)
@@ -804,7 +804,7 @@ func TestFailTaskRunnerLost_HA(t *testing.T) {
 func TestRequeueUndispatchedTask(t *testing.T) {
 	setupReconcilerConfig(t)
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	state := NewMemoryTaskStateStore()
 	pool := newReconcilerTestPool(store, state)
 
@@ -835,7 +835,7 @@ func TestRequeueUndispatchedTask(t *testing.T) {
 func TestReconcileRunnerTasks_DispatchingTaskKept(t *testing.T) {
 	setupReconcilerConfig(t)
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	state := NewMemoryTaskStateStore()
 	pool := newReconcilerTestPool(store, state)
 
@@ -857,7 +857,7 @@ func TestRequeueUndispatchedTask_NoopWhenRunnerAssignedConcurrently(t *testing.T
 	setupReconcilerConfig(t)
 
 	// CreateTestStore replaces util.Config, so HA is enabled after it.
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	util.Config.HA = &util.HAConfig{Enabled: true}
 	state := NewMemoryTaskStateStore()
 	pool := newReconcilerTestPool(store, state)
@@ -884,7 +884,7 @@ func TestRequeueUndispatchedTask_FinalizeLockHeld(t *testing.T) {
 	setupReconcilerConfig(t)
 
 	state := NewMemoryTaskStateStore()
-	pool := newReconcilerTestPool(sql.CreateTestStore(), state)
+	pool := newReconcilerTestPool(sql.InitConfigCreateTestStore(), state)
 
 	tsk := &TaskRunner{
 		Task: db.Task{ID: 11, Status: task_logger.TaskStartingStatus},

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
 type EnvironmentSecretOperation string
@@ -105,13 +107,13 @@ func validateJSON(s string, mustValuesBeScalar bool) error {
 
 func (env *Environment) Validate() (err error) {
 	if env.Name == "" {
-		err = &ValidationError{"Environment name can not be empty"}
+		err = common_errors.NewValidationError("Environment name can not be empty")
 		return
 	}
 
 	err = validateJSON(env.JSON, false)
 	if err != nil {
-		err = &ValidationError{"Extra variables " + err.Error()}
+		err = common_errors.NewValidationError("Extra variables " + err.Error())
 		return
 	}
 
@@ -121,7 +123,7 @@ func (env *Environment) Validate() (err error) {
 
 	err = validateJSON(*env.ENV, true)
 	if err != nil {
-		err = &ValidationError{"Environment variables " + err.Error()}
+		err = common_errors.NewValidationError("Environment variables " + err.Error())
 	}
 
 	return

@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 
 	log "github.com/sirupsen/logrus"
@@ -85,34 +87,29 @@ type IntegrationExtractorChildReferrers struct {
 }
 
 func containsStr(arr []string, str string) bool {
-	for _, a := range arr {
-		if a == str {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(arr, str)
 }
 
 func (p *RetrieveQueryParams) Validate(props ObjectProps) (res RetrieveQueryParams, err error) {
 
 	if p.Offset > 0 && p.Count <= 0 {
-		err = &ValidationError{"offset cannot be without limit"}
+		err = common_errors.NewValidationError("offset cannot be without limit")
 		return
 	}
 
 	if p.Count < 0 {
-		err = &ValidationError{"count must be positive"}
+		err = common_errors.NewValidationError("count must be positive")
 		return
 	}
 
 	if p.Offset < 0 {
-		err = &ValidationError{"offset must be positive"}
+		err = common_errors.NewValidationError("offset must be positive")
 		return
 	}
 
 	if p.SortBy != "" {
 		if !containsStr(props.SortableColumns, p.SortBy) {
-			err = &ValidationError{"invalid sort column"}
+			err = common_errors.NewValidationError("invalid sort column")
 			return
 		}
 	}
@@ -159,18 +156,6 @@ type ObjectProps struct {
 
 var ErrNotFound = errors.New("no rows in result set")
 var ErrInvalidOperation = errors.New("invalid operation")
-
-type ValidationError struct {
-	Message string
-}
-
-func NewValidationError(message string) *ValidationError {
-	return &ValidationError{Message: message}
-}
-
-func (e *ValidationError) Error() string {
-	return e.Message
-}
 
 type TaskStatUnit string
 
@@ -562,7 +547,7 @@ type Store interface {
 
 var AccessKeyProps = ObjectProps{
 	TableName:             "access_key",
-	Type:                  reflect.TypeOf(AccessKey{}),
+	Type:                  reflect.TypeFor[AccessKey](),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "key_id",
 	SortableColumns:       []string{"name", "type"},
@@ -571,7 +556,7 @@ var AccessKeyProps = ObjectProps{
 
 var IntegrationProps = ObjectProps{
 	TableName:             "project__integration",
-	Type:                  reflect.TypeOf(Integration{}),
+	Type:                  reflect.TypeFor[Integration](),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "integration_id",
 	SortableColumns:       []string{"name"},
@@ -580,14 +565,14 @@ var IntegrationProps = ObjectProps{
 
 var TaskParamsProps = ObjectProps{
 	TableName:             "project__task_params",
-	Type:                  reflect.TypeOf(TaskParams{}),
+	Type:                  reflect.TypeFor[TaskParams](),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "params_id",
 }
 
 var IntegrationExtractValueProps = ObjectProps{
 	TableName:            "project__integration_extract_value",
-	Type:                 reflect.TypeOf(IntegrationExtractValue{}),
+	Type:                 reflect.TypeFor[IntegrationExtractValue](),
 	PrimaryColumnName:    "id",
 	SortableColumns:      []string{"name"},
 	DefaultSortingColumn: "name",
@@ -595,7 +580,7 @@ var IntegrationExtractValueProps = ObjectProps{
 
 var IntegrationMatcherProps = ObjectProps{
 	TableName:            "project__integration_matcher",
-	Type:                 reflect.TypeOf(IntegrationMatcher{}),
+	Type:                 reflect.TypeFor[IntegrationMatcher](),
 	PrimaryColumnName:    "id",
 	SortableColumns:      []string{"name"},
 	DefaultSortingColumn: "name",
@@ -603,13 +588,13 @@ var IntegrationMatcherProps = ObjectProps{
 
 var IntegrationAliasProps = ObjectProps{
 	TableName:         "project__integration_alias",
-	Type:              reflect.TypeOf(IntegrationAlias{}),
+	Type:              reflect.TypeFor[IntegrationAlias](),
 	PrimaryColumnName: "id",
 }
 
 var EnvironmentProps = ObjectProps{
 	TableName:             "project__environment",
-	Type:                  reflect.TypeOf(Environment{}),
+	Type:                  reflect.TypeFor[Environment](),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "environment_id",
 	SortableColumns:       []string{"name"},
@@ -618,7 +603,7 @@ var EnvironmentProps = ObjectProps{
 
 var InventoryProps = ObjectProps{
 	TableName:             "project__inventory",
-	Type:                  reflect.TypeOf(Inventory{}),
+	Type:                  reflect.TypeFor[Inventory](),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "inventory_id",
 	SortableColumns:       []string{"name"},
@@ -628,7 +613,7 @@ var InventoryProps = ObjectProps{
 
 var RepositoryProps = ObjectProps{
 	TableName:             "project__repository",
-	Type:                  reflect.TypeOf(Repository{}),
+	Type:                  reflect.TypeFor[Repository](),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "repository_id",
 	DefaultSortingColumn:  "name",
@@ -636,7 +621,7 @@ var RepositoryProps = ObjectProps{
 
 var TemplateProps = ObjectProps{
 	TableName:             "project__template",
-	Type:                  reflect.TypeOf(Template{}),
+	Type:                  reflect.TypeFor[Template](),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "template_id",
 	SortableColumns:       []string{"name", "playbook", "inventory", "repository"},
@@ -645,7 +630,7 @@ var TemplateProps = ObjectProps{
 
 var WorkflowTemplateProps = ObjectProps{
 	TableName:             "project__workflow_template",
-	Type:                  reflect.TypeOf(WorkflowTemplate{}),
+	Type:                  reflect.TypeFor[WorkflowTemplate](),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "workflow_template_id",
 	SortableColumns:       []string{"name"},
@@ -654,13 +639,13 @@ var WorkflowTemplateProps = ObjectProps{
 
 var ProjectUserProps = ObjectProps{
 	TableName:         "project__user",
-	Type:              reflect.TypeOf(ProjectUser{}),
+	Type:              reflect.TypeFor[ProjectUser](),
 	PrimaryColumnName: "user_id",
 }
 
 var ProjectInviteProps = ObjectProps{
 	TableName:             "project__invite",
-	Type:                  reflect.TypeOf(ProjectInvite{}),
+	Type:                  reflect.TypeFor[ProjectInvite](),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "invite_id",
 	SortableColumns:       []string{"created", "status", "role"},
@@ -669,7 +654,7 @@ var ProjectInviteProps = ObjectProps{
 
 var ProjectProps = ObjectProps{
 	TableName:             "project",
-	Type:                  reflect.TypeOf(Project{}),
+	Type:                  reflect.TypeFor[Project](),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "project_id",
 	DefaultSortingColumn:  "name",
@@ -678,7 +663,7 @@ var ProjectProps = ObjectProps{
 
 var ScheduleProps = ObjectProps{
 	TableName:         "project__schedule",
-	Type:              reflect.TypeOf(Schedule{}),
+	Type:              reflect.TypeFor[Schedule](),
 	PrimaryColumnName: "id",
 	Ownerships:        []*ObjectProps{&ProjectProps},
 }
@@ -686,14 +671,14 @@ var ScheduleProps = ObjectProps{
 var SecretStorageProps = ObjectProps{
 	TableName:             "project__secret_storage",
 	ReferringColumnSuffix: "storage_id",
-	Type:                  reflect.TypeOf(SecretStorage{}),
+	Type:                  reflect.TypeFor[SecretStorage](),
 	PrimaryColumnName:     "id",
 	Ownerships:            []*ObjectProps{&ProjectProps},
 }
 
 var RoleProps = ObjectProps{
 	TableName:         "role",
-	Type:              reflect.TypeOf(Role{}),
+	Type:              reflect.TypeFor[Role](),
 	PrimaryColumnName: "slug",
 	IsGlobal:          true,
 	SortableColumns:   []string{"name"},
@@ -701,7 +686,7 @@ var RoleProps = ObjectProps{
 
 var UserProps = ObjectProps{
 	TableName:         "user",
-	Type:              reflect.TypeOf(User{}),
+	Type:              reflect.TypeFor[User](),
 	PrimaryColumnName: "id",
 	IsGlobal:          true,
 	SortableColumns:   []string{"name", "username", "email", "role"},
@@ -709,25 +694,25 @@ var UserProps = ObjectProps{
 
 var SessionProps = ObjectProps{
 	TableName:         "session",
-	Type:              reflect.TypeOf(Session{}),
+	Type:              reflect.TypeFor[Session](),
 	PrimaryColumnName: "id",
 }
 
 var TokenProps = ObjectProps{
 	TableName:         "user__token",
-	Type:              reflect.TypeOf(APIToken{}),
+	Type:              reflect.TypeFor[APIToken](),
 	PrimaryColumnName: "id",
 }
 
 var UserExternalIdentityProps = ObjectProps{
 	TableName:         "user__external_identity",
-	Type:              reflect.TypeOf(UserExternalIdentity{}),
+	Type:              reflect.TypeFor[UserExternalIdentity](),
 	PrimaryColumnName: "id",
 }
 
 var TaskProps = ObjectProps{
 	TableName:         "task",
-	Type:              reflect.TypeOf(Task{}),
+	Type:              reflect.TypeFor[Task](),
 	PrimaryColumnName: "id",
 	IsGlobal:          true,
 	SortInverted:      true,
@@ -735,29 +720,29 @@ var TaskProps = ObjectProps{
 
 var TaskOutputProps = ObjectProps{
 	TableName: "task__output",
-	Type:      reflect.TypeOf(TaskOutput{}),
+	Type:      reflect.TypeFor[TaskOutput](),
 }
 
 var TaskStageProps = ObjectProps{
 	TableName: "task__stage",
-	Type:      reflect.TypeOf(TaskStage{}),
+	Type:      reflect.TypeFor[TaskStage](),
 }
 
 var TaskStageResultProps = ObjectProps{
 	TableName: "task__stage_result",
-	Type:      reflect.TypeOf(TaskStageResult{}),
+	Type:      reflect.TypeFor[TaskStageResult](),
 }
 
 var ViewProps = ObjectProps{
 	TableName:            "project__view",
-	Type:                 reflect.TypeOf(View{}),
+	Type:                 reflect.TypeFor[View](),
 	PrimaryColumnName:    "id",
 	DefaultSortingColumn: "position",
 }
 
 var GlobalRunnerProps = ObjectProps{
 	TableName:            "runner",
-	Type:                 reflect.TypeOf(Runner{}),
+	Type:                 reflect.TypeFor[Runner](),
 	PrimaryColumnName:    "id",
 	DefaultSortingColumn: "id",
 	SortInverted:         true,
@@ -766,21 +751,21 @@ var GlobalRunnerProps = ObjectProps{
 
 var OptionProps = ObjectProps{
 	TableName:         "option",
-	Type:              reflect.TypeOf(Option{}),
+	Type:              reflect.TypeFor[Option](),
 	PrimaryColumnName: "key",
 	IsGlobal:          true,
 }
 
 var TemplateVaultProps = ObjectProps{
 	TableName:             "project__template_vault",
-	Type:                  reflect.TypeOf(TemplateVault{}),
+	Type:                  reflect.TypeFor[TemplateVault](),
 	PrimaryColumnName:     "id",
 	ReferringColumnSuffix: "template_id",
 }
 
 var UserTotpProps = ObjectProps{
 	TableName:         "user__totp",
-	Type:              reflect.TypeOf(UserTotp{}),
+	Type:              reflect.TypeFor[UserTotp](),
 	PrimaryColumnName: "id",
 }
 
@@ -791,14 +776,14 @@ func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, er
 	}
 
 	n := t.NumField()
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if !strings.HasSuffix(t.Field(i).Tag.Get("db"), p.ReferringColumnSuffix) {
 			continue
 		}
 		fields = append(fields, t.Field(i).Tag.Get("db"))
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if t.Field(i).Tag != "" || t.Field(i).Type.Kind() != reflect.Struct {
 			continue
 		}

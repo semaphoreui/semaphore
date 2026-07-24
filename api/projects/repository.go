@@ -9,6 +9,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -95,7 +96,7 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 			branch = repo.GitBranch
 		}
 
-		if err := db.ValidateGitBranch(branch, "repository"); err != nil {
+		if err := git.ValidateGitBranch(branch, "repository"); err != nil {
 			helpers.WriteError(w, err)
 			return
 		}
@@ -175,6 +176,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Project ID in body and URL must be the same",
 		})
+		return
 	}
 
 	if err := db.ValidateRepository(helpers.Store(r), &repository); err != nil {

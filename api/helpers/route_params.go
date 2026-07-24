@@ -31,10 +31,20 @@ func HasParam(name string, r *http.Request) bool {
 	return ok
 }
 
+func GetIntParamR(name string, r *http.Request) (int, error) {
+	intParam, err := strconv.Atoi(mux.Vars(r)[name])
+
+	if err != nil {
+		return 0, err
+	}
+
+	return intParam, nil
+}
+
 // GetIntParam fetches a parameter from the route variables as an integer
 // redirects to a 404 or writes bad request state depending on error state
 func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, error) {
-	intParam, err := strconv.Atoi(mux.Vars(r)[name])
+	intParam, err := GetIntParamR(name, r)
 
 	if err != nil {
 		if !isXHR(w, r) {

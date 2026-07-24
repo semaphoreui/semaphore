@@ -2,6 +2,8 @@ package db
 
 import (
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
 type WorkflowEdgeCondition string
@@ -128,7 +130,7 @@ func (condition WorkflowEdgeCondition) Validate() error {
 	case WorkflowEdgeOnSuccess, WorkflowEdgeOnFailure, WorkflowEdgeAlways:
 		return nil
 	default:
-		return NewValidationError("workflow edge condition is invalid")
+		return common_errors.NewValidationError("workflow edge condition is invalid")
 	}
 }
 
@@ -137,7 +139,7 @@ func (kind WorkflowNodeKind) Validate() error {
 	case WorkflowNodeTaskKind, WorkflowNodeApprovalKind, WorkflowNodeNoteKind:
 		return nil
 	default:
-		return NewValidationError("workflow node kind is invalid")
+		return common_errors.NewValidationError("workflow node kind is invalid")
 	}
 }
 
@@ -153,7 +155,7 @@ func (mode WorkflowConvergenceMode) Validate() error {
 	case WorkflowConvergenceAll, WorkflowConvergenceAny:
 		return nil
 	default:
-		return NewValidationError("workflow node convergence mode is invalid")
+		return common_errors.NewValidationError("workflow node convergence mode is invalid")
 	}
 }
 
@@ -169,7 +171,7 @@ func (status WorkflowApprovalStatus) Validate() error {
 	case WorkflowApprovalPending, WorkflowApprovalApproved, WorkflowApprovalRejected:
 		return nil
 	default:
-		return NewValidationError("workflow approval status is invalid")
+		return common_errors.NewValidationError("workflow approval status is invalid")
 	}
 }
 
