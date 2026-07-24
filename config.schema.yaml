@@ -503,6 +503,25 @@ $defs:
     properties:
       events: { $ref: "#/$defs/EventLogType" }
       tasks:  { $ref: "#/$defs/TaskLogType" }
+      audit_webhook: { $ref: "#/$defs/AuditWebhookConfig" }
+
+  AuditWebhookConfig:
+    type: object
+    description: Real-time forwarding of audit events to an external HTTP receiver (SIEM).
+    properties:
+      enabled: { type: boolean }
+      url:
+        type: string
+        format: uri
+        description: Full receiver endpoint, e.g. "https://splunk.example.com:8088/services/collector/event".
+      headers:
+        type: object
+        description: Extra HTTP headers, e.g. Authorization "Splunk <hec-token>".
+        additionalProperties: { type: string }
+      format:
+        type: string
+        enum: ["", splunk_hec]
+        description: Payload format — "" for plain JSON, splunk_hec for a Splunk HEC envelope.
 
   EventLogType:
     type: object

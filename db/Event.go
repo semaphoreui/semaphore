@@ -18,6 +18,10 @@ type Event struct {
 	Description *string          `db:"description" json:"description"`
 	Created     time.Time        `db:"created" json:"created"`
 
+	Action    *string `db:"action" json:"action"`
+	IP        *string `db:"ip" json:"ip"`
+	UserAgent *string `db:"user_agent" json:"user_agent"`
+
 	ObjectName  string  `db:"-" json:"object_name"`
 	ProjectName *string `db:"project_name" json:"project_name"`
 	Username    *string `db:"-" json:"username"`
@@ -69,6 +73,9 @@ const (
 	EventIntegrationMatcher      EventObjectType = "integrationmatcher"
 
 	EventTerraformInventoryAlias EventObjectType = "terraform_inventory_alias"
+
+	EventSession  EventObjectType = "session"
+	EventAPIToken EventObjectType = "api_token"
 )
 
 func FillEvents(d Store, events []Event) (err error) {

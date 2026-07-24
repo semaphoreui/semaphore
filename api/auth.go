@@ -198,6 +198,7 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !totp.Validate(body.Passcode, key.Secret()) {
+			logAuthEvent(r, helpers.EventLogLoginFail, session.UserID, "MFA verification failed")
 			helpers.WriteErrorStatus(w, "INVALID_PASSCODE", http.StatusUnauthorized)
 			return
 		}
