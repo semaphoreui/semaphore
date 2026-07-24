@@ -119,95 +119,7 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 
 		if tsk.Task.Status == task_logger.TaskWaitingStatus || tsk.Task.Status == task_logger.TaskStartingStatus {
 
-			// Survey secret variables are stored as a task-bound encrypted
-			// access key in the shared DB, so any HA node serving this poll can
-			// deliver them. An unreadable (e.g. expired) secret fails the task
-			// instead of dispatching it with silently empty variables.
-			surveySecrets, err := c.encryptionService.GetTaskSurveySecrets(tsk.Task.ProjectID, tsk.Task.ID)
-			if err != nil {
-				logger := log.WithError(err).WithFields(log.Fields{
-					"runner_id": runner.ID,
-					"task_id":   tsk.Task.ID,
-					"context":   "survey_secrets",
-				})
-				if errors.Is(err, server.ErrAccessKeyExpired) {
-					logger.Warn("task survey secrets expired before dispatch")
-					tsk.Log("Survey secrets expired before the task started. Please run the task again.")
-				} else {
-					logger.Error("failed to read task survey secrets")
-					tsk.Log("Failed to read survey secrets. More details in the server logs.")
-				}
-				tsk.SetStatus(task_logger.TaskFailStatus)
-				c.taskPool.FinalizeRemoteTask(tsk, &runner)
-				continue
-			}
-
-			jobData := runners.JobData{
-				Username:            tsk.Username,
-				IncomingVersion:     tsk.IncomingVersion,
-				Alias:               tsk.Alias,
-				Task:                tsk.Task,
-				Template:            tsk.Template,
-				Inventory:           tsk.Inventory,
-				InventoryRepository: tsk.Inventory.Repository,
-				Repository:          tsk.Repository,
-				Environment:         tsk.Environment,
-			}
-
-			// Always overwrite: the dispatched Secret must be exactly the
-			// DB-derived value, never whatever the in-memory task carries
-			jobData.Task.Secret = surveySecrets
-
-			if c.signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {
-				ttl, terr := tsk.Template.JWTParams.ParsedTTL()
-				if terr != nil {
-					log.WithError(terr).WithFields(log.Fields{
-						"task_id":     tsk.Task.ID,
-						"template_id": tsk.Template.ID,
-						"context":     "jwt",
-					}).Warn("invalid template jwt_params.ttl")
-					tsk.Log("Invalid JWT token lifetime in the template settings: " + terr.Error())
-					tsk.SetStatus(task_logger.TaskFailStatus)
-					c.taskPool.FinalizeRemoteTask(tsk, &runner)
-					continue
-				}
-
-				token, jerr := c.signer.Sign(jwt.TaskInfo{
-					TaskID:     tsk.Task.ID,
-					ProjectID:  tsk.Task.ProjectID,
-					TemplateID: tsk.Template.ID,
-					UserID:     tsk.Task.UserID,
-					Audience:   tsk.Template.JWTParams.Audience,
-					TTL:        ttl,
-				})
-				if jerr != nil {
-					log.WithError(jerr).WithFields(log.Fields{
-						"task_id": tsk.Task.ID,
-						"context": "jwt",
-					}).Error("failed to sign task JWT")
-					tsk.Log("Failed to sign the task JWT. More details in the server logs.")
-					tsk.SetStatus(task_logger.TaskFailStatus)
-					c.taskPool.FinalizeRemoteTask(tsk, &runner)
-					continue
-				}
-
-				jobData.JWT = token
-			}
-
-			// Decrypt all keys of the task before publishing anything, so a
-			// task with an undecryptable key fails on its own instead of
-			// aborting the poll for the whole runner, and none of its keys
-			// leak into the response of a job that is not dispatched.
-			taskKeys := make(map[int]db.AccessKey)
-			if kerr := c.collectTaskAccessKeys(tsk, runner.ID, taskKeys); kerr != nil {
-				tsk.Log("Failed to decrypt access keys of the task. More details in the server logs.")
-				tsk.SetStatus(task_logger.TaskFailStatus)
-				c.taskPool.FinalizeRemoteTask(tsk, &runner)
-				continue
-			}
-
-			maps.Copy(data.AccessKeys, taskKeys)
-			data.NewJobs = append(data.NewJobs, jobData)
+			c.prepareRemoteJob(tsk, &runner, &data)
 
 		} else {
 			data.CurrentJobs = append(data.CurrentJobs, runners.JobState{
@@ -218,6 +130,102 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, data)
+}
+
+// prepareRemoteJob builds the job for a waiting/starting task and stages it,
+// together with the task's decrypted access keys, into data. On any failure it
+// fails and finalizes the task in place, leaving data untouched, so a single
+// bad task does not abort the poll for the whole runner.
+func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Runner, data *runners.RunnerState) {
+	// Survey secret variables are stored as a task-bound encrypted
+	// access key in the shared DB, so any HA node serving this poll can
+	// deliver them. An unreadable (e.g. expired) secret fails the task
+	// instead of dispatching it with silently empty variables.
+	surveySecrets, err := c.encryptionService.GetTaskSurveySecrets(tsk.Task.ProjectID, tsk.Task.ID)
+	if err != nil {
+		logger := log.WithError(err).WithFields(log.Fields{
+			"runner_id": runner.ID,
+			"task_id":   tsk.Task.ID,
+			"context":   "survey_secrets",
+		})
+		if errors.Is(err, server.ErrAccessKeyExpired) {
+			logger.Warn("task survey secrets expired before dispatch")
+			tsk.Log("Survey secrets expired before the task started. Please run the task again.")
+		} else {
+			logger.Error("failed to read task survey secrets")
+			tsk.Log("Failed to read survey secrets. More details in the server logs.")
+		}
+		tsk.SetStatus(task_logger.TaskFailStatus)
+		c.taskPool.FinalizeRemoteTask(tsk, runner)
+		return
+	}
+
+	jobData := runners.JobData{
+		Username:            tsk.Username,
+		IncomingVersion:     tsk.IncomingVersion,
+		Alias:               tsk.Alias,
+		Task:                tsk.Task,
+		Template:            tsk.Template,
+		Inventory:           tsk.Inventory,
+		InventoryRepository: tsk.Inventory.Repository,
+		Repository:          tsk.Repository,
+		Environment:         tsk.Environment,
+	}
+
+	// Always overwrite: the dispatched Secret must be exactly the
+	// DB-derived value, never whatever the in-memory task carries
+	jobData.Task.Secret = surveySecrets
+
+	if c.signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {
+		ttl, terr := tsk.Template.JWTParams.ParsedTTL()
+		if terr != nil {
+			log.WithError(terr).WithFields(log.Fields{
+				"task_id":     tsk.Task.ID,
+				"template_id": tsk.Template.ID,
+				"context":     "jwt",
+			}).Warn("invalid template jwt_params.ttl")
+			tsk.Log("Invalid JWT token lifetime in the template settings: " + terr.Error())
+			tsk.SetStatus(task_logger.TaskFailStatus)
+			c.taskPool.FinalizeRemoteTask(tsk, runner)
+			return
+		}
+
+		token, jerr := c.signer.Sign(jwt.TaskInfo{
+			TaskID:     tsk.Task.ID,
+			ProjectID:  tsk.Task.ProjectID,
+			TemplateID: tsk.Template.ID,
+			UserID:     tsk.Task.UserID,
+			Audience:   tsk.Template.JWTParams.Audience,
+			TTL:        ttl,
+		})
+		if jerr != nil {
+			log.WithError(jerr).WithFields(log.Fields{
+				"task_id": tsk.Task.ID,
+				"context": "jwt",
+			}).Error("failed to sign task JWT")
+			tsk.Log("Failed to sign the task JWT. More details in the server logs.")
+			tsk.SetStatus(task_logger.TaskFailStatus)
+			c.taskPool.FinalizeRemoteTask(tsk, runner)
+			return
+		}
+
+		jobData.JWT = token
+	}
+
+	// Decrypt all keys of the task before publishing anything, so a
+	// task with an undecryptable key fails on its own instead of
+	// aborting the poll for the whole runner, and none of its keys
+	// leak into the response of a job that is not dispatched.
+	taskKeys := make(map[int]db.AccessKey)
+	if kerr := c.collectTaskAccessKeys(tsk, runner.ID, taskKeys); kerr != nil {
+		tsk.Log("Failed to decrypt access keys of the task. More details in the server logs.")
+		tsk.SetStatus(task_logger.TaskFailStatus)
+		c.taskPool.FinalizeRemoteTask(tsk, runner)
+		return
+	}
+
+	maps.Copy(data.AccessKeys, taskKeys)
+	data.NewJobs = append(data.NewJobs, jobData)
 }
 
 // collectTaskAccessKeys decrypts every access key the dispatched task needs
@@ -282,6 +290,9 @@ func (c *RunnerController) collectTaskAccessKeys(tsk *tasks.TaskRunner, runnerID
 		keys[tsk.Inventory.Repository.SSHKeyID] = tsk.Inventory.Repository.SSHKey
 	}
 
+	// tsk.Repository.SSHKey is already decrypted in TaskRunner.populateDetails,
+	// so it is staged as-is here. Do not call DeserializeSecret on it again —
+	// decrypting an already-plaintext key would fail.
 	keys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
 
 	return nil
