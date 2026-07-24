@@ -290,9 +290,20 @@ func (c *RunnerController) collectTaskAccessKeys(tsk *tasks.TaskRunner, runnerID
 		keys[tsk.Inventory.Repository.SSHKeyID] = tsk.Inventory.Repository.SSHKey
 	}
 
-	// tsk.Repository.SSHKey is already decrypted in TaskRunner.populateDetails,
-	// so it is staged as-is here. Do not call DeserializeSecret on it again —
-	// decrypting an already-plaintext key would fail.
+	// Decrypt the task repository key here rather than relying on it having
+	// been decrypted earlier (e.g. in TaskRunner.populateDetails). Decryption
+	// reads key.Secret (the ciphertext, left intact) and refills the plaintext
+	// field, so this is idempotent even if the key is already decrypted.
+	if err := c.encryptionService.DeserializeSecret(&tsk.Repository.SSHKey); err != nil {
+		log.WithFields(log.Fields{
+			"runner_id":     runnerID,
+			"task_id":       tsk.Task.ID,
+			"repository_id": tsk.Repository.ID,
+			"access_key_id": tsk.Repository.SSHKey.ID,
+			"context":       "runner",
+		}).WithError(err).Error("Failed to decrypt repository key")
+		return err
+	}
 	keys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
 
 	return nil
