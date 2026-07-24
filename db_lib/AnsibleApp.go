@@ -80,10 +80,18 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return nil
 	}
 
-	if err := t.installCollectionsRequirements(args.EnvironmentVars); err != nil {
+	keyInstallation, err := args.Installer.Install(t.Repository.SSHKey, db.AccessKeyRoleGit, t.Logger)
+	if err != nil {
 		return err
 	}
-	if err := t.installRolesRequirements(args.EnvironmentVars); err != nil {
+	defer keyInstallation.Destroy() //nolint: errcheck
+
+	environmentVars := append(append([]string{}, args.EnvironmentVars...), keyInstallation.GetGitEnv()...)
+
+	if err := t.installCollectionsRequirements(environmentVars); err != nil {
+		return err
+	}
+	if err := t.installRolesRequirements(environmentVars); err != nil {
 		return err
 	}
 	return nil
