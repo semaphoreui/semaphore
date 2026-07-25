@@ -12,6 +12,7 @@
             ref="form"
             lazy-validation
             v-if="editedVar != null"
+            @submit.prevent="saveVar()"
           >
             <v-alert
               :value="formError"
@@ -26,6 +27,7 @@
               required
               outlined
               dense
+              @keydown.enter.prevent="saveVar()"
             />
 
             <div class="text-right mt-2">
