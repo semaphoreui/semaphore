@@ -58,3 +58,25 @@ func TestGetEnvironmentExtraVars_MergesSecret(t *testing.T) {
 	assert.Equal(t, "hello", extraVars["PLAIN_VAR"])
 	assert.Equal(t, "s3cr3t", extraVars["MY_VAR"])
 }
+
+// TestGetEnvironmentExtraVars_EmptySecret pins that "" and "{}" are equivalent
+// "no survey secrets" values: "" comes from DB-loaded tasks and API clients
+// omitting the field, "{}" from the UI and the AddTask sanitization.
+func TestGetEnvironmentExtraVars_EmptySecret(t *testing.T) {
+	setupExecutorConfig(t)
+
+	for _, secret := range []string{"", "{}"} {
+		t.Run("secret "+secret, func(t *testing.T) {
+			exec := &LocalExecutor{
+				Environment: db.Environment{JSON: `{"PLAIN_VAR":"hello"}`},
+				Secret:      secret,
+			}
+
+			extraVars, err := exec.getEnvironmentExtraVars("admin", nil)
+			require.NoError(t, err)
+
+			assert.Equal(t, "hello", extraVars["PLAIN_VAR"])
+			assert.Len(t, extraVars, 2) // PLAIN_VAR + semaphore_vars only
+		})
+	}
+}

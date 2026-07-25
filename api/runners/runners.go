@@ -2,6 +2,7 @@ package runners
 
 import (
 	"errors"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -109,125 +110,16 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 		data.CacheCleanProjectID = runner.ProjectID
 	}
 
-	tasks := c.taskPool.GetRunningTasks()
+	runningTasks := c.taskPool.GetRunningTasks()
 
-	for _, tsk := range tasks {
+	for _, tsk := range runningTasks {
 		if tsk.Task.RunnerID == nil || *tsk.Task.RunnerID != runner.ID {
 			continue
 		}
 
 		if tsk.Task.Status == task_logger.TaskWaitingStatus || tsk.Task.Status == task_logger.TaskStartingStatus {
 
-			jobData := runners.JobData{
-				Username:            tsk.Username,
-				IncomingVersion:     tsk.IncomingVersion,
-				Alias:               tsk.Alias,
-				Task:                tsk.Task,
-				Template:            tsk.Template,
-				Inventory:           tsk.Inventory,
-				InventoryRepository: tsk.Inventory.Repository,
-				Repository:          tsk.Repository,
-				Environment:         tsk.Environment,
-			}
-
-			if c.signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {
-				ttl, terr := tsk.Template.JWTParams.ParsedTTL()
-				if terr != nil {
-					log.WithError(terr).WithFields(log.Fields{
-						"task_id":     tsk.Task.ID,
-						"template_id": tsk.Template.ID,
-						"context":     "jwt",
-					}).Error("invalid template jwt_params.ttl; skipping token issuance")
-				} else {
-					token, err := c.signer.Sign(jwt.TaskInfo{
-						TaskID:     tsk.Task.ID,
-						ProjectID:  tsk.Task.ProjectID,
-						TemplateID: tsk.Template.ID,
-						UserID:     tsk.Task.UserID,
-						Audience:   jwt.Audience(tsk.Template.JWTParams.Audience),
-						TTL:        ttl,
-					})
-					if err != nil {
-						log.WithError(err).WithFields(log.Fields{
-							"task_id": tsk.Task.ID,
-							"context": "jwt",
-						}).Error("failed to sign task JWT")
-					} else {
-						jobData.JWT = token
-					}
-				}
-			}
-
-			data.NewJobs = append(data.NewJobs, jobData)
-
-			if tsk.Inventory.SSHKeyID != nil {
-				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.SSHKey)
-				if err != nil {
-					log.WithFields(log.Fields{
-						"runner_id":     runner.ID,
-						"task_id":       tsk.Task.ID,
-						"inventory_id":  tsk.Inventory.ID,
-						"access_key_id": tsk.Inventory.SSHKey.ID,
-						"context":       "runner",
-					}).WithError(err).Error("Failed to decrypt inventory key")
-					helpers.WriteError(w, err)
-					return
-				}
-				data.AccessKeys[*tsk.Inventory.SSHKeyID] = tsk.Inventory.SSHKey
-			}
-
-			if tsk.Inventory.BecomeKeyID != nil {
-				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.BecomeKey)
-				if err != nil {
-					log.WithFields(log.Fields{
-						"runner_id":     runner.ID,
-						"task_id":       tsk.Task.ID,
-						"inventory_id":  tsk.Inventory.ID,
-						"access_key_id": tsk.Inventory.BecomeKey.ID,
-						"context":       "runner",
-					}).WithError(err).Error("Failed to decrypt become key")
-					helpers.WriteError(w, err)
-					return
-				}
-				data.AccessKeys[*tsk.Inventory.BecomeKeyID] = tsk.Inventory.BecomeKey
-			}
-
-			if tsk.Template.Vaults != nil {
-				for _, vault := range tsk.Template.Vaults {
-					if vault.VaultKeyID != nil {
-						err := c.encryptionService.DeserializeSecret(vault.Vault)
-						if err != nil {
-							log.WithFields(log.Fields{
-								"runner_id":     runner.ID,
-								"task_id":       tsk.Task.ID,
-								"access_key_id": vault.Vault.ID,
-								"context":       "runner",
-							}).WithError(err).Error("Failed to decrypt vault")
-							helpers.WriteError(w, err)
-							return
-						}
-						data.AccessKeys[*vault.VaultKeyID] = *vault.Vault
-					}
-				}
-			}
-
-			if tsk.Inventory.RepositoryID != nil {
-				err := c.encryptionService.DeserializeSecret(&tsk.Inventory.Repository.SSHKey)
-				if err != nil {
-					log.WithFields(log.Fields{
-						"runner_id":     runner.ID,
-						"task_id":       tsk.Task.ID,
-						"repository_id": tsk.Inventory.Repository.ID,
-						"access_key_id": tsk.Inventory.Repository.SSHKey.ID,
-						"context":       "runner",
-					}).WithError(err).Error("Failed to decrypt repository key")
-					helpers.WriteError(w, err)
-					return
-				}
-				data.AccessKeys[tsk.Inventory.Repository.SSHKeyID] = tsk.Inventory.Repository.SSHKey
-			}
-
-			data.AccessKeys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
+			c.prepareRemoteJob(tsk, &runner, &data)
 
 		} else {
 			data.CurrentJobs = append(data.CurrentJobs, runners.JobState{
@@ -238,6 +130,183 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, data)
+}
+
+// prepareRemoteJob builds the job for a waiting/starting task and stages it,
+// together with the task's decrypted access keys, into data. On any failure it
+// fails and finalizes the task in place, leaving data untouched, so a single
+// bad task does not abort the poll for the whole runner.
+func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Runner, data *runners.RunnerState) {
+	// Survey secret variables are stored as a task-bound encrypted
+	// access key in the shared DB, so any HA node serving this poll can
+	// deliver them. An unreadable (e.g. expired) secret fails the task
+	// instead of dispatching it with silently empty variables.
+	surveySecrets, err := c.encryptionService.GetTaskSurveySecrets(tsk.Task.ProjectID, tsk.Task.ID)
+	if err != nil {
+		logger := log.WithError(err).WithFields(log.Fields{
+			"runner_id": runner.ID,
+			"task_id":   tsk.Task.ID,
+			"context":   "survey_secrets",
+		})
+		if errors.Is(err, server.ErrAccessKeyExpired) {
+			logger.Warn("task survey secrets expired before dispatch")
+			tsk.Log("Survey secrets expired before the task started. Please run the task again.")
+		} else {
+			logger.Error("failed to read task survey secrets")
+			tsk.Log("Failed to read survey secrets. More details in the server logs.")
+		}
+		tsk.SetStatus(task_logger.TaskFailStatus)
+		c.taskPool.FinalizeRemoteTask(tsk, runner)
+		return
+	}
+
+	jobData := runners.JobData{
+		Username:            tsk.Username,
+		IncomingVersion:     tsk.IncomingVersion,
+		Alias:               tsk.Alias,
+		Task:                tsk.Task,
+		Template:            tsk.Template,
+		Inventory:           tsk.Inventory,
+		InventoryRepository: tsk.Inventory.Repository,
+		Repository:          tsk.Repository,
+		Environment:         tsk.Environment,
+	}
+
+	// Always overwrite: the dispatched Secret must be exactly the
+	// DB-derived value, never whatever the in-memory task carries
+	jobData.Task.Secret = surveySecrets
+
+	if c.signer != nil && tsk.Template.JWTParams != nil && tsk.Template.JWTParams.Enabled {
+		ttl, terr := tsk.Template.JWTParams.ParsedTTL()
+		if terr != nil {
+			log.WithError(terr).WithFields(log.Fields{
+				"task_id":     tsk.Task.ID,
+				"template_id": tsk.Template.ID,
+				"context":     "jwt",
+			}).Warn("invalid template jwt_params.ttl")
+			tsk.Log("Invalid JWT token lifetime in the template settings: " + terr.Error())
+			tsk.SetStatus(task_logger.TaskFailStatus)
+			c.taskPool.FinalizeRemoteTask(tsk, runner)
+			return
+		}
+
+		token, jerr := c.signer.Sign(jwt.TaskInfo{
+			TaskID:     tsk.Task.ID,
+			ProjectID:  tsk.Task.ProjectID,
+			TemplateID: tsk.Template.ID,
+			UserID:     tsk.Task.UserID,
+			Audience:   tsk.Template.JWTParams.Audience,
+			TTL:        ttl,
+		})
+		if jerr != nil {
+			log.WithError(jerr).WithFields(log.Fields{
+				"task_id": tsk.Task.ID,
+				"context": "jwt",
+			}).Error("failed to sign task JWT")
+			tsk.Log("Failed to sign the task JWT. More details in the server logs.")
+			tsk.SetStatus(task_logger.TaskFailStatus)
+			c.taskPool.FinalizeRemoteTask(tsk, runner)
+			return
+		}
+
+		jobData.JWT = token
+	}
+
+	// Decrypt all keys of the task before publishing anything, so a
+	// task with an undecryptable key fails on its own instead of
+	// aborting the poll for the whole runner, and none of its keys
+	// leak into the response of a job that is not dispatched.
+	taskKeys := make(map[int]db.AccessKey)
+	if kerr := c.collectTaskAccessKeys(tsk, runner.ID, taskKeys); kerr != nil {
+		tsk.Log("Failed to decrypt access keys of the task. More details in the server logs.")
+		tsk.SetStatus(task_logger.TaskFailStatus)
+		c.taskPool.FinalizeRemoteTask(tsk, runner)
+		return
+	}
+
+	maps.Copy(data.AccessKeys, taskKeys)
+	data.NewJobs = append(data.NewJobs, jobData)
+}
+
+// collectTaskAccessKeys decrypts every access key the dispatched task needs
+// and stages them into keys, so the caller publishes either all of them or
+// none. It returns the first decryption error.
+func (c *RunnerController) collectTaskAccessKeys(tsk *tasks.TaskRunner, runnerID int, keys map[int]db.AccessKey) error {
+	if tsk.Inventory.SSHKeyID != nil {
+		if err := c.encryptionService.DeserializeSecret(&tsk.Inventory.SSHKey); err != nil {
+			log.WithFields(log.Fields{
+				"runner_id":     runnerID,
+				"task_id":       tsk.Task.ID,
+				"inventory_id":  tsk.Inventory.ID,
+				"access_key_id": tsk.Inventory.SSHKey.ID,
+				"context":       "runner",
+			}).WithError(err).Error("Failed to decrypt inventory key")
+			return err
+		}
+		keys[*tsk.Inventory.SSHKeyID] = tsk.Inventory.SSHKey
+	}
+
+	if tsk.Inventory.BecomeKeyID != nil {
+		if err := c.encryptionService.DeserializeSecret(&tsk.Inventory.BecomeKey); err != nil {
+			log.WithFields(log.Fields{
+				"runner_id":     runnerID,
+				"task_id":       tsk.Task.ID,
+				"inventory_id":  tsk.Inventory.ID,
+				"access_key_id": tsk.Inventory.BecomeKey.ID,
+				"context":       "runner",
+			}).WithError(err).Error("Failed to decrypt become key")
+			return err
+		}
+		keys[*tsk.Inventory.BecomeKeyID] = tsk.Inventory.BecomeKey
+	}
+
+	for _, vault := range tsk.Template.Vaults {
+		if vault.VaultKeyID == nil {
+			continue
+		}
+		if err := c.encryptionService.DeserializeSecret(vault.Vault); err != nil {
+			log.WithFields(log.Fields{
+				"runner_id":     runnerID,
+				"task_id":       tsk.Task.ID,
+				"access_key_id": vault.Vault.ID,
+				"context":       "runner",
+			}).WithError(err).Error("Failed to decrypt vault")
+			return err
+		}
+		keys[*vault.VaultKeyID] = *vault.Vault
+	}
+
+	if tsk.Inventory.RepositoryID != nil {
+		if err := c.encryptionService.DeserializeSecret(&tsk.Inventory.Repository.SSHKey); err != nil {
+			log.WithFields(log.Fields{
+				"runner_id":     runnerID,
+				"task_id":       tsk.Task.ID,
+				"repository_id": tsk.Inventory.Repository.ID,
+				"access_key_id": tsk.Inventory.Repository.SSHKey.ID,
+				"context":       "runner",
+			}).WithError(err).Error("Failed to decrypt repository key")
+			return err
+		}
+		keys[tsk.Inventory.Repository.SSHKeyID] = tsk.Inventory.Repository.SSHKey
+	}
+
+	// Decrypt the task repository key here rather than relying on it having
+	// been decrypted earlier (e.g. in TaskRunner.populateDetails). Decryption
+	// reads key.Secret (the ciphertext, left intact) and refills the plaintext
+	// field, so this is idempotent even if the key is already decrypted.
+	if err := c.encryptionService.DeserializeSecret(&tsk.Repository.SSHKey); err != nil {
+		log.WithFields(log.Fields{
+			"runner_id":     runnerID,
+			"task_id":       tsk.Task.ID,
+			"repository_id": tsk.Repository.ID,
+			"access_key_id": tsk.Repository.SSHKey.ID,
+			"context":       "runner",
+		}).WithError(err).Error("Failed to decrypt repository key")
+		return err
+	}
+	keys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
+
+	return nil
 }
 
 func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) {

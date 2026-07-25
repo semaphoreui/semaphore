@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	pro "github.com/semaphoreui/semaphore/pro/services/server"
 )
 
@@ -15,12 +17,22 @@ const RekeyBatchSize = 100
 
 var ErrReadOnlyStorage = errors.New("cannot modify secret in read-only storage")
 
+// ErrAccessKeyExpired is returned when a key with ExpireAt in the past is
+// deserialized. Expired secrets must never be usable.
+var ErrAccessKeyExpired = errors.New("access key expired")
+
 type AccessKeyEncryptionService interface {
 	SerializeSecret(key *db.AccessKey) error
 	DeserializeSecret(key *db.AccessKey) error
 	FillEnvironmentSecrets(env *db.Environment, deserializeSecret bool) error
 	DeleteSecret(key *db.AccessKey) error
 	RekeyAccessKeys(oldKey string) (err error)
+
+	// Task survey secrets: task-bound, expiring access keys
+	// (owner AccessKeyTaskSecret). See task_secret_svc.go.
+	CreateTaskSurveySecrets(projectID int, taskID int, secrets string, expireAt time.Time) error
+	GetTaskSurveySecrets(projectID int, taskID int) (string, error)
+	DeleteTaskSurveySecrets(projectID int, taskID int) error
 }
 
 func NewAccessKeyEncryptionService(
@@ -126,6 +138,10 @@ func (s *accessKeyEncryptionServiceImpl) SerializeSecret(key *db.AccessKey) erro
 }
 
 func (s *accessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) error {
+	if key.ExpireAt != nil && tz.Now().After(*key.ExpireAt) {
+		return ErrAccessKeyExpired
+	}
+
 	d, _, err := s.getDeserializer(key)
 	if err != nil {
 		return err

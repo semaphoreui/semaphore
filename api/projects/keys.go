@@ -39,6 +39,13 @@ func KeyMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Task-bound survey-secret keys are internal: they must not be
+		// readable or mutable through the generic key endpoints.
+		if key.Owner == db.AccessKeyTaskSecret {
+			helpers.WriteError(w, db.ErrNotFound)
+			return
+		}
+
 		r = helpers.SetContextValue(r, "accessKey", key)
 		next.ServeHTTP(w, r)
 	})
@@ -96,6 +103,14 @@ func (c *KeyController) AddKey(w http.ResponseWriter, r *http.Request) {
 	key.Plain = nil
 	key.IgnorePlain = true
 	key.Synchronized = false
+
+	// Task-bound survey-secret keys are created internally at task start only.
+	if key.Owner == db.AccessKeyTaskSecret {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid key owner",
+		})
+		return
+	}
 
 	//if err := key.Validate(true); err != nil {
 	//	helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
