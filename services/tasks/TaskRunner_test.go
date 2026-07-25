@@ -6,6 +6,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
@@ -57,6 +58,18 @@ func (s *EncryptionServiceMock) FillEnvironmentSecrets(env *db.Environment, dese
 	return nil
 }
 
+func (s *EncryptionServiceMock) CreateTaskSurveySecrets(projectID int, taskID int, secrets string, expireAt time.Time) error {
+	return nil
+}
+
+func (s *EncryptionServiceMock) GetTaskSurveySecrets(projectID int, taskID int) (string, error) {
+	return "", nil
+}
+
+func (s *EncryptionServiceMock) DeleteTaskSurveySecrets(projectID int, taskID int) error {
+	return nil
+}
+
 type mockLogWriteService struct {
 }
 
@@ -81,7 +94,7 @@ func TestTaskRunnerRun(t *testing.T) {
 		&MemoryTaskStateStore{},
 		nil,
 		&InventoryServiceMock{},
-		nil,
+		&EncryptionServiceMock{},
 		keyInstaller,
 		&mockLogWriteService{},
 		nil,

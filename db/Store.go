@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -316,11 +317,51 @@ type EnvironmentManager interface {
 }
 
 type GetAccessKeyOptions struct {
-	Owner           AccessKeyOwner
-	IgnoreOwner     bool
+	// Owner restricts the result to keys of a single owner type.
+	// The zero value is meaningful: it is AccessKeyShared, i.e. plain
+	// project keys created by the user. Because of that, "no owner filter"
+	// cannot be expressed by leaving Owner empty — use IgnoreOwner instead.
+	Owner AccessKeyOwner
+
+	// IgnoreOwner disables the Owner filter entirely, returning keys of
+	// every owner type (shared, environment, variable, vault, task).
+	// Needed by callers that must see all keys regardless of who owns
+	// them, e.g. vault rekeying and secret storage sync cleanup.
+	IgnoreOwner bool
+
 	EnvironmentID   *int
 	StorageID       *int
 	SourceStorageID *int
+	TaskID          *int
+}
+
+// Validate ensures that querying keys of an owned type always includes the
+// ID that scopes them; without it a query could return keys outside the
+// caller's scope.
+func (o GetAccessKeyOptions) Validate() error {
+	if o.IgnoreOwner {
+		return nil
+	}
+
+	var value *int
+	var name string
+
+	switch o.Owner {
+	case AccessKeyVariable, AccessKeyEnvironment:
+		value, name = o.EnvironmentID, "environment_id"
+	case AccessKeySecretStorage:
+		value, name = o.StorageID, "storage_id"
+	case AccessKeyTaskSecret:
+		value, name = o.TaskID, "task_id"
+	default:
+		return nil
+	}
+
+	if value == nil {
+		return fmt.Errorf("%s is required for owner %q", name, o.Owner)
+	}
+
+	return nil
 }
 
 // AccessKeyManager handles access key-related operations
@@ -331,6 +372,16 @@ type AccessKeyManager interface {
 	UpdateAccessKey(accessKey AccessKey) error
 	CreateAccessKey(accessKey AccessKey) (AccessKey, error)
 	DeleteAccessKey(projectID int, accessKeyID int) error
+	// GetTaskAccessKey returns the AccessKeyTaskSecret-owned key of a task
+	// (survey secret variables), or ErrNotFound when the task has none.
+	GetTaskAccessKey(projectID int, taskID int) (AccessKey, error)
+	// DeleteTaskAccessKeys removes all AccessKeyTaskSecret-owned keys of a task.
+	// Deleting for a task without such keys is not an error.
+	DeleteTaskAccessKeys(projectID int, taskID int) error
+	// DeleteExpiredTaskAccessKeys removes all AccessKeyTaskSecret-owned keys
+	// whose expire_at is in the past, across all projects. Idempotent, safe to
+	// run concurrently on several HA nodes.
+	DeleteExpiredTaskAccessKeys() error
 }
 
 // IntegrationManager handles integration-related operations

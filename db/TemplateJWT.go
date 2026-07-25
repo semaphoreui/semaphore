@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -18,9 +19,9 @@ const maxJWTAudienceEntries = 32
 
 // TemplateJWTParams holds the JWT configuration for a template.
 type TemplateJWTParams struct {
-	Enabled  bool     `json:"enabled,omitempty"`
-	Audience []string `json:"audience,omitempty"`
-	TTL      string   `json:"ttl,omitempty"`
+	Enabled  bool         `json:"enabled,omitempty"`
+	Audience jwt.Audience `json:"audience,omitempty"`
+	TTL      string       `json:"ttl,omitempty"`
 }
 
 // Scan implements sql.Scanner so TemplateJWTParams can be read from the database.
