@@ -1,21 +1,11 @@
 <template>
-  <v-form
-    ref="form"
-    lazy-validation
-    v-model="formValid"
-    v-if="isLoaded"
-  >
-    <v-alert
-      :value="formError"
-      color="error"
-      class="pb-2"
-    >{{ formError }}
-    </v-alert>
+  <v-form ref="form" lazy-validation v-model="formValid" v-if="isLoaded">
+    <v-alert :value="formError" color="error" class="pb-2">{{ formError }} </v-alert>
 
     <v-text-field
       v-model="item.name"
       label="Name"
-      :rules="[v => !!v || 'Name is required']"
+      :rules="[(v) => !!v || 'Name is required']"
       required
       :disabled="formSaving"
       outlined
@@ -36,27 +26,27 @@
 
     <v-card
       v-if="item.template_id"
-      style="background: rgba(133, 133, 133, 0.06)"
+      style="background: var(--highlighted-card-bg-color)"
       class="mb-6 pt-3"
     >
-
-      <div style="
-        position: absolute;
-        background: var(--highlighted-card-bg-color);
-        width: 28px;
-        height: 28px;
-        transform: rotate(45deg);
-        left: calc(50% - 14px);
-        top: -14px;
-        border-radius: 0;
-      "></div>
+      <div
+        style="
+          position: absolute;
+          background: var(--highlighted-card-bg-color);
+          width: 28px;
+          height: 28px;
+          transform: rotate(45deg);
+          left: calc(50% - 14px);
+          top: -14px;
+          border-radius: 0;
+        "
+      ></div>
 
       <v-card-text>
         <TaskParamsForm
-          :template="templates.find(t => t.id === item.template_id)"
+          :template="templates.find((t) => t.id === item.template_id)"
           v-model="item.task_params"
         />
-
       </v-card-text>
     </v-card>
 
@@ -92,7 +82,6 @@
       outlined
       dense
     ></v-select>
-
   </v-form>
 </template>
 <script>
@@ -106,34 +95,43 @@ export default {
   data() {
     return {
       templates: [],
-      authMethods: [{
-        id: '',
-        title: 'None',
-      }, {
-        id: 'github',
-        title: 'GitHub Webhooks',
-      }, {
-        id: 'bitbucket',
-        title: 'Bitbucket Webhooks',
-      }, {
-        id: 'token',
-        title: 'Token',
-      }, {
-        id: 'hmac',
-        title: 'HMAC',
-      }, {
-        id: 'basic',
-        title: 'BasicAuth',
-      }],
+      authMethods: [
+        {
+          id: '',
+          title: 'None',
+        },
+        {
+          id: 'github',
+          title: 'GitHub Webhooks',
+        },
+        {
+          id: 'bitbucket',
+          title: 'Bitbucket Webhooks',
+        },
+        {
+          id: 'token',
+          title: 'Token',
+        },
+        {
+          id: 'hmac',
+          title: 'HMAC',
+        },
+        {
+          id: 'basic',
+          title: 'BasicAuth',
+        },
+      ],
       keys: null,
     };
   },
   async created() {
-    this.templates = (await axios({
-      templates: 'get',
-      url: `/api/project/${this.projectId}/templates`,
-      responseType: 'json',
-    })).data;
+    this.templates = (
+      await axios({
+        templates: 'get',
+        url: `/api/project/${this.projectId}/templates`,
+        responseType: 'json',
+      })
+    ).data;
   },
 
   computed: {
@@ -154,7 +152,6 @@ export default {
   },
 
   methods: {
-
     getNewItem() {
       return {
         template_id: null,
@@ -170,17 +167,18 @@ export default {
     },
 
     async afterLoadData() {
-      this.keys = (await axios({
-        method: 'get',
-        url: `/api/project/${this.projectId}/keys`,
-        responseType: 'json',
-      })).data;
+      this.keys = (
+        await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/keys`,
+          responseType: 'json',
+        })
+      ).data;
 
       if (this.item.task_params == null) {
         this.item.task_params = {};
       }
     },
-
   },
 };
 </script>

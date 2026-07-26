@@ -155,6 +155,7 @@ export default {
   vaultName: 'Vault ID (optional)',
   vaultNameDefault: 'Only one `default` (empty) name may exist',
   default_value: 'Default value',
+  survey_var_target: 'Pass variable as',
   vaultNameUnique: 'Must be unique',
   vaultTypePassword: 'Password',
   vaultTypeScript: 'Client Script',

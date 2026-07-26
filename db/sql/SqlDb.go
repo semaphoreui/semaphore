@@ -137,6 +137,10 @@ func InitConfigCreateTestStore() *SqlDb {
 		},
 		Process: &util.ConfigProcess{},
 		Runners: &util.RunnersConfig{},
+		Apps: map[string]util.App{
+			"ansible": {},
+			"bash":    {},
+		},
 	}
 	store := CreateDb(util.DbDriverSQLite)
 

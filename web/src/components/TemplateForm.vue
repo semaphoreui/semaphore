@@ -45,7 +45,7 @@
             <a
               href="https://docs.semaphoreui.com/user-guide/task-templates#build"
               target="_blank"
-              >{{ $t('taskTemplateReference') }}</a
+            >{{ $t('taskTemplateReference') }}</a
             >.
           </p>
         </div>
@@ -58,7 +58,7 @@
             <a
               href="https://docs.semaphoreui.com/user-guide/task-templates#build"
               target="_blank"
-              >{{ $t('taskTemplateReference2') }}</a
+            >{{ $t('taskTemplateReference2') }}</a
             >.
           </p>
         </div>
@@ -69,14 +69,14 @@
             <a
               href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format"
               target="_blank"
-              >{{ $t('cronExpressionFormatReference') }}</a
+            >{{ $t('cronExpressionFormatReference') }}</a
             >.
           </p>
         </div>
       </v-alert>
     </v-dialog>
 
-    <v-alert :value="formError" color="error">{{ formError }} </v-alert>
+    <v-alert :value="formError" color="error">{{ formError }}</v-alert>
 
     <v-row class="mb-0">
       <v-col>
@@ -140,9 +140,81 @@
           :disabled="formSaving"
         ></v-text-field>
 
+        <div style="position: relative">
+          <v-autocomplete
+            v-model="item.repository_id"
+            :label="fieldLabel('repository') + ' *'"
+            :items="repositories"
+            item-value="id"
+            item-text="name"
+            :rules="isFieldRequired('repository') ? [(v) => !!v || $t('repository_required')] : []"
+            outlined
+            dense
+            :required="isFieldRequired('repository')"
+            :disabled="formSaving"
+            v-if="needField('repository')"
+          >
+          </v-autocomplete>
+          <v-chip
+            v-if="gitBranch"
+            small
+            label
+            style="position: absolute; right: 45px; top: 8px"
+            @click="setBranch = !setBranch"
+          >
+            {{ gitBranch }}
+          </v-chip>
+        </div>
+
+        <v-card
+          v-if="setBranch"
+          style="background: var(--highlighted-card-bg-color)"
+          class="mb-6 pt-3"
+        >
+          <div
+            style="
+              position: absolute;
+              background: var(--highlighted-card-bg-color);
+              width: 28px;
+              height: 28px;
+              transform: rotate(45deg);
+              right: 55px;
+              top: -14px;
+              border-radius: 0;
+            "
+          ></div>
+
+          <v-card-text class="pb-0">
+            <div v-if="branches != null">
+              <v-autocomplete
+                clearable
+                :items="branches"
+                v-model="item.git_branch"
+                :label="fieldLabel('branch')"
+                outlined
+                dense
+                :disabled="formSaving"
+                :placeholder="$t('branch')"
+              ></v-autocomplete>
+            </div>
+            <div v-else>
+              <v-text-field
+                clearable
+                v-model="item.git_branch"
+                :label="fieldLabel('branch')"
+                outlined
+                dense
+                :disabled="formSaving"
+                :placeholder="$t('branch')"
+              ></v-text-field>
+            </div>
+          </v-card-text>
+        </v-card>
+
         <div v-if="needField('playbook')">
           <div v-if="playbooks != null">
             <v-autocomplete
+              class="InputWithAppendedButton"
               v-model="item.playbook"
               :items="playbooks"
               :label="fieldLabel('playbook')"
@@ -155,10 +227,21 @@
               :required="isFieldRequired('playbook')"
               :disabled="formSaving"
               :placeholder="$t('exampleSiteyml')"
-            ></v-autocomplete>
+              :loading="playbooksLoading"
+            >
+              <template v-slot:append-outer>
+                <v-btn
+                  depressed
+                  @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
+                >
+                  <v-icon>{{ playbooksLoading ? 'mdi-close' : 'mdi-refresh' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-autocomplete>
           </div>
           <div v-else>
             <v-text-field
+              class="InputWithAppendedButton"
               v-model="item.playbook"
               :label="fieldLabel('playbook')"
               :rules="
@@ -169,7 +252,17 @@
               :required="isFieldRequired('playbook')"
               :disabled="formSaving"
               :placeholder="$t('exampleSiteyml')"
-            ></v-text-field>
+              :loading="playbooksLoading"
+            >
+              <template v-slot:append-outer>
+                <v-btn
+                  depressed
+                  @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
+                >
+                  <v-icon>{{ playbooksLoading ? 'mdi-close' : 'mdi-refresh' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-text-field>
           </div>
         </div>
 
@@ -185,51 +278,6 @@
           :disabled="formSaving"
           v-if="needField('inventory')"
         ></v-autocomplete>
-
-        <v-autocomplete
-          v-model="item.repository_id"
-          :label="fieldLabel('repository') + ' *'"
-          :items="repositories"
-          item-value="id"
-          item-text="name"
-          :rules="isFieldRequired('repository') ? [(v) => !!v || $t('repository_required')] : []"
-          outlined
-          dense
-          hide-details
-          :required="isFieldRequired('repository')"
-          :disabled="formSaving"
-          v-if="needField('repository')"
-        ></v-autocomplete>
-
-        <div class="mb-3 text-right">
-          <a v-if="!item.git_branch && !setBranch" @click="setBranch = true">Set branch</a>
-        </div>
-
-        <div v-if="item.git_branch || setBranch">
-          <div v-if="branches != null">
-            <v-autocomplete
-              clearable
-              :items="branches"
-              v-model="item.git_branch"
-              :label="fieldLabel('branch')"
-              outlined
-              dense
-              :disabled="formSaving"
-              :placeholder="$t('branch')"
-            ></v-autocomplete>
-          </div>
-          <div v-else>
-            <v-text-field
-              clearable
-              v-model="item.git_branch"
-              :label="fieldLabel('branch')"
-              outlined
-              dense
-              :disabled="formSaving"
-              :placeholder="$t('branch')"
-            ></v-text-field>
-          </div>
-        </div>
 
         <v-autocomplete
           v-model="item.environment_ids"
@@ -248,7 +296,6 @@
           deletable-chips
           outlined
           small-chips
-          class="mb-3"
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="needField('environment')"
@@ -292,7 +339,6 @@
           <v-checkbox class="mt-0" v-model="item.allow_parallel_tasks">
             <template v-slot:label>
               {{ $t('allow_parallel_tasks') }}
-              <v-chip class="ml-2" small color="error">New</v-chip>
             </template>
           </v-checkbox>
 
@@ -410,7 +456,7 @@
       <v-col v-if="needAppBlock">
         <div class="mb-3">
           <h2 class="mb-4">
-            {{ $t('template_app_options', {app: getAppTitle(app, true)}) }}
+            {{ $t('template_app_options', { app: getAppTitle(app, true) }) }}
           </h2>
 
           <ArgsPicker
@@ -483,7 +529,7 @@
         </div>
 
         <h2 class="mb-4">
-          {{ $t('template_app_prompts', {app: getAppTitle(app, true)}) }}
+          {{ $t('template_app_prompts', { app: getAppTitle(app, true) }) }}
         </h2>
         <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
           <v-checkbox
@@ -631,22 +677,25 @@ export default {
       runnerTags: null,
       branches: null,
       playbooks: null,
+      playbooksLoading: false,
+      playbooksAbort: null,
       setBranch: false,
     };
   },
 
   watch: {
-    gitBranch() {
-      this.setBranch = false;
-      this.playbooks = null;
-      this.loadPlaybooks();
+    gitBranchOfTemplate() {
+      if (this.playbooks != null) {
+        this.playbooks = null;
+        this.loadPlaybooks();
+      }
     },
 
     async repositoryId() {
       this.branches = null;
       this.playbooks = null;
 
-      await Promise.all([this.loadBranches(), this.loadPlaybooks()]);
+      await Promise.all([this.loadBranches()]);
     },
 
     needReset(val) {
@@ -668,7 +717,7 @@ export default {
   },
 
   async created() {
-    await Promise.all([this.loadBranches(), this.loadPlaybooks()]);
+    await Promise.all([this.loadBranches()]);
   },
 
   computed: {
@@ -693,8 +742,19 @@ export default {
       return this.item?.repository_id;
     },
 
-    gitBranch() {
+    gitBranchOfTemplate() {
       return this.item?.git_branch;
+    },
+
+    gitBranch() {
+      let ret = this.item?.git_branch;
+      if (!ret) {
+        const repo = this.repositories.find((x) => x.id === this.repositoryId);
+        if (repo) {
+          ret = repo.git_branch;
+        }
+      }
+      return ret;
     },
 
     allow_override_inventory: {
@@ -778,9 +838,18 @@ export default {
       }
 
       try {
-        this.branches = await this.loadProjectEndpoint(`/repositories/${this.repositoryId}/branches`);
+        this.branches = await this.loadProjectEndpoint(
+          `/repositories/${this.repositoryId}/branches`,
+        );
       } catch (e) {
         this.branches = null;
+      }
+    },
+
+    cancelPlaybookLoading() {
+      if (this.playbooksAbort) {
+        this.playbooksAbort.abort();
+        this.playbooksAbort = null;
       }
     },
 
@@ -790,12 +859,24 @@ export default {
         return;
       }
 
+      this.cancelPlaybookLoading();
+      const ctrl = new AbortController();
+      this.playbooksAbort = ctrl;
+      this.playbooksLoading = true;
+
       try {
         this.playbooks = await this.loadProjectEndpoint(
           `/repositories/${this.repositoryId}/playbooks?branch=${encodeURIComponent(this.item.git_branch || '')}`,
+          { signal: ctrl.signal },
         );
       } catch (e) {
         this.playbooks = null;
+      } finally {
+        // ponytail: guard against a newer request having replaced this one
+        if (this.playbooksAbort === ctrl || this.playbooksAbort == null) {
+          this.playbooksAbort = null;
+          this.playbooksLoading = false;
+        }
       }
     },
 

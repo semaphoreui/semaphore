@@ -95,6 +95,21 @@
         dense
       />
 
+      <v-textarea
+        v-else-if="v.type === 'text'"
+        :label="v.title + (v.required ? ' *' : '')"
+        :hint="v.description"
+        v-model="editedEnvironment[v.name]"
+        :required="v.required"
+        :rules="[
+          val => !v.required || !!val || v.title + ' ' + $t('isRequired'),
+        ]"
+        rows="3"
+        auto-grow
+        outlined
+        dense
+      />
+
       <v-text-field
         v-else
         :label="v.title + (v.required ? ' *' : '')"
