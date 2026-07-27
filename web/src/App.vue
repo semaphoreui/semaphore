@@ -269,8 +269,14 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>{{ item.title }}</v-list-item-title>
+            <v-list-item-title>
+              {{ item.title }}
+            </v-list-item-title>
           </v-list-item-content>
+
+          <v-list-item-action>
+            <v-chip v-if="item.isBeta" small color="warning">Beta</v-chip>
+          </v-list-item-action>
 
           <div class="nav-pin-wrap" v-if="navEditMode && navItems.length > 1">
             <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('unpin')">
@@ -1117,6 +1123,7 @@ export default {
             title: this.$t('workflows'),
             to: `${base}/workflows`,
             testId: 'sidebar-workflows',
+            isBeta: true,
           },
           {
             key: 'schedule',
