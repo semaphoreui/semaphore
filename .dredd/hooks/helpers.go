@@ -374,6 +374,22 @@ func loadConfig() {
 		fmt.Println("Could not decode configuration!")
 		panic(err)
 	}
+
+	// The hooks decode the config file directly instead of going through
+	// util.ConfigInit, so util.Config.Apps stays empty and Template.Validate
+	// rejects every fixture template with "invalid app: <app>". The server under
+	// test gets the same whitelist from SEMAPHORE_APPS in server-wrapper.sh,
+	// which does not reach this process because dredd spawns it separately.
+	if util.Config.Apps == nil {
+		util.Config.Apps = make(map[string]util.App)
+	}
+	// Apps the fixtures create templates for. The hooks never execute a task, so
+	// the corresponding binaries do not have to be installed.
+	for _, app := range []db.TemplateApp{db.AppAnsible} {
+		if _, ok := util.Config.Apps[string(app)]; !ok {
+			util.Config.Apps[string(app)] = util.App{Active: true}
+		}
+	}
 }
 
 var store db.Store
