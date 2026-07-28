@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/stretchr/testify/assert"
@@ -81,6 +82,21 @@ type mockAccessKeyEncryptionService struct {
 	DeleteSecretFn func(key *db.AccessKey) error
 
 	DeletedSecretIDs []int
+}
+
+func (m *mockAccessKeyEncryptionService) CreateTaskSurveySecrets(projectID int, taskID int, secrets string, expireAt time.Time) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *mockAccessKeyEncryptionService) GetTaskSurveySecrets(projectID int, taskID int) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *mockAccessKeyEncryptionService) DeleteTaskSurveySecrets(projectID int, taskID int) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (m *mockAccessKeyEncryptionService) DeleteSecret(key *db.AccessKey) error {
