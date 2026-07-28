@@ -97,7 +97,7 @@ func runService() {
 	accessKeyService := server.NewAccessKeyService(store, encryptionService, store)
 	secretStorageService := server.NewSecretStorageService(store, store, accessKeyService, encryptionService)
 	secretStorageSyncScheduler := server.NewSecretStorageSyncScheduler(store, secretStorageService)
-	environmentService := server.NewEnvironmentService(store, encryptionService)
+	environmentService := server.NewEnvironmentService(store, encryptionService, store)
 	runnerService := server.NewRunnerService(store)
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
