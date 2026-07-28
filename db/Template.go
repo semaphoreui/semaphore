@@ -227,7 +227,7 @@ func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
 
 func (tpl *Template) Validate() error {
 	if tpl.RunnerTag != nil && *tpl.RunnerTag == "" {
-		return &common_errors.ValidationError{"template runner tag can not be empty"}
+		return common_errors.NewValidationError("template runner tag can not be empty")
 	}
 
 	// Reject apps that are not in the administrator-configured whitelist, otherwise
@@ -243,16 +243,16 @@ func (tpl *Template) Validate() error {
 	switch tpl.App {
 	case AppAnsible:
 		if tpl.InventoryID == nil {
-			return &common_errors.ValidationError{"template inventory can not be empty"}
+			return common_errors.NewValidationError("template inventory can not be empty")
 		}
 	}
 
 	if tpl.Name == "" {
-		return &common_errors.ValidationError{"template name can not be empty"}
+		return common_errors.NewValidationError("template name can not be empty")
 	}
 
 	if !tpl.App.IsTerraform() && tpl.Playbook == "" {
-		return &common_errors.ValidationError{"template playbook can not be empty"}
+		return common_errors.NewValidationError("template playbook can not be empty")
 	}
 
 	if err := ValidatePlaybookPath(tpl.Playbook, "template"); err != nil {
@@ -261,7 +261,7 @@ func (tpl *Template) Validate() error {
 
 	if tpl.Arguments != nil {
 		if !json.Valid([]byte(*tpl.Arguments)) {
-			return &common_errors.ValidationError{"template arguments must be valid JSON"}
+			return common_errors.NewValidationError("template arguments must be valid JSON")
 		}
 	}
 
