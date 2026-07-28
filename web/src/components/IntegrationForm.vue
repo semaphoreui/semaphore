@@ -61,36 +61,40 @@
       dense
     ></v-select>
 
-    <v-text-field
-      v-if="['token', 'hmac'].includes(item.auth_method)"
-      v-model="item.auth_header"
-      label="Auth header"
-      :disabled="formSaving"
-      outlined
-      dense
-    ></v-text-field>
+    <HighlightedCard v-if="item.auth_method">
+      <template>
+        <v-text-field
+            v-if="['token', 'hmac'].includes(item.auth_method)"
+            v-model="item.auth_header"
+            label="Auth header"
+            :disabled="formSaving"
+            outlined
+            dense
+        ></v-text-field>
 
-    <v-select
-      v-if="item.auth_method"
-      v-model="item.auth_secret_id"
-      :label="$t('vaultPassword2')"
-      clearable
-      :items="loginPasswordKeys"
-      item-value="id"
-      item-text="name"
-      :disabled="formSaving"
-      outlined
-      dense
-    ></v-select>
+        <v-select
+            v-model="item.auth_secret_id"
+            :label="$t('vaultPassword2')"
+            clearable
+            :items="loginPasswordKeys"
+            item-value="id"
+            item-text="name"
+            :disabled="formSaving"
+            outlined
+            dense
+        ></v-select>
+      </template>
+    </HighlightedCard>
   </v-form>
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
+import HighlightedCard from '@/components/HighlightedCard.vue';
 
 export default {
-  components: { TaskParamsForm },
+  components: { HighlightedCard, TaskParamsForm },
   mixins: [ItemFormBase],
   data() {
     return {
