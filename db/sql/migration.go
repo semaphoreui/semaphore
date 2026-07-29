@@ -64,12 +64,12 @@ func getVersionErrPath(version db.Migration) string {
 func getVersionSQL(dialect string, name string, ignoreErrors bool) (queries []string) {
 	sql, err := dbAssets.ReadFile(path.Join("migrations", name))
 	if err != nil {
-		if ignoreErrors {
-			log.WithError(err).Warnf("migration %s not found", name)
-			return nil
-		} else {
+		if !ignoreErrors {
 			panic(err)
 		}
+
+		log.WithError(err).Warnf("migration %s not found", name)
+		return nil
 	}
 
 	processedSql, err := preprocessSqlDialect(dialect, string(sql))
@@ -85,7 +85,7 @@ func getVersionSQL(dialect string, name string, ignoreErrors bool) (queries []st
 	return
 }
 
-func getDialectConfig(dialect string) interface{} {
+func getDialectConfig(dialect string) any {
 	type Config struct {
 		Sqlite     bool
 		Mysql      bool
@@ -312,7 +312,7 @@ func (d *SqlDb) TryRollbackMigration(version db.Migration) {
 		return
 	}
 
-	queries := getVersionSQL(d.GetDialect(), getVersionErrPath(version), true)
+	queries := getVersionSQL(d.GetDialect(), getVersionErrPath(version), false)
 
 	for _, query := range queries {
 		fmt.Printf(" [ROLLBACK] > %v\n", query)
