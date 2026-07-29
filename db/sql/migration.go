@@ -312,7 +312,8 @@ func (d *SqlDb) TryRollbackMigration(version db.Migration) {
 		return
 	}
 
-	queries := getVersionSQL(d.GetDialect(), getVersionErrPath(version), false)
+	// Most migrations have no undo SQL; a missing .err.sql file must not panic.
+	queries := getVersionSQL(d.GetDialect(), getVersionErrPath(version), true)
 
 	for _, query := range queries {
 		fmt.Printf(" [ROLLBACK] > %v\n", query)
