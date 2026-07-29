@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/git"
@@ -190,6 +191,12 @@ type Template struct {
 
 	RunnerTag *string `db:"runner_tag" json:"runner_tag,omitempty"`
 
+	// ExecutorImage overrides the container image the runner uses to run this
+	// template's tasks. Only the container-based executors (Docker, Kubernetes)
+	// honour it; the local executor ignores it. Empty/nil means "use the image
+	// from the runner configuration".
+	ExecutorImage *string `db:"executor_image" json:"executor_image,omitempty"`
+
 	AllowOverrideBranchInTask bool `db:"allow_override_branch_in_task" json:"allow_override_branch_in_task,omitempty"`
 	//AllowOverrideEnvInTask    bool `db:"allow_override_env_in_task" json:"allow_override_env_in_task,omitempty"`
 	AllowParallelTasks bool `db:"allow_parallel_tasks" json:"allow_parallel_tasks,omitempty"`
@@ -209,6 +216,23 @@ func (tpl *Template) FillParams(target any) error {
 	}
 	err = json.Unmarshal(content, target)
 	return err
+}
+
+// NormalizedExecutorImage returns the value to persist. Clearing the field in the
+// WebUI sends an empty string; storing it as NULL keeps "no override" a single
+// representation in the database.
+func (tpl *Template) NormalizedExecutorImage() *string {
+	if tpl.ExecutorImage == nil {
+		return nil
+	}
+
+	img := strings.TrimSpace(*tpl.ExecutorImage)
+
+	if img == "" {
+		return nil
+	}
+
+	return &img
 }
 
 func (tpl *Template) CanOverrideInventory() (ok bool, err error) {

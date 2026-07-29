@@ -434,6 +434,7 @@ export default {
   limit: 'Limit',
 
   runner_tag: 'Runner tag',
+  executor_image: 'Executor image',
   allow_parallel_tasks: 'Allow parallel tasks',
   jwt_enabled: 'Issue JWT to task runner',
   jwt_audience: 'JWT audience',
