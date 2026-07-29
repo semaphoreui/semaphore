@@ -100,6 +100,7 @@ type BackupTemplate struct {
 	Inventory     *string               `backup:"inventory"`
 	Repository    string                `backup:"repository"`
 	Environments  []string              `backup:"environments"`
+	Keys          []string              `backup:"keys"`
 	BuildTemplate *string               `backup:"build_template"`
 	View          *string               `backup:"view"`
 	Vaults        []BackupTemplateVault `backup:"vaults"`

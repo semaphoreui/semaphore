@@ -168,6 +168,12 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 			return
 		}
 		b.templates[i].Vaults = vaults
+
+		// GetTemplates does not load the template keys.
+		b.templates[i].KeyIDs, err = store.GetTemplateKeys(b.templates[i].ProjectID, b.templates[i].ID)
+		if err != nil {
+			return
+		}
 	}
 
 	b.repositories, err = store.GetRepositories(projectID, db.RetrieveQueryParams{})
@@ -397,6 +403,13 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 				Environments = append(Environments, *name)
 			}
 		}
+		var Keys []string
+		for _, keyID := range o.KeyIDs {
+			name, _ := findNameByID[db.AccessKey](keyID, b.keys)
+			if name != nil {
+				Keys = append(Keys, *name)
+			}
+		}
 		var BuildTemplate *string = nil
 		if o.BuildTemplateID != nil {
 			BuildTemplate, _ = findNameByID[db.Template](*o.BuildTemplateID, b.templates)
@@ -447,6 +460,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			Repository:    *Repository,
 			Inventory:     Inventory,
 			Environments:  Environments,
+			Keys:          Keys,
 			BuildTemplate: BuildTemplate,
 			Vaults:        vaults,
 			Roles:         roles,

@@ -147,6 +147,13 @@ type Template struct {
 
 	Vaults []TemplateVault `db:"-" json:"vaults,omitempty" backup:"-"`
 
+	// Keys used by ansible-galaxy to install roles and collections hosted in
+	// private repositories. Persisted in project__template_key.
+	KeyIDs []int `db:"-" json:"key_ids" backup:"-"`
+
+	// Filled by FillTemplate from KeyIDs.
+	Keys []AccessKey `db:"-" json:"-" backup:"-"`
+
 	Type            TemplateType `db:"type" json:"type,omitempty"`
 	StartVersion    *string      `db:"start_version" json:"start_version,omitempty"`
 	BuildTemplateID *int         `db:"build_template_id" json:"build_template_id,omitempty" backup:"-"`
@@ -268,6 +275,23 @@ func FillTemplate(d Store, template *Template) (err error) {
 		return
 	}
 	template.Vaults = vaults
+
+	var keyIDs []int
+	keyIDs, err = d.GetTemplateKeys(template.ProjectID, template.ID)
+	if err != nil {
+		return
+	}
+	template.KeyIDs = keyIDs
+
+	template.Keys = nil
+	for _, keyID := range keyIDs {
+		var key AccessKey
+		key, err = d.GetAccessKey(template.ProjectID, keyID)
+		if err != nil {
+			return
+		}
+		template.Keys = append(template.Keys, key)
+	}
 
 	var envIDs []int
 	envIDs, err = d.GetTemplateEnvironments(template.ProjectID, template.ID)

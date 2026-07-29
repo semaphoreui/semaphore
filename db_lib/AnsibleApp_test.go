@@ -77,3 +77,52 @@ func TestAnsibleApp_skipGalaxyInstall(t *testing.T) {
 		})
 	}
 }
+
+func TestAnsibleApp_galaxyInstallKeys(t *testing.T) {
+	repoKey := db.AccessKey{ID: 1, Name: "repo", Type: db.AccessKeySSH}
+
+	tests := []struct {
+		name         string
+		templateKeys []db.AccessKey
+		expected     []string
+	}{
+		{
+			name:         "repository key only",
+			templateKeys: nil,
+			expected:     []string{"repo"},
+		},
+		{
+			name: "repository key is tried before the template keys",
+			templateKeys: []db.AccessKey{
+				{ID: 2, Name: "role-a", Type: db.AccessKeySSH},
+				{ID: 3, Name: "role-b", Type: db.AccessKeySSH},
+			},
+			expected: []string{"repo", "role-a", "role-b"},
+		},
+		{
+			name: "keys which cannot be used by an SSH agent are skipped",
+			templateKeys: []db.AccessKey{
+				{ID: 2, Name: "login", Type: db.AccessKeyLoginPassword},
+				{ID: 3, Name: "none", Type: db.AccessKeyNone},
+				{ID: 4, Name: "role-a", Type: db.AccessKeySSH},
+			},
+			expected: []string{"repo", "role-a"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := &AnsibleApp{
+				Repository: db.Repository{SSHKey: repoKey},
+				Template:   db.Template{Keys: tt.templateKeys},
+			}
+
+			var names []string
+			for _, key := range app.galaxyInstallKeys() {
+				names = append(names, key.Name)
+			}
+
+			assert.Equal(t, tt.expected, names)
+		})
+	}
+}

@@ -288,6 +288,9 @@ type TemplateManager interface {
 	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
 	UpdateTemplateVaults(projectID int, templateID int, vaults []TemplateVault) error
 
+	GetTemplateKeys(projectID int, templateID int) ([]int, error)
+	UpdateTemplateKeys(projectID int, templateID int, keyIDs []int) error
+
 	GetTemplateEnvironments(projectID int, templateID int) ([]int, error)
 	UpdateTemplateEnvironments(projectID int, templateID int, environmentIDs []int) error
 

@@ -217,6 +217,7 @@ export default {
   environment3: 'Variable Groups *',
   environmentsHint:
     'Variables from each selected group are merged in order; later groups override earlier ones on conflicts.',
+  keys: 'Keys',
   vaultPassword: 'Vault Password',
   vaultPassword2: 'Vault Password',
   view: 'View',

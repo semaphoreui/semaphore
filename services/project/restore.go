@@ -266,6 +266,12 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 		}
 	}
 
+	for i := range e.Keys {
+		if getEntryByName[BackupAccessKey](&e.Keys[i], backup.Keys) == nil {
+			return fmt.Errorf("keys[] does not exist in keys[].name")
+		}
+	}
+
 	if e.View != nil && getEntryByName[BackupView](e.View, backup.Views) == nil {
 		return fmt.Errorf("view does not exist in views[].name")
 	}
@@ -298,6 +304,16 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 		EnvironmentIDs = append(EnvironmentIDs, k.GetID())
 	}
 
+	var KeyIDs []int
+	for i := range e.Keys {
+		keyName := &e.Keys[i]
+		k := findEntityByName[db.AccessKey](keyName, b.keys)
+		if k == nil {
+			return fmt.Errorf("key does not exist in keys[].name")
+		}
+		KeyIDs = append(KeyIDs, k.GetID())
+	}
+
 	var RepositoryID int
 	if k := findEntityByName[db.Repository](&e.Repository, b.repositories); k == nil {
 		return fmt.Errorf("repository does not exist in repositories[].name")
@@ -325,6 +341,7 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 	template.ProjectID = b.meta.ID
 	template.RepositoryID = RepositoryID
 	template.EnvironmentIDs = EnvironmentIDs
+	template.KeyIDs = KeyIDs
 	template.InventoryID = InventoryID
 	template.ViewID = ViewID
 	template.BuildTemplateID = BuildTemplateID

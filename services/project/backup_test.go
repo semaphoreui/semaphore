@@ -10,6 +10,7 @@ import (
 	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testItem struct {
@@ -357,4 +358,91 @@ func TestMakeUniqueNames(t *testing.T) {
 	})
 
 	assert.True(t, isUnique(items), "Not unique names")
+}
+
+// TestBackupProject_TemplateKeys checks that the keys attached to a template
+// survive a backup/restore round trip and point at the restored keys.
+func TestBackupProject_TemplateKeys(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	store := sql.CreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{Name: "Keys 123"})
+	require.NoError(t, err)
+
+	repoKey, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Name:      "repo key",
+		Type:      db.AccessKeyNone,
+	})
+	require.NoError(t, err)
+
+	galaxyKey, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Name:      "galaxy key",
+		Type:      db.AccessKeyNone,
+	})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  repoKey.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	require.NoError(t, err)
+
+	inv, err := store.CreateInventory(db.Inventory{ProjectID: proj.ID})
+	require.NoError(t, err)
+
+	_, err = store.CreateTemplate(db.Template{
+		Name:         "Test",
+		Playbook:     "test.yml",
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+		InventoryID:  &inv.ID,
+		KeyIDs:       []int{galaxyKey.ID},
+	})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+	require.Len(t, backup.Templates, 1)
+	assert.Equal(t, []string{"galaxy key"}, backup.Templates[0].Keys)
+
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+
+	restoredBackup := &BackupFormat{}
+	require.NoError(t, restoredBackup.Unmarshal(str))
+	restoredBackup.Meta.Name = "Keys 1234"
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "keystest",
+			Name:     "Keys Test",
+			Email:    "keys@example.com",
+			Admin:    true,
+		},
+	})
+	require.NoError(t, err)
+
+	restoredProj, err := restoredBackup.Restore(user, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	restoredTemplates, err := store.GetTemplates(restoredProj.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, restoredTemplates, 1)
+
+	keyIDs, err := store.GetTemplateKeys(restoredProj.ID, restoredTemplates[0].ID)
+	require.NoError(t, err)
+	require.Len(t, keyIDs, 1)
+
+	restoredKey, err := store.GetAccessKey(restoredProj.ID, keyIDs[0])
+	require.NoError(t, err)
+	assert.Equal(t, "galaxy key", restoredKey.Name)
 }

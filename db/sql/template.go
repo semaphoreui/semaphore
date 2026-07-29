@@ -70,6 +70,11 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		return
 	}
 
+	err = d.UpdateTemplateKeys(template.ProjectID, insertID, template.KeyIDs)
+	if err != nil {
+		return
+	}
+
 	err = d.UpdateTemplateEnvironments(template.ProjectID, insertID, template.EnvironmentIDs)
 	if err != nil {
 		return
@@ -147,6 +152,11 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	}
 
 	err = d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
+	if err != nil {
+		return err
+	}
+
+	err = d.UpdateTemplateKeys(template.ProjectID, template.ID, template.KeyIDs)
 	if err != nil {
 		return err
 	}

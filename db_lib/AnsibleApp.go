@@ -80,7 +80,41 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return nil
 	}
 
-	keyInstallation, err := args.Installer.Install(t.Repository.SSHKey, db.AccessKeyRoleGit, t.Logger)
+	// Keys are tried one at a time instead of being loaded into a single agent:
+	// ssh stops at the first key the host accepts, and a key can authenticate
+	// but still have no access to the requested repository (a deploy key, for
+	// example), which would hide the remaining keys.
+	keys := t.galaxyInstallKeys()
+
+	var err error
+	for i, key := range keys {
+		if i > 0 {
+			t.Log(fmt.Sprintf("Galaxy install failed, retrying with key %q.\n", key.Name))
+		}
+
+		if err = t.installRequirementsWithKey(args, key); err == nil {
+			return nil
+		}
+	}
+
+	return err
+}
+
+// galaxyInstallKeys returns the repository key followed by the template's SSH keys.
+func (t *AnsibleApp) galaxyInstallKeys() []db.AccessKey {
+	keys := []db.AccessKey{t.Repository.SSHKey}
+
+	for _, key := range t.Template.Keys {
+		if key.Type == db.AccessKeySSH {
+			keys = append(keys, key)
+		}
+	}
+
+	return keys
+}
+
+func (t *AnsibleApp) installRequirementsWithKey(args LocalAppInstallingArgs, key db.AccessKey) error {
+	keyInstallation, err := args.Installer.Install(key, db.AccessKeyRoleGit, t.Logger)
 	if err != nil {
 		return err
 	}
@@ -91,10 +125,8 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 	if err := t.installCollectionsRequirements(environmentVars); err != nil {
 		return err
 	}
-	if err := t.installRolesRequirements(environmentVars); err != nil {
-		return err
-	}
-	return nil
+
+	return t.installRolesRequirements(environmentVars)
 }
 
 // skipGalaxyInstall reports whether the Galaxy install step must be skipped.

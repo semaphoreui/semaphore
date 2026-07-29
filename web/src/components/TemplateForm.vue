@@ -255,6 +255,22 @@
         ></v-autocomplete>
 
         <v-autocomplete
+          v-model="item.key_ids"
+          :label="fieldLabel('keys')"
+          :items="sshKeys"
+          item-value="id"
+          item-text="name"
+          multiple
+          chips
+          deletable-chips
+          outlined
+          small-chips
+          class="mb-3"
+          :disabled="formSaving"
+          v-if="needField('keys')"
+        ></v-autocomplete>
+
+        <v-autocomplete
           class="mb-3"
           style="max-height: 60px"
           v-model="item.view_id"
@@ -617,6 +633,7 @@ export default {
       inventory: null,
       repositories: null,
       environment: null,
+      keys: null,
       views: null,
       schedules: null,
       buildTemplates: null,
@@ -679,6 +696,11 @@ export default {
       set(val) {
         this.args = JSON.parse(val);
       },
+    },
+
+    // Only SSH keys can be added to the SSH agent used by ansible-galaxy.
+    sshKeys() {
+      return (this.keys || []).filter((key) => key.type === 'ssh');
     },
 
     jwtTtlHint() {
@@ -763,6 +785,7 @@ export default {
         this.repositories != null
         && this.inventory != null
         && this.environment != null
+        && this.keys != null
         && this.item != null
         && this.schedules != null
         && this.views != null
@@ -845,6 +868,7 @@ export default {
         task_params: {},
         jwt_params: { enabled: false, audience: [], ttl: '' },
         environment_ids: [],
+        key_ids: [],
       };
     },
 
@@ -860,6 +884,7 @@ export default {
         this.schedules,
         this.views,
         this.environment,
+        this.keys,
         templates,
         this.runnerTags,
       ] = await Promise.all([
@@ -869,6 +894,7 @@ export default {
         this.isNew ? [] : this.loadProjectEndpoint(`/templates/${this.itemId}/schedules`),
         this.loadProjectResources('views'),
         this.loadProjectResources('environment'),
+        this.loadProjectResources('keys'),
         this.loadProjectResources('templates'),
         this.loadProjectResources('runner_tags'),
       ]);
@@ -958,6 +984,10 @@ export default {
 
       if (!Array.isArray(this.item.environment_ids)) {
         this.$set(this.item, 'environment_ids', []);
+      }
+
+      if (!Array.isArray(this.item.key_ids)) {
+        this.$set(this.item, 'key_ids', []);
       }
 
       this.args = JSON.parse(this.item.arguments || '[]');
