@@ -589,10 +589,18 @@ type ConfigType struct {
 	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
 	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
-	// LdapTLSSkipVerify disables verification of the LDAP server's TLS
-	// certificate for the legacy flat ldap_* config. Defaults to false
-	// (certificates are verified). See LdapProvider.TLSSkipVerify.
-	LdapTLSSkipVerify bool `json:"ldap_tls_skip_verify,omitempty" env:"SEMAPHORE_LDAP_TLS_SKIP_VERIFY"`
+
+	// LdapTLSCACertFile is a PEM bundle used to verify the LDAP server's
+	// certificate, in addition to the system trust store. Set this when the
+	// server uses a self-signed or internal-CA cert. Setting it implies
+	// LdapTLSVerify.
+	LdapTLSCACertFile string `json:"ldap_tls_ca_cert_file,omitempty" env:"SEMAPHORE_LDAP_TLS_CA_CERT_FILE"`
+	// LdapTLSVerify enables verification of the LDAP server's certificate for
+	// the legacy flat ldap_* config only. It defaults to false because released
+	// Semaphore has never verified LDAPS certificates and upgrading installs
+	// must not be locked out; providers under LdapProviders verify by default
+	// instead. See LdapProvider.TLSSkipVerify.
+	LdapTLSVerify bool `json:"ldap_tls_verify,omitempty" env:"SEMAPHORE_LDAP_TLS_VERIFY"`
 
 	// LdapProviders configures multiple LDAP directories (like OidcProviders
 	// for OIDC). The key is the provider ID shown in identity records; the

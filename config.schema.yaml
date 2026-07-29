@@ -117,12 +117,23 @@ properties:
   ldap_searchfilter: { type: string }
   ldap_mappings:     { $ref: "#/$defs/LdapMappings" }
   ldap_needtls:      { type: boolean }
-  ldap_tls_skip_verify:
+  ldap_tls_ca_cert_file:
+    type: string
+    description: >
+      PEM bundle used to verify the LDAP server's certificate, in addition to
+      the system trust store. Set this when the server uses a self-signed or
+      internal-CA certificate. Setting it implies ldap_tls_verify.
+  ldap_tls_verify:
     type: boolean
     default: false
     description: >
-      Disable verification of the LDAP server's TLS certificate for the legacy
-      flat ldap_* config. Defaults to false (certificates are verified).
+      Verify the LDAP server's certificate chain and hostname for the legacy
+      flat ldap_* config. Defaults to false because released Semaphore has
+      never verified LDAPS certificates and upgrading installs must not be
+      locked out. An unverified LDAPS connection is open to MITM and the
+      user's password travels over it, so enable this (or set
+      ldap_tls_ca_cert_file) once your server presents a verifiable
+      certificate. Providers under ldap_providers verify by default.
   ldap_providers:
     type: object
     additionalProperties: { $ref: "#/$defs/LdapProvider" }
@@ -389,13 +400,6 @@ $defs:
       display_name: { type: string }
       server:       { type: string }
       need_tls:      { type: boolean }
-      tls_skip_verify:
-        type: boolean
-        default: false
-        description: >
-          Disable verification of the LDAP server's TLS certificate. Defaults to
-          false (certificates are verified). Only enable on trusted networks
-          with self-signed certificates.
       bind_dn:       { type: string }
       bind_password:
         type: string
@@ -406,6 +410,20 @@ $defs:
       color:        { type: string }
       icon:         { type: string, description: MDI icon name without the mdi- prefix. }
       order:        { type: integer }
+      tls_ca_cert_file:
+        type: string
+        description: >
+          PEM bundle used to verify this LDAP server's certificate, in addition
+          to the system trust store. Set this when the server uses a self-signed
+          or internal-CA certificate. Setting it forces verification on.
+      tls_skip_verify:
+        type: boolean
+        default: false
+        description: >
+          Disable verification of this LDAP server's certificate chain and
+          hostname. Defaults to false, so providers configured here verify the
+          certificate. An unverified LDAPS connection is open to MITM and the
+          user's password travels over it — prefer tls_ca_cert_file.
 
   OidcProvider:
     type: object
