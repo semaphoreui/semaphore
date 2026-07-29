@@ -334,6 +334,33 @@
             clearable
           ></v-autocomplete>
 
+          <div style="position: relative">
+            <v-text-field
+              v-model="item.executor_image"
+              :label="$t('executor_image')"
+              :hint="$t('executor_image_hint')"
+              persistent-hint
+              placeholder="semaphoreui/job:latest"
+              outlined
+              dense
+              clearable
+              class="mb-4"
+              :disabled="formSaving || !isExecutorImageAvailable"
+            ></v-text-field>
+
+            <v-chip
+              v-if="!isExecutorImageAvailable"
+              color="hsl(348deg, 86%, 61%)"
+              text-color="white"
+              small
+              label
+              style="position: absolute; top: -10px; right: 15px"
+              @click="upgradeToPro('docker_executor')"
+            >
+              Upgrade to PRO
+            </v-chip>
+          </div>
+
           <SurveyVars :vars="surveyVars" @change="setSurveyVars" />
 
           <v-checkbox class="mt-0" v-model="item.allow_parallel_tasks">
@@ -721,6 +748,12 @@ export default {
   },
 
   computed: {
+    // The image override is only honoured by the container-based executors, which
+    // are themselves paid features: Docker in PRO, Kubernetes in Enterprise.
+    isExecutorImageAvailable() {
+      return !!(this.features?.docker_executor || this.features?.k8s_executor);
+    },
+
     argsJson: {
       get() {
         return JSON.stringify(this.args);
@@ -1012,6 +1045,12 @@ export default {
 
       if (!this.item.task_params) {
         this.item.task_params = {};
+      }
+
+      // The API omits executor_image when it is not set; declare it explicitly so
+      // the text field stays reactive for templates without an override.
+      if (this.item.executor_image === undefined) {
+        this.$set(this.item, 'executor_image', null);
       }
 
       if (!this.item.jwt_params) {
