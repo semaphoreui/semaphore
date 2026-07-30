@@ -39,6 +39,18 @@
       </v-btn>
 
       <v-btn
+        v-if="!isNew && canRun"
+        color="primary"
+        outlined
+        class="mr-3"
+        :disabled="saving"
+        @click="runWorkflow()"
+        data-testid="workflow-run"
+      >{{ $t('run') }}
+      </v-btn
+      >
+
+      <v-btn
         color="primary"
         :disabled="!canManage || saving || problems.length > 0"
         :loading="saving"
@@ -329,6 +341,9 @@ export default {
     canManage() {
       return this.can(USER_PERMISSIONS.manageProjectResources);
     },
+    canRun() {
+      return this.can(USER_PERMISSIONS.runProjectTasks);
+    },
     editingNodeTemplate() {
       if (!this.editingNode || !this.editingNode.template_id) return null;
       return this.templates.find((t) => t.id === this.editingNode.template_id) || null;
@@ -528,6 +543,30 @@ export default {
     },
     zoomReset() {
       this.$refs.graph?.zoomReset();
+    },
+
+    // ---- run ------------------------------------------------------------------
+    // Starts the last-saved version of the workflow (same endpoint as the
+    // Run buttons on the list and view pages) and opens the run page.
+    async runWorkflow() {
+      try {
+        const run = (await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/workflows/${this.workflowId}/run`,
+          responseType: 'json',
+        })).data;
+
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: this.$t('workflowRunStarted'),
+        });
+
+        await this.$router.push(
+          `/project/${this.projectId}/workflows/${this.workflowId}/runs/${run.id}`,
+        );
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+      }
     },
 
     // ---- save -----------------------------------------------------------------
