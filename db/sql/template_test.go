@@ -37,7 +37,7 @@ func newTemplateTestProject(t *testing.T, store *SqlDb) (projectID int, reposito
 // TestTemplateExecutorImageRoundTrip checks project__template.executor_image is
 // written, read back, updated and cleared through the store.
 func TestTemplateExecutorImageRoundTrip(t *testing.T) {
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 	projectID, repositoryID := newTemplateTestProject(t, store)
 
 	image := "my-registry/job:1.2"
@@ -82,7 +82,7 @@ func TestTemplateExecutorImageRoundTrip(t *testing.T) {
 // TestTemplateWithoutExecutorImage guards the common case: a template that does
 // not override the image reads back as nil rather than failing to scan NULL.
 func TestTemplateWithoutExecutorImage(t *testing.T) {
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 	projectID, repositoryID := newTemplateTestProject(t, store)
 
 	created, err := store.CreateTemplate(db.Template{
