@@ -1,8 +1,10 @@
 <template>
   <div class="WorkflowGraph" :class="{ 'WorkflowGraph--editable': editable }">
+    <!-- WorkflowGraph__canvas is added in mounted(): Drawflow keys canvas panning
+         off classList[0], so 'parent-drawflow' (added by editor.start()) must stay
+         the first class. -->
     <div
       ref="canvas"
-      class="WorkflowGraph__canvas"
       @drop="onDrop"
       @dragover.prevent
     ></div>
@@ -77,8 +79,12 @@ export default {
   mounted() {
     const editor = new Drawflow(this.$refs.canvas);
     editor.reroute = false;
-    editor.editor_mode = 'edit';
+    editor.editor_mode = this.editable ? 'edit' : 'fixed';
     editor.start();
+    // In 'fixed' mode Drawflow pans only when the container's classList[0] is
+    // 'parent-drawflow' (added by start() above), so our styling class must come
+    // after it rather than in the template.
+    this.$refs.canvas.classList.add('WorkflowGraph__canvas');
     this.editor = editor;
 
     if (this.editable) {
@@ -343,7 +349,7 @@ export default {
     },
 
     onDrop(ev) {
-      // if (!this.editable) return;
+      if (!this.editable) return;
       ev.preventDefault();
       const kind = ev.dataTransfer.getData('node-kind');
       if (!kind) return;
