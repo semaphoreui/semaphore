@@ -77,7 +77,7 @@ export default {
   mounted() {
     const editor = new Drawflow(this.$refs.canvas);
     editor.reroute = false;
-    editor.editor_mode = this.editable ? 'edit' : 'fixed';
+    editor.editor_mode = 'edit';
     editor.start();
     this.editor = editor;
 
@@ -343,7 +343,7 @@ export default {
     },
 
     onDrop(ev) {
-      if (!this.editable) return;
+      // if (!this.editable) return;
       ev.preventDefault();
       const kind = ev.dataTransfer.getData('node-kind');
       if (!kind) return;
