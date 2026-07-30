@@ -2,6 +2,8 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/git"
@@ -64,10 +66,13 @@ func (t TemplateApp) IsTerraform() bool {
 type SurveyVarType string
 
 const (
-	SurveyVarStr  TemplateType = ""
-	SurveyVarInt  TemplateType = "int"
-	SurveyVarEnum TemplateType = "enum"
-	SurveyVarText TemplateType = "text"
+	SurveyVarStr  SurveyVarType = ""
+	SurveyVarInt  SurveyVarType = "int"
+	SurveyVarEnum SurveyVarType = "enum"
+	SurveyVarText SurveyVarType = "text"
+	// SurveyVarSecret is passed to the task via Task.Secret, not Task.Environment,
+	// so its value is never stored in the task row or returned by the API.
+	SurveyVarSecret SurveyVarType = "secret"
 )
 
 type SurveyVarTarget string
@@ -120,6 +125,55 @@ type SurveyVar struct {
 	Description  string               `json:"description,omitempty" backup:"description"`
 	Values       []SurveyVarEnumValue `json:"values,omitempty" backup:"values"`
 	DefaultValue string               `json:"default_value,omitempty" backup:"default_value"`
+}
+
+// ValidateValue checks a task-supplied value against the type declared for the
+// variable. An absent value (null or empty string) is accepted: the variable is
+// simply left unset, and required-ness is not enforced here.
+func (v *SurveyVar) ValidateValue(value any) error {
+	if value == nil {
+		return nil
+	}
+
+	if s, ok := value.(string); ok && s == "" {
+		return nil
+	}
+
+	switch v.Type {
+	case SurveyVarInt:
+		switch val := value.(type) {
+		case json.Number:
+			if _, err := val.Int64(); err == nil {
+				return nil
+			}
+		case string:
+			if _, err := strconv.ParseInt(val, 10, 64); err == nil {
+				return nil
+			}
+		}
+		return common_errors.NewValidationError("survey variable " + v.Name + " must be an integer")
+	case SurveyVarEnum:
+		for _, allowed := range v.Values {
+			if fmt.Sprintf("%v", value) == allowed.Value {
+				return nil
+			}
+		}
+		return common_errors.NewValidationError("survey variable " + v.Name + " has a value which is not allowed")
+	}
+
+	return nil
+}
+
+// GetSurveyVar returns the survey variable declared with the given name, or nil
+// if the template declares no such variable.
+func (tpl *Template) GetSurveyVar(name string) *SurveyVar {
+	for i := range tpl.SurveyVars {
+		if tpl.SurveyVars[i].Name == name {
+			return &tpl.SurveyVars[i]
+		}
+	}
+
+	return nil
 }
 
 type TemplateFilter struct {
@@ -193,6 +247,12 @@ type Template struct {
 	AllowOverrideBranchInTask bool `db:"allow_override_branch_in_task" json:"allow_override_branch_in_task,omitempty"`
 	//AllowOverrideEnvInTask    bool `db:"allow_override_env_in_task" json:"allow_override_env_in_task,omitempty"`
 	AllowParallelTasks bool `db:"allow_parallel_tasks" json:"allow_parallel_tasks,omitempty"`
+
+	// AllowAnyVarsInTask lets a task carry variables which the survey does not
+	// declare. It is disabled by default because such variables override the
+	// template environment and are passed to the app with the highest
+	// precedence — see Task.ValidateSurveyVars.
+	AllowAnyVarsInTask bool `db:"allow_any_vars_in_task" json:"allow_any_vars_in_task,omitempty"`
 
 	JWTParams *TemplateJWTParams `db:"jwt_params" json:"jwt_params,omitempty"`
 }

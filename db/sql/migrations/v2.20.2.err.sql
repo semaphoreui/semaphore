@@ -1,0 +1,1 @@
+alter table project__template drop column allow_any_vars_in_task;

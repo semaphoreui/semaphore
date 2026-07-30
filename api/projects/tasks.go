@@ -48,6 +48,17 @@ func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// By default a task may carry only the variables declared in the template
+	// survey, no matter who sends it: task variables override the template
+	// environment and are passed to the app with the highest precedence, so
+	// undeclared keys change settings the template author never exposed — see
+	// db.Task.ValidateSurveyVars. Templates whose tasks legitimately need
+	// arbitrary variables opt in with AllowAnyVarsInTask.
+	if err = taskObj.ValidateSurveyVars(tpl); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	newTask, err := taskPool(r).AddTask(
 		taskObj,
 		&user.ID,

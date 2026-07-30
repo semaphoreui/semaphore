@@ -336,7 +336,15 @@
 
           <SurveyVars :vars="surveyVars" @change="setSurveyVars" />
 
-          <v-checkbox class="mt-0" v-model="item.allow_parallel_tasks">
+          <v-checkbox
+            class="mt-0"
+            v-model="item.allow_any_vars_in_task"
+            :label="$t('allow_any_vars_in_task')"
+            :hint="$t('allow_any_vars_in_task_hint')"
+            persistent-hint
+          />
+
+          <v-checkbox class="mt-4" v-model="item.allow_parallel_tasks">
             <template v-slot:label>
               {{ $t('allow_parallel_tasks') }}
             </template>

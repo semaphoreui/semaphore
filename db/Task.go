@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 
@@ -195,6 +196,89 @@ func (task *Task) ValidateNewTask(template Template) error {
 	}
 
 	return task.ExtractParams(params)
+}
+
+// parseTaskVars parses a task-supplied variable payload (Task.Environment or
+// Task.Secret) into a map. Numbers are decoded as json.Number so integer survey
+// variables can be checked without float rounding.
+func parseTaskVars(payload string, field string) (map[string]any, error) {
+	res := make(map[string]any)
+
+	if payload == "" {
+		return res, nil
+	}
+
+	dec := json.NewDecoder(strings.NewReader(payload))
+	dec.UseNumber()
+
+	if err := dec.Decode(&res); err != nil {
+		return nil, common_errors.NewValidationError("task " + field + " must be a JSON object")
+	}
+
+	return res, nil
+}
+
+// ValidateSurveyVars ensures that the variables supplied with the task are
+// declared in the template survey and match their declared type.
+//
+// Task variables are merged over the template environment and reach the app as
+// extra variables (--extra-vars for Ansible, -var for Terraform apps, arguments
+// for shell apps), where they take precedence over everything the template
+// author configured. Undeclared keys therefore let the requester change
+// settings the template never exposed — for Ansible that includes connection
+// options such as ansible_ssh_common_args, whose ProxyCommand runs on the
+// Semaphore server itself. Nobody may send them by default, which is also all
+// the UI ever sends; a template opts in to arbitrary variables with
+// AllowAnyVarsInTask.
+func (task *Task) ValidateSurveyVars(template Template) error {
+	if template.AllowAnyVarsInTask {
+		return nil
+	}
+
+	env, err := parseTaskVars(task.Environment, "environment")
+	if err != nil {
+		return err
+	}
+
+	secrets, err := parseTaskVars(task.Secret, "secret")
+	if err != nil {
+		return err
+	}
+
+	for name, value := range env {
+		v := template.GetSurveyVar(name)
+
+		if v == nil {
+			return undeclaredSurveyVarError(name)
+		}
+
+		// Secret variables belong to the secret payload, which is stored
+		// encrypted and masked in logs; accepting them here would persist the
+		// value in plaintext on the task row.
+		if v.Type == SurveyVarSecret {
+			return common_errors.NewValidationError(
+				"survey variable " + name + " must be sent in the task secret")
+		}
+
+		if err = v.ValidateValue(value); err != nil {
+			return err
+		}
+	}
+
+	for name := range secrets {
+		v := template.GetSurveyVar(name)
+
+		if v == nil || v.Type != SurveyVarSecret {
+			return undeclaredSurveyVarError(name)
+		}
+	}
+
+	return nil
+}
+
+func undeclaredSurveyVarError(name string) error {
+	return common_errors.NewValidationError(
+		"variable " + name + " is not declared in the template survey")
 }
 
 func (task *TaskWithTpl) Fill(d Store) error {
