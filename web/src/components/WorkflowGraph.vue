@@ -80,7 +80,14 @@ export default {
     const editor = new Drawflow(this.$refs.canvas);
     editor.reroute = false;
     editor.editor_mode = this.editable ? 'edit' : 'fixed';
+    // Replace Drawflow's built-in ctrl+wheel zoom with plain-wheel zoom anchored
+    // at the cursor. start() binds the container's wheel listener to zoom_enter,
+    // so the override must be assigned before start().
+    editor.zoom_enter = (ev) => this.onWheel(ev);
     editor.start();
+    // zoomAt() assumes the canvas scales about its top-left corner (Drawflow
+    // leaves the default 50% 50% origin).
+    editor.precanvas.style.transformOrigin = '0 0';
     // In 'fixed' mode Drawflow pans only when the container's classList[0] is
     // 'parent-drawflow' (added by start() above), so our styling class must come
     // after it rather than in the template.
@@ -264,8 +271,42 @@ export default {
       if (dfId != null) this.editor.removeNodeId(`node-${dfId}`);
     },
 
-    zoomIn() { this.editor.zoom_in(); },
-    zoomOut() { this.editor.zoom_out(); },
+    zoomIn() { this.zoomAtCenter(1); },
+    zoomOut() { this.zoomAtCenter(-1); },
+
+    onWheel(ev) {
+      ev.preventDefault();
+      this.zoomAt(ev.clientX, ev.clientY, ev.deltaY < 0 ? 1 : -1);
+    },
+
+    zoomAtCenter(dir) {
+      const rect = this.$refs.canvas.getBoundingClientRect();
+      this.zoomAt(rect.x + rect.width / 2, rect.y + rect.height / 2, dir);
+    },
+
+    // Zoom one step, keeping the canvas point under (clientX, clientY) stationary
+    // on screen.
+    zoomAt(clientX, clientY, dir) {
+      const editor = this.editor;
+      if (!editor) return;
+      const oldZoom = editor.zoom;
+      const stepped = oldZoom + dir * editor.zoom_value;
+      const newZoom = Math.round(
+        Math.min(editor.zoom_max, Math.max(editor.zoom_min, stepped)) * 100,
+      ) / 100;
+      if (newZoom === oldZoom) return;
+      const { x, y } = this.canvasCoords(clientX, clientY);
+      // With transform-origin 0 0: screen = canvasRect + zoom * canvasPoint, so
+      // shifting the translation by (old - new) * point cancels the scale change
+      // at the anchor.
+      editor.canvas_x += (oldZoom - newZoom) * x;
+      editor.canvas_y += (oldZoom - newZoom) * y;
+      editor.zoom = newZoom;
+      // zoom_refresh() rescales canvas_x/y by zoom/zoom_last_value; equalize them
+      // first so our values are applied verbatim (same trick as zoomReset()).
+      editor.zoom_last_value = newZoom;
+      editor.zoom_refresh();
+    },
     // Reset both zoom AND pan. Drawflow's zoom_reset() only restores zoom=1 and
     // keeps the canvas translation, so zero canvas_x/canvas_y as well.
     zoomReset() {
