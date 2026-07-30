@@ -95,6 +95,12 @@ func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.Secr
 	sourceStorageType := storage.SourceStorageType
 	sourceStorageKey := ""
 
+	if !pro.StorageRequiresSecret(storage) {
+		// The storage authenticates without credentials stored in Semaphore
+		// (for example an AWS IAM role), so no access key is created.
+		return s.secretStorageRepo.CreateSecretStorage(storage)
+	}
+
 	if storage.Secret == "" {
 		err = common_errors.NewUserErrorS("secret must be set")
 		return
@@ -150,6 +156,17 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 	}, db.RetrieveQueryParams{})
 
 	if err != nil {
+		return
+	}
+
+	if !pro.StorageRequiresSecret(storage) {
+		// The storage switched to ambient credentials (for example an AWS IAM
+		// role), so previously stored credentials are removed.
+		for _, key := range keys {
+			if err = s.accessKeyService.Delete(storage.ProjectID, key.ID); err != nil {
+				return
+			}
+		}
 		return
 	}
 

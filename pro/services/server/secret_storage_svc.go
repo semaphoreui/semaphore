@@ -9,6 +9,10 @@ func GetSecretStorages(repo db.SecretStorageRepository, projectID int) (storages
 	return
 }
 
+func StorageRequiresSecret(_ db.SecretStorage) bool {
+	return true
+}
+
 func SyncSecrets(
 	sync db.SecretSync,
 	storageRepo db.SecretStorageRepository,
