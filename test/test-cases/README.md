@@ -1,6 +1,6 @@
 # Semaphore UI — Manual QA Test Cases
 
-This directory contains 30 real-world manual test cases for Semaphore UI, covering
+This directory contains 31 real-world manual test cases for Semaphore UI, covering
 end-to-end behavior of the web UI and API across the major feature areas:
 authentication, projects, repositories, inventory, key store, variable groups,
 task templates, tasks, schedules, runners, integrations / webhooks, RBAC, and
@@ -55,3 +55,4 @@ notifications.
 | 28  | TC-028  | Runners           | [Tag-scoped task routing to matching runner](TC-028-runner-tags.md)            | Medium   |
 | 29  | TC-029  | Integrations      | [GitHub webhook + HMAC + matcher triggers template](TC-029-integration-github.md)| High |
 | 30  | TC-030  | RBAC              | [Invited user with `Task Runner` role cannot edit](TC-030-rbac-task-runner.md) | Critical |
+| 31  | TC-031  | Ansible / Galaxy  | [Galaxy install with private git roles (multi-key)](TC-031-ansible-galaxy-private-roles.md) | High     |
