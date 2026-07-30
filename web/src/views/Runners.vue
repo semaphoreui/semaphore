@@ -689,8 +689,7 @@ export default {
 
     runnerRegisterEnvCommand() {
       const advancedOptions = this.advancedOptions
-        ? `SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\
-`
+        ? `SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\\n`
         : '';
       return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
 SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
@@ -750,9 +749,11 @@ semaphore runner setup --config ./config.runner.json < /tmp/config.runner.stdin`
     },
 
     runnerEnvCommand() {
+      const advancedOptions = this.advancedOptions
+        ? `SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\\n`
+        : '';
       return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
-SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
-SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\
+${advancedOptions}SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
 semaphore runner start --no-config`;
     },
 
@@ -777,11 +778,13 @@ semaphore runner start --no-config`;
     },
 
     runnerDockerCommand() {
+      const advancedOptions = this.advancedOptions
+        ? `SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\\n`
+        : '';
       return `docker run \\
 -e SEMAPHORE_WEB_ROOT=${this.webHost} \\
 -e SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
--e SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\
--d semaphoreui/runner:${this.version}`;
+${advancedOptions}-d semaphoreui/runner:${this.version}`;
     },
   },
 
