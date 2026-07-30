@@ -53,3 +53,22 @@ func TestTemplateValidate_SurveyVarTarget(t *testing.T) {
 		})
 	}
 }
+
+func TestTemplateNormalizedExecutorImage(t *testing.T) {
+	t.Run("no override is stored as NULL", func(t *testing.T) {
+		for _, image := range []*string{nil, new(""), new("   ")} {
+			tpl := Template{ExecutorImage: image}
+			assert.Nil(t, tpl.NormalizedExecutorImage())
+		}
+	})
+
+	t.Run("override is stored trimmed", func(t *testing.T) {
+		tpl := Template{ExecutorImage: new(" my-registry/job:1 ")}
+		require.NotNil(t, tpl.NormalizedExecutorImage())
+		assert.Equal(t, "my-registry/job:1", *tpl.NormalizedExecutorImage())
+	})
+}
+
+func strPtr(s string) *string {
+	return &s
+}
