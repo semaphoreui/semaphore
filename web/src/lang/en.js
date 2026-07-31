@@ -434,6 +434,7 @@ export default {
   limit: 'Limit',
 
   runner_tag: 'Runner tag',
+  executor_image: 'Executor image',
   allow_parallel_tasks: 'Allow parallel tasks',
   allow_any_vars_in_task: 'Allow any variables in task',
   allow_any_vars_in_task_hint: 'By default a task can only set the survey variables '

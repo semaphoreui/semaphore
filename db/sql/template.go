@@ -28,12 +28,13 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 			"suppress_success_alerts, app, git_branch, runner_tag, task_params, "+
 			"allow_override_branch_in_task, allow_parallel_tasks, allow_any_vars_in_task, "+
 			"jwt_params)"+
+			"allow_override_branch_in_task, allow_parallel_tasks, allow_any_vars_in_task, jwt_params, executor_image)"+
 			"values ("+
 			"?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?,"+
-			"?, ?, ?, ?)",
+			"?, ?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -61,6 +62,7 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		template.AllowParallelTasks,
 		template.AllowAnyVarsInTask,
 		template.JWTParams,
+		template.NormalizedExecutorImage(),
 	)
 
 	if err != nil {
@@ -117,8 +119,9 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"runner_tag=?, "+
 		"allow_override_branch_in_task=?, "+
 		"allow_parallel_tasks=?, "+
-		"allow_any_vars_in_task=?, "+
-		"jwt_params=? "+
+    "allow_any_vars_in_task=?, "+
+		"jwt_params=?, "+
+		"executor_image=? "+
 		"where id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
@@ -142,6 +145,7 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.AllowParallelTasks,
 		template.AllowAnyVarsInTask,
 		template.JWTParams,
+		template.NormalizedExecutorImage(),
 
 		template.ID,
 		template.ProjectID,
@@ -284,6 +288,7 @@ func (d *SqlDb) getTemplates(
 		"pt.allow_override_branch_in_task",
 		"pt.allow_parallel_tasks",
 		"pt.jwt_params",
+		"pt.executor_image",
 		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id",
 	}
 
