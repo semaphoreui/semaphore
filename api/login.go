@@ -814,9 +814,7 @@ func getSecretFromFile(source string) (string, error) {
 // leading slash when webHost is empty, which would make the redirect relative to
 // the callback path instead of the web root.
 func oidcSuccessRedirectURL(webHost string, redirectPath string) (string, error) {
-	if !strings.HasPrefix(redirectPath, "/") {
-		redirectPath = "/" + redirectPath
-	}
+	redirectPath = "/" + strings.TrimLeft(redirectPath, "/")
 
 	if webHost == "" {
 		return redirectPath, nil
