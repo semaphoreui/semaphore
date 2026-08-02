@@ -329,9 +329,28 @@ export default {
         this.item[field] = v[field];
       });
 
-      this.editedEnvironment = JSON.parse(v.environment || '{}');
+      this.editedEnvironment = this.filterDeclaredVars(JSON.parse(v.environment || '{}'));
       this.editedSecretEnvironment = JSON.parse(v.secret || '{}');
       this.hasCommit = v.commit_hash != null;
+    },
+
+    // A re-run inherits the variables of the source task, which can contain keys
+    // the survey does not declare — a task created before the survey changed, or
+    // by an API client of a template which allows any variables. The API rejects
+    // undeclared variables unless the template allows them, and the form has no
+    // field for them anyway, so they are dropped here.
+    filterDeclaredVars(vars) {
+      const template = this.template || {};
+
+      if (template.allow_any_vars_in_task) {
+        return vars;
+      }
+
+      const declared = (template.survey_vars || []).map((v) => v.name);
+
+      return Object.fromEntries(
+        Object.entries(vars).filter(([name]) => declared.includes(name)),
+      );
     },
 
     isLoaded() {

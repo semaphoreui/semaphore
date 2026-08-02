@@ -436,6 +436,10 @@ export default {
   runner_tag: 'Runner tag',
   executor_image: 'Executor image',
   allow_parallel_tasks: 'Allow parallel tasks',
+  allow_any_vars_in_task: 'Allow any variables in task',
+  allow_any_vars_in_task_hint: 'By default a task can only set the survey variables '
+    + 'declared above. Enable this to let a task set any variable, which overrides '
+    + 'the template environment and the app settings.',
   jwt_enabled: 'Issue JWT to task runner',
   jwt_audience: 'JWT audience',
   jwt_audience_hint: 'Press Enter to add another audience value.',
