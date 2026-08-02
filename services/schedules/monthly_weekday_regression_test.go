@@ -14,6 +14,9 @@ import (
 // over several steps. The only permitted difference is that where ParseStandard
 // PANICS, the wrapper returns a clean error (never the reverse).
 func TestDiffSweep_NoRegressionVsParseStandard(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping ~23k-spec differential sweep in -short mode")
+	}
 	safe := func(fn func() (cron.Schedule, error)) (s cron.Schedule, err error, panicked bool) {
 		defer func() {
 			if r := recover(); r != nil {

@@ -108,6 +108,9 @@ func combos(loc *time.Location) []monthlyWeekdaySchedule {
 // independent oracle. Also feeds occurrence instants back in to exercise the
 // strict-after boundary.
 func TestMonthlyWeekday_Prop_BruteForceOracle(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping exhaustive oracle sweep in -short mode")
+	}
 	loc := time.UTC
 	refs := []time.Time{}
 	// Dense sampling across ~6 years, including odd hours/minutes and
@@ -144,6 +147,9 @@ func TestMonthlyWeekday_Prop_BruteForceOracle(t *testing.T) {
 // before t" assumption with the worst-case offsets and last/5th ordinals at
 // year rollover.
 func TestMonthlyWeekday_Prop_OneMonthBackSufficiency(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping two-year sufficiency sweep in -short mode")
+	}
 	loc := time.UTC
 	worst := []monthlyWeekdaySchedule{
 		{ordinal: ordinalLast, weekday: time.Friday, offsetDays: 28, hour: 23, minute: 59, loc: loc},
