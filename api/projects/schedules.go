@@ -117,13 +117,33 @@ func validateSchedulePayload(schedule *db.Schedule, w http.ResponseWriter) bool 
 	}
 }
 
+// scheduleValidateNextRuns is how many upcoming activations the validate
+// endpoint returns for the schedule form's preview.
+const scheduleValidateNextRuns = 5
+
 func ValidateScheduleCronFormat(w http.ResponseWriter, r *http.Request) {
 	var schedule db.Schedule
 	if !helpers.Bind(w, r, &schedule) {
 		return
 	}
 
-	_ = validateCronFormat(schedule.CronFormat, w)
+	if !validateCronFormat(schedule.CronFormat, w) {
+		return
+	}
+
+	// Return the next activations so the UI can show a backend-authoritative
+	// preview, including for descriptors (e.g. @monthly-weekday) that the
+	// frontend cron parser cannot evaluate. A parse failure here cannot happen
+	// after a successful validation, but degrade to an empty list rather than
+	// failing the request if it somehow does.
+	nextRuns, err := schedules.NextRunTimes(schedule.CronFormat, scheduleValidateNextRuns)
+	if err != nil {
+		nextRuns = []time.Time{}
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"next_run": nextRuns,
+	})
 }
 
 // AddSchedule adds a template to the database

@@ -205,7 +205,80 @@
           </div>
         </div>
 
-        <div>
+        <div v-if="timing === 'monthlyWeekday'">
+          <div class="d-flex mt-4" style="gap: 12px;">
+            <v-select
+              v-model="mwOrdinal"
+              :items="ORDINALS"
+              item-value="id"
+              item-text="title"
+              label="Occurrence"
+              :disabled="formSaving"
+              @change="refreshCron()"
+              outlined
+              hide-details
+              dense
+            />
+            <v-select
+              v-model="mwWeekday"
+              :items="WEEKDAYS"
+              item-value="id"
+              item-text="title"
+              label="Weekday"
+              :disabled="formSaving"
+              @change="refreshCron()"
+              outlined
+              hide-details
+              dense
+            />
+            <v-text-field
+              v-model.number="mwOffset"
+              type="number"
+              label="Offset (days)"
+              hint="e.g. Second Tuesday + 1 = first Wednesday after Patch Tuesday"
+              persistent-hint
+              :disabled="formSaving"
+              @input="refreshCron()"
+              outlined
+              dense
+            />
+          </div>
+
+          <div class="mt-4 d-flex justify-space-between">
+            <span>Hours</span>
+            <b style="color: red;">{{ timezone + ' time' }}</b>
+          </div>
+          <div class="d-flex flex-wrap">
+            <v-checkbox
+              class="mr-2 mt-0 ScheduleCheckbox"
+              v-for="h in 24"
+              :key="h - 1"
+              :value="h - 1"
+              :label="`${h - 1}`"
+              v-model="mwHours"
+              color="white"
+              :class="{'ScheduleCheckbox--active': mwHours.includes(h - 1)}"
+              @change="selectMwHour()"
+            ></v-checkbox>
+          </div>
+
+          <div class="mt-4">Minutes</div>
+          <div class="d-flex flex-wrap">
+            <v-checkbox
+              class="mr-2 mt-0 ScheduleCheckbox"
+              v-for="m in MINUTES"
+              :key="m.id"
+              :value="m.id"
+              :label="m.title"
+              v-model="mwMinutes"
+              color="white"
+              :class="{'ScheduleCheckbox--active': mwMinutes.includes(m.id)}"
+              @change="selectMwMinute()"
+            ></v-checkbox>
+          </div>
+        </div>
+
+        <div v-if="timing !== 'monthlyWeekday'">
           <div class="mt-4">Minutes</div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -368,6 +441,9 @@ const TIMINGS = [{
   id: 'monthly',
   title: 'Monthly',
 }, {
+  id: 'monthlyWeekday',
+  title: 'Monthly (by weekday)',
+}, {
   id: 'weekly',
   title: 'Weekly',
 }, {
@@ -377,6 +453,21 @@ const TIMINGS = [{
   id: 'hourly',
   title: 'Hourly',
 }];
+
+// Ordinals for the "Monthly (by weekday)" builder. 'last' selects the final
+// occurrence of the weekday in the month.
+const ORDINALS = [
+  { id: 1, title: 'First' },
+  { id: 2, title: 'Second' },
+  { id: 3, title: 'Third' },
+  { id: 4, title: 'Fourth' },
+  { id: 5, title: 'Fifth' },
+  { id: 'last', title: 'Last' },
+];
+
+// Short weekday names understood by the @monthly-weekday descriptor, indexed by
+// the same ids the WEEKDAYS list uses (0 = Sunday).
+const WEEKDAY_NAMES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 const WEEKDAYS = [{
   id: 0,
@@ -468,6 +559,7 @@ export default {
       templates: null,
       timing: 'hourly',
       TIMINGS,
+      ORDINALS,
       MONTHS,
       WEEKDAYS,
       MINUTES,
@@ -476,6 +568,18 @@ export default {
       days: [],
       months: [],
       weekdays: [],
+      // "Monthly (by weekday)" builder state. Hour/minute are single-element
+      // arrays so they can reuse the same chip grids as the other timings while
+      // the descriptor still carries exactly one time of day.
+      mwOrdinal: 1,
+      mwWeekday: 1,
+      mwOffset: 0,
+      mwHours: [0],
+      mwMinutes: [0],
+      // Backend-computed upcoming activations, used for the "Next run time"
+      // preview of formats the JS cron parser cannot evaluate (e.g. the
+      // @monthly-weekday descriptor).
+      backendNextRuns: [],
       rawCron: false,
       disableRawCron: false,
       showInfo: true,
@@ -603,13 +707,19 @@ export default {
           tz: this.timezone,
         }).next().toDate();
       } catch {
+        // Formats the JS cron parser cannot evaluate (e.g. the
+        // @monthly-weekday descriptor) fall back to the backend-computed
+        // preview populated by validateCronFormat().
+        if (this.backendNextRuns.length > 0) {
+          return this.backendNextRuns[0];
+        }
         return null;
       }
     },
 
     async validateCronFormat(cronFormat) {
       try {
-        await axios({
+        const res = await axios({
           method: 'post',
           url: `/api/project/${this.projectId}/schedules/validate`,
           responseType: 'json',
@@ -618,10 +728,78 @@ export default {
             cron_format: cronFormat,
           },
         });
+        const runs = (res.data && res.data.next_run) || [];
+        this.backendNextRuns = runs
+          .map((s) => new Date(s))
+          .filter((d) => !Number.isNaN(d.getTime()));
         return null;
       } catch (err) {
+        this.backendNextRuns = [];
         return getErrorMessage(err);
       }
+    },
+
+    weekdayName(id) {
+      return WEEKDAY_NAMES[id] ?? 'sun';
+    },
+
+    // The hour/minute chip grids are single-select for this timing (the
+    // descriptor carries one time of day), so keep only the most recent pick.
+    selectMwHour() {
+      if (this.mwHours.length > 1) {
+        this.mwHours = this.mwHours.slice(-1);
+      }
+      this.refreshCron();
+    },
+
+    selectMwMinute() {
+      if (this.mwMinutes.length > 1) {
+        this.mwMinutes = this.mwMinutes.slice(-1);
+      }
+      this.refreshCron();
+    },
+
+    // buildMonthlyWeekday renders the current builder state into a
+    // @monthly-weekday descriptor string.
+    buildMonthlyWeekday() {
+      const offset = Number.isFinite(this.mwOffset) ? this.mwOffset : 0;
+      let s = `@monthly-weekday ${this.mwOrdinal} ${this.weekdayName(this.mwWeekday)}`;
+      if (offset !== 0) {
+        s += ` offset ${offset}`;
+      }
+      const hour = this.mwHours.length ? this.mwHours[this.mwHours.length - 1] : 0;
+      const minute = this.mwMinutes.length ? this.mwMinutes[this.mwMinutes.length - 1] : 0;
+      s += ` at ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      return s;
+    },
+
+    // parseMonthlyWeekday loads a descriptor into the builder state and selects
+    // the monthlyWeekday timing. Returns false if the string is not a
+    // recognisable descriptor, so the caller can fall back to the cron parser.
+    parseMonthlyWeekday(s) {
+      const m = /^@monthly-weekday\s+(\S+)\s+(\S+)(.*)$/i.exec((s || '').trim());
+      if (!m) {
+        return false;
+      }
+
+      const ord = m[1].toLowerCase();
+      const weekday = WEEKDAY_NAMES.indexOf(m[2].toLowerCase().slice(0, 3));
+      if (weekday < 0) {
+        return false;
+      }
+      this.mwOrdinal = ord === 'last' ? 'last' : parseInt(ord, 10);
+      this.mwWeekday = weekday;
+
+      const rest = m[3] || '';
+      const offMatch = /offset\s+(-?\d+)/i.exec(rest);
+      this.mwOffset = offMatch ? parseInt(offMatch[1], 10) : 0;
+
+      const atMatch = /at\s+(\d{1,2}):(\d{2})/i.exec(rest);
+      this.mwHours = [atMatch ? parseInt(atMatch[1], 10) : 0];
+      this.mwMinutes = [atMatch ? parseInt(atMatch[2], 10) : 0];
+
+      this.timing = 'monthlyWeekday';
+      return true;
     },
 
     async refreshCheckboxes() {
@@ -652,6 +830,12 @@ export default {
         this.cronFormatError = cronError;
         this.rawCron = true;
         this.disableRawCron = true;
+        return;
+      }
+
+      // The @monthly-weekday descriptor has its own builder and is not
+      // understood by the JS cron parser; load it directly.
+      if (this.parseMonthlyWeekday(cronFormat)) {
         return;
       }
 
@@ -766,6 +950,13 @@ export default {
     },
 
     refreshCron() {
+      if (this.timing === 'monthlyWeekday') {
+        this.item.cron_format = this.buildMonthlyWeekday();
+        // Refresh the backend-authoritative preview for the descriptor.
+        this.validateCronFormat(this.item.cron_format);
+        return;
+      }
+
       const fields = {};
 
       switch (this.timing) {

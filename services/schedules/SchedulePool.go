@@ -252,7 +252,11 @@ func (p *SchedulePool) init() {
 	if err != nil {
 		panic(err)
 	}
-	p.cron = cron.New(cron.WithLocation(loc))
+	// WithParser installs the Semaphore cron grammar: the monthly-weekday
+	// descriptor plus a standard fallback. The same parser backs
+	// ValidateCronFormat, so an expression that validates is exactly one that
+	// fires.
+	p.cron = cron.New(cron.WithLocation(loc), cron.WithParser(newCronParser()))
 	p.locker = &sync.Mutex{}
 }
 
@@ -404,6 +408,6 @@ func CreateSchedulePool(
 }
 
 func ValidateCronFormat(cronFormat string) error {
-	_, err := cron.ParseStandard(cronFormat)
+	_, err := newCronParser().Parse(cronFormat)
 	return err
 }
