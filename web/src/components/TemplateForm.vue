@@ -377,7 +377,7 @@
               </template>
             </v-checkbox>
 
-            <DropdownCard v-if="item.jwt_params.enabled">
+            <DropdownCard v-if="item.jwt_params.enabled" no-bottom-padding>
               <v-combobox
                 v-model="item.jwt_params.audience"
                 :label="$t('jwt_audience')"
