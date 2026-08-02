@@ -299,6 +299,8 @@ import AppsMixin from '@/components/AppsMixin';
 dayjs.extend(utc);
 dayjs.extend(timezonePlugin);
 
+const EMPTY_SCHEDULES = Object.freeze([]);
+
 export default {
   components: {
     EditTemplateDialog,
@@ -350,6 +352,16 @@ export default {
         return null;
       }
       return this.items.find((x) => x.id === this.itemId);
+    },
+
+    schedulesByTemplateId() {
+      return (this.schedules || []).reduce((acc, s) => {
+        if (acc[s.template_id] == null) {
+          acc[s.template_id] = [];
+        }
+        acc[s.template_id].push(s);
+        return acc;
+      }, {});
     },
 
     isLoaded() {
@@ -409,7 +421,7 @@ export default {
     },
 
     getTemplateSchedules(item) {
-      return (this.schedules || []).filter((s) => s.template_id === item.id);
+      return this.schedulesByTemplateId[item.id] || EMPTY_SCHEDULES;
     },
 
     formatRunAt(schedule) {
