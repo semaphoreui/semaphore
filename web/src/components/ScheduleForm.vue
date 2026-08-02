@@ -234,13 +234,15 @@
             <v-text-field
               v-model.number="mwOffset"
               type="number"
+              min="-28"
+              max="28"
               label="Offset (days)"
               hint="e.g. Second Tuesday + 1 = first Wednesday after Patch Tuesday"
               persistent-hint
               :disabled="formSaving"
               :error="cronFormatError != null"
               :error-messages="cronFormatError"
-              @input="refreshCron()"
+              @change="refreshCron()"
               outlined
               dense
             />
