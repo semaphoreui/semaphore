@@ -121,6 +121,8 @@ func validateSchedulePayload(schedule *db.Schedule, w http.ResponseWriter) bool 
 // endpoint returns for the schedule form's preview.
 const scheduleValidateNextRuns = 5
 
+// ValidateScheduleCronFormat validates a schedule's cron_format and, when it is
+// valid, returns the next few run times so the form can preview them.
 func ValidateScheduleCronFormat(w http.ResponseWriter, r *http.Request) {
 	var schedule db.Schedule
 	if !helpers.Bind(w, r, &schedule) {

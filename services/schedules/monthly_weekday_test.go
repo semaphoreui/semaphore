@@ -210,6 +210,8 @@ func TestMonthlyWeekday_AmbientTimezone(t *testing.T) {
 	assert.Equal(t, "EST", next.In(ny).Format("MST"))
 }
 
+// mustParseAmbient parses a descriptor with no pinned timezone (evaluated in the
+// ambient location) and fails the test if it is rejected.
 func mustParseAmbient(t *testing.T, spec string) monthlyWeekdaySchedule {
 	t.Helper()
 	sched, err := parseMonthlyWeekday(spec, nil)

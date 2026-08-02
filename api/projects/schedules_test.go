@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// setupScheduleConfig points util.Config.Schedule at a fixed timezone for the
+// test and restores the previous value afterwards.
 func setupScheduleConfig(t *testing.T) {
 	t.Helper()
 	if util.Config == nil {
@@ -23,6 +25,7 @@ func setupScheduleConfig(t *testing.T) {
 	util.Config.Schedule = &util.ScheduleConfig{Timezone: "UTC"}
 }
 
+// postValidate posts body to the validate handler and returns the recorder.
 func postValidate(t *testing.T, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, "/api/project/1/schedules/validate", strings.NewReader(body))

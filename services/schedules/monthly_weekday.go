@@ -286,6 +286,7 @@ func parseWeekday(s string) (time.Weekday, error) {
 	}
 }
 
+// parseOffset reads the signed day offset and rejects anything beyond ±28 days.
 func parseOffset(s string) (int, error) {
 	n, err := strconv.Atoi(s)
 	if err != nil {
@@ -297,6 +298,8 @@ func parseOffset(s string) (int, error) {
 	return n, nil
 }
 
+// parseHourMinute reads a canonical 24-hour "HH:MM", rejecting ambiguous forms
+// like "9:5" and out-of-range values.
 func parseHourMinute(s string) (hour int, minute int, err error) {
 	h, m, ok := strings.Cut(s, ":")
 	// Require a canonical 24-hour HH:MM: a 1-2 digit hour and an exactly

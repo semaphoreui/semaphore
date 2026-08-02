@@ -285,6 +285,8 @@ func TestMonthlyWeekday_Prop_ValidatePreviewMatchesFire(t *testing.T) {
 
 // ---- delegation is a pure superset of ParseStandard ------------------------
 
+// safeParse runs fn and reports whether it panicked, so a panic becomes a
+// comparable outcome instead of a test failure.
 func safeParse(fn func() (cron.Schedule, error)) (sched cron.Schedule, err error, panicked bool) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -296,6 +298,8 @@ func safeParse(fn func() (cron.Schedule, error)) (sched cron.Schedule, err error
 	return
 }
 
+// TestMonthlyWeekday_Prop_DelegationParity checks the wrapper accepts, rejects
+// and schedules ordinary cron expressions exactly like cron.ParseStandard.
 func TestMonthlyWeekday_Prop_DelegationParity(t *testing.T) {
 	p := newCronParser()
 	specs := []string{
@@ -406,6 +410,8 @@ func TestMonthlyWeekday_Prop_OldValidatePanicked(t *testing.T) {
 
 // ---- grammar fuzzing: no panic, only in-range accepts ----------------------
 
+// TestMonthlyWeekday_Prop_GrammarNoPanicAndClassify feeds hostile inputs to the
+// grammar: none may panic, and every accepted one yields in-range fields.
 func TestMonthlyWeekday_Prop_GrammarNoPanicAndClassify(t *testing.T) {
 	cases := []string{
 		"@monthly-weekday 99999999999999999999 wed",
@@ -471,6 +477,7 @@ func TestMonthlyWeekday_Prop_GrammarNoPanicAndClassify(t *testing.T) {
 
 // ---- helpers --------------------------------------------------------------
 
+// descOf renders a schedule as a short string for failure messages.
 func descOf(s monthlyWeekdaySchedule) string {
 	ord := fmt.Sprintf("%d", s.ordinal)
 	if s.ordinal == ordinalLast {
@@ -483,6 +490,7 @@ func descOf(s monthlyWeekdaySchedule) string {
 	return fmt.Sprintf("@mw ord=%s wd=%v off=%d %02d:%02d [%s]", ord, s.weekday, s.offsetDays, s.hour, s.minute, z)
 }
 
+// fmtT formats a time for failure messages, or "<zero>" for the zero time.
 func fmtT(t time.Time) string {
 	if t.IsZero() {
 		return "<zero>"
