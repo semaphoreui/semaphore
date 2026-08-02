@@ -238,6 +238,8 @@
               hint="e.g. Second Tuesday + 1 = first Wednesday after Patch Tuesday"
               persistent-hint
               :disabled="formSaving"
+              :error="cronFormatError != null"
+              :error-messages="cronFormatError"
               @input="refreshCron()"
               outlined
               dense
@@ -728,12 +730,18 @@ export default {
             cron_format: cronFormat,
           },
         });
+        if (cronFormat !== this.item.cron_format) {
+          return null; // stale response — a newer value is already in flight
+        }
         const runs = (res.data && res.data.next_run) || [];
         this.backendNextRuns = runs
           .map((s) => new Date(s))
           .filter((d) => !Number.isNaN(d.getTime()));
         return null;
       } catch (err) {
+        if (cronFormat !== this.item.cron_format) {
+          return null; // stale response — ignore
+        }
         this.backendNextRuns = [];
         return getErrorMessage(err);
       }
@@ -949,11 +957,17 @@ export default {
       return /^[^*]\S*\s\S+\s\S+\s\S+\s\S+$/.test(s);
     },
 
-    refreshCron() {
+    async refreshCron() {
       if (this.timing === 'monthlyWeekday') {
-        this.item.cron_format = this.buildMonthlyWeekday();
-        // Refresh the backend-authoritative preview for the descriptor.
-        this.validateCronFormat(this.item.cron_format);
+        const cronFormat = this.buildMonthlyWeekday();
+        this.item.cron_format = cronFormat;
+        // Backend-authoritative preview; a rejection (reachable through the
+        // free-input offset) must surface, not silently blank the preview.
+        const cronError = await this.validateCronFormat(cronFormat);
+        if (cronFormat !== this.item.cron_format) {
+          return; // the value changed while validating, ignore stale result
+        }
+        this.cronFormatError = cronError;
         return;
       }
 

@@ -41,7 +41,7 @@ func nthWeekdayOfMonth(year int, month time.Month, wd time.Weekday, ordinal int,
 }
 
 // oracleNext computes the true next activation strictly after t by enumerating
-// every candidate anchor over a wide window (t-3 months .. t+16 months),
+// every candidate anchor over a wide window (t-2 months .. t+9 months),
 // applying the SAME fire formula the spec defines (anchor at H:M, then AddDate
 // offset), and taking the minimum instant strictly after t.
 func oracleNext(s monthlyWeekdaySchedule, t time.Time) time.Time {
