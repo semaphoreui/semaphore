@@ -792,25 +792,44 @@ export default {
         return false;
       }
 
-      const ord = m[1].toLowerCase();
+      const ordRaw = m[1].toLowerCase();
       const weekday = WEEKDAY_NAMES.indexOf(m[2].toLowerCase().slice(0, 3));
       if (weekday < 0) {
         return false;
       }
-      this.mwOrdinal = ord === 'last' ? 'last' : parseInt(ord, 10);
+
+      let ordinal;
+      if (ordRaw === 'last') {
+        ordinal = 'last';
+      } else {
+        const n = parseInt(ordRaw, 10);
+        if (!Number.isFinite(n) || n < 1 || n > 5) {
+          return false;
+        }
+        ordinal = n;
+      }
+      this.mwOrdinal = ordinal;
       this.mwWeekday = weekday;
 
       const rest = m[3] || '';
       const offMatch = /offset\s+(-?\d+)/i.exec(rest);
-      this.mwOffset = offMatch ? parseInt(offMatch[1], 10) : 0;
+      const off = offMatch ? parseInt(offMatch[1], 10) : 0;
+      if (!Number.isFinite(off) || off < -28 || off > 28) {
+        return false;
+      }
+      this.mwOffset = off;
 
       const atMatch = /at\s+(\d{1,2}):(\d{2})/i.exec(rest);
-      this.mwHours = [atMatch ? parseInt(atMatch[1], 10) : 0];
-      this.mwMinutes = [atMatch ? parseInt(atMatch[2], 10) : 0];
+      const hour = atMatch ? parseInt(atMatch[1], 10) : 0;
+      const minute = atMatch ? parseInt(atMatch[2], 10) : 0;
+      if (!Number.isFinite(hour) || hour < 0 || hour > 23 || !Number.isFinite(minute) || minute < 0 || minute > 59) {
+        return false;
+      }
+      this.mwHours = [hour];
+      this.mwMinutes = [minute];
 
       this.timing = 'monthlyWeekday';
       return true;
-    },
 
     async refreshCheckboxes() {
       if (this.type === 'run_at') {
