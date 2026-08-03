@@ -102,7 +102,7 @@
           close
           @click:close="deleteItem(v.name, index)"
         >
-          {{ item.name }}
+          {{ item && item.name ? item.name : String(item) }}
         </v-chip>
       </template>
     </v-select>
