@@ -822,7 +822,9 @@ export default {
       const atMatch = /at\s+(\d{1,2}):(\d{2})/i.exec(rest);
       const hour = atMatch ? parseInt(atMatch[1], 10) : 0;
       const minute = atMatch ? parseInt(atMatch[2], 10) : 0;
-      if (!Number.isFinite(hour) || hour < 0 || hour > 23 || !Number.isFinite(minute) || minute < 0 || minute > 59) {
+      const badHour = !Number.isFinite(hour) || hour < 0 || hour > 23;
+      const badMinute = !Number.isFinite(minute) || minute < 0 || minute > 59;
+      if (badHour || badMinute) {
         return false;
       }
       this.mwHours = [hour];
@@ -830,6 +832,7 @@ export default {
 
       this.timing = 'monthlyWeekday';
       return true;
+    },
 
     async refreshCheckboxes() {
       if (this.type === 'run_at') {
