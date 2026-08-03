@@ -22,7 +22,8 @@
         :hint="v.description"
         v-model="editedEnvironment[v.name]"
         :required="v.required"
-        :rules="[(val) => !v.required || val != null || v.title + ' ' + $t('isRequired')]"
+        :rules="[(val) => !v.required || (Array.isArray(val) ? val.length > 0 : val != null) ||
+         v.title + ' ' + $t('isRequired')]"
         :items="v.values"
         item-text="name"
         item-value="value"
