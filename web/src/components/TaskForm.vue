@@ -80,7 +80,7 @@
 
       <v-select
         clearable
-        v-else-if="v.type === 'enum'"
+        v-else-if="v.type === 'enum' || v.type === 'select'"
         :label="v.title + (v.required ? ' *' : '')"
         :hint="v.description"
         v-model="editedEnvironment[v.name]"
@@ -93,7 +93,19 @@
         item-value="value"
         outlined
         dense
-      />
+        :multiple="v.type === 'select'"
+        :chips="v.type === 'select'"
+      >
+      <template v-if="v.type === 'select'" v-slot:selection="{ item, index }">
+        <v-chip
+          small
+          close
+          @click:close="deleteItem(v.name, index)"
+        >
+          {{ item.name }}
+        </v-chip>
+      </template>
+    </v-select>
 
       <v-textarea
         v-else-if="v.type === 'text'"
@@ -302,6 +314,12 @@ export default {
 
     setArgs(args) {
       this.item.arguments = JSON.stringify(args || []);
+    },
+
+    deleteItem(name, index) {
+      if (Array.isArray(this.editedEnvironment?.[name])) {
+        this.editedEnvironment[name].splice(index, 1);
+      }
     },
 
     getTaskMessage(task) {

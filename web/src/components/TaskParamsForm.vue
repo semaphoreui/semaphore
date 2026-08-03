@@ -17,7 +17,7 @@
 
       <v-select
         clearable
-        v-else-if="v.type === 'enum'"
+        v-else-if="v.type === 'enum' || v.type === 'select'"
         :label="v.title + (v.required ? ' *' : '')"
         :hint="v.description"
         v-model="editedEnvironment[v.name]"
@@ -26,9 +26,21 @@
         :items="v.values"
         item-text="name"
         item-value="value"
+        :multiple="v.type === 'select'"
+        :chips="v.type === 'select'"
         outlined
         dense
-      />
+      >
+        <template v-if="v.type === 'select'" v-slot:selection="{ item, index }">
+          <v-chip
+            small
+            close
+            @click:close="removeSelectedItem(v.name, index)"
+          >
+            {{ item.name }}
+          </v-chip>
+        </template>
+      </v-select>
 
       <v-textarea
         v-else-if="v.type === 'text'"
@@ -259,6 +271,18 @@ export default {
 
       this.editedEnvironment = JSON.parse(v.environment || '{}');
       this.editedSecretEnvironment = JSON.parse(v.secret || '{}');
+
+      // Normalize select type variables to ensure they are arrays
+      if (this.template && this.template.survey_vars) {
+        this.template.survey_vars.forEach((surveyVar) => {
+          if (surveyVar.type === 'select' && this.editedEnvironment[surveyVar.name] !== undefined) {
+            const currentValue = this.editedEnvironment[surveyVar.name];
+            if (!Array.isArray(currentValue)) {
+              this.editedEnvironment[surveyVar.name] = currentValue == null || currentValue === '' ? [] : [currentValue];
+            }
+          }
+        });
+      }
     },
 
     isLoaded() {
@@ -320,10 +344,14 @@ export default {
           {},
         );
 
-      this.editedEnvironment = {
-        ...defaultVars,
-        ...this.editedEnvironment,
-      };
+      this.editedEnvironment = { ...defaultVars, ...this.editedEnvironment };
+
+      // Ensure select type variables without values are initialized as empty arrays
+      (this.template.survey_vars || []).forEach((surveyVar) => {
+        if (surveyVar.type === 'select' && this.editedEnvironment[surveyVar.name] === undefined) {
+          this.editedEnvironment[surveyVar.name] = [];
+        }
+      });
     },
 
     getInventoryUrl() {
@@ -337,6 +365,17 @@ export default {
           break;
       }
       return res;
+    },
+
+    removeSelectedItem(varName, index) {
+      const env = this.editedEnvironment;
+      if (!Object.prototype.hasOwnProperty.call(env, varName) || !Array.isArray(env[varName])) {
+        return;
+      }
+
+      if (index < env[varName].length) {
+        env[varName].splice(index, 1);
+      }
     },
   },
 };
