@@ -349,8 +349,12 @@ export default {
 
       // Ensure select type variables without values are initialized as empty arrays
       (this.template.survey_vars || []).forEach((surveyVar) => {
-        if (surveyVar.type === 'select' && this.editedEnvironment[surveyVar.name] === undefined) {
+        if (surveyVar.type !== 'select') return;
+        const cur = this.editedEnvironment[surveyVar.name];
+        if (cur == null || cur === '') {
           this.editedEnvironment[surveyVar.name] = [];
+        } else if (!Array.isArray(cur)) {
+          this.editedEnvironment[surveyVar.name] = [cur];
         }
       });
     },
