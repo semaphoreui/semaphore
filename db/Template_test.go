@@ -69,6 +69,124 @@ func TestTemplateNormalizedExecutorImage(t *testing.T) {
 	})
 }
 
+func TestSurveyVarDefaultValue_JSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantArray bool
+		wantVals  []string
+		wantOut   string
+	}{
+		{"null", `null`, false, nil, `null`},
+		{"scalar string", `"x"`, false, []string{"x"}, `"x"`},
+		{"empty string", `""`, false, []string{""}, `""`},
+		{"single-element array", `["x"]`, true, []string{"x"}, `["x"]`},
+		{"multi-element array", `["x","y"]`, true, []string{"x", "y"}, `["x","y"]`},
+		{"empty array", `[]`, true, []string{}, `[]`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var d SurveyVarDefaultValue
+			require.NoError(t, json.Unmarshal([]byte(tt.input), &d))
+			assert.Equal(t, tt.wantArray, d.IsArray())
+			assert.Equal(t, tt.wantVals, d.Values)
+
+			out, err := json.Marshal(d)
+			require.NoError(t, err)
+			assert.JSONEq(t, tt.wantOut, string(out))
+		})
+	}
+}
+
+func TestSurveyVarDefaultValue_JSONRoundTrip_RejectsNonString(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"number", `42`},
+		{"array of numbers", `[1,2,3]`},
+		{"object", `{"k":"v"}`},
+		{"bool", `true`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var d SurveyVarDefaultValue
+			assert.Error(t, json.Unmarshal([]byte(tt.input), &d))
+		})
+	}
+}
+
+func TestValidateSurveyVar(t *testing.T) {
+	strVal := func(s string) *SurveyVarDefaultValue {
+		return &SurveyVarDefaultValue{Values: []string{s}}
+	}
+	arrVal := func(s ...string) *SurveyVarDefaultValue {
+		return &SurveyVarDefaultValue{Values: s, originalWasArray: true}
+	}
+	enumValues := []SurveyVarEnumValue{{Name: "A", Value: "a"}, {Name: "B", Value: "b"}}
+
+	tests := []struct {
+		name    string
+		v       SurveyVar
+		wantErr string // substring; empty = no error
+	}{
+		// --- select type ---
+		{"select: nil default ok", SurveyVar{Name: "V", Type: SurveyVarSelect, Values: enumValues}, ""},
+		{"select: empty array ok", SurveyVar{Name: "V", Type: SurveyVarSelect, Values: enumValues, DefaultValue: arrVal()}, ""},
+		{"select: single value in list ok", SurveyVar{Name: "V", Type: SurveyVarSelect, Values: enumValues, DefaultValue: arrVal("a")}, ""},
+		{"select: multi values in list ok", SurveyVar{Name: "V", Type: SurveyVarSelect, Values: enumValues, DefaultValue: arrVal("a", "b")}, ""},
+		{"select: legacy scalar ok (backward compat)", SurveyVar{Name: "V", Type: SurveyVarSelect, Values: enumValues, DefaultValue: strVal("a")}, ""},
+		{"select: value not in list rejected", SurveyVar{Name: "V", Type: SurveyVarSelect, Values: enumValues, DefaultValue: arrVal("zzz")}, "not in values list"},
+		{"select: one of multi not in list rejected", SurveyVar{Name: "V", Type: SurveyVarSelect, Values: enumValues, DefaultValue: arrVal("a", "zzz")}, "not in values list"},
+		{"select: legacy multi-scalar rejected", SurveyVar{Name: "V", Type: SurveyVarSelect, Values: enumValues, DefaultValue: &SurveyVarDefaultValue{Values: []string{"a", "b"}}}, "must be an array"},
+
+		// --- enum type ---
+		{"enum: nil default ok", SurveyVar{Name: "V", Type: SurveyVarEnum, Values: enumValues}, ""},
+		{"enum: scalar in list ok", SurveyVar{Name: "V", Type: SurveyVarEnum, Values: enumValues, DefaultValue: strVal("a")}, ""},
+		{"enum: scalar not in list rejected", SurveyVar{Name: "V", Type: SurveyVarEnum, Values: enumValues, DefaultValue: strVal("zzz")}, "not in values list"},
+		{"enum: array of one ok (lenient)", SurveyVar{Name: "V", Type: SurveyVarEnum, Values: enumValues, DefaultValue: arrVal("a")}, ""},
+		{"enum: array of multi rejected", SurveyVar{Name: "V", Type: SurveyVarEnum, Values: enumValues, DefaultValue: arrVal("a", "b")}, "must be a string for enum"},
+
+		// --- string / int / text / secret types ---
+		{"string: nil default ok", SurveyVar{Name: "V", Type: SurveyVarStr}, ""},
+		{"string: scalar ok", SurveyVar{Name: "V", Type: SurveyVarStr, DefaultValue: strVal("hello")}, ""},
+		{"string: array of one ok (lenient)", SurveyVar{Name: "V", Type: SurveyVarStr, DefaultValue: arrVal("hello")}, ""},
+		{"string: array of multi rejected", SurveyVar{Name: "V", Type: SurveyVarStr, DefaultValue: arrVal("a", "b")}, "must be a string for type"},
+		{"int: scalar ok", SurveyVar{Name: "V", Type: SurveyVarInt, DefaultValue: strVal("42")}, ""},
+		{"int: array of multi rejected", SurveyVar{Name: "V", Type: SurveyVarInt, DefaultValue: arrVal("1", "2")}, "must be a string for type"},
+		{"text: scalar ok", SurveyVar{Name: "V", Type: SurveyVarText, DefaultValue: strVal("long text")}, ""},
+		{"secret: scalar ok", SurveyVar{Name: "V", Type: SurveyVarText, DefaultValue: strVal("s3cr3t")}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateSurveyVar(tt.v)
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestTemplateValidate_SurveyVarDefaultValue(t *testing.T) {
+	// Validate() must surface ValidateSurveyVar errors end-to-end.
+	tpl := Template{
+		Name:       "test",
+		Playbook:   "playbook.yml",
+		SurveyVars: []SurveyVar{
+			{
+				Name:         "BAD",
+				Title:        "Bad",
+				Type:         SurveyVarStr,
+				DefaultValue: &SurveyVarDefaultValue{Values: []string{"a", "b"}, originalWasArray: true},
+			},
+		},
+	}
+	err := tpl.Validate()
+	assert.ErrorContains(t, err, "must be a string for type")
+}
+
 func strPtr(s string) *string {
 	return &s
 }
