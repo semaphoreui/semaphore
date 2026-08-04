@@ -65,7 +65,7 @@ func getAdminInfo(w http.ResponseWriter, r *http.Request) {
 	// Runners
 	runnersInfo := map[string]any{
 		"use_remote_runner":          util.Config.IsUseRemoteRunner(),
-		"default_global_runner_mode": util.Config.Runners.DefaultGlobalRunnersMode,
+		"default_global_runner_mode": util.Config.DefaultGlobalRunnersMode(),
 	}
 
 	// Task settings
