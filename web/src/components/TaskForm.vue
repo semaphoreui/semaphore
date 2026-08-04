@@ -351,6 +351,8 @@ export default {
       this.editedEnvironment = JSON.parse(v.environment || '{}');
       this.editedSecretEnvironment = JSON.parse(v.secret || '{}');
       this.hasCommit = v.commit_hash != null;
+
+      this.normalizeSelectValues();  
     },
 
     isLoaded() {
@@ -422,6 +424,8 @@ export default {
         ...defaultVars,
         ...this.editedEnvironment,
       };
+
+      this.normalizeSelectValues(); 
     },
 
     getInventoryUrl() {
@@ -439,6 +443,19 @@ export default {
 
     getItemsUrl() {
       return `/api/project/${this.projectId}/tasks`;
+    },
+
+    normalizeSelectValues() {
+      if (!this.template || !this.template.survey_vars) return;
+      this.template.survey_vars.forEach((sv) => {
+        if (sv.type !== 'select') return;
+        const cur = this.editedEnvironment[sv.name];
+        if (cur == null || cur === '') {
+          this.$set(this.editedEnvironment, sv.name, []);
+        } else if (!Array.isArray(cur)) {
+          this.$set(this.editedEnvironment, sv.name, [cur]);
+          }
+      });
     },
   },
 };
