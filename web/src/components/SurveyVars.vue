@@ -43,7 +43,6 @@
                   item-text="name"
                   dense
                   outlined
-                  @change="onTypeChange"
                 ></v-select>
               </v-col>
               <v-col cols="7">
@@ -257,6 +256,26 @@ export default {
     vars(val) {
       this.var = val || [];
     },
+
+    'editedVar.type': {
+      handler(newType, oldType) {
+        if (!this.editedVar || newType === oldType) {
+          return;
+        }
+
+        if (newType === 'select') {
+          this.$set(this.editedVar, 'default_value', []);
+        } else {
+          this.$set(this.editedVar, 'default_value', '');
+        }
+
+        const isNotListType = newType !== 'enum' && newType !== 'select';
+        if (isNotListType) {
+          this.editedValues = [];
+          this.editedVar.values = this.editedValues;
+        }
+      },
+    },
   },
 
   created() {
@@ -335,19 +354,10 @@ export default {
       this.editedValues.push(...(this.editedVar.values || []));
       this.editedVar.values = this.editedValues;
 
-      // normalize default_value for select vs enum
-      if (this.editedVar.type === 'select') {
-        if (this.editedVar.default_value == null) {
-          this.editedVar.default_value = [];
-        } else if (!Array.isArray(this.editedVar.default_value)) {
-          const dv = this.editedVar.default_value;
-          this.editedVar.default_value = dv === '' ? [] : [dv];
-        }
-      } else if (Array.isArray(this.editedVar.default_value)) {
-        this.editedVar.default_value = this.editedVar.default_value.length > 0
-          ? this.editedVar.default_value[0]
-          : '';
-      }
+      this.editedVar.default_value = this.normalizeDefaultValue(
+        this.editedVar.type,
+        this.editedVar.default_value,
+      );
 
       this.editedVarIndex = index;
 
@@ -393,17 +403,10 @@ export default {
         this.editedVar.values = [];
       }
 
-      // normalize default_value before saving: select keeps array, others use string
-      if (this.editedVar.type === 'select') {
-        if (!Array.isArray(this.editedVar.default_value)) {
-          const dv = this.editedVar.default_value;
-          this.editedVar.default_value = dv == null || dv === '' ? [] : [dv];
-        }
-      } else if (Array.isArray(this.editedVar.default_value)) {
-        this.editedVar.default_value = this.editedVar.default_value.length > 0
-          ? this.editedVar.default_value[0]
-          : '';
-      }
+      this.editedVar.default_value = this.normalizeDefaultValue(
+        this.editedVar.type,
+        this.editedVar.default_value,
+      );
 
       if (this.editedVarIndex != null) {
         this.modifiedVars[this.editedVarIndex] = this.editedVar;
@@ -440,18 +443,15 @@ export default {
       return (found && found.name) || String(item);
     },
 
-    onTypeChange(newType) {
-      if (!this.editedVar) return;
-      if (newType === 'select') {
-        if (!Array.isArray(this.editedVar.default_value)) {
-          const dv = this.editedVar.default_value;
-          this.editedVar.default_value = dv == null || dv === '' ? [] : [dv];
-        }
-      } else if (Array.isArray(this.editedVar.default_value)) {
-        this.editedVar.default_value = this.editedVar.default_value.length > 0
-          ? this.editedVar.default_value[0]
-          : '';
+    normalizeDefaultValue(type, value) {
+      if (type === 'select') {
+        if (Array.isArray(value)) return value;
+        return value == null || value === '' ? [] : [value];
       }
+      if (Array.isArray(value)) {
+        return value.length > 0 ? value[0] : '';
+      }
+      return value ?? '';
     },
 
     onDragEnd() {
