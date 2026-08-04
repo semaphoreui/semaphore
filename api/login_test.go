@@ -3,12 +3,14 @@ package api
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -284,4 +286,25 @@ func TestGenerateStateOauthCookieUniqueness(t *testing.T) {
 
 	// Verify states are different
 	assert.NotEqual(t, state1Str, state2Str, "Multiple calls should generate different state strings")
+}
+
+func TestOidcClaimsFromUserInfo_UserInfoFailure(t *testing.T) {
+	_, err := oidcClaimsFromUserInfo(nil, errors.New("userinfo unavailable"), util.OidcProvider{})
+	require.Error(t, err)
+	assert.EqualError(t, err, "userinfo unavailable")
+}
+
+func TestOidcClaimsFromUserInfo_WithEmail(t *testing.T) {
+	userInfo := &oidc.UserInfo{
+		Subject: "sub-123",
+		Profile: "Jane Doe",
+		Email:   "jane@example.com",
+	}
+
+	claims, err := oidcClaimsFromUserInfo(userInfo, nil, util.OidcProvider{})
+	require.NoError(t, err)
+	assert.Equal(t, "sub-123", claims.sub)
+	assert.Equal(t, "jane@example.com", claims.email)
+	assert.Equal(t, "Jane Doe", claims.name)
+	assert.NotEmpty(t, claims.username)
 }
