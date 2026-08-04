@@ -369,14 +369,14 @@ export default {
 
       if (this.editedVar.type === 'enum' || this.editedVar.type === 'select') {
         if (this.editedValues.length === 0) {
-          this.formError = '${typeLabel} must have values.';
+          this.formError = `${typeLabel} must have values.`;
           return;
         }
 
         const uniq = new Set(this.editedValues.map((v) => v.name));
 
         if (this.editedValues.length !== uniq.size) {
-          this.formError = '${typeLabel} must have unique names.';
+          this.formError = `${typeLabel} must have unique names.`;
           return;
         }
 

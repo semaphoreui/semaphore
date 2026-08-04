@@ -352,7 +352,7 @@ export default {
       this.editedSecretEnvironment = JSON.parse(v.secret || '{}');
       this.hasCommit = v.commit_hash != null;
 
-      this.normalizeSelectValues();  
+      this.normalizeSelectValues();
     },
 
     isLoaded() {
@@ -425,7 +425,7 @@ export default {
         ...this.editedEnvironment,
       };
 
-      this.normalizeSelectValues(); 
+      this.normalizeSelectValues();
     },
 
     getInventoryUrl() {
@@ -454,7 +454,7 @@ export default {
           this.$set(this.editedEnvironment, sv.name, []);
         } else if (!Array.isArray(cur)) {
           this.$set(this.editedEnvironment, sv.name, [cur]);
-          }
+        }
       });
     },
   },
