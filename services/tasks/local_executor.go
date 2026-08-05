@@ -342,7 +342,7 @@ func (t *LocalExecutor) getShellArgs(username string, incomingVersion *string) (
 	// Include ExtraVars and Survey Vars
 	for name, value := range extraVars {
 		if name != "semaphore_vars" {
-			args = append(args, fmt.Sprintf("%s=%s", name, value))
+			args = append(args, fmt.Sprintf("%s=%s", name, formatVarValue(value)))
 		}
 	}
 
