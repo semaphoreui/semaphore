@@ -1,11 +1,18 @@
 package project
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 
 	"github.com/semaphoreui/semaphore/db"
 )
+
+// jsonMarshalerType is the reflect.Type for json.Marshaler.
+var jsonMarshalerType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
+
+// jsonUnmarshalerType is the reflect.Type for json.Unmarshaler.
+var jsonUnmarshalerType = reflect.TypeOf((*json.Unmarshaler)(nil)).Elem()
 
 func marshalValue(v reflect.Value) (any, error) {
 	// Handle pointers
@@ -13,11 +20,48 @@ func marshalValue(v reflect.Value) (any, error) {
 		if v.IsNil() {
 			return nil, nil
 		}
+		// Check json.Marshaler on the pointer type before dereferencing.
+		if v.Type().Implements(jsonMarshalerType) {
+			b, err := v.Interface().(json.Marshaler).MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			var result any
+			if err := json.Unmarshal(b, &result); err != nil {
+				return nil, err
+			}
+			return result, nil
+		}
 		return marshalValue(v.Elem())
 	}
 
 	// Handle structs
 	if v.Kind() == reflect.Struct {
+		// Check if the type (or pointer-to-type) implements json.Marshaler.
+		if v.Type().Implements(jsonMarshalerType) {
+			b, err := v.Interface().(json.Marshaler).MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			var result any
+			if err := json.Unmarshal(b, &result); err != nil {
+				return nil, err
+			}
+			return result, nil
+		}
+		ptrToV := reflect.New(v.Type())
+		ptrToV.Elem().Set(v)
+		if ptrToV.Type().Implements(jsonMarshalerType) {
+			b, err := ptrToV.Interface().(json.Marshaler).MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			var result any
+			if err := json.Unmarshal(b, &result); err != nil {
+				return nil, err
+			}
+			return result, nil
+		}
 		typeOfV := v.Type()
 		result := make(map[string]any)
 
@@ -187,11 +231,32 @@ func unmarshalValueWithBackupTags(data any, v reflect.Value) error {
 		if v.IsNil() {
 			v.Set(reflect.New(v.Type().Elem()))
 		}
+		// Check json.Unmarshaler on the pointer type.
+		if v.Type().Implements(jsonUnmarshalerType) {
+			b, err := json.Marshal(data)
+			if err != nil {
+				return err
+			}
+			return v.Interface().(json.Unmarshaler).UnmarshalJSON(b)
+		}
 		return unmarshalValueWithBackupTags(data, v.Elem())
 	}
 
 	// Handle structs
 	if v.Kind() == reflect.Struct {
+		// Check if pointer-to-type implements json.Unmarshaler.
+		ptrToV := reflect.New(v.Type())
+		if ptrToV.Type().Implements(jsonUnmarshalerType) {
+			b, err := json.Marshal(data)
+			if err != nil {
+				return err
+			}
+			if err := ptrToV.Interface().(json.Unmarshaler).UnmarshalJSON(b); err != nil {
+				return err
+			}
+			v.Set(ptrToV.Elem())
+			return nil
+		}
 		// Data should be a map
 		m, ok := data.(map[string]any)
 		if !ok {
