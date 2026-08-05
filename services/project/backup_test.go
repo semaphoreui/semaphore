@@ -366,7 +366,7 @@ func TestMakeUniqueNames(t *testing.T) {
 func TestBackupProject_Proxy(t *testing.T) {
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{Name: "Proxy 123"})
 	require.NoError(t, err)

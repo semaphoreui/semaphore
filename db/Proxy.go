@@ -5,6 +5,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
 type ProxyType string
@@ -33,35 +35,35 @@ type Proxy struct {
 
 func (p *Proxy) Validate() error {
 	if strings.TrimSpace(p.Name) == "" {
-		return &ValidationError{"proxy name can not be empty"}
+		return common_errors.NewValidationError("proxy name can not be empty")
 	}
 
 	if strings.TrimSpace(p.Host) == "" {
-		return &ValidationError{"proxy host can not be empty"}
+		return common_errors.NewValidationError("proxy host can not be empty")
 	}
 
 	// The host ends up in an ssh command line, so refuse anything that could
 	// add arguments or shell syntax.
 	if strings.ContainsAny(p.Host, " \t\r\n\"'\\$`") || strings.HasPrefix(p.Host, "-") {
-		return &ValidationError{"proxy host contains invalid characters"}
+		return common_errors.NewValidationError("proxy host contains invalid characters")
 	}
 
 	if p.Port != nil && (*p.Port < 1 || *p.Port > 65535) {
-		return &ValidationError{"proxy port must be between 1 and 65535"}
+		return common_errors.NewValidationError("proxy port must be between 1 and 65535")
 	}
 
 	if p.User != nil && strings.ContainsAny(*p.User, " \t\r\n\"'\\$`@") {
-		return &ValidationError{"proxy user contains invalid characters"}
+		return common_errors.NewValidationError("proxy user contains invalid characters")
 	}
 
 	if p.SSHKeyID != nil && *p.SSHKeyID <= 0 {
-		return &ValidationError{"proxy ssh key id must be a valid key"}
+		return common_errors.NewValidationError("proxy ssh key id must be a valid key")
 	}
 
 	switch p.Type {
 	case ProxySSH:
 	default:
-		return &ValidationError{"unsupported proxy type"}
+		return common_errors.NewValidationError("unsupported proxy type")
 	}
 
 	return nil
