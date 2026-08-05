@@ -75,6 +75,21 @@
       dense
     ></v-autocomplete>
 
+    <v-autocomplete
+      v-model="item.proxy_id"
+      :label="$t('proxy')"
+      clearable
+      :items="proxies"
+      item-value="id"
+      item-text="name"
+      :hint="$t('proxyHint')"
+      persistent-hint
+      :disabled="formSaving"
+      outlined
+      dense
+      class="mb-3"
+    ></v-autocomplete>
+
     <v-select
       v-model="item.type"
       :label="$t('type')"
@@ -214,6 +229,7 @@ export default {
       keys: null,
       repositories: null,
       runnerTags: null,
+      proxies: null,
     };
   },
 
@@ -225,7 +241,7 @@ export default {
       return this.keys.filter((key) => key.type === 'login_password');
     },
     isLoaded() {
-      return this.item != null && this.keys != null;
+      return this.item != null && this.keys != null && this.proxies != null;
     },
   },
 
@@ -234,10 +250,12 @@ export default {
       this.keys,
       this.repositories,
       this.runnerTags,
+      this.proxies,
     ] = await Promise.all([
       this.loadProjectResources('keys'),
       this.loadProjectResources('repositories'),
       this.loadProjectResources('runner_tags'),
+      this.loadProjectResources('proxies'),
     ]);
   },
 
