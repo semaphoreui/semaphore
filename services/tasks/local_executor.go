@@ -35,6 +35,7 @@ type LocalExecutor struct {
 
 	sshKeyInstallation     ssh.AccessKeyInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
+	proxyKeyInstallation   ssh.AccessKeyInstallation
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
 	KeyInstaller db_lib.AccessKeyInstaller
@@ -422,6 +423,10 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 			err = fmt.Errorf("access key does not suite for inventory's user credentials")
 			return
 		}
+	}
+
+	if sshArgs := t.getInventorySSHCommonArgs(); sshArgs != "" {
+		args = append(args, "--ssh-common-args", sshArgs)
 	}
 
 	if t.Inventory.BecomeKeyID != nil {

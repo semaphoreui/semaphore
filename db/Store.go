@@ -301,6 +301,13 @@ type TemplateManager interface {
 
 // InventoryManager handles inventory-related operations
 type InventoryManager interface {
+	GetProxy(projectID int, proxyID int) (Proxy, error)
+	GetProxies(projectID int, params RetrieveQueryParams) ([]Proxy, error)
+	GetProxyRefs(projectID int, proxyID int) (ObjectReferrers, error)
+	CreateProxy(proxy Proxy) (Proxy, error)
+	UpdateProxy(proxy Proxy) error
+	DeleteProxy(projectID int, proxyID int) error
+
 	GetInventory(projectID int, inventoryID int) (Inventory, error)
 	GetInventoryRefs(projectID int, inventoryID int) (ObjectReferrers, error)
 	GetInventories(projectID int, params RetrieveQueryParams, types []InventoryType) ([]Inventory, error)
@@ -614,6 +621,16 @@ var EnvironmentProps = ObjectProps{
 	ReferringColumnSuffix: "environment_id",
 	SortableColumns:       []string{"name"},
 	DefaultSortingColumn:  "name",
+}
+
+var ProxyProps = ObjectProps{
+	TableName:             "project__proxy",
+	Type:                  reflect.TypeOf(Proxy{}),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "proxy_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
+	Ownerships:            []*ObjectProps{&InventoryProps},
 }
 
 var InventoryProps = ObjectProps{

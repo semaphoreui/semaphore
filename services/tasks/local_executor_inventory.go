@@ -4,6 +4,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
@@ -27,6 +28,15 @@ func (t *LocalExecutor) installInventory() (err error) {
 		}
 	}
 
+	// The jump host usually needs a different key than the target hosts, so it
+	// gets its own agent.
+	if t.Inventory.Proxy != nil && t.Inventory.Proxy.SSHKeyID != nil {
+		t.proxyKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.Proxy.SSHKey, db.AccessKeyRoleAnsibleUser, t.Logger)
+		if err != nil {
+			return
+		}
+	}
+
 	switch t.Inventory.Type {
 	case db.InventoryFile:
 		err = t.cloneInventoryRepo(t.KeyInstaller)
@@ -35,6 +45,24 @@ func (t *LocalExecutor) installInventory() (err error) {
 	}
 
 	return
+}
+
+// getInventorySSHCommonArgs returns the ssh options ansible must use to reach
+// the hosts of the inventory, currently the jump host of the assigned proxy.
+func (t *LocalExecutor) getInventorySSHCommonArgs() string {
+	if t.Inventory.Proxy == nil || t.Inventory.Proxy.Type != db.ProxySSH {
+		return ""
+	}
+
+	opts := []string{"-o", "ProxyJump=" + t.Inventory.Proxy.Destination()}
+
+	// The jump host key lives in its own agent, so point ssh at that socket
+	// for the ProxyJump connection.
+	if t.proxyKeyInstallation.SSHAgent != nil {
+		opts = append(opts, "-o", "IdentityAgent="+t.proxyKeyInstallation.SSHAgent.SocketFile)
+	}
+
+	return strings.Join(opts, " ")
 }
 
 func (t *LocalExecutor) tmpInventoryFilename() string {
@@ -130,6 +158,11 @@ func (t *LocalExecutor) destroyKeys() {
 	err = t.becomeKeyInstallation.Destroy()
 	if err != nil {
 		t.Log("Can't destroy inventory become user key, error: " + err.Error())
+	}
+
+	err = t.proxyKeyInstallation.Destroy()
+	if err != nil {
+		t.Log("Can't destroy inventory proxy key, error: " + err.Error())
 	}
 
 	for _, vault := range t.vaultFileInstallations {

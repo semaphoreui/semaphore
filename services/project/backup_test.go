@@ -10,6 +10,7 @@ import (
 	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testItem struct {
@@ -168,6 +169,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
     "name": "Test 1234",
     "type": ""
   },
+  "proxies": [],
   "repositories": [],
   "roles": [],
   "runners": [],
@@ -357,4 +359,87 @@ func TestMakeUniqueNames(t *testing.T) {
 	})
 
 	assert.True(t, isUnique(items), "Not unique names")
+}
+
+// TestBackupProject_Proxy checks that a proxy and the inventory referencing it
+// survive a backup/restore round trip.
+func TestBackupProject_Proxy(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+
+	store := sql.CreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{Name: "Proxy 123"})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Name:      "bastion key",
+		Type:      db.AccessKeyNone,
+	})
+	require.NoError(t, err)
+
+	port := 2222
+	user := "ansible-proxy"
+	proxy, err := store.CreateProxy(db.Proxy{
+		ProjectID: proj.ID,
+		Name:      "bastion-projA",
+		Type:      db.ProxySSH,
+		Host:      "bastion.example.org",
+		Port:      &port,
+		User:      &user,
+		SSHKeyID:  &key.ID,
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateInventory(db.Inventory{
+		ProjectID: proj.ID,
+		Name:      "managed hosts",
+		Type:      db.InventoryStatic,
+		ProxyID:   &proxy.ID,
+	})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+	require.Len(t, backup.Proxies, 1)
+	assert.Equal(t, "bastion-projA", backup.Proxies[0].Name)
+	require.NotNil(t, backup.Proxies[0].SSHKey)
+	assert.Equal(t, "bastion key", *backup.Proxies[0].SSHKey)
+	require.Len(t, backup.Inventories, 1)
+	require.NotNil(t, backup.Inventories[0].Proxy)
+	assert.Equal(t, "bastion-projA", *backup.Inventories[0].Proxy)
+
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+
+	restoredBackup := &BackupFormat{}
+	require.NoError(t, restoredBackup.Unmarshal(str))
+	restoredBackup.Meta.Name = "Proxy 1234"
+
+	user2, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "proxytest",
+			Name:     "Proxy Test",
+			Email:    "proxy@example.com",
+			Admin:    true,
+		},
+	})
+	require.NoError(t, err)
+
+	restoredProj, err := restoredBackup.Restore(user2, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	restoredProxies, err := store.GetProxies(restoredProj.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, restoredProxies, 1)
+	assert.Equal(t, "bastion.example.org", restoredProxies[0].Host)
+	require.NotNil(t, restoredProxies[0].Port)
+	assert.Equal(t, 2222, *restoredProxies[0].Port)
+
+	restoredInventories, err := store.GetInventories(restoredProj.ID, db.RetrieveQueryParams{}, []db.InventoryType{})
+	require.NoError(t, err)
+	require.Len(t, restoredInventories, 1)
+	require.NotNil(t, restoredInventories[0].ProxyID, "inventory must keep its proxy after restore")
+	assert.Equal(t, restoredProxies[0].ID, *restoredInventories[0].ProxyID)
 }

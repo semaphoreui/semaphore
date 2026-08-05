@@ -11,6 +11,7 @@ type BackupDB struct {
 	keys         []db.AccessKey
 	views        []db.View
 	inventories  []db.Inventory
+	proxies      []db.Proxy
 	environments []db.Environment
 	schedules    []db.Schedule
 
@@ -43,6 +44,7 @@ type BackupFormat struct {
 	Keys               []BackupAccessKey     `backup:"keys"`
 	Views              []BackupView          `backup:"views"`
 	Inventories        []BackupInventory     `backup:"inventories"`
+	Proxies            []BackupProxy         `backup:"proxies"`
 	Environments       []BackupEnvironment   `backup:"environments"`
 	Integration        []BackupIntegration   `backup:"integrations"`
 	IntegrationAliases []string              `backup:"integration_aliases"`
@@ -81,6 +83,12 @@ type BackupInventory struct {
 	db.Inventory
 	SSHKey    *string `backup:"ssh_key"`
 	BecomeKey *string `backup:"become_key"`
+	Proxy     *string `backup:"proxy"`
+}
+
+type BackupProxy struct {
+	db.Proxy
+	SSHKey *string `backup:"ssh_key"`
 }
 
 type BackupRepository struct {

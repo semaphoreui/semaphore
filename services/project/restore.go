@@ -175,6 +175,41 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 	if e.BecomeKey != nil && getEntryByName[BackupAccessKey](e.BecomeKey, backup.Keys) == nil {
 		return fmt.Errorf("BecomeKey does not exist in keys[].Name")
 	}
+	if e.Proxy != nil && getEntryByName[BackupProxy](e.Proxy, backup.Proxies) == nil {
+		return fmt.Errorf("Proxy does not exist in proxies[].Name")
+	}
+	return nil
+}
+
+func (e BackupProxy) GetName() string {
+	return e.Name
+}
+
+func (e BackupProxy) Verify(backup *BackupFormat) error {
+	if err := verifyDuplicate[BackupProxy](e.Name, backup.Proxies); err != nil {
+		return err
+	}
+	if e.SSHKey != nil && getEntryByName[BackupAccessKey](e.SSHKey, backup.Keys) == nil {
+		return fmt.Errorf("SSHKey does not exist in keys[].Name")
+	}
+	return nil
+}
+
+func (e BackupProxy) Restore(b *BackupDB) error {
+	var SSHKeyID *int
+	if k := findEntityByName[db.AccessKey](e.SSHKey, b.keys); k != nil {
+		SSHKeyID = &((*k).ID)
+	}
+
+	proxy := e.Proxy
+	proxy.ProjectID = b.meta.ID
+	proxy.SSHKeyID = SSHKeyID
+
+	newProxy, err := b.store.CreateProxy(proxy)
+	if err != nil {
+		return err
+	}
+	b.proxies = append(b.proxies, newProxy)
 	return nil
 }
 
@@ -196,10 +231,16 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 		BecomeKeyID = &((*k).ID)
 	}
 
+	var ProxyID *int
+	if p := findEntityByName[db.Proxy](e.Proxy, b.proxies); p != nil {
+		ProxyID = &((*p).ID)
+	}
+
 	inv := e.Inventory
 	inv.ProjectID = b.meta.ID
 	inv.SSHKeyID = SSHKeyID
 	inv.BecomeKeyID = BecomeKeyID
+	inv.ProxyID = ProxyID
 
 	newInventory, err := b.store.CreateInventory(inv)
 	if err != nil {
@@ -557,6 +598,11 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at repositories[%d]: %s", i, err.Error())
 		}
 	}
+	for i, o := range backup.Proxies {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at proxies[%d]: %s", i, err.Error())
+		}
+	}
 	for i, o := range backup.Inventories {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at inventories[%d]: %s", i, err.Error())
@@ -654,6 +700,12 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 	for i, o := range backup.Repositories {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at repositories[%d]: %s", i, err.Error())
+		}
+	}
+
+	for i, o := range backup.Proxies {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at proxies[%d]: %s", i, err.Error())
 		}
 	}
 
