@@ -1572,7 +1572,7 @@ parameters:
     in: path
     type: integer
     required: true
-    x-example: 1
+    x-example: 21
 
   inventory_id:
     name: inventory_id

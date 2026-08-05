@@ -46,7 +46,7 @@ var capabilities = map[string][]string{
 	"user":                    {},
 	"project":                 {"user"},
 	"repository":              {"access_key"},
-	"proxy":                   {},
+	"proxy":                   {"access_key"},
 	"inventory":               {"repository"},
 	"environment":             {"repository"},
 	"template":                {"repository", "inventory", "environment", "view"},
@@ -272,6 +272,9 @@ var pathSubPatterns = []func() string{
 	func() string {
 		return strconv.Itoa(workflowNodeID)
 	}, // node_id, x-example: 20
+	func() string {
+		return strconv.Itoa(proxyID)
+	}, // proxy_id, x-example: 21
 }
 
 // alterRequestPath with the above slice of functions
