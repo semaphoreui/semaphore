@@ -103,7 +103,7 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		Version:           util.Version(),
 		Ansible:           util.AnsibleVersion(),
 		WebHost:           util.Config.WebHost,
-		UseRemoteRunner:   util.Config.UseRemoteRunner,
+		UseRemoteRunner:   util.Config.IsUseRemoteRunner(),
 		AuthMethods:       authMethods,
 		LoginWithPassword: !util.Config.PasswordLoginDisable,
 		Features:          proFeatures.GetFeatures(user, plan),

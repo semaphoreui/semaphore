@@ -1,29 +1,19 @@
 <template>
-  <div class="pb-6" style="margin-top: -10px;">
-    <v-dialog
-      v-model="editDialog"
-      hide-overlay
-      width="400"
-    >
+  <div class="pb-6" style="margin-top: -10px">
+    <v-dialog v-model="editDialog" hide-overlay width="450">
       <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
         <v-card-title></v-card-title>
         <v-card-text class="pb-0">
-          <v-form
-            ref="form"
-            lazy-validation
-            v-if="editedVar != null"
-          >
-            <v-alert
-              :value="formError"
-              color="error"
-            >{{ formError }}
-            </v-alert>
+          <v-form ref="form" lazy-validation v-if="editedVar != null">
+            <v-alert :value="formError" color="error">{{ formError }}</v-alert>
 
             <v-text-field
               :label="$t('name2')"
               v-model.trim="editedVar.name"
               :rules="[(v) => !!v || $t('name_required')]"
               required
+              dense
+              outlined
             />
 
             <v-text-field
@@ -31,130 +21,175 @@
               v-model="editedVar.title"
               :rules="[(v) => !!v || $t('title_required')]"
               required
+              dense
+              outlined
             />
 
             <v-text-field
               :label="$t('description')"
               v-model="editedVar.description"
               required
+              dense
+              outlined
             />
 
-            <v-select
-              v-model="editedVar.type"
-              :label="$t('type')"
-              :items="varTypes"
-              item-value="id"
-              item-text="name"
-            ></v-select>
+            <v-row>
+              <v-col cols="5">
+                <v-select
+                  v-model="editedVar.type"
+                  :label="$t('type')"
+                  :items="varTypes"
+                  item-value="id"
+                  item-text="name"
+                  dense
+                  outlined
+                ></v-select>
+              </v-col>
+              <v-col cols="7">
+                <v-select
+                  v-model="editedVar.target"
+                  :label="$t('survey_var_target')"
+                  :items="varTargets"
+                  item-value="id"
+                  item-text="name"
+                  dense
+                  outlined
+                ></v-select>
+              </v-col>
+            </v-row>
 
-            <v-data-table
+            <v-card
               v-if="editedVar.type === 'enum'"
-              :items="editedValues"
-              :items-per-page="-1"
-              class="elevation-1 FieldTable"
-              hide-default-footer
-              :no-data-text="$t('noValues')"
+              style="background: var(--highlighted-card-bg-color)"
+              class="mb-4 pt-3"
             >
-              <template v-slot:item="props">
-                <tr>
-                  <td class="pa-1">
-                    <v-text-field
-                      solo-inverted
-                      flat
-                      hide-details
-                      v-model="props.item.name"
-                      :label="$t('matchKey')"
-                      class="v-text-field--solo--no-min-height"
-                    ></v-text-field>
-                  </td>
-                  <td class="pa-1">
-                    <v-text-field
-                      solo-inverted
-                      flat
-                      hide-details
-                      v-model="props.item.value"
-                      :label="$t('matchValue')"
-                      class="v-text-field--solo--no-min-height"
-                    ></v-text-field>
-                  </td>
-                  <td style="width: 38px;">
-                    <v-icon
-                      small
-                      class="pa-1"
-                      @click="removeEditedVarValue(props.item)"
-                    >
-                      mdi-delete
-                    </v-icon>
-                  </td>
-                </tr>
-              </template>
-            </v-data-table>
+              <div
+                style="
+                  position: absolute;
+                  background: var(--highlighted-card-bg-color);
+                  width: 28px;
+                  height: 28px;
+                  transform: rotate(45deg);
+                  left: 60px;
+                  top: -14px;
+                  border-radius: 0;
+                "
+              ></div>
 
-            <div class="text-right mt-2">
-              <v-btn
-                color="primary"
-                v-if="editedVar.type === 'enum'"
-                @click="addEditedVarValue()"
-              >Add Value</v-btn>
-            </div>
+              <v-card-text class="pt-2">
+                <v-data-table
+                  :items="editedValues"
+                  :items-per-page="-1"
+                  class="elevation-1 FieldTable"
+                  hide-default-footer
+                  :no-data-text="$t('noValues')"
+                >
+                  <template v-slot:item="props">
+                    <tr>
+                      <td class="pa-1">
+                        <v-text-field
+                          solo-inverted
+                          flat
+                          hide-details
+                          v-model="props.item.name"
+                          :label="$t('matchKey')"
+                          class="v-text-field--solo--no-min-height"
+                        ></v-text-field>
+                      </td>
+                      <td class="pa-1">
+                        <v-text-field
+                          solo-inverted
+                          flat
+                          hide-details
+                          v-model="props.item.value"
+                          :label="$t('matchValue')"
+                          class="v-text-field--solo--no-min-height"
+                        ></v-text-field>
+                      </td>
+                      <td style="width: 38px">
+                        <v-icon small class="pa-1" @click="removeEditedVarValue(props.item)">
+                          mdi-delete
+                        </v-icon>
+                      </td>
+                    </tr>
+                  </template>
+                </v-data-table>
 
-            <v-select
-              v-if="editedVar.type === 'enum'"
-              v-model="editedVar.default_value"
-              :label="$t('default_value')"
-              :items="editedValues"
-              item-value="value"
-              item-text="name"
-              clearable
-            ></v-select>
+                <div class="text-right mt-2 mb-2">
+                  <v-btn color="primary" @click="addEditedVarValue()">Add Value</v-btn>
+                </div>
+
+                <v-select
+                  v-model="editedVar.default_value"
+                  :label="$t('default_value')"
+                  :items="editedValues"
+                  item-value="value"
+                  item-text="name"
+                  clearable
+                  dense
+                  outlined
+                  hide-details
+                ></v-select>
+              </v-card-text>
+            </v-card>
 
             <v-text-field
               type="number"
               v-else-if="editedVar.type === 'int'"
               :label="$t('default_value')"
               v-model="editedVar.default_value"
+              dense
+              outlined
+            />
+
+            <v-textarea
+              v-else-if="editedVar.type === 'text'"
+              :label="$t('default_value')"
+              v-model="editedVar.default_value"
+              rows="3"
+              auto-grow
+              dense
+              outlined
             />
 
             <v-text-field
               v-else-if="editedVar.type !== 'secret'"
               :label="$t('default_value')"
               v-model="editedVar.default_value"
-            />
-
-            <v-checkbox
-              :label="$t('required')"
-              v-model="editedVar.required"
+              dense
+              outlined
             />
           </v-form>
         </v-card-text>
-        <v-card-actions>
+        <v-card-actions class="py-0">
+          <v-checkbox
+            :label="$t('required')"
+            v-model="editedVar.required"
+            v-if="editedVar != null"
+            class="ml-1"
+          />
           <v-spacer></v-spacer>
-          <v-btn
-            color="blue darken-1"
-            text
-            @click="editDialog = false"
-          >
+          <v-btn color="blue darken-1" text @click="editDialog = false">
             {{ $t('cancel') }}
           </v-btn>
-          <v-btn
-            color="blue darken-1"
-            text
-            @click="saveVar()"
-          >
+          <v-btn color="blue darken-1" text @click="saveVar()">
             {{ editedVarIndex == null ? $t('add') : $t('save') }}
           </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
-    <fieldset style="padding: 0 10px 2px 10px;
-                        border-width: 1px;
-                        border-color: rgba(133, 133, 133, 0.4);
-                        background-color: rgba(133, 133, 133, 0.1);
-                     border-radius: 8px;
-                     font-size: 12px;"
+    <fieldset
+      style="
+        padding: 0 10px 2px 10px;
+        border-width: 1px;
+        border-color: rgba(133, 133, 133, 0.4);
+        background-color: rgba(133, 133, 133, 0.1);
+        border-radius: 8px;
+        font-size: 12px;
+      "
     >
-      <legend style="padding: 0 3px;">{{ $t('surveyVariables') }}</legend>
-      <v-chip-group column style="margin-top: -4px;">
+      <legend style="padding: 0 3px">{{ $t('surveyVariables') }}</legend>
+      <v-chip-group column style="margin-top: -4px">
         <draggable
           v-model="modifiedVars"
           @end="onDragEnd"
@@ -221,19 +256,38 @@ export default {
       editedValues: [],
       editedVarIndex: null,
       modifiedVars: null,
-      varTypes: [{
-        id: '',
-        name: 'String',
-      }, {
-        id: 'int',
-        name: 'Integer',
-      }, {
-        id: 'secret',
-        name: 'Secret',
-      }, {
-        id: 'enum',
-        name: 'Enum',
-      }],
+      varTypes: [
+        {
+          id: '',
+          name: 'String',
+        },
+        {
+          id: 'int',
+          name: 'Integer',
+        },
+        {
+          id: 'secret',
+          name: 'Secret',
+        },
+        {
+          id: 'enum',
+          name: 'Enum',
+        },
+        {
+          id: 'text',
+          name: 'Text',
+        },
+      ],
+      varTargets: [
+        {
+          id: '',
+          name: 'Extra variable',
+        },
+        {
+          id: 'env',
+          name: 'Environment variable',
+        },
+      ],
       formError: null,
     };
   },
@@ -254,6 +308,10 @@ export default {
 
     editVar(index) {
       this.editedVar = index != null ? { ...this.modifiedVars[index] } : {};
+
+      if (!this.editedVar.target) {
+        this.editedVar.target = '';
+      }
 
       this.editedValues = [];
       this.editedValues.push(...(this.editedVar.values || []));

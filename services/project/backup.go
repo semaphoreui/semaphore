@@ -180,6 +180,17 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
+	// Task-bound survey-secret keys are ephemeral internals of a single task
+	// run; they don't belong in a project backup.
+	filteredKeys := make([]db.AccessKey, 0, len(b.keys))
+	for _, k := range b.keys {
+		if k.Owner == db.AccessKeyTaskSecret {
+			continue
+		}
+		filteredKeys = append(filteredKeys, k)
+	}
+	b.keys = filteredKeys
+
 	b.views, err = store.GetViews(projectID)
 	if err != nil {
 		return

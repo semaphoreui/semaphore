@@ -607,7 +607,24 @@ export default {
       }
     },
 
-    refreshCheckboxes() {
+    async validateCronFormat(cronFormat) {
+      try {
+        await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/schedules/validate`,
+          responseType: 'json',
+          data: {
+            project_id: this.projectId,
+            cron_format: cronFormat,
+          },
+        });
+        return null;
+      } catch (err) {
+        return getErrorMessage(err);
+      }
+    },
+
+    async refreshCheckboxes() {
       if (this.type === 'run_at') {
         this.cronFormatError = null;
         this.disableRawCron = false;
@@ -624,13 +641,28 @@ export default {
       this.cronFormatError = null;
       this.disableRawCron = false;
 
+      const cronFormat = this.item.cron_format;
+      const cronError = await this.validateCronFormat(cronFormat);
+
+      if (cronFormat !== this.item.cron_format) {
+        return; // the value changed while validating, ignore stale result
+      }
+
+      if (cronError != null) {
+        this.cronFormatError = cronError;
+        this.rawCron = true;
+        this.disableRawCron = true;
+        return;
+      }
+
       let cron;
       try {
         cron = CronExpressionParser.parse(this.item.cron_format, {
           tz: this.timezone,
         });
-      } catch (err) {
-        this.cronFormatError = getErrorMessage(err);
+      } catch {
+        // Valid on the backend but not parseable by cron-parser
+        // (e.g. @hourly) — show it in raw mode without an error.
         this.rawCron = true;
         this.disableRawCron = true;
         return;

@@ -167,6 +167,7 @@ export default {
   vaultName: 'Vault ID (optional)',
   vaultNameDefault: 'Only one `default` (empty) name may exist',
   default_value: 'Default value',
+  survey_var_target: 'Pass variable as',
   vaultNameUnique: 'Must be unique',
   vaultTypePassword: 'Password',
   vaultTypeScript: 'Client Script',
@@ -445,6 +446,7 @@ export default {
   limit: 'Limit',
 
   runner_tag: 'Runner tag',
+  executor_image: 'Executor image',
   allow_parallel_tasks: 'Allow parallel tasks',
   jwt_enabled: 'Issue JWT to task runner',
   jwt_audience: 'JWT audience',

@@ -1,5 +1,7 @@
 package db
 
+import "github.com/semaphoreui/semaphore/pkg/common_errors"
+
 type ViewType string
 
 const (
@@ -21,7 +23,7 @@ type View struct {
 
 func (view *View) Validate() error {
 	if view.Title == "" {
-		return &ValidationError{"title can not be empty"}
+		return common_errors.NewValidationError("title can not be empty")
 	}
 	return nil
 }

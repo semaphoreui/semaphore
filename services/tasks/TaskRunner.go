@@ -13,6 +13,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
@@ -249,6 +250,27 @@ func (t *TaskRunner) run() {
 	// can be exposed to the playbook as SEMAPHORE_JWT. Remote runners receive
 	// the JWT inside the JobData payload returned by the API.
 	if localJob, ok := t.job.(*LocalExecutor); ok {
+
+		secret, sErr := t.pool.encryptionService.GetTaskSurveySecrets(t.Task.ProjectID, t.Task.ID)
+		if sErr != nil {
+			logger := log.WithError(sErr).WithFields(log.Fields{
+				"task_id":     t.Task.ID,
+				"template_id": t.Template.ID,
+				"context":     "survey_secrets",
+			})
+			if errors.Is(sErr, server.ErrAccessKeyExpired) {
+				logger.Warn("task survey secrets expired before start")
+				t.Log("Survey secrets expired before the task started. Please run the task again.")
+			} else {
+				logger.Error("failed to read task survey secrets")
+				t.Log("Failed to read survey secrets. More details in the server logs.")
+			}
+			t.SetStatus(task_logger.TaskFailStatus)
+			return
+		}
+
+		localJob.Secret = secret
+
 		if t.pool.signer != nil && t.Template.JWTParams != nil && t.Template.JWTParams.Enabled {
 			ttl, terr := t.Template.JWTParams.ParsedTTL()
 			if terr != nil {
@@ -256,25 +278,32 @@ func (t *TaskRunner) run() {
 					"task_id":     t.Task.ID,
 					"template_id": t.Template.ID,
 					"context":     "jwt",
-				}).Error("invalid template jwt_params.ttl; skipping token issuance")
-			} else {
-				token, jerr := t.pool.signer.Sign(jwt.TaskInfo{
-					TaskID:     t.Task.ID,
-					ProjectID:  t.Task.ProjectID,
-					TemplateID: t.Template.ID,
-					UserID:     t.Task.UserID,
-					Audience:   jwt.Audience(t.Template.JWTParams.Audience),
-					TTL:        ttl,
-				})
-				if jerr != nil {
-					log.WithError(jerr).WithFields(log.Fields{
-						"task_id": t.Task.ID,
-						"context": "jwt",
-					}).Error("failed to sign task JWT")
-				} else {
-					localJob.JWT = token
-				}
+				}).Warn("invalid template jwt_params.ttl")
+				t.Log("Invalid JWT token lifetime in the template settings: " + terr.Error())
+				t.SetStatus(task_logger.TaskFailStatus)
+				return
 			}
+
+			token, jerr := t.pool.signer.Sign(jwt.TaskInfo{
+				TaskID:     t.Task.ID,
+				ProjectID:  t.Task.ProjectID,
+				TemplateID: t.Template.ID,
+				UserID:     t.Task.UserID,
+				Audience:   t.Template.JWTParams.Audience,
+				TTL:        ttl,
+			})
+
+			if jerr != nil {
+				log.WithError(jerr).WithFields(log.Fields{
+					"task_id": t.Task.ID,
+					"context": "jwt",
+				}).Error("failed to sign task JWT")
+				t.Log("Failed to sign the task JWT. More details in the server logs.")
+				t.SetStatus(task_logger.TaskFailStatus)
+				return
+			}
+
+			localJob.JWT = token
 		}
 	}
 
@@ -325,6 +354,16 @@ func (t *TaskRunner) finishRun() {
 	now := tz.Now()
 	t.Task.End = &now
 	t.saveStatus()
+
+	// The task-bound survey-secret key is only needed until dispatch; drop it
+	// as soon as the task is terminal. Failure is non-fatal: the expired-key
+	// sweep and the task_id cascade remain as backstops.
+	if t.pool.encryptionService != nil {
+		if err := t.pool.encryptionService.DeleteTaskSurveySecrets(t.Task.ProjectID, t.Task.ID); err != nil {
+			log.WithError(err).WithField("task_id", t.Task.ID).Warn("failed to delete task survey secrets")
+		}
+	}
+
 	t.createTaskEvent()
 	t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
 

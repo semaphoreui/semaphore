@@ -21,7 +21,7 @@ func newPasswordRequest(store db.Store, editor *db.User, target db.User, body st
 }
 
 func TestUpdateUserPassword_SelfRequiresCurrentPassword(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	user := createUserOptionsTestUser(t, store, "self") // password: verystrongpassword1
 
 	t.Run("correct current password", func(t *testing.T) {
@@ -49,7 +49,7 @@ func TestUpdateUserPassword_SelfRequiresCurrentPassword(t *testing.T) {
 }
 
 func TestUpdateUserPassword_AdminExemptForOtherUsers(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	admin := createUserOptionsTestUser(t, store, "admin")
 	admin.Admin = true
 	target := createUserOptionsTestUser(t, store, "target")

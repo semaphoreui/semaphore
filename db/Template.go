@@ -2,8 +2,11 @@ package db
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pkg/git"
+	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -65,6 +68,17 @@ const (
 	SurveyVarStr  TemplateType = ""
 	SurveyVarInt  TemplateType = "int"
 	SurveyVarEnum TemplateType = "enum"
+	SurveyVarText TemplateType = "text"
+)
+
+type SurveyVarTarget string
+
+const (
+	// SurveyVarTargetDefault passes the variable the app-specific way:
+	// --extra-vars for Ansible, -var for Terraform apps, CLI argument for shell apps.
+	SurveyVarTargetDefault SurveyVarTarget = ""
+	// SurveyVarTargetEnv passes the variable as a process environment variable.
+	SurveyVarTargetEnv SurveyVarTarget = "env"
 )
 
 type AnsibleTemplateParams struct {
@@ -103,6 +117,7 @@ type SurveyVar struct {
 	Title        string               `json:"title" backup:"title"`
 	Required     bool                 `json:"required,omitempty" backup:"required"`
 	Type         SurveyVarType        `json:"type,omitempty" backup:"type"`
+	Target       SurveyVarTarget      `json:"target,omitempty" backup:"target"`
 	Description  string               `json:"description,omitempty" backup:"description"`
 	Values       []SurveyVarEnumValue `json:"values,omitempty" backup:"values"`
 	DefaultValue string               `json:"default_value,omitempty" backup:"default_value"`
@@ -176,8 +191,15 @@ type Template struct {
 
 	RunnerTag *string `db:"runner_tag" json:"runner_tag,omitempty"`
 
+	// ExecutorImage overrides the container image the runner uses to run this
+	// template's tasks. Only the container-based executors (Docker, Kubernetes)
+	// honour it; the local executor ignores it. Empty/nil means "use the image
+	// from the runner configuration".
+	ExecutorImage *string `db:"executor_image" json:"executor_image,omitempty"`
+
 	AllowOverrideBranchInTask bool `db:"allow_override_branch_in_task" json:"allow_override_branch_in_task,omitempty"`
-	AllowParallelTasks        bool `db:"allow_parallel_tasks" json:"allow_parallel_tasks,omitempty"`
+	//AllowOverrideEnvInTask    bool `db:"allow_override_env_in_task" json:"allow_override_env_in_task,omitempty"`
+	AllowParallelTasks bool `db:"allow_parallel_tasks" json:"allow_parallel_tasks,omitempty"`
 
 	JWTParams *TemplateJWTParams `db:"jwt_params" json:"jwt_params,omitempty"`
 }
@@ -196,6 +218,23 @@ func (tpl *Template) FillParams(target any) error {
 	return err
 }
 
+// NormalizedExecutorImage returns the value to persist. Clearing the field in the
+// WebUI sends an empty string; storing it as NULL keeps "no override" a single
+// representation in the database.
+func (tpl *Template) NormalizedExecutorImage() *string {
+	if tpl.ExecutorImage == nil {
+		return nil
+	}
+
+	img := strings.TrimSpace(*tpl.ExecutorImage)
+
+	if img == "" {
+		return nil
+	}
+
+	return &img
+}
+
 func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
 	switch tpl.App {
 	case AppAnsible, "":
@@ -212,21 +251,32 @@ func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
 
 func (tpl *Template) Validate() error {
 	if tpl.RunnerTag != nil && *tpl.RunnerTag == "" {
-		return &ValidationError{"template runner tag can not be empty"}
+		return common_errors.NewValidationError("template runner tag can not be empty")
 	}
+
+	// Reject apps that are not in the administrator-configured whitelist, otherwise
+	// an unknown app becomes a ShellApp that executes string(App) as a system binary
+	// (arbitrary command execution). util.Config is nil in some unit tests; an empty
+	// app is the legacy default and runs no command, so both are skipped.
+	if tpl.App != "" {
+		if _, ok := util.Config.Apps[string(tpl.App)]; !ok {
+			return common_errors.NewValidationError("invalid app: " + string(tpl.App))
+		}
+	}
+
 	switch tpl.App {
 	case AppAnsible:
 		if tpl.InventoryID == nil {
-			return &ValidationError{"template inventory can not be empty"}
+			return common_errors.NewValidationError("template inventory can not be empty")
 		}
 	}
 
 	if tpl.Name == "" {
-		return &ValidationError{"template name can not be empty"}
+		return common_errors.NewValidationError("template name can not be empty")
 	}
 
 	if !tpl.App.IsTerraform() && tpl.Playbook == "" {
-		return &ValidationError{"template playbook can not be empty"}
+		return common_errors.NewValidationError("template playbook can not be empty")
 	}
 
 	if err := ValidatePlaybookPath(tpl.Playbook, "template"); err != nil {
@@ -235,18 +285,26 @@ func (tpl *Template) Validate() error {
 
 	if tpl.Arguments != nil {
 		if !json.Valid([]byte(*tpl.Arguments)) {
-			return &ValidationError{"template arguments must be valid JSON"}
+			return common_errors.NewValidationError("template arguments must be valid JSON")
 		}
 	}
 
 	if tpl.GitBranch != nil {
-		if err := ValidateGitBranch(*tpl.GitBranch, "template"); err != nil {
+		if err := git.ValidateGitBranch(*tpl.GitBranch, "template"); err != nil {
 			return err
 		}
 	}
 
 	if err := tpl.JWTParams.Validate(); err != nil {
 		return err
+	}
+
+	for _, v := range tpl.SurveyVars {
+		switch v.Target {
+		case SurveyVarTargetDefault, SurveyVarTargetEnv:
+		default:
+			return &common_errors.ValidationError{"invalid survey variable target: " + string(v.Target)}
+		}
 	}
 
 	return nil

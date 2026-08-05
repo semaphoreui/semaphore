@@ -36,11 +36,14 @@ func NewLocalExecutorProvider(keyInstaller db_lib.AccessKeyInstaller) *LocalExec
 // non-nil App — Prepare's contract is "do the I/O", not "build the structure".
 func (p *LocalExecutorProvider) NewExecutor(task db.Task, template db.Template, inventory db.Inventory, repository db.Repository, environment db.Environment, jwt string) (Executor, error) {
 	return &LocalExecutor{
-		Task:         task,
-		Template:     template,
-		Inventory:    inventory,
-		Repository:   repository,
-		Environment:  environment,
+		Task:        task,
+		Template:    template,
+		Inventory:   inventory,
+		Repository:  repository,
+		Environment: environment,
+		// Survey secret variables delivered by the server in the job payload
+		// (see JobData in the runner API).
+		Secret:       task.Secret,
 		KeyInstaller: p.keyInstaller,
 		App:          db_lib.CreateApp(template, repository, inventory, nil),
 		JWT:          jwt,
