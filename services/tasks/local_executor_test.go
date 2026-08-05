@@ -134,3 +134,71 @@ func TestGetSurveyEnvVars(t *testing.T) {
 	assert.Contains(t, envVars, "SECRET_ENV_VAR=s3cr3t")
 	assert.Len(t, envVars, 2, "CLI-target and valueless vars must not be included")
 }
+
+// TestFormatVarValue verifies values from multi-select survey vars (arrays)
+// are JSON-encoded instead of degrading to Go's fmt representation.
+func TestFormatVarValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected string
+	}{
+		{"string", "hello", "hello"},
+		{"array", []any{"1", "2"}, `["1","2"]`},
+		{"empty array", []any{}, `[]`},
+		{"object", map[string]any{"k": "v"}, `{"k":"v"}`},
+		{"number", float64(42), "42"},
+		{"bool", true, "true"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, formatVarValue(tt.input))
+		})
+	}
+}
+
+// TestGetSurveyEnvVars_MultiSelect verifies env-target multi-select survey
+// vars are delivered as JSON arrays, not Go-formatted slices like "[1 2]".
+func TestGetSurveyEnvVars_MultiSelect(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			SurveyVars: []db.SurveyVar{
+				{Name: "MULTI_VAR", Type: db.SurveyVarSelect, Target: db.SurveyVarTargetEnv},
+			},
+		},
+		Environment: db.Environment{JSON: `{"MULTI_VAR":["1","2"]}`},
+	}
+
+	envVars, err := exec.getSurveyEnvVars()
+	require.NoError(t, err)
+
+	assert.Contains(t, envVars, `MULTI_VAR=["1","2"]`)
+}
+
+// TestGetTerraformArgs_MultiSelect verifies multi-select survey vars reach
+// terraform as -var name=<JSON list>, which terraform parses as a list value.
+func TestGetTerraformArgs_MultiSelect(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			Type: db.TemplateTask,
+			App:  db.AppTerraform,
+		},
+		Environment: db.Environment{JSON: `{"multi_var":["1","2"]}`},
+	}
+
+	argsMap, err := exec.getTerraformArgs("admin", nil)
+	require.NoError(t, err)
+
+	defaultArgs := argsMap["default"]
+	found := false
+	for i, arg := range defaultArgs {
+		if arg == "-var" && i+1 < len(defaultArgs) && defaultArgs[i+1] == `multi_var=["1","2"]` {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected -var multi_var=[\"1\",\"2\"] in %v", defaultArgs)
+}

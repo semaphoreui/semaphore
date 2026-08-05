@@ -17,18 +17,31 @@
 
       <v-select
         clearable
-        v-else-if="v.type === 'enum'"
+        v-else-if="v.type === 'enum' || v.type === 'select'"
         :label="v.title + (v.required ? ' *' : '')"
         :hint="v.description"
         v-model="editedEnvironment[v.name]"
         :required="v.required"
-        :rules="[(val) => !v.required || val != null || v.title + ' ' + $t('isRequired')]"
+        :rules="[(val) => !v.required || (Array.isArray(val) ? val.length > 0 : val != null) ||
+         v.title + ' ' + $t('isRequired')]"
         :items="v.values"
         item-text="name"
         item-value="value"
+        :multiple="v.type === 'select'"
+        :chips="v.type === 'select'"
         outlined
         dense
-      />
+      >
+        <template v-if="v.type === 'select'" v-slot:selection="{ item, index }">
+          <v-chip
+            small
+            close
+            @click:close="removeSelectedItem(v.name, index)"
+          >
+            {{ item && item.name ? item.name : String(item) }}
+          </v-chip>
+        </template>
+      </v-select>
 
       <v-textarea
         v-else-if="v.type === 'text'"
@@ -259,6 +272,18 @@ export default {
 
       this.editedEnvironment = JSON.parse(v.environment || '{}');
       this.editedSecretEnvironment = JSON.parse(v.secret || '{}');
+
+      // Normalize select type variables to ensure they are arrays
+      if (this.template && this.template.survey_vars) {
+        this.template.survey_vars.forEach((surveyVar) => {
+          if (surveyVar.type === 'select' && this.editedEnvironment[surveyVar.name] !== undefined) {
+            const currentValue = this.editedEnvironment[surveyVar.name];
+            if (!Array.isArray(currentValue)) {
+              this.editedEnvironment[surveyVar.name] = currentValue == null || currentValue === '' ? [] : [currentValue];
+            }
+          }
+        });
+      }
     },
 
     isLoaded() {
@@ -320,10 +345,18 @@ export default {
           {},
         );
 
-      this.editedEnvironment = {
-        ...defaultVars,
-        ...this.editedEnvironment,
-      };
+      this.editedEnvironment = { ...defaultVars, ...this.editedEnvironment };
+
+      // Ensure select type variables without values are initialized as empty arrays
+      (this.template.survey_vars || []).forEach((surveyVar) => {
+        if (surveyVar.type !== 'select') return;
+        const cur = this.editedEnvironment[surveyVar.name];
+        if (cur == null || cur === '') {
+          this.editedEnvironment[surveyVar.name] = [];
+        } else if (!Array.isArray(cur)) {
+          this.editedEnvironment[surveyVar.name] = [cur];
+        }
+      });
     },
 
     getInventoryUrl() {
@@ -337,6 +370,17 @@ export default {
           break;
       }
       return res;
+    },
+
+    removeSelectedItem(varName, index) {
+      const env = this.editedEnvironment;
+      if (!Object.prototype.hasOwnProperty.call(env, varName) || !Array.isArray(env[varName])) {
+        return;
+      }
+
+      if (index < env[varName].length) {
+        env[varName].splice(index, 1);
+      }
     },
   },
 };

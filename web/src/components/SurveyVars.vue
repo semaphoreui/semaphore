@@ -59,7 +59,7 @@
             </v-row>
 
             <v-card
-              v-if="editedVar.type === 'enum'"
+              v-if="editedVar.type === 'enum' || editedVar.type === 'select'"
               style="background: var(--highlighted-card-bg-color)"
               class="mb-4 pt-3"
             >
@@ -129,7 +129,20 @@
                   dense
                   outlined
                   hide-details
-                ></v-select>
+                  :multiple="editedVar.type === 'select'"
+                  :chips="editedVar.type === 'select'"
+                >
+                  <template
+                    v-slot:selection="{ item, index }"
+                    v-if="editedVar.type === 'select'">
+                    <v-chip
+                      small
+                      close
+                      @click:close="removeDefaultItem(index)"
+                      >{{ selectedItemLabel(item) }}
+                    </v-chip>
+                  </template>
+                </v-select>
               </v-card-text>
             </v-card>
 
@@ -243,6 +256,26 @@ export default {
     vars(val) {
       this.var = val || [];
     },
+
+    'editedVar.type': {
+      handler(newType, oldType) {
+        if (!this.editedVar || newType === oldType) {
+          return;
+        }
+
+        if (newType === 'select') {
+          this.$set(this.editedVar, 'default_value', []);
+        } else {
+          this.$set(this.editedVar, 'default_value', '');
+        }
+
+        const isNotListType = newType !== 'enum' && newType !== 'select';
+        if (isNotListType) {
+          this.editedValues = [];
+          this.editedVar.values = this.editedValues;
+        }
+      },
+    },
   },
 
   created() {
@@ -276,6 +309,10 @@ export default {
         {
           id: 'text',
           name: 'Text',
+        },
+        {
+          id: 'select',
+          name: 'Select',
         },
       ],
       varTargets: [
@@ -317,6 +354,11 @@ export default {
       this.editedValues.push(...(this.editedVar.values || []));
       this.editedVar.values = this.editedValues;
 
+      this.editedVar.default_value = this.normalizeDefaultValue(
+        this.editedVar.type,
+        this.editedVar.default_value,
+      );
+
       this.editedVarIndex = index;
 
       if (this.$refs.form) {
@@ -333,16 +375,18 @@ export default {
         return;
       }
 
-      if (this.editedVar.type === 'enum') {
+      const typeLabel = this.editedVar.type === 'select' ? 'Select' : 'Enumeration';
+
+      if (this.editedVar.type === 'enum' || this.editedVar.type === 'select') {
         if (this.editedValues.length === 0) {
-          this.formError = 'Enumeration must have values.';
+          this.formError = `${typeLabel} must have values.`;
           return;
         }
 
         const uniq = new Set(this.editedValues.map((v) => v.name));
 
         if (this.editedValues.length !== uniq.size) {
-          this.formError = 'Enumeration values must have unique names.';
+          this.formError = `${typeLabel} must have unique names.`;
           return;
         }
 
@@ -359,6 +403,11 @@ export default {
         this.editedVar.values = [];
       }
 
+      this.editedVar.default_value = this.normalizeDefaultValue(
+        this.editedVar.type,
+        this.editedVar.default_value,
+      );
+
       if (this.editedVarIndex != null) {
         this.modifiedVars[this.editedVarIndex] = this.editedVar;
       } else {
@@ -373,6 +422,36 @@ export default {
     deleteVar(index) {
       this.modifiedVars.splice(index, 1);
       this.$emit('change', this.modifiedVars);
+    },
+
+    // remove one selected default item (for multiple select)
+    removeDefaultItem(index) {
+      if (!this.editedVar || !Array.isArray(this.editedVar.default_value)) {
+        return;
+      }
+
+      if (index >= 0 && index < this.editedVar.default_value.length) {
+        this.editedVar.default_value.splice(index, 1);
+      }
+    },
+
+    // label shown in selection chips - item could be the value or an object
+    selectedItemLabel(item) {
+      if (!item) return '';
+      if (typeof item === 'object' && item.name) return item.name;
+      const found = this.editedValues.find((v) => v.value === item || v.name === item);
+      return (found && found.name) || String(item);
+    },
+
+    normalizeDefaultValue(type, value) {
+      if (type === 'select') {
+        if (Array.isArray(value)) return value;
+        return value == null || value === '' ? [] : [value];
+      }
+      if (Array.isArray(value)) {
+        return value.length > 0 ? value[0] : '';
+      }
+      return value ?? '';
     },
 
     onDragEnd() {
