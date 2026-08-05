@@ -224,6 +224,26 @@ func (t *LocalExecutor) getEnvironmentENV() (res []string, err error) {
 	return
 }
 
+// formatVarValue renders a survey/extra var value for single-string contexts
+// (process env vars, terraform -var). Arrays and objects (produced by
+// multi-select survey vars) are JSON-encoded so lists survive the round-trip
+// instead of degrading to Go's fmt representation like "[1 2]". JSON is also
+// what terraform expects for list/object values passed via -var.
+func formatVarValue(val any) string {
+	switch v := val.(type) {
+	case string:
+		return v
+	case []any, map[string]any:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Sprintf("%v", v)
+		}
+		return string(b)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
 // getSurveyEnvVars returns NAME=value pairs for survey vars with Target "env".
 // Values are read from the merged task environment (Environment.JSON) and the
 // Secret field — the same sources getEnvironmentExtraVars reads, which excludes
@@ -250,7 +270,7 @@ func (t *LocalExecutor) getSurveyEnvVars() (res []string, err error) {
 			continue
 		}
 		if val, ok := vars[v.Name]; ok {
-			res = append(res, fmt.Sprintf("%s=%v", v.Name, val))
+			res = append(res, fmt.Sprintf("%s=%s", v.Name, formatVarValue(val)))
 		}
 	}
 
@@ -364,7 +384,7 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 		if name == "semaphore_vars" {
 			continue
 		}
-		varArgs = append(varArgs, "-var", fmt.Sprintf("%s=%s", name, value))
+		varArgs = append(varArgs, "-var", fmt.Sprintf("%s=%s", name, formatVarValue(value)))
 	}
 
 	templateArgsMap, taskArgsMap, err := t.getCLIArgsMap()
