@@ -216,6 +216,20 @@
         {{ repositories.find((x) => x.id === item.repository_id).name }}
       </template>
 
+      <template v-slot:item.cron="{ item }">
+        <div v-if="getTemplateSchedules(item).length === 0">&mdash;</div>
+        <div v-else class="mt-2 mb-2" style="line-height: 1.6;">
+          <div
+            v-for="schedule in getTemplateSchedules(item)"
+            :key="schedule.id"
+            :style="{ opacity: schedule.active ? 1 : 0.4 }"
+          >
+            <span v-if="schedule.type === 'run_at'">{{ formatRunAt(schedule) }}</span>
+            <code v-else>{{ schedule.cron_format }}</code>
+          </div>
+        </div>
+      </template>
+
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
           <v-btn
@@ -267,6 +281,9 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import TaskLink from '@/components/TaskLink.vue';
 import axios from 'axios';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezonePlugin from 'dayjs/plugin/timezone';
 import EditViewsForm from '@/components/EditViewsForm.vue';
 import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
 import TaskList from '@/components/TaskList.vue';
@@ -278,6 +295,11 @@ import NewTaskDialog from '@/components/NewTaskDialog.vue';
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
 import AppsMixin from '@/components/AppsMixin';
+
+dayjs.extend(utc);
+dayjs.extend(timezonePlugin);
+
+const EMPTY_SCHEDULES = Object.freeze([]);
 
 export default {
   components: {
@@ -291,6 +313,7 @@ export default {
   },
   props: {
     features: Object,
+    systemInfo: Object,
   },
   mixins: [ItemListPageBase, AppsMixin],
 
@@ -301,6 +324,7 @@ export default {
       inventory: null,
       environment: null,
       repositories: null,
+      schedules: null,
       newTaskDialog: null,
       settingsSheet: null,
       filteredHeaders: [],
@@ -330,11 +354,22 @@ export default {
       return this.items.find((x) => x.id === this.itemId);
     },
 
+    schedulesByTemplateId() {
+      return (this.schedules || []).reduce((acc, s) => {
+        if (acc[s.template_id] == null) {
+          acc[s.template_id] = [];
+        }
+        acc[s.template_id].push(s);
+        return acc;
+      }, {});
+    },
+
     isLoaded() {
       return this.items
         && this.inventory
         && this.environment
         && this.repositories
+        && this.schedules
         && this.views
         && this.isAppsLoaded;
     },
@@ -383,6 +418,25 @@ export default {
 
     allowActions() {
       return true;
+    },
+
+    getTemplateSchedules(item) {
+      return this.schedulesByTemplateId[item.id] || EMPTY_SCHEDULES;
+    },
+
+    formatRunAt(schedule) {
+      if (!schedule.run_at) {
+        return '—';
+      }
+
+      const tz = this.systemInfo?.schedule_timezone || 'UTC';
+      const parsed = dayjs(schedule.run_at).tz(tz);
+
+      if (!parsed.isValid()) {
+        return '—';
+      }
+
+      return `${parsed.format('YYYY-MM-DD HH:mm')} (${tz})`;
     },
 
     formatEnvironmentNames(item) {
@@ -533,6 +587,11 @@ export default {
           value: 'repository_id',
           sortable: false,
         },
+        {
+          text: this.$i18n.t('cron'),
+          value: 'cron',
+          sortable: false,
+        },
       ];
     },
 
@@ -547,10 +606,12 @@ export default {
         this.inventory,
         this.environment,
         this.repositories,
+        this.schedules,
       ] = await Promise.all([
         this.loadProjectResources('inventory'),
         this.loadProjectResources('environment'),
         this.loadProjectResources('repositories'),
+        this.loadProjectResources('schedules'),
       ]);
     },
 
