@@ -82,6 +82,11 @@ func AddProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := db.ValidateProxy(helpers.Store(r), &proxy); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	newProxy, err := helpers.Store(r).CreateProxy(proxy)
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -126,6 +131,11 @@ func UpdateProxy(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
 		})
+		return
+	}
+
+	if err := db.ValidateProxy(helpers.Store(r), &proxy); err != nil {
+		helpers.WriteError(w, err)
 		return
 	}
 

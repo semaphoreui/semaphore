@@ -872,6 +872,26 @@ func ValidateRepository(store Store, repo *Repository) (err error) {
 	return
 }
 
+// ValidateProxy checks the references of a proxy. The foreign key of the key
+// only points at access_key, so the key must be resolved in the project of the
+// proxy to reject keys of other projects.
+func ValidateProxy(store Store, proxy *Proxy) (err error) {
+	if proxy.SSHKeyID == nil {
+		return
+	}
+
+	key, err := store.GetAccessKey(proxy.ProjectID, *proxy.SSHKeyID)
+	if err != nil {
+		return
+	}
+
+	if key.Type != AccessKeySSH {
+		return common_errors.NewValidationError("proxy key must be an SSH key")
+	}
+
+	return
+}
+
 func ValidateInventory(store Store, inventory *Inventory) (err error) {
 	if inventory.SSHKeyID != nil {
 		_, err = store.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)

@@ -48,7 +48,7 @@
       v-model.number="item.port"
       :label="$t('proxyPort')"
       type="number"
-      :rules="[v => !v || (v > 0 && v < 65536) || $t('proxyPortInvalid')]"
+      :rules="[v => v === '' || v == null || (v > 0 && v < 65536) || $t('proxyPortInvalid')]"
       :disabled="formSaving"
       outlined
       dense
@@ -112,6 +112,15 @@ export default {
   },
 
   methods: {
+    beforeSave() {
+      // v-model.number keeps the raw string when it can not be parsed, so a
+      // cleared field submits "" which does not decode into the nullable int
+      // of the API.
+      if (this.item.port === '' || this.item.port == null) {
+        this.item.port = null;
+      }
+    },
+
     getNewItem() {
       return {
         type: 'ssh',
