@@ -55,9 +55,9 @@
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px); margin: auto;"
     >
       <template v-slot:item.host="{ item }">
-        {{ item.user ? `${item.user}@${item.host}` : item.host }}<code
+        {{ item.user ? `${item.user}@${item.host}` : item.host }}<span
           v-if="item.port"
-        >{{ item.port }}</code>
+        >:<code>{{ item.port }}</code></span>
       </template>
 
       <template v-slot:item.ssh_key_id="{ item }">
