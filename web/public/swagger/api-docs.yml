@@ -2975,20 +2975,6 @@ paths:
         204:
           description: proxy removed
 
-  /project/{project_id}/proxies/{proxy_id}/refs:
-    parameters:
-      - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/proxy_id"
-    get:
-      tags:
-        - project
-      summary: Get objects which use the proxy
-      responses:
-        200:
-          description: objects
-          schema:
-            $ref: "#/definitions/ObjectReferrers"
-
   /project/{project_id}/inventory:
     parameters:
       - $ref: "#/parameters/project_id"
