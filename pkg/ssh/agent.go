@@ -163,6 +163,30 @@ func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
 	return env
 }
 
+// GetPublicKeyBytes derives the SSH public key from a private key in memory
+func GetPublicKeyBytes(privateKeyStr string, passphraseStr string) ([]byte, error) {
+	var (
+		rawKey any
+		err    error
+	)
+	if passphraseStr == "" {
+		rawKey, err = ssh.ParseRawPrivateKey([]byte(privateKeyStr))
+	} else {
+		rawKey, err = ssh.ParseRawPrivateKeyWithPassphrase([]byte(privateKeyStr), []byte(passphraseStr))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := ssh.NewSignerFromKey(rawKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return ssh.MarshalAuthorizedKey(signer.PublicKey()), nil
+}
+
+
 // gitHostKeyCheckingOpts returns the ssh host-key verification options used for
 // git operations. Host-key checking is enabled so a network attacker cannot
 // impersonate the git server. When an explicit known_hosts file is configured

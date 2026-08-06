@@ -811,6 +811,10 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		return
 	}
 
+	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
+		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
+	}
+
 	if t.Template.App.IsTerraform() && alias != "" {
 		environmentVariables = append(environmentVariables, "TF_HTTP_ADDRESS="+util.GetPublicAliasURL("terraform", alias))
 	}
@@ -896,10 +900,6 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		break
 	default:
 		environmentVariables = append(environmentVariables, t.getShellEnvironmentExtraENV(username, incomingVersion)...)
-	}
-
-	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
-		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
 	}
 
 	if t.Template.Type != db.TemplateTask {

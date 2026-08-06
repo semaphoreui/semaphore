@@ -80,14 +80,16 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return nil
 	}
 
-	if err := t.installCollectionsRequirements(args.EnvironmentVars); err != nil {
+	envVars := args.EnvironmentVars
+	if err := t.installCollectionsRequirements(envVars); err != nil {
 		return err
 	}
-	if err := t.installRolesRequirements(args.EnvironmentVars); err != nil {
+	if err := t.installRolesRequirements(envVars); err != nil {
 		return err
 	}
 	return nil
 }
+
 
 // skipGalaxyInstall reports whether the Galaxy install step must be skipped.
 // The template-level flag provides the default; when the template allows
