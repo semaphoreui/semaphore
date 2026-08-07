@@ -164,6 +164,14 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 		maps.Copy(extraVars, extraSecretVars)
 	}
 
+	// Survey vars with the "env" target are delivered as process environment
+	// variables (see getSurveyEnvVars), not as extra vars / CLI args.
+	for _, v := range t.Template.SurveyVars {
+		if v.Target == db.SurveyVarTargetEnv {
+			delete(extraVars, v.Name)
+		}
+	}
+
 	vars := make(map[string]any)
 	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
@@ -210,6 +218,59 @@ func (t *LocalExecutor) getEnvironmentENV() (res []string, err error) {
 
 	if t.JWT != "" {
 		res = append(res, fmt.Sprintf("SEMAPHORE_JWT=%s", t.JWT))
+	}
+
+	return
+}
+
+// formatVarValue renders a survey/extra var value for single-string contexts
+// (process env vars, terraform -var). Arrays and objects (produced by
+// multi-select survey vars) are JSON-encoded so lists survive the round-trip
+// instead of degrading to Go's fmt representation like "[1 2]". JSON is also
+// what terraform expects for list/object values passed via -var.
+func formatVarValue(val any) string {
+	switch v := val.(type) {
+	case string:
+		return v
+	case []any, map[string]any:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Sprintf("%v", v)
+		}
+		return string(b)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// getSurveyEnvVars returns NAME=value pairs for survey vars with Target "env".
+// Values are read from the merged task environment (Environment.JSON) and the
+// Secret field — the same sources getEnvironmentExtraVars reads, which excludes
+// these vars so each one is delivered exactly once.
+func (t *LocalExecutor) getSurveyEnvVars() (res []string, err error) {
+	vars := make(map[string]any)
+
+	if t.Environment.JSON != "" {
+		if err = json.Unmarshal([]byte(t.Environment.JSON), &vars); err != nil {
+			return
+		}
+	}
+
+	if t.Secret != "" {
+		secretVars := make(map[string]any)
+		if err = json.Unmarshal([]byte(t.Secret), &secretVars); err != nil {
+			return
+		}
+		maps.Copy(vars, secretVars)
+	}
+
+	for _, v := range t.Template.SurveyVars {
+		if v.Target != db.SurveyVarTargetEnv {
+			continue
+		}
+		if val, ok := vars[v.Name]; ok {
+			res = append(res, fmt.Sprintf("%s=%s", v.Name, formatVarValue(val)))
+		}
 	}
 
 	return
@@ -322,7 +383,7 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 		if name == "semaphore_vars" {
 			continue
 		}
-		varArgs = append(varArgs, "-var", fmt.Sprintf("%s=%s", name, value))
+		varArgs = append(varArgs, "-var", fmt.Sprintf("%s=%s", name, formatVarValue(value)))
 	}
 
 	templateArgsMap, taskArgsMap, err := t.getCLIArgsMap()
@@ -733,6 +794,12 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 	if err != nil {
 		return
 	}
+
+	surveyEnvVars, err := t.getSurveyEnvVars()
+	if err != nil {
+		return
+	}
+	environmentVariables = append(environmentVariables, surveyEnvVars...)
 
 	tplParams, err := t.getTemplateParams()
 	if err != nil {

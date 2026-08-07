@@ -6,17 +6,22 @@ import "sort"
 // (analog of OidcProvider for `oidc_providers`). Field JSON names mirror
 // the legacy flat ldap_* config options.
 type LdapProvider struct {
-	DisplayName  string        `json:"display_name"`
-	Server       string        `json:"server"`
-	NeedTLS      bool          `json:"need_tls"`
-	BindDN       string        `json:"bind_dn"`
-	BindPassword string        `json:"bind_password"`
-	SearchDN     string        `json:"search_dn"`
-	SearchFilter string        `json:"search_filter"`
-	Mappings     *LdapMappings `json:"mappings"`
-	Color        string        `json:"color"`
-	Icon         string        `json:"icon"`
-	Order        int           `json:"order"`
+	DisplayName string `json:"display_name"`
+	Server      string `json:"server"`
+	NeedTLS     bool   `json:"need_tls"`
+	// TLSSkipVerify disables verification of the LDAP server's TLS certificate.
+	// It defaults to false so certificates are verified: a network attacker
+	// cannot impersonate the LDAP server to capture bind or user credentials.
+	// Only enable it for trusted networks with self-signed certificates.
+	TLSSkipVerify bool          `json:"tls_skip_verify"`
+	BindDN        string        `json:"bind_dn"`
+	BindPassword  string        `json:"bind_password"`
+	SearchDN      string        `json:"search_dn"`
+	SearchFilter  string        `json:"search_filter"`
+	Mappings      *LdapMappings `json:"mappings"`
+	Color         string        `json:"color"`
+	Icon          string        `json:"icon"`
+	Order         int           `json:"order"`
 }
 
 // GetMappings returns the attribute mappings, falling back to the same
@@ -44,14 +49,15 @@ func (conf *ConfigType) ActiveLdapProviders() (res []LdapProviderEntry) {
 		res = append(res, LdapProviderEntry{
 			ID: "ldap",
 			Provider: LdapProvider{
-				DisplayName:  "LDAP",
-				Server:       conf.LdapServer,
-				NeedTLS:      conf.LdapNeedTLS,
-				BindDN:       conf.LdapBindDN,
-				BindPassword: conf.LdapBindPassword,
-				SearchDN:     conf.LdapSearchDN,
-				SearchFilter: conf.LdapSearchFilter,
-				Mappings:     conf.LdapMappings,
+				DisplayName:   "LDAP",
+				Server:        conf.LdapServer,
+				NeedTLS:       conf.LdapNeedTLS,
+				TLSSkipVerify: conf.LdapTLSSkipVerify,
+				BindDN:        conf.LdapBindDN,
+				BindPassword:  conf.LdapBindPassword,
+				SearchDN:      conf.LdapSearchDN,
+				SearchFilter:  conf.LdapSearchFilter,
+				Mappings:      conf.LdapMappings,
 			},
 		})
 	}

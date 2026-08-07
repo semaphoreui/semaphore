@@ -1039,6 +1039,12 @@ definitions:
           $ref: "#/definitions/TemplateVault"
       task_params:
         $ref: '#/definitions/TaskPrams'
+      executor_image:
+        type: string
+        description: >-
+          Container image used to run the task by the Docker and Kubernetes runner
+          executors. Empty means the image configured on the runner is used.
+        example: semaphoreui/job:latest
 
   TemplateSurveyVar:
     type: object
@@ -1051,8 +1057,12 @@ definitions:
         type: string
       type:
         type: string
-        enum: ["", int, enum, secret] # String => "", Integer => "int"
+        enum: ["", int, enum, secret, text] # String => "", Integer => "int", Text (multiline) => "text"
         example: int
+      target:
+        type: string
+        enum: ["", env] # CLI (extra-vars / -var / argument) => "", Environment variable => "env"
+        example: env
       required:
         type: boolean
       values:

@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -137,11 +139,11 @@ func (r Repository) GetType() RepositoryType {
 
 func (r Repository) Validate() error {
 	if r.Name == "" {
-		return &ValidationError{"repository name can't be empty"}
+		return common_errors.NewValidationError("repository name can't be empty")
 	}
 
 	if r.GitURL == "" {
-		return &ValidationError{"repository url can't be empty"}
+		return common_errors.NewValidationError("repository url can't be empty")
 	}
 
 	if err := ValidateGitURL(r.GitURL, "repository"); err != nil {
@@ -149,10 +151,10 @@ func (r Repository) Validate() error {
 	}
 
 	if r.GetType() != RepositoryLocal && r.GitBranch == "" {
-		return &ValidationError{"repository branch can't be empty"}
+		return common_errors.NewValidationError("repository branch can't be empty")
 	}
 
-	if err := ValidateGitBranch(r.GitBranch, "repository"); err != nil {
+	if err := git.ValidateGitBranch(r.GitBranch, "repository"); err != nil {
 		return err
 	}
 

@@ -1,5 +1,7 @@
 package db
 
+import "github.com/semaphoreui/semaphore/pkg/common_errors"
+
 type InventoryType string
 
 const (
@@ -60,7 +62,7 @@ func (e Inventory) GetFilename() string {
 
 func (e Inventory) Validate() error {
 	if e.RunnerTag == nil && *e.RunnerTag == "" {
-		return &ValidationError{"template runner tag can not be empty"}
+		return common_errors.NewValidationError("template runner tag can not be empty")
 	}
 
 	return nil

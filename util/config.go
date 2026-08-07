@@ -21,12 +21,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-github/github"
+	"github.com/gorilla/securecookie"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/yaml.v3"
-
-	"github.com/google/go-github/github"
-	"github.com/gorilla/securecookie"
 )
 
 // Cookie is a runtime generated secure cookie used for authentication
@@ -249,6 +248,15 @@ type RunnerDockerConfig struct {
 	Privileged bool `json:"privileged,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_PRIVILEGED"`
 }
 
+type DefultGlobalRunnerMode string
+
+const (
+	DefultGlobalRunnerNone    DefultGlobalRunnerMode = ""
+	DefultGlobalRunnerDisable DefultGlobalRunnerMode = "disable"
+	DefultGlobalRunnerPrefer  DefultGlobalRunnerMode = "prefer"
+	DefultGlobalRunnerRequire DefultGlobalRunnerMode = "require"
+)
+
 // RunnersConfig holds server-side settings describing how the server treats
 // its runner fleet. It is unrelated to RunnerConfig, which configures a runner
 // process itself: server-side fleet settings use the SEMAPHORE_RUNNERS_* env
@@ -271,6 +279,11 @@ type RunnersConfig struct {
 	// ReconcileIntervalSec is how often the server scans dispatched tasks
 	// against runner liveness.
 	ReconcileIntervalSec int `json:"reconcile_interval_sec,omitempty" default:"30" env:"SEMAPHORE_RUNNERS_RECONCILE_INTERVAL_SEC"`
+
+	// RunnerRegistrationToken is deprecated, use Runners field instead of it.
+	RegistrationToken string `json:"registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
+
+	DefaultGlobalRunnersMode DefultGlobalRunnerMode `json:"default_global_runners_mode" env:"SEMAPHORE_DEFAULT_GLOBAL_RUNNERS_MODE"`
 }
 
 type TLSConfig struct {
@@ -325,6 +338,12 @@ type SyslogConfig struct {
 	Format  SyslogFormat `json:"format,omitempty" env:"SEMAPHORE_SYSLOG_FORMAT"`
 }
 
+type MetricsConfig struct {
+	Enabled  bool   `json:"enabled" env:"SEMAPHORE_METRICS_ENABLED"`
+	Username string `json:"username,omitempty" env:"SEMAPHORE_METRICS_USERNAME"`
+	Password string `json:"password,omitempty" env:"SEMAPHORE_METRICS_PASSWORD,sensitive"`
+}
+
 type ConfigProcess struct {
 	User       string  `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
 	UID        *uint32 `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
@@ -335,7 +354,7 @@ type ConfigProcess struct {
 	// AppNamespaces controls Linux namespace isolation for child apps
 	// (ansible, terraform, shell templates). Git is never isolated —
 	// SSH agent forwarding and credential helpers need host access.
-	AppNamespaces ConfigAppNamespaces `json:"app_namespaces,omitempty"`
+	AppNamespaces ConfigAppNamespaces `json:"app_namespaces"`
 }
 
 // ConfigAppNamespaces mirrors the CLONE_NEW* flags applied to app runs.
@@ -452,7 +471,7 @@ type ActivePointers struct {
 type EncryptionKeysConfig struct {
 	Keys       map[string]KeySource `json:"keys,omitempty"`
 	KeysFolder string               `json:"keys_folder,omitempty"`
-	Active     ActivePointers       `json:"active,omitempty"`
+	Active     ActivePointers       `json:"active"`
 }
 
 // EncryptionConfig is the main-config "encryption" section. It points at the
@@ -463,6 +482,31 @@ type EncryptionConfig struct {
 	// KeysPollInterval is how often the keys file is checked for changes (a Go
 	// duration like "15s"). "0" disables polling (SIGHUP still forces a reload).
 	KeysPollInterval string `json:"keys_poll_interval,omitempty" env:"SEMAPHORE_ENCRYPTION_KEYS_POLL_INTERVAL" default:"15s"`
+}
+
+type SshStrictHostKeyChecking string
+
+const (
+	SshStrictHostKeyCheckingNo        SshStrictHostKeyChecking = "no"
+	SshStrictHostKeyCheckingYes       SshStrictHostKeyChecking = "yes"
+	SshStrictHostKeyCheckingAcceptNew SshStrictHostKeyChecking = "accept-new"
+)
+
+type SshConfig struct {
+	// SshConfigPath is a path to the custom SSH config file.
+	// Default path is ~/.ssh/config.
+	ConfigPath string `json:"config_path,omitempty" env:"SEMAPHORE_SSH_PATH"`
+
+	// SshKnownHostsFile is a path to the SSH known_hosts file used to verify git
+	// server host keys. When set, host-key checking is strict: a key that is
+	// missing from (or changed relative to) this file aborts the connection,
+	// preventing a network attacker from impersonating the git server. When
+	// empty, Semaphore uses a persistent trust-on-first-use file under TmpPath
+	// (StrictHostKeyChecking=accept-new): the first connection to a host is
+	// trusted and pinned, and any later host-key change is rejected.
+	KnownHostsFile string `json:"known_hosts_file,omitempty" env:"SEMAPHORE_SSH_KNOWN_HOSTS_FILE"`
+
+	StrictHostKeyChecking SshStrictHostKeyChecking `json:"strict_host_key_checking,omitempty" env:"" default:"no"`
 }
 
 // ConfigType mapping between Config and the json file that sets it
@@ -500,6 +544,8 @@ type ConfigType struct {
 	// SshConfigPath is a path to the custom SSH config file.
 	// Default path is ~/.ssh/config.
 	SshConfigPath string `json:"ssh_config_path,omitempty" env:"SEMAPHORE_SSH_PATH"`
+
+	Ssh *SshConfig `json:"ssh"`
 
 	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
@@ -543,6 +589,10 @@ type ConfigType struct {
 	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
 	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
+	// LdapTLSSkipVerify disables verification of the LDAP server's TLS
+	// certificate for the legacy flat ldap_* config. Defaults to false
+	// (certificates are verified). See LdapProvider.TLSSkipVerify.
+	LdapTLSSkipVerify bool `json:"ldap_tls_skip_verify,omitempty" env:"SEMAPHORE_LDAP_TLS_SKIP_VERIFY"`
 
 	// LdapProviders configures multiple LDAP directories (like OidcProviders
 	// for OIDC). The key is the provider ID shown in identity records; the
@@ -574,6 +624,7 @@ type ConfigType struct {
 	// task concurrency
 	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"9999" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
+	// RunnerRegistrationToken is deprecated, use Runners field instead of it.
 	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
 	JWT *JWTConfig `json:"jwt,omitempty"`
@@ -592,6 +643,7 @@ type ConfigType struct {
 	ExternalAuthEmailMatching string `json:"external_auth_email_matching,omitempty" env:"SEMAPHORE_EXTERNAL_AUTH_EMAIL_MATCHING" rule:"^(auto|always|never)?$" default:"auto"`
 	NonAdminCanCreateProject  bool   `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
 
+	// UseRemoteRunner is deprecated. Use Runners field instead of it.
 	UseRemoteRunner bool `json:"use_remote_runner,omitempty" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
 	Apps map[string]App `json:"apps,omitempty" env:"SEMAPHORE_APPS"`
@@ -603,6 +655,8 @@ type ConfigType struct {
 	Teams *TeamsConfig `json:"teams,omitempty"`
 
 	Syslog *SyslogConfig `json:"syslog,omitempty"`
+
+	Metrics *MetricsConfig `json:"metrics,omitempty"`
 
 	Log *ConfigLog `json:"log,omitempty"`
 
@@ -642,6 +696,35 @@ const (
 	defaultRunnersTaskFailTimeoutSec   = 420
 	defaultRunnersReconcileIntervalSec = 30
 )
+
+// GetSshConfigPath return SSH config path from configuration.
+// Used for backward compatibility.
+func (conf *ConfigType) GetSshConfigPath() string {
+	if conf.Ssh.ConfigPath != "" {
+		return conf.Ssh.ConfigPath
+	}
+	return conf.SshConfigPath
+}
+
+func (conf *ConfigType) GetRunnerRegistrationToken() string {
+	if conf.Runners.RegistrationToken != "" {
+		return conf.Runners.RegistrationToken
+	}
+	return conf.RunnerRegistrationToken
+}
+
+func (conf *ConfigType) IsUseRemoteRunner() bool {
+	switch conf.Runners.DefaultGlobalRunnersMode {
+	case DefultGlobalRunnerDisable:
+		return false
+	case DefultGlobalRunnerRequire:
+		return true
+	case DefultGlobalRunnerPrefer:
+		return true
+	default:
+		return conf.UseRemoteRunner
+	}
+}
 
 // RunnersOfflineTimeout returns the heartbeat staleness after which a runner
 // is considered offline (no new tasks; its "starting" tasks are reassigned).

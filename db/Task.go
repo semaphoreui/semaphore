@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/go-gorp/gorp/v3"
@@ -173,7 +174,13 @@ func (task *Task) GetUrl() *string {
 
 func (task *Task) ValidateNewTask(template Template) error {
 	if task.GitBranch != nil {
-		if err := ValidateGitBranch(*task.GitBranch, "task"); err != nil {
+		if err := git.ValidateGitBranch(*task.GitBranch, "task"); err != nil {
+			return err
+		}
+	}
+
+	if task.CommitHash != nil {
+		if err := git.ValidateCommitHash(*task.CommitHash, "task"); err != nil {
 			return err
 		}
 	}
