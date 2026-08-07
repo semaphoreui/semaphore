@@ -42,7 +42,7 @@ func taskPool(r *http.Request) *tasks.TaskPool {
 // rest of the pipeline only deals with ids.
 func (c *TaskController) resolveTaskTemplate(projectID int, task *db.Task) (tpl db.Template, err error) {
 	if task.TemplateID == 0 && task.TemplateName == "" {
-		err = db.NewValidationError("template_id or template_name is required")
+		err = common_errors.NewValidationError("template_id or template_name is required")
 		return
 	}
 

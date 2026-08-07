@@ -470,7 +470,7 @@ func (d *SqlDb) GetTemplateByName(projectID int, name string) (template db.Templ
 		return
 	case 1:
 	default:
-		err = db.NewValidationError("more than one template is named " + name + ", use template_id")
+		err = common_errors.NewValidationError("more than one template is named " + name + ", use template_id")
 		return
 	}
 
