@@ -444,6 +444,37 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 	return
 }
 
+// GetTemplateByName returns the template of the project with the given name.
+// Template names are not unique per project, so an ambiguous name is rejected
+// instead of silently running one of the matching templates.
+func (d *SqlDb) GetTemplateByName(projectID int, name string) (template db.Template, err error) {
+	var templates []db.Template
+
+	_, err = d.selectAll(
+		&templates,
+		"select * from project__template where project_id=? and name=?",
+		projectID,
+		name)
+
+	if err != nil {
+		return
+	}
+
+	switch len(templates) {
+	case 0:
+		err = db.ErrNotFound
+		return
+	case 1:
+	default:
+		err = db.NewValidationError("more than one template is named " + name + ", use template_id")
+		return
+	}
+
+	template = templates[0]
+	err = db.FillTemplate(d, &template)
+	return
+}
+
 func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template, err error) {
 	err = d.selectOne(
 		&template,

@@ -282,6 +282,7 @@ type TemplateManager interface {
 	CreateTemplate(template Template) (Template, error)
 	UpdateTemplate(template Template) error
 	GetTemplate(projectID int, templateID int) (Template, error)
+	GetTemplateByName(projectID int, name string) (Template, error)
 	DeleteTemplate(projectID int, templateID int) error
 	SetTemplateDescription(projectID int, templateID int, description string) error
 	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)

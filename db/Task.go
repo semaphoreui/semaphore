@@ -40,8 +40,13 @@ type AnsibleTaskParams struct {
 // Task is a model of a task which will be executed by the runner
 type Task struct {
 	ID         int `db:"id" json:"id"`
-	TemplateID int `db:"template_id" json:"template_id" binding:"required"`
+	TemplateID int `db:"template_id" json:"template_id"`
 	ProjectID  int `db:"project_id" json:"project_id"`
+
+	// TemplateName allows a task to reference its template by name instead of
+	// by id when it is created through the API. It is resolved to TemplateID by
+	// the API and never stored.
+	TemplateName string `db:"-" json:"template_name,omitempty"`
 
 	Status task_logger.TaskStatus `db:"status" json:"status"`
 
