@@ -114,3 +114,57 @@ func Test_ToFloat64_InvalidType_ReturnsFalse(t *testing.T) {
 	_, ok := toFloat64("string")
 	assert.False(t, ok)
 }
+
+func Test_MarshalUnmarshal_SurveyVarDefaultValue_ScalarRoundTrip(t *testing.T) {
+	// Verify that SurveyVarDefaultValue (a json.Marshaler/Unmarshaler type)
+	// is handled correctly by the backup marshaller — not serialized as "{}".
+	type Wrapper struct {
+		DefaultValue *db.SurveyVarDefaultValue `backup:"default_value"`
+	}
+
+	dv := &db.SurveyVarDefaultValue{}
+	_ = dv.UnmarshalJSON([]byte(`"hello"`))
+	original := Wrapper{DefaultValue: dv}
+
+	// Marshal
+	marshaled, err := marshalValue(reflect.ValueOf(original))
+	assert.NoError(t, err)
+	m, ok := marshaled.(map[string]any)
+	assert.True(t, ok)
+	assert.Equal(t, "hello", m["default_value"], "scalar default_value must survive backup marshal")
+
+	// Unmarshal
+	var restored Wrapper
+	err = unmarshalValueWithBackupTags(m, reflect.ValueOf(&restored).Elem())
+	assert.NoError(t, err)
+	assert.NotNil(t, restored.DefaultValue)
+	assert.Equal(t, []string{"hello"}, restored.DefaultValue.Values)
+	assert.False(t, restored.DefaultValue.IsArray())
+}
+
+func Test_MarshalUnmarshal_SurveyVarDefaultValue_ArrayRoundTrip(t *testing.T) {
+	type Wrapper struct {
+		DefaultValue *db.SurveyVarDefaultValue `backup:"default_value"`
+	}
+
+	dv := &db.SurveyVarDefaultValue{}
+	_ = dv.UnmarshalJSON([]byte(`["a","b"]`))
+	original := Wrapper{DefaultValue: dv}
+
+	// Marshal
+	marshaled, err := marshalValue(reflect.ValueOf(original))
+	assert.NoError(t, err)
+	m, ok := marshaled.(map[string]any)
+	assert.True(t, ok)
+	arr, ok := m["default_value"].([]any)
+	assert.True(t, ok, "array default_value must survive backup marshal as []any")
+	assert.Equal(t, []any{"a", "b"}, arr)
+
+	// Unmarshal
+	var restored Wrapper
+	err = unmarshalValueWithBackupTags(m, reflect.ValueOf(&restored).Elem())
+	assert.NoError(t, err)
+	assert.NotNil(t, restored.DefaultValue)
+	assert.Equal(t, []string{"a", "b"}, restored.DefaultValue.Values)
+	assert.True(t, restored.DefaultValue.IsArray())
+}
