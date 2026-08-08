@@ -456,7 +456,7 @@ func (d *SqlDb) GetTemplateByName(projectID int, name string) (template db.Templ
 
 	_, err = d.selectAll(
 		&templates,
-		"select * from project__template where project_id=? and name=?",
+		"select * from project__template where project_id=? and name=? limit 2",
 		projectID,
 		name)
 
