@@ -177,6 +177,26 @@ func TestGetSurveyEnvVars_MultiSelect(t *testing.T) {
 	assert.Contains(t, envVars, `MULTI_VAR=["1","2"]`)
 }
 
+// TestGetShellArgs_MultiSelect verifies multi-select survey vars reach shell
+// tasks as JSON arrays in KEY=value CLI args, not Go's "[1 2]" formatting.
+func TestGetShellArgs_MultiSelect(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			Type:     db.TemplateTask,
+			Playbook: "run.sh",
+		},
+		Environment: db.Environment{JSON: `{"multi_var":["1","2"]}`},
+	}
+
+	args, err := exec.getShellArgs("admin", nil)
+	require.NoError(t, err)
+
+	assert.Contains(t, args, `multi_var=["1","2"]`)
+	assert.NotContains(t, args, "multi_var=[1 2]")
+}
+
 // TestGetTerraformArgs_MultiSelect verifies multi-select survey vars reach
 // terraform as -var name=<JSON list>, which terraform parses as a list value.
 func TestGetTerraformArgs_MultiSelect(t *testing.T) {
