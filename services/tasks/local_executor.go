@@ -811,10 +811,6 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		return
 	}
 
-	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
-		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
-	}
-
 	if t.Template.App.IsTerraform() && alias != "" {
 		environmentVariables = append(environmentVariables, "TF_HTTP_ADDRESS="+util.GetPublicAliasURL("terraform", alias))
 	}
@@ -900,6 +896,10 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		break
 	default:
 		environmentVariables = append(environmentVariables, t.getShellEnvironmentExtraENV(username, incomingVersion)...)
+	}
+
+	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
+		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
 	}
 
 	if t.Template.Type != db.TemplateTask {
@@ -999,6 +999,10 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 	if err := t.installInventory(); err != nil {
 		t.Log("Failed to install inventory: " + err.Error())
 		return err
+	}
+
+	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil && t.sshKeyInstallation.SSHAgent != nil {
+		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
 	}
 
 	if err := t.App.InstallRequirements(installingArgs); err != nil {
