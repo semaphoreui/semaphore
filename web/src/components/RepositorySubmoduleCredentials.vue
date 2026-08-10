@@ -23,7 +23,10 @@
               :label="$t('submoduleCredentialHost')"
               placeholder="gitserver.example.com"
               v-model.trim="editedCredential.host"
-              :rules="[v => !!v || $t('submoduleCredentialHostRequired')]"
+              :rules="[
+                v => !!v || $t('submoduleCredentialHostRequired'),
+                v => isValidSubmoduleHost(v) || $t('submoduleCredentialHostInvalid'),
+              ]"
             />
 
             <v-select
@@ -57,6 +60,13 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-alert
+      :value="!editDialog && !!formError"
+      color="error"
+      dense
+    >{{ formError }}
+    </v-alert>
 
     <fieldset v-if="hasRepository" style="padding: 0 10px 2px 10px;
                      border: 1px solid rgba(0, 0, 0, 0.38);
@@ -131,6 +141,32 @@ export default {
   },
 
   methods: {
+    // Mirrors the API's validateSubmoduleCredentialHost (db/RepositorySubmoduleCredential.go):
+    // only a bare hostname, optionally with a ":port" suffix, can ever equal
+    // the exact host[:port] extracted from a submodule's git URL. Anything
+    // else (a scheme, a path, a query, userinfo, the "*" wildcard, or padding
+    // whitespace) would save a mapping that silently never applies.
+    isValidSubmoduleHost(host) {
+      if (!host || host !== host.trim()) {
+        return false;
+      }
+
+      let parsed;
+      try {
+        parsed = new URL(`http://${host}`);
+      } catch (err) {
+        return false;
+      }
+
+      return parsed.hostname !== ''
+        && parsed.hostname !== '*'
+        && (parsed.pathname === '' || parsed.pathname === '/')
+        && parsed.search === ''
+        && parsed.hash === ''
+        && parsed.username === ''
+        && parsed.password === '';
+    },
+
     baseUrl() {
       return `/api/project/${this.projectId}/repositories/${this.repositoryId}/submodule_credentials`;
     },

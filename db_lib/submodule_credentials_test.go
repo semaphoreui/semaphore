@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -50,7 +51,7 @@ func lastCommitHash(t *testing.T, dir string) string {
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	require.NoError(t, err)
-	return string(out[:40])
+	return strings.TrimSpace(string(out))
 }
 
 // addGitlinkSubmodule registers a submodule entry (.gitmodules + gitlink) in
@@ -171,6 +172,11 @@ func TestCmdGitClient_SubmoduleCredentials_Unmatched(t *testing.T) {
 
 	err := gitRepo.Clone()
 	assert.Error(t, err, "submodule clone must fail without matching credentials")
+
+	// The submodule clone must be the thing that failed, not some unrelated
+	// fixture problem: its checkout must never have been populated.
+	_, statErr := os.Stat(filepath.Join(gitRepo.GetFullPath(), "scripts", "submodule1", "submodule-file.txt"))
+	assert.True(t, os.IsNotExist(statErr), "submodule file must not exist after a failed clone")
 }
 
 // TestCmdGitClient_SubmoduleCredentials_Matched proves the fix: once a
@@ -227,7 +233,7 @@ func TestGoGitClient_SubmoduleCredentials_Unmatched(t *testing.T) {
 	}
 
 	err := gitRepo.Clone()
-	assert.Error(t, err, "submodule clone must fail without matching credentials")
+	assert.ErrorContains(t, err, "authentication", "submodule clone must fail because of missing credentials")
 }
 
 // TestGoGitClient_SubmoduleCredentials_Matched is the go-git backend's

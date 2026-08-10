@@ -124,7 +124,7 @@ func (c GoGitClient) Clone(r GitRepository) error {
 		return err
 	}
 
-	return c.updateSubmodules(r, repo)
+	return c.updateSubmodules(r, repo, 0)
 }
 
 func (c GoGitClient) Pull(r GitRepository) error {
@@ -154,7 +154,7 @@ func (c GoGitClient) Pull(r GitRepository) error {
 		return err
 	}
 
-	return c.updateSubmodules(r, rep)
+	return c.updateSubmodules(r, rep, 0)
 }
 
 // updateSubmodules recursively initializes and clones/updates every submodule
@@ -167,7 +167,11 @@ func (c GoGitClient) Pull(r GitRepository) error {
 // its own resolved credential, so a submodule on a different host than the
 // main repository is no longer forced to reuse the main repository's
 // credentials.
-func (c GoGitClient) updateSubmodules(r GitRepository, repo *git.Repository) error {
+func (c GoGitClient) updateSubmodules(r GitRepository, repo *git.Repository, depth int) error {
+	if depth >= maxSubmoduleRecursionDepth {
+		return fmt.Errorf("submodule recursion exceeded maximum depth of %d -- possible submodule cycle", maxSubmoduleRecursionDepth)
+	}
+
 	wt, err := repo.Worktree()
 	if err != nil {
 		return err
@@ -202,7 +206,7 @@ func (c GoGitClient) updateSubmodules(r GitRepository, repo *git.Repository) err
 			return err
 		}
 
-		if err := c.updateSubmodules(r, subRepo); err != nil {
+		if err := c.updateSubmodules(r, subRepo, depth+1); err != nil {
 			return err
 		}
 	}

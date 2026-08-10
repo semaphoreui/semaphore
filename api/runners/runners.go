@@ -161,16 +161,17 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 	}
 
 	jobData := runners.JobData{
-		Username:             tsk.Username,
-		IncomingVersion:      tsk.IncomingVersion,
-		Alias:                tsk.Alias,
-		Task:                 tsk.Task,
-		Template:             tsk.Template,
-		Inventory:            tsk.Inventory,
-		InventoryRepository:  tsk.Inventory.Repository,
-		Repository:           tsk.Repository,
-		SubmoduleCredentials: tsk.SubmoduleCredentials,
-		Environment:          tsk.Environment,
+		Username:                      tsk.Username,
+		IncomingVersion:               tsk.IncomingVersion,
+		Alias:                         tsk.Alias,
+		Task:                          tsk.Task,
+		Template:                      tsk.Template,
+		Inventory:                     tsk.Inventory,
+		InventoryRepository:           tsk.Inventory.Repository,
+		InventorySubmoduleCredentials: tsk.Inventory.SubmoduleCredentials,
+		Repository:                    tsk.Repository,
+		SubmoduleCredentials:          tsk.SubmoduleCredentials,
+		Environment:                   tsk.Environment,
 	}
 
 	// Always overwrite: the dispatched Secret must be exactly the
@@ -289,6 +290,20 @@ func (c *RunnerController) collectTaskAccessKeys(tsk *tasks.TaskRunner, runnerID
 			return err
 		}
 		keys[tsk.Inventory.Repository.SSHKeyID] = tsk.Inventory.Repository.SSHKey
+
+		for _, cred := range tsk.Inventory.SubmoduleCredentials {
+			if err := c.encryptionService.DeserializeSecret(&cred.AccessKey); err != nil {
+				log.WithFields(log.Fields{
+					"runner_id":     runnerID,
+					"task_id":       tsk.Task.ID,
+					"repository_id": tsk.Inventory.Repository.ID,
+					"access_key_id": cred.AccessKeyID,
+					"context":       "runner",
+				}).WithError(err).Error("Failed to decrypt inventory repository submodule credential key")
+				return err
+			}
+			keys[cred.AccessKeyID] = cred.AccessKey
+		}
 	}
 
 	// Decrypt the task repository key here rather than relying on it having

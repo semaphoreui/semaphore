@@ -68,4 +68,9 @@ func TestResolveSubmoduleAccessKey(t *testing.T) {
 		got := resolveSubmoduleAccessKey(mainKey, nil, "https://gitserver/group/submodule1")
 		assert.Equal(t, mainKey.ID, got.ID)
 	})
+
+	t.Run("does not match when the url carries a port and the credential does not", func(t *testing.T) {
+		got := resolveSubmoduleAccessKey(mainKey, creds, "https://gitserver:8443/group/submodule1")
+		assert.Equal(t, mainKey.ID, got.ID)
+	})
 }

@@ -172,7 +172,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 		return err
 	}
 
-	return c.updateSubmodules(r, r.GetFullPath())
+	return c.updateSubmodules(r, r.GetFullPath(), 0)
 }
 
 func (c CmdGitClient) Pull(r GitRepository) error {
@@ -182,7 +182,7 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 	if err != nil {
 		return err
 	}
-	return c.updateSubmodules(r, r.GetFullPath())
+	return c.updateSubmodules(r, r.GetFullPath(), 0)
 }
 
 // gitSubmodule describes one entry read from a repository's tracked
@@ -277,7 +277,11 @@ func (c CmdGitClient) listSubmodules(r GitRepository, dir string) ([]gitSubmodul
 // ssh-agent, or its own URL-embedded HTTPS credentials), so a submodule on a
 // different host than the main repository is no longer forced to reuse the
 // main repository's credentials.
-func (c CmdGitClient) updateSubmodules(r GitRepository, dir string) error {
+func (c CmdGitClient) updateSubmodules(r GitRepository, dir string, depth int) error {
+	if depth >= maxSubmoduleRecursionDepth {
+		return fmt.Errorf("submodule recursion exceeded maximum depth of %d at %q -- possible submodule cycle", maxSubmoduleRecursionDepth, dir)
+	}
+
 	submodules, err := c.listSubmodules(r, dir)
 	if err != nil {
 		return err
@@ -286,21 +290,22 @@ func (c CmdGitClient) updateSubmodules(r GitRepository, dir string) error {
 	for _, sm := range submodules {
 		key := resolveSubmoduleAccessKey(r.Repository.SSHKey, r.SubmoduleCredentials, sm.URL)
 
-		// Override the submodule's local URL before init/update runs, so an
-		// HTTPS credential is embedded exactly like the main repository's
-		// GetGitURL(false) does -- never touching the tracked .gitmodules file.
+		// Override the submodule's URL for this git invocation only, via a
+		// command-line "-c" config override, so an HTTPS credential is embedded
+		// exactly like the main repository's GetGitURL(false) does -- without
+		// ever writing the credential to .git/config on disk (a plain "git
+		// config" call would persist it there). "-c" overrides are exported to
+		// child git processes via the environment, so they still apply to the
+		// nested clone/fetch git-submodule spawns internally.
 		effectiveURL := gitURLWithCredentials(sm.URL, key)
-		if err := c.runInDir(r, dir, r.Repository.SSHKey,
-			"config", "submodule."+sm.Name+".url", effectiveURL); err != nil {
-			return err
-		}
+		urlOverride := "submodule." + sm.Name + ".url=" + effectiveURL
 
-		if err := c.updateSubmoduleWithRetry(r, dir, key, sm.Path); err != nil {
+		if err := c.updateSubmoduleWithRetry(r, dir, key, urlOverride, sm.Path); err != nil {
 			return err
 		}
 
 		submoduleDir := path.Join(dir, sm.Path)
-		if err := c.updateSubmodules(r, submoduleDir); err != nil {
+		if err := c.updateSubmodules(r, submoduleDir, depth+1); err != nil {
 			return err
 		}
 	}
@@ -311,16 +316,17 @@ func (c CmdGitClient) updateSubmodules(r GitRepository, dir string) error {
 // updateSubmoduleWithRetry clones/updates a single submodule at subPath
 // (relative to dir), retrying once on failure. This preserves the resilience
 // git's own `--recursive` clone provides (it retries a failed submodule clone
-// once before aborting).
-func (c CmdGitClient) updateSubmoduleWithRetry(r GitRepository, dir string, key db.AccessKey, subPath string) error {
-	err := c.runInDir(r, dir, key, "submodule", "update", "--init", "--checkout", "--", subPath)
+// once before aborting). urlOverride is a "submodule.<name>.url=<value>" pair
+// applied via "-c" so the credentialed URL never touches .git/config on disk.
+func (c CmdGitClient) updateSubmoduleWithRetry(r GitRepository, dir string, key db.AccessKey, urlOverride string, subPath string) error {
+	err := c.runInDir(r, dir, key, "-c", urlOverride, "submodule", "update", "--init", "--checkout", "--", subPath)
 	if err == nil {
 		return nil
 	}
 
 	r.Logger.Log(fmt.Sprintf("Failed to clone '%s'. Retry scheduled", subPath))
 
-	err = c.runInDir(r, dir, key, "submodule", "update", "--init", "--checkout", "--", subPath)
+	err = c.runInDir(r, dir, key, "-c", urlOverride, "submodule", "update", "--init", "--checkout", "--", subPath)
 	if err != nil {
 		r.Logger.Log(fmt.Sprintf("Failed to clone '%s' a second time, aborting", subPath))
 	}

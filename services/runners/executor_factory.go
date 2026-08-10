@@ -107,4 +107,8 @@ func hydrateJobAccessKeys(jobData *JobData, accessKeys map[int]db.AccessKey) {
 	if jobData.Inventory.RepositoryID != nil && jobData.Inventory.Repository != nil {
 		jobData.Inventory.Repository.SSHKey = accessKeys[jobData.Inventory.Repository.SSHKeyID]
 	}
+
+	for i := range jobData.Inventory.SubmoduleCredentials {
+		jobData.Inventory.SubmoduleCredentials[i].AccessKey = accessKeys[jobData.Inventory.SubmoduleCredentials[i].AccessKeyID]
+	}
 }

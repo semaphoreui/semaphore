@@ -8,6 +8,13 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 )
 
+// maxSubmoduleRecursionDepth bounds how deep updateSubmodules will recurse
+// into nested submodules. Semaphore drives this traversal itself (rather than
+// delegating to `git clone --recursive`), so a submodule graph that loops
+// back on an ancestor -- accidentally or maliciously -- would otherwise clone
+// forever and fill the disk.
+const maxSubmoduleRecursionDepth = 16
+
 // scpLikeGitURL matches the scp-like git remote shorthand, e.g.
 // "git@gitserver:group/repo.git" or "gitserver:repo.git".
 var scpLikeGitURL = regexp.MustCompile(`^(?:[^@/\s]+@)?([^:/\s]+):.+$`)
@@ -47,10 +54,9 @@ func gitURLHost(rawURL string) (host string, ok bool) {
 
 // resolveSubmoduleAccessKey returns the AccessKey configured for submoduleURL's
 // host among creds (exact host[:port] match, case-insensitive), falling back
-// to mainKey when there is no explicit match. This preserves today's behavior
-// for submodules that share the main repository's host/credentials, and never
-// sends a stored credential to a host the project admin didn't explicitly
-// authorize for it.
+// to mainKey when there is no explicit match. This preserves today's behavior:
+// a submodule host without a mapping keeps using the main repository's own
+// credential, exactly as a recursive clone did before.
 func resolveSubmoduleAccessKey(mainKey db.AccessKey, creds []db.RepositorySubmoduleCredential, submoduleURL string) db.AccessKey {
 	host, ok := gitURLHost(submoduleURL)
 	if !ok {

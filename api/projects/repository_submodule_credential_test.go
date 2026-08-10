@@ -120,6 +120,69 @@ func TestAddRepositorySubmoduleCredential_RejectsForeignProjectAccessKey(t *test
 	assert.Empty(t, creds, "no mapping should have been persisted")
 }
 
+func TestAddRepositorySubmoduleCredential_RejectsInvalidHost(t *testing.T) {
+	tests := []struct {
+		name string
+		host string
+	}{
+		{"url with scheme and path", "https://gitserver.example.com/org/repo"},
+		{"path only", "gitserver/path"},
+		{"leading whitespace", " gitserver"},
+		{"trailing whitespace", "gitserver "},
+		{"query string", "gitserver?query=1"},
+		{"fragment", "gitserver#frag"},
+		{"userinfo", "user@gitserver"},
+		{"wildcard", "*"},
+		{"empty", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store, repository, _ := setupSubmoduleCredentialTest(t)
+
+			submoduleKey, err := store.CreateAccessKey(db.AccessKey{
+				Name:      "submodule key",
+				Type:      db.AccessKeyNone,
+				ProjectID: &repository.ProjectID,
+			})
+			require.NoError(t, err)
+
+			body := `{"host":` + strconv.Quote(tt.host) + `,"access_key_id":` + strconv.Itoa(submoduleKey.ID) + `}`
+			user := &db.User{ID: 1}
+			r, w := newSubmoduleCredentialRequest(http.MethodPost,
+				"/api/project/1/repositories/1/submodule_credentials", store, repository, user, body)
+
+			AddRepositorySubmoduleCredential(w, r)
+
+			assert.NotEqual(t, http.StatusCreated, w.Code, "must reject a host that can never match a submodule URL: %q", tt.host)
+
+			creds, err := store.GetRepositorySubmoduleCredentials(repository.ProjectID, repository.ID)
+			require.NoError(t, err)
+			assert.Empty(t, creds, "no mapping should have been persisted")
+		})
+	}
+}
+
+func TestAddRepositorySubmoduleCredential_AcceptsHostWithPort(t *testing.T) {
+	store, repository, _ := setupSubmoduleCredentialTest(t)
+
+	submoduleKey, err := store.CreateAccessKey(db.AccessKey{
+		Name:      "submodule key",
+		Type:      db.AccessKeyNone,
+		ProjectID: &repository.ProjectID,
+	})
+	require.NoError(t, err)
+
+	user := &db.User{ID: 1}
+	body := `{"host":"gitserver:8443","access_key_id":` + strconv.Itoa(submoduleKey.ID) + `}`
+	r, w := newSubmoduleCredentialRequest(http.MethodPost,
+		"/api/project/1/repositories/1/submodule_credentials", store, repository, user, body)
+
+	AddRepositorySubmoduleCredential(w, r)
+
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+}
+
 func TestUpdateRepositorySubmoduleCredential_RejectsForeignProjectAccessKey(t *testing.T) {
 	store, repository, foreignAccessKey := setupSubmoduleCredentialTest(t)
 

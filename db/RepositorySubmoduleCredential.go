@@ -1,7 +1,9 @@
 package db
 
 import (
+	"net/url"
 	"reflect"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
@@ -29,12 +31,40 @@ var RepositorySubmoduleCredentialProps = ObjectProps{
 }
 
 func (c RepositorySubmoduleCredential) Validate() error {
-	if c.Host == "" || c.Host == "*" {
-		return common_errors.NewValidationError("submodule credential host can't be empty")
+	if err := validateSubmoduleCredentialHost(c.Host); err != nil {
+		return err
 	}
 
 	if c.AccessKeyID == 0 {
 		return common_errors.NewValidationError("submodule credential access key is required")
+	}
+
+	return nil
+}
+
+// validateSubmoduleCredentialHost rejects anything that isn't a bare
+// hostname, optionally with a ":port" suffix -- matching what
+// resolveSubmoduleAccessKey compares against a submodule URL's host[:port].
+// A scheme, path, query, fragment, userinfo, wildcard, or padding whitespace
+// can never match a real submodule URL's host, so accepting it would let an
+// admin save a mapping that silently never applies (the executor falls back
+// to the main access key and the task fails).
+func validateSubmoduleCredentialHost(host string) error {
+	invalid := common_errors.NewValidationError("submodule credential host must be a hostname, optionally with a port")
+
+	if host == "" || strings.TrimSpace(host) != host {
+		return invalid
+	}
+
+	hostURL, err := url.Parse("//" + host)
+	if err != nil ||
+		hostURL.Hostname() == "" ||
+		hostURL.Hostname() == "*" ||
+		hostURL.Path != "" ||
+		hostURL.RawQuery != "" ||
+		hostURL.Fragment != "" ||
+		hostURL.User != nil {
+		return invalid
 	}
 
 	return nil

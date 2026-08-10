@@ -170,6 +170,7 @@ export default {
   submoduleCredentialAdd: 'Add Submodule Credential',
   submoduleCredentialHost: 'Submodule Host',
   submoduleCredentialHostRequired: 'Submodule host is required',
+  submoduleCredentialHostInvalid: 'Must be a hostname, optionally with a port (e.g. gitserver.example.com or gitserver.example.com:8443), not a URL',
   saveRepositoryFirstForSubmoduleCredentials: 'Save the repository first to configure submodule credentials.',
   columns: 'Columns',
   buildVersion: 'Build Version',
