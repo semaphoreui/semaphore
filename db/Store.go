@@ -303,6 +303,15 @@ type RepositoryManager interface {
 	UpdateRepository(repository Repository) error
 	CreateRepository(repository Repository) (Repository, error)
 	DeleteRepository(projectID int, repositoryID int) error
+
+	// GetRepositorySubmoduleCredentials returns the per-host access-key
+	// mappings used to authenticate submodule clones that need different
+	// credentials than the repository's own SSHKey.
+	GetRepositorySubmoduleCredentials(projectID int, repositoryID int) ([]RepositorySubmoduleCredential, error)
+	GetRepositorySubmoduleCredential(projectID int, repositoryID int, credentialID int) (RepositorySubmoduleCredential, error)
+	CreateRepositorySubmoduleCredential(credential RepositorySubmoduleCredential) (RepositorySubmoduleCredential, error)
+	UpdateRepositorySubmoduleCredential(credential RepositorySubmoduleCredential) error
+	DeleteRepositorySubmoduleCredential(projectID int, repositoryID int, credentialID int) error
 }
 
 // EnvironmentManager handles environment-related operations

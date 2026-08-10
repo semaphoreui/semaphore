@@ -17,8 +17,12 @@ type JobData struct {
 	Inventory           db.Inventory   `json:"inventory" binding:"required"`
 	InventoryRepository *db.Repository `json:"inventory_repository" binding:"required"`
 	Repository          db.Repository  `json:"repository" binding:"required"`
-	Environment         db.Environment `json:"environment" binding:"required"`
-	JWT                 string         `json:"jwt,omitempty"`
+	// SubmoduleCredentials maps submodule hosts to the access key used to
+	// authenticate their clone, for repositories whose submodules live on a
+	// different host/credentials than Repository itself.
+	SubmoduleCredentials []db.RepositorySubmoduleCredential `json:"submodule_credentials,omitempty"`
+	Environment          db.Environment                     `json:"environment" binding:"required"`
+	JWT                  string                             `json:"jwt,omitempty"`
 }
 
 type RunnerState struct {

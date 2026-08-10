@@ -32,8 +32,13 @@ type GitRepository struct {
 	TmpDirName string
 	TemplateID int
 	Repository db.Repository
-	Logger     task_logger.Logger
-	Client     GitClient
+	// SubmoduleCredentials maps submodule hosts to the access key that should
+	// authenticate clones/pulls of submodules on that host, for submodules
+	// that live on a different host than the main repository. Unmatched
+	// submodule hosts fall back to Repository.SSHKey (today's behavior).
+	SubmoduleCredentials []db.RepositorySubmoduleCredential
+	Logger               task_logger.Logger
+	Client               GitClient
 }
 
 func (r GitRepository) GetFullPath() string {

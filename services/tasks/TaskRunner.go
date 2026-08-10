@@ -42,6 +42,11 @@ type TaskRunner struct {
 	Repository  db.Repository
 	Environment db.Environment
 
+	// SubmoduleCredentials maps submodule hosts to the access key used to
+	// authenticate their clone, for repositories whose submodules live on a
+	// different host/credentials than Repository itself.
+	SubmoduleCredentials []db.RepositorySubmoduleCredential
+
 	currentStage  *db.TaskStage
 	currentOutput *db.TaskOutput
 	currentState  any
@@ -550,6 +555,17 @@ func (t *TaskRunner) populateDetails() error {
 
 	if err = t.pool.encryptionService.DeserializeSecret(&t.Repository.SSHKey); err != nil {
 		return err
+	}
+
+	t.SubmoduleCredentials, err = t.pool.store.GetRepositorySubmoduleCredentials(t.Template.ProjectID, t.Repository.ID)
+	if err != nil {
+		return err
+	}
+
+	for i := range t.SubmoduleCredentials {
+		if err = t.pool.encryptionService.DeserializeSecret(&t.SubmoduleCredentials[i].AccessKey); err != nil {
+			return err
+		}
 	}
 
 	// load and merge all configured environments
