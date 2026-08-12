@@ -907,6 +907,10 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
 	}
 
+	// A SOCKS or HTTP proxy is reached by the connector ssh runs as its
+	// ProxyCommand, which takes its credentials from the environment.
+	environmentVariables = append(environmentVariables, db_lib.ProxyEnv(t.Inventory.Proxy)...)
+
 	if t.Template.Type != db.TemplateTask {
 
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SEMAPHORE_TASK_TYPE=%s", t.Template.Type))

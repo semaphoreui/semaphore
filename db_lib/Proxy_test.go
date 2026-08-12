@@ -64,3 +64,52 @@ func TestProxyChainKeys(t *testing.T) {
 		assert.Empty(t, ProxyChainKeys(db.Proxy{Type: db.ProxySSH, Host: "h"}))
 	})
 }
+
+// TestProxyCommandOption_NonSSH covers the proxies OpenSSH does not speak, which
+// are carried by the Semaphore connector instead of a nested ssh.
+func TestProxyCommandOption_NonSSH(t *testing.T) {
+	port := 1080
+
+	for _, tt := range []struct {
+		name     string
+		proxy    db.Proxy
+		expected string
+	}{
+		{"socks5", db.Proxy{Type: db.ProxySOCKS5, Host: "proxy.example.org", Port: &port},
+			"socks5://proxy.example.org:1080"},
+		{"http", db.Proxy{Type: db.ProxyHTTP, Host: "proxy.example.org"},
+			"http://proxy.example.org"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			opt := ProxyCommandOption(tt.proxy, "")
+
+			assert.Contains(t, opt, "proxy-connect --proxy "+tt.expected+" %h %p")
+			assert.NotContains(t, opt, "ssh -o", "a non-ssh proxy is not a jump host")
+		})
+	}
+
+	// The proxy URL ends up on a command line, so credentials must not be in it.
+	t.Run("credentials stay off the command line", func(t *testing.T) {
+		keyID := 3
+		proxy := db.Proxy{
+			Type: db.ProxySOCKS5, Host: "proxy.example.org", Port: &port, SSHKeyID: &keyID,
+			SSHKey: db.AccessKey{Type: db.AccessKeyLoginPassword,
+				LoginPassword: db.LoginPassword{Login: "sem", Password: "s3cret"}},
+		}
+
+		opt := ProxyCommandOption(proxy, "")
+
+		assert.NotContains(t, opt, "s3cret")
+		assert.NotContains(t, opt, "sem@")
+		assert.Equal(t,
+			[]string{"SEMAPHORE_PROXY_USER=sem", "SEMAPHORE_PROXY_PASSWORD=s3cret"},
+			ProxyEnv(&proxy))
+		assert.Equal(t, "socks5://sem:s3cret@proxy.example.org:1080", ProxyURLWithCredentials(proxy))
+	})
+
+	t.Run("an ssh proxy uses no connector", func(t *testing.T) {
+		assert.NotContains(t,
+			ProxyCommandOption(db.Proxy{Type: db.ProxySSH, Host: "bastion"}, ""),
+			"proxy-connect")
+	})
+}

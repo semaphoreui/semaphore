@@ -29,6 +29,7 @@ func (c CmdGitClient) makeCmd(
 	cmd := exec.Command("git") //nolint: gas
 
 	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv(gitProxyOpts(r.Repository, proxyInstallation)...)...)
+	cmd.Env = append(cmd.Env, gitProxyEnv(r.Repository)...)
 
 	switch targetDir {
 	case GitRepositoryTmpPath:
@@ -259,7 +260,12 @@ func getRepositoryBranchNames(branches []string) []string {
 // gitProxyOpts returns the ssh options needed to reach the git server of the
 // repository through its proxy chain.
 func gitProxyOpts(repo db.Repository, proxyInstallation ssh.AccessKeyInstallation) []string {
-	if repo.Proxy == nil || repo.Proxy.Type != db.ProxySSH {
+	if repo.Proxy == nil {
+		return nil
+	}
+
+	// An http(s) repository is proxied by git itself, see gitProxyEnv.
+	if repo.GetType() == db.RepositoryHTTP {
 		return nil
 	}
 
@@ -269,4 +275,27 @@ func gitProxyOpts(repo db.Repository, proxyInstallation ssh.AccessKeyInstallatio
 	}
 
 	return []string{"-o", strconv.Quote(ProxyCommandOption(*repo.Proxy, socket))}
+}
+
+// gitProxyEnv returns the environment the proxy of a repository needs. git
+// speaks SOCKS and HTTP proxies itself for http(s) remotes, so those are
+// configured with the variables it reads rather than with a ProxyCommand.
+func gitProxyEnv(repo db.Repository) []string {
+	if repo.Proxy == nil || repo.Proxy.Type.IsSSH() {
+		return nil
+	}
+
+	if repo.GetType() != db.RepositoryHTTP {
+		// An ssh remote goes through the connector, which reads its credentials
+		// from the environment.
+		return ProxyEnv(repo.Proxy)
+	}
+
+	proxyURL := ProxyURLWithCredentials(*repo.Proxy)
+
+	return []string{
+		"ALL_PROXY=" + proxyURL,
+		"HTTP_PROXY=" + proxyURL,
+		"HTTPS_PROXY=" + proxyURL,
+	}
 }

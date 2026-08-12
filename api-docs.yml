@@ -626,7 +626,7 @@ definitions:
         example: bastion-projA
       type:
         type: string
-        enum: [ssh]
+        enum: [ssh, socks5, http, https]
       host:
         type: string
         example: bastion.example.org
@@ -659,7 +659,7 @@ definitions:
         example: bastion-projA
       type:
         type: string
-        enum: [ssh]
+        enum: [ssh, socks5, http, https]
       host:
         type: string
         example: bastion.example.org

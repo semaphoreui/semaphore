@@ -79,6 +79,7 @@
     ></v-autocomplete>
 
     <v-autocomplete
+      v-if="isSshProxy"
       v-model="item.requires_proxy_id"
       :label="$t('requiresProxy')"
       :items="otherProxies"
@@ -106,15 +107,30 @@ export default {
       proxies: null,
       proxyTypes: [{
         id: 'ssh',
-        name: 'SSH',
+        name: 'SSH (jump host)',
+      }, {
+        id: 'socks5',
+        name: 'SOCKS5',
+      }, {
+        id: 'http',
+        name: 'HTTP',
+      }, {
+        id: 'https',
+        name: 'HTTPS',
       }],
     };
   },
 
   computed: {
-    // Only SSH keys can authenticate against a jump host.
+    isSshProxy() {
+      return (this.item || {}).type === 'ssh';
+    },
+
+    // A jump host authenticates with an ssh key; a SOCKS or HTTP proxy uses a
+    // login and a password.
     sshKeys() {
-      return (this.keys || []).filter((key) => key.type === 'ssh');
+      const wanted = this.isSshProxy ? 'ssh' : 'login_password';
+      return (this.keys || []).filter((key) => key.type === wanted);
     },
 
     // A proxy can not require itself, which the API rejects as well.

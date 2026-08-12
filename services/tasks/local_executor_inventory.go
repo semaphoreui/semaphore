@@ -30,7 +30,7 @@ func (t *LocalExecutor) installInventory() (err error) {
 
 	// The jump hosts usually need different keys than the target hosts, so the
 	// whole proxy chain gets its own agent.
-	if t.Inventory.Proxy != nil {
+	if t.Inventory.Proxy != nil && t.Inventory.Proxy.Type.IsSSH() {
 		keys := db_lib.ProxyChainKeys(*t.Inventory.Proxy)
 		if len(keys) > 0 {
 			t.proxyKeyInstallation, err = t.KeyInstaller.InstallAll(keys, db.AccessKeyRoleAnsibleUser, t.Logger)

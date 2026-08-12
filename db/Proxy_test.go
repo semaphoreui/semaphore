@@ -35,6 +35,7 @@ func TestProxy_Validate(t *testing.T) {
 	okPort := 22
 	injected := "user -oProxyCommand=evil"
 	zeroKey := 0
+	oneKey := 1
 
 	tests := []struct {
 		name    string
@@ -44,7 +45,11 @@ func TestProxy_Validate(t *testing.T) {
 		{"valid", Proxy{Name: "bastion", Type: ProxySSH, Host: "bastion.example.org", Port: &okPort}, false},
 		{"empty name", Proxy{Type: ProxySSH, Host: "bastion.example.org"}, true},
 		{"empty host", Proxy{Name: "bastion", Type: ProxySSH}, true},
-		{"unsupported type", Proxy{Name: "bastion", Type: "socks5", Host: "bastion.example.org"}, true},
+		{"unsupported type", Proxy{Name: "bastion", Type: "ftp", Host: "bastion.example.org"}, true},
+		{"socks5", Proxy{Name: "socks", Type: ProxySOCKS5, Host: "proxy.example.org"}, false},
+		{"http", Proxy{Name: "http", Type: ProxyHTTP, Host: "proxy.example.org"}, false},
+		{"https", Proxy{Name: "https", Type: ProxyHTTPS, Host: "proxy.example.org"}, false},
+		{"a socks proxy can not be chained", Proxy{Name: "socks", Type: ProxySOCKS5, Host: "proxy.example.org", RequiresProxyID: &oneKey}, true},
 		{"port out of range", Proxy{Name: "bastion", Type: ProxySSH, Host: "bastion.example.org", Port: &badPort}, true},
 		{"host with spaces", Proxy{Name: "bastion", Type: ProxySSH, Host: "bastion.example.org evil"}, true},
 		{"host starting with dash", Proxy{Name: "bastion", Type: ProxySSH, Host: "-oProxyCommand=evil"}, true},

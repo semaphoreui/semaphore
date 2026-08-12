@@ -12,12 +12,32 @@ import (
 type ProxyType string
 
 const (
-	ProxySSH ProxyType = "ssh"
+	ProxySSH    ProxyType = "ssh"
+	ProxyHTTP   ProxyType = "http"
+	ProxyHTTPS  ProxyType = "https"
+	ProxySOCKS5 ProxyType = "socks5"
 )
 
-// Proxy is a project scoped connection proxy. Currently only SSH jump hosts
-// (ProxyJump) are supported; the type is stored so that SOCKS and HTTP proxies
-// can be added without a schema change.
+// IsSSH reports whether the proxy is an SSH jump host, which is reached by
+// opening an ssh connection to it, rather than a proxy protocol carrying the
+// connection of another program.
+func (t ProxyType) IsSSH() bool {
+	return t == ProxySSH
+}
+
+// Scheme returns the URL scheme of a proxy protocol, as git and the connector
+// expect it. It is empty for SSH jump hosts, which are not a URL.
+func (t ProxyType) Scheme() string {
+	switch t {
+	case ProxyHTTP, ProxyHTTPS, ProxySOCKS5:
+		return string(t)
+	default:
+		return ""
+	}
+}
+
+// Proxy is a project scoped connection proxy: either an SSH jump host or a
+// SOCKS5/HTTP(S) proxy carrying the connection.
 type Proxy struct {
 	ID        int       `db:"id" json:"id" backup:"-"`
 	ProjectID int       `db:"project_id" json:"project_id" backup:"-"`
@@ -88,11 +108,35 @@ func (p *Proxy) Validate() error {
 
 	switch p.Type {
 	case ProxySSH:
+	case ProxyHTTP, ProxyHTTPS, ProxySOCKS5:
+		if p.RequiresProxyID != nil {
+			return common_errors.NewValidationError("only an ssh proxy can be chained")
+		}
 	default:
 		return common_errors.NewValidationError("unsupported proxy type")
 	}
 
 	return nil
+}
+
+// URL renders a non-SSH proxy as the URL git and the connector take, for example
+// "socks5://proxy.example.org:1080".
+//
+// Credentials are deliberately left out: the URL ends up on a command line,
+// which every process on the host can read. They are passed as environment
+// variables instead.
+func (p Proxy) URL() string {
+	scheme := p.Type.Scheme()
+	if scheme == "" {
+		return ""
+	}
+
+	host := p.Host
+	if p.Port != nil {
+		host = net.JoinHostPort(host, strconv.Itoa(*p.Port))
+	}
+
+	return fmt.Sprintf("%s://%s", scheme, host)
 }
 
 // SSHDestination renders the proxy as "user@host", without the port, for use

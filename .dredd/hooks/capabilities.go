@@ -317,6 +317,9 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("environment_ids", []int{environmentID}, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
 	bodyFieldProcessor("proxy_id", proxyID, &request)
+	// A proxy chain needs a second proxy to point at, which the fixtures do not
+	// create, so proxies are sent unchained.
+	bodyFieldProcessor("requires_proxy_id", nil, &request)
 	bodyFieldProcessor("repository_id", repoID, &request)
 	bodyFieldProcessor("template_id", templateID, &request)
 	bodyFieldProcessor("build_template_id", nil, &request)

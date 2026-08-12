@@ -895,8 +895,14 @@ func ValidateProxy(store Store, proxy *Proxy) (err error) {
 			return
 		}
 
-		if key.Type != AccessKeySSH {
-			return common_errors.NewValidationError("proxy key must be an SSH key")
+		// A jump host is reached with an ssh key; a SOCKS or HTTP proxy
+		// authenticates with a login and a password instead.
+		if proxy.Type.IsSSH() {
+			if key.Type != AccessKeySSH {
+				return common_errors.NewValidationError("proxy key must be an SSH key")
+			}
+		} else if key.Type != AccessKeyLoginPassword {
+			return common_errors.NewValidationError("proxy key must be a login/password key")
 		}
 	}
 
