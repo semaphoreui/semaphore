@@ -15,9 +15,14 @@ type migration_2_20_2 struct {
 // never unique before, so any installation may hold duplicates and the index
 // would otherwise fail the upgrade.
 //
-// The rename is done here rather than in SQL because a generated name can clash
-// with a name which is already taken ("Build" twice next to a real "Build (2)"),
-// which needs a retry that portable SQL cannot express.
+// Which names collide is decided by the database rather than by comparing them
+// here: the unique index uses the collation of the column, and on the default
+// MySQL and MariaDB collations "Build", "build" and "Build " are all the same
+// key while Go sees three different strings. Comparing in Go would leave those
+// rows in place and the index would still fail.
+//
+// The rename is a loop rather than a single statement because a generated name
+// can itself be taken ("Build" twice next to a real "Build (2)").
 func (m migration_2_20_2) PreApply(tx *gorp.Transaction) error {
 	type templateName struct {
 		ID        int    `db:"id"`
@@ -25,41 +30,25 @@ func (m migration_2_20_2) PreApply(tx *gorp.Transaction) error {
 		Name      string `db:"name"`
 	}
 
-	var templates []templateName
+	var duplicates []templateName
 
-	// Ordered by id so the oldest template of each name keeps it, and so the
-	// result does not depend on the order rows come back in.
-	_, err := tx.Select(&templates,
-		m.db.PrepareQuery("select `id`, `project_id`, `name` from `project__template` order by `id`"))
+	// Every template which an older one of the project already shadows. Ordered
+	// by id so the oldest keeps its name and the result does not depend on the
+	// order rows come back in.
+	_, err := tx.Select(&duplicates, m.db.PrepareQuery(
+		"select `id`, `project_id`, `name` from `project__template` t "+
+			"where exists (select 1 from (select `id`, `project_id`, `name` from `project__template`) o "+
+			"where o.`project_id` = t.`project_id` and o.`name` = t.`name` and o.`id` < t.`id`) "+
+			"order by t.`id`"))
 
 	if err != nil {
 		return err
 	}
 
-	taken := make(map[string]bool, len(templates))
-	key := func(projectID int, name string) string {
-		return strconv.Itoa(projectID) + "\x00" + name
-	}
-
-	// Every name in use is reserved before anything is renamed, so that a
-	// generated name cannot take the name of a template which already has it:
-	// "Build" twice next to a real "Build (2)" must not turn the latter into
-	// "Build (2) (2)".
-	var duplicates []templateName
-
-	for _, template := range templates {
-		if taken[key(template.ProjectID, template.Name)] {
-			duplicates = append(duplicates, template)
-			continue
-		}
-
-		taken[key(template.ProjectID, template.Name)] = true
-	}
-
 	for _, template := range duplicates {
-		name := template.Name
-		for i := 2; taken[key(template.ProjectID, name)]; i++ {
-			name = template.Name + " (" + strconv.Itoa(i) + ")"
+		name, err := m.freeTemplateName(tx, template.ProjectID, template.Name)
+		if err != nil {
+			return err
 		}
 
 		_, err = tx.Exec(
@@ -69,9 +58,28 @@ func (m migration_2_20_2) PreApply(tx *gorp.Transaction) error {
 		if err != nil {
 			return err
 		}
-
-		taken[key(template.ProjectID, name)] = true
 	}
 
 	return nil
+}
+
+// freeTemplateName returns a name based on base which no template of the project
+// uses. Availability is asked of the database so that the answer follows the
+// same collation as the unique index.
+func (m migration_2_20_2) freeTemplateName(tx *gorp.Transaction, projectID int, base string) (string, error) {
+	for i := 2; ; i++ {
+		name := base + " (" + strconv.Itoa(i) + ")"
+
+		count, err := tx.SelectInt(m.db.PrepareQuery(
+			"select count(*) from `project__template` where `project_id`=? and `name`=?"),
+			projectID, name)
+
+		if err != nil {
+			return "", err
+		}
+
+		if count == 0 {
+			return name, nil
+		}
+	}
 }
