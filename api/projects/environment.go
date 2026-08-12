@@ -296,7 +296,6 @@ func (c *EnvironmentController) RemoveEnvironment(w http.ResponseWriter, r *http
 	env := helpers.GetFromContext(r, "environment").(db.Environment)
 
 	err := c.environmentService.Delete(env.ProjectID, env.ID)
-	//err := helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
 
 	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{

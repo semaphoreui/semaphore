@@ -17,6 +17,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/factory"
 	"github.com/semaphoreui/semaphore/pkg/debuglog"
+	"github.com/semaphoreui/semaphore/pkg/metrics"
 	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
@@ -180,10 +181,11 @@ func runService() {
 	accessKeyService := server.NewAccessKeyService(store, encryptionService, store)
 	secretStorageService := server.NewSecretStorageService(store, store, accessKeyService, encryptionService)
 	secretStorageSyncScheduler := server.NewSecretStorageSyncScheduler(store, secretStorageService)
-	environmentService := server.NewEnvironmentService(store, encryptionService)
+	environmentService := server.NewEnvironmentService(store, encryptionService, store)
 	runnerService := server.NewRunnerService(store)
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
+	appMetrics := metrics.NewMetrics()
 
 	taskPool := tasks.CreateTaskPool(
 		store,
@@ -194,6 +196,7 @@ func runService() {
 		accessKeyInstallationService,
 		logWriteService,
 		jwtSigner,
+		appMetrics,
 	)
 
 	// The workflow service orchestrates workflow runs and launches each node's
@@ -316,6 +319,7 @@ func runService() {
 		jwtSigner,
 		runnerService,
 		workflowService,
+		appMetrics,
 	)
 
 	route.Use(func(next http.Handler) http.Handler {

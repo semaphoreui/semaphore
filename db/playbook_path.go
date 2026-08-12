@@ -3,6 +3,8 @@ package db
 import (
 	"path"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
 // ValidatePlaybookPath checks that a playbook (or script/subdirectory for
@@ -19,17 +21,17 @@ func ValidatePlaybookPath(playbook string, objectName string) error {
 	p := strings.ReplaceAll(playbook, "\\", "/")
 
 	if path.IsAbs(p) {
-		return NewValidationError(objectName + " playbook must be a relative path inside the repository")
+		return common_errors.NewValidationError(objectName + " playbook must be a relative path inside the repository")
 	}
 
 	// Windows absolute paths like "C:/..." are not caught by path.IsAbs.
 	if len(p) >= 2 && p[1] == ':' {
-		return NewValidationError(objectName + " playbook must be a relative path inside the repository")
+		return common_errors.NewValidationError(objectName + " playbook must be a relative path inside the repository")
 	}
 
 	cleaned := path.Clean(p)
 	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
-		return NewValidationError(objectName + " playbook must not point outside the repository")
+		return common_errors.NewValidationError(objectName + " playbook must not point outside the repository")
 	}
 
 	return nil

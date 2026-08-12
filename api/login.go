@@ -17,6 +17,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -47,12 +48,13 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 	var l *ldap.Conn
 	var err error
 	if provider.NeedTLS {
-		// SECURITY: InsecureSkipVerify=true is pre-existing behavior carried
-		// over from the flat config (api/login.go:54); it allows MITM on the
-		// LDAP connection. Do not extend it further; see the out-of-scope
-		// note about a per-provider tls_skip_verify option (default false).
+		// Verify the LDAP server certificate by default so a network attacker
+		// cannot impersonate the server to capture the bind credentials or a
+		// user's cleartext password. Verification can be disabled per provider
+		// via tls_skip_verify (default false) for trusted networks with
+		// self-signed certificates.
 		l, err = ldap.DialTLS("tcp", provider.Server, &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: provider.TLSSkipVerify, //nolint:gosec // opt-in via tls_skip_verify, defaults to false
 		})
 	} else {
 		l, err = ldap.Dial("tcp", provider.Server)
@@ -425,7 +427,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var validationError *db.ValidationError
+		var validationError *common_errors.ValidationError
 		switch {
 		case errors.As(err, &validationError):
 			// TODO: Return more informative error code.
@@ -659,19 +661,40 @@ type claimResult struct {
 	emailVerified bool
 }
 
-// emailVerifiedClaim reads the standard OIDC email_verified claim. Only
-// consulted when the provider has require_verified_email enabled, so an
-// absent claim counts as NOT verified. Some providers (e.g. AWS Cognito)
-// send it as the string "true"/"false".
-func emailVerifiedClaim(claims map[string]any) bool {
+// emailVerifiedClaim reads the standard OIDC email_verified claim as a
+// tri-state: value is whether it is true, present is whether the provider sent
+// it at all. Some providers (e.g. AWS Cognito) send it as the string
+// "true"/"false".
+func emailVerifiedClaim(claims map[string]any) (value bool, present bool) {
 	switch v := claims["email_verified"].(type) {
 	case bool:
-		return v
+		return v, true
 	case string:
-		return v == "true"
+		return v == "true", true
 	default:
-		return false
+		return false, false
 	}
+}
+
+// resolveEmailVerified decides whether the provider's email may be trusted to
+// match an existing account. An explicit email_verified=false is NEVER trusted,
+// regardless of require_verified_email — otherwise an IdP that lets users type
+// any email could adopt someone else's account (Grafana CVE-2023-3128 class).
+// When require_verified_email is off, an absent claim is treated as verified to
+// accommodate providers (e.g. Okta) that omit it entirely; when on, the claim
+// must be explicitly present and true.
+func resolveEmailVerified(claims map[string]any, provider util.OidcProvider) bool {
+	value, present := emailVerifiedClaim(claims)
+
+	if provider.RequireVerifiedEmail {
+		return present && value
+	}
+
+	if present {
+		return value
+	}
+
+	return true
 }
 
 func parseClaim(str string, claims map[string]any) (string, bool) {
@@ -753,16 +776,12 @@ func parseClaims(claims map[string]any, provider util.ClaimsProvider) (res claim
 // existing accounts. Always true unless the provider opted into
 // require_verified_email; then the email_verified claim must be true.
 func oidcEmailVerified(userInfo *oidc.UserInfo, provider util.OidcProvider) bool {
-	if !provider.RequireVerifiedEmail {
-		return true
-	}
-
 	rawClaims := make(map[string]any)
 	if err := userInfo.Claims(&rawClaims); err != nil {
 		return false
 	}
 
-	return emailVerifiedClaim(rawClaims)
+	return resolveEmailVerified(rawClaims, provider)
 }
 
 func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res claimResult, err error) {
@@ -775,7 +794,7 @@ func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res
 
 	res, err = parseClaims(claims, &provider)
 	res.sub = userInfo.Subject
-	res.emailVerified = !provider.RequireVerifiedEmail || emailVerifiedClaim(claims)
+	res.emailVerified = resolveEmailVerified(claims, provider)
 	return
 }
 
@@ -789,7 +808,7 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res clai
 
 	res, err = parseClaims(claims, &provider)
 	res.sub = idToken.Subject
-	res.emailVerified = !provider.RequireVerifiedEmail || emailVerifiedClaim(claims)
+	res.emailVerified = resolveEmailVerified(claims, provider)
 	return
 }
 
@@ -808,6 +827,19 @@ func getSecretFromFile(source string) (string, error) {
 	}
 
 	return string(content), nil
+}
+
+// oidcSuccessRedirectURL builds the post-login redirect. url.JoinPath drops the
+// leading slash when webHost is empty, which would make the redirect relative to
+// the callback path instead of the web root.
+func oidcSuccessRedirectURL(webHost string, redirectPath string) (string, error) {
+	redirectPath = "/" + strings.TrimLeft(redirectPath, "/")
+
+	if webHost == "" {
+		return redirectPath, nil
+	}
+
+	return url.JoinPath(webHost, redirectPath)
 }
 
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {
@@ -958,8 +990,8 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := resolveExternalUser(helpers.Store(r), externalUserProfile{
-		Type:        db.IdentityTypeOidc,
-		Provider:    pid,
+		Type:          db.IdentityTypeOidc,
+		Provider:      pid,
 		ExternalUID:   claims.sub,
 		Username:      claims.username,
 		Name:          claims.name,
@@ -990,19 +1022,11 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		redirectPath = mux.Vars(r)["redirect_path"]
 	}
 
-	if !strings.HasPrefix(redirectPath, "/") {
-		redirectPath = "/" + redirectPath
-	}
-
-	redirectURL, err := url.JoinPath(util.Config.WebHost, redirectPath)
+	redirectURL, err := oidcSuccessRedirectURL(util.Config.WebHost, redirectPath)
 	if err != nil {
 		log.Error(err)
 		http.Error(w, "OIDC sign-in failed: invalid redirect URL.", http.StatusInternalServerError)
 		return
-	}
-
-	if redirectURL == "" {
-		redirectURL = "/"
 	}
 
 	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)

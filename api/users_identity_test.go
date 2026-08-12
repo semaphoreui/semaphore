@@ -17,7 +17,7 @@ import (
 
 func TestGetAndDeleteUserIdentities(t *testing.T) {
 	util.Config = &util.ConfigType{}
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	admin, err := store.CreateUser(db.UserWithPwd{
 		Pwd:  "verystrongpassword1",
@@ -75,7 +75,7 @@ func TestGetAndDeleteUserIdentities(t *testing.T) {
 
 func TestDeleteUserIdentity_AllowsUnlinkWhenMultipleIdentities(t *testing.T) {
 	util.Config = &util.ConfigType{}
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	admin, err := store.CreateUser(db.UserWithPwd{
 		Pwd:  "verystrongpassword1",
@@ -116,7 +116,7 @@ func TestDeleteUserIdentity_AllowsUnlinkWhenMultipleIdentities(t *testing.T) {
 
 func TestDeleteUserIdentity_AllowsLocalUserToUnlinkLastIdentity(t *testing.T) {
 	util.Config = &util.ConfigType{}
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	localUser, err := store.CreateUser(db.UserWithPwd{
 		Pwd:  "verystrongpassword1",
@@ -169,7 +169,7 @@ func TestLdapProfileMatchesSemaphoreUser(t *testing.T) {
 
 func TestLinkLdapIdentity_LdapDisabled(t *testing.T) {
 	util.Config = &util.ConfigType{}
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	user, err := store.CreateUser(db.UserWithPwd{
 		Pwd:  "verystrongpassword1",
