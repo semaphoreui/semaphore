@@ -126,3 +126,33 @@ func TestGitRepositoryRetryBacksOff(t *testing.T) {
 	// 20ms + 40ms + 80ms of waiting between the four attempts.
 	assert.GreaterOrEqual(t, elapsed, 140*time.Millisecond)
 }
+
+// TestGitRetryDelayFor covers the growth of the backoff and its ceiling. Without
+// the ceiling the doubling overflows the int64 of a Duration and goes negative,
+// which time.Sleep returns from immediately: the backoff would become a loop of
+// immediate requests against an already struggling git server.
+func TestGitRetryDelayFor(t *testing.T) {
+	tests := []struct {
+		name     string
+		attempt  int
+		expected time.Duration
+	}{
+		{"first retry waits the base delay", 1, time.Second},
+		{"second doubles", 2, 2 * time.Second},
+		{"third doubles again", 3, 4 * time.Second},
+		{"growth stops at the ceiling", 7, time.Minute},
+		{"a huge attempt count stays at the ceiling", 40, time.Minute},
+		// 1s << 34 is negative, and 1s << 64 is zero.
+		{"an attempt count which would overflow stays at the ceiling", 35, time.Minute},
+		{"an attempt count which would shift to zero stays at the ceiling", 65, time.Minute},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			delay := gitRetryDelayFor(gitRetryDelay, tt.attempt)
+
+			assert.Equal(t, tt.expected, delay)
+			assert.Greater(t, delay, time.Duration(0), "a non-positive delay does not wait at all")
+		})
+	}
+}

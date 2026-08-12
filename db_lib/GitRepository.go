@@ -12,9 +12,16 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
-// gitRetryDelay is the delay before the first retry. It doubles on each
-// following attempt.
-const gitRetryDelay = time.Second
+const (
+	// gitRetryDelay is the delay before the first retry. It doubles on each
+	// following attempt, up to gitRetryMaxDelay.
+	gitRetryDelay = time.Second
+
+	// gitRetryMaxDelay caps the doubling. A git server which has been down for
+	// a minute is not helped by waiting longer, and an uncapped delay grows past
+	// what a Duration can hold.
+	gitRetryMaxDelay = time.Minute
+)
 
 type GitRepositoryDirType int
 
@@ -57,6 +64,27 @@ func (r GitRepository) ValidateRepo() error {
 	return err
 }
 
+// gitRetryDelayFor returns the delay before the given attempt: base doubled once
+// per attempt already made, up to gitRetryMaxDelay.
+//
+// The doubling is capped rather than shifted freely: a large attempt budget
+// overflows the int64 of a Duration and a negative duration makes time.Sleep
+// return at once, which would turn the backoff into a loop of immediate requests
+// against the git server the retries are waiting for.
+func gitRetryDelayFor(base time.Duration, attempt int) time.Duration {
+	delay := base
+
+	for i := 1; i < attempt && delay < gitRetryMaxDelay; i++ {
+		delay *= 2
+	}
+
+	if delay > gitRetryMaxDelay {
+		return gitRetryMaxDelay
+	}
+
+	return delay
+}
+
 // retry runs a git network operation again when it fails, for git servers which
 // are intermittently unavailable. Retrying here rather than at the call sites
 // keeps a transient outage from reaching updateRepository(), which reacts to a
@@ -77,7 +105,7 @@ func (r GitRepository) retry(name string, op func() error) (err error) {
 			return
 		}
 
-		delay := base << (attempt - 1)
+		delay := gitRetryDelayFor(base, attempt)
 		r.Logger.Log(fmt.Sprintf("Git %s failed (%s), retrying in %s", name, err, delay))
 		time.Sleep(delay)
 	}
