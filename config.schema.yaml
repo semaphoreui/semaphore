@@ -55,6 +55,11 @@ properties:
     enum: [go_git, cmd_git]
     default: cmd_git
     description: Git client implementation.
+  git_attempts:
+    type: integer
+    minimum: 1
+    default: 4
+    description: Times a git clone or pull is tried before the task fails. 1 does not retry.
   web_host:
     type: string
     format: uri
