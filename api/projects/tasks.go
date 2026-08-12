@@ -41,7 +41,12 @@ func taskPool(r *http.Request) *tasks.TaskPool {
 // either by id or by name. The resolved id is written back to the task so the
 // rest of the pipeline only deals with ids.
 func (c *TaskController) resolveTaskTemplate(projectID int, task *db.Task) (tpl db.Template, err error) {
-	if task.TemplateID == 0 && task.TemplateName == "" {
+	// The name is resolved to an id here, so it is cleared to keep it out of the
+	// stored task and the response.
+	name := task.TemplateName
+	task.TemplateName = ""
+
+	if task.TemplateID == 0 && name == "" {
 		err = common_errors.NewValidationError("template_id or template_name is required")
 		return
 	}
@@ -51,7 +56,7 @@ func (c *TaskController) resolveTaskTemplate(projectID int, task *db.Task) (tpl 
 		return
 	}
 
-	tpl, err = c.store.GetTemplateByName(projectID, task.TemplateName)
+	tpl, err = c.store.GetTemplateByName(projectID, name)
 	if err != nil {
 		return
 	}

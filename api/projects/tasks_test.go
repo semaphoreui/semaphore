@@ -117,6 +117,7 @@ func TestResolveTaskTemplate(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, build.ID, tpl.ID)
 		assert.Equal(t, build.ID, task.TemplateID, "the resolved id must be written back to the task")
+		assert.Empty(t, task.TemplateName, "the name must not survive into the stored task or the response")
 	})
 
 	t.Run("id wins when both are given", func(t *testing.T) {
@@ -126,6 +127,7 @@ func TestResolveTaskTemplate(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, build.ID, tpl.ID)
+		assert.Empty(t, task.TemplateName)
 	})
 
 	t.Run("neither id nor name is rejected", func(t *testing.T) {
