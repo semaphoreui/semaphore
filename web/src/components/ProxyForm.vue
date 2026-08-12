@@ -77,6 +77,20 @@
       outlined
       dense
     ></v-autocomplete>
+
+    <v-autocomplete
+      v-model="item.requires_proxy_id"
+      :label="$t('requiresProxy')"
+      :items="otherProxies"
+      item-value="id"
+      item-text="name"
+      :hint="$t('requiresProxyHint')"
+      persistent-hint
+      clearable
+      :disabled="formSaving"
+      outlined
+      dense
+    ></v-autocomplete>
   </v-form>
 </template>
 <script>
@@ -89,6 +103,7 @@ export default {
   data() {
     return {
       keys: null,
+      proxies: null,
       proxyTypes: [{
         id: 'ssh',
         name: 'SSH',
@@ -101,12 +116,23 @@ export default {
     sshKeys() {
       return (this.keys || []).filter((key) => key.type === 'ssh');
     },
+
+    // A proxy can not require itself, which the API rejects as well.
+    otherProxies() {
+      return (this.proxies || []).filter((proxy) => proxy.id !== this.itemId);
+    },
   },
 
   async created() {
     this.keys = (await axios({
       method: 'get',
       url: `/api/project/${this.projectId}/keys`,
+      responseType: 'json',
+    })).data;
+
+    this.proxies = (await axios({
+      method: 'get',
+      url: `/api/project/${this.projectId}/proxies`,
       responseType: 'json',
     })).data;
   },

@@ -552,6 +552,14 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
+	// The proxy of the repository is reached with its own key, which the git
+	// client installs into a separate agent.
+	if t.Repository.Proxy != nil && t.Repository.Proxy.SSHKeyID != nil {
+		if err = t.pool.encryptionService.DeserializeSecret(&t.Repository.Proxy.SSHKey); err != nil {
+			return err
+		}
+	}
+
 	// load and merge all configured environments
 	err = t.loadEnvironments()
 	if err != nil {

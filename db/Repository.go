@@ -31,6 +31,10 @@ type Repository struct {
 	GitBranch string `db:"git_branch" json:"git_branch" binding:"required"`
 	SSHKeyID  int    `db:"ssh_key_id" json:"ssh_key_id" binding:"required" backup:"-"`
 
+	// ProxyID is the SSH jump host used to reach the git server.
+	ProxyID *int   `db:"proxy_id" json:"proxy_id,omitempty" backup:"-"`
+	Proxy   *Proxy `db:"-" json:"-" backup:"-"`
+
 	SSHKey AccessKey `db:"-" json:"-" backup:"-"`
 }
 

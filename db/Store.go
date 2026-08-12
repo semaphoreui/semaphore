@@ -869,6 +869,17 @@ func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, er
 func ValidateRepository(store Store, repo *Repository) (err error) {
 	_, err = store.GetAccessKey(repo.ProjectID, repo.SSHKeyID)
 
+	if err != nil {
+		return
+	}
+
+	// The foreign key of proxy_id only points at project__proxy, so the proxy
+	// must be resolved in the project of the repository to reject proxies of
+	// other projects, which GetRepository would then fail to load.
+	if repo.ProxyID != nil {
+		_, err = store.GetProxy(repo.ProjectID, *repo.ProxyID)
+	}
+
 	return
 }
 
@@ -876,20 +887,60 @@ func ValidateRepository(store Store, repo *Repository) (err error) {
 // only points at access_key, so the key must be resolved in the project of the
 // proxy to reject keys of other projects.
 func ValidateProxy(store Store, proxy *Proxy) (err error) {
-	if proxy.SSHKeyID == nil {
-		return
+	if proxy.SSHKeyID != nil {
+		var key AccessKey
+
+		key, err = store.GetAccessKey(proxy.ProjectID, *proxy.SSHKeyID)
+		if err != nil {
+			return
+		}
+
+		if key.Type != AccessKeySSH {
+			return common_errors.NewValidationError("proxy key must be an SSH key")
+		}
 	}
 
-	key, err := store.GetAccessKey(proxy.ProjectID, *proxy.SSHKeyID)
-	if err != nil {
-		return
+	// Runs for a proxy without a key too: the chain is what a task follows, so
+	// it must be valid whether or not the proxy authenticates with a key.
+	return validateProxyChain(store, proxy)
+}
+
+// validateProxyChain rejects a chain which loops back on itself or is longer
+// than a connection can use, so that a task cannot be given a proxy it would
+// never finish connecting through.
+func validateProxyChain(store Store, proxy *Proxy) error {
+	if proxy.RequiresProxyID == nil {
+		return nil
 	}
 
-	if key.Type != AccessKeySSH {
-		return common_errors.NewValidationError("proxy key must be an SSH key")
+	if *proxy.RequiresProxyID == proxy.ID {
+		return common_errors.NewValidationError("proxy can not require itself")
 	}
 
-	return
+	seen := map[int]bool{proxy.ID: true}
+
+	for id := proxy.RequiresProxyID; id != nil; {
+		if seen[*id] {
+			return common_errors.NewValidationError("proxies can not require each other in a loop")
+		}
+		seen[*id] = true
+
+		if len(seen) > MaxProxyChainLength {
+			return common_errors.NewValidationError(
+				fmt.Sprintf("a proxy chain can not be longer than %d proxies", MaxProxyChainLength))
+		}
+
+		// The proxy is resolved in the project of the chain, so a proxy of
+		// another project can not be pulled into it.
+		required, err := store.GetProxy(proxy.ProjectID, *id)
+		if err != nil {
+			return err
+		}
+
+		id = required.RequiresProxyID
+	}
+
+	return nil
 }
 
 func ValidateInventory(store Store, inventory *Inventory) (err error) {
@@ -911,6 +962,16 @@ func ValidateInventory(store Store, inventory *Inventory) (err error) {
 
 	if inventory.TemplateID != nil {
 		_, err = store.GetTemplate(inventory.ProjectID, *inventory.TemplateID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	// See ValidateRepository: proxy_id is not scoped to the project by its
+	// foreign key.
+	if inventory.ProxyID != nil {
+		_, err = store.GetProxy(inventory.ProjectID, *inventory.ProxyID)
 	}
 
 	return

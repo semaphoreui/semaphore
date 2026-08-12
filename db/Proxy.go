@@ -31,6 +31,32 @@ type Proxy struct {
 	// is usually not the key used for the target host.
 	SSHKeyID *int      `db:"ssh_key_id" json:"ssh_key_id,omitempty" backup:"-"`
 	SSHKey   AccessKey `db:"-" json:"-" backup:"-"`
+
+	// RequiresProxyID is another proxy of the same project which must be passed
+	// through to reach this one, for chained proxy situations.
+	RequiresProxyID *int   `db:"requires_proxy_id" json:"requires_proxy_id,omitempty" backup:"-"`
+	RequiresProxy   *Proxy `db:"-" json:"-" backup:"-"`
+}
+
+// MaxProxyChainLength bounds how many proxies may be chained. Each hop is one
+// more key offered to every host of the chain, and sshd closes a connection
+// after MaxAuthTries (6 by default) rejected keys.
+const MaxProxyChainLength = 5
+
+// Chain returns the proxies to pass through to reach a host, in the order they
+// are connected to: the proxy which requires no other comes first, p comes last.
+func (p Proxy) Chain() []Proxy {
+	chain := []Proxy{p}
+
+	for required := p.RequiresProxy; required != nil; required = required.RequiresProxy {
+		chain = append([]Proxy{*required}, chain...)
+
+		if len(chain) >= MaxProxyChainLength {
+			break
+		}
+	}
+
+	return chain
 }
 
 func (p *Proxy) Validate() error {
@@ -67,6 +93,15 @@ func (p *Proxy) Validate() error {
 	}
 
 	return nil
+}
+
+// SSHDestination renders the proxy as "user@host", without the port, for use
+// with ssh commands which take the port as a separate argument.
+func (p Proxy) SSHDestination() string {
+	if p.User != nil && *p.User != "" {
+		return fmt.Sprintf("%s@%s", *p.User, p.Host)
+	}
+	return p.Host
 }
 
 // Destination renders the proxy as an OpenSSH ProxyJump destination,

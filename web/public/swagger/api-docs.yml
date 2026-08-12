@@ -640,6 +640,9 @@ definitions:
         type: integer
         example: 1
         description: key used to authenticate against the proxy itself
+      requires_proxy_id:
+        type: integer
+        description: another proxy of the project which must be passed through to reach this one
 
   ProxyRequest:
     type: object
@@ -669,6 +672,9 @@ definitions:
       ssh_key_id:
         type: integer
         example: 1
+      requires_proxy_id:
+        type: integer
+        description: another proxy of the project which must be passed through to reach this one
 
   Integration:
     type: object

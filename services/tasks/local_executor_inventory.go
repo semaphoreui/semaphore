@@ -1,10 +1,10 @@
 package tasks
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strconv"
-	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
@@ -28,12 +28,15 @@ func (t *LocalExecutor) installInventory() (err error) {
 		}
 	}
 
-	// The jump host usually needs a different key than the target hosts, so it
-	// gets its own agent.
-	if t.Inventory.Proxy != nil && t.Inventory.Proxy.SSHKeyID != nil {
-		t.proxyKeyInstallation, err = t.KeyInstaller.Install(t.Inventory.Proxy.SSHKey, db.AccessKeyRoleAnsibleUser, t.Logger)
-		if err != nil {
-			return
+	// The jump hosts usually need different keys than the target hosts, so the
+	// whole proxy chain gets its own agent.
+	if t.Inventory.Proxy != nil {
+		keys := db_lib.ProxyChainKeys(*t.Inventory.Proxy)
+		if len(keys) > 0 {
+			t.proxyKeyInstallation, err = t.KeyInstaller.InstallAll(keys, db.AccessKeyRoleAnsibleUser, t.Logger)
+			if err != nil {
+				return
+			}
 		}
 	}
 
@@ -48,21 +51,18 @@ func (t *LocalExecutor) installInventory() (err error) {
 }
 
 // getInventorySSHCommonArgs returns the ssh options ansible must use to reach
-// the hosts of the inventory, currently the jump host of the assigned proxy.
+// the hosts of the inventory, currently the proxy chain of the assigned proxy.
 func (t *LocalExecutor) getInventorySSHCommonArgs() string {
 	if t.Inventory.Proxy == nil || t.Inventory.Proxy.Type != db.ProxySSH {
 		return ""
 	}
 
-	opts := []string{"-o", "ProxyJump=" + t.Inventory.Proxy.Destination()}
-
-	// The jump host key lives in its own agent, so point ssh at that socket
-	// for the ProxyJump connection.
+	var socket string
 	if t.proxyKeyInstallation.SSHAgent != nil {
-		opts = append(opts, "-o", "IdentityAgent="+t.proxyKeyInstallation.SSHAgent.SocketFile)
+		socket = t.proxyKeyInstallation.SSHAgent.SocketFile
 	}
 
-	return strings.Join(opts, " ")
+	return fmt.Sprintf("-o %q", db_lib.ProxyCommandOption(*t.Inventory.Proxy, socket))
 }
 
 func (t *LocalExecutor) tmpInventoryFilename() string {

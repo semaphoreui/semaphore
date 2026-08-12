@@ -216,7 +216,7 @@ func TestGetInventorySSHCommonArgs(t *testing.T) {
 		assert.Empty(t, e.getInventorySSHCommonArgs())
 	})
 
-	t.Run("proxy adds ProxyJump", func(t *testing.T) {
+	t.Run("proxy adds a ProxyCommand jump", func(t *testing.T) {
 		e := &LocalExecutor{Inventory: db.Inventory{
 			Proxy: &db.Proxy{
 				Type: db.ProxySSH,
@@ -226,7 +226,9 @@ func TestGetInventorySSHCommonArgs(t *testing.T) {
 			},
 		}}
 
-		assert.Equal(t, "-o ProxyJump=ansible-proxy@bastion.example.org:2222", e.getInventorySSHCommonArgs())
+		assert.Equal(t,
+			`-o "ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`,
+			e.getInventorySSHCommonArgs())
 	})
 }
 
@@ -260,7 +262,9 @@ func TestGetPlaybookArgs_Proxy(t *testing.T) {
 
 		i := indexOf(args, "--ssh-common-args")
 		require.Less(t, i+1, len(args))
-		assert.Equal(t, "-o ProxyJump=bastion.example.org", args[i+1])
+		assert.Equal(t,
+			`-o "ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p bastion.example.org"`,
+			args[i+1])
 	})
 }
 

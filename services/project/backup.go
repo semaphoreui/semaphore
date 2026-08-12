@@ -383,9 +383,14 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		if o.SSHKeyID != nil {
 			SSHKey, _ = findNameByID[db.AccessKey](*o.SSHKeyID, b.keys)
 		}
+		var RequiresProxy *string = nil
+		if o.RequiresProxyID != nil {
+			RequiresProxy, _ = findNameByID[db.Proxy](*o.RequiresProxyID, b.proxies)
+		}
 		proxies[i] = BackupProxy{
-			Proxy:  o,
-			SSHKey: SSHKey,
+			Proxy:         o,
+			SSHKey:        SSHKey,
+			RequiresProxy: RequiresProxy,
 		}
 	}
 
@@ -399,9 +404,14 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 	repositories := make([]BackupRepository, len(b.repositories))
 	for i, o := range b.repositories {
 		SSHKey, _ := findNameByID[db.AccessKey](o.SSHKeyID, b.keys)
+		var Proxy *string = nil
+		if o.ProxyID != nil {
+			Proxy, _ = findNameByID[db.Proxy](*o.ProxyID, b.proxies)
+		}
 		repositories[i] = BackupRepository{
 			Repository: o,
 			SSHKey:     SSHKey,
+			Proxy:      Proxy,
 		}
 	}
 

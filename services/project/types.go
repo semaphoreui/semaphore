@@ -88,12 +88,14 @@ type BackupInventory struct {
 
 type BackupProxy struct {
 	db.Proxy
-	SSHKey *string `backup:"ssh_key"`
+	SSHKey        *string `backup:"ssh_key"`
+	RequiresProxy *string `backup:"requires_proxy"`
 }
 
 type BackupRepository struct {
 	db.Repository
 	SSHKey *string `backup:"ssh_key"`
+	Proxy  *string `backup:"proxy"`
 }
 
 type BackupTemplateRole struct {

@@ -2,6 +2,10 @@ package db_lib
 
 import (
 	"testing"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetRepositoryBranchNames(t *testing.T) {
@@ -79,4 +83,54 @@ func TestGetRepositoryBranchNames(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGitProxyOpts covers the ssh options used to reach the git server of a
+// repository through its proxy.
+func TestGitProxyOpts(t *testing.T) {
+	user := "ansible-proxy"
+	port := 2222
+
+	newRepo := func(keyID *int) db.Repository {
+		return db.Repository{Proxy: &db.Proxy{
+			Type:     db.ProxySSH,
+			Host:     "bastion.example.org",
+			User:     &user,
+			Port:     &port,
+			SSHKeyID: keyID,
+		}}
+	}
+
+	t.Run("no proxy means no options", func(t *testing.T) {
+		assert.Empty(t, gitProxyOpts(db.Repository{}, ssh.AccessKeyInstallation{}))
+	})
+
+	t.Run("proxy adds a ProxyCommand jump", func(t *testing.T) {
+		assert.Equal(t,
+			[]string{"-o", `"ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`},
+			gitProxyOpts(newRepo(nil), ssh.AccessKeyInstallation{}))
+	})
+
+	// The proxy key must reach the jump host only. IdentityAgent on the outer
+	// ssh would apply to the git server too, which uses a different key.
+	t.Run("the proxy key agent is scoped to the jump", func(t *testing.T) {
+		keyID := 7
+		installation := ssh.AccessKeyInstallation{SSHAgent: &ssh.Agent{SocketFile: "/tmp/proxy.sock"}}
+
+		opts := gitProxyOpts(newRepo(&keyID), installation)
+
+		assert.Equal(t,
+			[]string{"-o", `"ProxyCommand=ssh -o IdentityAgent=/tmp/proxy.sock -o StrictHostKeyChecking=no -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`},
+			opts)
+		assert.NotContains(t, opts[1][:len(opts[1])-1], "ProxyJump",
+			"ProxyJump would authenticate the jump with the git key agent")
+	})
+
+	t.Run("a proxy without a port omits -p", func(t *testing.T) {
+		repo := db.Repository{Proxy: &db.Proxy{Type: db.ProxySSH, Host: "bastion.example.org"}}
+
+		assert.Equal(t,
+			[]string{"-o", `"ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p bastion.example.org"`},
+			gitProxyOpts(repo, ssh.AccessKeyInstallation{}))
+	})
 }
