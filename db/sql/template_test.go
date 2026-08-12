@@ -97,3 +97,65 @@ func TestTemplateWithoutExecutorImage(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, loaded.ExecutorImage)
 }
+
+// TestTemplateNameUniqueness covers the check which lets a template be referred
+// to by name: a name may be reused across projects, but not inside one.
+func TestTemplateNameUniqueness(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, repositoryID := newTemplateTestProject(t, store)
+
+	newTemplate := func(name string) db.Template {
+		return db.Template{
+			ProjectID:    projectID,
+			RepositoryID: repositoryID,
+			Name:         name,
+			Playbook:     "site.yml",
+		}
+	}
+
+	build, err := store.CreateTemplate(newTemplate("Build website"))
+	require.NoError(t, err)
+
+	t.Run("a duplicate name is rejected", func(t *testing.T) {
+		_, err := store.CreateTemplate(newTemplate("Build website"))
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "already exists")
+	})
+
+	t.Run("a free name is accepted", func(t *testing.T) {
+		_, err := store.CreateTemplate(newTemplate("Deploy website"))
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("the same name in another project is accepted", func(t *testing.T) {
+		otherProjectID, otherRepositoryID := newTemplateTestProject(t, store)
+
+		_, err := store.CreateTemplate(db.Template{
+			ProjectID:    otherProjectID,
+			RepositoryID: otherRepositoryID,
+			Name:         "Build website",
+			Playbook:     "site.yml",
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("a template keeps its own name on update", func(t *testing.T) {
+		description := "edited"
+		build.Description = &description
+
+		assert.NoError(t, store.UpdateTemplate(build))
+	})
+
+	t.Run("renaming onto another template is rejected", func(t *testing.T) {
+		renamed := build
+		renamed.Name = "Deploy website"
+
+		err := store.UpdateTemplate(renamed)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "already exists")
+	})
+}

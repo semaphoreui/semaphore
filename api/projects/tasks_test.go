@@ -156,12 +156,23 @@ func TestResolveTaskTemplate(t *testing.T) {
 	})
 
 	t.Run("an ambiguous name is rejected", func(t *testing.T) {
+		// Both the store and the unique index reject a duplicate name, so the
+		// collision has to be made behind their backs. This is a database which
+		// lost the index, for example one restored from a schema-less dump: the
+		// task must still refuse to guess rather than run the wrong template.
 		createTaskTestTemplate(t, store, project.ID, repo.ID, "Duplicate")
-		createTaskTestTemplate(t, store, project.ID, repo.ID, "Duplicate")
+		legacy := createTaskTestTemplate(t, store, project.ID, repo.ID, "Duplicate (2)")
+
+		_, err = store.Sql().Exec("drop index project__template__project_id_name")
+		require.NoError(t, err)
+
+		_, err = store.Sql().Exec(
+			"update project__template set name=? where id=?", "Duplicate", legacy.ID)
+		require.NoError(t, err)
 
 		task := db.Task{TemplateName: "Duplicate"}
 
-		_, err := c.resolveTaskTemplate(project.ID, &task)
+		_, err = c.resolveTaskTemplate(project.ID, &task)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "more than one template")

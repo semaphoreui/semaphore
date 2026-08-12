@@ -10,8 +10,38 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// validateTemplateNameIsFree rejects a template name which is already used by
+// another template of the same project, so that a template can be referred to by
+// name. templateID is the template being updated, or 0 when creating one.
+//
+// Templates created before this check may still share a name, which is why
+// GetTemplateByName rejects an ambiguous name rather than relying on this.
+func (d *SqlDb) validateTemplateNameIsFree(projectID int, templateID int, name string) error {
+	var count int
+
+	err := d.selectOne(&count,
+		"select count(*) from project__template where project_id=? and name=? and id<>?",
+		projectID, name, templateID)
+
+	if err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return common_errors.NewValidationError("template with name " + name + " already exists")
+	}
+
+	return nil
+}
+
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
 	err = template.Validate()
+
+	if err != nil {
+		return
+	}
+
+	err = d.validateTemplateNameIsFree(template.ProjectID, 0, template.Name)
 
 	if err != nil {
 		return
@@ -90,6 +120,12 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 
 func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	err := template.Validate()
+
+	if err != nil {
+		return err
+	}
+
+	err = d.validateTemplateNameIsFree(template.ProjectID, template.ID, template.Name)
 
 	if err != nil {
 		return err
