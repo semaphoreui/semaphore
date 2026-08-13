@@ -136,7 +136,7 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 		Username: strings.ToLower(claims.username),
 		Created:  tz.Now(),
 		Name:     claims.name,
-		Email:    claims.email,
+		Email:    strings.ToLower(claims.email),
 		External: true,
 		Alert:    false,
 	}
