@@ -89,6 +89,14 @@
             {{ $t('workflowPaletteApprovalNode') }}
           </div>
           <div
+            class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--delay"
+            draggable="true"
+            @dragstart="onDragStart($event, 'delay')"
+          >
+            <v-icon small left>mdi-timer-outline</v-icon>
+            {{ $t('workflowPaletteDelayNode') }}
+          </div>
+          <div
             class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--note"
             draggable="true"
             @dragstart="onDragStart($event, 'note')"
@@ -192,7 +200,7 @@
             />
 
             <v-autocomplete
-              v-if="editingNode.kind !== 'approval'"
+            v-if="editingNode.kind !== 'approval' && editingNode.kind !== 'delay'"
               v-model="editingNode.template_id"
               :items="templates"
               item-value="id"
@@ -207,7 +215,7 @@
             />
 
             <v-card
-              v-if="editingNode.kind !== 'approval' && editingNodeTemplate"
+            v-if="editingNode.kind !== 'approval' && editingNode.kind !== 'delay' && editingNodeTemplate"
               :key="`task-params-${editingNode.id}-${editingNode.template_id}`"
               style="background: rgba(133, 133, 133, 0.06)"
               class="mb-6 pt-3"
@@ -254,6 +262,22 @@
                 outlined
                 dense
                 hide-details="auto"
+                @change="applyNodeEdit"
+              />
+            </template>
+            <template v-if="editingNode.kind === 'delay'">
+              <v-text-field
+                v-model.number="editingNode.delay_seconds"
+                type="number"
+                min="1"
+                :label="$t('workflowDelaySeconds')"
+                :hint="$t('workflowDelayHint')"
+                persistent-hint
+                :disabled="!canManage"
+                outlined
+                dense
+                hide-details="auto"
+                class="mb-2"
                 @change="applyNodeEdit"
               />
             </template>
@@ -337,6 +361,7 @@ export default {
       return [
         { value: 'task', text: this.$t('workflowNodeKindTask') },
         { value: 'approval', text: this.$t('workflowNodeKindApproval') },
+        { value: 'delay', text: this.$t('workflowNodeKindDelay') },
       ];
     },
     convergenceOptions() {
@@ -379,6 +404,11 @@ export default {
         (n) => n.kind === 'approval' && n.approval_timeout != null && n.approval_timeout <= 0,
       );
       if (badTimeout) out.push(this.$t('workflowErrorApprovalTimeoutPositive'));
+
+      const badDelay = nodes.some(
+        (n) => n.kind === 'delay' && (n.delay_seconds == null || n.delay_seconds <= 0),
+      );
+      if (badDelay) out.push(this.$t('workflowErrorDelayPositive'));
       return out;
     },
   },
@@ -492,13 +522,22 @@ export default {
       EventBus.$emit('i-snackbar', { color: 'warning', text: this.$t(key) });
     },
     onKindChanged() {
-      if (this.editingNode.kind === 'approval') {
+      const kind = this.editingNode.kind;
+      if (kind === 'approval' || kind === 'delay') {
         this.editingNode.template_id = null;
         this.editingNode.task_params = null;
-      } else {
+      }
+      if (kind !== 'approval') {
         this.editingNode.approval_timeout = null;
         this.editingNode.approval_message = null;
-        if (!this.editingNode.task_params) this.editingNode.task_params = {};
+      }
+      if (kind !== 'delay') {
+        this.editingNode.delay_seconds = null;
+      } else if (this.editingNode.delay_seconds == null) {
+        this.editingNode.delay_seconds = 60;
+      }
+      if (kind === 'task' && !this.editingNode.task_params) {
+        this.editingNode.task_params = {};
       }
       this.applyNodeEdit();
     },
@@ -692,6 +731,10 @@ export default {
 
     &--approval {
       border-left: 3px solid #ab47bc;
+    }
+
+    &--delay {
+      border-left: 3px solid #ff9800;
     }
 
     &--note {
