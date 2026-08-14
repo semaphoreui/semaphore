@@ -215,8 +215,8 @@
             />
 
             <v-card
-            v-if="editingNode.kind !== 'approval' 
-              && editingNode.kind !== 'delay' 
+            v-if="editingNode.kind !== 'approval'
+              && editingNode.kind !== 'delay'
               && editingNodeTemplate"
               :key="`task-params-${editingNode.id}-${editingNode.template_id}`"
               style="background: rgba(133, 133, 133, 0.06)"
