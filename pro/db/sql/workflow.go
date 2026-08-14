@@ -86,3 +86,27 @@ func (d *WorkflowStoreImpl) UpdateWorkflowApproval(approval db.WorkflowApproval)
 func (d *WorkflowStoreImpl) ResolveWorkflowApprovalIfPending(approval db.WorkflowApproval) (ok bool, err error) {
 	return
 }
+
+func (d *WorkflowStoreImpl) GetWorkflowDelays(projectID int, runID int) (res []db.WorkflowDelay, err error) {
+	return
+}
+
+func (d *WorkflowStoreImpl) GetWorkflowDelay(projectID int, runID int, nodeID int) (res db.WorkflowDelay, err error) {
+	return
+}
+
+func (d *WorkflowStoreImpl) CreateWorkflowDelay(delay db.WorkflowDelay) (res db.WorkflowDelay, err error) {
+	return
+}
+
+func (d *WorkflowStoreImpl) UpdateWorkflowDelay(delay db.WorkflowDelay) (err error) {
+	return
+}
+
+func (d *WorkflowStoreImpl) ResolveWorkflowDelayIfWaiting(delay db.WorkflowDelay) (ok bool, err error) {
+	return
+}
+
+func (d *WorkflowStoreImpl) GetExpiredWorkflowDelays() (res []db.WorkflowDelay, err error) {
+	return
+}
