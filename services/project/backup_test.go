@@ -367,7 +367,7 @@ func TestBackupProject_TemplateKeys(t *testing.T) {
 		TmpPath: "/tmp",
 	}
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{Name: "Keys 123"})
 	require.NoError(t, err)
