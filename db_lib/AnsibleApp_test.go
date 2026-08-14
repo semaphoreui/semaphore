@@ -83,6 +83,7 @@ func TestAnsibleApp_galaxyInstallKeys(t *testing.T) {
 
 	tests := []struct {
 		name         string
+		repoKey      *db.AccessKey
 		templateKeys []db.AccessKey
 		expected     []string
 	}{
@@ -100,6 +101,21 @@ func TestAnsibleApp_galaxyInstallKeys(t *testing.T) {
 			expected: []string{"repo", "role-a", "role-b"},
 		},
 		{
+			// A public repository, or one reached over https with a
+			// login/password key, has no key an agent can serve. The install
+			// must still run, with the environment of the task.
+			name:         "a repository without an ssh key contributes none",
+			repoKey:      &db.AccessKey{ID: 1, Name: "none", Type: db.AccessKeyNone},
+			templateKeys: nil,
+			expected:     nil,
+		},
+		{
+			name:         "template keys are used when the repository has none",
+			repoKey:      &db.AccessKey{ID: 1, Name: "login", Type: db.AccessKeyLoginPassword},
+			templateKeys: []db.AccessKey{{ID: 2, Name: "role-a", Type: db.AccessKeySSH}},
+			expected:     []string{"role-a"},
+		},
+		{
 			name: "keys which cannot be used by an SSH agent are skipped",
 			templateKeys: []db.AccessKey{
 				{ID: 2, Name: "login", Type: db.AccessKeyLoginPassword},
@@ -112,8 +128,13 @@ func TestAnsibleApp_galaxyInstallKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			key := repoKey
+			if tt.repoKey != nil {
+				key = *tt.repoKey
+			}
+
 			app := &AnsibleApp{
-				Repository: db.Repository{SSHKey: repoKey},
+				Repository: db.Repository{SSHKey: key},
 				Template:   db.Template{Keys: tt.templateKeys},
 			}
 
@@ -125,4 +146,36 @@ func TestAnsibleApp_galaxyInstallKeys(t *testing.T) {
 			assert.Equal(t, tt.expected, names)
 		})
 	}
+}
+
+// TestGalaxyInstallArgs covers when ansible-galaxy is told to re-fetch roles.
+//
+// The keys of a template are tried one at a time, and each attempt installs
+// what its key can reach. ansible-galaxy --force removes a role before fetching
+// it again, so forcing on a retry deletes the roles the previous key installed
+// when the current key cannot reach the same repository. Only the first attempt
+// may force.
+func TestGalaxyInstallArgs(t *testing.T) {
+	const requirements = "/repo/requirements.yml"
+
+	t.Run("the first attempt forces a fresh install", func(t *testing.T) {
+		args := galaxyInstallArgs(GalaxyRole, requirements, true)
+
+		assert.Equal(t,
+			[]string{"role", "install", "-r", requirements, "--force"},
+			args)
+	})
+
+	t.Run("a retry must not force", func(t *testing.T) {
+		args := galaxyInstallArgs(GalaxyRole, requirements, false)
+
+		assert.Equal(t, []string{"role", "install", "-r", requirements}, args)
+		assert.NotContains(t, args, "--force",
+			"forcing on a retry removes the roles installed by the previous key")
+	})
+
+	t.Run("collections use the same rule", func(t *testing.T) {
+		assert.NotContains(t, galaxyInstallArgs(GalaxyCollection, requirements, false), "--force")
+		assert.Contains(t, galaxyInstallArgs(GalaxyCollection, requirements, true), "--force")
+	})
 }
