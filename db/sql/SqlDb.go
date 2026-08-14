@@ -116,13 +116,16 @@ func (d *SqlDbConnection) Connect() {
 }
 
 func (d *SqlDbConnection) Close() {
+	if d.sql.Db == nil {
+		return
+	}
 	err := d.sql.Db.Close()
 	if err != nil {
 		panic(err)
 	}
 }
 
-func CreateTestStore() *SqlDb {
+func InitConfigCreateTestStore() *SqlDb {
 	util.Config = &util.ConfigType{
 		SQLite: &util.DbConfig{
 			Hostname: ":memory:",
@@ -133,6 +136,11 @@ func CreateTestStore() *SqlDb {
 			Tasks:  &util.TaskLogType{},
 		},
 		Process: &util.ConfigProcess{},
+		Runners: &util.RunnersConfig{},
+		Apps: map[string]util.App{
+			"ansible": {},
+			"bash":    {},
+		},
 	}
 	store := CreateDb(util.DbDriverSQLite)
 

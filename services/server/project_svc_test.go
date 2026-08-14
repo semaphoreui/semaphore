@@ -90,6 +90,11 @@ func (m *mockAccessKeyManager) GetAccessKeyRefs(projectID int, accessKeyID int) 
 	return db.ObjectReferrers{}, nil
 }
 func (m *mockAccessKeyManager) RekeyAccessKeys(oldKey string) error { return nil }
+func (m *mockAccessKeyManager) GetTaskAccessKey(projectID int, taskID int) (db.AccessKey, error) {
+	return db.AccessKey{}, db.ErrNotFound
+}
+func (m *mockAccessKeyManager) DeleteTaskAccessKeys(projectID int, taskID int) error { return nil }
+func (m *mockAccessKeyManager) DeleteExpiredTaskAccessKeys() error                   { return nil }
 
 func TestProjectServiceImpl_DeleteProject(t *testing.T) {
 	mockRepo := &mockProjectStore{

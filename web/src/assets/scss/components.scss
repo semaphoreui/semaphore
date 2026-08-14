@@ -50,3 +50,24 @@
     display: none;
   }
 }
+
+.InputWithAppendedButton {
+  .v-input__append-outer {
+    margin: 0 !important;
+    .v-btn {
+      max-width: 40px;
+      min-width: 40px;
+      height: 40px;
+      padding-left: 0;
+      padding-right: 0;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+      border: 1px solid rgba(133, 133, 133, 0.4);
+      border-left: 0;
+    }
+  }
+  fieldset {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+}

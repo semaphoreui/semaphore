@@ -1,9 +1,3 @@
-create table `project__template_key` (
-    `project_id` int not null,
-    `template_id` int not null,
-    `key_id` int not null,
-    primary key (`template_id`, `key_id`),
-    foreign key (`project_id`) references `project`(`id`) on delete cascade,
-    foreign key (`template_id`) references `project__template`(`id`) on delete cascade,
-    foreign key (`key_id`) references `access_key`(`id`) on delete cascade
-);
+alter table `access_key` add `task_id` int null references task(`id`) on delete cascade;
+alter table `access_key` add `expire_at` datetime null;
+create index `access_key__task_id` on `access_key`(`task_id`);

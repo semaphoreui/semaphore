@@ -106,11 +106,6 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, ok := util.Config.Apps[string(newTemplate.App)]; !ok {
-		helpers.WriteErrorStatus(w, "Invalid app id: "+string(newTemplate.App), http.StatusBadRequest)
-		return
-	}
-
 	// Check workspace and create it if required.
 	if newTemplate.App.IsTerraform() {
 		var inv db.Inventory

@@ -1,11 +1,13 @@
 package tasks
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/jwt"
+	"github.com/semaphoreui/semaphore/pkg/metrics"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro/pkg/stage_parsers"
@@ -61,6 +63,7 @@ type TaskPool struct {
 	encryptionService      server.AccessKeyEncryptionService
 	keyInstallationService server.AccessKeyInstallationService
 	signer                 jwt.Signer
+	metrics                *metrics.Metrics
 
 	// repoLock serializes git operations on shared repository directories
 	// across parallel tasks of the same template.
@@ -101,6 +104,7 @@ func CreateTaskPool(
 	keyInstallationService server.AccessKeyInstallationService,
 	logWriteService pro_interfaces.LogWriteService,
 	signer jwt.Signer,
+	appMetrics *metrics.Metrics,
 ) TaskPool {
 	p := TaskPool{
 		register:               make(chan *TaskRunner),      // add TaskRunner to queue
@@ -114,6 +118,7 @@ func CreateTaskPool(
 		logWriteService:        logWriteService,
 		keyInstallationService: keyInstallationService,
 		signer:                 signer,
+		metrics:                appMetrics,
 		repoLock:               &KeyLock{},
 		stop:                   make(chan struct{}),
 		reconcileDone:          make(chan struct{}),
@@ -214,6 +219,7 @@ func (p *TaskPool) Run() {
 
 	go p.handleQueue()
 	go p.handleLogs()
+	go p.taskSecretSweepLoop()
 	go func() {
 		// reconcileDone lets Stop block until the reconcile loop has actually
 		// finished reading shared state (e.g. util.Config). Closing it here,
@@ -537,7 +543,7 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 
 	// set the appropriate job handler for consistency (not run)
 	var job Job
-	if util.Config.UseRemoteRunner || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
+	if util.Config.IsUseRemoteRunner() || tr.Template.RunnerTag != nil || tr.Inventory.RunnerTag != nil {
 		tag := tr.Template.RunnerTag
 		if tag == nil {
 			tag = tr.Inventory.RunnerTag
@@ -545,13 +551,19 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 		job = &RemoteJob{RunnerTag: tag, Task: tr.Task, taskPool: p}
 	} else {
 		app := db_lib.CreateApp(tr.Template, tr.Repository, tr.Inventory, tr)
+
+		// Leave Secret empty. This snapshot is used only to change task status
+		// (stop/confirm/reject) and to restore tasks after restart -- it never runs
+		// the task, so it does not need the secrets. Reading them here would make
+		// those operations fail when a secret is expired or unreadable. The secrets
+		// are read by run(), right before the task actually starts.
 		job = &LocalExecutor{
 			Task:         tr.Task,
 			Template:     tr.Template,
 			Inventory:    tr.Inventory,
 			Repository:   tr.Repository,
 			Environment:  tr.Environment,
-			Secret:       "{}",
+			Secret:       "",
 			Logger:       app.SetLogger(tr),
 			App:          app,
 			KeyInstaller: p.keyInstallationService,
@@ -933,6 +945,54 @@ func (p *TaskPool) GetQueuedTasks() []*TaskRunner {
 	return p.state.QueueRange()
 }
 
+// hasSurveySecrets reports whether the task-supplied secret payload contains
+// at least one survey secret variable (a non-empty JSON object).
+func hasSurveySecrets(secretVars string) bool {
+	if secretVars == "" {
+		return false
+	}
+
+	vars := make(map[string]any)
+	if err := json.Unmarshal([]byte(secretVars), &vars); err != nil {
+		return false
+	}
+
+	return len(vars) > 0
+}
+
+// taskSecretExpireAt returns the expiry moment for a task's survey-secret key:
+// MaxTaskDurationSec plus an hour of queue allowance when the limit is set,
+// otherwise 24 hours. Expiry is a backstop — the key is deleted when the task
+// reaches a terminal state.
+func taskSecretExpireAt() time.Time {
+	ttl := 24 * time.Hour
+	if util.Config.MaxTaskDurationSec > 0 {
+		ttl = time.Duration(util.Config.MaxTaskDurationSec)*time.Second + time.Hour
+	}
+	return tz.Now().Add(ttl)
+}
+
+// taskSecretSweepLoop deletes expired task-bound survey-secret keys once at
+// startup and then hourly. finishRun's delete is the primary cleanup; the
+// sweep covers tasks that never reached it (e.g. node crash). It runs on every
+// HA node — the delete is idempotent, so concurrent sweeps are safe.
+func (p *TaskPool) taskSecretSweepLoop() {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+
+	for {
+		if err := p.store.DeleteExpiredTaskAccessKeys(); err != nil {
+			log.WithError(err).Error("failed to delete expired task survey secrets")
+		}
+
+		select {
+		case <-ticker.C:
+		case <-p.stop:
+			return
+		}
+	}
+}
+
 // AddTask creates and queues a new task for execution in the task pool.
 //
 // Parameters:
@@ -965,7 +1025,7 @@ func (p *TaskPool) AddTask(
 	taskObj.UserID = userID
 	taskObj.ProjectID = projectID
 	extraSecretVars := taskObj.Secret
-	taskObj.Secret = "{}"
+	taskObj.Secret = ""
 
 	tpl, err := p.store.GetTemplate(projectID, taskObj.TemplateID)
 	if err != nil {
@@ -975,6 +1035,15 @@ func (p *TaskPool) AddTask(
 	err = taskObj.ValidateNewTask(tpl)
 	if err != nil {
 		return
+	}
+
+	// A task-supplied commit hash redirects the checkout away from the
+	// template's pinned branch, so it is honored only when the template allows
+	// branch overrides — the same gate used for task.GitBranch (see
+	// resolveGitBranch). Otherwise a user who may only run tasks could pin a
+	// branch-locked template to an arbitrary commit/ref.
+	if !tpl.AllowOverrideBranchInTask {
+		taskObj.CommitHash = nil
 	}
 
 	if tpl.Type == db.TemplateBuild { // get next version for TaskRunner if it is a Build
@@ -1009,9 +1078,22 @@ func (p *TaskPool) AddTask(
 		return
 	}
 
+	// Persist survey secret variables as a task-bound, expiring access key so
+	// any HA node can decrypt them at dispatch time (local or remote runner).
+	// The plaintext never reaches the task row, API payloads, or events.
+	if hasSurveySecrets(extraSecretVars) {
+		err = p.encryptionService.CreateTaskSurveySecrets(
+			projectID, newTask.ID, extraSecretVars, taskSecretExpireAt())
+		if err != nil {
+			taskRunner.Log("Error: failed to store survey secrets: " + err.Error())
+			taskRunner.SetStatus(task_logger.TaskFailStatus)
+			return
+		}
+	}
+
 	var job Job
 
-	if util.Config.UseRemoteRunner ||
+	if util.Config.IsUseRemoteRunner() ||
 		taskRunner.Template.RunnerTag != nil ||
 		taskRunner.Inventory.RunnerTag != nil {
 

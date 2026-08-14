@@ -19,6 +19,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/tasks"
 	"github.com/semaphoreui/semaphore/pkg/jwt"
+	"github.com/semaphoreui/semaphore/pkg/metrics"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	log "github.com/sirupsen/logrus"
 
@@ -92,6 +93,7 @@ func Route(
 	jwtSigner jwt.Signer,
 	runnerService server.RunnerService,
 	workflowService pro_interfaces.WorkflowService,
+	appMetrics *metrics.Metrics,
 ) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
@@ -146,6 +148,10 @@ func Route(
 	pingRouter := r.Path(webPath + "api/ping").Subrouter()
 	pingRouter.Use(plainTextMiddleware)
 	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)
+
+	metricsRouter := r.Path(webPath + "api/metrics").Subrouter()
+	metricsRouter.Use(metricsAuthMiddleware)
+	metricsRouter.Methods("GET", "HEAD").Handler(appMetrics)
 
 	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
 	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)

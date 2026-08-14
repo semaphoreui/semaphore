@@ -22,7 +22,7 @@ func TestBackupProject(t *testing.T) {
 		TmpPath: "/tmp",
 	}
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
 		Name: "Test 123",
@@ -113,7 +113,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 		TmpPath: "/tmp",
 	}
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
 		Name: "Test 123",
@@ -228,7 +228,7 @@ func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
 		TmpPath: "/tmp",
 	}
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	// An old-format backup payload: a single template plus a single
 	// schedule with no "task_params" object at all. Restore() should
