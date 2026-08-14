@@ -212,8 +212,9 @@ export default {
           kind,
           convergence_mode: 'all',
           template_id: null,
-          // Approval nodes must not carry task params (backend validation).
+          // Approval and delay nodes must not carry task params (backend validation).
           task_params: kind === 'task' ? {} : null,
+          delay_seconds: kind === 'delay' ? 60 : undefined,
         };
       // Note nodes have no ports so they can not be connected on the canvas.
       const ports = kind === 'note' ? 0 : 1;
@@ -453,10 +454,14 @@ export default {
       }
 
       const isApproval = kind === 'approval';
-      const icon = isApproval ? 'mdi-account-check' : 'mdi-cog';
-      const title = isApproval
-        ? this.$t('workflowNodeKindApproval')
-        : this.escape(this.templateName(node.template_id));
+      const isDelay = kind === 'delay';
+      let icon = 'mdi-cog';
+      if (isApproval) icon = 'mdi-account-check';
+      else if (isDelay) icon = 'mdi-timer-outline';
+      let title;
+      if (isApproval) title = this.$t('workflowNodeKindApproval');
+      else if (isDelay) title = this.escape(`${this.$t('workflowNodeKindDelay')} ${node.delay_seconds != null ? node.delay_seconds : '?'}s`);
+      else title = this.escape(this.templateName(node.template_id));
       const status = this.nodeStatuses[node.id];
       const statusHtml = status
         ? `<span class="WorkflowGraph__nodeStatus WorkflowGraph__nodeStatus--${status}">${this.escape(status)}</span>`
@@ -611,6 +616,7 @@ export default {
 
   .drawflow-node.WorkflowGraph__nodeWrap--approval { border-left: 3px solid #ab47bc; }
   .drawflow-node.WorkflowGraph__nodeWrap--task { border-left: 3px solid #2196f3; }
+  .drawflow-node.WorkflowGraph__nodeWrap--delay { border-left: 3px solid #ff9800; }
 
   // Run view (read-only): task/approval nodes open their task log on click, so
   // hint that they are clickable. Drawflow's stylesheet sets `cursor: move`, so
