@@ -212,6 +212,7 @@ export default {
       (this.details?.nodes || []).forEach((n) => {
         if (n.task) map[n.node.id] = n.task.status;
         else if (n.approval) map[n.node.id] = n.approval.status;
+        else if (n.delay) map[n.node.id] = n.delay.status;
       });
       return map;
     },
