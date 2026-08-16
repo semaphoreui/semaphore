@@ -126,6 +126,13 @@ func (d *SqlDbConnection) Close() {
 }
 
 func InitConfigCreateTestStore() *SqlDb {
+	return InitConfigCreateTestStoreAt(nil)
+}
+
+// InitConfigCreateTestStoreAt creates a test store migrated up to
+// targetVersion (or fully when nil), so tests can seed data on an older
+// schema and then apply the remaining migrations with db.Migrate.
+func InitConfigCreateTestStoreAt(targetVersion *string) *SqlDb {
 	util.Config = &util.ConfigType{
 		SQLite: &util.DbConfig{
 			Hostname: ":memory:",
@@ -146,7 +153,7 @@ func InitConfigCreateTestStore() *SqlDb {
 
 	store.Connect()
 
-	err := db.Migrate(store, nil)
+	err := db.Migrate(store, targetVersion)
 	if err != nil {
 		panic(err)
 	}
@@ -419,7 +426,7 @@ var identifierQuoteRE = regexp.MustCompile("`")
 // validateMutationResult checks the success of the update query
 func validateMutationResult(res sql.Result, err error) error {
 	if err != nil {
-		if strings.Contains(err.Error(), "foreign key") {
+		if strings.Contains(strings.ToLower(err.Error()), "foreign key") {
 			err = db.ErrInvalidOperation
 		}
 		return err
