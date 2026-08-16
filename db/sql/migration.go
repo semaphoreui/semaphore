@@ -222,7 +222,10 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		}
 		defer func() {
 			if _, fkErr := d.exec("PRAGMA foreign_keys = ON"); fkErr != nil {
-				log.WithError(fkErr).Error("failed to re-enable foreign_keys pragma after migration")
+				log.WithFields(log.Fields{
+					"context": "migration",
+					"version": migration.Version,
+				}).WithError(fkErr).Fatal("failed to re-enable foreign_keys pragma after migration")
 			}
 		}()
 	}
@@ -308,12 +311,18 @@ func (d *SqlDb) TryRollbackMigration(version db.Migration) {
 
 	if sqliteNeedsFkOff(d.GetDialect(), version.Version) {
 		if _, err = d.exec("PRAGMA foreign_keys = OFF"); err != nil {
-			log.Error(err)
+			log.WithFields(log.Fields{
+				"context": "migration",
+				"version": version.Version,
+			}).WithError(err).Fatal("failed to disable foreign_keys pragma before migration")
 			return
 		}
 		defer func() {
 			if _, fkErr := d.exec("PRAGMA foreign_keys = ON"); fkErr != nil {
-				log.WithError(fkErr).Error("failed to re-enable foreign_keys pragma after rollback")
+				log.WithFields(log.Fields{
+					"context": "migration",
+					"version": version.Version,
+				}).WithError(fkErr).Fatal("failed to re-enable foreign_keys pragma after rollback")
 			}
 		}()
 	}
