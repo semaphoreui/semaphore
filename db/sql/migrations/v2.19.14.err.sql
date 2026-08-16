@@ -1,5 +1,5 @@
 {{if .Sqlite}}
-create table session_old_2_20_2 (
+create table session_old_2_19_14 (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id             INTEGER NOT NULL,
     created             DATETIME NOT NULL,
@@ -12,12 +12,12 @@ create table session_old_2_20_2 (
     FOREIGN KEY(user_id) REFERENCES user(id)
 );
 
-insert into session_old_2_20_2 (id, user_id, created, last_active, ip, user_agent, expired, verification_method, verified)
+insert into session_old_2_19_14 (id, user_id, created, last_active, ip, user_agent, expired, verification_method, verified)
     select id, user_id, created, last_active, ip, user_agent, expired, verification_method, verified from session;
 
 drop table session;
 
-alter table session_old_2_20_2 rename to session;
+alter table session_old_2_19_14 rename to session;
 
 create index session__session__expired on session(expired);
 
