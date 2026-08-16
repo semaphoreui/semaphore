@@ -410,7 +410,7 @@ var identifierQuoteRE = regexp.MustCompile("`")
 // validateMutationResult checks the success of the update query
 func validateMutationResult(res sql.Result, err error) error {
 	if err != nil {
-		if strings.Contains(err.Error(), "foreign key") {
+		if strings.Contains(strings.ToLower(err.Error()), "foreign key") {
 			err = db.ErrInvalidOperation
 		}
 		return err
