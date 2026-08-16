@@ -1430,6 +1430,7 @@ export default {
     },
 
     async selectLanguage(lang) {
+      const previousLang = localStorage.getItem('lang');
       this.applyLanguage(lang);
 
       if (this.user) {
@@ -1441,6 +1442,7 @@ export default {
             data: { key: 'lang', value: JSON.stringify(lang) },
           });
         } catch (err) {
+          this.applyLanguage(previousLang);
           EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
           return;
         }
