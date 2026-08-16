@@ -1067,13 +1067,7 @@ export default {
     },
 
     lang() {
-      const locale = localStorage.getItem('lang');
-
-      if (!locale) {
-        return getSystemLang();
-      }
-
-      return getLangInfo(locale || 'en');
+      return getLangInfo(this.$i18n.locale);
     },
 
     projectId() {
@@ -1391,6 +1385,18 @@ export default {
       }
     },
 
+    applyLanguage(lang) {
+      if (typeof lang !== 'string' || lang === '') {
+        localStorage.removeItem('lang');
+        this.$i18n.locale = getSystemLang().flag;
+        return;
+      }
+
+      const locale = getLangInfo(lang).flag;
+      localStorage.setItem('lang', locale);
+      this.$i18n.locale = locale;
+    },
+
     async loadUserOptions() {
       const options = (
         await axios({
@@ -1407,10 +1413,36 @@ export default {
           console.log(e);
         }
       }
+
+      if (options.lang != null) {
+        const currentLang = localStorage.getItem('lang');
+        try {
+          this.applyLanguage(JSON.parse(options.lang));
+        } catch {
+          this.applyLanguage(currentLang);
+        }
+      }
     },
 
-    selectLanguage(lang) {
-      localStorage.setItem('lang', lang);
+    async selectLanguage(lang) {
+      const previousLang = localStorage.getItem('lang');
+      this.applyLanguage(lang);
+
+      if (this.user) {
+        try {
+          await axios({
+            method: 'post',
+            url: '/api/user/options',
+            responseType: 'json',
+            data: { key: 'lang', value: JSON.stringify(lang) },
+          });
+        } catch (err) {
+          this.applyLanguage(previousLang);
+          EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+          return;
+        }
+      }
+
       window.location.reload();
     },
 

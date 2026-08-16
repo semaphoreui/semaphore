@@ -13,6 +13,7 @@ import (
 // allowedUserOptionKeys lists the suffixes a user is allowed to store via the
 // per-user options API. The handler always namespaces them with the user ID.
 var allowedUserOptionKeys = map[string]bool{
+	"lang":              true,
 	"nav.unpinnedItems": true,
 }
 
