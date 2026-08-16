@@ -1421,10 +1421,11 @@ export default {
       }
 
       if (options.lang != null) {
+        const currentLang = localStorage.getItem('lang');
         try {
           this.applyLanguage(JSON.parse(options.lang));
         } catch {
-          this.applyLanguage('');
+          this.applyLanguage(currentLang);
         }
       }
     },
