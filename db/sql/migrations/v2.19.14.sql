@@ -37,7 +37,7 @@ create table task_new_2_20_2 (
     start            DATETIME NULL,
     end              DATETIME NULL,
     user_id          INTEGER REFERENCES user(id) ON DELETE SET NULL,
-    project_id       INTEGER REFERENCES project(id),
+    project_id       INTEGER REFERENCES project(id) ON DELETE CASCADE,
     message          VARCHAR(250) NOT NULL DEFAULT '',
     version          VARCHAR(20) NULL,
     commit_hash      VARCHAR(64) NULL,
