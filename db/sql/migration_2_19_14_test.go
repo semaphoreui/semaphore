@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMigration_2_19_14_DataSurvivesRebuild seeds data on the 2.20.1 schema
+// TestMigration_2_19_14_DataSurvivesRebuild seeds data on the 2.19.12 schema
 // and then applies 2.19.14 to ensure the session/task rebuild keeps existing
 // rows intact — in particular dropping the old task table must not trigger
 // ON DELETE CASCADE into task__output.
@@ -31,10 +31,29 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	projectID, repositoryID := newTemplateTestProject(t, store)
+	// newTemplateTestProject is unusable here: its CreateAccessKey call
+	// writes the task_id/expire_at columns which appear only in 2.20.1,
+	// so seed the access key with SQL matching the 2.19.12 schema.
+	project, err := store.CreateProject(db.Project{Name: "proj"})
+	require.NoError(t, err)
+	projectID := project.ID
+
+	keyID, err := store.insert("id",
+		"insert into access_key (name, type, project_id) values ('key', 'none', ?)", projectID)
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: projectID,
+		Name:      "repo",
+		GitURL:    "https://example.com/repo.git",
+		GitBranch: "main",
+		SSHKeyID:  keyID,
+	})
+	require.NoError(t, err)
+
 	template, err := store.CreateTemplate(db.Template{
 		ProjectID:    projectID,
-		RepositoryID: repositoryID,
+		RepositoryID: repo.ID,
 		Name:         "tpl",
 		Playbook:     "site.yml",
 	})
