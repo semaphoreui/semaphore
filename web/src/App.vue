@@ -1067,13 +1067,7 @@ export default {
     },
 
     lang() {
-      const locale = localStorage.getItem('lang');
-
-      if (!locale) {
-        return getSystemLang();
-      }
-
-      return getLangInfo(locale || 'en');
+      return getLangInfo(this.$i18n.locale);
     },
 
     projectId() {
