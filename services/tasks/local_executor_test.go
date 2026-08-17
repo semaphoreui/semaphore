@@ -222,3 +222,79 @@ func TestGetTerraformArgs_MultiSelect(t *testing.T) {
 	}
 	assert.True(t, found, "expected -var multi_var=[\"1\",\"2\"] in %v", defaultArgs)
 }
+
+// TestGetPlaybookArgs_HideDryRunAndDiff verifies that hide_dry_run / hide_diff
+// are enforced when building the ansible-playbook command line.
+func TestGetPlaybookArgs_HideDryRunAndDiff(t *testing.T) {
+	tests := []struct {
+		name           string
+		templateParams db.MapStringAnyField
+		expectDryRun   bool
+		expectDiff     bool
+	}{
+		{
+			name:           "not hidden",
+			templateParams: db.MapStringAnyField{},
+			expectDryRun:   true,
+			expectDiff:     true,
+		},
+		{
+			name:           "legacy template without the keys keeps both",
+			templateParams: nil,
+			expectDryRun:   true,
+			expectDiff:     true,
+		},
+		{
+			name:           "dry run hidden",
+			templateParams: db.MapStringAnyField{"hide_dry_run": true},
+			expectDryRun:   false,
+			expectDiff:     true,
+		},
+		{
+			name:           "diff hidden",
+			templateParams: db.MapStringAnyField{"hide_diff": true},
+			expectDryRun:   true,
+			expectDiff:     false,
+		},
+		{
+			name:           "both hidden",
+			templateParams: db.MapStringAnyField{"hide_dry_run": true, "hide_diff": true},
+			expectDryRun:   false,
+			expectDiff:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupExecutorConfig(t)
+
+			exec := &LocalExecutor{
+				Template: db.Template{
+					Type:       db.TemplateTask,
+					App:        db.AppAnsible,
+					Playbook:   "site.yml",
+					TaskParams: tt.templateParams,
+				},
+				Inventory: db.Inventory{Type: db.InventoryStatic},
+				Task: db.Task{
+					Params: db.MapStringAnyField{"dry_run": true, "diff": true},
+				},
+			}
+
+			args, _, err := exec.getPlaybookArgs("admin", nil)
+			require.NoError(t, err)
+
+			if tt.expectDryRun {
+				assert.Contains(t, args, "--check")
+			} else {
+				assert.NotContains(t, args, "--check")
+			}
+
+			if tt.expectDiff {
+				assert.Contains(t, args, "--diff")
+			} else {
+				assert.NotContains(t, args, "--diff")
+			}
+		})
+	}
+}

@@ -209,6 +209,12 @@ export const ANSIBLE_FIELDS = {
   allow_override_inventory: {
     label: 'allowInventoryInTask',
   },
+  hide_dry_run: {
+    label: 'hideDryRun',
+  },
+  hide_diff: {
+    label: 'hideDiff',
+  },
 };
 
 export const TERRAFORM_FIELDS = {

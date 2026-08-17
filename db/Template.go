@@ -227,6 +227,13 @@ type AnsibleTemplateParams struct {
 	// AllowOverrideSkipGalaxyInstall lets the user toggle SkipGalaxyInstall when
 	// launching a task.
 	AllowOverrideSkipGalaxyInstall bool `json:"allow_override_skip_galaxy_install"`
+
+	// HideDryRun hides the "Dry Run" checkbox in the task dialog and rejects
+	// --check for tasks launched from this template.
+	HideDryRun bool `json:"hide_dry_run"`
+	// HideDiff hides the "Diff" checkbox in the task dialog and rejects --diff
+	// for tasks launched from this template.
+	HideDiff bool `json:"hide_diff"`
 }
 
 type TerraformTemplateParams struct {
