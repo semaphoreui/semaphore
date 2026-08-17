@@ -1,0 +1,52 @@
+# Patched SemaphoreUI: v2.18.25 (commit 7c3789c) + PKCE for the OIDC login flow.
+#
+# Built as an OVERLAY on the exact pinned upstream image rather than a rebuild of
+# it: the pinned digest is the `v2.18.25-ansible2.16.5` variant, whose ansible
+# 9.4.0 / community.general 8.5.0 pip bundle is what lets the container talk to
+# 1Password Connect without the `op` binary (see Node/AWS SAM/SemaphoreUI/template.yaml).
+# Reproducing that venv from the upstream Dockerfile would drift; replacing only
+# /usr/local/bin/semaphore keeps it byte-identical.
+#
+# Builder stage is copied verbatim from deployment/docker/server/Dockerfile so the
+# frontend/backend toolchain matches how upstream builds the release binary.
+
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine3.21 AS builder
+
+RUN apk add --no-cache -U \
+    libc-dev curl nodejs npm git gcc zip unzip tar
+
+WORKDIR /usr/local
+# hadolint ignore=DL4006
+RUN curl -sL https://taskfile.dev/install.sh | sh
+
+WORKDIR /go/src/semaphore
+COPY . /go/src/semaphore
+
+RUN go mod download -x
+
+# deps:tools is skipped on purpose (it only installs goreleaser, unused here).
+# deps:be vendors modules; deps:fe + build:fe generate api/public/* for the
+# go:embed in api/router.go, which fails the build if the assets are absent.
+RUN task deps:be deps:fe && task build:fe
+
+# build:be equivalent, with the version string marked so the running container is
+# identifiably ours (`semaphore version`) instead of masquerading as stock v2.18.25.
+ARG VER=v2.18.25-pkce1
+ARG SHA=7c3789c
+ARG DATE=1787000000
+RUN env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -o bin/semaphore -tags "netgo" \
+    -ldflags "-s -w \
+      -X github.com/semaphoreui/semaphore/util.Ver=${VER} \
+      -X github.com/semaphoreui/semaphore/util.Commit=${SHA} \
+      -X github.com/semaphoreui/semaphore/util.Date=${DATE}" \
+    ./cli
+
+FROM public.ecr.aws/semaphore/server@sha256:25212fc1d2fea5a7f85aae6f9ad62bb5d1e8ae50265ff41c74e46716bd01d150
+
+# Mirrors the upstream Dockerfile's ownership/permissions for this binary.
+USER root
+COPY --from=builder /go/src/semaphore/bin/semaphore /usr/local/bin/semaphore
+RUN chown -R semaphore:0 /usr/local/bin/semaphore && \
+    chmod +x /usr/local/bin/semaphore
+USER 1001
