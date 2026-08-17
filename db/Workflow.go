@@ -61,7 +61,7 @@ type WorkflowNode struct {
 	TaskParams   *TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`
 
 	Note         *string `db:"note" json:"note,omitempty" backup:"note"`
-	DelaySeconds *int    `db:"delay_seconds" json:"delay_seconds,omitempty" backup:"delay_secodns"`
+	DelaySeconds *int    `db:"delay_seconds" json:"delay_seconds,omitempty" backup:"delay_seconds"`
 
 	PositionX int `db:"position_x" json:"position_x" backup:"position_x"`
 	PositionY int `db:"position_y" json:"position_y" backup:"position_y"`
