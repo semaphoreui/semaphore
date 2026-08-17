@@ -27,6 +27,7 @@
               required
               outlined
               dense
+              autofocus
               @keydown.enter.prevent="saveVar()"
             />
 
