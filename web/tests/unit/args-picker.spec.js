@@ -31,7 +31,7 @@ describe('ArgsPicker.vue', () => {
 
     wrapper.vm.editedVar.name = '--check';
     wrapper.vm.$refs.form = { validate: () => true };
-    wrapper.vm.saveVar();
+    await wrapper.find('v-text-field-stub').trigger('keydown.enter');
     await wrapper.vm.$nextTick();
 
     expect(wrapper.emitted().change[0][0]).to.deep.equal(['--check']);
