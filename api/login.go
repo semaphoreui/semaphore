@@ -526,7 +526,16 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	state := generateStateOauthCookie(w, returnPath)
-	u := oauth.AuthCodeURL(state)
+
+	// PKCE (RFC 7636), which RFC 9700 recommends for confidential clients too:
+	// the code challenge binds the authorization code to this browser, so a code
+	// intercepted in transit cannot be redeemed without the verifier. The
+	// verifier must never travel through the IdP, so it is kept in an HttpOnly
+	// cookie rather than folded into `state`.
+	codeVerifier := oauth2.GenerateVerifier()
+	setPkceVerifierCookie(w, codeVerifier)
+
+	u := oauth.AuthCodeURL(state, oauth2.S256ChallengeOption(codeVerifier))
 	http.Redirect(w, r, u, http.StatusTemporaryRedirect)
 }
 
@@ -566,6 +575,41 @@ func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
 	}
 
 	return base64.URLEncoding.EncodeToString(stateBytes)
+}
+
+// pkceCookieName holds the PKCE code verifier for the duration of one
+// authorization round-trip. Deliberately a cookie and not part of `state`: the
+// state parameter is handed to the IdP and echoed back in a URL, which is
+// exactly where the verifier must not appear.
+const pkceCookieName = "oauthpkce"
+
+// setPkceVerifierCookie stores the code verifier until the IdP redirects back.
+// HttpOnly keeps it away from scripts; SameSite=Lax still attaches it to the
+// IdP's top-level GET navigation back to the redirect endpoint. Path is left
+// unset so it scopes to /api/auth/oidc/<provider>, the same default the
+// oauthstate cookie above relies on, and it expires quickly because an
+// authorization round-trip is short and the verifier is single-use.
+func setPkceVerifierCookie(w http.ResponseWriter, verifier string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     pkceCookieName,
+		Value:    verifier,
+		Expires:  tz.Now().Add(10 * time.Minute),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   isSecureWebHost(),
+	})
+}
+
+// clearPkceVerifierCookie expires the verifier once it has been redeemed.
+func clearPkceVerifierCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     pkceCookieName,
+		Value:    "",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   isSecureWebHost(),
+	})
 }
 
 type claimResult struct {
@@ -742,7 +786,18 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	code := r.URL.Query().Get("code")
 
-	oauth2Token, err := oauth.Exchange(ctx, code)
+	// Redeem with the PKCE verifier this browser was issued at /login. A missing
+	// cookie is not treated as an error here: it cannot weaken the exchange,
+	// because a challenge was already registered with the IdP at authorize time
+	// and RFC 7636 requires the IdP to reject a redemption with no verifier. It
+	// only needs to not panic for logins already in flight across a restart.
+	var exchangeOpts []oauth2.AuthCodeOption
+	if pkceCookie, pkceErr := r.Cookie(pkceCookieName); pkceErr == nil && pkceCookie.Value != "" {
+		exchangeOpts = append(exchangeOpts, oauth2.VerifierOption(pkceCookie.Value))
+		clearPkceVerifierCookie(w)
+	}
+
+	oauth2Token, err := oauth.Exchange(ctx, code, exchangeOpts...)
 	if err != nil {
 		log.Error(err.Error())
 		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
