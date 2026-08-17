@@ -23,7 +23,7 @@ type View struct {
 
 func (view *View) Validate() error {
 	if view.Title == "" {
-		return &common_errors.ValidationError{"title can not be empty"}
+		return common_errors.NewValidationError("title can not be empty")
 	}
 	return nil
 }
