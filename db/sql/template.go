@@ -26,13 +26,13 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 			"playbook, arguments, allow_override_args_in_task, description, `type`, "+
 			"start_version, build_template_id, view_id, autorun, survey_vars, "+
 			"suppress_success_alerts, app, git_branch, runner_tag, task_params, "+
-			"allow_override_branch_in_task, allow_parallel_tasks)"+
+			"allow_override_branch_in_task, allow_parallel_tasks, jwt_params, executor_image)"+
 			"values ("+
 			"?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?,"+
-			"?, ?)",
+			"?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
@@ -58,6 +58,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 
 		template.AllowOverrideBranchInTask,
 		template.AllowParallelTasks,
+		template.JWTParams,
+		template.NormalizedExecutorImage(),
 	)
 
 	if err != nil {
@@ -113,7 +115,9 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"task_params=?, "+
 		"runner_tag=?, "+
 		"allow_override_branch_in_task=?, "+
-		"allow_parallel_tasks=? "+
+		"allow_parallel_tasks=?, "+
+		"jwt_params=?, "+
+		"executor_image=? "+
 		"where id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
@@ -135,6 +139,8 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.RunnerTag,
 		template.AllowOverrideBranchInTask,
 		template.AllowParallelTasks,
+		template.JWTParams,
+		template.NormalizedExecutorImage(),
 
 		template.ID,
 		template.ProjectID,
@@ -276,6 +282,8 @@ func (d *SqlDb) getTemplates(
 		"pt.task_params",
 		"pt.allow_override_branch_in_task",
 		"pt.allow_parallel_tasks",
+		"pt.jwt_params",
+		"pt.executor_image",
 		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id",
 	}
 
@@ -365,7 +373,7 @@ func (d *SqlDb) getTemplates(
 	}
 
 	var tasks []db.TaskWithTpl
-	err = d.getTasks(projectID, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
+	err = d.getTasks(projectID, nil, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
 
 	if err != nil {
 		return
@@ -494,22 +502,31 @@ func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int)
 
 	perm = projectUser.Role.GetPermissions()
 
-	role, err := d.GetProjectOrGlobalRoleBySlug(projectUser.ProjectID, string(projectUser.Role))
+	roleSlug := string(projectUser.Role)
 
-	if errors.Is(err, db.ErrNotFound) {
-		err = nil
-		return
-	}
+	// Only custom roles are resolved from the database; built-in roles use their
+	// own slug directly so a same-named custom role cannot shadow them.
+	if !projectUser.Role.IsValid() {
+		var role db.Role
+		role, err = d.GetProjectOrGlobalRoleBySlug(projectUser.ProjectID, string(projectUser.Role))
 
-	if err != nil {
-		return
+		if errors.Is(err, db.ErrNotFound) {
+			err = nil
+			return
+		}
+
+		if err != nil {
+			return
+		}
+
+		roleSlug = role.Slug
 	}
 
 	query, args, err := squirrel.Select("permissions").
 		From("project__template_role").
 		Where("project_id = ?", projectID).
 		Where("template_id = ?", templateID).
-		Where("role_slug = ?", role.Slug).
+		Where("role_slug = ?", roleSlug).
 		ToSql()
 
 	if err != nil {

@@ -17,6 +17,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -43,89 +44,92 @@ func convertEntryToMap(entity *ldap.Entry) map[string]any {
 	return res
 }
 
-func tryFindLDAPUser(username, password string) (*db.User, error) {
-	if !util.Config.LdapEnable {
-		return nil, fmt.Errorf("LDAP not configured")
-	}
-
+func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db.User, string, error) {
 	var l *ldap.Conn
 	var err error
-	if util.Config.LdapNeedTLS {
-		l, err = ldap.DialTLS("tcp", util.Config.LdapServer, &tls.Config{
-			InsecureSkipVerify: true,
+	if provider.NeedTLS {
+		// Verify the LDAP server certificate by default so a network attacker
+		// cannot impersonate the server to capture the bind credentials or a
+		// user's cleartext password. Verification can be disabled per provider
+		// via tls_skip_verify (default false) for trusted networks with
+		// self-signed certificates.
+		l, err = ldap.DialTLS("tcp", provider.Server, &tls.Config{
+			InsecureSkipVerify: provider.TLSSkipVerify, //nolint:gosec // opt-in via tls_skip_verify, defaults to false
 		})
 	} else {
-		l, err = ldap.Dial("tcp", util.Config.LdapServer)
+		l, err = ldap.Dial("tcp", provider.Server)
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer l.Close() //nolint:errcheck
 
 	// First bind with a read only user
-	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
-		return nil, err
+	if err = l.Bind(provider.BindDN, provider.BindPassword); err != nil {
+		return nil, "", err
 	}
+
+	mappings := provider.GetMappings()
 
 	// Filter for the given username
 	searchRequest := ldap.NewSearchRequest(
-		util.Config.LdapSearchDN,
+		provider.SearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf(util.Config.LdapSearchFilter, ldap.EscapeFilter(username)),
-		[]string{util.Config.LdapMappings.DN},
+		fmt.Sprintf(provider.SearchFilter, ldap.EscapeFilter(username)),
+		[]string{mappings.DN},
 		nil,
 	)
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if len(sr.Entries) < 1 {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	if len(sr.Entries) > 1 {
-		return nil, fmt.Errorf("too many entries returned")
+		return nil, "", fmt.Errorf("too many entries returned")
 	}
 
 	// Bind as the user
 	userDN := sr.Entries[0].DN
 	if err = l.Bind(userDN, password); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Second time bind as read only user
-	if err = l.Bind(util.Config.LdapBindDN, util.Config.LdapBindPassword); err != nil {
-		return nil, err
+	if err = l.Bind(provider.BindDN, provider.BindPassword); err != nil {
+		return nil, "", err
 	}
 
 	// Get user info
 	searchRequest = ldap.NewSearchRequest(
-		util.Config.LdapSearchDN,
+		provider.SearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf(util.Config.LdapSearchFilter, ldap.EscapeFilter(username)),
-		[]string{util.Config.LdapMappings.DN, util.Config.LdapMappings.Mail, util.Config.LdapMappings.UID, util.Config.LdapMappings.CN},
+		fmt.Sprintf(provider.SearchFilter, ldap.EscapeFilter(username)),
+		[]string{mappings.DN, mappings.Mail, mappings.UID, mappings.CN},
 		nil,
 	)
 
 	sr, err = l.Search(searchRequest)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if len(sr.Entries) <= 0 {
-		return nil, fmt.Errorf("ldap search returned no entries")
+		return nil, "", fmt.Errorf("ldap search returned no entries")
 	}
 
 	entry := convertEntryToMap(sr.Entries[0])
 
 	prepareClaims(entry)
 
-	claims, err := parseClaims(entry, util.Config.LdapMappings)
+	claims, err := parseClaims(entry, mappings)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	ldapUser := db.User{
@@ -141,11 +145,11 @@ func tryFindLDAPUser(username, password string) (*db.User, error) {
 	if err != nil {
 		jsonBytes, _ := json.Marshal(ldapUser)
 		log.Error("LDAP returned incorrect user data: " + string(jsonBytes))
-		return nil, err
+		return nil, "", err
 	}
 
 	log.Info("User " + ldapUser.Name + " with email " + ldapUser.Email + " authorized via LDAP correctly")
-	return &ldapUser, nil
+	return &ldapUser, userDN, nil
 }
 
 // createSession creates session for passed user and stores session details
@@ -201,7 +205,21 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 		Value:    encoded,
 		Path:     "/",
 		HttpOnly: true,
+		// SameSite=Lax prevents the session cookie from being attached to
+		// cross-site POST requests, which mitigates CSRF (e.g. the password
+		// change endpoint). Top-level GET navigations still carry the cookie
+		// so following a link into Semaphore keeps the user logged in.
+		SameSite: http.SameSiteLaxMode,
+		// Secure is only enforced when Semaphore is served over HTTPS, so that
+		// it can still be used without TLS inside private networks.
+		Secure: isSecureWebHost(),
 	})
+}
+
+// isSecureWebHost reports whether Semaphore's public web host uses HTTPS, in
+// which case cookies should carry the Secure attribute.
+func isSecureWebHost() bool {
+	return util.WebHostURL != nil && util.WebHostURL.Scheme == "https"
 }
 
 func loginByPassword(store db.Store, login string, password string) (user db.User, err error) {
@@ -224,23 +242,18 @@ func loginByPassword(store db.Store, login string, password string) (user db.Use
 	return
 }
 
-func loginByLDAP(store db.Store, ldapUser db.User) (user db.User, err error) {
-	user, err = store.GetUserByLoginOrEmail(ldapUser.Username, ldapUser.Email)
-
-	if errors.Is(err, db.ErrNotFound) {
-		user, err = store.CreateUserWithoutPassword(ldapUser)
-	}
-
-	if err != nil {
-		return
-	}
-
-	if !user.External {
-		err = db.ErrNotFound
-		return
-	}
-
-	return
+func loginByLDAP(store db.Store, ldapUser db.User, userDN string, providerID string) (db.User, error) {
+	return resolveExternalUser(store, externalUserProfile{
+		Type:            db.IdentityTypeLdap,
+		Provider:        providerID,
+		ExternalUID:     userDN,
+		Username:        ldapUser.Username,
+		Name:            ldapUser.Name,
+		Email:           ldapUser.Email,
+		MatchByUsername: true,
+		// The email comes from the directory, not the user - authoritative.
+		EmailVerified: true,
+	})
 }
 
 type loginMetadataOidcProvider struct {
@@ -262,9 +275,18 @@ type LoginAuthMethods struct {
 	Email *LoginEmailAuthMethod `json:"email,omitempty"`
 }
 
+type loginMetadataLdapProvider struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Color string `json:"color,omitempty"`
+	Icon  string `json:"icon,omitempty"`
+}
+
 type loginMetadata struct {
 	OidcProviders     []loginMetadataOidcProvider `json:"oidc_providers"`
+	LdapProviders     []loginMetadataLdapProvider `json:"ldap_providers"`
 	LoginWithPassword bool                        `json:"login_with_password"`
+	LoginWithLdap     bool                        `json:"login_with_ldap"`
 	AuthMethods       LoginAuthMethods            `json:"auth_methods"`
 }
 
@@ -275,6 +297,23 @@ func login(w http.ResponseWriter, r *http.Request) {
 			OidcProviders:     make([]loginMetadataOidcProvider, len(util.Config.OidcProviders)),
 			LoginWithPassword: !util.Config.PasswordLoginDisable,
 		}
+
+		ldapProviders := util.Config.ActiveLdapProviders()
+		config.LdapProviders = make([]loginMetadataLdapProvider, 0, len(ldapProviders))
+		for _, entry := range ldapProviders {
+			name := entry.Provider.DisplayName
+			if name == "" {
+				name = entry.ID
+			}
+			config.LdapProviders = append(config.LdapProviders, loginMetadataLdapProvider{
+				ID:    entry.ID,
+				Name:  name,
+				Color: entry.Provider.Color,
+				Icon:  entry.Provider.Icon,
+			})
+		}
+		config.LoginWithLdap = len(ldapProviders) > 0
+
 		i := 0
 
 		for k, v := range util.Config.OidcProviders {
@@ -306,44 +345,80 @@ func login(w http.ResponseWriter, r *http.Request) {
 	var login struct {
 		Auth     string `json:"auth" binding:"required"`
 		Password string `json:"password" binding:"required"`
+		Method   string `json:"method"`   // "", "password" or "ldap"
+		Provider string `json:"provider"` // LDAP provider ID when method == "ldap"
 	}
 	if !helpers.Bind(w, r, &login) {
 		return
 	}
 
-	/*
-		logic:
-		- fetch user from ldap if enabled
-		- fetch user from database by username/email
-		- create user in database if doesn't exist & ldap record found
-		- check password if non-ldap user
-		- create session & send cookie
-	*/
-
 	login.Auth = strings.ToLower(login.Auth)
 
 	var err error
+	var user db.User
 
-	var ldapUser *db.User
-
-	if util.Config.LdapEnable {
-		ldapUser, err = tryFindLDAPUser(login.Auth, login.Password)
-		if err != nil {
-			log.WithError(err).WithFields(log.Fields{
-				"context": "ldap",
-				"auth":    login.Auth,
-			}).Warn("Failed to find user in LDAP")
+	switch login.Method {
+	case "password":
+		if util.Config.PasswordLoginDisable {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-	}
-
-	var user db.User
-
-	if ldapUser == nil {
 		user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
-	} else {
-		user, err = loginByLDAP(helpers.Store(r), *ldapUser)
+
+	case "ldap":
+		providerID := login.Provider
+		if providerID == "" {
+			providerID = "ldap"
+		}
+		provider, ok := util.Config.GetLdapProvider(providerID)
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var ldapUser *db.User
+		var ldapUserDN string
+		ldapUser, ldapUserDN, err = tryFindLDAPUser(provider, login.Auth, login.Password)
+		if err != nil || ldapUser == nil {
+			if err != nil {
+				log.WithError(err).WithFields(log.Fields{
+					"context":  "ldap",
+					"provider": providerID,
+					"auth":     login.Auth,
+				}).Warn("Failed to find user in LDAP")
+			}
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		user, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, providerID)
+
+	default:
+		// Legacy clients without the method field: previous behavior —
+		// try the legacy flat LDAP first, fall back to password.
+		var ldapUser *db.User
+		var ldapUserDN string
+
+		if legacy, ok := util.Config.GetLdapProvider("ldap"); ok {
+			ldapUser, ldapUserDN, err = tryFindLDAPUser(legacy, login.Auth, login.Password)
+			if err != nil {
+				log.WithError(err).WithFields(log.Fields{
+					"context": "ldap",
+					"auth":    login.Auth,
+				}).Warn("Failed to find user in LDAP")
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+		}
+
+		if ldapUser == nil {
+			if util.Config.PasswordLoginDisable {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
+		} else {
+			user, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, "ldap")
+		}
 	}
 
 	if err != nil {
@@ -352,7 +427,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var validationError *db.ValidationError
+		var validationError *common_errors.ValidationError
 		switch {
 		case errors.As(err, &validationError):
 			// TODO: Return more informative error code.
@@ -395,6 +470,8 @@ func logout(w http.ResponseWriter, r *http.Request) {
 		Expires:  tz.Now().Add(24 * 7 * time.Hour * -1),
 		Path:     "/",
 		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   isSecureWebHost(),
 	})
 
 	w.WriteHeader(http.StatusNoContent)
@@ -482,7 +559,6 @@ func getOidcProvider(id string, ctx context.Context, redirectPath string) (*oidc
 func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
 	ctx := context.Background()
-	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
 
 	returnPath := ""
 	redirectPath := ""
@@ -490,8 +566,26 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	config, ok := util.Config.OidcProviders[pid]
 	if !ok {
 		log.Error(fmt.Errorf("no such provider: %s", pid))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "Unknown OIDC provider.", http.StatusNotFound)
 		return
+	}
+
+	linkMode := r.URL.Query().Get("link") != ""
+
+	if linkMode {
+		// POST-only: SameSite=Lax attaches the session cookie to top-level
+		// cross-site GET navigations, so a GET here would let an attacker
+		// initiate linking (CSRF) and attach their IdP identity to the
+		// victim's account. Lax never sends the cookie on cross-site POST.
+		if r.Method != http.MethodPost {
+			http.Error(w, "Account linking must be initiated with a POST request.", http.StatusMethodNotAllowed)
+			return
+		}
+		session, ok := getSession(r)
+		if !ok || !session.IsVerified() {
+			http.Error(w, "You must be signed in to link an external account.", http.StatusUnauthorized)
+			return
+		}
 	}
 
 	returnValue := r.URL.Query().Get("return")
@@ -506,20 +600,26 @@ func oidcLogin(w http.ResponseWriter, r *http.Request) {
 	_, oauth, err := getOidcProvider(pid, ctx, redirectPath)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "Failed to initialize OIDC provider. Contact your administrator.", http.StatusInternalServerError)
 		return
 	}
-	state := generateStateOauthCookie(w, returnPath)
+	state := generateStateOauthCookie(w, returnPath, linkMode)
 	u := oauth.AuthCodeURL(state)
-	http.Redirect(w, r, u, http.StatusTemporaryRedirect)
+	status := http.StatusTemporaryRedirect
+	if r.Method == http.MethodPost {
+		// 303 turns the form POST into a GET on the IdP authorize URL.
+		status = http.StatusSeeOther
+	}
+	http.Redirect(w, r, u, status)
 }
 
 type oAuthState struct {
 	Csrf   string `json:"csrf"`
 	Return string `json:"return"`
+	Link   bool   `json:"link,omitempty"`
 }
 
-func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
+func generateStateOauthCookie(w http.ResponseWriter, returnPath string, link bool) string {
 
 	expiration := tz.Now().Add(365 * 24 * time.Hour)
 
@@ -532,6 +632,7 @@ func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
 	state := oAuthState{
 		Csrf:   base64.URLEncoding.EncodeToString(b),
 		Return: returnPath,
+		Link:   link,
 	}
 
 	// Secure flag is not set to allow Semaphore to be used without HTTPS inside private networks
@@ -553,9 +654,47 @@ func generateStateOauthCookie(w http.ResponseWriter, returnPath string) string {
 }
 
 type claimResult struct {
-	username string
-	name     string
-	email    string
+	sub           string
+	username      string
+	name          string
+	email         string
+	emailVerified bool
+}
+
+// emailVerifiedClaim reads the standard OIDC email_verified claim as a
+// tri-state: value is whether it is true, present is whether the provider sent
+// it at all. Some providers (e.g. AWS Cognito) send it as the string
+// "true"/"false".
+func emailVerifiedClaim(claims map[string]any) (value bool, present bool) {
+	switch v := claims["email_verified"].(type) {
+	case bool:
+		return v, true
+	case string:
+		return v == "true", true
+	default:
+		return false, false
+	}
+}
+
+// resolveEmailVerified decides whether the provider's email may be trusted to
+// match an existing account. An explicit email_verified=false is NEVER trusted,
+// regardless of require_verified_email — otherwise an IdP that lets users type
+// any email could adopt someone else's account (Grafana CVE-2023-3128 class).
+// When require_verified_email is off, an absent claim is treated as verified to
+// accommodate providers (e.g. Okta) that omit it entirely; when on, the claim
+// must be explicitly present and true.
+func resolveEmailVerified(claims map[string]any, provider util.OidcProvider) bool {
+	value, present := emailVerifiedClaim(claims)
+
+	if provider.RequireVerifiedEmail {
+		return present && value
+	}
+
+	if present {
+		return value
+	}
+
+	return true
 }
 
 func parseClaim(str string, claims map[string]any) (string, bool) {
@@ -633,6 +772,18 @@ func parseClaims(claims map[string]any, provider util.ClaimsProvider) (res claim
 	return
 }
 
+// oidcEmailVerified reports whether the userinfo email may be used to match
+// existing accounts. Always true unless the provider opted into
+// require_verified_email; then the email_verified claim must be true.
+func oidcEmailVerified(userInfo *oidc.UserInfo, provider util.OidcProvider) bool {
+	rawClaims := make(map[string]any)
+	if err := userInfo.Claims(&rawClaims); err != nil {
+		return false
+	}
+
+	return resolveEmailVerified(rawClaims, provider)
+}
+
 func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res claimResult, err error) {
 	claims := make(map[string]any)
 	if err = userInfo.Claims(&claims); err != nil {
@@ -641,7 +792,10 @@ func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res
 
 	prepareClaims(claims)
 
-	return parseClaims(claims, &provider)
+	res, err = parseClaims(claims, &provider)
+	res.sub = userInfo.Subject
+	res.emailVerified = resolveEmailVerified(claims, provider)
+	return
 }
 
 func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res claimResult, err error) {
@@ -652,7 +806,10 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res clai
 
 	prepareClaims(claims)
 
-	return parseClaims(claims, &provider)
+	res, err = parseClaims(claims, &provider)
+	res.sub = idToken.Subject
+	res.emailVerified = resolveEmailVerified(claims, provider)
+	return
 }
 
 func getRandomUsername() string {
@@ -672,14 +829,30 @@ func getSecretFromFile(source string) (string, error) {
 	return string(content), nil
 }
 
+// oidcSuccessRedirectURL builds the post-login redirect. url.JoinPath drops the
+// leading slash when webHost is empty, which would make the redirect relative to
+// the callback path instead of the web root.
+func oidcSuccessRedirectURL(webHost string, redirectPath string) (string, error) {
+	redirectPath = "/" + strings.TrimLeft(redirectPath, "/")
+
+	if webHost == "" {
+		return redirectPath, nil
+	}
+
+	return url.JoinPath(webHost, redirectPath)
+}
+
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
 	oauthState, err := r.Cookie("oauthstate")
-	loginURL, _ := url.JoinPath(util.Config.WebHost, "auth/login")
+
+	// Errors are shown as plain text at the current URL instead of a silent
+	// redirect to the login page, so the user can see what went wrong.
+	// Details stay in server logs.
 
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: state cookie is missing. Try signing in again.", http.StatusBadRequest)
 		return
 	}
 
@@ -688,7 +861,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: invalid state. Try signing in again.", http.StatusBadRequest)
 		return
 	}
 
@@ -697,12 +870,12 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: invalid state. Try signing in again.", http.StatusBadRequest)
 		return
 	}
 
 	if stateData.Csrf != oauthState.Value {
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: state mismatch. Try signing in again.", http.StatusBadRequest)
 		return
 	}
 
@@ -711,14 +884,14 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	_oidc, oauth, err := getOidcProvider(pid, ctx, r.URL.Path)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "Failed to initialize OIDC provider. Contact your administrator.", http.StatusInternalServerError)
 		return
 	}
 
 	provider, ok := util.Config.OidcProviders[pid]
 	if !ok {
 		log.Error(fmt.Errorf("no such provider: %s", pid))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "Unknown OIDC provider.", http.StatusNotFound)
 		return
 	}
 
@@ -729,7 +902,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	oauth2Token, err := oauth.Exchange(ctx, code)
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: could not exchange authorization code. Contact your administrator.", http.StatusUnauthorized)
 		return
 	}
 
@@ -756,6 +929,8 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			} else {
 				claims.email = userInfo.Email
 				claims.name = userInfo.Profile
+				claims.sub = userInfo.Subject
+				claims.emailVerified = oidcEmailVerified(userInfo, provider)
 			}
 		}
 
@@ -767,29 +942,67 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: could not read user info from the provider. Contact your administrator.", http.StatusBadGateway)
 		return
 	}
 
-	user, err := helpers.Store(r).GetUserByLoginOrEmail("", claims.email) // ignore username because it creates a lot of problems
-	if err != nil {
-		user = db.User{
-			Username: claims.username,
-			Name:     claims.name,
-			Email:    claims.email,
-			External: true,
-		}
-		user, err = helpers.Store(r).CreateUserWithoutPassword(user)
-		if err != nil {
-			log.Error(err.Error())
-			http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
-			return
-		}
+	if claims.sub == "" {
+		log.Error(fmt.Errorf("oidc provider %s returned no sub claim", pid))
+		http.Error(w, "OIDC sign-in failed: the provider returned no user ID (sub claim). Contact your administrator.", http.StatusBadGateway)
+		return
 	}
 
-	if !user.External {
-		log.Error(fmt.Errorf("OIDC user '%s' conflicts with local user", user.Username))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+	if stateData.Link {
+		session, ok := getSession(r)
+		if !ok || !session.IsVerified() {
+			http.Error(w, "You must be signed in to link an external account.", http.StatusUnauthorized)
+			return
+		}
+
+		sessionUser, uErr := helpers.Store(r).GetUser(session.UserID)
+		if uErr != nil {
+			log.Error(uErr.Error())
+			http.Error(w, "Failed to link external account.", http.StatusInternalServerError)
+			return
+		}
+
+		if lErr := linkExternalIdentity(helpers.Store(r), sessionUser, db.IdentityTypeOidc, pid, claims.sub); lErr != nil {
+			log.WithError(lErr).WithFields(log.Fields{
+				"user_id":  sessionUser.ID,
+				"provider": pid,
+				"context":  "oidc_link",
+			}).Error("Failed to link external identity")
+
+			switch {
+			case errors.Is(lErr, errIdentityLinkedToAnother):
+				http.Error(w, "This external account is already linked to another user.", http.StatusConflict)
+			case errors.Is(lErr, errProviderAlreadyLinked):
+				http.Error(w, "Your account already has a linked identity for this provider. Unlink it first.", http.StatusConflict)
+			default:
+				http.Error(w, "Failed to link external account.", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		redirectURL, _ := url.JoinPath(util.Config.WebHost, "/")
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	user, err := resolveExternalUser(helpers.Store(r), externalUserProfile{
+		Type:          db.IdentityTypeOidc,
+		Provider:      pid,
+		ExternalUID:   claims.sub,
+		Username:      claims.username,
+		Name:          claims.name,
+		Email:         claims.email,
+		EmailVerified: claims.emailVerified,
+		// MatchByUsername stays false: OIDC matches by email only
+		// (username matching "creates a lot of problems" - see old comment).
+	})
+	if err != nil {
+		log.Error(err.Error())
+		http.Error(w, "OIDC sign-in failed: could not find or create the user account. Contact your administrator.", http.StatusInternalServerError)
 		return
 	}
 
@@ -798,7 +1011,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	config, ok := util.Config.OidcProviders[pid]
 	if !ok {
 		log.Error(fmt.Errorf("no such provider: %s", pid))
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "Unknown OIDC provider.", http.StatusNotFound)
 		return
 	}
 
@@ -809,19 +1022,11 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		redirectPath = mux.Vars(r)["redirect_path"]
 	}
 
-	if !strings.HasPrefix(redirectPath, "/") {
-		redirectPath = "/" + redirectPath
-	}
-
-	redirectURL, err := url.JoinPath(util.Config.WebHost, redirectPath)
+	redirectURL, err := oidcSuccessRedirectURL(util.Config.WebHost, redirectPath)
 	if err != nil {
 		log.Error(err)
-		http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+		http.Error(w, "OIDC sign-in failed: invalid redirect URL.", http.StatusInternalServerError)
 		return
-	}
-
-	if redirectURL == "" {
-		redirectURL = "/"
 	}
 
 	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)

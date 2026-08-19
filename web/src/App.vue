@@ -36,6 +36,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :is-admin="user.admin"
+          :is-self="true"
           :auth-methods="(systemInfo || { auth_methods: {} }).auth_methods"
           :login-with-password="(systemInfo || {}).login_with_password"
           @hide-action-buttons="hideUserDialogButtons = true"
@@ -478,16 +479,6 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="tokens" to="/tokens" data-testid="sidebar-tokens">
-                <v-list-item-icon>
-                  <v-icon>mdi-api</v-icon>
-                </v-list-item-icon>
-
-                <v-list-item-content>
-                  {{ $t('api_tokens') }}
-                </v-list-item-content>
-              </v-list-item>
-
               <v-list-item key="users" to="/users" v-if="user.admin">
                 <v-list-item-icon>
                   <v-icon>mdi-account-multiple</v-icon>
@@ -505,6 +496,18 @@
 
                 <v-list-item-content>
                   {{ $t('Roles') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-divider />
+
+              <v-list-item key="tokens" data-testid="sidebar-tokens" to="/tokens">
+                <v-list-item-icon>
+                  <v-icon>mdi-api</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('api_tokens') }}
                 </v-list-item-content>
               </v-list-item>
 
@@ -536,28 +539,6 @@
     </v-navigation-drawer>
 
     <v-main>
-      <v-alert
-        type="error"
-        prominent
-        dense
-        class="ma-0 PageAlert"
-        style="border-radius: 0"
-        v-if="systemInfo?.boltdb_used"
-      >
-        BoltDB is deprecated and will be removed in version 2.19. Please migrate to SQLite to
-        continue receiving updates.
-        <v-btn
-          dark
-          depressed
-          class="pr-3 my-1"
-          color="red darken-1"
-          href="https://semaphoreui.com/docs/admin-guide/cli/migrations#migration-from-boltdb-to-sqlitemysqlpostgresql"
-          target="_blank"
-        >
-          Migrate
-          <v-icon class="ml-2">mdi-open-in-new</v-icon>
-        </v-btn>
-      </v-alert>
       <router-view
         :projectId="projectId"
         :projectType="(project || {}).type || ''"
@@ -674,7 +655,7 @@
 }
 
 .theme--light {
-  --highlighted-card-bg-color: #f3f3f3;
+  --highlighted-card-bg-color: #f8f8f8;
 }
 
 .DarkModeSwitchWrap {
@@ -946,6 +927,9 @@ const LANGUAGES = {
   pt_br: {
     title: 'Português do Brasil',
   },
+  cs: {
+    title: 'Czech',
+  },
 };
 
 function getLangInfo(locale) {
@@ -1083,13 +1067,7 @@ export default {
     },
 
     lang() {
-      const locale = localStorage.getItem('lang');
-
-      if (!locale) {
-        return getSystemLang();
-      }
-
-      return getLangInfo(locale || 'en');
+      return getLangInfo(this.$i18n.locale);
     },
 
     projectId() {
@@ -1127,6 +1105,13 @@ export default {
             title: this.$t('taskTemplates'),
             to: this.templatesUrl,
             testId: 'sidebar-templates',
+          },
+          {
+            key: 'workflows',
+            icon: 'mdi-graph-outline',
+            title: this.$t('workflows'),
+            to: `${base}/workflows`,
+            testId: 'sidebar-workflows',
           },
           {
             key: 'schedule',
@@ -1190,7 +1175,9 @@ export default {
         });
       }
 
-      return items;
+      // Workflows is a Pro feature; hide the nav item unless it is licensed.
+      const features = (this.systemInfo || {}).features || {};
+      return items.filter((it) => it.key !== 'workflows' || features.workflows);
     },
 
     pinnedNavItemsList() {
@@ -1398,6 +1385,18 @@ export default {
       }
     },
 
+    applyLanguage(lang) {
+      if (typeof lang !== 'string' || lang === '') {
+        localStorage.removeItem('lang');
+        this.$i18n.locale = getSystemLang().flag;
+        return;
+      }
+
+      const locale = getLangInfo(lang).flag;
+      localStorage.setItem('lang', locale);
+      this.$i18n.locale = locale;
+    },
+
     async loadUserOptions() {
       const options = (
         await axios({
@@ -1414,10 +1413,36 @@ export default {
           console.log(e);
         }
       }
+
+      if (options.lang != null) {
+        const currentLang = localStorage.getItem('lang');
+        try {
+          this.applyLanguage(JSON.parse(options.lang));
+        } catch {
+          this.applyLanguage(currentLang);
+        }
+      }
     },
 
-    selectLanguage(lang) {
-      localStorage.setItem('lang', lang);
+    async selectLanguage(lang) {
+      const previousLang = localStorage.getItem('lang');
+      this.applyLanguage(lang);
+
+      if (this.user) {
+        try {
+          await axios({
+            method: 'post',
+            url: '/api/user/options',
+            responseType: 'json',
+            data: { key: 'lang', value: JSON.stringify(lang) },
+          });
+        } catch (err) {
+          this.applyLanguage(previousLang);
+          EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+          return;
+        }
+      }
+
       window.location.reload();
     },
 

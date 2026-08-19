@@ -1,13 +1,8 @@
 package server
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,46 +68,32 @@ func (d *LocalAccessKeyDeserializer) SerializeSecret(key *db.AccessKey) error {
 		return fmt.Errorf("invalid access token type")
 	}
 
-	encryptionString := util.Config.AccessKeyEncryption
-
-	if encryptionString == "" {
-		secret := base64.StdEncoding.EncodeToString(plaintext)
-		key.Secret = &secret
-		return nil
-	}
-
-	encryption, err := base64.StdEncoding.DecodeString(encryptionString)
-
+	secret, err := util.Config.EncryptAccessSecret(plaintext)
 	if err != nil {
 		return err
 	}
-
-	c, err := aes.NewCipher(encryption)
-	if err != nil {
-		return err
-	}
-
-	gcm, err := cipher.NewGCM(c)
-	if err != nil {
-		return err
-	}
-
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return err
-	}
-
-	secret := base64.StdEncoding.EncodeToString(gcm.Seal(nonce, nonce, plaintext, nil))
 	key.Secret = &secret
 
 	return nil
 }
 
 func (d *LocalAccessKeyDeserializer) DeserializeSecret(key *db.AccessKey) (res string, err error) {
-	return d.DeserializeSecret2(key, util.Config.AccessKeyEncryption)
+	return d.deserialize(key, func(stored string) ([]byte, error) {
+		return util.Config.DecryptAccessSecret(stored)
+	})
 }
 
+// DeserializeSecret2 decrypts using a single explicit key (stripping any key-id
+// prefix). It is kept for the rekey `--old-key` path and for tests.
 func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encryptionString string) (res string, err error) {
+	return d.deserialize(key, func(stored string) ([]byte, error) {
+		return util.Config.DecryptAccessSecretWithKey(stored, encryptionString)
+	})
+}
+
+// deserialize handles the source-storage / legacy / nil cases, then decrypts the
+// stored ciphertext with the supplied decryptor (keyset by id, or an explicit key).
+func (d *LocalAccessKeyDeserializer) deserialize(key *db.AccessKey, decrypt func(string) ([]byte, error)) (res string, err error) {
 
 	if key.SourceStorageType != nil {
 		if key.SourceStorageKey == nil {
@@ -169,16 +150,16 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encry
 		return
 	}
 
-	ciphertext := []byte(*key.Secret)
+	secret := *key.Secret
 
-	if ciphertext[len(*key.Secret)-1] == '\n' { // not encrypted private key, used for back compatibility
+	if secret[len(secret)-1] == '\n' { // not encrypted private key, used for back compatibility
 		if key.Type != db.AccessKeySSH {
 			err = fmt.Errorf("invalid access key type")
 			return
 		}
 
 		sshKey := db.SshKey{
-			PrivateKey: *key.Secret,
+			PrivateKey: secret,
 		}
 
 		var marshaled []byte
@@ -192,48 +173,16 @@ func (d *LocalAccessKeyDeserializer) DeserializeSecret2(key *db.AccessKey, encry
 		return
 	}
 
-	ciphertext, err = base64.StdEncoding.DecodeString(*key.Secret)
-	if err != nil {
-		return
-	}
-
-	if encryptionString == "" {
-		res = string(ciphertext)
-		return
-	}
-
-	encryption, err := base64.StdEncoding.DecodeString(encryptionString)
-	if err != nil {
-		return
-	}
-
-	c, err := aes.NewCipher(encryption)
-	if err != nil {
-		return
-	}
-
-	gcm, err := cipher.NewGCM(c)
-	if err != nil {
-		return
-	}
-
-	nonceSize := gcm.NonceSize()
-	if len(ciphertext) < nonceSize {
-		err = fmt.Errorf("ciphertext too short")
-		return
-	}
-
-	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
-
-	ciphertext, err = gcm.Open(nil, nonce, ciphertext, nil)
-
-	if err != nil {
-		if err.Error() == "cipher: message authentication failed" {
+	plaintext, decErr := decrypt(secret)
+	if decErr != nil {
+		if decErr.Error() == "cipher: message authentication failed" {
 			err = fmt.Errorf("cannot decrypt access key, perhaps encryption key was changed")
+		} else {
+			err = decErr
 		}
 		return
 	}
 
-	res = string(ciphertext)
+	res = string(plaintext)
 	return
 }

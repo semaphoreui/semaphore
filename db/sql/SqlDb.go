@@ -95,9 +95,20 @@ func (d *SqlDbConnection) Connect() {
 	d.sql.AddTableWithName(db.User{}, "user").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.Session{}, "session").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.TaskParams{}, "project__task_params").SetKeys(true, "id")
+	d.sql.AddTableWithName(db.UserExternalIdentity{}, "user__external_identity").SetKeys(true, "id")
 
 	if d.GetDialect() == util.DbDriverSQLite {
 		_, err = d.Exec("PRAGMA foreign_keys = ON")
+		if err != nil {
+			panic(err)
+		}
+
+		_, err = d.Exec("PRAGMA busy_timeout = 5000")
+		if err != nil {
+			panic(err)
+		}
+
+		_, err = d.Exec("PRAGMA journal_mode = WAL")
 		if err != nil {
 			panic(err)
 		}
@@ -105,13 +116,23 @@ func (d *SqlDbConnection) Connect() {
 }
 
 func (d *SqlDbConnection) Close() {
+	if d.sql.Db == nil {
+		return
+	}
 	err := d.sql.Db.Close()
 	if err != nil {
 		panic(err)
 	}
 }
 
-func CreateTestStore() *SqlDb {
+func InitConfigCreateTestStore() *SqlDb {
+	return InitConfigCreateTestStoreAt(nil)
+}
+
+// InitConfigCreateTestStoreAt creates a test store migrated up to
+// targetVersion (or fully when nil), so tests can seed data on an older
+// schema and then apply the remaining migrations with db.Migrate.
+func InitConfigCreateTestStoreAt(targetVersion *string) *SqlDb {
 	util.Config = &util.ConfigType{
 		SQLite: &util.DbConfig{
 			Hostname: ":memory:",
@@ -121,12 +142,18 @@ func CreateTestStore() *SqlDb {
 			Events: &util.EventLogType{},
 			Tasks:  &util.TaskLogType{},
 		},
+		Process: &util.ConfigProcess{},
+		Runners: &util.RunnersConfig{},
+		Apps: map[string]util.App{
+			"ansible": {},
+			"bash":    {},
+		},
 	}
 	store := CreateDb(util.DbDriverSQLite)
 
-	store.Connect("")
+	store.Connect()
 
-	err := db.Migrate(store, nil)
+	err := db.Migrate(store, targetVersion)
 	if err != nil {
 		panic(err)
 	}
@@ -347,7 +374,7 @@ func (d *SqlDb) GetDialect() string {
 	return d.connection.GetDialect()
 }
 
-func (d *SqlDb) Close(token string) {
+func (d *SqlDb) Close() {
 	d.connection.Close()
 }
 
@@ -399,7 +426,7 @@ var identifierQuoteRE = regexp.MustCompile("`")
 // validateMutationResult checks the success of the update query
 func validateMutationResult(res sql.Result, err error) error {
 	if err != nil {
-		if strings.Contains(err.Error(), "foreign key") {
+		if strings.Contains(strings.ToLower(err.Error()), "foreign key") {
 			err = db.ErrInvalidOperation
 		}
 		return err
@@ -560,11 +587,7 @@ func (d *SqlDb) deleteObject(projectID int, props db.ObjectProps, objectID any) 
 	return d.connection.DeleteObject(projectID, props, objectID)
 }
 
-func (d *SqlDb) PermanentConnection() bool {
-	return true
-}
-
-func (d *SqlDb) Connect(_ string) {
+func (d *SqlDb) Connect() {
 	d.connection.Connect()
 }
 

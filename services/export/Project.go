@@ -9,27 +9,13 @@ type ProjectExporter struct {
 func (e *ProjectExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	allKeys := make([]db.Project, 0)
-
-	users, err := exporter.getLoadedKeysInt(User, GlobalScope)
+	projects, err := store.GetAllProjects()
 	if err != nil {
 		return err
 	}
 
-	ids := make(map[int]bool)
-
-	for _, userId := range users {
-		projects, err := store.GetProjects(userId)
-		if err != nil {
-			return err
-		}
-
-		for _, proj := range projects {
-			if ids[proj.ID] {
-				continue
-			}
-			ids[proj.ID] = true
-			allKeys = append(allKeys, proj)
-		}
+	for _, proj := range projects {
+		allKeys = append(allKeys, proj)
 	}
 
 	return e.appendValues(allKeys, GlobalScope)
@@ -52,7 +38,7 @@ func (e *ProjectExporter) restoreValue(val EntityObject[db.Project], store db.St
 }
 
 func (e *ProjectExporter) exportDependsOn() []string {
-	return []string{User}
+	return []string{}
 }
 
 func (e *ProjectExporter) getName() string {

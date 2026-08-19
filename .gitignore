@@ -16,6 +16,9 @@ api/public/**/*
 /config.runner.json
 /config.runner.token
 /config.runner.key
+/runner-config.json
+/runner-token.txt
+/runner-key.pem
 /runner.json
 /runner.token
 /runner.key
@@ -23,11 +26,7 @@ api/public/**/*
 /runner-old.key
 /runner.registration_token
 /.dredd/config.json
-/database.boltdb
-/database.sqlite
-/database.sqlite-journal
-/database.boltdb.lock
-/database_test.boltdb
+/database.sqlite*
 .DS_Store
 /backup.json
 node_modules/
@@ -57,3 +56,7 @@ __debug_bin*
 /go.work
 /go.work.sum
 /.licenses-cache
+/*-config.yaml
+/*-config.yml
+/*-config.config
+/*.sqlite*

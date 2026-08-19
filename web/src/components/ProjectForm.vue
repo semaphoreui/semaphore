@@ -45,6 +45,7 @@
     ></v-checkbox>
 
     <v-switch
+      data-testid="newProject-demo"
       v-if="itemId === 'new' && !hideDemoSwitch"
       v-model="item.demo"
       label="Demo"

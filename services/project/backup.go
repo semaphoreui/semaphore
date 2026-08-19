@@ -144,9 +144,17 @@ func (b *BackupDB) makeUniqueNames() {
 		item.Name = name
 	})
 
+	makeUniqueNames(b.workflows, func(item *db.WorkflowTemplate) string {
+		return item.Name
+	}, func(item *db.WorkflowTemplate, name string) {
+		item.Name = name
+	})
+
 }
 
-func (b *BackupDB) load(projectID int, store db.Store) (err error) {
+func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.WorkflowManager) (err error) {
+
+	b.workflowStore = workflowStore
 
 	b.templates, err = store.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
 	if err != nil {
@@ -171,6 +179,17 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 	if err != nil {
 		return
 	}
+
+	// Task-bound survey-secret keys are ephemeral internals of a single task
+	// run; they don't belong in a project backup.
+	filteredKeys := make([]db.AccessKey, 0, len(b.keys))
+	for _, k := range b.keys {
+		if k.Owner == db.AccessKeyTaskSecret {
+			continue
+		}
+		filteredKeys = append(filteredKeys, k)
+	}
+	b.keys = filteredKeys
 
 	b.views, err = store.GetViews(projectID)
 	if err != nil {
@@ -254,6 +273,11 @@ func (b *BackupDB) load(projectID int, store db.Store) (err error) {
 	}
 
 	b.runners, err = store.GetRunners(projectID, false, db.RunnerFilterIgnoreTags, nil)
+	if err != nil {
+		return
+	}
+
+	b.workflows, err = workflowStore.GetWorkflowTemplates(projectID, db.RetrieveQueryParams{})
 	if err != nil {
 		return
 	}
@@ -488,6 +512,27 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 	}
 
+	workflows := make([]BackupWorkflow, len(b.workflows))
+	for i, o := range b.workflows {
+		nodes := make([]BackupWorkflowNode, len(o.Nodes))
+		for j, n := range o.Nodes {
+			node := BackupWorkflowNode{
+				WorkflowNode: n,
+			}
+			if n.TemplateID != 0 {
+				node.Template, _ = findNameByID[db.Template](n.TemplateID, b.templates)
+			}
+			if n.TaskParams != nil && n.TaskParams.InventoryID != nil {
+				node.TaskParams.InventoryName, _ = findNameByID[db.Inventory](*n.TaskParams.InventoryID, b.inventories)
+			}
+			nodes[j] = node
+		}
+		workflows[i] = BackupWorkflow{
+			WorkflowTemplate: o,
+			Nodes:            nodes,
+		}
+	}
+
 	return &BackupFormat{
 		Meta: BackupMeta{
 			b.meta,
@@ -504,12 +549,13 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		SecretStorages:     secretStorages,
 		Roles:              roles,
 		Runners:            runners,
+		Workflows:          workflows,
 	}, nil
 }
 
-func GetBackup(projectID int, store db.Store) (*BackupFormat, error) {
+func GetBackup(projectID int, store db.Store, workflowStore db.WorkflowManager) (*BackupFormat, error) {
 	backup := BackupDB{}
-	if err := backup.load(projectID, store); err != nil {
+	if err := backup.load(projectID, store, workflowStore); err != nil {
 		return nil, err
 	}
 	return backup.format()

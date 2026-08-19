@@ -1,8 +1,9 @@
-name: Pro Self-Hosted Release
+name: Pro Self-Hosted Beta
 
 'on':
   push:
     tags:
+      - v*-alpha*
       - v*-beta*
       - v*-rc*
 
@@ -15,15 +16,31 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: '^1.24.6'
+          go-version: '^1.26.4'
+
+      - name: Cache Go build
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-build-${{ runner.os }}-${{ hashFiles('**/go.sum', 'go.work.sum') }}
+          restore-keys: |
+            go-build-${{ runner.os }}-
+
+      - name: Cache go-task fingerprints
+        uses: actions/cache@v6
+        with:
+          path: .task
+          key: task-${{ runner.os }}-${{ hashFiles('web/src/**', 'web/package-lock.json') }}
 
       - name: Setup nodejs
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -48,8 +65,9 @@ jobs:
 
       - name: Import gnupg
         run: |
-          echo "${{ secrets.GPG_KEY }}" | tr " " "\n" | base64 -d | gpg --import --batch
-          gpg --sign -u "${{ vars.GPG_KEY_ID }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS }}" --output unlock.sig --detach-sign README.md
+          echo "${{ secrets.GPG_KEY_3 }}" | tr " " "\n" | base64 -d | gpg --import --batch
+          echo "${{ secrets.GPG_KEY_3 }}" | tr " " "\n" | base64 -d > "$RUNNER_TEMP/gpg.key"
+          gpg --sign -u "${{ vars.GPG_KEY_ID_3 }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS_3 }}" --output unlock.sig --detach-sign README.md
           rm -f unlock.sig
 
       - name: Reset repo
@@ -60,7 +78,10 @@ jobs:
         run: |
           APP_BUILD_TYPE=pro_selfhosted \
           GITHUB_TOKEN=${{ github.token }} \
-          GPG_KEY_ID="${{ vars.GPG_KEY_ID }}" \
+          GPG_PASS_3="${{ secrets.GPG_PASS_3 }}" \
+          GPG_KEY_ID_3="${{ vars.GPG_KEY_ID_3 }}" \
+          GPG_KEY_PATH="$RUNNER_TEMP/gpg.key" \
+          NFPM_SEMAPHORE_PASSPHRASE="${{ secrets.GPG_PASS_3 }}" \
           PROJECT_NAME=semaphore \
             task release:prod
 
@@ -70,18 +91,18 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup qemu
         id: qemu
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Setup buildx
         id: buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Hub login
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         if: github.event_name != 'pull_request'
         with:
           registry: public.ecr.aws
@@ -91,7 +112,7 @@ jobs:
           AWS_REGION: us-east-1
 
       - name: Docker Hub login
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKER_USER }}
@@ -101,7 +122,7 @@ jobs:
 
       - name: Server meta
         id: server
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
@@ -115,7 +136,7 @@ jobs:
             type=raw,value=${{ github.ref_name }}
 
       - name: Server build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -132,7 +153,7 @@ jobs:
           provenance: false
 
       - name: Server build with Ansible 2.16.5
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -153,7 +174,7 @@ jobs:
           provenance: false
 
       - name: Server build with PowerShell 7.5.0
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -179,7 +200,7 @@ jobs:
 
       - name: Runner meta
         id: runner
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
@@ -193,7 +214,7 @@ jobs:
             type=raw,value=${{ github.ref_name }}
 
       - name: Runner build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -209,7 +230,7 @@ jobs:
           provenance: false
 
       - name: Runner build with Ansible 2.16.5
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -229,7 +250,7 @@ jobs:
           provenance: false
 
       - name: Runner build with PowerShell 7.5.0
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .

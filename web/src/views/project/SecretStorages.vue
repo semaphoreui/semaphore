@@ -71,43 +71,84 @@
             link
             @click="
               editItem('new');
-              itemType = 'aws_sm';
+              itemType = 'openbao';
             "
             :disabled="!features.secret_storage_management"
           >
             <v-list-item-icon>
-              <v-icon>$vuetify.icons.aws_sm</v-icon>
+              <v-icon>$vuetify.icons.openbao</v-icon>
             </v-list-item-icon>
-            <v-list-item-title>AWS Secrets Manager</v-list-item-title>
+            <v-list-item-title>OpenBao</v-list-item-title>
           </v-list-item>
 
-          <v-list-item
-            link
-            @click="
-              editItem('new');
-              itemType = 'azure_kv';
-            "
-            :disabled="!features.secret_storage_management"
+          <div
+            :class="{
+              SecretStoragesEnterpriseMenu:
+                features.secret_storage_management && !features.secret_storage_management_ex,
+            }"
+            :style="{
+              backgroundColor:
+                features.secret_storage_management && !features.secret_storage_management_ex
+                  ? $vuetify.theme.dark
+                    ? '#3f3f3f'
+                    : '#f0f0f0'
+                  : '',
+            }"
           >
-            <v-list-item-icon>
-              <v-icon>$vuetify.icons.azure_kv</v-icon>
-            </v-list-item-icon>
-            <v-list-item-title>Azure Key Vault</v-list-item-title>
-          </v-list-item>
+            <v-list-item
+              link
+              @click="
+                editItem('new');
+                itemType = 'aws_sm';
+              "
+              :disabled="!features.secret_storage_management_ex"
+            >
+              <v-list-item-icon>
+                <v-icon>$vuetify.icons.aws_sm</v-icon>
+              </v-list-item-icon>
+              <v-list-item-title>AWS Secrets Manager</v-list-item-title>
+            </v-list-item>
 
-          <v-list-item
-            link
-            @click="
-              editItem('new');
-              itemType = 'dvls';
-            "
-            :disabled="!features.secret_storage_management"
-          >
-            <v-list-item-icon>
-              <v-icon>$vuetify.icons.dvls</v-icon>
-            </v-list-item-icon>
-            <v-list-item-title>Devolutions Server</v-list-item-title>
-          </v-list-item>
+            <v-list-item
+              link
+              @click="
+                editItem('new');
+                itemType = 'azure_kv';
+              "
+              :disabled="!features.secret_storage_management_ex"
+            >
+              <v-list-item-icon>
+                <v-icon>$vuetify.icons.azure_kv</v-icon>
+              </v-list-item-icon>
+              <v-list-item-title>Azure Key Vault</v-list-item-title>
+            </v-list-item>
+
+            <v-list-item
+              link
+              @click="
+                editItem('new');
+                itemType = 'dvls';
+              "
+              :disabled="!features.secret_storage_management_ex"
+            >
+              <v-list-item-icon>
+                <v-icon>$vuetify.icons.dvls</v-icon>
+              </v-list-item-icon>
+              <v-list-item-title>Devolutions Server</v-list-item-title>
+            </v-list-item>
+
+            <a
+              v-if="features.secret_storage_management && !features.secret_storage_management_ex"
+              class="SecretStoragesEnterpriseMenu__overlay"
+              href="https://semaphoreui.com/enterprise"
+              target="_blank"
+            >
+              <div class="SecretStoragesEnterpriseMenu__button">
+                Enterprise
+                <v-icon color="white" small class="ml-1">mdi-arrow-right</v-icon>
+              </div>
+            </a>
+          </div>
         </v-list>
       </v-menu>
     </v-toolbar>
@@ -195,7 +236,41 @@
   </div>
 </template>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.SecretStoragesEnterpriseMenu {
+  position: relative;
+  cursor: not-allowed;
+}
+
+.SecretStoragesEnterpriseMenu__overlay {
+  text-decoration: none !important;
+  transition: 0.3s;
+  z-index: 1;
+  backdrop-filter: blur(5px);
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+
+  display: flex;
+  justify-content: center;
+  align-content: center;
+  flex-wrap: wrap;
+  opacity: 0;
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.SecretStoragesEnterpriseMenu__button {
+  background: orange;
+  color: white;
+  font-weight: bold;
+  border-radius: 100px;
+  padding: 6px 16px;
+}
+</style>
 
 <script>
 import axios from 'axios';
@@ -250,6 +325,8 @@ export default {
       switch (type) {
         case 'vault':
           return '$vuetify.icons.hashicorp_vault';
+        case 'openbao':
+          return '$vuetify.icons.openbao';
         case 'dvls':
           return '$vuetify.icons.dvls';
         case 'aws_sm':

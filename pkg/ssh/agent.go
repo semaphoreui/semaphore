@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"path"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -56,6 +57,10 @@ func (a *Agent) Listen() error {
 		}); err != nil {
 			return fmt.Errorf("adding private key: %w", err)
 		}
+	}
+
+	if err := os.MkdirAll(path.Dir(a.SocketFile), 0o755); err != nil {
+		return fmt.Errorf("creating socket directory: %w", err)
 	}
 
 	l, err := net.ListenUnix(
@@ -148,14 +153,33 @@ func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
 	env = append(env, "GIT_TERMINAL_PROMPT=0")
 	if key.SSHAgent != nil {
 		env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
-		sshCmd := "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-		if util.Config.SshConfigPath != "" {
-			sshCmd += " -F " + util.Config.SshConfigPath
+		sshCmd := "ssh " + gitHostKeyCheckingOpts()
+		if util.Config.GetSshConfigPath() != "" {
+			sshCmd += " -F " + util.Config.GetSshConfigPath()
 		}
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
 	}
 
 	return env
+}
+
+// gitHostKeyCheckingOpts returns the ssh host-key verification options used for
+// git operations. Host-key checking is enabled so a network attacker cannot
+// impersonate the git server. When an explicit known_hosts file is configured
+// it is used with strict checking; otherwise a persistent trust-on-first-use
+// file under TmpPath is used (accept-new): the first host key seen is pinned and
+// any subsequent change is rejected.
+func gitHostKeyCheckingOpts() string {
+	switch util.Config.Ssh.StrictHostKeyChecking {
+	case util.SshStrictHostKeyCheckingYes:
+		return fmt.Sprintf("-o StrictHostKeyChecking=yes -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
+	case util.SshStrictHostKeyCheckingNo:
+		return "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+	case util.SshStrictHostKeyCheckingAcceptNew:
+		return fmt.Sprintf("-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
+	default:
+		panic("Unknown SSH strict host key check option")
+	}
 }
 
 func (key *AccessKeyInstallation) Destroy() error {

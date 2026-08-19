@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"time"
 )
 
 type AccessKeyType string
@@ -19,7 +20,11 @@ const (
 	AccessKeyEnvironment   AccessKeyOwner = "environment"
 	AccessKeyVariable      AccessKeyOwner = "variable"
 	AccessKeySecretStorage AccessKeyOwner = "vault"
-	AccessKeyShared        AccessKeyOwner = ""
+	// AccessKeyTaskSecret marks a key holding survey secret variables of a
+	// single task. Such keys are bound to the task via TaskID, expire via
+	// ExpireAt, and are hidden from the project secrets list (non-empty owner).
+	AccessKeyTaskSecret AccessKeyOwner = "task"
+	AccessKeyShared     AccessKeyOwner = ""
 )
 const (
 	AccessKeySourceStorageVault AccessKeySourceStorageType = "vault"
@@ -55,6 +60,14 @@ type AccessKey struct {
 
 	// UserID is an ID of a user which owns the access key.
 	UserID *int `db:"user_id" json:"-" backup:"-"`
+
+	// TaskID is set for keys with owner AccessKeyTaskSecret: the task whose
+	// survey secrets this key holds. Deleted by cascade with the task.
+	TaskID *int `db:"task_id" json:"-" backup:"-"`
+
+	// ExpireAt, when set, makes the key unusable after this moment.
+	// Enforced centrally in AccessKeyEncryptionService.DeserializeSecret.
+	ExpireAt *time.Time `db:"expire_at" json:"-" backup:"-"`
 
 	Empty bool `db:"-" json:"empty,omitempty"`
 

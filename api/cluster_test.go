@@ -32,8 +32,17 @@ func poolWithTasks() *taskServices.TaskPool {
 	state.SetRunning(&taskServices.TaskRunner{
 		Task: db.Task{ID: 2, ProjectID: 10, TemplateID: 100},
 	})
-	pool := taskServices.CreateTaskPool(nil, state, nil, nil, nil, nil, nil)
-	return &pool
+	return new(taskServices.CreateTaskPool(
+		nil,
+		state,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	))
 }
 
 func TestGetClusterStatus_HADisabled(t *testing.T) {

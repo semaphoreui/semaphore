@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine3.21 as builder
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine3.24 as builder
 
 RUN apk add --no-cache -U \
     libc-dev curl nodejs npm git gcc zip unzip tar
@@ -29,9 +29,12 @@ RUN --mount=type=cache,target=/go/pkg \
     task build GOOS=${TARGETOS} GOARCH=${TARGETARCH} APP_BUILD_TYPE=${APP_BUILD_TYPE}
 
 
-ENV OPENTOFU_VERSION="1.11.0"
-ENV TERRAFORM_VERSION="1.10.3"
-ENV TERRAGRUNT_VERSION="0.78.0"
+# renovate: datasource=github-releases depName=opentofu/opentofu
+ENV OPENTOFU_VERSION=1.11.0
+# renovate: datasource=github-releases depName=hashicorp/terraform
+ENV TERRAFORM_VERSION=1.11.3
+# renovate: datasource=github-releases depName=gruntwork-io/terragrunt
+ENV TERRAGRUNT_VERSION=0.78.0
 #ENV PULUMI_VERSION="3.116.1"
 
 RUN wget https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_${TARGETARCH}.tar.gz && \
@@ -45,7 +48,7 @@ RUN curl -O https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraf
 RUN wget -O /tmp/terragrunt https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_${TARGETARCH} && \
     chmod +x /tmp/terragrunt
 
-FROM alpine:3.21
+FROM alpine:3.24
 
 ARG TARGETARCH="amd64"
 

@@ -1,9 +1,28 @@
 # Claude Code Instructions
 
+## Writing Plans
+
+All plans, tasks, researches for AI agents stored in folder AGENTS.
+
+Each plan has markdown-format and stored in folder AGENTS/plans/<version>.
+
+Plan can be split to tasks. Each task describes in details how to implement some part of some plan.
+
 ## Code Style
 
 1. Do not use global variables. Global variables are forbidden.
 
+## High Availability Support
+
+All solutions must work in High Availability mode.
+
+## Security Is the #1 Priority
+
+All solutions must be secure by design. Do not consider any solution that introduces security risks.
+
+## How to do research
+
+Use MCP server `research` if your asks you to research something.
 
 ## Writing Tests
 

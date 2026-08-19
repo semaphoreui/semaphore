@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 )
 
 type UserController struct {
@@ -46,6 +48,63 @@ func (c *UserController) GetUser(w http.ResponseWriter, r *http.Request) {
 		user.Pro = false
 	}
 	helpers.WriteJSON(w, http.StatusOK, user)
+}
+
+// linkLdapIdentity attaches an LDAP identity to the current account.
+// Proof of ownership is a successful bind with the user's own LDAP credentials.
+func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
+	currentUser := helpers.GetFromContext(r, "user").(*db.User)
+
+	var creds struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+		Provider string `json:"provider"` // LDAP provider ID, default "ldap"
+	}
+	if !helpers.Bind(w, r, &creds) {
+		return
+	}
+
+	providerID := creds.Provider
+	if providerID == "" {
+		providerID = "ldap"
+	}
+
+	provider, ok := util.Config.GetLdapProvider(providerID)
+	if !ok {
+		helpers.WriteErrorStatus(w, "LDAP provider not found", http.StatusBadRequest)
+		return
+	}
+
+	ldapUser, userDN, err := tryFindLDAPUser(provider, creds.Username, creds.Password)
+	if err != nil || ldapUser == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if !ldapProfileMatchesSemaphoreUser(*ldapUser, *currentUser) {
+		helpers.WriteErrorStatus(w, "LDAP directory profile does not match your account", http.StatusForbidden)
+		return
+	}
+
+	err = linkExternalIdentity(helpers.Store(r), *currentUser, db.IdentityTypeLdap, providerID, userDN)
+	if err != nil {
+		switch {
+		case errors.Is(err, errIdentityLinkedToAnother):
+			helpers.WriteErrorStatus(w, "This LDAP account is already linked to another user.", http.StatusConflict)
+		case errors.Is(err, errProviderAlreadyLinked):
+			helpers.WriteErrorStatus(w, "Your account already has a linked LDAP identity. Unlink it first.", http.StatusConflict)
+		default:
+			log.WithError(err).WithFields(log.Fields{
+				"provider": providerID,
+				"user_dn":  userDN,
+				"context":  "ldap",
+			}).Warn("Failed to link LDAP identity")
+			helpers.WriteErrorStatus(w, "Failed to link LDAP account", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func getAPITokens(w http.ResponseWriter, r *http.Request) {

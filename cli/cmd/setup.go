@@ -39,8 +39,8 @@ func doSetup() int {
 	fmt.Println(" Pinging db..")
 
 	store := factory.CreateStore()
-	defer store.Close("setup")
-	store.Connect("setup")
+	defer store.Close()
+	store.Connect()
 
 	fmt.Println("Running db Migrations..")
 	if err := db.Migrate(store, nil); err != nil {

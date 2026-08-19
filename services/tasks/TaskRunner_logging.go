@@ -84,6 +84,8 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 		return
 	}
 
+	oldStatus := t.Task.Status
+
 	switch t.Task.Status { // check old status
 	case task_logger.TaskConfirmed:
 		if status == task_logger.TaskWaitingConfirmation {
@@ -105,6 +107,9 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 	}
 
 	t.Task.Status = status
+	if t.pool != nil {
+		t.pool.metrics.RecordTaskStatusChange(oldStatus, status)
+	}
 
 	if status == task_logger.TaskRunningStatus {
 		now := tz.Now()
@@ -113,7 +118,7 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 
 	t.saveStatus()
 
-	if localJob, ok := t.job.(*LocalJob); ok {
+	if localJob, ok := t.job.(*LocalExecutor); ok {
 		localJob.SetStatus(status)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/go-gorp/gorp/v3"
@@ -27,13 +28,14 @@ type TerraformTaskParams struct {
 }
 
 type AnsibleTaskParams struct {
-	Debug      bool     `json:"debug"`
-	DebugLevel int      `json:"debug_level"`
-	DryRun     bool     `json:"dry_run"`
-	Diff       bool     `json:"diff"`
-	Limit      []string `json:"limit"`
-	Tags       []string `json:"tags"`
-	SkipTags   []string `json:"skip_tags"`
+	Debug             bool     `json:"debug"`
+	DebugLevel        int      `json:"debug_level"`
+	DryRun            bool     `json:"dry_run"`
+	Diff              bool     `json:"diff"`
+	Limit             []string `json:"limit"`
+	Tags              []string `json:"tags"`
+	SkipTags          []string `json:"skip_tags"`
+	SkipGalaxyInstall bool     `json:"skip_galaxy_install"`
 }
 
 // Task is a model of a task which will be executed by the runner
@@ -69,8 +71,10 @@ type Task struct {
 	CommitHash *string `db:"commit_hash" json:"commit_hash,omitempty"`
 	// CommitMessage contains message retrieved from git repository after checkout to CommitHash.
 	// It is readonly by API.
-	CommitMessage string `db:"commit_message" json:"commit_message,omitempty"`
-	BuildTaskID   *int   `db:"build_task_id" json:"build_task_id,omitempty"`
+	CommitMessage  string `db:"commit_message" json:"commit_message,omitempty"`
+	BuildTaskID    *int   `db:"build_task_id" json:"build_task_id,omitempty"`
+	WorkflowRunID  *int   `db:"workflow_run_id" json:"workflow_run_id,omitempty"`
+	WorkflowNodeID *int   `db:"workflow_node_id" json:"workflow_node_id,omitempty"`
 	// Version is a build version.
 	// This field available only for Build tasks.
 	Version *string `db:"version" json:"version,omitempty"`
@@ -78,6 +82,8 @@ type Task struct {
 	InventoryID *int `db:"inventory_id" json:"inventory_id,omitempty"`
 
 	Params MapStringAnyField `db:"params" json:"params,omitempty"`
+
+	Artifacts *string `db:"artifacts" json:"artifacts,omitempty"`
 
 	// Limit is deprecated, use Params.Limit instead
 	Limit string `db:"-" json:"limit"`
@@ -163,9 +169,19 @@ func (task *Task) GetUrl() *string {
 
 func (task *Task) ValidateNewTask(template Template) error {
 	if task.GitBranch != nil {
-		if err := ValidateGitBranch(*task.GitBranch, "task"); err != nil {
+		if err := git.ValidateGitBranch(*task.GitBranch, "task"); err != nil {
 			return err
 		}
+	}
+
+	if task.CommitHash != nil {
+		if err := git.ValidateCommitHash(*task.CommitHash, "task"); err != nil {
+			return err
+		}
+	}
+
+	if err := ValidatePlaybookPath(task.Playbook, "task"); err != nil {
+		return err
 	}
 
 	var params any

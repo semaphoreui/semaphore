@@ -26,8 +26,13 @@
         <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0"
           >Local</v-tab
         >
-        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0"
-          >Storage</v-tab
+        <v-tab
+          v-if="isPro"
+          :disabled="formSaving || !canEditSecrets || isSynced"
+          style="padding: 0"
+          >
+            Storage
+          </v-tab
         >
         <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">Env</v-tab>
         <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">File</v-tab>
@@ -246,7 +251,11 @@ export default {
         }
       }
     },
-    
+
+    isPro() {
+      return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
+
     sourceStorageType() {
       return this.item?.source_storage_type;
     },

@@ -2,13 +2,6 @@
   <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
     <v-alert :value="formError" type="error" class="mb-6" dismissible>{{ formError }} </v-alert>
 
-    <v-alert text color="amber darken-3" class="PageAlert">
-      <span v-html="$t('project_runners_only_pro')"></span>
-      <v-btn dark class="ml-2" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro()">
-        {{ $t('upgrade_to_pro') }}
-      </v-btn>
-    </v-alert>
-
     <v-text-field
       v-model="item.name"
       :label="$t('name')"
@@ -31,7 +24,7 @@
       dense
     ></v-text-field>
 
-    <div v-if="item.type === 'vault'">
+    <div v-if="item.type === 'vault' || item.type === 'openbao'">
       <v-text-field
         v-model="item.params.mount"
         :label="$t('Mount')"
@@ -45,12 +38,23 @@
       <v-text-field
         v-model="item.params.namespace"
         :label="$t('Namespace')"
-        hint="For Vault Enterprise and HCP Dedicated only"
+        :hint="item.type === 'openbao'
+          ? 'OpenBao namespaces (v2.3+)'
+          : 'For Vault Enterprise and HCP Dedicated only'"
         :disabled="formSaving"
         data-testid="secretStorage-vaultNamespace"
         outlined
         dense
       ></v-text-field>
+
+      <v-checkbox
+        class="pt-0 mb-2"
+        style="margin-top: -5px"
+        v-model="item.params.tls_skip_verify"
+        label="Skip TLS certificate verification (insecure)"
+        :disabled="formSaving"
+        data-testid="secretStorage-vaultTlsSkipVerify"
+      />
 
       <div class="d-flex justify-space-between align-center mb-2">
         <b style="font-size: 13px; margin-left: 5px">Token</b>

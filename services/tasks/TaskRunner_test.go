@@ -6,7 +6,9 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -16,7 +18,6 @@ import (
 	"github.com/semaphoreui/semaphore/db_lib"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -57,6 +58,18 @@ func (s *EncryptionServiceMock) FillEnvironmentSecrets(env *db.Environment, dese
 	return nil
 }
 
+func (s *EncryptionServiceMock) CreateTaskSurveySecrets(projectID int, taskID int, secrets string, expireAt time.Time) error {
+	return nil
+}
+
+func (s *EncryptionServiceMock) GetTaskSurveySecrets(projectID int, taskID int) (string, error) {
+	return "", nil
+}
+
+func (s *EncryptionServiceMock) DeleteTaskSurveySecrets(projectID int, taskID int) error {
+	return nil
+}
+
 type mockLogWriteService struct {
 }
 
@@ -73,7 +86,7 @@ func (l *mockLogWriteService) WriteResult(task any) error {
 
 func TestTaskRunnerRun(t *testing.T) {
 
-	store := bolt.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	keyInstaller := &KeyInstallerMock{}
 
 	pool := CreateTaskPool(
@@ -81,20 +94,65 @@ func TestTaskRunnerRun(t *testing.T) {
 		&MemoryTaskStateStore{},
 		nil,
 		&InventoryServiceMock{},
-		nil,
+		&EncryptionServiceMock{},
 		keyInstaller,
 		&mockLogWriteService{},
+		nil,
+		nil,
 	)
 
 	go pool.Run()
+	// Stop the pool's background loops (notably the runner-task reconcile loop)
+	// before the test returns, so the loop does not outlive this test and race
+	// with later tests that mutate the util.Config global.
+	t.Cleanup(pool.Stop)
 
-	var task db.Task
+	proj, err := store.CreateProject(db.Project{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	var err error
-
-	db.StoreSession(store, "", func() {
-		task, err = store.CreateTask(db.Task{}, 0)
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Type:      db.AccessKeyNone,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inv, err := store.CreateInventory(db.Inventory{
+		ProjectID: proj.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:         "Test",
+		Playbook:     "test.yml",
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+		InventoryID:  &inv.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	task, err := store.CreateTask(db.Task{
+		ProjectID:  proj.ID,
+		TemplateID: tpl.ID,
+	}, 0)
 
 	if err != nil {
 		t.Fatal(err)
@@ -105,7 +163,7 @@ func TestTaskRunnerRun(t *testing.T) {
 		pool:         &pool,
 		keyInstaller: keyInstaller,
 	}
-	taskRunner.job = &LocalJob{
+	taskRunner.job = &LocalExecutor{
 		Task:         taskRunner.Task,
 		Template:     taskRunner.Template,
 		Inventory:    taskRunner.Inventory,
@@ -113,6 +171,7 @@ func TestTaskRunnerRun(t *testing.T) {
 		Environment:  taskRunner.Environment,
 		Logger:       &taskRunner,
 		KeyInstaller: keyInstaller,
+		RepoLock:     &KeyLock{},
 		App: &db_lib.AnsibleApp{
 			Template:   taskRunner.Template,
 			Repository: taskRunner.Repository,
@@ -148,7 +207,7 @@ func TestGetRepoPath(t *testing.T) {
 			Playbook: "deploy/test.yml",
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -167,7 +226,7 @@ func TestGetRepoPath(t *testing.T) {
 		},
 	}
 
-	dir := tsk.job.(*LocalJob).App.(*db_lib.AnsibleApp).GetPlaybookDir()
+	dir := tsk.job.(*LocalExecutor).App.(*db_lib.AnsibleApp).GetPlaybookDir()
 	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
@@ -194,7 +253,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 			Playbook: "/deploy/test.yml",
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -213,14 +272,14 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 		},
 	}
 
-	dir := tsk.job.(*LocalJob).App.(*db_lib.AnsibleApp).GetPlaybookDir()
+	dir := tsk.job.(*LocalExecutor).App.(*db_lib.AnsibleApp).GetPlaybookDir()
 	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
 }
 
 func TestPopulateDetails(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {
@@ -263,11 +322,11 @@ func TestPopulateDetails(t *testing.T) {
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		RepositoryID:  repo.ID,
-		InventoryID:   &inv.ID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		InventoryID:    &inv.ID,
 		EnvironmentIDs: []int{env.ID},
 	})
 
@@ -289,7 +348,7 @@ func TestPopulateDetails(t *testing.T) {
 			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -318,7 +377,7 @@ func TestPopulateDetails(t *testing.T) {
 }
 
 func TestPopulateDetailsInventory(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {
@@ -368,11 +427,11 @@ func TestPopulateDetailsInventory(t *testing.T) {
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		RepositoryID:  repo.ID,
-		InventoryID:   &inv.ID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		InventoryID:    &inv.ID,
 		EnvironmentIDs: []int{env.ID},
 		TaskParams: map[string]any{
 			"allow_override_inventory": true,
@@ -398,7 +457,7 @@ func TestPopulateDetailsInventory(t *testing.T) {
 			InventoryID: &inv2.ID,
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Repository:  tsk.Repository,
@@ -427,7 +486,7 @@ func TestPopulateDetailsInventory(t *testing.T) {
 }
 
 func TestPopulateDetailsInventory1(t *testing.T) {
-	store := bolt.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
 	if err != nil {
@@ -470,11 +529,11 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 	}
 
 	tpl, err := store.CreateTemplate(db.Template{
-		Name:          "Test",
-		Playbook:      "test.yml",
-		ProjectID:     proj.ID,
-		RepositoryID:  repo.ID,
-		InventoryID:   &inv.ID,
+		Name:           "Test",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		InventoryID:    &inv.ID,
 		EnvironmentIDs: []int{env.ID},
 	})
 
@@ -496,7 +555,7 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 			Environment: `{"comment": "Just do it!", "time": "2021-11-02"}`,
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Repository:  tsk.Repository,
@@ -545,7 +604,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 			Playbook: "test.yml",
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -564,7 +623,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 		},
 	}
 
-	args, _, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
+	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
@@ -601,7 +660,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 			Playbook: "test.yml",
 		},
 	}
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -620,7 +679,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 		},
 	}
 
-	args, _, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
+	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
@@ -658,7 +717,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 		},
 	}
 
-	tsk.job = &LocalJob{
+	tsk.job = &LocalExecutor{
 		Task:        tsk.Task,
 		Template:    tsk.Template,
 		Inventory:   tsk.Inventory,
@@ -677,7 +736,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 		},
 	}
 
-	args, _, err := tsk.job.(*LocalJob).getPlaybookArgs("", nil)
+	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 
 	if err != nil {
 		t.Fatal(err)
