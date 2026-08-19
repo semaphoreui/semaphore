@@ -148,34 +148,50 @@ func TestAnsibleApp_galaxyInstallKeys(t *testing.T) {
 	}
 }
 
-// TestGalaxyInstallArgs covers when ansible-galaxy is told to re-fetch roles.
+// TestGalaxyInstallArgs covers the two flags that decide how a pass behaves.
 //
-// The keys of a template are tried one at a time, and each attempt installs
-// what its key can reach. ansible-galaxy --force removes a role before fetching
-// it again, so forcing on a retry deletes the roles the previous key installed
-// when the current key cannot reach the same repository. Only the first attempt
-// may force.
+// force: ansible-galaxy removes a role before fetching it again, so only the
+// first pass may force. Forcing on a later pass deletes what an earlier key
+// installed when the current key cannot reach the same repository.
+//
+// ignoreErrors: ansible-galaxy stops at the first role it cannot fetch and never
+// attempts the ones after it, so a single unreachable repository hides every
+// other role in the file.
 func TestGalaxyInstallArgs(t *testing.T) {
 	const requirements = "/repo/requirements.yml"
 
-	t.Run("the first attempt forces a fresh install", func(t *testing.T) {
-		args := galaxyInstallArgs(GalaxyRole, requirements, true)
+	t.Run("the first pass forces and ignores role failures", func(t *testing.T) {
+		args := galaxyInstallArgs(GalaxyRole, requirements,
+			galaxyInstallOptions{force: true, ignoreErrors: true})
 
 		assert.Equal(t,
-			[]string{"role", "install", "-r", requirements, "--force"},
+			[]string{"role", "install", "-r", requirements, "--force", "--ignore-errors"},
 			args)
 	})
 
-	t.Run("a retry must not force", func(t *testing.T) {
-		args := galaxyInstallArgs(GalaxyRole, requirements, false)
+	t.Run("a later pass keeps what the previous key installed", func(t *testing.T) {
+		args := galaxyInstallArgs(GalaxyRole, requirements,
+			galaxyInstallOptions{ignoreErrors: true})
 
-		assert.Equal(t, []string{"role", "install", "-r", requirements}, args)
 		assert.NotContains(t, args, "--force",
 			"forcing on a retry removes the roles installed by the previous key")
+		assert.Contains(t, args, "--ignore-errors")
 	})
 
-	t.Run("collections use the same rule", func(t *testing.T) {
-		assert.NotContains(t, galaxyInstallArgs(GalaxyCollection, requirements, false), "--force")
-		assert.Contains(t, galaxyInstallArgs(GalaxyCollection, requirements, true), "--force")
+	t.Run("the final pass decides the outcome", func(t *testing.T) {
+		args := galaxyInstallArgs(GalaxyRole, requirements, galaxyInstallOptions{})
+
+		assert.Equal(t, []string{"role", "install", "-r", requirements}, args)
+		assert.NotContains(t, args, "--ignore-errors",
+			"the last pass must report the roles no key could reach")
+	})
+
+	t.Run("collections use the same rules", func(t *testing.T) {
+		assert.Contains(t,
+			galaxyInstallArgs(GalaxyCollection, requirements, galaxyInstallOptions{ignoreErrors: true}),
+			"--ignore-errors")
+		assert.NotContains(t,
+			galaxyInstallArgs(GalaxyCollection, requirements, galaxyInstallOptions{}),
+			"--ignore-errors")
 	})
 }

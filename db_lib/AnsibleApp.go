@@ -80,38 +80,40 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return nil
 	}
 
-	// Keys are tried one at a time instead of being loaded into a single agent:
-	// ssh stops at the first key the host accepts, and a key can authenticate
-	// but still have no access to the requested repository (a deploy key, for
-	// example), which would hide the remaining keys.
-	//
-	// Each attempt installs what its key can reach and leaves the rest to the
-	// next one, so a requirements file whose roles live in different repositories
-	// is covered by the keys of the template together.
 	keys := t.galaxyInstallKeys()
 
 	// Without a usable key the requirements are installed with the environment
 	// of the task, which is what a public repository needs.
 	if len(keys) == 0 {
-		return t.installRequirements(args.EnvironmentVars, true)
+		return t.installRequirements(args.EnvironmentVars, galaxyInstallOptions{force: true})
 	}
 
-	var err error
+	// One pass per key, because a single ssh agent can not serve several private
+	// repositories: ssh stops at the first key the host accepts, and a key can
+	// authenticate and still have no access to the repository being cloned.
+	//
+	// Every pass ignores role failures so a repository this key can not read does
+	// not stop the roles after it in the file, and only the first pass forces, so
+	// a later key can not delete what an earlier one installed.
 	for i, key := range keys {
 		if i > 0 {
-			t.Log(fmt.Sprintf("Galaxy install failed, retrying with key %q.\n", key.Name))
+			t.Log(fmt.Sprintf("Installing the remaining requirements with key %q.\n", key.Name))
 		}
 
-		// Only the first attempt forces a fresh install: ansible-galaxy --force
-		// removes a role before fetching it again, so forcing on a later attempt
-		// would delete the roles an earlier key installed whenever this key can
-		// not reach them.
-		if err = t.installRequirementsWithKey(args, key, i == 0); err == nil {
-			return nil
+		err := t.installRequirementsWithKey(args, key, galaxyInstallOptions{
+			force:        i == 0,
+			ignoreErrors: true,
+		})
+
+		if err != nil {
+			return err
 		}
 	}
 
-	return err
+	// The passes above report success whatever happened to the individual roles,
+	// so the outcome is decided here: everything already installed is skipped and
+	// the run fails naming the roles no key could reach.
+	return t.installRequirementsWithKey(args, keys[0], galaxyInstallOptions{})
 }
 
 // galaxyInstallKeys returns the repository key followed by the template's SSH keys.
@@ -131,7 +133,7 @@ func (t *AnsibleApp) galaxyInstallKeys() []db.AccessKey {
 	return keys
 }
 
-func (t *AnsibleApp) installRequirementsWithKey(args LocalAppInstallingArgs, key db.AccessKey, force bool) error {
+func (t *AnsibleApp) installRequirementsWithKey(args LocalAppInstallingArgs, key db.AccessKey, opts galaxyInstallOptions) error {
 	keyInstallation, err := args.Installer.Install(key, db.AccessKeyRoleGit, t.Logger)
 	if err != nil {
 		return err
@@ -147,17 +149,17 @@ func (t *AnsibleApp) installRequirementsWithKey(args LocalAppInstallingArgs, key
 
 	environmentVars := append(append([]string{}, args.EnvironmentVars...), keyInstallation.GetGitEnv()...)
 
-	return t.installRequirements(environmentVars, force)
+	return t.installRequirements(environmentVars, opts)
 }
 
 // installRequirements installs the collection and role requirements files with
 // the given environment.
-func (t *AnsibleApp) installRequirements(environmentVars []string, force bool) error {
-	if err := t.installCollectionsRequirements(environmentVars, force); err != nil {
+func (t *AnsibleApp) installRequirements(environmentVars []string, opts galaxyInstallOptions) error {
+	if err := t.installCollectionsRequirements(environmentVars, opts); err != nil {
 		return err
 	}
 
-	return t.installRolesRequirements(environmentVars, force)
+	return t.installRolesRequirements(environmentVars, opts)
 }
 
 // skipGalaxyInstall reports whether the Galaxy install step must be skipped.
@@ -200,7 +202,23 @@ func (t *AnsibleApp) requirementsHashFilePath(requirementsType GalaxyRequirement
 // survive. ansible-galaxy removes a role before re-fetching it, so forcing on a
 // retry deletes what the previous key installed whenever this key cannot reach
 // the same repository.
-func galaxyInstallArgs(requirementsType GalaxyRequirementsType, requirementsFilePath string, force bool) []string {
+// galaxyInstallOptions controls one ansible-galaxy run.
+type galaxyInstallOptions struct {
+	// force re-fetches roles which are already installed. Only the first run may
+	// force: ansible-galaxy removes a role before fetching it again, so forcing
+	// on a later run deletes what an earlier key installed when this key can not
+	// reach the same repository.
+	force bool
+
+	// ignoreErrors keeps ansible-galaxy going after a role it can not fetch.
+	// Without it the first failing role ends the run and every role after it in
+	// the file is never attempted, so one unreachable repository hides all the
+	// others. Runs which ignore errors report success whatever happened, so the
+	// result of the requirements file is decided by a final run without it.
+	ignoreErrors bool
+}
+
+func galaxyInstallArgs(requirementsType GalaxyRequirementsType, requirementsFilePath string, opts galaxyInstallOptions) []string {
 	args := []string{
 		string(requirementsType),
 		"install",
@@ -208,14 +226,18 @@ func galaxyInstallArgs(requirementsType GalaxyRequirementsType, requirementsFile
 		requirementsFilePath,
 	}
 
-	if force {
+	if opts.force {
 		args = append(args, "--force")
+	}
+
+	if opts.ignoreErrors {
+		args = append(args, "--ignore-errors")
 	}
 
 	return args
 }
 
-func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string, environmentVars []string, force bool) error {
+func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string, environmentVars []string, opts galaxyInstallOptions) error {
 	requirementsHashFilePath := t.requirementsHashFilePath(requirementsType, requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
@@ -224,9 +246,18 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequir
 	}
 
 	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
-		if err := t.runGalaxy(galaxyInstallArgs(requirementsType, requirementsFilePath, force), environmentVars); err != nil {
+		if err := t.runGalaxy(galaxyInstallArgs(requirementsType, requirementsFilePath, opts), environmentVars); err != nil {
 			return err
 		}
+
+		// A run which ignores errors succeeds even when roles failed, so recording
+		// the file as installed here would make the passes that follow skip it and
+		// leave those roles missing. Only a run which reports role failures may
+		// mark the file as done.
+		if opts.ignoreErrors {
+			return nil
+		}
+
 		if err := os.MkdirAll(t.Repository.GetInternalPath(t.Template.ID), 0o755); err != nil {
 			return err
 		}
@@ -253,43 +284,43 @@ const (
 	GalaxyCollection GalaxyRequirementsType = "collection"
 )
 
-func (t *AnsibleApp) installRolesRequirements(environmentVars []string, force bool) (err error) {
+func (t *AnsibleApp) installRolesRequirements(environmentVars []string, opts galaxyInstallOptions) (err error) {
 	// default roles path
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"), environmentVars, force)
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"), environmentVars, opts)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars, force)
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars, opts)
 	if err != nil {
 		return
 	}
 
 	// alternative roles path
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "roles", "requirements.yml"), environmentVars, force)
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "roles", "requirements.yml"), environmentVars, opts)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars, force)
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars, opts)
 	return
 }
 
-func (t *AnsibleApp) installCollectionsRequirements(environmentVars []string, force bool) (err error) {
+func (t *AnsibleApp) installCollectionsRequirements(environmentVars []string, opts galaxyInstallOptions) (err error) {
 	// default collections path
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"), environmentVars, force)
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"), environmentVars, opts)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars, force)
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars, opts)
 	if err != nil {
 		return
 	}
 
 	// alternative collections path
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "collections", "requirements.yml"), environmentVars, force)
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "collections", "requirements.yml"), environmentVars, opts)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars, force)
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars, opts)
 	return
 }
 
