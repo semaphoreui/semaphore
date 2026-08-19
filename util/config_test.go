@@ -141,6 +141,24 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 	}
 }
 
+func TestLoadEnvironmentToObject_RunnerExecutor(t *testing.T) {
+	var val RunnerConfig
+
+	require.NoError(t, os.Setenv("SEMAPHORE_RUNNER_EXECUTOR", `{"type":"docker","docker":{"image":"example.com/job:1"}}`))
+	require.NoError(t, os.Setenv("SEMAPHORE_RUNNER_DOCKER_NETWORK", "host"))
+	defer os.Unsetenv("SEMAPHORE_RUNNER_EXECUTOR")
+	defer os.Unsetenv("SEMAPHORE_RUNNER_DOCKER_NETWORK")
+
+	_, err := loadEnvironmentToObject(&val)
+	require.NoError(t, err)
+
+	require.NotNil(t, val.Executor)
+	assert.Equal(t, ExecutorTypeDocker, val.Executor.Type)
+	assert.Equal(t, "example.com/job:1", val.Executor.Docker.Image)
+	// individual executor env vars still override fields of the JSON object
+	assert.Equal(t, "host", val.Executor.Docker.Network)
+}
+
 func TestLoadEnvironmentToObject_SensitiveEnvs(t *testing.T) {
 	type sub struct {
 		Field string `json:"field"`

@@ -1,11 +1,27 @@
 <template>
-  <div class="pb-6" style="margin-top: -10px">
-    <v-dialog v-model="editDialog" hide-overlay width="450">
-      <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
+  <div class="pb-6" style="margin-top: -10px;">
+    <v-dialog
+      v-model="editDialog"
+      hide-overlay
+      width="440"
+    >
+      <v-card
+        :color="$vuetify.theme.dark ? '#212121' : 'white'"
+        @keydown.enter.prevent
+      >
         <v-card-title></v-card-title>
         <v-card-text class="pb-0">
-          <v-form ref="form" lazy-validation v-if="editedVar != null">
-            <v-alert :value="formError" color="error">{{ formError }}</v-alert>
+          <v-form
+            ref="form"
+            lazy-validation
+            v-if="editedVar != null"
+            @submit.prevent="saveVar()"
+          >
+            <v-alert
+              :value="formError"
+              color="error"
+            >{{ formError }}
+            </v-alert>
 
             <v-text-field
               :label="$t('name2')"
