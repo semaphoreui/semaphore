@@ -1,29 +1,30 @@
 package projects
 
 import (
-	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"net/http"
+
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/server"
 )
 
 // NewProjectRunnerController creates a new ProjectRunnerController instance.
-func NewProjectRunnerController(subscriptionService pro_interfaces.SubscriptionService) pro_interfaces.ProjectRunnerController {
+func NewProjectRunnerController(
+	subscriptionService pro_interfaces.SubscriptionService,
+	runnerService server.RunnerService,
+) pro_interfaces.ProjectRunnerController {
 	return &ProjectRunnerControllerImpl{}
 }
 
 type ProjectRunnerControllerImpl struct {
 }
 
+func (c *ProjectRunnerControllerImpl) RegenerateRegistrationToken(w http.ResponseWriter, r *http.Request) {
+	helpers.WriteJSON(w, http.StatusCreated, map[string]interface{}{})
+}
+
 func (c *ProjectRunnerControllerImpl) GetRunners(w http.ResponseWriter, r *http.Request) {
-	project := helpers.GetFromContext(r, "project").(db.Project)
-	runners, err := helpers.Store(r).GetRunners(project.ID, false, nil)
-
-	if err != nil {
-		panic(err)
-	}
-
-	helpers.WriteJSON(w, http.StatusOK, runners)
+	helpers.WriteJSON(w, http.StatusOK, []any{})
 }
 
 func (c *ProjectRunnerControllerImpl) AddRunner(w http.ResponseWriter, r *http.Request) {
@@ -57,13 +58,5 @@ func (c *ProjectRunnerControllerImpl) ClearRunnerCache(w http.ResponseWriter, r 
 }
 
 func (c *ProjectRunnerControllerImpl) GetRunnerTags(w http.ResponseWriter, r *http.Request) {
-	project := helpers.GetFromContext(r, "project").(db.Project)
-	tags, err := helpers.Store(r).GetRunnerTags(project.ID)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	helpers.WriteJSON(w, http.StatusOK, tags)
+	helpers.WriteJSON(w, http.StatusOK, []any{})
 }

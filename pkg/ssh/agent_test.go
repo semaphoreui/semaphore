@@ -1,8 +1,29 @@
 package ssh
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+// TestAgent_Listen_CreatesSocketDir tests that Listen() creates the socket's
+// parent directory if it doesn't exist (e.g. project tmp dir not yet created).
+func TestAgent_Listen_CreatesSocketDir(t *testing.T) {
+	// Not t.TempDir(): its path exceeds the ~104-byte unix socket limit on macOS.
+	tmp, err := os.MkdirTemp("/tmp", "ssh")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tmp) }) //nolint:errcheck
+
+	agent := Agent{
+		SocketFile: filepath.Join(tmp, "project_2", "agent.sock"),
+	}
+
+	err = agent.Listen()
+	require.NoError(t, err)
+	require.NoError(t, agent.Close())
+}
 
 // TestAgent_Close_WithNilListener tests that Close() doesn't panic when listener is nil
 func TestAgent_Close_WithNilListener(t *testing.T) {
@@ -49,7 +70,7 @@ func TestAgent_Close_FailedInitialization(t *testing.T) {
 	// 1. StartSSHAgent() fails during Listen() but returns incomplete agent
 	// 2. Install() method assigns the incomplete agent to installation.SSHAgent
 	// 3. Later, destroyKeys() calls Destroy() which calls Close() on incomplete agent
-	
+
 	// Create an agent that would be returned by StartSSHAgent() if Listen() failed
 	incompleteAgent := Agent{
 		Keys: []AgentKey{

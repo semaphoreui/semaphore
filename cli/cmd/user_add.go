@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func init() {
@@ -55,7 +56,7 @@ var userAddCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		if _, err := store.CreateUser(db.UserWithPwd{
 			Pwd: targetUserArgs.password,

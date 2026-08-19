@@ -166,6 +166,11 @@ export default {
   duration: 'Dauer',
   stop: 'Stoppen',
   forceStop: 'Erzwingen',
+  stopAll: 'Alle stoppen',
+  stopAllTasks: 'Alle Aufgaben stoppen',
+  askStopAllTasks: 'Sind Sie sicher, dass Sie alle Aufgaben stoppen möchten?',
+  forceStopAllTasks: 'Alle Aufgaben erzwingen stoppen',
+  askForceStopAllTasks: 'Sind Sie sicher, dass Sie alle Aufgaben erzwingen stoppen möchten?',
   raw_log: 'Roh-Log',
 
   confirmTask: 'Bestätigen',

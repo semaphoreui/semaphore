@@ -5,6 +5,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
 func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, err error) {
@@ -25,14 +26,25 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 		return
 	}
 
-	if !options.IgnoreOwner {
-		q = q.Where("pe.owner=?", options.Owner)
+	if err = options.Validate(); err != nil {
+		return
+	}
 
-		switch options.Owner {
-		case db.AccessKeyVariable, db.AccessKeyEnvironment:
-			q = q.Where(squirrel.Eq{"pe.environment_id": *options.EnvironmentID})
-		case db.AccessKeySecretStorage:
-			q = q.Where(squirrel.Eq{"pe.storage_id": options.StorageID})
+	if !options.IgnoreOwner {
+		q = q.Where(squirrel.Eq{"pe.owner": options.Owner})
+	}
+
+	for _, f := range []struct {
+		column string
+		value  *int
+	}{
+		{"pe.environment_id", options.EnvironmentID},
+		{"pe.storage_id", options.StorageID},
+		{"pe.task_id", options.TaskID},
+		{"pe.source_storage_id", options.SourceStorageID},
+	} {
+		if f.value != nil {
+			q = q.Where(squirrel.Eq{f.column: *f.value})
 		}
 	}
 
@@ -45,9 +57,7 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 	_, err = d.selectAll(&keys, query, args...)
 
 	for i := range keys {
-		if keys[i].SourceStorageID == nil && keys[i].Secret == nil {
-			keys[i].Empty = true
-		}
+		keys[i].Empty = keys[i].IsEmpty()
 	}
 
 	return
@@ -66,10 +76,19 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 	query := "update access_key set name=?"
 	args = append(args, key.Name)
 
+	if !key.IgnorePlain {
+		query += ", plain=?"
+		args = append(args, key.Plain)
+	}
+
 	if key.OverrideSecret {
-		query += ", type=?, secret=?"
+
+		query += ", type=?, secret=?, source_storage_id=?, source_storage_key=?, source_storage_type=?"
 		args = append(args, key.Type)
 		args = append(args, key.Secret)
+		args = append(args, key.SourceStorageID)
+		args = append(args, key.SourceStorageKey)
+		args = append(args, key.SourceStorageType)
 	}
 
 	query += " where id=?"
@@ -84,34 +103,77 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
-	//err = key.SerializeSecret()
-	//if err != nil {
-	//	return
-	//}
 
-	insertID, err := d.insert(
-		"id",
-		"insert into access_key ("+
-			"name, "+
-			"type, "+
-			"project_id, "+
-			"secret, "+
-			"environment_id, "+
-			"owner, "+
-			"storage_id, "+
-			"source_storage_id, "+
-			"source_storage_key) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		key.Name,
-		key.Type,
-		key.ProjectID,
-		key.Secret,
-		key.EnvironmentID,
-		key.Owner,
-		key.StorageID,
-		key.SourceStorageID,
-		key.SourceStorageKey,
-	)
+	var insertID int
+
+	if key.IgnorePlain {
+		insertID, err = d.insert(
+			"id",
+			"insert into access_key ("+
+				"name, "+
+				"type, "+
+				"project_id, "+
+				"secret, "+
+				"environment_id, "+
+				"owner, "+
+				"storage_id, "+
+				"source_storage_id, "+
+				"source_storage_key, "+
+				"source_storage_type, "+
+				"synchronized, "+
+				"task_id, "+
+				"expire_at) "+
+				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			key.Name,
+			key.Type,
+			key.ProjectID,
+			key.Secret,
+			key.EnvironmentID,
+			key.Owner,
+			key.StorageID,
+			key.SourceStorageID,
+			key.SourceStorageKey,
+			key.SourceStorageType,
+			key.Synchronized,
+			key.TaskID,
+			key.ExpireAt,
+		)
+	} else {
+		insertID, err = d.insert(
+			"id",
+			"insert into access_key ("+
+				"name, "+
+				"type, "+
+				"project_id, "+
+				"secret, "+
+				"plain, "+
+				"environment_id, "+
+				"owner, "+
+				"storage_id, "+
+				"source_storage_id, "+
+				"source_storage_key, "+
+				"source_storage_type, "+
+				"synchronized, "+
+				"task_id, "+
+				"expire_at) "+
+				"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			key.Name,
+			key.Type,
+			key.ProjectID,
+			key.Secret,
+			key.Plain,
+			key.EnvironmentID,
+			key.Owner,
+			key.StorageID,
+			key.SourceStorageID,
+			key.SourceStorageKey,
+			key.SourceStorageType,
+			key.Synchronized,
+			key.TaskID,
+			key.ExpireAt,
+		)
+
+	}
 
 	if err != nil {
 		return
@@ -126,42 +188,49 @@ func (d *SqlDb) DeleteAccessKey(projectID int, accessKeyID int) error {
 	return d.deleteObject(projectID, db.AccessKeyProps, accessKeyID)
 }
 
-const RekeyBatchSize = 100
+func (d *SqlDb) GetTaskAccessKey(projectID int, taskID int) (key db.AccessKey, err error) {
+	err = d.selectOne(
+		&key,
+		"select * from access_key where project_id=? and owner=? and task_id=?",
+		projectID,
+		db.AccessKeyTaskSecret,
+		taskID)
 
-func (d *SqlDb) RekeyAccessKeys(oldKey string) (err error) {
-
-	//var globalProps = db.AccessKeyProps
-	//globalProps.IsGlobal = true
-	//
-	//for i := 0; ; i++ {
-	//
-	//	var keys []db.AccessKey
-	//	err = d.getObjects(-1, globalProps, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize}, nil, &keys)
-	//
-	//	if err != nil {
-	//		return
-	//	}
-	//
-	//	if len(keys) == 0 {
-	//		break
-	//	}
-	//
-	//	for _, key := range keys {
-	//
-	//		err = key.DeserializeSecret2(oldKey)
-	//
-	//		if err != nil {
-	//			return err
-	//		}
-	//
-	//		key.OverrideSecret = true
-	//		err = d.UpdateAccessKey(key)
-	//
-	//		if err != nil && !errors.Is(err, db.ErrNotFound) {
-	//			return err
-	//		}
-	//	}
-	//}
+	if err == sql.ErrNoRows {
+		err = db.ErrNotFound
+	}
 
 	return
+}
+
+func (d *SqlDb) DeleteTaskAccessKeys(projectID int, taskID int) error {
+	_, err := d.exec(
+		"delete from access_key where project_id=? and owner=? and task_id=?",
+		projectID,
+		db.AccessKeyTaskSecret,
+		taskID)
+	return err
+}
+
+func (d *SqlDb) DeleteExpiredTaskAccessKeys() error {
+	// Do not delete keys for tasks that are still queued or running: an active
+	// task with an expired key must fail dispatch with ErrAccessKeyExpired, not
+	// silently run with empty survey variables after the row disappears.
+	_, err := d.exec(
+		`delete from access_key
+		 where owner=?
+		   and expire_at is not null
+		   and expire_at < ?
+		   and (
+		     task_id is null
+		     or exists (
+		       select 1 from task t
+		       where t.id = task_id
+		         and t.project_id = access_key.project_id
+		         and t.status in ('stopped', 'success', 'error')
+		     )
+		   )`,
+		db.AccessKeyTaskSecret,
+		tz.Now())
+	return err
 }

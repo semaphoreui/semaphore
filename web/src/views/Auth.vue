@@ -16,78 +16,52 @@
           <p class="text-body-1">
             {{ $t('executeTheFollowingCommandOnTheServerToSeeExisting') }}
           </p>
-          <v-alert
-            dense
-            text
-            color="info"
-            style="font-family: monospace;"
-          >
+          <v-alert dense text color="info" style="font-family: monospace">
             {{ $t('semaphoreUserList') }}
           </v-alert>
           <p class="text-body-1">
             {{ $t('youCanChangePasswordOfExistingUser') }}
           </p>
-          <v-alert
-            dense
-            text
-            color="info"
-            style="font-family: monospace;"
-          >
+          <v-alert dense text color="info" style="font-family: monospace">
             {{
               $t('semaphoreUserChangebyloginLoginUser123Password', {
-                makePasswordExample:
-                  makePasswordExample()
+                makePasswordExample: makePasswordExample(),
               })
             }}
           </v-alert>
           <p class="text-body-1">
             {{ $t('orCreateNewAdminUser') }}
           </p>
-          <v-alert
-            dense
-            text
-            color="info"
-            style="font-family: monospace;"
-          >
-            semaphore user add --admin --login user123 --name User123
-            --email user123@example.com --password {{ makePasswordExample() }}
+          <v-alert dense text color="info" style="font-family: monospace">
+            semaphore user add --admin --login user123 --name User123 --email user123@example.com
+            --password {{ makePasswordExample() }}
           </v-alert>
         </v-card-text>
         <v-card-actions>
-          <v-spacer/>
-          <v-btn
-            color="blue darken-1"
-            text
-            @click="loginHelpDialog = false"
-          >
+          <v-spacer />
+          <v-btn color="blue darken-1" text @click="loginHelpDialog = false">
             {{ $t('close2') }}
           </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
-    <v-container
-      fluid
-      fill-height
-      align-center
-      justify-center
-      class="pa-0"
-    >
-      <v-card class="px-5 py-5" style="border-radius: 15px;">
+    <v-container fluid fill-height align-center justify-center class="pa-0">
+      <v-card class="px-5 py-5" style="border-radius: 15px">
         <v-card-text>
           <v-form
             @submit.prevent
             ref="signInForm"
             lazy-validation
             v-model="signInFormValid"
-            style="width: 350px;"
+            style="width: 350px"
           >
             <v-img
               width="80"
               height="80"
               transition="0"
               src="favicon.png"
-              style="margin: auto;"
+              style="margin: auto"
               class="mb-4"
             />
 
@@ -99,42 +73,34 @@
               Account recovery
             </h2>
 
-            <h2 v-else class="text-center pt-4 pb-6">
-              Enter to your account
-            </h2>
+            <h2 v-else class="text-center pt-4 pb-6">Enter to your account</h2>
 
-            <v-alert
-              :value="signInError != null"
-              color="error"
-              style="margin-bottom: 20px;"
-            >{{ signInError }}
+            <v-alert :value="signInError != null" color="error" style="margin-bottom: 20px"
+              >{{ signInError }}
             </v-alert>
 
             <div v-if="screen === 'verification'">
-
-              <div  v-if="verificationMethod === 'totp'" class="text-center mb-4">
-                Open the two-step verification app on your mobile device to
-                get your verification code.
+              <div v-if="verificationMethod === 'totp'" class="text-center mb-4">
+                Open the two-step verification app on your mobile device to get your verification
+                code.
               </div>
 
               <div v-else-if="isPortal && verificationMethod === 'email'" class="text-center mb-4">
                 Check your email for the verification code we just sent you.
               </div>
 
-              <v-otp-input
-                v-model="verificationCode"
-                length="6"
-                @finish="verify()"
-              ></v-otp-input>
+              <v-otp-input v-model="verificationCode" length="6" @finish="verify()"></v-otp-input>
 
               <v-divider class="my-6" />
 
               <div class="text-center">
                 <a @click="signOut()" class="mr-6">{{ $t('Return to login') }}</a>
                 <a
-                  v-if="verificationMethod === 'totp'
-                    && authMethods.totp
-                    && authMethods.totp.allow_recovery"
+                  v-if="
+                    verificationMethod === 'totp' &&
+                    authMethods.totp &&
+                    authMethods.totp.allow_recovery
+                  "
                   @click="screen = 'recovery'"
                 >
                   {{ $t('Use recovery code') }}
@@ -149,9 +115,7 @@
                   @click="resendEmailVerification()"
                 >
                   {{
-                    verificationEmailSending
-                      ? $t('Email sending...')
-                      : $t('Resend code to email')
+                    verificationEmailSending ? $t('Email sending...') : $t('Resend code to email')
                   }}
                 </v-btn>
               </div>
@@ -168,48 +132,56 @@
                 v-model="recoveryCode"
                 @keyup.enter.native="signIn"
                 :label="$t('Recovery code')"
-                :rules="[v => !!v || $t('recoveryCode_required')]"
+                :rules="[(v) => !!v || $t('recoveryCode_required')]"
                 required
               />
 
               <div>
-                <v-btn
-                  style="width: 100%;"
-                  color="primary"
-                  @click="recovery()"
-                >
-                  Send
-                </v-btn>
+                <v-btn style="width: 100%" color="primary" @click="recovery()"> Send </v-btn>
               </div>
 
               <div class="text-center pt-6">
                 <a @click="screen = 'verification'">{{ $t('Return to verification') }}</a>
               </div>
-
             </div>
 
             <div v-else>
+              <v-btn-toggle
+                v-if="loginTabs.length > 1"
+                v-model="loginTab"
+                mandatory
+                borderless
+                class="mb-7 d-flex"
+                :background-color="$vuetify.theme.dark ? '#212121' : 'grey lighten-3'"
+              >
+                <v-btn v-for="tab in loginTabs" :key="tab.id || 'local'" small class="flex-grow-1">
+                  {{ tab.name }}
+                </v-btn>
+              </v-btn-toggle>
 
-              <div v-if="loginWithPassword">
+              <div v-if="(activeLoginTab && activeLoginTab.ldap) || loginWithPassword">
                 <v-text-field
                   v-model="username"
-                  v-bind:label='$t("username")'
-                  :rules="[v => !!v || $t('username_required')]"
+                  v-bind:label="$t('username')"
+                  :rules="[(v) => !!v || $t('username_required')]"
                   required
+                  outlined
                   :disabled="signInProcess"
                   id="auth-username"
+                  dense
                   data-testid="auth-username"
                 ></v-text-field>
 
                 <v-text-field
                   v-model="password"
                   :label="$t('password')"
-                  :rules="[v => !!v || $t('password_required')]"
+                  :rules="[(v) => !!v || $t('password_required')]"
                   type="password"
                   required
+                  outlined
+                  dense
                   :disabled="signInProcess"
                   @keyup.enter.native="signIn"
-                  style="margin-bottom: 20px;"
                   id="auth-password"
                   data-testid="auth-password"
                 ></v-text-field>
@@ -225,19 +197,18 @@
                 >
                   {{ $t('signIn') }}
                 </v-btn>
-
               </div>
 
-              <div v-else>
+              <div v-else-if="isPortal">
                 <v-text-field
                   v-model="email"
                   :label="$t('Email')"
-                  :rules="[v => !!v || $t('email_required')]"
+                  :rules="[(v) => !!v || $t('email_required')]"
                   type="email"
                   required
                   :disabled="signInProcess"
                   @keyup.enter.native="signInWithEmail"
-                  style="margin-bottom: 20px;"
+                  style="margin-bottom: 20px"
                   data-testid="auth-password"
                   outlined
                   class="mb-0"
@@ -252,12 +223,7 @@
                   rounded
                   data-testid="auth-signin-with-eamil"
                 >
-                  <v-icon
-                    left
-                    dark
-                  >
-                    mdi-email
-                  </v-icon>
+                  <v-icon left dark> mdi-email </v-icon>
 
                   {{ $t('Continue with Email') }}
                 </v-btn>
@@ -265,8 +231,13 @@
 
               <div
                 class="auth__divider"
-                v-if="oidcProviders.length > 0"
-              >or</div>
+                v-if="
+                  (loginWithPassword || ldapProviders.length > 0 || isPortal) &&
+                  oidcProviders.length > 0
+                "
+              >
+                or
+              </div>
 
               <v-btn
                 large
@@ -279,13 +250,7 @@
                 :key="provider.id"
                 rounded
               >
-                <v-icon
-                  left
-                  dark
-                  v-if="provider.icon"
-                >
-                  mdi-{{ provider.icon }}
-                </v-icon>
+                <v-icon left dark v-if="provider.icon"> mdi-{{ provider.icon }} </v-icon>
 
                 {{ provider.name }}
               </v-btn>
@@ -293,7 +258,6 @@
               <div class="text-center mt-6" v-if="loginWithPassword && false">
                 <a @click="loginHelpDialog = true">{{ $t('dontHaveAccountOrCantSignIn') }}</a>
               </div>
-
             </div>
           </v-form>
         </v-card-text>
@@ -307,10 +271,11 @@
   margin-bottom: 5px;
 
   display: flex;
-  &:before, &:after {
+  &:before,
+  &:after {
     margin-top: 10px;
     width: 100%;
-    content: "";
+    content: '';
     border-top: 1px solid rgba(128, 128, 128, 0.51);
   }
 
@@ -327,7 +292,7 @@
   background: #80808024;
 }
 .auth {
-  background-image: url("../assets/background.svg");
+  background-image: url('../assets/background.svg');
   background-color: #005057;
   background-size: cover;
 }
@@ -355,13 +320,15 @@ export default {
       loginWithPassword: null,
       authMethods: {},
 
+      ldapProviders: [],
+      loginTab: 0,
+
       screen: null,
 
       verificationCode: null,
       verificationMethod: null,
       recoveryCode: null,
       verificationEmailSending: false,
-
     };
   },
 
@@ -389,6 +356,19 @@ export default {
     isPortal() {
       return process.env.VUE_APP_BUILD_TYPE === 'pro_portal';
     },
+
+    loginTabs() {
+      const tabs = [];
+      if (this.loginWithPassword || this.isPortal) {
+        tabs.push({ id: null, name: this.$t('signIn') });
+      }
+      this.ldapProviders.forEach((p) => tabs.push({ id: p.id, name: p.name, ldap: true }));
+      return tabs;
+    },
+
+    activeLoginTab() {
+      return this.loginTabs[this.loginTab] || this.loginTabs[0];
+    },
   },
 
   methods: {
@@ -399,11 +379,11 @@ export default {
 
       this.verificationEmailSending = true;
       try {
-        (await axios({
+        await axios({
           method: 'post',
           url: '/api/auth/login/email/resend',
           responseType: 'json',
-        }));
+        });
         EventBus.$emit('i-snackbar', {
           color: 'success',
           text: 'Verification email sent successfully.',
@@ -427,6 +407,7 @@ export default {
         this.oidcProviders = resp.data.oidc_providers;
         this.loginWithPassword = resp.data.login_with_password;
         this.authMethods = resp.data.auth_methods || {};
+        this.ldapProviders = resp.data.ldap_providers || [];
       });
     },
 
@@ -454,11 +435,11 @@ export default {
 
     async signOut() {
       try {
-        (await axios({
+        await axios({
           method: 'post',
           url: '/api/auth/logout',
           responseType: 'json',
-        }));
+        });
 
         const { location } = document;
         document.location = location;
@@ -576,14 +557,24 @@ export default {
 
       this.signInProcess = true;
       try {
+        const body = {
+          auth: this.username,
+          password: this.password,
+        };
+        if (this.activeLoginTab && this.activeLoginTab.ldap) {
+          body.method = 'ldap';
+          body.provider = this.activeLoginTab.id;
+        } else if (this.loginTabs.length > 1) {
+          // Internal tab explicitly requests password auth so a typo never
+          // hits the LDAP directory (legacy single-form behavior).
+          body.method = 'password';
+        }
+
         await axios({
           method: 'post',
           url: '/api/auth/login',
           responseType: 'json',
-          data: {
-            auth: this.username,
-            password: this.password,
-          },
+          data: body,
         });
 
         this.redirectAfterLogin();

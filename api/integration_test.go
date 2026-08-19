@@ -9,7 +9,173 @@ import (
 
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestExtract_HeaderAndCaseInsensitive(t *testing.T) {
+	h := http.Header{}
+	h.Set("x-token", "abc123") // lower-case to verify case-insensitive get
+
+	values := []db.IntegrationExtractValue{
+		{
+			Name:         "Token header",
+			ValueSource:  db.IntegrationExtractHeaderValue,
+			Key:          "X-Token", // different case
+			Variable:     "TOKEN",
+			VariableType: db.IntegrationVariableEnvironment,
+		},
+	}
+
+	got := Extract(values, h, nil)
+
+	require.Equal(t, "abc123", got["TOKEN"], "TOKEN header value should match")
+}
+
+func TestExtract_JSONBody_ObjectPreservedAsMap(t *testing.T) {
+	payload := []byte(`{"data":{"id":2,"name":"test"}}`)
+	values := []db.IntegrationExtractValue{
+		{
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "data",
+			Variable:     "DATA",
+		},
+	}
+	got := Extract(values, http.Header{}, payload)
+	dataVal, ok := got["DATA"].(map[string]interface{})
+	require.True(t, ok, "DATA should be a map[string]interface{}, got %T: %v", got["DATA"], got["DATA"])
+	assert.Equal(t, float64(2), dataVal["id"])
+	assert.Equal(t, "test", dataVal["name"])
+}
+
+func TestExtract_JSONBody_VariousTypesAndMissing(t *testing.T) {
+	payload := []byte(`{
+		"num": 42,
+		"str": "hello",
+		"bool": true,
+		"nullv": null,
+		"obj": {"k":"v"},
+		"arr": [1,2,3],
+		"nested": {"items":[{"c":123},{"c":"str"}]}
+	}`)
+
+	values := []db.IntegrationExtractValue{
+		{ // number is preserved as float64 (JSON number)
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "num",
+			Variable:     "NUM",
+		},
+		{ // string stays same content
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "str",
+			Variable:     "STR",
+		},
+		{ // boolean is preserved as bool
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "bool",
+			Variable:     "BOOL",
+		},
+		{ // null should not be set (Find returns nil or we skip when nil)
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "nullv",
+			Variable:     "NULLV",
+		},
+		{ // array is preserved as []interface{}
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "arr",
+			Variable:     "ARR",
+		},
+		{ // object is preserved as map[string]interface{}
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "obj",
+			Variable:     "OBJ",
+		},
+		{ // missing key should not create an entry
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "missing",
+			Variable:     "MISSING",
+		},
+		{ // nested array index path
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "nested.items.[0].c",
+			Variable:     "NESTED_C",
+		},
+		{ // first element of arr
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "arr.[0]",
+			Variable:     "ARR0",
+		},
+	}
+
+	got := Extract(values, http.Header{}, payload)
+
+	// Scalars are preserved as their native Go types (JSON number → float64, string → string, bool → bool)
+	assert.Equal(t, float64(42), got["NUM"], "NUM should be float64(42)")
+	assert.Equal(t, "hello", got["STR"], "STR should match")
+	assert.Equal(t, true, got["BOOL"], "BOOL should be bool true")
+
+	// Indexed lookups
+	assert.Equal(t, float64(123), got["NESTED_C"], "NESTED_C should equal nested.items[0].c as float64")
+	assert.Equal(t, float64(1), got["ARR0"], "ARR0 should equal arr[0] as float64")
+
+	// Null should be absent
+	assert.NotContains(t, got, "NULLV", "NULLV should not be present for null JSON value")
+
+	// Array is preserved as []interface{}
+	arrVal, ok := got["ARR"].([]interface{})
+	assert.True(t, ok, "ARR should be a []interface{}")
+	assert.Len(t, arrVal, 3, "ARR should have 3 elements")
+
+	// Object is preserved as map[string]interface{}
+	objVal, ok := got["OBJ"].(map[string]interface{})
+	assert.True(t, ok, "OBJ should be a map[string]interface{}")
+	assert.Equal(t, "v", objVal["k"])
+
+	// Missing should not appear
+	assert.NotContains(t, got, "MISSING", "MISSING should not be present for missing key")
+}
+
+func TestExtract_BodyString_ReturnsFullPayload(t *testing.T) {
+	payload := []byte("raw body data here")
+	values := []db.IntegrationExtractValue{
+		{
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataString,
+			Variable:     "BODY",
+			Key:          "ignored",
+		},
+	}
+	got := Extract(values, http.Header{}, payload)
+	if got["BODY"] != string(payload) {
+		t.Fatalf("expected BODY to equal full payload; got %q", got["BODY"])
+	}
+}
+
+func TestExtract_MalformedJSON_SkipsSetting(t *testing.T) {
+	payload := []byte("{not: valid json}")
+	values := []db.IntegrationExtractValue{
+		{
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Variable:     "BAD",
+			Key:          "a.b",
+		},
+	}
+	got := Extract(values, http.Header{}, payload)
+	if _, ok := got["BAD"]; ok {
+		t.Fatalf("expected BAD to be absent for malformed JSON payload")
+	}
+}
 
 func TestIntegrationMatch(t *testing.T) {
 	body := []byte("{\"hook_id\": 4856239453}")
@@ -99,6 +265,43 @@ func TestGetTaskDefinitionSuccess(t *testing.T) {
 			assert.True(t, ok)
 			assert.Equal(t, "payload-value", payloadParam)
 		}
+	}
+}
+
+// TestGetTaskDefinition_JSONObjectInEnv verifies the fix for the issue where a JSON object
+// extracted from the payload was converted to a Go string (e.g. "map[id:2 name:test]")
+// instead of being preserved as a proper JSON object in the environment.
+func TestGetTaskDefinition_JSONObjectInEnv(t *testing.T) {
+	integration := db.Integration{
+		ID:         11,
+		ProjectID:  22,
+		TemplateID: 33,
+	}
+
+	header := make(http.Header)
+	payload := []byte(`{"data":{"id":2,"name":"test"}}`)
+
+	task, err := GetTaskDefinition(integration, payload, header, func(projectID, integrationID int) ([]db.IntegrationExtractValue, error) {
+		return []db.IntegrationExtractValue{
+			{
+				VariableType: db.IntegrationVariableEnvironment,
+				ValueSource:  db.IntegrationExtractBodyValue,
+				BodyDataType: db.IntegrationBodyDataJSON,
+				Key:          "data",
+				Variable:     "data",
+			},
+		}, nil
+	})
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, task.Environment)
+
+	var env map[string]any
+	if assert.NoError(t, json.Unmarshal([]byte(task.Environment), &env)) {
+		dataVal, ok := env["data"].(map[string]interface{})
+		assert.True(t, ok, "data should be a JSON object, not a string (was: %T %v)", env["data"], env["data"])
+		assert.Equal(t, float64(2), dataVal["id"])
+		assert.Equal(t, "test", dataVal["name"])
 	}
 }
 
@@ -255,7 +458,10 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 	env1 := make(map[string]any)
 
 	if taskDef1.Environment != "" {
-		json.Unmarshal([]byte(taskDef1.Environment), &env1)
+		err := json.Unmarshal([]byte(taskDef1.Environment), &env1)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal environment: %v", err)
+		}
 	}
 
 	// Add extracted environment variables only if they don't conflict with
@@ -271,7 +477,9 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 
 	// Verify that extracted values ARE now in the environment
 	var envCheck1 map[string]any
-	json.Unmarshal([]byte(taskDef1.Environment), &envCheck1)
+	if err := json.Unmarshal([]byte(taskDef1.Environment), &envCheck1); err != nil {
+		t.Fatalf("Failed to unmarshal environment: %v", err)
+	}
 
 	if envCheck1["BRANCH_NAME"] != "main" {
 		t.Errorf("Expected BRANCH_NAME to be 'main' in environment, got '%v'", envCheck1["BRANCH_NAME"])
@@ -295,7 +503,9 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 	env2 := make(map[string]any)
 
 	if taskDef2.Environment != "" {
-		json.Unmarshal([]byte(taskDef2.Environment), &env2)
+		if err := json.Unmarshal([]byte(taskDef2.Environment), &env2); err != nil {
+			t.Fatalf("Failed to unmarshal environment: %v", err)
+		}
 	}
 
 	// Add extracted environment variables only if they don't conflict with
@@ -311,7 +521,9 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 
 	// Verify that both existing and extracted values are in the environment
 	var envCheck2 map[string]any
-	json.Unmarshal([]byte(taskDef2.Environment), &envCheck2)
+	if err := json.Unmarshal([]byte(taskDef2.Environment), &envCheck2); err != nil {
+		t.Fatalf("Failed to unmarshal environment: %v", err)
+	}
 
 	if envCheck2["EXISTING_VAR"] != "existing_value" {
 		t.Errorf("Expected EXISTING_VAR to be 'existing_value' in environment, got '%v'", envCheck2["EXISTING_VAR"])
@@ -338,7 +550,9 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 	env3 := make(map[string]any)
 
 	if taskDef3.Environment != "" {
-		json.Unmarshal([]byte(taskDef3.Environment), &env3)
+		if err := json.Unmarshal([]byte(taskDef3.Environment), &env3); err != nil {
+			t.Fatalf("Failed to unmarshal environment: %v", err)
+		}
 	}
 
 	// Add extracted environment variables only if they don't conflict with
@@ -354,7 +568,9 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 
 	// Verify that task definition values take precedence over extracted values
 	var envCheck3 map[string]any
-	json.Unmarshal([]byte(taskDef3.Environment), &envCheck3)
+	if err := json.Unmarshal([]byte(taskDef3.Environment), &envCheck3); err != nil {
+		t.Fatalf("Failed to unmarshal environment: %v", err)
+	}
 
 	// BRANCH_NAME should remain "production" from task definition, not "main" from extracted
 	if envCheck3["BRANCH_NAME"] != "production" {

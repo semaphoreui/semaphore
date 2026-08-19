@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"net/http"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 func init() {

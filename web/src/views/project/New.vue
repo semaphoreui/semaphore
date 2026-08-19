@@ -19,6 +19,7 @@
             ref="editForm"
             @save="onSave"
             :system-info="systemInfo"
+            hide-demo-switch
           />
         </div>
 

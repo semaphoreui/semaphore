@@ -163,7 +163,8 @@ const BASE_FIELDS = {
     label: 'repository',
   },
   environment: {
-    label: 'environment3',
+    label: 'environment',
+    optional: true,
   },
   git_branch: {
     label: 'branch',
@@ -198,6 +199,12 @@ export const ANSIBLE_FIELDS = {
   },
   allow_override_skip_tags: {
     label: 'skipTags',
+  },
+  skip_galaxy_install: {
+    label: 'skipGalaxyInstall',
+  },
+  allow_override_skip_galaxy_install: {
+    label: 'skipGalaxyInstall',
   },
   allow_override_inventory: {
     label: 'allowInventoryInTask',

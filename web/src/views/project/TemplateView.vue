@@ -15,7 +15,7 @@
       :item-app="item.app"
       :item-id="itemId"
       @save="loadData()"
-      :premium-features="premiumFeatures"
+      :features="features"
       :task-type="item.type"
     ></EditTemplateDialog>
 
@@ -26,7 +26,7 @@
       item-id="new"
       :source-item-id="itemId"
       @save="onTemplateCopied"
-      :premium-features="premiumFeatures"
+      :features="features"
       :task-type="item.type"
     ></EditTemplateDialog>
 
@@ -48,7 +48,14 @@
       :title="$t('stopAllTasks')"
       :text="$t('askStopAllTasks')"
       v-model="stopAllDialog"
-      @yes="stopAllTasks()"
+      @yes="stopAllTasks(false)"
+    />
+
+    <YesNoDialog
+      :title="$t('forceStopAllTasks')"
+      :text="$t('askForceStopAllTasks')"
+      v-model="forceStopAllDialog"
+      @yes="stopAllTasks(true)"
     />
 
     <v-toolbar flat>
@@ -70,14 +77,34 @@
 
       <v-spacer></v-spacer>
 
-      <v-btn
-        @click="stopAllDialog = true"
-        color="grey"
-        class="mr-3"
-        v-if="canStop"
-      >
-        Stop all
-      </v-btn>
+      <v-menu offset-y v-if="canStop">
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn
+            v-bind="attrs"
+            v-on="on"
+            color="grey"
+            class="mr-3 pr-2"
+            :disabled="stopAllTasksProgress"
+          >
+            {{ $t('stopAll') }}
+            <v-icon>mdi-chevron-down</v-icon>
+          </v-btn>
+        </template>
+        <v-list>
+          <v-list-item @click="stopAllDialog = true">
+            <v-list-item-icon>
+              <v-icon>mdi-stop</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>{{ $t('stop') }}</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="forceStopAllDialog = true">
+            <v-list-item-icon>
+              <v-icon>mdi-alert-octagon</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>{{ $t('forceStop') }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
 
       <v-btn
         v-if="canRun"
@@ -146,9 +173,10 @@
       :inventory="inventory"
       :environment="environment"
       :repositories="repositories"
-      :premium-features="premiumFeatures"
+      :features="features"
       :is-admin="isAdmin"
       @update-template="loadData"
+      :need-update="needLoadData"
     ></router-view>
   </div>
 </template>
@@ -201,7 +229,7 @@ export default {
   props: {
     projectId: Number,
     userPermissions: Number,
-    premiumFeatures: Object,
+    features: Object,
   },
 
   mixins: [PermissionsCheck, ProjectMixin],
@@ -222,7 +250,11 @@ export default {
       itemRefsDialog: null,
       newTaskDialog: null,
       stopAllDialog: null,
+      forceStopAllDialog: null,
       USER_PERMISSIONS,
+
+      needLoadData: false,
+      stopAllTasksProgress: false,
     };
   },
 
@@ -285,13 +317,14 @@ export default {
       EventBus.$emit('i-show-drawer');
     },
 
-    async stopAllTasks() {
+    async stopAllTasks(force) {
       try {
+        this.stopAllTasksProgress = true;
         await axios({
           method: 'post',
           url: `/api/project/${this.projectId}/templates/${this.itemId}/stop_all_tasks`,
           data: {
-            force: true,
+            force,
           },
           responseType: 'json',
         });
@@ -300,6 +333,8 @@ export default {
           color: 'success',
           text: 'All running tasks have been requested to stop',
         });
+
+        this.needLoadData = true;
       } catch (err) {
         EventBus.$emit('i-snackbar', {
           color: 'error',
@@ -307,6 +342,12 @@ export default {
         });
       } finally {
         this.stopAllDialog = false;
+        this.forceStopAllDialog = false;
+        this.stopAllTasksProgress = false;
+
+        setTimeout(() => {
+          this.needLoadData = false;
+        }, 100);
       }
     },
 

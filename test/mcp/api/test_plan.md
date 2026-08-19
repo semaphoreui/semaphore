@@ -48,7 +48,7 @@
 1. Add repository "Semaphore" https://github.com/semaphoreui/semaphore with branch `develop`.
 2. Create a template with following options:
    * Type: Bash script
-   * Script path tests/manual/data/case4/tesh.sh
+   * Script path test/mcp/api/data/case4/test.sh
 3. Run the template
 4. Wait until it finished and check if it is ok.
 

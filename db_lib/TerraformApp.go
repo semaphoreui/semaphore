@@ -98,14 +98,14 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.GetProjectTmpDir(t.Template.ProjectID)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", getHomeDir(t.Repository, t.Template.ID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 
 	if environmentVars != nil {
 		cmd.Env = append(cmd.Env, environmentVars...)
 	}
 
-	cmd.SysProcAttr = util.Config.GetSysProcAttr()
+	cmd.SysProcAttr = util.Config.GetAppSysProcAttr()
 
 	return cmd
 }
@@ -189,17 +189,31 @@ func (t *TerraformApp) isWorkspacesSupported(environmentVars []string) bool {
 
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	err := cmd.Run()
-	if err != nil {
-		return false
-	}
 
-	return true
+	return err == nil
 }
 
 func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []string) error {
 	args := []string{"workspace", "select", "-or-create=true", workspace}
 	if t.Name == string(db.AppTerragrunt) {
-		args = append([]string{"run", "--"}, args...)
+
+		tgArgs := []string{"run"}
+
+		hasTfPath := false
+		for i := 0; i < len(tgArgs); i++ {
+			a := tgArgs[i]
+			if a == "--tf-path" || strings.HasPrefix(a, "--tf-path=") {
+				hasTfPath = true
+				break
+			}
+		}
+		if !hasTfPath {
+			tgArgs = append(tgArgs, "--tf-path=terraform")
+		}
+
+		tgArgs = append(tgArgs, "--")
+
+		args = append(tgArgs, args...)
 	}
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	t.Logger.LogCmd(cmd)
@@ -374,7 +388,8 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		time.Sleep(time.Second * 3)
 		if t.reader.status.IsFinished() ||
 			t.reader.status == task_logger.TaskConfirmed ||
-			t.reader.status == task_logger.TaskRejected {
+			t.reader.status == task_logger.TaskRejected ||
+			t.reader.status == task_logger.TaskStoppingStatus {
 			break
 		}
 	}

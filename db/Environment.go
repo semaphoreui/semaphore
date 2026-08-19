@@ -3,6 +3,9 @@ package db
 import (
 	"encoding/json"
 	"errors"
+	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
 type EnvironmentSecretOperation string
@@ -53,6 +56,13 @@ type Environment struct {
 
 	SecretStorageID        *int    `db:"secret_storage_id" json:"secret_storage_id,omitempty" backup:"-"`
 	SecretStorageKeyPrefix *string `db:"secret_storage_key_prefix" json:"secret_storage_key_prefix,omitempty"`
+
+	// Sync fields are transfer-only; persisted in project__secret_sync.
+	SyncEnabled      bool             `db:"-" json:"sync_enabled"`
+	SyncInterval     int              `db:"-" json:"sync_interval"`
+	LastSyncedAt     *time.Time       `db:"-" json:"last_synced_at,omitempty"`
+	LastSyncFailedAt *time.Time       `db:"-" json:"last_sync_failed_at,omitempty"`
+	SyncPaths        []SecretSyncPath `db:"-" json:"sync_paths"`
 }
 
 func (s *EnvironmentSecret) Validate() error {
@@ -97,13 +107,13 @@ func validateJSON(s string, mustValuesBeScalar bool) error {
 
 func (env *Environment) Validate() (err error) {
 	if env.Name == "" {
-		err = &ValidationError{"Environment name can not be empty"}
+		err = common_errors.NewValidationError("Environment name can not be empty")
 		return
 	}
 
 	err = validateJSON(env.JSON, false)
 	if err != nil {
-		err = &ValidationError{"Extra variables " + err.Error()}
+		err = common_errors.NewValidationError("Extra variables " + err.Error())
 		return
 	}
 
@@ -113,7 +123,7 @@ func (env *Environment) Validate() (err error) {
 
 	err = validateJSON(*env.ENV, true)
 	if err != nil {
-		err = &ValidationError{"Environment variables " + err.Error()}
+		err = common_errors.NewValidationError("Environment variables " + err.Error())
 	}
 
 	return

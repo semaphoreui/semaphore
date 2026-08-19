@@ -21,9 +21,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		projectID, err := helpers.GetIntParam("project_id", w, r)
 
 		if err != nil {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "Invalid project ID",
-			})
+			// Header already written by GetIntParam
 			return
 		}
 
@@ -46,14 +44,20 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 
 		permissions := roleSlug.GetPermissions()
 
-		role, err := helpers.Store(r).GetProjectOrGlobalRoleBySlug(projectID, string(projectUser.Role))
+		// Built-in roles are defined in code and are the source of truth for their
+		// permissions. Only custom roles are resolved from the database, otherwise a
+		// project role sharing a built-in slug (e.g. "manager") could override the
+		// built-in permissions and escalate privileges.
+		if !roleSlug.IsValid() {
+			role, err := helpers.Store(r).GetProjectOrGlobalRoleBySlug(projectID, string(projectUser.Role))
 
-		if err == nil {
-			roleSlug = db.ProjectUserRole(role.Slug)
-			permissions = role.Permissions
-		} else if !errors.Is(err, db.ErrNotFound) {
-			helpers.WriteError(w, err)
-			return
+			if err == nil {
+				roleSlug = db.ProjectUserRole(role.Slug)
+				permissions = role.Permissions
+			} else if !errors.Is(err, db.ErrNotFound) {
+				helpers.WriteError(w, err)
+				return
+			}
 		}
 
 		if helpers.HasParam("template_id", r) {
@@ -173,13 +177,13 @@ func GetProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUserRole(w http.ResponseWriter, r *http.Request) {
-	var permissions struct {
+	var result struct {
 		Role        db.ProjectUserRole       `json:"role"`
 		Permissions db.ProjectUserPermission `json:"permissions"`
 	}
-	permissions.Role = helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
-	permissions.Permissions = permissions.Role.GetPermissions()
-	helpers.WriteJSON(w, http.StatusOK, permissions)
+	result.Role = helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
+	result.Permissions = helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+	helpers.WriteJSON(w, http.StatusOK, result)
 }
 
 func ClearCache(w http.ResponseWriter, r *http.Request) {

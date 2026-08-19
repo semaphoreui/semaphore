@@ -5,18 +5,31 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/util"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	projectService "github.com/semaphoreui/semaphore/services/project"
 	log "github.com/sirupsen/logrus"
 )
 
-func GetBackup(w http.ResponseWriter, r *http.Request) {
+// BackupController serves project backup/restore. Workflows live outside
+// db.Store (Pro feature, see db.WorkflowManager), so the workflow store is
+// injected and threaded into the backup/restore routines.
+type BackupController struct {
+	workflowStore db.WorkflowManager
+}
+
+func NewBackupController(workflowStore db.WorkflowManager) *BackupController {
+	return &BackupController{workflowStore: workflowStore}
+}
+
+func (c *BackupController) GetBackup(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	store := helpers.Store(r)
 
-	backup, err := projectService.GetBackup(project.ID, store)
+	backup, err := projectService.GetBackup(project.ID, store, c.workflowStore)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -34,8 +47,14 @@ func GetBackup(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(str))
 }
 
-func Restore(w http.ResponseWriter, r *http.Request) {
+func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
+
+	if !user.Admin && !util.Config.NonAdminCanCreateProject {
+		log.Warn(user.Username + " is not permitted to restore the project")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
 	var backup projectService.BackupFormat
 
@@ -62,7 +81,7 @@ func Restore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var p *db.Project
-	p, err := backup.Restore(*user, store)
+	p, err := backup.Restore(*user, store, c.workflowStore)
 
 	if err != nil {
 		log.Error(err)

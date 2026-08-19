@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/creack/pty"
@@ -27,17 +28,22 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 	cmd.Env = append(cmd.Env, "ANSIBLE_HOST_KEY_CHECKING=False")
 	//cmd.Env = append(cmd.Env, "ANSIBLE_SSH_ARGS=-o UserKnownHostsFile=/dev/null")
 	cmd.Env = append(cmd.Env, getEnvironmentVars()...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.GetProjectTmpDir(p.Repository.ProjectID)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", getHomeDir(p.Repository, p.TemplateID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
+
+	if util.Config.HomeDirMode == util.HomeDirModeTemplateDir {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_HOME=%s", path.Join(p.Repository.GetHomePath(p.TemplateID), ".ansible")))
+	}
+
 	cmd.Env = append(cmd.Env, environmentVars...)
 
-	cmd.SysProcAttr = util.Config.GetSysProcAttr()
+	cmd.SysProcAttr = util.Config.GetAppSysProcAttr()
 
 	return cmd
 }
 
-func (p AnsiblePlaybook) runCmd(command string, args []string) error {
-	cmd := p.makeCmd(command, args, nil)
+func (p AnsiblePlaybook) runCmd(command string, args []string, environmentVars []string) error {
+	cmd := p.makeCmd(command, args, environmentVars)
 	p.Logger.LogCmd(cmd)
 	err := cmd.Run()
 	// Wait for all log processing to complete before returning
@@ -87,8 +93,8 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 	return err
 }
 
-func (p AnsiblePlaybook) RunGalaxy(args []string) error {
-	return p.runCmd("ansible-galaxy", args)
+func (p AnsiblePlaybook) RunGalaxy(args []string, environmentVars []string) error {
+	return p.runCmd("ansible-galaxy", args, environmentVars)
 }
 
 func (p AnsiblePlaybook) GetFullPath() (path string) {

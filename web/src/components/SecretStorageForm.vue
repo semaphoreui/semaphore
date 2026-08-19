@@ -1,142 +1,393 @@
 <template>
-  <v-form
-      ref="form"
-      lazy-validation
-      v-model="formValid"
-      v-if="item != null"
-  >
-    <v-alert
-        :value="formError"
-        color="error"
-        class="pb-2"
-    >{{ formError }}
-    </v-alert>
+  <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
+    <v-alert :value="formError" type="error" class="mb-6" dismissible>{{ formError }} </v-alert>
 
     <v-text-field
-        v-model="item.name"
-        :label="$t('name')"
-        :rules="[v => !!v || $t('name_required')]"
-        required
-        :disabled="formSaving"
-        outlined
-        dense
+      v-model="item.name"
+      :label="$t('name')"
+      :rules="[(v) => !!v || $t('name_required')]"
+      required
+      :disabled="formSaving"
+      outlined
+      dense
     ></v-text-field>
 
     <v-text-field
-        v-model="item.params.url"
-        :label="$t('Server URL')"
-        :disabled="formSaving"
-        :rules="[v => !!v || $t('url_required')]"
-        required
-        data-testid="secretStorage-vaultURL"
-        outlined
-        dense
+      v-if="item.type !== 'aws_sm' && item.type !== 'azure_kv'"
+      v-model="item.params.url"
+      :label="$t('Server URL')"
+      :disabled="formSaving"
+      :rules="[(v) => !!v || $t('url_required')]"
+      required
+      data-testid="secretStorage-vaultURL"
+      outlined
+      dense
     ></v-text-field>
 
-    <div v-if="item.type === 'vault'">
-
+    <div v-if="item.type === 'vault' || item.type === 'openbao'">
       <v-text-field
-          v-model="item.secret"
-          :label="$t('Token')"
-          :disabled="formSaving"
-          :rules="[v => !!v || itemId !== 'new' || $t('token_required')]"
-          required
-          data-testid="secretStorage-vaultToken"
-          outlined
-          dense
-          append-icon="mdi-lock"
+        v-model="item.params.mount"
+        :label="$t('Mount')"
+        hint="'secret' by default"
+        :disabled="formSaving"
+        data-testid="secretStorage-vaultMount"
+        outlined
+        dense
       ></v-text-field>
 
-    </div>
-
-    <div v-else-if="item.type === 'dvls'">
+      <v-text-field
+        v-model="item.params.namespace"
+        :label="$t('Namespace')"
+        :hint="item.type === 'openbao'
+          ? 'OpenBao namespaces (v2.3+)'
+          : 'For Vault Enterprise and HCP Dedicated only'"
+        :disabled="formSaving"
+        data-testid="secretStorage-vaultNamespace"
+        outlined
+        dense
+      ></v-text-field>
 
       <v-checkbox
-          class="pt-0 mb-2"
-          style="margin-top: -5px;"
-          v-model="item.params.insecure_tls"
-          label="Skip TLS certificate verification (insecure)"
-          :disabled="formSaving"
+        class="pt-0 mb-2"
+        style="margin-top: -5px"
+        v-model="item.params.tls_skip_verify"
+        label="Skip TLS certificate verification (insecure)"
+        :disabled="formSaving"
+        data-testid="secretStorage-vaultTlsSkipVerify"
       />
 
-      <v-text-field
-          v-model="item.params.vault_id"
-          :label="$t('Vault ID')"
-          :disabled="formSaving"
-          :rules="[v => !!v || itemId !== 'new' || $t('key_required')]"
-          required
-          data-testid="secretStorage-dvlsKey"
-          outlined
-          dense
-      ></v-text-field>
-
-      <v-text-field
-          v-model="item.params.app_key"
-          :label="$t('App Key')"
-          :disabled="formSaving"
-          :rules="[v => !!v || itemId !== 'new' || $t('key_required')]"
-          required
-          data-testid="secretStorage-dvlsKey"
-          outlined
-          dense
-      ></v-text-field>
-
-      <div class="d-flex justify-space-between align-center">
-        <b style="font-size: 13px; margin-left: 5px;">App secret</b>
-        <v-btn-toggle
-            v-model="secretStorage"
-            tile
-            group
-        >
-          <v-btn value="database" small class="mr-0 mt-0" style="border-radius: 4px;">
+      <div class="d-flex justify-space-between align-center mb-2">
+        <b style="font-size: 13px; margin-left: 5px">Token</b>
+        <v-btn-toggle v-model="secretStorage" tile group mandatory>
+          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
             Store in DB
           </v-btn>
-          <v-btn value="env" small class="mr-0 mt-0" style="border-radius: 4px;">
-            Read from ENV
-          </v-btn>
+          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
         </v-btn-toggle>
       </div>
 
       <v-text-field
-          v-if="secretStorage === 'database'"
-          class="TextInput TextInput--no-legend"
-          v-model="item.secret"
-          :label="$t('Secret')"
-          :disabled="formSaving"
-          :rules="[v => !!v || itemId !== 'new' || $t('secret_required')]"
-          required
-          data-testid="secretStorage-dvlsSecret"
-          outlined
-          dense
-          append-icon="mdi-lock"
+        v-if="secretStorage === 'database'"
+        class="masked-secret-input"
+        v-model="item.secret"
+        :label="$t('Token')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('token_required')]"
+        required
+        data-testid="secretStorage-vaultToken"
+        outlined
+        dense
+        append-icon="mdi-lock"
       ></v-text-field>
 
       <v-text-field
-          v-else
-          class="TextInput TextInput--no-legend"
-          v-model="item.secret_environment_variable"
-          :label="$t('Env var name')"
-          :disabled="formSaving"
-          :rules="[v => !!v || itemId !== 'new' || $t('envvar_required')]"
-          required
-          data-testid="secretStorage-dvlsEnv"
-          outlined
-          dense
+        v-else
+        v-model="item.secret"
+        :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
+        required
+        data-testid="secretStorage-vaultTokenSource"
+        outlined
+        dense
+      ></v-text-field>
+    </div>
+
+    <div v-else-if="item.type === 'dvls'">
+      <v-checkbox
+        class="pt-0 mb-2"
+        style="margin-top: -5px"
+        v-model="item.params.insecure_tls"
+        label="Skip TLS certificate verification (insecure)"
+        :disabled="formSaving"
+      />
+
+      <v-text-field
+        v-model="item.params.vault_id"
+        :label="$t('Vault ID')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('key_required')]"
+        required
+        data-testid="secretStorage-dvlsKey"
+        outlined
+        dense
       ></v-text-field>
 
+      <v-text-field
+        v-model="item.params.app_key"
+        :label="$t('App Key')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('key_required')]"
+        required
+        data-testid="secretStorage-dvlsKey"
+        outlined
+        dense
+      ></v-text-field>
+
+      <div class="d-flex justify-space-between align-center mb-2">
+        <b style="font-size: 13px; margin-left: 5px">App secret</b>
+        <v-btn-toggle v-model="secretStorage" tile group mandatory>
+          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
+            Store in DB
+          </v-btn>
+          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
+        </v-btn-toggle>
+      </div>
+
+      <v-text-field
+        v-if="secretStorage === 'database'"
+        class="TextInput TextInput--no-legend masked-secret-input"
+        v-model="item.secret"
+        :label="$t('Secret')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('secret_required')]"
+        required
+        data-testid="secretStorage-dvlsSecret"
+        outlined
+        dense
+        append-icon="mdi-lock"
+      ></v-text-field>
+
+      <v-text-field
+        v-else
+        class="TextInput TextInput--no-legend"
+        v-model="item.secret"
+        :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
+        required
+        data-testid="secretStorage-dvlsEnv"
+        outlined
+        dense
+      ></v-text-field>
+    </div>
+
+    <div v-else-if="item.type === 'aws_sm'">
+      <v-text-field
+        v-model="item.params.region"
+        label="Region"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Region is required']"
+        required
+        placeholder="us-east-1"
+        data-testid="secretStorage-awsRegion"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.endpoint_url"
+        label="Endpoint URL (optional)"
+        :disabled="formSaving"
+        hint="Leave empty to use the default AWS endpoint"
+        data-testid="secretStorage-awsEndpointURL"
+        outlined
+        dense
+      ></v-text-field>
+
+      <!--      <v-checkbox-->
+      <!--        class="pt-0 mb-2"-->
+      <!--        style="margin-top: -5px"-->
+      <!--        v-model="item.params.use_iam_role"-->
+      <!--        label="Use IAM Role / Instance Profile"-->
+      <!--        :disabled="formSaving"-->
+      <!--      />-->
+
+      <template>
+        <v-text-field
+          v-model="item.params.access_key_id"
+          label="Access Key ID"
+          :disabled="formSaving"
+          :rules="[(v) => !!v || 'Access Key ID is required']"
+          required
+          data-testid="secretStorage-awsAccessKeyId"
+          outlined
+          dense
+        ></v-text-field>
+
+        <div class="d-flex justify-space-between align-center mb-2">
+          <b style="font-size: 13px; margin-left: 5px">Secret Key</b>
+          <v-btn-toggle v-model="secretStorage" tile group mandatory>
+            <v-btn value="database" small class="ma-0" style="border-radius: 4px">
+              Store in DB
+            </v-btn>
+            <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+            <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
+          </v-btn-toggle>
+        </div>
+
+        <v-text-field
+          v-if="secretStorage === 'database'"
+          class="TextInput TextInput--no-legend masked-secret-input"
+          v-model="item.secret"
+          label="Secret Access Key"
+          :disabled="formSaving"
+          :rules="[(v) => !!v || itemId !== 'new' || 'Secret Access Key is required']"
+          required
+          data-testid="secretStorage-awsSecretKey"
+          outlined
+          dense
+          append-icon="mdi-lock"
+        ></v-text-field>
+
+        <v-text-field
+          v-else
+          class="TextInput TextInput--no-legend"
+          v-model="item.secret"
+          :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
+          :disabled="formSaving"
+          :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
+          required
+          data-testid="secretStorage-awsSecretKeySource"
+          outlined
+          dense
+        ></v-text-field>
+      </template>
+    </div>
+
+    <div v-else-if="item.type === 'azure_kv'">
+      <v-text-field
+        v-model="item.params.vault_url"
+        label="Vault URL"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Vault URL is required']"
+        required
+        placeholder="https://my-vault.vault.azure.net"
+        data-testid="secretStorage-azureVaultURL"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.tenant_id"
+        label="Tenant ID"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Tenant ID is required']"
+        required
+        data-testid="secretStorage-azureTenantId"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.client_id"
+        label="Client ID"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Client ID is required']"
+        required
+        data-testid="secretStorage-azureClientId"
+        outlined
+        dense
+      ></v-text-field>
+
+      <div class="d-flex justify-space-between align-center mb-2">
+        <b style="font-size: 13px; margin-left: 5px">Client Secret</b>
+        <v-btn-toggle v-model="secretStorage" tile group mandatory>
+          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
+            Store in DB
+          </v-btn>
+          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
+        </v-btn-toggle>
+      </div>
+
+      <v-text-field
+        v-if="secretStorage === 'database'"
+        class="TextInput TextInput--no-legend masked-secret-input"
+        v-model="item.secret"
+        label="Client Secret"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || 'Client Secret is required']"
+        required
+        data-testid="secretStorage-azureClientSecret"
+        outlined
+        dense
+        append-icon="mdi-lock"
+      ></v-text-field>
+
+      <v-text-field
+        v-else
+        class="TextInput TextInput--no-legend"
+        v-model="item.secret"
+        :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
+        required
+        data-testid="secretStorage-azureClientSecretSource"
+        outlined
+        dense
+      ></v-text-field>
     </div>
 
     <v-checkbox
-        v-model="item.readonly"
-        :label="$t('Read only')"
-        :disabled="formSaving"
+      v-model="item.readonly"
+      :label="$t('Read only')"
+      :disabled="formSaving"
+      style="position: absolute; bottom: -5px; margin: 0; left: 25px"
     />
+
+    <div class="d-flex items-center justify-space-between">
+      <v-checkbox
+        class="mt-0"
+        v-model="item.sync_enabled"
+        :label="$t('Sync keys enabled')"
+        :disabled="formSaving"
+      />
+
+      <v-btn
+        style="margin-right: -10px"
+        text
+        color="primary"
+        @click="syncSettingsDialog = true"
+        :disabled="formSaving"
+        v-if="item.sync_enabled"
+      >
+        <v-icon left>mdi-cog-sync</v-icon>
+        Sync paths
+        <v-chip class="ml-2" outlined style="transform: translateY(-1px)" color="primary" small>
+          {{ item.sync_paths.length }}</v-chip
+        >
+      </v-btn>
+    </div>
+
+    <v-dialog v-model="syncSettingsDialog" max-width="500" persistent>
+      <v-card>
+        <v-card-title>Sync paths</v-card-title>
+        <v-card-text class="pt-4 pb-0">
+          <v-text-field
+            style="width: 140px"
+            v-if="item.sync_enabled"
+            v-model.number="item.sync_interval"
+            min="0"
+            :label="$t('Auto-sync interval')"
+            persistent-hint
+            :disabled="formSaving"
+            suffix="minutes"
+            outlined
+            dense
+          ></v-text-field>
+
+          <SecretStorageSyncOptionsForm v-model="item.sync_paths" />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text color="blue darken-1" @click="syncSettingsDialog = false">
+            {{ $t('close') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-form>
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import SecretStorageSyncOptionsForm from '@/components/SecretStorageSyncOptionsForm.vue';
 
 export default {
+  components: { SecretStorageSyncOptionsForm },
+
   props: {
     itemType: String,
   },
@@ -146,13 +397,17 @@ export default {
   data() {
     return {
       secretStorage: 'database',
+      secretStorageReady: false,
+      syncSettingsDialog: false,
     };
   },
 
   methods: {
-
     getNewItem() {
       return {
+        sync_enabled: false,
+        sync_interval: 0,
+        sync_paths: [],
         params: {},
       };
     },
@@ -162,15 +417,19 @@ export default {
         this.item.params = {};
       }
 
+      if (!this.item.sync_paths) {
+        this.$set(this.item, 'sync_paths', []);
+      }
+
       if (this.itemId === 'new') {
         this.item.type = this.itemType;
       }
 
-      if (this.item.secret_environment_variable) {
-        this.secretStorage = 'env';
-      } else {
-        this.secretStorage = 'database';
-      }
+      this.secretStorageReady = false;
+      this.secretStorage = this.item.source_storage_type || 'database';
+      this.$nextTick(() => {
+        this.secretStorageReady = true;
+      });
     },
 
     getItemsUrl() {
@@ -179,6 +438,31 @@ export default {
 
     getSingleItemUrl() {
       return `/api/project/${this.projectId}/secret_storages/${this.itemId}`;
+    },
+  },
+
+  watch: {
+    secretStorage(value, oldValue) {
+      this.item.source_storage_type = value === 'database' ? undefined : value;
+
+      if (!this.secretStorageReady || value === oldValue) {
+        return;
+      }
+
+      this.item.secret = '';
+    },
+
+    computed: {
+      useIamRole() {
+        return this.item?.params?.use_iam_role;
+      },
+    },
+
+    useIamRole(value) {
+      if (value) {
+        this.item.params.access_key_id = '';
+        this.item.secret = '';
+      }
     },
   },
 };

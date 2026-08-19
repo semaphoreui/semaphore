@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/spf13/cobra"
 )
@@ -15,7 +16,7 @@ var userListCmd = &cobra.Command{
 	Short: "Print all users",
 	Run: func(cmd *cobra.Command, args []string) {
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		users, err := store.GetUsers(db.RetrieveQueryParams{})
 

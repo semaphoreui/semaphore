@@ -70,7 +70,7 @@
         :hint="v.description"
         v-model="editedSecretEnvironment[v.name]"
         :required="v.required"
-        type="password"
+        class="masked-secret-input"
         :rules="[
             val => !v.required || !!val || v.title + $t('isRequired'),
           ]"
@@ -80,17 +80,45 @@
 
       <v-select
         clearable
-        v-else-if="v.type === 'enum'"
+        v-else-if="v.type === 'enum' || v.type === 'select'"
         :label="v.title + (v.required ? ' *' : '')"
         :hint="v.description"
         v-model="editedEnvironment[v.name]"
         :required="v.required"
         :rules="[
-          val => !v.required || val != null || v.title + ' ' + $t('isRequired')
+          val => !v.required || (Array.isArray(val) ? val.length > 0 : val != null)
+          || v.title + ' ' + $t('isRequired')
         ]"
         :items="v.values"
         item-text="name"
         item-value="value"
+        outlined
+        dense
+        :multiple="v.type === 'select'"
+        :chips="v.type === 'select'"
+      >
+      <template v-if="v.type === 'select'" v-slot:selection="{ item, index }">
+        <v-chip
+          small
+          close
+          @click:close="deleteItem(v.name, index)"
+        >
+          {{ item && item.name ? item.name : String(item) }}
+        </v-chip>
+      </template>
+    </v-select>
+
+      <v-textarea
+        v-else-if="v.type === 'text'"
+        :label="v.title + (v.required ? ' *' : '')"
+        :hint="v.description"
+        v-model="editedEnvironment[v.name]"
+        :required="v.required"
+        :rules="[
+          val => !v.required || !!val || v.title + ' ' + $t('isRequired'),
+        ]"
+        rows="3"
+        auto-grow
         outlined
         dense
       />
@@ -289,6 +317,12 @@ export default {
       this.item.arguments = JSON.stringify(args || []);
     },
 
+    deleteItem(name, index) {
+      if (Array.isArray(this.editedEnvironment?.[name])) {
+        this.editedEnvironment[name].splice(index, 1);
+      }
+    },
+
     getTaskMessage(task) {
       let buildTask = task;
 
@@ -317,6 +351,8 @@ export default {
       this.editedEnvironment = JSON.parse(v.environment || '{}');
       this.editedSecretEnvironment = JSON.parse(v.secret || '{}');
       this.hasCommit = v.commit_hash != null;
+
+      this.normalizeSelectValues();
     },
 
     isLoaded() {
@@ -388,6 +424,8 @@ export default {
         ...defaultVars,
         ...this.editedEnvironment,
       };
+
+      this.normalizeSelectValues();
     },
 
     getInventoryUrl() {
@@ -405,6 +443,19 @@ export default {
 
     getItemsUrl() {
       return `/api/project/${this.projectId}/tasks`;
+    },
+
+    normalizeSelectValues() {
+      if (!this.template || !this.template.survey_vars) return;
+      this.template.survey_vars.forEach((sv) => {
+        if (sv.type !== 'select') return;
+        const cur = this.editedEnvironment[sv.name];
+        if (cur == null || cur === '') {
+          this.$set(this.editedEnvironment, sv.name, []);
+        } else if (!Array.isArray(cur)) {
+          this.$set(this.editedEnvironment, sv.name, [cur]);
+        }
+      });
     },
   },
 };

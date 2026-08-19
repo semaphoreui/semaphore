@@ -106,6 +106,7 @@
 <script>
 import axios from 'axios';
 import ItemFormBase from '@/components/ItemFormBase';
+import { getRepositoryUrlType } from '@/lib/repositoryUrl';
 
 export default {
   mixins: [ItemFormBase],
@@ -136,31 +137,13 @@ export default {
   },
   computed: {
     type() {
-      return this.getTypeOfUrl(this.item.git_url);
+      return getRepositoryUrlType(this.item.git_url);
     },
   },
 
   methods: {
     getTypeOfUrl(url) {
-      if (url == null || url === '') {
-        return null;
-      }
-
-      if (url.startsWith('/')) {
-        return 'local';
-      }
-
-      const m = url.match(/^(\w+):\/\//);
-
-      if (m == null) {
-        return 'ssh';
-      }
-
-      if (!['git', 'file', 'ssh', 'http', 'https'].includes(m[1])) {
-        return null;
-      }
-
-      return m[1];
+      return getRepositoryUrlType(url);
     },
 
     setType(type) {
@@ -174,7 +157,11 @@ export default {
       }
 
       if (type === 'local') {
-        url = url.startsWith('/') ? url : `/${url}`;
+        const isWinDrive = /^[a-zA-Z]:/.test(url);
+        const isUnc = /^\\\\/.test(url);
+        if (!url.startsWith('/') && !isWinDrive && !isUnc) {
+          url = `/${url}`;
+        }
       } else {
         url = `${type}://${url}`;
       }

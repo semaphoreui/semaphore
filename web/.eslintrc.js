@@ -22,6 +22,7 @@ module.exports = {
     'linebreak-style': 'off',
     'prefer-destructuring': 'off',
     'vuejs-accessibility/click-events-have-key-events': 'off',
+    'vuejs-accessibility/no-autofocus': 'off',
     'vue/valid-v-slot': 'off',
     'vue/multi-word-component-names': 'off',
   },

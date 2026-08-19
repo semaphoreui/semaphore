@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	pro "github.com/semaphoreui/semaphore/pro/services/server"
 )
 
@@ -14,22 +17,35 @@ const RekeyBatchSize = 100
 
 var ErrReadOnlyStorage = errors.New("cannot modify secret in read-only storage")
 
+// ErrAccessKeyExpired is returned when a key with ExpireAt in the past is
+// deserialized. Expired secrets must never be usable.
+var ErrAccessKeyExpired = errors.New("access key expired")
+
 type AccessKeyEncryptionService interface {
 	SerializeSecret(key *db.AccessKey) error
 	DeserializeSecret(key *db.AccessKey) error
 	FillEnvironmentSecrets(env *db.Environment, deserializeSecret bool) error
 	DeleteSecret(key *db.AccessKey) error
+	RekeyAccessKeys(oldKey string) (err error)
+
+	// Task survey secrets: task-bound, expiring access keys
+	// (owner AccessKeyTaskSecret). See task_secret_svc.go.
+	CreateTaskSurveySecrets(projectID int, taskID int, secrets string, expireAt time.Time) error
+	GetTaskSurveySecrets(projectID int, taskID int) (string, error)
+	DeleteTaskSurveySecrets(projectID int, taskID int) error
 }
 
 func NewAccessKeyEncryptionService(
 	accessKeyRepo db.AccessKeyManager,
 	environmentRepo db.EnvironmentManager,
 	secretStorageRepo db.SecretStorageRepository,
+	projectRepo db.ProjectStore,
 ) AccessKeyEncryptionService {
 	return &accessKeyEncryptionServiceImpl{
 		accessKeyRepo:     accessKeyRepo,
 		environmentRepo:   environmentRepo,
 		secretStorageRepo: secretStorageRepo,
+		projectRepo:       projectRepo,
 	}
 }
 
@@ -57,11 +73,24 @@ type accessKeyEncryptionServiceImpl struct {
 	accessKeyRepo     db.AccessKeyManager
 	environmentRepo   db.EnvironmentManager
 	secretStorageRepo db.SecretStorageRepository
+	projectRepo       db.ProjectStore
 }
 
 func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) (AccessKeyDeserializer, bool, error) {
-	if key.SourceStorageID == nil {
+
+	if key.SourceStorageType == nil {
 		return &LocalAccessKeyDeserializer{}, false, nil
+	}
+
+	switch *key.SourceStorageType {
+	case db.AccessKeySourceStorageEnv, db.AccessKeySourceStorageFile:
+		return &LocalAccessKeyDeserializer{}, true, nil
+	case db.AccessKeySourceStorageVault:
+		if key.SourceStorageID == nil {
+			return &LocalAccessKeyDeserializer{}, false, errors.New("vault storage id is required")
+		}
+	default:
+		return nil, false, fmt.Errorf("unsupported secret storage type '%s'", *key.SourceStorageType)
 	}
 
 	storage, err := s.secretStorageRepo.GetSecretStorage(*key.ProjectID, *key.SourceStorageID)
@@ -70,10 +99,14 @@ func (s *accessKeyEncryptionServiceImpl) getDeserializer(key *db.AccessKey) (Acc
 	}
 
 	switch storage.Type {
-	case db.SecretStorageTypeVault:
+	case db.SecretStorageTypeVault, db.SecretStorageTypeOpenBao:
 		return pro.NewVaultAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), storage.ReadOnly, nil
 	case db.SecretStorageTypeDvls:
 		return pro.NewDvlsAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), storage.ReadOnly, nil
+	case db.SecretStorageTypeAwsSm:
+		return pro.NewAwsSmAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), storage.ReadOnly, nil
+	case db.SecretStorageTypeAzureKv:
+		return pro.NewAzureKvAccessKeyDeserializer(s.accessKeyRepo, s.secretStorageRepo, s), storage.ReadOnly, nil
 	}
 
 	return nil, false, fmt.Errorf("unsupported secret storage type '%s'", storage.Type)
@@ -93,7 +126,7 @@ func (s *accessKeyEncryptionServiceImpl) SerializeSecret(key *db.AccessKey) erro
 		return err
 	}
 	if readonly {
-		return ErrReadOnlyStorage
+		return common_errors.NewUserError(ErrReadOnlyStorage)
 	}
 
 	err = key.Validate(true)
@@ -105,6 +138,10 @@ func (s *accessKeyEncryptionServiceImpl) SerializeSecret(key *db.AccessKey) erro
 }
 
 func (s *accessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) error {
+	if key.ExpireAt != nil && tz.Now().After(*key.ExpireAt) {
+		return ErrAccessKeyExpired
+	}
+
 	d, _, err := s.getDeserializer(key)
 	if err != nil {
 		return err
@@ -135,13 +172,14 @@ func (s *accessKeyEncryptionServiceImpl) FillEnvironmentSecrets(env *db.Environm
 		var secretName string
 		var secretType db.EnvironmentSecretType
 
-		if k.Owner == db.AccessKeyVariable {
+		switch k.Owner {
+		case db.AccessKeyVariable:
 			secretType = db.EnvironmentSecretVar
 			secretName = strings.TrimPrefix(k.Name, string(db.EnvironmentSecretVar)+".")
-		} else if k.Owner == db.AccessKeyEnvironment {
+		case db.AccessKeyEnvironment:
 			secretType = db.EnvironmentSecretEnv
 			secretName = strings.TrimPrefix(k.Name, string(db.EnvironmentSecretEnv)+".")
-		} else {
+		default:
 			secretType = db.EnvironmentSecretVar
 			secretName = k.Name
 		}
@@ -164,41 +202,75 @@ func (s *accessKeyEncryptionServiceImpl) FillEnvironmentSecrets(env *db.Environm
 	return nil
 }
 
+// RekeyAccessKeys re-encrypts every locally stored Access Key secret under the
+// current access keyring primary. When oldKey is empty, secrets are decrypted
+// with the access keyring (primary then retired secondaries); when oldKey is
+// supplied it is used as the single decryption key (the legacy
+// `vault rekey --old-key` flow). External secret storages are skipped.
 func (s *accessKeyEncryptionServiceImpl) RekeyAccessKeys(oldKey string) (err error) {
 
-	//var globalProps = db.AccessKeyProps
-	//globalProps.IsGlobal = true
-	//
-	//for i := 0; ; i++ {
-	//
-	//	var keys []db.AccessKey
-	//	err = d.getObjects(-1, globalProps, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize}, nil, &keys)
-	//
-	//	if err != nil {
-	//		return
-	//	}
-	//
-	//	if len(keys) == 0 {
-	//		break
-	//	}
-	//
-	//	for _, key := range keys {
-	//
-	//		err = s.DeserializeSecret(oldKey)
-	//		err = key.DeserializeSecret2(oldKey)
-	//
-	//		if err != nil {
-	//			return err
-	//		}
-	//
-	//		key.OverrideSecret = true
-	//		err = s.accessKeyRepo.UpdateAccessKey(key)
-	//
-	//		if err != nil && !errors.Is(err, db.ErrNotFound) {
-	//			return err
-	//		}
-	//	}
-	//}
+	deserializer := NewLocalAccessKeyDeserializer()
+
+	projects, err := s.projectRepo.GetAllProjects()
+	if err != nil {
+		return
+	}
+
+	for _, project := range projects {
+
+		for i := 0; ; i++ {
+
+			var keys []db.AccessKey
+			keys, err = s.accessKeyRepo.GetAccessKeys(project.ID, db.GetAccessKeyOptions{IgnoreOwner: true}, db.RetrieveQueryParams{Count: RekeyBatchSize, Offset: i * RekeyBatchSize})
+
+			if err != nil {
+				return
+			}
+
+			if len(keys) == 0 {
+				break
+			}
+
+			for _, key := range keys {
+
+				if key.SourceStorageType != nil {
+					continue
+				}
+
+				var secret string
+				if oldKey == "" {
+					// No explicit old key: decrypt with the access keyring
+					// (primary then retired secondaries).
+					secret, err = deserializer.DeserializeSecret(&key)
+				} else {
+					secret, err = deserializer.DeserializeSecret2(&key, oldKey)
+				}
+
+				if err != nil {
+					return err
+				}
+
+				err = unmarshalAppropriateField(&key, []byte(secret))
+
+				if err != nil {
+					return err
+				}
+
+				key.OverrideSecret = true
+				err = deserializer.SerializeSecret(&key)
+
+				if err != nil {
+					return err
+				}
+
+				err = s.accessKeyRepo.UpdateAccessKey(key)
+
+				if err != nil && !errors.Is(err, db.ErrNotFound) {
+					return err
+				}
+			}
+		}
+	}
 
 	return
 }

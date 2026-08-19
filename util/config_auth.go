@@ -13,7 +13,7 @@ type EmailAuthConfig struct {
 	DisableForOidc           bool     `json:"disable_for_oidc" env:"SEMAPHORE_EMAIL_2TP_DISABLE_FOR_OIDC"`
 }
 
-type AuthConfig struct {
+type MultifactorAuthConfig struct {
 	Totp  *TotpConfig      `json:"totp,omitempty"`
 	Email *EmailAuthConfig `json:"email,omitempty"`
 

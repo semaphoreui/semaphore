@@ -16,14 +16,16 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
-
-	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/natefinch/lumberjack.v2"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/gorilla/securecookie"
+	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/natefinch/lumberjack.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // Cookie is a runtime generated secure cookie used for authentication
@@ -39,12 +41,20 @@ const (
 	DbDriverSQLite   = "sqlite"
 )
 
-type EventLogAction string
-
 const (
-	EventLogCreate EventLogAction = "create"
-	EventLogUpdate EventLogAction = "update"
-	EventLogDelete EventLogAction = "delete"
+	// HomeDirModeUserHome does not override HOME.
+	// Sets ANSIBLE_HOME per template to isolate .ansible/ across parallel tasks.
+	HomeDirModeUserHome = "user_home"
+
+	// HomeDirModeProjectHome sets HOME to the project temp directory.
+	// This is the legacy behavior. Parallel ansible-galaxy runs may conflict.
+	HomeDirModeProjectHome = "project_home"
+
+	// HomeDirModeTemplateDir does not override HOME.
+	// Sets ANSIBLE_HOME to a per-template "_home/.ansible" directory
+	// (e.g. repository_15_template_114_home/.ansible) to isolate
+	// .ansible/ artifacts across parallel tasks.
+	HomeDirModeTemplateDir = "template_dir"
 )
 
 type DbConfig struct {
@@ -52,7 +62,7 @@ type DbConfig struct {
 
 	Hostname string            `json:"host,omitempty" env:"SEMAPHORE_DB_HOST" default:"0.0.0.0"`
 	Username string            `json:"user,omitempty" env:"SEMAPHORE_DB_USER"`
-	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS"`
+	Password string            `json:"pass,omitempty" env:"SEMAPHORE_DB_PASS,sensitive"`
 	DbName   string            `json:"name,omitempty" env:"SEMAPHORE_DB" default:"semaphore"`
 	Options  map[string]string `json:"options,omitempty" env:"SEMAPHORE_DB_OPTIONS"`
 }
@@ -105,11 +115,40 @@ const (
 //
 // */
 
+// RunnerConnectionConfig controls how the runner connects to the
+// Semaphore server.
+type RunnerConnectionConfig struct {
+	// ServerCACertFile is a PEM bundle used to verify the Semaphore
+	// server's certificate, in addition to the system trust store.
+	// Set this when the server uses a self-signed or internal-CA cert.
+	ServerCACertFile string `json:"server_ca_cert_file,omitempty" env:"SEMAPHORE_RUNNER_SERVER_CA_CERT_FILE"`
+	// SkipTLSVerify disables server certificate verification entirely.
+	// This is insecure (vulnerable to MITM) — use only for testing.
+	SkipTLSVerify bool `json:"skip_tls_verify,omitempty" env:"SEMAPHORE_RUNNER_SKIP_TLS_VERIFY"`
+}
+
+// ExecutorType identifies the strategy the runner uses to execute each task. The default
+// "local" executor runs tasks as subprocesses on the runner host. "kubernetes" dispatches
+// each task into an ephemeral pod, GitLab-runner-style.
+type ExecutorType string
+
+const (
+	ExecutorTypeLocal      ExecutorType = "local"
+	ExecutorTypeKubernetes ExecutorType = "k8s"
+	ExecutorTypeDocker     ExecutorType = "docker"
+)
+
+type ExecutorConfig struct {
+	Type   ExecutorType       `json:"type" default:"local"`
+	K8s    RunnerK8sConfig    `json:"k8s,omitempty"`
+	Docker RunnerDockerConfig `json:"docker,omitempty"`
+}
+
 type RunnerConfig struct {
-	RegistrationToken string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
-	Token             string `json:"token,omitempty" env:"SEMAPHORE_RUNNER_TOKEN"`
-	TokenFile         string `json:"token_file,omitempty" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
-	PrivateKeyFile    string `json:"private_key_file,omitempty" env:"SEMAPHORE_RUNNER_PRIVATE_KEY_FILE"`
+	RegistrationToken     string `json:"-" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
+	RegistrationTokenFile string `json:"registration_token_file,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN_FILE"`
+	Token                 string `json:"token,omitempty" env:"SEMAPHORE_RUNNER_TOKEN,sensitive"`
+	TokenFile             string `json:"token_file,omitempty" env:"SEMAPHORE_RUNNER_TOKEN_FILE"`
 
 	// OneOff indicates than runner runs only one job and exit. It is very useful for dynamic runners.
 	// How it works?
@@ -120,15 +159,138 @@ type RunnerConfig struct {
 	// 4) The runner connects to the Semaphore server and handles the enqueued task(s).
 	OneOff bool `json:"one_off,omitempty" env:"SEMAPHORE_RUNNER_ONE_OFF"`
 
-	Webhook string `json:"webhook,omitempty" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+	Enabled          bool     `json:"enabled,omitempty" env:"SEMAPHORE_RUNNER_ENABLED"`
+	Webhook          string   `json:"webhook,omitempty" env:"SEMAPHORE_RUNNER_WEBHOOK"`
+	Name             string   `json:"name,omitempty" env:"SEMAPHORE_RUNNER_NAME"`
+	Tags             []string `json:"tags,omitempty" env:"SEMAPHORE_RUNNER_TAGS"`
+	MaxParallelTasks int      `json:"max_parallel_tasks,omitempty" default:"9999" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
+	ProjectID        *int     `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
 
-	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"1" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
+	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
+
+	Executor *ExecutorConfig `json:"executor,omitempty" env:"SEMAPHORE_RUNNER_EXECUTOR"`
+}
+
+// RunnerK8sConfig holds runner-side configuration for the Kubernetes executor. Field
+// shape mirrors the GitLab runner Kubernetes executor for familiarity. Empty values
+// fall back to the documented defaults at consumption time (see pro/services/tasks/k8s).
+type RunnerK8sConfig struct {
+	// KubeconfigPath is the path to a kubeconfig file. When empty, in-cluster
+	// configuration is used (ServiceAccount token + CA cert mounted by Kubernetes).
+	KubeconfigPath string `json:"kubeconfig,omitempty" env:"SEMAPHORE_RUNNER_K8S_KUBECONFIG"`
+
+	// Namespace is where ephemeral task Pods are created.
+	Namespace string `json:"namespace,omitempty" default:"semaphore" env:"SEMAPHORE_RUNNER_K8S_NAMESPACE"`
+
+	// Image is the default container image used for the build container of each
+	// task Pod. Templates may override this in a future phase.
+	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_K8S_IMAGE"`
+
+	// HelperImage is the image used for the git-clone init container (Phase 3+).
+	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_K8S_HELPER_IMAGE"`
+
+	// ServiceAccount that task Pods run under. Defaults to the namespace's default SA.
+	ServiceAccount string `json:"service_account,omitempty" default:"default" env:"SEMAPHORE_RUNNER_K8S_SERVICE_ACCOUNT"`
+
+	// PullSecrets is a comma-separated list of imagePullSecrets attached to each Pod.
+	PullSecrets string `json:"pull_secrets,omitempty" env:"SEMAPHORE_RUNNER_K8S_PULL_SECRETS"`
+
+	// PollIntervalSeconds controls how often the executor polls Pod status. Defaults
+	// to 3 seconds. Kept as a plain int (not time.Duration) for env-binding simplicity.
+	PollIntervalSeconds int `json:"poll_interval_seconds,omitempty" default:"3" env:"SEMAPHORE_RUNNER_K8S_POLL_INTERVAL_SECONDS"`
+
+	// CleanupGraceSeconds is the grace period when deleting Pods. Defaults to 30s.
+	CleanupGraceSeconds int `json:"cleanup_grace_seconds,omitempty" default:"30" env:"SEMAPHORE_RUNNER_K8S_CLEANUP_GRACE_SECONDS"`
+}
+
+// RunnerDockerConfig holds runner-side configuration for the Docker executor. Each task
+// runs in an ephemeral container created against a local or remote Docker daemon,
+// GitLab-Docker-executor-style. Empty values fall back to the documented defaults at
+// consumption time (see pro/services/tasks/docker).
+type RunnerDockerConfig struct {
+	// Host is the Docker daemon URL. Supports unix://, tcp:// and npipe:// schemes.
+	// When empty the standard environment (DOCKER_HOST) and the platform default
+	// socket are used.
+	Host string `json:"host,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_HOST"`
+
+	// TLSVerify enables TLS certificate verification for tcp:// connections.
+	TLSVerify bool `json:"tls_verify,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_TLS_VERIFY"`
+
+	// CertPath is the directory holding ca.pem, cert.pem and key.pem for mutual TLS
+	// against a remote daemon.
+	CertPath string `json:"cert_path,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_CERT_PATH"`
+
+	// Image is the default image used for the build container of each task.
+	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_IMAGE"`
+
+	// HelperImage is the image used for the transient git-clone container.
+	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_DOCKER_HELPER_IMAGE"`
+
+	// Network is the Docker network the build container joins. Defaults to "bridge".
+	Network string `json:"network,omitempty" default:"bridge" env:"SEMAPHORE_RUNNER_DOCKER_NETWORK"`
+
+	// PullPolicy controls image pulling: always, if-not-present or never.
+	PullPolicy string `json:"pull_policy,omitempty" default:"if-not-present" env:"SEMAPHORE_RUNNER_DOCKER_PULL_POLICY"`
+
+	// CPULimit, when > 0, caps the build container CPU (passed as --cpus).
+	CPULimit float64 `json:"cpu_limit,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_CPU_LIMIT"`
+
+	// MemoryLimit, when non-empty, caps the build container memory (e.g. "2g").
+	MemoryLimit string `json:"memory_limit,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_MEMORY_LIMIT"`
+
+	// PollIntervalSeconds controls how often container status is polled. Defaults to 2s.
+	PollIntervalSeconds int `json:"poll_interval_seconds,omitempty" default:"2" env:"SEMAPHORE_RUNNER_DOCKER_POLL_INTERVAL_SECONDS"`
+
+	// CleanupGraceSeconds is the timeout passed to docker stop. Defaults to 30s.
+	CleanupGraceSeconds int `json:"cleanup_grace_seconds,omitempty" default:"30" env:"SEMAPHORE_RUNNER_DOCKER_CLEANUP_GRACE_SECONDS"`
+
+	// Privileged runs the build container with --privileged. Dangerous; off by default.
+	Privileged bool `json:"privileged,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_PRIVILEGED"`
+}
+
+type DefultGlobalRunnerMode string
+
+const (
+	DefultGlobalRunnerNone    DefultGlobalRunnerMode = ""
+	DefultGlobalRunnerDisable DefultGlobalRunnerMode = "disable"
+	DefultGlobalRunnerPrefer  DefultGlobalRunnerMode = "prefer"
+	DefultGlobalRunnerRequire DefultGlobalRunnerMode = "require"
+)
+
+// RunnersConfig holds server-side settings describing how the server treats
+// its runner fleet. It is unrelated to RunnerConfig, which configures a runner
+// process itself: server-side fleet settings use the SEMAPHORE_RUNNERS_* env
+// prefix, runner-process settings use SEMAPHORE_RUNNER_*.
+type RunnersConfig struct {
+	// OfflineTimeoutSec is the heartbeat staleness after which a runner is
+	// considered offline: it receives no new tasks and its "starting" tasks
+	// are reassigned to another runner. Must be comfortably larger than the
+	// runner poll interval (a few multiples) so a healthy-but-slow runner is
+	// never marked offline.
+	OfflineTimeoutSec int `json:"offline_timeout_sec,omitempty" default:"120" env:"SEMAPHORE_RUNNERS_OFFLINE_TIMEOUT_SEC"`
+
+	// TaskFailTimeoutSec is the heartbeat staleness after which a runner's
+	// "running" tasks are failed. Between OfflineTimeoutSec and this value a
+	// running task is deliberately left alone: an offline runner may still be
+	// executing its jobs and resumes reporting if it reconnects in time.
+	// Values below OfflineTimeoutSec are clamped to it.
+	TaskFailTimeoutSec int `json:"task_fail_timeout_sec,omitempty" default:"420" env:"SEMAPHORE_RUNNERS_TASK_FAIL_TIMEOUT_SEC"`
+
+	// ReconcileIntervalSec is how often the server scans dispatched tasks
+	// against runner liveness.
+	ReconcileIntervalSec int `json:"reconcile_interval_sec,omitempty" default:"30" env:"SEMAPHORE_RUNNERS_RECONCILE_INTERVAL_SEC"`
+
+	// RunnerRegistrationToken is deprecated, use Runners field instead of it.
+	RegistrationToken string `json:"registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
+
+	DefaultGlobalRunnersMode DefultGlobalRunnerMode `json:"default_global_runners_mode" env:"SEMAPHORE_DEFAULT_GLOBAL_RUNNERS_MODE"`
 }
 
 type TLSConfig struct {
 	Enabled          bool   `json:"enabled" env:"SEMAPHORE_TLS_ENABLED"`
 	CertFile         string `json:"cert_file" env:"SEMAPHORE_TLS_CERT_FILE"`
 	KeyFile          string `json:"key_file" env:"SEMAPHORE_TLS_KEY_FILE"`
+	HTTPRedirectAddr string `json:"http_redirect_addr,omitempty" env:"SEMAPHORE_TLS_HTTP_REDIRECT_ADDR"`
 	HTTPRedirectPort *int   `json:"http_redirect_port,omitempty" env:"SEMAPHORE_TLS_HTTP_REDIRECT_PORT"`
 }
 
@@ -139,47 +301,76 @@ type TotpConfig struct {
 }
 
 type EventLogType struct {
-	Format  FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_EVENT_LOG_FORMAT"`
+	Format  string             `json:"format,omitempty" env:"SEMAPHORE_EVENT_LOG_FORMAT"`
 	Enabled bool               `json:"enabled" env:"SEMAPHORE_EVENT_LOG_ENABLED"`
 	Logger  *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_EVENT_LOGGER"`
 }
 
-type FileLogFormat string
-
 const (
-	FileLogJSON FileLogFormat = "json"
-	FileLogRaw  FileLogFormat = ""
+	FileLogJSON string = "json"
+	FileLogRaw  string = ""
 )
 
 type TaskLogType struct {
 	Enabled      bool               `json:"enabled" env:"SEMAPHORE_TASK_LOG_ENABLED"`
-	Format       FileLogFormat      `json:"format,omitempty" env:"SEMAPHORE_TASK_LOG_FORMAT"`
+	Format       string             `json:"format,omitempty" env:"SEMAPHORE_TASK_LOG_FORMAT"`
 	Logger       *lumberjack.Logger `json:"logger,omitempty" env:"SEMAPHORE_TASK_LOGGER"`
 	ResultLogger *lumberjack.Logger `json:"result_logger,omitempty" env:"SEMAPHORE_TASK_RESULT_LOGGER"`
 }
 
-type ConfigLogChannels struct {
-	Syslog *SyslogConfig `json:"syslog,omitempty"`
+type ConfigLog struct {
+	Events *EventLogType `json:"events,omitempty"`
+	Tasks  *TaskLogType  `json:"tasks,omitempty"`
 }
 
-type ConfigLog struct {
-	Events   *EventLogType      `json:"events,omitempty"`
-	Tasks    *TaskLogType       `json:"tasks,omitempty"`
-	Channels *ConfigLogChannels `json:"channels,omitempty"`
-}
+type SyslogFormat string
+
+const (
+	SyslogDefault SyslogFormat = ""
+	SyslogRFC5424 SyslogFormat = "rfc5424"
+)
 
 type SyslogConfig struct {
-	Enabled bool   `json:"enabled" env:"SEMAPHORE_SYSLOG_ENABLED"`
-	Network string `json:"network,omitempty" env:"SEMAPHORE_SYSLOG_NETWORK"`
-	Address string `json:"address,omitempty" env:"SEMAPHORE_SYSLOG_ADDRESS"`
-	Tag     string `json:"tag,omitempty" env:"SEMAPHORE_SYSLOG_TAG"`
+	Enabled bool         `json:"enabled" env:"SEMAPHORE_SYSLOG_ENABLED"`
+	Network string       `json:"network,omitempty" env:"SEMAPHORE_SYSLOG_NETWORK"`
+	Address string       `json:"address,omitempty" env:"SEMAPHORE_SYSLOG_ADDRESS"`
+	Tag     string       `json:"tag,omitempty" env:"SEMAPHORE_SYSLOG_TAG"`
+	Format  SyslogFormat `json:"format,omitempty" env:"SEMAPHORE_SYSLOG_FORMAT"`
+}
+
+type MetricsConfig struct {
+	Enabled  bool   `json:"enabled" env:"SEMAPHORE_METRICS_ENABLED"`
+	Username string `json:"username,omitempty" env:"SEMAPHORE_METRICS_USERNAME"`
+	Password string `json:"password,omitempty" env:"SEMAPHORE_METRICS_PASSWORD,sensitive"`
 }
 
 type ConfigProcess struct {
-	User   string `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
-	UID    *int   `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
-	Chroot string `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
-	GID    *int   `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
+	User       string  `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
+	UID        *uint32 `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
+	Chroot     string  `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
+	GID        *uint32 `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
+	NoNewPrivs bool    `json:"no_new_privs,omitempty" env:"SEMAPHORE_PROCESS_NO_NEW_PRIVS"`
+
+	// AppNamespaces controls Linux namespace isolation for child apps
+	// (ansible, terraform, shell templates). Git is never isolated —
+	// SSH agent forwarding and credential helpers need host access.
+	AppNamespaces ConfigAppNamespaces `json:"app_namespaces"`
+}
+
+// ConfigAppNamespaces mirrors the CLONE_NEW* flags applied to app runs.
+// Each flag is a standard Linux namespace and is a no-op on non-Linux.
+type ConfigAppNamespaces struct {
+	// User isolates UIDs/GIDs (CLONE_NEWUSER). Enables unprivileged use
+	// of the other namespaces.
+	User bool `json:"user,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_USER"`
+	// Mount hides host mount points such as secret tmpfs (CLONE_NEWNS).
+	Mount bool `json:"mount,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_MOUNT"`
+	// PID hides host processes from child apps (CLONE_NEWPID).
+	PID bool `json:"pid,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_PID"`
+	// IPC isolates SysV IPC and POSIX message queues (CLONE_NEWIPC).
+	IPC bool `json:"ipc,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_IPC"`
+	// UTS isolates hostname and domain (CLONE_NEWUTS).
+	UTS bool `json:"uts,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_UTS"`
 }
 
 type ScheduleConfig struct {
@@ -194,7 +385,7 @@ type DebuggingConfig struct {
 type HARedisConfig struct {
 	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
 	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
-	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS"`
+	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS,sensitive"`
 	User          string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
 	TLS           bool   `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
 	TLSSkipVerify bool   `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
@@ -202,7 +393,24 @@ type HARedisConfig struct {
 
 type HAConfig struct {
 	Enabled bool           `json:"enabled" env:"SEMAPHORE_HA_ENABLED"`
+	NodeID  string         `json:"node_id,omitempty" env:"SEMAPHORE_HA_NODE_ID"` // auto-generated if empty
 	Redis   *HARedisConfig `json:"redis,omitempty"`
+}
+
+// HAEnabled returns true when high-availability mode is configured.
+func HAEnabled() bool {
+	return Config.HA != nil && Config.HA.Enabled
+}
+
+// InitHANodeID generates a unique node identifier for this instance if one
+// was not explicitly configured. Must be called after ConfigInit.
+func InitHANodeID() {
+	if Config.HA == nil {
+		return
+	}
+	if Config.HA.NodeID == "" {
+		Config.HA.NodeID = RandString(16)
+	}
 }
 
 type TeamInviteType string
@@ -219,21 +427,102 @@ type TeamsConfig struct {
 	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
 }
 
+type ConfigDirs struct {
+	Secrets         string `json:"secrets,omitempty" env:"SEMAPHORE_SECRETS_PATH" default:"/tmp/semaphore"`
+	Repos           string `json:"repos,omitempty" env:"SEMAPHORE_REPOS_DIR"`
+	SSHAgentSockets string `json:"ssh_agent_sockets,omitempty" env:"SEMAPHORE_SSH_AGENT_SOCKETS_DIR" default:"/tmp/semaphore"`
+}
+
+// JWTConfig issuance for task executions (used by playbooks to authenticate to
+type JWTConfig struct {
+	Enabled    bool   `json:"enabled,omitempty" env:"SEMAPHORE_JWT_ENABLED"`
+	Issuer     string `json:"issuer,omitempty" env:"SEMAPHORE_JWT_ISSUER"`
+	DefaultTTL string `json:"default_ttl,omitempty" env:"SEMAPHORE_JWT_DEFAULT_TTL" default:"1h"`
+	MaxTTL     string `json:"max_ttl,omitempty" env:"SEMAPHORE_JWT_MAX_TTL" default:"24h"`
+}
+
+// KeySource supplies a single secret key either inline (Value) or from a file
+// (File). Value and File are mutually exclusive.
+type KeySource struct {
+	Value string `json:"value,omitempty"`
+	File  string `json:"file,omitempty"`
+}
+
+// ActivePointers names the active (encrypting) key per purpose. A key may be
+// named by label (SecretKey/OptionKey, into the keys map) or by filename
+// (SecretKeyFile/OptionKeyFile, a file in KeysFolder, relative to it). The
+// label/filename is human-facing only; the id stored in the database is derived
+// from the key material.
+type ActivePointers struct {
+	SecretKey     string `json:"secret_key,omitempty"`
+	OptionKey     string `json:"option_key,omitempty"`
+	SecretKeyFile string `json:"secret_key_file,omitempty"`
+	OptionKeyFile string `json:"option_key_file,omitempty"`
+}
+
+// EncryptionKeysConfig is the content of the keys file: a registry of keys plus
+// pointers to the active key per purpose. The registry can be an inline map
+// (Keys: label -> source) and/or a folder of key files (KeysFolder: each regular
+// file is one key, labelled by its filename); the two combine. Decryption looks a
+// key up by the content-addressed id stamped into each ciphertext, so a key is
+// "retired" simply by no longer being active while some rows still reference it.
+// access_key protects Access Key secrets in the database; option_key protects
+// encrypted DB options (the JWT signing key) and falls back to the access key.
+type EncryptionKeysConfig struct {
+	Keys       map[string]KeySource `json:"keys,omitempty"`
+	KeysFolder string               `json:"keys_folder,omitempty"`
+	Active     ActivePointers       `json:"active"`
+}
+
+// EncryptionConfig is the main-config "encryption" section. It points at the
+// separate keys file and controls how often that file is polled for changes.
+type EncryptionConfig struct {
+	// KeysFile is the path to the EncryptionKeysConfig file (the keyrings).
+	KeysFile string `json:"keys_file,omitempty" env:"SEMAPHORE_ENCRYPTION_KEYS_FILE"`
+	// KeysPollInterval is how often the keys file is checked for changes (a Go
+	// duration like "15s"). "0" disables polling (SIGHUP still forces a reload).
+	KeysPollInterval string `json:"keys_poll_interval,omitempty" env:"SEMAPHORE_ENCRYPTION_KEYS_POLL_INTERVAL" default:"15s"`
+}
+
+type SshStrictHostKeyChecking string
+
+const (
+	SshStrictHostKeyCheckingNo        SshStrictHostKeyChecking = "no"
+	SshStrictHostKeyCheckingYes       SshStrictHostKeyChecking = "yes"
+	SshStrictHostKeyCheckingAcceptNew SshStrictHostKeyChecking = "accept-new"
+)
+
+type SshConfig struct {
+	// SshConfigPath is a path to the custom SSH config file.
+	// Default path is ~/.ssh/config.
+	ConfigPath string `json:"config_path,omitempty" env:"SEMAPHORE_SSH_PATH"`
+
+	// SshKnownHostsFile is a path to the SSH known_hosts file used to verify git
+	// server host keys. When set, host-key checking is strict: a key that is
+	// missing from (or changed relative to) this file aborts the connection,
+	// preventing a network attacker from impersonating the git server. When
+	// empty, Semaphore uses a persistent trust-on-first-use file under TmpPath
+	// (StrictHostKeyChecking=accept-new): the first connection to a host is
+	// trusted and pinned, and any later host-key change is rejected.
+	KnownHostsFile string `json:"known_hosts_file,omitempty" env:"SEMAPHORE_SSH_KNOWN_HOSTS_FILE"`
+
+	StrictHostKeyChecking SshStrictHostKeyChecking `json:"strict_host_key_checking,omitempty" env:"" default:"no"`
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
-	BoltDb   *DbConfig `json:"bolt,omitempty"` // Deprecated
 	Postgres *DbConfig `json:"postgres,omitempty"`
 	SQLite   *DbConfig `json:"sqlite,omitempty"`
 
-	Dialect string `json:"dialect,omitempty" default:"bolt" rule:"^mysql|bolt|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
+	Dialect string `json:"dialect,omitempty" default:"sqlite" rule:"^mysql|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
 
 	// Format `:port_num` eg, :3000
 	// if : is missing it will be corrected
 	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 	TLS  *TLSConfig `json:"tls,omitempty"`
 
-	Auth *AuthConfig `json:"auth,omitempty"`
+	Mfa *MultifactorAuthConfig `json:"mfa,omitempty"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
@@ -242,9 +531,21 @@ type ConfigType struct {
 	// semaphore stores ephemeral projects here
 	TmpPath string `json:"tmp_path,omitempty" default:"/tmp/semaphore" env:"SEMAPHORE_TMP_PATH"`
 
+	// HomeDirMode controls how the HOME environment variable is set for tasks.
+	//   "template_home" (default) — HOME is set to a per-template directory,
+	//       isolating .ansible/ across parallel tasks. Repo is cloned into a
+	//       "src" subdirectory under HOME.
+	//   "project_home" — HOME is set to the project temp directory (legacy
+	//       behavior). Parallel ansible-galaxy runs in the same project may conflict.
+	//   "user_home" — HOME is not overridden (keeps the real user HOME).
+	//       ANSIBLE_HOME is set per template to isolate .ansible/ for Ansible tasks.
+	HomeDirMode string `json:"home_dir_mode,omitempty" rule:"^(user_home|project_home|template_dir)?$" env:"SEMAPHORE_HOME_DIR_MODE" default:"template_dir"`
+
 	// SshConfigPath is a path to the custom SSH config file.
 	// Default path is ~/.ssh/config.
 	SshConfigPath string `json:"ssh_config_path,omitempty" env:"SEMAPHORE_SSH_PATH"`
+
+	Ssh *SshConfig `json:"ssh"`
 
 	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
@@ -252,11 +553,21 @@ type ConfigType struct {
 	WebHost string `json:"web_host,omitempty" env:"SEMAPHORE_WEB_ROOT"`
 
 	// cookie hashing & encryption
-	CookieHash       string `json:"cookie_hash,omitempty" env:"SEMAPHORE_COOKIE_HASH"`
-	CookieEncryption string `json:"cookie_encryption,omitempty" env:"SEMAPHORE_COOKIE_ENCRYPTION"`
+	CookieHash       string `json:"cookie_hash,omitempty" env:"SEMAPHORE_COOKIE_HASH,sensitive"`
+	CookieEncryption string `json:"cookie_encryption,omitempty" env:"SEMAPHORE_COOKIE_ENCRYPTION,sensitive"`
 	// AccessKeyEncryption is BASE64 encoded byte array used
 	// for encrypting and decrypting access keys stored in database.
-	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION"`
+	// Legacy entry point kept for backward compatibility; the access keyring is
+	// configured via EncryptionKeys.AccessKey (encryption_keys.access_key).
+	AccessKeyEncryption string `json:"access_key_encryption,omitempty" env:"SEMAPHORE_ACCESS_KEY_ENCRYPTION,sensitive"`
+
+	// OptionEncryption is a BASE64 encoded key used to encrypt/decrypt DB options
+	// (the JWT signing key) with the old single-key scheme (no rotation). It is
+	// the option-keyring counterpart of AccessKeyEncryption: when set the option
+	// keyring uses this one key; rotation is configured instead via the keys file
+	// (encryption.keys_file → option_key). When unset, options fall back to the
+	// access keyring.
+	OptionEncryption string `json:"option_encryption,omitempty" env:"SEMAPHORE_OPTION_ENCRYPTION,sensitive"`
 
 	// email alerting
 	EmailAlert         bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
@@ -264,7 +575,7 @@ type ConfigType struct {
 	EmailHost          string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
 	EmailPort          string `json:"email_port,omitempty" rule:"^(|[0-9]{1,5})$" env:"SEMAPHORE_EMAIL_PORT"`
 	EmailUsername      string `json:"email_username,omitempty" env:"SEMAPHORE_EMAIL_USERNAME"`
-	EmailPassword      string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD"`
+	EmailPassword      string `json:"email_password,omitempty" env:"SEMAPHORE_EMAIL_PASSWORD,sensitive"`
 	EmailSecure        bool   `json:"email_secure,omitempty" env:"SEMAPHORE_EMAIL_SECURE"`
 	EmailTls           bool   `json:"email_tls,omitempty" env:"SEMAPHORE_EMAIL_TLS"`
 	EmailTlsMinVersion string `json:"email_tls_min_version,omitempty" default:"1.2" rule:"^(1\\.[0123])$" env:"SEMAPHORE_EMAIL_TLS_MIN_VERSION"`
@@ -272,17 +583,26 @@ type ConfigType struct {
 	// ldap settings
 	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"SEMAPHORE_LDAP_ENABLE"`
 	LdapBindDN       string        `json:"ldap_binddn,omitempty" env:"SEMAPHORE_LDAP_BIND_DN"`
-	LdapBindPassword string        `json:"ldap_bindpassword,omitempty" env:"SEMAPHORE_LDAP_BIND_PASSWORD"`
+	LdapBindPassword string        `json:"ldap_bindpassword,omitempty" env:"SEMAPHORE_LDAP_BIND_PASSWORD,sensitive"`
 	LdapServer       string        `json:"ldap_server,omitempty" env:"SEMAPHORE_LDAP_SERVER"`
 	LdapSearchDN     string        `json:"ldap_searchdn,omitempty" env:"SEMAPHORE_LDAP_SEARCH_DN"`
 	LdapSearchFilter string        `json:"ldap_searchfilter,omitempty" env:"SEMAPHORE_LDAP_SEARCH_FILTER"`
 	LdapMappings     *LdapMappings `json:"ldap_mappings,omitempty"`
 	LdapNeedTLS      bool          `json:"ldap_needtls,omitempty" env:"SEMAPHORE_LDAP_NEEDTLS"`
+	// LdapTLSSkipVerify disables verification of the LDAP server's TLS
+	// certificate for the legacy flat ldap_* config. Defaults to false
+	// (certificates are verified). See LdapProvider.TLSSkipVerify.
+	LdapTLSSkipVerify bool `json:"ldap_tls_skip_verify,omitempty" env:"SEMAPHORE_LDAP_TLS_SKIP_VERIFY"`
+
+	// LdapProviders configures multiple LDAP directories (like OidcProviders
+	// for OIDC). The key is the provider ID shown in identity records; the
+	// ID "ldap" is reserved for the legacy flat ldap_* config above.
+	LdapProviders map[string]LdapProvider `json:"ldap_providers,omitempty" env:"SEMAPHORE_LDAP_PROVIDERS"`
 
 	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
-	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN"`
+	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN,sensitive"`
 	SlackAlert          bool   `json:"slack_alert,omitempty" env:"SEMAPHORE_SLACK_ALERT"`
 	SlackUrl            string `json:"slack_url,omitempty" env:"SEMAPHORE_SLACK_URL"`
 	RocketChatAlert     bool   `json:"rocketchat_alert,omitempty" env:"SEMAPHORE_ROCKETCHAT_ALERT"`
@@ -293,7 +613,7 @@ type ConfigType struct {
 	DingTalkUrl         string `json:"dingtalk_url,omitempty" env:"SEMAPHORE_DINGTALK_URL"`
 	GotifyAlert         bool   `json:"gotify_alert,omitempty" env:"SEMAPHORE_GOTIFY_ALERT"`
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
-	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN"`
+	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN,sensitive"`
 
 	// oidc settings
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
@@ -302,27 +622,41 @@ type ConfigType struct {
 	MaxTasksPerTemplate int `json:"max_tasks_per_template,omitempty" env:"SEMAPHORE_MAX_TASKS_PER_TEMPLATE"`
 
 	// task concurrency
-	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"10" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
+	MaxParallelTasks int `json:"max_parallel_tasks,omitempty" default:"9999" rule:"^[0-9]{1,10}$" env:"SEMAPHORE_MAX_PARALLEL_TASKS"`
 
+	// RunnerRegistrationToken is deprecated, use Runners field instead of it.
 	RunnerRegistrationToken string `json:"runner_registration_token,omitempty" env:"SEMAPHORE_RUNNER_REGISTRATION_TOKEN"`
 
-	// feature switches
-	PasswordLoginDisable     bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
-	NonAdminCanCreateProject bool `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
+	JWT *JWTConfig `json:"jwt,omitempty"`
 
+	// feature switches
+	PasswordLoginDisable bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
+	// ExternalAuthEmailMatching controls whether an LDAP/OIDC login may be
+	// linked to an existing user by email when no external identity record
+	// exists yet:
+	//   "auto" (default) - only external users without any linked identity
+	//                      (one-time adoption of pre-2.20 accounts);
+	//   "always"         - any external user (needed when the same person
+	//                      logs in via several providers);
+	//   "never"          - identities are matched strictly by provider ID.
+	// Local (password) accounts are never matched regardless of the mode.
+	ExternalAuthEmailMatching string `json:"external_auth_email_matching,omitempty" env:"SEMAPHORE_EXTERNAL_AUTH_EMAIL_MATCHING" rule:"^(auto|always|never)?$" default:"auto"`
+	NonAdminCanCreateProject  bool   `json:"non_admin_can_create_project,omitempty" env:"SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT"`
+
+	// UseRemoteRunner is deprecated. Use Runners field instead of it.
 	UseRemoteRunner bool `json:"use_remote_runner,omitempty" env:"SEMAPHORE_USE_REMOTE_RUNNER"`
 
-	IntegrationAlias string `json:"global_integration_alias,omitempty" env:"SEMAPHORE_INTEGRATION_ALIAS"`
-
 	Apps map[string]App `json:"apps,omitempty" env:"SEMAPHORE_APPS"`
-
-	Runner *RunnerConfig `json:"runner,omitempty"`
 
 	EnvVars map[string]string `json:"env_vars,omitempty" env:"SEMAPHORE_ENV_VARS"`
 
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
 
 	Teams *TeamsConfig `json:"teams,omitempty"`
+
+	Syslog *SyslogConfig `json:"syslog,omitempty"`
+
+	Metrics *MetricsConfig `json:"metrics,omitempty"`
 
 	Log *ConfigLog `json:"log,omitempty"`
 
@@ -333,6 +667,105 @@ type ConfigType struct {
 	Debugging *DebuggingConfig `json:"debugging,omitempty"`
 
 	HA *HAConfig `json:"ha,omitempty"`
+
+	Subscription *SubscriptionConfig `json:"subscription,omitempty"`
+
+	Dirs *ConfigDirs `json:"dirs,omitempty"`
+
+	Runner *RunnerConfig `json:"runner,omitempty"`
+
+	Runners *RunnersConfig `json:"runners,omitempty"`
+
+	// Encryption groups the keys-file path and reload-poll settings. The keyrings
+	// live exclusively in Encryption.KeysFile (a separate file, JSON or YAML),
+	// which is watched for changes — edits are applied without restarting the
+	// server. When unset, the legacy flat AccessKeyEncryption field is used.
+	Encryption *EncryptionConfig `json:"encryption,omitempty"`
+
+	// keys holds the resolved runtime keyrings behind atomic pointers so they
+	// can be hot-swapped during key rotation without restarting (see
+	// ReloadEncryptionKeys). Unexported so it is ignored by JSON, env, defaults
+	// and validation reflection.
+	keys *keyringStore
+}
+
+// Default values for RunnersConfig, applied when the "runners" config section
+// or its fields are absent.
+const (
+	defaultRunnersOfflineTimeoutSec    = 120
+	defaultRunnersTaskFailTimeoutSec   = 420
+	defaultRunnersReconcileIntervalSec = 30
+)
+
+// GetSshConfigPath return SSH config path from configuration.
+// Used for backward compatibility.
+func (conf *ConfigType) GetSshConfigPath() string {
+	if conf.Ssh.ConfigPath != "" {
+		return conf.Ssh.ConfigPath
+	}
+	return conf.SshConfigPath
+}
+
+func (conf *ConfigType) GetRunnerRegistrationToken() string {
+	if conf.Runners.RegistrationToken != "" {
+		return conf.Runners.RegistrationToken
+	}
+	return conf.RunnerRegistrationToken
+}
+
+func (conf *ConfigType) IsUseRemoteRunner() bool {
+	switch conf.Runners.DefaultGlobalRunnersMode {
+	case DefultGlobalRunnerDisable:
+		return false
+	case DefultGlobalRunnerRequire:
+		return true
+	case DefultGlobalRunnerPrefer:
+		return true
+	default:
+		return conf.UseRemoteRunner
+	}
+}
+
+// RunnersOfflineTimeout returns the heartbeat staleness after which a runner
+// is considered offline (no new tasks; its "starting" tasks are reassigned).
+func (conf *ConfigType) RunnersOfflineTimeout() time.Duration {
+	sec := defaultRunnersOfflineTimeoutSec
+	if conf.Runners != nil && conf.Runners.OfflineTimeoutSec > 0 {
+		sec = conf.Runners.OfflineTimeoutSec
+	}
+	return time.Duration(sec) * time.Second
+}
+
+// RunnersTaskFailTimeout returns the heartbeat staleness after which a
+// runner's "running" tasks are failed. It is never below the offline timeout.
+func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
+	sec := defaultRunnersTaskFailTimeoutSec
+	if conf.Runners != nil && conf.Runners.TaskFailTimeoutSec > 0 {
+		sec = conf.Runners.TaskFailTimeoutSec
+	}
+	res := time.Duration(sec) * time.Second
+	if offline := conf.RunnersOfflineTimeout(); res < offline {
+		res = offline
+	}
+	return res
+}
+
+// RunnersReconcileInterval returns how often the server reconciles dispatched
+// tasks against runner liveness.
+func (conf *ConfigType) RunnersReconcileInterval() time.Duration {
+	sec := defaultRunnersReconcileIntervalSec
+	if conf.Runners != nil && conf.Runners.ReconcileIntervalSec > 0 {
+		sec = conf.Runners.ReconcileIntervalSec
+	}
+	return time.Duration(sec) * time.Second
+}
+
+type SubscriptionConfig struct {
+	// Key is a subscription key or token that can be set via config.
+	// When this is set, subscription activation from the web interface is disabled.
+	Key       string `json:"key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY,sensitive"`
+	KeyFile   string `json:"key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
+	ServerURL string `json:"server_url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_SERVER_URL" default:"https://portal.semaphoreui.com/billing"`
 }
 
 func NewConfigType() *ConfigType {
@@ -399,7 +832,7 @@ func (conf *ConfigType) ToJSON() ([]byte, error) {
 
 // ConfigInit reads in cli flags, and switches actions appropriately on them
 func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
-	fmt.Println("Loading config")
+	//fmt.Println("Loading config")
 
 	Config = NewConfigType()
 	Config.Apps = map[string]App{}
@@ -411,8 +844,18 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 	loadConfigEnvironment()
 	loadConfigDefaults()
 
-	fmt.Println("Validating config")
+	// Resolve encryption keyrings (read key files, apply precedence, build the
+	// runtime keyrings) before validation consumes the keys.
+	resolveEncryptionKeys()
+
+	//fmt.Println("Validating config")
 	validateConfig()
+
+	if Config.Process.NoNewPrivs {
+		if err := SetNoNewPrivs(); err != nil {
+			panic(fmt.Errorf("failed to set no_new_privs: %w", err))
+		}
+	}
 
 	var encryption []byte
 
@@ -437,11 +880,24 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		WebHostURL = nil
 	}
 
+	if Config.Runner != nil && Config.Runner.Token != "" && Config.Runner.TokenFile != "" {
+		panic("SEMAPHORE_RUNNER_TOKEN and SEMAPHORE_RUNNER_TOKEN_FILE are mutually exclusive")
+	}
+
 	if Config.Runner != nil && Config.Runner.TokenFile != "" {
 		runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
 		if err == nil {
 			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
 		}
+	}
+
+	if Config.Subscription.KeyFile != "" {
+		subscriptionKeyBytes, err := os.ReadFile(Config.Subscription.KeyFile)
+		if err != nil {
+			panic(err)
+		}
+
+		Config.Subscription.Key = strings.TrimSpace(string(subscriptionKeyBytes))
 	}
 
 	return
@@ -460,8 +916,14 @@ func loadConfigFile(configPath string) (usedConfigPath *string) {
 		exitOnConfigFileError(err)
 		paths := []string{
 			path.Join(cwd, "config.json"),
+			path.Join(cwd, "config.yaml"),
+			path.Join(cwd, "config.yml"),
 			"/usr/local/etc/semaphore/config.json",
+			"/usr/local/etc/semaphore/config.yaml",
+			"/usr/local/etc/semaphore/config.yml",
 			"/etc/semaphore/config.json",
+			"/etc/semaphore/config.yaml",
+			"/etc/semaphore/config.yml",
 		}
 		for _, p := range paths {
 			_, err = os.Stat(p)
@@ -473,7 +935,7 @@ func loadConfigFile(configPath string) (usedConfigPath *string) {
 			if err != nil {
 				continue
 			}
-			decodeConfig(file)
+			decodeConfig(file, p)
 			usedConfigPath = &p
 			break
 		}
@@ -483,7 +945,7 @@ func loadConfigFile(configPath string) (usedConfigPath *string) {
 		file, err := os.Open(p)
 		exitOnConfigFileError(err)
 		usedConfigPath = &p
-		decodeConfig(file)
+		decodeConfig(file, p)
 	}
 
 	return
@@ -502,17 +964,34 @@ func loadDefaultsToObject(obj any) error {
 		fieldInfo := t.Field(i)
 		fieldValue := v.Field(i)
 
-		if !fieldValue.IsZero() && fieldInfo.Type.Kind() != reflect.Struct && fieldInfo.Type.Kind() != reflect.Map {
+		if !fieldInfo.IsExported() {
 			continue
 		}
 
-		if fieldInfo.Type.Kind() == reflect.Struct {
+		fieldKind := fieldInfo.Type.Kind()
+		isPtrToStruct := fieldKind == reflect.Ptr && fieldInfo.Type.Elem().Kind() == reflect.Struct
+
+		if !fieldValue.IsZero() && fieldKind != reflect.Struct && fieldKind != reflect.Map && !isPtrToStruct {
+			continue
+		}
+
+		if fieldKind == reflect.Struct {
 			err := loadDefaultsToObject(fieldValue.Addr().Interface())
 			if err != nil {
 				return err
 			}
 			continue
-		} else if fieldInfo.Type.Kind() == reflect.Map {
+		} else if isPtrToStruct {
+			if fieldValue.IsNil() {
+				continue
+			}
+
+			err := loadDefaultsToObject(fieldValue.Interface())
+			if err != nil {
+				return err
+			}
+			continue
+		} else if fieldKind == reflect.Map {
 			for _, key := range fieldValue.MapKeys() {
 				val := fieldValue.MapIndex(key)
 
@@ -596,6 +1075,13 @@ func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) err
 
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
+
+		// Skip fields with db:"-" tag
+		dbTag := field.Tag.Get("db")
+		if dbTag == "-" {
+			continue
+		}
+
 		jsonTag := field.Tag.Get("json")
 		if jsonTag == "" {
 			jsonTag = field.Name
@@ -806,7 +1292,14 @@ func setConfigValue(attribute reflect.Value, value string) {
 			attribute.Set(mapValue.Elem())
 		default:
 			newValue, _ := CastValueToKind(value, kind)
-			attribute.Set(reflect.ValueOf(newValue))
+			convertedValue := reflect.ValueOf(newValue)
+			if convertedValue.Type().AssignableTo(attribute.Type()) {
+				attribute.Set(convertedValue)
+			} else if convertedValue.Type().ConvertibleTo(attribute.Type()) {
+				attribute.Set(convertedValue.Convert(attribute.Type()))
+			} else {
+				panic(fmt.Errorf("cannot assign value of type %s to field of type %s", convertedValue.Type(), attribute.Type()))
+			}
 		}
 
 	} else {
@@ -879,14 +1372,353 @@ func validate(value any) error {
 	return nil
 }
 
+// resolveKeySource returns the key material from a KeySource: the inline Value,
+// or the trimmed contents of File. Value and File are mutually exclusive.
+func resolveKeySource(ks KeySource, name string) (string, error) {
+	if ks.Value != "" && ks.File != "" {
+		return "", fmt.Errorf("%s: 'value' and 'file' are mutually exclusive", name)
+	}
+	if ks.File != "" {
+		data, err := os.ReadFile(ks.File)
+		if err != nil {
+			return "", fmt.Errorf("%s: read key file %q: %w", name, ks.File, err)
+		}
+		return strings.TrimSpace(string(data)), nil
+	}
+	return ks.Value, nil
+}
+
+// resolveEncryptionKeysFrom builds the runtime keyset from the keys-file config
+// plus the legacy flat fields, validating every resolved key. It does not mutate
+// global state. The flat fields are added to the registry (so new writes can stamp
+// them) and recorded as the legacy no-prefix decrypt keys.
+func resolveEncryptionKeysFrom(enc *EncryptionKeysConfig, flatAccess, flatOption string) (*keyset, error) {
+	ks := &keyset{
+		byID:         map[string]string{},
+		legacyAccess: flatAccess,
+		legacyOption: flatOption,
+	}
+
+	// byLabel maps a human label (inline keys map key, or a folder filename) to its
+	// material, for resolving the active pointers.
+	byLabel := map[string]string{}
+	addLabeled := func(label, material string) error {
+		if material == "" {
+			return nil
+		}
+		if err := validateAccessKeyEncryption(material); err != nil {
+			return err
+		}
+		ks.byID[keyID(material)] = material
+		byLabel[label] = material
+		return nil
+	}
+
+	if enc != nil {
+		for label, src := range enc.Keys {
+			material, err := resolveKeySource(src, "encryption_keys.keys."+label)
+			if err != nil {
+				return nil, err
+			}
+			if err := addLabeled(label, material); err != nil {
+				return nil, err
+			}
+		}
+		if enc.KeysFolder != "" {
+			if err := loadKeysFolder(enc.KeysFolder, addLabeled); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Flat fields are registry entries (so new writes can stamp them); they are
+	// labelled "" so they never satisfy a named active pointer.
+	if err := addLabeled("", flatAccess); err != nil {
+		return nil, err
+	}
+	if err := addLabeled("", flatOption); err != nil {
+		return nil, err
+	}
+
+	accessActive, err := resolveActiveKey(enc, flatAccess, byLabel, addLabeled,
+		activePointer(enc, func(a ActivePointers) (string, string) { return a.SecretKey, a.SecretKeyFile }), "access")
+	if err != nil {
+		return nil, err
+	}
+	ks.accessID = keyID(accessActive) // "" => encryption disabled
+
+	optionActive, err := resolveActiveKey(enc, flatOption, byLabel, addLabeled,
+		activePointer(enc, func(a ActivePointers) (string, string) { return a.OptionKey, a.OptionKeyFile }), "option")
+	if err != nil {
+		return nil, err
+	}
+	ks.optionID = keyID(optionActive) // "" => option falls back to access
+
+	return ks, nil
+}
+
+func activePointer(enc *EncryptionKeysConfig, pick func(ActivePointers) (string, string)) [2]string {
+	if enc == nil {
+		return [2]string{}
+	}
+	l, f := pick(enc.Active)
+	return [2]string{l, f}
+}
+
+// resolveActiveKey resolves the active key material for one purpose: an active
+// label wins, then an active filename (in KeysFolder, relative), then the flat
+// fallback. A filename not already loaded from the folder is read and registered.
+func resolveActiveKey(enc *EncryptionKeysConfig, flat string, byLabel map[string]string,
+	addLabeled func(string, string) error, ptr [2]string, kind string) (string, error) {
+
+	label, file := ptr[0], ptr[1]
+
+	if label != "" {
+		material, ok := byLabel[label]
+		if !ok {
+			return "", fmt.Errorf("encryption_keys.active.%s_key: no key labelled %q", kind, label)
+		}
+		return material, nil
+	}
+
+	if file != "" {
+		if material, ok := byLabel[file]; ok {
+			return material, nil
+		}
+		path := file
+		if !filepath.IsAbs(path) && enc != nil {
+			path = filepath.Join(enc.KeysFolder, file)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("encryption_keys.active.%s_key_file: %w", kind, err)
+		}
+		material := strings.TrimSpace(string(data))
+		if err := addLabeled(file, material); err != nil {
+			return "", err
+		}
+		return material, nil
+	}
+
+	return flat, nil
+}
+
+// loadKeysFolder reads every regular file in folder as one key, labelled by its
+// filename. Dot-prefixed entries (e.g. Kubernetes' "..data" / "..2024_*") are
+// skipped; symlinks (how K8s mounts secret files) are followed via Stat.
+func loadKeysFolder(folder string, addLabeled func(string, string) error) error {
+	entries, err := os.ReadDir(folder)
+	if err != nil {
+		return fmt.Errorf("encryption_keys.keys_folder %q: %w", folder, err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+		path := filepath.Join(folder, name)
+		info, err := os.Stat(path) // follow symlink
+		if err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("encryption_keys.keys_folder: read %q: %w", name, err)
+		}
+		if err := addLabeled(name, strings.TrimSpace(string(data))); err != nil {
+			return fmt.Errorf("encryption_keys.keys_folder: key %q: %w", name, err)
+		}
+	}
+	return nil
+}
+
+// EncryptionKeysFile returns the configured keys-file path (encryption.keys_file),
+// or "" when no encryption section is configured.
+func (conf *ConfigType) EncryptionKeysFile() string {
+	if conf.Encryption == nil {
+		return ""
+	}
+	return conf.Encryption.KeysFile
+}
+
+// EncryptionKeysPollInterval returns how often the keys file is polled for
+// changes. It defaults to 15s, and returns 0 when polling is disabled
+// (encryption.keys_poll_interval set to "0"). An unparseable value falls back to
+// the default.
+func (conf *ConfigType) EncryptionKeysPollInterval() time.Duration {
+	const def = 15 * time.Second
+	if conf.Encryption == nil || conf.Encryption.KeysPollInterval == "" {
+		return def
+	}
+	d, err := time.ParseDuration(conf.Encryption.KeysPollInterval)
+	if err != nil {
+		return def
+	}
+	return d
+}
+
+// loadEncryptionKeysSource returns the EncryptionKeysConfig to resolve from.
+// The keyrings live exclusively in encryption.keys_file, re-read from disk so its
+// edits (and edits to the key files it references) are picked up on reload.
+// When unset there is no structured config and the legacy flat
+// AccessKeyEncryption field is used instead.
+func loadEncryptionKeysSource() (*EncryptionKeysConfig, error) {
+	path := Config.EncryptionKeysFile()
+	if path == "" {
+		return nil, nil
+	}
+	return readEncryptionKeysConfigFile(path)
+}
+
+// resolveEncryptionKeys builds the runtime keyrings once at startup and stores
+// them on Config. Invalid keys panic (fail fast at boot).
+func resolveEncryptionKeys() {
+	enc, err := loadEncryptionKeysSource()
+	if err != nil {
+		panic(err)
+	}
+
+	ks, err := resolveEncryptionKeysFrom(enc, Config.AccessKeyEncryption, Config.OptionEncryption)
+	if err != nil {
+		panic(err)
+	}
+	if Config.keys == nil {
+		Config.keys = &keyringStore{}
+	}
+	Config.keys.current.Store(ks)
+}
+
+// ReloadEncryptionKeys re-reads the encryption keys (the dedicated
+// EncryptionKeysFile or the encryption_keys section of the config file, plus any
+// referenced key files) and atomically swaps the runtime keyrings, without
+// restarting. It validates the new keys first and leaves the current keyrings
+// untouched on any error. Safe to call concurrently with encryption/decryption.
+func ReloadEncryptionKeys() error {
+	_, err := reloadEncryptionKeys(true)
+	return err
+}
+
+// ReloadEncryptionKeysIfChanged is like ReloadEncryptionKeys but performs the
+// atomic swap only when the resolved keys actually differ from the active ones,
+// returning whether a change was applied. It is the file watcher's entry point.
+func ReloadEncryptionKeysIfChanged() (changed bool, err error) {
+	return reloadEncryptionKeys(false)
+}
+
+func reloadEncryptionKeys(force bool) (bool, error) {
+	enc, err := loadEncryptionKeysSource()
+	if err != nil {
+		return false, err
+	}
+
+	ks, err := resolveEncryptionKeysFrom(enc, Config.AccessKeyEncryption, Config.OptionEncryption)
+	if err != nil {
+		return false, err
+	}
+
+	if Config.keys == nil {
+		Config.keys = &keyringStore{}
+	}
+
+	Config.keys.reloadMu.Lock()
+	defer Config.keys.reloadMu.Unlock()
+
+	if !force && keysetsEqual(ks, Config.keys.current.Load()) {
+		return false, nil
+	}
+
+	Config.keys.current.Store(ks)
+	return true, nil
+}
+
+// readEncryptionKeysConfigFile decodes a dedicated encryption-keys file (whose
+// whole content is an EncryptionKeysConfig), as JSON or YAML.
+func readEncryptionKeysConfigFile(path string) (*EncryptionKeysConfig, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// Parse via YAML regardless of extension: YAML 1.2 is a superset of JSON, so
+	// this accepts both formats. The file is often a Kubernetes secret mounted at
+	// a path with no .yaml/.yml extension, so extension-based detection is not
+	// reliable here.
+	var raw any
+	if err := yaml.NewDecoder(file).Decode(&raw); err != nil {
+		return nil, err
+	}
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	var enc EncryptionKeysConfig
+	if err := json.Unmarshal(data, &enc); err != nil {
+		return nil, err
+	}
+
+	return &enc, nil
+}
+
+func validateAccessKeyEncryption(key string) error {
+	if key == "" {
+		return nil
+	}
+
+	encryption, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return fmt.Errorf("access_key_encryption must be a valid base64 string: %w", err)
+	}
+
+	switch len(encryption) {
+	case 16, 24, 32:
+		return nil
+	default:
+		return fmt.Errorf(
+			"access_key_encryption has invalid decoded length %d bytes; AES requires 16, 24, or 32 bytes (use `openssl rand -base64 32` to generate a valid key)",
+			len(encryption),
+		)
+	}
+}
+
 func validateConfig() {
 	err := validate(Config)
 	if err != nil {
 		panic(err)
 	}
+
+	if err := validateAccessKeyEncryption(Config.AccessKeyEncryption); err != nil {
+		panic(err)
+	}
+	if err := validateAccessKeyEncryption(Config.OptionEncryption); err != nil {
+		panic(err)
+	}
+	if Config.keys != nil {
+		if ks := Config.keys.current.Load(); ks != nil {
+			for _, material := range ks.byID {
+				if err := validateAccessKeyEncryption(material); err != nil {
+					panic(err)
+				}
+			}
+		}
+	}
 }
 
-func loadEnvironmentToObject(obj any) error {
+// parseEnvTag splits an env tag value like "SEMAPHORE_DB_PASS,sensitive"
+// into the environment variable name and whether it is sensitive.
+func parseEnvTag(tag string) (envVar string, sensitive bool) {
+	parts := strings.SplitN(tag, ",", 2)
+	envVar = parts[0]
+	if len(parts) > 1 && parts[1] == "sensitive" {
+		sensitive = true
+	}
+	return
+}
+
+func loadEnvironmentToObject(obj any) (resultSensitiveEnvs []string, err error) {
+	var currSensitiveEnvs []string
+
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
 
@@ -904,27 +1736,49 @@ func loadEnvironmentToObject(obj any) error {
 		}
 
 		if fieldType.Type.Kind() == reflect.Struct {
-			err := loadEnvironmentToObject(fieldValue.Addr().Interface())
+			currSensitiveEnvs, err = loadEnvironmentToObject(fieldValue.Addr().Interface())
 			if err != nil {
-				return err
+				return
 			}
+			resultSensitiveEnvs = append(resultSensitiveEnvs, currSensitiveEnvs...)
 			continue
 		} else if fieldType.Type.Kind() == reflect.Ptr && fieldType.Type.Elem().Kind() == reflect.Struct {
 			if fieldValue.IsZero() {
 				newValue := reflect.New(fieldType.Type.Elem())
 				fieldValue.Set(newValue)
 			}
-			err := loadEnvironmentToObject(fieldValue.Interface())
-			if err != nil {
-				return err
+
+			envTag := fieldType.Tag.Get("env")
+			if envTag != "" {
+				envVar, sensitive := parseEnvTag(envTag)
+				if envValue, exists := os.LookupEnv(envVar); exists {
+					newValue := reflect.New(fieldType.Type.Elem())
+					err = json.Unmarshal([]byte(envValue), newValue.Interface())
+					if err != nil {
+						return
+					}
+					fieldValue.Set(newValue)
+					if sensitive {
+						resultSensitiveEnvs = append(resultSensitiveEnvs, envVar)
+					}
+				}
 			}
+
+			currSensitiveEnvs, err = loadEnvironmentToObject(fieldValue.Interface())
+			if err != nil {
+				return
+			}
+
+			resultSensitiveEnvs = append(resultSensitiveEnvs, currSensitiveEnvs...)
 			continue
 		}
 
-		envVar := fieldType.Tag.Get("env")
-		if envVar == "" {
+		envTag := fieldType.Tag.Get("env")
+		if envTag == "" {
 			continue
 		}
+
+		envVar, sensitive := parseEnvTag(envTag)
 
 		envValue, exists := os.LookupEnv(envVar)
 
@@ -933,15 +1787,25 @@ func loadEnvironmentToObject(obj any) error {
 		}
 
 		setConfigValue(fieldValue, envValue) // envValue always string!!!
+
+		if sensitive {
+			resultSensitiveEnvs = append(resultSensitiveEnvs, envVar)
+		}
 	}
 
-	return nil
+	slices.Sort(resultSensitiveEnvs)
+	resultSensitiveEnvs = slices.Compact(resultSensitiveEnvs)
+	return
 }
 
 func loadConfigEnvironment() {
-	err := loadEnvironmentToObject(Config)
+	sensitiveEnvs, err := loadEnvironmentToObject(Config)
 	if err != nil {
 		panic(err)
+	}
+
+	for _, sensitiveEnv := range sensitiveEnvs {
+		os.Unsetenv(sensitiveEnv)
 	}
 }
 
@@ -952,12 +1816,38 @@ func exitOnConfigError(msg string) {
 
 func exitOnConfigFileError(err error) {
 	if err != nil {
-		exitOnConfigError("Cannot Find configuration! Use --config parameter to point to a JSON file generated by `semaphore setup`.")
+		exitOnConfigError("Cannot Find configuration! Use --config parameter to point to a JSON or YAML file generated by `semaphore setup`.")
 	}
 }
 
-func decodeConfig(file io.Reader) {
+func decodeConfig(file io.Reader, configPath string) {
+	if isYAMLConfig(configPath) {
+		decodeConfigYAML(file)
+		return
+	}
 	if err := json.NewDecoder(file).Decode(&Config); err != nil {
+		fmt.Println("Could not decode configuration!")
+		panic(err)
+	}
+}
+
+func isYAMLConfig(configPath string) bool {
+	ext := strings.ToLower(filepath.Ext(configPath))
+	return ext == ".yaml" || ext == ".yml"
+}
+
+func decodeConfigYAML(file io.Reader) {
+	var raw any
+	if err := yaml.NewDecoder(file).Decode(&raw); err != nil {
+		fmt.Println("Could not decode configuration!")
+		panic(err)
+	}
+	data, err := json.Marshal(raw)
+	if err != nil {
+		fmt.Println("Could not decode configuration!")
+		panic(err)
+	}
+	if err := json.Unmarshal(data, &Config); err != nil {
 		fmt.Println("Could not decode configuration!")
 		panic(err)
 	}
@@ -1072,7 +1962,8 @@ func (d *DbConfig) GetConnectionString(includeDbName bool) (connectionString str
 
 	switch d.Dialect {
 	case DbDriverBolt:
-		connectionString = dbHost
+		err = errors.New("BoltDB not supported")
+		return
 	case DbDriverMySQL:
 		if includeDbName {
 			connectionString = fmt.Sprintf(
@@ -1136,7 +2027,7 @@ func (conf *ConfigType) PrintDbInfo() {
 	case DbDriverMySQL:
 		fmt.Printf("MySQL %v@%v %v\n", conf.MySQL.GetUsername(), conf.MySQL.GetHostname(), conf.MySQL.GetDbName())
 	case DbDriverBolt:
-		fmt.Printf("BoltDB %v\n", conf.BoltDb.GetHostname())
+		fmt.Printf("BoltDB not supported\n")
 	case DbDriverPostgres:
 		fmt.Printf("Postgres %v@%v %v\n", conf.Postgres.GetUsername(), conf.Postgres.GetHostname(), conf.Postgres.GetDbName())
 	case DbDriverSQLite:
@@ -1151,8 +2042,6 @@ func (conf *ConfigType) GetDialect() (dialect string, err error) {
 		switch {
 		case conf.MySQL.IsPresent():
 			dialect = DbDriverMySQL
-		case conf.BoltDb.IsPresent():
-			dialect = DbDriverBolt
 		case conf.Postgres.IsPresent():
 			dialect = DbDriverPostgres
 		case conf.SQLite.IsPresent():
@@ -1176,7 +2065,7 @@ func (conf *ConfigType) GetDBConfig() (dbConfig DbConfig, err error) {
 
 	switch dialect {
 	case DbDriverBolt:
-		dbConfig = *conf.BoltDb
+		err = errors.New("BoltDB not supported")
 	case DbDriverPostgres:
 		dbConfig = *conf.Postgres
 	case DbDriverSQLite:
@@ -1257,9 +2146,7 @@ func GetPublicHost() string {
 		port = "3000"
 	}
 
-	if strings.HasPrefix(port, ":") {
-		port = port[1:]
-	}
+	port = strings.TrimPrefix(port, ":")
 
 	if aliasURL == "" {
 		aliasURL = "http://localhost:" + port

@@ -33,34 +33,20 @@
       </v-col>
     </v-row>
   </div>
-  <v-form
-    class="mt-1"
-    v-else
-    ref="form"
-    lazy-validation
-    v-model="formValid"
-  >
-    <v-dialog
-      v-model="helpDialog"
-      hide-overlay
-      width="300"
-    >
-      <v-alert
-        border="top"
-        colored-border
-        type="info"
-        elevation="2"
-        class="mb-0 pb-0"
-      >
+  <v-form class="mt-1" v-else ref="form" lazy-validation v-model="formValid">
+    <v-dialog v-model="helpDialog" hide-overlay width="300">
+      <v-alert border="top" colored-border type="info" elevation="2" class="mb-0 pb-0">
         <div v-if="helpKey === 'build_version'">
           <p>
             {{ $t('definesStartVersionOfYourArtifactEachRunIncrements') }}
           </p>
           <p>
             {{ $t('forMoreInformationAboutBuildingSeeThe') }}
-            <a href="https://docs.semaphoreui.com/user-guide/task-templates#build"
-               target="_blank"
-            >{{ $t('taskTemplateReference') }}</a>.
+            <a
+              href="https://docs.semaphoreui.com/user-guide/task-templates#build"
+              target="_blank"
+            >{{ $t('taskTemplateReference') }}</a
+            >.
           </p>
         </div>
         <div v-else-if="helpKey === 'build'">
@@ -69,28 +55,28 @@
           </p>
           <p>
             {{ $t('forMoreInformationAboutDeployingSeeThe') }}
-            <a href="https://docs.semaphoreui.com/user-guide/task-templates#build"
-               target="_blank"
-            >{{ $t('taskTemplateReference2') }}</a>.
+            <a
+              href="https://docs.semaphoreui.com/user-guide/task-templates#build"
+              target="_blank"
+            >{{ $t('taskTemplateReference2') }}</a
+            >.
           </p>
         </div>
         <div v-if="helpKey === 'cron'">
           <p>{{ $t('definesAutorunSchedule') }}</p>
           <p>
             {{ $t('forMoreInformationAboutCronSeeThe') }}
-            <a href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format"
-               target="_blank"
-            >{{ $t('cronExpressionFormatReference') }}</a>.
+            <a
+              href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format"
+              target="_blank"
+            >{{ $t('cronExpressionFormatReference') }}</a
+            >.
           </p>
         </div>
       </v-alert>
     </v-dialog>
 
-    <v-alert
-      :value="formError"
-      color="error"
-    >{{ formError }}
-    </v-alert>
+    <v-alert :value="formError" color="error">{{ formError }}</v-alert>
 
     <v-row class="mb-0">
       <v-col>
@@ -101,15 +87,8 @@
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
           style="background: #8585850f"
         >
-          <v-tabs
-            fixed-tabs
-            v-model="itemTypeIndex"
-          >
-            <v-tab
-              style="padding: 0"
-              v-for="(key) in Object.keys(TEMPLATE_TYPE_ICONS)"
-              :key="key"
-            >
+          <v-tabs fixed-tabs v-model="itemTypeIndex">
+            <v-tab style="padding: 0" v-for="key in Object.keys(TEMPLATE_TYPE_ICONS)" :key="key">
               <v-icon small class="mr-2">{{ TEMPLATE_TYPE_ICONS[key] }}</v-icon>
               {{ $t(TEMPLATE_TYPE_TITLES[key]) }}
             </v-tab>
@@ -120,7 +99,7 @@
               v-if="item.type === 'build'"
               v-model="item.start_version"
               :label="$t('startVersion')"
-              :rules="[v => !!v || $t('start_version_required')]"
+              :rules="[(v) => !!v || $t('start_version_required')]"
               required
               :disabled="formSaving"
               :placeholder="$t('example000')"
@@ -135,7 +114,7 @@
               :items="buildTemplates"
               item-value="id"
               item-text="name"
-              :rules="[v => !!v || $t('build_template_required')]"
+              :rules="[(v) => !!v || $t('build_template_required')]"
               required
               :disabled="formSaving"
               append-outer-icon="mdi-help-circle"
@@ -149,33 +128,143 @@
               v-model="item.autorun"
             />
           </div>
-
         </v-card>
 
         <v-text-field
           v-model="item.name"
           :label="$t('name2')"
-          :rules="[v => !!v || $t('name_required')]"
+          :rules="[(v) => !!v || $t('name_required')]"
           outlined
           dense
           required
           :disabled="formSaving"
         ></v-text-field>
 
-        <v-text-field
-          v-model="item.playbook"
-          :label="fieldLabel('playbook')"
-          :rules="
-              isFieldRequired('playbook')
-              ? [v => !!v || $t('playbook_filename_required')]
-              : []"
-          outlined
-          dense
-          :required="isFieldRequired('playbook')"
-          :disabled="formSaving"
-          :placeholder="$t('exampleSiteyml')"
-          v-if="needField('playbook')"
-        ></v-text-field>
+        <div style="position: relative">
+          <v-autocomplete
+            v-model="item.repository_id"
+            :label="fieldLabel('repository') + ' *'"
+            :items="repositories"
+            item-value="id"
+            item-text="name"
+            :rules="isFieldRequired('repository') ? [(v) => !!v || $t('repository_required')] : []"
+            outlined
+            dense
+            :required="isFieldRequired('repository')"
+            :disabled="formSaving"
+            v-if="needField('repository')"
+          >
+          </v-autocomplete>
+          <v-chip
+            v-if="gitBranch"
+            small
+            label
+            style="position: absolute; right: 45px; top: 8px"
+            @click="setBranch = !setBranch"
+          >
+            {{ gitBranch }}
+          </v-chip>
+        </div>
+
+        <v-card
+          v-if="setBranch"
+          style="background: var(--highlighted-card-bg-color)"
+          class="mb-6 pt-3"
+        >
+          <div
+            style="
+              position: absolute;
+              background: var(--highlighted-card-bg-color);
+              width: 28px;
+              height: 28px;
+              transform: rotate(45deg);
+              right: 55px;
+              top: -14px;
+              border-radius: 0;
+            "
+          ></div>
+
+          <v-card-text class="pb-0">
+            <div v-if="branches != null">
+              <v-autocomplete
+                clearable
+                :items="branches"
+                v-model="item.git_branch"
+                :label="fieldLabel('branch')"
+                outlined
+                dense
+                :disabled="formSaving"
+                :placeholder="$t('branch')"
+              ></v-autocomplete>
+            </div>
+            <div v-else>
+              <v-text-field
+                clearable
+                v-model="item.git_branch"
+                :label="fieldLabel('branch')"
+                outlined
+                dense
+                :disabled="formSaving"
+                :placeholder="$t('branch')"
+              ></v-text-field>
+            </div>
+          </v-card-text>
+        </v-card>
+
+        <div v-if="needField('playbook')">
+          <div v-if="playbooks != null">
+            <v-autocomplete
+              class="InputWithAppendedButton"
+              v-model="item.playbook"
+              :items="playbooks"
+              :label="fieldLabel('playbook')"
+              :rules="
+                isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
+              "
+              outlined
+              dense
+              clearable
+              :required="isFieldRequired('playbook')"
+              :disabled="formSaving"
+              :placeholder="$t('exampleSiteyml')"
+              :loading="playbooksLoading"
+            >
+              <template v-slot:append-outer>
+                <v-btn
+                  depressed
+                  @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
+                >
+                  <v-icon>{{ playbooksLoading ? 'mdi-close' : 'mdi-refresh' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-autocomplete>
+          </div>
+          <div v-else>
+            <v-text-field
+              class="InputWithAppendedButton"
+              v-model="item.playbook"
+              :label="fieldLabel('playbook')"
+              :rules="
+                isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
+              "
+              outlined
+              dense
+              :required="isFieldRequired('playbook')"
+              :disabled="formSaving"
+              :placeholder="$t('exampleSiteyml')"
+              :loading="playbooksLoading"
+            >
+              <template v-slot:append-outer>
+                <v-btn
+                  depressed
+                  @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
+                >
+                  <v-icon>{{ playbooksLoading ? 'mdi-close' : 'mdi-refresh' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-text-field>
+          </div>
+        </div>
 
         <v-autocomplete
           v-model="item.inventory_id"
@@ -191,64 +280,22 @@
         ></v-autocomplete>
 
         <v-autocomplete
-          v-model="item.repository_id"
-          :label="fieldLabel('repository') + ' *'"
-          :items="repositories"
-          item-value="id"
-          item-text="name"
-          :rules="isFieldRequired('repository') ? [v => !!v || $t('repository_required')] : []"
-          outlined
-          dense
-          hide-details
-          :required="isFieldRequired('repository')"
-          :disabled="formSaving"
-          v-if="needField('repository')"
-        ></v-autocomplete>
-
-        <div class="mb-3 text-right">
-
-          <a
-            v-if="!item.git_branch && !setBranch"
-            @click="setBranch = true"
-          >Set branch</a>
-
-        </div>
-
-        <div v-if="item.git_branch || setBranch">
-          <div v-if="branches != null">
-            <v-autocomplete
-              clearable
-              :items="branches"
-              v-model="item.git_branch"
-              :label="fieldLabel('branch')"
-              outlined
-              dense
-              :disabled="formSaving"
-              :placeholder="$t('branch')"
-            ></v-autocomplete>
-          </div>
-          <div v-else>
-            <v-text-field
-              clearable
-              v-model="item.git_branch"
-              :label="fieldLabel('branch')"
-              outlined
-              dense
-              :disabled="formSaving"
-              :placeholder="$t('branch')"
-            ></v-text-field>
-          </div>
-        </div>
-
-        <v-autocomplete
-          v-model="item.environment_id"
+          v-model="item.environment_ids"
           :label="fieldLabel('environment')"
           :items="environment"
           item-value="id"
           item-text="name"
-          :rules="isFieldRequired('environment') ? [v => !!v || $t('environment_required')] : []"
+          :rules="
+            isFieldRequired('environment')
+              ? [(v) => (Array.isArray(v) && v.length > 0) || $t('environment_required')]
+              : []
+          "
+          persistent-hint
+          multiple
+          chips
+          deletable-chips
           outlined
-          dense
+          small-chips
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="needField('environment')"
@@ -256,7 +303,7 @@
 
         <v-autocomplete
           class="mb-3"
-          style="max-height: 60px;"
+          style="max-height: 60px"
           v-model="item.view_id"
           :label="$t('view')"
           clearable
@@ -273,9 +320,8 @@
         <h2 class="mb-4">{{ $t('template_advanced') }}</h2>
 
         <div class="mb-4">
-
           <v-autocomplete
-            v-if="premiumFeatures.project_runners"
+            v-if="features.project_runners"
             v-model="item.runner_tag"
             :items="runnerTags"
             :label="fieldLabel('runner_tag')"
@@ -285,22 +331,80 @@
             dense
             :disabled="formSaving"
             :placeholder="$t('runner_tag')"
+            clearable
           ></v-autocomplete>
 
-          <SurveyVars
-            :vars="surveyVars"
-            @change="setSurveyVars"
-          />
+          <div style="position: relative">
+            <v-text-field
+              v-model="item.executor_image"
+              :label="$t('executor_image')"
+              :hint="$t('executor_image_hint')"
+              persistent-hint
+              placeholder="semaphoreui/job:latest"
+              outlined
+              dense
+              clearable
+              class="mb-4"
+              :disabled="formSaving || !isExecutorImageAvailable"
+            ></v-text-field>
 
-          <v-checkbox
-            class="mt-0"
-            v-model="item.allow_parallel_tasks"
-          >
+            <v-chip
+              v-if="!isExecutorImageAvailable"
+              color="hsl(348deg, 86%, 61%)"
+              text-color="white"
+              small
+              label
+              style="position: absolute; top: -10px; right: 15px"
+              @click="upgradeToPro('docker_executor')"
+            >
+              Upgrade to PRO
+            </v-chip>
+          </div>
+
+          <SurveyVars :vars="surveyVars" @change="setSurveyVars" />
+
+          <v-checkbox class="mt-0" v-model="item.allow_parallel_tasks">
             <template v-slot:label>
               {{ $t('allow_parallel_tasks') }}
-              <v-chip class="ml-2" small color="error">New</v-chip>
             </template>
           </v-checkbox>
+
+          <template v-if="systemInfo && systemInfo.jwt && systemInfo.jwt.enabled">
+            <v-checkbox class="mt-0" v-model="item.jwt_params.enabled">
+              <template v-slot:label>
+                {{ $t('jwt_enabled') }}
+                <v-chip class="ml-2" small color="error">New</v-chip>
+              </template>
+            </v-checkbox>
+
+            <DropdownCard v-if="item.jwt_params.enabled" no-bottom-padding>
+              <v-combobox
+                v-model="item.jwt_params.audience"
+                :label="$t('jwt_audience')"
+                :hint="$t('jwt_audience_hint')"
+                persistent-hint
+                multiple
+                chips
+                small-chips
+                deletable-chips
+                outlined
+                dense
+                :disabled="formSaving"
+              ></v-combobox>
+
+              <v-text-field
+                class="mt-4"
+                v-model="item.jwt_params.ttl"
+                :label="$t('jwt_ttl')"
+                :hint="jwtTtlHint"
+                persistent-hint
+                placeholder="1h"
+                outlined
+                dense
+                :disabled="formSaving"
+              ></v-text-field>
+            </DropdownCard>
+          </template>
 
           <v-checkbox
             class="mt-0"
@@ -308,33 +412,33 @@
             v-model="cronVisible"
           />
 
-          <v-select
-            v-if="cronVisible"
-            v-model="cronRepositoryId"
-            :label="$t('repository2')"
-            :placeholder="$t('cronChecksNewCommitBeforeRun')"
-            :rules="[v => !!v || $t('repository_required')]"
-            :items="repositories"
-            item-value="id"
-            item-text="name"
-            clearable
-            :disabled="formSaving"
-            outlined
-            dense
-          ></v-select>
+          <DropdownCard v-if="cronVisible">
+            <v-select
+              v-model="cronRepositoryId"
+              :label="$t('repository2')"
+              :placeholder="$t('cronChecksNewCommitBeforeRun')"
+              :rules="[(v) => !!v || $t('repository_required')]"
+              :items="repositories"
+              item-value="id"
+              item-text="name"
+              clearable
+              :disabled="formSaving"
+              outlined
+              dense
+            ></v-select>
 
-          <v-select
-            v-if="cronVisible"
-            v-model="cronFormat"
-            :label="$t('checkInterval')"
-            :hint="$t('newCommitCheckInterval')"
-            item-value="cron"
-            item-text="title"
-            :items="cronFormats"
-            :disabled="formSaving"
-            outlined
-            dense
-          />
+            <v-select
+              v-model="cronFormat"
+              :label="$t('checkInterval')"
+              :hint="$t('newCommitCheckInterval')"
+              item-value="cron"
+              item-text="title"
+              :items="cronFormats"
+              :disabled="formSaving"
+              outlined
+              dense
+            />
+          </DropdownCard>
 
           <v-checkbox
             class="mt-0"
@@ -343,25 +447,14 @@
           />
 
           <div style="position: relative">
-            <ArgsPicker
-              :vars="args"
-              @change="setArgs"
-              title="CLI args"
-            />
+            <ArgsPicker :vars="args" @change="setArgs" title="CLI args" />
 
             <RichEditor
               v-model="argsJson"
               type="json_array"
-              style="
-              position: absolute;
-              right: -23px;
-              top: -18px;
-              margin: 10px;
-            "
+              style="position: absolute; right: -23px; top: -18px; margin: 10px"
             />
-
           </div>
-
         </div>
 
         <h2 class="mb-4">{{ $t('task_prompts') }}</h2>
@@ -428,6 +521,13 @@
           ></TemplateVaults>
 
           <v-checkbox
+            v-if="needField('skip_galaxy_install')"
+            v-model="item.task_params.skip_galaxy_install"
+            :label="$t('skipGalaxyInstall')"
+            class="mt-0"
+          />
+
+          <v-checkbox
             class="mt-0"
             :label="$t('auto_approve')"
             v-model="item.task_params.auto_approve"
@@ -440,7 +540,7 @@
             v-model="item.task_params.override_backend"
             :true-value="true"
             :false-value="false"
-            v-if="needField('override_backend') && premiumFeatures.terraform_backend"
+            v-if="needField('override_backend') && features.terraform_backend"
           />
 
           <v-text-field
@@ -450,10 +550,9 @@
             dense
             :disabled="formSaving || !item.task_params.override_backend"
             placeholder="backend.tf"
-            :rules="[v => validateBackendFilename(v) || $t('terraform_invalid_backend_filename')]"
-            v-if="needField('backend_filename') && premiumFeatures.terraform_backend"
+            :rules="[(v) => validateBackendFilename(v) || $t('terraform_invalid_backend_filename')]"
+            v-if="needField('backend_filename') && features.terraform_backend"
           ></v-text-field>
-
         </div>
 
         <h2 class="mb-4">
@@ -489,15 +588,20 @@
           />
 
           <v-checkbox
+            v-if="needField('allow_override_skip_galaxy_install')"
+            v-model="item.task_params.allow_override_skip_galaxy_install"
+            :label="$t('skipGalaxyInstall')"
+            class="mt-0"
+          />
+
+          <v-checkbox
             class="mt-0"
             :label="$t('auto_approve')"
             v-model="item.task_params.allow_auto_approve"
             v-if="needField('allow_auto_approve')"
           />
-
         </div>
       </v-col>
-
     </v-row>
   </v-form>
 </template>
@@ -522,12 +626,14 @@ import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import AppsMixin from '@/components/AppsMixin';
 import RichEditor from '@/components/RichEditor.vue';
+import DropdownCard from '@/components/DropdownCard.vue';
 import SurveyVars from './SurveyVars';
 
 export default {
   mixins: [ItemFormBase, AppFieldsMixin, AppsMixin],
 
   components: {
+    DropdownCard,
     RichEditor,
     TemplateVaults,
     ArgsPicker,
@@ -537,28 +643,34 @@ export default {
   props: {
     sourceItemId: Number,
     app: String,
-    premiumFeatures: Object,
+    features: Object,
     taskType: String,
   },
 
   data() {
     return {
-      cronFormats: [{
-        cron: '* * * * *',
-        title: '1 minute',
-      }, {
-        cron: '*/5 * * * *',
-        title: '5 minutes',
-      }, {
-        cron: '*/10 * * * *',
-        title: '10 minutes',
-      }, {
-        cron: '@hourly',
-        title: '1 hour',
-      }, {
-        cron: '@daily',
-        title: '24 hours',
-      }],
+      cronFormats: [
+        {
+          cron: '* * * * *',
+          title: '1 minute',
+        },
+        {
+          cron: '*/5 * * * *',
+          title: '5 minutes',
+        },
+        {
+          cron: '*/10 * * * *',
+          title: '10 minutes',
+        },
+        {
+          cron: '@hourly',
+          title: '1 hour',
+        },
+        {
+          cron: '@daily',
+          title: '24 hours',
+        },
+      ],
       itemTypeIndex: 0,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_TITLES,
@@ -572,7 +684,9 @@ export default {
       },
       item: {
         task_params: {},
+        jwt_params: { enabled: false, audience: [], ttl: '' },
       },
+      systemInfo: null,
       inventory: null,
       repositories: null,
       environment: null,
@@ -589,19 +703,26 @@ export default {
       args: [],
       runnerTags: null,
       branches: null,
+      playbooks: null,
+      playbooksLoading: false,
+      playbooksAbort: null,
       setBranch: false,
     };
   },
 
   watch: {
-    gitBranch() {
-      this.setBranch = false;
+    gitBranchOfTemplate() {
+      if (this.playbooks != null) {
+        this.playbooks = null;
+        this.loadPlaybooks();
+      }
     },
 
     async repositoryId() {
       this.branches = null;
+      this.playbooks = null;
 
-      await this.loadBranches();
+      await Promise.all([this.loadBranches()]);
     },
 
     needReset(val) {
@@ -623,10 +744,16 @@ export default {
   },
 
   async created() {
-    await this.loadBranches();
+    await Promise.all([this.loadBranches()]);
   },
 
   computed: {
+    // The image override is only honoured by the container-based executors, which
+    // are themselves paid features: Docker in PRO, Kubernetes in Enterprise.
+    isExecutorImageAvailable() {
+      return !!(this.features?.docker_executor || this.features?.k8s_executor);
+    },
+
     argsJson: {
       get() {
         return JSON.stringify(this.args);
@@ -636,12 +763,31 @@ export default {
       },
     },
 
+    jwtTtlHint() {
+      const max = this.systemInfo?.jwt?.max_ttl;
+      if (!max) {
+        return this.$t('jwt_ttl_hint_no_max');
+      }
+      return this.$t('jwt_ttl_hint', { max });
+    },
+
     repositoryId() {
       return this.item?.repository_id;
     },
 
-    gitBranch() {
+    gitBranchOfTemplate() {
       return this.item?.git_branch;
+    },
+
+    gitBranch() {
+      let ret = this.item?.git_branch;
+      if (!ret) {
+        const repo = this.repositories.find((x) => x.id === this.repositoryId);
+        if (repo) {
+          ret = repo.git_branch;
+        }
+      }
+      return ret;
     },
 
     allow_override_inventory: {
@@ -706,15 +852,16 @@ export default {
       //   return true;
       // }
 
-      return this.repositories != null
+      return (
+        this.repositories != null
         && this.inventory != null
         && this.environment != null
         && this.item != null
         && this.schedules != null
         && this.views != null
-        && this.runnerTags != null;
+        && this.runnerTags != null
+      );
     },
-
   },
 
   methods: {
@@ -723,9 +870,47 @@ export default {
         return;
       }
 
-      this.branches = await this.loadProjectEndpoint(
-        `/repositories/${this.repositoryId}/branches`,
-      );
+      try {
+        this.branches = await this.loadProjectEndpoint(
+          `/repositories/${this.repositoryId}/branches`,
+        );
+      } catch (e) {
+        this.branches = null;
+      }
+    },
+
+    cancelPlaybookLoading() {
+      if (this.playbooksAbort) {
+        this.playbooksAbort.abort();
+        this.playbooksAbort = null;
+      }
+    },
+
+    async loadPlaybooks() {
+      if (this.repositoryId == null) {
+        this.playbooks = null;
+        return;
+      }
+
+      this.cancelPlaybookLoading();
+      const ctrl = new AbortController();
+      this.playbooksAbort = ctrl;
+      this.playbooksLoading = true;
+
+      try {
+        this.playbooks = await this.loadProjectEndpoint(
+          `/repositories/${this.repositoryId}/playbooks?branch=${encodeURIComponent(this.item.git_branch || '')}`,
+          { signal: ctrl.signal },
+        );
+      } catch (e) {
+        this.playbooks = null;
+      } finally {
+        // ponytail: guard against a newer request having replaced this one
+        if (this.playbooksAbort === ctrl || this.playbooksAbort == null) {
+          this.playbooksAbort = null;
+          this.playbooksLoading = false;
+        }
+      }
     },
 
     validateBackendFilename(v) {
@@ -772,6 +957,8 @@ export default {
     getNewItem() {
       return {
         task_params: {},
+        jwt_params: { enabled: false, audience: [], ttl: '' },
+        environment_ids: [],
       };
     },
 
@@ -843,7 +1030,9 @@ export default {
           }
         }
 
-        const sourceSchedule = (await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`))[0];
+        const sourceSchedule = (
+          await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`)
+        )[0];
 
         if (sourceSchedule != null) {
           this.cronFormat = sourceSchedule.cron_format;
@@ -856,6 +1045,39 @@ export default {
 
       if (!this.item.task_params) {
         this.item.task_params = {};
+      }
+
+      // The API omits executor_image when it is not set; declare it explicitly so
+      // the text field stays reactive for templates without an override.
+      if (this.item.executor_image === undefined) {
+        this.$set(this.item, 'executor_image', null);
+      }
+
+      if (!this.item.jwt_params) {
+        this.$set(this.item, 'jwt_params', { enabled: false, audience: [], ttl: '' });
+      } else {
+        if (!Array.isArray(this.item.jwt_params.audience)) {
+          this.$set(this.item.jwt_params, 'audience', []);
+        }
+        if (typeof this.item.jwt_params.ttl !== 'string') {
+          this.$set(this.item.jwt_params, 'ttl', '');
+        }
+      }
+
+      try {
+        this.systemInfo = (
+          await axios({
+            method: 'get',
+            url: '/api/info',
+            responseType: 'json',
+          })
+        ).data;
+      } catch (e) {
+        this.systemInfo = null;
+      }
+
+      if (!Array.isArray(this.item.environment_ids)) {
+        this.$set(this.item, 'environment_ids', []);
       }
 
       this.args = JSON.parse(this.item.arguments || '[]');

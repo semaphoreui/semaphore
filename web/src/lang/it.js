@@ -158,6 +158,11 @@ export default {
   duration: 'Durata',
   stop: 'Ferma',
   forceStop: 'Ferma forzatamente',
+  stopAll: 'Ferma tutto',
+  stopAllTasks: 'Ferma tutte le attività',
+  askStopAllTasks: 'Sei sicuro di voler fermare tutte le attività?',
+  forceStopAllTasks: 'Ferma forzatamente tutte le attività',
+  askForceStopAllTasks: 'Sei sicuro di voler fermare forzatamente tutte le attività?',
   raw_log: 'Log grezzo',
 
   confirmTask: 'Conferma',

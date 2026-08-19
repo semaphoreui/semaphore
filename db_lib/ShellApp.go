@@ -45,11 +45,11 @@ func (t *ShellApp) makeCmd(command string, args []string, environmentVars []stri
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", util.Config.GetProjectTmpDir(t.Template.ProjectID)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", getHomeDir(t.Repository, t.Template.ID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	cmd.Env = append(cmd.Env, environmentVars...)
 
-	cmd.SysProcAttr = util.Config.GetSysProcAttr()
+	cmd.SysProcAttr = util.Config.GetAppSysProcAttr()
 
 	return cmd
 }

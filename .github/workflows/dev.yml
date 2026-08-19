@@ -15,15 +15,15 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26.5'
 
       - name: Setup nodejs
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -37,6 +37,12 @@ jobs:
         run: |
           task deps
 
+      - name: Add PRO implementation
+        if: github.event_name == 'push'
+        run: |
+          git clone -b main https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
+          go work init . ./pro_impl
+
       - name: Run build
         run: task build
 
@@ -48,39 +54,28 @@ jobs:
         run: task test
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: semaphore
           path: bin/semaphore
           retention-days: 1
 
-  migrate-boltdb:
-    runs-on: ubuntu-latest
+      # The dredd hooks set up workflow fixtures through the Pro workflow store,
+      # so they must be built with the PRO implementation (go.work + pro_impl is
+      # set up above for push builds). The integration jobs only have the
+      # open-source stub, where those store methods are no-ops, so build the
+      # hooks here and share them. On pull_request builds pro_impl is not
+      # available; the hooks are built with the stub and detect this at runtime
+      # (isProBuild), skipping the workflow tests.
+      - name: Build dredd hooks
+        run: task dredd:hooks
 
-    needs:
-      - build-local
-
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
+      - name: Upload dredd hooks
+        uses: actions/upload-artifact@v7
         with:
-          name: semaphore
-
-      - name: Write config
-        run: |
-          cat > config.json <<EOF
-            {
-              "bolt": {
-                "host": "/tmp/database.bolt"
-              },
-              "dialect": "bolt",
-              "email_alert": false
-            }
-          EOF
-
-      - name: Migrate database
-        run: |
-          chmod +x ./semaphore && ./semaphore migrate --config config.json
+          name: dredd-hooks
+          path: .dredd/compiled_hooks
+          retention-days: 1
 
   migrate-mysql:
     runs-on: ubuntu-latest
@@ -106,7 +101,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -153,7 +148,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -199,7 +194,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -233,7 +228,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -252,71 +247,6 @@ jobs:
       - name: Migrate database
         run: |
           chmod +x ./semaphore && ./semaphore migrate --config config.json
-
-  integrate-boltdb:
-    runs-on: ubuntu-latest
-
-    needs:
-      - migrate-boltdb
-
-    env:
-      SEMAPHORE_DB_OPTIONS: '{"sessionConnection": "true"}'
-
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Setup golang
-        uses: actions/setup-go@v5
-        with:
-          go-version: '^1.24.6'
-
-      - name: Setup nodejs
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
-
-      - name: Install go-task
-        run: |
-          go install github.com/go-task/task/v3/cmd/task@latest
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: semaphore
-
-      - name: Write config
-        run: |
-          cat > config.stdin <<EOF
-          2
-          /tmp/database.bolt
-          /tmp/semaphore
-          http://localhost:3000
-          no
-          no
-          no
-          no
-          no
-          no
-          $(pwd)/.dredd
-          admin
-          admin@localhost
-          Developer
-          password
-          EOF
-
-      - name: Execute setup
-        run: |
-          chmod +x ./semaphore && ./semaphore setup - < config.stdin
-
-      - name: Launch dredd
-        run: |
-          task dredd:goodman
-          task dredd:deps
-          task dredd:hooks
-          task dredd:test
 
   integrate-mysql:
     runs-on: ubuntu-latest
@@ -342,15 +272,15 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26.5'
 
       - name: Setup nodejs
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -361,7 +291,7 @@ jobs:
           go install github.com/go-task/task/v3/cmd/task@latest
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -392,11 +322,17 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore setup - < config.stdin
 
+      - name: Download dredd hooks
+        uses: actions/download-artifact@v8
+        with:
+          name: dredd-hooks
+          path: .dredd
+
       - name: Launch dredd
         run: |
           task dredd:goodman
           task dredd:deps
-          task dredd:hooks
+          chmod +x .dredd/compiled_hooks
           task dredd:test
 
   integrate-mariadb:
@@ -423,15 +359,15 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26.5'
 
       - name: Setup nodejs
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -442,7 +378,7 @@ jobs:
           go install github.com/go-task/task/v3/cmd/task@latest
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -473,11 +409,17 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore setup - < config.stdin
 
+      - name: Download dredd hooks
+        uses: actions/download-artifact@v8
+        with:
+          name: dredd-hooks
+          path: .dredd
+
       - name: Launch dredd
         run: |
           task dredd:goodman
           task dredd:deps
-          task dredd:hooks
+          chmod +x .dredd/compiled_hooks
           task dredd:test
 
   integrate-postgres:
@@ -503,15 +445,15 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26.5'
 
       - name: Setup nodejs
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -522,7 +464,7 @@ jobs:
           go install github.com/go-task/task/v3/cmd/task@latest
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -553,11 +495,17 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore setup - < config.stdin
 
+      - name: Download dredd hooks
+        uses: actions/download-artifact@v8
+        with:
+          name: dredd-hooks
+          path: .dredd
+
       - name: Launch dredd
         run: |
           task dredd:goodman
           task dredd:deps
-          task dredd:hooks
+          chmod +x .dredd/compiled_hooks
           task dredd:test
 
   integrate-sqlite:
@@ -568,15 +516,15 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: '^1.24.6'
+          go-version: '1.26.5'
 
       - name: Setup nodejs
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -587,7 +535,7 @@ jobs:
           go install github.com/go-task/task/v3/cmd/task@latest
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: semaphore
 
@@ -615,11 +563,17 @@ jobs:
         run: |
           chmod +x ./semaphore && ./semaphore setup - < config.stdin
 
+      - name: Download dredd hooks
+        uses: actions/download-artifact@v8
+        with:
+          name: dredd-hooks
+          path: .dredd
+
       - name: Launch dredd
         run: |
           task dredd:goodman
           task dredd:deps
-          task dredd:hooks
+          chmod +x .dredd/compiled_hooks
           task dredd:test
 
   deploy-server:
@@ -627,25 +581,25 @@ jobs:
     if: github.repository_owner == 'semaphoreui'
 
     needs:
-      - integrate-boltdb
       - integrate-mysql
       - integrate-mariadb
       - integrate-postgres
+      - integrate-sqlite
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup qemu
         id: qemu
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Setup buildx
         id: buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Hub login
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKER_USER }}
@@ -653,7 +607,7 @@ jobs:
 
       - name: Server meta
         id: server
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
@@ -667,7 +621,7 @@ jobs:
             latest=false
 
       - name: Server build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -682,25 +636,24 @@ jobs:
     if: github.repository_owner == 'semaphoreui'
 
     needs:
-      - integrate-boltdb
       - integrate-mysql
       - integrate-mariadb
       - integrate-postgres
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup qemu
         id: qemu
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Setup buildx
         id: buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Hub login
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKER_USER }}
@@ -708,7 +661,7 @@ jobs:
 
       - name: Runner meta
         id: runner
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           images: |
@@ -722,7 +675,7 @@ jobs:
             latest=false
 
       - name: Runner build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -731,3 +684,101 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           labels: ${{ steps.runner.outputs.labels }}
           tags: ${{ steps.runner.outputs.tags }}
+
+  deploy-job:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'semaphoreui'
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Setup qemu
+        id: qemu
+        uses: docker/setup-qemu-action@v4
+
+      - name: Setup buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Hub login
+        uses: docker/login-action@v4
+        if: github.event_name != 'pull_request'
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Job meta
+        id: job
+        uses: docker/metadata-action@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/job
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semaphoreui.com>
+          tags: |
+            type=raw,value=develop
+          flavor: |
+            latest=false
+
+      - name: Job build
+        uses: docker/build-push-action@v7
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: deployment/docker/job/Dockerfile
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.job.outputs.labels }}
+          tags: ${{ steps.job.outputs.tags }}
+
+  deploy-helper:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'semaphoreui'
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Setup qemu
+        id: qemu
+        uses: docker/setup-qemu-action@v4
+
+      - name: Setup buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Hub login
+        uses: docker/login-action@v4
+        if: github.event_name != 'pull_request'
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Helper meta
+        id: helper
+        uses: docker/metadata-action@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/helper
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semaphoreui.com>
+          tags: |
+            type=raw,value=develop
+          flavor: |
+            latest=false
+
+      - name: Helper build
+        uses: docker/build-push-action@v7
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: deployment/docker/helper/Dockerfile
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v6
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.helper.outputs.labels }}
+          tags: ${{ steps.helper.outputs.tags }}

@@ -56,7 +56,7 @@
     >
       <template v-slot:item.git_url="{ item }">
         {{ item.git_url }}
-        <code v-if="!item.git_url.startsWith('/')">{{ item.git_branch }}</code>
+        <code v-if="!isLocalRepositoryPath(item.git_url)">{{ item.git_branch }}</code>
       </template>
 
       <template v-slot:item.ssh_key_id="{ item }">
@@ -80,6 +80,7 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import RepositoryForm from '@/components/RepositoryForm.vue';
+import { isLocalRepositoryPath } from '@/lib/repositoryUrl';
 import axios from 'axios';
 
 export default {
@@ -100,6 +101,8 @@ export default {
   },
 
   methods: {
+    isLocalRepositoryPath,
+
     getHeaders() {
       return [{
         text: this.$i18n.t('name'),

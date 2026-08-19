@@ -1,14 +1,17 @@
 package api
 
 import (
+	"crypto/subtle"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/pquerna/otp"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	proApi "github.com/semaphoreui/semaphore/pro/api"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -102,7 +105,7 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 
 	switch session.VerificationMethod {
 	case db.SessionVerificationTotp:
-		if !util.Config.Auth.Totp.Enabled || !util.Config.Auth.Totp.AllowRecovery {
+		if !util.Config.Mfa.Totp.Enabled || !util.Config.Mfa.Totp.AllowRecovery {
 			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
 			return
 		}
@@ -166,7 +169,7 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case db.SessionVerificationTotp:
-		if !util.Config.Auth.Totp.Enabled {
+		if !util.Config.Mfa.Totp.Enabled {
 			helpers.WriteErrorStatus(w, "TOTP_DISABLED", http.StatusForbidden)
 			return
 		}
@@ -180,6 +183,11 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		user, err := helpers.Store(r).GetUser(session.UserID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if user.Totp == nil {
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -223,6 +231,11 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 				log.Error(err)
 			}
 
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		if token.IsExpiredAt(tz.Now()) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -285,13 +298,9 @@ func authentication(next http.Handler) http.Handler {
 // nolint: gocyclo
 func authenticationWithStore(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		store := helpers.Store(r)
-
 		var ok bool
 
-		db.StoreSession(store, r.URL.String(), func() {
-			ok, r = authenticationHandler(w, r)
-		})
+		ok, r = authenticationHandler(w, r)
 
 		if ok {
 			next.ServeHTTP(w, r)
@@ -305,6 +314,112 @@ func adminMiddleware(next http.Handler) http.Handler {
 
 		if !user.Admin {
 			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func metricsAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username := util.Config.Metrics.Username
+		password := util.Config.Metrics.Password
+
+		reqUser, reqPass, ok := r.BasicAuth()
+		userMatch := subtle.ConstantTimeCompare([]byte(reqUser), []byte(username)) == 1
+		passMatch := subtle.ConstantTimeCompare([]byte(reqPass), []byte(password)) == 1
+
+		if !util.Config.Metrics.Enabled || username == "" || password == "" || !ok || !userMatch || !passMatch {
+			w.Header().Set("WWW-Authenticate", `Basic realm="metrics"`)
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// isStateChangingMethod reports whether an HTTP method can modify server state
+// and therefore requires CSRF protection. Safe methods (GET, HEAD, OPTIONS,
+// TRACE) are excluded.
+func isStateChangingMethod(method string) bool {
+	switch method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		return true
+	default:
+		return false
+	}
+}
+
+// requestOriginHost extracts the origin host (host[:port]) of the request from
+// the Origin header, falling back to the Referer header. The boolean is false
+// when neither header is present or parseable.
+func requestOriginHost(r *http.Request) (string, bool) {
+	for _, header := range []string{"Origin", "Referer"} {
+		value := r.Header.Get(header)
+		if value == "" {
+			continue
+		}
+
+		u, err := url.Parse(value)
+		if err != nil || u.Host == "" {
+			continue
+		}
+
+		return u.Host, true
+	}
+
+	return "", false
+}
+
+// isSameOriginHost reports whether host belongs to Semaphore itself. Both the
+// configured public web host and the host the request was addressed to are
+// accepted, so reverse-proxy deployments keep working.
+func isSameOriginHost(host string, r *http.Request) bool {
+	if host == r.Host {
+		return true
+	}
+
+	if util.WebHostURL != nil && host == util.WebHostURL.Host {
+		return true
+	}
+
+	return false
+}
+
+// csrfProtectionMiddleware blocks cross-site state-changing requests that rely
+// on the session cookie, providing defense-in-depth against CSRF on top of the
+// SameSite=Lax session cookie.
+//
+// Requests authenticated with an API token (Authorization: bearer) are exempt:
+// browsers never attach such tokens automatically, so token-based clients are
+// not vulnerable to CSRF and must keep working without an Origin header.
+//
+// When neither Origin nor Referer is present (e.g. non-browser clients using a
+// cookie), the request is allowed — the SameSite=Lax cookie already prevents a
+// browser from sending the session cookie cross-site in that case.
+func csrfProtectionMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !isStateChangingMethod(r.Method) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		authHeader := strings.ToLower(r.Header.Get("authorization"))
+		if strings.Contains(authHeader, "bearer") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if origin, ok := requestOriginHost(r); ok && !isSameOriginHost(origin, r) {
+			log.WithFields(log.Fields{
+				"origin": origin,
+				"host":   r.Host,
+				"path":   r.URL.Path,
+				"method": r.Method,
+			}).Warn("Blocked cross-origin request (possible CSRF)")
+			helpers.WriteErrorStatus(w, "CROSS_ORIGIN_REQUEST_BLOCKED", http.StatusForbidden)
 			return
 		}
 

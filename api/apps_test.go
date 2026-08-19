@@ -2,8 +2,9 @@ package api
 
 import (
 	"fmt"
-	"github.com/semaphoreui/semaphore/pkg/conv"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/pkg/conv"
 )
 
 func TestStructToMap(t *testing.T) {

@@ -2,16 +2,12 @@
   <span>
     <!-- eslint-disable-next-line vuejs-accessibility/form-control-has-label -->
     <textarea
-      style="position: absolute; left: -9999px; top: -9999px;"
+      style="position: absolute; left: -9999px; top: -9999px"
       ref="copy_to_clipboard_textarea"
     ></textarea>
 
-    <v-btn
-      icon
-      @click="copy()"
-      :large="large"
-    >
-      <v-icon>mdi-content-copy</v-icon>
+    <v-btn icon @click="copy()" :large="large">
+      <v-icon :color="color">mdi-content-copy</v-icon>
     </v-btn>
   </span>
 </template>

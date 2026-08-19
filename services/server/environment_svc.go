@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -12,23 +13,29 @@ type EnvironmentService interface {
 func NewEnvironmentService(
 	environmentRepo db.EnvironmentManager,
 	encryptionService AccessKeyEncryptionService,
+	secretStorageRepo db.SecretStorageRepository,
 ) EnvironmentService {
 	return &EnvironmentServiceImpl{
 		environmentRepo:   environmentRepo,
 		encryptionService: encryptionService,
+		secretStorageRepo: secretStorageRepo,
 	}
 }
 
 type EnvironmentServiceImpl struct {
 	environmentRepo   db.EnvironmentManager
 	encryptionService AccessKeyEncryptionService
+	secretStorageRepo db.SecretStorageRepository
 }
 
 func (s *EnvironmentServiceImpl) Delete(projectID int, environmentID int) (err error) {
-	// Implement the logic to delete an environment
-	// This is a placeholder implementation
 	if projectID <= 0 || environmentID <= 0 {
 		return fmt.Errorf("invalid project or environment ID")
+	}
+
+	env, err := s.environmentRepo.GetEnvironment(projectID, environmentID)
+	if err != nil {
+		return
 	}
 
 	secrets, err := s.environmentRepo.GetEnvironmentSecrets(projectID, environmentID)
@@ -44,10 +51,23 @@ func (s *EnvironmentServiceImpl) Delete(projectID int, environmentID int) (err e
 
 	var errors []error
 
-	for _, secret := range secrets {
-		err = s.encryptionService.DeleteSecret(&secret)
+	if env.SecretStorageID != nil {
+		var storage db.SecretStorage
+		storage, err = s.secretStorageRepo.GetSecretStorage(projectID, *env.SecretStorageID)
 		if err != nil {
-			errors = append(errors, err)
+			return
+		}
+
+		if !storage.ReadOnly {
+			for _, secret := range secrets {
+				if secret.Synchronized {
+					continue
+				}
+				err = s.encryptionService.DeleteSecret(&secret)
+				if err != nil {
+					errors = append(errors, err)
+				}
+			}
 		}
 	}
 

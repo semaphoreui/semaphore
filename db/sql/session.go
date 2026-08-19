@@ -3,9 +3,10 @@ package sql
 import (
 	"database/sql"
 	"errors"
+	"regexp"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
-	"regexp"
 )
 
 func (d *SqlDb) SetSessionVerificationMethod(userID int, sessionID int, verificationMethod db.SessionVerificationMethod) error {

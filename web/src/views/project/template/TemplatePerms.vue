@@ -15,12 +15,7 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-alert
-      v-if="!premiumFeatures.custom_roles_management"
-      text
-      color="amber darken-3"
-      class="PageAlert"
-    >
+    <v-alert v-if="!features.custom_roles_management" text color="amber darken-3" class="PageAlert">
       <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
 
       <v-btn
@@ -28,22 +23,23 @@
         depressed
         v-if="isAdmin"
         color="amber darken-3"
-        href="https://semaphoreui.com/pro#secret_storages"
+        href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
+        target="_blank"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
-      <span v-else style="font-weight: bold;">
+      <span v-else style="font-weight: bold">
         {{ $t('contact_admin_to_upgrade_enterprise') }}
       </span>
     </v-alert>
 
     <v-btn
-      :disabled="!premiumFeatures.custom_roles_management"
+      :disabled="!features.custom_roles_management"
       color="primary"
       @click="editItem('new')"
-      style="position: absolute; right: 16px;"
-    >{{ $t('Add Role') }}
+      style="position: absolute; right: 16px"
+      >{{ $t('Add Role') }}
     </v-btn>
 
     <v-data-table
@@ -58,22 +54,15 @@
       </template>
 
       <template v-slot:item.permissions="{ item }">
-        <TemplatePermissionsChips
-          :permissions="item.permissions"
-          scope="template"
-        />
+        <TemplatePermissionsChips :permissions="item.permissions" scope="template" />
       </template>
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn
-            @click="editItem(item.id)"
-          >
+          <v-btn @click="editItem(item.id)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-          <v-btn
-            @click="askDeleteItem(item.id)"
-          >
+          <v-btn @click="askDeleteItem(item.id)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </v-btn-toggle>
@@ -104,7 +93,7 @@ export default {
     repositories: Array,
     inventory: Array,
     environment: Array,
-    premiumFeatures: Object,
+    features: Object,
     isAdmin: Boolean,
   },
 
@@ -128,7 +117,9 @@ export default {
   methods: {
     async loadRoles() {
       try {
-        const response = await axios.get(`/api/project/${this.template.project_id}/roles?mode=merge`);
+        const response = await axios.get(
+          `/api/project/${this.template.project_id}/roles?mode=merge`,
+        );
         this.availableRoles = response.data;
       } catch (error) {
         // eslint-disable-next-line no-console
@@ -137,12 +128,12 @@ export default {
     },
 
     getRoleName(roleId) {
-      const role = this.availableRoles.find((r) => r.id === roleId);
+      const role = this.availableRoles.find((r) => r.slug === roleId);
       return role ? role.name : `Role ${roleId}`;
     },
 
     getRoleColor(roleId) {
-      const role = this.availableRoles.find((r) => r.id === roleId);
+      const role = this.availableRoles.find((r) => r.slug === roleId);
       if (!role) return 'gray';
 
       // Color based on role slug or default colors
@@ -176,7 +167,8 @@ export default {
           value: 'actions',
           sortable: false,
           width: '10%',
-        }];
+        },
+      ];
     },
 
     getSingleItemUrl() {

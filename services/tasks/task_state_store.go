@@ -2,6 +2,87 @@ package tasks
 
 import "sync"
 
+// TaskStateInspector is optionally implemented by a TaskStateStore to
+// expose its records for the Cluster Dashboard. Callers must type-assert,
+// so stores that do not implement it are unaffected.
+type TaskStateInspector interface {
+	// Snapshot returns a serializable view of all task records.
+	Snapshot() TaskStateSnapshot
+	// ClearTasks removes task records from the backend. scope selects
+	// which record groups to clear.
+	ClearTasks(scope ClearScope) (ClearResult, error)
+}
+
+// TaskStateSnapshot is a serializable view of all task pool records.
+type TaskStateSnapshot struct {
+	Queue        []TaskRecord         `json:"queue"`
+	Running      []TaskRecord         `json:"running"`
+	ActiveByProj map[int][]TaskRecord `json:"active_by_project"`
+	Aliases      map[string]int       `json:"aliases"` // alias -> taskID
+	Claims       []int                `json:"claims"`  // claimed taskIDs
+}
+
+// TaskRecord is a single task entry in a TaskStateSnapshot.
+type TaskRecord struct {
+	TaskID     int    `json:"task_id"`
+	ProjectID  int    `json:"project_id"`
+	TemplateID int    `json:"template_id"`
+	Status     string `json:"status"`
+	RunnerID   int    `json:"runner_id"`
+	Username   string `json:"username"`
+	Alias      string `json:"alias"`
+	NodeID     string `json:"node_id"` // owning node, "" if unknown
+}
+
+// ClearScope selects which record groups ClearTasks removes.
+type ClearScope struct {
+	Queue         bool `json:"queue"`
+	Running       bool `json:"running"`
+	Active        bool `json:"active"`
+	Aliases       bool `json:"aliases"`
+	Claims        bool `json:"claims"`
+	RuntimeFields bool `json:"runtime_fields"`
+}
+
+// ClearResult reports what ClearTasks removed.
+type ClearResult struct {
+	DeletedKeys int            `json:"deleted_keys"`
+	PerGroup    map[string]int `json:"per_group"`
+}
+
+// taskToRecord builds a TaskRecord from a TaskRunner.
+func taskToRecord(t *TaskRunner) TaskRecord {
+	if t == nil {
+		return TaskRecord{}
+	}
+	rec := TaskRecord{
+		TaskID:     t.Task.ID,
+		ProjectID:  t.Task.ProjectID,
+		TemplateID: t.Task.TemplateID,
+		Status:     string(t.Task.Status),
+		Username:   t.Username,
+		Alias:      t.Alias,
+	}
+	if t.Task.RunnerID != nil {
+		rec.RunnerID = *t.Task.RunnerID
+	}
+	return rec
+}
+
+// TaskStopBroadcaster is optionally implemented by a TaskStateStore to relay
+// force-stop requests to the node that owns a task (HA). Callers must
+// type-assert, so stores that do not implement it (the in-memory store, where
+// every task is local) are unaffected.
+type TaskStopBroadcaster interface {
+	// BroadcastTaskStop asks every other node to force-stop the task if it
+	// owns it locally (queued or running). Fire-and-forget fast path: the
+	// DB status sweep and the orphan cleaner remain the at-least-once backstops.
+	BroadcastTaskStop(taskID int)
+	// SetTaskStopHandler registers the callback invoked when another node
+	// broadcasts a stop for a task.
+	SetTaskStopHandler(handler func(taskID int))
+}
+
 // TaskRunnerHydrator constructs a TaskRunner for an existing task
 // identified by taskID and projectID without starting it.
 type TaskRunnerHydrator func(taskID int, projectID int) (*TaskRunner, error)
@@ -9,7 +90,7 @@ type TaskRunnerHydrator func(taskID int, projectID int) (*TaskRunner, error)
 // TaskStateStore defines pluggable storage for task pool state
 type TaskStateStore interface {
 	// Start allows the store to initialize, restore its in-memory
-	// pointers from the underlying backend and start background
+	// pointers from the underlying backend, and start background
 	// sync listeners (e.g., Redis Pub/Sub). Implementations may no-op.
 	Start(hydrator TaskRunnerHydrator) error
 
@@ -20,11 +101,31 @@ type TaskStateStore interface {
 	QueueGet(index int) *TaskRunner
 	QueueLen() int
 
+	// ClaimAndDequeue atomically claims a task for this node and removes it
+	// from the waiting queue, addressed by ID (never by list position).
+	// Returns true iff this node now exclusively owns the task and it has been
+	// removed from the queue. On false the queue is left untouched. This is the
+	// only safe way to pull a task for execution when multiple HA nodes share
+	// one queue: position-based claim+dequeue races as the shared list shifts.
+	ClaimAndDequeue(taskID int) bool
+
+	// DequeueByID removes a task from the queue by value (task ID), avoiding
+	// the index races inherent to DequeueAt under concurrent multi-node access.
+	DequeueByID(taskID int)
+
 	// Running tasks map operations
 	SetRunning(task *TaskRunner)
 	DeleteRunning(taskID int)
 	RunningRange() []*TaskRunner
 	RunningCount() int
+
+	// OwnedRunningRange returns the running tasks this node is responsible
+	// for. The in-memory store owns everything; the HA store filters the
+	// shared running set by the per-task claim value (the owning node's ID),
+	// so each cluster node reconciles only its own tasks instead of every
+	// node scanning the whole cluster. Tasks whose claim expired (dead owner)
+	// are owned by nobody — the HA orphan cleaner reconciles those.
+	OwnedRunningRange() []*TaskRunner
 
 	// Active-by-project operations
 	AddActive(projectID int, task *TaskRunner)
@@ -41,9 +142,18 @@ type TaskStateStore interface {
 	TryClaim(taskID int) bool
 	DeleteClaim(taskID int)
 
+	// TryFinalize attempts to acquire a cluster-wide finalization lock for a
+	// remote task. Returns true iff this node should run FinalizeRemoteTask
+	// (webhook, autorun, pool cleanup). Redis-backed stores should use SETNX
+	// (or equivalent) keyed by task ID; the in-memory store deduplicates within
+	// a single process only.
+	TryFinalize(taskID int) bool
+	DeleteFinalize(taskID int)
+
 	// UpdateRuntimeFields persists transient fields of TaskRunner so
 	// they can be restored after restart in HA mode.
 	UpdateRuntimeFields(task *TaskRunner)
+
 	// LoadRuntimeFields fills runtime fields (RunnerID, Username, IncomingVersion, Alias)
 	// from the backend into the provided task. No-op if not supported.
 	LoadRuntimeFields(task *TaskRunner)
@@ -56,6 +166,7 @@ type MemoryTaskStateStore struct {
 	running    map[int]*TaskRunner
 	activeProj map[int]map[int]*TaskRunner // projectID -> taskID -> task
 	aliases    map[string]*TaskRunner
+	finalizing sync.Map // taskID -> struct{}; per-process FinalizeRemoteTask guard
 }
 
 func NewMemoryTaskStateStore() *MemoryTaskStateStore {
@@ -71,8 +182,18 @@ func NewMemoryTaskStateStore() *MemoryTaskStateStore {
 func (s *MemoryTaskStateStore) Start(_ TaskRunnerHydrator) error { return nil }
 
 // Claims always succeed in memory single-process mode
-func (s *MemoryTaskStateStore) TryClaim(_ int) bool               { return true }
-func (s *MemoryTaskStateStore) DeleteClaim(_ int)                 {}
+func (s *MemoryTaskStateStore) TryClaim(_ int) bool { return true }
+func (s *MemoryTaskStateStore) DeleteClaim(_ int)   {}
+
+func (s *MemoryTaskStateStore) TryFinalize(taskID int) bool {
+	_, loaded := s.finalizing.LoadOrStore(taskID, struct{}{})
+	return !loaded
+}
+
+func (s *MemoryTaskStateStore) DeleteFinalize(taskID int) {
+	s.finalizing.Delete(taskID)
+}
+
 func (s *MemoryTaskStateStore) UpdateRuntimeFields(_ *TaskRunner) {}
 func (s *MemoryTaskStateStore) LoadRuntimeFields(_ *TaskRunner)   {}
 
@@ -92,6 +213,34 @@ func (s *MemoryTaskStateStore) DequeueAt(index int) error {
 	s.queue = append(s.queue[:index], s.queue[index+1:]...)
 	s.mu.Unlock()
 	return nil
+}
+
+// ClaimAndDequeue removes the task with the given ID from the queue and marks
+// it running. In the single-process memory store there is no contention, so a
+// claim always succeeds as long as the task is still queued.
+func (s *MemoryTaskStateStore) ClaimAndDequeue(taskID int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, t := range s.queue {
+		if t != nil && t.Task.ID == taskID {
+			s.queue = append(s.queue[:i], s.queue[i+1:]...)
+			s.running[t.Task.ID] = t
+			return true
+		}
+	}
+	return false
+}
+
+// DequeueByID removes the task with the given ID from the queue, if present.
+func (s *MemoryTaskStateStore) DequeueByID(taskID int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, t := range s.queue {
+		if t != nil && t.Task.ID == taskID {
+			s.queue = append(s.queue[:i], s.queue[i+1:]...)
+			return
+		}
+	}
 }
 
 func (s *MemoryTaskStateStore) QueueRange() []*TaskRunner {
@@ -139,6 +288,11 @@ func (s *MemoryTaskStateStore) RunningRange() []*TaskRunner {
 	}
 	s.mu.RUnlock()
 	return res
+}
+
+// OwnedRunningRange: a single process owns every running task.
+func (s *MemoryTaskStateStore) OwnedRunningRange() []*TaskRunner {
+	return s.RunningRange()
 }
 
 func (s *MemoryTaskStateStore) RunningCount() int {
@@ -211,4 +365,85 @@ func (s *MemoryTaskStateStore) DeleteAlias(alias string) {
 	s.mu.Lock()
 	delete(s.aliases, alias)
 	s.mu.Unlock()
+}
+
+// Snapshot returns a serializable view of all in-memory task records.
+// The memory store does not track claims, so Claims is always empty.
+func (s *MemoryTaskStateStore) Snapshot() TaskStateSnapshot {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	snap := TaskStateSnapshot{
+		Queue:        make([]TaskRecord, 0, len(s.queue)),
+		Running:      make([]TaskRecord, 0, len(s.running)),
+		ActiveByProj: make(map[int][]TaskRecord),
+		Aliases:      make(map[string]int),
+		Claims:       []int{},
+	}
+
+	for _, t := range s.queue {
+		snap.Queue = append(snap.Queue, taskToRecord(t))
+	}
+	for _, t := range s.running {
+		snap.Running = append(snap.Running, taskToRecord(t))
+	}
+	for projectID, tasks := range s.activeProj {
+		recs := make([]TaskRecord, 0, len(tasks))
+		for _, t := range tasks {
+			recs = append(recs, taskToRecord(t))
+		}
+		snap.ActiveByProj[projectID] = recs
+	}
+	for alias, t := range s.aliases {
+		if t != nil {
+			snap.Aliases[alias] = t.Task.ID
+		}
+	}
+
+	return snap
+}
+
+// ClearTasks removes the selected record groups from the in-memory store.
+func (s *MemoryTaskStateStore) ClearTasks(scope ClearScope) (ClearResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	res := ClearResult{PerGroup: map[string]int{}}
+
+	if scope.Queue {
+		n := len(s.queue)
+		s.queue = make([]*TaskRunner, 0)
+		res.PerGroup["queue"] = n
+		res.DeletedKeys += n
+	}
+	if scope.Running {
+		n := len(s.running)
+		s.running = make(map[int]*TaskRunner)
+		res.PerGroup["running"] = n
+		res.DeletedKeys += n
+	}
+	if scope.Active {
+		n := 0
+		for _, tasks := range s.activeProj {
+			n += len(tasks)
+		}
+		s.activeProj = make(map[int]map[int]*TaskRunner)
+		res.PerGroup["active"] = n
+		res.DeletedKeys += n
+	}
+	if scope.Aliases {
+		n := len(s.aliases)
+		s.aliases = make(map[string]*TaskRunner)
+		res.PerGroup["aliases"] = n
+		res.DeletedKeys += n
+	}
+	// The memory store has no separate claims or runtime fields.
+	if scope.Claims {
+		res.PerGroup["claims"] = 0
+	}
+	if scope.RuntimeFields {
+		res.PerGroup["runtime_fields"] = 0
+	}
+
+	return res, nil
 }

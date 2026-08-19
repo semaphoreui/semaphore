@@ -2,11 +2,12 @@ package sql
 
 import (
 	"errors"
+	"strings"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"golang.org/x/crypto/bcrypt"
-	"strings"
 )
 
 func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
@@ -43,6 +44,24 @@ func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 	}
 
 	user.Password = string(pwdHash)
+	user.Created = db.GetParsedTime(tz.Now())
+
+	err = d.Sql().Insert(&user.User)
+
+	if err != nil {
+		return
+	}
+
+	newUser = user.User
+	return
+}
+
+func (d *SqlDb) ImportUser(user db.UserWithPwd) (newUser db.User, err error) {
+	err = db.ValidateUser(user.User)
+	if err != nil {
+		return
+	}
+
 	user.Created = db.GetParsedTime(tz.Now())
 
 	err = d.Sql().Insert(&user.User)
@@ -375,7 +394,7 @@ func (d *SqlDb) AddEmailOtpVerification(userID int, code string) (res db.UserEma
 
 	if err == nil {
 		now := db.GetParsedTime(tz.Now())
-		_, err = d.exec("update user__email_otp set code=?, created=? where user_id=?", code, now, userID)
+		_, err = d.exec("update user__email_otp set code=?, created=?, attempts=0 where user_id=?", code, now, userID)
 	} else if errors.Is(err, db.ErrNotFound) {
 		err = nil
 		res, err = d.insertEmailOtp(userID, code)
@@ -384,6 +403,11 @@ func (d *SqlDb) AddEmailOtpVerification(userID int, code string) (res db.UserEma
 	}
 
 	return
+}
+
+func (d *SqlDb) IncrementEmailOtpAttempts(userID int) error {
+	_, err := d.exec("update user__email_otp set attempts = attempts + 1 where user_id=?", userID)
+	return err
 }
 
 func (d *SqlDb) DeleteEmailOtpVerification(userID int, totpID int) error {

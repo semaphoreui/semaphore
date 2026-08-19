@@ -1,9 +1,10 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/server"
-	"net/http"
 )
 
 type TerraformController struct {

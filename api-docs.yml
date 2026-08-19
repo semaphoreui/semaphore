@@ -22,6 +22,10 @@ tags:
     description: User-related API
   - name: integration
     description: Integration API
+  - name: runner
+    description: Runner management (project and global runners)
+  - name: workflow
+    description: Workflows
 
 schemes:
   - http
@@ -32,6 +36,16 @@ basePath: /api
 definitions:
   App:
     type: object
+
+  Option:
+    type: object
+    properties:
+      key:
+        type: string
+        example: "nav.unpinnedItems"
+      value:
+        type: string
+        example: "[\"dashboard\",\"history\"]"
 
   Pong:
     type: string
@@ -363,6 +377,8 @@ definitions:
       user_id:
         type: integer
         minimum: 1
+      name:
+        type: string
 
   ProjectRequest:
     type: object
@@ -374,6 +390,7 @@ definitions:
         type: boolean
       alert_chat:
         type: string
+        x-nullable: true
         example: Test
       max_parallel_tasks:
         type: integer
@@ -400,6 +417,7 @@ definitions:
         type: boolean
       alert_chat:
         type: string
+        x-nullable: true
         example: Test
       max_parallel_tasks:
         type: integer
@@ -607,12 +625,24 @@ definitions:
       template_id:
         type: integer
         minimum: 1
+      auth_method:
+        type: string
+        example: none
+      auth_secret_id:
+        type: integer
+        x-nullable: true
+      auth_header:
+        type: string
+      searchable:
+        type: boolean
       task_params:
         $ref: '#/definitions/TaskPrams'
 
   IntegrationRequest:
     type: object
     properties:
+      id:
+        type: integer
       name:
         type: string
         example: deploy
@@ -620,7 +650,17 @@ definitions:
         type: integer
       template_id:
         type: integer
-      params:
+      auth_method:
+        type: string
+        example: none
+      auth_secret_id:
+        type: integer
+        x-nullable: true
+      auth_header:
+        type: string
+      searchable:
+        type: boolean
+      task_params:
         $ref: '#/definitions/TaskPrams'
 
   IntegrationExtractValueRequest:
@@ -719,6 +759,14 @@ definitions:
         type: string
         example: value
 
+  IntegrationAlias:
+    type: object
+    properties:
+      id:
+        type: integer
+      url:
+        type: string
+
   RepositoryRequest:
     type: object
     properties:
@@ -809,6 +857,8 @@ definitions:
         type: array
         items:
           type: string
+      skip_galaxy_install:
+        type: boolean
 
   TerraformTaskParams:
     type: object
@@ -831,8 +881,9 @@ definitions:
         type: string
       message:
         type: string
-      inventory_id:
-        type: integer
+#      inventory_id:
+#        type: integer
+#        x-nullable: true
       arguments:
         type: string
       params:
@@ -870,6 +921,10 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
+      environment_ids:
+        type: array
+        items:
+          type: integer
       view_id:
         type: integer
         minimum: 1
@@ -916,6 +971,8 @@ definitions:
         type: integer
       autorun:
         type: boolean
+      task_params:
+        $ref: '#/definitions/TaskPrams'
 
   Template:
     type: object
@@ -934,6 +991,10 @@ definitions:
       environment_id:
         type: integer
         minimum: 1
+      environment_ids:
+        type: array
+        items:
+          type: integer
       view_id:
         type: integer
         minimum: 1
@@ -976,6 +1037,14 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/TemplateVault"
+      task_params:
+        $ref: '#/definitions/TaskPrams'
+      executor_image:
+        type: string
+        description: >-
+          Container image used to run the task by the Docker and Kubernetes runner
+          executors. Empty means the image configured on the runner is used.
+        example: semaphoreui/job:latest
 
   TemplateSurveyVar:
     type: object
@@ -988,8 +1057,12 @@ definitions:
         type: string
       type:
         type: string
-        enum: ["", int, enum, secret] # String => "", Integer => "int"
+        enum: ["", int, enum, secret, text] # String => "", Integer => "int", Text (multiline) => "text"
         example: int
+      target:
+        type: string
+        enum: ["", env] # CLI (extra-vars / -var / argument) => "", Environment variable => "env"
+        example: env
       required:
         type: boolean
       values:
@@ -1076,6 +1149,9 @@ definitions:
   ViewRequest:
     type: object
     properties:
+      id:
+        type: integer
+        minimum: 1
       title:
         type: string
         example: Test
@@ -1110,8 +1186,108 @@ definitions:
   Runner:
     type: object
     properties:
-      token:
+      id:
+        type: integer
+        readOnly: true
+      project_id:
+        type: integer
+        description: Owning project. Null for global runners.
+        x-nullable: true
+      name:
         type: string
+      webhook:
+        type: string
+        description: URL called by the runner to report task events.
+      max_parallel_tasks:
+        type: integer
+      active:
+        type: boolean
+      is_default:
+        type: boolean
+      tags:
+        type: array
+        x-nullable: true
+        items:
+          type: string
+      touched:
+        type: string
+        format: date-time
+        description: Last time the runner contacted the server.
+        x-nullable: true
+      cleaning_requested:
+        type: string
+        format: date-time
+        x-nullable: true
+      registered:
+        type: boolean
+        description: Whether the runner has been registered (has an auth token).
+
+  RunnerRequest:
+    type: object
+    properties:
+      project_id:
+        type: integer
+        description: Required for project runners and must match the URL project. Ignored for global runners.
+      name:
+        type: string
+      webhook:
+        type: string
+      max_parallel_tasks:
+        type: integer
+      active:
+        type: boolean
+      tags:
+        type: array
+        items:
+          type: string
+      registered:
+        type: boolean
+        description: >
+          Defaults to true. When false, the runner is created with no credentials
+          at all (no auth token and no registration token) and stays inactive. A
+          one-time registration token must then be generated for it (see the
+          registration-token endpoint) and used to register the runner. Useful for
+          tools like Terraform that create the runner up front.
+
+  RunnerWithToken:
+    allOf:
+      - $ref: "#/definitions/Runner"
+      - type: object
+        properties:
+          token:
+            type: string
+            description: Token the runner uses to authenticate.
+          private_key:
+            type: string
+            description: Generated private key, returned only when the server creates the key pair.
+
+  RunnerActive:
+    type: object
+    properties:
+      active:
+        type: boolean
+
+  RunnerRegistrationToken:
+    type: object
+    properties:
+      registration_token:
+        type: string
+        description: One-time, short-lived token used to register the runner.
+      runner_id:
+        type: integer
+        readOnly: true
+      project_id:
+        type: integer
+        description: Owning project. Null for global runners.
+        x-nullable: true
+
+  RunnerTag:
+    type: object
+    properties:
+      tag:
+        type: string
+      number_of_runners:
+        type: integer
 
   Event:
     type: object
@@ -1144,8 +1320,159 @@ definitions:
         type: string
       schedule_timezone:
         type: string
-      premium_features:
+      features:
         type: object
+
+  ClusterTaskRecord:
+    type: object
+    properties:
+      task_id:
+        type: integer
+      project_id:
+        type: integer
+      template_id:
+        type: integer
+      status:
+        type: string
+      runner_id:
+        type: integer
+      username:
+        type: string
+      alias:
+        type: string
+      node_id:
+        type: string
+        description: owning node, empty if unknown
+
+  WorkflowNode:
+    type: object
+    properties:
+      id:
+        type: integer
+      workflow_template_id:
+        type: integer
+      template_id:
+        type: integer
+      kind:
+        type: string
+        enum: [task, approval]
+      convergence_mode:
+        type: string
+        enum: [all, any]
+      approval_timeout:
+        type: integer
+      approval_message:
+        type: string
+      task_params:
+        $ref: '#/definitions/TaskPrams'
+
+  WorkflowEdge:
+    type: object
+    properties:
+      id:
+        type: integer
+      workflow_template_id:
+        type: integer
+      source_node_id:
+        type: integer
+      destination_node_id:
+        type: integer
+      condition:
+        type: string
+        enum: [on_success, on_failure, always]
+
+  WorkflowTemplate:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+      description:
+        type: string
+      nodes:
+        type: array
+        items:
+          $ref: "#/definitions/WorkflowNode"
+      edges:
+        type: array
+        items:
+          $ref: "#/definitions/WorkflowEdge"
+
+  WorkflowRun:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      workflow_template_id:
+        type: integer
+      status:
+        type: string
+        enum: [running, success, failed, approval]
+      start:
+        type: string
+        format: date-time
+      end:
+        type: string
+        format: date-time
+      root_task_id:
+        type: integer
+
+  WorkflowApproval:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      workflow_run_id:
+        type: integer
+      workflow_node_id:
+        type: integer
+      status:
+        type: string
+        enum: [pending, approved, rejected]
+      created:
+        type: string
+        format: date-time
+      resolved:
+        type: string
+        format: date-time
+      resolved_by_user_id:
+        type: integer
+
+  WorkflowNodeRunStatus:
+    type: object
+    properties:
+      node:
+        $ref: "#/definitions/WorkflowNode"
+      task:
+        $ref: "#/definitions/Task"
+      approval:
+        $ref: "#/definitions/WorkflowApproval"
+
+  WorkflowRunDetails:
+    type: object
+    properties:
+      run:
+        $ref: "#/definitions/WorkflowRun"
+      nodes:
+        type: array
+        items:
+          $ref: "#/definitions/WorkflowNodeRunStatus"
+
+  WorkflowApprovalResolveRequest:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        type: string
+        enum: [approved, rejected]
 
 securityDefinitions:
   cookie:
@@ -1211,6 +1538,27 @@ parameters:
     type: integer
     required: true
     x-example: 7
+  workflow_id:
+    name: workflow_id
+    description: workflow template ID
+    in: path
+    type: integer
+    required: true
+    x-example: 18
+  run_id:
+    name: run_id
+    description: workflow run ID
+    in: path
+    type: integer
+    required: true
+    x-example: 19
+  node_id:
+    name: node_id
+    description: workflow node ID
+    in: path
+    type: integer
+    required: true
+    x-example: 20
   task_id:
     name: task_id
     description: task ID
@@ -1253,6 +1601,13 @@ parameters:
     type: integer
     required: true
     x-example: 13
+  alias_id:
+    name: alias_id
+    description: Integration Alias ID
+    in: path
+    type: integer
+    required: true
+    x-example: 15
   invite_id:
     name: invite_id
     description: Invite ID
@@ -1260,16 +1615,22 @@ parameters:
     type: integer
     required: true
     x-example: 14
+  runner_id:
+    name: runner_id
+    description: Project runner ID
+    in: path
+    type: integer
+    required: true
+    x-example: 16
+  global_runner_id:
+    name: runner_id
+    description: Global runner ID
+    in: path
+    type: integer
+    required: true
+    x-example: 17
 
 paths:
-  /debug/gc:
-    post:
-      summary: Garbage collector
-      description: Run the garbage collector
-      responses:
-        204:
-          description: Successful "OK" reply
-
   /ping:
     get:
       summary: PING test
@@ -1307,6 +1668,146 @@ paths:
           description: ok
           schema:
             $ref: "#/definitions/InfoType"
+
+  # Cluster Dashboard (admin only)
+#  /cluster:
+#    get:
+#      tags:
+#        - cluster
+#      summary: Fetches cluster (HA) status
+#      description: >
+#        Admin only. Returns HA mode, this node's ID, cluster membership and
+#        Redis stats. When HA is disabled only ha_enabled is returned.
+#      responses:
+#        200:
+#          description: Cluster status
+#          schema:
+#            type: object
+#            properties:
+#              ha_enabled:
+#                type: boolean
+#              node_id:
+#                type: string
+#              nodes:
+#                type: array
+#                items:
+#                  type: object
+#                  properties:
+#                    node_id:
+#                      type: string
+#                    alive:
+#                      type: boolean
+#                    is_self:
+#                      type: boolean
+#                    last_heartbeat:
+#                      type: string
+#                      format: date-time
+#                    started_at:
+#                      type: string
+#                      format: date-time
+#                    version:
+#                      type: string
+#              redis:
+#                type: object
+#                properties:
+#                  addr:
+#                    type: string
+#                  connected:
+#                    type: boolean
+#                  version:
+#                    type: string
+#                  used_memory:
+#                    type: string
+#                  used_memory_bytes:
+#                    type: integer
+#                    format: int64
+#                  total_keys:
+#                    type: integer
+#                  key_groups:
+#                    type: object
+#                    additionalProperties:
+#                      type: integer
+#
+#  /cluster/tasks:
+#    get:
+#      tags:
+#        - cluster
+#      summary: Fetches a snapshot of task pool records
+#      description: >
+#        Admin only. Returns queued, running and active tasks, aliases and
+#        claims kept by the task state store (Redis in HA mode, in-memory
+#        otherwise).
+#      responses:
+#        200:
+#          description: Task state snapshot
+#          schema:
+#            type: object
+#            properties:
+#              queue:
+#                type: array
+#                items:
+#                  $ref: "#/definitions/ClusterTaskRecord"
+#              running:
+#                type: array
+#                items:
+#                  $ref: "#/definitions/ClusterTaskRecord"
+#              active_by_project:
+#                type: object
+#                additionalProperties:
+#                  type: array
+#                  items:
+#                    $ref: "#/definitions/ClusterTaskRecord"
+#              aliases:
+#                type: object
+#                additionalProperties:
+#                  type: integer
+#              claims:
+#                type: array
+#                items:
+#                  type: integer
+#    delete:
+#      tags:
+#        - cluster
+#      summary: Clears task records from the backend
+#      description: >
+#        Admin only. Maintenance action to recover from a stuck cluster state.
+#        The request body scope selects which record groups to clear.
+#      parameters:
+#        - name: Clear Scope
+#          in: body
+#          required: true
+#          schema:
+#            type: object
+#            properties:
+#              scope:
+#                type: object
+#                properties:
+#                  queue:
+#                    type: boolean
+#                  running:
+#                    type: boolean
+#                  active:
+#                    type: boolean
+#                  aliases:
+#                    type: boolean
+#                  claims:
+#                    type: boolean
+#                  runtime_fields:
+#                    type: boolean
+#      responses:
+#        200:
+#          description: Clear result
+#          schema:
+#            type: object
+#            properties:
+#              deleted_keys:
+#                type: integer
+#              per_group:
+#                type: object
+#                additionalProperties:
+#                  type: integer
+#        400:
+#          description: missing body or no record groups selected
 
   # Authentication
   /auth/login:
@@ -1410,6 +1911,16 @@ paths:
         - authentication
         - user
       summary: Create an API token
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "my CI token"
       responses:
         201:
           description: API Token
@@ -1431,6 +1942,51 @@ paths:
       responses:
         204:
           description: Expired API Token
+
+  /user/options:
+    get:
+      tags:
+        - user
+      summary: Fetches the current user's stored options
+      description: >
+        Returns the per-user options of the authenticated user as a
+        key/value map. Keys are returned without the internal
+        `user<id>.` namespace prefix. Returns an empty object when the
+        user has no stored options.
+      responses:
+        200:
+          description: User options
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+            example:
+              nav.unpinnedItems: "[\"dashboard\",\"history\"]"
+    post:
+      tags:
+        - user
+      summary: Stores a single option for the current user
+      description: >
+        Stores one option for the authenticated user. The `key` is an
+        allowlisted suffix (e.g. `nav.unpinnedItems`); the server prepends
+        the user namespace, so a request can never read or write another
+        user's options or a global option. Unknown keys are rejected
+        with 400.
+      consumes:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Option"
+      responses:
+        200:
+          description: Stored option
+          schema:
+            $ref: "#/definitions/Option"
+        400:
+          description: Unknown user option key
 
   # User Profiles
   /users:
@@ -2056,6 +2612,80 @@ paths:
         204:
           description: integration matcher removed
 
+  /project/{project_id}/integrations/aliases:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - integration
+      summary: Get all integration aliases for the project
+      responses:
+        200:
+          description: Integration Aliases
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationAlias"
+    post:
+      tags:
+        - integration
+      summary: Create a new integration alias for the project
+      responses:
+        200:
+          description: Integration Alias Created
+          schema:
+            $ref: "#/definitions/IntegrationAlias"
+
+  /project/{project_id}/integrations/aliases/{alias_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/alias_id"
+    delete:
+      tags:
+        - integration
+      summary: Remove integration alias
+      responses:
+        204:
+          description: integration alias removed
+
+  /project/{project_id}/integrations/{integration_id}/aliases:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+    get:
+      tags:
+        - integration
+      summary: Get all aliases for an integration
+      responses:
+        200:
+          description: Integration Aliases
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationAlias"
+    post:
+      tags:
+        - integration
+      summary: Create a new alias for an integration
+      responses:
+        200:
+          description: Integration Alias Created
+          schema:
+            $ref: "#/definitions/IntegrationAlias"
+
+  /project/{project_id}/integrations/{integration_id}/aliases/{alias_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/alias_id"
+    delete:
+      tags:
+        - integration
+      summary: Remove integration alias
+      responses:
+        204:
+          description: integration alias removed
+
   # project access keys
   /project/{project_id}/keys:
     parameters:
@@ -2434,6 +3064,16 @@ paths:
       tags:
         - template
       summary: Stop all active tasks of template
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              force:
+                type: boolean
+                description: Force stop (kill) all tasks immediately
       responses:
         204:
           description: tasks stopped
@@ -2471,6 +3111,171 @@ paths:
       responses:
         204:
           description: template removed
+
+  # project workflows
+  /project/{project_id}/workflows:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflows
+      responses:
+        200:
+          description: workflow templates
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WorkflowTemplate"
+    post:
+      tags:
+        - workflow
+      summary: Add workflow
+      parameters:
+        - name: workflow
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowTemplate"
+      responses:
+        201:
+          description: Workflow template created
+          schema:
+            $ref: "#/definitions/WorkflowTemplate"
+
+  /project/{project_id}/workflows/{workflow_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflow
+      responses:
+        200:
+          description: workflow template
+          schema:
+            $ref: "#/definitions/WorkflowTemplate"
+    put:
+      tags:
+        - workflow
+      summary: Update workflow
+      parameters:
+        - name: workflow
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowTemplate"
+      responses:
+        204:
+          description: Workflow updated
+    delete:
+      tags:
+        - workflow
+      summary: Remove workflow
+      responses:
+        204:
+          description: workflow removed
+
+  /project/{project_id}/workflows/{workflow_id}/run:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+    post:
+      tags:
+        - workflow
+      summary: Run workflow
+      responses:
+        201:
+          description: workflow run created
+          schema:
+            $ref: "#/definitions/WorkflowRun"
+
+  /project/{project_id}/workflows/{workflow_id}/runs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflow runs
+      responses:
+        200:
+          description: workflow runs
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WorkflowRun"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflow run details
+      responses:
+        200:
+          description: workflow run details
+          schema:
+            $ref: "#/definitions/WorkflowRunDetails"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflow run approvals
+      responses:
+        200:
+          description: workflow approvals
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WorkflowApproval"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/artifacts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    get:
+      tags:
+        - workflow
+      summary: Get merged workflow run artifacts
+      responses:
+        200:
+          description: merged artifacts
+          schema:
+            type: object
+            additionalProperties: true
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+      - $ref: "#/parameters/node_id"
+    post:
+      tags:
+        - workflow
+      summary: Resolve workflow approval
+      parameters:
+        - name: approval
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowApprovalResolveRequest"
+      responses:
+        200:
+          description: approval resolved
+          schema:
+            $ref: "#/definitions/WorkflowApproval"
 
   # project schedules
   /project/{project_id}/schedules/{schedule_id}:
@@ -2670,6 +3475,16 @@ paths:
       tags:
         - task
       summary: Stop a job
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              force:
+                type: boolean
+                description: Force stop (kill) the task immediately
       responses:
         204:
           description: Task queued
@@ -2750,3 +3565,266 @@ paths:
           description: Alerts not enabled for the project
 #        204:
 #          description: Test notification dispatched (or alerts disabled)
+
+  # project runners
+  /project/{project_id}/runners:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - runner
+      summary: Get project runners
+      description: Returns runners owned by the project together with global runners that have tags.
+      responses:
+        200:
+          description: Runners
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Runner"
+    post:
+      tags:
+        - runner
+      summary: Add project runner
+      parameters:
+        - name: Runner
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerRequest"
+      responses:
+        201:
+          description: Runner created
+          schema:
+            $ref: "#/definitions/RunnerWithToken"
+        400:
+          description: Invalid request body or mismatched project ID
+        403:
+          description: Plan does not allow adding more runners
+
+  /project/{project_id}/runner_tags:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - runner
+      summary: Get project runner tags
+      responses:
+        200:
+          description: Runner tags
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/RunnerTag"
+
+  /project/{project_id}/runners/{runner_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    get:
+      tags:
+        - runner
+      summary: Get project runner
+      responses:
+        200:
+          description: Runner
+          schema:
+            $ref: "#/definitions/Runner"
+        404:
+          description: Runner not found
+    put:
+      tags:
+        - runner
+      summary: Update project runner
+      parameters:
+        - name: Runner
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerRequest"
+      responses:
+        204:
+          description: Runner updated
+        400:
+          description: Invalid request body or mismatched project ID
+    delete:
+      tags:
+        - runner
+      summary: Delete project runner
+      responses:
+        204:
+          description: Runner deleted
+
+  /project/{project_id}/runners/{runner_id}/active:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    post:
+      tags:
+        - runner
+      summary: Set project runner active state
+      parameters:
+        - name: Active
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerActive"
+      responses:
+        204:
+          description: Runner active state updated
+        400:
+          description: Invalid request body
+
+  /project/{project_id}/runners/{runner_id}/registration-token:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    post:
+      tags:
+        - runner
+      summary: Regenerate the one-time registration token of an unregistered project runner
+      responses:
+        200:
+          description: New registration token
+          schema:
+            $ref: "#/definitions/RunnerRegistrationToken"
+        400:
+          description: Runner is already registered
+
+  /project/{project_id}/runners/{runner_id}/cache:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/runner_id"
+    delete:
+      tags:
+        - runner
+      summary: Clear project runner cache
+      responses:
+        204:
+          description: Runner cache cleared
+
+  # global runners (admin)
+  /runners:
+    get:
+      tags:
+        - runner
+      summary: Get all global runners
+      responses:
+        200:
+          description: Runners
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Runner"
+    post:
+      tags:
+        - runner
+      summary: Add global runner
+      parameters:
+        - name: Runner
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerRequest"
+      responses:
+        201:
+          description: Runner created
+          schema:
+            $ref: "#/definitions/RunnerWithToken"
+        400:
+          description: Runner not created
+
+  /runner_tags:
+    get:
+      tags:
+        - runner
+      summary: Get global runner tags
+      responses:
+        200:
+          description: Runner tags
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/RunnerTag"
+
+  /runners/{runner_id}:
+    parameters:
+      - $ref: "#/parameters/global_runner_id"
+    get:
+      tags:
+        - runner
+      summary: Get global runner
+      responses:
+        200:
+          description: Runner
+          schema:
+            $ref: "#/definitions/Runner"
+        404:
+          description: Runner not found
+    put:
+      tags:
+        - runner
+      summary: Update global runner
+      parameters:
+        - name: Runner
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerRequest"
+      responses:
+        204:
+          description: Runner updated
+        400:
+          description: Runner not updated
+    delete:
+      tags:
+        - runner
+      summary: Delete global runner
+      responses:
+        204:
+          description: Runner deleted
+
+  /runners/{runner_id}/active:
+    parameters:
+      - $ref: "#/parameters/global_runner_id"
+    post:
+      tags:
+        - runner
+      summary: Set global runner active state
+      parameters:
+        - name: Active
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/RunnerActive"
+      responses:
+        204:
+          description: Runner active state updated
+        400:
+          description: Invalid request body
+
+  /runners/{runner_id}/registration-token:
+    parameters:
+      - $ref: "#/parameters/global_runner_id"
+    post:
+      tags:
+        - runner
+      summary: Regenerate the one-time registration token of an unregistered global runner
+      responses:
+        200:
+          description: New registration token
+          schema:
+            $ref: "#/definitions/RunnerRegistrationToken"
+        400:
+          description: Runner is already registered
+
+  /runners/{runner_id}/cache:
+    parameters:
+      - $ref: "#/parameters/global_runner_id"
+    delete:
+      tags:
+        - runner
+      summary: Clear global runner cache
+      responses:
+        204:
+          description: Runner cache cleared

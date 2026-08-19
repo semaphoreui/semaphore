@@ -16,6 +16,29 @@ type SystemInfoController struct {
 	subscriptionService pro_interfaces.SubscriptionService
 }
 
+type SystemInfo struct {
+	Version           string                  `json:"version"`
+	Ansible           string                  `json:"ansible"`
+	WebHost           string                  `json:"web_host"`
+	UseRemoteRunner   bool                    `json:"use_remote_runner"`
+	AuthMethods       LoginAuthMethods        `json:"auth_methods"`
+	LoginWithPassword bool                    `json:"login_with_password"`
+	Features          pro_interfaces.Features `json:"features"`
+	SubscriptionState string                  `json:"subscription_state"`
+	GitClient         string                  `json:"git_client"`
+	ScheduleTimezone  string                  `json:"schedule_timezone"`
+	Teams             *util.TeamsConfig       `json:"teams"`
+	Roles             []db.Role               `json:"roles"`
+	BoltdbUsed        bool                    `json:"boltdb_used"`
+	JWT               SystemInfoJWT           `json:"jwt"`
+}
+
+// SystemInfoJWT exposes the global JWT configuration for the WebUI.
+type SystemInfoJWT struct {
+	Enabled bool   `json:"enabled"`
+	MaxTTL  string `json:"max_ttl,omitempty"`
+}
+
 func NewSystemInfoController(subscriptionService pro_interfaces.SubscriptionService) *SystemInfoController {
 	return &SystemInfoController{
 		subscriptionService,
@@ -27,13 +50,13 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	var authMethods LoginAuthMethods
 
-	if util.Config.Auth.Totp.Enabled {
+	if util.Config.Mfa.Totp.Enabled {
 		authMethods.Totp = &LoginTotpAuthMethod{
-			AllowRecovery: util.Config.Auth.Totp.AllowRecovery,
+			AllowRecovery: util.Config.Mfa.Totp.AllowRecovery,
 		}
 	}
 
-	if util.Config.Auth.Email.Enabled {
+	if util.Config.Mfa.Email.Enabled {
 		authMethods.Email = &LoginEmailAuthMethod{}
 	}
 
@@ -45,7 +68,10 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	roles, err := helpers.Store(r).GetGlobalRoles()
 	if err != nil {
-		log.WithError(err).Error("Failed to get roles")
+		log.WithFields(log.Fields{
+			"context": "system_info",
+			"user_id": user.ID,
+		}).WithError(err).Error("Failed to get roles")
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -54,39 +80,43 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	token, err := c.subscriptionService.GetToken()
 
-	if errors.Is(err, db.ErrNotFound) {
-		err = nil
-	}
-
-	if err != nil {
-		log.WithError(err).Error("Failed to get subscription plan")
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
 	switch {
 	case errors.Is(err, db.ErrNotFound):
 		err = nil
 		plan = ""
 	case err != nil:
-		log.WithError(err).Error("Failed to get subscription plan")
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		log.WithFields(log.Fields{
+			"context": "system_info",
+			"user_id": user.ID,
+		}).WithError(err).Error("Failed to get subscription plan")
+		err = nil
+		plan = ""
 	default:
-		plan = token.Plan
+		if token.State == "expired" {
+			plan = ""
+		} else {
+			plan = token.Plan
+		}
 	}
 
-	body := map[string]any{
-		"version":           util.Version(),
-		"ansible":           util.AnsibleVersion(),
-		"web_host":          util.Config.WebHost,
-		"use_remote_runner": util.Config.UseRemoteRunner,
-		"auth_methods":      authMethods,
-		"premium_features":  proFeatures.GetFeatures(user, plan),
-		"git_client":        util.Config.GitClientId,
-		"schedule_timezone": timezone,
-		"teams":             util.Config.Teams,
-		"roles":             roles,
+	body := SystemInfo{
+		Version:           util.Version(),
+		Ansible:           util.AnsibleVersion(),
+		WebHost:           util.Config.WebHost,
+		UseRemoteRunner:   util.Config.IsUseRemoteRunner(),
+		AuthMethods:       authMethods,
+		LoginWithPassword: !util.Config.PasswordLoginDisable,
+		Features:          proFeatures.GetFeatures(user, plan),
+		SubscriptionState: token.State,
+		GitClient:         util.Config.GitClientId,
+		ScheduleTimezone:  timezone,
+		Teams:             util.Config.Teams,
+		Roles:             roles,
+		BoltdbUsed:        util.Config.Dialect == "bolt",
+		JWT: SystemInfoJWT{
+			Enabled: util.Config.JWT.Enabled,
+			MaxTTL:  util.Config.JWT.MaxTTL,
+		},
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, body)

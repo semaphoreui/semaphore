@@ -32,7 +32,7 @@
       :item-app="itemApp"
       item-id="new"
       @save="loadItems()"
-      :premium-features="premiumFeatures"
+      :features="features"
     ></EditTemplateDialog>
 
     <NewTaskDialog
@@ -208,8 +208,8 @@
         {{ (inventory.find((x) => x.id === item.inventory_id) || {name: '—'}).name }}
       </template>
 
-      <template v-slot:item.environment_id="{ item }">
-        {{ (environment.find((x) => x.id === item.environment_id) || {name: '—'}).name }}
+      <template v-slot:item.environment_ids="{ item }">
+        {{ formatEnvironmentNames(item) }}
       </template>
 
       <template v-slot:item.repository_id="{ item }">
@@ -218,7 +218,10 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="createTask(item.id)">
+          <v-btn
+            v-if="canRun(item)"
+            @click="createTask(item.id)"
+          >
             <v-icon>mdi-play</v-icon>
           </v-btn>
         </v-btn-toggle>
@@ -287,7 +290,7 @@ export default {
     NewTaskDialog,
   },
   props: {
-    premiumFeatures: Object,
+    features: Object,
   },
   mixins: [ItemListPageBase, AppsMixin],
 
@@ -353,8 +356,12 @@ export default {
   },
 
   async created() {
-    socket.addListener((data) => this.onWebsocketDataReceived(data));
+    this.socketListenerId = socket.addListener((data) => this.onWebsocketDataReceived(data));
     await this.loadData();
+  },
+
+  beforeDestroy() {
+    socket.removeListener(this.socketListenerId);
   },
 
   methods: {
@@ -376,6 +383,19 @@ export default {
 
     allowActions() {
       return true;
+    },
+
+    formatEnvironmentNames(item) {
+      if (!Array.isArray(item.environment_ids) || item.environment_ids.length === 0) {
+        return '—';
+      }
+      const names = item.environment_ids
+        .map((id) => {
+          const env = this.environment.find((x) => x.id === id);
+          return env ? env.name : null;
+        })
+        .filter((n) => n != null);
+      return names.length > 0 ? names.join(', ') : '—';
     },
 
     getViewUrl(viewId) {
@@ -415,6 +435,10 @@ export default {
       }
 
       if (data.task_id !== template.last_task_id) {
+        // Set the id before awaiting so a burst of events for the same task
+        // doesn't trigger duplicate requests while the first one is in flight.
+        template.last_task_id = data.task_id;
+
         const lastTask = (await axios({
           method: 'get',
           url: `/api/project/${this.projectId}/tasks/${data.task_id}`,
@@ -426,20 +450,36 @@ export default {
         } else {
           template.last_task = lastTask;
         }
-
-        template.last_task_id = data.task_id;
       }
 
-      Object.assign(template.last_task, {
-        ...data,
-        type: undefined,
-      });
+      if (template.last_task) {
+        Object.assign(template.last_task, {
+          ...data,
+          type: undefined,
+        });
+      }
     },
 
     showTaskLog(taskId) {
       EventBus.$emit('i-show-task', {
         taskId,
       });
+    },
+
+    canRun(item) {
+      if (this.isAdmin) {
+        return true;
+      }
+
+      const perm = this.USER_PERMISSIONS.runProjectTasks;
+
+      if (item.permissions != null) {
+        // eslint-disable-next-line no-bitwise
+        return (item.permissions & perm) === perm;
+      }
+
+      // eslint-disable-next-line no-bitwise
+      return (this.userPermissions & perm) === perm;
     },
 
     createTask(itemId) {
@@ -485,7 +525,7 @@ export default {
         },
         {
           text: this.$i18n.t('environment'),
-          value: 'environment_id',
+          value: 'environment_ids',
           sortable: false,
         },
         {

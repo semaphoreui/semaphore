@@ -1,21 +1,28 @@
 # Semaphore UI
 
 Modern UI for Ansible, Terraform/OpenTofu/Terragrunt, PowerShell and other DevOps tools.
+<!--
+[![](https://img.shields.io/github/license/semaphoreui/semaphore)](LICENSE)
+-->
 
+[![Dev](https://github.com/semaphoreui/semaphore/actions/workflows/dev.yml/badge.svg)](https://github.com/semaphoreui/semaphore/actions/workflows/dev.yml)
+[![](https://img.shields.io/docker/pulls/semaphoreui/semaphore.svg)](https://hub.docker.com/r/semaphoreui/semaphore)
+
+<!-- 
 [![roadmap](https://img.shields.io/badge/roadmap-gray?style=for-the-badge&logo=github)](https://github.com/orgs/semaphoreui/projects/11)
 [![telegram](https://img.shields.io/badge/discord_community-510b80?style=for-the-badge&logo=discord)](https://discord.gg/5R6k7hNGcH) 
 [![youtube](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
-<!-- [![docker](https://img.shields.io/badge/container_configurator-white?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/) -->
+[![docker](https://img.shields.io/badge/container_configurator-white?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/)
+-->
+
 
 ![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
 
 If your project has grown and deploying from the terminal is no longer feasible, then Semaphore UI is the tool you need.
 
-## Gratitude
+## Demo
 
-Thank you, [Stefan](https://github.com/stefanux) and [steadfasterX](https://github.com/steadfasterX), for supporting the project. Your support is invaluable.
-
-Thank you, [Thomas](https://github.com/tboerger) and [Brian](https://github.com/Omicron7), for your excellent contributions. You solved issues that no one else would have taken on.
+[Try Semaphore UI online](https://portal.semaphoreui.com/demo)
 
 <!--
 ## Live Demo
@@ -47,6 +54,7 @@ You can install Semaphore using the following methods:
 * [Docker](https://semaphoreui.com/install/docker)
 * Deploy a VM from a marketplace:
   * [AWS](https://aws.amazon.com/marketplace/pp/prodview-xavlsdkqybxtq)
+  * [Cloudzy](https://cloudzy.com/marketplace/semaphore-ui)
   * [DigitalOcean](https://marketplace.digitalocean.com/apps/semaphore?refcode=b55d7c0077b8&action=deploy)
   * [Vultr](https://www.vultr.com/marketplace/apps/semaphore)
   * [Yandex Cloud](https://yandex.cloud/ru/marketplace/products/fastlix/semaphore)
@@ -60,7 +68,7 @@ The most popular way to install Semaphore is via Docker.
 
 ```
 docker run -p 3000:3000 --name semaphore \
-	-e SEMAPHORE_DB_DIALECT=bolt \
+	-e SEMAPHORE_DB_DIALECT=sqlite \
 	-e SEMAPHORE_ADMIN=admin \
 	-e SEMAPHORE_ADMIN_PASSWORD=changeme \
 	-e SEMAPHORE_ADMIN_NAME=Admin \

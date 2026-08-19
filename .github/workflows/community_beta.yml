@@ -1,0 +1,140 @@
+name: Community Beta
+
+'on':
+  push:
+    tags:
+      - v*-alpha*
+      - v*-beta*
+
+permissions:
+  contents: write
+
+jobs:
+  prerelease:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Setup golang
+        uses: actions/setup-go@v7
+        with:
+          go-version: '^1.26.4'
+
+      - name: Setup nodejs
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install go-task
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Install rpm
+        run: |
+          sudo apt update && sudo apt-get install rpm
+
+      - name: Install deps
+        run: |
+          task deps
+
+      - name: Import gnupg
+        run: |
+          echo "${{ secrets.GPG_KEY_3 }}" | tr " " "\n" | base64 -d | gpg --import --batch
+          echo "${{ secrets.GPG_KEY_3 }}" | tr " " "\n" | base64 -d > "$RUNNER_TEMP/gpg.key"
+          gpg --sign -u "${{ vars.GPG_KEY_ID_3 }}" --pinentry-mode loopback --yes --batch --passphrase "${{ secrets.GPG_PASS_3 }}" --output unlock.sig --detach-sign README.md
+          rm -f unlock.sig
+
+      - name: Reset repo
+        run: |
+          git reset --hard
+
+      - name: Run release
+        run: |
+          GITHUB_TOKEN=${{ github.token }} \
+          PROJECT_NAME=semaphore_community \
+          GPG_PASS_3="${{ secrets.GPG_PASS_3 }}" \
+          GPG_KEY_ID_3="${{ vars.GPG_KEY_ID_3 }}" \
+          GPG_KEY_PATH="$RUNNER_TEMP/gpg.key" \
+          NFPM_SEMAPHORE_PASSPHRASE="${{ secrets.GPG_PASS_3 }}" \
+          task release:prod
+
+  deploy-beta:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'semaphoreui'
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Setup qemu
+        id: qemu
+        uses: docker/setup-qemu-action@v4
+
+      - name: Setup buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Hub login
+        uses: docker/login-action@v4
+        if: github.event_name != 'pull_request'
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Server meta
+        id: server
+        uses: docker/metadata-action@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/semaphore-community
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semaphoreui.com>
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+          flavor: |
+            latest=false
+
+      - name: Server build
+        uses: docker/build-push-action@v7
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: deployment/docker/server/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.server.outputs.labels }}
+          tags: ${{ steps.server.outputs.tags }}
+
+      - name: Runner meta
+        if: false
+        id: runner
+        uses: docker/metadata-action@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          images: |
+            semaphoreui/runner-community
+          labels: |
+            org.opencontainers.image.vendor=SemaphoreUI
+            maintainer=Semaphore UI <support@semaphoreui.com>
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+          flavor: |
+            latest=false
+
+      - name: Runner build
+        if: false
+        uses: docker/build-push-action@v7
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: deployment/docker/runner/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.runner.outputs.labels }}
+          tags: ${{ steps.runner.outputs.tags }}

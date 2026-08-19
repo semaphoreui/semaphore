@@ -42,8 +42,13 @@
 
     <v-tabs class="task-log-view__tabs" right v-model="tab">
       <v-tab>Log</v-tab>
-      <v-tab :disabled="!isTaskStopped">Details</v-tab>
-      <v-tab v-if="isPro" :disabled="!isTaskStopped">Summary</v-tab>
+      <v-tab>Details</v-tab>
+      <v-tab
+        v-if="isPro"
+        :disabled="!isTaskStopped"
+      >
+        Summary
+      </v-tab>
     </v-tabs>
 
     <div v-if="tab === 0">
@@ -119,7 +124,7 @@
       <v-divider style="margin-top: -1px;" />
 
       <AnsibleStageView
-        :premium-features="systemInfo.premium_features"
+        :features="systemInfo.features"
         :project-id="projectId"
         :task-id="itemId"
       />
@@ -245,7 +250,7 @@ export default {
     item: Object,
     projectId: Number,
     systemInfo: Object,
-    premiumFeatures: null,
+    features: null,
   },
 
   data() {
@@ -347,12 +352,13 @@ export default {
         });
       });
     }, 1000);
-    socket.addListener((data) => this.onWebsocketDataReceived(data));
+    this.socketListenerId = socket.addListener((data) => this.onWebsocketDataReceived(data));
     await this.loadData();
   },
 
   beforeDestroy() {
     clearInterval(this.outputInterval);
+    socket.removeListener(this.socketListenerId);
   },
 
   methods: {

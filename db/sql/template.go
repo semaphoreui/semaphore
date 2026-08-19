@@ -6,7 +6,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
-	common_errors "github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17,24 +17,25 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		return
 	}
 
+	template.ApplyLegacyEnvironmentField()
+
 	insertID, err := d.insert(
 		"id",
 		"insert into project__template ("+
-			"project_id, inventory_id, repository_id, environment_id, name, "+
+			"project_id, inventory_id, repository_id, name, "+
 			"playbook, arguments, allow_override_args_in_task, description, `type`, "+
 			"start_version, build_template_id, view_id, autorun, survey_vars, "+
 			"suppress_success_alerts, app, git_branch, runner_tag, task_params, "+
-			"allow_override_branch_in_task, allow_parallel_tasks)"+
+			"allow_override_branch_in_task, allow_parallel_tasks, jwt_params, executor_image)"+
 			"values ("+
-			"?, ?, ?, ?, ?, "+
+			"?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?, "+
 			"?, ?, ?, ?, ?,"+
-			"?, ?)",
+			"?, ?, ?, ?)",
 		template.ProjectID,
 		template.InventoryID,
 		template.RepositoryID,
-		template.EnvironmentID,
 		template.Name,
 
 		template.Playbook,
@@ -57,6 +58,8 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 
 		template.AllowOverrideBranchInTask,
 		template.AllowParallelTasks,
+		template.JWTParams,
+		template.NormalizedExecutorImage(),
 	)
 
 	if err != nil {
@@ -64,6 +67,11 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 	}
 
 	err = d.UpdateTemplateVaults(template.ProjectID, insertID, template.Vaults)
+	if err != nil {
+		return
+	}
+
+	err = d.UpdateTemplateEnvironments(template.ProjectID, insertID, template.EnvironmentIDs)
 	if err != nil {
 		return
 	}
@@ -90,7 +98,6 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	_, err = d.exec("update project__template set "+
 		"inventory_id=?, "+
 		"repository_id=?, "+
-		"environment_id=?, "+
 		"name=?, "+
 		"playbook=?, "+
 		"arguments=?, "+
@@ -108,11 +115,12 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		"task_params=?, "+
 		"runner_tag=?, "+
 		"allow_override_branch_in_task=?, "+
-		"allow_parallel_tasks=? "+
+		"allow_parallel_tasks=?, "+
+		"jwt_params=?, "+
+		"executor_image=? "+
 		"where id=? and project_id=?",
 		template.InventoryID,
 		template.RepositoryID,
-		template.EnvironmentID,
 		template.Name,
 		template.Playbook,
 		template.Arguments,
@@ -131,6 +139,8 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 		template.RunnerTag,
 		template.AllowOverrideBranchInTask,
 		template.AllowParallelTasks,
+		template.JWTParams,
+		template.NormalizedExecutorImage(),
 
 		template.ID,
 		template.ProjectID,
@@ -140,9 +150,74 @@ func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	}
 
 	err = d.UpdateTemplateVaults(template.ProjectID, template.ID, template.Vaults)
+	if err != nil {
+		return err
+	}
+
+	template.ApplyLegacyEnvironmentField()
+
+	err = d.UpdateTemplateEnvironments(template.ProjectID, template.ID, template.EnvironmentIDs)
 
 	return err
 }
+
+func (d *SqlDb) GetTemplateEnvironments(projectID int, templateID int) (environmentIDs []int, err error) {
+	environmentIDs = make([]int, 0)
+
+	var rows []struct {
+		EnvironmentID int `db:"environment_id"`
+	}
+
+	_, err = d.selectAll(
+		&rows,
+		"select environment_id from project__template_environment "+
+			"where project_id=? and template_id=? order by environment_id",
+		projectID,
+		templateID,
+	)
+
+	if err != nil {
+		return
+	}
+
+	for _, r := range rows {
+		environmentIDs = append(environmentIDs, r.EnvironmentID)
+	}
+
+	return
+}
+
+func (d *SqlDb) UpdateTemplateEnvironments(projectID int, templateID int, environmentIDs []int) (err error) {
+	_, err = d.exec(
+		"delete from project__template_environment where project_id=? and template_id=?",
+		projectID,
+		templateID,
+	)
+	if err != nil {
+		return
+	}
+
+	seen := make(map[int]bool)
+	for _, envID := range environmentIDs {
+		if seen[envID] {
+			continue
+		}
+		seen[envID] = true
+
+		_, err = d.exec(
+			"insert into project__template_environment (project_id, template_id, environment_id) values (?, ?, ?)",
+			projectID,
+			templateID,
+			envID,
+		)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
 func (d *SqlDb) SetTemplateDescription(projectID int, templateID int, description string) (err error) {
 
 	_, err = d.exec("update project__template set "+
@@ -156,7 +231,13 @@ func (d *SqlDb) SetTemplateDescription(projectID int, templateID int, descriptio
 	return
 }
 
-func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.TemplateWithPerms, err error) {
+func (d *SqlDb) getTemplates(
+	projectID int,
+	userID *int,
+	filter db.TemplateFilter,
+	params db.RetrieveQueryParams,
+	loadVaults bool,
+) (templates []db.TemplateWithPerms, err error) {
 
 	pp, err := params.Validate(db.TemplateProps)
 	if err != nil {
@@ -184,7 +265,6 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 		"pt.project_id",
 		"pt.inventory_id",
 		"pt.repository_id",
-		"pt.environment_id",
 		"pt.name",
 		"pt.description",
 		"pt.playbook",
@@ -202,18 +282,21 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 		"pt.task_params",
 		"pt.allow_override_branch_in_task",
 		"pt.allow_parallel_tasks",
+		"pt.jwt_params",
+		"pt.executor_image",
 		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id",
 	}
 
-	//if userID != nil {
-	//	fields = append(fields, "pr.permissions permissions")
-	//}
+	if userID != nil {
+		fields = append(fields, "ptr.permissions permissions")
+	}
 
 	q := squirrel.Select(fields...).From("project__template pt")
 
-	//if userID != nil {
-	//	q = q.LeftJoin("project__template_role pr ON (pr.template_id = pt.id)")
-	//}
+	if userID != nil {
+		q = q.LeftJoin("project__user pu ON (pu.project_id = pt.project_id AND pu.user_id = ?)", *userID).
+			LeftJoin("project__template_role ptr ON (ptr.template_id = pt.id AND ptr.role_slug = pu.`role`)")
+	}
 
 	if filter.App != nil {
 		q = q.Where("pt.app=?", *filter.App)
@@ -224,9 +307,7 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 		case db.ViewTypeCustom:
 			q = q.Where("pt.view_id=?", *filter.ViewID)
 		case db.ViewTypeAll:
-			if view.Filter != nil {
-				// TODO: implement filter
-			}
+			// TODO: implement filter
 		}
 	}
 
@@ -260,10 +341,6 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 		q = q.LeftJoin("project__inventory pi ON (pt.inventory_id = pi.id)").
 			Where("pt.project_id=?", projectID).
 			OrderBy("pi.name " + order)
-	case "environment":
-		q = q.LeftJoin("project__environment pe ON (pt.environment_id = pe.id)").
-			Where("pt.project_id=?", projectID).
-			OrderBy("pe.name " + order)
 	case "repository":
 		q = q.LeftJoin("project__repository pr ON (pt.repository_id = pr.id)").
 			Where("pt.project_id=?", projectID).
@@ -296,7 +373,7 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 	}
 
 	var tasks []db.TaskWithTpl
-	err = d.getTasks(projectID, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
+	err = d.getTasks(projectID, nil, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
 
 	if err != nil {
 		return
@@ -308,10 +385,10 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 		if tpl.LastTaskID != nil {
 			for _, tsk := range tasks {
 				if tsk.ID == *tpl.LastTaskID {
-					err = tsk.Fill(d)
-					if err != nil {
-						return
-					}
+					// err = tsk.Fill(d)
+					// if err != nil {
+					// 	return
+					// }
 					template.LastTask = &tsk
 					break
 				}
@@ -329,9 +406,21 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 			}
 		}
 
-		template.Vaults, err = d.GetTemplateVaults(projectID, template.ID)
+		if loadVaults {
+			template.Vaults, err = d.GetTemplateVaults(projectID, template.ID)
+			if err != nil {
+				return
+			}
+		}
+
+		template.EnvironmentIDs, err = d.GetTemplateEnvironments(projectID, template.ID)
 		if err != nil {
 			return
+		}
+
+		// For backward compatibility
+		if len(template.EnvironmentIDs) > 0 {
+			template.EnvironmentID = template.EnvironmentIDs[0]
 		}
 
 		templates = append(templates, template)
@@ -341,11 +430,11 @@ func (d *SqlDb) getTemplates(projectID int, userID *int, filter db.TemplateFilte
 }
 
 func (d *SqlDb) GetTemplatesWithPermissions(projectID int, userID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.TemplateWithPerms, err error) {
-	return d.getTemplates(projectID, &userID, filter, params)
+	return d.getTemplates(projectID, &userID, filter, params, false)
 }
 
 func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.RetrieveQueryParams) (templates []db.Template, err error) {
-	res, err := d.getTemplates(projectID, nil, filter, params)
+	res, err := d.getTemplates(projectID, nil, filter, params, true)
 	if err != nil {
 		return
 	}
@@ -413,22 +502,31 @@ func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int)
 
 	perm = projectUser.Role.GetPermissions()
 
-	role, err := d.GetProjectOrGlobalRoleBySlug(projectUser.ProjectID, string(projectUser.Role))
+	roleSlug := string(projectUser.Role)
 
-	if errors.Is(err, db.ErrNotFound) {
-		err = nil
-		return
-	}
+	// Only custom roles are resolved from the database; built-in roles use their
+	// own slug directly so a same-named custom role cannot shadow them.
+	if !projectUser.Role.IsValid() {
+		var role db.Role
+		role, err = d.GetProjectOrGlobalRoleBySlug(projectUser.ProjectID, string(projectUser.Role))
 
-	if err != nil {
-		return
+		if errors.Is(err, db.ErrNotFound) {
+			err = nil
+			return
+		}
+
+		if err != nil {
+			return
+		}
+
+		roleSlug = role.Slug
 	}
 
 	query, args, err := squirrel.Select("permissions").
 		From("project__template_role").
 		Where("project_id = ?", projectID).
 		Where("template_id = ?", templateID).
-		Where("role_slug = ?", role.Slug).
+		Where("role_slug = ?", roleSlug).
 		ToSql()
 
 	if err != nil {

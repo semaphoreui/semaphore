@@ -1,0 +1,747 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://semaphoreui.com/schemas/config.schema.json"
+title: Semaphore configuration
+description: Schema for Semaphore UI config.json / config.yaml. Generated from util.ConfigType.
+type: object
+
+properties:
+  # ==========================================================================
+  # Database
+  # ==========================================================================
+  dialect:
+    type: string
+    enum: [mysql, postgres, sqlite]
+    default: sqlite
+    description: Database engine used by Semaphore.
+  mysql:    { $ref: "#/$defs/DbConfig" }
+  postgres: { $ref: "#/$defs/DbConfig" }
+  sqlite:   { $ref: "#/$defs/DbConfig" }
+
+  # ==========================================================================
+  # HTTP server
+  # ==========================================================================
+  port:
+    type: string
+    pattern: "^:?([0-9]{1,5})$"
+    default: ":3000"
+    description: TCP port the HTTP server listens on. Leading ':' optional.
+  interface:
+    type: string
+    description: Bind address (empty = all interfaces).
+  tls: { $ref: "#/$defs/TLSConfig" }
+
+  # ==========================================================================
+  # Authentication
+  # ==========================================================================
+  mfa: { $ref: "#/$defs/MultifactorAuthConfig" }
+
+  # ==========================================================================
+  # Paths and runtime layout
+  # ==========================================================================
+  tmp_path:
+    type: string
+    default: /tmp/semaphore
+    description: Working directory for ephemeral project data.
+  home_dir_mode:
+    type: string
+    enum: ["", user_home, project_home, template_dir]
+    default: template_dir
+    description: How HOME is set for task runs.
+  ssh_config_path:
+    type: string
+    description: Path to custom SSH config (default ~/.ssh/config).
+  git_client:
+    type: string
+    enum: [go_git, cmd_git]
+    default: cmd_git
+    description: Git client implementation.
+  web_host:
+    type: string
+    format: uri
+    description: Public URL of this Semaphore instance.
+
+  # ==========================================================================
+  # Cookie / access-key secrets (base64-encoded, sensitive)
+  # ==========================================================================
+  cookie_hash:
+    type: string
+    description: Base64-encoded HMAC key for session cookies (sensitive).
+  cookie_encryption:
+    type: string
+    description: Base64-encoded encryption key for session cookies (sensitive).
+  access_key_encryption:
+    type: string
+    description: >-
+      Base64-encoded 32-byte key used to encrypt stored access keys (sensitive).
+      Legacy entry point; the secrets keyring is also configurable via
+      encryption.keys_file (active.secret_key), with rotation.
+  option_encryption:
+    type: string
+    description: >-
+      Base64-encoded key used to encrypt DB options (the JWT signing key) with the
+      old single-key scheme, no rotation (sensitive). Counterpart of
+      access_key_encryption; rotation is configured instead via
+      encryption.keys_file (active.option_key). When unset, options fall back to
+      the secrets key.
+
+  # ==========================================================================
+  # Alerting — Email (SMTP)
+  # ==========================================================================
+  email_alert:    { type: boolean }
+  email_sender:   { type: string }
+  email_host:     { type: string }
+  email_port:
+    type: string
+    pattern: "^(|[0-9]{1,5})$"
+  email_username: { type: string }
+  email_password:
+    type: string
+    description: SMTP password (sensitive).
+  email_secure:   { type: boolean }
+  email_tls:      { type: boolean }
+  email_tls_min_version:
+    type: string
+    pattern: "^(1\\.[0123])$"
+    default: "1.2"
+
+  # ==========================================================================
+  # LDAP
+  # ==========================================================================
+  ldap_enable:       { type: boolean }
+  ldap_binddn:       { type: string }
+  ldap_bindpassword:
+    type: string
+    description: LDAP bind password (sensitive).
+  ldap_server:       { type: string }
+  ldap_searchdn:     { type: string }
+  ldap_searchfilter: { type: string }
+  ldap_mappings:     { $ref: "#/$defs/LdapMappings" }
+  ldap_needtls:      { type: boolean }
+  ldap_tls_skip_verify:
+    type: boolean
+    default: false
+    description: >
+      Disable verification of the LDAP server's TLS certificate for the legacy
+      flat ldap_* config. Defaults to false (certificates are verified).
+  ldap_providers:
+    type: object
+    additionalProperties: { $ref: "#/$defs/LdapProvider" }
+    description: >
+      LDAP directories, keyed by provider id. The key "ldap" is reserved for
+      the legacy flat ldap_* options and is ignored here.
+
+  # ==========================================================================
+  # Alerting — Chat integrations
+  # ==========================================================================
+  telegram_alert:        { type: boolean }
+  telegram_chat:         { type: string }
+  telegram_token:
+    type: string
+    description: Telegram bot token (sensitive).
+  slack_alert:           { type: boolean }
+  slack_url:             { type: string, format: uri }
+  rocketchat_alert:      { type: boolean }
+  rocketchat_url:        { type: string, format: uri }
+  microsoft_teams_alert: { type: boolean }
+  microsoft_teams_url:   { type: string, format: uri }
+  dingtalk_alert:        { type: boolean }
+  dingtalk_url:          { type: string, format: uri }
+  gotify_alert:          { type: boolean }
+  gotify_url:            { type: string, format: uri }
+  gotify_token:
+    type: string
+    description: Gotify app token (sensitive).
+
+  # ==========================================================================
+  # OIDC providers
+  # ==========================================================================
+  oidc_providers:
+    type: object
+    additionalProperties: { $ref: "#/$defs/OidcProvider" }
+    description: OIDC identity providers, keyed by provider id used in callback URLs.
+
+  # ==========================================================================
+  # Task scheduling
+  # ==========================================================================
+  max_task_duration_sec:  { type: integer, minimum: 0 }
+  max_tasks_per_template: { type: integer, minimum: 0 }
+  max_parallel_tasks:
+    type: integer
+    minimum: 0
+    default: 9999
+
+  runner_registration_token:
+    type: string
+    description: Bootstrap token used by runners to register with the server.
+
+  # ==========================================================================
+  # JWT issuance for task executions
+  # ==========================================================================
+  jwt: { $ref: "#/$defs/JWTConfig" }
+
+  # ==========================================================================
+  # Feature toggles
+  # ==========================================================================
+  password_login_disable:       { type: boolean }
+  external_auth_email_matching:
+    type: string
+    enum: [auto, always, never]
+    default: auto
+    description: >
+      Whether an LDAP/OIDC login may be linked to an existing user by email when
+      no external identity record exists yet. "auto" links only external users
+      without any linked identity (one-time adoption of pre-2.20 accounts),
+      "always" links any external user, "never" matches strictly by provider ID.
+      Local (password) accounts are never matched. Provider key "ldap" is
+      reserved for the LDAP integration.
+  non_admin_can_create_project: { type: boolean }
+  use_remote_runner:            { type: boolean }
+
+  # ==========================================================================
+  # Apps and environment
+  # ==========================================================================
+  apps:
+    type: object
+    additionalProperties: { $ref: "#/$defs/App" }
+    description: Pre-registered app templates, keyed by app id.
+  env_vars:
+    type: object
+    additionalProperties: { type: string }
+    description: Environment variables exposed to task runs.
+  forwarded_env_vars:
+    type: array
+    items: { type: string }
+    description: Host environment variables forwarded into task runs.
+
+  # ==========================================================================
+  # Nested subsystems
+  # ==========================================================================
+  teams:        { $ref: "#/$defs/TeamsConfig" }
+  syslog:       { $ref: "#/$defs/SyslogConfig" }
+  metrics:      { $ref: "#/$defs/MetricsConfig" }
+  log:          { $ref: "#/$defs/ConfigLog" }
+  process:      { $ref: "#/$defs/ConfigProcess" }
+  schedule:     { $ref: "#/$defs/ScheduleConfig" }
+  debugging:    { $ref: "#/$defs/DebuggingConfig" }
+  ha:           { $ref: "#/$defs/HAConfig" }
+  subscription: { $ref: "#/$defs/SubscriptionConfig" }
+  dirs:         { $ref: "#/$defs/ConfigDirs" }
+  runner:       { $ref: "#/$defs/RunnerConfig" }
+  runners: { $ref: "#/$defs/RunnersConfig" }
+  encryption: { $ref: "#/$defs/EncryptionConfig" }
+
+$defs:
+  EncryptionConfig:
+    type: object
+    description: Encryption keys file location and reload-poll settings.
+    properties:
+      keys_file:
+        type: string
+        description: >-
+          Path to a separate file holding the encryption keyrings (YAML or JSON,
+          any extension; its content follows the EncryptionKeysConfig structure
+          below). The only source for the keyrings, watched for changes — edits
+          are applied without restarting the server. When unset, the legacy
+          access_key_encryption field is used.
+      keys_poll_interval:
+        type: string
+        default: "15s"
+        description: >-
+          How often keys_file is polled for changes (a Go duration like "15s").
+          "0" disables polling (a SIGHUP still forces a reload).
+
+  JWTConfig:
+    type: object
+    description: JWT issuance settings for task executions.
+    properties:
+      enabled:
+        type: boolean
+        description: >
+          When true, Semaphore mints a short-lived JWT for each task run and
+          exposes its public key via /.well-known/jwks.json.
+      issuer:
+        type: string
+        description: Value emitted in the `iss` claim of issued JWTs.
+      default_ttl:
+        type: string
+        pattern: "^[0-9]+(|s|m|h)$"
+        default: "1h"
+        description: >
+          Default lifetime of an issued task JWT, as a Go duration (e.g. 30m,
+          1h). Overridden per-template by `jwt_params.ttl`.
+      max_ttl:
+        type: string
+        pattern: "^[0-9]+(s|m|h)$"
+        default: "24h"
+        description: >
+          Hard upper bound on per-template JWT TTL, as a Go duration. Any
+          configured `jwt_params.ttl` above this is rejected.
+
+  KeySource:
+    type: object
+    description: >-
+      A single secret key supplied either inline (value) or from a file (file).
+      value and file are mutually exclusive.
+    properties:
+      value:
+        type: string
+        description: Base64-encoded key material (sensitive).
+      file:
+        type: string
+        description: Path to a file containing the base64-encoded key.
+  EncryptionKeysActive:
+    type: object
+    description: >-
+      Names the active (encrypting) key per purpose. Use a label (secret_key /
+      option_key) into the keys map, or a filename (secret_key_file /
+      option_key_file) in keys_folder, relative to it. secret_key protects
+      stored Access Key secrets; option_key protects encrypted DB options (the
+      JWT signing key) and falls back to the secrets key when unset.
+    properties:
+      secret_key:      { type: string, description: Label of the active secrets key in keys. }
+      option_key:      { type: string, description: Label of the active options key in keys. }
+      secret_key_file: { type: string, description: Filename (in keys_folder) of the active secrets key. }
+      option_key_file: { type: string, description: Filename (in keys_folder) of the active options key. }
+  EncryptionKeysConfig:
+    type: object
+    description: >-
+      Content of the encryption keys file: a registry of keys plus pointers to the
+      active key per purpose. The registry is an inline map (keys) and/or a folder
+      of key files (keys_folder, one regular file per key, labelled by filename);
+      the two combine. The key id stored in the database is derived from the key
+      material, so a key is retired simply by no longer being active while some
+      rows still reference it.
+    properties:
+      keys:
+        type: object
+        additionalProperties: { $ref: "#/$defs/KeySource" }
+        description: Inline registry, label -> key source.
+      keys_folder:
+        type: string
+        description: Directory of key files (each regular file is one key, labelled by its filename).
+      active: { $ref: "#/$defs/EncryptionKeysActive" }
+  DbConfig:
+    type: object
+    properties:
+      host: { type: string, default: "0.0.0.0" }
+      user: { type: string }
+      pass:
+        type: string
+        description: Database password (sensitive).
+      name: { type: string, default: semaphore }
+      options:
+        type: object
+        additionalProperties: { type: string }
+
+  TLSConfig:
+    type: object
+    properties:
+      enabled:   { type: boolean }
+      cert_file: { type: string }
+      key_file:  { type: string }
+      http_redirect_addr:
+        type: string
+        description: Address (host[:port]) for the HTTP→HTTPS redirect listener. Mutually exclusive with http_redirect_port.
+      http_redirect_port:
+        type: [integer, "null"]
+        minimum: 1
+        maximum: 65535
+        description: Port for the HTTP→HTTPS redirect listener. Mutually exclusive with http_redirect_addr.
+
+  MultifactorAuthConfig:
+    type: object
+    description: Multi-factor authentication settings.
+    properties:
+      totp:  { $ref: "#/$defs/TotpConfig" }
+      email: { $ref: "#/$defs/EmailAuthConfig" }
+
+  TotpConfig:
+    type: object
+    properties:
+      enabled:        { type: boolean }
+      allow_recovery: { type: boolean }
+      app_name:
+        type: string
+        description: Issuer label shown in authenticator apps.
+
+  EmailAuthConfig:
+    type: object
+    properties:
+      enabled:                      { type: boolean }
+      allow_login_as_external_user: { type: boolean }
+      allow_create_external_user:   { type: boolean }
+      allowed_domains:
+        type: array
+        items: { type: string }
+      disable_for_oidc:             { type: boolean }
+
+  LdapMappings:
+    type: object
+    properties:
+      dn:   { type: string, default: dn }
+      mail: { type: string, default: mail }
+      uid:  { type: string, default: uid }
+      cn:   { type: string, default: cn }
+
+  LdapProvider:
+    type: object
+    properties:
+      display_name: { type: string }
+      server:       { type: string }
+      need_tls:      { type: boolean }
+      tls_skip_verify:
+        type: boolean
+        default: false
+        description: >
+          Disable verification of the LDAP server's TLS certificate. Defaults to
+          false (certificates are verified). Only enable on trusted networks
+          with self-signed certificates.
+      bind_dn:       { type: string }
+      bind_password:
+        type: string
+        description: LDAP bind password (sensitive).
+      search_dn:     { type: string }
+      search_filter: { type: string }
+      mappings:     { $ref: "#/$defs/LdapMappings" }
+      color:        { type: string }
+      icon:         { type: string, description: MDI icon name without the mdi- prefix. }
+      order:        { type: integer }
+
+  OidcProvider:
+    type: object
+    properties:
+      client_id:          { type: string }
+      client_id_file:     { type: string }
+      client_secret:
+        type: string
+        description: OIDC client secret (sensitive).
+      client_secret_file: { type: string }
+      redirect_url:       { type: string, format: uri }
+      scopes:
+        type: array
+        items: { type: string }
+      display_name: { type: string }
+      color:        { type: string }
+      icon:         { type: string }
+      provider_url:
+        type: string
+        format: uri
+        description: OIDC autodiscovery URL.
+      endpoint:         { $ref: "#/$defs/OidcEndpoint" }
+      username_claim:   { type: string, default: preferred_username }
+      name_claim:       { type: string, default: preferred_username }
+      email_claim:      { type: string, default: email }
+      order:            { type: integer }
+      return_via_state: { type: boolean, default: true }
+      require_verified_email:
+        type: boolean
+        default: false
+        description: Use the email for account matching only if the provider sent email_verified=true. Off by default because some providers (e.g. Okta) do not return the claim.
+
+  OidcEndpoint:
+    type: object
+    properties:
+      issuer:   { type: string, format: uri }
+      auth:     { type: string, format: uri }
+      token:    { type: string, format: uri }
+      userinfo: { type: string, format: uri }
+      jwks:     { type: string, format: uri }
+      algorithms:
+        type: array
+        items: { type: string }
+
+  App:
+    type: object
+    properties:
+      active:     { type: boolean }
+      priority:   { type: integer }
+      title:      { type: string }
+      icon:       { type: string }
+      color:      { type: string }
+      dark_color: { type: string }
+      path:
+        type: string
+        description: Path to the app binary or working directory.
+      args:
+        type: array
+        items: { type: string }
+
+  TeamsConfig:
+    type: object
+    properties:
+      invites_enabled: { type: boolean }
+      invite_type:
+        type: string
+        enum: [email, username, both]
+        default: username
+      members_can_leave: { type: boolean }
+
+  SyslogConfig:
+    type: object
+    properties:
+      enabled: { type: boolean }
+      network:
+        type: string
+        description: tcp / udp / unix (empty = local).
+      address: { type: string }
+      tag:     { type: string }
+      format:
+        type: string
+        enum: ["", rfc5424]
+
+  MetricsConfig:
+    type: object
+    properties:
+      enabled:  { type: boolean }
+      username: { type: string }
+      password:
+        type: string
+        description: Basic Auth password for the /api/metrics endpoint (sensitive).
+
+  ConfigLog:
+    type: object
+    properties:
+      events: { $ref: "#/$defs/EventLogType" }
+      tasks:  { $ref: "#/$defs/TaskLogType" }
+
+  EventLogType:
+    type: object
+    properties:
+      enabled: { type: boolean }
+      format:
+        type: string
+        enum: ["", json]
+      logger: { $ref: "#/$defs/LumberjackLogger" }
+
+  TaskLogType:
+    type: object
+    properties:
+      enabled: { type: boolean }
+      format:
+        type: string
+        enum: ["", json]
+      logger:        { $ref: "#/$defs/LumberjackLogger" }
+      result_logger: { $ref: "#/$defs/LumberjackLogger" }
+
+  LumberjackLogger:
+    type: object
+    description: natefinch/lumberjack rotating-file logger.
+    properties:
+      filename: { type: string }
+      maxsize:
+        type: integer
+        description: Max megabytes before rotation.
+      maxage:
+        type: integer
+        description: Max days to retain old log files.
+      maxbackups:
+        type: integer
+        description: Max number of old log files to retain.
+      localtime: { type: boolean }
+      compress:  { type: boolean }
+
+  ConfigProcess:
+    type: object
+    properties:
+      user:           { type: string }
+      uid:            { type: integer, minimum: 0 }
+      chroot:         { type: string }
+      gid:            { type: integer, minimum: 0 }
+      no_new_privs:   { type: boolean }
+      app_namespaces: { $ref: "#/$defs/ConfigAppNamespaces" }
+
+  ConfigAppNamespaces:
+    type: object
+    description: Linux CLONE_NEW* flags applied to app runs. No-op on non-Linux.
+    properties:
+      user:  { type: boolean }
+      mount: { type: boolean }
+      pid:   { type: boolean }
+      ipc:   { type: boolean }
+      uts:   { type: boolean }
+
+  ScheduleConfig:
+    type: object
+    properties:
+      timezone: { type: string, default: UTC }
+
+  DebuggingConfig:
+    type: object
+    properties:
+      api_delay:
+        type: string
+        description: Artificial delay applied to API responses (e.g. "200ms").
+      pprof_dump_dir: { type: string }
+
+  HAConfig:
+    type: object
+    properties:
+      enabled: { type: boolean }
+      node_id:
+        type: string
+        description: Cluster node id; auto-generated if empty.
+      redis: { $ref: "#/$defs/HARedisConfig" }
+
+  HARedisConfig:
+    type: object
+    properties:
+      addr: { type: string }
+      db:   { type: integer, minimum: 0 }
+      user: { type: string }
+      pass:
+        type: string
+        description: Redis password (sensitive).
+      tls:             { type: boolean }
+      tls_skip_verify: { type: boolean }
+
+  SubscriptionConfig:
+    type: object
+    properties:
+      key:
+        type: string
+        description: Subscription key (sensitive). Setting this disables in-UI activation.
+      key_file: { type: string }
+      server_url:
+        type: string
+        format: uri
+        default: "https://portal.semaphoreui.com/billing"
+
+  ConfigDirs:
+    type: object
+    properties:
+      secrets:           { type: string, default: /tmp/semaphore }
+      repos:             { type: string }
+      ssh_agent_sockets: { type: string, default: /tmp/semaphore }
+
+  RunnerConfig:
+    type: object
+    properties:
+      registration_token_file: { type: string }
+      token:
+        type: string
+        description: Runner authentication token (sensitive).
+      token_file:       { type: string }
+      one_off:
+        type: boolean
+        description: Runner processes a single job and exits.
+      webhook: { type: string, format: uri }
+      name:    { type: string }
+      tags:
+        type: array
+        items: { type: string }
+      max_parallel_tasks: { type: integer, minimum: 1, default: 9999 }
+      enabled:            { type: boolean }
+      project_id:
+        type: [integer, "null"]
+      connection: { $ref: "#/$defs/RunnerConnectionConfig" }
+      executor:   { $ref: "#/$defs/ExecutorConfig" }
+
+  RunnerConnectionConfig:
+    type: object
+    description: Controls how the runner connects to the Semaphore server.
+    properties:
+      server_ca_cert_file:
+        type: string
+        description: >
+          PEM bundle used to verify the Semaphore server certificate, in
+          addition to the system trust store. Set when the server uses a
+          self-signed or internal-CA certificate.
+      skip_tls_verify:
+        type: boolean
+        description: >
+          Disables server certificate verification entirely. Insecure
+          (vulnerable to MITM) — use only for testing.
+
+  ExecutorConfig:
+    type: object
+    description: Strategy the runner uses to execute each task.
+    properties:
+      type:
+        type: string
+        enum: [local, k8s, docker]
+        default: local
+      k8s:    { $ref: "#/$defs/RunnerK8sConfig" }
+      docker: { $ref: "#/$defs/RunnerDockerConfig" }
+
+  RunnerK8sConfig:
+    type: object
+    description: Runner-side configuration for the Kubernetes executor.
+    properties:
+      kubeconfig:
+        type: string
+        description: Path to a kubeconfig file. Empty = in-cluster configuration.
+      namespace:    { type: string, default: semaphore }
+      image:        { type: string, default: "alpine:latest" }
+      helper_image: { type: string, default: "alpine/git:latest" }
+      service_account:
+        type: string
+        default: default
+        description: Service account that task Pods run under.
+      pull_secrets:
+        type: string
+        description: Comma-separated list of imagePullSecrets attached to each Pod.
+      poll_interval_seconds: { type: integer, minimum: 0, default: 3 }
+      cleanup_grace_seconds: { type: integer, minimum: 0, default: 30 }
+
+  RunnerDockerConfig:
+    type: object
+    description: Runner-side configuration for the Docker executor.
+    properties:
+      host:
+        type: string
+        description: >
+          Docker daemon URL (unix://, tcp:// or npipe://). Empty = standard
+          environment (DOCKER_HOST) and platform default socket.
+      tls_verify:
+        type: boolean
+        description: Enables TLS certificate verification for tcp:// connections.
+      cert_path:
+        type: string
+        description: Directory holding ca.pem, cert.pem and key.pem for mutual TLS.
+      image:        { type: string, default: "semaphoreui/job:latest" }
+      helper_image: { type: string, default: "semaphoreui/job:latest" }
+      network:      { type: string, default: bridge }
+      pull_policy:
+        type: string
+        default: if-not-present
+        description: Image pull policy — always, if-not-present or never.
+      cpu_limit:
+        type: number
+        description: When > 0, caps the build container CPU (passed as --cpus).
+      memory_limit:
+        type: string
+        description: When non-empty, caps the build container memory (e.g. "2g").
+      poll_interval_seconds: { type: integer, minimum: 0, default: 2 }
+      cleanup_grace_seconds: { type: integer, minimum: 0, default: 30 }
+      privileged:
+        type: boolean
+        description: Runs the build container with --privileged. Dangerous; off by default.
+
+  RunnersConfig:
+    type: object
+    description: >
+      Server-side settings describing how the server treats its runner fleet.
+      Unrelated to "runner", which configures a runner process itself.
+    properties:
+      offline_timeout_sec:
+        type: integer
+        minimum: 0
+        default: 120
+        description: >
+          Heartbeat staleness (seconds) after which a runner is considered
+          offline. An offline runner receives no new tasks and its "starting"
+          tasks are reassigned to another runner. Must be comfortably larger
+          than the runner poll interval.
+      task_fail_timeout_sec:
+        type: integer
+        minimum: 0
+        default: 420
+        description: >
+          Heartbeat staleness (seconds) after which a runner's "running" tasks
+          are failed. A runner that reconnects within this window continues its
+          tasks. Values below offline_timeout_sec are clamped to it.
+      reconcile_interval_sec:
+        type: integer
+        minimum: 0
+        default: 30
+        description: How often (seconds) dispatched tasks are reconciled against runner liveness.

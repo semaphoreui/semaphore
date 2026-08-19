@@ -8,8 +8,9 @@ import (
 )
 
 type mockProjectStore struct {
-	UpdateProjectFn func(project db.Project) error
-	DeleteProjectFn func(projectID int) error
+	UpdateProjectFn  func(project db.Project) error
+	DeleteProjectFn  func(projectID int) error
+	GetAllProjectsFn func() ([]db.Project, error)
 }
 
 func (m *mockProjectStore) UpdateProject(project db.Project) error {
@@ -27,7 +28,12 @@ func (m *mockProjectStore) DeleteProject(projectID int) error {
 
 // Stub methods to satisfy db.ProjectStore
 func (m *mockProjectStore) GetProject(projectID int) (db.Project, error) { return db.Project{}, nil }
-func (m *mockProjectStore) GetAllProjects() ([]db.Project, error)        { return nil, nil }
+func (m *mockProjectStore) GetAllProjects() ([]db.Project, error) {
+	if m.GetAllProjectsFn != nil {
+		return m.GetAllProjectsFn()
+	}
+	return nil, nil
+}
 func (m *mockProjectStore) GetProjects(userID int) ([]db.Project, error) { return nil, nil }
 func (m *mockProjectStore) CreateProject(project db.Project) (db.Project, error) {
 	return db.Project{}, nil
@@ -84,6 +90,11 @@ func (m *mockAccessKeyManager) GetAccessKeyRefs(projectID int, accessKeyID int) 
 	return db.ObjectReferrers{}, nil
 }
 func (m *mockAccessKeyManager) RekeyAccessKeys(oldKey string) error { return nil }
+func (m *mockAccessKeyManager) GetTaskAccessKey(projectID int, taskID int) (db.AccessKey, error) {
+	return db.AccessKey{}, db.ErrNotFound
+}
+func (m *mockAccessKeyManager) DeleteTaskAccessKeys(projectID int, taskID int) error { return nil }
+func (m *mockAccessKeyManager) DeleteExpiredTaskAccessKeys() error                   { return nil }
 
 func TestProjectServiceImpl_DeleteProject(t *testing.T) {
 	mockRepo := &mockProjectStore{

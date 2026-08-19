@@ -2,7 +2,6 @@ package factory
 
 import (
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -16,7 +15,7 @@ func CreateStore() db.Store {
 	case util.DbDriverMySQL:
 		return sql.CreateDb(config.Dialect)
 	case util.DbDriverBolt:
-		return bolt.CreateBoltDB()
+		panic("Bolt is not supported starting from version 2.19")
 	case util.DbDriverPostgres:
 		return sql.CreateDb(config.Dialect)
 	case util.DbDriverSQLite:
@@ -24,6 +23,4 @@ func CreateStore() db.Store {
 	default:
 		panic("Unsupported database dialect: " + config.Dialect)
 	}
-	// This line should never be reached due to panic above, but satisfies linter
-	return nil
 }

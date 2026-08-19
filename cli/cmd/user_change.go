@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func init() {
@@ -67,7 +68,7 @@ var userChangeByLoginCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		user, err := store.GetUserByLoginOrEmail(targetUserArgs.login, "")
 
@@ -97,7 +98,7 @@ var userChangeByEmailCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		user, err := store.GetUserByLoginOrEmail("", targetUserArgs.email)
 		if err != nil {

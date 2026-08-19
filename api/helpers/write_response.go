@@ -48,8 +48,11 @@ func WriteError(w http.ResponseWriter, err error) {
 		return
 	}
 
-	var validationError *db.ValidationError
+	var validationError *common_errors.ValidationError
+	var userVisibleError *common_errors.UserVisibleError
 	switch {
+	case errors.As(err, &userVisibleError):
+		WriteErrorStatus(w, userVisibleError.Error(), http.StatusBadRequest)
 	case errors.As(err, &validationError):
 		WriteErrorStatus(w, validationError.Error(), http.StatusBadRequest)
 	default:

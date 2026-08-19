@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -21,7 +22,7 @@ func (c *RolesController) GetGlobalRole(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *RolesController) GetRoles(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotFound)
+	helpers.WriteJSON(w, http.StatusOK, []string{})
 }
 
 func (c *RolesController) AddRole(w http.ResponseWriter, r *http.Request) {
@@ -38,11 +39,11 @@ func (c *RolesController) DeleteRole(w http.ResponseWriter, r *http.Request) {
 
 // Project-specific role methods
 func (c *RolesController) GetProjectRoles(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotFound)
+	helpers.WriteJSON(w, http.StatusOK, []string{})
 }
 
 func (c *RolesController) GetProjectAndGlobalRoles(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotFound)
+	helpers.WriteJSON(w, http.StatusOK, []string{})
 }
 
 func (c *RolesController) AddProjectRole(w http.ResponseWriter, r *http.Request) {

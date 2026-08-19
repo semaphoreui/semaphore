@@ -2,11 +2,12 @@ package sockets
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
-	"net/http"
-	"time"
 
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -178,8 +179,13 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	c.readPump()
 }
 
-// Message allows a message to be sent to the websockets, called in API task logging
+// Message allows a message to be sent to the websockets, called in API task logging.
+// In HA mode, messages are relayed to all cluster nodes via the configured Broadcaster.
 func Message(userID int, message []byte) {
+	if broadcaster != nil {
+		broadcaster.Publish(userID, message)
+		return
+	}
 	h.broadcast <- &sendRequest{
 		userID: userID,
 		msg:    message,

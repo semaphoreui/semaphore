@@ -45,7 +45,7 @@ func parseTlsVersion(version string) (uint16, error) {
 		return tls.VersionTLS13, nil
 	}
 
-	return 0, fmt.Errorf("Unsupported TLS version %s", version)
+	return 0, fmt.Errorf("unsupported TLS version %s", version)
 }
 
 // Send simply sends the defined mail via SMTP.

@@ -1,11 +1,12 @@
 package projects
 
 import (
+	"net/http"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/util"
-	"net/http"
 )
 
 type publicAlias struct {

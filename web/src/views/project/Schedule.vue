@@ -57,7 +57,7 @@
         <v-list>
           <v-list-item
             link
-            @click="editSchedule('new', 'cron');"
+            @click="editSchedule('new', '');"
           >
             <v-list-item-icon>
               <v-icon>mdi-calendar-sync</v-icon>

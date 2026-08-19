@@ -13,12 +13,21 @@ import (
 // SetTestDelay sets a delay for testing slow network conditions
 func SetTestDelay(delay time.Duration) func() {
 	originalDelay := os.Getenv("DEBUG_DELAY")
-	os.Setenv("DEBUG_DELAY", delay.String())
+	err := os.Setenv("DEBUG_DELAY", delay.String())
+
+	if err != nil {
+		panic("Failed to set DEBUG_DELAY environment variable: " + err.Error())
+	}
+
 	return func() {
 		if originalDelay == "" {
-			os.Unsetenv("DEBUG_DELAY")
+			err = os.Unsetenv("DEBUG_DELAY")
 		} else {
-			os.Setenv("DEBUG_DELAY", originalDelay)
+			err = os.Setenv("DEBUG_DELAY", originalDelay)
+		}
+
+		if err != nil {
+			panic("Failed to unset DEBUG_DELAY environment variable: " + err.Error())
 		}
 	}
 }

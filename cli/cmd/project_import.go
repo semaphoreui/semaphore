@@ -10,14 +10,16 @@ import (
 	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
+	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	projectService "github.com/semaphoreui/semaphore/services/project"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 type projectImportArgs struct {
-	dir  string
-	file string
+	dir         string
+	file        string
+	projectName string
 }
 
 var targetProjectImportArgs projectImportArgs
@@ -25,6 +27,7 @@ var targetProjectImportArgs projectImportArgs
 func init() {
 	projectImportCmd.PersistentFlags().StringVar(&targetProjectImportArgs.dir, "dir", "", "Directory path with project backups to import")
 	projectImportCmd.PersistentFlags().StringVar(&targetProjectImportArgs.file, "file", "", "Backup file path to import")
+	projectImportCmd.PersistentFlags().StringVar(&targetProjectImportArgs.projectName, "project-name", "", "Override project name (only valid with --file)")
 	projectCmd.AddCommand(projectImportCmd)
 }
 
@@ -44,13 +47,18 @@ var projectImportCmd = &cobra.Command{
 			ok = false
 		}
 
+		if targetProjectImportArgs.projectName != "" && targetProjectImportArgs.dir != "" {
+			fmt.Println("Option --project-name can only be used with --file, not --dir")
+			ok = false
+		}
+
 		if !ok {
 			fmt.Println("Use command `semaphore project import --help` for details.")
 			os.Exit(1)
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		user, err := resolveImportUser(store)
 		if err != nil {
@@ -94,7 +102,7 @@ var projectImportCmd = &cobra.Command{
 
 		okCount := 0
 		for _, f := range files {
-			if err := importProjectFromFile(f, user, store); err != nil {
+			if err := importProjectFromFile(f, targetProjectImportArgs.projectName, user, store); err != nil {
 				log.Errorf("failed to import %s: %v", f, err)
 				continue
 			}
@@ -134,7 +142,7 @@ func resolveImportUser(store db.Store) (res db.User, err error) {
 	return
 }
 
-func importProjectFromFile(path string, user db.User, store db.Store) error {
+func importProjectFromFile(path string, projectName string, user db.User, store db.Store) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -146,6 +154,10 @@ func importProjectFromFile(path string, user db.User, store db.Store) error {
 	if err := backup.Verify(); err != nil {
 		return err
 	}
-	_, err = backup.Restore(user, store)
+	if projectName != "" {
+		backup.Meta.Name = projectName
+	}
+	workflowStore := proFactory.NewWorkflowStore(store)
+	_, err = backup.Restore(user, store, workflowStore)
 	return err
 }

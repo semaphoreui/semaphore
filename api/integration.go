@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/conv"
@@ -47,11 +48,13 @@ func hmacHashPayload(secret string, payloadBody []byte) string {
 }
 
 type IntegrationController struct {
+	store              db.Store
 	integrationService server.IntegrationService
 }
 
-func NewIntegrationController(integrationService server.IntegrationService) *IntegrationController {
+func NewIntegrationController(store db.Store, integrationService server.IntegrationService) *IntegrationController {
 	return &IntegrationController{
+		store:              store,
 		integrationService: integrationService,
 	}
 }
@@ -69,9 +72,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 
 	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
 
-	store := helpers.Store(r)
-
-	integrations, level, err := store.GetIntegrationsByAlias(integrationAlias)
+	integrations, level, err := c.store.GetIntegrationsByAlias(integrationAlias)
 
 	if err != nil {
 		log.Error(err)
@@ -95,7 +96,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 
 		project, ok := projects[integration.ProjectID]
 		if !ok {
-			project, err = store.GetProject(integrations[0].ProjectID)
+			project, err = c.store.GetProject(integrations[0].ProjectID)
 			if err != nil {
 				log.Error(err)
 				return
@@ -184,7 +185,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 
 		if level != db.IntegrationAliasSingle {
 			var matchers []db.IntegrationMatcher
-			matchers, err = store.GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
+			matchers, err = c.store.GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
 			if err != nil {
 				log.WithFields(log.Fields{
 					"context": "integrations",
@@ -209,7 +210,20 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			}
 		}
 
-		RunIntegration(integration, project, r, payload)
+		task := c.RunIntegration(integration, project, r, payload)
+		if task != nil {
+			w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(task.ID))
+			w.Header().Add("X-Semaphore-Template-ID", strconv.Itoa(task.TemplateID))
+			w.Header().Add("X-Semaphore-Project-ID", strconv.Itoa(task.ProjectID))
+
+			if task.IntegrationID != nil {
+				w.Header().Add("X-Semaphore-Integration-ID", strconv.Itoa(*task.IntegrationID))
+			}
+
+			if task.InventoryID != nil {
+				w.Header().Add("X-Semaphore-Inventory-ID", strconv.Itoa(*task.InventoryID))
+			}
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -302,12 +316,11 @@ func GetTaskDefinition(
 		}
 	}
 
-	// Add extracted environment variables only if they don't conflict with
-	// existing task definition variables (task definition has higher priority)
 	for k, v := range extractedEnvResults {
-		if _, exists := env[k]; !exists {
-			env[k] = v
-		}
+		//if _, exists := env[k]; !exists {
+		//	env[k] = v
+		//}
+		env[k] = v
 	}
 
 	envStr, err := json.Marshal(env)
@@ -317,7 +330,7 @@ func GetTaskDefinition(
 
 	taskDefinition.Environment = string(envStr)
 
-	extractedTaskResults := ExtractAsAnyForTaskParams(taskValues, h, payload)
+	extractedTaskResults := Extract(taskValues, h, payload)
 	for k, v := range extractedTaskResults {
 		taskDefinition.Params[k] = v
 	}
@@ -325,13 +338,14 @@ func GetTaskDefinition(
 	return
 }
 
-func RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) {
+func (c *IntegrationController) RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) (taskRef *db.Task) {
+	taskRef = nil
 
 	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
 
 	taskDefinition, err := GetTaskDefinition(
 		integration, payload, r.Header, func(projectID, integrationID int) ([]db.IntegrationExtractValue, error) {
-			return helpers.Store(r).GetIntegrationExtractValues(projectID, db.RetrieveQueryParams{}, integrationID)
+			return c.store.GetIntegrationExtractValues(projectID, db.RetrieveQueryParams{}, integrationID)
 		})
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
@@ -341,7 +355,7 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 		return
 	}
 
-	tpl, err := helpers.Store(r).GetTemplate(integration.ProjectID, integration.TemplateID)
+	tpl, err := c.store.GetTemplate(integration.ProjectID, integration.TemplateID)
 	if err != nil {
 		log.Error(err)
 		return
@@ -349,15 +363,19 @@ func RunIntegration(integration db.Integration, project db.Project, r *http.Requ
 
 	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
-	_, err = pool.AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
+	task, err := pool.AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
 		log.Error(err)
 		return
 	}
+
+	taskRef = &task
+
+	return
 }
 
-func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]string) {
-	result = make(map[string]string)
+func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]any) {
+	result = make(map[string]any)
 
 	for _, extractValue := range extractValues {
 		switch extractValue.ValueSource {
@@ -366,38 +384,14 @@ func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload 
 		case db.IntegrationExtractBodyValue:
 			switch extractValue.BodyDataType {
 			case db.IntegrationBodyDataJSON:
-				var extractedResult = fmt.Sprintf("%v", gojsonq.New().JSONString(string(payload)).Find(extractValue.Key))
-				result[extractValue.Variable] = extractedResult
+				val := gojsonq.New().JSONString(string(payload)).Find(extractValue.Key)
+				if val != nil {
+					result[extractValue.Variable] = val
+				}
 			case db.IntegrationBodyDataString:
 				result[extractValue.Variable] = string(payload)
 			}
 		}
 	}
 	return
-}
-
-func ExtractAsAnyForTaskParams(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) db.MapStringAnyField {
-	// Create a result map that accepts any type
-	result := make(db.MapStringAnyField)
-
-	for _, extractValue := range extractValues {
-		switch extractValue.ValueSource {
-		case db.IntegrationExtractHeaderValue:
-			// Extract the header value
-			result[extractValue.Variable] = h.Get(extractValue.Key)
-
-		case db.IntegrationExtractBodyValue:
-			switch extractValue.BodyDataType {
-			case db.IntegrationBodyDataJSON:
-				// Query the JSON payload for the key using gojsonq
-				rawValue := gojsonq.New().JSONString(string(payload)).Find(extractValue.Key)
-				result[extractValue.Variable] = rawValue
-
-			case db.IntegrationBodyDataString:
-				// Simply use the entire payload as a string
-				result[extractValue.Variable] = string(payload)
-			}
-		}
-	}
-	return result
 }

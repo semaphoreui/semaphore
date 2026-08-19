@@ -3,9 +3,10 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func init() {
@@ -32,7 +33,7 @@ var userGetCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		user, err := store.GetUserByLoginOrEmail(targetUserArgs.login, targetUserArgs.email)
 		if errors.Is(err, db.ErrNotFound) {

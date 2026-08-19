@@ -86,9 +86,7 @@ if [ -z "${SEMAPHORE_DB_HOST}" ]; then
 fi
 
 if [ -z "${SEMAPHORE_DB_HOST}" ]; then
-    if [ "${SEMAPHORE_DB_DIALECT}" = 'bolt' ]; then
-        export SEMAPHORE_DB_HOST=${SEMAPHORE_DB_PATH}/database.boltdb
-    elif [ "${SEMAPHORE_DB_DIALECT}" = 'sqlite' ]; then
+    if [ "${SEMAPHORE_DB_DIALECT}" = 'sqlite' ]; then
         export SEMAPHORE_DB_HOST=${SEMAPHORE_DB_PATH}/database.sqlite
     else
         export SEMAPHORE_DB_HOST="${SEMAPHORE_DB_HOST:-0.0.0.0}"
@@ -119,8 +117,6 @@ if [ -z "${SEMAPHORE_DB_PORT}" ]; then
         postgres)
             SEMAPHORE_DB_PORT=5432
             ;;
-        bolt)
-            ;;
         sqlite)
             ;;
         *)
@@ -134,7 +130,7 @@ fi
 #
 # Ping database if it is not BoltDB
 #
-if [ "${SEMAPHORE_DB_DIALECT}" != 'bolt' ] && [ "${SEMAPHORE_DB_DIALECT}" != 'sqlite' ]; then
+if [ "${SEMAPHORE_DB_DIALECT}" != 'sqlite' ]; then
     echoerr "Pinging database on ${SEMAPHORE_DB_HOST} port ${SEMAPHORE_DB_PORT}..."
     TIMEOUT=30
 
@@ -158,7 +154,9 @@ fi
 #
 # Generate new config.json if it does not exist
 #
+SEMAPHORE_FIRST_RUN=no
 if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
+    SEMAPHORE_FIRST_RUN=yes
     echoerr "Generating setup file ${TMP_STDIN_CONFIG_FILE} ..."
 
     TMP_STDIN_CONFIG_FILE=$(mktemp)
@@ -174,9 +172,6 @@ if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
     case ${SEMAPHORE_DB_DIALECT} in
         mysql)
             SEMAPHORE_DB_DIALECT_ID=1
-            ;;
-        bolt)
-            SEMAPHORE_DB_DIALECT_ID=2
             ;;
         postgres)
             SEMAPHORE_DB_DIALECT_ID=3
@@ -195,11 +190,7 @@ if [ ! -f "${SEMAPHORE_CONFIG_PATH}/config.json" ]; then
 ${SEMAPHORE_DB_DIALECT_ID}
 EOF
 
-    if [ "${SEMAPHORE_DB_DIALECT}" = "bolt" ]; then
-        cat << EOF >> "${TMP_STDIN_CONFIG_FILE}"
-${SEMAPHORE_DB_HOST}
-EOF
-    elif [ "${SEMAPHORE_DB_DIALECT}" = "sqlite" ]; then
+    if [ "${SEMAPHORE_DB_DIALECT}" = "sqlite" ]; then
         cat << EOF >> "${TMP_STDIN_CONFIG_FILE}"
 ${SEMAPHORE_DB_HOST}
 EOF
@@ -257,7 +248,6 @@ EOF
     rm -f "${TMP_STDIN_CONFIG_FILE}"
 fi
 
-
 #
 # Install additional python dependencies
 #
@@ -269,14 +259,45 @@ else
     echoerr "No additional python dependencies to install"
 fi
 
+#
+# Migrate from BoltDB if SEMAPHORE_MIGRATE_FROM_BOLTDB is set (first run only, SQLite only, skipped if DB file already exists)
+#
+case "${SEMAPHORE_MIGRATE_FROM_BOLTDB:-}" in
+    [Tt][Rr][Uu][Ee]|[Yy][Ee][Ss])
+        SEMAPHORE_MIGRATE_FROM_BOLTDB="${SEMAPHORE_DB_PATH}/database.boltdb"
+        ;;
+esac
+
+if [ -n "${SEMAPHORE_MIGRATE_FROM_BOLTDB:-}" ] && [ "${SEMAPHORE_FIRST_RUN}" = "yes" ]; then
+    if [ "${SEMAPHORE_DB_DIALECT}" != "sqlite" ]; then
+        echoerr "SEMAPHORE_MIGRATE_FROM_BOLTDB is only supported with SQLite dialect, ignoring"
+    else
+        echoerr "Migrating from BoltDB: ${SEMAPHORE_MIGRATE_FROM_BOLTDB}"
+        MIGRATE_ARGS="--from-boltdb=${SEMAPHORE_MIGRATE_FROM_BOLTDB} --merge-existing-users"
+        if [ -n "${SEMAPHORE_MIGRATE_SKIP_TASK_OUTPUT:-}" ]; then
+            MIGRATE_ARGS="${MIGRATE_ARGS} --skip-task-output"
+        fi
+        if test "$#" -ne 1; then
+            /usr/local/bin/semaphore migrate ${MIGRATE_ARGS} --config "${SEMAPHORE_CONFIG_PATH}/config.json"
+        else
+            "$1" migrate ${MIGRATE_ARGS} --config "${SEMAPHORE_CONFIG_PATH}/config.json"
+        fi
+    fi
+fi
 
 # Import project if environment variable SEMAPHORE_IMPORT_PROJECT_FILE is defined.
-if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ]; then
+# Optionally use SEMAPHORE_IMPORT_PROJECT_NAME to specify the project name.
+if [ -n "${SEMAPHORE_IMPORT_PROJECT_FILE:-}" ] && [ "${SEMAPHORE_FIRST_RUN}" = "yes" ]; then
     echoerr "Importing project from ${SEMAPHORE_IMPORT_PROJECT_FILE}"
+    IMPORT_ARGS="--file ${SEMAPHORE_IMPORT_PROJECT_FILE}"
+    if [ -n "${SEMAPHORE_IMPORT_PROJECT_NAME:-}" ]; then
+        echoerr "Using project name: ${SEMAPHORE_IMPORT_PROJECT_NAME}"
+        IMPORT_ARGS="${IMPORT_ARGS} --project-name ${SEMAPHORE_IMPORT_PROJECT_NAME}"
+    fi
     if test "$#" -ne 1; then
-        /usr/local/bin/semaphore project import --file "${SEMAPHORE_IMPORT_PROJECT_FILE}" || echoerr "Project import failed"
+        /usr/local/bin/semaphore project import ${IMPORT_ARGS} --config "${SEMAPHORE_CONFIG_PATH}/config.json" || echoerr "Project import failed"
     else
-        "$1" project import --file "${SEMAPHORE_IMPORT_PROJECT_FILE}" || echoerr "Project import failed"
+        "$1" project import ${IMPORT_ARGS} || echoerr "Project import failed"
     fi
 fi
 

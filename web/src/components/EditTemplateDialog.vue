@@ -1,38 +1,41 @@
 <template>
   <EditDialog
-      v-if="isAppsLoaded"
-      :max-width="dialogWidth"
-      v-model="dialog"
-      :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :icon="getAppIcon(itemApp)"
-      :icon-color="getAppColor(itemApp)"
-      :title="(itemId === 'new' ? $t('newTemplate') : $t('editTemplate')) +
-        ' \'' + getAppTitle(itemApp) + '\''"
-      @save="onSave"
-      :content-class="`EditTemplateDialog EditTemplateDialog--${id}`"
+    noEscape
+    v-if="isAppsLoaded"
+    :max-width="dialogWidth"
+    v-model="dialog"
+    :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
+    :icon="getAppIcon(itemApp)"
+    :icon-color="getAppColor(itemApp)"
+    :title="
+      (itemId === 'new' ? $t('newTemplate') : $t('editTemplate')) +
+      ' \'' +
+      getAppTitle(itemApp) +
+      '\''
+    "
+    @save="onSave"
+    :content-class="`EditTemplateDialog EditTemplateDialog--${id}`"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <TemplateForm
-          :project-id="projectId"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-          :source-item-id="sourceItemId"
-          :app="itemApp"
-          :premium-features="premiumFeatures"
-          :task-type="taskType"
+        :project-id="projectId"
+        :item-id="itemId"
+        @save="onSave"
+        @error="onError"
+        :need-save="needSave"
+        :need-reset="needReset"
+        :source-item-id="sourceItemId"
+        :app="itemApp"
+        :features="features"
+        :task-type="taskType"
       />
     </template>
   </EditDialog>
 </template>
 
-<style lang="scss">
-</style>
+<style lang="scss"></style>
 
 <script>
-
 import TemplateForm from './TemplateForm.vue';
 import EditDialog from './EditDialog.vue';
 import AppsMixin from './AppsMixin';
@@ -51,7 +54,7 @@ export default {
     projectId: Number,
     itemId: [String, Number],
     sourceItemId: Number,
-    premiumFeatures: Object,
+    features: Object,
     taskType: String,
   },
 
@@ -87,6 +90,5 @@ export default {
       this.$emit('save', e);
     },
   },
-
 };
 </script>

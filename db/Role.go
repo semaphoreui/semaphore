@@ -1,5 +1,7 @@
 package db
 
+import "github.com/semaphoreui/semaphore/pkg/common_errors"
+
 type Role struct {
 	Slug        string                `db:"slug" json:"slug" backup:"-"`
 	Name        string                `db:"name" json:"name"`
@@ -9,7 +11,15 @@ type Role struct {
 
 func ValidateRole(role Role) error {
 	if role.Name == "" {
-		return &ValidationError{Message: "Role name cannot be empty"}
+		return &common_errors.ValidationError{Message: "Role name cannot be empty"}
+	}
+	if role.Slug == "" {
+		return &common_errors.ValidationError{Message: "Role slug cannot be empty"}
+	}
+	// Built-in role slugs are reserved. Allowing a custom role to reuse one lets
+	// it shadow the built-in role and escalate the permissions of its members.
+	if ProjectUserRole(role.Slug).IsValid() {
+		return &common_errors.ValidationError{Message: "Role slug is reserved and cannot be used: " + role.Slug}
 	}
 	return nil
 }

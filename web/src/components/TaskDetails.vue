@@ -103,6 +103,10 @@
                   <td><b>{{ $t('duration') }}</b></td>
                   <td>{{ [item.start, item.end] | formatMilliseconds }}</td>
                 </tr>
+                <tr v-if="item.used_runner_name">
+                  <td><b>Runner</b></td>
+                  <td>{{ item.used_runner_name }}</td>
+                </tr>
                 </tbody>
               </template>
             </v-simple-table>
@@ -130,7 +134,9 @@
                 <tr>
                   <td><b>Limit</b></td>
                   <td>
-                    {{ item.params.limit ? 'Yes' : 'No' }}
+                    <span v-if="Array.isArray(item.params.limit) && item.params.limit.length > 0">
+                      {{ item.params.limit.join(', ') }}</span>
+                    <span v-else>'No'</span>
                   </td>
                 </tr>
                 <tr>
@@ -164,6 +170,31 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <v-row v-if="parsedArtifacts">
+      <v-col cols="12">
+        <v-card
+          :color="$vuetify.theme.dark ? '#212121' : 'white'"
+          style="background: #8585850f"
+          class="mb-5"
+        >
+          <v-card-title>
+            {{ $t('workflowArtifacts') }}
+            <v-tooltip bottom max-width="320">
+              <template v-slot:activator="{ on, attrs }">
+                <v-icon small class="ml-2" v-bind="attrs" v-on="on">
+                  mdi-information-outline
+                </v-icon>
+              </template>
+              <span>{{ $t('workflowArtifactsHint') }}</span>
+            </v-tooltip>
+          </v-card-title>
+          <v-card-text>
+            <pre class="TaskDetails__artifacts">{{ formattedArtifacts }}</pre>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
   </div>
 </template>
 
@@ -174,6 +205,14 @@
     padding-left: 0 !important;
     padding-right: 0 !important;
   }
+}
+
+.TaskDetails__artifacts {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  margin: 0;
 }
 
 </style>
@@ -206,7 +245,28 @@ export default {
     },
   },
 
-  computed: {},
+  computed: {
+    parsedArtifacts() {
+      const raw = this.item?.artifacts;
+      if (raw == null || raw === '') return null;
+      if (typeof raw === 'object') {
+        return Object.keys(raw).length === 0 ? null : raw;
+      }
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+            && Object.keys(parsed).length > 0) {
+          return parsed;
+        }
+        return null;
+      } catch (e) {
+        return null;
+      }
+    },
+    formattedArtifacts() {
+      return this.parsedArtifacts ? JSON.stringify(this.parsedArtifacts, null, 2) : '';
+    },
+  },
 
   async created() {
     await this.loadData();

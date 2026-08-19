@@ -158,6 +158,11 @@ export default {
   duration: '지속 시간',
   stop: '중지',
   forceStop: '강제 중지',
+  stopAll: '모두 중지',
+  stopAllTasks: '모든 작업 중지',
+  askStopAllTasks: '모든 작업을 중지하시겠습니까?',
+  forceStopAllTasks: '모든 작업 강제 중지',
+  askForceStopAllTasks: '모든 작업을 강제 중지하시겠습니까?',
   raw_log: '원시 로그',
 
   confirmTask: '확인',

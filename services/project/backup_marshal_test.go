@@ -1,10 +1,11 @@
 package project
 
 import (
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_MarshalValue_NilPointer_ReturnsNil(t *testing.T) {
@@ -32,6 +33,32 @@ func Test_MarshalValue_Slice_ReturnsSlice(t *testing.T) {
 	assert.NoError(t, err)
 	expected := []any{1, 2, 3}
 	assert.Equal(t, expected, result)
+}
+
+func Test_MarshalValue_Runner_ExcludesSecrets(t *testing.T) {
+	regToken := "reg-secret"
+	runner := db.Runner{
+		ID:                    7,
+		Name:                  "runner-1",
+		Token:                 "super-secret-token",
+		RegistrationTokenHash: &regToken,
+		Webhook:               "https://example.com/hook",
+	}
+
+	result, err := marshalValue(reflect.ValueOf(runner))
+	assert.NoError(t, err)
+
+	m, ok := result.(map[string]any)
+	assert.True(t, ok)
+
+	// Authentication secrets must never be present in a project backup.
+	assert.NotContains(t, m, "token")
+	assert.NotContains(t, m, "registration_token")
+	assert.NotContains(t, m, "registration_token_expires_at")
+
+	// Non-secret fields are still exported.
+	assert.Equal(t, "runner-1", m["name"])
+	assert.Equal(t, "https://example.com/hook", m["webhook"])
 }
 
 func Test_UnmarshalValueWithBackupTags_StructWithFields_SetsFields(t *testing.T) {
