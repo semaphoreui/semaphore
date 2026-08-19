@@ -152,3 +152,72 @@ func TestRunningJob_ConcurrentAccess(t *testing.T) {
 	close(start)
 	wg.Wait()
 }
+
+type stubExecutor struct {
+	tasks.LocalExecutor
+	runErr error
+}
+
+func (s *stubExecutor) Run(string, *string, string) error {
+	return s.runErr
+}
+
+func (s *stubExecutor) Prepare(string, *string, string) error { return nil }
+func (s *stubExecutor) Cleanup()                               {}
+
+func TestRunningJob_completeAfterRun_PreservesStoppedOnError(t *testing.T) {
+	exec := &stubExecutor{runErr: fmt.Errorf("process interrupted")}
+	rj := &runningJob{
+		job:    exec,
+		taskID: 1,
+		status: task_logger.TaskStoppedStatus,
+	}
+	exec.Logger = rj
+
+	rj.completeAfterRun(exec.runErr)
+
+	assert.Equal(t, task_logger.TaskStoppedStatus, rj.getStatus())
+}
+
+func TestRunningJob_completeAfterRun_KilledJobMarkedStopped(t *testing.T) {
+	exec := &stubExecutor{runErr: fmt.Errorf("signal: killed")}
+	rj := &runningJob{
+		job:    exec,
+		taskID: 2,
+		status: task_logger.TaskRunningStatus,
+	}
+	exec.Logger = rj
+	exec.Kill()
+
+	rj.completeAfterRun(exec.runErr)
+
+	assert.Equal(t, task_logger.TaskStoppedStatus, rj.getStatus())
+}
+
+func TestRunningJob_completeAfterRun_LaunchErrorMarksFailed(t *testing.T) {
+	exec := &stubExecutor{runErr: fmt.Errorf("ansible not found")}
+	rj := &runningJob{
+		job:    exec,
+		taskID: 3,
+		status: task_logger.TaskRunningStatus,
+	}
+	exec.Logger = rj
+
+	rj.completeAfterRun(exec.runErr)
+
+	assert.Equal(t, task_logger.TaskFailStatus, rj.getStatus())
+}
+
+func TestRunningJob_completeAfterRun_Success(t *testing.T) {
+	exec := &stubExecutor{}
+	rj := &runningJob{
+		job:    exec,
+		taskID: 4,
+		status: task_logger.TaskRunningStatus,
+	}
+	exec.Logger = rj
+
+	rj.completeAfterRun(nil)
+
+	assert.Equal(t, task_logger.TaskSuccessStatus, rj.getStatus())
+}

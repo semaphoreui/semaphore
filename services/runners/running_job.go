@@ -155,9 +155,53 @@ func (p *runningJob) ackLogRecords(sent int) (pending int) {
 	return len(p.logRecords)
 }
 
-func (p *runningJob) logPipe(reader io.Reader) {
-	p.logWG.Add(1)
-	defer p.logWG.Done()
+// completeAfterRun applies the terminal status transition once Executor.Run
+// returns. It mirrors the server-side TaskRunner.run error handling: a job that
+// was already stopped (e.g. via applyTerminatedJobs or a server-side stop) or
+// killed must not be downgraded to failed just because Run returned an error
+// from the interrupted process.
+func (running *runningJob) completeAfterRun(err error) {
+	if err != nil {
+		if running.getStatus().IsFinished() {
+			return
+		}
+
+		if running.getStatus() == task_logger.TaskStoppingStatus || running.job.IsKilled() {
+			running.SetStatus(task_logger.TaskStoppedStatus)
+			return
+		}
+
+		log.WithFields(log.Fields{
+			"context":     "job_running",
+			"task_id":     running.taskID,
+			"task_status": running.getStatus(),
+		}).WithError(err).Error("launch job failed")
+
+		running.Log("Unable to launch the application. Please contact your system administrator for assistance.")
+		running.SetStatus(task_logger.TaskFailStatus)
+		return
+	}
+
+	log.WithFields(log.Fields{
+		"context": "job_running",
+		"task_id": running.taskID,
+		"status":  string(running.getStatus()),
+	}).Debug("Job run returned")
+
+	if running.getStatus().IsFinished() {
+		return
+	}
+
+	if running.getStatus() == task_logger.TaskStoppingStatus {
+		running.SetStatus(task_logger.TaskStoppedStatus)
+	} else {
+		running.SetStatus(task_logger.TaskSuccessStatus)
+	}
+}
+
+func (running *runningJob) logPipe(reader io.Reader) {
+	running.logWG.Add(1)
+	defer running.logWG.Done()
 
 	scanner := bufio.NewScanner(reader)
 	const maxCapacity = 10 * 1024 * 1024 // 10 MB
@@ -166,7 +210,7 @@ func (p *runningJob) logPipe(reader io.Reader) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		p.Log(line)
+		running.Log(line)
 	}
 
 	err := scanner.Err()
@@ -183,13 +227,13 @@ func (p *runningJob) logPipe(reader io.Reader) {
 			msg = "TaskRunner output exceeds the maximum allowed size of 10MB"
 		}
 
-		p.job.Kill() // kill the job because stdout cannot be read.
+		running.job.Kill() // kill the job because stdout cannot be read.
 
 		log.WithError(err).WithFields(log.Fields{
-			"task_id": p.taskID,
+			"task_id": running.taskID,
 			"context": "task_logger",
 		}).Error(msg)
 
-		p.Log("Fatal error: " + msg)
+		running.Log("Fatal error: " + msg)
 	}
 }
