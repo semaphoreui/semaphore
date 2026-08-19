@@ -1,6 +1,7 @@
 package db_lib
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -39,23 +40,30 @@ func (t ProgressWrapper) Write(p []byte) (n int, err error) {
 }
 
 func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
-	switch r.Repository.SSHKey.Type {
+	return c.getAuthMethodForKey(r, r.Repository.SSHKey)
+}
+
+// getAuthMethodForKey builds a go-git auth method for an arbitrary access
+// key, rather than always the repository's own SSHKey -- used to resolve a
+// distinct credential per submodule.
+func (c GoGitClient) getAuthMethodForKey(r GitRepository, key db.AccessKey) (transport.AuthMethod, error) {
+	switch key.Type {
 	case db.AccessKeySSH:
 
-		install, err := c.keyInstaller.Install(r.Repository.SSHKey, db.AccessKeyRoleGit, r.Logger)
+		install, err := c.keyInstaller.Install(key, db.AccessKeyRoleGit, r.Logger)
 		if err != nil {
 			return nil, err
 		}
 
 		defer install.Destroy()
 
-		var sshKeyBuff = r.Repository.SSHKey.SshKey.PrivateKey
+		var sshKeyBuff = key.SshKey.PrivateKey
 
-		if r.Repository.SSHKey.SshKey.Login == "" {
-			r.Repository.SSHKey.SshKey.Login = "git"
+		if key.SshKey.Login == "" {
+			key.SshKey.Login = "git"
 		}
 
-		publicKey, sshErr := ssh.NewPublicKeys(r.Repository.SSHKey.SshKey.Login, []byte(sshKeyBuff), r.Repository.SSHKey.SshKey.Passphrase)
+		publicKey, sshErr := ssh.NewPublicKeys(key.SshKey.Login, []byte(sshKeyBuff), key.SshKey.Passphrase)
 
 		if sshErr != nil {
 			return nil, sshErr
@@ -65,8 +73,8 @@ func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error
 		return publicKey, sshErr
 	case db.AccessKeyLoginPassword:
 		password := &http.BasicAuth{
-			Username: r.Repository.SSHKey.LoginPassword.Login,
-			Password: r.Repository.SSHKey.LoginPassword.Password,
+			Username: key.LoginPassword.Login,
+			Password: key.LoginPassword.Password,
 		}
 
 		return password, nil
@@ -105,17 +113,18 @@ func (c GoGitClient) Clone(r GitRepository) error {
 	cloneOpt := &git.CloneOptions{
 		URL:               r.Repository.GetGitURL(true),
 		Progress:          ProgressWrapper{r.Logger},
-		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+		RecurseSubmodules: git.NoRecurseSubmodules,
 		ReferenceName:     plumbing.NewBranchReferenceName(r.Repository.GitBranch),
 		Auth:              authMethod,
 	}
 
-	_, err := git.PlainClone(r.GetFullPath(), false, cloneOpt)
+	repo, err := git.PlainClone(r.GetFullPath(), false, cloneOpt)
 	if err != nil {
 		r.Logger.Log("Unable to clone repository: " + err.Error())
+		return err
 	}
 
-	return err
+	return c.updateSubmodules(r, repo, 0)
 }
 
 func (c GoGitClient) Pull(r GitRepository) error {
@@ -139,10 +148,67 @@ func (c GoGitClient) Pull(r GitRepository) error {
 	// Pull the latest changes from the origin remote and merge into the current branch
 	err = wt.Pull(&git.PullOptions{RemoteName: "origin",
 		Auth:              authMethod,
-		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth})
+		RecurseSubmodules: git.NoRecurseSubmodules})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		r.Logger.Log("Unable to pull latest changes")
 		return err
+	}
+
+	return c.updateSubmodules(r, rep, 0)
+}
+
+// updateSubmodules recursively initializes and clones/updates every submodule
+// of repo, resolving credentials per submodule host from
+// r.SubmoduleCredentials (falling back to the repository's own SSHKey when a
+// submodule's host has no explicit mapping -- today's behavior, unchanged).
+//
+// Unlike CloneOptions/PullOptions' built-in RecurseSubmodules (which reuses a
+// single Auth for the entire submodule tree), each submodule is updated with
+// its own resolved credential, so a submodule on a different host than the
+// main repository is no longer forced to reuse the main repository's
+// credentials.
+func (c GoGitClient) updateSubmodules(r GitRepository, repo *git.Repository, depth int) error {
+	if depth >= maxSubmoduleRecursionDepth {
+		return fmt.Errorf("submodule recursion exceeded maximum depth of %d -- possible submodule cycle", maxSubmoduleRecursionDepth)
+	}
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		return err
+	}
+
+	submodules, err := wt.Submodules()
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+
+	for _, sm := range submodules {
+		key := resolveSubmoduleAccessKey(r.Repository.SSHKey, r.SubmoduleCredentials, sm.Config().URL)
+
+		auth, err := c.getAuthMethodForKey(r, key)
+		if err != nil {
+			return err
+		}
+
+		err = sm.UpdateContext(ctx, &git.SubmoduleUpdateOptions{
+			Init:              true,
+			RecurseSubmodules: git.NoRecurseSubmodules,
+			Auth:              auth,
+		})
+		if err != nil {
+			return err
+		}
+
+		subRepo, err := sm.Repository()
+		if err != nil {
+			return err
+		}
+
+		if err := c.updateSubmodules(r, subRepo, depth+1); err != nil {
+			return err
+		}
 	}
 
 	return nil

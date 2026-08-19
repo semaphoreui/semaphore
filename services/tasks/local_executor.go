@@ -24,9 +24,15 @@ type LocalExecutor struct {
 	Inventory   db.Inventory
 	Repository  db.Repository
 	Environment db.Environment
-	Secret      string             // Secret contains secrets received from Survey variables
-	Logger      task_logger.Logger // Logger allows to send logs and status to the server
-	JWT         string             // server-signed JWT
+
+	// SubmoduleCredentials maps submodule hosts to the access key used to
+	// authenticate their clone, for repositories whose submodules live on a
+	// different host/credentials than Repository itself.
+	SubmoduleCredentials []db.RepositorySubmoduleCredential
+
+	Secret string             // Secret contains secrets received from Survey variables
+	Logger task_logger.Logger // Logger allows to send logs and status to the server
+	JWT    string             // server-signed JWT
 
 	App db_lib.LocalApp
 
@@ -1093,10 +1099,11 @@ func (t *LocalExecutor) updateAndCheckoutRepository() error {
 
 func (t *LocalExecutor) updateRepository() error {
 	repo := db_lib.GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		Logger:               t.Logger,
+		TemplateID:           t.Template.ID,
+		Repository:           t.Repository,
+		SubmoduleCredentials: t.SubmoduleCredentials,
+		Client:               db_lib.CreateDefaultGitClient(t.KeyInstaller),
 	}
 
 	err := repo.ValidateRepo()

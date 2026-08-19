@@ -894,6 +894,7 @@ func (p *JobPool) checkNewJobs() {
 		}).Debug("Accepting new job from the server")
 
 		newJob.Inventory.Repository = newJob.InventoryRepository
+		newJob.Inventory.SubmoduleCredentials = newJob.InventorySubmoduleCredentials
 
 		executor, execErr := newExecutor(newJob, response.AccessKeys, p.provider)
 		if execErr != nil {

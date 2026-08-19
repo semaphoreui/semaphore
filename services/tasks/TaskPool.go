@@ -558,16 +558,17 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 		// those operations fail when a secret is expired or unreadable. The secrets
 		// are read by run(), right before the task actually starts.
 		job = &LocalExecutor{
-			Task:         tr.Task,
-			Template:     tr.Template,
-			Inventory:    tr.Inventory,
-			Repository:   tr.Repository,
-			Environment:  tr.Environment,
-			Secret:       "",
-			Logger:       app.SetLogger(tr),
-			App:          app,
-			KeyInstaller: p.keyInstallationService,
-			RepoLock:     p.repoLock,
+			Task:                 tr.Task,
+			Template:             tr.Template,
+			Inventory:            tr.Inventory,
+			Repository:           tr.Repository,
+			SubmoduleCredentials: tr.SubmoduleCredentials,
+			Environment:          tr.Environment,
+			Secret:               "",
+			Logger:               app.SetLogger(tr),
+			App:                  app,
+			KeyInstaller:         p.keyInstallationService,
+			RepoLock:             p.repoLock,
 		}
 	}
 	tr.job = job
@@ -1115,16 +1116,17 @@ func (p *TaskPool) AddTask(
 			taskRunner)
 
 		job = &LocalExecutor{
-			Task:         taskRunner.Task,
-			Template:     taskRunner.Template,
-			Inventory:    taskRunner.Inventory,
-			Repository:   taskRunner.Repository,
-			Environment:  taskRunner.Environment,
-			Secret:       extraSecretVars,
-			Logger:       app.SetLogger(taskRunner),
-			App:          app,
-			KeyInstaller: p.keyInstallationService,
-			RepoLock:     p.repoLock,
+			Task:                 taskRunner.Task,
+			Template:             taskRunner.Template,
+			Inventory:            taskRunner.Inventory,
+			Repository:           taskRunner.Repository,
+			SubmoduleCredentials: taskRunner.SubmoduleCredentials,
+			Environment:          taskRunner.Environment,
+			Secret:               extraSecretVars,
+			Logger:               app.SetLogger(taskRunner),
+			App:                  app,
+			KeyInstaller:         p.keyInstallationService,
+			RepoLock:             p.repoLock,
 		}
 	}
 

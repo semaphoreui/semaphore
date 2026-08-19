@@ -67,6 +67,20 @@ func (s *InventoryServiceImpl) fillInventory(inventory *db.Inventory) (err error
 		}
 
 		inventory.Repository = &repo
+
+		var creds []db.RepositorySubmoduleCredential
+		creds, err = s.repositoryRepo.GetRepositorySubmoduleCredentials(inventory.ProjectID, *inventory.RepositoryID)
+		if err != nil {
+			return
+		}
+
+		for i := range creds {
+			if err = s.encryptionService.DeserializeSecret(&creds[i].AccessKey); err != nil {
+				return
+			}
+		}
+
+		inventory.SubmoduleCredentials = creds
 	}
 
 	return
