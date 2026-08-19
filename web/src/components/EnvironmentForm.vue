@@ -72,6 +72,7 @@
           <v-btn-toggle v-model="extraVarsEditMode" tile group>
             <v-btn value="table" small class="mr-0" style="border-radius: 4px"> Table </v-btn>
             <v-btn value="json" small class="mr-0" style="border-radius: 4px"> JSON </v-btn>
+            <v-btn value="yaml" small class="mr-0" style="border-radius: 4px"> YAML </v-btn>
           </v-btn-toggle>
 
           <v-btn icon @click="addExtraVar()" data-testid="varGroup-addVar">
@@ -95,6 +96,17 @@
             type="json"
             v-if="extraVarsEditMode === 'json'"
             style="position: absolute; right: 0; top: 0; margin: 10px"
+          />
+        </div>
+        <div v-else-if="extraVarsEditMode === 'yaml'" style="position: relative">
+          <codemirror
+            :class="{
+              EnvironmentEditor: true,
+            }"
+            :style="{ border: '1px solid lightgray' }"
+            v-model="yaml"
+            :options="cmYamlOptions"
+            :placeholder="$t('enterExtraVariablesYaml')"
           />
         </div>
         <div v-else-if="extraVarsEditMode === 'table'">
@@ -434,8 +446,10 @@
 import ItemFormBase from '@/components/ItemFormBase';
 
 import { codemirror } from 'vue-codemirror';
+import { load as loadYaml, dump as dumpYaml } from 'js-yaml';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
+import 'codemirror/mode/yaml/yaml.js';
 import 'codemirror/addon/display/placeholder.js';
 import { getErrorMessage } from '@/lib/error';
 import RichEditor from '@/components/RichEditor.vue';
@@ -465,45 +479,75 @@ export default {
   },
 
   watch: {
-    extraVarsEditMode(val) {
-      switch (val) {
+    // Handles Table/JSON/YAML toggling. The mode being left determines which
+    // field is authoritative (extraVars for table, json for JSON, yaml for YAML);
+    // it's parsed into a plain object which is then rendered into the mode being
+    // entered.
+    extraVarsEditMode(val, oldVal) {
+      let source;
+      switch (oldVal) {
         case 'json': {
-          if (this.extraVars == null) {
-            return;
-          }
-
-          // Serialize leniently: a row whose list/dict value is not valid JSON yet
-          // keeps its raw text (as a string) instead of throwing. This prevents the
-          // toggle from blanking the JSON editor or dropping rows while the user is
-          // still typing. Strict validation happens on save (see beforeSave).
-          this.json = JSON.stringify(this.extraVarsToObjectLenient(this.extraVars), null, 2);
-          this.formError = null;
-          break;
-        }
-        case 'table': {
-          let parsed;
           try {
-            parsed = JSON.parse(this.json);
+            source = JSON.parse(this.json);
             this.formError = null;
           } catch (err) {
             this.formError = getErrorMessage(err);
-            this.extraVars = null;
+            if (val === 'table') {
+              this.extraVars = null;
+            }
             return;
           }
+          break;
+        }
+        case 'yaml': {
+          try {
+            source = loadYaml(this.yaml) || {};
+            this.formError = null;
+          } catch (err) {
+            this.formError = getErrorMessage(err);
+            if (val === 'table') {
+              this.extraVars = null;
+            }
+            return;
+          }
+          break;
+        }
+        default: {
+          // Coming from the table (or initial load): extraVars is authoritative.
+          // Serialize leniently: a row whose list/dict value is not valid JSON yet
+          // keeps its raw text (as a string) instead of throwing. This prevents the
+          // toggle from blanking the target editor or dropping rows while the user
+          // is still typing. Strict validation happens on save (see beforeSave).
+          if (this.extraVars == null) {
+            return;
+          }
+          source = this.extraVarsToObjectLenient(this.extraVars);
+        }
+      }
 
-          // If the JSON text still matches what the current table represents, the
+      switch (val) {
+        case 'json':
+          this.json = JSON.stringify(source, null, 2);
+          break;
+        case 'yaml': {
+          const dumped = dumpYaml(source);
+          this.yaml = dumped === '{}\n' ? '' : dumped;
+          break;
+        }
+        case 'table': {
+          // If the source still matches what the current table represents, the
           // user only switched tabs without editing it — keep the existing rows so
           // their chosen types (e.g. Dict) and in-progress values are preserved
           // instead of being re-inferred (and possibly downgraded to String).
           if (
             this.extraVars != null
-            && JSON.stringify(parsed)
+            && JSON.stringify(source)
               === JSON.stringify(this.extraVarsToObjectLenient(this.extraVars))
           ) {
             return;
           }
 
-          this.extraVars = this.objectToExtraVars(parsed);
+          this.extraVars = this.objectToExtraVars(source);
           break;
         }
         default:
@@ -538,6 +582,7 @@ export default {
       ],
 
       json: '{}',
+      yaml: '',
       extraVars: [],
       env: [],
       secrets: [],
@@ -550,6 +595,14 @@ export default {
         lineNumbers: true,
         line: true,
         lint: true,
+        indentWithTabs: false,
+      },
+
+      cmYamlOptions: {
+        tabSize: 2,
+        mode: 'text/x-yaml',
+        lineNumbers: true,
+        line: true,
         indentWithTabs: false,
       },
 
@@ -752,6 +805,13 @@ export default {
       switch (this.extraVarsEditMode) {
         case 'json':
           this.item.json = this.json;
+          break;
+        case 'yaml':
+          try {
+            this.item.json = JSON.stringify(loadYaml(this.yaml) || {});
+          } catch (err) {
+            throw new Error(`Extra variables: ${getErrorMessage(err)}`);
+          }
           break;
         case 'table':
           if (this.extraVars == null) {

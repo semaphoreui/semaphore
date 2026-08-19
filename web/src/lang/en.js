@@ -87,6 +87,7 @@ export default {
   dockerImage: 'Runner Docker Image (optional)',
   extraVariables: 'Extra variables',
   enterExtraVariablesJson: 'Enter extra variables JSON...',
+  enterExtraVariablesYaml: 'Enter extra variables YAML...',
   environmentVariables: 'Environment variables',
   enterEnvJson: 'Enter env JSON...',
   environmentAndExtraVariablesMustBeValidJsonExample:
