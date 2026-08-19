@@ -536,6 +536,8 @@ export default {
   workflowDelaySeconds: 'Delay (seconds)',
   workflowDelayHint: 'Number of seconds to wait before continuing.',
   workflowErrorDelayPositive: 'Delay duration must be greater than zero.',
+  workflowDelayRemaining: '{time} left',
+  workflowDelayElapsed: 'Resuming…',
   workflowConvergence: 'Convergence',
   workflowConvergenceAll: 'All parents',
   workflowConvergenceAny: 'Any parent',

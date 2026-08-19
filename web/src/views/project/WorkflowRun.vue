@@ -72,6 +72,7 @@
             :edges="workflow.edges || []"
             :templates="templates"
             :node-statuses="nodeStatuses"
+            :node-delays="nodeDelays"
             :editable="false"
             @node-selected="onNodeClicked"
           />
@@ -213,6 +214,15 @@ export default {
         if (n.task) map[n.node.id] = n.task.status;
         else if (n.approval) map[n.node.id] = n.approval.status;
         else if (n.delay) map[n.node.id] = n.delay.status;
+      });
+      return map;
+    },
+    // node.id -> resume_at, for delay nodes currently waiting — lets the graph
+    // render a live countdown between polls instead of a static duration.
+    nodeDelays() {
+      const map = {};
+      (this.details?.nodes || []).forEach((n) => {
+        if (n.delay && n.delay.status === 'waiting') map[n.node.id] = n.delay.resume_at;
       });
       return map;
     },
