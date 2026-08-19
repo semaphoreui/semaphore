@@ -1,9 +1,13 @@
 package db_lib
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -115,4 +119,61 @@ func TestGalaxyGitEnv_ScopesCredentialToOneHost(t *testing.T) {
 	require.Len(t, env, 2)
 	assert.Contains(t, env[1], ".insteadOf=https://git.private.repo/")
 	assert.NotContains(t, env[1], "acme/roles.git")
+}
+
+type fakeInstaller struct {
+	key   db.AccessKey
+	usage db.AccessKeyRole
+	env   []string
+	err   error
+}
+
+func (f *fakeInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, _ task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	f.key, f.usage = key, usage
+	return ssh.AccessKeyInstallation{}, f.err
+}
+
+// setupGalaxyConfig gives the package-level util.Config a temp dir to resolve
+// repository paths against, and restores it afterwards.
+func setupGalaxyConfig(t *testing.T) {
+	original := util.Config
+	t.Cleanup(func() { util.Config = original })
+	util.Config = &util.ConfigType{TmpPath: t.TempDir(), Process: &util.ConfigProcess{}}
+}
+
+// The repository's own key must be the one galaxy gets, under the git role.
+func TestInstallRequirements_InstallsRepositoryKey(t *testing.T) {
+	setupGalaxyConfig(t)
+
+	inst := &fakeInstaller{}
+	app := &AnsibleApp{
+		Logger:     task_logger.NopLogger{},
+		Repository: db.Repository{SSHKey: db.AccessKey{ID: 42, Type: db.AccessKeySSH}},
+	}
+
+	_ = app.InstallRequirements(LocalAppInstallingArgs{Installer: inst})
+
+	assert.Equal(t, 42, inst.key.ID)
+	assert.Equal(t, db.AccessKeyRole(db.AccessKeyRoleGit), inst.usage)
+}
+
+func TestInstallRequirements_FailsWhenKeyInstallFails(t *testing.T) {
+	setupGalaxyConfig(t)
+
+	app := &AnsibleApp{Logger: task_logger.NopLogger{}}
+
+	err := app.InstallRequirements(LocalAppInstallingArgs{
+		Installer: &fakeInstaller{err: errors.New("agent unavailable")},
+	})
+
+	assert.ErrorContains(t, err, "agent unavailable")
+}
+
+// A nil installer is the remote-runner path; it must not panic.
+func TestInstallRequirements_NilInstaller(t *testing.T) {
+	setupGalaxyConfig(t)
+
+	app := &AnsibleApp{Logger: task_logger.NopLogger{}}
+
+	assert.NoError(t, app.InstallRequirements(LocalAppInstallingArgs{}))
 }
