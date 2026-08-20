@@ -61,6 +61,9 @@ func (t *TaskRunner) LogCmd(cmd *exec.Cmd) {
 	stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
+	// A positive Add on a zero counter must happen before Wait, and typically
+	// before starting the goroutines: https://pkg.go.dev/sync#WaitGroup.Add.
+	t.logWG.Add(2)
 	go t.logPipe(stderr)
 	go t.logPipe(stdout)
 }
@@ -156,8 +159,6 @@ func (t *TaskRunner) panicOnError(err error, msg string) {
 }
 
 func (t *TaskRunner) logPipe(reader io.Reader) {
-	t.logWG.Add(1)
-
 	linesCh := make(chan string, 100000)
 
 	go func() {

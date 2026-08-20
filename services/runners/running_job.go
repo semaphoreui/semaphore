@@ -85,6 +85,9 @@ func (p *runningJob) LogCmd(cmd *exec.Cmd) {
 	stderr, _ := cmd.StderrPipe()
 	stdout, _ := cmd.StdoutPipe()
 
+	// A positive Add on a zero counter must happen before Wait, and typically
+	// before starting the goroutines: https://pkg.go.dev/sync#WaitGroup.Add.
+	p.logWG.Add(2)
 	go p.logPipe(stderr)
 	go p.logPipe(stdout)
 }
@@ -156,7 +159,6 @@ func (p *runningJob) ackLogRecords(sent int) (pending int) {
 }
 
 func (p *runningJob) logPipe(reader io.Reader) {
-	p.logWG.Add(1)
 	defer p.logWG.Done()
 
 	scanner := bufio.NewScanner(reader)
