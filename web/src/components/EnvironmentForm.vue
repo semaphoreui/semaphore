@@ -508,7 +508,11 @@ export default {
         }
         case 'yaml': {
           try {
-            source = loadYaml(this.yaml) || {};
+            // Only an empty document (loadYaml returns undefined) defaults to
+            // {}. Valid falsy YAML values (false, 0, null) must be preserved
+            // as-is rather than silently coerced.
+            const loaded = loadYaml(this.yaml);
+            source = loaded === undefined ? {} : loaded;
             this.formError = null;
           } catch (err) {
             this.formError = getErrorMessage(err);
@@ -815,7 +819,8 @@ export default {
           break;
         case 'yaml':
           try {
-            this.item.json = JSON.stringify(loadYaml(this.yaml) || {});
+            const loaded = loadYaml(this.yaml);
+            this.item.json = JSON.stringify(loaded === undefined ? {} : loaded);
           } catch (err) {
             throw new Error(`Extra variables: ${getErrorMessage(err)}`);
           }
