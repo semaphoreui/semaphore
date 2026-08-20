@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -13,21 +14,41 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type stdoutCaptureLogger struct {
+type outputCaptureLogger struct {
 	task_logger.NopLogger
-	pipe   io.ReadCloser
-	output []byte
-	err    error
+	wg        sync.WaitGroup
+	stdout    []byte
+	stderr    []byte
+	stdoutErr error
+	stderrErr error
 }
 
-func (l *stdoutCaptureLogger) LogCmd(cmd *exec.Cmd) {
-	l.pipe, l.err = cmd.StdoutPipe()
-}
-
-func (l *stdoutCaptureLogger) WaitLog() {
-	if l.err == nil {
-		l.output, l.err = io.ReadAll(l.pipe)
+func (l *outputCaptureLogger) LogCmd(cmd *exec.Cmd) {
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		l.stdoutErr = err
+		return
 	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		l.stderrErr = err
+		return
+	}
+
+	l.wg.Add(2)
+	go func() {
+		defer l.wg.Done()
+		l.stdout, l.stdoutErr = io.ReadAll(stdout)
+	}()
+	go func() {
+		defer l.wg.Done()
+		l.stderr, l.stderrErr = io.ReadAll(stderr)
+	}()
+}
+
+func (l *outputCaptureLogger) WaitLog() {
+	l.wg.Wait()
 }
 
 func TestShellApp_RunDrainsOutputBeforeWait(t *testing.T) {
@@ -42,7 +63,7 @@ func TestShellApp_RunDrainsOutputBeforeWait(t *testing.T) {
 	}
 	t.Cleanup(func() { util.Config = previousConfig })
 
-	logger := &stdoutCaptureLogger{}
+	logger := &outputCaptureLogger{}
 	app := &ShellApp{
 		Logger:     logger,
 		Template:   db.Template{ID: 1},
@@ -51,11 +72,13 @@ func TestShellApp_RunDrainsOutputBeforeWait(t *testing.T) {
 	}
 
 	err := app.Run(LocalAppRunningArgs{
-		CliArgs:  map[string][]string{"default": {"-c", "printf 'stdout message'"}},
+		CliArgs:  map[string][]string{"default": {"-c", "printf 'stdout message'; printf 'stderr message' >&2"}},
 		Callback: func(*os.Process) {},
 	})
 
 	require.NoError(t, err)
-	require.NoError(t, logger.err)
-	assert.Equal(t, "stdout message", string(logger.output))
+	require.NoError(t, logger.stdoutErr)
+	require.NoError(t, logger.stderrErr)
+	assert.Equal(t, "stdout message", string(logger.stdout))
+	assert.Equal(t, "stderr message", string(logger.stderr))
 }
