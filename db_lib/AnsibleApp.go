@@ -140,7 +140,6 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequir
 			"-r",
 			requirementsFilePath,
 			"--force",
-			"--ignore-errors",
 		}, environmentVars); err != nil {
 			return err
 		}
