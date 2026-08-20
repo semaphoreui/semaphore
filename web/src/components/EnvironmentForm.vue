@@ -108,6 +108,13 @@
             :options="cmYamlOptions"
             :placeholder="$t('enterExtraVariablesYaml')"
           />
+
+          <RichEditor
+            v-model="yaml"
+            type="yaml"
+            v-if="extraVarsEditMode === 'yaml'"
+            style="position: absolute; right: 0; top: 0; margin: 10px"
+          />
         </div>
         <div v-else-if="extraVarsEditMode === 'table'">
           <v-data-table
