@@ -162,7 +162,10 @@
       v-model="item.ssh.private_key"
       :label="$t('privateKey')"
       :disabled="formSaving || !canEditSecrets"
-      :rules="[(v) => !canEditSecrets || item.generate_ssh_key || !!v || $t('private_key_required')]"
+      :rules="
+        [
+          (v) => !canEditSecrets || item.generate_ssh_key || !!v || $t('private_key_required')
+        ]"
       v-if="!isReadOnly && item.type === 'ssh'"
     />
 
@@ -191,7 +194,6 @@
     </div>
 
     <v-checkbox v-model="item.override_secret" :label="$t('override')" v-if="!isNew" />
-
 
     <v-alert dense text type="info" v-if="item.type === 'none'">
       {{ $t('useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook') }}
@@ -249,7 +251,7 @@ export default {
         } catch (e) {
           return '';
         }
-      }
+      },
     },
 
     isPro() {
