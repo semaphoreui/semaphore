@@ -25,6 +25,8 @@ type bashReader struct {
 	logger task_logger.Logger
 }
 
+const shellAppWaitDelay = 5 * time.Second
+
 func (r *bashReader) Read(p []byte) (n int, err error) {
 
 	r.logger.SetStatus(task_logger.TaskWaitingConfirmation)
@@ -113,7 +115,7 @@ func (t *ShellApp) Run(args LocalAppRunningArgs) error {
 	// Use "default" key for backward compatibility
 	cliArgs := args.CliArgs["default"]
 	cmd := t.makeShellCmd(cliArgs, args.EnvironmentVars)
-	cmd.WaitDelay = time.Second
+	cmd.WaitDelay = shellAppWaitDelay
 	t.Logger.LogCmd(cmd)
 	//cmd.Stdin = &t.reader
 	cmd.Stdin = strings.NewReader("")
@@ -126,6 +128,7 @@ func (t *ShellApp) Run(args LocalAppRunningArgs) error {
 	// Wait for all log processing to complete before returning
 	t.Logger.WaitLog()
 	if errors.Is(err, exec.ErrWaitDelay) {
+		t.Logger.Logf("shell command output draining exceeded %s and was stopped", shellAppWaitDelay)
 		return nil
 	}
 	return err
