@@ -1,6 +1,7 @@
 package db_lib
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -112,6 +113,7 @@ func (t *ShellApp) Run(args LocalAppRunningArgs) error {
 	// Use "default" key for backward compatibility
 	cliArgs := args.CliArgs["default"]
 	cmd := t.makeShellCmd(cliArgs, args.EnvironmentVars)
+	cmd.WaitDelay = time.Second
 	t.Logger.LogCmd(cmd)
 	//cmd.Stdin = &t.reader
 	cmd.Stdin = strings.NewReader("")
@@ -123,5 +125,8 @@ func (t *ShellApp) Run(args LocalAppRunningArgs) error {
 	err = cmd.Wait()
 	// Wait for all log processing to complete before returning
 	t.Logger.WaitLog()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		return nil
+	}
 	return err
 }
