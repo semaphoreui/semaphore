@@ -520,6 +520,20 @@
             @change="setTemplateVaults"
           ></TemplateVaults>
 
+          <ArgsPicker
+            v-if="needField('galaxy_role_args')"
+            :vars="item.task_params.galaxy_role_args"
+            @change="setGalaxyRoleArgs"
+            :title="$t('galaxyRoleArgs')"
+          />
+
+          <ArgsPicker
+            v-if="needField('galaxy_collection_args')"
+            :vars="item.task_params.galaxy_collection_args"
+            @change="setGalaxyCollectionArgs"
+            :title="$t('galaxyCollectionArgs')"
+          />
+
           <v-checkbox
             v-if="needField('skip_galaxy_install')"
             v-model="item.task_params.skip_galaxy_install"
@@ -927,6 +941,14 @@ export default {
 
     setSkipTags(tags) {
       this.item.task_params.skip_tags = tags;
+    },
+
+    setGalaxyRoleArgs(args) {
+      this.item.task_params.galaxy_role_args = args;
+    },
+
+    setGalaxyCollectionArgs(args) {
+      this.item.task_params.galaxy_collection_args = args;
     },
 
     setTags(tags) {
