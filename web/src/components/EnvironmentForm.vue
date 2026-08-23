@@ -491,6 +491,14 @@ export default {
     // it's parsed into a plain object which is then rendered into the mode being
     // entered.
     extraVarsEditMode(val, oldVal) {
+      // A reverted switch (see catch blocks below) re-fires this watcher;
+      // skip re-processing it so the revert doesn't trigger another
+      // conversion and clobber the text the user is still fixing.
+      if (this.suppressExtraVarsConversion) {
+        this.suppressExtraVarsConversion = false;
+        return;
+      }
+
       let source;
       switch (oldVal) {
         case 'json': {
@@ -499,9 +507,8 @@ export default {
             this.formError = null;
           } catch (err) {
             this.formError = getErrorMessage(err);
-            if (val === 'table') {
-              this.extraVars = null;
-            }
+            this.suppressExtraVarsConversion = true;
+            this.extraVarsEditMode = oldVal;
             return;
           }
           break;
@@ -516,9 +523,8 @@ export default {
             this.formError = null;
           } catch (err) {
             this.formError = getErrorMessage(err);
-            if (val === 'table') {
-              this.extraVars = null;
-            }
+            this.suppressExtraVarsConversion = true;
+            this.extraVarsEditMode = oldVal;
             return;
           }
           break;
@@ -618,6 +624,7 @@ export default {
       },
 
       extraVarsEditMode: 'json',
+      suppressExtraVarsConversion: false,
 
       extraVarTypes: [
         { text: 'String', value: 'string' },
