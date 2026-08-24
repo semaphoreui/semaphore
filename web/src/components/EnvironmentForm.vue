@@ -552,6 +552,18 @@ export default {
           break;
         }
         case 'table': {
+          // Table mode can only represent a plain object (name -> value map).
+          // A YAML/JSON root of null, a scalar, or an array would otherwise
+          // reach objectToExtraVars() below: null throws in Object.keys, and
+          // scalars/arrays silently turn into a wrong or empty table that
+          // would then overwrite the original value on save.
+          if (!this.isPlainObject(source)) {
+            this.formError = 'Extra variables must be an object to use the Table view.';
+            this.suppressExtraVarsConversion = true;
+            this.extraVarsEditMode = oldVal;
+            return;
+          }
+
           // If the source still matches what the current table represents, the
           // user only switched tabs without editing it — keep the existing rows so
           // their chosen types (e.g. Dict) and in-progress values are preserved
@@ -687,6 +699,12 @@ export default {
         default:
           return this.$t('Value');
       }
+    },
+
+    // isPlainObject is true only for a non-null, non-array object: the shape
+    // required for the extra variables root (a name -> value map).
+    isPlainObject(value) {
+      return value !== null && !Array.isArray(value) && typeof value === 'object';
     },
 
     // inferVarType maps a parsed JSON value to one of the editor's variable types
@@ -827,7 +845,16 @@ export default {
         case 'yaml':
           try {
             const loaded = loadYaml(this.yaml);
-            this.item.json = JSON.stringify(loaded === undefined ? {} : loaded);
+            const value = loaded === undefined ? {} : loaded;
+            // Same constraint as the table-mode guard in the watcher above:
+            // extra variables must be a plain object. A null/scalar/array
+            // root would otherwise be sent to the API as-is; the backend
+            // treats a JSON "null" body as an empty (and validly saved) set
+            // of extra variables, silently discarding whatever the user typed.
+            if (!this.isPlainObject(value)) {
+              throw new Error('must be an object, e.g. { key: value }');
+            }
+            this.item.json = JSON.stringify(value);
           } catch (err) {
             throw new Error(`Extra variables: ${getErrorMessage(err)}`);
           }
