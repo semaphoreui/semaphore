@@ -58,10 +58,10 @@ You can install Semaphore using the following methods:
   * [DigitalOcean](https://marketplace.digitalocean.com/apps/semaphore?refcode=b55d7c0077b8&action=deploy)
   * [Vultr](https://www.vultr.com/marketplace/apps/semaphore)
   * [Yandex Cloud](https://yandex.cloud/ru/marketplace/products/fastlix/semaphore)
+  * [RepoCloud](https://repocloud.io/details/Semaphore/)
 * [Snap](http://snapcraft.io/semaphore)
 * [Binary file](https://semaphoreui.com/install/binary)
 * [Debian or RPM package](https://semaphoreui.com/install/binary)
-* [![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/Semaphore/)
 
 ### Docker
 
