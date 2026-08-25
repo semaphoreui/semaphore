@@ -506,9 +506,7 @@ export default {
             source = JSON.parse(this.json);
             this.formError = null;
           } catch (err) {
-            this.formError = getErrorMessage(err);
-            this.suppressExtraVarsConversion = true;
-            this.extraVarsEditMode = oldVal;
+            this.revertExtraVarsMode(oldVal, getErrorMessage(err));
             return;
           }
           break;
@@ -522,9 +520,7 @@ export default {
             source = loaded === undefined ? {} : loaded;
             this.formError = null;
           } catch (err) {
-            this.formError = getErrorMessage(err);
-            this.suppressExtraVarsConversion = true;
-            this.extraVarsEditMode = oldVal;
+            this.revertExtraVarsMode(oldVal, getErrorMessage(err));
             return;
           }
           break;
@@ -542,45 +538,57 @@ export default {
         }
       }
 
-      switch (val) {
-        case 'json':
-          this.json = JSON.stringify(source, null, 2);
-          break;
-        case 'yaml': {
-          const dumped = dumpYaml(source);
-          this.yaml = dumped === '{}\n' ? '' : dumped;
-          break;
-        }
-        case 'table': {
-          // Table mode can only represent a plain object (name -> value map).
-          // A YAML/JSON root of null, a scalar, or an array would otherwise
-          // reach objectToExtraVars() below: null throws in Object.keys, and
-          // scalars/arrays silently turn into a wrong or empty table that
-          // would then overwrite the original value on save.
-          if (!this.isPlainObject(source)) {
-            this.formError = 'Extra variables must be an object to use the Table view.';
-            this.suppressExtraVarsConversion = true;
-            this.extraVarsEditMode = oldVal;
-            return;
-          }
+      // Every mode (Table/JSON/YAML) can only represent a plain object (name
+      // -> value map). A YAML/JSON root of null, a scalar, an array, or a
+      // YAML-parsed Date would otherwise: crash in objectToExtraVars's
+      // Object.keys (Table), or reach beforeSave/the API where the backend
+      // silently accepts a JSON "null" body and discards the user's input.
+      // Checking here -- before dispatching on the target mode -- closes
+      // that off for every transition, not just entering Table.
+      if (!this.isPlainObject(source)) {
+        this.revertExtraVarsMode(oldVal, 'Extra variables must be an object, e.g. { "key": "value" }.');
+        return;
+      }
 
-          // If the source still matches what the current table represents, the
-          // user only switched tabs without editing it — keep the existing rows so
-          // their chosen types (e.g. Dict) and in-progress values are preserved
-          // instead of being re-inferred (and possibly downgraded to String).
-          if (
-            this.extraVars != null
-            && JSON.stringify(source)
-              === JSON.stringify(this.extraVarsToObjectLenient(this.extraVars))
-          ) {
-            return;
+      // Wrapping the whole dispatch in one try/catch -- rather than adding a
+      // try/catch per case -- means every current and future use of
+      // JSON.stringify/dumpYaml on source (or on values nested inside it,
+      // e.g. inside objectToExtraVars) is covered, including a YAML
+      // anchor/alias cycle that made source a circular object: isPlainObject
+      // above doesn't (and can't cheaply) detect that, since circularity is
+      // a graph property, not a type property.
+      try {
+        switch (val) {
+          case 'json':
+            this.json = JSON.stringify(source, null, 2);
+            break;
+          case 'yaml': {
+            const dumped = dumpYaml(source);
+            this.yaml = dumped === '{}\n' ? '' : dumped;
+            break;
           }
+          case 'table': {
+            // If the source still matches what the current table represents,
+            // the user only switched tabs without editing it — keep the
+            // existing rows so their chosen types (e.g. Dict) and
+            // in-progress values are preserved instead of being re-inferred
+            // (and possibly downgraded to String).
+            if (
+              this.extraVars != null
+              && JSON.stringify(source)
+                === JSON.stringify(this.extraVarsToObjectLenient(this.extraVars))
+            ) {
+              return;
+            }
 
-          this.extraVars = this.objectToExtraVars(source);
-          break;
+            this.extraVars = this.objectToExtraVars(source);
+            break;
+          }
+          default:
+            throw new Error(`Invalid extra variables edit mode: ${val}`);
         }
-        default:
-          throw new Error(`Invalid extra variables edit mode: ${val}`);
+      } catch (err) {
+        this.revertExtraVarsMode(oldVal, getErrorMessage(err));
       }
     },
   },
@@ -701,10 +709,29 @@ export default {
       }
     },
 
-    // isPlainObject is true only for a non-null, non-array object: the shape
-    // required for the extra variables root (a name -> value map).
+    // isPlainObject is true only for a plain name -> value map: the shape
+    // required for the extra variables root. Excludes null and arrays (via
+    // the typeof/Array checks) as well as class instances such as Date --
+    // which YAML auto-parses unquoted timestamps into -- by requiring the
+    // prototype to be Object.prototype (or null, e.g. Object.create(null)).
     isPlainObject(value) {
-      return value !== null && !Array.isArray(value) && typeof value === 'object';
+      if (value === null || Array.isArray(value) || typeof value !== 'object') {
+        return false;
+      }
+      const proto = Object.getPrototypeOf(value);
+      return proto === Object.prototype || proto === null;
+    },
+
+    // revertExtraVarsMode undoes a Table/JSON/YAML switch that failed to
+    // convert (parse error, non-object root, or a serialization failure such
+    // as a circular YAML alias), restoring the mode being left. Reassigning
+    // extraVarsEditMode re-fires this watcher, so suppressExtraVarsConversion
+    // is set to skip that re-entry instead of reconverting (and clobbering)
+    // whatever the user was still fixing.
+    revertExtraVarsMode(oldVal, message) {
+      this.formError = message;
+      this.suppressExtraVarsConversion = true;
+      this.extraVarsEditMode = oldVal;
     },
 
     // inferVarType maps a parsed JSON value to one of the editor's variable types
@@ -852,7 +879,7 @@ export default {
             // treats a JSON "null" body as an empty (and validly saved) set
             // of extra variables, silently discarding whatever the user typed.
             if (!this.isPlainObject(value)) {
-              throw new Error('must be an object, e.g. { key: value }');
+              throw new Error('must be an object, e.g. { "key": "value" }');
             }
             this.item.json = JSON.stringify(value);
           } catch (err) {
