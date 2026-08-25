@@ -141,8 +141,8 @@ const (
 
 type ExecutorConfig struct {
 	Type   ExecutorType       `json:"type" default:"local" env:"SEMAPHORE_RUNNER_EXECUTOR_TYPE"`
-	K8s    RunnerK8sConfig    `json:"k8s,omitempty"`
-	Docker RunnerDockerConfig `json:"docker,omitempty"`
+	K8s    RunnerK8sConfig    `json:"k8s"`
+	Docker RunnerDockerConfig `json:"docker"`
 }
 
 type RunnerConfig struct {
