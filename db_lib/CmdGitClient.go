@@ -71,7 +71,8 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 
 	cmd := c.makeCmd(r, targetDir, keyInstallation, args...)
 
-	r.Logger.LogCmd(cmd)
+	finishLog := r.Logger.LogCmd(cmd)
+	defer finishLog()
 
 	return cmd.Run()
 }

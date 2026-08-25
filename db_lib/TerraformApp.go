@@ -112,7 +112,8 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []
 
 func (t *TerraformApp) runCmd(command string, args []string) error {
 	cmd := t.makeCmd(command, args, nil)
-	t.Logger.LogCmd(cmd)
+	finishLog := t.Logger.LogCmd(cmd)
+	defer finishLog()
 	return cmd.Run()
 }
 
@@ -157,7 +158,8 @@ func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInst
 
 	cmd := t.makeCmd(t.Name, args, environmentVars)
 	cmd.Env = append(cmd.Env, keyInstallation.GetGitEnv()...)
-	t.Logger.LogCmd(cmd)
+	finishLog := t.Logger.LogCmd(cmd)
+	defer finishLog()
 
 	t.Logger.AddLogListener(func(new time.Time, msg string) {
 		s := strings.TrimSpace(msg)
@@ -180,7 +182,6 @@ func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInst
 		return err
 	}
 
-	t.Logger.WaitLog()
 	return nil
 }
 
@@ -216,7 +217,8 @@ func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []strin
 		args = append(tgArgs, args...)
 	}
 	cmd := t.makeCmd(t.Name, args, environmentVars)
-	t.Logger.LogCmd(cmd)
+	finishLog := t.Logger.LogCmd(cmd)
+	defer finishLog()
 
 	err := cmd.Start()
 	if err != nil {
@@ -228,7 +230,6 @@ func (t *TerraformApp) selectWorkspace(workspace string, environmentVars []strin
 		return err
 	}
 
-	t.Logger.WaitLog()
 	return nil
 }
 
@@ -298,7 +299,8 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 	planArgs := []string{"plan", "-lock=false"}
 	planArgs = append(planArgs, args...)
 	cmd := t.makeCmd(t.Name, planArgs, environmentVars)
-	t.Logger.LogCmd(cmd)
+	finishLog := t.Logger.LogCmd(cmd)
+	defer finishLog()
 
 	t.reader.logger.AddLogListener(func(new time.Time, msg string) {
 		if strings.Contains(msg, "No changes.") {
@@ -319,7 +321,6 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 		return err
 	}
 
-	t.Logger.WaitLog()
 	return nil
 }
 
@@ -327,7 +328,8 @@ func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map
 	applyArgs := []string{"apply", "-auto-approve", "-lock=false"}
 	applyArgs = append(applyArgs, args...)
 	cmd := t.makeCmd(t.Name, applyArgs, environmentVars)
-	t.Logger.LogCmd(cmd)
+	finishLog := t.Logger.LogCmd(cmd)
+	defer finishLog()
 	cmd.Stdin = strings.NewReader("")
 	err := cmd.Start()
 	if err != nil {
@@ -340,7 +342,6 @@ func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map
 		return err
 	}
 
-	t.Logger.WaitLog()
 	return nil
 }
 

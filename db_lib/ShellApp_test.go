@@ -1,11 +1,11 @@
 package db_lib
 
 import (
-	"io"
+	"bytes"
 	"os"
 	"os/exec"
-	"sync"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -16,39 +16,14 @@ import (
 
 type outputCaptureLogger struct {
 	task_logger.NopLogger
-	wg        sync.WaitGroup
-	stdout    []byte
-	stderr    []byte
-	stdoutErr error
-	stderrErr error
+	stdout bytes.Buffer
+	stderr bytes.Buffer
 }
 
-func (l *outputCaptureLogger) LogCmd(cmd *exec.Cmd) {
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		l.stdoutErr = err
-		return
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		l.stderrErr = err
-		return
-	}
-
-	l.wg.Add(2)
-	go func() {
-		defer l.wg.Done()
-		l.stdout, l.stdoutErr = io.ReadAll(stdout)
-	}()
-	go func() {
-		defer l.wg.Done()
-		l.stderr, l.stderrErr = io.ReadAll(stderr)
-	}()
-}
-
-func (l *outputCaptureLogger) WaitLog() {
-	l.wg.Wait()
+func (l *outputCaptureLogger) LogCmd(cmd *exec.Cmd) func() {
+	cmd.Stdout = &l.stdout
+	cmd.Stderr = &l.stderr
+	return func() {}
 }
 
 func TestShellApp_RunDrainsOutputBeforeWait(t *testing.T) {
@@ -77,8 +52,39 @@ func TestShellApp_RunDrainsOutputBeforeWait(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	require.NoError(t, logger.stdoutErr)
-	require.NoError(t, logger.stderrErr)
-	assert.Equal(t, "stdout message", string(logger.stdout))
-	assert.Equal(t, "stderr message", string(logger.stderr))
+	assert.Equal(t, "stdout message", logger.stdout.String())
+	assert.Equal(t, "stderr message", logger.stderr.String())
+}
+
+func TestShellApp_RunBoundsOutputDrainWhenBackgroundChildKeepsPipesOpen(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash is not available")
+	}
+
+	previousConfig := util.Config
+	util.Config = &util.ConfigType{
+		Process: &util.ConfigProcess{},
+	}
+	t.Cleanup(func() { util.Config = previousConfig })
+
+	logger := &outputCaptureLogger{}
+	app := &ShellApp{
+		Logger:     logger,
+		Template:   db.Template{ID: 1},
+		Repository: db.Repository{GitURL: t.TempDir()},
+		App:        db.AppBash,
+	}
+
+	startedAt := time.Now()
+	err := app.Run(LocalAppRunningArgs{
+		CliArgs: map[string][]string{
+			"default": {"-c", "printf 'stdout message'; printf 'stderr message' >&2; sleep 2 &"},
+		},
+		Callback: func(*os.Process) {},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "stdout message", logger.stdout.String())
+	assert.Equal(t, "stderr message", logger.stderr.String())
+	assert.Less(t, time.Since(startedAt), 1500*time.Millisecond)
 }

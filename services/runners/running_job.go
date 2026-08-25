@@ -35,8 +35,6 @@ type runningJob struct {
 
 	statusListeners []task_logger.StatusListener
 	logListeners    []task_logger.LogListener
-
-	logWG sync.WaitGroup
 }
 
 func (p *runningJob) AddStatusListener(l task_logger.StatusListener) {
@@ -81,19 +79,32 @@ func (p *runningJob) LogfWithTime(now time.Time, format string, a ...any) {
 	p.LogWithTime(now, fmt.Sprintf(format, a...))
 }
 
-func (p *runningJob) LogCmd(cmd *exec.Cmd) {
-	stderr, _ := cmd.StderrPipe()
-	stdout, _ := cmd.StdoutPipe()
+func (p *runningJob) LogCmd(cmd *exec.Cmd) func() {
+	// io.PipeWriter is not *os.File, so os/exec owns and waits for output copying.
+	stderr, stderrWriter := io.Pipe()
+	stdout, stdoutWriter := io.Pipe()
+	cmd.Stderr = stderrWriter
+	cmd.Stdout = stdoutWriter
 
-	// A positive Add on a zero counter must happen before Wait, and typically
-	// before starting the goroutines: https://pkg.go.dev/sync#WaitGroup.Add.
-	p.logWG.Add(2)
-	go p.logPipe(stderr)
-	go p.logPipe(stdout)
-}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		p.logPipe(stderr)
+	}()
+	go func() {
+		defer wg.Done()
+		p.logPipe(stdout)
+	}()
 
-func (p *runningJob) WaitLog() {
-	p.logWG.Wait()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			_ = stderrWriter.Close()
+			_ = stdoutWriter.Close()
+			wg.Wait()
+		})
+	}
 }
 
 func (p *runningJob) SetCommit(hash, message string) {
@@ -159,7 +170,9 @@ func (p *runningJob) ackLogRecords(sent int) (pending int) {
 }
 
 func (p *runningJob) logPipe(reader io.Reader) {
-	defer p.logWG.Done()
+	if closer, ok := reader.(io.Closer); ok {
+		defer closer.Close()
+	}
 
 	scanner := bufio.NewScanner(reader)
 	const maxCapacity = 10 * 1024 * 1024 // 10 MB
