@@ -161,7 +161,7 @@
       outlined
       v-model="item.ssh.private_key"
       :label="$t('privateKey')"
-      :disabled="formSaving || !canEditSecrets"
+      :disabled="formSaving || !canEditSecrets || item.generate_ssh_key"
       :rules="
         [
           (v) => !canEditSecrets || item.generate_ssh_key || !!v || $t('private_key_required')
