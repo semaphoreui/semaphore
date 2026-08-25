@@ -61,6 +61,7 @@ You can install Semaphore using the following methods:
 * [Snap](http://snapcraft.io/semaphore)
 * [Binary file](https://semaphoreui.com/install/binary)
 * [Debian or RPM package](https://semaphoreui.com/install/binary)
+* [![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/Semaphore/)
 
 ### Docker
 
