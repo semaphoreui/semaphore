@@ -181,32 +181,40 @@ func fail(err error) {
 // named types that are really scalars (`type Foo string`) so that the walker
 // does not try to descend into them.
 func parsePackage(dir string) (map[string]*ast.StructType, map[string]string, error) {
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dir, func(fi os.FileInfo) bool {
-		return !strings.HasSuffix(fi.Name(), "_test.go")
-	}, parser.ParseComments)
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	fset := token.NewFileSet()
 	structs := map[string]*ast.StructType{}
 	scalars := map[string]string{}
-	for _, pkg := range pkgs {
-		for _, file := range pkg.Files {
-			ast.Inspect(file, func(n ast.Node) bool {
-				ts, ok := n.(*ast.TypeSpec)
-				if !ok {
-					return true
-				}
-				switch t := ts.Type.(type) {
-				case *ast.StructType:
-					structs[ts.Name.Name] = t
-				case *ast.Ident:
-					scalars[ts.Name.Name] = jsonType(t.Name)
-				}
-				return true
-			})
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
 		}
+
+		// Every .go file is parsed, build tags included: the platform-specific
+		// files carry config fields that must show up in the reference too.
+		file, err := parser.ParseFile(fset, filepath.Join(dir, name), nil, parser.ParseComments)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		ast.Inspect(file, func(n ast.Node) bool {
+			ts, ok := n.(*ast.TypeSpec)
+			if !ok {
+				return true
+			}
+			switch t := ts.Type.(type) {
+			case *ast.StructType:
+				structs[ts.Name.Name] = t
+			case *ast.Ident:
+				scalars[ts.Name.Name] = jsonType(t.Name)
+			}
+			return true
+		})
 	}
 	return structs, scalars, nil
 }

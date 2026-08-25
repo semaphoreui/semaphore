@@ -1020,7 +1020,7 @@ func loadDefaultsToObject(obj any) error {
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		v = reflect.Indirect(v)
 	}
@@ -1034,7 +1034,7 @@ func loadDefaultsToObject(obj any) error {
 		}
 
 		fieldKind := fieldInfo.Type.Kind()
-		isPtrToStruct := fieldKind == reflect.Ptr && fieldInfo.Type.Elem().Kind() == reflect.Struct
+		isPtrToStruct := fieldKind == reflect.Pointer && fieldInfo.Type.Elem().Kind() == reflect.Struct
 
 		if !fieldValue.IsZero() && fieldKind != reflect.Struct && fieldKind != reflect.Map && !isPtrToStruct {
 			continue
@@ -1427,7 +1427,7 @@ func setConfigValue(attribute reflect.Value, value string) {
 				panic(err)
 			}
 			attribute.Set(mapValue.Elem())
-		case reflect.Ptr:
+		case reflect.Pointer:
 			elemType := attribute.Type().Elem()
 			elemKind := elemType.Kind()
 
@@ -1491,7 +1491,7 @@ func validate(value any) error {
 	t := reflect.TypeOf(value)
 	v := reflect.ValueOf(value)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		v = reflect.Indirect(v)
 	}
@@ -1802,7 +1802,7 @@ func readEncryptionKeysConfigFile(path string) (*EncryptionKeysConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	// Parse via YAML regardless of extension: YAML 1.2 is a superset of JSON, so
 	// this accepts both formats. The file is often a Kubernetes secret mounted at
@@ -1892,7 +1892,7 @@ func loadEnvironmentToObject(obj any) (resultSensitiveEnvs []string, err error) 
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		v = reflect.Indirect(v)
 	}
@@ -1912,7 +1912,7 @@ func loadEnvironmentToObject(obj any) (resultSensitiveEnvs []string, err error) 
 			}
 			resultSensitiveEnvs = append(resultSensitiveEnvs, currSensitiveEnvs...)
 			continue
-		} else if fieldType.Type.Kind() == reflect.Ptr && fieldType.Type.Elem().Kind() == reflect.Struct {
+		} else if fieldType.Type.Kind() == reflect.Pointer && fieldType.Type.Elem().Kind() == reflect.Struct {
 			if fieldValue.IsZero() {
 				newValue := reflect.New(fieldType.Type.Elem())
 				fieldValue.Set(newValue)
@@ -1975,7 +1975,10 @@ func loadConfigEnvironment() {
 	}
 
 	for _, sensitiveEnv := range sensitiveEnvs {
-		os.Unsetenv(sensitiveEnv)
+		err = os.Unsetenv(sensitiveEnv)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -2040,10 +2043,10 @@ func mapToQueryString(m map[string]string) (str string) {
 // if not found it will attempt to find the absolute path of the first
 // os argument, the semaphore command, and return it
 func FindSemaphore() string {
-	cmdPath, _ := exec.LookPath("semaphore") //nolint: gas
+	cmdPath, _ := exec.LookPath("semaphore") //nolint:gosec
 
 	if len(cmdPath) == 0 {
-		cmdPath, _ = filepath.Abs(os.Args[0]) // nolint: gas
+		cmdPath, _ = filepath.Abs(os.Args[0]) //nolint:gosec
 	}
 
 	return cmdPath

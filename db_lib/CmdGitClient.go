@@ -25,7 +25,7 @@ func (c CmdGitClient) makeCmd(
 	installation ssh.AccessKeyInstallation,
 	args ...string,
 ) *exec.Cmd {
-	cmd := exec.Command("git") //nolint: gas
+	cmd := exec.Command("git") //nolint:gosec
 
 	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv()...)
 
