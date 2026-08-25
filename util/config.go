@@ -1054,13 +1054,12 @@ func loadDefaultsToObject(obj any) error {
 
 func loadConfigDefaults() {
 	legacySecretsPath := Config.SecretsPath
+	if Config.Dirs == nil {
+		Config.Dirs = &ConfigDirs{}
+	}
 	err := loadDefaultsToObject(Config)
 	if err != nil {
 		panic(err)
-	}
-
-	if Config.Dirs == nil {
-		Config.Dirs = &ConfigDirs{}
 	}
 
 	if legacySecretsPath != "" && (Config.Dirs.Secrets == "/tmp/semaphore" || Config.Dirs.Secrets == "") {
