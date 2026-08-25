@@ -141,6 +141,36 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 	}
 }
 
+func TestLoadEnvironmentToObject_RunnerExecutor(t *testing.T) {
+	var val RunnerConfig
+
+	origExecutor, hadExecutor := os.LookupEnv("SEMAPHORE_RUNNER_EXECUTOR")
+	origNetwork, hadNetwork := os.LookupEnv("SEMAPHORE_RUNNER_DOCKER_NETWORK")
+	t.Cleanup(func() {
+		if hadExecutor {
+			_ = os.Setenv("SEMAPHORE_RUNNER_EXECUTOR", origExecutor)
+		} else {
+			_ = os.Unsetenv("SEMAPHORE_RUNNER_EXECUTOR")
+		}
+		if hadNetwork {
+			_ = os.Setenv("SEMAPHORE_RUNNER_DOCKER_NETWORK", origNetwork)
+		} else {
+			_ = os.Unsetenv("SEMAPHORE_RUNNER_DOCKER_NETWORK")
+		}
+	})
+	require.NoError(t, os.Setenv("SEMAPHORE_RUNNER_EXECUTOR", `{"type":"docker","docker":{"image":"example.com/job:1"}}`))
+	require.NoError(t, os.Setenv("SEMAPHORE_RUNNER_DOCKER_NETWORK", "host"))
+
+	_, err := loadEnvironmentToObject(&val)
+	require.NoError(t, err)
+
+	require.NotNil(t, val.Executor)
+	assert.Equal(t, ExecutorTypeDocker, val.Executor.Type)
+	assert.Equal(t, "example.com/job:1", val.Executor.Docker.Image)
+	// individual executor env vars still override fields of the JSON object
+	assert.Equal(t, "host", val.Executor.Docker.Network)
+}
+
 func TestLoadEnvironmentToObject_SensitiveEnvs(t *testing.T) {
 	type sub struct {
 		Field string `json:"field"`
@@ -586,7 +616,6 @@ func TestValidateConfig(t *testing.T) {
 	Config.AccessKeyEncryption = testCookieHash
 }
 
-
 func TestGetSecretsPath_DirsSecrets(t *testing.T) {
 	Config = NewConfigType()
 	Config.Dirs = &ConfigDirs{Secrets: "/custom/dirs/secrets"}
@@ -615,6 +644,8 @@ func TestGetSecretsPath_Default(t *testing.T) {
 	Config = NewConfigType()
 	loadConfigDefaults()
 	assert.Equal(t, "/tmp/semaphore", Config.GetSecretsPath())
+	require.NotNil(t, Config.Dirs)
+	assert.Equal(t, "/tmp/semaphore", Config.Dirs.SSHAgentSockets)
 }
 
 func TestGetSecretsPath_Env(t *testing.T) {
