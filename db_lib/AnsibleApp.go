@@ -80,10 +80,26 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return nil
 	}
 
-	if err := t.installCollectionsRequirements(args.EnvironmentVars); err != nil {
+	environmentVars := galaxyGitEnv(t.Repository)
+
+	// An SSH repository key reaches galaxy's git clones through an agent, the
+	// same way TerraformApp.init hands one to `terraform init`.
+	if args.Installer != nil {
+		keyInstallation, err := args.Installer.Install(t.Repository.SSHKey, db.AccessKeyRoleGit, t.Logger)
+		if err != nil {
+			return err
+		}
+		defer keyInstallation.Destroy() //nolint: errcheck
+		environmentVars = append(environmentVars, keyInstallation.GetGitEnv()...)
+	}
+
+	// Task variables come last so a manually configured GIT_* var still wins.
+	environmentVars = append(environmentVars, args.EnvironmentVars...)
+
+	if err := t.installCollectionsRequirements(environmentVars); err != nil {
 		return err
 	}
-	if err := t.installRolesRequirements(args.EnvironmentVars); err != nil {
+	if err := t.installRolesRequirements(environmentVars); err != nil {
 		return err
 	}
 	return nil
