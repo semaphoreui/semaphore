@@ -549,6 +549,10 @@ type ConfigType struct {
 
 	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
 
+	// GitSubmoduleJobs is how many submodules the command-line Git client
+	// fetches in parallel during clone and update operations.
+	GitSubmoduleJobs int `json:"git_submodule_jobs,omitempty" rule:"^[1-9][0-9]*$" env:"SEMAPHORE_GIT_SUBMODULE_JOBS" default:"4"`
+
 	// GitAttempts is how many times a git clone or pull is tried before the task
 	// fails, for git servers which are intermittently unavailable. 1 tries once
 	// and does not retry.
