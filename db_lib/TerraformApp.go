@@ -287,9 +287,11 @@ func (t *TerraformApp) InstallRequirementsWithInitArgs(args LocalAppInstallingAr
 	}
 
 	if !t.isWorkspacesSupported(args.EnvironmentVars) {
+		t.Logger.Log("Workspaces are not supported, skipping workspace selection")
 		return
 	}
 
+	t.Logger.Logf("Selecting workspace \"%s\"", workspace)
 	err = t.selectWorkspace(workspace, args.EnvironmentVars)
 	return
 }
