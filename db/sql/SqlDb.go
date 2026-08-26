@@ -121,6 +121,42 @@ func (d *SqlDbConnection) Close() {
 	}
 }
 
+func InitConfigCreateTestStore() *SqlDb {
+	return InitConfigCreateTestStoreAt(nil)
+}
+
+// InitConfigCreateTestStoreAt creates a test store migrated up to
+// targetVersion (or fully when nil), so tests can seed data on an older
+// schema and then apply the remaining migrations with db.Migrate.
+func InitConfigCreateTestStoreAt(targetVersion *string) *SqlDb {
+	util.Config = &util.ConfigType{
+		SQLite: &util.DbConfig{
+			Hostname: ":memory:",
+		},
+		Dialect: "sqlite",
+		Log: &util.ConfigLog{
+			Events: &util.EventLogType{},
+			Tasks:  &util.TaskLogType{},
+		},
+		Process: &util.ConfigProcess{},
+		Runners: &util.RunnersConfig{},
+		Apps: map[string]util.App{
+			"ansible": {},
+			"bash":    {},
+		},
+	}
+	store := CreateDb(util.DbDriverSQLite)
+
+	store.Connect()
+
+	err := db.Migrate(store, targetVersion)
+	if err != nil {
+		panic(err)
+	}
+
+	return store
+}
+
 func CreateTestStore() *SqlDb {
 	util.Config = &util.ConfigType{
 		SQLite: &util.DbConfig{
