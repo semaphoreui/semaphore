@@ -603,3 +603,20 @@ func TestValidateConfig(t *testing.T) {
 	ensureConfigValidationFailure(t, "AccessKeyEncryption", Config.AccessKeyEncryption)
 	Config.AccessKeyEncryption = testCookieHash
 }
+
+func TestIsUseRemoteRunner_NilRunnersConfig(t *testing.T) {
+	conf := NewConfigType()
+	conf.UseRemoteRunner = true
+
+	assert.True(t, conf.IsUseRemoteRunner())
+	assert.Equal(t, DefultGlobalRunnerNone, conf.DefaultGlobalRunnersMode())
+	assert.Empty(t, conf.GetRunnerRegistrationToken())
+}
+
+func TestIsUseRemoteRunner_RunnersModeOverridesLegacyFlag(t *testing.T) {
+	conf := NewConfigType()
+	conf.UseRemoteRunner = true
+	conf.Runners = &RunnersConfig{DefaultGlobalRunnersMode: DefultGlobalRunnerDisable}
+
+	assert.False(t, conf.IsUseRemoteRunner())
+}

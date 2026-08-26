@@ -116,7 +116,7 @@ func (d *SqlDbConnection) Connect() {
 }
 
 func (d *SqlDbConnection) Close() {
-	if d.sql.Db == nil {
+	if d.sql == nil || d.sql.Db == nil {
 		return
 	}
 	err := d.sql.Db.Close()
