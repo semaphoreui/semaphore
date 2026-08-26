@@ -769,6 +769,7 @@ jobs:
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=develop
+            type=raw,value=latest
           flavor: |
             latest=false
 
