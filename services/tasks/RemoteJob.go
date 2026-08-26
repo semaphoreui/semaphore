@@ -131,6 +131,20 @@ func selectRunner(
 	return nil
 }
 
+func appendUniqueRunners(target []db.Runner, source []db.Runner) []db.Runner {
+	seen := make(map[int]struct{}, len(target))
+	for _, r := range target {
+		seen[r.ID] = struct{}{}
+	}
+	for _, r := range source {
+		if _, exists := seen[r.ID]; !exists {
+			target = append(target, r)
+			seen[r.ID] = struct{}{}
+		}
+	}
+	return target
+}
+
 func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) (err error) {
 	tsk, err := t.taskPool.GetTask(t.Task.ID)
 
@@ -165,14 +179,44 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 		return
 	}
 
-	runners = append(runners, shuffleRunners(projectRunners)...)
-	runners = append(runners, shuffleRunners(globalRunners)...)
+	runners = appendUniqueRunners(runners, shuffleRunners(projectRunners))
+	runners = appendUniqueRunners(runners, shuffleRunners(globalRunners))
 
-	if err != nil {
-		return
+	var globalDefaultRunners []db.Runner
+	if t.RunnerTag != nil {
+		globalDefaultRunners, err = t.taskPool.store.GetAllRunners(true, true, db.RunnerFilterIsDefault, nil)
+		if err != nil {
+			return
+		}
+		runners = appendUniqueRunners(runners, shuffleRunners(globalDefaultRunners))
 	}
 
 	if len(runners) == 0 {
+		var allProjectRunners []db.Runner
+		allProjectRunners, err = t.taskPool.store.GetRunners(t.Task.ProjectID, false, tagFilterMode, t.RunnerTag)
+		if err != nil {
+			return
+		}
+
+		var allGlobalRunners []db.Runner
+		allGlobalRunners, err = t.taskPool.store.GetAllRunners(false, true, tagFilterMode, t.RunnerTag)
+		if err != nil {
+			return
+		}
+
+		var allGlobalDefaultRunners []db.Runner
+		if t.RunnerTag != nil {
+			allGlobalDefaultRunners, err = t.taskPool.store.GetAllRunners(false, true, db.RunnerFilterIsDefault, nil)
+			if err != nil {
+				return
+			}
+		}
+
+		if len(allProjectRunners) > 0 || len(allGlobalRunners) > 0 || len(allGlobalDefaultRunners) > 0 {
+			err = ErrAllRunnersBusy
+			return
+		}
+
 		err = fmt.Errorf("no runners available")
 		return
 	}
