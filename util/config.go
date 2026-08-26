@@ -1266,6 +1266,70 @@ func CastValueToKind(value any, kind reflect.Kind) (res any, ok bool) {
 			res = castStringToInt(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
 		}
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if reflect.ValueOf(value).Kind() == kind {
+			ok = true
+		} else {
+			bitSize := 64
+			switch kind {
+			case reflect.Int8:
+				bitSize = 8
+			case reflect.Int16:
+				bitSize = 16
+			case reflect.Int32:
+				bitSize = 32
+			case reflect.Int64:
+				bitSize = 64
+			}
+			val, err := strconv.ParseInt(fmt.Sprintf("%v", reflect.ValueOf(value)), 10, bitSize)
+			if err != nil {
+				panic(err)
+			}
+			switch kind {
+			case reflect.Int8:
+				res = int8(val)
+			case reflect.Int16:
+				res = int16(val)
+			case reflect.Int32:
+				res = int32(val)
+			case reflect.Int64:
+				res = val
+			}
+			ok = true
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if reflect.ValueOf(value).Kind() == kind {
+			ok = true
+		} else {
+			bitSize := strconv.IntSize
+			switch kind {
+			case reflect.Uint8:
+				bitSize = 8
+			case reflect.Uint16:
+				bitSize = 16
+			case reflect.Uint32:
+				bitSize = 32
+			case reflect.Uint64:
+				bitSize = 64
+			}
+			val, err := strconv.ParseUint(fmt.Sprintf("%v", reflect.ValueOf(value)), 10, bitSize)
+			if err != nil {
+				panic(err)
+			}
+			switch kind {
+			case reflect.Uint8:
+				res = uint8(val)
+			case reflect.Uint16:
+				res = uint16(val)
+			case reflect.Uint32:
+				res = uint32(val)
+			case reflect.Uint64:
+				res = val
+			default:
+				res = uint(val)
+			}
+			ok = true
+		}
 	case reflect.Bool:
 		if reflect.ValueOf(value).Kind() == reflect.Bool {
 			ok = true
@@ -1299,6 +1363,33 @@ func setConfigValue(attribute reflect.Value, value string) {
 				panic(err)
 			}
 			attribute.Set(mapValue.Elem())
+		case reflect.Ptr:
+			elemType := attribute.Type().Elem()
+			elemKind := elemType.Kind()
+
+			switch elemKind {
+			case reflect.Slice, reflect.Map:
+				ptr := reflect.New(elemType)
+				err := json.Unmarshal([]byte(value), ptr.Interface())
+				if err != nil {
+					panic(err)
+				}
+				attribute.Set(ptr)
+			default:
+				newValue, _ := CastValueToKind(value, elemKind)
+				convertedElem := reflect.ValueOf(newValue)
+				if convertedElem.Type().AssignableTo(elemType) {
+					ptr := reflect.New(elemType)
+					ptr.Elem().Set(convertedElem)
+					attribute.Set(ptr)
+				} else if convertedElem.Type().ConvertibleTo(elemType) {
+					ptr := reflect.New(elemType)
+					ptr.Elem().Set(convertedElem.Convert(elemType))
+					attribute.Set(ptr)
+				} else {
+					panic(fmt.Errorf("cannot assign value of type %s to pointer element of type %s", convertedElem.Type(), elemType))
+				}
+			}
 		default:
 			newValue, _ := CastValueToKind(value, kind)
 			convertedValue := reflect.ValueOf(newValue)
