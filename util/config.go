@@ -139,9 +139,9 @@ const (
 )
 
 type ExecutorConfig struct {
-	Type   ExecutorType       `json:"type" default:"local"`
-	K8s    RunnerK8sConfig    `json:"k8s,omitempty"`
-	Docker RunnerDockerConfig `json:"docker,omitempty"`
+	Type   ExecutorType       `json:"type" default:"local" env:"SEMAPHORE_RUNNER_EXECUTOR_TYPE"`
+	K8s    RunnerK8sConfig    `json:"k8s"`
+	Docker RunnerDockerConfig `json:"docker"`
 }
 
 type RunnerConfig struct {
@@ -548,6 +548,15 @@ type ConfigType struct {
 	Ssh *SshConfig `json:"ssh"`
 
 	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
+
+	// GitAttempts is how many times a git clone or pull is tried before the task
+	// fails, for git servers which are intermittently unavailable. 1 tries once
+	// and does not retry.
+	//
+	// Attempts rather than retries because a config value of 0 is
+	// indistinguishable from an unset one and would be replaced by the default,
+	// leaving no way to turn retrying off.
+	GitAttempts int `json:"git_attempts,omitempty" env:"SEMAPHORE_GIT_ATTEMPTS" default:"4"`
 
 	// web host
 	WebHost string `json:"web_host,omitempty" env:"SEMAPHORE_WEB_ROOT"`
