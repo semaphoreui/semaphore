@@ -713,13 +713,13 @@ const (
 // GetSecretsPath returns the secrets path from configuration.
 // Used for backward compatibility with legacy top-level secrets_path.
 func (conf *ConfigType) GetSecretsPath() string {
-	if conf.Dirs != nil && conf.Dirs.Secrets != "" && conf.Dirs.Secrets != "/tmp/semaphore" {
+	if conf.Dirs.Secrets != "" && conf.Dirs.Secrets != "/tmp/semaphore" {
 		return conf.Dirs.Secrets
 	}
 	if conf.SecretsPath != "" {
 		return conf.SecretsPath
 	}
-	if conf.Dirs != nil && conf.Dirs.Secrets != "" {
+	if conf.Dirs.Secrets != "" {
 		return conf.Dirs.Secrets
 	}
 	return "/tmp/semaphore"
