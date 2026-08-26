@@ -169,7 +169,7 @@ type RunnerConfig struct {
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
 
-	Executor *ExecutorConfig `json:"executor,omitempty"`
+	Executor *ExecutorConfig `json:"executor,omitempty" env:"SEMAPHORE_RUNNER_EXECUTOR"`
 }
 
 // RunnerK8sConfig holds runner-side configuration for the Kubernetes executor. Field
