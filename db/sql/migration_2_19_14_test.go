@@ -51,16 +51,16 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	template, err := store.CreateTemplate(db.Template{
-		ProjectID:    projectID,
-		RepositoryID: repo.ID,
-		Name:         "tpl",
-		Playbook:     "site.yml",
-	})
+	// SqlDb.CreateTemplate writes working_directory, which appears only in 2.20.2,
+	// so seed the template with SQL matching the 2.19.12 schema.
+	templateID, err := store.insert("id",
+		"insert into project__template (project_id, repository_id, name, playbook, app) "+
+			"values (?, ?, 'tpl', 'site.yml', '')",
+		projectID, repo.ID)
 	require.NoError(t, err)
 
 	task, err := store.CreateTask(db.Task{
-		TemplateID: template.ID,
+		TemplateID: templateID,
 		ProjectID:  projectID,
 		Status:     "success",
 		Playbook:   "site.yml",

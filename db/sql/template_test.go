@@ -34,6 +34,30 @@ func newTemplateTestProject(t *testing.T, store *SqlDb) (projectID int, reposito
 	return project.ID, repo.ID
 }
 
+func TestCreateTemplateReturnsPersistedVaultIDs(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, repositoryID := newTemplateTestProject(t, store)
+
+	script := "vault-client.py"
+	created, err := store.CreateTemplate(db.Template{
+		ProjectID:    projectID,
+		RepositoryID: repositoryID,
+		Name:         "with-vault",
+		Playbook:     "site.yml",
+		Vaults: []db.TemplateVault{
+			{
+				Type:   db.TemplateVaultScript,
+				Script: &script,
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, created.Vaults, 1)
+	assert.NotZero(t, created.Vaults[0].ID)
+	assert.Equal(t, projectID, created.Vaults[0].ProjectID)
+	assert.Equal(t, created.ID, created.Vaults[0].TemplateID)
+}
+
 // TestTemplateExecutorImageRoundTrip checks project__template.executor_image is
 // written, read back, updated and cleared through the store.
 func TestTemplateExecutorImageRoundTrip(t *testing.T) {
