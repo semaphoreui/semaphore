@@ -264,6 +264,26 @@
               </template>
             </v-text-field>
           </div>
+
+          <div v-if="app === 'ansible'">
+            <v-checkbox
+              class="mt-0"
+              v-model="showWorkingDirectoryField"
+              :label="$t('workingDirectoryToggleLabel')"
+              :disabled="formSaving"
+            ></v-checkbox>
+
+            <v-text-field
+              v-if="showWorkingDirectoryField"
+              v-model="item.working_directory"
+              :label="$t('workingDirectory')"
+              :rules="[(v) => !!v || $t('working_directory_required')]"
+              outlined
+              dense
+              required
+              :disabled="formSaving"
+            ></v-text-field>
+          </div>
         </div>
 
         <v-autocomplete
@@ -747,6 +767,19 @@ export default {
   },
 
   computed: {
+    showWorkingDirectoryField: {
+      get() {
+        return this.item?.working_directory != null;
+      },
+      set(enabled) {
+        this.$set(
+          this.item,
+          'working_directory',
+          enabled ? this.item.working_directory || '' : null,
+        );
+      },
+    },
+
     // The image override is only honoured by the container-based executors, which
     // are themselves paid features: Docker in PRO, Kubernetes in Enterprise.
     isExecutorImageAvailable() {
