@@ -638,6 +638,14 @@ $defs:
       enabled:            { type: boolean }
       project_id:
         type: [integer, "null"]
+      check_interval_seconds:
+        type: integer
+        minimum: 1
+        default: 1
+        description: >
+          How often the runner polls the server for new jobs and reports progress.
+          Raising it reduces request volume on a server with many runners, at the
+          cost of jobs starting slightly later.
       connection: { $ref: "#/$defs/RunnerConnectionConfig" }
       executor:   { $ref: "#/$defs/ExecutorConfig" }
 

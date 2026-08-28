@@ -172,6 +172,18 @@
             </div>
           </div>
 
+          <v-text-field
+            v-model.number="checkIntervalSeconds"
+            type="number"
+            min="1"
+            class="mt-6"
+            style="max-width: 320px"
+            :label="$t('runnerCheckInterval')"
+            :hint="$t('runnerCheckIntervalHint')"
+            persistent-hint
+            dense
+          />
+
           <h2 class="mt-11 mb-4">Variants of usage</h2>
 
           <v-tabs v-model="usageTab" :show-arrows="false">
@@ -671,7 +683,8 @@ semaphore runner start --config ./config.runner.json`;
       return `{
   "web_host": "${this.webHost || window.location.origin}",
   "runner": {
-    "token": "${(this.newRunner || {}).token}"
+    "token": "${(this.newRunner || {}).token}",
+    "check_interval_seconds": ${this.checkIntervalSeconds}
   }
 }`;
     },
@@ -679,6 +692,7 @@ semaphore runner start --config ./config.runner.json`;
     runnerSetupCommand() {
       return `cat << EOF > /tmp/config.runner.stdin
 ${this.webHost}
+${this.checkIntervalSeconds}
 no
 yes
 ${(this.newRunner || {}).token}
@@ -691,6 +705,7 @@ semaphore runner setup --config ./config.runner.json < /tmp/config.runner.stdin`
     runnerEnvCommand() {
       return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
 SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
+SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkIntervalSeconds} \\
 semaphore runner start --no-config`;
     },
 
@@ -718,6 +733,7 @@ semaphore runner start --no-config`;
       return `docker run \\
 -e SEMAPHORE_WEB_ROOT=${this.webHost} \\
 -e SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
+-e SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkIntervalSeconds} \\
 -d semaphoreui/runner:${this.version}`;
     },
   },
@@ -726,6 +742,9 @@ semaphore runner start --no-config`;
     return {
       newRunnerTokenDialog: null,
       newRunner: null,
+      // Mirrors the runner-side default in util.RunnerConfig.CheckIntervalSeconds.
+      // Only shapes the snippets below; the server does not store it.
+      checkIntervalSeconds: 1,
       usageTab: null,
       registerTab: null,
       globalFilter: false,

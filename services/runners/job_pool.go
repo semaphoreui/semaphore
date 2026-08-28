@@ -265,8 +265,15 @@ func (p *JobPool) Run() {
 		}).Panic("runner token is empty, cannot start the runner")
 	}
 
+	checkInterval := util.Config.RunnerCheckInterval()
+
+	log.WithFields(log.Fields{
+		"context":        "job_running",
+		"check_interval": checkInterval,
+	}).Debug("Runner poll interval")
+
 	queueTicker := time.NewTicker(5 * time.Second)
-	requestTimer := time.NewTicker(1 * time.Second)
+	requestTimer := time.NewTicker(checkInterval)
 	p.resetRunningJobs()
 
 	defer func() {

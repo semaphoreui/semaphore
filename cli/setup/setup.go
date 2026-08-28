@@ -27,6 +27,11 @@ func InteractiveRunnerSetup(conf *util.ConfigType) {
 
 	conf.Runner = &util.RunnerConfig{}
 
+	// Asked before the branches below, each of which returns early, so every
+	// setup path records it.
+	askValue("How often to check the server for new jobs, in seconds",
+		"1", &conf.Runner.CheckIntervalSeconds)
+
 	needTokenFile := false
 	askConfirmation("Do you want to store token in external file?", false, &needTokenFile)
 
