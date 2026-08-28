@@ -763,7 +763,6 @@ $worklow_pallete_width_collapsed: 60px;
     border: 1px solid rgba(127, 127, 127, 0.2);
     border-left: none;
     border-radius: 0 8px 8px 0;
-    background: var(--v-background-base, #fff);
     cursor: pointer;
   }
 
