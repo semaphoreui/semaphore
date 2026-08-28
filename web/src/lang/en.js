@@ -407,6 +407,7 @@ export default {
   addArg: 'Add arg',
   runnerCheckInterval: 'Check interval (seconds)',
   runnerCheckIntervalHint: 'How often the runner checks for new jobs.',
+  runnerCheckIntervalInvalid: 'Enter a whole number of seconds, 1 or more.',
 
   status_success: 'Success',
   status_failed: 'Failed',

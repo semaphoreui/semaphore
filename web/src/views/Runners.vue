@@ -56,6 +56,19 @@
             {{ $t('registrationTokenHint') }}
           </v-alert>
 
+          <v-text-field
+            v-model="checkIntervalSeconds"
+            type="number"
+            min="1"
+            class="mt-6"
+            style="max-width: 320px"
+            :label="$t('runnerCheckInterval')"
+            :hint="$t('runnerCheckIntervalHint')"
+            :rules="[checkIntervalRule]"
+            persistent-hint
+            dense
+          />
+
           <h2 class="mt-8 mb-4">{{ $t('howToRegister') }}</h2>
 
           <v-tabs v-model="registerTab" :show-arrows="false">
@@ -173,13 +186,14 @@
           </div>
 
           <v-text-field
-            v-model.number="checkIntervalSeconds"
+            v-model="checkIntervalSeconds"
             type="number"
             min="1"
             class="mt-6"
             style="max-width: 320px"
             :label="$t('runnerCheckInterval')"
             :hint="$t('runnerCheckIntervalHint')"
+            :rules="[checkIntervalRule]"
             persistent-hint
             dense
           />
@@ -647,6 +661,14 @@ export default {
       return this.getProjectIdOfItem(this.itemId);
     },
 
+    // Vue keeps an emptied number input as "", which would be interpolated
+    // straight into the snippets below and produce invalid JSON. Every snippet
+    // reads this instead of the raw field.
+    checkInterval() {
+      const n = parseInt(this.checkIntervalSeconds, 10);
+      return Number.isInteger(n) && n > 0 ? n : 1;
+    },
+
     isUnregisteredRunner() {
       return !!(this.newRunner || {}).registration_token;
     },
@@ -654,6 +676,7 @@ export default {
     runnerRegisterEnvCommand() {
       return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
 SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
+SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\
 semaphore runner register --config ./config.runner.json
 
 semaphore runner start --config ./config.runner.json`;
@@ -661,7 +684,10 @@ semaphore runner start --config ./config.runner.json`;
 
     runnerRegisterConfigContent() {
       return `{
-  "web_host": "${this.webHost || window.location.origin}"
+  "web_host": "${this.webHost || window.location.origin}",
+  "runner": {
+    "check_interval_seconds": ${this.checkInterval}
+  }
 }`;
     },
 
@@ -676,6 +702,7 @@ semaphore runner start --config ./config.runner.json`;
       return `docker run \\
 -e SEMAPHORE_WEB_ROOT=${this.webHost} \\
 -e SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
+-e SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\
 -d semaphoreui/runner:${this.version}`;
     },
 
@@ -684,7 +711,7 @@ semaphore runner start --config ./config.runner.json`;
   "web_host": "${this.webHost || window.location.origin}",
   "runner": {
     "token": "${(this.newRunner || {}).token}",
-    "check_interval_seconds": ${this.checkIntervalSeconds}
+    "check_interval_seconds": ${this.checkInterval}
   }
 }`;
     },
@@ -692,7 +719,7 @@ semaphore runner start --config ./config.runner.json`;
     runnerSetupCommand() {
       return `cat << EOF > /tmp/config.runner.stdin
 ${this.webHost}
-${this.checkIntervalSeconds}
+${this.checkInterval}
 no
 yes
 ${(this.newRunner || {}).token}
@@ -705,7 +732,7 @@ semaphore runner setup --config ./config.runner.json < /tmp/config.runner.stdin`
     runnerEnvCommand() {
       return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
 SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
-SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkIntervalSeconds} \\
+SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\
 semaphore runner start --no-config`;
     },
 
@@ -733,7 +760,7 @@ semaphore runner start --no-config`;
       return `docker run \\
 -e SEMAPHORE_WEB_ROOT=${this.webHost} \\
 -e SEMAPHORE_RUNNER_TOKEN=${(this.newRunner || {}).token} \\
--e SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkIntervalSeconds} \\
+-e SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\
 -d semaphoreui/runner:${this.version}`;
     },
   },
@@ -757,6 +784,11 @@ semaphore runner start --no-config`;
   },
 
   methods: {
+    checkIntervalRule(v) {
+      const n = parseInt(v, 10);
+      return (Number.isInteger(n) && n > 0) || this.$t('runnerCheckIntervalInvalid');
+    },
+
     async clearCache(runner) {
       const projectId = this.getProjectIdOfItem(runner.id);
 
