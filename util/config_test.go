@@ -144,10 +144,22 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 func TestLoadEnvironmentToObject_RunnerExecutor(t *testing.T) {
 	var val RunnerConfig
 
+	origExecutor, hadExecutor := os.LookupEnv("SEMAPHORE_RUNNER_EXECUTOR")
+	origNetwork, hadNetwork := os.LookupEnv("SEMAPHORE_RUNNER_DOCKER_NETWORK")
+	t.Cleanup(func() {
+		if hadExecutor {
+			_ = os.Setenv("SEMAPHORE_RUNNER_EXECUTOR", origExecutor)
+		} else {
+			_ = os.Unsetenv("SEMAPHORE_RUNNER_EXECUTOR")
+		}
+		if hadNetwork {
+			_ = os.Setenv("SEMAPHORE_RUNNER_DOCKER_NETWORK", origNetwork)
+		} else {
+			_ = os.Unsetenv("SEMAPHORE_RUNNER_DOCKER_NETWORK")
+		}
+	})
 	require.NoError(t, os.Setenv("SEMAPHORE_RUNNER_EXECUTOR", `{"type":"docker","docker":{"image":"example.com/job:1"}}`))
 	require.NoError(t, os.Setenv("SEMAPHORE_RUNNER_DOCKER_NETWORK", "host"))
-	defer os.Unsetenv("SEMAPHORE_RUNNER_EXECUTOR")
-	defer os.Unsetenv("SEMAPHORE_RUNNER_DOCKER_NETWORK")
 
 	_, err := loadEnvironmentToObject(&val)
 	require.NoError(t, err)
@@ -602,4 +614,55 @@ func TestValidateConfig(t *testing.T) {
 	Config.AccessKeyEncryption = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 	ensureConfigValidationFailure(t, "AccessKeyEncryption", Config.AccessKeyEncryption)
 	Config.AccessKeyEncryption = testCookieHash
+}
+
+
+func TestGetSecretsPath_DirsSecrets(t *testing.T) {
+	Config = NewConfigType()
+	Config.Dirs = &ConfigDirs{Secrets: "/custom/dirs/secrets"}
+	loadConfigDefaults()
+	assert.Equal(t, "/custom/dirs/secrets", Config.GetSecretsPath())
+}
+
+func TestGetSecretsPath_LegacySecretsPath(t *testing.T) {
+	Config = NewConfigType()
+	Config.SecretsPath = "/legacy/secrets/path"
+	loadConfigDefaults()
+	assert.Equal(t, "/legacy/secrets/path", Config.GetSecretsPath())
+	require.NotNil(t, Config.Dirs)
+	assert.Equal(t, "/legacy/secrets/path", Config.Dirs.Secrets)
+}
+
+func TestGetSecretsPath_Precedence(t *testing.T) {
+	Config = NewConfigType()
+	Config.Dirs = &ConfigDirs{Secrets: "/custom/dirs/secrets"}
+	Config.SecretsPath = "/legacy/secrets/path"
+	loadConfigDefaults()
+	assert.Equal(t, "/custom/dirs/secrets", Config.GetSecretsPath())
+}
+
+func TestGetSecretsPath_Default(t *testing.T) {
+	Config = NewConfigType()
+	loadConfigDefaults()
+	assert.Equal(t, "/tmp/semaphore", Config.GetSecretsPath())
+	require.NotNil(t, Config.Dirs)
+	assert.Equal(t, "/tmp/semaphore", Config.Dirs.SSHAgentSockets)
+}
+
+func TestGetSecretsPath_Env(t *testing.T) {
+	Config = NewConfigType()
+	orig, existed := os.LookupEnv("SEMAPHORE_SECRETS_PATH")
+	t.Cleanup(func() {
+		if existed {
+			_ = os.Setenv("SEMAPHORE_SECRETS_PATH", orig)
+		} else {
+			_ = os.Unsetenv("SEMAPHORE_SECRETS_PATH")
+		}
+	})
+	_ = os.Setenv("SEMAPHORE_SECRETS_PATH", "/env/secrets/path")
+
+	loadConfigEnvironment()
+	loadConfigDefaults()
+
+	assert.Equal(t, "/env/secrets/path", Config.GetSecretsPath())
 }
