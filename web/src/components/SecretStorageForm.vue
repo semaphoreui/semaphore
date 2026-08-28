@@ -47,16 +47,7 @@
         dense
       ></v-text-field>
 
-      <div class="d-flex justify-space-between align-center mb-2">
-        <b style="font-size: 13px; margin-left: 5px">Token</b>
-        <v-btn-toggle v-model="secretStorage" tile group mandatory>
-          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
-            Store in DB
-          </v-btn>
-          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
-          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
-        </v-btn-toggle>
-      </div>
+      <SecretSourceToggle v-model="secretStorage" label="Token" :disabled="formSaving" />
 
       <v-text-field
         v-if="secretStorage === 'database'"
@@ -116,16 +107,7 @@
         dense
       ></v-text-field>
 
-      <div class="d-flex justify-space-between align-center mb-2">
-        <b style="font-size: 13px; margin-left: 5px">App secret</b>
-        <v-btn-toggle v-model="secretStorage" tile group mandatory>
-          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
-            Store in DB
-          </v-btn>
-          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
-          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
-        </v-btn-toggle>
-      </div>
+      <SecretSourceToggle v-model="secretStorage" label="App secret" :disabled="formSaving" />
 
       <v-text-field
         v-if="secretStorage === 'database'"
@@ -178,44 +160,40 @@
         dense
       ></v-text-field>
 
-      <!--      <v-checkbox-->
-      <!--        class="pt-0 mb-2"-->
-      <!--        style="margin-top: -5px"-->
-      <!--        v-model="item.params.use_iam_role"-->
-      <!--        label="Use IAM Role / Instance Profile"-->
-      <!--        :disabled="formSaving"-->
-      <!--      />-->
+      <v-checkbox
+        class="pt-0 mb-2"
+        style="margin-top: -5px"
+        v-model="item.params.use_iam_role"
+        label="Use IAM Role / Instance Profile"
+        :disabled="formSaving"
+        data-testid="secretStorage-awsUseIamRole"
+      />
 
-      <template>
+      <div :class="{ 'aws-credentials--inactive': useIamRole }">
         <v-text-field
           v-model="item.params.access_key_id"
           label="Access Key ID"
-          :disabled="formSaving"
-          :rules="[(v) => !!v || 'Access Key ID is required']"
+          :disabled="formSaving || useIamRole"
+          :rules="[(v) => !!v || useIamRole || 'Access Key ID is required']"
           required
           data-testid="secretStorage-awsAccessKeyId"
           outlined
           dense
         ></v-text-field>
 
-        <div class="d-flex justify-space-between align-center mb-2">
-          <b style="font-size: 13px; margin-left: 5px">Secret Key</b>
-          <v-btn-toggle v-model="secretStorage" tile group mandatory>
-            <v-btn value="database" small class="ma-0" style="border-radius: 4px">
-              Store in DB
-            </v-btn>
-            <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
-            <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
-          </v-btn-toggle>
-        </div>
+        <SecretSourceToggle
+          v-model="secretStorage"
+          label="Secret Key"
+          :disabled="formSaving || useIamRole"
+        />
 
         <v-text-field
           v-if="secretStorage === 'database'"
           class="TextInput TextInput--no-legend masked-secret-input"
           v-model="item.secret"
           label="Secret Access Key"
-          :disabled="formSaving"
-          :rules="[(v) => !!v || itemId !== 'new' || 'Secret Access Key is required']"
+          :disabled="formSaving || useIamRole"
+          :rules="[(v) => !!v || !awsSecretRequired || 'Secret Access Key is required']"
           required
           data-testid="secretStorage-awsSecretKey"
           outlined
@@ -228,14 +206,14 @@
           class="TextInput TextInput--no-legend"
           v-model="item.secret"
           :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
-          :disabled="formSaving"
-          :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
+          :disabled="formSaving || useIamRole"
+          :rules="[(v) => !!v || !awsSecretRequired || $t('envvar_required')]"
           required
           data-testid="secretStorage-awsSecretKeySource"
           outlined
           dense
         ></v-text-field>
-      </template>
+      </div>
     </div>
 
     <div v-else-if="item.type === 'azure_kv'">
@@ -273,16 +251,7 @@
         dense
       ></v-text-field>
 
-      <div class="d-flex justify-space-between align-center mb-2">
-        <b style="font-size: 13px; margin-left: 5px">Client Secret</b>
-        <v-btn-toggle v-model="secretStorage" tile group mandatory>
-          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
-            Store in DB
-          </v-btn>
-          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
-          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
-        </v-btn-toggle>
-      </div>
+      <SecretSourceToggle v-model="secretStorage" label="Client Secret" :disabled="formSaving" />
 
       <v-text-field
         v-if="secretStorage === 'database'"
@@ -316,7 +285,8 @@
       v-model="item.readonly"
       :label="$t('Read only')"
       :disabled="formSaving"
-      style="position: absolute; bottom: -5px; margin: 0; left: 25px"
+      hide-details
+      style="position: absolute; bottom: 15px; margin: 0; left: 25px"
     />
 
     <div class="d-flex items-center justify-space-between">
@@ -375,9 +345,10 @@
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import SecretStorageSyncOptionsForm from '@/components/SecretStorageSyncOptionsForm.vue';
+import SecretSourceToggle from '@/components/SecretSourceToggle.vue';
 
 export default {
-  components: { SecretStorageSyncOptionsForm },
+  components: { SecretStorageSyncOptionsForm, SecretSourceToggle },
 
   props: {
     itemType: String,
@@ -390,6 +361,8 @@ export default {
       secretStorage: 'database',
       secretStorageReady: false,
       syncSettingsDialog: false,
+      // IAM role state of the storage at load time.
+      initialUseIamRole: false,
     };
   },
 
@@ -416,11 +389,28 @@ export default {
         this.item.type = this.itemType;
       }
 
+      if (this.item.type === 'aws_sm' && this.item.params.use_iam_role === undefined) {
+        // Storages created before the IAM role option always had an access key.
+        const useIamRole = this.itemId !== 'new' && !this.item.params.access_key_id;
+        this.$set(this.item.params, 'use_iam_role', useIamRole);
+      }
+
+      this.initialUseIamRole = !!this.item.params.use_iam_role;
+
       this.secretStorageReady = false;
       this.secretStorage = this.item.source_storage_type || 'database';
       this.$nextTick(() => {
         this.secretStorageReady = true;
       });
+    },
+
+    beforeSave() {
+      if (this.useIamRole) {
+        // Credentials are taken from the environment, don't send the disabled
+        // secret fields to the server.
+        this.item.secret = '';
+        this.item.source_storage_type = undefined;
+      }
     },
 
     getItemsUrl() {
@@ -429,6 +419,22 @@ export default {
 
     getSingleItemUrl() {
       return `/api/project/${this.projectId}/secret_storages/${this.itemId}`;
+    },
+  },
+
+  computed: {
+    useIamRole() {
+      return this.item?.params?.use_iam_role;
+    },
+
+    awsSecretRequired() {
+      if (this.useIamRole) {
+        return false;
+      }
+
+      // Switching the IAM role off removes the previously stored credentials,
+      // so a new secret must be provided.
+      return this.itemId === 'new' || this.initialUseIamRole;
     },
   },
 
@@ -442,19 +448,31 @@ export default {
 
       this.item.secret = '';
     },
-
-    computed: {
-      useIamRole() {
-        return this.item?.params?.use_iam_role;
-      },
-    },
-
-    useIamRole(value) {
-      if (value) {
-        this.item.params.access_key_id = '';
-        this.item.secret = '';
-      }
-    },
   },
 };
 </script>
+<style lang="scss" scoped>
+.aws-credentials--inactive {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    background: white;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    opacity: 0.65;
+  }
+}
+
+.theme--dark {
+  .aws-credentials--inactive {
+    position: relative;
+    &::after {
+      background: #1E1E1E;
+    }
+  }
+}
+
+</style>
