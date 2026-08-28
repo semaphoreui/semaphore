@@ -1,6 +1,7 @@
 package util
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -15,12 +16,14 @@ func TestRunnerCheckInterval(t *testing.T) {
 	}{
 		{"unset runner section", nil, time.Second},
 		{"unset field", &RunnerConfig{}, time.Second},
-		// loadDefaultsToObject skips non-zero fields, so a configured 0 is
-		// indistinguishable from unset; fall back rather than busy-loop.
 		{"zero falls back", &RunnerConfig{CheckIntervalSeconds: 0}, time.Second},
 		{"negative falls back", &RunnerConfig{CheckIntervalSeconds: -5}, time.Second},
 		{"configured", &RunnerConfig{CheckIntervalSeconds: 10}, 10 * time.Second},
 		{"large", &RunnerConfig{CheckIntervalSeconds: 300}, 5 * time.Minute},
+		{"max representable", &RunnerConfig{CheckIntervalSeconds: maxRunnerCheckIntervalSec},
+			time.Duration(maxRunnerCheckIntervalSec) * time.Second},
+		{"overflows falls back", &RunnerConfig{CheckIntervalSeconds: maxRunnerCheckIntervalSec + 1}, time.Second},
+		{"far past overflow falls back", &RunnerConfig{CheckIntervalSeconds: math.MaxInt64}, time.Second},
 	}
 
 	for _, tt := range tests {
@@ -31,8 +34,20 @@ func TestRunnerCheckInterval(t *testing.T) {
 	}
 }
 
-// The default tag must match the constant, or config-file and no-config runs
-// would poll at different rates.
+// The result must always be safe for time.NewTicker.
+func TestRunnerCheckIntervalNeverPanicsTicker(t *testing.T) {
+	for _, sec := range []int{0, -1, 1, 300, maxRunnerCheckIntervalSec, maxRunnerCheckIntervalSec + 1, math.MaxInt64} {
+		conf := &ConfigType{Runner: &RunnerConfig{CheckIntervalSeconds: sec}}
+		d := conf.RunnerCheckInterval()
+
+		assert.Positive(t, d, "interval must stay positive for CheckIntervalSeconds=%d", sec)
+		assert.NotPanics(t, func() {
+			time.NewTicker(d).Stop()
+		}, "time.NewTicker must accept the interval for CheckIntervalSeconds=%d", sec)
+	}
+}
+
+// The default tag must match the constant.
 func TestRunnerCheckIntervalDefaultMatchesTag(t *testing.T) {
 	conf := &ConfigType{Runner: &RunnerConfig{}}
 	loadDefaultsToObject(conf)

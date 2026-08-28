@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/url"
 	"os"
 	"os/exec"
@@ -166,11 +167,8 @@ type RunnerConfig struct {
 	MaxParallelTasks int      `json:"max_parallel_tasks,omitempty" default:"9999" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 	ProjectID        *int     `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
 
-	// CheckIntervalSeconds is how often the runner polls the server for new jobs
-	// and reports progress. Lower values make a runner pick work up sooner at the
-	// cost of more requests; on a busy server with many runners, raising it cuts
-	// load noticeably. Kept as a plain int (not time.Duration) for env-binding
-	// simplicity, like RunnerK8sConfig.PollIntervalSeconds.
+	// CheckIntervalSeconds is how often the runner polls the server for new jobs.
+	// Plain int, not time.Duration, for env-binding simplicity.
 	CheckIntervalSeconds int `json:"check_interval_seconds,omitempty" default:"1" env:"SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS"`
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
@@ -720,6 +718,9 @@ const (
 // Default poll interval for a runner asking the server for work.
 const defaultRunnerCheckIntervalSec = 1
 
+// Larger overflows time.Duration and panics time.NewTicker.
+const maxRunnerCheckIntervalSec = int(math.MaxInt64 / int64(time.Second))
+
 // GetSecretsPath returns the secrets path from configuration.
 // Used for backward compatibility with legacy top-level secrets_path.
 func (conf *ConfigType) GetSecretsPath() string {
@@ -789,11 +790,13 @@ func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
 }
 
 // RunnerCheckInterval returns how often this runner polls the server for new
-// jobs. A configured value of 0 is indistinguishable from "unset" once defaults
-// are applied, so it falls back to the default rather than busy-looping.
+// jobs. Out-of-range values fall back to the default: 0 is indistinguishable
+// from "unset" after defaults are applied, and oversized values overflow.
 func (conf *ConfigType) RunnerCheckInterval() time.Duration {
 	sec := defaultRunnerCheckIntervalSec
-	if conf.Runner != nil && conf.Runner.CheckIntervalSeconds > 0 {
+	if conf.Runner != nil &&
+		conf.Runner.CheckIntervalSeconds > 0 &&
+		conf.Runner.CheckIntervalSeconds <= maxRunnerCheckIntervalSec {
 		sec = conf.Runner.CheckIntervalSeconds
 	}
 	return time.Duration(sec) * time.Second
