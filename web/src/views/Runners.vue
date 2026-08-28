@@ -665,7 +665,7 @@ export default {
     // straight into the snippets below and produce invalid JSON. Every snippet
     // reads this instead of the raw field.
     checkInterval() {
-      const n = parseInt(this.checkIntervalSeconds, 10);
+      const n = Number(this.checkIntervalSeconds);
       return Number.isInteger(n) && n > 0 ? n : 1;
     },
 
@@ -785,7 +785,7 @@ semaphore runner start --no-config`;
 
   methods: {
     checkIntervalRule(v) {
-      const n = parseInt(v, 10);
+      const n = Number(v);
       return (Number.isInteger(n) && n > 0) || this.$t('runnerCheckIntervalInvalid');
     },
 
