@@ -81,11 +81,24 @@
                 </tr>
                 <tr v-else-if="item.integration_id != null">
                   <td><b>{{ $t('integration') }}</b></td>
-                  <td>{{ item.integration_id }}</td>
+                  <td>
+                    <router-link
+                      v-if="integration"
+                      :to="`/project/${projectId}/integrations/${item.integration_id}`"
+                    >{{ integration.name }}</router-link>
+                    <span v-else>{{ $t('deletedOrigin', { id: item.integration_id }) }}</span>
+                  </td>
                 </tr>
                 <tr v-else-if="item.schedule_id != null">
                   <td><b>{{ $t('schedule') }}</b></td>
-                  <td>{{ item.schedule_id }}</td>
+                  <td>
+                    <!-- Schedules have no detail page, so link to the list. -->
+                    <router-link
+                      v-if="schedule"
+                      :to="`/project/${projectId}/schedule`"
+                    >{{ schedule.name || $t('unnamedSchedule') }}</router-link>
+                    <span v-else>{{ $t('deletedOrigin', { id: item.schedule_id }) }}</span>
+                  </td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('created') }}</b></td>
@@ -226,6 +239,10 @@ export default {
   props: {
     item: Object,
     user: Object,
+    // The schedule or integration that started the task. Null when a person
+    // started it, or when the origin has been deleted since.
+    schedule: Object,
+    integration: Object,
     projectId: Number,
   },
 

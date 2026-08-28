@@ -116,7 +116,13 @@
       <v-divider style="margin-top: -1px;" />
 
       <v-container fluid class="py-0 px-5 overflow-auto pt-4">
-        <TaskDetails :item="item" :user="user" :project-id="projectId" />
+        <TaskDetails
+          :item="item"
+          :user="user"
+          :schedule="schedule"
+          :integration="integration"
+          :project-id="projectId"
+        />
       </v-container>
     </div>
 
@@ -260,6 +266,11 @@ export default {
       output: [],
       outputBuffer: [],
       user: {},
+      // The schedule or integration that started this task, resolved by id so
+      // the details panel can name and link it. Null when the task was started
+      // by a person, or when the origin has since been deleted.
+      schedule: null,
+      integration: null,
       autoScroll: true,
       // stages: null,
     };
@@ -421,10 +432,22 @@ export default {
       }
     },
 
+    // Fetches an object that may have been deleted since the task ran; a
+    // missing origin must leave the task view working, not break it.
+    async loadOptional(url) {
+      try {
+        return (await axios({ method: 'get', url, responseType: 'json' })).data;
+      } catch (e) {
+        return null;
+      }
+    },
+
     async loadData() {
       [
         this.output,
         this.user,
+        this.schedule,
+        this.integration,
       ] = await Promise.all([
 
         (await axios({
@@ -441,6 +464,14 @@ export default {
           url: `/api/users/${this.item.user_id}`,
           responseType: 'json',
         })).data : null,
+
+        this.item.schedule_id
+          ? this.loadOptional(`/api/project/${this.projectId}/schedules/${this.item.schedule_id}`)
+          : null,
+
+        this.item.integration_id
+          ? this.loadOptional(`/api/project/${this.projectId}/integrations/${this.item.integration_id}`)
+          : null,
       ]);
     },
   },
