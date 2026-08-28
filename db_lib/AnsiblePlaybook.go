@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/creack/pty"
@@ -14,14 +15,20 @@ import (
 )
 
 type AnsiblePlaybook struct {
-	TemplateID int
-	Repository db.Repository
-	Logger     task_logger.Logger
+	TemplateID       int
+	WorkingDirectory *string
+	Repository       db.Repository
+	Logger           task_logger.Logger
 }
 
-func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars []string) *exec.Cmd {
+func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars []string) (*exec.Cmd, error) {
+	cmdDir, err := p.resolveWorkingDirectory()
+	if err != nil {
+		return nil, err
+	}
+
 	cmd := exec.Command(command, args...) //nolint: gas
-	cmd.Dir = p.GetFullPath()
+	cmd.Dir = cmdDir
 
 	cmd.Env = append(cmd.Env, "PYTHONUNBUFFERED=1")
 	cmd.Env = append(cmd.Env, "ANSIBLE_FORCE_COLOR=True")
@@ -39,18 +46,44 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 
 	cmd.SysProcAttr = util.Config.GetAppSysProcAttr()
 
-	return cmd
+	return cmd, nil
+}
+
+func (p AnsiblePlaybook) resolveWorkingDirectory() (string, error) {
+	repoRoot := p.Repository.GetFullPath(p.TemplateID)
+	if p.WorkingDirectory == nil {
+		return repoRoot, nil
+	}
+
+	wd := filepath.Join(repoRoot, *p.WorkingDirectory)
+	relPath, err := filepath.Rel(repoRoot, wd)
+	if err != nil {
+		return "", fmt.Errorf("resolve working directory relative to repository: %w", err)
+	}
+	if !filepath.IsLocal(relPath) {
+		return "", fmt.Errorf("working directory %q is outside repository %q", wd, repoRoot)
+	}
+
+	return wd, nil
 }
 
 func (p AnsiblePlaybook) runCmd(command string, args []string, environmentVars []string) error {
-	cmd := p.makeCmd(command, args, environmentVars)
+	cmd, err := p.makeCmd(command, args, environmentVars)
+	if err != nil {
+		return err
+	}
+
 	finishLog := p.Logger.LogCmd(cmd)
 	defer finishLog()
 	return cmd.Run()
 }
 
 func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
-	cmd := p.makeCmd("ansible-playbook", args, environmentVars)
+	cmd, err := p.makeCmd("ansible-playbook", args, environmentVars)
+	if err != nil {
+		return err
+	}
+
 	finishLog := p.Logger.LogCmd(cmd)
 	defer finishLog()
 
@@ -92,9 +125,4 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 
 func (p AnsiblePlaybook) RunGalaxy(args []string, environmentVars []string) error {
 	return p.runCmd("ansible-galaxy", args, environmentVars)
-}
-
-func (p AnsiblePlaybook) GetFullPath() (path string) {
-	path = p.Repository.GetFullPath(p.TemplateID)
-	return
 }

@@ -938,6 +938,12 @@ definitions:
       playbook:
         type: string
         example: test.yml
+      working_directory:
+        type: string
+        description: >-
+          Repository-relative current directory for Ansible commands. It is
+          valid only for Ansible templates and must stay inside the repository.
+        x-nullable: true
       arguments:
         type: string
         example: '[]'
@@ -1004,6 +1010,12 @@ definitions:
       playbook:
         type: string
         example: test.yml
+      working_directory:
+        type: string
+        description: >-
+          Repository-relative current directory for Ansible commands. It is
+          valid only for Ansible templates and must stay inside the repository.
+        x-nullable: true
       arguments:
         type: string
         example: '[]'

@@ -283,7 +283,8 @@ type Template struct {
 	Name string `db:"name" json:"name"`
 	// playbook name in the form of "some_play.yml"
 	Playbook string `db:"playbook" json:"playbook"`
-	// WorkingDirectory it is used only by Ansible task templates.
+	// WorkingDirectory is the repository-relative current directory for Ansible
+	// commands. It is valid only for Ansible templates.
 	WorkingDirectory *string `db:"working_directory" json:"working_directory,omitempty"`
 	// to fit into []string
 	Arguments *string `db:"arguments" json:"arguments,omitempty"`
