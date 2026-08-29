@@ -1409,8 +1409,8 @@ export default {
       if (options['nav.unpinnedItems'] != null) {
         try {
           this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
-        } catch (e) {
-          console.log(e);
+        } catch {
+          // do nothing
         }
       }
 
