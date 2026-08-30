@@ -528,11 +528,11 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		args = append(args, "-"+strings.Repeat("v", params.DebugLevel))
 	}
 
-	if params.Diff {
+	if !tplParams.HideDiff && params.Diff {
 		args = append(args, "--diff")
 	}
 
-	if params.DryRun {
+	if !tplParams.HideDryRun && params.DryRun {
 		args = append(args, "--check")
 	}
 

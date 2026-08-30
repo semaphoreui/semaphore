@@ -595,6 +595,20 @@
 
           <v-checkbox
             class="mt-0"
+            :label="$t('hideDryRun')"
+            v-model="item.task_params.hide_dry_run"
+            v-if="needField('hide_dry_run')"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('hideDiff')"
+            v-model="item.task_params.hide_diff"
+            v-if="needField('hide_diff')"
+          />
+
+          <v-checkbox
+            class="mt-0"
             :label="$t('auto_approve')"
             v-model="item.task_params.allow_auto_approve"
             v-if="needField('allow_auto_approve')"

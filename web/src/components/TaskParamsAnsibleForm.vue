@@ -55,7 +55,7 @@
           hide-details
         ></v-slider>
       </v-col>
-      <v-col>
+      <v-col v-if="!templateParams.hide_dry_run">
         <v-checkbox
           class="mt-0"
           :input-value="params.dry_run"
@@ -66,7 +66,7 @@
           </template>
         </v-checkbox>
       </v-col>
-      <v-col>
+      <v-col v-if="!templateParams.hide_diff">
         <v-checkbox
           class="mt-0"
           :input-value="params.diff"
