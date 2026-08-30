@@ -115,25 +115,39 @@ func (a *Agent) Close() error {
 }
 
 func StartSSHAgent(key db.AccessKey, logger task_logger.Logger) (Agent, error) {
+	return StartSSHAgentWithKeys([]db.AccessKey{key}, logger)
+}
 
-	socketFilename := fmt.Sprintf("ssh-agent-%d-%s.sock", key.ID, random.String(10))
+// StartSSHAgentWithKeys starts an agent holding several keys, for a connection
+// which authenticates against more than one host, such as a chain of proxies.
+// ssh offers the keys in order and moves on to the next when a host rejects one.
+func StartSSHAgentWithKeys(keys []db.AccessKey, logger task_logger.Logger) (Agent, error) {
+	if len(keys) == 0 {
+		return Agent{}, fmt.Errorf("no keys to start an ssh agent with")
+	}
+
+	first := keys[0]
+	socketFilename := fmt.Sprintf("ssh-agent-%d-%s.sock", first.ID, random.String(10))
 
 	var socketFile string
 
-	if key.ProjectID == nil {
+	if first.ProjectID == nil {
 		socketFile = path.Join(util.Config.TmpPath, socketFilename)
 	} else {
-		socketFile = path.Join(util.Config.GetProjectTmpDir(*key.ProjectID), socketFilename)
+		socketFile = path.Join(util.Config.GetProjectTmpDir(*first.ProjectID), socketFilename)
+	}
+
+	agentKeys := make([]AgentKey, 0, len(keys))
+	for _, key := range keys {
+		agentKeys = append(agentKeys, AgentKey{
+			Key:        []byte(key.SshKey.PrivateKey),
+			Passphrase: []byte(key.SshKey.Passphrase),
+		})
 	}
 
 	sshAgent := Agent{
-		Logger: logger,
-		Keys: []AgentKey{
-			{
-				Key:        []byte(key.SshKey.PrivateKey),
-				Passphrase: []byte(key.SshKey.Passphrase),
-			},
-		},
+		Logger:     logger,
+		Keys:       agentKeys,
 		SocketFile: socketFile,
 	}
 
@@ -147,15 +161,26 @@ type AccessKeyInstallation struct {
 	Script   string
 }
 
-func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
+// GetGitEnv returns the environment for git commands. Additional ssh options,
+// for example the jump host of a proxy, are appended to GIT_SSH_COMMAND.
+func (key *AccessKeyInstallation) GetGitEnv(sshOpts ...string) (env []string) {
 	env = make([]string, 0)
 
 	env = append(env, "GIT_TERMINAL_PROMPT=0")
+
 	if key.SSHAgent != nil {
 		env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
+	}
+
+	// GIT_SSH_COMMAND is also needed without an agent, otherwise a repository
+	// which needs no key of its own loses the options of its proxy.
+	if key.SSHAgent != nil || len(sshOpts) > 0 {
 		sshCmd := "ssh " + gitHostKeyCheckingOpts()
 		if util.Config.GetSshConfigPath() != "" {
 			sshCmd += " -F " + util.Config.GetSshConfigPath()
+		}
+		for _, opt := range sshOpts {
+			sshCmd += " " + opt
 		}
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
 	}
@@ -174,7 +199,9 @@ func gitHostKeyCheckingOpts() string {
 	case util.SshStrictHostKeyCheckingYes:
 		return fmt.Sprintf("-o StrictHostKeyChecking=yes -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
 	case util.SshStrictHostKeyCheckingNo:
-		return "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+		// No leading "ssh": the caller prepends it, and a second one is taken by
+		// ssh as the host to connect to.
+		return "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 	case util.SshStrictHostKeyCheckingAcceptNew:
 		return fmt.Sprintf("-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
 	default:
@@ -190,6 +217,27 @@ func (key *AccessKeyInstallation) Destroy() error {
 }
 
 type KeyInstaller struct{}
+
+// InstallAll installs several keys into a single agent. Only ssh keys can share
+// an agent, so the usages which do not produce one are rejected.
+func (i KeyInstaller) InstallAll(keys []db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation AccessKeyInstallation, err error) {
+	if len(keys) == 1 {
+		return i.Install(keys[0], usage, logger)
+	}
+
+	for _, key := range keys {
+		if key.Type != db.AccessKeySSH {
+			err = fmt.Errorf("only ssh keys can share an agent")
+			return
+		}
+	}
+
+	var agent Agent
+	agent, err = StartSSHAgentWithKeys(keys, logger)
+	installation.SSHAgent = &agent
+	installation.Login = keys[0].SshKey.Login
+	return
+}
 
 func (KeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation AccessKeyInstallation, err error) {
 

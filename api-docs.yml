@@ -607,9 +607,74 @@ definitions:
         type: integer
       repository_id:
         type: integer
+      proxy_id:
+        type: integer
+        description: SSH jump host used to reach the hosts of the inventory
       type:
         type: string
         enum: [static, static-yaml, file, terraform-workspace]
+
+  Proxy:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: bastion-projA
+      type:
+        type: string
+        enum: [ssh, socks5, http, https]
+      host:
+        type: string
+        example: bastion.example.org
+      port:
+        type: integer
+        example: 22
+      user:
+        type: string
+        example: ansible-proxy
+      ssh_key_id:
+        type: integer
+        example: 1
+        description: key used to authenticate against the proxy itself
+      requires_proxy_id:
+        type: integer
+        description: another proxy of the project which must be passed through to reach this one
+
+  ProxyRequest:
+    type: object
+    required:
+      - project_id
+      - name
+      - type
+      - host
+    properties:
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: bastion-projA
+      type:
+        type: string
+        enum: [ssh, socks5, http, https]
+      host:
+        type: string
+        example: bastion.example.org
+      port:
+        type: integer
+        example: 22
+      user:
+        type: string
+        example: ansible-proxy
+      ssh_key_id:
+        type: integer
+        example: 1
+      requires_proxy_id:
+        type: integer
+        description: another proxy of the project which must be passed through to reach this one
 
   Integration:
     type: object
@@ -1517,6 +1582,14 @@ parameters:
     type: integer
     required: true
     x-example: 4
+  proxy_id:
+    name: proxy_id
+    description: proxy ID
+    in: path
+    type: integer
+    required: true
+    x-example: 21
+
   inventory_id:
     name: inventory_id
     description: inventory ID
@@ -2850,6 +2923,74 @@ paths:
           description: repository removed
 
   # project inventory
+  /project/{project_id}/proxies:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get proxies
+      responses:
+        200:
+          description: proxies
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Proxy"
+    post:
+      tags:
+        - project
+      summary: Create proxy
+      parameters:
+        - name: Proxy
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ProxyRequest"
+      responses:
+        201:
+          description: proxy created
+          schema:
+            $ref: "#/definitions/Proxy"
+        400:
+          description: invalid proxy
+
+  /project/{project_id}/proxies/{proxy_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/proxy_id"
+    get:
+      tags:
+        - project
+      summary: Get proxy
+      responses:
+        200:
+          description: proxy object
+          schema:
+            $ref: "#/definitions/Proxy"
+    put:
+      tags:
+        - project
+      summary: Update proxy
+      parameters:
+        - name: Proxy
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ProxyRequest"
+      responses:
+        204:
+          description: proxy updated
+        400:
+          description: invalid proxy
+    delete:
+      tags:
+        - project
+      summary: Remove proxy
+      responses:
+        204:
+          description: proxy removed
+
   /project/{project_id}/inventory:
     parameters:
       - $ref: "#/parameters/project_id"

@@ -222,3 +222,77 @@ func TestGetTerraformArgs_MultiSelect(t *testing.T) {
 	}
 	assert.True(t, found, "expected -var multi_var=[\"1\",\"2\"] in %v", defaultArgs)
 }
+
+// TestGetInventorySSHCommonArgs verifies the ssh options ansible receives to
+// reach inventory hosts through a jump host.
+func TestGetInventorySSHCommonArgs(t *testing.T) {
+	setupExecutorConfig(t)
+
+	user := "ansible-proxy"
+	port := 2222
+
+	t.Run("no proxy means no ssh args", func(t *testing.T) {
+		e := &LocalExecutor{Inventory: db.Inventory{}}
+		assert.Empty(t, e.getInventorySSHCommonArgs())
+	})
+
+	t.Run("proxy adds a ProxyCommand jump", func(t *testing.T) {
+		e := &LocalExecutor{Inventory: db.Inventory{
+			Proxy: &db.Proxy{
+				Type: db.ProxySSH,
+				Host: "bastion.example.org",
+				User: &user,
+				Port: &port,
+			},
+		}}
+
+		assert.Equal(t,
+			`-o "ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`,
+			e.getInventorySSHCommonArgs())
+	})
+}
+
+// TestGetPlaybookArgs_Proxy verifies the jump host reaches the ansible-playbook
+// command line, and that it is absent when the inventory has no proxy.
+func TestGetPlaybookArgs_Proxy(t *testing.T) {
+	setupExecutorConfig(t)
+
+	inventoryID := 1
+
+	newExecutor := func(proxy *db.Proxy) *LocalExecutor {
+		return &LocalExecutor{
+			Template:  db.Template{App: db.AppAnsible, Playbook: "test.yml"},
+			Inventory: db.Inventory{ID: inventoryID, Type: db.InventoryStatic, Proxy: proxy},
+		}
+	}
+
+	t.Run("without proxy", func(t *testing.T) {
+		args, _, err := newExecutor(nil).getPlaybookArgs("admin", nil)
+
+		require.NoError(t, err)
+		assert.NotContains(t, args, "--ssh-common-args")
+	})
+
+	t.Run("with proxy", func(t *testing.T) {
+		args, _, err := newExecutor(&db.Proxy{Type: db.ProxySSH, Host: "bastion.example.org"}).
+			getPlaybookArgs("admin", nil)
+
+		require.NoError(t, err)
+		require.Contains(t, args, "--ssh-common-args")
+
+		i := indexOf(args, "--ssh-common-args")
+		require.Less(t, i+1, len(args))
+		assert.Equal(t,
+			`-o "ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p bastion.example.org"`,
+			args[i+1])
+	})
+}
+
+func indexOf(args []string, value string) int {
+	for i, a := range args {
+		if a == value {
+			return i
+		}
+	}
+	return -1
+}

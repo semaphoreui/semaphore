@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/ssh"
@@ -22,11 +23,13 @@ func (c CmdGitClient) makeCmd(
 	r GitRepository,
 	targetDir GitRepositoryDirType,
 	installation ssh.AccessKeyInstallation,
+	proxyInstallation ssh.AccessKeyInstallation,
 	args ...string,
 ) *exec.Cmd {
 	cmd := exec.Command("git") //nolint: gas
 
-	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv()...)
+	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv(gitProxyOpts(r.Repository, proxyInstallation)...)...)
+	cmd.Env = append(cmd.Env, gitProxyEnv(r.Repository)...)
 
 	switch targetDir {
 	case GitRepositoryTmpPath:
@@ -59,6 +62,25 @@ func (c CmdGitClient) makeCmd(
 	return cmd
 }
 
+// installProxyKey installs the keys of the repository proxy chain into their own
+// agent. The proxies are usually reached with different keys than the git server,
+// and that agent must not be the git one: ssh stops at the first key the git host
+// accepts and would never try the other one.
+func (c CmdGitClient) installProxyKey(r GitRepository) (installation ssh.AccessKeyInstallation, err error) {
+	proxy := r.Repository.Proxy
+
+	if proxy == nil || proxy.Type != db.ProxySSH {
+		return
+	}
+
+	keys := ProxyChainKeys(*proxy)
+	if len(keys) == 0 {
+		return
+	}
+
+	return c.keyInstaller.InstallAll(keys, db.AccessKeyRoleGit, r.Logger)
+}
+
 func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args ...string) error {
 	var err error
 	keyInstallation, err := c.keyInstaller.Install(r.Repository.SSHKey, db.AccessKeyRoleGit, r.Logger)
@@ -69,7 +91,14 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 
 	defer keyInstallation.Destroy() //nolint: errcheck
 
-	cmd := c.makeCmd(r, targetDir, keyInstallation, args...)
+	proxyKeyInstallation, err := c.installProxyKey(r)
+	if err != nil {
+		return err
+	}
+
+	defer proxyKeyInstallation.Destroy() //nolint: errcheck
+
+	cmd := c.makeCmd(r, targetDir, keyInstallation, proxyKeyInstallation, args...)
 
 	finishLog := r.Logger.LogCmd(cmd)
 	defer finishLog()
@@ -85,7 +114,14 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 
 	defer keyInstallation.Destroy() //nolint: errcheck
 
-	bytes, err := c.makeCmd(r, targetDir, keyInstallation, args...).Output()
+	proxyKeyInstallation, err := c.installProxyKey(r)
+	if err != nil {
+		return
+	}
+
+	defer proxyKeyInstallation.Destroy() //nolint: errcheck
+
+	bytes, err := c.makeCmd(r, targetDir, keyInstallation, proxyKeyInstallation, args...).Output()
 	if err != nil {
 		return
 	}
@@ -220,4 +256,47 @@ func getRepositoryBranchNames(branches []string) []string {
 	}
 
 	return branchNames
+}
+
+// gitProxyOpts returns the ssh options needed to reach the git server of the
+// repository through its proxy chain.
+func gitProxyOpts(repo db.Repository, proxyInstallation ssh.AccessKeyInstallation) []string {
+	if repo.Proxy == nil {
+		return nil
+	}
+
+	// An http(s) repository is proxied by git itself, see gitProxyEnv.
+	if repo.GetType() == db.RepositoryHTTP {
+		return nil
+	}
+
+	var socket string
+	if proxyInstallation.SSHAgent != nil {
+		socket = proxyInstallation.SSHAgent.SocketFile
+	}
+
+	return []string{"-o", strconv.Quote(ProxyCommandOption(*repo.Proxy, socket))}
+}
+
+// gitProxyEnv returns the environment the proxy of a repository needs. git
+// speaks SOCKS and HTTP proxies itself for http(s) remotes, so those are
+// configured with the variables it reads rather than with a ProxyCommand.
+func gitProxyEnv(repo db.Repository) []string {
+	if repo.Proxy == nil || repo.Proxy.Type.IsSSH() {
+		return nil
+	}
+
+	if repo.GetType() != db.RepositoryHTTP {
+		// An ssh remote goes through the connector, which reads its credentials
+		// from the environment.
+		return ProxyEnv(repo.Proxy)
+	}
+
+	proxyURL := ProxyURLWithCredentials(*repo.Proxy)
+
+	return []string{
+		"ALL_PROXY=" + proxyURL,
+		"HTTP_PROXY=" + proxyURL,
+		"HTTPS_PROXY=" + proxyURL,
+	}
 }

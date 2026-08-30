@@ -176,6 +176,47 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 	if e.BecomeKey != nil && getEntryByName[BackupAccessKey](e.BecomeKey, backup.Keys) == nil {
 		return fmt.Errorf("BecomeKey does not exist in keys[].Name")
 	}
+	if e.Proxy != nil && getEntryByName[BackupProxy](e.Proxy, backup.Proxies) == nil {
+		return fmt.Errorf("Proxy does not exist in proxies[].Name")
+	}
+	return nil
+}
+
+func (e BackupProxy) GetName() string {
+	return e.Name
+}
+
+func (e BackupProxy) Verify(backup *BackupFormat) error {
+	if err := verifyDuplicate[BackupProxy](e.Name, backup.Proxies); err != nil {
+		return err
+	}
+	if e.SSHKey != nil && getEntryByName[BackupAccessKey](e.SSHKey, backup.Keys) == nil {
+		return fmt.Errorf("SSHKey does not exist in keys[].Name")
+	}
+	if e.RequiresProxy != nil && getEntryByName[BackupProxy](e.RequiresProxy, backup.Proxies) == nil {
+		return fmt.Errorf("RequiresProxy does not exist in proxies[].Name")
+	}
+	return nil
+}
+
+func (e BackupProxy) Restore(b *BackupDB) error {
+	var SSHKeyID *int
+	if k := findEntityByName[db.AccessKey](e.SSHKey, b.keys); k != nil {
+		SSHKeyID = &((*k).ID)
+	}
+
+	proxy := e.Proxy
+	proxy.ProjectID = b.meta.ID
+	proxy.SSHKeyID = SSHKeyID
+	// The required proxy may not be restored yet, so the chain is linked
+	// afterwards by restoreProxyChains.
+	proxy.RequiresProxyID = nil
+
+	newProxy, err := b.store.CreateProxy(proxy)
+	if err != nil {
+		return err
+	}
+	b.proxies = append(b.proxies, newProxy)
 	return nil
 }
 
@@ -197,10 +238,16 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 		BecomeKeyID = &((*k).ID)
 	}
 
+	var ProxyID *int
+	if p := findEntityByName[db.Proxy](e.Proxy, b.proxies); p != nil {
+		ProxyID = &((*p).ID)
+	}
+
 	inv := e.Inventory
 	inv.ProjectID = b.meta.ID
 	inv.SSHKeyID = SSHKeyID
 	inv.BecomeKeyID = BecomeKeyID
+	inv.ProxyID = ProxyID
 
 	newInventory, err := b.store.CreateInventory(inv)
 	if err != nil {
@@ -217,6 +264,9 @@ func (e BackupRepository) Verify(backup *BackupFormat) error {
 	if e.SSHKey != nil && getEntryByName[BackupAccessKey](e.SSHKey, backup.Keys) == nil {
 		return fmt.Errorf("SSHKey does not exist in keys[].Name")
 	}
+	if e.Proxy != nil && getEntryByName[BackupProxy](e.Proxy, backup.Proxies) == nil {
+		return fmt.Errorf("Proxy does not exist in proxies[].Name")
+	}
 	return nil
 }
 
@@ -228,9 +278,15 @@ func (e BackupRepository) Restore(b *BackupDB) error {
 		SSHKeyID = (*k).ID
 	}
 
+	var ProxyID *int
+	if p := findEntityByName[db.Proxy](e.Proxy, b.proxies); p != nil {
+		ProxyID = &((*p).ID)
+	}
+
 	repo := e.Repository
 	repo.ProjectID = b.meta.ID
 	repo.SSHKeyID = SSHKeyID
+	repo.ProxyID = ProxyID
 
 	newRepo, err := b.store.CreateRepository(repo)
 	if err != nil {
@@ -558,6 +614,11 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at repositories[%d]: %s", i, err.Error())
 		}
 	}
+	for i, o := range backup.Proxies {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at proxies[%d]: %s", i, err.Error())
+		}
+	}
 	for i, o := range backup.Inventories {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at inventories[%d]: %s", i, err.Error())
@@ -586,6 +647,32 @@ func (backup *BackupFormat) Verify() error {
 	for i, o := range backup.Workflows {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at workflows[%d]: %s", i, err.Error())
+		}
+	}
+
+	return nil
+}
+
+// restoreProxyChains links the proxies which require another proxy, once every
+// proxy of the backup exists and can be found by name.
+func (backup *BackupFormat) restoreProxyChains(b *BackupDB) error {
+	for i, o := range backup.Proxies {
+		if o.RequiresProxy == nil {
+			continue
+		}
+
+		required := findEntityByName[db.Proxy](o.RequiresProxy, b.proxies)
+		restored := findEntityByName[db.Proxy](&o.Name, b.proxies)
+
+		if required == nil || restored == nil {
+			return fmt.Errorf("error at proxies[%d]: proxy chain can not be restored", i)
+		}
+
+		proxy := *restored
+		proxy.RequiresProxyID = &required.ID
+
+		if err := b.store.UpdateProxy(proxy); err != nil {
+			return fmt.Errorf("error at proxies[%d]: %s", i, err.Error())
 		}
 	}
 
@@ -650,6 +737,17 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at keys[%d]: %s", i, err.Error())
 		}
+	}
+
+	// Proxies first: repositories and inventories reference them by name.
+	for i, o := range backup.Proxies {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at proxies[%d]: %s", i, err.Error())
+		}
+	}
+
+	if err := backup.restoreProxyChains(&b); err != nil {
+		return nil, err
 	}
 
 	for i, o := range backup.Repositories {

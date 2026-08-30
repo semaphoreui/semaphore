@@ -1148,6 +1148,12 @@ export default {
             to: `${base}/repositories`,
           },
           {
+            key: 'proxies',
+            icon: 'mdi-transit-connection-variant',
+            title: this.$t('proxies'),
+            to: `${base}/proxies`,
+          },
+          {
             key: 'integrations',
             icon: 'mdi-connection',
             title: this.$t('integrations'),

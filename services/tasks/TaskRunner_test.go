@@ -806,3 +806,7 @@ func TestTaskRunner_populateTaskEnvironment(t *testing.T) {
 
 	assert.Equal(t, tsk.Environment.JSON, "{\"a\":11,\"b\":22,\"c\":33,\"d\":4}")
 }
+
+func (*KeyInstallerMock) InstallAll(keys []db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	return ssh.AccessKeyInstallation{}, nil
+}

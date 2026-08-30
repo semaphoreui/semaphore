@@ -35,6 +35,7 @@ type LocalExecutor struct {
 
 	sshKeyInstallation     ssh.AccessKeyInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
+	proxyKeyInstallation   ssh.AccessKeyInstallation
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
 	KeyInstaller db_lib.AccessKeyInstaller
@@ -485,6 +486,10 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		}
 	}
 
+	if sshArgs := t.getInventorySSHCommonArgs(); sshArgs != "" {
+		args = append(args, "--ssh-common-args", sshArgs)
+	}
+
 	if t.Inventory.BecomeKeyID != nil {
 		switch t.Inventory.BecomeKey.Type {
 		case db.AccessKeyLoginPassword:
@@ -901,6 +906,10 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
 	}
+
+	// A SOCKS or HTTP proxy is reached by the connector ssh runs as its
+	// ProxyCommand, which takes its credentials from the environment.
+	environmentVariables = append(environmentVariables, db_lib.ProxyEnv(t.Inventory.Proxy)...)
 
 	if t.Template.Type != db.TemplateTask {
 

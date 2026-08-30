@@ -31,6 +31,7 @@ var workflowApproval *db.WorkflowApproval
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
+var proxyID int
 var inventoryID int
 var environmentID int
 var templateID int
@@ -45,6 +46,7 @@ var capabilities = map[string][]string{
 	"user":                    {},
 	"project":                 {"user"},
 	"repository":              {"access_key"},
+	"proxy":                   {"access_key"},
 	"inventory":               {"repository"},
 	"environment":             {"repository"},
 	"template":                {"repository", "inventory", "environment", "view"},
@@ -116,6 +118,20 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			})
 			printError(err)
 			repoID = pRepo.ID
+		case "proxy":
+			port := 22
+			user := "ansible-proxy"
+			res, err := store.CreateProxy(db.Proxy{
+				ProjectID: userProject.ID,
+				Name:      "ITP-" + uid,
+				Type:      db.ProxySSH,
+				Host:      "bastion.example.org",
+				Port:      &port,
+				User:      &user,
+				SSHKeyID:  &userKey.ID,
+			})
+			printError(err)
+			proxyID = res.ID
 		case "inventory":
 			res, err := store.CreateInventory(db.Inventory{
 				ProjectID:    userProject.ID,
@@ -256,6 +272,9 @@ var pathSubPatterns = []func() string{
 	func() string {
 		return strconv.Itoa(workflowNodeID)
 	}, // node_id, x-example: 20
+	func() string {
+		return strconv.Itoa(proxyID)
+	}, // proxy_id, x-example: 21
 }
 
 // alterRequestPath with the above slice of functions
@@ -297,6 +316,10 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("environment_ids", []int{environmentID}, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
+	bodyFieldProcessor("proxy_id", proxyID, &request)
+	// A proxy chain needs a second proxy to point at, which the fixtures do not
+	// create, so proxies are sent unchained.
+	bodyFieldProcessor("requires_proxy_id", nil, &request)
 	bodyFieldProcessor("repository_id", repoID, &request)
 	bodyFieldProcessor("template_id", templateID, &request)
 	bodyFieldProcessor("build_template_id", nil, &request)
