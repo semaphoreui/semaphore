@@ -189,9 +189,7 @@ func (t *TaskRunner) run() {
 
 	defer func() {
 		if requeued {
-			// Task is being re-queued, don't mark as finished
-			log.Info("Task " + strconv.Itoa(t.Task.ID) + " re-queued (waiting for available runner)")
-			t.pool.queueEvents <- PoolEvent{EventTypeRequeued, t}
+			// EventTypeRequeued was sent synchronously before return.
 			return
 		}
 
@@ -308,9 +306,16 @@ func (t *TaskRunner) run() {
 
 	if err != nil {
 		if errors.Is(err, ErrAllRunnersBusy) {
-			// No runners available right now, put task back in waiting state
+			// No runners available right now, put task back in waiting state.
+			// Release running/active bookkeeping before enqueueing so a concurrent
+			// queue tick cannot ClaimAndDequeue the task while it is still in the
+			// running set (duplicate dispatch). Notify the pool synchronously so
+			// the current queue pass skips an immediate retry.
 			t.SetStatus(task_logger.TaskWaitingStatus)
+			t.pool.onTaskStop(t)
 			t.pool.state.Enqueue(t)
+			log.Info("Task " + strconv.Itoa(t.Task.ID) + " re-queued (waiting for available runner)")
+			t.pool.queueEvents <- PoolEvent{EventTypeRequeued, t}
 			requeued = true
 			return
 		}
