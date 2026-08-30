@@ -115,7 +115,6 @@
       </v-col>
       <v-col cols="12" md="6">
         <v-card
-          v-if="item?.params"
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
           style="background: #8585850f"
           class="mb-5"
