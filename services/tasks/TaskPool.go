@@ -482,6 +482,13 @@ func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) 
 			// crash between saveStatus and the queue drain). Release any stale
 			// shared pool state without re-running finish or autorun.
 			p.onTaskStop(tsk)
+			// If the first finalizer crashed after persisting End but before
+			// HandleWorkflowTaskCompletion (see TaskRunner.finishRun), still
+			// progress the workflow run. The workflow service must treat this as
+			// idempotent.
+			if err := p.HandleWorkflowTaskCompletion(tsk.Task); err != nil {
+				log.WithError(err).WithField("task_id", tsk.Task.ID).Warn("workflow progression failed after duplicate finalize")
+			}
 			return
 		}
 	}

@@ -1,8 +1,14 @@
 package sql
 
 import (
+	"errors"
+
 	"github.com/semaphoreui/semaphore/db"
 )
+
+// ErrWorkflowsProOnly is returned by the OSS workflow store stub when a caller
+// attempts to persist workflow data without the Pro implementation wired.
+var ErrWorkflowsProOnly = errors.New("workflows require Semaphore Pro")
 
 // WorkflowStoreImpl is the open-source no-op stub for the Pro workflow store.
 // Workflows are a Pro feature; the real implementation lives in
@@ -24,7 +30,7 @@ func (d *WorkflowStoreImpl) GetWorkflowTemplate(projectID int, workflowID int) (
 }
 
 func (d *WorkflowStoreImpl) CreateWorkflowTemplate(workflow db.WorkflowTemplate) (res db.WorkflowTemplate, err error) {
-	return
+	return res, ErrWorkflowsProOnly
 }
 
 func (d *WorkflowStoreImpl) UpdateWorkflowTemplate(workflow db.WorkflowTemplate) (err error) {

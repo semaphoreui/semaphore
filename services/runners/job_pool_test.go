@@ -319,3 +319,46 @@ func TestJobPool_checkNewJobs_ExecutorErrorWithoutCacheCleanProjectID(t *testing
 	})
 	assert.Equal(t, 0, p.queueLen())
 }
+
+type stubExecutor struct {
+	tasks.LocalExecutor
+	async bool
+}
+
+func (s *stubExecutor) Async() bool {
+	return s.async
+}
+
+func TestApplyJobRunResult_AsyncExecutorKeepsRunningStatus(t *testing.T) {
+	exec := &stubExecutor{
+		LocalExecutor: tasks.LocalExecutor{Task: db.Task{ID: 1}},
+		async:         true,
+	}
+	rj := &runningJob{
+		job:    exec,
+		taskID: 1,
+		status: task_logger.TaskRunningStatus,
+	}
+	exec.Logger = rj
+
+	applyJobRunResult(rj, nil, 1, task_logger.TaskStartingStatus)
+
+	assert.Equal(t, task_logger.TaskRunningStatus, rj.getStatus())
+}
+
+func TestApplyJobRunResult_SyncExecutorMarksSuccess(t *testing.T) {
+	exec := &stubExecutor{
+		LocalExecutor: tasks.LocalExecutor{Task: db.Task{ID: 2}},
+		async:         false,
+	}
+	rj := &runningJob{
+		job:    exec,
+		taskID: 2,
+		status: task_logger.TaskRunningStatus,
+	}
+	exec.Logger = rj
+
+	applyJobRunResult(rj, nil, 2, task_logger.TaskStartingStatus)
+
+	assert.Equal(t, task_logger.TaskSuccessStatus, rj.getStatus())
+}
