@@ -464,7 +464,9 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 			return
 		}
 
-		config := util.ConfigType{}
+		config := util.ConfigType{
+			Runner: &util.RunnerConfig{},
+		}
 		err = json.Unmarshal(configFileBuffer, &config)
 		if err != nil {
 			logger.ActionError(err, "parse config file", "can not parse config file")
