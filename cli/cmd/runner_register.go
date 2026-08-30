@@ -83,9 +83,10 @@ func applyRunnerRegisterFlags(cmd *cobra.Command) {
 	if cmd.PersistentFlags().Changed("tags") {
 		util.Config.Runner.Tags = runnerRegisterArgs.tags
 	}
-	if cmd.PersistentFlags().Changed("enabled") {
-		util.Config.Runner.Enabled = runnerRegisterArgs.enabled
-	}
+	// Always apply enabled: the flag defaults to true, but util.Config.Runner.Enabled
+	// stays false (zero value) unless we copy it. Without this, registration creates
+	// an inactive runner that never receives tasks.
+	util.Config.Runner.Enabled = runnerRegisterArgs.enabled
 }
 
 func registerRunner(cmd *cobra.Command) {

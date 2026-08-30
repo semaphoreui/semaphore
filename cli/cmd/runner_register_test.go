@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/util"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -108,4 +109,30 @@ func TestInitRunnerRegistrationToken_FlagFileTakesPriority(t *testing.T) {
 	initRunnerRegistrationToken()
 
 	assert.Equal(t, "flag-token", util.Config.Runner.RegistrationToken)
+}
+
+func TestApplyRunnerRegisterFlags_EnabledDefaultsTrue(t *testing.T) {
+	setupRunnerConfig()
+	util.Config.Runner.Enabled = false
+	runnerRegisterArgs.enabled = true
+
+	cmd := &cobra.Command{}
+	cmd.PersistentFlags().BoolVar(&runnerRegisterArgs.enabled, "enabled", true, "")
+	applyRunnerRegisterFlags(cmd)
+
+	assert.True(t, util.Config.Runner.Enabled)
+}
+
+func TestApplyRunnerRegisterFlags_EnabledFalseWhenFlagSet(t *testing.T) {
+	setupRunnerConfig()
+	util.Config.Runner.Enabled = true
+	runnerRegisterArgs.enabled = false
+
+	cmd := &cobra.Command{}
+	cmd.PersistentFlags().BoolVar(&runnerRegisterArgs.enabled, "enabled", true, "")
+	err := cmd.PersistentFlags().Set("enabled", "false")
+	assert.NoError(t, err)
+	applyRunnerRegisterFlags(cmd)
+
+	assert.False(t, util.Config.Runner.Enabled)
 }
