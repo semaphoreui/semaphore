@@ -56,20 +56,32 @@
             {{ $t('registrationTokenHint') }}
           </v-alert>
 
-          <v-text-field
-            v-model="checkIntervalSeconds"
-            type="number"
-            min="1"
-            class="mt-6"
-            style="max-width: 320px"
-            :label="$t('runnerCheckInterval')"
-            :hint="$t('runnerCheckIntervalHint')"
-            :rules="[checkIntervalRule]"
-            persistent-hint
-            dense
-          />
-
           <h2 class="mt-8 mb-4">{{ $t('howToRegister') }}</h2>
+
+          <v-checkbox
+              v-model="advancedOptions"
+              label="Advanced options"
+            />
+
+          <HighlightedCard
+              v-if="advancedOptions"
+              tick-left="80px"
+              style="width: 350px;"
+          >
+            <template>
+            <v-text-field
+                v-model="checkIntervalSeconds"
+                type="number"
+                min="1"
+                :label="$t('runnerCheckInterval')"
+                :hint="$t('runnerCheckIntervalHint')"
+                :rules="[checkIntervalRule]"
+                persistent-hint
+                dense
+                outlined
+            />
+            </template>
+          </HighlightedCard>
 
           <v-tabs v-model="registerTab" :show-arrows="false">
             <v-tab key="env">Env Vars</v-tab>
@@ -627,11 +639,13 @@ import RunnerForm from '@/components/RunnerForm.vue';
 import axios from 'axios';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import PageMixin from '@/components/PageMixin';
+import HighlightedCard from '@/components/HighlightedCard.vue';
 
 export default {
   mixins: [ItemListPageBase, PageMixin],
 
   components: {
+    HighlightedCard,
     CopyClipboardButton,
     RunnerForm,
     YesNoDialog,
@@ -674,10 +688,13 @@ export default {
     },
 
     runnerRegisterEnvCommand() {
+      const advancedOptions = this.advancedOptions
+        ? `SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\
+`
+        : '';
       return `SEMAPHORE_WEB_ROOT=${this.webHost} \\
 SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
-SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\
-semaphore runner register --config ./config.runner.json
+${advancedOptions}semaphore runner register --config ./config.runner.json
 
 semaphore runner start --config ./config.runner.json`;
     },
@@ -780,6 +797,7 @@ semaphore runner start --no-config`;
       unregisteredFilter: false,
       resetRegistrationDialog: false,
       resetRegistrationRunner: null,
+      advancedOptions: null,
     };
   },
 
