@@ -794,8 +794,7 @@ func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
 // from "unset" after defaults are applied, and oversized values overflow.
 func (conf *ConfigType) RunnerCheckInterval() time.Duration {
 	sec := defaultRunnerCheckIntervalSec
-	if conf.Runner != nil &&
-		conf.Runner.CheckIntervalSeconds > 0 &&
+	if conf.Runner.CheckIntervalSeconds > 0 &&
 		conf.Runner.CheckIntervalSeconds <= maxRunnerCheckIntervalSec {
 		sec = conf.Runner.CheckIntervalSeconds
 	}
@@ -932,11 +931,11 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		WebHostURL = nil
 	}
 
-	if Config.Runner != nil && Config.Runner.Token != "" && Config.Runner.TokenFile != "" {
+	if Config.Runner.Token != "" && Config.Runner.TokenFile != "" {
 		panic("SEMAPHORE_RUNNER_TOKEN and SEMAPHORE_RUNNER_TOKEN_FILE are mutually exclusive")
 	}
 
-	if Config.Runner != nil && Config.Runner.TokenFile != "" {
+	if Config.Runner.TokenFile != "" {
 		runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
 		if err == nil {
 			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
