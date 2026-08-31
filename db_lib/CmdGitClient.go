@@ -74,16 +74,8 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 
 	cmd := c.makeCmd(r, targetDir, keyInstallation, args...)
 
-	var stderrBuf bytes.Buffer
-	if r.Logger != nil {
-		if _, isNop := r.Logger.(task_logger.NopLogger); !isNop {
-			r.Logger.LogCmd(cmd)
-		} else {
-			cmd.Stderr = &stderrBuf
-		}
-	} else {
-		cmd.Stderr = &stderrBuf
-	}
+	finishLog := r.Logger.LogCmd(cmd)
+	defer finishLog()
 
 	err = cmd.Run()
 	if err != nil {

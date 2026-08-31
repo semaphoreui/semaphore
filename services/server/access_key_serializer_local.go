@@ -119,7 +119,7 @@ func (d *LocalAccessKeyDeserializer) deserialize(key *db.AccessKey, decrypt func
 				}
 			}
 
-			secretsBasePath := filepath.Clean(util.Config.Dirs.Secrets)
+			secretsBasePath := filepath.Clean(util.Config.GetSecretsPath())
 			if !filepath.IsAbs(secretsBasePath) {
 				err = common_errors.NewUserErrorS("secrets path must be absolute")
 				return

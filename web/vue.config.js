@@ -2,6 +2,9 @@ const webpack = require('webpack');
 
 module.exports = {
   configureWebpack: {
+    performance: {
+      hints: false,
+    },
     plugins: [
       new webpack.DefinePlugin({
         'process.env.VUE_APP_BUILD_TYPE': JSON.stringify(process.env.VUE_APP_BUILD_TYPE),

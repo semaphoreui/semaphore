@@ -531,6 +531,10 @@ type ConfigType struct {
 	// semaphore stores ephemeral projects here
 	TmpPath string `json:"tmp_path,omitempty" default:"/tmp/semaphore" env:"SEMAPHORE_TMP_PATH"`
 
+	// SecretsPath is a legacy top-level setting for backwards compatibility.
+	// Users should prefer configuring dirs.secrets instead.
+	SecretsPath string `json:"secrets_path,omitempty" env:"SEMAPHORE_SECRETS_PATH"`
+
 	// HomeDirMode controls how the HOME environment variable is set for tasks.
 	//   "template_home" (default) — HOME is set to a per-template directory,
 	//       isolating .ansible/ across parallel tasks. Repo is cloned into a
@@ -705,6 +709,21 @@ const (
 	defaultRunnersTaskFailTimeoutSec   = 420
 	defaultRunnersReconcileIntervalSec = 30
 )
+
+// GetSecretsPath returns the secrets path from configuration.
+// Used for backward compatibility with legacy top-level secrets_path.
+func (conf *ConfigType) GetSecretsPath() string {
+	if conf.Dirs.Secrets != "" && conf.Dirs.Secrets != "/tmp/semaphore" {
+		return conf.Dirs.Secrets
+	}
+	if conf.SecretsPath != "" {
+		return conf.SecretsPath
+	}
+	if conf.Dirs.Secrets != "" {
+		return conf.Dirs.Secrets
+	}
+	return "/tmp/semaphore"
+}
 
 // GetSshConfigPath return SSH config path from configuration.
 // Used for backward compatibility.
@@ -1034,9 +1053,17 @@ func loadDefaultsToObject(obj any) error {
 }
 
 func loadConfigDefaults() {
+	legacySecretsPath := Config.SecretsPath
+	if Config.Dirs == nil {
+		Config.Dirs = &ConfigDirs{}
+	}
 	err := loadDefaultsToObject(Config)
 	if err != nil {
 		panic(err)
+	}
+
+	if legacySecretsPath != "" && (Config.Dirs.Secrets == "/tmp/semaphore" || Config.Dirs.Secrets == "") {
+		Config.Dirs.Secrets = legacySecretsPath
 	}
 }
 
