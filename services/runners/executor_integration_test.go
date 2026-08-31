@@ -563,18 +563,28 @@ func TestExecutorFactory_ProviderRouting(t *testing.T) {
 		assert.True(t, ok, "must construct *tasks.LocalExecutorProvider")
 	})
 
-	t.Run("Docker executor provider rejected in OSS stub with clear error", func(t *testing.T) {
+	t.Run("Docker executor provider routing", func(t *testing.T) {
 		provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeDocker}, nil)
-		assert.Nil(t, provider)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "docker executor is only available in the proprietary build")
+		if err != nil {
+			// In OSS build, stub correctly reports that the executor requires the proprietary build.
+			assert.Nil(t, provider)
+			assert.Contains(t, err.Error(), "docker executor is only available in the proprietary build")
+		} else {
+			// In proprietary build, provider must be instantiated.
+			assert.NotNil(t, provider)
+		}
 	})
 
-	t.Run("Kubernetes executor provider rejected in OSS stub with clear error", func(t *testing.T) {
+	t.Run("Kubernetes executor provider routing", func(t *testing.T) {
 		provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeKubernetes}, nil)
-		assert.Nil(t, provider)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "k8s executor is only available in the proprietary build")
+		if err != nil {
+			// In OSS build, stub correctly reports that the executor requires the proprietary build.
+			assert.Nil(t, provider)
+			assert.Contains(t, err.Error(), "k8s executor is only available in the proprietary build")
+		} else {
+			// In proprietary build, provider must be instantiated.
+			assert.NotNil(t, provider)
+		}
 	})
 
 	t.Run("newExecutor factory constructs executor via custom provider interface", func(t *testing.T) {
