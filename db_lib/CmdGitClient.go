@@ -1,12 +1,15 @@
 package db_lib
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -71,9 +74,33 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 
 	cmd := c.makeCmd(r, targetDir, keyInstallation, args...)
 
-	r.Logger.LogCmd(cmd)
+	var stderrBuf bytes.Buffer
+	if r.Logger != nil {
+		if _, isNop := r.Logger.(task_logger.NopLogger); !isNop {
+			r.Logger.LogCmd(cmd)
+		} else {
+			cmd.Stderr = &stderrBuf
+		}
+	} else {
+		cmd.Stderr = &stderrBuf
+	}
 
-	return cmd.Run()
+	err = cmd.Run()
+	if err != nil {
+		subCmd := ""
+		if len(args) > 0 {
+			subCmd = args[0]
+		}
+		stderrStr := strings.TrimSpace(stderrBuf.String())
+		if stderrStr != "" {
+			err = fmt.Errorf("git %s failed: %s", subCmd, git.SanitizeGitOutput(stderrStr))
+		} else {
+			err = fmt.Errorf("git %s failed: %w", subCmd, err)
+		}
+		return err
+	}
+
+	return nil
 }
 
 func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, args ...string) (out string, err error) {
@@ -86,6 +113,19 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 
 	bytes, err := c.makeCmd(r, targetDir, keyInstallation, args...).Output()
 	if err != nil {
+		subCmd := ""
+		if len(args) > 0 {
+			subCmd = args[0]
+		}
+		var stderrStr string
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			stderrStr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		if stderrStr != "" {
+			err = fmt.Errorf("git %s failed: %s", subCmd, git.SanitizeGitOutput(stderrStr))
+		} else {
+			err = fmt.Errorf("git %s failed: %w", subCmd, err)
+		}
 		return
 	}
 	out = strings.Trim(string(bytes), " \n")

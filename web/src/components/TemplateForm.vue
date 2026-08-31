@@ -614,6 +614,8 @@
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 
 import axios from 'axios';
+import EventBus from '@/event-bus';
+import { getErrorMessage } from '@/lib/error';
 
 import ItemFormBase from '@/components/ItemFormBase';
 import 'codemirror/lib/codemirror.css';
@@ -876,6 +878,12 @@ export default {
         );
       } catch (e) {
         this.branches = null;
+        if (!axios.isCancel(e)) {
+          EventBus.$emit('i-snackbar', {
+            color: 'error',
+            text: getErrorMessage(e),
+          });
+        }
       }
     },
 
@@ -904,6 +912,12 @@ export default {
         );
       } catch (e) {
         this.playbooks = null;
+        if (!axios.isCancel(e) && !ctrl.signal.aborted) {
+          EventBus.$emit('i-snackbar', {
+            color: 'error',
+            text: getErrorMessage(e),
+          });
+        }
       } finally {
         // ponytail: guard against a newer request having replaced this one
         if (this.playbooksAbort === ctrl || this.playbooksAbort == null) {
