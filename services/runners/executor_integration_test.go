@@ -40,6 +40,8 @@ type MockDockerEngine struct {
 	containers map[string]*MockContainerState
 	volumes    map[string]bool
 	activeOps  int32
+	failStop   bool
+	failRemove bool
 }
 
 func NewMockDockerEngine() *MockDockerEngine {
@@ -82,6 +84,9 @@ func (e *MockDockerEngine) StartContainer(id string) error {
 func (e *MockDockerEngine) StopContainer(id string, timeoutSec int) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.failStop {
+		return fmt.Errorf("failed to stop container %s", id)
+	}
 	c, ok := e.containers[id]
 	if !ok {
 		return fmt.Errorf("container not found: %s", id)
@@ -93,6 +98,9 @@ func (e *MockDockerEngine) StopContainer(id string, timeoutSec int) error {
 func (e *MockDockerEngine) RemoveContainer(id string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.failRemove {
+		return fmt.Errorf("failed to remove container %s", id)
+	}
 	c, ok := e.containers[id]
 	if !ok {
 		return fmt.Errorf("container not found: %s", id)
@@ -114,6 +122,30 @@ func (e *MockDockerEngine) GetActiveOrphans() []*MockContainerState {
 	return orphans
 }
 
+// MockDockerExecutorProvider provides per-task MockDockerExecutors.
+type MockDockerExecutorProvider struct {
+	Engine *MockDockerEngine
+}
+
+func (p *MockDockerExecutorProvider) NewExecutor(
+	task db.Task,
+	template db.Template,
+	inventory db.Inventory,
+	repository db.Repository,
+	environment db.Environment,
+	jwt string,
+) (tasks.Executor, error) {
+	return &MockDockerExecutor{
+		Engine:      p.Engine,
+		Task:        task,
+		Template:    template,
+		Inventory:   inventory,
+		Repository:  repository,
+		Environment: environment,
+		Secret:      task.Secret,
+	}, nil
+}
+
 // MockDockerExecutor implements tasks.Executor for Docker ephemeral runner mode.
 type MockDockerExecutor struct {
 	Engine      *MockDockerEngine
@@ -126,11 +158,16 @@ type MockDockerExecutor struct {
 	Logger      task_logger.Logger
 
 	ContainerID string
+	prepared    bool
 	killed      bool
 	failTask    bool
 }
 
 func (d *MockDockerExecutor) Prepare(username string, incomingVersion *string, alias string) error {
+	if d.prepared {
+		return nil
+	}
+
 	envVars := []string{
 		fmt.Sprintf("SEMAPHORE_TASK_ID=%d", d.Task.ID),
 		fmt.Sprintf("SEMAPHORE_USER=%s", username),
@@ -144,6 +181,7 @@ func (d *MockDockerExecutor) Prepare(username string, incomingVersion *string, a
 		return err
 	}
 	d.ContainerID = c.ID
+	d.prepared = true
 	return nil
 }
 
@@ -230,9 +268,10 @@ type MockPodState struct {
 
 // MockK8sCluster simulates a Kubernetes cluster API for ephemeral Pod lifecycle.
 type MockK8sCluster struct {
-	mu        sync.Mutex
-	pods      map[string]*MockPodState
-	activeOps int32
+	mu         sync.Mutex
+	pods       map[string]*MockPodState
+	activeOps  int32
+	failDelete bool
 }
 
 func NewMockK8sCluster() *MockK8sCluster {
@@ -273,6 +312,9 @@ func (k *MockK8sCluster) SetPodPhase(namespace string, name string, phase string
 func (k *MockK8sCluster) DeletePod(namespace string, name string) error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
+	if k.failDelete {
+		return fmt.Errorf("failed to delete pod %s in %s", name, namespace)
+	}
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	pod, ok := k.pods[key]
 	if !ok {
@@ -295,6 +337,30 @@ func (k *MockK8sCluster) GetActiveOrphans() []*MockPodState {
 	return orphans
 }
 
+// MockK8sExecutorProvider provides per-task MockK8sExecutors.
+type MockK8sExecutorProvider struct {
+	Cluster *MockK8sCluster
+}
+
+func (p *MockK8sExecutorProvider) NewExecutor(
+	task db.Task,
+	template db.Template,
+	inventory db.Inventory,
+	repository db.Repository,
+	environment db.Environment,
+	jwt string,
+) (tasks.Executor, error) {
+	return &MockK8sExecutor{
+		Cluster:     p.Cluster,
+		Task:        task,
+		Template:    template,
+		Inventory:   inventory,
+		Repository:  repository,
+		Environment: environment,
+		Secret:      task.Secret,
+	}, nil
+}
+
 // MockK8sExecutor implements tasks.Executor for K8s ephemeral pod runner mode.
 type MockK8sExecutor struct {
 	Cluster     *MockK8sCluster
@@ -308,15 +374,23 @@ type MockK8sExecutor struct {
 
 	Namespace string
 	PodName   string
+	prepared  bool
 	killed    bool
 	failTask  bool
 }
 
 func (k *MockK8sExecutor) Prepare(username string, incomingVersion *string, alias string) error {
+	if k.prepared {
+		return nil
+	}
+
 	k.Namespace = "semaphore-test"
 	k.PodName = fmt.Sprintf("task-%d-pod", k.Task.ID)
 
 	_, err := k.Cluster.CreatePod(k.Namespace, k.PodName)
+	if err == nil {
+		k.prepared = true
+	}
 	return err
 }
 
@@ -473,11 +547,60 @@ func (m *MockLocalApp) Run(args db_lib.LocalAppRunningArgs) error {
 func (m *MockLocalApp) Clear() {}
 
 // ============================================================================
-// Integration Tests: Local, Docker, K8s Executor Modes
+// Integration Tests: Local, Docker, K8s Executor Modes & Provider Routing
 // ============================================================================
 
+// TestExecutorFactory_ProviderRouting tests that ExecutorConfig correctly resolves
+// and routes to the expected executor providers.
+func TestExecutorFactory_ProviderRouting(t *testing.T) {
+	setupIntegrationConfig(t)
+
+	t.Run("Local executor provider resolved", func(t *testing.T) {
+		provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeLocal}, nil)
+		require.NoError(t, err)
+		require.NotNil(t, provider)
+		_, ok := provider.(*tasks.LocalExecutorProvider)
+		assert.True(t, ok, "must construct *tasks.LocalExecutorProvider")
+	})
+
+	t.Run("Docker executor provider rejected in OSS stub with clear error", func(t *testing.T) {
+		provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeDocker}, nil)
+		assert.Nil(t, provider)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "docker executor is only available in the proprietary build")
+	})
+
+	t.Run("Kubernetes executor provider rejected in OSS stub with clear error", func(t *testing.T) {
+		provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeKubernetes}, nil)
+		assert.Nil(t, provider)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "k8s executor is only available in the proprietary build")
+	})
+
+	t.Run("newExecutor factory constructs executor via custom provider interface", func(t *testing.T) {
+		dockerEngine := NewMockDockerEngine()
+		dockerProvider := &MockDockerExecutorProvider{Engine: dockerEngine}
+
+		jobData := JobData{
+			Task:        db.Task{ID: 801, ProjectID: 1},
+			Template:    db.Template{ID: 1, Playbook: "deploy.yml"},
+			Inventory:   db.Inventory{ID: 1},
+			Repository:  db.Repository{ID: 1},
+			Environment: db.Environment{},
+		}
+
+		exec, err := newExecutor(jobData, nil, dockerProvider)
+		require.NoError(t, err)
+		require.NotNil(t, exec)
+
+		dockerExec, ok := exec.(*MockDockerExecutor)
+		require.True(t, ok)
+		assert.Equal(t, 801, dockerExec.Task.ID)
+	})
+}
+
 // TestExecutorModes_Lifecycle verifies that all three executor modes (Local, Docker, K8s)
-// execute tasks and clean up their execution state.
+// execute tasks, respect Prepare idempotency, and clean up their execution state.
 func TestExecutorModes_Lifecycle(t *testing.T) {
 	setupIntegrationConfig(t)
 
@@ -550,18 +673,62 @@ func TestExecutorModes_Lifecycle(t *testing.T) {
 			require.NotNil(t, exec)
 			assert.False(t, exec.IsKilled())
 
-			// Prepare phase
-			err := exec.Prepare("admin", nil, "")
-			assert.NoError(t, err, "Prepare phase should succeed")
-
-			// Run phase
-			err = exec.Run("admin", nil, "")
+			// Run performs preparation and cleanup as part of the complete executor lifecycle
+			err := exec.Run("admin", nil, "")
 			assert.NoError(t, err, "Run phase should succeed")
 
 			// Post-execution status
 			assert.Contains(t, []task_logger.TaskStatus{task_logger.TaskSuccessStatus, task_logger.TaskRunningStatus}, logger.GetStatus())
 		})
 	}
+}
+
+// TestPrepare_Idempotency verifies that calling Prepare multiple times on an executor
+// is safe and does not create duplicate ephemeral resources or leak mock objects.
+func TestPrepare_Idempotency(t *testing.T) {
+	setupIntegrationConfig(t)
+
+	t.Run("Docker executor Prepare is idempotent", func(t *testing.T) {
+		engine := NewMockDockerEngine()
+		exec := &MockDockerExecutor{
+			Engine:   engine,
+			Task:     db.Task{ID: 401},
+			Template: db.Template{Playbook: "site.yml"},
+		}
+
+		require.NoError(t, exec.Prepare("admin", nil, ""))
+		firstID := exec.ContainerID
+		require.NotEmpty(t, firstID)
+
+		// Second call must be a no-op and must not allocate a second container
+		require.NoError(t, exec.Prepare("admin", nil, ""))
+		assert.Equal(t, firstID, exec.ContainerID)
+		assert.Len(t, engine.containers, 1, "exactly one container must be created")
+
+		exec.Cleanup()
+		assert.Empty(t, engine.GetActiveOrphans(), "container must be cleaned up cleanly")
+	})
+
+	t.Run("Kubernetes executor Prepare is idempotent", func(t *testing.T) {
+		cluster := NewMockK8sCluster()
+		exec := &MockK8sExecutor{
+			Cluster:  cluster,
+			Task:     db.Task{ID: 402},
+			Template: db.Template{Playbook: "site.yml"},
+		}
+
+		require.NoError(t, exec.Prepare("admin", nil, ""))
+		firstPod := exec.PodName
+		require.NotEmpty(t, firstPod)
+
+		// Second call must be a no-op
+		require.NoError(t, exec.Prepare("admin", nil, ""))
+		assert.Equal(t, firstPod, exec.PodName)
+		assert.Len(t, cluster.pods, 1, "exactly one pod must be created")
+
+		exec.Cleanup()
+		assert.Empty(t, cluster.GetActiveOrphans(), "pod must be cleaned up cleanly")
+	})
 }
 
 // ============================================================================
@@ -818,10 +985,11 @@ func TestSecretPropagation_And_LeakGuard(t *testing.T) {
 }
 
 // ============================================================================
-// Integration Tests: Stress Testing with Concurrent Tasks
+// Integration Tests: Stress Testing & Strict FIFO Ordering
 // ============================================================================
 
-// TestStress_ConcurrentTasks verifies job pool performance and race-safety under high task concurrency.
+// TestStress_ConcurrentTasks verifies job pool FIFO queue ordering, dispatch orchestration,
+// and race-safety under high task concurrency.
 func TestStress_ConcurrentTasks(t *testing.T) {
 	prevCfg := util.Config
 	t.Cleanup(func() { util.Config = prevCfg })
@@ -835,12 +1003,8 @@ func TestStress_ConcurrentTasks(t *testing.T) {
 
 	pool := NewJobPool(nil)
 	const numTasks = 100
-	const numWorkers = 10
 
-	var completedCount int32
-	var wg sync.WaitGroup
-
-	// Enqueue tasks
+	// 1. Enqueue tasks sequentially 1..100
 	for i := 1; i <= numTasks; i++ {
 		tRunner := &job{
 			taskID: i,
@@ -852,7 +1016,35 @@ func TestStress_ConcurrentTasks(t *testing.T) {
 
 	assert.Equal(t, numTasks, pool.queueLen(), "all tasks should be queued")
 
-	// Concurrent workers processing queue
+	// 2. Verify strict FIFO queue ordering on sequential dequeue
+	dequeuedIDs := make([]int, 0, numTasks)
+	for {
+		j, ok := pool.dequeue()
+		if !ok {
+			break
+		}
+		dequeuedIDs = append(dequeuedIDs, j.taskID)
+	}
+
+	require.Len(t, dequeuedIDs, numTasks, "all tasks must be dequeued")
+	for idx, id := range dequeuedIDs {
+		assert.Equal(t, idx+1, id, "queue must drain in strict FIFO order")
+	}
+
+	// 3. Multi-worker concurrent load with execution lifecycle simulation
+	const numWorkers = 10
+	for i := 1; i <= numTasks; i++ {
+		tRunner := &job{
+			taskID: i,
+			job:    &tasks.LocalExecutor{Task: db.Task{ID: i}},
+			status: task_logger.TaskWaitingStatus,
+		}
+		pool.enqueue(tRunner)
+	}
+
+	var completedCount int32
+	var wg sync.WaitGroup
+
 	for w := 0; w < numWorkers; w++ {
 		wg.Add(1)
 		go func(workerID int) {
@@ -872,7 +1064,7 @@ func TestStress_ConcurrentTasks(t *testing.T) {
 				pool.addRunningJob(j.taskID, rj)
 
 				// Simulate execution work
-				time.Sleep(2 * time.Millisecond)
+				time.Sleep(1 * time.Millisecond)
 
 				rj.SetStatus(task_logger.TaskSuccessStatus)
 				pool.deleteRunningJob(j.taskID)
