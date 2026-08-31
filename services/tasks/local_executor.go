@@ -445,7 +445,7 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 	}
 
 	args = []string{
-		"--inventory-file", inventoryFile,
+		"--inventory", inventoryFile,
 	}
 
 	if t.Inventory.SSHKeyID != nil {
