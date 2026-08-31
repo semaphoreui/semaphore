@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -17,6 +18,30 @@ func setupExecutorConfig(t *testing.T) {
 	if util.Config == nil {
 		util.Config = &util.ConfigType{}
 	}
+}
+
+func TestGetPlaybookArgs_UsesRepositoryRootedPaths(t *testing.T) {
+	setupExecutorConfig(t)
+
+	repoRoot := t.TempDir()
+	wd := "ansible"
+	executor := LocalExecutor{
+		Template: db.Template{
+			Playbook:         "playbooks/site.yml",
+			WorkingDirectory: &wd,
+		},
+		Inventory: db.Inventory{
+			Type:      db.InventoryFile,
+			Inventory: "inventories/production.ini",
+		},
+		Repository: db.Repository{GitURL: repoRoot},
+	}
+
+	args, _, err := executor.getPlaybookArgs("", nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(repoRoot, "inventories", "production.ini"), args[1])
+	assert.Equal(t, filepath.Join(repoRoot, "playbooks", "site.yml"), args[len(args)-1])
 }
 
 // TestGetShellArgs_PassesSurveySecretVar verifies that Survey variables of type
