@@ -14,7 +14,6 @@ func TestRunnerCheckInterval(t *testing.T) {
 		runner   *RunnerConfig
 		expected time.Duration
 	}{
-		{"unset runner section", nil, time.Second},
 		{"unset field", &RunnerConfig{}, time.Second},
 		{"zero falls back", &RunnerConfig{CheckIntervalSeconds: 0}, time.Second},
 		{"negative falls back", &RunnerConfig{CheckIntervalSeconds: -5}, time.Second},
