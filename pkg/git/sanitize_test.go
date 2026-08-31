@@ -47,6 +47,16 @@ func TestSanitizeGitOutput(t *testing.T) {
 			input:    "Cloning from https://oauth2:token123@gitlab.com/a.git and https://bot:pass456@github.com/b.git",
 			expected: "Cloning from https://oauth2:***@gitlab.com/a.git and https://bot:***@github.com/b.git",
 		},
+		{
+			name:     "query parameter access token in url",
+			input:    "fatal: unable to access 'https://git.example/repo.git?access_token=secret_token_123&env=prod': 401 Unauthorized",
+			expected: "fatal: unable to access 'https://git.example/repo.git?access_token=***&env=prod': 401 Unauthorized",
+		},
+		{
+			name:     "query parameter private token in url",
+			input:    "fatal: remote error from https://gitlab.corp/project.git?private_token=super_secret_pat",
+			expected: "fatal: remote error from https://gitlab.corp/project.git?private_token=***",
+		},
 	}
 
 	for _, tt := range tests {

@@ -6,8 +6,10 @@ import (
 )
 
 var (
-	// urlUserInfoRegex matches scheme://userinfo@ in URLs
+	// urlUserInfoRegex matches scheme://userinfo@ in URLs (including passwords with '@' characters)
 	urlUserInfoRegex = regexp.MustCompile(`(https?://)([^/\s]+)@`)
+	// urlQueryParamRegex matches sensitive credential query parameters in URLs
+	urlQueryParamRegex = regexp.MustCompile(`(?i)([?&](?:access_token|token|private_token|password|secret|api_key|apikey)=)([^&\s]+)`)
 )
 
 // SanitizeGitOutput redacts sensitive credentials (such as passwords, tokens, and basic auth)
@@ -17,7 +19,7 @@ func SanitizeGitOutput(output string) string {
 		return ""
 	}
 
-	return urlUserInfoRegex.ReplaceAllStringFunc(output, func(match string) string {
+	sanitized := urlUserInfoRegex.ReplaceAllStringFunc(output, func(match string) string {
 		sub := urlUserInfoRegex.FindStringSubmatch(match)
 		if len(sub) < 3 {
 			return match
@@ -35,4 +37,6 @@ func SanitizeGitOutput(output string) string {
 		// scheme://user:password@ -> scheme://user:***@
 		return scheme + user + ":***@"
 	})
+
+	return urlQueryParamRegex.ReplaceAllString(sanitized, "${1}***")
 }
