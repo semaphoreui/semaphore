@@ -119,7 +119,7 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		branchHash := sha1.Sum([]byte(branch))
 		gitRepo := db_lib.GitRepository{
 			Repository: repoCopy,
-			TmpDirName: fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
+			TmpDirName: fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash),
 			Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
 			Logger:     task_logger.NopLogger{},
 		}
