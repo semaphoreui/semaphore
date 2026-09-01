@@ -453,7 +453,9 @@
 import ItemFormBase from '@/components/ItemFormBase';
 
 import { codemirror } from 'vue-codemirror';
-import { load as loadYaml, dump as dumpYaml } from 'js-yaml';
+import {
+  load as loadYaml, dump as dumpYaml, JSON_SCHEMA,
+} from 'js-yaml';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/mode/yaml/yaml.js';
@@ -513,10 +515,18 @@ export default {
         }
         case 'yaml': {
           try {
+            // JSON_SCHEMA restricts resolved types to what JSON itself can
+            // represent (null/bool/number/string/array/object), so e.g. an
+            // unquoted date like 2024-01-01 stays a string instead of
+            // js-yaml's default auto-conversion to a Date -- at any nesting
+            // depth, not just the root -- which would otherwise silently
+            // mangle the value (Date -> ISO string on save) or misclassify
+            // it as a dict in Table mode (Date is typeof 'object').
+            //
             // Only an empty document (loadYaml returns undefined) defaults to
             // {}. Valid falsy YAML values (false, 0, null) must be preserved
             // as-is rather than silently coerced.
-            const loaded = loadYaml(this.yaml);
+            const loaded = loadYaml(this.yaml, { schema: JSON_SCHEMA });
             source = loaded === undefined ? {} : loaded;
             this.formError = null;
           } catch (err) {
@@ -547,6 +557,22 @@ export default {
       // that off for every transition, not just entering Table.
       if (!this.isPlainObject(source)) {
         this.revertExtraVarsMode(oldVal, 'Extra variables must be an object, e.g. { "key": "value" }.');
+        return;
+      }
+
+      // JSON_SCHEMA still resolves .inf/-.inf/.nan to real Infinity/NaN
+      // numbers (JSON itself has no such literals -- there was nothing more
+      // restrictive to parse them as). JSON.stringify doesn't throw for
+      // these; it silently writes "null", discarding the value the same way
+      // an unguarded Date would have. Object.values / Array.prototype.every
+      // walk arbitrarily-nested values; seen guards against infinite
+      // recursion on a circular value (left for the try/catch below, via
+      // the thrown "circular structure" error, to report instead).
+      if (!this.isJsonSafeValue(source, new Set())) {
+        this.revertExtraVarsMode(
+          oldVal,
+          'Extra variables contain a number that is not finite (Infinity/NaN). Use a finite number or a quoted string instead.',
+        );
         return;
       }
 
@@ -722,6 +748,33 @@ export default {
       return proto === Object.prototype || proto === null;
     },
 
+    // isJsonSafeValue recursively rejects NaN/Infinity/-Infinity anywhere in
+    // value: JSON.stringify silently turns these into null instead of
+    // throwing, so they'd otherwise pass every other check and still corrupt
+    // the saved data. seen avoids infinite recursion on a circular
+    // reference; that case is left to throw naturally so the try/catch below
+    // (or beforeSave's own try/catch) reports it instead.
+    isJsonSafeValue(value, seen) {
+      if (typeof value === 'number') {
+        return Number.isFinite(value);
+      }
+      if (Array.isArray(value)) {
+        if (seen.has(value)) {
+          return true;
+        }
+        seen.add(value);
+        return value.every((v) => this.isJsonSafeValue(v, seen));
+      }
+      if (this.isPlainObject(value)) {
+        if (seen.has(value)) {
+          return true;
+        }
+        seen.add(value);
+        return Object.values(value).every((v) => this.isJsonSafeValue(v, seen));
+      }
+      return true;
+    },
+
     // revertExtraVarsMode undoes a Table/JSON/YAML switch that failed to
     // convert (parse error, non-object root, or a serialization failure such
     // as a circular YAML alias), restoring the mode being left. Reassigning
@@ -871,7 +924,9 @@ export default {
           break;
         case 'yaml':
           try {
-            const loaded = loadYaml(this.yaml);
+            // See the matching loadYaml call in the watcher above for why
+            // JSON_SCHEMA is used (keeps timestamps as plain strings).
+            const loaded = loadYaml(this.yaml, { schema: JSON_SCHEMA });
             const value = loaded === undefined ? {} : loaded;
             // Same constraint as the table-mode guard in the watcher above:
             // extra variables must be a plain object. A null/scalar/array
@@ -880,6 +935,11 @@ export default {
             // of extra variables, silently discarding whatever the user typed.
             if (!this.isPlainObject(value)) {
               throw new Error('must be an object, e.g. { "key": "value" }');
+            }
+            // See isJsonSafeValue in the watcher: JSON.stringify silently
+            // turns Infinity/-Infinity/NaN into null instead of throwing.
+            if (!this.isJsonSafeValue(value, new Set())) {
+              throw new Error('contains a number that is not finite (Infinity/NaN)');
             }
             this.item.json = JSON.stringify(value);
           } catch (err) {
