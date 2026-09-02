@@ -577,6 +577,8 @@ export default {
   workflowSelfEdgeBlocked: 'A node cannot connect to itself.',
   workflowCycleBlocked: 'This connection would create a cycle.',
   workflowProblemsPanelTitle: 'Problems',
+  workflowSidebarCollapse: 'Collapse panel',
+  workflowSidebarExpand: 'Expand panel',
   workflowValidationPassed: 'Workflow is valid.',
   workflowErrorNoNodes: 'Add at least one node.',
   workflowErrorNoRoot: 'Workflow must have exactly one starting node.',

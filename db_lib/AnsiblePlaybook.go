@@ -44,16 +44,15 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 
 func (p AnsiblePlaybook) runCmd(command string, args []string, environmentVars []string) error {
 	cmd := p.makeCmd(command, args, environmentVars)
-	p.Logger.LogCmd(cmd)
-	err := cmd.Run()
-	// Wait for all log processing to complete before returning
-	p.Logger.WaitLog()
-	return err
+	finishLog := p.Logger.LogCmd(cmd)
+	defer finishLog()
+	return cmd.Run()
 }
 
 func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
 	cmd := p.makeCmd("ansible-playbook", args, environmentVars)
-	p.Logger.LogCmd(cmd)
+	finishLog := p.Logger.LogCmd(cmd)
+	defer finishLog()
 
 	ptmx, err := pty.Start(cmd)
 
@@ -88,8 +87,6 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 	defer func() { _ = ptmx.Close() }()
 	cb(cmd.Process)
 	err = cmd.Wait()
-	// Wait for all log processing to complete before returning
-	p.Logger.WaitLog()
 	return err
 }
 
