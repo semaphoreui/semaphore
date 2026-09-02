@@ -700,11 +700,13 @@ semaphore runner start --config ./config.runner.json`;
     },
 
     runnerRegisterConfigContent() {
-      return `{
-  "web_host": "${this.webHost || window.location.origin}",
-  "runner": {
+      const advancedOptions = this.advancedOptions
+        ? `,\n  "runner": {
     "check_interval_seconds": ${this.checkInterval}
-  }
+  }` : '';
+
+      return `{
+  "web_host": "${this.webHost || window.location.origin}"${advancedOptions}
 }`;
     },
 
@@ -716,11 +718,12 @@ semaphore runner start --config ./config.runner.json`;
     },
 
     runnerRegisterDockerCommand() {
+      const advancedOptions = this.advancedOptions
+        ? `-e SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\\n` : '';
       return `docker run \\
 -e SEMAPHORE_WEB_ROOT=${this.webHost} \\
 -e SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
--e SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\
--d semaphoreui/runner:${this.version}`;
+${advancedOptions}-d semaphoreui/runner:${this.version}`;
     },
 
     runnerConfigCommand() {
