@@ -8,6 +8,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// intHoldsOverflowingInterval reports whether an int is wide enough to express a
+// value past the duration limit. On 32-bit targets (386, arm) it is not, so
+// those cases cannot occur there and are skipped.
+const intHoldsOverflowingInterval = int64(math.MaxInt) > maxRunnerCheckIntervalSec
+
+// A variable, not a constant: int(maxIntervalSec) would be a constant
+// conversion and fail to compile on 32-bit even inside a guarded branch.
+var maxIntervalSec = maxRunnerCheckIntervalSec
+
 func TestRunnerCheckInterval(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -20,10 +29,25 @@ func TestRunnerCheckInterval(t *testing.T) {
 		{"negative falls back", &RunnerConfig{CheckIntervalSeconds: -5}, time.Second},
 		{"configured", &RunnerConfig{CheckIntervalSeconds: 10}, 10 * time.Second},
 		{"large", &RunnerConfig{CheckIntervalSeconds: 300}, 5 * time.Minute},
-		{"max representable", &RunnerConfig{CheckIntervalSeconds: maxRunnerCheckIntervalSec},
-			time.Duration(maxRunnerCheckIntervalSec) * time.Second},
-		{"overflows falls back", &RunnerConfig{CheckIntervalSeconds: maxRunnerCheckIntervalSec + 1}, time.Second},
-		{"far past overflow falls back", &RunnerConfig{CheckIntervalSeconds: math.MaxInt64}, time.Second},
+		{"largest int", &RunnerConfig{CheckIntervalSeconds: math.MaxInt},
+			time.Duration(clampInterval(math.MaxInt)) * time.Second},
+	}
+
+	if intHoldsOverflowingInterval {
+		tests = append(tests,
+			struct {
+				name     string
+				runner   *RunnerConfig
+				expected time.Duration
+			}{"max representable", &RunnerConfig{CheckIntervalSeconds: int(maxIntervalSec)},
+				time.Duration(maxRunnerCheckIntervalSec) * time.Second},
+			struct {
+				name     string
+				runner   *RunnerConfig
+				expected time.Duration
+			}{"overflows falls back", &RunnerConfig{CheckIntervalSeconds: int(maxIntervalSec) + 1},
+				time.Second},
+		)
 	}
 
 	for _, tt := range tests {
@@ -34,9 +58,22 @@ func TestRunnerCheckInterval(t *testing.T) {
 	}
 }
 
+func clampInterval(sec int) int64 {
+	v := int64(sec)
+	if v > 0 && v <= maxRunnerCheckIntervalSec {
+		return v
+	}
+	return int64(defaultRunnerCheckIntervalSec)
+}
+
 // The result must always be safe for time.NewTicker.
 func TestRunnerCheckIntervalNeverPanicsTicker(t *testing.T) {
-	for _, sec := range []int{0, -1, 1, 300, maxRunnerCheckIntervalSec, maxRunnerCheckIntervalSec + 1, math.MaxInt64} {
+	secs := []int{0, -1, 1, 300, math.MaxInt}
+	if intHoldsOverflowingInterval {
+		secs = append(secs, int(maxIntervalSec), int(maxIntervalSec)+1)
+	}
+
+	for _, sec := range secs {
 		conf := &ConfigType{Runner: &RunnerConfig{CheckIntervalSeconds: sec}}
 		d := conf.RunnerCheckInterval()
 

@@ -718,8 +718,9 @@ const (
 // Default poll interval for a runner asking the server for work.
 const defaultRunnerCheckIntervalSec = 1
 
-// Larger overflows time.Duration and panics time.NewTicker.
-const maxRunnerCheckIntervalSec = int(math.MaxInt64 / int64(time.Second))
+// Larger overflows time.Duration and panics time.NewTicker. Kept as int64: the
+// value exceeds int on 32-bit release targets (386, arm).
+const maxRunnerCheckIntervalSec int64 = int64(math.MaxInt64) / int64(time.Second)
 
 // GetSecretsPath returns the secrets path from configuration.
 // Used for backward compatibility with legacy top-level secrets_path.
@@ -793,11 +794,12 @@ func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
 // jobs. Out-of-range values fall back to the default: 0 is indistinguishable
 // from "unset" after defaults are applied, and oversized values overflow.
 func (conf *ConfigType) RunnerCheckInterval() time.Duration {
-	sec := defaultRunnerCheckIntervalSec
-	if conf.Runner != nil &&
-		conf.Runner.CheckIntervalSeconds > 0 &&
-		conf.Runner.CheckIntervalSeconds <= maxRunnerCheckIntervalSec {
-		sec = conf.Runner.CheckIntervalSeconds
+	sec := int64(defaultRunnerCheckIntervalSec)
+	if conf.Runner != nil {
+		configured := int64(conf.Runner.CheckIntervalSeconds)
+		if configured > 0 && configured <= maxRunnerCheckIntervalSec {
+			sec = configured
+		}
 	}
 	return time.Duration(sec) * time.Second
 }
