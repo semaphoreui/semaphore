@@ -795,11 +795,9 @@ func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
 // from "unset" after defaults are applied, and oversized values overflow.
 func (conf *ConfigType) RunnerCheckInterval() time.Duration {
 	sec := int64(defaultRunnerCheckIntervalSec)
-	if conf.Runner != nil {
-		configured := int64(conf.Runner.CheckIntervalSeconds)
-		if configured > 0 && configured <= maxRunnerCheckIntervalSec {
-			sec = configured
-		}
+	if configured := int64(conf.Runner.CheckIntervalSeconds); configured > 0 &&
+		configured <= maxRunnerCheckIntervalSec {
+		sec = configured
 	}
 	return time.Duration(sec) * time.Second
 }
