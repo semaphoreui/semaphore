@@ -148,6 +148,7 @@
             item-value="id"
             item-text="name"
             :rules="isFieldRequired('repository') ? [(v) => !!v || $t('repository_required')] : []"
+            :error-messages="branchesError"
             outlined
             dense
             :required="isFieldRequired('repository')"
@@ -191,6 +192,7 @@
                 :items="branches"
                 v-model="item.git_branch"
                 :label="fieldLabel('branch')"
+                :error-messages="branchesError"
                 outlined
                 dense
                 :disabled="formSaving"
@@ -202,6 +204,7 @@
                 clearable
                 v-model="item.git_branch"
                 :label="fieldLabel('branch')"
+                :error-messages="branchesError"
                 outlined
                 dense
                 :disabled="formSaving"
@@ -221,6 +224,7 @@
               :rules="
                 isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
               "
+              :error-messages="playbooksError"
               outlined
               dense
               clearable
@@ -247,6 +251,7 @@
               :rules="
                 isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
               "
+              :error-messages="playbooksError"
               outlined
               dense
               :required="isFieldRequired('playbook')"
@@ -613,7 +618,6 @@
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 
 import axios from 'axios';
-import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 
 import ItemFormBase from '@/components/ItemFormBase';
@@ -704,15 +708,18 @@ export default {
       args: [],
       runnerTags: null,
       branches: null,
+      branchesError: null,
       playbooks: null,
       playbooksLoading: false,
       playbooksAbort: null,
+      playbooksError: null,
       setBranch: false,
     };
   },
 
   watch: {
     gitBranchOfTemplate() {
+      this.playbooksError = null;
       if (this.playbooks != null) {
         this.playbooks = null;
         this.loadPlaybooks();
@@ -721,7 +728,9 @@ export default {
 
     async repositoryId() {
       this.branches = null;
+      this.branchesError = null;
       this.playbooks = null;
+      this.playbooksError = null;
 
       await Promise.all([this.loadBranches()]);
     },
@@ -871,6 +880,8 @@ export default {
         return;
       }
 
+      this.branchesError = null;
+
       try {
         this.branches = await this.loadProjectEndpoint(
           `/repositories/${this.repositoryId}/branches`,
@@ -878,10 +889,7 @@ export default {
       } catch (e) {
         this.branches = null;
         if (!axios.isCancel(e)) {
-          EventBus.$emit('i-snackbar', {
-            color: 'error',
-            text: getErrorMessage(e),
-          });
+          this.branchesError = getErrorMessage(e);
         }
       }
     },
@@ -900,6 +908,7 @@ export default {
       }
 
       this.cancelPlaybookLoading();
+      this.playbooksError = null;
       const ctrl = new AbortController();
       this.playbooksAbort = ctrl;
       this.playbooksLoading = true;
@@ -912,10 +921,7 @@ export default {
       } catch (e) {
         this.playbooks = null;
         if (!axios.isCancel(e) && !ctrl.signal.aborted) {
-          EventBus.$emit('i-snackbar', {
-            color: 'error',
-            text: getErrorMessage(e),
-          });
+          this.playbooksError = getErrorMessage(e);
         }
       } finally {
         // ponytail: guard against a newer request having replaced this one
