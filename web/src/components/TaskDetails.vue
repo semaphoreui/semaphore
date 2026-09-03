@@ -83,10 +83,10 @@
                   <td><b>{{ $t('integration') }}</b></td>
                   <td>
                     <router-link
-                      v-if="integration"
+                      v-if="isReady(integration)"
                       :to="`/project/${projectId}/integrations/${item.integration_id}`"
-                    >{{ integration.name }}</router-link>
-                    <span v-else>{{ $t('deletedOrigin', { id: item.integration_id }) }}</span>
+                    >{{ integration.data.name }}</router-link>
+                    <span v-else>{{ originLabel(integration, item.integration_id) }}</span>
                   </td>
                 </tr>
                 <tr v-else-if="item.schedule_id != null">
@@ -94,10 +94,10 @@
                   <td>
                     <!-- Schedules have no detail page, so link to the list. -->
                     <router-link
-                      v-if="schedule"
+                      v-if="isReady(schedule)"
                       :to="`/project/${projectId}/schedule`"
-                    >{{ schedule.name || $t('unnamedSchedule') }}</router-link>
-                    <span v-else>{{ $t('deletedOrigin', { id: item.schedule_id }) }}</span>
+                    >{{ schedule.data.name || $t('unnamedSchedule') }}</router-link>
+                    <span v-else>{{ originLabel(schedule, item.schedule_id) }}</span>
                   </td>
                 </tr>
                 <tr>
@@ -239,8 +239,8 @@ export default {
   props: {
     item: Object,
     user: Object,
-    // The schedule or integration that started the task. Null when a person
-    // started it, or when the origin has been deleted since.
+    // { status: 'loading' | 'ready' | 'missing' | 'error', data } for the
+    // schedule or integration that started the task; null when a person did.
     schedule: Object,
     integration: Object,
     projectId: Number,
@@ -290,6 +290,19 @@ export default {
   },
 
   methods: {
+    isReady(origin) {
+      return origin != null && origin.status === 'ready';
+    },
+
+    // Only a confirmed 404 says "deleted"; while loading or after an unrelated
+    // failure the id alone is all we can honestly show.
+    originLabel(origin, id) {
+      if (origin != null && origin.status === 'missing') {
+        return this.$t('deletedOrigin', { id });
+      }
+      return `#${id}`;
+    },
+
     async loadData() {
       this.template = await this.loadProjectResource('templates', this.item.template_id);
     },

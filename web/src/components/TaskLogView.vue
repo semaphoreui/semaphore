@@ -407,6 +407,8 @@ export default {
       this.outputBuffer = [];
       this.outputInterval = null;
       this.user = {};
+      this.schedule = null;
+      this.integration = null;
     },
 
     onWebsocketDataReceived(data) {
@@ -432,23 +434,31 @@ export default {
       }
     },
 
-    // Fetches an object that may have been deleted since the task ran; a
-    // missing origin must leave the task view working, not break it.
-    async loadOptional(url) {
+    // Only a 404 proves the origin is gone. A timeout or a 500 means we simply
+    // do not know, and must not be reported to the user as "deleted".
+    async loadOrigin(url) {
       try {
-        return (await axios({ method: 'get', url, responseType: 'json' })).data;
+        return { status: 'ready', data: (await axios({ method: 'get', url, responseType: 'json' })).data };
       } catch (e) {
-        return null;
+        return { status: e.response && e.response.status === 404 ? 'missing' : 'error', data: null };
       }
     },
 
     async loadData() {
-      [
-        this.output,
-        this.user,
-        this.schedule,
-        this.integration,
-      ] = await Promise.all([
+      // Distinguishes "still loading" from "not there", so a valid origin is
+      // never briefly labelled as deleted.
+      if (this.item.schedule_id) {
+        this.schedule = { status: 'loading', data: null };
+      }
+      if (this.item.integration_id) {
+        this.integration = { status: 'loading', data: null };
+      }
+
+      // These requests are fired again on every task change; without this the
+      // slower response of an earlier task can land after a later one.
+      const requested = { project: this.projectId, task: this.itemId };
+
+      const [output, user, schedule, integration] = await Promise.all([
 
         (await axios({
           method: 'get',
@@ -466,13 +476,22 @@ export default {
         })).data : null,
 
         this.item.schedule_id
-          ? this.loadOptional(`/api/project/${this.projectId}/schedules/${this.item.schedule_id}`)
+          ? this.loadOrigin(`/api/project/${this.projectId}/schedules/${this.item.schedule_id}`)
           : null,
 
         this.item.integration_id
-          ? this.loadOptional(`/api/project/${this.projectId}/integrations/${this.item.integration_id}`)
+          ? this.loadOrigin(`/api/project/${this.projectId}/integrations/${this.item.integration_id}`)
           : null,
       ]);
+
+      if (requested.project !== this.projectId || requested.task !== this.itemId) {
+        return;
+      }
+
+      this.output = output;
+      this.user = user;
+      this.schedule = schedule;
+      this.integration = integration;
     },
   },
 };
