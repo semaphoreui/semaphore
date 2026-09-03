@@ -405,6 +405,8 @@ export default {
   empty: 'Empty',
   noValues: 'No values',
   addArg: 'Add arg',
+  deletedOrigin: '#{id} (deleted)',
+  unnamedSchedule: 'Schedule',
 
   status_success: 'Success',
   status_failed: 'Failed',
