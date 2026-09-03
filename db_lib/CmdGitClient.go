@@ -140,6 +140,36 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 		strconv.Itoa(util.Config.GetGitSubmoduleJobs()))
 }
 
+func (c CmdGitClient) CloneLocal(r GitRepository, source, hash string) error {
+	r.Logger.Log("Creating task copy of the repository")
+
+	destPath := r.GetFullPath()
+
+	if err := os.MkdirAll(destPath, 0755); err != nil {
+		return err
+	}
+	if err := util.ChownDir(destPath); err != nil {
+		return err
+	}
+
+	if err := c.run(r, GitRepositoryTmpPath, "clone", "--end-of-options", source, destPath); err != nil {
+		return err
+	}
+	if err := c.run(r, GitRepositoryFullPath, "checkout", "--end-of-options", hash); err != nil {
+		return err
+	}
+	if err := copySubmoduleStore(source, destPath); err != nil {
+		return err
+	}
+	return c.run(r, GitRepositoryFullPath,
+		"submodule",
+		"update",
+		"--init",
+		"--recursive",
+		"--jobs",
+		strconv.Itoa(util.Config.GetGitSubmoduleJobs()))
+}
+
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {
 	r.Logger.Log("Checkout repository to " + target)
 

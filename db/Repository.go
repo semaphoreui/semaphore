@@ -32,6 +32,10 @@ type Repository struct {
 	SSHKeyID  int    `db:"ssh_key_id" json:"ssh_key_id" binding:"required" backup:"-"`
 
 	SSHKey AccessKey `db:"-" json:"-" backup:"-"`
+
+	// WorkingCopyPath is the task copy to read repository files from. Empty
+	// when the task reads the shared per-template checkout.
+	WorkingCopyPath string `db:"-" json:"-" backup:"-"`
 }
 
 func (r Repository) ClearCache() error {
@@ -61,7 +65,9 @@ func (r Repository) GetInternalPath(templateID int) string {
 	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetDirName(templateID)+"_internal")
 }
 
-// GetFullPath returns the path where the repository source code lives.
+// GetFullPath returns the shared per-template checkout, the mirror kept up to
+// date by pull/clone. Code that reads repository files for a running task must
+// use GetWorkingCopyPath instead: a parallel task reads its own copy.
 // The repository is cloned directly into the template directory
 // (e.g. repository_15_template_114) without any subdirectory.
 func (r Repository) GetFullPath(templateID int) string {
@@ -69,6 +75,20 @@ func (r Repository) GetFullPath(templateID int) string {
 		return r.GetGitURL(true)
 	}
 	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetDirName(templateID))
+}
+
+// GetWorkingCopyPath returns the path to read repository files from for
+// templateID: the WorkingCopyPath override when set, otherwise GetFullPath.
+func (r Repository) GetWorkingCopyPath(templateID int) string {
+	if r.WorkingCopyPath != "" {
+		return r.WorkingCopyPath
+	}
+	return r.GetFullPath(templateID)
+}
+
+func (r Repository) GetTaskCopyPath(templateID, taskID int) string {
+	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID),
+		r.GetDirName(templateID)+"_task_"+strconv.Itoa(taskID))
 }
 
 func (r Repository) GetGitURL(secure bool) string {

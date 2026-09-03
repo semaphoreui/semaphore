@@ -938,6 +938,18 @@ func (t *LocalExecutor) Cleanup() {
 	if t.App != nil {
 		t.App.Clear()
 	}
+	if t.Repository.WorkingCopyPath != "" {
+		if err := os.RemoveAll(t.Repository.WorkingCopyPath); err != nil {
+			t.Log("Failed to remove the task copy of the repository: " + err.Error())
+		}
+	}
+}
+
+func resolveTaskCopyPath(repository db.Repository, template db.Template, task db.Task) string {
+	if repository.GetType() == db.RepositoryLocal || !template.AllowParallelTasks {
+		return ""
+	}
+	return repository.GetTaskCopyPath(template.ID, task.ID)
 }
 
 // resolveGitBranch computes the effective git branch for a run, applying the
@@ -1075,13 +1087,6 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 	return nil
 }
 
-// updateAndCheckoutRepository runs the pull/clone + checkout sequence as one
-// critical section per repository directory, so parallel tasks of the same
-// template cannot run concurrent git operations on the shared working copy.
-//
-// ponytail: the lock covers git operations only; parallel tasks pinned to
-// different commits still share the working tree afterwards — per-task
-// worktrees if that ever matters.
 func (t *LocalExecutor) updateAndCheckoutRepository() error {
 	unlock := t.RepoLock.Lock(t.Repository.GetFullPath(t.Template.ID))
 	defer unlock()
@@ -1091,12 +1096,56 @@ func (t *LocalExecutor) updateAndCheckoutRepository() error {
 		return err
 	}
 
+	if t.Repository.WorkingCopyPath != "" {
+		if err := t.checkoutTaskCopy(); err != nil {
+			t.Log("Failed to create the task copy of the repository: " + err.Error())
+			return err
+		}
+		return nil
+	}
+
 	if err := t.checkoutRepository(); err != nil {
 		t.Log("Failed to checkout repository to required commit: " + err.Error())
 		return err
 	}
-
 	return nil
+}
+
+func (t *LocalExecutor) checkoutTaskCopy() error {
+	sharedRepo := db_lib.GitRepository{
+		Logger:     t.Logger,
+		TemplateID: t.Template.ID,
+		Repository: t.Repository,
+		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
+	}
+
+	// A crashed previous run may have left this directory behind.
+	if err := os.RemoveAll(t.Repository.WorkingCopyPath); err != nil {
+		return err
+	}
+
+	var commitHash string
+	if t.Task.CommitHash != nil {
+		commitHash = *t.Task.CommitHash
+	} else {
+		var err error
+		commitHash, err = sharedRepo.GetLastCommitHash()
+		if err != nil {
+			return err
+		}
+
+		commitMessage, err := sharedRepo.GetLastCommitMessage()
+		if err != nil {
+			t.Log(err.Error())
+		}
+
+		t.SetCommit(commitHash, commitMessage)
+	}
+
+	taskCopy := sharedRepo
+	taskCopy.TmpDirName = path.Base(t.Repository.WorkingCopyPath)
+
+	return taskCopy.CloneLocal(sharedRepo.GetFullPath(), commitHash)
 }
 
 func (t *LocalExecutor) updateRepository() error {

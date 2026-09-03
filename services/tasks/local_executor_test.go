@@ -1,13 +1,19 @@
 package tasks
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func setupExecutorConfig(t *testing.T) {
@@ -363,3 +369,165 @@ func strPtr(s string) *string {
 	return &s
 }
 
+func TestResolveTaskCopyPath(t *testing.T) {
+	setupExecutorConfig(t)
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+
+	parallelTemplate := db.Template{ID: 5, AllowParallelTasks: true}
+	task := db.Task{ID: 9}
+
+	tests := []struct {
+		name         string
+		repository   db.Repository
+		template     db.Template
+		expectedPath string
+	}{
+		{
+			name:         "parallel template gets its own task copy",
+			repository:   db.Repository{ID: 1, GitURL: "https://example.com/x.git"},
+			template:     parallelTemplate,
+			expectedPath: "/tmp/project_0/repository_1_template_5_task_9",
+		},
+		{
+			name:         "non-parallel template keeps the shared repository",
+			repository:   db.Repository{ID: 1, GitURL: "https://example.com/x.git"},
+			template:     db.Template{ID: 5, AllowParallelTasks: false},
+			expectedPath: "",
+		},
+		{
+			name:         "local repository type keeps the shared repository",
+			repository:   db.Repository{ID: 1, GitURL: "/local/path"},
+			template:     parallelTemplate,
+			expectedPath: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expectedPath, resolveTaskCopyPath(tt.repository, tt.template, task))
+		})
+	}
+}
+
+func gitCmd(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
+	return string(out)
+}
+
+func gitInitTwoBranches(t *testing.T, dir string) (string, string) {
+	t.Helper()
+	gitCmd(t, dir, "init", "-q", "-b", "main")
+	gitCmd(t, dir, "config", "user.email", "t@t")
+	gitCmd(t, dir, "config", "user.name", "t")
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "marker"), []byte("base"), 0644))
+	gitCmd(t, dir, "add", "marker")
+	gitCmd(t, dir, "commit", "-qm", "base")
+
+	gitCmd(t, dir, "checkout", "-q", "-b", "feature")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "marker"), []byte("feature-content"), 0644))
+	gitCmd(t, dir, "add", "marker")
+	gitCmd(t, dir, "commit", "-qm", "feature")
+	featureHash := strings.TrimSpace(gitCmd(t, dir, "rev-parse", "HEAD"))
+
+	gitCmd(t, dir, "checkout", "-q", "main")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "marker"), []byte("main-content"), 0644))
+	gitCmd(t, dir, "add", "marker")
+	gitCmd(t, dir, "commit", "-qm", "main")
+	mainHash := strings.TrimSpace(gitCmd(t, dir, "rev-parse", "HEAD"))
+
+	return mainHash, featureHash
+}
+
+// TestUpdateAndCheckoutRepository_IsolatesParallelBranches covers the reported
+// scenario: a template that allows parallel tasks and branch overrides, with
+// two tasks started on diverged branches and no pinned commit. Each task must
+// run its own branch and record the commit it actually ran.
+func TestUpdateAndCheckoutRepository_IsolatesParallelBranches(t *testing.T) {
+	for _, gitClientId := range []string{util.CmdGitClientId, util.GoGitClientId} {
+		t.Run(gitClientId, func(t *testing.T) {
+			original := util.Config
+			t.Cleanup(func() { util.Config = original })
+			util.Config = &util.ConfigType{
+				TmpPath:     t.TempDir(),
+				GitClientId: gitClientId,
+				Process:     &util.ConfigProcess{},
+			}
+
+			upstream := t.TempDir()
+			mainHash, featureHash := gitInitTwoBranches(t, upstream)
+
+			repository := db.Repository{
+				ID:        1,
+				ProjectID: 1,
+				GitURL:    "file://" + upstream,
+				GitBranch: "main",
+				SSHKey:    db.AccessKey{Type: db.AccessKeyNone},
+			}
+			template := db.Template{ID: 1, AllowParallelTasks: true, AllowOverrideBranchInTask: true}
+			repoLock := &KeyLock{}
+			featureBranch := "feature"
+
+			tests := []struct {
+				task            db.Task
+				expectedContent string
+				expectedHash    string
+			}{
+				{
+					task:            db.Task{ID: 201, TemplateID: template.ID},
+					expectedContent: "main-content",
+					expectedHash:    mainHash,
+				},
+				{
+					task:            db.Task{ID: 202, TemplateID: template.ID, GitBranch: &featureBranch},
+					expectedContent: "feature-content",
+					expectedHash:    featureHash,
+				},
+			}
+
+			executors := make([]*LocalExecutor, len(tests))
+			for i, tt := range tests {
+				taskRepository := repository
+				// prepareRun resolves the branch before updating the repository.
+				taskRepository.GitBranch = resolveGitBranch(repository.GitBranch, template, tt.task)
+				taskRepository.WorkingCopyPath = resolveTaskCopyPath(repository, template, tt.task)
+				executors[i] = &LocalExecutor{
+					Task:         tt.task,
+					Template:     template,
+					Repository:   taskRepository,
+					Logger:       task_logger.NopLogger{},
+					KeyInstaller: &KeyInstallerMock{},
+					RepoLock:     repoLock,
+				}
+			}
+
+			var wg sync.WaitGroup
+			errs := make([]error, len(executors))
+			wg.Add(len(executors))
+			for i := range executors {
+				go func(i int) {
+					defer wg.Done()
+					errs[i] = executors[i].updateAndCheckoutRepository()
+				}(i)
+			}
+			wg.Wait()
+
+			for i, tt := range tests {
+				require.NoError(t, errs[i])
+
+				content, err := os.ReadFile(filepath.Join(executors[i].Repository.WorkingCopyPath, "marker"))
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedContent, string(content))
+
+				require.NotNil(t, executors[i].Task.CommitHash)
+				assert.Equal(t, tt.expectedHash, *executors[i].Task.CommitHash,
+					"the task must record the tip of the branch it ran")
+			}
+
+			assert.NotEqual(t, executors[0].Repository.WorkingCopyPath, executors[1].Repository.WorkingCopyPath)
+		})
+	}
+}

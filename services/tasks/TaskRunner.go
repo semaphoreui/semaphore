@@ -549,6 +549,8 @@ func (t *TaskRunner) populateDetails() error {
 		return err
 	}
 
+	t.Repository.WorkingCopyPath = resolveTaskCopyPath(t.Repository, t.Template, t.Task)
+
 	// load and merge all configured environments
 	err = t.loadEnvironments()
 	if err != nil {

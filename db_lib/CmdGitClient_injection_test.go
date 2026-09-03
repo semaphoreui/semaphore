@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -23,18 +24,26 @@ func (nopKeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, logger 
 
 func gitInit(t *testing.T, dir string) {
 	t.Helper()
-	run := func(args ...string) {
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(out))
-	}
-	run("init", "-q", "-b", "main")
-	run("config", "user.email", "t@t")
-	run("config", "user.name", "t")
+	gitRun(t, dir, "init", "-q", "-b", "main")
+	gitRun(t, dir, "config", "user.email", "t@t")
+	gitRun(t, dir, "config", "user.name", "t")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "f"), []byte("hi"), 0644))
-	run("add", "f")
-	run("commit", "-qm", "init")
+	gitRun(t, dir, "add", "f")
+	gitRun(t, dir, "commit", "-qm", "init")
+}
+
+func gitRun(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
+	return string(out)
+}
+
+func gitRevParse(t *testing.T, dir, rev string) string {
+	t.Helper()
+	return strings.TrimSpace(gitRun(t, dir, "rev-parse", rev))
 }
 
 func newTestGitRepo(t *testing.T, gitURL, gitBranch string) GitRepository {
@@ -110,4 +119,60 @@ func TestCmdGitClient_LegitRemoteOperations(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, []string{"main"}, branches)
 	})
+}
+
+func TestCmdGitClient_CloneLocal_ChecksOutRequestedCommit(t *testing.T) {
+	setupGitClientTest(t)
+
+	upstream := t.TempDir()
+	gitInit(t, upstream)
+	oldHash := gitRevParse(t, upstream, "HEAD")
+	require.NoError(t, os.WriteFile(filepath.Join(upstream, "f"), []byte("bye"), 0644))
+	gitRun(t, upstream, "add", "f")
+	gitRun(t, upstream, "commit", "-qm", "second")
+	newHash := gitRevParse(t, upstream, "HEAD")
+
+	client := CreateCmdGitClient(nopKeyInstaller{})
+	taskCopy := newTestGitRepo(t, upstream, "main")
+	taskCopy.TmpDirName = "task-copy"
+	dest := taskCopy.GetFullPath()
+
+	err := client.CloneLocal(taskCopy, upstream, oldHash)
+
+	require.NoError(t, err)
+	content, err := os.ReadFile(filepath.Join(dest, "f"))
+	require.NoError(t, err)
+	assert.Equal(t, "hi", string(content))
+	assert.Equal(t, oldHash, gitRevParse(t, dest, "HEAD"))
+	assert.Equal(t, newHash, gitRevParse(t, dest, newHash),
+		"the copy carries the whole history, not just the requested commit")
+	assert.Equal(t, newHash, gitRevParse(t, upstream, "HEAD"),
+		"the shared checkout must not be moved by a task copy")
+}
+
+func TestCmdGitClient_CloneLocal_TakesSubmodulesFromSourceWithoutRemote(t *testing.T) {
+	setupGitClientTest(t)
+
+	subUpstream := t.TempDir()
+	gitInit(t, subUpstream)
+	upstream := t.TempDir()
+	gitInit(t, upstream)
+	gitRun(t, upstream, "-c", "protocol.file.allow=always", "submodule", "add", "--quiet", subUpstream, "sub")
+	gitRun(t, upstream, "commit", "-qm", "add submodule")
+	commitHash := gitRevParse(t, upstream, "HEAD")
+
+	// The submodule remote is gone: the copy must come from the source repository.
+	require.NoError(t, os.RemoveAll(subUpstream))
+
+	client := CreateCmdGitClient(nopKeyInstaller{})
+	taskCopy := newTestGitRepo(t, upstream, "main")
+	taskCopy.TmpDirName = "task-copy"
+	dest := taskCopy.GetFullPath()
+
+	err := client.CloneLocal(taskCopy, upstream, commitHash)
+
+	require.NoError(t, err)
+	content, err := os.ReadFile(filepath.Join(dest, "sub", "f"))
+	require.NoError(t, err)
+	assert.Equal(t, "hi", string(content))
 }

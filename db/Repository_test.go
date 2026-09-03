@@ -6,9 +6,10 @@ import (
 	"path"
 	"testing"
 
-	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/semaphoreui/semaphore/util"
 )
 
 func TestRepository_GetSchema(t *testing.T) {
@@ -39,6 +40,36 @@ func TestRepository_ClearCache(t *testing.T) {
 	_, err = os.Stat(repoDir)
 	require.Error(t, err, "repo directory not deleted")
 	assert.True(t, os.IsNotExist(err))
+}
+
+func TestRepository_GetFullPath_IgnoresWorkingCopyPath(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+
+	repo := Repository{ID: 1, GitURL: "https://example.com/x.git", WorkingCopyPath: "/task/private/copy"}
+	assert.Equal(t, "/tmp/project_0/repository_1_template_5", repo.GetFullPath(5))
+}
+
+func TestRepository_GetWorkingCopyPath(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+
+	tests := []struct {
+		name         string
+		repository   Repository
+		expectedPath string
+	}{{
+		name:         "WorkingCopyPath wins over the default shared path",
+		repository:   Repository{ID: 1, GitURL: "https://example.com/x.git", WorkingCopyPath: "/task/private/copy"},
+		expectedPath: "/task/private/copy",
+	}, {
+		name:         "default shared path when WorkingCopyPath is unset",
+		repository:   Repository{ID: 1, GitURL: "https://example.com/x.git"},
+		expectedPath: "/tmp/project_0/repository_1_template_5",
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expectedPath, tt.repository.GetWorkingCopyPath(5))
+		})
+	}
 }
 
 func TestRepository_GetGitURL(t *testing.T) {

@@ -110,7 +110,7 @@ func (t *AnsibleApp) skipGalaxyInstall(args LocalAppInstallingArgs) bool {
 }
 
 func (t *AnsibleApp) getRepoPath() string {
-	return t.Repository.GetFullPath(t.Template.ID)
+	return t.Repository.GetWorkingCopyPath(t.Template.ID)
 }
 
 // requirementsHashFilePath is the path to the cached hash of a requirements file. Hashes are kept

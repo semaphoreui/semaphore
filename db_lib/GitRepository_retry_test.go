@@ -37,6 +37,7 @@ func (c *flakyGitClient) GetLastRemoteCommitHash(GitRepository) (string, error) 
 	return "", nil
 }
 func (c *flakyGitClient) GetRemoteBranches(GitRepository) ([]string, error) { return nil, nil }
+func (c *flakyGitClient) CloneLocal(GitRepository, string, string) error    { return nil }
 
 // setupGitRetryTest points util.Config at a temp dir with the given attempt budget.
 func setupGitRetryTest(t *testing.T, attempts int) {

@@ -94,7 +94,6 @@ func (p AnsiblePlaybook) RunGalaxy(args []string, environmentVars []string) erro
 	return p.runCmd("ansible-galaxy", args, environmentVars)
 }
 
-func (p AnsiblePlaybook) GetFullPath() (path string) {
-	path = p.Repository.GetFullPath(p.TemplateID)
-	return
+func (p AnsiblePlaybook) GetFullPath() string {
+	return p.Repository.GetWorkingCopyPath(p.TemplateID)
 }

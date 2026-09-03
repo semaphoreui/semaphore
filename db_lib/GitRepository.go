@@ -39,6 +39,7 @@ type GitClient interface {
 	GetLastCommitHash(r GitRepository) (hash string, err error)
 	GetLastRemoteCommitHash(r GitRepository) (hash string, err error)
 	GetRemoteBranches(r GitRepository) ([]string, error)
+	CloneLocal(r GitRepository, source, hash string) error
 }
 
 type GitRepository struct {
@@ -152,4 +153,8 @@ func (r GitRepository) GetLastRemoteCommitHash() (hash string, err error) {
 
 func (r GitRepository) GetRemoteBranches() ([]string, error) {
 	return r.Client.GetRemoteBranches(r)
+}
+
+func (r GitRepository) CloneLocal(source, hash string) error {
+	return r.Client.CloneLocal(r, source, hash)
 }
