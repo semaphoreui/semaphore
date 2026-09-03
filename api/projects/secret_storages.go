@@ -6,6 +6,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	pro "github.com/semaphoreui/semaphore/pro/services/server"
 	"github.com/semaphoreui/semaphore/services/server"
 )
 
@@ -40,15 +41,17 @@ func SecretStorageMiddleware(next http.Handler) http.Handler {
 		}
 
 		if len(keys) == 0 {
-			helpers.WriteErrorStatus(w, "Access key not found", http.StatusNotFound)
-			return
-		}
+			if pro.StorageRequiresSecret(storage) {
+				helpers.WriteErrorStatus(w, "Access key not found", http.StatusNotFound)
+				return
+			}
+		} else {
+			if keys[0].SourceStorageKey != nil {
+				storage.Secret = *keys[0].SourceStorageKey
+			}
 
-		if keys[0].SourceStorageKey != nil {
-			storage.Secret = *keys[0].SourceStorageKey
+			storage.SourceStorageType = keys[0].SourceStorageType
 		}
-
-		storage.SourceStorageType = keys[0].SourceStorageType
 
 		r = helpers.SetContextValue(r, "secretStorage", storage)
 		next.ServeHTTP(w, r)

@@ -616,7 +616,6 @@ func TestValidateConfig(t *testing.T) {
 	Config.AccessKeyEncryption = testCookieHash
 }
 
-
 func TestGetSecretsPath_DirsSecrets(t *testing.T) {
 	Config = NewConfigType()
 	Config.Dirs = &ConfigDirs{Secrets: "/custom/dirs/secrets"}
@@ -665,4 +664,6 @@ func TestGetSecretsPath_Env(t *testing.T) {
 	loadConfigDefaults()
 
 	assert.Equal(t, "/env/secrets/path", Config.GetSecretsPath())
+	assert.Equal(t, "/env/secrets/path", Config.Dirs.Secrets)
+	assert.Equal(t, "/env/secrets/path", Config.SecretsPath)
 }
