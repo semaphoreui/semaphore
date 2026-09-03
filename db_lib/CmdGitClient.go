@@ -116,7 +116,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 		"clone",
 		"--recursive",
 		"--jobs",
-		strconv.Itoa(util.Config.GitSubmoduleJobs),
+		strconv.Itoa(util.Config.GetGitSubmoduleJobs()),
 		"--branch",
 		r.Repository.GitBranch,
 		"--end-of-options",
@@ -137,7 +137,7 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 		"--init",
 		"--recursive",
 		"--jobs",
-		strconv.Itoa(util.Config.GitSubmoduleJobs))
+		strconv.Itoa(util.Config.GetGitSubmoduleJobs()))
 }
 
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {
