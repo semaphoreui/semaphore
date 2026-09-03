@@ -533,6 +533,9 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if Config.TmpPath != "/tmp/semaphore" {
 		t.Error(errMsg)
 	}
+	if Config.GitSubmoduleJobs != 4 {
+		t.Error(errMsg)
+	}
 }
 
 func ensureConfigValidationFailure(t *testing.T, attribute string, value any) {
@@ -563,6 +566,7 @@ func TestValidateConfig(t *testing.T) {
 	Config.CookieHash = testCookieHash
 	Config.MaxParallelTasks = testMaxParallelTasks
 	Config.GitClientId = GoGitClientId
+	Config.GitSubmoduleJobs = 4
 	Config.CookieEncryption = testCookieHash
 	Config.AccessKeyEncryption = testCookieHash
 	Config.EmailTlsMinVersion = testEmailTlsMinVersion
@@ -580,6 +584,10 @@ func TestValidateConfig(t *testing.T) {
 
 	ensureConfigValidationFailure(t, "MaxParallelTasks", Config.MaxParallelTasks)
 	Config.MaxParallelTasks = testMaxParallelTasks
+
+	Config.GitSubmoduleJobs = 0
+	ensureConfigValidationFailure(t, "GitSubmoduleJobs", Config.GitSubmoduleJobs)
+	Config.GitSubmoduleJobs = 4
 
 	// Config.CookieHash = "\"0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ=\"" // invalid with quotes (can happen when supplied as env-var)
 	// ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)

@@ -55,6 +55,11 @@ properties:
     enum: [go_git, cmd_git]
     default: cmd_git
     description: Git client implementation.
+  git_submodule_jobs:
+    type: integer
+    minimum: 1
+    default: 4
+    description: Number of submodules fetched in parallel by the command-line Git client.
   git_attempts:
     type: integer
     minimum: 1
