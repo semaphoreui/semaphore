@@ -61,9 +61,9 @@ func runServer() int {
 }
 
 func runSupervisor() int {
-	supSigTermCh := make(chan os.Signal, 1)
-	signal.Notify(supSigTermCh, syscall.SIGTERM)
-	defer signal.Stop(supSigTermCh)
+	supSignalCh := make(chan os.Signal, 1)
+	signal.Notify(supSignalCh, syscall.SIGTERM, syscall.SIGINT)
+	defer signal.Stop(supSignalCh)
 
 	// https://man7.org/linux/man-pages/man2/PR_SET_CHILD_SUBREAPER.2const.html
 	//
@@ -92,7 +92,7 @@ func runSupervisor() int {
 	pid := taskCmd.Process.Pid
 	fmt.Printf("Task command PID: %d\n", pid)
 
-	supSigTermReceived, waitErr := waitForCmd(pid, supSigTermCh)
+	supSignal, waitErr := waitForCmd(pid, supSignalCh)
 
 	// Kill same-group descendants in one operation before using /proc below to
 	// find adopted descendants that escaped into another process group.
@@ -119,15 +119,19 @@ func runSupervisor() int {
 		return 1
 	}
 
-	if supSigTermReceived || taskCmdStatus.Signal() == syscall.SIGTERM {
-		fmt.Println("Task terminated by SIGTERM")
-		signal.Stop(supSigTermCh)
-		signal.Reset(syscall.SIGTERM)
-		if err := unix.Kill(os.Getpid(), unix.SIGTERM); err != nil {
-			fmt.Fprintf(os.Stderr, "re-raise SIGTERM: %v\n", err)
+	exitSignal := taskCmdStatus.Signal()
+	if supSignal != 0 {
+		exitSignal = supSignal
+	}
+	if exitSignal > 0 {
+		fmt.Printf("Task terminated by signal %d (%s)\n", exitSignal, exitSignal)
+		signal.Stop(supSignalCh)
+		signal.Reset(exitSignal)
+		if err := unix.Kill(os.Getpid(), exitSignal); err != nil {
+			fmt.Fprintf(os.Stderr, "re-raise signal %d: %v\n", exitSignal, err)
 			return 1
 		}
-		// Wait for the SIGTERM sent above to terminate the supervisor instead of
+		// Wait for the signal sent above to terminate the supervisor instead of
 		// returning a normal exit status.
 		for {
 			_ = unix.Pause()
@@ -137,8 +141,8 @@ func runSupervisor() int {
 	return taskCmdStatus.ExitStatus()
 }
 
-// The bool reports whether the supervisor received SIGTERM before the command exited.
-func waitForCmd(pid int, supSigTermCh <-chan os.Signal) (bool, error) {
+// The signal result is zero unless the supervisor received a termination signal.
+func waitForCmd(pid int, supSignalCh <-chan os.Signal) (syscall.Signal, error) {
 	exited := make(chan error, 1)
 	go func() {
 		for {
@@ -156,22 +160,23 @@ func waitForCmd(pid int, supSigTermCh <-chan os.Signal) (bool, error) {
 
 	select {
 	case err := <-exited:
-		return false, err
-	case <-supSigTermCh:
-		if err := signalProcessGroup(pid, unix.SIGTERM); err != nil {
-			return true, err
+		return 0, err
+	case osSignal := <-supSignalCh:
+		sig := osSignal.(syscall.Signal)
+		if err := signalProcessGroup(pid, sig); err != nil {
+			return sig, err
 		}
 
 		select {
 		case err := <-exited:
-			return true, err
+			return sig, err
 		case <-time.After(time.Second):
 			if err := signalProcessGroup(pid, unix.SIGKILL); err != nil {
-				return true, err
+				return sig, err
 			}
 			// This can block indefinitely if the command is stuck in uninterruptible kernel sleep.
 			// https://chrisdown.name/2024/02/05/reliably-creating-d-state-processes-on-demand.html
-			return true, <-exited
+			return sig, <-exited
 		}
 	}
 }
