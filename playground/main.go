@@ -21,19 +21,24 @@ import (
 func main() {
 	supervisorMode := flag.Bool("supervisor", false, "run as the task supervisor")
 	gracePeriod := flag.Duration("termination-grace-period", 15*time.Second, "delay before escalating to SIGKILL")
+	cleanupTimeout := flag.Duration("cleanup-timeout", 15*time.Second, "maximum time to reap descendants")
 	flag.Parse()
 
 	if *gracePeriod < 0 {
 		fmt.Fprintln(os.Stderr, "termination grace period cannot be negative")
 		os.Exit(1)
 	}
-	if *supervisorMode {
-		os.Exit(runSupervisor(*gracePeriod))
+	if *cleanupTimeout <= 0 {
+		fmt.Fprintln(os.Stderr, "cleanup timeout must be positive")
+		os.Exit(1)
 	}
-	os.Exit(runServer(*gracePeriod))
+	if *supervisorMode {
+		os.Exit(runSupervisor(*gracePeriod, *cleanupTimeout))
+	}
+	os.Exit(runServer(*gracePeriod, *cleanupTimeout))
 }
 
-func runServer(gracePeriod time.Duration) int {
+func runServer(gracePeriod, cleanupTimeout time.Duration) int {
 	executable, err := os.Executable()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "find executable: %v\n", err)
@@ -44,6 +49,7 @@ func runServer(gracePeriod time.Duration) int {
 		executable,
 		"--supervisor",
 		"--termination-grace-period="+gracePeriod.String(),
+		"--cleanup-timeout="+cleanupTimeout.String(),
 	)
 	supCmd.Stdout = os.Stdout
 	supCmd.Stderr = os.Stderr
@@ -71,7 +77,7 @@ func runServer(gracePeriod time.Duration) int {
 	return exitCode
 }
 
-func runSupervisor(gracePeriod time.Duration) int {
+func runSupervisor(gracePeriod, cleanupTimeout time.Duration) int {
 	supSignalCh := make(chan os.Signal, 1)
 	signal.Notify(supSignalCh, syscall.SIGTERM, syscall.SIGINT)
 	defer signal.Stop(supSignalCh)
@@ -117,7 +123,7 @@ func runSupervisor(gracePeriod time.Duration) int {
 	}
 	taskCmdStatus := taskCmd.ProcessState.Sys().(syscall.WaitStatus)
 
-	if err := terminateAndReapChildren(); err != nil {
+	if err := terminateAndReapChildren(cleanupTimeout); err != nil {
 		fmt.Fprintf(os.Stderr, "terminate descendants: %v\n", err)
 		return 1
 	}
@@ -201,8 +207,14 @@ func signalProcessGroup(pid int, sig unix.Signal) error {
 	return nil
 }
 
-func terminateAndReapChildren() error {
+func terminateAndReapChildren(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
 	for {
+		// Avoid waiting forever when /proc omits a live child or SIGKILL cannot
+		// terminate one, for example while it is in uninterruptible kernel sleep.
+		if time.Now().After(deadline) {
+			return fmt.Errorf("descendant cleanup timed out after %s", timeout)
+		}
 		pids, err := childPIDs()
 		if err != nil {
 			return err
