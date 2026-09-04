@@ -137,7 +137,15 @@ func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInst
 	if err != nil {
 		return err
 	}
-	defer keyInstallation.Destroy() //nolint: errcheck
+
+	defer func() {
+		if err := keyInstallation.Destroy(); err != nil {
+			log.WithFields(log.Fields{
+				"context": "app.terraform.init",
+				"key_id":  t.Inventory.SSHKey.ID,
+			}).WithError(err).Error("failed to destroy key")
+		}
+	}()
 
 	args := []string{"init", "-lock=false"}
 

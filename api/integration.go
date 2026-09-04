@@ -330,6 +330,10 @@ func GetTaskDefinition(
 
 	taskDefinition.Environment = string(envStr)
 
+	if taskDefinition.Params == nil {
+		taskDefinition.Params = make(db.MapStringAnyField)
+	}
+
 	extractedTaskResults := Extract(taskValues, h, payload)
 	for k, v := range extractedTaskResults {
 		taskDefinition.Params[k] = v
