@@ -9,50 +9,69 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGoGitClient_CloneLocal_ChecksOutRequestedCommit(t *testing.T) {
-	setupGitClientTest(t)
-
-	upstream := t.TempDir()
-	gitInit(t, upstream)
-	oldHash := gitRevParse(t, upstream, "HEAD")
-
-	require.NoError(t, os.WriteFile(filepath.Join(upstream, "f"), []byte("bye"), 0644))
-	gitRun(t, upstream, "add", "f")
-	gitRun(t, upstream, "commit", "-qm", "second")
-	require.NotEqual(t, oldHash, gitRevParse(t, upstream, "HEAD"))
-
+// TestGoGitClient_CloneLocal covers the three things a task copy relies on: it
+// lands on the requested commit, it takes its submodules from the shared checkout
+// instead of the network, and it keeps working once the shared checkout is gone.
+func TestGoGitClient_CloneLocal(t *testing.T) {
 	client := GoGitClient{}
-	taskCopy := newTestGitRepo(t, upstream, "main")
-	taskCopy.TmpDirName = "task-copy"
-	dest := taskCopy.GetFullPath()
-	require.NoError(t, client.CloneLocal(taskCopy, upstream, oldHash))
 
-	content, err := os.ReadFile(filepath.Join(dest, "f"))
-	require.NoError(t, err)
-	assert.Equal(t, "hi", string(content), "checked-out content must match the pinned OLD commit, not HEAD")
-}
+	t.Run("checks out the requested commit", func(t *testing.T) {
+		setupGitClientTest(t)
 
-func TestGoGitClient_CloneLocal_TakesSubmodulesFromSourceWithoutRemote(t *testing.T) {
-	setupGitClientTest(t)
+		sharedCheckout := gitInit(t)
+		gitAddFile(t, sharedCheckout, "requested.txt")
+		requestedCommit := gitRevParse(t, sharedCheckout, "HEAD")
+		gitAddFile(t, sharedCheckout, "tip.txt")
 
-	subUpstream := t.TempDir()
-	gitInit(t, subUpstream)
-	upstream := t.TempDir()
-	gitInit(t, upstream)
-	gitRun(t, upstream, "-c", "protocol.file.allow=always", "submodule", "add", "--quiet", subUpstream, "sub")
-	gitRun(t, upstream, "commit", "-qm", "add submodule")
-	commitHash := gitRevParse(t, upstream, "HEAD")
+		taskCopy := newTestGitRepo(t, sharedCheckout, "main", "task-copy")
 
-	require.NoError(t, os.RemoveAll(subUpstream))
+		require.NoError(t, client.CloneLocal(taskCopy, sharedCheckout, requestedCommit))
 
-	client := GoGitClient{}
-	taskCopy := newTestGitRepo(t, upstream, "main")
-	taskCopy.TmpDirName = "task-copy"
-	dest := taskCopy.GetFullPath()
+		assert.FileExists(t, filepath.Join(taskCopy.GetFullPath(), "requested.txt"))
+		assert.NoFileExists(t, filepath.Join(taskCopy.GetFullPath(), "tip.txt"),
+			"the copy must stop at the requested commit, not follow the branch tip")
+		assert.Equal(t, requestedCommit, gitRevParse(t, taskCopy.GetFullPath(), "HEAD"))
+		assert.FileExists(t, filepath.Join(sharedCheckout, "tip.txt"),
+			"the shared checkout must not be moved by a task copy")
+	})
 
-	require.NoError(t, client.CloneLocal(taskCopy, upstream, commitHash))
+	t.Run("takes submodules from the shared checkout", func(t *testing.T) {
+		setupGitClientTest(t)
 
-	content, err := os.ReadFile(filepath.Join(dest, "sub", "f"))
-	require.NoError(t, err)
-	assert.Equal(t, "hi", string(content))
+		submoduleRemote := gitInit(t)
+		gitAddFile(t, submoduleRemote, "submodule.txt")
+
+		sharedCheckout := gitInit(t)
+		gitSubmoduleAdd(t, sharedCheckout, submoduleRemote, "sub")
+
+		// Nothing can fetch the submodule any more, it has to come
+		// from the shared checkout.
+		require.NoError(t, os.RemoveAll(submoduleRemote))
+
+		taskCopy := newTestGitRepo(t, sharedCheckout, "main", "task-copy")
+
+		require.NoError(t, client.CloneLocal(taskCopy, sharedCheckout,
+			gitRevParse(t, sharedCheckout, "HEAD")))
+
+		assert.FileExists(t, filepath.Join(taskCopy.GetFullPath(), "sub", "submodule.txt"))
+	})
+
+	t.Run("survives removal of the shared checkout", func(t *testing.T) {
+		setupGitClientTest(t)
+
+		sharedCheckout := gitInit(t)
+		gitAddFile(t, sharedCheckout, "initial.txt")
+		requestedCommit := gitRevParse(t, sharedCheckout, "HEAD")
+
+		taskCopy := newTestGitRepo(t, sharedCheckout, "main", "task-copy")
+
+		require.NoError(t, client.CloneLocal(taskCopy, sharedCheckout, requestedCommit))
+
+		// updateRepository throws the shared checkout away and clones again whenever
+		// it cannot be pulled, so the task copy must not depend on it. Peeling HEAD to
+		// a commit makes git read the object store, not just the ref file.
+		require.NoError(t, os.RemoveAll(sharedCheckout))
+
+		assert.Equal(t, requestedCommit, gitRevParse(t, taskCopy.GetFullPath(), "HEAD^{commit}"))
+	})
 }

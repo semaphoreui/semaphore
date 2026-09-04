@@ -8,12 +8,11 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setupExecutorConfig(t *testing.T) {
@@ -417,48 +416,62 @@ func gitCmd(t *testing.T, dir string, args ...string) string {
 	return string(out)
 }
 
-func gitInitTwoBranches(t *testing.T, dir string) (string, string) {
+func gitCommitFile(t *testing.T, dir, name string) string {
 	t.Helper()
-	gitCmd(t, dir, "init", "-q", "-b", "main")
-	gitCmd(t, dir, "config", "user.email", "t@t")
-	gitCmd(t, dir, "config", "user.name", "t")
-
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "marker"), []byte("base"), 0644))
-	gitCmd(t, dir, "add", "marker")
-	gitCmd(t, dir, "commit", "-qm", "base")
-
-	gitCmd(t, dir, "checkout", "-q", "-b", "feature")
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "marker"), []byte("feature-content"), 0644))
-	gitCmd(t, dir, "add", "marker")
-	gitCmd(t, dir, "commit", "-qm", "feature")
-	featureHash := strings.TrimSpace(gitCmd(t, dir, "rev-parse", "HEAD"))
-
-	gitCmd(t, dir, "checkout", "-q", "main")
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "marker"), []byte("main-content"), 0644))
-	gitCmd(t, dir, "add", "marker")
-	gitCmd(t, dir, "commit", "-qm", "main")
-	mainHash := strings.TrimSpace(gitCmd(t, dir, "rev-parse", "HEAD"))
-
-	return mainHash, featureHash
+	require.NoError(t, os.WriteFile(filepath.Join(dir, name), nil, 0644))
+	gitCmd(t, dir, "add", name)
+	gitCmd(t, dir, "commit", "-qm", "add "+name)
+	return strings.TrimSpace(gitCmd(t, dir, "rev-parse", "HEAD"))
 }
 
-// TestUpdateAndCheckoutRepository_IsolatesParallelBranches covers the reported
-// scenario: a template that allows parallel tasks and branch overrides, with
-// two tasks started on diverged branches and no pinned commit. Each task must
-// run its own branch and record the commit it actually ran.
-func TestUpdateAndCheckoutRepository_IsolatesParallelBranches(t *testing.T) {
+// startTask builds the executor for one task the way the task pool does, and
+// resolves its branch the way prepareRun does just before the repository update.
+func startTask(t *testing.T, provider *LocalExecutorProvider, template db.Template,
+	repository db.Repository, taskID int, branch string) *LocalExecutor {
+
+	t.Helper()
+
+	task := db.Task{ID: taskID, TemplateID: template.ID}
+	if branch != "" {
+		task.GitBranch = &branch
+	}
+
+	executor, err := provider.NewExecutor(task, template, db.Inventory{}, repository, db.Environment{}, "")
+	require.NoError(t, err)
+
+	localExecutor := executor.(*LocalExecutor)
+	localExecutor.SetLogger(task_logger.NopLogger{})
+	localExecutor.Repository.GitBranch = resolveGitBranch(repository.GitBranch, template, task)
+	return localExecutor
+}
+
+// Two tasks of one template start at the same time on different branches: one on
+// the repository's default branch, the other overriding it. Neither pins a commit,
+// so each takes the tip of its own branch. Each task must end up with the files of
+// the branch it asked for, and must report the commit it ran.
+func TestUpdateAndCheckoutRepository_EachTaskRunsItsOwnBranch(t *testing.T) {
 	for _, gitClientId := range []string{util.CmdGitClientId, util.GoGitClientId} {
 		t.Run(gitClientId, func(t *testing.T) {
-			original := util.Config
-			t.Cleanup(func() { util.Config = original })
+			setupExecutorConfig(t)
 			util.Config = &util.ConfigType{
 				TmpPath:     t.TempDir(),
 				GitClientId: gitClientId,
 				Process:     &util.ConfigProcess{},
 			}
 
+			// The branches fork from a common commit: each one carries a file the
+			// other does not have, which is what the assertions below read.
 			upstream := t.TempDir()
-			mainHash, featureHash := gitInitTwoBranches(t, upstream)
+			gitCmd(t, upstream, "init", "-q", "-b", "main")
+			gitCmd(t, upstream, "config", "user.email", "t@t")
+			gitCmd(t, upstream, "config", "user.name", "t")
+			gitCommitFile(t, upstream, "base.txt")
+
+			gitCmd(t, upstream, "checkout", "-q", "-b", "feature")
+			featureCommit := gitCommitFile(t, upstream, "feature.txt")
+
+			gitCmd(t, upstream, "checkout", "-q", "main")
+			mainCommit := gitCommitFile(t, upstream, "main.txt")
 
 			repository := db.Repository{
 				ID:        1,
@@ -468,66 +481,37 @@ func TestUpdateAndCheckoutRepository_IsolatesParallelBranches(t *testing.T) {
 				SSHKey:    db.AccessKey{Type: db.AccessKeyNone},
 			}
 			template := db.Template{ID: 1, AllowParallelTasks: true, AllowOverrideBranchInTask: true}
-			repoLock := &KeyLock{}
-			featureBranch := "feature"
 
-			tests := []struct {
-				task            db.Task
-				expectedContent string
-				expectedHash    string
-			}{
-				{
-					task:            db.Task{ID: 201, TemplateID: template.ID},
-					expectedContent: "main-content",
-					expectedHash:    mainHash,
-				},
-				{
-					task:            db.Task{ID: 202, TemplateID: template.ID, GitBranch: &featureBranch},
-					expectedContent: "feature-content",
-					expectedHash:    featureHash,
-				},
-			}
-
-			executors := make([]*LocalExecutor, len(tests))
-			for i, tt := range tests {
-				taskRepository := repository
-				// prepareRun resolves the branch before updating the repository.
-				taskRepository.GitBranch = resolveGitBranch(repository.GitBranch, template, tt.task)
-				taskRepository.WorkingCopyPath = resolveTaskCopyPath(repository, template, tt.task)
-				executors[i] = &LocalExecutor{
-					Task:         tt.task,
-					Template:     template,
-					Repository:   taskRepository,
-					Logger:       task_logger.NopLogger{},
-					KeyInstaller: &KeyInstallerMock{},
-					RepoLock:     repoLock,
-				}
-			}
+			// Build the executors the way the task pool does, so the wiring is covered too.
+			provider := NewLocalExecutorProvider(&KeyInstallerMock{})
+			mainTask := startTask(t, provider, template, repository, 201, "")
+			featureTask := startTask(t, provider, template, repository, 202, "feature")
 
 			var wg sync.WaitGroup
-			errs := make([]error, len(executors))
-			wg.Add(len(executors))
-			for i := range executors {
-				go func(i int) {
-					defer wg.Done()
-					errs[i] = executors[i].updateAndCheckoutRepository()
-				}(i)
-			}
+			var mainErr, featureErr error
+			wg.Add(2)
+			go func() { defer wg.Done(); mainErr = mainTask.updateAndCheckoutRepository() }()
+			go func() { defer wg.Done(); featureErr = featureTask.updateAndCheckoutRepository() }()
 			wg.Wait()
 
-			for i, tt := range tests {
-				require.NoError(t, errs[i])
+			require.NoError(t, mainErr)
+			require.NoError(t, featureErr)
 
-				content, err := os.ReadFile(filepath.Join(executors[i].Repository.WorkingCopyPath, "marker"))
-				require.NoError(t, err)
-				assert.Equal(t, tt.expectedContent, string(content))
+			mainWorkdir := mainTask.Repository.WorkingCopyPath
+			assert.FileExists(t, filepath.Join(mainWorkdir, "main.txt"))
+			assert.NoFileExists(t, filepath.Join(mainWorkdir, "feature.txt"),
+				"the task must not see the files of the other branch")
+			require.NotNil(t, mainTask.Task.CommitHash)
+			assert.Equal(t, mainCommit, *mainTask.Task.CommitHash,
+				"the task must record the tip of the branch it ran")
 
-				require.NotNil(t, executors[i].Task.CommitHash)
-				assert.Equal(t, tt.expectedHash, *executors[i].Task.CommitHash,
-					"the task must record the tip of the branch it ran")
-			}
-
-			assert.NotEqual(t, executors[0].Repository.WorkingCopyPath, executors[1].Repository.WorkingCopyPath)
+			featureWorkdir := featureTask.Repository.WorkingCopyPath
+			assert.FileExists(t, filepath.Join(featureWorkdir, "feature.txt"))
+			assert.NoFileExists(t, filepath.Join(featureWorkdir, "main.txt"),
+				"the task must not see the files of the other branch")
+			require.NotNil(t, featureTask.Task.CommitHash)
+			assert.Equal(t, featureCommit, *featureTask.Task.CommitHash,
+				"the task must record the tip of the branch it ran")
 		})
 	}
 }
