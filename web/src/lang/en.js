@@ -405,6 +405,8 @@ export default {
   empty: 'Empty',
   noValues: 'No values',
   addArg: 'Add arg',
+  arg: 'Argument',
+  arg_required: 'Argument is required',
   deletedOrigin: '#{id} (deleted)',
   unnamedSchedule: 'Schedule',
 
@@ -430,6 +432,11 @@ export default {
   addLimit: 'Add limit',
   allowDebug: 'Debug',
   skipGalaxyInstall: 'Skip Galaxy install',
+  galaxy: 'Galaxy',
+  galaxyRoleArgs: 'Role install args',
+  galaxyCollectionArgs: 'Collection install args',
+  galaxyArgsHint: 'Extra ansible-galaxy flags, for example --pre. '
+    + 'They appear in the process list, so keep secrets in variable groups instead.',
   addTag: 'Add tag',
   skipTags: 'Skip tags',
   addSkippedTag: 'Add skipped tag',

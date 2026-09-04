@@ -227,6 +227,16 @@ type AnsibleTemplateParams struct {
 	// AllowOverrideSkipGalaxyInstall lets the user toggle SkipGalaxyInstall when
 	// launching a task.
 	AllowOverrideSkipGalaxyInstall bool `json:"allow_override_skip_galaxy_install"`
+
+	// GalaxyRoleArgs and GalaxyCollectionArgs are appended to the
+	// `ansible-galaxy role install` and `ansible-galaxy collection install`
+	// commands. They are separate because the two subcommands accept different
+	// flags -- `--pre` for instance is rejected by `role install`.
+	//
+	// These end up in argv and are therefore visible in the process list: put
+	// flags here, and secrets in environment variables.
+	GalaxyRoleArgs       []string `json:"galaxy_role_args"`
+	GalaxyCollectionArgs []string `json:"galaxy_collection_args"`
 }
 
 type TerraformTemplateParams struct {
