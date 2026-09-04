@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"strings"
-
-	"path"
+	"path/filepath"
 	"strconv"
-
-	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -436,32 +434,18 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 
 // nolint: gocyclo
 func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string) (args []string, inputs map[string]string, err error) {
-
 	inputMap := make(map[db.AccessKeyRole]string)
 	inputs = make(map[string]string)
 
-	playbookName := t.Task.Playbook
-	if playbookName == "" {
-		playbookName = t.Template.Playbook
-	}
+	playbookFile := t.resolvePlaybookFile()
 
-	var inventoryFilename string
-	switch t.Inventory.Type {
-	case db.InventoryFile:
-		if t.Inventory.RepositoryID == nil {
-			inventoryFilename = t.Inventory.GetFilename()
-		} else {
-			inventoryFilename = path.Join(t.tmpInventoryFullPath(), t.Inventory.GetFilename())
-		}
-	case db.InventoryStatic, db.InventoryStaticYaml:
-		inventoryFilename = t.tmpInventoryFullPath()
-	default:
-		err = fmt.Errorf("invalid inventory type")
+	inventoryFile, err := t.resolveInventoryFile()
+	if err != nil {
 		return
 	}
 
 	args = []string{
-		"-i", inventoryFilename,
+		"--inventory", inventoryFile,
 	}
 
 	if t.Inventory.SSHKeyID != nil {
@@ -614,7 +598,7 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 
 	args = append(args, templateArgs...)
 	args = append(args, taskArgs...)
-	args = append(args, playbookName)
+	args = append(args, playbookFile)
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleUser]; ok {
 		inputs["SSH password:"] = line
@@ -629,6 +613,31 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 	}
 
 	return
+}
+
+func (t *LocalExecutor) resolvePlaybookFile() string {
+	playbook := t.Task.Playbook
+	if playbook == "" {
+		playbook = t.Template.Playbook
+	}
+
+	root := t.Repository.GetFullPath(t.Template.ID)
+	return filepath.Join(root, playbook)
+}
+
+func (t *LocalExecutor) resolveInventoryFile() (string, error) {
+	switch t.Inventory.Type {
+	case db.InventoryFile:
+		root := t.Repository.GetFullPath(t.Template.ID)
+		if t.Inventory.RepositoryID != nil {
+			root = t.tmpInventoryFullPath()
+		}
+		return filepath.Join(root, t.Inventory.GetFilename()), nil
+	case db.InventoryStatic, db.InventoryStaticYaml:
+		return t.tmpInventoryFullPath(), nil
+	default:
+		return "", fmt.Errorf("invalid inventory type")
+	}
 }
 
 func (t *LocalExecutor) getCLIArgs() (templateArgs []string, taskArgs []string, err error) {
