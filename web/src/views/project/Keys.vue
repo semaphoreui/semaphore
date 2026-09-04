@@ -5,7 +5,7 @@
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Key`"
       :max-width="450"
-      @save="loadItems()"
+      @save="loadItemsAndShowPublicKey($event)"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
         <KeyForm
@@ -17,6 +17,37 @@
           :need-reset="needReset"
           :support-storages="features.secret_storages"
         />
+      </template>
+    </EditDialog>
+
+    <EditDialog
+      :max-width="700"
+      v-model="createdPublicKeyDialog"
+      :save-button-text="null"
+      title="Generated SSH Public Key"
+      hide-buttons
+    >
+      <template v-slot:form="{}">
+        <div class="mb-4">
+          <div style="position: relative">
+            <pre
+              style="
+                overflow: auto;
+                background: gray;
+                color: white;
+                border-radius: 10px;
+                margin-top: 5px;
+              "
+              class="pa-2"
+              >{{ createdPublicKey }}</pre
+            >
+
+            <CopyClipboardButton
+              style="position: absolute; right: 10px; top: 10px"
+              :text="createdPublicKey"
+            />
+          </div>
+        </div>
       </template>
     </EditDialog>
 
@@ -94,9 +125,14 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import KeyForm from '@/components/KeyForm.vue';
 import PageMixin from '@/components/PageMixin';
 import KeyStoreMenu from '@/components/KeyStoreMenu.vue';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 
 export default {
-  components: { KeyStoreMenu, KeyForm },
+  components: {
+    CopyClipboardButton,
+    KeyStoreMenu,
+    KeyForm,
+  },
 
   mixins: [ItemListPageBase, PageMixin],
 
@@ -110,7 +146,51 @@ export default {
     },
   },
 
+  data() {
+    return {
+      createdPublicKeyDialog: false,
+      createdPublicKey: '',
+    };
+  },
+
   methods: {
+    async loadItemsAndShowPublicKey(e) {
+      await this.loadItems();
+
+      const isGeneratedOnCreate = e && e.action === 'new';
+      const isGeneratedOnUpdate = e && e.action === 'edit' && e.item && e.item.generate_ssh_key;
+      if (!isGeneratedOnCreate && !isGeneratedOnUpdate) {
+        this.createdPublicKey = '';
+        return;
+      }
+
+      const itemId = e && e.item ? e.item.id : null;
+      const reloadedItem = itemId ? this.items.find((x) => x.id === itemId) : null;
+      const sourceItem = reloadedItem || (e || {}).item;
+      const publicKey = this.extractPublicKey(sourceItem);
+
+      if (!publicKey) {
+        this.createdPublicKey = '';
+        return;
+      }
+
+      this.createdPublicKey = publicKey;
+      this.createdPublicKeyDialog = true;
+    },
+
+    extractPublicKey(item) {
+      if (!item || !item.plain) {
+        return '';
+      }
+
+      try {
+        const plain = JSON.parse(item.plain);
+        return plain.public_key || '';
+      } catch (e) {
+        return '';
+      }
+    },
+
     getHeaders() {
       return [{
         text: this.$i18n.t('name'),

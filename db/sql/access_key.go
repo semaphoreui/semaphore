@@ -82,10 +82,10 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 	}
 
 	if key.OverrideSecret {
-
-		query += ", type=?, secret=?, source_storage_id=?, source_storage_key=?, source_storage_type=?"
+		query += ", type=?, secret=?, plain=?, source_storage_id=?, source_storage_key=?, source_storage_type=?"
 		args = append(args, key.Type)
 		args = append(args, key.Secret)
+		args = append(args, key.Plain)
 		args = append(args, key.SourceStorageID)
 		args = append(args, key.SourceStorageKey)
 		args = append(args, key.SourceStorageType)
