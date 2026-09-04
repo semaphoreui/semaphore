@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -32,22 +33,38 @@ func runServer() int {
 		return 1
 	}
 
-	cmd := exec.Command(executable, supervisorMode)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	supCmd := exec.Command(executable, supervisorMode)
+	supCmd.Stdout = os.Stdout
+	supCmd.Stderr = os.Stderr
 
-	err = cmd.Run()
-	if cmd.ProcessState == nil {
-		fmt.Fprintf(os.Stderr, "run supervisor: %v\n", err)
+	if err := supCmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "start supervisor: %v\n", err)
+		return 1
+	}
+	fmt.Printf("Supervisor PID: %d\n", supCmd.Process.Pid)
+
+	err = supCmd.Wait()
+	if supCmd.ProcessState == nil {
+		fmt.Fprintf(os.Stderr, "wait for supervisor: %v\n", err)
 		return 1
 	}
 
-	exitCode := cmd.ProcessState.ExitCode()
+	status := supCmd.ProcessState.Sys().(syscall.WaitStatus)
+	if status.Signaled() {
+		fmt.Printf("Supervisor terminated by signal %d (%s)\n", status.Signal(), status.Signal())
+		return 128 + int(status.Signal())
+	}
+
+	exitCode := status.ExitStatus()
 	fmt.Printf("Supervisor exited with status %d\n", exitCode)
 	return exitCode
 }
 
 func runSupervisor() int {
+	supSigTermCh := make(chan os.Signal, 1)
+	signal.Notify(supSigTermCh, syscall.SIGTERM)
+	defer signal.Stop(supSigTermCh)
+
 	// https://man7.org/linux/man-pages/man2/PR_SET_CHILD_SUBREAPER.2const.html
 	//
 	// Establishing a subreaper process is useful in session management
@@ -61,54 +78,111 @@ func runSupervisor() int {
 		return 1
 	}
 
-	cmd := exec.Command("bash", "playground/scripts/spawn-background.sh")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	// Give Bash a dedicated process group so kill(-pid, ...) targets its task tree.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	taskCmd := exec.Command("bash", "playground/scripts/spawn-background.sh")
+	taskCmd.Stdout = os.Stdout
+	taskCmd.Stderr = os.Stderr
+	// Give the task command a dedicated process group so kill(-pid, ...) targets its task tree.
+	taskCmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
-	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "start Bash: %v\n", err)
+	if err := taskCmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "start task command: %v\n", err)
 		return 1
 	}
 
-	pid := cmd.Process.Pid
-	var info unix.Siginfo
-	// https://man7.org/linux/man-pages/man2/waitpid.2.html
-	// WEXITED
-	//         Wait for children that have terminated.
-	// WNOWAIT
-	//         Leave the child in a waitable state; a later wait call can
-	//         be used to again retrieve the child status information.
-	if err := unix.Waitid(unix.P_PID, pid, &info, unix.WEXITED|unix.WNOWAIT, nil); err != nil {
-		fmt.Fprintf(os.Stderr, "wait for Bash exit: %v\n", err)
-		return 1
-	}
+	pid := taskCmd.Process.Pid
+	fmt.Printf("Task command PID: %d\n", pid)
 
-	// https://man7.org/linux/man-pages/man2/kill.2.html
-	// ESRCH
-	//         The target process or process group does not exist. Note
-	//         that an existing process might be a zombie, a process that
-	//         has terminated execution, but has not yet been waited for.
-	if err := unix.Kill(-pid, unix.SIGKILL); err != nil && !errors.Is(err, unix.ESRCH) {
-		fmt.Fprintf(os.Stderr, "kill process group: %v\n", err)
-		return 1
-	}
+	supSigTermReceived, waitErr := waitForCmd(pid, supSigTermCh)
 
+	// Kill same-group descendants in one operation before using /proc below to
+	// find adopted descendants that escaped into another process group.
+	killErr := signalProcessGroup(pid, unix.SIGKILL)
+
+	// Reap only after the group signal; WNOWAIT kept the PID/PGID reserved against reuse.
 	// Wait returns an error for a valid non-zero exit, so read the status from ProcessState.
-	if err := cmd.Wait(); cmd.ProcessState == nil {
-		fmt.Fprintf(os.Stderr, "reap Bash: %v\n", err)
+	if err := taskCmd.Wait(); taskCmd.ProcessState == nil {
+		fmt.Fprintf(os.Stderr, "reap task command: %v\n", err)
 		return 1
 	}
-	exitCode := cmd.ProcessState.ExitCode()
+	taskCmdStatus := taskCmd.ProcessState.Sys().(syscall.WaitStatus)
 
 	if err := terminateAndReapChildren(); err != nil {
 		fmt.Fprintf(os.Stderr, "terminate descendants: %v\n", err)
 		return 1
 	}
+	if waitErr != nil {
+		fmt.Fprintf(os.Stderr, "wait for task command exit: %v\n", waitErr)
+		return 1
+	}
+	if killErr != nil {
+		fmt.Fprintf(os.Stderr, "kill process group: %v\n", killErr)
+		return 1
+	}
 
-	fmt.Printf("Bash exited with status %d\n", exitCode)
-	return exitCode
+	if supSigTermReceived || taskCmdStatus.Signal() == syscall.SIGTERM {
+		fmt.Println("Task terminated by SIGTERM")
+		signal.Stop(supSigTermCh)
+		signal.Reset(syscall.SIGTERM)
+		if err := unix.Kill(os.Getpid(), unix.SIGTERM); err != nil {
+			fmt.Fprintf(os.Stderr, "re-raise SIGTERM: %v\n", err)
+			return 1
+		}
+		// Wait for the SIGTERM sent above to terminate the supervisor instead of
+		// returning a normal exit status.
+		for {
+			_ = unix.Pause()
+		}
+	}
+
+	return taskCmdStatus.ExitStatus()
+}
+
+// The bool reports whether the supervisor received SIGTERM before the command exited.
+func waitForCmd(pid int, supSigTermCh <-chan os.Signal) (bool, error) {
+	exited := make(chan error, 1)
+	go func() {
+		for {
+			var info unix.Siginfo
+			// https://man7.org/linux/man-pages/man2/waitpid.2.html
+			// WNOWAIT keeps the command's PID and PGID reserved for process-group cleanup.
+			err := unix.Waitid(unix.P_PID, pid, &info, unix.WEXITED|unix.WNOWAIT, nil)
+			if errors.Is(err, unix.EINTR) {
+				continue
+			}
+			exited <- err
+			return
+		}
+	}()
+
+	select {
+	case err := <-exited:
+		return false, err
+	case <-supSigTermCh:
+		if err := signalProcessGroup(pid, unix.SIGTERM); err != nil {
+			return true, err
+		}
+
+		select {
+		case err := <-exited:
+			return true, err
+		case <-time.After(time.Second):
+			if err := signalProcessGroup(pid, unix.SIGKILL); err != nil {
+				return true, err
+			}
+			// This can block indefinitely if the command is stuck in uninterruptible kernel sleep.
+			// https://chrisdown.name/2024/02/05/reliably-creating-d-state-processes-on-demand.html
+			return true, <-exited
+		}
+	}
+}
+
+func signalProcessGroup(pid int, sig unix.Signal) error {
+	// https://man7.org/linux/man-pages/man2/kill.2.html
+	// ESRCH means that the target process or process group no longer exists.
+	if err := unix.Kill(-pid, sig); err != nil && !errors.Is(err, unix.ESRCH) {
+		return err
+	}
+	return nil
 }
 
 func terminateAndReapChildren() error {
