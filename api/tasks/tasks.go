@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -14,6 +15,10 @@ func TaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		taskID, err := helpers.GetIntParam("task_id", w, r)
 		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"task_id": taskID,
+				"context": "task_api",
+			}).Debug("Invalid task_id parameter in request URL")
 			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
 		}
 

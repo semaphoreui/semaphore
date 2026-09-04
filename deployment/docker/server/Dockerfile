@@ -17,9 +17,10 @@ ARG APP_BUILD_TYPE
 ARG TARGETOS
 ARG TARGETARCH
 ARG GH_TOKEN
+ARG PRO_BRANCH=main
 
 RUN if [ -n "$APP_BUILD_TYPE" ]; then \
-      git clone -b main https://${GH_TOKEN}@github.com/semaphoreui/semaphorepro-module.git pro_impl && \
+      git clone -b "$PRO_BRANCH" https://${GH_TOKEN}@github.com/semaphoreui/semaphorepro-module.git pro_impl && \
       go work init . ./pro_impl; \
     fi
 
