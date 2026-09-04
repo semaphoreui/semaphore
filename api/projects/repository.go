@@ -9,9 +9,12 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
@@ -64,15 +67,20 @@ func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *h
 		return
 	}
 
-	git := db_lib.GitRepository{
+	gitRepo := db_lib.GitRepository{
 		Repository: repo,
 		Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
+		Logger:     task_logger.NopLogger{},
 	}
 
-	branches, err := git.GetRemoteBranches()
+	branches, err := gitRepo.GetRemoteBranches()
 
 	if err != nil {
-		helpers.WriteError(w, err)
+		log.WithError(err).WithFields(log.Fields{
+			"context":       "git",
+			"repository_id": repo.ID,
+		}).Error("failed to get repository branches")
+		helpers.WriteError(w, common_errors.NewUserError(err))
 		return
 	}
 
@@ -109,32 +117,42 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		// contain slashes) so each branch gets its own cached checkout instead
 		// of failing to check out a branch that was never fetched.
 		branchHash := sha1.Sum([]byte(branch))
-		git := db_lib.GitRepository{
+		gitRepo := db_lib.GitRepository{
 			Repository: repoCopy,
-			TmpDirName: fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
+			TmpDirName: fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash),
 			Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
 			Logger:     task_logger.NopLogger{},
 		}
 
 		var err error
-		if err = git.ValidateRepo(); err != nil {
-			err = git.Clone()
+		if err = gitRepo.ValidateRepo(); err != nil {
+			err = gitRepo.Clone()
 		} else {
-			err = git.Pull()
+			err = gitRepo.Pull()
 		}
 
 		if err != nil {
-			helpers.WriteError(w, err)
+			log.WithError(err).WithFields(log.Fields{
+				"context":       "git",
+				"repository_id": repo.ID,
+				"branch":        branch,
+			}).Error("failed to clone or pull repository for playbooks")
+			helpers.WriteError(w, common_errors.NewUserError(err))
 			return
 		}
 
-		rootDir = git.GetFullPath()
+		rootDir = gitRepo.GetFullPath()
 	}
 
 	playbooks, err := db_lib.FindPlaybooks(rootDir)
 
 	if err != nil {
-		helpers.WriteError(w, err)
+		log.WithError(err).WithFields(log.Fields{
+			"context":       "git",
+			"repository_id": repo.ID,
+			"path":          rootDir,
+		}).Error("failed to find playbooks in repository")
+		helpers.WriteError(w, common_errors.NewUserError(err))
 		return
 	}
 

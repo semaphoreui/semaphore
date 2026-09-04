@@ -1,13 +1,17 @@
 package db_lib
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
@@ -72,10 +76,34 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 
 	cmd := c.makeCmd(r, targetDir, keyInstallation, args...)
 
-	finishLog := r.Logger.LogCmd(cmd)
-	defer finishLog()
+	var stderrBuf bytes.Buffer
+	if r.Logger != nil {
+		switch r.Logger.(type) {
+		case task_logger.NopLogger, *task_logger.NopLogger:
+			cmd.Stderr = &stderrBuf
+		}
+		finishLog := r.Logger.LogCmd(cmd)
+		defer finishLog()
+	} else {
+		cmd.Stderr = &stderrBuf
+	}
 
-	return cmd.Run()
+	err = cmd.Run()
+	if err != nil {
+		subCmd := ""
+		if len(args) > 0 {
+			subCmd = args[0]
+		}
+		stderrStr := strings.TrimSpace(stderrBuf.String())
+		if stderrStr != "" {
+			err = errors.New(git.FormatGitErrorSummary(subCmd, stderrStr))
+		} else {
+			err = fmt.Errorf("git %s failed: %w", subCmd, err)
+		}
+		return err
+	}
+
+	return nil
 }
 
 func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, args ...string) (out string, err error) {
@@ -88,6 +116,19 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 
 	bytes, err := c.makeCmd(r, targetDir, keyInstallation, args...).Output()
 	if err != nil {
+		subCmd := ""
+		if len(args) > 0 {
+			subCmd = args[0]
+		}
+		var stderrStr string
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			stderrStr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		if stderrStr != "" {
+			err = errors.New(git.FormatGitErrorSummary(subCmd, stderrStr))
+		} else {
+			err = fmt.Errorf("git %s failed: %w", subCmd, err)
+		}
 		return
 	}
 	out = strings.Trim(string(bytes), " \n")
@@ -95,7 +136,7 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 }
 
 func (c CmdGitClient) Clone(r GitRepository) error {
-	r.Logger.Log("Cloning Repository " + r.Repository.GitURL)
+	r.Logger.Log("Cloning Repository " + r.Repository.GetGitURL(true))
 
 	var dirName string
 	if r.TmpDirName == "" {
@@ -125,7 +166,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 }
 
 func (c CmdGitClient) Pull(r GitRepository) error {
-	r.Logger.Log("Updating Repository " + r.Repository.GitURL)
+	r.Logger.Log("Updating Repository " + r.Repository.GetGitURL(true))
 
 	err := c.run(r, GitRepositoryFullPath, "pull", "origin", "--end-of-options", r.Repository.GitBranch)
 	if err != nil {
