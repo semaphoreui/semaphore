@@ -60,7 +60,13 @@ jobs:
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         run: |
           if ! git ls-remote --exit-code --heads "$PRO_REPO" "refs/heads/$BRANCH_NAME" > /dev/null; then
-            BRANCH_NAME=main
+            rc=$?
+            if [ "$rc" -eq 2 ]; then
+              BRANCH_NAME=main
+            else
+              echo "Failed to query $PRO_REPO for branch $BRANCH_NAME (exit $rc)" >&2
+              exit "$rc"
+            fi
           fi
           echo "Using pro_impl branch: $BRANCH_NAME"
           git clone -b "$BRANCH_NAME" "$PRO_REPO" pro_impl
