@@ -169,6 +169,44 @@ func (c GoGitClient) Checkout(r GitRepository, target string) error {
 	return err
 }
 
+func (c GoGitClient) CloneLocal(r GitRepository, source, hash string) error {
+	r.Logger.Log("Creating task copy of the repository")
+
+	destPath := r.GetFullPath()
+
+	rep, err := git.PlainClone(destPath, false, &git.CloneOptions{
+		URL:      source,
+		Progress: ProgressWrapper{r.Logger},
+	})
+	if err != nil {
+		return err
+	}
+
+	wt, err := rep.Worktree()
+	if err != nil {
+		return err
+	}
+
+	if err := wt.Checkout(&git.CheckoutOptions{Hash: plumbing.NewHash(hash)}); err != nil {
+		return err
+	}
+
+	if err := copySubmoduleStore(source, destPath); err != nil {
+		return err
+	}
+
+	submodules, err := wt.Submodules()
+	if err != nil {
+		return err
+	}
+
+	return submodules.Update(&git.SubmoduleUpdateOptions{
+		Init:              true,
+		NoFetch:           true,
+		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+	})
+}
+
 func (c GoGitClient) CanBePulled(r GitRepository) bool {
 
 	rep, err := openRepository(r, GitRepositoryFullPath)

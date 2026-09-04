@@ -54,9 +54,8 @@ func (t *ShellApp) makeCmd(command string, args []string, environmentVars []stri
 	return cmd
 }
 
-func (t *ShellApp) GetFullPath() (path string) {
-	path = t.Repository.GetFullPath(t.Template.ID)
-	return
+func (t *ShellApp) GetFullPath() string {
+	return t.Repository.GetWorkingCopyPath(t.Template.ID)
 }
 
 func (t *ShellApp) SetLogger(logger task_logger.Logger) task_logger.Logger {

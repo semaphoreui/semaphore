@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"fmt"
 	"math/rand"
 	"os"
 	"path"
@@ -14,6 +15,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/semaphoreui/semaphore/db_lib"
 
@@ -805,4 +807,75 @@ func TestTaskRunner_populateTaskEnvironment(t *testing.T) {
 	}
 
 	assert.Equal(t, tsk.Environment.JSON, "{\"a\":11,\"b\":22,\"c\":33,\"d\":4}")
+}
+
+// TestPopulateDetails_WorkingCopyPath pins the wiring: a task of a template that
+// allows parallel runs must arrive with its own copy path set, and a task of an
+// ordinary template must not.
+func TestPopulateDetails_WorkingCopyPath(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	require.NoError(t, err)
+
+	inv, err := store.CreateInventory(db.Inventory{ProjectID: proj.ID})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name               string
+		allowParallelTasks bool
+		expectOwnCopy      bool
+	}{
+		{name: "parallel template", allowParallelTasks: true, expectOwnCopy: true},
+		{name: "ordinary template", allowParallelTasks: false, expectOwnCopy: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tpl, err := store.CreateTemplate(db.Template{
+				Name:               tt.name,
+				Playbook:           "test.yml",
+				ProjectID:          proj.ID,
+				RepositoryID:       repo.ID,
+				InventoryID:        &inv.ID,
+				AllowParallelTasks: tt.allowParallelTasks,
+			})
+			require.NoError(t, err)
+
+			task, err := store.CreateTask(db.Task{TemplateID: tpl.ID, ProjectID: proj.ID}, 0)
+			require.NoError(t, err)
+
+			tsk := TaskRunner{
+				pool: &TaskPool{
+					store:             store,
+					inventoryService:  &InventoryServiceMock{},
+					encryptionService: &EncryptionServiceMock{},
+				},
+				Task: task,
+			}
+
+			require.NoError(t, tsk.populateDetails())
+
+			if !tt.expectOwnCopy {
+				assert.Empty(t, tsk.Repository.WorkingCopyPath)
+				return
+			}
+
+			expected := path.Join(util.Config.GetProjectTmpDir(proj.ID),
+				fmt.Sprintf("repository_%d_template_%d_task_%d", repo.ID, tpl.ID, task.ID))
+			assert.Equal(t, expected, tsk.Repository.WorkingCopyPath)
+		})
+	}
 }

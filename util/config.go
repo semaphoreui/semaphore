@@ -757,6 +757,16 @@ func (conf *ConfigType) GetRunnerRegistrationToken() string {
 	return conf.RunnerRegistrationToken
 }
 
+// GetGitSubmoduleJobs returns GitSubmoduleJobs, never below 1. Git aborts when
+// told to use zero processes, and the field is zero whenever a ConfigType is
+// built without the defaults.
+func (conf *ConfigType) GetGitSubmoduleJobs() int {
+	if conf.GitSubmoduleJobs < 1 {
+		return 1
+	}
+	return conf.GitSubmoduleJobs
+}
+
 func (conf *ConfigType) IsUseRemoteRunner() bool {
 	switch conf.Runners.DefaultGlobalRunnersMode {
 	case DefultGlobalRunnerDisable:

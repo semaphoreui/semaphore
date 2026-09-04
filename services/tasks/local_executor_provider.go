@@ -35,6 +35,8 @@ func NewLocalExecutorProvider(keyInstaller db_lib.AccessKeyInstaller) *LocalExec
 // here rather than inside LocalExecutor.Prepare so the executor arrives with a
 // non-nil App — Prepare's contract is "do the I/O", not "build the structure".
 func (p *LocalExecutorProvider) NewExecutor(task db.Task, template db.Template, inventory db.Inventory, repository db.Repository, environment db.Environment, jwt string) (Executor, error) {
+	repository.WorkingCopyPath = resolveTaskCopyPath(repository, template, task)
+
 	return &LocalExecutor{
 		Task:        task,
 		Template:    template,

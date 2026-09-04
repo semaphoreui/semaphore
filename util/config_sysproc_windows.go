@@ -22,3 +22,6 @@ func ChownDir(path string) error {
 	return nil
 }
 
+func ChownTree(root string) error {
+	return nil
+}

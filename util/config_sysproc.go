@@ -3,9 +3,11 @@
 package util
 
 import (
+	"io/fs"
 	"math"
 	"os"
 	"os/user"
+	"path/filepath"
 	"strconv"
 	"syscall"
 )
@@ -83,4 +85,24 @@ func ChownDir(path string) error {
 	}
 
 	return os.Chown(path, int(uid), int(gid))
+}
+
+// ChownTree changes ownership of the whole tree to the process config
+// user/group. Needed when the main Semaphore process creates files inside a
+// directory that child processes (git, ansible, etc.) have to write to.
+func ChownTree(root string) error {
+	uid, gid := Config.getProcessCredential()
+
+	if uid <= 0 || gid <= 0 || uid > math.MaxInt32 || gid > math.MaxInt32 {
+		return nil
+	}
+
+	u, g := int(uid), int(gid)
+
+	return filepath.WalkDir(root, func(path string, _ fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		return os.Lchown(path, u, g)
+	})
 }
