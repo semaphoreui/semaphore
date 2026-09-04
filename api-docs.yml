@@ -1103,6 +1103,13 @@ definitions:
         type: integer
       cron_format:
         type: string
+        description: >
+          Standard 5-field cron expression, a robfig/cron @-descriptor
+          (@hourly, @daily, ...), or the Semaphore @monthly-weekday descriptor
+          "@monthly-weekday <ordinal> <weekday> [offset <days>] [at <HH:MM>]"
+          (ordinal 1..5 or 'last'). Example: "@monthly-weekday 2 tue offset 1
+          at 03:00" is the first Wednesday after Patch Tuesday. An optional
+          CRON_TZ=/TZ= prefix pins the timezone.
         x-example: "* * * 1 *"
         example: "* * * 1 *"
       project_id:
@@ -3330,6 +3337,42 @@ paths:
           description: schedule created
           schema:
             $ref: "#/definitions/Schedule"
+
+  /project/{project_id}/schedules/validate:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    post:
+      tags:
+        - schedule
+      summary: validate a schedule cron format
+      description: >
+        Validates cron_format and, on success, returns the next upcoming
+        activation instants. This is authoritative for descriptors the
+        frontend cannot evaluate locally (e.g. @monthly-weekday).
+      parameters:
+        - name: schedule
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ScheduleRequest"
+      responses:
+        200:
+          description: cron format is valid
+          schema:
+            type: object
+            properties:
+              next_run:
+                type: array
+                items:
+                  type: string
+                  format: date-time
+        400:
+          description: invalid cron format
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
 
   # project views
   /project/{project_id}/views:
