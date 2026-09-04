@@ -7,7 +7,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
+	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -98,8 +102,8 @@ func runSupervisor() int {
 	}
 	exitCode := cmd.ProcessState.ExitCode()
 
-	if err := reapChildren(); err != nil {
-		fmt.Fprintf(os.Stderr, "reap descendants: %v\n", err)
+	if err := terminateAndReapChildren(); err != nil {
+		fmt.Fprintf(os.Stderr, "terminate descendants: %v\n", err)
 		return 1
 	}
 
@@ -107,12 +111,25 @@ func runSupervisor() int {
 	return exitCode
 }
 
-func reapChildren() error {
+func terminateAndReapChildren() error {
 	for {
+		pids, err := childPIDs()
+		if err != nil {
+			return err
+		}
+		for _, pid := range pids {
+			err := unix.Kill(pid, unix.SIGKILL)
+			if err != nil && !errors.Is(err, unix.ESRCH) {
+				return err
+			}
+		}
+
 		var info unix.Siginfo
 		// https://man7.org/linux/man-pages/man2/waitpid.2.html
-		// P_ALL: Wait for any child; id is ignored.
-		err := unix.Waitid(unix.P_ALL, 0, &info, unix.WEXITED, nil)
+		// P_ALL waits for any child. WNOHANG avoids blocking if the /proc child-list
+		// read races with a child exiting, creating another child, or being adopted;
+		// the loop can rescan and signal the newly visible child instead.
+		err = unix.Waitid(unix.P_ALL, 0, &info, unix.WEXITED|unix.WNOHANG, nil)
 
 		// ECHILD (for waitpid() or waitid()) The process specified by pid
 		//        (waitpid()) or idtype and id (waitid()) does not exist or
@@ -122,13 +139,47 @@ func reapChildren() error {
 		if errors.Is(err, unix.ECHILD) {
 			return nil
 		}
-		// EINTR: "WNOHANG was not set and an unblocked signal or a SIGCHLD was caught."
-		// No child was reaped, so retry the interrupted wait.
-		if errors.Is(err, unix.EINTR) {
-			continue
-		}
 		if err != nil {
 			return err
 		}
+		if info.Signo == 0 {
+			// Children still exist but none have exited; rescan without blocking.
+			// Bazel uses the same delay while waiting for SIGKILL to take effect:
+			// src/main/tools/process-tools-linux.cc#L47-L51
+			time.Sleep(100 * time.Microsecond)
+		}
 	}
+}
+
+func childPIDs() ([]int, error) {
+	// https://man7.org/linux/man-pages/man5/proc_tid_children.5.html
+	// A Go process can have multiple OS threads, so inspect every thread's child list.
+	paths, err := filepath.Glob("/proc/self/task/*/children")
+	if err != nil {
+		return nil, err
+	}
+
+	pids := make(map[int]struct{})
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		for field := range strings.FieldsSeq(string(data)) {
+			pid, err := strconv.Atoi(field)
+			if err != nil {
+				return nil, err
+			}
+			pids[pid] = struct{}{}
+		}
+	}
+
+	result := make([]int, 0, len(pids))
+	for pid := range pids {
+		result = append(result, pid)
+	}
+	return result, nil
 }

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 sleep 120 &
-child_pid=$!
+echo "Started same-group process with PID $!"
 
-echo "Started 120-second background process with PID $child_pid"
+setsid sleep 120 &
+echo "Started escaped process with PID $!"
