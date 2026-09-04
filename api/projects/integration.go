@@ -12,13 +12,13 @@ import (
 
 func IntegrationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		integrationId, err := helpers.GetIntParam("integration_id", w, r)
-		projectId, err := helpers.GetIntParam("project_id", w, r)
+		integrationId, ok := helpers.GetIntParam("integration_id", w, r)
+		if !ok {
+			return
+		}
 
-		if err != nil {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "Invalid integration ID",
-			})
+		projectId, ok := helpers.GetIntParam("project_id", w, r)
+		if !ok {
 			return
 		}
 
@@ -52,21 +52,14 @@ func GetIntegrations(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetIntegrationRefs(w http.ResponseWriter, r *http.Request) {
-	integration_id, err := helpers.GetIntParam("integration_id", w, r)
+	integration_id, ok := helpers.GetIntParam("integration_id", w, r)
 
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid Integration ID",
-		})
+	if !ok {
 		return
 	}
 
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
 	refs, err := helpers.Store(r).GetIntegrationRefs(project.ID, integration_id)
 
 	if err != nil {
@@ -152,15 +145,14 @@ func UpdateIntegration(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteIntegration(w http.ResponseWriter, r *http.Request) {
-	integration_id, err := helpers.GetIntParam("integration_id", w, r)
-	if err != nil {
-		helpers.WriteError(w, err)
+	integration_id, ok := helpers.GetIntParam("integration_id", w, r)
+	if !ok {
 		return
 	}
 
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
-	err = helpers.Store(r).DeleteIntegration(project.ID, integration_id)
+	err := helpers.Store(r).DeleteIntegration(project.ID, integration_id)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Integration failed to be deleted",

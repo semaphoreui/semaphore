@@ -146,9 +146,8 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 func (c *EnvironmentController) EnvironmentMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		envID, err := helpers.GetIntParam("environment_id", w, r)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
+		envID, ok := helpers.GetIntParam("environment_id", w, r)
+		if !ok {
 			return
 		}
 

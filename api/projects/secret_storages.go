@@ -18,8 +18,8 @@ type SecretStorageController struct {
 func SecretStorageMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		storageID, err := helpers.GetIntParam("storage_id", w, r)
-		if err != nil {
+		storageID, ok := helpers.GetIntParam("storage_id", w, r)
+		if !ok {
 			return
 		}
 
@@ -170,13 +170,12 @@ func (c *SecretStorageController) Add(w http.ResponseWriter, r *http.Request) {
 
 func (c *SecretStorageController) Remove(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	storageID, err := helpers.GetIntParam("storage_id", w, r)
-	if err != nil {
-		helpers.WriteError(w, err)
+	storageID, ok := helpers.GetIntParam("storage_id", w, r)
+	if !ok {
 		return
 	}
 
-	err = c.secretStorageService.Delete(project.ID, storageID)
+	err := c.secretStorageService.Delete(project.ID, storageID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

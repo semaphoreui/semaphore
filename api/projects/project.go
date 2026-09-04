@@ -18,10 +18,9 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := helpers.GetFromContext(r, "user").(*db.User)
 
-		projectID, err := helpers.GetIntParam("project_id", w, r)
+		projectID, ok := helpers.GetIntParam("project_id", w, r)
 
-		if err != nil {
-			// Header already written by GetIntParam
+		if !ok {
 			return
 		}
 
@@ -61,10 +60,8 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		}
 
 		if helpers.HasParam("template_id", r) {
-			var templateID int
-			templateID, err = helpers.GetIntParam("template_id", w, r)
-			if err != nil {
-				helpers.WriteError(w, err)
+			templateID, templateOk := helpers.GetIntParam("template_id", w, r)
+			if !templateOk {
 				return
 			}
 			var perm db.ProjectUserPermission

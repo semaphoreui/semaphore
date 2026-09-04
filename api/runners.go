@@ -73,12 +73,9 @@ func (c *GlobalRunnerController) AddRunner(w http.ResponseWriter, r *http.Reques
 
 func (c *GlobalRunnerController) RunnerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		runnerID, err := helpers.GetIntParam("runner_id", w, r)
+		runnerID, ok := helpers.GetIntParam("runner_id", w, r)
 
-		if err != nil {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "runner_id required",
-			})
+		if !ok {
 			return
 		}
 

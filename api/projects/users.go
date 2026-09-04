@@ -12,12 +12,12 @@ import (
 func UserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		userID, err := helpers.GetIntParam("user_id", w, r)
-		if err != nil {
+		userID, ok := helpers.GetIntParam("user_id", w, r)
+		if !ok {
 			return
 		}
 
-		_, err = helpers.Store(r).GetProjectUser(project.ID, userID)
+		_, err := helpers.Store(r).GetProjectUser(project.ID, userID)
 
 		if err != nil {
 			helpers.WriteError(w, err)
