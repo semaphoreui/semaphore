@@ -50,8 +50,8 @@ func getSession(r *http.Request) (*db.Session, bool) {
 		return nil, false
 	}
 
-	if time.Since(session.LastActive).Hours() > 7*24 {
-		// more than week old unused session
+	if time.Since(session.LastActive).Hours() > float64(util.Config.Auth.MaxSessionLifeHours) {
+		// session expired due to inactivity
 		// destroy.
 		if err = helpers.Store(r).ExpireSession(userID, sessionID); err != nil {
 			// it is internal error, it doesn't concern the user
