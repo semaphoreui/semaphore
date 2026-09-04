@@ -174,7 +174,9 @@ func gitHostKeyCheckingOpts() string {
 	case util.SshStrictHostKeyCheckingYes:
 		return fmt.Sprintf("-o StrictHostKeyChecking=yes -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
 	case util.SshStrictHostKeyCheckingNo:
-		return "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+		// No leading "ssh": the caller prepends it, and a second one is taken by
+		// ssh as the host to connect to ("Could not resolve hostname ssh").
+		return "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 	case util.SshStrictHostKeyCheckingAcceptNew:
 		return fmt.Sprintf("-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
 	default:

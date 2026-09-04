@@ -4,8 +4,10 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -80,10 +82,26 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return nil
 	}
 
-	if err := t.installCollectionsRequirements(args.EnvironmentVars); err != nil {
+	environmentVars := galaxyGitEnv(t.Repository)
+
+	// An SSH repository key reaches galaxy's git clones through an agent, the
+	// same way TerraformApp.init hands one to `terraform init`.
+	if args.Installer != nil {
+		keyInstallation, err := args.Installer.Install(t.Repository.SSHKey, db.AccessKeyRoleGit, t.Logger)
+		if err != nil {
+			return err
+		}
+		defer keyInstallation.Destroy() //nolint: errcheck
+		environmentVars = append(environmentVars, keyInstallation.GetGitEnv()...)
+	}
+
+	// Task variables come last so a manually configured GIT_* var still wins.
+	environmentVars = append(environmentVars, args.EnvironmentVars...)
+
+	if err := t.installCollectionsRequirements(environmentVars); err != nil {
 		return err
 	}
-	if err := t.installRolesRequirements(args.EnvironmentVars); err != nil {
+	if err := t.installRolesRequirements(environmentVars); err != nil {
 		return err
 	}
 	return nil
@@ -209,4 +227,45 @@ func (t *AnsibleApp) installCollectionsRequirements(environmentVars []string) (e
 
 func (t *AnsibleApp) runGalaxy(args []string, environmentVars []string) error {
 	return t.Playbook.RunGalaxy(args, environmentVars)
+}
+
+// sqQuote quotes s for GIT_CONFIG_PARAMETERS: single-quoted, with embedded
+// single quotes written as '\”.
+func sqQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// galaxyGitEnv lets ansible-galaxy authenticate to the repository's own git server.
+//
+// Galaxy shells out to `git clone` for `scm: git` requirements, and those clones
+// inherit no credentials, so roles hosted next to the repository fail with
+// "could not read Username" (GitHub #3677). Credentials go through
+// GIT_CONFIG_PARAMETERS so they stay out of `ps` output and out of the task log,
+// which only ever shows the pre-rewrite URL.
+func galaxyGitEnv(repo db.Repository) (env []string) {
+	// Without this git prompts on /dev/tty and the task hangs instead of failing.
+	env = append(env, "GIT_TERMINAL_PROMPT=0")
+
+	if repo.GetType() != db.RepositoryHTTP || repo.SSHKey.Type != db.AccessKeyLoginPassword {
+		return
+	}
+
+	plain, err := url.Parse(repo.GitURL)
+	if err != nil || plain.Host == "" {
+		return
+	}
+
+	// Scoped to this exact scheme://host[:port] so no other server named in
+	// requirements.yml is ever offered the credential.
+	plain.Path, plain.RawQuery, plain.Fragment, plain.User = "/", "", "", nil
+
+	withAuth := *plain
+	if login := repo.SSHKey.LoginPassword.Login; login == "" {
+		withAuth.User = url.User(repo.SSHKey.LoginPassword.Password)
+	} else {
+		withAuth.User = url.UserPassword(login, repo.SSHKey.LoginPassword.Password)
+	}
+
+	return append(env, "GIT_CONFIG_PARAMETERS="+sqQuote(
+		"url."+withAuth.String()+".insteadOf="+plain.String()))
 }
