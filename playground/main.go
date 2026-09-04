@@ -90,9 +90,14 @@ func runSupervisor(gracePeriod, cleanupTimeout time.Duration) int {
 	// processes—for example, a double-forked daemon—terminates (perhaps
 	// so that it can restart that process).  Some init(1) frameworks
 	// (e.g., systemd(1)) employ a subreaper process for similar reasons.
+	subreaperEnabled := true
 	if err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0); err != nil {
-		fmt.Fprintf(os.Stderr, "enable subreaper: %v\n", err)
-		return 1
+		if !errors.Is(err, unix.EINVAL) {
+			fmt.Fprintf(os.Stderr, "enable subreaper: %v\n", err)
+			return 1
+		}
+		subreaperEnabled = false
+		fmt.Fprintln(os.Stderr, "subreaper unavailable; cleanup is limited to the task process group")
 	}
 
 	taskCmd := exec.Command("bash", "playground/scripts/spawn-background.sh")
@@ -123,9 +128,11 @@ func runSupervisor(gracePeriod, cleanupTimeout time.Duration) int {
 	}
 	taskCmdStatus := taskCmd.ProcessState.Sys().(syscall.WaitStatus)
 
-	if err := terminateAndReapChildren(cleanupTimeout); err != nil {
-		fmt.Fprintf(os.Stderr, "terminate descendants: %v\n", err)
-		return 1
+	if subreaperEnabled {
+		if err := terminateAndReapChildren(cleanupTimeout); err != nil {
+			fmt.Fprintf(os.Stderr, "terminate descendants: %v\n", err)
+			return 1
+		}
 	}
 	if waitErr != nil {
 		fmt.Fprintf(os.Stderr, "wait for task command exit: %v\n", waitErr)
