@@ -4,6 +4,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,23 +18,33 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const supervisorMode = "--supervisor"
-
 func main() {
-	if len(os.Args) == 2 && os.Args[1] == supervisorMode {
-		os.Exit(runSupervisor())
+	supervisorMode := flag.Bool("supervisor", false, "run as the task supervisor")
+	gracePeriod := flag.Duration("termination-grace-period", 15*time.Second, "delay before escalating to SIGKILL")
+	flag.Parse()
+
+	if *gracePeriod < 0 {
+		fmt.Fprintln(os.Stderr, "termination grace period cannot be negative")
+		os.Exit(1)
 	}
-	os.Exit(runServer())
+	if *supervisorMode {
+		os.Exit(runSupervisor(*gracePeriod))
+	}
+	os.Exit(runServer(*gracePeriod))
 }
 
-func runServer() int {
+func runServer(gracePeriod time.Duration) int {
 	executable, err := os.Executable()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "find executable: %v\n", err)
 		return 1
 	}
 
-	supCmd := exec.Command(executable, supervisorMode)
+	supCmd := exec.Command(
+		executable,
+		"--supervisor",
+		"--termination-grace-period="+gracePeriod.String(),
+	)
 	supCmd.Stdout = os.Stdout
 	supCmd.Stderr = os.Stderr
 
@@ -60,7 +71,7 @@ func runServer() int {
 	return exitCode
 }
 
-func runSupervisor() int {
+func runSupervisor(gracePeriod time.Duration) int {
 	supSignalCh := make(chan os.Signal, 1)
 	signal.Notify(supSignalCh, syscall.SIGTERM, syscall.SIGINT)
 	defer signal.Stop(supSignalCh)
@@ -92,7 +103,7 @@ func runSupervisor() int {
 	pid := taskCmd.Process.Pid
 	fmt.Printf("Task command PID: %d\n", pid)
 
-	supSignal, waitErr := waitForCmd(pid, supSignalCh)
+	supSignal, waitErr := waitForCmd(pid, supSignalCh, gracePeriod)
 
 	// Kill same-group descendants in one operation before using /proc below to
 	// find adopted descendants that escaped into another process group.
@@ -142,7 +153,7 @@ func runSupervisor() int {
 }
 
 // The signal result is zero unless the supervisor received a termination signal.
-func waitForCmd(pid int, supSignalCh <-chan os.Signal) (syscall.Signal, error) {
+func waitForCmd(pid int, supSignalCh <-chan os.Signal, gracePeriod time.Duration) (syscall.Signal, error) {
 	exited := make(chan error, 1)
 	go func() {
 		for {
@@ -170,7 +181,7 @@ func waitForCmd(pid int, supSignalCh <-chan os.Signal) (syscall.Signal, error) {
 		select {
 		case err := <-exited:
 			return sig, err
-		case <-time.After(time.Second):
+		case <-time.After(gracePeriod):
 			if err := signalProcessGroup(pid, unix.SIGKILL); err != nil {
 				return sig, err
 			}
