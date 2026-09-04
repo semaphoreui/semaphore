@@ -256,6 +256,11 @@ func (p *JobPool) Unregister() (err error) {
 	return
 }
 
+// runnerProgressInterval is how often the runner reports progress. It is not
+// configurable: the report is also the heartbeat the server uses to decide a
+// runner is still alive.
+const runnerProgressInterval = time.Second
+
 func (p *JobPool) Run() {
 	launched := false
 
@@ -272,8 +277,13 @@ func (p *JobPool) Run() {
 		"check_interval": checkInterval,
 	}).Debug("Runner poll interval")
 
+	// The progress report doubles as the runner's heartbeat, and the server marks
+	// a runner offline after RunnersOfflineTimeout (120s by default), so its
+	// cadence is fixed. Only the job check honours the configured interval.
+	lastJobCheck := time.Time{}
+
 	queueTicker := time.NewTicker(5 * time.Second)
-	requestTimer := time.NewTicker(checkInterval)
+	requestTimer := time.NewTicker(runnerProgressInterval)
 	p.resetRunningJobs()
 
 	defer func() {
@@ -409,7 +419,10 @@ func (p *JobPool) Run() {
 					os.Exit(0)
 				}
 
-				p.checkNewJobs()
+				if time.Since(lastJobCheck) >= checkInterval {
+					lastJobCheck = time.Now()
+					p.checkNewJobs()
+				}
 			}()
 
 		}

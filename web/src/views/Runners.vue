@@ -197,18 +197,30 @@
             </div>
           </div>
 
-          <v-text-field
-            v-model="checkIntervalSeconds"
-            type="number"
-            min="1"
-            class="mt-6"
-            style="max-width: 320px"
-            :label="$t('runnerCheckInterval')"
-            :hint="$t('runnerCheckIntervalHint')"
-            :rules="[checkIntervalRule]"
-            persistent-hint
-            dense
-          />
+          <v-checkbox
+              v-model="advancedOptions"
+              label="Advanced options"
+            />
+
+          <HighlightedCard
+              v-if="advancedOptions"
+              tick-left="80px"
+              style="width: 350px;"
+          >
+            <template>
+            <v-text-field
+                v-model="checkIntervalSeconds"
+                type="number"
+                min="1"
+                :label="$t('runnerCheckInterval')"
+                :hint="$t('runnerCheckIntervalHint')"
+                :rules="[checkIntervalRule]"
+                persistent-hint
+                dense
+                outlined
+            />
+            </template>
+          </HighlightedCard>
 
           <h2 class="mt-11 mb-4">Variants of usage</h2>
 
@@ -695,7 +707,7 @@ export default {
 SEMAPHORE_RUNNER_REGISTRATION_TOKEN=${(this.newRunner || {}).registration_token} \\
 ${advancedOptions}semaphore runner register --config ./config.runner.json
 
-semaphore runner start --config ./config.runner.json`;
+${advancedOptions}semaphore runner start --config ./config.runner.json`;
     },
 
     runnerRegisterConfigContent() {
@@ -726,11 +738,13 @@ ${advancedOptions}-d semaphoreui/runner:${this.version}`;
     },
 
     runnerConfigCommand() {
+      const advancedOptions = this.advancedOptions
+        ? `,\n    "check_interval_seconds": ${this.checkInterval}` : '';
+
       return `{
   "web_host": "${this.webHost || window.location.origin}",
   "runner": {
-    "token": "${(this.newRunner || {}).token}",
-    "check_interval_seconds": ${this.checkInterval}
+    "token": "${(this.newRunner || {}).token}"${advancedOptions}
   }
 }`;
     },
@@ -738,7 +752,6 @@ ${advancedOptions}-d semaphoreui/runner:${this.version}`;
     runnerSetupCommand() {
       return `cat << EOF > /tmp/config.runner.stdin
 ${this.webHost}
-${this.checkInterval}
 no
 yes
 ${(this.newRunner || {}).token}
@@ -779,7 +792,7 @@ semaphore runner start --no-config`;
 
     runnerDockerCommand() {
       const advancedOptions = this.advancedOptions
-        ? `SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\\n`
+        ? `-e SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS=${this.checkInterval} \\\n`
         : '';
       return `docker run \\
 -e SEMAPHORE_WEB_ROOT=${this.webHost} \\
