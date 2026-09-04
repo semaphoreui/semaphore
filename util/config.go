@@ -1304,6 +1304,16 @@ func CastValueToKind(value any, kind reflect.Kind) (res any, ok bool) {
 			res = castStringToBool(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
 		}
+	case reflect.Slice:
+		// Handle string representations of slices, e.g., `["-u semaphore -b"]`
+		if str, isString := value.(string); isString {
+			var arr []string
+			err := json.Unmarshal([]byte(str), &arr)
+			if err == nil {
+				res = arr
+				ok = true
+			}
+		}
 	default:
 	}
 
