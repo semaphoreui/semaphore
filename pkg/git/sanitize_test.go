@@ -66,3 +66,56 @@ func TestSanitizeGitOutput(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatGitErrorSummary(t *testing.T) {
+	tests := []struct {
+		name     string
+		subCmd   string
+		stderr   string
+		expected string
+	}{
+		{
+			name:     "empty stderr",
+			subCmd:   "ls-remote",
+			stderr:   "",
+			expected: "git ls-remote failed",
+		},
+		{
+			name:   "gitlab verbose auth denied",
+			subCmd: "ls-remote",
+			stderr: "remote: HTTP Basic: Access denied. If a password was provided for Git authentication, the password was in-correct or you're required to use a token in-stead of a password. If a token was provided, it was either incorrect, expired, or improperly scoped. See https://gitlab.com/help/topics/git/troubleshooting_git.md#error-on-git-fetch-http-basic-access-denied\nfatal: Authentication failed for 'https://gitlab.com/semaphoreui/non-existent-private-repo.git/'",
+			expected: "Authentication failed: Access denied (check token or password)",
+		},
+		{
+			name:     "github permission denied publickey",
+			subCmd:   "clone",
+			stderr:   "git@github.com: Permission denied (publickey).\nfatal: Could not read from remote repository.",
+			expected: "Permission denied: Invalid or missing SSH key",
+		},
+		{
+			name:     "repository not found",
+			subCmd:   "ls-remote",
+			stderr:   "remote: Repository not found.\nfatal: repository 'https://github.com/user/private.git/' not found",
+			expected: "Repository not found: Check URL or repository permissions",
+		},
+		{
+			name:     "could not resolve host",
+			subCmd:   "clone",
+			stderr:   "fatal: unable to access 'https://invalid-domain-xyz.local/repo.git/': Could not resolve host: invalid-domain-xyz.local",
+			expected: "Could not resolve host: Unable to connect to Git server",
+		},
+		{
+			name:     "unmatched fatal error sanitized",
+			subCmd:   "checkout",
+			stderr:   "fatal: unable to access 'https://user:secretpass@git.host/repo.git': arbitrary failure",
+			expected: "fatal: unable to access 'https://user:***@git.host/repo.git': arbitrary failure",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := FormatGitErrorSummary(tt.subCmd, tt.stderr)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}

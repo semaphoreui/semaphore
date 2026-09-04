@@ -2,6 +2,7 @@ package db_lib
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -94,7 +95,7 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 		}
 		stderrStr := strings.TrimSpace(stderrBuf.String())
 		if stderrStr != "" {
-			err = fmt.Errorf("git %s failed: %s", subCmd, git.SanitizeGitOutput(stderrStr))
+			err = errors.New(git.FormatGitErrorSummary(subCmd, stderrStr))
 		} else {
 			err = fmt.Errorf("git %s failed: %w", subCmd, err)
 		}
@@ -123,7 +124,7 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 			stderrStr = strings.TrimSpace(string(exitErr.Stderr))
 		}
 		if stderrStr != "" {
-			err = fmt.Errorf("git %s failed: %s", subCmd, git.SanitizeGitOutput(stderrStr))
+			err = errors.New(git.FormatGitErrorSummary(subCmd, stderrStr))
 		} else {
 			err = fmt.Errorf("git %s failed: %w", subCmd, err)
 		}
