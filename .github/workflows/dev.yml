@@ -39,8 +39,15 @@ jobs:
 
       - name: Add PRO implementation
         if: github.event_name == 'push'
+        env:
+          PRO_REPO: https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         run: |
-          git clone -b main https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
+          if ! git ls-remote --exit-code --heads "$PRO_REPO" "refs/heads/$BRANCH_NAME" > /dev/null; then
+            BRANCH_NAME=main
+          fi
+          echo "Using pro_impl branch: $BRANCH_NAME"
+          git clone -b "$BRANCH_NAME" "$PRO_REPO" pro_impl
           go work init . ./pro_impl
 
       - name: Run build
