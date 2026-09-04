@@ -13,6 +13,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/conv"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 
@@ -230,9 +231,9 @@ func (c GoGitClient) GetLastCommitMessage(r GitRepository) (msg string, err erro
 		return
 	}
 
-	msg = truncateCommitMessage(headCommit.Message)
+	msg = headCommit.Message
 
-	r.Logger.Log("Message: " + msg)
+	r.Logger.Log("Message: " + conv.TruncateValidUTF8(msg))
 
 	return
 }
