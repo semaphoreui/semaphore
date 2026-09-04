@@ -8,6 +8,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/schedules"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 // SchedulesMiddleware ensures a template exists and loads it to the context
@@ -124,6 +125,57 @@ func ValidateScheduleCronFormat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = validateCronFormat(schedule.CronFormat, w)
+}
+
+func GetNextRunTime(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		CronFormat string `json:"cron_format"`
+	}
+	if !helpers.Bind(w, r, &req) {
+		return
+	}
+
+	if req.CronFormat == "" {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "cron_format is required",
+		})
+		return
+	}
+
+	schedule, err := schedules.ParseCronAndSemantics(req.CronFormat)
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid cron format: " + err.Error(),
+		})
+		return
+	}
+
+	timezone := util.Config.Schedule.Timezone
+	if timezone == "" {
+		timezone = "UTC"
+	}
+
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid timezone: " + err.Error(),
+		})
+		return
+	}
+
+	now := time.Now().In(loc)
+	nextRun := schedule.Next(now)
+
+	if nextRun.IsZero() {
+		helpers.WriteJSON(w, http.StatusOK, map[string]string{
+			"next_run_time": "",
+		})
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, map[string]string{
+		"next_run_time": nextRun.UTC().Format(time.RFC3339),
+	})
 }
 
 // AddSchedule adds a template to the database

@@ -352,12 +352,12 @@ func (p *SchedulePool) Refresh() {
 }
 
 func (p *SchedulePool) addRunner(runner ScheduleRunner, cronFormat string) (int, error) {
-	id, err := p.cron.AddJob(cronFormat, runner)
-
+	schedule, err := ParseCronAndSemantics(cronFormat)
 	if err != nil {
 		return 0, err
 	}
 
+	id := p.cron.Schedule(schedule, runner)
 	return int(id), nil
 }
 
@@ -406,4 +406,57 @@ func CreateSchedulePool(
 func ValidateCronFormat(cronFormat string) error {
 	_, err := cron.ParseStandard(cronFormat)
 	return err
+}
+
+// andSchedule wraps a cron.SpecSchedule so that day-of-month and day-of-week
+// are combined with AND instead of the POSIX OR that robfig/cron implements.
+// For example "0 6 25-31 * 6" fires only on Saturdays within the 25-31 range
+// (the last Saturday of each month), not on every Saturday OR every 25th-31st.
+//
+// When either field is * (starBit set), robfig/cron already uses AND, so the
+// wrapper delegates directly.
+type andSchedule struct {
+	spec *cron.SpecSchedule
+}
+
+const cronStarBit = 1 << 63
+
+func (s *andSchedule) Next(t time.Time) time.Time {
+	if s.spec.Dom&cronStarBit != 0 || s.spec.Dow&cronStarBit != 0 {
+		return s.spec.Next(t)
+	}
+
+	limit := t.AddDate(4, 0, 0)
+	candidate := t
+	for candidate.Before(limit) {
+		next := s.spec.Next(candidate)
+		if next.IsZero() || next.After(limit) {
+			break
+		}
+
+		domMatch := s.spec.Dom&(1<<uint(next.Day())) != 0
+		dowMatch := s.spec.Dow&(1<<uint(next.Weekday())) != 0
+
+		if domMatch && dowMatch {
+			return next
+		}
+		candidate = next
+	}
+	return time.Time{}
+}
+
+// ParseCronAndSemantics parses a standard 5-field cron expression and returns
+// a Schedule that uses AND semantics for day-of-month + day-of-week.
+func ParseCronAndSemantics(cronFormat string) (cron.Schedule, error) {
+	schedule, err := cron.ParseStandard(cronFormat)
+	if err != nil {
+		return nil, err
+	}
+
+	spec, ok := schedule.(*cron.SpecSchedule)
+	if !ok {
+		return schedule, nil
+	}
+
+	return &andSchedule{spec: spec}, nil
 }
