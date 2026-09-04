@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-sleep 120 &
+sleep 180 &
 echo "Started same-group process with PID $!"
 
-setsid sleep 120 &
+setsid sleep 180 &
 echo "Started escaped process with PID $!"
 
 if [[ "${WAIT_FOR_SIGNAL:-}" == "1" ]]; then

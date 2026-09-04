@@ -100,7 +100,7 @@ func runSupervisor(gracePeriod, cleanupTimeout time.Duration) int {
 		fmt.Fprintln(os.Stderr, "subreaper unavailable; cleanup is limited to the task process group")
 	}
 
-	taskCmd := exec.Command("bash", "playground/scripts/spawn-background.sh")
+	taskCmd := exec.Command("bash", "playground/scripts/wrapper.sh")
 	taskCmd.Stdout = os.Stdout
 	taskCmd.Stderr = os.Stderr
 	// Give the task command a dedicated process group so kill(-pid, ...) targets its task tree.
