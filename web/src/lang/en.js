@@ -109,6 +109,7 @@ export default {
   loginOptional: 'Login (Optional)',
   usernameOptional: 'Username (Optional)',
   privateKey: 'Private Key',
+  certificate: 'Certificate (Optional)',
   override: 'Override',
   useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook:
     'Use this type of key for HTTPS repositories and for playbooks which use non-SSH connections.',

@@ -17,8 +17,9 @@ import (
 )
 
 type AgentKey struct {
-	Key        []byte
-	Passphrase []byte
+	Key         []byte
+	Passphrase  []byte
+	Certificate []byte
 }
 
 type Agent struct {
@@ -52,9 +53,27 @@ func (a *Agent) Listen() error {
 			return fmt.Errorf("parsing private key: %w", err)
 		}
 
-		if err := keyring.Add(agent.AddedKey{
+		addedKey := agent.AddedKey{
 			PrivateKey: key,
-		}); err != nil {
+		}
+
+		if len(k.Certificate) > 0 {
+			pubKey, _, _, _, err := ssh.ParseAuthorizedKey(k.Certificate)
+
+			if err != nil {
+				return fmt.Errorf("parsing certificate: %w", err)
+			}
+
+			cert, ok := pubKey.(*ssh.Certificate)
+
+			if !ok {
+				return fmt.Errorf("certificate is not a valid SSH certificate")
+			}
+
+			addedKey.Certificate = cert
+		}
+
+		if err := keyring.Add(addedKey); err != nil {
 			return fmt.Errorf("adding private key: %w", err)
 		}
 	}
@@ -130,8 +149,9 @@ func StartSSHAgent(key db.AccessKey, logger task_logger.Logger) (Agent, error) {
 		Logger: logger,
 		Keys: []AgentKey{
 			{
-				Key:        []byte(key.SshKey.PrivateKey),
-				Passphrase: []byte(key.SshKey.Passphrase),
+				Key:         []byte(key.SshKey.PrivateKey),
+				Passphrase:  []byte(key.SshKey.Passphrase),
+				Certificate: []byte(key.SshKey.Certificate),
 			},
 		},
 		SocketFile: socketFile,
