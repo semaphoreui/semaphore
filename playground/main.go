@@ -33,7 +33,12 @@ func main() {
 		os.Exit(1)
 	}
 	if *supervisorMode {
-		os.Exit(runSupervisor(*gracePeriod, *cleanupTimeout))
+		command := flag.Args()
+		if len(command) == 0 {
+			fmt.Fprintln(os.Stderr, "task command is required")
+			os.Exit(1)
+		}
+		os.Exit(runSupervisor(command, *gracePeriod, *cleanupTimeout))
 	}
 	os.Exit(runServer(*gracePeriod, *cleanupTimeout))
 }
@@ -45,12 +50,15 @@ func runServer(gracePeriod, cleanupTimeout time.Duration) int {
 		return 1
 	}
 
-	supCmd := exec.Command(
-		executable,
+	command := []string{"playground/scripts/wrapper.sh"}
+	supArgs := []string{
 		"--supervisor",
-		"--termination-grace-period="+gracePeriod.String(),
-		"--cleanup-timeout="+cleanupTimeout.String(),
-	)
+		"--termination-grace-period=" + gracePeriod.String(),
+		"--cleanup-timeout=" + cleanupTimeout.String(),
+		"--",
+	}
+	supArgs = append(supArgs, command...)
+	supCmd := exec.Command(executable, supArgs...)
 	supCmd.Stdout = os.Stdout
 	supCmd.Stderr = os.Stderr
 
@@ -77,7 +85,7 @@ func runServer(gracePeriod, cleanupTimeout time.Duration) int {
 	return exitCode
 }
 
-func runSupervisor(gracePeriod, cleanupTimeout time.Duration) int {
+func runSupervisor(command []string, gracePeriod, cleanupTimeout time.Duration) int {
 	supSignalCh := make(chan os.Signal, 1)
 	signal.Notify(supSignalCh, syscall.SIGTERM, syscall.SIGINT)
 	defer signal.Stop(supSignalCh)
@@ -100,7 +108,7 @@ func runSupervisor(gracePeriod, cleanupTimeout time.Duration) int {
 		fmt.Fprintln(os.Stderr, "subreaper unavailable; cleanup is limited to the task process group")
 	}
 
-	taskCmd := exec.Command("bash", "playground/scripts/wrapper.sh")
+	taskCmd := exec.Command(command[0], command[1:]...)
 	taskCmd.Stdout = os.Stdout
 	taskCmd.Stderr = os.Stderr
 	// Give the task command a dedicated process group so kill(-pid, ...) targets its task tree.
