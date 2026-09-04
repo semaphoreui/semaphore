@@ -72,6 +72,7 @@
           <v-btn-toggle v-model="extraVarsEditMode" tile group>
             <v-btn value="table" small class="mr-0" style="border-radius: 4px"> Table </v-btn>
             <v-btn value="json" small class="mr-0" style="border-radius: 4px"> JSON </v-btn>
+            <v-btn value="yaml" small class="mr-0" style="border-radius: 4px"> YAML </v-btn>
           </v-btn-toggle>
 
           <v-btn icon @click="addExtraVar()" data-testid="varGroup-addVar">
@@ -94,6 +95,24 @@
             v-model="json"
             type="json"
             v-if="extraVarsEditMode === 'json'"
+            style="position: absolute; right: 0; top: 0; margin: 10px"
+          />
+        </div>
+        <div v-else-if="extraVarsEditMode === 'yaml'" style="position: relative">
+          <codemirror
+            :class="{
+              EnvironmentEditor: true,
+            }"
+            :style="{ border: '1px solid lightgray' }"
+            v-model="yaml"
+            :options="cmYamlOptions"
+            :placeholder="$t('enterExtraVariablesYaml')"
+          />
+
+          <RichEditor
+            v-model="yaml"
+            type="yaml"
+            v-if="extraVarsEditMode === 'yaml'"
             style="position: absolute; right: 0; top: 0; margin: 10px"
           />
         </div>
@@ -434,8 +453,12 @@
 import ItemFormBase from '@/components/ItemFormBase';
 
 import { codemirror } from 'vue-codemirror';
+import {
+  load as loadYaml, dump as dumpYaml, JSON_SCHEMA,
+} from 'js-yaml';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
+import 'codemirror/mode/yaml/yaml.js';
 import 'codemirror/addon/display/placeholder.js';
 import { getErrorMessage } from '@/lib/error';
 import RichEditor from '@/components/RichEditor.vue';
@@ -465,49 +488,133 @@ export default {
   },
 
   watch: {
-    extraVarsEditMode(val) {
-      switch (val) {
+    // Handles Table/JSON/YAML toggling. The mode being left determines which
+    // field is authoritative (extraVars for table, json for JSON, yaml for YAML);
+    // it's parsed into a plain object which is then rendered into the mode being
+    // entered.
+    extraVarsEditMode(val, oldVal) {
+      // A reverted switch (see catch blocks below) re-fires this watcher;
+      // skip re-processing it so the revert doesn't trigger another
+      // conversion and clobber the text the user is still fixing.
+      if (this.suppressExtraVarsConversion) {
+        this.suppressExtraVarsConversion = false;
+        return;
+      }
+
+      let source;
+      switch (oldVal) {
         case 'json': {
+          try {
+            source = JSON.parse(this.json);
+            this.formError = null;
+          } catch (err) {
+            this.revertExtraVarsMode(oldVal, getErrorMessage(err));
+            return;
+          }
+          break;
+        }
+        case 'yaml': {
+          try {
+            // JSON_SCHEMA restricts resolved types to what JSON itself can
+            // represent (null/bool/number/string/array/object), so e.g. an
+            // unquoted date like 2024-01-01 stays a string instead of
+            // js-yaml's default auto-conversion to a Date -- at any nesting
+            // depth, not just the root -- which would otherwise silently
+            // mangle the value (Date -> ISO string on save) or misclassify
+            // it as a dict in Table mode (Date is typeof 'object').
+            //
+            // Only an empty document (loadYaml returns undefined) defaults to
+            // {}. Valid falsy YAML values (false, 0, null) must be preserved
+            // as-is rather than silently coerced.
+            const loaded = loadYaml(this.yaml, { schema: JSON_SCHEMA });
+            source = loaded === undefined ? {} : loaded;
+            this.formError = null;
+          } catch (err) {
+            this.revertExtraVarsMode(oldVal, getErrorMessage(err));
+            return;
+          }
+          break;
+        }
+        default: {
+          // Coming from the table (or initial load): extraVars is authoritative.
+          // Serialize leniently: a row whose list/dict value is not valid JSON yet
+          // keeps its raw text (as a string) instead of throwing. This prevents the
+          // toggle from blanking the target editor or dropping rows while the user
+          // is still typing. Strict validation happens on save (see beforeSave).
           if (this.extraVars == null) {
             return;
           }
-
-          // Serialize leniently: a row whose list/dict value is not valid JSON yet
-          // keeps its raw text (as a string) instead of throwing. This prevents the
-          // toggle from blanking the JSON editor or dropping rows while the user is
-          // still typing. Strict validation happens on save (see beforeSave).
-          this.json = JSON.stringify(this.extraVarsToObjectLenient(this.extraVars), null, 2);
-          this.formError = null;
-          break;
+          source = this.extraVarsToObjectLenient(this.extraVars);
         }
-        case 'table': {
-          let parsed;
-          try {
-            parsed = JSON.parse(this.json);
-            this.formError = null;
-          } catch (err) {
-            this.formError = getErrorMessage(err);
-            this.extraVars = null;
-            return;
-          }
+      }
 
-          // If the JSON text still matches what the current table represents, the
-          // user only switched tabs without editing it — keep the existing rows so
-          // their chosen types (e.g. Dict) and in-progress values are preserved
-          // instead of being re-inferred (and possibly downgraded to String).
-          if (
-            this.extraVars != null
-            && JSON.stringify(parsed)
-              === JSON.stringify(this.extraVarsToObjectLenient(this.extraVars))
-          ) {
-            return;
-          }
+      // Every mode (Table/JSON/YAML) can only represent a plain object (name
+      // -> value map). A YAML/JSON root of null, a scalar, an array, or a
+      // YAML-parsed Date would otherwise: crash in objectToExtraVars's
+      // Object.keys (Table), or reach beforeSave/the API where the backend
+      // silently accepts a JSON "null" body and discards the user's input.
+      // Checking here -- before dispatching on the target mode -- closes
+      // that off for every transition, not just entering Table.
+      if (!this.isPlainObject(source)) {
+        this.revertExtraVarsMode(oldVal, 'Extra variables must be an object, e.g. { "key": "value" }.');
+        return;
+      }
 
-          this.extraVars = this.objectToExtraVars(parsed);
-          break;
+      // JSON_SCHEMA still resolves .inf/-.inf/.nan to real Infinity/NaN
+      // numbers (JSON itself has no such literals -- there was nothing more
+      // restrictive to parse them as). JSON.stringify doesn't throw for
+      // these; it silently writes "null", discarding the value the same way
+      // an unguarded Date would have. Object.values / Array.prototype.every
+      // walk arbitrarily-nested values; seen guards against infinite
+      // recursion on a circular value (left for the try/catch below, via
+      // the thrown "circular structure" error, to report instead).
+      if (!this.isJsonSafeValue(source, new Set())) {
+        this.revertExtraVarsMode(
+          oldVal,
+          'Extra variables contain a number that is not finite (Infinity/NaN). Use a finite number or a quoted string instead.',
+        );
+        return;
+      }
+
+      // Wrapping the whole dispatch in one try/catch -- rather than adding a
+      // try/catch per case -- means every current and future use of
+      // JSON.stringify/dumpYaml on source (or on values nested inside it,
+      // e.g. inside objectToExtraVars) is covered, including a YAML
+      // anchor/alias cycle that made source a circular object: isPlainObject
+      // above doesn't (and can't cheaply) detect that, since circularity is
+      // a graph property, not a type property.
+      try {
+        switch (val) {
+          case 'json':
+            this.json = JSON.stringify(source, null, 2);
+            break;
+          case 'yaml': {
+            const dumped = dumpYaml(source);
+            this.yaml = dumped === '{}\n' ? '' : dumped;
+            break;
+          }
+          case 'table': {
+            // If the source still matches what the current table represents,
+            // the user only switched tabs without editing it — keep the
+            // existing rows so their chosen types (e.g. Dict) and
+            // in-progress values are preserved instead of being re-inferred
+            // (and possibly downgraded to String).
+            if (
+              this.extraVars != null
+              && JSON.stringify(source)
+                === JSON.stringify(this.extraVarsToObjectLenient(this.extraVars))
+            ) {
+              return;
+            }
+
+            this.extraVars = this.objectToExtraVars(source);
+            break;
+          }
+          default:
+            throw new Error(`Invalid extra variables edit mode: ${val}`);
         }
-        default:
-          throw new Error(`Invalid extra variables edit mode: ${val}`);
+      } catch (err) {
+        this.revertExtraVarsMode(oldVal, getErrorMessage(err));
       }
     },
   },
@@ -538,6 +645,7 @@ export default {
       ],
 
       json: '{}',
+      yaml: '',
       extraVars: [],
       env: [],
       secrets: [],
@@ -553,7 +661,16 @@ export default {
         indentWithTabs: false,
       },
 
+      cmYamlOptions: {
+        tabSize: 2,
+        mode: 'text/x-yaml',
+        lineNumbers: true,
+        line: true,
+        indentWithTabs: false,
+      },
+
       extraVarsEditMode: 'json',
+      suppressExtraVarsConversion: false,
 
       extraVarTypes: [
         { text: 'String', value: 'string' },
@@ -616,6 +733,58 @@ export default {
         default:
           return this.$t('Value');
       }
+    },
+
+    // isPlainObject is true only for a plain name -> value map: the shape
+    // required for the extra variables root. Excludes null and arrays (via
+    // the typeof/Array checks) as well as class instances such as Date --
+    // which YAML auto-parses unquoted timestamps into -- by requiring the
+    // prototype to be Object.prototype (or null, e.g. Object.create(null)).
+    isPlainObject(value) {
+      if (value === null || Array.isArray(value) || typeof value !== 'object') {
+        return false;
+      }
+      const proto = Object.getPrototypeOf(value);
+      return proto === Object.prototype || proto === null;
+    },
+
+    // isJsonSafeValue recursively rejects NaN/Infinity/-Infinity anywhere in
+    // value: JSON.stringify silently turns these into null instead of
+    // throwing, so they'd otherwise pass every other check and still corrupt
+    // the saved data. seen avoids infinite recursion on a circular
+    // reference; that case is left to throw naturally so the try/catch below
+    // (or beforeSave's own try/catch) reports it instead.
+    isJsonSafeValue(value, seen) {
+      if (typeof value === 'number') {
+        return Number.isFinite(value);
+      }
+      if (Array.isArray(value)) {
+        if (seen.has(value)) {
+          return true;
+        }
+        seen.add(value);
+        return value.every((v) => this.isJsonSafeValue(v, seen));
+      }
+      if (this.isPlainObject(value)) {
+        if (seen.has(value)) {
+          return true;
+        }
+        seen.add(value);
+        return Object.values(value).every((v) => this.isJsonSafeValue(v, seen));
+      }
+      return true;
+    },
+
+    // revertExtraVarsMode undoes a Table/JSON/YAML switch that failed to
+    // convert (parse error, non-object root, or a serialization failure such
+    // as a circular YAML alias), restoring the mode being left. Reassigning
+    // extraVarsEditMode re-fires this watcher, so suppressExtraVarsConversion
+    // is set to skip that re-entry instead of reconverting (and clobbering)
+    // whatever the user was still fixing.
+    revertExtraVarsMode(oldVal, message) {
+      this.formError = message;
+      this.suppressExtraVarsConversion = true;
+      this.extraVarsEditMode = oldVal;
     },
 
     // inferVarType maps a parsed JSON value to one of the editor's variable types
@@ -752,6 +921,30 @@ export default {
       switch (this.extraVarsEditMode) {
         case 'json':
           this.item.json = this.json;
+          break;
+        case 'yaml':
+          try {
+            // See the matching loadYaml call in the watcher above for why
+            // JSON_SCHEMA is used (keeps timestamps as plain strings).
+            const loaded = loadYaml(this.yaml, { schema: JSON_SCHEMA });
+            const value = loaded === undefined ? {} : loaded;
+            // Same constraint as the table-mode guard in the watcher above:
+            // extra variables must be a plain object. A null/scalar/array
+            // root would otherwise be sent to the API as-is; the backend
+            // treats a JSON "null" body as an empty (and validly saved) set
+            // of extra variables, silently discarding whatever the user typed.
+            if (!this.isPlainObject(value)) {
+              throw new Error('must be an object, e.g. { "key": "value" }');
+            }
+            // See isJsonSafeValue in the watcher: JSON.stringify silently
+            // turns Infinity/-Infinity/NaN into null instead of throwing.
+            if (!this.isJsonSafeValue(value, new Set())) {
+              throw new Error('contains a number that is not finite (Infinity/NaN)');
+            }
+            this.item.json = JSON.stringify(value);
+          } catch (err) {
+            throw new Error(`Extra variables: ${getErrorMessage(err)}`);
+          }
           break;
         case 'table':
           if (this.extraVars == null) {

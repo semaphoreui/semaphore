@@ -13,7 +13,7 @@
             :style="{ border: '1px solid lightgray' }"
             v-model="text"
             :options="cmOptions"
-            :placeholder="$t('enterExtraVariablesJson')"
+            :placeholder="placeholderText"
         />
 
         <v-btn
@@ -80,8 +80,10 @@
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 import { codemirror } from 'vue-codemirror';
+import { load as loadYaml } from 'js-yaml';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
+import 'codemirror/mode/yaml/yaml.js';
 import 'codemirror/addon/display/placeholder.js';
 import { getErrorMessage } from '../lib/error';
 // import { getErrorMessage } from '@/lib/error';
@@ -126,16 +128,22 @@ export default {
     cmOptions() {
       return {
         tabSize: 2,
-        mode: 'application/json',
+        mode: this.type === 'yaml' ? 'text/x-yaml' : 'application/json',
         lineNumbers: true,
         line: true,
-        lint: true,
+        lint: this.type !== 'yaml',
         indentWithTabs: false,
       };
     },
 
     validatable() {
-      return ['json', 'json_array'].includes(this.type);
+      return ['json', 'json_array', 'yaml'].includes(this.type);
+    },
+
+    placeholderText() {
+      return this.type === 'yaml'
+        ? this.$t('enterExtraVariablesYaml')
+        : this.$t('enterExtraVariablesJson');
     },
 
     validationSuccessMessage() {
@@ -144,6 +152,8 @@ export default {
           return 'Valid JSON format.';
         case 'json_array':
           return 'Valid JSON array format.';
+        case 'yaml':
+          return 'Valid YAML format.';
         default:
           return 'Validation passed successfully.';
       }
@@ -172,6 +182,13 @@ export default {
             if (!Array.isArray(res)) {
               throw new Error('Must be JSON array');
             }
+          } catch (e) {
+            this.errorMessage = getErrorMessage(e);
+          }
+          break;
+        case 'yaml':
+          try {
+            loadYaml(this.text);
           } catch (e) {
             this.errorMessage = getErrorMessage(e);
           }
