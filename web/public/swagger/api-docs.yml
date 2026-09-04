@@ -2740,11 +2740,17 @@ paths:
         - name: task
           in: body
           required: true
+          description: >
+            Either template_id or template_name must be given. When both are
+            given, template_id is used.
           schema:
             type: object
             properties:
               template_id:
                 type: integer
+              template_name:
+                type: string
+                example: Build website
               debug:
                 type: boolean
               dry_run:

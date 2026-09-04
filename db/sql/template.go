@@ -10,8 +10,38 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// validateTemplateNameIsFree rejects a template name which is already used by
+// another template of the same project, so that a template can be referred to by
+// name. templateID is the template being updated, or 0 when creating one.
+//
+// Templates created before this check may still share a name, which is why
+// GetTemplateByName rejects an ambiguous name rather than relying on this.
+func (d *SqlDb) validateTemplateNameIsFree(projectID int, templateID int, name string) error {
+	var count int
+
+	err := d.selectOne(&count,
+		"select count(*) from project__template where project_id=? and name=? and id<>?",
+		projectID, name, templateID)
+
+	if err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return common_errors.NewValidationError("template with name " + name + " already exists")
+	}
+
+	return nil
+}
+
 func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, err error) {
 	err = template.Validate()
+
+	if err != nil {
+		return
+	}
+
+	err = d.validateTemplateNameIsFree(template.ProjectID, 0, template.Name)
 
 	if err != nil {
 		return
@@ -90,6 +120,12 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 
 func (d *SqlDb) UpdateTemplate(template db.Template) error {
 	err := template.Validate()
+
+	if err != nil {
+		return err
+	}
+
+	err = d.validateTemplateNameIsFree(template.ProjectID, template.ID, template.Name)
 
 	if err != nil {
 		return err
@@ -445,6 +481,37 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		templates = append(templates, tpl.Template)
 	}
 
+	return
+}
+
+// GetTemplateByName returns the template of the project with the given name.
+// Template names are not unique per project, so an ambiguous name is rejected
+// instead of silently running one of the matching templates.
+func (d *SqlDb) GetTemplateByName(projectID int, name string) (template db.Template, err error) {
+	var templates []db.Template
+
+	_, err = d.selectAll(
+		&templates,
+		"select * from project__template where project_id=? and name=? limit 2",
+		projectID,
+		name)
+
+	if err != nil {
+		return
+	}
+
+	switch len(templates) {
+	case 0:
+		err = db.ErrNotFound
+		return
+	case 1:
+	default:
+		err = common_errors.NewValidationError("more than one template is named " + name + ", use template_id")
+		return
+	}
+
+	template = templates[0]
+	err = db.FillTemplate(d, &template)
 	return
 }
 

@@ -294,6 +294,10 @@ func alterRequestBody(t *trans.Transaction) {
 	if invite != nil {
 		bodyFieldProcessor("invite_id", 4, &request)
 	}
+	if t.Request.Method == "PUT" && strings.Contains(t.Request.URI, "/templates/") {
+		bodyFieldProcessor("name", "Test-"+getUUID(), &request)
+	}
+
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("environment_ids", []int{environmentID}, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
