@@ -343,7 +343,7 @@ func addGlobalRunner() *db.Runner {
 }
 
 func addWorkflow() *db.WorkflowTemplate {
-	wf, err := workflowStore.CreateWorkflowTemplate(db.WorkflowTemplate{
+	input := db.WorkflowTemplate{
 		ProjectID: userProject.ID,
 		Name:      "ITW-" + getUUID(),
 		Nodes: []db.WorkflowNode{
@@ -357,9 +357,16 @@ func addWorkflow() *db.WorkflowTemplate {
 				Condition:         db.WorkflowEdgeOnSuccess,
 			},
 		},
-	})
+	}
+	wf, err := workflowStore.CreateWorkflowTemplate(input)
 	if err != nil {
 		panic(err)
+	}
+	// When the workflow store is a no-op stub (OSS build), it returns a
+	// zero-value struct with no Nodes. Copy the input nodes so that
+	// addWorkflowApproval() can still find the required approval node.
+	if len(wf.Nodes) == 0 {
+		wf.Nodes = input.Nodes
 	}
 	return &wf
 }
