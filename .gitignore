@@ -2,11 +2,12 @@ gin-bin
 build/
 /test/mcp/*/artifacts/
 /certs/
-web/public/js/bundle.js
-web/public/css/*.*
-web/public/html/**/*.*
-web/public/fonts/*.*
-web/.nyc_output
+/web/public/js/bundle.js
+/web/public/css/*.*
+/web/public/html/**/*.*
+/web/public/fonts/*.*
+/web/.nyc_output
+/web/dist
 api/public/**/*
 /server.json
 /config.json
