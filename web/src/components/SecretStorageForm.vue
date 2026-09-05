@@ -281,6 +281,71 @@
       ></v-text-field>
     </div>
 
+    <div v-else-if="item.type === 'cyberark'">
+      <v-text-field
+        v-model="item.params.account"
+        label="Account"
+        hint="Organization account name"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Account is required']"
+        required
+        placeholder="myorg"
+        data-testid="secretStorage-cyberarkAccount"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.login"
+        label="Login"
+        hint="Username for API key authentication"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Login is required']"
+        required
+        data-testid="secretStorage-cyberarkLogin"
+        outlined
+        dense
+      ></v-text-field>
+
+      <div class="d-flex justify-space-between align-center mb-2">
+        <b style="font-size: 13px; margin-left: 5px">API Key</b>
+        <v-btn-toggle v-model="secretStorage" tile group mandatory>
+          <v-btn value="database" small class="ma-0" style="border-radius: 4px">
+            Store in DB
+          </v-btn>
+          <v-btn value="env" small class="ma-0" style="border-radius: 4px"> From ENV </v-btn>
+          <v-btn value="file" small class="ma-0" style="border-radius: 4px"> From File </v-btn>
+        </v-btn-toggle>
+      </div>
+
+      <v-text-field
+        v-if="secretStorage === 'database'"
+        class="TextInput TextInput--no-legend masked-secret-input"
+        v-model="item.secret"
+        label="API Key"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || 'API Key is required']"
+        required
+        data-testid="secretStorage-cyberarkApiKey"
+        outlined
+        dense
+        append-icon="mdi-lock"
+      ></v-text-field>
+
+      <v-text-field
+        v-else
+        class="TextInput TextInput--no-legend"
+        v-model="item.secret"
+        :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
+        required
+        data-testid="secretStorage-cyberarkApiKeySource"
+        outlined
+        dense
+      ></v-text-field>
+    </div>
+
     <v-checkbox
       v-model="item.readonly"
       :label="$t('Read only')"

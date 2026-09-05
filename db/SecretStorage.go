@@ -9,8 +9,9 @@ const (
 	SecretStorageTypeVault   SecretStorageType = "vault"
 	SecretStorageTypeOpenBao SecretStorageType = "openbao"
 	SecretStorageTypeDvls    SecretStorageType = "dvls"
-	SecretStorageTypeAwsSm   SecretStorageType = "aws_sm"
-	SecretStorageTypeAzureKv SecretStorageType = "azure_kv"
+	SecretStorageTypeAwsSm     SecretStorageType = "aws_sm"
+	SecretStorageTypeAzureKv   SecretStorageType = "azure_kv"
+	SecretStorageTypeCyberArk  SecretStorageType = "cyberark"
 )
 
 type SecretStorage struct {

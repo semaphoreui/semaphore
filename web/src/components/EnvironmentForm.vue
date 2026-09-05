@@ -589,6 +589,8 @@ export default {
           return '$vuetify.icons.dvls';
         case 'azure_kv':
           return '$vuetify.icons.azure_kv';
+        case 'cyberark':
+          return '$vuetify.icons.cyberark';
         default:
           return '';
       }
