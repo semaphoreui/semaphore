@@ -17,7 +17,7 @@ func GetStrParam(name string, w http.ResponseWriter, r *http.Request) (string, b
 		if !isXHR(w, r) {
 			http.Redirect(w, r, "/404", http.StatusFound)
 		} else {
-			w.WriteHeader(http.StatusBadRequest)
+			WriteErrorStatus(w, "Bad request", http.StatusBadRequest)
 		}
 
 		return "", false
