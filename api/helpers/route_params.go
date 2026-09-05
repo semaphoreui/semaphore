@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 )
 
 // GetStrParamOrAbort fetches a parameter from the route variables as a string.
@@ -14,6 +15,13 @@ func GetStrParamOrAbort(name string, w http.ResponseWriter, r *http.Request) (st
 	strParam, ok := mux.Vars(r)[name]
 
 	if !ok {
+		log.WithFields(log.Fields{
+			"context": "route_params",
+			"param":   name,
+			"method":  r.Method,
+			"url":     r.URL.String(),
+		}).Debug("Route param is missing")
+
 		if !isXHR(w, r) {
 			http.Redirect(w, r, "/404", http.StatusFound)
 		} else {
@@ -48,6 +56,14 @@ func GetIntParamOrAbort(name string, w http.ResponseWriter, r *http.Request) (in
 	intParam, err := GetIntParamR(name, r)
 
 	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"context":   "route_params",
+			"param":     name,
+			"raw_value": mux.Vars(r)[name],
+			"method":    r.Method,
+			"url":       r.URL.String(),
+		}).Debug("Route param is not a valid integer")
+
 		if !isXHR(w, r) {
 			http.Redirect(w, r, "/404", http.StatusFound)
 		} else {
