@@ -22,8 +22,8 @@ func NewWorkflowController(workflowRepo db.WorkflowManager) *WorkflowController 
 func (c *WorkflowController) WorkflowsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		workflowID, err := helpers.GetIntParam("workflow_id", w, r)
-		if err != nil {
+		workflowID, ok := helpers.GetIntParamOrAbort("workflow_id", w, r)
+		if !ok {
 			return
 		}
 
@@ -43,8 +43,8 @@ func (c *WorkflowController) WorkflowRunsMiddleware(next http.Handler) http.Hand
 		project := helpers.GetFromContext(r, "project").(db.Project)
 		workflow := helpers.GetFromContext(r, "workflow").(db.WorkflowTemplate)
 
-		runID, err := helpers.GetIntParam("run_id", w, r)
-		if err != nil {
+		runID, ok := helpers.GetIntParamOrAbort("run_id", w, r)
+		if !ok {
 			return
 		}
 

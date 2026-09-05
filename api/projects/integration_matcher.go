@@ -109,12 +109,9 @@ func AddIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 
 func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	matcherId, err := helpers.GetIntParam("matcher_id", w, r)
+	matcherId, ok := helpers.GetIntParamOrAbort("matcher_id", w, r)
 
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid Matcher ID",
-		})
+	if !ok {
 		return
 	}
 	integration := helpers.GetFromContext(r, "integration").(db.Integration)
@@ -130,7 +127,7 @@ func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 
 	log.Info(fmt.Sprintf("Updating API Matcher %v for Extractor %v, matcher ID: %v", matcherId, integration.ID, matcher.ID))
 
-	err = helpers.Store(r).UpdateIntegrationMatcher(project.ID, matcher)
+	err := helpers.Store(r).UpdateIntegrationMatcher(project.ID, matcher)
 	log.Info(fmt.Sprintf("Err %s", err))
 
 	if err != nil {
@@ -143,18 +140,14 @@ func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 
 func DeleteIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	matcherId, err := helpers.GetIntParam("matcher_id", w, r)
+	matcherId, ok := helpers.GetIntParamOrAbort("matcher_id", w, r)
 
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid Matcher ID",
-		})
+	if !ok {
 		return
 	}
 
 	integration := helpers.GetFromContext(r, "integration").(db.Integration)
-	var matcher db.IntegrationMatcher
-	matcher, err = helpers.Store(r).GetIntegrationMatcher(project.ID, matcherId, integration.ID)
+	matcher, err := helpers.Store(r).GetIntegrationMatcher(project.ID, matcherId, integration.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

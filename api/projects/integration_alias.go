@@ -76,14 +76,13 @@ func AddIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 
 func RemoveIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	aliasID, err := helpers.GetIntParam("alias_id", w, r)
+	aliasID, ok := helpers.GetIntParamOrAbort("alias_id", w, r)
 
-	if err != nil {
-		helpers.WriteError(w, err)
+	if !ok {
 		return
 	}
 
-	err = helpers.Store(r).DeleteIntegrationAlias(project.ID, aliasID)
+	err := helpers.Store(r).DeleteIntegrationAlias(project.ID, aliasID)
 
 	if err != nil {
 		helpers.WriteError(w, err)

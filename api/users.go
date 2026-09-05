@@ -114,9 +114,9 @@ func (c *UsersController) AddUser(w http.ResponseWriter, r *http.Request) {
 }
 func (c *UsersController) ReadonlyUserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID, err := helpers.GetIntParam("user_id", w, r)
+		userID, ok := helpers.GetIntParamOrAbort("user_id", w, r)
 
-		if err != nil {
+		if !ok {
 			return
 		}
 
@@ -144,9 +144,9 @@ func (c *UsersController) ReadonlyUserMiddleware(next http.Handler) http.Handler
 
 func (c *UsersController) GetUserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID, err := helpers.GetIntParam("user_id", w, r)
+		userID, ok := helpers.GetIntParamOrAbort("user_id", w, r)
 
-		if err != nil {
+		if !ok {
 			return
 		}
 
@@ -450,13 +450,12 @@ func (c *UsersController) DisableTotp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	totpID, err := helpers.GetIntParam("totp_id", w, r)
-	if err != nil {
-		helpers.WriteError(w, err)
+	totpID, ok := helpers.GetIntParamOrAbort("totp_id", w, r)
+	if !ok {
 		return
 	}
 
-	err = helpers.Store(r).DeleteTotpVerification(user.ID, totpID)
+	err := helpers.Store(r).DeleteTotpVerification(user.ID, totpID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

@@ -14,8 +14,8 @@ import (
 func TemplatesMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		templateID, err := helpers.GetIntParam("template_id", w, r)
-		if err != nil {
+		templateID, ok := helpers.GetIntParamOrAbort("template_id", w, r)
+		if !ok {
 			return
 		}
 
@@ -374,8 +374,8 @@ func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Requ
 
 func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.Request) {
 	template := helpers.GetFromContext(r, "template").(db.Template)
-	permID, err := helpers.GetIntParam("perm_id", w, r)
-	if err != nil {
+	permID, ok := helpers.GetIntParamOrAbort("perm_id", w, r)
+	if !ok {
 		return
 	}
 
@@ -388,7 +388,7 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 	perm.ProjectID = template.ProjectID
 	perm.TemplateID = template.ID
 
-	err = c.templateRepo.UpdateTemplateRole(perm)
+	err := c.templateRepo.UpdateTemplateRole(perm)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -399,12 +399,12 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 
 func (c *TemplateController) DeleteTemplatePerm(w http.ResponseWriter, r *http.Request) {
 	template := helpers.GetFromContext(r, "template").(db.Template)
-	permID, err := helpers.GetIntParam("perm_id", w, r)
-	if err != nil {
+	permID, ok := helpers.GetIntParamOrAbort("perm_id", w, r)
+	if !ok {
 		return
 	}
 
-	err = c.templateRepo.DeleteTemplateRole(template.ProjectID, template.ID, permID)
+	err := c.templateRepo.DeleteTemplateRole(template.ProjectID, template.ID, permID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -415,9 +415,8 @@ func (c *TemplateController) DeleteTemplatePerm(w http.ResponseWriter, r *http.R
 
 func (c *TemplateController) GetTemplatePerm(w http.ResponseWriter, r *http.Request) {
 	template := helpers.GetFromContext(r, "template").(db.Template)
-	permID, err := helpers.GetIntParam("perm_id", w, r)
-	if err != nil {
-		helpers.WriteError(w, err)
+	permID, ok := helpers.GetIntParamOrAbort("perm_id", w, r)
+	if !ok {
 		return
 	}
 
