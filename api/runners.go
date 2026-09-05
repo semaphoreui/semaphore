@@ -73,7 +73,7 @@ func (c *GlobalRunnerController) AddRunner(w http.ResponseWriter, r *http.Reques
 
 func (c *GlobalRunnerController) RunnerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		runnerID, ok := helpers.GetIntParam("runner_id", w, r)
+		runnerID, ok := helpers.GetIntParamOrAbort("runner_id", w, r)
 
 		if !ok {
 			return

@@ -109,7 +109,7 @@ func AddIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 
 func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	matcherId, ok := helpers.GetIntParam("matcher_id", w, r)
+	matcherId, ok := helpers.GetIntParamOrAbort("matcher_id", w, r)
 
 	if !ok {
 		return
@@ -140,7 +140,7 @@ func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 
 func DeleteIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	matcherId, ok := helpers.GetIntParam("matcher_id", w, r)
+	matcherId, ok := helpers.GetIntParamOrAbort("matcher_id", w, r)
 
 	if !ok {
 		return

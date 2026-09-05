@@ -12,7 +12,7 @@ import (
 
 func TaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		taskID, ok := helpers.GetIntParam("task_id", w, r)
+		taskID, ok := helpers.GetIntParamOrAbort("task_id", w, r)
 		if !ok {
 			return
 		}

@@ -12,7 +12,7 @@ import (
 func ViewMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		viewID, ok := helpers.GetIntParam("view_id", w, r)
+		viewID, ok := helpers.GetIntParamOrAbort("view_id", w, r)
 		if !ok {
 			return
 		}

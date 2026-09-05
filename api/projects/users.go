@@ -12,7 +12,7 @@ import (
 func UserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		userID, ok := helpers.GetIntParam("user_id", w, r)
+		userID, ok := helpers.GetIntParamOrAbort("user_id", w, r)
 		if !ok {
 			return
 		}

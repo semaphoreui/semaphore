@@ -20,7 +20,7 @@ func validateAppID(str string) error {
 
 func appMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		appID, ok := helpers.GetStrParam("app_id", w, r)
+		appID, ok := helpers.GetStrParamOrAbort("app_id", w, r)
 		if !ok {
 			return
 		}

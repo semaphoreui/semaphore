@@ -7,10 +7,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// GetStrParam fetches a parameter from the route variables as a string.
+// GetStrParamOrAbort fetches a parameter from the route variables as a string.
 // On failure it writes the response itself (redirect to /404 or 400 status)
 // and returns false — the caller must only return.
-func GetStrParam(name string, w http.ResponseWriter, r *http.Request) (string, bool) {
+func GetStrParamOrAbort(name string, w http.ResponseWriter, r *http.Request) (string, bool) {
 	strParam, ok := mux.Vars(r)[name]
 
 	if !ok {
@@ -41,10 +41,10 @@ func GetIntParamR(name string, r *http.Request) (int, error) {
 	return intParam, nil
 }
 
-// GetIntParam fetches a parameter from the route variables as an integer.
+// GetIntParamOrAbort fetches a parameter from the route variables as an integer.
 // On failure it writes the response itself (redirect to /404 or 400 status)
 // and returns false — the caller must only return.
-func GetIntParam(name string, w http.ResponseWriter, r *http.Request) (int, bool) {
+func GetIntParamOrAbort(name string, w http.ResponseWriter, r *http.Request) (int, bool) {
 	intParam, err := GetIntParamR(name, r)
 
 	if err != nil {

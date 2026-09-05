@@ -46,7 +46,7 @@ func TestGetIntParam(t *testing.T) {
 }
 
 func mockParam(w http.ResponseWriter, r *http.Request) {
-	_, ok := GetIntParam("test_id", w, r)
+	_, ok := GetIntParamOrAbort("test_id", w, r)
 	if !ok {
 		return
 	}

@@ -18,7 +18,7 @@ import (
 func RepositoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		repositoryID, ok := helpers.GetIntParam("repository_id", w, r)
+		repositoryID, ok := helpers.GetIntParamOrAbort("repository_id", w, r)
 		if !ok {
 			return
 		}

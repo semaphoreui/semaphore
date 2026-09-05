@@ -11,7 +11,7 @@ import (
 
 func GetIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	valueId, ok := helpers.GetIntParam("value_id", w, r)
+	valueId, ok := helpers.GetIntParamOrAbort("value_id", w, r)
 
 	if !ok {
 		return
@@ -79,7 +79,7 @@ func AddIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 
 func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	valueId, ok := helpers.GetIntParam("value_id", w, r)
+	valueId, ok := helpers.GetIntParamOrAbort("value_id", w, r)
 
 	if !ok {
 		return
@@ -106,7 +106,7 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 
 func GetIntegrationExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	valueId, ok := helpers.GetIntParam("value_id", w, r)
+	valueId, ok := helpers.GetIntParamOrAbort("value_id", w, r)
 
 	if !ok {
 		return
@@ -129,7 +129,7 @@ func GetIntegrationExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 
 func DeleteIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	valueId, ok := helpers.GetIntParam("value_id", w, r)
+	valueId, ok := helpers.GetIntParamOrAbort("value_id", w, r)
 	if !ok {
 		return
 	}

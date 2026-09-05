@@ -27,7 +27,7 @@ func NewKeyController(
 func KeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		keyID, ok := helpers.GetIntParam("key_id", w, r)
+		keyID, ok := helpers.GetIntParamOrAbort("key_id", w, r)
 		if !ok {
 			return
 		}

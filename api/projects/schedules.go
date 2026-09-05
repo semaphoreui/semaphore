@@ -14,7 +14,7 @@ import (
 func SchedulesMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		scheduleID, ok := helpers.GetIntParam("schedule_id", w, r)
+		scheduleID, ok := helpers.GetIntParamOrAbort("schedule_id", w, r)
 		if !ok { // not specified schedule_id
 			return
 		}
@@ -55,7 +55,7 @@ func GetProjectSchedules(w http.ResponseWriter, r *http.Request) {
 }
 func GetTemplateSchedules(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	templateID, ok := helpers.GetIntParam("template_id", w, r)
+	templateID, ok := helpers.GetIntParamOrAbort("template_id", w, r)
 	if !ok {
 		return
 	}

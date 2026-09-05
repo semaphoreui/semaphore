@@ -14,7 +14,7 @@ import (
 func TemplatesMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		templateID, ok := helpers.GetIntParam("template_id", w, r)
+		templateID, ok := helpers.GetIntParamOrAbort("template_id", w, r)
 		if !ok {
 			return
 		}
@@ -374,7 +374,7 @@ func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Requ
 
 func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.Request) {
 	template := helpers.GetFromContext(r, "template").(db.Template)
-	permID, ok := helpers.GetIntParam("perm_id", w, r)
+	permID, ok := helpers.GetIntParamOrAbort("perm_id", w, r)
 	if !ok {
 		return
 	}
@@ -399,7 +399,7 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 
 func (c *TemplateController) DeleteTemplatePerm(w http.ResponseWriter, r *http.Request) {
 	template := helpers.GetFromContext(r, "template").(db.Template)
-	permID, ok := helpers.GetIntParam("perm_id", w, r)
+	permID, ok := helpers.GetIntParamOrAbort("perm_id", w, r)
 	if !ok {
 		return
 	}
@@ -415,7 +415,7 @@ func (c *TemplateController) DeleteTemplatePerm(w http.ResponseWriter, r *http.R
 
 func (c *TemplateController) GetTemplatePerm(w http.ResponseWriter, r *http.Request) {
 	template := helpers.GetFromContext(r, "template").(db.Template)
-	permID, ok := helpers.GetIntParam("perm_id", w, r)
+	permID, ok := helpers.GetIntParamOrAbort("perm_id", w, r)
 	if !ok {
 		return
 	}

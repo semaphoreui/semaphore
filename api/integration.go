@@ -61,7 +61,7 @@ func NewIntegrationController(store db.Store, integrationService server.Integrat
 
 func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
-	integrationAlias, ok := helpers.GetStrParam("integration_alias", w, r)
+	integrationAlias, ok := helpers.GetStrParamOrAbort("integration_alias", w, r)
 
 	if !ok {
 		return

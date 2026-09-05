@@ -12,12 +12,12 @@ import (
 
 func IntegrationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		integrationId, ok := helpers.GetIntParam("integration_id", w, r)
+		integrationId, ok := helpers.GetIntParamOrAbort("integration_id", w, r)
 		if !ok {
 			return
 		}
 
-		projectId, ok := helpers.GetIntParam("project_id", w, r)
+		projectId, ok := helpers.GetIntParamOrAbort("project_id", w, r)
 		if !ok {
 			return
 		}
@@ -52,7 +52,7 @@ func GetIntegrations(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetIntegrationRefs(w http.ResponseWriter, r *http.Request) {
-	integration_id, ok := helpers.GetIntParam("integration_id", w, r)
+	integration_id, ok := helpers.GetIntParamOrAbort("integration_id", w, r)
 
 	if !ok {
 		return
@@ -145,7 +145,7 @@ func UpdateIntegration(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteIntegration(w http.ResponseWriter, r *http.Request) {
-	integration_id, ok := helpers.GetIntParam("integration_id", w, r)
+	integration_id, ok := helpers.GetIntParamOrAbort("integration_id", w, r)
 	if !ok {
 		return
 	}

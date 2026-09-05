@@ -18,7 +18,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := helpers.GetFromContext(r, "user").(*db.User)
 
-		projectID, ok := helpers.GetIntParam("project_id", w, r)
+		projectID, ok := helpers.GetIntParamOrAbort("project_id", w, r)
 
 		if !ok {
 			return
@@ -60,7 +60,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		}
 
 		if helpers.HasParam("template_id", r) {
-			templateID, templateOk := helpers.GetIntParam("template_id", w, r)
+			templateID, templateOk := helpers.GetIntParamOrAbort("template_id", w, r)
 			if !templateOk {
 				return
 			}
