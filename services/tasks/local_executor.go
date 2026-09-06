@@ -1088,138 +1088,76 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 }
 
 func (t *LocalExecutor) updateAndCheckoutRepository() error {
-	unlock := t.RepoLock.Lock(t.Repository.GetFullPath(t.Template.ID))
-	defer unlock()
-
-	if err := t.updateRepository(); err != nil {
-		t.Log("Failed updating repository: " + err.Error())
-		return err
-	}
-
-	if t.Repository.WorkingCopyPath != "" {
-		if err := t.checkoutTaskCopy(); err != nil {
-			t.Log("Failed to create the task copy of the repository: " + err.Error())
-			return err
-		}
-		return nil
-	}
-
-	if err := t.checkoutRepository(); err != nil {
-		t.Log("Failed to checkout repository to required commit: " + err.Error())
-		return err
-	}
-	return nil
-}
-
-func (t *LocalExecutor) checkoutTaskCopy() error {
-	sharedRepo := db_lib.GitRepository{
+	repo := db_lib.GitRepository{
 		Logger:     t.Logger,
 		TemplateID: t.Template.ID,
 		Repository: t.Repository,
 		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
 	}
 
+	unlock := t.RepoLock.Lock(repo.GetFullPath())
+	defer unlock()
+
+	if err := repo.Refresh(); err != nil {
+		t.Log("Failed updating repository: " + err.Error())
+		return err
+	}
+
+	commitHash, err := t.resolveTaskCommit(repo)
+	if err != nil {
+		t.Log("Failed to resolve the revision to run: " + err.Error())
+		return err
+	}
+
+	if err := repo.Checkout(commitHash); err != nil {
+		t.Log("Failed to checkout repository to required commit: " + err.Error())
+		return err
+	}
+
+	if err := repo.UpdateSubmodules(); err != nil {
+		t.Log("Failed to update submodules: " + err.Error())
+		return err
+	}
+
+	commitSubject, err := repo.GetCommitSubject(commitHash)
+	if err != nil {
+		t.Log(err.Error())
+	}
+
+	t.SetCommit(commitHash, commitSubject)
+
+	if t.Repository.WorkingCopyPath == "" {
+		return nil
+	}
+
+	if err := t.createTaskCopy(repo); err != nil {
+		t.Log("Failed to create the task copy of the repository: " + err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (t *LocalExecutor) resolveTaskCommit(repo db_lib.GitRepository) (string, error) {
+	if t.Task.CommitHash != nil {
+		return *t.Task.CommitHash, nil
+	}
+
+	return repo.ResolveRevision("origin/" + repo.Repository.GitBranch)
+}
+
+func (t *LocalExecutor) createTaskCopy(repo db_lib.GitRepository) error {
 	// A crashed previous run may have left this directory behind.
 	if err := os.RemoveAll(t.Repository.WorkingCopyPath); err != nil {
 		return err
 	}
 
-	var commitHash string
-	if t.Task.CommitHash != nil {
-		commitHash = *t.Task.CommitHash
-	} else {
-		var err error
-		commitHash, err = sharedRepo.GetLastCommitHash()
-		if err != nil {
-			return err
-		}
-
-		commitMessage, err := sharedRepo.GetLastCommitMessage()
-		if err != nil {
-			t.Log(err.Error())
-		}
-
-		t.SetCommit(commitHash, commitMessage)
-	}
-
-	taskCopy := sharedRepo
-	taskCopy.TmpDirName = path.Base(t.Repository.WorkingCopyPath)
-
-	return taskCopy.CloneLocal(sharedRepo.GetFullPath(), commitHash)
-}
-
-func (t *LocalExecutor) updateRepository() error {
-	repo := db_lib.GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
-	}
-
-	err := repo.ValidateRepo()
-
-	if err != nil {
-		if !os.IsNotExist(err) {
-			err = os.RemoveAll(repo.GetFullPath())
-			if err != nil {
-				return err
-			}
-		}
-		return repo.Clone()
-	}
-
-	if repo.CanBePulled() {
-		err = repo.Pull()
-		if err == nil {
-			return nil
-		}
-	}
-
-	err = os.RemoveAll(repo.GetFullPath())
-	if err != nil {
+	if err := os.CopyFS(t.Repository.WorkingCopyPath, os.DirFS(repo.GetFullPath())); err != nil {
 		return err
 	}
 
-	return repo.Clone()
-}
-
-func (t *LocalExecutor) checkoutRepository() error {
-
-	repo := db_lib.GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
-	}
-
-	err := repo.ValidateRepo()
-
-	if err != nil {
-		return err
-	}
-
-	if t.Task.CommitHash != nil {
-		// checkout to commit if it is provided for TaskRunner
-		return repo.Checkout(*t.Task.CommitHash)
-	}
-
-	// store commit to TaskRunner table
-
-	commitHash, err := repo.GetLastCommitHash()
-
-	if err != nil {
-		return err
-	}
-
-	commitMessage, err := repo.GetLastCommitMessage()
-
-	if err != nil {
-		t.Log(err.Error())
-	}
-
-	t.SetCommit(commitHash, commitMessage)
-
-	return nil
+	// The task runs as the configured process user and writes into this copy.
+	return util.ChownTree(t.Repository.WorkingCopyPath)
 }
 
 func (t *LocalExecutor) installVaultKeyFiles() (err error) {
@@ -1260,4 +1198,3 @@ func (t *LocalExecutor) getSSHAgentEnv() string {
 	}
 	return ""
 }
-

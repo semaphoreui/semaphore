@@ -33,13 +33,14 @@ const (
 type GitClient interface {
 	Clone(r GitRepository) error
 	Pull(r GitRepository) error
-	Checkout(r GitRepository, target string) error
+	Fetch(r GitRepository) error
+	Checkout(r GitRepository, target string, force bool) error
+	UpdateSubmodules(r GitRepository) error
 	CanBePulled(r GitRepository) bool
-	GetLastCommitMessage(r GitRepository) (msg string, err error)
-	GetLastCommitHash(r GitRepository) (hash string, err error)
+	GetCommitSubject(r GitRepository, hash string) (subject string, err error)
+	ResolveRevision(r GitRepository, rev string) (hash string, err error)
 	GetLastRemoteCommitHash(r GitRepository) (hash string, err error)
 	GetRemoteBranches(r GitRepository) ([]string, error)
-	CloneLocal(r GitRepository, source, hash string) error
 }
 
 type GitRepository struct {
@@ -131,20 +132,61 @@ func (r GitRepository) Pull() error {
 	})
 }
 
+func (r GitRepository) Fetch() error {
+	return r.retry("fetch", func() error {
+		return r.Client.Fetch(r)
+	})
+}
+
+// Refresh brings the checkout up to date. An existing checkout is fetched into
+// rather than replaced, so the objects of every branch that passed through it
+// survive.
+func (r GitRepository) Refresh() error {
+	if err := r.ValidateRepo(); err != nil {
+		if !os.IsNotExist(err) {
+			if err := os.RemoveAll(r.GetFullPath()); err != nil {
+				return err
+			}
+		}
+		return r.Clone()
+	}
+
+	if err := r.Fetch(); err == nil {
+		return nil
+	}
+
+	if err := os.RemoveAll(r.GetFullPath()); err != nil {
+		return err
+	}
+
+	return r.Clone()
+}
+
+// Checkout puts the working tree on target, retrying with force when the tree
+// is dirty. Force is a last resort: go-git deletes untracked files with it.
 func (r GitRepository) Checkout(target string) error {
-	return r.Client.Checkout(r, target)
+	if err := r.Client.Checkout(r, target, false); err == nil {
+		return nil
+	}
+	return r.Client.Checkout(r, target, true)
+}
+
+func (r GitRepository) UpdateSubmodules() error {
+	return r.retry("submodule update", func() error {
+		return r.Client.UpdateSubmodules(r)
+	})
 }
 
 func (r GitRepository) CanBePulled() bool {
 	return r.Client.CanBePulled(r)
 }
 
-func (r GitRepository) GetLastCommitMessage() (msg string, err error) {
-	return r.Client.GetLastCommitMessage(r)
+func (r GitRepository) GetCommitSubject(hash string) (string, error) {
+	return r.Client.GetCommitSubject(r, hash)
 }
 
-func (r GitRepository) GetLastCommitHash() (hash string, err error) {
-	return r.Client.GetLastCommitHash(r)
+func (r GitRepository) ResolveRevision(rev string) (string, error) {
+	return r.Client.ResolveRevision(r, rev)
 }
 
 func (r GitRepository) GetLastRemoteCommitHash() (hash string, err error) {
@@ -153,8 +195,4 @@ func (r GitRepository) GetLastRemoteCommitHash() (hash string, err error) {
 
 func (r GitRepository) GetRemoteBranches() ([]string, error) {
 	return r.Client.GetRemoteBranches(r)
-}
-
-func (r GitRepository) CloneLocal(source, hash string) error {
-	return r.Client.CloneLocal(r, source, hash)
 }

@@ -515,3 +515,57 @@ func TestUpdateAndCheckoutRepository_EachTaskRunsItsOwnBranch(t *testing.T) {
 		})
 	}
 }
+
+// A task may ask for a branch which is ahead of the one the shared checkout is
+// on. It must still run the branch it asked for.
+func TestUpdateAndCheckoutRepository_BranchAheadOfSharedCheckout(t *testing.T) {
+	for _, gitClientId := range []string{util.CmdGitClientId, util.GoGitClientId} {
+		t.Run(gitClientId, func(t *testing.T) {
+			setupExecutorConfig(t)
+			util.Config = &util.ConfigType{
+				TmpPath:     t.TempDir(),
+				GitClientId: gitClientId,
+				Process:     &util.ConfigProcess{},
+			}
+
+			// feature is main plus one commit, so it is a descendant and not a fork.
+			upstream := t.TempDir()
+			gitCmd(t, upstream, "init", "-q", "-b", "main")
+			gitCmd(t, upstream, "config", "user.email", "t@t")
+			gitCmd(t, upstream, "config", "user.name", "t")
+			mainCommit := gitCommitFile(t, upstream, "main.txt")
+
+			gitCmd(t, upstream, "checkout", "-q", "-b", "feature")
+			featureCommit := gitCommitFile(t, upstream, "feature.txt")
+			gitCmd(t, upstream, "checkout", "-q", "main")
+
+			repository := db.Repository{
+				ID:        1,
+				ProjectID: 1,
+				GitURL:    "file://" + upstream,
+				GitBranch: "main",
+				SSHKey:    db.AccessKey{Type: db.AccessKeyNone},
+			}
+			template := db.Template{ID: 1, AllowParallelTasks: true, AllowOverrideBranchInTask: true}
+			provider := NewLocalExecutorProvider(&KeyInstallerMock{})
+
+			// The first task leaves the shared checkout on main.
+			mainTask := startTask(t, provider, template, repository, 301, "")
+			require.NoError(t, mainTask.updateAndCheckoutRepository())
+
+			featureTask := startTask(t, provider, template, repository, 302, "feature")
+			require.NoError(t, featureTask.updateAndCheckoutRepository())
+
+			assert.FileExists(t, filepath.Join(mainTask.Repository.WorkingCopyPath, "main.txt"))
+			require.NotNil(t, mainTask.Task.CommitHash)
+			assert.Equal(t, mainCommit, *mainTask.Task.CommitHash)
+
+			featureWorkdir := featureTask.Repository.WorkingCopyPath
+			assert.FileExists(t, filepath.Join(featureWorkdir, "feature.txt"),
+				"the task must run the branch it asked for")
+			require.NotNil(t, featureTask.Task.CommitHash)
+			assert.Equal(t, featureCommit, *featureTask.Task.CommitHash,
+				"the task must record the tip of the branch it asked for")
+		})
+	}
+}

@@ -26,18 +26,21 @@ func (c *flakyGitClient) attempt() error {
 	return nil
 }
 
-func (c *flakyGitClient) Clone(GitRepository) error            { return c.attempt() }
-func (c *flakyGitClient) Pull(GitRepository) error             { return c.attempt() }
-func (c *flakyGitClient) Checkout(GitRepository, string) error { return nil }
-func (c *flakyGitClient) CanBePulled(GitRepository) bool       { return true }
+func (c *flakyGitClient) Clone(GitRepository) error                  { return c.attempt() }
+func (c *flakyGitClient) Pull(GitRepository) error                   { return c.attempt() }
+func (c *flakyGitClient) Fetch(GitRepository) error                  { return c.attempt() }
+func (c *flakyGitClient) Checkout(GitRepository, string, bool) error { return nil }
+func (c *flakyGitClient) UpdateSubmodules(GitRepository) error       { return nil }
+func (c *flakyGitClient) CanBePulled(GitRepository) bool             { return true }
 
-func (c *flakyGitClient) GetLastCommitMessage(GitRepository) (string, error) { return "", nil }
-func (c *flakyGitClient) GetLastCommitHash(GitRepository) (string, error)    { return "", nil }
+func (c *flakyGitClient) GetCommitSubject(GitRepository, string) (string, error) { return "", nil }
+func (c *flakyGitClient) ResolveRevision(GitRepository, string) (string, error) {
+	return "", nil
+}
 func (c *flakyGitClient) GetLastRemoteCommitHash(GitRepository) (string, error) {
 	return "", nil
 }
 func (c *flakyGitClient) GetRemoteBranches(GitRepository) ([]string, error) { return nil, nil }
-func (c *flakyGitClient) CloneLocal(GitRepository, string, string) error    { return nil }
 
 // setupGitRetryTest points util.Config at a temp dir with the given attempt budget.
 func setupGitRetryTest(t *testing.T, attempts int) {

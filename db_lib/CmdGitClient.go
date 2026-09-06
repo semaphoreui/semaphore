@@ -140,40 +140,27 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 		strconv.Itoa(util.Config.GetGitSubmoduleJobs()))
 }
 
-func (c CmdGitClient) CloneLocal(r GitRepository, source, hash string) error {
-	r.Logger.Log("Creating task copy of the repository")
+func (c CmdGitClient) Fetch(r GitRepository) error {
+	r.Logger.Log("Fetching Repository " + r.Repository.GitURL)
 
-	destPath := r.GetFullPath()
-
-	if err := os.MkdirAll(destPath, 0755); err != nil {
-		return err
-	}
-	if err := util.ChownDir(destPath); err != nil {
-		return err
-	}
-
-	if err := c.run(r, GitRepositoryTmpPath, "clone", "--end-of-options", source, destPath); err != nil {
-		return err
-	}
-	if err := c.run(r, GitRepositoryFullPath, "checkout", "--end-of-options", hash); err != nil {
-		return err
-	}
-	if err := copySubmoduleStore(source, destPath); err != nil {
-		return err
-	}
-	return c.run(r, GitRepositoryFullPath,
-		"submodule",
-		"update",
-		"--init",
-		"--recursive",
-		"--jobs",
-		strconv.Itoa(util.Config.GetGitSubmoduleJobs()))
+	return c.run(r, GitRepositoryFullPath, "fetch", "--prune")
 }
 
-func (c CmdGitClient) Checkout(r GitRepository, target string) error {
+func (c CmdGitClient) Checkout(r GitRepository, target string, force bool) error {
 	r.Logger.Log("Checkout repository to " + target)
 
-	return c.run(r, GitRepositoryFullPath, "checkout", "--end-of-options", target)
+	args := []string{"-c", "advice.detachedHead=false", "checkout", "--recurse-submodules"}
+	if force {
+		args = append(args, "--force")
+	}
+
+	return c.run(r, GitRepositoryFullPath, append(args, "--end-of-options", target)...)
+}
+
+func (c CmdGitClient) UpdateSubmodules(r GitRepository) error {
+	return c.run(r, GitRepositoryFullPath,
+		"submodule", "update", "--init", "--recursive",
+		"--jobs", strconv.Itoa(util.Config.GetGitSubmoduleJobs()))
 }
 
 func (c CmdGitClient) CanBePulled(r GitRepository) bool {
@@ -188,23 +175,22 @@ func (c CmdGitClient) CanBePulled(r GitRepository) bool {
 	return err == nil
 }
 
-func (c CmdGitClient) GetLastCommitMessage(r GitRepository) (msg string, err error) {
-	r.Logger.Log("Get current commit message")
-
-	msg, err = c.output(r, GitRepositoryFullPath, "show-branch", "--no-name", "HEAD")
+func (c CmdGitClient) GetCommitSubject(r GitRepository, hash string) (string, error) {
+	subject, err := c.output(r, GitRepositoryFullPath,
+		"log", "-1", "--format=%s", "--end-of-options", hash)
 	if err != nil {
-		return
+		return "", err
 	}
 
-	msg = truncateCommitMessage(msg)
-
-	return
+	return truncateCommitMessage(subject), nil
 }
 
-func (c CmdGitClient) GetLastCommitHash(r GitRepository) (hash string, err error) {
-	r.Logger.Log("Get current commit hash")
-	hash, err = c.output(r, GitRepositoryFullPath, "rev-parse", "HEAD")
-	return
+// ResolveRevision peels the revision to a commit: plain rev-parse echoes any
+// full-length hash back even when the object is missing.
+func (c CmdGitClient) ResolveRevision(r GitRepository, rev string) (string, error) {
+	r.Logger.Log("Resolving " + rev)
+	return c.output(r, GitRepositoryFullPath,
+		"rev-parse", "--verify", "--end-of-options", rev+"^{commit}")
 }
 
 func (c CmdGitClient) GetLastRemoteCommitHash(r GitRepository) (hash string, err error) {

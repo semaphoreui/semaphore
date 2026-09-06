@@ -138,6 +138,7 @@ func (c GoGitClient) Pull(r GitRepository) error {
 
 	// Pull the latest changes from the origin remote and merge into the current branch
 	err = wt.Pull(&git.PullOptions{RemoteName: "origin",
+		ReferenceName:     plumbing.NewBranchReferenceName(r.Repository.GitBranch),
 		Auth:              authMethod,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
@@ -148,7 +149,56 @@ func (c GoGitClient) Pull(r GitRepository) error {
 	return nil
 }
 
-func (c GoGitClient) Checkout(r GitRepository, target string) error {
+func (c GoGitClient) Fetch(r GitRepository) error {
+	r.Logger.Log("Fetching Repository " + r.Repository.GitURL)
+
+	rep, err := openRepository(r, GitRepositoryFullPath)
+	if err != nil {
+		return err
+	}
+
+	authMethod, err := c.getAuthMethod(r)
+	if err != nil {
+		return err
+	}
+
+	err = rep.Fetch(&git.FetchOptions{Auth: authMethod, Prune: true})
+	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+		return err
+	}
+
+	return nil
+}
+
+func (c GoGitClient) UpdateSubmodules(r GitRepository) error {
+	rep, err := openRepository(r, GitRepositoryFullPath)
+	if err != nil {
+		return err
+	}
+
+	wt, err := rep.Worktree()
+	if err != nil {
+		return err
+	}
+
+	authMethod, err := c.getAuthMethod(r)
+	if err != nil {
+		return err
+	}
+
+	submodules, err := wt.Submodules()
+	if err != nil {
+		return err
+	}
+
+	return submodules.Update(&git.SubmoduleUpdateOptions{
+		Init:              true,
+		Auth:              authMethod,
+		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+	})
+}
+
+func (c GoGitClient) Checkout(r GitRepository, target string, force bool) error {
 	r.Logger.Log("Checkout repository to " + target)
 
 	rep, err := openRepository(r, GitRepositoryFullPath)
@@ -163,48 +213,11 @@ func (c GoGitClient) Checkout(r GitRepository, target string) error {
 	}
 
 	err = wt.Checkout(&git.CheckoutOptions{
-		Hash: plumbing.NewHash(target),
+		Hash:  plumbing.NewHash(target),
+		Force: force,
 	})
 
 	return err
-}
-
-func (c GoGitClient) CloneLocal(r GitRepository, source, hash string) error {
-	r.Logger.Log("Creating task copy of the repository")
-
-	destPath := r.GetFullPath()
-
-	rep, err := git.PlainClone(destPath, false, &git.CloneOptions{
-		URL:      source,
-		Progress: ProgressWrapper{r.Logger},
-	})
-	if err != nil {
-		return err
-	}
-
-	wt, err := rep.Worktree()
-	if err != nil {
-		return err
-	}
-
-	if err := wt.Checkout(&git.CheckoutOptions{Hash: plumbing.NewHash(hash)}); err != nil {
-		return err
-	}
-
-	if err := copySubmoduleStore(source, destPath); err != nil {
-		return err
-	}
-
-	submodules, err := wt.Submodules()
-	if err != nil {
-		return err
-	}
-
-	return submodules.Update(&git.SubmoduleUpdateOptions{
-		Init:              true,
-		NoFetch:           true,
-		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
-	})
 }
 
 func (c GoGitClient) CanBePulled(r GitRepository) bool {
@@ -251,44 +264,37 @@ func (c GoGitClient) CanBePulled(r GitRepository) bool {
 	return isAncestor && err == nil
 }
 
-func (c GoGitClient) GetLastCommitMessage(r GitRepository) (msg string, err error) {
-	r.Logger.Log("Get current commit message")
-
+func (c GoGitClient) GetCommitSubject(r GitRepository, hash string) (string, error) {
 	rep, err := openRepository(r, GitRepositoryFullPath)
 	if err != nil {
-		return
+		return "", err
 	}
 
-	headRef, err := rep.Head()
+	commit, err := rep.CommitObject(plumbing.NewHash(hash))
 	if err != nil {
-		return
-	}
-	headCommit, err := rep.CommitObject(headRef.Hash())
-	if err != nil {
-		return
+		return "", err
 	}
 
-	msg = truncateCommitMessage(headCommit.Message)
+	paragraph, _, _ := strings.Cut(commit.Message, "\n\n")
+	subject := strings.ReplaceAll(strings.TrimSpace(paragraph), "\n", " ")
 
-	r.Logger.Log("Message: " + msg)
-
-	return
+	return truncateCommitMessage(subject), nil
 }
 
-func (c GoGitClient) GetLastCommitHash(r GitRepository) (hash string, err error) {
-	r.Logger.Log("Get current commit hash")
+func (c GoGitClient) ResolveRevision(r GitRepository, rev string) (string, error) {
+	r.Logger.Log("Resolving " + rev)
 
 	rep, err := openRepository(r, GitRepositoryFullPath)
 	if err != nil {
-		return
+		return "", err
 	}
 
-	headRef, err := rep.Head()
+	resolved, err := rep.ResolveRevision(plumbing.Revision(rev))
 	if err != nil {
-		return
+		return "", err
 	}
-	hash = headRef.Hash().String()
-	return
+
+	return resolved.String(), nil
 }
 
 func (c GoGitClient) GetLastRemoteCommitHash(r GitRepository) (hash string, err error) {
