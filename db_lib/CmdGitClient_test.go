@@ -205,4 +205,13 @@ func TestCmdGitClient_SpecialCharAuthAndProxyBypass(t *testing.T) {
 
 	// 7. Verify dummy proxy was bypassed
 	assert.Equal(t, int32(0), atomic.LoadInt32(&proxyHitCount), "Traffic should have bypassed the proxy due to NO_PROXY")
+
+	// 8. Test Pull with non-positive GitSubmoduleJobs (0 and negative)
+	util.Config.GitSubmoduleJobs = 0
+	err = client.Pull(gitRepo)
+	require.NoError(t, err)
+
+	util.Config.GitSubmoduleJobs = -1
+	err = client.Pull(gitRepo)
+	require.NoError(t, err)
 }

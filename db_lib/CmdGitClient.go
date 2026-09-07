@@ -106,6 +106,13 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 	return
 }
 
+func gitSubmoduleJobs() int {
+	if util.Config != nil && util.Config.GitSubmoduleJobs >= 1 {
+		return util.Config.GitSubmoduleJobs
+	}
+	return 1
+}
+
 func (c CmdGitClient) Clone(r GitRepository) error {
 	r.Logger.Log("Cloning Repository " + r.Repository.GitURL)
 
@@ -124,16 +131,11 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 		return err
 	}
 
-	jobs := util.Config.GitSubmoduleJobs
-	if jobs < 1 {
-		jobs = 1
-	}
-
 	return c.run(r, GitRepositoryTmpPath,
 		"clone",
 		"--recursive",
 		"--jobs",
-		strconv.Itoa(jobs),
+		strconv.Itoa(gitSubmoduleJobs()),
 		"--branch",
 		r.Repository.GitBranch,
 		"--end-of-options",
@@ -154,7 +156,7 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 		"--init",
 		"--recursive",
 		"--jobs",
-		strconv.Itoa(util.Config.GitSubmoduleJobs))
+		strconv.Itoa(gitSubmoduleJobs()))
 }
 
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {
