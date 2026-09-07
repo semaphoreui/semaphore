@@ -971,6 +971,13 @@ func resolveGitBranch(repoBranch string, template db.Template, task db.Task) str
 	return branch
 }
 
+// withEffectiveBranch settles the branch before the App is built, so the App
+// and Git operations use the same branch-specific checkout directory.
+func withEffectiveBranch(repository db.Repository, template db.Template, task db.Task) db.Repository {
+	repository.GitBranch = resolveGitBranch(repository.GitBranch, template, task)
+	return repository
+}
+
 func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) error {
 
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
@@ -990,8 +997,6 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 			return err
 		}
 	}
-
-	t.Repository.GitBranch = resolveGitBranch(t.Repository.GitBranch, t.Template, t.Task)
 
 	if t.Repository.GetType() == db.RepositoryLocal {
 		localPath := t.Repository.GetGitURL(true)
@@ -1047,8 +1052,6 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 		}
 	}
 
-	t.Repository.GitBranch = resolveGitBranch(t.Repository.GitBranch, t.Template, t.Task)
-
 	if t.Repository.GetType() == db.RepositoryLocal {
 		localPath := t.Repository.GetGitURL(true)
 		if _, err := os.Stat(localPath); err != nil {
@@ -1085,8 +1088,8 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 }
 
 // updateAndCheckoutRepository runs the pull/clone + checkout sequence as one
-// critical section per repository directory, so parallel tasks of the same
-// template cannot run concurrent git operations on the shared working copy.
+// critical section per repository directory, so parallel tasks using the same
+// branch checkout cannot run concurrent git operations.
 //
 // ponytail: the lock covers git operations only; parallel tasks pinned to
 // different commits still share the working tree afterwards — per-task
@@ -1220,4 +1223,3 @@ func (t *LocalExecutor) getSSHAgentEnv() string {
 	}
 	return ""
 }
-
