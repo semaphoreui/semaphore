@@ -1355,7 +1355,7 @@ definitions:
         type: integer
       kind:
         type: string
-        enum: [task, approval]
+        enum: [task, approval, note, delay]
       convergence_mode:
         type: string
         enum: [all, any]
@@ -1363,6 +1363,10 @@ definitions:
         type: integer
       approval_message:
         type: string
+      delay_seconds:
+        type: integer
+        minimum: 1
+        description: Number of seconds to wait before continuing (delay kind only).
       task_params:
         $ref: '#/definitions/TaskPrams'
 
