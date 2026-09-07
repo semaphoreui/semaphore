@@ -91,14 +91,16 @@ func (r Repository) GetGitURL(secure bool) string {
 	if r.GetType() == RepositoryHTTP {
 		parsed, err := url.Parse(rawURL)
 		if err == nil {
-			switch r.SSHKey.Type {
-			case AccessKeyLoginPassword:
-				if r.SSHKey.LoginPassword.Login == "" {
-					if r.SSHKey.LoginPassword.Password != "" {
-						parsed.User = url.User(r.SSHKey.LoginPassword.Password)
+			if strings.EqualFold(parsed.Scheme, "https") {
+				switch r.SSHKey.Type {
+				case AccessKeyLoginPassword:
+					if r.SSHKey.LoginPassword.Login == "" {
+						if r.SSHKey.LoginPassword.Password != "" {
+							parsed.User = url.User(r.SSHKey.LoginPassword.Password)
+						}
+					} else {
+						parsed.User = url.UserPassword(r.SSHKey.LoginPassword.Login, r.SSHKey.LoginPassword.Password)
 					}
-				} else {
-					parsed.User = url.UserPassword(r.SSHKey.LoginPassword.Login, r.SSHKey.LoginPassword.Password)
 				}
 			}
 			return parsed.String()

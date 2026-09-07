@@ -3,6 +3,8 @@ package db_lib
 import (
 	"fmt"
 	"os"
+	"runtime"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -47,25 +49,36 @@ var defaultForwardedEnvVars = []string{
 	"PATHEXT",
 }
 
+func setEnvVar(envMap map[string]string, k, v string) {
+	if runtime.GOOS == "windows" {
+		for existing := range envMap {
+			if strings.EqualFold(existing, k) {
+				delete(envMap, existing)
+			}
+		}
+	}
+	envMap[k] = v
+}
+
 func getEnvironmentVars() []string {
 	envMap := make(map[string]string)
 
-	envMap["PATH"] = os.Getenv("PATH")
+	setEnvVar(envMap, "PATH", os.Getenv("PATH"))
 
 	for _, e := range defaultForwardedEnvVars {
 		if v := os.Getenv(e); v != "" {
-			envMap[e] = v
+			setEnvVar(envMap, e, v)
 		}
 	}
 
 	for _, e := range util.Config.ForwardedEnvVars {
 		if v := os.Getenv(e); v != "" {
-			envMap[e] = v
+			setEnvVar(envMap, e, v)
 		}
 	}
 
 	for k, v := range util.Config.EnvVars {
-		envMap[k] = v
+		setEnvVar(envMap, k, v)
 	}
 
 	res := make([]string, 0, len(envMap))

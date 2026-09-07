@@ -150,6 +150,20 @@ func TestRepository_GetGitURL(t *testing.T) {
 			Secure:         false,
 			ExpectedGitUrl: "/tmp/local/repo",
 		},
+		{
+			Repository: Repository{
+				GitURL: "http://insecure-git.domain.local/project/_git/repo",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "user@domain.com",
+						Password: "secretpassword",
+					},
+				},
+			},
+			Secure:         false,
+			ExpectedGitUrl: "http://insecure-git.domain.local/project/_git/repo", // Credentials not embedded on plain http (CWE-319)
+		},
 	} {
 		gitUrl := v.Repository.GetGitURL(v.Secure)
 		assert.Equal(t, v.ExpectedGitUrl, gitUrl, "wrong gitUrl")

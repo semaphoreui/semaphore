@@ -13,6 +13,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -149,7 +150,7 @@ func TestCmdGitClient_SpecialCharAuthAndProxyBypass(t *testing.T) {
 		cgiHandler.ServeHTTP(w, r)
 	})
 
-	gitServer := httptest.NewServer(authHandler)
+	gitServer := httptest.NewTLSServer(authHandler)
 	defer gitServer.Close()
 
 	// 3. Setup dummy proxy server that should NOT be contacted when NO_PROXY is active
@@ -161,11 +162,13 @@ func TestCmdGitClient_SpecialCharAuthAndProxyBypass(t *testing.T) {
 	defer proxyServer.Close()
 
 	setupGitClientTest(t)
+	util.Config.ForwardedEnvVars = []string{"GIT_SSL_NO_VERIFY"}
 
 	// 4. Configure environment with proxy and NO_PROXY bypass
 	t.Setenv("HTTP_PROXY", proxyServer.URL)
 	t.Setenv("HTTPS_PROXY", proxyServer.URL)
 	t.Setenv("NO_PROXY", "127.0.0.1,localhost")
+	t.Setenv("GIT_SSL_NO_VERIFY", "true")
 
 	repo := db.Repository{
 		ProjectID: 1,
