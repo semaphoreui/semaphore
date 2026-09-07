@@ -51,6 +51,18 @@
       </v-toolbar-title>
       <v-spacer></v-spacer>
 
+      <v-text-field
+        v-model="search"
+        :label="$t('search')"
+        prepend-inner-icon="mdi-magnify"
+        clearable
+        hide-details
+        dense
+        outlined
+        single-line
+        class="templates-search mr-3"
+      />
+
       <v-menu
         offset-y
       >
@@ -136,7 +148,7 @@
       single-expand
       show-expand
       :headers="filteredHeaders"
-      :items="items"
+      :items="searchedItems"
       :items-per-page="Number.MAX_VALUE"
       :expanded.sync="openedItems"
       :style="{
@@ -257,6 +269,10 @@
   padding-right: 0 !important;
 }
 
+.templates-search {
+  max-width: 260px;
+}
+
 @media #{map-get($display-breakpoints, 'sm-and-down')} {
   .templates-table .v-data-table__mobile-row:first-child {
     display: none !important;
@@ -311,6 +327,7 @@ export default {
       viewTab: null,
       apps: null,
       itemApp: '',
+      search: '',
     };
   },
 
@@ -337,6 +354,36 @@ export default {
         && this.repositories
         && this.views
         && this.isAppsLoaded;
+    },
+
+    inventoryNameById() {
+      return this.getResourceNameMap(this.inventory);
+    },
+
+    repositoryNameById() {
+      return this.getResourceNameMap(this.repositories);
+    },
+
+    environmentNameById() {
+      return this.getResourceNameMap(this.environment);
+    },
+
+    templateSearchIndex() {
+      return (this.items || []).map((item) => ({
+        item,
+        searchText: this.getTemplateSearchText(item),
+      }));
+    },
+
+    searchedItems() {
+      const search = (this.search || '').trim().toLowerCase();
+      if (!search) {
+        return this.items;
+      }
+
+      return this.templateSearchIndex
+        .filter(({ searchText }) => searchText.includes(search))
+        .map(({ item }) => item);
     },
   },
   watch: {
@@ -485,6 +532,29 @@ export default {
     createTask(itemId) {
       this.itemId = itemId;
       this.newTaskDialog = true;
+    },
+
+    getResourceNameMap(resources) {
+      return new Map((resources || []).map(({ id, name }) => [id, name]));
+    },
+
+    getTemplateSearchText(item) {
+      const inventory = this.inventoryNameById.get(item.inventory_id) || '';
+      const repository = this.repositoryNameById.get(item.repository_id) || '';
+      const environments = Array.isArray(item.environment_ids)
+        ? item.environment_ids
+          .map((id) => this.environmentNameById.get(id) || '')
+          .join(' ')
+        : '';
+
+      return [
+        item.name,
+        item.playbook,
+        item.description,
+        inventory,
+        repository,
+        environments,
+      ].filter(Boolean).join(' ').toLowerCase();
     },
 
     getHeaders() {
