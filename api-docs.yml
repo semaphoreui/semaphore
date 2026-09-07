@@ -940,6 +940,7 @@ definitions:
         example: test.yml
       working_directory:
         type: string
+        example: .
         description: >-
           Repository-relative current directory for Ansible commands. It is
           valid only for Ansible templates and must stay inside the repository.
