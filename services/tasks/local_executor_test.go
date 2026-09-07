@@ -379,7 +379,7 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 			}
 
 			// Verify playbook is the trailing argument
-			assert.Equal(t, "site.yml", args[len(args)-1], "Playbook must be the last argument")
+			assert.Equal(t, exec.resolvePlaybookFile(), args[len(args)-1], "Playbook must be the last argument")
 		})
 	}
 }
