@@ -34,6 +34,30 @@ func newTemplateTestProject(t *testing.T, store *SqlDb) (projectID int, reposito
 	return project.ID, repo.ID
 }
 
+func TestCreateTemplateReturnsPersistedVaultIDs(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, repositoryID := newTemplateTestProject(t, store)
+
+	script := "vault-client.py"
+	created, err := store.CreateTemplate(db.Template{
+		ProjectID:    projectID,
+		RepositoryID: repositoryID,
+		Name:         "with-vault",
+		Playbook:     "site.yml",
+		Vaults: []db.TemplateVault{
+			{
+				Type:   db.TemplateVaultScript,
+				Script: &script,
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, created.Vaults, 1)
+	assert.NotZero(t, created.Vaults[0].ID)
+	assert.Equal(t, projectID, created.Vaults[0].ProjectID)
+	assert.Equal(t, created.ID, created.Vaults[0].TemplateID)
+}
+
 // TestTemplateExecutorImageRoundTrip checks project__template.executor_image is
 // written, read back, updated and cleared through the store.
 func TestTemplateExecutorImageRoundTrip(t *testing.T) {
@@ -96,4 +120,57 @@ func TestTemplateWithoutExecutorImage(t *testing.T) {
 	loaded, err := store.GetTemplate(projectID, created.ID)
 	require.NoError(t, err)
 	assert.Nil(t, loaded.ExecutorImage)
+}
+
+// TestTemplate_WorkingDirectoryRoundTrip checks
+// project__template.working_directory is written, read back, updated, and
+// cleared through the store.
+func TestTemplate_WorkingDirectoryRoundTrip(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, repositoryID := newTemplateTestProject(t, store)
+
+	inventory, err := store.CreateInventory(db.Inventory{
+		ProjectID: projectID,
+		Name:      "inventory",
+		Type:      db.InventoryStatic,
+	})
+	require.NoError(t, err)
+
+	wd := "deploy/ansible"
+	created, err := store.CreateTemplate(db.Template{
+		ProjectID:        projectID,
+		InventoryID:      &inventory.ID,
+		RepositoryID:     repositoryID,
+		Name:             "with-working-directory",
+		Playbook:         "site.yml",
+		WorkingDirectory: &wd,
+		App:              db.AppAnsible,
+	})
+	require.NoError(t, err)
+
+	loaded, err := store.GetTemplate(projectID, created.ID)
+	require.NoError(t, err)
+	require.NotNil(t, loaded.WorkingDirectory)
+	assert.Equal(t, "deploy/ansible", *loaded.WorkingDirectory)
+
+	listed, err := store.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.NotNil(t, listed[0].WorkingDirectory)
+	assert.Equal(t, "deploy/ansible", *listed[0].WorkingDirectory)
+
+	*loaded.WorkingDirectory = "deploy/production"
+	require.NoError(t, store.UpdateTemplate(loaded))
+
+	loaded, err = store.GetTemplate(projectID, created.ID)
+	require.NoError(t, err)
+	require.NotNil(t, loaded.WorkingDirectory)
+	assert.Equal(t, "deploy/production", *loaded.WorkingDirectory)
+
+	loaded.WorkingDirectory = nil
+	require.NoError(t, store.UpdateTemplate(loaded))
+
+	loaded, err = store.GetTemplate(projectID, created.ID)
+	require.NoError(t, err)
+	assert.Nil(t, loaded.WorkingDirectory)
 }
