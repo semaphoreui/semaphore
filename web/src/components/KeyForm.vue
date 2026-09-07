@@ -155,6 +155,8 @@
       label="Generate SSH Key"
       v-if="!isReadOnly && item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
+      class="mt-0 mb-2"
+      hide-details
     />
 
     <v-textarea
@@ -173,6 +175,7 @@
       v-if="item.type === 'ssh' && !isNew && hasGeneratedPublicKey"
       class="mb-4"
     >
+      <div class="pb-1">Public key:</div>
       <div style="position: relative">
         <pre
           style="
@@ -180,7 +183,8 @@
             background: gray;
             color: white;
             border-radius: 10px;
-            margin-top: 5px;
+            margin-top: 0;
+            white-space: normal;
           "
           class="pa-2"
           >{{ publicKey }}</pre

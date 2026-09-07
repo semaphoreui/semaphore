@@ -37,13 +37,14 @@
                 color: white;
                 border-radius: 10px;
                 margin-top: 5px;
+                white-space: normal;
               "
               class="pa-2"
               >{{ createdPublicKey }}</pre
             >
 
             <CopyClipboardButton
-              style="position: absolute; right: 10px; top: 10px"
+              style="position: absolute; right: 0; top: 0"
               :text="createdPublicKey"
             />
           </div>
