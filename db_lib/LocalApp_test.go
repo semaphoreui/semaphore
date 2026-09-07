@@ -89,6 +89,54 @@ func TestGetEnvironmentVars(t *testing.T) {
 	}
 }
 
+func TestGetEnvironmentVars_WindowsMixedCaseAndOSParity(t *testing.T) {
+	// 1. Test mixed-case proxy and system variables commonly found on Windows/POSIX
+	t.Setenv("HTTP_PROXY", "http://upper.proxy:8080")
+	t.Setenv("http_proxy", "http://lower.proxy:8080")
+	t.Setenv("SYSTEMROOT", `C:\Windows`)
+	t.Setenv("SystemRoot", `C:\Windows`)
+	t.Setenv("WINDIR", `C:\Windows`)
+	t.Setenv("APPDATA", `C:\Users\test\AppData\Roaming`)
+	t.Setenv("LOCALAPPDATA", `C:\Users\test\AppData\Local`)
+	t.Setenv("COMSPEC", `C:\Windows\system32\cmd.exe`)
+	t.Setenv("PATHEXT", `.COM;.EXE;.BAT;.CMD`)
+	t.Setenv("USERNAME", "TestRunner")
+	t.Setenv("TMP", `C:\Temp`)
+	t.Setenv("TEMP", `C:\Temp`)
+
+	util.Config = &util.ConfigType{
+		ForwardedEnvVars: []string{},
+		EnvVars: map[string]string{
+			"HTTP_PROXY": "http://override.proxy:9090",
+		},
+	}
+
+	res := getEnvironmentVars()
+
+	// Config.EnvVars must override HTTP_PROXY
+	if !contains(res, "HTTP_PROXY=http://override.proxy:9090") {
+		t.Errorf("Expected HTTP_PROXY override, got %v", res)
+	}
+
+	// Windows system variables must be present
+	expectedVars := []string{
+		`SYSTEMROOT=C:\Windows`,
+		`WINDIR=C:\Windows`,
+		`APPDATA=C:\Users\test\AppData\Roaming`,
+		`COMSPEC=C:\Windows\system32\cmd.exe`,
+		`PATHEXT=.COM;.EXE;.BAT;.CMD`,
+		`USERNAME=TestRunner`,
+		`TMP=C:\Temp`,
+		`TEMP=C:\Temp`,
+	}
+
+	for _, ev := range expectedVars {
+		if !contains(res, ev) {
+			t.Errorf("Expected result to contain %s, got %v", ev, res)
+		}
+	}
+}
+
 func TestGetHomeDir(t *testing.T) {
 	repo := db.Repository{
 		ProjectID: 42,
