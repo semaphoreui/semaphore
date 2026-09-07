@@ -6,8 +6,8 @@ import (
 )
 
 var (
-	// urlUserInfoRegex matches scheme://userinfo@ in URLs (including passwords with '@' characters)
-	urlUserInfoRegex = regexp.MustCompile(`(https?://)([^/\s]+)@`)
+	// urlUserInfoRegex matches scheme://userinfo@ in URLs (including passwords with '@', '/', and special characters)
+	urlUserInfoRegex = regexp.MustCompile(`(https?://)([^\s'"<>]+)@([a-zA-Z0-9.-]+(?::[0-9]+)?(?:[/?#\s'"<>]|$))`)
 	// urlQueryParamRegex matches sensitive credential query parameters in URLs
 	urlQueryParamRegex = regexp.MustCompile(`(?i)([?&](?:access_token|token|private_token|password|secret|api_key|apikey)=)([^&\s]+)`)
 )
@@ -21,21 +21,22 @@ func SanitizeGitOutput(output string) string {
 
 	sanitized := urlUserInfoRegex.ReplaceAllStringFunc(output, func(match string) string {
 		sub := urlUserInfoRegex.FindStringSubmatch(match)
-		if len(sub) < 3 {
+		if len(sub) < 4 {
 			return match
 		}
 		scheme := sub[1]
 		userInfo := sub[2]
+		hostAndRest := sub[3]
 
 		colonIdx := strings.Index(userInfo, ":")
 		if colonIdx == -1 {
 			// Token only: scheme://token@ -> scheme://***@
-			return scheme + "***@"
+			return scheme + "***@" + hostAndRest
 		}
 
 		user := userInfo[:colonIdx]
 		// scheme://user:password@ -> scheme://user:***@
-		return scheme + user + ":***@"
+		return scheme + user + ":***@" + hostAndRest
 	})
 
 	return urlQueryParamRegex.ReplaceAllString(sanitized, "${1}***")
@@ -61,7 +62,7 @@ func FormatGitErrorSummary(subCmd, stderr string) string {
 		return "Permission denied: Invalid or missing SSH key"
 	case strings.Contains(lower, "could not resolve host"):
 		return "Could not resolve host: Unable to connect to Git server"
-	case strings.Contains(lower, "connection refused"):
+	case strings.Contains(lower, "connection refused") || strings.Contains(lower, "failed to connect") || strings.Contains(lower, "could not connect"):
 		return "Connection refused: Git server is unreachable"
 	case strings.Contains(lower, "repository") && (strings.Contains(lower, "not found") || strings.Contains(lower, "does not exist")):
 		return "Repository not found: Check URL or repository permissions"

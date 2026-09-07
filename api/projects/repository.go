@@ -74,13 +74,17 @@ func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *h
 	}
 
 	branches, err := gitRepo.GetRemoteBranches()
-
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
 			"context":       "git",
 			"repository_id": repo.ID,
 		}).Error("failed to get repository branches")
-		helpers.WriteError(w, common_errors.NewUserError(err))
+		var userErr *common_errors.UserVisibleError
+		if errors.As(err, &userErr) {
+			helpers.WriteError(w, err)
+		} else {
+			helpers.WriteError(w, common_errors.NewUserErrorS("Failed to get repository branches"))
+		}
 		return
 	}
 
@@ -119,7 +123,7 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		branchHash := sha1.Sum([]byte(branch))
 		gitRepo := db_lib.GitRepository{
 			Repository: repoCopy,
-			TmpDirName: fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash),
+			TmpDirName: fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:6]),
 			Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
 			Logger:     task_logger.NopLogger{},
 		}
@@ -137,7 +141,12 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 				"repository_id": repo.ID,
 				"branch":        branch,
 			}).Error("failed to clone or pull repository for playbooks")
-			helpers.WriteError(w, common_errors.NewUserError(err))
+			var userErr *common_errors.UserVisibleError
+			if errors.As(err, &userErr) {
+				helpers.WriteError(w, err)
+			} else {
+				helpers.WriteError(w, common_errors.NewUserErrorS("Failed to clone or pull repository for playbooks"))
+			}
 			return
 		}
 
@@ -152,7 +161,7 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 			"repository_id": repo.ID,
 			"path":          rootDir,
 		}).Error("failed to find playbooks in repository")
-		helpers.WriteError(w, common_errors.NewUserError(err))
+		helpers.WriteError(w, common_errors.NewUserErrorS("Failed to scan repository for playbooks"))
 		return
 	}
 

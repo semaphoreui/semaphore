@@ -708,6 +708,8 @@ export default {
       args: [],
       runnerTags: null,
       branches: null,
+      branchesLoading: false,
+      branchesAbort: null,
       branchesError: null,
       playbooks: null,
       playbooksLoading: false,
@@ -755,6 +757,11 @@ export default {
 
   async created() {
     await Promise.all([this.loadBranches()]);
+  },
+
+  beforeDestroy() {
+    this.cancelPlaybookLoading();
+    this.cancelBranchesLoading();
   },
 
   computed: {
@@ -875,21 +882,39 @@ export default {
   },
 
   methods: {
+    cancelBranchesLoading() {
+      if (this.branchesAbort) {
+        this.branchesAbort.abort();
+        this.branchesAbort = null;
+      }
+    },
+
     async loadBranches() {
       if (this.repositoryId == null) {
+        this.branches = null;
         return;
       }
 
+      this.cancelBranchesLoading();
       this.branchesError = null;
+      const ctrl = new AbortController();
+      this.branchesAbort = ctrl;
+      this.branchesLoading = true;
 
       try {
         this.branches = await this.loadProjectEndpoint(
           `/repositories/${this.repositoryId}/branches`,
+          { signal: ctrl.signal },
         );
       } catch (e) {
         this.branches = null;
-        if (!axios.isCancel(e)) {
+        if (!axios.isCancel(e) && !ctrl.signal.aborted) {
           this.branchesError = getErrorMessage(e);
+        }
+      } finally {
+        if (this.branchesAbort === ctrl || this.branchesAbort == null) {
+          this.branchesAbort = null;
+          this.branchesLoading = false;
         }
       }
     },

@@ -2,12 +2,12 @@ package db_lib
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -95,9 +95,9 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 		}
 		stderrStr := strings.TrimSpace(stderrBuf.String())
 		if stderrStr != "" {
-			err = errors.New(git.FormatGitErrorSummary(subCmd, stderrStr))
+			err = common_errors.NewUserErrorS(git.FormatGitErrorSummary(subCmd, stderrStr))
 		} else {
-			err = fmt.Errorf("git %s failed: %w", subCmd, err)
+			err = common_errors.NewUserErrorS(fmt.Sprintf("git %s failed: %v", subCmd, err))
 		}
 		return err
 	}
@@ -124,9 +124,9 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 			stderrStr = strings.TrimSpace(string(exitErr.Stderr))
 		}
 		if stderrStr != "" {
-			err = errors.New(git.FormatGitErrorSummary(subCmd, stderrStr))
+			err = common_errors.NewUserErrorS(git.FormatGitErrorSummary(subCmd, stderrStr))
 		} else {
-			err = fmt.Errorf("git %s failed: %w", subCmd, err)
+			err = common_errors.NewUserErrorS(fmt.Sprintf("git %s failed: %v", subCmd, err))
 		}
 		return
 	}
@@ -169,7 +169,11 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 	if err != nil {
 		return err
 	}
-	return c.run(r, GitRepositoryFullPath, "submodule", "update", "--init", "--recursive")
+	return c.run(r, GitRepositoryFullPath,
+		"submodule",
+		"update",
+		"--init",
+		"--recursive")
 }
 
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {

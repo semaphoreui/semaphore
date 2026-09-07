@@ -44,31 +44,73 @@ func TestRepository_ClearCache(t *testing.T) {
 func TestRepository_GetGitURL(t *testing.T) {
 	for _, v := range []struct {
 		Repository     Repository
+		Secure         bool
 		ExpectedGitUrl string
 	}{
 		{
-			Repository: Repository{GitURL: "https://github.com/user/project.git", SSHKey: AccessKey{
-				Type: AccessKeyLoginPassword,
-				LoginPassword: LoginPassword{
-					Login:    "login",
-					Password: "password",
+			Repository: Repository{
+				GitURL: "https://github.com/user/project.git",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "login",
+						Password: "password",
+					},
 				},
 			},
-			},
+			Secure:         false,
 			ExpectedGitUrl: "https://login:password@github.com/user/project.git",
 		},
 		{
-			Repository: Repository{GitURL: "https://github.com/user/project.git", SSHKey: AccessKey{
-				Type: AccessKeyLoginPassword,
-				LoginPassword: LoginPassword{
-					Password: "password",
+			Repository: Repository{
+				GitURL: "https://github.com/user/project.git",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Password: "password",
+					},
 				},
 			},
-			},
+			Secure:         false,
 			ExpectedGitUrl: "https://password@github.com/user/project.git",
 		},
+		{
+			Repository: Repository{
+				GitURL: "https://github.com/user/project.git",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "user@corp.com",
+						Password: "p#ss%word/with/slashes@123",
+					},
+				},
+			},
+			Secure:         false,
+			ExpectedGitUrl: "https://user%40corp.com:p%23ss%25word%2Fwith%2Fslashes%40123@github.com/user/project.git",
+		},
+		{
+			Repository: Repository{
+				GitURL: "http://insecure.local/user/project.git",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "user",
+						Password: "secretpassword",
+					},
+				},
+			},
+			Secure:         false,
+			ExpectedGitUrl: "http://insecure.local/user/project.git",
+		},
+		{
+			Repository: Repository{
+				GitURL: "https://user:secret@github.com/user/project.git",
+			},
+			Secure:         true,
+			ExpectedGitUrl: "https://github.com/user/project.git",
+		},
 	} {
-		gitUrl := v.Repository.GetGitURL(false)
+		gitUrl := v.Repository.GetGitURL(v.Secure)
 		assert.Equal(t, v.ExpectedGitUrl, gitUrl, "wrong gitUrl")
 	}
 }

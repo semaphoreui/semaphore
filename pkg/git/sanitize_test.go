@@ -57,6 +57,21 @@ func TestSanitizeGitOutput(t *testing.T) {
 			input:    "fatal: remote error from https://gitlab.corp/project.git?private_token=super_secret_pat",
 			expected: "fatal: remote error from https://gitlab.corp/project.git?private_token=***",
 		},
+		{
+			name:     "password with slash in userinfo",
+			input:    "fatal: Authentication failed for 'https://myuser:pa/ssword@gitlab.com/group/repo.git/'",
+			expected: "fatal: Authentication failed for 'https://myuser:***@gitlab.com/group/repo.git/'",
+		},
+		{
+			name:     "token with slash in userinfo",
+			input:    "fatal: unable to access 'https://glpat-xxx/yyy@gitlab.example.com/project.git/': The requested URL returned error: 403",
+			expected: "fatal: unable to access 'https://***@gitlab.example.com/project.git/': The requested URL returned error: 403",
+		},
+		{
+			name:     "complex password with encoded characters",
+			input:    "fatal: Authentication failed for 'https://user%40corp.com:p%23ss%25word@host.com/repo.git'",
+			expected: "fatal: Authentication failed for 'https://user%40corp.com:***@host.com/repo.git'",
+		},
 	}
 
 	for _, tt := range tests {
