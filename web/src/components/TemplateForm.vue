@@ -277,7 +277,7 @@
               v-if="showWorkingDirectoryField"
               v-model="item.working_directory"
               :label="$t('workingDirectory')"
-              :rules="[(v) => !!v || $t('working_directory_required')]"
+              :rules="[(v) => !!(v && v.trim()) || $t('working_directory_required')]"
               outlined
               dense
               required
