@@ -211,6 +211,25 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		}
 	}
 
+	// Rebuilding a table that other tables reference by foreign key must run
+	// with foreign_keys=OFF: with FK enforcement enabled, renaming rewrites
+	// child FK definitions and dropping cascade-deletes child rows. The pragma
+	// is a no-op inside a transaction, so toggle it on the connection itself
+	// (the pool is limited to a single connection for SQLite).
+	if sqliteNeedsFkOff(d.GetDialect(), migration.Version) {
+		if _, err = d.exec("PRAGMA foreign_keys = OFF"); err != nil {
+			return err
+		}
+		defer func() {
+			if _, fkErr := d.exec("PRAGMA foreign_keys = ON"); fkErr != nil {
+				log.WithFields(log.Fields{
+					"context": "migration",
+					"version": migration.Version,
+				}).WithError(fkErr).Fatal("failed to re-enable foreign_keys pragma after migration")
+			}
+		}()
+	}
+
 	tx, err := d.Sql().Begin()
 	if err != nil {
 		return err
@@ -279,9 +298,34 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 	return tx.Commit()
 }
 
+// sqliteNeedsFkOff reports whether the migration rebuilds SQLite tables that
+// are referenced by other tables' foreign keys and therefore must be applied
+// (and rolled back) with FK enforcement disabled on the connection.
+func sqliteNeedsFkOff(dialect string, version string) bool {
+	return dialect == util.DbDriverSQLite && version == "2.19.14"
+}
+
 // TryRollbackMigration attempts to rollback the database to an earlier version if a rollback exists
 func (d *SqlDb) TryRollbackMigration(version db.Migration) {
 	var err error
+
+	if sqliteNeedsFkOff(d.GetDialect(), version.Version) {
+		if _, err = d.exec("PRAGMA foreign_keys = OFF"); err != nil {
+			log.WithFields(log.Fields{
+				"context": "migration",
+				"version": version.Version,
+			}).WithError(err).Fatal("failed to disable foreign_keys pragma before migration")
+			return
+		}
+		defer func() {
+			if _, fkErr := d.exec("PRAGMA foreign_keys = ON"); fkErr != nil {
+				log.WithFields(log.Fields{
+					"context": "migration",
+					"version": version.Version,
+				}).WithError(fkErr).Fatal("failed to re-enable foreign_keys pragma after rollback")
+			}
+		}()
+	}
 
 	tx, err := d.Sql().Begin()
 	if err != nil {

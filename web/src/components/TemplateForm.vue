@@ -338,7 +338,6 @@
             <v-text-field
               v-model="item.executor_image"
               :label="$t('executor_image')"
-              :hint="$t('executor_image_hint')"
               persistent-hint
               placeholder="semaphoreui/job:latest"
               outlined

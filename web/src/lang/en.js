@@ -406,6 +406,12 @@ export default {
   noValues: 'No values',
   addArg: 'Add arg',
 
+  runnerCheckInterval: 'Check interval (seconds)',
+  runnerCheckIntervalHint: 'How often the runner checks for new jobs.',
+  runnerCheckIntervalInvalid: 'Enter a whole number of seconds, 1 or more.',
+  deletedOrigin: '#{id} (deleted)',
+  unnamedSchedule: 'Schedule',
+
   status_success: 'Success',
   status_failed: 'Failed',
   status_stopped: 'Stopped',
@@ -581,6 +587,8 @@ export default {
   workflowSelfEdgeBlocked: 'A node cannot connect to itself.',
   workflowCycleBlocked: 'This connection would create a cycle.',
   workflowProblemsPanelTitle: 'Problems',
+  workflowSidebarCollapse: 'Collapse panel',
+  workflowSidebarExpand: 'Expand panel',
   workflowValidationPassed: 'Workflow is valid.',
   workflowErrorNoNodes: 'Add at least one node.',
   workflowErrorNoRoot: 'Workflow must have exactly one starting node.',

@@ -10,13 +10,23 @@
               width: 28px;
               height: 28px;
               transform: rotate(45deg);
-              left: calc(50% - 14px);
               top: -14px;
               border-radius: 0;
             "
+        :style="{left: tickLeft}"
     ></div>
     <v-card-text class="pb-0">
       <slot></slot>
     </v-card-text>
   </v-card>
 </template>
+<script>
+export default {
+  props: {
+    tickLeft: {
+      type: String,
+      default: 'calc(50% - 14px)',
+    },
+  },
+};
+</script>

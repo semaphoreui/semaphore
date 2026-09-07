@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -222,3 +223,143 @@ func TestGetTerraformArgs_MultiSelect(t *testing.T) {
 	}
 	assert.True(t, found, "expected -var multi_var=[\"1\",\"2\"] in %v", defaultArgs)
 }
+
+// TestGetArgs_AnsibleForks verifies passing -f / --forks in template and task arguments,
+// including invalid JSON error handling and AllowOverrideArgsInTask behavior.
+func TestGetArgs_AnsibleForks(t *testing.T) {
+	setupExecutorConfig(t)
+
+	tests := []struct {
+		name                  string
+		templateArgs          *string
+		allowOverride         bool
+		taskArgs              *string
+		expectedEffectiveFork string
+		expectedForksSubArgs  []string
+		mustNotContain        []string
+		expectError           bool
+		expectedErrorMsg      string
+	}{
+		{
+			name:                  "Template arguments with --forks 10",
+			templateArgs:          strPtr(`["--forks", "10"]`),
+			allowOverride:         false,
+			taskArgs:              nil,
+			expectedEffectiveFork: "10",
+			expectedForksSubArgs:  []string{"--forks", "10"},
+		},
+		{
+			name:                  "Template arguments with -f 10",
+			templateArgs:          strPtr(`["-f", "10"]`),
+			allowOverride:         false,
+			taskArgs:              nil,
+			expectedEffectiveFork: "10",
+			expectedForksSubArgs:  []string{"-f", "10"},
+		},
+		{
+			name:                  "Task level overrides template forks when AllowOverrideArgsInTask is true",
+			templateArgs:          strPtr(`["--forks", "5"]`),
+			allowOverride:         true,
+			taskArgs:              strPtr(`["--forks", "10"]`),
+			expectedEffectiveFork: "10",
+			expectedForksSubArgs:  []string{"--forks", "5", "--forks", "10"},
+		},
+		{
+			name:                  "Task level ignored when AllowOverrideArgsInTask is false",
+			templateArgs:          strPtr(`["--forks", "5"]`),
+			allowOverride:         false,
+			taskArgs:              strPtr(`["--forks", "10"]`),
+			expectedEffectiveFork: "5",
+			expectedForksSubArgs:  []string{"--forks", "5"},
+			mustNotContain:        []string{"10"},
+		},
+		{
+			name:             "Invalid JSON in template arguments returns descriptive error",
+			templateArgs:     strPtr(`--forks 10`),
+			allowOverride:    false,
+			taskArgs:         nil,
+			expectError:      true,
+			expectedErrorMsg: "invalid format of the template extra arguments, must be valid JSON",
+		},
+		{
+			name:             "Invalid JSON in task arguments returns descriptive error when AllowOverrideArgsInTask is true",
+			templateArgs:     strPtr(`["--forks", "5"]`),
+			allowOverride:    true,
+			taskArgs:         strPtr(`invalid-json`),
+			expectError:      true,
+			expectedErrorMsg: "invalid format of the TaskRunner extra arguments, must be valid JSON",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exec := &LocalExecutor{
+				Logger: task_logger.NopLogger{},
+				Template: db.Template{
+					Type:                    db.TemplateTask,
+					Playbook:                "site.yml",
+					Arguments:               tt.templateArgs,
+					AllowOverrideArgsInTask: tt.allowOverride,
+				},
+				Task: db.Task{
+					Arguments: tt.taskArgs,
+				},
+				Inventory: db.Inventory{
+					Type: db.InventoryStatic,
+				},
+			}
+
+			args, _, err := exec.getPlaybookArgs("admin", nil)
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErrorMsg)
+				return
+			}
+
+			require.NoError(t, err)
+
+			// Check that expected forks sub-arguments are present in sequence
+			if len(tt.expectedForksSubArgs) > 0 {
+				found := false
+				for i := 0; i <= len(args)-len(tt.expectedForksSubArgs); i++ {
+					match := true
+					for j := 0; j < len(tt.expectedForksSubArgs); j++ {
+						if args[i+j] != tt.expectedForksSubArgs[j] {
+							match = false
+							break
+						}
+					}
+					if match {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "Expected sequence %v in generated args: %v", tt.expectedForksSubArgs, args)
+			}
+
+			// Verify the effective (last) fork argument value matches the expected setting
+			if tt.expectedEffectiveFork != "" {
+				var lastForkVal string
+				for i := 0; i < len(args)-1; i++ {
+					if args[i] == "--forks" || args[i] == "-f" {
+						lastForkVal = args[i+1]
+					}
+				}
+				assert.Equal(t, tt.expectedEffectiveFork, lastForkVal, "Expected final effective fork value to be %s", tt.expectedEffectiveFork)
+			}
+
+			// Verify disqualified values are absent if specified
+			for _, prohibited := range tt.mustNotContain {
+				assert.NotContains(t, args, prohibited, "Generated args must not contain overridden task arg %q: %v", prohibited, args)
+			}
+
+			// Verify playbook is the trailing argument
+			assert.Equal(t, "site.yml", args[len(args)-1], "Playbook must be the last argument")
+		})
+	}
+}
+
+func strPtr(s string) *string {
+	return &s
+}
+
