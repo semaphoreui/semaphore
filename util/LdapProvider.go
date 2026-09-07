@@ -6,22 +6,45 @@ import "sort"
 // (analog of OidcProvider for `oidc_providers`). Field JSON names mirror
 // the legacy flat ldap_* config options.
 type LdapProvider struct {
-	DisplayName string `json:"display_name"`
-	Server      string `json:"server"`
-	NeedTLS     bool   `json:"need_tls"`
-	// TLSSkipVerify disables verification of the LDAP server's TLS certificate.
-	// It defaults to false so certificates are verified: a network attacker
-	// cannot impersonate the LDAP server to capture bind or user credentials.
-	// Only enable it for trusted networks with self-signed certificates.
-	TLSSkipVerify bool          `json:"tls_skip_verify"`
-	BindDN        string        `json:"bind_dn"`
-	BindPassword  string        `json:"bind_password"`
-	SearchDN      string        `json:"search_dn"`
-	SearchFilter  string        `json:"search_filter"`
-	Mappings      *LdapMappings `json:"mappings"`
-	Color         string        `json:"color"`
-	Icon          string        `json:"icon"`
-	Order         int           `json:"order"`
+	DisplayName  string        `json:"display_name"`
+	Server       string        `json:"server"`
+	NeedTLS      bool          `json:"need_tls"`
+	BindDN       string        `json:"bind_dn"`
+	BindPassword string        `json:"bind_password"`
+	SearchDN     string        `json:"search_dn"`
+	SearchFilter string        `json:"search_filter"`
+	Mappings     *LdapMappings `json:"mappings"`
+	Color        string        `json:"color"`
+	Icon         string        `json:"icon"`
+	Order        int           `json:"order"`
+
+	// TLSCACertFile is a PEM bundle used to verify the LDAP server's
+	// certificate, in addition to the system trust store. Set this when the
+	// server uses a self-signed or internal-CA cert. Setting it implies
+	// TLSVerify.
+	TLSCACertFile string `json:"tls_ca_cert_file"`
+
+	// TLSSkipVerify disables verification of the LDAP server's certificate
+	// chain and hostname when NeedTLS is set.
+	//
+	// It defaults to false, so a provider configured under `ldap_providers`
+	// verifies the server certificate. An unverified LDAPS connection is open
+	// to MITM and the user's password travels over it, since authentication
+	// works by binding as the user — so only enable this on a trusted network
+	// with a self-signed certificate, and prefer TLSCACertFile instead.
+	//
+	// The legacy flat ldap_* config is the exception: released Semaphore has
+	// never verified LDAPS certificates, so ActiveLdapProviders synthesizes
+	// the "ldap" entry with this set unless the operator opts in via
+	// ldap_tls_verify. See issue #749.
+	TLSSkipVerify bool `json:"tls_skip_verify"`
+}
+
+// ShouldVerifyTLS reports whether the LDAP server's certificate must be
+// verified. Supplying a CA bundle counts as opting in: configuring a CA only
+// makes sense if it is meant to be checked, so it overrides TLSSkipVerify.
+func (p LdapProvider) ShouldVerifyTLS() bool {
+	return p.TLSCACertFile != "" || !p.TLSSkipVerify
 }
 
 // GetMappings returns the attribute mappings, falling back to the same
@@ -49,15 +72,22 @@ func (conf *ConfigType) ActiveLdapProviders() (res []LdapProviderEntry) {
 		res = append(res, LdapProviderEntry{
 			ID: "ldap",
 			Provider: LdapProvider{
-				DisplayName:   "LDAP",
-				Server:        conf.LdapServer,
-				NeedTLS:       conf.LdapNeedTLS,
-				TLSSkipVerify: conf.LdapTLSSkipVerify,
-				BindDN:        conf.LdapBindDN,
-				BindPassword:  conf.LdapBindPassword,
-				SearchDN:      conf.LdapSearchDN,
-				SearchFilter:  conf.LdapSearchFilter,
-				Mappings:      conf.LdapMappings,
+				DisplayName:  "LDAP",
+				Server:       conf.LdapServer,
+				NeedTLS:      conf.LdapNeedTLS,
+				BindDN:       conf.LdapBindDN,
+				BindPassword: conf.LdapBindPassword,
+				SearchDN:     conf.LdapSearchDN,
+				SearchFilter: conf.LdapSearchFilter,
+				Mappings:     conf.LdapMappings,
+				// Existing installs upgraded into this release have never had
+				// their LDAPS certificate verified, and many use a self-signed
+				// cert. Verifying by default here would lock them out, so the
+				// legacy provider stays unverified until the operator opts in
+				// with ldap_tls_verify or supplies a CA bundle. Providers under
+				// `ldap_providers` are new config and verify by default.
+				TLSSkipVerify: !conf.LdapTLSVerify,
+				TLSCACertFile: conf.LdapTLSCACertFile,
 			},
 		})
 	}

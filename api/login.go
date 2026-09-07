@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -44,18 +45,56 @@ func convertEntryToMap(entity *ldap.Entry) map[string]any {
 	return res
 }
 
+// ldapTLSConfig builds the TLS configuration used for LDAPS connections.
+//
+// SECURITY: certificates are verified unless the provider explicitly opts out
+// with tls_skip_verify. An unverified connection is open to MITM and the user's
+// password is sent over it, since authentication works by binding as the user.
+// The one opt-out that ships by default is the legacy flat ldap_* config, which
+// util.ActiveLdapProviders synthesizes with TLSSkipVerify because released
+// Semaphore never verified LDAPS and upgrading installs on self-signed certs
+// would otherwise be locked out. Point TLSCACertFile at your CA bundle to close
+// that hole — see issue #749.
+func ldapTLSConfig(provider util.LdapProvider) (*tls.Config, error) {
+	cfg := &tls.Config{
+		// #nosec G402 -- opt-out is deliberate and documented above.
+		InsecureSkipVerify: !provider.ShouldVerifyTLS(),
+	}
+
+	if provider.TLSCACertFile == "" {
+		return cfg, nil
+	}
+
+	caCert, err := os.ReadFile(provider.TLSCACertFile)
+	if err != nil {
+		return nil, fmt.Errorf("read ldap CA cert file %q: %w", provider.TLSCACertFile, err)
+	}
+
+	// Start from the system trust store so the supplied CA is additive rather
+	// than a replacement — a server presenting a publicly trusted cert must
+	// still verify. SystemCertPool returns a copy, so appending is safe.
+	pool, err := x509.SystemCertPool()
+	if err != nil || pool == nil {
+		pool = x509.NewCertPool()
+	}
+	if !pool.AppendCertsFromPEM(caCert) {
+		return nil, fmt.Errorf("no valid PEM certificates in ldap CA cert file %q", provider.TLSCACertFile)
+	}
+	cfg.RootCAs = pool
+
+	return cfg, nil
+}
+
 func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db.User, string, error) {
 	var l *ldap.Conn
 	var err error
 	if provider.NeedTLS {
-		// Verify the LDAP server certificate by default so a network attacker
-		// cannot impersonate the server to capture the bind credentials or a
-		// user's cleartext password. Verification can be disabled per provider
-		// via tls_skip_verify (default false) for trusted networks with
-		// self-signed certificates.
-		l, err = ldap.DialTLS("tcp", provider.Server, &tls.Config{
-			InsecureSkipVerify: provider.TLSSkipVerify, //nolint:gosec // opt-in via tls_skip_verify, defaults to false
-		})
+		var tlsConfig *tls.Config
+		tlsConfig, err = ldapTLSConfig(provider)
+		if err != nil {
+			return nil, "", err
+		}
+		l, err = ldap.DialTLS("tcp", provider.Server, tlsConfig)
 	} else {
 		l, err = ldap.Dial("tcp", provider.Server)
 	}
