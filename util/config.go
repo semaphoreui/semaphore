@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/url"
 	"os"
 	"os/exec"
@@ -165,6 +166,10 @@ type RunnerConfig struct {
 	Tags             []string `json:"tags,omitempty" env:"SEMAPHORE_RUNNER_TAGS"`
 	MaxParallelTasks int      `json:"max_parallel_tasks,omitempty" default:"9999" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 	ProjectID        *int     `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
+
+	// CheckIntervalSeconds is how often the runner polls the server for new jobs.
+	// Plain int, not time.Duration, for env-binding simplicity.
+	CheckIntervalSeconds int `json:"check_interval_seconds,omitempty" default:"1" env:"SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS"`
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
 
@@ -531,6 +536,10 @@ type ConfigType struct {
 	// semaphore stores ephemeral projects here
 	TmpPath string `json:"tmp_path,omitempty" default:"/tmp/semaphore" env:"SEMAPHORE_TMP_PATH"`
 
+	// SecretsPath is a legacy top-level setting for backwards compatibility.
+	// Users should prefer configuring dirs.secrets instead.
+	SecretsPath string `json:"secrets_path,omitempty" env:"SEMAPHORE_SECRETS_PATH"`
+
 	// HomeDirMode controls how the HOME environment variable is set for tasks.
 	//   "template_home" (default) — HOME is set to a per-template directory,
 	//       isolating .ansible/ across parallel tasks. Repo is cloned into a
@@ -548,6 +557,10 @@ type ConfigType struct {
 	Ssh *SshConfig `json:"ssh"`
 
 	GitClientId string `json:"git_client,omitempty" rule:"^go_git|cmd_git$" env:"SEMAPHORE_GIT_CLIENT" default:"cmd_git"`
+
+	// GitSubmoduleJobs is how many submodules the command-line Git client
+	// fetches in parallel during clone and update operations.
+	GitSubmoduleJobs int `json:"git_submodule_jobs,omitempty" rule:"^[1-9][0-9]*$" env:"SEMAPHORE_GIT_SUBMODULE_JOBS" default:"4"`
 
 	// GitAttempts is how many times a git clone or pull is tried before the task
 	// fails, for git servers which are intermittently unavailable. 1 tries once
@@ -706,6 +719,28 @@ const (
 	defaultRunnersReconcileIntervalSec = 30
 )
 
+// Default poll interval for a runner asking the server for work.
+const defaultRunnerCheckIntervalSec = 1
+
+// Larger overflows time.Duration and panics time.NewTicker. Kept as int64: the
+// value exceeds int on 32-bit release targets (386, arm).
+const maxRunnerCheckIntervalSec int64 = int64(math.MaxInt64) / int64(time.Second)
+
+// GetSecretsPath returns the secrets path from configuration.
+// Used for backward compatibility with legacy top-level secrets_path.
+func (conf *ConfigType) GetSecretsPath() string {
+	if conf.Dirs.Secrets != "" && conf.Dirs.Secrets != "/tmp/semaphore" {
+		return conf.Dirs.Secrets
+	}
+	if conf.SecretsPath != "" {
+		return conf.SecretsPath
+	}
+	if conf.Dirs.Secrets != "" {
+		return conf.Dirs.Secrets
+	}
+	return "/tmp/semaphore"
+}
+
 // GetSshConfigPath return SSH config path from configuration.
 // Used for backward compatibility.
 func (conf *ConfigType) GetSshConfigPath() string {
@@ -757,6 +792,18 @@ func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
 		res = offline
 	}
 	return res
+}
+
+// RunnerCheckInterval returns how often this runner polls the server for new
+// jobs. Out-of-range values fall back to the default: 0 is indistinguishable
+// from "unset" after defaults are applied, and oversized values overflow.
+func (conf *ConfigType) RunnerCheckInterval() time.Duration {
+	sec := int64(defaultRunnerCheckIntervalSec)
+	if configured := int64(conf.Runner.CheckIntervalSeconds); configured > 0 &&
+		configured <= maxRunnerCheckIntervalSec {
+		sec = configured
+	}
+	return time.Duration(sec) * time.Second
 }
 
 // RunnersReconcileInterval returns how often the server reconciles dispatched
@@ -889,11 +936,11 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		WebHostURL = nil
 	}
 
-	if Config.Runner != nil && Config.Runner.Token != "" && Config.Runner.TokenFile != "" {
+	if Config.Runner.Token != "" && Config.Runner.TokenFile != "" {
 		panic("SEMAPHORE_RUNNER_TOKEN and SEMAPHORE_RUNNER_TOKEN_FILE are mutually exclusive")
 	}
 
-	if Config.Runner != nil && Config.Runner.TokenFile != "" {
+	if Config.Runner.TokenFile != "" {
 		runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
 		if err == nil {
 			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
@@ -1034,9 +1081,17 @@ func loadDefaultsToObject(obj any) error {
 }
 
 func loadConfigDefaults() {
+	legacySecretsPath := Config.SecretsPath
+	if Config.Dirs == nil {
+		Config.Dirs = &ConfigDirs{}
+	}
 	err := loadDefaultsToObject(Config)
 	if err != nil {
 		panic(err)
+	}
+
+	if legacySecretsPath != "" && (Config.Dirs.Secrets == "/tmp/semaphore" || Config.Dirs.Secrets == "") {
+		Config.Dirs.Secrets = legacySecretsPath
 	}
 }
 

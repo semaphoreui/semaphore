@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/ssh"
@@ -83,7 +83,8 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 
 	cmd := c.makeCmd(r, targetDir, keyInstallation, args...)
 
-	r.Logger.LogCmd(cmd)
+	finishLog := r.Logger.LogCmd(cmd)
+	defer finishLog()
 
 	return cmd.Run()
 }
@@ -125,6 +126,8 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 	return c.run(r, GitRepositoryTmpPath,
 		"clone",
 		"--recursive",
+		"--jobs",
+		strconv.Itoa(util.Config.GitSubmoduleJobs),
 		"--branch",
 		r.Repository.GitBranch,
 		"--end-of-options",
@@ -139,7 +142,13 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 	if err != nil {
 		return err
 	}
-	return c.run(r, GitRepositoryFullPath, "submodule", "update", "--init", "--recursive")
+	return c.run(r, GitRepositoryFullPath,
+		"submodule",
+		"update",
+		"--init",
+		"--recursive",
+		"--jobs",
+		strconv.Itoa(util.Config.GitSubmoduleJobs))
 }
 
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {

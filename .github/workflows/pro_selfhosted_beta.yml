@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Setup golang
         uses: actions/setup-go@v7
@@ -54,9 +56,16 @@ jobs:
         run: |
           sudo apt update && sudo apt-get install rpm
 
+      - name: Determine PRO branch
+        uses: ./.github/actions/determine-pro-branch
+        with:
+          gh_token: ${{ secrets.GH_TOKEN }}
+
       - name: Add PRO implementation
+        env:
+          PRO_REPO: https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git
         run: |
-          git clone -b main https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
+          git clone -b "$PRO_BRANCH" "$PRO_REPO" pro_impl
           go work init . ./pro_impl
 
       - name: Install deps
@@ -92,6 +101,13 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Determine PRO branch
+        uses: ./.github/actions/determine-pro-branch
+        with:
+          gh_token: ${{ secrets.GH_TOKEN }}
 
       - name: Setup qemu
         id: qemu
@@ -143,6 +159,7 @@ jobs:
           build-args: |
             GH_TOKEN=${{ secrets.GH_TOKEN }}
             APP_BUILD_TYPE=pro_selfhosted
+            PRO_BRANCH=${{ env.PRO_BRANCH }}
           file: deployment/docker/server/Dockerfile
           platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
@@ -161,6 +178,7 @@ jobs:
             ANSIBLE_VERSION=9.4.0
             GH_TOKEN=${{ secrets.GH_TOKEN }}
             APP_BUILD_TYPE=pro_selfhosted
+            PRO_BRANCH=${{ env.PRO_BRANCH }}
           file: deployment/docker/server/Dockerfile
           platforms: linux/amd64,linux/arm64 # ,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
@@ -220,6 +238,7 @@ jobs:
           context: .
           build-args: |
             GH_TOKEN=${{ secrets.GH_TOKEN }}
+            PRO_BRANCH=${{ env.PRO_BRANCH }}
           file: deployment/docker/runner/Dockerfile
           platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
@@ -237,6 +256,7 @@ jobs:
           build-args: |
             ANSIBLE_VERSION=9.4.0
             GH_TOKEN=${{ secrets.GH_TOKEN }}
+            PRO_BRANCH=${{ env.PRO_BRANCH }}
           file: deployment/docker/runner/Dockerfile
           platforms: linux/amd64,linux/arm64 #,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' }}
