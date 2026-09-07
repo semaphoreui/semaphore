@@ -41,4 +41,12 @@ func TestApiPing(t *testing.T) {
 	if rr.Code != 200 {
 		t.Errorf("Response code should be 200 %d", rr.Code)
 	}
+
+	if ct := rr.Header().Get("Content-Type"); ct != "text/plain; charset=utf-8" {
+		t.Errorf("Content-Type should be text/plain; charset=utf-8, got %s", ct)
+	}
+
+	if body := rr.Body.String(); body != "pong" {
+		t.Errorf("Response body should be pong, got %s", body)
+	}
 }
