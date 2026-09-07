@@ -33,7 +33,7 @@ var defaultForwardedEnvVars = []string{
 	// SSL / TLS certificates
 	"SSL_CERT_FILE", "SSL_CERT_DIR",
 	"CURL_CA_BUNDLE", "REQUESTS_CA_BUNDLE",
-	"GIT_SSL_CAINFO", "GIT_SSL_CAPATH", "GIT_SSL_NO_VERIFY",
+	"GIT_SSL_CAINFO", "GIT_SSL_CAPATH",
 	// System / User / Locale
 	"USER", "LOGNAME", "USERNAME",
 	"LANG", "LC_ALL", "LC_CTYPE",

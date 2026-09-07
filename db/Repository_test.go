@@ -94,6 +94,33 @@ func TestRepository_GetGitURL(t *testing.T) {
 				SSHKey: AccessKey{
 					Type: AccessKeyLoginPassword,
 					LoginPassword: LoginPassword{
+						Login:    "user",
+						Password: "p@ss:w%rd+1&2?3",
+					},
+				},
+			},
+			Secure:         false,
+			ExpectedGitUrl: "https://user:p%40ss%3Aw%25rd+1&2%3F3@devops.domain.com/tfs/project/_git/repo",
+		},
+		{
+			Repository: Repository{
+				GitURL: "https://devops.domain.com/tfs/project/_git/repo",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Password: "token%with#special@chars",
+					},
+				},
+			},
+			Secure:         false,
+			ExpectedGitUrl: "https://token%25with%23special%40chars@devops.domain.com/tfs/project/_git/repo",
+		},
+		{
+			Repository: Repository{
+				GitURL: "https://devops.domain.com/tfs/project/_git/repo",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
 						Login:    "user@domain.com",
 						Password: "pass#word@123",
 					},
@@ -104,10 +131,24 @@ func TestRepository_GetGitURL(t *testing.T) {
 		},
 		{
 			Repository: Repository{
-				GitURL: "https://user:secret@devops.domain.com/tfs/project/_git/repo",
+				GitURL: "https://user:secret@devops.domain.com:8443/tfs/project/_git/repo",
 			},
 			Secure:         true,
-			ExpectedGitUrl: "https://devops.domain.com/tfs/project/_git/repo",
+			ExpectedGitUrl: "https://devops.domain.com:8443/tfs/project/_git/repo",
+		},
+		{
+			Repository: Repository{
+				GitURL: "git@github.com:user/project.git",
+			},
+			Secure:         true,
+			ExpectedGitUrl: "git@github.com:user/project.git",
+		},
+		{
+			Repository: Repository{
+				GitURL: "/tmp/local/repo",
+			},
+			Secure:         false,
+			ExpectedGitUrl: "/tmp/local/repo",
 		},
 	} {
 		gitUrl := v.Repository.GetGitURL(v.Secure)

@@ -26,6 +26,7 @@ func TestGetEnvironmentVars(t *testing.T) {
 	t.Setenv("HTTP_PROXY", "http://proxy.corp:8080")
 	t.Setenv("NO_PROXY", "localhost,.domain.com")
 	t.Setenv("SSL_CERT_FILE", "/etc/ssl/certs/custom-ca.pem")
+	t.Setenv("GIT_SSL_NO_VERIFY", "true")
 
 	util.Config = &util.ConfigType{
 		ForwardedEnvVars: []string{"SEMAPHORE_TEST"},
@@ -74,6 +75,17 @@ func TestGetEnvironmentVars(t *testing.T) {
 	}
 	if contains(res, "SEMAPHORE_TEST2=") {
 		t.Errorf("SEMAPHORE_TEST2 should not be in environment variables without being in ForwardedEnvVars, got %v", res)
+	}
+	// Security-sensitive GIT_SSL_NO_VERIFY must not be forwarded by default
+	if contains(res, "GIT_SSL_NO_VERIFY=") {
+		t.Errorf("GIT_SSL_NO_VERIFY should not be forwarded automatically by default, got %v", res)
+	}
+
+	// Explicit forwarding of GIT_SSL_NO_VERIFY when configured
+	util.Config.ForwardedEnvVars = []string{"SEMAPHORE_TEST", "GIT_SSL_NO_VERIFY"}
+	resExplicit := getEnvironmentVars()
+	if !contains(resExplicit, "GIT_SSL_NO_VERIFY=true") {
+		t.Errorf("GIT_SSL_NO_VERIFY should be included when explicitly listed in ForwardedEnvVars, got %v", resExplicit)
 	}
 }
 
