@@ -898,8 +898,8 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		environmentVariables = append(environmentVariables, t.getShellEnvironmentExtraENV(username, incomingVersion)...)
 	}
 
-	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
-		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
+	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
+		environmentVariables = append(environmentVariables, sshEnv)
 	}
 
 	if t.Template.Type != db.TemplateTask {
@@ -1001,6 +1001,10 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 		return err
 	}
 
+	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
+		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
+	}
+
 	if err := t.App.InstallRequirements(installingArgs); err != nil {
 		t.Log("Failed to install requirements: " + err.Error())
 		return err
@@ -1051,6 +1055,10 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 	if err := t.installInventory(); err != nil {
 		t.Log("Failed to install inventory: " + err.Error())
 		return err
+	}
+
+	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
+		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
 	}
 
 	// Call Terraform-specific install with init args
@@ -1196,3 +1204,11 @@ func (t *LocalExecutor) installVaultKeyFiles() (err error) {
 
 	return
 }
+
+func (t *LocalExecutor) getSSHAgentEnv() string {
+	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil && t.sshKeyInstallation.SSHAgent != nil {
+		return fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile)
+	}
+	return ""
+}
+
