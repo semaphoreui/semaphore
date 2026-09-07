@@ -26,6 +26,12 @@ func getMD5Hash(filepath string) (string, error) {
 }
 
 func hasRequirementsChanges(requirementsFilePath string, requirementsHashFilePath string) bool {
+	// Setting the below Env lets user force reinstall even though the actual contents of the requirements
+	// file haven't changed, esp when versions aren't being used.
+    if os.Getenv("SEMAPHORE_REINSTALL_GALAXY_REQUIREMENTS") != "" {
+        return true
+    }
+	
 	oldFileMD5HashBytes, err := os.ReadFile(requirementsHashFilePath)
 	if err != nil {
 		return true
