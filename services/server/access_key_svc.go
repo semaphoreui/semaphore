@@ -7,8 +7,8 @@ import (
 	"errors"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 type AccessKeyService interface {
@@ -107,6 +107,7 @@ func maybeGenerateSSHPrivateKey(key *db.AccessKey) error {
 
 	plain := string(plainBytes)
 	key.Plain = &plain
+	key.IgnorePlain = false
 	return nil
 }
 
@@ -134,11 +135,11 @@ func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
 		return
 	}
 
-  err = maybeGenerateSSHPrivateKey(&key)
-  if err != nil {
-    return
-  }
-    
+	err = maybeGenerateSSHPrivateKey(&key)
+	if err != nil {
+		return
+	}
+
 	var oldKey db.AccessKey
 	oldKey, err = s.accessKeyRepo.GetAccessKey(*key.ProjectID, key.ID)
 	if err != nil {

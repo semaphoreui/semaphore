@@ -45,7 +45,7 @@ type AccessKey struct {
 	// You should use methods SerializeSecret to fill this field.
 	Secret      *string `db:"secret" json:"-" backup:"-"`
 	Plain       *string `db:"plain" json:"plain,omitempty"`
-	IgnorePlain bool    `json:"-"`
+	IgnorePlain bool    `db:"-" json:"-" backup:"-" `
 
 	String         string        `db:"-" json:"string"`
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
