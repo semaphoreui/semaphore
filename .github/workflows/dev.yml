@@ -20,7 +20,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26.5'
+          go-version: '1.27.1'
 
       - name: Setup nodejs
         uses: actions/setup-node@v7
@@ -285,7 +285,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26.5'
+          go-version: '1.27.1'
 
       - name: Setup nodejs
         uses: actions/setup-node@v7
@@ -372,7 +372,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26.5'
+          go-version: '1.27.1'
 
       - name: Setup nodejs
         uses: actions/setup-node@v7
@@ -458,7 +458,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26.5'
+          go-version: '1.27.1'
 
       - name: Setup nodejs
         uses: actions/setup-node@v7
@@ -529,7 +529,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26.5'
+          go-version: '1.27.1'
 
       - name: Setup nodejs
         uses: actions/setup-node@v7
