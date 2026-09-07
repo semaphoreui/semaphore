@@ -130,13 +130,13 @@ func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, er
 }
 
 func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
-	if !key.OverrideSecret {
-		err = s.accessKeyRepo.UpdateAccessKey(key)
+	err = maybeGenerateSSHPrivateKey(&key)
+	if err != nil {
 		return
 	}
 
-	err = maybeGenerateSSHPrivateKey(&key)
-	if err != nil {
+	if !key.OverrideSecret {
+		err = s.accessKeyRepo.UpdateAccessKey(key)
 		return
 	}
 

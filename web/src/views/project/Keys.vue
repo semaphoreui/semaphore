@@ -158,7 +158,7 @@ export default {
     async loadItemsAndShowPublicKey(e) {
       await this.loadItems();
 
-      const isGeneratedOnCreate = e && e.action === 'new';
+      const isGeneratedOnCreate = e && e.action === 'new' && e.item && e.item.generate_ssh_key;
       const isGeneratedOnUpdate = e && e.action === 'edit' && e.item && e.item.generate_ssh_key;
       if (!isGeneratedOnCreate && !isGeneratedOnUpdate) {
         this.createdPublicKey = '';
