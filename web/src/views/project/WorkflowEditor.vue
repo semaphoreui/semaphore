@@ -109,7 +109,6 @@
               <v-icon small :left="!sideCollapsed">mdi-account-check</v-icon>
               <template v-if="!sideCollapsed">{{ $t('workflowPaletteApprovalNode') }}</template>
             </div>
-            
             <div
               class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--delay"
               draggable="true"
