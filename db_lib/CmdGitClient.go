@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -123,11 +124,16 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 		return err
 	}
 
+	jobs := util.Config.GitSubmoduleJobs
+	if jobs < 1 {
+		jobs = 1
+	}
+
 	return c.run(r, GitRepositoryTmpPath,
 		"clone",
 		"--recursive",
 		"--jobs",
-		strconv.Itoa(util.Config.GitSubmoduleJobs),
+		strconv.Itoa(jobs),
 		"--branch",
 		r.Repository.GitBranch,
 		"--end-of-options",

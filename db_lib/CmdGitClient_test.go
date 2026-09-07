@@ -138,6 +138,7 @@ func TestCmdGitClient_SpecialCharAuthAndProxyBypass(t *testing.T) {
 			"GIT_PROJECT_ROOT=" + repoDir,
 			"GIT_HTTP_EXPORT_ALL=1",
 		},
+		InheritEnv: []string{"PATH", "USER", "SYSTEMROOT"},
 	}
 
 	authHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
