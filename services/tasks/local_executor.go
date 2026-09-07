@@ -14,6 +14,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/conv"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -105,6 +106,12 @@ func (t *LocalExecutor) SetLogger(logger task_logger.Logger) {
 
 func (t *LocalExecutor) SetCommit(hash, message string) {
 	// TODO: is this the correct place to do?
+	// Sanitize the commit message: it comes straight from the external git repo
+	// and may contain NUL/invalid UTF-8 bytes or be arbitrarily large. Without
+	// this the raw value reaches t.Task.CommitMessage and taskDetails
+	// ("commit_message"), i.e. task extra vars and API responses. Mirrors
+	// TaskRunner.SetCommit. See conv.TruncateValidUTF8.
+	message = conv.TruncateValidUTF8(message)
 	t.Task.CommitHash = &hash
 	t.Task.CommitMessage = message
 	t.Logger.SetCommit(hash, message)

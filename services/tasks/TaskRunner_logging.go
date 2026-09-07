@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/tz"
 
 	"github.com/semaphoreui/semaphore/api/sockets"
+	"github.com/semaphoreui/semaphore/pkg/conv"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -89,7 +90,12 @@ func (t *TaskRunner) LogCmd(cmd *exec.Cmd) func() {
 func (t *TaskRunner) SetCommit(hash, message string) {
 
 	t.Task.CommitHash = &hash
-	t.Task.CommitMessage = message
+	// Sanitize before persisting to the DB. This is the persistence point for
+	// remote-runner commit reports; local tasks reach it too via the task logger
+	// (LocalExecutor.SetCommit -> Logger.SetCommit), and that local mirror
+	// additionally sanitizes the copy it exposes as task extra vars.
+	// See conv.TruncateValidUTF8.
+	t.Task.CommitMessage = conv.TruncateValidUTF8(message)
 
 	if err := t.pool.store.UpdateTask(t.Task); err != nil {
 		t.panicOnError(err, "Failed to update task commit")
