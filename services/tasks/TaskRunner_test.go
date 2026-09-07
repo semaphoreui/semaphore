@@ -227,7 +227,7 @@ func TestGetRepoPath(t *testing.T) {
 	}
 
 	dir := tsk.job.(*LocalExecutor).App.(*db_lib.AnsibleApp).GetPlaybookDir()
-	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
+	if dir != "/tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
 }
@@ -273,7 +273,7 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 	}
 
 	dir := tsk.job.(*LocalExecutor).App.(*db_lib.AnsibleApp).GetPlaybookDir()
-	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
+	if dir != "/tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/deploy" {
 		t.Fatal("Invalid playbook dir: " + dir)
 	}
 }
@@ -630,7 +630,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
+	if res != "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -686,7 +686,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
+	if res != "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml" {
 		t.Fatal("incorrect result")
 	}
 }
@@ -743,7 +743,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	}
 
 	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
+	if res != "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml" {
 		t.Fatal("incorrect result")
 	}
 }

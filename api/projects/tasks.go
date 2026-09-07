@@ -196,11 +196,9 @@ func (c *TaskController) GetTaskPermissionsMiddleware(next http.Handler) http.Ha
 func (c *TaskController) GetTaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		taskID, err := helpers.GetIntParam("task_id", w, r)
+		taskID, ok := helpers.GetIntParamOrAbort("task_id", w, r)
 
-		if err != nil {
-			util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task_id from request"})
-			w.WriteHeader(http.StatusBadRequest)
+		if !ok {
 			return
 		}
 
