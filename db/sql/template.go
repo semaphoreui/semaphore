@@ -76,14 +76,9 @@ func (d *SqlDb) CreateTemplate(template db.Template) (newTemplate db.Template, e
 		return
 	}
 
-	err = db.FillTemplate(d, &newTemplate)
-
-	if err != nil {
-		return
-	}
-
 	newTemplate = template
 	newTemplate.ID = insertID
+	err = db.FillTemplate(d, &newTemplate)
 
 	return
 }
