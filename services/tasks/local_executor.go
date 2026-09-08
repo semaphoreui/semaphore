@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -29,9 +30,9 @@ type LocalExecutor struct {
 
 	App db_lib.LocalApp
 
-	processMu     sync.Mutex
-	killRequested bool
-	process       *os.Process
+	processMu            sync.Mutex
+	terminationRequested bool
+	process              *os.Process
 
 	sshKeyInstallation     ssh.AccessKeyInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
@@ -64,7 +65,7 @@ type LocalExecutor struct {
 func (t *LocalExecutor) IsKilled() bool {
 	t.processMu.Lock()
 	defer t.processMu.Unlock()
-	return t.killRequested
+	return t.terminationRequested
 }
 
 // Async is false: LocalJob.Run executes the task synchronously and returns only
@@ -75,22 +76,19 @@ func (t *LocalExecutor) Async() bool {
 
 func (t *LocalExecutor) Kill() {
 	t.processMu.Lock()
-	t.killRequested = true
+	t.terminationRequested = true
 	process := t.process
 	t.processMu.Unlock()
 
-	t.killProcess(process)
+	t.stopProcess(process)
 }
 
-// killProcess must return promptly because OnProcessStarted may call it
-// synchronously. A TERM grace period must schedule SIGKILL asynchronously
-// instead of sleeping here.
 func (t *LocalExecutor) killProcess(process *os.Process) {
 	if process == nil {
 		return
 	}
 
-	if err := process.Kill(); err != nil {
+	if err := process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		t.Log(err.Error())
 	}
 }
@@ -782,11 +780,11 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		OnProcessStarted: func(process *os.Process) {
 			t.processMu.Lock()
 			t.process = process
-			killRequested := t.killRequested
+			terminationRequested := t.terminationRequested
 			t.processMu.Unlock()
 
-			if killRequested {
-				t.killProcess(process)
+			if terminationRequested {
+				t.stopProcess(process)
 			}
 		},
 	})
