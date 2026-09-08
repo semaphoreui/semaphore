@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -38,8 +39,6 @@ type MockContainerState struct {
 type MockDockerEngine struct {
 	mu         sync.Mutex
 	containers map[string]*MockContainerState
-	volumes    map[string]bool
-	activeOps  int32
 	failStop   bool
 	failRemove bool
 }
@@ -47,14 +46,12 @@ type MockDockerEngine struct {
 func NewMockDockerEngine() *MockDockerEngine {
 	return &MockDockerEngine{
 		containers: make(map[string]*MockContainerState),
-		volumes:    make(map[string]bool),
 	}
 }
 
 func (e *MockDockerEngine) CreateContainer(image string, env []string, mounts []string) (*MockContainerState, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	atomic.AddInt32(&e.activeOps, 1)
 
 	id := fmt.Sprintf("ephemeral-docker-%d", len(e.containers)+1)
 	c := &MockContainerState{
@@ -198,7 +195,11 @@ func (d *MockDockerExecutor) Run(username string, incomingVersion *string, alias
 
 	if d.Logger != nil {
 		d.Logger.SetStatus(task_logger.TaskRunningStatus)
-		d.Logger.Log(fmt.Sprintf("Container %s started executing playbook %s", d.ContainerID, d.Template.Playbook))
+		d.Logger.Logf("Container %s started executing playbook %s for task %d", d.ContainerID, d.Template.Playbook, d.Task.ID)
+		d.Logger.LogWithTime(time.Now(), fmt.Sprintf("Environment prepared for repo %d", d.Repository.ID))
+		if d.Secret != "" {
+			d.Logger.LogfWithTime(time.Now(), "Survey secrets injected safely: %s", "[MASKED]")
+		}
 	}
 
 	if d.failTask {
@@ -270,7 +271,6 @@ type MockPodState struct {
 type MockK8sCluster struct {
 	mu         sync.Mutex
 	pods       map[string]*MockPodState
-	activeOps  int32
 	failDelete bool
 }
 
@@ -283,7 +283,6 @@ func NewMockK8sCluster() *MockK8sCluster {
 func (k *MockK8sCluster) CreatePod(namespace string, name string) (*MockPodState, error) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	atomic.AddInt32(&k.activeOps, 1)
 
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	pod := &MockPodState{
@@ -486,6 +485,24 @@ func (m *MemoryTaskLogger) Log(msg string) {
 	m.logs = append(m.logs, msg)
 }
 
+func (m *MemoryTaskLogger) Logf(format string, a ...any) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.logs = append(m.logs, fmt.Sprintf(format, a...))
+}
+
+func (m *MemoryTaskLogger) LogWithTime(now time.Time, msg string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.logs = append(m.logs, msg)
+}
+
+func (m *MemoryTaskLogger) LogfWithTime(now time.Time, format string, a ...any) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.logs = append(m.logs, fmt.Sprintf(format, a...))
+}
+
 func (m *MemoryTaskLogger) SetStatus(status task_logger.TaskStatus) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -545,6 +562,22 @@ func (m *MockLocalApp) Run(args db_lib.LocalAppRunningArgs) error {
 }
 
 func (m *MockLocalApp) Clear() {}
+
+func initLocalGitRepo(t *testing.T, repoDir string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(repoDir, 0755))
+	playbookPath := filepath.Join(repoDir, "site.yml")
+	require.NoError(t, os.WriteFile(playbookPath, []byte("---\n- hosts: all\n"), 0644))
+
+	cmd := exec.Command("git", "init", repoDir)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "git init failed: %s", string(out))
+
+	_ = exec.Command("git", "-C", repoDir, "config", "user.name", "test").Run()
+	_ = exec.Command("git", "-C", repoDir, "config", "user.email", "test@example.com").Run()
+	_ = exec.Command("git", "-C", repoDir, "add", "site.yml").Run()
+	_ = exec.Command("git", "-C", repoDir, "commit", "-m", "initial commit").Run()
+}
 
 // ============================================================================
 // Integration Tests: Local, Docker, K8s Executor Modes & Provider Routing
@@ -615,17 +648,15 @@ func TestExecutorModes_Lifecycle(t *testing.T) {
 	setupIntegrationConfig(t)
 
 	tests := []struct {
-		name     string
-		execType util.ExecutorType
-		create   func(logger task_logger.Logger) tasks.Executor
+		name   string
+		create func(logger task_logger.Logger) tasks.Executor
 	}{
 		{
-			name:     "Local Executor Mode",
-			execType: util.ExecutorTypeLocal,
+			name: "Local Executor Mode",
 			create: func(logger task_logger.Logger) tasks.Executor {
 				mockApp := &MockLocalApp{}
-				playbookPath := filepath.Join(util.Config.TmpPath, "site.yml")
-				_ = os.WriteFile(playbookPath, []byte("---\n- hosts: all\n"), 0644)
+				repoDir := filepath.Join(util.Config.TmpPath, "local_repo")
+				initLocalGitRepo(t, repoDir)
 
 				exec := &tasks.LocalExecutor{
 					Task: db.Task{ID: 101, ProjectID: 1},
@@ -635,7 +666,7 @@ func TestExecutorModes_Lifecycle(t *testing.T) {
 						Playbook: "site.yml",
 					},
 					Inventory:  db.Inventory{ID: 1, Type: db.InventoryStatic},
-					Repository: db.Repository{ID: 1, GitURL: util.Config.TmpPath},
+					Repository: db.Repository{ID: 1, GitURL: repoDir},
 					App:        mockApp,
 					RepoLock:   &tasks.KeyLock{},
 				}
@@ -644,8 +675,7 @@ func TestExecutorModes_Lifecycle(t *testing.T) {
 			},
 		},
 		{
-			name:     "Docker Executor Mode (Ephemeral Container)",
-			execType: util.ExecutorTypeDocker,
+			name: "Docker Executor Mode (Ephemeral Container)",
 			create: func(logger task_logger.Logger) tasks.Executor {
 				engine := NewMockDockerEngine()
 				exec := &MockDockerExecutor{
@@ -659,8 +689,7 @@ func TestExecutorModes_Lifecycle(t *testing.T) {
 			},
 		},
 		{
-			name:     "Kubernetes Executor Mode (Ephemeral Pod)",
-			execType: util.ExecutorTypeKubernetes,
+			name: "Kubernetes Executor Mode (Ephemeral Pod)",
 			create: func(logger task_logger.Logger) tasks.Executor {
 				cluster := NewMockK8sCluster()
 				exec := &MockK8sExecutor{
@@ -687,8 +716,8 @@ func TestExecutorModes_Lifecycle(t *testing.T) {
 			err := exec.Run("admin", nil, "")
 			assert.NoError(t, err, "Run phase should succeed")
 
-			// Post-execution status
-			assert.Contains(t, []task_logger.TaskStatus{task_logger.TaskSuccessStatus, task_logger.TaskRunningStatus}, logger.GetStatus())
+			// Post-execution status must strictly be Success after Run completes
+			assert.Equal(t, task_logger.TaskSuccessStatus, logger.GetStatus())
 		})
 	}
 }
@@ -697,6 +726,30 @@ func TestExecutorModes_Lifecycle(t *testing.T) {
 // is safe and does not create duplicate ephemeral resources or leak mock objects.
 func TestPrepare_Idempotency(t *testing.T) {
 	setupIntegrationConfig(t)
+
+	t.Run("Local executor Prepare is idempotent", func(t *testing.T) {
+		mockApp := &MockLocalApp{}
+		repoDir := filepath.Join(util.Config.TmpPath, "idempotent_local_repo")
+		initLocalGitRepo(t, repoDir)
+
+		exec := &tasks.LocalExecutor{
+			Task: db.Task{ID: 400, ProjectID: 1},
+			Template: db.Template{
+				ID:       1,
+				App:      db.AppAnsible,
+				Playbook: "site.yml",
+			},
+			Inventory:  db.Inventory{ID: 1, Type: db.InventoryStatic},
+			Repository: db.Repository{ID: 1, GitURL: repoDir},
+			App:        mockApp,
+			RepoLock:   &tasks.KeyLock{},
+		}
+		exec.SetLogger(NewMemoryTaskLogger())
+
+		require.NoError(t, exec.Prepare("admin", nil, ""))
+		// Second call must be a no-op and succeed without re-preparing or failing
+		require.NoError(t, exec.Prepare("admin", nil, ""))
+	})
 
 	t.Run("Docker executor Prepare is idempotent", func(t *testing.T) {
 		engine := NewMockDockerEngine()
@@ -742,12 +795,12 @@ func TestPrepare_Idempotency(t *testing.T) {
 }
 
 // ============================================================================
-// Integration Tests: Ephemeral Resource Cleanup & Orphan Prevention
+// Integration Tests: Ephemeral Resource Cleanup & Mock Harness Contracts
 // ============================================================================
 
-// TestDockerExecutor_EphemeralCleanup_NoOrphans verifies that Docker containers
-// are deleted cleanly on success, failure, and kill, leaving zero orphan containers.
-func TestDockerExecutor_EphemeralCleanup_NoOrphans(t *testing.T) {
+// TestDockerExecutor_MockHarnessCleanupContract verifies that the Docker mock harness contract
+// ensures containers are deleted cleanly on success, failure, and kill, leaving zero orphan containers.
+func TestDockerExecutor_MockHarnessCleanupContract(t *testing.T) {
 	t.Run("Clean up on successful execution", func(t *testing.T) {
 		engine := NewMockDockerEngine()
 		logger := NewMemoryTaskLogger()
@@ -798,9 +851,9 @@ func TestDockerExecutor_EphemeralCleanup_NoOrphans(t *testing.T) {
 	})
 }
 
-// TestK8sExecutor_EphemeralCleanup_NoOrphans verifies that K8s Pods
-// are deleted cleanly on success, failure, and kill, leaving zero orphan Pods.
-func TestK8sExecutor_EphemeralCleanup_NoOrphans(t *testing.T) {
+// TestK8sExecutor_MockHarnessCleanupContract verifies that the K8s mock harness contract
+// ensures Pods are deleted cleanly on success, failure, and kill, leaving zero orphan Pods.
+func TestK8sExecutor_MockHarnessCleanupContract(t *testing.T) {
 	t.Run("Clean up on successful execution", func(t *testing.T) {
 		cluster := NewMockK8sCluster()
 		logger := NewMemoryTaskLogger()
@@ -877,17 +930,20 @@ func TestRepoSizeScenarios(t *testing.T) {
 		hugeRepoDir := filepath.Join(tempDir, "huge_repo")
 		require.NoError(t, os.MkdirAll(hugeRepoDir, 0755))
 
-		// Create a large synthetic payload file (e.g. 105 MB)
+		// Create a large synthetic payload file (e.g. 105 MB) with real data writes to exercise large-file I/O
 		largeFilePath := filepath.Join(hugeRepoDir, "large_artifact.bin")
 		f, err := os.Create(largeFilePath)
 		require.NoError(t, err)
 
 		targetSize := int64(105 * 1024 * 1024) // 105MB
-		err = f.Truncate(targetSize)
-		require.NoError(t, err)
+		buf := make([]byte, 1024*1024)         // 1MB buffer
+		for written := int64(0); written < targetSize; written += int64(len(buf)) {
+			_, err = f.Write(buf)
+			require.NoError(t, err)
+		}
 		require.NoError(t, f.Close())
 
-		// Verify size
+		// Verify size on disk
 		fi, err := os.Stat(largeFilePath)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, fi.Size(), int64(100*1024*1024), "repository size must exceed 100MB")
@@ -896,7 +952,7 @@ func TestRepoSizeScenarios(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		done := make(chan struct{})
+		sizeCh := make(chan int64, 1)
 		go func() {
 			// Simulate read/traversal of repository directory
 			var totalSize int64
@@ -906,13 +962,12 @@ func TestRepoSizeScenarios(t *testing.T) {
 				}
 				return nil
 			})
-			assert.GreaterOrEqual(t, totalSize, int64(100*1024*1024))
-			close(done)
+			sizeCh <- totalSize
 		}()
 
 		select {
-		case <-done:
-			// Success within bounds
+		case totalSize := <-sizeCh:
+			assert.GreaterOrEqual(t, totalSize, int64(100*1024*1024))
 		case <-ctx.Done():
 			t.Fatal("Huge repository processing timed out")
 		}
@@ -987,6 +1042,7 @@ func TestSecretPropagation_And_LeakGuard(t *testing.T) {
 
 	// 3. FAIL Disqualifier Check: Ensure plain-text secrets NEVER leak into execution logs
 	logs := logger.GetLogs()
+	require.NotEmpty(t, logs, "logs must not be empty so assertions genuinely evaluate captured output")
 	for _, line := range logs {
 		assert.NotContains(t, line, secretPassword, "LOG LEAK DETECTED: plain-text password found in logs")
 		assert.NotContains(t, line, vaultKey, "LOG LEAK DETECTED: vault secret token found in logs")
