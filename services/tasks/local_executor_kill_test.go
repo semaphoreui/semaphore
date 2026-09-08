@@ -69,7 +69,7 @@ func (a *delayedProcessApp) Run(args db_lib.LocalAppRunningArgs) error {
 func (a *delayedProcessApp) Clear() {}
 
 // TestKillBeforeProcessStart asserts that a stop requested after the
-// killRequested check is applied when the process is registered.
+// terminationRequested check is applied when the process is registered.
 func TestKillBeforeProcessStart(t *testing.T) {
 	setupExecutorConfig(t)
 
@@ -89,7 +89,7 @@ func TestKillBeforeProcessStart(t *testing.T) {
 	}()
 
 	<-app.runCh
-	executor.Kill() // Sets killRequested while no process is registered.
+	executor.Kill() // Sets terminationRequested while no process is registered.
 	close(app.killCh)
 
 	var process *os.Process
