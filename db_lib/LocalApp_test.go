@@ -131,9 +131,47 @@ func TestGetEnvironmentVars_WindowsMixedCaseAndOSParity(t *testing.T) {
 	}
 
 	for _, ev := range expectedVars {
-		if !contains(res, ev) {
+		expectedKey, expectedValue, _ := strings.Cut(ev, "=")
+		found := false
+		for _, actual := range res {
+			actualKey, actualValue, _ := strings.Cut(actual, "=")
+			if strings.EqualFold(actualKey, expectedKey) && actualValue == expectedValue {
+				found = true
+				break
+			}
+		}
+		if !found {
 			t.Errorf("Expected result to contain %s, got %v", ev, res)
 		}
+	}
+}
+
+func TestGetEnvironmentVars_POSIXProxyCaseInsensitiveOverride(t *testing.T) {
+	t.Setenv("http_proxy", "http://ambient.lower.proxy:8080")
+	t.Setenv("https_proxy", "http://ambient.lower.proxy:8443")
+	t.Setenv("no_proxy", "localhost")
+
+	util.Config = &util.ConfigType{
+		ForwardedEnvVars: []string{},
+		EnvVars: map[string]string{
+			"HTTP_PROXY":  "http://override.upper.proxy:9090",
+			"HTTPS_PROXY": "http://override.upper.proxy:9443",
+		},
+	}
+
+	res := getEnvironmentVars()
+
+	if !contains(res, "HTTP_PROXY=http://override.upper.proxy:9090") {
+		t.Errorf("Expected HTTP_PROXY to be set in result, got %v", res)
+	}
+	if !contains(res, "HTTPS_PROXY=http://override.upper.proxy:9443") {
+		t.Errorf("Expected HTTPS_PROXY to be set in result, got %v", res)
+	}
+	if contains(res, "http_proxy=http://ambient.lower.proxy:8080") {
+		t.Errorf("Ambient lowercase http_proxy should have been removed when HTTP_PROXY is configured, got %v", res)
+	}
+	if contains(res, "https_proxy=http://ambient.lower.proxy:8443") {
+		t.Errorf("Ambient lowercase https_proxy should have been removed when HTTPS_PROXY is configured, got %v", res)
 	}
 }
 

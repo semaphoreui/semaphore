@@ -36,8 +36,18 @@ func (c CmdGitClient) makeCmd(
 		cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", h))
 	}
 	if runtime.GOOS == "windows" {
-		if up := os.Getenv("USERPROFILE"); up != "" {
-			cmd.Env = append(cmd.Env, fmt.Sprintf("USERPROFILE=%s", up))
+		hasUserProfile := false
+		for _, env := range cmd.Env {
+			key, _, _ := strings.Cut(env, "=")
+			if strings.EqualFold(key, "USERPROFILE") {
+				hasUserProfile = true
+				break
+			}
+		}
+		if !hasUserProfile {
+			if up := os.Getenv("USERPROFILE"); up != "" {
+				cmd.Env = append(cmd.Env, fmt.Sprintf("USERPROFILE=%s", up))
+			}
 		}
 	}
 

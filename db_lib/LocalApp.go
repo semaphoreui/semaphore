@@ -49,8 +49,17 @@ var defaultForwardedEnvVars = []string{
 	"PATHEXT",
 }
 
+func isProxyEnvVar(k string) bool {
+	switch strings.ToUpper(k) {
+	case "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "ALL_PROXY", "FTP_PROXY":
+		return true
+	default:
+		return false
+	}
+}
+
 func setEnvVar(envMap map[string]string, k, v string) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" || isProxyEnvVar(k) {
 		for existing := range envMap {
 			if strings.EqualFold(existing, k) {
 				delete(envMap, existing)
