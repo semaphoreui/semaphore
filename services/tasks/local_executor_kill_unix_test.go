@@ -1,42 +1,17 @@
+//go:build !windows
+
 package tasks
 
 import (
 	"os"
 	"os/exec"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
-
-const timeoutEnv = "SEMAPHORE_TEST_PROCESS_TIMEOUT"
-
-// newProcessHelperCommand re-executes the test binary so tests can use a
-// portable sleeping process without relying on platform-specific commands such
-// as sleep, which is not available on Windows.
-func newProcessHelperCommand(timeout time.Duration) *exec.Cmd {
-	cmd := exec.Command(os.Args[0], "-test.run=^TestProcessHelper$")
-	cmd.Env = append(os.Environ(), timeoutEnv+"="+timeout.String())
-	return cmd
-}
-
-func TestProcessHelper(t *testing.T) {
-	timeoutValue, ok := os.LookupEnv(timeoutEnv)
-	if !ok {
-		return
-	}
-
-	timeout, err := time.ParseDuration(timeoutValue)
-	if err != nil {
-		t.Fatalf("parse process helper timeout: %v", err)
-	}
-	if timeout <= 0 {
-		t.Fatal("process helper timeout must be positive")
-	}
-
-	time.Sleep(timeout)
-}
 
 type delayedProcessApp struct {
 	runCh     chan struct{}
@@ -56,7 +31,8 @@ func (a *delayedProcessApp) Run(args db_lib.LocalAppRunningArgs) error {
 	close(a.runCh)
 	<-a.killCh
 
-	cmd := newProcessHelperCommand(30 * time.Second)
+	cmd := exec.Command("sleep", "30")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		return err
 	}
