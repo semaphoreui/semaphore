@@ -8,5 +8,10 @@ import "syscall"
 // support Linux CLONE_NEW* namespaces. The flags are configurable but
 // silently inert here.
 func (conf *ConfigType) GetAppSysProcAttr() *syscall.SysProcAttr {
-	return conf.GetSysProcAttr()
+	res := conf.GetSysProcAttr()
+	if res == nil {
+		res = &syscall.SysProcAttr{}
+	}
+	res.Setpgid = true
+	return res
 }

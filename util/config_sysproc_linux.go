@@ -10,16 +10,11 @@ import "syscall"
 // needs host access for SSH agents and credential helpers.
 func (conf *ConfigType) GetAppSysProcAttr() *syscall.SysProcAttr {
 	res := conf.GetSysProcAttr()
-
-	flags := conf.Process.AppNamespaces.cloneFlags()
-	if flags == 0 {
-		return res
-	}
-
 	if res == nil {
 		res = &syscall.SysProcAttr{}
 	}
-	res.Cloneflags |= flags
+	res.Setpgid = true
+	res.Cloneflags |= conf.Process.AppNamespaces.cloneFlags()
 	return res
 }
 

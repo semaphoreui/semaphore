@@ -33,6 +33,7 @@ type LocalExecutor struct {
 	processMu            sync.Mutex
 	terminationRequested bool
 	process              *os.Process
+	exitCh               <-chan struct{}
 
 	sshKeyInstallation     ssh.AccessKeyInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
@@ -78,19 +79,22 @@ func (t *LocalExecutor) Kill() {
 	t.processMu.Lock()
 	t.terminationRequested = true
 	process := t.process
+	exitCh := t.exitCh
 	t.processMu.Unlock()
 
-	t.stopProcess(process)
+	t.stopProcess(process, exitCh)
 }
 
-func (t *LocalExecutor) killProcess(process *os.Process) {
+func killProcess(process *os.Process) error {
 	if process == nil {
-		return
+		return nil
 	}
 
-	if err := process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		t.Log(err.Error())
+	err := process.Kill()
+	if errors.Is(err, os.ErrProcessDone) {
+		return nil
 	}
+	return err
 }
 
 func (t *LocalExecutor) Log(msg string) {
@@ -771,6 +775,17 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		return nil
 	}
 
+	exitCh := make(chan struct{})
+	defer func() {
+		t.processMu.Lock()
+		if t.exitCh == exitCh {
+			t.process = nil
+			t.exitCh = nil
+		}
+		t.processMu.Unlock()
+		close(exitCh)
+	}()
+
 	return t.App.Run(db_lib.LocalAppRunningArgs{
 		CliArgs:         t.preparedArgsMap,
 		EnvironmentVars: t.preparedEnv,
@@ -780,11 +795,12 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		OnProcessStarted: func(process *os.Process) {
 			t.processMu.Lock()
 			t.process = process
+			t.exitCh = exitCh
 			terminationRequested := t.terminationRequested
 			t.processMu.Unlock()
 
 			if terminationRequested {
-				t.stopProcess(process)
+				t.stopProcess(process, exitCh)
 			}
 		},
 	})
