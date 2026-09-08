@@ -28,8 +28,8 @@ type LocalExecutor struct {
 
 	App db_lib.LocalApp
 
-	killed  bool // killed means that API request to stop the job has been received
-	Process *os.Process
+	killRequested bool
+	Process       *os.Process
 
 	sshKeyInstallation     ssh.AccessKeyInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
@@ -60,7 +60,7 @@ type LocalExecutor struct {
 }
 
 func (t *LocalExecutor) IsKilled() bool {
-	return t.killed
+	return t.killRequested
 }
 
 // Async is false: LocalJob.Run executes the task synchronously and returns only
@@ -70,7 +70,7 @@ func (t *LocalExecutor) Async() bool {
 }
 
 func (t *LocalExecutor) Kill() {
-	t.killed = true
+	t.killRequested = true
 
 	if t.Process == nil {
 		return
@@ -755,7 +755,7 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		return
 	}
 
-	if t.killed {
+	if t.killRequested {
 		t.SetStatus(task_logger.TaskStoppedStatus)
 		return nil
 	}
@@ -766,7 +766,7 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		Inputs:          t.preparedInputs,
 		TaskParams:      t.preparedParams,
 		TemplateParams:  t.preparedTplParams,
-		Callback: func(p *os.Process) {
+		OnProcessStarted: func(p *os.Process) {
 			t.Process = p
 		},
 	})
