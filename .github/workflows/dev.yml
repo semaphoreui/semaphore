@@ -312,7 +312,7 @@ jobs:
           p455w0rd
           semaphore
           /tmp/semaphore
-          http://localhost:3000
+          http://localhost:58427
           no
           no
           no
@@ -399,7 +399,7 @@ jobs:
           p455w0rd
           semaphore
           /tmp/semaphore
-          http://localhost:3000
+          http://localhost:58427
           no
           no
           no
@@ -485,7 +485,7 @@ jobs:
           p455w0rd
           semaphore
           /tmp/semaphore
-          http://localhost:3000
+          http://localhost:58427
           no
           no
           no
@@ -553,7 +553,7 @@ jobs:
           4
           /tmp/database.sqlite
           /tmp/semaphore
-          http://localhost:3000
+          http://localhost:58427
           no
           no
           no
