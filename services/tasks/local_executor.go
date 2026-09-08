@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
@@ -28,8 +29,9 @@ type LocalExecutor struct {
 
 	App db_lib.LocalApp
 
+	processMu     sync.Mutex
 	killRequested bool
-	Process       *os.Process
+	process       *os.Process
 
 	sshKeyInstallation     ssh.AccessKeyInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
@@ -60,6 +62,8 @@ type LocalExecutor struct {
 }
 
 func (t *LocalExecutor) IsKilled() bool {
+	t.processMu.Lock()
+	defer t.processMu.Unlock()
 	return t.killRequested
 }
 
@@ -70,14 +74,23 @@ func (t *LocalExecutor) Async() bool {
 }
 
 func (t *LocalExecutor) Kill() {
+	t.processMu.Lock()
 	t.killRequested = true
+	process := t.process
+	t.processMu.Unlock()
 
-	if t.Process == nil {
+	t.killProcess(process)
+}
+
+// killProcess must return promptly because OnProcessStarted may call it
+// synchronously. A TERM grace period must schedule SIGKILL asynchronously
+// instead of sleeping here.
+func (t *LocalExecutor) killProcess(process *os.Process) {
+	if process == nil {
 		return
 	}
 
-	err := t.Process.Kill()
-	if err != nil {
+	if err := process.Kill(); err != nil {
 		t.Log(err.Error())
 	}
 }
@@ -755,7 +768,7 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		return
 	}
 
-	if t.killRequested {
+	if t.IsKilled() {
 		t.SetStatus(task_logger.TaskStoppedStatus)
 		return nil
 	}
@@ -766,8 +779,15 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		Inputs:          t.preparedInputs,
 		TaskParams:      t.preparedParams,
 		TemplateParams:  t.preparedTplParams,
-		OnProcessStarted: func(p *os.Process) {
-			t.Process = p
+		OnProcessStarted: func(process *os.Process) {
+			t.processMu.Lock()
+			t.process = process
+			killRequested := t.killRequested
+			t.processMu.Unlock()
+
+			if killRequested {
+				t.killProcess(process)
+			}
 		},
 	})
 }
