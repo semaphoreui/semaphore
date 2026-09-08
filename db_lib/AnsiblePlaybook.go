@@ -78,7 +78,7 @@ func (p AnsiblePlaybook) runCmd(command string, args []string, environmentVars [
 	return cmd.Run()
 }
 
-func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
+func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, inputs map[string]string, onProcessStarted func(*os.Process)) error {
 	cmd, err := p.makeCmd("ansible-playbook", args, environmentVars)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 	}()
 
 	defer func() { _ = ptmx.Close() }()
-	cb(cmd.Process)
+	onProcessStarted(cmd.Process)
 	err = cmd.Wait()
 	return err
 }

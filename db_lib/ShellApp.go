@@ -114,7 +114,7 @@ func (t *ShellApp) Run(args LocalAppRunningArgs) error {
 	if err != nil {
 		return err
 	}
-	args.Callback(cmd.Process)
+	args.OnProcessStarted(cmd.Process)
 
 	err = cmd.Wait()
 	finishLog() // Flush command output before logging the wait result.
