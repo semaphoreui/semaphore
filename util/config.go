@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/url"
 	"os"
 	"os/exec"
@@ -165,6 +166,10 @@ type RunnerConfig struct {
 	Tags             []string `json:"tags,omitempty" env:"SEMAPHORE_RUNNER_TAGS"`
 	MaxParallelTasks int      `json:"max_parallel_tasks,omitempty" default:"9999" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 	ProjectID        *int     `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
+
+	// CheckIntervalSeconds is how often the runner polls the server for new jobs.
+	// Plain int, not time.Duration, for env-binding simplicity.
+	CheckIntervalSeconds int `json:"check_interval_seconds,omitempty" default:"1" env:"SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS"`
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
 
@@ -714,6 +719,13 @@ const (
 	defaultRunnersReconcileIntervalSec = 30
 )
 
+// Default poll interval for a runner asking the server for work.
+const defaultRunnerCheckIntervalSec = 1
+
+// Larger overflows time.Duration and panics time.NewTicker. Kept as int64: the
+// value exceeds int on 32-bit release targets (386, arm).
+const maxRunnerCheckIntervalSec int64 = int64(math.MaxInt64) / int64(time.Second)
+
 // GetSecretsPath returns the secrets path from configuration.
 // Used for backward compatibility with legacy top-level secrets_path.
 func (conf *ConfigType) GetSecretsPath() string {
@@ -780,6 +792,18 @@ func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
 		res = offline
 	}
 	return res
+}
+
+// RunnerCheckInterval returns how often this runner polls the server for new
+// jobs. Out-of-range values fall back to the default: 0 is indistinguishable
+// from "unset" after defaults are applied, and oversized values overflow.
+func (conf *ConfigType) RunnerCheckInterval() time.Duration {
+	sec := int64(defaultRunnerCheckIntervalSec)
+	if configured := int64(conf.Runner.CheckIntervalSeconds); configured > 0 &&
+		configured <= maxRunnerCheckIntervalSec {
+		sec = configured
+	}
+	return time.Duration(sec) * time.Second
 }
 
 // RunnersReconcileInterval returns how often the server reconciles dispatched
@@ -912,11 +936,11 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		WebHostURL = nil
 	}
 
-	if Config.Runner != nil && Config.Runner.Token != "" && Config.Runner.TokenFile != "" {
+	if Config.Runner.Token != "" && Config.Runner.TokenFile != "" {
 		panic("SEMAPHORE_RUNNER_TOKEN and SEMAPHORE_RUNNER_TOKEN_FILE are mutually exclusive")
 	}
 
-	if Config.Runner != nil && Config.Runner.TokenFile != "" {
+	if Config.Runner.TokenFile != "" {
 		runnerTokenBytes, err := os.ReadFile(Config.Runner.TokenFile)
 		if err == nil {
 			Config.Runner.Token = strings.TrimSpace(string(runnerTokenBytes))
@@ -1297,6 +1321,70 @@ func CastValueToKind(value any, kind reflect.Kind) (res any, ok bool) {
 			res = castStringToInt(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
 		}
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if reflect.ValueOf(value).Kind() == kind {
+			ok = true
+		} else {
+			bitSize := 64
+			switch kind {
+			case reflect.Int8:
+				bitSize = 8
+			case reflect.Int16:
+				bitSize = 16
+			case reflect.Int32:
+				bitSize = 32
+			case reflect.Int64:
+				bitSize = 64
+			}
+			val, err := strconv.ParseInt(fmt.Sprintf("%v", reflect.ValueOf(value)), 10, bitSize)
+			if err != nil {
+				panic(err)
+			}
+			switch kind {
+			case reflect.Int8:
+				res = int8(val)
+			case reflect.Int16:
+				res = int16(val)
+			case reflect.Int32:
+				res = int32(val)
+			case reflect.Int64:
+				res = val
+			}
+			ok = true
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if reflect.ValueOf(value).Kind() == kind {
+			ok = true
+		} else {
+			bitSize := strconv.IntSize
+			switch kind {
+			case reflect.Uint8:
+				bitSize = 8
+			case reflect.Uint16:
+				bitSize = 16
+			case reflect.Uint32:
+				bitSize = 32
+			case reflect.Uint64:
+				bitSize = 64
+			}
+			val, err := strconv.ParseUint(fmt.Sprintf("%v", reflect.ValueOf(value)), 10, bitSize)
+			if err != nil {
+				panic(err)
+			}
+			switch kind {
+			case reflect.Uint8:
+				res = uint8(val)
+			case reflect.Uint16:
+				res = uint16(val)
+			case reflect.Uint32:
+				res = uint32(val)
+			case reflect.Uint64:
+				res = val
+			default:
+				res = uint(val)
+			}
+			ok = true
+		}
 	case reflect.Bool:
 		if reflect.ValueOf(value).Kind() == reflect.Bool {
 			ok = true
@@ -1330,6 +1418,33 @@ func setConfigValue(attribute reflect.Value, value string) {
 				panic(err)
 			}
 			attribute.Set(mapValue.Elem())
+		case reflect.Ptr:
+			elemType := attribute.Type().Elem()
+			elemKind := elemType.Kind()
+
+			switch elemKind {
+			case reflect.Slice, reflect.Map:
+				ptr := reflect.New(elemType)
+				err := json.Unmarshal([]byte(value), ptr.Interface())
+				if err != nil {
+					panic(err)
+				}
+				attribute.Set(ptr)
+			default:
+				newValue, _ := CastValueToKind(value, elemKind)
+				convertedElem := reflect.ValueOf(newValue)
+				if convertedElem.Type().AssignableTo(elemType) {
+					ptr := reflect.New(elemType)
+					ptr.Elem().Set(convertedElem)
+					attribute.Set(ptr)
+				} else if convertedElem.Type().ConvertibleTo(elemType) {
+					ptr := reflect.New(elemType)
+					ptr.Elem().Set(convertedElem.Convert(elemType))
+					attribute.Set(ptr)
+				} else {
+					panic(fmt.Errorf("cannot assign value of type %s to pointer element of type %s", convertedElem.Type(), elemType))
+				}
+			}
 		default:
 			newValue, _ := CastValueToKind(value, kind)
 			convertedValue := reflect.ValueOf(newValue)

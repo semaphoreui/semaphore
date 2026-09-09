@@ -99,7 +99,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 
 	var dirName string
 	if r.TmpDirName == "" {
-		dirName = r.Repository.GetDirName(r.TemplateID)
+		dirName = r.Repository.GetCheckoutDirName(r.TemplateID)
 	} else {
 		dirName = r.TmpDirName
 	}

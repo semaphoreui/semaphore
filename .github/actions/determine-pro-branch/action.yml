@@ -1,0 +1,46 @@
+name: Determine PRO branch
+description: >-
+  Resolve which semaphorepro-module branch matches the current build ref and
+  export it as the PRO_BRANCH environment variable. Branch and PR builds use
+  the same-named branch; tag builds use the branch containing the tagged
+  commit (requires full git history, i.e. checkout with fetch-depth 0).
+  Falls back to main.
+
+inputs:
+  gh_token:
+    description: GitHub token with read access to semaphoreui/semaphorepro-module
+    required: true
+
+outputs:
+  branch:
+    description: Resolved pro_impl branch name
+    value: ${{ steps.resolve.outputs.branch }}
+
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        PRO_REPO: https://${{ inputs.gh_token }}@github.com/semaphoreui/semaphorepro-module.git
+        BRANCH_NAME: ${{ github.head_ref || (github.ref_type == 'branch' && github.ref_name) || '' }}
+      run: |
+        if [ -n "$BRANCH_NAME" ]; then
+          CANDIDATES="$BRANCH_NAME"
+        else
+          # Tag build: candidates are the root repo branches containing the tagged commit,
+          # develop checked last.
+          ALL=$(git branch -r --contains HEAD --format='%(refname:short)' | sed -n 's#^origin/##p' | grep -vx 'HEAD' || true)
+          CANDIDATES=$( { echo "$ALL" | grep -vx develop || true; echo "$ALL" | grep -x develop || true; } )
+        fi
+        PRO_HEADS=$(git ls-remote --heads "$PRO_REPO" | sed 's#.*refs/heads/##' || true)
+        PRO_BRANCH=main
+        for c in $CANDIDATES; do
+          if echo "$PRO_HEADS" | grep -qx -- "$c"; then
+            PRO_BRANCH="$c"
+            break
+          fi
+        done
+        echo "Using pro_impl branch: $PRO_BRANCH"
+        echo "branch=$PRO_BRANCH" >> "$GITHUB_OUTPUT"
+        echo "PRO_BRANCH=$PRO_BRANCH" >> "$GITHUB_ENV"
