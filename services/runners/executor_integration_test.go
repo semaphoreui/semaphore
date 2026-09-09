@@ -569,14 +569,17 @@ func initLocalGitRepo(t *testing.T, repoDir string) {
 	playbookPath := filepath.Join(repoDir, "site.yml")
 	require.NoError(t, os.WriteFile(playbookPath, []byte("---\n- hosts: all\n"), 0644))
 
-	cmd := exec.Command("git", "init", repoDir)
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "git init failed: %s", string(out))
+	runGitCmd := func(args ...string) {
+		cmd := exec.Command("git", args...)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "git %v failed: %s", args, string(out))
+	}
 
-	_ = exec.Command("git", "-C", repoDir, "config", "user.name", "test").Run()
-	_ = exec.Command("git", "-C", repoDir, "config", "user.email", "test@example.com").Run()
-	_ = exec.Command("git", "-C", repoDir, "add", "site.yml").Run()
-	_ = exec.Command("git", "-C", repoDir, "commit", "-m", "initial commit").Run()
+	runGitCmd("init", repoDir)
+	runGitCmd("-C", repoDir, "config", "user.name", "test")
+	runGitCmd("-C", repoDir, "config", "user.email", "test@example.com")
+	runGitCmd("-C", repoDir, "add", "site.yml")
+	runGitCmd("-C", repoDir, "commit", "-m", "initial commit")
 }
 
 // ============================================================================
