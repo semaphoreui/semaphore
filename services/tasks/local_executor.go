@@ -77,12 +77,15 @@ func (t *LocalExecutor) Async() bool {
 
 func (t *LocalExecutor) Kill() {
 	t.processMu.Lock()
+	alreadyRequested := t.terminationRequested
 	t.terminationRequested = true
 	process := t.process
 	exitCh := t.exitCh
 	t.processMu.Unlock()
 
-	t.stopProcess(process, exitCh)
+	if !alreadyRequested {
+		t.stopProcess(process, exitCh)
+	}
 }
 
 func killProcess(process *os.Process) error {
