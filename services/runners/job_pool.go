@@ -227,6 +227,7 @@ func (p *JobPool) Unregister() (err error) {
 	if err != nil {
 		return
 	}
+	p.setCommonHeaders(req)
 
 	log.WithFields(log.Fields{
 		"context": "unregistration",

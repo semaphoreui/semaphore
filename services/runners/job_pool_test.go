@@ -146,6 +146,30 @@ func TestJobPool_ApplyTerminatedJobs(t *testing.T) {
 	assert.Equal(t, 0, p.runningJobsCount())
 }
 
+func TestJobPool_UnregisterSendsRunnerToken(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodDelete, r.Method)
+		assert.Equal(t, "/api/internal/runners", r.URL.Path)
+		assert.Equal(t, "runner-token", r.Header.Get("X-Runner-Token"))
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(srv.Close)
+
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "runner-token",
+			Connection: &util.RunnerConnectionConfig{},
+		},
+	}
+
+	p := &JobPool{client: newHTTPClient()}
+
+	require.NoError(t, p.Unregister())
+}
+
 func TestJobPool_CheckNewJobsExecutorErrorUsesTaskProjectID(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		err := json.NewEncoder(w).Encode(RunnerState{
