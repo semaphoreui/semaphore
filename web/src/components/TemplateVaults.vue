@@ -3,6 +3,7 @@
     <v-dialog
       v-model="editDialog"
       hide-overlay
+      content-class="NestedDialog"
       width="300"
     >
       <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">

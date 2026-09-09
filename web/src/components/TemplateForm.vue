@@ -34,7 +34,7 @@
     </v-row>
   </div>
   <v-form class="mt-1" v-else ref="form" lazy-validation v-model="formValid">
-    <v-dialog v-model="helpDialog" hide-overlay width="300">
+    <v-dialog v-model="helpDialog" hide-overlay content-class="NestedDialog" width="300">
       <v-alert border="top" colored-border type="info" elevation="2" class="mb-0 pb-0">
         <div v-if="helpKey === 'build_version'">
           <p>
