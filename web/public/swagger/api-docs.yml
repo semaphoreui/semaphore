@@ -848,6 +848,19 @@ definitions:
       force_galaxy_install:
         type: boolean
 
+  AnsibleTemplateParams:
+    type: object
+    properties:
+      force_galaxy_install:
+        type: boolean
+      allow_override_force_galaxy_install:
+        type: boolean
+
+  TemplateTaskParams:
+    allOf:
+      - $ref: '#/definitions/TaskPrams'
+      - $ref: '#/definitions/AnsibleTemplateParams'
+
   TerraformTaskParams:
     type: object
     properties:
@@ -955,7 +968,7 @@ definitions:
       autorun:
         type: boolean
       task_params:
-        $ref: '#/definitions/TaskPrams'
+        $ref: '#/definitions/TemplateTaskParams'
 
   Template:
     type: object
@@ -1017,7 +1030,7 @@ definitions:
         items:
           $ref: "#/definitions/TemplateVault"
       task_params:
-        $ref: '#/definitions/TaskPrams'
+        $ref: '#/definitions/TemplateTaskParams'
 
   TemplateSurveyVar:
     type: object
