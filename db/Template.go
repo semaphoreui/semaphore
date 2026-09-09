@@ -283,6 +283,9 @@ type Template struct {
 	Name string `db:"name" json:"name"`
 	// playbook name in the form of "some_play.yml"
 	Playbook string `db:"playbook" json:"playbook"`
+	// WorkingDirectory is the repository-relative current directory for Ansible
+	// commands. It is valid only for Ansible templates.
+	WorkingDirectory *string `db:"working_directory" json:"working_directory,omitempty"`
 	// to fit into []string
 	Arguments *string `db:"arguments" json:"arguments,omitempty"`
 	// if true, semaphore will not prepend any arguments to `arguments` like inventory, etc
@@ -411,6 +414,18 @@ func (tpl *Template) Validate() error {
 
 	if err := ValidatePlaybookPath(tpl.Playbook, "template"); err != nil {
 		return err
+	}
+
+	if tpl.WorkingDirectory != nil {
+		if tpl.App != AppAnsible {
+			return common_errors.NewValidationError("template working directory is supported only for Ansible templates")
+		}
+		if strings.TrimSpace(*tpl.WorkingDirectory) == "" {
+			return common_errors.NewValidationError("template working directory can not be empty")
+		}
+		if err := ValidateWorkingDirectoryLexically(*tpl.WorkingDirectory); err != nil {
+			return err
+		}
 	}
 
 	if tpl.Arguments != nil {

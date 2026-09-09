@@ -1,9 +1,9 @@
 package util
 
 import (
-	"path/filepath"
-	"runtime"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsWindowsLocalRepositoryPath(t *testing.T) {
@@ -24,32 +24,31 @@ func TestIsWindowsLocalRepositoryPath(t *testing.T) {
 		{`https://x`, false},
 	}
 	for _, tt := range tests {
-		if got := IsWindowsLocalRepositoryPath(tt.path); got != tt.want {
-			t.Errorf("IsWindowsLocalRepositoryPath(%q) = %v, want %v", tt.path, got, tt.want)
-		}
+		t.Run(tt.path, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsWindowsLocalRepositoryPath(tt.path))
+		})
 	}
 }
 
-func TestNormalizeLocalFilesystemPath(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Run("leading_slash_before_drive", func(t *testing.T) {
-			got := NormalizeLocalFilesystemPath("/D:/ps-demo-script")
-			want := "D:/ps-demo-script"
-			if got != want {
-				t.Fatalf("got %q want %q", got, want)
-			}
+func TestNormalizeMsysPath(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{"leading slash before drive", `/D:/ps-demo-script`, `D:/ps-demo-script`},
+		{"leading slash before drive backslash", `/d:\ps-demo-script`, `d:\ps-demo-script`},
+		{"msys drive path", `/d/ps-demo-script/extra`, `D:\ps-demo-script\extra`},
+		{"msys drive root", `/d/`, `D:\`},
+		{"msys drive lowercase upcased", `/c/Users`, `C:\Users`},
+		{"native windows path unchanged", `D:\repo`, `D:\repo`},
+		{"unix path unchanged", `/usr/src`, `/usr/src`},
+		{"single letter dir unchanged", `/d`, `/d`},
+		{"empty", ``, ``},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, normalizeMsysPath(tt.path))
 		})
-		t.Run("msys_drive_path", func(t *testing.T) {
-			got := NormalizeLocalFilesystemPath("/d/ps-demo-script/extra")
-			want := "D:" + string(filepath.Separator) + filepath.FromSlash("ps-demo-script/extra")
-			if got != want {
-				t.Fatalf("got %q want %q", got, want)
-			}
-		})
-	} else {
-		p := "/D:/ps-demo-script"
-		if got := NormalizeLocalFilesystemPath(p); got != p {
-			t.Fatalf("non-Windows should leave path unchanged: got %q", got)
-		}
 	}
 }

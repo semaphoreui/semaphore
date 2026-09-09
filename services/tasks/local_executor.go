@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"strings"
-
-	"path"
+	"path/filepath"
 	"strconv"
-
-	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -436,32 +434,18 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 
 // nolint: gocyclo
 func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string) (args []string, inputs map[string]string, err error) {
-
 	inputMap := make(map[db.AccessKeyRole]string)
 	inputs = make(map[string]string)
 
-	playbookName := t.Task.Playbook
-	if playbookName == "" {
-		playbookName = t.Template.Playbook
-	}
+	playbookFile := t.resolvePlaybookFile()
 
-	var inventoryFilename string
-	switch t.Inventory.Type {
-	case db.InventoryFile:
-		if t.Inventory.RepositoryID == nil {
-			inventoryFilename = t.Inventory.GetFilename()
-		} else {
-			inventoryFilename = path.Join(t.tmpInventoryFullPath(), t.Inventory.GetFilename())
-		}
-	case db.InventoryStatic, db.InventoryStaticYaml:
-		inventoryFilename = t.tmpInventoryFullPath()
-	default:
-		err = fmt.Errorf("invalid inventory type")
+	inventoryFile, err := t.resolveInventoryFile()
+	if err != nil {
 		return
 	}
 
 	args = []string{
-		"-i", inventoryFilename,
+		"--inventory", inventoryFile,
 	}
 
 	if t.Inventory.SSHKeyID != nil {
@@ -614,7 +598,7 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 
 	args = append(args, templateArgs...)
 	args = append(args, taskArgs...)
-	args = append(args, playbookName)
+	args = append(args, playbookFile)
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleUser]; ok {
 		inputs["SSH password:"] = line
@@ -629,6 +613,31 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 	}
 
 	return
+}
+
+func (t *LocalExecutor) resolvePlaybookFile() string {
+	playbook := t.Task.Playbook
+	if playbook == "" {
+		playbook = t.Template.Playbook
+	}
+
+	root := t.Repository.GetFullPath(t.Template.ID)
+	return filepath.Join(root, playbook)
+}
+
+func (t *LocalExecutor) resolveInventoryFile() (string, error) {
+	switch t.Inventory.Type {
+	case db.InventoryFile:
+		root := t.Repository.GetFullPath(t.Template.ID)
+		if t.Inventory.RepositoryID != nil {
+			root = t.tmpInventoryFullPath()
+		}
+		return filepath.Join(root, t.Inventory.GetFilename()), nil
+	case db.InventoryStatic, db.InventoryStaticYaml:
+		return t.tmpInventoryFullPath(), nil
+	default:
+		return "", fmt.Errorf("invalid inventory type")
+	}
 }
 
 func (t *LocalExecutor) getCLIArgs() (templateArgs []string, taskArgs []string, err error) {
@@ -898,8 +907,8 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		environmentVariables = append(environmentVariables, t.getShellEnvironmentExtraENV(username, incomingVersion)...)
 	}
 
-	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
-		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
+	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
+		environmentVariables = append(environmentVariables, sshEnv)
 	}
 
 	if t.Template.Type != db.TemplateTask {
@@ -962,6 +971,13 @@ func resolveGitBranch(repoBranch string, template db.Template, task db.Task) str
 	return branch
 }
 
+// withEffectiveBranch settles the branch before the App is built, so the App
+// and Git operations use the same branch-specific checkout directory.
+func withEffectiveBranch(repository db.Repository, template db.Template, task db.Task) db.Repository {
+	repository.GitBranch = resolveGitBranch(repository.GitBranch, template, task)
+	return repository
+}
+
 func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) error {
 
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
@@ -982,8 +998,6 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 		}
 	}
 
-	t.Repository.GitBranch = resolveGitBranch(t.Repository.GitBranch, t.Template, t.Task)
-
 	if t.Repository.GetType() == db.RepositoryLocal {
 		localPath := t.Repository.GetGitURL(true)
 		if _, err := os.Stat(localPath); err != nil {
@@ -999,6 +1013,10 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 	if err := t.installInventory(); err != nil {
 		t.Log("Failed to install inventory: " + err.Error())
 		return err
+	}
+
+	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
+		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
 	}
 
 	if err := t.App.InstallRequirements(installingArgs); err != nil {
@@ -1034,8 +1052,6 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 		}
 	}
 
-	t.Repository.GitBranch = resolveGitBranch(t.Repository.GitBranch, t.Template, t.Task)
-
 	if t.Repository.GetType() == db.RepositoryLocal {
 		localPath := t.Repository.GetGitURL(true)
 		if _, err := os.Stat(localPath); err != nil {
@@ -1053,6 +1069,10 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 		return err
 	}
 
+	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
+		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
+	}
+
 	// Call Terraform-specific install with init args
 	if err := tfApp.InstallRequirementsWithInitArgs(installingArgs, initArgs); err != nil {
 		t.Log("Failed to install requirements: " + err.Error())
@@ -1068,8 +1088,8 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 }
 
 // updateAndCheckoutRepository runs the pull/clone + checkout sequence as one
-// critical section per repository directory, so parallel tasks of the same
-// template cannot run concurrent git operations on the shared working copy.
+// critical section per repository directory, so parallel tasks using the same
+// branch checkout cannot run concurrent git operations.
 //
 // ponytail: the lock covers git operations only; parallel tasks pinned to
 // different commits still share the working tree afterwards — per-task
@@ -1195,4 +1215,11 @@ func (t *LocalExecutor) installVaultKeyFiles() (err error) {
 	}
 
 	return
+}
+
+func (t *LocalExecutor) getSSHAgentEnv() string {
+	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil && t.sshKeyInstallation.SSHAgent != nil {
+		return fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile)
+	}
+	return ""
 }
