@@ -87,6 +87,7 @@ export default {
   dockerImage: 'Runner Docker Image (optional)',
   extraVariables: 'Extra variables',
   enterExtraVariablesJson: 'Enter extra variables JSON...',
+  enterExtraVariablesYaml: 'Enter extra variables YAML...',
   environmentVariables: 'Environment variables',
   enterEnvJson: 'Enter env JSON...',
   environmentAndExtraVariablesMustBeValidJsonExample:
@@ -408,6 +409,8 @@ export default {
   empty: 'Empty',
   noValues: 'No values',
   addArg: 'Add arg',
+  arg: 'Argument',
+  arg_required: 'Argument is required',
 
   runnerCheckInterval: 'Check interval (seconds)',
   runnerCheckIntervalHint: 'How often the runner checks for new jobs.',
@@ -438,6 +441,14 @@ export default {
   allowDebug: 'Debug',
   skipGalaxyInstall: 'Skip Galaxy install',
   forceGalaxyInstall: 'Force Galaxy install',
+  galaxy: 'Galaxy',
+  galaxyInstallOptions: 'Galaxy install options',
+  prompts: 'Prompts',
+  galaxyCustomized: '{n} customized',
+  galaxyRoleArgs: 'Role install args',
+  galaxyCollectionArgs: 'Collection install args',
+  galaxyArgsHint: 'Extra ansible-galaxy flags, for example --pre. '
+    + 'They appear in the process list, so keep secrets in variable groups instead.',
   addTag: 'Add tag',
   skipTags: 'Skip tags',
   addSkippedTag: 'Add skipped tag',

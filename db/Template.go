@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pkg/galaxy"
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -234,6 +235,21 @@ type AnsibleTemplateParams struct {
 	// AllowOverrideForceGalaxyInstall lets the user toggle ForceGalaxyInstall when
 	// launching a task.
 	AllowOverrideForceGalaxyInstall bool `json:"allow_override_force_galaxy_install"`
+
+	// GalaxyRoleArgs and GalaxyCollectionArgs are appended to the
+	// `ansible-galaxy role install` and `ansible-galaxy collection install`
+	// commands. They are separate because the two subcommands accept different
+	// flags -- `--pre` for instance is rejected by `role install`.
+	// Only flags allowed by galaxy.ValidateInstallArgs are accepted.
+	GalaxyRoleArgs       []string `json:"galaxy_role_args"`
+	GalaxyCollectionArgs []string `json:"galaxy_collection_args"`
+}
+
+func (p AnsibleTemplateParams) ValidateGalaxyArgs() error {
+	if err := galaxy.ValidateInstallArgs(galaxy.InstallRole, p.GalaxyRoleArgs); err != nil {
+		return err
+	}
+	return galaxy.ValidateInstallArgs(galaxy.InstallCollection, p.GalaxyCollectionArgs)
 }
 
 type TerraformTemplateParams struct {
@@ -408,6 +424,14 @@ func (tpl *Template) Validate() error {
 	case AppAnsible:
 		if tpl.InventoryID == nil {
 			return common_errors.NewValidationError("template inventory can not be empty")
+		}
+
+		var params AnsibleTemplateParams
+		if err := tpl.FillParams(&params); err != nil {
+			return common_errors.NewValidationError("invalid task params: " + err.Error())
+		}
+		if err := params.ValidateGalaxyArgs(); err != nil {
+			return err
 		}
 	}
 

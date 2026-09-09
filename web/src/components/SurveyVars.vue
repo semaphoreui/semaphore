@@ -3,6 +3,7 @@
     <v-dialog
       v-model="editDialog"
       hide-overlay
+      content-class="NestedDialog"
       width="440"
     >
       <v-card

@@ -203,6 +203,12 @@ export const ANSIBLE_FIELDS = {
   skip_galaxy_install: {
     label: 'skipGalaxyInstall',
   },
+  galaxy_role_args: {
+    label: 'galaxyRoleArgs',
+  },
+  galaxy_collection_args: {
+    label: 'galaxyCollectionArgs',
+  },
   allow_override_skip_galaxy_install: {
     label: 'skipGalaxyInstall',
   },
