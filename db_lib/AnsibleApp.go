@@ -8,6 +8,7 @@ import (
 	"path"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/galaxy"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
@@ -80,13 +81,20 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return nil
 	}
 
-	if err := t.installCollectionsRequirements(args.EnvironmentVars, galaxyExtraArgs(args, GalaxyCollection)); err != nil {
+	collectionArgs, err := galaxyExtraArgs(args, GalaxyCollection)
+	if err != nil {
 		return err
 	}
-	if err := t.installRolesRequirements(args.EnvironmentVars, galaxyExtraArgs(args, GalaxyRole)); err != nil {
+	roleArgs, err := galaxyExtraArgs(args, GalaxyRole)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	err = t.installCollectionsRequirements(args.EnvironmentVars, collectionArgs)
+	if err != nil {
+		return err
+	}
+	return t.installRolesRequirements(args.EnvironmentVars, roleArgs)
 }
 
 // skipGalaxyInstall reports whether the Galaxy install step must be skipped.
@@ -162,11 +170,11 @@ func (t *AnsibleApp) GetPlaybookDir() string {
 	return path.Dir(playbookPath)
 }
 
-type GalaxyRequirementsType string
+type GalaxyRequirementsType = galaxy.InstallType
 
 const (
-	GalaxyRole       GalaxyRequirementsType = "role"
-	GalaxyCollection GalaxyRequirementsType = "collection"
+	GalaxyRole       = galaxy.InstallRole
+	GalaxyCollection = galaxy.InstallCollection
 )
 
 func (t *AnsibleApp) installRolesRequirements(environmentVars, extraArgs []string) (err error) {
@@ -214,19 +222,24 @@ func (t *AnsibleApp) runGalaxy(args []string, environmentVars []string) error {
 }
 
 // galaxyExtraArgs returns the template-configured arguments for one galaxy
-// subcommand. Roles and collections are configured separately because the two
-// accept different flags.
-func galaxyExtraArgs(args LocalAppInstallingArgs, requirementsType GalaxyRequirementsType) []string {
+// subcommand. Args are re-validated here because templates can reach the
+// database without passing through Template.Validate (backup restore).
+func galaxyExtraArgs(args LocalAppInstallingArgs, requirementsType GalaxyRequirementsType) ([]string, error) {
 	tplParams, ok := args.TplParams.(*db.AnsibleTemplateParams)
 	if !ok || tplParams == nil {
-		return nil
+		return nil, nil
 	}
 
+	var extra []string
 	switch requirementsType {
 	case GalaxyRole:
-		return tplParams.GalaxyRoleArgs
+		extra = tplParams.GalaxyRoleArgs
 	case GalaxyCollection:
-		return tplParams.GalaxyCollectionArgs
+		extra = tplParams.GalaxyCollectionArgs
 	}
-	return nil
+
+	if err := galaxy.ValidateInstallArgs(requirementsType, extra); err != nil {
+		return nil, err
+	}
+	return extra, nil
 }

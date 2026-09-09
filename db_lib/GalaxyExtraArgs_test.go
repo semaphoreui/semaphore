@@ -5,6 +5,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGalaxyExtraArgs(t *testing.T) {
@@ -30,7 +31,9 @@ func TestGalaxyExtraArgs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			args := LocalAppInstallingArgs{TplParams: tt.tplParams}
-			assert.Equal(t, tt.expected, galaxyExtraArgs(args, tt.reqType))
+			extra, err := galaxyExtraArgs(args, tt.reqType)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, extra)
 		})
 	}
 }
@@ -42,6 +45,24 @@ func TestGalaxyExtraArgs_KeptSeparate(t *testing.T) {
 		GalaxyCollectionArgs: []string{"--pre"},
 	}}
 
-	assert.Empty(t, galaxyExtraArgs(args, GalaxyRole))
-	assert.Equal(t, []string{"--pre"}, galaxyExtraArgs(args, GalaxyCollection))
+	roleArgs, err := galaxyExtraArgs(args, GalaxyRole)
+	require.NoError(t, err)
+	assert.Empty(t, roleArgs)
+
+	collectionArgs, err := galaxyExtraArgs(args, GalaxyCollection)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"--pre"}, collectionArgs)
+}
+
+func TestGalaxyExtraArgs_RejectsDisallowed(t *testing.T) {
+	args := LocalAppInstallingArgs{TplParams: &db.AnsibleTemplateParams{
+		GalaxyRoleArgs:       []string{"--pre"},
+		GalaxyCollectionArgs: []string{"--token", "secret"},
+	}}
+
+	_, err := galaxyExtraArgs(args, GalaxyRole)
+	assert.ErrorContains(t, err, `"--pre" is not allowed`)
+
+	_, err = galaxyExtraArgs(args, GalaxyCollection)
+	assert.ErrorContains(t, err, `"--token" is not allowed`)
 }
