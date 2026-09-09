@@ -216,10 +216,10 @@ export const ANSIBLE_FIELDS = {
     label: 'allowInventoryInTask',
   },
   hide_dry_run: {
-    label: 'hideDryRun',
+    label: 'dryRun',
   },
   hide_diff: {
-    label: 'hideDiff',
+    label: 'diff',
   },
 };
 

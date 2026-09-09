@@ -439,8 +439,6 @@ export default {
   allowLimitInTask: 'Limit',
   addLimit: 'Add limit',
   allowDebug: 'Debug',
-  hideDryRun: 'Hide Dry Run',
-  hideDiff: 'Hide Diff',
   skipGalaxyInstall: 'Skip Galaxy install',
   galaxy: 'Galaxy',
   galaxyInstallOptions: 'Galaxy install options',

@@ -602,15 +602,15 @@
 
           <v-checkbox
             class="mt-0"
-            :label="$t('hideDryRun')"
-            v-model="item.task_params.hide_dry_run"
+            :label="$t('dryRun')"
+            v-model="show_dry_run"
             v-if="needField('hide_dry_run')"
           />
 
           <v-checkbox
             class="mt-0"
-            :label="$t('hideDiff')"
-            v-model="item.task_params.hide_diff"
+            :label="$t('diff')"
+            v-model="show_diff"
             v-if="needField('hide_diff')"
           />
 
@@ -893,6 +893,27 @@ export default {
       },
       set(newValue) {
         this.item.task_params.allow_override_inventory = newValue;
+      },
+    },
+
+    // Stored as hide_dry_run / hide_diff so that existing templates keep
+    // showing the checkboxes; presented inverted ("Dry Run" / "Diff" prompt
+    // enabled) to match the other prompt checkboxes.
+    show_dry_run: {
+      get() {
+        return !this.item.task_params.hide_dry_run;
+      },
+      set(newValue) {
+        this.$set(this.item.task_params, 'hide_dry_run', !newValue);
+      },
+    },
+
+    show_diff: {
+      get() {
+        return !this.item.task_params.hide_diff;
+      },
+      set(newValue) {
+        this.$set(this.item.task_params, 'hide_diff', !newValue);
       },
     },
 
