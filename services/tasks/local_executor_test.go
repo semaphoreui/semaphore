@@ -249,6 +249,82 @@ func TestGetTerraformArgs_MultiSelect(t *testing.T) {
 	assert.True(t, found, "expected -var multi_var=[\"1\",\"2\"] in %v", defaultArgs)
 }
 
+// TestGetPlaybookArgs_HideDryRunAndDiff verifies that hide_dry_run / hide_diff
+// are enforced when building the ansible-playbook command line.
+func TestGetPlaybookArgs_HideDryRunAndDiff(t *testing.T) {
+	tests := []struct {
+		name           string
+		templateParams db.MapStringAnyField
+		expectDryRun   bool
+		expectDiff     bool
+	}{
+		{
+			name:           "not hidden",
+			templateParams: db.MapStringAnyField{},
+			expectDryRun:   true,
+			expectDiff:     true,
+		},
+		{
+			name:           "legacy template without the keys keeps both",
+			templateParams: nil,
+			expectDryRun:   true,
+			expectDiff:     true,
+		},
+		{
+			name:           "dry run hidden",
+			templateParams: db.MapStringAnyField{"hide_dry_run": true},
+			expectDryRun:   false,
+			expectDiff:     true,
+		},
+		{
+			name:           "diff hidden",
+			templateParams: db.MapStringAnyField{"hide_diff": true},
+			expectDryRun:   true,
+			expectDiff:     false,
+		},
+		{
+			name:           "both hidden",
+			templateParams: db.MapStringAnyField{"hide_dry_run": true, "hide_diff": true},
+			expectDryRun:   false,
+			expectDiff:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupExecutorConfig(t)
+
+			exec := &LocalExecutor{
+				Template: db.Template{
+					Type:       db.TemplateTask,
+					App:        db.AppAnsible,
+					Playbook:   "site.yml",
+					TaskParams: tt.templateParams,
+				},
+				Inventory: db.Inventory{Type: db.InventoryStatic},
+				Task: db.Task{
+					Params: db.MapStringAnyField{"dry_run": true, "diff": true},
+				},
+			}
+
+			args, _, err := exec.getPlaybookArgs("admin", nil)
+			require.NoError(t, err)
+
+			if tt.expectDryRun {
+				assert.Contains(t, args, "--check")
+			} else {
+				assert.NotContains(t, args, "--check")
+			}
+
+			if tt.expectDiff {
+				assert.Contains(t, args, "--diff")
+			} else {
+				assert.NotContains(t, args, "--diff")
+			}
+		})
+	}
+}
+
 // TestGetArgs_AnsibleForks verifies passing -f / --forks in template and task arguments,
 // including invalid JSON error handling and AllowOverrideArgsInTask behavior.
 func TestGetArgs_AnsibleForks(t *testing.T) {
@@ -267,7 +343,7 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 	}{
 		{
 			name:                  "Template arguments with --forks 10",
-			templateArgs:          strPtr(`["--forks", "10"]`),
+			templateArgs:          new(`["--forks", "10"]`),
 			allowOverride:         false,
 			taskArgs:              nil,
 			expectedEffectiveFork: "10",
@@ -275,7 +351,7 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 		},
 		{
 			name:                  "Template arguments with -f 10",
-			templateArgs:          strPtr(`["-f", "10"]`),
+			templateArgs:          new(`["-f", "10"]`),
 			allowOverride:         false,
 			taskArgs:              nil,
 			expectedEffectiveFork: "10",
@@ -283,24 +359,24 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 		},
 		{
 			name:                  "Task level overrides template forks when AllowOverrideArgsInTask is true",
-			templateArgs:          strPtr(`["--forks", "5"]`),
+			templateArgs:          new(`["--forks", "5"]`),
 			allowOverride:         true,
-			taskArgs:              strPtr(`["--forks", "10"]`),
+			taskArgs:              new(`["--forks", "10"]`),
 			expectedEffectiveFork: "10",
 			expectedForksSubArgs:  []string{"--forks", "5", "--forks", "10"},
 		},
 		{
 			name:                  "Task level ignored when AllowOverrideArgsInTask is false",
-			templateArgs:          strPtr(`["--forks", "5"]`),
+			templateArgs:          new(`["--forks", "5"]`),
 			allowOverride:         false,
-			taskArgs:              strPtr(`["--forks", "10"]`),
+			taskArgs:              new(`["--forks", "10"]`),
 			expectedEffectiveFork: "5",
 			expectedForksSubArgs:  []string{"--forks", "5"},
 			mustNotContain:        []string{"10"},
 		},
 		{
 			name:             "Invalid JSON in template arguments returns descriptive error",
-			templateArgs:     strPtr(`--forks 10`),
+			templateArgs:     new(`--forks 10`),
 			allowOverride:    false,
 			taskArgs:         nil,
 			expectError:      true,
@@ -308,9 +384,9 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 		},
 		{
 			name:             "Invalid JSON in task arguments returns descriptive error when AllowOverrideArgsInTask is true",
-			templateArgs:     strPtr(`["--forks", "5"]`),
+			templateArgs:     new(`["--forks", "5"]`),
 			allowOverride:    true,
-			taskArgs:         strPtr(`invalid-json`),
+			taskArgs:         new(`invalid-json`),
 			expectError:      true,
 			expectedErrorMsg: "invalid format of the TaskRunner extra arguments, must be valid JSON",
 		},
@@ -383,8 +459,3 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 		})
 	}
 }
-
-func strPtr(s string) *string {
-	return &s
-}
-
