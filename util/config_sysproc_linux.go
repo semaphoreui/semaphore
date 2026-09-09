@@ -13,7 +13,7 @@ func (conf *ConfigType) GetAppSysProcAttr() *syscall.SysProcAttr {
 	if res == nil {
 		res = &syscall.SysProcAttr{}
 	}
-	res.Setpgid = true
+	res.Setsid = true
 	res.Cloneflags |= conf.Process.AppNamespaces.cloneFlags()
 	return res
 }

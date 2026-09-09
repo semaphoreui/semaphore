@@ -297,7 +297,7 @@ func (t *TerraformApp) InstallRequirementsWithInitArgs(args LocalAppInstallingAr
 	return
 }
 
-func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[string]string, onProcessStarted func(*os.Process)) error {
+func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[string]string, stopCh <-chan struct{}) error {
 	planArgs := []string{"plan", "-lock=false"}
 	planArgs = append(planArgs, args...)
 	cmd := t.makeCmd(t.Name, planArgs, environmentVars)
@@ -311,40 +311,17 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 	})
 
 	cmd.Stdin = strings.NewReader("")
-	err := cmd.Start()
-	if err != nil {
-		return err
-	}
-
-	onProcessStarted(cmd.Process)
-
-	err = cmd.Wait()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return runCommand(cmd, stopCh, t.Logger)
 }
 
-func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, onProcessStarted func(*os.Process)) error {
+func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, stopCh <-chan struct{}) error {
 	applyArgs := []string{"apply", "-auto-approve", "-lock=false"}
 	applyArgs = append(applyArgs, args...)
 	cmd := t.makeCmd(t.Name, applyArgs, environmentVars)
 	finishLog := t.Logger.LogCmd(cmd)
 	defer finishLog()
 	cmd.Stdin = strings.NewReader("")
-	err := cmd.Start()
-	if err != nil {
-		return err
-	}
-	onProcessStarted(cmd.Process)
-
-	err = cmd.Wait()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return runCommand(cmd, stopCh, t.Logger)
 }
 
 func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
@@ -367,7 +344,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		applyArgs = defaultArgs
 	}
 
-	err := t.Plan(planArgs, args.EnvironmentVars, args.Inputs, args.OnProcessStarted)
+	err := t.Plan(planArgs, args.EnvironmentVars, args.Inputs, args.StopCh)
 	if err != nil {
 		return err
 	}
@@ -382,7 +359,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 
 	if tplParams.AutoApprove || tplParams.AllowAutoApprove && params.AutoApprove {
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
-		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.OnProcessStarted)
+		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.StopCh)
 	}
 
 	t.Logger.SetStatus(task_logger.TaskWaitingConfirmation)
@@ -402,7 +379,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		t.Logger.SetStatus(task_logger.TaskFailStatus)
 	case task_logger.TaskConfirmed:
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
-		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.OnProcessStarted)
+		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.StopCh)
 	}
 
 	return nil

@@ -11,6 +11,6 @@ func (conf *ConfigType) GetAppSysProcAttr() *syscall.SysProcAttr {
 	if res == nil {
 		res = &syscall.SysProcAttr{}
 	}
-	res.Setpgid = true
+	res.Setsid = true
 	return res
 }
