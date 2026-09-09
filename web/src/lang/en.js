@@ -440,6 +440,9 @@ export default {
   allowDebug: 'Debug',
   skipGalaxyInstall: 'Skip Galaxy install',
   galaxy: 'Galaxy',
+  galaxyInstallOptions: 'Galaxy install options',
+  prompts: 'Prompts',
+  galaxyCustomized: '{n} customized',
   galaxyRoleArgs: 'Role install args',
   galaxyCollectionArgs: 'Collection install args',
   galaxyArgsHint: 'Extra ansible-galaxy flags, for example --pre. '
