@@ -77,3 +77,74 @@ func TestAnsibleApp_skipGalaxyInstall(t *testing.T) {
 		})
 	}
 }
+
+func TestAnsibleApp_forceGalaxyInstall(t *testing.T) {
+	tests := []struct {
+		name     string
+		tpl      *db.AnsibleTemplateParams
+		params   *db.AnsibleTaskParams
+		expected bool
+	}{
+		{
+			name:     "no template params",
+			tpl:      nil,
+			params:   &db.AnsibleTaskParams{ForceGalaxyInstall: true},
+			expected: false,
+		},
+		{
+			name:     "template force enabled, override disabled",
+			tpl:      &db.AnsibleTemplateParams{ForceGalaxyInstall: true},
+			params:   &db.AnsibleTaskParams{ForceGalaxyInstall: false},
+			expected: true,
+		},
+		{
+			name:     "template force disabled, override disabled, task wants force",
+			tpl:      &db.AnsibleTemplateParams{ForceGalaxyInstall: false},
+			params:   &db.AnsibleTaskParams{ForceGalaxyInstall: true},
+			expected: false,
+		},
+		{
+			name: "override enabled, task disables force",
+			tpl: &db.AnsibleTemplateParams{
+				ForceGalaxyInstall:              true,
+				AllowOverrideForceGalaxyInstall: true,
+			},
+			params:   &db.AnsibleTaskParams{ForceGalaxyInstall: false},
+			expected: false,
+		},
+		{
+			name: "override enabled, task enables force",
+			tpl: &db.AnsibleTemplateParams{
+				ForceGalaxyInstall:              false,
+				AllowOverrideForceGalaxyInstall: true,
+			},
+			params:   &db.AnsibleTaskParams{ForceGalaxyInstall: true},
+			expected: true,
+		},
+		{
+			name: "override enabled, nil task params falls back to template",
+			tpl: &db.AnsibleTemplateParams{
+				ForceGalaxyInstall:              true,
+				AllowOverrideForceGalaxyInstall: true,
+			},
+			params:   nil,
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := &AnsibleApp{}
+
+			args := LocalAppInstallingArgs{}
+			if tt.tpl != nil {
+				args.TplParams = tt.tpl
+			}
+			if tt.params != nil {
+				args.Params = tt.params
+			}
+
+			assert.Equal(t, tt.expected, app.forceGalaxyInstall(args))
+		})
+	}
+}

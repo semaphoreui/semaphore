@@ -868,6 +868,8 @@ definitions:
           type: string
       skip_galaxy_install:
         type: boolean
+      force_galaxy_install:
+        type: boolean
 
   TerraformTaskParams:
     type: object

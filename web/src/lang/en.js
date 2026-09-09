@@ -437,6 +437,7 @@ export default {
   addLimit: 'Add limit',
   allowDebug: 'Debug',
   skipGalaxyInstall: 'Skip Galaxy install',
+  forceGalaxyInstall: 'Force Galaxy install',
   addTag: 'Add tag',
   skipTags: 'Skip tags',
   addSkippedTag: 'Add skipped tag',

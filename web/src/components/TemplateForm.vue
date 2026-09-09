@@ -547,6 +547,13 @@
           />
 
           <v-checkbox
+            v-if="needField('force_galaxy_install')"
+            v-model="item.task_params.force_galaxy_install"
+            :label="$t('forceGalaxyInstall')"
+            class="mt-0"
+          />
+
+          <v-checkbox
             class="mt-0"
             :label="$t('auto_approve')"
             v-model="item.task_params.auto_approve"
@@ -610,6 +617,13 @@
             v-if="needField('allow_override_skip_galaxy_install')"
             v-model="item.task_params.allow_override_skip_galaxy_install"
             :label="$t('skipGalaxyInstall')"
+            class="mt-0"
+          />
+
+          <v-checkbox
+            v-if="needField('allow_override_force_galaxy_install')"
+            v-model="item.task_params.allow_override_force_galaxy_install"
+            :label="$t('forceGalaxyInstall')"
             class="mt-0"
           />
 

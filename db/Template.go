@@ -227,6 +227,13 @@ type AnsibleTemplateParams struct {
 	// AllowOverrideSkipGalaxyInstall lets the user toggle SkipGalaxyInstall when
 	// launching a task.
 	AllowOverrideSkipGalaxyInstall bool `json:"allow_override_skip_galaxy_install"`
+
+	// ForceGalaxyInstall always runs `ansible-galaxy install --force` for every
+	// requirements file, ignoring the cached requirements checksum.
+	ForceGalaxyInstall bool `json:"force_galaxy_install"`
+	// AllowOverrideForceGalaxyInstall lets the user toggle ForceGalaxyInstall when
+	// launching a task.
+	AllowOverrideForceGalaxyInstall bool `json:"allow_override_force_galaxy_install"`
 }
 
 type TerraformTemplateParams struct {
