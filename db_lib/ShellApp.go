@@ -110,13 +110,7 @@ func (t *ShellApp) Run(args LocalAppRunningArgs) error {
 	finishLog := t.Logger.LogCmd(cmd)
 	defer finishLog()
 
-	err := cmd.Start()
-	if err != nil {
-		return err
-	}
-	args.OnProcessStarted(cmd.Process)
-
-	err = cmd.Wait()
+	err := runCommand(cmd, args.StopCh, t.Logger)
 	finishLog() // Flush command output before logging the wait result.
 	if errors.Is(err, exec.ErrWaitDelay) {
 		t.Logger.Logf("shell command output draining exceeded %s and was stopped", cmd.WaitDelay)

@@ -2,7 +2,6 @@ package db_lib
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -78,7 +77,7 @@ func (p AnsiblePlaybook) runCmd(command string, args []string, environmentVars [
 	return cmd.Run()
 }
 
-func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, inputs map[string]string, onProcessStarted func(*os.Process)) error {
+func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, inputs map[string]string, stopCh <-chan struct{}) error {
 	cmd, err := p.makeCmd("ansible-playbook", args, environmentVars)
 	if err != nil {
 		return err
@@ -118,9 +117,7 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 	}()
 
 	defer func() { _ = ptmx.Close() }()
-	onProcessStarted(cmd.Process)
-	err = cmd.Wait()
-	return err
+	return waitCommand(cmd, stopCh, p.Logger)
 }
 
 func (p AnsiblePlaybook) RunGalaxy(args []string, environmentVars []string) error {

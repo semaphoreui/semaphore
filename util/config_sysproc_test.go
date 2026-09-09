@@ -11,7 +11,7 @@ func TestAppProcessGroup(t *testing.T) {
 	config := ConfigType{Process: &ConfigProcess{}}
 
 	attributes := config.GetAppSysProcAttr()
-	if attributes == nil || !attributes.Setpgid {
+	if attributes == nil || !attributes.Setsid {
 		t.Fatal("app process must start in a new process group")
 	}
 }

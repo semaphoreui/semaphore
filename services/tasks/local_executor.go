@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -30,10 +29,12 @@ type LocalExecutor struct {
 
 	App db_lib.LocalApp
 
-	processMu            sync.Mutex
+	// mu protects terminationRequested and stopCh.
+	mu                   sync.Mutex
 	terminationRequested bool
-	process              *os.Process
-	exitCh               <-chan struct{}
+	// stopCh carries cancellation and remains non-nil after Run is invoked to
+	// enforce the LocalExecutor's single-use lifecycle.
+	stopCh chan struct{}
 
 	sshKeyInstallation     ssh.AccessKeyInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
@@ -64,8 +65,8 @@ type LocalExecutor struct {
 }
 
 func (t *LocalExecutor) IsKilled() bool {
-	t.processMu.Lock()
-	defer t.processMu.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return t.terminationRequested
 }
 
@@ -76,28 +77,17 @@ func (t *LocalExecutor) Async() bool {
 }
 
 func (t *LocalExecutor) Kill() {
-	t.processMu.Lock()
-	alreadyRequested := t.terminationRequested
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.terminationRequested {
+		return
+	}
+
 	t.terminationRequested = true
-	process := t.process
-	exitCh := t.exitCh
-	t.processMu.Unlock()
-
-	if !alreadyRequested {
-		t.stopProcess(process, exitCh)
+	if t.stopCh != nil {
+		close(t.stopCh)
 	}
-}
-
-func killProcess(process *os.Process) error {
-	if process == nil {
-		return nil
-	}
-
-	err := process.Kill()
-	if errors.Is(err, os.ErrProcessDone) {
-		return nil
-	}
-	return err
 }
 
 func (t *LocalExecutor) Log(msg string) {
@@ -766,28 +756,26 @@ func (t *LocalExecutor) getParams() (params any, err error) {
 // app (Ansible / Terraform / shell), and tears everything down. It is the entry point the
 // job pool uses (satisfying the Job interface); the lifecycle methods Prepare/Cleanup are
 // available for callers that want to drive the phases explicitly.
-func (t *LocalExecutor) Run(username string, incomingVersion *string, alias string) (err error) {
+func (t *LocalExecutor) Run(username string, incomingVersion *string, alias string) error {
+	t.mu.Lock()
+	if t.stopCh != nil {
+		t.mu.Unlock()
+		return fmt.Errorf("local executor has already been run")
+	}
+	t.stopCh = make(chan struct{})
+	terminationRequested := t.terminationRequested
+	t.mu.Unlock()
+
 	defer t.Cleanup()
 
-	if err = t.Prepare(username, incomingVersion, alias); err != nil {
-		return
-	}
-
-	if t.IsKilled() {
+	if terminationRequested {
 		t.SetStatus(task_logger.TaskStoppedStatus)
 		return nil
 	}
 
-	exitCh := make(chan struct{})
-	defer func() {
-		t.processMu.Lock()
-		if t.exitCh == exitCh {
-			t.process = nil
-			t.exitCh = nil
-		}
-		t.processMu.Unlock()
-		close(exitCh)
-	}()
+	if err := t.Prepare(username, incomingVersion, alias); err != nil {
+		return err
+	}
 
 	return t.App.Run(db_lib.LocalAppRunningArgs{
 		CliArgs:         t.preparedArgsMap,
@@ -795,17 +783,7 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		Inputs:          t.preparedInputs,
 		TaskParams:      t.preparedParams,
 		TemplateParams:  t.preparedTplParams,
-		OnProcessStarted: func(process *os.Process) {
-			t.processMu.Lock()
-			t.process = process
-			t.exitCh = exitCh
-			terminationRequested := t.terminationRequested
-			t.processMu.Unlock()
-
-			if terminationRequested {
-				t.stopProcess(process, exitCh)
-			}
-		},
+		StopCh:          t.stopCh,
 	})
 }
 
