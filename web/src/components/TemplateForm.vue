@@ -1167,8 +1167,8 @@ export default {
         const galaxyDefaults = {
           skip_galaxy_install: false,
           allow_override_skip_galaxy_install: false,
-          forge_galaxy_install: false,
-          allow_forge_galaxy_install: false,
+          force_galaxy_install: false,
+          allow_override_force_galaxy_install: false,
           galaxy_role_args: [],
           galaxy_collection_args: [],
         };
