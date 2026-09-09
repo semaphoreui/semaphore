@@ -1,6 +1,7 @@
 package db_lib
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -301,6 +302,7 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 	planArgs := []string{"plan", "-lock=false"}
 	planArgs = append(planArgs, args...)
 	cmd := t.makeCmd(t.Name, planArgs, environmentVars)
+	cmd.WaitDelay = 250 * time.Millisecond
 	finishLog := t.Logger.LogCmd(cmd)
 	defer finishLog()
 
@@ -311,17 +313,30 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 	})
 
 	cmd.Stdin = strings.NewReader("")
-	return runCommand(cmd, stopCh, t.Logger)
+	err := runCommand(cmd, stopCh, t.Logger)
+	finishLog()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		t.Logger.Logf("terraform command output draining exceeded %s and was stopped", cmd.WaitDelay)
+		return nil
+	}
+	return err
 }
 
 func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, stopCh <-chan struct{}) error {
 	applyArgs := []string{"apply", "-auto-approve", "-lock=false"}
 	applyArgs = append(applyArgs, args...)
 	cmd := t.makeCmd(t.Name, applyArgs, environmentVars)
+	cmd.WaitDelay = 250 * time.Millisecond
 	finishLog := t.Logger.LogCmd(cmd)
 	defer finishLog()
 	cmd.Stdin = strings.NewReader("")
-	return runCommand(cmd, stopCh, t.Logger)
+	err := runCommand(cmd, stopCh, t.Logger)
+	finishLog()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		t.Logger.Logf("terraform command output draining exceeded %s and was stopped", cmd.WaitDelay)
+		return nil
+	}
+	return err
 }
 
 func (t *TerraformApp) Run(args LocalAppRunningArgs) error {

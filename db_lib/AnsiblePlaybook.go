@@ -1,11 +1,13 @@
 package db_lib
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/semaphoreui/semaphore/db"
@@ -83,6 +85,7 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 		return err
 	}
 
+	cmd.WaitDelay = 250 * time.Millisecond
 	finishLog := p.Logger.LogCmd(cmd)
 	defer finishLog()
 
@@ -117,7 +120,13 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 	}()
 
 	defer func() { _ = ptmx.Close() }()
-	return waitCommand(cmd, stopCh, p.Logger)
+	err = waitCommand(cmd, stopCh, p.Logger)
+	finishLog()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		p.Logger.Logf("Ansible command output draining exceeded %s and was stopped", cmd.WaitDelay)
+		return nil
+	}
+	return err
 }
 
 func (p AnsiblePlaybook) RunGalaxy(args []string, environmentVars []string) error {
