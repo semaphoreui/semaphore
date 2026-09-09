@@ -5,9 +5,9 @@ package util
 import "syscall"
 
 // GetAppSysProcAttr returns SysProcAttr for child apps (ansible, terraform,
-// shell templates). It builds on top of GetSysProcAttr and adds Linux
-// namespace isolation flags when configured. It is NOT used for git: git
-// needs host access for SSH agents and credential helpers.
+// shell templates). It creates a dedicated process group and adds configured
+// Linux namespace isolation flags. It is NOT used for git: git needs host
+// access for SSH agents and credential helpers.
 func (conf *ConfigType) GetAppSysProcAttr() *syscall.SysProcAttr {
 	res := conf.GetSysProcAttr()
 	if res == nil {

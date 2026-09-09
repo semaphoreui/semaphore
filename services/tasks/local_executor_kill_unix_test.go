@@ -70,7 +70,7 @@ func TestKillBeforeProcessStart(t *testing.T) {
 
 	var process *os.Process
 
-	// wait on process sturtup
+	// wait on process startup
 	select {
 	case process = <-app.processCh:
 	case err := <-execCh:
