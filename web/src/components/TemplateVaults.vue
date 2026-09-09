@@ -77,14 +77,12 @@
       </v-card>
     </v-dialog>
     <fieldset style="padding: 0 10px 2px 10px;
-                     border: 1px solid rgba(0, 0, 0, 0.38);
-                     border-radius: 4px;
+                     border-width: 1px;
+                     border-color: rgba(133, 133, 133, 0.4);
+                     background-color: rgba(133, 133, 133, 0.1);
+                     border-radius: 8px;
                      font-size: 12px;"
-              :style="{
-                       'border-color': $vuetify.theme.dark ?
-                         'rgba(200, 200, 200, 0.38)' :
-                         'rgba(0, 0, 0, 0.38)'
-                     }">
+    >
       <legend style="padding: 0 3px;">{{ $t('vaults') }}</legend>
       <v-chip-group column style="margin-top: -4px;">
         <v-chip
