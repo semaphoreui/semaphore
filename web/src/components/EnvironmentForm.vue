@@ -95,7 +95,7 @@
             v-model="json"
             type="json"
             v-if="extraVarsEditMode === 'json'"
-            style="position: absolute; right: 0; top: 0; margin: 10px"
+            style="position: absolute; right: 10px; top: 0; margin: 10px"
           />
         </div>
         <div v-else-if="extraVarsEditMode === 'yaml'" style="position: relative">
@@ -113,7 +113,7 @@
             v-model="yaml"
             type="yaml"
             v-if="extraVarsEditMode === 'yaml'"
-            style="position: absolute; right: 0; top: 0; margin: 10px"
+            style="position: absolute; right: 10px; top: 0; margin: 10px"
           />
         </div>
         <div v-else-if="extraVarsEditMode === 'table'">
@@ -445,6 +445,8 @@
   .v-btn__content .v-icon {
     font-size: 18px;
   }
+  position: absolute;
+  right: 68px;
 }
 </style>
 <script>

@@ -85,7 +85,7 @@ import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/mode/yaml/yaml.js';
 import 'codemirror/addon/display/placeholder.js';
-import { getErrorMessage } from '../lib/error';
+import { getErrorMessage } from '@/lib/error';
 // import { getErrorMessage } from '@/lib/error';
 
 export default {
@@ -198,29 +198,6 @@ export default {
       this.showAlert = true;
     },
     save() {
-      // this.errorMessage = null;
-      // switch (this.type) {
-      //   case 'json':
-      //     try {
-      //       JSON.parse(this.text);
-      //     } catch (e) {
-      //       this.errorMessage = getErrorMessage(e);
-      //       return;
-      //     }
-      //     break;
-      //   case 'json_array':
-      //     try {
-      //       const res = JSON.parse(this.text);
-      //       if (!Array.isArray(res)) {
-      //         throw new Error('Must be JSON array');
-      //       }
-      //     } catch (e) {
-      //       this.errorMessage = getErrorMessage(e);
-      //       return;
-      //     }
-      //     break;
-      //   default:
-      // }
       if (this.text !== this.value) {
         this.$emit('input', this.text);
       }
