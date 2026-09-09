@@ -51,7 +51,7 @@ func TestMigration_2_20_2_RenamesExistingDuplicates(t *testing.T) {
 	tx, err := store.Sql().Begin()
 	require.NoError(t, err)
 
-	require.NoError(t, migration_2_20_2{db: store}.PreApply(tx))
+	require.NoError(t, migration_2_20_4{db: store}.PreApply(tx))
 	require.NoError(t, tx.Commit())
 
 	var renamed []struct {

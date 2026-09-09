@@ -138,6 +138,7 @@ func (c GoGitClient) Pull(r GitRepository) error {
 
 	// Pull the latest changes from the origin remote and merge into the current branch
 	err = wt.Pull(&git.PullOptions{RemoteName: "origin",
+		ReferenceName:     plumbing.NewBranchReferenceName(r.Repository.GitBranch),
 		Auth:              authMethod,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth})
 	if err != nil && err != git.NoErrAlreadyUpToDate {

@@ -6,12 +6,12 @@ import (
 	"github.com/go-gorp/gorp/v3"
 )
 
-type migration_2_20_2 struct {
+type migration_2_20_4 struct {
 	db *SqlDb
 }
 
 // PreApply renames templates which share a name inside a project, so that
-// v2.20.2.sql can put a unique index on (project_id, name). Template names were
+// v2.20.4.sql can put a unique index on (project_id, name). Template names were
 // never unique before, so any installation may hold duplicates and the index
 // would otherwise fail the upgrade.
 //
@@ -23,7 +23,7 @@ type migration_2_20_2 struct {
 //
 // The rename is a loop rather than a single statement because a generated name
 // can itself be taken ("Build" twice next to a real "Build (2)").
-func (m migration_2_20_2) PreApply(tx *gorp.Transaction) error {
+func (m migration_2_20_4) PreApply(tx *gorp.Transaction) error {
 	type templateName struct {
 		ID        int    `db:"id"`
 		ProjectID int    `db:"project_id"`
@@ -66,7 +66,7 @@ func (m migration_2_20_2) PreApply(tx *gorp.Transaction) error {
 // freeTemplateName returns a name based on base which no template of the project
 // uses. Availability is asked of the database so that the answer follows the
 // same collation as the unique index.
-func (m migration_2_20_2) freeTemplateName(tx *gorp.Transaction, projectID int, base string) (string, error) {
+func (m migration_2_20_4) freeTemplateName(tx *gorp.Transaction, projectID int, base string) (string, error) {
 	for i := 2; ; i++ {
 		name := base + " (" + strconv.Itoa(i) + ")"
 
