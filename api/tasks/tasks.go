@@ -12,9 +12,9 @@ import (
 
 func TaskMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		taskID, err := helpers.GetIntParam("task_id", w, r)
-		if err != nil {
-			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+		taskID, ok := helpers.GetIntParamOrAbort("task_id", w, r)
+		if !ok {
+			return
 		}
 
 		r = helpers.SetContextValue(r, "task_id", taskID)

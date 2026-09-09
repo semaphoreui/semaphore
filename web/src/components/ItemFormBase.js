@@ -114,7 +114,6 @@ export default {
 
         await this.afterLoadData();
       } catch (err) {
-        console.error(err);
         this.formError = getErrorMessage(err);
         this.$emit('error', {
           message: this.formError,

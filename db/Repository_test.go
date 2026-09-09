@@ -72,3 +72,26 @@ func TestRepository_GetGitURL(t *testing.T) {
 		assert.Equal(t, v.ExpectedGitUrl, gitUrl, "wrong gitUrl")
 	}
 }
+
+func TestRepository_GetCheckoutDirName(t *testing.T) {
+	repo := Repository{ID: 1, GitURL: "https://example.com/hello/world"}
+
+	repo.GitBranch = "main"
+	main := repo.GetCheckoutDirName(2)
+	assert.Equal(t, "repository_1_template_2_main_b28b7af69320201d1cf206ebf2837398", main)
+
+	repo.GitBranch = "prod"
+	prod := repo.GetCheckoutDirName(2)
+
+	assert.NotEqual(t, main, prod)
+
+	repo.GitBranch = "main"
+	assert.Equal(t, main, repo.GetCheckoutDirName(2))
+
+	repo.GitBranch = "feature/login"
+	assert.NotContains(t, repo.GetCheckoutDirName(2), "/")
+
+	slashed := repo.GetCheckoutDirName(2)
+	repo.GitBranch = "feature-login"
+	assert.NotEqual(t, slashed, repo.GetCheckoutDirName(2))
+}

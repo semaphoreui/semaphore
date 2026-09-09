@@ -58,6 +58,42 @@ func TestSetUserOption_AllowedKey(t *testing.T) {
 	assert.Equal(t, `["dashboard"]`, val)
 }
 
+func TestSetUserOption_LanguageKey(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	user := createUserOptionsTestUser(t, store, "alice-lang")
+
+	r := newUserOptionsRequest(t, store, &user, http.MethodPost,
+		`{"key":"lang","value":"\"de\""}`,
+	)
+	w := httptest.NewRecorder()
+
+	setUserOption(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	val, err := store.GetOption(userOptionKey(user.ID, "lang"))
+	require.NoError(t, err)
+	assert.Equal(t, `"de"`, val)
+}
+
+func TestSetUserOption_LanguageSystemDefault(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	user := createUserOptionsTestUser(t, store, "alice-system-lang")
+
+	r := newUserOptionsRequest(t, store, &user, http.MethodPost,
+		`{"key":"lang","value":"\"\""}`,
+	)
+	w := httptest.NewRecorder()
+
+	setUserOption(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	val, err := store.GetOption(userOptionKey(user.ID, "lang"))
+	require.NoError(t, err)
+	assert.Equal(t, `""`, val)
+}
+
 func TestSetUserOption_UnknownKey(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
 	user := createUserOptionsTestUser(t, store, "bob")
@@ -85,6 +121,7 @@ func TestGetUserOptions_StripsPrefix(t *testing.T) {
 	user := createUserOptionsTestUser(t, store, "carol")
 
 	require.NoError(t, store.SetOption(userOptionKey(user.ID, "nav.unpinnedItems"), `["history"]`))
+	require.NoError(t, store.SetOption(userOptionKey(user.ID, "lang"), `"fr"`))
 
 	r := newUserOptionsRequest(t, store, &user, http.MethodGet, "")
 	w := httptest.NewRecorder()
@@ -95,7 +132,10 @@ func TestGetUserOptions_StripsPrefix(t *testing.T) {
 
 	var res map[string]string
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
-	assert.Equal(t, map[string]string{"nav.unpinnedItems": `["history"]`}, res)
+	assert.Equal(t, map[string]string{
+		"lang":              `"fr"`,
+		"nav.unpinnedItems": `["history"]`,
+	}, res)
 }
 
 func TestGetUserOptions_Isolation(t *testing.T) {
@@ -123,6 +163,7 @@ func TestDeleteUser_RemovesOptions(t *testing.T) {
 
 	target := createUserOptionsTestUser(t, store, "frank")
 	require.NoError(t, store.SetOption(userOptionKey(target.ID, "nav.unpinnedItems"), `["x"]`))
+	require.NoError(t, store.SetOption(userOptionKey(target.ID, "lang"), `"uk"`))
 
 	r := httptest.NewRequest(http.MethodDelete, "/api/users/1", nil)
 	r = helpers.SetContextValue(r, "store", store)
@@ -135,6 +176,10 @@ func TestDeleteUser_RemovesOptions(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
 	val, err := store.GetOption(userOptionKey(target.ID, "nav.unpinnedItems"))
+	require.NoError(t, err)
+	assert.Empty(t, val)
+
+	val, err = store.GetOption(userOptionKey(target.ID, "lang"))
 	require.NoError(t, err)
 	assert.Empty(t, val)
 }

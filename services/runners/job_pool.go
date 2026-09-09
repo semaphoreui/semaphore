@@ -256,6 +256,11 @@ func (p *JobPool) Unregister() (err error) {
 	return
 }
 
+// runnerProgressInterval is how often the runner reports progress. It is not
+// configurable: the report is also the heartbeat the server uses to decide a
+// runner is still alive.
+const runnerProgressInterval = time.Second
+
 func (p *JobPool) Run() {
 	launched := false
 
@@ -265,8 +270,20 @@ func (p *JobPool) Run() {
 		}).Panic("runner token is empty, cannot start the runner")
 	}
 
+	checkInterval := util.Config.RunnerCheckInterval()
+
+	log.WithFields(log.Fields{
+		"context":        "job_running",
+		"check_interval": checkInterval,
+	}).Debug("Runner poll interval")
+
+	// The progress report doubles as the runner's heartbeat, and the server marks
+	// a runner offline after RunnersOfflineTimeout (120s by default), so its
+	// cadence is fixed. Only the job check honours the configured interval.
+	lastJobCheck := time.Time{}
+
 	queueTicker := time.NewTicker(5 * time.Second)
-	requestTimer := time.NewTicker(1 * time.Second)
+	requestTimer := time.NewTicker(runnerProgressInterval)
 	p.resetRunningJobs()
 
 	defer func() {
@@ -402,7 +419,10 @@ func (p *JobPool) Run() {
 					os.Exit(0)
 				}
 
-				p.checkNewJobs()
+				if time.Since(lastJobCheck) >= checkInterval {
+					lastJobCheck = time.Now()
+					p.checkNewJobs()
+				}
 			}()
 
 		}
@@ -667,6 +687,12 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 
 	if util.Config.Runner.TokenFile != "" {
 		err = os.WriteFile(util.Config.Runner.TokenFile, []byte(res.Token), 0644)
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"context": "registration",
+			}).Error("con't save runner token")
+			return
+		}
 	} else {
 		if configFilePath == nil {
 			log.WithError(fmt.Errorf("config file path required")).WithFields(log.Fields{
@@ -684,7 +710,9 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 			return
 		}
 
-		config := util.ConfigType{}
+		config := util.ConfigType{
+			Runner: &util.RunnerConfig{},
+		}
 		err = json.Unmarshal(configFileBuffer, &config)
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{

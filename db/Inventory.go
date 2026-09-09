@@ -61,8 +61,6 @@ func (e Inventory) GetFilename() string {
 	}
 
 	return e.Inventory
-
-	//return strings.TrimPrefix(e.Inventory, "/")
 }
 
 func (e Inventory) Validate() error {

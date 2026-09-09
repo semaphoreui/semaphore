@@ -650,8 +650,20 @@
   //margin-bottom: 10px;
 }
 
+.NestedDialog {
+  border: 1px solid rgb(200, 200, 200);
+  border-radius: 12px;
+}
+
 .theme--dark {
   --highlighted-card-bg-color: #262626;
+
+  // Dialogs opened above another dialog have no overlay; the default Vuetify
+  // shadow is too faint on a dark background, so use a wider, denser one.
+  .NestedDialog {
+    border: 1px solid rgb(80, 80, 80);
+    box-shadow: 0 30px 80px 16px rgb(10, 10, 10);
+  }
 }
 
 .theme--light {
@@ -1067,13 +1079,7 @@ export default {
     },
 
     lang() {
-      const locale = localStorage.getItem('lang');
-
-      if (!locale) {
-        return getSystemLang();
-      }
-
-      return getLangInfo(locale || 'en');
+      return getLangInfo(this.$i18n.locale);
     },
 
     projectId() {
@@ -1391,6 +1397,18 @@ export default {
       }
     },
 
+    applyLanguage(lang) {
+      if (typeof lang !== 'string' || lang === '') {
+        localStorage.removeItem('lang');
+        this.$i18n.locale = getSystemLang().flag;
+        return;
+      }
+
+      const locale = getLangInfo(lang).flag;
+      localStorage.setItem('lang', locale);
+      this.$i18n.locale = locale;
+    },
+
     async loadUserOptions() {
       const options = (
         await axios({
@@ -1403,14 +1421,40 @@ export default {
       if (options['nav.unpinnedItems'] != null) {
         try {
           this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
-        } catch (e) {
-          console.log(e);
+        } catch {
+          // do nothing
+        }
+      }
+
+      if (options.lang != null) {
+        const currentLang = localStorage.getItem('lang');
+        try {
+          this.applyLanguage(JSON.parse(options.lang));
+        } catch {
+          this.applyLanguage(currentLang);
         }
       }
     },
 
-    selectLanguage(lang) {
-      localStorage.setItem('lang', lang);
+    async selectLanguage(lang) {
+      const previousLang = localStorage.getItem('lang');
+      this.applyLanguage(lang);
+
+      if (this.user) {
+        try {
+          await axios({
+            method: 'post',
+            url: '/api/user/options',
+            responseType: 'json',
+            data: { key: 'lang', value: JSON.stringify(lang) },
+          });
+        } catch (err) {
+          this.applyLanguage(previousLang);
+          EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+          return;
+        }
+      }
+
       window.location.reload();
     },
 

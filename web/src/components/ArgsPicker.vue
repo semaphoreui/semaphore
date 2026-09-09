@@ -3,6 +3,7 @@
     <v-dialog
       v-model="editDialog"
       hide-overlay
+      content-class="NestedDialog"
       width="400"
     >
       <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
@@ -12,6 +13,7 @@
             ref="form"
             lazy-validation
             v-if="editedVar != null"
+            @submit.prevent="saveVar()"
           >
             <v-alert
               :value="formError"
@@ -26,6 +28,8 @@
               required
               outlined
               dense
+              autofocus
+              @keydown.enter.prevent="saveVar()"
             />
 
             <div class="text-right mt-2">

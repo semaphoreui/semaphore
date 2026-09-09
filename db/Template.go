@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pkg/galaxy"
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -227,6 +228,21 @@ type AnsibleTemplateParams struct {
 	// AllowOverrideSkipGalaxyInstall lets the user toggle SkipGalaxyInstall when
 	// launching a task.
 	AllowOverrideSkipGalaxyInstall bool `json:"allow_override_skip_galaxy_install"`
+
+	// GalaxyRoleArgs and GalaxyCollectionArgs are appended to the
+	// `ansible-galaxy role install` and `ansible-galaxy collection install`
+	// commands. They are separate because the two subcommands accept different
+	// flags -- `--pre` for instance is rejected by `role install`.
+	// Only flags allowed by galaxy.ValidateInstallArgs are accepted.
+	GalaxyRoleArgs       []string `json:"galaxy_role_args"`
+	GalaxyCollectionArgs []string `json:"galaxy_collection_args"`
+}
+
+func (p AnsibleTemplateParams) ValidateGalaxyArgs() error {
+	if err := galaxy.ValidateInstallArgs(galaxy.InstallRole, p.GalaxyRoleArgs); err != nil {
+		return err
+	}
+	return galaxy.ValidateInstallArgs(galaxy.InstallCollection, p.GalaxyCollectionArgs)
 }
 
 type TerraformTemplateParams struct {
@@ -283,6 +299,9 @@ type Template struct {
 	Name string `db:"name" json:"name"`
 	// playbook name in the form of "some_play.yml"
 	Playbook string `db:"playbook" json:"playbook"`
+	// WorkingDirectory is the repository-relative current directory for Ansible
+	// commands. It is valid only for Ansible templates.
+	WorkingDirectory *string `db:"working_directory" json:"working_directory,omitempty"`
 	// to fit into []string
 	Arguments *string `db:"arguments" json:"arguments,omitempty"`
 	// if true, semaphore will not prepend any arguments to `arguments` like inventory, etc
@@ -399,6 +418,14 @@ func (tpl *Template) Validate() error {
 		if tpl.InventoryID == nil {
 			return common_errors.NewValidationError("template inventory can not be empty")
 		}
+
+		var params AnsibleTemplateParams
+		if err := tpl.FillParams(&params); err != nil {
+			return common_errors.NewValidationError("invalid task params: " + err.Error())
+		}
+		if err := params.ValidateGalaxyArgs(); err != nil {
+			return err
+		}
 	}
 
 	if tpl.Name == "" {
@@ -411,6 +438,18 @@ func (tpl *Template) Validate() error {
 
 	if err := ValidatePlaybookPath(tpl.Playbook, "template"); err != nil {
 		return err
+	}
+
+	if tpl.WorkingDirectory != nil {
+		if tpl.App != AppAnsible {
+			return common_errors.NewValidationError("template working directory is supported only for Ansible templates")
+		}
+		if strings.TrimSpace(*tpl.WorkingDirectory) == "" {
+			return common_errors.NewValidationError("template working directory can not be empty")
+		}
+		if err := ValidateWorkingDirectoryLexically(*tpl.WorkingDirectory); err != nil {
+			return err
+		}
 	}
 
 	if tpl.Arguments != nil {
