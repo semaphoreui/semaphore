@@ -285,3 +285,46 @@ func TestGenerateStateOauthCookieUniqueness(t *testing.T) {
 	// Verify states are different
 	assert.NotEqual(t, state1Str, state2Str, "Multiple calls should generate different state strings")
 }
+
+// Without web_host the redirect must stay rooted at the web root.
+func TestOidcSuccessRedirectURL(t *testing.T) {
+	tests := []struct {
+		name         string
+		webHost      string
+		redirectPath string
+		expected     string
+	}{
+		{"no web host keeps the path absolute", "", "/auth/login", "/auth/login"},
+		{"no web host adds the missing leading slash", "", "project/1", "/project/1"},
+		{"no web host with root path", "", "/", "/"},
+		{"web host is prepended", "http://localhost:3000", "/auth/login", "http://localhost:3000/auth/login"},
+		{"web host with sub path", "http://localhost:3000/semaphore", "/project/1", "http://localhost:3000/semaphore/project/1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := oidcSuccessRedirectURL(tt.webHost, tt.redirectPath)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, res)
+			assert.NotEmpty(t, res)
+		})
+	}
+}
+
+// The browser must not resolve the redirect against the callback path.
+func TestOidcSuccessRedirectURL_NotRelative(t *testing.T) {
+	callback, err := url.Parse("http://semaphore.example.com/api/auth/oidc/pocketid/redirect")
+	require.NoError(t, err)
+
+	res, err := oidcSuccessRedirectURL("", "/auth/login")
+	require.NoError(t, err)
+
+	location, err := url.Parse(res)
+	require.NoError(t, err)
+
+	assert.Equal(t,
+		"http://semaphore.example.com/auth/login",
+		callback.ResolveReference(location).String(),
+		"the browser must not resolve the redirect against the callback path")
+}

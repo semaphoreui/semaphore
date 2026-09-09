@@ -829,6 +829,19 @@ func getSecretFromFile(source string) (string, error) {
 	return string(content), nil
 }
 
+// oidcSuccessRedirectURL builds the post-login redirect. url.JoinPath drops the
+// leading slash when webHost is empty, which would make the redirect relative to
+// the callback path instead of the web root.
+func oidcSuccessRedirectURL(webHost string, redirectPath string) (string, error) {
+	redirectPath = "/" + strings.TrimLeft(redirectPath, "/")
+
+	if webHost == "" {
+		return redirectPath, nil
+	}
+
+	return url.JoinPath(webHost, redirectPath)
+}
+
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
 	oauthState, err := r.Cookie("oauthstate")
@@ -1009,19 +1022,11 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		redirectPath = mux.Vars(r)["redirect_path"]
 	}
 
-	if !strings.HasPrefix(redirectPath, "/") {
-		redirectPath = "/" + redirectPath
-	}
-
-	redirectURL, err := url.JoinPath(util.Config.WebHost, redirectPath)
+	redirectURL, err := oidcSuccessRedirectURL(util.Config.WebHost, redirectPath)
 	if err != nil {
 		log.Error(err)
 		http.Error(w, "OIDC sign-in failed: invalid redirect URL.", http.StatusInternalServerError)
 		return
-	}
-
-	if redirectURL == "" {
-		redirectURL = "/"
 	}
 
 	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)

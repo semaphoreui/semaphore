@@ -17,8 +17,8 @@ import (
 func InventoryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		inventoryID, err := helpers.GetIntParam("inventory_id", w, r)
-		if err != nil {
+		inventoryID, ok := helpers.GetIntParamOrAbort("inventory_id", w, r)
+		if !ok {
 			return
 		}
 

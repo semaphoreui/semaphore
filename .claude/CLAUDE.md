@@ -1,5 +1,12 @@
 # Claude Code Instructions
 
+# Documentation
+
+The documentation stored in /docs directory. It is a submodule with official Semaphore UI documentation
+in on Docusaurus engine.
+
+You should actualize the documentation for new and updated featues.
+
 ## Writing Plans
 
 All plans, tasks, researches for AI agents stored in folder AGENTS.

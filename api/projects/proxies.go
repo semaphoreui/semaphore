@@ -12,8 +12,8 @@ import (
 func ProxyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		proxyID, err := helpers.GetIntParam("proxy_id", w, r)
-		if err != nil {
+		proxyID, ok := helpers.GetIntParamOrAbort("proxy_id", w, r)
+		if !ok {
 			return
 		}
 

@@ -116,7 +116,13 @@
       <v-divider style="margin-top: -1px;" />
 
       <v-container fluid class="py-0 px-5 overflow-auto pt-4">
-        <TaskDetails :item="item" :user="user" :project-id="projectId" />
+        <TaskDetails
+          :item="item"
+          :user="user"
+          :schedule="schedule"
+          :integration="integration"
+          :project-id="projectId"
+        />
       </v-container>
     </div>
 
@@ -260,6 +266,11 @@ export default {
       output: [],
       outputBuffer: [],
       user: {},
+      // The schedule or integration that started this task, resolved by id so
+      // the details panel can name and link it. Null when the task was started
+      // by a person, or when the origin has since been deleted.
+      schedule: null,
+      integration: null,
       autoScroll: true,
       // stages: null,
     };
@@ -396,6 +407,8 @@ export default {
       this.outputBuffer = [];
       this.outputInterval = null;
       this.user = {};
+      this.schedule = null;
+      this.integration = null;
     },
 
     onWebsocketDataReceived(data) {
@@ -421,11 +434,31 @@ export default {
       }
     },
 
+    // Only a 404 proves the origin is gone. A timeout or a 500 means we simply
+    // do not know, and must not be reported to the user as "deleted".
+    async loadOrigin(url) {
+      try {
+        return { status: 'ready', data: (await axios({ method: 'get', url, responseType: 'json' })).data };
+      } catch (e) {
+        return { status: e.response && e.response.status === 404 ? 'missing' : 'error', data: null };
+      }
+    },
+
     async loadData() {
-      [
-        this.output,
-        this.user,
-      ] = await Promise.all([
+      // Distinguishes "still loading" from "not there", so a valid origin is
+      // never briefly labelled as deleted.
+      if (this.item.schedule_id) {
+        this.schedule = { status: 'loading', data: null };
+      }
+      if (this.item.integration_id) {
+        this.integration = { status: 'loading', data: null };
+      }
+
+      // These requests are fired again on every task change; without this the
+      // slower response of an earlier task can land after a later one.
+      const requested = { project: this.projectId, task: this.itemId };
+
+      const [output, user, schedule, integration] = await Promise.all([
 
         (await axios({
           method: 'get',
@@ -441,7 +474,24 @@ export default {
           url: `/api/users/${this.item.user_id}`,
           responseType: 'json',
         })).data : null,
+
+        this.item.schedule_id
+          ? this.loadOrigin(`/api/project/${this.projectId}/schedules/${this.item.schedule_id}`)
+          : null,
+
+        this.item.integration_id
+          ? this.loadOrigin(`/api/project/${this.projectId}/integrations/${this.item.integration_id}`)
+          : null,
       ]);
+
+      if (requested.project !== this.projectId || requested.task !== this.itemId) {
+        return;
+      }
+
+      this.output = output;
+      this.user = user;
+      this.schedule = schedule;
+      this.integration = integration;
     },
   },
 };

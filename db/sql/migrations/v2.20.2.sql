@@ -1,16 +1,20 @@
-create table `project__proxy` (
-    `id` integer primary key autoincrement,
-    `project_id` int not null,
-    `name` varchar(255) not null,
-    `type` varchar(20) not null,
-    `host` varchar(255) not null,
-    `port` int,
-    `user` varchar(255),
-    `ssh_key_id` int,
-    unique (`project_id`, `name`),
+alter table `project__workflow_node` add `delay_seconds` int null;
 
-    foreign key (`project_id`) references `project`(`id`) on delete cascade,
-    foreign key (`ssh_key_id`) references `access_key`(`id`) on delete set null
+create table `project__workflow_delay` (
+  `id` integer primary key autoincrement,
+  `project_id` int not null,
+  `workflow_run_id` int not null,
+  `workflow_node_id` int not null,
+  `status` varchar(30) not null,
+  `resume_at` datetime not null,
+  `created` datetime not null,
+  `resolved` datetime null,
+
+  foreign key (`project_id`) references `project`(`id`) on delete cascade,
+  foreign key (`workflow_run_id`) references `project__workflow_run`(`id`) on delete cascade,
+  foreign key (`workflow_node_id`) references `project__workflow_node`(`id`) on delete cascade,
+  unique (`workflow_run_id`, `workflow_node_id`)
 );
 
-alter table `project__inventory` add `proxy_id` int references `project__proxy`(`id`) on delete set null;
+create index `project__workflow_delay__workflow_run_id` on `project__workflow_delay`(`workflow_run_id`);
+create index `project__workflow_delay__status_resume_at` on `project__workflow_delay`(`status`, `resume_at`);
