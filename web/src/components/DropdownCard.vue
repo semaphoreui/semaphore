@@ -1,7 +1,7 @@
 <template>
   <v-card
     style="background: rgba(133, 133, 133, 0.06)"
-    class="mb-6 pt-3"
+    class="mb-6"
   >
     <div
       style="

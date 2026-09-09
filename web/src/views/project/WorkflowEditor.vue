@@ -52,69 +52,132 @@
 
     <div class="WorkflowEditor__body" v-if="item != null && templates != null">
       <!-- Palette + meta -->
-      <div class="WorkflowEditor__side WorkflowEditor__side--left">
-        <div class="pa-3">
-          <v-text-field
-            v-model="item.start_version"
-            :label="$t('startVersion')"
-            :hint="$t('workflowStartVersionHint')"
-            persistent-hint
-            :disabled="!canManage"
-            outlined
-            dense
-          />
-        </div>
+      <div
+        class="WorkflowEditor__side WorkflowEditor__side--left"
+        :class="{ 'WorkflowEditor__side--collapsed': sideCollapsed }"
+      >
+        <button
+          type="button"
+          class="WorkflowEditor__sideToggle"
+          :title="$t(sideCollapsed ? 'workflowSidebarExpand' : 'workflowSidebarCollapse')"
+          @click="sideCollapsed = !sideCollapsed"
+        >
+          <v-icon small>
+            {{ sideCollapsed ? 'mdi-chevron-right' : 'mdi-chevron-left' }}
+          </v-icon>
+        </button>
 
-        <v-divider />
+        <div class="WorkflowEditor__sideScroll">
+          <template v-if="!sideCollapsed">
+            <div class="pa-3">
+              <v-text-field
+                v-model="item.start_version"
+                :label="$t('startVersion')"
+                :hint="$t('workflowStartVersionHint')"
+                persistent-hint
+                :disabled="!canManage"
+                outlined
+                dense
+              />
+            </div>
 
-        <div class="pa-3">
-          <div class="text-subtitle-2 mb-2">{{ $t('workflowEditorPalette') }}</div>
-          <div class="text-caption text--secondary mb-2">
-            {{ $t('workflowDragToCanvasHint') }}
-          </div>
-          <div
-            class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--task"
-            draggable="true"
-            @dragstart="onDragStart($event, 'task')"
-          >
-            <v-icon small left>mdi-cog</v-icon>
-            {{ $t('workflowPaletteTaskNode') }}
-          </div>
-          <div
-            class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--approval"
-            draggable="true"
-            @dragstart="onDragStart($event, 'approval')"
-          >
-            <v-icon small left>mdi-account-check</v-icon>
-            {{ $t('workflowPaletteApprovalNode') }}
-          </div>
-          <div
-            class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--note"
-            draggable="true"
-            @dragstart="onDragStart($event, 'note')"
-          >
-            <v-icon small left>mdi-note-text-outline</v-icon>
-            {{ $t('workflowPaletteNoteNode') }}
-          </div>
-        </div>
+            <v-divider />
+          </template>
 
-        <v-divider />
+          <div class="pa-3">
+            <template v-if="!sideCollapsed">
+              <div class="text-subtitle-2 mb-2">{{ $t('workflowEditorPalette') }}</div>
+              <div class="text-caption text--secondary mb-2">
+                {{ $t('workflowDragToCanvasHint') }}
+              </div>
+            </template>
+            <div
+              class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--task"
+              draggable="true"
+              :title="sideCollapsed ? $t('workflowPaletteTaskNode') : null"
+              @dragstart="onDragStart($event, 'task')"
+            >
+              <v-icon small :left="!sideCollapsed">mdi-cog</v-icon>
+              <template v-if="!sideCollapsed">{{ $t('workflowPaletteTaskNode') }}</template>
+            </div>
+            <div
+              class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--approval"
+              draggable="true"
+              :title="sideCollapsed ? $t('workflowPaletteApprovalNode') : null"
+              @dragstart="onDragStart($event, 'approval')"
+            >
+              <v-icon small :left="!sideCollapsed">mdi-account-check</v-icon>
+              <template v-if="!sideCollapsed">{{ $t('workflowPaletteApprovalNode') }}</template>
+            </div>
+            <div
+              class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--delay"
+              draggable="true"
+              @dragstart="onDragStart($event, 'delay')"
+            >
+              <v-icon small left>mdi-timer-outline</v-icon>
+              {{ $t('workflowPaletteDelayNode') }}
+            </div>
 
-        <div class="pa-3">
-          <div class="text-subtitle-2 mb-1">{{ $t('workflowProblemsPanelTitle') }}</div>
-          <v-alert v-if="problems.length === 0" type="success" text dense class="mb-0">
-            {{ $t('workflowValidationPassed') }}
-          </v-alert>
-          <v-alert
-            v-for="(p, i) in problems"
-            :key="`problem-${i}`"
-            type="warning"
-            text
-            dense
-            class="mb-1"
-          >{{ p }}
-          </v-alert
-          >
+            <div
+              class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--note"
+              draggable="true"
+              :title="sideCollapsed ? $t('workflowPaletteNoteNode') : null"
+              @dragstart="onDragStart($event, 'note')"
+            >
+              <v-icon small :left="!sideCollapsed">mdi-note-text-outline</v-icon>
+              <template v-if="!sideCollapsed">{{ $t('workflowPaletteNoteNode') }}</template>
+            </div>
+          </div>
+
+          <v-divider />
+
+          <div class="pa-3">
+            <template v-if="!sideCollapsed">
+              <div class="text-subtitle-2 mb-1">{{ $t('workflowProblemsPanelTitle') }}</div>
+              <v-alert v-if="problems.length === 0" type="success" text dense class="mb-0">
+                {{ $t('workflowValidationPassed') }}
+              </v-alert>
+              <v-alert
+                v-for="(p, i) in problems"
+                :key="`problem-${i}`"
+                type="warning"
+                text
+                dense
+                class="mb-1"
+              >{{ p }}
+              </v-alert
+              >
+            </template>
+            <div v-else class="d-flex flex-column align-center">
+              <v-tooltip
+                v-if="problems.length === 0"
+                right
+                max-width="320"
+                transition="fade-transition"
+              >
+                <template v-slot:activator="{ on, attrs }">
+                  <v-icon color="success" v-bind="attrs" v-on="on">mdi-check-circle</v-icon>
+                </template>
+                <span>{{ $t('workflowValidationPassed') }}</span>
+              </v-tooltip>
+              <template v-else>
+                <v-tooltip
+                  v-for="(p, i) in problems"
+                  :key="`problem-icon-${i}`"
+                  right
+                  max-width="320"
+                  transition="fade-transition"
+                >
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-icon color="warning" class="mb-1" v-bind="attrs" v-on="on">
+                      mdi-alert
+                    </v-icon>
+                  </template>
+                  <span>{{ p }}</span>
+                </v-tooltip>
+              </template>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -192,7 +255,7 @@
             />
 
             <v-autocomplete
-              v-if="editingNode.kind !== 'approval'"
+            v-if="editingNode.kind !== 'approval' && editingNode.kind !== 'delay'"
               v-model="editingNode.template_id"
               :items="templates"
               item-value="id"
@@ -207,7 +270,9 @@
             />
 
             <v-card
-              v-if="editingNode.kind !== 'approval' && editingNodeTemplate"
+            v-if="editingNode.kind !== 'approval'
+              && editingNode.kind !== 'delay'
+              && editingNodeTemplate"
               :key="`task-params-${editingNode.id}-${editingNode.template_id}`"
               style="background: rgba(133, 133, 133, 0.06)"
               class="mb-6 pt-3"
@@ -254,6 +319,22 @@
                 outlined
                 dense
                 hide-details="auto"
+                @change="applyNodeEdit"
+              />
+            </template>
+            <template v-if="editingNode.kind === 'delay'">
+              <v-text-field
+                v-model.number="editingNode.delay_seconds"
+                type="number"
+                min="1"
+                :label="$t('workflowDelaySeconds')"
+                :hint="$t('workflowDelayHint')"
+                persistent-hint
+                :disabled="!canManage"
+                outlined
+                dense
+                hide-details="auto"
+                class="mb-2"
                 @change="applyNodeEdit"
               />
             </template>
@@ -315,6 +396,7 @@ export default {
       selectedNodeId: null,
       editingNode: null,
       editingEdge: null,
+      sideCollapsed: false,
       USER_PERMISSIONS,
     };
   },
@@ -337,6 +419,7 @@ export default {
       return [
         { value: 'task', text: this.$t('workflowNodeKindTask') },
         { value: 'approval', text: this.$t('workflowNodeKindApproval') },
+        { value: 'delay', text: this.$t('workflowNodeKindDelay') },
       ];
     },
     convergenceOptions() {
@@ -379,6 +462,11 @@ export default {
         (n) => n.kind === 'approval' && n.approval_timeout != null && n.approval_timeout <= 0,
       );
       if (badTimeout) out.push(this.$t('workflowErrorApprovalTimeoutPositive'));
+
+      const badDelay = nodes.some(
+        (n) => n.kind === 'delay' && (n.delay_seconds == null || n.delay_seconds <= 0),
+      );
+      if (badDelay) out.push(this.$t('workflowErrorDelayPositive'));
       return out;
     },
   },
@@ -492,13 +580,22 @@ export default {
       EventBus.$emit('i-snackbar', { color: 'warning', text: this.$t(key) });
     },
     onKindChanged() {
-      if (this.editingNode.kind === 'approval') {
+      const kind = this.editingNode.kind;
+      if (kind === 'approval' || kind === 'delay') {
         this.editingNode.template_id = null;
         this.editingNode.task_params = null;
-      } else {
+      }
+      if (kind !== 'approval') {
         this.editingNode.approval_timeout = null;
         this.editingNode.approval_message = null;
-        if (!this.editingNode.task_params) this.editingNode.task_params = {};
+      }
+      if (kind !== 'delay') {
+        this.editingNode.delay_seconds = null;
+      } else if (this.editingNode.delay_seconds == null) {
+        this.editingNode.delay_seconds = 60;
+      }
+      if (kind === 'task' && !this.editingNode.task_params) {
+        this.editingNode.task_params = {};
       }
       this.applyNodeEdit();
     },
@@ -565,6 +662,9 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+
+$worklow_pallete_width_collapsed: 60px;
+
 .WorkflowEditor {
   // Inline, borderless name editor in the toolbar title.
   &__title {
@@ -663,10 +763,49 @@ export default {
     overflow-y: auto;
     border-right: 1px solid rgba(127, 127, 127, 0.2);
 
+    // The left panel hosts the collapse tab protruding over the canvas, so it
+    // must not clip overflow itself — scrolling moves to __sideScroll. z-index
+    // lifts the tab above the (positioned) canvas that follows in the DOM.
+    &--left {
+      position: relative;
+      overflow: visible;
+      z-index: 1;
+    }
+
     &--right {
       border-right: none;
       border-left: 1px solid rgba(127, 127, 127, 0.2);
     }
+
+    &--collapsed {
+      width: $worklow_pallete_width_collapsed;
+      flex: 0 0 $worklow_pallete_width_collapsed;
+    }
+  }
+
+  &__sideScroll {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  // Collapse/expand handle: a tab sticking out of the panel's right edge,
+  // vertically centered.
+  &__sideToggle {
+    position: absolute;
+    top: 50%;
+    right: -20px;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(127, 127, 127, 0.2);
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    cursor: pointer;
   }
 
   &__canvas {
@@ -694,9 +833,17 @@ export default {
       border-left: 3px solid #ab47bc;
     }
 
+    &--delay {
+      border-left: 3px solid #ff9800;
+    }
+
     &--note {
       border-left: 3px solid #e6d873;
     }
+  }
+
+  &__side--collapsed &__paletteItem {
+    padding-left: 8px;
   }
 }
 </style>
