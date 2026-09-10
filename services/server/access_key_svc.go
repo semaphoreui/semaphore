@@ -92,7 +92,8 @@ func maybeGenerateSSHPrivateKey(key *db.AccessKey) error {
 		return err
 	}
 
-	key.SshKey.PrivateKey = b.String()
+key.SshKey.PrivateKey = b.String()
+key.SshKey.Passphrase = ""
 
 	type sshPublicKey struct {
 		PublicKey string `json:"public_key"`
