@@ -661,11 +661,11 @@ users:
 			Environment: db.Environment{},
 		}
 
-		exec, err := newExecutor(jobData, nil, dockerProvider)
+		executor, err := newExecutor(jobData, nil, dockerProvider)
 		require.NoError(t, err)
-		require.NotNil(t, exec)
+		require.NotNil(t, executor)
 
-		dockerExec, ok := exec.(*MockDockerExecutor)
+		dockerExec, ok := executor.(*MockDockerExecutor)
 		require.True(t, ok)
 		assert.Equal(t, 801, dockerExec.Task.ID)
 	})
