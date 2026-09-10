@@ -16,7 +16,7 @@
             @submit.prevent="saveVar()"
           >
             <v-alert
-              :value="formError"
+              :value="formError != null"
               color="error"
             >{{ formError }}
             </v-alert>

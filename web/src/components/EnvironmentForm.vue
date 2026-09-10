@@ -458,6 +458,15 @@ import { codemirror } from 'vue-codemirror';
 import {
   load as loadYaml, dump as dumpYaml, JSON_SCHEMA,
 } from 'js-yaml';
+import {
+  isPlainObject,
+  isJsonSafeValue,
+  inferVarType,
+  rowToVarValue,
+  extraVarsToObject,
+  extraVarsToObjectLenient,
+  objectToExtraVars,
+} from '@/lib/extraVars';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/vue/vue.js';
 import 'codemirror/mode/yaml/yaml.js';
@@ -737,44 +746,14 @@ export default {
       }
     },
 
-    // isPlainObject is true only for a plain name -> value map: the shape
-    // required for the extra variables root. Excludes null and arrays (via
-    // the typeof/Array checks) as well as class instances such as Date --
-    // which YAML auto-parses unquoted timestamps into -- by requiring the
-    // prototype to be Object.prototype (or null, e.g. Object.create(null)).
+    // The conversions below live in @/lib/extraVars; the methods are kept so
+    // the template and the watchers can keep calling them on `this`.
     isPlainObject(value) {
-      if (value === null || Array.isArray(value) || typeof value !== 'object') {
-        return false;
-      }
-      const proto = Object.getPrototypeOf(value);
-      return proto === Object.prototype || proto === null;
+      return isPlainObject(value);
     },
 
-    // isJsonSafeValue recursively rejects NaN/Infinity/-Infinity anywhere in
-    // value: JSON.stringify silently turns these into null instead of
-    // throwing, so they'd otherwise pass every other check and still corrupt
-    // the saved data. seen avoids infinite recursion on a circular
-    // reference; that case is left to throw naturally so the try/catch below
-    // (or beforeSave's own try/catch) reports it instead.
     isJsonSafeValue(value, seen) {
-      if (typeof value === 'number') {
-        return Number.isFinite(value);
-      }
-      if (Array.isArray(value)) {
-        if (seen.has(value)) {
-          return true;
-        }
-        seen.add(value);
-        return value.every((v) => this.isJsonSafeValue(v, seen));
-      }
-      if (this.isPlainObject(value)) {
-        if (seen.has(value)) {
-          return true;
-        }
-        seen.add(value);
-        return Object.values(value).every((v) => this.isJsonSafeValue(v, seen));
-      }
-      return true;
+      return isJsonSafeValue(value, seen);
     },
 
     // revertExtraVarsMode undoes a Table/JSON/YAML switch that failed to
@@ -789,99 +768,24 @@ export default {
       this.extraVarsEditMode = oldVal;
     },
 
-    // inferVarType maps a parsed JSON value to one of the editor's variable types
-    // so that a value stored as a list/dict is shown with the right type in the
-    // table editor. Numbers get the number type; other scalars are edited as strings.
     inferVarType(value) {
-      if (Array.isArray(value)) {
-        return 'list';
-      }
-      if (value !== null && typeof value === 'object') {
-        return 'dict';
-      }
-      if (typeof value === 'number') {
-        return 'number';
-      }
-      return 'string';
+      return inferVarType(value);
     },
 
-    // rowToVarValue converts a table row back to its typed JSON value. It throws a
-    // descriptive error (caught by save()/beforeSave) when the input is invalid.
     rowToVarValue(row) {
-      switch (row.type) {
-        case 'number': {
-          const parsed = Number(row.value);
-          if (row.value === '' || Number.isNaN(parsed)) {
-            throw new Error(`Variable "${row.name}" must be a number, e.g. 42`);
-          }
-          return parsed;
-        }
-        case 'list': {
-          let parsed;
-          try {
-            parsed = JSON.parse(row.value);
-          } catch (e) {
-            throw new Error(`Variable "${row.name}" is not a valid list, e.g. ["a", "b"]`);
-          }
-          if (!Array.isArray(parsed)) {
-            throw new Error(`Variable "${row.name}" must be a list, e.g. ["a", "b"]`);
-          }
-          return parsed;
-        }
-        case 'dict': {
-          let parsed;
-          try {
-            parsed = JSON.parse(row.value);
-          } catch (e) {
-            throw new Error(`Variable "${row.name}" is not a valid dict, e.g. {"key": "value"}`);
-          }
-          if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            throw new Error(`Variable "${row.name}" must be a dict, e.g. {"key": "value"}`);
-          }
-          return parsed;
-        }
-        default:
-          // Scalars are passed through as-is: an untouched number/boolean keeps its
-          // original JSON type, while typed input stays a string.
-          return row.value;
-      }
+      return rowToVarValue(row);
     },
 
     extraVarsToObject(rows) {
-      return (rows || []).reduce(
-        (prev, curr) => ({
-          ...prev,
-          [curr.name]: this.rowToVarValue(curr),
-        }),
-        {},
-      );
+      return extraVarsToObject(rows);
     },
 
-    // extraVarsToObjectLenient is like extraVarsToObject but never throws: a row
-    // whose typed value is still invalid keeps its raw text. Used when toggling to
-    // the JSON view so editing modes never lose data mid-typing.
     extraVarsToObjectLenient(rows) {
-      return (rows || []).reduce((prev, curr) => {
-        let value;
-        try {
-          value = this.rowToVarValue(curr);
-        } catch (e) {
-          value = curr.value;
-        }
-        return { ...prev, [curr.name]: value };
-      }, {});
+      return extraVarsToObjectLenient(rows);
     },
 
     objectToExtraVars(obj) {
-      return Object.keys(obj).map((name) => {
-        const value = obj[name];
-        const type = this.inferVarType(value);
-        return {
-          name,
-          type,
-          value: type === 'string' ? value : JSON.stringify(value),
-        };
-      });
+      return objectToExtraVars(obj);
     },
 
     addEnvVar(name = '', value = '') {

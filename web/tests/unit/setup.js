@@ -5,6 +5,7 @@
 import Vue from 'vue';
 import Vuetify from 'vuetify';
 import * as components from 'vuetify/lib/components';
+import filtersPlugin from '@/plugins/filters';
 
 // --- jsdom polyfills ---------------------------------------------------------
 // src/plugins/i18.js reads localStorage at import time.
@@ -48,3 +49,6 @@ if (!hasGlobal('requestAnimationFrame')) {
 // components globally. Vuetify installs only once per bundle, so this has to
 // run before any spec calls `localVue.use(Vuetify)`.
 Vue.use(Vuetify, { components });
+
+// Global template filters, normally installed by src/main.js.
+Vue.use(filtersPlugin);
