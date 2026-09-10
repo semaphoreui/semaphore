@@ -258,11 +258,6 @@ func (t *RemoteJob) Run(username string, incomingVersion *string, alias string) 
 	err = callRunnerWebhook(runner, tsk, "start")
 
 	if err != nil {
-		log.WithFields(log.Fields{
-			"context":   "runner",
-			"task_id":   tsk.Task.ID,
-			"runner_id": runner.ID,
-		}).WithError(err).Error("Cannot assign task: runner start webhook request failed")
 		return
 	}
 
