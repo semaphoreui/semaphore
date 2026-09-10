@@ -440,6 +440,7 @@ export default {
   addLimit: 'Add limit',
   allowDebug: 'Debug',
   skipGalaxyInstall: 'Skip Galaxy install',
+  forceGalaxyInstall: 'Force Galaxy install',
   galaxy: 'Galaxy',
   galaxyInstallOptions: 'Galaxy install options',
   prompts: 'Prompts',

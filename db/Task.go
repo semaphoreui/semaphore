@@ -36,6 +36,9 @@ type AnsibleTaskParams struct {
 	Tags              []string `json:"tags"`
 	SkipTags          []string `json:"skip_tags"`
 	SkipGalaxyInstall bool     `json:"skip_galaxy_install"`
+	// ForceGalaxyInstall runs `ansible-galaxy install --force` for every
+	// requirements file, ignoring the cached requirements checksum.
+	ForceGalaxyInstall bool `json:"force_galaxy_install"`
 }
 
 // Task is a model of a task which will be executed by the runner

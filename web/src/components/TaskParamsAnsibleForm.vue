@@ -88,6 +88,17 @@
           </template>
         </v-checkbox>
       </v-col>
+      <v-col v-if="templateParams.allow_override_force_galaxy_install">
+        <v-checkbox
+          :input-value="params.force_galaxy_install"
+          class="mt-0"
+          @change="updateValue('force_galaxy_install', $event)"
+        >
+          <template v-slot:label>
+            <div class="text-no-wrap">{{ $t('forceGalaxyInstall') }} <code>--force</code></div>
+          </template>
+        </v-checkbox>
+      </v-col>
     </v-row>
   </div>
 </template>
@@ -110,6 +121,7 @@ const APP_PARAMS = {
     'skip_tags',
     'limit',
     'skip_galaxy_install',
+    'force_galaxy_install',
   ],
 };
 

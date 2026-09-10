@@ -212,6 +212,12 @@ export const ANSIBLE_FIELDS = {
   allow_override_skip_galaxy_install: {
     label: 'skipGalaxyInstall',
   },
+  force_galaxy_install: {
+    label: 'forceGalaxyInstall',
+  },
+  allow_override_force_galaxy_install: {
+    label: 'forceGalaxyInstall',
+  },
   allow_override_inventory: {
     label: 'allowInventoryInTask',
   },

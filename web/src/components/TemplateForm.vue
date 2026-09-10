@@ -636,6 +636,13 @@
             :label="$t('skipGalaxyInstall')"
           />
 
+          <v-checkbox
+              v-if="needField('force_galaxy_install')"
+              v-model="item.task_params.force_galaxy_install"
+              :label="$t('forceGalaxyInstall')"
+              class="mt-0"
+          />
+
           <ArgsPicker
             v-if="needField('galaxy_role_args')"
             :vars="item.task_params.galaxy_role_args"
@@ -652,16 +659,30 @@
             :arg-title="$t('arg')"
           />
 
-          <template v-if="needField('allow_override_skip_galaxy_install')">
-            <div class="text-subtitle-2 mb-2">{{ $t('prompts') }}</div>
+          <div
+              class="text-subtitle-2 mb-2"
+              v-if="
+                needField('allow_override_skip_galaxy_install') &&
+                needField('allow_override_force_galaxy_install')
+              "
+          >
+            {{ $t('prompts') }}
+          </div>
 
-            <v-checkbox
+          <v-checkbox
+              v-if="needField('allow_override_skip_galaxy_install')"
               class="mt-0"
-              hide-details
               v-model="item.task_params.allow_override_skip_galaxy_install"
               :label="$t('skipGalaxyInstall')"
-            />
-          </template>
+          />
+
+          <v-checkbox
+              hide-details
+              v-if="needField('allow_override_force_galaxy_install')"
+              v-model="item.task_params.allow_override_force_galaxy_install"
+              :label="$t('forceGalaxyInstall')"
+              class="mt-0"
+          />
         </CollapsibleSection>
       </v-col>
     </v-row>
@@ -829,7 +850,9 @@ export default {
       return (params.galaxy_role_args || []).length
         + (params.galaxy_collection_args || []).length
         + (params.skip_galaxy_install ? 1 : 0)
-        + (params.allow_override_skip_galaxy_install ? 1 : 0);
+        + (params.allow_override_skip_galaxy_install ? 1 : 0)
+        + (params.force_galaxy_install ? 1 : 0)
+        + (params.allow_override_force_galaxy_install ? 1 : 0);
     },
 
     showWorkingDirectoryField: {
@@ -1179,6 +1202,8 @@ export default {
         const galaxyDefaults = {
           skip_galaxy_install: false,
           allow_override_skip_galaxy_install: false,
+          force_galaxy_install: false,
+          allow_override_force_galaxy_install: false,
           galaxy_role_args: [],
           galaxy_collection_args: [],
         };
