@@ -1,9 +1,9 @@
 package db
 
 import (
-	"net/url"
 	"crypto/sha1"
 	"fmt"
+	"net/url"
 	"path"
 	"regexp"
 	"strconv"

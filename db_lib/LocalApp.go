@@ -3,8 +3,6 @@ package db_lib
 import (
 	"fmt"
 	"os"
-	"runtime"
-	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -25,60 +23,14 @@ func getHomeDir(repo db.Repository, templateID int) string {
 	}
 }
 
-var defaultForwardedEnvVars = []string{
-	// Proxy
-	"HTTP_PROXY", "http_proxy",
-	"HTTPS_PROXY", "https_proxy",
-	"NO_PROXY", "no_proxy",
-	"ALL_PROXY", "all_proxy",
-	"FTP_PROXY", "ftp_proxy",
-	// SSL / TLS certificates
-	"SSL_CERT_FILE", "SSL_CERT_DIR",
-	"CURL_CA_BUNDLE", "REQUESTS_CA_BUNDLE",
-	"GIT_SSL_CAINFO", "GIT_SSL_CAPATH",
-	// System / User / Locale
-	"USER", "LOGNAME", "USERNAME",
-	"LANG", "LC_ALL", "LC_CTYPE",
-	"TZ",
-	"TMPDIR", "TEMP", "TMP",
-	// Windows system vars
-	"SYSTEMROOT", "SystemRoot",
-	"WINDIR", "windir",
-	"APPDATA", "LOCALAPPDATA",
-	"COMSPEC", "ComSpec",
-	"PATHEXT",
-}
-
-func isProxyEnvVar(k string) bool {
-	switch strings.ToUpper(k) {
-	case "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "ALL_PROXY", "FTP_PROXY":
-		return true
-	default:
-		return false
-	}
-}
-
-func setEnvVar(envMap map[string]string, k, v string) {
-	if runtime.GOOS == "windows" || isProxyEnvVar(k) {
-		for existing := range envMap {
-			if strings.EqualFold(existing, k) {
-				delete(envMap, existing)
-			}
-		}
-	}
-	envMap[k] = v
-}
-
+// getEnvironmentVars builds the environment for child Git/tool processes.
+// Only PATH, Config.ForwardedEnvVars, and Config.EnvVars are forwarded.
+// To forward proxy or SSL vars, add them to forwarded_env_vars in the config
+// or set the SEMAPHORE_FORWARDED_ENV_VARS environment variable.
 func getEnvironmentVars() []string {
 	envMap := make(map[string]string)
 
 	setEnvVar(envMap, "PATH", os.Getenv("PATH"))
-
-	for _, e := range defaultForwardedEnvVars {
-		if v := os.Getenv(e); v != "" {
-			setEnvVar(envMap, e, v)
-		}
-	}
 
 	for _, e := range util.Config.ForwardedEnvVars {
 		if v := os.Getenv(e); v != "" {
