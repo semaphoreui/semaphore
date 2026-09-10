@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/debuglog"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/util"
@@ -128,6 +129,9 @@ func (p *TaskPool) runnerTasksReconcileLoop() {
 func (p *TaskPool) reconcileRunnerTasks(now time.Time) {
 	offlineTimeout := util.Config.RunnersOfflineTimeout()
 	taskFailTimeout := util.Config.RunnersTaskFailTimeout()
+	if debuglog.Enabled(log.StandardLogger(), "runner") {
+		p.logOfflineRunners(now, offlineTimeout)
+	}
 
 	for _, tsk := range p.state.OwnedRunningRange() {
 		if tsk == nil || tsk.Task.Status.IsFinished() {
@@ -181,6 +185,30 @@ func (p *TaskPool) reconcileRunnerTasks(now time.Time) {
 		case RunnerTaskKeep:
 			// Do nothing
 		}
+	}
+}
+
+func (p *TaskPool) logOfflineRunners(now time.Time, offlineTimeout time.Duration) {
+	runners, err := p.store.GetAllRunners(true, false, db.RunnerFilterIgnoreTags, nil)
+	l := log.WithFields(log.Fields{"context": "runner"})
+	if err != nil {
+		l.WithError(err).Debug("Runner offline diagnostics unavailable")
+		return
+	}
+
+	for _, runner := range runners {
+		if runner.IsOnline(now, offlineTimeout) {
+			continue
+		}
+
+		l := l.WithFields(log.Fields{
+			"runner_id":               runner.ID,
+			"offline_timeout_seconds": int(offlineTimeout.Seconds()),
+		})
+		if runner.Touched != nil {
+			l = l.WithField("last_seen_seconds", int(now.Sub(*runner.Touched).Seconds()))
+		}
+		l.Debug("Runner is offline")
 	}
 }
 

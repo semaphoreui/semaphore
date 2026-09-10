@@ -296,6 +296,7 @@ func runService() {
 		defer wsBroadcaster.Stop()
 	}
 
+	taskPool.LogRunnerStateSnapshot()
 	go schedulePool.Run()
 	go taskPool.Run()
 
