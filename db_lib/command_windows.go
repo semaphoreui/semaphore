@@ -22,8 +22,8 @@ func waitCommand(cmd *exec.Cmd, stopCh <-chan struct{}, logger task_logger.Logge
 	case err := <-waitCh:
 		return err
 	case <-stopCh:
-		// Windows has no SIGTERM signal. Future graceful process-tree termination
-		// should use a Job Object, instead of killing only the main process.
+		// Windows has no SIGTERM signal. Future process-tree cleanup should use a
+		// Job Object instead of killing only the main process.
 		if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 			logger.Log(err.Error())
 		}
