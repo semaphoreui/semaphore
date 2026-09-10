@@ -25,7 +25,7 @@ func (c *capturingLogWriter) WriteTaskLog(pro_interfaces.TaskLogRecord) error { 
 func (c *capturingLogWriter) WriteResult(any) error                           { return nil }
 
 func TestEventLog_FillsAuditFields(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	logWriter := &capturingLogWriter{}
 
 	user, err := store.CreateUserWithoutPassword(db.User{

@@ -14,7 +14,7 @@ import (
 )
 
 func TestAddUser_CreatesEvent(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	admin, err := store.CreateUserWithoutPassword(db.User{
 		Username: "admin", Name: "Admin", Email: "admin@example.com", Admin: true,

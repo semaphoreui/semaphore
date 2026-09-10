@@ -1,71 +1,71 @@
 # Plan — SIEM-Ready Audit Events
 
-> Status: **implemented** (16.07.2026, ветка `feature/siem-audit-events` в основном
-> репо и в `pro_impl`, docs — сабмодуль, ветка `feature/siem-audit-events`).
-> Отклонения от плана:
-> - `integration_id` не существовал ни в одном диалекте (не только не вставлялся) —
->   колонка добавлена в v2.20.1 для всех диалектов.
-> - `log_writer` в контексте запроса стал опциональным (иначе хендлеры нельзя
->   тестировать изолированно).
-> - Санитизация CR/LF сделана в `helpers.EventLog` (одна точка), а не в вебхуке.
-> - Graceful shutdown вебхука: `Close()` есть, но в lifecycle сервера не встроен
->   (при остановке теряются максимум события из очереди).
-> - Frontend (показ action/IP в Activity) — не делался, опциональная часть Task 6.
+> Status: **implemented** (16.07.2026, branch `feature/siem-audit-events` in the main
+> repo and in `pro_impl`; docs — submodule, branch `feature/siem-audit-events`).
+> Deviations from the plan:
+> - `integration_id` did not exist in any dialect (it was not merely missing from the
+>   INSERT) — the column was added in v2.20.1 for all dialects.
+> - `log_writer` in the request context became optional (otherwise handlers cannot
+>   be tested in isolation).
+> - CR/LF sanitization is done in `helpers.EventLog` (single point), not in the webhook.
+> - Graceful shutdown of the webhook: `Close()` exists but is not wired into the server
+>   lifecycle (at most the queued events are lost on shutdown).
+> - Frontend (showing action/IP in Activity) — not done, optional part of Task 6.
 
 - **Branch:** `develop`
-- **Research:** MCP research «Поддержка SIEM в Semaphore UI» (RESEARCH@a39c0ef615f486972eaff4),
-  16.07.2026: анализ кодовой базы, GitHub issues (#158, discussion #2194, #3410),
-  конкурентов (AWX External Log Aggregator, Rundeck Audit Stream Plugin) и
-  требований OWASP Logging Vocabulary / SIEM ingestion (Splunk HEC, syslog RFC 5424, CEF).
+- **Research:** MCP research "SIEM support in Semaphore UI" (RESEARCH@a39c0ef615f486972eaff4),
+  16.07.2026: analysis of the codebase, GitHub issues (#158, discussion #2194, #3410),
+  competitors (AWX External Log Aggregator, Rundeck Audit Stream Plugin) and
+  the requirements of OWASP Logging Vocabulary / SIEM ingestion (Splunk HEC, syslog RFC 5424, CEF).
 
 ## 1. Problem
 
-Semaphore имеет событийный лог (таблица `event`, страница Activity, API
-`/events`), но он не пригоден как audit trail для SIEM/compliance:
+Semaphore has an event log (the `event` table, the Activity page, the `/events`
+API), but it is not usable as an audit trail for SIEM/compliance:
 
-1. **Логин/логаут и неудачные попытки входа не логируются вообще** — ни в
-   таблицу `event`, ни в файловый лог. В `api/login.go` только одна
-   info-строка logrus при успешной LDAP-аутентификации. Это требование №1
-   OWASP и любого SOC.
-2. **IP-адрес и user-agent не сохраняются** ни в `db.Event`, ни в
-   `pro_interfaces.EventLogRecord` — хотя при создании сессии они уже
-   извлекаются из запроса (`api/login.go:172-173`: `X-Real-IP`,
+1. **Login/logout and failed login attempts are not logged at all** — neither in
+   the `event` table nor in the file log. In `api/login.go` there is only a single
+   logrus info line on successful LDAP authentication. This is requirement #1
+   of OWASP and of any SOC.
+2. **IP address and user-agent are not stored** in either `db.Event` or
+   `pro_interfaces.EventLogRecord` — even though they are already extracted
+   from the request when a session is created (`api/login.go:172-173`: `X-Real-IP`,
    `user-agent`).
-3. **Поле `action` (create/update/delete) не попадает в БД** — только в
-   logrus-поля и файловый лог (`api/helpers/event_log.go:48-62`). В БД
-   событие различимо только по тексту `Description`.
-4. **Глобальный CRUD пользователей и API-токенов не логируется** —
-   `api/users.go` (AddUser/UpdateUser/UpdateUserPassword/DeleteUser) и
-   `api/user.go:129-171` (create/deleteAPIToken) не вызывают
-   `helpers.EventLog`. Логируются только членство/роли внутри проекта.
-5. **`integration_id` теряется**: есть в модели, но пропущен в INSERT
+3. **The `action` field (create/update/delete) does not reach the DB** — only
+   the logrus fields and the file log (`api/helpers/event_log.go:48-62`). In the DB
+   an event is distinguishable only by the `Description` text.
+4. **Global CRUD of users and API tokens is not logged** —
+   `api/users.go` (AddUser/UpdateUser/UpdateUserPassword/DeleteUser) and
+   `api/user.go:129-171` (create/deleteAPIToken) do not call
+   `helpers.EventLog`. Only membership/roles inside a project are logged.
+5. **`integration_id` is lost**: it exists in the model but is omitted from the INSERT
    (`db/sql/event.go:36`).
-6. **Нет push-канала аудита**: syslog (`cli/cmd/syslog.go`) пересылает весь
-   logrus-лог вперемешку с отладкой; generic outbound HTTP-вебхука
-   (Splunk HEC и т.п.) нет; алерты (`services/tasks/alert.go`) — только о
-   статусе задач.
+6. **No push channel for audit**: syslog (`cli/cmd/syslog.go`) forwards the whole
+   logrus log mixed with debug output; there is no generic outbound HTTP webhook
+   (Splunk HEC etc.); alerts (`services/tasks/alert.go`) cover only
+   task status.
 
-## 2. Current State (для контекста исполнителя)
+## 2. Current State (context for the implementer)
 
-- `db/Event.go:10-24` — модель `Event`; `db/sql/event.go:32-51` — INSERT.
+- `db/Event.go:10-24` — the `Event` model; `db/sql/event.go:32-51` — INSERT.
 - `api/helpers/event_log.go:29` — `EventLog(r *http.Request, action EventLogType, item EventLogItem)`:
-  единая точка записи; пишет в БД и в `pro_interfaces.LogWriteService.WriteEventLog`.
-- `pro_interfaces/log_write_svc.go:5-17` — интерфейс `LogWriteService` и
-  `EventLogRecord`. OSS-реализация — заглушка (`pro/services/server/log_write_svc.go`),
-  рабочая (JSON/raw файл + lumberjack) — в `pro_impl/services/server/log_write_svc.go`.
+  the single write point; writes to the DB and to `pro_interfaces.LogWriteService.WriteEventLog`.
+- `pro_interfaces/log_write_svc.go:5-17` — the `LogWriteService` interface and
+  `EventLogRecord`. The OSS implementation is a stub (`pro/services/server/log_write_svc.go`),
+  the working one (JSON/raw file + lumberjack) is in `pro_impl/services/server/log_write_svc.go`.
 - `util/config.go:290-311` — `EventLogType`/`TaskLogType` (env
   `SEMAPHORE_EVENT_LOG_*`); `util/config.go:320-326` — `SyslogConfig`.
-- Миграции: `db/sql/migrations/v2.20.0.sql`, регистрация в
+- Migrations: `db/sql/migrations/v2.20.0.sql`, registered in
   `db/Migration.go:GetMigrations`.
 
 ## 3. Design
 
-Принцип (стандарт де-факто по AWX/Rundeck + OWASP): **единый словарь
-аудит-событий → одна точка эмиссии → несколько эмиттеров**.
+Principle (de-facto standard per AWX/Rundeck + OWASP): **a single vocabulary of
+audit events → a single emission point → multiple emitters**.
 
-### 3.1 Словарь событий
+### 3.1 Event vocabulary
 
-Действия расширяются с create/update/delete до:
+Actions are extended from create/update/delete to:
 
 ```go
 // api/helpers/event_log.go
@@ -80,38 +80,38 @@ const (
 )
 ```
 
-Новый тип объекта: `EventSession EventObjectType = "session"` (в
-`db/Event.go` рядом с остальными константами).
+New object type: `EventSession EventObjectType = "session"` (in
+`db/Event.go` next to the other constants).
 
-### 3.2 Обогащение Event
+### 3.2 Event enrichment
 
-`db.Event` получает `Action`, `IP`, `UserAgent`; всё заполняется в
-`helpers.EventLog` из `*http.Request` — вызывающий код не меняется.
+`db.Event` gets `Action`, `IP`, `UserAgent`; everything is filled in
+`helpers.EventLog` from `*http.Request` — calling code does not change.
 
-### 3.3 OSS / Pro split (продуктовое решение)
+### 3.3 OSS / Pro split (product decision)
 
-Следуем модели Rundeck и текущему split'у репозитория:
+We follow the Rundeck model and the current repository split:
 
-- **OSS**: обогащённые события в БД (action/IP/UA), auth-события,
-  user/token CRUD. Это закрывает доверие/basics.
-- **Pro** (`pro_impl/`): файловый JSON-лог уже есть; добавляется
-  **generic HTTP-вебхук аудита** (совместимый со Splunk HEC) —
-  асинхронный, с ретраями, отказ доставки не влияет на запрос.
-- Syslog RFC 5424 уже есть в OSS для всего лога; отдельный audit-канал в
-  syslog не делаем в этой версии (события и так попадают в logrus-поток
-  через `event.ToFields()` — этого достаточно; выделенный канал/CEF —
-  кандидат на следующую версию, если будет спрос).
+- **OSS**: enriched events in the DB (action/IP/UA), auth events,
+  user/token CRUD. This covers trust/basics.
+- **Pro** (`pro_impl/`): the file JSON log already exists; we add a
+  **generic HTTP audit webhook** (compatible with Splunk HEC) —
+  asynchronous, with retries; a delivery failure does not affect the request.
+- Syslog RFC 5424 already exists in OSS for the whole log; we do not build a
+  dedicated audit channel in syslog in this version (events already reach the logrus
+  stream via `event.ToFields()` — that is sufficient; a dedicated channel/CEF is
+  a candidate for the next version if there is demand).
 
 ## 4. Tasks
 
-### Task 1 — Миграция и модель: action, ip, user_agent в event
+### Task 1 — Migration and model: action, ip, user_agent in event
 
 **Files:**
 - Create: `db/sql/migrations/v2.20.1.sql`
-- Modify: `db/Migration.go` (добавить `{Version: "2.20.1"}` в список),
-  `db/Event.go`, `db/sql/event.go` (bolt-хранилища в репо нет — только SQL)
+- Modify: `db/Migration.go` (add `{Version: "2.20.1"}` to the list),
+  `db/Event.go`, `db/sql/event.go` (there is no bolt storage in the repo — SQL only)
 
-**Миграция** (`v2.20.1.sql`):
+**Migration** (`v2.20.1.sql`):
 
 ```sql
 alter table event add `action` varchar(20) null;
@@ -119,7 +119,7 @@ alter table event add `ip` varchar(45) null;
 alter table event add `user_agent` varchar(255) null;
 ```
 
-**Модель** (`db/Event.go`, добавить в `Event`):
+**Model** (`db/Event.go`, add to `Event`):
 
 ```go
 Action    *string `db:"action" json:"action"`
@@ -127,8 +127,8 @@ IP        *string `db:"ip" json:"ip"`
 UserAgent *string `db:"user_agent" json:"user_agent"`
 ```
 
-`db/sql/event.go:CreateEvent` — расширить INSERT новыми колонками и
-заодно починить потерю `integration_id`:
+`db/sql/event.go:CreateEvent` — extend the INSERT with the new columns and
+fix the loss of `integration_id` at the same time:
 
 ```go
 _, err = d.exec(
@@ -137,18 +137,18 @@ _, err = d.exec(
     evt.Description, created, evt.Action, evt.IP, evt.UserAgent)
 ```
 
-**Test:** `db/sql/event_test.go` — CreateEvent сохраняет и возвращает
-action/ip/user_agent и integration_id (по образцу существующих sql-тестов;
+**Test:** `db/sql/event_test.go` — CreateEvent stores and returns
+action/ip/user_agent and integration_id (following the existing sql tests;
 testify, `require.NoError`).
 
-### Task 2 — helpers.EventLog: заполнение новых полей из запроса
+### Task 2 — helpers.EventLog: filling the new fields from the request
 
 **Files:**
 - Modify: `api/helpers/event_log.go`, `pro_interfaces/log_write_svc.go`,
-  `pro/services/server/log_write_svc.go` (заглушка — сигнатуры не меняются),
-  `pro_impl/services/server/log_write_svc.go` (запись новых полей в JSON/raw)
+  `pro/services/server/log_write_svc.go` (stub — signatures do not change),
+  `pro_impl/services/server/log_write_svc.go` (write the new fields to JSON/raw)
 
-В `EventLog` перед записью:
+In `EventLog` before writing:
 
 ```go
 func extractClientIP(r *http.Request) string {
@@ -172,7 +172,7 @@ event.IP = &ip
 event.UserAgent = &ua
 ```
 
-`EventLogRecord` (`pro_interfaces/log_write_svc.go`) дополнить:
+Extend `EventLogRecord` (`pro_interfaces/log_write_svc.go`):
 
 ```go
 IP        string `json:"ip,omitempty"`
@@ -181,22 +181,22 @@ ObjectType *string `json:"object_type,omitempty"`
 ObjectID   *int    `json:"object_id,omitempty"`
 ```
 
-(сейчас в файловый лог не попадают даже object_type/object_id — добавить.)
+(Currently not even object_type/object_id reach the file log — add them.)
 
-**Test:** `api/helpers/event_log_test.go` — httptest-запрос с `X-Real-IP`
-и `User-Agent`; mock store; проверить, что `CreateEvent` получил
-заполненные Action/IP/UserAgent.
+**Test:** `api/helpers/event_log_test.go` — httptest request with `X-Real-IP`
+and `User-Agent`; mock store; verify that `CreateEvent` received
+populated Action/IP/UserAgent.
 
-### Task 3 — Auth-события: login/logout/fail
+### Task 3 — Auth events: login/logout/fail
 
 **Files:**
-- Modify: `api/login.go`, `db/Event.go` (константа `EventSession`),
-  `api/helpers/event_log.go` (константы login_success/login_fail/logout)
+- Modify: `api/login.go`, `db/Event.go` (the `EventSession` constant),
+  `api/helpers/event_log.go` (the login_success/login_fail/logout constants)
 
-Точки вставки:
+Insertion points:
 
-1. `login(w, r)` (`api/login.go:292`) — после успешной аутентификации
-   (перед/после `createSession`):
+1. `login(w, r)` (`api/login.go:292`) — after successful authentication
+   (before/after `createSession`):
    ```go
    helpers.EventLog(r, helpers.EventLogLoginSuccess, helpers.EventLogItem{
        UserID:      user.ID,
@@ -205,36 +205,36 @@ ObjectID   *int    `json:"object_id,omitempty"`
        Description: fmt.Sprintf("User %s logged in", user.Username),
    })
    ```
-   На каждой ветке отказа (неверный пароль, user not found, LDAP fail) —
-   `EventLogLoginFail` с login из запроса в Description. **Не логировать
-   пароль.** Для "user not found" UserID остаётся 0 (не пишется).
+   On every failure branch (wrong password, user not found, LDAP fail) —
+   `EventLogLoginFail` with the login from the request in Description. **Never log
+   the password.** For "user not found" UserID stays 0 (not written).
 2. `logout` (`api/login.go:455`) — `EventLogLogout`.
-3. OIDC-callback (обработчик после `oidcLogin`/redirect, там где вызывается
-   `createSession` для OIDC-пользователя) — те же login_success/login_fail.
-4. Неудачная TOTP-проверка (обработчик verify в `api/auth.go` /
-   `api/login.go`, найти по `SessionVerificationTotp`) — `EventLogLoginFail`
-   с Description "MFA verification failed".
+3. OIDC callback (the handler after `oidcLogin`/redirect, where
+   `createSession` is called for the OIDC user) — the same login_success/login_fail.
+4. Failed TOTP verification (the verify handler in `api/auth.go` /
+   `api/login.go`, look for `SessionVerificationTotp`) — `EventLogLoginFail`
+   with Description "MFA verification failed".
 
-Замечание: события уровня инстанса (ProjectID == 0) не видны не-админам в
-`/events` — это корректно (`api/events.go:21-23`).
+Note: instance-level events (ProjectID == 0) are not visible to non-admins in
+`/events` — this is correct (`api/events.go:21-23`).
 
-**Test:** `api/login_test.go` — существующие тестовые хелперы логина;
-проверить, что после неверного пароля в store появилось событие с
-action=login_fail и IP.
+**Test:** `api/login_test.go` — use the existing login test helpers;
+verify that after a wrong password an event with
+action=login_fail and an IP appeared in the store.
 
-### Task 4 — События глобального CRUD пользователей и API-токенов
+### Task 4 — Events for global CRUD of users and API tokens
 
 **Files:**
 - Modify: `api/users.go` (AddUser, UpdateUser, UpdateUserPassword,
   DeleteUser, DeleteUserIdentity), `api/user.go` (createAPIToken,
   deleteAPIToken)
-- Modify: `db/Event.go` — новый тип `EventAPIToken EventObjectType = "api_token"`
+- Modify: `db/Event.go` — new type `EventAPIToken EventObjectType = "api_token"`
 
-Образец (AddUser, после успешного создания):
+Example (AddUser, after successful creation):
 
 ```go
 helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
-    UserID:      editor.ID, // кто совершил действие
+    UserID:      editor.ID, // who performed the action
     ObjectType:  db.EventUser,
     ObjectID:    newUser.ID,
     Description: fmt.Sprintf("User %s created", newUser.Username),
@@ -242,27 +242,27 @@ helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
 ```
 
 - UpdateUserPassword → Description "Password changed for user %s"
-  (сам пароль — никогда).
-- createAPIToken/deleteAPIToken → ObjectType `api_token`, Description без
-  значения токена, только ID.
+  (never the password itself).
+- createAPIToken/deleteAPIToken → ObjectType `api_token`, Description without
+  the token value, only the ID.
 
-**Test:** дополнить `api/users_test.go` (или создать) — AddUser пишет
-событие create с ObjectType user.
+**Test:** extend `api/users_test.go` (or create it) — AddUser writes a
+create event with ObjectType user.
 
 ### Task 5 (Pro) — Audit webhook emitter (generic HTTP / Splunk HEC)
 
-**Files (в `pro_impl/`, отдельный репо!):**
+**Files (in `pro_impl/`, a separate repo!):**
 - Create: `pro_impl/services/server/audit_webhook_svc.go` + `_test.go`
-- Modify: `pro_impl/services/server/log_write_svc.go` — после записи в
-  файл отдать запись в webhook-эмиттер
-- Modify (OSS): `util/config.go` — конфиг:
+- Modify: `pro_impl/services/server/log_write_svc.go` — after writing to
+  the file, hand the record to the webhook emitter
+- Modify (OSS): `util/config.go` — config:
 
 ```go
-// util/config.go, в ConfigLog:
+// util/config.go, in ConfigLog:
 type AuditWebhookConfig struct {
     Enabled  bool              `json:"enabled" env:"SEMAPHORE_AUDIT_WEBHOOK_ENABLED"`
     URL      string            `json:"url" env:"SEMAPHORE_AUDIT_WEBHOOK_URL"`
-    // Заголовки авторизации, например:
+    // Authorization headers, for example:
     //   Authorization: "Splunk <hec-token>"  → Splunk HEC
     //   Authorization: "Bearer <token>"      → generic
     Headers  map[string]string `json:"headers" env:"SEMAPHORE_AUDIT_WEBHOOK_HEADERS"`
@@ -271,47 +271,47 @@ type AuditWebhookConfig struct {
 }
 ```
 
-Требования к эмиттеру (из research, стандарт AWX/Rundeck):
+Emitter requirements (from research, the AWX/Rundeck standard):
 
-- Асинхронно: буферизованный канал (ёмкость ~1000) + одна горутина-отправитель;
-  `EventLog` никогда не блокируется и не возвращает ошибку доставки.
-- Ретраи: 3 попытки с backoff (1s/5s/30s); после — запись теряется с
-  logrus-warn. `// ponytail: in-memory буфер, дисковая очередь — если попросят`.
-- Формат `splunk_hec`: конверт `{"time": <unix>, "event": {...}, "sourcetype": "semaphore:audit"}`
-  POST на `<url>/services/collector/event`.
-- Формат `json`: POST записи as-is.
-- Санитизация: CR/LF в Description заменяются пробелом.
-- Graceful shutdown: дослать буфер при остановке сервера (с таймаутом 5s).
+- Asynchronous: a buffered channel (capacity ~1000) + a single sender goroutine;
+  `EventLog` never blocks and never returns a delivery error.
+- Retries: 3 attempts with backoff (1s/5s/30s); after that the record is dropped with
+  a logrus warn. `// ponytail: in-memory buffer; a disk queue — if requested`.
+- `splunk_hec` format: envelope `{"time": <unix>, "event": {...}, "sourcetype": "semaphore:audit"}`
+  POSTed to `<url>/services/collector/event`.
+- `json` format: POST the record as-is.
+- Sanitization: CR/LF in Description are replaced with a space.
+- Graceful shutdown: flush the buffer on server stop (with a 5s timeout).
 
-**Test:** httptest.Server как приёмник; проверить конверт HEC, ретрай при
-500, отсутствие блокировки при недоступном приёмнике.
+**Test:** httptest.Server as the receiver; verify the HEC envelope, retry on
+500, and no blocking when the receiver is unavailable.
 
-### Task 6 — Документация и схема конфига
+### Task 6 — Documentation and config schema
 
 **Files:**
-- Modify: `config.schema.yaml` — новые поля `log.audit_webhook.*`
-  (использовать skill `semaphore-config-schema`)
-- Modify: `api-docs.yml` / swagger-описание Event (новые поля action/ip/user_agent)
-- Modify: docs `admin-guide` — страница про SIEM-интеграцию: таблица
-  «канал → формат → как подключить Splunk/Elastic/Wazuh»
-- Frontend: `web/src/views/project/Activity.vue` (или где рендерится
-  Activity) — показать action и IP в списке событий (опционально, можно
-  отдельной задачей)
+- Modify: `config.schema.yaml` — new fields `log.audit_webhook.*`
+  (use the `semaphore-config-schema` skill)
+- Modify: `api-docs.yml` / swagger description of Event (new fields action/ip/user_agent)
+- Modify: docs `admin-guide` — a page about SIEM integration: a table
+  "channel → format → how to connect Splunk/Elastic/Wazuh"
+- Frontend: `web/src/views/project/Activity.vue` (or wherever Activity is
+  rendered) — show action and IP in the event list (optional, can be a
+  separate task)
 
-## 5. Out of Scope (осознанно, кандидаты на 2.21+)
+## 5. Out of Scope (deliberately, candidates for 2.21+)
 
-- CEF/LEEF-форматтер и выделенный audit-канал в syslog — только при спросе
-  (QRadar-клиенты).
-- Before/after (diff) в событиях изменения объектов.
-- Дисковая очередь для вебхука (сейчас — in-memory буфер).
-- Retention/архивация таблицы `event`.
-- События доступа к секретам на чтение (secret access trail) — в roadmap
-  Enterprise (#3410-смежное), отдельный план.
+- CEF/LEEF formatter and a dedicated audit channel in syslog — only on demand
+  (QRadar customers).
+- Before/after (diff) in object change events.
+- Disk queue for the webhook (currently an in-memory buffer).
+- Retention/archiving of the `event` table.
+- Secret read-access events (secret access trail) — on the Enterprise
+  roadmap (related to #3410), separate plan.
 
-## 6. Порядок и зависимости
+## 6. Order and dependencies
 
-Task 1 → Task 2 → (Task 3, Task 4 — независимы, параллельно) → Task 5
-(зависит от Task 2 по полям EventLogRecord) → Task 6.
+Task 1 → Task 2 → (Task 3, Task 4 — independent, in parallel) → Task 5
+(depends on Task 2 for the EventLogRecord fields) → Task 6.
 
-Каждая задача — отдельный коммит(ы) `feat(audit): ...`, тесты по
-правилам `.claude/CLAUDE.md` (testify, таблично-управляемые где уместно).
+Each task is a separate commit(s) `feat(audit): ...`, tests per the
+rules in `.claude/CLAUDE.md` (testify, table-driven where appropriate).

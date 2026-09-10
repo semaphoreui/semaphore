@@ -9,7 +9,7 @@ import (
 )
 
 func TestCreateEvent_StoresAuditFields(t *testing.T) {
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 
 	user, err := store.CreateUserWithoutPassword(db.User{
 		Username: "auditor", Name: "Auditor", Email: "auditor@example.com",

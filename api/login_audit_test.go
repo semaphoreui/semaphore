@@ -16,7 +16,7 @@ import (
 )
 
 func setupAuthTestStore() *sql.SqlDb {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	util.Config.Mfa = &util.MultifactorAuthConfig{Totp: &util.TotpConfig{}}
 	util.Cookie = securecookie.New(
 		securecookie.GenerateRandomKey(32),
