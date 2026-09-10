@@ -612,7 +612,33 @@ func TestExecutorFactory_ProviderRouting(t *testing.T) {
 	})
 
 	t.Run("Kubernetes executor provider routing", func(t *testing.T) {
-		provider, err := newExecutorProvider(&util.ExecutorConfig{Type: util.ExecutorTypeKubernetes}, nil)
+		// The proprietary provider builds a Kubernetes REST config at construction time.
+		// Without a kubeconfig it falls back to in-cluster mode, which fails outside a
+		// cluster. Point it at a minimal kubeconfig so construction succeeds without
+		// contacting any API server; the OSS stub ignores the config entirely.
+		kubeconfigPath := filepath.Join(t.TempDir(), "kubeconfig")
+		require.NoError(t, os.WriteFile(kubeconfigPath, []byte(`apiVersion: v1
+kind: Config
+clusters:
+- name: test
+  cluster:
+    server: https://127.0.0.1:1
+contexts:
+- name: test
+  context:
+    cluster: test
+    user: test
+current-context: test
+users:
+- name: test
+  user:
+    token: test-token
+`), 0600))
+
+		provider, err := newExecutorProvider(&util.ExecutorConfig{
+			Type: util.ExecutorTypeKubernetes,
+			K8s:  util.RunnerK8sConfig{KubeconfigPath: kubeconfigPath},
+		}, nil)
 		if err != nil {
 			// In OSS build, stub correctly reports that the executor requires the proprietary build.
 			assert.Nil(t, provider)
