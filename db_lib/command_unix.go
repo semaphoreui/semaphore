@@ -27,18 +27,23 @@ func waitCommand(cmd *exec.Cmd, stopCh <-chan struct{}, logger task_logger.Logge
 		killProcessGroup(cmd, logger)
 		return err
 	case <-stopCh:
-		return stopCommand(cmd, waitCh, logger)
+		return stopCommand(cmd, waitCh, logger, gracePeriod)
 	}
 }
 
-func stopCommand(cmd *exec.Cmd, exitCh <-chan error, logger task_logger.Logger) error {
+func stopCommand(
+	cmd *exec.Cmd,
+	exitCh <-chan error,
+	logger task_logger.Logger,
+	termGracePeriod time.Duration,
+) error {
 	// Request a graceful shutdown for the process group.
 	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil &&
 		!errors.Is(err, syscall.ESRCH) {
 		logger.Logf("failed to send SIGTERM to process group: %v", err)
 	}
 
-	timer := time.NewTimer(gracePeriod)
+	timer := time.NewTimer(termGracePeriod)
 	defer timer.Stop()
 
 	var exitErr error
@@ -51,8 +56,8 @@ func stopCommand(cmd *exec.Cmd, exitCh <-chan error, logger task_logger.Logger) 
 
 	killProcessGroup(cmd, logger)
 	if gracePeriodExpired {
-		// Kill the main process directly as well in case it moved out of the
-		// expected process group.
+		// Kill the main process directly as a fallback if it was not started as
+		// the leader of a dedicated process group.
 		if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 			logger.Logf("failed to kill process: %v", err)
 		}
