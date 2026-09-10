@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/random"
 )
 
@@ -600,7 +601,7 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 	if err == nil {
 		for _, p := range existingProjects {
 			if p.Name == project.Name { // exact name match
-				return nil, db.NewValidationError(fmt.Sprintf("project with name '%s' already exists", project.Name))
+				return nil, common_errors.NewValidationError(fmt.Sprintf("project with name '%s' already exists", project.Name))
 			}
 		}
 	}

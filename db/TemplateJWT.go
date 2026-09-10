@@ -8,6 +8,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -17,9 +19,9 @@ const maxJWTAudienceEntries = 32
 
 // TemplateJWTParams holds the JWT configuration for a template.
 type TemplateJWTParams struct {
-	Enabled  bool     `json:"enabled,omitempty"`
-	Audience []string `json:"audience,omitempty"`
-	TTL      string   `json:"ttl,omitempty"`
+	Enabled  bool         `json:"enabled,omitempty"`
+	Audience jwt.Audience `json:"audience,omitempty"`
+	TTL      string       `json:"ttl,omitempty"`
 }
 
 // Scan implements sql.Scanner so TemplateJWTParams can be read from the database.
@@ -73,23 +75,23 @@ func (p *TemplateJWTParams) Validate() error {
 	}
 
 	if len(p.Audience) > maxJWTAudienceEntries {
-		return &ValidationError{fmt.Sprintf("JWT audience must contain at most %d entries", maxJWTAudienceEntries)}
+		return common_errors.NewValidationError(fmt.Sprintf("JWT audience must contain at most %d entries", maxJWTAudienceEntries))
 	}
 	if slices.Contains(p.Audience, "") {
-		return &ValidationError{"JWT audience entries must not be empty"}
+		return common_errors.NewValidationError("JWT audience entries must not be empty")
 	}
 
 	if p.TTL != "" {
 		ttl, err := p.ParsedTTL()
 		if err != nil {
-			return &ValidationError{err.Error()}
+			return common_errors.NewValidationError(err.Error())
 		}
 		if ttl <= 0 {
-			return &ValidationError{"JWT TTL must be positive"}
+			return common_errors.NewValidationError("JWT TTL must be positive")
 		}
-		max := globalJWTMaxTTL()
-		if max > 0 && ttl > max {
-			return &ValidationError{fmt.Sprintf("JWT TTL %s exceeds configured maximum %s", ttl, max)}
+		maxTTL := globalJWTMaxTTL()
+		if maxTTL > 0 && ttl > maxTTL {
+			return common_errors.NewValidationError(fmt.Sprintf("JWT TTL %s exceeds configured maximum %s", ttl, maxTTL))
 		}
 	}
 

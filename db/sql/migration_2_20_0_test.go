@@ -11,7 +11,7 @@ import (
 func TestMigration_2_20_0_CreatesExternalIdentityTable(t *testing.T) {
 	// CreateTestStore (db/sql/SqlDb.go:124) sets util.Config, connects an
 	// in-memory sqlite (PRAGMA foreign_keys=ON) and runs db.Migrate(store, nil).
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 
 	user, err := store.CreateUserWithoutPassword(db.User{
 		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", External: true,

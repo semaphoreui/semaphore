@@ -20,13 +20,7 @@ import (
 )
 
 func TestRegisterRunner_InvalidTokenReturnsBadRequest(t *testing.T) {
-	prevCfg := util.Config
-	t.Cleanup(func() { util.Config = prevCfg })
-	util.Config = &util.ConfigType{
-		RunnerRegistrationToken: "global-reg-token",
-	}
-
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	body, err := json.Marshal(map[string]any{
 		"registration_token": "not-a-valid-token",
@@ -71,11 +65,12 @@ func TestUpdateRunner_StoppedTaskReportedAsTerminated(t *testing.T) {
 	prevCfg := util.Config
 	t.Cleanup(func() { util.Config = prevCfg })
 
-	store := sql.CreateTestStore() // also initializes util.Config
+	store := sql.InitConfigCreateTestStore() // also initializes util.Config
 
 	pool := tasks.CreateTaskPool(
 		store,
 		tasks.NewMemoryTaskStateStore(),
+		nil,
 		nil,
 		nil,
 		nil,
@@ -120,11 +115,12 @@ func TestUpdateRunner_UnknownTaskReportedAsTerminated(t *testing.T) {
 	prevCfg := util.Config
 	t.Cleanup(func() { util.Config = prevCfg })
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	pool := tasks.CreateTaskPool(
 		store,
 		tasks.NewMemoryTaskStateStore(),
+		nil,
 		nil,
 		nil,
 		nil,
@@ -152,11 +148,12 @@ func TestUpdateRunner_ReassignedTaskReportedAsTerminated(t *testing.T) {
 	prevCfg := util.Config
 	t.Cleanup(func() { util.Config = prevCfg })
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	pool := tasks.CreateTaskPool(
 		store,
 		tasks.NewMemoryTaskStateStore(),
+		nil,
 		nil,
 		nil,
 		nil,
@@ -204,11 +201,12 @@ func TestUpdateRunner_RunningTaskAcceptedWithoutTermination(t *testing.T) {
 	prevCfg := util.Config
 	t.Cleanup(func() { util.Config = prevCfg })
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	pool := tasks.CreateTaskPool(
 		store,
 		tasks.NewMemoryTaskStateStore(),
+		nil,
 		nil,
 		nil,
 		nil,
@@ -253,7 +251,7 @@ func TestRegisterRunner_NonSmrsTokenWithoutGlobalMatchReturnsBadRequest(t *testi
 		RunnerRegistrationToken: "global-reg-token",
 	}
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	body, err := json.Marshal(map[string]any{
 		"registration_token": "legacy-one-time-token-without-smrs-prefix",

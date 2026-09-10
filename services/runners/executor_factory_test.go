@@ -58,7 +58,7 @@ func TestNewExecutor_DispatchesToProvider(t *testing.T) {
 	require.NoError(t, err)
 
 	jobData := JobData{
-		Task:       db.Task{ID: 42},
+		Task:       db.Task{ID: 42, Secret: `{"passwd":"123456"}`},
 		Template:   db.Template{ID: 7, App: db.AppAnsible},
 		Inventory:  db.Inventory{ID: 3},
 		Repository: db.Repository{ID: 5},
@@ -75,6 +75,8 @@ func TestNewExecutor_DispatchesToProvider(t *testing.T) {
 	assert.Equal(t, 3, local.Inventory.ID)
 	assert.Equal(t, 5, local.Repository.ID)
 	assert.NotNil(t, local.App, "provider must populate App so Prepare has somewhere to install requirements")
+	assert.Equal(t, `{"passwd":"123456"}`, local.Secret,
+		"survey secrets delivered in the job payload must reach the executor")
 }
 
 func TestNewExecutor_RejectsNilProvider(t *testing.T) {

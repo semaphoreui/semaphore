@@ -15,7 +15,7 @@ func setupIdentityTest(t *testing.T, emailMatching string) db.Store {
 	t.Helper()
 	// IMPORTANT: CreateTestStore() overwrites util.Config (db/sql/SqlDb.go:124),
 	// so the option must be set AFTER creating the store.
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	util.Config.ExternalAuthEmailMatching = emailMatching
 	return store
 }

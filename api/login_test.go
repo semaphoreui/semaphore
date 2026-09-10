@@ -17,19 +17,48 @@ import (
 
 func TestEmailVerifiedClaim(t *testing.T) {
 	tests := []struct {
-		name     string
-		claims   map[string]any
-		expected bool
+		name          string
+		claims        map[string]any
+		expectedValue bool
+		expectedPres  bool
 	}{
-		{"bool true", map[string]any{"email_verified": true}, true},
-		{"bool false", map[string]any{"email_verified": false}, false},
-		{"string true", map[string]any{"email_verified": "true"}, true},
-		{"string false", map[string]any{"email_verified": "false"}, false},
-		{"absent claim is not verified", map[string]any{"email": "x@y.z"}, false},
+		{"bool true", map[string]any{"email_verified": true}, true, true},
+		{"bool false", map[string]any{"email_verified": false}, false, true},
+		{"string true", map[string]any{"email_verified": "true"}, true, true},
+		{"string false", map[string]any{"email_verified": "false"}, false, true},
+		{"absent claim", map[string]any{"email": "x@y.z"}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, emailVerifiedClaim(tt.claims))
+			value, present := emailVerifiedClaim(tt.claims)
+			assert.Equal(t, tt.expectedValue, value)
+			assert.Equal(t, tt.expectedPres, present)
+		})
+	}
+}
+
+func TestResolveEmailVerified(t *testing.T) {
+	tests := []struct {
+		name     string
+		claims   map[string]any
+		require  bool
+		expected bool
+	}{
+		// require_verified_email off (default): absent claim is trusted, but an
+		// explicit email_verified=false must NOT be trusted (takeover guard).
+		{"off, absent claim trusted", map[string]any{"email": "x@y.z"}, false, true},
+		{"off, explicit true", map[string]any{"email_verified": true}, false, true},
+		{"off, explicit false not trusted", map[string]any{"email_verified": false}, false, false},
+		{"off, string false not trusted", map[string]any{"email_verified": "false"}, false, false},
+		// require_verified_email on: claim must be explicitly present and true.
+		{"on, absent claim not trusted", map[string]any{"email": "x@y.z"}, true, false},
+		{"on, explicit true", map[string]any{"email_verified": true}, true, true},
+		{"on, explicit false", map[string]any{"email_verified": false}, true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := util.OidcProvider{RequireVerifiedEmail: tt.require}
+			assert.Equal(t, tt.expected, resolveEmailVerified(tt.claims, provider))
 		})
 	}
 }
@@ -255,4 +284,47 @@ func TestGenerateStateOauthCookieUniqueness(t *testing.T) {
 
 	// Verify states are different
 	assert.NotEqual(t, state1Str, state2Str, "Multiple calls should generate different state strings")
+}
+
+// Without web_host the redirect must stay rooted at the web root.
+func TestOidcSuccessRedirectURL(t *testing.T) {
+	tests := []struct {
+		name         string
+		webHost      string
+		redirectPath string
+		expected     string
+	}{
+		{"no web host keeps the path absolute", "", "/auth/login", "/auth/login"},
+		{"no web host adds the missing leading slash", "", "project/1", "/project/1"},
+		{"no web host with root path", "", "/", "/"},
+		{"web host is prepended", "http://localhost:3000", "/auth/login", "http://localhost:3000/auth/login"},
+		{"web host with sub path", "http://localhost:3000/semaphore", "/project/1", "http://localhost:3000/semaphore/project/1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := oidcSuccessRedirectURL(tt.webHost, tt.redirectPath)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, res)
+			assert.NotEmpty(t, res)
+		})
+	}
+}
+
+// The browser must not resolve the redirect against the callback path.
+func TestOidcSuccessRedirectURL_NotRelative(t *testing.T) {
+	callback, err := url.Parse("http://semaphore.example.com/api/auth/oidc/pocketid/redirect")
+	require.NoError(t, err)
+
+	res, err := oidcSuccessRedirectURL("", "/auth/login")
+	require.NoError(t, err)
+
+	location, err := url.Parse(res)
+	require.NoError(t, err)
+
+	assert.Equal(t,
+		"http://semaphore.example.com/auth/login",
+		callback.ResolveReference(location).String(),
+		"the browser must not resolve the redirect against the callback path")
 }

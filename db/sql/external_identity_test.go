@@ -9,7 +9,7 @@ import (
 )
 
 func TestExternalIdentityCRUD(t *testing.T) {
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 
 	user, err := store.CreateUserWithoutPassword(db.User{
 		Username: "jdoe",
@@ -71,7 +71,7 @@ func TestExternalIdentityCRUD(t *testing.T) {
 }
 
 func TestExternalIdentity_TypeSeparatesNamespaces(t *testing.T) {
-	store := CreateTestStore()
+	store := InitConfigCreateTestStore()
 
 	user, err := store.CreateUserWithoutPassword(db.User{
 		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", External: true,

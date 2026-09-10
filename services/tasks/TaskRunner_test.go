@@ -1,11 +1,11 @@
 package tasks
 
 import (
-	"math/rand"
 	"os"
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
@@ -13,6 +13,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/semaphoreui/semaphore/db_lib"
 
@@ -57,6 +58,18 @@ func (s *EncryptionServiceMock) FillEnvironmentSecrets(env *db.Environment, dese
 	return nil
 }
 
+func (s *EncryptionServiceMock) CreateTaskSurveySecrets(projectID int, taskID int, secrets string, expireAt time.Time) error {
+	return nil
+}
+
+func (s *EncryptionServiceMock) GetTaskSurveySecrets(projectID int, taskID int) (string, error) {
+	return "", nil
+}
+
+func (s *EncryptionServiceMock) DeleteTaskSurveySecrets(projectID int, taskID int) error {
+	return nil
+}
+
 type mockLogWriteService struct {
 }
 
@@ -73,7 +86,7 @@ func (l *mockLogWriteService) WriteResult(task any) error {
 
 func TestTaskRunnerRun(t *testing.T) {
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	keyInstaller := &KeyInstallerMock{}
 
 	pool := CreateTaskPool(
@@ -81,9 +94,10 @@ func TestTaskRunnerRun(t *testing.T) {
 		&MemoryTaskStateStore{},
 		nil,
 		&InventoryServiceMock{},
-		nil,
+		&EncryptionServiceMock{},
 		keyInstaller,
 		&mockLogWriteService{},
+		nil,
 		nil,
 	)
 
@@ -94,17 +108,13 @@ func TestTaskRunnerRun(t *testing.T) {
 	t.Cleanup(pool.Stop)
 
 	proj, err := store.CreateProject(db.Project{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	key, err := store.CreateAccessKey(db.AccessKey{
 		ProjectID: &proj.ID,
 		Type:      db.AccessKeyNone,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	repo, err := store.CreateRepository(db.Repository{
 		ProjectID: proj.ID,
@@ -113,16 +123,12 @@ func TestTaskRunnerRun(t *testing.T) {
 		GitURL:    "git@example.com:test/test",
 		GitBranch: "master",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	inv, err := store.CreateInventory(db.Inventory{
 		ProjectID: proj.ID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	tpl, err := store.CreateTemplate(db.Template{
 		Name:         "Test",
@@ -131,18 +137,13 @@ func TestTaskRunnerRun(t *testing.T) {
 		RepositoryID: repo.ID,
 		InventoryID:  &inv.ID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	task, err := store.CreateTask(db.Task{
 		ProjectID:  proj.ID,
 		TemplateID: tpl.ID,
 	}, 0)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	taskRunner := TaskRunner{
 		Task:         task,
@@ -213,9 +214,7 @@ func TestGetRepoPath(t *testing.T) {
 	}
 
 	dir := tsk.job.(*LocalExecutor).App.(*db_lib.AnsibleApp).GetPlaybookDir()
-	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
-		t.Fatal("Invalid playbook dir: " + dir)
-	}
+	assert.Equal(t, "/tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/deploy", dir)
 }
 
 func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
@@ -259,26 +258,20 @@ func TestGetRepoPath_whenStartsWithSlash(t *testing.T) {
 	}
 
 	dir := tsk.job.(*LocalExecutor).App.(*db_lib.AnsibleApp).GetPlaybookDir()
-	if dir != "/tmp/project_0/repository_0_template_0/deploy" {
-		t.Fatal("Invalid playbook dir: " + dir)
-	}
+	assert.Equal(t, "/tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/deploy", dir)
 }
 
 func TestPopulateDetails(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	key, err := store.CreateAccessKey(db.AccessKey{
 		ProjectID: &proj.ID,
 		Type:      db.AccessKeyNone,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	repo, err := store.CreateRepository(db.Repository{
 		ProjectID: proj.ID,
@@ -287,25 +280,19 @@ func TestPopulateDetails(t *testing.T) {
 		GitURL:    "git@example.com:test/test",
 		GitBranch: "master",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	inv, err := store.CreateInventory(db.Inventory{
 		ProjectID: proj.ID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	env, err := store.CreateEnvironment(db.Environment{
 		ProjectID: proj.ID,
 		Name:      "test",
 		JSON:      `{"author": "Denis", "comment": "Hello, World!"}`,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	tpl, err := store.CreateTemplate(db.Template{
 		Name:           "Test",
@@ -315,10 +302,7 @@ func TestPopulateDetails(t *testing.T) {
 		InventoryID:    &inv.ID,
 		EnvironmentIDs: []int{env.ID},
 	})
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	pool := TaskPool{
 		store:             store,
@@ -354,29 +338,23 @@ func TestPopulateDetails(t *testing.T) {
 	}
 
 	err = tsk.populateDetails()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, `{"author":"Denis","comment":"Just do it!","time":"2021-11-02"}`, tsk.Environment.JSON)
 
 }
 
 func TestPopulateDetailsInventory(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	key, err := store.CreateAccessKey(db.AccessKey{
 		ProjectID: &proj.ID,
 		Type:      db.AccessKeyNone,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	repo, err := store.CreateRepository(db.Repository{
 		ProjectID: proj.ID,
@@ -385,32 +363,24 @@ func TestPopulateDetailsInventory(t *testing.T) {
 		GitURL:    "git@example.com:test/test",
 		GitBranch: "master",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	inv, err := store.CreateInventory(db.Inventory{
 		ProjectID: proj.ID,
 		ID:        1,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	inv2, err := store.CreateInventory(db.Inventory{
 		ProjectID: proj.ID,
 		ID:        2,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	env, err := store.CreateEnvironment(db.Environment{
 		ProjectID: proj.ID,
 		Name:      "test",
 		JSON:      `{"author": "Denis", "comment": "Hello, World!"}`,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	tpl, err := store.CreateTemplate(db.Template{
 		Name:           "Test",
@@ -423,10 +393,7 @@ func TestPopulateDetailsInventory(t *testing.T) {
 			"allow_override_inventory": true,
 		},
 	})
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	pool := TaskPool{
 		store:             store,
@@ -462,30 +429,20 @@ func TestPopulateDetailsInventory(t *testing.T) {
 	}
 
 	err = tsk.populateDetails()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	//if tsk.Inventory.ID != 2 {
-	//	t.Fatal(err)
-	//}
+	require.NoError(t, err)
 }
 
 func TestPopulateDetailsInventory1(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	key, err := store.CreateAccessKey(db.AccessKey{
 		ProjectID: &proj.ID,
 		Type:      db.AccessKeyNone,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	repo, err := store.CreateRepository(db.Repository{
 		ProjectID: proj.ID,
@@ -494,25 +451,19 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 		GitURL:    "git@example.com:test/test",
 		GitBranch: "master",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	inv, err := store.CreateInventory(db.Inventory{
 		ProjectID: proj.ID,
 		ID:        1,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	env, err := store.CreateEnvironment(db.Environment{
 		ProjectID: proj.ID,
 		Name:      "test",
 		JSON:      `{"author": "Denis", "comment": "Hello, World!"}`,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	tpl, err := store.CreateTemplate(db.Template{
 		Name:           "Test",
@@ -522,10 +473,7 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 		InventoryID:    &inv.ID,
 		EnvironmentIDs: []int{env.ID},
 	})
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	pool := TaskPool{
 		store:             store,
@@ -560,13 +508,7 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 	}
 
 	err = tsk.populateDetails()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	//if tsk.Inventory.ID != 1 {
-	//	t.Fatal(err)
-	//}
+	require.NoError(t, err)
 }
 
 func TestTaskGetPlaybookArgs(t *testing.T) {
@@ -610,15 +552,9 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 	}
 
 	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
-		t.Fatal("incorrect result")
-	}
+	assert.Equal(t, "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml", strings.Join(args, " "))
 }
 
 func TestTaskGetPlaybookArgs2(t *testing.T) {
@@ -666,15 +602,9 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 	}
 
 	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
-		t.Fatal("incorrect result")
-	}
+	assert.Equal(t, "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml", strings.Join(args, " "))
 }
 
 func TestTaskGetPlaybookArgs3(t *testing.T) {
@@ -723,15 +653,9 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	}
 
 	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	res := strings.Join(args, " ")
-	if res != "-i /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} test.yml" {
-		t.Fatal("incorrect result")
-	}
+	assert.Equal(t, "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml", strings.Join(args, " "))
 }
 
 func TestCheckTmpDir(t *testing.T) {
@@ -739,40 +663,22 @@ func TestCheckTmpDir(t *testing.T) {
 		TmpPath: "/tmp",
 	}
 
-	//It should be able to create a random dir in /tmp
-	dirName := path.Join(os.TempDir(), util.RandString(rand.Intn(10-4)+4))
-	err := checkTmpDir(dirName)
-	if err != nil {
-		t.Fatal(err)
+	// It should be able to create a new dir inside the temp dir
+	dirName := path.Join(t.TempDir(), "tmp")
+	require.NoError(t, checkTmpDir(dirName))
+
+	// checking again for this directory should return no error, as it exists
+	require.NoError(t, checkTmpDir(dirName))
+
+	require.NoError(t, os.Chmod(dirName, os.FileMode(0550)))
+
+	stat, err := os.Stat(dirName)
+	require.NoError(t, err)
+	if stat.Mode() != os.FileMode(0550) {
+		t.Skip("file system does not support 0550 mode")
 	}
 
-	//checking again for this directory should return no error, as it exists
-	err = checkTmpDir(dirName)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = os.Chmod(dirName, os.FileMode(0550))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	//nolint: vetshadow
-	if stat, err := os.Stat(dirName); err != nil {
-		t.Fatal(err)
-	} else if stat.Mode() != os.FileMode(0550) {
-		// File System is not support 0550 mode, skip this test
-		return
-	}
-
-	err = checkTmpDir(dirName + "/noway")
-	if err == nil {
-		t.Fatal("You should not be able to write in this folder, causing an error")
-	}
-	err = os.Remove(dirName)
-	if err != nil {
-		t.Log(err)
-	}
+	assert.Error(t, checkTmpDir(dirName+"/noway"), "should not be able to write in this folder")
 }
 
 func TestTaskRunner_populateTaskEnvironment(t *testing.T) {
@@ -786,9 +692,7 @@ func TestTaskRunner_populateTaskEnvironment(t *testing.T) {
 	}
 
 	err := tsk.populateTaskEnvironment()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	assert.Equal(t, tsk.Environment.JSON, "{\"a\":11,\"b\":22,\"c\":33,\"d\":4}")
+	assert.Equal(t, "{\"a\":11,\"b\":22,\"c\":33,\"d\":4}", tsk.Environment.JSON)
 }

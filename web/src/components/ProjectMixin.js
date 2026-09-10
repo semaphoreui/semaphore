@@ -7,12 +7,13 @@ export default {
   },
 
   methods: {
-    async loadEndpoint(endpoint) {
+    async loadEndpoint(endpoint, opts) {
       return (
         await axios({
           method: 'get',
           url: endpoint,
           responseType: 'json',
+          ...opts,
         })
       ).data;
     },
@@ -21,8 +22,8 @@ export default {
       EventBus.$emit('i-subscription', { feature });
     },
 
-    async loadProjectEndpoint(endpoint) {
-      return this.loadEndpoint(`/api/project/${this.projectId}${endpoint}`);
+    async loadProjectEndpoint(endpoint, opts) {
+      return this.loadEndpoint(`/api/project/${this.projectId}${endpoint}`, opts);
     },
 
     async loadProjectResources(name) {

@@ -2,6 +2,8 @@ package db
 
 import (
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
 type WorkflowEdgeCondition string
@@ -18,6 +20,7 @@ const (
 	WorkflowNodeTaskKind     WorkflowNodeKind = "task"
 	WorkflowNodeApprovalKind WorkflowNodeKind = "approval"
 	WorkflowNodeNoteKind     WorkflowNodeKind = "note"
+	WorkflowNodeDelayKind    WorkflowNodeKind = "delay"
 )
 
 type WorkflowConvergenceMode string
@@ -57,7 +60,8 @@ type WorkflowNode struct {
 	TaskParamsID *int        `db:"task_params_id" json:"-" backup:"-"`
 	TaskParams   *TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`
 
-	Note *string `db:"note" json:"note,omitempty" backup:"note"`
+	Note         *string `db:"note" json:"note,omitempty" backup:"note"`
+	DelaySeconds *int    `db:"delay_seconds" json:"delay_seconds,omitempty" backup:"delay_seconds"`
 
 	PositionX int `db:"position_x" json:"position_x" backup:"position_x"`
 	PositionY int `db:"position_y" json:"position_y" backup:"position_y"`
@@ -71,6 +75,35 @@ type WorkflowEdge struct {
 	DestinationNodeID  int `db:"destination_node_id" json:"destination_node_id" backup:"destination_node_id"`
 
 	Condition WorkflowEdgeCondition `db:"condition" json:"condition" backup:"condition"`
+}
+
+type WorkflowDelayStatus string
+
+const (
+	WorkflowDelayWaiting WorkflowDelayStatus = "waiting"
+	WorkflowDelaySuccess WorkflowDelayStatus = "success"
+	WorkflowDelayStopped WorkflowDelayStatus = "stopped"
+)
+
+func (status WorkflowDelayStatus) Validate() error {
+	switch status {
+	case WorkflowDelayWaiting, WorkflowDelaySuccess, WorkflowDelayStopped:
+		return nil
+	default:
+		return common_errors.NewValidationError("workflow delay status is invalid")
+	}
+}
+
+type WorkflowDelay struct {
+	ID int `db:"id" json:"id" backup:"-"`
+
+	ProjectID      int                 `db:"project_id" json:"project_id" backup:"-"`
+	WorkflowRunID  int                 `db:"workflow_run_id" json:"workflow_run_id" backup:"workflow_run_id"`
+	WorkflowNodeID int                 `db:"workflow_node_id" json:"workflow_node_id" backup:"workflow_node_id"`
+	Status         WorkflowDelayStatus `db:"status" json:"status" backup:"status"`
+	ResumeAt       time.Time           `db:"resume_at" json:"resume_at" backup:"resume_at"`
+	Created        time.Time           `db:"created" json:"created" backup:"created"`
+	Resolved       *time.Time          `db:"resolved" json:"resolved,omitempty" backup:"resolved"`
 }
 
 type WorkflowRunStatus string
@@ -128,16 +161,19 @@ func (condition WorkflowEdgeCondition) Validate() error {
 	case WorkflowEdgeOnSuccess, WorkflowEdgeOnFailure, WorkflowEdgeAlways:
 		return nil
 	default:
-		return NewValidationError("workflow edge condition is invalid")
+		return common_errors.NewValidationError("workflow edge condition is invalid")
 	}
 }
 
 func (kind WorkflowNodeKind) Validate() error {
 	switch kind {
-	case WorkflowNodeTaskKind, WorkflowNodeApprovalKind, WorkflowNodeNoteKind:
+	case WorkflowNodeTaskKind,
+		WorkflowNodeApprovalKind,
+		WorkflowNodeNoteKind,
+		WorkflowNodeDelayKind:
 		return nil
 	default:
-		return NewValidationError("workflow node kind is invalid")
+		return common_errors.NewValidationError("workflow node kind is invalid")
 	}
 }
 
@@ -153,7 +189,7 @@ func (mode WorkflowConvergenceMode) Validate() error {
 	case WorkflowConvergenceAll, WorkflowConvergenceAny:
 		return nil
 	default:
-		return NewValidationError("workflow node convergence mode is invalid")
+		return common_errors.NewValidationError("workflow node convergence mode is invalid")
 	}
 }
 
@@ -169,7 +205,7 @@ func (status WorkflowApprovalStatus) Validate() error {
 	case WorkflowApprovalPending, WorkflowApprovalApproved, WorkflowApprovalRejected:
 		return nil
 	default:
-		return NewValidationError("workflow approval status is invalid")
+		return common_errors.NewValidationError("workflow approval status is invalid")
 	}
 }
 

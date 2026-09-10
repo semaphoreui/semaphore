@@ -3,6 +3,7 @@ package db
 import (
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
@@ -55,13 +56,13 @@ type UserWithPwd struct {
 
 func ValidateUser(user User) error {
 	if user.Username == "" {
-		return &ValidationError{Message: "Username cannot be empty"}
+		return &common_errors.ValidationError{Message: "Username cannot be empty"}
 	}
 	if user.Email == "" {
-		return &ValidationError{Message: "Email cannot be empty"}
+		return &common_errors.ValidationError{Message: "Email cannot be empty"}
 	}
 	if user.Name == "" {
-		return &ValidationError{Message: "Name cannot be empty"}
+		return &common_errors.ValidationError{Message: "Name cannot be empty"}
 	}
 	return nil
 }

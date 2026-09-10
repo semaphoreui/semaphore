@@ -10,4 +10,6 @@ type Features struct {
 	CustomRolesManagement     bool `json:"custom_roles_management"`
 	HighAvailability          bool `json:"high_availability"`
 	Workflows                 bool `json:"workflows"`
+	DockerExecutor            bool `json:"docker_executor"`
+	K8sExecutor               bool `json:"k8s_executor"`
 }

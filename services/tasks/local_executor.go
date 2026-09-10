@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"strings"
-
-	"path"
+	"path/filepath"
 	"strconv"
-
-	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -164,6 +162,14 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 		maps.Copy(extraVars, extraSecretVars)
 	}
 
+	// Survey vars with the "env" target are delivered as process environment
+	// variables (see getSurveyEnvVars), not as extra vars / CLI args.
+	for _, v := range t.Template.SurveyVars {
+		if v.Target == db.SurveyVarTargetEnv {
+			delete(extraVars, v.Name)
+		}
+	}
+
 	vars := make(map[string]any)
 	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
@@ -210,6 +216,59 @@ func (t *LocalExecutor) getEnvironmentENV() (res []string, err error) {
 
 	if t.JWT != "" {
 		res = append(res, fmt.Sprintf("SEMAPHORE_JWT=%s", t.JWT))
+	}
+
+	return
+}
+
+// formatVarValue renders a survey/extra var value for single-string contexts
+// (process env vars, terraform -var). Arrays and objects (produced by
+// multi-select survey vars) are JSON-encoded so lists survive the round-trip
+// instead of degrading to Go's fmt representation like "[1 2]". JSON is also
+// what terraform expects for list/object values passed via -var.
+func formatVarValue(val any) string {
+	switch v := val.(type) {
+	case string:
+		return v
+	case []any, map[string]any:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Sprintf("%v", v)
+		}
+		return string(b)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// getSurveyEnvVars returns NAME=value pairs for survey vars with Target "env".
+// Values are read from the merged task environment (Environment.JSON) and the
+// Secret field — the same sources getEnvironmentExtraVars reads, which excludes
+// these vars so each one is delivered exactly once.
+func (t *LocalExecutor) getSurveyEnvVars() (res []string, err error) {
+	vars := make(map[string]any)
+
+	if t.Environment.JSON != "" {
+		if err = json.Unmarshal([]byte(t.Environment.JSON), &vars); err != nil {
+			return
+		}
+	}
+
+	if t.Secret != "" {
+		secretVars := make(map[string]any)
+		if err = json.Unmarshal([]byte(t.Secret), &secretVars); err != nil {
+			return
+		}
+		maps.Copy(vars, secretVars)
+	}
+
+	for _, v := range t.Template.SurveyVars {
+		if v.Target != db.SurveyVarTargetEnv {
+			continue
+		}
+		if val, ok := vars[v.Name]; ok {
+			res = append(res, fmt.Sprintf("%s=%s", v.Name, formatVarValue(val)))
+		}
 	}
 
 	return
@@ -281,7 +340,7 @@ func (t *LocalExecutor) getShellArgs(username string, incomingVersion *string) (
 	// Include ExtraVars and Survey Vars
 	for name, value := range extraVars {
 		if name != "semaphore_vars" {
-			args = append(args, fmt.Sprintf("%s=%s", name, value))
+			args = append(args, fmt.Sprintf("%s=%s", name, formatVarValue(value)))
 		}
 	}
 
@@ -322,7 +381,7 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 		if name == "semaphore_vars" {
 			continue
 		}
-		varArgs = append(varArgs, "-var", fmt.Sprintf("%s=%s", name, value))
+		varArgs = append(varArgs, "-var", fmt.Sprintf("%s=%s", name, formatVarValue(value)))
 	}
 
 	templateArgsMap, taskArgsMap, err := t.getCLIArgsMap()
@@ -375,32 +434,18 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 
 // nolint: gocyclo
 func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string) (args []string, inputs map[string]string, err error) {
-
 	inputMap := make(map[db.AccessKeyRole]string)
 	inputs = make(map[string]string)
 
-	playbookName := t.Task.Playbook
-	if playbookName == "" {
-		playbookName = t.Template.Playbook
-	}
+	playbookFile := t.resolvePlaybookFile()
 
-	var inventoryFilename string
-	switch t.Inventory.Type {
-	case db.InventoryFile:
-		if t.Inventory.RepositoryID == nil {
-			inventoryFilename = t.Inventory.GetFilename()
-		} else {
-			inventoryFilename = path.Join(t.tmpInventoryFullPath(), t.Inventory.GetFilename())
-		}
-	case db.InventoryStatic, db.InventoryStaticYaml:
-		inventoryFilename = t.tmpInventoryFullPath()
-	default:
-		err = fmt.Errorf("invalid inventory type")
+	inventoryFile, err := t.resolveInventoryFile()
+	if err != nil {
 		return
 	}
 
 	args = []string{
-		"-i", inventoryFilename,
+		"--inventory", inventoryFile,
 	}
 
 	if t.Inventory.SSHKeyID != nil {
@@ -467,11 +512,11 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		args = append(args, "-"+strings.Repeat("v", params.DebugLevel))
 	}
 
-	if params.Diff {
+	if !tplParams.HideDiff && params.Diff {
 		args = append(args, "--diff")
 	}
 
-	if params.DryRun {
+	if !tplParams.HideDryRun && params.DryRun {
 		args = append(args, "--check")
 	}
 
@@ -553,7 +598,7 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 
 	args = append(args, templateArgs...)
 	args = append(args, taskArgs...)
-	args = append(args, playbookName)
+	args = append(args, playbookFile)
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleUser]; ok {
 		inputs["SSH password:"] = line
@@ -568,6 +613,31 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 	}
 
 	return
+}
+
+func (t *LocalExecutor) resolvePlaybookFile() string {
+	playbook := t.Task.Playbook
+	if playbook == "" {
+		playbook = t.Template.Playbook
+	}
+
+	root := t.Repository.GetFullPath(t.Template.ID)
+	return filepath.Join(root, playbook)
+}
+
+func (t *LocalExecutor) resolveInventoryFile() (string, error) {
+	switch t.Inventory.Type {
+	case db.InventoryFile:
+		root := t.Repository.GetFullPath(t.Template.ID)
+		if t.Inventory.RepositoryID != nil {
+			root = t.tmpInventoryFullPath()
+		}
+		return filepath.Join(root, t.Inventory.GetFilename()), nil
+	case db.InventoryStatic, db.InventoryStaticYaml:
+		return t.tmpInventoryFullPath(), nil
+	default:
+		return "", fmt.Errorf("invalid inventory type")
+	}
 }
 
 func (t *LocalExecutor) getCLIArgs() (templateArgs []string, taskArgs []string, err error) {
@@ -734,6 +804,12 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		return
 	}
 
+	surveyEnvVars, err := t.getSurveyEnvVars()
+	if err != nil {
+		return
+	}
+	environmentVariables = append(environmentVariables, surveyEnvVars...)
+
 	tplParams, err := t.getTemplateParams()
 	if err != nil {
 		return
@@ -831,8 +907,8 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		environmentVariables = append(environmentVariables, t.getShellEnvironmentExtraENV(username, incomingVersion)...)
 	}
 
-	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil {
-		environmentVariables = append(environmentVariables, fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile))
+	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
+		environmentVariables = append(environmentVariables, sshEnv)
 	}
 
 	if t.Template.Type != db.TemplateTask {
@@ -895,6 +971,13 @@ func resolveGitBranch(repoBranch string, template db.Template, task db.Task) str
 	return branch
 }
 
+// withEffectiveBranch settles the branch before the App is built, so the App
+// and Git operations use the same branch-specific checkout directory.
+func withEffectiveBranch(repository db.Repository, template db.Template, task db.Task) db.Repository {
+	repository.GitBranch = resolveGitBranch(repository.GitBranch, template, task)
+	return repository
+}
+
 func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs) error {
 
 	t.Log("Preparing: " + strconv.Itoa(t.Task.ID))
@@ -915,8 +998,6 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 		}
 	}
 
-	t.Repository.GitBranch = resolveGitBranch(t.Repository.GitBranch, t.Template, t.Task)
-
 	if t.Repository.GetType() == db.RepositoryLocal {
 		localPath := t.Repository.GetGitURL(true)
 		if _, err := os.Stat(localPath); err != nil {
@@ -932,6 +1013,10 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 	if err := t.installInventory(); err != nil {
 		t.Log("Failed to install inventory: " + err.Error())
 		return err
+	}
+
+	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
+		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
 	}
 
 	if err := t.App.InstallRequirements(installingArgs); err != nil {
@@ -967,8 +1052,6 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 		}
 	}
 
-	t.Repository.GitBranch = resolveGitBranch(t.Repository.GitBranch, t.Template, t.Task)
-
 	if t.Repository.GetType() == db.RepositoryLocal {
 		localPath := t.Repository.GetGitURL(true)
 		if _, err := os.Stat(localPath); err != nil {
@@ -986,6 +1069,10 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 		return err
 	}
 
+	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
+		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
+	}
+
 	// Call Terraform-specific install with init args
 	if err := tfApp.InstallRequirementsWithInitArgs(installingArgs, initArgs); err != nil {
 		t.Log("Failed to install requirements: " + err.Error())
@@ -1001,8 +1088,8 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 }
 
 // updateAndCheckoutRepository runs the pull/clone + checkout sequence as one
-// critical section per repository directory, so parallel tasks of the same
-// template cannot run concurrent git operations on the shared working copy.
+// critical section per repository directory, so parallel tasks using the same
+// branch checkout cannot run concurrent git operations.
 //
 // ponytail: the lock covers git operations only; parallel tasks pinned to
 // different commits still share the working tree afterwards — per-task
@@ -1128,4 +1215,11 @@ func (t *LocalExecutor) installVaultKeyFiles() (err error) {
 	}
 
 	return
+}
+
+func (t *LocalExecutor) getSSHAgentEnv() string {
+	if t.Inventory.SSHKey.Type == db.AccessKeySSH && t.Inventory.SSHKeyID != nil && t.sshKeyInstallation.SSHAgent != nil {
+		return fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile)
+	}
+	return ""
 }

@@ -32,6 +32,23 @@ func TestExtract_HeaderAndCaseInsensitive(t *testing.T) {
 	require.Equal(t, "abc123", got["TOKEN"], "TOKEN header value should match")
 }
 
+func TestExtract_JSONBody_ObjectPreservedAsMap(t *testing.T) {
+	payload := []byte(`{"data":{"id":2,"name":"test"}}`)
+	values := []db.IntegrationExtractValue{
+		{
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "data",
+			Variable:     "DATA",
+		},
+	}
+	got := Extract(values, http.Header{}, payload)
+	dataVal, ok := got["DATA"].(map[string]interface{})
+	require.True(t, ok, "DATA should be a map[string]interface{}, got %T: %v", got["DATA"], got["DATA"])
+	assert.Equal(t, float64(2), dataVal["id"])
+	assert.Equal(t, "test", dataVal["name"])
+}
+
 func TestExtract_JSONBody_VariousTypesAndMissing(t *testing.T) {
 	payload := []byte(`{
 		"num": 42,
@@ -44,7 +61,7 @@ func TestExtract_JSONBody_VariousTypesAndMissing(t *testing.T) {
 	}`)
 
 	values := []db.IntegrationExtractValue{
-		{ // number coerced to string via fmt.Sprintf
+		{ // number is preserved as float64 (JSON number)
 			ValueSource:  db.IntegrationExtractBodyValue,
 			BodyDataType: db.IntegrationBodyDataJSON,
 			Key:          "num",
@@ -56,7 +73,7 @@ func TestExtract_JSONBody_VariousTypesAndMissing(t *testing.T) {
 			Key:          "str",
 			Variable:     "STR",
 		},
-		{ // boolean -> "true"
+		{ // boolean is preserved as bool
 			ValueSource:  db.IntegrationExtractBodyValue,
 			BodyDataType: db.IntegrationBodyDataJSON,
 			Key:          "bool",
@@ -68,13 +85,13 @@ func TestExtract_JSONBody_VariousTypesAndMissing(t *testing.T) {
 			Key:          "nullv",
 			Variable:     "NULLV",
 		},
-		{ // array will be formatted with %v, expect Go-like format
+		{ // array is preserved as []interface{}
 			ValueSource:  db.IntegrationExtractBodyValue,
 			BodyDataType: db.IntegrationBodyDataJSON,
 			Key:          "arr",
 			Variable:     "ARR",
 		},
-		{ // object -> formatted map with %v
+		{ // object is preserved as map[string]interface{}
 			ValueSource:  db.IntegrationExtractBodyValue,
 			BodyDataType: db.IntegrationBodyDataJSON,
 			Key:          "obj",
@@ -102,24 +119,27 @@ func TestExtract_JSONBody_VariousTypesAndMissing(t *testing.T) {
 
 	got := Extract(values, http.Header{}, payload)
 
-	// Basic scalar assertions
-	assert.Equal(t, "42", got["NUM"], "NUM should equal stringified number")
+	// Scalars are preserved as their native Go types (JSON number → float64, string → string, bool → bool)
+	assert.Equal(t, float64(42), got["NUM"], "NUM should be float64(42)")
 	assert.Equal(t, "hello", got["STR"], "STR should match")
-	assert.Equal(t, "true", got["BOOL"], "BOOL should be string 'true'")
+	assert.Equal(t, true, got["BOOL"], "BOOL should be bool true")
 
 	// Indexed lookups
-	assert.Equal(t, "123", got["NESTED_C"], "NESTED_C should equal nested.items[0].c")
-	assert.Equal(t, "1", got["ARR0"], "ARR0 should equal arr[0]")
+	assert.Equal(t, float64(123), got["NESTED_C"], "NESTED_C should equal nested.items[0].c as float64")
+	assert.Equal(t, float64(1), got["ARR0"], "ARR0 should equal arr[0] as float64")
 
 	// Null should be absent
 	assert.NotContains(t, got, "NULLV", "NULLV should not be present for null JSON value")
 
-	// Array/object string formats: we assert non-empty presence rather than exact formatting,
-	// because %v formatting of gojsonq return types may vary across versions.
-	assert.Contains(t, got, "ARR", "ARR key should be present")
-	assert.NotEmpty(t, got["ARR"], "ARR value should be non-empty")
-	assert.Contains(t, got, "OBJ", "OBJ key should be present")
-	assert.NotEmpty(t, got["OBJ"], "OBJ value should be non-empty")
+	// Array is preserved as []interface{}
+	arrVal, ok := got["ARR"].([]interface{})
+	assert.True(t, ok, "ARR should be a []interface{}")
+	assert.Len(t, arrVal, 3, "ARR should have 3 elements")
+
+	// Object is preserved as map[string]interface{}
+	objVal, ok := got["OBJ"].(map[string]interface{})
+	assert.True(t, ok, "OBJ should be a map[string]interface{}")
+	assert.Equal(t, "v", objVal["k"])
 
 	// Missing should not appear
 	assert.NotContains(t, got, "MISSING", "MISSING should not be present for missing key")
@@ -245,6 +265,43 @@ func TestGetTaskDefinitionSuccess(t *testing.T) {
 			assert.True(t, ok)
 			assert.Equal(t, "payload-value", payloadParam)
 		}
+	}
+}
+
+// TestGetTaskDefinition_JSONObjectInEnv verifies the fix for the issue where a JSON object
+// extracted from the payload was converted to a Go string (e.g. "map[id:2 name:test]")
+// instead of being preserved as a proper JSON object in the environment.
+func TestGetTaskDefinition_JSONObjectInEnv(t *testing.T) {
+	integration := db.Integration{
+		ID:         11,
+		ProjectID:  22,
+		TemplateID: 33,
+	}
+
+	header := make(http.Header)
+	payload := []byte(`{"data":{"id":2,"name":"test"}}`)
+
+	task, err := GetTaskDefinition(integration, payload, header, func(projectID, integrationID int) ([]db.IntegrationExtractValue, error) {
+		return []db.IntegrationExtractValue{
+			{
+				VariableType: db.IntegrationVariableEnvironment,
+				ValueSource:  db.IntegrationExtractBodyValue,
+				BodyDataType: db.IntegrationBodyDataJSON,
+				Key:          "data",
+				Variable:     "data",
+			},
+		}, nil
+	})
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, task.Environment)
+
+	var env map[string]any
+	if assert.NoError(t, json.Unmarshal([]byte(task.Environment), &env)) {
+		dataVal, ok := env["data"].(map[string]interface{})
+		assert.True(t, ok, "data should be a JSON object, not a string (was: %T %v)", env["data"], env["data"])
+		assert.Equal(t, float64(2), dataVal["id"])
+		assert.Equal(t, "test", dataVal["name"])
 	}
 }
 

@@ -27,8 +27,8 @@ func NewKeyController(
 func KeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		keyID, err := helpers.GetIntParam("key_id", w, r)
-		if err != nil {
+		keyID, ok := helpers.GetIntParamOrAbort("key_id", w, r)
+		if !ok {
 			return
 		}
 
@@ -36,6 +36,13 @@ func KeyMiddleware(next http.Handler) http.Handler {
 
 		if err != nil {
 			helpers.WriteError(w, err)
+			return
+		}
+
+		// Task-bound survey-secret keys are internal: they must not be
+		// readable or mutable through the generic key endpoints.
+		if key.Owner == db.AccessKeyTaskSecret {
+			helpers.WriteError(w, db.ErrNotFound)
 			return
 		}
 
@@ -96,6 +103,14 @@ func (c *KeyController) AddKey(w http.ResponseWriter, r *http.Request) {
 	key.Plain = nil
 	key.IgnorePlain = true
 	key.Synchronized = false
+
+	// Task-bound survey-secret keys are created internally at task start only.
+	if key.Owner == db.AccessKeyTaskSecret {
+		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Invalid key owner",
+		})
+		return
+	}
 
 	//if err := key.Validate(true); err != nil {
 	//	helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{

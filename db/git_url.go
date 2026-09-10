@@ -1,6 +1,10 @@
 package db
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
+)
 
 // ValidateGitURL rejects repository URLs that git would interpret as a
 // command-line option instead of a repository location. The CmdGitClient
@@ -12,7 +16,7 @@ import "strings"
 // with "-", so rejecting them here is safe.
 func ValidateGitURL(url string, objectName string) error {
 	if strings.HasPrefix(strings.TrimSpace(url), "-") {
-		return NewValidationError(objectName + " url is invalid")
+		return common_errors.NewValidationError(objectName + " url is invalid")
 	}
 
 	return nil

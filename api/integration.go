@@ -61,12 +61,9 @@ func NewIntegrationController(store db.Store, integrationService server.Integrat
 
 func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
-	var err error
+	integrationAlias, ok := helpers.GetStrParamOrAbort("integration_alias", w, r)
 
-	integrationAlias, err := helpers.GetStrParam("integration_alias", w, r)
-
-	if err != nil {
-		log.Error(err)
+	if !ok {
 		return
 	}
 
@@ -374,8 +371,8 @@ func (c *IntegrationController) RunIntegration(integration db.Integration, proje
 	return
 }
 
-func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]string) {
-	result = make(map[string]string)
+func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]any) {
+	result = make(map[string]any)
 
 	for _, extractValue := range extractValues {
 		switch extractValue.ValueSource {
@@ -386,7 +383,7 @@ func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload 
 			case db.IntegrationBodyDataJSON:
 				val := gojsonq.New().JSONString(string(payload)).Find(extractValue.Key)
 				if val != nil {
-					result[extractValue.Variable] = fmt.Sprintf("%v", val)
+					result[extractValue.Variable] = val
 				}
 			case db.IntegrationBodyDataString:
 				result[extractValue.Variable] = string(payload)

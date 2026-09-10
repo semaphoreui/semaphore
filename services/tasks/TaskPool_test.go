@@ -45,7 +45,7 @@ func TestTaskPool_RequeuedEventCleansRunningStateAndSkipsImmediateRetry(t *testi
 	t.Cleanup(func() { util.Config = prevCfg })
 	util.Config = &util.ConfigType{MaxParallelTasks: 0}
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	proj, err := store.CreateProject(db.Project{})
 	assert.NoError(t, err)
 
@@ -100,7 +100,7 @@ func TestTaskPool_FinalizeRemoteTask_HA_ReleasesStalePoolStateWhenEndPersisted(t
 	prevCfg := util.Config
 	t.Cleanup(func() { util.Config = prevCfg })
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	util.Config.MaxParallelTasks = 0
 	util.Config.HA = &util.HAConfig{Enabled: true}
 	proj, err := store.CreateProject(db.Project{})
@@ -186,7 +186,7 @@ func TestTaskPool_StopTasksByTemplate_DequeuesWaitingTasksByID(t *testing.T) {
 	t.Cleanup(func() { util.Config = prevCfg })
 	util.Config = &util.ConfigType{MaxParallelTasks: 0}
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	proj, err := store.CreateProject(db.Project{})
 	require.NoError(t, err)
 

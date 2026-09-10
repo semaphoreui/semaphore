@@ -315,7 +315,16 @@ import utc from 'dayjs/plugin/utc';
 import timezonePlugin from 'dayjs/plugin/timezone';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 
-import { CronExpression, CronExpressionParser, CronFieldCollection } from 'cron-parser';
+import { CronExpressionParser } from 'cron-parser';
+import {
+  isWeekly,
+  isYearly,
+  isMonthly,
+  isDaily,
+  isHourly,
+  pruneSelectionsForTiming,
+  buildCronFormat,
+} from '@/lib/cronPresets';
 import { getErrorMessage } from '@/lib/error';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
 
@@ -607,7 +616,24 @@ export default {
       }
     },
 
-    refreshCheckboxes() {
+    async validateCronFormat(cronFormat) {
+      try {
+        await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/schedules/validate`,
+          responseType: 'json',
+          data: {
+            project_id: this.projectId,
+            cron_format: cronFormat,
+          },
+        });
+        return null;
+      } catch (err) {
+        return getErrorMessage(err);
+      }
+    },
+
+    async refreshCheckboxes() {
       if (this.type === 'run_at') {
         this.cronFormatError = null;
         this.disableRawCron = false;
@@ -624,13 +650,28 @@ export default {
       this.cronFormatError = null;
       this.disableRawCron = false;
 
+      const cronFormat = this.item.cron_format;
+      const cronError = await this.validateCronFormat(cronFormat);
+
+      if (cronFormat !== this.item.cron_format) {
+        return; // the value changed while validating, ignore stale result
+      }
+
+      if (cronError != null) {
+        this.cronFormatError = cronError;
+        this.rawCron = true;
+        this.disableRawCron = true;
+        return;
+      }
+
       let cron;
       try {
         cron = CronExpressionParser.parse(this.item.cron_format, {
           tz: this.timezone,
         });
-      } catch (err) {
-        this.cronFormatError = getErrorMessage(err);
+      } catch {
+        // Valid on the backend but not parseable by cron-parser
+        // (e.g. @hourly) — show it in raw mode without an error.
         this.rawCron = true;
         this.disableRawCron = true;
         return;
@@ -714,76 +755,41 @@ export default {
     },
 
     isWeekly(s) {
-      return /^\S+\s\S+\s\S+\s\S+\s[^*]\S*$/.test(s);
+      return isWeekly(s);
     },
 
     isYearly(s) {
-      return /^\S+\s\S+\s\S+\s[^*]\S*\s\S+$/.test(s);
+      return isYearly(s);
     },
 
     isMonthly(s) {
-      return /^\S+\s\S+\s[^*]\S*\s\S+\s\S+$/.test(s);
+      return isMonthly(s);
     },
 
     isDaily(s) {
-      return /^\S+\s[^*]\S*\s\S+\s\S+\s\S+$/.test(s);
+      return isDaily(s);
     },
 
     isHourly(s) {
-      return /^[^*]\S*\s\S+\s\S+\s\S+\s\S+$/.test(s);
+      return isHourly(s);
     },
 
     refreshCron() {
-      const fields = {};
+      const selections = pruneSelectionsForTiming(this.timing, {
+        months: this.months,
+        weekdays: this.weekdays,
+        days: this.days,
+        hours: this.hours,
+        minutes: this.minutes,
+      });
 
-      switch (this.timing) {
-        case 'hourly':
-          this.months = [];
-          this.weekdays = [];
-          this.days = [];
-          this.hours = [];
-          break;
-        case 'daily':
-          this.days = [];
-          this.months = [];
-          this.weekdays = [];
-          break;
-        case 'monthly':
-          this.months = [];
-          this.weekdays = [];
-          break;
-        case 'weekly':
-          this.months = [];
-          this.days = [];
-          break;
-        default:
-          break;
-      }
+      this.months = selections.months;
+      this.weekdays = selections.weekdays;
+      this.days = selections.days;
+      this.hours = selections.hours;
+      this.minutes = selections.minutes;
 
-      if (this.months.length > 0) {
-        fields.month = this.months;
-      }
-
-      if (this.weekdays.length > 0) {
-        fields.dayOfWeek = this.weekdays;
-      }
-
-      if (this.days.length > 0) {
-        fields.dayOfMonth = this.days;
-      }
-
-      if (this.hours.length > 0) {
-        fields.hour = this.hours;
-      }
-
-      if (this.minutes.length > 0) {
-        fields.minute = this.minutes;
-      }
-
-      const origFields = CronExpressionParser.parse('* * * * *').fields;
-      const modFields = CronFieldCollection.from(origFields, fields);
-      const exp = CronExpression.fieldsToExpression(modFields);
-      this.item.cron_format = exp.stringify();
+      this.item.cron_format = buildCronFormat(selections);
     },
 
     getItemsUrl() {

@@ -55,6 +55,16 @@ properties:
     enum: [go_git, cmd_git]
     default: cmd_git
     description: Git client implementation.
+  git_submodule_jobs:
+    type: integer
+    minimum: 1
+    default: 4
+    description: Number of submodules fetched in parallel by the command-line Git client.
+  git_attempts:
+    type: integer
+    minimum: 1
+    default: 4
+    description: Times a git clone or pull is tried before the task fails. 1 does not retry.
   web_host:
     type: string
     format: uri
@@ -117,6 +127,12 @@ properties:
   ldap_searchfilter: { type: string }
   ldap_mappings:     { $ref: "#/$defs/LdapMappings" }
   ldap_needtls:      { type: boolean }
+  ldap_tls_skip_verify:
+    type: boolean
+    default: false
+    description: >
+      Disable verification of the LDAP server's TLS certificate for the legacy
+      flat ldap_* config. Defaults to false (certificates are verified).
   ldap_providers:
     type: object
     additionalProperties: { $ref: "#/$defs/LdapProvider" }
@@ -212,6 +228,7 @@ properties:
   # ==========================================================================
   teams:        { $ref: "#/$defs/TeamsConfig" }
   syslog:       { $ref: "#/$defs/SyslogConfig" }
+  metrics:      { $ref: "#/$defs/MetricsConfig" }
   log:          { $ref: "#/$defs/ConfigLog" }
   process:      { $ref: "#/$defs/ConfigProcess" }
   schedule:     { $ref: "#/$defs/ScheduleConfig" }
@@ -382,6 +399,13 @@ $defs:
       display_name: { type: string }
       server:       { type: string }
       need_tls:      { type: boolean }
+      tls_skip_verify:
+        type: boolean
+        default: false
+        description: >
+          Disable verification of the LDAP server's TLS certificate. Defaults to
+          false (certificates are verified). Only enable on trusted networks
+          with self-signed certificates.
       bind_dn:       { type: string }
       bind_password:
         type: string
@@ -474,6 +498,15 @@ $defs:
       format:
         type: string
         enum: ["", rfc5424]
+
+  MetricsConfig:
+    type: object
+    properties:
+      enabled:  { type: boolean }
+      username: { type: string }
+      password:
+        type: string
+        description: Basic Auth password for the /api/metrics endpoint (sensitive).
 
   ConfigLog:
     type: object
@@ -629,6 +662,14 @@ $defs:
       enabled:            { type: boolean }
       project_id:
         type: [integer, "null"]
+      check_interval_seconds:
+        type: integer
+        minimum: 1
+        default: 1
+        description: >
+          How often the runner polls the server for new jobs and reports progress.
+          Raising it reduces request volume on a server with many runners, at the
+          cost of jobs starting slightly later.
       connection: { $ref: "#/$defs/RunnerConnectionConfig" }
       executor:   { $ref: "#/$defs/ExecutorConfig" }
 

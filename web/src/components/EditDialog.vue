@@ -5,6 +5,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
 -->
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <v-dialog
+    ref="dialog"
     v-model="dialog"
     :max-width="maxWidth || 400"
     persistent
@@ -224,10 +225,31 @@ export default {
       this.needReset = false;
     },
 
-    handleEscape(ev) {
-      if (ev.key === 'Escape' && this.dialog !== false && !this.noEscape) {
-        this.close();
+    /**
+     * Returns true if this dialog is the topmost active overlay (dialog or menu).
+     * Uses the same check as Vuetify's VDialog (activeZIndex vs getMaxZIndex),
+     * so a nested dialog or an open dropdown menu makes the parent non-topmost.
+     */
+    isTopmost() {
+      const dialog = this.$refs.dialog;
+      if (!dialog || typeof dialog.getMaxZIndex !== 'function') {
+        return true;
       }
+      return dialog.activeZIndex >= dialog.getMaxZIndex();
+    },
+
+    handleEscape(ev) {
+      if (ev.key !== 'Escape' || this.dialog === false || this.noEscape) {
+        return;
+      }
+
+      // Only the topmost dialog must react to Escape. If this dialog opened
+      // another dialog (or a menu), let that one handle the key.
+      if (!this.isTopmost()) {
+        return;
+      }
+
+      this.close();
     },
   },
 };

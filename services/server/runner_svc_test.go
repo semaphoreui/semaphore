@@ -11,7 +11,7 @@ import (
 )
 
 func TestRunnerService_CreateRunner_Registered(t *testing.T) {
-	svc := NewRunnerService(sql.CreateTestStore())
+	svc := NewRunnerService(sql.InitConfigCreateTestStore())
 
 	runner, err := svc.CreateRunner(db.Runner{Name: "r1", Registered: true})
 	require.NoError(t, err)
@@ -23,7 +23,7 @@ func TestRunnerService_CreateRunner_Registered(t *testing.T) {
 }
 
 func TestRunnerService_CreateRunner_Unregistered(t *testing.T) {
-	svc := NewRunnerService(sql.CreateTestStore())
+	svc := NewRunnerService(sql.InitConfigCreateTestStore())
 
 	runner, err := svc.CreateRunner(db.Runner{Registered: false, Active: true})
 	require.NoError(t, err)
@@ -38,7 +38,7 @@ func TestRunnerService_CreateRunner_Unregistered(t *testing.T) {
 }
 
 func TestRunnerService_RegenerateRegistrationToken(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	svc := NewRunnerService(store)
 
 	runner, err := svc.CreateRunner(db.Runner{Registered: false})
@@ -59,7 +59,7 @@ func TestRunnerService_RegenerateRegistrationToken(t *testing.T) {
 }
 
 func TestRunnerService_RegenerateRegistrationToken_ResetsRegisteredRunner(t *testing.T) {
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 	svc := NewRunnerService(store)
 
 	runner, err := svc.CreateRunner(db.Runner{Registered: true, Active: true})

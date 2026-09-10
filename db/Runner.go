@@ -29,7 +29,7 @@ const (
 
 type Runner struct {
 	ID                int        `db:"id" json:"id"`
-	Token             string     `db:"token" json:"-"`
+	Token             string     `db:"token" json:"-" backup:"-"`
 	ProjectID         *int       `db:"project_id" json:"project_id"`
 	Webhook           string     `db:"webhook" json:"webhook"`
 	MaxParallelTasks  int        `db:"max_parallel_tasks" json:"max_parallel_tasks"`
@@ -62,8 +62,8 @@ type Runner struct {
 	// RegistrationTokenHash is the stored SHA-256 hash of the one-time registration
 	// token (the plaintext is never persisted). It is issued on demand via
 	// RegenerateRegistrationToken, not at creation time.
-	RegistrationTokenHash      *string    `db:"registration_token" json:"-"`
-	RegistrationTokenExpiresAt *time.Time `db:"registration_token_expires_at" json:"-"`
+	RegistrationTokenHash      *string    `db:"registration_token" json:"-" backup:"-"`
+	RegistrationTokenExpiresAt *time.Time `db:"registration_token_expires_at" json:"-" backup:"-"`
 }
 
 // IsRegistered reports whether the runner has been registered (has a token).
@@ -90,6 +90,12 @@ func (r Runner) IsOnline(now time.Time, offlineTimeout time.Duration) bool {
 		return true
 	}
 	return r.Touched != nil && now.Sub(*r.Touched) <= offlineTimeout
+}
+
+// HasFreeCapacity reports whether the runner can take one more task.
+// MaxParallelTasks == 0 means unlimited.
+func (r Runner) HasFreeCapacity(runningTasks int) bool {
+	return r.MaxParallelTasks == 0 || runningTasks < r.MaxParallelTasks
 }
 
 // FillStatus populates the transient Status field from heartbeat liveness.
