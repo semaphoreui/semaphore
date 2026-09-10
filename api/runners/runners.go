@@ -27,9 +27,7 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 		token := r.Header.Get("X-Runner-Token")
 
 		if token == "" {
-			log.WithFields(log.Fields{
-				"context": "runner",
-			}).Debug("Runner authentication rejected: no token provided")
+			runnerLog.Debug("Runner authentication rejected: no token provided")
 			helpers.WriteJSON(w, http.StatusUnauthorized, map[string]string{
 				"error": "Invalid token",
 			})
