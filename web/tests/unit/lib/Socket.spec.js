@@ -90,3 +90,66 @@ describe('Socket', () => {
     expect(socket.isRunning()).to.equal(false);
   });
 });
+
+describe('Socket reconnect', () => {
+  const originalSetTimeout = global.setTimeout;
+  let scheduled;
+
+  beforeEach(() => {
+    scheduled = [];
+    global.setTimeout = (cb, ms) => {
+      scheduled.push({ cb, ms });
+      return scheduled.length;
+    };
+  });
+
+  afterEach(() => {
+    global.setTimeout = originalSetTimeout;
+  });
+
+  it('schedules a reconnect when the connection closes while running', () => {
+    const { creator, created } = createFakeCreator();
+    const socket = new Socket(creator);
+    socket.setSessionActive(true);
+    socket.start();
+
+    created[0].onclose();
+
+    expect(socket.isRunning()).to.equal(false);
+    expect(scheduled).to.have.lengthOf(1);
+    expect(scheduled[0].ms).to.equal(2000);
+
+    scheduled[0].cb();
+
+    expect(created).to.have.lengthOf(2);
+    expect(socket.ws).to.equal(created[1]);
+  });
+
+  it('does not reconnect if the session became inactive meanwhile', () => {
+    const { creator, created } = createFakeCreator();
+    const socket = new Socket(creator);
+    socket.setSessionActive(true);
+    socket.start();
+
+    created[0].onclose();
+    socket.sessionActive = false;
+    scheduled[0].cb();
+
+    expect(created).to.have.lengthOf(1);
+    expect(socket.isRunning()).to.equal(false);
+  });
+
+  it('does not reconnect after stop()', () => {
+    const { creator, created } = createFakeCreator();
+    const socket = new Socket(creator);
+    socket.setSessionActive(true);
+    socket.start();
+    const ws = created[0];
+
+    socket.stop();
+    ws.onclose();
+
+    expect(scheduled).to.have.lengthOf(0);
+    expect(created).to.have.lengthOf(1);
+  });
+});
