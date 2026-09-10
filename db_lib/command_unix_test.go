@@ -46,8 +46,49 @@ func TestStopCommandRespectsGracePeriod(t *testing.T) {
 	}()
 
 	// An immediate Process.Kill would make cmd.Wait return an *exec.ExitError.
-	err = stopCommand(cmd, waitCh, task_logger.NopLogger{})
+	err = stopCommand(cmd, waitCh, task_logger.NopLogger{}, gracePeriod)
 	assert.NoError(t, err)
+}
+
+func Test_StopCommand_KillsMainProcessAfterGracePeriod(t *testing.T) {
+	cmd := exec.Command("sleep", "10")
+	require.NoError(t, cmd.Start())
+
+	pgid, err := syscall.Getpgid(cmd.Process.Pid)
+	require.NoError(t, err)
+	// The command must not lead its group, so group signaling cannot stop it.
+	require.NotEqual(t, cmd.Process.Pid, pgid, "command must not lead its own process group")
+
+	waitCh := make(chan error, 1)
+	go func() {
+		waitCh <- cmd.Wait()
+	}()
+
+	commandExited := false
+	t.Cleanup(func() {
+		if !commandExited {
+			_ = cmd.Process.Kill()
+		}
+	})
+
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- stopCommand(cmd, waitCh, task_logger.NopLogger{}, 25*time.Millisecond)
+	}()
+
+	select {
+	case err = <-resultCh:
+		commandExited = true
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "stopCommand did not return after the grace period")
+	}
+
+	var exitErr *exec.ExitError
+	require.ErrorAs(t, err, &exitErr)
+	status, ok := exitErr.Sys().(syscall.WaitStatus)
+	require.True(t, ok, "exit status has unexpected type")
+	assert.True(t, status.Signaled())
+	assert.Equal(t, syscall.SIGKILL, status.Signal())
 }
 
 func Test_WaitCommand_CleansProcessGroup(t *testing.T) {
