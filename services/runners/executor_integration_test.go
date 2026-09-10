@@ -707,28 +707,28 @@ func TestExecutorModes_Lifecycle(t *testing.T) {
 			name: "Docker Executor Mode (Ephemeral Container)",
 			create: func(logger task_logger.Logger) tasks.Executor {
 				engine := NewMockDockerEngine()
-				exec := &MockDockerExecutor{
+				executor := &MockDockerExecutor{
 					Engine:     engine,
 					Task:       db.Task{ID: 102},
 					Template:   db.Template{ID: 2, App: db.AppAnsible, Playbook: "deploy.yml"},
 					Repository: db.Repository{ID: 2},
 				}
-				exec.SetLogger(logger)
-				return exec
+				executor.SetLogger(logger)
+				return executor
 			},
 		},
 		{
 			name: "Kubernetes Executor Mode (Ephemeral Pod)",
 			create: func(logger task_logger.Logger) tasks.Executor {
 				cluster := NewMockK8sCluster()
-				exec := &MockK8sExecutor{
+				executor := &MockK8sExecutor{
 					Cluster:    cluster,
 					Task:       db.Task{ID: 103},
 					Template:   db.Template{ID: 3, App: db.AppAnsible, Playbook: "k8s_play.yml"},
 					Repository: db.Repository{ID: 3},
 				}
-				exec.SetLogger(logger)
-				return exec
+				executor.SetLogger(logger)
+				return executor
 			},
 		},
 	}
@@ -736,13 +736,13 @@ func TestExecutorModes_Lifecycle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := NewMemoryTaskLogger()
-			exec := tt.create(logger)
+			executor := tt.create(logger)
 
-			require.NotNil(t, exec)
-			assert.False(t, exec.IsKilled())
+			require.NotNil(t, executor)
+			assert.False(t, executor.IsKilled())
 
 			// Run performs preparation and cleanup as part of the complete executor lifecycle
-			err := exec.Run("admin", nil, "")
+			err := executor.Run("admin", nil, "")
 			assert.NoError(t, err, "Run phase should succeed")
 
 			// Post-execution status must strictly be Success after Run completes
@@ -761,7 +761,7 @@ func TestPrepare_Idempotency(t *testing.T) {
 		repoDir := filepath.Join(util.Config.TmpPath, "idempotent_local_repo")
 		initLocalGitRepo(t, repoDir)
 
-		exec := &tasks.LocalExecutor{
+		executor := &tasks.LocalExecutor{
 			Task: db.Task{ID: 400, ProjectID: 1},
 			Template: db.Template{
 				ID:       1,
@@ -773,11 +773,11 @@ func TestPrepare_Idempotency(t *testing.T) {
 			App:        mockApp,
 			RepoLock:   &tasks.KeyLock{},
 		}
-		exec.SetLogger(NewMemoryTaskLogger())
+		executor.SetLogger(NewMemoryTaskLogger())
 
-		require.NoError(t, exec.Prepare("admin", nil, ""))
+		require.NoError(t, executor.Prepare("admin", nil, ""))
 		// Second call must be a no-op and succeed without re-preparing or failing
-		require.NoError(t, exec.Prepare("admin", nil, ""))
+		require.NoError(t, executor.Prepare("admin", nil, ""))
 	})
 
 	t.Run("Docker executor Prepare is idempotent", func(t *testing.T) {
@@ -803,22 +803,22 @@ func TestPrepare_Idempotency(t *testing.T) {
 
 	t.Run("Kubernetes executor Prepare is idempotent", func(t *testing.T) {
 		cluster := NewMockK8sCluster()
-		exec := &MockK8sExecutor{
+		executor := &MockK8sExecutor{
 			Cluster:  cluster,
 			Task:     db.Task{ID: 402},
 			Template: db.Template{Playbook: "site.yml"},
 		}
 
-		require.NoError(t, exec.Prepare("admin", nil, ""))
-		firstPod := exec.PodName
+		require.NoError(t, executor.Prepare("admin", nil, ""))
+		firstPod := executor.PodName
 		require.NotEmpty(t, firstPod)
 
 		// Second call must be a no-op
-		require.NoError(t, exec.Prepare("admin", nil, ""))
-		assert.Equal(t, firstPod, exec.PodName)
+		require.NoError(t, executor.Prepare("admin", nil, ""))
+		assert.Equal(t, firstPod, executor.PodName)
 		assert.Len(t, cluster.pods, 1, "exactly one pod must be created")
 
-		exec.Cleanup()
+		executor.Cleanup()
 		assert.Empty(t, cluster.GetActiveOrphans(), "pod must be cleaned up cleanly")
 	})
 }
@@ -849,15 +849,15 @@ func TestDockerExecutor_MockHarnessCleanupContract(t *testing.T) {
 	t.Run("Clean up on task failure", func(t *testing.T) {
 		engine := NewMockDockerEngine()
 		logger := NewMemoryTaskLogger()
-		exec := &MockDockerExecutor{
+		executor := &MockDockerExecutor{
 			Engine:   engine,
 			Task:     db.Task{ID: 202},
 			Template: db.Template{Playbook: "main.yml"},
 			failTask: true,
 		}
-		exec.SetLogger(logger)
+		executor.SetLogger(logger)
 
-		err := exec.Run("testuser", nil, "")
+		err := executor.Run("testuser", nil, "")
 		require.Error(t, err)
 		assert.Equal(t, task_logger.TaskFailStatus, logger.GetStatus())
 		assert.Empty(t, engine.GetActiveOrphans(), "no orphan containers must remain after failure")
@@ -886,14 +886,14 @@ func TestK8sExecutor_MockHarnessCleanupContract(t *testing.T) {
 	t.Run("Clean up on successful execution", func(t *testing.T) {
 		cluster := NewMockK8sCluster()
 		logger := NewMemoryTaskLogger()
-		exec := &MockK8sExecutor{
+		executor := &MockK8sExecutor{
 			Cluster:  cluster,
 			Task:     db.Task{ID: 301},
 			Template: db.Template{Playbook: "k8s.yml"},
 		}
-		exec.SetLogger(logger)
+		executor.SetLogger(logger)
 
-		err := exec.Run("testuser", nil, "")
+		err := executor.Run("testuser", nil, "")
 		require.NoError(t, err)
 		assert.Equal(t, task_logger.TaskSuccessStatus, logger.GetStatus())
 		assert.Empty(t, cluster.GetActiveOrphans(), "no orphan pods must remain after success")
@@ -919,16 +919,16 @@ func TestK8sExecutor_MockHarnessCleanupContract(t *testing.T) {
 	t.Run("Clean up on kill / cancellation", func(t *testing.T) {
 		cluster := NewMockK8sCluster()
 		logger := NewMemoryTaskLogger()
-		exec := &MockK8sExecutor{
+		executor := &MockK8sExecutor{
 			Cluster:  cluster,
 			Task:     db.Task{ID: 303},
 			Template: db.Template{Playbook: "k8s.yml"},
 		}
-		exec.SetLogger(logger)
+		executor.SetLogger(logger)
 
-		require.NoError(t, exec.Prepare("testuser", nil, ""))
-		exec.Kill()
-		assert.True(t, exec.IsKilled())
+		require.NoError(t, executor.Prepare("testuser", nil, ""))
+		executor.Kill()
+		assert.True(t, executor.IsKilled())
 		assert.Empty(t, cluster.GetActiveOrphans(), "no orphan pods must remain after kill")
 	})
 }
@@ -1140,7 +1140,7 @@ func TestStress_ConcurrentTasks(t *testing.T) {
 	var completedCount int32
 	var wg sync.WaitGroup
 
-	for w := 0; w < numWorkers; w++ {
+	for w := range numWorkers {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
