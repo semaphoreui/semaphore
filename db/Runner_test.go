@@ -36,6 +36,27 @@ func TestRunner_IsOnline(t *testing.T) {
 	}
 }
 
+func TestRunner_HasFreeCapacity(t *testing.T) {
+	tests := []struct {
+		name         string
+		runner       Runner
+		runningTasks int
+		expected     bool
+	}{
+		{"unlimited", Runner{MaxParallelTasks: 0}, 100, true},
+		{"below limit", Runner{MaxParallelTasks: 2}, 1, true},
+		{"at limit", Runner{MaxParallelTasks: 2}, 2, false},
+		{"above limit", Runner{MaxParallelTasks: 2}, 3, false},
+		{"idle with limit", Runner{MaxParallelTasks: 1}, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.runner.HasFreeCapacity(tt.runningTasks))
+		})
+	}
+}
+
 func TestRunner_FillStatus(t *testing.T) {
 	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
 	offlineTimeout := 2 * time.Minute

@@ -24,11 +24,27 @@ func NewFilteringFormatter(inner log.Formatter, filter *Filter) *FilteringFormat
 	return &FilteringFormatter{Inner: inner, Filter: filter}
 }
 
+// Enabled reports whether a DEBUG entry in namespace can reach the logger's output.
+func Enabled(logger *log.Logger, namespace string) bool {
+	if !logger.IsLevelEnabled(log.DebugLevel) {
+		return false
+	}
+	formatter, ok := logger.Formatter.(*FilteringFormatter)
+	if !ok {
+		return true
+	}
+	return formatter.enabled(namespace)
+}
+
+func (f *FilteringFormatter) enabled(namespace string) bool {
+	return f.Filter != nil && f.Filter.Enabled(namespace)
+}
+
 // Format implements logrus.Formatter.
 func (f *FilteringFormatter) Format(entry *log.Entry) ([]byte, error) {
 	if entry.Level == log.DebugLevel {
 		ns, _ := entry.Data["context"].(string)
-		if f.Filter == nil || !f.Filter.Enabled(ns) {
+		if !f.enabled(ns) {
 			return nil, nil
 		}
 	}
