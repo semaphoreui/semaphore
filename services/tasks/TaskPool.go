@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/semaphoreui/semaphore/pkg/debuglog"
 	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/metrics"
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -169,6 +170,56 @@ func (p *TaskPool) GetNumberOfRunningTasksOfRunner(runnerID int) (res int) {
 		}
 	}
 	return
+}
+
+func countRunningTasksByRunner(tasks []*TaskRunner) map[int]int {
+	counts := make(map[int]int)
+	for _, task := range tasks {
+		if task.Task.RunnerID != nil {
+			counts[*task.Task.RunnerID]++
+		}
+	}
+	return counts
+}
+
+func (p *TaskPool) LogRunnerStateSnapshot() {
+	if !debuglog.Enabled(log.StandardLogger(), "runner") {
+		return
+	}
+	l := log.WithFields(log.Fields{
+		"context": "runner",
+	})
+
+	runners, err := p.store.GetAllRunners(false, false, db.RunnerFilterIgnoreTags, nil)
+	if err != nil {
+		l.WithError(err).Debug("Runner startup diagnostics unavailable")
+		return
+	}
+
+	if len(runners) == 0 {
+		l.Debug("No runners configured at server startup")
+		return
+	}
+
+	now := tz.Now()
+	runningTasks := countRunningTasksByRunner(p.state.RunningRange())
+	for _, runner := range runners {
+		l := l.WithFields(log.Fields{
+			"runner_id":          runner.ID,
+			"runner_name":        runner.Name,
+			"active":             runner.Active,
+			"registered":         runner.IsRegistered(),
+			"online":             runner.IsOnline(now, util.Config.RunnersOfflineTimeout()),
+			"is_default":         runner.IsDefault,
+			"tags":               runner.Tags,
+			"max_parallel_tasks": runner.MaxParallelTasks,
+			"running_tasks":      runningTasks[runner.ID],
+		})
+		if runner.ProjectID != nil {
+			l = l.WithField("project_id", *runner.ProjectID)
+		}
+		l.Debug("Runner state at server startup")
+	}
 }
 
 func (p *TaskPool) GetRunningTasks() (res []*TaskRunner) {
@@ -488,7 +539,11 @@ func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) 
 
 	if runner != nil {
 		if err := callRunnerWebhook(runner, tsk, "finish"); err != nil {
-			log.WithError(err).WithField("task_id", tsk.Task.ID).Warn("remote task finish webhook failed")
+			log.WithError(err).WithFields(log.Fields{
+				"context":   "runner",
+				"task_id":   tsk.Task.ID,
+				"runner_id": runner.ID,
+			}).Warn("Runner finish webhook request failed; task finalization continues")
 		}
 	}
 
