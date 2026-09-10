@@ -92,8 +92,8 @@ func maybeGenerateSSHPrivateKey(key *db.AccessKey) error {
 		return err
 	}
 
-key.SshKey.PrivateKey = b.String()
-key.SshKey.Passphrase = ""
+	key.SshKey.PrivateKey = b.String()
+	key.SshKey.Passphrase = ""
 
 	type sshPublicKey struct {
 		PublicKey string `json:"public_key"`
@@ -134,6 +134,10 @@ func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
 	err = maybeGenerateSSHPrivateKey(&key)
 	if err != nil {
 		return
+	}
+
+	if key.GenerateSSHKey && key.Type == db.AccessKeySSH {
+		key.OverrideSecret = true
 	}
 
 	if !key.OverrideSecret {
