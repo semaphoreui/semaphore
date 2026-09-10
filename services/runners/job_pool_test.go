@@ -170,6 +170,37 @@ func TestJobPool_UnregisterSendsRunnerToken(t *testing.T) {
 	require.NoError(t, p.Unregister())
 }
 
+func TestJobPool_UnregisterDoesNotFollowRedirect(t *testing.T) {
+	var redirectedRequests atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		redirectedRequests.Add(1)
+		assert.Empty(t, r.Header.Get("X-Runner-Token"))
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(target.Close)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Location", target.URL+"/api/internal/runners")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(server.Close)
+
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
+	util.Config = &util.ConfigType{
+		WebHost: server.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "runner-token",
+			Connection: &util.RunnerConnectionConfig{},
+		},
+	}
+
+	p := &JobPool{client: newHTTPClient()}
+
+	assert.Error(t, p.Unregister())
+	assert.Zero(t, redirectedRequests.Load())
+}
+
 func TestJobPool_CheckNewJobsExecutorErrorUsesTaskProjectID(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		err := json.NewEncoder(w).Encode(RunnerState{
