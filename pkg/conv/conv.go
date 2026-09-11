@@ -62,10 +62,29 @@ func StructToFlatMap(obj any) map[string]any {
 			for k, v := range nestedMap {
 				result[fieldName+"."+k] = v
 			}
-		} else if (field.Kind() == reflect.Ptr ||
-			field.Kind() == reflect.Array ||
-			field.Kind() == reflect.Slice ||
-			field.Kind() == reflect.Map) && field.IsNil() {
+			continue
+		}
+
+		if field.Kind() == reflect.Ptr {
+			if field.IsNil() {
+				result[fieldName] = nil
+				continue
+			}
+
+			// If the pointer is to a struct, flatten it as well
+			if field.Elem().Kind() == reflect.Struct {
+				nestedMap := StructToFlatMap(field.Elem().Interface())
+				for k, v := range nestedMap {
+					result[fieldName+"."+k] = v
+				}
+				continue
+			}
+
+			result[fieldName] = field.Elem().Interface()
+			continue
+		}
+
+		if (field.Kind() == reflect.Slice || field.Kind() == reflect.Map) && field.IsNil() {
 			result[fieldName] = nil
 		} else {
 			result[fieldName] = field.Interface()
