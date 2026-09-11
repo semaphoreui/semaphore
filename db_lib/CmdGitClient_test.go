@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -163,7 +164,6 @@ func TestCmdGitClient_SpecialCharAuthAndProxyBypass(t *testing.T) {
 	defer proxyServer.Close()
 
 	setupGitClientTest(t)
-	util.Config.ForwardedEnvVars = []string{"GIT_SSL_NO_VERIFY"}
 
 	// 4. Configure environment with proxy and NO_PROXY bypass
 	t.Setenv("HTTP_PROXY", proxyServer.URL)
@@ -194,17 +194,27 @@ func TestCmdGitClient_SpecialCharAuthAndProxyBypass(t *testing.T) {
 		Logger:     task_logger.NopLogger{},
 	}
 
-	// 5. Test GetRemoteBranches (ls-remote) with special chars and NO_PROXY
+	// 4. Control phase: forward proxy variables without NO_PROXY.
+	// Git MUST attempt to contact the proxy server, hit it, and fail.
+	util.Config.ForwardedEnvVars = []string{"GIT_SSL_NO_VERIFY", "HTTP_PROXY", "HTTPS_PROXY"}
+	_, err = client.GetRemoteBranches(gitRepo)
+	require.Error(t, err, "Traffic without NO_PROXY forwarded should attempt to use the proxy and fail")
+	controlHits := atomic.LoadInt32(&proxyHitCount)
+	assert.Greater(t, controlHits, int32(0), "Proxy server should have been contacted during control run")
+
+	// 5. Bypass phase: forward NO_PROXY as well.
+	// Git MUST recognize NO_PROXY, bypass the proxy server, and succeed.
+	util.Config.ForwardedEnvVars = []string{"GIT_SSL_NO_VERIFY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
 	branches, err := client.GetRemoteBranches(gitRepo)
 	require.NoError(t, err)
 	assert.Contains(t, branches, "main")
 
-	// 6. Test Clone with special chars and NO_PROXY
+	// 6. Test Clone with special chars and NO_PROXY bypass
 	err = client.Clone(gitRepo)
 	require.NoError(t, err)
 
-	// 7. Verify dummy proxy was bypassed
-	assert.Equal(t, int32(0), atomic.LoadInt32(&proxyHitCount), "Traffic should have bypassed the proxy due to NO_PROXY")
+	// 7. Verify dummy proxy was bypassed (no additional hits beyond control run)
+	assert.Equal(t, controlHits, atomic.LoadInt32(&proxyHitCount), "Traffic should have bypassed the proxy due to NO_PROXY")
 
 	// 8. Test Pull with non-positive GitSubmoduleJobs (0 and negative)
 	util.Config.GitSubmoduleJobs = 0
@@ -214,4 +224,37 @@ func TestCmdGitClient_SpecialCharAuthAndProxyBypass(t *testing.T) {
 	util.Config.GitSubmoduleJobs = -1
 	err = client.Pull(gitRepo)
 	require.NoError(t, err)
+}
+
+func TestCmdGitClient_MakeCmd_HomePrecedence(t *testing.T) {
+	setupGitClientTest(t)
+
+	// Set ambient HOME
+	t.Setenv("HOME", "/ambient/home")
+
+	client := CmdGitClient{keyInstaller: nopKeyInstaller{}}
+	repo := db.Repository{ProjectID: 1}
+	gitRepo := GitRepository{Repository: repo, Client: client}
+
+	// 1. Default case: ambient HOME is used when not overridden
+	util.Config.EnvVars = map[string]string{}
+	cmd := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
+	assert.True(t, containsPrefix(cmd.Env, "HOME=/ambient/home"))
+
+	// 2. Explicit Config.EnvVars overrides ambient HOME and avoids duplicates
+	util.Config.EnvVars = map[string]string{
+		"HOME": "/custom/config/home",
+	}
+	cmdExplicit := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
+	assert.True(t, containsPrefix(cmdExplicit.Env, "HOME=/custom/config/home"))
+	assert.False(t, containsPrefix(cmdExplicit.Env, "HOME=/ambient/home"))
+
+	homeCount := 0
+	for _, env := range cmdExplicit.Env {
+		k, _, _ := strings.Cut(env, "=")
+		if strings.EqualFold(k, "HOME") {
+			homeCount++
+		}
+	}
+	assert.Equal(t, 1, homeCount, "HOME should appear exactly once in cmd.Env")
 }

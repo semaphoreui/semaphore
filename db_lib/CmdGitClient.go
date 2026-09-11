@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -29,27 +28,14 @@ func (c CmdGitClient) makeCmd(
 	cmd := exec.Command("git") //nolint: gas
 
 	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv()...)
-	homeDir := getHomeDir(r.Repository, r.TemplateID)
-	if homeDir != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", homeDir))
-	} else if h := os.Getenv("HOME"); h != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", h))
-	}
-	if runtime.GOOS == "windows" {
-		hasUserProfile := false
-		for _, env := range cmd.Env {
-			key, _, _ := strings.Cut(env, "=")
-			if strings.EqualFold(key, "USERPROFILE") {
-				hasUserProfile = true
-				break
-			}
-		}
-		if !hasUserProfile {
-			if up := os.Getenv("USERPROFILE"); up != "" {
-				cmd.Env = append(cmd.Env, fmt.Sprintf("USERPROFILE=%s", up))
-			}
+	if !hasEnvVar(cmd.Env, "HOME") {
+		if homeDir := getHomeDir(r.Repository, r.TemplateID); homeDir != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", homeDir))
+		} else if h := os.Getenv("HOME"); h != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", h))
 		}
 	}
+	appendPlatformEnv(&cmd.Env)
 
 	switch targetDir {
 	case GitRepositoryTmpPath:
