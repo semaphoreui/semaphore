@@ -3,10 +3,13 @@
 package util
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"os/user"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -82,5 +85,20 @@ func ChownDir(path string) error {
 		return nil
 	}
 
-	return os.Chown(path, int(uid), int(gid))
+	baseAbs, err := filepath.Abs(filepath.Clean(Config.TmpPath))
+	if err != nil {
+		return err
+	}
+
+	targetAbs, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return err
+	}
+
+	baseWithSep := baseAbs + string(os.PathSeparator)
+	if targetAbs != baseAbs && !strings.HasPrefix(targetAbs, baseWithSep) {
+		return fmt.Errorf("refusing to chown path outside tmp dir: %s", targetAbs)
+	}
+
+	return os.Chown(targetAbs, int(uid), int(gid))
 }
