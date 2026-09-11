@@ -95,13 +95,15 @@ func TestHydrateJobAccessKeys_WiresKeysIntoJobData(t *testing.T) {
 	vaultKeyID := 33
 	inventoryRepoID := 44
 	inventoryRepoSSHKeyID := 55
+	inventorySubmoduleKeyID := 66
 
 	accessKeys := map[int]db.AccessKey{
-		7:                     {ID: 7, Type: db.AccessKeySSH}, // template repo
-		sshKeyID:              {ID: sshKeyID, Type: db.AccessKeySSH},
-		becomeKeyID:           {ID: becomeKeyID, Type: db.AccessKeyLoginPassword},
-		vaultKeyID:            {ID: vaultKeyID, Type: db.AccessKeyLoginPassword},
-		inventoryRepoSSHKeyID: {ID: inventoryRepoSSHKeyID, Type: db.AccessKeySSH},
+		7:                       {ID: 7, Type: db.AccessKeySSH}, // template repo
+		sshKeyID:                {ID: sshKeyID, Type: db.AccessKeySSH},
+		becomeKeyID:             {ID: becomeKeyID, Type: db.AccessKeyLoginPassword},
+		vaultKeyID:              {ID: vaultKeyID, Type: db.AccessKeyLoginPassword},
+		inventoryRepoSSHKeyID:   {ID: inventoryRepoSSHKeyID, Type: db.AccessKeySSH},
+		inventorySubmoduleKeyID: {ID: inventorySubmoduleKeyID, Type: db.AccessKeyLoginPassword},
 	}
 
 	jobData := JobData{
@@ -113,6 +115,9 @@ func TestHydrateJobAccessKeys_WiresKeysIntoJobData(t *testing.T) {
 			Repository: &db.Repository{
 				ID:       inventoryRepoID,
 				SSHKeyID: inventoryRepoSSHKeyID,
+			},
+			SubmoduleCredentials: []db.RepositorySubmoduleCredential{
+				{Host: "gitserver", AccessKeyID: inventorySubmoduleKeyID},
 			},
 		},
 		Template: db.Template{
@@ -129,4 +134,6 @@ func TestHydrateJobAccessKeys_WiresKeysIntoJobData(t *testing.T) {
 	require.NotNil(t, jobData.Template.Vaults[0].Vault)
 	assert.Equal(t, vaultKeyID, jobData.Template.Vaults[0].Vault.ID, "vault key wired")
 	assert.Equal(t, inventoryRepoSSHKeyID, jobData.Inventory.Repository.SSHKey.ID, "inventory repo SSH key wired")
+	require.Len(t, jobData.Inventory.SubmoduleCredentials, 1)
+	assert.Equal(t, inventorySubmoduleKeyID, jobData.Inventory.SubmoduleCredentials[0].AccessKey.ID, "inventory repo submodule credential key wired")
 }

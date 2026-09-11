@@ -21,6 +21,7 @@ type ExecutorProvider interface {
 		template db.Template,
 		inventory db.Inventory,
 		repository db.Repository,
+		submoduleCredentials []db.RepositorySubmoduleCredential,
 		environment db.Environment,
 		jwt string,
 	) (Executor, error)

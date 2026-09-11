@@ -16,9 +16,18 @@ type JobData struct {
 	Template            db.Template    `json:"template" binding:"required"`
 	Inventory           db.Inventory   `json:"inventory" binding:"required"`
 	InventoryRepository *db.Repository `json:"inventory_repository" binding:"required"`
-	Repository          db.Repository  `json:"repository" binding:"required"`
-	Environment         db.Environment `json:"environment" binding:"required"`
-	JWT                 string         `json:"jwt,omitempty"`
+	// InventorySubmoduleCredentials carries Inventory.SubmoduleCredentials
+	// across the wire (that field is excluded from Inventory's own JSON, like
+	// InventoryRepository carries Inventory.Repository) -- see job_pool.go,
+	// which reassigns it back onto Inventory on receipt.
+	InventorySubmoduleCredentials []db.RepositorySubmoduleCredential `json:"inventory_submodule_credentials,omitempty"`
+	Repository                    db.Repository                      `json:"repository" binding:"required"`
+	// SubmoduleCredentials maps submodule hosts to the access key used to
+	// authenticate their clone, for repositories whose submodules live on a
+	// different host/credentials than Repository itself.
+	SubmoduleCredentials []db.RepositorySubmoduleCredential `json:"submodule_credentials,omitempty"`
+	Environment          db.Environment                     `json:"environment" binding:"required"`
+	JWT                  string                             `json:"jwt,omitempty"`
 }
 
 type RunnerState struct {

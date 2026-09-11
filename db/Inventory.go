@@ -46,6 +46,11 @@ type Inventory struct {
 	RepositoryID *int        `db:"repository_id" json:"repository_id" backup:"-"`
 	Repository   *Repository `db:"-" json:"-" backup:"-"`
 
+	// SubmoduleCredentials maps submodule hosts to the access key used to
+	// authenticate their clone, for Repository submodules that live on a
+	// different host/credentials than Repository itself.
+	SubmoduleCredentials []RepositorySubmoduleCredential `db:"-" json:"-" backup:"-"`
+
 	// RunnerTag is a tag which allow join inventory to the runner.
 	RunnerTag *string `db:"runner_tag" json:"runner_tag,omitempty"`
 }

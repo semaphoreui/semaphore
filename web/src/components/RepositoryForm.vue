@@ -101,14 +101,22 @@
         </v-tooltip>
       </template>
     </v-autocomplete>
+
+    <RepositorySubmoduleCredentials
+      :project-id="projectId"
+      :repository-id="itemId"
+      :keys="keys"
+    />
   </v-form>
 </template>
 <script>
 import axios from 'axios';
 import ItemFormBase from '@/components/ItemFormBase';
+import RepositorySubmoduleCredentials from '@/components/RepositorySubmoduleCredentials.vue';
 import { getRepositoryUrlType } from '@/lib/repositoryUrl';
 
 export default {
+  components: { RepositorySubmoduleCredentials },
   mixins: [ItemFormBase],
   data() {
     return {
