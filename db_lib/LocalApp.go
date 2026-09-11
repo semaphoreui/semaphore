@@ -48,7 +48,7 @@ type LocalAppRunningArgs struct {
 	Inputs          map[string]string
 	TaskParams      any
 	TemplateParams  any
-	Callback        func(*os.Process)
+	StopCh          <-chan struct{}
 }
 
 type LocalAppInstallingArgs struct {

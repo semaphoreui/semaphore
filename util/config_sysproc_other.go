@@ -4,9 +4,13 @@ package util
 
 import "syscall"
 
-// GetAppSysProcAttr falls back to the base SysProcAttr on OSes that don't
-// support Linux CLONE_NEW* namespaces. The flags are configurable but
-// silently inert here.
+// GetAppSysProcAttr creates a dedicated process group on Unix systems that do
+// not support Linux CLONE_NEW* namespaces.
 func (conf *ConfigType) GetAppSysProcAttr() *syscall.SysProcAttr {
-	return conf.GetSysProcAttr()
+	res := conf.GetSysProcAttr()
+	if res == nil {
+		res = &syscall.SysProcAttr{}
+	}
+	res.Setsid = true
+	return res
 }

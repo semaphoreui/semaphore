@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
@@ -28,8 +29,12 @@ type LocalExecutor struct {
 
 	App db_lib.LocalApp
 
-	killed  bool // killed means that API request to stop the job has been received
-	Process *os.Process
+	// mu protects terminationRequested and stopCh.
+	mu                   sync.Mutex
+	terminationRequested bool
+	// stopCh carries cancellation and remains non-nil after Run is invoked to
+	// enforce the LocalExecutor's single-use lifecycle.
+	stopCh chan struct{}
 
 	sshKeyInstallation     ssh.AccessKeyInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
@@ -60,7 +65,9 @@ type LocalExecutor struct {
 }
 
 func (t *LocalExecutor) IsKilled() bool {
-	return t.killed
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.terminationRequested
 }
 
 // Async is false: LocalJob.Run executes the task synchronously and returns only
@@ -70,15 +77,16 @@ func (t *LocalExecutor) Async() bool {
 }
 
 func (t *LocalExecutor) Kill() {
-	t.killed = true
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
-	if t.Process == nil {
+	if t.terminationRequested {
 		return
 	}
 
-	err := t.Process.Kill()
-	if err != nil {
-		t.Log(err.Error())
+	t.terminationRequested = true
+	if t.stopCh != nil {
+		close(t.stopCh)
 	}
 }
 
@@ -748,16 +756,25 @@ func (t *LocalExecutor) getParams() (params any, err error) {
 // app (Ansible / Terraform / shell), and tears everything down. It is the entry point the
 // job pool uses (satisfying the Job interface); the lifecycle methods Prepare/Cleanup are
 // available for callers that want to drive the phases explicitly.
-func (t *LocalExecutor) Run(username string, incomingVersion *string, alias string) (err error) {
+func (t *LocalExecutor) Run(username string, incomingVersion *string, alias string) error {
+	t.mu.Lock()
+	if t.stopCh != nil {
+		t.mu.Unlock()
+		return fmt.Errorf("local executor has already been run")
+	}
+	t.stopCh = make(chan struct{})
+	terminationRequested := t.terminationRequested
+	t.mu.Unlock()
+
 	defer t.Cleanup()
 
-	if err = t.Prepare(username, incomingVersion, alias); err != nil {
-		return
-	}
-
-	if t.killed {
+	if terminationRequested {
 		t.SetStatus(task_logger.TaskStoppedStatus)
 		return nil
+	}
+
+	if err := t.Prepare(username, incomingVersion, alias); err != nil {
+		return err
 	}
 
 	return t.App.Run(db_lib.LocalAppRunningArgs{
@@ -766,9 +783,7 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		Inputs:          t.preparedInputs,
 		TaskParams:      t.preparedParams,
 		TemplateParams:  t.preparedTplParams,
-		Callback: func(p *os.Process) {
-			t.Process = p
-		},
+		StopCh:          t.stopCh,
 	})
 }
 

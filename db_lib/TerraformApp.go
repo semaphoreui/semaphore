@@ -1,6 +1,7 @@
 package db_lib
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -305,10 +306,11 @@ func (t *TerraformApp) InstallRequirementsWithInitArgs(args LocalAppInstallingAr
 	return
 }
 
-func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
+func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[string]string, stopCh <-chan struct{}) error {
 	planArgs := []string{"plan", "-lock=false"}
 	planArgs = append(planArgs, args...)
 	cmd := t.makeCmd(t.Name, planArgs, environmentVars)
+	cmd.WaitDelay = 250 * time.Millisecond
 	finishLog := t.Logger.LogCmd(cmd)
 	defer finishLog()
 
@@ -319,40 +321,30 @@ func (t *TerraformApp) Plan(args []string, environmentVars []string, inputs map[
 	})
 
 	cmd.Stdin = strings.NewReader("")
-	err := cmd.Start()
-	if err != nil {
-		return err
+	err := runCommand(cmd, stopCh, t.Logger)
+	finishLog()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		t.Logger.Logf("terraform command output draining exceeded %s and was stopped", cmd.WaitDelay)
+		return nil
 	}
-
-	cb(cmd.Process)
-
-	err = cmd.Wait()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
-func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
+func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map[string]string, stopCh <-chan struct{}) error {
 	applyArgs := []string{"apply", "-auto-approve", "-lock=false"}
 	applyArgs = append(applyArgs, args...)
 	cmd := t.makeCmd(t.Name, applyArgs, environmentVars)
+	cmd.WaitDelay = 250 * time.Millisecond
 	finishLog := t.Logger.LogCmd(cmd)
 	defer finishLog()
 	cmd.Stdin = strings.NewReader("")
-	err := cmd.Start()
-	if err != nil {
-		return err
+	err := runCommand(cmd, stopCh, t.Logger)
+	finishLog()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		t.Logger.Logf("terraform command output draining exceeded %s and was stopped", cmd.WaitDelay)
+		return nil
 	}
-	cb(cmd.Process)
-
-	err = cmd.Wait()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
@@ -375,7 +367,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		applyArgs = defaultArgs
 	}
 
-	err := t.Plan(planArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+	err := t.Plan(planArgs, args.EnvironmentVars, args.Inputs, args.StopCh)
 	if err != nil {
 		return err
 	}
@@ -390,7 +382,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 
 	if tplParams.AutoApprove || tplParams.AllowAutoApprove && params.AutoApprove {
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
-		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.StopCh)
 	}
 
 	t.Logger.SetStatus(task_logger.TaskWaitingConfirmation)
@@ -410,7 +402,7 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		t.Logger.SetStatus(task_logger.TaskFailStatus)
 	case task_logger.TaskConfirmed:
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
-		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.Callback)
+		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.StopCh)
 	}
 
 	return nil

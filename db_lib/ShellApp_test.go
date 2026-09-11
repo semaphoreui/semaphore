@@ -2,7 +2,6 @@ package db_lib
 
 import (
 	"bytes"
-	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -47,8 +46,7 @@ func TestShellApp_RunDrainsOutputBeforeWait(t *testing.T) {
 	}
 
 	err := app.Run(LocalAppRunningArgs{
-		CliArgs:  map[string][]string{"default": {"-c", "printf 'stdout message'; printf 'stderr message' >&2"}},
-		Callback: func(*os.Process) {},
+		CliArgs: map[string][]string{"default": {"-c", "printf 'stdout message'; printf 'stderr message' >&2"}},
 	})
 
 	require.NoError(t, err)
@@ -80,7 +78,6 @@ func TestShellApp_RunBoundsOutputDrainWhenBackgroundChildKeepsPipesOpen(t *testi
 		CliArgs: map[string][]string{
 			"default": {"-c", "printf 'stdout message'; printf 'stderr message' >&2; sleep 2 &"},
 		},
-		Callback: func(*os.Process) {},
 	})
 
 	require.NoError(t, err)
