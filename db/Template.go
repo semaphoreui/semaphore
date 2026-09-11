@@ -338,6 +338,7 @@ type Template struct {
 	SurveyVars     []SurveyVar `db:"-" json:"survey_vars,omitempty" backup:"survey_vars"`
 
 	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts,omitempty"`
+	SuppressErrorAlerts   bool `db:"suppress_error_alerts" json:"suppress_error_alerts,omitempty"`
 
 	App TemplateApp `db:"app" json:"app,omitempty"`
 

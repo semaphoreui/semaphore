@@ -199,6 +199,7 @@ export default {
   readThe: '읽기',
   toLearnMoreAboutCron: '크론에 대해 더 알아보려면.',
   suppressSuccessAlerts: '성공 알림 억제',
+  suppressErrorAlerts: '오류 알림 억제',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2: 'CLI 인수 (JSON 배열). 예: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'CLI 인수',
   docs: '문서',

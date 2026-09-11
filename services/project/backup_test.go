@@ -281,6 +281,7 @@ func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
       "repository": "Test Repo",
       "roles": [],
       "suppress_success_alerts": false,
+      "suppress_error_alerts": false,
       "type": "",
       "vaults": [],
       "view": null,
