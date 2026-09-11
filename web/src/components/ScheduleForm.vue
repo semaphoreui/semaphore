@@ -490,6 +490,7 @@ export default {
       showInfo: true,
       cronFormatError: null,
       runAtInput: '',
+      cronNextRunTime: null,
     };
   },
 
@@ -607,13 +608,7 @@ export default {
         return parsed.toDate();
       }
 
-      try {
-        return CronExpressionParser.parse(this.item.cron_format, {
-          tz: this.timezone,
-        }).next().toDate();
-      } catch {
-        return null;
-      }
+      return this.cronNextRunTime;
     },
 
     async validateCronFormat(cronFormat) {
@@ -715,6 +710,27 @@ export default {
       if (this.isYearly(this.item.cron_format)) {
         this.months = fields.month.values;
         this.timing = 'yearly';
+      }
+
+      this.fetchCronNextRunTime();
+    },
+
+    async fetchCronNextRunTime() {
+      if (!this.item.cron_format || this.type === 'run_at') {
+        this.cronNextRunTime = null;
+        return;
+      }
+
+      try {
+        const resp = await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/schedules/next`,
+          data: { cron_format: this.item.cron_format },
+          responseType: 'json',
+        });
+        this.cronNextRunTime = new Date(resp.data.next_run_time);
+      } catch {
+        this.cronNextRunTime = null;
       }
     },
 
