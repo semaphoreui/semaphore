@@ -22,6 +22,11 @@ tasks:
     desc: Install all build dependencies
     cmds:
       - task: deps:tools
+      - task: deps:image
+
+  deps:image:
+    desc: Install dependencies required to build application artifacts
+    cmds:
       - task: deps:be
       - task: deps:fe
 

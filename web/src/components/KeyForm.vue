@@ -150,14 +150,52 @@
       dense
     />
 
+    <v-checkbox
+      v-model="item.generate_ssh_key"
+      label="Generate SSH Key"
+      v-if="!isReadOnly && item.type === 'ssh'"
+      :disabled="formSaving || !canEditSecrets"
+      class="mt-0 mb-2"
+      hide-details
+    />
+
     <v-textarea
       outlined
       v-model="item.ssh.private_key"
       :label="$t('privateKey')"
-      :disabled="formSaving || !canEditSecrets"
-      :rules="[(v) => !canEditSecrets || !!v || $t('private_key_required')]"
+      :disabled="formSaving || !canEditSecrets || item.generate_ssh_key"
+      :rules="
+        [
+          (v) => !canEditSecrets || item.generate_ssh_key || !!v || $t('private_key_required')
+        ]"
       v-if="!isReadOnly && item.type === 'ssh'"
     />
+
+    <div
+      v-if="item.type === 'ssh' && !isNew && hasGeneratedPublicKey"
+      class="mb-4"
+    >
+      <div class="pb-1">Public key:</div>
+      <div style="position: relative">
+        <pre
+          style="
+            overflow: auto;
+            background: gray;
+            color: white;
+            border-radius: 10px;
+            margin-top: 0;
+            white-space: normal;
+          "
+          class="pa-2"
+          >{{ publicKey }}</pre
+        >
+
+        <CopyClipboardButton
+          style="position: absolute; right: 0; top: 0; transform: scale(0.9);"
+          :text="publicKey"
+        />
+      </div>
+    </div>
 
     <v-checkbox v-model="item.override_secret" :label="$t('override')" v-if="!isNew" />
 
@@ -168,8 +206,13 @@
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 
 export default {
+  components: {
+    CopyClipboardButton,
+  },
+
   mixins: [ItemFormBase],
 
   props: {
@@ -200,6 +243,20 @@ export default {
   },
 
   computed: {
+    hasGeneratedPublicKey() {
+      return this.publicKey !== '';
+    },
+
+    publicKey: {
+      get() {
+        try {
+          const plain = JSON.parse(this.item?.plain || '{}');
+          return plain.public_key || '';
+        } catch (e) {
+          return '';
+        }
+      },
+    },
 
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
@@ -266,6 +323,7 @@ export default {
       return {
         ssh: {},
         login_password: {},
+        generate_ssh_key: false,
       };
     },
 

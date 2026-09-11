@@ -1,10 +1,14 @@
 package server
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
 	"errors"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 type AccessKeyService interface {
@@ -69,7 +73,50 @@ func (s *AccessKeyServiceImpl) GetAll(projectID int, options db.GetAccessKeyOpti
 	return s.accessKeyRepo.GetAccessKeys(projectID, options, params)
 }
 
+func maybeGenerateSSHPrivateKey(key *db.AccessKey) error {
+	if !key.GenerateSSHKey || key.Type != db.AccessKeySSH {
+		key.Plain = nil
+		return nil
+	}
+
+	var b bytes.Buffer
+	privateKeyFile := bufio.NewWriter(&b)
+
+	publicKey, err := util.GeneratePrivateKey(privateKeyFile)
+	if err != nil {
+		return err
+	}
+
+	err = privateKeyFile.Flush()
+	if err != nil {
+		return err
+	}
+
+	key.SshKey.PrivateKey = b.String()
+	key.SshKey.Passphrase = ""
+
+	type sshPublicKey struct {
+		PublicKey string `json:"public_key"`
+	}
+
+	plainBytes, err := json.Marshal(sshPublicKey{
+		PublicKey: publicKey,
+	})
+	if err != nil {
+		return err
+	}
+
+	plain := string(plainBytes)
+	key.Plain = &plain
+	key.IgnorePlain = false
+	return nil
+}
+
 func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, err error) {
+	err = maybeGenerateSSHPrivateKey(&key)
+	if err != nil {
+		return
+	}
 
 	// SerializeSecret encrypts/persists the secret for writable backends. For read-only
 	// external storage the secret is not stored in Semaphore, so SerializeSecret fails
@@ -84,6 +131,15 @@ func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, er
 }
 
 func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
+	err = maybeGenerateSSHPrivateKey(&key)
+	if err != nil {
+		return
+	}
+
+	if key.GenerateSSHKey && key.Type == db.AccessKeySSH {
+		key.OverrideSecret = true
+	}
+
 	if !key.OverrideSecret {
 		err = s.accessKeyRepo.UpdateAccessKey(key)
 		return
