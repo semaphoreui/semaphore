@@ -236,3 +236,42 @@ func TestTemplate_WorkingDirectoryRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, loaded.WorkingDirectory)
 }
+
+// TestTemplateSuppressAlertsRoundTrip checks both suppress_*_alerts flags are
+// written, returned by GetTemplate and GetTemplates (own column list), and
+// updated independently.
+func TestTemplateSuppressAlertsRoundTrip(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, repositoryID := newTemplateTestProject(t, store)
+
+	created, err := store.CreateTemplate(db.Template{
+		ProjectID:             projectID,
+		RepositoryID:          repositoryID,
+		Name:                  "suppress-alerts",
+		Playbook:              "site.yml",
+		SuppressSuccessAlerts: true,
+		SuppressErrorAlerts:   true,
+	})
+	require.NoError(t, err)
+	assert.True(t, created.SuppressSuccessAlerts)
+	assert.True(t, created.SuppressErrorAlerts)
+
+	loaded, err := store.GetTemplate(projectID, created.ID)
+	require.NoError(t, err)
+	assert.True(t, loaded.SuppressSuccessAlerts)
+	assert.True(t, loaded.SuppressErrorAlerts)
+
+	listed, err := store.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	assert.True(t, listed[0].SuppressSuccessAlerts)
+	assert.True(t, listed[0].SuppressErrorAlerts)
+
+	loaded.SuppressErrorAlerts = false
+	require.NoError(t, store.UpdateTemplate(loaded))
+
+	loaded, err = store.GetTemplate(projectID, created.ID)
+	require.NoError(t, err)
+	assert.True(t, loaded.SuppressSuccessAlerts)
+	assert.False(t, loaded.SuppressErrorAlerts)
+}
