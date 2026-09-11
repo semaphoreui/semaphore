@@ -39,8 +39,22 @@ type alertChat struct {
 	ID string
 }
 
+func (t *TaskRunner) shouldSkipStatusAlert() bool {
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+		return true
+	}
+	if t.Template.SuppressErrorAlerts && t.Task.Status == task_logger.TaskFailStatus {
+		return true
+	}
+	return false
+}
+
 func (t *TaskRunner) sendMailAlert() {
 	if !util.Config.EmailAlert || !t.alert {
+		return
+	}
+
+	if t.shouldSkipStatusAlert() {
 		return
 	}
 
@@ -117,7 +131,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+	if t.shouldSkipStatusAlert() {
 		return
 	}
 
@@ -195,7 +209,7 @@ func (t *TaskRunner) sendSlackAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+	if t.shouldSkipStatusAlert() {
 		return
 	}
 
@@ -258,7 +272,7 @@ func (t *TaskRunner) sendRocketChatAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+	if t.shouldSkipStatusAlert() {
 		return
 	}
 
@@ -320,7 +334,7 @@ func (t *TaskRunner) sendMicrosoftTeamsAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+	if t.shouldSkipStatusAlert() {
 		return
 	}
 
@@ -382,7 +396,7 @@ func (t *TaskRunner) sendDingTalkAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+	if t.shouldSkipStatusAlert() {
 		return
 	}
 
@@ -445,7 +459,7 @@ func (t *TaskRunner) sendGotifyAlert() {
 		return
 	}
 
-	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+	if t.shouldSkipStatusAlert() {
 		return
 	}
 

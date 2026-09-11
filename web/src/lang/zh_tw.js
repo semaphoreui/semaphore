@@ -201,6 +201,7 @@ export default {
   readThe: '閱讀',
   toLearnMoreAboutCron: '以了解有關 Cron 的更多資訊。',
   suppressSuccessAlerts: '隱藏成功通知',
+  suppressErrorAlerts: '隱藏錯誤通知',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2: 'CLI 參數（JSON 陣列）。範例： [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'CLI 參數',
   docs: '文件',

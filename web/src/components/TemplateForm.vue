@@ -466,6 +466,12 @@
             v-model="item.suppress_success_alerts"
           />
 
+          <v-checkbox
+            class="mt-0"
+            :label="$t('suppressErrorAlerts')"
+            v-model="item.suppress_error_alerts"
+          />
+
           <div style="position: relative">
             <ArgsPicker :vars="args" @change="setArgs" title="CLI args" />
 

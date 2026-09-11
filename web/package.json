@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "sync:api-docs": "node -e \"require('fs').copyFileSync('../api-docs.yml', 'public/swagger/api-docs.yml')\"",
+    "preserve": "npm run sync:api-docs",
     "serve": "vue-cli-service serve",
+    "prebuild": "npm run sync:api-docs",
     "build": "vue-cli-service build",
     "test:unit": "vue-cli-service test:unit --include tests/unit/setup.js",
     "lint": "vue-cli-service lint"
