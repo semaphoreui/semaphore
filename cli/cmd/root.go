@@ -337,6 +337,7 @@ func runService() {
 
 	var router http.Handler = route
 
+	router = api.AccessLogMiddleware(router)
 	router = handlers.ProxyHeaders(router)
 	http.Handle("/", router)
 
