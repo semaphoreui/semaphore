@@ -21,13 +21,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         unzip \
     && rm -rf /var/lib/apt/lists/*
 
-
+# passlib 1.7.4 cannot load its bcrypt backend on bcrypt 5+ (#4180)
 RUN pip3 install --no-cache-dir --break-system-packages \
         "ansible-core>=2.16,<2.18" \
         "ansible==${ANSIBLE_VERSION}" \
         jmespath \
         netaddr \
-        passlib
+        passlib \
+        'bcrypt>=4,<5'
 
 RUN set -eux; \
     for bin in sh cat chmod rm ls echo ssh ssh-agent ssh-add setsid git ansible-playbook python3; do \
