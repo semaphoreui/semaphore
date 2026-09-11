@@ -110,6 +110,13 @@ func (c *UsersController) AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
+		UserID:      editor.ID,
+		ObjectType:  db.EventUser,
+		ObjectID:    newUser.ID,
+		Description: fmt.Sprintf("User %s created", newUser.Username),
+	})
+
 	helpers.WriteJSON(w, http.StatusCreated, newUser)
 }
 func (c *UsersController) ReadonlyUserMiddleware(next http.Handler) http.Handler {
@@ -238,6 +245,13 @@ func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      editor.ID,
+		ObjectType:  db.EventUser,
+		ObjectID:    targetUser.ID,
+		Description: fmt.Sprintf("User %s updated", targetUser.Username),
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -286,6 +300,13 @@ func (c *UsersController) UpdateUserPassword(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      editor.ID,
+		ObjectType:  db.EventUser,
+		ObjectID:    user.ID,
+		Description: fmt.Sprintf("Password changed for user %s", user.Username),
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -311,6 +332,13 @@ func (c *UsersController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	if err := helpers.Store(r).DeleteOptions(fmt.Sprintf("user%d", user.ID)); err != nil {
 		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete options of removed user")
 	}
+
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      editor.ID,
+		ObjectType:  db.EventUser,
+		ObjectID:    user.ID,
+		Description: fmt.Sprintf("User %s deleted", user.Username),
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -362,6 +390,14 @@ func (c *UsersController) DeleteUserIdentity(w http.ResponseWriter, r *http.Requ
 		helpers.WriteErrorStatus(w, "Failed to delete identity", http.StatusInternalServerError)
 		return
 	}
+
+	editor := helpers.GetFromContext(r, "user").(*db.User)
+	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
+		UserID:      editor.ID,
+		ObjectType:  db.EventUser,
+		ObjectID:    user.ID,
+		Description: fmt.Sprintf("External identity %s/%s unlinked for user %s", idType, provider, user.Username),
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }

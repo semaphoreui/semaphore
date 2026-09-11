@@ -13,7 +13,11 @@ type EventLogRecord struct {
 	UserID        *int    `json:"user,omitempty"`
 	IntegrationID *int    `json:"integration,omitempty"`
 	ProjectID     *int    `json:"project,omitempty"`
+	ObjectType    *string `json:"object_type,omitempty"`
+	ObjectID      *int    `json:"object_id,omitempty"`
 	Description   *string `json:"description,omitempty"`
+	IP            string  `json:"ip,omitempty"`
+	UserAgent     string  `json:"user_agent,omitempty"`
 }
 
 type TaskLogRecord struct {

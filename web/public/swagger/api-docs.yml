@@ -1151,6 +1151,7 @@ definitions:
     properties:
       project_id:
         type: integer
+        x-nullable: true
       user_id:
         type: integer
       object_id:

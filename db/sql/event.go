@@ -33,13 +33,18 @@ func (d *SqlDb) CreateEvent(evt db.Event) (newEvent db.Event, err error) {
 	var created = tz.Now()
 
 	_, err = d.exec(
-		"insert into event(user_id, project_id, object_id, object_type, description, created) values (?, ?, ?, ?, ?, ?)",
+		"insert into event(user_id, project_id, integration_id, object_id, object_type, description, created, action, ip, user_agent) "+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		evt.UserID,
 		evt.ProjectID,
+		evt.IntegrationID,
 		evt.ObjectID,
 		evt.ObjectType,
 		evt.Description,
-		created)
+		created,
+		evt.Action,
+		evt.IP,
+		evt.UserAgent)
 
 	if err != nil {
 		return
