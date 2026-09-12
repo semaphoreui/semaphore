@@ -10,8 +10,36 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// validateTemplateNameIsFree rejects a template name which is already used by
+// another template of the same project, so that a template can be referred to by
+// name. templateID is the template being updated, or 0 when creating one.
+//
+// Templates created before this check may still share a name, which is why
+// GetTemplateByName rejects an ambiguous name rather than relying on this.
+func (d *SqlDb) validateTemplateNameIsFree(projectID int, templateID int, name string) error {
+	var count int
+
+	err := d.selectOne(&count,
+		"select count(*) from project__template where project_id=? and name=? and id<>?",
+		projectID, name, templateID)
+
+	if err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return common_errors.NewValidationError("template with name " + name + " already exists")
+	}
+
+	return nil
+}
+
 func (d *SqlDb) CreateTemplate(tmpl db.Template) (db.Template, error) {
 	if err := tmpl.Validate(); err != nil {
+		return db.Template{}, err
+	}
+
+	if err := d.validateTemplateNameIsFree(tmpl.ProjectID, 0, tmpl.Name); err != nil {
 		return db.Template{}, err
 	}
 
@@ -35,6 +63,7 @@ func (d *SqlDb) CreateTemplate(tmpl db.Template) (db.Template, error) {
 			"autorun":                       tmpl.Autorun,
 			"survey_vars":                   db.ObjectToJSON(tmpl.SurveyVars),
 			"suppress_success_alerts":       tmpl.SuppressSuccessAlerts,
+			"suppress_error_alerts":         tmpl.SuppressErrorAlerts,
 			"app":                           tmpl.App,
 			"git_branch":                    tmpl.GitBranch,
 			"runner_tag":                    tmpl.RunnerTag,
@@ -78,6 +107,10 @@ func (d *SqlDb) UpdateTemplate(tmpl db.Template) error {
 		return err
 	}
 
+	if err = d.validateTemplateNameIsFree(tmpl.ProjectID, tmpl.ID, tmpl.Name); err != nil {
+		return err
+	}
+
 	query, args, err := sq.Update("project__template").
 		SetMap(map[string]any{
 			"inventory_id":                  tmpl.InventoryID,
@@ -95,6 +128,7 @@ func (d *SqlDb) UpdateTemplate(tmpl db.Template) error {
 			"autorun":                       tmpl.Autorun,
 			"survey_vars":                   db.ObjectToJSON(tmpl.SurveyVars),
 			"suppress_success_alerts":       tmpl.SuppressSuccessAlerts,
+			"suppress_error_alerts":         tmpl.SuppressErrorAlerts,
 			"app":                           tmpl.App,
 			"`git_branch`":                  tmpl.GitBranch,
 			"task_params":                   tmpl.TaskParams,
@@ -251,6 +285,8 @@ func (d *SqlDb) getTemplates(
 		"pt.allow_parallel_tasks",
 		"pt.jwt_params",
 		"pt.executor_image",
+		"pt.suppress_success_alerts",
+		"pt.suppress_error_alerts",
 		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id",
 	}
 
@@ -412,6 +448,37 @@ func (d *SqlDb) GetTemplates(projectID int, filter db.TemplateFilter, params db.
 		templates = append(templates, tpl.Template)
 	}
 
+	return
+}
+
+// GetTemplateByName returns the template of the project with the given name.
+// Template names are not unique per project, so an ambiguous name is rejected
+// instead of silently running one of the matching templates.
+func (d *SqlDb) GetTemplateByName(projectID int, name string) (template db.Template, err error) {
+	var templates []db.Template
+
+	_, err = d.selectAll(
+		&templates,
+		"select * from project__template where project_id=? and name=? limit 2",
+		projectID,
+		name)
+
+	if err != nil {
+		return
+	}
+
+	switch len(templates) {
+	case 0:
+		err = db.ErrNotFound
+		return
+	case 1:
+	default:
+		err = common_errors.NewValidationError("more than one template is named " + name + ", use template_id")
+		return
+	}
+
+	template = templates[0]
+	err = db.FillTemplate(d, &template)
 	return
 }
 

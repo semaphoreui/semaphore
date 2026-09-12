@@ -1,1 +1,1 @@
-alter table `project__repository` add `proxy_id` int references `project__proxy`(`id`) on delete set null;
+alter table `project__template` add column `suppress_error_alerts` bool not null default false;

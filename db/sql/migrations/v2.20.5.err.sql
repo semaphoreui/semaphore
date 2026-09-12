@@ -1,1 +1,1 @@
-alter table `project__repository` drop column `proxy_id`;
+alter table `project__template` drop column `suppress_error_alerts`;

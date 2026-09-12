@@ -58,12 +58,14 @@ func TestBackupProject(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
-		Name:           "Test",
-		Playbook:       "test.yml",
-		ProjectID:      proj.ID,
-		RepositoryID:   repo.ID,
-		InventoryID:    &inv.ID,
-		EnvironmentIDs: []int{env.ID},
+		Name:                  "Test",
+		Playbook:              "test.yml",
+		ProjectID:             proj.ID,
+		RepositoryID:          repo.ID,
+		InventoryID:           &inv.ID,
+		EnvironmentIDs:        []int{env.ID},
+		SuppressSuccessAlerts: true,
+		SuppressErrorAlerts:   true,
 	})
 	assert.NoError(t, err)
 
@@ -100,6 +102,8 @@ func TestBackupProject(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, restoredTemplates, 1)
 	assert.Len(t, restoredTemplates[0].EnvironmentIDs, 1)
+	assert.True(t, restoredTemplates[0].SuppressSuccessAlerts)
+	assert.True(t, restoredTemplates[0].SuppressErrorAlerts)
 
 	restoredEnvs, err := store.GetEnvironments(restoredProj.ID, db.RetrieveQueryParams{})
 	assert.NoError(t, err)
@@ -283,6 +287,7 @@ func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
       "repository": "Test Repo",
       "roles": [],
       "suppress_success_alerts": false,
+      "suppress_error_alerts": false,
       "type": "",
       "vaults": [],
       "view": null,
