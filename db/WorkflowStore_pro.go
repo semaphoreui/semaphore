@@ -26,4 +26,11 @@ type WorkflowManager interface {
 	CreateWorkflowApproval(approval WorkflowApproval) (WorkflowApproval, error)
 	UpdateWorkflowApproval(approval WorkflowApproval) error
 	ResolveWorkflowApprovalIfPending(approval WorkflowApproval) (bool, error)
+
+	GetWorkflowDelays(projectID int, runID int) ([]WorkflowDelay, error)
+	GetWorkflowDelay(projectID int, runID int, nodeID int) (WorkflowDelay, error)
+	CreateWorkflowDelay(delay WorkflowDelay) (WorkflowDelay, error)
+	UpdateWorkflowDelay(delay WorkflowDelay) error
+	ResolveWorkflowDelayIfWaiting(delay WorkflowDelay) (bool, error)
+	GetExpiredWorkflowDelays() ([]WorkflowDelay, error)
 }

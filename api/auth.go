@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/pquerna/otp"
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -50,9 +49,9 @@ func getSession(r *http.Request) (*db.Session, bool) {
 		return nil, false
 	}
 
-	if time.Since(session.LastActive).Hours() > 7*24 {
-		// more than week old unused session
-		// destroy.
+	if session.IsExpiredAt(tz.Now(), util.Config.MaxSessionLife(), db.SessionInactivityTimeout) {
+		// The session was unused for too long or outlived the configured
+		// absolute lifetime. Destroy it so it cannot be reused.
 		if err = helpers.Store(r).ExpireSession(userID, sessionID); err != nil {
 			// it is internal error, it doesn't concern the user
 			log.Error(err)

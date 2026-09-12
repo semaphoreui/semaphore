@@ -6,6 +6,7 @@ web/public/js/bundle.js
 web/public/css/*.*
 web/public/html/**/*.*
 web/public/fonts/*.*
+web/public/swagger/api-docs.yml
 web/.nyc_output
 api/public/**/*
 /server.json

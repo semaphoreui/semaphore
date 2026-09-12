@@ -80,6 +80,7 @@ tasks:
       - src/**/*.*
       - public/index.html
       - public/favicon.ico
+      - ../api-docs.yml
       - package.json
       - package-lock.json
       - babel.config.js

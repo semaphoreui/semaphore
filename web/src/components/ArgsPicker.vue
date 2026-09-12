@@ -3,6 +3,7 @@
     <v-dialog
       v-model="editDialog"
       hide-overlay
+      content-class="NestedDialog"
       width="400"
     >
       <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
@@ -15,7 +16,7 @@
             @submit.prevent="saveVar()"
           >
             <v-alert
-              :value="formError"
+              :value="formError != null"
               color="error"
             >{{ formError }}
             </v-alert>

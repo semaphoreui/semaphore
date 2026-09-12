@@ -61,12 +61,9 @@ func NewIntegrationController(store db.Store, integrationService server.Integrat
 
 func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
-	var err error
+	integrationAlias, ok := helpers.GetStrParamOrAbort("integration_alias", w, r)
 
-	integrationAlias, err := helpers.GetStrParam("integration_alias", w, r)
-
-	if err != nil {
-		log.Error(err)
+	if !ok {
 		return
 	}
 
@@ -329,6 +326,10 @@ func GetTaskDefinition(
 	}
 
 	taskDefinition.Environment = string(envStr)
+
+	if taskDefinition.Params == nil {
+		taskDefinition.Params = make(db.MapStringAnyField)
+	}
 
 	extractedTaskResults := Extract(taskValues, h, payload)
 	for k, v := range extractedTaskResults {
