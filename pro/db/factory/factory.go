@@ -12,3 +12,7 @@ func NewTerraformStore(store db.Store) db.TerraformStore {
 func NewAnsibleTaskRepository(store db.Store) db.AnsibleTaskRepository {
 	return &sql.AnsibleTaskStoreImpl{}
 }
+
+func NewWorkflowStore(store db.Store) db.WorkflowManager {
+	return &sql.WorkflowStoreImpl{}
+}

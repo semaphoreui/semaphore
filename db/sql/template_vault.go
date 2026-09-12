@@ -64,8 +64,11 @@ func (d *SqlDb) UpdateTemplateVaults(projectID int, templateID int, vaults []db.
 			}
 			vaultIDs = append(vaultIDs, strconv.Itoa(vaultId))
 		} else {
-			// Update existing vaults
-			_, err = d.exec("update project__template_vault set project_id=?, template_id=?, vault_key_id=?, name=?, type=?, script=? where id=?", projectID, templateID, vault.VaultKeyID, vault.Name, vault.Type, vault.Script, vault.ID)
+			// Update existing vaults. The WHERE clause is scoped to the target
+			// project and template so a body-supplied vault ID belonging to
+			// another project/template cannot be reparented or overwritten;
+			// such an ID makes the update a no-op.
+			_, err = d.exec("update project__template_vault set vault_key_id=?, name=?, type=?, script=? where id=? and project_id=? and template_id=?", vault.VaultKeyID, vault.Name, vault.Type, vault.Script, vault.ID, projectID, templateID)
 			vaultIDs = append(vaultIDs, strconv.Itoa(vault.ID))
 		}
 		if err != nil {

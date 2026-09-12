@@ -61,6 +61,7 @@ const (
 	EventRepository              EventObjectType = "repository"
 	EventSchedule                EventObjectType = "schedule"
 	EventTemplate                EventObjectType = "template"
+	EventWorkflow                EventObjectType = "workflow"
 	EventUser                    EventObjectType = "user"
 	EventView                    EventObjectType = "view"
 	EventIntegration             EventObjectType = "integration"

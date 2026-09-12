@@ -58,6 +58,10 @@ func (d *SqlDb) GetProjectRole(projectID int, slug string) (db.Role, error) {
 
 func (d *SqlDb) GetProjectOrGlobalRoleBySlug(projectID int, slug string) (db.Role, error) {
 	var role db.Role
-	err := d.selectOne(&role, "select * from `role` where slug=?", slug)
+	err := d.selectOne(
+		&role,
+		"select * from `role` where slug=? and (project_id=? or project_id is null)",
+		slug,
+		projectID)
 	return role, err
 }

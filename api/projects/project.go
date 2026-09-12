@@ -18,12 +18,9 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := helpers.GetFromContext(r, "user").(*db.User)
 
-		projectID, err := helpers.GetIntParam("project_id", w, r)
+		projectID, ok := helpers.GetIntParamOrAbort("project_id", w, r)
 
-		if err != nil {
-			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "Invalid project ID",
-			})
+		if !ok {
 			return
 		}
 
@@ -46,21 +43,25 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 
 		permissions := roleSlug.GetPermissions()
 
-		role, err := helpers.Store(r).GetProjectOrGlobalRoleBySlug(projectID, string(projectUser.Role))
+		// Built-in roles are defined in code and are the source of truth for their
+		// permissions. Only custom roles are resolved from the database, otherwise a
+		// project role sharing a built-in slug (e.g. "manager") could override the
+		// built-in permissions and escalate privileges.
+		if !roleSlug.IsValid() {
+			role, err := helpers.Store(r).GetProjectOrGlobalRoleBySlug(projectID, string(projectUser.Role))
 
-		if err == nil {
-			roleSlug = db.ProjectUserRole(role.Slug)
-			permissions = role.Permissions
-		} else if !errors.Is(err, db.ErrNotFound) {
-			helpers.WriteError(w, err)
-			return
+			if err == nil {
+				roleSlug = db.ProjectUserRole(role.Slug)
+				permissions = role.Permissions
+			} else if !errors.Is(err, db.ErrNotFound) {
+				helpers.WriteError(w, err)
+				return
+			}
 		}
 
 		if helpers.HasParam("template_id", r) {
-			var templateID int
-			templateID, err = helpers.GetIntParam("template_id", w, r)
-			if err != nil {
-				helpers.WriteError(w, err)
+			templateID, templateOk := helpers.GetIntParamOrAbort("template_id", w, r)
+			if !templateOk {
 				return
 			}
 			var perm db.ProjectUserPermission

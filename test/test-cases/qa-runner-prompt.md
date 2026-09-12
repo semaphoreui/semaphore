@@ -9,7 +9,7 @@ Start the HTTP server first, then paste the prompt below into Claude.
 # Run Semaphore
 docker run -d --name semaphore-qa \
   -p 3000:3000 \
-  -e SEMAPHORE_DB_DIALECT=bolt \
+  -e SEMAPHORE_DB_DIALECT=sqlite \
   -e SEMAPHORE_ADMIN=admin \
   -e SEMAPHORE_ADMIN_PASSWORD=changeme \
   -e SEMAPHORE_ADMIN_NAME=Admin \

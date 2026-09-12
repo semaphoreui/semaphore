@@ -7,7 +7,9 @@ import (
 )
 
 type vaultArgs struct {
-	oldKey string
+	oldKey       string
+	backupFile   string
+	rollbackFile string
 }
 
 var targetVaultArgs vaultArgs

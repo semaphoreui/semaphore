@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/bolt"
+	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/tasks"
@@ -34,6 +34,18 @@ func (m *mockEncryptionService) FillEnvironmentSecrets(env *db.Environment, dese
 }
 
 func (m *mockEncryptionService) DeleteSecret(key *db.AccessKey) error {
+	return nil
+}
+
+func (m *mockEncryptionService) CreateTaskSurveySecrets(projectID int, taskID int, secrets string, expireAt time.Time) error {
+	return nil
+}
+
+func (m *mockEncryptionService) GetTaskSurveySecrets(projectID int, taskID int) (string, error) {
+	return "", nil
+}
+
+func (m *mockEncryptionService) DeleteTaskSurveySecrets(projectID int, taskID int) error {
 	return nil
 }
 
@@ -103,7 +115,7 @@ func (m *mockAccessKeyInstaller) Install(key db.AccessKey, usage db.AccessKeyRol
 }
 
 func setupTestSchedulePool(t *testing.T) (*SchedulePool, db.Store) {
-	store := bolt.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	// Store original config and restore after test
 	originalSchedule := util.Config.Schedule

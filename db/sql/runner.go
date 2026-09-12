@@ -72,7 +72,7 @@ func (d *SqlDb) GetRunners(projectID int, activeOnly bool, tagFilterMode db.Runn
 		}
 
 		if activeOnly {
-			builder = builder.Where("active=?", activeOnly)
+			builder = builder.Where("active=true and token != ''")
 		}
 
 		return builder

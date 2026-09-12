@@ -146,9 +146,8 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 func (c *EnvironmentController) EnvironmentMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		project := helpers.GetFromContext(r, "project").(db.Project)
-		envID, err := helpers.GetIntParam("environment_id", w, r)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
+		envID, ok := helpers.GetIntParamOrAbort("environment_id", w, r)
+		if !ok {
 			return
 		}
 
@@ -296,7 +295,6 @@ func (c *EnvironmentController) RemoveEnvironment(w http.ResponseWriter, r *http
 	env := helpers.GetFromContext(r, "environment").(db.Environment)
 
 	err := c.environmentService.Delete(env.ProjectID, env.ID)
-	//err := helpers.Store(r).DeleteEnvironment(env.ProjectID, env.ID)
 
 	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{

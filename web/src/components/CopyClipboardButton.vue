@@ -7,7 +7,7 @@
     ></textarea>
 
     <v-btn icon @click="copy()" :large="large">
-      <v-icon color="white">mdi-content-copy</v-icon>
+      <v-icon :color="color">mdi-content-copy</v-icon>
     </v-btn>
   </span>
 </template>

@@ -1,28 +1,24 @@
 package projects
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	log "github.com/sirupsen/logrus"
 )
 
 func GetIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	valueId, err := helpers.GetIntParam("value_id", w, r)
+	valueId, ok := helpers.GetIntParamOrAbort("value_id", w, r)
 
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid IntegrationExtractValue ID",
-		})
+	if !ok {
 		return
 	}
 
 	integration := helpers.GetFromContext(r, "integration").(db.Integration)
-	var value db.IntegrationExtractValue
-	value, err = helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, integration.ID)
+	value, err := helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, integration.ID)
 
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
@@ -83,35 +79,23 @@ func AddIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 
 func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	valueId, err := helpers.GetIntParam("value_id", w, r)
+	valueId, ok := helpers.GetIntParamOrAbort("value_id", w, r)
 
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid Value ID",
-		})
+	if !ok {
 		return
 	}
+
 	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 
-	var value db.IntegrationExtractValue
-	value, err = helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, integration.ID)
-	if err != nil {
-		helpers.WriteError(w, err)
+	var newValue db.IntegrationExtractValue
+	if !helpers.Bind(w, r, &newValue) {
 		return
 	}
 
-	if !helpers.Bind(w, r, &value) {
-		return
-	}
+	newValue.ID = valueId
+	newValue.IntegrationID = integration.ID
 
-	if value.ID != valueId {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Value ID in body and URL must be the same",
-		})
-		return
-	}
-
-	err = helpers.Store(r).UpdateIntegrationExtractValue(project.ID, value)
+	err := helpers.Store(r).UpdateIntegrationExtractValue(project.ID, newValue)
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -122,17 +106,13 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 
 func GetIntegrationExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	valueId, err := helpers.GetIntParam("value_id", w, r)
+	valueId, ok := helpers.GetIntParamOrAbort("value_id", w, r)
 
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid Value ID",
-		})
+	if !ok {
 		return
 	}
 	integration := helpers.GetFromContext(r, "integration").(db.Integration)
-	var value db.IntegrationExtractValue
-	value, err = helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, integration.ID)
+	value, err := helpers.Store(r).GetIntegrationExtractValue(project.ID, valueId, integration.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -149,29 +129,25 @@ func GetIntegrationExtractValueRefs(w http.ResponseWriter, r *http.Request) {
 
 func DeleteIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	valueId, err := helpers.GetIntParam("value_id", w, r)
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Invalid Value ID",
-		})
+	valueId, ok := helpers.GetIntParamOrAbort("value_id", w, r)
+	if !ok {
 		return
 	}
+
 	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 
-	if err != nil {
-		log.Error(err)
+	err := helpers.Store(r).DeleteIntegrationExtractValue(project.ID, valueId, integration.ID)
+	if errors.Is(err, db.ErrInvalidOperation) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Integration Extract Value failed to be deleted",
 		})
 		return
 	}
 
-	err = helpers.Store(r).DeleteIntegrationExtractValue(project.ID, valueId, integration.ID)
-	if err == db.ErrInvalidOperation {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
-			"error": "Integration Extract Value failed to be deleted",
-		})
+	if err != nil {
+		helpers.WriteError(w, err)
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }

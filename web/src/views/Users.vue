@@ -19,6 +19,7 @@
           @hide-action-buttons="hideEditDialogButtons = true"
           @show-action-buttons="hideEditDialogButtons = false"
           :auth-methods="authMethods"
+          :login-with-password="(systemInfo || {}).login_with_password"
         />
       </template>
     </EditDialog>
@@ -30,20 +31,13 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
-      <v-btn
-        icon
-        class="mr-4"
-        @click="returnToProjects()"
-      >
+    <v-toolbar flat>
+      <v-btn icon class="mr-4" @click="returnToProjects()">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
       <v-toolbar-title>{{ $t('users') }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn
-        color="primary"
-        @click="editItem('new')"
-      >{{ $t('newUser') }}</v-btn>
+      <v-btn color="primary" @click="editItem('new')">{{ $t('newUser') }}</v-btn>
     </v-toolbar>
 
     <v-divider />
@@ -71,19 +65,11 @@
 
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-btn
-            icon
-            class="mr-1"
-            @click="askDeleteItem(item.id)"
-          >
+          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn
-            icon
-            class="mr-1"
-            @click="editItem(item.id)"
-          >
+          <v-btn icon class="mr-1" @click="editItem(item.id)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>
@@ -103,6 +89,7 @@ export default {
 
   props: {
     authMethods: Object,
+    systemInfo: Object,
   },
 
   components: {
@@ -119,37 +106,39 @@ export default {
 
   methods: {
     getHeaders() {
-      return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
-        width: '50%',
-      },
-      {
-        text: this.$i18n.t('username'),
-        value: 'username',
-      },
-      {
-        text: this.$i18n.t('email'),
-        value: 'email',
-      },
-      {
-        text: this.$i18n.t('alert'),
-        value: 'alert',
-      },
-      {
-        text: this.$i18n.t('admin'),
-        value: 'admin',
-      },
-      {
-        text: this.$i18n.t('external'),
-        value: 'external',
-        width: '50%',
-      },
-      {
-        text: this.$i18n.t('actions'),
-        value: 'actions',
-        sortable: false,
-      }];
+      return [
+        {
+          text: this.$i18n.t('name'),
+          value: 'name',
+          width: '50%',
+        },
+        {
+          text: this.$i18n.t('username'),
+          value: 'username',
+        },
+        {
+          text: this.$i18n.t('email'),
+          value: 'email',
+        },
+        {
+          text: this.$i18n.t('alert'),
+          value: 'alert',
+        },
+        {
+          text: this.$i18n.t('admin'),
+          value: 'admin',
+        },
+        {
+          text: this.$i18n.t('external'),
+          value: 'external',
+          width: '50%',
+        },
+        {
+          text: this.$i18n.t('actions'),
+          value: 'actions',
+          sortable: false,
+        },
+      ];
     },
 
     async returnToProjects() {

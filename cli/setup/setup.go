@@ -51,23 +51,6 @@ func InteractiveRunnerSetup(conf *util.ConfigType) {
 
 		conf.Runner.Token = token
 
-		hasPrivateKey := false
-		askConfirmation("Do you have runner's private key file?", false, &hasPrivateKey)
-
-		if hasPrivateKey {
-			pkFile := ""
-			for {
-				askValue("Enter path to the private key file", "", &pkFile)
-
-				if pkFile == "" {
-					fmt.Println("Invalid private key file path")
-					continue
-				}
-				break
-			}
-			conf.Runner.PrivateKeyFile = pkFile
-		}
-
 		return
 	}
 
@@ -89,19 +72,6 @@ func InteractiveRunnerSetup(conf *util.ConfigType) {
 
 		conf.Runner.RegistrationToken = regToken
 
-		pkFile := ""
-		for {
-			askValue("Enter path to the private key file (will be generated if not exists)", "", &pkFile)
-
-			if pkFile == "" {
-				fmt.Println("Invalid private key file path")
-				continue
-			}
-			break
-		}
-
-		conf.Runner.PrivateKeyFile = pkFile
-
 		return
 	}
 }
@@ -111,7 +81,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 
 	dbPrompt := `What database to use:
    1 - MySQL
-   2 - BoltDB (DEPRECATED!!!)
+   2 - BoltDB (NOT SUPPORTED)
    3 - PostgreSQL
    4 - SQLite
 `
@@ -124,14 +94,15 @@ func InteractiveSetup(conf *util.ConfigType) {
 		conf.Dialect = util.DbDriverMySQL
 		scanMySQL(conf)
 	case 2:
-		conf.Dialect = util.DbDriverBolt
-		scanBoltDb(conf)
+		panic("BoltDB is not supported starting from version 2.19")
 	case 3:
 		conf.Dialect = util.DbDriverPostgres
 		scanPostgres(conf)
 	case 4:
 		conf.Dialect = util.DbDriverSQLite
 		scanSQLite(conf)
+	default:
+		panic("Unsupported database dialect")
 	}
 
 	defaultPlaybookPath := filepath.Join(os.TempDir(), "semaphore")
@@ -182,10 +153,6 @@ func InteractiveSetup(conf *util.ConfigType) {
 		askValue("LDAP mapping for full name field", "cn", &conf.LdapMappings.CN)
 		askValue("LDAP mapping for email field", "mail", &conf.LdapMappings.Mail)
 	}
-}
-
-func scanBoltDb(conf *util.ConfigType) {
-	conf.BoltDb = scanFileDB("database.boltdb")
 }
 
 func scanSQLite(conf *util.ConfigType) {

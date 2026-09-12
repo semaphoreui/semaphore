@@ -7,6 +7,7 @@ import (
 	"github.com/semaphoreui/semaphore/db/sql"
 
 	"github.com/semaphoreui/semaphore/db"
+	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +21,7 @@ func TestBackupProject(t *testing.T) {
 		TmpPath: "/tmp",
 	}
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
 		Name: "Test 123",
@@ -56,16 +57,18 @@ func TestBackupProject(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = store.CreateTemplate(db.Template{
-		Name:           "Test",
-		Playbook:       "test.yml",
-		ProjectID:      proj.ID,
-		RepositoryID:   repo.ID,
-		InventoryID:    &inv.ID,
-		EnvironmentIDs: []int{env.ID},
+		Name:                  "Test",
+		Playbook:              "test.yml",
+		ProjectID:             proj.ID,
+		RepositoryID:          repo.ID,
+		InventoryID:           &inv.ID,
+		EnvironmentIDs:        []int{env.ID},
+		SuppressSuccessAlerts: true,
+		SuppressErrorAlerts:   true,
 	})
 	assert.NoError(t, err)
 
-	backup, err := GetBackup(proj.ID, store)
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
 	assert.NoError(t, err)
 	assert.Equal(t, proj.ID, backup.Meta.ID)
 
@@ -90,7 +93,7 @@ func TestBackupProject(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	restoredProj, err := restoredBackup.Restore(user, store)
+	restoredProj, err := restoredBackup.Restore(user, store, proFactory.NewWorkflowStore(store))
 	assert.NoError(t, err)
 	assert.Equal(t, restoredProj.Name, "Test 1234")
 
@@ -98,6 +101,8 @@ func TestBackupProject(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, restoredTemplates, 1)
 	assert.Len(t, restoredTemplates[0].EnvironmentIDs, 1)
+	assert.True(t, restoredTemplates[0].SuppressSuccessAlerts)
+	assert.True(t, restoredTemplates[0].SuppressErrorAlerts)
 
 	restoredEnvs, err := store.GetEnvironments(restoredProj.ID, db.RetrieveQueryParams{})
 	assert.NoError(t, err)
@@ -111,7 +116,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 		TmpPath: "/tmp",
 	}
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	proj, err := store.CreateProject(db.Project{
 		Name: "Test 123",
@@ -134,7 +139,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	backup, err := GetBackup(proj.ID, store)
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
 	assert.NoError(t, err)
 	assert.Equal(t, proj.ID, backup.Meta.ID)
 	backup.Meta.Name = "Test 1234"
@@ -182,7 +187,8 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
     }
   ],
   "templates": [],
-  "views": []
+  "views": [],
+  "workflows": []
 }`, str)
 
 	restoredBackup := &BackupFormat{}
@@ -201,7 +207,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	restoredProj, err := restoredBackup.Restore(user, store)
+	restoredProj, err := restoredBackup.Restore(user, store, proFactory.NewWorkflowStore(store))
 	assert.Nil(t, err)
 
 	restoredStorages, err := store.GetSecretStorages(restoredProj.ID)
@@ -225,7 +231,7 @@ func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
 		TmpPath: "/tmp",
 	}
 
-	store := sql.CreateTestStore()
+	store := sql.InitConfigCreateTestStore()
 
 	// An old-format backup payload: a single template plus a single
 	// schedule with no "task_params" object at all. Restore() should
@@ -279,6 +285,7 @@ func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
       "repository": "Test Repo",
       "roles": [],
       "suppress_success_alerts": false,
+      "suppress_error_alerts": false,
       "type": "",
       "vaults": [],
       "view": null,
@@ -303,7 +310,7 @@ func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	restoredProj, err := restoredBackup.Restore(user, store)
+	restoredProj, err := restoredBackup.Restore(user, store, proFactory.NewWorkflowStore(store))
 	assert.NoError(t, err)
 
 	restoredSchedules, err := store.GetSchedules()
@@ -317,6 +324,10 @@ func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
 	}
 	assert.True(t, found, "restored schedule should be persisted")
 }
+
+// TestBackup_Workflow moved to pro_impl/db/sql/backup_workflow_test.go because
+// workflow persistence is a Pro feature requiring the real workflow store
+// (the open-source build only has the no-op stub).
 
 func isUnique(items []testItem) bool {
 	for i, item := range items {

@@ -1,9 +1,9 @@
 package db_lib
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -52,12 +52,6 @@ func (t *ShellApp) makeCmd(command string, args []string, environmentVars []stri
 	cmd.SysProcAttr = util.Config.GetAppSysProcAttr()
 
 	return cmd
-}
-
-func (t *ShellApp) runCmd(command string, args []string) error {
-	cmd := t.makeCmd(command, args, nil)
-	t.Logger.LogCmd(cmd)
-	return cmd.Run()
 }
 
 func (t *ShellApp) GetFullPath() (path string) {
@@ -112,16 +106,21 @@ func (t *ShellApp) Run(args LocalAppRunningArgs) error {
 	// Use "default" key for backward compatibility
 	cliArgs := args.CliArgs["default"]
 	cmd := t.makeShellCmd(cliArgs, args.EnvironmentVars)
-	t.Logger.LogCmd(cmd)
-	//cmd.Stdin = &t.reader
-	cmd.Stdin = strings.NewReader("")
+	cmd.WaitDelay = 250 * time.Millisecond
+	finishLog := t.Logger.LogCmd(cmd)
+	defer finishLog()
+
 	err := cmd.Start()
 	if err != nil {
 		return err
 	}
 	args.Callback(cmd.Process)
+
 	err = cmd.Wait()
-	// Wait for all log processing to complete before returning
-	t.Logger.WaitLog()
+	finishLog() // Flush command output before logging the wait result.
+	if errors.Is(err, exec.ErrWaitDelay) {
+		t.Logger.Logf("shell command output draining exceeded %s and was stopped", cmd.WaitDelay)
+		return nil
+	}
 	return err
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
+	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	projectService "github.com/semaphoreui/semaphore/services/project"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -57,7 +58,7 @@ var projectImportCmd = &cobra.Command{
 		}
 
 		store := createStore("")
-		defer store.Close("")
+		defer store.Close()
 
 		user, err := resolveImportUser(store)
 		if err != nil {
@@ -156,6 +157,7 @@ func importProjectFromFile(path string, projectName string, user db.User, store 
 	if projectName != "" {
 		backup.Meta.Name = projectName
 	}
-	_, err = backup.Restore(user, store)
+	workflowStore := proFactory.NewWorkflowStore(store)
+	_, err = backup.Restore(user, store, workflowStore)
 	return err
 }

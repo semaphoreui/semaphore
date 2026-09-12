@@ -1,7 +1,9 @@
 {
-  "image": "mcr.microsoft.com/devcontainers/universal:4",
+  "image": "mcr.microsoft.com/devcontainers/universal:6",
   "features": {
-    "ghcr.io/devcontainers/features/go:1": {},
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.26"
+    },
     "ghcr.io/devcontainers/features/node:1": {}
   },
   "postCreateCommand": "./.devcontainer/postCreateCommand.sh"

@@ -28,6 +28,10 @@ class IndeterminateTimer extends Listenable {
   }
 
   start() {
+    if (this.valueTimer != null) {
+      return;
+    }
+
     const STEP = 1;
     const self = this;
 
@@ -58,6 +62,7 @@ class IndeterminateTimer extends Listenable {
 
   stop() {
     clearInterval(this.valueTimer);
+    this.valueTimer = null;
   }
 
   addListener(callback) {

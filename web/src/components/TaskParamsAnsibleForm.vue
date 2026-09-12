@@ -55,7 +55,7 @@
           hide-details
         ></v-slider>
       </v-col>
-      <v-col>
+      <v-col v-if="!templateParams.hide_dry_run">
         <v-checkbox
           class="mt-0"
           :input-value="params.dry_run"
@@ -66,7 +66,7 @@
           </template>
         </v-checkbox>
       </v-col>
-      <v-col>
+      <v-col v-if="!templateParams.hide_diff">
         <v-checkbox
           class="mt-0"
           :input-value="params.diff"
@@ -74,6 +74,17 @@
         >
           <template v-slot:label>
             <div class="text-no-wrap">{{ $t('diff') }} <code>--diff</code></div>
+          </template>
+        </v-checkbox>
+      </v-col>
+      <v-col v-if="templateParams.allow_override_skip_galaxy_install">
+        <v-checkbox
+          :input-value="params.skip_galaxy_install"
+          class="mt-0"
+          @change="updateValue('skip_galaxy_install', $event)"
+        >
+          <template v-slot:label>
+            <div class="text-no-wrap">{{ $t('skipGalaxyInstall') }}</div>
           </template>
         </v-checkbox>
       </v-col>
@@ -98,6 +109,7 @@ const APP_PARAMS = {
     'tags',
     'skip_tags',
     'limit',
+    'skip_galaxy_install',
   ],
 };
 

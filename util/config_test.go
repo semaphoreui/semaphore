@@ -141,6 +141,36 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 	}
 }
 
+func TestLoadEnvironmentToObject_RunnerExecutor(t *testing.T) {
+	var val RunnerConfig
+
+	origExecutor, hadExecutor := os.LookupEnv("SEMAPHORE_RUNNER_EXECUTOR")
+	origNetwork, hadNetwork := os.LookupEnv("SEMAPHORE_RUNNER_DOCKER_NETWORK")
+	t.Cleanup(func() {
+		if hadExecutor {
+			_ = os.Setenv("SEMAPHORE_RUNNER_EXECUTOR", origExecutor)
+		} else {
+			_ = os.Unsetenv("SEMAPHORE_RUNNER_EXECUTOR")
+		}
+		if hadNetwork {
+			_ = os.Setenv("SEMAPHORE_RUNNER_DOCKER_NETWORK", origNetwork)
+		} else {
+			_ = os.Unsetenv("SEMAPHORE_RUNNER_DOCKER_NETWORK")
+		}
+	})
+	require.NoError(t, os.Setenv("SEMAPHORE_RUNNER_EXECUTOR", `{"type":"docker","docker":{"image":"example.com/job:1"}}`))
+	require.NoError(t, os.Setenv("SEMAPHORE_RUNNER_DOCKER_NETWORK", "host"))
+
+	_, err := loadEnvironmentToObject(&val)
+	require.NoError(t, err)
+
+	require.NotNil(t, val.Executor)
+	assert.Equal(t, ExecutorTypeDocker, val.Executor.Type)
+	assert.Equal(t, "example.com/job:1", val.Executor.Docker.Image)
+	// individual executor env vars still override fields of the JSON object
+	assert.Equal(t, "host", val.Executor.Docker.Network)
+}
+
 func TestLoadEnvironmentToObject_SensitiveEnvs(t *testing.T) {
 	type sub struct {
 		Field string `json:"field"`
@@ -270,7 +300,7 @@ func TestGetConfigValue(t *testing.T) {
 	Config.CookieHash = testCookieHash
 	Config.MaxParallelTasks = testMaxParallelTasks
 	Config.LdapNeedTLS = testLdapNeedTls
-	Config.BoltDb = &DbConfig{
+	Config.SQLite = &DbConfig{
 		Hostname: testDbHost,
 	}
 
@@ -285,10 +315,6 @@ func TestGetConfigValue(t *testing.T) {
 	}
 	if getConfigValue("LdapNeedTLS") != fmt.Sprintf("%v", testLdapNeedTls) {
 		t.Error("Could not get value for config attribute 'LdapNeedTLS'!")
-	}
-
-	if getConfigValue("BoltDb.Hostname") != fmt.Sprintf("%v", testDbHost) {
-		t.Error("Could not get value for config attribute 'BoltDb.Hostname'!")
 	}
 
 	defer func() {
@@ -363,8 +389,8 @@ func TestSetConfigValue(t *testing.T) {
 
 func TestLoadConfigEnvironmet(t *testing.T) {
 	Config = new(ConfigType)
-	Config.BoltDb = &DbConfig{}
-	Config.Dialect = DbDriverBolt
+	Config.SQLite = &DbConfig{}
+	Config.Dialect = DbDriverSQLite
 
 	envPort := "1337"
 	envCookieHash := "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
@@ -399,8 +425,8 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 	if Config.LdapNeedTLS != expectLdapNeedTls {
 		t.Error("Setting 'LdapNeedTLS' was not loaded from environment-vars!")
 	}
-	if Config.BoltDb.Hostname != envDbHost {
-		t.Error("Setting 'BoltDb.Hostname' was not loaded from environment-vars!")
+	if Config.SQLite.Hostname != envDbHost {
+		t.Error("Setting 'SQLite.Hostname' was not loaded from environment-vars!")
 	}
 
 	//if Config.MySQL.Hostname == envDbHost || Config.Postgres.Hostname == envDbHost {
@@ -447,7 +473,7 @@ func TestDecodeConfig_YAML(t *testing.T) {
 port: ":1337"
 cookie_hash: abc
 max_parallel_tasks: 7
-bolt:
+sqlite:
   host: /tmp/db.bolt
 `
 	decodeConfig(strings.NewReader(yamlBody), "config.yaml")
@@ -455,8 +481,8 @@ bolt:
 	assert.Equal(t, ":1337", Config.Port)
 	assert.Equal(t, "abc", Config.CookieHash)
 	assert.Equal(t, 7, Config.MaxParallelTasks)
-	require.NotNil(t, Config.BoltDb)
-	assert.Equal(t, "/tmp/db.bolt", Config.BoltDb.Hostname)
+	require.NotNil(t, Config.SQLite)
+	assert.Equal(t, "/tmp/db.bolt", Config.SQLite.Hostname)
 }
 
 func TestDecodeConfig_YAML_YmlExtension(t *testing.T) {
@@ -507,6 +533,9 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if Config.TmpPath != "/tmp/semaphore" {
 		t.Error(errMsg)
 	}
+	if Config.GitSubmoduleJobs != 4 {
+		t.Error(errMsg)
+	}
 }
 
 func ensureConfigValidationFailure(t *testing.T, attribute string, value any) {
@@ -527,7 +556,7 @@ func TestValidateConfig(t *testing.T) {
 	Config = new(ConfigType)
 
 	testPort := ":3000"
-	testDbDialect := DbDriverBolt
+	testDbDialect := DbDriverSQLite
 	testCookieHash := "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
 	testMaxParallelTasks := 0
 	testEmailTlsMinVersion := "1.2"
@@ -537,6 +566,7 @@ func TestValidateConfig(t *testing.T) {
 	Config.CookieHash = testCookieHash
 	Config.MaxParallelTasks = testMaxParallelTasks
 	Config.GitClientId = GoGitClientId
+	Config.GitSubmoduleJobs = 4
 	Config.CookieEncryption = testCookieHash
 	Config.AccessKeyEncryption = testCookieHash
 	Config.EmailTlsMinVersion = testEmailTlsMinVersion
@@ -554,6 +584,10 @@ func TestValidateConfig(t *testing.T) {
 
 	ensureConfigValidationFailure(t, "MaxParallelTasks", Config.MaxParallelTasks)
 	Config.MaxParallelTasks = testMaxParallelTasks
+
+	Config.GitSubmoduleJobs = 0
+	ensureConfigValidationFailure(t, "GitSubmoduleJobs", Config.GitSubmoduleJobs)
+	Config.GitSubmoduleJobs = 4
 
 	// Config.CookieHash = "\"0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ=\"" // invalid with quotes (can happen when supplied as env-var)
 	// ensureConfigValidationFailure(t, "CookieHash", Config.CookieHash)
@@ -588,4 +622,238 @@ func TestValidateConfig(t *testing.T) {
 	Config.AccessKeyEncryption = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 	ensureConfigValidationFailure(t, "AccessKeyEncryption", Config.AccessKeyEncryption)
 	Config.AccessKeyEncryption = testCookieHash
+}
+
+func TestGetSecretsPath_DirsSecrets(t *testing.T) {
+	Config = NewConfigType()
+	Config.Dirs = &ConfigDirs{Secrets: "/custom/dirs/secrets"}
+	loadConfigDefaults()
+	assert.Equal(t, "/custom/dirs/secrets", Config.GetSecretsPath())
+}
+
+func TestGetSecretsPath_LegacySecretsPath(t *testing.T) {
+	Config = NewConfigType()
+	Config.SecretsPath = "/legacy/secrets/path"
+	loadConfigDefaults()
+	assert.Equal(t, "/legacy/secrets/path", Config.GetSecretsPath())
+	require.NotNil(t, Config.Dirs)
+	assert.Equal(t, "/legacy/secrets/path", Config.Dirs.Secrets)
+}
+
+func TestGetSecretsPath_Precedence(t *testing.T) {
+	Config = NewConfigType()
+	Config.Dirs = &ConfigDirs{Secrets: "/custom/dirs/secrets"}
+	Config.SecretsPath = "/legacy/secrets/path"
+	loadConfigDefaults()
+	assert.Equal(t, "/custom/dirs/secrets", Config.GetSecretsPath())
+}
+
+func TestGetSecretsPath_Default(t *testing.T) {
+	Config = NewConfigType()
+	loadConfigDefaults()
+	assert.Equal(t, "/tmp/semaphore", Config.GetSecretsPath())
+	require.NotNil(t, Config.Dirs)
+	assert.Equal(t, "/tmp/semaphore", Config.Dirs.SSHAgentSockets)
+}
+
+func TestGetSecretsPath_Env(t *testing.T) {
+	Config = NewConfigType()
+	orig, existed := os.LookupEnv("SEMAPHORE_SECRETS_PATH")
+	t.Cleanup(func() {
+		if existed {
+			_ = os.Setenv("SEMAPHORE_SECRETS_PATH", orig)
+		} else {
+			_ = os.Unsetenv("SEMAPHORE_SECRETS_PATH")
+		}
+	})
+	_ = os.Setenv("SEMAPHORE_SECRETS_PATH", "/env/secrets/path")
+
+	loadConfigEnvironment()
+	loadConfigDefaults()
+
+	assert.Equal(t, "/env/secrets/path", Config.GetSecretsPath())
+	assert.Equal(t, "/env/secrets/path", Config.Dirs.Secrets)
+	assert.Equal(t, "/env/secrets/path", Config.SecretsPath)
+}
+
+
+func setTestEnv(t *testing.T, key, val string) {
+	orig, existed := os.LookupEnv(key)
+	t.Cleanup(func() {
+		if existed {
+			_ = os.Setenv(key, orig)
+		} else {
+			_ = os.Unsetenv(key)
+		}
+	})
+	_ = os.Setenv(key, val)
+}
+
+func unsetTestEnv(t *testing.T, key string) {
+	orig, existed := os.LookupEnv(key)
+	t.Cleanup(func() {
+		if existed {
+			_ = os.Setenv(key, orig)
+		} else {
+			_ = os.Unsetenv(key)
+		}
+	})
+	_ = os.Unsetenv(key)
+}
+
+func TestLoadEnvironmentToObject_TLS_HTTPRedirectPort(t *testing.T) {
+	Config = NewConfigType()
+	setTestEnv(t, "SEMAPHORE_TLS_ENABLED", "true")
+	setTestEnv(t, "SEMAPHORE_TLS_CERT_FILE", "/path/to/cert.pem")
+	setTestEnv(t, "SEMAPHORE_TLS_KEY_FILE", "/path/to/key.pem")
+	setTestEnv(t, "SEMAPHORE_TLS_HTTP_REDIRECT_PORT", "8080")
+	unsetTestEnv(t, "SEMAPHORE_TLS_HTTP_REDIRECT_ADDR")
+
+	loadConfigEnvironment()
+
+	require.NotNil(t, Config.TLS)
+	assert.True(t, Config.TLS.Enabled)
+	assert.Equal(t, "/path/to/cert.pem", Config.TLS.CertFile)
+	assert.Equal(t, "/path/to/key.pem", Config.TLS.KeyFile)
+	require.NotNil(t, Config.TLS.HTTPRedirectPort)
+	assert.Equal(t, 8080, *Config.TLS.HTTPRedirectPort)
+	assert.Empty(t, Config.TLS.HTTPRedirectAddr)
+}
+
+func TestLoadEnvironmentToObject_TLS_HTTPRedirectAddr(t *testing.T) {
+	Config = NewConfigType()
+	setTestEnv(t, "SEMAPHORE_TLS_ENABLED", "true")
+	setTestEnv(t, "SEMAPHORE_TLS_HTTP_REDIRECT_ADDR", "0.0.0.0:8080")
+	unsetTestEnv(t, "SEMAPHORE_TLS_HTTP_REDIRECT_PORT")
+
+	loadConfigEnvironment()
+
+	require.NotNil(t, Config.TLS)
+	assert.True(t, Config.TLS.Enabled)
+	assert.Equal(t, "0.0.0.0:8080", Config.TLS.HTTPRedirectAddr)
+	assert.Nil(t, Config.TLS.HTTPRedirectPort)
+}
+
+func TestLoadEnvironmentToObject_PrimitivePointers(t *testing.T) {
+	var val struct {
+		IntPtr    *int            `env:"TEST_INT_PTR"`
+		StringPtr *string         `env:"TEST_STR_PTR"`
+		BoolPtr   *bool           `env:"TEST_BOOL_PTR"`
+		SliceInt  *[]int          `env:"TEST_SLICE_INT"`
+		SliceStr  *[]string       `env:"TEST_SLICE_STR"`
+		MapPtr    *map[string]int `env:"TEST_MAP_PTR"`
+	}
+
+	setTestEnv(t, "TEST_INT_PTR", "42")
+	setTestEnv(t, "TEST_STR_PTR", "hello_world")
+	setTestEnv(t, "TEST_BOOL_PTR", "true")
+	setTestEnv(t, "TEST_SLICE_INT", "[10,20,30]")
+	setTestEnv(t, "TEST_SLICE_STR", `["foo","bar"]`)
+	setTestEnv(t, "TEST_MAP_PTR", `{"a":1,"b":2}`)
+
+	_, err := loadEnvironmentToObject(&val)
+	require.NoError(t, err)
+
+	require.NotNil(t, val.IntPtr)
+	assert.Equal(t, 42, *val.IntPtr)
+
+	require.NotNil(t, val.StringPtr)
+	assert.Equal(t, "hello_world", *val.StringPtr)
+
+	require.NotNil(t, val.BoolPtr)
+	assert.True(t, *val.BoolPtr)
+
+	require.NotNil(t, val.SliceInt)
+	assert.Equal(t, []int{10, 20, 30}, *val.SliceInt)
+
+	require.NotNil(t, val.SliceStr)
+	assert.Equal(t, []string{"foo", "bar"}, *val.SliceStr)
+
+	require.NotNil(t, val.MapPtr)
+	assert.Equal(t, map[string]int{"a": 1, "b": 2}, *val.MapPtr)
+}
+
+func TestLoadEnvironmentToObject_ConfigProcess_UID_GID(t *testing.T) {
+	Config = NewConfigType()
+	setTestEnv(t, "SEMAPHORE_PROCESS_USER", "semaphore")
+	setTestEnv(t, "SEMAPHORE_PROCESS_UID", "1001")
+	setTestEnv(t, "SEMAPHORE_PROCESS_GID", "1002")
+
+	loadConfigEnvironment()
+
+	assert.Equal(t, "semaphore", Config.Process.User)
+	require.NotNil(t, Config.Process.UID)
+	assert.Equal(t, uint32(1001), *Config.Process.UID)
+	require.NotNil(t, Config.Process.GID)
+	assert.Equal(t, uint32(1002), *Config.Process.GID)
+}
+
+func TestCastValueToKind_IntegerBoundaries(t *testing.T) {
+	// Signed boundaries
+	v, ok := CastValueToKind("-128", reflect.Int8)
+	assert.True(t, ok)
+	assert.Equal(t, int8(-128), v)
+
+	v, ok = CastValueToKind("127", reflect.Int8)
+	assert.True(t, ok)
+	assert.Equal(t, int8(127), v)
+
+	assert.Panics(t, func() { CastValueToKind("128", reflect.Int8) })
+	assert.Panics(t, func() { CastValueToKind("-129", reflect.Int8) })
+
+	v, ok = CastValueToKind("-32768", reflect.Int16)
+	assert.True(t, ok)
+	assert.Equal(t, int16(-32768), v)
+
+	v, ok = CastValueToKind("32767", reflect.Int16)
+	assert.True(t, ok)
+	assert.Equal(t, int16(32767), v)
+
+	assert.Panics(t, func() { CastValueToKind("32768", reflect.Int16) })
+
+	v, ok = CastValueToKind("-2147483648", reflect.Int32)
+	assert.True(t, ok)
+	assert.Equal(t, int32(-2147483648), v)
+
+	v, ok = CastValueToKind("2147483647", reflect.Int32)
+	assert.True(t, ok)
+	assert.Equal(t, int32(2147483647), v)
+
+	assert.Panics(t, func() { CastValueToKind("2147483648", reflect.Int32) })
+
+	v, ok = CastValueToKind("9223372036854775807", reflect.Int64)
+	assert.True(t, ok)
+	assert.Equal(t, int64(9223372036854775807), v)
+
+	assert.Panics(t, func() { CastValueToKind("9223372036854775808", reflect.Int64) })
+
+	// Unsigned boundaries
+	v, ok = CastValueToKind("0", reflect.Uint8)
+	assert.True(t, ok)
+	assert.Equal(t, uint8(0), v)
+
+	v, ok = CastValueToKind("255", reflect.Uint8)
+	assert.True(t, ok)
+	assert.Equal(t, uint8(255), v)
+
+	assert.Panics(t, func() { CastValueToKind("256", reflect.Uint8) })
+	assert.Panics(t, func() { CastValueToKind("-1", reflect.Uint8) })
+
+	v, ok = CastValueToKind("65535", reflect.Uint16)
+	assert.True(t, ok)
+	assert.Equal(t, uint16(65535), v)
+
+	assert.Panics(t, func() { CastValueToKind("65536", reflect.Uint16) })
+
+	v, ok = CastValueToKind("4294967295", reflect.Uint32)
+	assert.True(t, ok)
+	assert.Equal(t, uint32(4294967295), v)
+
+	assert.Panics(t, func() { CastValueToKind("4294967296", reflect.Uint32) })
+
+	v, ok = CastValueToKind("18446744073709551615", reflect.Uint64)
+	assert.True(t, ok)
+	assert.Equal(t, uint64(18446744073709551615), v)
+
+	assert.Panics(t, func() { CastValueToKind("18446744073709551616", reflect.Uint64) })
 }
