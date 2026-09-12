@@ -5,12 +5,14 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"html"
 	htmltemplate "html/template"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -40,7 +42,7 @@ type alertTask struct {
 
 type alertChat struct {
 	ID       string
-	ThreadID string
+	ThreadID int64
 }
 
 func stringValue(s *string) string {
@@ -50,46 +52,42 @@ func stringValue(s *string) string {
 	return strings.TrimSpace(*s)
 }
 
-func normalizeTelegramThreadID(threadID string) string {
+func parseTelegramThreadID(threadID string) (id int64, ok bool) {
 	threadID = strings.TrimSpace(threadID)
 	if threadID == "" {
-		return ""
+		return 0, true
 	}
 	n, err := strconv.ParseInt(threadID, 10, 64)
 	if err != nil || n <= 0 {
-		return ""
+		return 0, false
 	}
-	return strconv.FormatInt(n, 10)
-}
-
-func telegramChatAndThread(globalChat, globalThread string, projectChat, projectThread *string) (chatID, rawThread string) {
-	projChat := stringValue(projectChat)
-	projThread := stringValue(projectThread)
-	globalChat = strings.TrimSpace(globalChat)
-	globalThread = strings.TrimSpace(globalThread)
-
-	if projChat != "" {
-		return projChat, projThread
-	}
-	if projThread != "" {
-		return globalChat, projThread
-	}
-	return globalChat, globalThread
+	return n, true
 }
 
 type telegramDestination struct {
 	chatID        string
-	threadID      string
+	threadID      int64
 	invalidThread bool
 }
 
 func resolveTelegramDestination(globalChat, globalThread string, projectChat, projectThread *string) telegramDestination {
-	chatID, rawThread := telegramChatAndThread(globalChat, globalThread, projectChat, projectThread)
-	threadID := normalizeTelegramThreadID(rawThread)
+	projChat := stringValue(projectChat)
+	projThread := stringValue(projectThread)
+
+	chatID := strings.TrimSpace(globalChat)
+	rawThread := strings.TrimSpace(globalThread)
+	if projChat != "" {
+		chatID = projChat
+		rawThread = projThread
+	} else if projThread != "" {
+		rawThread = projThread
+	}
+
+	threadID, ok := parseTelegramThreadID(rawThread)
 	return telegramDestination{
 		chatID:        chatID,
 		threadID:      threadID,
-		invalidThread: rawThread != "" && threadID == "",
+		invalidThread: !ok,
 	}
 }
 
@@ -101,24 +99,21 @@ type telegramSendMessage struct {
 }
 
 func renderTelegramAlert(alert Alert) ([]byte, error) {
-	msg := telegramSendMessage{
+	return json.Marshal(telegramSendMessage{
 		ChatID:    alert.Chat.ID,
 		ParseMode: "HTML",
 		Text: fmt.Sprintf(
 			"<code>%s</code>\n#%s <b>%s</b> <code>%s</code> - %s\nby %s\n%s",
-			alert.Name,
-			alert.Task.ID,
-			alert.Task.Result,
-			alert.Task.Version,
-			alert.Task.Desc,
-			alert.Author,
-			alert.Task.URL,
+			html.EscapeString(alert.Name),
+			html.EscapeString(alert.Task.ID),
+			html.EscapeString(alert.Task.Result),
+			html.EscapeString(alert.Task.Version),
+			html.EscapeString(alert.Task.Desc),
+			html.EscapeString(alert.Author),
+			html.EscapeString(alert.Task.URL),
 		),
-	}
-	if n, err := strconv.ParseInt(alert.Chat.ThreadID, 10, 64); err == nil && n > 0 {
-		msg.MessageThreadID = n
-	}
-	return json.Marshal(msg)
+		MessageThreadID: alert.Chat.ThreadID,
+	})
 }
 
 func (t *TaskRunner) shouldSkipStatusAlert() bool {
@@ -223,17 +218,16 @@ func (t *TaskRunner) sendTelegramAlert() {
 		t.alertChat,
 		t.alertThread,
 	)
+	if dest.chatID == "" {
+		return
+	}
 	if dest.invalidThread {
 		t.Log("Invalid Telegram thread ID, sending without message_thread_id")
 	}
 
-	if dest.chatID == "" {
-		return
-	}
-
 	author, version := t.alertInfos()
 
-	alert := Alert{
+	payload, err := renderTelegramAlert(Alert{
 		Name:   t.Template.Name,
 		Author: author,
 		Color:  t.alertColor("telegram"),
@@ -248,22 +242,16 @@ func (t *TaskRunner) sendTelegramAlert() {
 			ID:       dest.chatID,
 			ThreadID: dest.threadID,
 		},
-	}
-
-	payload, err := renderTelegramAlert(alert)
+	})
 	if err != nil {
-		t.Log("Can't generate telegram alert template!")
-		panic(err)
-	}
-
-	if len(payload) == 0 {
-		t.Log("Buffer for telegram alert is empty")
+		t.Log("Can't generate telegram alert: " + err.Error())
 		return
 	}
 
 	t.Log("Attempting to send telegram alert")
 
-	resp, err := http.Post(
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Post(
 		fmt.Sprintf(
 			"https://api.telegram.org/bot%s/sendMessage",
 			util.Config.TelegramToken,

@@ -104,7 +104,7 @@ func TestResolveTelegramDestination(t *testing.T) {
 		projectChat   *string
 		projectThread *string
 		wantChat      string
-		wantThread    string
+		wantThread    int64
 		wantInvalid   bool
 	}{
 		{
@@ -113,11 +113,16 @@ func TestResolveTelegramDestination(t *testing.T) {
 			wantChat:   "-1001",
 		},
 		{
+			name:          "thread without chat still resolves",
+			projectThread: strPtr("7"),
+			wantThread:    7,
+		},
+		{
 			name:         "global chat and global thread",
 			globalChat:   "-1001",
 			globalThread: "42",
 			wantChat:     "-1001",
-			wantThread:   "42",
+			wantThread:   42,
 		},
 		{
 			name:         "project chat without thread does not use global thread",
@@ -125,7 +130,6 @@ func TestResolveTelegramDestination(t *testing.T) {
 			globalThread: "42",
 			projectChat:  strPtr("-2002"),
 			wantChat:     "-2002",
-			wantThread:   "",
 		},
 		{
 			name:          "empty project chat with project thread uses global chat",
@@ -134,7 +138,7 @@ func TestResolveTelegramDestination(t *testing.T) {
 			projectChat:   strPtr(""),
 			projectThread: strPtr("99"),
 			wantChat:      "-1001",
-			wantThread:    "99",
+			wantThread:    99,
 		},
 		{
 			name:          "nil project chat with project thread uses global chat",
@@ -142,7 +146,7 @@ func TestResolveTelegramDestination(t *testing.T) {
 			globalThread:  "42",
 			projectThread: strPtr("99"),
 			wantChat:      "-1001",
-			wantThread:    "99",
+			wantThread:    99,
 		},
 		{
 			name:          "project chat and project thread",
@@ -151,14 +155,13 @@ func TestResolveTelegramDestination(t *testing.T) {
 			projectChat:   strPtr("-2002"),
 			projectThread: strPtr("7"),
 			wantChat:      "-2002",
-			wantThread:    "7",
+			wantThread:    7,
 		},
 		{
 			name:         "invalid global thread is omitted",
 			globalChat:   "-1001",
 			globalThread: "not-a-number",
 			wantChat:     "-1001",
-			wantThread:   "",
 			wantInvalid:  true,
 		},
 		{
@@ -167,7 +170,6 @@ func TestResolveTelegramDestination(t *testing.T) {
 			globalThread:  "42",
 			projectThread: strPtr("abc"),
 			wantChat:      "-1001",
-			wantThread:    "",
 			wantInvalid:   true,
 		},
 		{
@@ -177,21 +179,20 @@ func TestResolveTelegramDestination(t *testing.T) {
 			projectChat:   strPtr("   "),
 			projectThread: strPtr(" 99 "),
 			wantChat:      "-1001",
-			wantThread:    "99",
+			wantThread:    99,
 		},
 		{
 			name:         "leading zeros are canonicalized",
 			globalChat:   "-1001",
 			globalThread: "042",
 			wantChat:     "-1001",
-			wantThread:   "42",
+			wantThread:   42,
 		},
 		{
 			name:         "zero thread is omitted",
 			globalChat:   "-1001",
 			globalThread: "0",
 			wantChat:     "-1001",
-			wantThread:   "",
 			wantInvalid:  true,
 		},
 		{
@@ -199,7 +200,6 @@ func TestResolveTelegramDestination(t *testing.T) {
 			globalChat:   "-1001",
 			globalThread: "-5",
 			wantChat:     "-1001",
-			wantThread:   "",
 			wantInvalid:  true,
 		},
 	}
@@ -242,6 +242,12 @@ func TestRenderTelegramAlert_Payload(t *testing.T) {
 		var payload map[string]any
 		require.NoError(t, json.Unmarshal(body, &payload))
 		assert.Equal(t, "-1001", payload["chat_id"])
+		assert.Equal(t, "HTML", payload["parse_mode"])
+		assert.Equal(
+			t,
+			"<code>Deploy</code>\n#12 <b>success</b> <code>1.0</code> - ok\nby Ann\nhttps://example.test/task/12",
+			payload["text"],
+		)
 		_, hasThread := payload["message_thread_id"]
 		assert.False(t, hasThread)
 		assert.NotContains(t, string(body), "message_thread_id")
@@ -249,7 +255,7 @@ func TestRenderTelegramAlert_Payload(t *testing.T) {
 
 	t.Run("with thread id as json number", func(t *testing.T) {
 		alert := base
-		alert.Chat.ThreadID = "042"
+		alert.Chat.ThreadID = 42
 
 		body, err := renderTelegramAlert(alert)
 		require.NoError(t, err)
@@ -260,15 +266,18 @@ func TestRenderTelegramAlert_Payload(t *testing.T) {
 		assert.Equal(t, float64(42), payload["message_thread_id"])
 	})
 
-	t.Run("escapes quotes in text", func(t *testing.T) {
+	t.Run("escapes html in text", func(t *testing.T) {
 		alert := base
-		alert.Name = `Deploy "prod"`
+		alert.Name = `Deploy <prod> & "qa"`
 
 		body, err := renderTelegramAlert(alert)
 		require.NoError(t, err)
 
 		var payload map[string]any
 		require.NoError(t, json.Unmarshal(body, &payload))
-		assert.Contains(t, payload["text"], `Deploy "prod"`)
+		text, ok := payload["text"].(string)
+		require.True(t, ok)
+		assert.Contains(t, text, `Deploy &lt;prod&gt; &amp; &#34;qa&#34;`)
+		assert.NotContains(t, text, `<prod>`)
 	})
 }

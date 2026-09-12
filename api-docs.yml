@@ -257,6 +257,7 @@ definitions:
             type: string
           alert_thread:
             type: string
+            description: Optional Telegram forum topic ID (message_thread_id).
           max_parallel_tasks:
             type: integer
             minimum: 0
@@ -409,6 +410,7 @@ definitions:
         type: string
         x-nullable: true
         example: "123"
+        description: Optional Telegram forum topic ID (message_thread_id).
       max_parallel_tasks:
         type: integer
         minimum: 0
@@ -440,6 +442,7 @@ definitions:
         type: string
         x-nullable: true
         example: "123"
+        description: Optional Telegram forum topic ID (message_thread_id).
       max_parallel_tasks:
         type: integer
         minimum: 0

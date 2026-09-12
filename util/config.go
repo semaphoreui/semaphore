@@ -625,7 +625,7 @@ type ConfigType struct {
 	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
-	TelegramThread      string `json:"telegram_thread,omitempty" env:"SEMAPHORE_TELEGRAM_THREAD"`
+	TelegramThread      string `json:"telegram_thread,omitempty" env:"SEMAPHORE_TELEGRAM_THREAD"` // forum topic ID (message_thread_id)
 	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN,sensitive"`
 	SlackAlert          bool   `json:"slack_alert,omitempty" env:"SEMAPHORE_SLACK_ALERT"`
 	SlackUrl            string `json:"slack_url,omitempty" env:"SEMAPHORE_SLACK_URL"`
