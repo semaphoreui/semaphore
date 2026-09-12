@@ -28,6 +28,9 @@
 import Drawflow from 'drawflow';
 import 'drawflow/dist/drawflow.min.css';
 import { layoutWorkflowNodes, needsAutoLayout } from '@/lib/workflowLayout';
+import {
+  wouldCreateCycle, nextNodeId, formatDuration, escapeHtml,
+} from '@/lib/workflowGraph';
 
 const CONDITION_DEFAULT = 'on_success';
 
@@ -42,6 +45,8 @@ export default {
     editable: { type: Boolean, default: false },
     // Map of nodeId -> run status string ('success'|'failed'|'running'|...).
     nodeStatuses: { type: Object, default: () => ({}) },
+    // Map of nodeId -> ISO resume_at timestamp, for delay nodes currently waiting.
+    nodeDelays: { type: Object, default: () => ({}) },
   },
 
   data() {
@@ -55,6 +60,9 @@ export default {
       // viewport coords of the last mousedown, used to tell a node tap from a pan
       // in read-only mode (see onReadonlyPointerDown/Up).
       pointerDown: null,
+      // ticks every second in the run view so waiting delay nodes show a live
+      // countdown instead of only updating on the 5s status poll.
+      countdownTimer: null,
     };
   },
 
@@ -70,6 +78,9 @@ export default {
     // Run view polls for fresh statuses; repaint nodes in place (status color +
     // active animation) without rebuilding, so the user's pan/zoom is preserved.
     nodeStatuses() {
+      if (this.built && !this.editable) this.refreshStatuses();
+    },
+    nodeDelays() {
       if (this.built && !this.editable) this.refreshStatuses();
     },
   },
@@ -100,12 +111,25 @@ export default {
     }
 
     this.buildCanvas();
+
+    if (!this.editable) {
+      // Only the run view carries live delay countdowns; the editor's node
+      // label is a static "Delay 60s" configuration summary. This ticks the
+      // countdown text in place (see refreshCountdowns) rather than going
+      // through refreshStatuses, which recreates the node's DOM and would
+      // restart its running/waiting pulse animation every second.
+      this.countdownTimer = setInterval(() => this.refreshCountdowns(), 1000);
+    }
   },
 
   beforeDestroy() {
     if (this.$refs.canvas) {
       this.$refs.canvas.removeEventListener('mousedown', this.onReadonlyPointerDown);
       this.$refs.canvas.removeEventListener('mouseup', this.onReadonlyPointerUp);
+    }
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
     }
     if (this.editor) {
       this.editor.clear();
@@ -212,8 +236,9 @@ export default {
           kind,
           convergence_mode: 'all',
           template_id: null,
-          // Approval nodes must not carry task params (backend validation).
+          // Approval and delay nodes must not carry task params (backend validation).
           task_params: kind === 'task' ? {} : null,
+          delay_seconds: kind === 'delay' ? 60 : undefined,
         };
       // Note nodes have no ports so they can not be connected on the canvas.
       const ports = kind === 'note' ? 0 : 1;
@@ -373,32 +398,12 @@ export default {
     },
 
     wouldCreateCycle(source, dest) {
-      // Walk forward from `dest` over existing edges; a path back to `source`
-      // means the new edge source->dest closes a cycle.
-      const adjacency = {};
-      const { edges } = this.exportModel();
-      edges.forEach((edge) => {
-        if (!adjacency[edge.source_node_id]) adjacency[edge.source_node_id] = [];
-        adjacency[edge.source_node_id].push(edge.destination_node_id);
-      });
-      const stack = [dest];
-      const seen = new Set();
-      while (stack.length) {
-        const cur = stack.pop();
-        if (cur === source) return true;
-        if (!seen.has(cur)) {
-          seen.add(cur);
-          (adjacency[cur] || []).forEach((n) => stack.push(n));
-        }
-      }
-      return false;
+      return wouldCreateCycle(this.exportModel().edges, source, dest);
     },
 
     nextNodeId() {
-      const ids = [];
       const data = this.editor.export().drawflow.Home.data;
-      Object.keys(data).forEach((dfId) => ids.push(data[dfId].data.nodeId || 0));
-      return (ids.length === 0 ? 0 : Math.max(...ids)) + 1;
+      return nextNodeId(Object.keys(data).map((dfId) => data[dfId].data.nodeId || 0));
     },
 
     nodeIdOf(dfId) {
@@ -453,10 +458,14 @@ export default {
       }
 
       const isApproval = kind === 'approval';
-      const icon = isApproval ? 'mdi-account-check' : 'mdi-cog';
-      const title = isApproval
-        ? this.$t('workflowNodeKindApproval')
-        : this.escape(this.templateName(node.template_id));
+      const isDelay = kind === 'delay';
+      let icon = 'mdi-cog';
+      if (isApproval) icon = 'mdi-account-check';
+      else if (isDelay) icon = 'mdi-timer-outline';
+      let title;
+      if (isApproval) title = this.$t('workflowNodeKindApproval');
+      else if (isDelay) title = this.escape(this.delayNodeTitle(node));
+      else title = this.escape(this.templateName(node.template_id));
       const status = this.nodeStatuses[node.id];
       const statusHtml = status
         ? `<span class="WorkflowGraph__nodeStatus WorkflowGraph__nodeStatus--${status}">${this.escape(status)}</span>`
@@ -472,11 +481,26 @@ export default {
         </div>`;
     },
 
+    // Static "Delay 60s" label everywhere except a currently-waiting run node,
+    // where it becomes a live "Ns left" / "Nm Ss left" countdown to resume_at.
+    delayNodeTitle(node) {
+      const configured = `${this.$t('workflowNodeKindDelay')} ${node.delay_seconds != null ? node.delay_seconds : '?'}s`;
+      const status = this.nodeStatuses[node.id];
+      const resumeAt = this.nodeDelays[node.id];
+      if (status !== 'waiting' || !resumeAt) return configured;
+
+      const remainingMs = new Date(resumeAt).getTime() - Date.now();
+      if (remainingMs <= 0) return this.$t('workflowDelayElapsed');
+
+      return this.$t('workflowDelayRemaining', { time: this.formatDuration(remainingMs) });
+    },
+
+    formatDuration(ms) {
+      return formatDuration(ms);
+    },
+
     escape(value) {
-      return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+      return escapeHtml(value);
     },
 
     // Color each connection's path by its condition.
@@ -520,6 +544,24 @@ export default {
           fresh.innerHTML = this.nodeHtml(node);
           inner.outerHTML = fresh.innerHTML;
         }
+      });
+    },
+
+    // Per-second countdown tick for waiting delay nodes: patches just the
+    // title text in place instead of going through refreshStatuses, so the
+    // node's DOM (and its CSS pulse animation) is left untouched.
+    refreshCountdowns() {
+      if (!this.editor) return;
+      const data = this.editor.export().drawflow.Home.data;
+      Object.keys(data).forEach((dfId) => {
+        const nodeId = data[dfId].data.nodeId;
+        const node = { ...data[dfId].data.node, id: nodeId };
+        if ((node.kind || 'task') !== 'delay') return;
+        if (this.nodeStatuses[nodeId] !== 'waiting') return;
+
+        const wrapper = this.$refs.canvas.querySelector(`#node-${dfId}`);
+        const titleEl = wrapper && wrapper.querySelector('.WorkflowGraph__nodeTitle');
+        if (titleEl) titleEl.textContent = this.delayNodeTitle(node);
       });
     },
   },
@@ -611,6 +653,7 @@ export default {
 
   .drawflow-node.WorkflowGraph__nodeWrap--approval { border-left: 3px solid #ab47bc; }
   .drawflow-node.WorkflowGraph__nodeWrap--task { border-left: 3px solid #2196f3; }
+  .drawflow-node.WorkflowGraph__nodeWrap--delay { border-left: 3px solid #ff9800; }
 
   // Run view (read-only): task/approval nodes open their task log on click, so
   // hint that they are clickable. Drawflow's stylesheet sets `cursor: move`, so

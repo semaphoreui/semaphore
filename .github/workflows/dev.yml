@@ -37,10 +37,18 @@ jobs:
         run: |
           task deps
 
+      - name: Determine PRO branch
+        if: github.event_name == 'push'
+        uses: ./.github/actions/determine-pro-branch
+        with:
+          gh_token: ${{ secrets.GH_TOKEN }}
+
       - name: Add PRO implementation
         if: github.event_name == 'push'
+        env:
+          PRO_REPO: https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git
         run: |
-          git clone -b main https://${{ secrets.GH_TOKEN }}@github.com/semaphoreui/semaphorepro-module.git pro_impl
+          git clone -b "$PRO_BRANCH" "$PRO_REPO" pro_impl
           go work init . ./pro_impl
 
       - name: Run build
@@ -304,7 +312,7 @@ jobs:
           p455w0rd
           semaphore
           /tmp/semaphore
-          http://localhost:3000
+          http://localhost:58427
           no
           no
           no
@@ -391,7 +399,7 @@ jobs:
           p455w0rd
           semaphore
           /tmp/semaphore
-          http://localhost:3000
+          http://localhost:58427
           no
           no
           no
@@ -477,7 +485,7 @@ jobs:
           p455w0rd
           semaphore
           /tmp/semaphore
-          http://localhost:3000
+          http://localhost:58427
           no
           no
           no
@@ -545,7 +553,7 @@ jobs:
           4
           /tmp/database.sqlite
           /tmp/semaphore
-          http://localhost:3000
+          http://localhost:58427
           no
           no
           no
@@ -769,6 +777,7 @@ jobs:
             maintainer=Semaphore UI <support@semaphoreui.com>
           tags: |
             type=raw,value=develop
+            type=raw,value=latest
           flavor: |
             latest=false
 

@@ -81,11 +81,24 @@
                 </tr>
                 <tr v-else-if="item.integration_id != null">
                   <td><b>{{ $t('integration') }}</b></td>
-                  <td>{{ item.integration_id }}</td>
+                  <td>
+                    <router-link
+                      v-if="isReady(integration)"
+                      :to="`/project/${projectId}/integrations/${item.integration_id}`"
+                    >{{ integration.data.name }}</router-link>
+                    <span v-else>{{ originLabel(integration, item.integration_id) }}</span>
+                  </td>
                 </tr>
                 <tr v-else-if="item.schedule_id != null">
                   <td><b>{{ $t('schedule') }}</b></td>
-                  <td>{{ item.schedule_id }}</td>
+                  <td>
+                    <!-- Schedules have no detail page, so link to the list. -->
+                    <router-link
+                      v-if="isReady(schedule)"
+                      :to="`/project/${projectId}/schedule`"
+                    >{{ schedule.data.name || $t('unnamedSchedule') }}</router-link>
+                    <span v-else>{{ originLabel(schedule, item.schedule_id) }}</span>
+                  </td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('created') }}</b></td>
@@ -226,6 +239,10 @@ export default {
   props: {
     item: Object,
     user: Object,
+    // { status: 'loading' | 'ready' | 'missing' | 'error', data } for the
+    // schedule or integration that started the task; null when a person did.
+    schedule: Object,
+    integration: Object,
     projectId: Number,
   },
 
@@ -273,6 +290,19 @@ export default {
   },
 
   methods: {
+    isReady(origin) {
+      return origin != null && origin.status === 'ready';
+    },
+
+    // Only a confirmed 404 says "deleted"; while loading or after an unrelated
+    // failure the id alone is all we can honestly show.
+    originLabel(origin, id) {
+      if (origin != null && origin.status === 'missing') {
+        return this.$t('deletedOrigin', { id });
+      }
+      return `#${id}`;
+    },
+
     async loadData() {
       this.template = await this.loadProjectResource('templates', this.item.template_id);
     },

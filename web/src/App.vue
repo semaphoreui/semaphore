@@ -650,8 +650,20 @@
   //margin-bottom: 10px;
 }
 
+.NestedDialog {
+  border: 1px solid rgb(200, 200, 200);
+  border-radius: 12px;
+}
+
 .theme--dark {
   --highlighted-card-bg-color: #262626;
+
+  // Dialogs opened above another dialog have no overlay; the default Vuetify
+  // shadow is too faint on a dark background, so use a wider, denser one.
+  .NestedDialog {
+    border: 1px solid rgb(80, 80, 80);
+    box-shadow: 0 30px 80px 16px rgb(10, 10, 10);
+  }
 }
 
 .theme--light {
@@ -1409,8 +1421,8 @@ export default {
       if (options['nav.unpinnedItems'] != null) {
         try {
           this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
-        } catch (e) {
-          console.log(e);
+        } catch {
+          // do nothing
         }
       }
 

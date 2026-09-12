@@ -33,6 +33,7 @@ properties:
   # ==========================================================================
   # Authentication
   # ==========================================================================
+  auth: { $ref: "#/$defs/AuthConfig" }
   mfa: { $ref: "#/$defs/MultifactorAuthConfig" }
 
   # ==========================================================================
@@ -55,6 +56,16 @@ properties:
     enum: [go_git, cmd_git]
     default: cmd_git
     description: Git client implementation.
+  git_submodule_jobs:
+    type: integer
+    minimum: 1
+    default: 4
+    description: Number of submodules fetched in parallel by the command-line Git client.
+  git_attempts:
+    type: integer
+    minimum: 1
+    default: 4
+    description: Times a git clone or pull is tried before the task fails. 1 does not retry.
   web_host:
     type: string
     format: uri
@@ -348,6 +359,20 @@ $defs:
         maximum: 65535
         description: Port for the HTTP→HTTPS redirect listener. Mutually exclusive with http_redirect_addr.
 
+  AuthConfig:
+    type: object
+    description: Settings that apply to every login method.
+    properties:
+      max_session_life_hours:
+        type: integer
+        minimum: 0
+        default: 0
+        description: >-
+          Absolute lifetime of a login session in hours, counted from login.
+          Once exceeded the session is expired even if it was recently active.
+          0 means no absolute limit; sessions then expire only after 7 days
+          without activity.
+
   MultifactorAuthConfig:
     type: object
     description: Multi-factor authentication settings.
@@ -633,6 +658,14 @@ $defs:
       enabled:            { type: boolean }
       project_id:
         type: [integer, "null"]
+      check_interval_seconds:
+        type: integer
+        minimum: 1
+        default: 1
+        description: >
+          How often the runner polls the server for new jobs and reports progress.
+          Raising it reduces request volume on a server with many runners, at the
+          cost of jobs starting slightly later.
       connection: { $ref: "#/$defs/RunnerConnectionConfig" }
       executor:   { $ref: "#/$defs/ExecutorConfig" }
 

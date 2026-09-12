@@ -101,10 +101,6 @@ export default {
 
   methods: {
 
-    stopTask(taskId) {
-      console.log(taskId);
-    },
-
     getHeaders() {
       return [{
         text: this.$i18n.t('task', {}),

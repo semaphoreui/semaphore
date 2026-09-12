@@ -3,6 +3,7 @@
     <v-dialog
       v-model="editDialog"
       hide-overlay
+      content-class="NestedDialog"
       width="440"
     >
       <v-card
@@ -18,7 +19,7 @@
             @submit.prevent="saveVar()"
           >
             <v-alert
-              :value="formError"
+              :value="formError != null"
               color="error"
             >{{ formError }}
             </v-alert>

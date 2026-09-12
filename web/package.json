@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "sync:api-docs": "node -e \"require('fs').copyFileSync('../api-docs.yml', 'public/swagger/api-docs.yml')\"",
+    "preserve": "npm run sync:api-docs",
     "serve": "vue-cli-service serve",
+    "prebuild": "npm run sync:api-docs",
     "build": "vue-cli-service build",
-    "test:unit": "vue-cli-service test:unit",
+    "test:unit": "vue-cli-service test:unit --include tests/unit/setup.js",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
@@ -17,6 +20,7 @@
     "cron-parser": "^5.3.0",
     "dayjs": "^1.11.13",
     "drawflow": "^0.0.60",
+    "js-yaml": "^5.0.0",
     "vue": "^2.6.14",
     "vue-chartjs": "^4.0.0",
     "vue-codemirror": "^4.0.6",
