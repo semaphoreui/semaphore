@@ -484,6 +484,27 @@ type ScheduleManager interface {
 	DeleteSchedule(projectID int, scheduleID int) error
 }
 
+// AlertManager handles project alert destinations.
+type AlertManager interface {
+	GetAlert(projectID int, alertID int) (Alert, error)
+	GetAlerts(projectID int, params RetrieveQueryParams) ([]Alert, error)
+	GetDefaultAlertIDs(projectID int) ([]int, error)
+	CreateAlert(alert Alert) (Alert, error)
+	UpdateAlert(alert Alert) error
+	DeleteAlert(projectID int, alertID int) error
+	GetAlertRefs(projectID int, alertID int) (ObjectReferrers, error)
+
+	GetTemplateAlerts(projectID int, templateID int) ([]int, error)
+	UpdateTemplateAlerts(projectID int, templateID int, alertIDs []int) error
+	GetScheduleAlerts(projectID int, scheduleID int) ([]int, error)
+	UpdateScheduleAlerts(projectID int, scheduleID int, alertIDs []int) error
+
+	// ClaimAlertSend records a send for (task, alert, event). It returns
+	// claimed=false when that triple was already recorded, so HA nodes do
+	// not send the same notification twice.
+	ClaimAlertSend(taskID int, alertID int, event string) (claimed bool, err error)
+}
+
 // ViewManager handles view-related operations
 type ViewManager interface {
 	GetView(projectID int, viewID int) (View, error)
@@ -590,6 +611,7 @@ type Store interface {
 	TaskManager
 	ScheduleManager
 	ViewManager
+	AlertManager
 	RunnerManager
 	EventManager
 	SecretStorageRepository
@@ -790,6 +812,14 @@ var ViewProps = ObjectProps{
 	Type:                 reflect.TypeFor[View](),
 	PrimaryColumnName:    "id",
 	DefaultSortingColumn: "position",
+}
+
+var AlertProps = ObjectProps{
+	TableName:            "project__alert",
+	Type:                 reflect.TypeFor[Alert](),
+	PrimaryColumnName:    "id",
+	DefaultSortingColumn: "name",
+	SortableColumns:      []string{"name", "type"},
 }
 
 var GlobalRunnerProps = ObjectProps{

@@ -153,6 +153,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 	}
 
 	assert.Equal(t, `{
+  "alerts": [],
   "environments": [],
   "integration_aliases": [],
   "integrations": [],
@@ -226,6 +227,103 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 // older Semaphore versions omit the per-schedule "task_params" object; on
 // restore, BackupSchedule.Restore used to dereference the nil pointer and
 // crash the HTTP handler with a runtime nil-pointer panic.
+func TestBackup_AlertsRoundTrip(t *testing.T) {
+	util.Config = &util.ConfigType{
+		TmpPath: "/tmp",
+	}
+
+	store := sql.InitConfigCreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{Name: "Alert Backup"})
+	assert.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Type:      db.AccessKeyNone,
+	})
+	assert.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Repo",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	assert.NoError(t, err)
+
+	token := "gotify-secret"
+	alert, err := store.CreateAlert(db.Alert{
+		ProjectID: proj.ID,
+		Name:      "Ops Gotify",
+		Type:      db.AlertTypeGotify,
+		Enabled:   true,
+		Token:     &token,
+	})
+	assert.NoError(t, err)
+
+	_, err = store.CreateTemplate(db.Template{
+		Name:           "Nightly",
+		Playbook:       "test.yml",
+		ProjectID:      proj.ID,
+		RepositoryID:   repo.ID,
+		AlertIDs:       []int{alert.ID},
+		AlertOnSuccess: db.BoolPtr(false),
+		AlertOnError:   db.BoolPtr(true),
+	})
+	assert.NoError(t, err)
+
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
+	assert.NoError(t, err)
+	requireBackupAlerts(t, backup)
+
+	str, err := backup.Marshal()
+	assert.NoError(t, err)
+
+	restoredBackup := &BackupFormat{}
+	err = restoredBackup.Unmarshal(str)
+	assert.NoError(t, err)
+	restoredBackup.Meta.Name = "Alert Backup Restored"
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "alertbackup",
+			Name:     "Test",
+			Email:    "alertbackup@example.com",
+			Admin:    true,
+		},
+	})
+	assert.NoError(t, err)
+
+	restoredProj, err := restoredBackup.Restore(user, store, proFactory.NewWorkflowStore(store))
+	assert.NoError(t, err)
+
+	restoredAlerts, err := store.GetAlerts(restoredProj.ID, db.RetrieveQueryParams{})
+	assert.NoError(t, err)
+	assert.Len(t, restoredAlerts, 1)
+	assert.Equal(t, "Ops Gotify", restoredAlerts[0].Name)
+	assert.Equal(t, db.AlertTypeGotify, restoredAlerts[0].Type)
+	if assert.NotNil(t, restoredAlerts[0].Token) {
+		assert.Equal(t, "gotify-secret", *restoredAlerts[0].Token)
+	}
+	assert.Contains(t, str, "gotify-secret")
+
+	restoredTemplates, err := store.GetTemplates(restoredProj.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	assert.NoError(t, err)
+	assert.Len(t, restoredTemplates, 1)
+	assert.Equal(t, []int{restoredAlerts[0].ID}, restoredTemplates[0].AlertIDs)
+	assert.False(t, *restoredTemplates[0].AlertOnSuccess)
+	assert.True(t, *restoredTemplates[0].AlertOnError)
+}
+
+func requireBackupAlerts(t *testing.T, backup *BackupFormat) {
+	t.Helper()
+	assert.Len(t, backup.Alerts, 1)
+	assert.Equal(t, "Ops Gotify", backup.Alerts[0].Name)
+	assert.Equal(t, []string{"Ops Gotify"}, backup.Templates[0].Alerts)
+}
+
 func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
@@ -362,4 +460,32 @@ func TestMakeUniqueNames(t *testing.T) {
 	})
 
 	assert.True(t, isUnique(items), "Not unique names")
+}
+
+func TestVerifyDuplicate_RejectsTwoEqualNames(t *testing.T) {
+	err := verifyDuplicate[BackupAlert]("Ops", []BackupAlert{
+		{Alert: db.Alert{Name: "Ops"}},
+		{Alert: db.Alert{Name: "Ops"}},
+	})
+	assert.Error(t, err)
+
+	err = verifyDuplicate[BackupAlert]("Ops", []BackupAlert{
+		{Alert: db.Alert{Name: "Ops"}},
+	})
+	assert.NoError(t, err)
+}
+
+func TestResolveBackupAlertIDs(t *testing.T) {
+	alerts := []db.Alert{{ID: 4, Name: "Ops"}, {ID: 9, Name: "Slack"}}
+
+	ids, err := resolveBackupAlertIDs([]string{"Ops", "Slack"}, alerts)
+	assert.NoError(t, err)
+	assert.Equal(t, []int{4, 9}, ids)
+
+	ids, err = resolveBackupAlertIDs(nil, alerts)
+	assert.NoError(t, err)
+	assert.Empty(t, ids)
+
+	_, err = resolveBackupAlertIDs([]string{"Ops", "missing"}, alerts)
+	assert.Error(t, err)
 }

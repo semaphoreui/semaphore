@@ -13,6 +13,7 @@ type BackupDB struct {
 	inventories  []db.Inventory
 	environments []db.Environment
 	schedules    []db.Schedule
+	alerts       []db.Alert
 
 	integrationProjAliases   []db.IntegrationAlias
 	integrations             []db.Integration
@@ -47,6 +48,7 @@ type BackupFormat struct {
 	Integration        []BackupIntegration   `backup:"integrations"`
 	IntegrationAliases []string              `backup:"integration_aliases"`
 	Schedules          []BackupSchedule      `backup:"schedules"`
+	Alerts             []BackupAlert         `backup:"alerts"`
 	SecretStorages     []BackupSecretStorage `backup:"secret_storages"`
 	Roles              []BackupRole          `backup:"roles"`
 	Runners            []BackupRunner        `backup:"runners"`
@@ -69,8 +71,13 @@ type BackupAccessKey struct {
 
 type BackupSchedule struct {
 	db.Schedule
-	Template            string  `backup:"template"`
-	CheckableRepository *string `backup:"checkable_repository"`
+	Template            string   `backup:"template"`
+	CheckableRepository *string  `backup:"checkable_repository"`
+	Alerts              []string `backup:"alerts"`
+}
+
+type BackupAlert struct {
+	db.Alert
 }
 
 type BackupView struct {
@@ -109,6 +116,8 @@ type BackupTemplate struct {
 	VaultKey *string `json:"vault_key"`
 
 	Roles []BackupTemplateRole `backup:"roles"`
+
+	Alerts []string `backup:"alerts"`
 }
 
 type BackupTemplateVault struct {
@@ -181,6 +190,10 @@ func (e BackupView) GetName() string {
 }
 
 func (e BackupTemplate) GetName() string {
+	return e.Name
+}
+
+func (e BackupAlert) GetName() string {
 	return e.Name
 }
 

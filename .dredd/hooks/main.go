@@ -202,8 +202,19 @@ func main() {
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Updates view > 204 > application/json", capabilityWrapper("view"))
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Removes view > 204 > application/json", capabilityWrapper("view"))
 
+	h.Before("project > /api/project/{project_id}/alerts > Create alert > 201 > application/json", func(t *trans.Transaction) {
+		// project_id must be present so setupObjectsAndPaths can replace it
+		// with the fixture project (same pattern as other POST bodies).
+		t.Request.Body = `{"name":"ITA-dredd","type":"telegram","enabled":true,"project_id":1,"chat_id":"12345"}`
+	})
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id} > Get alert > 200 > application/json", capabilityWrapper("alert"))
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id} > Update alert > 204 > application/json", capabilityWrapper("alert"))
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id} > Delete alert > 204 > application/json", capabilityWrapper("alert"))
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id}/refs > Get objects that reference this alert > 200 > application/json", capabilityWrapper("alert"))
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id}/test > Send a test message for this alert > 204 > application/json", skipTest)
+
 	h.Before("project > /api/project/{project_id}/backup > Get backup > 200 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "view", "template"})
+		addCapabilities([]string{"repository", "inventory", "environment", "view", "template", "alert"})
 	})
 
 	// global runners (admin)

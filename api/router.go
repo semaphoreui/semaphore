@@ -348,6 +348,9 @@ func Route(
 
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.GetIntegrations).Methods("GET", "HEAD")
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.AddIntegration).Methods("POST")
+	projectUserAPI.Path("/alerts").HandlerFunc(projects.GetAlerts).Methods("GET", "HEAD")
+	projectUserAPI.Path("/alerts").HandlerFunc(projects.AddAlert).Methods("POST")
+	projectUserAPI.Path("/alerts/defaults").HandlerFunc(projects.GetAlertDefaults).Methods("GET", "HEAD")
 	projectUserAPI.Path("/backup").HandlerFunc(backupController.GetBackup).Methods("GET", "HEAD")
 	projectUserAPI.Path("/notifications/test").HandlerFunc(projectController.SendTestNotification).Methods("POST")
 
@@ -527,6 +530,14 @@ func Route(
 	projectViewManagement.HandleFunc("/{view_id}", projects.UpdateView).Methods("PUT")
 	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
 	projectViewManagement.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
+
+	projectAlertManagement := projectUserAPI.PathPrefix("/alerts").Subrouter()
+	projectAlertManagement.Use(projects.AlertMiddleware)
+	projectAlertManagement.HandleFunc("/{alert_id}", projects.GetAlerts).Methods("GET", "HEAD")
+	projectAlertManagement.HandleFunc("/{alert_id}", projects.UpdateAlert).Methods("PUT")
+	projectAlertManagement.HandleFunc("/{alert_id}", projects.RemoveAlert).Methods("DELETE")
+	projectAlertManagement.HandleFunc("/{alert_id}/refs", projects.GetAlertRefs).Methods("GET", "HEAD")
+	projectAlertManagement.HandleFunc("/{alert_id}/test", projects.TestAlert).Methods("POST")
 
 	projectIntegrationsAliasAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
 	projectIntegrationsAliasAPI.Use(projects.ProjectMiddleware)

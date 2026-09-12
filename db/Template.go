@@ -340,6 +340,16 @@ type Template struct {
 	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts,omitempty"`
 	SuppressErrorAlerts   bool `db:"suppress_error_alerts" json:"suppress_error_alerts,omitempty"`
 
+	// AlertMode is default (project default alerts) or ids (AlertIDs, which may be empty).
+	AlertMode string `db:"alert_mode" json:"alert_mode"`
+	// AlertIDs are used when AlertMode is ids. Empty means this job sends nothing.
+	// nil on update means the client omitted the field and existing bindings stay.
+	AlertIDs []int `db:"-" json:"alert_ids" backup:"-"`
+	// AlertOnSuccess / AlertOnError are pointers so older clients that only
+	// send suppress_* still work (see ResolveAlertOn).
+	AlertOnSuccess *bool `db:"alert_on_success" json:"alert_on_success"`
+	AlertOnError   *bool `db:"alert_on_error" json:"alert_on_error"`
+
 	App TemplateApp `db:"app" json:"app,omitempty"`
 
 	Tasks int `db:"tasks" json:"tasks" backup:"-"`
@@ -404,6 +414,20 @@ func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
 	}
 
 	return
+}
+
+func (tpl *Template) NormalizeAlerts() error {
+	if tpl.AlertMode == "" {
+		if len(tpl.AlertIDs) > 0 {
+			tpl.AlertMode = AlertModeIDs
+		} else {
+			tpl.AlertMode = AlertModeDefault
+		}
+	}
+	if tpl.AlertMode != AlertModeDefault && tpl.AlertMode != AlertModeIDs {
+		return common_errors.NewValidationError("alert_mode must be default or ids")
+	}
+	return nil
 }
 
 func (tpl *Template) Validate() error {
@@ -514,6 +538,16 @@ func FillTemplate(d Store, template *Template) (err error) {
 		return
 	}
 	template.EnvironmentIDs = envIDs
+
+	var alertIDs []int
+	alertIDs, err = d.GetTemplateAlerts(template.ProjectID, template.ID)
+	if err != nil {
+		return
+	}
+	template.AlertIDs = alertIDs
+	if template.AlertMode == "" {
+		template.AlertMode = AlertModeDefault
+	}
 
 	var tasks []TaskWithTpl
 	tasks, err = d.GetTemplateTasks(template.ProjectID, template.ID, RetrieveQueryParams{Count: 1})

@@ -92,6 +92,8 @@ type Task struct {
 
 	// Limit is deprecated, use Params.Limit instead
 	Limit string `db:"-" json:"limit"`
+
+	AlertSnapshot *AlertSnapshot `db:"alert_snapshot" json:"alert_snapshot,omitempty"`
 }
 
 func (task *Task) ExtractParams(target any) (err error) {

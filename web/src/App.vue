@@ -1166,6 +1166,13 @@ export default {
             to: `${base}/integrations`,
             testId: 'sidebar-integrations',
           },
+          {
+            key: 'alerts',
+            icon: 'mdi-bell-outline',
+            title: this.$t('alerting'),
+            to: `${base}/alerts`,
+            testId: 'sidebar-alerts',
+          },
         );
       }
 
