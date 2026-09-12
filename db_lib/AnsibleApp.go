@@ -11,6 +11,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/galaxy"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
@@ -56,6 +57,11 @@ type AnsibleApp struct {
 	Playbook   *AnsiblePlaybook
 	Template   db.Template
 	Repository db.Repository
+
+	// Set for the duration of InstallRequirements. The key is installed on the
+	// first galaxy run rather than up front, see galaxyGitEnvForRun.
+	galaxyInstaller AccessKeyInstaller
+	galaxyKey       *ssh.AccessKeyInstallation
 }
 
 func (t *AnsibleApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
@@ -83,22 +89,6 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return nil
 	}
 
-	environmentVars := galaxyGitEnv(t.Repository)
-
-	// An SSH repository key reaches galaxy's git clones through an agent, the
-	// same way TerraformApp.init hands one to `terraform init`.
-	if args.Installer != nil {
-		keyInstallation, err := args.Installer.Install(t.Repository.SSHKey, db.AccessKeyRoleGit, t.Logger)
-		if err != nil {
-			return err
-		}
-		defer keyInstallation.Destroy() //nolint: errcheck
-		environmentVars = append(environmentVars, keyInstallation.GetGitEnv()...)
-	}
-
-	// Task variables come last so a manually configured GIT_* var still wins.
-	environmentVars = append(environmentVars, args.EnvironmentVars...)
-
 	collectionArgs, err := galaxyExtraArgs(args, GalaxyCollection)
 	if err != nil {
 		return err
@@ -108,11 +98,44 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return err
 	}
 
-	err = t.installCollectionsRequirements(environmentVars, collectionArgs)
+	t.galaxyInstaller = args.Installer
+	defer t.destroyGalaxyKey()
+
+	err = t.installCollectionsRequirements(args.EnvironmentVars, collectionArgs)
 	if err != nil {
 		return err
 	}
-	return t.installRolesRequirements(environmentVars, roleArgs)
+	return t.installRolesRequirements(args.EnvironmentVars, roleArgs)
+}
+
+// galaxyGitEnvForRun returns the git credentials galaxy's clones need. The
+// repository key is installed into an agent here rather than in
+// InstallRequirements: most tasks have no requirements file to install, and
+// installing up front would decrypt the key and start an agent — one more thing
+// that can fail — for every task. The installation is reused across files.
+func (t *AnsibleApp) galaxyGitEnvForRun() ([]string, error) {
+	env := galaxyGitEnv(t.Repository)
+
+	if t.galaxyInstaller == nil {
+		return env, nil
+	}
+
+	if t.galaxyKey == nil {
+		installation, err := t.galaxyInstaller.Install(t.Repository.SSHKey, db.AccessKeyRoleGit, t.Logger)
+		if err != nil {
+			return nil, err
+		}
+		t.galaxyKey = &installation
+	}
+
+	return append(env, t.galaxyKey.GetGitEnv()...), nil
+}
+
+func (t *AnsibleApp) destroyGalaxyKey() {
+	if t.galaxyKey != nil {
+		_ = t.galaxyKey.Destroy()
+		t.galaxyKey = nil
+	}
 }
 
 // skipGalaxyInstall reports whether the Galaxy install step must be skipped.
@@ -236,7 +259,13 @@ func (t *AnsibleApp) installCollectionsRequirements(environmentVars, extraArgs [
 }
 
 func (t *AnsibleApp) runGalaxy(args []string, environmentVars []string) error {
-	return t.Playbook.RunGalaxy(args, environmentVars)
+	gitEnv, err := t.galaxyGitEnvForRun()
+	if err != nil {
+		return err
+	}
+
+	// Task variables come last so a manually configured GIT_* var still wins.
+	return t.Playbook.RunGalaxy(args, append(gitEnv, environmentVars...))
 }
 
 // sqQuote quotes s for GIT_CONFIG_PARAMETERS: single-quoted, with embedded

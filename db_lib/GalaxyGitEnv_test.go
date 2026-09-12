@@ -2,6 +2,8 @@ package db_lib
 
 import (
 	"errors"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -126,10 +128,12 @@ type fakeInstaller struct {
 	usage db.AccessKeyRole
 	env   []string
 	err   error
+	calls int
 }
 
 func (f *fakeInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, _ task_logger.Logger) (ssh.AccessKeyInstallation, error) {
 	f.key, f.usage = key, usage
+	f.calls++
 	return ssh.AccessKeyInstallation{}, f.err
 }
 
@@ -141,6 +145,22 @@ func setupGalaxyConfig(t *testing.T) {
 	util.Config = &util.ConfigType{TmpPath: t.TempDir(), Process: &util.ConfigProcess{}}
 }
 
+// writeRequirements puts a requirements.yml where the app looks for it, so that
+// galaxy actually runs. Without one every install is skipped.
+func writeRequirements(t *testing.T, app *AnsibleApp) {
+	t.Helper()
+
+	app.Playbook = &AnsiblePlaybook{
+		TemplateID: app.Template.ID,
+		Repository: app.Repository,
+		Logger:     app.Logger,
+	}
+
+	dir := app.getRepoPath()
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(path.Join(dir, "requirements.yml"), []byte("collections: []\n"), 0o644))
+}
+
 // The repository's own key must be the one galaxy gets, under the git role.
 func TestInstallRequirements_InstallsRepositoryKey(t *testing.T) {
 	setupGalaxyConfig(t)
@@ -150,17 +170,35 @@ func TestInstallRequirements_InstallsRepositoryKey(t *testing.T) {
 		Logger:     task_logger.NopLogger{},
 		Repository: db.Repository{SSHKey: db.AccessKey{ID: 42, Type: db.AccessKeySSH}},
 	}
+	writeRequirements(t, app)
 
 	_ = app.InstallRequirements(LocalAppInstallingArgs{Installer: inst})
 
 	assert.Equal(t, 42, inst.key.ID)
 	assert.Equal(t, db.AccessKeyRole(db.AccessKeyRoleGit), inst.usage)
+	assert.Equal(t, 1, inst.calls, "one installation must be reused across requirements files")
+}
+
+// Nothing for galaxy to install means no key is decrypted and no agent started.
+func TestInstallRequirements_NoRequirementsFileInstallsNoKey(t *testing.T) {
+	setupGalaxyConfig(t)
+
+	inst := &fakeInstaller{}
+	app := &AnsibleApp{
+		Logger:     task_logger.NopLogger{},
+		Repository: db.Repository{SSHKey: db.AccessKey{ID: 42, Type: db.AccessKeySSH}},
+	}
+
+	require.NoError(t, app.InstallRequirements(LocalAppInstallingArgs{Installer: inst}))
+
+	assert.Zero(t, inst.calls)
 }
 
 func TestInstallRequirements_FailsWhenKeyInstallFails(t *testing.T) {
 	setupGalaxyConfig(t)
 
 	app := &AnsibleApp{Logger: task_logger.NopLogger{}}
+	writeRequirements(t, app)
 
 	err := app.InstallRequirements(LocalAppInstallingArgs{
 		Installer: &fakeInstaller{err: errors.New("agent unavailable")},

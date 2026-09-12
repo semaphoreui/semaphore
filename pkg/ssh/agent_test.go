@@ -3,8 +3,11 @@ package ssh
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/semaphoreui/semaphore/util"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -88,5 +91,44 @@ func TestAgent_Close_FailedInitialization(t *testing.T) {
 	err := incompleteAgent.Close()
 	if err != nil {
 		t.Errorf("Expected no error when closing incomplete agent, got: %v", err)
+	}
+}
+
+// TestGetGitEnv_SshCommandHasOneSshPrefix covers every host-key checking mode:
+// gitHostKeyCheckingOpts must return options only, because GetGitEnv prepends
+// "ssh". A second one is read by ssh as the host to connect to and every SSH
+// repository fails with "Could not resolve hostname ssh".
+func TestGetGitEnv_SshCommandHasOneSshPrefix(t *testing.T) {
+	modes := []util.SshStrictHostKeyChecking{
+		util.SshStrictHostKeyCheckingYes,
+		util.SshStrictHostKeyCheckingNo,
+		util.SshStrictHostKeyCheckingAcceptNew,
+	}
+
+	for _, mode := range modes {
+		t.Run(string(mode), func(t *testing.T) {
+			util.Config = &util.ConfigType{Ssh: &util.SshConfig{
+				StrictHostKeyChecking: mode,
+				KnownHostsFile:        filepath.Join(t.TempDir(), "known_hosts"),
+			}}
+
+			key := AccessKeyInstallation{SSHAgent: &Agent{SocketFile: "/tmp/agent.sock"}}
+
+			var cmd string
+			for _, env := range key.GetGitEnv() {
+				if strings.HasPrefix(env, "GIT_SSH_COMMAND=") {
+					cmd = strings.TrimPrefix(env, "GIT_SSH_COMMAND=")
+				}
+			}
+
+			require.NotEmpty(t, cmd)
+			assert.NotContains(t, cmd, "ssh ssh")
+
+			fields := strings.Fields(cmd)
+			require.Greater(t, len(fields), 1)
+			assert.Equal(t, "ssh", fields[0])
+			assert.True(t, strings.HasPrefix(fields[1], "-"),
+				"the argument after ssh must be an option, got %q", fields[1])
+		})
 	}
 }
