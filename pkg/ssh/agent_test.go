@@ -99,6 +99,9 @@ func TestAgent_Close_FailedInitialization(t *testing.T) {
 // "ssh". A second one is read by ssh as the host to connect to and every SSH
 // repository fails with "Could not resolve hostname ssh".
 func TestGetGitEnv_SshCommandHasOneSshPrefix(t *testing.T) {
+	original := util.Config
+	t.Cleanup(func() { util.Config = original })
+
 	modes := []util.SshStrictHostKeyChecking{
 		util.SshStrictHostKeyCheckingYes,
 		util.SshStrictHostKeyCheckingNo,

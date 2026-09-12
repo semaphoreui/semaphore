@@ -268,8 +268,8 @@ func (t *AnsibleApp) runGalaxy(args []string, environmentVars []string) error {
 	return t.Playbook.RunGalaxy(args, append(gitEnv, environmentVars...))
 }
 
-// sqQuote quotes s for GIT_CONFIG_PARAMETERS: single-quoted, with embedded
-// single quotes written as '\''.
+// sqQuote quotes s for GIT_CONFIG_PARAMETERS: the value is wrapped in single
+// quotes, and any single quote inside it is escaped the way sh requires.
 func sqQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

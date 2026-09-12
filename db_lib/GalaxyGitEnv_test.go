@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -145,16 +146,44 @@ func setupGalaxyConfig(t *testing.T) {
 	util.Config = &util.ConfigType{TmpPath: t.TempDir(), Process: &util.ConfigProcess{}}
 }
 
+// stubGalaxy puts a succeeding ansible-galaxy first on PATH and returns a
+// function reporting how many times it ran. Without it the real binary runs and
+// fails, so InstallRequirements returns before the second requirements file and
+// nothing is reused.
+func stubGalaxy(t *testing.T) func() int {
+	t.Helper()
+
+	dir := t.TempDir()
+	runLog := path.Join(dir, "runs")
+	script := "#!/bin/sh\necho run >> " + runLog + "\n"
+	require.NoError(t, os.WriteFile(path.Join(dir, "ansible-galaxy"), []byte(script), 0o755))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	return func() int {
+		content, err := os.ReadFile(runLog)
+		if err != nil {
+			return 0
+		}
+		return strings.Count(string(content), "run")
+	}
+}
+
+// newGalaxyApp builds the app the way AppFactory does, so that runGalaxy has a
+// Playbook to run.
+func newGalaxyApp(repo db.Repository) *AnsibleApp {
+	logger := task_logger.NopLogger{}
+
+	return &AnsibleApp{
+		Logger:     logger,
+		Repository: repo,
+		Playbook:   &AnsiblePlaybook{Repository: repo, Logger: logger},
+	}
+}
+
 // writeRequirements puts a requirements.yml where the app looks for it, so that
 // galaxy actually runs. Without one every install is skipped.
 func writeRequirements(t *testing.T, app *AnsibleApp) {
 	t.Helper()
-
-	app.Playbook = &AnsiblePlaybook{
-		TemplateID: app.Template.ID,
-		Repository: app.Repository,
-		Logger:     app.Logger,
-	}
 
 	dir := app.getRepoPath()
 	require.NoError(t, os.MkdirAll(dir, 0o755))
@@ -166,14 +195,13 @@ func TestInstallRequirements_InstallsRepositoryKey(t *testing.T) {
 	setupGalaxyConfig(t)
 
 	inst := &fakeInstaller{}
-	app := &AnsibleApp{
-		Logger:     task_logger.NopLogger{},
-		Repository: db.Repository{SSHKey: db.AccessKey{ID: 42, Type: db.AccessKeySSH}},
-	}
+	app := newGalaxyApp(db.Repository{SSHKey: db.AccessKey{ID: 42, Type: db.AccessKeySSH}})
 	writeRequirements(t, app)
+	galaxyRuns := stubGalaxy(t)
 
-	_ = app.InstallRequirements(LocalAppInstallingArgs{Installer: inst})
+	require.NoError(t, app.InstallRequirements(LocalAppInstallingArgs{Installer: inst}))
 
+	require.Greater(t, galaxyRuns(), 1, "reuse is only meaningful across more than one galaxy run")
 	assert.Equal(t, 42, inst.key.ID)
 	assert.Equal(t, db.AccessKeyRole(db.AccessKeyRoleGit), inst.usage)
 	assert.Equal(t, 1, inst.calls, "one installation must be reused across requirements files")
@@ -184,10 +212,7 @@ func TestInstallRequirements_NoRequirementsFileInstallsNoKey(t *testing.T) {
 	setupGalaxyConfig(t)
 
 	inst := &fakeInstaller{}
-	app := &AnsibleApp{
-		Logger:     task_logger.NopLogger{},
-		Repository: db.Repository{SSHKey: db.AccessKey{ID: 42, Type: db.AccessKeySSH}},
-	}
+	app := newGalaxyApp(db.Repository{SSHKey: db.AccessKey{ID: 42, Type: db.AccessKeySSH}})
 
 	require.NoError(t, app.InstallRequirements(LocalAppInstallingArgs{Installer: inst}))
 
@@ -197,7 +222,7 @@ func TestInstallRequirements_NoRequirementsFileInstallsNoKey(t *testing.T) {
 func TestInstallRequirements_FailsWhenKeyInstallFails(t *testing.T) {
 	setupGalaxyConfig(t)
 
-	app := &AnsibleApp{Logger: task_logger.NopLogger{}}
+	app := newGalaxyApp(db.Repository{})
 	writeRequirements(t, app)
 
 	err := app.InstallRequirements(LocalAppInstallingArgs{
@@ -211,7 +236,7 @@ func TestInstallRequirements_FailsWhenKeyInstallFails(t *testing.T) {
 func TestInstallRequirements_NilInstaller(t *testing.T) {
 	setupGalaxyConfig(t)
 
-	app := &AnsibleApp{Logger: task_logger.NopLogger{}}
+	app := newGalaxyApp(db.Repository{})
 
 	assert.NoError(t, app.InstallRequirements(LocalAppInstallingArgs{}))
 }
