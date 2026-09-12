@@ -38,4 +38,28 @@ func TestProjectAlertThreadRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got.AlertThread)
 	assert.Equal(t, updatedThread, *got.AlertThread)
+
+	blank := "  "
+	got.AlertThread = &blank
+	require.NoError(t, store.UpdateProject(got))
+
+	got, err = store.GetProject(created.ID)
+	require.NoError(t, err)
+	assert.Nil(t, got.AlertThread)
+}
+
+func TestProjectAlertThreadEmptyBecomesNil(t *testing.T) {
+	store := InitConfigCreateTestStore()
+
+	blank := "   "
+	created, err := store.CreateProject(db.Project{
+		Name:        "empty-thread",
+		AlertThread: &blank,
+	})
+	require.NoError(t, err)
+	assert.Nil(t, created.AlertThread)
+
+	got, err := store.GetProject(created.ID)
+	require.NoError(t, err)
+	assert.Nil(t, got.AlertThread)
 }

@@ -230,13 +230,10 @@ func TestRenderTelegramAlert_Payload(t *testing.T) {
 			Desc:    "ok",
 			Version: "1.0",
 		},
-		Chat: alertChat{
-			ID: "-1001",
-		},
 	}
 
 	t.Run("without thread id", func(t *testing.T) {
-		body, err := renderTelegramAlert(base)
+		body, err := renderTelegramAlert(base, telegramDestination{chatID: "-1001"})
 		require.NoError(t, err)
 
 		var payload map[string]any
@@ -254,10 +251,7 @@ func TestRenderTelegramAlert_Payload(t *testing.T) {
 	})
 
 	t.Run("with thread id as json number", func(t *testing.T) {
-		alert := base
-		alert.Chat.ThreadID = 42
-
-		body, err := renderTelegramAlert(alert)
+		body, err := renderTelegramAlert(base, telegramDestination{chatID: "-1001", threadID: 42})
 		require.NoError(t, err)
 
 		var payload map[string]any
@@ -270,7 +264,7 @@ func TestRenderTelegramAlert_Payload(t *testing.T) {
 		alert := base
 		alert.Name = `Deploy <prod> & "qa"`
 
-		body, err := renderTelegramAlert(alert)
+		body, err := renderTelegramAlert(alert, telegramDestination{chatID: "-1001"})
 		require.NoError(t, err)
 
 		var payload map[string]any

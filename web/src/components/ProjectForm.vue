@@ -92,6 +92,10 @@ export default {
       if (this.item.max_parallel_tasks === '') {
         this.item.max_parallel_tasks = 0;
       }
+      if (typeof this.item.alert_thread === 'string') {
+        const thread = this.item.alert_thread.trim();
+        this.item.alert_thread = thread === '' ? null : thread;
+      }
     },
   },
 };

@@ -29,7 +29,6 @@ type Alert struct {
 	Author string
 	Color  string
 	Task   alertTask
-	Chat   alertChat
 }
 
 type alertTask struct {
@@ -38,11 +37,6 @@ type alertTask struct {
 	Result  string
 	Desc    string
 	Version string
-}
-
-type alertChat struct {
-	ID       string
-	ThreadID int64
 }
 
 func stringValue(s *string) string {
@@ -98,9 +92,9 @@ type telegramSendMessage struct {
 	MessageThreadID int64  `json:"message_thread_id,omitempty"`
 }
 
-func renderTelegramAlert(alert Alert) ([]byte, error) {
+func renderTelegramAlert(alert Alert, dest telegramDestination) ([]byte, error) {
 	return json.Marshal(telegramSendMessage{
-		ChatID:    alert.Chat.ID,
+		ChatID:    dest.chatID,
 		ParseMode: "HTML",
 		Text: fmt.Sprintf(
 			"<code>%s</code>\n#%s <b>%s</b> <code>%s</code> - %s\nby %s\n%s",
@@ -112,7 +106,7 @@ func renderTelegramAlert(alert Alert) ([]byte, error) {
 			html.EscapeString(alert.Author),
 			html.EscapeString(alert.Task.URL),
 		),
-		MessageThreadID: alert.Chat.ThreadID,
+		MessageThreadID: dest.threadID,
 	})
 }
 
@@ -238,11 +232,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 			Version: version,
 			Desc:    t.Task.Message,
 		},
-		Chat: alertChat{
-			ID:       dest.chatID,
-			ThreadID: dest.threadID,
-		},
-	})
+	}, dest)
 	if err != nil {
 		t.Log("Can't generate telegram alert: " + err.Error())
 		return
@@ -278,6 +268,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
 	t.Log("Sent successfully telegram alert")
 }
 
