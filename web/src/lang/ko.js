@@ -257,6 +257,7 @@ export default {
   isRequired: '필수입니다',
   mustBeInteger: '정수여야 합니다',
   mustBe0OrGreater: '0 이상이어야 합니다',
+  mustBe1OrGreater: '1 이상이어야 합니다',
   start_version_required: '시작 버전은 필수입니다',
   playbook_filename_required: '플레이북 파일 이름은 필수입니다',
   inventory_required: '인벤토리는 필수입니다',

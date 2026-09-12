@@ -257,6 +257,7 @@ export default {
   isRequired: 'は必須です',
   mustBeInteger: '整数でなければなりません',
   mustBe0OrGreater: '0以上でなければなりません',
+  mustBe1OrGreater: '1以上でなければなりません',
   start_version_required: '開始バージョンは必須です',
   playbook_filename_required: 'プレイブックファイル名は必須です',
   inventory_required: 'インベントリは必須です',

@@ -257,6 +257,7 @@ export default {
   isRequired: 'is vereist',
   mustBeInteger: 'Moet een geheel getal zijn',
   mustBe0OrGreater: 'Moet 0 of groter zijn',
+  mustBe1OrGreater: 'Moet 1 of groter zijn',
   start_version_required: 'Startversie is vereist',
   playbook_filename_required: 'Playbook-bestandsnaam is vereist',
   inventory_required: 'Inventaris is vereist',

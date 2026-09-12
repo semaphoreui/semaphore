@@ -291,6 +291,7 @@ export default {
   isRequired: 'is required',
   mustBeInteger: 'Must be integer',
   mustBe0OrGreater: 'Must be 0 or greater',
+  mustBe1OrGreater: 'Must be 1 or greater',
   start_version_required: 'Start version is required',
   playbook_filename_required: 'Playbook filename is required',
   working_directory_required: 'Working directory is required',

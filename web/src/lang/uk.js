@@ -258,6 +258,7 @@ export default {
   isRequired: 'обов’язково',
   mustBeInteger: 'Має бути ціле число',
   mustBe0OrGreater: 'Має бути 0 або більше',
+  mustBe1OrGreater: 'Має бути 1 або більше',
   start_version_required: 'Початкова версія обов’язкова',
   playbook_filename_required: 'Потрібно вказати playbook',
   inventory_required: 'Необхідно вказати інвентар',

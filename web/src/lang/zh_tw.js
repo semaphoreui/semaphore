@@ -259,6 +259,7 @@ export default {
   isRequired: '是必填的',
   mustBeInteger: '必須是整數',
   mustBe0OrGreater: '必須大於或等於 0',
+  mustBe1OrGreater: '必須大於或等於 1',
   start_version_required: '起始版本是必填的',
   playbook_filename_required: 'Playbook 檔案名稱是必填的',
   inventory_required: '清單是必填的',

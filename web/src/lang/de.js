@@ -266,6 +266,7 @@ export default {
   isRequired: 'ist erforderlich',
   mustBeInteger: 'Muss eine ganze Zahl sein',
   mustBe0OrGreater: 'Muss >= 0 sein',
+  mustBe1OrGreater: 'Muss >= 1 sein',
   start_version_required: 'Startversion ist erforderlich',
   playbook_filename_required: 'Playbook-Dateiname ist erforderlich',
   inventory_required: 'Inventory ist erforderlich',

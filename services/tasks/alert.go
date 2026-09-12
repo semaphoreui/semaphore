@@ -3,8 +3,10 @@ package tasks
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	htmltemplate "html/template"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -53,12 +55,11 @@ func normalizeTelegramThreadID(threadID string) string {
 	if threadID == "" {
 		return ""
 	}
-	for _, r := range threadID {
-		if r < '0' || r > '9' {
-			return ""
-		}
+	n, err := strconv.ParseInt(threadID, 10, 64)
+	if err != nil || n <= 0 {
+		return ""
 	}
-	return threadID
+	return strconv.FormatInt(n, 10)
 }
 
 func telegramChatAndThread(globalChat, globalThread string, projectChat, projectThread *string) (chatID, rawThread string) {
@@ -76,23 +77,48 @@ func telegramChatAndThread(globalChat, globalThread string, projectChat, project
 	return globalChat, globalThread
 }
 
-func resolveTelegramDestination(globalChat, globalThread string, projectChat, projectThread *string) (chatID, threadID string) {
+type telegramDestination struct {
+	chatID        string
+	threadID      string
+	invalidThread bool
+}
+
+func resolveTelegramDestination(globalChat, globalThread string, projectChat, projectThread *string) telegramDestination {
 	chatID, rawThread := telegramChatAndThread(globalChat, globalThread, projectChat, projectThread)
-	return chatID, normalizeTelegramThreadID(rawThread)
+	threadID := normalizeTelegramThreadID(rawThread)
+	return telegramDestination{
+		chatID:        chatID,
+		threadID:      threadID,
+		invalidThread: rawThread != "" && threadID == "",
+	}
+}
+
+type telegramSendMessage struct {
+	ChatID          string `json:"chat_id"`
+	ParseMode       string `json:"parse_mode"`
+	Text            string `json:"text"`
+	MessageThreadID int64  `json:"message_thread_id,omitempty"`
 }
 
 func renderTelegramAlert(alert Alert) ([]byte, error) {
-	tpl, err := template.ParseFS(templates, "templates/telegram.tmpl")
-	if err != nil {
-		return nil, err
+	msg := telegramSendMessage{
+		ChatID:    alert.Chat.ID,
+		ParseMode: "HTML",
+		Text: fmt.Sprintf(
+			"<code>%s</code>\n#%s <b>%s</b> <code>%s</code> - %s\nby %s\n%s",
+			alert.Name,
+			alert.Task.ID,
+			alert.Task.Result,
+			alert.Task.Version,
+			alert.Task.Desc,
+			alert.Author,
+			alert.Task.URL,
+		),
 	}
-
-	body := bytes.NewBuffer(nil)
-	if err := tpl.Execute(body, alert); err != nil {
-		return nil, err
+	if n, err := strconv.ParseInt(alert.Chat.ThreadID, 10, 64); err == nil && n > 0 {
+		msg.MessageThreadID = n
 	}
-
-	return body.Bytes(), nil
+	return json.Marshal(msg)
 }
 
 func (t *TaskRunner) shouldSkipStatusAlert() bool {
@@ -191,18 +217,17 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
-	chatID, rawThread := telegramChatAndThread(
+	dest := resolveTelegramDestination(
 		util.Config.TelegramChat,
 		util.Config.TelegramThread,
 		t.alertChat,
 		t.alertThread,
 	)
-	threadID := normalizeTelegramThreadID(rawThread)
-	if rawThread != "" && threadID == "" {
+	if dest.invalidThread {
 		t.Log("Invalid Telegram thread ID, sending without message_thread_id")
 	}
 
-	if chatID == "" {
+	if dest.chatID == "" {
 		return
 	}
 
@@ -220,8 +245,8 @@ func (t *TaskRunner) sendTelegramAlert() {
 			Desc:    t.Task.Message,
 		},
 		Chat: alertChat{
-			ID:       chatID,
-			ThreadID: threadID,
+			ID:       dest.chatID,
+			ThreadID: dest.threadID,
 		},
 	}
 
@@ -236,8 +261,6 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
-	body := bytes.NewReader(payload)
-
 	t.Log("Attempting to send telegram alert")
 
 	resp, err := http.Post(
@@ -246,20 +269,28 @@ func (t *TaskRunner) sendTelegramAlert() {
 			util.Config.TelegramToken,
 		),
 		"application/json",
-		body,
+		bytes.NewReader(payload),
 	)
-
-	if err != nil {
-		t.Log("Can't send telegram alert! Error: " + err.Error())
-	} else if resp.StatusCode != 200 {
-		t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode))
-	} else {
-		t.Log("Sent successfully telegram alert")
-	}
-
 	if resp != nil {
 		defer resp.Body.Close() //nolint:errcheck
 	}
+
+	if err != nil {
+		t.Log("Can't send telegram alert! Error: " + err.Error())
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		if readErr != nil {
+			t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode))
+			return
+		}
+		t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode) + " " + strings.TrimSpace(string(respBody)))
+		return
+	}
+
+	t.Log("Sent successfully telegram alert")
 }
 
 func (t *TaskRunner) sendSlackAlert() {

@@ -265,6 +265,7 @@ export default {
   isRequired: 'обязательно',
   mustBeInteger: 'Должно быть целым числом',
   mustBe0OrGreater: 'Должно быть 0 или больше',
+  mustBe1OrGreater: 'Должно быть 1 или больше',
   start_version_required: 'Начальная версия обязательна',
   playbook_filename_required: 'Имя файла плейбука обязательно',
   inventory_required: 'Инвентарь обязателен',

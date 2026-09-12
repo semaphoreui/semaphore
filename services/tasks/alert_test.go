@@ -105,6 +105,7 @@ func TestResolveTelegramDestination(t *testing.T) {
 		projectThread *string
 		wantChat      string
 		wantThread    string
+		wantInvalid   bool
 	}{
 		{
 			name:       "only global chat",
@@ -158,6 +159,7 @@ func TestResolveTelegramDestination(t *testing.T) {
 			globalThread: "not-a-number",
 			wantChat:     "-1001",
 			wantThread:   "",
+			wantInvalid:  true,
 		},
 		{
 			name:          "invalid project thread is omitted",
@@ -166,6 +168,7 @@ func TestResolveTelegramDestination(t *testing.T) {
 			projectThread: strPtr("abc"),
 			wantChat:      "-1001",
 			wantThread:    "",
+			wantInvalid:   true,
 		},
 		{
 			name:          "whitespace-only project chat is treated as unset",
@@ -176,18 +179,42 @@ func TestResolveTelegramDestination(t *testing.T) {
 			wantChat:      "-1001",
 			wantThread:    "99",
 		},
+		{
+			name:         "leading zeros are canonicalized",
+			globalChat:   "-1001",
+			globalThread: "042",
+			wantChat:     "-1001",
+			wantThread:   "42",
+		},
+		{
+			name:         "zero thread is omitted",
+			globalChat:   "-1001",
+			globalThread: "0",
+			wantChat:     "-1001",
+			wantThread:   "",
+			wantInvalid:  true,
+		},
+		{
+			name:         "negative thread is omitted",
+			globalChat:   "-1001",
+			globalThread: "-5",
+			wantChat:     "-1001",
+			wantThread:   "",
+			wantInvalid:  true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			chatID, threadID := resolveTelegramDestination(
+			dest := resolveTelegramDestination(
 				tt.globalChat,
 				tt.globalThread,
 				tt.projectChat,
 				tt.projectThread,
 			)
-			assert.Equal(t, tt.wantChat, chatID)
-			assert.Equal(t, tt.wantThread, threadID)
+			assert.Equal(t, tt.wantChat, dest.chatID)
+			assert.Equal(t, tt.wantThread, dest.threadID)
+			assert.Equal(t, tt.wantInvalid, dest.invalidThread)
 		})
 	}
 }
@@ -222,16 +249,26 @@ func TestRenderTelegramAlert_Payload(t *testing.T) {
 
 	t.Run("with thread id as json number", func(t *testing.T) {
 		alert := base
-		alert.Chat.ThreadID = "42"
+		alert.Chat.ThreadID = "042"
 
 		body, err := renderTelegramAlert(alert)
 		require.NoError(t, err)
-
-		assert.Contains(t, string(body), `"message_thread_id": 42`)
 
 		var payload map[string]any
 		require.NoError(t, json.Unmarshal(body, &payload))
 		assert.Equal(t, "-1001", payload["chat_id"])
 		assert.Equal(t, float64(42), payload["message_thread_id"])
+	})
+
+	t.Run("escapes quotes in text", func(t *testing.T) {
+		alert := base
+		alert.Name = `Deploy "prod"`
+
+		body, err := renderTelegramAlert(alert)
+		require.NoError(t, err)
+
+		var payload map[string]any
+		require.NoError(t, json.Unmarshal(body, &payload))
+		assert.Contains(t, payload["text"], `Deploy "prod"`)
 	})
 }

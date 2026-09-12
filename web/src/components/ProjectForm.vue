@@ -42,6 +42,10 @@
       :label="$t('telegramThreadIdOptional')"
       :hint="$t('telegramThreadIdHint')"
       persistent-hint
+      :rules="[
+        (v) => v == null || v === '' || /^\d+$/.test(String(v)) || $t('mustBeInteger'),
+        (v) => v == null || v === '' || Number(v) >= 1 || $t('mustBe1OrGreater'),
+      ]"
       :disabled="formSaving"
       data-testid="newProject-tg-thread"
       outlined

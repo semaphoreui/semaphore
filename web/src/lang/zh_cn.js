@@ -257,6 +257,7 @@ export default {
   isRequired: '是必需的',
   mustBeInteger: '必须是整数',
   mustBe0OrGreater: '必须是 0 或更大',
+  mustBe1OrGreater: '必须是 1 或更大',
   start_version_required: '起始版本是必需的',
   playbook_filename_required: '剧本文件名是必需的',
   inventory_required: '库存是必需的',

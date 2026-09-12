@@ -261,6 +261,7 @@ export default {
   isRequired: 'je povinné',
   mustBeInteger: 'Musí být celé číslo',
   mustBe0OrGreater: 'Musí být 0 nebo více',
+  mustBe1OrGreater: 'Musí být 1 nebo více',
   start_version_required: 'Počáteční verze je povinná',
   playbook_filename_required: 'Název souboru playbooku je povinný',
   inventory_required: 'Inventář je povinný',

@@ -257,6 +257,7 @@ export default {
   isRequired: 'é obrigatório',
   mustBeInteger: 'Deve ser um número inteiro',
   mustBe0OrGreater: 'Deve ser 0 ou maior',
+  mustBe1OrGreater: 'Deve ser 1 ou maior',
   start_version_required: 'Versão inicial é obrigatória',
   playbook_filename_required: 'Nome do arquivo playbook é obrigatório',
   inventory_required: 'Inventário é obrigatório',
