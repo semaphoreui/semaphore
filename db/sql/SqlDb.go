@@ -239,6 +239,34 @@ func (d *SqlDbConnection) Insert(primaryKeyColumnName string, query string, args
 	return int(insertId), nil
 }
 
+func (d *SqlDbConnection) InsertTx(tx *gorp.Transaction, primaryKeyColumnName string, query string, args ...any) (int, error) {
+	var insertId int64
+
+	formattedArgs := formatArgs(args)
+
+	switch d.sql.Dialect.(type) {
+	case gorp.PostgresDialect:
+		if primaryKeyColumnName != "" {
+			id, err := tx.SelectInt(d.PrepareQuery(query+" returning "+primaryKeyColumnName), formattedArgs...)
+			return int(id), err
+		}
+		_, err := tx.Exec(d.PrepareQuery(query), formattedArgs...)
+		return 0, err
+	default:
+		res, err := tx.Exec(d.PrepareQuery(query), formattedArgs...)
+		if err != nil {
+			return 0, err
+		}
+
+		insertId, err = res.LastInsertId()
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return int(insertId), nil
+}
+
 func (d *SqlDbConnection) Exec(query string, args ...any) (sql.Result, error) {
 	q := d.PrepareQuery(query)
 	return d.sql.Exec(q, args...)
@@ -441,6 +469,10 @@ func (d *SqlDb) PrepareQuery(query string) string {
 
 func (d *SqlDb) insert(primaryKeyColumnName string, query string, args ...any) (int, error) {
 	return d.connection.Insert(primaryKeyColumnName, query, args...)
+}
+
+func (d *SqlDb) insertTx(tx *gorp.Transaction, primaryKeyColumnName string, query string, args ...any) (int, error) {
+	return d.connection.InsertTx(tx, primaryKeyColumnName, query, args...)
 }
 
 func (d *SqlDb) exec(query string, args ...any) (sql.Result, error) {

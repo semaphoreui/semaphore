@@ -20,6 +20,7 @@ const (
 	Inventory               = "Inventory"
 	Repository              = "Repository"
 	View                    = "View"
+	Alert                   = "Alert"
 	Role                    = "Role"
 	TaskParams              = "TaskParams"
 	Integration             = "Integration"
@@ -420,6 +421,7 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUs
 		SecretStorage:           &SecretStorageExporter{},
 		Inventory:               &InventoryExporter{},
 		View:                    &ViewExporter{},
+		Alert:                   &AlertExporter{},
 		Role:                    &RoleExporter{},
 		Schedule:                &ScheduleExporter{},
 		ProjectUser:             &ProjectUserExporter{},

@@ -84,6 +84,12 @@ func makeUniqueNames[T any](items []T, getter func(item *T) string, setter func(
 
 func (b *BackupDB) makeUniqueNames() {
 
+	makeUniqueNames(b.alerts, func(item *db.Alert) string {
+		return item.Name
+	}, func(item *db.Alert, name string) {
+		item.Name = name
+	})
+
 	makeUniqueNames(b.templates, func(item *db.Template) string {
 		return item.Name
 	}, func(item *db.Template, name string) {
@@ -155,6 +161,11 @@ func (b *BackupDB) makeUniqueNames() {
 func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.WorkflowManager) (err error) {
 
 	b.workflowStore = workflowStore
+
+	b.alerts, err = store.GetAlerts(projectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
 
 	b.templates, err = store.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
 	if err != nil {
@@ -309,10 +320,19 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			continue
 		}
 
+		var alertNames []string
+		for _, alertID := range o.AlertIDs {
+			name, _ := findNameByID[db.Alert](alertID, b.alerts)
+			if name != nil {
+				alertNames = append(alertNames, *name)
+			}
+		}
+
 		schedules[i] = BackupSchedule{
-			o,
-			*tplName,
-			repoName,
+			Schedule:            o,
+			Template:            *tplName,
+			CheckableRepository: repoName,
+			Alerts:              alertNames,
 		}
 
 		if o.TaskParams != nil && o.TaskParams.InventoryID != nil {
@@ -452,6 +472,14 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			}
 		}
 
+		var alertNames []string
+		for _, alertID := range o.AlertIDs {
+			name, _ := findNameByID[db.Alert](alertID, b.alerts)
+			if name != nil {
+				alertNames = append(alertNames, *name)
+			}
+		}
+
 		templates[i] = BackupTemplate{
 			Template:      o,
 			View:          View,
@@ -461,6 +489,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			BuildTemplate: BuildTemplate,
 			Vaults:        vaults,
 			Roles:         roles,
+			Alerts:        alertNames,
 		}
 	}
 
@@ -533,6 +562,11 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 	}
 
+	alerts := make([]BackupAlert, len(b.alerts))
+	for i, o := range b.alerts {
+		alerts[i] = BackupAlert{Alert: o}
+	}
+
 	return &BackupFormat{
 		Meta: BackupMeta{
 			b.meta,
@@ -542,6 +576,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		Views:              views,
 		Repositories:       repositories,
 		Keys:               keys,
+		Alerts:             alerts,
 		Templates:          templates,
 		Integration:        integrations,
 		IntegrationAliases: integrationAliases,

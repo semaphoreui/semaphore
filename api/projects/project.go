@@ -108,14 +108,27 @@ type ProjectController struct {
 // SendTestNotification triggers sending a test notification to enabled messengers for this project.
 func (c *ProjectController) SendTestNotification(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
+	store := helpers.Store(r)
 
-	// Respect project.Alert flag: if disabled, still return 204 without sending
-	if !project.Alert {
+	alerts, err := store.GetAlerts(project.ID, db.RetrieveQueryParams{})
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	hasEnabled := false
+	for _, alert := range alerts {
+		if alert.Enabled {
+			hasEnabled = true
+			break
+		}
+	}
+	if !hasEnabled {
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
 
-	err := tasks.SendProjectTestAlerts(project, helpers.Store(r))
+	err = tasks.SendProjectTestAlerts(project, store)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

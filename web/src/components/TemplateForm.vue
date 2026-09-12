@@ -334,6 +334,52 @@
           outlined
           dense
         ></v-autocomplete>
+
+        <v-radio-group
+          v-model="item.alert_mode"
+          :label="$t('alerts')"
+          :disabled="formSaving"
+          class="mt-2"
+        >
+          <v-radio :label="$t('templateAlertsDefault')" value="default" />
+          <v-radio :label="$t('templateAlertsCustom')" value="ids" />
+        </v-radio-group>
+        <div
+          v-if="item.alert_mode !== 'ids'"
+          class="mb-4 caption"
+        >{{ $t('templateAlertsDefaultHint') }}</div>
+
+        <v-autocomplete
+          v-if="item.alert_mode === 'ids'"
+          v-model="item.alert_ids"
+          :label="$t('alerts')"
+          :items="alerts"
+          item-value="id"
+          item-text="name"
+          multiple
+          chips
+          deletable-chips
+          :hint="$t('alertsHint')"
+          persistent-hint
+          :disabled="formSaving"
+          outlined
+          dense
+          class="mb-4"
+        />
+
+        <v-checkbox
+          class="mt-0"
+          :label="$t('alertOnSuccess')"
+          v-model="item.alert_on_success"
+          :disabled="formSaving"
+        />
+
+        <v-checkbox
+          class="mt-0"
+          :label="$t('alertOnError')"
+          v-model="item.alert_on_error"
+          :disabled="formSaving"
+        />
       </v-col>
 
       <v-col>
@@ -459,18 +505,6 @@
               dense
             />
           </DropdownCard>
-
-          <v-checkbox
-            class="mt-0"
-            :label="$t('suppressSuccessAlerts')"
-            v-model="item.suppress_success_alerts"
-          />
-
-          <v-checkbox
-            class="mt-0"
-            :label="$t('suppressErrorAlerts')"
-            v-model="item.suppress_error_alerts"
-          />
 
           <div style="position: relative">
             <ArgsPicker :vars="args" @change="setArgs" title="CLI args" />
@@ -760,6 +794,7 @@ export default {
       inventory: null,
       repositories: null,
       environment: null,
+      alerts: [],
       views: null,
       schedules: null,
       buildTemplates: null,
@@ -1091,6 +1126,10 @@ export default {
         task_params: {},
         jwt_params: { enabled: false, audience: [], ttl: '' },
         environment_ids: [],
+        alert_mode: 'default',
+        alert_ids: [],
+        alert_on_success: true,
+        alert_on_error: true,
       };
     },
 
@@ -1106,6 +1145,7 @@ export default {
         this.schedules,
         this.views,
         this.environment,
+        this.alerts,
         templates,
         this.runnerTags,
       ] = await Promise.all([
@@ -1115,6 +1155,7 @@ export default {
         this.isNew ? [] : this.loadProjectEndpoint(`/templates/${this.itemId}/schedules`),
         this.loadProjectResources('views'),
         this.loadProjectResources('environment'),
+        this.loadProjectResources('alerts'),
         this.loadProjectResources('templates'),
         this.loadProjectResources('runner_tags'),
       ]);
@@ -1228,6 +1269,19 @@ export default {
         this.$set(this.item, 'environment_ids', []);
       }
 
+      if (!this.item.alert_mode) {
+        this.$set(this.item, 'alert_mode', this.item.alert_ids && this.item.alert_ids.length ? 'ids' : 'default');
+      }
+      if (!Array.isArray(this.item.alert_ids)) {
+        this.$set(this.item, 'alert_ids', []);
+      }
+      if (this.item.alert_on_success == null) {
+        this.$set(this.item, 'alert_on_success', !this.item.suppress_success_alerts);
+      }
+      if (this.item.alert_on_error == null) {
+        this.$set(this.item, 'alert_on_error', !this.item.suppress_error_alerts);
+      }
+
       this.args = JSON.parse(this.item.arguments || '[]');
 
       await this.loadRelativeData();
@@ -1253,6 +1307,10 @@ export default {
     },
 
     async beforeSave() {
+      if (this.item.alert_mode !== 'ids') {
+        this.item.alert_ids = [];
+      }
+
       if (this.cronFormat == null || this.cronFormat === '') {
         return;
       }

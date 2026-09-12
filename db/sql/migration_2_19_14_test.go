@@ -59,18 +59,16 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 		projectID, repo.ID)
 	require.NoError(t, err)
 
-	task, err := store.CreateTask(db.Task{
-		TemplateID: templateID,
-		ProjectID:  projectID,
-		Status:     "success",
-		Playbook:   "site.yml",
-		UserID:     &user.ID,
-		Created:    now,
-	}, 0)
+	// SqlDb.CreateTask writes alert_snapshot, which appears only in 2.20.6,
+	// so seed the task with SQL matching the 2.19.12 schema.
+	taskID, err := store.insert("id",
+		"insert into task (template_id, project_id, status, playbook, environment, user_id, created, message, commit_message) "+
+			"values (?, ?, 'success', 'site.yml', '', ?, ?, '', '')",
+		templateID, projectID, user.ID, now)
 	require.NoError(t, err)
 
 	_, err = store.CreateTaskOutput(db.TaskOutput{
-		TaskID: task.ID,
+		TaskID: taskID,
 		Time:   now,
 		Output: "ok",
 	})
@@ -90,12 +88,12 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, survivedSession.UserID)
 
-	survivedTask, err := store.GetTask(projectID, task.ID)
+	survivedTask, err := store.GetTask(projectID, taskID)
 	require.NoError(t, err)
 	require.NotNil(t, survivedTask.UserID)
 	assert.Equal(t, user.ID, *survivedTask.UserID)
 
-	outputs, err := store.GetTaskOutputs(projectID, task.ID, db.RetrieveQueryParams{})
+	outputs, err := store.GetTaskOutputs(projectID, taskID, db.RetrieveQueryParams{})
 	require.NoError(t, err)
 	assert.Len(t, outputs, 1)
 
@@ -107,7 +105,7 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 	_, err = store.GetSession(user.ID, session.ID)
 	assert.ErrorIs(t, err, db.ErrNotFound)
 
-	survivedTask, err = store.GetTask(projectID, task.ID)
+	survivedTask, err = store.GetTask(projectID, taskID)
 	require.NoError(t, err)
 	assert.Nil(t, survivedTask.UserID)
 }
