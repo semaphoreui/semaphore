@@ -37,6 +37,17 @@
       dense
     ></v-text-field>
 
+    <v-text-field
+      v-model="item.alert_thread"
+      :label="$t('telegramThreadIdOptional')"
+      :hint="$t('telegramThreadIdHint')"
+      persistent-hint
+      :disabled="formSaving"
+      data-testid="newProject-tg-thread"
+      outlined
+      dense
+    ></v-text-field>
+
     <v-checkbox
       class="mt-0"
       v-model="item.alert"

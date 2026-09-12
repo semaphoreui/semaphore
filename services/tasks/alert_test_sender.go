@@ -31,9 +31,10 @@ func SendProjectTestAlerts(project db.Project, store db.Store) (err error) {
 			Name:      "Test Notification",
 			Type:      db.TemplateTask,
 		},
-		users:     userIDs,
-		alert:     project.Alert,
-		alertChat: project.AlertChat,
+		users:       userIDs,
+		alert:       project.Alert,
+		alertChat:   project.AlertChat,
+		alertThread: project.AlertThread,
 		pool: &TaskPool{
 			logger: make(chan logRecord, 100),
 			store:  store,

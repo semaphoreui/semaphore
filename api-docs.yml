@@ -255,6 +255,8 @@ definitions:
             type: boolean
           alert_chat:
             type: string
+          alert_thread:
+            type: string
           max_parallel_tasks:
             type: integer
             minimum: 0
@@ -403,6 +405,10 @@ definitions:
         type: string
         x-nullable: true
         example: Test
+      alert_thread:
+        type: string
+        x-nullable: true
+        example: "123"
       max_parallel_tasks:
         type: integer
         minimum: 0
@@ -430,6 +436,10 @@ definitions:
         type: string
         x-nullable: true
         example: Test
+      alert_thread:
+        type: string
+        x-nullable: true
+        example: "123"
       max_parallel_tasks:
         type: integer
         minimum: 0

@@ -105,6 +105,8 @@ export default {
   projectName: 'プロジェクト名',
   allowAlertsForThisProject: 'このプロジェクトのアラートを許可',
   telegramChatIdOptional: 'TelegramチャットID（オプション）',
+  telegramThreadIdOptional: 'TelegramスレッドID（オプション）',
+  telegramThreadIdHint: '任意のフォーラムトピックID。TelegramチャットID（プロジェクトまたはグローバル）が必要です。',
   maxNumberOfParallelTasksOptional: '最大並列タスク数（オプション）',
   deleteRepository: 'リポジトリを削除',
   newRepository: '新しいリポジトリ',

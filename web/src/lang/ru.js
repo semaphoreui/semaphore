@@ -113,6 +113,8 @@ export default {
   projectName: 'Имя проекта',
   allowAlertsForThisProject: 'Разрешить оповещения для этого проекта',
   telegramChatIdOptional: 'Telegram Chat ID (необязательно)',
+  telegramThreadIdOptional: 'Telegram Thread ID (необязательно)',
+  telegramThreadIdHint: 'Необязательный ID темы форума. Требуется Telegram Chat ID (проекта или глобальный).',
   maxNumberOfParallelTasksOptional: 'Максимальное количество параллельных задач (необязательно)',
   deleteRepository: 'Удалить репозиторий',
   newRepository: 'Новый репозиторий',

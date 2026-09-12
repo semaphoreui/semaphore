@@ -122,6 +122,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 	if conf.TelegramAlert {
 		askValue("Telegram bot token (you can get it from @BotFather)", "", &conf.TelegramToken)
 		askValue("Telegram chat ID", "", &conf.TelegramChat)
+		askValue("Telegram thread / topic ID (optional)", "", &conf.TelegramThread)
 	}
 
 	askConfirmation("Enable slack alerts?", false, &conf.SlackAlert)

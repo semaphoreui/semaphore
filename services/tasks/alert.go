@@ -7,6 +7,7 @@ import (
 	htmltemplate "html/template"
 	"net/http"
 	"strconv"
+	"strings"
 	"text/template"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -36,7 +37,62 @@ type alertTask struct {
 }
 
 type alertChat struct {
-	ID string
+	ID       string
+	ThreadID string
+}
+
+func stringValue(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return strings.TrimSpace(*s)
+}
+
+func normalizeTelegramThreadID(threadID string) string {
+	threadID = strings.TrimSpace(threadID)
+	if threadID == "" {
+		return ""
+	}
+	for _, r := range threadID {
+		if r < '0' || r > '9' {
+			return ""
+		}
+	}
+	return threadID
+}
+
+func telegramChatAndThread(globalChat, globalThread string, projectChat, projectThread *string) (chatID, rawThread string) {
+	projChat := stringValue(projectChat)
+	projThread := stringValue(projectThread)
+	globalChat = strings.TrimSpace(globalChat)
+	globalThread = strings.TrimSpace(globalThread)
+
+	if projChat != "" {
+		return projChat, projThread
+	}
+	if projThread != "" {
+		return globalChat, projThread
+	}
+	return globalChat, globalThread
+}
+
+func resolveTelegramDestination(globalChat, globalThread string, projectChat, projectThread *string) (chatID, threadID string) {
+	chatID, rawThread := telegramChatAndThread(globalChat, globalThread, projectChat, projectThread)
+	return chatID, normalizeTelegramThreadID(rawThread)
+}
+
+func renderTelegramAlert(alert Alert) ([]byte, error) {
+	tpl, err := template.ParseFS(templates, "templates/telegram.tmpl")
+	if err != nil {
+		return nil, err
+	}
+
+	body := bytes.NewBuffer(nil)
+	if err := tpl.Execute(body, alert); err != nil {
+		return nil, err
+	}
+
+	return body.Bytes(), nil
 }
 
 func (t *TaskRunner) shouldSkipStatusAlert() bool {
@@ -135,16 +191,21 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
-	chatID := util.Config.TelegramChat
-	if t.alertChat != nil && *t.alertChat != "" {
-		chatID = *t.alertChat
+	chatID, rawThread := telegramChatAndThread(
+		util.Config.TelegramChat,
+		util.Config.TelegramThread,
+		t.alertChat,
+		t.alertThread,
+	)
+	threadID := normalizeTelegramThreadID(rawThread)
+	if rawThread != "" && threadID == "" {
+		t.Log("Invalid Telegram thread ID, sending without message_thread_id")
 	}
 
 	if chatID == "" {
 		return
 	}
 
-	body := bytes.NewBufferString("")
 	author, version := t.alertInfos()
 
 	alert := Alert{
@@ -159,26 +220,23 @@ func (t *TaskRunner) sendTelegramAlert() {
 			Desc:    t.Task.Message,
 		},
 		Chat: alertChat{
-			ID: chatID,
+			ID:       chatID,
+			ThreadID: threadID,
 		},
 	}
 
-	tpl, err := template.ParseFS(templates, "templates/telegram.tmpl")
-
+	payload, err := renderTelegramAlert(alert)
 	if err != nil {
-		t.Log("Can't parse telegram alert template!")
-		panic(err)
-	}
-
-	if err := tpl.Execute(body, alert); err != nil {
 		t.Log("Can't generate telegram alert template!")
 		panic(err)
 	}
 
-	if body.Len() == 0 {
+	if len(payload) == 0 {
 		t.Log("Buffer for telegram alert is empty")
 		return
 	}
+
+	body := bytes.NewReader(payload)
 
 	t.Log("Attempting to send telegram alert")
 

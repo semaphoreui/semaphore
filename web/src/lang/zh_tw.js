@@ -106,6 +106,8 @@ export default {
   projectName: '專案名稱',
   allowAlertsForThisProject: '啟用此專案的警報',
   telegramChatIdOptional: 'Telegram 聊天 ID（選填）',
+  telegramThreadIdOptional: 'Telegram 主題 ID（選填）',
+  telegramThreadIdHint: '選填的論壇主題 ID。需要 Telegram 聊天 ID（專案或全域）。',
   maxNumberOfParallelTasksOptional: '最大平行任務數（選填）',
   deleteRepository: '刪除儲存庫',
   newRepository: '新增儲存庫',

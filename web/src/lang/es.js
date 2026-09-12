@@ -105,6 +105,8 @@ export default {
   projectName: 'Nombre del Proyecto',
   allowAlertsForThisProject: 'Permitir alertas para este proyecto',
   telegramChatIdOptional: 'ID de Chat de Telegram (Opcional)',
+  telegramThreadIdOptional: 'ID de hilo de Telegram (Opcional)',
+  telegramThreadIdHint: 'ID opcional del tema del foro. Requiere un ID de chat de Telegram (proyecto o global).',
   maxNumberOfParallelTasksOptional: 'Número máximo de tareas paralelas (Opcional)',
   deleteRepository: 'Eliminar repositorio',
   newRepository: 'Nuevo Repositorio',

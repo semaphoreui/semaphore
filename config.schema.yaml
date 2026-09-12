@@ -146,6 +146,7 @@ properties:
   # ==========================================================================
   telegram_alert:        { type: boolean }
   telegram_chat:         { type: string }
+  telegram_thread:       { type: string }
   telegram_token:
     type: string
     description: Telegram bot token (sensitive).

@@ -105,6 +105,8 @@ export default {
   projectName: '프로젝트 이름',
   allowAlertsForThisProject: '이 프로젝트에 대한 알림 허용',
   telegramChatIdOptional: '텔레그램 채팅 ID (선택 사항)',
+  telegramThreadIdOptional: '텔레그램 스레드 ID (선택 사항)',
+  telegramThreadIdHint: '선택적 포럼 주제 ID. 텔레그램 채팅 ID가 필요합니다(프로젝트 또는 전역).',
   maxNumberOfParallelTasksOptional: '최대 병렬 작업 수 (선택 사항)',
   deleteRepository: '리포지토리 삭제',
   newRepository: '새 리포지토리',

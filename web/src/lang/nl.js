@@ -105,6 +105,8 @@ export default {
   projectName: 'Projectnaam',
   allowAlertsForThisProject: 'Sta waarschuwingen voor dit project toe',
   telegramChatIdOptional: 'Telegram Chat ID (Optioneel)',
+  telegramThreadIdOptional: 'Telegram Thread ID (Optioneel)',
+  telegramThreadIdHint: 'Optionele forum-topic-ID. Vereist een Telegram-chat-ID (project of globaal).',
   maxNumberOfParallelTasksOptional: 'Maximaal aantal parallelle taken (Optioneel)',
   deleteRepository: 'Repository Verwijderen',
   newRepository: 'Nieuwe Repository',

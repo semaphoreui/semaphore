@@ -105,6 +105,8 @@ export default {
   projectName: '项目名称',
   allowAlertsForThisProject: '允许此项目的警报',
   telegramChatIdOptional: 'Telegram 聊天 ID（可选）',
+  telegramThreadIdOptional: 'Telegram 话题 ID（可选）',
+  telegramThreadIdHint: '可选的论坛话题 ID。需要 Telegram 聊天 ID（项目或全局）。',
   maxNumberOfParallelTasksOptional: '最大并行任务数（可选）',
   deleteRepository: '删除仓库',
   newRepository: '新仓库',
