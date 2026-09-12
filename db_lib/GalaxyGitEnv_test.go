@@ -155,8 +155,10 @@ func stubGalaxy(t *testing.T) func() int {
 
 	dir := t.TempDir()
 	runLog := path.Join(dir, "runs")
-	t.Setenv("GALAXY_RUN_LOG", runLog)
-	script := "#!/bin/sh\nprintf '%s\n' run >> \"$GALAXY_RUN_LOG\"\n"
+
+	// The path is baked into the script, quoted: makeCmd builds cmd.Env from
+	// scratch, so an env var set here would not reach the stub.
+	script := "#!/bin/sh\nprintf 'run\\n' >> " + sqQuote(runLog) + "\n"
 	require.NoError(t, os.WriteFile(path.Join(dir, "ansible-galaxy"), []byte(script), 0o755))
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
