@@ -177,7 +177,7 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 		return fmt.Errorf("BecomeKey does not exist in keys[].Name")
 	}
 	if e.Proxy != nil && getEntryByName[BackupProxy](e.Proxy, backup.Proxies) == nil {
-		return fmt.Errorf("Proxy does not exist in proxies[].Name")
+		return fmt.Errorf("proxy does not exist in proxies[].Name")
 	}
 	return nil
 }
@@ -211,6 +211,17 @@ func (e BackupProxy) Restore(b *BackupDB) error {
 	// The required proxy may not be restored yet, so the chain is linked
 	// afterwards by restoreProxyChains.
 	proxy.RequiresProxyID = nil
+
+	// A backup is a user supplied file, so it goes through the same checks as
+	// the API: the host reaches an ssh ProxyCommand, and the key must belong to
+	// the project.
+	if err := proxy.Validate(); err != nil {
+		return err
+	}
+
+	if err := db.ValidateProxy(b.store, &proxy); err != nil {
+		return err
+	}
 
 	newProxy, err := b.store.CreateProxy(proxy)
 	if err != nil {
@@ -265,7 +276,7 @@ func (e BackupRepository) Verify(backup *BackupFormat) error {
 		return fmt.Errorf("SSHKey does not exist in keys[].Name")
 	}
 	if e.Proxy != nil && getEntryByName[BackupProxy](e.Proxy, backup.Proxies) == nil {
-		return fmt.Errorf("Proxy does not exist in proxies[].Name")
+		return fmt.Errorf("proxy does not exist in proxies[].Name")
 	}
 	return nil
 }
@@ -670,6 +681,17 @@ func (backup *BackupFormat) restoreProxyChains(b *BackupDB) error {
 
 		proxy := *restored
 		proxy.RequiresProxyID = &required.ID
+
+		// The chain is only complete now, so the rules the API enforces on it
+		// (no self reference, no loop, no over-long chain, ssh only) are checked
+		// here rather than on create.
+		if err := proxy.Validate(); err != nil {
+			return fmt.Errorf("error at proxies[%d]: %s", i, err.Error())
+		}
+
+		if err := db.ValidateProxy(b.store, &proxy); err != nil {
+			return fmt.Errorf("error at proxies[%d]: %s", i, err.Error())
+		}
 
 		if err := b.store.UpdateProxy(proxy); err != nil {
 			return fmt.Errorf("error at proxies[%d]: %s", i, err.Error())

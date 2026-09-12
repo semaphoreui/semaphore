@@ -76,6 +76,7 @@ type ObjectReferrers struct {
 	Integrations []ObjectReferrer `json:"integrations"`
 	Schedules    []ObjectReferrer `json:"schedules"`
 	AccessKeys   []ObjectReferrer `json:"access_keys"`
+	Proxies      []ObjectReferrer `json:"proxies"`
 }
 
 type IntegrationReferrers struct {

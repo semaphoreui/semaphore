@@ -70,3 +70,84 @@ func TestProxy_Validate(t *testing.T) {
 		})
 	}
 }
+
+// TestProxy_Validate_HostShellInjection covers the characters which reach the
+// shell ssh runs a ProxyCommand with. The allowlist must reject the whole class,
+// not just the separators: `#` comments out the rest of the command, and the
+// globbing and expansion characters are equally shell syntax.
+func TestProxy_Validate_HostShellInjection(t *testing.T) {
+	hosts := []string{
+		"bastion.example.org;id;",
+		"bastion.example.org&id",
+		"bastion.example.org|id",
+		"bastion.example.org#",
+		"bastion.example.org$(id)",
+		"bastion.example.org`id`",
+		"bastion.example.org${IFS}",
+		"bastion.example.org>out",
+		"bastion.example.org<in",
+		"bastion.example.org(id)",
+		"bastion.example.org*",
+		"bastion.example.org?",
+		"bastion.example.org[a]",
+		"bastion.example.org{a,b}",
+		"bastion.example.org~",
+		"bastion.example.org!",
+		"bastion.example.org evil",
+		"bastion.example.org\nid",
+		"bastion.example.org\tid",
+		"bastion.example.org'id'",
+		"bastion.example.org\"id\"",
+		"bastion.example.org\\id",
+		"-oProxyCommand=evil",
+		"bastion.example.org-",
+	}
+
+	for _, host := range hosts {
+		t.Run(host, func(t *testing.T) {
+			p := Proxy{Name: "bastion", Type: ProxySSH, Host: host}
+			assert.Error(t, p.Validate())
+		})
+	}
+}
+
+// TestProxy_Validate_UserShellInjection covers the same class on the user, which
+// is interpolated into the very same command as "user@host".
+func TestProxy_Validate_UserShellInjection(t *testing.T) {
+	users := []string{
+		"root;id;", "root&id", "root|id", "root#", "root$(id)", "root`id`",
+		"root>out", "root(id)", "root*", "root~", "root!", "root evil",
+		"root\nid", "root'id'", "root@other", "-oProxyCommand=evil",
+	}
+
+	for _, user := range users {
+		t.Run(user, func(t *testing.T) {
+			u := user
+			p := Proxy{Name: "bastion", Type: ProxySSH, Host: "bastion.example.org", User: &u}
+			assert.Error(t, p.Validate())
+		})
+	}
+}
+
+// Legitimate hosts and users must keep working.
+func TestProxy_Validate_AcceptsRealHostsAndUsers(t *testing.T) {
+	hosts := []string{
+		"bastion", "bastion.example.org", "bastion-01.eu-west-1.example.org",
+		"host_name", "192.168.1.10", "2001:db8::1", "::1", "127.0.0.1",
+	}
+	for _, host := range hosts {
+		t.Run("host/"+host, func(t *testing.T) {
+			p := Proxy{Name: "bastion", Type: ProxySSH, Host: host}
+			assert.NoError(t, p.Validate())
+		})
+	}
+
+	users := []string{"root", "ansible-proxy", "ansible_proxy", "first.last", "ec2-user", "u2"}
+	for _, user := range users {
+		t.Run("user/"+user, func(t *testing.T) {
+			u := user
+			p := Proxy{Name: "bastion", Type: ProxySSH, Host: "bastion.example.org", User: &u}
+			assert.NoError(t, p.Validate())
+		})
+	}
+}

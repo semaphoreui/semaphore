@@ -107,7 +107,7 @@ func TestGitProxyOpts(t *testing.T) {
 
 	t.Run("proxy adds a ProxyCommand jump", func(t *testing.T) {
 		assert.Equal(t,
-			[]string{"-o", `"ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`},
+			[]string{"-o", `"ProxyCommand=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`},
 			gitProxyOpts(newRepo(nil), ssh.AccessKeyInstallation{}))
 	})
 
@@ -120,7 +120,7 @@ func TestGitProxyOpts(t *testing.T) {
 		opts := gitProxyOpts(newRepo(&keyID), installation)
 
 		assert.Equal(t,
-			[]string{"-o", `"ProxyCommand=ssh -o IdentityAgent=/tmp/proxy.sock -o StrictHostKeyChecking=no -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`},
+			[]string{"-o", `"ProxyCommand=ssh -o IdentityAgent=/tmp/proxy.sock -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`},
 			opts)
 		assert.NotContains(t, opts[1][:len(opts[1])-1], "ProxyJump",
 			"ProxyJump would authenticate the jump with the git key agent")
@@ -130,7 +130,7 @@ func TestGitProxyOpts(t *testing.T) {
 		repo := db.Repository{Proxy: &db.Proxy{Type: db.ProxySSH, Host: "bastion.example.org"}}
 
 		assert.Equal(t,
-			[]string{"-o", `"ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p bastion.example.org"`},
+			[]string{"-o", `"ProxyCommand=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p bastion.example.org"`},
 			gitProxyOpts(repo, ssh.AccessKeyInstallation{}))
 	})
 }

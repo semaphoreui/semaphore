@@ -175,7 +175,7 @@ func (key *AccessKeyInstallation) GetGitEnv(sshOpts ...string) (env []string) {
 	// GIT_SSH_COMMAND is also needed without an agent, otherwise a repository
 	// which needs no key of its own loses the options of its proxy.
 	if key.SSHAgent != nil || len(sshOpts) > 0 {
-		sshCmd := "ssh " + gitHostKeyCheckingOpts()
+		sshCmd := "ssh " + HostKeyCheckingOpts()
 		if util.Config.GetSshConfigPath() != "" {
 			sshCmd += " -F " + util.Config.GetSshConfigPath()
 		}
@@ -194,16 +194,28 @@ func (key *AccessKeyInstallation) GetGitEnv(sshOpts ...string) (env []string) {
 // it is used with strict checking; otherwise a persistent trust-on-first-use
 // file under TmpPath is used (accept-new): the first host key seen is pinned and
 // any subsequent change is rejected.
-func gitHostKeyCheckingOpts() string {
-	switch util.Config.Ssh.StrictHostKeyChecking {
+// It is exported because a proxy hop is a nested ssh connection which must
+// follow the same policy: a jump host is as impersonatable as a git server.
+func HostKeyCheckingOpts() string {
+	var policy util.SshStrictHostKeyChecking
+	var knownHostsFile string
+
+	// Unset while a test or a command builds its own config; the zero value is
+	// the configured default of StrictHostKeyChecking.
+	if util.Config != nil && util.Config.Ssh != nil {
+		policy = util.Config.Ssh.StrictHostKeyChecking
+		knownHostsFile = util.Config.Ssh.KnownHostsFile
+	}
+
+	switch policy {
 	case util.SshStrictHostKeyCheckingYes:
-		return fmt.Sprintf("-o StrictHostKeyChecking=yes -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
-	case util.SshStrictHostKeyCheckingNo:
+		return fmt.Sprintf("-o StrictHostKeyChecking=yes -o UserKnownHostsFile=%s", knownHostsFile)
+	case util.SshStrictHostKeyCheckingNo, "":
 		// No leading "ssh": the caller prepends it, and a second one is taken by
 		// ssh as the host to connect to.
 		return "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 	case util.SshStrictHostKeyCheckingAcceptNew:
-		return fmt.Sprintf("-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
+		return fmt.Sprintf("-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=%s", knownHostsFile)
 	default:
 		panic("Unknown SSH strict host key check option")
 	}

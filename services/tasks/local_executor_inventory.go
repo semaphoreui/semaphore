@@ -53,7 +53,9 @@ func (t *LocalExecutor) installInventory() (err error) {
 // getInventorySSHCommonArgs returns the ssh options ansible must use to reach
 // the hosts of the inventory, currently the proxy chain of the assigned proxy.
 func (t *LocalExecutor) getInventorySSHCommonArgs() string {
-	if t.Inventory.Proxy == nil || t.Inventory.Proxy.Type != db.ProxySSH {
+	// Every proxy type, not only ssh: a SOCKS or HTTP proxy is carried by the
+	// connector ProxyCommandOption renders, whose credentials Prepare exports.
+	if t.Inventory.Proxy == nil {
 		return ""
 	}
 

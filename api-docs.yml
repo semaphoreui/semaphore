@@ -663,6 +663,9 @@ definitions:
       - type
       - host
     properties:
+      id:
+        type: integer
+        description: required on update, must equal the id in the path
       project_id:
         type: integer
       name:

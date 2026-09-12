@@ -262,6 +262,24 @@ func TestGetInventorySSHCommonArgs(t *testing.T) {
 		assert.Empty(t, e.getInventorySSHCommonArgs())
 	})
 
+	// A SOCKS or HTTP proxy is carried by the connector, so it must reach
+	// ansible too: returning nothing made it connect straight to the hosts.
+	t.Run("a non-ssh proxy is carried by the connector", func(t *testing.T) {
+		for _, proxyType := range []db.ProxyType{db.ProxySOCKS5, db.ProxyHTTP, db.ProxyHTTPS} {
+			t.Run(string(proxyType), func(t *testing.T) {
+				e := &LocalExecutor{Inventory: db.Inventory{
+					Proxy: &db.Proxy{Type: proxyType, Host: "proxy.example.org", Port: &port},
+				}}
+
+				args := e.getInventorySSHCommonArgs()
+
+				require.NotEmpty(t, args, "a non-ssh proxy must not be dropped")
+				assert.Contains(t, args, "ProxyCommand=")
+				assert.Contains(t, args, string(proxyType)+"://proxy.example.org:2222")
+			})
+		}
+	})
+
 	t.Run("proxy adds a ProxyCommand jump", func(t *testing.T) {
 		e := &LocalExecutor{Inventory: db.Inventory{
 			Proxy: &db.Proxy{
@@ -273,7 +291,7 @@ func TestGetInventorySSHCommonArgs(t *testing.T) {
 		}}
 
 		assert.Equal(t,
-			`-o "ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`,
+			`-o "ProxyCommand=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`,
 			e.getInventorySSHCommonArgs())
 	})
 }
@@ -309,7 +327,7 @@ func TestGetPlaybookArgs_Proxy(t *testing.T) {
 		i := indexOf(args, "--ssh-common-args")
 		require.Less(t, i+1, len(args))
 		assert.Equal(t,
-			`-o "ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p bastion.example.org"`,
+			`-o "ProxyCommand=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p bastion.example.org"`,
 			args[i+1])
 	})
 }

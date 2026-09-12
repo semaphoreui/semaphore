@@ -1,9 +1,12 @@
 package db_lib
 
 import (
+	"path"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +23,7 @@ func TestProxyCommandOption(t *testing.T) {
 		p := proxyWithKey("bastion", "bastion.example.org", 2222, "ansible-proxy", 1)
 
 		assert.Equal(t,
-			"ProxyCommand=ssh -o IdentityAgent=/tmp/a.sock -o StrictHostKeyChecking=no "+
+			"ProxyCommand=ssh -o IdentityAgent=/tmp/a.sock -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "+
 				"-W %h:%p -p 2222 ansible-proxy@bastion.example.org",
 			ProxyCommandOption(p, "/tmp/a.sock"))
 	})
@@ -34,9 +37,9 @@ func TestProxyCommandOption(t *testing.T) {
 		// target host of the connection.
 		assert.Equal(t,
 			"ProxyCommand=ssh -o IdentityAgent=/tmp/a.sock "+
-				`-o ProxyCommand='ssh -o IdentityAgent=/tmp/a.sock -o StrictHostKeyChecking=no `+
+				`-o ProxyCommand='ssh -o IdentityAgent=/tmp/a.sock -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null `+
 				`-W inner.example.org:2202 -p 2201 u1@outer.example.org' `+
-				"-o StrictHostKeyChecking=no -W %h:%p -p 2202 u2@inner.example.org",
+				"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p -p 2202 u2@inner.example.org",
 			ProxyCommandOption(inner, "/tmp/a.sock"))
 	})
 
@@ -44,7 +47,7 @@ func TestProxyCommandOption(t *testing.T) {
 		p := db.Proxy{Type: db.ProxySSH, Host: "bastion.example.org"}
 
 		assert.Equal(t,
-			"ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p bastion.example.org",
+			"ProxyCommand=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p bastion.example.org",
 			ProxyCommandOption(p, ""))
 	})
 }
@@ -112,4 +115,60 @@ func TestProxyCommandOption_NonSSH(t *testing.T) {
 			ProxyCommandOption(db.Proxy{Type: db.ProxySSH, Host: "bastion"}, ""),
 			"proxy-connect")
 	})
+}
+
+// TestProxyCommandOption_HonoursHostKeyPolicy proves a jump host follows the
+// configured policy instead of a hardcoded "no", so it can no longer be
+// impersonated when the operator asked for verification.
+func TestProxyCommandOption_HonoursHostKeyPolicy(t *testing.T) {
+	original := util.Config
+	t.Cleanup(func() { util.Config = original })
+
+	knownHosts := path.Join(t.TempDir(), "known_hosts")
+	proxy := db.Proxy{Type: db.ProxySSH, Host: "bastion.example.org"}
+
+	tests := []struct {
+		policy   util.SshStrictHostKeyChecking
+		expected string
+	}{
+		{util.SshStrictHostKeyCheckingYes, "-o StrictHostKeyChecking=yes -o UserKnownHostsFile=" + knownHosts},
+		{util.SshStrictHostKeyCheckingAcceptNew, "-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=" + knownHosts},
+		{util.SshStrictHostKeyCheckingNo, "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.policy), func(t *testing.T) {
+			util.Config = &util.ConfigType{Ssh: &util.SshConfig{
+				StrictHostKeyChecking: tt.policy,
+				KnownHostsFile:        knownHosts,
+			}}
+
+			assert.Equal(t,
+				"ProxyCommand=ssh "+tt.expected+" -W %h:%p bastion.example.org",
+				ProxyCommandOption(proxy, ""))
+		})
+	}
+}
+
+// Every hop of a chain must follow the policy, not only the outermost one.
+func TestProxyCommandOption_HonoursHostKeyPolicyOnEveryHop(t *testing.T) {
+	original := util.Config
+	t.Cleanup(func() { util.Config = original })
+
+	knownHosts := path.Join(t.TempDir(), "known_hosts")
+	util.Config = &util.ConfigType{Ssh: &util.SshConfig{
+		StrictHostKeyChecking: util.SshStrictHostKeyCheckingAcceptNew,
+		KnownHostsFile:        knownHosts,
+	}}
+
+	outer := db.Proxy{
+		Type: db.ProxySSH, Host: "outer.example.org",
+		RequiresProxy: &db.Proxy{Type: db.ProxySSH, Host: "inner.example.org"},
+	}
+
+	cmd := ProxyCommandOption(outer, "")
+
+	assert.Equal(t, 2, strings.Count(cmd, "StrictHostKeyChecking=accept-new"),
+		"both hops must carry the configured policy: %s", cmd)
+	assert.NotContains(t, cmd, "StrictHostKeyChecking=no")
 }

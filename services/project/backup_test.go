@@ -376,10 +376,13 @@ func TestBackupProject_Proxy(t *testing.T) {
 	proj, err := store.CreateProject(db.Project{Name: "Proxy 123"})
 	require.NoError(t, err)
 
+	// An ssh jump host must carry an ssh key: ValidateProxy rejects any other
+	// type, and the key picker only offers ssh keys for an ssh proxy.
 	key, err := store.CreateAccessKey(db.AccessKey{
 		ProjectID: &proj.ID,
 		Name:      "bastion key",
-		Type:      db.AccessKeyNone,
+		Type:      db.AccessKeySSH,
+		SshKey:    db.SshKey{PrivateKey: "key"},
 	})
 	require.NoError(t, err)
 
@@ -447,4 +450,70 @@ func TestBackupProject_Proxy(t *testing.T) {
 	require.Len(t, restoredInventories, 1)
 	require.NotNil(t, restoredInventories[0].ProxyID, "inventory must keep its proxy after restore")
 	assert.Equal(t, restoredProxies[0].ID, *restoredInventories[0].ProxyID)
+}
+
+// TestRestore_RejectsInvalidProxy proves a hand-edited backup goes through the
+// same validation as the API. Without it a restore is a way around every proxy
+// rule, including the host allowlist which keeps shell syntax out of the ssh
+// ProxyCommand.
+func TestRestore_RejectsInvalidProxy(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "restoreproxy", Name: "Restore Proxy",
+			Email: "restoreproxy@example.com", Admin: true,
+		},
+	})
+	require.NoError(t, err)
+
+	newBackup := func(name string, proxies []BackupProxy) *BackupFormat {
+		return &BackupFormat{
+			Meta:    BackupMeta{Project: db.Project{Name: name}},
+			Proxies: proxies,
+		}
+	}
+
+	t.Run("a host carrying shell syntax is rejected", func(t *testing.T) {
+		backup := newBackup("bad host", []BackupProxy{{
+			Proxy: db.Proxy{Name: "evil", Type: db.ProxySSH, Host: "bastion.example.org;id;"},
+		}})
+
+		_, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "proxy host")
+	})
+
+	t.Run("a chain on a non-ssh proxy is rejected", func(t *testing.T) {
+		inner := "inner"
+		backup := newBackup("bad chain", []BackupProxy{
+			{Proxy: db.Proxy{Name: "inner", Type: db.ProxySSH, Host: "inner.example.org"}},
+			{
+				Proxy:         db.Proxy{Name: "socks", Type: db.ProxySOCKS5, Host: "socks.example.org"},
+				RequiresProxy: &inner,
+			},
+		})
+
+		_, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "only an ssh proxy can be chained")
+	})
+
+	t.Run("a valid proxy still restores", func(t *testing.T) {
+		backup := newBackup("good proxy", []BackupProxy{{
+			Proxy: db.Proxy{Name: "bastion", Type: db.ProxySSH, Host: "bastion.example.org"},
+		}})
+
+		project, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+		require.NoError(t, err)
+		proxies, err := store.GetProxies(project.ID, db.RetrieveQueryParams{})
+		require.NoError(t, err)
+		require.Len(t, proxies, 1)
+		assert.Equal(t, "bastion.example.org", proxies[0].Host)
+	})
 }

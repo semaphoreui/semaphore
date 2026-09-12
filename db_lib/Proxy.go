@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 )
 
 // connectorCommand renders the ProxyCommand which carries an ssh connection
@@ -142,7 +143,9 @@ func hopCommand(hop db.Proxy, agentSocket string, target string, proxyCommand st
 		cmd = append(cmd, "-o", "ProxyCommand="+shellQuote(proxyCommand))
 	}
 
-	cmd = append(cmd, "-o", "StrictHostKeyChecking=no", "-W", target)
+	// The configured policy, not a fixed "no": a jump host can be impersonated
+	// just like a git server.
+	cmd = append(cmd, ssh.HostKeyCheckingOpts(), "-W", target)
 
 	if hop.Port != nil {
 		cmd = append(cmd, "-p", strconv.Itoa(*hop.Port))

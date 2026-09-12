@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -79,6 +80,21 @@ func (p Proxy) Chain() []Proxy {
 	return chain
 }
 
+// proxyHostRE matches a DNS name: dot-separated labels of letters, digits,
+// hyphens and underscores, never starting or ending with a hyphen. An IP address
+// is accepted by net.ParseIP instead.
+//
+// This is an allowlist rather than a list of rejected characters because the
+// host is interpolated into an ssh ProxyCommand, which ssh executes with
+// sh -c: every character outside this set is shell syntax. A denylist keeps
+// missing cases such as `#`, which comments out the rest of the command.
+var proxyHostRE = regexp.MustCompile(
+	`^[A-Za-z0-9_]([A-Za-z0-9_-]*[A-Za-z0-9_])?(\.[A-Za-z0-9_]([A-Za-z0-9_-]*[A-Za-z0-9_])?)*$`)
+
+// proxyUserRE matches a login name. It may not start with a hyphen: the user
+// reaches ssh as "user@host", which ssh would otherwise read as an option.
+var proxyUserRE = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
+
 func (p *Proxy) Validate() error {
 	if strings.TrimSpace(p.Name) == "" {
 		return common_errors.NewValidationError("proxy name can not be empty")
@@ -88,17 +104,15 @@ func (p *Proxy) Validate() error {
 		return common_errors.NewValidationError("proxy host can not be empty")
 	}
 
-	// The host ends up in an ssh command line, so refuse anything that could
-	// add arguments or shell syntax.
-	if strings.ContainsAny(p.Host, " \t\r\n\"'\\$`") || strings.HasPrefix(p.Host, "-") {
-		return common_errors.NewValidationError("proxy host contains invalid characters")
+	if net.ParseIP(p.Host) == nil && !proxyHostRE.MatchString(p.Host) {
+		return common_errors.NewValidationError("proxy host must be a hostname or an IP address")
 	}
 
 	if p.Port != nil && (*p.Port < 1 || *p.Port > 65535) {
 		return common_errors.NewValidationError("proxy port must be between 1 and 65535")
 	}
 
-	if p.User != nil && strings.ContainsAny(*p.User, " \t\r\n\"'\\$`@") {
+	if p.User != nil && *p.User != "" && !proxyUserRE.MatchString(*p.User) {
 		return common_errors.NewValidationError("proxy user contains invalid characters")
 	}
 
