@@ -155,7 +155,8 @@ func stubGalaxy(t *testing.T) func() int {
 
 	dir := t.TempDir()
 	runLog := path.Join(dir, "runs")
-	script := "#!/bin/sh\necho run >> " + runLog + "\n"
+	t.Setenv("GALAXY_RUN_LOG", runLog)
+	script := "#!/bin/sh\nprintf '%s\n' run >> \"$GALAXY_RUN_LOG\"\n"
 	require.NoError(t, os.WriteFile(path.Join(dir, "ansible-galaxy"), []byte(script), 0o755))
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
