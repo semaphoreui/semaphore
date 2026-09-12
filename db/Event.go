@@ -64,6 +64,7 @@ const (
 	EventWorkflow                EventObjectType = "workflow"
 	EventUser                    EventObjectType = "user"
 	EventView                    EventObjectType = "view"
+	EventProxy                   EventObjectType = "proxy"
 	EventIntegration             EventObjectType = "integration"
 	EventIntegrationExtractValue EventObjectType = "integrationextractvalue"
 	EventIntegrationMatcher      EventObjectType = "integrationmatcher"

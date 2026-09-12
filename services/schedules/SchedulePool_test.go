@@ -204,3 +204,7 @@ func TestScheduleProceedsWhenTryLockExecutionReturnsTrue(t *testing.T) {
 	assert.False(t, shouldSkip, "schedule should proceed when TryLockExecution returns true")
 	assert.Equal(t, 1, dedup.getLockAttempts(scheduleID), "TryLockExecution should be called once")
 }
+
+func (*mockAccessKeyInstaller) InstallAll(keys []db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	return ssh.AccessKeyInstallation{}, nil
+}

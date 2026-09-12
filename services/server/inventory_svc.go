@@ -54,6 +54,23 @@ func (s *InventoryServiceImpl) fillInventory(inventory *db.Inventory) (err error
 		return
 	}
 
+	if inventory.ProxyID != nil {
+		var proxy db.Proxy
+		proxy, err = s.inventoryRepo.GetProxy(inventory.ProjectID, *inventory.ProxyID)
+		if err != nil {
+			return
+		}
+
+		if proxy.SSHKeyID != nil {
+			err = s.encryptionService.DeserializeSecret(&proxy.SSHKey)
+			if err != nil {
+				return
+			}
+		}
+
+		inventory.Proxy = &proxy
+	}
+
 	if inventory.RepositoryID != nil {
 		var repo db.Repository
 		repo, err = s.repositoryRepo.GetRepository(inventory.ProjectID, *inventory.RepositoryID)

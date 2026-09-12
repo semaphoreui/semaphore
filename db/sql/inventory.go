@@ -42,6 +42,7 @@ func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 			"inventory=?, "+
 			"become_key_id=?, "+
 			"template_id=?, "+
+			"proxy_id=?, "+
 			"repository_id=? "+
 			"where id=?",
 		inventory.Name,
@@ -51,6 +52,7 @@ func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 		inventory.Inventory,
 		inventory.BecomeKeyID,
 		inventory.TemplateID,
+		inventory.ProxyID,
 		inventory.RepositoryID,
 		inventory.ID)
 
@@ -63,10 +65,10 @@ func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Invento
 		"insert into project__inventory ("+
 			"project_id, name, type, "+
 			"ssh_key_id, inventory, become_key_id, "+
-			"template_id, repository_id, runner_tag) values "+
+			"template_id, repository_id, runner_tag, proxy_id) values "+
 			"(?, ?, ?, "+
 			"?, ?, ?, "+
-			"?, ?, ?)",
+			"?, ?, ?, ?)",
 		inventory.ProjectID,
 		inventory.Name,
 		inventory.Type,
@@ -76,6 +78,7 @@ func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Invento
 		inventory.TemplateID,
 		inventory.RepositoryID,
 		inventory.RunnerTag,
+		inventory.ProxyID,
 	)
 
 	if err != nil {

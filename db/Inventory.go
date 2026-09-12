@@ -32,6 +32,10 @@ type Inventory struct {
 	BecomeKeyID *int      `db:"become_key_id" json:"become_key_id" backup:"-"`
 	BecomeKey   AccessKey `db:"-" json:"-" backup:"-"`
 
+	// ProxyID is the SSH jump host used to reach the hosts of the inventory.
+	ProxyID *int   `db:"proxy_id" json:"proxy_id,omitempty" backup:"-"`
+	Proxy   *Proxy `db:"-" json:"-" backup:"-"`
+
 	// static/file
 	Type InventoryType `db:"type" json:"type"`
 

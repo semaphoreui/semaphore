@@ -74,6 +74,11 @@ export default {
         slug: 'schedules',
         title: 'Schedules',
         icon: 'clock-outline',
+      }, {
+        slug: 'proxies',
+        pageless: true,
+        title: 'Proxies',
+        icon: 'transit-connection-variant',
       }].filter((s) => (this.objectRefs[s.slug] || []).length > 0);
     },
   },
