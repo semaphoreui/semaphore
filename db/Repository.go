@@ -160,7 +160,7 @@ func (r Repository) GetType() RepositoryType {
 		return RepositorySSH
 	}
 
-	protocol := m[1]
+	protocol := strings.ToLower(m[1])
 
 	switch protocol {
 	case "http", "https":
@@ -191,7 +191,7 @@ func (r Repository) Validate() error {
 		return err
 	}
 
-	if r.GetType() == RepositoryHTTP && r.SSHKey.Type == AccessKeyLoginPassword {
+	if r.SSHKey.Type == AccessKeyLoginPassword {
 		parsed, err := url.Parse(r.GitURL)
 		if err == nil && strings.EqualFold(parsed.Scheme, "http") {
 			return common_errors.NewValidationError("password authentication is not supported over plain HTTP; use HTTPS or SSH")

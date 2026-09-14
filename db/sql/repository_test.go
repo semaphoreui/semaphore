@@ -1,0 +1,103 @@
+package sql
+
+import (
+	"testing"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestSqlDb_CreateRepository_PlainHTTPPasswordRejected(t *testing.T) {
+	store := InitConfigCreateTestStore()
+
+	project, err := store.CreateProject(db.Project{Name: "repo test project"})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		Name:      "password key",
+		Type:      db.AccessKeyLoginPassword,
+		ProjectID: &project.ID,
+		LoginPassword: db.LoginPassword{
+			Login:    "user",
+			Password: "secretpassword",
+		},
+	})
+	require.NoError(t, err)
+
+	// Direct store creation with lowercase http:// and password key must fail
+	_, err = store.CreateRepository(db.Repository{
+		Name:      "plain http repo",
+		ProjectID: project.ID,
+		GitURL:    "http://gitlab.local/user/repo.git",
+		GitBranch: "main",
+		SSHKeyID:  key.ID,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
+
+	// Direct store creation with uppercase HTTP:// and password key must also fail
+	_, err = store.CreateRepository(db.Repository{
+		Name:      "uppercase http repo",
+		ProjectID: project.ID,
+		GitURL:    "HTTP://gitlab.local/user/repo.git",
+		GitBranch: "main",
+		SSHKeyID:  key.ID,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
+
+	// Direct store creation with HTTPS and password key must succeed
+	repo, err := store.CreateRepository(db.Repository{
+		Name:      "https repo",
+		ProjectID: project.ID,
+		GitURL:    "https://gitlab.local/user/repo.git",
+		GitBranch: "main",
+		SSHKeyID:  key.ID,
+	})
+	require.NoError(t, err)
+	assert.NotZero(t, repo.ID)
+}
+
+func TestSqlDb_UpdateRepository_PlainHTTPPasswordRejected(t *testing.T) {
+	store := InitConfigCreateTestStore()
+
+	project, err := store.CreateProject(db.Project{Name: "repo update test project"})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		Name:      "password key",
+		Type:      db.AccessKeyLoginPassword,
+		ProjectID: &project.ID,
+		LoginPassword: db.LoginPassword{
+			Login:    "user",
+			Password: "secretpassword",
+		},
+	})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		Name:      "https repo",
+		ProjectID: project.ID,
+		GitURL:    "https://gitlab.local/user/repo.git",
+		GitBranch: "main",
+		SSHKeyID:  key.ID,
+	})
+	require.NoError(t, err)
+
+	// Updating to plain http:// must fail
+	repo.GitURL = "http://gitlab.local/user/repo.git"
+	err = store.UpdateRepository(repo)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
+
+	// Updating to uppercase HTTP:// must also fail
+	repo.GitURL = "HTTP://gitlab.local/user/repo.git"
+	err = store.UpdateRepository(repo)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
+
+	// Updating to HTTPS must succeed
+	repo.GitURL = "HTTPS://gitlab.local/user/repo.git"
+	require.NoError(t, store.UpdateRepository(repo))
+}

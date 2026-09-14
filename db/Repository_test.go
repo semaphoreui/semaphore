@@ -156,7 +156,32 @@ func TestRepository_ValidatePlainHTTPPassword(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
 
+	// Uppercase HTTP scheme with password must also fail validation
+	repo.GitURL = "HTTP://insecure.local/user/project.git"
+	err = repo.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
+
+	// Mixed-case Http scheme with password must also fail validation
+	repo.GitURL = "Http://insecure.local/user/project.git"
+	err = repo.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
+
 	// HTTPS repo with password should succeed validation
 	repo.GitURL = "https://secure.local/user/project.git"
 	assert.NoError(t, repo.Validate())
+
+	// Uppercase HTTPS repo with password should succeed validation
+	repo.GitURL = "HTTPS://secure.local/user/project.git"
+	assert.NoError(t, repo.Validate())
+}
+
+func TestRepository_GetTypeCaseInsensitive(t *testing.T) {
+	assert.Equal(t, RepositoryHTTP, Repository{GitURL: "http://example.com/repo.git"}.GetType())
+	assert.Equal(t, RepositoryHTTP, Repository{GitURL: "HTTP://example.com/repo.git"}.GetType())
+	assert.Equal(t, RepositoryHTTP, Repository{GitURL: "Http://example.com/repo.git"}.GetType())
+	assert.Equal(t, RepositoryHTTP, Repository{GitURL: "https://example.com/repo.git"}.GetType())
+	assert.Equal(t, RepositoryHTTP, Repository{GitURL: "HTTPS://example.com/repo.git"}.GetType())
+	assert.Equal(t, RepositoryHTTP, Repository{GitURL: "Https://example.com/repo.git"}.GetType())
 }

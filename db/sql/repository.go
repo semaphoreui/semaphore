@@ -56,7 +56,7 @@ func (d *SqlDb) GetRepositories(projectID int, params db.RetrieveQueryParams) (r
 }
 
 func (d *SqlDb) UpdateRepository(repository db.Repository) error {
-	err := repository.Validate()
+	err := db.ValidateRepository(d, &repository)
 
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func (d *SqlDb) UpdateRepository(repository db.Repository) error {
 }
 
 func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repository, err error) {
-	err = repository.Validate()
+	err = db.ValidateRepository(d, &repository)
 
 	if err != nil {
 		return
