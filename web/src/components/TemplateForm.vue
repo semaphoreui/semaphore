@@ -741,9 +741,10 @@ export default {
 
   watch: {
     gitBranchOfTemplate() {
+      const shouldReload = this.playbooksLoading || this.playbooks != null;
       this.cancelPlaybookLoading();
       this.playbooksError = null;
-      if (this.playbooks != null) {
+      if (shouldReload) {
         this.playbooks = null;
         this.loadPlaybooks();
       }

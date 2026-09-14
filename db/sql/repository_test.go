@@ -101,3 +101,28 @@ func TestSqlDb_UpdateRepository_PlainHTTPPasswordRejected(t *testing.T) {
 	repo.GitURL = "HTTPS://gitlab.local/user/repo.git"
 	require.NoError(t, store.UpdateRepository(repo))
 }
+
+func TestSqlDb_CreateRepository_EmbeddedCredentialsPlainHTTPRejected(t *testing.T) {
+	store := InitConfigCreateTestStore()
+
+	project, err := store.CreateProject(db.Project{Name: "embedded repo test project"})
+	require.NoError(t, err)
+
+	noneKey, err := store.CreateAccessKey(db.AccessKey{
+		Name:      "none key",
+		Type:      db.AccessKeyNone,
+		ProjectID: &project.ID,
+	})
+	require.NoError(t, err)
+
+	// Direct creation of http:// with embedded userinfo must fail
+	_, err = store.CreateRepository(db.Repository{
+		Name:      "embedded plain http repo",
+		ProjectID: project.ID,
+		GitURL:    "http://user:secret@gitlab.local/user/repo.git",
+		GitBranch: "main",
+		SSHKeyID:  noneKey.ID,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
+}

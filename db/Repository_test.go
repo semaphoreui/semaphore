@@ -144,6 +144,13 @@ func TestRepository_GetGitURL(t *testing.T) {
 			Secure:         true,
 			ExpectedGitUrl: "https://github.com/user/project.git",
 		},
+		{
+			Repository: Repository{
+				GitURL: "https://user:pass@github.com/user/project.git?access_token=secrettoken",
+			},
+			Secure:         true,
+			ExpectedGitUrl: "https://github.com/user/project.git?access_token=***",
+		},
 	} {
 		gitUrl := v.Repository.GetGitURL(v.Secure)
 		assert.Equal(t, v.ExpectedGitUrl, gitUrl, "wrong gitUrl")
@@ -210,6 +217,26 @@ func TestRepository_ValidatePlainHTTPPassword(t *testing.T) {
 	// Uppercase HTTPS repo with password should succeed validation
 	repo.GitURL = "HTTPS://secure.local/user/project.git"
 	assert.NoError(t, repo.Validate())
+
+	// Plain HTTP URL with embedded credentials must fail even without login_password key type
+	embeddedRepo := Repository{
+		Name:      "Embedded Credentials Repo",
+		GitURL:    "http://user:secret@insecure.local/user/project.git",
+		GitBranch: "main",
+	}
+	err = embeddedRepo.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
+
+	// Uppercase HTTP with embedded credentials must also fail
+	embeddedRepo.GitURL = "HTTP://user:secret@insecure.local/user/project.git"
+	err = embeddedRepo.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
+
+	// HTTPS with embedded credentials is valid
+	embeddedRepo.GitURL = "https://user:secret@secure.local/user/project.git"
+	assert.NoError(t, embeddedRepo.Validate())
 }
 
 func TestRepository_GetTypeCaseInsensitive(t *testing.T) {

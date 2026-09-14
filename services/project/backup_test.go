@@ -361,8 +361,10 @@ func TestMakeUniqueNames(t *testing.T) {
 }
 
 func TestBackup_RestorePlainHTTPPasswordRejected(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{
-		TmpPath: "/tmp",
+		TmpPath: t.TempDir(),
 	}
 
 	store := sql.InitConfigCreateTestStore()
