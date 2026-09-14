@@ -7,7 +7,7 @@ import (
 
 var (
 	// urlUserInfoRegex matches scheme://userinfo@ in URLs (including bracketed IPv6, passwords with '@', '/', and any host terminators)
-	urlUserInfoRegex = regexp.MustCompile(`(?i)(https?://)([^\s'"<>]+)@((?:\[[^\]\s'"<>]+\]|[a-zA-Z0-9.-]+)(?::[0-9]+)?(?:[/?#\s'"<>()\[\],;]|$))`)
+	urlUserInfoRegex = regexp.MustCompile(`(?i)(https?://)([^\s'"<>]+)@((?:\[[^\]\s'"<>]+\]|[a-zA-Z0-9.-]+)(?::[0-9]+)?(?:[^a-zA-Z0-9.-]|$))`)
 	// urlQueryParamRegex matches sensitive credential query parameters in URLs
 	urlQueryParamRegex = regexp.MustCompile(`(?i)([?&](?:access_token|token|private_token|password|secret|api_key|apikey)=)([^&\s]+)`)
 )

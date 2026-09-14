@@ -97,6 +97,26 @@ func TestSanitizeGitOutput(t *testing.T) {
 			input:    "[https://user:token@gitlab.com:8443/project.git]",
 			expected: "[https://user:***@gitlab.com:8443/project.git]",
 		},
+		{
+			name:     "exclamation mark delimiter",
+			input:    "failed: https://user:password@gitlab.com!",
+			expected: "failed: https://user:***@gitlab.com!",
+		},
+		{
+			name:     "curly brace delimiter",
+			input:    "json: {\"url\": \"https://user:password@gitlab.com\"}",
+			expected: "json: {\"url\": \"https://user:***@gitlab.com\"}",
+		},
+		{
+			name:     "variable brace delimiter",
+			input:    "var: ${https://user:password@gitlab.com}",
+			expected: "var: ${https://user:***@gitlab.com}",
+		},
+		{
+			name:     "port with exclamation delimiter",
+			input:    "error: https://user:password@gitlab.com:8443!",
+			expected: "error: https://user:***@gitlab.com:8443!",
+		},
 	}
 
 	for _, tt := range tests {
