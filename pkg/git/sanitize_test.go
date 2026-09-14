@@ -72,6 +72,31 @@ func TestSanitizeGitOutput(t *testing.T) {
 			input:    "fatal: Authentication failed for 'https://user%40corp.com:p%23ss%25word@host.com/repo.git'",
 			expected: "fatal: Authentication failed for 'https://user%40corp.com:***@host.com/repo.git'",
 		},
+		{
+			name:     "bracketed ipv6 host",
+			input:    "fatal: Authentication failed for 'https://user:secret@[::1]/repo.git'",
+			expected: "fatal: Authentication failed for 'https://user:***@[::1]/repo.git'",
+		},
+		{
+			name:     "bracketed ipv4-mapped ipv6 host",
+			input:    "fatal: Authentication failed for 'https://user:secret@[::ffff:192.0.2.128]/repo.git'",
+			expected: "fatal: Authentication failed for 'https://user:***@[::ffff:192.0.2.128]/repo.git'",
+		},
+		{
+			name:     "uppercase scheme",
+			input:    "fatal: Authentication failed for 'HTTPS://user:secret@gitlab.com/repo.git'",
+			expected: "fatal: Authentication failed for 'HTTPS://user:***@gitlab.com/repo.git'",
+		},
+		{
+			name:     "parenthesized url with trailing punctuation",
+			input:    "remote: retrying (https://u:p@host.com), aborting",
+			expected: "remote: retrying (https://u:***@host.com), aborting",
+		},
+		{
+			name:     "bracketed url",
+			input:    "[https://user:token@gitlab.com:8443/project.git]",
+			expected: "[https://user:***@gitlab.com:8443/project.git]",
+		},
 	}
 
 	for _, tt := range tests {

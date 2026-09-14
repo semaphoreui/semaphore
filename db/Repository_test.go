@@ -137,3 +137,26 @@ func TestRepository_GetCheckoutDirName(t *testing.T) {
 	repo.GitBranch = "feature-login"
 	assert.NotEqual(t, slashed, repo.GetCheckoutDirName(2))
 }
+
+func TestRepository_ValidatePlainHTTPPassword(t *testing.T) {
+	repo := Repository{
+		Name:      "Insecure Repo",
+		GitURL:    "http://insecure.local/user/project.git",
+		GitBranch: "main",
+		SSHKey: AccessKey{
+			Type: AccessKeyLoginPassword,
+			LoginPassword: LoginPassword{
+				Login:    "user",
+				Password: "secretpassword",
+			},
+		},
+	}
+
+	err := repo.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
+
+	// HTTPS repo with password should succeed validation
+	repo.GitURL = "https://secure.local/user/project.git"
+	assert.NoError(t, repo.Validate())
+}

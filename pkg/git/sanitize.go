@@ -3,24 +3,45 @@ package git
 import (
 	"regexp"
 	"strings"
+	"sync"
 )
+
+// Sanitizer encapsulates compiled regex matchers to sanitize credentials from Git output.
+type Sanitizer struct {
+	urlUserInfoRegex   *regexp.Regexp
+	urlQueryParamRegex *regexp.Regexp
+}
+
+// NewSanitizer constructs a Sanitizer with compiled regex matchers.
+func NewSanitizer() *Sanitizer {
+	return &Sanitizer{
+		// urlUserInfoRegex matches scheme://userinfo@ in URLs (including bracketed IPv6, passwords with '@', '/', and any host terminators)
+		urlUserInfoRegex:   regexp.MustCompile(`(?i)(https?://)([^\s'"<>]+)@((?:\[[^\]\s'\"<>]+\]|[a-zA-Z0-9.-]+)(?::[0-9]+)?(?:[/?#\s'"<>()\[\],;]|$))`),
+		urlQueryParamRegex: regexp.MustCompile(`(?i)([?&](?:access_token|token|private_token|password|secret|api_key|apikey)=)([^&\s]+)`),
+	}
+}
 
 var (
-	// urlUserInfoRegex matches scheme://userinfo@ in URLs (including passwords with '@', '/', and special characters)
-	urlUserInfoRegex = regexp.MustCompile(`(https?://)([^\s'"<>]+)@([a-zA-Z0-9.-]+(?::[0-9]+)?(?:[/?#\s'"<>]|$))`)
-	// urlQueryParamRegex matches sensitive credential query parameters in URLs
-	urlQueryParamRegex = regexp.MustCompile(`(?i)([?&](?:access_token|token|private_token|password|secret|api_key|apikey)=)([^&\s]+)`)
+	defaultSanitizerOnce sync.Once
+	defaultSanitizer     *Sanitizer
 )
 
-// SanitizeGitOutput redacts sensitive credentials (such as passwords, tokens, and basic auth)
+func getDefaultSanitizer() *Sanitizer {
+	defaultSanitizerOnce.Do(func() {
+		defaultSanitizer = NewSanitizer()
+	})
+	return defaultSanitizer
+}
+
+// Sanitize redacts sensitive credentials (such as passwords, tokens, and basic auth)
 // from git command output, stderr, and error strings so they can be safely logged and shown to users.
-func SanitizeGitOutput(output string) string {
+func (s *Sanitizer) Sanitize(output string) string {
 	if output == "" {
 		return ""
 	}
 
-	sanitized := urlUserInfoRegex.ReplaceAllStringFunc(output, func(match string) string {
-		sub := urlUserInfoRegex.FindStringSubmatch(match)
+	sanitized := s.urlUserInfoRegex.ReplaceAllStringFunc(output, func(match string) string {
+		sub := s.urlUserInfoRegex.FindStringSubmatch(match)
 		if len(sub) < 4 {
 			return match
 		}
@@ -39,7 +60,13 @@ func SanitizeGitOutput(output string) string {
 		return scheme + user + ":***@" + hostAndRest
 	})
 
-	return urlQueryParamRegex.ReplaceAllString(sanitized, "${1}***")
+	return s.urlQueryParamRegex.ReplaceAllString(sanitized, "${1}***")
+}
+
+// SanitizeGitOutput redacts sensitive credentials (such as passwords, tokens, and basic auth)
+// from git command output, stderr, and error strings so they can be safely logged and shown to users.
+func SanitizeGitOutput(output string) string {
+	return getDefaultSanitizer().Sanitize(output)
 }
 
 // FormatGitErrorSummary parses raw Git stderr and formats a concise, human-friendly summary

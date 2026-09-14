@@ -120,7 +120,7 @@ func (r Repository) GetGitURL(secure bool) string {
 				return parsed.String()
 			}
 		}
-		return rawURL
+		return git.SanitizeGitOutput(rawURL)
 	}
 
 	if r.GetType() == RepositoryHTTP {
@@ -189,6 +189,13 @@ func (r Repository) Validate() error {
 
 	if err := git.ValidateGitBranch(r.GitBranch, "repository"); err != nil {
 		return err
+	}
+
+	if r.GetType() == RepositoryHTTP && r.SSHKey.Type == AccessKeyLoginPassword {
+		parsed, err := url.Parse(r.GitURL)
+		if err == nil && strings.EqualFold(parsed.Scheme, "http") {
+			return common_errors.NewValidationError("password authentication is not supported over plain HTTP; use HTTPS or SSH")
+		}
 	}
 
 	return nil

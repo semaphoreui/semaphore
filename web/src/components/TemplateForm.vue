@@ -741,6 +741,7 @@ export default {
 
   watch: {
     gitBranchOfTemplate() {
+      this.cancelPlaybookLoading();
       this.playbooksError = null;
       if (this.playbooks != null) {
         this.playbooks = null;
@@ -749,6 +750,8 @@ export default {
     },
 
     async repositoryId() {
+      this.cancelBranchesLoading();
+      this.cancelPlaybookLoading();
       this.branches = null;
       this.branchesError = null;
       this.playbooks = null;
@@ -923,13 +926,14 @@ export default {
     },
 
     async loadBranches() {
+      this.cancelBranchesLoading();
+      this.branchesError = null;
+
       if (this.repositoryId == null) {
         this.branches = null;
         return;
       }
 
-      this.cancelBranchesLoading();
-      this.branchesError = null;
       const ctrl = new AbortController();
       this.branchesAbort = ctrl;
       this.branchesLoading = true;
@@ -960,13 +964,13 @@ export default {
     },
 
     async loadPlaybooks() {
+      this.cancelPlaybookLoading();
+      this.playbooksError = null;
+
       if (this.repositoryId == null) {
         this.playbooks = null;
         return;
       }
-
-      this.cancelPlaybookLoading();
-      this.playbooksError = null;
       const ctrl = new AbortController();
       this.playbooksAbort = ctrl;
       this.playbooksLoading = true;
