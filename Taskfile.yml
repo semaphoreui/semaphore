@@ -112,6 +112,27 @@ tasks:
       DATE: "{{ now | unixEpoch }}"
       IMPORT: "github.com/semaphoreui/semaphore"
 
+  docs:gen:
+    desc: Regenerate the generated documentation reference pages from the source
+    cmds:
+      - go run ./tools/docsref -out docs/docs/reference/configuration.md
+      - go run ./tools/clidocs -out docs/docs/reference/cli/commands.md
+
+  docs:check:
+    desc: Fail if the generated documentation pages are out of date
+    cmds:
+      - task: docs:gen
+      - |
+        # --porcelain rather than `diff --quiet` so that a brand new generated
+        # page, which is untracked rather than modified, also fails the check.
+        changed=$(git -C docs status --porcelain -- docs/reference)
+        if [ -n "$changed" ]; then
+          echo "The generated documentation reference is out of date."
+          echo "Run 'task docs:gen' and commit docs/docs/reference."
+          echo "$changed"
+          exit 1
+        fi
+
   lint:
     cmds:
       - task: lint:fe
