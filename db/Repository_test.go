@@ -109,6 +109,41 @@ func TestRepository_GetGitURL(t *testing.T) {
 			Secure:         true,
 			ExpectedGitUrl: "https://github.com/user/project.git",
 		},
+		{
+			Repository: Repository{
+				GitURL: "HTTPS://github.com/user/project.git",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "login",
+						Password: "password",
+					},
+				},
+			},
+			Secure:         false,
+			ExpectedGitUrl: "https://login:password@github.com/user/project.git",
+		},
+		{
+			Repository: Repository{
+				GitURL: "HTTP://insecure.local/user/project.git",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "user",
+						Password: "secretpassword",
+					},
+				},
+			},
+			Secure:         false,
+			ExpectedGitUrl: "http://insecure.local/user/project.git",
+		},
+		{
+			Repository: Repository{
+				GitURL: "HTTPS://user:secret@github.com/user/project.git",
+			},
+			Secure:         true,
+			ExpectedGitUrl: "https://github.com/user/project.git",
+		},
 	} {
 		gitUrl := v.Repository.GetGitURL(v.Secure)
 		assert.Equal(t, v.ExpectedGitUrl, gitUrl, "wrong gitUrl")
