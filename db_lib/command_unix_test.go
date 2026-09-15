@@ -31,6 +31,62 @@ func testReadPID(path string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(string(value)))
 }
 
+func runCommandWithSigtermHandler(t *testing.T, exitCode int) error {
+	t.Helper()
+
+	readyFile := filepath.Join(t.TempDir(), "ready")
+	cmd := exec.Command("sh", "-c", `
+trap 'exit "$1"' TERM
+touch "$2"
+while true; do
+    sleep 1
+done
+`, "sh", strconv.Itoa(exitCode), readyFile)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+
+	stopCh := make(chan struct{})
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- runCommand(cmd, stopCh, task_logger.NopLogger{})
+	}()
+
+	commandExited := false
+	t.Cleanup(func() {
+		if !commandExited && cmd.Process != nil {
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+	})
+
+	require.Eventually(t, func() bool {
+		return testFileExists(readyFile)
+	}, 5*time.Second, 15*time.Millisecond, "command did not install its SIGTERM handler")
+	close(stopCh)
+
+	select {
+	case err := <-resultCh:
+		commandExited = true
+		return err
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "runCommand did not return after SIGTERM")
+		return nil
+	}
+}
+
+func Test_SigtermHandler_ExitsZero(t *testing.T) {
+	t.Parallel()
+	err := runCommandWithSigtermHandler(t, 0)
+	assert.NoError(t, err)
+}
+
+func Test_SigtermHandler_ExitsNonzero(t *testing.T) {
+	t.Parallel()
+	err := runCommandWithSigtermHandler(t, 42)
+
+	var exitErr *exec.ExitError
+	require.ErrorAs(t, err, &exitErr)
+	assert.Equal(t, 42, exitErr.ExitCode())
+}
+
 func TestStopCommandRespectsGracePeriod(t *testing.T) {
 	cmd := exec.Command("sh", "-c", "sleep 0.1")
 	require.NoError(t, cmd.Start())
