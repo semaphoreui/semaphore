@@ -26,6 +26,7 @@ func getHomeDir(repo db.Repository, templateID int) string {
 // getEnvironmentVars builds the environment for child Git/tool processes.
 // Only PATH, Config.ForwardedEnvVars, and Config.EnvVars are forwarded.
 // To forward proxy or SSL vars, add them to forwarded_env_vars in the config
+// (e.g. ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"])
 // or set the SEMAPHORE_FORWARDED_ENV_VARS environment variable.
 func getEnvironmentVars() []string {
 	envMap := make(map[string]string)

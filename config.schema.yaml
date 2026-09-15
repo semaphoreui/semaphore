@@ -221,7 +221,11 @@ properties:
   forwarded_env_vars:
     type: array
     items: { type: string }
-    description: Host environment variables forwarded into task runs.
+    description: >-
+      Host environment variables forwarded into task runs and child Git processes
+      (also configurable via SEMAPHORE_FORWARDED_ENV_VARS). For bare-metal deployments
+      operating behind a corporate proxy, explicitly forward HTTP_PROXY, HTTPS_PROXY,
+      and NO_PROXY (e.g. ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"]).
 
   # ==========================================================================
   # Nested subsystems
