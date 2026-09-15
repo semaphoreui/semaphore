@@ -8,6 +8,7 @@ import (
 	"path"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/galaxy"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
@@ -80,13 +81,20 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return nil
 	}
 
-	if err := t.installCollectionsRequirements(args.EnvironmentVars); err != nil {
+	collectionArgs, err := galaxyExtraArgs(args, GalaxyCollection)
+	if err != nil {
 		return err
 	}
-	if err := t.installRolesRequirements(args.EnvironmentVars); err != nil {
+	roleArgs, err := galaxyExtraArgs(args, GalaxyRole)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	err = t.installCollectionsRequirements(args.EnvironmentVars, collectionArgs)
+	if err != nil {
+		return err
+	}
+	return t.installRolesRequirements(args.EnvironmentVars, roleArgs)
 }
 
 // skipGalaxyInstall reports whether the Galaxy install step must be skipped.
@@ -123,7 +131,7 @@ func (t *AnsibleApp) requirementsHashFilePath(requirementsType GalaxyRequirement
 	return path.Join(internalDir, fmt.Sprintf("requirements_%x_%s.md5", sum, requirementsType))
 }
 
-func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string, environmentVars []string) error {
+func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequirementsType, requirementsFilePath string, environmentVars, extraArgs []string) error {
 	requirementsHashFilePath := t.requirementsHashFilePath(requirementsType, requirementsFilePath)
 
 	if _, err := os.Stat(requirementsFilePath); err != nil {
@@ -132,13 +140,15 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequir
 	}
 
 	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
-		if err := t.runGalaxy([]string{
+		galaxyArgs := append([]string{
 			string(requirementsType),
 			"install",
 			"-r",
 			requirementsFilePath,
 			"--force",
-		}, environmentVars); err != nil {
+		}, extraArgs...)
+
+		if err := t.runGalaxy(galaxyArgs, environmentVars); err != nil {
 			return err
 		}
 		if err := os.MkdirAll(t.Repository.GetInternalPath(t.Template.ID), 0o755); err != nil {
@@ -160,53 +170,76 @@ func (t *AnsibleApp) GetPlaybookDir() string {
 	return path.Dir(playbookPath)
 }
 
-type GalaxyRequirementsType string
+type GalaxyRequirementsType = galaxy.InstallType
 
 const (
-	GalaxyRole       GalaxyRequirementsType = "role"
-	GalaxyCollection GalaxyRequirementsType = "collection"
+	GalaxyRole       = galaxy.InstallRole
+	GalaxyCollection = galaxy.InstallCollection
 )
 
-func (t *AnsibleApp) installRolesRequirements(environmentVars []string) (err error) {
+func (t *AnsibleApp) installRolesRequirements(environmentVars, extraArgs []string) (err error) {
 	// default roles path
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"), environmentVars)
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "roles", "requirements.yml"), environmentVars, extraArgs)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars)
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars, extraArgs)
 	if err != nil {
 		return
 	}
 
 	// alternative roles path
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "roles", "requirements.yml"), environmentVars)
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "roles", "requirements.yml"), environmentVars, extraArgs)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars)
+	err = t.installGalaxyRequirementsFile(GalaxyRole, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars, extraArgs)
 	return
 }
 
-func (t *AnsibleApp) installCollectionsRequirements(environmentVars []string) (err error) {
+func (t *AnsibleApp) installCollectionsRequirements(environmentVars, extraArgs []string) (err error) {
 	// default collections path
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"), environmentVars)
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "collections", "requirements.yml"), environmentVars, extraArgs)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars)
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.GetPlaybookDir(), "requirements.yml"), environmentVars, extraArgs)
 	if err != nil {
 		return
 	}
 
 	// alternative collections path
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "collections", "requirements.yml"), environmentVars)
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "collections", "requirements.yml"), environmentVars, extraArgs)
 	if err != nil {
 		return
 	}
-	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars)
+	err = t.installGalaxyRequirementsFile(GalaxyCollection, path.Join(t.getRepoPath(), "requirements.yml"), environmentVars, extraArgs)
 	return
 }
 
 func (t *AnsibleApp) runGalaxy(args []string, environmentVars []string) error {
 	return t.Playbook.RunGalaxy(args, environmentVars)
+}
+
+// galaxyExtraArgs returns the template-configured arguments for one galaxy
+// subcommand. Args are re-validated here because templates can reach the
+// database without passing through Template.Validate (backup restore).
+func galaxyExtraArgs(args LocalAppInstallingArgs, requirementsType GalaxyRequirementsType) ([]string, error) {
+	tplParams, ok := args.TplParams.(*db.AnsibleTemplateParams)
+	if !ok || tplParams == nil {
+		return nil, nil
+	}
+
+	var extra []string
+	switch requirementsType {
+	case GalaxyRole:
+		extra = tplParams.GalaxyRoleArgs
+	case GalaxyCollection:
+		extra = tplParams.GalaxyCollectionArgs
+	}
+
+	if err := galaxy.ValidateInstallArgs(requirementsType, extra); err != nil {
+		return nil, err
+	}
+	return extra, nil
 }

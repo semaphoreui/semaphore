@@ -92,6 +92,12 @@ func (r Runner) IsOnline(now time.Time, offlineTimeout time.Duration) bool {
 	return r.Touched != nil && now.Sub(*r.Touched) <= offlineTimeout
 }
 
+// HasFreeCapacity reports whether the runner can take one more task.
+// MaxParallelTasks == 0 means unlimited.
+func (r Runner) HasFreeCapacity(runningTasks int) bool {
+	return r.MaxParallelTasks == 0 || runningTasks < r.MaxParallelTasks
+}
+
 // FillStatus populates the transient Status field from heartbeat liveness.
 func (r *Runner) FillStatus(now time.Time, offlineTimeout time.Duration) {
 	if r.IsOnline(now, offlineTimeout) {

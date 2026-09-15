@@ -34,7 +34,7 @@
     </v-row>
   </div>
   <v-form class="mt-1" v-else ref="form" lazy-validation v-model="formValid">
-    <v-dialog v-model="helpDialog" hide-overlay width="300">
+    <v-dialog v-model="helpDialog" hide-overlay content-class="NestedDialog" width="300">
       <v-alert border="top" colored-border type="info" elevation="2" class="mb-0 pb-0">
         <div v-if="helpKey === 'build_version'">
           <p>
@@ -455,6 +455,7 @@
               :items="cronFormats"
               :disabled="formSaving"
               outlined
+              hide-details
               dense
             />
           </DropdownCard>
@@ -463,6 +464,12 @@
             class="mt-0"
             :label="$t('suppressSuccessAlerts')"
             v-model="item.suppress_success_alerts"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('suppressErrorAlerts')"
+            v-model="item.suppress_error_alerts"
           />
 
           <div style="position: relative">
@@ -540,13 +547,6 @@
           ></TemplateVaults>
 
           <v-checkbox
-            v-if="needField('skip_galaxy_install')"
-            v-model="item.task_params.skip_galaxy_install"
-            :label="$t('skipGalaxyInstall')"
-            class="mt-0"
-          />
-
-          <v-checkbox
             class="mt-0"
             :label="$t('auto_approve')"
             v-model="item.task_params.auto_approve"
@@ -607,10 +607,17 @@
           />
 
           <v-checkbox
-            v-if="needField('allow_override_skip_galaxy_install')"
-            v-model="item.task_params.allow_override_skip_galaxy_install"
-            :label="$t('skipGalaxyInstall')"
             class="mt-0"
+            :label="$t('dryRun')"
+            v-model="show_dry_run"
+            v-if="needField('hide_dry_run')"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="$t('diff')"
+            v-model="show_diff"
+            v-if="needField('hide_diff')"
           />
 
           <v-checkbox
@@ -620,6 +627,48 @@
             v-if="needField('allow_auto_approve')"
           />
         </div>
+
+        <CollapsibleSection
+          v-if="needField('skip_galaxy_install')"
+          v-model="galaxyOpen"
+          class="mt-2"
+          :title="$t('galaxyInstallOptions')"
+          :badge="galaxyBadge"
+        >
+          <v-checkbox
+            class="mt-0 mb-4"
+            hide-details
+            v-model="item.task_params.skip_galaxy_install"
+            :label="$t('skipGalaxyInstall')"
+          />
+
+          <ArgsPicker
+            v-if="needField('galaxy_role_args')"
+            :vars="item.task_params.galaxy_role_args"
+            @change="setGalaxyRoleArgs"
+            :title="$t('galaxyRoleArgs')"
+            :arg-title="$t('arg')"
+          />
+
+          <ArgsPicker
+            v-if="needField('galaxy_collection_args')"
+            :vars="item.task_params.galaxy_collection_args"
+            @change="setGalaxyCollectionArgs"
+            :title="$t('galaxyCollectionArgs')"
+            :arg-title="$t('arg')"
+          />
+
+          <template v-if="needField('allow_override_skip_galaxy_install')">
+            <div class="text-subtitle-2 mb-2">{{ $t('prompts') }}</div>
+
+            <v-checkbox
+              class="mt-0"
+              hide-details
+              v-model="item.task_params.allow_override_skip_galaxy_install"
+              :label="$t('skipGalaxyInstall')"
+            />
+          </template>
+        </CollapsibleSection>
       </v-col>
     </v-row>
   </v-form>
@@ -646,6 +695,7 @@ import AppFieldsMixin from '@/components/AppFieldsMixin';
 import AppsMixin from '@/components/AppsMixin';
 import RichEditor from '@/components/RichEditor.vue';
 import DropdownCard from '@/components/DropdownCard.vue';
+import CollapsibleSection from '@/components/CollapsibleSection.vue';
 import SurveyVars from './SurveyVars';
 
 export default {
@@ -653,6 +703,7 @@ export default {
 
   components: {
     DropdownCard,
+    CollapsibleSection,
     RichEditor,
     TemplateVaults,
     ArgsPicker,
@@ -715,6 +766,7 @@ export default {
       cronFormat: '* * * * *',
       cronRepositoryId: null,
       cronVisible: false,
+      galaxyOpen: false,
 
       helpDialog: null,
       helpKey: null,
@@ -730,6 +782,12 @@ export default {
   },
 
   watch: {
+    formError(err) {
+      if (err && err.includes('ansible-galaxy')) {
+        this.galaxyOpen = true;
+      }
+    },
+
     gitBranchOfTemplate() {
       if (this.playbooks != null) {
         this.playbooks = null;
@@ -767,6 +825,19 @@ export default {
   },
 
   computed: {
+    galaxyBadge() {
+      const n = this.galaxyCustomizedCount;
+      return n ? this.$t('galaxyCustomized', { n }) : null;
+    },
+
+    galaxyCustomizedCount() {
+      const params = this.item.task_params || {};
+      return (params.galaxy_role_args || []).length
+        + (params.galaxy_collection_args || []).length
+        + (params.skip_galaxy_install ? 1 : 0)
+        + (params.allow_override_skip_galaxy_install ? 1 : 0);
+    },
+
     showWorkingDirectoryField: {
       get() {
         return this.item?.working_directory != null;
@@ -828,6 +899,27 @@ export default {
       },
       set(newValue) {
         this.item.task_params.allow_override_inventory = newValue;
+      },
+    },
+
+    // Stored as hide_dry_run / hide_diff so that existing templates keep
+    // showing the checkboxes; presented inverted ("Dry Run" / "Diff" prompt
+    // enabled) to match the other prompt checkboxes.
+    show_dry_run: {
+      get() {
+        return !this.item.task_params.hide_dry_run;
+      },
+      set(newValue) {
+        this.$set(this.item.task_params, 'hide_dry_run', !newValue);
+      },
+    },
+
+    show_diff: {
+      get() {
+        return !this.item.task_params.hide_diff;
+      },
+      set(newValue) {
+        this.$set(this.item.task_params, 'hide_diff', !newValue);
       },
     },
 
@@ -961,6 +1053,14 @@ export default {
       this.item.task_params.skip_tags = tags;
     },
 
+    setGalaxyRoleArgs(args) {
+      this.item.task_params.galaxy_role_args = args;
+    },
+
+    setGalaxyCollectionArgs(args) {
+      this.item.task_params.galaxy_collection_args = args;
+    },
+
     setTags(tags) {
       this.item.task_params.tags = tags;
     },
@@ -1076,7 +1176,23 @@ export default {
       }
 
       if (!this.item.task_params) {
-        this.item.task_params = {};
+        this.$set(this.item, 'task_params', {});
+      }
+
+      // Same reactivity concern as executor_image: keys absent in the API response
+      // must be declared, otherwise galaxyCustomizedCount never updates.
+      if (this.needField('skip_galaxy_install')) {
+        const galaxyDefaults = {
+          skip_galaxy_install: false,
+          allow_override_skip_galaxy_install: false,
+          galaxy_role_args: [],
+          galaxy_collection_args: [],
+        };
+        Object.keys(galaxyDefaults).forEach((key) => {
+          if (this.item.task_params[key] === undefined) {
+            this.$set(this.item.task_params, key, galaxyDefaults[key]);
+          }
+        });
       }
 
       // The API omits executor_image when it is not set; declare it explicitly so

@@ -10,6 +10,29 @@ name: Dev
       - develop
 
 jobs:
+  # The configuration and CLI reference pages of the documentation site are
+  # generated from this repository. Regenerating them here is what stops the
+  # published reference from drifting away from the code.
+  docs-reference:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Setup golang
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.5'
+
+      - name: Install go-task
+        run: go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Check the generated reference is up to date
+        run: task docs:check
+
   build-local:
     runs-on: ubuntu-latest
 

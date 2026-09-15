@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -100,11 +101,17 @@ func configuredDebugFilter() (string, *debuglog.Filter) {
 	return spec, debuglog.Parse(spec)
 }
 
-func Execute() {
+// registerPersistentFlags is guarded by a sync.Once because both Execute and
+// RootCommand need the flags present, and pflag panics on a duplicate name.
+var registerPersistentFlags = sync.OnceFunc(func() {
 	rootCmd.PersistentFlags().StringVar(&persistentFlags.logLevel, "log-level", "", "Log level: DEBUG, INFO, WARN, ERROR, FATAL, PANIC")
 	rootCmd.PersistentFlags().StringVar(&persistentFlags.debugFilter, "debug-filter", "", "Debug namespace filter (only with DEBUG level), e.g. 'runner,task_*' or '*,-db'")
 	rootCmd.PersistentFlags().StringVar(&persistentFlags.configPath, "config", "", "Configuration file path")
 	rootCmd.PersistentFlags().BoolVar(&persistentFlags.noConfig, "no-config", false, "Don't use configuration file")
+})
+
+func Execute() {
+	registerPersistentFlags()
 	if err := rootCmd.Execute(); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -296,6 +303,7 @@ func runService() {
 		defer wsBroadcaster.Stop()
 	}
 
+	taskPool.LogRunnerStateSnapshot()
 	go schedulePool.Run()
 	go taskPool.Run()
 

@@ -201,7 +201,7 @@ func (t *TaskRunner) run() {
 			l := log.WithField("task_id", t.Task.ID).WithField("status", t.Task.Status)
 
 			if t.Task.RunnerID != nil {
-				l = log.WithField("runner_id", *t.Task.RunnerID)
+				l = l.WithField("runner_id", *t.Task.RunnerID)
 			}
 
 			l.Info("Task dispatched to runner; awaiting remote completion")
