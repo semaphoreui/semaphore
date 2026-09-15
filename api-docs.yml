@@ -972,6 +972,20 @@ definitions:
         type: boolean
       suppress_error_alerts:
         type: boolean
+      alert_mode:
+        type: string
+        enum: [default, ids]
+        description: default uses the project's default alerts; ids uses alert_ids (empty means silent).
+      alert_ids:
+        type: array
+        items:
+          type: integer
+        example: []
+        description: Used when alert_mode is ids. Empty means this job sends no alerts.
+      alert_on_success:
+        type: boolean
+      alert_on_error:
+        type: boolean
       app:
         type: string
         example: ansible
@@ -1042,6 +1056,20 @@ definitions:
       suppress_success_alerts:
         type: boolean
       suppress_error_alerts:
+        type: boolean
+      alert_mode:
+        type: string
+        enum: [default, ids]
+        description: default uses the project's default alerts; ids uses alert_ids (empty means silent).
+      alert_ids:
+        type: array
+        items:
+          type: integer
+        example: []
+        description: Used when alert_mode is ids. Empty means this job sends no alerts.
+      alert_on_success:
+        type: boolean
+      alert_on_error:
         type: boolean
       app:
         type: string
@@ -1149,6 +1177,21 @@ definitions:
         enum: ['', 'run_at']
       task_params:
         $ref: '#/definitions/TaskPrams'
+      alert_mode:
+        type: string
+        enum: [inherit, ids]
+        description: inherit uses the template alert list; ids uses alert_ids (may be empty).
+      alert_ids:
+        type: array
+        items:
+          type: integer
+        example: []
+      alert_on_success:
+        type: boolean
+        x-nullable: true
+      alert_on_error:
+        type: boolean
+        x-nullable: true
 
   Schedule:
     type: object
@@ -1173,6 +1216,21 @@ definitions:
         enum: ['', 'run_at']
       task_params:
         $ref: '#/definitions/TaskPrams'
+      alert_mode:
+        type: string
+        enum: [inherit, ids]
+        description: inherit uses the template alert list; ids uses alert_ids (may be empty).
+      alert_ids:
+        type: array
+        items:
+          type: integer
+        example: []
+      alert_on_success:
+        type: boolean
+        x-nullable: true
+      alert_on_error:
+        type: boolean
+        x-nullable: true
 
   ViewRequest:
     type: object
@@ -1210,6 +1268,41 @@ definitions:
         enum: [name]
       sort_reverse:
         type: boolean
+
+  Alert:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: Ops Telegram
+      type:
+        type: string
+        enum: [email, telegram, slack, teams, rocketchat, dingtalk, gotify]
+        example: telegram
+      enabled:
+        type: boolean
+        example: true
+      is_default:
+        type: boolean
+        description: When true, jobs with alert_mode=default send this destination.
+      chat_id:
+        type: string
+        example: '12345'
+      thread_id:
+        type: string
+      url:
+        type: string
+      token:
+        type: string
+        description: Write-only Gotify token. Omitted in responses. Omit or send null on update to keep the stored token.
+      recipients:
+        type: string
+      body:
+        type: string
 
   Runner:
     type: object
@@ -1612,6 +1705,13 @@ parameters:
     type: integer
     required: true
     x-example: 10
+  alert_id:
+    name: alert_id
+    description: alert ID
+    in: path
+    type: integer
+    required: true
+    x-example: 21
   integration_id:
     name: integration_id
     description: integration ID
@@ -3427,6 +3527,128 @@ paths:
         204:
           description: view removed
 
+  /project/{project_id}/alerts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get alerts
+      responses:
+        200:
+          description: alerts
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Alert"
+    post:
+      tags:
+        - project
+      summary: Create alert
+      parameters:
+        - name: alert
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Alert"
+      responses:
+        201:
+          description: alert created
+          schema:
+            $ref: "#/definitions/Alert"
+  /project/{project_id}/alerts/defaults:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get default message templates per alert type
+      responses:
+        200:
+          description: default bodies keyed by alert type
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+              telegram:
+                type: string
+              slack:
+                type: string
+              teams:
+                type: string
+              rocketchat:
+                type: string
+              dingtalk:
+                type: string
+              gotify:
+                type: string
+  /project/{project_id}/alerts/{alert_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/alert_id"
+    get:
+      tags:
+        - project
+      summary: Get alert
+      responses:
+        200:
+          description: alert
+          schema:
+            $ref: "#/definitions/Alert"
+    put:
+      tags:
+        - project
+      summary: Update alert
+      parameters:
+        - name: alert
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Alert"
+      responses:
+        204:
+          description: alert updated
+    delete:
+      tags:
+        - project
+      summary: Delete alert
+      responses:
+        204:
+          description: alert removed
+  /project/{project_id}/alerts/{alert_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/alert_id"
+    get:
+      tags:
+        - project
+      summary: Get objects that reference this alert
+      responses:
+        200:
+          description: referrers
+          schema:
+            type: object
+            properties:
+              templates:
+                type: array
+                items:
+                  type: object
+              schedules:
+                type: array
+                items:
+                  type: object
+  /project/{project_id}/alerts/{alert_id}/test:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/alert_id"
+    post:
+      tags:
+        - project
+      summary: Send a test message for this alert
+      responses:
+        204:
+          description: test sent
 
   # tasks
   /project/{project_id}/tasks:
@@ -3600,7 +3822,7 @@ paths:
         - $ref: "#/parameters/project_id"
       responses:
         409:
-          description: Alerts not enabled for the project
+          description: No enabled project alerts exist
 #        204:
 #          description: Test notification dispatched (or alerts disabled)
 

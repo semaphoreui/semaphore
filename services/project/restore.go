@@ -26,7 +26,7 @@ func verifyDuplicate[T BackupEntry](name string, items []T) error {
 		if o.GetName() == name {
 			n++
 		}
-		if n > 2 {
+		if n > 1 {
 			return fmt.Errorf("%s is duplicate", name)
 		}
 	}
@@ -94,6 +94,34 @@ func (e BackupView) Restore(b *BackupDB) error {
 	return nil
 }
 
+func resolveBackupAlertIDs(names []string, alerts []db.Alert) ([]int, error) {
+	var ids []int
+	for i := range names {
+		name := names[i]
+		if k := findEntityByName[db.Alert](&name, alerts); k == nil {
+			return nil, fmt.Errorf("alert %q does not exist in alerts[].name", name)
+		} else {
+			ids = append(ids, k.ID)
+		}
+	}
+	return ids, nil
+}
+
+func (e BackupAlert) Verify(backup *BackupFormat) error {
+	return verifyDuplicate[BackupAlert](e.Name, backup.Alerts)
+}
+
+func (e BackupAlert) Restore(b *BackupDB) error {
+	alert := e.Alert
+	alert.ProjectID = b.meta.ID
+	newAlert, err := b.store.CreateAlert(alert)
+	if err != nil {
+		return err
+	}
+	b.alerts = append(b.alerts, newAlert)
+	return nil
+}
+
 func (e BackupSchedule) Verify(backup *BackupFormat) error {
 	return verifyDuplicate[BackupSchedule](e.Name, backup.Schedules)
 }
@@ -122,6 +150,12 @@ func (e BackupSchedule) Restore(b *BackupDB) error {
 			v.TaskParams.InventoryID = &inv.ID
 		}
 	}
+
+	alertIDs, err := resolveBackupAlertIDs(e.Alerts, b.alerts)
+	if err != nil {
+		return err
+	}
+	v.AlertIDs = alertIDs
 
 	newSchedule, err := b.store.CreateSchedule(v)
 	if err != nil {
@@ -329,6 +363,11 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 	template.InventoryID = InventoryID
 	template.ViewID = ViewID
 	template.BuildTemplateID = BuildTemplateID
+	alertIDs, err := resolveBackupAlertIDs(e.Alerts, b.alerts)
+	if err != nil {
+		return err
+	}
+	template.AlertIDs = alertIDs
 
 	newTemplate, err := b.store.CreateTemplate(template)
 	if err != nil {
@@ -563,6 +602,11 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at inventories[%d]: %s", i, err.Error())
 		}
 	}
+	for i, o := range backup.Alerts {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at alerts[%d]: %s", i, err.Error())
+		}
+	}
 	for i, o := range backup.SecretStorages {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at secret storage[%d]: %s", i, err.Error())
@@ -661,6 +705,12 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 	for i, o := range backup.Inventories {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at inventories[%d]: %s", i, err.Error())
+		}
+	}
+
+	for i, o := range backup.Alerts {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at alerts[%d]: %s", i, err.Error())
 		}
 	}
 

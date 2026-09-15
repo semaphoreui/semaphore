@@ -139,18 +139,7 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 		localJob.SetStatus(status)
 	}
 
-	if status == task_logger.TaskFailStatus {
-		t.sendMailAlert()
-	}
-
-	if status.IsNotifiable() {
-		t.sendTelegramAlert()
-		t.sendSlackAlert()
-		t.sendRocketChatAlert()
-		t.sendMicrosoftTeamsAlert()
-		t.sendDingTalkAlert()
-		t.sendGotifyAlert()
-	}
+	t.sendStatusAlerts()
 
 	for _, l := range t.statusListeners {
 		l(status)
