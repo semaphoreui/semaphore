@@ -851,9 +851,17 @@ func (p ObjectProps) GetReferringFieldsFrom(t reflect.Type) (fields []string, er
 }
 
 func ValidateRepository(store Store, repo *Repository) (err error) {
-	_, err = store.GetAccessKey(repo.ProjectID, repo.SSHKeyID)
+	repoCopy := *repo
 
-	return
+	if repo.SSHKeyID != 0 {
+		key, err := store.GetAccessKey(repo.ProjectID, repo.SSHKeyID)
+		if err != nil {
+			return err
+		}
+		repoCopy.SSHKey = key
+	}
+
+	return repoCopy.Validate()
 }
 
 func ValidateInventory(store Store, inventory *Inventory) (err error) {

@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/semaphoreui/semaphore/pkg/tz"
-
+	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	log "github.com/sirupsen/logrus"
 )
@@ -58,6 +58,7 @@ func (p *runningJob) Logf(format string, a ...any) {
 }
 
 func (p *runningJob) LogWithTime(now time.Time, msg string) {
+	msg = git.SanitizeGitOutput(msg)
 	p.mu.Lock()
 	p.logRecords = append(
 		p.logRecords,

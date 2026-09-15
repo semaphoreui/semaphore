@@ -553,7 +553,6 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 
 	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 	require.NoError(t, err)
-
 	assert.Equal(t, "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml", strings.Join(args, " "))
 }
 
@@ -603,7 +602,6 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 
 	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 	require.NoError(t, err)
-
 	assert.Equal(t, "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml", strings.Join(args, " "))
 }
 
@@ -654,7 +652,6 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 
 	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 	require.NoError(t, err)
-
 	assert.Equal(t, "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml", strings.Join(args, " "))
 }
 
