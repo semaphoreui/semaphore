@@ -92,7 +92,10 @@ func createUserToken(store db.Store, out io.Writer, args tokenArgs) error {
 		return err
 	}
 
-	fmt.Fprintln(out, token.ID)
+	if _, err = fmt.Fprintln(out, token.ID); err != nil {
+		return err
+	}
+
 	return nil
 }
 
