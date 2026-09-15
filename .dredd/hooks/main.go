@@ -20,6 +20,21 @@ var skipTests = []string{
 	"authentication > /api/auth/login > Performs Login > 204 > application/json",
 	"authentication > /api/auth/logout > Destroys current session > 204 > application/json",
 	"runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json",
+	// Workflow endpoints are a Pro-only feature. The OSS dredd hook stub
+	// returns zero-value structs so tests against the real Pro binary always
+	// fail (wrong IDs, missing objects). Skip them here; they are covered by
+	// the Pro integration suite.
+	"workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json",
+	"workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json",
+	"workflow > /api/project/{project_id}/workflows/{workflow_id} > Get workflow > 200 > application/json",
+	"workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json",
+	"workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json",
+	"workflow > /api/project/{project_id}/workflows/{workflow_id}/run > Run workflow > 201 > application/json",
+	"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json",
+	"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json",
+	"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json",
+	"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/artifacts > Get merged workflow run artifacts > 200 > application/json",
+	"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json",
 }
 
 // Dredd expects that you have already set up the database and run all migrations before it begins.
