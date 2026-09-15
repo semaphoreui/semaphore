@@ -204,6 +204,7 @@ export default {
   readThe: 'Přečtěte si',
   toLearnMoreAboutCron: 'a zjistěte více o systému Cron.',
   suppressSuccessAlerts: 'Potlačit oznámení o úspěchu',
+  suppressErrorAlerts: 'Potlačit oznámení o chybě',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2: 'Argumenty CLI (pole JSON). Příklad: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'Argumenty CLI',
   docs: 'dokumentaci',

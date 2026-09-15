@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/semaphoreui/semaphore/util"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -172,8 +174,8 @@ func TestValidateSurveyVar(t *testing.T) {
 func TestTemplateValidate_SurveyVarDefaultValue(t *testing.T) {
 	// Validate() must surface ValidateSurveyVar errors end-to-end.
 	tpl := Template{
-		Name:       "test",
-		Playbook:   "playbook.yml",
+		Name:     "test",
+		Playbook: "playbook.yml",
 		SurveyVars: []SurveyVar{
 			{
 				Name:         "BAD",
@@ -187,6 +189,30 @@ func TestTemplateValidate_SurveyVarDefaultValue(t *testing.T) {
 	assert.ErrorContains(t, err, "must be a string for type")
 }
 
-func strPtr(s string) *string {
-	return &s
+func TestTemplateValidate_GalaxyArgs(t *testing.T) {
+	util.Config = &util.ConfigType{Apps: map[string]util.App{string(AppAnsible): {}}}
+	defer func() { util.Config = nil }()
+
+	inventoryID := 1
+	newTemplate := func(taskParams MapStringAnyField) Template {
+		return Template{
+			Name:        "test",
+			Playbook:    "playbook.yml",
+			App:         AppAnsible,
+			InventoryID: &inventoryID,
+			TaskParams:  taskParams,
+		}
+	}
+
+	tpl := newTemplate(MapStringAnyField{
+		"galaxy_role_args":       []any{"--ignore-errors"},
+		"galaxy_collection_args": []any{"--pre"},
+	})
+	assert.NoError(t, tpl.Validate())
+
+	tpl = newTemplate(MapStringAnyField{"galaxy_role_args": []any{"--pre"}})
+	assert.ErrorContains(t, tpl.Validate(), `ansible-galaxy role install: argument "--pre" is not allowed`)
+
+	tpl = newTemplate(MapStringAnyField{"galaxy_collection_args": "--pre"})
+	assert.ErrorContains(t, tpl.Validate(), "invalid task params")
 }

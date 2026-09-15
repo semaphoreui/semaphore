@@ -23,6 +23,13 @@ describe('ArgsPicker.vue', () => {
         'v-dialog': {
           template: '<div><slot /></div>',
         },
+        'v-form': {
+          template: '<form><slot /></form>',
+          methods: {
+            validate: () => true,
+            resetValidation: () => {},
+          },
+        },
       },
     });
 
@@ -30,8 +37,15 @@ describe('ArgsPicker.vue', () => {
     await wrapper.vm.$nextTick();
 
     wrapper.vm.editedVar.name = '--check';
-    wrapper.vm.$refs.form = { validate: () => true };
-    await wrapper.find('v-text-field-stub').trigger('keydown.enter');
+
+    // `@keydown.enter` on a component is a component event, not a DOM event,
+    // so emit it through the stubbed v-text-field instead of `trigger()`.
+    wrapper.find('v-text-field-stub').vm.$emit('keydown', {
+      type: 'keydown',
+      key: 'Enter',
+      keyCode: 13,
+      preventDefault: () => {},
+    });
     await wrapper.vm.$nextTick();
 
     expect(wrapper.emitted().change[0][0]).to.deep.equal(['--check']);

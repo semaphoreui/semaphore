@@ -87,3 +87,29 @@ func TestFilteringFormatter_SuppressedEntryWritesNoBytes(t *testing.T) {
 	// Suppressed debug entries must produce zero output, not a bare newline.
 	require.Equal(t, 0, buf.Len())
 }
+
+func TestEnabled(t *testing.T) {
+	tests := []struct {
+		name      string
+		level     log.Level
+		formatter log.Formatter
+		namespace string
+		expected  bool
+	}{
+		{"debug without filter", log.DebugLevel, &log.TextFormatter{}, "runner", true},
+		{"info without filter", log.InfoLevel, &log.TextFormatter{}, "runner", false},
+		{"matching filter", log.DebugLevel, NewFilteringFormatter(nil, Parse("runner")), "runner", true},
+		{"non-matching filter", log.DebugLevel, NewFilteringFormatter(nil, Parse("task_pool")), "runner", false},
+		{"excluded namespace", log.DebugLevel, NewFilteringFormatter(nil, Parse("*,-runner")), "runner", false},
+		{"nil filter", log.DebugLevel, NewFilteringFormatter(nil, nil), "runner", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := log.New()
+			logger.SetLevel(tt.level)
+			logger.SetFormatter(tt.formatter)
+			assert.Equal(t, tt.expected, Enabled(logger, tt.namespace))
+		})
+	}
+}

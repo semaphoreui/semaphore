@@ -28,6 +28,9 @@
 import Drawflow from 'drawflow';
 import 'drawflow/dist/drawflow.min.css';
 import { layoutWorkflowNodes, needsAutoLayout } from '@/lib/workflowLayout';
+import {
+  wouldCreateCycle, nextNodeId, formatDuration, escapeHtml,
+} from '@/lib/workflowGraph';
 
 const CONDITION_DEFAULT = 'on_success';
 
@@ -395,32 +398,12 @@ export default {
     },
 
     wouldCreateCycle(source, dest) {
-      // Walk forward from `dest` over existing edges; a path back to `source`
-      // means the new edge source->dest closes a cycle.
-      const adjacency = {};
-      const { edges } = this.exportModel();
-      edges.forEach((edge) => {
-        if (!adjacency[edge.source_node_id]) adjacency[edge.source_node_id] = [];
-        adjacency[edge.source_node_id].push(edge.destination_node_id);
-      });
-      const stack = [dest];
-      const seen = new Set();
-      while (stack.length) {
-        const cur = stack.pop();
-        if (cur === source) return true;
-        if (!seen.has(cur)) {
-          seen.add(cur);
-          (adjacency[cur] || []).forEach((n) => stack.push(n));
-        }
-      }
-      return false;
+      return wouldCreateCycle(this.exportModel().edges, source, dest);
     },
 
     nextNodeId() {
-      const ids = [];
       const data = this.editor.export().drawflow.Home.data;
-      Object.keys(data).forEach((dfId) => ids.push(data[dfId].data.nodeId || 0));
-      return (ids.length === 0 ? 0 : Math.max(...ids)) + 1;
+      return nextNodeId(Object.keys(data).map((dfId) => data[dfId].data.nodeId || 0));
     },
 
     nodeIdOf(dfId) {
@@ -513,18 +496,11 @@ export default {
     },
 
     formatDuration(ms) {
-      const totalSeconds = Math.ceil(ms / 1000);
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = totalSeconds % 60;
-      if (minutes <= 0) return `${seconds}s`;
-      return `${minutes}m ${seconds}s`;
+      return formatDuration(ms);
     },
 
     escape(value) {
-      return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+      return escapeHtml(value);
     },
 
     // Color each connection's path by its condition.

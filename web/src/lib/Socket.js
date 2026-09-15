@@ -33,6 +33,13 @@ export default class Socket extends Listenable {
    * Only called when session is active.
    */
   startRealSocket() {
+    if (this.ws instanceof FakeWebSocket) {
+      // start() was called before the session became active: replace the
+      // placeholder socket with a real one.
+      this.ws.close();
+      this.ws = null;
+    }
+
     if (this.ws != null) {
       return;
     }
