@@ -34,9 +34,10 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 	// newTemplateTestProject is unusable here: its CreateAccessKey call
 	// writes the task_id/expire_at columns which appear only in 2.20.1,
 	// so seed the access key with SQL matching the 2.19.12 schema.
-	project, err := store.CreateProject(db.Project{Name: "proj"})
+	// SqlDb.CreateProject writes alert_thread, which appears only in 2.20.6.
+	projectID, err := store.insert("id",
+		"insert into project (name, created) values (?, datetime('now'))", "proj")
 	require.NoError(t, err)
-	projectID := project.ID
 
 	keyID, err := store.insert("id",
 		"insert into access_key (name, type, project_id) values ('key', 'none', ?)", projectID)

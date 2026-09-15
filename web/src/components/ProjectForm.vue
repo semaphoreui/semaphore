@@ -37,6 +37,21 @@
       dense
     ></v-text-field>
 
+    <v-text-field
+      v-model="item.alert_thread"
+      :label="$t('telegramThreadIdOptional')"
+      :hint="$t('telegramThreadIdHint')"
+      persistent-hint
+      :rules="[
+        (v) => v == null || v === '' || /^\d+$/.test(String(v)) || $t('mustBeInteger'),
+        (v) => v == null || v === '' || Number(v) >= 1 || $t('mustBe1OrGreater'),
+      ]"
+      :disabled="formSaving"
+      data-testid="newProject-tg-thread"
+      outlined
+      dense
+    ></v-text-field>
+
     <v-checkbox
       class="mt-0"
       v-model="item.alert"
@@ -76,6 +91,10 @@ export default {
     beforeSave() {
       if (this.item.max_parallel_tasks === '') {
         this.item.max_parallel_tasks = 0;
+      }
+      if (typeof this.item.alert_thread === 'string') {
+        const thread = this.item.alert_thread.trim();
+        this.item.alert_thread = thread === '' ? null : thread;
       }
     },
   },
