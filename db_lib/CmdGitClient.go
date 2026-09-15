@@ -28,6 +28,14 @@ func (c CmdGitClient) makeCmd(
 	cmd := exec.Command("git") //nolint: gas
 
 	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv()...)
+	if !hasEnvVar(cmd.Env, "HOME") {
+		if homeDir := getHomeDir(r.Repository, r.TemplateID); homeDir != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", homeDir))
+		} else if h := os.Getenv("HOME"); h != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", h))
+		}
+	}
+	appendPlatformEnv(&cmd.Env)
 
 	switch targetDir {
 	case GitRepositoryTmpPath:
@@ -94,6 +102,13 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 	return
 }
 
+func gitSubmoduleJobs() int {
+	if util.Config != nil && util.Config.GitSubmoduleJobs >= 1 {
+		return util.Config.GitSubmoduleJobs
+	}
+	return 1
+}
+
 func (c CmdGitClient) Clone(r GitRepository) error {
 	r.Logger.Log("Cloning Repository " + r.Repository.GitURL)
 
@@ -116,7 +131,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 		"clone",
 		"--recursive",
 		"--jobs",
-		strconv.Itoa(util.Config.GitSubmoduleJobs),
+		strconv.Itoa(gitSubmoduleJobs()),
 		"--branch",
 		r.Repository.GitBranch,
 		"--end-of-options",
@@ -137,7 +152,7 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 		"--init",
 		"--recursive",
 		"--jobs",
-		strconv.Itoa(util.Config.GitSubmoduleJobs))
+		strconv.Itoa(gitSubmoduleJobs()))
 }
 
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {

@@ -42,34 +42,146 @@ func TestRepository_ClearCache(t *testing.T) {
 }
 
 func TestRepository_GetGitURL(t *testing.T) {
-	for _, v := range []struct {
+	tests := []struct {
+		name           string
 		Repository     Repository
+		Secure         bool
 		ExpectedGitUrl string
 	}{
 		{
-			Repository: Repository{GitURL: "https://github.com/user/project.git", SSHKey: AccessKey{
-				Type: AccessKeyLoginPassword,
-				LoginPassword: LoginPassword{
-					Login:    "login",
-					Password: "password",
+			name: "HTTPS login+password credentials embedded",
+			Repository: Repository{
+				GitURL: "https://github.com/user/project.git",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "login",
+						Password: "password",
+					},
 				},
 			},
-			},
+			Secure:         false,
 			ExpectedGitUrl: "https://login:password@github.com/user/project.git",
 		},
 		{
-			Repository: Repository{GitURL: "https://github.com/user/project.git", SSHKey: AccessKey{
-				Type: AccessKeyLoginPassword,
-				LoginPassword: LoginPassword{
-					Password: "password",
+			name: "HTTPS token-only (no login) embedded as user",
+			Repository: Repository{
+				GitURL: "https://github.com/user/project.git",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Password: "password",
+					},
 				},
 			},
-			},
+			Secure:         false,
 			ExpectedGitUrl: "https://password@github.com/user/project.git",
 		},
-	} {
-		gitUrl := v.Repository.GetGitURL(false)
-		assert.Equal(t, v.ExpectedGitUrl, gitUrl, "wrong gitUrl")
+		{
+			name: "HTTPS special chars in login and password are RFC 3986 encoded",
+			Repository: Repository{
+				GitURL: "https://devops.domain.com/tfs/project/_git/repo",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "user@domain.com",
+						Password: "pass#word@123",
+					},
+				},
+			},
+			Secure:         false,
+			ExpectedGitUrl: "https://user%40domain.com:pass%23word%40123@devops.domain.com/tfs/project/_git/repo",
+		},
+		{
+			name: "HTTPS password with multiple special chars encoded correctly",
+			Repository: Repository{
+				GitURL: "https://devops.domain.com/tfs/project/_git/repo",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "user",
+						Password: "p@ss:w%rd+1&2?3",
+					},
+				},
+			},
+			Secure:         false,
+			ExpectedGitUrl: "https://user:p%40ss%3Aw%25rd+1&2%3F3@devops.domain.com/tfs/project/_git/repo",
+		},
+		{
+			name: "HTTPS token with percent and hash encoded",
+			Repository: Repository{
+				GitURL: "https://devops.domain.com/tfs/project/_git/repo",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Password: "token%with#special@chars",
+					},
+				},
+			},
+			Secure:         false,
+			ExpectedGitUrl: "https://token%25with%23special%40chars@devops.domain.com/tfs/project/_git/repo",
+		},
+		{
+			name: "HTTPS secure=true strips embedded credentials",
+			Repository: Repository{
+				GitURL: "https://devops.domain.com/tfs/project/_git/repo",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "user@domain.com",
+						Password: "pass#word@123",
+					},
+				},
+			},
+			Secure:         true,
+			ExpectedGitUrl: "https://devops.domain.com/tfs/project/_git/repo",
+		},
+		{
+			name: "HTTPS with userinfo in URL secure=true strips userinfo",
+			Repository: Repository{
+				GitURL: "https://user:secret@devops.domain.com:8443/tfs/project/_git/repo",
+			},
+			Secure:         true,
+			ExpectedGitUrl: "https://devops.domain.com:8443/tfs/project/_git/repo",
+		},
+		{
+			name: "SSH URL is returned as-is",
+			Repository: Repository{
+				GitURL: "git@github.com:user/project.git",
+			},
+			Secure:         true,
+			ExpectedGitUrl: "git@github.com:user/project.git",
+		},
+		{
+			name: "Local path is returned as-is",
+			Repository: Repository{
+				GitURL: "/tmp/local/repo",
+			},
+			Secure:         false,
+			ExpectedGitUrl: "/tmp/local/repo",
+		},
+		{
+			name: "Plain HTTP credentials NOT embedded (CWE-319)",
+			Repository: Repository{
+				GitURL: "http://insecure-git.domain.local/project/_git/repo",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "user@domain.com",
+						Password: "secretpassword",
+					},
+				},
+			},
+			Secure:         false,
+			ExpectedGitUrl: "http://insecure-git.domain.local/project/_git/repo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gitUrl := tt.Repository.GetGitURL(tt.Secure)
+			assert.Equal(t, tt.ExpectedGitUrl, gitUrl, "wrong gitUrl for scenario: %s", tt.name)
+		})
 	}
 }
 
