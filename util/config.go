@@ -681,8 +681,6 @@ type ConfigType struct {
 
 	EnvVars map[string]string `json:"env_vars,omitempty" env:"SEMAPHORE_ENV_VARS"`
 
-	// ForwardedEnvVars defines host environment variables forwarded into task runs and child Git processes.
-	// For bare-metal proxy environments, explicitly forward HTTP_PROXY, HTTPS_PROXY, and NO_PROXY.
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
 
 	Teams *TeamsConfig `json:"teams,omitempty"`
