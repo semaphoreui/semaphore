@@ -94,6 +94,7 @@ tasks:
       - >-
         {{ if eq OS "windows" }}set VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }} && {{ else }}env VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }}{{ end }}
         npm run build
+      - git checkout ../api/public/.gitkeep || echo "g" > ../api/public/.gitkeep
 
   build:be:
     desc: Build server binary
