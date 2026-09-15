@@ -372,6 +372,14 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		return err
 	}
 
+	// A plan may handle SIGTERM and exit successfully; do not interpret that as
+	// normal completion or continue to the next Terraform stage.
+	select {
+	case <-args.StopCh:
+		return nil
+	default:
+	}
+
 	params := args.TaskParams.(*db.TerraformTaskParams)
 	tplParams := args.TemplateParams.(*db.TerraformTemplateParams)
 
