@@ -137,6 +137,20 @@
               <v-list-item-title>Devolutions Server</v-list-item-title>
             </v-list-item>
 
+            <v-list-item
+              link
+              @click="
+                editItem('new');
+                itemType = 'cyberark';
+              "
+              :disabled="!features.secret_storage_management_ex"
+            >
+              <v-list-item-icon>
+                <v-icon>$vuetify.icons.cyberark</v-icon>
+              </v-list-item-icon>
+              <v-list-item-title>CyberArk Conjur</v-list-item-title>
+            </v-list-item>
+
             <a
               v-if="features.secret_storage_management && !features.secret_storage_management_ex"
               class="SecretStoragesEnterpriseMenu__overlay"
@@ -333,6 +347,8 @@ export default {
           return '$vuetify.icons.aws_sm';
         case 'azure_kv':
           return '$vuetify.icons.azure_kv';
+        case 'cyberark':
+          return '$vuetify.icons.cyberark';
         default:
           return '';
       }
