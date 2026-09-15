@@ -126,3 +126,38 @@ func TestSqlDb_CreateRepository_EmbeddedCredentialsPlainHTTPRejected(t *testing.
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "password authentication is not supported over plain HTTP")
 }
+
+func TestValidateRepository_DoesNotMutateRepo(t *testing.T) {
+	store := InitConfigCreateTestStore()
+
+	project, err := store.CreateProject(db.Project{Name: "mutation test project"})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		Name:      "test key",
+		Type:      db.AccessKeyLoginPassword,
+		ProjectID: &project.ID,
+		LoginPassword: db.LoginPassword{
+			Login:    "user",
+			Password: "secretpassword",
+		},
+	})
+	require.NoError(t, err)
+
+	repo := db.Repository{
+		Name:      "valid repo",
+		ProjectID: project.ID,
+		GitURL:    "https://gitlab.local/user/repo.git",
+		GitBranch: "main",
+		SSHKeyID:  key.ID,
+	}
+
+	// Before validation, repo.SSHKey is empty
+	assert.Equal(t, db.AccessKey{}, repo.SSHKey)
+
+	err = db.ValidateRepository(store, &repo)
+	require.NoError(t, err)
+
+	// After validation, repo.SSHKey must still be empty (no mutation)
+	assert.Equal(t, db.AccessKey{}, repo.SSHKey)
+}
