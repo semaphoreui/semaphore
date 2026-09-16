@@ -31,6 +31,21 @@ func testReadPID(path string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(string(value)))
 }
 
+func Test_RunCommand_DoesNotStartWhenCancellationIsPending(t *testing.T) {
+	t.Parallel()
+
+	startedFile := filepath.Join(t.TempDir(), "started")
+	cmd := exec.Command("sh", "-c", `touch "$1"`, "sh", startedFile)
+	stopCh := make(chan struct{})
+	close(stopCh)
+
+	err := runCommand(cmd, stopCh, task_logger.NopLogger{})
+
+	assert.NoError(t, err)
+	assert.Nil(t, cmd.Process)
+	assert.NoFileExists(t, startedFile)
+}
+
 func runCommandWithSigtermHandler(t *testing.T, exitCode int) error {
 	t.Helper()
 

@@ -89,6 +89,14 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 	finishLog := p.Logger.LogCmd(cmd)
 	defer finishLog()
 
+	// This is the last pre-run cancellation check. The check and pty.Start are
+	// not atomic; if cancellation wins between them, waitCommand stops the process.
+	select {
+	case <-stopCh:
+		return nil
+	default:
+	}
+
 	ptmx, err := pty.Start(cmd)
 
 	if err != nil {
