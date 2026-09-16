@@ -622,6 +622,14 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 		return
 	}
 
+	// A proxy refers to another one through requires_proxy_id, and to a key
+	// through ssh_key_id. Without this, deleting either reports no reference and
+	// the foreign key silently nulls the link.
+	refs.Proxies, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.ProxyProps)
+	if err != nil {
+		return
+	}
+
 	return
 }
 

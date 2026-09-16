@@ -42,13 +42,11 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 		"insert into access_key (name, type, project_id) values ('key', 'none', ?)", projectID)
 	require.NoError(t, err)
 
-	repo, err := store.CreateRepository(db.Repository{
-		ProjectID: projectID,
-		Name:      "repo",
-		GitURL:    "https://example.com/repo.git",
-		GitBranch: "main",
-		SSHKeyID:  keyID,
-	})
+	// SqlDb.CreateRepository writes proxy_id, which appears only in 2.20.5,
+	// so seed the repository with SQL matching the 2.19.12 schema.
+	repoID, err := store.insert("id",
+		"insert into project__repository (project_id, name, git_url, git_branch, ssh_key_id) "+
+			"values (?, 'repo', 'https://example.com/repo.git', 'main', ?)", projectID, keyID)
 	require.NoError(t, err)
 
 	// SqlDb.CreateTemplate writes working_directory, which appears only in 2.20.3,
@@ -56,7 +54,7 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 	templateID, err := store.insert("id",
 		"insert into project__template (project_id, repository_id, name, playbook, app) "+
 			"values (?, ?, 'tpl', 'site.yml', '')",
-		projectID, repo.ID)
+		projectID, repoID)
 	require.NoError(t, err)
 
 	task, err := store.CreateTask(db.Task{

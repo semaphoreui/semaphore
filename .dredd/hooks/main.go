@@ -106,6 +106,11 @@ func main() {
 	h.Before("repository > /api/project/{project_id}/repositories/{repository_id} > Updates repository > 204 > application/json", capabilityWrapper("repository"))
 	h.Before("repository > /api/project/{project_id}/repositories/{repository_id} > Removes repository > 204 > application/json", capabilityWrapper("repository"))
 
+	h.Before("project > /api/project/{project_id}/proxies > Create proxy > 201 > application/json", capabilityWrapper("access_key"))
+	h.Before("project > /api/project/{project_id}/proxies/{proxy_id} > Get proxy > 200 > application/json", capabilityWrapper("proxy"))
+	h.Before("project > /api/project/{project_id}/proxies/{proxy_id} > Update proxy > 204 > application/json", capabilityWrapper("proxy"))
+	h.Before("project > /api/project/{project_id}/proxies/{proxy_id} > Remove proxy > 204 > application/json", capabilityWrapper("proxy"))
+
 	h.Before("inventory > /api/project/{project_id}/inventory > create inventory > 201 > application/json", capabilityWrapper("inventory"))
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Get inventory > 200 > application/json", capabilityWrapper("inventory"))
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Updates inventory > 204 > application/json", capabilityWrapper("inventory"))
