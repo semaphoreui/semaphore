@@ -305,8 +305,15 @@ func galaxyGitEnv(repo db.Repository) (env []string) {
 		withAuth.User = url.UserPassword(login, repo.SSHKey.LoginPassword.Password)
 	}
 
+	// git splits each GIT_CONFIG_PARAMETERS entry at its first "=", and net/url
+	// leaves "=" unescaped in userinfo, so a credential containing one would cut
+	// the key short and abort the clone with "error: invalid key". git decodes
+	// the escape again when it authenticates. Only the credential can hold one:
+	// the path, query and fragment are cleared above.
+	authURL := strings.ReplaceAll(withAuth.String(), "=", "%3D")
+
 	return append(env, "GIT_CONFIG_PARAMETERS="+sqQuote(
-		"url."+withAuth.String()+".insteadOf="+plain.String()))
+		"url."+authURL+".insteadOf="+plain.String()))
 }
 
 // galaxyExtraArgs returns the template-configured arguments for one galaxy

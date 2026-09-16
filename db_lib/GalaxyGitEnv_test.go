@@ -3,6 +3,7 @@ package db_lib
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"testing"
@@ -242,4 +243,61 @@ func TestInstallRequirements_NilInstaller(t *testing.T) {
 	app := newGalaxyApp(db.Repository{})
 
 	assert.NoError(t, app.InstallRequirements(LocalAppInstallingArgs{}))
+}
+
+// TestGalaxyGitEnv_EscapesEqualsInCredentials covers a credential containing an
+// "=", which is common in tokens. git splits a GIT_CONFIG_PARAMETERS entry at
+// the first "=", so an unescaped one truncates the key and aborts the clone.
+func TestGalaxyGitEnv_EscapesEqualsInCredentials(t *testing.T) {
+	tests := []struct {
+		name     string
+		login    string
+		password string
+		expected string
+	}{
+		{"equals in password", "bob", "tok=en", "bob:tok%3Den@git.private.repo"},
+		{"equals in token only login", "", "ghp_ab=cd", "ghp_ab%3Dcd@git.private.repo"},
+		{"equals in login", "us=er", "pw", "us%3Der:pw@git.private.repo"},
+		{"equals at both ends", "a=b", "c=d", "a%3Db:c%3Dd@git.private.repo"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := galaxyGitEnv(httpRepo("https://git.private.repo/acme/roles.git", tt.login, tt.password))
+
+			require.Len(t, env, 2)
+			params := strings.TrimPrefix(env[1], "GIT_CONFIG_PARAMETERS=")
+			assert.Contains(t, params, tt.expected)
+
+			// The key is everything before the first "=", so the rewrite must
+			// still be the whole url.<authenticated>.insteadOf key.
+			key, _, found := strings.Cut(strings.Trim(params, "'"), "=")
+			require.True(t, found)
+			assert.True(t, strings.HasSuffix(key, ".insteadOf"),
+				"the config key must not be cut short by a credential: %q", key)
+		})
+	}
+}
+
+// TestGalaxyGitEnv_ParsedByGit hands the generated value to the real git binary,
+// which is the only thing that decides whether the rewrite installs.
+func TestGalaxyGitEnv_ParsedByGit(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+
+	env := galaxyGitEnv(httpRepo("https://git.private.repo/acme/roles.git", "bob", "tok=en"))
+	require.Len(t, env, 2)
+
+	cmd := exec.Command("git", "config", "--get-regexp", "^url\\.")
+	cmd.Dir = t.TempDir()
+	// A clean environment: the developer's own ~/.gitconfig also holds url.*
+	// rewrites, which would make this pass for the wrong reason.
+	cmd.Env = []string{env[1], "HOME=" + cmd.Dir, "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null"}
+
+	out, err := cmd.CombinedOutput()
+
+	require.NoError(t, err, "git could not parse the config: %s", out)
+	assert.Contains(t, string(out), "bob:tok%3Den@git.private.repo")
+	assert.Contains(t, string(out), "insteadof https://git.private.repo/")
 }
