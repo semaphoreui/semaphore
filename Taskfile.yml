@@ -30,11 +30,11 @@ tasks:
     vars:
       SWAGGER_VERSION: v0.30.5
       GORELEASER_VERSION: v2.11.2
-      GOLINTER_VERSION: v1.57.2
+      GOLINTER_VERSION: v2.13.2
     cmds:
-#      - go install github.com/go-swagger/go-swagger/cmd/swagger@{{ .SWAGGER_VERSION }}
+      - go install github.com/go-swagger/go-swagger/cmd/swagger@latest
       - go install github.com/goreleaser/goreleaser/v2@{{ .GORELEASER_VERSION }}
-#      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@{{ .GOLINTER_VERSION }}
+      - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{ .GOLINTER_VERSION }}
     dir: /tmp
 
   deps:be:
@@ -112,6 +112,27 @@ tasks:
       DATE: "{{ now | unixEpoch }}"
       IMPORT: "github.com/semaphoreui/semaphore"
 
+  docs:gen:
+    desc: Regenerate the generated documentation reference pages from the source
+    cmds:
+      - go run ./tools/docsref -out docs/docs/reference/configuration.md
+      - go run ./tools/clidocs -out docs/docs/reference/cli/commands.md
+
+  docs:check:
+    desc: Fail if the generated documentation pages are out of date
+    cmds:
+      - task: docs:gen
+      - |
+        # --porcelain rather than `diff --quiet` so that a brand new generated
+        # page, which is untracked rather than modified, also fails the check.
+        changed=$(git -C docs status --porcelain -- docs/reference)
+        if [ -n "$changed" ]; then
+          echo "The generated documentation reference is out of date."
+          echo "Run 'task docs:gen' and commit docs/docs/reference."
+          echo "$changed"
+          exit 1
+        fi
+
   lint:
     cmds:
       - task: lint:fe
@@ -129,7 +150,7 @@ tasks:
 
   test:
     cmds:
-      # - task: test:fe
+      - task: test:fe
       - task: test:be
 
   test:fe:

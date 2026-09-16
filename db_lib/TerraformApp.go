@@ -94,7 +94,7 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []
 		}
 	}
 
-	cmd := exec.Command(command, args...) //nolint: gas
+	cmd := exec.Command(command, args...) //nolint:gosec
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()

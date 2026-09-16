@@ -592,7 +592,8 @@ type ConfigType struct {
 	// access keyring.
 	OptionEncryption string `json:"option_encryption,omitempty" env:"SEMAPHORE_OPTION_ENCRYPTION,sensitive"`
 
-	// email alerting
+	// EmailAlert enables the e-mail notification channel. The email_* settings
+	// below describe the SMTP server it sends through.
 	EmailAlert         bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
 	EmailSender        string `json:"email_sender,omitempty" env:"SEMAPHORE_EMAIL_SENDER"`
 	EmailHost          string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
@@ -603,7 +604,9 @@ type ConfigType struct {
 	EmailTls           bool   `json:"email_tls,omitempty" env:"SEMAPHORE_EMAIL_TLS"`
 	EmailTlsMinVersion string `json:"email_tls_min_version,omitempty" default:"1.2" rule:"^(1\\.[0123])$" env:"SEMAPHORE_EMAIL_TLS_MIN_VERSION"`
 
-	// ldap settings
+	// LdapEnable turns on the legacy single-directory LDAP login configured by
+	// the flat ldap_* settings below. Use ldap_providers instead when more than
+	// one directory is involved.
 	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"SEMAPHORE_LDAP_ENABLE"`
 	LdapBindDN       string        `json:"ldap_binddn,omitempty" env:"SEMAPHORE_LDAP_BIND_DN"`
 	LdapBindPassword string        `json:"ldap_bindpassword,omitempty" env:"SEMAPHORE_LDAP_BIND_PASSWORD,sensitive"`
@@ -622,7 +625,8 @@ type ConfigType struct {
 	// ID "ldap" is reserved for the legacy flat ldap_* config above.
 	LdapProviders map[string]LdapProvider `json:"ldap_providers,omitempty" env:"SEMAPHORE_LDAP_PROVIDERS"`
 
-	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
+	// TelegramAlert enables the Telegram notification channel, which also needs
+	// telegram_token and a default telegram_chat.
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN,sensitive"`
@@ -638,7 +642,9 @@ type ConfigType struct {
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN,sensitive"`
 
-	// oidc settings
+	// OidcProviders configures OpenID Connect sign-in. The key is the provider ID
+	// that appears in identity records and in the /auth/oidc/<id>/login URL, so it
+	// must stay stable once users have signed in through it.
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
 
 	MaxTaskDurationSec  int `json:"max_task_duration_sec,omitempty" env:"SEMAPHORE_MAX_TASK_DURATION_SEC"`
@@ -652,7 +658,9 @@ type ConfigType struct {
 
 	JWT *JWTConfig `json:"jwt,omitempty"`
 
-	// feature switches
+	// PasswordLoginDisable rejects the "password" login method, leaving LDAP and
+	// OpenID Connect as the only ways in. Set it once an identity provider is
+	// configured and working, so that local passwords stop being a second door.
 	PasswordLoginDisable bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
 	// ExternalAuthEmailMatching controls whether an LDAP/OIDC login may be
 	// linked to an existing user by email when no external identity record
@@ -1012,7 +1020,7 @@ func loadDefaultsToObject(obj any) error {
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		v = reflect.Indirect(v)
 	}
@@ -1026,7 +1034,7 @@ func loadDefaultsToObject(obj any) error {
 		}
 
 		fieldKind := fieldInfo.Type.Kind()
-		isPtrToStruct := fieldKind == reflect.Ptr && fieldInfo.Type.Elem().Kind() == reflect.Struct
+		isPtrToStruct := fieldKind == reflect.Pointer && fieldInfo.Type.Elem().Kind() == reflect.Struct
 
 		if !fieldValue.IsZero() && fieldKind != reflect.Struct && fieldKind != reflect.Map && !isPtrToStruct {
 			continue
@@ -1419,7 +1427,7 @@ func setConfigValue(attribute reflect.Value, value string) {
 				panic(err)
 			}
 			attribute.Set(mapValue.Elem())
-		case reflect.Ptr:
+		case reflect.Pointer:
 			elemType := attribute.Type().Elem()
 			elemKind := elemType.Kind()
 
@@ -1483,7 +1491,7 @@ func validate(value any) error {
 	t := reflect.TypeOf(value)
 	v := reflect.ValueOf(value)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		v = reflect.Indirect(v)
 	}
@@ -1794,7 +1802,7 @@ func readEncryptionKeysConfigFile(path string) (*EncryptionKeysConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	// Parse via YAML regardless of extension: YAML 1.2 is a superset of JSON, so
 	// this accepts both formats. The file is often a Kubernetes secret mounted at
@@ -1884,7 +1892,7 @@ func loadEnvironmentToObject(obj any) (resultSensitiveEnvs []string, err error) 
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		v = reflect.Indirect(v)
 	}
@@ -1904,7 +1912,7 @@ func loadEnvironmentToObject(obj any) (resultSensitiveEnvs []string, err error) 
 			}
 			resultSensitiveEnvs = append(resultSensitiveEnvs, currSensitiveEnvs...)
 			continue
-		} else if fieldType.Type.Kind() == reflect.Ptr && fieldType.Type.Elem().Kind() == reflect.Struct {
+		} else if fieldType.Type.Kind() == reflect.Pointer && fieldType.Type.Elem().Kind() == reflect.Struct {
 			if fieldValue.IsZero() {
 				newValue := reflect.New(fieldType.Type.Elem())
 				fieldValue.Set(newValue)
@@ -1967,7 +1975,10 @@ func loadConfigEnvironment() {
 	}
 
 	for _, sensitiveEnv := range sensitiveEnvs {
-		os.Unsetenv(sensitiveEnv)
+		err = os.Unsetenv(sensitiveEnv)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -2032,10 +2043,10 @@ func mapToQueryString(m map[string]string) (str string) {
 // if not found it will attempt to find the absolute path of the first
 // os argument, the semaphore command, and return it
 func FindSemaphore() string {
-	cmdPath, _ := exec.LookPath("semaphore") //nolint: gas
+	cmdPath, _ := exec.LookPath("semaphore") //nolint:gosec
 
 	if len(cmdPath) == 0 {
-		cmdPath, _ = filepath.Abs(os.Args[0]) // nolint: gas
+		cmdPath, _ = filepath.Abs(os.Args[0]) //nolint:gosec
 	}
 
 	return cmdPath

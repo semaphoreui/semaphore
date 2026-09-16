@@ -288,6 +288,7 @@ func (p *TaskPool) Run() {
 			log.WithFields(log.Fields{
 				"task_id":   task.Task.ID,
 				"task_name": task.Template.Name,
+				"username":  task.Username,
 			}).Info("Task added to queue")
 			task.saveStatus()
 
@@ -468,6 +469,7 @@ func runTask(task *TaskRunner, p *TaskPool) {
 		"context":   "task_pool",
 		"task_id":   task.Task.ID,
 		"task_name": task.Template.Name,
+		"username":  task.Username,
 	}).Info("Set resource locker")
 	p.onTaskRun(task)
 
@@ -475,6 +477,7 @@ func runTask(task *TaskRunner, p *TaskPool) {
 		"context":   "task_pool",
 		"task_id":   task.Task.ID,
 		"task_name": task.Template.Name,
+		"username":  task.Username,
 	}).Info("Task started")
 	go func() {
 		time.Sleep(1 * time.Second)

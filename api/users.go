@@ -395,7 +395,7 @@ func (c *UsersController) TotpQr(w http.ResponseWriter, r *http.Request) {
 	pngBytes := buf.Bytes()
 
 	w.Header().Add("Content-Type", "image/png")
-	_, err = w.Write(pngBytes)
+	_, _ = w.Write(pngBytes)
 }
 
 func (c *UsersController) EnableTotp(w http.ResponseWriter, r *http.Request) {
