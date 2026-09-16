@@ -47,7 +47,7 @@ func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error
 			return nil, err
 		}
 
-		defer install.Destroy()
+		defer install.Destroy() //nolint:errcheck
 
 		var sshKeyBuff = r.Repository.SSHKey.SshKey.PrivateKey
 

@@ -59,7 +59,7 @@ func TestGetHomeDir(t *testing.T) {
 	// Set a known HOME value for testing
 	originalHome := os.Getenv("HOME")
 	testHome := "/home/testuser"
-	os.Setenv("HOME", testHome) //nolint:errcheck
+	os.Setenv("HOME", testHome)           //nolint:errcheck
 	defer os.Setenv("HOME", originalHome) //nolint:errcheck
 
 	// Save original config and restore after all tests
