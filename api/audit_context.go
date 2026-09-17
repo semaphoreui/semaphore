@@ -17,17 +17,11 @@ const (
 	maxUserAgentBytes       = 1024
 )
 
-type AuditRequestContext = helpers.AuditRequestContext
-
-func AuditRequestContextFrom(r *http.Request) (AuditRequestContext, bool) {
-	return helpers.AuditRequestContextFrom(r)
-}
-
 func AuditRequestContextMiddleware(trustedProxies []netip.Prefix) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			peer, ok := requestPeerIP(r.RemoteAddr)
-			securityContext := AuditRequestContext{
+			securityContext := helpers.AuditRequestContext{
 				RequestID: uuid.NewString(),
 				UserAgent: normalizeUserAgent(r.UserAgent()),
 			}
