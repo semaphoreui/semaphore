@@ -43,6 +43,8 @@ const (
 	DbDriverSQLite   = "sqlite"
 )
 
+const auditDestinationIDMaxSize = 255
+
 const (
 	// HomeDirModeUserHome does not override HOME.
 	// Sets ANSIBLE_HOME per template to isolate .ansible/ across parallel tasks.
@@ -345,8 +347,31 @@ type SyslogConfig struct {
 }
 
 type AuditConfig struct {
+	// Enabled enables reliable export of canonical audit events.
+	Enabled bool `json:"enabled,omitempty"`
+	// InstanceID is the stable identity of this Semaphore instance for audit export leases.
+	InstanceID string `json:"instance_id,omitempty"`
 	// TrustedProxyCIDRs lists proxy networks allowed to provide audit client address headers.
 	TrustedProxyCIDRs []string `json:"trusted_proxy_cidrs,omitempty"`
+	// Destination is the single v1 audit export destination.
+	Destination *AuditDestinationConfig `json:"destination,omitempty"`
+}
+
+type AuditDestinationConfig struct {
+	ID     string             `json:"id,omitempty"`
+	Type   string             `json:"type,omitempty"`
+	Syslog *AuditSyslogConfig `json:"syslog,omitempty"`
+}
+
+type AuditSyslogConfig struct {
+	Address string                `json:"address,omitempty"`
+	Timeout string                `json:"timeout,omitempty"`
+	TLS     *AuditSyslogTLSConfig `json:"tls,omitempty"`
+}
+
+type AuditSyslogTLSConfig struct {
+	CAFile     string `json:"ca_file,omitempty"`
+	ServerName string `json:"server_name,omitempty"`
 }
 
 type MetricsConfig struct {
@@ -1878,8 +1903,43 @@ func (conf *ConfigType) validateAuditConfig() error {
 	if conf.Audit == nil {
 		return nil
 	}
-	_, err := ParseTrustedProxyCIDRs(conf.Audit.TrustedProxyCIDRs)
-	return err
+	if _, err := ParseTrustedProxyCIDRs(conf.Audit.TrustedProxyCIDRs); err != nil {
+		return err
+	}
+	if !conf.Audit.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(conf.Audit.InstanceID) == "" {
+		return errors.New("audit.instance_id must not be empty when audit.enabled is true")
+	}
+
+	destination := conf.Audit.Destination
+	if destination == nil {
+		return errors.New("audit.destination must be configured when audit.enabled is true")
+	}
+	if destination.ID == "" {
+		return errors.New("audit.destination.id must not be empty")
+	}
+	if len(destination.ID) > auditDestinationIDMaxSize {
+		return fmt.Errorf(
+			"audit.destination.id must not exceed %d bytes",
+			auditDestinationIDMaxSize,
+		)
+	}
+	if destination.Type != "syslog" {
+		return errors.New("audit.destination.type must be syslog")
+	}
+	if destination.Syslog == nil {
+		return errors.New("audit.destination.syslog must be configured")
+	}
+	if strings.TrimSpace(destination.Syslog.Address) == "" {
+		return errors.New("audit.destination.syslog.address must not be empty")
+	}
+	timeout, err := time.ParseDuration(destination.Syslog.Timeout)
+	if err != nil || timeout <= 0 {
+		return errors.New("audit.destination.syslog.timeout must be a positive duration")
+	}
+	return nil
 }
 
 func validateConfig() {
