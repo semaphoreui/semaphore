@@ -704,6 +704,50 @@ func TestValidateAuditConfig(t *testing.T) {
 	}
 }
 
+func TestValidateAuditConfigInstanceAndNodeIDBounds(t *testing.T) {
+	valid := func() *ConfigType {
+		return &ConfigType{
+			Audit: &AuditConfig{
+				Enabled:    true,
+				InstanceID: strings.Repeat("a", 255),
+				Destination: &AuditDestinationConfig{
+					ID:   "primary-siem",
+					Type: "syslog",
+					Syslog: &AuditSyslogConfig{
+						Address: "siem.internal.example:6514",
+						Timeout: "10s",
+					},
+				},
+			},
+			HA: &HAConfig{NodeID: strings.Repeat("a", 255)},
+		}
+	}
+
+	config := valid()
+	assert.NoError(t, config.validateAuditConfig())
+
+	config.Audit.InstanceID += "a"
+	assert.ErrorContains(t, config.validateAuditConfig(), "audit.instance_id")
+	config.Audit.InstanceID = strings.Repeat("é", 128)
+	assert.Less(t, utf8.RuneCountInString(config.Audit.InstanceID), 255)
+	assert.Greater(t, len(config.Audit.InstanceID), 255)
+	assert.ErrorContains(t, config.validateAuditConfig(), "audit.instance_id")
+
+	config = valid()
+	config.HA.NodeID += "a"
+	assert.ErrorContains(t, config.validateAuditConfig(), "ha.node_id")
+	config.HA.NodeID = strings.Repeat("é", 128)
+	assert.Less(t, utf8.RuneCountInString(config.HA.NodeID), 255)
+	assert.Greater(t, len(config.HA.NodeID), 255)
+	assert.ErrorContains(t, config.validateAuditConfig(), "ha.node_id")
+
+	config = valid()
+	config.HA = nil
+	assert.NoError(t, config.validateAuditConfig())
+	config.HA = &HAConfig{}
+	assert.NoError(t, config.validateAuditConfig())
+}
+
 func TestValidateAuditConfigDestinationIDBounds(t *testing.T) {
 	config := NewConfigType()
 	config.Audit = &AuditConfig{
