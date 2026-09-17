@@ -585,6 +585,25 @@ func TestValidateConfig(t *testing.T) {
 	Config.AccessKeyEncryption = testCookieHash
 }
 
+func TestValidateConfigTrustedProxyCIDRs(t *testing.T) {
+	originalConfig := Config
+	defer func() { Config = originalConfig }()
+
+	Config = NewConfigType()
+	loadConfigDefaults()
+	Config.Audit = &AuditConfig{TrustedProxyCIDRs: []string{"not-a-cidr"}}
+
+	var recovered any
+	func() {
+		defer func() { recovered = recover() }()
+		validateConfig()
+	}()
+
+	err, ok := recovered.(error)
+	require.True(t, ok)
+	assert.ErrorContains(t, err, "audit.trusted_proxy_cidrs[0] must be a valid CIDR")
+}
+
 func TestGetSecretsPath_DirsSecrets(t *testing.T) {
 	Config = NewConfigType()
 	Config.Dirs = &ConfigDirs{Secrets: "/custom/dirs/secrets"}

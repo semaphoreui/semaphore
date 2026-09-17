@@ -1,0 +1,215 @@
+package api
+
+import (
+	"context"
+	"net"
+	"net/http"
+	"net/netip"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/google/uuid"
+)
+
+const (
+	maxForwardedHeaderBytes = 4096
+	maxForwardedHops        = 32
+	maxUserAgentBytes       = 1024
+)
+
+type auditRequestContextKey struct{}
+
+// AuditRequestContext contains normalized request metadata for audit mapping.
+type AuditRequestContext struct {
+	RequestID string
+	SourceIP  string
+	UserAgent string
+}
+
+func AuditRequestContextFrom(r *http.Request) (AuditRequestContext, bool) {
+	value, ok := r.Context().Value(auditRequestContextKey{}).(AuditRequestContext)
+	return value, ok
+}
+
+func AuditRequestContextMiddleware(trustedProxies []netip.Prefix) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			peer, ok := requestPeerIP(r.RemoteAddr)
+			securityContext := AuditRequestContext{
+				RequestID: uuid.NewString(),
+				UserAgent: normalizeUserAgent(r.UserAgent()),
+			}
+			if ok {
+				securityContext.SourceIP = peer.String()
+			}
+			if ok && isTrustedProxy(peer, trustedProxies) {
+				if source, ok := forwardedSourceIP(r, trustedProxies); ok {
+					securityContext.SourceIP = source.String()
+				}
+			}
+
+			w.Header().Set("X-Request-ID", securityContext.RequestID)
+			ctx := context.WithValue(r.Context(), auditRequestContextKey{}, securityContext)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func requestPeerIP(remoteAddr string) (netip.Addr, bool) {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err == nil {
+		remoteAddr = host
+	}
+	addr, err := netip.ParseAddr(remoteAddr)
+	return addr, err == nil
+}
+
+func isTrustedProxy(addr netip.Addr, trustedProxies []netip.Prefix) bool {
+	for _, prefix := range trustedProxies {
+		if prefix.Contains(addr) {
+			return true
+		}
+	}
+	return false
+}
+
+func forwardedSourceIP(r *http.Request, trustedProxies []netip.Prefix) (netip.Addr, bool) {
+	if values := r.Header.Values("X-Forwarded-For"); len(values) > 0 {
+		return sourceFromXForwardedFor(values, trustedProxies)
+	}
+	if values := r.Header.Values("Forwarded"); len(values) > 0 {
+		return sourceFromForwarded(values)
+	}
+	if values := r.Header.Values("X-Real-IP"); len(values) > 0 {
+		return sourceFromXRealIP(values)
+	}
+	return netip.Addr{}, false
+}
+
+func sourceFromXForwardedFor(values []string, trustedProxies []netip.Prefix) (netip.Addr, bool) {
+	if len(values) > maxForwardedHops {
+		return netip.Addr{}, false
+	}
+
+	length := 0
+	hops := 0
+	for _, value := range values {
+		length += len(value)
+		if length > maxForwardedHeaderBytes {
+			return netip.Addr{}, false
+		}
+		hops++
+		for i := range value {
+			if value[i] == ',' {
+				hops++
+			}
+		}
+		if hops > maxForwardedHops {
+			return netip.Addr{}, false
+		}
+	}
+
+	addresses := make([]netip.Addr, 0, maxForwardedHops)
+	for _, value := range values {
+		for {
+			part, remaining, hasMore := strings.Cut(value, ",")
+			if len(addresses) == maxForwardedHops {
+				return netip.Addr{}, false
+			}
+			addr, err := netip.ParseAddr(strings.TrimSpace(part))
+			if err != nil {
+				return netip.Addr{}, false
+			}
+			addresses = append(addresses, addr)
+			if !hasMore {
+				break
+			}
+			value = remaining
+		}
+	}
+
+	for i := len(addresses) - 1; i >= 0; i-- {
+		if !isTrustedProxy(addresses[i], trustedProxies) {
+			return addresses[i], true
+		}
+	}
+	return netip.Addr{}, false
+}
+
+func sourceFromForwarded(values []string) (netip.Addr, bool) {
+	if len(values) != 1 {
+		return netip.Addr{}, false
+	}
+	value := values[0]
+	if len(value) > maxForwardedHeaderBytes || strings.Contains(value, ",") {
+		return netip.Addr{}, false
+	}
+
+	var source netip.Addr
+	found := false
+	for _, part := range strings.Split(value, ";") {
+		key, value, ok := strings.Cut(strings.TrimSpace(part), "=")
+		if !ok || key == "" || value == "" {
+			return netip.Addr{}, false
+		}
+		if !strings.EqualFold(key, "for") {
+			continue
+		}
+		if found {
+			return netip.Addr{}, false
+		}
+		addr, ok := parseForwardedAddress(value)
+		if !ok {
+			return netip.Addr{}, false
+		}
+		source = addr
+		found = true
+	}
+	return source, found
+}
+
+func parseForwardedAddress(value string) (netip.Addr, bool) {
+	if strings.HasPrefix(value, `"`) || strings.HasSuffix(value, `"`) {
+		if len(value) < 2 || !strings.HasPrefix(value, `"`) || !strings.HasSuffix(value, `"`) {
+			return netip.Addr{}, false
+		}
+		value = value[1 : len(value)-1]
+		if strings.ContainsAny(value, `"\\`) {
+			return netip.Addr{}, false
+		}
+	}
+
+	if addr, err := netip.ParseAddr(value); err == nil {
+		return addr, true
+	}
+	addrPort, err := netip.ParseAddrPort(value)
+	if err != nil {
+		return netip.Addr{}, false
+	}
+	return addrPort.Addr(), true
+}
+
+func sourceFromXRealIP(values []string) (netip.Addr, bool) {
+	if len(values) != 1 || len(values[0]) > maxForwardedHeaderBytes {
+		return netip.Addr{}, false
+	}
+	addr, err := netip.ParseAddr(values[0])
+	return addr, err == nil
+}
+
+func normalizeUserAgent(value string) string {
+	value = strings.TrimSpace(strings.ToValidUTF8(value, "?"))
+	if len(value) <= maxUserAgentBytes {
+		return value
+	}
+
+	limit := 0
+	for limit < len(value) {
+		_, size := utf8.DecodeRuneInString(value[limit:])
+		if limit+size > maxUserAgentBytes {
+			break
+		}
+		limit += size
+	}
+	return value[:limit]
+}
