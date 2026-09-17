@@ -97,7 +97,7 @@ func AuditResourceEvent(
 		log.Error("Failed to record audit event: missing audit request context")
 		return
 	}
-	userValue, ok := GetOkFromContext(r, "user")
+	userValue, _ := GetOkFromContext(r, "user")
 	user, ok := userValue.(*db.User)
 	if !ok || user == nil {
 		log.Error("Failed to record audit event: missing authenticated user")
