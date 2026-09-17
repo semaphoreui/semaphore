@@ -344,7 +344,15 @@ func runService() {
 
 	var router http.Handler = route
 
-	router = handlers.ProxyHeaders(router)
+	var trustedProxyCIDRs []string
+	if util.Config.Audit != nil {
+		trustedProxyCIDRs = util.Config.Audit.TrustedProxyCIDRs
+	}
+	trustedProxies, parseErr := util.ParseTrustedProxyCIDRs(trustedProxyCIDRs)
+	if parseErr != nil {
+		panic(parseErr)
+	}
+	router = api.AuditRequestContextMiddleware(trustedProxies)(handlers.ProxyHeaders(router))
 	http.Handle("/", router)
 
 	fmt.Println("Server is running")

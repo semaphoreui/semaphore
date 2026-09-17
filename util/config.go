@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/exec"
@@ -341,6 +342,11 @@ type SyslogConfig struct {
 	Address string       `json:"address,omitempty" env:"SEMAPHORE_SYSLOG_ADDRESS"`
 	Tag     string       `json:"tag,omitempty" env:"SEMAPHORE_SYSLOG_TAG"`
 	Format  SyslogFormat `json:"format,omitempty" env:"SEMAPHORE_SYSLOG_FORMAT"`
+}
+
+type AuditConfig struct {
+	// TrustedProxyCIDRs lists proxy networks allowed to provide audit client address headers.
+	TrustedProxyCIDRs []string `json:"trusted_proxy_cidrs,omitempty"`
 }
 
 type MetricsConfig struct {
@@ -686,6 +692,8 @@ type ConfigType struct {
 	Teams *TeamsConfig `json:"teams,omitempty"`
 
 	Syslog *SyslogConfig `json:"syslog,omitempty"`
+
+	Audit *AuditConfig `json:"audit,omitempty"`
 
 	Metrics *MetricsConfig `json:"metrics,omitempty"`
 
@@ -1846,6 +1854,27 @@ func validateAccessKeyEncryption(key string) error {
 	}
 }
 
+// ParseTrustedProxyCIDRs parses the proxy networks allowed to provide client address headers.
+func ParseTrustedProxyCIDRs(values []string) ([]netip.Prefix, error) {
+	prefixes := make([]netip.Prefix, 0, len(values))
+	for i, value := range values {
+		prefix, err := netip.ParsePrefix(value)
+		if err != nil {
+			return nil, fmt.Errorf("audit.trusted_proxy_cidrs[%d] must be a valid CIDR: %w", i, err)
+		}
+		prefixes = append(prefixes, prefix.Masked())
+	}
+	return prefixes, nil
+}
+
+func (conf *ConfigType) validateAuditConfig() error {
+	if conf.Audit == nil {
+		return nil
+	}
+	_, err := ParseTrustedProxyCIDRs(conf.Audit.TrustedProxyCIDRs)
+	return err
+}
+
 func validateConfig() {
 	err := validate(Config)
 	if err != nil {
@@ -1862,6 +1891,9 @@ func validateConfig() {
 		panic(err)
 	}
 	if err := validateAccessKeyEncryption(Config.OptionEncryption); err != nil {
+		panic(err)
+	}
+	if err := Config.validateAuditConfig(); err != nil {
 		panic(err)
 	}
 	if Config.keys != nil {
