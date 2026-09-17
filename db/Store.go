@@ -158,6 +158,11 @@ type ObjectProps struct {
 
 var ErrNotFound = errors.New("no rows in result set")
 var ErrInvalidOperation = errors.New("invalid operation")
+var ErrAuditExportStateNotFound = errors.New("audit export state not found")
+var ErrAuditExportLeaseContended = errors.New("audit export lease is contended")
+var ErrAuditExportLeaseLost = errors.New("audit export lease is lost")
+var ErrAuditExportStateStale = errors.New("audit export state is stale")
+var ErrAuditExportCursorConflict = errors.New("audit export cursor expectation failed")
 
 type TaskStatUnit string
 
@@ -541,15 +546,27 @@ type EventManager interface {
 	GetAllEvents(params RetrieveQueryParams) ([]Event, error)
 }
 
-// AuditEventManager handles the durable canonical audit stream. It deliberately
-// exposes no mutation operation for persisted events.
+// AuditEventManager handles the durable canonical audit stream and its export
+// cursor. It deliberately exposes no mutation operation for persisted events.
 type AuditEventStore interface {
 	CreateAuditEvent(event AuditEvent) (AuditEvent, error)
 	GetAuditEventsAfter(seq int64, limit int) ([]AuditEvent, error)
 }
 
+type AuditExportStateStore interface {
+	GetAuditExportState(destinationID string) (AuditExportState, error)
+	GetOrCreateAuditExportState(destinationID string) (AuditExportState, error)
+	TryAcquireAuditExportLease(destinationID string, ownerID string, ttl time.Duration) (generation int64, acquired bool, err error)
+	RenewAuditExportLease(destinationID string, ownerID string, generation int64, ttl time.Duration) (renewed bool, err error)
+	AdvanceAuditExportCursor(destinationID string, ownerID string, generation int64, expectedSeq int64, newSeq int64) (advanced bool, err error)
+	RecordAuditExportAttempt(destinationID string, ownerID string, generation int64) (recorded bool, err error)
+	RecordAuditExportSuccess(destinationID string, ownerID string, generation int64) (recorded bool, err error)
+	RecordAuditExportError(destinationID string, ownerID string, generation int64, message string) (recorded bool, err error)
+}
+
 type AuditEventManager interface {
 	AuditEventStore
+	AuditExportStateStore
 }
 
 type SecretStorageRepository interface {
