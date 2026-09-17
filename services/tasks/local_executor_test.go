@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"testing"
 
@@ -458,4 +459,68 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 			assert.Equal(t, exec.resolvePlaybookFile(), args[len(args)-1], "Playbook must be the last argument")
 		})
 	}
+}
+
+func TestGetPlaybookArgs_EnvironmentSecretVarsUseJSON(t *testing.T) {
+	setupExecutorConfig(t)
+	util.Config.TmpPath = "/tmp"
+
+	privateKey := "-----BEGIN OPENSSH PRIVATE KEY-----\nline one\nline two\n-----END OPENSSH PRIVATE KEY-----"
+
+	exec := &LocalExecutor{
+		Task: db.Task{},
+		Inventory: db.Inventory{
+			Type: db.InventoryStatic,
+		},
+		Template: db.Template{
+			Type:     db.TemplateTask,
+			Playbook: "test.yml",
+		},
+		Environment: db.Environment{
+			JSON: `{"PLAIN_VAR":"plain value","OVERRIDE_ME":"from-variable"}`,
+			Secrets: []db.EnvironmentSecret{
+				{
+					Type:   db.EnvironmentSecretVar,
+					Name:   "PASSWORD_WITH_SPACES",
+					Secret: "value with spaces",
+				},
+				{
+					Type:   db.EnvironmentSecretVar,
+					Name:   "PRIVATE_KEY",
+					Secret: privateKey,
+				},
+				{
+					Type:   db.EnvironmentSecretVar,
+					Name:   "OVERRIDE_ME",
+					Secret: "from-secret",
+				},
+				{
+					Type:   db.EnvironmentSecretEnv,
+					Name:   "ENV_ONLY_SECRET",
+					Secret: "must-not-be-extra-var",
+				},
+			},
+		},
+	}
+
+	args, _, err := exec.getPlaybookArgs("admin", nil)
+	require.NoError(t, err)
+
+	var extraVarsArgs []string
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "--extra-vars" {
+			extraVarsArgs = append(extraVarsArgs, args[i+1])
+		}
+	}
+
+	require.Len(t, extraVarsArgs, 1, "Ansible secret vars must be transported in the single JSON --extra-vars payload")
+
+	var vars map[string]any
+	require.NoError(t, json.Unmarshal([]byte(extraVarsArgs[0]), &vars))
+
+	assert.Equal(t, "plain value", vars["PLAIN_VAR"])
+	assert.Equal(t, "value with spaces", vars["PASSWORD_WITH_SPACES"])
+	assert.Equal(t, privateKey, vars["PRIVATE_KEY"])
+	assert.Equal(t, "from-secret", vars["OVERRIDE_ME"], "secret must override a plain variable with the same name")
+	assert.NotContains(t, vars, "ENV_ONLY_SECRET")
 }

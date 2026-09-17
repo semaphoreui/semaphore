@@ -183,6 +183,13 @@ func (t *LocalExecutor) getEnvironmentExtraVarsJSON(username string, incomingVer
 		return
 	}
 
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type != db.EnvironmentSecretVar {
+			continue
+		}
+		extraVars[secret.Name] = secret.Secret
+	}
+
 	ev, err := json.Marshal(extraVars)
 	if err != nil {
 		return
@@ -536,13 +543,6 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		t.Log("Could not remove command environment, if existent it will be passed to --extra-vars. This is not fatal but be aware of side effects")
 	} else if extraVars != "" {
 		args = append(args, "--extra-vars", extraVars)
-	}
-
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 
 	templateArgs, taskArgs, err := t.getCLIArgs()
