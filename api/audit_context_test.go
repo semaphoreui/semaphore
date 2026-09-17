@@ -37,7 +37,6 @@ func TestAuditRequestContextMiddlewareSourceIP(t *testing.T) {
 			headers: map[string]string{
 				"X-Forwarded-For": "203.0.113.4",
 				"X-Real-IP":       "203.0.113.5",
-				"Forwarded":       "for=203.0.113.6",
 			},
 			wantIP: "198.51.100.10",
 		},
@@ -74,35 +73,27 @@ func TestAuditRequestContextMiddlewareSourceIP(t *testing.T) {
 			wantIP: "10.0.0.2",
 		},
 		{
-			name:       "malformed Forwarded falls back to TCP peer",
+			name:       "trusted proxy ignores multi element Forwarded header",
 			remoteAddr: "10.0.0.2:42000",
 			headers: map[string]string{
-				"Forwarded": "for=unknown",
+				"Forwarded": "for=198.51.100.12, for=10.0.0.1",
 			},
 			wantIP: "10.0.0.2",
-		},
-		{
-			name:       "trusted proxy accepts valid Forwarded address",
-			remoteAddr: "10.0.0.2:42000",
-			headers: map[string]string{
-				"Forwarded": "for=198.51.100.12",
-			},
-			wantIP: "198.51.100.12",
 		},
 		{
 			name:       "trusted proxy accepts valid X Real IP address",
 			remoteAddr: "10.0.0.2:42000",
 			headers: map[string]string{
 				"X-Real-IP": "198.51.100.13",
+				"Forwarded": "for=203.0.113.6",
 			},
 			wantIP: "198.51.100.13",
 		},
 		{
-			name:       "malformed XFF does not fall through to Forwarded",
+			name:       "malformed XFF falls back to TCP peer",
 			remoteAddr: "10.0.0.2:42000",
 			headers: map[string]string{
 				"X-Forwarded-For": "not-an-ip",
-				"Forwarded":       "for=198.51.100.12",
 			},
 			wantIP: "10.0.0.2",
 		},

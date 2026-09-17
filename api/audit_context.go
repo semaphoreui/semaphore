@@ -62,9 +62,6 @@ func forwardedSourceIP(r *http.Request, trustedProxies []netip.Prefix) (netip.Ad
 	if values := r.Header.Values("X-Forwarded-For"); len(values) > 0 {
 		return sourceFromXForwardedFor(values, trustedProxies)
 	}
-	if values := r.Header.Values("Forwarded"); len(values) > 0 {
-		return sourceFromForwarded(values)
-	}
 	if values := r.Header.Values("X-Real-IP"); len(values) > 0 {
 		return sourceFromXRealIP(values)
 	}
@@ -119,59 +116,6 @@ func sourceFromXForwardedFor(values []string, trustedProxies []netip.Prefix) (ne
 		}
 	}
 	return netip.Addr{}, false
-}
-
-func sourceFromForwarded(values []string) (netip.Addr, bool) {
-	if len(values) != 1 {
-		return netip.Addr{}, false
-	}
-	value := values[0]
-	if len(value) > maxForwardedHeaderBytes || strings.Contains(value, ",") {
-		return netip.Addr{}, false
-	}
-
-	var source netip.Addr
-	found := false
-	for _, part := range strings.Split(value, ";") {
-		key, value, ok := strings.Cut(strings.TrimSpace(part), "=")
-		if !ok || key == "" || value == "" {
-			return netip.Addr{}, false
-		}
-		if !strings.EqualFold(key, "for") {
-			continue
-		}
-		if found {
-			return netip.Addr{}, false
-		}
-		addr, ok := parseForwardedAddress(value)
-		if !ok {
-			return netip.Addr{}, false
-		}
-		source = addr
-		found = true
-	}
-	return source, found
-}
-
-func parseForwardedAddress(value string) (netip.Addr, bool) {
-	if strings.HasPrefix(value, `"`) || strings.HasSuffix(value, `"`) {
-		if len(value) < 2 || !strings.HasPrefix(value, `"`) || !strings.HasSuffix(value, `"`) {
-			return netip.Addr{}, false
-		}
-		value = value[1 : len(value)-1]
-		if strings.ContainsAny(value, `"\\`) {
-			return netip.Addr{}, false
-		}
-	}
-
-	if addr, err := netip.ParseAddr(value); err == nil {
-		return addr, true
-	}
-	addrPort, err := netip.ParseAddrPort(value)
-	if err != nil {
-		return netip.Addr{}, false
-	}
-	return addrPort.Addr(), true
 }
 
 func sourceFromXRealIP(values []string) (netip.Addr, bool) {
