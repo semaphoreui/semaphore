@@ -137,11 +137,11 @@ func AuditResourceEvent(
 	}
 
 	if err := event.ValidateResourceEvent(); err != nil {
-		log.Error("Failed to validate audit event")
+		log.WithError(err).Error("Failed to validate audit event")
 		return
 	}
 	if _, err := store.CreateAuditEvent(event); err != nil {
-		log.Error("Failed to store audit event")
+		log.WithError(err).Error("Failed to store audit event")
 	}
 }
 
