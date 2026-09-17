@@ -535,11 +535,13 @@ type EventManager interface {
 	GetAllEvents(params RetrieveQueryParams) ([]Event, error)
 }
 
-// AuditEventManager handles the durable canonical audit stream and its export
-// cursor. It deliberately exposes no mutation operation for persisted events.
-type AuditEventStore interface {
-	CreateAuditEvent(event AuditEvent) (AuditEvent, error)
+type AuditEventReader interface {
 	GetAuditEventsAfter(seq int64, limit int) ([]AuditEvent, error)
+}
+
+type AuditEventStore interface {
+	AuditEventReader
+	CreateAuditEvent(event AuditEvent) (AuditEvent, error)
 }
 
 type AuditExportStateStore interface {
@@ -555,6 +557,11 @@ type AuditExportStateStore interface {
 
 type AuditEventManager interface {
 	AuditEventStore
+	AuditExportStateStore
+}
+
+type AuditExporterStore interface {
+	AuditEventReader
 	AuditExportStateStore
 }
 
