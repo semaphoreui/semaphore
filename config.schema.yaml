@@ -270,12 +270,49 @@ $defs:
 
   AuditConfig:
     type: object
-    description: Audit security context settings.
+    description: Audit security context and reliable export settings.
     properties:
+      enabled:
+        type: boolean
+        description: Enables reliable export of canonical audit events.
+      instance_id:
+        type: string
+        description: Stable identity used by audit export leases.
       trusted_proxy_cidrs:
         type: array
         items: { type: string }
         description: Proxy networks allowed to provide audit client address headers.
+      destination: { $ref: "#/$defs/AuditDestinationConfig" }
+
+  AuditDestinationConfig:
+    type: object
+    description: The single supported v1 audit export destination.
+    properties:
+      id:
+        type: string
+        description: Maximum 255 UTF-8 bytes.
+      type:
+        type: string
+        enum: [syslog]
+      syslog: { $ref: "#/$defs/AuditSyslogConfig" }
+
+  AuditSyslogConfig:
+    type: object
+    properties:
+      address:
+        type: string
+      timeout:
+        type: string
+        description: Positive Go duration for syslog operations.
+      tls: { $ref: "#/$defs/AuditSyslogTLSConfig" }
+
+  AuditSyslogTLSConfig:
+    type: object
+    properties:
+      ca_file:
+        type: string
+      server_name:
+        type: string
 
   JWTConfig:
     type: object

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -602,6 +603,130 @@ func TestValidateConfigTrustedProxyCIDRs(t *testing.T) {
 	err, ok := recovered.(error)
 	require.True(t, ok)
 	assert.ErrorContains(t, err, "audit.trusted_proxy_cidrs[0] must be a valid CIDR")
+}
+
+func TestValidateAuditConfig(t *testing.T) {
+	valid := func() *AuditConfig {
+		return &AuditConfig{
+			Enabled:    true,
+			InstanceID: "semaphore-prod",
+			Destination: &AuditDestinationConfig{
+				ID:   "primary-siem",
+				Type: "syslog",
+				Syslog: &AuditSyslogConfig{
+					Address: "siem.internal.example:6514",
+					Timeout: "10s",
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name    string
+		audit   *AuditConfig
+		errorAt string
+	}{
+		{name: "absent"},
+		{name: "disabled", audit: &AuditConfig{}},
+		{name: "valid", audit: valid()},
+		{
+			name:    "missing instance ID",
+			audit:   &AuditConfig{Enabled: true},
+			errorAt: "audit.instance_id",
+		},
+		{
+			name: "missing destination",
+			audit: &AuditConfig{
+				Enabled:    true,
+				InstanceID: "semaphore-prod",
+			},
+			errorAt: "audit.destination",
+		},
+		{
+			name: "missing destination ID",
+			audit: func() *AuditConfig {
+				config := valid()
+				config.Destination.ID = ""
+				return config
+			}(),
+			errorAt: "audit.destination.id",
+		},
+		{
+			name: "missing syslog address",
+			audit: func() *AuditConfig {
+				config := valid()
+				config.Destination.Syslog.Address = ""
+				return config
+			}(),
+			errorAt: "audit.destination.syslog.address",
+		},
+		{
+			name: "missing destination type",
+			audit: func() *AuditConfig {
+				config := valid()
+				config.Destination.Type = ""
+				return config
+			}(),
+			errorAt: "audit.destination.type",
+		},
+		{
+			name: "unsupported destination type",
+			audit: func() *AuditConfig {
+				config := valid()
+				config.Destination.Type = "http"
+				return config
+			}(),
+			errorAt: "audit.destination.type",
+		},
+		{
+			name: "non-positive timeout",
+			audit: func() *AuditConfig {
+				config := valid()
+				config.Destination.Syslog.Timeout = "0s"
+				return config
+			}(),
+			errorAt: "audit.destination.syslog.timeout",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := NewConfigType()
+			config.Audit = tt.audit
+			err := config.validateAuditConfig()
+
+			if tt.errorAt == "" {
+				assert.NoError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, tt.errorAt)
+		})
+	}
+}
+
+func TestValidateAuditConfigDestinationIDBounds(t *testing.T) {
+	config := NewConfigType()
+	config.Audit = &AuditConfig{
+		Enabled:    true,
+		InstanceID: "semaphore-prod",
+		Destination: &AuditDestinationConfig{
+			ID:   strings.Repeat("a", auditDestinationIDMaxSize),
+			Type: "syslog",
+			Syslog: &AuditSyslogConfig{
+				Address: "siem.internal.example:6514",
+				Timeout: "10s",
+			},
+		},
+	}
+
+	assert.NoError(t, config.validateAuditConfig())
+	config.Audit.Destination.ID += "a"
+	assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.id")
+
+	config.Audit.Destination.ID = strings.Repeat("é", auditDestinationIDMaxSize/2+1)
+	assert.Less(t, utf8.RuneCountInString(config.Audit.Destination.ID), auditDestinationIDMaxSize)
+	assert.Greater(t, len(config.Audit.Destination.ID), auditDestinationIDMaxSize)
+	assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.id")
 }
 
 func TestGetSecretsPath_DirsSecrets(t *testing.T) {
