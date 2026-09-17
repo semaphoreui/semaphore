@@ -12,6 +12,15 @@ import (
 // with values stored by other packages on the same request context.
 type contextKey string
 
+type auditRequestContextKey struct{}
+
+// AuditRequestContext contains normalized request metadata for audit mapping.
+type AuditRequestContext struct {
+	RequestID string
+	SourceIP  string
+	UserAgent string
+}
+
 func GetFromContext(r *http.Request, key string) any {
 	return r.Context().Value(contextKey(key))
 }
@@ -23,6 +32,16 @@ func GetOkFromContext(r *http.Request, key string) (res any, ok bool) {
 
 func SetContextValue(r *http.Request, key string, value any) *http.Request {
 	ctx := context.WithValue(r.Context(), contextKey(key), value)
+	return r.WithContext(ctx)
+}
+
+func AuditRequestContextFrom(r *http.Request) (AuditRequestContext, bool) {
+	value, ok := r.Context().Value(auditRequestContextKey{}).(AuditRequestContext)
+	return value, ok
+}
+
+func SetAuditRequestContext(r *http.Request, value AuditRequestContext) *http.Request {
+	ctx := context.WithValue(r.Context(), auditRequestContextKey{}, value)
 	return r.WithContext(ctx)
 }
 

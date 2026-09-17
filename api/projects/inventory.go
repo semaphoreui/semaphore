@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -125,6 +126,13 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		ObjectID:    newInventory.ID,
 		Description: fmt.Sprintf("Inventory %s created", inventory.Name),
 	})
+	helpers.AuditResourceEvent(r, helpers.Store(r), helpers.AuditResourceEventItem{
+		Resource:   helpers.AuditResourceInventory,
+		Action:     helpers.EventLogCreate,
+		TargetID:   strconv.Itoa(newInventory.ID),
+		TargetName: newInventory.Name,
+		ProjectID:  project.ID,
+	})
 
 	helpers.WriteJSON(w, http.StatusCreated, newInventory)
 }
@@ -206,6 +214,13 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		ObjectID:    oldInventory.ID,
 		Description: fmt.Sprintf("Inventory %s updated", inventory.Name),
 	})
+	helpers.AuditResourceEvent(r, helpers.Store(r), helpers.AuditResourceEventItem{
+		Resource:   helpers.AuditResourceInventory,
+		Action:     helpers.EventLogUpdate,
+		TargetID:   strconv.Itoa(oldInventory.ID),
+		TargetName: inventory.Name,
+		ProjectID:  oldInventory.ProjectID,
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -233,6 +248,13 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 		ObjectType:  db.EventInventory,
 		ObjectID:    inventory.ID,
 		Description: fmt.Sprintf("Inventory %s deleted", inventory.Name),
+	})
+	helpers.AuditResourceEvent(r, helpers.Store(r), helpers.AuditResourceEventItem{
+		Resource:   helpers.AuditResourceInventory,
+		Action:     helpers.EventLogDelete,
+		TargetID:   strconv.Itoa(inventory.ID),
+		TargetName: inventory.Name,
+		ProjectID:  inventory.ProjectID,
 	})
 
 	w.WriteHeader(http.StatusNoContent)

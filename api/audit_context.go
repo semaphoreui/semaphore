@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"net"
 	"net/http"
 	"net/netip"
@@ -9,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"github.com/semaphoreui/semaphore/api/helpers"
 )
 
 const (
@@ -17,18 +17,10 @@ const (
 	maxUserAgentBytes       = 1024
 )
 
-type auditRequestContextKey struct{}
-
-// AuditRequestContext contains normalized request metadata for audit mapping.
-type AuditRequestContext struct {
-	RequestID string
-	SourceIP  string
-	UserAgent string
-}
+type AuditRequestContext = helpers.AuditRequestContext
 
 func AuditRequestContextFrom(r *http.Request) (AuditRequestContext, bool) {
-	value, ok := r.Context().Value(auditRequestContextKey{}).(AuditRequestContext)
-	return value, ok
+	return helpers.AuditRequestContextFrom(r)
 }
 
 func AuditRequestContextMiddleware(trustedProxies []netip.Prefix) func(http.Handler) http.Handler {
@@ -49,8 +41,7 @@ func AuditRequestContextMiddleware(trustedProxies []netip.Prefix) func(http.Hand
 			}
 
 			w.Header().Set("X-Request-ID", securityContext.RequestID)
-			ctx := context.WithValue(r.Context(), auditRequestContextKey{}, securityContext)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, helpers.SetAuditRequestContext(r, securityContext))
 		})
 	}
 }
