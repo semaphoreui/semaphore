@@ -277,7 +277,7 @@ $defs:
         description: Enables reliable export of canonical audit events.
       instance_id:
         type: string
-        description: Stable identity used by audit export leases.
+        description: Stable identity included in every audit event across replicas.
       trusted_proxy_cidrs:
         type: array
         items: { type: string }
