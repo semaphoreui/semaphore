@@ -28,6 +28,7 @@ properties:
   interface:
     type: string
     description: Bind address (empty = all interfaces).
+  audit: { $ref: "#/$defs/AuditConfig" }
   tls: { $ref: "#/$defs/TLSConfig" }
 
   # ==========================================================================
@@ -266,6 +267,15 @@ $defs:
         description: >-
           How often keys_file is polled for changes (a Go duration like "15s").
           "0" disables polling (a SIGHUP still forces a reload).
+
+  AuditConfig:
+    type: object
+    description: Audit security context settings.
+    properties:
+      trusted_proxy_cidrs:
+        type: array
+        items: { type: string }
+        description: Proxy networks allowed to provide audit client address headers.
 
   JWTConfig:
     type: object
