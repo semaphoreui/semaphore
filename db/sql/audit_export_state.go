@@ -87,10 +87,10 @@ func (d *SqlDb) TryAcquireAuditExportLease(destinationID, ownerID string, ttl ti
 		return 0, false, err
 	}
 	ok, err := mutationSucceeded(result)
-	if err != nil || ok {
-		if err != nil {
-			return 0, false, err
-		}
+	if err != nil {
+		return 0, false, err
+	}
+	if ok {
 		state, err := d.GetAuditExportState(destinationID)
 		if err != nil {
 			return 0, false, err
