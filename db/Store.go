@@ -541,6 +541,17 @@ type EventManager interface {
 	GetAllEvents(params RetrieveQueryParams) ([]Event, error)
 }
 
+// AuditEventManager handles the durable canonical audit stream. It deliberately
+// exposes no mutation operation for persisted events.
+type AuditEventStore interface {
+	CreateAuditEvent(event AuditEvent) (AuditEvent, error)
+	GetAuditEventsAfter(seq int64, limit int) ([]AuditEvent, error)
+}
+
+type AuditEventManager interface {
+	AuditEventStore
+}
+
 type SecretStorageRepository interface {
 	GetSecretStorages(projectID int) ([]SecretStorage, error)
 	CreateSecretStorage(storage SecretStorage) (SecretStorage, error)
@@ -604,6 +615,7 @@ type Store interface {
 	ViewManager
 	RunnerManager
 	EventManager
+	AuditEventManager
 	SecretStorageRepository
 	SecretSyncRepository
 	RoleRepository
