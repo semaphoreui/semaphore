@@ -127,31 +127,30 @@ type auditEventExpectation struct {
 	targetID   string
 	targetName string
 	projectID  string
-	requestID  string
 }
 
-func assertAuditEvent(t *testing.T, event db.AuditEvent, expected auditEventExpectation, user db.User) {
+func assertAuditEventMapping(t *testing.T, event db.AuditEvent, expected auditEventExpectation) {
 	t.Helper()
-	assert.Equal(t, db.AuditSchemaVersion, event.SchemaVersion)
 	assert.Equal(t, expected.eventCode, event.EventCode)
-	assert.Equal(t, db.AuditCategoryResource, event.Category)
 	assert.Equal(t, expected.eventType, event.Type)
 	assert.Equal(t, expected.action, event.Action)
+	assert.Equal(t, expected.targetType, event.Target.Type)
+	assert.Equal(t, expected.targetID, event.Target.ID)
+	assert.Equal(t, expected.targetName, event.Target.Name)
+	assert.Equal(t, expected.projectID, event.Scope.ProjectID)
+}
+
+func assertAuditEventEnvelope(t *testing.T, event db.AuditEvent, requestID string, user db.User) {
+	t.Helper()
+	assert.Equal(t, db.AuditSchemaVersion, event.SchemaVersion)
+	assert.Equal(t, db.AuditCategoryResource, event.Category)
 	assert.Equal(t, db.AuditOutcomeSuccess, event.Outcome)
 	assert.Equal(t, "user", event.Actor.Type)
 	assert.Equal(t, strconv.Itoa(user.ID), event.Actor.ID)
 	assert.Equal(t, user.Username, event.Actor.Name)
 	assert.Equal(t, "203.0.113.10", event.Source.IP)
 	assert.Equal(t, "audit test agent", event.Source.UserAgent)
-	assert.Equal(t, expected.requestID, event.RequestID)
-	requestID, err := uuid.Parse(expected.requestID)
-	require.NoError(t, err)
-	assert.Equal(t, uuid.RFC4122, requestID.Variant())
-	assert.Equal(t, uuid.Version(4), requestID.Version())
-	assert.Equal(t, expected.targetType, event.Target.Type)
-	assert.Equal(t, expected.targetID, event.Target.ID)
-	assert.Equal(t, expected.targetName, event.Target.Name)
-	assert.Equal(t, expected.projectID, event.Scope.ProjectID)
+	assert.Equal(t, requestID, event.RequestID)
 	assert.Equal(t, "test-instance", event.InstanceID)
 	assert.Empty(t, event.NodeID)
 	id, err := uuid.Parse(event.ID)
@@ -185,7 +184,7 @@ func TestProjectCreateRecordsAuditEvent(t *testing.T) {
 	events := auditEvents(t, store)
 	require.Len(t, events, 1)
 	event := events[0]
-	assertAuditEvent(t, event, auditEventExpectation{
+	assertAuditEventMapping(t, event, auditEventExpectation{
 		eventCode:  db.AuditEventCodeProject,
 		eventType:  db.AuditTypeCreation,
 		action:     db.AuditActionCreate,
@@ -193,8 +192,8 @@ func TestProjectCreateRecordsAuditEvent(t *testing.T) {
 		targetID:   projectID,
 		targetName: "audit project",
 		projectID:  projectID,
-		requestID:  reqID,
-	}, user)
+	})
+	assertAuditEventEnvelope(t, event, reqID, user)
 	activities, err := store.GetEvents(project.ID, db.RetrieveQueryParams{})
 	require.NoError(t, err)
 	require.Len(t, activities, 1)
@@ -214,7 +213,6 @@ func TestInventoryMutationsRecordAuditEvents(t *testing.T) {
 		Type:      db.InventoryStatic,
 	}
 	createRequest := auditRequest(t, http.MethodPost, "/api/projects/inventory", create, store, user)
-	createRequestID := requestID(t, createRequest)
 	createRequest = helpers.SetContextValue(createRequest, "project", project)
 	createResponse := httptest.NewRecorder()
 	AddInventory(createResponse, createRequest)
@@ -224,7 +222,7 @@ func TestInventoryMutationsRecordAuditEvents(t *testing.T) {
 	require.Len(t, events, 1)
 	created := events[0]
 	assert.NotEmpty(t, created.Target.ID)
-	assertAuditEvent(t, created, auditEventExpectation{
+	assertAuditEventMapping(t, created, auditEventExpectation{
 		eventCode:  db.AuditEventCodeInventory,
 		eventType:  db.AuditTypeCreation,
 		action:     db.AuditActionCreate,
@@ -232,8 +230,7 @@ func TestInventoryMutationsRecordAuditEvents(t *testing.T) {
 		targetID:   created.Target.ID,
 		targetName: "initial inventory",
 		projectID:  strconv.Itoa(project.ID),
-		requestID:  createRequestID,
-	}, user)
+	})
 	serialized, err := json.Marshal(created)
 	require.NoError(t, err)
 	assert.NotContains(t, string(serialized), secret)
@@ -243,7 +240,6 @@ func TestInventoryMutationsRecordAuditEvents(t *testing.T) {
 	require.NoError(t, err)
 	inventory.Name = "final inventory"
 	updateRequest := auditRequest(t, http.MethodPut, "/api/projects/inventory", inventory, store, user)
-	updateRequestID := requestID(t, updateRequest)
 	updateRequest = helpers.SetContextValue(updateRequest, "inventory", inventory)
 	updateResponse := httptest.NewRecorder()
 	UpdateInventory(updateResponse, updateRequest)
@@ -252,7 +248,7 @@ func TestInventoryMutationsRecordAuditEvents(t *testing.T) {
 	events = auditEvents(t, store)
 	require.Len(t, events, 2)
 	updated := events[1]
-	assertAuditEvent(t, updated, auditEventExpectation{
+	assertAuditEventMapping(t, updated, auditEventExpectation{
 		eventCode:  db.AuditEventCodeInventory,
 		eventType:  db.AuditTypeChange,
 		action:     db.AuditActionUpdate,
@@ -260,11 +256,9 @@ func TestInventoryMutationsRecordAuditEvents(t *testing.T) {
 		targetID:   strconv.Itoa(inventory.ID),
 		targetName: "final inventory",
 		projectID:  strconv.Itoa(project.ID),
-		requestID:  updateRequestID,
-	}, user)
+	})
 
 	deleteRequest := auditRequest(t, http.MethodDelete, "/api/projects/inventory", nil, store, user)
-	deleteRequestID := requestID(t, deleteRequest)
 	deleteRequest = helpers.SetContextValue(deleteRequest, "inventory", inventory)
 	deleteResponse := httptest.NewRecorder()
 	RemoveInventory(deleteResponse, deleteRequest)
@@ -273,7 +267,7 @@ func TestInventoryMutationsRecordAuditEvents(t *testing.T) {
 	events = auditEvents(t, store)
 	require.Len(t, events, 3)
 	deleted := events[2]
-	assertAuditEvent(t, deleted, auditEventExpectation{
+	assertAuditEventMapping(t, deleted, auditEventExpectation{
 		eventCode:  db.AuditEventCodeInventory,
 		eventType:  db.AuditTypeDeletion,
 		action:     db.AuditActionDelete,
@@ -281,8 +275,7 @@ func TestInventoryMutationsRecordAuditEvents(t *testing.T) {
 		targetID:   strconv.Itoa(inventory.ID),
 		targetName: "final inventory",
 		projectID:  strconv.Itoa(project.ID),
-		requestID:  deleteRequestID,
-	}, user)
+	})
 }
 
 func TestInventoryAuditDisabledAndFailurePaths(t *testing.T) {

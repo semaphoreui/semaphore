@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -115,23 +116,17 @@ func TestAuditRequestContextMiddlewareSourceIP(t *testing.T) {
 				request.Header.Set(key, value)
 			}
 
-			var got AuditRequestContext
+			var got helpers.AuditRequestContext
 			handler := AuditRequestContextMiddleware([]netip.Prefix{trustedProxy})(http.HandlerFunc(
 				func(w http.ResponseWriter, r *http.Request) {
 					var ok bool
-					got, ok = AuditRequestContextFrom(r)
+					got, ok = helpers.AuditRequestContextFrom(r)
 					require.True(t, ok)
 				},
 			))
-			response := httptest.NewRecorder()
-			handler.ServeHTTP(response, request)
+			handler.ServeHTTP(httptest.NewRecorder(), request)
 
 			assert.Equal(t, tt.wantIP, got.SourceIP)
-			assert.Equal(t, got.RequestID, response.Header().Get("X-Request-ID"))
-			parsedID, err := uuid.Parse(got.RequestID)
-			require.NoError(t, err)
-			assert.Equal(t, uuid.RFC4122, parsedID.Variant())
-			assert.Equal(t, uuid.Version(4), parsedID.Version())
 		})
 	}
 }
@@ -175,11 +170,11 @@ func TestAuditRequestContextMiddlewareRejectsExcessiveXForwardedFor(t *testing.T
 			request.RemoteAddr = "10.0.0.2:42000"
 			tt.setXFF(request.Header)
 
-			var got AuditRequestContext
+			var got helpers.AuditRequestContext
 			handler := AuditRequestContextMiddleware([]netip.Prefix{trustedProxy})(http.HandlerFunc(
 				func(w http.ResponseWriter, r *http.Request) {
 					var ok bool
-					got, ok = AuditRequestContextFrom(r)
+					got, ok = helpers.AuditRequestContextFrom(r)
 					require.True(t, ok)
 				},
 			))
@@ -196,11 +191,11 @@ func TestAuditRequestContextMiddlewareGeneratesRequestID(t *testing.T) {
 	request.Header.Set("X-Request-ID", uuid.NewString())
 	request.Header.Set("User-Agent", "  semaphore-test  ")
 
-	var got AuditRequestContext
+	var got helpers.AuditRequestContext
 	handler := AuditRequestContextMiddleware(nil)(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			var ok bool
-			got, ok = AuditRequestContextFrom(r)
+			got, ok = helpers.AuditRequestContextFrom(r)
 			require.True(t, ok)
 		},
 	))
@@ -209,5 +204,9 @@ func TestAuditRequestContextMiddlewareGeneratesRequestID(t *testing.T) {
 
 	assert.NotEqual(t, request.Header.Get("X-Request-ID"), got.RequestID)
 	assert.Equal(t, got.RequestID, response.Header().Get("X-Request-ID"))
+	parsedID, err := uuid.Parse(got.RequestID)
+	require.NoError(t, err)
+	assert.Equal(t, uuid.RFC4122, parsedID.Variant())
+	assert.Equal(t, uuid.Version(4), parsedID.Version())
 	assert.Equal(t, "semaphore-test", got.UserAgent)
 }

@@ -401,7 +401,7 @@ func runService() {
 	if util.Config.Audit != nil {
 		trustedProxyCIDRs = util.Config.Audit.TrustedProxyCIDRs
 	}
-	trustedProxies, parseErr := util.ParseTrustedProxyCIDRs(trustedProxyCIDRs)
+	trustedProxies, parseErr := util.ParseAuditTrustedProxyCIDRs(trustedProxyCIDRs)
 	if parseErr != nil {
 		panic(parseErr)
 	}

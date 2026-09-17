@@ -349,7 +349,7 @@ type SyslogConfig struct {
 type AuditConfig struct {
 	// Enabled enables reliable export of canonical audit events.
 	Enabled bool `json:"enabled,omitempty"`
-	// InstanceID is the stable identity of this Semaphore instance for audit export leases.
+	// InstanceID is the stable identity included in every audit event across replicas.
 	InstanceID string `json:"instance_id,omitempty"`
 	// TrustedProxyCIDRs lists proxy networks allowed to provide audit client address headers.
 	TrustedProxyCIDRs []string `json:"trusted_proxy_cidrs,omitempty"`
@@ -358,19 +358,26 @@ type AuditConfig struct {
 }
 
 type AuditDestinationConfig struct {
-	ID     string             `json:"id,omitempty"`
+	// ID is the stable identifier for the single audit export destination.
+	ID string `json:"id,omitempty"`
+	// Type is the destination type; only syslog is supported in v1.
 	Type   string             `json:"type,omitempty"`
 	Syslog *AuditSyslogConfig `json:"syslog,omitempty"`
 }
 
 type AuditSyslogConfig struct {
-	Address string                `json:"address,omitempty"`
-	Timeout string                `json:"timeout,omitempty"`
-	TLS     *AuditSyslogTLSConfig `json:"tls,omitempty"`
+	// Address is the RFC 5424 over TLS destination host and port.
+	Address string `json:"address,omitempty"`
+	// Timeout is a positive Go duration for syslog connection and write operations.
+	Timeout string `json:"timeout,omitempty"`
+	// TLS configures certificate verification for the audit destination.
+	TLS *AuditSyslogTLSConfig `json:"tls,omitempty"`
 }
 
 type AuditSyslogTLSConfig struct {
-	CAFile     string `json:"ca_file,omitempty"`
+	// CAFile is an optional PEM file appended to system roots for the destination.
+	CAFile string `json:"ca_file,omitempty"`
+	// ServerName is the optional TLS server name used for certificate verification.
 	ServerName string `json:"server_name,omitempty"`
 }
 
@@ -1886,8 +1893,8 @@ func validateAccessKeyEncryption(key string) error {
 	}
 }
 
-// ParseTrustedProxyCIDRs parses the proxy networks allowed to provide client address headers.
-func ParseTrustedProxyCIDRs(values []string) ([]netip.Prefix, error) {
+// ParseAuditTrustedProxyCIDRs parses the proxy networks allowed to provide audit client address headers.
+func ParseAuditTrustedProxyCIDRs(values []string) ([]netip.Prefix, error) {
 	prefixes := make([]netip.Prefix, 0, len(values))
 	for i, value := range values {
 		prefix, err := netip.ParsePrefix(value)
@@ -1903,7 +1910,7 @@ func (conf *ConfigType) validateAuditConfig() error {
 	if conf.Audit == nil {
 		return nil
 	}
-	if _, err := ParseTrustedProxyCIDRs(conf.Audit.TrustedProxyCIDRs); err != nil {
+	if _, err := ParseAuditTrustedProxyCIDRs(conf.Audit.TrustedProxyCIDRs); err != nil {
 		return err
 	}
 	if !conf.Audit.Enabled {
@@ -1911,6 +1918,12 @@ func (conf *ConfigType) validateAuditConfig() error {
 	}
 	if strings.TrimSpace(conf.Audit.InstanceID) == "" {
 		return errors.New("audit.instance_id must not be empty when audit.enabled is true")
+	}
+	if len(conf.Audit.InstanceID) > 255 {
+		return errors.New("audit.instance_id must not exceed 255 UTF-8 bytes")
+	}
+	if conf.HA != nil && len(conf.HA.NodeID) > 255 {
+		return errors.New("ha.node_id must not exceed 255 UTF-8 bytes when audit.enabled is true")
 	}
 
 	destination := conf.Audit.Destination
