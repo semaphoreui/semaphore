@@ -47,6 +47,33 @@ func TestAuditTargetTypeValidation(t *testing.T) {
 	assert.Error(t, event.Validate())
 }
 
+func TestAuditOptionalNameValidationUsesUnicodeCodePoints(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		set   func(*AuditEvent, string)
+		valid bool
+	}{
+		{name: "actor name at limit", set: func(event *AuditEvent, name string) { event.Actor.Name = name }, valid: true},
+		{name: "actor name above limit", set: func(event *AuditEvent, name string) { event.Actor.Name = name }, valid: false},
+		{name: "target name at limit", set: func(event *AuditEvent, name string) { event.Target.Name = name }, valid: true},
+		{name: "target name above limit", set: func(event *AuditEvent, name string) { event.Target.Name = name }, valid: false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			event := validResourceEvent()
+			length := auditStringMaxLength
+			if !tt.valid {
+				length++
+			}
+			tt.set(&event, strings.Repeat("é", length))
+			if tt.valid {
+				assert.NoError(t, event.Validate())
+			} else {
+				assert.Error(t, event.Validate())
+			}
+		})
+	}
+}
+
 func TestAuditUUIDValidationRequiresCanonicalForm(t *testing.T) {
 	for _, tt := range []struct {
 		name  string

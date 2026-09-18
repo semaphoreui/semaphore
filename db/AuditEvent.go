@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/netip"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/semaphoreui/semaphore/pkg/tz"
@@ -100,7 +101,7 @@ func (event AuditEvent) Validate() error {
 			return fmt.Errorf("audit event envelope field is invalid")
 		}
 	}
-	if event.Actor == nil || event.Actor.Type == "" || len(event.Actor.Type) > auditKindMaxLength || len(event.Actor.ID) > auditStringMaxLength || len(event.Actor.Name) > auditStringMaxLength {
+	if event.Actor == nil || event.Actor.Type == "" || len(event.Actor.Type) > auditKindMaxLength || len(event.Actor.ID) > auditStringMaxLength || utf8.RuneCountInString(event.Actor.Name) > auditStringMaxLength {
 		return fmt.Errorf("audit event actor is invalid")
 	}
 	if event.Source != nil {
@@ -108,7 +109,7 @@ func (event AuditEvent) Validate() error {
 			return fmt.Errorf("audit event source is invalid")
 		}
 	}
-	if event.Target != nil && (event.Target.Type == "" || event.Target.ID == "" || len(event.Target.Type) > auditKindMaxLength || len(event.Target.ID) > auditStringMaxLength || len(event.Target.Name) > auditStringMaxLength) {
+	if event.Target != nil && (event.Target.Type == "" || event.Target.ID == "" || len(event.Target.Type) > auditKindMaxLength || len(event.Target.ID) > auditStringMaxLength || utf8.RuneCountInString(event.Target.Name) > auditStringMaxLength) {
 		return fmt.Errorf("audit event target is invalid")
 	}
 	if event.Scope != nil && (event.Scope.ProjectID == "" || len(event.Scope.ProjectID) > auditStringMaxLength) {
