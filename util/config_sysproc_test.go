@@ -9,9 +9,9 @@ import (
 
 func TestParseLinuxCredentialUint(t *testing.T) {
 	tests := []struct {
-		in       string
-		wantVal  uint32
-		wantOk   bool
+		in      string
+		wantVal uint32
+		wantOk  bool
 	}{
 		{"1", 1, true},
 		{"65534", 65534, true},

@@ -53,11 +53,11 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 		// user's cleartext password. Verification can be disabled per provider
 		// via tls_skip_verify (default false) for trusted networks with
 		// self-signed certificates.
-		l, err = ldap.DialTLS("tcp", provider.Server, &tls.Config{
+		l, err = ldap.DialURL("ldaps://"+provider.Server, ldap.DialWithTLSConfig(&tls.Config{
 			InsecureSkipVerify: provider.TLSSkipVerify, //nolint:gosec // opt-in via tls_skip_verify, defaults to false
-		})
+		}))
 	} else {
-		l, err = ldap.Dial("tcp", provider.Server)
+		l, err = ldap.DialURL("ldap://" + provider.Server)
 	}
 
 	if err != nil {

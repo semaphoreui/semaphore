@@ -27,7 +27,7 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 		return nil, err
 	}
 
-	cmd := exec.Command(command, args...) //nolint: gas
+	cmd := exec.Command(command, args...) //nolint:gosec
 	cmd.Dir = cmdDir
 
 	cmd.Env = append(cmd.Env, "PYTHONUNBUFFERED=1")

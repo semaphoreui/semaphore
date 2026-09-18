@@ -199,6 +199,7 @@ export default {
   readThe: '読む',
   toLearnMoreAboutCron: 'Cronについて詳しく学ぶために。',
   suppressSuccessAlerts: '成功アラートを抑制',
+  suppressErrorAlerts: 'エラーアラートを抑制',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2: 'CLI引数（JSON配列）。例: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'CLI引数',
   docs: 'ドキュメント',

@@ -63,6 +63,7 @@ func (d *SqlDb) CreateTemplate(tmpl db.Template) (db.Template, error) {
 			"autorun":                       tmpl.Autorun,
 			"survey_vars":                   db.ObjectToJSON(tmpl.SurveyVars),
 			"suppress_success_alerts":       tmpl.SuppressSuccessAlerts,
+			"suppress_error_alerts":         tmpl.SuppressErrorAlerts,
 			"app":                           tmpl.App,
 			"git_branch":                    tmpl.GitBranch,
 			"runner_tag":                    tmpl.RunnerTag,
@@ -127,6 +128,7 @@ func (d *SqlDb) UpdateTemplate(tmpl db.Template) error {
 			"autorun":                       tmpl.Autorun,
 			"survey_vars":                   db.ObjectToJSON(tmpl.SurveyVars),
 			"suppress_success_alerts":       tmpl.SuppressSuccessAlerts,
+			"suppress_error_alerts":         tmpl.SuppressErrorAlerts,
 			"app":                           tmpl.App,
 			"`git_branch`":                  tmpl.GitBranch,
 			"task_params":                   tmpl.TaskParams,
@@ -283,6 +285,8 @@ func (d *SqlDb) getTemplates(
 		"pt.allow_parallel_tasks",
 		"pt.jwt_params",
 		"pt.executor_image",
+		"pt.suppress_success_alerts",
+		"pt.suppress_error_alerts",
 		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id",
 	}
 

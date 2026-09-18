@@ -21,7 +21,8 @@ func setupRunnerConfig() {
 func TestInitRunnerRegistrationToken_FromFlagFile(t *testing.T) {
 	setupRunnerConfig()
 	tmp := filepath.Join(t.TempDir(), "token.txt")
-	os.WriteFile(tmp, []byte("  my-token-123\n"), 0644)
+	err := os.WriteFile(tmp, []byte("  my-token-123\n"), 0644)
+	assert.NoError(t, err)
 
 	util.Config.Runner.RegistrationToken = ""
 	util.Config.Runner.RegistrationTokenFile = ""
@@ -36,7 +37,8 @@ func TestInitRunnerRegistrationToken_FromFlagFile(t *testing.T) {
 func TestInitRunnerRegistrationToken_FromConfigFile(t *testing.T) {
 	setupRunnerConfig()
 	tmp := filepath.Join(t.TempDir(), "token.txt")
-	os.WriteFile(tmp, []byte("config-token\n"), 0644)
+	err := os.WriteFile(tmp, []byte("config-token\n"), 0644)
+	assert.NoError(t, err)
 
 	util.Config.Runner.RegistrationToken = ""
 	util.Config.Runner.RegistrationTokenFile = tmp
@@ -51,8 +53,10 @@ func TestInitRunnerRegistrationToken_FromConfigFile(t *testing.T) {
 func TestInitRunnerRegistrationToken_FromStdin(t *testing.T) {
 	setupRunnerConfig()
 	r, w, _ := os.Pipe()
-	w.WriteString("stdin-token\n")
-	w.Close()
+	_, err := w.WriteString("stdin-token\n")
+	assert.NoError(t, err)
+	err = w.Close()
+	assert.NoError(t, err)
 
 	oldStdin := os.Stdin
 	os.Stdin = r
@@ -83,7 +87,8 @@ func TestInitRunnerRegistrationToken_NoSource(t *testing.T) {
 func TestInitRunnerRegistrationToken_EmptyFile_Panics(t *testing.T) {
 	setupRunnerConfig()
 	tmp := filepath.Join(t.TempDir(), "empty.txt")
-	os.WriteFile(tmp, []byte(""), 0644)
+	err := os.WriteFile(tmp, []byte(""), 0644)
+	assert.NoError(t, err)
 
 	util.Config.Runner.RegistrationToken = ""
 	runnerRegisterArgs.registrationTokenFilePath = tmp
@@ -97,8 +102,10 @@ func TestInitRunnerRegistrationToken_FlagFileTakesPriority(t *testing.T) {
 	setupRunnerConfig()
 	flagFile := filepath.Join(t.TempDir(), "flag-token.txt")
 	configFile := filepath.Join(t.TempDir(), "config-token.txt")
-	os.WriteFile(flagFile, []byte("flag-token"), 0644)
-	os.WriteFile(configFile, []byte("config-token"), 0644)
+	err := os.WriteFile(flagFile, []byte("flag-token"), 0644)
+	assert.NoError(t, err)
+	err = os.WriteFile(configFile, []byte("config-token"), 0644)
+	assert.NoError(t, err)
 
 	util.Config.Runner.RegistrationToken = ""
 	util.Config.Runner.RegistrationTokenFile = configFile

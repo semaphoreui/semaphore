@@ -43,7 +43,7 @@ func TestExtract_JSONBody_ObjectPreservedAsMap(t *testing.T) {
 		},
 	}
 	got := Extract(values, http.Header{}, payload)
-	dataVal, ok := got["DATA"].(map[string]interface{})
+	dataVal, ok := got["DATA"].(map[string]any)
 	require.True(t, ok, "DATA should be a map[string]interface{}, got %T: %v", got["DATA"], got["DATA"])
 	assert.Equal(t, float64(2), dataVal["id"])
 	assert.Equal(t, "test", dataVal["name"])
@@ -132,12 +132,12 @@ func TestExtract_JSONBody_VariousTypesAndMissing(t *testing.T) {
 	assert.NotContains(t, got, "NULLV", "NULLV should not be present for null JSON value")
 
 	// Array is preserved as []interface{}
-	arrVal, ok := got["ARR"].([]interface{})
+	arrVal, ok := got["ARR"].([]any)
 	assert.True(t, ok, "ARR should be a []interface{}")
 	assert.Len(t, arrVal, 3, "ARR should have 3 elements")
 
 	// Object is preserved as map[string]interface{}
-	objVal, ok := got["OBJ"].(map[string]interface{})
+	objVal, ok := got["OBJ"].(map[string]any)
 	assert.True(t, ok, "OBJ should be a map[string]interface{}")
 	assert.Equal(t, "v", objVal["k"])
 
@@ -298,10 +298,43 @@ func TestGetTaskDefinition_JSONObjectInEnv(t *testing.T) {
 
 	var env map[string]any
 	if assert.NoError(t, json.Unmarshal([]byte(task.Environment), &env)) {
-		dataVal, ok := env["data"].(map[string]interface{})
+		dataVal, ok := env["data"].(map[string]any)
 		assert.True(t, ok, "data should be a JSON object, not a string (was: %T %v)", env["data"], env["data"])
 		assert.Equal(t, float64(2), dataVal["id"])
 		assert.Equal(t, "test", dataVal["name"])
+	}
+}
+
+func TestGetTaskDefinitionTaskParamExtractionWithNilParamsMap(t *testing.T) {
+	integration := db.Integration{
+		ID:         111,
+		ProjectID:  222,
+		TemplateID: 333,
+		TaskParams: &db.TaskParams{
+			ProjectID: 222,
+			GitBranch: nil,
+		},
+	}
+
+	header := make(http.Header)
+	payload := []byte(`{"data":{"limit":"5"}}`)
+
+	task, err := GetTaskDefinition(integration, payload, header, func(projectID, integrationID int) ([]db.IntegrationExtractValue, error) {
+		return []db.IntegrationExtractValue{
+			{
+				VariableType: db.IntegrationVariableTaskParam,
+				ValueSource:  db.IntegrationExtractBodyValue,
+				BodyDataType: db.IntegrationBodyDataJSON,
+				Key:          "data.limit",
+				Variable:     "limit",
+			},
+		}, nil
+	})
+
+	require.NoError(t, err)
+
+	if assert.NotNil(t, task.Params) {
+		assert.Equal(t, "5", task.Params["limit"])
 	}
 }
 

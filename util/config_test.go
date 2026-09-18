@@ -182,8 +182,8 @@ func TestLoadEnvironmentToObject_SensitiveEnvs(t *testing.T) {
 
 	require.NoError(t, os.Setenv("TEST_SECRET_SUB", `{"field":"s"}`))
 	require.NoError(t, os.Setenv("TEST_PUBLIC_SUB", `{"field":"p"}`))
-	defer os.Unsetenv("TEST_SECRET_SUB")
-	defer os.Unsetenv("TEST_PUBLIC_SUB")
+	defer os.Unsetenv("TEST_SECRET_SUB") //nolint:errcheck
+	defer os.Unsetenv("TEST_PUBLIC_SUB") //nolint:errcheck
 
 	sensitive, err := loadEnvironmentToObject(&val)
 	require.NoError(t, err)
@@ -202,7 +202,7 @@ func TestLoadEnvironmentToObject_SensitiveEnvs_NoDuplicates(t *testing.T) {
 	}
 
 	require.NoError(t, os.Setenv("TEST_SHARED_SECRET", `{"field":"x"}`))
-	defer os.Unsetenv("TEST_SHARED_SECRET")
+	defer os.Unsetenv("TEST_SHARED_SECRET") //nolint:errcheck
 
 	sensitive, err := loadEnvironmentToObject(&val)
 	require.NoError(t, err)
@@ -224,7 +224,7 @@ func TestLoadEnvironmentToObject_SensitiveEnvs_Empty(t *testing.T) {
 	}
 
 	require.NoError(t, os.Setenv("TEST_PLAIN_VAR", "value"))
-	defer os.Unsetenv("TEST_PLAIN_VAR")
+	defer os.Unsetenv("TEST_PLAIN_VAR") //nolint:errcheck
 
 	sensitive, err := loadEnvironmentToObject(&val)
 	require.NoError(t, err)
@@ -675,7 +675,6 @@ func TestGetSecretsPath_Env(t *testing.T) {
 	assert.Equal(t, "/env/secrets/path", Config.Dirs.Secrets)
 	assert.Equal(t, "/env/secrets/path", Config.SecretsPath)
 }
-
 
 func setTestEnv(t *testing.T, key, val string) {
 	orig, existed := os.LookupEnv(key)

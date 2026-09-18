@@ -207,6 +207,7 @@ export default {
   readThe: 'Читать',
   toLearnMoreAboutCron: 'чтобы узнать больше о Cron.',
   suppressSuccessAlerts: 'Подавить успешные оповещения',
+  suppressErrorAlerts: 'Подавить оповещения об ошибках',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2: 'CLI аргументы (JSON массив). Пример: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'CLI аргументы',
   docs: 'документация',

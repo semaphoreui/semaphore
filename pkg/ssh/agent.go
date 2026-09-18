@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -94,7 +95,10 @@ func (a *Agent) Listen() error {
 			go func(conn net.Conn) {
 				defer conn.Close() //nolint:errcheck
 
-				if err := agent.ServeAgent(keyring, conn); err != nil && err != io.EOF {
+				// ServeAgent only returns once the connection breaks; io.EOF just
+				// means the client went away. staticcheck knows ServeAgent never
+				// returns nil, so the defensive nil check needs the nolint.
+				if err := agent.ServeAgent(keyring, conn); err != nil && !errors.Is(err, io.EOF) { //nolint:staticcheck // SA4023
 					a.Logger.Logf("error serving SSH agent listener: %w", err)
 				}
 			}(conn)

@@ -199,6 +199,7 @@ export default {
   readThe: '阅读',
   toLearnMoreAboutCron: '以了解有关 Cron 的更多信息。',
   suppressSuccessAlerts: '抑制成功警报',
+  suppressErrorAlerts: '抑制错误警报',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2: 'CLI 参数（JSON 数组）。示例： [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'CLI 参数',
   docs: '文档',

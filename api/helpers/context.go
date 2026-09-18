@@ -7,18 +7,22 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 )
 
+// contextKey namespaces the request-scoped values set by these helpers. Using a
+// package-private type instead of a bare string keeps the keys from colliding
+// with values stored by other packages on the same request context.
+type contextKey string
+
 func GetFromContext(r *http.Request, key string) any {
-	return r.Context().Value(key)
+	return r.Context().Value(contextKey(key))
 }
 
 func GetOkFromContext(r *http.Request, key string) (res any, ok bool) {
-	res = r.Context().Value(key)
+	res = r.Context().Value(contextKey(key))
 	return res, res != nil
 }
 
 func SetContextValue(r *http.Request, key string, value any) *http.Request {
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, key, value)
+	ctx := context.WithValue(r.Context(), contextKey(key), value)
 	return r.WithContext(ctx)
 }
 
