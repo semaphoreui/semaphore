@@ -7,5 +7,5 @@ create table `project__host_config` (
     unique (`project_id`, `type`, `name`),
 
     foreign key (`project_id`) references `project`(`id`) on delete cascade,
-    foreign key (`ssh_key_id`) references `access_key`(`id`) on delete cascade
+    foreign key (`ssh_key_id`) references `access_key`(`id`)
 );
