@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -202,12 +203,13 @@ func TestProjectCreateRecordsAuditEvent(t *testing.T) {
 
 func TestInventoryMutationsRecordAuditEvents(t *testing.T) {
 	store, user := auditTestStore(t, true)
+	user.Username = strings.Repeat("é", 128)
 	project, err := store.CreateProject(db.Project{Name: "inventory project"})
 	require.NoError(t, err)
 
 	secret := "inventory secret must not be audited"
 	create := db.Inventory{
-		Name:      "initial inventory",
+		Name:      strings.Repeat("é", 128),
 		ProjectID: project.ID,
 		Inventory: secret,
 		Type:      db.InventoryStatic,
@@ -228,9 +230,10 @@ func TestInventoryMutationsRecordAuditEvents(t *testing.T) {
 		action:     db.AuditActionCreate,
 		targetType: "inventory",
 		targetID:   created.Target.ID,
-		targetName: "initial inventory",
+		targetName: create.Name,
 		projectID:  strconv.Itoa(project.ID),
 	})
+	assert.Equal(t, user.Username, created.Actor.Name)
 	serialized, err := json.Marshal(created)
 	require.NoError(t, err)
 	assert.NotContains(t, string(serialized), secret)
