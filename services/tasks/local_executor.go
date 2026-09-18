@@ -32,10 +32,15 @@ type LocalExecutor struct {
 	Process *os.Process
 
 	sshKeyInstallation     ssh.AccessKeyInstallation
+	hostConfigInstallation *ssh.HostConfigInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
 	KeyInstaller db_lib.AccessKeyInstaller
+
+	// HostConfigs are the credential mappings of the project, resolved with their
+	// keys by the server: a remote runner has no database to read them from.
+	HostConfigs []db.HostConfig
 
 	// RepoLock serializes git operations on the shared per-template repository
 	// directory. Tasks of the same template may run in parallel
@@ -788,6 +793,12 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 
 	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
 
+	// The credential mappings of the project apply to every git operation of the
+	// task, so they are installed before the first clone.
+	if err = t.installHostConfigs(); err != nil {
+		return
+	}
+
 	// Defense in depth: reject playbook paths pointing outside the repository
 	// even if they were stored before validation was added.
 	if err = db.ValidatePlaybookPath(t.Template.Playbook, "template"); err != nil {
@@ -1113,10 +1124,11 @@ func (t *LocalExecutor) updateAndCheckoutRepository() error {
 
 func (t *LocalExecutor) updateRepository() error {
 	repo := db_lib.GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		Logger:      t.Logger,
+		TemplateID:  t.Template.ID,
+		Repository:  t.Repository,
+		Client:      db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		HostConfigs: t.hostConfigInstallation,
 	}
 
 	err := repo.ValidateRepo()
@@ -1149,10 +1161,11 @@ func (t *LocalExecutor) updateRepository() error {
 func (t *LocalExecutor) checkoutRepository() error {
 
 	repo := db_lib.GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		Logger:      t.Logger,
+		TemplateID:  t.Template.ID,
+		Repository:  t.Repository,
+		Client:      db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		HostConfigs: t.hostConfigInstallation,
 	}
 
 	err := repo.ValidateRepo()
@@ -1222,4 +1235,14 @@ func (t *LocalExecutor) getSSHAgentEnv() string {
 		return fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile)
 	}
 	return ""
+}
+
+// installHostConfigs generates the ssh config and git rewrites the credential
+// mappings of the project describe. A project without mappings installs nothing
+// and keeps its current behaviour.
+func (t *LocalExecutor) installHostConfigs() (err error) {
+	t.hostConfigInstallation, err = ssh.InstallHostConfigs(
+		t.Template.ProjectID, t.HostConfigs, t.Logger)
+
+	return
 }

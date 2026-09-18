@@ -41,6 +41,10 @@ type TaskRunner struct {
 	Repository  db.Repository
 	Environment db.Environment
 
+	// HostConfigs are the credential mappings of the project. They are resolved
+	// here, on the server, because a remote runner has no database.
+	HostConfigs []db.HostConfig
+
 	currentStage  *db.TaskStage
 	currentOutput *db.TaskOutput
 	currentState  any
@@ -551,6 +555,10 @@ func (t *TaskRunner) populateDetails() error {
 
 	t.Repository = withEffectiveBranch(t.Repository, t.Template, t.Task)
 
+	if err = t.loadHostConfigs(); err != nil {
+		return err
+	}
+
 	// load and merge all configured environments
 	err = t.loadEnvironments()
 	if err != nil {
@@ -666,4 +674,27 @@ func checkTmpDir(path string) error {
 		}
 	}
 	return err
+}
+
+// loadHostConfigs reads the credential mappings of the project together with
+// their keys, decrypted the same way the key of the repository is.
+func (t *TaskRunner) loadHostConfigs() (err error) {
+	t.HostConfigs, err = t.pool.store.GetHostConfigs(t.Template.ProjectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
+	for i := range t.HostConfigs {
+		t.HostConfigs[i].SSHKey, err = t.pool.store.GetAccessKey(
+			t.Template.ProjectID, t.HostConfigs[i].SSHKeyID)
+		if err != nil {
+			return
+		}
+
+		if err = t.pool.encryptionService.DeserializeSecret(&t.HostConfigs[i].SSHKey); err != nil {
+			return
+		}
+	}
+
+	return
 }

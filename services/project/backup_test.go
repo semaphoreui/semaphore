@@ -10,6 +10,7 @@ import (
 	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testItem struct {
@@ -154,6 +155,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 
 	assert.Equal(t, `{
   "environments": [],
+  "host_configs": [],
   "integration_aliases": [],
   "integrations": [],
   "inventories": [],
@@ -362,4 +364,143 @@ func TestMakeUniqueNames(t *testing.T) {
 	})
 
 	assert.True(t, isUnique(items), "Not unique names")
+}
+
+// TestBackupProject_HostConfig covers the credential mappings through a full
+// backup/restore cycle. Without it a restored project silently loses them and
+// its tasks lose the credentials they reach other hosts with.
+func TestBackupProject_HostConfig(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+
+	store := sql.InitConfigCreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{Name: "Host config 123"})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Name:      "GitHub deploy key",
+		Type:      db.AccessKeySSH,
+		SshKey:    db.SshKey{PrivateKey: "key"},
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateHostConfig(db.HostConfig{
+		ProjectID: proj.ID, Type: db.HostConfigHost,
+		Name: "github.com", SSHKeyID: key.ID,
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateHostConfig(db.HostConfig{
+		ProjectID: proj.ID, Type: db.HostConfigURL,
+		Name: "https://github.com/acme/private/", SSHKeyID: key.ID,
+	})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	require.Len(t, backup.HostConfigs, 2)
+	// The credential travels by name, never by id, and never as key material.
+	require.NotNil(t, backup.HostConfigs[0].SSHKey)
+	assert.Equal(t, "GitHub deploy key", *backup.HostConfigs[0].SSHKey)
+
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+	assert.NotContains(t, str, "PrivateKey", "a backup must not carry key material")
+
+	restoredBackup := &BackupFormat{}
+	require.NoError(t, restoredBackup.Unmarshal(str))
+	restoredBackup.Meta.Name = "Host config 1234"
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "hostconfigtest", Name: "Host Config Test",
+			Email: "hostconfig@example.com", Admin: true,
+		},
+	})
+	require.NoError(t, err)
+
+	restoredProj, err := restoredBackup.Restore(user, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	restored, err := store.GetHostConfigs(restoredProj.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, restored, 2)
+
+	byName := map[string]db.HostConfig{}
+	for _, hc := range restored {
+		byName[hc.Name] = hc
+	}
+
+	assert.Equal(t, db.HostConfigHost, byName["github.com"].Type)
+	assert.Equal(t, db.HostConfigURL, byName["https://github.com/acme/private/"].Type)
+
+	// The mapping must point at the restored key of the restored project, not at
+	// the id it had in the original one.
+	restoredKeys, err := store.GetAccessKeys(restoredProj.ID, db.GetAccessKeyOptions{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+
+	var restoredKeyID int
+	for _, k := range restoredKeys {
+		if k.Name == "GitHub deploy key" {
+			restoredKeyID = k.ID
+		}
+	}
+	require.NotZero(t, restoredKeyID)
+	assert.Equal(t, restoredKeyID, byName["github.com"].SSHKeyID)
+}
+
+// A hand-edited backup must not get a mapping past the checks the API applies.
+func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "badhostconfig", Name: "Bad Host Config",
+			Email: "badhostconfig@example.com", Admin: true,
+		},
+	})
+	require.NoError(t, err)
+
+	keyName := "k"
+	newBackup := func(name string, hostConfigs []BackupHostConfig) *BackupFormat {
+		return &BackupFormat{
+			Meta: BackupMeta{Project: db.Project{Name: name}},
+			Keys: []BackupAccessKey{{
+				AccessKey: db.AccessKey{Name: keyName, Type: db.AccessKeySSH},
+			}},
+			HostConfigs: hostConfigs,
+		}
+	}
+
+	t.Run("a host carrying config syntax is rejected", func(t *testing.T) {
+		backup := newBackup("bad host", []BackupHostConfig{{
+			HostConfig: db.HostConfig{Type: db.HostConfigHost, Name: "github.com\n  IdentityFile /etc/shadow"},
+			SSHKey:     &keyName,
+		}})
+
+		_, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "host_configs")
+	})
+
+	t.Run("a valid mapping still restores", func(t *testing.T) {
+		backup := newBackup("good host", []BackupHostConfig{{
+			HostConfig: db.HostConfig{Type: db.HostConfigHost, Name: "github.com"},
+			SSHKey:     &keyName,
+		}})
+
+		project, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+		require.NoError(t, err)
+		hostConfigs, err := store.GetHostConfigs(project.ID, db.RetrieveQueryParams{})
+		require.NoError(t, err)
+		require.Len(t, hostConfigs, 1)
+		assert.Equal(t, "github.com", hostConfigs[0].Name)
+	})
 }

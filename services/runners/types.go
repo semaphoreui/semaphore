@@ -12,13 +12,14 @@ type JobData struct {
 	Username            string
 	IncomingVersion     *string
 	Alias               string
-	Task                db.Task        `json:"task" binding:"required"`
-	Template            db.Template    `json:"template" binding:"required"`
-	Inventory           db.Inventory   `json:"inventory" binding:"required"`
-	InventoryRepository *db.Repository `json:"inventory_repository" binding:"required"`
-	Repository          db.Repository  `json:"repository" binding:"required"`
-	Environment         db.Environment `json:"environment" binding:"required"`
-	JWT                 string         `json:"jwt,omitempty"`
+	Task                db.Task         `json:"task" binding:"required"`
+	Template            db.Template     `json:"template" binding:"required"`
+	Inventory           db.Inventory    `json:"inventory" binding:"required"`
+	InventoryRepository *db.Repository  `json:"inventory_repository" binding:"required"`
+	Repository          db.Repository   `json:"repository" binding:"required"`
+	Environment         db.Environment  `json:"environment" binding:"required"`
+	JWT                 string          `json:"jwt,omitempty"`
+	HostConfigs         []db.HostConfig `json:"host_configs,omitempty"`
 }
 
 type RunnerState struct {

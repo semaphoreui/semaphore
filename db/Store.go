@@ -76,6 +76,7 @@ type ObjectReferrers struct {
 	Integrations []ObjectReferrer `json:"integrations"`
 	Schedules    []ObjectReferrer `json:"schedules"`
 	AccessKeys   []ObjectReferrer `json:"access_keys"`
+	HostConfigs  []ObjectReferrer `json:"host_configs"`
 }
 
 type IntegrationReferrers struct {
@@ -304,6 +305,16 @@ type RepositoryManager interface {
 	UpdateRepository(repository Repository) error
 	CreateRepository(repository Repository) (Repository, error)
 	DeleteRepository(projectID int, repositoryID int) error
+}
+
+// HostConfigManager handles the per-project credential mappings for ssh hosts
+// and git URLs.
+type HostConfigManager interface {
+	GetHostConfig(projectID int, hostConfigID int) (HostConfig, error)
+	GetHostConfigs(projectID int, params RetrieveQueryParams) ([]HostConfig, error)
+	UpdateHostConfig(hostConfig HostConfig) error
+	CreateHostConfig(hostConfig HostConfig) (HostConfig, error)
+	DeleteHostConfig(projectID int, hostConfigID int) error
 }
 
 // EnvironmentManager handles environment-related operations
@@ -581,6 +592,7 @@ type Store interface {
 	TemplateManager
 	InventoryManager
 	RepositoryManager
+	HostConfigManager
 	EnvironmentManager
 	AccessKeyManager
 	IntegrationManager
@@ -792,6 +804,14 @@ var ViewProps = ObjectProps{
 	DefaultSortingColumn: "position",
 }
 
+var HostConfigProps = ObjectProps{
+	TableName:            "project__host_config",
+	Type:                 reflect.TypeFor[HostConfig](),
+	PrimaryColumnName:    "id",
+	SortableColumns:      []string{"name"},
+	DefaultSortingColumn: "name",
+}
+
 var GlobalRunnerProps = ObjectProps{
 	TableName:            "runner",
 	Type:                 reflect.TypeFor[Runner](),
@@ -854,6 +874,37 @@ func ValidateRepository(store Store, repo *Repository) (err error) {
 	_, err = store.GetAccessKey(repo.ProjectID, repo.SSHKeyID)
 
 	return
+}
+
+// ValidateHostConfig resolves the credential in the project of the mapping. The
+// foreign key of ssh_key_id points at access_key without a project condition, so
+// a key of another project would be stored and only fail when a task uses it.
+func ValidateHostConfig(store Store, hostConfig *HostConfig) error {
+	key, err := store.GetAccessKey(hostConfig.ProjectID, hostConfig.SSHKeyID)
+	if err != nil {
+		return err
+	}
+
+	// The mapping is applied as an ssh identity, which only an ssh key can be.
+	if key.Type != AccessKeySSH {
+		return common_errors.NewValidationError("the credential must be an SSH key")
+	}
+
+	// The unique index catches this too, but only as a constraint violation with
+	// nothing a user can act on.
+	existing, err := store.GetHostConfigs(hostConfig.ProjectID, RetrieveQueryParams{})
+	if err != nil {
+		return err
+	}
+
+	for _, other := range existing {
+		if other.ID != hostConfig.ID && other.Type == hostConfig.Type && other.Name == hostConfig.Name {
+			return common_errors.NewValidationError(
+				"a mapping for " + hostConfig.Name + " already exists")
+		}
+	}
+
+	return nil
 }
 
 func ValidateInventory(store Store, inventory *Inventory) (err error) {

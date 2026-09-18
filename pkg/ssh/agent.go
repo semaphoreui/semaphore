@@ -152,16 +152,48 @@ type AccessKeyInstallation struct {
 }
 
 func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
+	return key.GetGitEnvWithHostConfigs(nil)
+}
+
+// GetGitEnvWithHostConfigs returns the environment for git commands, applying
+// the credential mappings of the project when it has any.
+//
+// The generated config replaces the administrator's as the file given to -F,
+// and includes it, so a mapped host uses its own credential while everything
+// else keeps the configuration it has today.
+func (key *AccessKeyInstallation) GetGitEnvWithHostConfigs(
+	hostConfigs *HostConfigInstallation,
+) (env []string) {
+
 	env = make([]string, 0)
 
 	env = append(env, "GIT_TERMINAL_PROMPT=0")
-	if key.SSHAgent != nil {
-		env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
+
+	generated := hostConfigs.SSHConfigPath()
+
+	// The command is needed without a key of its own too: a repository which
+	// needs no key still has to reach a mapped host with the mapped credential.
+	if key.SSHAgent != nil || generated != "" {
+		if key.SSHAgent != nil {
+			env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
+		}
+
+		// The generated config includes the administrator's, so it replaces it
+		// rather than being added to it.
+		sshConfigPath := generated
+		if sshConfigPath == "" {
+			sshConfigPath = util.Config.GetSshConfigPath()
+		}
+
 		sshCmd := "ssh " + gitHostKeyCheckingOpts()
-		if util.Config.GetSshConfigPath() != "" {
-			sshCmd += " -F " + util.Config.GetSshConfigPath()
+		if sshConfigPath != "" {
+			sshCmd += " -F " + sshConfigPath
 		}
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
+	}
+
+	if params := hostConfigs.GitConfigParameters(); params != "" {
+		env = append(env, "GIT_CONFIG_PARAMETERS="+params)
 	}
 
 	return env

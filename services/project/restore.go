@@ -240,6 +240,53 @@ func (e BackupRepository) Restore(b *BackupDB) error {
 	return nil
 }
 
+func (e BackupHostConfig) GetName() string {
+	return e.Name
+}
+
+func (e BackupHostConfig) Verify(backup *BackupFormat) error {
+	if err := verifyDuplicate[BackupHostConfig](e.Name, backup.HostConfigs); err != nil {
+		return err
+	}
+	if e.SSHKey == nil {
+		return fmt.Errorf("SSHKey can not be empty")
+	}
+	if getEntryByName[BackupAccessKey](e.SSHKey, backup.Keys) == nil {
+		return fmt.Errorf("SSHKey does not exist in keys[].Name")
+	}
+	return nil
+}
+
+func (e BackupHostConfig) Restore(b *BackupDB) error {
+	k := findEntityByName[db.AccessKey](e.SSHKey, b.keys)
+	if k == nil {
+		return fmt.Errorf("SSHKey does not exist in keys[].Name")
+	}
+
+	hostConfig := e.HostConfig
+	hostConfig.ProjectID = b.meta.ID
+	hostConfig.SSHKeyID = k.ID
+
+	// A backup is a user supplied file, so a mapping restored from one goes
+	// through the same checks as one created through the API: its host reaches a
+	// generated ssh config, and its key must belong to the project.
+	if err := hostConfig.Validate(); err != nil {
+		return err
+	}
+
+	if err := db.ValidateHostConfig(b.store, &hostConfig); err != nil {
+		return err
+	}
+
+	newHostConfig, err := b.store.CreateHostConfig(hostConfig)
+	if err != nil {
+		return err
+	}
+
+	b.hostConfigs = append(b.hostConfigs, newHostConfig)
+	return nil
+}
+
 func (e BackupTemplate) Verify(backup *BackupFormat) error {
 	if err := verifyDuplicate[BackupTemplate](e.Name, backup.Templates); err != nil {
 		return err
@@ -558,6 +605,11 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at repositories[%d]: %s", i, err.Error())
 		}
 	}
+	for i, o := range backup.HostConfigs {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at host_configs[%d]: %s", i, err.Error())
+		}
+	}
 	for i, o := range backup.Inventories {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at inventories[%d]: %s", i, err.Error())
@@ -655,6 +707,12 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 	for i, o := range backup.Repositories {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at repositories[%d]: %s", i, err.Error())
+		}
+	}
+
+	for i, o := range backup.HostConfigs {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at host_configs[%d]: %s", i, err.Error())
 		}
 	}
 

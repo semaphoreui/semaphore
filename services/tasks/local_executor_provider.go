@@ -34,7 +34,8 @@ func NewLocalExecutorProvider(keyInstaller db_lib.AccessKeyInstaller) *LocalExec
 // NewExecutor returns a freshly-wired *LocalExecutor. db_lib.CreateApp is called
 // here rather than inside LocalExecutor.Prepare so the executor arrives with a
 // non-nil App — Prepare's contract is "do the I/O", not "build the structure".
-func (p *LocalExecutorProvider) NewExecutor(task db.Task, template db.Template, inventory db.Inventory, repository db.Repository, environment db.Environment, jwt string) (Executor, error) {
+func (p *LocalExecutorProvider) NewExecutor(task db.Task, template db.Template, inventory db.Inventory, repository db.Repository, environment db.Environment, jwt string,
+	hostConfigs []db.HostConfig) (Executor, error) {
 	repository = withEffectiveBranch(repository, template, task)
 
 	return &LocalExecutor{
@@ -50,5 +51,6 @@ func (p *LocalExecutorProvider) NewExecutor(task db.Task, template db.Template, 
 		App:          db_lib.CreateApp(template, repository, inventory, nil),
 		JWT:          jwt,
 		RepoLock:     p.repoLock,
+		HostConfigs:  hostConfigs,
 	}, nil
 }
