@@ -11,6 +11,7 @@ import (
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -47,13 +48,35 @@ func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
 }
 
 type RepositoryController struct {
-	keyInstaller db_lib.AccessKeyInstaller
+	keyInstaller      db_lib.AccessKeyInstaller
+	encryptionService server.AccessKeyEncryptionService
 }
 
-func NewRepositoryController(keyInstaller db_lib.AccessKeyInstaller) *RepositoryController {
+func NewRepositoryController(keyInstaller db_lib.AccessKeyInstaller, encryptionService server.AccessKeyEncryptionService) *RepositoryController {
 	return &RepositoryController{
-		keyInstaller: keyInstaller,
+		keyInstaller:      keyInstaller,
+		encryptionService: encryptionService,
 	}
+}
+
+// loadSubmoduleCredentials returns the repository's per-host submodule
+// credentials with each mapped AccessKey decrypted, ready to hand to
+// db_lib.GitRepository -- Clone/Pull always update submodules, so any path
+// that clones/pulls needs these to authenticate a submodule hosted with
+// different credentials than the repository's own SSHKey.
+func (c *RepositoryController) loadSubmoduleCredentials(r *http.Request, repo db.Repository) ([]db.RepositorySubmoduleCredential, error) {
+	creds, err := helpers.Store(r).GetRepositorySubmoduleCredentials(repo.ProjectID, repo.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range creds {
+		if err := c.encryptionService.DeserializeSecret(&creds[i].AccessKey); err != nil {
+			return nil, err
+		}
+	}
+
+	return creds, nil
 }
 
 func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
@@ -101,6 +124,12 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 			return
 		}
 
+		submoduleCredentials, err := c.loadSubmoduleCredentials(r, repo)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
 		repoCopy := repo
 		repoCopy.GitBranch = branch
 		// Clone() does a single-branch clone (git clone --branch <branch>), so a
@@ -110,13 +139,13 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		// of failing to check out a branch that was never fetched.
 		branchHash := sha1.Sum([]byte(branch))
 		git := db_lib.GitRepository{
-			Repository: repoCopy,
-			TmpDirName: fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
-			Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
-			Logger:     task_logger.NopLogger{},
+			Repository:           repoCopy,
+			TmpDirName:           fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
+			SubmoduleCredentials: submoduleCredentials,
+			Client:               db_lib.CreateDefaultGitClient(c.keyInstaller),
+			Logger:               task_logger.NopLogger{},
 		}
 
-		var err error
 		if err = git.ValidateRepo(); err != nil {
 			err = git.Clone()
 		} else {
