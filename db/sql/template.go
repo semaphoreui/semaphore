@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/go-gorp/gorp/v3"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	log "github.com/sirupsen/logrus"
@@ -44,6 +45,19 @@ func (d *SqlDb) CreateTemplate(tmpl db.Template) (db.Template, error) {
 	}
 
 	tmpl.ApplyLegacyEnvironmentField()
+	onSuccess := db.ResolveAlertOn(tmpl.AlertOnSuccess, tmpl.SuppressSuccessAlerts)
+	onError := db.ResolveAlertOn(tmpl.AlertOnError, tmpl.SuppressErrorAlerts)
+	tmpl.AlertOnSuccess = db.BoolPtr(onSuccess)
+	tmpl.AlertOnError = db.BoolPtr(onError)
+	tmpl.SuppressSuccessAlerts = !onSuccess
+	tmpl.SuppressErrorAlerts = !onError
+
+	if err := tmpl.NormalizeAlerts(); err != nil {
+		return db.Template{}, err
+	}
+	if err := d.validateAlertIDs(tmpl.ProjectID, tmpl.AlertIDs); err != nil {
+		return db.Template{}, err
+	}
 
 	query, args, err := sq.Insert("project__template").
 		SetMap(map[string]any{
@@ -64,6 +78,9 @@ func (d *SqlDb) CreateTemplate(tmpl db.Template) (db.Template, error) {
 			"survey_vars":                   db.ObjectToJSON(tmpl.SurveyVars),
 			"suppress_success_alerts":       tmpl.SuppressSuccessAlerts,
 			"suppress_error_alerts":         tmpl.SuppressErrorAlerts,
+			"alert_on_success":              onSuccess,
+			"alert_on_error":                onError,
+			"alert_mode":                    tmpl.AlertMode,
 			"app":                           tmpl.App,
 			"git_branch":                    tmpl.GitBranch,
 			"runner_tag":                    tmpl.RunnerTag,
@@ -78,18 +95,37 @@ func (d *SqlDb) CreateTemplate(tmpl db.Template) (db.Template, error) {
 		return db.Template{}, err
 	}
 
-	tmplId, err := d.insert("id", query, args...)
+	tx, err := d.Sql().Begin()
 	if err != nil {
 		return db.Template{}, err
 	}
 
-	err = d.UpdateTemplateVaults(tmpl.ProjectID, tmplId, tmpl.Vaults)
+	tmplId, err := d.insertTx(tx, "id", query, args...)
 	if err != nil {
+		_ = tx.Rollback()
 		return db.Template{}, err
 	}
 
-	err = d.UpdateTemplateEnvironments(tmpl.ProjectID, tmplId, tmpl.EnvironmentIDs)
-	if err != nil {
+	if err = d.updateTemplateVaultsInTx(tx, tmpl.ProjectID, tmplId, tmpl.Vaults); err != nil {
+		_ = tx.Rollback()
+		return db.Template{}, err
+	}
+
+	if err = d.updateTemplateEnvironmentsInTx(tx, tmpl.ProjectID, tmplId, tmpl.EnvironmentIDs); err != nil {
+		_ = tx.Rollback()
+		return db.Template{}, err
+	}
+
+	createAlertIDs := tmpl.AlertIDs
+	if tmpl.AlertMode != db.AlertModeIDs {
+		createAlertIDs = nil
+	}
+	if err = d.updateTemplateAlertsInTx(tx, tmpl.ProjectID, tmplId, createAlertIDs); err != nil {
+		_ = tx.Rollback()
+		return db.Template{}, err
+	}
+
+	if err = tx.Commit(); err != nil {
 		return db.Template{}, err
 	}
 
@@ -111,6 +147,34 @@ func (d *SqlDb) UpdateTemplate(tmpl db.Template) error {
 		return err
 	}
 
+	onSuccess := db.ResolveAlertOn(tmpl.AlertOnSuccess, tmpl.SuppressSuccessAlerts)
+	onError := db.ResolveAlertOn(tmpl.AlertOnError, tmpl.SuppressErrorAlerts)
+	tmpl.AlertOnSuccess = db.BoolPtr(onSuccess)
+	tmpl.AlertOnError = db.BoolPtr(onError)
+	tmpl.SuppressSuccessAlerts = !onSuccess
+	tmpl.SuppressErrorAlerts = !onError
+
+	if tmpl.AlertMode == "" {
+		var curr db.Template
+		if err = d.getObject(tmpl.ProjectID, db.TemplateProps, tmpl.ID, &curr); err != nil {
+			return err
+		}
+		if tmpl.AlertIDs != nil {
+			tmpl.AlertMode = db.AlertModeIDs
+		} else {
+			tmpl.AlertMode = curr.AlertMode
+		}
+	}
+	if err = tmpl.NormalizeAlerts(); err != nil {
+		return err
+	}
+
+	if tmpl.AlertIDs != nil {
+		if err = d.validateAlertIDs(tmpl.ProjectID, tmpl.AlertIDs); err != nil {
+			return err
+		}
+	}
+
 	query, args, err := sq.Update("project__template").
 		SetMap(map[string]any{
 			"inventory_id":                  tmpl.InventoryID,
@@ -129,6 +193,9 @@ func (d *SqlDb) UpdateTemplate(tmpl db.Template) error {
 			"survey_vars":                   db.ObjectToJSON(tmpl.SurveyVars),
 			"suppress_success_alerts":       tmpl.SuppressSuccessAlerts,
 			"suppress_error_alerts":         tmpl.SuppressErrorAlerts,
+			"alert_on_success":              onSuccess,
+			"alert_on_error":                onError,
+			"alert_mode":                    tmpl.AlertMode,
 			"app":                           tmpl.App,
 			"`git_branch`":                  tmpl.GitBranch,
 			"task_params":                   tmpl.TaskParams,
@@ -147,18 +214,41 @@ func (d *SqlDb) UpdateTemplate(tmpl db.Template) error {
 		return err
 	}
 
-	_, err = d.exec(query, args...)
+	tx, err := d.Sql().Begin()
 	if err != nil {
 		return err
 	}
 
-	err = d.UpdateTemplateVaults(tmpl.ProjectID, tmpl.ID, tmpl.Vaults)
-	if err != nil {
+	if _, err = d.execTx(tx, query, args...); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	if err = d.updateTemplateVaultsInTx(tx, tmpl.ProjectID, tmpl.ID, tmpl.Vaults); err != nil {
+		_ = tx.Rollback()
 		return err
 	}
 
 	tmpl.ApplyLegacyEnvironmentField()
-	return d.UpdateTemplateEnvironments(tmpl.ProjectID, tmpl.ID, tmpl.EnvironmentIDs)
+	if err = d.updateTemplateEnvironmentsInTx(tx, tmpl.ProjectID, tmpl.ID, tmpl.EnvironmentIDs); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	// nil means the client omitted alert_ids (legacy PUT). [] clears bindings.
+	// default mode never keeps custom bindings, so refs stay accurate.
+	if tmpl.AlertMode != db.AlertModeIDs {
+		if err = d.updateTemplateAlertsInTx(tx, tmpl.ProjectID, tmpl.ID, nil); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+	} else if tmpl.AlertIDs != nil {
+		if err = d.updateTemplateAlertsInTx(tx, tmpl.ProjectID, tmpl.ID, tmpl.AlertIDs); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (d *SqlDb) GetTemplateEnvironments(projectID int, templateID int) (environmentIDs []int, err error) {
@@ -187,8 +277,20 @@ func (d *SqlDb) GetTemplateEnvironments(projectID int, templateID int) (environm
 	return
 }
 
-func (d *SqlDb) UpdateTemplateEnvironments(projectID int, templateID int, environmentIDs []int) (err error) {
-	_, err = d.exec(
+func (d *SqlDb) UpdateTemplateEnvironments(projectID int, templateID int, environmentIDs []int) error {
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return err
+	}
+	if err = d.updateTemplateEnvironmentsInTx(tx, projectID, templateID, environmentIDs); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
+func (d *SqlDb) updateTemplateEnvironmentsInTx(tx *gorp.Transaction, projectID int, templateID int, environmentIDs []int) (err error) {
+	_, err = d.execTx(tx,
 		"delete from project__template_environment where project_id=? and template_id=?",
 		projectID,
 		templateID,
@@ -204,7 +306,7 @@ func (d *SqlDb) UpdateTemplateEnvironments(projectID int, templateID int, enviro
 		}
 		seen[envID] = true
 
-		_, err = d.exec(
+		_, err = d.execTx(tx,
 			"insert into project__template_environment (project_id, template_id, environment_id) values (?, ?, ?)",
 			projectID,
 			templateID,
@@ -287,6 +389,9 @@ func (d *SqlDb) getTemplates(
 		"pt.executor_image",
 		"pt.suppress_success_alerts",
 		"pt.suppress_error_alerts",
+		"pt.alert_on_success",
+		"pt.alert_on_error",
+		"pt.alert_mode",
 		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id",
 	}
 
@@ -419,6 +524,14 @@ func (d *SqlDb) getTemplates(
 		template.EnvironmentIDs, err = d.GetTemplateEnvironments(projectID, template.ID)
 		if err != nil {
 			return
+		}
+
+		template.AlertIDs, err = d.GetTemplateAlerts(projectID, template.ID)
+		if err != nil {
+			return
+		}
+		if template.AlertMode == "" {
+			template.AlertMode = db.AlertModeDefault
 		}
 
 		// For backward compatibility

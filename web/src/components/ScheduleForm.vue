@@ -70,6 +70,50 @@
       </v-card-text>
     </v-card>
 
+    <v-radio-group
+      v-model="item.alert_mode"
+      :label="$t('scheduleAlerts')"
+      :disabled="formSaving"
+      class="mt-2"
+    >
+      <v-radio :label="$t('scheduleAlertsInherit')" value="inherit" />
+      <v-radio :label="$t('scheduleAlertsCustom')" value="ids" />
+    </v-radio-group>
+
+    <v-autocomplete
+      v-if="item.alert_mode === 'ids'"
+      v-model="item.alert_ids"
+      :label="$t('alerts')"
+      :items="alerts"
+      item-value="id"
+      item-text="name"
+      multiple
+      chips
+      deletable-chips
+      :hint="$t('scheduleAlertsHint')"
+      persistent-hint
+      :disabled="formSaving"
+      outlined
+      dense
+      class="mb-4"
+    />
+
+    <v-checkbox
+      v-if="item.alert_mode === 'ids'"
+      class="mt-0"
+      :label="$t('alertOnSuccess')"
+      v-model="item.alert_on_success"
+      :disabled="formSaving"
+    />
+
+    <v-checkbox
+      v-if="item.alert_mode === 'ids'"
+      class="mt-0 mb-4"
+      :label="$t('alertOnError')"
+      v-model="item.alert_on_error"
+      :disabled="formSaving"
+    />
+
     <div v-if="type === 'run_at'">
       <v-text-field
 
@@ -475,6 +519,7 @@ export default {
   data() {
     return {
       templates: null,
+      alerts: [],
       timing: 'hourly',
       TIMINGS,
       MONTHS,
@@ -518,6 +563,12 @@ export default {
     this.templates = (await axios({
       method: 'get',
       url: `/api/project/${this.projectId}/templates`,
+      responseType: 'json',
+    })).data;
+
+    this.alerts = (await axios({
+      method: 'get',
+      url: `/api/project/${this.projectId}/alerts`,
       responseType: 'json',
     })).data;
   },
@@ -572,6 +623,10 @@ export default {
         delete_after_run: false,
         task_params: {},
         run_at: null,
+        alert_mode: 'inherit',
+        alert_ids: [],
+        alert_on_success: true,
+        alert_on_error: true,
       };
     },
 
@@ -719,9 +774,18 @@ export default {
     },
 
     afterLoadData() {
-      // if (!this.item.type) {
-      //   this.item.type = this.item.run_at ? 'run_at' : '';
-      // }
+      if (!this.item.alert_mode) {
+        this.$set(this.item, 'alert_mode', 'inherit');
+      }
+      if (!Array.isArray(this.item.alert_ids)) {
+        this.$set(this.item, 'alert_ids', []);
+      }
+      if (this.isNew && this.item.alert_on_success == null) {
+        this.$set(this.item, 'alert_on_success', true);
+      }
+      if (this.isNew && this.item.alert_on_error == null) {
+        this.$set(this.item, 'alert_on_error', true);
+      }
 
       if (this.item.run_at) {
         this.setRunAtInputFromItem();
@@ -736,6 +800,11 @@ export default {
 
     async beforeSave() {
       this.item.type = this.type;
+      if (this.item.alert_mode !== 'ids') {
+        this.item.alert_ids = [];
+        this.item.alert_on_success = null;
+        this.item.alert_on_error = null;
+      }
 
       if (this.type === 'run_at') {
         const parsed = this.runAtInput

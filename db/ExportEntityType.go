@@ -58,6 +58,10 @@ func (e View) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
 
+func (e Alert) GetDbKey() string {
+	return NewKeyFromInt(e.ID)
+}
+
 func (e IntegrationAlias) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
