@@ -759,7 +759,7 @@ func InsertTemplateFromType(typeInstance any) (string, []any) {
 		if val.Type().Field(i).Name == "ID" {
 			continue
 		}
-		fields += val.Type().Field(i).Tag.Get("db")
+		fields += "`" + val.Type().Field(i).Tag.Get("db") + "`"
 		values += "?"
 		args = append(args, val.Field(i))
 		if i != (typeFieldSize - 1) {
