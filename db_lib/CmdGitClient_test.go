@@ -1,7 +1,18 @@
 package db_lib
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetRepositoryBranchNames(t *testing.T) {
@@ -79,4 +90,61 @@ func TestGetRepositoryBranchNames(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCmdGitClient_AppliesHostConfigs proves the credential mappings of the
+// project reach the git command. Without this the whole feature is inert: the
+// config is generated, and git is never told to use it.
+func TestCmdGitClient_AppliesHostConfigs(t *testing.T) {
+	tmp, err := os.MkdirTemp("/tmp", "hcwire")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tmp) }) //nolint:errcheck
+
+	original := util.Config
+	t.Cleanup(func() { util.Config = original })
+	util.Config = &util.ConfigType{
+		TmpPath: tmp,
+		Process: &util.ConfigProcess{},
+		Ssh:     &util.SshConfig{StrictHostKeyChecking: util.SshStrictHostKeyCheckingNo},
+	}
+
+	keyDir := t.TempDir()
+	require.NoError(t, exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "",
+		"-f", filepath.Join(keyDir, "k")).Run())
+	private, err := os.ReadFile(filepath.Join(keyDir, "k"))
+	require.NoError(t, err)
+
+	key := db.AccessKey{ID: 1, Type: db.AccessKeySSH, SshKey: db.SshKey{PrivateKey: string(private)}}
+
+	installation, err := ssh.InstallHostConfigs(1, []db.HostConfig{
+		{ID: 1, ProjectID: 1, Type: db.HostConfigHost, Name: "github.com", SSHKey: key},
+		{ID: 2, ProjectID: 1, Type: db.HostConfigURL,
+			Name: "https://github.com/acme/", SSHKey: key},
+	}, task_logger.NopLogger{})
+	require.NoError(t, err)
+	defer installation.Destroy()
+
+	client := CmdGitClient{keyInstaller: nopKeyInstaller{}}
+	repo := GitRepository{
+		Repository:  db.Repository{ProjectID: 1, GitURL: "git@github.com:acme/x.git", GitBranch: "main"},
+		Logger:      task_logger.NopLogger{},
+		Client:      client,
+		HostConfigs: installation,
+	}
+
+	cmd := client.makeCmd(repo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
+
+	var sshCommand, gitParams string
+	for _, env := range cmd.Env {
+		if v, ok := strings.CutPrefix(env, "GIT_SSH_COMMAND="); ok {
+			sshCommand = v
+		}
+		if v, ok := strings.CutPrefix(env, "GIT_CONFIG_PARAMETERS="); ok {
+			gitParams = v
+		}
+	}
+
+	require.NotEmpty(t, sshCommand, "git must be told to use the generated config")
+	assert.Contains(t, sshCommand, "-F "+installation.SSHConfigPath())
+	assert.Contains(t, gitParams, "insteadOf=https://github.com/acme/")
 }

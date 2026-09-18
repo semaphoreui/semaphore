@@ -27,7 +27,7 @@ func (c CmdGitClient) makeCmd(
 ) *exec.Cmd {
 	cmd := exec.Command("git") //nolint:gosec
 
-	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv()...)
+	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnvWithHostConfigs(r.HostConfigs)...)
 
 	switch targetDir {
 	case GitRepositoryTmpPath:

@@ -11,6 +11,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	log "github.com/sirupsen/logrus"
 )
@@ -68,11 +69,21 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 		return
 	}
 
+	// The project may map this host to another credential, the same as it would
+	// for a task.
+	hostConfigs, err := db_lib.InstallProjectHostConfigs(
+		r.pool.store, r.pool.encryptionService, schedule.ProjectID, task_logger.NopLogger{})
+	if err != nil {
+		return
+	}
+	defer hostConfigs.Destroy()
+
 	remoteHash, err := db_lib.GitRepository{
-		Logger:     nil,
-		TemplateID: schedule.TemplateID,
-		Repository: repo,
-		Client:     db_lib.CreateDefaultGitClient(r.keyInstaller),
+		Logger:      nil,
+		TemplateID:  schedule.TemplateID,
+		Repository:  repo,
+		Client:      db_lib.CreateDefaultGitClient(r.keyInstaller),
+		HostConfigs: hostConfigs,
 	}.GetLastRemoteCommitHash()
 
 	if err != nil {

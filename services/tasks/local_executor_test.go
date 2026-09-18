@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -458,4 +459,47 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 			assert.Equal(t, exec.resolvePlaybookFile(), args[len(args)-1], "Playbook must be the last argument")
 		})
 	}
+}
+
+// Denis: the mappings must govern how ansible reaches the hosts of the
+// inventory, not only how git reaches a server.
+func TestGetPlaybookArgs_InventorySSHCommonArgs(t *testing.T) {
+	setupExecutorConfig(t)
+
+	newExecutor := func(installation *ssh.HostConfigInstallation) *LocalExecutor {
+		return &LocalExecutor{
+			Template:               db.Template{App: db.AppAnsible, Playbook: "site.yml"},
+			Inventory:              db.Inventory{ID: 1, Type: db.InventoryStatic},
+			hostConfigInstallation: installation,
+		}
+	}
+
+	t.Run("no mappings means no ssh args", func(t *testing.T) {
+		args, _, err := newExecutor(nil).getPlaybookArgs("admin", nil)
+
+		require.NoError(t, err)
+		assert.NotContains(t, args, "--ssh-common-args")
+	})
+
+	t.Run("mappings point ansible at the generated config", func(t *testing.T) {
+		installation := &ssh.HostConfigInstallation{ConfigFile: "/tmp/semaphore/project_1/ssh-config-x.conf"}
+
+		args, _, err := newExecutor(installation).getPlaybookArgs("admin", nil)
+
+		require.NoError(t, err)
+		require.Contains(t, args, "--ssh-common-args")
+
+		i := indexOfArg(args, "--ssh-common-args")
+		require.Less(t, i+1, len(args))
+		assert.Equal(t, "-F /tmp/semaphore/project_1/ssh-config-x.conf", args[i+1])
+	})
+}
+
+func indexOfArg(args []string, value string) int {
+	for i, a := range args {
+		if a == value {
+			return i
+		}
+	}
+	return -1
 }

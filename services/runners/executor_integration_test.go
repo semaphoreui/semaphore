@@ -131,6 +131,7 @@ func (p *MockDockerExecutorProvider) NewExecutor(
 	repository db.Repository,
 	environment db.Environment,
 	jwt string,
+	hostConfigs []db.HostConfig,
 ) (tasks.Executor, error) {
 	return &MockDockerExecutor{
 		Engine:      p.Engine,
@@ -348,6 +349,7 @@ func (p *MockK8sExecutorProvider) NewExecutor(
 	repository db.Repository,
 	environment db.Environment,
 	jwt string,
+	hostConfigs []db.HostConfig,
 ) (tasks.Executor, error) {
 	return &MockK8sExecutor{
 		Cluster:     p.Cluster,

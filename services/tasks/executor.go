@@ -23,6 +23,7 @@ type ExecutorProvider interface {
 		repository db.Repository,
 		environment db.Environment,
 		jwt string,
+		hostConfigs []db.HostConfig,
 	) (Executor, error)
 }
 
