@@ -81,6 +81,22 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return nil
 	}
 
+	environmentVars := galaxyGitEnv(t.Repository)
+
+	// An SSH repository key reaches galaxy's git clones through an agent, the
+	// same way TerraformApp.init hands one to `terraform init`.
+	if args.Installer != nil {
+		keyInstallation, err := args.Installer.Install(t.Repository.SSHKey, db.AccessKeyRoleGit, t.Logger)
+		if err != nil {
+			return err
+		}
+		defer keyInstallation.Destroy() //nolint: errcheck
+		environmentVars = append(environmentVars, keyInstallation.GetGitEnv()...)
+	}
+
+	// Task variables come last so a manually configured GIT_* var still wins.
+	environmentVars = append(environmentVars, args.EnvironmentVars...)
+
 	collectionArgs, err := galaxyExtraArgs(args, GalaxyCollection)
 	if err != nil {
 		return err
@@ -90,11 +106,11 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return err
 	}
 
-	err = t.installCollectionsRequirements(args.EnvironmentVars, collectionArgs)
+	err = t.installCollectionsRequirements(environmentVars, collectionArgs)
 	if err != nil {
 		return err
 	}
-	return t.installRolesRequirements(args.EnvironmentVars, roleArgs)
+	return t.installRolesRequirements(environmentVars, roleArgs)
 }
 
 // skipGalaxyInstall reports whether the Galaxy install step must be skipped.
