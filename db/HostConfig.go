@@ -120,6 +120,36 @@ func (h *HostConfig) validateURL() error {
 // SSHAlias is the ssh_config Host name a URL mapping rewrites to. A URL mapping
 // can not use the real host name: several mappings may share one host and each
 // needs its own credential, so every mapping gets its own alias.
+// ValidateCredential checks the mapping against the kind of credential it
+// points at.
+//
+// A host mapping becomes an ssh_config Host block, which can only bind an ssh
+// identity. A URL mapping rewrites the URL, so it can also carry a login and a
+// password — but only over https, because the rewrite puts them in the URL and
+// nothing else keeps them off the wire.
+func (h *HostConfig) ValidateCredential(keyType AccessKeyType) error {
+	switch h.Type {
+	case HostConfigHost:
+		if keyType != AccessKeySSH {
+			return common_errors.NewValidationError("a host mapping needs an SSH key")
+		}
+	case HostConfigURL:
+		switch keyType {
+		case AccessKeySSH:
+		case AccessKeyLoginPassword:
+			if !strings.HasPrefix(strings.TrimSpace(h.Name), "https://") {
+				return common_errors.NewValidationError(
+					"a login/password credential can only be used with an https URL")
+			}
+		default:
+			return common_errors.NewValidationError(
+				"a URL mapping needs an SSH key or a login/password credential")
+		}
+	}
+
+	return nil
+}
+
 func (h HostConfig) SSHAlias() string {
 	return "semaphore-mapping-" + strconv.Itoa(h.ID)
 }

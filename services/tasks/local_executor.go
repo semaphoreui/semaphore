@@ -928,7 +928,7 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		environmentVariables = append(environmentVariables, sshEnv)
 	}
 
-	environmentVariables = append(environmentVariables, t.hostConfigEnv()...)
+	environmentVariables = append(environmentVariables, t.hostConfigTaskEnv()...)
 
 	if t.Template.Type != db.TemplateTask {
 
@@ -1250,9 +1250,9 @@ func (t *LocalExecutor) getSSHAgentEnv() string {
 }
 
 // hostConfigEnv returns the environment the credential mappings of the project
-// need. Every command of a task can start git of its own — galaxy downloads a
-// role over ssh, terraform fetches a module, a playbook shells out — and each of
-// them has to reach a mapped host with the mapped credential.
+// need, for the commands Semaphore runs itself: galaxy downloads a role,
+// terraform fetches a module, and each has to reach a mapped host with the
+// mapped credential.
 func (t *LocalExecutor) hostConfigEnv() []string {
 	if t.hostConfigInstallation == nil {
 		return nil
@@ -1265,15 +1265,31 @@ func (t *LocalExecutor) hostConfigEnv() []string {
 	return noKey.GetGitEnvWithHostConfigs(t.hostConfigInstallation)
 }
 
+// hostConfigTaskEnv is hostConfigEnv for the process running the task itself.
+//
+// A task runs what the repository says it runs, so it is given the ssh part of
+// the mappings — enough for a playbook to reach a mapped host, and holding no
+// secret — but not the rewrites which carry a login and a password in clear.
+func (t *LocalExecutor) hostConfigTaskEnv() []string {
+	if t.hostConfigInstallation == nil {
+		return nil
+	}
+
+	var noKey ssh.AccessKeyInstallation
+
+	return noKey.GetGitEnvWithoutCredentials(t.hostConfigInstallation)
+}
+
 // inventorySSHCommonArgs returns the ssh options ansible must use to reach the
 // hosts of the inventory, so a host mapping selects the credential for them the
 // same way it does for git.
 func (t *LocalExecutor) inventorySSHCommonArgs() string {
-	if t.hostConfigInstallation == nil {
+	configPath := t.hostConfigInstallation.SSHConfigPath()
+	if configPath == "" {
 		return ""
 	}
 
-	return fmt.Sprintf("-F %s", t.hostConfigInstallation.SSHConfigPath())
+	return fmt.Sprintf("-F %s", configPath)
 }
 
 // installHostConfigs generates the ssh config and git rewrites the credential

@@ -164,6 +164,25 @@ func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
 func (key *AccessKeyInstallation) GetGitEnvWithHostConfigs(
 	hostConfigs *HostConfigInstallation,
 ) (env []string) {
+	return key.gitEnv(hostConfigs, true)
+}
+
+// GetGitEnvWithoutCredentials is GetGitEnvWithHostConfigs without the git
+// rewrites of the mappings which authenticate with a login and a password.
+//
+// It is what a process running the content of a repository gets. The rewrites
+// hold the credential in clear, while the ssh part of the environment holds
+// none: the keys stay inside their agents, which can be used but not read.
+func (key *AccessKeyInstallation) GetGitEnvWithoutCredentials(
+	hostConfigs *HostConfigInstallation,
+) (env []string) {
+	return key.gitEnv(hostConfigs, false)
+}
+
+func (key *AccessKeyInstallation) gitEnv(
+	hostConfigs *HostConfigInstallation,
+	withCredentials bool,
+) (env []string) {
 
 	env = make([]string, 0)
 
@@ -192,7 +211,7 @@ func (key *AccessKeyInstallation) GetGitEnvWithHostConfigs(
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
 	}
 
-	if params := hostConfigs.GitConfigParameters(); params != "" {
+	if params := hostConfigs.GitConfigParameters(); withCredentials && params != "" {
 		env = append(env, "GIT_CONFIG_PARAMETERS="+params)
 	}
 

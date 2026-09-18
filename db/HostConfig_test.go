@@ -114,3 +114,39 @@ func TestHostConfig_SSHAlias(t *testing.T) {
 	assert.Equal(t, "semaphore-mapping-7", a.SSHAlias())
 	assert.NotEqual(t, a.SSHAlias(), b.SSHAlias())
 }
+
+func TestHostConfig_ValidateCredential(t *testing.T) {
+	tests := []struct {
+		name    string
+		typ     HostConfigType
+		host    string
+		keyType AccessKeyType
+		err     string
+	}{
+		{"host with an ssh key", HostConfigHost, "github.com", AccessKeySSH, ""},
+		{"host with a login/password", HostConfigHost, "github.com", AccessKeyLoginPassword,
+			"a host mapping needs an SSH key"},
+		{"host with a secret", HostConfigHost, "github.com", AccessKeyString,
+			"a host mapping needs an SSH key"},
+		{"url with an ssh key", HostConfigURL, "https://github.com/acme/", AccessKeySSH, ""},
+		{"url with a login/password over https", HostConfigURL, "https://github.com/acme/",
+			AccessKeyLoginPassword, ""},
+		{"url with a login/password over http", HostConfigURL, "http://github.com/acme/",
+			AccessKeyLoginPassword, "https URL"},
+		{"url with a secret", HostConfigURL, "https://github.com/acme/", AccessKeyString,
+			"a URL mapping needs an SSH key or a login/password credential"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := HostConfig{Type: tt.typ, Name: tt.host}
+
+			err := h.ValidateCredential(tt.keyType)
+			if tt.err == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tt.err)
+			}
+		})
+	}
+}

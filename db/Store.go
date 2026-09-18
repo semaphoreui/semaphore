@@ -885,19 +885,8 @@ func ValidateHostConfig(store Store, hostConfig *HostConfig) error {
 		return err
 	}
 
-	// A host mapping becomes an ssh_config Host block, which can only bind an ssh
-	// identity. A URL mapping rewrites the URL, so it can also carry a login and
-	// a password and authenticate over https.
-	switch hostConfig.Type {
-	case HostConfigHost:
-		if key.Type != AccessKeySSH {
-			return common_errors.NewValidationError("a host mapping needs an SSH key")
-		}
-	case HostConfigURL:
-		if key.Type != AccessKeySSH && key.Type != AccessKeyLoginPassword {
-			return common_errors.NewValidationError(
-				"a URL mapping needs an SSH key or a login/password credential")
-		}
+	if err = hostConfig.ValidateCredential(key.Type); err != nil {
+		return err
 	}
 
 	// The unique index catches this too, but only as a constraint violation with

@@ -105,6 +105,14 @@ func InstallHostConfigs(
 		}
 	}
 
+	// Only an ssh mapping needs a generated configuration. A project whose
+	// mappings all authenticate over https gets its rewrites and nothing else:
+	// an empty file passed with -F takes away the configuration ssh would
+	// otherwise read, rather than adding nothing to it.
+	if len(blocks) == 0 {
+		return
+	}
+
 	// Include comes last so a mapping wins over the same host in the
 	// administrator's config: ssh keeps the first value it obtains for an
 	// option. "Match all" is what takes the Include back out of the preceding
@@ -201,6 +209,12 @@ func urlRewrite(hostConfig db.HostConfig) string {
 func credentialRewrite(hostConfig db.HostConfig) string {
 	u := parseMappingURL(hostConfig.Name)
 	if u == nil {
+		return ""
+	}
+
+	// Validation rejects this already; the rewrite is the last place the
+	// credential can still be kept off a cleartext connection.
+	if u.Scheme != "https" {
 		return ""
 	}
 

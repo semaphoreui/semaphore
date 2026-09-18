@@ -73,6 +73,19 @@ export default {
     },
   },
 
+  watch: {
+    // Switching to Host narrows the list, and Vuetify only blanks the field:
+    // the filtered-out credential would stay in the model and reach the API.
+    'item.type': function onTypeChange() {
+      if (this.keys == null || !this.item.ssh_key_id) {
+        return;
+      }
+      if (!this.credentials.some((key) => key.id === this.item.ssh_key_id)) {
+        this.item.ssh_key_id = null;
+      }
+    },
+  },
+
   async created() {
     this.keys = (await axios({
       method: 'get',

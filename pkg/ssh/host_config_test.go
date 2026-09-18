@@ -446,3 +446,48 @@ func TestInstallHostConfigs_AcceptsRealKeyLogins(t *testing.T) {
 		})
 	}
 }
+
+// An https-only project must keep the ssh configuration it already has: an
+// empty file given to -F would take it away rather than add nothing to it.
+func TestInstallHostConfigs_NoConfigFileWithoutSSHMappings(t *testing.T) {
+	setupHostConfig(t)
+
+	installation, err := InstallHostConfigs(1, []db.HostConfig{{
+		ID: 1, ProjectID: 1, Type: db.HostConfigURL,
+		Name: "https://test.asdf.ru/", SSHKey: loginPasswordKey(1, "bob", "s3cr3t"),
+	}}, task_logger.NopLogger{})
+	require.NoError(t, err)
+	defer installation.Destroy()
+
+	assert.Empty(t, installation.SSHConfigPath(), "no ssh mapping, no generated config")
+	assert.NotEmpty(t, installation.GitConfigParameters(), "the rewrite is still installed")
+}
+
+// The credential is put in the replacement URL, so http would send it in clear.
+func TestInstallHostConfigs_RejectsCleartextCredentialURL(t *testing.T) {
+	setupHostConfig(t)
+
+	_, err := InstallHostConfigs(1, []db.HostConfig{{
+		ID: 1, ProjectID: 1, Type: db.HostConfigURL,
+		Name: "http://test.asdf.ru/", SSHKey: loginPasswordKey(1, "bob", "s3cr3t"),
+	}}, task_logger.NopLogger{})
+	assert.ErrorContains(t, err, "invalid URL")
+}
+
+// A task runs what the repository says it runs, so it must not be handed the
+// rewrites which carry a login and a password in clear.
+func TestGetGitEnvWithoutCredentials(t *testing.T) {
+	setupHostConfig(t)
+
+	installation, err := InstallHostConfigs(1, []db.HostConfig{{
+		ID: 1, ProjectID: 1, Type: db.HostConfigURL,
+		Name: "https://test.asdf.ru/", SSHKey: loginPasswordKey(1, "bob", "s3cr3t"),
+	}}, task_logger.NopLogger{})
+	require.NoError(t, err)
+	defer installation.Destroy()
+
+	var noKey AccessKeyInstallation
+
+	assert.Contains(t, strings.Join(noKey.GetGitEnvWithHostConfigs(installation), "\n"), "s3cr3t")
+	assert.NotContains(t, strings.Join(noKey.GetGitEnvWithoutCredentials(installation), "\n"), "s3cr3t")
+}
