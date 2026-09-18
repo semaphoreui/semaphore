@@ -1,12 +1,13 @@
 package db_lib
 
 import (
+	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/semaphoreui/semaphore/db"
@@ -78,14 +79,23 @@ func (p AnsiblePlaybook) runCmd(command string, args []string, environmentVars [
 	return cmd.Run()
 }
 
-func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, inputs map[string]string, cb func(*os.Process)) error {
+func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, inputs map[string]string, stopCh <-chan struct{}) error {
 	cmd, err := p.makeCmd("ansible-playbook", args, environmentVars)
 	if err != nil {
 		return err
 	}
 
+	cmd.WaitDelay = 250 * time.Millisecond
 	finishLog := p.Logger.LogCmd(cmd)
 	defer finishLog()
+
+	// This is the last pre-run cancellation check. The check and pty.Start are
+	// not atomic; if cancellation wins between them, waitCommand stops the process.
+	select {
+	case <-stopCh:
+		return nil
+	default:
+	}
 
 	ptmx, err := pty.Start(cmd)
 
@@ -118,8 +128,12 @@ func (p AnsiblePlaybook) RunPlaybook(args []string, environmentVars []string, in
 	}()
 
 	defer func() { _ = ptmx.Close() }()
-	cb(cmd.Process)
-	err = cmd.Wait()
+	err = waitCommand(cmd, stopCh, p.Logger)
+	finishLog()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		p.Logger.Logf("Ansible command output draining exceeded %s and was stopped", cmd.WaitDelay)
+		return nil
+	}
 	return err
 }
 
