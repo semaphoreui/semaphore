@@ -2,6 +2,7 @@ package project
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -245,24 +246,26 @@ func (e BackupHostConfig) GetName() string {
 }
 
 func (e BackupHostConfig) Verify(backup *BackupFormat) error {
+	// The credential is remapped during the restore, so only what the mapping
+	// points at can be checked here — but it must be, because Restore runs after
+	// the project and its keys already exist. It also trims the name, which the
+	// duplicate check below compares against.
+	if err := e.ValidateMapping(); err != nil {
+		return err
+	}
+
 	// Not verifyDuplicate: a mapping is unique on (type, name), and the table
 	// enforces it, so a duplicate must fail here rather than half way through
-	// the restore with the project already created.
+	// the restore with the project already created. The stored name is trimmed,
+	// so two entries differing only in surrounding whitespace are one mapping.
 	duplicates := 0
 	for _, other := range backup.HostConfigs {
-		if other.Type == e.Type && other.Name == e.Name {
+		if other.Type == e.Type && strings.TrimSpace(other.Name) == e.Name {
 			duplicates++
 		}
 	}
 	if duplicates > 1 {
 		return fmt.Errorf("%s is duplicate", e.Name)
-	}
-
-	// The credential is remapped during the restore, so only what the mapping
-	// points at can be checked here — but it must be, because Restore runs after
-	// the project and its keys already exist.
-	if err := e.ValidateMapping(); err != nil {
-		return err
 	}
 
 	if e.SSHKey == nil {

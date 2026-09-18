@@ -529,6 +529,20 @@ func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
 		assert.Contains(t, err.Error(), "duplicate")
 	})
 
+	// The stored name is trimmed, so these are one mapping and the second would
+	// hit the unique index after the project already exists.
+	t.Run("a duplicate differing only in whitespace is rejected by preflight", func(t *testing.T) {
+		backup := newBackup("dup whitespace", []BackupHostConfig{
+			{HostConfig: db.HostConfig{Type: db.HostConfigHost, Name: "github.com"}, SSHKey: &keyName},
+			{HostConfig: db.HostConfig{Type: db.HostConfigHost, Name: "  github.com  "}, SSHKey: &keyName},
+		})
+
+		err := backup.Verify()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate")
+	})
+
 	t.Run("the same name with a different type passes preflight and restores", func(t *testing.T) {
 		backup := newBackup("same name two types", []BackupHostConfig{
 			{HostConfig: db.HostConfig{Type: db.HostConfigHost, Name: "github.com"}, SSHKey: &keyName},
