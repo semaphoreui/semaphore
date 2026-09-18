@@ -30,7 +30,7 @@ func StructToFlatMap(obj any) map[string]any {
 	val := reflect.ValueOf(obj)
 	typ := reflect.TypeOf(obj)
 
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		val = val.Elem()
 		typ = typ.Elem()
 	}
@@ -62,7 +62,7 @@ func StructToFlatMap(obj any) map[string]any {
 			for k, v := range nestedMap {
 				result[fieldName+"."+k] = v
 			}
-		} else if (field.Kind() == reflect.Ptr ||
+		} else if (field.Kind() == reflect.Pointer ||
 			field.Kind() == reflect.Array ||
 			field.Kind() == reflect.Slice ||
 			field.Kind() == reflect.Map) && field.IsNil() {

@@ -41,7 +41,7 @@ func (r *bashReader) Read(p []byte) (n int, err error) {
 }
 
 func (t *ShellApp) makeCmd(command string, args []string, environmentVars []string) *exec.Cmd {
-	cmd := exec.Command(command, args...) //nolint: gas
+	cmd := exec.Command(command, args...) //nolint:gosec
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()

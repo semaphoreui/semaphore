@@ -30,7 +30,7 @@ func GetParsedTime(t time.Time) time.Time {
 
 func ObjectToJSON(obj any) *string {
 	if obj == nil ||
-		(reflect.ValueOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil()) ||
+		(reflect.ValueOf(obj).Kind() == reflect.Pointer && reflect.ValueOf(obj).IsNil()) ||
 		(reflect.ValueOf(obj).Kind() == reflect.Slice && reflect.ValueOf(obj).IsZero()) {
 		return nil
 	}
@@ -268,6 +268,7 @@ type TemplateManager interface {
 	CreateTemplate(template Template) (Template, error)
 	UpdateTemplate(template Template) error
 	GetTemplate(projectID int, templateID int) (Template, error)
+	GetTemplateByName(projectID int, name string) (Template, error)
 	DeleteTemplate(projectID int, templateID int) error
 	SetTemplateDescription(projectID int, templateID int, description string) error
 	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)

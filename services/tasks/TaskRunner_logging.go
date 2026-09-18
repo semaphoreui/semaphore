@@ -175,7 +175,7 @@ func (t *TaskRunner) panicOnError(err error, msg string) {
 func (t *TaskRunner) logPipe(reader io.Reader) {
 	linesCh := make(chan string, 100000)
 	if closer, ok := reader.(io.Closer); ok {
-		defer closer.Close()
+		defer closer.Close() //nolint:errcheck
 	}
 
 	var wg sync.WaitGroup

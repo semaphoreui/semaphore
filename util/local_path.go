@@ -1,17 +1,12 @@
 package util
 
-import (
-	"path/filepath"
-	"runtime"
-	"strings"
-)
+import "strings"
 
-// NormalizeLocalFilesystemPath converts paths that Git Bash / MSYS often produce
-// into a form native Windows APIs accept. Other paths are returned unchanged.
-func NormalizeLocalFilesystemPath(p string) string {
-	if runtime.GOOS != "windows" {
-		return p
-	}
+// normalizeMsysPath converts paths that Git Bash / MSYS often produce into a
+// form native Windows APIs accept. It is OS-independent so it can be tested on
+// any platform; the exported NormalizeLocalFilesystemPath decides via build
+// tags whether to apply it.
+func normalizeMsysPath(p string) string {
 	// "/D:/path" -> "D:/path", "/d:\path" -> "d:\path" (strip leading "/")
 	if len(p) >= 3 && p[0] == '/' && isDriveLetter(p[1]) && p[2] == ':' {
 		return p[1:]
@@ -23,7 +18,7 @@ func NormalizeLocalFilesystemPath(p string) string {
 		if rest == "" {
 			return drive + ":\\"
 		}
-		return drive + ":" + string(filepath.Separator) + filepath.FromSlash(rest)
+		return drive + ":\\" + strings.ReplaceAll(rest, "/", "\\")
 	}
 	return p
 }

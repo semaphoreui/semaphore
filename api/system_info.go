@@ -82,14 +82,12 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	switch {
 	case errors.Is(err, db.ErrNotFound):
-		err = nil
 		plan = ""
 	case err != nil:
 		log.WithFields(log.Fields{
 			"context": "system_info",
 			"user_id": user.ID,
 		}).WithError(err).Error("Failed to get subscription plan")
-		err = nil
 		plan = ""
 	default:
 		if token.State == "expired" {

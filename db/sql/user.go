@@ -223,6 +223,10 @@ func (d *SqlDb) GetUser(userID int) (user db.User, err error) {
 		err = nil
 	}
 
+	if err != nil {
+		return
+	}
+
 	var emailOtp db.UserEmailOtp
 	err = d.selectOne(&emailOtp, "select * from `user__email_otp` where user_id=?", user.ID)
 
@@ -306,6 +310,10 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (user db.User,
 
 	if errors.Is(err, db.ErrNotFound) {
 		err = nil
+	}
+
+	if err != nil {
+		return
 	}
 
 	var emailOtp db.UserEmailOtp
@@ -396,7 +404,6 @@ func (d *SqlDb) AddEmailOtpVerification(userID int, code string) (res db.UserEma
 		now := db.GetParsedTime(tz.Now())
 		_, err = d.exec("update user__email_otp set code=?, created=?, attempts=0 where user_id=?", code, now, userID)
 	} else if errors.Is(err, db.ErrNotFound) {
-		err = nil
 		res, err = d.insertEmailOtp(userID, code)
 	} else {
 		return

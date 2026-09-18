@@ -95,10 +95,7 @@ func (r GitRepository) retry(name string, op func() error) (err error) {
 		base = gitRetryDelay
 	}
 
-	attempts := util.Config.GitAttempts
-	if attempts < 1 {
-		attempts = 1
-	}
+	attempts := max(util.Config.GitAttempts, 1)
 
 	for attempt := 1; ; attempt++ {
 		if err = op(); err == nil || attempt >= attempts {
@@ -117,7 +114,7 @@ func (r GitRepository) Clone() error {
 		if err != nil {
 			// Remove any partial/corrupt clone so the next attempt starts fresh
 			// instead of getting stuck on ValidateRepo() passing against a broken dir.
-			os.RemoveAll(r.GetFullPath())
+			_ = os.RemoveAll(r.GetFullPath())
 		}
 		return err
 	})

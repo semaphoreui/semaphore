@@ -94,7 +94,7 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []
 		}
 	}
 
-	cmd := exec.Command(command, args...) //nolint: gas
+	cmd := exec.Command(command, args...) //nolint:gosec
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()
@@ -137,7 +137,15 @@ func (t *TerraformApp) init(environmentVars []string, keyInstaller AccessKeyInst
 	if err != nil {
 		return err
 	}
-	defer keyInstallation.Destroy() //nolint: errcheck
+
+	defer func() {
+		if err := keyInstallation.Destroy(); err != nil {
+			log.WithFields(log.Fields{
+				"context": "app.terraform.init",
+				"key_id":  t.Inventory.SSHKey.ID,
+			}).WithError(err).Error("failed to destroy key")
+		}
+	}()
 
 	args := []string{"init", "-lock=false"}
 

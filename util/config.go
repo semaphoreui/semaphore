@@ -527,7 +527,8 @@ type ConfigType struct {
 	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 	TLS  *TLSConfig `json:"tls,omitempty"`
 
-	Mfa *MultifactorAuthConfig `json:"mfa,omitempty"`
+	Auth *AuthConfig            `json:"auth,omitempty"`
+	Mfa  *MultifactorAuthConfig `json:"mfa,omitempty"`
 
 	// Interface ip, put in front of the port.
 	// defaults to empty
@@ -591,7 +592,8 @@ type ConfigType struct {
 	// access keyring.
 	OptionEncryption string `json:"option_encryption,omitempty" env:"SEMAPHORE_OPTION_ENCRYPTION,sensitive"`
 
-	// email alerting
+	// EmailAlert enables the e-mail notification channel. The email_* settings
+	// below describe the SMTP server it sends through.
 	EmailAlert         bool   `json:"email_alert,omitempty" env:"SEMAPHORE_EMAIL_ALERT"`
 	EmailSender        string `json:"email_sender,omitempty" env:"SEMAPHORE_EMAIL_SENDER"`
 	EmailHost          string `json:"email_host,omitempty" env:"SEMAPHORE_EMAIL_HOST"`
@@ -602,7 +604,9 @@ type ConfigType struct {
 	EmailTls           bool   `json:"email_tls,omitempty" env:"SEMAPHORE_EMAIL_TLS"`
 	EmailTlsMinVersion string `json:"email_tls_min_version,omitempty" default:"1.2" rule:"^(1\\.[0123])$" env:"SEMAPHORE_EMAIL_TLS_MIN_VERSION"`
 
-	// ldap settings
+	// LdapEnable turns on the legacy single-directory LDAP login configured by
+	// the flat ldap_* settings below. Use ldap_providers instead when more than
+	// one directory is involved.
 	LdapEnable       bool          `json:"ldap_enable,omitempty" env:"SEMAPHORE_LDAP_ENABLE"`
 	LdapBindDN       string        `json:"ldap_binddn,omitempty" env:"SEMAPHORE_LDAP_BIND_DN"`
 	LdapBindPassword string        `json:"ldap_bindpassword,omitempty" env:"SEMAPHORE_LDAP_BIND_PASSWORD,sensitive"`
@@ -621,7 +625,8 @@ type ConfigType struct {
 	// ID "ldap" is reserved for the legacy flat ldap_* config above.
 	LdapProviders map[string]LdapProvider `json:"ldap_providers,omitempty" env:"SEMAPHORE_LDAP_PROVIDERS"`
 
-	// Telegram, Slack, Rocket.Chat, Microsoft Teams, DingTalk, and Gotify alerting
+	// TelegramAlert enables the Telegram notification channel, which also needs
+	// telegram_token and a default telegram_chat.
 	TelegramAlert       bool   `json:"telegram_alert,omitempty" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat,omitempty" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken       string `json:"telegram_token,omitempty" env:"SEMAPHORE_TELEGRAM_TOKEN,sensitive"`
@@ -637,7 +642,9 @@ type ConfigType struct {
 	GotifyUrl           string `json:"gotify_url,omitempty" env:"SEMAPHORE_GOTIFY_URL"`
 	GotifyToken         string `json:"gotify_token,omitempty" env:"SEMAPHORE_GOTIFY_TOKEN,sensitive"`
 
-	// oidc settings
+	// OidcProviders configures OpenID Connect sign-in. The key is the provider ID
+	// that appears in identity records and in the /auth/oidc/<id>/login URL, so it
+	// must stay stable once users have signed in through it.
 	OidcProviders map[string]OidcProvider `json:"oidc_providers,omitempty" env:"SEMAPHORE_OIDC_PROVIDERS"`
 
 	MaxTaskDurationSec  int `json:"max_task_duration_sec,omitempty" env:"SEMAPHORE_MAX_TASK_DURATION_SEC"`
@@ -651,7 +658,9 @@ type ConfigType struct {
 
 	JWT *JWTConfig `json:"jwt,omitempty"`
 
-	// feature switches
+	// PasswordLoginDisable rejects the "password" login method, leaving LDAP and
+	// OpenID Connect as the only ways in. Set it once an identity provider is
+	// configured and working, so that local passwords stop being a second door.
 	PasswordLoginDisable bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
 	// ExternalAuthEmailMatching controls whether an LDAP/OIDC login may be
 	// linked to an existing user by email when no external identity record
@@ -1011,7 +1020,7 @@ func loadDefaultsToObject(obj any) error {
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		v = reflect.Indirect(v)
 	}
@@ -1025,7 +1034,7 @@ func loadDefaultsToObject(obj any) error {
 		}
 
 		fieldKind := fieldInfo.Type.Kind()
-		isPtrToStruct := fieldKind == reflect.Ptr && fieldInfo.Type.Elem().Kind() == reflect.Struct
+		isPtrToStruct := fieldKind == reflect.Pointer && fieldInfo.Type.Elem().Kind() == reflect.Struct
 
 		if !fieldValue.IsZero() && fieldKind != reflect.Struct && fieldKind != reflect.Map && !isPtrToStruct {
 			continue
@@ -1321,6 +1330,70 @@ func CastValueToKind(value any, kind reflect.Kind) (res any, ok bool) {
 			res = castStringToInt(fmt.Sprintf("%v", reflect.ValueOf(value)))
 			ok = true
 		}
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if reflect.ValueOf(value).Kind() == kind {
+			ok = true
+		} else {
+			bitSize := 64
+			switch kind {
+			case reflect.Int8:
+				bitSize = 8
+			case reflect.Int16:
+				bitSize = 16
+			case reflect.Int32:
+				bitSize = 32
+			case reflect.Int64:
+				bitSize = 64
+			}
+			val, err := strconv.ParseInt(fmt.Sprintf("%v", reflect.ValueOf(value)), 10, bitSize)
+			if err != nil {
+				panic(err)
+			}
+			switch kind {
+			case reflect.Int8:
+				res = int8(val)
+			case reflect.Int16:
+				res = int16(val)
+			case reflect.Int32:
+				res = int32(val)
+			case reflect.Int64:
+				res = val
+			}
+			ok = true
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if reflect.ValueOf(value).Kind() == kind {
+			ok = true
+		} else {
+			bitSize := strconv.IntSize
+			switch kind {
+			case reflect.Uint8:
+				bitSize = 8
+			case reflect.Uint16:
+				bitSize = 16
+			case reflect.Uint32:
+				bitSize = 32
+			case reflect.Uint64:
+				bitSize = 64
+			}
+			val, err := strconv.ParseUint(fmt.Sprintf("%v", reflect.ValueOf(value)), 10, bitSize)
+			if err != nil {
+				panic(err)
+			}
+			switch kind {
+			case reflect.Uint8:
+				res = uint8(val)
+			case reflect.Uint16:
+				res = uint16(val)
+			case reflect.Uint32:
+				res = uint32(val)
+			case reflect.Uint64:
+				res = val
+			default:
+				res = uint(val)
+			}
+			ok = true
+		}
 	case reflect.Bool:
 		if reflect.ValueOf(value).Kind() == reflect.Bool {
 			ok = true
@@ -1354,6 +1427,33 @@ func setConfigValue(attribute reflect.Value, value string) {
 				panic(err)
 			}
 			attribute.Set(mapValue.Elem())
+		case reflect.Pointer:
+			elemType := attribute.Type().Elem()
+			elemKind := elemType.Kind()
+
+			switch elemKind {
+			case reflect.Slice, reflect.Map:
+				ptr := reflect.New(elemType)
+				err := json.Unmarshal([]byte(value), ptr.Interface())
+				if err != nil {
+					panic(err)
+				}
+				attribute.Set(ptr)
+			default:
+				newValue, _ := CastValueToKind(value, elemKind)
+				convertedElem := reflect.ValueOf(newValue)
+				if convertedElem.Type().AssignableTo(elemType) {
+					ptr := reflect.New(elemType)
+					ptr.Elem().Set(convertedElem)
+					attribute.Set(ptr)
+				} else if convertedElem.Type().ConvertibleTo(elemType) {
+					ptr := reflect.New(elemType)
+					ptr.Elem().Set(convertedElem.Convert(elemType))
+					attribute.Set(ptr)
+				} else {
+					panic(fmt.Errorf("cannot assign value of type %s to pointer element of type %s", convertedElem.Type(), elemType))
+				}
+			}
 		default:
 			newValue, _ := CastValueToKind(value, kind)
 			convertedValue := reflect.ValueOf(newValue)
@@ -1391,7 +1491,7 @@ func validate(value any) error {
 	t := reflect.TypeOf(value)
 	v := reflect.ValueOf(value)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		v = reflect.Indirect(v)
 	}
@@ -1702,7 +1802,7 @@ func readEncryptionKeysConfigFile(path string) (*EncryptionKeysConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	// Parse via YAML regardless of extension: YAML 1.2 is a superset of JSON, so
 	// this accepts both formats. The file is often a Kubernetes secret mounted at
@@ -1752,6 +1852,12 @@ func validateConfig() {
 		panic(err)
 	}
 
+	if Config.Auth != nil {
+		if err := validate(Config.Auth); err != nil {
+			panic(err)
+		}
+	}
+
 	if err := validateAccessKeyEncryption(Config.AccessKeyEncryption); err != nil {
 		panic(err)
 	}
@@ -1786,7 +1892,7 @@ func loadEnvironmentToObject(obj any) (resultSensitiveEnvs []string, err error) 
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		v = reflect.Indirect(v)
 	}
@@ -1806,7 +1912,7 @@ func loadEnvironmentToObject(obj any) (resultSensitiveEnvs []string, err error) 
 			}
 			resultSensitiveEnvs = append(resultSensitiveEnvs, currSensitiveEnvs...)
 			continue
-		} else if fieldType.Type.Kind() == reflect.Ptr && fieldType.Type.Elem().Kind() == reflect.Struct {
+		} else if fieldType.Type.Kind() == reflect.Pointer && fieldType.Type.Elem().Kind() == reflect.Struct {
 			if fieldValue.IsZero() {
 				newValue := reflect.New(fieldType.Type.Elem())
 				fieldValue.Set(newValue)
@@ -1869,7 +1975,10 @@ func loadConfigEnvironment() {
 	}
 
 	for _, sensitiveEnv := range sensitiveEnvs {
-		os.Unsetenv(sensitiveEnv)
+		err = os.Unsetenv(sensitiveEnv)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -1934,10 +2043,10 @@ func mapToQueryString(m map[string]string) (str string) {
 // if not found it will attempt to find the absolute path of the first
 // os argument, the semaphore command, and return it
 func FindSemaphore() string {
-	cmdPath, _ := exec.LookPath("semaphore") //nolint: gas
+	cmdPath, _ := exec.LookPath("semaphore") //nolint:gosec
 
 	if len(cmdPath) == 0 {
-		cmdPath, _ = filepath.Abs(os.Args[0]) // nolint: gas
+		cmdPath, _ = filepath.Abs(os.Args[0]) //nolint:gosec
 	}
 
 	return cmdPath

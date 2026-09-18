@@ -66,6 +66,17 @@ func TestResolveGitBranch(t *testing.T) {
 	}
 }
 
+func TestWithEffectiveBranch(t *testing.T) {
+	repository := db.Repository{GitBranch: "main"}
+	template := db.Template{AllowOverrideBranchInTask: true}
+	task := db.Task{GitBranch: new("release")}
+
+	effective := withEffectiveBranch(repository, template, task)
+
+	assert.Equal(t, "release", effective.GitBranch)
+	assert.Equal(t, "main", repository.GitBranch)
+}
+
 // TestLocalExecutorImplementsExecutor is a compile-time guard: if LocalExecutor stops
 // satisfying the Executor interface, this file fails to build. It documents the
 // contract introduced in Phase 1 of the Kubernetes runner refactor.

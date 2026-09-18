@@ -13,9 +13,10 @@ func CreateApp(template db.Template, repository db.Repository, inventory db.Inve
 			Repository: repository,
 			Logger:     logger,
 			Playbook: &AnsiblePlaybook{
-				TemplateID: template.ID,
-				Repository: repository,
-				Logger:     logger,
+				TemplateID:       template.ID,
+				WorkingDirectory: template.WorkingDirectory,
+				Repository:       repository,
+				Logger:           logger,
 			},
 		}
 	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:

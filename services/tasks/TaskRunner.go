@@ -201,7 +201,7 @@ func (t *TaskRunner) run() {
 			l := log.WithField("task_id", t.Task.ID).WithField("status", t.Task.Status)
 
 			if t.Task.RunnerID != nil {
-				l = log.WithField("runner_id", *t.Task.RunnerID)
+				l = l.WithField("runner_id", *t.Task.RunnerID)
 			}
 
 			l.Info("Task dispatched to runner; awaiting remote completion")
@@ -548,6 +548,8 @@ func (t *TaskRunner) populateDetails() error {
 	if err = t.pool.encryptionService.DeserializeSecret(&t.Repository.SSHKey); err != nil {
 		return err
 	}
+
+	t.Repository = withEffectiveBranch(t.Repository, t.Template, t.Task)
 
 	// load and merge all configured environments
 	err = t.loadEnvironments()

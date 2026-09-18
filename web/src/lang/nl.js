@@ -199,6 +199,7 @@ export default {
   readThe: 'Lees de',
   toLearnMoreAboutCron: 'om meer te leren over Cron.',
   suppressSuccessAlerts: 'Suppress success alerts',
+  suppressErrorAlerts: 'Suppress error alerts',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2: 'CLI Args (JSON-array). Voorbeeld: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'CLI-argumenten',
   docs: 'documentatie',
