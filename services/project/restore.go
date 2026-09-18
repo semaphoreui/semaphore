@@ -271,9 +271,25 @@ func (e BackupHostConfig) Verify(backup *BackupFormat) error {
 	if e.SSHKey == nil {
 		return fmt.Errorf("SSHKey can not be empty")
 	}
-	if getEntryByName[BackupAccessKey](e.SSHKey, backup.Keys) == nil {
+	key := getEntryByName[BackupAccessKey](e.SSHKey, backup.Keys)
+	if key == nil {
 		return fmt.Errorf("SSHKey does not exist in keys[].Name")
 	}
+
+	// The same rule ValidateHostConfig applies, checked before anything is
+	// written: a host mapping binds an ssh identity, a URL mapping can also
+	// authenticate over https with a login and a password.
+	switch e.Type {
+	case db.HostConfigHost:
+		if key.Type != db.AccessKeySSH {
+			return fmt.Errorf("a host mapping needs an SSH key")
+		}
+	case db.HostConfigURL:
+		if key.Type != db.AccessKeySSH && key.Type != db.AccessKeyLoginPassword {
+			return fmt.Errorf("a URL mapping needs an SSH key or a login/password credential")
+		}
+	}
+
 	return nil
 }
 

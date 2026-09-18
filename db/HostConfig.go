@@ -103,8 +103,10 @@ func (h *HostConfig) validateURL() error {
 	}
 
 	// The URL ends up in a GIT_CONFIG_PARAMETERS entry, which git splits at the
-	// first "=", and in a config key, which ends at whitespace.
-	if strings.ContainsAny(h.Name, " \t\r\n\"'\\$`") {
+	// first "=", and in a config key, which ends at whitespace. An "=" can not be
+	// escaped out of the problem: percent-encoding it stops the rewrite matching
+	// the real URL, so the mapping would silently do nothing.
+	if strings.ContainsAny(h.Name, " \t\r\n\"'\\$`=") {
 		return common_errors.NewValidationError("URL contains invalid characters")
 	}
 

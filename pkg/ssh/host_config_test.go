@@ -308,3 +308,141 @@ func TestInstallHostConfigs_PrefixMatchesOnStringBoundary(t *testing.T) {
 			"git matches insteadOf as a plain prefix, so a sibling is captured")
 	})
 }
+
+func loginPasswordKey(id int, login string, password string) db.AccessKey {
+	return db.AccessKey{
+		ID: id, Type: db.AccessKeyLoginPassword,
+		LoginPassword: db.LoginPassword{Login: login, Password: password},
+	}
+}
+
+// A URL mapping may authenticate over https with a login and a password, in
+// which case no ssh identity is involved at all.
+func TestInstallHostConfigs_LoginPasswordURLMapping(t *testing.T) {
+	setupHostConfig(t)
+
+	installation, err := InstallHostConfigs(1, []db.HostConfig{{
+		ID: 1, ProjectID: 1, Type: db.HostConfigURL,
+		Name: "https://test.asdf.ru/", SSHKey: loginPasswordKey(1, "bob", "s3cr3t"),
+	}}, task_logger.NopLogger{})
+	require.NoError(t, err)
+	defer installation.Destroy()
+
+	assert.Empty(t, installation.Agents, "a login/password needs no ssh agent")
+
+	params := installation.GitConfigParameters()
+	assert.Contains(t, params, "url.https://bob:s3cr3t@test.asdf.ru/")
+	assert.Contains(t, params, ".insteadOf=https://test.asdf.ru/")
+}
+
+// git is the only thing which decides whether the rewrite installs, and it
+// refuses a parameter whose key holds an unescaped "=" — common in tokens.
+func TestInstallHostConfigs_LoginPasswordParsedByGit(t *testing.T) {
+	setupHostConfig(t)
+
+	tests := []struct {
+		name     string
+		login    string
+		password string
+		expected string
+	}{
+		{"login and password", "bob", "s3cr3t", "https://bob:s3cr3t@test.asdf.ru/"},
+		{"token only", "", "ghp_abcdef", "https://ghp_abcdef@test.asdf.ru/"},
+		{"equals in the password", "bob", "tok=en", "https://bob:tok%3Den@test.asdf.ru/"},
+		{"characters needing escaping", "user@corp", "p@ss/w:rd",
+			"https://user%40corp:p%40ss%2Fw%3Ard@test.asdf.ru/"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			installation, err := InstallHostConfigs(1, []db.HostConfig{{
+				ID: 1, ProjectID: 1, Type: db.HostConfigURL,
+				Name: "https://test.asdf.ru/", SSHKey: loginPasswordKey(1, tt.login, tt.password),
+			}}, task_logger.NopLogger{})
+			require.NoError(t, err)
+			defer installation.Destroy()
+
+			dir := t.TempDir()
+			cmd := exec.Command("git", "config", "--get-regexp", "^url\\.")
+			cmd.Dir = dir
+			cmd.Env = []string{
+				"GIT_CONFIG_PARAMETERS=" + installation.GitConfigParameters(),
+				"HOME=" + dir, "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
+			}
+
+			out, err := cmd.CombinedOutput()
+
+			require.NoError(t, err, "git could not parse the rewrite: %s", out)
+			assert.Contains(t, string(out), "url."+tt.expected+".insteadof https://test.asdf.ru/")
+		})
+	}
+}
+
+// The mapping types must not interfere: an ssh URL mapping still gets an agent
+// and an alias, a login/password one gets neither.
+func TestInstallHostConfigs_MixedCredentialTypes(t *testing.T) {
+	setupHostConfig(t)
+
+	installation, err := InstallHostConfigs(1, []db.HostConfig{
+		{ID: 1, ProjectID: 1, Type: db.HostConfigHost, Name: "github.com", SSHKey: sshKey(t, 1, "gh")},
+		{ID: 2, ProjectID: 1, Type: db.HostConfigURL,
+			Name: "https://test.asdf.ru/", SSHKey: loginPasswordKey(2, "bob", "pw")},
+		{ID: 3, ProjectID: 1, Type: db.HostConfigURL,
+			Name: "https://github.com/acme/", SSHKey: sshKey(t, 3, "acme")},
+	}, task_logger.NopLogger{})
+	require.NoError(t, err)
+	defer installation.Destroy()
+
+	// Only the two ssh mappings hold a key.
+	assert.Len(t, installation.Agents, 2)
+
+	cfg := installation.SSHConfigPath()
+	assert.Equal(t, installation.Agents[0].SocketFile,
+		resolveOption(t, cfg, "github.com", "identityagent"))
+	assert.Equal(t, installation.Agents[1].SocketFile,
+		resolveOption(t, cfg, "semaphore-mapping-3", "identityagent"))
+
+	params := installation.GitConfigParameters()
+	assert.Contains(t, params, "url.https://bob:pw@test.asdf.ru/")
+	assert.Contains(t, params, "url.git@semaphore-mapping-3:acme/")
+}
+
+// The login of an access key is user supplied and nothing else validates it, so
+// a newline in it would inject further directives into the generated config.
+func TestInstallHostConfigs_RejectsUnsafeKeyLogin(t *testing.T) {
+	setupHostConfig(t)
+
+	key := sshKey(t, 1, "evil")
+	key.SshKey.Login = "git\n  ProxyCommand /bin/sh -c id"
+
+	installation, err := InstallHostConfigs(1, []db.HostConfig{{
+		ID: 1, ProjectID: 1, Type: db.HostConfigURL,
+		Name: "https://github.com/acme/", SSHKey: key,
+	}}, task_logger.NopLogger{})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "login")
+	assert.Nil(t, installation, "nothing may be left installed when generation fails")
+}
+
+// A login which is simply unusual must still work.
+func TestInstallHostConfigs_AcceptsRealKeyLogins(t *testing.T) {
+	setupHostConfig(t)
+
+	for _, login := range []string{"git", "ec2-user", "first.last", "build_agent", "u2"} {
+		t.Run(login, func(t *testing.T) {
+			key := sshKey(t, 1, "k")
+			key.SshKey.Login = login
+
+			installation, err := InstallHostConfigs(1, []db.HostConfig{{
+				ID: 1, ProjectID: 1, Type: db.HostConfigURL,
+				Name: "https://github.com/acme/", SSHKey: key,
+			}}, task_logger.NopLogger{})
+			require.NoError(t, err)
+			defer installation.Destroy()
+
+			assert.Equal(t, login,
+				resolveOption(t, installation.SSHConfigPath(), "semaphore-mapping-1", "user"))
+		})
+	}
+}

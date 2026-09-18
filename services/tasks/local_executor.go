@@ -453,6 +453,12 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		"--inventory", inventoryFile,
 	}
 
+	// A host mapping selects the credential for an inventory host the same way it
+	// does for a git server, so ansible is pointed at the generated config.
+	if sshArgs := t.inventorySSHCommonArgs(); sshArgs != "" {
+		args = append(args, "--ssh-common-args", sshArgs)
+	}
+
 	if t.Inventory.SSHKeyID != nil {
 		switch t.Inventory.SSHKey.Type {
 		case db.AccessKeySSH:
@@ -922,6 +928,8 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		environmentVariables = append(environmentVariables, sshEnv)
 	}
 
+	environmentVariables = append(environmentVariables, t.hostConfigEnv()...)
+
 	if t.Template.Type != db.TemplateTask {
 
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SEMAPHORE_TASK_TYPE=%s", t.Template.Type))
@@ -1030,6 +1038,8 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
 	}
 
+	installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, t.hostConfigEnv()...)
+
 	if err := t.App.InstallRequirements(installingArgs); err != nil {
 		t.Log("Failed to install requirements: " + err.Error())
 		return err
@@ -1083,6 +1093,8 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
 		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
 	}
+
+	installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, t.hostConfigEnv()...)
 
 	// Call Terraform-specific install with init args
 	if err := tfApp.InstallRequirementsWithInitArgs(installingArgs, initArgs); err != nil {
@@ -1235,6 +1247,33 @@ func (t *LocalExecutor) getSSHAgentEnv() string {
 		return fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile)
 	}
 	return ""
+}
+
+// hostConfigEnv returns the environment the credential mappings of the project
+// need. Every command of a task can start git of its own — galaxy downloads a
+// role over ssh, terraform fetches a module, a playbook shells out — and each of
+// them has to reach a mapped host with the mapped credential.
+func (t *LocalExecutor) hostConfigEnv() []string {
+	if t.hostConfigInstallation == nil {
+		return nil
+	}
+
+	// No key of its own: the mapped credentials are bound per host inside the
+	// generated configuration.
+	var noKey ssh.AccessKeyInstallation
+
+	return noKey.GetGitEnvWithHostConfigs(t.hostConfigInstallation)
+}
+
+// inventorySSHCommonArgs returns the ssh options ansible must use to reach the
+// hosts of the inventory, so a host mapping selects the credential for them the
+// same way it does for git.
+func (t *LocalExecutor) inventorySSHCommonArgs() string {
+	if t.hostConfigInstallation == nil {
+		return ""
+	}
+
+	return fmt.Sprintf("-F %s", t.hostConfigInstallation.SSHConfigPath())
 }
 
 // installHostConfigs generates the ssh config and git rewrites the credential

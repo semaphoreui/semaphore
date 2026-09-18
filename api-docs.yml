@@ -592,7 +592,10 @@ definitions:
         description: an ssh host name, or a git URL/prefix for the url type
       ssh_key_id:
         type: integer
-        description: the ssh key used to reach the host
+        description: >
+          the credential used to reach the host. A host mapping needs an SSH key;
+          a URL mapping also accepts a login/password, which authenticates over
+          HTTPS.
         example: 1
 
   HostConfigRequest:

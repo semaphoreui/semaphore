@@ -33,12 +33,12 @@
     <v-autocomplete
       v-model="item.ssh_key_id"
       :label="$t('credential')"
-      :items="sshKeys"
+      :items="credentials"
       item-value="id"
       item-text="name"
       :rules="[v => !!v || $t('hostConfigCredentialRequired')]"
       required
-      :hint="$t('hostConfigCredentialHint')"
+      :hint="isHost ? $t('hostConfigCredentialHostHint') : $t('hostConfigCredentialUrlHint')"
       persistent-hint
       :disabled="formSaving"
       outlined
@@ -65,9 +65,11 @@ export default {
       return (this.item || {}).type !== 'url';
     },
 
-    // A mapping is applied as an ssh identity, which only an ssh key can be.
-    sshKeys() {
-      return (this.keys || []).filter((key) => key.type === 'ssh');
+    // A host mapping becomes an ssh config entry, so only an ssh key fits. A URL
+    // mapping rewrites the URL, so a login/password can authenticate over https.
+    credentials() {
+      const allowed = this.isHost ? ['ssh'] : ['ssh', 'login_password'];
+      return (this.keys || []).filter((key) => allowed.includes(key.type));
     },
   },
 
