@@ -48,6 +48,7 @@ type TaskRunner struct {
 	users        []int
 	alert        bool
 	alertChat    *string
+	alertThread  *string
 	pool         *TaskPool
 	keyInstaller db_lib.AccessKeyInstaller
 
@@ -486,6 +487,7 @@ func (t *TaskRunner) populateDetails() error {
 
 	t.alert = project.Alert
 	t.alertChat = project.AlertChat
+	t.alertThread = project.AlertThread
 
 	// get project users
 	projectUsers, err := t.pool.store.GetProjectUsers(t.Template.ProjectID, db.RetrieveQueryParams{})

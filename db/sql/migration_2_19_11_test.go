@@ -30,11 +30,14 @@ func TestMigration_2_19_11(t *testing.T) {
 	target := "2.19.2"
 	require.NoError(t, db.Migrate(store, &target))
 
-	proj, err := store.CreateProject(db.Project{Name: "p"})
+	// SqlDb.CreateProject writes alert_thread, which appears only in 2.20.6,
+	// so seed the project with SQL matching the 2.19.2 schema.
+	projectID, err := store.insert("id",
+		"insert into project (name, created) values (?, datetime('now'))", "p")
 	require.NoError(t, err)
 
 	_, err = store.Sql().Exec(
-		"insert into project__workflow_template (project_id, name) values (?, ?)", proj.ID, "wf")
+		"insert into project__workflow_template (project_id, name) values (?, ?)", projectID, "wf")
 	require.NoError(t, err)
 	workflowID, err := store.Sql().SelectInt("select id from project__workflow_template where name = 'wf'")
 	require.NoError(t, err)
@@ -55,6 +58,6 @@ func TestMigration_2_19_11(t *testing.T) {
 	err = store.Sql().SelectOne(&taskParams,
 		"select * from project__task_params where id = ?", paramsID.Int64)
 	require.NoError(t, err)
-	assert.Equal(t, proj.ID, taskParams.ProjectID)
+	assert.Equal(t, projectID, taskParams.ProjectID)
 	assert.Equal(t, []any{"web*", "db"}, taskParams.Params["limit"])
 }

@@ -3,11 +3,16 @@ package tasks
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
+	"html"
 	htmltemplate "html/template"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"text/template"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -24,7 +29,6 @@ type Alert struct {
 	Author string
 	Color  string
 	Task   alertTask
-	Chat   alertChat
 }
 
 type alertTask struct {
@@ -35,8 +39,75 @@ type alertTask struct {
 	Version string
 }
 
-type alertChat struct {
-	ID string
+func stringValue(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return strings.TrimSpace(*s)
+}
+
+func parseTelegramThreadID(threadID string) (id int64, ok bool) {
+	threadID = strings.TrimSpace(threadID)
+	if threadID == "" {
+		return 0, true
+	}
+	n, err := strconv.ParseInt(threadID, 10, 64)
+	if err != nil || n <= 0 {
+		return 0, false
+	}
+	return n, true
+}
+
+type telegramDestination struct {
+	chatID        string
+	threadID      int64
+	invalidThread bool
+}
+
+func resolveTelegramDestination(globalChat, globalThread string, projectChat, projectThread *string) telegramDestination {
+	projChat := stringValue(projectChat)
+	projThread := stringValue(projectThread)
+
+	chatID := strings.TrimSpace(globalChat)
+	rawThread := strings.TrimSpace(globalThread)
+	if projChat != "" {
+		chatID = projChat
+		rawThread = projThread
+	} else if projThread != "" {
+		rawThread = projThread
+	}
+
+	threadID, ok := parseTelegramThreadID(rawThread)
+	return telegramDestination{
+		chatID:        chatID,
+		threadID:      threadID,
+		invalidThread: !ok,
+	}
+}
+
+type telegramSendMessage struct {
+	ChatID          string `json:"chat_id"`
+	ParseMode       string `json:"parse_mode"`
+	Text            string `json:"text"`
+	MessageThreadID int64  `json:"message_thread_id,omitempty"`
+}
+
+func renderTelegramAlert(alert Alert, dest telegramDestination) ([]byte, error) {
+	return json.Marshal(telegramSendMessage{
+		ChatID:    dest.chatID,
+		ParseMode: "HTML",
+		Text: fmt.Sprintf(
+			"<code>%s</code>\n#%s <b>%s</b> <code>%s</code> - %s\nby %s\n%s",
+			html.EscapeString(alert.Name),
+			html.EscapeString(alert.Task.ID),
+			html.EscapeString(alert.Task.Result),
+			html.EscapeString(alert.Task.Version),
+			html.EscapeString(alert.Task.Desc),
+			html.EscapeString(alert.Author),
+			html.EscapeString(alert.Task.URL),
+		),
+		MessageThreadID: dest.threadID,
+	})
 }
 
 func (t *TaskRunner) shouldSkipStatusAlert() bool {
@@ -135,19 +206,22 @@ func (t *TaskRunner) sendTelegramAlert() {
 		return
 	}
 
-	chatID := util.Config.TelegramChat
-	if t.alertChat != nil && *t.alertChat != "" {
-		chatID = *t.alertChat
-	}
-
-	if chatID == "" {
+	dest := resolveTelegramDestination(
+		util.Config.TelegramChat,
+		util.Config.TelegramThread,
+		t.alertChat,
+		t.alertThread,
+	)
+	if dest.chatID == "" {
 		return
 	}
+	if dest.invalidThread {
+		t.Log("Invalid Telegram thread ID, sending without message_thread_id")
+	}
 
-	body := bytes.NewBufferString("")
 	author, version := t.alertInfos()
 
-	alert := Alert{
+	payload, err := renderTelegramAlert(Alert{
 		Name:   t.Template.Name,
 		Author: author,
 		Color:  t.alertColor("telegram"),
@@ -158,50 +232,44 @@ func (t *TaskRunner) sendTelegramAlert() {
 			Version: version,
 			Desc:    t.Task.Message,
 		},
-		Chat: alertChat{
-			ID: chatID,
-		},
-	}
-
-	tpl, err := template.ParseFS(templates, "templates/telegram.tmpl")
-
+	}, dest)
 	if err != nil {
-		t.Log("Can't parse telegram alert template!")
-		panic(err)
-	}
-
-	if err := tpl.Execute(body, alert); err != nil {
-		t.Log("Can't generate telegram alert template!")
-		panic(err)
-	}
-
-	if body.Len() == 0 {
-		t.Log("Buffer for telegram alert is empty")
+		t.Log("Can't generate telegram alert: " + err.Error())
 		return
 	}
 
 	t.Log("Attempting to send telegram alert")
 
-	resp, err := http.Post(
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Post(
 		fmt.Sprintf(
 			"https://api.telegram.org/bot%s/sendMessage",
 			util.Config.TelegramToken,
 		),
 		"application/json",
-		body,
+		bytes.NewReader(payload),
 	)
-
-	if err != nil {
-		t.Log("Can't send telegram alert! Error: " + err.Error())
-	} else if resp.StatusCode != 200 {
-		t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode))
-	} else {
-		t.Log("Sent successfully telegram alert")
-	}
-
 	if resp != nil {
 		defer resp.Body.Close() //nolint:errcheck
 	}
+
+	if err != nil {
+		t.Log("Can't send telegram alert! Error: " + err.Error())
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		if readErr != nil {
+			t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode))
+			return
+		}
+		t.Log("Can't send telegram alert! Response code: " + strconv.Itoa(resp.StatusCode) + " " + strings.TrimSpace(string(respBody)))
+		return
+	}
+
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
+	t.Log("Sent successfully telegram alert")
 }
 
 func (t *TaskRunner) sendSlackAlert() {
