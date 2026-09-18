@@ -59,7 +59,7 @@ export default {
   hostConfigHost: 'Host',
   hostConfigUrl: 'URL',
   hostConfigHostHint: 'An SSH host name, for example github.com',
-  hostConfigUrlHint: 'A repository URL or a prefix. A more specific URL wins over a broader one.',
+  hostConfigUrlHint: 'A repository URL, or a prefix ending with / to cover a group. A more specific URL wins over a broader one.',
   hostConfigHostRequired: 'Host or URL can not be empty',
   hostConfigCredentialRequired: 'A credential must be selected',
   hostConfigCredentialHint: 'Only SSH keys can be used to reach a host',

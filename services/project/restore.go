@@ -245,9 +245,26 @@ func (e BackupHostConfig) GetName() string {
 }
 
 func (e BackupHostConfig) Verify(backup *BackupFormat) error {
-	if err := verifyDuplicate[BackupHostConfig](e.Name, backup.HostConfigs); err != nil {
+	// Not verifyDuplicate: a mapping is unique on (type, name), and the table
+	// enforces it, so a duplicate must fail here rather than half way through
+	// the restore with the project already created.
+	duplicates := 0
+	for _, other := range backup.HostConfigs {
+		if other.Type == e.Type && other.Name == e.Name {
+			duplicates++
+		}
+	}
+	if duplicates > 1 {
+		return fmt.Errorf("%s is duplicate", e.Name)
+	}
+
+	// The credential is remapped during the restore, so only what the mapping
+	// points at can be checked here — but it must be, because Restore runs after
+	// the project and its keys already exist.
+	if err := e.ValidateMapping(); err != nil {
 		return err
 	}
+
 	if e.SSHKey == nil {
 		return fmt.Errorf("SSHKey can not be empty")
 	}

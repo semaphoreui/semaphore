@@ -2988,7 +2988,11 @@ paths:
           in: body
           required: true
           schema:
-            $ref: "#/definitions/HostConfigRequest"
+            allOf:
+              - $ref: "#/definitions/HostConfigRequest"
+              - type: object
+                required:
+                  - id
       responses:
         204:
           description: host config updated

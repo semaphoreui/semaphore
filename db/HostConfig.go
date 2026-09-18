@@ -46,15 +46,17 @@ type HostConfig struct {
 var hostConfigHostRE = regexp.MustCompile(
 	`^[A-Za-z0-9_]([A-Za-z0-9_-]*[A-Za-z0-9_])?(\.[A-Za-z0-9_]([A-Za-z0-9_-]*[A-Za-z0-9_])?)*$`)
 
-func (h *HostConfig) Validate() error {
+// ValidateMapping checks what a mapping points at: its type, and the host or URL
+// which ends up in a generated ssh config and a git rewrite.
+//
+// Separate from Validate because a backup carries the credential by name, so the
+// key id is only known once the backup is restored. The preflight pass still has
+// to reject a malformed host before anything is written.
+func (h *HostConfig) ValidateMapping() error {
 	h.Name = strings.TrimSpace(h.Name)
 
 	if h.Name == "" {
 		return common_errors.NewValidationError("host or URL can not be empty")
-	}
-
-	if h.SSHKeyID <= 0 {
-		return common_errors.NewValidationError("a credential must be selected")
 	}
 
 	switch h.Type {
@@ -65,6 +67,18 @@ func (h *HostConfig) Validate() error {
 	default:
 		return common_errors.NewValidationError("unsupported mapping type")
 	}
+}
+
+func (h *HostConfig) Validate() error {
+	if err := h.ValidateMapping(); err != nil {
+		return err
+	}
+
+	if h.SSHKeyID <= 0 {
+		return common_errors.NewValidationError("a credential must be selected")
+	}
+
+	return nil
 }
 
 func (h *HostConfig) validateHost() error {

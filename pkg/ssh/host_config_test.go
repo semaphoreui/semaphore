@@ -256,3 +256,55 @@ func resolveOption(t *testing.T, configFile string, host string, option string) 
 
 	return ""
 }
+
+// TestInstallHostConfigs_PrefixMatchesOnStringBoundary pins how git matches a
+// URL mapping: insteadOf is a plain string prefix, with no notion of a path
+// segment. A prefix that does not end in "/" therefore also captures its
+// siblings, which is why the interface tells the user to end one with "/".
+func TestInstallHostConfigs_PrefixMatchesOnStringBoundary(t *testing.T) {
+	setupHostConfig(t)
+
+	install := func(t *testing.T, mapped string) *HostConfigInstallation {
+		t.Helper()
+		installation, err := InstallHostConfigs(1, []db.HostConfig{{
+			ID: 1, ProjectID: 1, Type: db.HostConfigURL,
+			Name: mapped, SSHKey: sshKey(t, 1, "k"),
+		}}, task_logger.NopLogger{})
+		require.NoError(t, err)
+		t.Cleanup(installation.Destroy)
+		return installation
+	}
+
+	rewritten := func(t *testing.T, installation *HostConfigInstallation, url string) string {
+		t.Helper()
+		dir := t.TempDir()
+		cmd := exec.Command("git", "ls-remote", "--get-url", url)
+		cmd.Dir = dir
+		cmd.Env = []string{
+			"GIT_CONFIG_PARAMETERS=" + installation.GitConfigParameters(),
+			"HOME=" + dir, "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
+		}
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "%s", out)
+		return strings.TrimSpace(string(out))
+	}
+
+	t.Run("a trailing slash keeps the mapping inside the group", func(t *testing.T) {
+		installation := install(t, "https://github.com/acme/private/")
+
+		assert.Equal(t, "git@semaphore-mapping-1:acme/private/repo.git",
+			rewritten(t, installation, "https://github.com/acme/private/repo.git"))
+
+		// A sibling group must keep its own URL.
+		assert.Equal(t, "https://github.com/acme/private-other/repo.git",
+			rewritten(t, installation, "https://github.com/acme/private-other/repo.git"))
+	})
+
+	t.Run("without a trailing slash a sibling is captured too", func(t *testing.T) {
+		installation := install(t, "https://github.com/acme/private")
+
+		assert.Equal(t, "git@semaphore-mapping-1:acme/private-other.git",
+			rewritten(t, installation, "https://github.com/acme/private-other.git"),
+			"git matches insteadOf as a plain prefix, so a sibling is captured")
+	})
+}

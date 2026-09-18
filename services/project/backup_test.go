@@ -477,6 +477,32 @@ func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
 		}
 	}
 
+	// Preflight must reject it: Restore only runs after the project and its keys
+	// exist, so a failure there leaves a half-restored project behind.
+	t.Run("a malformed host is rejected by preflight", func(t *testing.T) {
+		backup := newBackup("bad host preflight", []BackupHostConfig{{
+			HostConfig: db.HostConfig{Type: db.HostConfigHost, Name: "github.com\n  IdentityFile /etc/shadow"},
+			SSHKey:     &keyName,
+		}})
+
+		err := backup.Verify()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "host")
+	})
+
+	// A valid backup must survive preflight even though the credential is still
+	// carried by name and its id is not resolved yet.
+	t.Run("preflight accepts a mapping whose key is not resolved yet", func(t *testing.T) {
+		backup := newBackup("unresolved key", []BackupHostConfig{{
+			HostConfig: db.HostConfig{Type: db.HostConfigHost, Name: "github.com"},
+			SSHKey:     &keyName,
+		}})
+
+		require.Zero(t, backup.HostConfigs[0].SSHKeyID, "the key id is only known during the restore")
+		assert.NoError(t, backup.Verify())
+	})
+
 	t.Run("a host carrying config syntax is rejected", func(t *testing.T) {
 		backup := newBackup("bad host", []BackupHostConfig{{
 			HostConfig: db.HostConfig{Type: db.HostConfigHost, Name: "github.com\n  IdentityFile /etc/shadow"},
@@ -487,6 +513,36 @@ func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "host_configs")
+	})
+
+	// The API and the CLI both run Verify before Restore, so a duplicate must be
+	// rejected there: by the time Restore runs, the project already exists.
+	t.Run("a duplicate mapping is rejected by preflight", func(t *testing.T) {
+		backup := newBackup("dup host", []BackupHostConfig{
+			{HostConfig: db.HostConfig{Type: db.HostConfigHost, Name: "github.com"}, SSHKey: &keyName},
+			{HostConfig: db.HostConfig{Type: db.HostConfigHost, Name: "github.com"}, SSHKey: &keyName},
+		})
+
+		err := backup.Verify()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate")
+	})
+
+	t.Run("the same name with a different type passes preflight and restores", func(t *testing.T) {
+		backup := newBackup("same name two types", []BackupHostConfig{
+			{HostConfig: db.HostConfig{Type: db.HostConfigHost, Name: "github.com"}, SSHKey: &keyName},
+			{HostConfig: db.HostConfig{Type: db.HostConfigURL, Name: "https://github.com/acme/"}, SSHKey: &keyName},
+		})
+
+		require.NoError(t, backup.Verify())
+
+		project, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+		require.NoError(t, err)
+
+		hostConfigs, err := store.GetHostConfigs(project.ID, db.RetrieveQueryParams{})
+		require.NoError(t, err)
+		assert.Len(t, hostConfigs, 2)
 	})
 
 	t.Run("a valid mapping still restores", func(t *testing.T) {

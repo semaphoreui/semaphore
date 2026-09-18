@@ -56,6 +56,9 @@ func InstallHostConfigs(
 
 	var blocks []string
 
+	// ponytail: an agent per mapping, started whether or not the task reaches
+	// that host. Fine for the handful of mappings a project has; install them
+	// lazily, on the first connection to each host, if that ever changes.
 	for _, hostConfig := range hostConfigs {
 		var agent Agent
 
@@ -116,6 +119,10 @@ func hostBlock(host string, agentSocket string) string {
 func urlBlock(hostConfig db.HostConfig, agentSocket string) string {
 	host := hostConfig.Name
 	if u := parseMappingURL(host); u != nil {
+		// Hostname() drops the port on purpose: it is the http port of the URL
+		// being rewritten, and says nothing about where the host answers ssh.
+		// ponytail: the alias therefore uses port 22; give the mapping its own
+		// ssh port if a server on a non-standard one ever needs it.
 		host = u.Hostname()
 	}
 
