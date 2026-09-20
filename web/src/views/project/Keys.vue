@@ -158,7 +158,10 @@ export default {
     async loadItemsAndShowPublicKey(e) {
       await this.loadItems();
 
-      const isGeneratedOnCreate = e && e.action === 'new' && e.item && e.item.generate_ssh_key;
+      const generatedCreatePublicKey = e && e.action === 'new'
+        ? this.extractPublicKey((e || {}).item)
+        : '';
+      const isGeneratedOnCreate = generatedCreatePublicKey !== '';
       const isGeneratedOnUpdate = e && e.action === 'edit' && e.item && e.item.generate_ssh_key;
       if (!isGeneratedOnCreate && !isGeneratedOnUpdate) {
         this.createdPublicKey = '';
@@ -167,8 +170,9 @@ export default {
 
       const itemId = e && e.item ? e.item.id : null;
       const reloadedItem = itemId ? this.items.find((x) => x.id === itemId) : null;
-      const sourceItem = reloadedItem || (e || {}).item;
-      const publicKey = this.extractPublicKey(sourceItem);
+      const publicKey = generatedCreatePublicKey
+        || this.extractPublicKey(reloadedItem)
+        || this.extractPublicKey((e || {}).item);
 
       if (!publicKey) {
         this.createdPublicKey = '';
