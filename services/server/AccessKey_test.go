@@ -145,7 +145,9 @@ func TestUpdateGeneratesSSHKeyWithoutOverrideSecret(t *testing.T) {
 		},
 	}
 
+	previousConfig := util.Config
 	util.Config = &util.ConfigType{}
+	t.Cleanup(func() { util.Config = previousConfig })
 	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil, nil)
 	svc := NewAccessKeyService(repo, encryptionService, nil)
 
