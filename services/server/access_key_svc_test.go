@@ -12,7 +12,9 @@ import (
 )
 
 func TestAccessKeyService_Update_GeneratedSSHKeyIsPersisted(t *testing.T) {
+	previousConfig := util.Config
 	util.Config = &util.ConfigType{}
+	t.Cleanup(func() { util.Config = previousConfig })
 
 	projectID := 1
 	repo := &mockAccessKeyRepo{

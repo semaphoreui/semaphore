@@ -26,7 +26,7 @@ describe('Keys.vue', () => {
       createdPublicKey: 'stale',
       createdPublicKeyDialog: false,
       loadItems: async () => {},
-      extractPublicKey: () => 'ssh-rsa AAAA',
+      extractPublicKey: Keys.methods.extractPublicKey,
     };
 
     await Keys.methods.loadItemsAndShowPublicKey.call(ctx, {
@@ -34,7 +34,6 @@ describe('Keys.vue', () => {
       item: {
         id: 1,
         generate_ssh_key: false,
-        plain: '{"public_key":"ssh-rsa AAAA"}',
       },
     });
 
@@ -45,11 +44,12 @@ describe('Keys.vue', () => {
   it('shows the generated public key dialog when a key was generated on create', async () => {
     const item = {
       id: 1,
-      generate_ssh_key: true,
       plain: '{"public_key":"ssh-rsa AAAA"}',
     };
     const ctx = {
-      items: [item],
+      items: [{
+        id: item.id,
+      }],
       createdPublicKey: '',
       createdPublicKeyDialog: false,
       loadItems: async () => {},
