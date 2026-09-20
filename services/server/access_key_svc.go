@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -73,49 +72,69 @@ func (s *AccessKeyServiceImpl) GetAll(projectID int, options db.GetAccessKeyOpti
 	return s.accessKeyRepo.GetAccessKeys(projectID, options, params)
 }
 
-func maybeGenerateSSHPrivateKey(key *db.AccessKey) error {
-	if !key.GenerateSSHKey || key.Type != db.AccessKeySSH {
-		key.Plain = nil
-		return nil
-	}
+// generateSSHKeyPair returns a new private key in PEM format and the matching
+// public key in OpenSSH authorized_keys format.
+func generateSSHKeyPair() (privateKey string, publicKey string, err error) {
+	var buf bytes.Buffer
 
-	var b bytes.Buffer
-	privateKeyFile := bufio.NewWriter(&b)
-
-	publicKey, err := util.GeneratePrivateKey(privateKeyFile)
+	publicKey, err = util.GeneratePrivateKey(&buf)
 	if err != nil {
-		return err
+		return
 	}
 
-	err = privateKeyFile.Flush()
-	if err != nil {
-		return err
-	}
+	privateKey = buf.String()
+	return
+}
 
-	key.SshKey.PrivateKey = b.String()
-	key.SshKey.Passphrase = ""
-
-	type sshPublicKey struct {
+// encodePublicKeyPlain builds the JSON document stored in the non-secret
+// "plain" column so the UI can show the public key.
+func encodePublicKeyPlain(publicKey string) (string, error) {
+	doc := struct {
 		PublicKey string `json:"public_key"`
+	}{PublicKey: publicKey}
+
+	b, err := json.Marshal(doc)
+	if err != nil {
+		return "", err
 	}
 
-	plainBytes, err := json.Marshal(sshPublicKey{
-		PublicKey: publicKey,
-	})
+	return string(b), nil
+}
+
+// assignGeneratedSSHKey replaces the key's secret with a freshly generated
+// SSH key pair and exposes the public half through the plain field.
+func assignGeneratedSSHKey(key *db.AccessKey) error {
+	if key.Type != db.AccessKeySSH {
+		return common_errors.NewUserErrorS("generate_ssh_key is only allowed for ssh keys")
+	}
+
+	privateKey, publicKey, err := generateSSHKeyPair()
 	if err != nil {
 		return err
 	}
 
-	plain := string(plainBytes)
+	plain, err := encodePublicKeyPlain(publicKey)
+	if err != nil {
+		return err
+	}
+
+	key.SshKey.PrivateKey = privateKey
+	key.SshKey.Passphrase = ""
 	key.Plain = &plain
 	key.IgnorePlain = false
+
 	return nil
 }
 
 func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, err error) {
-	err = maybeGenerateSSHPrivateKey(&key)
-	if err != nil {
-		return
+	// Plain is derived data, never taken from the caller.
+	key.Plain = nil
+
+	if key.GenerateSSHKey {
+		err = assignGeneratedSSHKey(&key)
+		if err != nil {
+			return
+		}
 	}
 
 	// SerializeSecret encrypts/persists the secret for writable backends. For read-only
@@ -131,14 +150,8 @@ func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, er
 }
 
 func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
-	err = maybeGenerateSSHPrivateKey(&key)
-	if err != nil {
-		return
-	}
-
-	if key.GenerateSSHKey && key.Type == db.AccessKeySSH {
-		key.OverrideSecret = true
-	}
+	// Plain is derived data, never taken from the caller.
+	key.Plain = nil
 
 	if !key.OverrideSecret {
 		err = s.accessKeyRepo.UpdateAccessKey(key)
@@ -162,6 +175,13 @@ func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
 
 		if !oldSt.ReadOnly && (key.SourceStorageID == nil || *oldKey.SourceStorageID != *key.SourceStorageID) {
 			err = common_errors.NewUserErrorS("cannot override secret storage")
+			return
+		}
+	}
+
+	if key.GenerateSSHKey {
+		err = assignGeneratedSSHKey(&key)
+		if err != nil {
 			return
 		}
 	}

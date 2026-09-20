@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -118,48 +117,6 @@ func TestCreateSkipsSerializationForReadOnlyStorage(t *testing.T) {
 	created, err := svc.Create(key)
 	require.NoError(t, err)
 	assert.Equal(t, "test", created.Name)
-}
-
-func TestUpdateGeneratesSSHKeyWithoutOverrideSecret(t *testing.T) {
-	projectID := 1
-	key := db.AccessKey{
-		ID:             1,
-		Name:           "generated",
-		Type:           db.AccessKeySSH,
-		ProjectID:      &projectID,
-		GenerateSSHKey: true,
-		OverrideSecret: false,
-	}
-
-	var updated db.AccessKey
-	repo := &mockAccessKeyRepo{
-		keys: []db.AccessKey{{
-			ID:        1,
-			ProjectID: &projectID,
-			Type:      db.AccessKeySSH,
-			Name:      "generated",
-		}},
-		UpdateAccessKeyFn: func(k db.AccessKey) error {
-			updated = k
-			return nil
-		},
-	}
-
-	util.Config = &util.ConfigType{}
-	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil, nil)
-	svc := NewAccessKeyService(repo, encryptionService, nil)
-
-	err := svc.Update(key)
-	require.NoError(t, err)
-	require.NotEmpty(t, updated.SshKey.PrivateKey)
-	require.NotNil(t, updated.Plain)
-	require.NotNil(t, updated.Secret)
-	secret, err := base64.StdEncoding.DecodeString(*updated.Secret)
-	require.NoError(t, err)
-	var stored db.SshKey
-	require.NoError(t, json.Unmarshal(secret, &stored))
-	assert.Contains(t, *updated.Plain, "public_key")
-	assert.Equal(t, updated.SshKey.PrivateKey, stored.PrivateKey)
 }
 
 func TestRekeyAccessKeysSkipsExternalStorageKeys(t *testing.T) {
