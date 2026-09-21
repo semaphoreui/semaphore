@@ -1,12 +1,16 @@
 package setup
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/term"
 
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -145,7 +149,7 @@ func InteractiveSetup(conf *util.ConfigType) {
 		askValue("LDAP server host", "localhost:389", &conf.LdapServer)
 		askConfirmation("Enable LDAP TLS connection", false, &conf.LdapNeedTLS)
 		askValue("LDAP DN for bind", "cn=user,ou=users,dc=example", &conf.LdapBindDN)
-		askValue("Password for LDAP bind user", "pa55w0rd", &conf.LdapBindPassword)
+		askSecretValue("Password for LDAP bind user", "pa55w0rd", &conf.LdapBindPassword)
 		askValue("LDAP DN for user search", "ou=users,dc=example", &conf.LdapSearchDN)
 		askValue("LDAP search filter", `(uid=%s)`, &conf.LdapSearchFilter)
 		askValue("LDAP mapping for DN field", "dn", &conf.LdapMappings.DN)
@@ -163,7 +167,7 @@ func scanMySQL(conf *util.ConfigType) {
 	conf.MySQL = &util.DbConfig{}
 	askValue("db Hostname", "127.0.0.1:3306", &conf.MySQL.Hostname)
 	askValue("db User", "root", &conf.MySQL.Username)
-	askValue("db Password", "", &conf.MySQL.Password)
+	askSecretValue("db Password", "", &conf.MySQL.Password)
 	askValue("db Name", "semaphore", &conf.MySQL.DbName)
 }
 
@@ -171,7 +175,7 @@ func scanPostgres(conf *util.ConfigType) {
 	conf.Postgres = &util.DbConfig{}
 	askValue("db Hostname", "127.0.0.1:5432", &conf.Postgres.Hostname)
 	askValue("db User", "root", &conf.Postgres.Username)
-	askValue("db Password", "", &conf.Postgres.Password)
+	askSecretValue("db Password", "", &conf.Postgres.Password)
 	askValue("db Name", "semaphore", &conf.Postgres.DbName)
 	if conf.Postgres.Options == nil {
 		conf.Postgres.Options = make(map[string]string)
@@ -266,6 +270,63 @@ func askValue(prompt string, defaultValue string, item any) {
 
 	// Empty line after prompt
 	fmt.Println("")
+}
+
+// askSecretValue prompts for a secret value. On a TTY the input is not echoed.
+// When stdin is not a terminal (piped/CI), it falls back to plain Scanln.
+func askSecretValue(prompt string, defaultValue string, item *string) {
+	fmt.Print(prompt)
+	if len(defaultValue) != 0 {
+		fmt.Print(" (default " + defaultValue + ")")
+	}
+	fmt.Print(": ")
+
+	*item = defaultValue
+
+	value, err := readSecretInput(int(os.Stdin.Fd()))
+	if err != nil {
+		scanErrorChecker(0, err)
+		fmt.Println("")
+		return
+	}
+	if value != "" {
+		*item = value
+	}
+
+	fmt.Println("")
+}
+
+// ReadSecretLine prints prompt and reads a secret from stdin without echoing on a TTY.
+func ReadSecretLine(prompt string) string {
+	fmt.Print(prompt)
+
+	value, err := readSecretInput(int(os.Stdin.Fd()))
+	if err != nil {
+		scanErrorChecker(0, err)
+		return ""
+	}
+
+	return value
+}
+
+func readSecretInput(fd int) (string, error) {
+	if term.IsTerminal(fd) {
+		b, err := term.ReadPassword(fd)
+		// ReadPassword does not echo the trailing newline; print one for the shell.
+		fmt.Println()
+		if err != nil {
+			return "", err
+		}
+		return string(b), nil
+	}
+
+	// Non-TTY (piped/CI): read a full line so passwords may contain spaces.
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	line = strings.TrimRight(line, "\r\n")
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", err
+	}
+	return line, nil
 }
 
 func askConfirmation(prompt string, defaultValue bool, item *bool) {
