@@ -178,7 +178,7 @@ func gitHostKeyCheckingOpts() string {
 	case util.SshStrictHostKeyCheckingYes:
 		return fmt.Sprintf("-o StrictHostKeyChecking=yes -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
 	case util.SshStrictHostKeyCheckingNo:
-		return "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+		return "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 	case util.SshStrictHostKeyCheckingAcceptNew:
 		return fmt.Sprintf("-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
 	default:
