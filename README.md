@@ -1,116 +1,136 @@
-# Semaphore UI
+<div align="center">
 
-Modern UI for Ansible, Terraform/OpenTofu/Terragrunt, PowerShell and other DevOps tools.
-<!--
-[![](https://img.shields.io/github/license/semaphoreui/semaphore)](LICENSE)
--->
+<img src="https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png" width="600" alt="UniFlow UI" />
 
-[![Dev](https://github.com/semaphoreui/semaphore/actions/workflows/dev.yml/badge.svg)](https://github.com/semaphoreui/semaphore/actions/workflows/dev.yml)
-[![](https://img.shields.io/docker/pulls/semaphoreui/semaphore.svg)](https://hub.docker.com/r/semaphoreui/semaphore)
+# UniFlow
 
-<!-- 
-[![roadmap](https://img.shields.io/badge/roadmap-gray?style=for-the-badge&logo=github)](https://github.com/orgs/semaphoreui/projects/11)
-[![telegram](https://img.shields.io/badge/discord_community-510b80?style=for-the-badge&logo=discord)](https://discord.gg/5R6k7hNGcH) 
-[![youtube](https://img.shields.io/badge/youtube_channel-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/@semaphoreui) 
-[![docker](https://img.shields.io/badge/container_configurator-white?style=for-the-badge&logo=docker)](https://semaphoreui.com/install/docker/)
--->
+**Built on [Semaphore UI](https://github.com/semaphoreui/semaphore) — adding OCI-based Execution Environments, stable multi-stage Workflows, plugins, and more community-driven features for teams automating infrastructure at scale.**
 
+[![Dev](https://github.com/TKILLAHOME/uniflow/actions/workflows/dev.yml/badge.svg)](https://github.com/TKILLAHOME/uniflow/actions/workflows/dev.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Fork of Semaphore](https://img.shields.io/badge/fork%20of-semaphoreui%2Fsemaphore-blue)](https://github.com/semaphoreui/semaphore)
 
-![responsive-ui-phone1](https://user-images.githubusercontent.com/914224/134777345-8789d9e4-ff0d-439c-b80e-ddc56b74fcee.png)
+</div>
 
-If your project has grown and deploying from the terminal is no longer feasible, then Semaphore UI is the tool you need.
+---
 
-## Demo
+## What is UniFlow?
 
-[Try Semaphore UI online](https://portal.semaphoreui.com/demo)
+UniFlow is a community fork of the excellent [Semaphore UI](https://github.com/semaphoreui/semaphore) project, extending it with features needed by infrastructure teams running automation at scale:
 
-<!--
-## Live Demo
+- **Execution Environments** — run jobs inside OCI container images pulled from any registry. Pin your tool versions, isolate dependencies, and get reproducible runs every time.
+- **Stable Workflows** — chain tasks into multi-stage pipelines with conditions and parallel execution.
+- **Plugin system** — extend UniFlow with custom runner backends, inventory sources, and notifiers without touching core code.
+- **Security-first** — secrets are never written to logs, containers run non-root, credentials are injected at runtime.
 
-Try the latest version of Semaphore at [https://portal.semaphoreui.com](https://portal.semaphoreui.com).
--->
+UniFlow supports everything Semaphore UI supports: Ansible, Terraform/OpenTofu, PowerShell, Bash, and more.
 
-## What is Semaphore UI?
+> **Credit where it's due:** UniFlow would not exist without the incredible work of the [Semaphore UI team](https://github.com/semaphoreui/semaphore). All upstream improvements continue to flow into UniFlow automatically. If a feature works for you and belongs upstream, we'll send it back as a PR.
 
-Semaphore UI is a modern web interface for managing popular DevOps tools.
+---
 
-Semaphore UI allows you to:
-* Easily run Ansible playbooks, Terraform and OpenTofu code, as well as Bash and PowerShell scripts.
-* Receive notifications about failed tasks.
-* Control access to your deployment system.
+## How Execution Environments work
 
-## Key Concepts
-
-1. **Projects** is a collection of related resources, configurations, and tasks.
-2. **Task Templates** are reusable definitions of tasks that can be executed on demand or scheduled.
-3. **Task** is a specific instance of a job or operation executed by Semaphore.
-4. **Schedules** allow you to automate task execution at specified times or intervals.
-5. **Inventory** is a collection of target hosts (servers, virtual machines, containers, etc.) on which tasks will be executed.
-6. **Variable Group** refers to a configuration context that holds sensitive information such as environment variables and secrets used by tasks during execution.
-
-## Getting Started
-
-You can install Semaphore using the following methods:
-* [Docker](https://semaphoreui.com/install/docker)
-* Deploy a VM from a marketplace:
-  * [AWS](https://aws.amazon.com/marketplace/pp/prodview-xavlsdkqybxtq)
-  * [Cloudzy](https://cloudzy.com/marketplace/semaphore-ui)
-  * [DigitalOcean](https://marketplace.digitalocean.com/apps/semaphore?refcode=b55d7c0077b8&action=deploy)
-  * [Vultr](https://www.vultr.com/marketplace/apps/semaphore)
-  * [Yandex Cloud](https://yandex.cloud/ru/marketplace/products/fastlix/semaphore)
-  * [RepoCloud](https://repocloud.io/details/Semaphore/)
-* [Snap](http://snapcraft.io/semaphore)
-* [Binary file](https://semaphoreui.com/install/binary)
-* [Debian or RPM package](https://semaphoreui.com/install/binary)
-
-### Docker
-
-The most popular way to install Semaphore is via Docker.
+An Execution Environment (EE) is a container image that carries everything a job needs — a specific Ansible version, Python packages, collections, roles. Instead of installing dependencies on the host, the job runs entirely inside the container.
 
 ```
-docker run -p 3000:3000 --name semaphore \
-	-e SEMAPHORE_DB_DIALECT=sqlite \
-	-e SEMAPHORE_ADMIN=admin \
-	-e SEMAPHORE_ADMIN_PASSWORD=changeme \
-	-e SEMAPHORE_ADMIN_NAME=Admin \
-	-e SEMAPHORE_ADMIN_EMAIL=admin@localhost \
-	-d semaphoreui/semaphore:latest
+Registry (Gitea, Harbor, Docker Hub, …)
+    └── EE Image
+            ├── Ansible pinned version
+            ├── Python venv + collections
+            └── System packages
+                    └── UniFlow starts container
+                            ├── Mounts playbook + inventory (read-only)
+                            ├── Injects credentials as env vars
+                            └── Streams stdout/stderr live to UI
 ```
 
-We recommend using the [Container Configurator](https://semaphoreui.com/install/docker/) to get the ideal Docker configuration for Semaphore.
+---
 
-<!--
-### SaaS
+## Quick Start
 
-We offer a SaaS solution for using Semaphore UI without installation. Check it out at [Semaphore Cloud](https://portal.semaphoreui.com).
--->
+> UniFlow is in early development. The base Semaphore UI runs fully; EE and Workflow features are being built.
 
-### Other Installation Methods
+### Docker (Semaphore-compatible)
 
-For more installation options, visit our [Installation page](https://semaphoreui.com/install).
+```bash
+docker run -p 3000:3000 --name uniflow \
+  -e SEMAPHORE_DB_DIALECT=sqlite \
+  -e SEMAPHORE_ADMIN=admin \
+  -e SEMAPHORE_ADMIN_PASSWORD=changeme \
+  -e SEMAPHORE_ADMIN_NAME=Admin \
+  -e SEMAPHORE_ADMIN_EMAIL=admin@localhost \
+  -d ghcr.io/tkillahome/uniflow:latest
+```
 
-## Documentation
+### Build from source
 
-* [User Guide](https://docs.semaphoreui.com)
-* [API Reference](https://semaphoreui.com/api-docs)
-* [Postman Collection](https://www.postman.com/semaphoreui)
+```bash
+git clone https://github.com/TKILLAHOME/uniflow
+cd uniflow
+task build
+```
 
-## Awesome Semaphore
+Requirements: Go 1.21+, Node.js 18+, [Task](https://taskfile.dev)
 
-A curated list of awesome things related to Semaphore UI.
+---
 
-* [Ebdruplab — Ansible Collections](https://github.com/Ebdruplab/ansible-collection_ebdruplab) &mdash; Ansible modules and a role for managing Semaphore.
-* [SemaphoreUI MCP Server](https://github.com/cloin/semaphore-mcp) &mdash; A Model Context Protocol (MCP) server that provides AI assistants with powerful automation capabilities for SemaphoreUI.
-* [Terraform SemaphoreUI Provider](https://github.com/CruGlobal/terraform-provider-semaphoreui) &mdash; Manage Semaphore UI resources using Terraform.
-* [PSSemaphore](https://github.com/robinmalik/PSSemaphore) &mdash; A PowerShell module designed to work against the Ansible Semaphore REST API.
+## Roadmap
 
-[//]: # (* [Ansible UI Semaphore]&#40;https://github.com/morbidick/ansible-role-semaphore&#41; &mdash; Ansible role to install and configure the Ansible UI Semaphore.)
+| Phase | Target | Status |
+|-------|--------|--------|
+| **Phase 1** — Foundation | Branch strategy, dev setup, codebase study | 🔄 In progress |
+| **Phase 2** — Execution Environments | Docker/Podman runner, registry client, EE UI | 📋 Planned |
+| **Phase 3** — Stable Workflows | Workflow stabilization, Podman backend, v0.1.0 release | 📋 Planned |
+| **Phase 4** — Community & Extensions | NetBox inventory, ansible-builder UI, plugin API | 📋 Planned |
 
-## Contribution
+---
 
-* [Contribution Guide](https://github.com/semaphoreui/semaphore/blob/develop/CONTRIBUTING.md)
-* [Dev Container](https://codespaces.new/semaphoreui/semaphore) (default user `admin` / `changeme`)
+## Branch Strategy
+
+| Branch | Purpose |
+|--------|---------|
+| `develop` | Main integration branch — tracks upstream Semaphore |
+| `v0.x` | Version release branches |
+| `feat/*` | Short-lived feature branches |
+| `fix/*` | Hotfixes, cherry-pickable into version branches |
+
+Upstream sync:
+```bash
+git fetch upstream
+git merge upstream/develop   # clean merge — UniFlow code lives in separate packages
+```
+
+---
+
+## Contributing
+
+UniFlow is a community project and contributions are very welcome.
+
+- [Contributing Guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- Open an issue to discuss features or bugs
+- PRs against `develop` please
+
+If your contribution is general enough to benefit Semaphore UI users too, please also consider opening a PR upstream.
+
+---
+
+## Upstream & Compatibility
+
+UniFlow is built **additively** on Semaphore UI:
+
+- All UniFlow-specific code lives in new packages (`services/runner/`, `pkg/registry/`, `api/ee.go`, `web/src/ee/`)
+- Existing Semaphore files are touched as little as possible
+- Upstream updates merge cleanly via `git merge upstream/develop`
+- The full Semaphore feature set remains intact
+
+UniFlow will always be fully compatible with Semaphore UI's configuration format and API.
+
+---
 
 ## License
 
-MIT © [Denis Gukov](https://github.com/fiftin)
+MIT © UniFlow Contributors
+
+Based on [Semaphore UI](https://github.com/semaphoreui/semaphore) — MIT © [Denis Gukov](https://github.com/fiftin)
