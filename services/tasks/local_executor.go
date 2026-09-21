@@ -342,8 +342,13 @@ func (t *LocalExecutor) getShellArgs(username string, incomingVersion *string) (
 		}
 	}
 
-	// Include extra args from template
-	args = append(args, templateArgs...)
+	// Task args replace template args when override is enabled and task args are set
+	// (including an explicit empty list).
+	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
+		args = append(args, taskArgs...)
+	} else {
+		args = append(args, templateArgs...)
+	}
 
 	// Include ExtraVars and Survey Vars
 	for name, value := range extraVars {
@@ -351,9 +356,6 @@ func (t *LocalExecutor) getShellArgs(username string, incomingVersion *string) (
 			args = append(args, fmt.Sprintf("%s=%s", name, formatVarValue(value)))
 		}
 	}
-
-	// Include extra args from task
-	args = append(args, taskArgs...)
 
 	return
 }
@@ -407,15 +409,14 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 		secretArgs = append(secretArgs, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 
-	// Merge template and task args maps
-	for stage, stageArgs := range templateArgsMap {
-		argsMap[stage] = append([]string{}, stageArgs...)
-	}
-
-	for stage, stageArgs := range taskArgsMap {
-		if existing, ok := argsMap[stage]; ok {
-			argsMap[stage] = append(existing, stageArgs...)
-		} else {
+	// Task args replace template args when override is enabled and task args are set
+	// (including an explicit empty list).
+	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
+		for stage, stageArgs := range taskArgsMap {
+			argsMap[stage] = append([]string{}, stageArgs...)
+		}
+	} else {
+		for stage, stageArgs := range templateArgsMap {
 			argsMap[stage] = append([]string{}, stageArgs...)
 		}
 	}
@@ -590,22 +591,26 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		skipTags = strings.Join(params.SkipTags, ",")
 	}
 
-	// Add final args
+	// Task args replace template args when override is enabled and task args are set
+	// (including an explicit empty list). Limit/tags/skip-tags still apply on top.
+	cliArgs := templateArgs
+	if t.Template.AllowOverrideArgsInTask && t.Task.Arguments != nil {
+		cliArgs = taskArgs
+	}
 
 	if limit != "" {
-		templateArgs = append(templateArgs, "--limit="+limit)
+		cliArgs = append(cliArgs, "--limit="+limit)
 	}
 
 	if tags != "" {
-		templateArgs = append(templateArgs, "--tags="+tags)
+		cliArgs = append(cliArgs, "--tags="+tags)
 	}
 
 	if skipTags != "" {
-		templateArgs = append(templateArgs, "--skip-tags="+skipTags)
+		cliArgs = append(cliArgs, "--skip-tags="+skipTags)
 	}
 
-	args = append(args, templateArgs...)
-	args = append(args, taskArgs...)
+	args = append(args, cliArgs...)
 	args = append(args, playbookFile)
 
 	if line, ok := inputMap[db.AccessKeyRoleAnsibleUser]; ok {

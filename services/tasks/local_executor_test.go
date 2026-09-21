@@ -249,6 +249,63 @@ func TestGetTerraformArgs_MultiSelect(t *testing.T) {
 	assert.True(t, found, "expected -var multi_var=[\"1\",\"2\"] in %v", defaultArgs)
 }
 
+// TestGetTerraformArgs_EmptyTaskArgsClearTemplateArgs verifies that an explicit
+// empty task CLI args list replaces template args instead of merging with them.
+func TestGetTerraformArgs_EmptyTaskArgsClearTemplateArgs(t *testing.T) {
+	setupExecutorConfig(t)
+
+	templateArgs := `["-target", "my-vm"]`
+	taskArgs := `[]`
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			Type:                    db.TemplateTask,
+			App:                     db.AppTerraform,
+			Arguments:               &templateArgs,
+			AllowOverrideArgsInTask: true,
+		},
+		Task: db.Task{
+			Arguments: &taskArgs,
+		},
+	}
+
+	argsMap, err := exec.getTerraformArgs("admin", nil)
+	require.NoError(t, err)
+
+	for stage, stageArgs := range argsMap {
+		assert.NotContains(t, stageArgs, "-target", "stage %q should not keep template args: %v", stage, stageArgs)
+		assert.NotContains(t, stageArgs, "my-vm", "stage %q should not keep template args: %v", stage, stageArgs)
+	}
+}
+
+// TestGetTerraformArgs_TaskArgsReplaceTemplateArgs verifies non-empty task CLI
+// args fully replace template args for terraform.
+func TestGetTerraformArgs_TaskArgsReplaceTemplateArgs(t *testing.T) {
+	setupExecutorConfig(t)
+
+	templateArgs := `["-target", "template-vm"]`
+	taskArgs := `["-target", "task-vm"]`
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			Type:                    db.TemplateTask,
+			App:                     db.AppTerraform,
+			Arguments:               &templateArgs,
+			AllowOverrideArgsInTask: true,
+		},
+		Task: db.Task{
+			Arguments: &taskArgs,
+		},
+	}
+
+	argsMap, err := exec.getTerraformArgs("admin", nil)
+	require.NoError(t, err)
+
+	defaultArgs := argsMap["default"]
+	assert.Contains(t, defaultArgs, "task-vm")
+	assert.NotContains(t, defaultArgs, "template-vm")
+}
+
 // TestGetPlaybookArgs_HideDryRunAndDiff verifies that hide_dry_run / hide_diff
 // are enforced when building the ansible-playbook command line.
 func TestGetPlaybookArgs_HideDryRunAndDiff(t *testing.T) {
@@ -363,7 +420,15 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 			allowOverride:         true,
 			taskArgs:              new(`["--forks", "10"]`),
 			expectedEffectiveFork: "10",
-			expectedForksSubArgs:  []string{"--forks", "5", "--forks", "10"},
+			expectedForksSubArgs:  []string{"--forks", "10"},
+			mustNotContain:        []string{"5"},
+		},
+		{
+			name:             "Empty task args clear template args when AllowOverrideArgsInTask is true",
+			templateArgs:     new(`["--check"]`),
+			allowOverride:    true,
+			taskArgs:         new(`[]`),
+			mustNotContain:   []string{"--check"},
 		},
 		{
 			name:                  "Task level ignored when AllowOverrideArgsInTask is false",
