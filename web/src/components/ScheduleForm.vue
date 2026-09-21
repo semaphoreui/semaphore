@@ -9,6 +9,7 @@
       v-model="showInfo"
       color="info"
       text
+      dismissible
       class="mb-6"
     >
       Use environment variable <code>SEMAPHORE_SCHEDULE_TIMEZONE</code> or config param
