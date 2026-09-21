@@ -498,6 +498,31 @@ func TestGetEnvironmentExtraVars_MergesEnvironmentSecretVars(t *testing.T) {
 	assert.NotContains(t, jsonStr, "should-not-appear")
 }
 
+func TestGetEnvironmentExtraVars_SecretSurvivesSurveyEnvFilter(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			SurveyVars: []db.SurveyVar{
+				{Name: "SHARED", Target: db.SurveyVarTargetEnv},
+			},
+		},
+		Environment: db.Environment{
+			JSON: `{"SHARED":"from-json","OTHER":"ok"}`,
+			Secrets: []db.EnvironmentSecret{
+				{Type: db.EnvironmentSecretVar, Name: "SHARED", Secret: "from-secret"},
+			},
+		},
+	}
+
+	extraVars, err := exec.getEnvironmentExtraVars("admin", nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, "from-secret", extraVars["SHARED"], "environment secret must survive survey-env filtering")
+	assert.Equal(t, "ok", extraVars["OTHER"])
+	assert.Contains(t, extraVars, "semaphore_vars")
+}
+
 // TestGetPlaybookArgs_SecretVarsInJSON verifies Ansible receives environment
 // secret vars inside the JSON --extra-vars payload, not as name=value.
 func TestGetPlaybookArgs_SecretVarsInJSON(t *testing.T) {

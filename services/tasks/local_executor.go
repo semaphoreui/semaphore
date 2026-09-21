@@ -170,23 +170,23 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 		maps.Copy(extraVars, extraSecretVars)
 	}
 
-	// Merge Environment Secret Variables (type "var") so Ansible receives them
-	// inside the JSON --extra-vars payload. Passing them as separate
-	// name=value CLI args breaks values with spaces or newlines.
-	// Secret vars override same-named keys from JSON / survey secrets.
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		extraVars[secret.Name] = secret.Secret
-	}
-
 	// Survey vars with the "env" target are delivered as process environment
 	// variables (see getSurveyEnvVars), not as extra vars / CLI args.
 	for _, v := range t.Template.SurveyVars {
 		if v.Target == db.SurveyVarTargetEnv {
 			delete(extraVars, v.Name)
 		}
+	}
+
+	// Merge Environment Secret Variables (type "var") so Ansible receives them
+	// inside the JSON --extra-vars payload. Passing them as separate
+	// name=value CLI args breaks values with spaces or newlines.
+	// Applied after the survey-env filter so secrets win on name collisions.
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type != db.EnvironmentSecretVar {
+			continue
+		}
+		extraVars[secret.Name] = secret.Secret
 	}
 
 	vars := make(map[string]any)
