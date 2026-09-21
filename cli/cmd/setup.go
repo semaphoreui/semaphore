@@ -64,7 +64,7 @@ func doSetup() int {
 		fmt.Printf("\n Welcome back, %v! (a user with this username/email is already set up..)\n\n", existingUser.Name)
 	} else {
 		user.Name = readNewline(" > Your name: ", stdin)
-		user.Pwd = readNewline(" > Password: ", stdin)
+		user.Pwd = setup.ReadSecretLine(" > Password: ")
 		user.Admin = true
 
 		if _, err := store.CreateUser(user); err != nil {
