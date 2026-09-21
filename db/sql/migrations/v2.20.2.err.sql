@@ -1,3 +1,5 @@
+drop table `project__repository_submodule_credential`;
+
 drop index `project__workflow_delay__status_resume_at`;
 drop index `project__workflow_delay__workflow_run_id`;
 drop table `project__workflow_delay`;

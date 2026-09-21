@@ -68,6 +68,7 @@ func newExecutor(
 		jobData.Template,
 		jobData.Inventory,
 		jobData.Repository,
+		jobData.SubmoduleCredentials,
 		jobData.Environment,
 		jobData.JWT,
 	)
@@ -78,6 +79,10 @@ func newExecutor(
 // identical across strategies — every executor sees the same shape of JobData.
 func hydrateJobAccessKeys(jobData *JobData, accessKeys map[int]db.AccessKey) {
 	jobData.Repository.SSHKey = accessKeys[jobData.Repository.SSHKeyID]
+
+	for i := range jobData.SubmoduleCredentials {
+		jobData.SubmoduleCredentials[i].AccessKey = accessKeys[jobData.SubmoduleCredentials[i].AccessKeyID]
+	}
 
 	if jobData.Inventory.SSHKeyID != nil {
 		jobData.Inventory.SSHKey = accessKeys[*jobData.Inventory.SSHKeyID]
@@ -101,5 +106,9 @@ func hydrateJobAccessKeys(jobData *JobData, accessKeys map[int]db.AccessKey) {
 
 	if jobData.Inventory.RepositoryID != nil && jobData.Inventory.Repository != nil {
 		jobData.Inventory.Repository.SSHKey = accessKeys[jobData.Inventory.Repository.SSHKeyID]
+	}
+
+	for i := range jobData.Inventory.SubmoduleCredentials {
+		jobData.Inventory.SubmoduleCredentials[i].AccessKey = accessKeys[jobData.Inventory.SubmoduleCredentials[i].AccessKeyID]
 	}
 }

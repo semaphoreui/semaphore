@@ -102,7 +102,7 @@ func Route(
 	integrationController := NewIntegrationController(store, integrationService)
 	environmentController := projects.NewEnvironmentController(store, encryptionService, accessKeyService, environmentService, secretStorageService)
 	secretStorageController := projects.NewSecretStorageController(store, secretStorageService)
-	repositoryController := projects.NewRepositoryController(accessKeyInstallationService)
+	repositoryController := projects.NewRepositoryController(accessKeyInstallationService, encryptionService)
 	keyController := projects.NewKeyController(accessKeyService)
 	projectsController := projects.NewProjectsController(accessKeyService)
 	terraformController := proApi.NewTerraformController(encryptionService, terraformStore, store)
@@ -429,6 +429,14 @@ func Route(
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
 	projectRepoManagement.HandleFunc("/{repository_id}/branches", repositoryController.GetRepositoryBranches).Methods("GET", "HEAD")
 	projectRepoManagement.HandleFunc("/{repository_id}/playbooks", repositoryController.GetRepositoryPlaybooks).Methods("GET", "HEAD")
+
+	projectRepoManagement.HandleFunc("/{repository_id}/submodule_credentials", projects.GetRepositorySubmoduleCredentials).Methods("GET", "HEAD")
+	projectRepoManagement.HandleFunc("/{repository_id}/submodule_credentials", projects.AddRepositorySubmoduleCredential).Methods("POST")
+
+	projectSubmoduleCredentialManagement := projectRepoManagement.PathPrefix("/{repository_id}/submodule_credentials").Subrouter()
+	projectSubmoduleCredentialManagement.Use(projects.SubmoduleCredentialMiddleware)
+	projectSubmoduleCredentialManagement.HandleFunc("/{submodule_credential_id}", projects.UpdateRepositorySubmoduleCredential).Methods("PUT")
+	projectSubmoduleCredentialManagement.HandleFunc("/{submodule_credential_id}", projects.RemoveRepositorySubmoduleCredential).Methods("DELETE")
 
 	projectInventoryManagement := projectUserAPI.PathPrefix("/inventory").Subrouter()
 	projectInventoryManagement.Use(projects.InventoryMiddleware)
