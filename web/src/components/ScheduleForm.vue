@@ -513,7 +513,7 @@ export default {
   },
 
   async created() {
-    this.showInfo = localStorage.getItem('schedule_hide_info') !== '1';
+    this.showInfo = localStorage.getItem('schedule__hide_info') !== '1';
     this.rawCron = localStorage.getItem('schedule__raw_cron') !== '1';
 
     this.templates = (await axios({
