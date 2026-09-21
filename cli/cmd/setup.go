@@ -48,7 +48,7 @@ func doSetup() int {
 		os.Exit(1)
 	}
 
-	stdin := bufio.NewReader(os.Stdin)
+	stdin := setup.Stdin()
 
 	var user db.UserWithPwd
 	user.Username = readNewline("\n\n > Username: ", stdin)
