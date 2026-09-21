@@ -932,16 +932,30 @@ export default {
         this.$set(this.item, 'sync_interval', 0);
       }
 
-      this.json = JSON.stringify(JSON.parse(this.item?.json || '{}'), null, 2);
-
-      const json = JSON.parse(this.item?.json || '{}');
+      let json;
+      try {
+        json = JSON.parse(this.item?.json || '{}');
+      } catch (e) {
+        json = null;
+      }
 
       const env = JSON.parse(this.item?.env || '{}');
 
       const secrets = this.item?.secrets || [];
 
-      this.extraVars = this.objectToExtraVars(json);
-      this.extraVarsEditMode = 'table';
+      // Legacy rows may store JSON "null"/arrays; Object.keys would throw in table mode.
+      if (!this.isPlainObject(json)) {
+        this.json = typeof this.item?.json === 'string' && this.item.json !== ''
+          ? this.item.json
+          : 'null';
+        this.extraVars = [];
+        this.extraVarsEditMode = 'json';
+        this.formError = 'Extra variables: must be an object, e.g. { "key": "value" }';
+      } else {
+        this.json = JSON.stringify(json, null, 2);
+        this.extraVars = this.objectToExtraVars(json);
+        this.extraVarsEditMode = 'table';
+      }
 
       this.env = Object.keys(env)
         // .filter((x) => {
