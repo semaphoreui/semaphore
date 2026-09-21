@@ -155,7 +155,7 @@
       label="Generate SSH Key"
       v-if="!isReadOnly && item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
-      class="mt-0 mb-2"
+      class="mt-0 mb-3"
       hide-details
     />
 
@@ -172,23 +172,33 @@
     />
 
     <div
-      v-if="item.type === 'ssh' && !isNew && hasGeneratedPublicKey"
+      v-if="!item.override_secret && item.type === 'ssh' && !isNew && hasGeneratedPublicKey"
       class="mb-4"
     >
       <div class="pb-1">Public key:</div>
       <div style="position: relative">
         <pre
           style="
-            overflow: auto;
+            overflow: hidden;
             background: gray;
             color: white;
             border-radius: 10px;
             margin-top: 0;
             white-space: normal;
+            height: 35px;
           "
+          :style="{height: showPublicKey ? 'auto' : '35px' }"
           class="pa-2"
           >{{ publicKey }}</pre
         >
+
+        <v-btn
+          style="position: absolute; right: 40px; top: 0; transform: scale(0.9);"
+          text
+          @click="showPublicKey = !showPublicKey"
+        >
+          {{ showPublicKey ? 'Hide' : 'Show' }}
+        </v-btn>
 
         <CopyClipboardButton
           style="position: absolute; right: 0; top: 0; transform: scale(0.9);"
@@ -197,7 +207,14 @@
       </div>
     </div>
 
-    <v-checkbox v-model="item.override_secret" :label="$t('override')" v-if="!isNew" />
+    <v-checkbox
+        style="position: absolute; bottom: 18px;"
+        v-model="item.override_secret"
+        :label="$t('override')"
+        v-if="!isNew"
+        hide-details
+        class="mt-0"
+    />
 
     <v-alert dense text type="info" v-if="item.type === 'none'">
       {{ $t('useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook') }}
@@ -239,6 +256,7 @@ export default {
       ],
       secretStorages: null,
       isSynced: false,
+      showPublicKey: false,
     };
   },
 
