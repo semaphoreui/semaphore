@@ -290,7 +290,9 @@ func TestRekeyAccessKeysReStampsToActiveID(t *testing.T) {
 }
 
 type mockAccessKeyRepo struct {
-	keys []db.AccessKey
+	keys              []db.AccessKey
+	UpdateAccessKeyFn func(db.AccessKey) error
+	CreateAccessKeyFn func(db.AccessKey) (db.AccessKey, error)
 }
 
 func (m *mockAccessKeyRepo) GetAccessKey(_ int, keyID int) (db.AccessKey, error) {
@@ -307,8 +309,16 @@ func (m *mockAccessKeyRepo) GetAccessKeyRefs(int, int) (db.ObjectReferrers, erro
 func (m *mockAccessKeyRepo) GetAccessKeys(int, db.GetAccessKeyOptions, db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	return nil, nil
 }
-func (m *mockAccessKeyRepo) UpdateAccessKey(db.AccessKey) error { return nil }
+func (m *mockAccessKeyRepo) UpdateAccessKey(key db.AccessKey) error {
+	if m.UpdateAccessKeyFn != nil {
+		return m.UpdateAccessKeyFn(key)
+	}
+	return nil
+}
 func (m *mockAccessKeyRepo) CreateAccessKey(k db.AccessKey) (db.AccessKey, error) {
+	if m.CreateAccessKeyFn != nil {
+		return m.CreateAccessKeyFn(k)
+	}
 	return k, nil
 }
 func (m *mockAccessKeyRepo) DeleteAccessKey(int, int) error { return nil }
