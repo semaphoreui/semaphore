@@ -120,6 +120,8 @@ func (t *LocalExecutor) getTaskDetails(username string, incomingVersion *string)
 	taskDetails = make(map[string]any)
 
 	taskDetails["id"] = t.Task.ID
+	taskDetails["project_id"] = t.Template.ProjectID
+	taskDetails["template_id"] = t.Template.ID
 
 	if t.Task.Message != "" {
 		taskDetails["message"] = t.Task.Message
