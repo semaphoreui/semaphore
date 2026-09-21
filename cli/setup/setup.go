@@ -8,12 +8,44 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/term"
 
 	"github.com/semaphoreui/semaphore/util"
 )
+
+var (
+	stdinMu sync.Mutex
+	stdinR  *bufio.Reader
+)
+
+// Stdin returns the shared stdin reader used by interactive setup.
+// Piped setup answers must go through one reader so later prompts still see them.
+func Stdin() *bufio.Reader {
+	stdinMu.Lock()
+	defer stdinMu.Unlock()
+	if stdinR == nil {
+		stdinR = bufio.NewReader(os.Stdin)
+	}
+	return stdinR
+}
+
+func resetStdin() {
+	stdinMu.Lock()
+	defer stdinMu.Unlock()
+	stdinR = nil
+}
+
+func readStdinLine() (string, error) {
+	line, err := Stdin().ReadString('\n')
+	line = strings.TrimRight(line, "\r\n")
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", err
+	}
+	return line, nil
+}
 
 const interactiveSetupBlurb = `
 Hello! You will now be guided through a setup to:
@@ -265,15 +297,24 @@ func askValue(prompt string, defaultValue string, item any) {
 
 	_, _ = fmt.Sscanln(defaultValue, item)
 
-	n, err := fmt.Scanln(item)
-	scanErrorChecker(n, err)
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		n, err := fmt.Scanln(item)
+		scanErrorChecker(n, err)
+	} else {
+		line, err := readStdinLine()
+		scanErrorChecker(0, err)
+		if line != "" {
+			n, err := fmt.Sscanln(line, item)
+			scanErrorChecker(n, err)
+		}
+	}
 
 	// Empty line after prompt
 	fmt.Println("")
 }
 
 // askSecretValue prompts for a secret value. On a TTY the input is not echoed.
-// When stdin is not a terminal (piped/CI), it falls back to plain Scanln.
+// When stdin is not a terminal (piped/CI), it falls back to plain line input.
 func askSecretValue(prompt string, defaultValue string, item *string) {
 	fmt.Print(prompt)
 	if len(defaultValue) != 0 {
@@ -320,13 +361,8 @@ func readSecretInput(fd int) (string, error) {
 		return string(b), nil
 	}
 
-	// Non-TTY (piped/CI): read a full line so passwords may contain spaces.
-	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	line = strings.TrimRight(line, "\r\n")
-	if err != nil && !errors.Is(err, io.EOF) {
-		return "", err
-	}
-	return line, nil
+	// Non-TTY (piped/CI): use the shared reader so later prompts still see remaining lines.
+	return readStdinLine()
 }
 
 func askConfirmation(prompt string, defaultValue bool, item *bool) {
@@ -339,8 +375,14 @@ func askConfirmation(prompt string, defaultValue bool, item *bool) {
 
 	var answer string
 
-	n, err := fmt.Scanln(&answer)
-	scanErrorChecker(n, err)
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		n, err := fmt.Scanln(&answer)
+		scanErrorChecker(n, err)
+	} else {
+		line, err := readStdinLine()
+		scanErrorChecker(0, err)
+		answer = line
+	}
 
 	switch strings.ToLower(answer) {
 	case "y", "yes":

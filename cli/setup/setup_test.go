@@ -9,21 +9,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAskSecretValue_NonTTYUsesPlainInput(t *testing.T) {
+func withPipedStdin(t *testing.T, input string) {
+	t.Helper()
+
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 
 	oldStdin := os.Stdin
 	os.Stdin = r
+	resetStdin()
+
 	t.Cleanup(func() {
 		os.Stdin = oldStdin
+		resetStdin()
 		_ = r.Close()
 	})
 
 	go func() {
-		_, _ = io.WriteString(w, "s3cret with spaces\n")
+		_, _ = io.WriteString(w, input)
 		_ = w.Close()
 	}()
+}
+
+func TestAskSecretValue_NonTTYUsesPlainInput(t *testing.T) {
+	withPipedStdin(t, "s3cret with spaces\n")
 
 	var got string
 	askSecretValue("db Password", "default", &got)
@@ -32,20 +41,7 @@ func TestAskSecretValue_NonTTYUsesPlainInput(t *testing.T) {
 }
 
 func TestAskSecretValue_EmptyInputKeepsDefault(t *testing.T) {
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-
-	oldStdin := os.Stdin
-	os.Stdin = r
-	t.Cleanup(func() {
-		os.Stdin = oldStdin
-		_ = r.Close()
-	})
-
-	go func() {
-		_, _ = io.WriteString(w, "\n")
-		_ = w.Close()
-	}()
+	withPipedStdin(t, "\n")
 
 	var got string
 	askSecretValue("Password for LDAP bind user", "pa55w0rd", &got)
@@ -54,20 +50,20 @@ func TestAskSecretValue_EmptyInputKeepsDefault(t *testing.T) {
 }
 
 func TestReadSecretLine_NonTTY(t *testing.T) {
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-
-	oldStdin := os.Stdin
-	os.Stdin = r
-	t.Cleanup(func() {
-		os.Stdin = oldStdin
-		_ = r.Close()
-	})
-
-	go func() {
-		_, _ = io.WriteString(w, "admin-pass\n")
-		_ = w.Close()
-	}()
+	withPipedStdin(t, "admin-pass\n")
 
 	assert.Equal(t, "admin-pass", ReadSecretLine(" > Password: "))
+}
+
+func TestSharedStdin_PreservesFollowingPrompts(t *testing.T) {
+	// Mimics CI: secret prompt must not discard the next piped answer.
+	withPipedStdin(t, "p455w0rd\nsemaphore\nadmin\n")
+
+	var password, dbName string
+	askSecretValue("db Password", "", &password)
+	askValue("db Name", "default", &dbName)
+
+	assert.Equal(t, "p455w0rd", password)
+	assert.Equal(t, "semaphore", dbName)
+	assert.Equal(t, "admin", ReadSecretLine(" > Password: "))
 }
