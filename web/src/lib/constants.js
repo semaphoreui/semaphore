@@ -1,5 +1,7 @@
 export const TEMPLATE_TYPE_ICONS = {
   '': 'mdi-cog',
+  // Legacy API value persisted as type:"task" before validation normalized it.
+  task: 'mdi-cog',
   build: 'mdi-wrench',
   deploy: 'mdi-arrow-up-bold-box',
 };
@@ -7,6 +9,7 @@ export const TEMPLATE_TYPE_ICONS = {
 export const TEMPLATE_TYPE_TITLES = {
   undefined: 'Task',
   '': 'Task',
+  task: 'Task',
   build: 'Build',
   deploy: 'Deploy',
 };
@@ -14,6 +17,7 @@ export const TEMPLATE_TYPE_TITLES = {
 export const TEMPLATE_TYPE_ACTION_TITLES = {
   undefined: 'Run',
   '': 'Run',
+  task: 'Run',
   build: 'Build',
   deploy: 'Deploy',
 };
