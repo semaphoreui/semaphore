@@ -170,6 +170,17 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 		maps.Copy(extraVars, extraSecretVars)
 	}
 
+	// Merge Environment Secret Variables (type "var") so Ansible receives them
+	// inside the JSON --extra-vars payload. Passing them as separate
+	// name=value CLI args breaks values with spaces or newlines.
+	// Secret vars override same-named keys from JSON / survey secrets.
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type != db.EnvironmentSecretVar {
+			continue
+		}
+		extraVars[secret.Name] = secret.Secret
+	}
+
 	// Survey vars with the "env" target are delivered as process environment
 	// variables (see getSurveyEnvVars), not as extra vars / CLI args.
 	for _, v := range t.Template.SurveyVars {
@@ -335,13 +346,6 @@ func (t *LocalExecutor) getShellArgs(username string, incomingVersion *string) (
 	// Script to run
 	args = append(args, t.Template.Playbook)
 
-	// Include Environment Secret Vars
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type == db.EnvironmentSecretVar {
-			args = append(args, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
-		}
-	}
-
 	// Include extra args from template
 	args = append(args, templateArgs...)
 
@@ -398,15 +402,6 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 		return
 	}
 
-	// Common args for environment secrets
-	secretArgs := []string{}
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		secretArgs = append(secretArgs, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
-	}
-
 	// Merge template and task args maps
 	for stage, stageArgs := range templateArgsMap {
 		argsMap[stage] = append([]string{}, stageArgs...)
@@ -424,7 +419,8 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 		argsMap["default"] = []string{}
 	}
 
-	// Add common args to each stage except init
+	// Add common args to each stage except init.
+	// Environment secret vars are already in varArgs via getEnvironmentExtraVars.
 	for stage := range argsMap {
 		if stage == "init" {
 			continue
@@ -433,7 +429,6 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 		combined := append([]string{}, destroyArgs...)
 		combined = append(combined, argsMap[stage]...)
 		combined = append(combined, varArgs...)
-		combined = append(combined, secretArgs...)
 		argsMap[stage] = combined
 	}
 
@@ -544,13 +539,6 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		t.Log("Could not remove command environment, if existent it will be passed to --extra-vars. This is not fatal but be aware of side effects")
 	} else if extraVars != "" {
 		args = append(args, "--extra-vars", extraVars)
-	}
-
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
 	}
 
 	templateArgs, taskArgs, err := t.getCLIArgs()

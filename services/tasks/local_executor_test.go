@@ -459,3 +459,140 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 		})
 	}
 }
+
+// TestGetEnvironmentExtraVars_MergesEnvironmentSecretVars verifies Variable
+// Group secrets of type "var" are merged into the shared extra-vars map
+// (JSON for Ansible) so values with spaces/newlines survive, override
+// same-named plain vars, and type "env" secrets stay out of extra-vars.
+func TestGetEnvironmentExtraVars_MergesEnvironmentSecretVars(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Environment: db.Environment{
+			JSON: `{"PLAIN_VAR":"from-json","SHARED_KEY":"plain"}`,
+			Secrets: []db.EnvironmentSecret{
+				{Type: db.EnvironmentSecretVar, Name: "SPACED", Secret: "value with spaces"},
+				{Type: db.EnvironmentSecretVar, Name: "MULTILINE", Secret: "line1\nline2"},
+				{Type: db.EnvironmentSecretVar, Name: "SHARED_KEY", Secret: "from-secret"},
+				{Type: db.EnvironmentSecretEnv, Name: "ENV_ONLY", Secret: "should-not-appear"},
+			},
+		},
+	}
+
+	extraVars, err := exec.getEnvironmentExtraVars("admin", nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, "from-json", extraVars["PLAIN_VAR"])
+	assert.Equal(t, "value with spaces", extraVars["SPACED"])
+	assert.Equal(t, "line1\nline2", extraVars["MULTILINE"])
+	assert.Equal(t, "from-secret", extraVars["SHARED_KEY"], "secret var must override plain JSON key")
+	assert.NotContains(t, extraVars, "ENV_ONLY")
+
+	jsonStr, err := exec.getEnvironmentExtraVarsJSON("admin", nil)
+	require.NoError(t, err)
+
+	assert.Contains(t, jsonStr, `"SPACED":"value with spaces"`)
+	assert.Contains(t, jsonStr, `"MULTILINE":"line1\nline2"`)
+	assert.Contains(t, jsonStr, `"SHARED_KEY":"from-secret"`)
+	assert.NotContains(t, jsonStr, "ENV_ONLY")
+	assert.NotContains(t, jsonStr, "should-not-appear")
+}
+
+// TestGetPlaybookArgs_SecretVarsInJSON verifies Ansible receives environment
+// secret vars inside the JSON --extra-vars payload, not as name=value.
+func TestGetPlaybookArgs_SecretVarsInJSON(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			Playbook: "site.yml",
+		},
+		Inventory: db.Inventory{
+			Type:      db.InventoryStatic,
+			Inventory: "localhost",
+		},
+		Environment: db.Environment{
+			JSON: `{"PLAIN":"ok"}`,
+			Secrets: []db.EnvironmentSecret{
+				{Type: db.EnvironmentSecretVar, Name: "TOKEN", Secret: "value with spaces"},
+				{Type: db.EnvironmentSecretEnv, Name: "ENV_SECRET", Secret: "env-only"},
+			},
+		},
+		Repository: db.Repository{GitURL: t.TempDir()},
+	}
+
+	args, _, err := exec.getPlaybookArgs("admin", nil)
+	require.NoError(t, err)
+
+	foundJSON := false
+	for i, arg := range args {
+		if arg == "--extra-vars" && i+1 < len(args) {
+			payload := args[i+1]
+			// Must not be the old name=value transport.
+			assert.NotEqual(t, "TOKEN=value with spaces", payload)
+			if assert.Contains(t, payload, `"TOKEN":"value with spaces"`) {
+				foundJSON = true
+			}
+			assert.Contains(t, payload, `"PLAIN":"ok"`)
+			assert.NotContains(t, payload, "ENV_SECRET")
+		}
+	}
+	assert.True(t, foundJSON, "expected TOKEN inside JSON --extra-vars, got %v", args)
+	assert.NotContains(t, args, "TOKEN=value with spaces")
+}
+
+// TestGetShellArgs_EnvironmentSecretVar verifies shell tasks get environment
+// secret vars via the merged extra-vars path (single KEY=value argv).
+func TestGetShellArgs_EnvironmentSecretVar(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			Type:     db.TemplateTask,
+			Playbook: "run.sh",
+		},
+		Environment: db.Environment{
+			JSON: `{"PLAIN":"ok"}`,
+			Secrets: []db.EnvironmentSecret{
+				{Type: db.EnvironmentSecretVar, Name: "TOKEN", Secret: "value with spaces"},
+				{Type: db.EnvironmentSecretEnv, Name: "ENV_SECRET", Secret: "env-only"},
+			},
+		},
+	}
+
+	args, err := exec.getShellArgs("admin", nil)
+	require.NoError(t, err)
+
+	assert.Contains(t, args, "PLAIN=ok")
+	assert.Contains(t, args, "TOKEN=value with spaces")
+	assert.NotContains(t, args, "ENV_SECRET=env-only")
+}
+
+// TestGetTerraformArgs_EnvironmentSecretVar verifies terraform -var values
+// come from the merged extra-vars map, including secrets with spaces.
+func TestGetTerraformArgs_EnvironmentSecretVar(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			Type: db.TemplateTask,
+			App:  db.AppTerraform,
+		},
+		Environment: db.Environment{
+			JSON: `{"PLAIN":"ok"}`,
+			Secrets: []db.EnvironmentSecret{
+				{Type: db.EnvironmentSecretVar, Name: "TOKEN", Secret: "value with spaces"},
+				{Type: db.EnvironmentSecretEnv, Name: "ENV_SECRET", Secret: "env-only"},
+			},
+		},
+	}
+
+	argsMap, err := exec.getTerraformArgs("admin", nil)
+	require.NoError(t, err)
+
+	defaultArgs := argsMap["default"]
+	assert.Contains(t, defaultArgs, "-var")
+	assert.Contains(t, defaultArgs, "PLAIN=ok")
+	assert.Contains(t, defaultArgs, "TOKEN=value with spaces")
+	assert.NotContains(t, defaultArgs, "ENV_SECRET=env-only")
+}
