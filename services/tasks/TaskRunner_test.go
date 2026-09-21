@@ -776,6 +776,15 @@ func TestTaskRunner_populateTaskEnvironment(t *testing.T) {
 			taskEnv:      "",
 			wantJSON:     `{}`,
 		},
+		{
+			name:         "null template JSON with survey default does not panic",
+			templateJSON: `null`,
+			surveyVars: []db.SurveyVar{
+				{Name: "host", Type: db.SurveyVarStr, DefaultValue: strVal("web1")},
+			},
+			taskEnv:  "",
+			wantJSON: `{"host":"web1"}`,
+		},
 	}
 
 	for _, tt := range tests {

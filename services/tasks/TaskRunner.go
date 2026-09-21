@@ -446,6 +446,11 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 		if err != nil {
 			return
 		}
+		// json.Unmarshal("null", &map) sets the map to nil; keep an empty object
+		// so survey-default merges cannot panic on assignment.
+		if tplEnvironment == nil {
+			tplEnvironment = make(map[string]any)
+		}
 	}
 
 	// Survey defaults sit above the template environment but below explicit
@@ -459,6 +464,9 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 		err = json.Unmarshal([]byte(t.Task.Environment), &taskEnvironment)
 		if err != nil {
 			return
+		}
+		if taskEnvironment == nil {
+			taskEnvironment = make(map[string]any)
 		}
 	}
 
