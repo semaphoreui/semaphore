@@ -40,6 +40,7 @@ var integrationMatchID int
 var workflowID int
 var workflowRunID int
 var workflowNodeID int
+var projectAlert *db.Alert
 
 var capabilities = map[string][]string{
 	"user":                    {},
@@ -51,6 +52,7 @@ var capabilities = map[string][]string{
 	"task":                    {"template"},
 	"schedule":                {"template"},
 	"view":                    {},
+	"alert":                   {"project"},
 	"integration":             {"project", "template"},
 	"integrationextractvalue": {"integration"},
 	"integrationmatcher":      {"integration"},
@@ -97,6 +99,8 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			schedule = addSchedule()
 		case "view":
 			view = addView()
+		case "alert":
+			projectAlert = addAlert()
 		case "user":
 			userPathTestUser = addUser()
 		case "project":
@@ -256,6 +260,12 @@ var pathSubPatterns = []func() string{
 	func() string {
 		return strconv.Itoa(workflowNodeID)
 	}, // node_id, x-example: 20
+	func() string {
+		if projectAlert == nil {
+			return "0"
+		}
+		return strconv.Itoa(projectAlert.ID)
+	}, // alert_id, x-example: 21
 }
 
 // alterRequestPath with the above slice of functions
@@ -300,6 +310,15 @@ func alterRequestBody(t *trans.Transaction) {
 
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("environment_ids", []int{environmentID}, &request)
+	// Dredd fills integer arrays with a dummy ID. Never reuse a leftover
+	// projectAlert here: that alert belongs to an earlier fixture project.
+	bodyFieldProcessor("alert_ids", []int{}, &request)
+	if typ, ok := request["type"].(string); ok && typ == "telegram" {
+		chat, _ := request["chat_id"].(string)
+		if strings.TrimSpace(chat) == "" {
+			request["chat_id"] = "12345"
+		}
+	}
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
 	bodyFieldProcessor("repository_id", repoID, &request)
 	bodyFieldProcessor("template_id", templateID, &request)

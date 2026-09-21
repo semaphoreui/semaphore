@@ -6,25 +6,37 @@ import (
 )
 
 func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, err error) {
+	if schedule.Type == "" {
+		schedule.Type = db.ScheduleTypeCron
+	}
+	if err = schedule.NormalizeAlerts(); err != nil {
+		return
+	}
+	if err = d.validateAlertIDs(schedule.ProjectID, schedule.AlertIDs); err != nil {
+		return
+	}
+
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return
+	}
 
 	if schedule.TaskParams != nil {
 		params := schedule.TaskParams
 		params.ProjectID = schedule.ProjectID
-		err = d.Sql().Insert(params)
+		err = tx.Insert(params)
 		if err != nil {
+			_ = tx.Rollback()
 			return
 		}
 		schedule.TaskParamsID = &params.ID
 	}
 
-	if schedule.Type == "" {
-		schedule.Type = db.ScheduleTypeCron
-	}
-
-	insertID, err := d.insert(
+	insertID, err := d.insertTx(
+		tx,
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run)"+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run, alert_mode, alert_on_success, alert_on_error)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,
 		schedule.CronFormat,
@@ -34,15 +46,28 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 		schedule.RunAt,
 		schedule.Type,
 		schedule.TaskParamsID,
-		schedule.DeleteAfterRun)
+		schedule.DeleteAfterRun,
+		schedule.AlertMode,
+		schedule.AlertOnSuccess,
+		schedule.AlertOnError)
 
 	if err != nil {
+		_ = tx.Rollback()
+		return
+	}
+
+	if err = d.updateScheduleAlertsInTx(tx, schedule.ProjectID, insertID, schedule.AlertIDs); err != nil {
+		_ = tx.Rollback()
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
 		return
 	}
 
 	newSchedule = schedule
 	newSchedule.ID = insertID
-
+	err = d.fillScheduleAlerts(newSchedule.ProjectID, &newSchedule)
 	return
 }
 
@@ -57,36 +82,62 @@ func (d *SqlDb) SetScheduleLastCommitHash(projectID int, scheduleID int, lastCom
 }
 
 func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
-
-	if schedule.TaskParams != nil {
+	if schedule.Type == "" {
+		schedule.Type = db.ScheduleTypeCron
+	}
+	if schedule.AlertMode == "" {
 		var curr db.Schedule
+		if err = d.getObject(schedule.ProjectID, db.ScheduleProps, schedule.ID, &curr); err != nil {
+			return
+		}
+		schedule.AlertMode = curr.AlertMode
+		if schedule.AlertOnSuccess == nil {
+			schedule.AlertOnSuccess = curr.AlertOnSuccess
+		}
+		if schedule.AlertOnError == nil {
+			schedule.AlertOnError = curr.AlertOnError
+		}
+	}
+	if err = schedule.NormalizeAlerts(); err != nil {
+		return
+	}
+	if schedule.AlertIDs != nil {
+		if err = d.validateAlertIDs(schedule.ProjectID, schedule.AlertIDs); err != nil {
+			return
+		}
+	}
+
+	var curr db.Schedule
+	if schedule.TaskParams != nil {
 		err = d.getObject(schedule.ProjectID, db.ScheduleProps, schedule.ID, &curr)
 		if err != nil {
 			return
 		}
+	}
 
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return
+	}
+
+	if schedule.TaskParams != nil {
 		params := schedule.TaskParams
 		params.ProjectID = schedule.ProjectID
 
 		if curr.TaskParamsID == nil {
-			err = d.Sql().Insert(params)
+			err = tx.Insert(params)
 		} else {
 			params.ID = *curr.TaskParamsID
-			_, err = d.Sql().Update(params)
+			_, err = tx.Update(params)
 		}
-
 		if err != nil {
+			_ = tx.Rollback()
 			return
 		}
-
 		schedule.TaskParamsID = &params.ID
 	}
 
-	if schedule.Type == "" {
-		schedule.Type = db.ScheduleTypeCron
-	}
-
-	_, err = d.exec("update project__schedule set "+
+	_, err = d.execTx(tx, "update project__schedule set "+
 		"cron_format=?, "+
 		"repository_id=?, "+
 		"template_id=?, "+
@@ -96,7 +147,10 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		"`type`=?, "+
 		"last_commit_hash = NULL, "+
 		"task_params_id=?, "+
-		"delete_after_run=? "+
+		"delete_after_run=?, "+
+		"alert_mode=?, "+
+		"alert_on_success=?, "+
+		"alert_on_error=? "+
 		"where project_id=? and id=?",
 		schedule.CronFormat,
 		schedule.RepositoryID,
@@ -107,10 +161,31 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		schedule.Type,
 		schedule.TaskParamsID,
 		schedule.DeleteAfterRun,
+		schedule.AlertMode,
+		schedule.AlertOnSuccess,
+		schedule.AlertOnError,
 		schedule.ProjectID,
 		schedule.ID)
+	if err != nil {
+		_ = tx.Rollback()
+		return
+	}
 
-	return
+	// inherit never keeps custom bindings, so delete refs stay accurate.
+	// nil alert_ids on ids mode means the client omitted them (legacy PUT).
+	if schedule.AlertMode != db.AlertModeIDs {
+		if err = d.updateScheduleAlertsInTx(tx, schedule.ProjectID, schedule.ID, nil); err != nil {
+			_ = tx.Rollback()
+			return
+		}
+	} else if schedule.AlertIDs != nil {
+		if err = d.updateScheduleAlertsInTx(tx, schedule.ProjectID, schedule.ID, schedule.AlertIDs); err != nil {
+			_ = tx.Rollback()
+			return
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (d *SqlDb) GetSchedule(projectID int, scheduleID int) (schedule db.Schedule, err error) {
@@ -134,6 +209,7 @@ func (d *SqlDb) GetSchedule(projectID int, scheduleID int) (schedule db.Schedule
 		schedule.TaskParams = &taskParams
 	}
 
+	err = d.fillScheduleAlerts(projectID, &schedule)
 	return
 }
 
@@ -175,6 +251,9 @@ func (d *SqlDb) GetProjectSchedules(projectID int, includeTaskParams bool, inclu
 			repoFilter+
 			"ps.project_id=?",
 		projectID)
+	if err != nil {
+		return
+	}
 
 	if includeTaskParams {
 		for i := range schedules {
@@ -188,6 +267,13 @@ func (d *SqlDb) GetProjectSchedules(projectID int, includeTaskParams bool, inclu
 				return nil, err
 			}
 			schedules[i].TaskParams = &taskParams
+		}
+	}
+
+	for i := range schedules {
+		err = d.fillScheduleAlerts(projectID, &schedules[i].Schedule)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -211,6 +297,16 @@ func (d *SqlDb) GetTemplateSchedules(projectID int, templateID int, onlyCommitCh
 	}
 
 	_, err = d.selectAll(&schedules, query, args...)
+	if err != nil {
+		return
+	}
+
+	for i := range schedules {
+		err = d.fillScheduleAlerts(projectID, &schedules[i])
+		if err != nil {
+			return
+		}
+	}
 	return
 }
 

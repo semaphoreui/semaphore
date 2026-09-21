@@ -5,12 +5,10 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
-// SendProjectTestAlerts sends test alerts to all enabled notifiers for the given project.
-func SendProjectTestAlerts(project db.Project, store db.Store) (err error) {
-
+func testRunner(project db.Project, store db.Store) (*TaskRunner, error) {
 	projectUsers, err := store.GetProjectUsers(project.ID, db.RetrieveQueryParams{})
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	var userIDs []int
@@ -18,7 +16,16 @@ func SendProjectTestAlerts(project db.Project, store db.Store) (err error) {
 		userIDs = append(userIDs, u.ID)
 	}
 
-	tr := &TaskRunner{
+	pool := &TaskPool{
+		logger: make(chan logRecord, 100),
+		store:  store,
+	}
+	go func() {
+		for range pool.logger {
+		}
+	}()
+
+	return &TaskRunner{
 		Task: db.Task{
 			ProjectID:  project.ID,
 			TemplateID: 0,
@@ -34,19 +41,48 @@ func SendProjectTestAlerts(project db.Project, store db.Store) (err error) {
 		users:     userIDs,
 		alert:     project.Alert,
 		alertChat: project.AlertChat,
-		pool: &TaskPool{
-			logger: make(chan logRecord, 100),
-			store:  store,
-		},
+		pool:      pool,
+	}, nil
+}
+
+func closeTestRunner(tr *TaskRunner) {
+	if tr == nil || tr.pool == nil || tr.pool.logger == nil {
+		return
+	}
+	close(tr.pool.logger)
+}
+
+// SendProjectTestAlerts sends test alerts to all enabled notifiers for the given project.
+func SendProjectTestAlerts(project db.Project, store db.Store) error {
+	tr, err := testRunner(project, store)
+	if err != nil {
+		return err
+	}
+	defer closeTestRunner(tr)
+
+	alerts, err := store.GetAlerts(project.ID, db.RetrieveQueryParams{})
+	if err != nil {
+		return err
 	}
 
-	tr.sendTelegramAlert()
-	tr.sendSlackAlert()
-	tr.sendRocketChatAlert()
-	tr.sendMicrosoftTeamsAlert()
-	tr.sendDingTalkAlert()
-	tr.sendGotifyAlert()
-	tr.sendMailAlert()
+	var firstErr error
+	for _, alert := range alerts {
+		if !alert.Enabled {
+			continue
+		}
+		if err := tr.sendProjectAlert(alert); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
 
-	return
+// SendAlertTest sends a single project alert as a test message.
+func SendAlertTest(project db.Project, alert db.Alert, store db.Store) error {
+	tr, err := testRunner(project, store)
+	if err != nil {
+		return err
+	}
+	defer closeTestRunner(tr)
+	return tr.sendProjectAlert(alert)
 }

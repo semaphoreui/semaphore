@@ -266,12 +266,15 @@ func TestTemplateSuppressAlertsRoundTrip(t *testing.T) {
 	require.Len(t, listed, 1)
 	assert.True(t, listed[0].SuppressSuccessAlerts)
 	assert.True(t, listed[0].SuppressErrorAlerts)
+	assert.Equal(t, db.AlertModeDefault, listed[0].AlertMode)
 
-	loaded.SuppressErrorAlerts = false
+	loaded.AlertOnError = db.BoolPtr(true)
 	require.NoError(t, store.UpdateTemplate(loaded))
 
 	loaded, err = store.GetTemplate(projectID, created.ID)
 	require.NoError(t, err)
 	assert.True(t, loaded.SuppressSuccessAlerts)
 	assert.False(t, loaded.SuppressErrorAlerts)
+	require.NotNil(t, loaded.AlertOnError)
+	assert.True(t, *loaded.AlertOnError)
 }

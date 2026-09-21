@@ -1,6 +1,10 @@
 package db
 
-import "time"
+import (
+	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
+)
 
 const (
 	ScheduleTypeCron  = ""
@@ -23,9 +27,25 @@ type Schedule struct {
 
 	TaskParamsID *int        `db:"task_params_id" json:"-" backup:"-"`
 	TaskParams   *TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`
+
+	// AlertMode is inherit (use the template list) or ids (use AlertIDs, which may be empty).
+	AlertMode      string `db:"alert_mode" json:"alert_mode"`
+	AlertIDs       []int  `db:"-" json:"alert_ids" backup:"-"`
+	AlertOnSuccess *bool  `db:"alert_on_success" json:"alert_on_success"`
+	AlertOnError   *bool  `db:"alert_on_error" json:"alert_on_error"`
 }
 
 type ScheduleWithTpl struct {
 	Schedule
 	TemplateName string `db:"tpl_name" json:"tpl_name"`
+}
+
+func (s *Schedule) NormalizeAlerts() error {
+	if s.AlertMode == "" {
+		s.AlertMode = AlertModeInherit
+	}
+	if s.AlertMode != AlertModeInherit && s.AlertMode != AlertModeIDs {
+		return common_errors.NewValidationError("alert_mode must be inherit or ids")
+	}
+	return nil
 }

@@ -1101,6 +1101,10 @@ func (p *TaskPool) AddTask(
 		taskObj.CommitHash = nil
 	}
 
+	if err = SnapshotTaskAlerts(p.store, &taskObj, tpl); err != nil {
+		return
+	}
+
 	if tpl.Type == db.TemplateBuild { // get next version for TaskRunner if it is a Build
 		var builds []db.TaskWithTpl
 		builds, err = p.store.GetTemplateTasks(tpl.ProjectID, tpl.ID, db.RetrieveQueryParams{Count: 1})
