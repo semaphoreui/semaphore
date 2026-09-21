@@ -38,6 +38,31 @@ func Test_EnvironmentValidate_ValidJSON_ReturnsNoError(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func Test_EnvironmentValidate_NonObjectJSONRoot_ReturnsError(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+	}{
+		{"null", "null"},
+		{"array", "[1, 2]"},
+		{"string", `"just a string"`},
+		{"number", "42"},
+		{"bool", "true"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := &Environment{
+				Name: "TestEnv",
+				JSON: tt.json,
+				ENV:  nil,
+			}
+			err := env.Validate()
+			assert.Error(t, err)
+			assert.Equal(t, "Extra variables must be an object", err.Error())
+		})
+	}
+}
+
 func Test_EnvironmentValidate_InvalidEnvJSON_ReturnsError(t *testing.T) {
 	envVar := "{invalid_json}"
 	env := &Environment{

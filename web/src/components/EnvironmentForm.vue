@@ -826,7 +826,21 @@ export default {
     beforeSave() {
       switch (this.extraVarsEditMode) {
         case 'json':
-          this.item.json = this.json;
+          try {
+            // Same object-root constraint as YAML below and the mode-switch
+            // watcher: null/array/scalar must not reach the API (backend used
+            // to accept JSON "null" silently as empty extra variables).
+            const value = JSON.parse(this.json || '{}');
+            if (!this.isPlainObject(value)) {
+              throw new Error('must be an object, e.g. { "key": "value" }');
+            }
+            if (!this.isJsonSafeValue(value, new Set())) {
+              throw new Error('contains a number that is not finite (Infinity/NaN)');
+            }
+            this.item.json = JSON.stringify(value);
+          } catch (err) {
+            throw new Error(`Extra variables: ${getErrorMessage(err)}`);
+          }
           break;
         case 'yaml':
           try {
