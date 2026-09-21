@@ -439,28 +439,27 @@ func (t *TaskRunner) prepareError(err error, errMsg string) error {
 }
 
 func (t *TaskRunner) populateTaskEnvironment() (err error) {
-
-	if t.Task.Environment == "" {
-		return
-	}
-
 	tplEnvironment := make(map[string]any)
 
 	if t.Environment.JSON != "" {
 		err = json.Unmarshal([]byte(t.Environment.JSON), &tplEnvironment)
+		if err != nil {
+			return
+		}
 	}
 
-	if err != nil {
-		return
+	// Survey defaults sit above the template environment but below explicit
+	// per-task values, matching the web UI merge order.
+	for k, v := range t.Template.GetSurveyVarsDefaults() {
+		tplEnvironment[k] = v
 	}
 
 	taskEnvironment := make(map[string]any)
 	if t.Task.Environment != "" {
 		err = json.Unmarshal([]byte(t.Task.Environment), &taskEnvironment)
-	}
-
-	if err != nil {
-		return
+		if err != nil {
+			return
+		}
 	}
 
 	for k, v := range taskEnvironment {
