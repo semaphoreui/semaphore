@@ -10,6 +10,7 @@ import (
 	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testItem struct {
@@ -153,6 +154,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 	}
 
 	assert.Equal(t, `{
+  "alerts": [],
   "environments": [],
   "integration_aliases": [],
   "integrations": [],
@@ -362,4 +364,101 @@ func TestMakeUniqueNames(t *testing.T) {
 	})
 
 	assert.True(t, isUnique(items), "Not unique names")
+}
+
+func TestBackup_AlertsRoundTrip(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	workflowStore := proFactory.NewWorkflowStore(store)
+
+	proj, err := store.CreateProject(db.Project{Name: "alerts source"})
+	require.NoError(t, err)
+
+	url := "https://hooks.example/ops"
+	body := `{"text": "{{ .Name }}"}`
+	alert, err := store.CreateAlert(db.Alert{
+		ProjectID: proj.ID,
+		Name:      "Ops",
+		Type:      "slack",
+		Enabled:   true,
+		IsDefault: true,
+		Events:    db.AlertEvents{db.AlertEventError},
+		URL:       &url,
+		Body:      &body,
+	})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Name: "none", Type: db.AccessKeyNone})
+	require.NoError(t, err)
+	repo, err := store.CreateRepository(db.Repository{ProjectID: proj.ID, Name: "repo", GitURL: "https://example.com/r.git", GitBranch: "main", SSHKeyID: key.ID})
+	require.NoError(t, err)
+	tpl, err := store.CreateTemplate(db.Template{
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+		Name:         "deploy",
+		Playbook:     "site.yml",
+		AlertMode:    db.AlertModeIDs,
+		AlertIDs:     []int{alert.ID},
+	})
+	require.NoError(t, err)
+	_, err = store.CreateSchedule(db.Schedule{
+		ProjectID:  proj.ID,
+		TemplateID: tpl.ID,
+		Name:       "nightly",
+		CronFormat: "0 0 * * *",
+		AlertMode:  db.AlertModeIDs,
+		AlertIDs:   []int{alert.ID},
+	})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(proj.ID, store, workflowStore)
+	require.NoError(t, err)
+	require.Len(t, backup.Alerts, 1)
+	assert.Equal(t, []string{"Ops"}, backup.Templates[0].Alerts)
+	assert.Equal(t, []string{"Ops"}, backup.Schedules[0].Alerts)
+
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+	assert.Contains(t, str, `"events": [`)
+
+	var restored BackupFormat
+	require.NoError(t, restored.Unmarshal(str))
+	restored.Meta.Name = "alerts restored"
+	require.NoError(t, restored.Verify())
+
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "pwd", User: db.User{Username: "alerts-user", Email: "alerts@example.com", Name: "u"}})
+	require.NoError(t, err)
+
+	newProject, err := restored.Restore(user, store, workflowStore)
+	require.NoError(t, err)
+
+	alerts, err := store.GetAlerts(newProject.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, alerts, 1)
+	assert.Equal(t, db.AlertEvents{db.AlertEventError}, alerts[0].Events)
+	assert.True(t, alerts[0].IsDefault)
+	require.NotNil(t, alerts[0].Body)
+	assert.Equal(t, body, *alerts[0].Body)
+
+	templates, err := store.GetTemplates(newProject.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, templates, 1)
+	assert.Equal(t, db.AlertModeIDs, templates[0].AlertMode)
+	assert.Equal(t, []int{alerts[0].ID}, templates[0].AlertIDs)
+
+	schedules, err := store.GetProjectSchedules(newProject.ID, false, true)
+	require.NoError(t, err)
+	require.Len(t, schedules, 1)
+	assert.Equal(t, []int{alerts[0].ID}, schedules[0].AlertIDs)
+}
+
+func TestBackup_VerifyRejectsUnknownAlertName(t *testing.T) {
+	backup := BackupFormat{
+		Templates: []BackupTemplate{{
+			Template:   db.Template{Name: "deploy"},
+			Repository: "repo",
+			Alerts:     []string{"missing"},
+		}},
+		Repositories: []BackupRepository{{Repository: db.Repository{Name: "repo"}}},
+	}
+	assert.ErrorContains(t, backup.Verify(), `alert "missing" does not exist`)
 }

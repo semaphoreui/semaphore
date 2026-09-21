@@ -94,8 +94,49 @@ func (e BackupView) Restore(b *BackupDB) error {
 	return nil
 }
 
+func (e BackupAlert) Verify(backup *BackupFormat) error {
+	return verifyDuplicate[BackupAlert](e.Name, backup.Alerts)
+}
+
+func (e BackupAlert) Restore(b *BackupDB) error {
+	alert := e.Alert
+	alert.ProjectID = b.meta.ID
+	newAlert, err := b.store.CreateAlert(alert)
+	if err != nil {
+		return err
+	}
+	b.alerts = append(b.alerts, newAlert)
+	return nil
+}
+
+// resolveBackupAlerts maps alert names of a template or schedule to the IDs
+// of the alerts restored into the new project.
+func resolveBackupAlerts(names []string, alerts []db.Alert) ([]int, error) {
+	ids := make([]int, 0, len(names))
+	for i := range names {
+		k := findEntityByName[db.Alert](&names[i], alerts)
+		if k == nil {
+			return nil, fmt.Errorf("alert %q does not exist in alerts[].name", names[i])
+		}
+		ids = append(ids, k.ID)
+	}
+	return ids, nil
+}
+
+func verifyBackupAlerts(names []string, backup *BackupFormat) error {
+	for i := range names {
+		if getEntryByName[BackupAlert](&names[i], backup.Alerts) == nil {
+			return fmt.Errorf("alert %q does not exist in alerts[].name", names[i])
+		}
+	}
+	return nil
+}
+
 func (e BackupSchedule) Verify(backup *BackupFormat) error {
-	return verifyDuplicate[BackupSchedule](e.Name, backup.Schedules)
+	if err := verifyDuplicate[BackupSchedule](e.Name, backup.Schedules); err != nil {
+		return err
+	}
+	return verifyBackupAlerts(e.Alerts, backup)
 }
 
 func (e BackupSchedule) Restore(b *BackupDB) error {
@@ -122,6 +163,12 @@ func (e BackupSchedule) Restore(b *BackupDB) error {
 			v.TaskParams.InventoryID = &inv.ID
 		}
 	}
+
+	alertIDs, err := resolveBackupAlerts(e.Alerts, b.alerts)
+	if err != nil {
+		return err
+	}
+	v.AlertIDs = alertIDs
 
 	newSchedule, err := b.store.CreateSchedule(v)
 	if err != nil {
@@ -275,7 +322,7 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 		return fmt.Errorf("deploy is build but build_template does not exist in templates[].name")
 	}
 
-	return nil
+	return verifyBackupAlerts(e.Alerts, backup)
 }
 
 func (e BackupTemplate) Restore(b *BackupDB) error {
@@ -329,6 +376,12 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 	template.InventoryID = InventoryID
 	template.ViewID = ViewID
 	template.BuildTemplateID = BuildTemplateID
+
+	alertIDs, err := resolveBackupAlerts(e.Alerts, b.alerts)
+	if err != nil {
+		return err
+	}
+	template.AlertIDs = alertIDs
 
 	newTemplate, err := b.store.CreateTemplate(template)
 	if err != nil {
@@ -573,6 +626,11 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
 	}
+	for i, o := range backup.Alerts {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at alerts[%d]: %s", i, err.Error())
+		}
+	}
 	for i, o := range backup.Roles {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at roles[%d]: %s", i, err.Error())
@@ -661,6 +719,12 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 	for i, o := range backup.Inventories {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at inventories[%d]: %s", i, err.Error())
+		}
+	}
+
+	for i, o := range backup.Alerts {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at alerts[%d]: %s", i, err.Error())
 		}
 	}
 

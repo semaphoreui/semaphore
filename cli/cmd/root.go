@@ -23,6 +23,7 @@ import (
 	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
 	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
+	"github.com/semaphoreui/semaphore/services/alerting"
 	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
@@ -193,6 +194,7 @@ func runService() {
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
 	appMetrics := metrics.NewMetrics()
+	alertService := alerting.NewService(store, alerting.NewRegistry())
 
 	taskPool := tasks.CreateTaskPool(
 		store,
@@ -204,6 +206,7 @@ func runService() {
 		logWriteService,
 		jwtSigner,
 		appMetrics,
+		alertService,
 	)
 
 	// The workflow service orchestrates workflow runs and launches each node's
@@ -328,6 +331,7 @@ func runService() {
 		runnerService,
 		workflowService,
 		appMetrics,
+		alertService,
 	)
 
 	route.Use(func(next http.Handler) http.Handler {

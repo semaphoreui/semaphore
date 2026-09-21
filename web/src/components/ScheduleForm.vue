@@ -70,6 +70,44 @@
       </v-card-text>
     </v-card>
 
+    <div class="mb-4">
+      <div class="text-body-2 mb-1">{{ $t('alerts') }}</div>
+
+      <v-radio-group
+        v-model="item.alert_mode"
+        class="mt-0"
+        :disabled="formSaving"
+        dense
+        hide-details
+      >
+        <v-radio :label="$t('scheduleAlertsInherit')" value="inherit" />
+        <v-radio :label="$t('scheduleAlertsCustom')" value="ids" />
+      </v-radio-group>
+
+      <v-autocomplete
+        v-if="item.alert_mode === 'ids'"
+        v-model="item.alert_ids"
+        :items="alerts"
+        item-value="id"
+        item-text="name"
+        :label="$t('alerts')"
+        :hint="$t('scheduleAlertsHint')"
+        persistent-hint
+        class="mt-3"
+        multiple
+        chips
+        small-chips
+        deletable-chips
+        :disabled="formSaving"
+        outlined
+        dense
+      >
+        <template v-slot:no-data>
+          <div class="px-4 py-2 caption">{{ $t('noAlertsYet') }}</div>
+        </template>
+      </v-autocomplete>
+    </div>
+
     <div v-if="type === 'run_at'">
       <v-text-field
 
@@ -475,6 +513,7 @@ export default {
   data() {
     return {
       templates: null,
+      alerts: [],
       timing: 'hourly',
       TIMINGS,
       MONTHS,
@@ -518,6 +557,12 @@ export default {
     this.templates = (await axios({
       method: 'get',
       url: `/api/project/${this.projectId}/templates`,
+      responseType: 'json',
+    })).data;
+
+    this.alerts = (await axios({
+      method: 'get',
+      url: `/api/project/${this.projectId}/alerts`,
       responseType: 'json',
     })).data;
   },
@@ -572,6 +617,8 @@ export default {
         delete_after_run: false,
         task_params: {},
         run_at: null,
+        alert_mode: 'inherit',
+        alert_ids: [],
       };
     },
 
@@ -719,9 +766,12 @@ export default {
     },
 
     afterLoadData() {
-      // if (!this.item.type) {
-      //   this.item.type = this.item.run_at ? 'run_at' : '';
-      // }
+      if (!Array.isArray(this.item.alert_ids)) {
+        this.$set(this.item, 'alert_ids', []);
+      }
+      if (!this.item.alert_mode) {
+        this.$set(this.item, 'alert_mode', 'inherit');
+      }
 
       if (this.item.run_at) {
         this.setRunAtInputFromItem();
@@ -736,6 +786,9 @@ export default {
 
     async beforeSave() {
       this.item.type = this.type;
+      if (this.item.alert_mode !== 'ids') {
+        this.item.alert_ids = [];
+      }
 
       if (this.type === 'run_at') {
         const parsed = this.runAtInput

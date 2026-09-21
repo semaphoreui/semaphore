@@ -14,6 +14,7 @@ import (
 
 	proApi "github.com/semaphoreui/semaphore/pro/api"
 	proProjects "github.com/semaphoreui/semaphore/pro/api/projects"
+	"github.com/semaphoreui/semaphore/services/alerting"
 	"github.com/semaphoreui/semaphore/services/server"
 	taskServices "github.com/semaphoreui/semaphore/services/tasks"
 
@@ -94,9 +95,11 @@ func Route(
 	runnerService server.RunnerService,
 	workflowService pro_interfaces.WorkflowService,
 	appMetrics *metrics.Metrics,
+	alertService alerting.Service,
 ) *mux.Router {
 
 	projectController := &projects.ProjectController{ProjectService: projectService}
+	alertController := projects.NewAlertController(alertService)
 	runnerController := runners.NewRunnerController(store, taskPool, encryptionService, jwtSigner)
 	jwksController := NewJwksController(jwtSigner)
 	integrationController := NewIntegrationController(store, integrationService)
@@ -349,7 +352,10 @@ func Route(
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.GetIntegrations).Methods("GET", "HEAD")
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.AddIntegration).Methods("POST")
 	projectUserAPI.Path("/backup").HandlerFunc(backupController.GetBackup).Methods("GET", "HEAD")
-	projectUserAPI.Path("/notifications/test").HandlerFunc(projectController.SendTestNotification).Methods("POST")
+	projectUserAPI.Path("/notifications/test").HandlerFunc(alertController.SendTestNotification).Methods("POST")
+	projectUserAPI.Path("/alerts").HandlerFunc(alertController.GetAlerts).Methods("GET", "HEAD")
+	projectUserAPI.Path("/alerts").HandlerFunc(alertController.AddAlert).Methods("POST")
+	projectUserAPI.Path("/alerts/channels").HandlerFunc(alertController.GetChannels).Methods("GET", "HEAD")
 
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.GetRunners).Methods("GET", "HEAD")
 	projectUserAPI.Path("/runners").HandlerFunc(projectRunnerController.AddRunner).Methods("POST")
@@ -527,6 +533,14 @@ func Route(
 	projectViewManagement.HandleFunc("/{view_id}", projects.UpdateView).Methods("PUT")
 	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
 	projectViewManagement.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
+
+	projectAlertManagement := projectUserAPI.PathPrefix("/alerts").Subrouter()
+	projectAlertManagement.Use(projects.AlertMiddleware)
+	projectAlertManagement.HandleFunc("/{alert_id}", alertController.GetAlerts).Methods("GET", "HEAD")
+	projectAlertManagement.HandleFunc("/{alert_id}", alertController.UpdateAlert).Methods("PUT")
+	projectAlertManagement.HandleFunc("/{alert_id}", alertController.RemoveAlert).Methods("DELETE")
+	projectAlertManagement.HandleFunc("/{alert_id}/refs", alertController.GetAlertRefs).Methods("GET", "HEAD")
+	projectAlertManagement.HandleFunc("/{alert_id}/test", alertController.TestAlert).Methods("POST")
 
 	projectIntegrationsAliasAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
 	projectIntegrationsAliasAPI.Use(projects.ProjectMiddleware)
