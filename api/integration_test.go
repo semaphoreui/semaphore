@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/json"
 	"errors"
 
@@ -694,4 +696,28 @@ func TestExtractBodyAndHeaderValues(t *testing.T) {
 	if result["FULL_PAYLOAD"] != string(payload) {
 		t.Errorf("Expected FULL_PAYLOAD to match original payload")
 	}
+}
+
+func TestHmacHashPayload_SHA256AndSHA512(t *testing.T) {
+	payload := []byte(`{"ok":true}`)
+	secret := "secret"
+
+	assert.Equal(t,
+		"f6b4a2841c93f8bf2fb8f2c13d8fb0b6c8e8019f09ee405d248daa8385fad638",
+		hmacHashPayload(secret, payload, sha256.New),
+	)
+	assert.Equal(t,
+		"ebaaedc0ee1bba33d6b35bdc16cde6f350232027278da8ec5124a1a2e7d55c07a4a2be89f1c84cb059fecb793ff0c2b9b3c3beb95299f8401d1718e3683d91d2",
+		hmacHashPayload(secret, payload, sha512.New),
+	)
+}
+
+func TestIsValidHmacPayload_SHA512(t *testing.T) {
+	payload := []byte(`{"ok":true}`)
+	secret := "secret"
+	hash := hmacHashPayload(secret, payload, sha512.New)
+
+	assert.True(t, isValidHmacPayload(secret, hash, payload, "", sha512.New))
+	assert.False(t, isValidHmacPayload(secret, hash, payload, "", sha256.New))
+	assert.False(t, isValidHmacPayload(secret, "deadbeef", payload, "", sha512.New))
 }

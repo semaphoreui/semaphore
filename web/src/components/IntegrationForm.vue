@@ -64,7 +64,7 @@
     <HighlightedCard v-if="item.auth_method">
       <template>
         <v-text-field
-            v-if="['token', 'hmac'].includes(item.auth_method)"
+            v-if="['token', 'hmac', 'hmac-sha512'].includes(item.auth_method)"
             v-model="item.auth_header"
             label="Auth header"
             :disabled="formSaving"
@@ -119,6 +119,10 @@ export default {
         {
           id: 'hmac',
           title: 'HMAC',
+        },
+        {
+          id: 'hmac-sha512',
+          title: 'HMAC (SHA-512)',
         },
         {
           id: 'basic',
