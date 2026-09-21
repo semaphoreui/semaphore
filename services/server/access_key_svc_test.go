@@ -263,3 +263,82 @@ func TestAccessKeyService_Update_GenerateWithoutOverrideKeepsSecret(t *testing.T
 	assert.Nil(t, persisted.Plain)
 	assert.Empty(t, persisted.SshKey.PrivateKey)
 }
+
+func TestAccessKeyService_GenerateSSHKeyRejectedForReadOnlyStorage(t *testing.T) {
+	previousConfig := util.Config
+	util.Config = &util.ConfigType{}
+	t.Cleanup(func() { util.Config = previousConfig })
+
+	projectID := 1
+	storageID := 7
+	envKey := "SSH_KEY"
+
+	storageRepo := &mockSecretStorageRepository{
+		GetSecretStorageFn: func(_ int, id int) (db.SecretStorage, error) {
+			return db.SecretStorage{ID: id, Type: db.SecretStorageTypeVault, ReadOnly: true}, nil
+		},
+	}
+
+	tests := []struct {
+		name string
+		key  db.AccessKey
+	}{
+		{"env", db.AccessKey{SourceStorageType: new(db.AccessKeySourceStorageEnv), SourceStorageKey: &envKey}},
+		{"file", db.AccessKey{SourceStorageType: new(db.AccessKeySourceStorageFile), SourceStorageKey: &envKey}},
+		{"read-only vault", db.AccessKey{SourceStorageType: new(db.AccessKeySourceStorageVault), SourceStorageID: &storageID}},
+	}
+
+	for _, tt := range tests {
+		t.Run("create "+tt.name, func(t *testing.T) {
+			created := false
+			repo := &mockAccessKeyRepo{
+				CreateAccessKeyFn: func(k db.AccessKey) (db.AccessKey, error) {
+					created = true
+					return k, nil
+				},
+			}
+			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, storageRepo, nil), storageRepo)
+
+			key := tt.key
+			key.ProjectID = &projectID
+			key.Name = "generated"
+			key.Type = db.AccessKeySSH
+			key.GenerateSSHKey = true
+
+			_, err := svc.Create(key)
+
+			assert.ErrorIs(t, err, ErrReadOnlyStorage)
+			assert.False(t, created)
+		})
+
+		t.Run("update "+tt.name, func(t *testing.T) {
+			updated := false
+			old := tt.key
+			old.ID = 10
+			old.ProjectID = &projectID
+			old.Name = "old"
+			old.Type = db.AccessKeySSH
+			repo := &mockAccessKeyRepo{
+				keys: []db.AccessKey{old},
+				UpdateAccessKeyFn: func(k db.AccessKey) error {
+					updated = true
+					return nil
+				},
+			}
+			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, storageRepo, nil), storageRepo)
+
+			key := tt.key
+			key.ID = 10
+			key.ProjectID = &projectID
+			key.Name = "generated"
+			key.Type = db.AccessKeySSH
+			key.GenerateSSHKey = true
+			key.OverrideSecret = true
+
+			err := svc.Update(key)
+
+			assert.ErrorIs(t, err, ErrReadOnlyStorage)
+			assert.False(t, updated)
+		})
+	}
+}

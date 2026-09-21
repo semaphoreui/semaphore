@@ -140,8 +140,10 @@ func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, er
 	// SerializeSecret encrypts/persists the secret for writable backends. For read-only
 	// external storage the secret is not stored in Semaphore, so SerializeSecret fails
 	// with ErrReadOnlyStorage; we still create the access key row (metadata / reference).
+	// A generated key is the exception: nobody else holds the private half, so
+	// a storage that cannot persist it must reject the request.
 	err = s.encryptionService.SerializeSecret(&key)
-	if err != nil && !errors.Is(err, ErrReadOnlyStorage) {
+	if err != nil && (key.GenerateSSHKey || !errors.Is(err, ErrReadOnlyStorage)) {
 		return
 	}
 
@@ -155,6 +157,14 @@ func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
 
 	if !key.OverrideSecret {
 		err = s.accessKeyRepo.UpdateAccessKey(key)
+		return
+	}
+
+	if key.GenerateSSHKey && key.IsNativelyReadOnly() {
+		// Env/file sources are never written, so a generated private key
+		// would have nowhere to live. Read-only vaults are rejected later
+		// by SerializeSecret.
+		err = common_errors.NewUserError(ErrReadOnlyStorage)
 		return
 	}
 

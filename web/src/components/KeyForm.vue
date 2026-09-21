@@ -320,10 +320,10 @@ export default {
     },
 
     beforeSave() {
-      // The checkbox is hidden for non-ssh types but keeps its value,
-      // and the server rejects generate_ssh_key for other key types.
+      // The checkbox is hidden for non-ssh types and read-only storages but
+      // keeps its value, and the server rejects generate_ssh_key in both cases.
       // Generation only makes sense when the secret is being overridden.
-      if (this.item.type !== 'ssh' || (!this.isNew && !this.item.override_secret)) {
+      if (this.item.type !== 'ssh' || this.isReadOnly || (!this.isNew && !this.item.override_secret)) {
         this.item.generate_ssh_key = false;
       }
     },
