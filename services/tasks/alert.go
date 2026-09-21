@@ -7,6 +7,7 @@ import (
 	htmltemplate "html/template"
 	"net/http"
 	"strconv"
+	"strings"
 	"text/template"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -36,7 +37,32 @@ type alertTask struct {
 }
 
 type alertChat struct {
-	ID string
+	ID              string
+	MessageThreadID string
+}
+
+// parseTelegramChat splits "chat_id" or "chat_id:thread_id" for forum topics.
+// An empty or non-numeric thread part is ignored so the message still sends to the chat.
+func parseTelegramChat(raw string) (chatID string, threadID string) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", ""
+	}
+
+	parts := strings.SplitN(raw, ":", 2)
+	chatID = strings.TrimSpace(parts[0])
+	if len(parts) == 1 {
+		return chatID, ""
+	}
+
+	threadID = strings.TrimSpace(parts[1])
+	if threadID == "" {
+		return chatID, ""
+	}
+	if _, err := strconv.ParseInt(threadID, 10, 64); err != nil {
+		return chatID, ""
+	}
+	return chatID, threadID
 }
 
 func (t *TaskRunner) shouldSkipStatusAlert() bool {
@@ -140,6 +166,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		chatID = *t.alertChat
 	}
 
+	chatID, threadID := parseTelegramChat(chatID)
 	if chatID == "" {
 		return
 	}
@@ -159,7 +186,8 @@ func (t *TaskRunner) sendTelegramAlert() {
 			Desc:    t.Task.Message,
 		},
 		Chat: alertChat{
-			ID: chatID,
+			ID:              chatID,
+			MessageThreadID: threadID,
 		},
 	}
 
