@@ -60,20 +60,18 @@
         dense
       />
 
-      <v-textarea
-        v-else-if="field.name === 'recipients'"
-        :key="field.name"
-        v-model="item.recipients"
-        :label="$t('alertRecipients')"
-        :hint="$t('alertRecipientsHint')"
-        persistent-hint
-        class="mb-2"
-        rows="2"
-        auto-grow
-        :disabled="formSaving"
-        outlined
-        dense
-      />
+      <div v-else-if="field.name === 'recipients'" :key="field.name" class="mt-3">
+        <ArgsPicker
+          :vars="recipients"
+          :title="$t('alertRecipients')"
+          :add-arg-title="$t('alertAddRecipient')"
+          :arg-title="$t('email')"
+          @change="setRecipients"
+        />
+        <div class="caption grey--text mb-3" style="margin-top: -14px">
+          {{ $t('alertRecipientsHint') }}
+        </div>
+      </div>
     </template>
 
     <template v-if="channel && channel.secret">
@@ -243,12 +241,13 @@
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import HighlightedCard from '@/components/HighlightedCard.vue';
+import ArgsPicker from '@/components/ArgsPicker.vue';
 import { ALERT_EVENTS, ALERT_FIELD_LABELS, findChannel } from '@/lib/alerts';
 
 const COLUMN_FIELDS = ['chat_id', 'thread_id', 'url', 'recipients'];
 
 export default {
-  components: { HighlightedCard },
+  components: { HighlightedCard, ArgsPicker },
 
   mixins: [ItemFormBase],
 
@@ -285,6 +284,12 @@ export default {
     // Fields of the "own server" group, shown only when overriding.
     overrideFields() {
       return this.fields.filter((f) => f.override);
+    },
+
+    // Recipients are stored comma-separated; the picker shows them as chips.
+    recipients() {
+      const raw = (this.item && this.item.recipients) || '';
+      return raw.split(/[,;\s]+/).map((s) => s.trim()).filter((s) => s !== '');
     },
 
     secretKeys() {
@@ -385,6 +390,10 @@ export default {
         const v = f.name === 'url' ? this.item.url : this.item.params[f.name];
         return v != null && v !== '' && v !== false;
       });
+    },
+
+    setRecipients(list) {
+      this.item.recipients = list.map((s) => s.trim()).filter((s) => s !== '').join(',');
     },
 
     resetBodyToDefault() {
