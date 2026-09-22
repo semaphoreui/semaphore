@@ -18,7 +18,6 @@
   "email_tls_min_version": "Minimum TLS version to use for the connection.",
   "email_username": "Username for SMTP server authentication.",
   "env_vars": "JSON map which contains environment variables exposed to task runs.",
-  "forwarded_env_vars": "JSON array of host environment variables which will be forwarded into task runs.",
   "git_client": "Implementation used to clone repositories: `cmd_git` shells out to the installed `git`, `go_git` uses the built-in Go library.",
   "gotify_alert": "Enable Gotify alerts.",
   "gotify_token": "Application token issued by the Gotify server.",

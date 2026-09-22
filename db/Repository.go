@@ -3,6 +3,7 @@ package db
 import (
 	"crypto/sha1"
 	"fmt"
+	"net/url"
 	"path"
 	"regexp"
 	"strconv"
@@ -11,6 +12,8 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type RepositoryType string
@@ -105,45 +108,65 @@ func (r Repository) GetFullPath(templateID int) string {
 	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetCheckoutDirName(templateID))
 }
 
+// GetGitURL returns the URL git is invoked with. With secure set, any userinfo
+// is stripped so the result is safe to write to a task log; otherwise the
+// repository's login/password access key is embedded in the userinfo, percent
+// encoded, so credentials containing "@", ":", "#" or "%" survive intact.
 func (r Repository) GetGitURL(secure bool) string {
-	url := r.GitURL
+	rawURL := r.GitURL
 
 	if r.GetType() == RepositoryLocal {
-		return util.NormalizeLocalFilesystemPath(url)
+		return util.NormalizeLocalFilesystemPath(rawURL)
 	}
 
 	if secure {
-		return url
+		if r.GetType() == RepositoryHTTP {
+			if parsed, err := url.Parse(rawURL); err == nil && parsed.User != nil {
+				parsed.User = nil
+				return parsed.String()
+			}
+		}
+		return rawURL
 	}
 
 	if r.GetType() == RepositoryHTTP {
-		auth := ""
+		parsed, err := url.Parse(rawURL)
+		if err != nil {
+			// Keep the URL as configured rather than failing the task here, but make
+			// the reason visible: a URL git cannot be handed credentials for shows up
+			// later only as an opaque authentication error.
+			log.WithError(err).WithFields(log.Fields{
+				"context":       "repository",
+				"repository_id": r.ID,
+			}).Warn("can not parse repository url, using it without credentials")
+			return rawURL
+		}
+
 		switch r.SSHKey.Type {
 		case AccessKeyLoginPassword:
 			if r.SSHKey.LoginPassword.Login == "" {
-				auth = r.SSHKey.LoginPassword.Password
+				if r.SSHKey.LoginPassword.Password != "" {
+					parsed.User = url.User(r.SSHKey.LoginPassword.Password)
+				}
 			} else {
-				auth = r.SSHKey.LoginPassword.Login + ":" + r.SSHKey.LoginPassword.Password
+				parsed.User = url.UserPassword(r.SSHKey.LoginPassword.Login, r.SSHKey.LoginPassword.Password)
+			}
+
+			// Credentials are still embedded for plain http so existing installations
+			// keep working, but the transport is unencrypted and the credentials are
+			// sent in the clear.
+			if parsed.User != nil && strings.EqualFold(parsed.Scheme, "http") {
+				log.WithFields(log.Fields{
+					"context":       "repository",
+					"repository_id": r.ID,
+				}).Warn("sending git credentials over an unencrypted http connection, use https instead")
 			}
 		}
-		if auth != "" {
-			auth += "@"
-		}
 
-		re := regexp.MustCompile(`^(https?)://`)
-		m := re.FindStringSubmatch(url)
-		var protocol string
-
-		if m == nil {
-			panic(fmt.Errorf("invalid git url: %s", url))
-		}
-
-		protocol = m[1]
-
-		url = protocol + "://" + auth + r.GitURL[len(protocol)+3:]
+		return parsed.String()
 	}
 
-	return url
+	return rawURL
 }
 
 func (r Repository) GetType() RepositoryType {

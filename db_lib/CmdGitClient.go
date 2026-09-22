@@ -29,6 +29,19 @@ func (c CmdGitClient) makeCmd(
 
 	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv()...)
 
+	// Unlike the app runners, git gets HOME only when nothing has set it already,
+	// and never gets an empty one: getHomeDir returns "" for an out-of-range
+	// home_dir_mode, and `HOME=` would hide the user's ~/.gitconfig and credential
+	// helper, which is the difference between a working and a failing clone.
+	if !hasEnvVar(cmd.Env, "HOME") {
+		if homeDir := getHomeDir(r.Repository, r.TemplateID); homeDir != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", homeDir))
+		} else if h := os.Getenv("HOME"); h != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", h))
+		}
+	}
+	appendPlatformEnv(&cmd.Env)
+
 	switch targetDir {
 	case GitRepositoryTmpPath:
 		cmd.Dir = util.Config.GetProjectTmpDir(r.Repository.ProjectID)
@@ -94,6 +107,13 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 	return
 }
 
+func gitSubmoduleJobs() int {
+	if util.Config != nil && util.Config.GitSubmoduleJobs >= 1 {
+		return util.Config.GitSubmoduleJobs
+	}
+	return 1
+}
+
 func (c CmdGitClient) Clone(r GitRepository) error {
 	r.Logger.Log("Cloning Repository " + r.Repository.GitURL)
 
@@ -116,7 +136,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 		"clone",
 		"--recursive",
 		"--jobs",
-		strconv.Itoa(util.Config.GitSubmoduleJobs),
+		strconv.Itoa(gitSubmoduleJobs()),
 		"--branch",
 		r.Repository.GitBranch,
 		"--end-of-options",
@@ -137,7 +157,7 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 		"--init",
 		"--recursive",
 		"--jobs",
-		strconv.Itoa(util.Config.GitSubmoduleJobs))
+		strconv.Itoa(gitSubmoduleJobs()))
 }
 
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {
