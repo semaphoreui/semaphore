@@ -102,7 +102,7 @@
         <v-radio :label="$t('alertSecretOwn')" value="own" />
       </v-radio-group>
 
-      <div v-if="secretMode === 'own'" class="alert-form__override mt-3">
+      <HighlightedCard v-if="secretMode === 'own'" tick-left="14px" class="mt-3">
         <template v-for="field in overrideFields">
           <v-text-field
             v-if="field.name === 'url'"
@@ -162,7 +162,7 @@
             </div>
           </template>
         </v-autocomplete>
-      </div>
+      </HighlightedCard>
     </template>
 
     <div class="mt-2 mb-1 text-body-2">{{ $t('alertSendOn') }}</div>
@@ -242,11 +242,14 @@
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import HighlightedCard from '@/components/HighlightedCard.vue';
 import { ALERT_EVENTS, ALERT_FIELD_LABELS, findChannel } from '@/lib/alerts';
 
 const COLUMN_FIELDS = ['chat_id', 'thread_id', 'url', 'recipients'];
 
 export default {
+  components: { HighlightedCard },
+
   mixins: [ItemFormBase],
 
   props: {
@@ -436,11 +439,6 @@ export default {
   font-family: monospace;
   font-size: 13px;
   line-height: 1.4;
-}
-
-.alert-form__override {
-  border-left: 2px solid rgba(133, 133, 133, 0.3);
-  padding-left: 12px;
 }
 
 .alert-form__template >>> .v-expansion-panel {
