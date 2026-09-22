@@ -491,7 +491,11 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 
 	alerts := make([]BackupAlert, len(b.alerts))
 	for i, o := range b.alerts {
-		alerts[i] = BackupAlert{Alert: o}
+		var keyName *string
+		if o.KeyID != nil {
+			keyName, _ = findNameByID[db.AccessKey](*o.KeyID, b.keys)
+		}
+		alerts[i] = BackupAlert{Alert: o, Key: keyName}
 	}
 
 	integrations := make([]BackupIntegration, len(b.integrations))

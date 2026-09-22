@@ -194,7 +194,7 @@ func runService() {
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
 	appMetrics := metrics.NewMetrics()
-	alertService := alerting.NewService(store, alerting.NewRegistry())
+	alertService := alerting.NewService(store, alerting.NewRegistry(), encryptionService)
 
 	taskPool := tasks.CreateTaskPool(
 		store,

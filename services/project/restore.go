@@ -95,12 +95,26 @@ func (e BackupView) Restore(b *BackupDB) error {
 }
 
 func (e BackupAlert) Verify(backup *BackupFormat) error {
-	return verifyDuplicate[BackupAlert](e.Name, backup.Alerts)
+	if err := verifyDuplicate[BackupAlert](e.Name, backup.Alerts); err != nil {
+		return err
+	}
+	if e.Key != nil && getEntryByName[BackupAccessKey](e.Key, backup.Keys) == nil {
+		return fmt.Errorf("key does not exist in keys[].name")
+	}
+	return nil
 }
 
 func (e BackupAlert) Restore(b *BackupDB) error {
 	alert := e.Alert
 	alert.ProjectID = b.meta.ID
+	alert.KeyID = nil
+	if e.Key != nil {
+		k := findEntityByName[db.AccessKey](e.Key, b.keys)
+		if k == nil {
+			return fmt.Errorf("key does not exist in keys[].name")
+		}
+		alert.KeyID = &k.ID
+	}
 	newAlert, err := b.store.CreateAlert(alert)
 	if err != nil {
 		return err

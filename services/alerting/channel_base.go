@@ -34,6 +34,7 @@ func (c channelBase) DefaultBody() string    { return builtinBody(c.templateFile
 
 func (c channelBase) StatusColor(task_logger.TaskStatus) string { return "" }
 func (c channelBase) ServerReady(*util.ConfigType) error        { return nil }
+func (c channelBase) Secret() *SecretSpec                       { return nil }
 
 // chatEvents are the events chat channels sent historically: every
 // notifiable status, including a task waiting for confirmation.
@@ -68,7 +69,7 @@ func newWebhookChannel(
 			typ:           typ,
 			title:         title,
 			icon:          icon,
-			fields:        []Field{{Name: FieldURL, Required: true}},
+			fields:        []Field{{Name: FieldURL, Kind: FieldKindText, Required: true}},
 			defaultEvents: chatEvents(),
 			format:        BodyFormatText,
 			templateFile:  templateFile,
@@ -84,7 +85,7 @@ func (c *webhookChannel) StatusColor(status task_logger.TaskStatus) string {
 	return c.colors[status]
 }
 
-func (c *webhookChannel) Validate(dest Destination) error {
+func (c *webhookChannel) Validate(_ *util.ConfigType, dest Destination) error {
 	if strings.TrimSpace(dest.URL) == "" {
 		return common_errors.NewValidationError(c.title + " webhook URL can not be empty")
 	}

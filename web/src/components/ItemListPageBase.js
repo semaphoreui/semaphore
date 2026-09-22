@@ -102,7 +102,8 @@ export default {
           || this.itemRefs.repositories.length > 0
           || this.itemRefs.inventories.length > 0
           || this.itemRefs.access_keys.length > 0
-          || this.itemRefs.schedules.length > 0) {
+          || this.itemRefs.schedules.length > 0
+          || (this.itemRefs.alerts || []).length > 0) {
           this.itemRefsDialog = true;
           return;
         }

@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -120,8 +121,16 @@ type Alert struct {
 	ChatID     *string `db:"chat_id" json:"chat_id,omitempty"`
 	ThreadID   *string `db:"thread_id" json:"thread_id,omitempty"`
 	URL        *string `db:"url" json:"url,omitempty"`
-	Token      *string `db:"token" json:"token,omitempty" backup:"-"`
 	Recipients *string `db:"recipients" json:"recipients,omitempty"`
+
+	// KeyID points at the access key holding the channel secret (bot token,
+	// SMTP credentials, ...). nil means the server-wide secret from
+	// config.json is used. Secrets are never stored on the alert itself.
+	KeyID *int `db:"key_id" json:"key_id,omitempty" backup:"-"`
+
+	// Params holds channel specific settings that have no dedicated column,
+	// for example the SMTP server an e-mail alert overrides.
+	Params MapStringAnyField `db:"params" json:"params,omitempty"`
 
 	// Body is a custom Go text/template (html/template for email). Empty
 	// means the channel's built-in template.
@@ -136,16 +145,46 @@ func (a Alert) GetName() string {
 	return a.Name
 }
 
-// MarshalJSON never echoes the token: it is write-only through the API.
-// Backup and export use reflection over db/backup tags, not this method.
+// MarshalJSON keeps the events list a JSON array even when empty.
 func (a Alert) MarshalJSON() ([]byte, error) {
 	type alertJSON Alert
 	out := alertJSON(a)
-	out.Token = nil
 	if out.Events == nil {
 		out.Events = AlertEvents{}
 	}
 	return json.Marshal(out)
+}
+
+// ParamString returns a params value as a trimmed string ("" when absent).
+func (a Alert) ParamString(name string) string {
+	if a.Params == nil {
+		return ""
+	}
+	switch v := a.Params[name].(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case int:
+		return strconv.Itoa(v)
+	default:
+		return ""
+	}
+}
+
+// ParamBool returns a params value as a bool (false when absent).
+func (a Alert) ParamBool(name string) bool {
+	if a.Params == nil {
+		return false
+	}
+	switch v := a.Params[name].(type) {
+	case bool:
+		return v
+	case string:
+		return v == "true" || v == "1"
+	default:
+		return false
+	}
 }
 
 // Validate checks the channel-agnostic invariants. Channel-specific rules
@@ -175,9 +214,11 @@ func (a *Alert) Normalize() {
 	a.ChatID = trimToNil(a.ChatID)
 	a.ThreadID = trimToNil(a.ThreadID)
 	a.URL = trimToNil(a.URL)
-	a.Token = trimToNil(a.Token)
 	a.Recipients = trimToNil(a.Recipients)
 	a.Body = trimToNil(a.Body)
+	if len(a.Params) == 0 {
+		a.Params = nil
+	}
 }
 
 func trimToNil(s *string) *string {

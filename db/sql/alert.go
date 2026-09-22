@@ -39,12 +39,15 @@ func (d *SqlDb) CreateAlert(alert db.Alert) (newAlert db.Alert, err error) {
 	if err = d.validateAlertNameIsFree(alert.ProjectID, 0, alert.Name); err != nil {
 		return
 	}
+	if err = d.validateAlertKey(alert.ProjectID, alert.KeyID); err != nil {
+		return
+	}
 
 	insertID, err := d.insert(
 		"id",
 		"insert into project__alert "+
-			"(project_id, name, `type`, enabled, is_default, events, chat_id, thread_id, url, token, recipients, body) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"(project_id, name, `type`, enabled, is_default, events, chat_id, thread_id, url, recipients, key_id, params, body) "+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		alert.ProjectID,
 		alert.Name,
 		alert.Type,
@@ -54,8 +57,9 @@ func (d *SqlDb) CreateAlert(alert db.Alert) (newAlert db.Alert, err error) {
 		alert.ChatID,
 		alert.ThreadID,
 		alert.URL,
-		alert.Token,
 		alert.Recipients,
+		alert.KeyID,
+		alert.Params,
 		alert.Body,
 	)
 	if err != nil {
@@ -67,29 +71,24 @@ func (d *SqlDb) CreateAlert(alert db.Alert) (newAlert db.Alert, err error) {
 	return
 }
 
-// UpdateAlert stores the alert. A nil Token keeps the stored one because the
-// API never echoes tokens back to clients.
 func (d *SqlDb) UpdateAlert(alert db.Alert) error {
 	alert.Normalize()
 	if err := alert.Validate(); err != nil {
 		return err
 	}
-
-	old, err := d.GetAlert(alert.ProjectID, alert.ID)
-	if err != nil {
+	if _, err := d.GetAlert(alert.ProjectID, alert.ID); err != nil {
 		return err
 	}
-	if alert.Token == nil {
-		alert.Token = old.Token
+	if err := d.validateAlertNameIsFree(alert.ProjectID, alert.ID, alert.Name); err != nil {
+		return err
 	}
-
-	if err = d.validateAlertNameIsFree(alert.ProjectID, alert.ID, alert.Name); err != nil {
+	if err := d.validateAlertKey(alert.ProjectID, alert.KeyID); err != nil {
 		return err
 	}
 
-	_, err = d.exec(
+	_, err := d.exec(
 		"update project__alert set name=?, `type`=?, enabled=?, is_default=?, events=?, chat_id=?, thread_id=?, "+
-			"url=?, token=?, recipients=?, body=? where project_id=? and id=?",
+			"url=?, recipients=?, key_id=?, params=?, body=? where project_id=? and id=?",
 		alert.Name,
 		alert.Type,
 		alert.Enabled,
@@ -98,13 +97,26 @@ func (d *SqlDb) UpdateAlert(alert db.Alert) error {
 		alert.ChatID,
 		alert.ThreadID,
 		alert.URL,
-		alert.Token,
 		alert.Recipients,
+		alert.KeyID,
+		alert.Params,
 		alert.Body,
 		alert.ProjectID,
 		alert.ID,
 	)
 	return err
+}
+
+// validateAlertKey makes sure the secret key belongs to the same project, so
+// a request body can not point an alert at another project's credentials.
+func (d *SqlDb) validateAlertKey(projectID int, keyID *int) error {
+	if keyID == nil {
+		return nil
+	}
+	if _, err := d.GetAccessKey(projectID, *keyID); err != nil {
+		return common_errors.NewValidationError("access key does not belong to this project")
+	}
+	return nil
 }
 
 func (d *SqlDb) DeleteAlert(projectID int, alertID int) error {
@@ -128,6 +140,7 @@ func (d *SqlDb) GetAlertRefs(projectID int, alertID int) (refs db.ObjectReferrer
 	refs.Repositories = make([]db.ObjectReferrer, 0)
 	refs.Integrations = make([]db.ObjectReferrer, 0)
 	refs.AccessKeys = make([]db.ObjectReferrer, 0)
+	refs.Alerts = make([]db.ObjectReferrer, 0)
 
 	_, err = d.selectAll(
 		&refs.Templates,

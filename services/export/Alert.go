@@ -42,6 +42,11 @@ func (e *AlertExporter) restoreValue(val EntityObject[db.Alert], store db.Store,
 		return err
 	}
 
+	old.KeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.KeyID, e)
+	if err != nil {
+		return err
+	}
+
 	newObj, err := store.CreateAlert(old)
 	if err != nil {
 		return err
@@ -55,7 +60,7 @@ func (e *AlertExporter) exportDependsOn() []string {
 }
 
 func (e *AlertExporter) importDependsOn() []string {
-	return []string{Project}
+	return []string{Project, AccessKey}
 }
 
 func (e *AlertExporter) getName() string {

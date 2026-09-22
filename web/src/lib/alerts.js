@@ -29,8 +29,12 @@ export const ALERT_FIELD_LABELS = {
   chat_id: 'telegramChatId',
   thread_id: 'telegramThreadId',
   url: 'alertWebhookUrl',
-  token: 'alertToken',
   recipients: 'alertRecipients',
+  smtp_host: 'alertSmtpHost',
+  smtp_port: 'alertSmtpPort',
+  smtp_sender: 'alertSmtpSender',
+  smtp_secure: 'alertSmtpSecure',
+  smtp_tls: 'alertSmtpTls',
 };
 
 /**

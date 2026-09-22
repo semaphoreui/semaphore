@@ -622,6 +622,11 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 		return
 	}
 
+	refs.Alerts, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.AlertProps)
+	if err != nil {
+		return
+	}
+
 	return
 }
 

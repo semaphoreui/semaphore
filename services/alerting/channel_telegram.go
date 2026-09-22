@@ -20,6 +20,8 @@ const telegramAPI = "https://api.telegram.org/bot"
 // chat and, optionally, the forum topic.
 type telegramChannel struct {
 	channelBase
+	// api is the Bot API base; tests point it at a local server.
+	api string
 }
 
 func newTelegramChannel() Channel {
@@ -29,8 +31,8 @@ func newTelegramChannel() Channel {
 			title: "Telegram",
 			icon:  "mdi-send-circle-outline",
 			fields: []Field{
-				{Name: FieldChatID, Required: true},
-				{Name: FieldThreadID},
+				{Name: FieldChatID, Kind: FieldKindText, Required: true},
+				{Name: FieldThreadID, Kind: FieldKindText},
 			},
 			defaultEvents: chatEvents(),
 			format:        BodyFormatText,
@@ -39,11 +41,35 @@ func newTelegramChannel() Channel {
 	}
 }
 
-func (c *telegramChannel) Validate(dest Destination) error {
+func (c *telegramChannel) Secret() *SecretSpec {
+	return &SecretSpec{KeyType: db.AccessKeyString, Label: "Bot token"}
+}
+
+func (c *telegramChannel) Validate(cfg *util.ConfigType, dest Destination) error {
 	if strings.TrimSpace(dest.ChatID) == "" {
 		return common_errors.NewValidationError("telegram chat id can not be empty")
 	}
-	return validateThreadID(dest.ThreadID)
+	if err := validateThreadID(dest.ThreadID); err != nil {
+		return err
+	}
+	if _, err := c.token(cfg, dest); err != nil {
+		return err
+	}
+	return nil
+}
+
+// token is the alert's own bot token or, without a key, the server-wide one.
+func (c *telegramChannel) token(cfg *util.ConfigType, dest Destination) (string, error) {
+	if dest.Secret != nil {
+		if tok := strings.TrimSpace(dest.Secret.String); tok != "" {
+			return tok, nil
+		}
+		return "", common_errors.NewValidationError("the selected access key holds no telegram bot token")
+	}
+	if cfg == nil || strings.TrimSpace(cfg.TelegramToken) == "" {
+		return "", common_errors.NewValidationError("telegram bot token is not configured on the server (telegram_token); select an access key with your own token")
+	}
+	return strings.TrimSpace(cfg.TelegramToken), nil
 }
 
 func validateThreadID(raw string) error {
@@ -75,17 +101,25 @@ func (c *telegramChannel) InstanceDestination(cfg *util.ConfigType, project db.P
 }
 
 func (c *telegramChannel) ServerReady(cfg *util.ConfigType) error {
-	if cfg == nil || !cfg.TelegramAlert || strings.TrimSpace(cfg.TelegramToken) == "" {
-		return common_errors.NewValidationError("telegram bot token is not configured on the server (telegram_alert, telegram_token)")
+	if cfg == nil || strings.TrimSpace(cfg.TelegramToken) == "" {
+		return common_errors.NewValidationError("telegram bot token is not configured on the server (telegram_token)")
 	}
 	return nil
 }
 
+func (c *telegramChannel) apiBase() string {
+	if c.api != "" {
+		return c.api
+	}
+	return telegramAPI
+}
+
 func (c *telegramChannel) Send(ctx context.Context, cfg *util.ConfigType, dest Destination, msg Message) error {
-	if err := c.ServerReady(cfg); err != nil {
+	if err := c.Validate(cfg, dest); err != nil {
 		return err
 	}
-	if err := c.Validate(dest); err != nil {
+	token, err := c.token(cfg, dest)
+	if err != nil {
 		return err
 	}
 
@@ -106,5 +140,5 @@ func (c *telegramChannel) Send(ctx context.Context, cfg *util.ConfigType, dest D
 	// The Bot API host is fixed and never user supplied, so the request is
 	// sent as trusted regardless of where the destination came from.
 	apiDest := Destination{Trusted: true}
-	return postJSON(ctx, apiDest, telegramAPI+cfg.TelegramToken+"/sendMessage", string(body), nil, 200)
+	return postJSON(ctx, apiDest, c.apiBase()+token+"/sendMessage", string(body), nil, 200)
 }

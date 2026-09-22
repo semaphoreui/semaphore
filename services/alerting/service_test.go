@@ -184,14 +184,18 @@ func TestService_EmailFallsBackToOptedInMembers(t *testing.T) {
 }
 
 func TestService_ValidateAlert(t *testing.T) {
-	svc, _ := newTestService(newFakeStore(db.Project{ID: 1}), testConfig(), NewRegistry().List()...)
+	store := newFakeStore(db.Project{ID: 1})
+	svc, _ := newTestService(store, testConfig(), NewRegistry().List()...)
 
 	url := "https://hooks.slack.com/x"
 	chat := "123"
-	alert := db.Alert{Name: "Ops", Type: "SLACK", URL: &url, ChatID: &chat}
+	keyID := 42
+	alert := db.Alert{Name: "Ops", Type: "SLACK", URL: &url, ChatID: &chat, KeyID: &keyID, Params: db.MapStringAnyField{"smtp_host": "x"}}
 	require.NoError(t, svc.ValidateAlert(&alert))
 	assert.Equal(t, TypeSlack, alert.Type)
 	assert.Nil(t, alert.ChatID, "fields the channel does not use are dropped")
+	assert.Nil(t, alert.KeyID, "channels without a secret drop the key")
+	assert.Nil(t, alert.Params, "params the channel does not declare are dropped")
 
 	bad := db.Alert{Name: "Ops", Type: "slack"}
 	assert.ErrorContains(t, svc.ValidateAlert(&bad), "URL")
@@ -202,6 +206,43 @@ func TestService_ValidateAlert(t *testing.T) {
 	broken := "{{ .Name "
 	withBody := db.Alert{Name: "Ops", Type: "slack", URL: &url, Body: &broken}
 	assert.ErrorContains(t, svc.ValidateAlert(&withBody), "invalid message template")
+
+	// Telegram without a server token needs an own key of the right type.
+	noToken := db.Alert{ProjectID: 1, Name: "TG", Type: "telegram", ChatID: &chat}
+	assert.ErrorContains(t, svc.ValidateAlert(&noToken), "telegram bot token")
+
+	wrongType := store.addKey(db.AccessKeyLoginPassword, "p", "u")
+	withWrongKey := db.Alert{ProjectID: 1, Name: "TG", Type: "telegram", ChatID: &chat, KeyID: &wrongType.ID}
+	assert.ErrorContains(t, svc.ValidateAlert(&withWrongKey), "must be of type string")
+
+	own := store.addKey(db.AccessKeyString, "bot-token", "")
+	withKey := db.Alert{ProjectID: 1, Name: "TG", Type: "telegram", ChatID: &chat, KeyID: &own.ID}
+	assert.NoError(t, svc.ValidateAlert(&withKey))
+
+	missing := 999
+	withMissingKey := db.Alert{ProjectID: 1, Name: "TG", Type: "telegram", ChatID: &chat, KeyID: &missing}
+	assert.ErrorContains(t, svc.ValidateAlert(&withMissingKey), "does not belong")
+}
+
+func TestService_TelegramUsesOwnBotToken(t *testing.T) {
+	var path string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	store := newFakeStore(db.Project{ID: 1})
+	own := store.addKey(db.AccessKeyString, "own-bot", "")
+	chat := "5"
+	alert := store.addAlert(db.Alert{Name: "TG", Type: "telegram", Enabled: true, ChatID: &chat, KeyID: &own.ID})
+
+	registry := NewRegistry()
+	registry.Register(&telegramChannel{channelBase: registry.byType[TypeTelegram].(*telegramChannel).channelBase, api: server.URL + "/bot"})
+	svc := NewServiceWithConfig(store, registry, nil, func() *util.ConfigType { return &util.ConfigType{TelegramToken: "server-bot"} })
+
+	require.NoError(t, svc.SendTest(context.Background(), store.project, alert))
+	assert.Equal(t, "/botown-bot/sendMessage", path)
 }
 
 func TestService_SendProjectTest(t *testing.T) {

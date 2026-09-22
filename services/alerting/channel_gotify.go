@@ -25,8 +25,7 @@ func newGotifyChannel() Channel {
 			title: "Gotify",
 			icon:  "mdi-bell-ring-outline",
 			fields: []Field{
-				{Name: FieldURL},
-				{Name: FieldToken, Secret: true},
+				{Name: FieldURL, Kind: FieldKindText, Override: true},
 			},
 			defaultEvents: chatEvents(),
 			format:        BodyFormatText,
@@ -35,16 +34,20 @@ func newGotifyChannel() Channel {
 	}
 }
 
-func (c *gotifyChannel) Validate(dest Destination) error {
-	url := strings.TrimSpace(dest.URL)
-	token := strings.TrimSpace(dest.Token)
-	if url == "" && token == "" {
-		return nil // server-wide pair
+func (c *gotifyChannel) Secret() *SecretSpec {
+	return &SecretSpec{KeyType: db.AccessKeyString, Label: "Application token"}
+}
+
+func (c *gotifyChannel) Validate(cfg *util.ConfigType, dest Destination) error {
+	_, _, _, err := c.resolve(cfg, dest)
+	return err
+}
+
+func (c *gotifyChannel) ServerReady(cfg *util.ConfigType) error {
+	if cfg == nil || strings.TrimSpace(cfg.GotifyUrl) == "" || strings.TrimSpace(cfg.GotifyToken) == "" {
+		return common_errors.NewValidationError("gotify is not configured on the server (gotify_url, gotify_token)")
 	}
-	if url == "" || token == "" {
-		return common_errors.NewValidationError("gotify needs both URL and token, or neither to use the server settings")
-	}
-	return ValidateWebhookURL(url)
+	return nil
 }
 
 func (c *gotifyChannel) InstanceDestination(cfg *util.ConfigType, _ db.Project) (Destination, bool) {
@@ -53,7 +56,7 @@ func (c *gotifyChannel) InstanceDestination(cfg *util.ConfigType, _ db.Project) 
 	}
 	return Destination{
 		URL:     strings.TrimSpace(cfg.GotifyUrl),
-		Token:   strings.TrimSpace(cfg.GotifyToken),
+		Secret:  &db.AccessKey{Type: db.AccessKeyString, String: strings.TrimSpace(cfg.GotifyToken)},
 		Trusted: true,
 	}, true
 }
@@ -73,19 +76,28 @@ func (c *gotifyChannel) Send(ctx context.Context, cfg *util.ConfigType, dest Des
 	)
 }
 
-// resolve picks the alert's own server or falls back to config.json. The
-// fallback pair is admin supplied and therefore trusted.
+// resolve picks the alert's own server (URL + access key) or falls back to
+// the config.json pair, which is admin supplied and therefore trusted.
 func (c *gotifyChannel) resolve(cfg *util.ConfigType, dest Destination) (url string, token string, trusted bool, err error) {
 	url = strings.TrimSpace(dest.URL)
-	token = strings.TrimSpace(dest.Token)
-	if url != "" && token != "" {
-		return url, token, dest.Trusted, nil
+	if dest.Trusted && url != "" {
+		return url, strings.TrimSpace(dest.Secret.String), true, nil
 	}
-	if url != "" || token != "" {
-		return "", "", false, common_errors.NewValidationError("gotify needs both URL and token, or neither to use the server settings")
+	if url == "" && dest.Secret == nil {
+		if err = c.ServerReady(cfg); err != nil {
+			return "", "", false, err
+		}
+		return strings.TrimSpace(cfg.GotifyUrl), strings.TrimSpace(cfg.GotifyToken), true, nil
 	}
-	if cfg == nil || strings.TrimSpace(cfg.GotifyUrl) == "" || strings.TrimSpace(cfg.GotifyToken) == "" {
-		return "", "", false, common_errors.NewValidationError("gotify is not configured on the server (gotify_url, gotify_token)")
+	if url == "" || dest.Secret == nil {
+		return "", "", false, common_errors.NewValidationError("gotify needs both a server URL and an access key with the application token, or neither to use the server settings")
 	}
-	return strings.TrimSpace(cfg.GotifyUrl), strings.TrimSpace(cfg.GotifyToken), true, nil
+	if err = ValidateWebhookURL(url); err != nil {
+		return "", "", false, err
+	}
+	token = strings.TrimSpace(dest.Secret.String)
+	if token == "" {
+		return "", "", false, common_errors.NewValidationError("the selected access key holds no gotify token")
+	}
+	return url, token, false, nil
 }

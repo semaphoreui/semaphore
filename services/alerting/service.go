@@ -25,6 +25,13 @@ type Store interface {
 	GetProject(projectID int) (db.Project, error)
 	GetProjectUsers(projectID int, params db.RetrieveQueryParams) ([]db.UserWithProjectRole, error)
 	GetAllAdmins() ([]db.User, error)
+	GetAccessKey(projectID int, accessKeyID int) (db.AccessKey, error)
+}
+
+// SecretDecryptor decrypts access keys; server.AccessKeyEncryptionService
+// satisfies it.
+type SecretDecryptor interface {
+	DeserializeSecret(key *db.AccessKey) error
 }
 
 // Service is the entry point used by the task pool and the API.
@@ -48,20 +55,21 @@ type Service interface {
 }
 
 type service struct {
-	store    Store
-	registry *Registry
-	config   func() *util.ConfigType
+	store     Store
+	registry  *Registry
+	decryptor SecretDecryptor
+	config    func() *util.ConfigType
 }
 
 // NewService wires the registry to the store. The server config is read on
 // every send so the legacy config.json channels keep working exactly as
 // before and never need a restart-time snapshot.
-func NewService(store Store, registry *Registry) Service {
-	return NewServiceWithConfig(store, registry, func() *util.ConfigType { return util.Config })
+func NewService(store Store, registry *Registry, decryptor SecretDecryptor) Service {
+	return NewServiceWithConfig(store, registry, decryptor, func() *util.ConfigType { return util.Config })
 }
 
-func NewServiceWithConfig(store Store, registry *Registry, config func() *util.ConfigType) Service {
-	return &service{store: store, registry: registry, config: config}
+func NewServiceWithConfig(store Store, registry *Registry, decryptor SecretDecryptor, config func() *util.ConfigType) Service {
+	return &service{store: store, registry: registry, decryptor: decryptor, config: config}
 }
 
 func (s *service) Registry() *Registry {
@@ -82,7 +90,12 @@ func (s *service) ValidateAlert(alert *db.Alert) error {
 		return err
 	}
 	clearUnusedFields(channel, alert)
-	if err = channel.Validate(DestinationFromAlert(*alert)); err != nil {
+
+	dest, err := s.destinationForAlert(channel, *alert)
+	if err != nil {
+		return err
+	}
+	if err = channel.Validate(s.config(), dest); err != nil {
 		return err
 	}
 	return ValidateBody(channel, strValue(alert.Body))
@@ -104,12 +117,50 @@ func clearUnusedFields(channel Channel, alert *db.Alert) {
 	if !used[FieldURL] {
 		alert.URL = nil
 	}
-	if !used[FieldToken] {
-		alert.Token = nil
-	}
 	if !used[FieldRecipients] {
 		alert.Recipients = nil
 	}
+	if channel.Secret() == nil {
+		alert.KeyID = nil
+	}
+
+	var params db.MapStringAnyField
+	for name, value := range alert.Params {
+		if !used[name] {
+			continue
+		}
+		if params == nil {
+			params = db.MapStringAnyField{}
+		}
+		params[name] = value
+	}
+	alert.Params = params
+}
+
+// loadSecret fetches and decrypts the access key an alert points at and
+// checks it is of the type the channel expects.
+func (s *service) loadSecret(channel Channel, alert db.Alert) (*db.AccessKey, error) {
+	if alert.KeyID == nil {
+		return nil, nil
+	}
+	spec := channel.Secret()
+	if spec == nil {
+		return nil, common_errors.NewValidationError(string(channel.Type()) + " alerts do not use an access key")
+	}
+
+	key, err := s.store.GetAccessKey(alert.ProjectID, *alert.KeyID)
+	if err != nil {
+		return nil, common_errors.NewValidationError("access key does not belong to this project")
+	}
+	if key.Type != spec.KeyType {
+		return nil, common_errors.NewValidationError("access key must be of type " + string(spec.KeyType))
+	}
+	if s.decryptor != nil {
+		if err = s.decryptor.DeserializeSecret(&key); err != nil {
+			return nil, err
+		}
+	}
+	return &key, nil
 }
 
 func (s *service) Snapshot(task *db.Task, template db.Template) error {
@@ -211,7 +262,12 @@ func (s *service) Notify(
 			continue
 		}
 		key := "alert:" + strconv.Itoa(alert.ID)
-		dest := s.destinationForAlert(channel, alert)
+		dest, err := s.destinationForAlert(channel, alert)
+		if err != nil {
+			logf(logger, "Can't send alert %s: %s", alert.Name, err.Error())
+			errs = append(errs, fmt.Errorf("alert %s: %w", alert.Name, err))
+			continue
+		}
 		if err := s.deliver(ctx, task.ID, key, alert.Name, channel, dest, strValue(alert.Body), event, payload, logger); err != nil {
 			errs = append(errs, err)
 		}
@@ -275,15 +331,22 @@ func (s *service) send(ctx context.Context, channel Channel, dest Destination, b
 	return channel.Send(ctx, cfg, dest, msg)
 }
 
-// destinationForAlert fills channel defaults the alert left empty. E-mail
-// with no recipients goes to the project members who opted in, like the
-// server-wide channel always did.
-func (s *service) destinationForAlert(channel Channel, alert db.Alert) Destination {
+// destinationForAlert attaches the decrypted secret and fills channel
+// defaults the alert left empty. E-mail with no recipients goes to the
+// project members who opted in, like the server-wide channel always did.
+func (s *service) destinationForAlert(channel Channel, alert db.Alert) (Destination, error) {
 	dest := DestinationFromAlert(alert)
+
+	secret, err := s.loadSecret(channel, alert)
+	if err != nil {
+		return dest, err
+	}
+	dest.Secret = secret
+
 	if wantsField(channel, FieldRecipients) && len(dest.Recipients) == 0 {
 		dest.Recipients = s.defaultRecipients(alert.ProjectID)
 	}
-	return dest
+	return dest, nil
 }
 
 func (s *service) fillInstanceDestination(channel Channel, projectID int, dest Destination) Destination {
@@ -332,7 +395,11 @@ func (s *service) SendTest(ctx context.Context, project db.Project, alert db.Ale
 		return err
 	}
 	payload := testPayload(s.config(), project)
-	return s.send(ctx, channel, s.destinationForAlert(channel, alert), strValue(alert.Body), payload)
+	dest, err := s.destinationForAlert(channel, alert)
+	if err != nil {
+		return err
+	}
+	return s.send(ctx, channel, dest, strValue(alert.Body), payload)
 }
 
 func (s *service) SendProjectTest(ctx context.Context, project db.Project) (int, error) {

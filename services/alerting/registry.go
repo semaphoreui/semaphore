@@ -65,11 +65,14 @@ type ChannelInfo struct {
 	DefaultEvents db.AlertEvents `json:"default_events"`
 	BodyFormat    BodyFormat     `json:"body_format"`
 	DefaultBody   string         `json:"default_body"`
+	// Secret describes the access key the channel may use instead of the
+	// server-wide secret; nil for channels without secrets.
+	Secret *SecretSpec `json:"secret,omitempty"`
 	// ServerConfigured is true when config.json enables this channel
 	// server-wide, i.e. projects with "alert" on receive it automatically.
 	ServerConfigured bool `json:"server_configured"`
-	// Ready is false when the channel can not send project alerts because a
-	// server prerequisite is missing; ReadyError explains which.
+	// Ready is true when the server-wide secret exists, so an alert may rely
+	// on it instead of bringing its own; ReadyError explains what is missing.
 	Ready      bool   `json:"ready"`
 	ReadyError string `json:"ready_error,omitempty"`
 }
@@ -86,6 +89,7 @@ func (r *Registry) Infos(cfg *util.ConfigType, project db.Project) []ChannelInfo
 			DefaultEvents: ch.DefaultEvents(),
 			BodyFormat:    ch.BodyFormat(),
 			DefaultBody:   ch.DefaultBody(),
+			Secret:        ch.Secret(),
 			Ready:         true,
 		}
 		if info.Fields == nil {

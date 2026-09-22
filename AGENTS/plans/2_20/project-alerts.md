@@ -39,10 +39,26 @@ optional custom message template.
 - **Project default** alerts are sent by every template that uses project
   defaults.
 - Disabled alerts are never sent.
-- Gotify tokens are write-only in the API and are not exported in backups.
 - Webhook URLs supplied by users must be http(s) and may not point at
   localhost, link-local, unspecified or cloud-metadata addresses. Server
   channel URLs are exempt.
+
+### Secrets
+
+Telegram, Gotify and e-mail need a secret (bot token, application token,
+SMTP credentials). An alert never stores it. It chooses one of:
+
+- **Use the server settings** — the secret from `config.json`. Offered only
+  when the server has it configured.
+- **Use my own** — an access key from the project Key Store, stored
+  encrypted like every other key. Tokens use the new key type *Secret token*
+  (`string`); SMTP credentials use *Login with password*. The key must
+  belong to the project and be of the type the channel declares.
+
+An e-mail alert with its own credentials may also set its own SMTP host,
+port, sender and encryption; settings it leaves empty fall back to the
+server ones. A key used by an alert can not be deleted; the Key Store shows
+the alerts that use it.
 
 ### Where a template sends
 
@@ -85,19 +101,22 @@ The existing *suppress success* / *suppress error* flags still apply to both.
 
 - `GET/POST /project/{id}/alerts`, `GET/PUT/DELETE /project/{id}/alerts/{alert_id}`
 - `GET /project/{id}/alerts/channels` — supported channels, their fields,
-  default events, default template and server readiness.
+  default events, default template, the secret they need (access key type)
+  and whether the server-wide secret exists.
 - `GET /project/{id}/alerts/{alert_id}/refs`, `POST /project/{id}/alerts/{alert_id}/test`
 - Templates and schedules gain `alert_mode` and `alert_ids`.
 - Backups gain an `alerts` section; templates and schedules reference alerts
-  by name.
+  by name, alerts reference their access key by name.
 
 ## Extensibility
 
 A messenger is one `Channel` implementation in `services/alerting` registered
-in `NewRegistry`. It declares its type, title, icon, destination fields,
-default events, body format, built-in template, validation, how to read the
-server-wide destination from config, and how to send. The API, the UI form,
-validation and delivery all follow that description, so nothing else changes.
+in `NewRegistry`. It declares its type, title, icon, destination fields
+(columns or JSON params, with a kind for the UI), the secret it needs and
+its access key type, default events, body format, built-in template,
+validation, how to read the server-wide destination from config, and how to
+send. The API, the UI form, validation and delivery all follow that
+description, so nothing else changes.
 
 ## Database schema
 
@@ -105,7 +124,7 @@ New tables:
 
 | Table | Columns | Notes |
 |---|---|---|
-| `project__alert` | `id`, `project_id`, `name`, `type`, `enabled`, `is_default`, `events`, `chat_id`, `thread_id`, `url`, `token`, `recipients`, `body` | Unique `(project_id, name)`. `events` is a comma-separated list, empty means channel defaults. Cascade on project delete. |
+| `project__alert` | `id`, `project_id`, `name`, `type`, `enabled`, `is_default`, `events`, `chat_id`, `thread_id`, `url`, `recipients`, `key_id`, `params`, `body` | Unique `(project_id, name)`. `events` is a comma-separated list, empty means channel defaults. `key_id` → `access_key` (encrypted secret; null = server-wide secret). `params` is JSON with channel override settings (SMTP host, port, sender, secure, tls). Cascade on project delete. |
 | `project__template_alert` | `project_id`, `template_id`, `alert_id` | PK `(template_id, alert_id)`. Cascade on template delete, restrict on alert delete. |
 | `project__schedule_alert` | `project_id`, `schedule_id`, `alert_id` | PK `(schedule_id, alert_id)`. Cascade on schedule delete, restrict on alert delete. |
 | `task__alert_send` | `task_id`, `destination`, `event`, `created` | PK `(task_id, destination, event)`. `destination` is `alert:<id>` or `instance:<type>`. Cascade on task delete. |
@@ -119,7 +138,8 @@ New columns:
 | `task` | `alert_snapshot` | JSON: `instance`, `alert_ids`, `on_success`, `on_error`; null for tasks created before the upgrade |
 
 Unchanged and still used: `project.alert`, `project.alert_chat`,
-`project__template.suppress_success_alerts`, `project__template.suppress_error_alerts`.
+`project__template.suppress_success_alerts`, `project__template.suppress_error_alerts`,
+`access_key` (new keys of type `string` hold single tokens).
 
 Rollback: `v2.20.6.err.sql` drops the columns and tables above.
 

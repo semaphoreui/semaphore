@@ -74,27 +74,51 @@ func TestAlerts_NameMustBeUniquePerProject(t *testing.T) {
 	assert.ErrorContains(t, err, "already exists")
 }
 
-func TestAlerts_UpdateKeepsTokenWhenOmitted(t *testing.T) {
+func TestAlerts_KeyAndParamsRoundTrip(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	projectID, _ := newAlertTestProject(t, store)
 
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &projectID, Name: "smtp", Type: db.AccessKeyLoginPassword})
+	require.NoError(t, err)
+
 	created, err := store.CreateAlert(db.Alert{
 		ProjectID: projectID,
-		Name:      "Gotify",
-		Type:      "gotify",
-		URL:       strPtr("https://gotify.example"),
-		Token:     strPtr("secret"),
+		Name:      "Mail",
+		Type:      "email",
+		KeyID:     &key.ID,
+		Params:    db.MapStringAnyField{"smtp_host": "mail.example", "smtp_port": "587", "smtp_tls": true},
 	})
 	require.NoError(t, err)
 
-	created.Token = nil
-	created.Name = "Gotify prod"
-	require.NoError(t, store.UpdateAlert(created))
-
 	loaded, err := store.GetAlert(projectID, created.ID)
 	require.NoError(t, err)
-	require.NotNil(t, loaded.Token)
-	assert.Equal(t, "secret", *loaded.Token)
+	require.NotNil(t, loaded.KeyID)
+	assert.Equal(t, key.ID, *loaded.KeyID)
+	assert.Equal(t, "mail.example", loaded.ParamString("smtp_host"))
+	assert.Equal(t, "587", loaded.ParamString("smtp_port"))
+	assert.True(t, loaded.ParamBool("smtp_tls"))
+
+	// The key is listed as used by the alert, so the key store refuses deletion.
+	refs, err := store.GetAccessKeyRefs(projectID, key.ID)
+	require.NoError(t, err)
+	require.Len(t, refs.Alerts, 1)
+	assert.Equal(t, "Mail", refs.Alerts[0].Name)
+
+	// A key of another project is rejected.
+	other, err := store.CreateProject(db.Project{Name: "other"})
+	require.NoError(t, err)
+	foreign, err := store.CreateAccessKey(db.AccessKey{ProjectID: &other.ID, Name: "foreign", Type: db.AccessKeyString})
+	require.NoError(t, err)
+	loaded.KeyID = &foreign.ID
+	assert.ErrorContains(t, store.UpdateAlert(loaded), "does not belong")
+
+	loaded.KeyID = nil
+	loaded.Params = nil
+	require.NoError(t, store.UpdateAlert(loaded))
+	loaded, err = store.GetAlert(projectID, created.ID)
+	require.NoError(t, err)
+	assert.Nil(t, loaded.KeyID)
+	assert.Nil(t, loaded.Params)
 }
 
 func TestAlerts_ScopedToProject(t *testing.T) {

@@ -114,12 +114,6 @@ func (c *AlertController) UpdateAlert(w http.ResponseWriter, r *http.Request) {
 	}
 	alert.ProjectID = old.ProjectID
 
-	// The token is write-only: a client that did not send one keeps the
-	// stored value, so validation must see it.
-	if alert.Token == nil || *alert.Token == "" {
-		alert.Token = old.Token
-	}
-
 	if err := c.alertService.ValidateAlert(&alert); err != nil {
 		helpers.WriteError(w, err)
 		return

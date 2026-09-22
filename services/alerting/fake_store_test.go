@@ -24,6 +24,7 @@ type fakeStore struct {
 	schedules map[int]db.Schedule
 	tplAlerts map[int][]int
 	schAlerts map[int][]int
+	keys      map[int]db.AccessKey
 }
 
 func newFakeStore(project db.Project) *fakeStore {
@@ -37,7 +38,30 @@ func newFakeStore(project db.Project) *fakeStore {
 		schedules: make(map[int]db.Schedule),
 		tplAlerts: make(map[int][]int),
 		schAlerts: make(map[int][]int),
+		keys:      make(map[int]db.AccessKey),
 	}
+}
+
+func (s *fakeStore) GetAccessKey(projectID int, keyID int) (db.AccessKey, error) {
+	k, ok := s.keys[keyID]
+	if !ok || k.ProjectID == nil || *k.ProjectID != projectID {
+		return db.AccessKey{}, db.ErrNotFound
+	}
+	return k, nil
+}
+
+func (s *fakeStore) addKey(typ db.AccessKeyType, secret string, login string) db.AccessKey {
+	id := len(s.keys) + 1
+	pid := s.project.ID
+	key := db.AccessKey{ID: id, ProjectID: &pid, Type: typ, Name: "key"}
+	switch typ {
+	case db.AccessKeyString:
+		key.String = secret
+	case db.AccessKeyLoginPassword:
+		key.LoginPassword = db.LoginPassword{Login: login, Password: secret}
+	}
+	s.keys[id] = key
+	return key
 }
 
 func (s *fakeStore) addAlert(alert db.Alert) db.Alert {
@@ -198,7 +222,7 @@ func newFakeChannel(typ db.AlertType, events db.AlertEvents) *fakeChannel {
 	}
 }
 
-func (c *fakeChannel) Validate(Destination) error { return nil }
+func (c *fakeChannel) Validate(*util.ConfigType, Destination) error { return nil }
 
 func (c *fakeChannel) InstanceDestination(*util.ConfigType, db.Project) (Destination, bool) {
 	if c.instance == nil {
@@ -237,7 +261,7 @@ func newTestService(store *fakeStore, cfg *util.ConfigType, channels ...Channel)
 	for _, ch := range channels {
 		registry.Register(ch)
 	}
-	return NewServiceWithConfig(store, registry, func() *util.ConfigType { return cfg }), registry
+	return NewServiceWithConfig(store, registry, nil, func() *util.ConfigType { return cfg }), registry
 }
 
 func statusTask(id int, projectID int) db.Task {

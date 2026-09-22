@@ -1288,12 +1288,19 @@ definitions:
         description: Optional Telegram forum topic ID.
       url:
         type: string
-      token:
-        type: string
-        description: Write-only. Never returned; omit or send empty on update to keep the stored token.
       recipients:
         type: string
         description: Comma-separated e-mail addresses (email alerts).
+      key_id:
+        type: integer
+        x-nullable: true
+        description: >-
+          Access key holding the channel secret (bot token, SMTP credentials). Null means the
+          server-wide secret from config.json is used. The key must belong to the project and be of
+          the type the channel declares in AlertChannel.secret.key_type.
+      params:
+        type: object
+        description: Channel specific override settings (for example smtp_host, smtp_port, smtp_sender, smtp_secure, smtp_tls).
       body:
         type: string
         description: Custom Go template for the message. Empty means the channel default.
@@ -1317,10 +1324,25 @@ definitions:
           properties:
             name:
               type: string
+            kind:
+              type: string
+              enum: [text, number, bool]
             required:
               type: boolean
-            secret:
+            override:
               type: boolean
+              description: Belongs to the "use my own server" group and only applies together with an own secret.
+      secret:
+        type: object
+        description: Present when the channel uses a secret that may come from an access key instead of config.json.
+        properties:
+          key_type:
+            type: string
+            enum: [string, login_password]
+          label:
+            type: string
+          optional:
+            type: boolean
       default_events:
         type: array
         items:
@@ -1335,7 +1357,7 @@ definitions:
         description: The channel is enabled server-wide in config.json.
       ready:
         type: boolean
-        description: Project alerts of this type can be sent (server prerequisites exist).
+        description: The server-wide secret exists, so an alert may rely on it instead of bringing an access key.
       ready_error:
         type: string
 

@@ -97,15 +97,26 @@ func TestAlert_Validate(t *testing.T) {
 	}
 }
 
-func TestAlert_MarshalJSON_HidesToken(t *testing.T) {
-	token := "secret"
-	alert := Alert{ID: 1, Name: "Gotify", Type: "gotify", Token: &token}
+func TestAlert_MarshalJSON_EventsAlwaysArray(t *testing.T) {
+	keyID := 7
+	alert := Alert{ID: 1, Name: "Gotify", Type: "gotify", KeyID: &keyID}
 
 	out, err := json.Marshal(alert)
 	require.NoError(t, err)
 
-	assert.NotContains(t, string(out), "secret")
 	assert.Contains(t, string(out), `"events":[]`)
+	assert.Contains(t, string(out), `"key_id":7`)
+}
+
+func TestAlert_Params(t *testing.T) {
+	alert := Alert{Params: MapStringAnyField{"smtp_host": " mail ", "smtp_port": float64(587), "smtp_tls": true, "flag": "1"}}
+	assert.Equal(t, "mail", alert.ParamString("smtp_host"))
+	assert.Equal(t, "587", alert.ParamString("smtp_port"))
+	assert.Equal(t, "", alert.ParamString("missing"))
+	assert.True(t, alert.ParamBool("smtp_tls"))
+	assert.True(t, alert.ParamBool("flag"))
+	assert.False(t, alert.ParamBool("missing"))
+	assert.False(t, Alert{}.ParamBool("x"))
 }
 
 func TestAlertSnapshot_Allows(t *testing.T) {

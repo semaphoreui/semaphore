@@ -9,12 +9,14 @@ create table `project__alert` (
   `chat_id` varchar(100) null,
   `thread_id` varchar(50) null,
   `url` text null,
-  `token` varchar(255) null,
   `recipients` text null,
+  `key_id` int null,
+  `params` longtext null,
   `body` longtext null,
 
   unique (`project_id`, `name`),
-  foreign key (`project_id`) references `project`(`id`) on delete cascade
+  foreign key (`project_id`) references `project`(`id`) on delete cascade,
+  foreign key (`key_id`) references `access_key`(`id`)
 );
 
 create table `project__template_alert` (

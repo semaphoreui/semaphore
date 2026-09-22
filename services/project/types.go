@@ -77,9 +77,11 @@ type BackupSchedule struct {
 }
 
 // BackupAlert is a project alert. Templates and schedules refer to alerts by
-// name, so the alert list is restored before them.
+// name, so the alert list is restored before them. The secret is referenced
+// by access key name, like inventories reference their SSH key.
 type BackupAlert struct {
 	db.Alert
+	Key *string `backup:"key"`
 }
 
 type BackupView struct {

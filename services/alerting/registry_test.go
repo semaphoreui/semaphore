@@ -76,7 +76,7 @@ func TestRegistry_Infos_ReflectServerConfig(t *testing.T) {
 
 	assert.True(t, byType[TypeSlack].ServerConfigured)
 	assert.True(t, byType[TypeSlack].Ready)
-	assert.Equal(t, []Field{{Name: FieldURL, Required: true}}, byType[TypeSlack].Fields)
+	assert.Equal(t, []Field{{Name: FieldURL, Kind: FieldKindText, Required: true}}, byType[TypeSlack].Fields)
 
 	assert.True(t, byType[TypeTelegram].ServerConfigured, "project chat plus server token is enough")
 	assert.True(t, byType[TypeTelegram].Ready)
@@ -86,7 +86,13 @@ func TestRegistry_Infos_ReflectServerConfig(t *testing.T) {
 	assert.Contains(t, byType[TypeEmail].ReadyError, "SMTP")
 
 	assert.False(t, byType[TypeGotify].ServerConfigured)
-	assert.True(t, byType[TypeGotify].Ready, "gotify alerts may carry their own url and token")
+	assert.False(t, byType[TypeGotify].Ready, "no server-wide gotify pair")
+	require.NotNil(t, byType[TypeGotify].Secret)
+	assert.Equal(t, db.AccessKeyString, byType[TypeGotify].Secret.KeyType)
+	require.NotNil(t, byType[TypeEmail].Secret)
+	assert.Equal(t, db.AccessKeyLoginPassword, byType[TypeEmail].Secret.KeyType)
+	assert.True(t, byType[TypeEmail].Secret.Optional)
+	assert.Nil(t, byType[TypeSlack].Secret)
 	assert.Equal(t, BodyFormatHTML, byType[TypeEmail].BodyFormat)
 }
 
@@ -113,31 +119,52 @@ func TestTelegram_InstanceDestination(t *testing.T) {
 
 func TestChannelValidation(t *testing.T) {
 	registry := NewRegistry()
+	cfg := &util.ConfigType{
+		TelegramToken: "server-bot",
+		GotifyUrl:     "https://gotify.server",
+		GotifyToken:   "server-app",
+		EmailHost:     "smtp.server",
+	}
+	empty := &util.ConfigType{}
+	token := &db.AccessKey{Type: db.AccessKeyString, String: "own"}
+	creds := &db.AccessKey{Type: db.AccessKeyLoginPassword, LoginPassword: db.LoginPassword{Login: "u", Password: "p"}}
 
 	tests := []struct {
 		name    string
 		typ     db.AlertType
+		cfg     *util.ConfigType
 		dest    Destination
 		wantErr bool
 	}{
-		{"telegram needs chat", TypeTelegram, Destination{}, true},
-		{"telegram ok", TypeTelegram, Destination{ChatID: "1"}, false},
-		{"telegram bad thread", TypeTelegram, Destination{ChatID: "1", ThreadID: "abc"}, true},
-		{"telegram thread ok", TypeTelegram, Destination{ChatID: "1", ThreadID: "7"}, false},
-		{"slack needs url", TypeSlack, Destination{}, true},
-		{"slack ok", TypeSlack, Destination{URL: "https://hooks.slack.com/x"}, false},
-		{"slack loopback", TypeSlack, Destination{URL: "http://127.0.0.1/x"}, true},
-		{"gotify server pair", TypeGotify, Destination{}, false},
-		{"gotify url without token", TypeGotify, Destination{URL: "https://gotify.example"}, true},
-		{"gotify full", TypeGotify, Destination{URL: "https://gotify.example", Token: "t"}, false},
-		{"email ok", TypeEmail, Destination{Recipients: []string{"a@b.c"}}, false},
-		{"email bad address", TypeEmail, Destination{Recipients: []string{"nope"}}, true},
+		{"telegram needs chat", TypeTelegram, cfg, Destination{}, true},
+		{"telegram server token", TypeTelegram, cfg, Destination{ChatID: "1"}, false},
+		{"telegram no server token", TypeTelegram, empty, Destination{ChatID: "1"}, true},
+		{"telegram own token", TypeTelegram, empty, Destination{ChatID: "1", Secret: token}, false},
+		{"telegram empty key", TypeTelegram, empty, Destination{ChatID: "1", Secret: &db.AccessKey{Type: db.AccessKeyString}}, true},
+		{"telegram bad thread", TypeTelegram, cfg, Destination{ChatID: "1", ThreadID: "abc"}, true},
+		{"telegram thread ok", TypeTelegram, cfg, Destination{ChatID: "1", ThreadID: "7"}, false},
+		{"slack needs url", TypeSlack, cfg, Destination{}, true},
+		{"slack ok", TypeSlack, cfg, Destination{URL: "https://hooks.slack.com/x"}, false},
+		{"slack loopback", TypeSlack, cfg, Destination{URL: "http://127.0.0.1/x"}, true},
+		{"gotify server pair", TypeGotify, cfg, Destination{}, false},
+		{"gotify server pair missing", TypeGotify, empty, Destination{}, true},
+		{"gotify url without key", TypeGotify, cfg, Destination{URL: "https://gotify.example"}, true},
+		{"gotify key without url", TypeGotify, cfg, Destination{Secret: token}, true},
+		{"gotify own", TypeGotify, empty, Destination{URL: "https://gotify.example", Secret: token}, false},
+		{"gotify own loopback", TypeGotify, empty, Destination{URL: "http://127.0.0.1", Secret: token}, true},
+		{"email server", TypeEmail, cfg, Destination{Recipients: []string{"a@b.c"}}, false},
+		{"email no server", TypeEmail, empty, Destination{Recipients: []string{"a@b.c"}}, true},
+		{"email own server", TypeEmail, empty, Destination{Params: map[string]any{"smtp_host": "mail.example", "smtp_sender": "s@e.x"}}, false},
+		{"email own server without sender", TypeEmail, empty, Destination{Params: map[string]any{"smtp_host": "mail.example"}}, true},
+		{"email port without host", TypeEmail, cfg, Destination{Params: map[string]any{"smtp_port": "25"}}, true},
+		{"email own creds on server host", TypeEmail, cfg, Destination{Secret: creds}, false},
+		{"email bad address", TypeEmail, cfg, Destination{Recipients: []string{"nope"}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ch, err := registry.Get(tt.typ)
 			require.NoError(t, err)
-			err = ch.Validate(tt.dest)
+			err = ch.Validate(tt.cfg, tt.dest)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
