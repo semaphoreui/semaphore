@@ -18,10 +18,9 @@
       dense
     />
 
-    <template v-for="field in visibleFields">
+    <div v-for="field in visibleFields" :key="field.name">
       <v-text-field
         v-if="field.name === 'chat_id'"
-        :key="field.name"
         v-model="item.chat_id"
         :label="$t('telegramChatId')"
         :rules="fieldRules(field)"
@@ -33,7 +32,6 @@
 
       <v-text-field
         v-else-if="field.name === 'thread_id'"
-        :key="field.name"
         v-model="item.thread_id"
         :label="$t('telegramThreadId')"
         :hint="$t('telegramThreadIdHint')"
@@ -49,7 +47,6 @@
 
       <v-text-field
         v-else-if="field.name === 'url'"
-        :key="field.name"
         v-model="item.url"
         :label="fieldLabel(field)"
         class="mb-2"
@@ -60,7 +57,7 @@
         dense
       />
 
-      <div v-else-if="field.name === 'recipients'" :key="field.name" class="mt-3">
+      <div v-else-if="field.name === 'recipients'" class="mt-3">
         <ArgsPicker
           :vars="recipients"
           :title="$t('alertRecipients')"
@@ -72,7 +69,7 @@
           {{ $t('alertRecipientsHint') }}
         </div>
       </div>
-    </template>
+    </div>
 
     <template v-if="channel && channel.secret">
       <div class="mt-2 mb-1 text-body-2">
@@ -101,10 +98,9 @@
       </v-radio-group>
 
       <HighlightedCard v-if="secretMode === 'own'" tick-left="14px" class="mt-3">
-        <template v-for="field in overrideFields">
+        <div v-for="field in overrideFields" :key="field.name">
           <v-text-field
             v-if="field.name === 'url'"
-            :key="field.name"
             v-model="item.url"
             :label="fieldLabel(field)"
             :rules="fieldRules(field)"
@@ -115,7 +111,6 @@
           />
           <v-switch
             v-else-if="field.kind === 'bool'"
-            :key="field.name"
             v-model="item.params[field.name]"
             :label="fieldLabel(field)"
             :disabled="formSaving"
@@ -126,7 +121,6 @@
           />
           <v-text-field
             v-else-if="field.name !== 'url'"
-            :key="field.name"
             v-model="item.params[field.name]"
             :label="fieldLabel(field)"
             :type="field.kind === 'number' ? 'number' : 'text'"
@@ -137,7 +131,7 @@
             outlined
             dense
           />
-        </template>
+        </div>
 
         <v-autocomplete
           v-model="item.key_id"
