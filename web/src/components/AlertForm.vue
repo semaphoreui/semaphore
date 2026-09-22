@@ -5,7 +5,7 @@
     v-model="formValid"
     v-if="item != null && channels != null && keys != null"
   >
-    <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
+    <v-alert :value="formError" color="error">{{ formError }}</v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -97,7 +97,11 @@
         <v-radio :label="$t('alertSecretOwn')" value="own" />
       </v-radio-group>
 
-      <HighlightedCard v-if="secretMode === 'own'" tick-left="14px" class="mt-3">
+      <HighlightedCard
+          v-if="secretMode === 'own'"
+          tick-left="60px"
+          class="mt-6"
+      >
         <div v-for="field in overrideFields" :key="field.name">
           <v-text-field
             v-if="field.name === 'url'"
@@ -182,8 +186,7 @@
     <v-switch
       v-model="item.is_default"
       :label="$t('alertIsDefault')"
-      :hint="$t('alertIsDefaultHint')"
-      persistent-hint
+      hide-details
       class="mt-2"
       :disabled="formSaving"
       inset
@@ -222,7 +225,7 @@
     </v-expansion-panels>
 
     <v-switch
-        style="position: absolute; bottom: 0; left: 0;"
+        style="position: absolute; bottom: 16px; left: 24px;"
         v-model="item.enabled"
         :label="$t('enabled')"
         class="mt-4"

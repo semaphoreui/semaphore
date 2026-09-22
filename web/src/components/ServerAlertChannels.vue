@@ -8,7 +8,7 @@
     <v-card-text class="pb-2">
       <div class="text-body-2 mb-3">{{ $t('serverAlertChannelsHint') }}</div>
 
-      <div class="mb-3">
+      <div>
         <v-chip
           v-for="ch in visibleChannels"
           :key="ch.type"
@@ -34,14 +34,16 @@
         </span>
       </div>
 
-      <HighlightedCard v-if="telegramEditing" tick-left="40px">
+      <HighlightedCard
+          v-if="telegramEditing"
+          tick-left="40px"
+          style="max-width: 420px; margin-bottom: 10px !important; margin-top: 22px;"
+      >
         <v-text-field
           v-model="form.alert_chat"
           :label="$t('telegramChatId')"
-          :hint="$t('serverAlertTelegramChatHint')"
           persistent-hint
           :disabled="!canEdit || saving"
-          style="max-width: 400px"
           data-testid="alerts-serverTelegramChat"
           autofocus
           outlined
