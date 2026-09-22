@@ -26,17 +26,6 @@
         </span>
       </div>
 
-      <v-switch
-        v-model="form.alert"
-        :label="$t('serverAlertChannelsEnable')"
-        :disabled="!canEdit || saving || configuredChannels.length === 0"
-        data-testid="alerts-serverEnabled"
-        inset
-        dense
-        hide-details
-        class="mt-0"
-      />
-
       <v-text-field
         v-if="telegramConfigured"
         v-model="form.alert_chat"
@@ -50,9 +39,21 @@
         outlined
         dense
       />
+
     </v-card-text>
 
     <v-card-actions v-if="canEdit" class="px-4 pb-3">
+      <v-switch
+          v-model="form.alert"
+          :label="$t('serverAlertChannelsEnable')"
+          :disabled="!canEdit || saving || configuredChannels.length === 0"
+          data-testid="alerts-serverEnabled"
+          inset
+          dense
+          hide-details
+          class="mt-0"
+      />
+
       <v-spacer />
       <v-btn
         text
