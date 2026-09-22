@@ -106,7 +106,7 @@ func TestGetHomeDir(t *testing.T) {
 	t.Setenv("HOME", testHome)
 
 	// Save original config and restore after all tests
-	originalConfig := util.Config
+	originalConfig = util.Config
 	defer func() { util.Config = originalConfig }()
 
 	tests := []struct {
