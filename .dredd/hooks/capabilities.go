@@ -337,10 +337,11 @@ func alterRequestBody(t *trans.Transaction) {
 		bodyFieldProcessor("matcher_id", integrationmatch.ID, &request)
 	}
 
-	// Inject object ID to body for PUT requests
+	// Inject object ID to body for PUT requests. Sub-resource paths such as
+	// /alerts/{id}/active carry the ID one segment earlier.
 	if strings.ToLower(t.Request.Method) == "put" {
 
-		putRequestPathRE := regexp.MustCompile(`\w+/(\d+)/?$`)
+		putRequestPathRE := regexp.MustCompile(`\w+/(\d+)(?:/[a-z_]+)?/?$`)
 		m := putRequestPathRE.FindStringSubmatch(t.FullPath)
 		if len(m) > 0 {
 			objectID, err := strconv.Atoi(m[1])
