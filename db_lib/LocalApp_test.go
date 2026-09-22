@@ -1,7 +1,6 @@
 package db_lib
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -20,9 +19,9 @@ func contains(slice []string, item string) bool {
 }
 
 func TestGetEnvironmentVars(t *testing.T) {
-	os.Setenv("SEMAPHORE_TEST", "test123")  //nolint:errcheck
-	os.Setenv("SEMAPHORE_TEST2", "test222") //nolint:errcheck
-	os.Setenv("PASSWORD", "test222")        //nolint:errcheck
+	t.Setenv("SEMAPHORE_TEST", "test123")
+	t.Setenv("SEMAPHORE_TEST2", "test222")
+	t.Setenv("PASSWORD", "test222")
 
 	util.Config = &util.ConfigType{
 		ForwardedEnvVars: []string{"SEMAPHORE_TEST"},
@@ -57,10 +56,8 @@ func TestGetHomeDir(t *testing.T) {
 	templateID := 114
 
 	// Set a known HOME value for testing
-	originalHome := os.Getenv("HOME")
 	testHome := "/home/testuser"
-	os.Setenv("HOME", testHome)           //nolint:errcheck
-	defer os.Setenv("HOME", originalHome) //nolint:errcheck
+	t.Setenv("HOME", testHome)
 
 	// Save original config and restore after all tests
 	originalConfig := util.Config
