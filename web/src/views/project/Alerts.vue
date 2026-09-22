@@ -91,9 +91,6 @@
         :can-edit="can(USER_PERMISSIONS.updateProject)"
       />
 
-      <div class="text-subtitle-1 mb-1">{{ $t('projectAlerts') }}</div>
-      <div class="text-body-2 mb-3">{{ $t('projectAlertsHint') }}</div>
-
       <v-data-table
         :headers="headers"
         :items="items"
