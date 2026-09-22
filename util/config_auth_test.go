@@ -1,7 +1,6 @@
 package util
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -30,8 +29,7 @@ func TestConfigType_MaxSessionLife(t *testing.T) {
 }
 
 func TestAuthConfig_LoadFromEnvironment(t *testing.T) {
-	require.NoError(t, os.Setenv("SEMAPHORE_AUTH_MAX_SESSION_LIFE_HOURS", "36"))
-	defer func() { _ = os.Unsetenv("SEMAPHORE_AUTH_MAX_SESSION_LIFE_HOURS") }()
+	t.Setenv("SEMAPHORE_AUTH_MAX_SESSION_LIFE_HOURS", "36")
 
 	cfg := &ConfigType{}
 	_, err := loadEnvironmentToObject(cfg)

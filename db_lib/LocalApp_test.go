@@ -101,6 +101,14 @@ func TestGetHomeDir(t *testing.T) {
 	}
 	templateID := 114
 
+	// Set a known HOME value for testing
+	testHome := "/home/testuser"
+	t.Setenv("HOME", testHome)
+
+	// Save original config and restore after all tests
+	originalConfig := util.Config
+	defer func() { util.Config = originalConfig }()
+
 	tests := []struct {
 		name         string
 		homeDirMode  string
