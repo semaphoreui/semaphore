@@ -115,7 +115,7 @@ func gitSubmoduleJobs() int {
 }
 
 func (c CmdGitClient) Clone(r GitRepository) error {
-	r.Logger.Log("Cloning Repository " + r.Repository.GitURL)
+	r.Logger.Log("Cloning Repository " + r.Repository.GetRedactedGitURL())
 
 	var dirName string
 	if r.TmpDirName == "" {
@@ -145,7 +145,7 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 }
 
 func (c CmdGitClient) Pull(r GitRepository) error {
-	r.Logger.Log("Updating Repository " + r.Repository.GitURL)
+	r.Logger.Log("Updating Repository " + r.Repository.GetRedactedGitURL())
 
 	err := c.run(r, GitRepositoryFullPath, "pull", "origin", "--end-of-options", r.Repository.GitBranch)
 	if err != nil {

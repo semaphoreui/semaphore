@@ -108,8 +108,10 @@ func (r Repository) GetFullPath(templateID int) string {
 	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetCheckoutDirName(templateID))
 }
 
-// GetGitURL returns the URL git is invoked with. With secure set, any userinfo
-// is stripped so the result is safe to write to a task log; otherwise the
+// GetGitURL returns the URL git is invoked with. With secure set, the URL is
+// returned exactly as configured, without the access key's credentials; it may
+// still carry userinfo typed into the URL itself, which go-git uses as basic
+// auth, so it is not safe to log. Use GetRedactedGitURL for that. Otherwise the
 // repository's login/password access key is embedded in the userinfo, percent
 // encoded, so credentials containing "@", ":", "#" or "%" survive intact.
 func (r Repository) GetGitURL(secure bool) string {
@@ -120,16 +122,10 @@ func (r Repository) GetGitURL(secure bool) string {
 	}
 
 	if secure {
-		if r.GetType() == RepositoryHTTP {
-			if parsed, err := url.Parse(rawURL); err == nil && parsed.User != nil {
-				parsed.User = nil
-				return parsed.String()
-			}
-		}
 		return rawURL
 	}
 
-	if r.GetType() == RepositoryHTTP {
+	if r.GetType() == RepositoryHTTP && r.SSHKey.Type == AccessKeyLoginPassword {
 		parsed, err := url.Parse(rawURL)
 		if err != nil {
 			// Keep the URL as configured rather than failing the task here, but make
@@ -142,31 +138,62 @@ func (r Repository) GetGitURL(secure bool) string {
 			return rawURL
 		}
 
-		switch r.SSHKey.Type {
-		case AccessKeyLoginPassword:
-			if r.SSHKey.LoginPassword.Login == "" {
-				if r.SSHKey.LoginPassword.Password != "" {
-					parsed.User = url.User(r.SSHKey.LoginPassword.Password)
-				}
-			} else {
-				parsed.User = url.UserPassword(r.SSHKey.LoginPassword.Login, r.SSHKey.LoginPassword.Password)
+		if r.SSHKey.LoginPassword.Login == "" {
+			if r.SSHKey.LoginPassword.Password == "" {
+				return rawURL
 			}
+			parsed.User = url.User(r.SSHKey.LoginPassword.Password)
+		} else {
+			parsed.User = url.UserPassword(r.SSHKey.LoginPassword.Login, r.SSHKey.LoginPassword.Password)
+		}
 
-			// Credentials are still embedded for plain http so existing installations
-			// keep working, but the transport is unencrypted and the credentials are
-			// sent in the clear.
-			if parsed.User != nil && strings.EqualFold(parsed.Scheme, "http") {
-				log.WithFields(log.Fields{
-					"context":       "repository",
-					"repository_id": r.ID,
-				}).Warn("sending git credentials over an unencrypted http connection, use https instead")
-			}
+		// Credentials are still embedded for plain http so existing installations
+		// keep working, but the transport is unencrypted and the credentials are
+		// sent in the clear.
+		if strings.EqualFold(parsed.Scheme, "http") {
+			log.WithFields(log.Fields{
+				"context":       "repository",
+				"repository_id": r.ID,
+			}).Warn("sending git credentials over an unencrypted http connection, use https instead")
 		}
 
 		return parsed.String()
 	}
 
 	return rawURL
+}
+
+// GetRedactedGitURL returns the repository URL with any userinfo removed, for
+// writing to task logs. Unlike GetGitURL(true) it never returns credentials,
+// including ones typed into the URL itself.
+func (r Repository) GetRedactedGitURL() string {
+	if r.GetType() == RepositoryLocal {
+		return util.NormalizeLocalFilesystemPath(r.GitURL)
+	}
+	return redactURLUserinfo(r.GitURL)
+}
+
+// redactURLUserinfo drops everything between "://" and the last "@" of a URL.
+//
+// net/url is deliberately not used: credentials are typed in by hand and are
+// often not valid URL syntax. A token containing "/" or "#" makes net/url read
+// it as the host or the fragment and report no userinfo at all, so a parser
+// based redaction would log it verbatim. Cutting at the last "@" can over-trim
+// a URL that has an "@" after the host, which only affects how it is displayed.
+// scp-style SSH addresses ("git@host:path") have no scheme, carry no secret and
+// are returned unchanged.
+func redactURLUserinfo(rawURL string) string {
+	schemeEnd := strings.Index(rawURL, "://")
+	if schemeEnd < 0 {
+		return rawURL
+	}
+	rest := rawURL[schemeEnd+3:]
+
+	at := strings.LastIndex(rest, "@")
+	if at < 0 {
+		return rawURL
+	}
+	return rawURL[:schemeEnd+3] + rest[at+1:]
 }
 
 func (r Repository) GetType() RepositoryType {

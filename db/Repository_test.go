@@ -122,7 +122,7 @@ func TestRepository_GetGitURL(t *testing.T) {
 			ExpectedGitUrl: "https://token%25with%23special%40chars@devops.domain.com/tfs/project/_git/repo",
 		},
 		{
-			name: "HTTPS secure=true strips embedded credentials",
+			name: "HTTPS secure=true does not embed the access key",
 			Repository: Repository{
 				GitURL: "https://devops.domain.com/tfs/project/_git/repo",
 				SSHKey: AccessKey{
@@ -137,12 +137,22 @@ func TestRepository_GetGitURL(t *testing.T) {
 			ExpectedGitUrl: "https://devops.domain.com/tfs/project/_git/repo",
 		},
 		{
-			name: "HTTPS with userinfo in URL secure=true strips userinfo",
+			// go_git clones with GetGitURL(true) and takes basic auth from the
+			// URL's userinfo when no access key is set, so it must be kept.
+			name: "HTTPS secure=true keeps userinfo typed into the URL",
+			Repository: Repository{
+				GitURL: "https://TOKEN@github.com/user/project.git",
+			},
+			Secure:         true,
+			ExpectedGitUrl: "https://TOKEN@github.com/user/project.git",
+		},
+		{
+			name: "HTTPS without access key keeps userinfo typed into the URL",
 			Repository: Repository{
 				GitURL: "https://user:secret@devops.domain.com:8443/tfs/project/_git/repo",
 			},
-			Secure:         true,
-			ExpectedGitUrl: "https://devops.domain.com:8443/tfs/project/_git/repo",
+			Secure:         false,
+			ExpectedGitUrl: "https://user:secret@devops.domain.com:8443/tfs/project/_git/repo",
 		},
 		{
 			name: "SSH URL is returned as-is",
@@ -193,6 +203,41 @@ func TestRepository_GetGitURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gitUrl := tt.Repository.GetGitURL(tt.Secure)
 			assert.Equal(t, tt.ExpectedGitUrl, gitUrl, "wrong gitUrl for scenario: %s", tt.name)
+		})
+	}
+}
+
+func TestRepository_GetRedactedGitURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		gitURL   string
+		expected string
+	}{
+		{"login and password", "https://user:secret@devops.domain.com:8443/tfs/_git/repo", "https://devops.domain.com:8443/tfs/_git/repo"},
+		{"token only", "https://ghp_TOKEN@github.com/user/project.git", "https://github.com/user/project.git"},
+		{"no userinfo", "https://github.com/user/project.git", "https://github.com/user/project.git"},
+		{"plain http", "http://user:secret@git.local/repo.git", "http://git.local/repo.git"},
+		{"ssh scheme", "ssh://git@github.com/user/project.git", "ssh://github.com/user/project.git"},
+		{"scp-style ssh is unchanged", "git@github.com:user/project.git", "git@github.com:user/project.git"},
+		{"local path is unchanged", "/tmp/local/repo", "/tmp/local/repo"},
+
+		// Malformed credentials that net/url either rejects or misreads as the
+		// host, path or fragment. None of them may reach the log.
+		{"invalid percent escape", "https://user:secret%zz@example.com/repo.git", "https://example.com/repo.git"},
+		{"slash in token", "https://tok/en@github.com/user/project.git", "https://github.com/user/project.git"},
+		{"slash in password", "https://user:p/ss@github.com/user/project.git", "https://github.com/user/project.git"},
+		{"hash in token", "https://tok#en@github.com/user/project.git", "https://github.com/user/project.git"},
+		{"question mark in password", "https://user:p?ss@github.com/user/project.git", "https://github.com/user/project.git"},
+		{"at sign in password", "https://user:p@ss@github.com/user/project.git", "https://github.com/user/project.git"},
+		{"space in password", "https://user:pa ss@github.com/user/project.git", "https://github.com/user/project.git"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			redacted := Repository{GitURL: tt.gitURL}.GetRedactedGitURL()
+
+			assert.Equal(t, tt.expected, redacted)
+			assert.NotContains(t, redacted, "secret")
+			assert.NotContains(t, redacted, "TOKEN")
 		})
 	}
 }
