@@ -190,16 +190,6 @@
       dense
     />
 
-    <v-switch
-      v-model="item.enabled"
-      :label="$t('enabled')"
-      class="mt-4"
-      :disabled="formSaving"
-      inset
-      dense
-      hide-details
-    />
-
     <v-expansion-panels flat class="mt-4 alert-form__template">
       <v-expansion-panel>
         <v-expansion-panel-header class="px-0">
@@ -230,6 +220,18 @@
         </v-expansion-panel-content>
       </v-expansion-panel>
     </v-expansion-panels>
+
+    <v-switch
+        style="position: absolute; bottom: 0; left: 0;"
+        v-model="item.enabled"
+        :label="$t('enabled')"
+        class="mt-4"
+        :disabled="formSaving"
+        inset
+        dense
+        hide-details
+    />
+
   </v-form>
 </template>
 <script>

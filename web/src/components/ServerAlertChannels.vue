@@ -10,36 +10,44 @@
 
       <div class="mb-3">
         <v-chip
-          v-for="ch in configuredChannels"
+          v-for="ch in visibleChannels"
           :key="ch.type"
           small
           class="mr-2 mb-2"
-          :outlined="!project.alert"
-          :color="project.alert ? 'primary' : undefined"
+          :class="{ 'server-alert-channels__chip--clickable': isTelegram(ch) }"
+          :outlined="!project.alert || isTelegramUnset(ch)"
+          :color="chipColor(ch)"
+          :text-color="isTelegramUnset(ch) ? 'grey' : undefined"
+          :data-testid="`alerts-serverChannel-${ch.type}`"
+          @click="isTelegram(ch) && toggleTelegram()"
         >
           <v-icon left small>{{ ch.icon }}</v-icon>
           {{ ch.title }}
+          <span v-if="isTelegramUnset(ch)" class="ml-1 caption">
+            ({{ $t('serverAlertTelegramChatMissing') }})
+          </span>
+          <v-icon v-if="isTelegram(ch)" right small>mdi-pencil</v-icon>
         </v-chip>
 
-        <span v-if="configuredChannels.length === 0" class="caption grey--text">
+        <span v-if="visibleChannels.length === 0" class="caption grey--text">
           {{ $t('serverAlertChannelsNone') }}
         </span>
       </div>
 
-      <v-text-field
-        v-if="telegramConfigured"
-        v-model="form.alert_chat"
-        :label="$t('telegramChatIdOptional')"
-        :hint="$t('serverAlertTelegramChatHint')"
-        persistent-hint
-        :disabled="!canEdit || saving"
-        class="mt-4"
-        style="max-width: 400px"
-        data-testid="alerts-serverTelegramChat"
-        outlined
-        dense
-      />
-
+      <HighlightedCard v-if="telegramEditing" tick-left="40px">
+        <v-text-field
+          v-model="form.alert_chat"
+          :label="$t('telegramChatId')"
+          :hint="$t('serverAlertTelegramChatHint')"
+          persistent-hint
+          :disabled="!canEdit || saving"
+          style="max-width: 400px"
+          data-testid="alerts-serverTelegramChat"
+          autofocus
+          outlined
+          dense
+        />
+      </HighlightedCard>
     </v-card-text>
 
     <v-card-actions v-if="canEdit" class="px-4 pb-3">
@@ -70,9 +78,15 @@
     </v-card-actions>
   </v-card>
 </template>
+<style scoped>
+.server-alert-channels__chip--clickable {
+  cursor: pointer;
+}
+</style>
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';
+import HighlightedCard from '@/components/HighlightedCard.vue';
 import { getErrorMessage } from '@/lib/error';
 
 /**
@@ -81,6 +95,8 @@ import { getErrorMessage } from '@/lib/error';
  * which is what "Allow alerts for this project" did before named alerts.
  */
 export default {
+  components: { HighlightedCard },
+
   props: {
     projectId: Number,
     channels: Array,
@@ -95,16 +111,26 @@ export default {
         alert_chat: '',
       },
       saving: false,
+      telegramEditing: false,
     };
   },
 
   computed: {
-    configuredChannels() {
-      return (this.channels || []).filter((c) => c.server_configured);
+    // Channels configured server-wide, plus Telegram whenever the server has
+    // a bot token: it only lacks a chat ID, which the project can set here.
+    visibleChannels() {
+      return (this.channels || []).filter(
+        (c) => c.server_configured || (c.type === 'telegram' && c.ready),
+      );
     },
 
-    telegramConfigured() {
-      return (this.channels || []).some((c) => c.type === 'telegram' && c.ready);
+    // Channels that can actually deliver for this project.
+    configuredChannels() {
+      return this.visibleChannels.filter((c) => c.server_configured || this.hasProjectChat);
+    },
+
+    hasProjectChat() {
+      return (this.form.alert_chat || '').trim() !== '';
     },
 
     dirty() {
@@ -121,6 +147,27 @@ export default {
   },
 
   methods: {
+    isTelegram(ch) {
+      return ch.type === 'telegram';
+    },
+
+    // Telegram with no chat at all (neither server-wide nor project) can not
+    // send, so the chip stays grey until a chat ID is entered.
+    isTelegramUnset(ch) {
+      return this.isTelegram(ch) && !ch.server_configured && !this.hasProjectChat;
+    },
+
+    chipColor(ch) {
+      if (this.isTelegramUnset(ch)) {
+        return undefined;
+      }
+      return this.project.alert ? 'primary' : undefined;
+    },
+
+    toggleTelegram() {
+      this.telegramEditing = !this.telegramEditing;
+    },
+
     async load() {
       this.project = (await axios({
         method: 'get',
