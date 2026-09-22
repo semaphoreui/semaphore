@@ -210,6 +210,7 @@ func main() {
 	h.Before("project > /api/project/{project_id}/alerts/{alert_id} > Get alert > 200 > application/json", capabilityWrapper("alert"))
 	h.Before("project > /api/project/{project_id}/alerts/{alert_id} > Update alert > 204 > application/json", capabilityWrapper("alert"))
 	h.Before("project > /api/project/{project_id}/alerts/{alert_id} > Delete alert > 204 > application/json", capabilityWrapper("alert"))
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id}/active > Enable or disable alert > 204 > application/json", capabilityWrapper("alert"))
 	h.Before("project > /api/project/{project_id}/alerts/{alert_id}/refs > Get objects that reference this alert > 200 > application/json", capabilityWrapper("alert"))
 	h.Before("project > /api/project/{project_id}/alerts/{alert_id}/test > Send a test message for this alert > 204 > application/json", skipTest)
 

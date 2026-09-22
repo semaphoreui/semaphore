@@ -119,6 +119,22 @@ func (d *SqlDb) validateAlertKey(projectID int, keyID *int) error {
 	return nil
 }
 
+func (d *SqlDb) SetAlertActive(projectID int, alertID int, active bool) error {
+	res, err := d.exec(
+		"update project__alert set enabled=? where project_id=? and id=?",
+		active,
+		projectID,
+		alertID,
+	)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return db.ErrNotFound
+	}
+	return nil
+}
+
 func (d *SqlDb) DeleteAlert(projectID int, alertID int) error {
 	refs, err := d.GetAlertRefs(projectID, alertID)
 	if err != nil {

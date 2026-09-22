@@ -135,6 +135,34 @@ func (c *AlertController) UpdateAlert(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// SetAlertActive toggles the enabled flag without touching the rest of the
+// alert, so the list page can switch alerts on and off in place.
+func (c *AlertController) SetAlertActive(w http.ResponseWriter, r *http.Request) {
+	alert := helpers.GetFromContext(r, "alert").(db.Alert)
+
+	var body struct {
+		Active bool `json:"active"`
+	}
+	if !helpers.Bind(w, r, &body) {
+		return
+	}
+
+	if err := helpers.Store(r).SetAlertActive(alert.ProjectID, alert.ID, body.Active); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   alert.ProjectID,
+		ObjectType:  db.EventAlert,
+		ObjectID:    alert.ID,
+		Description: fmt.Sprintf("Alert %s %s", alert.Name, map[bool]string{true: "enabled", false: "disabled"}[body.Active]),
+	})
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (c *AlertController) RemoveAlert(w http.ResponseWriter, r *http.Request) {
 	alert := helpers.GetFromContext(r, "alert").(db.Alert)
 

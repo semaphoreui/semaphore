@@ -91,7 +91,8 @@ The existing *suppress success* / *suppress error* flags still apply to both.
 
 - New **Alerts** page in the project sidebar: a server channels card (switch,
   Telegram chat ID, list of configured channels) and the project alert table
-  with test, clone, edit and delete.
+  with an enable/disable switch per row (like schedules and runners), test,
+  clone, edit and delete.
 - **New Alert** is a drop-down listing the channels, like templates,
   inventories and schedules. The type is fixed once chosen; the form has no
   type selector and its fields are driven by the channel description from
@@ -106,7 +107,8 @@ The existing *suppress success* / *suppress error* flags still apply to both.
 - `GET /project/{id}/alerts/channels` — supported channels, their fields,
   default events, default template, the secret they need (access key type)
   and whether the server-wide secret exists.
-- `GET /project/{id}/alerts/{alert_id}/refs`, `POST /project/{id}/alerts/{alert_id}/test`
+- `GET /project/{id}/alerts/{alert_id}/refs`, `POST /project/{id}/alerts/{alert_id}/test`,
+  `PUT /project/{id}/alerts/{alert_id}/active`
 - Templates and schedules gain `alert_mode` and `alert_ids`.
 - Backups gain an `alerts` section; templates and schedules reference alerts
   by name, alerts reference their access key by name.

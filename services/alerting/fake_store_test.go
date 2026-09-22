@@ -114,6 +114,15 @@ func (s *fakeStore) UpdateAlert(alert db.Alert) error {
 	s.alerts[alert.ID] = alert
 	return nil
 }
+func (s *fakeStore) SetAlertActive(_ int, alertID int, active bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	a := s.alerts[alertID]
+	a.Enabled = active
+	s.alerts[alertID] = a
+	return nil
+}
+
 func (s *fakeStore) DeleteAlert(_ int, alertID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

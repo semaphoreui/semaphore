@@ -492,6 +492,7 @@ type AlertManager interface {
 	GetDefaultAlertIDs(projectID int) ([]int, error)
 	CreateAlert(alert Alert) (Alert, error)
 	UpdateAlert(alert Alert) error
+	SetAlertActive(projectID int, alertID int, active bool) error
 	DeleteAlert(projectID int, alertID int) error
 	GetAlertRefs(projectID int, alertID int) (ObjectReferrers, error)
 

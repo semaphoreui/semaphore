@@ -3667,6 +3667,27 @@ paths:
           description: alert removed
         400:
           description: Alert is used by templates or schedules
+  /project/{project_id}/alerts/{alert_id}/active:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/alert_id"
+    put:
+      tags:
+        - project
+      summary: Enable or disable alert
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              active:
+                type: boolean
+                example: true
+      responses:
+        204:
+          description: alert updated
   /project/{project_id}/alerts/{alert_id}/refs:
     parameters:
       - $ref: "#/parameters/project_id"

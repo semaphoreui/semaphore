@@ -102,6 +102,18 @@
         class="alerts-table"
         :no-data-text="$t('noAlertsYet')"
       >
+        <template v-slot:item.enabled="{ item }">
+          <v-switch
+            :disabled="!can(USER_PERMISSIONS.manageProjectResources)"
+            v-model="item.enabled"
+            inset
+            hide-details
+            class="mt-0"
+            data-testid="alerts-enabled"
+            @change="setActive(item.id, item.enabled)"
+          ></v-switch>
+        </template>
+
         <template v-slot:item.name="{ item }">
           <span :class="{ 'grey--text': !item.enabled }">
             <v-icon small class="mr-2">{{ channelIcon(item.type) }}</v-icon>
@@ -139,12 +151,6 @@
             outlined
             color="primary"
           >{{ $t('default') }}</v-chip>
-        </template>
-
-        <template v-slot:item.enabled="{ item }">
-          <v-icon small :color="item.enabled ? 'success' : 'grey'">
-            {{ item.enabled ? 'mdi-check-circle' : 'mdi-pause-circle-outline' }}
-          </v-icon>
         </template>
 
         <template v-slot:item.actions="{ item }">
@@ -248,6 +254,23 @@ export default {
       this.editItem('new');
     },
 
+    async setActive(alertId, active) {
+      try {
+        await axios({
+          method: 'put',
+          url: `/api/project/${this.projectId}/alerts/${alertId}/active`,
+          responseType: 'json',
+          data: { active },
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+        await this.loadItems();
+      }
+    },
+
     async testAlert(item) {
       try {
         await axios({
@@ -291,6 +314,12 @@ export default {
 
     getHeaders() {
       return [
+        {
+          text: '',
+          value: 'enabled',
+          sortable: false,
+          width: '0%',
+        },
         { text: this.$i18n.t('name'), value: 'name', width: '30%' },
         { text: this.$i18n.t('type'), value: 'type', width: '18%' },
         {
@@ -305,7 +334,6 @@ export default {
           sortable: false,
           width: '12%',
         },
-        { text: this.$i18n.t('enabled'), value: 'enabled', width: '10%' },
         { value: 'actions', sortable: false, width: '0%' },
       ];
     },

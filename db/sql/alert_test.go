@@ -63,6 +63,28 @@ func TestAlerts_CRUD(t *testing.T) {
 	assert.ErrorIs(t, err, db.ErrNotFound)
 }
 
+func TestAlerts_SetActive(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, _ := newAlertTestProject(t, store)
+
+	alert, err := store.CreateAlert(db.Alert{ProjectID: projectID, Name: "Ops", Type: "slack", URL: strPtr("https://hooks.example/a"), Enabled: true})
+	require.NoError(t, err)
+
+	require.NoError(t, store.SetAlertActive(projectID, alert.ID, false))
+	loaded, err := store.GetAlert(projectID, alert.ID)
+	require.NoError(t, err)
+	assert.False(t, loaded.Enabled)
+
+	require.NoError(t, store.SetAlertActive(projectID, alert.ID, true))
+	loaded, err = store.GetAlert(projectID, alert.ID)
+	require.NoError(t, err)
+	assert.True(t, loaded.Enabled)
+
+	other, err := store.CreateProject(db.Project{Name: "other"})
+	require.NoError(t, err)
+	assert.ErrorIs(t, store.SetAlertActive(other.ID, alert.ID, false), db.ErrNotFound)
+}
+
 func TestAlerts_NameMustBeUniquePerProject(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	projectID, _ := newAlertTestProject(t, store)

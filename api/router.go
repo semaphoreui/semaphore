@@ -539,6 +539,7 @@ func Route(
 	projectAlertManagement.HandleFunc("/{alert_id}", alertController.GetAlerts).Methods("GET", "HEAD")
 	projectAlertManagement.HandleFunc("/{alert_id}", alertController.UpdateAlert).Methods("PUT")
 	projectAlertManagement.HandleFunc("/{alert_id}", alertController.RemoveAlert).Methods("DELETE")
+	projectAlertManagement.HandleFunc("/{alert_id}/active", alertController.SetAlertActive).Methods("PUT")
 	projectAlertManagement.HandleFunc("/{alert_id}/refs", alertController.GetAlertRefs).Methods("GET", "HEAD")
 	projectAlertManagement.HandleFunc("/{alert_id}/test", alertController.TestAlert).Methods("POST")
 
