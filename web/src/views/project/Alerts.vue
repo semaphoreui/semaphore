@@ -3,7 +3,8 @@
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :title="itemId === 'new' ? $t('newAlert') : $t('editAlert')"
+      :title="dialogTitle"
+      :icon="channelIcon(alertType)"
       :max-width="640"
       @save="loadItems()"
     >
@@ -11,6 +12,7 @@
         <AlertForm
           :project-id="projectId"
           :item-id="itemId"
+          :alert-type="alertType"
           :source-item-id="cloneSourceId"
           @save="onSave"
           @error="onError"
@@ -49,12 +51,34 @@
         <v-icon left small>mdi-send-outline</v-icon>
         {{ $t('testAlerts') }}
       </v-btn>
-      <v-btn
-        color="primary"
-        @click="createNew()"
-        data-testid="alerts-new"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >{{ $t('newAlert') }}</v-btn>
+      <v-menu offset-y>
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn
+            class="pr-2"
+            v-bind="attrs"
+            v-on="on"
+            color="primary"
+            data-testid="alerts-new"
+            v-if="can(USER_PERMISSIONS.manageProjectResources)"
+          >{{ $t('newAlert') }}
+            <v-icon>mdi-chevron-down</v-icon>
+          </v-btn>
+        </template>
+        <v-list>
+          <v-list-item
+            v-for="ch in channels"
+            :key="ch.type"
+            link
+            :data-testid="`alerts-new-${ch.type}`"
+            @click="createNew(ch.type)"
+          >
+            <v-list-item-icon>
+              <v-icon>{{ ch.icon }}</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>{{ ch.title }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
     </v-toolbar>
 
     <v-divider />
@@ -84,7 +108,7 @@
             <a
               v-if="can(USER_PERMISSIONS.manageProjectResources)"
               href="#"
-              @click.prevent="editExisting(item.id)"
+              @click.prevent="editExisting(item)"
             >{{ item.name }}</a>
             <span v-else>{{ item.name }}</span>
           </span>
@@ -128,13 +152,13 @@
             <v-btn @click="testAlert(item)" :title="$t('testAlert')" data-testid="alerts-test">
               <v-icon>mdi-send-outline</v-icon>
             </v-btn>
-            <v-btn @click="cloneItem(item.id)" :title="$t('cloneAlert')">
+            <v-btn @click="cloneItem(item)" :title="$t('cloneAlert')">
               <v-icon>mdi-content-copy</v-icon>
             </v-btn>
             <v-btn @click="askDeleteItem(item.id)" :title="$t('deleteAlert')">
               <v-icon>mdi-delete</v-icon>
             </v-btn>
-            <v-btn @click="editExisting(item.id)" :title="$t('editAlert')">
+            <v-btn @click="editExisting(item)" :title="$t('editAlert')">
               <v-icon>mdi-pencil</v-icon>
             </v-btn>
           </v-btn-toggle>
@@ -168,9 +192,19 @@ export default {
     return {
       channels: null,
       cloneSourceId: null,
+      alertType: null,
       testingAll: false,
       ALERT_EVENTS,
     };
+  },
+
+  computed: {
+    dialogTitle() {
+      const title = this.channelTitle(this.alertType);
+      return this.itemId === 'new'
+        ? this.$t('newAlertOfType', { type: title })
+        : this.$t('editAlertOfType', { type: title });
+    },
   },
 
   methods: {
@@ -196,18 +230,21 @@ export default {
       return effectiveAlertEvents(alert, findChannel(this.channels, alert.type)).includes(event);
     },
 
-    createNew() {
+    createNew(type) {
       this.cloneSourceId = null;
+      this.alertType = type;
       this.editItem('new');
     },
 
-    editExisting(id) {
+    editExisting(item) {
       this.cloneSourceId = null;
-      this.editItem(id);
+      this.alertType = item.type;
+      this.editItem(item.id);
     },
 
-    cloneItem(id) {
-      this.cloneSourceId = id;
+    cloneItem(item) {
+      this.cloneSourceId = item.id;
+      this.alertType = item.type;
       this.editItem('new');
     },
 

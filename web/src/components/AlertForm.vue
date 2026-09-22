@@ -18,26 +18,6 @@
       dense
     />
 
-    <v-select
-      v-model="item.type"
-      :label="$t('type')"
-      :items="channels"
-      item-text="title"
-      item-value="type"
-      :disabled="formSaving"
-      data-testid="alert-type"
-      outlined
-      dense
-      @change="onTypeChange"
-    >
-      <template v-slot:selection="{ item: ch }">
-        <v-icon small class="mr-2">{{ ch.icon }}</v-icon>{{ ch.title }}
-      </template>
-      <template v-slot:item="{ item: ch }">
-        <v-icon small class="mr-2">{{ ch.icon }}</v-icon>{{ ch.title }}
-      </template>
-    </v-select>
-
     <template v-for="field in visibleFields">
       <v-text-field
         v-if="field.name === 'chat_id'"
@@ -270,6 +250,9 @@ export default {
   mixins: [ItemFormBase],
 
   props: {
+    // Channel type chosen in the "New alert" menu; the type of an alert
+    // never changes after creation.
+    alertType: String,
     sourceItemId: Number,
   },
 
@@ -342,7 +325,7 @@ export default {
     getNewItem() {
       return {
         name: '',
-        type: null,
+        type: this.alertType,
         enabled: true,
         is_default: true,
         events: [],
@@ -375,7 +358,8 @@ export default {
       }
 
       if (!this.item.type) {
-        this.item.type = this.channels.length > 0 ? this.channels[0].type : null;
+        const fallback = this.channels.length > 0 ? this.channels[0].type : null;
+        this.item.type = this.alertType || fallback;
       }
       if (!Array.isArray(this.item.events) || this.item.events.length === 0) {
         this.$set(this.item, 'events', [...(this.channel ? this.channel.default_events : [])]);
@@ -398,14 +382,6 @@ export default {
         const v = f.name === 'url' ? this.item.url : this.item.params[f.name];
         return v != null && v !== '' && v !== false;
       });
-    },
-
-    onTypeChange() {
-      this.$set(this.item, 'events', [...(this.channel ? this.channel.default_events : [])]);
-      this.$set(this.item, 'body', this.defaultBody);
-      this.$set(this.item, 'params', {});
-      this.item.key_id = null;
-      this.secretMode = this.channel && this.channel.ready ? 'server' : 'own';
     },
 
     resetBodyToDefault() {

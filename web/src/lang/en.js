@@ -132,6 +132,8 @@ export default {
   alerts: 'Alerts',
   newAlert: 'New Alert',
   editAlert: 'Edit Alert',
+  newAlertOfType: 'New {type} Alert',
+  editAlertOfType: 'Edit {type} Alert',
   deleteAlert: 'Delete alert',
   askDeleteAlert: 'Are you sure you want to delete this alert?',
   cloneAlert: 'Clone',

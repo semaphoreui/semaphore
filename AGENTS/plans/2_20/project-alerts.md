@@ -92,7 +92,10 @@ The existing *suppress success* / *suppress error* flags still apply to both.
 - New **Alerts** page in the project sidebar: a server channels card (switch,
   Telegram chat ID, list of configured channels) and the project alert table
   with test, clone, edit and delete.
-- Alert form fields are driven by the channel description from the API.
+- **New Alert** is a drop-down listing the channels, like templates,
+  inventories and schedules. The type is fixed once chosen; the form has no
+  type selector and its fields are driven by the channel description from
+  the API.
 - Template form: project defaults / custom list plus the two suppress flags.
 - Schedule form: inherit / custom list.
 - Alert fields are removed from project settings.

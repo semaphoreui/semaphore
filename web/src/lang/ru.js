@@ -122,6 +122,8 @@ export default {
   alerts: 'Оповещения',
   newAlert: 'Новое оповещение',
   editAlert: 'Изменить оповещение',
+  newAlertOfType: 'Новое оповещение {type}',
+  editAlertOfType: 'Изменить оповещение {type}',
   deleteAlert: 'Удалить оповещение',
   askDeleteAlert: 'Вы уверены, что хотите удалить это оповещение?',
   cloneAlert: 'Клонировать',
