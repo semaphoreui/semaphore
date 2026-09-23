@@ -178,16 +178,11 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 		}
 	}
 
-	// Merge Environment Secret Variables (type "var") so Ansible receives them
-	// inside the JSON --extra-vars payload. Passing them as separate
-	// name=value CLI args breaks values with spaces or newlines.
-	// Applied after the survey-env filter so secrets win on name collisions.
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		extraVars[secret.Name] = secret.Secret
-	}
+	// Intentionally do NOT merge Environment Secret Variables (type "var") here.
+	// That map is derived from Environment.JSON / Task.Environment (DB-visible
+	// task params). Secrets must stay out of it and are passed only via
+	// ephemeral CLI args (see getEnvironmentSecretVarsJSON / shell+terraform
+	// secret loops).
 
 	vars := make(map[string]any)
 	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
@@ -210,6 +205,28 @@ func (t *LocalExecutor) getEnvironmentExtraVarsJSON(username string, incomingVer
 	str = string(ev)
 
 	return
+}
+
+// getEnvironmentSecretVarsJSON builds a JSON object of Variable Group secrets
+// of type "var". It is used only as an ephemeral Ansible --extra-vars value so
+// spaces/newlines survive without writing secrets into Environment.JSON /
+// Task.Environment (which are stored in the database).
+func (t *LocalExecutor) getEnvironmentSecretVarsJSON() (str string, err error) {
+	secretVars := make(map[string]any)
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type != db.EnvironmentSecretVar {
+			continue
+		}
+		secretVars[secret.Name] = secret.Secret
+	}
+	if len(secretVars) == 0 {
+		return "", nil
+	}
+	ev, err := json.Marshal(secretVars)
+	if err != nil {
+		return
+	}
+	return string(ev), nil
 }
 
 func (t *LocalExecutor) getEnvironmentENV() (res []string, err error) {
@@ -346,6 +363,14 @@ func (t *LocalExecutor) getShellArgs(username string, incomingVersion *string) (
 	// Script to run
 	args = append(args, t.Template.Playbook)
 
+	// Include Environment Secret Vars (kept out of getEnvironmentExtraVars /
+	// Environment.JSON so they are not DB-visible task params).
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type == db.EnvironmentSecretVar {
+			args = append(args, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+		}
+	}
+
 	// Include extra args from template
 	args = append(args, templateArgs...)
 
@@ -419,8 +444,17 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 		argsMap["default"] = []string{}
 	}
 
+	// Environment secret vars stay out of getEnvironmentExtraVars (DB-visible
+	// task params) and are appended as ephemeral -var CLI args instead.
+	secretArgs := []string{}
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type != db.EnvironmentSecretVar {
+			continue
+		}
+		secretArgs = append(secretArgs, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	}
+
 	// Add common args to each stage except init.
-	// Environment secret vars are already in varArgs via getEnvironmentExtraVars.
 	for stage := range argsMap {
 		if stage == "init" {
 			continue
@@ -429,6 +463,7 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 		combined := append([]string{}, destroyArgs...)
 		combined = append(combined, argsMap[stage]...)
 		combined = append(combined, varArgs...)
+		combined = append(combined, secretArgs...)
 		argsMap[stage] = combined
 	}
 
@@ -539,6 +574,17 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		t.Log("Could not remove command environment, if existent it will be passed to --extra-vars. This is not fatal but be aware of side effects")
 	} else if extraVars != "" {
 		args = append(args, "--extra-vars", extraVars)
+	}
+
+	// Pass Variable Group secrets as a separate JSON --extra-vars so values with
+	// spaces/newlines survive, without merging them into Environment.JSON /
+	// Task.Environment (DB-stored task params).
+	secretVars, secretErr := t.getEnvironmentSecretVarsJSON()
+	if secretErr != nil {
+		t.Log(secretErr.Error())
+		t.Log("Could not marshal environment secret vars for --extra-vars")
+	} else if secretVars != "" {
+		args = append(args, "--extra-vars", secretVars)
 	}
 
 	templateArgs, taskArgs, err := t.getCLIArgs()

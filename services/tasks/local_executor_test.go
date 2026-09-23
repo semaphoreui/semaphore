@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -460,11 +461,11 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 	}
 }
 
-// TestGetEnvironmentExtraVars_MergesEnvironmentSecretVars verifies Variable
-// Group secrets of type "var" are merged into the shared extra-vars map
-// (JSON for Ansible) so values with spaces/newlines survive, override
-// same-named plain vars, and type "env" secrets stay out of extra-vars.
-func TestGetEnvironmentExtraVars_MergesEnvironmentSecretVars(t *testing.T) {
+// TestGetEnvironmentSecretVarsJSON verifies Variable Group secrets of type
+// "var" are exported as a separate JSON blob (for Ansible --extra-vars),
+// override keys when present, exclude type "env", and stay out of the shared
+// getEnvironmentExtraVars map (DB-visible task params).
+func TestGetEnvironmentSecretVarsJSON(t *testing.T) {
 	setupExecutorConfig(t)
 
 	exec := &LocalExecutor{
@@ -481,24 +482,22 @@ func TestGetEnvironmentExtraVars_MergesEnvironmentSecretVars(t *testing.T) {
 
 	extraVars, err := exec.getEnvironmentExtraVars("admin", nil)
 	require.NoError(t, err)
-
 	assert.Equal(t, "from-json", extraVars["PLAIN_VAR"])
-	assert.Equal(t, "value with spaces", extraVars["SPACED"])
-	assert.Equal(t, "line1\nline2", extraVars["MULTILINE"])
-	assert.Equal(t, "from-secret", extraVars["SHARED_KEY"], "secret var must override plain JSON key")
+	assert.Equal(t, "plain", extraVars["SHARED_KEY"], "plain JSON must not be overwritten by secrets")
+	assert.NotContains(t, extraVars, "SPACED")
 	assert.NotContains(t, extraVars, "ENV_ONLY")
 
-	jsonStr, err := exec.getEnvironmentExtraVarsJSON("admin", nil)
+	secretJSON, err := exec.getEnvironmentSecretVarsJSON()
 	require.NoError(t, err)
-
-	assert.Contains(t, jsonStr, `"SPACED":"value with spaces"`)
-	assert.Contains(t, jsonStr, `"MULTILINE":"line1\nline2"`)
-	assert.Contains(t, jsonStr, `"SHARED_KEY":"from-secret"`)
-	assert.NotContains(t, jsonStr, "ENV_ONLY")
-	assert.NotContains(t, jsonStr, "should-not-appear")
+	assert.Contains(t, secretJSON, `"SPACED":"value with spaces"`)
+	assert.Contains(t, secretJSON, `"MULTILINE":"line1\nline2"`)
+	assert.Contains(t, secretJSON, `"SHARED_KEY":"from-secret"`)
+	assert.NotContains(t, secretJSON, "ENV_ONLY")
+	assert.NotContains(t, secretJSON, "should-not-appear")
+	assert.NotContains(t, secretJSON, "PLAIN_VAR")
 }
 
-func TestGetEnvironmentExtraVars_SecretSurvivesSurveyEnvFilter(t *testing.T) {
+func TestGetEnvironmentExtraVars_DoesNotIncludeEnvironmentSecrets(t *testing.T) {
 	setupExecutorConfig(t)
 
 	exec := &LocalExecutor{
@@ -518,13 +517,14 @@ func TestGetEnvironmentExtraVars_SecretSurvivesSurveyEnvFilter(t *testing.T) {
 	extraVars, err := exec.getEnvironmentExtraVars("admin", nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "from-secret", extraVars["SHARED"], "environment secret must survive survey-env filtering")
+	assert.NotContains(t, extraVars, "SHARED", "survey-env filter removes SHARED; secret must not reappear in env map")
 	assert.Equal(t, "ok", extraVars["OTHER"])
 	assert.Contains(t, extraVars, "semaphore_vars")
 }
 
 // TestGetPlaybookArgs_SecretVarsInJSON verifies Ansible receives environment
-// secret vars inside the JSON --extra-vars payload, not as name=value.
+// secret vars as a separate JSON --extra-vars payload, not as name=value and
+// not mixed into the Environment.JSON-derived payload.
 func TestGetPlaybookArgs_SecretVarsInJSON(t *testing.T) {
 	setupExecutorConfig(t)
 
@@ -549,25 +549,31 @@ func TestGetPlaybookArgs_SecretVarsInJSON(t *testing.T) {
 	args, _, err := exec.getPlaybookArgs("admin", nil)
 	require.NoError(t, err)
 
-	foundJSON := false
+	var payloads []string
 	for i, arg := range args {
 		if arg == "--extra-vars" && i+1 < len(args) {
-			payload := args[i+1]
-			// Must not be the old name=value transport.
-			assert.NotEqual(t, "TOKEN=value with spaces", payload)
-			if assert.Contains(t, payload, `"TOKEN":"value with spaces"`) {
-				foundJSON = true
-			}
-			assert.Contains(t, payload, `"PLAIN":"ok"`)
-			assert.NotContains(t, payload, "ENV_SECRET")
+			payloads = append(payloads, args[i+1])
+			assert.NotEqual(t, "TOKEN=value with spaces", args[i+1])
 		}
 	}
-	assert.True(t, foundJSON, "expected TOKEN inside JSON --extra-vars, got %v", args)
+	require.NotEmpty(t, payloads, "expected --extra-vars, got %v", args)
+
+	joined := strings.Join(payloads, "\n")
+	assert.Contains(t, joined, `"TOKEN":"value with spaces"`)
+	assert.Contains(t, joined, `"PLAIN":"ok"`)
+	assert.NotContains(t, joined, "ENV_SECRET")
 	assert.NotContains(t, args, "TOKEN=value with spaces")
+
+	// Secrets must not be folded into the Environment.JSON payload.
+	for _, payload := range payloads {
+		if strings.Contains(payload, `"PLAIN":"ok"`) {
+			assert.NotContains(t, payload, `"TOKEN"`, "TOKEN must not live in the Environment.JSON extra-vars blob")
+		}
+	}
 }
 
 // TestGetShellArgs_EnvironmentSecretVar verifies shell tasks get environment
-// secret vars via the merged extra-vars path (single KEY=value argv).
+// secret vars as a dedicated KEY=value argv (not via getEnvironmentExtraVars).
 func TestGetShellArgs_EnvironmentSecretVar(t *testing.T) {
 	setupExecutorConfig(t)
 
@@ -593,8 +599,8 @@ func TestGetShellArgs_EnvironmentSecretVar(t *testing.T) {
 	assert.NotContains(t, args, "ENV_SECRET=env-only")
 }
 
-// TestGetTerraformArgs_EnvironmentSecretVar verifies terraform -var values
-// come from the merged extra-vars map, including secrets with spaces.
+// TestGetTerraformArgs_EnvironmentSecretVar verifies terraform gets
+// environment secrets as dedicated -var args, including values with spaces.
 func TestGetTerraformArgs_EnvironmentSecretVar(t *testing.T) {
 	setupExecutorConfig(t)
 
