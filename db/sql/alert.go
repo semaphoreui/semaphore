@@ -120,19 +120,19 @@ func (d *SqlDb) validateAlertKey(projectID int, keyID *int) error {
 }
 
 func (d *SqlDb) SetAlertActive(projectID int, alertID int, active bool) error {
-	res, err := d.exec(
+	// Existence is checked with a read, not with RowsAffected of the update:
+	// MySQL and MariaDB report the rows that actually changed, so setting the
+	// flag to its current value would look like "not found" there.
+	if _, err := d.GetAlert(projectID, alertID); err != nil {
+		return err
+	}
+	_, err := d.exec(
 		"update project__alert set enabled=? where project_id=? and id=?",
 		active,
 		projectID,
 		alertID,
 	)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return db.ErrNotFound
-	}
-	return nil
+	return err
 }
 
 func (d *SqlDb) DeleteAlert(projectID int, alertID int) error {
