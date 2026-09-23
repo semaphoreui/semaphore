@@ -55,3 +55,5 @@ create table `task__alert_send` (
   primary key (`task_id`, `destination`, `event`),
   foreign key (`task_id`) references `task`(`id`) on delete cascade
 );
+
+drop table if exists `event_backup_5784568`;
