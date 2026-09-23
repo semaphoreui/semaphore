@@ -1300,7 +1300,10 @@ definitions:
           the type the channel declares in AlertChannel.secret.key_type.
       params:
         type: object
-        description: Channel specific override settings (for example smtp_host, smtp_port, smtp_sender, smtp_secure, smtp_tls).
+        description: >-
+          Channel specific override settings (for example smtp_host, smtp_port, smtp_sender,
+          smtp_secure, smtp_tls). smtp_host is subject to the same outbound policy as webhook URLs:
+          localhost, loopback, link-local and cloud metadata addresses are rejected.
       body:
         type: string
         description: Custom Go template for the message. Empty means the channel default.

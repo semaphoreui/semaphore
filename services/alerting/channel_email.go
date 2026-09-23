@@ -3,6 +3,7 @@ package alerting
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -53,6 +54,10 @@ func (c *emailChannel) Secret() *SecretSpec {
 type smtpSettings struct {
 	host, port, sender, username, password string
 	secure, tls                            bool
+	// untrusted is set when the host was supplied by a project user rather
+	// than by config.json: the outbound policy of http.go then applies to
+	// it, both by name (settings) and by resolved address (Send).
+	untrusted bool
 }
 
 func (c *emailChannel) Validate(cfg *util.ConfigType, dest Destination) error {
@@ -83,14 +88,25 @@ func (c *emailChannel) settings(cfg *util.ConfigType, dest Destination) (smtpSet
 	if host := dest.Param(FieldSMTPHost); host != "" {
 		// An own server never inherits the server-wide credentials.
 		s = smtpSettings{
-			host:   host,
-			port:   dest.Param(FieldSMTPPort),
-			sender: dest.Param(FieldSMTPSender),
-			secure: dest.ParamBool(FieldSMTPSecure),
-			tls:    dest.ParamBool(FieldSMTPTLS),
+			host:      host,
+			port:      dest.Param(FieldSMTPPort),
+			sender:    dest.Param(FieldSMTPSender),
+			secure:    dest.ParamBool(FieldSMTPSecure),
+			tls:       dest.ParamBool(FieldSMTPTLS),
+			untrusted: !dest.Trusted,
+		}
+		if s.untrusted {
+			// Same policy as project webhook URLs: the server must not be
+			// turned into a port scanner of itself or of cloud metadata.
+			if err := ValidateOutboundHost(s.host); err != nil {
+				return s, common_errors.NewValidationError("smtp_host is not allowed")
+			}
 		}
 		if s.port == "" {
 			s.port = "25"
+		}
+		if _, err := strconv.ParseUint(s.port, 10, 16); err != nil || s.port == "0" {
+			return s, common_errors.NewValidationError("smtp_port must be a port number")
 		}
 		if s.sender == "" {
 			return s, common_errors.NewValidationError("smtp_sender is required when an own SMTP server is set")
@@ -133,26 +149,41 @@ func (c *emailChannel) Send(ctx context.Context, cfg *util.ConfigType, dest Dest
 		return common_errors.NewValidationError("no e-mail recipients")
 	}
 
+	opts := mailer.Options{
+		Host:     s.host,
+		Port:     s.port,
+		Secure:   s.secure,
+		TLS:      s.tls,
+		Username: s.username,
+		Password: s.password,
+		From:     s.sender,
+		Subject:  msg.Subject,
+		Body:     msg.Body,
+	}
+	if cfg != nil {
+		opts.TLSMinVersion = cfg.EmailTlsMinVersion
+	}
+	if s.untrusted {
+		// Resolve and filter at dial time too, so a name that passed
+		// validation can not be rebound to a forbidden address.
+		opts.Dial = guardedDialContext
+	}
+
 	var errs []error
 	for _, to := range dest.Recipients {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		err := mailer.Send(
-			s.secure,
-			s.tls,
-			s.host,
-			s.port,
-			s.username,
-			s.password,
-			s.sender,
-			to,
-			msg.Subject,
-			msg.Body,
-		)
-		if err != nil {
+		opts.To = to
+		if err := c.sendOne(ctx, opts); err != nil {
 			errs = append(errs, common_errors.NewUserError(err))
 		}
 	}
 	return errors.Join(errs...)
+}
+
+func (c *emailChannel) sendOne(ctx context.Context, opts mailer.Options) error {
+	ctx, cancel := context.WithTimeout(ctx, sendTimeout)
+	defer cancel()
+	return mailer.SendMail(ctx, opts)
 }

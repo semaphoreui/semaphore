@@ -40,12 +40,33 @@ func ValidateWebhookURL(raw string) error {
 		return common_errors.NewValidationError("URL must use http or https")
 	}
 
-	host := strings.ToLower(u.Hostname())
-	if hostForbidden(host) {
+	if err := ValidateOutboundHost(u.Hostname()); err != nil {
 		return common_errors.NewValidationError("URL host is not allowed")
 	}
-	if ip := net.ParseIP(host); ip != nil && ipForbidden(ip) {
-		return common_errors.NewValidationError("URL host is not allowed")
+	return nil
+}
+
+// ValidateOutboundHost applies the outbound policy to a bare host name or
+// IP (no scheme, no port), as supplied for an SMTP server override. It is
+// the same policy ValidateWebhookURL applies to the host of a webhook URL.
+// The check is by name only; the dial must go through guardedDialContext to
+// also cover what the name resolves to.
+func ValidateOutboundHost(host string) error {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" {
+		return common_errors.NewValidationError("host can not be empty")
+	}
+	if ip := net.ParseIP(strings.Trim(host, "[]")); ip != nil {
+		if ipForbidden(ip) {
+			return common_errors.NewValidationError("host is not allowed")
+		}
+		return nil
+	}
+	if strings.ContainsAny(host, "/:@ \t\r\n") || strings.Contains(host, "..") {
+		return common_errors.NewValidationError("invalid host")
+	}
+	if hostForbidden(host) {
+		return common_errors.NewValidationError("host is not allowed")
 	}
 	return nil
 }
