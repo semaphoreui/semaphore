@@ -928,7 +928,7 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		environmentVariables = append(environmentVariables, sshEnv)
 	}
 
-	environmentVariables = append(environmentVariables, t.hostConfigTaskEnv()...)
+	environmentVariables = append(environmentVariables, t.hostConfigEnv()...)
 
 	if t.Template.Type != db.TemplateTask {
 
@@ -1250,9 +1250,12 @@ func (t *LocalExecutor) getSSHAgentEnv() string {
 }
 
 // hostConfigEnv returns the environment the credential mappings of the project
-// need, for the commands Semaphore runs itself: galaxy downloads a role,
-// terraform fetches a module, and each has to reach a mapped host with the
-// mapped credential.
+// need. Every command of a task can start git of its own — galaxy downloads a
+// role, terraform fetches a module, a playbook clones a repository with the git
+// module — and each has to reach a mapped host with the mapped credential.
+//
+// It carries the same kind of secret the environment of a task already does,
+// which is what makes a mapping usable from a playbook at all.
 func (t *LocalExecutor) hostConfigEnv() []string {
 	if t.hostConfigInstallation == nil {
 		return nil
@@ -1263,21 +1266,6 @@ func (t *LocalExecutor) hostConfigEnv() []string {
 	var noKey ssh.AccessKeyInstallation
 
 	return noKey.GetGitEnvWithHostConfigs(t.hostConfigInstallation)
-}
-
-// hostConfigTaskEnv is hostConfigEnv for the process running the task itself.
-//
-// A task runs what the repository says it runs, so it is given the ssh part of
-// the mappings — enough for a playbook to reach a mapped host, and holding no
-// secret — but not the rewrites which carry a login and a password in clear.
-func (t *LocalExecutor) hostConfigTaskEnv() []string {
-	if t.hostConfigInstallation == nil {
-		return nil
-	}
-
-	var noKey ssh.AccessKeyInstallation
-
-	return noKey.GetGitEnvWithoutCredentials(t.hostConfigInstallation)
 }
 
 // inventorySSHCommonArgs returns the ssh options ansible must use to reach the

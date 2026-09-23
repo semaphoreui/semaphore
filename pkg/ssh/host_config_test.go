@@ -474,20 +474,74 @@ func TestInstallHostConfigs_RejectsCleartextCredentialURL(t *testing.T) {
 	assert.ErrorContains(t, err, "invalid URL")
 }
 
-// A task runs what the repository says it runs, so it must not be handed the
-// rewrites which carry a login and a password in clear.
-func TestGetGitEnvWithoutCredentials(t *testing.T) {
-	setupHostConfig(t)
+// strict_host_key_checking defaults to "no", whose options once carried the
+// executable as well, so the caller's own "ssh " produced "ssh ssh -o ..." and
+// git took the second one for the host.
+func TestGetGitEnvWithHostConfigs_SingleSSHExecutable(t *testing.T) {
+	prev := util.Config
+	t.Cleanup(func() { util.Config = prev })
 
-	installation, err := InstallHostConfigs(1, []db.HostConfig{{
-		ID: 1, ProjectID: 1, Type: db.HostConfigURL,
-		Name: "https://test.asdf.ru/", SSHKey: loginPasswordKey(1, "bob", "s3cr3t"),
-	}}, task_logger.NopLogger{})
-	require.NoError(t, err)
-	defer installation.Destroy()
+	for _, mode := range []util.SshStrictHostKeyChecking{
+		util.SshStrictHostKeyCheckingNo,
+		util.SshStrictHostKeyCheckingYes,
+		util.SshStrictHostKeyCheckingAcceptNew,
+	} {
+		t.Run(string(mode), func(t *testing.T) {
+			util.Config = &util.ConfigType{Ssh: &util.SshConfig{
+				StrictHostKeyChecking: mode,
+				KnownHostsFile:        "/tmp/known_hosts",
+			}}
 
-	var noKey AccessKeyInstallation
+			var key AccessKeyInstallation
+			env := key.GetGitEnvWithHostConfigs(&HostConfigInstallation{ConfigFile: "/tmp/c.conf"})
 
-	assert.Contains(t, strings.Join(noKey.GetGitEnvWithHostConfigs(installation), "\n"), "s3cr3t")
-	assert.NotContains(t, strings.Join(noKey.GetGitEnvWithoutCredentials(installation), "\n"), "s3cr3t")
+			var sshCmd string
+			for _, v := range env {
+				if strings.HasPrefix(v, "GIT_SSH_COMMAND=") {
+					sshCmd = strings.TrimPrefix(v, "GIT_SSH_COMMAND=")
+				}
+			}
+
+			require.NotEmpty(t, sshCmd)
+			assert.Equal(t, "ssh", strings.Fields(sshCmd)[0])
+			assert.NotEqual(t, "ssh", strings.Fields(sshCmd)[1], "the executable must appear once")
+		})
+	}
+}
+
+// A host mapping also covers the hosts of an inventory, so the login of the key
+// is written out when it has one and left to ssh when it does not.
+func TestInstallHostConfigs_HostMappingLogin(t *testing.T) {
+	tests := []struct {
+		name  string
+		login string
+		want  string
+	}{
+		{"key with a login", "deploy", "  User deploy\n"},
+		{"key without a login", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupHostConfig(t)
+
+			key := sshKey(t, 1, "k")
+			key.SshKey.Login = tt.login
+
+			installation, err := InstallHostConfigs(1, []db.HostConfig{{
+				ID: 1, ProjectID: 1, Type: db.HostConfigHost, Name: "example.com", SSHKey: key,
+			}}, task_logger.NopLogger{})
+			require.NoError(t, err)
+			defer installation.Destroy()
+
+			content, err := os.ReadFile(installation.SSHConfigPath())
+			require.NoError(t, err)
+
+			if tt.want == "" {
+				assert.NotContains(t, string(content), "User ")
+			} else {
+				assert.Contains(t, string(content), tt.want)
+			}
+		})
+	}
 }

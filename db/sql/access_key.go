@@ -5,6 +5,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
@@ -68,6 +69,15 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 
 	if err != nil {
 		return err
+	}
+
+	// Only an override changes the type, and a mapping is checked against the
+	// type of its credential when it is stored. Without this the change is
+	// accepted and the mapping fails when a task runs, far from the edit.
+	if key.OverrideSecret && key.ProjectID != nil {
+		if err = d.verifyHostConfigsAcceptKey(key); err != nil {
+			return err
+		}
 	}
 
 	var res sql.Result
@@ -233,4 +243,26 @@ func (d *SqlDb) DeleteExpiredTaskAccessKeys() error {
 		db.AccessKeyTaskSecret,
 		tz.Now())
 	return err
+}
+
+// verifyHostConfigsAcceptKey rejects a change to a credential which would leave
+// a mapping pointing at a kind of key it can not use.
+func (d *SqlDb) verifyHostConfigsAcceptKey(key db.AccessKey) error {
+	hostConfigs, err := d.GetHostConfigs(*key.ProjectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return err
+	}
+
+	for _, hostConfig := range hostConfigs {
+		if hostConfig.SSHKeyID != key.ID {
+			continue
+		}
+
+		if err = hostConfig.ValidateCredential(key.Type); err != nil {
+			return common_errors.NewValidationError(
+				"the mapping for " + hostConfig.Name + " uses this credential: " + err.Error())
+		}
+	}
+
+	return nil
 }

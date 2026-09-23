@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -502,4 +503,70 @@ func indexOfArg(args []string, value string) int {
 		}
 	}
 	return -1
+}
+
+// Ansible reaches the hosts of the inventory through the generated config, so a
+// host mapping picks the credential for a playbook the same way it does for git.
+func TestGetPlaybookArgs_PassesHostConfigToAnsible(t *testing.T) {
+	setupExecutorConfig(t)
+
+	repoRoot := t.TempDir()
+	configFile := filepath.Join(repoRoot, "ssh-config-test.conf")
+
+	executor := LocalExecutor{
+		Template:   db.Template{Playbook: "site.yml"},
+		Inventory:  db.Inventory{Type: db.InventoryFile, Inventory: "hosts.ini"},
+		Repository: db.Repository{GitURL: repoRoot},
+
+		hostConfigInstallation: &ssh.HostConfigInstallation{ConfigFile: configFile},
+	}
+
+	args, _, err := executor.getPlaybookArgs("", nil)
+
+	require.NoError(t, err)
+	assert.Contains(t, args, "--ssh-common-args")
+	assert.Contains(t, args, "-F "+configFile)
+}
+
+// A project with no ssh mapping generates no config, and ansible must then keep
+// the configuration it would otherwise read rather than be given an empty one.
+func TestGetPlaybookArgs_NoHostConfigNoSSHArgs(t *testing.T) {
+	setupExecutorConfig(t)
+
+	repoRoot := t.TempDir()
+	executor := LocalExecutor{
+		Template:   db.Template{Playbook: "site.yml"},
+		Inventory:  db.Inventory{Type: db.InventoryFile, Inventory: "hosts.ini"},
+		Repository: db.Repository{GitURL: repoRoot},
+
+		hostConfigInstallation: &ssh.HostConfigInstallation{},
+	}
+
+	args, _, err := executor.getPlaybookArgs("", nil)
+
+	require.NoError(t, err)
+	assert.NotContains(t, args, "--ssh-common-args")
+}
+
+// The playbook process runs git of its own — the git module, a shelled out
+// clone — so it gets the rewrites of the mappings too.
+func TestHostConfigEnv_CarriesRewritesToThePlaybook(t *testing.T) {
+	setupExecutorConfig(t)
+
+	installation, err := ssh.InstallHostConfigs(1, []db.HostConfig{{
+		ID: 1, ProjectID: 1, Type: db.HostConfigURL, Name: "https://test.asdf.ru/",
+		SSHKey: db.AccessKey{
+			ID: 1, Type: db.AccessKeyLoginPassword,
+			LoginPassword: db.LoginPassword{Login: "bob", Password: "s3cr3t"},
+		},
+	}}, task_logger.NopLogger{})
+	require.NoError(t, err)
+	defer installation.Destroy()
+
+	executor := LocalExecutor{hostConfigInstallation: installation}
+
+	assert.Contains(t, strings.Join(executor.hostConfigEnv(), "\n"),
+		"GIT_CONFIG_PARAMETERS=")
+	assert.Contains(t, strings.Join(executor.hostConfigEnv(), "\n"),
+		"url.https://bob:s3cr3t@test.asdf.ru/")
 }

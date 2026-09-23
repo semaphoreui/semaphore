@@ -75,6 +75,22 @@ func (a *Agent) Listen() error {
 		return fmt.Errorf("listening on socket %q: %w", a.SocketFile, err)
 	}
 
+	// Anyone able to connect to the socket can authenticate with the key it
+	// holds. The directory is shared with the repository checkout and stays
+	// traversable, so the restriction goes on the socket itself. git may run as
+	// the configured process user, which then has to own it.
+	if err := os.Chmod(a.SocketFile, 0o600); err != nil {
+		_ = l.Close()
+		return fmt.Errorf("securing socket %q: %w", a.SocketFile, err)
+	}
+
+	if util.Config != nil && util.Config.Process != nil {
+		if err := util.ChownDir(a.SocketFile); err != nil {
+			_ = l.Close()
+			return fmt.Errorf("securing socket %q: %w", a.SocketFile, err)
+		}
+	}
+
 	l.SetUnlinkOnClose(true)
 	a.listener = l
 	a.done = make(chan struct{})
@@ -164,25 +180,6 @@ func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
 func (key *AccessKeyInstallation) GetGitEnvWithHostConfigs(
 	hostConfigs *HostConfigInstallation,
 ) (env []string) {
-	return key.gitEnv(hostConfigs, true)
-}
-
-// GetGitEnvWithoutCredentials is GetGitEnvWithHostConfigs without the git
-// rewrites of the mappings which authenticate with a login and a password.
-//
-// It is what a process running the content of a repository gets. The rewrites
-// hold the credential in clear, while the ssh part of the environment holds
-// none: the keys stay inside their agents, which can be used but not read.
-func (key *AccessKeyInstallation) GetGitEnvWithoutCredentials(
-	hostConfigs *HostConfigInstallation,
-) (env []string) {
-	return key.gitEnv(hostConfigs, false)
-}
-
-func (key *AccessKeyInstallation) gitEnv(
-	hostConfigs *HostConfigInstallation,
-	withCredentials bool,
-) (env []string) {
 
 	env = make([]string, 0)
 
@@ -211,7 +208,7 @@ func (key *AccessKeyInstallation) gitEnv(
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
 	}
 
-	if params := hostConfigs.GitConfigParameters(); withCredentials && params != "" {
+	if params := hostConfigs.GitConfigParameters(); params != "" {
 		env = append(env, "GIT_CONFIG_PARAMETERS="+params)
 	}
 
@@ -229,7 +226,7 @@ func gitHostKeyCheckingOpts() string {
 	case util.SshStrictHostKeyCheckingYes:
 		return fmt.Sprintf("-o StrictHostKeyChecking=yes -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
 	case util.SshStrictHostKeyCheckingNo:
-		return "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+		return "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 	case util.SshStrictHostKeyCheckingAcceptNew:
 		return fmt.Sprintf("-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
 	default:

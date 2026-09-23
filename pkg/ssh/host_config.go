@@ -85,7 +85,12 @@ func InstallHostConfigs(
 
 		switch hostConfig.Type {
 		case db.HostConfigHost:
-			blocks = append(blocks, hostBlock(hostConfig.Name, agent.SocketFile))
+			var block string
+			if block, err = hostBlock(hostConfig, agent.SocketFile); err != nil {
+				return
+			}
+
+			blocks = append(blocks, block)
 		case db.HostConfigURL:
 			rewrite := urlRewrite(hostConfig)
 			if rewrite == "" {
@@ -151,8 +156,23 @@ func InstallHostConfigs(
 var sshLoginRE = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
 
 // hostBlock binds a host to the agent holding its credential.
-func hostBlock(host string, agentSocket string) string {
-	return fmt.Sprintf("Host %s\n  IdentityAgent %s\n", host, agentSocket)
+//
+// The login of the key is written out when it has one, but is not defaulted the
+// way a URL mapping defaults it to "git": a host mapping also covers the hosts
+// of an inventory, where a git login would be wrong.
+func hostBlock(hostConfig db.HostConfig, agentSocket string) (string, error) {
+	block := fmt.Sprintf("Host %s\n", hostConfig.Name)
+
+	if login := hostConfig.SSHKey.SshKey.Login; login != "" {
+		if !sshLoginRE.MatchString(login) {
+			return "", fmt.Errorf(
+				"the login of access key %d can not be used in an ssh configuration", hostConfig.SSHKeyID)
+		}
+
+		block += fmt.Sprintf("  User %s\n", login)
+	}
+
+	return block + fmt.Sprintf("  IdentityAgent %s\n", agentSocket), nil
 }
 
 // urlBlock binds the alias a URL mapping rewrites to. The alias carries the
