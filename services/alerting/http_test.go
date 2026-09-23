@@ -63,6 +63,16 @@ func TestPostJSON_TrustedDestinationReachesLoopback(t *testing.T) {
 	assert.Equal(t, "application/json", contentType)
 }
 
+func TestPostJSON_ClientErrorOmitsRequestURL(t *testing.T) {
+	const secret = "super-secret-bot-token"
+	target := "http://127.0.0.1:1/hook?token=" + secret
+
+	err := postJSON(context.Background(), Destination{Trusted: true}, target, "{}", nil, 200)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), secret)
+	assert.NotContains(t, err.Error(), target)
+}
+
 func TestPostJSON_UnexpectedStatusIsError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

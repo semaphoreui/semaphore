@@ -2,6 +2,7 @@ package alerting
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -177,7 +178,7 @@ func postJSON(
 
 	resp, err := newHTTPClient(dest.Trusted).Do(req)
 	if err != nil {
-		return common_errors.NewUserError(err)
+		return userFacingHTTPError(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes))
@@ -188,4 +189,15 @@ func postJSON(
 		}
 	}
 	return common_errors.NewUserErrorS(fmt.Sprintf("unexpected response code %d", resp.StatusCode))
+}
+
+// userFacingHTTPError maps http.Client failures to API-safe errors. *url.Error
+// strings embed the full request URL, which can contain bot tokens or webhook
+// secrets when delivery fails at the transport layer.
+func userFacingHTTPError(err error) error {
+	var uerr *url.Error
+	if errors.As(err, &uerr) && uerr.Err != nil {
+		err = uerr.Err
+	}
+	return common_errors.NewUserError(err)
 }
