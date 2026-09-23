@@ -173,6 +173,27 @@ func TestEmailChannel_Send_TrustedDestinationBypassesPolicy(t *testing.T) {
 	assert.True(t, srv.wasConnected())
 }
 
+func TestEmailChannel_Validate_OwnHostKeepsServerDefaults(t *testing.T) {
+	email := emailChannelForTest(t)
+	cfg := &util.ConfigType{
+		EmailHost:   "smtp.server",
+		EmailPort:   "587",
+		EmailSender: "srv@example.com",
+		EmailSecure: true,
+		EmailTls:    true,
+	}
+
+	settings, err := email.settings(cfg, Destination{
+		Params: map[string]any{"smtp_host": "smtp.project.example"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "smtp.project.example", settings.host)
+	assert.Equal(t, "587", settings.port)
+	assert.Equal(t, "srv@example.com", settings.sender)
+	assert.True(t, settings.secure)
+	assert.True(t, settings.tls)
+}
+
 func TestEmailChannel_Send_NoRecipients(t *testing.T) {
 	email := emailChannelForTest(t)
 	cfg := &util.ConfigType{EmailHost: "smtp.example.com", EmailSender: "srv@example.com"}

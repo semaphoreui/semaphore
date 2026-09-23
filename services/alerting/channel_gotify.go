@@ -28,7 +28,7 @@ func newGotifyChannel() Channel {
 				{Name: FieldURL, Kind: FieldKindText, Override: true},
 			},
 			defaultEvents: chatEvents(),
-			format:        BodyFormatText,
+			format:        BodyFormatJSON,
 			templateFile:  "gotify.tmpl",
 		},
 	}
@@ -61,6 +61,10 @@ func (c *gotifyChannel) InstanceDestination(cfg *util.ConfigType, _ db.Project) 
 	}, true
 }
 
+func (c *gotifyChannel) ServerEnabled(cfg *util.ConfigType) bool {
+	return cfg != nil && cfg.GotifyAlert
+}
+
 func (c *gotifyChannel) Send(ctx context.Context, cfg *util.ConfigType, dest Destination, msg Message) error {
 	target, token, trusted, err := c.resolve(cfg, dest)
 	if err != nil {
@@ -81,7 +85,13 @@ func (c *gotifyChannel) Send(ctx context.Context, cfg *util.ConfigType, dest Des
 func (c *gotifyChannel) resolve(cfg *util.ConfigType, dest Destination) (url string, token string, trusted bool, err error) {
 	url = strings.TrimSpace(dest.URL)
 	if dest.Trusted && url != "" {
-		return url, strings.TrimSpace(dest.Secret.String), true, nil
+		if dest.Secret != nil {
+			return url, strings.TrimSpace(dest.Secret.String), true, nil
+		}
+		if cfg == nil || strings.TrimSpace(cfg.GotifyToken) == "" {
+			return "", "", false, common_errors.NewValidationError("gotify is not configured on the server (gotify_url, gotify_token)")
+		}
+		return url, strings.TrimSpace(cfg.GotifyToken), true, nil
 	}
 	if url == "" && dest.Secret == nil {
 		if err = c.ServerReady(cfg); err != nil {

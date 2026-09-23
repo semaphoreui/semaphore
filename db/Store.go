@@ -505,6 +505,9 @@ type AlertManager interface {
 	// It returns claimed=false when the triple was already recorded, so two
 	// HA nodes never deliver the same notification twice.
 	ClaimAlertSend(taskID int, destination string, event AlertEvent) (claimed bool, err error)
+	// UnclaimAlertSend removes a failed delivery claim so the notification can
+	// be retried later.
+	UnclaimAlertSend(taskID int, destination string, event AlertEvent) error
 }
 
 // ViewManager handles view-related operations

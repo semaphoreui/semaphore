@@ -85,6 +85,12 @@ func (e *TaskExporter) restoreValue(val EntityObject[db.Task], store db.Store, e
 		if err != nil {
 			return err
 		}
+		for i := range old.AlertSnapshot.Deliveries {
+			old.AlertSnapshot.Deliveries[i].KeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.AlertSnapshot.Deliveries[i].KeyID, e)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	newObj, err := store.CreateTask(old, 0)

@@ -128,7 +128,7 @@ export default {
 
     // Channels that can actually deliver for this project.
     configuredChannels() {
-      return this.visibleChannels.filter((c) => c.server_configured || this.hasProjectChat);
+      return this.visibleChannels.filter((c) => c.server_configured || this.canUseProjectChat(c));
     },
 
     hasProjectChat() {
@@ -151,6 +151,10 @@ export default {
   methods: {
     isTelegram(ch) {
       return ch.type === 'telegram';
+    },
+
+    canUseProjectChat(ch) {
+      return this.isTelegram(ch) && ch.server_enabled && this.hasProjectChat;
     },
 
     // Telegram with no chat at all (neither server-wide nor project) can not

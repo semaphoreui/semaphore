@@ -87,14 +87,20 @@ func (c *emailChannel) settings(cfg *util.ConfigType, dest Destination) (smtpSet
 
 	if host := dest.Param(FieldSMTPHost); host != "" {
 		// An own server never inherits the server-wide credentials.
-		s = smtpSettings{
-			host:      host,
-			port:      dest.Param(FieldSMTPPort),
-			sender:    dest.Param(FieldSMTPSender),
-			secure:    dest.ParamBool(FieldSMTPSecure),
-			tls:       dest.ParamBool(FieldSMTPTLS),
-			untrusted: !dest.Trusted,
+		s.host = host
+		if port := dest.Param(FieldSMTPPort); port != "" {
+			s.port = port
 		}
+		if sender := dest.Param(FieldSMTPSender); sender != "" {
+			s.sender = sender
+		}
+		if _, ok := dest.Params[FieldSMTPSecure]; ok {
+			s.secure = dest.ParamBool(FieldSMTPSecure)
+		}
+		if _, ok := dest.Params[FieldSMTPTLS]; ok {
+			s.tls = dest.ParamBool(FieldSMTPTLS)
+		}
+		s.untrusted = !dest.Trusted
 		if s.untrusted {
 			// Same policy as project webhook URLs: the server must not be
 			// turned into a port scanner of itself or of cloud metadata.
@@ -131,6 +137,10 @@ func (c *emailChannel) InstanceDestination(cfg *util.ConfigType, _ db.Project) (
 		return Destination{}, false
 	}
 	return Destination{Trusted: true}, true
+}
+
+func (c *emailChannel) ServerEnabled(cfg *util.ConfigType) bool {
+	return cfg != nil && cfg.EmailAlert
 }
 
 func (c *emailChannel) ServerReady(cfg *util.ConfigType) error {

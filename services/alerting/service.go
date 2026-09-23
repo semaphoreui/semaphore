@@ -184,6 +184,10 @@ func (s *service) Snapshot(task *db.Task, template db.Template) error {
 	}
 
 	snap := Resolve(project, template, schedule, defaultIDs)
+	snap.Deliveries, err = s.snapshotDeliveries(project, snap)
+	if err != nil {
+		return err
+	}
 	task.AlertSnapshot = &snap
 	return nil
 }
@@ -225,6 +229,33 @@ func (s *service) Notify(
 	payload := BuildPayload(cfg, s.store, project, template, task, status)
 
 	var errs []error
+
+	if len(snapshot.Deliveries) > 0 {
+		for _, delivery := range snapshot.Deliveries {
+			channel, err := s.registry.Get(delivery.Type)
+			if err != nil {
+				logf(logger, "Alert %s skipped: %s", delivery.Name, err.Error())
+				continue
+			}
+			events := delivery.Events
+			if len(events) == 0 {
+				events = channel.DefaultEvents()
+			}
+			if !events.Contains(event) {
+				continue
+			}
+			dest, err := s.destinationFromSnapshot(channel, task.ProjectID, delivery)
+			if err != nil {
+				logf(logger, "Can't send alert %s: %s", delivery.Name, err.Error())
+				errs = append(errs, fmt.Errorf("alert %s: %w", delivery.Name, err))
+				continue
+			}
+			if err := s.deliver(ctx, task.ID, delivery.Key, delivery.Name, channel, dest, delivery.Body, event, payload, logger); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		return errors.Join(errs...)
+	}
 
 	if snapshot.Instance {
 		for _, channel := range s.registry.List() {
@@ -277,7 +308,8 @@ func (s *service) Notify(
 }
 
 // deliver claims the (task, destination, event) triple so that HA nodes do
-// not double-send, renders the body and hands it to the channel.
+// not double-send, releases the claim on failure, renders the body and hands
+// it to the channel.
 func (s *service) deliver(
 	ctx context.Context,
 	taskID int,
@@ -302,6 +334,11 @@ func (s *service) deliver(
 	}
 
 	if err := s.send(ctx, channel, dest, body, payload); err != nil {
+		if taskID > 0 {
+			if unclaimErr := s.store.UnclaimAlertSend(taskID, key, event); unclaimErr != nil {
+				logf(logger, "Alert %s retry unlock failed: %s", name, unclaimErr.Error())
+			}
+		}
 		logf(logger, "Can't send alert %s: %s", name, err.Error())
 		return fmt.Errorf("alert %s: %w", name, err)
 	}
@@ -347,6 +384,123 @@ func (s *service) destinationForAlert(channel Channel, alert db.Alert) (Destinat
 		dest.Recipients = s.defaultRecipients(alert.ProjectID)
 	}
 	return dest, nil
+}
+
+func (s *service) loadSecretByID(channel Channel, projectID int, keyID int) (*db.AccessKey, error) {
+	spec := channel.Secret()
+	if spec == nil {
+		return nil, common_errors.NewValidationError(string(channel.Type()) + " alerts do not use an access key")
+	}
+
+	key, err := s.store.GetAccessKey(projectID, keyID)
+	if err != nil {
+		return nil, common_errors.NewValidationError("access key does not belong to this project")
+	}
+	if key.Type != spec.KeyType {
+		return nil, common_errors.NewValidationError("access key must be of type " + string(spec.KeyType))
+	}
+	if s.decryptor != nil {
+		if err = s.decryptor.DeserializeSecret(&key); err != nil {
+			return nil, err
+		}
+	}
+	return &key, nil
+}
+
+func (s *service) destinationFromSnapshot(channel Channel, projectID int, delivery db.AlertDeliverySnapshot) (Destination, error) {
+	dest := Destination{
+		ChatID:     delivery.ChatID,
+		ThreadID:   delivery.ThreadID,
+		URL:        delivery.URL,
+		Recipients: append([]string(nil), delivery.Recipients...),
+		Params:     cloneParams(delivery.Params),
+		Trusted:    delivery.Trusted,
+	}
+	if delivery.KeyID != nil {
+		secret, err := s.loadSecretByID(channel, projectID, *delivery.KeyID)
+		if err != nil {
+			return dest, err
+		}
+		dest.Secret = secret
+	}
+	return dest, nil
+}
+
+func (s *service) snapshotDeliveries(project db.Project, snapshot db.AlertSnapshot) ([]db.AlertDeliverySnapshot, error) {
+	out := make([]db.AlertDeliverySnapshot, 0, len(snapshot.AlertIDs)+len(s.registry.List()))
+
+	if snapshot.Instance {
+		for _, channel := range s.registry.List() {
+			dest, ok := channel.InstanceDestination(s.config(), project)
+			if !ok {
+				continue
+			}
+			dest = s.fillInstanceDestination(channel, project.ID, dest)
+			out = append(out, db.AlertDeliverySnapshot{
+				Key:        "instance:" + string(channel.Type()),
+				Name:       channel.Title(),
+				Type:       channel.Type(),
+				Events:     append(db.AlertEvents(nil), channel.DefaultEvents()...),
+				ChatID:     dest.ChatID,
+				ThreadID:   dest.ThreadID,
+				URL:        dest.URL,
+				Recipients: append([]string(nil), dest.Recipients...),
+				Params:     cloneParams(dest.Params),
+				Trusted:    dest.Trusted,
+			})
+		}
+	}
+
+	for _, alertID := range snapshot.AlertIDs {
+		alert, err := s.store.GetAlert(project.ID, alertID)
+		if err != nil {
+			return nil, err
+		}
+		if !alert.Enabled {
+			continue
+		}
+		channel, err := s.registry.Get(alert.Type)
+		if err != nil {
+			return nil, err
+		}
+		events := alert.Events
+		if len(events) == 0 {
+			events = channel.DefaultEvents()
+		}
+		out = append(out, db.AlertDeliverySnapshot{
+			Key:        "alert:" + strconv.Itoa(alert.ID),
+			Name:       alert.Name,
+			Type:       alert.Type,
+			Events:     append(db.AlertEvents(nil), events...),
+			ChatID:     strValue(alert.ChatID),
+			ThreadID:   strValue(alert.ThreadID),
+			URL:        strValue(alert.URL),
+			Recipients: splitRecipients(strValue(alert.Recipients)),
+			KeyID:      cloneIntRef(alert.KeyID),
+			Params:     cloneParams(alert.Params),
+			Body:       strValue(alert.Body),
+		})
+	}
+	return out, nil
+}
+
+func cloneParams(params db.MapStringAnyField) db.MapStringAnyField {
+	if len(params) == 0 {
+		return nil
+	}
+	cloned := make(db.MapStringAnyField, len(params))
+	for key, value := range params {
+		cloned[key] = value
+	}
+	return cloned
+}
+
+func cloneIntRef(v *int) *int {
+	if v == nil {
+		return nil
+	}
+	out := *v
+	return &out
 }
 
 func (s *service) fillInstanceDestination(channel Channel, projectID int, dest Destination) Destination {

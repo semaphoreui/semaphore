@@ -35,7 +35,7 @@ func newTelegramChannel() Channel {
 				{Name: FieldThreadID, Kind: FieldKindText},
 			},
 			defaultEvents: chatEvents(),
-			format:        BodyFormatText,
+			format:        BodyFormatHTML,
 			templateFile:  "telegram.tmpl",
 		},
 	}
@@ -98,6 +98,10 @@ func (c *telegramChannel) InstanceDestination(cfg *util.ConfigType, project db.P
 		return Destination{}, false
 	}
 	return Destination{ChatID: chat, Trusted: true}, true
+}
+
+func (c *telegramChannel) ServerEnabled(cfg *util.ConfigType) bool {
+	return cfg != nil && cfg.TelegramAlert
 }
 
 func (c *telegramChannel) ServerReady(cfg *util.ConfigType) error {

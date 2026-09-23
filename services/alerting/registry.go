@@ -71,6 +71,9 @@ type ChannelInfo struct {
 	// ServerConfigured is true when config.json enables this channel
 	// server-wide, i.e. projects with "alert" on receive it automatically.
 	ServerConfigured bool `json:"server_configured"`
+	// ServerEnabled is true when config.json enables the channel even if a
+	// project still needs to provide data such as a Telegram chat ID.
+	ServerEnabled bool `json:"server_enabled"`
 	// Ready is true when the server-wide secret exists, so an alert may rely
 	// on it instead of bringing its own; ReadyError explains what is missing.
 	Ready      bool   `json:"ready"`
@@ -95,6 +98,7 @@ func (r *Registry) Infos(cfg *util.ConfigType, project db.Project) []ChannelInfo
 		if info.Fields == nil {
 			info.Fields = []Field{}
 		}
+		info.ServerEnabled = ch.ServerEnabled(cfg)
 		_, info.ServerConfigured = ch.InstanceDestination(cfg, project)
 		if err := ch.ServerReady(cfg); err != nil {
 			info.Ready = false

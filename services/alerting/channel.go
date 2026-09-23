@@ -24,6 +24,9 @@ type BodyFormat string
 const (
 	// BodyFormatText renders with text/template (JSON payloads, chat text).
 	BodyFormatText BodyFormat = "text"
+	// BodyFormatJSON renders with text/template after JSON-escaping dynamic
+	// string fields in the payload.
+	BodyFormatJSON BodyFormat = "json"
 	// BodyFormatHTML renders with html/template (e-mail).
 	BodyFormatHTML BodyFormat = "html"
 )
@@ -165,6 +168,9 @@ type Channel interface {
 	// config.json for this project, ok=false when the channel is not enabled
 	// or not configured there.
 	InstanceDestination(cfg *util.ConfigType, project db.Project) (dest Destination, ok bool)
+	// ServerEnabled reports whether the server-wide toggle enables this channel
+	// at all, even when more project-specific data is still required.
+	ServerEnabled(cfg *util.ConfigType) bool
 	// ServerReady reports whether the server-wide secret exists (SMTP
 	// server, bot token, Gotify pair). Channels without a secret return nil.
 	ServerReady(cfg *util.ConfigType) error

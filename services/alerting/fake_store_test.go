@@ -158,6 +158,14 @@ func (s *fakeStore) ClaimAlertSend(taskID int, destination string, event db.Aler
 	return true, nil
 }
 
+func (s *fakeStore) UnclaimAlertSend(taskID int, destination string, event db.AlertEvent) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key := string(rune(taskID)) + destination + string(event)
+	delete(s.claims, key)
+	return nil
+}
+
 func (s *fakeStore) GetUser(userID int) (db.User, error) {
 	u, ok := s.users[userID]
 	if !ok {

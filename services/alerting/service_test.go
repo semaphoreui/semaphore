@@ -76,13 +76,14 @@ func TestService_Notify_ProjectAlerts(t *testing.T) {
 	disabled := store.addAlert(db.Alert{Name: "off", Type: "chat", Enabled: false, URL: &url})
 
 	logger := &recordingLogger{}
-	tpl := db.Template{ID: 1, ProjectID: 1, AlertMode: db.AlertModeIDs, AlertIDs: []int{defaultAlert.ID, errorsOnly.ID, disabled.ID, 999}}
+	tpl := db.Template{ID: 1, ProjectID: 1, AlertMode: db.AlertModeIDs, AlertIDs: []int{defaultAlert.ID, errorsOnly.ID, disabled.ID}}
 
 	task := statusTask(1, 1)
 	require.NoError(t, svc.Snapshot(&task, tpl))
 	require.NotNil(t, task.AlertSnapshot)
-	assert.Equal(t, []int{defaultAlert.ID, errorsOnly.ID, disabled.ID, 999}, task.AlertSnapshot.AlertIDs)
+	assert.Equal(t, []int{defaultAlert.ID, errorsOnly.ID, disabled.ID}, task.AlertSnapshot.AlertIDs)
 	assert.False(t, task.AlertSnapshot.Instance)
+	require.Len(t, task.AlertSnapshot.Deliveries, 2)
 
 	require.NoError(t, svc.Notify(context.Background(), task, tpl, task_logger.TaskSuccessStatus, logger))
 	sends := chat.sends()
@@ -92,7 +93,7 @@ func TestService_Notify_ProjectAlerts(t *testing.T) {
 
 	require.NoError(t, svc.Notify(context.Background(), task, tpl, task_logger.TaskFailStatus, logger))
 	assert.Len(t, chat.sends(), 3)
-	assert.Contains(t, logger.lines, "Alert %d skipped: %s")
+	assert.NotContains(t, logger.lines, "Alert %d skipped: %s")
 }
 
 func TestService_Notify_DefaultModeMergesServerChannelsAndDefaults(t *testing.T) {
@@ -130,6 +131,32 @@ func TestService_Notify_SnapshotIsFrozen(t *testing.T) {
 	assert.Empty(t, chat.sends(), "a task snapshotted as silent stays silent even though the project allows alerts now")
 }
 
+func TestService_Notify_UsesSnapshottedAlertState(t *testing.T) {
+	store := newFakeStore(db.Project{ID: 1, Alert: false})
+	chat := newFakeChannel("chat", chatEvents())
+	svc, _ := newTestService(store, testConfig(), chat)
+
+	url := "https://hooks.example/original"
+	body := `{"text":"{{ .Name }}"}`
+	alert := store.addAlert(db.Alert{Name: "Ops", Type: "chat", Enabled: true, URL: &url, Body: &body})
+
+	task := statusTask(1, 1)
+	tpl := db.Template{ID: 1, ProjectID: 1, Name: "deploy", AlertMode: db.AlertModeIDs, AlertIDs: []int{alert.ID}}
+	require.NoError(t, svc.Snapshot(&task, tpl))
+
+	changedURL := "https://hooks.example/changed"
+	changedBody := `{"text":"changed"}`
+	alert.URL = &changedURL
+	alert.Body = &changedBody
+	alert.Enabled = false
+	require.NoError(t, store.UpdateAlert(alert))
+
+	require.NoError(t, svc.Notify(context.Background(), task, tpl, task_logger.TaskFailStatus, nil))
+	require.Len(t, chat.sends(), 1)
+	assert.Equal(t, "https://hooks.example/original", chat.sends()[0].Dest.URL)
+	assert.Equal(t, "{\"text\":\"deploy\"}", chat.sends()[0].Msg.Body)
+}
+
 func TestService_Notify_ClaimPreventsDoubleSend(t *testing.T) {
 	store := newFakeStore(db.Project{ID: 1, Alert: true})
 	chat := newFakeChannel("chat", chatEvents())
@@ -155,6 +182,22 @@ func TestService_Notify_SendErrorsAreReportedAndLogged(t *testing.T) {
 	err := svc.Notify(context.Background(), statusTask(1, 1), db.Template{ID: 1, ProjectID: 1}, task_logger.TaskFailStatus, logger)
 	assert.ErrorContains(t, err, "boom")
 	assert.Contains(t, logger.lines, "Can't send alert %s: %s")
+}
+
+func TestService_Notify_FailedSendCanRetry(t *testing.T) {
+	store := newFakeStore(db.Project{ID: 1, Alert: true})
+	chat := newFakeChannel("chat", chatEvents())
+	chat.instance = &Destination{URL: "https://hooks.example/instance", Trusted: true}
+	chat.sendErr = errors.New("boom")
+	svc, _ := newTestService(store, testConfig(), chat)
+
+	task := statusTask(1, 1)
+	err := svc.Notify(context.Background(), task, db.Template{ID: 1, ProjectID: 1}, task_logger.TaskFailStatus, nil)
+	require.ErrorContains(t, err, "boom")
+
+	chat.sendErr = nil
+	require.NoError(t, svc.Notify(context.Background(), task, db.Template{ID: 1, ProjectID: 1}, task_logger.TaskFailStatus, nil))
+	assert.Len(t, chat.sends(), 2)
 }
 
 func TestService_EmailFallsBackToOptedInMembers(t *testing.T) {

@@ -17,9 +17,27 @@ type AlertSnapshot struct {
 	Instance bool `json:"instance"`
 	// AlertIDs are the project alerts to send.
 	AlertIDs []int `json:"alert_ids"`
+	// Deliveries is the effective delivery state frozen when the task was
+	// created. Older tasks may still only carry Instance/AlertIDs.
+	Deliveries []AlertDeliverySnapshot `json:"deliveries,omitempty"`
 	// OnSuccess / OnError mirror the template's suppress_* flags.
 	OnSuccess bool `json:"on_success"`
 	OnError   bool `json:"on_error"`
+}
+
+type AlertDeliverySnapshot struct {
+	Key        string            `json:"key"`
+	Name       string            `json:"name"`
+	Type       AlertType         `json:"type"`
+	Events     AlertEvents       `json:"events,omitempty"`
+	ChatID     string            `json:"chat_id,omitempty"`
+	ThreadID   string            `json:"thread_id,omitempty"`
+	URL        string            `json:"url,omitempty"`
+	Recipients []string          `json:"recipients,omitempty"`
+	KeyID      *int              `json:"key_id,omitempty"`
+	Params     MapStringAnyField `json:"params,omitempty"`
+	Body       string            `json:"body,omitempty"`
+	Trusted    bool              `json:"trusted,omitempty"`
 }
 
 // Allows reports whether the template-level flags let the event through.
@@ -36,7 +54,7 @@ func (s AlertSnapshot) Allows(event AlertEvent) bool {
 }
 
 func (s AlertSnapshot) IsEmpty() bool {
-	return !s.Instance && len(s.AlertIDs) == 0
+	return len(s.Deliveries) == 0 && !s.Instance && len(s.AlertIDs) == 0
 }
 
 func (s *AlertSnapshot) Scan(value any) error {

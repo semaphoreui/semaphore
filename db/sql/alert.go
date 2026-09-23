@@ -234,6 +234,16 @@ func (d *SqlDb) ClaimAlertSend(taskID int, destination string, event db.AlertEve
 	return false, err
 }
 
+func (d *SqlDb) UnclaimAlertSend(taskID int, destination string, event db.AlertEvent) error {
+	_, err := d.exec(
+		"delete from task__alert_send where task_id=? and destination=? and event=?",
+		taskID,
+		destination,
+		string(event),
+	)
+	return err
+}
+
 // isUniqueViolation matches the primary-key conflict raised by SQLite
 // ("UNIQUE constraint failed"), MySQL ("Duplicate entry") and PostgreSQL
 // ("duplicate key value violates unique constraint").

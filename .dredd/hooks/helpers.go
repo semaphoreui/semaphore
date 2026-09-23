@@ -194,13 +194,13 @@ func addUser() *db.User {
 }
 
 func addAlert() *db.Alert {
-	chatID := "12345"
+	url := "https://hooks.slack.com/services/T000/B000/XXXX"
 	alert, err := store.CreateAlert(db.Alert{
 		ProjectID: userProject.ID,
 		Name:      "ITA-" + getUUID(),
-		Type:      "telegram",
+		Type:      "slack",
 		Enabled:   true,
-		ChatID:    &chatID,
+		URL:       &url,
 	})
 	if err != nil {
 		panic(err)

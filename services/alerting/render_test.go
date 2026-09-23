@@ -55,7 +55,19 @@ func TestRender_CustomBody(t *testing.T) {
 
 	out, err := Render(slack, `{"text": "{{ .Project.Name }} / {{ .Name }} #{{ .Task.ID }}"}`, samplePayload())
 	require.NoError(t, err)
-	assert.Equal(t, `{"text": "Homelab / Deploy <prod> #42"}`, out)
+	assert.Equal(t, `{"text": "Homelab / Deploy \u003cprod\u003e #42"}`, out)
+}
+
+func TestRender_JSONEscapesDynamicValues(t *testing.T) {
+	slack, err := NewRegistry().Get(TypeSlack)
+	require.NoError(t, err)
+
+	payload := samplePayload()
+	payload.Author = "ali\"ce\nops"
+
+	out, err := Render(slack, `{"text":"{{ .Author }}"}`, payload)
+	require.NoError(t, err)
+	assert.Equal(t, "{\"text\":\"ali\\\"ce\\nops\"}", out)
 }
 
 func TestRender_EmailEscapesHTML(t *testing.T) {
@@ -63,6 +75,15 @@ func TestRender_EmailEscapesHTML(t *testing.T) {
 	require.NoError(t, err)
 
 	out, err := Render(email, "", samplePayload())
+	require.NoError(t, err)
+	assert.Contains(t, out, "Deploy &lt;prod&gt;")
+}
+
+func TestRender_TelegramEscapesHTML(t *testing.T) {
+	telegram, err := NewRegistry().Get(TypeTelegram)
+	require.NoError(t, err)
+
+	out, err := Render(telegram, "", samplePayload())
 	require.NoError(t, err)
 	assert.Contains(t, out, "Deploy &lt;prod&gt;")
 }

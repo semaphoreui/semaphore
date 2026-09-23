@@ -75,13 +75,16 @@ func TestRegistry_Infos_ReflectServerConfig(t *testing.T) {
 	}
 
 	assert.True(t, byType[TypeSlack].ServerConfigured)
+	assert.True(t, byType[TypeSlack].ServerEnabled)
 	assert.True(t, byType[TypeSlack].Ready)
 	assert.Equal(t, []Field{{Name: FieldURL, Kind: FieldKindText, Required: true}}, byType[TypeSlack].Fields)
 
 	assert.True(t, byType[TypeTelegram].ServerConfigured, "project chat plus server token is enough")
+	assert.True(t, byType[TypeTelegram].ServerEnabled)
 	assert.True(t, byType[TypeTelegram].Ready)
 
 	assert.False(t, byType[TypeEmail].ServerConfigured)
+	assert.False(t, byType[TypeEmail].ServerEnabled)
 	assert.False(t, byType[TypeEmail].Ready)
 	assert.Contains(t, byType[TypeEmail].ReadyError, "SMTP")
 

@@ -33,6 +33,7 @@ func (c channelBase) BodyFormat() BodyFormat { return c.format }
 func (c channelBase) DefaultBody() string    { return builtinBody(c.templateFile) }
 
 func (c channelBase) StatusColor(task_logger.TaskStatus) string { return "" }
+func (c channelBase) ServerEnabled(*util.ConfigType) bool       { return false }
 func (c channelBase) ServerReady(*util.ConfigType) error        { return nil }
 func (c channelBase) Secret() *SecretSpec                       { return nil }
 
@@ -71,7 +72,7 @@ func newWebhookChannel(
 			icon:          icon,
 			fields:        []Field{{Name: FieldURL, Kind: FieldKindText, Required: true}},
 			defaultEvents: chatEvents(),
-			format:        BodyFormatText,
+			format:        BodyFormatJSON,
 			templateFile:  templateFile,
 		},
 		okCodes: okCodes,
@@ -97,6 +98,10 @@ func (c *webhookChannel) InstanceDestination(cfg *util.ConfigType, _ db.Project)
 		return Destination{}, false
 	}
 	return Destination{URL: strings.TrimSpace(c.url(cfg)), Trusted: true}, true
+}
+
+func (c *webhookChannel) ServerEnabled(cfg *util.ConfigType) bool {
+	return cfg != nil && c.enabled(cfg)
 }
 
 func (c *webhookChannel) Send(ctx context.Context, _ *util.ConfigType, dest Destination, msg Message) error {

@@ -205,7 +205,7 @@ func main() {
 	h.Before("project > /api/project/{project_id}/alerts > Create alert > 201 > application/json", func(t *trans.Transaction) {
 		// project_id must be present so setupObjectsAndPaths can replace it
 		// with the fixture project (same pattern as other POST bodies).
-		t.Request.Body = `{"name":"ITA-dredd","type":"telegram","enabled":true,"project_id":1,"chat_id":"12345"}`
+		t.Request.Body = `{"name":"ITA-dredd","type":"slack","enabled":true,"project_id":1,"url":"https://hooks.slack.com/services/T000/B000/XXXX"}`
 	})
 	h.Before("project > /api/project/{project_id}/alerts/{alert_id} > Get alert > 200 > application/json", capabilityWrapper("alert"))
 	h.Before("project > /api/project/{project_id}/alerts/{alert_id} > Update alert > 204 > application/json", capabilityWrapper("alert"))
