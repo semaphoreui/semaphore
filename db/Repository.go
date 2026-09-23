@@ -220,7 +220,11 @@ func (r Repository) GetType() RepositoryType {
 		return RepositorySSH
 	}
 
-	protocol := m[1]
+	// URL schemes are case-insensitive (RFC 3986), and ValidateGitURL accepts
+	// any spelling. Without normalizing here, "HTTPS://host/repo" would be
+	// reported as type "HTTPS", match neither branch below, and never be given
+	// the repository's credentials.
+	protocol := strings.ToLower(m[1])
 
 	switch protocol {
 	case "http", "https":

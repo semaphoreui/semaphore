@@ -35,15 +35,20 @@ func TestSetEnvVar_WindowsCaseInsensitiveDeduplication(t *testing.T) {
 	assert.NotContains(t, envMap, "http_proxy")
 }
 
-func TestHasEnvVar_WindowsCaseInsensitive(t *testing.T) {
+func TestHasNonEmptyEnvVar_WindowsCaseInsensitive(t *testing.T) {
 	env := []string{`Path=C:\Windows`, `USERPROFILE=C:\Users\test`}
 
-	assert.True(t, hasEnvVar(env, "PATH"))
-	assert.True(t, hasEnvVar(env, "path"))
-	assert.True(t, hasEnvVar(env, "Path"))
-	assert.True(t, hasEnvVar(env, "userprofile"))
-	assert.True(t, hasEnvVar(env, "USERPROFILE"))
-	assert.False(t, hasEnvVar(env, "NONEXISTENT"))
+	assert.True(t, hasNonEmptyEnvVar(env, "PATH"))
+	assert.True(t, hasNonEmptyEnvVar(env, "path"))
+	assert.True(t, hasNonEmptyEnvVar(env, "Path"))
+	assert.True(t, hasNonEmptyEnvVar(env, "userprofile"))
+	assert.True(t, hasNonEmptyEnvVar(env, "USERPROFILE"))
+	assert.False(t, hasNonEmptyEnvVar(env, "NONEXISTENT"))
+}
+
+func TestHasNonEmptyEnvVar_WindowsEmptyValueCountsAsAbsent(t *testing.T) {
+	assert.False(t, hasNonEmptyEnvVar([]string{"userprofile="}, "USERPROFILE"))
+	assert.True(t, hasNonEmptyEnvVar([]string{`userprofile=C:\Users\test`}, "USERPROFILE"))
 }
 
 func TestAppendPlatformEnv_WindowsUserProfile(t *testing.T) {

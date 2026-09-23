@@ -257,4 +257,14 @@ func TestCmdGitClient_MakeCmd_HomePrecedence(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 1, homeCount, "HOME should appear exactly once in cmd.Env")
+
+	// 3. An explicitly empty HOME counts as absent: "HOME=" hides the user's
+	// .gitconfig and credential helper, which is what the fallback exists to
+	// prevent, so the ambient value is used instead.
+	util.Config.EnvVars = map[string]string{
+		"HOME": "",
+	}
+	cmdEmpty := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
+	assert.True(t, containsPrefix(cmdEmpty.Env, "HOME=/ambient/home"),
+		"expected the ambient HOME when the configured one is empty, got %v", cmdEmpty.Env)
 }

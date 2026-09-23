@@ -20,11 +20,14 @@ func setEnvVar(envMap map[string]string, k, v string) {
 	envMap[k] = v
 }
 
-// hasEnvVar checks if an env slice "KEY=VAL" contains the specified key (case-insensitive on Windows).
-func hasEnvVar(env []string, key string) bool {
+// hasNonEmptyEnvVar reports whether an env slice "KEY=VAL" holds the given key
+// with a value (case-insensitive on Windows). An empty value counts as absent:
+// it is only ever used for HOME and USERPROFILE, where "HOME=" hides the user's
+// git configuration just as effectively as not setting it at all.
+func hasNonEmptyEnvVar(env []string, key string) bool {
 	for _, e := range env {
-		k, _, _ := strings.Cut(e, "=")
-		if strings.EqualFold(k, key) {
+		k, v, _ := strings.Cut(e, "=")
+		if strings.EqualFold(k, key) && v != "" {
 			return true
 		}
 	}
@@ -34,7 +37,7 @@ func hasEnvVar(env []string, key string) bool {
 // appendPlatformEnv appends Windows-specific ambient environment variables if not already present.
 // If USERPROFILE is not already in the environment, it is added from the ambient environment.
 func appendPlatformEnv(env *[]string) {
-	if !hasEnvVar(*env, "USERPROFILE") {
+	if !hasNonEmptyEnvVar(*env, "USERPROFILE") {
 		if up := os.Getenv("USERPROFILE"); up != "" {
 			*env = append(*env, fmt.Sprintf("USERPROFILE=%s", up))
 		}

@@ -32,8 +32,9 @@ func (c CmdGitClient) makeCmd(
 	// Unlike the app runners, git gets HOME only when nothing has set it already,
 	// and never gets an empty one: getHomeDir returns "" for an out-of-range
 	// home_dir_mode, and `HOME=` would hide the user's ~/.gitconfig and credential
-	// helper, which is the difference between a working and a failing clone.
-	if !hasEnvVar(cmd.Env, "HOME") {
+	// helper, which is the difference between a working and a failing clone. An
+	// explicit env_vars: {"HOME": ""} is treated the same way, for the same reason.
+	if !hasNonEmptyEnvVar(cmd.Env, "HOME") {
 		if homeDir := getHomeDir(r.Repository, r.TemplateID); homeDir != "" {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", homeDir))
 		} else if h := os.Getenv("HOME"); h != "" {

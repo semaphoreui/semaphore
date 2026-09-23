@@ -19,14 +19,20 @@ func TestSetEnvVar_POSIXCaseSensitive(t *testing.T) {
 	assert.Equal(t, "/usr/bin", envMap["PATH"])
 }
 
-func TestHasEnvVar_POSIXCaseSensitive(t *testing.T) {
+func TestHasNonEmptyEnvVar_POSIXCaseSensitive(t *testing.T) {
 	env := []string{"PATH=/usr/bin", "HOME=/home/test"}
 
-	assert.True(t, hasEnvVar(env, "PATH"))
-	assert.False(t, hasEnvVar(env, "path"))
-	assert.False(t, hasEnvVar(env, "Path"))
-	assert.True(t, hasEnvVar(env, "HOME"))
-	assert.False(t, hasEnvVar(env, "home"))
+	assert.True(t, hasNonEmptyEnvVar(env, "PATH"))
+	assert.False(t, hasNonEmptyEnvVar(env, "path"))
+	assert.False(t, hasNonEmptyEnvVar(env, "Path"))
+	assert.True(t, hasNonEmptyEnvVar(env, "HOME"))
+	assert.False(t, hasNonEmptyEnvVar(env, "home"))
+}
+
+func TestHasNonEmptyEnvVar_EmptyValueCountsAsAbsent(t *testing.T) {
+	assert.False(t, hasNonEmptyEnvVar([]string{"HOME="}, "HOME"))
+	assert.False(t, hasNonEmptyEnvVar([]string{"HOME"}, "HOME"))
+	assert.True(t, hasNonEmptyEnvVar([]string{"HOME=", "HOME=/home/test"}, "HOME"))
 }
 
 func TestAppendPlatformEnv_POSIXNoop(t *testing.T) {

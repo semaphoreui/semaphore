@@ -17,6 +17,26 @@ func TestRepository_GetSchema(t *testing.T) {
 	assert.Equal(t, RepositoryHTTP, schema)
 }
 
+func TestRepository_GetType_CaseInsensitiveScheme(t *testing.T) {
+	tests := []struct {
+		name     string
+		gitURL   string
+		expected RepositoryType
+	}{
+		{"lowercase https", "https://example.com/hello/world", RepositoryHTTP},
+		{"uppercase HTTPS", "HTTPS://example.com/hello/world", RepositoryHTTP},
+		{"mixed case Https", "Https://example.com/hello/world", RepositoryHTTP},
+		{"uppercase HTTP", "HTTP://example.com/hello/world", RepositoryHTTP},
+		{"uppercase SSH", "SSH://git@example.com/hello/world", RepositoryType("ssh")},
+		{"scp-style ssh", "git@example.com:hello/world.git", RepositorySSH},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, Repository{GitURL: tt.gitURL}.GetType())
+		})
+	}
+}
+
 func TestRepository_GetType_WindowsLocalPath(t *testing.T) {
 	assert.Equal(t, RepositoryLocal, Repository{GitURL: `D:\repo`}.GetType())
 	assert.Equal(t, RepositoryLocal, Repository{GitURL: `D:/repo`}.GetType())
@@ -187,6 +207,23 @@ func TestRepository_GetGitURL(t *testing.T) {
 			},
 			EmbedCredentials: true,
 			ExpectedGitUrl:   "http://user%40domain.com:secretpassword@insecure-git.domain.local/project/_git/repo",
+		},
+		{
+			// URL schemes are case-insensitive and ValidateGitURL accepts any
+			// spelling, so an uppercase scheme must still receive credentials.
+			name: "Uppercase HTTPS scheme still embeds credentials",
+			Repository: Repository{
+				GitURL: "HTTPS://devops.domain.com/tfs/project/_git/repo",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "login",
+						Password: "password",
+					},
+				},
+			},
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://login:password@devops.domain.com/tfs/project/_git/repo",
 		},
 		{
 			name: "No access key leaves the URL untouched",
