@@ -103,7 +103,7 @@ func (c GoGitClient) Clone(r GitRepository) error {
 	}
 
 	cloneOpt := &git.CloneOptions{
-		URL:               r.Repository.GetGitURL(true),
+		URL:               r.Repository.GetGitURL(false),
 		Progress:          ProgressWrapper{r.Logger},
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 		ReferenceName:     plumbing.NewBranchReferenceName(r.Repository.GitBranch),

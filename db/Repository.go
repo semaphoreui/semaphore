@@ -103,41 +103,50 @@ func (r Repository) GetInternalPath(templateID int) string {
 // directory (e.g. repository_15_template_114_main_1a2b3c4d).
 func (r Repository) GetFullPath(templateID int) string {
 	if r.GetType() == RepositoryLocal {
-		return r.GetGitURL(true)
+		return r.GetGitURL(false)
 	}
 	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetCheckoutDirName(templateID))
 }
 
-// GetGitURL returns the URL git is invoked with. With secure set, the URL is
-// returned exactly as configured, without the access key's credentials; it may
-// still carry userinfo typed into the URL itself, which go-git uses as basic
-// auth, so it is not safe to log. Use GetRedactedGitURL for that. Otherwise the
-// repository's login/password access key is embedded in the userinfo, percent
-// encoded, so credentials containing "@", ":", "#" or "%" survive intact.
-func (r Repository) GetGitURL(secure bool) string {
+// GetGitURL returns the URL git is invoked with. With embedCredentials set,
+// the repository's login/password access key is embedded in the userinfo,
+// percent encoded, so credentials containing "@", ":", "#" or "%" survive
+// intact. Otherwise the URL is returned exactly as configured. It may still
+// carry userinfo typed into the URL itself, which go-git uses as basic auth,
+// so it is not safe to log in either mode. Use GetRedactedGitURL for that.
+//
+// A URL net/url cannot parse is returned with its userinfo removed in both
+// modes. git cannot authenticate with it anyway, and go-git quotes the whole
+// URL in the parse error it returns, so handing it over unchanged would leak
+// the credentials into task logs.
+func (r Repository) GetGitURL(embedCredentials bool) string {
 	rawURL := r.GitURL
 
 	if r.GetType() == RepositoryLocal {
 		return util.NormalizeLocalFilesystemPath(rawURL)
 	}
 
-	if secure {
+	if !hasURLScheme(rawURL) {
+		return rawURL
+	}
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		// Do not fail the task here, but make the reason visible: a URL git
+		// cannot be handed credentials for shows up later only as an opaque
+		// authentication error. The error itself quotes the URL and is not logged.
+		log.WithFields(log.Fields{
+			"context":       "repository",
+			"repository_id": r.ID,
+		}).Warn("can not parse repository url, using it without credentials")
+		return redactURLUserinfo(rawURL)
+	}
+
+	if !embedCredentials {
 		return rawURL
 	}
 
 	if r.GetType() == RepositoryHTTP && r.SSHKey.Type == AccessKeyLoginPassword {
-		parsed, err := url.Parse(rawURL)
-		if err != nil {
-			// Keep the URL as configured rather than failing the task here, but make
-			// the reason visible: a URL git cannot be handed credentials for shows up
-			// later only as an opaque authentication error.
-			log.WithError(err).WithFields(log.Fields{
-				"context":       "repository",
-				"repository_id": r.ID,
-			}).Warn("can not parse repository url, using it without credentials")
-			return rawURL
-		}
-
 		if r.SSHKey.LoginPassword.Login == "" {
 			if r.SSHKey.LoginPassword.Password == "" {
 				return rawURL
@@ -164,7 +173,7 @@ func (r Repository) GetGitURL(secure bool) string {
 }
 
 // GetRedactedGitURL returns the repository URL with any userinfo removed, for
-// writing to task logs. Unlike GetGitURL(true) it never returns credentials,
+// writing to task logs. Unlike GetGitURL(false) it never returns credentials,
 // including ones typed into the URL itself.
 func (r Repository) GetRedactedGitURL() string {
 	if r.GetType() == RepositoryLocal {

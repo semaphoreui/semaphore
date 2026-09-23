@@ -43,10 +43,10 @@ func TestRepository_ClearCache(t *testing.T) {
 
 func TestRepository_GetGitURL(t *testing.T) {
 	tests := []struct {
-		name           string
-		Repository     Repository
-		Secure         bool
-		ExpectedGitUrl string
+		name             string
+		Repository       Repository
+		EmbedCredentials bool
+		ExpectedGitUrl   string
 	}{
 		{
 			name: "HTTPS login+password credentials embedded",
@@ -60,8 +60,8 @@ func TestRepository_GetGitURL(t *testing.T) {
 					},
 				},
 			},
-			Secure:         false,
-			ExpectedGitUrl: "https://login:password@github.com/user/project.git",
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://login:password@github.com/user/project.git",
 		},
 		{
 			name: "HTTPS token-only (no login) embedded as user",
@@ -74,8 +74,8 @@ func TestRepository_GetGitURL(t *testing.T) {
 					},
 				},
 			},
-			Secure:         false,
-			ExpectedGitUrl: "https://password@github.com/user/project.git",
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://password@github.com/user/project.git",
 		},
 		{
 			name: "HTTPS special chars in login and password are RFC 3986 encoded",
@@ -89,8 +89,8 @@ func TestRepository_GetGitURL(t *testing.T) {
 					},
 				},
 			},
-			Secure:         false,
-			ExpectedGitUrl: "https://user%40domain.com:pass%23word%40123@devops.domain.com/tfs/project/_git/repo",
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://user%40domain.com:pass%23word%40123@devops.domain.com/tfs/project/_git/repo",
 		},
 		{
 			name: "HTTPS password with multiple special chars encoded correctly",
@@ -104,8 +104,8 @@ func TestRepository_GetGitURL(t *testing.T) {
 					},
 				},
 			},
-			Secure:         false,
-			ExpectedGitUrl: "https://user:p%40ss%3Aw%25rd+1&2%3F3@devops.domain.com/tfs/project/_git/repo",
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://user:p%40ss%3Aw%25rd+1&2%3F3@devops.domain.com/tfs/project/_git/repo",
 		},
 		{
 			name: "HTTPS token with percent and hash encoded",
@@ -118,11 +118,11 @@ func TestRepository_GetGitURL(t *testing.T) {
 					},
 				},
 			},
-			Secure:         false,
-			ExpectedGitUrl: "https://token%25with%23special%40chars@devops.domain.com/tfs/project/_git/repo",
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://token%25with%23special%40chars@devops.domain.com/tfs/project/_git/repo",
 		},
 		{
-			name: "HTTPS secure=true does not embed the access key",
+			name: "HTTPS embedCredentials=false does not embed the access key",
 			Repository: Repository{
 				GitURL: "https://devops.domain.com/tfs/project/_git/repo",
 				SSHKey: AccessKey{
@@ -133,42 +133,42 @@ func TestRepository_GetGitURL(t *testing.T) {
 					},
 				},
 			},
-			Secure:         true,
-			ExpectedGitUrl: "https://devops.domain.com/tfs/project/_git/repo",
+			EmbedCredentials: false,
+			ExpectedGitUrl:   "https://devops.domain.com/tfs/project/_git/repo",
 		},
 		{
-			// go_git clones with GetGitURL(true) and takes basic auth from the
+			// go_git clones with GetGitURL(false) and takes basic auth from the
 			// URL's userinfo when no access key is set, so it must be kept.
-			name: "HTTPS secure=true keeps userinfo typed into the URL",
+			name: "HTTPS embedCredentials=false keeps userinfo typed into the URL",
 			Repository: Repository{
 				GitURL: "https://TOKEN@github.com/user/project.git",
 			},
-			Secure:         true,
-			ExpectedGitUrl: "https://TOKEN@github.com/user/project.git",
+			EmbedCredentials: false,
+			ExpectedGitUrl:   "https://TOKEN@github.com/user/project.git",
 		},
 		{
 			name: "HTTPS without access key keeps userinfo typed into the URL",
 			Repository: Repository{
 				GitURL: "https://user:secret@devops.domain.com:8443/tfs/project/_git/repo",
 			},
-			Secure:         false,
-			ExpectedGitUrl: "https://user:secret@devops.domain.com:8443/tfs/project/_git/repo",
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://user:secret@devops.domain.com:8443/tfs/project/_git/repo",
 		},
 		{
 			name: "SSH URL is returned as-is",
 			Repository: Repository{
 				GitURL: "git@github.com:user/project.git",
 			},
-			Secure:         true,
-			ExpectedGitUrl: "git@github.com:user/project.git",
+			EmbedCredentials: false,
+			ExpectedGitUrl:   "git@github.com:user/project.git",
 		},
 		{
 			name: "Local path is returned as-is",
 			Repository: Repository{
 				GitURL: "/tmp/local/repo",
 			},
-			Secure:         false,
-			ExpectedGitUrl: "/tmp/local/repo",
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "/tmp/local/repo",
 		},
 		{
 			// Plain http keeps working as it always has. It logs a warning about
@@ -185,8 +185,8 @@ func TestRepository_GetGitURL(t *testing.T) {
 					},
 				},
 			},
-			Secure:         false,
-			ExpectedGitUrl: "http://user%40domain.com:secretpassword@insecure-git.domain.local/project/_git/repo",
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "http://user%40domain.com:secretpassword@insecure-git.domain.local/project/_git/repo",
 		},
 		{
 			name: "No access key leaves the URL untouched",
@@ -194,15 +194,57 @@ func TestRepository_GetGitURL(t *testing.T) {
 				GitURL: "https://github.com/user/project.git",
 				SSHKey: AccessKey{Type: AccessKeySSH},
 			},
-			Secure:         false,
-			ExpectedGitUrl: "https://github.com/user/project.git",
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://github.com/user/project.git",
+		},
+		{
+			// go-git returns the net/url parse error verbatim, and it quotes the
+			// whole URL, so a malformed URL must never reach it with credentials.
+			name: "Malformed HTTPS embedCredentials=false drops the userinfo typed into the URL",
+			Repository: Repository{
+				GitURL: "https://user:secret%zz@example.com/repo.git",
+			},
+			EmbedCredentials: false,
+			ExpectedGitUrl:   "https://example.com/repo.git",
+		},
+		{
+			name: "Malformed HTTPS embedCredentials=true drops the userinfo and does not embed the access key",
+			Repository: Repository{
+				GitURL: "https://user:secret%zz@example.com/repo.git",
+				SSHKey: AccessKey{
+					Type: AccessKeyLoginPassword,
+					LoginPassword: LoginPassword{
+						Login:    "login",
+						Password: "password",
+					},
+				},
+			},
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://example.com/repo.git",
+		},
+		{
+			name: "Malformed ssh:// URL drops the userinfo",
+			Repository: Repository{
+				GitURL: "ssh://git:secret%zz@example.com/repo.git",
+			},
+			EmbedCredentials: false,
+			ExpectedGitUrl:   "ssh://example.com/repo.git",
+		},
+		{
+			name: "Malformed URL without userinfo is returned unchanged",
+			Repository: Repository{
+				GitURL: "https://example.com/re%zzpo.git",
+			},
+			EmbedCredentials: false,
+			ExpectedGitUrl:   "https://example.com/re%zzpo.git",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gitUrl := tt.Repository.GetGitURL(tt.Secure)
+			gitUrl := tt.Repository.GetGitURL(tt.EmbedCredentials)
 			assert.Equal(t, tt.ExpectedGitUrl, gitUrl, "wrong gitUrl for scenario: %s", tt.name)
+			assert.NotContains(t, gitUrl, "secret%zz")
 		})
 	}
 }
