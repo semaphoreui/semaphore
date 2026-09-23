@@ -18,14 +18,15 @@ import (
 )
 
 var (
-	autoIncrementRE  = regexp.MustCompile(`(?i)\bautoincrement\b`)
-	serialRE         = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
-	dateTimeTypeRE   = regexp.MustCompile(`(?i)\bdatetime\b`)
-	tinyintRE        = regexp.MustCompile(`(?i)\btinyint\b`)
-	longtextRE       = regexp.MustCompile(`(?i)\blongtext\b`)
-	ifExistsRE       = regexp.MustCompile(`(?i)\bif exists\b`)
-	changeRE         = regexp.MustCompile(`^alter table \x60(\w+)\x60 change \x60(\w+)\x60 \x60(\w+)\x60 ([\w\(\)]+)( autoincrement)?( not null)?$`)
-	dropForeignKeyRE = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
+	autoIncrementRE = regexp.MustCompile(`(?i)\bautoincrement\b`)
+	serialRE        = regexp.MustCompile(`(?i)\binteger primary key autoincrement\b`)
+	dateTimeTypeRE  = regexp.MustCompile(`(?i)\bdatetime\b`)
+	tinyintRE       = regexp.MustCompile(`(?i)\btinyint\b`)
+	longtextRE      = regexp.MustCompile(`(?i)\blongtext\b`)
+	// MySQL has no DROP INDEX IF EXISTS; DROP TABLE IF EXISTS is supported and must be kept.
+	dropIndexIfExistsRE = regexp.MustCompile(`(?i)\bdrop index if exists\b`)
+	changeRE            = regexp.MustCompile(`^alter table \x60(\w+)\x60 change \x60(\w+)\x60 \x60(\w+)\x60 ([\w\(\)]+)( autoincrement)?( not null)?$`)
+	dropForeignKeyRE    = regexp.MustCompile(`(?i)\bdrop foreign key\b`)
 )
 
 // dropMysqlForeignKey drops the foreign key constraint defined on the given
@@ -127,7 +128,7 @@ func (d *SqlDb) prepareMigration(query string) string {
 	switch d.Sql().Dialect.(type) {
 	case gorp.MySQLDialect:
 		query = autoIncrementRE.ReplaceAllString(query, "auto_increment")
-		query = ifExistsRE.ReplaceAllString(query, "")
+		query = dropIndexIfExistsRE.ReplaceAllString(query, "drop index")
 	case gorp.PostgresDialect:
 		m := changeRE.FindStringSubmatch(query)
 		if m != nil {
