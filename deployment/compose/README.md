@@ -147,3 +147,31 @@ docker-compose <server/runner from above> -f deployment/compose/store/postgres.y
 
 After playing with the setup you are able to stop the whole setup by just
 replacing `up` at the end of the command with `down`.
+
+## Dredd API tests
+
+The `dredd/` snippets run the API contract tests (`api-docs.yml` + the Go hooks
+in `.dredd/hooks`) fully in Docker: a database, a server built from the working
+tree (`deployment/docker/dredd/server.Dockerfile`, API only, no Ansible runtime)
+and a dredd container with the hooks compiled in. Pick exactly one database
+file:
+
+```console
+task dredd:docker                 # postgres
+task dredd:docker DB=mysql
+task dredd:docker DB=mariadb
+task dredd:docker DB=sqlite
+```
+
+which is the same as
+
+```console
+docker compose -p semaphore-dredd-postgres \
+  -f deployment/compose/dredd/base.yml \
+  -f deployment/compose/dredd/postgres.yml \
+  up --build --exit-code-from dredd
+```
+
+followed by `down --volumes` so every run starts from an empty database. The
+task exits with dredd's exit code. The first build is slow (npm install and the
+Vue build); later runs only recompile what changed.

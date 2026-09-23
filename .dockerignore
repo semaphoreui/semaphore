@@ -1,2 +1,13 @@
 web/node_modules/
 vendor/
+bin/
+# Local Go workspace with the Pro module: images build the OSS tree, the
+# production server image clones the Pro module itself when asked to.
+go.work
+go.work.sum
+pro_impl/
+# Build and runtime leftovers of a developer checkout.
+.dredd/compiled_hooks
+.dredd/compiled_hooks.exe
+.dredd/config.json
+database.sqlite*

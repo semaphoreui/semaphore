@@ -207,6 +207,19 @@ tasks:
     cmds:
       - ./web/node_modules/.bin/dredd --config .dredd/dredd.local.yml
 
+  dredd:docker:
+    desc: "Run the Dredd API tests fully in Docker: database, server built from the working tree, dredd with the Go hooks. DB=postgres|mysql|mariadb|sqlite (default postgres)"
+    vars:
+      DB: '{{ .DB | default "postgres" }}'
+      COMPOSE: >-
+        {{ .DOCKER_CMD }} compose -p semaphore-dredd-{{ .DB }}
+        -f deployment/compose/dredd/base.yml
+        -f deployment/compose/dredd/{{ .DB }}.yml
+    cmds:
+      - defer: "{{ .COMPOSE }} down --volumes --remove-orphans"
+      - "{{ .COMPOSE }} build"
+      - "{{ .COMPOSE }} up --exit-code-from dredd"
+
   release:prod:
     desc: Create and publish a release
     cmds:
