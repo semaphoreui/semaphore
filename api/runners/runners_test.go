@@ -77,6 +77,7 @@ func TestUpdateRunner_StoppedTaskReportedAsTerminated(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	ctrl := NewRunnerController(nil, &pool, nil, nil)
 
@@ -127,6 +128,7 @@ func TestUpdateRunner_UnknownTaskReportedAsTerminated(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	ctrl := NewRunnerController(nil, &pool, nil, nil)
 
@@ -153,6 +155,7 @@ func TestUpdateRunner_ReassignedTaskReportedAsTerminated(t *testing.T) {
 	pool := tasks.CreateTaskPool(
 		store,
 		tasks.NewMemoryTaskStateStore(),
+		nil,
 		nil,
 		nil,
 		nil,
@@ -206,6 +209,7 @@ func TestUpdateRunner_RunningTaskAcceptedWithoutTermination(t *testing.T) {
 	pool := tasks.CreateTaskPool(
 		store,
 		tasks.NewMemoryTaskStateStore(),
+		nil,
 		nil,
 		nil,
 		nil,

@@ -972,6 +972,18 @@ definitions:
         type: boolean
       suppress_error_alerts:
         type: boolean
+      alert_mode:
+        type: string
+        enum: [default, ids]
+        description: >-
+          default sends to the server channels (when the project allows them) and to the project alerts
+          marked as default; ids sends only to alert_ids (empty means silent).
+      alert_ids:
+        type: array
+        items:
+          type: integer
+        example: []
+        description: Used when alert_mode is ids. Omit on update to keep the stored bindings.
       app:
         type: string
         example: ansible
@@ -1043,6 +1055,18 @@ definitions:
         type: boolean
       suppress_error_alerts:
         type: boolean
+      alert_mode:
+        type: string
+        enum: [default, ids]
+        description: >-
+          default sends to the server channels (when the project allows them) and to the project alerts
+          marked as default; ids sends only to alert_ids (empty means silent).
+      alert_ids:
+        type: array
+        items:
+          type: integer
+        example: []
+        description: Used when alert_mode is ids. Omit on update to keep the stored bindings.
       app:
         type: string
       git_branch:
@@ -1149,6 +1173,15 @@ definitions:
         enum: ['', 'run_at']
       task_params:
         $ref: '#/definitions/TaskPrams'
+      alert_mode:
+        type: string
+        enum: [inherit, ids]
+        description: inherit follows the template; ids sends only to alert_ids (empty means silent).
+      alert_ids:
+        type: array
+        items:
+          type: integer
+        example: []
 
   Schedule:
     type: object
@@ -1173,6 +1206,15 @@ definitions:
         enum: ['', 'run_at']
       task_params:
         $ref: '#/definitions/TaskPrams'
+      alert_mode:
+        type: string
+        enum: [inherit, ids]
+        description: inherit follows the template; ids sends only to alert_ids (empty means silent).
+      alert_ids:
+        type: array
+        items:
+          type: integer
+        example: []
 
   ViewRequest:
     type: object
@@ -1210,6 +1252,117 @@ definitions:
         enum: [name]
       sort_reverse:
         type: boolean
+
+  Alert:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: Ops Telegram
+      type:
+        type: string
+        enum: [email, telegram, slack, teams, rocketchat, dingtalk, gotify]
+        example: telegram
+      enabled:
+        type: boolean
+        example: true
+      is_default:
+        type: boolean
+        description: When true, templates in alert_mode=default send this alert.
+      events:
+        type: array
+        items:
+          type: string
+          enum: [success, error, waiting_confirmation]
+        description: Events the alert listens to. Empty means the channel defaults.
+        example: []
+      chat_id:
+        type: string
+        example: '12345'
+      thread_id:
+        type: string
+        description: Optional Telegram forum topic ID.
+      url:
+        type: string
+      recipients:
+        type: string
+        description: Comma-separated e-mail addresses (email alerts).
+      key_id:
+        type: integer
+        x-nullable: true
+        description: >-
+          Access key holding the channel secret (bot token, SMTP credentials). Null means the
+          server-wide secret from config.json is used. The key must belong to the project and be of
+          the type the channel declares in AlertChannel.secret.key_type.
+      params:
+        type: object
+        description: >-
+          Channel specific override settings (for example smtp_host, smtp_port, smtp_sender,
+          smtp_secure, smtp_tls). smtp_host is subject to the same outbound policy as webhook URLs:
+          localhost, loopback, link-local and cloud metadata addresses are rejected.
+      body:
+        type: string
+        description: Custom Go template for the message. Empty means the channel default.
+
+  AlertChannel:
+    type: object
+    properties:
+      type:
+        type: string
+        example: telegram
+      title:
+        type: string
+        example: Telegram
+      icon:
+        type: string
+        example: mdi-send-circle-outline
+      fields:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            kind:
+              type: string
+              enum: [text, number, bool]
+            required:
+              type: boolean
+            override:
+              type: boolean
+              description: Belongs to the "use my own server" group and only applies together with an own secret.
+      secret:
+        type: object
+        description: Present when the channel uses a secret that may come from an access key instead of config.json.
+        properties:
+          key_type:
+            type: string
+            enum: [string, login_password]
+          label:
+            type: string
+          optional:
+            type: boolean
+      default_events:
+        type: array
+        items:
+          type: string
+      body_format:
+        type: string
+        enum: [text, html]
+      default_body:
+        type: string
+      server_configured:
+        type: boolean
+        description: The channel is enabled server-wide in config.json.
+      ready:
+        type: boolean
+        description: The server-wide secret exists, so an alert may rely on it instead of bringing an access key.
+      ready_error:
+        type: string
 
   Runner:
     type: object
@@ -1612,6 +1765,13 @@ parameters:
     type: integer
     required: true
     x-example: 10
+  alert_id:
+    name: alert_id
+    description: alert ID
+    in: path
+    type: integer
+    required: true
+    x-example: 21
   integration_id:
     name: integration_id
     description: integration ID
@@ -3428,6 +3588,143 @@ paths:
           description: view removed
 
 
+  /project/{project_id}/alerts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get alerts
+      responses:
+        200:
+          description: alerts
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Alert"
+    post:
+      tags:
+        - project
+      summary: Create alert
+      parameters:
+        - name: alert
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Alert"
+      responses:
+        201:
+          description: alert created
+          schema:
+            $ref: "#/definitions/Alert"
+        400:
+          description: Bad alert
+  /project/{project_id}/alerts/channels:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get supported alert channels and their server-side status
+      responses:
+        200:
+          description: channels
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/AlertChannel"
+  /project/{project_id}/alerts/{alert_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/alert_id"
+    get:
+      tags:
+        - project
+      summary: Get alert
+      responses:
+        200:
+          description: alert
+          schema:
+            $ref: "#/definitions/Alert"
+    put:
+      tags:
+        - project
+      summary: Update alert
+      parameters:
+        - name: alert
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Alert"
+      responses:
+        204:
+          description: alert updated
+        400:
+          description: Bad alert
+    delete:
+      tags:
+        - project
+      summary: Delete alert
+      responses:
+        204:
+          description: alert removed
+        400:
+          description: Alert is used by templates or schedules
+  /project/{project_id}/alerts/{alert_id}/active:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/alert_id"
+    put:
+      tags:
+        - project
+      summary: Enable or disable alert
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              active:
+                type: boolean
+                example: true
+      responses:
+        204:
+          description: alert updated
+  /project/{project_id}/alerts/{alert_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/alert_id"
+    get:
+      tags:
+        - project
+      summary: Get objects that reference this alert
+      responses:
+        200:
+          description: referrers
+          schema:
+            type: object
+            properties:
+              templates:
+                type: array
+                items:
+                  type: object
+              schedules:
+                type: array
+                items:
+                  type: object
+  /project/{project_id}/alerts/{alert_id}/test:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/alert_id"
+    post:
+      tags:
+        - project
+      summary: Send a test message for this alert
+      responses:
+        204:
+          description: test sent
+
   # tasks
   /project/{project_id}/tasks:
     parameters:
@@ -3600,7 +3897,7 @@ paths:
         - $ref: "#/parameters/project_id"
       responses:
         409:
-          description: Alerts not enabled for the project
+          description: Nothing to send (no server channels enabled for the project and no enabled alerts)
 #        204:
 #          description: Test notification dispatched (or alerts disabled)
 

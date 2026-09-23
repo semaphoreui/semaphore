@@ -75,6 +75,11 @@ func (e *ScheduleExporter) restoreValue(val EntityObject[db.Schedule], store db.
 		return err
 	}
 
+	old.AlertIDs, err = mapAlertIDs(exporter, val.scope, old.AlertIDs)
+	if err != nil {
+		return err
+	}
+
 	newObj, err := store.CreateSchedule(old)
 	if err != nil {
 		return err
@@ -92,5 +97,5 @@ func (e *ScheduleExporter) exportDependsOn() []string {
 }
 
 func (e *ScheduleExporter) importDependsOn() []string {
-	return []string{Repository, Project, Inventory, Template}
+	return []string{Repository, Project, Inventory, Template, Alert}
 }

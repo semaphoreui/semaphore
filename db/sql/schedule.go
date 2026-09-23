@@ -6,6 +6,12 @@ import (
 )
 
 func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, err error) {
+	if err = schedule.NormalizeAlerts(); err != nil {
+		return
+	}
+	if err = d.validateAlertIDs(schedule.ProjectID, schedule.AlertIDs); err != nil {
+		return
+	}
 
 	if schedule.TaskParams != nil {
 		params := schedule.TaskParams
@@ -23,8 +29,8 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run)"+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run, alert_mode)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,
 		schedule.CronFormat,
@@ -34,14 +40,22 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 		schedule.RunAt,
 		schedule.Type,
 		schedule.TaskParamsID,
-		schedule.DeleteAfterRun)
+		schedule.DeleteAfterRun,
+		schedule.AlertMode)
 
 	if err != nil {
 		return
 	}
 
+	if schedule.AlertMode == db.AlertModeIDs {
+		if err = d.UpdateScheduleAlerts(schedule.ProjectID, insertID, schedule.AlertIDs); err != nil {
+			return
+		}
+	}
+
 	newSchedule = schedule
 	newSchedule.ID = insertID
+	err = d.fillScheduleAlerts(newSchedule.ProjectID, &newSchedule)
 
 	return
 }
@@ -57,6 +71,23 @@ func (d *SqlDb) SetScheduleLastCommitHash(projectID int, scheduleID int, lastCom
 }
 
 func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
+	// A client that omits alert_mode keeps the stored mode, unless it sent
+	// alert_ids, which implies ids mode.
+	if schedule.AlertMode == "" && schedule.AlertIDs == nil {
+		var curr db.Schedule
+		if err = d.getObject(schedule.ProjectID, db.ScheduleProps, schedule.ID, &curr); err != nil {
+			return
+		}
+		schedule.AlertMode = curr.AlertMode
+	} else if schedule.AlertMode == "" {
+		schedule.AlertMode = db.AlertModeIDs
+	}
+	if err = schedule.NormalizeAlerts(); err != nil {
+		return
+	}
+	if err = d.validateAlertIDs(schedule.ProjectID, schedule.AlertIDs); err != nil {
+		return
+	}
 
 	if schedule.TaskParams != nil {
 		var curr db.Schedule
@@ -96,7 +127,8 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		"`type`=?, "+
 		"last_commit_hash = NULL, "+
 		"task_params_id=?, "+
-		"delete_after_run=? "+
+		"delete_after_run=?, "+
+		"alert_mode=? "+
 		"where project_id=? and id=?",
 		schedule.CronFormat,
 		schedule.RepositoryID,
@@ -107,8 +139,21 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		schedule.Type,
 		schedule.TaskParamsID,
 		schedule.DeleteAfterRun,
+		schedule.AlertMode,
 		schedule.ProjectID,
 		schedule.ID)
+	if err != nil {
+		return
+	}
+
+	// Inherit mode never keeps explicit bindings so alert refs stay accurate.
+	// In ids mode a nil list means "field omitted": keep what is stored.
+	if schedule.AlertMode != db.AlertModeIDs {
+		return d.UpdateScheduleAlerts(schedule.ProjectID, schedule.ID, nil)
+	}
+	if schedule.AlertIDs != nil {
+		return d.UpdateScheduleAlerts(schedule.ProjectID, schedule.ID, schedule.AlertIDs)
+	}
 
 	return
 }
@@ -134,6 +179,7 @@ func (d *SqlDb) GetSchedule(projectID int, scheduleID int) (schedule db.Schedule
 		schedule.TaskParams = &taskParams
 	}
 
+	err = d.fillScheduleAlerts(projectID, &schedule)
 	return
 }
 
@@ -175,6 +221,9 @@ func (d *SqlDb) GetProjectSchedules(projectID int, includeTaskParams bool, inclu
 			repoFilter+
 			"ps.project_id=?",
 		projectID)
+	if err != nil {
+		return
+	}
 
 	if includeTaskParams {
 		for i := range schedules {
@@ -188,6 +237,12 @@ func (d *SqlDb) GetProjectSchedules(projectID int, includeTaskParams bool, inclu
 				return nil, err
 			}
 			schedules[i].TaskParams = &taskParams
+		}
+	}
+
+	for i := range schedules {
+		if err = d.fillScheduleAlerts(projectID, &schedules[i].Schedule); err != nil {
+			return nil, err
 		}
 	}
 
@@ -211,6 +266,15 @@ func (d *SqlDb) GetTemplateSchedules(projectID int, templateID int, onlyCommitCh
 	}
 
 	_, err = d.selectAll(&schedules, query, args...)
+	if err != nil {
+		return
+	}
+
+	for i := range schedules {
+		if err = d.fillScheduleAlerts(projectID, &schedules[i]); err != nil {
+			return
+		}
+	}
 	return
 }
 

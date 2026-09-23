@@ -72,8 +72,15 @@ export default {
         icon: 'key-change',
       }, {
         slug: 'schedules',
+        path: 'schedule',
+        pageless: true,
         title: 'Schedules',
         icon: 'clock-outline',
+      }, {
+        slug: 'alerts',
+        pageless: true,
+        title: 'Alerts',
+        icon: 'bell-outline',
       }].filter((s) => (this.objectRefs[s.slug] || []).length > 0);
     },
   },

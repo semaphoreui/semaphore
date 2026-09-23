@@ -13,6 +13,7 @@ type BackupDB struct {
 	inventories  []db.Inventory
 	environments []db.Environment
 	schedules    []db.Schedule
+	alerts       []db.Alert
 
 	integrationProjAliases   []db.IntegrationAlias
 	integrations             []db.Integration
@@ -47,6 +48,7 @@ type BackupFormat struct {
 	Integration        []BackupIntegration   `backup:"integrations"`
 	IntegrationAliases []string              `backup:"integration_aliases"`
 	Schedules          []BackupSchedule      `backup:"schedules"`
+	Alerts             []BackupAlert         `backup:"alerts"`
 	SecretStorages     []BackupSecretStorage `backup:"secret_storages"`
 	Roles              []BackupRole          `backup:"roles"`
 	Runners            []BackupRunner        `backup:"runners"`
@@ -69,8 +71,17 @@ type BackupAccessKey struct {
 
 type BackupSchedule struct {
 	db.Schedule
-	Template            string  `backup:"template"`
-	CheckableRepository *string `backup:"checkable_repository"`
+	Template            string   `backup:"template"`
+	CheckableRepository *string  `backup:"checkable_repository"`
+	Alerts              []string `backup:"alerts"`
+}
+
+// BackupAlert is a project alert. Templates and schedules refer to alerts by
+// name, so the alert list is restored before them. The secret is referenced
+// by access key name, like inventories reference their SSH key.
+type BackupAlert struct {
+	db.Alert
+	Key *string `backup:"key"`
 }
 
 type BackupView struct {
@@ -103,6 +114,7 @@ type BackupTemplate struct {
 	BuildTemplate *string               `backup:"build_template"`
 	View          *string               `backup:"view"`
 	Vaults        []BackupTemplateVault `backup:"vaults"`
+	Alerts        []string              `backup:"alerts"`
 	//Cron          *string               `backup:"cron"`
 
 	// Deprecated: Left here for compatibility with old backups
@@ -178,6 +190,10 @@ func (e BackupRepository) GetName() string {
 
 func (e BackupView) GetName() string {
 	return e.Title
+}
+
+func (e BackupAlert) GetName() string {
+	return e.Name
 }
 
 func (e BackupTemplate) GetName() string {

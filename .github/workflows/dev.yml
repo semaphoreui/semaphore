@@ -108,6 +108,31 @@ jobs:
           path: .dredd/compiled_hooks
           retention-days: 1
 
+  # The mailer is exercised against a real SMTP daemon in a container
+  # (Testcontainers + Mailpit): plain, STARTTLS, implicit TLS, AUTH. The tests
+  # sit behind the `integration` build tag so the unit test job needs no
+  # Docker, and they run as their own job so a registry hiccup does not hide
+  # unit test results.
+  test-integration:
+    runs-on: ubuntu-latest
+    needs:
+      - build-local
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Setup golang
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.5'
+
+      - name: Install go-task
+        run: go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Run integration tests
+        run: task test:be:integration
+
   migrate-mysql:
     runs-on: ubuntu-latest
 
