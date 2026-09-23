@@ -3,7 +3,14 @@ package mailer
 import (
 	"bufio"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
+	"math/big"
 	"net"
 	"strings"
 	"sync"
@@ -27,6 +34,13 @@ func newFakeSMTP(t *testing.T) *fakeSMTP {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
+	return newFakeSMTPOn(t, ln)
+}
+
+// newFakeSMTPOn serves one session on an existing listener, so a test can
+// wrap the listener in TLS.
+func newFakeSMTPOn(t *testing.T, ln net.Listener) *fakeSMTP {
+	t.Helper()
 	t.Cleanup(func() { _ = ln.Close() })
 
 	f := &fakeSMTP{addr: ln.Addr().String()}
@@ -203,4 +217,63 @@ func TestParseTlsVersion(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// selfSignedCert issues a certificate for 127.0.0.1 and the pool that
+// trusts it.
+func selfSignedCert(t *testing.T) (tls.Certificate, *x509.CertPool) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "smtp.test"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:     []string{"localhost"},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1)},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	require.NoError(t, err)
+	parsed, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+
+	pool := x509.NewCertPool()
+	pool.AddCert(parsed)
+	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}, pool
+}
+
+func TestSendMail_RootCAs(t *testing.T) {
+	cert, pool := selfSignedCert(t)
+	listen := func() *fakeSMTP {
+		ln, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{Certificates: []tls.Certificate{cert}})
+		require.NoError(t, err)
+		return newFakeSMTPOn(t, ln)
+	}
+
+	t.Run("custom pool verifies the server", func(t *testing.T) {
+		srv := listen()
+		host, port := srv.hostPort(t)
+		err := SendMail(context.Background(), Options{
+			Host: host, Port: port, Secure: true, TLS: true, RootCAs: pool,
+			From: "a@b.c", To: "d@e.f", Body: "hello",
+		})
+		require.NoError(t, err)
+		srv.mu.Lock()
+		defer srv.mu.Unlock()
+		assert.Contains(t, srv.data, "hello")
+	})
+
+	t.Run("system pool rejects the server", func(t *testing.T) {
+		srv := listen()
+		host, port := srv.hostPort(t)
+		err := SendMail(context.Background(), Options{
+			Host: host, Port: port, Secure: true, TLS: true,
+			From: "a@b.c", To: "d@e.f",
+		})
+		assert.ErrorContains(t, err, "x509")
+	})
 }

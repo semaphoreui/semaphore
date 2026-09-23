@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -63,6 +64,10 @@ type Options struct {
 
 	// Dial opens the connection; nil uses net.Dialer.
 	Dial DialFunc
+
+	// RootCAs overrides the pool used to verify the server certificate.
+	// nil keeps the system pool.
+	RootCAs *x509.CertPool
 }
 
 func parseTlsVersion(version string) (uint16, error) {
@@ -140,6 +145,7 @@ func SendMail(ctx context.Context, o Options) error {
 		InsecureSkipVerify: false,
 		ServerName:         o.Host,
 		MinVersion:         tlsVersion,
+		RootCAs:            o.RootCAs,
 	}
 
 	if _, ok := ctx.Deadline(); !ok {
@@ -153,6 +159,9 @@ func SendMail(ctx context.Context, o Options) error {
 		dial = (&net.Dialer{Timeout: 10 * time.Second}).DialContext
 	}
 
+	if err = ctx.Err(); err != nil {
+		return err
+	}
 	conn, err := dial(ctx, "tcp", net.JoinHostPort(o.Host, o.Port))
 	if err != nil {
 		return err

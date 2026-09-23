@@ -32,8 +32,10 @@ The same four combinations exist per project alert through `smtp_secure` /
 
 - **`github.com/testcontainers/testcontainers-go`** for container lifecycle.
   Pin the version in `go.mod`. It pulls the Docker client and a long tail of
-  dependencies: regenerate `THIRD-PARTY-LICENSES.md` (skill
-  `semaphore-third-party-licenses`) in the same change.
+  dependencies into `go.sum`, but none of them ship: the package is behind
+  the `integration` build tag and imported by tests only, so
+  `go-licenses report ./...` never sees it and `THIRD-PARTY-LICENSES.md`
+  does not list it. Regenerate the file anyway to prove that.
 - **SMTP server image: `axllent/mailpit`** (pin a `v1.x` tag). Reasons:
   - one image covers plain, STARTTLS, implicit TLS, AUTH on/off and
     "AUTH only after TLS" through environment variables;
@@ -71,14 +73,15 @@ util/mailer/
     channel_email_test.go            # alerting e-mail channel end to end
 ```
 
-- Package `mailer_integration` (external test package) under
-  `util/mailer/integration/`, all files with `//go:build integration`.
-  `go test ./...` keeps passing without Docker; the integration package is
-  compiled and run only with `-tags integration`.
-- `TestMain` starts one Mailpit container **per configuration** lazily and
-  caches it for the package run; each test clears the mailbox with
-  `DELETE /api/v1/messages` before sending. Containers are terminated in
-  `TestMain` teardown.
+- Package `integration` under `util/mailer/integration/`, all files with
+  `//go:build integration`. `go test ./...` keeps passing without Docker; the
+  integration package is compiled and run only with `-tags integration`.
+- No `TestMain` and no package-level cache (global variables are forbidden
+  in this repo). Instead each top-level test starts **one** Mailpit container
+  for a server configuration and runs its scenarios as subtests; each subtest
+  clears the mailbox with `DELETE /api/v1/messages` before sending.
+  `testcontainers.CleanupContainer` terminates the container when the test
+  ends. Seven containers per run, about 30 s in total.
 - When Docker is not reachable the package skips
   (`testcontainers.SkipIfProviderIsNotHealthy(t)`), it does not fail.
 
@@ -88,34 +91,42 @@ util/mailer/
 
 ```go
 type mailpitConfig struct {
-    auth            string // "user:pass" or ""
-    allowInsecure   bool
-    starttls        bool   // mount cert, enable STARTTLS
-    requireStartTLS bool
-    implicitTLS     bool   // MP_SMTP_REQUIRE_TLS
+    auth              string     // "user:pass" or ""
+    allowInsecureAuth bool
+    tls               *certFiles // copy cert into the container, enable STARTTLS
+    requireStartTLS   bool
+    implicitTLS       bool       // MP_SMTP_REQUIRE_TLS
+    allowedRecipients string     // MP_SMTP_ALLOWED_RECIPIENTS regexp
 }
 
 type mailpit struct {
-    smtpHost, smtpPort string // mapped on the Docker host
-    apiURL             string
-    containerIP        string // reachable on Linux only
+    t              *testing.T
+    container      testcontainers.Container
+    host, smtpPort string // mapped on the Docker host
+    apiURL         string
+    ip             string // container address, reachable on Linux only
 }
 
-func startMailpit(t *testing.T, cfg mailpitConfig, certs *testCerts) *mailpit
-func (m *mailpit) clear(t *testing.T)
-func (m *mailpit) messages(t *testing.T) []mailpitMessage      // list
-func (m *mailpit) raw(t *testing.T, id string) string           // headers+body
-func (m *mailpit) waitForMessages(t *testing.T, n int) []mailpitMessage
+func startMailpit(t *testing.T, cfg mailpitConfig) *mailpit
+func (m *mailpit) dial(ctx, network, _ string) (net.Conn, error) // to the mapped port
+func (m *mailpit) options(host string) mailer.Options            // valid baseline message
+func (m *mailpit) clear()
+func (m *mailpit) messages() []mailpitMessage
+func (m *mailpit) raw(id string) string                          // headers+body
+func (m *mailpit) waitForMessages(n int) []mailpitMessage
+func (m *mailpit) waitForOne() mailpitMessage
+func (m *mailpit) assertNoMessages()
 ```
 
-`certs_test.go` generates, once per package run and into `t.TempDir()`:
+`certs_test.go` generates, per top-level test and into `t.TempDir()`:
 
 - a CA key pair;
 - a server certificate signed by it with SANs `localhost`, `127.0.0.1`, `::1`
   and `smtp.test` (see "Host name vs address" below);
 - an unrelated self-signed certificate for the "untrusted CA" scenario.
 
-Files are bind-mounted read-only into the container at `/certs`.
+Files are copied into the container at `/certs` with
+`testcontainers.ContainerFile` (bind mounts are unreliable under Docker Desktop).
 
 ### Host name vs address
 
@@ -165,7 +176,7 @@ expected From, To, Subject and body.
 | A2 | no auth, no TLS | `Secure=true, TLS=false`, user/pass set | delivered, no AUTH sent (server does not advertise it) |
 | A3 | auth, allow insecure, no TLS | `Secure=true, TLS=false`, `Host=localhost` | delivered via plain-text AUTH (localhost exception) |
 | A4 | auth, allow insecure, no TLS | `Secure=true, TLS=false`, `Host=smtp.test` via Dial | error `unencrypted connection`, nothing delivered |
-| A5 | auth, STARTTLS | `Secure=true, TLS=false`, `RootCAs=test CA` | delivered; Mailpit reports the message arrived over TLS |
+| A5 | auth, STARTTLS | `Secure=true, TLS=false`, `RootCAs=test CA` | delivered with a username: AUTH is offered after STARTTLS only, so that proves the upgrade (Mailpit's `Received` header says `with SMTP` either way) |
 | A6 | auth, STARTTLS, require STARTTLS | `Secure=false` | error from server on MAIL FROM, nothing delivered |
 | A7 | auth, implicit TLS | `Secure=true, TLS=true`, `RootCAs=test CA` | delivered |
 | A8 | auth, implicit TLS | `Secure=true, TLS=false` | error (STARTTLS client talks plain text to a TLS socket), no hang: fails within the 15 s default timeout |
@@ -231,7 +242,7 @@ under Docker Desktop on macOS. Guard with
 ## Definition of done
 
 - All scenarios above implemented, green on Linux CI and green or skipped
-  (E2, D3) on macOS.
+  (E2) on macOS. D3 (`docker pause`) works on Docker Desktop too.
 - `go test ./...` without the tag still needs no Docker.
 - `Options.RootCAs` added with a doc comment; `THIRD-PARTY-LICENSES.md`
   regenerated.
@@ -242,7 +253,7 @@ under Docker Desktop on macOS. Guard with
 ## Tasks
 
 1. **Bootstrap**: add `testcontainers-go`, regenerate third-party licenses,
-   create `util/mailer/integration/` with build tag, `TestMain`, Docker skip.
+   create `util/mailer/integration/` with build tag and Docker skip.
 2. **Helpers**: certificate generation, `startMailpit`, API client
    (`clear`, `messages`, `raw`, `waitForMessages`).
 3. **Production change**: `Options.RootCAs` + unit test in

@@ -175,6 +175,11 @@ tasks:
     cmds:
       - go test -v -coverprofile=coverage.out ./...
 
+  test:be:integration:
+    desc: Run go tests that need Docker (Testcontainers); behind the `integration` build tag
+    cmds:
+      - go test -v -count=1 -tags integration ./util/mailer/integration/...
+
   dredd:goodman:
     desc: Installs goodman which is required by dredd
     cmds:
