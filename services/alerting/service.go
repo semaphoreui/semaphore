@@ -213,11 +213,20 @@ func (s *service) Notify(
 	// Snapshot) are resolved on the fly with the current bindings.
 	snapshot := task.AlertSnapshot
 	if snapshot == nil {
+		var schedule *db.Schedule
+		if task.ScheduleID != nil {
+			sch, err := s.store.GetSchedule(task.ProjectID, *task.ScheduleID)
+			if err != nil {
+				return err
+			}
+			schedule = &sch
+		}
+
 		defaultIDs, err := s.store.GetDefaultAlertIDs(task.ProjectID)
 		if err != nil {
 			return err
 		}
-		resolved := Resolve(project, template, nil, defaultIDs)
+		resolved := Resolve(project, template, schedule, defaultIDs)
 		snapshot = &resolved
 	}
 
@@ -608,13 +617,13 @@ func testPayload(cfg *util.ConfigType, project db.Project) Payload {
 func subjectFor(payload Payload) string {
 	switch payload.Task.Status {
 	case task_logger.TaskFailStatus:
-		return fmt.Sprintf("Task '%s' failed", payload.Name)
+		return fmt.Sprintf("Task %q failed", payload.Name)
 	case task_logger.TaskSuccessStatus:
-		return fmt.Sprintf("Task '%s' succeeded", payload.Name)
+		return fmt.Sprintf("Task %q succeeded", payload.Name)
 	case task_logger.TaskWaitingConfirmation:
-		return fmt.Sprintf("Task '%s' is waiting for confirmation", payload.Name)
+		return fmt.Sprintf("Task %q is waiting for confirmation", payload.Name)
 	default:
-		return fmt.Sprintf("Task '%s' %s", payload.Name, payload.Task.Status)
+		return fmt.Sprintf("Task %q %s", payload.Name, payload.Task.Status)
 	}
 }
 

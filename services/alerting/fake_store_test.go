@@ -2,6 +2,7 @@ package alerting
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -150,7 +151,7 @@ func (s *fakeStore) UpdateScheduleAlerts(_ int, scheduleID int, ids []int) error
 func (s *fakeStore) ClaimAlertSend(taskID int, destination string, event db.AlertEvent) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	key := string(rune(taskID)) + destination + string(event)
+	key := fmt.Sprintf("%d|%s|%s", taskID, destination, event)
 	if s.claims[key] {
 		return false, nil
 	}
@@ -161,7 +162,7 @@ func (s *fakeStore) ClaimAlertSend(taskID int, destination string, event db.Aler
 func (s *fakeStore) UnclaimAlertSend(taskID int, destination string, event db.AlertEvent) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	key := string(rune(taskID)) + destination + string(event)
+	key := fmt.Sprintf("%d|%s|%s", taskID, destination, event)
 	delete(s.claims, key)
 	return nil
 }

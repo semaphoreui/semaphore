@@ -31,7 +31,7 @@ func TestService_Notify_LegacyServerChannels(t *testing.T) {
 
 	assert.Len(t, chat.sends(), 3, "chat channels report success, error and waiting confirmation")
 	assert.Len(t, mail.sends(), 1, "e-mail reports failures only")
-	assert.Equal(t, "Task 'deploy' failed", mail.sends()[0].Msg.Subject)
+	assert.Equal(t, `Task "deploy" failed`, mail.sends()[0].Msg.Subject)
 	assert.True(t, chat.sends()[0].Dest.Trusted)
 }
 
