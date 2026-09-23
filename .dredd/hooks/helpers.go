@@ -63,6 +63,10 @@ func truncateAll() {
 		"project__user",
 		"user",
 		"project__view",
+		"project__alert",
+		"project__template_alert",
+		"project__schedule_alert",
+		"task__alert_send",
 		"project__integration",
 		"project__integration_extract_value",
 		"project__integration_matcher",
@@ -187,6 +191,21 @@ func addUser() *db.User {
 		panic(err)
 	}
 	return &user
+}
+
+func addAlert() *db.Alert {
+	chatID := "12345"
+	alert, err := store.CreateAlert(db.Alert{
+		ProjectID: userProject.ID,
+		Name:      "ITA-" + getUUID(),
+		Type:      "telegram",
+		Enabled:   true,
+		ChatID:    &chatID,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &alert
 }
 
 func addView() *db.View {

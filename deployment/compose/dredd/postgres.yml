@@ -1,10 +1,32 @@
-version: "3.4"
-
 services:
+  db:
+    image: postgres:12.22
+    environment:
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: semaphore
+      POSTGRES_DB: semaphore
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U semaphore -d semaphore"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  server:
+    environment:
+      SEMAPHORE_DB_DIALECT: postgres
+      SEMAPHORE_DB_HOST: db
+      SEMAPHORE_DB_PORT: "5432"
+      SEMAPHORE_DB_USER: semaphore
+      SEMAPHORE_DB_PASS: semaphore
+      SEMAPHORE_DB: semaphore
+    depends_on:
+      db:
+        condition: service_healthy
+
   dredd:
     environment:
       SEMAPHORE_DB_DIALECT: postgres
-      SEMAPHORE_DB_CONFIG: '{"host": "db:5432","user": "semaphore","pass": "semaphore","name": "semaphore","options": {"sslmode": "disable"}}'
+      SEMAPHORE_DB_CONFIG: '{"host": "db:5432", "user": "semaphore", "pass": "semaphore", "name": "semaphore", "options": {"sslmode": "disable"}}'
     depends_on:
-      - server
-      - db
+      db:
+        condition: service_healthy

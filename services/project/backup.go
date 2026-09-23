@@ -60,6 +60,18 @@ func getScheduleByTemplate(templateID int, schedules []db.Schedule) *string {
 	return nil
 }
 
+// alertNamesByID resolves alert bindings to names; unknown IDs are dropped.
+func alertNamesByID(ids []int, alerts []db.Alert) []string {
+	var names []string
+	for _, id := range ids {
+		name, _ := findNameByID[db.Alert](id, alerts)
+		if name != nil {
+			names = append(names, *name)
+		}
+	}
+	return names
+}
+
 func getRandomName(name string) string {
 	return name + " - " + random.String(10)
 }
@@ -83,6 +95,12 @@ func makeUniqueNames[T any](items []T, getter func(item *T) string, setter func(
 }
 
 func (b *BackupDB) makeUniqueNames() {
+
+	makeUniqueNames(b.alerts, func(item *db.Alert) string {
+		return item.Name
+	}, func(item *db.Alert, name string) {
+		item.Name = name
+	})
 
 	makeUniqueNames(b.templates, func(item *db.Template) string {
 		return item.Name
@@ -155,6 +173,11 @@ func (b *BackupDB) makeUniqueNames() {
 func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.WorkflowManager) (err error) {
 
 	b.workflowStore = workflowStore
+
+	b.alerts, err = store.GetAlerts(projectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
 
 	b.templates, err = store.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
 	if err != nil {
@@ -310,9 +333,10 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 
 		schedules[i] = BackupSchedule{
-			o,
-			*tplName,
-			repoName,
+			Schedule:            o,
+			Template:            *tplName,
+			CheckableRepository: repoName,
+			Alerts:              alertNamesByID(o.AlertIDs, b.alerts),
 		}
 
 		if o.TaskParams != nil && o.TaskParams.InventoryID != nil {
@@ -460,8 +484,18 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			Environments:  Environments,
 			BuildTemplate: BuildTemplate,
 			Vaults:        vaults,
+			Alerts:        alertNamesByID(o.AlertIDs, b.alerts),
 			Roles:         roles,
 		}
+	}
+
+	alerts := make([]BackupAlert, len(b.alerts))
+	for i, o := range b.alerts {
+		var keyName *string
+		if o.KeyID != nil {
+			keyName, _ = findNameByID[db.AccessKey](*o.KeyID, b.keys)
+		}
+		alerts[i] = BackupAlert{Alert: o, Key: keyName}
 	}
 
 	integrations := make([]BackupIntegration, len(b.integrations))
@@ -546,6 +580,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		Integration:        integrations,
 		IntegrationAliases: integrationAliases,
 		Schedules:          schedules,
+		Alerts:             alerts,
 		SecretStorages:     secretStorages,
 		Roles:              roles,
 		Runners:            runners,

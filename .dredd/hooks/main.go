@@ -202,8 +202,29 @@ func main() {
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Updates view > 204 > application/json", capabilityWrapper("view"))
 	h.Before("project > /api/project/{project_id}/views/{view_id} > Removes view > 204 > application/json", capabilityWrapper("view"))
 
+	// A Slack alert needs no secret (Secret()==nil), so it validates without a
+	// server-wide bot token, which the integration config does not set. Using
+	// it for create/update keeps the alert endpoints self-contained.
+	const alertSlackBody = `{"name":"ITA-dredd","type":"slack","enabled":true,"project_id":1,"url":"https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"}`
+	h.Before("project > /api/project/{project_id}/alerts > Create alert > 201 > application/json", func(t *trans.Transaction) {
+		// project_id must be present so setupObjectsAndPaths can replace it
+		// with the fixture project (same pattern as other POST bodies).
+		t.Request.Body = alertSlackBody
+	})
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id} > Get alert > 200 > application/json", capabilityWrapper("alert"))
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id} > Update alert > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"alert"})
+		// The Alert schema example is a Telegram alert, which requires a bot
+		// token; replace it with a Slack alert that needs no secret.
+		t.Request.Body = alertSlackBody
+	})
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id} > Delete alert > 204 > application/json", capabilityWrapper("alert"))
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id}/active > Enable or disable alert > 204 > application/json", capabilityWrapper("alert"))
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id}/refs > Get objects that reference this alert > 200 > application/json", capabilityWrapper("alert"))
+	h.Before("project > /api/project/{project_id}/alerts/{alert_id}/test > Send a test message for this alert > 204 > application/json", skipTest)
+
 	h.Before("project > /api/project/{project_id}/backup > Get backup > 200 > application/json", func(t *trans.Transaction) {
-		addCapabilities([]string{"repository", "inventory", "environment", "view", "template"})
+		addCapabilities([]string{"repository", "inventory", "environment", "view", "template", "alert"})
 	})
 
 	// global runners (admin)

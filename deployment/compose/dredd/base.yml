@@ -1,25 +1,31 @@
-version: "3.4"
-
-volumes:
-  dredd:
-
+# Dredd API contract tests against a server built from the working tree.
+# Add exactly one database file next to it (postgres.yml, mysql.yml,
+# mariadb.yml or sqlite.yml); `task dredd:docker DB=<name>` does that for you.
 services:
   server:
+    build:
+      context: ../../../
+      dockerfile: deployment/docker/dredd/server.Dockerfile
     environment:
-      SEMAPHORE_ADMIN_PASSWORD: password
+      SEMAPHORE_ADMIN: admin
       SEMAPHORE_ADMIN_NAME: Developer
       SEMAPHORE_ADMIN_EMAIL: admin@localhost
-      SEMAPHORE_ADMIN: admin
-      SEMAPHORE_WEB_ROOT: http://0.0.0.0:3000
+      SEMAPHORE_ADMIN_PASSWORD: password
+      SEMAPHORE_WEB_ROOT: http://server:3000
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ=}
+      # Same knobs as .dredd/server-wrapper.sh, which the CI jobs use.
+      SEMAPHORE_MAX_TASKS_PER_TEMPLATE: "300"
+      SEMAPHORE_APPS: '{"ansible": {}}'
 
   dredd:
     build:
       context: ../../../
       dockerfile: deployment/docker/dredd/Dockerfile
-    command:
-      - --config
-      - .dredd/dredd.docker.yml
+    command: ["--config", ".dredd/dredd.docker.yml"]
     environment:
+      # The hooks write fixtures straight into the database, so they must
+      # encrypt access keys with the same key as the server.
       SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-IlRqgrrO5Gp27MlWakDX1xVrPv4jhoUx+ARY+qGyDxQ=}
-    volumes:
-      - dredd:/data
+    depends_on:
+      server:
+        condition: service_started
