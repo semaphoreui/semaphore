@@ -36,7 +36,7 @@ func Render(channel Channel, body string, payload Payload) (string, error) {
 
 	switch channel.BodyFormat() {
 	case BodyFormatHTML:
-		tpl, err := htmltemplate.New(string(channel.Type())).Parse(body)
+		tpl, err := newHTMLTemplate(string(channel.Type())).Parse(body)
 		if err != nil {
 			return "", common_errors.NewValidationError("invalid message template: " + err.Error())
 		}
@@ -44,7 +44,7 @@ func Render(channel Channel, body string, payload Payload) (string, error) {
 			return "", common_errors.NewValidationError("can not render message template: " + err.Error())
 		}
 	case BodyFormatJSON:
-		tpl, err := template.New(string(channel.Type())).Parse(body)
+		tpl, err := newTextTemplate(string(channel.Type())).Parse(body)
 		if err != nil {
 			return "", common_errors.NewValidationError("invalid message template: " + err.Error())
 		}
@@ -52,7 +52,7 @@ func Render(channel Channel, body string, payload Payload) (string, error) {
 			return "", common_errors.NewValidationError("can not render message template: " + err.Error())
 		}
 	default:
-		tpl, err := template.New(string(channel.Type())).Parse(body)
+		tpl, err := newTextTemplate(string(channel.Type())).Parse(body)
 		if err != nil {
 			return "", common_errors.NewValidationError("invalid message template: " + err.Error())
 		}
@@ -75,16 +75,39 @@ func ValidateBody(channel Channel, body string) error {
 		return nil
 	}
 	var err error
+	var buf bytes.Buffer
 	switch channel.BodyFormat() {
 	case BodyFormatHTML:
-		_, err = htmltemplate.New(string(channel.Type())).Parse(body)
+		tpl, parseErr := newHTMLTemplate(string(channel.Type())).Parse(body)
+		if parseErr != nil {
+			err = parseErr
+			break
+		}
+		err = tpl.Execute(&buf, Payload{})
 	default:
-		_, err = template.New(string(channel.Type())).Parse(body)
+		tpl, parseErr := newTextTemplate(string(channel.Type())).Parse(body)
+		if parseErr != nil {
+			err = parseErr
+			break
+		}
+		data := Payload{}
+		if channel.BodyFormat() == BodyFormatJSON {
+			data = jsonTemplatePayload(data)
+		}
+		err = tpl.Execute(&buf, data)
 	}
 	if err != nil {
 		return common_errors.NewValidationError("invalid message template: " + err.Error())
 	}
 	return nil
+}
+
+func newHTMLTemplate(name string) *htmltemplate.Template {
+	return htmltemplate.New(name).Option("missingkey=error")
+}
+
+func newTextTemplate(name string) *template.Template {
+	return template.New(name).Option("missingkey=error")
 }
 
 func jsonTemplatePayload(payload Payload) Payload {

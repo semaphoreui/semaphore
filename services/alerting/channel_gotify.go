@@ -84,20 +84,26 @@ func (c *gotifyChannel) Send(ctx context.Context, cfg *util.ConfigType, dest Des
 // the config.json pair, which is admin supplied and therefore trusted.
 func (c *gotifyChannel) resolve(cfg *util.ConfigType, dest Destination) (url string, token string, trusted bool, err error) {
 	url = strings.TrimSpace(dest.URL)
-	if dest.Trusted && url != "" {
+	serverURL := ""
+	serverToken := ""
+	if cfg != nil {
+		serverURL = strings.TrimSpace(cfg.GotifyUrl)
+		serverToken = strings.TrimSpace(cfg.GotifyToken)
+	}
+	if dest.Trusted && url != "" && url == serverURL {
 		if dest.Secret != nil {
 			return url, strings.TrimSpace(dest.Secret.String), true, nil
 		}
-		if cfg == nil || strings.TrimSpace(cfg.GotifyToken) == "" {
+		if serverToken == "" {
 			return "", "", false, common_errors.NewValidationError("gotify is not configured on the server (gotify_url, gotify_token)")
 		}
-		return url, strings.TrimSpace(cfg.GotifyToken), true, nil
+		return url, serverToken, true, nil
 	}
 	if url == "" && dest.Secret == nil {
 		if err = c.ServerReady(cfg); err != nil {
 			return "", "", false, err
 		}
-		return strings.TrimSpace(cfg.GotifyUrl), strings.TrimSpace(cfg.GotifyToken), true, nil
+		return serverURL, serverToken, true, nil
 	}
 	if url == "" || dest.Secret == nil {
 		return "", "", false, common_errors.NewValidationError("gotify needs both a server URL and an access key with the application token, or neither to use the server settings")
