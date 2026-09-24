@@ -3,7 +3,7 @@
       ref="form"
       lazy-validation
       v-model="formValid"
-      v-if="item != null && keys != null"
+      v-if="item != null && keys != null && proxies != null"
   >
     <v-alert
         :value="formError"
@@ -101,6 +101,21 @@
         </v-tooltip>
       </template>
     </v-autocomplete>
+
+    <v-autocomplete
+        v-model="item.proxy_id"
+        :label="$t('proxy')"
+        clearable
+        :items="proxies"
+        item-value="id"
+        item-text="name"
+        :hint="$t('repositoryProxyHint')"
+        persistent-hint
+        :disabled="formSaving"
+        outlined
+        dense
+        class="mt-4"
+    ></v-autocomplete>
   </v-form>
 </template>
 <script>
@@ -116,6 +131,7 @@ export default {
       helpKey: null,
 
       keys: null,
+      proxies: null,
       inventoryTypes: [{
         id: 'static',
         name: 'Static',
@@ -129,11 +145,18 @@ export default {
     };
   },
   async created() {
-    this.keys = (await axios({
-      keys: 'get',
-      url: `/api/project/${this.projectId}/keys`,
-      responseType: 'json',
-    })).data;
+    [this.keys, this.proxies] = await Promise.all([
+      axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/keys`,
+        responseType: 'json',
+      }).then((res) => res.data),
+      axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/proxies`,
+        responseType: 'json',
+      }).then((res) => res.data),
+    ]);
   },
   computed: {
     type() {

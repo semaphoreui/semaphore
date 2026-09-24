@@ -96,6 +96,56 @@ func TestGetRepositoryBranchNames(t *testing.T) {
 	}
 }
 
+// TestGitProxyOpts covers the ssh options used to reach the git server of a
+// repository through its proxy.
+func TestGitProxyOpts(t *testing.T) {
+	user := "ansible-proxy"
+	port := 2222
+
+	newRepo := func(keyID *int) db.Repository {
+		return db.Repository{Proxy: &db.Proxy{
+			Type:     db.ProxySSH,
+			Host:     "bastion.example.org",
+			User:     &user,
+			Port:     &port,
+			SSHKeyID: keyID,
+		}}
+	}
+
+	t.Run("no proxy means no options", func(t *testing.T) {
+		assert.Empty(t, gitProxyOpts(db.Repository{}, ssh.AccessKeyInstallation{}))
+	})
+
+	t.Run("proxy adds a ProxyCommand jump", func(t *testing.T) {
+		assert.Equal(t,
+			[]string{"-o", `"ProxyCommand=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`},
+			gitProxyOpts(newRepo(nil), ssh.AccessKeyInstallation{}))
+	})
+
+	// The proxy key must reach the jump host only. IdentityAgent on the outer
+	// ssh would apply to the git server too, which uses a different key.
+	t.Run("the proxy key agent is scoped to the jump", func(t *testing.T) {
+		keyID := 7
+		installation := ssh.AccessKeyInstallation{SSHAgent: &ssh.Agent{SocketFile: "/tmp/proxy.sock"}}
+
+		opts := gitProxyOpts(newRepo(&keyID), installation)
+
+		assert.Equal(t,
+			[]string{"-o", `"ProxyCommand=ssh -o IdentityAgent=/tmp/proxy.sock -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`},
+			opts)
+		assert.NotContains(t, opts[1][:len(opts[1])-1], "ProxyJump",
+			"ProxyJump would authenticate the jump with the git key agent")
+	})
+
+	t.Run("a proxy without a port omits -p", func(t *testing.T) {
+		repo := db.Repository{Proxy: &db.Proxy{Type: db.ProxySSH, Host: "bastion.example.org"}}
+
+		assert.Equal(t,
+			[]string{"-o", `"ProxyCommand=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p bastion.example.org"`},
+			gitProxyOpts(repo, ssh.AccessKeyInstallation{}))
+	})
+}
+
 func TestCmdGitClient_SpecialCharAuthAndProxyBypass(t *testing.T) {
 	// 1. Create a bare git repo
 	repoDir := t.TempDir()
@@ -238,14 +288,14 @@ func TestCmdGitClient_MakeCmd_HomePrecedence(t *testing.T) {
 
 	// 1. Default case: ambient HOME is used when not overridden
 	util.Config.EnvVars = map[string]string{}
-	cmd := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
+	cmd := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{}, ssh.AccessKeyInstallation{})
 	assert.True(t, containsPrefix(cmd.Env, "HOME=/ambient/home"))
 
 	// 2. Explicit Config.EnvVars overrides ambient HOME and avoids duplicates
 	util.Config.EnvVars = map[string]string{
 		"HOME": "/custom/config/home",
 	}
-	cmdExplicit := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
+	cmdExplicit := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{}, ssh.AccessKeyInstallation{})
 	assert.True(t, containsPrefix(cmdExplicit.Env, "HOME=/custom/config/home"))
 	assert.False(t, containsPrefix(cmdExplicit.Env, "HOME=/ambient/home"))
 
@@ -264,7 +314,7 @@ func TestCmdGitClient_MakeCmd_HomePrecedence(t *testing.T) {
 	util.Config.EnvVars = map[string]string{
 		"HOME": "",
 	}
-	cmdEmpty := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
+	cmdEmpty := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{}, ssh.AccessKeyInstallation{})
 	assert.True(t, containsPrefix(cmdEmpty.Env, "HOME=/ambient/home"),
 		"expected the ambient HOME when the configured one is empty, got %v", cmdEmpty.Env)
 }

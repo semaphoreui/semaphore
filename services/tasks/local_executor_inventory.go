@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strconv"
@@ -27,6 +28,18 @@ func (t *LocalExecutor) installInventory() (err error) {
 		}
 	}
 
+	// The jump hosts usually need different keys than the target hosts, so the
+	// whole proxy chain gets its own agent.
+	if t.Inventory.Proxy != nil && t.Inventory.Proxy.Type.IsSSH() {
+		keys := db_lib.ProxyChainKeys(*t.Inventory.Proxy)
+		if len(keys) > 0 {
+			t.proxyKeyInstallation, err = t.KeyInstaller.InstallAll(keys, db.AccessKeyRoleAnsibleUser, t.Logger)
+			if err != nil {
+				return
+			}
+		}
+	}
+
 	switch t.Inventory.Type {
 	case db.InventoryFile:
 		err = t.cloneInventoryRepo(t.KeyInstaller)
@@ -35,6 +48,23 @@ func (t *LocalExecutor) installInventory() (err error) {
 	}
 
 	return
+}
+
+// getInventorySSHCommonArgs returns the ssh options ansible must use to reach
+// the hosts of the inventory, currently the proxy chain of the assigned proxy.
+func (t *LocalExecutor) getInventorySSHCommonArgs() string {
+	// Every proxy type, not only ssh: a SOCKS or HTTP proxy is carried by the
+	// connector ProxyCommandOption renders, whose credentials Prepare exports.
+	if t.Inventory.Proxy == nil {
+		return ""
+	}
+
+	var socket string
+	if t.proxyKeyInstallation.SSHAgent != nil {
+		socket = t.proxyKeyInstallation.SSHAgent.SocketFile
+	}
+
+	return fmt.Sprintf("-o %q", db_lib.ProxyCommandOption(*t.Inventory.Proxy, socket))
 }
 
 func (t *LocalExecutor) tmpInventoryFilename() string {
@@ -130,6 +160,11 @@ func (t *LocalExecutor) destroyKeys() {
 	err = t.becomeKeyInstallation.Destroy()
 	if err != nil {
 		t.Log("Can't destroy inventory become user key, error: " + err.Error())
+	}
+
+	err = t.proxyKeyInstallation.Destroy()
+	if err != nil {
+		t.Log("Can't destroy inventory proxy key, error: " + err.Error())
 	}
 
 	for _, vault := range t.vaultFileInstallations {

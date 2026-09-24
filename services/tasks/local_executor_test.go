@@ -249,6 +249,98 @@ func TestGetTerraformArgs_MultiSelect(t *testing.T) {
 	assert.True(t, found, "expected -var multi_var=[\"1\",\"2\"] in %v", defaultArgs)
 }
 
+// TestGetInventorySSHCommonArgs verifies the ssh options ansible receives to
+// reach inventory hosts through a jump host.
+func TestGetInventorySSHCommonArgs(t *testing.T) {
+	setupExecutorConfig(t)
+
+	user := "ansible-proxy"
+	port := 2222
+
+	t.Run("no proxy means no ssh args", func(t *testing.T) {
+		e := &LocalExecutor{Inventory: db.Inventory{}}
+		assert.Empty(t, e.getInventorySSHCommonArgs())
+	})
+
+	// A SOCKS or HTTP proxy is carried by the connector, so it must reach
+	// ansible too: returning nothing made it connect straight to the hosts.
+	t.Run("a non-ssh proxy is carried by the connector", func(t *testing.T) {
+		for _, proxyType := range []db.ProxyType{db.ProxySOCKS5, db.ProxyHTTP, db.ProxyHTTPS} {
+			t.Run(string(proxyType), func(t *testing.T) {
+				e := &LocalExecutor{Inventory: db.Inventory{
+					Proxy: &db.Proxy{Type: proxyType, Host: "proxy.example.org", Port: &port},
+				}}
+
+				args := e.getInventorySSHCommonArgs()
+
+				require.NotEmpty(t, args, "a non-ssh proxy must not be dropped")
+				assert.Contains(t, args, "ProxyCommand=")
+				assert.Contains(t, args, string(proxyType)+"://proxy.example.org:2222")
+			})
+		}
+	})
+
+	t.Run("proxy adds a ProxyCommand jump", func(t *testing.T) {
+		e := &LocalExecutor{Inventory: db.Inventory{
+			Proxy: &db.Proxy{
+				Type: db.ProxySSH,
+				Host: "bastion.example.org",
+				User: &user,
+				Port: &port,
+			},
+		}}
+
+		assert.Equal(t,
+			`-o "ProxyCommand=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p -p 2222 ansible-proxy@bastion.example.org"`,
+			e.getInventorySSHCommonArgs())
+	})
+}
+
+// TestGetPlaybookArgs_Proxy verifies the jump host reaches the ansible-playbook
+// command line, and that it is absent when the inventory has no proxy.
+func TestGetPlaybookArgs_Proxy(t *testing.T) {
+	setupExecutorConfig(t)
+
+	inventoryID := 1
+
+	newExecutor := func(proxy *db.Proxy) *LocalExecutor {
+		return &LocalExecutor{
+			Template:  db.Template{App: db.AppAnsible, Playbook: "test.yml"},
+			Inventory: db.Inventory{ID: inventoryID, Type: db.InventoryStatic, Proxy: proxy},
+		}
+	}
+
+	t.Run("without proxy", func(t *testing.T) {
+		args, _, err := newExecutor(nil).getPlaybookArgs("admin", nil)
+
+		require.NoError(t, err)
+		assert.NotContains(t, args, "--ssh-common-args")
+	})
+
+	t.Run("with proxy", func(t *testing.T) {
+		args, _, err := newExecutor(&db.Proxy{Type: db.ProxySSH, Host: "bastion.example.org"}).
+			getPlaybookArgs("admin", nil)
+
+		require.NoError(t, err)
+		require.Contains(t, args, "--ssh-common-args")
+
+		i := indexOf(args, "--ssh-common-args")
+		require.Less(t, i+1, len(args))
+		assert.Equal(t,
+			`-o "ProxyCommand=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p bastion.example.org"`,
+			args[i+1])
+	})
+}
+
+func indexOf(args []string, value string) int {
+	for i, a := range args {
+		if a == value {
+			return i
+		}
+	}
+	return -1
+}
+
 // TestGetPlaybookArgs_HideDryRunAndDiff verifies that hide_dry_run / hide_diff
 // are enforced when building the ansible-playbook command line.
 func TestGetPlaybookArgs_HideDryRunAndDiff(t *testing.T) {

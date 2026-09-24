@@ -13,6 +13,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 
@@ -39,6 +40,15 @@ func (t ProgressWrapper) Write(p []byte) (n int, err error) {
 }
 
 func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
+	// go-git has no jump host support, and every remote operation goes through
+	// here. Failing is better than ignoring the proxy and connecting directly,
+	// which would reach the git server only when it is publicly routable and
+	// silently bypass the configured route when it is.
+	if r.Repository.Proxy != nil {
+		return nil, common_errors.NewUserErrorS(
+			"repository proxy is not supported by the go_git client, use git_client: cmd_git")
+	}
+
 	switch r.Repository.SSHKey.Type {
 	case db.AccessKeySSH:
 
