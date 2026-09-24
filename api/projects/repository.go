@@ -225,7 +225,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		ProjectID:   newRepo.ProjectID,
 		ObjectType:  db.EventRepository,
 		ObjectID:    newRepo.ID,
-		Description: fmt.Sprintf("Repository %s created", repository.GitURL),
+		Description: fmt.Sprintf("Repository %s created", repository.GetRedactedGitURL()),
 	})
 
 	helpers.WriteJSON(w, http.StatusCreated, newRepo)
@@ -273,7 +273,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		ProjectID:   oldRepo.ProjectID,
 		ObjectType:  db.EventRepository,
 		ObjectID:    oldRepo.ID,
-		Description: fmt.Sprintf("Repository %s updated", repository.GitURL),
+		Description: fmt.Sprintf("Repository %s updated", repository.GetRedactedGitURL()),
 	})
 
 	w.WriteHeader(http.StatusNoContent)
@@ -304,7 +304,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 		ProjectID:   repository.ProjectID,
 		ObjectType:  db.EventRepository,
 		ObjectID:    repository.ID,
-		Description: fmt.Sprintf("Repository %s deleted", repository.GitURL),
+		Description: fmt.Sprintf("Repository %s deleted", repository.GetRedactedGitURL()),
 	})
 
 	w.WriteHeader(http.StatusNoContent)

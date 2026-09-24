@@ -1033,7 +1033,7 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
-		localPath := t.Repository.GetGitURL(true)
+		localPath := t.Repository.GetGitURL(false)
 		if _, err := os.Stat(localPath); err != nil {
 			t.Log("Failed in finding static repository: " + err.Error())
 			return err
@@ -1089,7 +1089,7 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
-		localPath := t.Repository.GetGitURL(true)
+		localPath := t.Repository.GetGitURL(false)
 		if _, err := os.Stat(localPath); err != nil {
 			t.Log("Failed in finding static repository: " + err.Error())
 			return err

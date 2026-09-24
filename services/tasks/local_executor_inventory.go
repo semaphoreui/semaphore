@@ -46,7 +46,7 @@ func (t *LocalExecutor) tmpInventoryFilename() string {
 
 func (t *LocalExecutor) tmpInventoryFullPath() string {
 	if t.Inventory.Repository != nil && t.Inventory.Repository.GetType() == db.RepositoryLocal {
-		return t.Inventory.Repository.GetGitURL(true)
+		return t.Inventory.Repository.GetGitURL(false)
 	}
 	pathname := path.Join(util.Config.GetProjectTmpDir(t.Template.ProjectID), t.tmpInventoryFilename())
 	if t.Inventory.Type == db.InventoryStaticYaml {
