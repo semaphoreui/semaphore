@@ -9,10 +9,45 @@ import (
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type recordingWorkflowService struct {
+	mu        sync.Mutex
+	completed []db.Task
+}
+
+func (s *recordingWorkflowService) StartWorkflow(workflow db.WorkflowTemplate, user *db.User) (db.WorkflowRun, error) {
+	return db.WorkflowRun{}, nil
+}
+
+func (s *recordingWorkflowService) ProgressWorkflowRun(projectID int, runID int, user *db.User) error {
+	return nil
+}
+
+func (s *recordingWorkflowService) StopWorkflowRun(projectID int, runID int, user *db.User) (db.WorkflowRun, error) {
+	return db.WorkflowRun{}, nil
+}
+
+func (s *recordingWorkflowService) ResolveWorkflowApproval(projectID int, workflowID int, runID int, nodeID int, status db.WorkflowApprovalStatus, user *db.User) (db.WorkflowApproval, error) {
+	return db.WorkflowApproval{}, nil
+}
+
+func (s *recordingWorkflowService) HandleWorkflowTaskCompletion(task db.Task) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.completed = append(s.completed, task)
+	return nil
+}
+
+func (s *recordingWorkflowService) GetWorkflowRunArtifacts(projectID int, runID int, currentTaskID *int) (map[string]any, error) {
+	return map[string]any{}, nil
+}
+
+var _ pro_interfaces.WorkflowService = (*recordingWorkflowService)(nil)
 
 type spyTaskStateStore struct {
 	*MemoryTaskStateStore
@@ -209,4 +244,65 @@ func TestTaskPool_StopTasksByTemplate_DequeuesWaitingTasksByID(t *testing.T) {
 
 	assert.Equal(t, 1, state.QueueLen(), "only the targeted template's waiting task should be dequeued")
 	assert.Equal(t, keepMe.Task.ID, state.QueueGet(0).Task.ID)
+}
+
+func TestTaskPool_StopTasksByTemplate_NotifiesWorkflowOnWaitingTasks(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	util.Config = &util.ConfigType{MaxParallelTasks: 0}
+
+	store := sql.CreateTestStore()
+	proj, err := store.CreateProject(db.Project{})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	require.NoError(t, err)
+
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:         "workflow tpl",
+		Playbook:     "test.yml",
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+	})
+	require.NoError(t, err)
+
+	runID := 42
+	task, err := store.CreateTask(db.Task{
+		ProjectID:     proj.ID,
+		TemplateID:    tpl.ID,
+		Status:        task_logger.TaskWaitingStatus,
+		WorkflowRunID: &runID,
+	}, 0)
+	require.NoError(t, err)
+
+	state := NewMemoryTaskStateStore()
+	workflowSvc := &recordingWorkflowService{}
+	pool := TaskPool{
+		state:            state,
+		store:            store,
+		workflowService:  workflowSvc,
+	}
+
+	pool.StopTasksByTemplate(proj.ID, tpl.ID, true)
+
+	stopped, err := store.GetTask(proj.ID, task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, task_logger.TaskStoppedStatus, stopped.Status)
+	require.NotNil(t, stopped.End)
+
+	workflowSvc.mu.Lock()
+	defer workflowSvc.mu.Unlock()
+	require.Len(t, workflowSvc.completed, 1)
+	assert.Equal(t, task.ID, workflowSvc.completed[0].ID)
+	assert.Equal(t, runID, *workflowSvc.completed[0].WorkflowRunID)
+	assert.Equal(t, task_logger.TaskStoppedStatus, workflowSvc.completed[0].Status)
 }
