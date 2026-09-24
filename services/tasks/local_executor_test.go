@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -458,4 +459,171 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 			assert.Equal(t, exec.resolvePlaybookFile(), args[len(args)-1], "Playbook must be the last argument")
 		})
 	}
+}
+
+// TestGetEnvironmentSecretVarsJSON verifies Variable Group secrets of type
+// "var" are exported as a separate JSON blob (for Ansible --extra-vars),
+// override keys when present, exclude type "env", and stay out of the shared
+// getEnvironmentExtraVars map (DB-visible task params).
+func TestGetEnvironmentSecretVarsJSON(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Environment: db.Environment{
+			JSON: `{"PLAIN_VAR":"from-json","SHARED_KEY":"plain"}`,
+			Secrets: []db.EnvironmentSecret{
+				{Type: db.EnvironmentSecretVar, Name: "SPACED", Secret: "value with spaces"},
+				{Type: db.EnvironmentSecretVar, Name: "MULTILINE", Secret: "line1\nline2"},
+				{Type: db.EnvironmentSecretVar, Name: "SHARED_KEY", Secret: "from-secret"},
+				{Type: db.EnvironmentSecretEnv, Name: "ENV_ONLY", Secret: "should-not-appear"},
+			},
+		},
+	}
+
+	extraVars, err := exec.getEnvironmentExtraVars("admin", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "from-json", extraVars["PLAIN_VAR"])
+	assert.Equal(t, "plain", extraVars["SHARED_KEY"], "plain JSON must not be overwritten by secrets")
+	assert.NotContains(t, extraVars, "SPACED")
+	assert.NotContains(t, extraVars, "ENV_ONLY")
+
+	secretJSON, err := exec.getEnvironmentSecretVarsJSON()
+	require.NoError(t, err)
+	assert.Contains(t, secretJSON, `"SPACED":"value with spaces"`)
+	assert.Contains(t, secretJSON, `"MULTILINE":"line1\nline2"`)
+	assert.Contains(t, secretJSON, `"SHARED_KEY":"from-secret"`)
+	assert.NotContains(t, secretJSON, "ENV_ONLY")
+	assert.NotContains(t, secretJSON, "should-not-appear")
+	assert.NotContains(t, secretJSON, "PLAIN_VAR")
+}
+
+func TestGetEnvironmentExtraVars_DoesNotIncludeEnvironmentSecrets(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			SurveyVars: []db.SurveyVar{
+				{Name: "SHARED", Target: db.SurveyVarTargetEnv},
+			},
+		},
+		Environment: db.Environment{
+			JSON: `{"SHARED":"from-json","OTHER":"ok"}`,
+			Secrets: []db.EnvironmentSecret{
+				{Type: db.EnvironmentSecretVar, Name: "SHARED", Secret: "from-secret"},
+			},
+		},
+	}
+
+	extraVars, err := exec.getEnvironmentExtraVars("admin", nil)
+	require.NoError(t, err)
+
+	assert.NotContains(t, extraVars, "SHARED", "survey-env filter removes SHARED; secret must not reappear in env map")
+	assert.Equal(t, "ok", extraVars["OTHER"])
+	assert.Contains(t, extraVars, "semaphore_vars")
+}
+
+// TestGetPlaybookArgs_SecretVarsInJSON verifies Ansible receives environment
+// secret vars as a separate JSON --extra-vars payload, not as name=value and
+// not mixed into the Environment.JSON-derived payload.
+func TestGetPlaybookArgs_SecretVarsInJSON(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			Playbook: "site.yml",
+		},
+		Inventory: db.Inventory{
+			Type:      db.InventoryStatic,
+			Inventory: "localhost",
+		},
+		Environment: db.Environment{
+			JSON: `{"PLAIN":"ok"}`,
+			Secrets: []db.EnvironmentSecret{
+				{Type: db.EnvironmentSecretVar, Name: "TOKEN", Secret: "value with spaces"},
+				{Type: db.EnvironmentSecretEnv, Name: "ENV_SECRET", Secret: "env-only"},
+			},
+		},
+		Repository: db.Repository{GitURL: t.TempDir()},
+	}
+
+	args, _, err := exec.getPlaybookArgs("admin", nil)
+	require.NoError(t, err)
+
+	var payloads []string
+	for i, arg := range args {
+		if arg == "--extra-vars" && i+1 < len(args) {
+			payloads = append(payloads, args[i+1])
+			assert.NotEqual(t, "TOKEN=value with spaces", args[i+1])
+		}
+	}
+	require.NotEmpty(t, payloads, "expected --extra-vars, got %v", args)
+
+	joined := strings.Join(payloads, "\n")
+	assert.Contains(t, joined, `"TOKEN":"value with spaces"`)
+	assert.Contains(t, joined, `"PLAIN":"ok"`)
+	assert.NotContains(t, joined, "ENV_SECRET")
+	assert.NotContains(t, args, "TOKEN=value with spaces")
+
+	// Secrets must not be folded into the Environment.JSON payload.
+	for _, payload := range payloads {
+		if strings.Contains(payload, `"PLAIN":"ok"`) {
+			assert.NotContains(t, payload, `"TOKEN"`, "TOKEN must not live in the Environment.JSON extra-vars blob")
+		}
+	}
+}
+
+// TestGetShellArgs_EnvironmentSecretVar verifies shell tasks get environment
+// secret vars as a dedicated KEY=value argv (not via getEnvironmentExtraVars).
+func TestGetShellArgs_EnvironmentSecretVar(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			Type:     db.TemplateTask,
+			Playbook: "run.sh",
+		},
+		Environment: db.Environment{
+			JSON: `{"PLAIN":"ok"}`,
+			Secrets: []db.EnvironmentSecret{
+				{Type: db.EnvironmentSecretVar, Name: "TOKEN", Secret: "value with spaces"},
+				{Type: db.EnvironmentSecretEnv, Name: "ENV_SECRET", Secret: "env-only"},
+			},
+		},
+	}
+
+	args, err := exec.getShellArgs("admin", nil)
+	require.NoError(t, err)
+
+	assert.Contains(t, args, "PLAIN=ok")
+	assert.Contains(t, args, "TOKEN=value with spaces")
+	assert.NotContains(t, args, "ENV_SECRET=env-only")
+}
+
+// TestGetTerraformArgs_EnvironmentSecretVar verifies terraform gets
+// environment secrets as dedicated -var args, including values with spaces.
+func TestGetTerraformArgs_EnvironmentSecretVar(t *testing.T) {
+	setupExecutorConfig(t)
+
+	exec := &LocalExecutor{
+		Template: db.Template{
+			Type: db.TemplateTask,
+			App:  db.AppTerraform,
+		},
+		Environment: db.Environment{
+			JSON: `{"PLAIN":"ok"}`,
+			Secrets: []db.EnvironmentSecret{
+				{Type: db.EnvironmentSecretVar, Name: "TOKEN", Secret: "value with spaces"},
+				{Type: db.EnvironmentSecretEnv, Name: "ENV_SECRET", Secret: "env-only"},
+			},
+		},
+	}
+
+	argsMap, err := exec.getTerraformArgs("admin", nil)
+	require.NoError(t, err)
+
+	defaultArgs := argsMap["default"]
+	assert.Contains(t, defaultArgs, "-var")
+	assert.Contains(t, defaultArgs, "PLAIN=ok")
+	assert.Contains(t, defaultArgs, "TOKEN=value with spaces")
+	assert.NotContains(t, defaultArgs, "ENV_SECRET=env-only")
 }

@@ -178,6 +178,12 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 		}
 	}
 
+	// Intentionally do NOT merge Environment Secret Variables (type "var") here.
+	// That map is derived from Environment.JSON / Task.Environment (DB-visible
+	// task params). Secrets must stay out of it and are passed only via
+	// ephemeral CLI args (see getEnvironmentSecretVarsJSON / shell+terraform
+	// secret loops).
+
 	vars := make(map[string]any)
 	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
@@ -199,6 +205,28 @@ func (t *LocalExecutor) getEnvironmentExtraVarsJSON(username string, incomingVer
 	str = string(ev)
 
 	return
+}
+
+// getEnvironmentSecretVarsJSON builds a JSON object of Variable Group secrets
+// of type "var". It is used only as an ephemeral Ansible --extra-vars value so
+// spaces/newlines survive without writing secrets into Environment.JSON /
+// Task.Environment (which are stored in the database).
+func (t *LocalExecutor) getEnvironmentSecretVarsJSON() (str string, err error) {
+	secretVars := make(map[string]any)
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type != db.EnvironmentSecretVar {
+			continue
+		}
+		secretVars[secret.Name] = secret.Secret
+	}
+	if len(secretVars) == 0 {
+		return "", nil
+	}
+	ev, err := json.Marshal(secretVars)
+	if err != nil {
+		return
+	}
+	return string(ev), nil
 }
 
 func (t *LocalExecutor) getEnvironmentENV() (res []string, err error) {
@@ -335,7 +363,8 @@ func (t *LocalExecutor) getShellArgs(username string, incomingVersion *string) (
 	// Script to run
 	args = append(args, t.Template.Playbook)
 
-	// Include Environment Secret Vars
+	// Include Environment Secret Vars (kept out of getEnvironmentExtraVars /
+	// Environment.JSON so they are not DB-visible task params).
 	for _, secret := range t.Environment.Secrets {
 		if secret.Type == db.EnvironmentSecretVar {
 			args = append(args, fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
@@ -398,15 +427,6 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 		return
 	}
 
-	// Common args for environment secrets
-	secretArgs := []string{}
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		secretArgs = append(secretArgs, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
-	}
-
 	// Merge template and task args maps
 	for stage, stageArgs := range templateArgsMap {
 		argsMap[stage] = append([]string{}, stageArgs...)
@@ -424,7 +444,17 @@ func (t *LocalExecutor) getTerraformArgs(username string, incomingVersion *strin
 		argsMap["default"] = []string{}
 	}
 
-	// Add common args to each stage except init
+	// Environment secret vars stay out of getEnvironmentExtraVars (DB-visible
+	// task params) and are appended as ephemeral -var CLI args instead.
+	secretArgs := []string{}
+	for _, secret := range t.Environment.Secrets {
+		if secret.Type != db.EnvironmentSecretVar {
+			continue
+		}
+		secretArgs = append(secretArgs, "-var", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	}
+
+	// Add common args to each stage except init.
 	for stage := range argsMap {
 		if stage == "init" {
 			continue
@@ -546,11 +576,15 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		args = append(args, "--extra-vars", extraVars)
 	}
 
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	// Pass Variable Group secrets as a separate JSON --extra-vars so values with
+	// spaces/newlines survive, without merging them into Environment.JSON /
+	// Task.Environment (DB-stored task params).
+	secretVars, secretErr := t.getEnvironmentSecretVarsJSON()
+	if secretErr != nil {
+		t.Log(secretErr.Error())
+		t.Log("Could not marshal environment secret vars for --extra-vars")
+	} else if secretVars != "" {
+		args = append(args, "--extra-vars", secretVars)
 	}
 
 	templateArgs, taskArgs, err := t.getCLIArgs()
