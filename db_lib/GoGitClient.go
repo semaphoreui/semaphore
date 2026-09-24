@@ -94,7 +94,7 @@ func openRepository(r GitRepository, targetDir GitRepositoryDirType) (*git.Repos
 }
 
 func (c GoGitClient) Clone(r GitRepository) error {
-	r.Logger.Log("Cloning Repository " + r.Repository.GitURL)
+	r.Logger.Log("Cloning Repository " + r.Repository.GetRedactedGitURL())
 
 	authMethod, authErr := c.getAuthMethod(r)
 
@@ -103,7 +103,7 @@ func (c GoGitClient) Clone(r GitRepository) error {
 	}
 
 	cloneOpt := &git.CloneOptions{
-		URL:               r.Repository.GetGitURL(true),
+		URL:               r.Repository.GetGitURL(false),
 		Progress:          ProgressWrapper{r.Logger},
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 		ReferenceName:     plumbing.NewBranchReferenceName(r.Repository.GitBranch),
@@ -119,7 +119,7 @@ func (c GoGitClient) Clone(r GitRepository) error {
 }
 
 func (c GoGitClient) Pull(r GitRepository) error {
-	r.Logger.Log("Updating Repository " + r.Repository.GitURL)
+	r.Logger.Log("Updating Repository " + r.Repository.GetRedactedGitURL())
 
 	rep, err := openRepository(r, GitRepositoryFullPath)
 	if err != nil {
