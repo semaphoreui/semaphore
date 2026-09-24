@@ -166,6 +166,8 @@ export default {
   created() {
     this.itemsLoading = null;
     this.itemsReloadRequested = false;
+    this.reloadTimer = null;
+    this.lastReloadTime = 0;
     this.socketListenerId = socket.addListener((data) => this.onWebsocketDataReceived(data));
   },
 
@@ -234,11 +236,11 @@ export default {
         return;
       }
 
-      if (!this.items.some((item) => item.id === data.task_id)) {
+      if (this.items != null && !this.items.some((item) => item.id === data.task_id)) {
         this.reloadItemsThrottled();
       }
 
-      const task = this.items.find((item) => item.id === data.task_id);
+      const task = (this.items || []).find((item) => item.id === data.task_id);
 
       if (task) {
         Object.assign(task, {
