@@ -30,6 +30,11 @@ func TestValidateRole(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "custom role marked as built-in",
+			role:    Role{Slug: "deployer", Name: "Deployer", ProjectID: &projectID, IsBuiltin: true},
+			wantErr: true,
+		},
+		{
 			name:    "reserved slug owner",
 			role:    Role{Slug: string(ProjectOwner), Name: "pwn", ProjectID: &projectID},
 			wantErr: true,

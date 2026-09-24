@@ -7,6 +7,7 @@ type Role struct {
 	Name        string                `db:"name" json:"name"`
 	Permissions ProjectUserPermission `db:"permissions" json:"permissions"`
 	ProjectID   *int                  `db:"project_id" json:"project_id"`
+	IsBuiltin   bool                  `db:"is_builtin" json:"is_builtin"`
 }
 
 func ValidateRole(role Role) error {
@@ -15,6 +16,9 @@ func ValidateRole(role Role) error {
 	}
 	if role.Slug == "" {
 		return &common_errors.ValidationError{Message: "Role slug cannot be empty"}
+	}
+	if role.IsBuiltin {
+		return &common_errors.ValidationError{Message: "Custom role cannot be marked as built-in"}
 	}
 	// Built-in role slugs are reserved. Allowing a custom role to reuse one lets
 	// it shadow the built-in role and escalate the permissions of its members.
