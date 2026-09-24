@@ -22,7 +22,7 @@ func (d *SqlDb) GetGlobalRoles() ([]db.Role, error) {
 
 func (d *SqlDb) UpdateRole(role db.Role) error {
 	_, err := d.exec(
-		"update `role` set name=?, permissions=? where slug=?",
+		"update `role` set name=?, permissions=? where slug=? and is_builtin=false",
 		role.Name,
 		role.Permissions,
 		role.Slug)
@@ -30,13 +30,18 @@ func (d *SqlDb) UpdateRole(role db.Role) error {
 }
 
 func (d *SqlDb) CreateRole(role db.Role) (db.Role, error) {
+	if err := db.ValidateRole(role); err != nil {
+		return role, err
+	}
+
 	_, err := d.insert(
 		"",
-		"insert into `role` (slug, name, permissions, project_id) values (?, ?, ?, ?)",
+		"insert into `role` (slug, name, permissions, project_id, is_builtin) values (?, ?, ?, ?, ?)",
 		role.Slug,
 		role.Name,
 		role.Permissions,
-		role.ProjectID)
+		role.ProjectID,
+		role.IsBuiltin)
 
 	if err != nil {
 		return role, err
@@ -46,7 +51,7 @@ func (d *SqlDb) CreateRole(role db.Role) (db.Role, error) {
 }
 
 func (d *SqlDb) DeleteRole(slug string) error {
-	res, err := d.exec("delete from `role` where slug=?", slug)
+	res, err := d.exec("delete from `role` where slug=? and is_builtin=false", slug)
 	return validateMutationResult(res, err)
 }
 
