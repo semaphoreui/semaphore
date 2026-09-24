@@ -225,12 +225,12 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
-	b.roles, err = store.GetProjectRoles(projectID)
+	b.roles, err = store.GetRoles(db.ProjectRoleQuery{ProjectID: projectID})
 	if err != nil {
 		return
 	}
 
-	b.globalRoles, err = store.GetGlobalRoles()
+	b.globalRoles, err = store.GetRoles(db.GlobalRoleQuery{Kinds: db.RoleKindCustom})
 	if err != nil {
 		return
 	}

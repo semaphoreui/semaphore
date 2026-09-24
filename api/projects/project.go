@@ -48,7 +48,10 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		// project role sharing a built-in slug (e.g. "manager") could override the
 		// built-in permissions and escalate privileges.
 		if !roleSlug.IsValid() {
-			role, err := helpers.Store(r).GetProjectOrGlobalRoleBySlug(projectID, string(projectUser.Role))
+			role, err := helpers.Store(r).GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
+				ProjectID: projectID,
+				Kinds:     db.RoleKindCustom,
+			})
 
 			if err == nil {
 				roleSlug = db.ProjectUserRole(role.Slug)

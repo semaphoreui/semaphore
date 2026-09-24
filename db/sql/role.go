@@ -1,23 +1,75 @@
 package sql
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"fmt"
 
-func (d *SqlDb) GetGlobalRoleBySlug(slug string) (db.Role, error) {
+	sq "github.com/Masterminds/squirrel"
+	"github.com/semaphoreui/semaphore/db"
+)
+
+func buildRoleQuery(roleQuery db.RoleQuery) (sq.SelectBuilder, error) {
+	query := sq.Select("*").From("`role`")
+	var kinds db.RoleKind
+
+	switch roleQuery := roleQuery.(type) {
+	case db.GlobalRoleQuery:
+		query = query.Where(sq.Eq{"project_id": nil})
+		kinds = roleQuery.Kinds
+	case db.ProjectRoleQuery:
+		query = query.Where(sq.Eq{"project_id": roleQuery.ProjectID})
+		kinds = db.RoleKindCustom
+	case db.AvailableRoleQuery:
+		query = query.Where(sq.Or{
+			sq.Eq{"project_id": roleQuery.ProjectID},
+			sq.Eq{"project_id": nil},
+		})
+		kinds = roleQuery.Kinds
+	default:
+		return query, fmt.Errorf("unsupported role query: %T", roleQuery)
+	}
+
+	switch kinds {
+	case db.RoleKindBuiltin:
+		return query.Where(sq.Eq{"is_builtin": true}), nil
+	case db.RoleKindCustom:
+		return query.Where(sq.Eq{"is_builtin": false}), nil
+	case db.RoleKindAll:
+		return query, nil
+	default:
+		return query, fmt.Errorf("invalid role kind: %d", kinds)
+	}
+}
+
+func (d *SqlDb) GetRoles(roleQuery db.RoleQuery) ([]db.Role, error) {
+	query, err := buildRoleQuery(roleQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	queryString, args, err := query.OrderBy("name").ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	var roles []db.Role
+	_, err = d.selectAll(&roles, queryString, args...)
+	return roles, err
+}
+
+func (d *SqlDb) GetRoleBySlug(slug string, roleQuery db.RoleQuery) (db.Role, error) {
+	query, err := buildRoleQuery(roleQuery)
+	if err != nil {
+		return db.Role{}, err
+	}
+
+	queryString, args, err := query.Where(sq.Eq{"slug": slug}).ToSql()
+	if err != nil {
+		return db.Role{}, err
+	}
+
 	var role db.Role
-	err := d.selectOne(&role, "select * from `role` where slug=? and project_id is null", slug)
+	err = d.selectOne(&role, queryString, args...)
 	return role, err
-}
-
-func (d *SqlDb) GetProjectRoles(projectID int) ([]db.Role, error) {
-	var roles []db.Role
-	_, err := d.selectAll(&roles, "select * from `role` where project_id=? order by name", projectID)
-	return roles, err
-}
-
-func (d *SqlDb) GetGlobalRoles() ([]db.Role, error) {
-	var roles []db.Role
-	_, err := d.selectAll(&roles, "select * from `role` where project_id is null order by name")
-	return roles, err
 }
 
 func (d *SqlDb) UpdateRole(role db.Role) error {
@@ -53,20 +105,4 @@ func (d *SqlDb) CreateRole(role db.Role) (db.Role, error) {
 func (d *SqlDb) DeleteRole(slug string) error {
 	res, err := d.exec("delete from `role` where slug=? and is_builtin=false", slug)
 	return validateMutationResult(res, err)
-}
-
-func (d *SqlDb) GetProjectRole(projectID int, slug string) (db.Role, error) {
-	var role db.Role
-	err := d.selectOne(&role, "select * from `role` where slug=? and project_id=?", slug, projectID)
-	return role, err
-}
-
-func (d *SqlDb) GetProjectOrGlobalRoleBySlug(projectID int, slug string) (db.Role, error) {
-	var role db.Role
-	err := d.selectOne(
-		&role,
-		"select * from `role` where slug=? and (project_id=? or project_id is null)",
-		slug,
-		projectID)
-	return role, err
 }

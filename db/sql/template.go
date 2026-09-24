@@ -542,7 +542,10 @@ func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int)
 	// own slug directly so a same-named custom role cannot shadow them.
 	if !projectUser.Role.IsValid() {
 		var role db.Role
-		role, err = d.GetProjectOrGlobalRoleBySlug(projectUser.ProjectID, string(projectUser.Role))
+		role, err = d.GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
+			ProjectID: projectUser.ProjectID,
+			Kinds:     db.RoleKindCustom,
+		})
 
 		if errors.Is(err, db.ErrNotFound) {
 			err = nil

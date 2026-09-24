@@ -571,11 +571,8 @@ type SecretSyncRepository interface {
 }
 
 type RoleRepository interface {
-	GetGlobalRoleBySlug(slug string) (Role, error)
-	GetProjectOrGlobalRoleBySlug(projectID int, slug string) (Role, error)
-	GetProjectRole(projectID int, slug string) (Role, error)
-	GetProjectRoles(projectID int) ([]Role, error)
-	GetGlobalRoles() ([]Role, error)
+	GetRoles(query RoleQuery) ([]Role, error)
+	GetRoleBySlug(slug string, query RoleQuery) (Role, error)
 	UpdateRole(role Role) error
 	CreateRole(role Role) (Role, error)
 	DeleteRole(slug string) error

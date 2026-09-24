@@ -2,6 +2,37 @@ package db
 
 import "github.com/semaphoreui/semaphore/pkg/common_errors"
 
+type RoleKind uint8
+
+const (
+	RoleKindBuiltin RoleKind = 1 << iota
+	RoleKindCustom
+	RoleKindAll = RoleKindBuiltin | RoleKindCustom
+)
+
+// RoleQuery is sealed by its unexported marker method so only query variants
+// declared in this package can implement it.
+type RoleQuery interface {
+	isRoleQuery()
+}
+
+type GlobalRoleQuery struct {
+	Kinds RoleKind
+}
+
+type ProjectRoleQuery struct {
+	ProjectID int
+}
+
+type AvailableRoleQuery struct {
+	ProjectID int
+	Kinds     RoleKind
+}
+
+func (GlobalRoleQuery) isRoleQuery()    {}
+func (ProjectRoleQuery) isRoleQuery()   {}
+func (AvailableRoleQuery) isRoleQuery() {}
+
 type Role struct {
 	Slug        string                `db:"slug" json:"slug" backup:"-"`
 	Name        string                `db:"name" json:"name"`

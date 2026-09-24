@@ -66,7 +66,7 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		timezone = "UTC"
 	}
 
-	roles, err := helpers.Store(r).GetGlobalRoles()
+	roles, err := helpers.Store(r).GetRoles(db.GlobalRoleQuery{Kinds: db.RoleKindCustom})
 	if err != nil {
 		log.WithFields(log.Fields{
 			"context": "system_info",

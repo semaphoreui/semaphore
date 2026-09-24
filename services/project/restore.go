@@ -438,7 +438,7 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 	if e.Roles != nil {
 		for _, role := range e.Roles {
 			if role.IsGlobal {
-				r, err := b.store.GetGlobalRoleBySlug(role.Role)
+				r, err := b.store.GetRoleBySlug(role.Role, db.GlobalRoleQuery{Kinds: db.RoleKindCustom})
 				if err != nil {
 					return fmt.Errorf("global role does not exist: %s", role.Role)
 				}

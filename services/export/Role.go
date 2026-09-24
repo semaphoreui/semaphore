@@ -18,7 +18,7 @@ func (e *RoleExporter) load(store db.Store, exporter DataExporter, progress Prog
 	}
 
 	for _, proj := range projs {
-		roles, err := store.GetProjectRoles(proj)
+		roles, err := store.GetRoles(db.ProjectRoleQuery{ProjectID: proj})
 		if err != nil {
 			return err
 		}
@@ -28,7 +28,7 @@ func (e *RoleExporter) load(store db.Store, exporter DataExporter, progress Prog
 		}
 	}
 
-	roles, err := store.GetGlobalRoles()
+	roles, err := store.GetRoles(db.GlobalRoleQuery{Kinds: db.RoleKindCustom})
 	if err != nil {
 		return err
 	}
