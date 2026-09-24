@@ -138,6 +138,7 @@ export default {
       // itself later using a one-time registration token.
       return {
         registered: true,
+        active: true,
         is_default: this.projectId == null,
       };
     },
