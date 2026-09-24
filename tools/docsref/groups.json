@@ -1,0 +1,166 @@
+{
+  "groups": [
+    {
+      "title": "Database",
+      "intro": "Semaphore creates and migrates its own tables on start. Pick the dialect before the first run; changing it later means migrating the data yourself.",
+      "prefixes": [
+        "dialect",
+        "mysql.",
+        "postgres.",
+        "sqlite.",
+        "bolt."
+      ]
+    },
+    {
+      "title": "Web server",
+      "intro": "Where the HTTP server listens and how users reach it. Set `web_host` to the URL users type: redirect URIs, webhook targets, and links in notifications are built from it.",
+      "prefixes": [
+        "port",
+        "interface",
+        "web_host",
+        "tls.",
+        "cookie_hash",
+        "cookie_encryption",
+        "max_request_body_size",
+        "cors_allow_origins",
+        "http."
+      ]
+    },
+    {
+      "title": "Paths and storage",
+      "intro": "Directories Semaphore writes to. Everything here except the database is a cache that can be recreated.",
+      "prefixes": [
+        "tmp_path",
+        "secrets_path",
+        "dirs.",
+        "home_dir_mode"
+      ]
+    },
+    {
+      "title": "Encryption",
+      "intro": "Keys that protect stored secrets. Back them up separately from the database: the database is unreadable without them.",
+      "prefixes": [
+        "access_key_encryption",
+        "option_encryption",
+        "encryption.",
+        "encryption_keys."
+      ]
+    },
+    {
+      "title": "Authentication",
+      "intro": "How users sign in. See [Authentication](/admin-guide/authentication) for the provider-side setup.",
+      "prefixes": [
+        "auth.",
+        "mfa.",
+        "password_login_disable",
+        "non_admin_can_create_project",
+        "oidc_providers",
+        "ldap*",
+        "totp.",
+        "external_auth_email_matching"
+      ]
+    },
+    {
+      "title": "Git",
+      "intro": "How repositories are cloned. See [Repositories](/user-guide/repositories).",
+      "prefixes": [
+        "git_client",
+        "git_attempts",
+        "git_submodule_jobs",
+        "ssh_config_path",
+        "ssh."
+      ]
+    },
+    {
+      "title": "Tasks",
+      "intro": "Concurrency, retention, and the environment task processes run in.",
+      "prefixes": [
+        "max_parallel_tasks",
+        "max_task_duration_sec",
+        "max_tasks_per_template",
+        "env_vars",
+        "forwarded_env_vars",
+        "apps",
+        "schedule.",
+        "process."
+      ]
+    },
+    {
+      "title": "Runners",
+      "intro": "Server-side switches first, then the keys a runner reads from its own configuration file. See [Runners](/admin-guide/runners).",
+      "prefixes": [
+        "use_remote_runner",
+        "runner_registration_token",
+        "runners.",
+        "runner."
+      ]
+    },
+    {
+      "title": "Task JWT",
+      "intro": "Short-lived tokens that identify a task to external systems. See [Task JWTs](/user-guide/task-templates/jwt).",
+      "prefixes": [
+        "jwt."
+      ]
+    },
+    {
+      "title": "Notifications",
+      "intro": "Delivery channels for alerts. See [Notifications](/admin-guide/notifications).",
+      "prefixes": [
+        "email_*",
+        "telegram_*",
+        "slack_*",
+        "rocketchat_*",
+        "microsoft_teams_*",
+        "dingtalk_*",
+        "gotify_*",
+        "alert.",
+        "webhook."
+      ]
+    },
+    {
+      "title": "Logging and metrics",
+      "intro": "Where server, event, and task logs go, and the Prometheus endpoint. See [Logs](/admin-guide/logs) and [Metrics](/admin-guide/metrics).",
+      "prefixes": [
+        "log.",
+        "syslog.",
+        "metrics."
+      ]
+    },
+    {
+      "title": "Teams and invitations",
+      "intro": "How people are added to projects. See [Teams](/user-guide/team).",
+      "prefixes": [
+        "teams."
+      ]
+    },
+    {
+      "title": "Subscription",
+      "intro": "Activating Pro or Enterprise. See [License](/admin-guide/license).",
+      "prefixes": [
+        "subscription."
+      ]
+    },
+    {
+      "title": "High availability",
+      "intro": "Running several nodes against one database. See [High availability](/admin-guide/ha).",
+      "edition": "enterprise",
+      "prefixes": [
+        "ha."
+      ]
+    },
+    {
+      "title": "Debugging",
+      "intro": "Switches useful when diagnosing a problem. Do not leave them on in production.",
+      "prefixes": [
+        "debugging.",
+        "demo_mode"
+      ]
+    }
+  ],
+  "editions": {
+    "log.": "pro",
+    "syslog.": "pro",
+    "runner.executor.docker.": "pro",
+    "runner.executor.k8s.": "pro"
+  }
+}

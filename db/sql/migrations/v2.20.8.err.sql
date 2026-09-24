@@ -1,1 +1,1 @@
-alter table `project__proxy` drop column `requires_proxy_id`;
+alter table `project__repository` drop column `proxy_id`;

@@ -8,17 +8,12 @@ type ProjectExporter struct {
 
 func (e *ProjectExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
-	allKeys := make([]db.Project, 0)
 	projects, err := store.GetAllProjects()
 	if err != nil {
 		return err
 	}
 
-	for _, proj := range projects {
-		allKeys = append(allKeys, proj)
-	}
-
-	return e.appendValues(allKeys, GlobalScope)
+	return e.appendValues(projects, GlobalScope)
 }
 
 func (e *ProjectExporter) restore(store db.Store, exporter DataExporter, progress Progress) (err error) {

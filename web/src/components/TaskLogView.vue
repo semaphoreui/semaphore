@@ -227,6 +227,8 @@ $task-log-status-tab-height:
 .task-log-records__time {
   width: 120px;
   min-width: 120px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .task-log-records__output {
