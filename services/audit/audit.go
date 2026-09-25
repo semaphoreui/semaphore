@@ -12,14 +12,15 @@ import (
 type Resource string
 
 const (
-	ResourceProject     Resource = "project"
-	ResourceInventory   Resource = "inventory"
-	ResourceCredential  Resource = "credential"
-	ResourceRepository  Resource = "repository"
-	ResourceView        Resource = "view"
-	ResourceTemplate    Resource = "template"
-	ResourceSchedule    Resource = "schedule"
-	ResourceEnvironment Resource = "environment"
+	ResourceProject       Resource = "project"
+	ResourceInventory     Resource = "inventory"
+	ResourceCredential    Resource = "credential"
+	ResourceRepository    Resource = "repository"
+	ResourceView          Resource = "view"
+	ResourceTemplate      Resource = "template"
+	ResourceSchedule      Resource = "schedule"
+	ResourceEnvironment   Resource = "environment"
+	ResourceSecretStorage Resource = "secret_storage"
 )
 
 type Action string
@@ -113,6 +114,12 @@ func mapResource(resource Resource) (resourceMapping, error) {
 			activityType: db.EventEnvironment,
 			eventCode:    db.AuditEventCodeEnvironment,
 			targetType:   "environment",
+		}, nil
+	case ResourceSecretStorage:
+		return resourceMapping{
+			activityType: db.EventSecretStorage,
+			eventCode:    db.AuditEventCodeSecretStorage,
+			targetType:   "secret_storage",
 		}, nil
 	default:
 		return resourceMapping{}, fmt.Errorf("unsupported audit resource %q", resource)
