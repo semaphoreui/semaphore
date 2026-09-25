@@ -40,17 +40,13 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		}
 
 		roleSlug := projectUser.Role
+		// Keep zero permissions when no role is assigned or its definition is missing.
+		var permissions db.ProjectUserPermission
 
-		permissions := roleSlug.GetPermissions()
-
-		// Built-in roles are defined in code and are the source of truth for their
-		// permissions. Only custom roles are resolved from the database, otherwise a
-		// project role sharing a built-in slug (e.g. "manager") could override the
-		// built-in permissions and escalate privileges.
-		if !roleSlug.IsBuiltin() {
-			role, err := helpers.Store(r).GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
+		if roleSlug != db.ProjectNone {
+			role, err := helpers.Store(r).GetRoleBySlug(string(roleSlug), db.AvailableRoleQuery{
 				ProjectID: projectID,
-				Kinds:     db.RoleKindCustom,
+				Kinds:     db.RoleKindAll,
 			})
 
 			if err == nil {

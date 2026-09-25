@@ -524,68 +524,46 @@ func (d *SqlDb) GetTemplateRole(projectID int, templateID int, id int) (template
 	return
 }
 
-func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int) (perm db.ProjectUserPermission, err error) {
-	var projectUser db.ProjectUser
-	projectUser, err = d.GetProjectUser(projectID, userID)
+func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int) (db.ProjectUserPermission, error) {
+	projectUser, err := d.GetProjectUser(projectID, userID)
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			err = nil // user not in project, no permissions
+			return 0, nil // The user is not in the project and has no permissions.
 		}
-		return
+		return 0, err
 	}
 
-	perm = projectUser.Role.GetPermissions()
-
-	roleSlug := string(projectUser.Role)
-
-	// Only custom roles are resolved from the database; built-in roles use their
-	// own slug directly so a same-named custom role cannot shadow them.
-	if !projectUser.Role.IsBuiltin() {
-		var role db.Role
-		role, err = d.GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
-			ProjectID: projectUser.ProjectID,
-			Kinds:     db.RoleKindCustom,
-		})
-
+	role, err := d.GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
+		ProjectID: projectUser.ProjectID,
+		Kinds:     db.RoleKindAll,
+	})
+	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			err = nil
-			return
+			return 0, nil
 		}
-
-		if err != nil {
-			return
-		}
-
-		roleSlug = role.Slug
+		return 0, err
 	}
 
 	query, args, err := sq.Select("permissions").
 		From("project__template_role").
 		Where("project_id = ?", projectID).
 		Where("template_id = ?", templateID).
-		Where("role_slug = ?", roleSlug).
+		Where("role_slug = ?", role.Slug).
 		ToSql()
-
 	if err != nil {
-		return
+		return 0, err
 	}
 
 	var templateRole db.TemplateRolePerm
-
 	err = d.selectOne(&templateRole, query, args...)
-
-	if errors.Is(err, db.ErrNotFound) {
-		err = nil
-		return
-	}
-
 	if err != nil {
-		return
+		if errors.Is(err, db.ErrNotFound) {
+			return role.Permissions, nil
+		}
+		return 0, err
 	}
 
-	perm |= templateRole.Permissions
-
-	return
+	return role.Permissions | templateRole.Permissions, nil
 }
 
 func (d *SqlDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplateRolePerm, err error) {
