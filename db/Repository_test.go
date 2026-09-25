@@ -321,6 +321,94 @@ func TestRepository_GetRedactedGitURL(t *testing.T) {
 	}
 }
 
+func TestRepository_RedactCredentials(t *testing.T) {
+	loginPassword := func(login, password string) AccessKey {
+		return AccessKey{
+			Type:          AccessKeyLoginPassword,
+			LoginPassword: LoginPassword{Login: login, Password: password},
+		}
+	}
+
+	tests := []struct {
+		name     string
+		gitURL   string
+		key      AccessKey
+		text     string
+		expected string
+	}{
+		{
+			name:     "access key password",
+			gitURL:   "https://gitlab.com/group/repo.git",
+			key:      loginPassword("oauth2", "glpat-SECRET"),
+			text:     "fatal: unable to access 'https://oauth2:glpat-SECRET@gitlab.com/group/repo.git/'",
+			expected: "fatal: unable to access 'https://oauth2:***@gitlab.com/group/repo.git/'",
+		},
+		{
+			name:     "access key token without login",
+			gitURL:   "https://gitlab.com/group/repo.git",
+			key:      loginPassword("", "glpat-SECRET"),
+			text:     "https://glpat-SECRET@gitlab.com/group/repo.git",
+			expected: "https://***@gitlab.com/group/repo.git",
+		},
+		{
+			name:     "percent-encoded password as embedded by GetGitURL",
+			gitURL:   "https://gitlab.com/group/repo.git",
+			key:      loginPassword("user", "p@ss/SECRET"),
+			text:     "fatal: unable to access 'https://user:p%40ss%2FSECRET@gitlab.com/group/repo.git/'",
+			expected: "fatal: unable to access 'https://user:***@gitlab.com/group/repo.git/'",
+		},
+		{
+			name:     "password quoted outside a URL",
+			gitURL:   "https://gitlab.com/group/repo.git",
+			key:      loginPassword("user", "SECRET"),
+			text:     "remote: invalid credentials SECRET!",
+			expected: "remote: invalid credentials ***!",
+		},
+		{
+			name:     "token typed into the URL",
+			gitURL:   "https://ghp_SECRET@github.com/user/repo.git",
+			text:     "fatal: repository 'https://ghp_SECRET@github.com/user/repo.git/' not found",
+			expected: "fatal: repository 'https://***@github.com/user/repo.git/' not found",
+		},
+		{
+			name:     "login and password typed into the URL",
+			gitURL:   "https://user:SECRET@git.local/repo.git",
+			text:     "https://user:SECRET@git.local/repo.git and SECRET",
+			expected: "https://***@git.local/repo.git and ***",
+		},
+		{
+			name:     "ssh user name is kept",
+			gitURL:   "ssh://git@github.com/user/repo.git",
+			text:     "git@github.com: Permission denied (publickey).",
+			expected: "git@github.com: Permission denied (publickey).",
+		},
+		{
+			name:     "ssh key is not a password",
+			gitURL:   "git@github.com:user/repo.git",
+			key:      AccessKey{Type: AccessKeySSH},
+			text:     "fatal: Could not read from remote repository.",
+			expected: "fatal: Could not read from remote repository.",
+		},
+		{
+			name:     "empty password redacts nothing",
+			gitURL:   "https://gitlab.com/group/repo.git",
+			key:      loginPassword("user", ""),
+			text:     "fatal: Authentication failed",
+			expected: "fatal: Authentication failed",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := Repository{GitURL: tt.gitURL, SSHKey: tt.key}
+
+			redacted := repo.RedactCredentials(tt.text)
+
+			assert.Equal(t, tt.expected, redacted)
+			assert.NotContains(t, redacted, "SECRET")
+		})
+	}
+}
+
 func TestRepository_GetCheckoutDirName(t *testing.T) {
 	repo := Repository{ID: 1, GitURL: "https://example.com/hello/world"}
 
