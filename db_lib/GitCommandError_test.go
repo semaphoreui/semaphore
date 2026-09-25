@@ -27,6 +27,7 @@ func TestGitErrorDetail(t *testing.T) {
 			"remote: HTTP Basic: Access denied\nfatal: Authentication failed for 'https://gitlab.com/g/r.git/'",
 		},
 		{"carriage returns split lines", "Receiving objects: 10%\rReceiving objects: 20%\r\nfatal: early EOF", "Receiving objects: 10%\nReceiving objects: 20%\nfatal: early EOF"},
+		{"drops the clone progress line", "Cloning into 'repository_1_browse_b28b7af69320'...\nfatal: Authentication failed", "fatal: Authentication failed"},
 		{"keeps the last lines", "1\n2\n3\n4\n5\n6\n7\n", "3\n4\n5\n6\n7"},
 		{"invalid utf-8 is dropped", "fatal: bad \xff name", "fatal: bad  name"},
 	}

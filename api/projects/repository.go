@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/util"
 
 	log "github.com/sirupsen/logrus"
@@ -50,13 +51,48 @@ func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
 }
 
 type RepositoryController struct {
-	keyInstaller db_lib.AccessKeyInstaller
+	keyInstaller      db_lib.AccessKeyInstaller
+	encryptionService server.AccessKeyEncryptionService
 }
 
-func NewRepositoryController(keyInstaller db_lib.AccessKeyInstaller) *RepositoryController {
+func NewRepositoryController(
+	keyInstaller db_lib.AccessKeyInstaller,
+	encryptionService server.AccessKeyEncryptionService,
+) *RepositoryController {
 	return &RepositoryController{
-		keyInstaller: keyInstaller,
+		keyInstaller:      keyInstaller,
+		encryptionService: encryptionService,
 	}
+}
+
+// decryptRepositoryKey decrypts the repository's access key in place, as the
+// task runner does before running git. GetGitURL(true) embeds the login and
+// password from repo.SSHKey, and the key loaded from the store holds them
+// only encrypted, so without this a login/password repository is queried
+// with no credentials at all. It writes the response and returns false when
+// the key cannot be used.
+func (c *RepositoryController) decryptRepositoryKey(w http.ResponseWriter, repo *db.Repository) bool {
+	err := c.encryptionService.DeserializeSecret(&repo.SSHKey)
+	if err == nil {
+		return true
+	}
+
+	fields := log.Fields{
+		"context":       "repository",
+		"project_id":    repo.ProjectID,
+		"repository_id": repo.ID,
+		"key_id":        repo.SSHKeyID,
+	}
+
+	if errors.Is(err, server.ErrAccessKeyExpired) {
+		log.WithFields(fields).Warn("repository access key has expired")
+		helpers.WriteError(w, common_errors.NewUserErrorS("The repository's access key has expired"))
+		return false
+	}
+
+	log.WithError(err).WithFields(fields).Error("failed to decrypt repository access key")
+	helpers.WriteErrorStatus(w, "Failed to read the repository's access key", http.StatusInternalServerError)
+	return false
 }
 
 func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +100,10 @@ func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *h
 
 	if repo.GetType() == db.RepositoryLocal || repo.GetType() == db.RepositoryFile {
 		helpers.WriteJSON(w, http.StatusBadRequest, "Wrong repository type: "+repo.GetType())
+		return
+	}
+
+	if !c.decryptRepositoryKey(w, &repo) {
 		return
 	}
 
@@ -105,6 +145,10 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 
 		if err := git.ValidateGitBranch(branch, "repository"); err != nil {
 			helpers.WriteError(w, err)
+			return
+		}
+
+		if !c.decryptRepositoryKey(w, &repo) {
 			return
 		}
 

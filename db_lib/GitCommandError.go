@@ -54,15 +54,19 @@ func newGitCommandError(repo db.Repository, args []string, stderr string, err er
 
 // gitErrorDetail returns the last non-empty lines of stderr. Carriage returns
 // count as line breaks, since that is how git redraws its progress lines.
+// git clone's "Cloning into '<dir>'..." is dropped: it explains nothing and
+// names a server-side directory.
 func gitErrorDetail(stderr string) string {
 	stderr = strings.ToValidUTF8(stderr, "")
 	stderr = strings.ReplaceAll(stderr, "\r", "\n")
 
 	var lines []string
 	for _, line := range strings.Split(stderr, "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			lines = append(lines, line)
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "Cloning into ") {
+			continue
 		}
+		lines = append(lines, line)
 	}
 
 	if len(lines) > gitErrorDetailLines {
