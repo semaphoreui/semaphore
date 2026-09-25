@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"net"
 	"net/netip"
 	"net/url"
 	"os"
@@ -1911,51 +1910,25 @@ func (conf *ConfigType) validateAuditConfig() error {
 	if conf.Audit == nil {
 		return nil
 	}
+
 	if _, err := ParseAuditTrustedProxyCIDRs(conf.Audit.TrustedProxyCIDRs); err != nil {
 		return err
 	}
-	if conf.Audit.Enabled {
-		if strings.TrimSpace(conf.Audit.InstanceID) == "" {
-			return errors.New("audit.instance_id must not be empty when audit.enabled is true")
-		}
-		if len(conf.Audit.InstanceID) > auditIdentifierMaxBytes {
-			return errors.New("audit.instance_id must not exceed 255 UTF-8 bytes")
-		}
-		if conf.HA != nil && len(conf.HA.NodeID) > auditIdentifierMaxBytes {
-			return errors.New("ha.node_id must not exceed 255 UTF-8 bytes when audit.enabled is true")
-		}
-	}
 
-	destination := conf.Audit.Destination
-	if destination == nil {
+	if !conf.Audit.Enabled {
 		return nil
 	}
-	if destination.ID == "" {
-		return errors.New("audit.destination.id must not be empty")
+
+	if strings.TrimSpace(conf.Audit.InstanceID) == "" {
+		return errors.New("audit.instance_id must not be empty when audit.enabled is true")
 	}
-	if len(destination.ID) > auditIdentifierMaxBytes {
-		return fmt.Errorf(
-			"audit.destination.id must not exceed %d bytes",
-			auditIdentifierMaxBytes,
-		)
+	if len(conf.Audit.InstanceID) > auditIdentifierMaxBytes {
+		return errors.New("audit.instance_id must not exceed 255 UTF-8 bytes")
 	}
-	if destination.Type != "syslog" {
-		return errors.New("audit.destination.type must be syslog")
+	if conf.HA != nil && len(conf.HA.NodeID) > auditIdentifierMaxBytes {
+		return errors.New("ha.node_id must not exceed 255 UTF-8 bytes when audit.enabled is true")
 	}
-	if destination.Syslog == nil {
-		return errors.New("audit.destination.syslog must be configured")
-	}
-	if strings.TrimSpace(destination.Syslog.Address) == "" {
-		return errors.New("audit.destination.syslog.address must not be empty")
-	}
-	host, port, err := net.SplitHostPort(destination.Syslog.Address)
-	if err != nil || strings.TrimSpace(host) == "" || strings.TrimSpace(port) == "" {
-		return errors.New("audit.destination.syslog.address must be a valid host:port")
-	}
-	timeout, err := time.ParseDuration(destination.Syslog.Timeout)
-	if err != nil || timeout <= 0 {
-		return errors.New("audit.destination.syslog.timeout must be a positive duration")
-	}
+
 	return nil
 }
 
