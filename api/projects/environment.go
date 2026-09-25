@@ -8,6 +8,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 )
 
@@ -227,18 +228,19 @@ func (c *EnvironmentController) UpdateEnvironment(w http.ResponseWriter, r *http
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
-		ProjectID:   oldEnv.ProjectID,
-		ObjectType:  db.EventEnvironment,
-		ObjectID:    oldEnv.ID,
-		Description: fmt.Sprintf("Environment %s updated", env.Name),
-	})
-
 	if err := c.updateEnvironmentSecrets(env); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceEnvironment,
+		Action:      audit.ActionUpdate,
+		ProjectID:   oldEnv.ProjectID,
+		TargetID:    oldEnv.ID,
+		TargetName:  env.Name,
+		Description: fmt.Sprintf("Environment %s updated", env.Name),
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -265,18 +267,19 @@ func (c *EnvironmentController) AddEnvironment(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
-		ProjectID:   newEnv.ProjectID,
-		ObjectType:  db.EventEnvironment,
-		ObjectID:    newEnv.ID,
-		Description: fmt.Sprintf("Environment %s created", newEnv.Name),
-	})
-
 	if err = c.updateEnvironmentSecrets(newEnv); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceEnvironment,
+		Action:      audit.ActionCreate,
+		ProjectID:   newEnv.ProjectID,
+		TargetID:    newEnv.ID,
+		TargetName:  newEnv.Name,
+		Description: fmt.Sprintf("Environment %s created", newEnv.Name),
+	})
 
 	// Reload env
 	env, err = helpers.Store(r).GetEnvironment(newEnv.ProjectID, newEnv.ID)
@@ -309,11 +312,12 @@ func (c *EnvironmentController) RemoveEnvironment(w http.ResponseWriter, r *http
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceEnvironment,
+		Action:      audit.ActionDelete,
 		ProjectID:   env.ProjectID,
-		ObjectType:  db.EventEnvironment,
-		ObjectID:    env.ID,
+		TargetID:    env.ID,
+		TargetName:  env.Name,
 		Description: fmt.Sprintf("Environment %s deleted", env.Name),
 	})
 
@@ -336,11 +340,12 @@ func (c *EnvironmentController) SyncEnvironment(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceEnvironment,
+		Action:      audit.ActionUpdate,
 		ProjectID:   env.ProjectID,
-		ObjectType:  db.EventEnvironment,
-		ObjectID:    env.ID,
+		TargetID:    env.ID,
+		TargetName:  env.Name,
 		Description: fmt.Sprintf("Environment %s secrets synced", env.Name),
 	})
 
