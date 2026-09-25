@@ -186,6 +186,7 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 		InventoryRepository: tsk.Inventory.Repository,
 		Repository:          tsk.Repository,
 		Environment:         tsk.Environment,
+		HostConfigs:         tsk.HostConfigs,
 	}
 
 	// Always overwrite: the dispatched Secret must be exactly the
@@ -248,6 +249,26 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 // and stages them into keys, so the caller publishes either all of them or
 // none. It returns the first decryption error.
 func (c *RunnerController) collectTaskAccessKeys(tsk *tasks.TaskRunner, runnerID int, keys map[int]db.AccessKey) error {
+	// The credential of every mapping, so the runner can bind it to its host.
+	// Decrypted here rather than reused from loadHostConfigs: a task can wait in
+	// the queue long enough for a key to expire between the two.
+	for i := range tsk.HostConfigs {
+		hostConfig := &tsk.HostConfigs[i]
+
+		if err := c.encryptionService.DeserializeSecret(&hostConfig.SSHKey); err != nil {
+			log.WithFields(log.Fields{
+				"runner_id":      runnerID,
+				"task_id":        tsk.Task.ID,
+				"host_config_id": hostConfig.ID,
+				"access_key_id":  hostConfig.SSHKeyID,
+				"context":        "runner",
+			}).WithError(err).Error("Failed to decrypt host config key")
+			return err
+		}
+
+		keys[hostConfig.SSHKeyID] = hostConfig.SSHKey
+	}
+
 	if tsk.Inventory.SSHKeyID != nil {
 		if err := c.encryptionService.DeserializeSecret(&tsk.Inventory.SSHKey); err != nil {
 			log.WithFields(log.Fields{

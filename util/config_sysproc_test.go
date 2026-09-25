@@ -7,6 +7,15 @@ import (
 	"testing"
 )
 
+func TestAppProcessGroup(t *testing.T) {
+	config := ConfigType{Process: &ConfigProcess{}}
+
+	attributes := config.GetAppSysProcAttr()
+	if attributes == nil || !attributes.Setsid {
+		t.Fatal("app process must start in a new process group")
+	}
+}
+
 func TestParseLinuxCredentialUint(t *testing.T) {
 	tests := []struct {
 		in      string

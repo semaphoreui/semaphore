@@ -681,6 +681,13 @@ type ConfigType struct {
 
 	EnvVars map[string]string `json:"env_vars,omitempty" env:"SEMAPHORE_ENV_VARS"`
 
+	// ForwardedEnvVars lists host environment variables copied into task runs and
+	// into the child git processes that clone and update repositories. Proxy
+	// variables are not forwarded implicitly: they reach a task only if they are
+	// named here or set in env_vars. A bare-metal (systemd) installation behind
+	// a corporate proxy therefore has to list the proxy variables explicitly,
+	// including the bypass list for internal hosts:
+	// ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"].
 	ForwardedEnvVars []string `json:"forwarded_env_vars,omitempty" env:"SEMAPHORE_FORWARDED_ENV_VARS"`
 
 	Teams *TeamsConfig `json:"teams,omitempty"`

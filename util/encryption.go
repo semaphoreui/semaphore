@@ -1,8 +1,6 @@
 package util
 
 import (
-	"bufio"
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -13,6 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"golang.org/x/crypto/ssh"
 )
 
 // EncryptAESGCM encrypts a plaintext using AES-256-GCM with the given base64-encoded key. If the key is empty, it returns the plaintext as base64.
@@ -90,23 +90,12 @@ func GeneratePrivateKey(privateKeyFile io.Writer) (publicKey string, err error) 
 		return
 	}
 
-	publicKeyBytes := x509.MarshalPKCS1PublicKey(&privateKey.PublicKey)
-	publicKeyPem := &pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: publicKeyBytes,
-	}
-
-	var b bytes.Buffer
-	publicKeyFile := bufio.NewWriter(&b)
-
-	if err = pem.Encode(publicKeyFile, publicKeyPem); err != nil {
+	// 4. Encode the public key in OpenSSH authorized_keys format
+	sshPublicKey, err := ssh.NewPublicKey(&privateKey.PublicKey)
+	if err != nil {
 		return
 	}
 
-	if err = publicKeyFile.Flush(); err != nil {
-		return
-	}
-
-	publicKey = b.String()
+	publicKey = string(ssh.MarshalAuthorizedKey(sshPublicKey))
 	return
 }

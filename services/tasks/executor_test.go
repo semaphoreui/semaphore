@@ -98,8 +98,8 @@ func TestLocalExecutorCleanup_ZeroValueSafe(t *testing.T) {
 
 func TestLocalExecutorIsKilled(t *testing.T) {
 	exec := &LocalExecutor{}
-	assert.False(t, exec.IsKilled(), "fresh executor should not be marked killed")
+	assert.False(t, exec.IsKilled(), "fresh executor should not have a kill request")
 
 	exec.Kill() // Process is nil so this only flips the flag
-	assert.True(t, exec.IsKilled(), "Kill() must flip the killed flag")
+	assert.True(t, exec.IsKilled(), "Kill() must record the kill request")
 }

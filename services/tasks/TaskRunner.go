@@ -41,6 +41,10 @@ type TaskRunner struct {
 	Repository  db.Repository
 	Environment db.Environment
 
+	// HostConfigs are the credential mappings of the project. They are resolved
+	// here, on the server, because a remote runner has no database.
+	HostConfigs []db.HostConfig
+
 	currentStage  *db.TaskStage
 	currentOutput *db.TaskOutput
 	currentState  any
@@ -306,34 +310,37 @@ func (t *TaskRunner) run() {
 
 	err = t.job.Run(username, incomingVersion, t.Alias)
 
-	if err != nil {
-		if errors.Is(err, ErrAllRunnersBusy) {
-			// No runners available right now, put task back in waiting state
-			t.SetStatus(task_logger.TaskWaitingStatus)
-			t.pool.state.Enqueue(t)
-			requeued = true
-			return
-		}
-
-		if t.job.IsKilled() {
-			t.SetStatus(task_logger.TaskStoppedStatus)
-		} else {
-			log.WithError(err).WithFields(log.Fields{
-				"task_id":     t.Task.ID,
-				"context":     "task_runner",
-				"task_status": t.Task.Status,
-			}).Warn("Failed to run task")
-			t.Log("Failed to run task: " + err.Error())
-			t.SetStatus(task_logger.TaskFailStatus)
-		}
-		return
-	}
-
 	// Remote jobs only dispatch the task to a runner; their completion is
 	// reported asynchronously via the runner API and finalized there. Hand off
 	// and let the deferred cleanup skip finalization.
-	if t.job.Async() {
+	if err == nil && t.job.Async() {
 		handedOff = true
+		return
+	}
+
+	// A SIGTERM handler may exit successfully, so cancellation is independent
+	// of whether Run returns a nil or non-nil error.
+	if t.job.IsKilled() {
+		t.SetStatus(task_logger.TaskStoppedStatus)
+		return
+	}
+
+	switch {
+	case errors.Is(err, ErrAllRunnersBusy):
+		// No runners available right now, put task back in waiting state
+		t.SetStatus(task_logger.TaskWaitingStatus)
+		t.pool.state.Enqueue(t)
+		requeued = true
+		return
+
+	case err != nil:
+		log.WithError(err).WithFields(log.Fields{
+			"task_id":     t.Task.ID,
+			"context":     "task_runner",
+			"task_status": t.Task.Status,
+		}).Warn("Failed to run task")
+		t.Log("Failed to run task: " + err.Error())
+		t.SetStatus(task_logger.TaskFailStatus)
 		return
 	}
 
@@ -348,6 +355,13 @@ func (t *TaskRunner) run() {
 // to release the task's resources (EventTypeFinished -> onTaskStop). It is used
 // by the synchronous local path and by FinalizeRemoteTask for remote tasks.
 func (t *TaskRunner) finishRun() {
+	if !t.Task.Status.IsFinished() {
+		log.WithFields(log.Fields{
+			"task_id":     t.Task.ID,
+			"task_status": t.Task.Status,
+		}).Error("finalizing task with non-terminal status")
+	}
+
 	now := tz.Now()
 	t.Task.End = &now
 	t.saveStatus()
@@ -551,6 +565,10 @@ func (t *TaskRunner) populateDetails() error {
 
 	t.Repository = withEffectiveBranch(t.Repository, t.Template, t.Task)
 
+	if err = t.loadHostConfigs(); err != nil {
+		return err
+	}
+
 	// load and merge all configured environments
 	err = t.loadEnvironments()
 	if err != nil {
@@ -666,4 +684,27 @@ func checkTmpDir(path string) error {
 		}
 	}
 	return err
+}
+
+// loadHostConfigs reads the credential mappings of the project together with
+// their keys, decrypted the same way the key of the repository is.
+func (t *TaskRunner) loadHostConfigs() (err error) {
+	t.HostConfigs, err = t.pool.store.GetHostConfigs(t.Template.ProjectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
+	for i := range t.HostConfigs {
+		t.HostConfigs[i].SSHKey, err = t.pool.store.GetAccessKey(
+			t.Template.ProjectID, t.HostConfigs[i].SSHKeyID)
+		if err != nil {
+			return
+		}
+
+		if err = t.pool.encryptionService.DeserializeSecret(&t.HostConfigs[i].SSHKey); err != nil {
+			return
+		}
+	}
+
+	return
 }

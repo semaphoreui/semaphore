@@ -22,6 +22,11 @@ tasks:
     desc: Install all build dependencies
     cmds:
       - task: deps:tools
+      - task: deps:image
+
+  deps:image:
+    desc: Install dependencies required to build application artifacts
+    cmds:
       - task: deps:be
       - task: deps:fe
 
@@ -94,6 +99,13 @@ tasks:
       - >-
         {{ if eq OS "windows" }}set VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }} && {{ else }}env VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }}{{ end }}
         npm run build
+      # vue-cli-service empties outputDir (../api/public) before every build,
+      # which deletes the tracked placeholder. Put it back: `go:embed public/*`
+      # in api/router.go needs a match even when the frontend has not been
+      # built, and the CI "Check modification" step fails if a build leaves the
+      # working tree dirty. `echo` with no argument writes the single newline
+      # the committed file holds, so the restored file matches byte for byte.
+      - echo > ../api/public/.gitkeep
 
   build:be:
     desc: Build server binary

@@ -3,6 +3,7 @@ package db
 import (
 	"crypto/sha1"
 	"fmt"
+	"net/url"
 	"path"
 	"regexp"
 	"strconv"
@@ -11,6 +12,8 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type RepositoryType string
@@ -100,50 +103,106 @@ func (r Repository) GetInternalPath(templateID int) string {
 // directory (e.g. repository_15_template_114_main_1a2b3c4d).
 func (r Repository) GetFullPath(templateID int) string {
 	if r.GetType() == RepositoryLocal {
-		return r.GetGitURL(true)
+		return r.GetGitURL(false)
 	}
 	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetCheckoutDirName(templateID))
 }
 
-func (r Repository) GetGitURL(secure bool) string {
-	url := r.GitURL
+// GetGitURL returns the URL git is invoked with. With embedCredentials set,
+// the repository's login/password access key is embedded in the userinfo,
+// percent encoded, so credentials containing "@", ":", "#" or "%" survive
+// intact. Otherwise the URL is returned exactly as configured. It may still
+// carry userinfo typed into the URL itself, which go-git uses as basic auth,
+// so it is not safe to log in either mode. Use GetRedactedGitURL for that.
+//
+// A URL net/url cannot parse is returned with its userinfo removed in both
+// modes. git cannot authenticate with it anyway, and go-git quotes the whole
+// URL in the parse error it returns, so handing it over unchanged would leak
+// the credentials into task logs.
+func (r Repository) GetGitURL(embedCredentials bool) string {
+	rawURL := r.GitURL
 
 	if r.GetType() == RepositoryLocal {
-		return util.NormalizeLocalFilesystemPath(url)
+		return util.NormalizeLocalFilesystemPath(rawURL)
 	}
 
-	if secure {
-		return url
+	if !hasURLScheme(rawURL) {
+		return rawURL
 	}
 
-	if r.GetType() == RepositoryHTTP {
-		auth := ""
-		switch r.SSHKey.Type {
-		case AccessKeyLoginPassword:
-			if r.SSHKey.LoginPassword.Login == "" {
-				auth = r.SSHKey.LoginPassword.Password
-			} else {
-				auth = r.SSHKey.LoginPassword.Login + ":" + r.SSHKey.LoginPassword.Password
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		// Do not fail the task here, but make the reason visible: a URL git
+		// cannot be handed credentials for shows up later only as an opaque
+		// authentication error. The error itself quotes the URL and is not logged.
+		log.WithFields(log.Fields{
+			"context":       "repository",
+			"repository_id": r.ID,
+		}).Warn("can not parse repository url, using it without credentials")
+		return redactURLUserinfo(rawURL)
+	}
+
+	if !embedCredentials {
+		return rawURL
+	}
+
+	if r.GetType() == RepositoryHTTP && r.SSHKey.Type == AccessKeyLoginPassword {
+		if r.SSHKey.LoginPassword.Login == "" {
+			if r.SSHKey.LoginPassword.Password == "" {
+				return rawURL
 			}
-		}
-		if auth != "" {
-			auth += "@"
-		}
-
-		re := regexp.MustCompile(`^(https?)://`)
-		m := re.FindStringSubmatch(url)
-		var protocol string
-
-		if m == nil {
-			panic(fmt.Errorf("invalid git url: %s", url))
+			parsed.User = url.User(r.SSHKey.LoginPassword.Password)
+		} else {
+			parsed.User = url.UserPassword(r.SSHKey.LoginPassword.Login, r.SSHKey.LoginPassword.Password)
 		}
 
-		protocol = m[1]
+		// Credentials are still embedded for plain http so existing installations
+		// keep working, but the transport is unencrypted and the credentials are
+		// sent in the clear.
+		if strings.EqualFold(parsed.Scheme, "http") {
+			log.WithFields(log.Fields{
+				"context":       "repository",
+				"repository_id": r.ID,
+			}).Warn("sending git credentials over an unencrypted http connection, use https instead")
+		}
 
-		url = protocol + "://" + auth + r.GitURL[len(protocol)+3:]
+		return parsed.String()
 	}
 
-	return url
+	return rawURL
+}
+
+// GetRedactedGitURL returns the repository URL with any userinfo removed, for
+// writing to task logs. Unlike GetGitURL(false) it never returns credentials,
+// including ones typed into the URL itself.
+func (r Repository) GetRedactedGitURL() string {
+	if r.GetType() == RepositoryLocal {
+		return util.NormalizeLocalFilesystemPath(r.GitURL)
+	}
+	return redactURLUserinfo(r.GitURL)
+}
+
+// redactURLUserinfo drops everything between "://" and the last "@" of a URL.
+//
+// net/url is deliberately not used: credentials are typed in by hand and are
+// often not valid URL syntax. A token containing "/" or "#" makes net/url read
+// it as the host or the fragment and report no userinfo at all, so a parser
+// based redaction would log it verbatim. Cutting at the last "@" can over-trim
+// a URL that has an "@" after the host, which only affects how it is displayed.
+// scp-style SSH addresses ("git@host:path") have no scheme, carry no secret and
+// are returned unchanged.
+func redactURLUserinfo(rawURL string) string {
+	schemeEnd := strings.Index(rawURL, "://")
+	if schemeEnd < 0 {
+		return rawURL
+	}
+	rest := rawURL[schemeEnd+3:]
+
+	at := strings.LastIndex(rest, "@")
+	if at < 0 {
+		return rawURL
+	}
+	return rawURL[:schemeEnd+3] + rest[at+1:]
 }
 
 func (r Repository) GetType() RepositoryType {
@@ -161,7 +220,11 @@ func (r Repository) GetType() RepositoryType {
 		return RepositorySSH
 	}
 
-	protocol := m[1]
+	// URL schemes are case-insensitive (RFC 3986), and ValidateGitURL accepts
+	// any spelling. Without normalizing here, "HTTPS://host/repo" would be
+	// reported as type "HTTPS", match neither branch below, and never be given
+	// the repository's credentials.
+	protocol := strings.ToLower(m[1])
 
 	switch protocol {
 	case "http", "https":

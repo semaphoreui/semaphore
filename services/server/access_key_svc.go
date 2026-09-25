@@ -1,10 +1,13 @@
 package server
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/util"
 )
 
 type AccessKeyService interface {
@@ -18,23 +21,63 @@ type AccessKeyServiceImpl struct {
 	accessKeyRepo     db.AccessKeyManager
 	encryptionService AccessKeyEncryptionService
 	secretStorageRepo db.SecretStorageRepository
+	hostConfigRepo    db.HostConfigManager
 }
 
 func NewAccessKeyService(
 	accessKeyRepo db.AccessKeyManager,
 	encryptionService AccessKeyEncryptionService,
 	secretStorageRepo db.SecretStorageRepository,
+	hostConfigRepo db.HostConfigManager,
 ) AccessKeyService {
 	return &AccessKeyServiceImpl{
 		accessKeyRepo:     accessKeyRepo,
 		encryptionService: encryptionService,
 		secretStorageRepo: secretStorageRepo,
+		hostConfigRepo:    hostConfigRepo,
 	}
+}
+
+// hostConfigsUsing returns the credential mappings of the project which point at
+// the key. The repository rejects a change breaking one of them too, but only
+// once the secret storage has already been written or emptied, which is too
+// late to undo.
+func (s *AccessKeyServiceImpl) hostConfigsUsing(projectID *int, keyID int) (used []db.HostConfig, err error) {
+	if s.hostConfigRepo == nil || projectID == nil {
+		return
+	}
+
+	hostConfigs, err := s.hostConfigRepo.GetHostConfigs(*projectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
+	for _, hostConfig := range hostConfigs {
+		if hostConfig.SSHKeyID == keyID {
+			used = append(used, hostConfig)
+		}
+	}
+
+	return
 }
 
 func (s *AccessKeyServiceImpl) Delete(projectID int, keyID int) (err error) {
 	key, err := s.accessKeyRepo.GetAccessKey(projectID, keyID)
 	if err != nil {
+		return
+	}
+
+	// Checked here rather than left to the repository: the secret is removed
+	// from its storage below, and a deletion refused after that has destroyed
+	// the credential while leaving the mapping pointing at it.
+	used, err := s.hostConfigsUsing(&projectID, keyID)
+	if err != nil {
+		return
+	}
+
+	if len(used) > 0 {
+		err = common_errors.NewValidationError(
+			"the credential is used by the mapping for " + used[0].Name)
 		return
 	}
 
@@ -69,13 +112,78 @@ func (s *AccessKeyServiceImpl) GetAll(projectID int, options db.GetAccessKeyOpti
 	return s.accessKeyRepo.GetAccessKeys(projectID, options, params)
 }
 
+// generateSSHKeyPair returns a new private key in PEM format and the matching
+// public key in OpenSSH authorized_keys format.
+func generateSSHKeyPair() (privateKey string, publicKey string, err error) {
+	var buf bytes.Buffer
+
+	publicKey, err = util.GeneratePrivateKey(&buf)
+	if err != nil {
+		return
+	}
+
+	privateKey = buf.String()
+	return
+}
+
+// encodePublicKeyPlain builds the JSON document stored in the non-secret
+// "plain" column so the UI can show the public key.
+func encodePublicKeyPlain(publicKey string) (string, error) {
+	doc := struct {
+		PublicKey string `json:"public_key"`
+	}{PublicKey: publicKey}
+
+	b, err := json.Marshal(doc)
+	if err != nil {
+		return "", err
+	}
+
+	return string(b), nil
+}
+
+// assignGeneratedSSHKey replaces the key's secret with a freshly generated
+// SSH key pair and exposes the public half through the plain field.
+func assignGeneratedSSHKey(key *db.AccessKey) error {
+	if key.Type != db.AccessKeySSH {
+		return common_errors.NewUserErrorS("generate_ssh_key is only allowed for ssh keys")
+	}
+
+	privateKey, publicKey, err := generateSSHKeyPair()
+	if err != nil {
+		return err
+	}
+
+	plain, err := encodePublicKeyPlain(publicKey)
+	if err != nil {
+		return err
+	}
+
+	key.SshKey.PrivateKey = privateKey
+	key.SshKey.Passphrase = ""
+	key.Plain = &plain
+	key.IgnorePlain = false
+
+	return nil
+}
+
 func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, err error) {
+	// Plain is derived data, never taken from the caller.
+	key.Plain = nil
+
+	if key.GenerateSSHKey {
+		err = assignGeneratedSSHKey(&key)
+		if err != nil {
+			return
+		}
+	}
 
 	// SerializeSecret encrypts/persists the secret for writable backends. For read-only
 	// external storage the secret is not stored in Semaphore, so SerializeSecret fails
 	// with ErrReadOnlyStorage; we still create the access key row (metadata / reference).
+	// A generated key is the exception: nobody else holds the private half, so
+	// a storage that cannot persist it must reject the request.
 	err = s.encryptionService.SerializeSecret(&key)
-	if err != nil && !errors.Is(err, ErrReadOnlyStorage) {
+	if err != nil && (key.GenerateSSHKey || !errors.Is(err, ErrReadOnlyStorage)) {
 		return
 	}
 
@@ -84,8 +192,19 @@ func (s *AccessKeyServiceImpl) Create(key db.AccessKey) (newKey db.AccessKey, er
 }
 
 func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
+	// Plain is derived data, never taken from the caller.
+	key.Plain = nil
+
 	if !key.OverrideSecret {
 		err = s.accessKeyRepo.UpdateAccessKey(key)
+		return
+	}
+
+	if key.GenerateSSHKey && key.IsNativelyReadOnly() {
+		// Env/file sources are never written, so a generated private key
+		// would have nowhere to live. Read-only vaults are rejected later
+		// by SerializeSecret.
+		err = common_errors.NewUserError(ErrReadOnlyStorage)
 		return
 	}
 
@@ -106,6 +225,28 @@ func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
 
 		if !oldSt.ReadOnly && (key.SourceStorageID == nil || *oldKey.SourceStorageID != *key.SourceStorageID) {
 			err = common_errors.NewUserErrorS("cannot override secret storage")
+			return
+		}
+	}
+
+	// Before the secret is written to its storage: a type the mappings can not
+	// use is rejected by the repository, but by then the remote secret has
+	// already been overwritten with a payload the old row can not deserialize.
+	var used []db.HostConfig
+	used, err = s.hostConfigsUsing(key.ProjectID, key.ID)
+	if err != nil {
+		return
+	}
+
+	for _, hostConfig := range used {
+		if err = hostConfig.ValidateCredential(key.Type); err != nil {
+			return
+		}
+	}
+
+	if key.GenerateSSHKey {
+		err = assignGeneratedSSHKey(&key)
+		if err != nil {
 			return
 		}
 	}
