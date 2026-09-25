@@ -264,8 +264,45 @@ func (t *AnsibleApp) runGalaxy(args []string, environmentVars []string) error {
 		return err
 	}
 
-	// Task variables come last so a manually configured GIT_* var still wins.
-	return t.Playbook.RunGalaxy(args, append(gitEnv, environmentVars...))
+	// Task variables come last so a manually configured GIT_* var still wins,
+	// except for GIT_CONFIG_PARAMETERS, which is merged: it is one variable
+	// holding a list of rewrites, and the project credential mappings put their
+	// own in there too.
+	env := mergeGitConfigParameters(append(gitEnv, environmentVars...))
+
+	return t.Playbook.RunGalaxy(args, env)
+}
+
+// mergeGitConfigParameters folds every GIT_CONFIG_PARAMETERS entry into one.
+//
+// The repository credentials here and the credential mappings of the project
+// both produce rewrites, and each sets the variable on its own. Left alone the
+// last one wins and the other set is silently dropped, so galaxy loses the
+// credential it needs. git resolves several insteadOf rules by longest match,
+// so carrying both is safe.
+func mergeGitConfigParameters(env []string) []string {
+	const key = "GIT_CONFIG_PARAMETERS="
+
+	var params []string
+
+	merged := make([]string, 0, len(env))
+	for _, v := range env {
+		value, ok := strings.CutPrefix(v, key)
+		if !ok {
+			merged = append(merged, v)
+			continue
+		}
+
+		if value != "" {
+			params = append(params, value)
+		}
+	}
+
+	if len(params) > 0 {
+		merged = append(merged, key+strings.Join(params, " "))
+	}
+
+	return merged
 }
 
 // sqQuote quotes s for GIT_CONFIG_PARAMETERS: the value is wrapped in single

@@ -301,3 +301,38 @@ func TestGalaxyGitEnv_ParsedByGit(t *testing.T) {
 	assert.Contains(t, string(out), "bob:tok%3Den@git.private.repo")
 	assert.Contains(t, string(out), "insteadof https://git.private.repo/")
 }
+
+// The credential mappings of the project and the repository credentials here
+// both produce git rewrites, and each sets GIT_CONFIG_PARAMETERS on its own.
+// Only one variable reaches git, so they have to be folded into it together.
+func TestMergeGitConfigParameters(t *testing.T) {
+	repoRewrite := `'url.https://bob:s3cr3t@git.example/.insteadOf=https://git.example/'`
+	mappingRewrite := `'url.git@semaphore-mapping-1:acme/.insteadOf=https://github.com/acme/'`
+
+	env := mergeGitConfigParameters([]string{
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_CONFIG_PARAMETERS=" + repoRewrite,
+		"SSH_AUTH_SOCK=/tmp/a.sock",
+		"GIT_CONFIG_PARAMETERS=" + mappingRewrite,
+	})
+
+	var params []string
+	for _, v := range env {
+		if value, ok := strings.CutPrefix(v, "GIT_CONFIG_PARAMETERS="); ok {
+			params = append(params, value)
+		}
+	}
+
+	require.Len(t, params, 1, "git reads one variable, so exactly one must be set")
+	assert.Contains(t, params[0], repoRewrite, "the repository credential must survive")
+	assert.Contains(t, params[0], mappingRewrite, "the mapping must survive")
+
+	assert.Contains(t, env, "GIT_TERMINAL_PROMPT=0")
+	assert.Contains(t, env, "SSH_AUTH_SOCK=/tmp/a.sock")
+}
+
+func TestMergeGitConfigParameters_NothingToMerge(t *testing.T) {
+	env := mergeGitConfigParameters([]string{"GIT_TERMINAL_PROMPT=0"})
+
+	assert.Equal(t, []string{"GIT_TERMINAL_PROMPT=0"}, env)
+}
