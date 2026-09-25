@@ -73,6 +73,10 @@ func (d *SqlDb) GetRoleBySlug(slug string, roleQuery db.RoleQuery) (db.Role, err
 }
 
 func (d *SqlDb) UpdateRole(role db.Role) error {
+	if err := db.ValidateRole(role); err != nil {
+		return err
+	}
+
 	_, err := d.exec(
 		"update `role` set name=?, permissions=? where slug=? and is_builtin=false",
 		role.Name,

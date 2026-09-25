@@ -125,6 +125,63 @@ func Test_GetRoleBySlug_AppliesQueryScope(t *testing.T) {
 	assert.Equal(t, "global_custom", role.Slug)
 }
 
+func Test_RoleMutations_ProtectBuiltinRoles(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	query := db.GlobalRoleQuery{Kinds: db.RoleKindBuiltin}
+
+	original, err := store.GetRoleBySlug("owner", query)
+	require.NoError(t, err)
+
+	updated := original
+	updated.Name = "Modified owner"
+	updated.Permissions = 0
+	require.Error(t, store.UpdateRole(updated))
+
+	afterUpdate, err := store.GetRoleBySlug("owner", query)
+	require.NoError(t, err)
+	assert.Equal(t, original, afterUpdate)
+
+	// TODO(PRO-64): Return an error when attempting to delete a built-in role.
+	require.NoError(t, store.DeleteRole("owner"))
+
+	afterDelete, err := store.GetRoleBySlug("owner", query)
+	require.NoError(t, err)
+	assert.Equal(t, original, afterDelete)
+}
+
+func Test_CreateRole_RejectsBuiltinRole(t *testing.T) {
+	store := InitConfigCreateTestStore()
+
+	_, err := store.CreateRole(db.Role{
+		Slug:      "custom_builtin",
+		Name:      "Custom built-in",
+		IsBuiltin: true,
+	})
+	require.Error(t, err)
+
+	_, err = store.GetRoleBySlug(
+		"custom_builtin",
+		db.GlobalRoleQuery{Kinds: db.RoleKindAll})
+	assert.ErrorIs(t, err, db.ErrNotFound)
+}
+
+func Test_CreateRole_PersistsCustomRole(t *testing.T) {
+	store := InitConfigCreateTestStore()
+
+	created, err := store.CreateRole(db.Role{
+		Slug: "custom",
+		Name: "Custom",
+	})
+	require.NoError(t, err)
+	assert.False(t, created.IsBuiltin)
+
+	persisted, err := store.GetRoleBySlug(
+		"custom",
+		db.GlobalRoleQuery{Kinds: db.RoleKindAll})
+	require.NoError(t, err)
+	assert.False(t, persisted.IsBuiltin)
+}
+
 func Test_RoleQueries_RejectInvalidFilters(t *testing.T) {
 	store := InitConfigCreateTestStore()
 
