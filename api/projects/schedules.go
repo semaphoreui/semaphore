@@ -7,6 +7,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/schedules"
 )
 
@@ -143,11 +144,12 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceSchedule,
+		Action:      audit.ActionCreate,
 		ProjectID:   project.ID,
-		ObjectType:  db.EventSchedule,
-		ObjectID:    schedule.ID,
+		TargetID:    schedule.ID,
+		TargetName:  schedule.Name,
 		Description: fmt.Sprintf("Schedule ID %d created", schedule.ID),
 	})
 
@@ -191,11 +193,12 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceSchedule,
+		Action:      audit.ActionUpdate,
 		ProjectID:   oldSchedule.ProjectID,
-		ObjectType:  db.EventSchedule,
-		ObjectID:    oldSchedule.ID,
+		TargetID:    oldSchedule.ID,
+		TargetName:  schedule.Name,
 		Description: fmt.Sprintf("Schedule ID %d updated", schedule.ID),
 	})
 
@@ -221,11 +224,12 @@ func SetScheduleActive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceSchedule,
+		Action:      audit.ActionUpdate,
 		ProjectID:   oldSchedule.ProjectID,
-		ObjectType:  db.EventSchedule,
-		ObjectID:    oldSchedule.ID,
+		TargetID:    oldSchedule.ID,
+		TargetName:  oldSchedule.Name,
 		Description: fmt.Sprintf("Schedule ID %d updated", oldSchedule.ID),
 	})
 
@@ -244,11 +248,12 @@ func RemoveSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceSchedule,
+		Action:      audit.ActionDelete,
 		ProjectID:   schedule.ProjectID,
-		ObjectType:  db.EventSchedule,
-		ObjectID:    schedule.ID,
+		TargetID:    schedule.ID,
+		TargetName:  schedule.Name,
 		Description: fmt.Sprintf("Schedule ID %d deleted", schedule.ID),
 	})
 

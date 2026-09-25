@@ -18,6 +18,7 @@ const (
 	ResourceRepository Resource = "repository"
 	ResourceView       Resource = "view"
 	ResourceTemplate   Resource = "template"
+	ResourceSchedule   Resource = "schedule"
 )
 
 type Action string
@@ -99,6 +100,12 @@ func mapResource(resource Resource) (resourceMapping, error) {
 			activityType: db.EventTemplate,
 			eventCode:    db.AuditEventCodeTemplate,
 			targetType:   "template",
+		}, nil
+	case ResourceSchedule:
+		return resourceMapping{
+			activityType: db.EventSchedule,
+			eventCode:    db.AuditEventCodeSchedule,
+			targetType:   "schedule",
 		}, nil
 	default:
 		return resourceMapping{}, fmt.Errorf("unsupported audit resource %q", resource)
