@@ -19,13 +19,6 @@ const (
 	CanManageProjectUsers
 )
 
-var rolePermissions = map[ProjectUserRole]ProjectUserPermission{
-	ProjectOwner:      CanRunProjectTasks | CanManageProjectResources | CanUpdateProject | CanManageProjectUsers,
-	ProjectManager:    CanRunProjectTasks | CanManageProjectResources,
-	ProjectTaskRunner: CanRunProjectTasks,
-	ProjectGuest:      0,
-}
-
 // IsBuiltin reports whether the role uses a reserved built-in slug.
 func (r ProjectUserRole) IsBuiltin() bool {
 	switch r {
@@ -41,12 +34,4 @@ type ProjectUser struct {
 	ProjectID int             `db:"project_id" json:"project_id"`
 	UserID    int             `db:"user_id" json:"user_id"`
 	Role      ProjectUserRole `db:"role" json:"role"`
-}
-
-func (r ProjectUserRole) Can(permissions ProjectUserPermission) bool {
-	return (rolePermissions[r] & permissions) == permissions
-}
-
-func (r ProjectUserRole) GetPermissions() ProjectUserPermission {
-	return rolePermissions[r]
 }
