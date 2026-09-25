@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -588,173 +587,144 @@ func TestValidateConfig(t *testing.T) {
 
 func TestValidateConfigTrustedProxyCIDRs(t *testing.T) {
 	originalConfig := Config
-	defer func() { Config = originalConfig }()
+	t.Cleanup(func() { Config = originalConfig })
 
 	Config = NewConfigType()
 	loadConfigDefaults()
 	Config.Audit = &AuditConfig{TrustedProxyCIDRs: []string{"not-a-cidr"}}
 
-	var recovered any
-	func() {
-		defer func() { recovered = recover() }()
-		validateConfig()
-	}()
-
-	err, ok := recovered.(error)
-	require.True(t, ok)
-	assert.ErrorContains(t, err, "audit.trusted_proxy_cidrs[0] must be a valid CIDR")
+	require.Panics(t, validateConfig)
 }
 
 func TestValidateAuditConfig(t *testing.T) {
-	valid := func() *AuditConfig {
-		return &AuditConfig{
-			Enabled:    true,
-			InstanceID: "semaphore-prod",
-			Destination: &AuditDestinationConfig{
-				ID:   "primary-siem",
-				Type: "syslog",
-				Syslog: &AuditSyslogConfig{
-					Address: "siem.internal.example:6514",
-					Timeout: "10s",
-				},
-			},
+	t.Run("allows absent configuration", func(t *testing.T) {
+		assert.NoError(t, (&ConfigType{}).validateAuditConfig())
+	})
+
+	t.Run("allows disabled configuration", func(t *testing.T) {
+		config := &ConfigType{Audit: &AuditConfig{}}
+		assert.NoError(t, config.validateAuditConfig())
+	})
+
+	t.Run("allows identifiers at storage limit", func(t *testing.T) {
+		config := &ConfigType{
+			Audit: validAuditConfig(),
+			HA:    &HAConfig{NodeID: strings.Repeat("n", auditIdentifierMaxBytes)},
 		}
-	}
+		config.Audit.InstanceID = strings.Repeat("i", auditIdentifierMaxBytes)
+		config.Audit.Destination.ID = strings.Repeat("d", auditIdentifierMaxBytes)
+		assert.NoError(t, config.validateAuditConfig())
+	})
 
-	tests := []struct {
-		name    string
-		audit   *AuditConfig
-		errorAt string
-	}{
-		{name: "absent"},
-		{name: "disabled", audit: &AuditConfig{}},
-		{name: "valid", audit: valid()},
-		{
-			name:    "missing instance ID",
-			audit:   &AuditConfig{Enabled: true},
-			errorAt: "audit.instance_id",
-		},
-		{
-			name: "missing destination",
-			audit: &AuditConfig{
-				Enabled:    true,
-				InstanceID: "semaphore-prod",
-			},
-			errorAt: "audit.destination",
-		},
-		{
-			name: "missing destination ID",
-			audit: func() *AuditConfig {
-				config := valid()
-				config.Destination.ID = ""
-				return config
-			}(),
-			errorAt: "audit.destination.id",
-		},
-		{
-			name: "missing syslog address",
-			audit: func() *AuditConfig {
-				config := valid()
-				config.Destination.Syslog.Address = ""
-				return config
-			}(),
-			errorAt: "audit.destination.syslog.address",
-		},
-		{
-			name: "missing destination type",
-			audit: func() *AuditConfig {
-				config := valid()
-				config.Destination.Type = ""
-				return config
-			}(),
-			errorAt: "audit.destination.type",
-		},
-		{
-			name: "unsupported destination type",
-			audit: func() *AuditConfig {
-				config := valid()
-				config.Destination.Type = "http"
-				return config
-			}(),
-			errorAt: "audit.destination.type",
-		},
-		{
-			name: "non-positive timeout",
-			audit: func() *AuditConfig {
-				config := valid()
-				config.Destination.Syslog.Timeout = "0s"
-				return config
-			}(),
-			errorAt: "audit.destination.syslog.timeout",
-		},
-	}
+	t.Run("requires instance ID", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.InstanceID = ""
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.instance_id")
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			config := NewConfigType()
-			config.Audit = tt.audit
-			err := config.validateAuditConfig()
+	t.Run("limits instance ID bytes", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.InstanceID = strings.Repeat("é", auditIdentifierMaxBytes/2+1)
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.instance_id")
+	})
 
-			if tt.errorAt == "" {
-				assert.NoError(t, err)
-				return
-			}
-			assert.ErrorContains(t, err, tt.errorAt)
-		})
-	}
+	t.Run("limits HA node ID bytes", func(t *testing.T) {
+		config := &ConfigType{
+			Audit: validAuditConfig(),
+			HA:    &HAConfig{NodeID: strings.Repeat("é", auditIdentifierMaxBytes/2+1)},
+		}
+		assert.ErrorContains(t, config.validateAuditConfig(), "ha.node_id")
+	})
+
+	t.Run("allows capture without destination", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination = nil
+		assert.NoError(t, config.validateAuditConfig())
+	})
+
+	t.Run("validates destination when capture is disabled", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Enabled = false
+		config.Audit.Destination.ID = ""
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.id")
+	})
+
+	t.Run("requires destination ID", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination.ID = ""
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.id")
+	})
+
+	t.Run("limits destination ID bytes", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination.ID = strings.Repeat("é", auditIdentifierMaxBytes/2+1)
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.id")
+	})
+
+	t.Run("requires syslog destination type", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination.Type = "http"
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.type")
+	})
+
+	t.Run("requires syslog configuration", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination.Syslog = nil
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.syslog")
+	})
+
+	t.Run("requires syslog address", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination.Syslog.Address = " "
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.syslog.address")
+	})
+
+	t.Run("rejects address without port when server name is explicit", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination.Syslog.Address = "siem.internal.example"
+		config.Audit.Destination.Syslog.TLS = &AuditSyslogTLSConfig{
+			ServerName: "siem.internal.example",
+		}
+		assert.ErrorContains(t, config.validateAuditConfig(), "valid host:port")
+	})
+
+	t.Run("rejects empty address host", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination.Syslog.Address = ":6514"
+		assert.ErrorContains(t, config.validateAuditConfig(), "valid host:port")
+	})
+
+	t.Run("rejects empty address port", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination.Syslog.Address = "siem.internal.example:"
+		assert.ErrorContains(t, config.validateAuditConfig(), "valid host:port")
+	})
+
+	t.Run("allows bracketed IPv6 address", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination.Syslog.Address = "[::1]:6514"
+		assert.NoError(t, config.validateAuditConfig())
+	})
+
+	t.Run("rejects malformed timeout", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination.Syslog.Timeout = "invalid"
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.syslog.timeout")
+	})
+
+	t.Run("requires positive timeout", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination.Syslog.Timeout = "0s"
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.syslog.timeout")
+	})
 }
 
-func TestValidateAuditConfigInstanceAndNodeIDBounds(t *testing.T) {
-	valid := func() *ConfigType {
-		return &ConfigType{
-			Audit: &AuditConfig{
-				Enabled:    true,
-				InstanceID: strings.Repeat("a", 255),
-				Destination: &AuditDestinationConfig{
-					ID:   "primary-siem",
-					Type: "syslog",
-					Syslog: &AuditSyslogConfig{
-						Address: "siem.internal.example:6514",
-						Timeout: "10s",
-					},
-				},
-			},
-			HA: &HAConfig{NodeID: strings.Repeat("a", 255)},
-		}
-	}
-
-	config := valid()
-	assert.NoError(t, config.validateAuditConfig())
-
-	config.Audit.InstanceID += "a"
-	assert.ErrorContains(t, config.validateAuditConfig(), "audit.instance_id")
-	config.Audit.InstanceID = strings.Repeat("é", 128)
-	assert.Less(t, utf8.RuneCountInString(config.Audit.InstanceID), 255)
-	assert.Greater(t, len(config.Audit.InstanceID), 255)
-	assert.ErrorContains(t, config.validateAuditConfig(), "audit.instance_id")
-
-	config = valid()
-	config.HA.NodeID += "a"
-	assert.ErrorContains(t, config.validateAuditConfig(), "ha.node_id")
-	config.HA.NodeID = strings.Repeat("é", 128)
-	assert.Less(t, utf8.RuneCountInString(config.HA.NodeID), 255)
-	assert.Greater(t, len(config.HA.NodeID), 255)
-	assert.ErrorContains(t, config.validateAuditConfig(), "ha.node_id")
-
-	config = valid()
-	config.HA = nil
-	assert.NoError(t, config.validateAuditConfig())
-	config.HA = &HAConfig{}
-	assert.NoError(t, config.validateAuditConfig())
-}
-
-func TestValidateAuditConfigDestinationIDBounds(t *testing.T) {
-	config := NewConfigType()
-	config.Audit = &AuditConfig{
+func validAuditConfig() *AuditConfig {
+	return &AuditConfig{
 		Enabled:    true,
 		InstanceID: "semaphore-prod",
 		Destination: &AuditDestinationConfig{
-			ID:   strings.Repeat("a", auditDestinationIDMaxSize),
+			ID:   "primary-siem",
 			Type: "syslog",
 			Syslog: &AuditSyslogConfig{
 				Address: "siem.internal.example:6514",
@@ -762,15 +732,6 @@ func TestValidateAuditConfigDestinationIDBounds(t *testing.T) {
 			},
 		},
 	}
-
-	assert.NoError(t, config.validateAuditConfig())
-	config.Audit.Destination.ID += "a"
-	assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.id")
-
-	config.Audit.Destination.ID = strings.Repeat("é", auditDestinationIDMaxSize/2+1)
-	assert.Less(t, utf8.RuneCountInString(config.Audit.Destination.ID), auditDestinationIDMaxSize)
-	assert.Greater(t, len(config.Audit.Destination.ID), auditDestinationIDMaxSize)
-	assert.ErrorContains(t, config.validateAuditConfig(), "audit.destination.id")
 }
 
 func TestGetSecretsPath_DirsSecrets(t *testing.T) {

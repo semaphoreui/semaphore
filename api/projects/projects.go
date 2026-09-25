@@ -2,12 +2,12 @@ package projects
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/semaphoreui/semaphore/services/server"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -381,19 +381,13 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceProject,
+		Action:      audit.ActionCreate,
 		ProjectID:   body.ID,
-		ObjectType:  db.EventProject,
-		ObjectID:    body.ID,
+		TargetID:    body.ID,
+		TargetName:  body.Name,
 		Description: "Project created",
-	})
-	helpers.AuditResourceEvent(r, store, helpers.AuditResourceEventItem{
-		Resource:   helpers.AuditResourceProject,
-		Action:     helpers.EventLogCreate,
-		TargetID:   strconv.Itoa(body.ID),
-		TargetName: body.Name,
-		ProjectID:  body.ID,
 	})
 
 	helpers.WriteJSON(w, http.StatusCreated, body)

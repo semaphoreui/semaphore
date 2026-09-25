@@ -270,11 +270,11 @@ $defs:
 
   AuditConfig:
     type: object
-    description: Audit security context and reliable export settings.
+    description: Audit capture, security context, and export settings.
     properties:
       enabled:
         type: boolean
-        description: Enables reliable export of canonical audit events.
+        description: Enables local capture of canonical audit events.
       instance_id:
         type: string
         description: Stable identity included in every audit event across replicas.

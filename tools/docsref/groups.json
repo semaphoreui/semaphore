@@ -127,9 +127,8 @@
       ]
     },
     {
-      "title": "Audit export",
-      "intro": "Reliable export of canonical audit events to a single SIEM destination.",
-      "edition": "pro",
+      "title": "Audit",
+      "intro": "Local capture of canonical audit events with optional export to a SIEM destination.",
       "prefixes": [
         "audit."
       ]
@@ -168,6 +167,7 @@
   "editions": {
     "log.": "pro",
     "syslog.": "pro",
+    "audit.destination.": "pro",
     "runner.executor.docker.": "pro",
     "runner.executor.k8s.": "pro"
   }

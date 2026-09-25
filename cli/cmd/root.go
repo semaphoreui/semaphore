@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -24,7 +23,7 @@ import (
 	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
 	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
-	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
@@ -157,48 +156,6 @@ func watchEncryptionKeyReload() {
 	}()
 }
 
-type auditExporterFactory func(
-	util.AuditConfig,
-	db.AuditExporterStore,
-) (pro_interfaces.AuditExporter, error)
-
-func startAuditExporter(
-	config *util.AuditConfig,
-	store db.AuditExporterStore,
-	factory auditExporterFactory,
-) (func(), error) {
-	if config == nil || !config.Enabled {
-		return nil, nil
-	}
-
-	exporter, err := factory(*config, store)
-	if err != nil {
-		return nil, err
-	}
-	if exporter == nil {
-		return nil, fmt.Errorf("audit exporter is unavailable in this build")
-	}
-
-	runCtx, cancel := context.WithCancel(context.Background())
-	if err := exporter.Start(runCtx); err != nil {
-		stopAuditExporter(exporter, cancel)
-		return nil, err
-	}
-
-	return func() {
-		stopAuditExporter(exporter, cancel)
-	}, nil
-}
-
-func stopAuditExporter(exporter pro_interfaces.AuditExporter, cancel context.CancelFunc) {
-	cancel()
-	stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer stopCancel()
-	if err := exporter.Stop(stopCtx); err != nil {
-		log.WithError(err).Error("failed to stop audit exporter")
-	}
-}
-
 func runService() {
 	store := createStore("root")
 	defer store.Close()
@@ -270,13 +227,21 @@ func runService() {
 	defer schedulePool.Destroy()
 	defer taskPool.Stop()
 
-	stopAuditExporter, err := startAuditExporter(util.Config.Audit, store, proServer.NewAuditExporter)
+	auditSettings := audit.Settings{}
+	if util.Config.Audit != nil {
+		auditSettings.Enabled = util.Config.Audit.Enabled
+		auditSettings.InstanceID = util.Config.Audit.InstanceID
+	}
+	if util.Config.HA != nil {
+		auditSettings.NodeID = util.Config.HA.NodeID
+	}
+	auditService := audit.NewService(store, logWriteService, auditSettings)
+
+	auditExporter, err := proServer.NewAuditExporter(store)
 	if err != nil {
-		panic(fmt.Errorf("failed to start audit exporter: %w", err))
+		panic(fmt.Errorf("failed to create audit exporter: %w", err))
 	}
-	if stopAuditExporter != nil {
-		defer stopAuditExporter()
-	}
+	defer auditExporter.Stop()
 
 	// --- Active-Active HA Setup ---
 	// When HA is enabled, multiple Semaphore nodes share the same Redis-backed
@@ -386,6 +351,7 @@ func runService() {
 	route.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r = helpers.SetContextValue(r, "store", store)
+			r = helpers.SetContextValue(r, "audit_service", auditService)
 			r = helpers.SetContextValue(r, "schedule_pool", schedulePool)
 			r = helpers.SetContextValue(r, "task_pool", &taskPool)
 			r = helpers.SetContextValue(r, "log_writer", logWriteService)

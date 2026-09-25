@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"net/netip"
 	"net/url"
 	"os"
@@ -43,7 +44,7 @@ const (
 	DbDriverSQLite   = "sqlite"
 )
 
-const auditDestinationIDMaxSize = 255
+const auditIdentifierMaxBytes = 255
 
 const (
 	// HomeDirModeUserHome does not override HOME.
@@ -347,7 +348,7 @@ type SyslogConfig struct {
 }
 
 type AuditConfig struct {
-	// Enabled enables reliable export of canonical audit events.
+	// Enabled enables local capture of canonical audit events.
 	Enabled bool `json:"enabled,omitempty"`
 	// InstanceID is the stable identity included in every audit event across replicas.
 	InstanceID string `json:"instance_id,omitempty"`
@@ -1913,30 +1914,29 @@ func (conf *ConfigType) validateAuditConfig() error {
 	if _, err := ParseAuditTrustedProxyCIDRs(conf.Audit.TrustedProxyCIDRs); err != nil {
 		return err
 	}
-	if !conf.Audit.Enabled {
-		return nil
-	}
-	if strings.TrimSpace(conf.Audit.InstanceID) == "" {
-		return errors.New("audit.instance_id must not be empty when audit.enabled is true")
-	}
-	if len(conf.Audit.InstanceID) > 255 {
-		return errors.New("audit.instance_id must not exceed 255 UTF-8 bytes")
-	}
-	if conf.HA != nil && len(conf.HA.NodeID) > 255 {
-		return errors.New("ha.node_id must not exceed 255 UTF-8 bytes when audit.enabled is true")
+	if conf.Audit.Enabled {
+		if strings.TrimSpace(conf.Audit.InstanceID) == "" {
+			return errors.New("audit.instance_id must not be empty when audit.enabled is true")
+		}
+		if len(conf.Audit.InstanceID) > auditIdentifierMaxBytes {
+			return errors.New("audit.instance_id must not exceed 255 UTF-8 bytes")
+		}
+		if conf.HA != nil && len(conf.HA.NodeID) > auditIdentifierMaxBytes {
+			return errors.New("ha.node_id must not exceed 255 UTF-8 bytes when audit.enabled is true")
+		}
 	}
 
 	destination := conf.Audit.Destination
 	if destination == nil {
-		return errors.New("audit.destination must be configured when audit.enabled is true")
+		return nil
 	}
 	if destination.ID == "" {
 		return errors.New("audit.destination.id must not be empty")
 	}
-	if len(destination.ID) > auditDestinationIDMaxSize {
+	if len(destination.ID) > auditIdentifierMaxBytes {
 		return fmt.Errorf(
 			"audit.destination.id must not exceed %d bytes",
-			auditDestinationIDMaxSize,
+			auditIdentifierMaxBytes,
 		)
 	}
 	if destination.Type != "syslog" {
@@ -1947,6 +1947,10 @@ func (conf *ConfigType) validateAuditConfig() error {
 	}
 	if strings.TrimSpace(destination.Syslog.Address) == "" {
 		return errors.New("audit.destination.syslog.address must not be empty")
+	}
+	host, port, err := net.SplitHostPort(destination.Syslog.Address)
+	if err != nil || strings.TrimSpace(host) == "" || strings.TrimSpace(port) == "" {
+		return errors.New("audit.destination.syslog.address must be a valid host:port")
 	}
 	timeout, err := time.ParseDuration(destination.Syslog.Timeout)
 	if err != nil || timeout <= 0 {

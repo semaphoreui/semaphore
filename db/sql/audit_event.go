@@ -1,149 +1,109 @@
 package sql
 
 import (
-	"fmt"
+	"encoding/json"
+	"errors"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
-)
-
-const (
-	auditEventBatchMax = 1000
 )
 
 type auditEventRow struct {
-	Seq             int64     `db:"seq"`
-	ID              string    `db:"event_id"`
-	Timestamp       time.Time `db:"occurred_at"`
-	SchemaVersion   string    `db:"schema_version"`
-	EventCode       string    `db:"event_code"`
-	Category        string    `db:"category"`
-	Type            string    `db:"type"`
-	Action          string    `db:"action"`
-	Outcome         string    `db:"outcome"`
-	ActorType       string    `db:"actor_type"`
-	ActorID         *string   `db:"actor_id"`
-	ActorName       *string   `db:"actor_name"`
-	SourceIP        *string   `db:"source_ip"`
-	SourceUserAgent *string   `db:"source_user_agent"`
-	TargetType      *string   `db:"target_type"`
-	TargetID        *string   `db:"target_id"`
-	TargetName      *string   `db:"target_name"`
-	ProjectID       *string   `db:"project_id"`
-	RequestID       *string   `db:"request_id"`
-	InstanceID      string    `db:"instance_id"`
-	NodeID          *string   `db:"node_id"`
-	Metadata        *string   `db:"metadata"`
+	Seq             int64
+	ID              string
+	Timestamp       time.Time
+	SchemaVersion   string
+	EventCode       string
+	Category        string
+	Type            string
+	Action          string
+	Outcome         string
+	ActorType       string
+	ActorID         *string
+	ActorName       *string
+	SourceIP        *string
+	SourceUserAgent *string
+	TargetType      *string
+	TargetID        *string
+	TargetName      *string
+	ProjectID       *string
+	RequestID       *string
+	InstanceID      string
+	NodeID          *string
+	Metadata        *string
 }
 
 func (d *SqlDb) CreateAuditEvent(event db.AuditEvent) (db.AuditEvent, error) {
-	if err := event.Validate(); err != nil {
-		return db.AuditEvent{}, err
+	if len(event.Metadata) > 0 && !json.Valid(event.Metadata) {
+		return db.AuditEvent{}, errors.New("create audit event: metadata is invalid JSON")
 	}
 	row := auditEventToRow(event)
-	query, args, err := sq.Insert("audit_event").
-		Columns(
-			"event_id", "occurred_at", "schema_version", "event_code", "category", "type",
-			"action", "outcome", "actor_type", "actor_id", "actor_name", "source_ip",
-			"source_user_agent", "target_type", "target_id", "target_name", "project_id",
-			"request_id", "instance_id", "node_id", "metadata",
-		).
-		Values(
-			row.ID, row.Timestamp, row.SchemaVersion, row.EventCode, row.Category, row.Type,
-			row.Action, row.Outcome, row.ActorType, row.ActorID, row.ActorName, row.SourceIP,
-			row.SourceUserAgent, row.TargetType, row.TargetID, row.TargetName, row.ProjectID,
-			row.RequestID, row.InstanceID, row.NodeID, row.Metadata,
-		).
-		ToSql()
+	tx, err := d.Sql().Begin()
 	if err != nil {
 		return db.AuditEvent{}, err
 	}
-	seq, err := d.insertAuditEvent(query, args...)
+	defer func() { _ = tx.Rollback() }()
+
+	// Hold the singleton row through commit so visible sequences always form a committed prefix.
+	result, err := tx.Exec(
+		d.PrepareQuery("update audit_event_sequence set last_seq=last_seq+1 where id=?"),
+		1,
+	)
 	if err != nil {
 		return db.AuditEvent{}, err
 	}
-	event.Seq = seq
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return db.AuditEvent{}, err
+	}
+	if affected != 1 {
+		return db.AuditEvent{}, errors.New("create audit event: sequence row is missing")
+	}
+	if err := tx.SelectOne(
+		&row.Seq,
+		d.PrepareQuery("select last_seq from audit_event_sequence where id=?"),
+		1,
+	); err != nil {
+		return db.AuditEvent{}, err
+	}
+	query, args, err := sq.Insert("audit_event").SetMap(map[string]any{
+		"seq":               row.Seq,
+		"event_id":          row.ID,
+		"occurred_at":       row.Timestamp,
+		"schema_version":    row.SchemaVersion,
+		"event_code":        row.EventCode,
+		"category":          row.Category,
+		"type":              row.Type,
+		"action":            row.Action,
+		"outcome":           row.Outcome,
+		"actor_type":        row.ActorType,
+		"actor_id":          row.ActorID,
+		"actor_name":        row.ActorName,
+		"source_ip":         row.SourceIP,
+		"source_user_agent": row.SourceUserAgent,
+		"target_type":       row.TargetType,
+		"target_id":         row.TargetID,
+		"target_name":       row.TargetName,
+		"project_id":        row.ProjectID,
+		"request_id":        row.RequestID,
+		"instance_id":       row.InstanceID,
+		"node_id":           row.NodeID,
+		"metadata":          row.Metadata,
+	}).ToSql()
+	if err != nil {
+		return db.AuditEvent{}, err
+	}
+	if _, err := tx.Exec(d.PrepareQuery(query), args...); err != nil {
+		return db.AuditEvent{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return db.AuditEvent{}, err
+	}
+	event.Seq = row.Seq
 	return event, nil
 }
-func (d *SqlDb) insertAuditEvent(query string, args ...any) (int64, error) {
-	if d.GetDialect() == util.DbDriverPostgres {
-		var seq int64
-		err := d.Sql().QueryRow(d.PrepareQuery(query+" returning seq"), args...).Scan(&seq)
-		return seq, err
-	}
-	result, err := d.Sql().Exec(d.PrepareQuery(query), args...)
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
-}
-func (d *SqlDb) GetAuditEventsAfter(seq int64, limit int) ([]db.AuditEvent, error) {
-	if seq < 0 || limit <= 0 || limit > auditEventBatchMax {
-		return nil, fmt.Errorf("audit event cursor or batch limit is invalid")
-	}
-	var rows []auditEventRow
-	query, args, err := sq.Select(
-		"seq", "event_id", "occurred_at", "schema_version", "event_code", "category", "type",
-		"action", "outcome", "actor_type", "actor_id", "actor_name", "source_ip",
-		"source_user_agent", "target_type", "target_id", "target_name", "project_id",
-		"request_id", "instance_id", "node_id", "metadata",
-	).
-		From("audit_event").
-		Where("seq > ?", seq).
-		OrderBy("seq asc").
-		Suffix("limit ?", limit).
-		ToSql()
-	if err != nil {
-		return nil, err
-	}
-	if _, err := d.selectAll(&rows, query, args...); err != nil {
-		return nil, err
-	}
-	events := make([]db.AuditEvent, 0, len(rows))
-	for _, row := range rows {
-		events = append(events, auditEventFromRow(row))
-	}
-	return events, nil
-}
-func auditEventFromRow(r auditEventRow) db.AuditEvent {
-	e := db.AuditEvent{Seq: r.Seq, ID: r.ID, Timestamp: r.Timestamp.UTC(), SchemaVersion: r.SchemaVersion, EventCode: r.EventCode, Category: r.Category, Type: r.Type, Action: r.Action, Outcome: r.Outcome, Actor: &db.AuditActor{Type: r.ActorType}, InstanceID: r.InstanceID}
-	if r.ActorID != nil {
-		e.Actor.ID = *r.ActorID
-	}
-	if r.ActorName != nil {
-		e.Actor.Name = *r.ActorName
-	}
-	if r.SourceIP != nil {
-		e.Source = &db.AuditSource{IP: *r.SourceIP}
-		if r.SourceUserAgent != nil {
-			e.Source.UserAgent = *r.SourceUserAgent
-		}
-	}
-	if r.TargetType != nil {
-		e.Target = &db.AuditTarget{Type: *r.TargetType}
-		if r.TargetID != nil {
-			e.Target.ID = *r.TargetID
-		}
-		if r.TargetName != nil {
-			e.Target.Name = *r.TargetName
-		}
-	}
-	if r.ProjectID != nil {
-		e.Scope = &db.AuditScope{ProjectID: *r.ProjectID}
-	}
-	if r.RequestID != nil {
-		e.RequestID = *r.RequestID
-	}
-	if r.NodeID != nil {
-		e.NodeID = *r.NodeID
-	}
-	if r.Metadata != nil {
-		e.Metadata = []byte(*r.Metadata)
-	}
-	return e
-}
+
 func auditEventToRow(event db.AuditEvent) auditEventRow {
 	row := auditEventRow{
 		ID:            event.ID,
@@ -176,6 +136,7 @@ func auditEventToRow(event db.AuditEvent) auditEventRow {
 	}
 	return row
 }
+
 func stringOrNil(value string) *string {
 	if value == "" {
 		return nil
