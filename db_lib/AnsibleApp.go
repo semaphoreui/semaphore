@@ -4,11 +4,14 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/galaxy"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
@@ -54,6 +57,11 @@ type AnsibleApp struct {
 	Playbook   *AnsiblePlaybook
 	Template   db.Template
 	Repository db.Repository
+
+	// Set for the duration of InstallRequirements. The key is installed on the
+	// first galaxy run rather than up front, see galaxyGitEnvForRun.
+	galaxyInstaller AccessKeyInstaller
+	galaxyKey       *ssh.AccessKeyInstallation
 }
 
 func (t *AnsibleApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
@@ -90,11 +98,44 @@ func (t *AnsibleApp) InstallRequirements(args LocalAppInstallingArgs) error {
 		return err
 	}
 
+	t.galaxyInstaller = args.Installer
+	defer t.destroyGalaxyKey()
+
 	err = t.installCollectionsRequirements(args.EnvironmentVars, collectionArgs)
 	if err != nil {
 		return err
 	}
 	return t.installRolesRequirements(args.EnvironmentVars, roleArgs)
+}
+
+// galaxyGitEnvForRun returns the git credentials galaxy's clones need. The
+// repository key is installed into an agent here rather than in
+// InstallRequirements: most tasks have no requirements file to install, and
+// installing up front would decrypt the key and start an agent — one more thing
+// that can fail — for every task. The installation is reused across files.
+func (t *AnsibleApp) galaxyGitEnvForRun() ([]string, error) {
+	env := galaxyGitEnv(t.Repository)
+
+	if t.galaxyInstaller == nil {
+		return env, nil
+	}
+
+	if t.galaxyKey == nil {
+		installation, err := t.galaxyInstaller.Install(t.Repository.SSHKey, db.AccessKeyRoleGit, t.Logger)
+		if err != nil {
+			return nil, err
+		}
+		t.galaxyKey = &installation
+	}
+
+	return append(env, t.galaxyKey.GetGitEnv()...), nil
+}
+
+func (t *AnsibleApp) destroyGalaxyKey() {
+	if t.galaxyKey != nil {
+		_ = t.galaxyKey.Destroy()
+		t.galaxyKey = nil
+	}
 }
 
 // skipGalaxyInstall reports whether the Galaxy install step must be skipped.
@@ -218,7 +259,98 @@ func (t *AnsibleApp) installCollectionsRequirements(environmentVars, extraArgs [
 }
 
 func (t *AnsibleApp) runGalaxy(args []string, environmentVars []string) error {
-	return t.Playbook.RunGalaxy(args, environmentVars)
+	gitEnv, err := t.galaxyGitEnvForRun()
+	if err != nil {
+		return err
+	}
+
+	// Task variables come last so a manually configured GIT_* var still wins,
+	// except for GIT_CONFIG_PARAMETERS, which is merged: it is one variable
+	// holding a list of rewrites, and the project credential mappings put their
+	// own in there too.
+	env := mergeGitConfigParameters(append(gitEnv, environmentVars...))
+
+	return t.Playbook.RunGalaxy(args, env)
+}
+
+// mergeGitConfigParameters folds every GIT_CONFIG_PARAMETERS entry into one.
+//
+// The repository credentials here and the credential mappings of the project
+// both produce rewrites, and each sets the variable on its own. Left alone the
+// last one wins and the other set is silently dropped, so galaxy loses the
+// credential it needs. git resolves several insteadOf rules by longest match,
+// so carrying both is safe.
+func mergeGitConfigParameters(env []string) []string {
+	const key = "GIT_CONFIG_PARAMETERS="
+
+	var params []string
+
+	merged := make([]string, 0, len(env))
+	for _, v := range env {
+		value, ok := strings.CutPrefix(v, key)
+		if !ok {
+			merged = append(merged, v)
+			continue
+		}
+
+		if value != "" {
+			params = append(params, value)
+		}
+	}
+
+	if len(params) > 0 {
+		merged = append(merged, key+strings.Join(params, " "))
+	}
+
+	return merged
+}
+
+// sqQuote quotes s for GIT_CONFIG_PARAMETERS: the value is wrapped in single
+// quotes, and any single quote inside it is escaped the way sh requires.
+func sqQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// galaxyGitEnv lets ansible-galaxy authenticate to the repository's own git server.
+//
+// Galaxy shells out to `git clone` for `scm: git` requirements, and those clones
+// inherit no credentials, so roles hosted next to the repository fail with
+// "could not read Username" (GitHub #3677). Credentials go through
+// GIT_CONFIG_PARAMETERS so they stay out of `ps` output and out of the task log,
+// which only ever shows the pre-rewrite URL.
+func galaxyGitEnv(repo db.Repository) (env []string) {
+	// Without this git prompts on /dev/tty and the task hangs instead of failing.
+	env = append(env, "GIT_TERMINAL_PROMPT=0")
+
+	if repo.GetType() != db.RepositoryHTTP || repo.SSHKey.Type != db.AccessKeyLoginPassword {
+		return
+	}
+
+	plain, err := url.Parse(repo.GitURL)
+	if err != nil || plain.Host == "" {
+		return
+	}
+
+	// Scoped to this exact scheme://host[:port] so no other server named in
+	// requirements.yml is ever offered the credential.
+	plain.Path, plain.RawQuery, plain.Fragment, plain.User = "/", "", "", nil
+
+	withAuth := *plain
+	if login := repo.SSHKey.LoginPassword.Login; login == "" {
+		withAuth.User = url.User(repo.SSHKey.LoginPassword.Password)
+	} else {
+		withAuth.User = url.UserPassword(login, repo.SSHKey.LoginPassword.Password)
+	}
+
+	// git splits each GIT_CONFIG_PARAMETERS entry at its first "=", and net/url
+	// leaves "=" unescaped in userinfo, so a credential containing one would cut
+	// the key short and abort the clone with "error: invalid key". git decodes
+	// the escape again when it authenticates. Only the credential can hold one:
+	// the path, query and fragment are cleared above.
+	authURL := strings.ReplaceAll(withAuth.String(), "=", "%3D")
+
+	return append(env, "GIT_CONFIG_PARAMETERS="+sqQuote(
+		"url."+authURL+".insteadOf="+plain.String()))
 }
 
 // galaxyExtraArgs returns the template-configured arguments for one galaxy
