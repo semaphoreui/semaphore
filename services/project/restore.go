@@ -2,6 +2,7 @@ package project
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -237,6 +238,80 @@ func (e BackupRepository) Restore(b *BackupDB) error {
 		return err
 	}
 	b.repositories = append(b.repositories, newRepo)
+	return nil
+}
+
+func (e BackupHostConfig) GetName() string {
+	return e.Name
+}
+
+func (e BackupHostConfig) Verify(backup *BackupFormat) error {
+	// The credential is remapped during the restore, so only what the mapping
+	// points at can be checked here — but it must be, because Restore runs after
+	// the project and its keys already exist. It also trims the name, which the
+	// duplicate check below compares against.
+	if err := e.ValidateMapping(); err != nil {
+		return err
+	}
+
+	// Not verifyDuplicate: a mapping is unique on (type, name), and the table
+	// enforces it, so a duplicate must fail here rather than half way through
+	// the restore with the project already created. The stored name is trimmed,
+	// so two entries differing only in surrounding whitespace are one mapping.
+	duplicates := 0
+	for _, other := range backup.HostConfigs {
+		if other.Type == e.Type && strings.TrimSpace(other.Name) == e.Name {
+			duplicates++
+		}
+	}
+	if duplicates > 1 {
+		return fmt.Errorf("%s is duplicate", e.Name)
+	}
+
+	if e.SSHKey == nil {
+		return fmt.Errorf("SSHKey can not be empty")
+	}
+	key := getEntryByName[BackupAccessKey](e.SSHKey, backup.Keys)
+	if key == nil {
+		return fmt.Errorf("SSHKey does not exist in keys[].Name")
+	}
+
+	// The same rule ValidateHostConfig applies, checked before anything is
+	// written.
+	if err := e.ValidateCredential(key.Type); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e BackupHostConfig) Restore(b *BackupDB) error {
+	k := findEntityByName[db.AccessKey](e.SSHKey, b.keys)
+	if k == nil {
+		return fmt.Errorf("SSHKey does not exist in keys[].Name")
+	}
+
+	hostConfig := e.HostConfig
+	hostConfig.ProjectID = b.meta.ID
+	hostConfig.SSHKeyID = k.ID
+
+	// A backup is a user supplied file, so a mapping restored from one goes
+	// through the same checks as one created through the API: its host reaches a
+	// generated ssh config, and its key must belong to the project.
+	if err := hostConfig.Validate(); err != nil {
+		return err
+	}
+
+	if err := db.ValidateHostConfig(b.store, &hostConfig); err != nil {
+		return err
+	}
+
+	newHostConfig, err := b.store.CreateHostConfig(hostConfig)
+	if err != nil {
+		return err
+	}
+
+	b.hostConfigs = append(b.hostConfigs, newHostConfig)
 	return nil
 }
 
@@ -558,6 +633,11 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at repositories[%d]: %s", i, err.Error())
 		}
 	}
+	for i, o := range backup.HostConfigs {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at host_configs[%d]: %s", i, err.Error())
+		}
+	}
 	for i, o := range backup.Inventories {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at inventories[%d]: %s", i, err.Error())
@@ -655,6 +735,12 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 	for i, o := range backup.Repositories {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at repositories[%d]: %s", i, err.Error())
+		}
+	}
+
+	for i, o := range backup.HostConfigs {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at host_configs[%d]: %s", i, err.Error())
 		}
 	}
 

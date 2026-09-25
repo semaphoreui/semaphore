@@ -27,7 +27,7 @@ func (c CmdGitClient) makeCmd(
 ) *exec.Cmd {
 	cmd := exec.Command("git") //nolint:gosec
 
-	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv()...)
+	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnvWithHostConfigs(r.HostConfigs)...)
 
 	// Unlike the app runners, git gets HOME only when nothing has set it already,
 	// and never gets an empty one: getHomeDir returns "" for an out-of-range

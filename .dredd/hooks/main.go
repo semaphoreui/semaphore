@@ -106,6 +106,12 @@ func main() {
 	h.Before("repository > /api/project/{project_id}/repositories/{repository_id} > Updates repository > 204 > application/json", capabilityWrapper("repository"))
 	h.Before("repository > /api/project/{project_id}/repositories/{repository_id} > Removes repository > 204 > application/json", capabilityWrapper("repository"))
 
+	h.Before("project > /api/project/{project_id}/host_configs > Get the credential mappings of the project > 200 > application/json", capabilityWrapper("host_config"))
+	h.Before("project > /api/project/{project_id}/host_configs > Add a credential mapping > 201 > application/json", capabilityWrapper("access_key"))
+	h.Before("project > /api/project/{project_id}/host_configs/{host_config_id} > Get a credential mapping > 200 > application/json", capabilityWrapper("host_config"))
+	h.Before("project > /api/project/{project_id}/host_configs/{host_config_id} > Update a credential mapping > 204 > application/json", capabilityWrapper("host_config"))
+	h.Before("project > /api/project/{project_id}/host_configs/{host_config_id} > Delete a credential mapping > 204 > application/json", capabilityWrapper("host_config"))
+
 	h.Before("inventory > /api/project/{project_id}/inventory > create inventory > 201 > application/json", capabilityWrapper("inventory"))
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Get inventory > 200 > application/json", capabilityWrapper("inventory"))
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Updates inventory > 204 > application/json", capabilityWrapper("inventory"))

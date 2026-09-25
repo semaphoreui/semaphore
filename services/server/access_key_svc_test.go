@@ -27,7 +27,7 @@ func TestAccessKeyService_Update_GeneratedSSHKeyIsPersisted(t *testing.T) {
 		return nil
 	}
 
-	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil)
+	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
 
 	err := svc.Update(db.AccessKey{
 		ID:             10,
@@ -74,7 +74,7 @@ func TestAccessKeyService_Update_NoGenerateNoOverrideKeepsSecret(t *testing.T) {
 		return nil
 	}
 
-	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil)
+	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
 
 	err := svc.Update(db.AccessKey{
 		ID:        10,
@@ -115,7 +115,7 @@ func TestAccessKeyService_GenerateSSHKeyRejectedForNonSSHTypes(t *testing.T) {
 					return k, nil
 				},
 			}
-			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil)
+			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
 
 			_, err := svc.Create(db.AccessKey{
 				ProjectID:      &projectID,
@@ -137,7 +137,7 @@ func TestAccessKeyService_GenerateSSHKeyRejectedForNonSSHTypes(t *testing.T) {
 					return nil
 				},
 			}
-			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil)
+			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
 
 			err := svc.Update(db.AccessKey{
 				ID:             10,
@@ -166,7 +166,7 @@ func TestAccessKeyService_Create_GeneratedSSHKeyIsPersisted(t *testing.T) {
 			return k, nil
 		},
 	}
-	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil)
+	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
 
 	clientPlain := "client-supplied"
 	_, err := svc.Create(db.AccessKey{
@@ -212,7 +212,7 @@ func TestAccessKeyService_Create_ClientPlainIsDiscarded(t *testing.T) {
 			return k, nil
 		},
 	}
-	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil)
+	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
 
 	clientPlain := `{"public_key":"forged"}`
 	_, err := svc.Create(db.AccessKey{
@@ -242,7 +242,7 @@ func TestAccessKeyService_Update_GenerateWithoutOverrideKeepsSecret(t *testing.T
 		return nil
 	}
 
-	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil)
+	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
 
 	err := svc.Update(db.AccessKey{
 		ID:             10,
@@ -297,7 +297,7 @@ func TestAccessKeyService_GenerateSSHKeyRejectedForReadOnlyStorage(t *testing.T)
 					return k, nil
 				},
 			}
-			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, storageRepo, nil), storageRepo)
+			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, storageRepo, nil), storageRepo, repo)
 
 			key := tt.key
 			key.ProjectID = &projectID
@@ -325,7 +325,7 @@ func TestAccessKeyService_GenerateSSHKeyRejectedForReadOnlyStorage(t *testing.T)
 					return nil
 				},
 			}
-			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, storageRepo, nil), storageRepo)
+			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, storageRepo, nil), storageRepo, repo)
 
 			key := tt.key
 			key.ID = 10
@@ -341,4 +341,76 @@ func TestAccessKeyService_GenerateSSHKeyRejectedForReadOnlyStorage(t *testing.T)
 			assert.False(t, updated)
 		})
 	}
+}
+
+// spyEncryption records the two calls which reach the secret storage. The
+// embedded interface supplies the rest and is never used.
+type spyEncryption struct {
+	AccessKeyEncryptionService
+	serialized bool
+	deleted    bool
+}
+
+func (s *spyEncryption) SerializeSecret(*db.AccessKey) error {
+	s.serialized = true
+	return nil
+}
+
+func (s *spyEncryption) DeleteSecret(*db.AccessKey) error {
+	s.deleted = true
+	return nil
+}
+
+// Deleting the key of a mapping is refused by the database, so it has to be
+// refused before the secret is removed from its storage — after that the
+// credential is gone and the mapping still points at it.
+func TestAccessKeyService_Delete_RefusedBeforeSecretIsRemoved(t *testing.T) {
+	projectID := 1
+	storageID := 5
+
+	repo := &mockAccessKeyRepo{
+		keys: []db.AccessKey{{
+			ID: 10, ProjectID: &projectID, Name: "k",
+			Type: db.AccessKeySSH, SourceStorageID: &storageID,
+		}},
+		hostConfigs: []db.HostConfig{{
+			ID: 1, ProjectID: projectID, Type: db.HostConfigHost,
+			Name: "github.com", SSHKeyID: 10,
+		}},
+	}
+
+	spy := &spyEncryption{}
+	svc := NewAccessKeyService(repo, spy, nil, repo)
+
+	err := svc.Delete(projectID, 10)
+
+	assert.ErrorContains(t, err, "github.com")
+	assert.False(t, spy.deleted, "the secret must still be in its storage")
+}
+
+// The same for a type change: the repository rejects it, but only after the
+// remote secret has been overwritten with a payload the old row can not read.
+func TestAccessKeyService_Update_RefusedBeforeSecretIsSerialized(t *testing.T) {
+	projectID := 1
+
+	repo := &mockAccessKeyRepo{
+		keys: []db.AccessKey{{ID: 10, ProjectID: &projectID, Name: "k", Type: db.AccessKeySSH}},
+		hostConfigs: []db.HostConfig{{
+			ID: 1, ProjectID: projectID, Type: db.HostConfigHost,
+			Name: "github.com", SSHKeyID: 10,
+		}},
+	}
+
+	spy := &spyEncryption{}
+	svc := NewAccessKeyService(repo, spy, nil, repo)
+
+	err := svc.Update(db.AccessKey{
+		ID: 10, ProjectID: &projectID, Name: "k",
+		Type:           db.AccessKeyLoginPassword,
+		LoginPassword:  db.LoginPassword{Login: "bob", Password: "x"},
+		OverrideSecret: true,
+	})
+
+	assert.ErrorContains(t, err, "host mapping needs an SSH key")
+	assert.False(t, spy.serialized, "the secret must not reach its storage")
 }

@@ -75,6 +75,22 @@ func (a *Agent) Listen() error {
 		return fmt.Errorf("listening on socket %q: %w", a.SocketFile, err)
 	}
 
+	// Anyone able to connect to the socket can authenticate with the key it
+	// holds. The directory is shared with the repository checkout and stays
+	// traversable, so the restriction goes on the socket itself. git may run as
+	// the configured process user, which then has to own it.
+	if err := os.Chmod(a.SocketFile, 0o600); err != nil {
+		_ = l.Close()
+		return fmt.Errorf("securing socket %q: %w", a.SocketFile, err)
+	}
+
+	if util.Config != nil && util.Config.Process != nil {
+		if err := util.ChownDir(a.SocketFile); err != nil {
+			_ = l.Close()
+			return fmt.Errorf("securing socket %q: %w", a.SocketFile, err)
+		}
+	}
+
 	l.SetUnlinkOnClose(true)
 	a.listener = l
 	a.done = make(chan struct{})
@@ -152,16 +168,48 @@ type AccessKeyInstallation struct {
 }
 
 func (key *AccessKeyInstallation) GetGitEnv() (env []string) {
+	return key.GetGitEnvWithHostConfigs(nil)
+}
+
+// GetGitEnvWithHostConfigs returns the environment for git commands, applying
+// the credential mappings of the project when it has any.
+//
+// The generated config replaces the administrator's as the file given to -F,
+// and includes it, so a mapped host uses its own credential while everything
+// else keeps the configuration it has today.
+func (key *AccessKeyInstallation) GetGitEnvWithHostConfigs(
+	hostConfigs *HostConfigInstallation,
+) (env []string) {
+
 	env = make([]string, 0)
 
 	env = append(env, "GIT_TERMINAL_PROMPT=0")
-	if key.SSHAgent != nil {
-		env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
+
+	generated := hostConfigs.SSHConfigPath()
+
+	// The command is needed without a key of its own too: a repository which
+	// needs no key still has to reach a mapped host with the mapped credential.
+	if key.SSHAgent != nil || generated != "" {
+		if key.SSHAgent != nil {
+			env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
+		}
+
+		// The generated config includes the administrator's, so it replaces it
+		// rather than being added to it.
+		sshConfigPath := generated
+		if sshConfigPath == "" {
+			sshConfigPath = util.Config.GetSshConfigPath()
+		}
+
 		sshCmd := "ssh " + gitHostKeyCheckingOpts()
-		if util.Config.GetSshConfigPath() != "" {
-			sshCmd += " -F " + util.Config.GetSshConfigPath()
+		if sshConfigPath != "" {
+			sshCmd += " -F " + sshConfigPath
 		}
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
+	}
+
+	if params := hostConfigs.GitConfigParameters(); params != "" {
+		env = append(env, "GIT_CONFIG_PARAMETERS="+params)
 	}
 
 	return env
@@ -178,7 +226,7 @@ func gitHostKeyCheckingOpts() string {
 	case util.SshStrictHostKeyCheckingYes:
 		return fmt.Sprintf("-o StrictHostKeyChecking=yes -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
 	case util.SshStrictHostKeyCheckingNo:
-		return "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+		return "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 	case util.SshStrictHostKeyCheckingAcceptNew:
 		return fmt.Sprintf("-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=%s", util.Config.Ssh.KnownHostsFile)
 	default:

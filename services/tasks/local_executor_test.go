@@ -2,9 +2,11 @@ package tasks
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -458,4 +460,113 @@ func TestGetArgs_AnsibleForks(t *testing.T) {
 			assert.Equal(t, exec.resolvePlaybookFile(), args[len(args)-1], "Playbook must be the last argument")
 		})
 	}
+}
+
+// Denis: the mappings must govern how ansible reaches the hosts of the
+// inventory, not only how git reaches a server.
+func TestGetPlaybookArgs_InventorySSHCommonArgs(t *testing.T) {
+	setupExecutorConfig(t)
+
+	newExecutor := func(installation *ssh.HostConfigInstallation) *LocalExecutor {
+		return &LocalExecutor{
+			Template:               db.Template{App: db.AppAnsible, Playbook: "site.yml"},
+			Inventory:              db.Inventory{ID: 1, Type: db.InventoryStatic},
+			hostConfigInstallation: installation,
+		}
+	}
+
+	t.Run("no mappings means no ssh args", func(t *testing.T) {
+		args, _, err := newExecutor(nil).getPlaybookArgs("admin", nil)
+
+		require.NoError(t, err)
+		assert.NotContains(t, args, "--ssh-common-args")
+	})
+
+	t.Run("mappings point ansible at the generated config", func(t *testing.T) {
+		installation := &ssh.HostConfigInstallation{ConfigFile: "/tmp/semaphore/project_1/ssh-config-x.conf"}
+
+		args, _, err := newExecutor(installation).getPlaybookArgs("admin", nil)
+
+		require.NoError(t, err)
+		require.Contains(t, args, "--ssh-common-args")
+
+		i := indexOfArg(args, "--ssh-common-args")
+		require.Less(t, i+1, len(args))
+		assert.Equal(t, "-F /tmp/semaphore/project_1/ssh-config-x.conf", args[i+1])
+	})
+}
+
+func indexOfArg(args []string, value string) int {
+	for i, a := range args {
+		if a == value {
+			return i
+		}
+	}
+	return -1
+}
+
+// Ansible reaches the hosts of the inventory through the generated config, so a
+// host mapping picks the credential for a playbook the same way it does for git.
+func TestGetPlaybookArgs_PassesHostConfigToAnsible(t *testing.T) {
+	setupExecutorConfig(t)
+
+	repoRoot := t.TempDir()
+	configFile := filepath.Join(repoRoot, "ssh-config-test.conf")
+
+	executor := LocalExecutor{
+		Template:   db.Template{Playbook: "site.yml"},
+		Inventory:  db.Inventory{Type: db.InventoryFile, Inventory: "hosts.ini"},
+		Repository: db.Repository{GitURL: repoRoot},
+
+		hostConfigInstallation: &ssh.HostConfigInstallation{ConfigFile: configFile},
+	}
+
+	args, _, err := executor.getPlaybookArgs("", nil)
+
+	require.NoError(t, err)
+	assert.Contains(t, args, "--ssh-common-args")
+	assert.Contains(t, args, "-F "+configFile)
+}
+
+// A project with no ssh mapping generates no config, and ansible must then keep
+// the configuration it would otherwise read rather than be given an empty one.
+func TestGetPlaybookArgs_NoHostConfigNoSSHArgs(t *testing.T) {
+	setupExecutorConfig(t)
+
+	repoRoot := t.TempDir()
+	executor := LocalExecutor{
+		Template:   db.Template{Playbook: "site.yml"},
+		Inventory:  db.Inventory{Type: db.InventoryFile, Inventory: "hosts.ini"},
+		Repository: db.Repository{GitURL: repoRoot},
+
+		hostConfigInstallation: &ssh.HostConfigInstallation{},
+	}
+
+	args, _, err := executor.getPlaybookArgs("", nil)
+
+	require.NoError(t, err)
+	assert.NotContains(t, args, "--ssh-common-args")
+}
+
+// The playbook process runs git of its own — the git module, a shelled out
+// clone — so it gets the rewrites of the mappings too.
+func TestHostConfigEnv_CarriesRewritesToThePlaybook(t *testing.T) {
+	setupExecutorConfig(t)
+
+	installation, err := ssh.InstallHostConfigs(1, []db.HostConfig{{
+		ID: 1, ProjectID: 1, Type: db.HostConfigURL, Name: "https://test.asdf.ru/",
+		SSHKey: db.AccessKey{
+			ID: 1, Type: db.AccessKeyLoginPassword,
+			LoginPassword: db.LoginPassword{Login: "bob", Password: "s3cr3t"},
+		},
+	}}, task_logger.NopLogger{})
+	require.NoError(t, err)
+	defer installation.Destroy()
+
+	executor := LocalExecutor{hostConfigInstallation: installation}
+
+	assert.Contains(t, strings.Join(executor.hostConfigEnv(), "\n"),
+		"GIT_CONFIG_PARAMETERS=")
+	assert.Contains(t, strings.Join(executor.hostConfigEnv(), "\n"),
+		"url.https://bob:s3cr3t@test.asdf.ru/")
 }
