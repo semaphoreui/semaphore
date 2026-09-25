@@ -15,6 +15,7 @@ const (
 	AuditEventCodeInventory  = "resource.inventory"
 	AuditEventCodeCredential = "resource.credential"
 	AuditEventCodeRepository = "resource.repository"
+	AuditEventCodeView       = "resource.view"
 	AuditCategoryResource    = "resource"
 	AuditTypeCreation        = "creation"
 	AuditTypeChange          = "change"
