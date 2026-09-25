@@ -8,6 +8,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 )
 
 // TemplatesMiddleware ensures a template exists and loads it to the context
@@ -153,11 +154,12 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceTemplate,
+		Action:      audit.ActionCreate,
 		ProjectID:   project.ID,
-		ObjectType:  db.EventSchedule,
-		ObjectID:    newTemplate.ID,
+		TargetID:    newTemplate.ID,
+		TargetName:  newTemplate.Name,
 		Description: fmt.Sprintf("Template ID %d created", newTemplate.ID),
 	})
 
@@ -181,11 +183,12 @@ func UpdateTemplateDescription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceTemplate,
+		Action:      audit.ActionUpdate,
 		ProjectID:   template.ProjectID,
-		ObjectType:  db.EventTemplate,
-		ObjectID:    template.ID,
+		TargetID:    template.ID,
+		TargetName:  template.Name,
 		Description: fmt.Sprintf("Template ID %d description updated", template.ID),
 	})
 
@@ -240,11 +243,12 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceTemplate,
+		Action:      audit.ActionUpdate,
 		ProjectID:   oldTemplate.ProjectID,
-		ObjectType:  db.EventTemplate,
-		ObjectID:    oldTemplate.ID,
+		TargetID:    oldTemplate.ID,
+		TargetName:  template.Name,
 		Description: fmt.Sprintf("Template ID %d updated", template.ID),
 	})
 
@@ -261,11 +265,12 @@ func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceTemplate,
+		Action:      audit.ActionDelete,
 		ProjectID:   tpl.ProjectID,
-		ObjectType:  db.EventTemplate,
-		ObjectID:    tpl.ID,
+		TargetID:    tpl.ID,
+		TargetName:  tpl.Name,
 		Description: fmt.Sprintf("Template ID %d deleted", tpl.ID),
 	})
 
