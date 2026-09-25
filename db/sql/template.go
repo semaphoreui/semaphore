@@ -540,7 +540,7 @@ func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int)
 
 	// Only custom roles are resolved from the database; built-in roles use their
 	// own slug directly so a same-named custom role cannot shadow them.
-	if !projectUser.Role.IsValid() {
+	if !projectUser.Role.IsBuiltin() {
 		var role db.Role
 		role, err = d.GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
 			ProjectID: projectUser.ProjectID,

@@ -86,7 +86,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !projectUser.Role.IsValid() {
+	if !projectUser.Role.IsBuiltin() {
 		_, err := helpers.Store(r).GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
 			ProjectID: project.ID,
 			Kinds:     db.RoleKindCustom,
@@ -179,7 +179,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !projectUser.Role.IsValid() {
+	if !projectUser.Role.IsBuiltin() {
 		_, err := helpers.Store(r).GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
 			ProjectID: project.ID,
 			Kinds:     db.RoleKindCustom,

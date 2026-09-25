@@ -47,7 +47,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		// permissions. Only custom roles are resolved from the database, otherwise a
 		// project role sharing a built-in slug (e.g. "manager") could override the
 		// built-in permissions and escalate privileges.
-		if !roleSlug.IsValid() {
+		if !roleSlug.IsBuiltin() {
 			role, err := helpers.Store(r).GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
 				ProjectID: projectID,
 				Kinds:     db.RoleKindCustom,

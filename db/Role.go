@@ -53,7 +53,7 @@ func ValidateRole(role Role) error {
 	}
 	// Built-in role slugs are reserved. Allowing a custom role to reuse one lets
 	// it shadow the built-in role and escalate the permissions of its members.
-	if ProjectUserRole(role.Slug).IsValid() {
+	if ProjectUserRole(role.Slug).IsBuiltin() {
 		return &common_errors.ValidationError{Message: "Role slug is reserved and cannot be used: " + role.Slug}
 	}
 	return nil

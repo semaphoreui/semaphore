@@ -26,9 +26,14 @@ var rolePermissions = map[ProjectUserRole]ProjectUserPermission{
 	ProjectGuest:      0,
 }
 
-func (r ProjectUserRole) IsValid() bool {
-	_, ok := rolePermissions[r]
-	return ok
+// IsBuiltin reports whether the role uses a reserved built-in slug.
+func (r ProjectUserRole) IsBuiltin() bool {
+	switch r {
+	case ProjectOwner, ProjectManager, ProjectTaskRunner, ProjectGuest:
+		return true
+	default:
+		return false
+	}
 }
 
 type ProjectUser struct {

@@ -68,10 +68,13 @@ func TestValidateRole(t *testing.T) {
 	}
 }
 
-// TestValidateRole_ReservedSlugsMatchBuiltins guards against a built-in role
-// being added later without also reserving its slug in ValidateRole.
-func TestValidateRole_ReservedSlugsMatchBuiltins(t *testing.T) {
-	for role := range rolePermissions {
+func TestValidateRole_RejectsBuiltinSlugs(t *testing.T) {
+	for _, role := range []ProjectUserRole{
+		ProjectOwner,
+		ProjectManager,
+		ProjectTaskRunner,
+		ProjectGuest,
+	} {
 		err := ValidateRole(Role{Slug: string(role), Name: "custom"})
 		assert.Error(t, err, "built-in slug %q must be rejected by ValidateRole", role)
 	}
