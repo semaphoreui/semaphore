@@ -826,7 +826,21 @@ export default {
     beforeSave() {
       switch (this.extraVarsEditMode) {
         case 'json':
-          this.item.json = this.json;
+          try {
+            // Same object-root constraint as YAML below and the mode-switch
+            // watcher: null/array/scalar must not reach the API (backend used
+            // to accept JSON "null" silently as empty extra variables).
+            const value = JSON.parse(this.json || '{}');
+            if (!this.isPlainObject(value)) {
+              throw new Error('must be an object, e.g. { "key": "value" }');
+            }
+            if (!this.isJsonSafeValue(value, new Set())) {
+              throw new Error('contains a number that is not finite (Infinity/NaN)');
+            }
+            this.item.json = JSON.stringify(value);
+          } catch (err) {
+            throw new Error(`Extra variables: ${getErrorMessage(err)}`);
+          }
           break;
         case 'yaml':
           try {
@@ -918,16 +932,30 @@ export default {
         this.$set(this.item, 'sync_interval', 0);
       }
 
-      this.json = JSON.stringify(JSON.parse(this.item?.json || '{}'), null, 2);
-
-      const json = JSON.parse(this.item?.json || '{}');
+      let json;
+      try {
+        json = JSON.parse(this.item?.json || '{}');
+      } catch (e) {
+        json = null;
+      }
 
       const env = JSON.parse(this.item?.env || '{}');
 
       const secrets = this.item?.secrets || [];
 
-      this.extraVars = this.objectToExtraVars(json);
-      this.extraVarsEditMode = 'table';
+      // Legacy rows may store JSON "null"/arrays; Object.keys would throw in table mode.
+      if (!this.isPlainObject(json)) {
+        this.json = typeof this.item?.json === 'string' && this.item.json !== ''
+          ? this.item.json
+          : 'null';
+        this.extraVars = [];
+        this.extraVarsEditMode = 'json';
+        this.formError = 'Extra variables: must be an object, e.g. { "key": "value" }';
+      } else {
+        this.json = JSON.stringify(json, null, 2);
+        this.extraVars = this.objectToExtraVars(json);
+        this.extraVarsEditMode = 'table';
+      }
 
       this.env = Object.keys(env)
         // .filter((x) => {
