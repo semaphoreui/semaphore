@@ -148,6 +148,7 @@
             item-value="id"
             item-text="name"
             :rules="isFieldRequired('repository') ? [(v) => !!v || $t('repository_required')] : []"
+            :error-messages="branchesError"
             outlined
             dense
             :required="isFieldRequired('repository')"
@@ -221,6 +222,7 @@
               :rules="
                 isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
               "
+              :error-messages="playbooksError"
               outlined
               dense
               clearable
@@ -247,6 +249,7 @@
               :rules="
                 isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
               "
+              :error-messages="playbooksError"
               outlined
               dense
               :required="isFieldRequired('playbook')"
@@ -682,6 +685,7 @@
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 
 import axios from 'axios';
+import { getErrorMessage } from '@/lib/error';
 
 import ItemFormBase from '@/components/ItemFormBase';
 import 'codemirror/lib/codemirror.css';
@@ -774,9 +778,12 @@ export default {
       args: [],
       runnerTags: null,
       branches: null,
+      branchesAbort: null,
+      branchesError: null,
       playbooks: null,
       playbooksLoading: false,
       playbooksAbort: null,
+      playbooksError: null,
       setBranch: false,
     };
   },
@@ -789,15 +796,28 @@ export default {
     },
 
     gitBranchOfTemplate() {
-      if (this.playbooks != null) {
-        this.playbooks = null;
+      // Reload if the playbooks of the previous branch were shown, still loading,
+      // or failed: the new branch may well succeed.
+      const shouldReload = this.playbooks != null
+        || this.playbooksLoading
+        || this.playbooksError != null;
+
+      this.cancelPlaybookLoading();
+      this.playbooks = null;
+      this.playbooksError = null;
+
+      if (shouldReload) {
         this.loadPlaybooks();
       }
     },
 
     async repositoryId() {
+      this.cancelBranchesLoading();
+      this.cancelPlaybookLoading();
       this.branches = null;
+      this.branchesError = null;
       this.playbooks = null;
+      this.playbooksError = null;
 
       await Promise.all([this.loadBranches()]);
     },
@@ -822,6 +842,11 @@ export default {
 
   async created() {
     await Promise.all([this.loadBranches()]);
+  },
+
+  beforeDestroy() {
+    this.cancelBranchesLoading();
+    this.cancelPlaybookLoading();
   },
 
   computed: {
@@ -989,17 +1014,43 @@ export default {
   },
 
   methods: {
+    cancelBranchesLoading() {
+      if (this.branchesAbort) {
+        this.branchesAbort.abort();
+        this.branchesAbort = null;
+      }
+    },
+
     async loadBranches() {
+      this.cancelBranchesLoading();
+      this.branchesError = null;
+
       if (this.repositoryId == null) {
+        this.branches = null;
         return;
       }
 
+      const ctrl = new AbortController();
+      this.branchesAbort = ctrl;
+
       try {
-        this.branches = await this.loadProjectEndpoint(
+        const branches = await this.loadProjectEndpoint(
           `/repositories/${this.repositoryId}/branches`,
+          { signal: ctrl.signal },
         );
+        if (this.branchesAbort === ctrl) {
+          this.branches = branches;
+        }
       } catch (e) {
-        this.branches = null;
+        // A request replaced by a newer one must not overwrite its state.
+        if (this.branchesAbort === ctrl) {
+          this.branches = null;
+          this.branchesError = getErrorMessage(e);
+        }
+      } finally {
+        if (this.branchesAbort === ctrl) {
+          this.branchesAbort = null;
+        }
       }
     },
 
@@ -1011,23 +1062,31 @@ export default {
     },
 
     async loadPlaybooks() {
+      this.cancelPlaybookLoading();
+      this.playbooksError = null;
+
       if (this.repositoryId == null) {
         this.playbooks = null;
         return;
       }
 
-      this.cancelPlaybookLoading();
       const ctrl = new AbortController();
       this.playbooksAbort = ctrl;
       this.playbooksLoading = true;
 
       try {
-        this.playbooks = await this.loadProjectEndpoint(
+        const playbooks = await this.loadProjectEndpoint(
           `/repositories/${this.repositoryId}/playbooks?branch=${encodeURIComponent(this.item.git_branch || '')}`,
           { signal: ctrl.signal },
         );
+        if (this.playbooksAbort === ctrl) {
+          this.playbooks = playbooks;
+        }
       } catch (e) {
-        this.playbooks = null;
+        if (this.playbooksAbort === ctrl) {
+          this.playbooks = null;
+          this.playbooksError = getErrorMessage(e);
+        }
       } finally {
         // ponytail: guard against a newer request having replaced this one
         if (this.playbooksAbort === ctrl || this.playbooksAbort == null) {
