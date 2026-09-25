@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -220,11 +221,12 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceRepository,
+		Action:      audit.ActionCreate,
 		ProjectID:   newRepo.ProjectID,
-		ObjectType:  db.EventRepository,
-		ObjectID:    newRepo.ID,
+		TargetID:    newRepo.ID,
+		TargetName:  newRepo.Name,
 		Description: fmt.Sprintf("Repository %s created", repository.GetRedactedGitURL()),
 	})
 
@@ -268,11 +270,12 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		util.LogWarning(oldRepo.ClearCache())
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceRepository,
+		Action:      audit.ActionUpdate,
 		ProjectID:   oldRepo.ProjectID,
-		ObjectType:  db.EventRepository,
-		ObjectID:    oldRepo.ID,
+		TargetID:    oldRepo.ID,
+		TargetName:  repository.Name,
 		Description: fmt.Sprintf("Repository %s updated", repository.GetRedactedGitURL()),
 	})
 
@@ -299,11 +302,12 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 
 	util.LogWarning(repository.ClearCache())
 
-	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceRepository,
+		Action:      audit.ActionDelete,
 		ProjectID:   repository.ProjectID,
-		ObjectType:  db.EventRepository,
-		ObjectID:    repository.ID,
+		TargetID:    repository.ID,
+		TargetName:  repository.Name,
 		Description: fmt.Sprintf("Repository %s deleted", repository.GetRedactedGitURL()),
 	})
 

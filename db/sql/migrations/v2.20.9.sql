@@ -1,12 +1,19 @@
+create table audit_event_sequence (
+    id       integer primary key,
+    last_seq bigint not null
+);
+
+insert into audit_event_sequence (id, last_seq) values (1, 0);
+
 create table audit_event (
 {{if .Postgresql}}
-    seq               bigserial primary key,
+    seq               bigint primary key,
     occurred_at       timestamp with time zone not null,
 {{else if .Mysql}}
-    seq               bigint primary key auto_increment,
+    seq               bigint primary key,
     occurred_at       datetime(6) not null,
 {{else}}
-    seq               integer primary key autoincrement,
+    seq               integer primary key,
     occurred_at       datetime not null,
 {{end}}
     event_id          varchar(36) not null,

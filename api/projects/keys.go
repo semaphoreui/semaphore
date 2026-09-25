@@ -9,6 +9,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 )
 
 type KeyController struct {
@@ -126,11 +127,12 @@ func (c *KeyController) AddKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceCredential,
+		Action:      audit.ActionCreate,
 		ProjectID:   *newKey.ProjectID,
-		ObjectType:  db.EventKey,
-		ObjectID:    newKey.ID,
+		TargetID:    newKey.ID,
+		TargetName:  key.Name,
 		Description: fmt.Sprintf("Access Key %s created", key.Name),
 	})
 
@@ -207,11 +209,12 @@ func (c *KeyController) UpdateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceCredential,
+		Action:      audit.ActionUpdate,
 		ProjectID:   *oldKey.ProjectID,
-		ObjectType:  db.EventKey,
-		ObjectID:    oldKey.ID,
+		TargetID:    oldKey.ID,
+		TargetName:  key.Name,
 		Description: fmt.Sprintf("Access Key %s updated", key.Name),
 	})
 
@@ -236,11 +239,12 @@ func (c *KeyController) RemoveKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceCredential,
+		Action:      audit.ActionDelete,
 		ProjectID:   *key.ProjectID,
-		ObjectType:  db.EventKey,
-		ObjectID:    key.ID,
+		TargetID:    key.ID,
+		TargetName:  key.Name,
 		Description: fmt.Sprintf("Access Key %s deleted", key.Name),
 	})
 
