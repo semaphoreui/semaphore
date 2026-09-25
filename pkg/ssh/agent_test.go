@@ -5,8 +5,61 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/semaphoreui/semaphore/util"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAccessKeyInstallation_GetGitEnv_HostKeyChecking(t *testing.T) {
+	originalConfig := util.Config
+	t.Cleanup(func() {
+		util.Config = originalConfig
+	})
+
+	tests := []struct {
+		name     string
+		checking util.SshStrictHostKeyChecking
+		expected string
+	}{
+		{
+			name:     "disabled",
+			checking: util.SshStrictHostKeyCheckingNo,
+			expected: "GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null",
+		},
+		{
+			name:     "strict",
+			checking: util.SshStrictHostKeyCheckingYes,
+			expected: "GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/tmp/known_hosts",
+		},
+		{
+			name:     "accept new",
+			checking: util.SshStrictHostKeyCheckingAcceptNew,
+			expected: "GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/tmp/known_hosts",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			util.Config = &util.ConfigType{
+				Ssh: &util.SshConfig{
+					KnownHostsFile:        "/tmp/known_hosts",
+					StrictHostKeyChecking: tt.checking,
+				},
+			}
+			installation := AccessKeyInstallation{
+				SSHAgent: &Agent{SocketFile: "/tmp/agent.sock"},
+			}
+
+			env := installation.GetGitEnv()
+
+			assert.Equal(t, []string{
+				"GIT_TERMINAL_PROMPT=0",
+				"SSH_AUTH_SOCK=/tmp/agent.sock",
+				tt.expected,
+			}, env)
+		})
+	}
+}
 
 // TestAgent_Listen_CreatesSocketDir tests that Listen() creates the socket's
 // parent directory if it doesn't exist (e.g. project tmp dir not yet created).
