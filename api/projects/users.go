@@ -43,6 +43,14 @@ type projUser struct {
 	Role     db.ProjectUserRole `json:"role"`
 }
 
+func validateRoleForProjectAssignment(r *http.Request, projectID int, role db.ProjectUserRole) error {
+	_, err := helpers.Store(r).GetRoleBySlug(string(role), db.AvailableRoleQuery{
+		ProjectID: projectID,
+		Kinds:     db.RoleKindAll,
+	})
+	return err
+}
+
 // GetUsers returns all users in a project
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 
@@ -86,18 +94,13 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !projectUser.Role.IsBuiltin() {
-		_, err := helpers.Store(r).GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
-			ProjectID: project.ID,
-			Kinds:     db.RoleKindCustom,
-		})
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+	err := validateRoleForProjectAssignment(r, project.ID, projectUser.Role)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
-	_, err := helpers.Store(r).CreateProjectUser(db.ProjectUser{
+	_, err = helpers.Store(r).CreateProjectUser(db.ProjectUser{
 		ProjectID: project.ID,
 		UserID:    projectUser.UserID,
 		Role:      projectUser.Role,
@@ -179,18 +182,13 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !projectUser.Role.IsBuiltin() {
-		_, err := helpers.Store(r).GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
-			ProjectID: project.ID,
-			Kinds:     db.RoleKindCustom,
-		})
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+	err := validateRoleForProjectAssignment(r, project.ID, projectUser.Role)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
-	err := helpers.Store(r).UpdateProjectUser(db.ProjectUser{
+	err = helpers.Store(r).UpdateProjectUser(db.ProjectUser{
 		UserID:    targetUser.ID,
 		ProjectID: project.ID,
 		Role:      projectUser.Role,
