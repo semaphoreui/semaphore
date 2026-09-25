@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -203,6 +204,58 @@ func redactURLUserinfo(rawURL string) string {
 		return rawURL
 	}
 	return rawURL[:schemeEnd+3] + rest[at+1:]
+}
+
+// urlUserinfo returns the part of rawURL that redactURLUserinfo removes,
+// without the "@", or "" when there is none.
+func urlUserinfo(rawURL string) string {
+	schemeEnd := strings.Index(rawURL, "://")
+	if schemeEnd < 0 {
+		return ""
+	}
+	rest := rawURL[schemeEnd+3:]
+
+	at := strings.LastIndex(rest, "@")
+	if at < 0 {
+		return ""
+	}
+	return rest[:at]
+}
+
+// RedactCredentials replaces every credential of the repository found in text,
+// such as the stderr of a failed git command, with "***". It covers the
+// password or token of a login/password access key, both as stored and as
+// GetGitURL(true) percent encodes it, and userinfo typed into an http(s) URL.
+//
+// It matches the known values instead of URL-shaped text, so a credential is
+// redacted wherever git quotes it, whatever surrounds it. The access key's
+// login is not redacted: it is not a secret, and it tells the user which
+// account was rejected. Nor is the userinfo of an ssh:// URL, which is only a
+// user name, usually "git", and would blank out every mention of git.
+func (r Repository) RedactCredentials(text string) string {
+	var secrets []string
+
+	if r.SSHKey.Type == AccessKeyLoginPassword && r.SSHKey.LoginPassword.Password != "" {
+		password := r.SSHKey.LoginPassword.Password
+		secrets = append(secrets, password, url.User(password).String())
+	}
+
+	if userinfo := urlUserinfo(r.GitURL); userinfo != "" && r.GetType() == RepositoryHTTP {
+		secrets = append(secrets, userinfo)
+		if _, password, ok := strings.Cut(userinfo, ":"); ok && password != "" {
+			secrets = append(secrets, password)
+		}
+	}
+
+	// Longest first, so a secret containing another one is replaced whole
+	// rather than left with a readable remainder.
+	slices.SortFunc(secrets, func(a, b string) int { return len(b) - len(a) })
+
+	for _, secret := range secrets {
+		text = strings.ReplaceAll(text, secret, "***")
+	}
+
+	return text
 }
 
 func (r Repository) GetType() RepositoryType {

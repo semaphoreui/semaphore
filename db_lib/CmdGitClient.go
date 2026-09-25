@@ -89,7 +89,20 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 	finishLog := r.Logger.LogCmd(cmd)
 	defer finishLog()
 
-	return cmd.Run()
+	// A task logger streams stderr into the task log, where the user reads why
+	// git failed. NopLogger, used by the API, leaves it unset, and git's
+	// explanation would be discarded, so keep it for the returned error.
+	var stderr *tailBuffer
+	if cmd.Stderr == nil {
+		stderr = &tailBuffer{limit: gitStderrLimit}
+		cmd.Stderr = stderr
+	}
+
+	if err = cmd.Run(); err != nil {
+		return newGitCommandError(r.Repository, args, stderr.String(), err)
+	}
+
+	return nil
 }
 
 func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, args ...string) (out string, err error) {
@@ -100,8 +113,15 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 
 	defer keyInstallation.Destroy() //nolint: errcheck
 
-	bytes, err := c.makeCmd(r, targetDir, keyInstallation, args...).Output()
+	// Collect stderr here rather than in exec.ExitError.Stderr, which would
+	// carry it unredacted to anyone unwrapping the returned error.
+	stderr := &tailBuffer{limit: gitStderrLimit}
+	cmd := c.makeCmd(r, targetDir, keyInstallation, args...)
+	cmd.Stderr = stderr
+
+	bytes, err := cmd.Output()
 	if err != nil {
+		err = newGitCommandError(r.Repository, args, stderr.String(), err)
 		return
 	}
 	out = strings.Trim(string(bytes), " \n")
