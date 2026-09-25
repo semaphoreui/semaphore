@@ -6,6 +6,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 )
 
 // ViewMiddleware ensures a key exists and loads it to the context
@@ -95,11 +96,12 @@ func AddView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceView,
+		Action:      audit.ActionCreate,
 		ProjectID:   newView.ProjectID,
-		ObjectType:  db.EventView,
-		ObjectID:    newView.ID,
+		TargetID:    newView.ID,
+		TargetName:  newView.Title,
 		Description: fmt.Sprintf("View %s created", view.Title),
 	})
 
@@ -154,11 +156,12 @@ func UpdateView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceView,
+		Action:      audit.ActionUpdate,
 		ProjectID:   oldView.ProjectID,
-		ObjectType:  db.EventView,
-		ObjectID:    oldView.ID,
+		TargetID:    oldView.ID,
+		TargetName:  view.Title,
 		Description: fmt.Sprintf("View %s updated", view.Title),
 	})
 
@@ -176,11 +179,12 @@ func RemoveView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceView,
+		Action:      audit.ActionDelete,
 		ProjectID:   view.ProjectID,
-		ObjectType:  db.EventView,
-		ObjectID:    view.ID,
+		TargetID:    view.ID,
+		TargetName:  view.Title,
 		Description: fmt.Sprintf("View %s deleted", view.Title),
 	})
 

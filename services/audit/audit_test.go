@@ -51,6 +51,7 @@ func TestMapResource(t *testing.T) {
 		{ResourceInventory, resourceMapping{db.EventInventory, db.AuditEventCodeInventory, "inventory"}},
 		{ResourceCredential, resourceMapping{db.EventKey, db.AuditEventCodeCredential, "credential"}},
 		{ResourceRepository, resourceMapping{db.EventRepository, db.AuditEventCodeRepository, "repository"}},
+		{ResourceView, resourceMapping{db.EventView, db.AuditEventCodeView, "view"}},
 	}
 
 	for _, test := range tests {
