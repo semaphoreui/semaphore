@@ -11,6 +11,9 @@ const (
 	SecretStorageTypeDvls    SecretStorageType = "dvls"
 	SecretStorageTypeAwsSm   SecretStorageType = "aws_sm"
 	SecretStorageTypeAzureKv SecretStorageType = "azure_kv"
+	// SecretStorageTypeCyberArk is CyberArk Privileged Access Manager
+	// (Self-Hosted or Privilege Cloud) accessed through the PVWA REST API.
+	SecretStorageTypeCyberArk SecretStorageType = "cyberark"
 )
 
 type SecretStorage struct {

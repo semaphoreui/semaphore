@@ -334,7 +334,8 @@ export default {
 
   methods: {
     afterLoadData() {
-      this.isSynced = JSON.parse(this.item.plain || '{}').dvls_id != null;
+      const plain = JSON.parse(this.item.plain || '{}');
+      this.isSynced = plain.dvls_id != null || plain.cyberark_id != null;
     },
 
     beforeSave() {

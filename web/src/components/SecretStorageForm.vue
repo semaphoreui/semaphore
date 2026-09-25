@@ -281,6 +281,97 @@
       ></v-text-field>
     </div>
 
+    <div v-else-if="item.type === 'cyberark'">
+      <v-checkbox
+        class="pt-0 mb-2"
+        style="margin-top: -5px"
+        v-model="item.params.insecure_tls"
+        label="Skip TLS certificate verification (insecure)"
+        :disabled="formSaving"
+        data-testid="secretStorage-cyberarkInsecureTls"
+      />
+
+      <v-select
+        v-model="item.params.auth_type"
+        :items="cyberArkAuthTypes"
+        label="Authentication method"
+        :disabled="formSaving"
+        data-testid="secretStorage-cyberarkAuthType"
+        outlined
+        dense
+      ></v-select>
+
+      <v-text-field
+        v-model="item.params.username"
+        label="Username"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || 'Username is required']"
+        required
+        data-testid="secretStorage-cyberarkUsername"
+        outlined
+        dense
+      ></v-text-field>
+
+      <SecretSourceToggle v-model="secretStorage" label="Password" :disabled="formSaving" />
+
+      <v-text-field
+        v-if="secretStorage === 'database'"
+        class="TextInput TextInput--no-legend masked-secret-input"
+        v-model="item.secret"
+        label="Password"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || 'Password is required']"
+        required
+        data-testid="secretStorage-cyberarkPassword"
+        outlined
+        dense
+        append-icon="mdi-lock"
+      ></v-text-field>
+
+      <v-text-field
+        v-else
+        class="TextInput TextInput--no-legend"
+        v-model="item.secret"
+        :label="secretStorage === 'env' ? $t('Env var name') : $t('Path to the file')"
+        :disabled="formSaving"
+        :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
+        required
+        data-testid="secretStorage-cyberarkPasswordSource"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.safe"
+        label="Default Safe"
+        hint="Used for keys without a Safe prefix (Safe/AccountName) and as default sync path"
+        :disabled="formSaving"
+        data-testid="secretStorage-cyberarkSafe"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.platform_id"
+        label="Platform ID for new accounts"
+        hint="Required only when Semaphore creates accounts (not read-only), e.g. UnixSSH"
+        :disabled="formSaving"
+        data-testid="secretStorage-cyberarkPlatformId"
+        outlined
+        dense
+      ></v-text-field>
+
+      <v-text-field
+        v-model="item.params.address"
+        label="Address for new accounts"
+        hint="Optional; some platforms require an address on the account"
+        :disabled="formSaving"
+        data-testid="secretStorage-cyberarkAddress"
+        outlined
+        dense
+      ></v-text-field>
+    </div>
+
     <v-checkbox
       v-model="item.readonly"
       :label="$t('Read only')"
@@ -363,6 +454,12 @@ export default {
       syncSettingsDialog: false,
       // IAM role state of the storage at load time.
       initialUseIamRole: false,
+      cyberArkAuthTypes: [
+        { text: 'CyberArk', value: 'cyberark' },
+        { text: 'LDAP', value: 'ldap' },
+        { text: 'RADIUS', value: 'radius' },
+        { text: 'Windows', value: 'windows' },
+      ],
     };
   },
 
@@ -396,6 +493,10 @@ export default {
       }
 
       this.initialUseIamRole = !!this.item.params.use_iam_role;
+
+      if (this.item.type === 'cyberark' && !this.item.params.auth_type) {
+        this.$set(this.item.params, 'auth_type', 'cyberark');
+      }
 
       this.secretStorageReady = false;
       this.secretStorage = this.item.source_storage_type || 'database';

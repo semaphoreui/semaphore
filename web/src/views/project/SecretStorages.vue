@@ -127,6 +127,20 @@
               link
               @click="
                 editItem('new');
+                itemType = 'cyberark';
+              "
+              :disabled="!features.secret_storage_management_ex"
+            >
+              <v-list-item-icon>
+                <v-icon>$vuetify.icons.cyberark</v-icon>
+              </v-list-item-icon>
+              <v-list-item-title>CyberArk</v-list-item-title>
+            </v-list-item>
+
+            <v-list-item
+              link
+              @click="
+                editItem('new');
                 itemType = 'dvls';
               "
               :disabled="!features.secret_storage_management_ex"
@@ -333,6 +347,8 @@ export default {
           return '$vuetify.icons.aws_sm';
         case 'azure_kv':
           return '$vuetify.icons.azure_kv';
+        case 'cyberark':
+          return '$vuetify.icons.cyberark';
         default:
           return '';
       }
