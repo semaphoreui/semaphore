@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -50,6 +51,27 @@ type ResourceEvent struct {
 	ProjectID   int
 	TargetID    int
 	TargetName  string
+	Description string
+}
+
+type ProjectMemberAction string
+
+const (
+	ProjectMemberAdd        ProjectMemberAction = "add"
+	ProjectMemberRemove     ProjectMemberAction = "remove"
+	ProjectMemberChangeRole ProjectMemberAction = "change_role"
+)
+
+type ProjectMemberEvent struct {
+	Action      ProjectMemberAction
+	Actor       Actor
+	Request     Request
+	ProjectID   int
+	UserID      int
+	UserName    string
+	Role        string
+	OldRole     string
+	NewRole     string
 	Description string
 }
 
@@ -144,6 +166,25 @@ func mapAction(action Action) (actionMapping, error) {
 	}
 }
 
+type memberActionMapping struct {
+	eventLogAction string
+	eventCode      string
+	auditAction    string
+}
+
+func mapProjectMemberAction(action ProjectMemberAction) (memberActionMapping, error) {
+	switch action {
+	case ProjectMemberAdd:
+		return memberActionMapping{"create", db.AuditEventCodeMembership, db.AuditActionAdd}, nil
+	case ProjectMemberRemove:
+		return memberActionMapping{"delete", db.AuditEventCodeMembership, db.AuditActionRemove}, nil
+	case ProjectMemberChangeRole:
+		return memberActionMapping{"update", db.AuditEventCodeProjectRole, db.AuditActionChange}, nil
+	default:
+		return memberActionMapping{}, fmt.Errorf("unsupported project member action %q", action)
+	}
+}
+
 type Service struct {
 	store     db.Store
 	logWriter pro_interfaces.LogWriteService
@@ -162,6 +203,66 @@ func NewService(
 	}
 }
 
+func newActivityEvent(
+	actor Actor, projectID, targetID int,
+	targetType db.EventObjectType, description string,
+) db.Event {
+	event := db.Event{
+		ObjectID:    &targetID,
+		ObjectType:  &targetType,
+		Description: &description,
+	}
+	if actor.ID > 0 {
+		event.UserID = &actor.ID
+	}
+	if projectID > 0 {
+		event.ProjectID = &projectID
+	}
+	return event
+}
+
+func (s *Service) newAuditEvent(
+	actor Actor, request Request, projectID int,
+	target db.AuditTarget,
+) db.AuditEvent {
+	event := db.NewAuditEvent()
+	event.Outcome = db.AuditOutcomeSuccess
+	event.Actor = &db.AuditActor{
+		Type: "user",
+		ID:   strconv.Itoa(actor.ID),
+		Name: actor.Name,
+	}
+	event.Source = &db.AuditSource{
+		IP:        request.SourceIP,
+		UserAgent: request.UserAgent,
+	}
+	event.Target = &target
+	event.Scope = &db.AuditScope{ProjectID: strconv.Itoa(projectID)}
+	event.RequestID = request.ID
+	event.InstanceID = s.settings.InstanceID
+	event.NodeID = s.settings.NodeID
+	return event
+}
+
+func (s *Service) recordProjections(
+	activityEvent db.Event, eventLogAction string, auditEvent *db.AuditEvent,
+) error {
+	_, activityErr := s.store.CreateEvent(activityEvent)
+	eventLogErr := s.logWriter.WriteEventLog(pro_interfaces.EventLogRecord{
+		Action:        eventLogAction,
+		ProjectID:     activityEvent.ProjectID,
+		UserID:        activityEvent.UserID,
+		IntegrationID: activityEvent.IntegrationID,
+		Description:   activityEvent.Description,
+	})
+
+	var auditErr error
+	if auditEvent != nil {
+		_, auditErr = s.store.CreateAuditEvent(*auditEvent)
+	}
+	return errors.Join(activityErr, eventLogErr, auditErr)
+}
+
 func (s *Service) RecordResource(event ResourceEvent) error {
 	resourceFields, err := mapResource(event.Resource)
 	if err != nil {
@@ -171,57 +272,74 @@ func (s *Service) RecordResource(event ResourceEvent) error {
 	if err != nil {
 		return err
 	}
-	activityEvent := db.Event{
-		ObjectID:    &event.TargetID,
-		ObjectType:  &resourceFields.activityType,
-		Description: &event.Description,
-	}
-	if event.Actor.ID > 0 {
-		activityEvent.UserID = &event.Actor.ID
-	}
-	if event.ProjectID > 0 {
-		activityEvent.ProjectID = &event.ProjectID
-	}
+	activityEvent := newActivityEvent(event.Actor, event.ProjectID, event.TargetID,
+		resourceFields.activityType, event.Description)
 
-	_, eventStoreErr := s.store.CreateEvent(activityEvent)
-	eventLogErr := s.logWriter.WriteEventLog(pro_interfaces.EventLogRecord{
-		Action:        string(event.Action),
-		ProjectID:     activityEvent.ProjectID,
-		UserID:        activityEvent.UserID,
-		IntegrationID: activityEvent.IntegrationID,
-		Description:   activityEvent.Description,
-	})
-
-	var auditStoreErr error
+	var auditEvent *db.AuditEvent
 	if s.settings.Enabled {
-		auditEvent := db.NewAuditEvent()
-		auditEvent.Category = db.AuditCategoryResource
-		auditEvent.Outcome = db.AuditOutcomeSuccess
-		auditEvent.Actor = &db.AuditActor{
-			Type: "user",
-			ID:   strconv.Itoa(event.Actor.ID),
-			Name: event.Actor.Name,
-		}
-		auditEvent.Source = &db.AuditSource{
-			IP:        event.Request.SourceIP,
-			UserAgent: event.Request.UserAgent,
-		}
-		auditEvent.Target = &db.AuditTarget{
+		target := db.AuditTarget{
 			Type: resourceFields.targetType,
 			ID:   strconv.Itoa(event.TargetID),
 			Name: event.TargetName,
 		}
-		auditEvent.Scope = &db.AuditScope{ProjectID: strconv.Itoa(event.ProjectID)}
-		auditEvent.RequestID = event.Request.ID
-		auditEvent.InstanceID = s.settings.InstanceID
-		auditEvent.NodeID = s.settings.NodeID
-
-		auditEvent.EventCode = resourceFields.eventCode
-		auditEvent.Type = actionFields.eventType
-		auditEvent.Action = actionFields.action
-
-		_, auditStoreErr = s.store.CreateAuditEvent(auditEvent)
+		value := s.newAuditEvent(event.Actor, event.Request, event.ProjectID, target)
+		value.EventCode = resourceFields.eventCode
+		value.Category = db.AuditCategoryResource
+		value.Type = actionFields.eventType
+		value.Action = actionFields.action
+		auditEvent = &value
 	}
 
-	return errors.Join(eventStoreErr, eventLogErr, auditStoreErr)
+	return s.recordProjections(activityEvent, string(event.Action), auditEvent)
+}
+
+func (s *Service) RecordProjectMember(event ProjectMemberEvent) error {
+	actionFields, err := mapProjectMemberAction(event.Action)
+	if err != nil {
+		return err
+	}
+
+	activityEvent := newActivityEvent(event.Actor, event.ProjectID, event.UserID,
+		db.EventUser, event.Description)
+
+	var auditEvent *db.AuditEvent
+	if s.settings.Enabled {
+		var metadata any
+		switch event.Action {
+		case ProjectMemberAdd:
+			metadata = struct {
+				Role string `json:"role,omitempty"`
+			}{event.Role}
+		case ProjectMemberRemove:
+			selfRemoval := event.Actor.ID == event.UserID
+			metadata = struct {
+				Role        string `json:"role,omitempty"`
+				SelfRemoval bool   `json:"self_removal"`
+			}{event.Role, selfRemoval}
+		case ProjectMemberChangeRole:
+			metadata = struct {
+				OldRole string `json:"old_role,omitempty"`
+				NewRole string `json:"new_role,omitempty"`
+			}{event.OldRole, event.NewRole}
+		}
+		auditMetadata, err := json.Marshal(metadata)
+		if err != nil {
+			return err
+		}
+
+		target := db.AuditTarget{
+			Type: "user",
+			ID:   strconv.Itoa(event.UserID),
+			Name: event.UserName,
+		}
+		value := s.newAuditEvent(event.Actor, event.Request, event.ProjectID, target)
+		value.EventCode = actionFields.eventCode
+		value.Category = db.AuditCategoryIAM
+		value.Type = db.AuditTypeChange
+		value.Action = actionFields.auditAction
+		value.Metadata = auditMetadata
+		auditEvent = &value
+	}
+
+	return s.recordProjections(activityEvent, actionFields.eventLogAction, auditEvent)
 }

@@ -2,6 +2,7 @@ package audit
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -195,6 +196,99 @@ func TestRecordResourceRejectsUnknownAction(t *testing.T) {
 	err := service.RecordResource(ResourceEvent{Resource: ResourceProject, Action: "unknown"})
 
 	assert.ErrorContains(t, err, "unsupported audit action")
+	assert.Empty(t, store.activityEvents)
+	assert.Empty(t, logWriter.events)
+	assert.Empty(t, store.auditEvents)
+}
+
+func TestRecordProjectMember(t *testing.T) {
+	tests := []struct {
+		name                         string
+		event                        ProjectMemberEvent
+		eventLogAction, code, action string
+		metadata                     string
+	}{
+		{
+			name: "add",
+			event: ProjectMemberEvent{
+				Action: ProjectMemberAdd, UserID: 9, Role: "manager",
+				Description: "User ID 9 added to team",
+			},
+			eventLogAction: "create", code: db.AuditEventCodeMembership,
+			action: db.AuditActionAdd, metadata: `{"role":"manager"}`,
+		},
+		{
+			name: "remove another user",
+			event: ProjectMemberEvent{
+				Action: ProjectMemberRemove, UserID: 9, UserName: "bob", Role: "guest",
+				Description: "User ID 9 removed from team",
+			},
+			eventLogAction: "delete", code: db.AuditEventCodeMembership,
+			action:   db.AuditActionRemove,
+			metadata: `{"role":"guest","self_removal":false}`,
+		},
+		{
+			name: "self removal",
+			event: ProjectMemberEvent{
+				Action: ProjectMemberRemove, UserID: 42, UserName: "alice", Role: "owner",
+				Description: "User ID 42 removed from team",
+			},
+			eventLogAction: "delete", code: db.AuditEventCodeMembership,
+			action:   db.AuditActionRemove,
+			metadata: `{"role":"owner","self_removal":true}`,
+		},
+		{
+			name: "change role",
+			event: ProjectMemberEvent{
+				Action: ProjectMemberChangeRole, UserID: 9, UserName: "bob",
+				OldRole: "guest", NewRole: "manager",
+				Description: "Changed role for User ID 9",
+			},
+			eventLogAction: "update", code: db.AuditEventCodeProjectRole,
+			action:   db.AuditActionChange,
+			metadata: `{"old_role":"guest","new_role":"manager"}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			store, logWriter := &storeFake{}, &logWriterFake{}
+			test.event.Actor = Actor{ID: 42, Name: "alice"}
+
+			err := NewService(store, logWriter, Settings{Enabled: true}).
+				RecordProjectMember(test.event)
+
+			require.NoError(t, err)
+			require.Len(t, store.activityEvents, 1)
+			activityEvent := store.activityEvents[0]
+			assert.Equal(t, test.event.UserID, *activityEvent.ObjectID)
+			assert.Equal(t, db.EventUser, *activityEvent.ObjectType)
+			assert.Equal(t, test.event.Description, *activityEvent.Description)
+			require.Len(t, logWriter.events, 1)
+			assert.Equal(t, test.eventLogAction, logWriter.events[0].Action)
+
+			require.Len(t, store.auditEvents, 1)
+			auditEvent := store.auditEvents[0]
+			assert.Equal(t, test.code, auditEvent.EventCode)
+			assert.Equal(t, test.action, auditEvent.Action)
+			assert.Equal(t, "user", auditEvent.Target.Type)
+			assert.Equal(t, strconv.Itoa(test.event.UserID), auditEvent.Target.ID)
+			assert.JSONEq(t, test.metadata, string(auditEvent.Metadata))
+			if test.event.UserID != test.event.Actor.ID {
+				assert.NotEqual(t, auditEvent.Actor.ID, auditEvent.Target.ID)
+			}
+		})
+	}
+}
+
+func TestRecordProjectMemberRejectsUnknownAction(t *testing.T) {
+	store := &storeFake{}
+	logWriter := &logWriterFake{}
+
+	err := NewService(store, logWriter, Settings{Enabled: true}).
+		RecordProjectMember(ProjectMemberEvent{Action: "unknown"})
+
+	assert.ErrorContains(t, err, "unsupported project member action")
 	assert.Empty(t, store.activityEvents)
 	assert.Empty(t, logWriter.events)
 	assert.Empty(t, store.auditEvents)
