@@ -407,6 +407,16 @@ func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
 }
 
 func (tpl *Template) Validate() error {
+	// API clients sometimes send type:"task"; the real task type is the empty string.
+	if tpl.Type == "task" {
+		tpl.Type = TemplateTask
+	}
+	switch tpl.Type {
+	case TemplateTask, TemplateBuild, TemplateDeploy:
+	default:
+		return common_errors.NewValidationError("template type must be empty, \"build\", or \"deploy\"")
+	}
+
 	if tpl.RunnerTag != nil && *tpl.RunnerTag == "" {
 		return common_errors.NewValidationError("template runner tag can not be empty")
 	}
