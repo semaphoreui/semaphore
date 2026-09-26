@@ -1,5 +1,14 @@
 <template>
-  <div>
+  <div class="WorkflowEditor">
+    <YesNoDialog
+      v-model="leaveDialog"
+      :title="$t('workflowUnsavedChanges')"
+      :text="$t('workflowUnsavedLeave')"
+      :yes-button-title="$t('workflowLeaveWithoutSaving')"
+      @yes="confirmLeave()"
+      @no="cancelLeave()"
+    />
+
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title class="WorkflowEditor__title d-flex align-center">
@@ -28,24 +37,47 @@
 
       <v-spacer></v-spacer>
 
-      <v-btn icon :title="$t('workflowToolbarZoomOut')" @click="zoomOut()">
-        <v-icon>mdi-magnify-minus-outline</v-icon>
+      <v-btn icon :disabled="!canUndo" :title="$t('workflowUndo')" @click="undo()">
+        <v-icon>mdi-undo</v-icon>
       </v-btn>
-      <v-btn icon :title="$t('workflowToolbarZoomIn')" @click="zoomIn()">
-        <v-icon>mdi-magnify-plus-outline</v-icon>
-      </v-btn>
-      <v-btn icon :title="$t('workflowToolbarFit')" @click="zoomReset()" class="mr-4">
-        <v-icon>mdi-fit-to-page-outline</v-icon>
+      <v-btn icon :disabled="!canRedo" :title="$t('workflowRedo')" class="mr-2" @click="redo()">
+        <v-icon>mdi-redo</v-icon>
       </v-btn>
 
-      <v-btn
-        color="primary"
-        :disabled="!canManage || saving || problems.length > 0"
-        :loading="saving"
-        @click="save()"
-      >{{ $t('save') }}
-      </v-btn
-      >
+      <v-menu v-if="problems.length > 0" offset-y :close-on-content-click="true">
+        <template v-slot:activator="{ on, attrs }">
+          <v-chip small outlined color="warning" class="mr-4" v-bind="attrs" v-on="on">
+            <v-icon left small>mdi-alert</v-icon>
+            {{ $tc('workflowProblemsCount', problems.length, { count: problems.length }) }}
+          </v-chip>
+        </template>
+        <v-list dense>
+          <v-list-item
+            v-for="(p, i) in problems"
+            :key="`problem-${i}`"
+            @click="focusProblem(p)"
+          >
+            <v-list-item-icon class="mr-2">
+              <v-icon small color="warning">mdi-alert</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>{{ p.text }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+      <v-chip v-else small outlined color="success" class="mr-4">
+        <v-icon left small>mdi-check</v-icon>
+        {{ $t('workflowValidationPassed') }}
+      </v-chip>
+
+      <v-badge :value="dirty" dot color="warning" overlap offset-x="8" offset-y="8">
+        <v-btn
+          color="primary"
+          depressed
+          :disabled="!canManage || saving || problems.length > 0"
+          :loading="saving"
+          @click="save()"
+        >{{ $t('save') }}</v-btn>
+      </v-badge>
     </v-toolbar>
 
     <v-divider />
@@ -86,96 +118,28 @@
 
           <div class="pa-3">
             <template v-if="!sideCollapsed">
-              <div class="text-subtitle-2 mb-2">{{ $t('workflowEditorPalette') }}</div>
-              <div class="text-caption text--secondary mb-2">
-                {{ $t('workflowDragToCanvasHint') }}
+              <div class="text-subtitle-2 mb-1">{{ $t('workflowEditorPalette') }}</div>
+              <div class="text-caption text--secondary mb-3">
+                {{ $t('workflowPaletteClickHint') }}
               </div>
             </template>
             <div
-              class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--task"
+              v-for="p in palette"
+              :key="p.kind"
+              class="WorkflowEditor__paletteItem"
+              :class="`WorkflowEditor__paletteItem--${p.kind}`"
               draggable="true"
-              :title="sideCollapsed ? $t('workflowPaletteTaskNode') : null"
-              @dragstart="onDragStart($event, 'task')"
+              :title="sideCollapsed ? p.text : null"
+              @dragstart="onDragStart($event, p.kind)"
+              @click="addFromPalette(p.kind)"
             >
-              <v-icon small :left="!sideCollapsed">mdi-cog</v-icon>
-              <template v-if="!sideCollapsed">{{ $t('workflowPaletteTaskNode') }}</template>
-            </div>
-            <div
-              class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--approval"
-              draggable="true"
-              :title="sideCollapsed ? $t('workflowPaletteApprovalNode') : null"
-              @dragstart="onDragStart($event, 'approval')"
-            >
-              <v-icon small :left="!sideCollapsed">mdi-account-check</v-icon>
-              <template v-if="!sideCollapsed">{{ $t('workflowPaletteApprovalNode') }}</template>
-            </div>
-            <div
-              class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--delay"
-              draggable="true"
-              @dragstart="onDragStart($event, 'delay')"
-            >
-              <v-icon small left>mdi-timer-outline</v-icon>
-              {{ $t('workflowPaletteDelayNode') }}
-            </div>
-
-            <div
-              class="WorkflowEditor__paletteItem WorkflowEditor__paletteItem--note"
-              draggable="true"
-              :title="sideCollapsed ? $t('workflowPaletteNoteNode') : null"
-              @dragstart="onDragStart($event, 'note')"
-            >
-              <v-icon small :left="!sideCollapsed">mdi-note-text-outline</v-icon>
-              <template v-if="!sideCollapsed">{{ $t('workflowPaletteNoteNode') }}</template>
-            </div>
-          </div>
-
-          <v-divider />
-
-          <div class="pa-3">
-            <template v-if="!sideCollapsed">
-              <div class="text-subtitle-2 mb-1">{{ $t('workflowProblemsPanelTitle') }}</div>
-              <v-alert v-if="problems.length === 0" type="success" text dense class="mb-0">
-                {{ $t('workflowValidationPassed') }}
-              </v-alert>
-              <v-alert
-                v-for="(p, i) in problems"
-                :key="`problem-${i}`"
-                type="warning"
-                text
-                dense
-                class="mb-1"
-              >{{ p }}
-              </v-alert
+              <span
+                class="WorkflowEditor__paletteTile"
+                :class="`WorkflowEditor__paletteTile--${p.kind}`"
               >
-            </template>
-            <div v-else class="d-flex flex-column align-center">
-              <v-tooltip
-                v-if="problems.length === 0"
-                right
-                max-width="320"
-                transition="fade-transition"
-              >
-                <template v-slot:activator="{ on, attrs }">
-                  <v-icon color="success" v-bind="attrs" v-on="on">mdi-check-circle</v-icon>
-                </template>
-                <span>{{ $t('workflowValidationPassed') }}</span>
-              </v-tooltip>
-              <template v-else>
-                <v-tooltip
-                  v-for="(p, i) in problems"
-                  :key="`problem-icon-${i}`"
-                  right
-                  max-width="320"
-                  transition="fade-transition"
-                >
-                  <template v-slot:activator="{ on, attrs }">
-                    <v-icon color="warning" class="mb-1" v-bind="attrs" v-on="on">
-                      mdi-alert
-                    </v-icon>
-                  </template>
-                  <span>{{ p }}</span>
-                </v-tooltip>
-              </template>
+                <v-icon small :color="p.color">{{ p.icon }}</v-icon>
+              </span>
+              <span v-if="!sideCollapsed" class="WorkflowEditor__paletteText">{{ p.text }}</span>
             </div>
           </div>
         </div>
@@ -189,6 +153,7 @@
           :nodes="item.nodes"
           :edges="item.edges"
           :templates="templates"
+          :node-problems="problemsByNode"
           editable
           @change="onGraphChange"
           @node-selected="onNodeSelected"
@@ -202,162 +167,25 @@
         v-if="editingNode || editingEdge"
         class="WorkflowEditor__side WorkflowEditor__side--right"
       >
-        <div v-if="editingNode" class="pa-3">
-          <div class="d-flex align-center mb-2">
-            <span class="text-subtitle-2"> {{ $t('workflowNodeId') }} #{{ editingNode.id }} </span>
-            <v-spacer />
-            <v-btn icon small :disabled="!canManage" @click="deleteSelectedNode()">
-              <v-icon small>mdi-delete</v-icon>
-            </v-btn>
-          </div>
-
-          <v-textarea
-            v-if="editingNode.kind === 'note'"
-            v-model="editingNode.note"
-            :label="$t('workflowNoteText')"
-            :placeholder="$t('workflowNotePlaceholder')"
-            :disabled="!canManage"
-            outlined
-            dense
-            auto-grow
-            rows="4"
-            hide-details="auto"
-            @input="applyNodeEdit"
-          />
-
-          <template v-if="editingNode.kind !== 'note'">
-            <v-select
-              v-model="editingNode.kind"
-              :items="kindOptions"
-              item-value="value"
-              item-text="text"
-              :label="$t('workflowNodeKind')"
-              :disabled="!canManage"
-              outlined
-              dense
-              hide-details="auto"
-              class="mb-5"
-              @change="onKindChanged"
-            />
-
-            <v-select
-              v-model="editingNode.convergence_mode"
-              :items="convergenceOptions"
-              item-value="value"
-              item-text="text"
-              :label="$t('workflowConvergence')"
-              :disabled="!canManage"
-              outlined
-              dense
-              hide-details="auto"
-              class="mb-5"
-              @change="applyNodeEdit"
-            />
-
-            <v-autocomplete
-            v-if="editingNode.kind !== 'approval' && editingNode.kind !== 'delay'"
-              v-model="editingNode.template_id"
-              :items="templates"
-              item-value="id"
-              item-text="name"
-              :label="$t('taskTemplate')"
-              :disabled="!canManage"
-              outlined
-              dense
-              hide-details="auto"
-              class="mb-5"
-              @change="applyNodeEdit"
-            />
-
-            <v-card
-            v-if="editingNode.kind !== 'approval'
-              && editingNode.kind !== 'delay'
-              && editingNodeTemplate"
-              :key="`task-params-${editingNode.id}-${editingNode.template_id}`"
-              style="background: rgba(133, 133, 133, 0.06)"
-              class="mb-6 pt-3"
-            >
-
-              <div style="
-                position: absolute;
-                background: var(--highlighted-card-bg-color);
-                width: 28px;
-                height: 28px;
-                transform: rotate(45deg);
-                left: calc(50% - 14px);
-                top: -14px;
-                border-radius: 0;
-              "></div>
-
-              <v-card-text class="py-0">
-                <TaskParamsForm
-                  :template="editingNodeTemplate"
-                  v-model="editingNode.task_params"
-                  class="mt-2"
-                  @input="applyNodeEdit"
-                />
-              </v-card-text>
-            </v-card>
-
-            <template v-if="editingNode.kind === 'approval'">
-              <v-text-field
-                v-model.number="editingNode.approval_timeout"
-                type="number"
-                min="1"
-                :label="$t('workflowApprovalTimeout')"
-                :disabled="!canManage"
-                outlined
-                dense
-                hide-details="auto"
-                class="mb-2"
-                @change="applyNodeEdit"
-              />
-              <v-text-field
-                v-model="editingNode.approval_message"
-                :label="$t('workflowApprovalMessage')"
-                :disabled="!canManage"
-                outlined
-                dense
-                hide-details="auto"
-                @change="applyNodeEdit"
-              />
-            </template>
-            <template v-if="editingNode.kind === 'delay'">
-              <v-text-field
-                v-model.number="editingNode.delay_seconds"
-                type="number"
-                min="1"
-                :label="$t('workflowDelaySeconds')"
-                :hint="$t('workflowDelayHint')"
-                persistent-hint
-                :disabled="!canManage"
-                outlined
-                dense
-                hide-details="auto"
-                class="mb-2"
-                @change="applyNodeEdit"
-              />
-            </template>
-          </template>
-        </div>
-
-        <div v-else-if="editingEdge" class="pa-3">
-          <div class="text-subtitle-2 mb-2">{{ $t('workflowEdgeCondition') }}</div>
-          <div class="text-caption text--secondary mb-2">
-            #{{ editingEdge.source_node_id }} → #{{ editingEdge.destination_node_id }}
-          </div>
-          <v-select
-            v-model="editingEdge.condition"
-            :items="conditionOptions"
-            item-value="value"
-            item-text="text"
-            :disabled="!canManage"
-            outlined
-            dense
-            hide-details="auto"
-            @change="applyEdgeEdit"
-          />
-        </div>
+        <WorkflowNodeProperties
+          v-if="editingNode"
+          :key="`node-${editingNode.id}`"
+          :value="editingNode"
+          :templates="templates"
+          :can-manage="canManage"
+          @input="applyNodeEdit"
+          @delete="deleteSelectedNode()"
+          @close="closePanel()"
+        />
+        <WorkflowEdgeProperties
+          v-else
+          :key="edgeKey(editingEdge)"
+          :value="editingEdge"
+          :can-manage="canManage"
+          @input="applyEdgeEdit"
+          @delete="deleteSelectedEdge()"
+          @close="closePanel()"
+        />
       </div>
     </div>
 
@@ -371,15 +199,26 @@
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
-import TaskParamsForm from '@/components/TaskParamsForm.vue';
 import WorkflowGraph from '@/components/WorkflowGraph.vue';
+import WorkflowNodeProperties from '@/components/workflow/WorkflowNodeProperties.vue';
+import WorkflowEdgeProperties from '@/components/workflow/WorkflowEdgeProperties.vue';
+import YesNoDialog from '@/components/YesNoDialog.vue';
 import ProjectMixin from '@/components/ProjectMixin';
 import PermissionsCheck from '@/components/PermissionsCheck';
 import { USER_PERMISSIONS } from '@/lib/constants';
 import { layoutWorkflowNodes, needsAutoLayout } from '@/lib/workflowLayout';
+import WorkflowHistory from '@/lib/workflowHistory';
+
+function isTypingTarget(target) {
+  if (!target) return false;
+  const tag = (target.tagName || '').toLowerCase();
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+}
 
 export default {
-  components: { TaskParamsForm, WorkflowGraph },
+  components: {
+    WorkflowGraph, WorkflowNodeProperties, WorkflowEdgeProperties, YesNoDialog,
+  },
   mixins: [ProjectMixin, PermissionsCheck],
   props: {
     projectId: Number,
@@ -397,6 +236,12 @@ export default {
       editingNode: null,
       editingEdge: null,
       sideCollapsed: false,
+      canUndo: false,
+      canRedo: false,
+      // JSON of the last loaded / saved model, for the unsaved-changes guard.
+      savedSnapshot: null,
+      leaveDialog: false,
+      pendingLeave: null,
       USER_PERMISSIONS,
     };
   },
@@ -411,38 +256,43 @@ export default {
     canManage() {
       return this.can(USER_PERMISSIONS.manageProjectResources);
     },
-    editingNodeTemplate() {
-      if (!this.editingNode || !this.editingNode.template_id) return null;
-      return this.templates.find((t) => t.id === this.editingNode.template_id) || null;
-    },
-    kindOptions() {
+    palette() {
       return [
-        { value: 'task', text: this.$t('workflowNodeKindTask') },
-        { value: 'approval', text: this.$t('workflowNodeKindApproval') },
-        { value: 'delay', text: this.$t('workflowNodeKindDelay') },
+        {
+          kind: 'task', icon: 'mdi-cog', color: null, text: this.$t('workflowPaletteTaskNode'),
+        },
+        {
+          kind: 'approval', icon: 'mdi-account-check', color: '#ab47bc', text: this.$t('workflowPaletteApprovalNode'),
+        },
+        {
+          kind: 'delay', icon: 'mdi-timer-outline', color: '#ff9800', text: this.$t('workflowPaletteDelayNode'),
+        },
+        {
+          kind: 'note', icon: 'mdi-note-text-outline', color: null, text: this.$t('workflowPaletteNoteNode'),
+        },
       ];
     },
-    convergenceOptions() {
-      return [
-        { value: 'all', text: this.$t('workflowConvergenceAll') },
-        { value: 'any', text: this.$t('workflowConvergenceAny') },
-      ];
+    modelSnapshot() {
+      if (!this.item) return null;
+      return JSON.stringify({
+        name: this.item.name,
+        start_version: this.item.start_version || '',
+        nodes: this.item.nodes,
+        edges: this.item.edges,
+      });
     },
-    conditionOptions() {
-      return [
-        { value: 'on_success', text: this.$t('workflowConditionOnSuccess') },
-        { value: 'on_failure', text: this.$t('workflowConditionOnFailure') },
-        { value: 'always', text: this.$t('workflowConditionAlways') },
-      ];
+    dirty() {
+      return this.savedSnapshot != null && this.modelSnapshot !== this.savedSnapshot;
     },
     // Client-side mirror of db.ValidateWorkflowTemplate (the structural subset).
+    // Each problem may point at a node, which gets a badge on the canvas.
     problems() {
       const out = [];
       const nodes = this.item?.nodes || [];
       const edges = this.item?.edges || [];
-      if (!this.item?.name) out.push(this.$t('name_required'));
+      if (!this.item?.name) out.push({ text: this.$t('name_required') });
       if (nodes.length === 0) {
-        out.push(this.$t('workflowErrorNoNodes'));
+        out.push({ text: this.$t('workflowErrorNoNodes') });
         return out;
       }
       const incoming = {};
@@ -451,23 +301,35 @@ export default {
       });
       // Note nodes are annotations: excluded from the run graph (root count) and
       // from the task-completeness check.
-      const roots = nodes.filter((n) => n.kind !== 'note' && !incoming[n.id]).length;
-      if (roots === 0) out.push(this.$t('workflowErrorNoRoot'));
-      else if (roots > 1) out.push(this.$t('workflowErrorMultipleRoots', { count: roots }));
+      const roots = nodes.filter((n) => n.kind !== 'note' && !incoming[n.id]);
+      if (roots.length === 0) {
+        out.push({ text: this.$t('workflowErrorNoRoot') });
+      } else if (roots.length > 1) {
+        const text = this.$t('workflowErrorMultipleRoots', { count: roots.length });
+        roots.forEach((n) => out.push({ text, nodeId: n.id }));
+      }
 
-      const incompleteTask = nodes.some((n) => (n.kind || 'task') === 'task' && !n.template_id);
-      if (incompleteTask) out.push(this.$t('workflowErrorTaskNeedsTemplate'));
-
-      const badTimeout = nodes.some(
-        (n) => n.kind === 'approval' && n.approval_timeout != null && n.approval_timeout <= 0,
-      );
-      if (badTimeout) out.push(this.$t('workflowErrorApprovalTimeoutPositive'));
-
-      const badDelay = nodes.some(
-        (n) => n.kind === 'delay' && (n.delay_seconds == null || n.delay_seconds <= 0),
-      );
-      if (badDelay) out.push(this.$t('workflowErrorDelayPositive'));
+      nodes.forEach((n) => {
+        const kind = n.kind || 'task';
+        if (kind === 'task' && !n.template_id) {
+          out.push({ text: this.$t('workflowErrorTaskNeedsTemplate'), nodeId: n.id });
+        }
+        if (kind === 'approval' && n.approval_timeout != null && n.approval_timeout <= 0) {
+          out.push({ text: this.$t('workflowErrorApprovalTimeoutPositive'), nodeId: n.id });
+        }
+        if (kind === 'delay' && (n.delay_seconds == null || n.delay_seconds <= 0)) {
+          out.push({ text: this.$t('workflowErrorDelayPositive'), nodeId: n.id });
+        }
+      });
       return out;
+    },
+    problemsByNode() {
+      const map = {};
+      this.problems.forEach((p) => {
+        if (p.nodeId == null || map[p.nodeId]) return;
+        map[p.nodeId] = p.text;
+      });
+      return map;
     },
   },
   watch: {
@@ -479,9 +341,27 @@ export default {
       this.loadData();
     },
   },
-  async created() {
+  beforeRouteLeave(to, from, next) {
+    if (!this.dirty) {
+      next();
+      return;
+    }
+    this.pendingLeave = next;
+    this.leaveDialog = true;
+  },
+  created() {
+    this.history = new WorkflowHistory(50);
+    this.pendingHistoryKey = null;
+  },
+  async mounted() {
+    window.addEventListener('keydown', this.onWindowKeyDown);
+    window.addEventListener('beforeunload', this.onBeforeUnload);
     this.templates = await this.loadProjectResources('templates');
     await this.loadData();
+  },
+  beforeDestroy() {
+    window.removeEventListener('keydown', this.onWindowKeyDown);
+    window.removeEventListener('beforeunload', this.onBeforeUnload);
   },
   methods: {
     showDrawer() {
@@ -521,6 +401,9 @@ export default {
         EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
         return;
       }
+      this.history.reset({ nodes: this.item.nodes, edges: this.item.edges });
+      this.syncHistoryFlags();
+      this.savedSnapshot = this.modelSnapshot;
       // Force a clean canvas rebuild matching the freshly loaded model.
       this.graphKey += 1;
     },
@@ -528,7 +411,7 @@ export default {
     // graphical editor (all coordinates 0) so the computed layout persists on
     // the next save. Uses the same algorithm as the read-only run view.
     autoLayout() {
-      const nodes = this.item.nodes;
+      const { nodes } = this.item;
       if (!needsAutoLayout(nodes)) return;
       const layout = layoutWorkflowNodes(nodes, this.item.edges);
       nodes.forEach((n, i) => {
@@ -542,15 +425,28 @@ export default {
     onDragStart(ev, kind) {
       ev.dataTransfer.setData('node-kind', kind);
     },
+    addFromPalette(kind) {
+      if (!this.canManage || !this.$refs.graph) return;
+      this.$refs.graph.addNodeAtCenter(kind);
+    },
     onGraphChange({ nodes, edges }) {
       this.item.nodes = nodes;
       this.item.edges = edges;
+      this.history.push({ nodes, edges }, this.pendingHistoryKey);
+      this.pendingHistoryKey = null;
+      this.syncHistoryFlags();
       // Keep the open property panel in sync with the latest model snapshot.
       if (this.selectedNodeId != null) {
         const found = nodes.find((n) => n.id === this.selectedNodeId);
         if (!found) {
           this.selectedNodeId = null;
           this.editingNode = null;
+        }
+      }
+      if (this.editingEdge) {
+        const { source_node_id: s, destination_node_id: d } = this.editingEdge;
+        if (!edges.some((e) => e.source_node_id === s && e.destination_node_id === d)) {
+          this.editingEdge = null;
         }
       }
     },
@@ -571,6 +467,10 @@ export default {
       this.editingNode = clone;
     },
     onConnectionSelected(edge) {
+      if (edge == null) {
+        this.editingEdge = null;
+        return;
+      }
       this.selectedNodeId = null;
       this.editingNode = null;
       this.editingEdge = { ...edge };
@@ -579,28 +479,23 @@ export default {
       const key = reason === 'cycle' ? 'workflowCycleBlocked' : 'workflowSelfEdgeBlocked';
       EventBus.$emit('i-snackbar', { color: 'warning', text: this.$t(key) });
     },
-    onKindChanged() {
-      const kind = this.editingNode.kind;
-      if (kind === 'approval' || kind === 'delay') {
-        this.editingNode.template_id = null;
-        this.editingNode.task_params = null;
-      }
-      if (kind !== 'approval') {
-        this.editingNode.approval_timeout = null;
-        this.editingNode.approval_message = null;
-      }
-      if (kind !== 'delay') {
-        this.editingNode.delay_seconds = null;
-      } else if (this.editingNode.delay_seconds == null) {
-        this.editingNode.delay_seconds = 60;
-      }
-      if (kind === 'task' && !this.editingNode.task_params) {
-        this.editingNode.task_params = {};
-      }
-      this.applyNodeEdit();
+    edgeKey(edge) {
+      return `edge-${edge.source_node_id}-${edge.destination_node_id}`;
+    },
+    closePanel() {
+      this.editingNode = null;
+      this.editingEdge = null;
+      this.selectedNodeId = null;
+      if (this.$refs.graph) this.$refs.graph.clearSelection();
+    },
+    focusProblem(problem) {
+      if (problem.nodeId == null || !this.$refs.graph) return;
+      this.$refs.graph.selectNode(problem.nodeId);
     },
     applyNodeEdit() {
       if (!this.editingNode || !this.$refs.graph) return;
+      // Coalesce keystrokes on one node into a single undo step.
+      this.pendingHistoryKey = `node-${this.editingNode.id}`;
       this.$refs.graph.syncNode(this.editingNode.id, { ...this.editingNode });
     },
     applyEdgeEdit() {
@@ -617,14 +512,72 @@ export default {
       this.editingNode = null;
       this.selectedNodeId = null;
     },
-    zoomIn() {
-      this.$refs.graph?.zoomIn();
+    deleteSelectedEdge() {
+      if (this.editingEdge == null || !this.$refs.graph) return;
+      this.$refs.graph.removeEdge(
+        this.editingEdge.source_node_id,
+        this.editingEdge.destination_node_id,
+      );
+      this.editingEdge = null;
     },
-    zoomOut() {
-      this.$refs.graph?.zoomOut();
+
+    // ---- history ----------------------------------------------------------------
+    syncHistoryFlags() {
+      this.canUndo = this.history.canUndo();
+      this.canRedo = this.history.canRedo();
     },
-    zoomReset() {
-      this.$refs.graph?.zoomReset();
+    applySnapshot(snapshot) {
+      if (!snapshot) return;
+      this.item.nodes = snapshot.nodes;
+      this.item.edges = snapshot.edges;
+      this.editingNode = null;
+      this.editingEdge = null;
+      this.selectedNodeId = null;
+      this.syncHistoryFlags();
+      this.$nextTick(() => {
+        if (this.$refs.graph) this.$refs.graph.reload();
+      });
+    },
+    undo() {
+      if (!this.canManage) return;
+      this.applySnapshot(this.history.undo());
+    },
+    redo() {
+      if (!this.canManage) return;
+      this.applySnapshot(this.history.redo());
+    },
+    onWindowKeyDown(ev) {
+      if (!(ev.ctrlKey || ev.metaKey) || isTypingTarget(ev.target)) return;
+      const key = ev.key.toLowerCase();
+      if (key === 'z' && ev.shiftKey) {
+        ev.preventDefault();
+        this.redo();
+      } else if (key === 'z') {
+        ev.preventDefault();
+        this.undo();
+      } else if (key === 'y') {
+        ev.preventDefault();
+        this.redo();
+      }
+    },
+
+    // ---- unsaved changes guard --------------------------------------------------
+    onBeforeUnload(ev) {
+      if (!this.dirty) return undefined;
+      ev.preventDefault();
+      // eslint-disable-next-line no-param-reassign
+      ev.returnValue = '';
+      return '';
+    },
+    confirmLeave() {
+      const next = this.pendingLeave;
+      this.pendingLeave = null;
+      if (next) next();
+    },
+    cancelLeave() {
+      const next = this.pendingLeave;
+      this.pendingLeave = null;
+      if (next) next(false);
     },
 
     // ---- save -----------------------------------------------------------------
@@ -644,11 +597,13 @@ export default {
           // and selection (skip the route-triggered reload). The backend remaps
           // client node ids on every save, so no reload is needed.
           this.item.id = created.id;
+          this.savedSnapshot = this.modelSnapshot;
           this.skipNextRouteReload = true;
           this.$router.replace(`/project/${this.projectId}/workflows/${created.id}/edit`);
         } else {
           await axios.put(`/api/project/${this.projectId}/workflows/${this.workflowId}`, payload);
           EventBus.$emit('i-snackbar', { color: 'success', text: this.$t('workflowSaved') });
+          this.savedSnapshot = this.modelSnapshot;
           // No reload: keep the canvas and the selected element intact.
         }
       } catch (err) {
@@ -671,9 +626,9 @@ $worklow_pallete_width_collapsed: 60px;
     overflow: visible;
   }
 
-  // Inline name editor: looks like a title, but the pencil + dashed underline +
-  // hover/focus affordances make it clear it is editable. The field auto-sizes
-  // to the width of its text via the grid-sizer trick below.
+  // Inline name editor: looks like a title, but the pencil + hover/focus
+  // affordances make it clear it is editable. The field auto-sizes to the
+  // width of its text via the grid-sizer trick below.
   &__nameWrap {
     display: inline-flex;
     align-items: center;
@@ -682,23 +637,10 @@ $worklow_pallete_width_collapsed: 60px;
     padding: 2px 8px;
     border-radius: 4px;
     background: rgba(127, 127, 127, 0.12);
-    //border-bottom: 2px solid transparent;
-    transition: background-color 0.15s ease,
-    border-color 0.15s ease;
-
-    &:hover {
-      background: rgba(127, 127, 127, 0.12);
-      //border-bottom-color: rgba(127, 127, 127, 0.9);
-    }
-
-    &:focus-within {
-      background: rgba(127, 127, 127, 0.12);
-      //border-bottom: 2px solid var(--v-primary-base, #1976d2);
-    }
+    transition: background-color 0.15s ease, border-color 0.15s ease;
 
     &--disabled {
       pointer-events: none;
-      //border-bottom-style: solid;
       opacity: 0.7;
     }
   }
@@ -773,6 +715,8 @@ $worklow_pallete_width_collapsed: 60px;
     }
 
     &--right {
+      width: 360px;
+      flex: 0 0 360px;
       border-right: none;
       border-left: 1px solid rgba(127, 127, 127, 0.2);
     }
@@ -806,6 +750,7 @@ $worklow_pallete_width_collapsed: 60px;
     border-left: none;
     border-radius: 0 8px 8px 0;
     cursor: pointer;
+    background: inherit;
   }
 
   &__canvas {
@@ -817,33 +762,58 @@ $worklow_pallete_width_collapsed: 60px;
   &__paletteItem {
     display: flex;
     align-items: center;
-    padding: 8px 10px;
+    gap: 10px;
+    padding: 6px 8px;
     margin-bottom: 8px;
-    border: 1px dashed rgba(127, 127, 127, 0.5);
-    border-radius: 6px;
+    border: 1px solid rgba(127, 127, 127, 0.3);
+    border-radius: 10px;
     cursor: grab;
     user-select: none;
     font-size: 13px;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
 
-    &--task {
-      border-left: 3px solid #2196f3;
+    &:hover {
+      border-color: rgba(127, 127, 127, 0.6);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     }
 
-    &--approval {
-      border-left: 3px solid #ab47bc;
-    }
-
-    &--delay {
-      border-left: 3px solid #ff9800;
-    }
-
-    &--note {
-      border-left: 3px solid #e6d873;
+    &:active {
+      cursor: grabbing;
     }
   }
 
+  &__paletteTile {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(127, 127, 127, 0.12);
+
+    &--approval {
+      background: rgba(171, 71, 188, 0.14);
+    }
+
+    &--delay {
+      background: rgba(255, 152, 0, 0.16);
+    }
+
+    &--note {
+      background: rgba(230, 216, 115, 0.35);
+    }
+  }
+
+  &__paletteText {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   &__side--collapsed &__paletteItem {
-    padding-left: 8px;
+    justify-content: center;
+    padding: 6px;
   }
 }
 </style>

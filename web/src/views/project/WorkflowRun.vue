@@ -36,15 +36,6 @@
         {{ $t('stop') }}
       </v-btn>
 
-      <v-btn icon :title="$t('workflowToolbarZoomOut')" @click="zoomOut()">
-        <v-icon>mdi-magnify-minus-outline</v-icon>
-      </v-btn>
-      <v-btn icon :title="$t('workflowToolbarZoomIn')" @click="zoomIn()">
-        <v-icon>mdi-magnify-plus-outline</v-icon>
-      </v-btn>
-      <v-btn icon :title="$t('workflowToolbarFit')" @click="zoomReset()">
-        <v-icon>mdi-fit-to-page-outline</v-icon>
-      </v-btn>
       <v-btn icon @click="loadData()" :title="$t('refresh')">
         <v-icon>mdi-refresh</v-icon>
       </v-btn>
@@ -71,14 +62,16 @@
             :nodes="workflow.nodes || []"
             :edges="workflow.edges || []"
             :templates="templates"
-            :node-statuses="nodeStatuses"
-            :node-delays="nodeDelays"
+            :node-runs="nodeRuns"
+            :can-resolve-approvals="canResolveApprovals"
             :editable="false"
-            @node-selected="onNodeClicked"
+            @node-click="onNodeClicked"
+            @resolve-approval="onResolveApproval"
           />
 
+          <!-- Narrow screens: the in-card buttons are hard to hit, keep the bar. -->
           <div
-            v-if="canResolveApprovals && pendingApprovals.length"
+            v-if="canResolveApprovals && pendingApprovals.length && $vuetify.breakpoint.smAndDown"
             class="WorkflowRun__approvals"
           >
             <v-card
@@ -197,7 +190,7 @@ export default {
     // blocked on an approval) and the user may run project tasks.
     canStopRun() {
       if (!this.details) return false;
-      const status = this.details.run.status;
+      const { status } = this.details.run;
       return (status === 'running' || status === 'approval')
         && this.can(USER_PERMISSIONS.runProjectTasks);
     },
@@ -207,22 +200,34 @@ export default {
         (n) => n.task && n.task.used_runner_id != null,
       );
     },
-    // node.id -> raw run status, used by the graph for color + active animation.
-    nodeStatuses() {
+    // node.id -> run info for the card: status, timing, live delay countdown,
+    // the task to open on click and the approval message.
+    nodeRuns() {
       const map = {};
       (this.details?.nodes || []).forEach((n) => {
-        if (n.task) map[n.node.id] = n.task.status;
-        else if (n.approval) map[n.node.id] = n.approval.status;
-        else if (n.delay) map[n.node.id] = n.delay.status;
-      });
-      return map;
-    },
-    // node.id -> resume_at, for delay nodes currently waiting — lets the graph
-    // render a live countdown between polls instead of a static duration.
-    nodeDelays() {
-      const map = {};
-      (this.details?.nodes || []).forEach((n) => {
-        if (n.delay && n.delay.status === 'waiting') map[n.node.id] = n.delay.resume_at;
+        const id = n.node.id;
+        if (n.task) {
+          map[id] = {
+            status: n.task.status,
+            start: n.task.start || n.task.created,
+            end: n.task.end,
+            taskId: n.task.id,
+          };
+        } else if (n.approval) {
+          map[id] = {
+            status: n.approval.status,
+            start: n.approval.created,
+            end: n.approval.resolved,
+            message: n.node.approval_message,
+          };
+        } else if (n.delay) {
+          map[id] = {
+            status: n.delay.status,
+            start: n.delay.created,
+            end: n.delay.resolved,
+            resumeAt: n.delay.status === 'waiting' ? n.delay.resume_at : null,
+          };
+        }
       });
       return map;
     },
@@ -259,6 +264,9 @@ export default {
         EventBus.$emit('i-show-task', { taskId: entry.task.id });
       }
     },
+    onResolveApproval({ nodeId, status }) {
+      this.resolveApproval(nodeId, status);
+    },
     statusColor(status) {
       switch (status) {
         case 'success':
@@ -277,15 +285,6 @@ export default {
         default:
           return 'grey';
       }
-    },
-    zoomIn() {
-      if (this.$refs.graph) this.$refs.graph.zoomIn();
-    },
-    zoomOut() {
-      if (this.$refs.graph) this.$refs.graph.zoomOut();
-    },
-    zoomReset() {
-      if (this.$refs.graph) this.$refs.graph.zoomReset();
     },
     async stopRun() {
       this.stopping = true;
@@ -323,8 +322,14 @@ export default {
           axios.get(
             `/api/project/${this.projectId}/workflows/${this.workflowId}/runs/${this.runId}`,
           ),
-          axios.get(`/api/project/${this.projectId}/workflows/${this.workflowId}`),
-          axios.get(`/api/project/${this.projectId}/templates`),
+          // The graph is built once from the first workflow payload; later polls
+          // only refresh statuses, so the user's pan/zoom survives.
+          this.workflow
+            ? Promise.resolve({ data: this.workflow })
+            : axios.get(`/api/project/${this.projectId}/workflows/${this.workflowId}`),
+          this.templates.length
+            ? Promise.resolve({ data: this.templates })
+            : axios.get(`/api/project/${this.projectId}/templates`),
         ]);
         this.details = details.data;
         this.workflow = workflow.data;

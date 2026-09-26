@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { needsAutoLayout, layoutWorkflowNodes } from '@/lib/workflowLayout';
+import { needsAutoLayout, layoutWorkflowNodes, COLUMN_WIDTH } from '@/lib/workflowLayout';
 
 const node = (id, x = 0, y = 0) => ({ id, position_x: x, position_y: y });
 const edge = (from, to) => ({ source_node_id: from, destination_node_id: to });
@@ -77,6 +77,37 @@ describe('lib/workflowLayout', () => {
       Object.values(positions).forEach((p) => {
         expect(p.x).to.be.a('number');
         expect(p.y).to.be.a('number');
+      });
+    });
+
+    it('tidies a four-column DAG onto the grid without overlapping cards', () => {
+      // 1 -> {2, 3} -> 4 -> {5, 6, 7}
+      const nodes = [1, 2, 3, 4, 5, 6, 7].map((id) => node(id));
+      const edges = [
+        edge(1, 2), edge(1, 3), edge(2, 4), edge(3, 4), edge(4, 5), edge(4, 6), edge(4, 7),
+      ];
+      const positions = layoutWorkflowNodes(nodes, edges);
+
+      const columns = new Set(Object.values(positions).map((p) => p.x));
+      expect(columns.size).to.equal(4);
+      expect(positions[7].x - positions[1].x).to.equal(3 * COLUMN_WIDTH);
+
+      // every coordinate lands on the 20 px snap grid
+      Object.values(positions).forEach((p) => {
+        expect(p.x % 20).to.equal(0);
+        expect(p.y % 20).to.equal(0);
+      });
+
+      // no two cards (220x64) overlap
+      const ids = Object.keys(positions);
+      ids.forEach((a) => {
+        ids.forEach((b) => {
+          if (a === b) return;
+          const pa = positions[a];
+          const pb = positions[b];
+          const overlap = Math.abs(pa.x - pb.x) < 220 && Math.abs(pa.y - pb.y) < 64;
+          expect(overlap, `nodes ${a} and ${b} overlap`).to.equal(false);
+        });
       });
     });
 

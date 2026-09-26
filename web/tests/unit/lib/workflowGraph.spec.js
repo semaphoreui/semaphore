@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 import {
-  wouldCreateCycle, nextNodeId, formatDuration, escapeHtml,
+  wouldCreateCycle, nextNodeId, formatDuration, formatDurationLong, escapeHtml,
+  statusKind, isFinishedStatus, edgeConditionMet, edgeRunState,
 } from '@/lib/workflowGraph';
 
 const edge = (from, to) => ({ source_node_id: from, destination_node_id: to });
@@ -103,6 +104,116 @@ describe('lib/workflowGraph', () => {
     tests.forEach(({ value, expected }) => {
       it(`${JSON.stringify(value)} -> ${expected}`, () => {
         expect(escapeHtml(value)).to.equal(expected);
+      });
+    });
+  });
+
+  describe('formatDurationLong', () => {
+    const tests = [
+      { ms: 0, expected: '0s' },
+      { ms: 59000, expected: '59s' },
+      { ms: 61500, expected: '1m 2s' },
+      { ms: 3600000, expected: '1h 0m' },
+      { ms: 5400000, expected: '1h 30m' },
+      { ms: -5, expected: '0s' },
+    ];
+    tests.forEach(({ ms, expected }) => {
+      it(`${ms}ms -> ${expected}`, () => {
+        expect(formatDurationLong(ms)).to.equal(expected);
+      });
+    });
+  });
+
+  describe('statusKind', () => {
+    const tests = [
+      { status: 'success', expected: 'success' },
+      { status: 'approved', expected: 'success' },
+      { status: 'error', expected: 'error' },
+      { status: 'stopped', expected: 'error' },
+      { status: 'rejected', expected: 'error' },
+      { status: 'running', expected: 'running' },
+      { status: 'starting', expected: 'running' },
+      { status: 'waiting', expected: 'waiting' },
+      { status: 'pending', expected: 'pending' },
+      { status: undefined, expected: null },
+      { status: 'weird', expected: null },
+    ];
+    tests.forEach(({ status, expected }) => {
+      it(`${status} -> ${expected}`, () => {
+        expect(statusKind(status)).to.equal(expected);
+      });
+    });
+
+    it('isFinishedStatus is true only for terminal states', () => {
+      expect(isFinishedStatus('success')).to.equal(true);
+      expect(isFinishedStatus('error')).to.equal(true);
+      expect(isFinishedStatus('running')).to.equal(false);
+      expect(isFinishedStatus(null)).to.equal(false);
+    });
+  });
+
+  describe('edgeConditionMet', () => {
+    const tests = [
+      { condition: 'on_success', status: 'success', expected: true },
+      { condition: 'on_success', status: 'error', expected: false },
+      { condition: 'on_failure', status: 'error', expected: true },
+      { condition: 'on_failure', status: 'success', expected: false },
+      { condition: 'always', status: 'success', expected: true },
+      { condition: 'always', status: 'error', expected: true },
+      { condition: 'always', status: 'running', expected: false },
+    ];
+    tests.forEach(({ condition, status, expected }) => {
+      it(`${condition} after ${status} -> ${expected}`, () => {
+        expect(edgeConditionMet(condition, status)).to.equal(expected);
+      });
+    });
+  });
+
+  describe('edgeRunState', () => {
+    const e = (condition = 'on_success') => ({
+      source_node_id: 1, destination_node_id: 2, condition,
+    });
+    const tests = [
+      {
+        name: 'source running', runs: { 1: { status: 'running' } }, edge: e(), expected: 'dim',
+      },
+      {
+        name: 'source done, destination running',
+        runs: { 1: { status: 'success' }, 2: { status: 'running' } },
+        edge: e(),
+        expected: 'active',
+      },
+      {
+        name: 'source done, destination pending approval',
+        runs: { 1: { status: 'success' }, 2: { status: 'pending' } },
+        edge: e(),
+        expected: 'active',
+      },
+      {
+        name: 'both done',
+        runs: { 1: { status: 'success' }, 2: { status: 'error' } },
+        edge: e(),
+        expected: 'passed',
+      },
+      {
+        name: 'source done, destination not started',
+        runs: { 1: { status: 'success' } },
+        edge: e(),
+        expected: 'dim',
+      },
+      {
+        name: 'failure branch not taken after success',
+        runs: { 1: { status: 'success' }, 2: { status: 'running' } },
+        edge: e('on_failure'),
+        expected: 'dim',
+      },
+      {
+        name: 'no runs at all', runs: {}, edge: e(), expected: 'dim',
+      },
+    ];
+    tests.forEach((tt) => {
+      it(tt.name, () => {
+        expect(edgeRunState(tt.edge, tt.runs)).to.equal(tt.expected);
       });
     });
   });

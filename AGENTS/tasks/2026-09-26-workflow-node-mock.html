@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Workflow editor redesign — static mock (TASK@88179c9bc1)</title>
+<!-- MDI webfont from web/node_modules; open the file from the repo root for icons to resolve. -->
+<link rel="stylesheet" href="../../web/node_modules/@mdi/font/css/materialdesignicons.min.css">
+<style>
+  :root {
+    --bg: #fafafa;
+    --surface: #ffffff;
+    --text: rgba(0, 0, 0, .87);
+    --text2: rgba(0, 0, 0, .6);
+    --divider: rgba(0, 0, 0, .12);
+    --divider-strong: rgba(0, 0, 0, .28);
+    --dot: rgba(0, 0, 0, .18);
+    --primary: #1976d2;
+    --primary-ring: rgba(25, 118, 210, .25);
+    --success: #4caf50;
+    --error: #f44336;
+    --warning: #fb8c00;
+    --approval: #ab47bc;
+    --delay: #ff9800;
+    --always: #9e9e9e;
+    --note-bg: #fff8c4;
+    --note-border: #e6d873;
+    --note-text: #5b5320;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 1px 2px rgba(0, 0, 0, .08);
+    --shadow-hover: 0 4px 12px rgba(0, 0, 0, .16);
+    --tile-bg: rgba(0, 0, 0, .06);
+    --menu-bg: #ffffff;
+    --pill-bg: #ffffff;
+    font-family: Roboto, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  body.dark {
+    --bg: #121212;
+    --surface: #1e1e1e;
+    --text: #ffffff;
+    --text2: rgba(255, 255, 255, .7);
+    --divider: rgba(255, 255, 255, .12);
+    --divider-strong: rgba(255, 255, 255, .3);
+    --dot: rgba(255, 255, 255, .14);
+    --primary: #2196f3;
+    --primary-ring: rgba(33, 150, 243, .3);
+    --note-bg: #4a4420;
+    --note-border: #6b6230;
+    --note-text: #f3ecb0;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .5);
+    --shadow-hover: 0 4px 14px rgba(0, 0, 0, .6);
+    --tile-bg: rgba(255, 255, 255, .08);
+    --menu-bg: #2a2a2a;
+    --pill-bg: #2a2a2a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); }
+  h2 { font-size: 13px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin: 24px 24px 8px; }
+  .canvas {
+    position: relative;
+    margin: 0 24px;
+    height: 420px;
+    border: 1px solid var(--divider);
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: var(--bg);
+    background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .canvas svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .edge { fill: none; stroke-width: 2px; stroke-linecap: round; }
+  .edge--on_success { stroke: var(--success); }
+  .edge--on_failure { stroke: var(--error); }
+  .edge--always { stroke: var(--always); }
+  .edge--hover { stroke-width: 3px; }
+  .edge--dim { opacity: .4; }
+  .edge--active { stroke-dasharray: 6 5; animation: dash 1s linear infinite; }
+  .edge--pending { stroke-dasharray: 6 4; stroke: var(--primary); }
+  @keyframes dash { to { stroke-dashoffset: -22; } }
+
+  /* ---- node card ---- */
+  .node {
+    position: absolute;
+    width: 220px;
+    min-height: 64px;
+    background: var(--surface);
+    border: 1px solid var(--divider);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    color: var(--text);
+    transition: box-shadow .15s;
+  }
+  .node--hover { box-shadow: var(--shadow-hover); border-color: var(--divider-strong); }
+  .node--selected { border: 2px solid var(--primary); padding: 9px 11px; box-shadow: 0 0 0 4px var(--primary-ring), var(--shadow-hover); }
+  .node--dim { opacity: .55; }
+  .node--pulse { animation: pulse 1.6s ease-out infinite; border-color: var(--warning); }
+  .node--running { border-color: var(--primary); animation: pulseBlue 1.6s ease-out infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(251, 140, 0, .45); } 70% { box-shadow: 0 0 0 10px rgba(251, 140, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(251, 140, 0, 0); } }
+  @keyframes pulseBlue { 0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, .45); } 70% { box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); } 100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); } }
+  .node__tile {
+    flex: 0 0 40px; width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--tile-bg); font-size: 24px;
+  }
+  .node__tile--approval { background: rgba(171, 71, 188, .14); color: var(--approval); }
+  .node__tile--delay { background: rgba(255, 152, 0, .16); color: var(--delay); }
+  .node__tile--terraform { color: #7b42bc; }
+  .node__tile--bash { color: var(--text2); }
+  .node__body { flex: 1 1 auto; min-width: 0; }
+  .node__title { font-size: 13px; font-weight: 600; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node__sub { font-size: 11px; color: var(--text2); line-height: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node__status { position: absolute; top: 6px; right: 8px; font-size: 16px; line-height: 1; }
+  .node__status--success { color: var(--success); }
+  .node__status--error { color: var(--error); }
+  .node__status--warning { color: var(--warning); }
+  .node__status--delay { color: var(--delay); }
+  .node__status--running { color: var(--primary); animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .node__actions { display: flex; gap: 6px; margin-top: 6px; }
+  .btn-xs {
+    font-size: 11px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
+    padding: 0 8px; height: 22px; line-height: 22px; border-radius: 4px; border: 1px solid transparent; cursor: pointer;
+  }
+  .btn-xs--approve { background: var(--success); color: #fff; }
+  .btn-xs--reject { border-color: var(--error); color: var(--error); background: transparent; }
+
+  /* ports */
+  .port {
+    position: absolute; top: 50%; width: 10px; height: 10px; margin-top: -5px;
+    border-radius: 50%; background: var(--surface); border: 2px solid var(--divider-strong);
+  }
+  .port--in { left: -6px; }
+  .port--out { right: -6px; }
+  .port--hover { border-color: var(--primary); }
+  .plus {
+    position: absolute; top: 50%; right: -42px; margin-top: -11px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--surface); border: 1.5px solid var(--primary); color: var(--primary);
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    box-shadow: var(--shadow);
+  }
+  .plus::before { content: ''; position: absolute; left: -16px; top: 50%; width: 15px; height: 1.5px; background: var(--primary); }
+
+  /* note */
+  .note {
+    position: absolute; width: 200px; min-height: 64px; padding: 10px 12px;
+    background: var(--note-bg); border: 1px solid var(--note-border); border-radius: 10px;
+    color: var(--note-text); font-size: 12.5px; line-height: 17px; white-space: pre-wrap;
+    box-shadow: var(--shadow);
+  }
+  .note i { opacity: .55; font-size: 14px; display: block; margin-bottom: 2px; }
+
+  /* problem badge */
+  .badge {
+    position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--warning); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px;
+    box-shadow: var(--shadow);
+  }
+
+  /* edge pill */
+  .pill {
+    position: absolute; transform: translate(-50%, -50%);
+    display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 8px 0 6px;
+    border-radius: 10px; font-size: 10.5px; font-weight: 500; letter-spacing: .02em;
+    background: var(--pill-bg); border: 1px solid var(--divider); box-shadow: var(--shadow); color: var(--text);
+    white-space: nowrap;
+  }
+  .pill i { font-size: 12px; }
+  .pill--on_success i { color: var(--success); }
+  .pill--on_failure i { color: var(--error); }
+  .pill--always i { color: var(--always); }
+  .pill__del { margin-left: 4px; padding-left: 6px; border-left: 1px solid var(--divider); color: var(--text2); font-size: 12px; }
+
+  /* controls */
+  .controls {
+    position: absolute; left: 12px; bottom: 12px; display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--divider); border-radius: 8px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .controls button { width: 32px; height: 32px; border: 0; background: transparent; color: var(--text2); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .controls button + button { border-top: 1px solid var(--divider); }
+  .controls .zoom { font-size: 10px; text-align: center; color: var(--text2); padding: 3px 0; border-top: 1px solid var(--divider); }
+
+  /* top-right add */
+  .fab { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: 8px; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: var(--shadow-hover); }
+
+  /* quick-add menu */
+  .menu {
+    position: absolute; width: 230px; background: var(--menu-bg); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); border: 1px solid var(--divider); padding: 6px 0; z-index: 3;
+  }
+  .menu__search { margin: 4px 10px 6px; height: 30px; border: 1px solid var(--divider); border-radius: 6px; display: flex; align-items: center; gap: 6px; padding: 0 8px; font-size: 12px; color: var(--text2); }
+  .menu__item { display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 13px; }
+  .menu__item--active { background: rgba(127,127,127,.12); }
+  .menu__item i { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 15px; background: var(--tile-bg); }
+  .menu__hint { font-size: 10.5px; color: var(--text2); padding: 2px 12px 4px; }
+  .menu__div { height: 1px; background: var(--divider); margin: 4px 0; }
+
+  /* empty state */
+  .empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--text2); }
+  .empty i { font-size: 40px; opacity: .5; }
+  .empty b { color: var(--text); font-weight: 500; font-size: 15px; }
+  .empty button { margin-top: 8px; height: 32px; padding: 0 14px; border-radius: 6px; border: 0; background: var(--primary); color: #fff; font-size: 12.5px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+
+  /* swatches row */
+  .row { display: flex; flex-wrap: wrap; gap: 48px 60px; padding: 28px 24px 8px 40px; }
+  .swatch { position: relative; width: 220px; }
+  .swatch .node { position: relative; }
+  .swatch .node--running, .swatch .node--pulse { animation: none; }
+  .swatch__label { font-size: 11px; color: var(--text2); margin-top: 8px; }
+  .legend { margin: 8px 24px 0; font-size: 11px; color: var(--text2); }
+  .theme-label { position: absolute; right: 24px; top: 20px; font-size: 11px; color: var(--text2); }
+</style>
+</head>
+<body>
+<div class="theme-label" id="themeLabel">light theme</div>
+
+<h2>Editor</h2>
+<div class="canvas" id="editor" style="height:470px">
+  <svg class="edges">
+    <defs>
+      <marker id="arr-s" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="#4caf50"/></marker>
+      <marker id="arr-f" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="#f44336"/></marker>
+      <marker id="arr-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="#9e9e9e"/></marker>
+    </defs>
+    <!-- A(40,160) B(340,60) C(640,60) D(940,160) E(340,260) -->
+    <path class="edge edge--on_success edge--hover" d="M260 192 C288 192 312 92 336 92" marker-end="url(#arr-s)"/>
+    <path class="edge edge--on_success" d="M560 92 C588 92 612 92 636 92" marker-end="url(#arr-s)"/>
+    <path class="edge edge--always" d="M860 92 C888 92 912 192 936 192" marker-end="url(#arr-a)"/>
+    <path class="edge edge--on_failure" d="M260 192 C392 192 504 372 636 372" marker-end="url(#arr-f)"/>
+    <!-- connection in progress from E -->
+    <path class="edge edge--pending" d="M860 372 C900 372 930 400 980 410"/>
+  </svg>
+
+  <!-- pills -->
+  <div class="pill pill--on_success" style="left:300px; top:142px"><i class="mdi mdi-check"></i>on success<span class="pill__del"><i class="mdi mdi-close"></i></span></div>
+  <div class="pill pill--on_success" style="left:600px; top:92px"><i class="mdi mdi-check"></i>on success</div>
+  <div class="pill pill--always" style="left:900px; top:142px"><i class="mdi mdi-arrow-right"></i>always</div>
+  <div class="pill pill--on_failure" style="left:448px; top:282px"><i class="mdi mdi-close"></i>on failure</div>
+
+  <!-- A: selected + hover with plus -->
+  <div class="node node--selected node--hover" style="left:40px; top:160px">
+    <div class="node__tile"><i class="mdi mdi-ansible"></i></div>
+    <div class="node__body">
+      <div class="node__title">Deploy application</div>
+      <div class="node__sub">Ansible · staging inventory</div>
+    </div>
+    <span class="port port--in"></span><span class="port port--out port--hover"></span>
+    <span class="plus"><i class="mdi mdi-plus"></i></span>
+  </div>
+  <!-- quick-add menu opened from A's plus -->
+  <div class="menu" style="left:322px; top:214px">
+    <div class="menu__search"><i class="mdi mdi-magnify"></i>Search templates…</div>
+    <div class="menu__item menu__item--active"><i class="mdi mdi-cog"></i>Task</div>
+    <div class="menu__item"><i class="mdi mdi-account-check" style="color:#ab47bc"></i>Approval</div>
+    <div class="menu__item"><i class="mdi mdi-timer-outline" style="color:#ff9800"></i>Delay</div>
+    <div class="menu__item"><i class="mdi mdi-note-text-outline"></i>Note</div>
+    <div class="menu__div"></div>
+    <div class="menu__hint">Connected with «on success». Tab also opens this menu.</div>
+  </div>
+
+  <!-- B approval -->
+  <div class="node" style="left:340px; top:60px">
+    <div class="node__tile node__tile--approval"><i class="mdi mdi-account-check"></i></div>
+    <div class="node__body">
+      <div class="node__title">Approval</div>
+      <div class="node__sub">timeout 1 h · all parents</div>
+    </div>
+    <span class="port port--in"></span><span class="port port--out"></span>
+  </div>
+
+  <!-- C delay -->
+  <div class="node" style="left:640px; top:60px">
+    <div class="node__tile node__tile--delay"><i class="mdi mdi-timer-outline"></i></div>
+    <div class="node__body">
+      <div class="node__title">Delay</div>
+      <div class="node__sub">wait 2 min</div>
+    </div>
+    <span class="port port--in"></span><span class="port port--out"></span>
+  </div>
+
+  <!-- D terraform -->
+  <div class="node" style="left:940px; top:160px">
+    <div class="node__tile node__tile--terraform"><i class="mdi mdi-terraform"></i></div>
+    <div class="node__body">
+      <div class="node__title">Apply infrastructure changes for prod</div>
+      <div class="node__sub">Terraform · any parent</div>
+    </div>
+    <span class="port port--in"></span><span class="port port--out"></span>
+  </div>
+
+  <!-- E task with problem -->
+  <div class="node" style="left:640px; top:340px">
+    <div class="node__tile node__tile--bash"><i class="mdi mdi-cog"></i></div>
+    <div class="node__body">
+      <div class="node__title" style="color: var(--text2); font-style: italic">No template</div>
+      <div class="node__sub">Task · all parents</div>
+    </div>
+    <span class="badge" title="Every task node requires a template."><i class="mdi mdi-alert"></i></span>
+    <span class="port port--in"></span><span class="port port--out port--hover"></span>
+  </div>
+
+  <!-- note -->
+  <div class="note" style="left:940px; top:300px"><i class="mdi mdi-note-text-outline"></i>Prod apply needs sign-off from the on-call lead. Delay gives the CDN time to purge.</div>
+
+  <div class="fab"><i class="mdi mdi-plus"></i></div>
+  <div class="controls">
+    <button><i class="mdi mdi-plus"></i></button>
+    <button><i class="mdi mdi-minus"></i></button>
+    <button><i class="mdi mdi-fit-to-page-outline"></i></button>
+    <button><i class="mdi mdi-auto-fix"></i></button>
+    <div class="zoom">100%</div>
+  </div>
+</div>
+
+<h2>Run view</h2>
+<div class="canvas" id="run" style="height:470px">
+  <svg class="edges">
+    <path class="edge edge--on_success" d="M260 192 C288 192 312 92 336 92" marker-end="url(#arr-s)"/>
+    <path class="edge edge--on_success edge--active" d="M560 92 C588 92 612 92 636 92" marker-end="url(#arr-s)"/>
+    <path class="edge edge--always edge--dim" d="M860 92 C888 92 912 192 936 192" marker-end="url(#arr-a)"/>
+    <path class="edge edge--on_failure edge--dim" d="M260 192 C392 192 504 372 636 372" marker-end="url(#arr-f)"/>
+  </svg>
+  <div class="pill pill--on_success" style="left:300px; top:142px"><i class="mdi mdi-check"></i>on success</div>
+  <div class="pill pill--on_success" style="left:600px; top:92px"><i class="mdi mdi-check"></i>on success</div>
+  <div class="pill pill--always" style="left:900px; top:142px; opacity:.6"><i class="mdi mdi-arrow-right"></i>always</div>
+  <div class="pill pill--on_failure" style="left:448px; top:282px; opacity:.6"><i class="mdi mdi-close"></i>on failure</div>
+
+  <div class="node" style="left:40px; top:160px; cursor:pointer">
+    <div class="node__tile"><i class="mdi mdi-ansible"></i></div>
+    <div class="node__body">
+      <div class="node__title">Deploy application</div>
+      <div class="node__sub">success · 2 m 14 s</div>
+    </div>
+    <i class="mdi mdi-check-circle node__status node__status--success"></i>
+    <span class="port port--in"></span><span class="port port--out"></span>
+  </div>
+
+  <div class="node" style="left:340px; top:60px">
+    <div class="node__tile node__tile--approval"><i class="mdi mdi-account-check"></i></div>
+    <div class="node__body">
+      <div class="node__title">Approval</div>
+      <div class="node__sub">approved by denis · 41 s</div>
+    </div>
+    <i class="mdi mdi-check-circle node__status node__status--success"></i>
+    <span class="port port--in"></span><span class="port port--out"></span>
+  </div>
+
+  <div class="node node--running" style="left:640px; top:60px">
+    <div class="node__tile node__tile--delay"><i class="mdi mdi-timer-outline"></i></div>
+    <div class="node__body">
+      <div class="node__title">Delay</div>
+      <div class="node__sub">1 m 12 s left</div>
+    </div>
+    <i class="mdi mdi-timer-sand node__status node__status--delay"></i>
+    <span class="port port--in"></span><span class="port port--out"></span>
+  </div>
+
+  <div class="node node--dim" style="left:940px; top:160px">
+    <div class="node__tile node__tile--terraform"><i class="mdi mdi-terraform"></i></div>
+    <div class="node__body">
+      <div class="node__title">Apply infrastructure changes for prod</div>
+      <div class="node__sub">not started</div>
+    </div>
+    <span class="port port--in"></span><span class="port port--out"></span>
+  </div>
+
+  <div class="node node--dim" style="left:640px; top:340px">
+    <div class="node__tile node__tile--bash"><i class="mdi mdi-bash"></i></div>
+    <div class="node__body">
+      <div class="node__title">Notify on-call</div>
+      <div class="node__sub">skipped</div>
+    </div>
+    <span class="port port--in"></span><span class="port port--out"></span>
+  </div>
+
+  <div class="note" style="left:940px; top:300px"><i class="mdi mdi-note-text-outline"></i>Prod apply needs sign-off from the on-call lead. Delay gives the CDN time to purge.</div>
+
+  <div class="controls">
+    <button><i class="mdi mdi-plus"></i></button>
+    <button><i class="mdi mdi-minus"></i></button>
+    <button><i class="mdi mdi-fit-to-page-outline"></i></button>
+    <div class="zoom">100%</div>
+  </div>
+</div>
+
+<h2>Card states</h2>
+<div class="row">
+  <div class="swatch">
+    <div class="node">
+      <div class="node__tile"><i class="mdi mdi-ansible"></i></div>
+      <div class="node__body"><div class="node__title">Deploy application</div><div class="node__sub">Ansible · staging inventory</div></div>
+      <span class="port port--in"></span><span class="port port--out"></span>
+    </div>
+    <div class="swatch__label">default</div>
+  </div>
+  <div class="swatch">
+    <div class="node node--hover">
+      <div class="node__tile"><i class="mdi mdi-ansible"></i></div>
+      <div class="node__body"><div class="node__title">Deploy application</div><div class="node__sub">Ansible · staging inventory</div></div>
+      <span class="port port--in"></span><span class="port port--out port--hover"></span><span class="plus"><i class="mdi mdi-plus"></i></span>
+    </div>
+    <div class="swatch__label">hover: «+» on the output port</div>
+  </div>
+  <div class="swatch">
+    <div class="node node--selected">
+      <div class="node__tile"><i class="mdi mdi-ansible"></i></div>
+      <div class="node__body"><div class="node__title">Deploy application</div><div class="node__sub">Ansible · staging inventory</div></div>
+      <span class="port port--in"></span><span class="port port--out"></span>
+    </div>
+    <div class="swatch__label">selected (properties panel open)</div>
+  </div>
+  <div class="swatch">
+    <div class="node node--running">
+      <div class="node__tile node__tile--terraform"><i class="mdi mdi-terraform"></i></div>
+      <div class="node__body"><div class="node__title">Apply infrastructure</div><div class="node__sub">running · 0 m 37 s</div></div>
+      <i class="mdi mdi-loading node__status node__status--running"></i>
+      <span class="port port--in"></span><span class="port port--out"></span>
+    </div>
+    <div class="swatch__label">running (blue pulse, click opens log)</div>
+  </div>
+  <div class="swatch">
+    <div class="node">
+      <div class="node__tile"><i class="mdi mdi-ansible"></i></div>
+      <div class="node__body"><div class="node__title">Deploy application</div><div class="node__sub">failed · 1 m 03 s</div></div>
+      <i class="mdi mdi-close-circle node__status node__status--error"></i>
+      <span class="port port--in"></span><span class="port port--out"></span>
+    </div>
+    <div class="swatch__label">failed</div>
+  </div>
+  <div class="swatch">
+    <div class="node node--pulse">
+      <div class="node__tile node__tile--approval"><i class="mdi mdi-account-check"></i></div>
+      <div class="node__body">
+        <div class="node__title">Approval</div>
+        <div class="node__sub">Deploy to prod?</div>
+        <div class="node__actions"><button class="btn-xs btn-xs--approve">Approve</button><button class="btn-xs btn-xs--reject">Reject</button></div>
+      </div>
+      <i class="mdi mdi-account-clock node__status node__status--warning"></i>
+      <span class="port port--in"></span><span class="port port--out"></span>
+    </div>
+    <div class="swatch__label">pending approval (amber pulse, actions in the card)</div>
+  </div>
+  <div class="swatch">
+    <div class="node">
+      <div class="node__tile node__tile--bash"><i class="mdi mdi-cog"></i></div>
+      <div class="node__body"><div class="node__title" style="color:var(--text2); font-style:italic">No template</div><div class="node__sub">Task · all parents</div></div>
+      <span class="badge"><i class="mdi mdi-alert"></i></span>
+      <span class="port port--in"></span><span class="port port--out"></span>
+    </div>
+    <div class="swatch__label">validation problem badge (tooltip on hover)</div>
+  </div>
+  <div class="swatch">
+    <div class="node node--dim">
+      <div class="node__tile node__tile--bash"><i class="mdi mdi-bash"></i></div>
+      <div class="node__body"><div class="node__title">Notify on-call</div><div class="node__sub">not started</div></div>
+      <span class="port port--in"></span><span class="port port--out"></span>
+    </div>
+    <div class="swatch__label">not started / skipped</div>
+  </div>
+</div>
+
+<h2>Empty state</h2>
+<div class="canvas" style="height:220px">
+  <div class="empty">
+    <i class="mdi mdi-sitemap-outline"></i>
+    <b>Add your first node</b>
+    <span>Drag one from the palette, press Tab, or use the button below.</span>
+    <button>+ Add node</button>
+  </div>
+  <div class="controls">
+    <button><i class="mdi mdi-plus"></i></button>
+    <button><i class="mdi mdi-minus"></i></button>
+    <button><i class="mdi mdi-fit-to-page-outline"></i></button>
+    <button><i class="mdi mdi-auto-fix"></i></button>
+  </div>
+</div>
+<p class="legend">Card 220×64, radius 12, tile 40×40 radius 10, ports 10 px on edge midpoints, edges 2 px with arrow markers, condition pill on the edge midpoint, snap grid 20 px. Toggle theme: add class <code>dark</code> to body.</p>
+<div style="height:24px"></div>
+<script>
+  if (location.hash === '#dark') { document.body.classList.add('dark'); document.getElementById('themeLabel').textContent = 'dark theme'; }
+</script>
+</body>
+</html>

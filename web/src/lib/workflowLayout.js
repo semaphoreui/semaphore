@@ -2,15 +2,19 @@
 //
 // Used to position nodes on the canvas when a workflow has no stored
 // coordinates (legacy workflows created before the graphical editor, or runs of
-// such workflows). Nodes are placed in columns by their longest distance from a
-// root (zero in-degree) node, and stacked vertically within each column.
+// such workflows), and by the editor's "Tidy up" action. Nodes are placed in
+// columns by their longest distance from a root (zero in-degree) node, and
+// stacked vertically within each column.
+//
+// The spacing matches the node card (220x64) plus room for the edge labels,
+// and every coordinate lands on the 20 px snap grid.
 //
 // Returns a map: { [nodeId]: { x, y } }.
 
-const COLUMN_WIDTH = 240;
-const ROW_HEIGHT = 130;
+export const COLUMN_WIDTH = 320;
+export const ROW_HEIGHT = 120;
 const OFFSET_X = 80;
-const OFFSET_Y = 60;
+const OFFSET_Y = 80;
 
 // True when every node sits at the origin, i.e. no real layout is stored yet.
 export function needsAutoLayout(nodes) {
