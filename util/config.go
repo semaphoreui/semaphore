@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/exec"
@@ -41,6 +42,8 @@ const (
 	DbDriverPostgres = "postgres"
 	DbDriverSQLite   = "sqlite"
 )
+
+const auditIdentifierMaxBytes = 255
 
 const (
 	// HomeDirModeUserHome does not override HOME.
@@ -341,6 +344,41 @@ type SyslogConfig struct {
 	Address string       `json:"address,omitempty" env:"SEMAPHORE_SYSLOG_ADDRESS"`
 	Tag     string       `json:"tag,omitempty" env:"SEMAPHORE_SYSLOG_TAG"`
 	Format  SyslogFormat `json:"format,omitempty" env:"SEMAPHORE_SYSLOG_FORMAT"`
+}
+
+type AuditConfig struct {
+	// Enabled enables local capture of canonical audit events.
+	Enabled bool `json:"enabled,omitempty"`
+	// InstanceID is the stable identity included in every audit event across replicas.
+	InstanceID string `json:"instance_id,omitempty"`
+	// TrustedProxyCIDRs lists proxy networks allowed to provide audit client address headers.
+	TrustedProxyCIDRs []string `json:"trusted_proxy_cidrs,omitempty"`
+	// Destination is the single v1 audit export destination.
+	Destination *AuditDestinationConfig `json:"destination,omitempty"`
+}
+
+type AuditDestinationConfig struct {
+	// ID is the stable identifier for the single audit export destination.
+	ID string `json:"id,omitempty"`
+	// Type is the destination type; only syslog is supported in v1.
+	Type   string             `json:"type,omitempty"`
+	Syslog *AuditSyslogConfig `json:"syslog,omitempty"`
+}
+
+type AuditSyslogConfig struct {
+	// Address is the RFC 5424 over TLS destination host and port.
+	Address string `json:"address,omitempty"`
+	// Timeout is a positive Go duration for syslog connection and write operations.
+	Timeout string `json:"timeout,omitempty"`
+	// TLS configures certificate verification for the audit destination.
+	TLS *AuditSyslogTLSConfig `json:"tls,omitempty"`
+}
+
+type AuditSyslogTLSConfig struct {
+	// CAFile is an optional PEM file appended to system roots for the destination.
+	CAFile string `json:"ca_file,omitempty"`
+	// ServerName is the optional TLS server name used for certificate verification.
+	ServerName string `json:"server_name,omitempty"`
 }
 
 type MetricsConfig struct {
@@ -693,6 +731,8 @@ type ConfigType struct {
 	Teams *TeamsConfig `json:"teams,omitempty"`
 
 	Syslog *SyslogConfig `json:"syslog,omitempty"`
+
+	Audit *AuditConfig `json:"audit,omitempty"`
 
 	Metrics *MetricsConfig `json:"metrics,omitempty"`
 
@@ -1853,6 +1893,45 @@ func validateAccessKeyEncryption(key string) error {
 	}
 }
 
+// ParseAuditTrustedProxyCIDRs parses the proxy networks allowed to provide audit client address headers.
+func ParseAuditTrustedProxyCIDRs(values []string) ([]netip.Prefix, error) {
+	prefixes := make([]netip.Prefix, 0, len(values))
+	for i, value := range values {
+		prefix, err := netip.ParsePrefix(value)
+		if err != nil {
+			return nil, fmt.Errorf("audit.trusted_proxy_cidrs[%d] must be a valid CIDR: %w", i, err)
+		}
+		prefixes = append(prefixes, prefix.Masked())
+	}
+	return prefixes, nil
+}
+
+func (conf *ConfigType) validateAuditConfig() error {
+	if conf.Audit == nil {
+		return nil
+	}
+
+	if _, err := ParseAuditTrustedProxyCIDRs(conf.Audit.TrustedProxyCIDRs); err != nil {
+		return err
+	}
+
+	if !conf.Audit.Enabled {
+		return nil
+	}
+
+	if strings.TrimSpace(conf.Audit.InstanceID) == "" {
+		return errors.New("audit.instance_id must not be empty when audit.enabled is true")
+	}
+	if len(conf.Audit.InstanceID) > auditIdentifierMaxBytes {
+		return errors.New("audit.instance_id must not exceed 255 UTF-8 bytes")
+	}
+	if conf.HA != nil && len(conf.HA.NodeID) > auditIdentifierMaxBytes {
+		return errors.New("ha.node_id must not exceed 255 UTF-8 bytes when audit.enabled is true")
+	}
+
+	return nil
+}
+
 func validateConfig() {
 	err := validate(Config)
 	if err != nil {
@@ -1869,6 +1948,9 @@ func validateConfig() {
 		panic(err)
 	}
 	if err := validateAccessKeyEncryption(Config.OptionEncryption); err != nil {
+		panic(err)
+	}
+	if err := Config.validateAuditConfig(); err != nil {
 		panic(err)
 	}
 	if Config.keys != nil {

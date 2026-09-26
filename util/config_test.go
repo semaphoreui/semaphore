@@ -585,6 +585,78 @@ func TestValidateConfig(t *testing.T) {
 	Config.AccessKeyEncryption = testCookieHash
 }
 
+func TestValidateConfigTrustedProxyCIDRs(t *testing.T) {
+	originalConfig := Config
+	t.Cleanup(func() { Config = originalConfig })
+
+	Config = NewConfigType()
+	loadConfigDefaults()
+	Config.Audit = &AuditConfig{TrustedProxyCIDRs: []string{"not-a-cidr"}}
+
+	require.Panics(t, validateConfig)
+}
+
+func TestValidateAuditConfig(t *testing.T) {
+	t.Run("allows absent configuration", func(t *testing.T) {
+		assert.NoError(t, (&ConfigType{}).validateAuditConfig())
+	})
+
+	t.Run("allows disabled configuration", func(t *testing.T) {
+		config := &ConfigType{Audit: &AuditConfig{}}
+		assert.NoError(t, config.validateAuditConfig())
+	})
+
+	t.Run("allows identifiers at storage limit", func(t *testing.T) {
+		config := &ConfigType{
+			Audit: validAuditConfig(),
+			HA:    &HAConfig{NodeID: strings.Repeat("n", auditIdentifierMaxBytes)},
+		}
+		config.Audit.InstanceID = strings.Repeat("i", auditIdentifierMaxBytes)
+		assert.NoError(t, config.validateAuditConfig())
+	})
+
+	t.Run("requires instance ID", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.InstanceID = ""
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.instance_id")
+	})
+
+	t.Run("limits instance ID bytes", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.InstanceID = strings.Repeat("é", auditIdentifierMaxBytes/2+1)
+		assert.ErrorContains(t, config.validateAuditConfig(), "audit.instance_id")
+	})
+
+	t.Run("limits HA node ID bytes", func(t *testing.T) {
+		config := &ConfigType{
+			Audit: validAuditConfig(),
+			HA:    &HAConfig{NodeID: strings.Repeat("é", auditIdentifierMaxBytes/2+1)},
+		}
+		assert.ErrorContains(t, config.validateAuditConfig(), "ha.node_id")
+	})
+
+	t.Run("allows capture without destination", func(t *testing.T) {
+		config := &ConfigType{Audit: validAuditConfig()}
+		config.Audit.Destination = nil
+		assert.NoError(t, config.validateAuditConfig())
+	})
+}
+
+func validAuditConfig() *AuditConfig {
+	return &AuditConfig{
+		Enabled:    true,
+		InstanceID: "semaphore-prod",
+		Destination: &AuditDestinationConfig{
+			ID:   "primary-siem",
+			Type: "syslog",
+			Syslog: &AuditSyslogConfig{
+				Address: "siem.internal.example:6514",
+				Timeout: "10s",
+			},
+		},
+	}
+}
+
 func TestGetSecretsPath_DirsSecrets(t *testing.T) {
 	Config = NewConfigType()
 	Config.Dirs = &ConfigDirs{Secrets: "/custom/dirs/secrets"}

@@ -7,6 +7,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	pro "github.com/semaphoreui/semaphore/pro/services/server"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 )
 
@@ -124,11 +125,12 @@ func (c *SecretStorageController) Update(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceSecretStorage,
+		Action:      audit.ActionUpdate,
 		ProjectID:   oldStorage.ProjectID,
-		ObjectType:  db.EventSchedule,
-		ObjectID:    oldStorage.ID,
+		TargetID:    oldStorage.ID,
+		TargetName:  storage.Name,
 		Description: fmt.Sprintf("Secret storage with ID %d has been updated", storage.ID),
 	})
 
@@ -157,11 +159,12 @@ func (c *SecretStorageController) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceSecretStorage,
+		Action:      audit.ActionCreate,
 		ProjectID:   newStorage.ProjectID,
-		ObjectType:  db.EventKey,
-		ObjectID:    newStorage.ID,
+		TargetID:    newStorage.ID,
+		TargetName:  newStorage.Name,
 		Description: fmt.Sprintf("Secret storage %s has been created", storage.Name),
 	})
 
@@ -180,6 +183,14 @@ func (c *SecretStorageController) Remove(w http.ResponseWriter, r *http.Request)
 		helpers.WriteError(w, err)
 		return
 	}
+
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceSecretStorage,
+		Action:      audit.ActionDelete,
+		ProjectID:   project.ID,
+		TargetID:    storageID,
+		Description: fmt.Sprintf("Secret storage with ID %d has been deleted", storageID),
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -218,11 +229,12 @@ func (c *SecretStorageController) SyncSecrets(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceSecretStorage,
+		Action:      audit.ActionUpdate,
 		ProjectID:   oldStorage.ProjectID,
-		ObjectType:  db.EventSchedule,
-		ObjectID:    oldStorage.ID,
+		TargetID:    oldStorage.ID,
+		TargetName:  oldStorage.Name,
 		Description: fmt.Sprintf("Secret storage with ID %d has been synced", storage.ID),
 	})
 

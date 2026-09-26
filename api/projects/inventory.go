@@ -7,6 +7,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 
 	"os"
 	"path/filepath"
@@ -118,11 +119,12 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceInventory,
+		Action:      audit.ActionCreate,
 		ProjectID:   project.ID,
-		ObjectType:  db.EventInventory,
-		ObjectID:    newInventory.ID,
+		TargetID:    newInventory.ID,
+		TargetName:  newInventory.Name,
 		Description: fmt.Sprintf("Inventory %s created", inventory.Name),
 	})
 
@@ -199,11 +201,12 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceInventory,
+		Action:      audit.ActionUpdate,
 		ProjectID:   oldInventory.ProjectID,
-		ObjectType:  db.EventInventory,
-		ObjectID:    oldInventory.ID,
+		TargetID:    oldInventory.ID,
+		TargetName:  inventory.Name,
 		Description: fmt.Sprintf("Inventory %s updated", inventory.Name),
 	})
 
@@ -227,11 +230,12 @@ func RemoveInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordResourceEvent(r, audit.ResourceEvent{
+		Resource:    audit.ResourceInventory,
+		Action:      audit.ActionDelete,
 		ProjectID:   inventory.ProjectID,
-		ObjectType:  db.EventInventory,
-		ObjectID:    inventory.ID,
+		TargetID:    inventory.ID,
+		TargetName:  inventory.Name,
 		Description: fmt.Sprintf("Inventory %s deleted", inventory.Name),
 	})
 

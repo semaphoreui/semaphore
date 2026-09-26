@@ -127,6 +127,13 @@
       ]
     },
     {
+      "title": "Audit",
+      "intro": "Local capture of canonical audit events with optional export to a SIEM destination.",
+      "prefixes": [
+        "audit."
+      ]
+    },
+    {
       "title": "Teams and invitations",
       "intro": "How people are added to projects. See [Teams](/user-guide/team).",
       "prefixes": [
@@ -160,6 +167,7 @@
   "editions": {
     "log.": "pro",
     "syslog.": "pro",
+    "audit.destination.": "pro",
     "runner.executor.docker.": "pro",
     "runner.executor.k8s.": "pro"
   }

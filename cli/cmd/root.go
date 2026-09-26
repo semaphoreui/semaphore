@@ -23,6 +23,7 @@ import (
 	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
 	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
@@ -157,6 +158,7 @@ func watchEncryptionKeyReload() {
 
 func runService() {
 	store := createStore("root")
+	defer store.Close()
 
 	watchEncryptionKeyReload()
 
@@ -224,6 +226,22 @@ func runService() {
 
 	defer schedulePool.Destroy()
 	defer taskPool.Stop()
+
+	auditSettings := audit.Settings{}
+	if util.Config.Audit != nil {
+		auditSettings.Enabled = util.Config.Audit.Enabled
+		auditSettings.InstanceID = util.Config.Audit.InstanceID
+	}
+	if util.Config.HA != nil {
+		auditSettings.NodeID = util.Config.HA.NodeID
+	}
+	auditService := audit.NewService(store, logWriteService, auditSettings)
+
+	auditExporter, err := proServer.NewAuditExporter(store)
+	if err != nil {
+		panic(fmt.Errorf("failed to create audit exporter: %w", err))
+	}
+	defer auditExporter.Stop()
 
 	// --- Active-Active HA Setup ---
 	// When HA is enabled, multiple Semaphore nodes share the same Redis-backed
@@ -333,6 +351,7 @@ func runService() {
 	route.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r = helpers.SetContextValue(r, "store", store)
+			r = helpers.SetContextValue(r, "audit_service", auditService)
 			r = helpers.SetContextValue(r, "schedule_pool", schedulePool)
 			r = helpers.SetContextValue(r, "task_pool", &taskPool)
 			r = helpers.SetContextValue(r, "log_writer", logWriteService)
@@ -344,14 +363,18 @@ func runService() {
 
 	var router http.Handler = route
 
-	router = handlers.ProxyHeaders(router)
+	var trustedProxyCIDRs []string
+	if util.Config.Audit != nil {
+		trustedProxyCIDRs = util.Config.Audit.TrustedProxyCIDRs
+	}
+	trustedProxies, parseErr := util.ParseAuditTrustedProxyCIDRs(trustedProxyCIDRs)
+	if parseErr != nil {
+		panic(parseErr)
+	}
+	router = api.AuditRequestContextMiddleware(trustedProxies)(handlers.ProxyHeaders(router))
 	http.Handle("/", router)
 
 	fmt.Println("Server is running")
-
-	defer store.Close()
-
-	var err error
 	if util.Config.TLS.Enabled {
 
 		if util.Config.TLS.HTTPRedirectPort != nil && util.Config.TLS.HTTPRedirectAddr != "" {

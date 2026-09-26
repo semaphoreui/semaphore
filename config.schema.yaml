@@ -28,6 +28,7 @@ properties:
   interface:
     type: string
     description: Bind address (empty = all interfaces).
+  audit: { $ref: "#/$defs/AuditConfig" }
   tls: { $ref: "#/$defs/TLSConfig" }
 
   # ==========================================================================
@@ -266,6 +267,52 @@ $defs:
         description: >-
           How often keys_file is polled for changes (a Go duration like "15s").
           "0" disables polling (a SIGHUP still forces a reload).
+
+  AuditConfig:
+    type: object
+    description: Audit capture, security context, and export settings.
+    properties:
+      enabled:
+        type: boolean
+        description: Enables local capture of canonical audit events.
+      instance_id:
+        type: string
+        description: Stable identity included in every audit event across replicas.
+      trusted_proxy_cidrs:
+        type: array
+        items: { type: string }
+        description: Proxy networks allowed to provide audit client address headers.
+      destination: { $ref: "#/$defs/AuditDestinationConfig" }
+
+  AuditDestinationConfig:
+    type: object
+    description: The single supported v1 audit export destination.
+    properties:
+      id:
+        type: string
+        description: Runtime validation limits this value to 255 UTF-8 bytes.
+      type:
+        type: string
+        enum: [syslog]
+      syslog: { $ref: "#/$defs/AuditSyslogConfig" }
+
+  AuditSyslogConfig:
+    type: object
+    properties:
+      address:
+        type: string
+      timeout:
+        type: string
+        description: Positive Go duration for syslog operations.
+      tls: { $ref: "#/$defs/AuditSyslogTLSConfig" }
+
+  AuditSyslogTLSConfig:
+    type: object
+    properties:
+      ca_file:
+        type: string
+      server_name:
+        type: string
 
   JWTConfig:
     type: object

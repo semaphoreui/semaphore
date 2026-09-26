@@ -541,6 +541,10 @@ type EventManager interface {
 	GetAllEvents(params RetrieveQueryParams) ([]Event, error)
 }
 
+type AuditEventWriter interface {
+	CreateAuditEvent(event AuditEvent) (AuditEvent, error)
+}
+
 type SecretStorageRepository interface {
 	GetSecretStorages(projectID int) ([]SecretStorage, error)
 	CreateSecretStorage(storage SecretStorage) (SecretStorage, error)
@@ -604,6 +608,7 @@ type Store interface {
 	ViewManager
 	RunnerManager
 	EventManager
+	AuditEventWriter
 	SecretStorageRepository
 	SecretSyncRepository
 	RoleRepository

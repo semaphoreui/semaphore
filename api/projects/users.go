@@ -6,6 +6,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 )
 
 // UserMiddleware ensures a user exists and loads it to the context
@@ -17,7 +18,7 @@ func UserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		_, err := helpers.Store(r).GetProjectUser(project.ID, userID)
+		projectUser, err := helpers.Store(r).GetProjectUser(project.ID, userID)
 
 		if err != nil {
 			helpers.WriteError(w, err)
@@ -32,6 +33,7 @@ func UserMiddleware(next http.Handler) http.Handler {
 		}
 
 		r = helpers.SetContextValue(r, "projectUser", user)
+		r = helpers.SetContextValue(r, "targetProjectUserRole", projectUser.Role)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -105,11 +107,11 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordProjectMemberEvent(r, audit.ProjectMemberEvent{
+		Action:      audit.ProjectMemberAdd,
 		ProjectID:   project.ID,
-		ObjectType:  db.EventUser,
-		ObjectID:    projectUser.UserID,
+		UserID:      projectUser.UserID,
+		Role:        string(projectUser.Role),
 		Description: fmt.Sprintf("User ID %d added to team", projectUser.UserID),
 	})
 
@@ -134,11 +136,18 @@ func removeUser(targetUser db.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogDelete, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	targetRole := ""
+	if targetUser.ID == me.ID {
+		targetRole = string(myRole)
+	} else if role, ok := helpers.GetFromContext(r, "targetProjectUserRole").(db.ProjectUserRole); ok {
+		targetRole = string(role)
+	}
+	helpers.RecordProjectMemberEvent(r, audit.ProjectMemberEvent{
+		Action:      audit.ProjectMemberRemove,
 		ProjectID:   project.ID,
-		ObjectType:  db.EventUser,
-		ObjectID:    targetUser.ID,
+		UserID:      targetUser.ID,
+		UserName:    targetUser.Username,
+		Role:        targetRole,
 		Description: fmt.Sprintf("User ID %d removed from team", targetUser.ID),
 	})
 
@@ -161,9 +170,10 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
 	targetUser := helpers.GetFromContext(r, "projectUser").(db.User)
-	targetUserRole := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
+	myRole := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
+	targetUserRole := helpers.GetFromContext(r, "targetProjectUserRole").(db.ProjectUserRole)
 
-	if !me.Admin && targetUser.ID == me.ID && targetUserRole == db.ProjectOwner {
+	if !me.Admin && targetUser.ID == me.ID && myRole == db.ProjectOwner {
 		helpers.WriteError(w, fmt.Errorf("owner can not change his role in the project"))
 		return
 	}
@@ -195,11 +205,13 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
-		UserID:      helpers.UserFromContext(r).ID,
+	helpers.RecordProjectMemberEvent(r, audit.ProjectMemberEvent{
+		Action:      audit.ProjectMemberChangeRole,
 		ProjectID:   project.ID,
-		ObjectType:  db.EventUser,
-		ObjectID:    targetUser.ID,
+		UserID:      targetUser.ID,
+		UserName:    targetUser.Username,
+		OldRole:     string(targetUserRole),
+		NewRole:     string(projectUser.Role),
 		Description: fmt.Sprintf("Changed role for User ID %d", targetUser.ID),
 	})
 
