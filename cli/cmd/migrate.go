@@ -95,6 +95,7 @@ func migrateBoltDb(boltDbPath string) {
 	defer boltStore.Close("migrate")
 
 	util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
+	util.LookupDefaultApps()
 
 	dialect, err := util.Config.GetDialect()
 	if err != nil {
