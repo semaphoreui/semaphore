@@ -726,17 +726,80 @@ func TestCheckTmpDir(t *testing.T) {
 }
 
 func TestTaskRunner_populateTaskEnvironment(t *testing.T) {
-	tsk := TaskRunner{
-		Task: db.Task{
-			Environment: "{\"a\":11, \"b\": 22, \"c\": 33}",
+	strVal := func(s string) *db.SurveyVarDefaultValue {
+		return &db.SurveyVarDefaultValue{Values: []string{s}}
+	}
+
+	tests := []struct {
+		name         string
+		templateJSON string
+		surveyVars   []db.SurveyVar
+		taskEnv      string
+		wantJSON     string
+	}{
+		{
+			name:         "existing merge without survey defaults",
+			templateJSON: `{"a":1,"d":4}`,
+			taskEnv:      `{"a":11,"b":22,"c":33}`,
+			wantJSON:     `{"a":11,"b":22,"c":33,"d":4}`,
 		},
-		Environment: db.Environment{
-			JSON: "{\"a\":1, \"d\": 4}",
+		{
+			name:         "API or schedule with empty task env applies survey defaults",
+			templateJSON: `{}`,
+			surveyVars: []db.SurveyVar{
+				{Name: "host", Type: db.SurveyVarStr, DefaultValue: strVal("web1")},
+			},
+			taskEnv:  "",
+			wantJSON: `{"host":"web1"}`,
+		},
+		{
+			name:         "task env overrides survey default",
+			templateJSON: `{}`,
+			surveyVars: []db.SurveyVar{
+				{Name: "host", Type: db.SurveyVarStr, DefaultValue: strVal("web1")},
+			},
+			taskEnv:  `{"host":"db1"}`,
+			wantJSON: `{"host":"db1"}`,
+		},
+		{
+			name:         "survey default coexists with template env",
+			templateJSON: `{"a":1}`,
+			surveyVars: []db.SurveyVar{
+				{Name: "host", Type: db.SurveyVarStr, DefaultValue: strVal("web1")},
+			},
+			taskEnv:  "",
+			wantJSON: `{"a":1,"host":"web1"}`,
+		},
+		{
+			name:         "no survey vars and no task env yields empty object",
+			templateJSON: `{}`,
+			taskEnv:      "",
+			wantJSON:     `{}`,
+		},
+		{
+			name:         "null template JSON with survey default does not panic",
+			templateJSON: `null`,
+			surveyVars: []db.SurveyVar{
+				{Name: "host", Type: db.SurveyVarStr, DefaultValue: strVal("web1")},
+			},
+			taskEnv:  "",
+			wantJSON: `{"host":"web1"}`,
 		},
 	}
 
-	err := tsk.populateTaskEnvironment()
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tsk := TaskRunner{
+				Task: db.Task{Environment: tt.taskEnv},
+				Environment: db.Environment{
+					JSON: tt.templateJSON,
+				},
+				Template: db.Template{SurveyVars: tt.surveyVars},
+			}
 
-	assert.Equal(t, "{\"a\":11,\"b\":22,\"c\":33,\"d\":4}", tsk.Environment.JSON)
+			err := tsk.populateTaskEnvironment()
+			require.NoError(t, err)
+			assert.JSONEq(t, tt.wantJSON, tsk.Environment.JSON)
+		})
+	}
 }

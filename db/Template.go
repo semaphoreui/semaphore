@@ -406,6 +406,30 @@ func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
 	return
 }
 
+// GetSurveyVarsDefaults returns the default values of survey variables that
+// declare a non-empty default_value, keyed by variable name. Scalar defaults
+// are strings; array-shaped defaults (e.g. multi-select) are []string. This
+// mirrors the web UI merge used when starting a task from the form.
+func (tpl *Template) GetSurveyVarsDefaults() map[string]any {
+	defaults := make(map[string]any)
+	for _, sv := range tpl.SurveyVars {
+		if sv.DefaultValue == nil {
+			continue
+		}
+		if sv.DefaultValue.IsArray() {
+			vals := make([]string, len(sv.DefaultValue.Values))
+			copy(vals, sv.DefaultValue.Values)
+			defaults[sv.Name] = vals
+			continue
+		}
+		if len(sv.DefaultValue.Values) == 0 || sv.DefaultValue.Values[0] == "" {
+			continue
+		}
+		defaults[sv.Name] = sv.DefaultValue.Values[0]
+	}
+	return defaults
+}
+
 func (tpl *Template) Validate() error {
 	if tpl.RunnerTag != nil && *tpl.RunnerTag == "" {
 		return common_errors.NewValidationError("template runner tag can not be empty")
