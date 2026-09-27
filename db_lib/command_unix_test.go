@@ -53,8 +53,11 @@ func runCommandWithSigtermHandler(t *testing.T, exitCode int) error {
 	cmd := exec.Command("sh", "-c", `
 trap 'exit "$1"' TERM
 touch "$2"
+# Block on "wait" rather than on a foreground sleep: a trapped signal
+# interrupts "wait" at once, while a foreground command defers the trap until
+# it exits (and a sleep forked after the group signal does not receive it).
 while true; do
-    sleep 1
+    sleep 1 & wait "$!"
 done
 `, "sh", strconv.Itoa(exitCode), readyFile)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
@@ -254,9 +257,13 @@ echo "$!" > "$CHILD_PID_FILE"
 
 touch "$MAIN_READY_FILE"
 
-# Keep the main script running until the test requests cancellation.
+# Keep the main script running until the test requests cancellation. Block on
+# "wait" rather than on a foreground sleep: a trapped signal interrupts "wait"
+# at once, while a foreground command defers the trap until it exits, and a
+# sleep forked after the group SIGTERM never receives it. That delay let the
+# background child outlive the process-group SIGKILL by a full second.
 while true; do
-    sleep 1
+    sleep 1 & wait "$!"
 done
 `)
 	cmd.Env = append(os.Environ(),

@@ -80,6 +80,10 @@ func TestAlerts_SetActive(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, loaded.Enabled)
 
+	// Setting the current value again must not be reported as "not found":
+	// MySQL counts only changed rows, so this must not rely on RowsAffected.
+	require.NoError(t, store.SetAlertActive(projectID, alert.ID, true))
+
 	other, err := store.CreateProject(db.Project{Name: "other"})
 	require.NoError(t, err)
 	assert.ErrorIs(t, store.SetAlertActive(other.ID, alert.ID, false), db.ErrNotFound)

@@ -1,10 +1,33 @@
-version: "3.4"
-
 services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_USER: semaphore
+      MARIADB_PASSWORD: semaphore
+      MARIADB_DATABASE: semaphore
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+  server:
+    environment:
+      SEMAPHORE_DB_DIALECT: mysql
+      SEMAPHORE_DB_HOST: db
+      SEMAPHORE_DB_PORT: "3306"
+      SEMAPHORE_DB_USER: semaphore
+      SEMAPHORE_DB_PASS: semaphore
+      SEMAPHORE_DB: semaphore
+    depends_on:
+      db:
+        condition: service_healthy
+
   dredd:
     environment:
       SEMAPHORE_DB_DIALECT: mysql
-      SEMAPHORE_DB_CONFIG: '{"host": "db:3306","user": "semaphore","pass": "semaphore","name": "semaphore"}'
+      SEMAPHORE_DB_CONFIG: '{"host": "db:3306", "user": "semaphore", "pass": "semaphore", "name": "semaphore"}'
     depends_on:
-      - server
-      - db
+      db:
+        condition: service_healthy
