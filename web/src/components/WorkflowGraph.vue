@@ -113,6 +113,9 @@ const QUICK_ADD_ROW = 120;
 const NODE_MOUNT_HTML = '<div class="WorkflowGraph__mount"></div>';
 // After a build, layout shifts (app drawer, fonts) re-fit the graph for this long.
 const AUTO_FIT_WINDOW_MS = 1500;
+// Arrow-key pan distance in screen pixels (Shift multiplies it).
+const KEY_PAN_STEP = 40;
+const KEY_PAN_STEP_FAST = 200;
 
 const NodeCard = Vue.extend(WorkflowNodeCard);
 
@@ -384,6 +387,10 @@ export default {
       });
       vm.$on('quick-add', () => this.openQuickAddFromNode(nodeId));
       vm.$on('select', () => this.$emit('node-click', nodeId));
+      vm.$on('activate', () => {
+        if (this.editable) this.selectNode(nodeId);
+        else this.$emit('node-click', nodeId);
+      });
       vm.$on('resolve-approval', (status) => this.$emit('resolve-approval', { nodeId, status }));
       vm.$mount(el);
       this.cards[dfId] = vm;
@@ -604,13 +611,66 @@ export default {
 
     onPointerDown() {
       this.userMovedViewport = true;
+      // Drawflow calls preventDefault() on mousedown in read-only mode, which
+      // stops the browser from focusing the canvas; focus it explicitly so the
+      // keyboard shortcuts work there too.
+      const canvas = this.$refs.canvas;
+      if (canvas && document.activeElement !== canvas && !canvas.contains(document.activeElement)) {
+        canvas.focus({ preventScroll: true });
+      }
     },
 
+    // Keyboard navigation while the canvas has focus (click empty canvas or Tab
+    // to it): arrows pan, +/- zoom around the centre, 0 fits the graph, 1 resets
+    // the zoom to 100 %. Escape drops the selection.
     onKeyDown(ev) {
       if (ev.key === 'Escape') {
         this.quickAdd.open = false;
         if (this.editable) this.clearSelection();
+        return;
       }
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      const step = ev.shiftKey ? KEY_PAN_STEP_FAST : KEY_PAN_STEP;
+      const pan = {
+        ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step],
+      }[ev.key];
+      if (pan) {
+        ev.preventDefault();
+        this.userMovedViewport = true;
+        const vp = this.getViewport();
+        this.applyViewport({ ...vp, x: vp.x + pan[0], y: vp.y + pan[1] });
+        return;
+      }
+      switch (ev.key) {
+        case '+':
+        case '=':
+          ev.preventDefault();
+          this.zoomIn();
+          break;
+        case '-':
+        case '_':
+          ev.preventDefault();
+          this.zoomOut();
+          break;
+        case '0':
+          ev.preventDefault();
+          this.userMovedViewport = true;
+          this.fitView();
+          break;
+        case '1':
+          ev.preventDefault();
+          this.userMovedViewport = true;
+          this.zoomTo(1);
+          break;
+        default:
+      }
+    },
+
+    // Sets an absolute zoom level keeping the centre of the viewport in place.
+    zoomTo(zoom) {
+      const size = this.containerSize();
+      const center = { x: size.width / 2, y: size.height / 2 };
+      this.applyViewport(zoomAt(this.getViewport(), center, zoom));
     },
 
     onContextMenu(ev) {

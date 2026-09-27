@@ -2,8 +2,13 @@
   <div
     v-if="isNote"
     class="WorkflowNodeCard WorkflowNodeCard--note"
+    tabindex="0"
+    role="button"
+    :aria-label="ariaLabel"
     @pointerdown="onPointerDown"
     @pointerup="onPointerUp"
+    @keydown.enter.prevent="activate"
+    @keydown.space.prevent="activate"
   >
     <v-icon x-small class="WorkflowNodeCard__noteIcon">mdi-note-text-outline</v-icon>
     <div
@@ -16,9 +21,13 @@
     v-else
     class="WorkflowNodeCard"
     :class="stateClasses"
-    :aria-label="title"
+    tabindex="0"
+    role="button"
+    :aria-label="ariaLabel"
     @pointerdown="onPointerDown"
     @pointerup="onPointerUp"
+    @keydown.enter.prevent="activate"
+    @keydown.space.prevent="activate"
   >
     <div class="WorkflowNodeCard__tile" :class="`WorkflowNodeCard__tile--${kind}`">
       <v-icon :color="tileColor">{{ icon }}</v-icon>
@@ -179,6 +188,14 @@ export default {
       if (!this.editable) return this.runSubtitle;
       return this.configSubtitle;
     },
+    ariaLabel() {
+      if (this.isNote) {
+        return `${this.$t('workflowNodeKindNote')}: ${this.node.note || this.$t('workflowNotePlaceholder')}`;
+      }
+      const parts = [this.title, this.subtitle].filter(Boolean);
+      if (this.problem) parts.push(this.problem);
+      return parts.join(', ');
+    },
     configSubtitle() {
       const parts = [];
       if (this.kind === 'task') {
@@ -299,6 +316,12 @@ export default {
       this.$emit('resolve-approval', status);
     },
 
+    // Enter / Space on a focused card: the graph selects it (editor) or opens
+    // its task log (run view).
+    activate() {
+      this.$emit('activate', this.nodeId);
+    },
+
     // Read-only canvas: Drawflow's pan handler swallows clicks on nodes, so a
     // tap is detected here from a press and release that barely moved.
     onPointerDown(ev) {
@@ -340,6 +363,15 @@ export default {
   &:hover {
     box-shadow: var(--wf-shadow-hover);
     border-color: var(--wf-divider-strong);
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--wf-primary);
+    outline-offset: 2px;
   }
 
   &--clickable {

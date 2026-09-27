@@ -114,6 +114,16 @@ describe('WorkflowNodeCard.vue', () => {
       expect(w.emitted('quick-add')).to.deep.equal([[1]]);
     });
 
+    it('is focusable and emits activate on Enter and Space', async () => {
+      const w = mountCard({ id: 1, kind: 'task', template_id: 7 });
+      expect(w.attributes('tabindex')).to.equal('0');
+      expect(w.attributes('role')).to.equal('button');
+      expect(w.attributes('aria-label')).to.equal('Deploy application, Ansible');
+      await w.trigger('keydown.enter');
+      await w.trigger('keydown.space');
+      expect(w.emitted('activate')).to.deep.equal([[1], [1]]);
+    });
+
     it('hides the plus handle in read-only mode', () => {
       const w = mountCard({ id: 1, kind: 'task', template_id: 7 }, {}, false);
       expect(w.find('.WorkflowNodeCard__plus').exists()).to.equal(false);
