@@ -630,6 +630,7 @@ func (p *TaskPool) hydrateTaskRunner(taskID int, projectID int) (*TaskRunner, er
 			App:          app,
 			KeyInstaller: p.keyInstallationService,
 			RepoLock:     p.repoLock,
+			HostConfigs:  tr.HostConfigs,
 		}
 	}
 	tr.job = job
@@ -1195,6 +1196,7 @@ func (p *TaskPool) AddTask(
 			App:          app,
 			KeyInstaller: p.keyInstallationService,
 			RepoLock:     p.repoLock,
+			HostConfigs:  taskRunner.HostConfigs,
 		}
 	}
 

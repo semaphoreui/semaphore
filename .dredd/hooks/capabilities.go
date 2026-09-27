@@ -31,6 +31,7 @@ var workflowApproval *db.WorkflowApproval
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
+var hostConfigID int
 var inventoryID int
 var environmentID int
 var templateID int
@@ -46,6 +47,7 @@ var capabilities = map[string][]string{
 	"user":                    {},
 	"project":                 {"user"},
 	"repository":              {"access_key"},
+	"host_config":             {"access_key"},
 	"inventory":               {"repository"},
 	"environment":             {"repository"},
 	"template":                {"repository", "inventory", "environment", "view"},
@@ -110,6 +112,15 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			addUserProjectRelation(userProject.ID, userPathTestUser.ID)
 		case "access_key":
 			userKey = addAccessKey(&userProject.ID)
+		case "host_config":
+			res, err := store.CreateHostConfig(db.HostConfig{
+				ProjectID: userProject.ID,
+				Type:      db.HostConfigHost,
+				Name:      "ITH-" + uid + ".example.org",
+				SSHKeyID:  userKey.ID,
+			})
+			printError(err)
+			hostConfigID = res.ID
 		case "repository":
 			pRepo, err := store.CreateRepository(db.Repository{
 				ProjectID: userProject.ID,
@@ -260,12 +271,16 @@ var pathSubPatterns = []func() string{
 	func() string {
 		return strconv.Itoa(workflowNodeID)
 	}, // node_id, x-example: 20
+<<<<<<< HEAD
 	func() string {
 		if projectAlert == nil {
 			return "0"
 		}
 		return strconv.Itoa(projectAlert.ID)
 	}, // alert_id, x-example: 21
+=======
+	func() string { return strconv.Itoa(hostConfigID) }, // host_config_id, x-example: 21
+>>>>>>> develop
 }
 
 // alterRequestPath with the above slice of functions

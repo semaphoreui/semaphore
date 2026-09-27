@@ -59,6 +59,7 @@ const (
 	EventKey                     EventObjectType = "key"
 	EventProject                 EventObjectType = "project"
 	EventRepository              EventObjectType = "repository"
+	EventHostConfig              EventObjectType = "host_config"
 	EventSchedule                EventObjectType = "schedule"
 	EventTemplate                EventObjectType = "template"
 	EventWorkflow                EventObjectType = "workflow"

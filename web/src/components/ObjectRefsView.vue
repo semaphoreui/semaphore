@@ -77,10 +77,18 @@ export default {
         title: 'Schedules',
         icon: 'clock-outline',
       }, {
+<<<<<<< HEAD
         slug: 'alerts',
         pageless: true,
         title: 'Alerts',
         icon: 'bell-outline',
+=======
+        slug: 'host_configs',
+        path: 'host_config',
+        pageless: true,
+        title: 'Host config',
+        icon: 'server-network',
+>>>>>>> develop
       }].filter((s) => (this.objectRefs[s.slug] || []).length > 0);
     },
   },

@@ -198,6 +198,11 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
+	b.hostConfigs, err = store.GetHostConfigs(projectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
 	b.keys, err = store.GetAccessKeys(projectID, db.GetAccessKeyOptions{IgnoreOwner: true}, db.RetrieveQueryParams{})
 	if err != nil {
 		return
@@ -407,6 +412,15 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 	}
 
+	hostConfigs := make([]BackupHostConfig, len(b.hostConfigs))
+	for i, o := range b.hostConfigs {
+		SSHKey, _ := findNameByID[db.AccessKey](o.SSHKeyID, b.keys)
+		hostConfigs[i] = BackupHostConfig{
+			HostConfig: o,
+			SSHKey:     SSHKey,
+		}
+	}
+
 	templates := make([]BackupTemplate, len(b.templates))
 	for i, o := range b.templates {
 		var View *string = nil
@@ -575,6 +589,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		Environments:       environments,
 		Views:              views,
 		Repositories:       repositories,
+		HostConfigs:        hostConfigs,
 		Keys:               keys,
 		Templates:          templates,
 		Integration:        integrations,

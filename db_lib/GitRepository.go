@@ -9,6 +9,7 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
 
@@ -47,6 +48,10 @@ type GitRepository struct {
 	Repository db.Repository
 	Logger     task_logger.Logger
 	Client     GitClient
+
+	// HostConfigs are the credential mappings of the project, applied to every
+	// host this repository reaches, including submodules.
+	HostConfigs *ssh.HostConfigInstallation
 
 	// retryDelay overrides gitRetryDelay so tests do not have to wait for it.
 	retryDelay time.Duration
