@@ -35,6 +35,9 @@ type auditEventRow struct {
 }
 
 func (d *SqlDb) CreateAuditEvent(event db.AuditEvent) (db.AuditEvent, error) {
+	if event.Actor.Type == "" {
+		return db.AuditEvent{}, errors.New("create audit event: actor type is required")
+	}
 	if len(event.Metadata) > 0 && !json.Valid(event.Metadata) {
 		return db.AuditEvent{}, errors.New("create audit event: metadata is invalid JSON")
 	}
@@ -114,7 +117,7 @@ func auditEventToRow(event db.AuditEvent) auditEventRow {
 		Type:          event.Type,
 		Action:        event.Action,
 		Outcome:       event.Outcome,
-		ActorType:     event.Actor.Type,
+		ActorType:     string(event.Actor.Type),
 		ActorID:       stringOrNil(event.Actor.ID),
 		ActorName:     stringOrNil(event.Actor.Name),
 		RequestID:     stringOrNil(event.RequestID),

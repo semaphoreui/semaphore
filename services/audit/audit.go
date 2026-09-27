@@ -225,13 +225,12 @@ func (s *Service) newAuditEvent(
 	actor Actor, request Request, projectID int,
 	target db.AuditTarget,
 ) db.AuditEvent {
-	event := db.NewAuditEvent()
-	event.Outcome = db.AuditOutcomeSuccess
-	event.Actor = &db.AuditActor{
-		Type: "user",
+	event := db.NewAuditEvent(db.AuditActor{
+		Type: db.AuditActorTypeUser,
 		ID:   strconv.Itoa(actor.ID),
 		Name: actor.Name,
-	}
+	})
+	event.Outcome = db.AuditOutcomeSuccess
 	event.Source = &db.AuditSource{
 		IP:        request.SourceIP,
 		UserAgent: request.UserAgent,

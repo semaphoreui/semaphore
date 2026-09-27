@@ -10,7 +10,16 @@ import (
 
 const AuditSchemaVersion = "1"
 
+type AuditActorType string
+
 const (
+	AuditActorTypeUser        AuditActorType = "user"
+	AuditActorTypeAnonymous   AuditActorType = "anonymous"
+	AuditActorTypeAPIToken    AuditActorType = "api_token"
+	AuditActorTypeRunner      AuditActorType = "runner"
+	AuditActorTypeSystem      AuditActorType = "system"
+	AuditActorTypeIntegration AuditActorType = "integration"
+
 	AuditEventCodeProject       = "resource.project"
 	AuditEventCodeInventory     = "resource.inventory"
 	AuditEventCodeCredential    = "resource.credential"
@@ -46,7 +55,7 @@ type AuditEvent struct {
 	Type          string          `json:"type"`
 	Action        string          `json:"action"`
 	Outcome       string          `json:"outcome"`
-	Actor         *AuditActor     `json:"actor"`
+	Actor         AuditActor      `json:"actor"`
 	Source        *AuditSource    `json:"source,omitempty"`
 	Target        *AuditTarget    `json:"target,omitempty"`
 	Scope         *AuditScope     `json:"scope,omitempty"`
@@ -57,9 +66,9 @@ type AuditEvent struct {
 }
 
 type AuditActor struct {
-	Type string `json:"type"`
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
+	Type AuditActorType `json:"type"`
+	ID   string         `json:"id,omitempty"`
+	Name string         `json:"name,omitempty"`
 }
 
 type AuditSource struct {
@@ -77,6 +86,11 @@ type AuditScope struct {
 	ProjectID string `json:"project_id"`
 }
 
-func NewAuditEvent() AuditEvent {
-	return AuditEvent{ID: uuid.NewString(), Timestamp: tz.Now(), SchemaVersion: AuditSchemaVersion}
+func NewAuditEvent(actor AuditActor) AuditEvent {
+	return AuditEvent{
+		ID:            uuid.NewString(),
+		Timestamp:     tz.Now(),
+		SchemaVersion: AuditSchemaVersion,
+		Actor:         actor,
+	}
 }

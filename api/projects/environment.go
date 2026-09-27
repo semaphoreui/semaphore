@@ -228,11 +228,6 @@ func (c *EnvironmentController) UpdateEnvironment(w http.ResponseWriter, r *http
 		return
 	}
 
-	if err := c.updateEnvironmentSecrets(env); err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
-
 	helpers.RecordResourceEvent(r, audit.ResourceEvent{
 		Resource:    audit.ResourceEnvironment,
 		Action:      audit.ActionUpdate,
@@ -241,6 +236,11 @@ func (c *EnvironmentController) UpdateEnvironment(w http.ResponseWriter, r *http
 		TargetName:  env.Name,
 		Description: fmt.Sprintf("Environment %s updated", env.Name),
 	})
+
+	if err := c.updateEnvironmentSecrets(env); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -267,11 +267,6 @@ func (c *EnvironmentController) AddEnvironment(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if err = c.updateEnvironmentSecrets(newEnv); err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
-
 	helpers.RecordResourceEvent(r, audit.ResourceEvent{
 		Resource:    audit.ResourceEnvironment,
 		Action:      audit.ActionCreate,
@@ -280,6 +275,11 @@ func (c *EnvironmentController) AddEnvironment(w http.ResponseWriter, r *http.Re
 		TargetName:  newEnv.Name,
 		Description: fmt.Sprintf("Environment %s created", newEnv.Name),
 	})
+
+	if err = c.updateEnvironmentSecrets(newEnv); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
 
 	// Reload env
 	env, err = helpers.Store(r).GetEnvironment(newEnv.ProjectID, newEnv.ID)

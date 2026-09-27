@@ -11,12 +11,14 @@ import (
 )
 
 func TestNewAuditEvent(t *testing.T) {
-	event := NewAuditEvent()
+	actor := AuditActor{Type: AuditActorTypeAnonymous}
+	event := NewAuditEvent(actor)
 	id, err := uuid.Parse(event.ID)
 	require.NoError(t, err)
 	assert.Equal(t, uuid.Version(4), id.Version())
 	assert.Equal(t, time.UTC, event.Timestamp.Location())
 	assert.Equal(t, AuditSchemaVersion, event.SchemaVersion)
+	assert.Equal(t, actor, event.Actor)
 }
 
 func TestAuditEventJSON(t *testing.T) {
@@ -30,7 +32,7 @@ func TestAuditEventJSON(t *testing.T) {
 		Type:          AuditTypeCreation,
 		Action:        AuditActionCreate,
 		Outcome:       AuditOutcomeSuccess,
-		Actor:         &AuditActor{Type: "user", ID: "42", Name: "alice"},
+		Actor:         AuditActor{Type: AuditActorTypeUser, ID: "42", Name: "alice"},
 		Target:        &AuditTarget{Type: "inventory", ID: "9", Name: "production"},
 		InstanceID:    "semaphore-prod",
 		Metadata:      json.RawMessage(`{}`),

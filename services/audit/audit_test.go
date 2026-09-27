@@ -131,7 +131,7 @@ func TestRecordResourceEnabledRecordsBothProjections(t *testing.T) {
 	assert.Equal(t, db.AuditTypeChange, auditEvent.Type)
 	assert.Equal(t, db.AuditActionUpdate, auditEvent.Action)
 	assert.Equal(t, db.AuditOutcomeSuccess, auditEvent.Outcome)
-	assert.Equal(t, &db.AuditActor{Type: "user", ID: "42", Name: "alice"}, auditEvent.Actor)
+	assert.Equal(t, db.AuditActor{Type: db.AuditActorTypeUser, ID: "42", Name: "alice"}, auditEvent.Actor)
 	assert.Equal(t, &db.AuditSource{IP: "203.0.113.10", UserAgent: "test agent"}, auditEvent.Source)
 	assert.Equal(t, &db.AuditTarget{Type: "credential", ID: "9", Name: "production"}, auditEvent.Target)
 	assert.Equal(t, &db.AuditScope{ProjectID: "7"}, auditEvent.Scope)

@@ -40,7 +40,7 @@ func TestAuditEventRejectsInvalidMetadata(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	t.Cleanup(store.Close)
 
-	invalid := db.NewAuditEvent()
+	invalid := db.NewAuditEvent(db.AuditActor{Type: db.AuditActorTypeUser, ID: "1"})
 	invalid.Metadata = []byte(`{`)
 	_, err := store.CreateAuditEvent(invalid)
 	assert.ErrorContains(t, err, "metadata is invalid JSON")
@@ -54,16 +54,24 @@ func TestAuditEventRejectsInvalidMetadata(t *testing.T) {
 	assert.Zero(t, count)
 }
 
+func TestAuditEventRejectsEmptyActorType(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	t.Cleanup(store.Close)
+
+	invalid := db.NewAuditEvent(db.AuditActor{})
+	_, err := store.CreateAuditEvent(invalid)
+	assert.ErrorContains(t, err, "actor type is required")
+}
+
 func createAuditEvent(t *testing.T, store *SqlDb) db.AuditEvent {
 	t.Helper()
-	event := db.NewAuditEvent()
+	event := db.NewAuditEvent(db.AuditActor{Type: db.AuditActorTypeUser, ID: "1"})
 	event.EventCode = db.AuditEventCodeInventory
 	event.Category = db.AuditCategoryResource
 	event.Type = db.AuditTypeCreation
 	event.Action = db.AuditActionCreate
 	event.Outcome = db.AuditOutcomeSuccess
 	event.InstanceID = "test"
-	event.Actor = &db.AuditActor{Type: "user", ID: "1"}
 	event.Source = &db.AuditSource{IP: "203.0.113.10"}
 	event.Target = &db.AuditTarget{Type: "inventory", ID: "1"}
 	event.Scope = &db.AuditScope{ProjectID: "1"}
