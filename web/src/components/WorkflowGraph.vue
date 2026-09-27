@@ -224,6 +224,16 @@ export default {
     editor.zoom_max = ZOOM_MAX;
     editor.editor_mode = this.editable ? 'edit' : 'fixed';
     editor.start();
+    // Drawflow decides what a mousedown does by the *first* class of its
+    // target (`classList[0]`): only 'parent-drawflow' or 'drawflow' start a
+    // pan. start() appends 'parent-drawflow' after our own class, so clicks
+    // that land on the container itself (any area the translated / scaled
+    // .drawflow layer no longer covers, i.e. far from the nodes) were ignored.
+    // Put Drawflow's class first; Vue never rewrites the class attribute here
+    // because the vnode's static class does not change.
+    const container = this.$refs.canvas;
+    container.classList.remove('parent-drawflow');
+    container.className = `parent-drawflow ${container.className}`.trim();
     // Our viewport math assumes the canvas scales from its top-left corner.
     editor.precanvas.style.transformOrigin = '0 0';
     this.editor = editor;

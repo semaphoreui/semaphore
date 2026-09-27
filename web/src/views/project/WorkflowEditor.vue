@@ -369,6 +369,9 @@ export default {
   async mounted() {
     window.addEventListener('keydown', this.onWindowKeyDown);
     window.addEventListener('beforeunload', this.onBeforeUnload);
+    // The editor fills the viewport exactly; drop the always-on page
+    // scrollbar Vuetify puts on <html>, its empty track shows as a strip.
+    document.documentElement.classList.add('WorkflowEditor-html');
     this.setNavMini(this.sideCollapsed);
     this.templates = await this.loadProjectResources('templates');
     await this.loadData();
@@ -376,6 +379,7 @@ export default {
   beforeDestroy() {
     window.removeEventListener('keydown', this.onWindowKeyDown);
     window.removeEventListener('beforeunload', this.onBeforeUnload);
+    document.documentElement.classList.remove('WorkflowEditor-html');
     // The collapsed navigation is an editor-only state; other pages get the
     // full drawer back regardless of what is stored.
     this.setNavMini(false);

@@ -594,6 +594,17 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+// Set by WorkflowEditor while mounted: the editor is exactly viewport-high,
+// so the page scrollbar Vuetify forces on <html> would only draw an empty track.
+html.WorkflowEditor-html {
+  overflow-y: hidden;
+  // With both axes hidden the root scroller consumes nothing, so a trackpad
+  // gesture that is not cancelled by the canvas (it starts over a control, a
+  // side panel or the palette) reaches the browser as overscroll and macOS
+  // turns it into Back / Forward navigation. Keep the gesture on the page.
+  overscroll-behavior: none;
+}
+
 .NavDrawer {
   height: 100dvh !important;
 
@@ -1088,6 +1099,9 @@ export default {
 
     darkMode(val) {
       this.$vuetify.theme.dark = val;
+      // Native scrollbars (and other browser-drawn chrome) follow the theme;
+      // otherwise a light scrollbar track shows up on dark pages.
+      document.documentElement.style.colorScheme = val ? 'dark' : 'light';
       if (val) {
         localStorage.setItem('darkMode', '1');
       } else {
