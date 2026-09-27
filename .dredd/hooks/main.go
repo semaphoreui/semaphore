@@ -143,6 +143,8 @@ func main() {
 			t.Request.Body = "{\"id\":" + strconv.Itoa(workflowID) + ",\"project_id\":" + strconv.Itoa(userProject.ID) + ",\"name\":\"workflow-updated\",\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + "},{\"id\":2,\"kind\":\"approval\",\"approval_timeout\":120}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
 		})
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions > Get workflow revisions > 200 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions/{revision_id} > Get workflow revision > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/run > Run workflow > 201 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json", capabilityWrapper("workflow_run"))
@@ -171,6 +173,8 @@ func main() {
 			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Get workflow > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions > Get workflow revisions > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions/{revision_id} > Get workflow revision > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/run > Run workflow > 201 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json",

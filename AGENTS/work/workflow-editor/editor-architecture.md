@@ -20,9 +20,16 @@ the `docs` submodule (`docs/docs/user-guide/workflows.md`, `workflow-hotkeys.svg
 - `db.WorkflowNode` — kinds `task | approval | delay | note`, `convergence_mode all|any`,
   `position_x/position_y` (`int`), `note`, `delay_seconds`; `db.WorkflowEdge.condition`
   `on_success | on_failure | always`. All in `db/sql/migrations/v2.18.15.sql`.
-- Every save is delete-and-reinsert (`writeWorkflowGraph`): node DB ids change on each PUT, edges
-  are remapped through `nodeIDMap`. Consequence: past runs' `task.workflow_node_id` dangle after an
-  edit; the run view tolerates missing nodes.
+- Revisions (2026-09-27, `TASK@1b65b07db2`, migration `v2.20.8`): nodes and edges belong to a
+  `project__workflow_revision` row and are never rewritten. Every PUT appends a revision in one
+  transaction (`createWorkflowRevision` in `pro_impl/db/sql/workflow.go`; node ids are still
+  fresh, edges remapped through `nodeIDMap`), then drops earlier revisions no run pins
+  (`deleteUnreferencedWorkflowRevisions`, fenced by the FK on `run.revision_id`). A run pins
+  `revision_id` at start; the engine and `GET runs/{id}` read the graph through
+  `GetWorkflowRevisionGraph`, so an edit neither changes a running run nor orphans past runs'
+  `task.workflow_node_id`. Runs created before the migration already lost their nodes to the old
+  delete-and-reinsert and stay without node statuses. Current revision = highest `number`, no
+  pointer column; `GET …/revisions` lists survivors with `has_runs`.
 - `pro/db.ValidateWorkflowTemplate` is the source of truth; the editor's `problems` computed is a
   mirror and must not diverge. Note nodes are skipped by validation, root detection and the runner.
 - Pro-gated: interfaces in `pro_interfaces/workflow_{ctl,svc}.go`, stubs in `pro/`, engine in
@@ -108,6 +115,9 @@ Denis rejected a custom canvas, a library swap and a second Vue 3 runtime (2026-
   multi-select, minimap — deferred; the last three need a canvas library change.
 - Stand workflow 1 shows the unsaved-changes dialog after merely selecting a node
   (`AGENTS/memory/ui-stands.md`) — unexplained.
+- Revisions UI is minimal: a "rev. N" chip and an "N active runs" chip in the editor toolbar,
+  "rev. N" in the run title. No revision history page, no diff, no restore (a restore would be a
+  new revision copied from an old one); YAML export of a revision is `TASK@9c1c9b0761`.
 - Template names are not unique per project — matters for Workflows-as-Code (`direction.md`).
 
 ## Key files and references
@@ -117,7 +127,8 @@ Denis rejected a custom canvas, a library swap and a second Vue 3 runtime (2026-
   `workflowGraph.js`, `workflowEditorPrefs.js`; pages `web/src/views/project/WorkflowEditor.vue`,
   `WorkflowRun.vue`, `Workflows.vue`; global CSS hooks in `web/src/App.vue`
   (`html.WorkflowEditor-html`).
-- Backend: `db/Workflow.go`, `db/sql/workflow.go`, `db/sql/migrations/v2.18.15.sql`,
+- Backend: `db/Workflow.go`, `db/WorkflowStore_pro.go`, `pro_impl/db/sql/workflow.go`,
+  `db/sql/migrations/v2.18.15.sql`, `v2.20.8.sql` + `db/sql/migration_2_20_8.go` (revisions),
   `pro/db/Workflow.go`, `pro_interfaces/workflow_*.go`, `api/router.go` (workflow routes).
 - Tests: `web/tests/unit/workflow*.spec.js`; Playwright checklists and screenshots in `mocks/`
   (`mocks/README.md`). Docs: `docs/docs/user-guide/workflows.md`, `docs/static/assets/workflow-*`.

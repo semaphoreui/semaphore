@@ -33,6 +33,22 @@
             />
           </span>
         </span>
+        <v-chip
+          v-if="item != null && item.revision"
+          x-small
+          outlined
+          class="ml-3"
+          :title="$t('workflowRevisionHint')"
+        >{{ $t('workflowRevisionLabel', { number: item.revision }) }}</v-chip>
+        <v-tooltip v-if="activeRuns > 0" bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-chip x-small outlined color="warning" class="ml-2" v-bind="attrs" v-on="on">
+              <v-icon x-small left>mdi-play-circle-outline</v-icon>
+              {{ $tc('workflowActiveRunsCount', activeRuns, { count: activeRuns }) }}
+            </v-chip>
+          </template>
+          <span>{{ $t('workflowActiveRunsHint') }}</span>
+        </v-tooltip>
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
@@ -242,6 +258,9 @@ export default {
       sideCollapsed: readSideCollapsed(),
       canUndo: false,
       canRedo: false,
+      // Runs still in progress: they keep executing the revision they started
+      // from, so saving is safe — the chip in the toolbar just says so.
+      activeRuns: 0,
       // JSON of the last loaded / saved model, for the unsaved-changes guard.
       savedSnapshot: null,
       leaveDialog: false,
@@ -389,6 +408,18 @@ export default {
     setNavMini(mini) {
       EventBus.$emit('i-nav-mini', { mini });
     },
+    // Informational only (see activeRuns); a failure must not block editing.
+    async loadActiveRuns() {
+      try {
+        const runs = await this.loadEndpoint(
+          `/api/project/${this.projectId}/workflows/${this.workflowId}/runs`,
+        );
+        this.activeRuns = (runs || [])
+          .filter((r) => r.status === 'running' || r.status === 'approval').length;
+      } catch (err) {
+        this.activeRuns = 0;
+      }
+    },
     getNewItem() {
       return {
         name: '',
@@ -418,6 +449,7 @@ export default {
             ...node,
           }));
           this.autoLayout();
+          this.loadActiveRuns();
         }
       } catch (err) {
         EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
@@ -626,7 +658,9 @@ export default {
           await axios.put(`/api/project/${this.projectId}/workflows/${this.workflowId}`, payload);
           EventBus.$emit('i-snackbar', { color: 'success', text: this.$t('workflowSaved') });
           this.savedSnapshot = this.modelSnapshot;
-          // No reload: keep the canvas and the selected element intact.
+          // No reload: keep the canvas and the selected element intact. Every
+          // save appends a revision, so bump the label without a round trip.
+          this.item.revision = (this.item.revision || 0) + 1;
         }
       } catch (err) {
         EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });

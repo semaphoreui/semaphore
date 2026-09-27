@@ -29,9 +29,14 @@
   `string`-type project key, and `store.CreateAccessKey` inserts the already-encrypted `Secret`.
 - `body_format` enum in `api-docs.yml` is `[text, html]`; a CI failure mentioning `json` or
   `server_enabled` is a stale binary.
-- `task dredd:docker [DB=postgres|mysql|mariadb|sqlite]` runs everything in Docker
-  (`deployment/compose/dredd/*`, `deployment/docker/dredd/`); green on postgres and sqlite
-  2026-09-23. `.dockerignore` excludes `go.work` and `pro_impl` so images build the OSS tree.
+- ⚠️ 2026-09-27: `task dredd:docker` and the `server` service of `deployment/compose/dredd/base.yml`
+  exist only on `feat/project-alerts` (commit `43e5054b8`), not on `develop` or
+  `feat/refactor_workflows`, where the compose fails with "service server has neither an image
+  nor a build context". Cherry-pick `43e5054b8` (or merge that branch) to get the Docker runner.
+  What CI actually does: `task dredd:hooks` (needs the Pro workspace) and Dredd against an OSS
+  server, where `isProBuild` skips every workflow endpoint. Locally, `task dredd:hooks` plus a
+  `js-yaml` parse of `api-docs.yml` is the cheap check. `.dockerignore` excludes `go.work` and
+  `pro_impl` so images build the OSS tree.
 - Local run without Docker: `docker run postgres:15` matching `.dredd/config.json` (db
   `semaphore_test_000071`, user `postgres`, pass `pwd`, port 5432), `npm install dredd@13.1.2` in
   `web`, `go install .../goodman`, build `bin/semaphore` and `.dredd/compiled_hooks` with

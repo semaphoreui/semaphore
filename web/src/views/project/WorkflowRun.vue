@@ -11,6 +11,13 @@
           <span v-if="details && details.run.version" class="text--secondary">
             · {{ details.run.version }}
           </span>
+          <span
+            v-if="details && details.revision"
+            class="text--secondary"
+            :title="$t('workflowRunRevisionHint')"
+          >
+            · {{ $t('workflowRevisionLabel', { number: details.revision }) }}
+          </span>
         </span>
       </v-toolbar-title>
 
@@ -318,22 +325,27 @@ export default {
     },
     async loadData() {
       try {
-        const [details, workflow, templates] = await Promise.all([
+        const [details, templates] = await Promise.all([
           axios.get(
             `/api/project/${this.projectId}/workflows/${this.workflowId}/runs/${this.runId}`,
           ),
-          // The graph is built once from the first workflow payload; later polls
-          // only refresh statuses, so the user's pan/zoom survives.
-          this.workflow
-            ? Promise.resolve({ data: this.workflow })
-            : axios.get(`/api/project/${this.projectId}/workflows/${this.workflowId}`),
           this.templates.length
             ? Promise.resolve({ data: this.templates })
             : axios.get(`/api/project/${this.projectId}/templates`),
         ]);
         this.details = details.data;
-        this.workflow = workflow.data;
         this.templates = templates.data || [];
+        // The graph comes from the revision the run pinned (not from the
+        // template's current graph, which may have been edited since) and is
+        // built once from the first payload; later polls only refresh
+        // statuses, so the user's pan/zoom survives.
+        if (!this.workflow) {
+          this.workflow = {
+            name: this.details.workflow_name,
+            nodes: (this.details.nodes || []).map((n) => n.node),
+            edges: this.details.edges || [],
+          };
+        }
       } catch (err) {
         EventBus.$emit('i-snackbar', {
           color: 'error',

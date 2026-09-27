@@ -499,6 +499,8 @@ func Route(
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.UpdateWorkflow).Methods("PUT")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.RemoveWorkflow).Methods("DELETE")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.GetWorkflow).Methods("GET")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions", workflowController.GetWorkflowRevisions).Methods("GET", "HEAD")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions/{revision_id}", workflowController.GetWorkflowRevision).Methods("GET", "HEAD")
 
 	projectWorkflowRunAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
 	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))

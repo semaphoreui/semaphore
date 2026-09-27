@@ -14,6 +14,7 @@ with `channel: 'chrome'` — stand and Playwright recipes are in `AGENTS/memory/
 | `workflow-editor/editor-{light,dark}.png`, `editor-selected-*.png`, `editor-quickadd-light.png`, `editor-legacy-*.png`, `editor-empty-light.png`, `run-{light,dark}.png` | Screenshots of the shipped UI at 1440 × 900 @2x, shot by `shoot-wf.cjs`. "Legacy" is a workflow saved without positions (auto layout). |
 | `workflow-editor/editor-interactions.png` | End state of the `interact-wf.cjs` checklist. |
 | `workflow-editor/run-approval-pending.png`, `run-delay-countdown.png` | Run view with a pending approval and the delay countdown, from `approve-wf.cjs`. |
+| `workflow-editor/editor-revision-active-run.png`, `run-after-edit.png` | Revisions (2026-09-27): the editor with the "rev. 3" and "1 active run" chips, and run #8 still rendered on its revision 1 after two later saves. Shot with `AGENTS/tools/wf-stand/shoot-run.cjs`. |
 
 ## Scripts
 
