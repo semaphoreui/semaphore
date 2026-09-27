@@ -1,17 +1,18 @@
 <template>
   <div class="object-refs-view">
     <v-alert
-      type="warning"
+        type="warning"
     >
       {{ $t('theCantBeDeletedBecauseItUsedByTheResourcesBelow', {objectTitle: objectTitle}) }}
     </v-alert>
     <div
-      v-for="s in sections"
-      class="object-refs-view__section"
-      :key="s.slug"
+        v-for="s in sections"
+        class="object-refs-view__section"
+        :key="s.slug"
     >
       <div class="object-refs-view__section-title">
-        <v-icon small class="mr-2">mdi-{{ s.icon }}</v-icon>{{ s.title }}:
+        <v-icon small class="mr-2">mdi-{{ s.icon }}</v-icon>
+        {{ s.title }}:
       </div>
 
       <div class="ml-6">
@@ -21,8 +22,8 @@
             :key="t.id"
         >
           <router-link
-            :to="`/project/${projectId}/${s.path || s.slug}/${s.pageless ? '' : t.id}`"
-            class="object-refs-view__link">{{ t.name }}</router-link>
+              :to="`/project/${projectId}/${s.path || s.slug}/${s.pageless ? '' : t.id}`"
+              class="object-refs-view__link">{{ t.name }}</router-link>
         </span>
       </div>
     </div>
@@ -77,18 +78,16 @@ export default {
         title: 'Schedules',
         icon: 'clock-outline',
       }, {
-<<<<<<< HEAD
         slug: 'alerts',
         pageless: true,
         title: 'Alerts',
         icon: 'bell-outline',
-=======
+      }, {
         slug: 'host_configs',
         path: 'host_config',
         pageless: true,
         title: 'Host config',
         icon: 'server-network',
->>>>>>> develop
       }].filter((s) => (this.objectRefs[s.slug] || []).length > 0);
     },
   },

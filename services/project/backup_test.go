@@ -367,7 +367,6 @@ func TestMakeUniqueNames(t *testing.T) {
 	assert.True(t, isUnique(items), "Not unique names")
 }
 
-<<<<<<< HEAD
 func TestBackup_AlertsRoundTrip(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
 	workflowStore := proFactory.NewWorkflowStore(store)
@@ -463,7 +462,8 @@ func TestBackup_VerifyRejectsUnknownAlertName(t *testing.T) {
 		Repositories: []BackupRepository{{Repository: db.Repository{Name: "repo"}}},
 	}
 	assert.ErrorContains(t, backup.Verify(), `alert "missing" does not exist`)
-=======
+}
+
 // TestBackupProject_HostConfig covers the credential mappings through a full
 // backup/restore cycle. Without it a restored project silently loses them and
 // its tasks lose the credentials they reach other hosts with.
@@ -671,5 +671,4 @@ func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
 		require.Len(t, hostConfigs, 1)
 		assert.Equal(t, "github.com", hostConfigs[0].Name)
 	})
->>>>>>> develop
 }

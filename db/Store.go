@@ -76,11 +76,8 @@ type ObjectReferrers struct {
 	Integrations []ObjectReferrer `json:"integrations"`
 	Schedules    []ObjectReferrer `json:"schedules"`
 	AccessKeys   []ObjectReferrer `json:"access_keys"`
-<<<<<<< HEAD
 	Alerts       []ObjectReferrer `json:"alerts"`
-=======
 	HostConfigs  []ObjectReferrer `json:"host_configs"`
->>>>>>> develop
 }
 
 type IntegrationReferrers struct {
@@ -834,21 +831,20 @@ var ViewProps = ObjectProps{
 	DefaultSortingColumn: "position",
 }
 
-<<<<<<< HEAD
 var AlertProps = ObjectProps{
 	TableName:            "project__alert",
 	Type:                 reflect.TypeFor[Alert](),
 	PrimaryColumnName:    "id",
 	DefaultSortingColumn: "name",
 	SortableColumns:      []string{"name", "type"},
-=======
+}
+
 var HostConfigProps = ObjectProps{
 	TableName:            "project__host_config",
 	Type:                 reflect.TypeFor[HostConfig](),
 	PrimaryColumnName:    "id",
 	SortableColumns:      []string{"name"},
 	DefaultSortingColumn: "name",
->>>>>>> develop
 }
 
 var GlobalRunnerProps = ObjectProps{

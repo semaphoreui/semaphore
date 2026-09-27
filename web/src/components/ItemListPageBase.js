@@ -103,11 +103,8 @@ export default {
           || this.itemRefs.inventories.length > 0
           || this.itemRefs.access_keys.length > 0
           || this.itemRefs.schedules.length > 0
-<<<<<<< HEAD
-          || (this.itemRefs.alerts || []).length > 0) {
-=======
+          || (this.itemRefs.alerts || []).length > 0
           || (this.itemRefs.host_configs || []).length > 0) {
->>>>>>> develop
           this.itemRefsDialog = true;
           return;
         }

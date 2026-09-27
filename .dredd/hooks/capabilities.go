@@ -271,16 +271,15 @@ var pathSubPatterns = []func() string{
 	func() string {
 		return strconv.Itoa(workflowNodeID)
 	}, // node_id, x-example: 20
-<<<<<<< HEAD
+
 	func() string {
 		if projectAlert == nil {
 			return "0"
 		}
 		return strconv.Itoa(projectAlert.ID)
 	}, // alert_id, x-example: 21
-=======
+
 	func() string { return strconv.Itoa(hostConfigID) }, // host_config_id, x-example: 21
->>>>>>> develop
 }
 
 // alterRequestPath with the above slice of functions
