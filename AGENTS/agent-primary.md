@@ -78,11 +78,11 @@ Suite layout — markers, layers, opt-in parts — and the exact commands; a lin
 
 - Run, check and store every task and plan in the `workbench` MCP — rules in
   `AGENTS/tasks/INDEX.md`.
-- Use workspace `WORKSPACE@…` (…) — the only one for this project.
+- Use workspace `WORKSPACE@16484a7f90` (Semaphore UI) — the only one for this project.
 - Bind it at session start, before any task call — the MCP client config does not pin it:
 
 ```
-mcp__workbench__workspace_use(workspace_code="WORKSPACE@…")
+mcp__workbench__workspace_use(workspace_code="WORKSPACE@16484a7f90")
 ```
 
 ## Research

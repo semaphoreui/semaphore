@@ -12,18 +12,10 @@ How to add, document and retire a tool — [`CREATE.md`](CREATE.md).
 
 ## Inventory
 
-Empty — no project-local tool has been added yet. The entries below are example data,
-illustrating the shape a real entry takes; replace them once an actual tool exists.
+### `wf-stand/` — run and verify workflows on the local stand
 
-### `db-query/` — ad-hoc SQL runners (example)
-
-`query_<db>.sh` — one script per database, `docker exec`s into the DB container and runs SQL as
-that database's least-privilege app user, so no client is needed on the host. SQL comes as a
-positional string, `-f FILE`, or stdin. Credentials are read out of the app's own `.env`, never a
-copy kept in the tool.
-
-### `paddle-probe/` — raw calls to a provider's API, sandbox only (example)
-
-`probe.sh <METHOD> <PATH> [body.json]` — a probe against the sandbox; the response prints as-is,
-status to stderr, body as plain JSON to stdout. The base URL is derived from the key, and the
-script refuses to run against a live key.
+`stand.sh` starts/stops/builds the `:3100` stand, `seed.sh` creates known-outcome bash
+workflows, `run.sh` starts a run and follows every node (task, approval, delay) to a terminal
+status with optional auto-approve/stop, `shoot-run.cjs` screenshots the run view. Use it instead of
+hand-written curl polling whenever a change to the workflow engine or run view must be checked
+against a real run.

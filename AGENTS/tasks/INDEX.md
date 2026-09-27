@@ -11,14 +11,14 @@ setup and is also recorded in `agent-primary.md`; keep the two in sync.
 
 | Code | Title |
 | --- | --- |
-| `WORKSPACE@…` | … |
+| `WORKSPACE@16484a7f90` | Semaphore UI |
 
 ## Rules
 
 - At the start of every session, before any other task call, bind the workspace:
 
   ```
-  mcp__workbench__workspace_use(workspace_code="WORKSPACE@…")
+  mcp__workbench__workspace_use(workspace_code="WORKSPACE@16484a7f90")
   ```
 
   then `mcp__workbench__tasks_list` for open work.

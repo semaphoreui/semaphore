@@ -24,6 +24,10 @@
   (is-file-esm crashes on a `/tmp` path without package.json).
 - Stand workflow 1 shows the unsaved-changes dialog after merely selecting a node (pre-existing,
   unexplained).
+- Config `config-wf.json` + DB `database-wf.sqlite` is the workflow stand; `AGENTS/tools/wf-stand/`
+  starts it, seeds workflows 5 "Exec happy" / 6 "Exec branches" (bash scripts from the local repo
+  `/tmp/semaphore-stand/wf-repo`) and follows a run to its end. The older workflows 1–4 reference
+  the demo repo, whose playbooks do not exist, so their tasks always end in `error`.
 
 ## Playwright recipe
 

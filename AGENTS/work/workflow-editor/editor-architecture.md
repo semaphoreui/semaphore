@@ -28,6 +28,13 @@ the `docs` submodule (`docs/docs/user-guide/workflows.md`, `workflow-hotkeys.svg
 - Pro-gated: interfaces in `pro_interfaces/workflow_{ctl,svc}.go`, stubs in `pro/`, engine in
   `pro_impl/services/server/workflow_svc.go` (gitignored, local only); `TaskRunner` calls
   `HandleWorkflowTaskCompletion` on every terminal status, so runs advance without the poll.
+- Engine facts verified on the stand (2026-09-27, `AGENTS/tools/wf-stand/`): a run is a loop of
+  "launch every ready node, re-read, repeat" under a per-run lock; approval timeouts and delay
+  expiries are resolved lazily by any progression pass (GET run, task completion, reconciler
+  every 60 s, delay sweep every 5 s) — nothing sleeps in memory. `computeWorkflowRunStatus` marks
+  the run `failed` when any task is not `success`, even if its `on_failure` branch ran and
+  succeeded; a node whose inbound conditions cannot match is simply never launched ("Not started").
+  Stop = conditional fence to `stopped` first, then force-kill of the run's tasks.
 
 ## First cut — decisions D1..D5 and the deviations
 
