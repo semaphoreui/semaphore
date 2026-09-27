@@ -279,7 +279,7 @@ var pathSubPatterns = []func() string{
 		return strconv.Itoa(projectAlert.ID)
 	}, // alert_id, x-example: 21
 
-	func() string { return strconv.Itoa(hostConfigID) }, // host_config_id, x-example: 21
+	func() string { return strconv.Itoa(hostConfigID) }, // host_config_id, x-example: 22
 }
 
 // alterRequestPath with the above slice of functions

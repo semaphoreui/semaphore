@@ -1400,7 +1400,7 @@ definitions:
           type: string
       body_format:
         type: string
-        enum: [text, html]
+        enum: [text, json, html]
       default_body:
         type: string
       server_configured:
@@ -1735,7 +1735,7 @@ parameters:
     in: path
     type: integer
     required: true
-    x-example: 21
+    x-example: 22
   user_id:
     name: user_id
     description: User ID
