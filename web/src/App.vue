@@ -594,19 +594,42 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+// Vuetify's reset forces `overflow-y: scroll` on <html>, so every page draws
+// an empty scrollbar track on the right. Show the page scrollbar only when
+// the content actually overflows. `:root` outranks Vuetify's `html` selector,
+// whose stylesheet is injected after this one.
+html:root {
+  overflow-y: auto;
+}
+
 // Set by WorkflowEditor while mounted: the editor is exactly viewport-high,
 // so the page scrollbar Vuetify forces on <html> would only draw an empty track.
 html.WorkflowEditor-html {
   overflow-y: hidden;
-  // With both axes hidden the root scroller consumes nothing, so a trackpad
-  // gesture that is not cancelled by the canvas (it starts over a control, a
-  // side panel or the palette) reaches the browser as overscroll and macOS
-  // turns it into Back / Forward navigation. Keep the gesture on the page.
+}
+
+// Chrome on macOS starts Back / Forward navigation when a trackpad gesture
+// overscrolls the viewport horizontally and the viewport's overscroll-behavior
+// propagates. The viewport takes the value from <html> (older Chrome: from
+// the viewport-defining element, possibly <body>), so set both. Every inner
+// scroll container in the editor (navigation drawer, palette, properties
+// panel, menus) cuts the scroll chain as well: a gesture that Chrome keeps
+// latched to a panel after the pointer moved onto the canvas must never
+// reach the viewport as overscroll.
+html.WorkflowEditor-html,
+html.WorkflowEditor-html body {
   overscroll-behavior: none;
+}
+
+html.WorkflowEditor-html .v-application :where(*) {
+  overscroll-behavior: contain;
 }
 
 .NavDrawer {
   height: 100dvh !important;
+  // No width animation: the drawer switches between full and icon-only
+  // together with a route change and must take its final width at once.
+  transition-property: transform, visibility;
 
   // Icon-only strip while the workflow editor has its palette collapsed.
   // The global first-child icon rule below is !important, so it has to be
@@ -626,6 +649,12 @@ html.WorkflowEditor-html {
       }
     }
   }
+}
+
+// Vuetify animates the main area's padding when the drawer width changes;
+// the drawer width itself is not animated (see .NavDrawer), so neither is this.
+.v-main {
+  transition: none;
 }
 
 .nav-item--pinnable {
@@ -923,6 +952,7 @@ import EditDialog from '@/components/EditDialog.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
 import EventBus from '@/event-bus';
+import { navMiniForPath } from '@/lib/workflowEditorPrefs';
 import socket from '@/socket';
 
 import SubscriptionForm from '@/components/SubscriptionForm.vue';
@@ -1017,8 +1047,10 @@ export default {
   data() {
     return {
       drawer: null,
-      // Icon-only navigation; driven by the workflow editor via i-nav-mini.
-      navMini: false,
+      // Icon-only navigation while the workflow editor has its palette
+      // collapsed. Derived from the route up front so the drawer renders in
+      // its final width; the editor then keeps it in sync via i-nav-mini.
+      navMini: navMiniForPath(this.$route.path),
       user: null,
       userRole: null,
       systemInfo: null,
@@ -1079,6 +1111,8 @@ export default {
     },
 
     async $route(val) {
+      this.navMini = navMiniForPath(val.path);
+
       if (val.query.t == null) {
         this.taskLogDialog = false;
       } else {

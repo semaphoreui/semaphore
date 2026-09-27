@@ -610,6 +610,19 @@ export default {
       if (!this.editor) return;
       ev.preventDefault();
       ev.stopImmediatePropagation();
+      this.handleWheel(ev);
+    },
+
+    // True when `el` is part of this graph (canvas, controls, quick-add
+    // button). Used by the editor's window-level wheel router.
+    containsElement(el) {
+      return !!el && this.$el.contains(el);
+    },
+
+    // Pans (plain wheel) or zooms towards the pointer (Ctrl / Cmd, trackpad
+    // pinch). Does not touch the event's default action: the caller decides.
+    handleWheel(ev) {
+      if (!this.editor) return;
       this.userMovedViewport = true;
       const vp = this.getViewport();
       if (ev.ctrlKey || ev.metaKey) {

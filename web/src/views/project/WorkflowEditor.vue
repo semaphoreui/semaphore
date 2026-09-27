@@ -208,9 +208,8 @@ import PermissionsCheck from '@/components/PermissionsCheck';
 import { USER_PERMISSIONS } from '@/lib/constants';
 import { layoutWorkflowNodes, needsAutoLayout } from '@/lib/workflowLayout';
 import WorkflowHistory from '@/lib/workflowHistory';
-import { cancelUnconsumedWheel } from '@/lib/wheelGuard';
-
-const SIDE_COLLAPSED_STORAGE_KEY = 'workflowEditor__sideCollapsed';
+import { routeWheel } from '@/lib/wheelGuard';
+import { readSideCollapsed, writeSideCollapsed } from '@/lib/workflowEditorPrefs';
 
 function isTypingTarget(target) {
   if (!target) return false;
@@ -241,7 +240,7 @@ export default {
       // Collapses the palette and, through App.vue, the main navigation to
       // icon-only strips. Remembered per browser; App restores the navigation
       // when the editor is left (see beforeDestroy).
-      sideCollapsed: localStorage.getItem(SIDE_COLLAPSED_STORAGE_KEY) === '1',
+      sideCollapsed: readSideCollapsed(),
       canUndo: false,
       canRedo: false,
       // JSON of the last loaded / saved model, for the unsaved-changes guard.
@@ -340,11 +339,7 @@ export default {
   },
   watch: {
     sideCollapsed(val) {
-      if (val) {
-        localStorage.setItem(SIDE_COLLAPSED_STORAGE_KEY, '1');
-      } else {
-        localStorage.removeItem(SIDE_COLLAPSED_STORAGE_KEY);
-      }
+      writeSideCollapsed(val);
       this.setNavMini(val);
     },
     '$route.params.workflowId': function reloadOnRoute() {
@@ -373,12 +368,14 @@ export default {
     // The editor fills the viewport exactly; drop the always-on page
     // scrollbar Vuetify puts on <html>, its empty track shows as a strip.
     document.documentElement.classList.add('WorkflowEditor-html');
-    // Nothing on this page scrolls except the side panels and menus, so any
+    // Nothing on this page scrolls except the side panels and menus, so a
     // wheel event they cannot take would become browser overscroll (Back /
-    // Forward on a macOS trackpad). The graph cancels its own wheel events,
-    // but a gesture may start over the toolbar, a panel or the navigation
-    // drawer and only then move onto the canvas; guard the whole window.
-    window.addEventListener('wheel', cancelUnconsumedWheel, { passive: false, capture: true });
+    // Forward on a macOS trackpad). Chrome also keeps sending a gesture to
+    // the element it started over, so the graph's own listener misses
+    // gestures that began over the drawer or a panel. One window-level
+    // router handles every wheel event by pointer position instead (see
+    // lib/wheelGuard.js).
+    window.addEventListener('wheel', this.onWindowWheel, { passive: false, capture: true });
     this.setNavMini(this.sideCollapsed);
     this.templates = await this.loadProjectResources('templates');
     await this.loadData();
@@ -387,7 +384,7 @@ export default {
     window.removeEventListener('keydown', this.onWindowKeyDown);
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     document.documentElement.classList.remove('WorkflowEditor-html');
-    window.removeEventListener('wheel', cancelUnconsumedWheel, { capture: true });
+    window.removeEventListener('wheel', this.onWindowWheel, { capture: true });
     // The collapsed navigation is an editor-only state; other pages get the
     // full drawer back regardless of what is stored.
     this.setNavMini(false);
@@ -395,6 +392,13 @@ export default {
   methods: {
     showDrawer() {
       EventBus.$emit('i-show-drawer');
+    },
+    onWindowWheel(ev) {
+      const graph = this.$refs.graph;
+      routeWheel(ev, {
+        isGraph: (el) => !!graph && graph.containsElement(el),
+        onGraph: (e) => graph.handleWheel(e),
+      });
     },
     toggleSide() {
       this.sideCollapsed = !this.sideCollapsed;

@@ -1,15 +1,25 @@
-// Wheel events nobody on the page can consume.
+// Wheel routing for a page that does not scroll itself.
 //
-// The workflow editor page does not scroll (the editor fills the viewport and
-// <html> has overflow hidden), so a trackpad gesture that no inner scroller
-// takes reaches the browser as overscroll. On macOS a horizontal overscroll is
-// Back / Forward navigation. Browsers decide that from the first wheel event
-// of a gesture, and Chrome makes the rest of the gesture non-cancelable when
-// that first event was not cancelled, so the guard has to run on every wheel
-// event, wherever the gesture starts: the canvas, a side panel, the toolbar,
-// the navigation drawer.
+// The workflow editor fills the viewport and <html> has overflow hidden, so a
+// trackpad gesture that no inner scroller takes reaches the browser as
+// overscroll, which macOS turns into Back / Forward navigation. Two Chrome
+// behaviours make a plain per-element wheel handler insufficient:
+//
+// - Target latching: every wheel event of a gesture, including the inertia
+//   tail, is dispatched to the element under the cursor when the gesture
+//   started. Moving from the navigation drawer onto the canvas mid-gesture
+//   keeps sending events to the drawer, so the canvas never sees them.
+// - Async wheel: when the first wheel event of a gesture is not cancelled, the
+//   rest of the gesture is dispatched non-cancelable and preventDefault() no
+//   longer stops the browser from scrolling (and overscrolling).
+//
+// So while the editor is open a single window-level capture listener cancels
+// every wheel event and dispatches it by the *current* pointer position:
+// over the graph it pans / zooms, over a scrollable element it scrolls that
+// element, anywhere else it is dropped.
 
 const SCROLLABLE_OVERFLOW = ['auto', 'scroll'];
+const LINE_HEIGHT = 16;
 
 function canScroll(el, axis, delta) {
   const style = window.getComputedStyle(el);
@@ -39,14 +49,41 @@ export function wheelConsumer(target, deltaX, deltaY) {
   return null;
 }
 
+// Wheel delta in CSS pixels (Firefox reports lines for a mouse wheel).
+export function wheelPixels(ev, axis) {
+  const delta = axis === 'x' ? ev.deltaX : ev.deltaY;
+  switch (ev.deltaMode) {
+    case 1: return delta * LINE_HEIGHT;
+    case 2: return delta * (axis === 'x' ? window.innerWidth : window.innerHeight);
+    default: return delta;
+  }
+}
+
+export function scrollByWheel(el, ev) {
+  el.scrollBy(wheelPixels(ev, 'x'), wheelPixels(ev, 'y'));
+}
+
 /**
- * Cancels a wheel event that no element on the page would scroll, so it does
- * not turn into browser overscroll navigation. Register on window in the
- * capture phase with { passive: false } while the page is non-scrollable.
+ * Handles one wheel event for a non-scrolling page. `isGraph(el)` tells
+ * whether the element under the pointer belongs to the graph, `onGraph(ev)`
+ * pans / zooms it. Returns what was done: 'ignored' (non-cancelable event,
+ * the gesture started before the router was installed), 'graph', 'scrolled'
+ * or 'dropped'.
  */
-export function cancelUnconsumedWheel(ev) {
-  if (!ev.cancelable || ev.defaultPrevented) return false;
-  if (wheelConsumer(ev.target, ev.deltaX, ev.deltaY)) return false;
+export function routeWheel(ev, { isGraph, onGraph }) {
+  if (!ev.cancelable) return 'ignored';
   ev.preventDefault();
-  return true;
+  const el = document.elementFromPoint(ev.clientX, ev.clientY);
+  if (el && isGraph(el)) {
+    // The graph's own listener must not handle the same event again.
+    ev.stopImmediatePropagation();
+    onGraph(ev);
+    return 'graph';
+  }
+  const scroller = wheelConsumer(el, ev.deltaX, ev.deltaY);
+  if (scroller) {
+    scrollByWheel(scroller, ev);
+    return 'scrolled';
+  }
+  return 'dropped';
 }
