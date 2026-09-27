@@ -279,6 +279,7 @@ export default {
       this.resizeObserver.observe(canvas);
     }
     canvas.addEventListener('pointerdown', this.onPointerDown);
+    canvas.addEventListener('mouseleave', this.onMouseLeave);
 
     this.buildCanvas();
   },
@@ -290,6 +291,7 @@ export default {
       this.resizeObserver = null;
     }
     if (canvas) canvas.removeEventListener('pointerdown', this.onPointerDown);
+    if (canvas) canvas.removeEventListener('mouseleave', this.onMouseLeave);
     if (canvas) {
       canvas.removeEventListener('wheel', this.onWheel, { capture: true });
       canvas.removeEventListener('contextmenu', this.onContextMenu, { capture: true });
@@ -627,6 +629,19 @@ export default {
       const canvas = this.$refs.canvas;
       if (canvas && document.activeElement !== canvas && !canvas.contains(document.activeElement)) {
         canvas.focus({ preventScroll: true });
+      }
+    },
+
+    // Drawflow listens for mouseup on its container only, so a pan / node drag /
+    // connection that leaves the canvas with the button held keeps going when
+    // the cursor comes back, even after the button was released outside.
+    // Finish the gesture at the edge instead: dragEnd commits the pan offset,
+    // snaps a dragged node and cancels a dangling connection.
+    onMouseLeave(ev) {
+      const editor = this.editor;
+      if (!editor) return;
+      if (editor.drag || editor.drag_point || editor.editor_selected || editor.connection) {
+        editor.dragEnd(ev);
       }
     },
 
