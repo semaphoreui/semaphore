@@ -963,8 +963,10 @@ export default {
     width: 100%;
     height: 100%;
     outline: none;
+    // Explicit repeat: the app's global reset sets background-repeat: no-repeat.
     background-image: radial-gradient(circle, var(--wf-dot) 1px, transparent 1px);
     background-size: $wf-grid $wf-grid;
+    background-repeat: repeat;
   }
 
   &__overlay {
