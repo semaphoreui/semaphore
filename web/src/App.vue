@@ -134,6 +134,8 @@
       width="260"
       v-model="drawer"
       mobile-breakpoint="960"
+      :mini-variant="navMini && $vuetify.breakpoint.mdAndUp"
+      mini-variant-width="60"
       v-if="$route.path.startsWith('/project/')"
       class="NavDrawer"
     >
@@ -321,7 +323,7 @@
 
       <template v-slot:append>
         <v-list class="pa-0">
-          <v-list-item>
+          <v-list-item class="NavDrawer__toolsRow">
             <div class="DarkModeSwitchWrap" :class="{ 'DarkModeSwitchWrap--dark': darkMode }">
               <v-switch
                 class="DarkModeSwitch"
@@ -594,6 +596,25 @@
 <style lang="scss">
 .NavDrawer {
   height: 100dvh !important;
+
+  // Icon-only strip while the workflow editor has its palette collapsed.
+  // The global first-child icon rule below is !important, so it has to be
+  // undone here with the same weight.
+  &.v-navigation-drawer--mini-variant {
+    .v-list-item__icon:first-child {
+      margin-right: 0 !important;
+    }
+
+    // Only the dark-mode switch survives (Vuetify hides the other children);
+    // the switch track sits left of its box, so nudge it to the middle.
+    .NavDrawer__toolsRow {
+      padding: 0;
+
+      .DarkModeSwitchWrap {
+        margin-left: 16px;
+      }
+    }
+  }
 }
 
 .nav-item--pinnable {
@@ -985,6 +1006,8 @@ export default {
   data() {
     return {
       drawer: null,
+      // Icon-only navigation; driven by the workflow editor via i-nav-mini.
+      navMini: false,
       user: null,
       userRole: null,
       systemInfo: null,
@@ -1254,6 +1277,10 @@ export default {
 
     EventBus.$on('i-show-drawer', async () => {
       this.drawer = true;
+    });
+
+    EventBus.$on('i-nav-mini', (e) => {
+      this.navMini = !!(e && e.mini);
     });
 
     EventBus.$on('i-new-project', (e) => {

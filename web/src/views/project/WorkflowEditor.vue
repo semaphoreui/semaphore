@@ -92,7 +92,7 @@
           type="button"
           class="WorkflowEditor__sideToggle"
           :title="$t(sideCollapsed ? 'workflowSidebarExpand' : 'workflowSidebarCollapse')"
-          @click="sideCollapsed = !sideCollapsed"
+          @click="toggleSide()"
         >
           <v-icon small>
             {{ sideCollapsed ? 'mdi-chevron-right' : 'mdi-chevron-left' }}
@@ -209,6 +209,8 @@ import { USER_PERMISSIONS } from '@/lib/constants';
 import { layoutWorkflowNodes, needsAutoLayout } from '@/lib/workflowLayout';
 import WorkflowHistory from '@/lib/workflowHistory';
 
+const SIDE_COLLAPSED_STORAGE_KEY = 'workflowEditor__sideCollapsed';
+
 function isTypingTarget(target) {
   if (!target) return false;
   const tag = (target.tagName || '').toLowerCase();
@@ -235,7 +237,10 @@ export default {
       selectedNodeId: null,
       editingNode: null,
       editingEdge: null,
-      sideCollapsed: false,
+      // Collapses the palette and, through App.vue, the main navigation to
+      // icon-only strips. Remembered per browser; App restores the navigation
+      // when the editor is left (see beforeDestroy).
+      sideCollapsed: localStorage.getItem(SIDE_COLLAPSED_STORAGE_KEY) === '1',
       canUndo: false,
       canRedo: false,
       // JSON of the last loaded / saved model, for the unsaved-changes guard.
@@ -333,6 +338,14 @@ export default {
     },
   },
   watch: {
+    sideCollapsed(val) {
+      if (val) {
+        localStorage.setItem(SIDE_COLLAPSED_STORAGE_KEY, '1');
+      } else {
+        localStorage.removeItem(SIDE_COLLAPSED_STORAGE_KEY);
+      }
+      this.setNavMini(val);
+    },
     '$route.params.workflowId': function reloadOnRoute() {
       if (this.skipNextRouteReload) {
         this.skipNextRouteReload = false;
@@ -356,16 +369,26 @@ export default {
   async mounted() {
     window.addEventListener('keydown', this.onWindowKeyDown);
     window.addEventListener('beforeunload', this.onBeforeUnload);
+    this.setNavMini(this.sideCollapsed);
     this.templates = await this.loadProjectResources('templates');
     await this.loadData();
   },
   beforeDestroy() {
     window.removeEventListener('keydown', this.onWindowKeyDown);
     window.removeEventListener('beforeunload', this.onBeforeUnload);
+    // The collapsed navigation is an editor-only state; other pages get the
+    // full drawer back regardless of what is stored.
+    this.setNavMini(false);
   },
   methods: {
     showDrawer() {
       EventBus.$emit('i-show-drawer');
+    },
+    toggleSide() {
+      this.sideCollapsed = !this.sideCollapsed;
+    },
+    setNavMini(mini) {
+      EventBus.$emit('i-nav-mini', { mini });
     },
     getNewItem() {
       return {
