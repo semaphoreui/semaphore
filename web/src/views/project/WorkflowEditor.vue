@@ -208,6 +208,7 @@ import PermissionsCheck from '@/components/PermissionsCheck';
 import { USER_PERMISSIONS } from '@/lib/constants';
 import { layoutWorkflowNodes, needsAutoLayout } from '@/lib/workflowLayout';
 import WorkflowHistory from '@/lib/workflowHistory';
+import { cancelUnconsumedWheel } from '@/lib/wheelGuard';
 
 const SIDE_COLLAPSED_STORAGE_KEY = 'workflowEditor__sideCollapsed';
 
@@ -372,6 +373,12 @@ export default {
     // The editor fills the viewport exactly; drop the always-on page
     // scrollbar Vuetify puts on <html>, its empty track shows as a strip.
     document.documentElement.classList.add('WorkflowEditor-html');
+    // Nothing on this page scrolls except the side panels and menus, so any
+    // wheel event they cannot take would become browser overscroll (Back /
+    // Forward on a macOS trackpad). The graph cancels its own wheel events,
+    // but a gesture may start over the toolbar, a panel or the navigation
+    // drawer and only then move onto the canvas; guard the whole window.
+    window.addEventListener('wheel', cancelUnconsumedWheel, { passive: false, capture: true });
     this.setNavMini(this.sideCollapsed);
     this.templates = await this.loadProjectResources('templates');
     await this.loadData();
@@ -380,6 +387,7 @@ export default {
     window.removeEventListener('keydown', this.onWindowKeyDown);
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     document.documentElement.classList.remove('WorkflowEditor-html');
+    window.removeEventListener('wheel', cancelUnconsumedWheel, { capture: true });
     // The collapsed navigation is an editor-only state; other pages get the
     // full drawer back regardless of what is stored.
     this.setNavMini(false);
