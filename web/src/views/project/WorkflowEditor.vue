@@ -208,7 +208,6 @@ import PermissionsCheck from '@/components/PermissionsCheck';
 import { USER_PERMISSIONS } from '@/lib/constants';
 import { layoutWorkflowNodes, needsAutoLayout } from '@/lib/workflowLayout';
 import WorkflowHistory from '@/lib/workflowHistory';
-import { routeWheel } from '@/lib/wheelGuard';
 import { readSideCollapsed, writeSideCollapsed } from '@/lib/workflowEditorPrefs';
 
 function isTypingTarget(target) {
@@ -368,14 +367,6 @@ export default {
     // The editor fills the viewport exactly; drop the always-on page
     // scrollbar Vuetify puts on <html>, its empty track shows as a strip.
     document.documentElement.classList.add('WorkflowEditor-html');
-    // Nothing on this page scrolls except the side panels and menus, so a
-    // wheel event they cannot take would become browser overscroll (Back /
-    // Forward on a macOS trackpad). Chrome also keeps sending a gesture to
-    // the element it started over, so the graph's own listener misses
-    // gestures that began over the drawer or a panel. One window-level
-    // router handles every wheel event by pointer position instead (see
-    // lib/wheelGuard.js).
-    window.addEventListener('wheel', this.onWindowWheel, { passive: false, capture: true });
     this.setNavMini(this.sideCollapsed);
     this.templates = await this.loadProjectResources('templates');
     await this.loadData();
@@ -384,7 +375,6 @@ export default {
     window.removeEventListener('keydown', this.onWindowKeyDown);
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     document.documentElement.classList.remove('WorkflowEditor-html');
-    window.removeEventListener('wheel', this.onWindowWheel, { capture: true });
     // The collapsed navigation is an editor-only state; other pages get the
     // full drawer back regardless of what is stored.
     this.setNavMini(false);
@@ -392,13 +382,6 @@ export default {
   methods: {
     showDrawer() {
       EventBus.$emit('i-show-drawer');
-    },
-    onWindowWheel(ev) {
-      const graph = this.$refs.graph;
-      routeWheel(ev, {
-        isGraph: (el) => !!graph && graph.containsElement(el),
-        onGraph: (e) => graph.handleWheel(e),
-      });
     },
     toggleSide() {
       this.sideCollapsed = !this.sideCollapsed;

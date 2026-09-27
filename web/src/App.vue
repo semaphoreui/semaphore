@@ -608,21 +608,15 @@ html.WorkflowEditor-html {
   overflow-y: hidden;
 }
 
-// Chrome on macOS starts Back / Forward navigation when a trackpad gesture
-// overscrolls the viewport horizontally and the viewport's overscroll-behavior
-// propagates. The viewport takes the value from <html> (older Chrome: from
-// the viewport-defining element, possibly <body>), so set both. Every inner
-// scroll container in the editor (navigation drawer, palette, properties
-// panel, menus) cuts the scroll chain as well: a gesture that Chrome keeps
-// latched to a panel after the pointer moved onto the canvas must never
-// reach the viewport as overscroll.
+// The page itself never scrolls in the editor, so any trackpad gesture the
+// canvas or a side panel does not take ends up as viewport overscroll, which
+// Chrome on macOS turns into Back / Forward navigation. Chrome only does that
+// when the viewport's overscroll-behavior propagates; it reads the value from
+// <html> (older versions: from the viewport-defining element, which can be
+// <body>), so set both.
 html.WorkflowEditor-html,
 html.WorkflowEditor-html body {
   overscroll-behavior: none;
-}
-
-html.WorkflowEditor-html .v-application :where(*) {
-  overscroll-behavior: contain;
 }
 
 .NavDrawer {
