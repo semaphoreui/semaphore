@@ -751,6 +751,8 @@ $worklow_pallete_width_collapsed: 60px;
     border-radius: 0 8px 8px 0;
     cursor: pointer;
     background: inherit;
+    background: white;
+
   }
 
   &__canvas {
@@ -813,7 +815,21 @@ $worklow_pallete_width_collapsed: 60px;
 
   &__side--collapsed &__paletteItem {
     justify-content: center;
-    padding: 6px;
+    padding: 0;
+  }
+
+  &__side--collapsed &__paletteTile {
+    width: 33px;
+    min-width: 33px;
+    height: 33px;
+    border-radius: 9px;
   }
 }
+
+.theme--dark {
+  .WorkflowEditor__sideToggle {
+    background: #1e1e1e;
+  }
+}
+
 </style>
