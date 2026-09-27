@@ -460,17 +460,63 @@
             />
           </DropdownCard>
 
-          <v-checkbox
-            class="mt-0"
-            :label="$t('suppressSuccessAlerts')"
-            v-model="item.suppress_success_alerts"
-          />
+          <div class="mb-4">
+            <div class="text-body-2 mb-1">{{ $t('alerts') }}</div>
 
-          <v-checkbox
-            class="mt-0"
-            :label="$t('suppressErrorAlerts')"
-            v-model="item.suppress_error_alerts"
-          />
+            <v-radio-group
+              v-model="item.alert_mode"
+              class="mt-0"
+              :disabled="formSaving"
+              dense
+              hide-details
+            >
+              <v-radio :label="$t('templateAlertsDefault')" value="default" />
+              <v-radio :label="$t('templateAlertsCustom')" value="ids" />
+            </v-radio-group>
+
+            <div v-if="item.alert_mode !== 'ids'" class="caption grey--text mt-1 mb-3">
+              {{ $t('templateAlertsDefaultHint') }}
+            </div>
+
+            <v-autocomplete
+              v-else
+              v-model="item.alert_ids"
+              :items="alerts"
+              item-value="id"
+              item-text="name"
+              :label="$t('alerts')"
+              :hint="$t('templateAlertsCustomHint')"
+              persistent-hint
+              class="mt-3 mb-3"
+              multiple
+              chips
+              small-chips
+              deletable-chips
+              :disabled="formSaving"
+              outlined
+              dense
+            >
+              <template v-slot:no-data>
+                <div class="px-4 py-2 caption">{{ $t('noAlertsYet') }}</div>
+              </template>
+            </v-autocomplete>
+
+            <v-checkbox
+              class="mt-0"
+              dense
+              hide-details
+              :label="$t('suppressSuccessAlerts')"
+              v-model="item.suppress_success_alerts"
+            />
+
+            <v-checkbox
+              class="mt-1"
+              dense
+              hide-details
+              :label="$t('suppressErrorAlerts')"
+              v-model="item.suppress_error_alerts"
+            />
+          </div>
 
           <div style="position: relative">
             <ArgsPicker :vars="args" @change="setArgs" title="CLI args" />
@@ -760,6 +806,7 @@ export default {
       inventory: null,
       repositories: null,
       environment: null,
+      alerts: [],
       views: null,
       schedules: null,
       buildTemplates: null,
@@ -1091,6 +1138,8 @@ export default {
         task_params: {},
         jwt_params: { enabled: false, audience: [], ttl: '' },
         environment_ids: [],
+        alert_mode: 'default',
+        alert_ids: [],
       };
     },
 
@@ -1106,6 +1155,7 @@ export default {
         this.schedules,
         this.views,
         this.environment,
+        this.alerts,
         templates,
         this.runnerTags,
       ] = await Promise.all([
@@ -1115,6 +1165,7 @@ export default {
         this.isNew ? [] : this.loadProjectEndpoint(`/templates/${this.itemId}/schedules`),
         this.loadProjectResources('views'),
         this.loadProjectResources('environment'),
+        this.loadProjectResources('alerts'),
         this.loadProjectResources('templates'),
         this.loadProjectResources('runner_tags'),
       ]);
@@ -1228,6 +1279,13 @@ export default {
         this.$set(this.item, 'environment_ids', []);
       }
 
+      if (!Array.isArray(this.item.alert_ids)) {
+        this.$set(this.item, 'alert_ids', []);
+      }
+      if (!this.item.alert_mode) {
+        this.$set(this.item, 'alert_mode', this.item.alert_ids.length > 0 ? 'ids' : 'default');
+      }
+
       this.args = JSON.parse(this.item.arguments || '[]');
 
       await this.loadRelativeData();
@@ -1253,6 +1311,10 @@ export default {
     },
 
     async beforeSave() {
+      if (this.item.alert_mode !== 'ids') {
+        this.item.alert_ids = [];
+      }
+
       if (this.cronFormat == null || this.cronFormat === '') {
         return;
       }

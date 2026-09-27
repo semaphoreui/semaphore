@@ -622,9 +622,12 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 		return
 	}
 
+	refs.Alerts, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.AlertProps)
+
 	// A host config refers to a key through ssh_key_id. Without this, deleting
 	// the key reports no reference and the mapping disappears with it.
 	refs.HostConfigs, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.HostConfigProps)
+
 	if err != nil {
 		return
 	}

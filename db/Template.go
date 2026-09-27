@@ -340,6 +340,14 @@ type Template struct {
 	SuppressSuccessAlerts bool `db:"suppress_success_alerts" json:"suppress_success_alerts,omitempty"`
 	SuppressErrorAlerts   bool `db:"suppress_error_alerts" json:"suppress_error_alerts,omitempty"`
 
+	// AlertMode is default (server channels enabled for the project plus
+	// project alerts marked as default) or ids (only AlertIDs; empty means
+	// this template sends nothing).
+	AlertMode string `db:"alert_mode" json:"alert_mode"`
+	// AlertIDs are used when AlertMode is ids. nil on update means the
+	// client omitted the field and the existing bindings are kept.
+	AlertIDs []int `db:"-" json:"alert_ids" backup:"-"`
+
 	App TemplateApp `db:"app" json:"app,omitempty"`
 
 	Tasks int `db:"tasks" json:"tasks" backup:"-"`
@@ -404,6 +412,19 @@ func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
 	}
 
 	return
+}
+
+// NormalizeAlerts fills the default mode (a legacy client that only sends
+// alert_ids gets ids mode) and validates it.
+func (tpl *Template) NormalizeAlerts() error {
+	if tpl.AlertMode == "" {
+		if len(tpl.AlertIDs) > 0 {
+			tpl.AlertMode = AlertModeIDs
+		} else {
+			tpl.AlertMode = AlertModeDefault
+		}
+	}
+	return ValidateAlertMode(tpl.AlertMode, AlertModeDefault, AlertModeIDs)
 }
 
 func (tpl *Template) Validate() error {
@@ -514,6 +535,16 @@ func FillTemplate(d Store, template *Template) (err error) {
 		return
 	}
 	template.EnvironmentIDs = envIDs
+
+	var alertIDs []int
+	alertIDs, err = d.GetTemplateAlerts(template.ProjectID, template.ID)
+	if err != nil {
+		return
+	}
+	template.AlertIDs = alertIDs
+	if template.AlertMode == "" {
+		template.AlertMode = AlertModeDefault
+	}
 
 	var tasks []TaskWithTpl
 	tasks, err = d.GetTemplateTasks(template.ProjectID, template.ID, RetrieveQueryParams{Count: 1})

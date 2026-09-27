@@ -2,7 +2,10 @@ package mailer
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"net"
 	"net/smtp"
@@ -23,6 +26,8 @@ const (
 		"From: {{ .From }}\r\n" +
 		"Subject: {{ .Subject }}\r\n\r\n" +
 		"{{ .Body }}"
+
+	defaultTimeout = 15 * time.Second
 )
 
 var r = strings.NewReplacer(
@@ -33,14 +38,46 @@ var r = strings.NewReplacer(
 	"%0d", "",
 )
 
+// DialFunc opens the TCP connection to the SMTP server. It exists so a
+// caller sending to a user supplied host can enforce its own outbound
+// policy (which addresses may be dialed) instead of trusting the host name.
+type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+
+// Options describes one message and the server it goes through.
+type Options struct {
+	Host string
+	Port string
+	// Secure enables authentication with Username/Password. Without TLS the
+	// connection is upgraded with STARTTLS when the server offers it.
+	Secure bool
+	// TLS connects with implicit TLS (port 465 style) instead of STARTTLS.
+	TLS      bool
+	Username string
+	Password string
+	// TLSMinVersion is "1.0" .. "1.3"; empty means 1.2.
+	TLSMinVersion string
+
+	From    string
+	To      string
+	Subject string
+	Body    string
+
+	// Dial opens the connection; nil uses net.Dialer.
+	Dial DialFunc
+
+	// RootCAs overrides the pool used to verify the server certificate.
+	// nil keeps the system pool.
+	RootCAs *x509.CertPool
+}
+
 func parseTlsVersion(version string) (uint16, error) {
 	switch version {
+	case "", "1.2":
+		return tls.VersionTLS12, nil
 	case "1.0":
 		return tls.VersionTLS10, nil
 	case "1.1":
 		return tls.VersionTLS11, nil
-	case "1.2":
-		return tls.VersionTLS12, nil
 	case "1.3":
 		return tls.VersionTLS13, nil
 	}
@@ -48,7 +85,9 @@ func parseTlsVersion(version string) (uint16, error) {
 	return 0, fmt.Errorf("unsupported TLS version %s", version)
 }
 
-// Send simply sends the defined mail via SMTP.
+// Send sends the mail through the server-wide SMTP settings semantics
+// (net.Dialer, TLS minimum version from the loaded config). Callers that
+// deliver to a user supplied host must use SendMail with a guarded Dial.
 func Send(
 	secure bool,
 	useTls bool,
@@ -61,10 +100,135 @@ func Send(
 	subject string,
 	content string,
 ) error {
+	var minVersion string
+	if util.Config != nil {
+		minVersion = util.Config.EmailTlsMinVersion
+	}
+	return SendMail(context.Background(), Options{
+		Host:          host,
+		Port:          port,
+		Secure:        secure,
+		TLS:           useTls,
+		Username:      username,
+		Password:      password,
+		TLSMinVersion: minVersion,
+		From:          from,
+		To:            to,
+		Subject:       subject,
+		Body:          content,
+	})
+}
+
+// SendMail sends one message. The whole exchange is bounded by the context
+// deadline, or by defaultTimeout when the context has none.
+func SendMail(ctx context.Context, o Options) error {
+	if strings.TrimSpace(o.Host) == "" {
+		return errors.New("smtp host is empty")
+	}
+	if o.Port == "" {
+		o.Port = "25"
+	}
+
+	from := r.Replace(o.From)
+	to := r.Replace(o.To)
+
+	body, err := render(from, to, r.Replace(o.Subject), o.Body)
+	if err != nil {
+		return err
+	}
+
+	tlsVersion, err := parseTlsVersion(o.TLSMinVersion)
+	if err != nil {
+		return err
+	}
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: false,
+		ServerName:         o.Host,
+		MinVersion:         tlsVersion,
+		RootCAs:            o.RootCAs,
+	}
+
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultTimeout)
+		defer cancel()
+	}
+
+	dial := o.Dial
+	if dial == nil {
+		dial = (&net.Dialer{Timeout: 10 * time.Second}).DialContext
+	}
+
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+	conn, err := dial(ctx, "tcp", net.JoinHostPort(o.Host, o.Port))
+	if err != nil {
+		return err
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(deadline)
+	}
+
+	if o.Secure && o.TLS {
+		// Implicit TLS: the handshake happens before any SMTP command.
+		tlsConn := tls.Client(conn, tlsConfig)
+		if err = tlsConn.HandshakeContext(ctx); err != nil {
+			_ = conn.Close()
+			return err
+		}
+		conn = tlsConn
+	}
+
+	c, err := smtp.NewClient(conn, o.Host)
+	if err != nil {
+		_ = conn.Close()
+		return err
+	}
+	defer c.Close() //nolint:errcheck
+
+	if o.Secure {
+		if !o.TLS {
+			if ok, _ := c.Extension("STARTTLS"); ok {
+				if err = c.StartTLS(tlsConfig); err != nil {
+					return err
+				}
+			}
+		}
+		if ok, _ := c.Extension("AUTH"); ok {
+			if err = c.Auth(PlainOrLoginAuth(o.Username, o.Password, o.Host)); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err = c.Mail(from); err != nil {
+		return err
+	}
+	if err = c.Rcpt(to); err != nil {
+		return err
+	}
+
+	w, err := c.Data()
+	if err != nil {
+		return err
+	}
+	if _, err = body.WriteTo(w); err != nil {
+		_ = w.Close()
+		return err
+	}
+	if err = w.Close(); err != nil {
+		return err
+	}
+
+	return c.Quit()
+}
+
+func render(from, to, subject, content string) (*bytes.Buffer, error) {
 	body := bytes.NewBufferString("")
 	tpl, err := template.New("").Parse(mailerBase)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = tpl.Execute(body, struct {
@@ -75,171 +239,13 @@ func Send(
 		Body    string
 	}{
 		Date:    tz.Now().Format(time.RFC1123),
-		To:      r.Replace(to),
-		From:    r.Replace(from),
-		Subject: r.Replace(subject),
+		To:      to,
+		From:    from,
+		Subject: subject,
 		Body:    content,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	if secure {
-		if useTls {
-			return sendTls(
-				host,
-				port,
-				username,
-				password,
-				from,
-				to,
-				body,
-			)
-		} else {
-			return plainauth(
-				host,
-				port,
-				username,
-				password,
-				from,
-				to,
-				body,
-			)
-		}
-	}
-
-	return anonymous(
-		host,
-		port,
-		from,
-		to,
-		body,
-	)
-}
-
-func plainauth(
-	host string,
-	port string,
-	username string,
-	password string,
-	from string,
-	to string,
-	body *bytes.Buffer,
-) error {
-	auth := PlainOrLoginAuth(username, password, host)
-	// auth := smtp.PlainAuth("", username, password, host)
-
-	return smtp.SendMail(
-		net.JoinHostPort(host, port),
-		auth,
-		from,
-		[]string{to},
-		body.Bytes(),
-	)
-}
-
-func sendTls(
-	host,
-	port,
-	username,
-	password,
-	from,
-	to string,
-	body *bytes.Buffer,
-) error {
-	auth := PlainOrLoginAuth(username, password, host)
-
-	tlsVersion, err := parseTlsVersion(util.Config.EmailTlsMinVersion)
-	if err != nil {
-		return err
-	}
-
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: false,
-		ServerName:         host,
-		MinVersion:         tlsVersion,
-	}
-
-	// Here is the key, you need to call tls.Dial instead of smtp.Dial
-	// for smtp servers running on 465 that require an ssl connection
-	// from the very beginning (no starttls)
-	conn, err := tls.Dial("tcp", net.JoinHostPort(host, port), tlsConfig)
-	if err != nil {
-		return err
-	}
-
-	c, err := smtp.NewClient(conn, host)
-	if err != nil {
-		return err
-	}
-
-	if err = c.Auth(auth); err != nil {
-		return err
-	}
-
-	if err = c.Mail(from); err != nil {
-		return err
-	}
-
-	if err = c.Rcpt(to); err != nil {
-		return err
-	}
-
-	w, err := c.Data()
-	if err != nil {
-		return err
-	}
-
-	_, err = w.Write(body.Bytes())
-	if err != nil {
-		return err
-	}
-
-	err = w.Close()
-	if err != nil {
-		return err
-	}
-
-	err = c.Quit()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func anonymous(
-	host string,
-	port string,
-	from string,
-	to string,
-	body *bytes.Buffer,
-) error {
-	c, err := smtp.Dial(net.JoinHostPort(host, port))
-	if err != nil {
-		return err
-	}
-
-	defer c.Close() //nolint:errcheck
-
-	if err := c.Mail(r.Replace(from)); err != nil {
-		return err
-	}
-
-	if err = c.Rcpt(r.Replace(to)); err != nil {
-		return err
-	}
-
-	w, err := c.Data()
-	if err != nil {
-		return err
-	}
-
-	defer w.Close() //nolint:errcheck
-
-	if _, err := body.WriteTo(w); err != nil {
-		return err
-	}
-
-	return nil
+	return body, nil
 }

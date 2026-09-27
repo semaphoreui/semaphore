@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/go-gorp/gorp/v3"
@@ -79,15 +80,82 @@ func TestPrepareMigration_MysqlKeepsDropTableIfExists(t *testing.T) {
 	}
 }
 
-// TestMigration_2_20_6_RollbackIsNoop: the rollback file is intentionally
-// empty. A comment-only file would be sent as a statement, and MySQL rejects
-// a comment-only query with "Query was empty".
-func TestMigration_2_20_6_RollbackIsNoop(t *testing.T) {
+// TestMigration_2_20_6_RollbackHasNoCommentOnlyStatements: a statement that
+// consists of comments only is sent to the server as is, and MySQL rejects
+// it with "Query was empty". Blank statements are skipped by the runner.
+func TestMigration_2_20_6_RollbackHasNoCommentOnlyStatements(t *testing.T) {
 	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
 		t.Run(dialect, func(t *testing.T) {
+			var statements int
 			for _, q := range getVersionSQL(dialect, "v2.20.6.err.sql", false) {
-				assert.Empty(t, q)
+				if q == "" {
+					continue
+				}
+				statements++
+				var code []string
+				for _, line := range strings.Split(q, "\n") {
+					line = strings.TrimSpace(line)
+					if line != "" && !strings.HasPrefix(line, "--") {
+						code = append(code, line)
+					}
+				}
+				assert.NotEmpty(t, code, "comment-only statement: %q", q)
 			}
+			assert.Greater(t, statements, 0)
 		})
+	}
+}
+
+// TestMigration_2_20_6_Rollback undoes the alert tables and columns the
+// migration adds, and the migration applies again afterwards.
+func TestMigration_2_20_6_Rollback(t *testing.T) {
+	store := InitConfigCreateTestStoreAt(nil)
+
+	tables := []string{"project__alert", "project__template_alert", "project__schedule_alert", "task__alert_send"}
+	columns := map[string]string{
+		"project__template": "alert_mode",
+		"project__schedule": "alert_mode",
+		"task":              "alert_snapshot",
+	}
+
+	tableExists := func(name string) bool {
+		n, err := store.Sql().SelectInt(
+			"select count(*) from sqlite_master where type = 'table' and name = ?", name)
+		require.NoError(t, err)
+		return n == 1
+	}
+	columnExists := func(table, column string) bool {
+		n, err := store.Sql().SelectInt(
+			"select count(*) from pragma_table_info(?) where name = ?", table, column)
+		require.NoError(t, err)
+		return n == 1
+	}
+
+	for _, name := range tables {
+		require.True(t, tableExists(name), name)
+	}
+	for table, column := range columns {
+		require.True(t, columnExists(table, column), table+"."+column)
+	}
+
+	require.NoError(t, db.Rollback(store, "2.20.5"))
+
+	for _, name := range tables {
+		assert.False(t, tableExists(name), name)
+	}
+	for table, column := range columns {
+		assert.False(t, columnExists(table, column), table+"."+column)
+	}
+	applied, err := store.IsMigrationApplied(db.Migration{Version: "2.20.6"})
+	require.NoError(t, err)
+	assert.False(t, applied)
+
+	require.NoError(t, db.Migrate(store, nil))
+
+	for _, name := range tables {
+		assert.True(t, tableExists(name), name)
+	}
+	for table, column := range columns {
+		assert.True(t, columnExists(table, column), table+"."+column)
 	}
 }

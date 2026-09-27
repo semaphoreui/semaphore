@@ -45,6 +45,13 @@ func (d *SqlDb) CreateTemplate(tmpl db.Template) (db.Template, error) {
 
 	tmpl.ApplyLegacyEnvironmentField()
 
+	if err := tmpl.NormalizeAlerts(); err != nil {
+		return db.Template{}, err
+	}
+	if err := d.validateAlertIDs(tmpl.ProjectID, tmpl.AlertIDs); err != nil {
+		return db.Template{}, err
+	}
+
 	query, args, err := sq.Insert("project__template").
 		SetMap(map[string]any{
 			"project_id":                    tmpl.ProjectID,
@@ -64,6 +71,7 @@ func (d *SqlDb) CreateTemplate(tmpl db.Template) (db.Template, error) {
 			"survey_vars":                   db.ObjectToJSON(tmpl.SurveyVars),
 			"suppress_success_alerts":       tmpl.SuppressSuccessAlerts,
 			"suppress_error_alerts":         tmpl.SuppressErrorAlerts,
+			"alert_mode":                    tmpl.AlertMode,
 			"app":                           tmpl.App,
 			"git_branch":                    tmpl.GitBranch,
 			"runner_tag":                    tmpl.RunnerTag,
@@ -93,6 +101,12 @@ func (d *SqlDb) CreateTemplate(tmpl db.Template) (db.Template, error) {
 		return db.Template{}, err
 	}
 
+	if tmpl.AlertMode == db.AlertModeIDs {
+		if err = d.UpdateTemplateAlerts(tmpl.ProjectID, tmplId, tmpl.AlertIDs); err != nil {
+			return db.Template{}, err
+		}
+	}
+
 	tmpl.ID = tmplId
 	if err = db.FillTemplate(d, &tmpl); err != nil {
 		return db.Template{}, err
@@ -108,6 +122,22 @@ func (d *SqlDb) UpdateTemplate(tmpl db.Template) error {
 	}
 
 	if err = d.validateTemplateNameIsFree(tmpl.ProjectID, tmpl.ID, tmpl.Name); err != nil {
+		return err
+	}
+
+	// A client that omits alert_mode (older API consumers) keeps the stored
+	// mode, unless it sent alert_ids, which implies ids mode.
+	if tmpl.AlertMode == "" && tmpl.AlertIDs == nil {
+		var curr db.Template
+		if err = d.getObject(tmpl.ProjectID, db.TemplateProps, tmpl.ID, &curr); err != nil {
+			return err
+		}
+		tmpl.AlertMode = curr.AlertMode
+	}
+	if err = tmpl.NormalizeAlerts(); err != nil {
+		return err
+	}
+	if err = d.validateAlertIDs(tmpl.ProjectID, tmpl.AlertIDs); err != nil {
 		return err
 	}
 
@@ -129,6 +159,7 @@ func (d *SqlDb) UpdateTemplate(tmpl db.Template) error {
 			"survey_vars":                   db.ObjectToJSON(tmpl.SurveyVars),
 			"suppress_success_alerts":       tmpl.SuppressSuccessAlerts,
 			"suppress_error_alerts":         tmpl.SuppressErrorAlerts,
+			"alert_mode":                    tmpl.AlertMode,
 			"app":                           tmpl.App,
 			"`git_branch`":                  tmpl.GitBranch,
 			"task_params":                   tmpl.TaskParams,
@@ -158,7 +189,19 @@ func (d *SqlDb) UpdateTemplate(tmpl db.Template) error {
 	}
 
 	tmpl.ApplyLegacyEnvironmentField()
-	return d.UpdateTemplateEnvironments(tmpl.ProjectID, tmpl.ID, tmpl.EnvironmentIDs)
+	if err = d.UpdateTemplateEnvironments(tmpl.ProjectID, tmpl.ID, tmpl.EnvironmentIDs); err != nil {
+		return err
+	}
+
+	// Default mode never keeps explicit bindings so alert refs stay accurate.
+	// In ids mode a nil list means "field omitted": keep what is stored.
+	if tmpl.AlertMode != db.AlertModeIDs {
+		return d.UpdateTemplateAlerts(tmpl.ProjectID, tmpl.ID, nil)
+	}
+	if tmpl.AlertIDs != nil {
+		return d.UpdateTemplateAlerts(tmpl.ProjectID, tmpl.ID, tmpl.AlertIDs)
+	}
+	return nil
 }
 
 func (d *SqlDb) GetTemplateEnvironments(projectID int, templateID int) (environmentIDs []int, err error) {
@@ -287,6 +330,7 @@ func (d *SqlDb) getTemplates(
 		"pt.executor_image",
 		"pt.suppress_success_alerts",
 		"pt.suppress_error_alerts",
+		"pt.alert_mode",
 		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id",
 	}
 
@@ -419,6 +463,14 @@ func (d *SqlDb) getTemplates(
 		template.EnvironmentIDs, err = d.GetTemplateEnvironments(projectID, template.ID)
 		if err != nil {
 			return
+		}
+
+		template.AlertIDs, err = d.GetTemplateAlerts(projectID, template.ID)
+		if err != nil {
+			return
+		}
+		if template.AlertMode == "" {
+			template.AlertMode = db.AlertModeDefault
 		}
 
 		// For backward compatibility

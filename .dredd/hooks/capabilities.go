@@ -41,6 +41,7 @@ var integrationMatchID int
 var workflowID int
 var workflowRunID int
 var workflowNodeID int
+var projectAlert *db.Alert
 
 var capabilities = map[string][]string{
 	"user":                    {},
@@ -53,6 +54,7 @@ var capabilities = map[string][]string{
 	"task":                    {"template"},
 	"schedule":                {"template"},
 	"view":                    {},
+	"alert":                   {"project"},
 	"integration":             {"project", "template"},
 	"integrationextractvalue": {"integration"},
 	"integrationmatcher":      {"integration"},
@@ -99,6 +101,8 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			schedule = addSchedule()
 		case "view":
 			view = addView()
+		case "alert":
+			projectAlert = addAlert()
 		case "user":
 			userPathTestUser = addUser()
 		case "project":
@@ -267,7 +271,15 @@ var pathSubPatterns = []func() string{
 	func() string {
 		return strconv.Itoa(workflowNodeID)
 	}, // node_id, x-example: 20
-	func() string { return strconv.Itoa(hostConfigID) }, // host_config_id, x-example: 21
+
+	func() string {
+		if projectAlert == nil {
+			return "0"
+		}
+		return strconv.Itoa(projectAlert.ID)
+	}, // alert_id, x-example: 21
+
+	func() string { return strconv.Itoa(hostConfigID) }, // host_config_id, x-example: 22
 }
 
 // alterRequestPath with the above slice of functions
@@ -312,6 +324,9 @@ func alterRequestBody(t *trans.Transaction) {
 
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("environment_ids", []int{environmentID}, &request)
+	// Dredd fills integer arrays with a dummy ID; an empty list keeps the
+	// request valid without binding a fixture alert of another project.
+	bodyFieldProcessor("alert_ids", []int{}, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
 	bodyFieldProcessor("repository_id", repoID, &request)
 	bodyFieldProcessor("template_id", templateID, &request)
@@ -336,10 +351,11 @@ func alterRequestBody(t *trans.Transaction) {
 		bodyFieldProcessor("matcher_id", integrationmatch.ID, &request)
 	}
 
-	// Inject object ID to body for PUT requests
+	// Inject object ID to body for PUT requests. Sub-resource paths such as
+	// /alerts/{id}/active carry the ID one segment earlier.
 	if strings.ToLower(t.Request.Method) == "put" {
 
-		putRequestPathRE := regexp.MustCompile(`\w+/(\d+)/?$`)
+		putRequestPathRE := regexp.MustCompile(`\w+/(\d+)(?:/[a-z_]+)?/?$`)
 		m := putRequestPathRE.FindStringSubmatch(t.FullPath)
 		if len(m) > 0 {
 			objectID, err := strconv.Atoi(m[1])

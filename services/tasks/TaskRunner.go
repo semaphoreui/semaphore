@@ -50,8 +50,6 @@ type TaskRunner struct {
 	currentState  any
 
 	users        []int
-	alert        bool
-	alertChat    *string
 	pool         *TaskPool
 	keyInstaller db_lib.AccessKeyInstaller
 
@@ -491,15 +489,6 @@ func (t *TaskRunner) populateDetails() error {
 	if err != nil {
 		return t.prepareError(err, "Template not found!")
 	}
-
-	// get project alert setting
-	project, err := t.pool.store.GetProject(t.Template.ProjectID)
-	if err != nil {
-		return t.prepareError(err, "Project not found!")
-	}
-
-	t.alert = project.Alert
-	t.alertChat = project.AlertChat
 
 	// get project users
 	projectUsers, err := t.pool.store.GetProjectUsers(t.Template.ProjectID, db.RetrieveQueryParams{})

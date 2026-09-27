@@ -92,6 +92,10 @@ type Task struct {
 
 	// Limit is deprecated, use Params.Limit instead
 	Limit string `db:"-" json:"limit"`
+
+	// AlertSnapshot is the alerting decision frozen at creation time.
+	// See AlertSnapshot for why it lives on the task.
+	AlertSnapshot *AlertSnapshot `db:"alert_snapshot" json:"alert_snapshot,omitempty"`
 }
 
 func (task *Task) ExtractParams(target any) (err error) {

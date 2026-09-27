@@ -80,6 +80,19 @@ func (e *TaskExporter) restoreValue(val EntityObject[db.Task], store db.Store, e
 		return err
 	}
 
+	if old.AlertSnapshot != nil {
+		old.AlertSnapshot.AlertIDs, err = mapAlertIDsOpt(exporter, val.scope, old.AlertSnapshot.AlertIDs, true)
+		if err != nil {
+			return err
+		}
+		for i := range old.AlertSnapshot.Deliveries {
+			old.AlertSnapshot.Deliveries[i].KeyID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.AlertSnapshot.Deliveries[i].KeyID, e)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	newObj, err := store.CreateTask(old, 0)
 	if err != nil {
 		return err
@@ -97,5 +110,5 @@ func (e *TaskExporter) exportDependsOn() []string {
 }
 
 func (e *TaskExporter) importDependsOn() []string {
-	return []string{Project, Template, Inventory, Integration, Schedule, User}
+	return []string{Project, Template, Inventory, Integration, Schedule, User, Alert}
 }

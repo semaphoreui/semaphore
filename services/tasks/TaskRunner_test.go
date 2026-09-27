@@ -118,6 +118,7 @@ func newTaskRunnerRunFixture(t *testing.T) taskRunnerRunFixture {
 		&mockLogWriteService{},
 		nil,
 		nil,
+		nil,
 	)
 	// finishRun publishes an event after persisting the terminal status. A
 	// buffered channel keeps these tests independent of TaskPool.Run.
