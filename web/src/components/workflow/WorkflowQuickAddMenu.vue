@@ -158,6 +158,31 @@ export default {
   &__list {
     max-height: 320px;
     overflow-y: auto;
+    // Thin translucent scrollbar: the default one is a solid white bar on the
+    // dark menu. The thumb only shows up while the list is hovered.
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 3px;
+    }
+
+    &:hover {
+      scrollbar-color: rgba(127, 127, 127, 0.4) transparent;
+
+      &::-webkit-scrollbar-thumb {
+        background: rgba(127, 127, 127, 0.4);
+      }
+    }
   }
 
   &__subheader {
