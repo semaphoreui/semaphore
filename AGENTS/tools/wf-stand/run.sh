@@ -19,7 +19,7 @@ api() { local m=$1 p=$2 d=${3:-}
 rm -f "$JAR"; api POST /auth/login '{"auth":"admin","password":"admin123"}' > /dev/null
 
 if [ -z "$RUN" ]; then
-  RUN=$(api POST "/project/$PID/workflows/$WF/run" '{}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+  RUN=$(api POST "/project/$PID/workflows/$WF/runs" '{}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
   echo "run $RUN started (workflow $WF) — UI: $BASE/project/$PID/workflows/$WF/runs/$RUN"
 fi
 

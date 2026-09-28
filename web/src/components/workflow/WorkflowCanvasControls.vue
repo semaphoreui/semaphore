@@ -5,6 +5,7 @@
         <button
           type="button"
           class="WorkflowCanvasControls__btn"
+          :aria-label="item.title"
           v-bind="attrs"
           v-on="on"
           @click="$emit(item.event)"
