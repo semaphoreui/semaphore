@@ -131,6 +131,29 @@ describe('WorkflowNodeCard.vue', () => {
   });
 
   describe('run view', () => {
+    ['confirmed', 'rejected'].forEach((status) => {
+      it(`does not show a terminal icon for task ${status}`, () => {
+        const w = mountCard({ id: 1, kind: 'task', template_id: 7 }, {
+          runs: { 1: { status } },
+        }, false);
+        expect(w.find('.WorkflowNodeCard__status .mdi-clock-outline').exists()).to.equal(true);
+        expect(w.find('.WorkflowNodeCard__status .mdi-check-circle').exists()).to.equal(false);
+        expect(w.find('.WorkflowNodeCard__status .mdi-close-circle').exists()).to.equal(false);
+        w.destroy();
+      });
+    });
+
+    ['approved', 'rejected'].forEach((status) => {
+      it(`shows a terminal icon for approval ${status}`, () => {
+        const w = mountCard({ id: 2, kind: 'approval' }, {
+          runs: { 2: { status } },
+        }, false);
+        const icon = status === 'approved' ? 'mdi-check-circle' : 'mdi-close-circle';
+        expect(w.find(`.WorkflowNodeCard__status .${icon}`).exists()).to.equal(true);
+        w.destroy();
+      });
+    });
+
     it('shows a success icon and the duration', () => {
       const w = mountCard({ id: 1, kind: 'task', template_id: 7 }, {
         runs: {
