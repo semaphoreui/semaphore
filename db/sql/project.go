@@ -93,6 +93,11 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		"delete from project__user where project_id=?",
 		"delete from project__repository where project_id=?",
 		"delete from project__inventory where project_id=?",
+		// Before the keys: a mapping references access_key without an ON DELETE
+		// action, so the key deletion below is rejected while one still exists.
+		// The restriction stays, so deleting a key on its own still reports the
+		// mappings using it.
+		"delete from project__host_config where project_id=?",
 		"delete from access_key where project_id=?",
 		"delete from project where id=?",
 	}

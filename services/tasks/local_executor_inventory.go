@@ -67,10 +67,11 @@ func (t *LocalExecutor) cloneInventoryRepo(keyInstaller db_lib.AccessKeyInstalle
 	t.Log("cloning inventory repository")
 
 	repo := db_lib.GitRepository{
-		Logger:     t.Logger,
-		TmpDirName: t.tmpInventoryFilename(),
-		Repository: *t.Inventory.Repository,
-		Client:     db_lib.CreateDefaultGitClient(keyInstaller),
+		Logger:      t.Logger,
+		TmpDirName:  t.tmpInventoryFilename(),
+		Repository:  *t.Inventory.Repository,
+		Client:      db_lib.CreateDefaultGitClient(keyInstaller),
+		HostConfigs: t.hostConfigInstallation,
 	}
 
 	// Parallel tasks of the same template share this inventory directory —
@@ -138,4 +139,9 @@ func (t *LocalExecutor) destroyKeys() {
 			t.Log("Can't destroy inventory vault password file, error: " + err.Error())
 		}
 	}
+
+	// The generated ssh config names the sockets of these agents, so it goes
+	// with them.
+	t.hostConfigInstallation.Destroy()
+	t.hostConfigInstallation = nil
 }

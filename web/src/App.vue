@@ -1160,6 +1160,12 @@ export default {
             to: `${base}/repositories`,
           },
           {
+            key: 'host_config',
+            icon: 'mdi-server-network',
+            title: this.$t('hostConfig'),
+            to: `${base}/host_config`,
+          },
+          {
             key: 'integrations',
             icon: 'mdi-connection',
             title: this.$t('integrations'),
