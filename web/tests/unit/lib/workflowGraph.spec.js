@@ -127,10 +127,13 @@ describe('lib/workflowGraph', () => {
   describe('statusKind', () => {
     const tests = [
       { status: 'success', expected: 'success' },
-      { status: 'approved', expected: 'success' },
+      { status: 'approved', kind: 'approval', expected: 'success' },
       { status: 'error', expected: 'error' },
       { status: 'stopped', expected: 'error' },
-      { status: 'rejected', expected: 'error' },
+      { status: 'rejected', kind: 'approval', expected: 'error' },
+      { status: 'confirmed', expected: 'waiting' },
+      { status: 'rejected', expected: 'waiting' },
+      { status: 'waiting_confirmation', expected: 'waiting' },
       { status: 'running', expected: 'running' },
       { status: 'starting', expected: 'running' },
       { status: 'waiting', expected: 'waiting' },
@@ -138,15 +141,21 @@ describe('lib/workflowGraph', () => {
       { status: undefined, expected: null },
       { status: 'weird', expected: null },
     ];
-    tests.forEach(({ status, expected }) => {
-      it(`${status} -> ${expected}`, () => {
-        expect(statusKind(status)).to.equal(expected);
+    tests.forEach(({ status, kind, expected }) => {
+      it(`${kind || 'task'} ${status} -> ${expected}`, () => {
+        expect(statusKind(status, kind)).to.equal(expected);
       });
     });
 
     it('isFinishedStatus is true only for terminal states', () => {
       expect(isFinishedStatus('success')).to.equal(true);
       expect(isFinishedStatus('error')).to.equal(true);
+      expect(isFinishedStatus('stopped')).to.equal(true);
+      expect(isFinishedStatus('approved', 'approval')).to.equal(true);
+      expect(isFinishedStatus('rejected', 'approval')).to.equal(true);
+      expect(isFinishedStatus('confirmed')).to.equal(false);
+      expect(isFinishedStatus('rejected')).to.equal(false);
+      expect(isFinishedStatus('waiting_confirmation')).to.equal(false);
       expect(isFinishedStatus('running')).to.equal(false);
       expect(isFinishedStatus(null)).to.equal(false);
     });
@@ -165,6 +174,22 @@ describe('lib/workflowGraph', () => {
     tests.forEach(({ condition, status, expected }) => {
       it(`${condition} after ${status} -> ${expected}`, () => {
         expect(edgeConditionMet(condition, status)).to.equal(expected);
+      });
+    });
+
+    ['waiting_confirmation', 'confirmed', 'rejected'].forEach((status) => {
+      ['on_success', 'on_failure', 'always'].forEach((condition) => {
+        it(`does not take ${condition} after task ${status}`, () => {
+          expect(edgeConditionMet(condition, status)).to.equal(false);
+        });
+      });
+    });
+
+    ['approved', 'rejected'].forEach((status) => {
+      it(`evaluates conditions after approval ${status}`, () => {
+        expect(edgeConditionMet('always', status, 'approval')).to.equal(true);
+        expect(edgeConditionMet('on_success', status, 'approval')).to.equal(status === 'approved');
+        expect(edgeConditionMet('on_failure', status, 'approval')).to.equal(status === 'rejected');
       });
     });
   });
@@ -214,6 +239,35 @@ describe('lib/workflowGraph', () => {
     tests.forEach((tt) => {
       it(tt.name, () => {
         expect(edgeRunState(tt.edge, tt.runs)).to.equal(tt.expected);
+      });
+    });
+
+    ['confirmed', 'rejected'].forEach((status) => {
+      ['on_success', 'on_failure', 'always'].forEach((condition) => {
+        ['running', 'success'].forEach((destStatus) => {
+          it(`dims ${condition} from task ${status} to ${destStatus}`, () => {
+            const runs = { 1: { status }, 2: { status: destStatus } };
+            expect(edgeRunState(e(condition), runs)).to.equal('dim');
+          });
+        });
+      });
+
+      it(`keeps an incoming edge active for task ${status}`, () => {
+        const runs = { 1: { status: 'success' }, 2: { status } };
+        expect(edgeRunState(e(), runs)).to.equal('active');
+      });
+    });
+
+    ['approved', 'rejected'].forEach((status) => {
+      const condition = status === 'approved' ? 'on_success' : 'on_failure';
+      it(`activates the matching edge after approval ${status}`, () => {
+        const runs = { 1: { status }, 2: { status: 'running' } };
+        expect(edgeRunState(e(condition), runs, { 1: { kind: 'approval' } })).to.equal('active');
+      });
+
+      it(`marks an incoming edge passed for approval ${status}`, () => {
+        const runs = { 1: { status: 'success' }, 2: { status } };
+        expect(edgeRunState(e(), runs, { 2: { kind: 'approval' } })).to.equal('passed');
       });
     });
   });

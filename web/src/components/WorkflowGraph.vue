@@ -919,7 +919,8 @@ export default {
           if (!svg) return;
 
           const edge = { source_node_id: source, destination_node_id: dest, condition };
-          const state = this.editable ? null : edgeRunState(edge, this.store.runs);
+          const state = this.editable
+            ? null : edgeRunState(edge, this.store.runs, this.store.nodes);
 
           CONDITIONS.forEach((c) => svg.classList.remove(`WorkflowGraph__conn--${c}`));
           EDGE_STATES.forEach((s) => svg.classList.remove(`WorkflowGraph__conn--${s}`));

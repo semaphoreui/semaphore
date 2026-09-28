@@ -137,7 +137,7 @@ export default {
       return this.run ? this.run.status : null;
     },
     statusKind() {
-      return statusKind(this.status);
+      return statusKind(this.status, this.kind);
     },
     problem() {
       return (this.store.problems || {})[this.nodeId] || null;
