@@ -55,3 +55,18 @@ func TestAuditEventJSON(t *testing.T) {
 		"metadata":{}
 	}`, string(payload))
 }
+
+func TestAuditEventValidateRejectsInvalidMetadata(t *testing.T) {
+	event := NewAuditEvent(AuditActor{Type: AuditActorTypeAnonymous})
+	event.EventCode = "auth.login"
+	event.Category = "authentication"
+	event.Type = "authentication"
+	event.Action = "login"
+	event.Outcome = "failure"
+	event.InstanceID = "test"
+	event.Metadata = json.RawMessage(`{`)
+
+	err := event.Validate()
+
+	assert.ErrorContains(t, err, "metadata is invalid JSON")
+}

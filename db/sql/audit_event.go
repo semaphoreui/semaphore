@@ -1,8 +1,8 @@
 package sql
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -35,11 +35,8 @@ type auditEventRow struct {
 }
 
 func (d *SqlDb) CreateAuditEvent(event db.AuditEvent) (db.AuditEvent, error) {
-	if event.Actor.Type == "" {
-		return db.AuditEvent{}, errors.New("create audit event: actor type is required")
-	}
-	if len(event.Metadata) > 0 && !json.Valid(event.Metadata) {
-		return db.AuditEvent{}, errors.New("create audit event: metadata is invalid JSON")
+	if err := event.Validate(); err != nil {
+		return db.AuditEvent{}, fmt.Errorf("create audit event: %w", err)
 	}
 	row := auditEventToRow(event)
 	tx, err := d.Sql().Begin()

@@ -2,6 +2,8 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
@@ -93,4 +95,60 @@ func NewAuditEvent(actor AuditActor) AuditEvent {
 		SchemaVersion: AuditSchemaVersion,
 		Actor:         actor,
 	}
+}
+
+func (event AuditEvent) Validate() error {
+	if !isUUIDv4(event.ID) {
+		return fmt.Errorf("event ID must be a UUIDv4")
+	}
+	if event.Timestamp.IsZero() || event.Timestamp.Location() != time.UTC {
+		return fmt.Errorf("timestamp must be UTC")
+	}
+	if event.SchemaVersion != AuditSchemaVersion {
+		return fmt.Errorf("schema version must be %q", AuditSchemaVersion)
+	}
+	for _, field := range []struct {
+		name  string
+		value string
+	}{
+		{"event code", event.EventCode},
+		{"category", event.Category},
+		{"type", event.Type},
+		{"action", event.Action},
+		{"outcome", event.Outcome},
+		{"actor type", string(event.Actor.Type)},
+		{"instance ID", event.InstanceID},
+	} {
+		if field.value == "" {
+			return fmt.Errorf("%s is required", field.name)
+		}
+	}
+	if event.Source != nil {
+		if _, err := netip.ParseAddr(event.Source.IP); err != nil {
+			return fmt.Errorf("source IP is invalid")
+		}
+	}
+	if event.Target != nil {
+		if event.Target.Type == "" {
+			return fmt.Errorf("target type is required")
+		}
+		if event.Target.ID == "" {
+			return fmt.Errorf("target ID is required")
+		}
+	}
+	if event.Scope != nil && event.Scope.ProjectID == "" {
+		return fmt.Errorf("project ID is required")
+	}
+	if event.RequestID != "" && !isUUIDv4(event.RequestID) {
+		return fmt.Errorf("request ID must be a UUIDv4")
+	}
+	if len(event.Metadata) > 0 && !json.Valid(event.Metadata) {
+		return fmt.Errorf("metadata is invalid JSON")
+	}
+	return nil
+}
+
+func isUUIDv4(value string) bool {
+	id, err := uuid.Parse(value)
+	return err == nil && id.Version() == 4
 }
