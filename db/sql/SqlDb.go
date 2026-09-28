@@ -239,6 +239,48 @@ func (d *SqlDbConnection) Insert(primaryKeyColumnName string, query string, args
 	return int(insertId), nil
 }
 
+// Begin opens a transaction on the underlying connection for callers outside
+// this package (the Pro stores) that must write several rows atomically.
+func (d *SqlDbConnection) Begin() (*gorp.Transaction, error) {
+	return d.sql.Begin()
+}
+
+// InsertTx is Insert inside a transaction: it returns the generated primary
+// key on every dialect (Postgres through "returning", the rest through
+// LastInsertId).
+func (d *SqlDbConnection) InsertTx(tx *gorp.Transaction, primaryKeyColumnName string, query string, args ...any) (int, error) {
+	var insertId int64
+
+	formattedArgs := formatArgs(args)
+
+	switch d.sql.Dialect.(type) {
+	case gorp.PostgresDialect:
+		var err error
+		if primaryKeyColumnName != "" {
+			query += " returning " + primaryKeyColumnName
+			err = tx.QueryRow(d.PrepareQuery(query), formattedArgs...).Scan(&insertId)
+		} else {
+			_, err = tx.Exec(d.PrepareQuery(query), formattedArgs...)
+		}
+
+		if err != nil {
+			return 0, err
+		}
+	default:
+		res, err := tx.Exec(d.PrepareQuery(query), formattedArgs...)
+		if err != nil {
+			return 0, err
+		}
+
+		insertId, err = res.LastInsertId()
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return int(insertId), nil
+}
+
 func (d *SqlDbConnection) Exec(query string, args ...any) (sql.Result, error) {
 	q := d.PrepareQuery(query)
 	return d.sql.Exec(q, args...)

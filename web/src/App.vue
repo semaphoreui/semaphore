@@ -134,6 +134,8 @@
       width="260"
       v-model="drawer"
       mobile-breakpoint="960"
+      :mini-variant="navMini && $vuetify.breakpoint.mdAndUp"
+      mini-variant-width="60"
       v-if="$route.path.startsWith('/project/')"
       class="NavDrawer"
     >
@@ -321,7 +323,7 @@
 
       <template v-slot:append>
         <v-list class="pa-0">
-          <v-list-item>
+          <v-list-item class="NavDrawer__toolsRow">
             <div class="DarkModeSwitchWrap" :class="{ 'DarkModeSwitchWrap--dark': darkMode }">
               <v-switch
                 class="DarkModeSwitch"
@@ -592,8 +594,61 @@
   <v-app v-else></v-app>
 </template>
 <style lang="scss">
+// Vuetify's reset forces `overflow-y: scroll` on <html>, so every page draws
+// an empty scrollbar track on the right. Show the page scrollbar only when
+// the content actually overflows. `:root` outranks Vuetify's `html` selector,
+// whose stylesheet is injected after this one.
+html:root {
+  overflow-y: auto;
+}
+
+// Set by WorkflowEditor while mounted: the editor is exactly viewport-high,
+// so the page scrollbar Vuetify forces on <html> would only draw an empty track.
+html.WorkflowEditor-html {
+  overflow-y: hidden;
+}
+
+// The page itself never scrolls in the editor, so any trackpad gesture the
+// canvas or a side panel does not take ends up as viewport overscroll, which
+// Chrome on macOS turns into Back / Forward navigation. Chrome only does that
+// when the viewport's overscroll-behavior propagates; it reads the value from
+// <html> (older versions: from the viewport-defining element, which can be
+// <body>), so set both.
+html.WorkflowEditor-html,
+html.WorkflowEditor-html body {
+  overscroll-behavior: none;
+}
+
 .NavDrawer {
   height: 100dvh !important;
+  // No width animation: the drawer switches between full and icon-only
+  // together with a route change and must take its final width at once.
+  transition-property: transform, visibility;
+
+  // Icon-only strip while the workflow editor has its palette collapsed.
+  // The global first-child icon rule below is !important, so it has to be
+  // undone here with the same weight.
+  &.v-navigation-drawer--mini-variant {
+    .v-list-item__icon:first-child {
+      margin-right: 0 !important;
+    }
+
+    // Only the dark-mode switch survives (Vuetify hides the other children);
+    // the switch track sits left of its box, so nudge it to the middle.
+    .NavDrawer__toolsRow {
+      padding: 0;
+
+      .DarkModeSwitchWrap {
+        margin-left: 16px;
+      }
+    }
+  }
+}
+
+// Vuetify animates the main area's padding when the drawer width changes;
+// the drawer width itself is not animated (see .NavDrawer), so neither is this.
+.v-main {
+  transition: none;
 }
 
 .nav-item--pinnable {
@@ -891,6 +946,7 @@ import EditDialog from '@/components/EditDialog.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
 import EventBus from '@/event-bus';
+import { navMiniForPath } from '@/lib/workflowEditorPrefs';
 import socket from '@/socket';
 
 import SubscriptionForm from '@/components/SubscriptionForm.vue';
@@ -985,6 +1041,10 @@ export default {
   data() {
     return {
       drawer: null,
+      // Icon-only navigation while the workflow editor has its palette
+      // collapsed. Derived from the route up front so the drawer renders in
+      // its final width; the editor then keeps it in sync via i-nav-mini.
+      navMini: navMiniForPath(this.$route.path),
       user: null,
       userRole: null,
       systemInfo: null,
@@ -1045,6 +1105,8 @@ export default {
     },
 
     async $route(val) {
+      this.navMini = navMiniForPath(val.path);
+
       if (val.query.t == null) {
         this.taskLogDialog = false;
       } else {
@@ -1065,6 +1127,9 @@ export default {
 
     darkMode(val) {
       this.$vuetify.theme.dark = val;
+      // Native scrollbars (and other browser-drawn chrome) follow the theme;
+      // otherwise a light scrollbar track shows up on dark pages.
+      document.documentElement.style.colorScheme = val ? 'dark' : 'light';
       if (val) {
         localStorage.setItem('darkMode', '1');
       } else {
@@ -1254,6 +1319,10 @@ export default {
 
     EventBus.$on('i-show-drawer', async () => {
       this.drawer = true;
+    });
+
+    EventBus.$on('i-nav-mini', (e) => {
+      this.navMini = !!(e && e.mini);
     });
 
     EventBus.$on('i-new-project', (e) => {

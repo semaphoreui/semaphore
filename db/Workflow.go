@@ -43,13 +43,48 @@ type WorkflowTemplate struct {
 	Nodes []WorkflowNode `db:"-" bolt:"include" json:"nodes" backup:"-"`
 	Edges []WorkflowEdge `db:"-" bolt:"include" json:"edges" backup:"edges"`
 
+	// RevisionID and Revision describe the graph revision the Nodes/Edges were
+	// loaded from: the latest one for a template read through
+	// GetWorkflowTemplate, the run's own for a graph read for a run. Ignored on
+	// write — every PUT creates a new revision.
+	RevisionID int `db:"-" json:"revision_id,omitempty" backup:"-"`
+	Revision   int `db:"-" json:"revision,omitempty" backup:"-"`
+
+	// RevisionAuthorID is set by the API layer before Create/Update so the
+	// revision records who saved it. Not part of the JSON contract.
+	RevisionAuthorID *int `db:"-" json:"-" backup:"-"`
+
 	LastRun *WorkflowRun `db:"-" json:"last_run,omitempty" backup:"-"`
+}
+
+// WorkflowRevision is one immutable snapshot of a workflow template's graph.
+// Nodes and edges belong to a revision and are never rewritten: saving a
+// template appends a revision, a run pins the revision it started from, so an
+// edit can neither change a running run nor orphan the node ids of past runs.
+// Revisions no run refers to are deleted when a newer one is saved.
+type WorkflowRevision struct {
+	ID int `db:"id" json:"id"`
+
+	ProjectID          int `db:"project_id" json:"project_id"`
+	WorkflowTemplateID int `db:"workflow_template_id" json:"workflow_template_id"`
+
+	// Number is the 1-based ordinal of the revision within its template; the
+	// highest number is the current graph.
+	Number int `db:"number" json:"number"`
+
+	Created         time.Time `db:"created" json:"created"`
+	CreatedByUserID *int      `db:"created_by_user_id" json:"created_by_user_id,omitempty"`
+
+	// HasRuns is filled by list queries: true when at least one run pins this
+	// revision (such a revision survives later saves).
+	HasRuns bool `db:"-" json:"has_runs"`
 }
 
 type WorkflowNode struct {
 	ID int `db:"id" json:"id" backup:"id"`
 
 	WorkflowTemplateID int `db:"workflow_template_id" json:"workflow_template_id" backup:"-"`
+	RevisionID         int `db:"revision_id" json:"-" backup:"-"`
 
 	TemplateID      int                     `db:"template_id" json:"template_id,omitempty" backup:"-"`
 	Kind            WorkflowNodeKind        `db:"kind" json:"kind,omitempty" backup:"kind"`
@@ -71,6 +106,7 @@ type WorkflowEdge struct {
 	ID int `db:"id" json:"id" backup:"-"`
 
 	WorkflowTemplateID int `db:"workflow_template_id" json:"workflow_template_id" backup:"-"`
+	RevisionID         int `db:"revision_id" json:"-" backup:"-"`
 	SourceNodeID       int `db:"source_node_id" json:"source_node_id" backup:"source_node_id"`
 	DestinationNodeID  int `db:"destination_node_id" json:"destination_node_id" backup:"destination_node_id"`
 
@@ -125,6 +161,10 @@ type WorkflowRun struct {
 
 	ProjectID          int `db:"project_id" json:"project_id" backup:"-"`
 	WorkflowTemplateID int `db:"workflow_template_id" json:"workflow_template_id" backup:"workflow_template_id"`
+
+	// RevisionID pins the graph revision the run executes; the engine and the
+	// run view read nodes and edges through it, never through the template.
+	RevisionID int `db:"revision_id" json:"revision_id,omitempty" backup:"-"`
 
 	Status WorkflowRunStatus `db:"status" json:"status" backup:"status"`
 

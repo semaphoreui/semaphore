@@ -1472,6 +1472,12 @@ definitions:
         type: string
       description:
         type: string
+      revision_id:
+        type: integer
+        description: Revision the nodes and edges were read from (read-only).
+      revision:
+        type: integer
+        description: Ordinal of that revision within the workflow (read-only).
       nodes:
         type: array
         items:
@@ -1490,6 +1496,9 @@ definitions:
         type: integer
       workflow_template_id:
         type: integer
+      revision_id:
+        type: integer
+        description: Graph revision the run executes; edits of the workflow do not affect it.
       status:
         type: string
         enum: [running, success, failed, approval]
@@ -1540,10 +1549,40 @@ definitions:
     properties:
       run:
         $ref: "#/definitions/WorkflowRun"
+      workflow_name:
+        type: string
+      revision_id:
+        type: integer
+      revision:
+        type: integer
       nodes:
         type: array
         items:
           $ref: "#/definitions/WorkflowNodeRunStatus"
+      edges:
+        type: array
+        items:
+          $ref: "#/definitions/WorkflowEdge"
+
+  WorkflowRevision:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      workflow_template_id:
+        type: integer
+      number:
+        type: integer
+      created:
+        type: string
+        format: date-time
+      created_by_user_id:
+        type: integer
+      has_runs:
+        type: boolean
+        description: At least one run pins this revision, so it survives later saves.
 
   WorkflowApprovalResolveRequest:
     type: object
@@ -1583,6 +1622,13 @@ parameters:
     type: integer
     required: true
     x-example: 21
+  revision_id:
+    name: revision_id
+    description: workflow revision ID
+    in: path
+    type: integer
+    required: true
+    x-example: 22
   user_id:
     name: user_id
     description: User ID
@@ -3336,19 +3382,38 @@ paths:
         204:
           description: workflow removed
 
-  /project/{project_id}/workflows/{workflow_id}/run:
+  /project/{project_id}/workflows/{workflow_id}/revisions:
     parameters:
       - $ref: "#/parameters/project_id"
       - $ref: "#/parameters/workflow_id"
-    post:
+    get:
       tags:
         - workflow
-      summary: Run workflow
+      summary: Get workflow revisions
+      description: Surviving graph revisions of the workflow, newest first. A revision is written on every save; revisions no run refers to are dropped when a newer one is saved.
       responses:
-        201:
-          description: workflow run created
+        200:
+          description: workflow revisions
           schema:
-            $ref: "#/definitions/WorkflowRun"
+            type: array
+            items:
+              $ref: "#/definitions/WorkflowRevision"
+
+  /project/{project_id}/workflows/{workflow_id}/revisions/{revision_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/revision_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflow revision
+      description: The workflow with the nodes and edges of the given revision instead of the latest one.
+      responses:
+        200:
+          description: workflow template at the revision
+          schema:
+            $ref: "#/definitions/WorkflowTemplate"
 
   /project/{project_id}/workflows/{workflow_id}/runs:
     parameters:
@@ -3365,6 +3430,15 @@ paths:
             type: array
             items:
               $ref: "#/definitions/WorkflowRun"
+    post:
+      tags:
+        - workflow
+      summary: Run workflow
+      responses:
+        201:
+          description: workflow run created
+          schema:
+            $ref: "#/definitions/WorkflowRun"
 
   /project/{project_id}/workflows/{workflow_id}/runs/{run_id}:
     parameters:
@@ -3380,6 +3454,21 @@ paths:
           description: workflow run details
           schema:
             $ref: "#/definitions/WorkflowRunDetails"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    post:
+      tags:
+        - workflow
+      summary: Stop workflow run
+      responses:
+        200:
+          description: workflow run stopped
+          schema:
+            $ref: "#/definitions/WorkflowRun"
 
   /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals:
     parameters:
