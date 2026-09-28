@@ -504,7 +504,7 @@ func Route(
 
 	projectWorkflowRunAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
 	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
-	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/run", workflowController.RunWorkflow).Methods("POST")
+	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.RunWorkflow).Methods("POST")
 	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.GetWorkflowRuns).Methods("GET", "HEAD")
 
 	projectWorkflowRunManagement := projectWorkflowRunAPI.PathPrefix("/{workflow_id}/runs").Subrouter()

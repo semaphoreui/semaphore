@@ -3415,20 +3415,6 @@ paths:
           schema:
             $ref: "#/definitions/WorkflowTemplate"
 
-  /project/{project_id}/workflows/{workflow_id}/run:
-    parameters:
-      - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/workflow_id"
-    post:
-      tags:
-        - workflow
-      summary: Run workflow
-      responses:
-        201:
-          description: workflow run created
-          schema:
-            $ref: "#/definitions/WorkflowRun"
-
   /project/{project_id}/workflows/{workflow_id}/runs:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -3444,6 +3430,15 @@ paths:
             type: array
             items:
               $ref: "#/definitions/WorkflowRun"
+    post:
+      tags:
+        - workflow
+      summary: Run workflow
+      responses:
+        201:
+          description: workflow run created
+          schema:
+            $ref: "#/definitions/WorkflowRun"
 
   /project/{project_id}/workflows/{workflow_id}/runs/{run_id}:
     parameters:
@@ -3459,6 +3454,21 @@ paths:
           description: workflow run details
           schema:
             $ref: "#/definitions/WorkflowRunDetails"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    post:
+      tags:
+        - workflow
+      summary: Stop workflow run
+      responses:
+        200:
+          description: workflow run stopped
+          schema:
+            $ref: "#/definitions/WorkflowRun"
 
   /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals:
     parameters:

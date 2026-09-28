@@ -145,9 +145,10 @@ func main() {
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions > Get workflow revisions > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions/{revision_id} > Get workflow revision > 200 > application/json", capabilityWrapper("workflow"))
-		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/run > Run workflow > 201 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Run workflow > 201 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json", capabilityWrapper("workflow_run"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop > Stop workflow run > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json", capabilityWrapper("workflow_approval"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", capabilityWrapper("workflow_approval"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", func(t *trans.Transaction) {
@@ -175,9 +176,10 @@ func main() {
 			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions > Get workflow revisions > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions/{revision_id} > Get workflow revision > 200 > application/json",
-			"workflow > /api/project/{project_id}/workflows/{workflow_id}/run > Run workflow > 201 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Run workflow > 201 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop > Stop workflow run > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/artifacts > Get merged workflow run artifacts > 200 > application/json",
