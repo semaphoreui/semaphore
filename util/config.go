@@ -348,37 +348,37 @@ type SyslogConfig struct {
 
 type AuditConfig struct {
 	// Enabled enables local capture of canonical audit events.
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled bool `json:"enabled,omitempty" env:"SEMAPHORE_AUDIT_ENABLED"`
 	// InstanceID is the stable identity included in every audit event across replicas.
-	InstanceID string `json:"instance_id,omitempty"`
+	InstanceID string `json:"instance_id,omitempty" env:"SEMAPHORE_AUDIT_INSTANCE_ID"`
 	// TrustedProxyCIDRs lists proxy networks allowed to provide audit client address headers.
-	TrustedProxyCIDRs []string `json:"trusted_proxy_cidrs,omitempty"`
+	TrustedProxyCIDRs []string `json:"trusted_proxy_cidrs,omitempty" env:"SEMAPHORE_AUDIT_TRUSTED_PROXY_CIDRS"`
 	// Destination is the single v1 audit export destination.
 	Destination *AuditDestinationConfig `json:"destination,omitempty"`
 }
 
 type AuditDestinationConfig struct {
 	// ID is the stable identifier for the single audit export destination.
-	ID string `json:"id,omitempty"`
+	ID string `json:"id,omitempty" env:"SEMAPHORE_AUDIT_DESTINATION_ID"`
 	// Type is the destination type; only syslog is supported in v1.
-	Type   string             `json:"type,omitempty"`
+	Type   string             `json:"type,omitempty" env:"SEMAPHORE_AUDIT_DESTINATION_TYPE"`
 	Syslog *AuditSyslogConfig `json:"syslog,omitempty"`
 }
 
 type AuditSyslogConfig struct {
 	// Address is the RFC 5424 over TLS destination host and port.
-	Address string `json:"address,omitempty"`
+	Address string `json:"address,omitempty" env:"SEMAPHORE_AUDIT_DESTINATION_SYSLOG_ADDRESS"`
 	// Timeout is a positive Go duration for syslog connection and write operations.
-	Timeout string `json:"timeout,omitempty"`
+	Timeout string `json:"timeout,omitempty" env:"SEMAPHORE_AUDIT_DESTINATION_SYSLOG_TIMEOUT"`
 	// TLS configures certificate verification for the audit destination.
 	TLS *AuditSyslogTLSConfig `json:"tls,omitempty"`
 }
 
 type AuditSyslogTLSConfig struct {
 	// CAFile is an optional PEM file appended to system roots for the destination.
-	CAFile string `json:"ca_file,omitempty"`
+	CAFile string `json:"ca_file,omitempty" env:"SEMAPHORE_AUDIT_DESTINATION_SYSLOG_TLS_CA_FILE"`
 	// ServerName is the optional TLS server name used for certificate verification.
-	ServerName string `json:"server_name,omitempty"`
+	ServerName string `json:"server_name,omitempty" env:"SEMAPHORE_AUDIT_DESTINATION_SYSLOG_TLS_SERVER_NAME"`
 }
 
 type MetricsConfig struct {

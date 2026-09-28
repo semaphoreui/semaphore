@@ -99,6 +99,42 @@ func TestLoadEnvironmentToObject_Arr(t *testing.T) {
 	}
 }
 
+func TestLoadConfigEnvironment_Audit(t *testing.T) {
+	originalConfig := Config
+	t.Cleanup(func() { Config = originalConfig })
+	Config = NewConfigType()
+
+	t.Setenv("SEMAPHORE_AUDIT_ENABLED", "true")
+	t.Setenv("SEMAPHORE_AUDIT_INSTANCE_ID", "semaphore-prod")
+	t.Setenv("SEMAPHORE_AUDIT_TRUSTED_PROXY_CIDRS", `["10.0.0.0/8","2001:db8::/32"]`)
+	t.Setenv("SEMAPHORE_AUDIT_DESTINATION_ID", "primary-siem")
+	t.Setenv("SEMAPHORE_AUDIT_DESTINATION_TYPE", "syslog")
+	t.Setenv("SEMAPHORE_AUDIT_DESTINATION_SYSLOG_ADDRESS", "siem.example.com:6514")
+	t.Setenv("SEMAPHORE_AUDIT_DESTINATION_SYSLOG_TIMEOUT", "10s")
+	t.Setenv("SEMAPHORE_AUDIT_DESTINATION_SYSLOG_TLS_CA_FILE", "/etc/semaphore/siem-ca.pem")
+	t.Setenv("SEMAPHORE_AUDIT_DESTINATION_SYSLOG_TLS_SERVER_NAME", "siem.example.com")
+
+	loadConfigEnvironment()
+
+	assert.Equal(t, &AuditConfig{
+		Enabled:           true,
+		InstanceID:        "semaphore-prod",
+		TrustedProxyCIDRs: []string{"10.0.0.0/8", "2001:db8::/32"},
+		Destination: &AuditDestinationConfig{
+			ID:   "primary-siem",
+			Type: "syslog",
+			Syslog: &AuditSyslogConfig{
+				Address: "siem.example.com:6514",
+				Timeout: "10s",
+				TLS: &AuditSyslogTLSConfig{
+					CAFile:     "/etc/semaphore/siem-ca.pem",
+					ServerName: "siem.example.com",
+				},
+			},
+		},
+	}, Config.Audit)
+}
+
 func TestLoadEnvironmentToObject_Map(t *testing.T) {
 	type User struct {
 		Name string `json:"name"`
