@@ -53,13 +53,11 @@ func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
 
 type RepositoryController struct {
 	keyInstaller      db_lib.AccessKeyInstaller
-	encryptionService server.AccessKeyEncryptionService
 	encryptionService db_lib.SecretDeserializer
 }
 
 func NewRepositoryController(
 	keyInstaller db_lib.AccessKeyInstaller,
-	encryptionService server.AccessKeyEncryptionService,
 	encryptionService db_lib.SecretDeserializer,
 ) *RepositoryController {
 	return &RepositoryController{
@@ -127,6 +125,7 @@ func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *h
 	git := db_lib.GitRepository{
 		Repository:  repo,
 		Client:      db_lib.CreateDefaultGitClient(c.keyInstaller),
+		Logger:      task_logger.NopLogger{},
 		HostConfigs: hostConfigs,
 	}
 
@@ -185,10 +184,10 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		defer hostConfigs.Destroy()
 
 		git := db_lib.GitRepository{
-			Repository: repoCopy,
-			TmpDirName: fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:6]),
-			Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
-			Logger:     task_logger.NopLogger{},
+			Repository:  repoCopy,
+			TmpDirName:  fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:6]),
+			Client:      db_lib.CreateDefaultGitClient(c.keyInstaller),
+			Logger:      task_logger.NopLogger{},
 			HostConfigs: hostConfigs,
 		}
 
