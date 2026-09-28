@@ -6,8 +6,8 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/password_hash"
 	"github.com/semaphoreui/semaphore/pkg/tz"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func (d *SqlDb) CreateUserWithoutPassword(user db.User) (newUser db.User, err error) {
@@ -37,13 +37,13 @@ func (d *SqlDb) CreateUser(user db.UserWithPwd) (newUser db.User, err error) {
 		return
 	}
 
-	pwdHash, err := bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
+	pwdHash, err := password_hash.Hash(user.Pwd)
 
 	if err != nil {
 		return
 	}
 
-	user.Password = string(pwdHash)
+	user.Password = pwdHash
 	user.Created = db.GetParsedTime(tz.Now())
 
 	err = d.Sql().Insert(&user.User)
@@ -83,8 +83,8 @@ func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
 	var err error
 
 	if user.Pwd != "" {
-		var pwdHash []byte
-		pwdHash, err = bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
+		var pwdHash string
+		pwdHash, err = password_hash.Hash(user.Pwd)
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
 			user.Alert,
 			user.Admin,
 			user.Pro,
-			string(pwdHash),
+			pwdHash,
 			user.ID)
 	} else {
 		_, err = d.exec(
@@ -114,13 +114,13 @@ func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
 }
 
 func (d *SqlDb) SetUserPassword(userID int, password string) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), 11)
+	hash, err := password_hash.Hash(password)
 	if err != nil {
 		return err
 	}
 	_, err = d.exec(
 		"update `user` set password=? where id=?",
-		string(hash), userID)
+		hash, userID)
 	return err
 }
 
