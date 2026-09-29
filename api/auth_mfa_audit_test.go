@@ -1,6 +1,8 @@
 package api
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -64,6 +66,21 @@ func TestLogin_WithTotpRecordsLoginAfterPasscode(t *testing.T) {
 	assert.Equal(t, audit.UserActor(user.ID, "alice", audit.AuthSession, ""), got.Actor)
 	assert.Equal(t, audit.UserTarget(user.ID, "alice"), got.Event.Target)
 	assert.Equal(t, audit.AuthMethodMetadata{Method: audit.LoginMethodPassword}, got.Event.Metadata)
+}
+
+// A verified session can post a valid code again, the login is not recorded twice.
+func TestLogin_WithTotpSecondVerifyRecordsNoLogin(t *testing.T) {
+	r, _, store := totpSession(t, "/api/auth/verify", `{"passcode":"{passcode}"}`)
+	body, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+	loginW := httptest.NewRecorder()
+	login(loginW, loginRequest(store, `{"auth":"alice","password":"verystrongpassword1","method":"password"}`))
+
+	verifySession(httptest.NewRecorder(), addCookiesFrom(helpers.SetContextValue(httptest.NewRequest(http.MethodPost, "/api/auth/verify", bytes.NewReader(body)), "store", store), loginW))
+	r, rec := withAuditRecorder(addCookiesFrom(helpers.SetContextValue(httptest.NewRequest(http.MethodPost, "/api/auth/verify", bytes.NewReader(body)), "store", store), loginW))
+	verifySession(httptest.NewRecorder(), r)
+
+	onlyEvent(t, rec, audit.AuthMFAVerifyTOTP)
 }
 
 func TestLogin_WithTotpWrongPasscodeRecordsNoLogin(t *testing.T) {
