@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/audit/audittest"
 	"github.com/semaphoreui/semaphore/util"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,6 +35,11 @@ func asActor(r *http.Request, user db.User) *http.Request {
 
 func setupSessionTest(t *testing.T) *sql.SqlDb {
 	t.Helper()
+	config, cookie := util.Config, util.Cookie
+	t.Cleanup(func() {
+		util.Config = config
+		util.Cookie = cookie
+	})
 	store := sql.InitConfigCreateTestStore()
 	util.Config.Mfa = &util.MultifactorAuthConfig{Totp: &util.TotpConfig{Enabled: true, AllowRecovery: true}}
 	util.Cookie = securecookie.New(securecookie.GenerateRandomKey(32), nil)
@@ -54,4 +60,19 @@ func addSessionCookie(t *testing.T, store db.Store, r *http.Request, user db.Use
 	require.NoError(t, err)
 	r.AddCookie(&http.Cookie{Name: "semaphore", Value: encoded})
 	return r
+}
+
+func TestSetupHelpers_RestoreGlobals(t *testing.T) {
+	config, cookie := util.Config, util.Cookie
+
+	t.Run("session", func(t *testing.T) {
+		setupSessionTest(t)
+		util.Config.Mfa.Totp.Enabled = false
+	})
+	t.Run("identity", func(t *testing.T) {
+		setupIdentityTest(t, "never")
+	})
+
+	assert.True(t, config == util.Config, "util.Config is restored")
+	assert.True(t, cookie == util.Cookie, "util.Cookie is restored")
 }

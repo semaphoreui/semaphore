@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,9 +12,8 @@ import (
 
 func setupIdentityTest(t *testing.T, emailMatching string) db.Store {
 	t.Helper()
-	// IMPORTANT: CreateTestStore() overwrites util.Config (db/sql/SqlDb.go:124),
-	// so the option must be set AFTER creating the store.
-	store := sql.InitConfigCreateTestStore()
+	// setupSessionTest replaces util.Config, so the option must be set AFTER it.
+	store := setupSessionTest(t)
 	util.Config.ExternalAuthEmailMatching = emailMatching
 	return store
 }
