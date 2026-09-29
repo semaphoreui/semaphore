@@ -17,5 +17,7 @@ type AuditExportLeaser interface {
 type AuditExportLease interface {
 	// Lost fires when the lease can no longer be trusted.
 	Lost() <-chan struct{}
+	// Valid reports whether the lease can still be trusted right now.
+	Valid() bool
 	Release()
 }
