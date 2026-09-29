@@ -578,7 +578,7 @@ type RoleRepository interface {
 	GetGlobalRoles() ([]Role, error)
 	UpdateRole(role Role) error
 	CreateRole(role Role) (Role, error)
-	DeleteRole(slug string) error
+	DeleteRole(slug string, projectID *int) error
 }
 
 // Store is the main interface that aggregates all specialized interfaces
