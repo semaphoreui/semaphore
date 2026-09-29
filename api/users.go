@@ -164,6 +164,10 @@ func (c *UsersController) GetUserMiddleware(next http.Handler) http.Handler {
 				"editor":  editor.Username,
 				"user_id": user.ID,
 			}).Debug("Not permitted to access another user")
+			// Reads of another user are not audited, attempts to change them are.
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				helpers.RecordDenied(r, "admin", 0)
+			}
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

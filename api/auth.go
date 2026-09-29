@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	proApi "github.com/semaphoreui/semaphore/pro/api"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 
@@ -217,16 +218,29 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 
 func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req *http.Request) {
 	var userID int
+	var authMethod audit.AuthMethod
+	var tokenFingerprint string
 
 	req = r
 
 	authHeader := strings.ToLower(r.Header.Get("authorization"))
 
 	if len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
-		token, err := helpers.Store(r).GetAPIToken(strings.Replace(authHeader, "bearer ", "", 1))
+		tokenID := strings.Replace(authHeader, "bearer ", "", 1)
+		tokenFingerprint = audit.TokenFingerprint(tokenID)
+
+		token, err := helpers.Store(r).GetAPIToken(tokenID)
 
 		if err != nil {
-			if !errors.Is(err, db.ErrNotFound) {
+			if errors.Is(err, db.ErrNotFound) {
+				// Revoking deletes the token, so a revoked token is reported as unknown.
+				helpers.Audit(r).Record(r.Context(), audit.Event{
+					Kind:    audit.AuthAPITokenReject,
+					Outcome: audit.OutcomeFailure,
+					Reason:  audit.ReasonTokenUnknown,
+					Target:  &audit.Target{Type: audit.TargetAPIToken, ID: tokenFingerprint},
+				})
+			} else {
 				log.Error(err)
 			}
 
@@ -235,11 +249,18 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 		}
 
 		if token.IsExpiredAt(tz.Now()) {
+			helpers.Audit(r).Record(r.Context(), audit.Event{
+				Kind:    audit.AuthAPITokenReject,
+				Outcome: audit.OutcomeFailure,
+				Reason:  audit.ReasonTokenExpired,
+				Target:  &audit.Target{Type: audit.TargetAPIToken, ID: tokenFingerprint},
+			})
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		userID = token.UserID
+		authMethod = audit.AuthAPIToken
 	} else {
 		session, found := getSession(r)
 
@@ -261,6 +282,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 		}
 
 		userID = session.UserID
+		authMethod = audit.AuthSession
 
 		if err := helpers.Store(r).TouchSession(userID, session.ID); err != nil {
 			log.Error(err)
@@ -281,6 +303,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 
 	ok = true
 	req = helpers.SetContextValue(r, "user", &user)
+	req = req.WithContext(audit.WithActor(req.Context(), audit.UserActor(user.ID, user.Username, authMethod, tokenFingerprint)))
 	return
 }
 
@@ -312,6 +335,7 @@ func adminMiddleware(next http.Handler) http.Handler {
 		user := helpers.GetFromContext(r, "user").(*db.User)
 
 		if !user.Admin {
+			helpers.RecordDenied(r, "admin", 0)
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
@@ -418,6 +442,13 @@ func csrfProtectionMiddleware(next http.Handler) http.Handler {
 				"path":   r.URL.Path,
 				"method": r.Method,
 			}).Warn("Blocked cross-origin request (possible CSRF)")
+			helpers.Audit(r).Record(r.Context(), audit.Event{
+				Kind:     audit.AuthCSRFBlock,
+				Outcome:  audit.OutcomeFailure,
+				Reason:   audit.ReasonCrossOrigin,
+				Target:   &audit.Target{Type: audit.TargetRoute, ID: helpers.RouteTemplate(r)},
+				Metadata: audit.DenyMetadata{Method: r.Method},
+			})
 			helpers.WriteErrorStatus(w, "CROSS_ORIGIN_REQUEST_BLOCKED", http.StatusForbidden)
 			return
 		}
