@@ -407,6 +407,14 @@ func HAEnabled() bool {
 	return Config.HA != nil && Config.HA.Enabled
 }
 
+// HANodeID is empty outside HA.
+func HANodeID() string {
+	if !HAEnabled() {
+		return ""
+	}
+	return Config.HA.NodeID
+}
+
 // InitHANodeID generates a unique node identifier for this instance if one
 // was not explicitly configured. Must be called after ConfigInit.
 func InitHANodeID() {
