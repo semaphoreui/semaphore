@@ -26,6 +26,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -97,7 +98,7 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 	// Bind as the user
 	userDN := sr.Entries[0].DN
 	if err = l.Bind(userDN, password); err != nil {
-		return nil, "", err
+		return nil, "", ldapUserBindError(err)
 	}
 
 	// Second time bind as read only user
@@ -154,7 +155,7 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 
 // createSession creates session for passed user and stores session details
 // in cookies.
-func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bool) {
+func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bool) error {
 	var err error
 	var verificationMethod db.SessionVerificationMethod
 	verified := false
@@ -184,7 +185,7 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 			"context": "session",
 		}).Error("Failed to create session")
 		helpers.WriteErrorStatus(w, "Failed to create session", http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	encoded, err := util.Cookie.Encode("semaphore", map[string]any{
@@ -197,7 +198,7 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 			"context": "session",
 		}).Error("Failed to encode session cookie")
 		helpers.WriteErrorStatus(w, "Failed to create session", http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	http.SetCookie(w, &http.Cookie{
@@ -214,6 +215,7 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 		// it can still be used without TLS inside private networks.
 		Secure: isSecureWebHost(),
 	})
+	return nil
 }
 
 // isSecureWebHost reports whether Semaphore's public web host uses HTTPS, in
@@ -224,25 +226,26 @@ func isSecureWebHost() bool {
 
 func loginByPassword(store db.Store, login string, password string) (user db.User, err error) {
 	user, err = store.GetUserByLoginOrEmail(login, login)
+	if errors.Is(err, db.ErrNotFound) {
+		err = loginError{reason: audit.ReasonUserNotFound}
+		return
+	}
 	if err != nil {
 		return
 	}
 
 	if user.External {
-		err = db.ErrNotFound
+		err = loginError{reason: audit.ReasonInvalidCredentials}
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
-	if err != nil {
-		err = db.ErrNotFound
-		return
+	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		err = loginError{reason: audit.ReasonInvalidCredentials}
 	}
-
 	return
 }
 
-func loginByLDAP(store db.Store, ldapUser db.User, userDN string, providerID string) (db.User, error) {
+func loginByLDAP(store db.Store, ldapUser db.User, userDN string, providerID string) (db.User, externalResolution, error) {
 	return resolveExternalUser(store, externalUserProfile{
 		Type:            db.IdentityTypeLdap,
 		Provider:        providerID,
@@ -253,6 +256,73 @@ func loginByLDAP(store db.Store, ldapUser db.User, userDN string, providerID str
 		MatchByUsername: true,
 		// The email comes from the directory, not the user - authoritative.
 		EmailVerified: true,
+	})
+}
+
+// Unwraps to db.ErrNotFound, so the handler answers 401.
+type loginError struct {
+	reason audit.Reason
+}
+
+func (e loginError) Error() string { return "login rejected: " + string(e.reason) }
+
+func (e loginError) Unwrap() error { return db.ErrNotFound }
+
+func ldapUserBindError(err error) error {
+	if ldap.IsErrorWithCode(err, ldap.LDAPResultInvalidCredentials) {
+		return loginError{reason: audit.ReasonInvalidCredentials}
+	}
+	return err
+}
+
+func ldapFailureReason(err error) audit.Reason {
+	var rejected loginError
+	switch {
+	case err == nil:
+		return audit.ReasonUserNotFound
+	case errors.As(err, &rejected):
+		return rejected.reason
+	default:
+		return audit.ReasonProviderError
+	}
+}
+
+func loginFailureReason(err error) audit.Reason {
+	var rejected loginError
+	switch {
+	case errors.As(err, &rejected):
+		return rejected.reason
+	case errors.Is(err, db.ErrNotFound):
+		return audit.ReasonInvalidCredentials
+	default:
+		return audit.ReasonInternalError
+	}
+}
+
+func recordLoginFailure(r *http.Request, loginName string, meta audit.AuthMethodMetadata, reason audit.Reason) {
+	event := audit.Event{Kind: audit.AuthLogin, Outcome: audit.OutcomeFailure, Reason: reason, Metadata: meta}
+	if loginName != "" {
+		event.Target = &audit.Target{Type: audit.TargetUser, Name: audit.TruncateName(loginName, audit.MaxLoginNameBytes)}
+	}
+	helpers.Audit(r).Record(r.Context(), event)
+}
+
+func recordExternalResolution(r *http.Request, user db.User, resolution externalResolution, meta audit.AuthMethodMetadata) {
+	var kind audit.Kind
+	switch resolution {
+	case resolvedProvisioned:
+		// The identity link is part of this event.
+		kind = audit.IAMUserAutoProvision
+	case resolvedLinked:
+		kind = audit.IAMExternalIdentityLink
+	default:
+		return
+	}
+	ctx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
+	helpers.Audit(r).Record(ctx, audit.Event{
+		Kind:     kind,
+		Target:   audit.UserTarget(user.ID, user.Username),
+		Metadata: meta,
 	})
 }
 
@@ -356,10 +426,13 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	var user db.User
+	var resolution externalResolution
+	meta := audit.AuthMethodMetadata{Method: audit.LoginMethodPassword}
 
 	switch login.Method {
 	case "password":
 		if util.Config.PasswordLoginDisable {
+			recordLoginFailure(r, login.Auth, meta, audit.ReasonMethodDisabled)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -372,25 +445,27 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 		provider, ok := util.Config.GetLdapProvider(providerID)
 		if !ok {
+			// The provider name is attacker input, only configured names are recorded.
+			recordLoginFailure(r, login.Auth, audit.AuthMethodMetadata{Method: audit.LoginMethodLDAP}, audit.ReasonMethodDisabled)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		meta = audit.AuthMethodMetadata{Method: audit.LoginMethodLDAP, Provider: providerID}
 
-		var ldapUser *db.User
-		var ldapUserDN string
-		ldapUser, ldapUserDN, err = tryFindLDAPUser(provider, login.Auth, login.Password)
-		if err != nil || ldapUser == nil {
-			if err != nil {
-				log.WithError(err).WithFields(log.Fields{
+		ldapUser, ldapUserDN, ldapErr := tryFindLDAPUser(provider, login.Auth, login.Password)
+		if ldapErr != nil || ldapUser == nil {
+			if ldapErr != nil {
+				log.WithError(ldapErr).WithFields(log.Fields{
 					"context":  "ldap",
 					"provider": providerID,
 					"auth":     login.Auth,
 				}).Warn("Failed to find user in LDAP")
 			}
+			recordLoginFailure(r, login.Auth, meta, ldapFailureReason(ldapErr))
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		user, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, providerID)
+		user, resolution, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, providerID)
 
 	default:
 		// Legacy clients without the method field: previous behavior —
@@ -399,29 +474,38 @@ func login(w http.ResponseWriter, r *http.Request) {
 		var ldapUserDN string
 
 		if legacy, ok := util.Config.GetLdapProvider("ldap"); ok {
+			meta = audit.AuthMethodMetadata{Method: audit.LoginMethodLDAP, Provider: "ldap"}
 			ldapUser, ldapUserDN, err = tryFindLDAPUser(legacy, login.Auth, login.Password)
 			if err != nil {
 				log.WithError(err).WithFields(log.Fields{
 					"context": "ldap",
 					"auth":    login.Auth,
 				}).Warn("Failed to find user in LDAP")
+				recordLoginFailure(r, login.Auth, meta, ldapFailureReason(err))
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 		}
 
 		if ldapUser == nil {
+			meta = audit.AuthMethodMetadata{Method: audit.LoginMethodPassword}
 			if util.Config.PasswordLoginDisable {
+				recordLoginFailure(r, login.Auth, meta, audit.ReasonMethodDisabled)
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 			user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
 		} else {
-			user, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, "ldap")
+			user, resolution, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, "ldap")
 		}
 	}
 
+	// A link stored before a failed attribute sync is still recorded.
+	recordExternalResolution(r, user, resolution, meta)
+
 	if err != nil {
+		recordLoginFailure(r, login.Auth, meta, loginFailureReason(err))
+
 		if errors.Is(err, db.ErrNotFound) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -438,8 +522,17 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createSession(w, r, user, false)
+	if err = createSession(w, r, user, false); err != nil {
+		recordLoginFailure(r, login.Auth, meta, audit.ReasonInternalError)
+		return
+	}
 
+	ctx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
+	helpers.Audit(r).Record(ctx, audit.Event{
+		Kind:     audit.AuthLogin,
+		Target:   audit.UserTarget(user.ID, user.Username),
+		Metadata: meta,
+	})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -462,6 +555,17 @@ func logout(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
+		// The session stores only the user ID, so the name is best-effort.
+		user := db.User{ID: session.UserID}
+		if stored, getErr := helpers.Store(r).GetUser(session.UserID); getErr == nil {
+			user = stored
+		}
+		ctx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
+		helpers.Audit(r).Record(ctx, audit.Event{
+			Kind:   audit.AuthLogout,
+			Target: audit.UserTarget(user.ID, user.Username),
+		})
 	}
 
 	http.SetCookie(w, &http.Cookie{
@@ -844,6 +948,13 @@ func oidcSuccessRedirectURL(webHost string, redirectPath string) (string, error)
 
 func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	pid := mux.Vars(r)["provider"]
+	meta := audit.AuthMethodMetadata{Method: audit.LoginMethodOIDC}
+	// The provider comes from the URL, only configured names are recorded.
+	_, configured := util.Config.OidcProviders[pid]
+	if configured {
+		meta.Provider = pid
+	}
+
 	oauthState, err := r.Cookie("oauthstate")
 
 	// Errors are shown as plain text at the current URL instead of a silent
@@ -852,6 +963,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
+		recordLoginFailure(r, "", meta, audit.ReasonInvalidState)
 		http.Error(w, "OIDC sign-in failed: state cookie is missing. Try signing in again.", http.StatusBadRequest)
 		return
 	}
@@ -861,6 +973,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
+		recordLoginFailure(r, "", meta, audit.ReasonInvalidState)
 		http.Error(w, "OIDC sign-in failed: invalid state. Try signing in again.", http.StatusBadRequest)
 		return
 	}
@@ -870,11 +983,13 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
+		recordLoginFailure(r, "", meta, audit.ReasonInvalidState)
 		http.Error(w, "OIDC sign-in failed: invalid state. Try signing in again.", http.StatusBadRequest)
 		return
 	}
 
 	if stateData.Csrf != oauthState.Value {
+		recordLoginFailure(r, "", meta, audit.ReasonInvalidState)
 		http.Error(w, "OIDC sign-in failed: state mismatch. Try signing in again.", http.StatusBadRequest)
 		return
 	}
@@ -884,6 +999,11 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	_oidc, oauth, err := getOidcProvider(pid, ctx, r.URL.Path)
 	if err != nil {
 		log.Error(err.Error())
+		reason := audit.ReasonProviderError
+		if !configured {
+			reason = audit.ReasonMethodDisabled
+		}
+		recordLoginFailure(r, "", meta, reason)
 		http.Error(w, "Failed to initialize OIDC provider. Contact your administrator.", http.StatusInternalServerError)
 		return
 	}
@@ -891,6 +1011,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	provider, ok := util.Config.OidcProviders[pid]
 	if !ok {
 		log.Error(fmt.Errorf("no such provider: %s", pid))
+		recordLoginFailure(r, "", meta, audit.ReasonMethodDisabled)
 		http.Error(w, "Unknown OIDC provider.", http.StatusNotFound)
 		return
 	}
@@ -902,6 +1023,7 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 	oauth2Token, err := oauth.Exchange(ctx, code)
 	if err != nil {
 		log.Error(err.Error())
+		recordLoginFailure(r, "", meta, audit.ReasonProviderError)
 		http.Error(w, "OIDC sign-in failed: could not exchange authorization code. Contact your administrator.", http.StatusUnauthorized)
 		return
 	}
@@ -942,12 +1064,14 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error(err.Error())
+		recordLoginFailure(r, "", meta, audit.ReasonProviderError)
 		http.Error(w, "OIDC sign-in failed: could not read user info from the provider. Contact your administrator.", http.StatusBadGateway)
 		return
 	}
 
 	if claims.sub == "" {
 		log.Error(fmt.Errorf("oidc provider %s returned no sub claim", pid))
+		recordLoginFailure(r, "", meta, audit.ReasonProviderError)
 		http.Error(w, "OIDC sign-in failed: the provider returned no user ID (sub claim). Contact your administrator.", http.StatusBadGateway)
 		return
 	}
@@ -966,7 +1090,8 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if lErr := linkExternalIdentity(helpers.Store(r), sessionUser, db.IdentityTypeOidc, pid, claims.sub); lErr != nil {
+		linked, lErr := linkExternalIdentity(helpers.Store(r), sessionUser, db.IdentityTypeOidc, pid, claims.sub)
+		if lErr != nil {
 			log.WithError(lErr).WithFields(log.Fields{
 				"user_id":  sessionUser.ID,
 				"provider": pid,
@@ -984,12 +1109,21 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if linked {
+			ctx := audit.WithActor(r.Context(), audit.UserActor(sessionUser.ID, sessionUser.Username, audit.AuthSession, ""))
+			helpers.Audit(r).Record(ctx, audit.Event{
+				Kind:     audit.IAMExternalIdentityLink,
+				Target:   audit.UserTarget(sessionUser.ID, sessionUser.Username),
+				Metadata: meta,
+			})
+		}
+
 		redirectURL, _ := url.JoinPath(util.Config.WebHost, "/")
 		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 		return
 	}
 
-	user, err := resolveExternalUser(helpers.Store(r), externalUserProfile{
+	user, resolution, err := resolveExternalUser(helpers.Store(r), externalUserProfile{
 		Type:          db.IdentityTypeOidc,
 		Provider:      pid,
 		ExternalUID:   claims.sub,
@@ -1000,13 +1134,26 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		// MatchByUsername stays false: OIDC matches by email only
 		// (username matching "creates a lot of problems" - see old comment).
 	})
+	recordExternalResolution(r, user, resolution, meta)
+
 	if err != nil {
 		log.Error(err.Error())
+		recordLoginFailure(r, "", meta, audit.ReasonInternalError)
 		http.Error(w, "OIDC sign-in failed: could not find or create the user account. Contact your administrator.", http.StatusInternalServerError)
 		return
 	}
 
-	createSession(w, r, user, true)
+	if err = createSession(w, r, user, true); err != nil {
+		recordLoginFailure(r, "", meta, audit.ReasonInternalError)
+		return
+	}
+
+	actorCtx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
+	helpers.Audit(r).Record(actorCtx, audit.Event{
+		Kind:     audit.AuthLogin,
+		Target:   audit.UserTarget(user.ID, user.Username),
+		Metadata: meta,
+	})
 
 	config, ok := util.Config.OidcProviders[pid]
 	if !ok {

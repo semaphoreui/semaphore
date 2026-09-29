@@ -36,7 +36,7 @@ func ldapProfile(uid string, email string) externalUserProfile {
 func TestResolveExternalUser_CreatesUserAndIdentity(t *testing.T) {
 	store := setupIdentityTest(t, "auto")
 
-	user, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
+	user, _, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
 	require.NoError(t, err)
 	assert.True(t, user.External)
 
@@ -49,11 +49,11 @@ func TestResolveExternalUser_CreatesUserAndIdentity(t *testing.T) {
 func TestResolveExternalUser_FindsByIdentityAfterEmailChange(t *testing.T) {
 	store := setupIdentityTest(t, "auto")
 
-	first, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
+	first, _, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
 	require.NoError(t, err)
 
 	// Email changed at the IdP: same identity, attributes synced, no new user.
-	second, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "john@example.com"))
+	second, _, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "john@example.com"))
 	require.NoError(t, err)
 	assert.Equal(t, first.ID, second.ID)
 	assert.Equal(t, "john@example.com", second.Email)
@@ -68,7 +68,7 @@ func TestResolveExternalUser_AutoAdoptsLegacyExternalUser(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	user, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
+	user, _, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
 	require.NoError(t, err)
 	assert.Equal(t, legacy.ID, user.ID)
 
@@ -81,14 +81,14 @@ func TestResolveExternalUser_AutoDoesNotAdoptPinnedUser(t *testing.T) {
 	store := setupIdentityTest(t, "auto")
 
 	// User already pinned to a different provider identity.
-	pinned, err := resolveExternalUser(store, externalUserProfile{
+	pinned, _, err := resolveExternalUser(store, externalUserProfile{
 		Type: db.IdentityTypeOidc, Provider: "keycloak", ExternalUID: "sub-1",
 		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", EmailVerified: true,
 	})
 	require.NoError(t, err)
 
 	// Same email arrives from another provider: must NOT reuse the account.
-	other, err := resolveExternalUser(store, externalUserProfile{
+	other, _, err := resolveExternalUser(store, externalUserProfile{
 		Type: db.IdentityTypeOidc, Provider: "okta", ExternalUID: "sub-2",
 		Username: "jdoe2", Name: "John Doe", Email: "jdoe@example.com", EmailVerified: true,
 	})
@@ -104,13 +104,13 @@ func TestResolveExternalUser_AutoDoesNotAdoptPinnedUser(t *testing.T) {
 func TestResolveExternalUser_AlwaysLinksSecondProvider(t *testing.T) {
 	store := setupIdentityTest(t, "always")
 
-	first, err := resolveExternalUser(store, externalUserProfile{
+	first, _, err := resolveExternalUser(store, externalUserProfile{
 		Type: db.IdentityTypeOidc, Provider: "keycloak", ExternalUID: "sub-1",
 		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", EmailVerified: true,
 	})
 	require.NoError(t, err)
 
-	second, err := resolveExternalUser(store, externalUserProfile{
+	second, _, err := resolveExternalUser(store, externalUserProfile{
 		Type: db.IdentityTypeOidc, Provider: "okta", ExternalUID: "sub-2",
 		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", EmailVerified: true,
 	})
@@ -132,7 +132,7 @@ func TestResolveExternalUser_UnverifiedEmailNotMatched(t *testing.T) {
 	require.NoError(t, err)
 
 	// IdP asserts the same email but email_verified=false: must NOT adopt.
-	res, err := resolveExternalUser(store, externalUserProfile{
+	res, _, err := resolveExternalUser(store, externalUserProfile{
 		Type: db.IdentityTypeOidc, Provider: "keycloak", ExternalUID: "sub-attacker",
 		Username: "attacker", Name: "Attacker", Email: "jdoe@example.com",
 	})
@@ -162,7 +162,7 @@ func (s failingIdentityStore) CreateExternalIdentity(db.UserExternalIdentity) (d
 func TestResolveExternalUser_RollsBackUserOnIdentityFailure(t *testing.T) {
 	store := setupIdentityTest(t, "never")
 
-	_, err := resolveExternalUser(failingIdentityStore{store}, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
+	_, _, err := resolveExternalUser(failingIdentityStore{store}, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
 	require.Error(t, err)
 
 	// The half-created user must be rolled back...
@@ -171,7 +171,7 @@ func TestResolveExternalUser_RollsBackUserOnIdentityFailure(t *testing.T) {
 
 	// ...so a retry against a healthy store succeeds instead of dying on
 	// a duplicate username.
-	user, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
+	user, _, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
 	require.NoError(t, err)
 	assert.True(t, user.External)
 }
@@ -186,7 +186,7 @@ func TestResolveExternalUser_NeverSkipsEmailMatching(t *testing.T) {
 
 	// Legacy user is NOT adopted; creation of a duplicate-email user must fail
 	// rather than silently merge.
-	_, err = resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
+	_, _, err = resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
 	assert.Error(t, err)
 }
 
@@ -201,7 +201,7 @@ func TestResolveExternalUser_NeverAdoptsLocalUser(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	res, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
+	res, _, err := resolveExternalUser(store, ldapProfile("cn=jdoe,dc=x", "jdoe@example.com"))
 	if err == nil {
 		assert.NotEqual(t, local.ID, res.ID)
 	} else {
@@ -223,10 +223,12 @@ func TestLinkExternalIdentity_LocalUser(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, linkExternalIdentity(store, local, db.IdentityTypeOidc, "keycloak", "sub-1"))
+	_, err = linkExternalIdentity(store, local, db.IdentityTypeOidc, "keycloak", "sub-1")
+	require.NoError(t, err)
 
 	// Idempotent for the same user.
-	require.NoError(t, linkExternalIdentity(store, local, db.IdentityTypeOidc, "keycloak", "sub-1"))
+	_, err = linkExternalIdentity(store, local, db.IdentityTypeOidc, "keycloak", "sub-1")
+	require.NoError(t, err)
 
 	ids, err := store.GetUserExternalIdentities(local.ID)
 	require.NoError(t, err)
@@ -238,7 +240,7 @@ func TestLinkExternalIdentity_LocalUser(t *testing.T) {
 	assert.False(t, fresh.External)
 
 	// After linking, SSO login resolves to the local user...
-	resolved, err := resolveExternalUser(store, externalUserProfile{
+	resolved, _, err := resolveExternalUser(store, externalUserProfile{
 		Type: db.IdentityTypeOidc, Provider: "keycloak", ExternalUID: "sub-1",
 		Username: "x", Name: "IdP Name", Email: "idp@example.com",
 	})
@@ -264,14 +266,17 @@ func TestLinkExternalIdentity_Conflicts(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, linkExternalIdentity(store, alice, db.IdentityTypeOidc, "keycloak", "sub-a"))
+	_, err = linkExternalIdentity(store, alice, db.IdentityTypeOidc, "keycloak", "sub-a")
+	require.NoError(t, err)
 
 	// UID owned by another user. The sentinel is what oidcRedirect maps
 	// to the user-visible "link_conflict" error code.
-	assert.ErrorIs(t, linkExternalIdentity(store, bob, db.IdentityTypeOidc, "keycloak", "sub-a"), errIdentityLinkedToAnother)
+	_, err = linkExternalIdentity(store, bob, db.IdentityTypeOidc, "keycloak", "sub-a")
+	assert.ErrorIs(t, err, errIdentityLinkedToAnother)
 
 	// Second identity for the same provider → "link_provider_exists".
-	assert.ErrorIs(t, linkExternalIdentity(store, alice, db.IdentityTypeOidc, "keycloak", "sub-a2"), errProviderAlreadyLinked)
+	_, err = linkExternalIdentity(store, alice, db.IdentityTypeOidc, "keycloak", "sub-a2")
+	assert.ErrorIs(t, err, errProviderAlreadyLinked)
 }
 
 func TestLinkExternalIdentity_SameProviderNameDifferentType(t *testing.T) {
@@ -283,8 +288,10 @@ func TestLinkExternalIdentity_SameProviderNameDifferentType(t *testing.T) {
 	require.NoError(t, err)
 
 	// "corp" LDAP and "corp" OIDC are different providers.
-	require.NoError(t, linkExternalIdentity(store, user, db.IdentityTypeLdap, "corp", "cn=alice,dc=example,dc=org"))
-	require.NoError(t, linkExternalIdentity(store, user, db.IdentityTypeOidc, "corp", "sub-alice"))
+	_, err = linkExternalIdentity(store, user, db.IdentityTypeLdap, "corp", "cn=alice,dc=example,dc=org")
+	require.NoError(t, err)
+	_, err = linkExternalIdentity(store, user, db.IdentityTypeOidc, "corp", "sub-alice")
+	require.NoError(t, err)
 
 	ids, err := store.GetUserExternalIdentities(user.ID)
 	require.NoError(t, err)
