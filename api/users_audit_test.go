@@ -183,6 +183,39 @@ func TestAPITokens_AreRecordedByFingerprint(t *testing.T) {
 	assert.Equal(t, audit.TokenFingerprint(token.ID), onlyEvent(t, rec, audit.IAMAPITokenDelete).Event.Target.ID)
 }
 
+func TestDeleteAPIToken_RecordsEveryTokenTheStoreDeleted(t *testing.T) {
+	tests := []struct {
+		name    string
+		prefix  string
+		deleted []string
+	}{
+		// SQLite and MySQL compare LIKE without case.
+		{name: "upper case prefix", prefix: "ABCDEFGH", deleted: []string{"abcdefgh1111"}},
+		// "_" matches any character in LIKE.
+		{name: "underscore prefix", prefix: "abcdefg_", deleted: []string{"abcdefgh1111", "abcdefgx2222"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := setupSessionTest(t)
+			user := createUserOptionsTestUser(t, store, "alice")
+			for _, id := range []string{"abcdefgh1111", "abcdefgx2222", "zzzzzzzz3333"} {
+				_, err := store.CreateAPIToken(db.APIToken{ID: id, UserID: user.ID, Name: id})
+				require.NoError(t, err)
+			}
+
+			r, rec := userRequest(store, http.MethodDelete, "/api/user/tokens/x", "", user, user)
+			deleteAPIToken(httptest.NewRecorder(), mux.SetURLVars(r, map[string]string{"token_id": tt.prefix}))
+
+			var recorded []string
+			for _, got := range rec.All() {
+				assert.Equal(t, audit.IAMAPITokenDelete, got.Event.Kind)
+				recorded = append(recorded, got.Event.Target.Name)
+			}
+			assert.ElementsMatch(t, tt.deleted, recorded)
+		})
+	}
+}
+
 // failingTokenList breaks only the read done for the audit.
 type failingTokenList struct {
 	db.Store
@@ -206,6 +239,35 @@ func TestDeleteAPIToken_FailedAuditReadStillDeletes(t *testing.T) {
 	assert.Empty(t, rec.All())
 	_, err = store.GetAPIToken("deletemetoken1234567890")
 	assert.ErrorIs(t, err, db.ErrNotFound)
+}
+
+// failingSecondTokenList breaks only the read after the delete.
+type failingSecondTokenList struct {
+	db.Store
+	reads *int
+}
+
+func (s failingSecondTokenList) GetAPITokens(userID int) ([]db.APIToken, error) {
+	*s.reads++
+	if *s.reads == 2 {
+		return nil, errors.New("database hiccup")
+	}
+	return s.Store.GetAPITokens(userID)
+}
+
+func TestDeleteAPIToken_FailedReadAfterDeleteStillAnswers(t *testing.T) {
+	store := setupSessionTest(t)
+	user := createUserOptionsTestUser(t, store, "alice")
+	_, err := store.CreateAPIToken(db.APIToken{ID: "deletemetoken1234567890", UserID: user.ID, Name: "ci"})
+	require.NoError(t, err)
+
+	reads := 0
+	r, rec := userRequest(failingSecondTokenList{Store: store, reads: &reads}, http.MethodDelete, "/api/user/tokens/x", "", user, user)
+	w := httptest.NewRecorder()
+	deleteAPIToken(w, mux.SetURLVars(r, map[string]string{"token_id": "deletemetoken"}))
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Empty(t, rec.All(), "without the second read every token would look deleted")
 }
 
 func TestSetOption_RecordsKeyOnly(t *testing.T) {
