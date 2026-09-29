@@ -129,7 +129,6 @@ tasks:
     cmds:
       - go run ./tools/docsref -out docs/docs/reference/configuration.md
       - go run ./tools/clidocs -out docs/docs/reference/cli/commands.md
-      - go run ./tools/auditcatalog -out docs/docs/reference/audit-events.md
 
   docs:check:
     desc: Fail if the generated documentation pages are out of date
