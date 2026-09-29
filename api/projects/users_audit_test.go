@@ -2,6 +2,7 @@ package projects
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -132,4 +133,8 @@ func TestUpdateUser_OwnerSelfChangeIsRecorded(t *testing.T) {
 	got := only(t, rec, audit.IAMProjectRoleChange)
 	assert.Equal(t, audit.ReasonOwnerSelfChange, got.Event.Reason)
 	assert.Equal(t, audit.ProjectRoleMetadata{OldRole: "owner"}, got.Event.Metadata)
+
+	encoded, err := json.Marshal(got.Event.Metadata)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"old_role":"owner"}`, string(encoded))
 }

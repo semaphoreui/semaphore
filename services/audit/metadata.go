@@ -37,7 +37,7 @@ type MembershipMetadata struct {
 
 type ProjectRoleMetadata struct {
 	OldRole string `json:"old_role"`
-	NewRole string `json:"new_role"`
+	NewRole string `json:"new_role,omitempty"`
 }
 
 type RoleMetadata struct {
