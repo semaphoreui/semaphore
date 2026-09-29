@@ -607,6 +607,7 @@ type Store interface {
 	SecretStorageRepository
 	SecretSyncRepository
 	RoleRepository
+	AuditEventManager
 }
 
 var AccessKeyProps = ObjectProps{

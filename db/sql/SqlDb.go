@@ -84,6 +84,7 @@ func (d *SqlDbConnection) Connect() {
 	}
 
 	d.sql.AddTableWithName(db.APIToken{}, "user__token").SetKeys(false, "id")
+	d.sql.AddTableWithName(db.AuditEvent{}, "audit_event").SetKeys(false, "seq")
 	d.sql.AddTableWithName(db.AccessKey{}, "access_key").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.Environment{}, "project__environment").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.Inventory{}, "project__inventory").SetKeys(true, "id")
