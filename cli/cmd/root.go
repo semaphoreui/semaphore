@@ -176,7 +176,7 @@ func runService() {
 		store,
 		util.Config.Audit,
 		util.HANodeID(),
-		proServer.NewAuditExporter(store, util.Config.Audit, util.HANodeID()),
+		proServer.NewAuditExporter(store, util.Config.Audit, proHA.NewAuditExportLeaser()),
 	)
 	if auditErr != nil {
 		log.WithError(auditErr).Fatal("failed to start the audit log")

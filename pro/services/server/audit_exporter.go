@@ -6,7 +6,7 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-func NewAuditExporter(_ db.Store, _ *util.AuditConfig, _ string) pro_interfaces.AuditExporter {
+func NewAuditExporter(_ db.Store, _ *util.AuditConfig, _ pro_interfaces.AuditExportLeaser) pro_interfaces.AuditExporter {
 	return auditExporterStub{}
 }
 
