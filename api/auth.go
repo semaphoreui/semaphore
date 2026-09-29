@@ -129,7 +129,13 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		ctx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
+
 		if !util.VerifyRecoveryCode(body.RecoveryCode, user.Totp.RecoveryHash) {
+			helpers.Audit(r).Record(ctx, audit.Event{
+				Kind: audit.AuthMFARecover, Outcome: audit.OutcomeFailure, Reason: audit.ReasonInvalidRecoveryCode,
+				Target: audit.UserTarget(user.ID, user.Username),
+			})
 			helpers.WriteErrorStatus(w, "INVALID_RECOVERY_CODE", http.StatusUnauthorized)
 			return
 		}
@@ -146,6 +152,7 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		helpers.Audit(r).Record(ctx, audit.Event{Kind: audit.AuthMFARecover, Target: audit.UserTarget(user.ID, user.Username)})
 		w.WriteHeader(http.StatusNoContent)
 	case db.SessionVerificationNone:
 		w.WriteHeader(http.StatusNoContent)
@@ -191,6 +198,8 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		ctx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
+
 		key, err := otp.NewKeyFromURL(user.Totp.URL)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -198,6 +207,10 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !totp.Validate(body.Passcode, key.Secret()) {
+			helpers.Audit(r).Record(ctx, audit.Event{
+				Kind: audit.AuthMFAVerifyTOTP, Outcome: audit.OutcomeFailure, Reason: audit.ReasonInvalidPasscode,
+				Target: audit.UserTarget(user.ID, user.Username),
+			})
 			helpers.WriteErrorStatus(w, "INVALID_PASSCODE", http.StatusUnauthorized)
 			return
 		}
@@ -207,6 +220,8 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 			helpers.WriteError(w, err)
 			return
 		}
+
+		helpers.Audit(r).Record(ctx, audit.Event{Kind: audit.AuthMFAVerifyTOTP, Target: audit.UserTarget(user.ID, user.Username)})
 
 	case db.SessionVerificationNone:
 		w.WriteHeader(http.StatusNoContent)
