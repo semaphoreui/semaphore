@@ -225,7 +225,6 @@ func runService() {
 	)
 
 	defer schedulePool.Destroy()
-	defer taskPool.Stop()
 
 	auditSettings := audit.Settings{}
 	if util.Config.Audit != nil {
@@ -324,6 +323,7 @@ func runService() {
 	taskPool.LogRunnerStateSnapshot()
 	go schedulePool.Run()
 	go taskPool.Run()
+	defer taskPool.Stop()
 
 	secretStorageSyncScheduler.Start()
 	defer secretStorageSyncScheduler.Stop()
