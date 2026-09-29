@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/subtle"
 	"errors"
 	"net/http"
@@ -63,6 +64,22 @@ func getSession(r *http.Request) (*db.Session, bool) {
 
 	return &session, true
 
+}
+
+// recordLoginAfterMFA records the login once the second factor is accepted.
+// A cookie set before the upgrade has no method, the login is still recorded.
+func recordLoginAfterMFA(ctx context.Context, r *http.Request, user db.User) {
+	value := make(map[string]any)
+	if cookie, err := r.Cookie("semaphore"); err == nil {
+		_ = util.Cookie.Decode("semaphore", cookie.Value, &value)
+	}
+	method, _ := value["method"].(string)
+	provider, _ := value["provider"].(string)
+	helpers.Audit(r).Record(ctx, audit.Event{
+		Kind:     audit.AuthLogin,
+		Target:   audit.UserTarget(user.ID, user.Username),
+		Metadata: audit.AuthMethodMetadata{Method: method, Provider: provider},
+	})
 }
 
 type totpRequestBody struct {
@@ -153,6 +170,7 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 		}
 
 		helpers.Audit(r).Record(ctx, audit.Event{Kind: audit.AuthMFARecover, Target: audit.UserTarget(user.ID, user.Username)})
+		recordLoginAfterMFA(ctx, r, user)
 		w.WriteHeader(http.StatusNoContent)
 	case db.SessionVerificationNone:
 		w.WriteHeader(http.StatusNoContent)
@@ -222,6 +240,7 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		}
 
 		helpers.Audit(r).Record(ctx, audit.Event{Kind: audit.AuthMFAVerifyTOTP, Target: audit.UserTarget(user.ID, user.Username)})
+		recordLoginAfterMFA(ctx, r, user)
 
 	case db.SessionVerificationNone:
 		w.WriteHeader(http.StatusNoContent)

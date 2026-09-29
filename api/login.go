@@ -154,8 +154,8 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 }
 
 // createSession creates session for passed user and stores session details
-// in cookies.
-func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bool) error {
+// in cookies. It reports whether the session is usable without a second factor.
+func createSession(w http.ResponseWriter, r *http.Request, user db.User, meta audit.AuthMethodMetadata) (bool, error) {
 	var err error
 	var verificationMethod db.SessionVerificationMethod
 	verified := false
@@ -185,12 +185,15 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 			"context": "session",
 		}).Error("Failed to create session")
 		helpers.WriteErrorStatus(w, "Failed to create session", http.StatusInternalServerError)
-		return err
+		return false, err
 	}
 
+	// The MFA step records the login with the method of the first step.
 	encoded, err := util.Cookie.Encode("semaphore", map[string]any{
-		"user":    user.ID,
-		"session": newSession.ID,
+		"user":     user.ID,
+		"session":  newSession.ID,
+		"method":   meta.Method,
+		"provider": meta.Provider,
 	})
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
@@ -198,7 +201,7 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 			"context": "session",
 		}).Error("Failed to encode session cookie")
 		helpers.WriteErrorStatus(w, "Failed to create session", http.StatusInternalServerError)
-		return err
+		return false, err
 	}
 
 	http.SetCookie(w, &http.Cookie{
@@ -215,7 +218,7 @@ func createSession(w http.ResponseWriter, r *http.Request, user db.User, oidc bo
 		// it can still be used without TLS inside private networks.
 		Secure: isSecureWebHost(),
 	})
-	return nil
+	return verified, nil
 }
 
 // isSecureWebHost reports whether Semaphore's public web host uses HTTPS, in
@@ -522,17 +525,21 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = createSession(w, r, user, false); err != nil {
+	verified, err := createSession(w, r, user, meta)
+	if err != nil {
 		recordLoginFailure(r, login.Auth, meta, audit.ReasonInternalError)
 		return
 	}
 
-	ctx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
-	helpers.Audit(r).Record(ctx, audit.Event{
-		Kind:     audit.AuthLogin,
-		Target:   audit.UserTarget(user.ID, user.Username),
-		Metadata: meta,
-	})
+	// With a second factor pending the login is recorded when it is accepted.
+	if verified {
+		ctx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
+		helpers.Audit(r).Record(ctx, audit.Event{
+			Kind:     audit.AuthLogin,
+			Target:   audit.UserTarget(user.ID, user.Username),
+			Metadata: meta,
+		})
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -1143,17 +1150,21 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = createSession(w, r, user, true); err != nil {
+	verified, err := createSession(w, r, user, meta)
+	if err != nil {
 		recordLoginFailure(r, "", meta, audit.ReasonInternalError)
 		return
 	}
 
-	actorCtx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
-	helpers.Audit(r).Record(actorCtx, audit.Event{
-		Kind:     audit.AuthLogin,
-		Target:   audit.UserTarget(user.ID, user.Username),
-		Metadata: meta,
-	})
+	// With a second factor pending the login is recorded when it is accepted.
+	if verified {
+		actorCtx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
+		helpers.Audit(r).Record(actorCtx, audit.Event{
+			Kind:     audit.AuthLogin,
+			Target:   audit.UserTarget(user.ID, user.Username),
+			Metadata: meta,
+		})
+	}
 
 	config, ok := util.Config.OidcProviders[pid]
 	if !ok {
