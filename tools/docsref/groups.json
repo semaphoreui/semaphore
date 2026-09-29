@@ -149,6 +149,13 @@
       ]
     },
     {
+      "title": "Audit log",
+      "intro": "Security audit trail and its export to a SIEM. See [Audit log](/admin-guide/audit-log).",
+      "prefixes": [
+        "audit."
+      ]
+    },
+    {
       "title": "Debugging",
       "intro": "Switches useful when diagnosing a problem. Do not leave them on in production.",
       "prefixes": [
@@ -158,6 +165,7 @@
     }
   ],
   "editions": {
+    "audit.syslog.": "pro",
     "log.": "pro",
     "syslog.": "pro",
     "runner.executor.docker.": "pro",
