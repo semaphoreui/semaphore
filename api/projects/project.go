@@ -1,7 +1,6 @@
 package projects
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -26,6 +25,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 
 		// check if user in project's team
 		projectUser, err := helpers.Store(r).GetProjectUser(projectID, user.ID)
+		hasMembership := err == nil
 
 		if !user.Admin && err != nil {
 			helpers.WriteError(w, err)
@@ -39,23 +39,21 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		roleSlug := projectUser.Role
-		// Keep zero permissions when no role is assigned or its definition is missing.
+		var role *db.Role
 		var permissions db.ProjectUserPermission
 
-		if roleSlug != db.ProjectNone {
-			role, err := helpers.Store(r).GetRoleBySlug(string(roleSlug), db.AvailableRoleQuery{
-				ProjectID: projectID,
-				Kinds:     db.RoleKindAll,
-			})
-
-			if err == nil {
-				roleSlug = db.ProjectUserRole(role.Slug)
-				permissions = role.Permissions
-			} else if !errors.Is(err, db.ErrNotFound) {
+		if hasMembership {
+			resolvedRole, err := helpers.Store(r).GetRole(db.RoleByIDQuery{ID: projectUser.RoleID})
+			if err != nil {
 				helpers.WriteError(w, err)
 				return
 			}
+			if !resolvedRole.IsAvailableToProject(projectID) {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			role = &resolvedRole
+			permissions = resolvedRole.Permissions
 		}
 
 		if helpers.HasParam("template_id", r) {
@@ -73,7 +71,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			permissions |= perm
 		}
 
-		r = helpers.SetContextValue(r, "projectUserRole", roleSlug)
+		r = helpers.SetContextValue(r, "projectRole", role)
 		r = helpers.SetContextValue(r, "permissions", permissions)
 		r = helpers.SetContextValue(r, "project", project)
 		next.ServeHTTP(w, r)
@@ -174,10 +172,12 @@ func GetProject(w http.ResponseWriter, r *http.Request) {
 
 func GetUserRole(w http.ResponseWriter, r *http.Request) {
 	var result struct {
-		Role        db.ProjectUserRole       `json:"role"`
+		RoleID      *int                     `json:"role_id"`
 		Permissions db.ProjectUserPermission `json:"permissions"`
 	}
-	result.Role = helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
+	if role := helpers.GetFromContext(r, "projectRole").(*db.Role); role != nil {
+		result.RoleID = &role.ID
+	}
 	result.Permissions = helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
 	helpers.WriteJSON(w, http.StatusOK, result)
 }

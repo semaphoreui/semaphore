@@ -1,38 +1,40 @@
 package sql
 
 import (
+	"errors"
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
-func buildRoleQuery(roleQuery db.RoleQuery) (sq.SelectBuilder, error) {
+func buildRolesQuery(rolesQuery db.RolesQuery) (sq.SelectBuilder, error) {
 	query := sq.Select("*").From("`role`")
 	var kinds db.RoleKind
 
-	switch roleQuery := roleQuery.(type) {
-	case db.GlobalRoleQuery:
+	switch rolesQuery := rolesQuery.(type) {
+	case db.GlobalRolesQuery:
 		query = query.Where(sq.Eq{"project_id": nil})
-		kinds = roleQuery.Kinds
-	case db.ProjectRoleQuery:
-		query = query.Where(sq.Eq{"project_id": roleQuery.ProjectID})
+		kinds = rolesQuery.Kinds
+	case db.ProjectRolesQuery:
+		query = query.Where(sq.Eq{"project_id": rolesQuery.ProjectID})
 		kinds = db.RoleKindCustom
-	case db.AvailableRoleQuery:
+	case db.AvailableRolesQuery:
 		query = query.Where(sq.Or{
-			sq.Eq{"project_id": roleQuery.ProjectID},
+			sq.Eq{"project_id": rolesQuery.ProjectID},
 			sq.Eq{"project_id": nil},
 		})
-		kinds = roleQuery.Kinds
+		kinds = rolesQuery.Kinds
 	default:
-		return query, fmt.Errorf("unsupported role query: %T", roleQuery)
+		return query, fmt.Errorf("unsupported roles query: %T", rolesQuery)
 	}
 
 	switch kinds {
 	case db.RoleKindBuiltin:
-		return query.Where(sq.Eq{"is_builtin": true}), nil
+		return query.Where(sq.NotEq{"builtin_key": nil}), nil
 	case db.RoleKindCustom:
-		return query.Where(sq.Eq{"is_builtin": false}), nil
+		return query.Where(sq.Eq{"builtin_key": nil}), nil
 	case db.RoleKindAll:
 		return query, nil
 	default:
@@ -40,8 +42,8 @@ func buildRoleQuery(roleQuery db.RoleQuery) (sq.SelectBuilder, error) {
 	}
 }
 
-func (d *SqlDb) GetRoles(roleQuery db.RoleQuery) ([]db.Role, error) {
-	query, err := buildRoleQuery(roleQuery)
+func (d *SqlDb) GetRoles(rolesQuery db.RolesQuery) ([]db.Role, error) {
+	query, err := buildRolesQuery(rolesQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -56,13 +58,19 @@ func (d *SqlDb) GetRoles(roleQuery db.RoleQuery) ([]db.Role, error) {
 	return roles, err
 }
 
-func (d *SqlDb) GetRoleBySlug(slug string, roleQuery db.RoleQuery) (db.Role, error) {
-	query, err := buildRoleQuery(roleQuery)
-	if err != nil {
-		return db.Role{}, err
+func (d *SqlDb) GetRole(roleQuery db.RoleQuery) (db.Role, error) {
+	query := sq.Select("*").From("`role`")
+
+	switch roleQuery := roleQuery.(type) {
+	case db.RoleByIDQuery:
+		query = query.Where(sq.Eq{"id": roleQuery.ID})
+	case db.BuiltinRoleQuery:
+		query = query.Where(sq.Eq{"builtin_key": roleQuery.Key})
+	default:
+		return db.Role{}, fmt.Errorf("unsupported role query: %T", roleQuery)
 	}
 
-	queryString, args, err := query.Where(sq.Eq{"slug": slug}).ToSql()
+	queryString, args, err := query.ToSql()
 	if err != nil {
 		return db.Role{}, err
 	}
@@ -72,41 +80,69 @@ func (d *SqlDb) GetRoleBySlug(slug string, roleQuery db.RoleQuery) (db.Role, err
 	return role, err
 }
 
+func sameProjectScope(left *int, right *int) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
+}
+
 func (d *SqlDb) UpdateRole(role db.Role) error {
-	if err := db.ValidateRole(role); err != nil {
+	existing, err := d.GetRole(db.RoleByIDQuery{ID: role.ID})
+	if err != nil {
 		return err
 	}
+	if existing.IsBuiltin() {
+		return fmt.Errorf("built-in roles cannot be updated: %w", db.ErrInvalidOperation)
+	}
+	if err := db.ValidateCustomRole(role); err != nil {
+		return err
+	}
+	if !sameProjectScope(existing.ProjectID, role.ProjectID) {
+		return &common_errors.ValidationError{Message: "Role scope cannot be changed"}
+	}
 
-	_, err := d.exec(
-		"update `role` set name=?, permissions=? where slug=? and is_builtin=false",
+	_, err = d.exec(
+		"update `role` set name=?, permissions=? where id=? and builtin_key is null",
 		role.Name,
 		role.Permissions,
-		role.Slug)
+		role.ID)
 	return err
 }
 
 func (d *SqlDb) CreateRole(role db.Role) (db.Role, error) {
-	if err := db.ValidateRole(role); err != nil {
+	if err := db.ValidateCustomRole(role); err != nil {
 		return role, err
 	}
 
-	_, err := d.insert(
-		"",
-		"insert into `role` (slug, name, permissions, project_id, is_builtin) values (?, ?, ?, ?, ?)",
-		role.Slug,
+	roleID, err := d.insert(
+		"id",
+		"insert into `role` (name, permissions, project_id, builtin_key) values (?, ?, ?, null)",
 		role.Name,
 		role.Permissions,
-		role.ProjectID,
-		role.IsBuiltin)
-
+		role.ProjectID)
 	if err != nil {
 		return role, err
 	}
 
+	role.ID = roleID
+	role.BuiltinKey = nil
 	return role, nil
 }
 
-func (d *SqlDb) DeleteRole(slug string) error {
-	res, err := d.exec("delete from `role` where slug=? and is_builtin=false", slug)
-	return validateMutationResult(res, err)
+func (d *SqlDb) DeleteRole(roleID int) error {
+	role, err := d.GetRole(db.RoleByIDQuery{ID: roleID})
+	if err != nil {
+		return err
+	}
+	if role.IsBuiltin() {
+		return fmt.Errorf("built-in roles cannot be deleted: %w", db.ErrInvalidOperation)
+	}
+
+	res, err := d.exec("delete from `role` where id=? and builtin_key is null", roleID)
+	err = validateMutationResult(res, err)
+	if errors.Is(err, db.ErrInvalidOperation) {
+		return fmt.Errorf("role cannot be deleted while it is assigned or granted: %w", err)
+	}
+	return err
 }

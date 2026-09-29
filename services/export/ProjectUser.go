@@ -38,7 +38,7 @@ func getUsers(vals []db.UserWithProjectRole, projId int) []db.ProjectUser {
 	for _, val := range vals {
 		values = append(values, db.ProjectUser{
 			UserID:    val.ID,
-			Role:      val.Role,
+			RoleID:    val.RoleID,
 			ProjectID: projId,
 		})
 	}
@@ -52,6 +52,11 @@ func (e *ProjectUserExporter) restore(store db.Store, exporter DataExporter, pro
 
 func (e *ProjectUserExporter) restoreValue(val EntityObject[db.ProjectUser], store db.Store, exporter DataExporter) (err error) {
 	old := val.value
+
+	old.RoleID, err = getNewRoleID(exporter, old.ProjectID, old.RoleID)
+	if err != nil {
+		return err
+	}
 
 	old.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, old.ProjectID)
 	if err != nil {
@@ -76,7 +81,7 @@ func (e *ProjectUserExporter) exportDependsOn() []string {
 }
 
 func (e *ProjectUserExporter) importDependsOn() []string {
-	return []string{User, Project}
+	return []string{User, Project, Role}
 }
 
 func (e *ProjectUserExporter) getName() string {

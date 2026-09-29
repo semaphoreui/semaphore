@@ -55,7 +55,7 @@ func (e HostConfig) GetDbKey() string {
 }
 
 func (e Role) GetDbKey() string {
-	return e.Slug
+	return NewKeyFromInt(e.ID)
 }
 
 func (e View) GetDbKey() string {

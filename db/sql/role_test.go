@@ -11,175 +11,410 @@ import (
 func Test_RoleQueries(t *testing.T) {
 	store := InitConfigCreateTestStore()
 
-	project1, err := store.CreateProject(db.Project{Name: "project1"})
+	project1, err := store.CreateProject(db.Project{
+		Name: "project1",
+	})
 	require.NoError(t, err)
-
-	// Seed another project to verify project-scoped and available-role queries
-	// do not leak roles owned by unrelated projects.
-	project2, err := store.CreateProject(db.Project{Name: "project2"})
-	require.NoError(t, err)
-
-	_, err = store.CreateRole(db.Role{
-		Slug: "global_custom",
-		Name: "Global custom",
+	project2, err := store.CreateProject(db.Project{
+		Name: "project2",
 	})
 	require.NoError(t, err)
 
-	_, err = store.CreateRole(db.Role{
-		Slug:      "project_custom",
+	globalRole, err := store.CreateRole(db.Role{
+		Name: "Global custom",
+	})
+	require.NoError(t, err)
+	projectRole, err := store.CreateRole(db.Role{
 		Name:      "Project custom",
 		ProjectID: &project1.ID,
 	})
 	require.NoError(t, err)
-
 	_, err = store.CreateRole(db.Role{
-		Slug:      "other_project_custom",
 		Name:      "Other project custom",
 		ProjectID: &project2.ID,
 	})
 	require.NoError(t, err)
 
 	t.Run("global custom", func(t *testing.T) {
-		roles, err := store.GetRoles(db.GlobalRoleQuery{Kinds: db.RoleKindCustom})
+		roles, err := store.GetRoles(db.GlobalRolesQuery{
+			Kinds: db.RoleKindCustom,
+		})
 		require.NoError(t, err)
 		require.Len(t, roles, 1)
-		assert.Equal(t, "global_custom", roles[0].Slug)
+		assert.Equal(t, globalRole.ID, roles[0].ID)
 	})
 
 	t.Run("global built-in", func(t *testing.T) {
-		roles, err := store.GetRoles(db.GlobalRoleQuery{Kinds: db.RoleKindBuiltin})
+		roles, err := store.GetRoles(db.GlobalRolesQuery{
+			Kinds: db.RoleKindBuiltin,
+		})
 		require.NoError(t, err)
 		require.Len(t, roles, 4)
 		for _, role := range roles {
-			assert.True(t, role.IsBuiltin)
+			assert.True(t, role.IsBuiltin())
 		}
 	})
 
 	t.Run("project custom", func(t *testing.T) {
-		roles, err := store.GetRoles(db.ProjectRoleQuery{ProjectID: project1.ID})
+		roles, err := store.GetRoles(db.ProjectRolesQuery{
+			ProjectID: project1.ID,
+		})
 		require.NoError(t, err)
 		require.Len(t, roles, 1)
-		assert.Equal(t, "project_custom", roles[0].Slug)
+		assert.Equal(t, projectRole.ID, roles[0].ID)
 	})
 
 	t.Run("available custom", func(t *testing.T) {
-		roles, err := store.GetRoles(db.AvailableRoleQuery{
+		roles, err := store.GetRoles(db.AvailableRolesQuery{
 			ProjectID: project1.ID,
 			Kinds:     db.RoleKindCustom,
 		})
 		require.NoError(t, err)
 
-		slugs := make([]string, 0, len(roles))
+		ids := make([]int, 0, len(roles))
 		for _, role := range roles {
-			slugs = append(slugs, role.Slug)
+			ids = append(ids, role.ID)
 		}
-		assert.ElementsMatch(t, []string{"global_custom", "project_custom"}, slugs)
+		assert.ElementsMatch(t, []int{globalRole.ID, projectRole.ID}, ids)
 	})
 
 	t.Run("available all", func(t *testing.T) {
-		roles, err := store.GetRoles(db.AvailableRoleQuery{
+		roles, err := store.GetRoles(db.AvailableRolesQuery{
 			ProjectID: project1.ID,
 			Kinds:     db.RoleKindAll,
 		})
 		require.NoError(t, err)
-
-		slugs := make([]string, 0, len(roles))
-		for _, role := range roles {
-			slugs = append(slugs, role.Slug)
-		}
-		assert.ElementsMatch(t, []string{
-			"guest",
-			"global_custom",
-			"manager",
-			"owner",
-			"project_custom",
-			"task_runner",
-		}, slugs)
+		assert.Len(t, roles, 6)
 	})
 }
 
-func Test_GetRoleBySlug_AppliesQueryScope(t *testing.T) {
+func Test_GetRole_ByID(t *testing.T) {
 	store := InitConfigCreateTestStore()
-
-	project, err := store.CreateProject(db.Project{Name: "project"})
+	project, err := store.CreateProject(db.Project{
+		Name: "project",
+	})
 	require.NoError(t, err)
-
-	_, err = store.CreateRole(db.Role{
-		Slug: "global_custom",
+	globalRole, err := store.CreateRole(db.Role{
 		Name: "Global custom",
 	})
 	require.NoError(t, err)
-
-	role, err := store.GetRoleBySlug("owner", db.GlobalRoleQuery{Kinds: db.RoleKindBuiltin})
-	require.NoError(t, err)
-	assert.True(t, role.IsBuiltin)
-
-	_, err = store.GetRoleBySlug("owner", db.GlobalRoleQuery{Kinds: db.RoleKindCustom})
-	assert.ErrorIs(t, err, db.ErrNotFound)
-
-	role, err = store.GetRoleBySlug("global_custom", db.AvailableRoleQuery{
-		ProjectID: project.ID,
-		Kinds:     db.RoleKindCustom,
+	projectRole, err := store.CreateRole(db.Role{
+		Name:      "Project custom",
+		ProjectID: &project.ID,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "global_custom", role.Slug)
+
+	role, err := store.GetRole(db.RoleByIDQuery{ID: globalRole.ID})
+	require.NoError(t, err)
+	assert.Equal(t, globalRole.ID, role.ID)
+
+	role, err = store.GetRole(db.RoleByIDQuery{ID: projectRole.ID})
+	require.NoError(t, err)
+	assert.Equal(t, projectRole.ID, role.ID)
+
+	_, err = store.GetRole(db.RoleByIDQuery{})
+	assert.ErrorIs(t, err, db.ErrNotFound)
+}
+
+func Test_GetRole_ByBuiltinKey(t *testing.T) {
+	store := InitConfigCreateTestStore()
+
+	role, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
+	require.NoError(t, err)
+	require.NotNil(t, role.BuiltinKey)
+	assert.Equal(t, db.BuiltinRoleOwner, *role.BuiltinKey)
+	assert.Equal(t, db.ProjectUserPermission(15), role.Permissions)
+
+	_, err = store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleKey("unknown")})
+	assert.ErrorIs(t, err, db.ErrNotFound)
 }
 
 func Test_RoleMutations_ProtectBuiltinRoles(t *testing.T) {
 	store := InitConfigCreateTestStore()
-	query := db.GlobalRoleQuery{Kinds: db.RoleKindBuiltin}
-
-	original, err := store.GetRoleBySlug("owner", query)
+	original, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
 	require.NoError(t, err)
 
 	updated := original
 	updated.Name = "Modified owner"
 	updated.Permissions = 0
-	require.Error(t, store.UpdateRole(updated))
+	require.ErrorIs(t, store.UpdateRole(updated), db.ErrInvalidOperation)
+	require.ErrorIs(t, store.DeleteRole(original.ID), db.ErrInvalidOperation)
 
-	afterUpdate, err := store.GetRoleBySlug("owner", query)
+	after, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
 	require.NoError(t, err)
-	assert.Equal(t, original, afterUpdate)
-
-	// TODO(PRO-64): Return an error when attempting to delete a built-in role.
-	require.NoError(t, store.DeleteRole("owner"))
-
-	afterDelete, err := store.GetRoleBySlug("owner", query)
-	require.NoError(t, err)
-	assert.Equal(t, original, afterDelete)
+	assert.Equal(t, original, after)
 }
 
-func Test_CreateRole_RejectsBuiltinRole(t *testing.T) {
+func Test_CreateRole_RejectsBuiltinKey(t *testing.T) {
 	store := InitConfigCreateTestStore()
+	key := db.BuiltinRoleOwner
 
 	_, err := store.CreateRole(db.Role{
-		Slug:      "custom_builtin",
-		Name:      "Custom built-in",
-		IsBuiltin: true,
+		Name:       "Custom built-in",
+		BuiltinKey: &key,
 	})
 	require.Error(t, err)
-
-	_, err = store.GetRoleBySlug(
-		"custom_builtin",
-		db.GlobalRoleQuery{Kinds: db.RoleKindAll})
-	assert.ErrorIs(t, err, db.ErrNotFound)
 }
 
-func Test_CreateRole_PersistsCustomRole(t *testing.T) {
+func Test_CreateRole_PersistsGeneratedID(t *testing.T) {
 	store := InitConfigCreateTestStore()
 
 	created, err := store.CreateRole(db.Role{
-		Slug: "custom",
 		Name: "Custom",
 	})
 	require.NoError(t, err)
-	assert.False(t, created.IsBuiltin)
+	require.Positive(t, created.ID)
+	assert.Nil(t, created.BuiltinKey)
 
-	persisted, err := store.GetRoleBySlug(
-		"custom",
-		db.GlobalRoleQuery{Kinds: db.RoleKindAll})
+	persisted, err := store.GetRole(db.RoleByIDQuery{ID: created.ID})
 	require.NoError(t, err)
-	assert.False(t, persisted.IsBuiltin)
+	assert.Equal(t, created.ID, persisted.ID)
+	assert.Equal(t, created.Name, persisted.Name)
+	assert.Nil(t, persisted.BuiltinKey)
+}
+
+func Test_CreateRole_AllowsDuplicateNames(t *testing.T) {
+	store := InitConfigCreateTestStore()
+
+	first, err := store.CreateRole(db.Role{
+		Name: "Duplicate",
+	})
+	require.NoError(t, err)
+	second, err := store.CreateRole(db.Role{
+		Name: "Duplicate",
+	})
+	require.NoError(t, err)
+	assert.NotEqual(t, first.ID, second.ID)
+}
+
+func Test_UpdateRole_RejectsScopeChange(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{
+		Name: "project",
+	})
+	require.NoError(t, err)
+	role, err := store.CreateRole(db.Role{
+		Name: "Custom",
+	})
+	require.NoError(t, err)
+
+	role.ProjectID = &project.ID
+	require.Error(t, store.UpdateRole(role))
+
+	persisted, err := store.GetRole(db.RoleByIDQuery{ID: role.ID})
+	require.NoError(t, err)
+	assert.Nil(t, persisted.ProjectID)
+}
+
+func Test_Role_IsAvailableToProject(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{
+		Name: "project",
+	})
+	require.NoError(t, err)
+	otherProject, err := store.CreateProject(db.Project{
+		Name: "other project",
+	})
+	require.NoError(t, err)
+
+	ownerRole, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
+	require.NoError(t, err)
+	globalRole, err := store.CreateRole(db.Role{
+		Name: "Global custom",
+	})
+	require.NoError(t, err)
+	projectRole, err := store.CreateRole(db.Role{
+		Name:      "Project custom",
+		ProjectID: &project.ID,
+	})
+	require.NoError(t, err)
+
+	assert.True(t, ownerRole.IsAvailableToProject(project.ID))
+	assert.True(t, globalRole.IsAvailableToProject(project.ID))
+	assert.True(t, projectRole.IsAvailableToProject(project.ID))
+	assert.False(t, projectRole.IsAvailableToProject(otherProject.ID))
+}
+
+func Test_CreateProjectUser_RejectsRoleFromAnotherProject(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{
+		Name: "project",
+	})
+	require.NoError(t, err)
+	otherProject, err := store.CreateProject(db.Project{
+		Name: "other project",
+	})
+	require.NoError(t, err)
+	user, err := store.CreateUserWithoutPassword(db.User{
+		Username: "user",
+		Name:     "User",
+		Email:    "user@example.com",
+	})
+	require.NoError(t, err)
+	role, err := store.CreateRole(db.Role{
+		Name:      "Other project custom",
+		ProjectID: &otherProject.ID,
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateProjectUser(db.ProjectUser{
+		ProjectID: project.ID,
+		UserID:    user.ID,
+		RoleID:    role.ID,
+	})
+	require.Error(t, err)
+}
+
+func Test_UpdateProjectUser_RejectsRoleFromAnotherProject(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{
+		Name: "project",
+	})
+	require.NoError(t, err)
+	otherProject, err := store.CreateProject(db.Project{
+		Name: "other project",
+	})
+	require.NoError(t, err)
+	user, err := store.CreateUserWithoutPassword(db.User{
+		Username: "user",
+		Name:     "User",
+		Email:    "user@example.com",
+	})
+	require.NoError(t, err)
+	owner, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
+	require.NoError(t, err)
+	_, err = store.CreateProjectUser(db.ProjectUser{
+		ProjectID: project.ID,
+		UserID:    user.ID,
+		RoleID:    owner.ID,
+	})
+	require.NoError(t, err)
+	role, err := store.CreateRole(db.Role{
+		Name:      "Other project custom",
+		ProjectID: &otherProject.ID,
+	})
+	require.NoError(t, err)
+
+	err = store.UpdateProjectUser(db.ProjectUser{
+		ProjectID: project.ID,
+		UserID:    user.ID,
+		RoleID:    role.ID,
+	})
+	require.Error(t, err)
+}
+
+func Test_CreateTemplateRole_RejectsRoleFromAnotherProject(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{
+		Name: "project",
+	})
+	require.NoError(t, err)
+	otherProject, err := store.CreateProject(db.Project{
+		Name: "other project",
+	})
+	require.NoError(t, err)
+	role, err := store.CreateRole(db.Role{
+		Name:      "Other project custom",
+		ProjectID: &otherProject.ID,
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateTemplateRole(db.TemplateRolePerm{
+		ProjectID:  project.ID,
+		TemplateID: 1,
+		RoleID:     role.ID,
+	})
+	require.Error(t, err)
+}
+
+func Test_CreateProjectInvite_RequiresAvailableBuiltinRole(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{
+		Name: "project",
+	})
+	require.NoError(t, err)
+	customRole, err := store.CreateRole(db.Role{
+		Name: "Global custom",
+	})
+	require.NoError(t, err)
+
+	_, err = store.CreateProjectInvite(db.ProjectInvite{
+		ProjectID: project.ID,
+		RoleID:    customRole.ID,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "built-in role")
+}
+
+func Test_DeleteRole_ReturnsConflictWhenRoleIsReferenced(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{
+		Name: "project",
+	})
+	require.NoError(t, err)
+	user, err := store.CreateUserWithoutPassword(db.User{
+		Username: "user",
+		Name:     "User",
+		Email:    "user@example.com",
+	})
+	require.NoError(t, err)
+	role, err := store.CreateRole(db.Role{
+		Name: "Global custom",
+	})
+	require.NoError(t, err)
+
+	_, err = store.exec(
+		"insert into project__user (project_id, user_id, role_id) values (?, ?, ?)",
+		project.ID,
+		user.ID,
+		role.ID)
+	require.NoError(t, err)
+
+	err = store.DeleteRole(role.ID)
+	require.ErrorIs(t, err, db.ErrInvalidOperation)
+	assert.Contains(t, err.Error(), "assigned or granted")
+}
+
+func Test_DeleteProject_RemovesRoleRelationshipsBeforeProjectRoles(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{
+		Name: "project",
+	})
+	require.NoError(t, err)
+	user, err := store.CreateUserWithoutPassword(db.User{
+		Username: "user",
+		Name:     "User",
+		Email:    "user@example.com",
+	})
+	require.NoError(t, err)
+	role, err := store.CreateRole(db.Role{
+		Name:      "Project custom",
+		ProjectID: &project.ID,
+	})
+	require.NoError(t, err)
+
+	_, err = store.exec(
+		"insert into project__user (project_id, user_id, role_id) values (?, ?, ?)",
+		project.ID,
+		user.ID,
+		role.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, store.DeleteProject(project.ID))
+	_, err = store.GetRole(db.RoleByIDQuery{ID: role.ID})
+	assert.ErrorIs(t, err, db.ErrNotFound)
+}
+
+func Test_DeleteRole_DeletesUnreferencedCustomRole(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	role, err := store.CreateRole(db.Role{
+		Name: "Custom",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, store.DeleteRole(role.ID))
+	_, err = store.GetRole(db.RoleByIDQuery{ID: role.ID})
+	assert.ErrorIs(t, err, db.ErrNotFound)
 }
 
 func Test_RoleQueries_RejectInvalidFilters(t *testing.T) {
@@ -190,9 +425,9 @@ func Test_RoleQueries_RejectInvalidFilters(t *testing.T) {
 
 	// Kinds is required; its zero value is intentionally invalid so callers
 	// cannot accidentally include or exclude built-in roles.
-	_, err = store.GetRoles(db.GlobalRoleQuery{})
+	_, err = store.GetRoles(db.GlobalRolesQuery{})
 	assert.Error(t, err)
 
-	_, err = store.GetRoles(db.AvailableRoleQuery{Kinds: db.RoleKind(8)})
+	_, err = store.GetRoles(db.AvailableRolesQuery{Kinds: db.RoleKind(8)})
 	assert.Error(t, err)
 }

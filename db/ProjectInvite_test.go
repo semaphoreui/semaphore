@@ -31,7 +31,7 @@ func TestProjectInvite_EmailBasedInvite(t *testing.T) {
 		ID:            1,
 		ProjectID:     1,
 		Email:         &email,
-		Role:          ProjectManager,
+		RoleID:        2,
 		Status:        ProjectInvitePending,
 		Token:         "test-token",
 		InviterUserID: 1,
@@ -57,7 +57,7 @@ func TestProjectInvite_UserBasedInvite(t *testing.T) {
 		ID:            1,
 		ProjectID:     1,
 		UserID:        &userID,
-		Role:          ProjectTaskRunner,
+		RoleID:        3,
 		Status:        ProjectInvitePending,
 		Token:         "test-token",
 		InviterUserID: 1,
@@ -72,8 +72,8 @@ func TestProjectInvite_UserBasedInvite(t *testing.T) {
 		t.Errorf("Expected user_id 42, got %v", invite.UserID)
 	}
 
-	if invite.Role != ProjectTaskRunner {
-		t.Errorf("Expected role 'task_runner', got %s", invite.Role)
+	if invite.RoleID != 3 {
+		t.Errorf("Expected role ID 3, got %d", invite.RoleID)
 	}
 }
 
@@ -85,7 +85,7 @@ func TestProjectInvite_WithExpiration(t *testing.T) {
 		ID:            1,
 		ProjectID:     1,
 		Email:         &email,
-		Role:          ProjectManager,
+		RoleID:        2,
 		Status:        ProjectInvitePending,
 		Token:         "test-token",
 		InviterUserID: 1,
@@ -110,7 +110,7 @@ func TestProjectInvite_AcceptedInvite(t *testing.T) {
 		ID:            1,
 		ProjectID:     1,
 		Email:         &email,
-		Role:          ProjectManager,
+		RoleID:        2,
 		Status:        ProjectInviteAccepted,
 		Token:         "test-token",
 		InviterUserID: 1,
@@ -133,7 +133,7 @@ func TestProjectInviteWithUser_Structure(t *testing.T) {
 		ID:            1,
 		ProjectID:     1,
 		Email:         &email,
-		Role:          ProjectManager,
+		RoleID:        2,
 		Status:        ProjectInvitePending,
 		Token:         "test-token",
 		InviterUserID: 1,

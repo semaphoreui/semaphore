@@ -9,16 +9,6 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/random"
 )
 
-func findNameBySlug[T db.BackupSluggedEntity](slug string, items []T) (*string, error) {
-	for _, o := range items {
-		if o.GetSlug() == slug {
-			name := o.GetName()
-			return &name, nil
-		}
-	}
-	return nil, fmt.Errorf("item %s does not exist", slug)
-}
-
 func findNameByID[T db.BackupEntity](ID int, items []T) (*string, error) {
 	for _, o := range items {
 		if o.GetID() == ID {
@@ -225,12 +215,12 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
-	b.roles, err = store.GetRoles(db.ProjectRoleQuery{ProjectID: projectID})
+	b.roles, err = store.GetRoles(db.ProjectRolesQuery{ProjectID: projectID})
 	if err != nil {
 		return
 	}
 
-	b.globalRoles, err = store.GetRoles(db.GlobalRoleQuery{Kinds: db.RoleKindCustom})
+	b.globalRoles, err = store.GetRoles(db.GlobalRolesQuery{Kinds: db.RoleKindCustom})
 	if err != nil {
 		return
 	}
@@ -444,7 +434,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 
 		var roles []BackupTemplateRole
 		for _, r := range b.templateRoles[o.ID] {
-			name, err := findNameBySlug[db.Role](r.RoleSlug, b.roles)
+			name, err := findNameByID[db.Role](r.RoleID, b.roles)
 			if err == nil {
 				roles = append(roles, BackupTemplateRole{
 					Role:        *name,
@@ -453,7 +443,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 				})
 			} else {
 				// Try to find in Global
-				name, err = findNameBySlug[db.Role](r.RoleSlug, b.globalRoles)
+				name, err = findNameByID[db.Role](r.RoleID, b.globalRoles)
 				if err != nil {
 					continue
 				}

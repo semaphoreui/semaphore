@@ -571,11 +571,11 @@ type SecretSyncRepository interface {
 }
 
 type RoleRepository interface {
-	GetRoles(query RoleQuery) ([]Role, error)
-	GetRoleBySlug(slug string, query RoleQuery) (Role, error)
+	GetRoles(query RolesQuery) ([]Role, error)
+	GetRole(query RoleQuery) (Role, error)
 	UpdateRole(role Role) error
 	CreateRole(role Role) (Role, error)
-	DeleteRole(slug string) error
+	DeleteRole(roleID int) error
 }
 
 // Store is the main interface that aggregates all specialized interfaces
@@ -735,14 +735,6 @@ var SecretStorageProps = ObjectProps{
 	Type:                  reflect.TypeFor[SecretStorage](),
 	PrimaryColumnName:     "id",
 	Ownerships:            []*ObjectProps{&ProjectProps},
-}
-
-var RoleProps = ObjectProps{
-	TableName:         "role",
-	Type:              reflect.TypeFor[Role](),
-	PrimaryColumnName: "slug",
-	IsGlobal:          true,
-	SortableColumns:   []string{"name"},
 }
 
 var UserProps = ObjectProps{

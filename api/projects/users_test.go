@@ -14,46 +14,56 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newProjectRoleValidationTest(t *testing.T) (*sqlstore.SqlDb, db.Project) {
+type projectRoleValidationFixture struct {
+	store            *sqlstore.SqlDb
+	project          db.Project
+	builtinRoleID    int
+	globalRoleID     int
+	projectRoleID    int
+	otherProjectRole int
+}
+
+func newProjectRoleValidationTest(t *testing.T) projectRoleValidationFixture {
 	t.Helper()
 
 	store := sqlstore.InitConfigCreateTestStore()
-	project, err := store.CreateProject(db.Project{Name: "project"})
+	project, err := store.CreateProject(db.Project{
+		Name: "project",
+	})
 	require.NoError(t, err)
-	otherProject, err := store.CreateProject(db.Project{Name: "other project"})
+	otherProject, err := store.CreateProject(db.Project{
+		Name: "other project",
+	})
 	require.NoError(t, err)
 
-	_, err = store.CreateRole(db.Role{
-		Slug:        "global_custom",
+	manager, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleManager})
+	require.NoError(t, err)
+	globalRole, err := store.CreateRole(db.Role{
 		Name:        "Global custom",
 		Permissions: db.CanRunProjectTasks,
 	})
 	require.NoError(t, err)
-	_, err = store.CreateRole(db.Role{
-		Slug:        "project_custom",
+	projectRole, err := store.CreateRole(db.Role{
 		Name:        "Project custom",
 		Permissions: db.CanRunProjectTasks,
 		ProjectID:   &project.ID,
 	})
 	require.NoError(t, err)
-	_, err = store.CreateRole(db.Role{
-		Slug:        "other_project_custom",
+	otherProjectRole, err := store.CreateRole(db.Role{
 		Name:        "Other project custom",
 		Permissions: db.CanRunProjectTasks,
 		ProjectID:   &otherProject.ID,
 	})
 	require.NoError(t, err)
 
-	return store, project
-}
-
-func removeBuiltinRoleDefinition(t *testing.T, store *sqlstore.SqlDb, role db.ProjectUserRole) {
-	t.Helper()
-
-	_, err := store.Sql().Exec(
-		store.PrepareQuery("delete from `role` where slug=?"),
-		role)
-	require.NoError(t, err)
+	return projectRoleValidationFixture{
+		store:            store,
+		project:          project,
+		builtinRoleID:    manager.ID,
+		globalRoleID:     globalRole.ID,
+		projectRoleID:    projectRole.ID,
+		otherProjectRole: otherProjectRole.ID,
+	}
 }
 
 func createProjectRoleValidationUser(t *testing.T, store *sqlstore.SqlDb) db.User {
@@ -68,29 +78,24 @@ func createProjectRoleValidationUser(t *testing.T, store *sqlstore.SqlDb) db.Use
 	return user
 }
 
-func TestValidateRoleForProjectAssignment(t *testing.T) {
-	store, project := newProjectRoleValidationTest(t)
-	removeBuiltinRoleDefinition(t, store, db.ProjectOwner)
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	r = helpers.SetContextValue(r, "store", store)
+func TestResolveRoleForProject(t *testing.T) {
+	fixture := newProjectRoleValidationTest(t)
 
 	tests := []struct {
 		name    string
-		role    db.ProjectUserRole
+		roleID  int
 		isValid bool
 	}{
-		{name: "built-in role", role: db.ProjectManager, isValid: true},
-		{name: "global custom role", role: "global_custom", isValid: true},
-		{name: "project custom role", role: "project_custom", isValid: true},
-		{name: "built-in role without definition", role: db.ProjectOwner},
-		{name: "missing role", role: "missing"},
-		{name: "role from another project", role: "other_project_custom"},
-		{name: "empty role", role: db.ProjectNone},
+		{name: "built-in role", roleID: fixture.builtinRoleID, isValid: true},
+		{name: "global custom role", roleID: fixture.globalRoleID, isValid: true},
+		{name: "project custom role", roleID: fixture.projectRoleID, isValid: true},
+		{name: "missing role", roleID: 0},
+		{name: "role from another project", roleID: fixture.otherProjectRole},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateRoleForProjectAssignment(r, project.ID, tt.role)
+			_, err := db.ResolveRoleForProject(fixture.store, tt.roleID, fixture.project.ID)
 
 			if tt.isValid {
 				assert.NoError(t, err)
@@ -102,46 +107,45 @@ func TestValidateRoleForProjectAssignment(t *testing.T) {
 }
 
 func TestAddUser_ValidatesRoleBeforeAssignment(t *testing.T) {
-	store, project := newProjectRoleValidationTest(t)
-	removeBuiltinRoleDefinition(t, store, db.ProjectOwner)
-	target := createProjectRoleValidationUser(t, store)
-	body := fmt.Sprintf(`{"user_id":%d,"role":%q}`, target.ID, db.ProjectOwner)
+	fixture := newProjectRoleValidationTest(t)
+	target := createProjectRoleValidationUser(t, fixture.store)
+	body := fmt.Sprintf(`{"user_id":%d,"role_id":0}`, target.ID)
 	r := httptest.NewRequest(http.MethodPost, "/api/project/users", bytes.NewBufferString(body))
-	r = helpers.SetContextValue(r, "store", store)
-	r = helpers.SetContextValue(r, "project", project)
+	r = helpers.SetContextValue(r, "store", fixture.store)
+	r = helpers.SetContextValue(r, "project", fixture.project)
 	w := httptest.NewRecorder()
 
 	AddUser(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	_, err := store.GetProjectUser(project.ID, target.ID)
+	_, err := fixture.store.GetProjectUser(fixture.project.ID, target.ID)
 	assert.ErrorIs(t, err, db.ErrNotFound)
 }
 
 func TestUpdateUser_ValidatesRoleBeforeAssignment(t *testing.T) {
-	store, project := newProjectRoleValidationTest(t)
-	removeBuiltinRoleDefinition(t, store, db.ProjectOwner)
-	target := createProjectRoleValidationUser(t, store)
-	_, err := store.CreateProjectUser(db.ProjectUser{
-		ProjectID: project.ID,
+	fixture := newProjectRoleValidationTest(t)
+	target := createProjectRoleValidationUser(t, fixture.store)
+	guest, err := fixture.store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleGuest})
+	require.NoError(t, err)
+	_, err = fixture.store.CreateProjectUser(db.ProjectUser{
+		ProjectID: fixture.project.ID,
 		UserID:    target.ID,
-		Role:      db.ProjectGuest,
+		RoleID:    guest.ID,
 	})
 	require.NoError(t, err)
 
-	body := fmt.Sprintf(`{"role":%q}`, db.ProjectOwner)
-	r := httptest.NewRequest(http.MethodPut, "/api/project/users", bytes.NewBufferString(body))
-	r = helpers.SetContextValue(r, "store", store)
-	r = helpers.SetContextValue(r, "project", project)
+	r := httptest.NewRequest(http.MethodPut, "/api/project/users", bytes.NewBufferString(`{"role_id":0}`))
+	r = helpers.SetContextValue(r, "store", fixture.store)
+	r = helpers.SetContextValue(r, "project", fixture.project)
 	r = helpers.SetContextValue(r, "user", &db.User{ID: target.ID + 1})
 	r = helpers.SetContextValue(r, "projectUser", target)
-	r = helpers.SetContextValue(r, "projectUserRole", db.ProjectNone)
+	r = helpers.SetContextValue(r, "projectRole", (*db.Role)(nil))
 	w := httptest.NewRecorder()
 
 	UpdateUser(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	projectUser, err := store.GetProjectUser(project.ID, target.ID)
+	projectUser, err := fixture.store.GetProjectUser(fixture.project.ID, target.ID)
 	require.NoError(t, err)
-	assert.Equal(t, db.ProjectGuest, projectUser.Role)
+	assert.Equal(t, guest.ID, projectUser.RoleID)
 }

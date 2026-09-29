@@ -27,7 +27,7 @@ type ProjectInvite struct {
 	ProjectID     int                 `db:"project_id" json:"project_id"`
 	UserID        *int                `db:"user_id" json:"user_id,omitempty"` // Can be null for email invites
 	Email         *string             `db:"email" json:"email,omitempty"`     // For email-based invites
-	Role          ProjectUserRole     `db:"role" json:"role"`
+	RoleID        int                 `db:"role_id" json:"role_id"`
 	Status        ProjectInviteStatus `db:"status" json:"status"`
 	Token         string              `db:"token" json:"-"`                         // Secret token for accepting invite
 	InviterUserID int                 `db:"inviter_user_id" json:"inviter_user_id"` // User who created the invite

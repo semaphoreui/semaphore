@@ -6,7 +6,6 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
-	"github.com/semaphoreui/semaphore/pkg/random"
 )
 
 func getEntryByName[T BackupEntry](name *string, items []T) *T {
@@ -56,7 +55,6 @@ func (e BackupRole) Verify(backup *BackupFormat) error {
 func (e BackupRole) Restore(b *BackupDB) error {
 	role := e.Role
 	role.ProjectID = &b.meta.ID
-	role.Slug = random.String(16)
 	newRole, err := b.store.CreateRole(role)
 	if err != nil {
 		return err
@@ -438,14 +436,14 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 	if e.Roles != nil {
 		for _, role := range e.Roles {
 			if role.IsGlobal {
-				r, err := b.store.GetRoleBySlug(role.Role, db.GlobalRoleQuery{Kinds: db.RoleKindCustom})
-				if err != nil {
+				r := findEntityByName[db.Role](&role.Role, b.globalRoles)
+				if r == nil {
 					return fmt.Errorf("global role does not exist: %s", role.Role)
 				}
 
 				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
 					TemplateID:  newTemplate.ID,
-					RoleSlug:    r.Slug,
+					RoleID:      r.ID,
 					ProjectID:   b.meta.ID,
 					Permissions: role.Permissions,
 				})
@@ -461,7 +459,7 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 			} else {
 				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
 					TemplateID:  newTemplate.ID,
-					RoleSlug:    k.Slug,
+					RoleID:      k.ID,
 					ProjectID:   b.meta.ID,
 					Permissions: role.Permissions,
 				})
@@ -692,15 +690,23 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		return nil, err
 	}
 
+	ownerRole, err := b.store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
+	if err != nil {
+		return nil, err
+	}
 	if _, err = b.store.CreateProjectUser(db.ProjectUser{
 		ProjectID: newProject.ID,
 		UserID:    user.ID,
-		Role:      db.ProjectOwner,
+		RoleID:    ownerRole.ID,
 	}); err != nil {
 		return nil, err
 	}
 
 	b.meta = newProject
+	b.globalRoles, err = b.store.GetRoles(db.GlobalRolesQuery{Kinds: db.RoleKindCustom})
+	if err != nil {
+		return nil, err
+	}
 
 	for i, o := range backup.SecretStorages {
 		if err := o.Restore(&b); err != nil {

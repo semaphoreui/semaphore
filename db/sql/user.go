@@ -124,19 +124,22 @@ func (d *SqlDb) SetUserPassword(userID int, password string) error {
 	return err
 }
 
-func (d *SqlDb) CreateProjectUser(projectUser db.ProjectUser) (newProjectUser db.ProjectUser, err error) {
-	_, err = d.exec(
-		"insert into project__user (project_id, user_id, `role`) values (?, ?, ?)",
-		projectUser.ProjectID,
-		projectUser.UserID,
-		projectUser.Role)
-
+func (d *SqlDb) CreateProjectUser(projectUser db.ProjectUser) (db.ProjectUser, error) {
+	_, err := db.ResolveRoleForProject(d, projectUser.RoleID, projectUser.ProjectID)
 	if err != nil {
-		return
+		return db.ProjectUser{}, err
 	}
 
-	newProjectUser = projectUser
-	return
+	_, err = d.exec(
+		"insert into project__user (project_id, user_id, role_id) values (?, ?, ?)",
+		projectUser.ProjectID,
+		projectUser.UserID,
+		projectUser.RoleID)
+	if err != nil {
+		return db.ProjectUser{}, err
+	}
+
+	return projectUser, nil
 }
 
 func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
@@ -158,7 +161,7 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (u
 	}
 
 	q := squirrel.Select("u.*").
-		Column("pu.role").
+		Column("pu.role_id").
 		From("project__user as pu").
 		LeftJoin("`user` as u on pu.user_id=u.id").
 		Where("pu.project_id=?", projectID)
@@ -171,8 +174,8 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (u
 	switch pp.SortBy {
 	case "name", "username", "email":
 		q = q.OrderBy("u." + pp.SortBy + " " + sortDirection)
-	case "role":
-		q = q.OrderBy("pu.role " + sortDirection)
+	case "role", "role_id":
+		q = q.OrderBy("pu.role_id " + sortDirection)
 	default:
 		q = q.OrderBy("u.name " + sortDirection)
 	}
@@ -189,9 +192,14 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (u
 }
 
 func (d *SqlDb) UpdateProjectUser(projectUser db.ProjectUser) error {
-	_, err := d.exec(
-		"update `project__user` set role=? where user_id=? and project_id = ?",
-		projectUser.Role,
+	_, err := db.ResolveRoleForProject(d, projectUser.RoleID, projectUser.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.exec(
+		"update `project__user` set role_id=? where user_id=? and project_id = ?",
+		projectUser.RoleID,
 		projectUser.UserID,
 		projectUser.ProjectID)
 

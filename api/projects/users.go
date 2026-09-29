@@ -37,23 +37,19 @@ func UserMiddleware(next http.Handler) http.Handler {
 }
 
 type projUser struct {
-	ID       int                `json:"id"`
-	Username string             `json:"username"`
-	Name     string             `json:"name"`
-	Role     db.ProjectUserRole `json:"role"`
+	ID       int    `json:"id"`
+	Username string `json:"username"`
+	Name     string `json:"name"`
+	RoleID   int    `json:"role_id"`
 }
 
-func validateRoleForProjectAssignment(r *http.Request, projectID int, role db.ProjectUserRole) error {
-	_, err := helpers.Store(r).GetRoleBySlug(string(role), db.AvailableRoleQuery{
-		ProjectID: projectID,
-		Kinds:     db.RoleKindAll,
-	})
-	return err
+func callerIsProjectOwner(r *http.Request) bool {
+	role, _ := helpers.GetFromContext(r, "projectRole").(*db.Role)
+	return role != nil && role.BuiltinKey != nil && *role.BuiltinKey == db.BuiltinRoleOwner
 }
 
 // GetUsers returns all users in a project
 func GetUsers(w http.ResponseWriter, r *http.Request) {
-
 	// get single user if user ID specified in the request
 	if user := helpers.GetFromContext(r, "projectUser"); user != nil {
 		helpers.WriteJSON(w, http.StatusOK, user.(db.User))
@@ -68,14 +64,14 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var result = make([]projUser, 0)
+	result := make([]projUser, 0)
 
 	for _, user := range users {
 		result = append(result, projUser{
 			ID:       user.ID,
 			Name:     user.Name,
 			Username: user.Username,
-			Role:     user.Role,
+			RoleID:   user.RoleID,
 		})
 	}
 
@@ -85,25 +81,26 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 // AddUser adds a user to a projects team in the database
 func AddUser(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
+	store := helpers.Store(r)
 	var projectUser struct {
-		UserID int                `json:"user_id" binding:"required"`
-		Role   db.ProjectUserRole `json:"role"`
+		UserID int `json:"user_id" binding:"required"`
+		RoleID int `json:"role_id" binding:"required"`
 	}
 
 	if !helpers.Bind(w, r, &projectUser) {
 		return
 	}
 
-	err := validateRoleForProjectAssignment(r, project.ID, projectUser.Role)
+	_, err := db.ResolveRoleForProject(store, projectUser.RoleID, project.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	_, err = helpers.Store(r).CreateProjectUser(db.ProjectUser{
+	_, err = store.CreateProjectUser(db.ProjectUser{
 		ProjectID: project.ID,
 		UserID:    projectUser.UserID,
-		Role:      projectUser.Role,
+		RoleID:    projectUser.RoleID,
 	})
 
 	if err != nil {
@@ -126,9 +123,8 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 func removeUser(targetUser db.User, w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
-	myRole := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
 
-	if !me.Admin && targetUser.ID == me.ID && myRole == db.ProjectOwner {
+	if !me.Admin && targetUser.ID == me.ID && callerIsProjectOwner(r) {
 		helpers.WriteError(w, fmt.Errorf("owner can not left the project"))
 		return
 	}
@@ -165,33 +161,33 @@ func RemoveUser(w http.ResponseWriter, r *http.Request) {
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
+	store := helpers.Store(r)
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
 	targetUser := helpers.GetFromContext(r, "projectUser").(db.User)
-	targetUserRole := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
 
-	if !me.Admin && targetUser.ID == me.ID && targetUserRole == db.ProjectOwner {
+	if !me.Admin && targetUser.ID == me.ID && callerIsProjectOwner(r) {
 		helpers.WriteError(w, fmt.Errorf("owner can not change his role in the project"))
 		return
 	}
 
 	var projectUser struct {
-		Role db.ProjectUserRole `json:"role"`
+		RoleID int `json:"role_id" binding:"required"`
 	}
 
 	if !helpers.Bind(w, r, &projectUser) {
 		return
 	}
 
-	err := validateRoleForProjectAssignment(r, project.ID, projectUser.Role)
+	_, err := db.ResolveRoleForProject(store, projectUser.RoleID, project.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err = helpers.Store(r).UpdateProjectUser(db.ProjectUser{
+	err = store.UpdateProjectUser(db.ProjectUser{
 		UserID:    targetUser.ID,
 		ProjectID: project.ID,
-		Role:      projectUser.Role,
+		RoleID:    projectUser.RoleID,
 	})
 
 	if err != nil {

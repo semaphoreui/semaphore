@@ -5,6 +5,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
 func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) (invites []db.ProjectInviteWithUser, err error) {
@@ -33,8 +34,10 @@ func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) 
 	}
 
 	switch pp.SortBy {
-	case "created", "status", "role":
+	case "created", "status":
 		q = q.OrderBy("pi." + pp.SortBy + " " + sortDirection)
+	case "role", "role_id":
+		q = q.OrderBy("pi.role_id " + sortDirection)
 	default:
 		q = q.OrderBy("pi.created " + sortDirection)
 	}
@@ -60,7 +63,7 @@ func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) 
 			&invite.ProjectID,
 			&invite.UserID,
 			&invite.Email,
-			&invite.Role,
+			&invite.RoleID,
 			&invite.Status,
 			&invite.Token,
 			&invite.InviterUserID,
@@ -102,27 +105,39 @@ func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) 
 	return
 }
 
-func (d *SqlDb) CreateProjectInvite(invite db.ProjectInvite) (newInvite db.ProjectInvite, err error) {
-	insertID, err := d.insert(
-		"id",
-		"insert into project__invite (project_id, user_id, email, role, status, token, inviter_user_id, created, expires_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		invite.ProjectID,
-		invite.UserID,
-		invite.Email,
-		invite.Role,
-		invite.Status,
-		invite.Token,
-		invite.InviterUserID,
-		invite.Created,
-		invite.ExpiresAt)
-
+func (d *SqlDb) CreateProjectInvite(invite db.ProjectInvite) (db.ProjectInvite, error) {
+	role, err := db.ResolveRoleForProject(d, invite.RoleID, invite.ProjectID)
 	if err != nil {
-		return
+		return db.ProjectInvite{}, err
+	}
+	if !role.IsBuiltin() {
+		return db.ProjectInvite{}, &common_errors.ValidationError{Message: "Invitations require a built-in role"}
 	}
 
-	newInvite = invite
-	newInvite.ID = insertID
-	return
+	query, args, err := squirrel.Insert("project__invite").
+		SetMap(map[string]any{
+			"project_id":      invite.ProjectID,
+			"user_id":         invite.UserID,
+			"email":           invite.Email,
+			"role_id":         invite.RoleID,
+			"status":          invite.Status,
+			"token":           invite.Token,
+			"inviter_user_id": invite.InviterUserID,
+			"created":         invite.Created,
+			"expires_at":      invite.ExpiresAt,
+		}).
+		ToSql()
+	if err != nil {
+		return db.ProjectInvite{}, err
+	}
+
+	insertID, err := d.insert("id", query, args...)
+	if err != nil {
+		return db.ProjectInvite{}, err
+	}
+
+	invite.ID = insertID
+	return invite, nil
 }
 
 func (d *SqlDb) GetProjectInvite(projectID int, inviteID int) (invite db.ProjectInvite, err error) {

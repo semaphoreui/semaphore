@@ -10,6 +10,14 @@ type RoleExporter struct {
 	ValueMap[db.Role]
 }
 
+func getNewRoleID(exporter DataExporter, projectID int, roleID int) (int, error) {
+	newRoleID, err := exporter.getNewKeyInt(Role, strconv.Itoa(projectID), roleID)
+	if err == nil {
+		return newRoleID, nil
+	}
+	return exporter.getNewKeyInt(Role, GlobalScope, roleID)
+}
+
 func (e *RoleExporter) load(store db.Store, exporter DataExporter, progress Progress) error {
 
 	projs, err := exporter.getLoadedKeysInt(Project, GlobalScope)
@@ -18,7 +26,7 @@ func (e *RoleExporter) load(store db.Store, exporter DataExporter, progress Prog
 	}
 
 	for _, proj := range projs {
-		roles, err := store.GetRoles(db.ProjectRoleQuery{ProjectID: proj})
+		roles, err := store.GetRoles(db.ProjectRolesQuery{ProjectID: proj})
 		if err != nil {
 			return err
 		}
@@ -28,7 +36,7 @@ func (e *RoleExporter) load(store db.Store, exporter DataExporter, progress Prog
 		}
 	}
 
-	roles, err := store.GetRoles(db.GlobalRoleQuery{Kinds: db.RoleKindCustom})
+	roles, err := store.GetRoles(db.GlobalRolesQuery{Kinds: db.RoleKindAll})
 	if err != nil {
 		return err
 	}
@@ -44,17 +52,25 @@ func (e *RoleExporter) restoreValue(val EntityObject[db.Role], store db.Store, e
 
 	old := val.value
 
+	if old.IsBuiltin() {
+		destRole, err := store.GetRole(db.BuiltinRoleQuery{Key: *old.BuiltinKey})
+		if err != nil {
+			return err
+		}
+		return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), destRole.GetDbKey())
+	}
+
 	old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
 	if err != nil {
 		return err
 	}
 
-	newObj, err := store.CreateRole(old)
+	destRole, err := store.CreateRole(old)
 	if err != nil {
 		return err
 	}
 
-	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), newObj.GetDbKey())
+	return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), destRole.GetDbKey())
 }
 
 func (e *RoleExporter) exportDependsOn() []string {

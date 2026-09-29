@@ -298,7 +298,7 @@ func (d *SqlDb) getTemplates(
 
 	if userID != nil {
 		q = q.LeftJoin("project__user pu ON (pu.project_id = pt.project_id AND pu.user_id = ?)", *userID).
-			LeftJoin("project__template_role ptr ON (ptr.template_id = pt.id AND ptr.role_slug = pu.`role`)")
+			LeftJoin("project__template_role ptr ON (ptr.template_id = pt.id AND ptr.role_id = pu.role_id)")
 	}
 
 	if filter.App != nil {
@@ -533,22 +533,22 @@ func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int)
 		return 0, err
 	}
 
-	role, err := d.GetRoleBySlug(string(projectUser.Role), db.AvailableRoleQuery{
-		ProjectID: projectUser.ProjectID,
-		Kinds:     db.RoleKindAll,
-	})
+	role, err := d.GetRole(db.RoleByIDQuery{ID: projectUser.RoleID})
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			return 0, nil
 		}
 		return 0, err
 	}
+	if !role.IsAvailableToProject(projectUser.ProjectID) {
+		return 0, nil
+	}
 
 	query, args, err := sq.Select("permissions").
 		From("project__template_role").
 		Where("project_id = ?", projectID).
 		Where("template_id = ?", templateID).
-		Where("role_slug = ?", role.Slug).
+		Where("role_id = ?", role.ID).
 		ToSql()
 	if err != nil {
 		return 0, err
@@ -581,12 +581,17 @@ func (d *SqlDb) GetTemplateRoles(projectID int, templateID int) (roles []db.Temp
 	return
 }
 func (d *SqlDb) CreateTemplateRole(role db.TemplateRolePerm) (newRole db.TemplateRolePerm, err error) {
+	_, err = db.ResolveRoleForProject(d, role.RoleID, role.ProjectID)
+	if err != nil {
+		return newRole, err
+	}
+
 	insertID, err := d.insert(
 		"id",
-		"insert into project__template_role (project_id, template_id, role_slug, permissions) values (?, ?, ?, ?)",
+		"insert into project__template_role (project_id, template_id, role_id, permissions) values (?, ?, ?, ?)",
 		role.ProjectID,
 		role.TemplateID,
-		role.RoleSlug,
+		role.RoleID,
 		role.Permissions)
 
 	if err != nil {

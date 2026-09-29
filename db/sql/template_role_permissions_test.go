@@ -30,7 +30,7 @@ func createTemplatePermissionTestUser(
 	store *SqlDb,
 	projectID int,
 	username string,
-	role db.ProjectUserRole,
+	roleID int,
 ) db.User {
 	t.Helper()
 
@@ -44,7 +44,7 @@ func createTemplatePermissionTestUser(
 	_, err = store.CreateProjectUser(db.ProjectUser{
 		ProjectID: projectID,
 		UserID:    user.ID,
-		Role:      role,
+		RoleID:    roleID,
 	})
 	require.NoError(t, err)
 
@@ -53,14 +53,16 @@ func createTemplatePermissionTestUser(
 
 func Test_GetTemplatePermission_UsesBuiltinRolePermissionsFromDatabase(t *testing.T) {
 	store, projectID, templateID := newTemplatePermissionTest(t)
-	owner := createTemplatePermissionTestUser(t, store, projectID, "owner", db.ProjectOwner)
+	ownerRole, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
+	require.NoError(t, err)
+	owner := createTemplatePermissionTestUser(t, store, projectID, "owner", ownerRole.ID)
 
 	// Patch the built-in role's permissions directly in the database so this test
-	// can verify that authorization reads the persisted value instead of the Go map.
-	_, err := store.exec(
-		"update `role` set permissions=? where slug=?",
+	// can verify that authorization reads the persisted value instead of a Go map.
+	_, err = store.exec(
+		"update `role` set permissions=? where builtin_key=?",
 		db.CanUpdateProject,
-		db.ProjectOwner)
+		db.BuiltinRoleOwner)
 	require.NoError(t, err)
 
 	permissions, err := store.GetTemplatePermission(projectID, templateID, owner.ID)
@@ -70,17 +72,19 @@ func Test_GetTemplatePermission_UsesBuiltinRolePermissionsFromDatabase(t *testin
 
 func Test_GetTemplatePermission_AddsTemplateRolePermissions(t *testing.T) {
 	store, projectID, templateID := newTemplatePermissionTest(t)
+	taskRunnerRole, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleTaskRunner})
+	require.NoError(t, err)
 	taskRunner := createTemplatePermissionTestUser(
 		t,
 		store,
 		projectID,
 		"task_runner",
-		db.ProjectTaskRunner,
+		taskRunnerRole.ID,
 	)
 
 	templateUpdatePermission := db.CanManageProjectResources
-	_, err := store.CreateTemplateRole(db.TemplateRolePerm{
-		RoleSlug:    string(db.ProjectTaskRunner),
+	_, err = store.CreateTemplateRole(db.TemplateRolePerm{
+		RoleID:      taskRunnerRole.ID,
 		TemplateID:  templateID,
 		ProjectID:   projectID,
 		Permissions: templateUpdatePermission,
@@ -96,7 +100,6 @@ func Test_GetTemplatePermission_UsesCustomRolePermissions(t *testing.T) {
 	store, projectID, templateID := newTemplatePermissionTest(t)
 
 	customRole, err := store.CreateRole(db.Role{
-		Slug:        "custom",
 		Name:        "Custom",
 		Permissions: db.CanManageProjectResources,
 		ProjectID:   &projectID,
@@ -108,7 +111,7 @@ func Test_GetTemplatePermission_UsesCustomRolePermissions(t *testing.T) {
 		store,
 		projectID,
 		"custom",
-		db.ProjectUserRole(customRole.Slug),
+		customRole.ID,
 	)
 
 	permissions, err := store.GetTemplatePermission(projectID, templateID, customUser.ID)
@@ -116,9 +119,14 @@ func Test_GetTemplatePermission_UsesCustomRolePermissions(t *testing.T) {
 	assert.Equal(t, db.CanManageProjectResources, permissions)
 }
 
-func Test_GetTemplatePermission_ReturnsZeroForMissingRole(t *testing.T) {
+func Test_GetTemplatePermission_ReturnsZeroForNonMember(t *testing.T) {
 	store, projectID, templateID := newTemplatePermissionTest(t)
-	user := createTemplatePermissionTestUser(t, store, projectID, "missing", "missing")
+	user, err := store.CreateUserWithoutPassword(db.User{
+		Username: "non-member",
+		Name:     "non-member",
+		Email:    "non-member@example.com",
+	})
+	require.NoError(t, err)
 
 	permissions, err := store.GetTemplatePermission(projectID, templateID, user.ID)
 	require.NoError(t, err)

@@ -332,13 +332,24 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 
 	store := helpers.Store(r)
 
-	body, err := store.CreateProject(body)
+	ownerRole, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	_, err = store.CreateProjectUser(db.ProjectUser{ProjectID: body.ID, UserID: user.ID, Role: db.ProjectOwner})
+	// TODO: Create the project and its required records in a single database transaction.
+	body, err = store.CreateProject(body)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	_, err = store.CreateProjectUser(db.ProjectUser{
+		ProjectID: body.ID,
+		UserID:    user.ID,
+		RoleID:    ownerRole.ID,
+	})
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -364,10 +375,6 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 
 	if err != nil {
 		helpers.WriteError(w, err)
-		return
-	}
-
-	if err != nil {
 		return
 	}
 

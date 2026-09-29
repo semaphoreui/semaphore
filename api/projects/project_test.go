@@ -29,7 +29,7 @@ func createProjectMiddlewareTestUser(
 	store *sqlstore.SqlDb,
 	projectID int,
 	username string,
-	role db.ProjectUserRole,
+	roleID int,
 ) db.User {
 	t.Helper()
 
@@ -43,7 +43,7 @@ func createProjectMiddlewareTestUser(
 	_, err = store.CreateProjectUser(db.ProjectUser{
 		ProjectID: projectID,
 		UserID:    user.ID,
-		Role:      role,
+		RoleID:    roleID,
 	})
 	require.NoError(t, err)
 
@@ -55,7 +55,7 @@ func getProjectMiddlewarePermissions(
 	store *sqlstore.SqlDb,
 	projectID int,
 	user *db.User,
-) (db.ProjectUserPermission, db.ProjectUserRole) {
+) (db.ProjectUserPermission, *db.Role) {
 	t.Helper()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/project/"+strconv.Itoa(projectID), nil)
@@ -65,12 +65,12 @@ func getProjectMiddlewarePermissions(
 	w := httptest.NewRecorder()
 
 	var permissions db.ProjectUserPermission
-	var role db.ProjectUserRole
+	var role *db.Role
 	called := false
 	next := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		called = true
 		permissions = helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
-		role = helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
+		role = helpers.GetFromContext(r, "projectRole").(*db.Role)
 	})
 
 	ProjectMiddleware(next).ServeHTTP(w, req)
@@ -82,52 +82,40 @@ func getProjectMiddlewarePermissions(
 
 func Test_ProjectMiddleware_UsesBuiltinRolePermissionsFromDatabase(t *testing.T) {
 	store, project := newProjectMiddlewareTest(t)
-	owner := createProjectMiddlewareTestUser(t, store, project.ID, "owner", db.ProjectOwner)
+	ownerRole, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
+	require.NoError(t, err)
+	owner := createProjectMiddlewareTestUser(t, store, project.ID, "owner", ownerRole.ID)
 
 	// Patch the built-in role's permissions directly in the database so this test
-	// can verify that the middleware reads the persisted value instead of the Go map.
-	_, err := store.Sql().Exec(
-		store.PrepareQuery("update `role` set permissions=? where slug=?"),
+	// can verify that the middleware reads the persisted value.
+	_, err = store.Sql().Exec(
+		store.PrepareQuery("update `role` set permissions=? where builtin_key=?"),
 		db.CanUpdateProject,
-		db.ProjectOwner)
+		db.BuiltinRoleOwner)
 	require.NoError(t, err)
 
 	permissions, role := getProjectMiddlewarePermissions(t, store, project.ID, &owner)
 	assert.Equal(t, db.CanUpdateProject, permissions)
-	assert.Equal(t, db.ProjectOwner, role)
+	require.NotNil(t, role)
+	assert.Equal(t, ownerRole.ID, role.ID)
 }
 
 func Test_ProjectMiddleware_UsesCustomRolePermissions(t *testing.T) {
 	store, project := newProjectMiddlewareTest(t)
 
 	customRole, err := store.CreateRole(db.Role{
-		Slug:        "custom",
 		Name:        "Custom",
 		Permissions: db.CanManageProjectResources,
 		ProjectID:   &project.ID,
 	})
 	require.NoError(t, err)
 
-	customUser := createProjectMiddlewareTestUser(
-		t,
-		store,
-		project.ID,
-		"custom",
-		db.ProjectUserRole(customRole.Slug),
-	)
+	customUser := createProjectMiddlewareTestUser(t, store, project.ID, "custom", customRole.ID)
 
 	permissions, role := getProjectMiddlewarePermissions(t, store, project.ID, &customUser)
 	assert.Equal(t, db.CanManageProjectResources, permissions)
-	assert.Equal(t, db.ProjectUserRole(customRole.Slug), role)
-}
-
-func Test_ProjectMiddleware_ReturnsZeroPermissionsForMissingRole(t *testing.T) {
-	store, project := newProjectMiddlewareTest(t)
-	user := createProjectMiddlewareTestUser(t, store, project.ID, "missing", "missing")
-
-	permissions, role := getProjectMiddlewarePermissions(t, store, project.ID, &user)
-	assert.Zero(t, permissions)
-	assert.Equal(t, db.ProjectUserRole("missing"), role)
+	require.NotNil(t, role)
+	assert.Equal(t, customRole.ID, role.ID)
 }
 
 func Test_ProjectMiddleware_PreservesAdminOverrideWithoutMembership(t *testing.T) {
@@ -144,9 +132,9 @@ func Test_ProjectMiddleware_PreservesAdminOverrideWithoutMembership(t *testing.T
 	next := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		called = true
 		permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
-		role := helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
+		role := helpers.GetFromContext(r, "projectRole").(*db.Role)
 		assert.Zero(t, permissions)
-		assert.Equal(t, db.ProjectNone, role)
+		assert.Nil(t, role)
 	})
 
 	handler := ProjectMiddleware(GetMustCanMiddleware(db.CanManageProjectUsers)(next))
