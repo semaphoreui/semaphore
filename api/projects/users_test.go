@@ -122,6 +122,52 @@ func TestAddUser_ValidatesRoleBeforeAssignment(t *testing.T) {
 	assert.ErrorIs(t, err, db.ErrNotFound)
 }
 
+func Test_OwnerCannotLeaveProject(t *testing.T) {
+	store, project := newProjectMiddlewareTest(t)
+	ownerRole, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
+	require.NoError(t, err)
+	user := createProjectMember(t, store, project.ID, "alice", ownerRole.ID)
+
+	r := httptest.NewRequest(http.MethodDelete, "/api/project/users", nil)
+	r = helpers.SetContextValue(r, "store", store)
+	r = helpers.SetContextValue(r, "project", project)
+	r = helpers.SetContextValue(r, "user", &user)
+	r = helpers.SetContextValue(r, "projectRole", &ownerRole)
+	w := httptest.NewRecorder()
+
+	LeftProject(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	projectUser, err := store.GetProjectUser(project.ID, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ownerRole.ID, projectUser.RoleID)
+}
+
+func Test_UpdateUser_RejectsOwnerSelfRoleChange(t *testing.T) {
+	store, project := newProjectMiddlewareTest(t)
+	ownerRole, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
+	require.NoError(t, err)
+	guestRole, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleGuest})
+	require.NoError(t, err)
+	user := createProjectMember(t, store, project.ID, "alice", ownerRole.ID)
+
+	body := fmt.Sprintf(`{"role_id":%d}`, guestRole.ID)
+	r := httptest.NewRequest(http.MethodPut, "/api/project/users", bytes.NewBufferString(body))
+	r = helpers.SetContextValue(r, "store", store)
+	r = helpers.SetContextValue(r, "project", project)
+	r = helpers.SetContextValue(r, "user", &user)
+	r = helpers.SetContextValue(r, "projectUser", user)
+	r = helpers.SetContextValue(r, "projectRole", &ownerRole)
+	w := httptest.NewRecorder()
+
+	UpdateUser(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	projectUser, err := store.GetProjectUser(project.ID, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ownerRole.ID, projectUser.RoleID)
+}
+
 func TestUpdateUser_ValidatesRoleBeforeAssignment(t *testing.T) {
 	fixture := newProjectRoleValidationTest(t)
 	target := createProjectRoleValidationUser(t, fixture.store)

@@ -2,6 +2,7 @@ package sql
 
 import (
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/stretchr/testify/assert"
@@ -325,6 +326,38 @@ func Test_CreateTemplateRole_RejectsRoleFromAnotherProject(t *testing.T) {
 		RoleID:     role.ID,
 	})
 	require.Error(t, err)
+}
+
+// verifies that invitations accept and persist a built-in role ID.
+func Test_CreateProjectInvite_AcceptsBuiltinRole(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{
+		Name: "project",
+	})
+	require.NoError(t, err)
+	inviter, err := store.CreateUserWithoutPassword(db.User{
+		Username: "alice",
+		Name:     "Alice",
+		Email:    "alice@example.com",
+	})
+	require.NoError(t, err)
+	managerRole, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleManager})
+	require.NoError(t, err)
+
+	invite, err := store.CreateProjectInvite(db.ProjectInvite{
+		ProjectID:     project.ID,
+		RoleID:        managerRole.ID,
+		Status:        db.ProjectInvitePending,
+		Token:         "token",
+		InviterUserID: inviter.ID,
+		Created:       time.Now(),
+	})
+	require.NoError(t, err)
+	assert.Positive(t, invite.ID)
+
+	persisted, err := store.GetProjectInvite(project.ID, invite.ID)
+	require.NoError(t, err)
+	assert.Equal(t, managerRole.ID, persisted.RoleID)
 }
 
 func Test_CreateProjectInvite_RequiresAvailableBuiltinRole(t *testing.T) {

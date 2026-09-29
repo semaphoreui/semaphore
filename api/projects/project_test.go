@@ -24,7 +24,7 @@ func newProjectMiddlewareTest(t *testing.T) (*sqlstore.SqlDb, db.Project) {
 	return store, project
 }
 
-func createProjectMiddlewareTestUser(
+func createProjectMember(
 	t *testing.T,
 	store *sqlstore.SqlDb,
 	projectID int,
@@ -84,7 +84,7 @@ func Test_ProjectMiddleware_UsesBuiltinRolePermissionsFromDatabase(t *testing.T)
 	store, project := newProjectMiddlewareTest(t)
 	ownerRole, err := store.GetRole(db.BuiltinRoleQuery{Key: db.BuiltinRoleOwner})
 	require.NoError(t, err)
-	owner := createProjectMiddlewareTestUser(t, store, project.ID, "owner", ownerRole.ID)
+	user := createProjectMember(t, store, project.ID, "alice", ownerRole.ID)
 
 	// Patch the built-in role's permissions directly in the database so this test
 	// can verify that the middleware reads the persisted value.
@@ -94,7 +94,7 @@ func Test_ProjectMiddleware_UsesBuiltinRolePermissionsFromDatabase(t *testing.T)
 		db.BuiltinRoleOwner)
 	require.NoError(t, err)
 
-	permissions, role := getProjectMiddlewarePermissions(t, store, project.ID, &owner)
+	permissions, role := getProjectMiddlewarePermissions(t, store, project.ID, &user)
 	assert.Equal(t, db.CanUpdateProject, permissions)
 	require.NotNil(t, role)
 	assert.Equal(t, ownerRole.ID, role.ID)
@@ -110,12 +110,30 @@ func Test_ProjectMiddleware_UsesCustomRolePermissions(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	customUser := createProjectMiddlewareTestUser(t, store, project.ID, "custom", customRole.ID)
+	customUser := createProjectMember(t, store, project.ID, "custom", customRole.ID)
 
 	permissions, role := getProjectMiddlewarePermissions(t, store, project.ID, &customUser)
 	assert.Equal(t, db.CanManageProjectResources, permissions)
 	require.NotNil(t, role)
 	assert.Equal(t, customRole.ID, role.ID)
+}
+
+func Test_ProjectMiddleware_UsesGlobalCustomRolePermissions(t *testing.T) {
+	store, project := newProjectMiddlewareTest(t)
+
+	globalRole, err := store.CreateRole(db.Role{
+		Name:        "Global custom role",
+		Permissions: db.CanManageProjectResources,
+	})
+	require.NoError(t, err)
+
+	user := createProjectMember(t, store, project.ID, "alice", globalRole.ID)
+
+	permissions, role := getProjectMiddlewarePermissions(t, store, project.ID, &user)
+	assert.Equal(t, db.CanManageProjectResources, permissions)
+	require.NotNil(t, role)
+	assert.Equal(t, globalRole.ID, role.ID)
+	assert.Nil(t, role.ProjectID)
 }
 
 func Test_ProjectMiddleware_PreservesAdminOverrideWithoutMembership(t *testing.T) {
