@@ -131,3 +131,28 @@ func TestCreateAuditEvent_CanceledContextStoresNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, lastSeq)
 }
+
+func TestCreateAuditEvent_TimesOutWaitingForAConnection(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	// SQLite has one connection, and this transaction holds it.
+	busy, err := store.Sql().Begin()
+	require.NoError(t, err)
+	defer func() { _ = busy.Rollback() }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := store.CreateAuditEvent(ctx, fullAuditEvent())
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+	case <-time.After(2 * time.Second):
+		_ = busy.Rollback()
+		<-done
+		t.Fatal("CreateAuditEvent ignored its context while waiting for a connection")
+	}
+}

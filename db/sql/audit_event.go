@@ -10,7 +10,8 @@ import (
 
 // The counter row stays locked until commit, so committed seq has no gaps.
 func (d *SqlDb) CreateAuditEvent(ctx context.Context, event db.AuditEvent) (db.AuditEvent, error) {
-	tx, err := d.Sql().Begin()
+	// The context also bounds the wait for a free connection.
+	tx, err := d.Sql().WithContext(ctx).(*gorp.DbMap).Begin()
 	if err != nil {
 		return event, err
 	}
