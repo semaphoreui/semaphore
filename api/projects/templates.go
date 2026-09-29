@@ -3,11 +3,14 @@ package projects
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/semaphoreui/semaphore/util"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
+	log "github.com/sirupsen/logrus"
 )
 
 // TemplatesMiddleware ensures a template exists and loads it to the context
@@ -369,6 +372,18 @@ func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.IAMTemplatePermissionCreate,
+		Target:    &audit.Target{Type: audit.TargetTemplatePermission, ID: strconv.Itoa(newPerm.ID)},
+		ProjectID: template.ProjectID,
+		Metadata: audit.TemplatePermissionMetadata{
+			TemplateID: template.ID,
+			// The slug comes from the request body, and SQLite does not enforce column lengths.
+			RoleSlug:    audit.TruncateName(newPerm.RoleSlug, audit.MaxNameBytes),
+			Permissions: audit.PermissionNames(newPerm.Permissions),
+		},
+	})
+
 	helpers.WriteJSON(w, http.StatusCreated, newPerm)
 }
 
@@ -394,6 +409,24 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// The update changes only permissions, so the role comes from the stored rule.
+	roleSlug := ""
+	if stored, getErr := c.templateRepo.GetTemplateRole(template.ProjectID, template.ID, permID); getErr == nil {
+		roleSlug = stored.RoleSlug
+	} else {
+		log.WithError(getErr).WithField("context", "audit").Error("Cannot read the template permission for the audit")
+	}
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.IAMTemplatePermissionUpdate,
+		Target:    &audit.Target{Type: audit.TargetTemplatePermission, ID: strconv.Itoa(permID)},
+		ProjectID: template.ProjectID,
+		Metadata: audit.TemplatePermissionMetadata{
+			TemplateID:  template.ID,
+			RoleSlug:    audit.TruncateName(roleSlug, audit.MaxNameBytes),
+			Permissions: audit.PermissionNames(perm.Permissions),
+		},
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -409,6 +442,13 @@ func (c *TemplateController) DeleteTemplatePerm(w http.ResponseWriter, r *http.R
 		helpers.WriteError(w, err)
 		return
 	}
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.IAMTemplatePermissionDelete,
+		Target:    &audit.Target{Type: audit.TargetTemplatePermission, ID: strconv.Itoa(permID)},
+		ProjectID: template.ProjectID,
+		Metadata:  audit.TemplatePermissionMetadata{TemplateID: template.ID},
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
