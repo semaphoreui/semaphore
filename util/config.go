@@ -706,6 +706,8 @@ type ConfigType struct {
 
 	HA *HAConfig `json:"ha,omitempty"`
 
+	Audit *AuditConfig `json:"audit,omitempty"`
+
 	Subscription *SubscriptionConfig `json:"subscription,omitempty"`
 
 	Dirs *ConfigDirs `json:"dirs,omitempty"`
@@ -1863,6 +1865,10 @@ func validateConfig() {
 		if err := validate(Config.Auth); err != nil {
 			panic(err)
 		}
+	}
+
+	if err := Config.Audit.Validate(); err != nil {
+		panic(err)
 	}
 
 	if err := validateAccessKeyEncryption(Config.AccessKeyEncryption); err != nil {
