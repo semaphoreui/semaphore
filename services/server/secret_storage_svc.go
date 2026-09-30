@@ -60,7 +60,7 @@ func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err err
 		}
 
 		for _, key := range syncedKeys {
-			if err = s.accessKeyRepo.DeleteAccessKey(projectID, key.ID); err != nil {
+			if err = s.accessKeyRepo.DeleteAccessKey(projectID, key.ID); err != nil && !errors.Is(err, db.ErrNotFound) {
 				return
 			}
 		}

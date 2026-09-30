@@ -89,6 +89,9 @@ func (d *SqlDb) DeleteOption(key string) (err error) {
 	}
 
 	err = d.deleteObject(0, db.OptionProps, key)
+	if errors.Is(err, db.ErrNotFound) {
+		err = nil
+	}
 
 	return
 }

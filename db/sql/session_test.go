@@ -52,12 +52,21 @@ func TestAuditedDeletes_ReportMissingRow(t *testing.T) {
 	require.NoError(t, err)
 	_, err = store.CreateExternalIdentity(db.UserExternalIdentity{UserID: user.ID, Type: db.IdentityTypeOidc, Provider: "corp", ExternalUID: "sub-1"})
 	require.NoError(t, err)
+	inventory, err := store.CreateInventory(db.Inventory{ProjectID: projectID, Name: "i", Type: db.InventoryStatic})
+	require.NoError(t, err)
+	env, err := store.CreateEnvironment(db.Environment{ProjectID: projectID, Name: "e", JSON: "{}"})
+	require.NoError(t, err)
+	other, err := store.CreateProject(db.Project{Name: "other"})
+	require.NoError(t, err)
 
 	deletes := map[string]func() error{
 		"project user":  func() error { return store.DeleteProjectUser(projectID, user.ID) },
 		"template role": func() error { return store.DeleteTemplateRole(projectID, template.ID, perm.ID) },
 		"totp":          func() error { return store.DeleteTotpVerification(user.ID, totp.ID) },
 		"identity":      func() error { return store.DeleteExternalIdentity(user.ID, db.IdentityTypeOidc, "corp") },
+		"inventory":     func() error { return store.DeleteInventory(projectID, inventory.ID) },
+		"environment":   func() error { return store.DeleteEnvironment(projectID, env.ID) },
+		"project":       func() error { return store.DeleteProject(other.ID) },
 	}
 	for name, del := range deletes {
 		t.Run(name, func(t *testing.T) {
@@ -65,4 +74,15 @@ func TestAuditedDeletes_ReportMissingRow(t *testing.T) {
 			assert.ErrorIs(t, del(), db.ErrNotFound)
 		})
 	}
+
+	t.Run("template", func(t *testing.T) {
+		require.NoError(t, store.DeleteTemplate(projectID, template.ID))
+		assert.ErrorIs(t, store.DeleteTemplate(projectID, template.ID), db.ErrNotFound)
+	})
+
+	t.Run("option stays idempotent", func(t *testing.T) {
+		require.NoError(t, store.SetOption("audit_test", "1"))
+		require.NoError(t, store.DeleteOption("audit_test"))
+		assert.NoError(t, store.DeleteOption("audit_test"))
+	})
 }

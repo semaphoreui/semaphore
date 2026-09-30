@@ -103,8 +103,11 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		"delete from project where id=?",
 	}
 
-	for _, statement := range statements {
-		_, err = tx.Exec(d.PrepareQuery(statement), projectID)
+	for i, statement := range statements {
+		res, err := tx.Exec(d.PrepareQuery(statement), projectID)
+		if i == len(statements)-1 {
+			err = requireDeletedRow(res, err)
+		}
 
 		if err != nil {
 			_ = tx.Rollback()
