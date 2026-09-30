@@ -8,6 +8,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 )
 
@@ -35,8 +36,8 @@ func NewEnvironmentController(
 	}
 }
 
-func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) error {
-
+func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) (audit.EnvironmentMetadata, error) {
+	var applied audit.EnvironmentMetadata
 	errors := make([]error, 0)
 
 	for _, secret := range env.Secrets {
@@ -81,6 +82,7 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 				errors = append(errors, err)
 				continue
 			}
+			applied.SecretsCreated++
 		case db.EnvironmentSecretDelete:
 			key, err = c.accessKeyRepo.GetAccessKey(env.ProjectID, secret.ID)
 
@@ -99,6 +101,7 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 				errors = append(errors, err)
 				continue
 			}
+			applied.SecretsDeleted++
 		case db.EnvironmentSecretUpdate:
 			key, err = c.accessKeyRepo.GetAccessKey(env.ProjectID, secret.ID)
 
@@ -132,14 +135,15 @@ func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) err
 				errors = append(errors, err)
 				continue
 			}
+			applied.SecretsUpdated++
 		}
 	}
 
 	if len(errors) > 0 {
-		return errors[0]
+		return applied, errors[0]
 	}
 
-	return nil
+	return applied, nil
 }
 
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
@@ -235,7 +239,9 @@ func (c *EnvironmentController) UpdateEnvironment(w http.ResponseWriter, r *http
 		Description: fmt.Sprintf("Environment %s updated", env.Name),
 	})
 
-	if err := c.updateEnvironmentSecrets(env); err != nil {
+	secrets, err := c.updateEnvironmentSecrets(env)
+	recordEnvironmentSave(r, audit.ResourceEnvironmentUpdate, env, secrets, err)
+	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
@@ -273,7 +279,9 @@ func (c *EnvironmentController) AddEnvironment(w http.ResponseWriter, r *http.Re
 		Description: fmt.Sprintf("Environment %s created", newEnv.Name),
 	})
 
-	if err = c.updateEnvironmentSecrets(newEnv); err != nil {
+	secrets, err := c.updateEnvironmentSecrets(newEnv)
+	recordEnvironmentSave(r, audit.ResourceEnvironmentCreate, newEnv, secrets, err)
+	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
@@ -317,6 +325,12 @@ func (c *EnvironmentController) RemoveEnvironment(w http.ResponseWriter, r *http
 		Description: fmt.Sprintf("Environment %s deleted", env.Name),
 	})
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceEnvironmentDelete,
+		Target:    audit.ResourceTarget(audit.TargetEnvironment, env.ID, env.Name),
+		ProjectID: env.ProjectID,
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -344,5 +358,26 @@ func (c *EnvironmentController) SyncEnvironment(w http.ResponseWriter, r *http.R
 		Description: fmt.Sprintf("Environment %s secrets synced", env.Name),
 	})
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceEnvironmentSync,
+		Target:    audit.ResourceTarget(audit.TargetEnvironment, env.ID, env.Name),
+		ProjectID: env.ProjectID,
+	})
+
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// The environment row is stored before its secrets, so a failed secret is a partial success.
+func recordEnvironmentSave(r *http.Request, kind audit.Kind, env db.Environment, secrets audit.EnvironmentMetadata, err error) {
+	event := audit.Event{
+		Kind:      kind,
+		Target:    audit.ResourceTarget(audit.TargetEnvironment, env.ID, env.Name),
+		ProjectID: env.ProjectID,
+	}
+	if err != nil {
+		secrets.Partial = true
+		event.Reason = audit.ReasonSecretFailed
+	}
+	event.Metadata = secrets
+	helpers.Audit(r).Record(r.Context(), event)
 }

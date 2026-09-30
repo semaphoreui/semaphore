@@ -414,3 +414,55 @@ func TestSecretStorageEvents(t *testing.T) {
 func eventText(recorded audittest.Recorded) string {
 	return fmt.Sprintf("%+v", recorded.Event)
 }
+
+func TestAddEnvironment_Events(t *testing.T) {
+	tests := []struct {
+		name        string
+		secrets     string
+		wantCode    int
+		wantMeta    audit.EnvironmentMetadata
+		wantPartial bool
+	}{
+		{"all secrets saved", `[{"name":"A","secret":"x","type":"env","operation":"create"}]`, http.StatusCreated, audit.EnvironmentMetadata{SecretsCreated: 1}, false},
+		{"one secret refused", `[{"name":"A","secret":"x","type":"env","operation":"create"},{"id":42,"type":"env","operation":"delete"}]`, http.StatusNotFound, audit.EnvironmentMetadata{SecretsCreated: 1, Partial: true}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newResourceFixture(t)
+			controller := &EnvironmentController{accessKeyRepo: &mockAccessKeyRepo{keys: map[int]db.AccessKey{}}, accessKeyService: &mockAccessKeyService{}}
+			body := `{"name":"prod","project_id":` + strconv.Itoa(f.project.ID) + `,"json":"{}","secrets":` + tt.secrets + `}`
+
+			r, rec := f.request(http.MethodPost, body, nil, nil)
+			w := httptest.NewRecorder()
+			controller.AddEnvironment(w, r)
+
+			assert.Equal(t, tt.wantCode, w.Code, "the API answer is unchanged")
+			got := only(t, rec, audit.ResourceEnvironmentCreate)
+			assert.Equal(t, audit.OutcomeSuccess, got.Event.Outcome, "the environment is stored")
+			assert.Equal(t, tt.wantMeta, got.Event.Metadata)
+			if tt.wantPartial {
+				assert.Equal(t, audit.ReasonSecretFailed, got.Event.Reason)
+			} else {
+				assert.Equal(t, audit.ReasonNone, got.Event.Reason)
+			}
+			assert.NotContains(t, eventText(got), `"x"`)
+		})
+	}
+}
+
+func TestRemoveEnvironment_IsRecorded(t *testing.T) {
+	f := newResourceFixture(t)
+	env, err := f.store.CreateEnvironment(db.Environment{Name: "prod", ProjectID: f.project.ID, JSON: "{}"})
+	require.NoError(t, err)
+	controller := &EnvironmentController{environmentService: fakeEnvironmentService{}}
+
+	r, rec := f.request(http.MethodDelete, "", map[string]any{"environment": env}, nil)
+	controller.RemoveEnvironment(httptest.NewRecorder(), r)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetEnvironment, env.ID, "prod"), only(t, rec, audit.ResourceEnvironmentDelete).Event.Target)
+}
+
+type fakeEnvironmentService struct {
+	server.EnvironmentService
+}
+
+func (fakeEnvironmentService) Delete(int, int) error { return nil }
