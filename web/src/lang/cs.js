@@ -409,10 +409,6 @@ export default {
   template_tf_workspaces: 'Workspaces',
 
   // Role-related translations
-  slug: 'Slug',
-  slug_required: 'Slug je povinný',
-  slugHint: 'Jedinečný identifikátor (pouze malá písmena, číslice, podtržítka a spojovníky)',
-  invalidSlugFormat: 'Slug musí obsahovat pouze malá písmena, číslice, podtržítka a spojovníky',
   permissions: 'Oprávnění',
   canRunProjectTasks: 'Může spouštět úlohy projektu',
   canUpdateProject: 'Může aktualizovat projekt',

@@ -376,11 +376,6 @@ export default {
   template_tf_workspaces: 'Workspaces',
 
   // Rollen
-  slug: 'Slug',
-  slug_required: 'Slug ist erforderlich',
-  slugHint: 'Eindeutige ID (kleinbuchstaben, alphanumerisch, Unterstrich/Bindestrich erlaubt)',
-  invalidSlugFormat:
-    'Slug muss kleingeschrieben, alphanumerisch und mit Unterstrichen/Bindestrichen sein',
   permissions: 'Berechtigungen',
   canRunProjectTasks: 'Kann Projekt-Tasks ausführen',
   canUpdateProject: 'Kann Projekt aktualisieren',

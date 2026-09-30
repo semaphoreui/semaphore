@@ -147,6 +147,30 @@ definitions:
       external:
         type: boolean
 
+  Role:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 1
+      name:
+        type: string
+      permissions:
+        type: integer
+        minimum: 0
+      project_id:
+        type: integer
+        minimum: 1
+        x-nullable: true
+      builtin_key:
+        type: string
+        enum: [owner, manager, task_runner, guest]
+        x-nullable: true
+    required:
+      - id
+      - name
+      - permissions
+
   ProjectUser:
     type: object
     properties:
@@ -157,9 +181,9 @@ definitions:
         type: string
       username:
         type: string
-      role:
-        type: string
-        enum: [owner, manager, task_runner, guest]
+      role_id:
+        type: integer
+        minimum: 1
 
   ProjectInvite:
     type: object
@@ -178,10 +202,9 @@ definitions:
         type: string
         format: email
         description: Email address for email-based invites (optional)
-      role:
-        type: string
-        enum: [owner, manager, task_runner, guest]
-        example: manager
+      role_id:
+        type: integer
+        minimum: 1
       status:
         type: string
         enum: [pending, accepted, declined, expired]
@@ -221,16 +244,15 @@ definitions:
         format: email
         description: Email address to invite (use either user_id or email, not both)
         x-example: user@example.com
-      role:
-        type: string
-        enum: [owner, manager, task_runner, guest]
-        example: manager
+      role_id:
+        type: integer
+        minimum: 1
       expires_at:
         type: string
         format: date-time
         description: When the invite should expire (optional, defaults to 7 days)
     required:
-      - role
+      - role_id
 
   AcceptInviteRequest:
     type: object
@@ -2304,10 +2326,12 @@ paths:
             type: object
             properties:
               role:
-                type: string
-                example: owner
+                allOf:
+                  - $ref: "#/definitions/Role"
+                x-nullable: true
               permissions:
-                type: number
+                type: integer
+                minimum: 0
                 example: 0
 
 
@@ -2339,7 +2363,7 @@ paths:
           in: query
           required: true
           type: string
-          enum: [name, username, email, role]
+          enum: [name, username, email, role_id]
           description: sorting name
           x-example: email
         - name: order
@@ -2370,10 +2394,12 @@ paths:
               user_id:
                 type: integer
                 minimum: 2
-              role:
-                type: string
-                enum: [owner, manager, task_runner, guest]
-                example: owner
+              role_id:
+                type: integer
+                minimum: 1
+            required:
+              - user_id
+              - role_id
       responses:
         204:
           description: User added
@@ -2396,10 +2422,11 @@ paths:
           schema:
             type: object
             properties:
-              role:
-                type: string
-                enum: [owner, manager, task_runner, guest]
-                example: owner
+              role_id:
+                type: integer
+                minimum: 1
+            required:
+              - role_id
       summary: Update user role
       tags:
         - project
@@ -2420,7 +2447,7 @@ paths:
 #          in: query
 #          required: false
 #          type: string
-#          enum: [created, status, role]
+#          enum: [created, status, role_id]
 #          description: sorting field
 #          x-example: created
 #        - name: order

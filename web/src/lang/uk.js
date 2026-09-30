@@ -364,10 +364,6 @@ export default {
   template_details: 'Деталі',
   template_tf_workspaces: 'Workspaces',
 
-  slug: 'Слаг',
-  slug_required: 'Слаг обов’язковий',
-  slugHint: 'Унікальний ідентифікатор (лише малими літерами, латиницею, цифри, нижнє підкреслення і дефіс)',
-  invalidSlugFormat: 'Слаг має бути малими літерами, латиницею, цифри, нижнє підкреслення чи дефіс',
   permissions: 'Права',
   canRunProjectTasks: 'Може запускати завдання проєкту',
   canUpdateProject: 'Може оновлювати проєкт',

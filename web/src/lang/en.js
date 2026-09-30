@@ -501,10 +501,6 @@ export default {
   // Role-related translations
   roleScope: 'Scope',
   builtIn: 'Built-in',
-  slug: 'Slug',
-  slug_required: 'Slug is required',
-  slugHint: 'Unique identifier (lowercase, alphanumeric, underscores and hyphens only)',
-  invalidSlugFormat: 'Slug must be lowercase, alphanumeric with underscores/hyphens only',
   permissions: 'Permissions',
   canRunProjectTasks: 'Can run project tasks',
   canUpdateProject: 'Can update project',

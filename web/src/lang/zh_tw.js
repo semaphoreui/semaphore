@@ -369,10 +369,6 @@ export default {
   template_tf_workspaces: '工作區',
 
   // Role-related translations
-  slug: 'Slug',
-  slug_required: 'Slug 是必填的',
-  slugHint: '唯一識別碼（僅限小寫英數字、底線及連字號）',
-  invalidSlugFormat: 'Slug 僅允許小寫英數字、底線及連字號',
   permissions: '權限',
   canRunProjectTasks: '可執行專案任務',
   canUpdateProject: '可更新專案',
