@@ -45,12 +45,24 @@
     <v-data-table
       :headers="headers"
       :items="items"
+      item-key="id"
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
-      <template v-slot:item.role="{ item }">
-        {{ getRoleName(item.role_slug) }}
+      <template v-slot:item.role_id="{ item }">
+        <div class="d-flex align-center">
+          <span>{{ getRoleName(item.role_id) }}</span>
+          <v-chip
+            v-if="getRole(item.role_id)"
+            x-small
+            label
+            class="ml-2"
+            :color="getRoleColor(item.role_id)"
+          >
+            {{ getRoleScopeLabel(item.role_id) }}
+          </v-chip>
+        </div>
       </template>
 
       <template v-slot:item.permissions="{ item }">
@@ -118,7 +130,7 @@ export default {
     async loadRoles() {
       try {
         const response = await axios.get(
-          `/api/project/${this.template.project_id}/roles?mode=merge`,
+          `/api/project/${this.template.project_id}/roles/all`,
         );
         this.availableRoles = response.data;
       } catch (error) {
@@ -127,16 +139,32 @@ export default {
       }
     },
 
-    getRoleName(roleId) {
-      const role = this.availableRoles.find((r) => r.slug === roleId);
-      return role ? role.name : `Role ${roleId}`;
+    getRole(roleID) {
+      return this.availableRoles.find((role) => role.id === roleID);
     },
 
-    getRoleColor(roleId) {
-      const role = this.availableRoles.find((r) => r.slug === roleId);
-      if (!role) return 'gray';
+    getRoleName(roleID) {
+      const role = this.getRole(roleID);
+      return role ? role.name : `Role ${roleID}`;
+    },
 
-      // Color based on role slug or default colors
+    getRoleScopeLabel(roleID) {
+      const role = this.getRole(roleID);
+      if (role.builtin_key != null) {
+        return this.$i18n.t('builtIn');
+      }
+      if (role.project_id == null) {
+        return this.$i18n.t('global');
+      }
+      return this.$i18n.t('project');
+    },
+
+    getRoleColor(roleID) {
+      const role = this.getRole(roleID);
+      if (role.builtin_key == null) {
+        return undefined;
+      }
+
       const colorMap = {
         owner: 'red',
         manager: 'orange',
@@ -144,7 +172,7 @@ export default {
         guest: 'gray',
       };
 
-      return colorMap[role.slug] || 'primary';
+      return colorMap[role.builtin_key] || 'gray';
     },
 
     allowActions() {
@@ -155,7 +183,7 @@ export default {
       return [
         {
           text: this.$i18n.t('role'),
-          value: 'role',
+          value: 'role_id',
           width: '25%',
         },
         {

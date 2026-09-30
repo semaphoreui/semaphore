@@ -13,9 +13,9 @@
     </v-alert>
 
     <v-select
-      v-model="item.role_slug"
+      v-model="item.role_id"
       :items="availableRoles"
-      item-value="slug"
+      item-value="id"
       item-text="name"
       :label="$t('role')"
       :rules="[v => !!v || $t('role_required')]"
@@ -27,7 +27,7 @@
       <template v-slot:item="{ item: role }">
         <v-list-item-content>
           <v-list-item-title>{{ role.name }}</v-list-item-title>
-          <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
+          <v-list-item-subtitle>{{ getRoleScopeLabel(role) }}</v-list-item-subtitle>
         </v-list-item-content>
       </template>
     </v-select>
@@ -113,6 +113,16 @@ export default {
       }
     },
 
+    getRoleScopeLabel(role) {
+      if (role.builtin_key != null) {
+        return this.$i18n.t('builtIn');
+      }
+      if (role.project_id == null) {
+        return this.$i18n.t('global');
+      }
+      return this.$i18n.t('project');
+    },
+
     getItemsUrl() {
       return `/api/project/${this.projectId}/templates/${this.templateId}/perms`;
     },
@@ -123,10 +133,17 @@ export default {
 
     getNewItem() {
       return {
-        role_slug: null,
-        template_id: parseInt(this.templateId, 10),
-        project_id: this.projectId,
+        role_id: null,
         permissions: 0,
+      };
+    },
+
+    getRequestOptions() {
+      return {
+        data: {
+          role_id: this.item.role_id,
+          permissions: this.item.permissions,
+        },
       };
     },
 
@@ -136,9 +153,6 @@ export default {
         this.item.permissions = Object.keys(this.permissions)
           .filter((k) => this.permissions[k])
           .reduce((res, k) => res | k, 0);
-
-        this.item.template_id = parseInt(this.templateId, 10);
-        this.item.project_id = this.projectId;
       }
     },
 
