@@ -170,16 +170,16 @@ func GetProject(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, helpers.GetFromContext(r, "project"))
 }
 
+type projectUserRoleResponse struct {
+	Role        *db.Role                 `json:"role"`
+	Permissions db.ProjectUserPermission `json:"permissions"`
+}
+
 func GetUserRole(w http.ResponseWriter, r *http.Request) {
-	var result struct {
-		RoleID      *int                     `json:"role_id"`
-		Permissions db.ProjectUserPermission `json:"permissions"`
-	}
-	if role := helpers.GetFromContext(r, "projectRole").(*db.Role); role != nil {
-		result.RoleID = &role.ID
-	}
-	result.Permissions = helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
-	helpers.WriteJSON(w, http.StatusOK, result)
+	helpers.WriteJSON(w, http.StatusOK, projectUserRoleResponse{
+		Role:        helpers.GetFromContext(r, "projectRole").(*db.Role),
+		Permissions: helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission),
+	})
 }
 
 func ClearCache(w http.ResponseWriter, r *http.Request) {

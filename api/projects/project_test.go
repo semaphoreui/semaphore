@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -134,6 +135,46 @@ func Test_ProjectMiddleware_UsesGlobalCustomRolePermissions(t *testing.T) {
 	require.NotNil(t, role)
 	assert.Equal(t, globalRole.ID, role.ID)
 	assert.Nil(t, role.ProjectID)
+}
+
+func Test_GetUserRole_ReturnsResolvedRole(t *testing.T) {
+	builtinKey := db.BuiltinRoleManager
+	role := &db.Role{
+		ID:          42,
+		Name:        "Manager",
+		Permissions: db.CanRunProjectTasks | db.CanManageProjectResources,
+		BuiltinKey:  &builtinKey,
+	}
+	// Effective permissions intentionally differ from the role's base permissions
+	// to verify that the handler returns the context value instead of recalculating it.
+	permissions := role.Permissions | db.CanUpdateProject
+	req := httptest.NewRequest(http.MethodGet, "/api/project/1/user/role", nil)
+	req = helpers.SetContextValue(req, "projectRole", role)
+	req = helpers.SetContextValue(req, "permissions", permissions)
+	w := httptest.NewRecorder()
+
+	GetUserRole(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var response projectUserRoleResponse
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
+	assert.Equal(t, role, response.Role)
+	assert.Equal(t, permissions, response.Permissions)
+}
+
+func Test_GetUserRole_ReturnsNullRoleWithoutMembership(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/project/1/user/role", nil)
+	req = helpers.SetContextValue(req, "projectRole", (*db.Role)(nil))
+	req = helpers.SetContextValue(req, "permissions", db.ProjectUserPermission(0))
+	w := httptest.NewRecorder()
+
+	GetUserRole(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var response projectUserRoleResponse
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
+	assert.Nil(t, response.Role)
+	assert.Zero(t, response.Permissions)
 }
 
 func Test_ProjectMiddleware_PreservesAdminOverrideWithoutMembership(t *testing.T) {
