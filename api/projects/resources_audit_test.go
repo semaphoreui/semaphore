@@ -14,6 +14,7 @@ import (
 	proFactory "github.com/semaphoreui/semaphore/pro/db/factory"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/audit/audittest"
+	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -222,4 +223,86 @@ func mustAtoi(t *testing.T, s string) int {
 	n, err := strconv.Atoi(s)
 	require.NoError(t, err)
 	return n
+}
+
+func (f resourceFixture) template(t *testing.T) db.Template {
+	t.Helper()
+	repo, err := f.store.CreateRepository(db.Repository{Name: "r", ProjectID: f.project.ID, GitURL: "git@example.com:r.git", GitBranch: "main", SSHKeyID: f.key.ID})
+	require.NoError(t, err)
+	inventory, err := f.store.CreateInventory(db.Inventory{Name: "i", ProjectID: f.project.ID, Type: db.InventoryStatic})
+	require.NoError(t, err)
+	template, err := f.store.CreateTemplate(db.Template{Name: "deploy", ProjectID: f.project.ID, RepositoryID: repo.ID, InventoryID: &inventory.ID, Playbook: "site.yml", App: db.AppAnsible})
+	require.NoError(t, err)
+	return template
+}
+
+func TestTemplateEvents(t *testing.T) {
+	f := newResourceFixture(t)
+	util.Config.Apps = map[string]util.App{"ansible": {}}
+	template := f.template(t)
+
+	r, rec := f.request(http.MethodPut, `{"id":`+strconv.Itoa(template.ID)+`,"project_id":`+strconv.Itoa(f.project.ID)+`,"name":"deploy2","repository_id":`+strconv.Itoa(template.RepositoryID)+`,"inventory_id":`+strconv.Itoa(*template.InventoryID)+`,"playbook":"site.yml","app":"ansible"}`, map[string]any{"template": template}, nil)
+	w := httptest.NewRecorder()
+	UpdateTemplate(w, r)
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	updated := only(t, rec, audit.ResourceTemplateUpdate)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetTemplate, template.ID, "deploy2"), updated.Event.Target)
+	assert.Equal(t, audit.TemplateMetadata{App: "ansible"}, updated.Event.Metadata)
+
+	inventory, err := f.store.CreateInventory(db.Inventory{Name: "extra", ProjectID: f.project.ID, Type: db.InventoryStatic})
+	require.NoError(t, err)
+	r, rec = f.request(http.MethodPost, "", map[string]any{"template": template, "inventory": inventory}, nil)
+	AttachInventory(httptest.NewRecorder(), r)
+	assert.Equal(t, audit.TemplateInventoryMetadata{InventoryID: inventory.ID}, only(t, rec, audit.ResourceTemplateAttachInventory).Event.Metadata)
+
+	r, rec = f.request(http.MethodDelete, "", map[string]any{"template": template}, nil)
+	RemoveTemplate(httptest.NewRecorder(), r)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetTemplate, template.ID, "deploy"), only(t, rec, audit.ResourceTemplateDelete).Event.Target)
+}
+
+func TestAddTemplate_RecordsTheCreatedInventory(t *testing.T) {
+	f := newResourceFixture(t)
+	util.Config.Apps = map[string]util.App{"terraform": {}}
+	repo, err := f.store.CreateRepository(db.Repository{Name: "r", ProjectID: f.project.ID, GitURL: "git@example.com:r.git", GitBranch: "main", SSHKeyID: f.key.ID})
+	require.NoError(t, err)
+
+	r, rec := f.request(http.MethodPost, `{"name":"infra","repository_id":`+strconv.Itoa(repo.ID)+`,"app":"terraform"}`, nil, nil)
+	w := httptest.NewRecorder()
+	AddTemplate(w, r)
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+
+	meta := only(t, rec, audit.ResourceTemplateCreate).Event.Metadata.(audit.TemplateMetadata)
+	assert.Equal(t, "terraform", meta.App)
+	assert.NotZero(t, meta.CreatedInventoryID)
+}
+
+func TestScheduleEvents(t *testing.T) {
+	f := newResourceFixture(t)
+	template := f.template(t)
+	schedule, err := f.store.CreateSchedule(db.Schedule{Name: "nightly", ProjectID: f.project.ID, TemplateID: template.ID, CronFormat: "0 0 * * *"})
+	require.NoError(t, err)
+	util.Config.Schedule = &util.ScheduleConfig{Timezone: "UTC"}
+	pool := schedules.CreateSchedulePool(f.store, nil, nil, nil)
+	t.Cleanup(pool.Destroy)
+
+	tests := []struct {
+		body string
+		kind audit.Kind
+	}{
+		{`{"active":true}`, audit.ResourceScheduleActivate},
+		{`{"active":false}`, audit.ResourceScheduleDeactivate},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.kind), func(t *testing.T) {
+			r, rec := f.request(http.MethodPut, tt.body, map[string]any{"schedule": schedule, "schedule_pool": pool}, nil)
+			SetScheduleActive(httptest.NewRecorder(), r)
+			got := only(t, rec, tt.kind)
+			assert.Equal(t, audit.ResourceTarget(audit.TargetSchedule, schedule.ID, "nightly"), got.Event.Target)
+			assert.Equal(t, audit.ScheduleMetadata{TemplateID: template.ID}, got.Event.Metadata)
+		})
+	}
+
+	r, rec := f.request(http.MethodDelete, "", map[string]any{"schedule": schedule, "schedule_pool": pool}, nil)
+	RemoveSchedule(httptest.NewRecorder(), r)
+	assert.Nil(t, only(t, rec, audit.ResourceScheduleDelete).Event.Metadata)
 }

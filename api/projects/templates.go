@@ -111,6 +111,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check workspace and create it if required.
+	createdInventoryID := 0
 	if newTemplate.App.IsTerraform() {
 		var inv db.Inventory
 
@@ -137,6 +138,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			createdInventoryID = inv.ID
 			newTemplate.InventoryID = &inv.ID
 			err = helpers.Store(r).UpdateTemplate(newTemplate)
 
@@ -163,6 +165,14 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		ObjectType:  db.EventSchedule,
 		ObjectID:    newTemplate.ID,
 		Description: fmt.Sprintf("Template ID %d created", newTemplate.ID),
+	})
+
+	// The inventory created for a Terraform template has no event of its own.
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceTemplateCreate,
+		Target:    audit.ResourceTarget(audit.TargetTemplate, newTemplate.ID, newTemplate.Name),
+		ProjectID: project.ID,
+		Metadata:  audit.TemplateMetadata{App: string(newTemplate.App), CreatedInventoryID: createdInventoryID},
 	})
 
 	helpers.WriteJSON(w, http.StatusCreated, newTemplate)
@@ -252,6 +262,13 @@ func UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Template ID %d updated", template.ID),
 	})
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceTemplateUpdate,
+		Target:    audit.ResourceTarget(audit.TargetTemplate, oldTemplate.ID, template.Name),
+		ProjectID: oldTemplate.ProjectID,
+		Metadata:  audit.TemplateMetadata{App: string(template.App)},
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -271,6 +288,12 @@ func RemoveTemplate(w http.ResponseWriter, r *http.Request) {
 		ObjectType:  db.EventTemplate,
 		ObjectID:    tpl.ID,
 		Description: fmt.Sprintf("Template ID %d deleted", tpl.ID),
+	})
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceTemplateDelete,
+		Target:    audit.ResourceTarget(audit.TargetTemplate, tpl.ID, tpl.Name),
+		ProjectID: tpl.ProjectID,
 	})
 
 	w.WriteHeader(http.StatusNoContent)
@@ -297,6 +320,13 @@ func SetTemplateInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceTemplateSetDefaultInventory,
+		Target:    audit.ResourceTarget(audit.TargetTemplate, tpl.ID, tpl.Name),
+		ProjectID: tpl.ProjectID,
+		Metadata:  audit.TemplateInventoryMetadata{InventoryID: inv.ID},
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -321,6 +351,13 @@ func AttachInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceTemplateAttachInventory,
+		Target:    audit.ResourceTarget(audit.TargetTemplate, tpl.ID, tpl.Name),
+		ProjectID: tpl.ProjectID,
+		Metadata:  audit.TemplateInventoryMetadata{InventoryID: inv.ID},
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -339,6 +376,13 @@ func DetachInventory(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceTemplateDetachInventory,
+		Target:    audit.ResourceTarget(audit.TargetTemplate, tpl.ID, tpl.Name),
+		ProjectID: tpl.ProjectID,
+		Metadata:  audit.TemplateInventoryMetadata{InventoryID: inv.ID},
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
