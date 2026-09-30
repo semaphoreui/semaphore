@@ -84,6 +84,7 @@ func (d *SqlDbConnection) Connect() {
 	}
 
 	d.sql.AddTableWithName(db.APIToken{}, "user__token").SetKeys(false, "id")
+	d.sql.AddTableWithName(db.AuditEvent{}, "audit_event").SetKeys(false, "seq")
 	d.sql.AddTableWithName(db.AccessKey{}, "access_key").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.Environment{}, "project__environment").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.Inventory{}, "project__inventory").SetKeys(true, "id")
@@ -474,6 +475,21 @@ func validateMutationResult(res sql.Result, err error) error {
 		return err
 	}
 
+	return nil
+}
+
+// requireDeletedRow returns db.ErrNotFound when the statement removed no row, so the audit records only real deletes.
+func requireDeletedRow(res sql.Result, err error) error {
+	if err = validateMutationResult(res, err); err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return db.ErrNotFound
+	}
 	return nil
 }
 

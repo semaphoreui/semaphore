@@ -15,6 +15,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -86,7 +87,7 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = linkExternalIdentity(helpers.Store(r), *currentUser, db.IdentityTypeLdap, providerID, userDN)
+	linked, err := linkExternalIdentity(helpers.Store(r), *currentUser, db.IdentityTypeLdap, providerID, userDN)
 	if err != nil {
 		switch {
 		case errors.Is(err, errIdentityLinkedToAnother):
@@ -102,6 +103,14 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 			helpers.WriteErrorStatus(w, "Failed to link LDAP account", http.StatusInternalServerError)
 		}
 		return
+	}
+
+	if linked {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:     audit.IAMExternalIdentityLink,
+			Target:   audit.UserTarget(currentUser.ID, currentUser.Username),
+			Metadata: audit.AuthMethodMetadata{Method: audit.LoginMethodLDAP, Provider: providerID},
+		})
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -160,6 +169,11 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:   audit.IAMAPITokenCreate,
+		Target: &audit.Target{Type: audit.TargetAPIToken, ID: audit.TokenFingerprint(token.ID), Name: token.Name},
+	})
+
 	helpers.WriteJSON(w, http.StatusCreated, token)
 }
 
@@ -168,11 +182,25 @@ func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
 
 	tokenID := mux.Vars(r)["token_id"]
 
-	err := helpers.Store(r).DeleteAPIToken(user.ID, tokenID)
-
+	tokens, err := helpers.Store(r).GetAPITokensByPrefix(user.ID, tokenID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	for _, token := range tokens {
+		err = helpers.Store(r).DeleteAPIToken(user.ID, token.ID)
+		if errors.Is(err, db.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:   audit.IAMAPITokenDelete,
+			Target: &audit.Target{Type: audit.TargetAPIToken, ID: audit.TokenFingerprint(token.ID), Name: token.Name},
+		})
 	}
 
 	w.WriteHeader(http.StatusNoContent)

@@ -43,3 +43,4 @@ func NewWSBroadcaster() sockets.Broadcaster                   { return nil }
 func NewOrphanCleaner(_ db.Store) OrphanCleaner               { return nil }
 func NewClusterInspector() ClusterInspector                   { return nil }
 func NewWorkflowRunLocker() pro_interfaces.WorkflowRunLocker  { return nil }
+func NewAuditExportLeaser() pro_interfaces.AuditExportLeaser  { return nil }

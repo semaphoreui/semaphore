@@ -441,6 +441,7 @@ type TokenManager interface {
 	CreateAPIToken(token APIToken) (APIToken, error)
 	GetAPIToken(tokenID string) (APIToken, error)
 	ExpireAPIToken(userID int, tokenID string) error
+	GetAPITokensByPrefix(userID int, tokenPrefix string) ([]APIToken, error)
 	DeleteAPIToken(userID int, tokenID string) error
 }
 
@@ -578,7 +579,7 @@ type RoleRepository interface {
 	GetGlobalRoles() ([]Role, error)
 	UpdateRole(role Role) error
 	CreateRole(role Role) (Role, error)
-	DeleteRole(slug string) error
+	DeleteRole(slug string, projectID *int) error
 }
 
 // Store is the main interface that aggregates all specialized interfaces
@@ -607,6 +608,7 @@ type Store interface {
 	SecretStorageRepository
 	SecretSyncRepository
 	RoleRepository
+	AuditEventManager
 }
 
 var AccessKeyProps = ObjectProps{

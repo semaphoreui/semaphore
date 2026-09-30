@@ -20,13 +20,30 @@ func (d *SqlDb) GetGlobalRoles() ([]db.Role, error) {
 	return roles, err
 }
 
+// roleScope limits a role query to the global roles or to one project.
+func roleScope(slug string, projectID *int) (string, []any) {
+	if projectID == nil {
+		return " where slug=? and project_id is null", []any{slug}
+	}
+	return " where slug=? and project_id=?", []any{slug, *projectID}
+}
+
 func (d *SqlDb) UpdateRole(role db.Role) error {
-	_, err := d.exec(
-		"update `role` set name=?, permissions=? where slug=?",
-		role.Name,
-		role.Permissions,
-		role.Slug)
-	return err
+	where, args := roleScope(role.Slug, role.ProjectID)
+	res, err := d.exec(
+		"update `role` set name=?, permissions=?"+where,
+		append([]any{role.Name, role.Permissions}, args...)...)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil || affected > 0 {
+		return err
+	}
+
+	// MySQL reports no affected rows for an update that changes nothing.
+	var existing db.Role
+	return d.selectOne(&existing, "select * from `role`"+where, args...)
 }
 
 func (d *SqlDb) CreateRole(role db.Role) (db.Role, error) {
@@ -45,9 +62,10 @@ func (d *SqlDb) CreateRole(role db.Role) (db.Role, error) {
 	return role, nil
 }
 
-func (d *SqlDb) DeleteRole(slug string) error {
-	res, err := d.exec("delete from `role` where slug=?", slug)
-	return validateMutationResult(res, err)
+func (d *SqlDb) DeleteRole(slug string, projectID *int) error {
+	where, args := roleScope(slug, projectID)
+	res, err := d.exec("delete from `role`"+where, args...)
+	return requireDeletedRow(res, err)
 }
 
 func (d *SqlDb) GetProjectRole(projectID int, slug string) (db.Role, error) {
