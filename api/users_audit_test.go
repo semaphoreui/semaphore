@@ -3,7 +3,6 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -216,58 +215,25 @@ func TestDeleteAPIToken_RecordsEveryTokenTheStoreDeleted(t *testing.T) {
 	}
 }
 
-// failingTokenList breaks only the read done for the audit.
-type failingTokenList struct {
+// concurrentTokenDelete reports one deleted token while the rest of the prefix was removed by another request.
+type concurrentTokenDelete struct {
 	db.Store
 }
 
-func (failingTokenList) GetAPITokens(int) ([]db.APIToken, error) {
-	return nil, errors.New("database hiccup")
+func (concurrentTokenDelete) DeleteAPIToken(int, string) ([]db.APIToken, error) {
+	return []db.APIToken{{ID: "abcdefgh1111", Name: "mine"}}, nil
 }
 
-func TestDeleteAPIToken_FailedAuditReadStillDeletes(t *testing.T) {
+func TestDeleteAPIToken_RecordsOnlyWhatThisRequestDeleted(t *testing.T) {
 	store := setupSessionTest(t)
 	user := createUserOptionsTestUser(t, store, "alice")
-	_, err := store.CreateAPIToken(db.APIToken{ID: "deletemetoken1234567890", UserID: user.ID, Name: "ci"})
-	require.NoError(t, err)
 
-	r, rec := userRequest(failingTokenList{Store: store}, http.MethodDelete, "/api/user/tokens/x", "", user, user)
+	r, rec := userRequest(concurrentTokenDelete{Store: store}, http.MethodDelete, "/api/user/tokens/x", "", user, user)
 	w := httptest.NewRecorder()
-	deleteAPIToken(w, mux.SetURLVars(r, map[string]string{"token_id": "deletemetoken"}))
-
-	assert.Equal(t, http.StatusNoContent, w.Code, "audit never changes the result")
-	assert.Empty(t, rec.All())
-	_, err = store.GetAPIToken("deletemetoken1234567890")
-	assert.ErrorIs(t, err, db.ErrNotFound)
-}
-
-// failingSecondTokenList breaks only the read after the delete.
-type failingSecondTokenList struct {
-	db.Store
-	reads *int
-}
-
-func (s failingSecondTokenList) GetAPITokens(userID int) ([]db.APIToken, error) {
-	*s.reads++
-	if *s.reads == 2 {
-		return nil, errors.New("database hiccup")
-	}
-	return s.Store.GetAPITokens(userID)
-}
-
-func TestDeleteAPIToken_FailedReadAfterDeleteStillAnswers(t *testing.T) {
-	store := setupSessionTest(t)
-	user := createUserOptionsTestUser(t, store, "alice")
-	_, err := store.CreateAPIToken(db.APIToken{ID: "deletemetoken1234567890", UserID: user.ID, Name: "ci"})
-	require.NoError(t, err)
-
-	reads := 0
-	r, rec := userRequest(failingSecondTokenList{Store: store, reads: &reads}, http.MethodDelete, "/api/user/tokens/x", "", user, user)
-	w := httptest.NewRecorder()
-	deleteAPIToken(w, mux.SetURLVars(r, map[string]string{"token_id": "deletemetoken"}))
+	deleteAPIToken(w, mux.SetURLVars(r, map[string]string{"token_id": "abcdefgh"}))
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
-	assert.Empty(t, rec.All(), "without the second read every token would look deleted")
+	assert.Equal(t, "mine", onlyEvent(t, rec, audit.IAMAPITokenDelete).Event.Target.Name)
 }
 
 func TestSetOption_RecordsKeyOnly(t *testing.T) {

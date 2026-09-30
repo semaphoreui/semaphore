@@ -182,35 +182,17 @@ func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
 
 	tokenID := mux.Vars(r)["token_id"]
 
-	// Read only for the audit. A failure must not stop the delete.
-	before, err := helpers.Store(r).GetAPITokens(user.ID)
-	if err != nil && !errors.Is(err, db.ErrNotFound) {
-		log.WithError(err).WithField("context", "audit").Error("Cannot read API tokens for the audit, deleting without events")
-	}
-
-	if err = helpers.Store(r).DeleteAPIToken(user.ID, tokenID); err != nil {
+	deleted, err := helpers.Store(r).DeleteAPIToken(user.ID, tokenID)
+	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	// The store deletes by LIKE, so the deleted tokens are the ones that are gone.
-	after, err := helpers.Store(r).GetAPITokens(user.ID)
-	if err != nil && !errors.Is(err, db.ErrNotFound) {
-		log.WithError(err).WithField("context", "audit").Error("Cannot read API tokens for the audit, deleted without events")
-		before = nil
-	}
-	remaining := make(map[string]bool, len(after))
-	for _, token := range after {
-		remaining[token.ID] = true
-	}
-
-	for _, token := range before {
-		if !remaining[token.ID] {
-			helpers.Audit(r).Record(r.Context(), audit.Event{
-				Kind:   audit.IAMAPITokenDelete,
-				Target: &audit.Target{Type: audit.TargetAPIToken, ID: audit.TokenFingerprint(token.ID), Name: token.Name},
-			})
-		}
+	for _, token := range deleted {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:   audit.IAMAPITokenDelete,
+			Target: &audit.Target{Type: audit.TargetAPIToken, ID: audit.TokenFingerprint(token.ID), Name: token.Name},
+		})
 	}
 
 	w.WriteHeader(http.StatusNoContent)
