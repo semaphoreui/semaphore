@@ -67,19 +67,23 @@
     <v-data-table
       :headers="headers"
       :items="items"
+      item-key="id"
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
+      <template v-slot:item.scope="{ item }">
+        <v-chip small label>{{ getRoleScopeLabel(item) }}</v-chip>
+      </template>
       <template v-slot:item.permissions="{ item }">
         <TemplatePermissionsChips class="py-1" :permissions="item.permissions" />
       </template>
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-btn icon class="mr-1" @click="askDeleteItem(item.slug)">
+          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item.slug)">
+          <v-btn icon class="mr-1" @click="editItem(item.id)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>
@@ -119,7 +123,7 @@ export default {
 
   computed: {
     IDFieldName() {
-      return 'slug';
+      return 'id';
     },
   },
 
@@ -138,6 +142,11 @@ export default {
           width: '50%',
         },
         {
+          text: this.$i18n.t('roleScope'),
+          value: 'scope',
+          sortable: false,
+        },
+        {
           text: this.$i18n.t('permissions'),
           value: 'permissions',
         },
@@ -151,6 +160,16 @@ export default {
 
     async returnToProjects() {
       EventBus.$emit('i-open-last-project');
+    },
+
+    getRoleScopeLabel(role) {
+      if (role.builtin_key != null) {
+        return this.$i18n.t('builtIn');
+      }
+      if (role.project_id == null) {
+        return this.$i18n.t('global');
+      }
+      return this.$i18n.t('project');
     },
 
     getItemsUrl() {

@@ -22,19 +22,6 @@
       :disabled="formSaving"
     ></v-text-field>
 
-    <v-text-field
-      v-model="item.slug"
-      :label="$t('slug')"
-      :rules="[v => !!v || $t('slug_required'), v => this.validateSlug(v)]"
-      outlined
-      dense
-      required
-      :disabled="formSaving"
-      :hint="$t('slugHint')"
-    ></v-text-field>
-
-<!--    <v-divider class="my-4"></v-divider>-->
-
     <v-subheader class="pl-0">{{ $t('permissions') }}</v-subheader>
 
     <v-checkbox
@@ -117,18 +104,6 @@ export default {
   },
 
   methods: {
-    validateSlug(value) {
-      if (!value) return true; // Required validation is handled separately
-
-      // Slug should be lowercase, alphanumeric with underscores/hyphens
-      const slugPattern = /^[a-z0-9_-]+$/;
-      if (!slugPattern.test(value)) {
-        return this.$t('invalidSlugFormat');
-      }
-
-      return true;
-    },
-
     getItemsUrl() {
       if (this.projectId) {
         return `/api/project/${this.projectId}/roles`;
@@ -146,8 +121,16 @@ export default {
     getNewItem() {
       return {
         name: '',
-        slug: '',
         permissions: 0,
+      };
+    },
+
+    getRequestOptions() {
+      return {
+        data: {
+          name: this.item.name,
+          permissions: this.item.permissions,
+        },
       };
     },
 
