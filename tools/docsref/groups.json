@@ -150,7 +150,7 @@
     },
     {
       "title": "Audit log",
-      "intro": "Security audit trail and its export to a SIEM. See [Audit log](/admin-guide/audit-log).",
+      "intro": "Recording who did what in Semaphore, and sending the events to a SIEM. See [Audit log](/admin-guide/audit-log).",
       "prefixes": [
         "audit."
       ]

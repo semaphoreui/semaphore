@@ -9,26 +9,26 @@ import (
 )
 
 type AuditConfig struct {
-	// Enabled turns on the security audit log.
+	// Enabled turns on the audit log.
 	Enabled bool `json:"enabled,omitempty" env:"SEMAPHORE_AUDIT_ENABLED"`
-	// InstanceID identifies this installation in audit events. Required when enabled.
+	// InstanceID is the installation name added to every event. Required when enabled.
 	InstanceID string `json:"instance_id,omitempty" env:"SEMAPHORE_AUDIT_INSTANCE_ID"`
-	// TrustedProxyCIDRs lists proxies whose X-Forwarded-For and X-Real-IP are trusted.
+	// TrustedProxyCIDRs lists the proxy networks allowed to pass the client address.
 	TrustedProxyCIDRs []string `json:"trusted_proxy_cidrs,omitempty" env:"SEMAPHORE_AUDIT_TRUSTED_PROXY_CIDRS"`
-	// Syslog exports audit events over Syslog+TLS.
+	// Syslog sends audit events to a Syslog receiver over TLS.
 	Syslog *AuditSyslogConfig `json:"syslog,omitempty"`
 }
 
 type AuditSyslogConfig struct {
-	// ID keys the export cursor. A new ID starts from now.
+	// ID names the destination. Keep it when the address changes.
 	ID string `json:"id,omitempty" env:"SEMAPHORE_AUDIT_SYSLOG_ID"`
-	// Address is the receiver host:port.
+	// Address is the receiver host and port.
 	Address string `json:"address,omitempty" env:"SEMAPHORE_AUDIT_SYSLOG_ADDRESS"`
-	// Timeout bounds connecting and writing one batch.
+	// Timeout limits connecting to the receiver and sending events.
 	Timeout string `json:"timeout,omitempty" default:"10s" env:"SEMAPHORE_AUDIT_SYSLOG_TIMEOUT"`
-	// CAFile is a PEM bundle added to the system roots.
+	// CAFile is a PEM file with extra CA certificates to trust.
 	CAFile string `json:"ca_file,omitempty" env:"SEMAPHORE_AUDIT_SYSLOG_CA_FILE"`
-	// ServerName overrides the name checked in the receiver certificate.
+	// ServerName is the name to check in the receiver certificate.
 	ServerName string `json:"server_name,omitempty" env:"SEMAPHORE_AUDIT_SYSLOG_SERVER_NAME"`
 }
 
