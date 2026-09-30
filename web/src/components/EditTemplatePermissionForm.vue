@@ -23,14 +23,7 @@
       outlined
       dense
       :disabled="formSaving"
-    >
-      <template v-slot:item="{ item: role }">
-        <v-list-item-content>
-          <v-list-item-title>{{ role.name }}</v-list-item-title>
-          <v-list-item-subtitle>{{ getRoleScopeLabel(role) }}</v-list-item-subtitle>
-        </v-list-item-content>
-      </template>
-    </v-select>
+    ></v-select>
 
     <v-subheader class="pl-0">{{ $t('permissions') }}</v-subheader>
 
@@ -122,16 +115,6 @@ export default {
       } catch (error) {
         this.formError = getErrorMessage(error);
       }
-    },
-
-    getRoleScopeLabel(role) {
-      if (role.builtin_key != null) {
-        return this.$i18n.t('builtIn');
-      }
-      if (role.project_id == null) {
-        return this.$i18n.t('global');
-      }
-      return this.$i18n.t('project');
     },
 
     getItemsUrl() {
