@@ -25,20 +25,6 @@ export const USER_PERMISSIONS = {
   manageProjectUsers: 8,
 };
 
-export const USER_ROLES = [{
-  slug: 'owner',
-  name: 'Owner',
-}, {
-  slug: 'manager',
-  name: 'Manager',
-}, {
-  slug: 'task_runner',
-  name: 'Task Runner',
-}, {
-  slug: 'guest',
-  name: 'Guest',
-}];
-
 export const MATCHER_TYPE_TITLES = {
   '': 'Matcher',
   body: 'Body',

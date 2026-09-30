@@ -53,7 +53,7 @@
     <v-select
       v-model="item.role_id"
       :label="$t('role')"
-      :items="roles"
+      :items="availableRoles"
       item-value="id"
       item-text="name"
       :rules="[v => !!v || $t('user_required')]"
@@ -75,6 +75,16 @@ export default {
     invitesEnabled: Boolean,
     inviteType: String,
     roles: Array,
+  },
+
+  computed: {
+    availableRoles() {
+      const roles = this.roles || [];
+      if (!this.invitesEnabled) {
+        return roles;
+      }
+      return roles.filter((role) => role.builtin_key != null);
+    },
   },
 
   data() {

@@ -1,11 +1,12 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div v-if="items != null && roles != null">
     <EditTeamMemberDialog
       v-model="editDialog"
       :project-id="projectId"
       :item-id="itemId"
       :invites-enabled="systemInfo.teams.invites_enabled"
       :invite-type="systemInfo.teams.invite_type"
+      :roles="roles"
       @save="loadItems()"
     />
 
@@ -37,6 +38,7 @@
     <v-data-table
       :headers="headers"
       :items="items"
+      item-key="id"
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
@@ -46,8 +48,8 @@
         {{ item.user ? item.user.name : item.email }}
       </template>
 
-      <template v-slot:item.role="{ item }">
-        {{ USER_ROLES.find(r => r.slug === item.role).name }}
+      <template v-slot:item.role_id="{ item }">
+        {{ getRoleName(item.role_id) }}
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -64,7 +66,7 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import axios from 'axios';
-import { USER_PERMISSIONS, USER_ROLES } from '@/lib/constants';
+import { USER_PERMISSIONS } from '@/lib/constants';
 import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';
 import TeamMenu from '@/components/TeamMenu.vue';
 
@@ -78,8 +80,13 @@ export default {
 
   data() {
     return {
-      USER_ROLES,
+      roles: null,
     };
+  },
+
+  async created() {
+    const roles = (await axios.get(`/api/project/${this.projectId}/roles/all`)).data;
+    this.roles = roles.filter((role) => role.builtin_key != null);
   },
 
   methods: {
@@ -91,6 +98,10 @@ export default {
         data: invite,
       });
       await this.loadItems();
+    },
+
+    getRoleName(roleID) {
+      return (this.roles.find((role) => role.id === roleID) || {}).name || '';
     },
 
     allowActions() {
@@ -111,7 +122,7 @@ export default {
         },
         {
           text: this.$i18n.t('role'),
-          value: 'role',
+          value: 'role_id',
           width: '30%',
         },
         {
