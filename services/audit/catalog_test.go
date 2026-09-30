@@ -157,3 +157,43 @@ func TestTruncateName(t *testing.T) {
 		})
 	}
 }
+
+func TestCatalogPartialReasons(t *testing.T) {
+	for _, entry := range Catalog() {
+		t.Run(string(entry.Kind), func(t *testing.T) {
+			for _, reason := range entry.Partial {
+				assert.Contains(t, knownReasons(), reason)
+				assert.NotContains(t, entry.Reasons, reason, "a reason is either a failure or a partial success")
+			}
+			if len(entry.Partial) > 0 {
+				assert.NotEqual(t, TypeDenied, entry.Type)
+			}
+		})
+	}
+}
+
+func TestValidatePartialSuccess(t *testing.T) {
+	tests := []struct {
+		name    string
+		event   Event
+		wantErr bool
+	}{
+		{"partial reason on success", Event{Kind: ResourceEnvironmentCreate, Reason: ReasonSecretFailed, Metadata: EnvironmentMetadata{Partial: true}}, false},
+		{"partial reason as a failure", Event{Kind: ResourceEnvironmentCreate, Outcome: OutcomeFailure, Reason: ReasonSecretFailed, Metadata: EnvironmentMetadata{}}, true},
+		{"partial reason of another kind", Event{Kind: ResourceInventoryCreate, Reason: ReasonSecretFailed}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := Validate(tt.event)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestResourceTarget(t *testing.T) {
+	assert.Equal(t, &Target{Type: TargetInventory, ID: "5", Name: "prod"}, ResourceTarget(TargetInventory, 5, "prod"))
+}

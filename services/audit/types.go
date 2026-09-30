@@ -51,6 +51,7 @@ const (
 	ReasonInvalidCurrentPassword Reason = "invalid_current_password"
 	ReasonOwnerSelfChange        Reason = "owner_self_change"
 	ReasonActivationFailed       Reason = "activation_failed"
+	ReasonSecretFailed           Reason = "secret_failed"
 )
 
 func knownReasons() []Reason {
@@ -59,7 +60,7 @@ func knownReasons() []Reason {
 		ReasonInvalidState, ReasonInternalError, ReasonInvalidPasscode, ReasonInvalidRecoveryCode,
 		ReasonCodeExpired, ReasonTooManyAttempts, ReasonTokenUnknown, ReasonTokenExpired,
 		ReasonForbidden, ReasonCrossOrigin, ReasonInvalidCurrentPassword, ReasonOwnerSelfChange,
-		ReasonActivationFailed,
+		ReasonActivationFailed, ReasonSecretFailed,
 	}
 }
 
@@ -88,6 +89,20 @@ const (
 	TargetProjectRoleDefinition = "project_role_definition"
 	TargetTemplatePermission    = "template_permission"
 	TargetLicense               = "license"
+	TargetProject               = "project"
+	TargetInventory             = "inventory"
+	TargetRepository            = "repository"
+	TargetTemplate              = "template"
+	TargetSchedule              = "schedule"
+	TargetIntegration           = "integration"
+	TargetIntegrationMatcher    = "integration_matcher"
+	TargetIntegrationExtractor  = "integration_extractor"
+	TargetIntegrationAlias      = "integration_alias"
+	TargetHostConfig            = "host_config"
+	TargetWorkflow              = "workflow"
+	TargetEnvironment           = "environment"
+	TargetCredential            = "credential"
+	TargetSecretStorage         = "secret_storage"
 )
 
 const (
