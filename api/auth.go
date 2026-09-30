@@ -161,6 +161,7 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+		helpers.Audit(r).Record(ctx, audit.Event{Kind: audit.AuthMFARecover, Target: audit.UserTarget(user.ID, user.Username)})
 
 		err = store.VerifySession(session.UserID, session.ID)
 		if err != nil {
@@ -168,7 +169,6 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		helpers.Audit(r).Record(ctx, audit.Event{Kind: audit.AuthMFARecover, Target: audit.UserTarget(user.ID, user.Username)})
 		if !session.Verified {
 			recordLoginAfterMFA(ctx, r, user)
 		}

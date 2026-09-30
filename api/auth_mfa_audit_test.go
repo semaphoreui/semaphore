@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -179,6 +180,23 @@ func TestRecoverySession_IsRecorded(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []audit.Kind{audit.AuthMFARecover, audit.AuthLogin}, kinds)
 	assert.Equal(t, audit.OutcomeSuccess, rec.All()[0].Event.Outcome)
+}
+
+type failingVerifyStore struct{ *sql.SqlDb }
+
+func (failingVerifyStore) VerifySession(int, int) error { return errors.New("database is down") }
+
+// The TOTP is already deleted when the session update fails, so the recovery must be recorded.
+func TestRecoverySession_FailedSessionUpdateStillRecordsRecovery(t *testing.T) {
+	r, user, store := totpSession(t, "/api/auth/recovery", `{"recovery_code":"{recovery}"}`)
+	r = helpers.SetContextValue(addSessionCookie(t, store, r, user, db.SessionVerificationTotp), "store", failingVerifyStore{store})
+	r, rec := withAuditRecorder(r)
+	w := httptest.NewRecorder()
+
+	recoverySession(w, r)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, audit.OutcomeSuccess, onlyEvent(t, rec, audit.AuthMFARecover).Event.Outcome)
 }
 
 func TestRecoverySession_WrongCodeIsRecorded(t *testing.T) {
