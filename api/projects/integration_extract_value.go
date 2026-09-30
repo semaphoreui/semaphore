@@ -109,6 +109,7 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
+
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.ResourceIntegrationExtractorUpdate,
 		Target:    audit.ResourceTarget(audit.TargetIntegrationExtractor, valueId, newValue.Name),

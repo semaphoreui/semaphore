@@ -214,6 +214,20 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		Metadata:  audit.ScheduleMetadata{TemplateID: schedule.TemplateID},
 	})
 
+	// A full update can switch the schedule on or off too.
+	if oldSchedule.Active != schedule.Active {
+		kind := audit.ResourceScheduleDeactivate
+		if schedule.Active {
+			kind = audit.ResourceScheduleActivate
+		}
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      kind,
+			Target:    audit.ResourceTarget(audit.TargetSchedule, oldSchedule.ID, schedule.Name),
+			ProjectID: oldSchedule.ProjectID,
+			Metadata:  audit.ScheduleMetadata{TemplateID: schedule.TemplateID},
+		})
+	}
+
 	refreshSchedulePool(r)
 
 	w.WriteHeader(http.StatusNoContent)

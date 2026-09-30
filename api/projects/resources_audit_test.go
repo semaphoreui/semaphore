@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -351,6 +352,68 @@ func TestScheduleEvents(t *testing.T) {
 	assert.Nil(t, only(t, rec, audit.ResourceScheduleDelete).Event.Metadata)
 }
 
+func TestUpdateSchedule_ActiveChangeAlsoRecordsSwitch(t *testing.T) {
+	f := newResourceFixture(t)
+	template := f.template(t)
+	schedule, err := f.store.CreateSchedule(db.Schedule{Name: "nightly", ProjectID: f.project.ID, TemplateID: template.ID, CronFormat: "0 0 * * *", Active: false})
+	require.NoError(t, err)
+	util.Config.Schedule = &util.ScheduleConfig{Timezone: "UTC"}
+	pool := schedules.CreateSchedulePool(f.store, nil, nil, nil)
+	t.Cleanup(pool.Destroy)
+
+	tests := []struct {
+		name   string
+		active bool
+		want   []audit.Kind
+	}{
+		{"switched on", true, []audit.Kind{audit.ResourceScheduleUpdate, audit.ResourceScheduleActivate}},
+		{"unchanged", true, []audit.Kind{audit.ResourceScheduleUpdate}},
+		{"switched off", false, []audit.Kind{audit.ResourceScheduleUpdate, audit.ResourceScheduleDeactivate}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stored, err := f.store.GetSchedule(f.project.ID, schedule.ID)
+			require.NoError(t, err)
+			body := `{"id":` + strconv.Itoa(schedule.ID) + `,"project_id":` + strconv.Itoa(f.project.ID) + `,"template_id":` + strconv.Itoa(template.ID) + `,"name":"nightly","cron_format":"0 0 * * *","active":` + strconv.FormatBool(tt.active) + `}`
+			r, rec := f.request(http.MethodPut, body, map[string]any{"schedule": stored, "schedule_pool": pool}, nil)
+			w := httptest.NewRecorder()
+			UpdateSchedule(w, r)
+			require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+
+			kinds, err := rec.Kinds()
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, kinds)
+			for _, recorded := range rec.All() {
+				assert.Equal(t, audit.ResourceTarget(audit.TargetSchedule, schedule.ID, "nightly"), recorded.Event.Target)
+				assert.Equal(t, audit.ScheduleMetadata{TemplateID: template.ID}, recorded.Event.Metadata)
+			}
+		})
+	}
+}
+
+func TestUpdateKey_RecordsTheStoredType(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"rename only keeps the old type", `"type":"ssh"`, "none"},
+		{"override stores the new type", `"type":"ssh","override_secret":true`, "ssh"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newResourceFixture(t)
+			controller := NewKeyController(storeKeyService{&mockAccessKeyService{}, f.store})
+			body := `{"id":` + strconv.Itoa(f.key.ID) + `,"name":"renamed","project_id":` + strconv.Itoa(f.project.ID) + `,` + tt.body + `}`
+			r, rec := f.request(http.MethodPut, body, map[string]any{"accessKey": f.key}, nil)
+			w := httptest.NewRecorder()
+			controller.UpdateKey(w, r)
+			require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+			assert.Equal(t, audit.CredentialMetadata{Type: tt.want}, only(t, rec, audit.SecretCredentialUpdate).Event.Metadata)
+		})
+	}
+}
+
 func TestIntegrationEvents(t *testing.T) {
 	f := newResourceFixture(t)
 	template := f.template(t)
@@ -458,6 +521,7 @@ func eventText(recorded audittest.Recorded) string {
 }
 
 func TestAddEnvironment_Events(t *testing.T) {
+	const secretValue = "s3cr3t-7f3a9c1e-env-value"
 	tests := []struct {
 		name        string
 		secrets     string
@@ -465,8 +529,8 @@ func TestAddEnvironment_Events(t *testing.T) {
 		wantMeta    audit.EnvironmentMetadata
 		wantPartial bool
 	}{
-		{"all secrets saved", `[{"name":"A","secret":"x","type":"env","operation":"create"}]`, http.StatusCreated, audit.EnvironmentMetadata{SecretsCreated: 1}, false},
-		{"one secret refused", `[{"name":"A","secret":"x","type":"env","operation":"create"},{"id":42,"type":"env","operation":"delete"}]`, http.StatusNotFound, audit.EnvironmentMetadata{SecretsCreated: 1, Partial: true}, true},
+		{"all secrets saved", `[{"name":"A","secret":"` + secretValue + `","type":"env","operation":"create"}]`, http.StatusCreated, audit.EnvironmentMetadata{SecretsCreated: 1}, false},
+		{"one secret refused", `[{"name":"A","secret":"` + secretValue + `","type":"env","operation":"create"},{"id":42,"type":"env","operation":"delete"}]`, http.StatusNotFound, audit.EnvironmentMetadata{SecretsCreated: 1, Partial: true}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -487,7 +551,9 @@ func TestAddEnvironment_Events(t *testing.T) {
 			} else {
 				assert.Equal(t, audit.ReasonNone, got.Event.Reason)
 			}
-			assert.NotContains(t, eventText(got), `"x"`)
+			recorded, err := json.Marshal(got.Event)
+			require.NoError(t, err)
+			assert.NotContains(t, string(recorded), secretValue)
 		})
 	}
 }

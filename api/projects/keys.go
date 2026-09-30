@@ -223,11 +223,17 @@ func (c *KeyController) UpdateKey(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Access Key %s updated", key.Name),
 	})
 
+	// The type is stored only together with the secret.
+	storedType := oldKey.Type
+	if key.OverrideSecret {
+		storedType = key.Type
+	}
+
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.SecretCredentialUpdate,
 		Target:    audit.ResourceTarget(audit.TargetCredential, oldKey.ID, key.Name),
 		ProjectID: *oldKey.ProjectID,
-		Metadata:  audit.CredentialMetadata{Type: string(key.Type)},
+		Metadata:  audit.CredentialMetadata{Type: string(storedType)},
 	})
 
 	w.WriteHeader(http.StatusNoContent)
