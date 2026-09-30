@@ -24,7 +24,7 @@ export default {
   props: {
     projectType: String,
     userId: Number,
-    userRole: String,
+    userRole: Object,
     user: Object,
   },
 

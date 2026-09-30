@@ -51,10 +51,10 @@
     ></v-autocomplete>
 
     <v-select
-      v-model="item.role"
+      v-model="item.role_id"
       :label="$t('role')"
-      :items="userRoles"
-      item-value="slug"
+      :items="roles"
+      item-value="id"
       item-text="name"
       :rules="[v => !!v || $t('user_required')]"
       required
@@ -67,7 +67,6 @@
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
-import { USER_ROLES } from '@/lib/constants';
 
 export default {
   mixins: [ItemFormBase],
@@ -78,18 +77,11 @@ export default {
     roles: Array,
   },
 
-  computed: {
-    userRoles() {
-      return [...USER_ROLES, ...(this.roles || [])];
-    },
-  },
-
   data() {
     return {
       users: null,
       userId: null,
       teamMembers: null,
-      USER_ROLES,
       selectedInviteType: this.inviteType === 'both' ? 'username' : this.inviteType,
     };
   },

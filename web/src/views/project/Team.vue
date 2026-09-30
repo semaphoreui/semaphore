@@ -6,7 +6,7 @@
       :item-id="itemId"
       :invites-enabled="systemInfo.teams.invites_enabled"
       :invite-type="systemInfo.teams.invite_type"
-      :roles="userRoles"
+      :roles="roles"
       @save="openInvites()"
     />
 
@@ -26,7 +26,7 @@
         color="error"
         @click="leftProject()"
         class="mr-2"
-        :disabled="userRole === 'owner'"
+        :disabled="userRole != null && userRole.builtin_key === 'owner'"
         >{{ $t('LeaveProject') }}
       </v-btn>
       <v-btn
@@ -49,19 +49,19 @@
       :items-per-page="Number.MAX_VALUE"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
-      <template v-slot:item.role="{ item }">
+      <template v-slot:item.role_id="{ item }">
         <v-select
           hide-details
-          v-model="item.role"
-          :items="userRoles"
-          item-value="slug"
+          v-model="item.role_id"
+          :items="roles"
+          item-value="id"
           item-text="name"
           :style="{ width: '200px' }"
           @change="updateProjectUser(item)"
           v-if="can(USER_PERMISSIONS.manageProjectUsers)"
           class="pt-0 mt-0"
         />
-        <div v-else>{{ userRoles.find((r) => r.slug === item.role).name }}</div>
+        <div v-else>{{ getRoleName(item.role_id) }}</div>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -78,7 +78,7 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';
 import axios from 'axios';
-import { USER_PERMISSIONS, USER_ROLES } from '@/lib/constants';
+import { USER_PERMISSIONS } from '@/lib/constants';
 import TeamMenu from '@/components/TeamMenu.vue';
 
 export default {
@@ -96,10 +96,6 @@ export default {
   },
 
   computed: {
-    userRoles() {
-      return [...USER_ROLES, ...this.roles];
-    },
-
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
     },
@@ -138,9 +134,15 @@ export default {
         method: 'put',
         url: `/api/project/${this.projectId}/users/${user.id}`,
         responseType: 'json',
-        data: user,
+        data: {
+          role_id: user.role_id,
+        },
       });
       await this.loadItems();
+    },
+
+    getRoleName(roleID) {
+      return (this.roles.find((role) => role.id === roleID) || {}).name || '';
     },
 
     allowActions() {
@@ -161,7 +163,7 @@ export default {
         },
         {
           text: this.$i18n.t('role'),
-          value: 'role',
+          value: 'role_id',
           width: '30%',
         },
         {
