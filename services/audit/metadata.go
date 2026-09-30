@@ -77,7 +77,8 @@ func PermissionNames(p db.ProjectUserPermission) []string {
 }
 
 type ProjectCreateMetadata struct {
-	Demo bool `json:"demo"`
+	Demo    bool `json:"demo"`
+	Partial bool `json:"partial,omitempty"`
 }
 
 type BackupRestoreMetadata struct {
@@ -88,6 +89,7 @@ type BackupRestoreMetadata struct {
 type TemplateMetadata struct {
 	App                string `json:"app"`
 	CreatedInventoryID int    `json:"created_inventory_id,omitempty"`
+	Partial            bool   `json:"partial,omitempty"`
 }
 
 type TemplateInventoryMetadata struct {

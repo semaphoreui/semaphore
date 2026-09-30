@@ -92,6 +92,22 @@ func TestAddProject_IsRecorded(t *testing.T) {
 	}
 }
 
+func TestAddProject_SetupFailureIsPartial(t *testing.T) {
+	f := newResourceFixture(t)
+	util.Config.Apps = map[string]util.App{}
+	r, rec := f.request(http.MethodPost, `{"name":"ops","demo":true}`, nil, nil)
+	w := httptest.NewRecorder()
+
+	NewProjectsController(storeKeyService{&mockAccessKeyService{}, f.store}).AddProject(w, r)
+
+	assert.GreaterOrEqual(t, w.Code, http.StatusBadRequest, w.Body.String())
+	got := only(t, rec, audit.ResourceProjectCreate)
+	assert.Equal(t, audit.OutcomeSuccess, got.Event.Outcome, "the project is stored")
+	assert.Equal(t, audit.ReasonSetupFailed, got.Event.Reason)
+	assert.Equal(t, audit.ProjectCreateMetadata{Demo: true, Partial: true}, got.Event.Metadata)
+	assert.Equal(t, "ops", got.Event.Target.Name)
+}
+
 func TestAddProject_DeniedIsRecorded(t *testing.T) {
 	f := newResourceFixture(t)
 	f.user.Admin = false
@@ -276,6 +292,32 @@ func TestAddTemplate_RecordsTheCreatedInventory(t *testing.T) {
 	meta := only(t, rec, audit.ResourceTemplateCreate).Event.Metadata.(audit.TemplateMetadata)
 	assert.Equal(t, "terraform", meta.App)
 	assert.NotZero(t, meta.CreatedInventoryID)
+}
+
+func TestAddTemplate_InventoryFailureIsPartial(t *testing.T) {
+	f := newResourceFixture(t)
+	util.Config.Apps = map[string]util.App{"terraform": {}}
+	repo, err := f.store.CreateRepository(db.Repository{Name: "r", ProjectID: f.project.ID, GitURL: "git@example.com:r.git", GitBranch: "main", SSHKeyID: f.key.ID})
+	require.NoError(t, err)
+
+	other, err := f.store.CreateProject(db.Project{Name: "other"})
+	require.NoError(t, err)
+	foreign, err := f.store.CreateInventory(db.Inventory{Name: "foreign", ProjectID: other.ID, Type: db.InventoryTerraformWorkspace})
+	require.NoError(t, err)
+
+	r, rec := f.request(http.MethodPost, `{"name":"infra","repository_id":`+strconv.Itoa(repo.ID)+`,"inventory_id":`+strconv.Itoa(foreign.ID)+`,"app":"terraform"}`, nil, nil)
+	w := httptest.NewRecorder()
+	AddTemplate(w, r)
+
+	assert.Equal(t, http.StatusNotFound, w.Code, w.Body.String())
+	got := only(t, rec, audit.ResourceTemplateCreate)
+	assert.Equal(t, audit.OutcomeSuccess, got.Event.Outcome, "the template is stored")
+	assert.Equal(t, audit.ReasonInventoryFailed, got.Event.Reason)
+	assert.Equal(t, audit.TemplateMetadata{App: "terraform", Partial: true}, got.Event.Metadata)
+	stored, err := f.store.GetTemplates(f.project.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, stored, 1)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetTemplate, stored[0].ID, "infra"), got.Event.Target)
 }
 
 func TestScheduleEvents(t *testing.T) {

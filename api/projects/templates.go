@@ -112,6 +112,16 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 
 	// Check workspace and create it if required.
 	createdInventoryID := 0
+	// The template row exists, so a failed inventory step is still recorded.
+	recordPartial := func() {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      audit.ResourceTemplateCreate,
+			Target:    audit.ResourceTarget(audit.TargetTemplate, newTemplate.ID, newTemplate.Name),
+			ProjectID: project.ID,
+			Reason:    audit.ReasonInventoryFailed,
+			Metadata:  audit.TemplateMetadata{App: string(newTemplate.App), CreatedInventoryID: createdInventoryID, Partial: true},
+		})
+	}
 	if newTemplate.App.IsTerraform() {
 		var inv db.Inventory
 
@@ -121,6 +131,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 			if invTypes := newTemplate.App.InventoryTypes(); len(invTypes) > 0 {
 				inventoryType = invTypes[0]
 			} else {
+				recordPartial()
 				helpers.WriteErrorStatus(w, "Inventory type is not supported for this template", http.StatusBadRequest)
 				return
 			}
@@ -134,6 +145,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 			})
 
 			if err != nil {
+				recordPartial()
 				helpers.WriteError(w, err)
 				return
 			}
@@ -145,6 +157,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		} else {
 			inv, err = helpers.Store(r).GetInventory(project.ID, *newTemplate.InventoryID)
 			if err != nil {
+				recordPartial()
 				helpers.WriteError(w, err)
 				return
 			}
@@ -154,6 +167,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
+			recordPartial()
 			helpers.WriteError(w, err)
 			return
 		}

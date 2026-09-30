@@ -340,8 +340,20 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// The project row exists, so a failed setup step is still recorded.
+	recordSetupFailed := func() {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      audit.ResourceProjectCreate,
+			Target:    audit.ResourceTarget(audit.TargetProject, body.ID, body.Name),
+			ProjectID: body.ID,
+			Reason:    audit.ReasonSetupFailed,
+			Metadata:  audit.ProjectCreateMetadata{Demo: bodyWithDemo.Demo, Partial: true},
+		})
+	}
+
 	_, err = store.CreateProjectUser(db.ProjectUser{ProjectID: body.ID, UserID: user.ID, Role: db.ProjectOwner})
 	if err != nil {
+		recordSetupFailed()
 		helpers.WriteError(w, err)
 		return
 	}
@@ -353,6 +365,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 	})
 
 	if err != nil {
+		recordSetupFailed()
 		helpers.WriteError(w, err)
 		return
 	}
@@ -365,6 +378,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 	})
 
 	if err != nil {
+		recordSetupFailed()
 		helpers.WriteError(w, err)
 		return
 	}
@@ -377,6 +391,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 		err = c.createDemoProject(body.ID, noneKey.ID, store)
 
 		if err != nil {
+			recordSetupFailed()
 			helpers.WriteError(w, err)
 			return
 		}
