@@ -13,13 +13,15 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/go-gorp/gorp/v3"
-	_ "github.com/go-sql-driver/mysql" // imports mysql driver
-	_ "github.com/lib/pq"
+	mysql "github.com/go-sql-driver/mysql"
+	"github.com/lib/pq"
+	"github.com/lib/pq/pqerror"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
-	_ "modernc.org/sqlite" // Import the driver
+	sqlite "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 type SqlDbConnection struct {
@@ -433,6 +435,25 @@ func validateMutationResult(res sql.Result, err error) error {
 	}
 
 	return nil
+}
+
+func isUniqueConstraintError(err error) bool {
+	// MySQL ER_DUP_ENTRY (1062):
+	// https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html#error_er_dup_entry
+	if mysqlError, ok := errors.AsType[*mysql.MySQLError](err); ok {
+		return mysqlError.Number == 1062
+	}
+
+	// PostgreSQL unique_violation (23505):
+	// https://www.postgresql.org/docs/current/errcodes-appendix.html
+	if postgresError, ok := errors.AsType[*pq.Error](err); ok {
+		return postgresError.Code == pqerror.UniqueViolation
+	}
+
+	// SQLite SQLITE_CONSTRAINT_UNIQUE (2067):
+	// https://www.sqlite.org/rescode.html#constraint_unique
+	sqliteError, ok := errors.AsType[*sqlite.Error](err)
+	return ok && sqliteError.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE
 }
 
 func (d *SqlDb) PrepareQuery(query string) string {

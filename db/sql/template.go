@@ -3,6 +3,7 @@ package sql
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
@@ -594,6 +595,9 @@ func (d *SqlDb) CreateTemplateRole(role db.TemplateRolePerm) (newRole db.Templat
 		role.RoleID,
 		role.Permissions)
 
+	if isUniqueConstraintError(err) {
+		err = fmt.Errorf("Role already has permissions for this template: %w", db.ErrInvalidOperation)
+	}
 	if err != nil {
 		return
 	}

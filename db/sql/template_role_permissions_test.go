@@ -96,6 +96,27 @@ func Test_GetTemplatePermission_AddsTemplateRolePermissions(t *testing.T) {
 	assert.Equal(t, db.CanRunProjectTasks|templateUpdatePermission, permissions)
 }
 
+func Test_CreateTemplateRole_ReturnsConflictForDuplicateRole(t *testing.T) {
+	store, projectID, templateID := newTemplatePermissionTest(t)
+	managerRole, err := store.GetRole(db.BuiltinRoleQuery{
+		Key: db.BuiltinRoleManager,
+	})
+	require.NoError(t, err)
+	grant := db.TemplateRolePerm{
+		RoleID:      managerRole.ID,
+		TemplateID:  templateID,
+		ProjectID:   projectID,
+		Permissions: db.CanRunProjectTasks,
+	}
+
+	_, err = store.CreateTemplateRole(grant)
+	require.NoError(t, err)
+	_, err = store.CreateTemplateRole(grant)
+
+	require.ErrorIs(t, err, db.ErrInvalidOperation)
+	assert.Contains(t, err.Error(), "Role already has permissions for this template")
+}
+
 func Test_GetTemplatePermission_UsesCustomRolePermissions(t *testing.T) {
 	store, projectID, templateID := newTemplatePermissionTest(t)
 
