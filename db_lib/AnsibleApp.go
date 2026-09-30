@@ -259,18 +259,28 @@ func (t *AnsibleApp) installCollectionsRequirements(environmentVars, extraArgs [
 }
 
 func (t *AnsibleApp) runGalaxy(args []string, environmentVars []string) error {
-	gitEnv, err := t.galaxyGitEnvForRun()
+	env, err := t.galaxyEnv(environmentVars)
 	if err != nil {
 		return err
 	}
 
-	// Task variables come last so a manually configured GIT_* var still wins,
-	// except for GIT_CONFIG_PARAMETERS, which is merged: it is one variable
-	// holding a list of rewrites, and the project credential mappings put their
-	// own in there too.
-	env := mergeGitConfigParameters(append(gitEnv, environmentVars...))
-
 	return t.Playbook.RunGalaxy(args, env)
+}
+
+// galaxyEnv is the environment a galaxy run gets: the git credentials of the
+// repository, then what the task supplies.
+//
+// Task variables come last so a manually configured GIT_* var still wins, except
+// for GIT_CONFIG_PARAMETERS, which is merged: it is one variable holding a list
+// of rewrites, and the credential mappings of the project put their own in there
+// too.
+func (t *AnsibleApp) galaxyEnv(environmentVars []string) ([]string, error) {
+	gitEnv, err := t.galaxyGitEnvForRun()
+	if err != nil {
+		return nil, err
+	}
+
+	return mergeGitConfigParameters(append(gitEnv, environmentVars...)), nil
 }
 
 // mergeGitConfigParameters folds every GIT_CONFIG_PARAMETERS entry into one.

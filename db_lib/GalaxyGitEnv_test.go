@@ -336,3 +336,89 @@ func TestMergeGitConfigParameters_NothingToMerge(t *testing.T) {
 
 	assert.Equal(t, []string{"GIT_TERMINAL_PROMPT=0"}, env)
 }
+
+// The end of the chain: what a galaxy run actually receives when the project has
+// credential mappings and the repository has its own https credential. Both
+// rewrites have to survive into the one variable git reads.
+func TestAnsibleApp_GalaxyEnv_KeepsBothRewrites(t *testing.T) {
+	setupGalaxyConfig(t)
+	util.Config.Ssh = &util.SshConfig{StrictHostKeyChecking: util.SshStrictHostKeyCheckingNo}
+
+	app := &AnsibleApp{
+		Repository: db.Repository{
+			GitURL: "https://git.example/acme/repo.git",
+			SSHKey: db.AccessKey{
+				Type:          db.AccessKeyLoginPassword,
+				LoginPassword: db.LoginPassword{Login: "bob", Password: "s3cr3t"},
+			},
+		},
+	}
+
+	// What the task pipeline hands in: the credential mappings of the project.
+	installation, err := ssh.InstallHostConfigs(1, []db.HostConfig{{
+		ID: 1, ProjectID: 1, Type: db.HostConfigURL,
+		Name: "https://github.com/acme/",
+		SSHKey: db.AccessKey{
+			ID: 2, Type: db.AccessKeyLoginPassword,
+			LoginPassword: db.LoginPassword{Login: "alice", Password: "t0ken"},
+		},
+	}}, task_logger.NopLogger{})
+	require.NoError(t, err)
+	defer installation.Destroy()
+
+	var noKey ssh.AccessKeyInstallation
+	env, err := app.galaxyEnv(noKey.GetGitEnvWithHostConfigs(installation))
+	require.NoError(t, err)
+
+	var params []string
+	for _, v := range env {
+		if value, ok := strings.CutPrefix(v, "GIT_CONFIG_PARAMETERS="); ok {
+			params = append(params, value)
+		}
+	}
+
+	require.Len(t, params, 1, "git reads one variable")
+	assert.Contains(t, params[0], "bob:s3cr3t@git.example", "the repository credential")
+	assert.Contains(t, params[0], "insteadOf=https://github.com/acme/", "the project mapping")
+}
+
+type agentInstaller struct{ socket string }
+
+func (a *agentInstaller) Install(db.AccessKey, db.AccessKeyRole, task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	return ssh.AccessKeyInstallation{SSHAgent: &ssh.Agent{SocketFile: a.socket}}, nil
+}
+
+// GIT_SSH_COMMAND is set by the repository key here and by the credential
+// mappings, and only one survives. The mappings' one must win, because its
+// config binds each mapped host to its own agent — but the repository key must
+// still reach every host the mappings say nothing about, through SSH_AUTH_SOCK.
+func TestAnsibleApp_GalaxyEnv_KeepsRepositoryAgent(t *testing.T) {
+	setupGalaxyConfig(t)
+	util.Config.Ssh = &util.SshConfig{StrictHostKeyChecking: util.SshStrictHostKeyCheckingNo}
+
+	app := &AnsibleApp{
+		Repository:      db.Repository{GitURL: "git@git.example:acme/repo.git"},
+		galaxyInstaller: &agentInstaller{socket: "/tmp/galaxy-key.sock"},
+	}
+
+	generated := "/tmp/semaphore/project_1/ssh-config-test.conf"
+
+	var noKey ssh.AccessKeyInstallation
+	env, err := app.galaxyEnv(noKey.GetGitEnvWithHostConfigs(
+		&ssh.HostConfigInstallation{ConfigFile: generated}))
+	require.NoError(t, err)
+
+	// Later entries win, which is how os/exec resolves duplicates.
+	var sshSock, sshCmd string
+	for _, v := range env {
+		if value, ok := strings.CutPrefix(v, "SSH_AUTH_SOCK="); ok {
+			sshSock = value
+		}
+		if value, ok := strings.CutPrefix(v, "GIT_SSH_COMMAND="); ok {
+			sshCmd = value
+		}
+	}
+
+	assert.Equal(t, "/tmp/galaxy-key.sock", sshSock, "the repository key must still be reachable")
+	assert.Contains(t, sshCmd, "-F "+generated, "the mappings' config must be the one git uses")
+}
