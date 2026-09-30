@@ -6,6 +6,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -71,6 +72,18 @@ func AddIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The alias value works as a bearer secret, so only its record ID is recorded.
+	var part audit.IntegrationPartMetadata
+	if integrationId != nil {
+		part.IntegrationID = *integrationId
+	}
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceIntegrationAliasCreate,
+		Target:    audit.ResourceTarget(audit.TargetIntegrationAlias, alias.ID, ""),
+		ProjectID: project.ID,
+		Metadata:  part,
+	})
+
 	helpers.WriteJSON(w, http.StatusOK, getPublicAlias(alias))
 }
 
@@ -88,6 +101,17 @@ func RemoveIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	var part audit.IntegrationPartMetadata
+	if integration, ok := helpers.GetFromContext(r, "integration").(db.Integration); ok {
+		part.IntegrationID = integration.ID
+	}
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceIntegrationAliasDelete,
+		Target:    audit.ResourceTarget(audit.TargetIntegrationAlias, aliasID, ""),
+		ProjectID: project.ID,
+		Metadata:  part,
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }

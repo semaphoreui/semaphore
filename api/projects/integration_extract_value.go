@@ -7,6 +7,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 )
 
 func GetIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
@@ -74,6 +75,13 @@ func AddIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceIntegrationExtractorCreate,
+		Target:    audit.ResourceTarget(audit.TargetIntegrationExtractor, newValue.ID, newValue.Name),
+		ProjectID: project.ID,
+		Metadata:  audit.IntegrationPartMetadata{IntegrationID: integration.ID},
+	})
+
 	helpers.WriteJSON(w, http.StatusCreated, newValue)
 }
 
@@ -101,6 +109,13 @@ func UpdateIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceIntegrationExtractorUpdate,
+		Target:    audit.ResourceTarget(audit.TargetIntegrationExtractor, valueId, newValue.Name),
+		ProjectID: project.ID,
+		Metadata:  audit.IntegrationPartMetadata{IntegrationID: integration.ID},
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -148,6 +163,13 @@ func DeleteIntegrationExtractValue(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceIntegrationExtractorDelete,
+		Target:    audit.ResourceTarget(audit.TargetIntegrationExtractor, valueId, ""),
+		ProjectID: project.ID,
+		Metadata:  audit.IntegrationPartMetadata{IntegrationID: integration.ID},
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }

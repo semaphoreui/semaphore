@@ -306,3 +306,62 @@ func TestScheduleEvents(t *testing.T) {
 	RemoveSchedule(httptest.NewRecorder(), r)
 	assert.Nil(t, only(t, rec, audit.ResourceScheduleDelete).Event.Metadata)
 }
+
+func TestIntegrationEvents(t *testing.T) {
+	f := newResourceFixture(t)
+	template := f.template(t)
+
+	r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"template_id":`+strconv.Itoa(template.ID)+`,"auth_method":"none"}`, nil, nil)
+	w := httptest.NewRecorder()
+	AddIntegration(w, r)
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	created := only(t, rec, audit.ResourceIntegrationCreate)
+	assert.Equal(t, audit.IntegrationMetadata{TemplateID: template.ID, AuthMethod: "none"}, created.Event.Metadata)
+	integrationID := mustAtoi(t, created.Event.Target.ID)
+	integration, err := f.store.GetIntegration(f.project.ID, integrationID)
+	require.NoError(t, err)
+
+	r, rec = f.request(http.MethodPost, "", map[string]any{"integration": integration}, nil)
+	AddIntegrationAlias(httptest.NewRecorder(), r)
+	alias := only(t, rec, audit.ResourceIntegrationAliasCreate)
+	assert.Empty(t, alias.Event.Target.Name, "the alias value is a bearer secret")
+	assert.Equal(t, audit.IntegrationPartMetadata{IntegrationID: integrationID}, alias.Event.Metadata)
+
+	r, rec = f.request(http.MethodDelete, "", nil, map[string]string{"integration_id": strconv.Itoa(integrationID)})
+	DeleteIntegration(httptest.NewRecorder(), r)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetIntegration, integrationID, ""), only(t, rec, audit.ResourceIntegrationDelete).Event.Target)
+}
+
+func TestDeleteIntegration_FailedDeleteIsNotRecorded(t *testing.T) {
+	f := newResourceFixture(t)
+	r, rec := f.request(http.MethodDelete, "", nil, map[string]string{"integration_id": "999999"})
+	DeleteIntegration(httptest.NewRecorder(), r)
+	assert.Empty(t, rec.All())
+}
+
+func TestIntegrationMatcherAndExtractorEvents(t *testing.T) {
+	f := newResourceFixture(t)
+	template := f.template(t)
+	integration, err := f.store.CreateIntegration(db.Integration{Name: "hook", ProjectID: f.project.ID, TemplateID: template.ID})
+	require.NoError(t, err)
+	values := map[string]any{"integration": integration}
+	id := strconv.Itoa(integration.ID)
+
+	r, rec := f.request(http.MethodPost, `{"name":"branch","integration_id":`+id+`,"match_type":"body","method":"equals","body_data_type":"json","key":"ref","value":"main"}`, values, nil)
+	w := httptest.NewRecorder()
+	AddIntegrationMatcher(w, r)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	matcher := only(t, rec, audit.ResourceIntegrationMatcherCreate)
+	assert.Equal(t, "branch", matcher.Event.Target.Name)
+	assert.Equal(t, audit.IntegrationPartMetadata{IntegrationID: integration.ID}, matcher.Event.Metadata)
+
+	r, rec = f.request(http.MethodDelete, "", values, map[string]string{"matcher_id": matcher.Event.Target.ID})
+	DeleteIntegrationMatcher(httptest.NewRecorder(), r)
+	assert.Equal(t, matcher.Event.Target.ID, only(t, rec, audit.ResourceIntegrationMatcherDelete).Event.Target.ID)
+
+	r, rec = f.request(http.MethodPost, `{"name":"version","integration_id":`+id+`,"value_source":"body","body_data_type":"json","key":"v","variable":"VERSION","variable_type":"environment"}`, values, nil)
+	w = httptest.NewRecorder()
+	AddIntegrationExtractValue(w, r)
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	assert.Equal(t, "version", only(t, rec, audit.ResourceIntegrationExtractorCreate).Event.Target.Name)
+}
