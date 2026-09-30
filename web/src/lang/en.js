@@ -501,6 +501,9 @@ export default {
   // Role-related translations
   roleScope: 'Scope',
   builtIn: 'Built-in',
+  projectRoles: 'Project roles',
+  globalRoles: 'Global roles',
+  builtInRoles: 'Built-in roles',
   permissions: 'Permissions',
   canRunProjectTasks: 'Can run project tasks',
   canUpdateProject: 'Can update project',

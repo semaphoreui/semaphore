@@ -389,4 +389,7 @@ export default {
   role_required: 'Rolle ist erforderlich',
 
   templatePermission: 'Vorlagenrechte',
+  projectRoles: 'Projektrollen',
+  globalRoles: 'Globale Rollen',
+  builtInRoles: 'Integrierte Rollen',
 };

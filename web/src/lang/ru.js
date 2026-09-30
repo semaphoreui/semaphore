@@ -360,4 +360,7 @@ export default {
   project_stats: 'Статистика',
   allow_override_branch: 'Ветка',
   template_common_options: 'Общие параметры',
+  projectRoles: 'Роли проекта',
+  globalRoles: 'Глобальные роли',
+  builtInRoles: 'Встроенные роли',
 };

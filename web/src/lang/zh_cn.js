@@ -351,4 +351,7 @@ export default {
   project_stats: '统计',
   allow_override_branch: '分支',
   template_common_options: '常见选项',
+  projectRoles: '项目角色',
+  globalRoles: '全局角色',
+  builtInRoles: '内置角色',
 };

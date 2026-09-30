@@ -53,7 +53,7 @@
         <v-select
           hide-details
           v-model="item.role_id"
-          :items="roles"
+          :items="groupedRoles"
           item-value="id"
           item-text="name"
           :style="{ width: '200px' }"
@@ -79,6 +79,7 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';
 import axios from 'axios';
 import { USER_PERMISSIONS } from '@/lib/constants';
+import groupRolesForSelect from '@/lib/roles';
 import TeamMenu from '@/components/TeamMenu.vue';
 
 export default {
@@ -96,6 +97,14 @@ export default {
   },
 
   computed: {
+    groupedRoles() {
+      return groupRolesForSelect(this.roles, {
+        project: this.$i18n.t('projectRoles'),
+        global: this.$i18n.t('globalRoles'),
+        builtIn: this.$i18n.t('builtInRoles'),
+      });
+    },
+
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
     },

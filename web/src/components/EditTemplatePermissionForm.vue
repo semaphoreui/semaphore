@@ -14,7 +14,7 @@
 
     <v-select
       v-model="item.role_id"
-      :items="availableRoles"
+      :items="groupedRoles"
       item-value="id"
       item-text="name"
       :label="$t('role')"
@@ -51,6 +51,7 @@ import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
 import { ROLE_PERMISSIONS } from '@/lib/constants';
+import groupRolesForSelect from '@/lib/roles';
 
 export default {
   mixins: [ItemFormBase],
@@ -69,6 +70,16 @@ export default {
       availableRoles: [],
       permissions: {},
     };
+  },
+
+  computed: {
+    groupedRoles() {
+      return groupRolesForSelect(this.availableRoles, {
+        project: this.$i18n.t('projectRoles'),
+        global: this.$i18n.t('globalRoles'),
+        builtIn: this.$i18n.t('builtInRoles'),
+      });
+    },
   },
 
   async created() {

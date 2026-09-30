@@ -382,4 +382,7 @@ export default {
   role_required: '角色是必填的',
 
   templatePermission: '範本權限',
+  projectRoles: '專案角色',
+  globalRoles: '全域角色',
+  builtInRoles: '內建角色',
 };
