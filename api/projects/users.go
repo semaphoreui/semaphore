@@ -123,7 +123,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.IAMMembershipAdd,
 		Target:    target,
 		ProjectID: project.ID,
-		Metadata:  audit.MembershipMetadata{Role: string(projectUser.Role)},
+		Metadata:  audit.MembershipMetadata{Role: audit.TruncateName(string(projectUser.Role), audit.MaxNameBytes)},
 	})
 
 	w.WriteHeader(http.StatusNoContent)
@@ -139,7 +139,7 @@ func removeUser(targetUser db.User, role db.ProjectUserRole, w http.ResponseWrit
 		Kind:      audit.IAMMembershipRemove,
 		Target:    audit.UserTarget(targetUser.ID, targetUser.Username),
 		ProjectID: project.ID,
-		Metadata:  audit.MembershipMetadata{Role: string(role), SelfRemoval: targetUser.ID == me.ID},
+		Metadata:  audit.MembershipMetadata{Role: audit.TruncateName(string(role), audit.MaxNameBytes), SelfRemoval: targetUser.ID == me.ID},
 	}
 
 	if !me.Admin && targetUser.ID == me.ID && myRole == db.ProjectOwner {
@@ -194,7 +194,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.IAMProjectRoleChange,
 		Target:    audit.UserTarget(targetUser.ID, targetUser.Username),
 		ProjectID: project.ID,
-		Metadata:  audit.ProjectRoleMetadata{OldRole: string(membership.Role)},
+		Metadata:  audit.ProjectRoleMetadata{OldRole: audit.TruncateName(string(membership.Role), audit.MaxNameBytes)},
 	}
 
 	if !me.Admin && targetUser.ID == me.ID && targetUserRole == db.ProjectOwner {
@@ -239,7 +239,10 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		ObjectID:    targetUser.ID,
 		Description: fmt.Sprintf("Changed role for User ID %d", targetUser.ID),
 	})
-	event.Metadata = audit.ProjectRoleMetadata{OldRole: string(membership.Role), NewRole: string(projectUser.Role)}
+	event.Metadata = audit.ProjectRoleMetadata{
+		OldRole: audit.TruncateName(string(membership.Role), audit.MaxNameBytes),
+		NewRole: audit.TruncateName(string(projectUser.Role), audit.MaxNameBytes),
+	}
 	helpers.Audit(r).Record(r.Context(), event)
 
 	w.WriteHeader(http.StatusNoContent)

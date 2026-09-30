@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -122,6 +123,31 @@ func TestUpdateUser_RoleChangeIsRecorded(t *testing.T) {
 	UpdateUser(httptest.NewRecorder(), r)
 
 	assert.Equal(t, audit.ProjectRoleMetadata{OldRole: "manager", NewRole: "task_runner"}, only(t, rec, audit.IAMProjectRoleChange).Event.Metadata)
+}
+
+func TestMembership_LongRoleSlugIsBounded(t *testing.T) {
+	f := newMembershipFixture(t)
+	long := strings.Repeat("r", 5000)
+	_, err := f.store.CreateRole(db.Role{Slug: long, Name: "long", ProjectID: &f.project.ID})
+	require.NoError(t, err)
+	newcomer, err := f.store.CreateUser(db.UserWithPwd{Pwd: "verystrongpassword1", User: db.User{Username: "new", Name: "new", Email: "new@example.com"}})
+	require.NoError(t, err)
+
+	r, rec := f.request(http.MethodPost, fmt.Sprintf(`{"user_id":%d,"role":"%s"}`, newcomer.ID, long), f.owner, db.ProjectOwner, nil)
+	AddUser(httptest.NewRecorder(), r)
+	assert.Len(t, only(t, rec, audit.IAMMembershipAdd).Event.Metadata.(audit.MembershipMetadata).Role, audit.MaxNameBytes)
+
+	r, rec = f.request(http.MethodPut, `{"role":"`+long+`"}`, f.owner, db.ProjectOwner, &f.member)
+	UpdateUser(httptest.NewRecorder(), r)
+	assert.Len(t, only(t, rec, audit.IAMProjectRoleChange).Event.Metadata.(audit.ProjectRoleMetadata).NewRole, audit.MaxNameBytes)
+
+	r, rec = f.request(http.MethodPut, `{"role":"guest"}`, f.owner, db.ProjectOwner, &f.member)
+	UpdateUser(httptest.NewRecorder(), r)
+	assert.Len(t, only(t, rec, audit.IAMProjectRoleChange).Event.Metadata.(audit.ProjectRoleMetadata).OldRole, audit.MaxNameBytes)
+
+	r, rec = f.request(http.MethodDelete, "", f.owner, db.ProjectOwner, &newcomer)
+	RemoveUser(httptest.NewRecorder(), r)
+	assert.Len(t, only(t, rec, audit.IAMMembershipRemove).Event.Metadata.(audit.MembershipMetadata).Role, audit.MaxNameBytes)
 }
 
 func TestUpdateUser_OwnerSelfChangeIsRecorded(t *testing.T) {
