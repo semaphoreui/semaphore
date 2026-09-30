@@ -18,8 +18,9 @@ import (
 
 type fakeTemplateRoles struct {
 	db.TemplateManager
-	existing db.TemplateRolePerm
-	getErr   error
+	existing  db.TemplateRolePerm
+	getErr    error
+	deleteErr error
 }
 
 func (f *fakeTemplateRoles) CreateTemplateRole(perm db.TemplateRolePerm) (db.TemplateRolePerm, error) {
@@ -30,7 +31,7 @@ func (f *fakeTemplateRoles) UpdateTemplateRole(db.TemplateRolePerm) error { retu
 func (f *fakeTemplateRoles) GetTemplateRole(int, int, int) (db.TemplateRolePerm, error) {
 	return f.existing, f.getErr
 }
-func (f *fakeTemplateRoles) DeleteTemplateRole(int, int, int) error { return nil }
+func (f *fakeTemplateRoles) DeleteTemplateRole(int, int, int) error { return f.deleteErr }
 
 func templatePermRequest(method string, body string, permID string) (*http.Request, *audittest.Recorder) {
 	rec := &audittest.Recorder{}
@@ -63,6 +64,17 @@ func TestTemplatePermissions_AreRecorded(t *testing.T) {
 	deleted := only(t, rec, audit.IAMTemplatePermissionDelete)
 	assert.Equal(t, &audit.Target{Type: audit.TargetTemplatePermission, ID: "5"}, deleted.Event.Target)
 	assert.Equal(t, audit.TemplatePermissionMetadata{TemplateID: 3}, deleted.Event.Metadata, "a delete carries identity only")
+}
+
+func TestDeleteTemplatePerm_UnknownIDRecordsNothing(t *testing.T) {
+	controller := NewTemplateController(&fakeTemplateRoles{deleteErr: db.ErrNotFound}, nil)
+	r, rec := templatePermRequest(http.MethodDelete, "", "999")
+	w := httptest.NewRecorder()
+
+	controller.DeleteTemplatePerm(w, r)
+
+	assert.Equal(t, http.StatusNoContent, w.Code, "the response does not change")
+	assert.Empty(t, rec.All())
 }
 
 func TestTemplatePermissions_LongRoleSlugIsBounded(t *testing.T) {

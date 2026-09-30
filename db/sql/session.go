@@ -47,29 +47,18 @@ func validateAPIToken(token string) error {
 	return nil
 }
 
-// DeleteAPIToken returns only the tokens this call deleted, not ones a concurrent call removed.
-func (d *SqlDb) DeleteAPIToken(userID int, tokenPrefix string) (deleted []db.APIToken, err error) {
+func (d *SqlDb) GetAPITokensByPrefix(userID int, tokenPrefix string) (tokens []db.APIToken, err error) {
 	err = validateAPIToken(tokenPrefix)
 	if err != nil {
 		return
 	}
-
-	var matched []db.APIToken
-	_, err = d.selectAll(&matched, "select * from user__token where id like ? and user_id=?", tokenPrefix+"%", userID)
-	if err != nil {
-		return
-	}
-
-	for _, token := range matched {
-		res, err := d.exec("delete from user__token where id=? and user_id=?", token.ID, userID)
-		if err != nil {
-			return deleted, err
-		}
-		if n, _ := res.RowsAffected(); n > 0 {
-			deleted = append(deleted, token)
-		}
-	}
+	_, err = d.selectAll(&tokens, "select * from user__token where id like ? and user_id=?", tokenPrefix+"%", userID)
 	return
+}
+
+func (d *SqlDb) DeleteAPIToken(userID int, tokenID string) error {
+	res, err := d.exec("delete from user__token where id=? and user_id=?", tokenID, userID)
+	return requireDeletedRow(res, err)
 }
 
 func (d *SqlDb) GetSession(userID int, sessionID int) (session db.Session, err error) {

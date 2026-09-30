@@ -61,7 +61,7 @@ func main() {
 		dbConnect()
 		defer store.Close()
 		//tokens are expired and not deleted so we need to clean up
-		_, _ = store.DeleteAPIToken(testRunnerUser.ID, expiredToken)
+		_ = store.DeleteAPIToken(testRunnerUser.ID, expiredToken)
 	})
 
 	// This one seems to need some manual value setting in the body

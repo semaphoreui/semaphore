@@ -103,7 +103,7 @@ func truncateAll() {
 func removeTestRunnerUser(transactions []*transaction.Transaction) {
 	dbConnect()
 	defer store.Close()
-	_, _ = store.DeleteAPIToken(testRunnerUser.ID, adminToken)
+	_ = store.DeleteAPIToken(testRunnerUser.ID, adminToken)
 	_ = store.DeleteUser(testRunnerUser.ID)
 }
 

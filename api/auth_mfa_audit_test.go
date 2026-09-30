@@ -199,6 +199,25 @@ func TestRecoverySession_FailedSessionUpdateStillRecordsRecovery(t *testing.T) {
 	assert.Equal(t, audit.OutcomeSuccess, onlyEvent(t, rec, audit.AuthMFARecover).Event.Outcome)
 }
 
+type concurrentRecovery struct{ *sql.SqlDb }
+
+func (concurrentRecovery) DeleteTotpVerification(int, int) error { return db.ErrNotFound }
+
+// Another request with the same code removed the TOTP first and recorded the recovery.
+func TestRecoverySession_TotpRemovedByAnotherRequestRecordsOnlyLogin(t *testing.T) {
+	r, user, store := totpSession(t, "/api/auth/recovery", `{"recovery_code":"{recovery}"}`)
+	r = helpers.SetContextValue(addSessionCookie(t, store, r, user, db.SessionVerificationTotp), "store", concurrentRecovery{store})
+	r, rec := withAuditRecorder(r)
+	w := httptest.NewRecorder()
+
+	recoverySession(w, r)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	kinds, err := rec.Kinds()
+	require.NoError(t, err)
+	assert.Equal(t, []audit.Kind{audit.AuthLogin}, kinds)
+}
+
 func TestRecoverySession_WrongCodeIsRecorded(t *testing.T) {
 	r, user, store := totpSession(t, "/api/auth/recovery", `{"recovery_code":"wrong"}`)
 	r, rec := withAuditRecorder(addSessionCookie(t, store, r, user, db.SessionVerificationTotp))

@@ -182,13 +182,21 @@ func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
 
 	tokenID := mux.Vars(r)["token_id"]
 
-	deleted, err := helpers.Store(r).DeleteAPIToken(user.ID, tokenID)
+	tokens, err := helpers.Store(r).GetAPITokensByPrefix(user.ID, tokenID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	for _, token := range deleted {
+	for _, token := range tokens {
+		err = helpers.Store(r).DeleteAPIToken(user.ID, token.ID)
+		if errors.Is(err, db.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
 		helpers.Audit(r).Record(r.Context(), audit.Event{
 			Kind:   audit.IAMAPITokenDelete,
 			Target: &audit.Target{Type: audit.TargetAPIToken, ID: audit.TokenFingerprint(token.ID), Name: token.Name},

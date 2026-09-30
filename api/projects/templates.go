@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -438,6 +439,10 @@ func (c *TemplateController) DeleteTemplatePerm(w http.ResponseWriter, r *http.R
 	}
 
 	err := c.templateRepo.DeleteTemplateRole(template.ProjectID, template.ID, permID)
+	if errors.Is(err, db.ErrNotFound) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

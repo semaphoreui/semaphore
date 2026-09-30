@@ -478,6 +478,21 @@ func validateMutationResult(res sql.Result, err error) error {
 	return nil
 }
 
+// requireDeletedRow returns db.ErrNotFound when the statement removed no row, so the audit records only real deletes.
+func requireDeletedRow(res sql.Result, err error) error {
+	if err = validateMutationResult(res, err); err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return db.ErrNotFound
+	}
+	return nil
+}
+
 func (d *SqlDb) PrepareQuery(query string) string {
 	return d.connection.PrepareQuery(query)
 }

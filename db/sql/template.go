@@ -617,8 +617,8 @@ func (d *SqlDb) CreateTemplateRole(role db.TemplateRolePerm) (newRole db.Templat
 	return
 }
 func (d *SqlDb) DeleteTemplateRole(projectID int, templateID int, id int) error {
-	_, err := d.exec("delete from project__template_role where project_id=? and template_id=? and id=?", projectID, templateID, id)
-	return err
+	res, err := d.exec("delete from project__template_role where project_id=? and template_id=? and id=?", projectID, templateID, id)
+	return requireDeletedRow(res, err)
 }
 func (d *SqlDb) UpdateTemplateRole(role db.TemplateRolePerm) error {
 	_, err := d.exec(

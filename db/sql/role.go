@@ -65,17 +65,7 @@ func (d *SqlDb) CreateRole(role db.Role) (db.Role, error) {
 func (d *SqlDb) DeleteRole(slug string, projectID *int) error {
 	where, args := roleScope(slug, projectID)
 	res, err := d.exec("delete from `role`"+where, args...)
-	if err = validateMutationResult(res, err); err != nil {
-		return err
-	}
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if affected == 0 {
-		return db.ErrNotFound
-	}
-	return nil
+	return requireDeletedRow(res, err)
 }
 
 func (d *SqlDb) GetProjectRole(projectID int, slug string) (db.Role, error) {

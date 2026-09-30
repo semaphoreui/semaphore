@@ -441,7 +441,8 @@ type TokenManager interface {
 	CreateAPIToken(token APIToken) (APIToken, error)
 	GetAPIToken(tokenID string) (APIToken, error)
 	ExpireAPIToken(userID int, tokenID string) error
-	DeleteAPIToken(userID int, tokenPrefix string) ([]APIToken, error)
+	GetAPITokensByPrefix(userID int, tokenPrefix string) ([]APIToken, error)
+	DeleteAPIToken(userID int, tokenID string) error
 }
 
 // ExternalIdentityManager handles external identity-related operations

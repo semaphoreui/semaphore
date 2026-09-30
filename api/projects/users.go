@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -151,6 +152,10 @@ func removeUser(targetUser db.User, role db.ProjectUserRole, w http.ResponseWrit
 	}
 
 	err := helpers.Store(r).DeleteProjectUser(project.ID, targetUser.ID)
+	if errors.Is(err, db.ErrNotFound) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 
 	if err != nil {
 		helpers.WriteError(w, err)

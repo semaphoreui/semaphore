@@ -96,6 +96,22 @@ func TestRemoveUser_IsRecorded(t *testing.T) {
 	assert.Equal(t, audit.MembershipMetadata{Role: "manager"}, only(t, rec, audit.IAMMembershipRemove).Event.Metadata)
 }
 
+type concurrentMemberRemoval struct{ *sql.SqlDb }
+
+func (concurrentMemberRemoval) DeleteProjectUser(int, int) error { return db.ErrNotFound }
+
+func TestRemoveUser_RemovedByAnotherRequestRecordsNothing(t *testing.T) {
+	f := newMembershipFixture(t)
+	r, rec := f.request(http.MethodDelete, "", f.owner, db.ProjectOwner, &f.member)
+	r = helpers.SetContextValue(r, "store", concurrentMemberRemoval{f.store})
+	w := httptest.NewRecorder()
+
+	RemoveUser(w, r)
+
+	assert.Equal(t, http.StatusNoContent, w.Code, "the response does not change")
+	assert.Empty(t, rec.All())
+}
+
 func TestLeftProject_IsRecorded(t *testing.T) {
 	f := newMembershipFixture(t)
 	r, rec := f.request(http.MethodDelete, "", f.member, db.ProjectManager, nil)

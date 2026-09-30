@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image/png"
 	"net/http"
@@ -399,19 +400,22 @@ func (c *UsersController) DeleteUserIdentity(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if err := helpers.Store(r).DeleteExternalIdentity(user.ID, idType, provider); err != nil {
+	err = helpers.Store(r).DeleteExternalIdentity(user.ID, idType, provider)
+	if errors.Is(err, db.ErrNotFound) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if err != nil {
 		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete user identity")
 		helpers.WriteErrorStatus(w, "Failed to delete identity", http.StatusInternalServerError)
 		return
 	}
 
-	if targetExists {
-		helpers.Audit(r).Record(r.Context(), audit.Event{
-			Kind:     audit.IAMExternalIdentityUnlink,
-			Target:   audit.UserTarget(user.ID, user.Username),
-			Metadata: audit.AuthMethodMetadata{Method: idType, Provider: provider},
-		})
-	}
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:     audit.IAMExternalIdentityUnlink,
+		Target:   audit.UserTarget(user.ID, user.Username),
+		Metadata: audit.AuthMethodMetadata{Method: idType, Provider: provider},
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -510,6 +514,10 @@ func (c *UsersController) DisableTotp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := helpers.Store(r).DeleteTotpVerification(user.ID, totpID)
+	if errors.Is(err, db.ErrNotFound) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

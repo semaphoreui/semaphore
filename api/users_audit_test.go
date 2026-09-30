@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -159,7 +160,9 @@ func TestDeleteUserIdentity_IsRecorded(t *testing.T) {
 	assert.Equal(t, audit.AuthMethodMetadata{Method: audit.LoginMethodOIDC, Provider: "corp"}, onlyEvent(t, rec, audit.IAMExternalIdentityUnlink).Event.Metadata)
 
 	r, rec = userRequest(store, http.MethodDelete, "/api/users/1/identities/oidc/none", "", user, user)
-	NewUsersController(nil).DeleteUserIdentity(httptest.NewRecorder(), mux.SetURLVars(r, map[string]string{"type": "oidc", "provider": "none"}))
+	w := httptest.NewRecorder()
+	NewUsersController(nil).DeleteUserIdentity(w, mux.SetURLVars(r, map[string]string{"type": "oidc", "provider": "none"}))
+	assert.Equal(t, http.StatusNoContent, w.Code)
 	assert.Empty(t, rec.All())
 }
 
@@ -215,25 +218,80 @@ func TestDeleteAPIToken_RecordsEveryTokenTheStoreDeleted(t *testing.T) {
 	}
 }
 
-// concurrentTokenDelete reports one deleted token while the rest of the prefix was removed by another request.
-type concurrentTokenDelete struct {
+// scriptedTokenDelete finds two tokens and answers each delete with the given error.
+type scriptedTokenDelete struct {
 	db.Store
+	deleteErr map[string]error
 }
 
-func (concurrentTokenDelete) DeleteAPIToken(int, string) ([]db.APIToken, error) {
-	return []db.APIToken{{ID: "abcdefgh1111", Name: "mine"}}, nil
+func (s scriptedTokenDelete) GetAPITokensByPrefix(int, string) ([]db.APIToken, error) {
+	return []db.APIToken{{ID: "abcdefgh1111", Name: "first"}, {ID: "abcdefgh2222", Name: "second"}}, nil
 }
 
-func TestDeleteAPIToken_RecordsOnlyWhatThisRequestDeleted(t *testing.T) {
+func (s scriptedTokenDelete) DeleteAPIToken(_ int, tokenID string) error {
+	return s.deleteErr[tokenID]
+}
+
+func TestDeleteAPIToken_SkipsTokenDeletedByAnotherRequest(t *testing.T) {
 	store := setupSessionTest(t)
 	user := createUserOptionsTestUser(t, store, "alice")
+	fake := scriptedTokenDelete{Store: store, deleteErr: map[string]error{"abcdefgh1111": db.ErrNotFound}}
 
-	r, rec := userRequest(concurrentTokenDelete{Store: store}, http.MethodDelete, "/api/user/tokens/x", "", user, user)
+	r, rec := userRequest(fake, http.MethodDelete, "/api/user/tokens/x", "", user, user)
 	w := httptest.NewRecorder()
 	deleteAPIToken(w, mux.SetURLVars(r, map[string]string{"token_id": "abcdefgh"}))
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
-	assert.Equal(t, "mine", onlyEvent(t, rec, audit.IAMAPITokenDelete).Event.Target.Name)
+	assert.Equal(t, "second", onlyEvent(t, rec, audit.IAMAPITokenDelete).Event.Target.Name)
+}
+
+func TestDeleteAPIToken_RecordsDeletedTokensBeforeAFailure(t *testing.T) {
+	store := setupSessionTest(t)
+	user := createUserOptionsTestUser(t, store, "alice")
+	fake := scriptedTokenDelete{Store: store, deleteErr: map[string]error{"abcdefgh2222": errors.New("database is down")}}
+
+	r, rec := userRequest(fake, http.MethodDelete, "/api/user/tokens/x", "", user, user)
+	w := httptest.NewRecorder()
+	deleteAPIToken(w, mux.SetURLVars(r, map[string]string{"token_id": "abcdefgh"}))
+
+	assert.Equal(t, http.StatusBadRequest, w.Code, "WriteError answers a store failure with 400")
+	assert.Equal(t, "first", onlyEvent(t, rec, audit.IAMAPITokenDelete).Event.Target.Name)
+}
+
+func TestDisableTotp_UnknownIDRecordsNothing(t *testing.T) {
+	store := setupSessionTest(t)
+	user := createUserOptionsTestUser(t, store, "alice")
+	_, err := store.AddTotpVerification(user.ID, "otpauth://totp/x", "")
+	require.NoError(t, err)
+	user, err = store.GetUser(user.ID)
+	require.NoError(t, err)
+
+	r, rec := userRequest(store, http.MethodDelete, "/api/users/1/2fas/totp/999", "", user, user)
+	w := httptest.NewRecorder()
+	NewUsersController(nil).DisableTotp(w, mux.SetURLVars(r, map[string]string{"totp_id": "999"}))
+
+	assert.Equal(t, http.StatusNoContent, w.Code, "the response does not change")
+	assert.Empty(t, rec.All())
+}
+
+type concurrentIdentityUnlink struct{ db.Store }
+
+func (concurrentIdentityUnlink) DeleteExternalIdentity(int, string, string) error {
+	return db.ErrNotFound
+}
+
+func TestDeleteUserIdentity_UnlinkedByAnotherRequestRecordsNothing(t *testing.T) {
+	store := setupSessionTest(t)
+	user := createUserOptionsTestUser(t, store, "alice")
+	_, err := store.CreateExternalIdentity(db.UserExternalIdentity{UserID: user.ID, Type: db.IdentityTypeOidc, Provider: "corp", ExternalUID: "sub-1"})
+	require.NoError(t, err)
+
+	r, rec := userRequest(concurrentIdentityUnlink{Store: store}, http.MethodDelete, "/api/users/1/identities/oidc/corp", "", user, user)
+	w := httptest.NewRecorder()
+	NewUsersController(nil).DeleteUserIdentity(w, mux.SetURLVars(r, map[string]string{"type": "oidc", "provider": "corp"}))
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Empty(t, rec.All())
 }
 
 func TestSetOption_RecordsKeyOnly(t *testing.T) {

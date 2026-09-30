@@ -157,11 +157,14 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 		}
 
 		err = store.DeleteTotpVerification(user.ID, user.Totp.ID)
-		if err != nil {
+		if err != nil && !errors.Is(err, db.ErrNotFound) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		helpers.Audit(r).Record(ctx, audit.Event{Kind: audit.AuthMFARecover, Target: audit.UserTarget(user.ID, user.Username)})
+		// ErrNotFound: a concurrent request with the same code already removed the TOTP and recorded the recovery.
+		if err == nil {
+			helpers.Audit(r).Record(ctx, audit.Event{Kind: audit.AuthMFARecover, Target: audit.UserTarget(user.ID, user.Username)})
+		}
 
 		err = store.VerifySession(session.UserID, session.ID)
 		if err != nil {
