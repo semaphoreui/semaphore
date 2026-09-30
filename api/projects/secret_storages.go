@@ -7,6 +7,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	pro "github.com/semaphoreui/semaphore/pro/services/server"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 )
 
@@ -132,6 +133,13 @@ func (c *SecretStorageController) Update(w http.ResponseWriter, r *http.Request)
 		Description: fmt.Sprintf("Secret storage with ID %d has been updated", storage.ID),
 	})
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.SecretStorageUpdate,
+		Target:    audit.ResourceTarget(audit.TargetSecretStorage, oldStorage.ID, storage.Name),
+		ProjectID: oldStorage.ProjectID,
+		Metadata:  audit.SecretStorageMetadata{Type: string(storage.Type)},
+	})
+
 	helpers.WriteJSON(w, http.StatusOK, storage)
 }
 
@@ -165,6 +173,13 @@ func (c *SecretStorageController) Add(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Secret storage %s has been created", storage.Name),
 	})
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.SecretStorageCreate,
+		Target:    audit.ResourceTarget(audit.TargetSecretStorage, newStorage.ID, newStorage.Name),
+		ProjectID: newStorage.ProjectID,
+		Metadata:  audit.SecretStorageMetadata{Type: string(newStorage.Type)},
+	})
+
 	helpers.WriteJSON(w, http.StatusCreated, newStorage)
 }
 
@@ -180,6 +195,12 @@ func (c *SecretStorageController) Remove(w http.ResponseWriter, r *http.Request)
 		helpers.WriteError(w, err)
 		return
 	}
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.SecretStorageDelete,
+		Target:    audit.ResourceTarget(audit.TargetSecretStorage, storageID, ""),
+		ProjectID: project.ID,
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -224,6 +245,12 @@ func (c *SecretStorageController) SyncSecrets(w http.ResponseWriter, r *http.Req
 		ObjectType:  db.EventSchedule,
 		ObjectID:    oldStorage.ID,
 		Description: fmt.Sprintf("Secret storage with ID %d has been synced", storage.ID),
+	})
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.SecretStorageSync,
+		Target:    audit.ResourceTarget(audit.TargetSecretStorage, oldStorage.ID, oldStorage.Name),
+		ProjectID: oldStorage.ProjectID,
 	})
 
 	helpers.WriteJSON(w, http.StatusOK, storage)

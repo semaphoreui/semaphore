@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/audit/audittest"
 	"github.com/semaphoreui/semaphore/services/schedules"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -364,4 +366,51 @@ func TestIntegrationMatcherAndExtractorEvents(t *testing.T) {
 	AddIntegrationExtractValue(w, r)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	assert.Equal(t, "version", only(t, rec, audit.ResourceIntegrationExtractorCreate).Event.Target.Name)
+}
+
+func TestCredentialEvents_NeverRecordTheSecret(t *testing.T) {
+	f := newResourceFixture(t)
+	controller := NewKeyController(storeKeyService{&mockAccessKeyService{}, f.store})
+	body := `{"name":"deploy","type":"login_password","project_id":` + strconv.Itoa(f.project.ID) + `,"login_password":{"login":"bob","password":"hunter2-secret"}}`
+
+	r, rec := f.request(http.MethodPost, body, nil, nil)
+	controller.AddKey(httptest.NewRecorder(), r)
+	created := only(t, rec, audit.SecretCredentialCreate)
+	assert.Equal(t, "deploy", created.Event.Target.Name)
+	assert.Equal(t, audit.CredentialMetadata{Type: "login_password"}, created.Event.Metadata)
+	assert.NotContains(t, eventText(created), "hunter2-secret")
+
+	r, rec = f.request(http.MethodDelete, "", map[string]any{"accessKey": f.key}, nil)
+	controller.RemoveKey(httptest.NewRecorder(), r)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetCredential, f.key.ID, "none"), only(t, rec, audit.SecretCredentialDelete).Event.Target)
+}
+
+type fakeSecretStorageService struct {
+	server.SecretStorageService
+}
+
+func (fakeSecretStorageService) Create(s db.SecretStorage) (db.SecretStorage, error) {
+	s.ID = 3
+	return s, nil
+}
+func (fakeSecretStorageService) Delete(int, int) error           { return nil }
+func (fakeSecretStorageService) SyncSecrets(db.SecretSync) error { return nil }
+
+func TestSecretStorageEvents(t *testing.T) {
+	f := newResourceFixture(t)
+	controller := NewSecretStorageController(f.store, fakeSecretStorageService{})
+
+	r, rec := f.request(http.MethodPost, `{"name":"vault","type":"vault","project_id":`+strconv.Itoa(f.project.ID)+`}`, nil, nil)
+	controller.Add(httptest.NewRecorder(), r)
+	created := only(t, rec, audit.SecretStorageCreate)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetSecretStorage, 3, "vault"), created.Event.Target)
+	assert.Equal(t, audit.SecretStorageMetadata{Type: "vault"}, created.Event.Metadata)
+
+	r, rec = f.request(http.MethodDelete, "", nil, map[string]string{"storage_id": "3"})
+	controller.Remove(httptest.NewRecorder(), r)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetSecretStorage, 3, ""), only(t, rec, audit.SecretStorageDelete).Event.Target)
+}
+
+func eventText(recorded audittest.Recorded) string {
+	return fmt.Sprintf("%+v", recorded.Event)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 )
 
 type KeyController struct {
@@ -134,6 +135,13 @@ func (c *KeyController) AddKey(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Access Key %s created", key.Name),
 	})
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.SecretCredentialCreate,
+		Target:    audit.ResourceTarget(audit.TargetCredential, newKey.ID, key.Name),
+		ProjectID: *newKey.ProjectID,
+		Metadata:  audit.CredentialMetadata{Type: string(key.Type)},
+	})
+
 	// Reload key to drop sensitive fields
 	key, err = helpers.Store(r).GetAccessKey(*newKey.ProjectID, newKey.ID)
 	if err != nil {
@@ -215,6 +223,13 @@ func (c *KeyController) UpdateKey(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Access Key %s updated", key.Name),
 	})
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.SecretCredentialUpdate,
+		Target:    audit.ResourceTarget(audit.TargetCredential, oldKey.ID, key.Name),
+		ProjectID: *oldKey.ProjectID,
+		Metadata:  audit.CredentialMetadata{Type: string(key.Type)},
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -242,6 +257,12 @@ func (c *KeyController) RemoveKey(w http.ResponseWriter, r *http.Request) {
 		ObjectType:  db.EventKey,
 		ObjectID:    key.ID,
 		Description: fmt.Sprintf("Access Key %s deleted", key.Name),
+	})
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.SecretCredentialDelete,
+		Target:    audit.ResourceTarget(audit.TargetCredential, key.ID, key.Name),
+		ProjectID: *key.ProjectID,
 	})
 
 	w.WriteHeader(http.StatusNoContent)
