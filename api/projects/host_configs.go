@@ -6,6 +6,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 )
 
 // HostConfigMiddleware ensures a mapping exists and loads it to the context
@@ -89,6 +90,14 @@ func AddHostConfig(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Host config for %s created", newHostConfig.Name),
 	})
 
+	// Name holds a URL for URL mappings, so it is never recorded.
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceHostConfigCreate,
+		Target:    audit.ResourceTarget(audit.TargetHostConfig, newHostConfig.ID, ""),
+		ProjectID: newHostConfig.ProjectID,
+		Metadata:  audit.HostConfigMetadata{Type: string(newHostConfig.Type)},
+	})
+
 	helpers.WriteJSON(w, http.StatusCreated, newHostConfig)
 }
 
@@ -139,6 +148,13 @@ func UpdateHostConfig(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Host config for %s updated", hostConfig.Name),
 	})
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceHostConfigUpdate,
+		Target:    audit.ResourceTarget(audit.TargetHostConfig, hostConfig.ID, ""),
+		ProjectID: hostConfig.ProjectID,
+		Metadata:  audit.HostConfigMetadata{Type: string(hostConfig.Type)},
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -157,6 +173,12 @@ func RemoveHostConfig(w http.ResponseWriter, r *http.Request) {
 		ObjectType:  db.EventHostConfig,
 		ObjectID:    hostConfig.ID,
 		Description: fmt.Sprintf("Host config for %s deleted", hostConfig.Name),
+	})
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceHostConfigDelete,
+		Target:    audit.ResourceTarget(audit.TargetHostConfig, hostConfig.ID, ""),
+		ProjectID: hostConfig.ProjectID,
 	})
 
 	w.WriteHeader(http.StatusNoContent)
