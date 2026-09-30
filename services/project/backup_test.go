@@ -574,3 +574,11 @@ func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
 		assert.Equal(t, "github.com", hostConfigs[0].Name)
 	})
 }
+
+func TestBackupRoleVerify_RejectsUnknownPermissionBits(t *testing.T) {
+	backup := &BackupFormat{Roles: []BackupRole{{Role: db.Role{Name: "ops", Permissions: db.ProjectUserPermission(1 << 20)}}}}
+	assert.Error(t, backup.Roles[0].Verify(backup))
+
+	backup.Roles[0].Permissions = db.CanRunProjectTasks
+	assert.NoError(t, backup.Roles[0].Verify(backup))
+}

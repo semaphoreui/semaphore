@@ -9,6 +9,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 	projectService "github.com/semaphoreui/semaphore/services/project"
 	log "github.com/sirupsen/logrus"
 )
@@ -42,6 +43,12 @@ func (c *BackupController) GetBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceProjectBackupExport,
+		Target:    audit.ResourceTarget(audit.TargetProject, project.ID, project.Name),
+		ProjectID: project.ID,
+	})
+
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(str))
@@ -52,6 +59,7 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 
 	if !user.Admin && !util.Config.NonAdminCanCreateProject {
 		log.Warn(user.Username + " is not permitted to restore the project")
+		helpers.RecordDenied(r, "admin", 0)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -88,6 +96,27 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceProjectBackupRestore,
+		Target:    audit.ResourceTarget(audit.TargetProject, p.ID, p.Name),
+		ProjectID: p.ID,
+		Metadata: audit.BackupRestoreMetadata{Objects: map[string]int{
+			"templates":       len(backup.Templates),
+			"repositories":    len(backup.Repositories),
+			"host_configs":    len(backup.HostConfigs),
+			"keys":            len(backup.Keys),
+			"views":           len(backup.Views),
+			"inventories":     len(backup.Inventories),
+			"environments":    len(backup.Environments),
+			"integrations":    len(backup.Integration),
+			"schedules":       len(backup.Schedules),
+			"secret_storages": len(backup.SecretStorages),
+			"roles":           len(backup.Roles),
+			"runners":         len(backup.Runners),
+			"workflows":       len(backup.Workflows),
+		}},
+	})
 
 	helpers.WriteJSON(w, http.StatusOK, p)
 }

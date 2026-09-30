@@ -7,6 +7,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -315,6 +316,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 
 	if !user.Admin && !util.Config.NonAdminCanCreateProject {
 		log.Warn(user.Username + " is not permitted to edit users")
+		helpers.RecordDenied(r, "admin", 0)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -386,6 +388,14 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 		ObjectType:  db.EventProject,
 		ObjectID:    body.ID,
 		Description: "Project created",
+	})
+
+	// Demo objects are sample content, so the project event covers them.
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceProjectCreate,
+		Target:    audit.ResourceTarget(audit.TargetProject, body.ID, body.Name),
+		ProjectID: body.ID,
+		Metadata:  audit.ProjectCreateMetadata{Demo: bodyWithDemo.Demo},
 	})
 
 	helpers.WriteJSON(w, http.StatusCreated, body)

@@ -50,6 +50,10 @@ func (e BackupSecretStorage) Restore(b *BackupDB) error {
 }
 
 func (e BackupRole) Verify(backup *BackupFormat) error {
+	// Unknown bits would grant permissions that no event or screen shows.
+	if e.Permissions&^db.KnownRolePermissions != 0 {
+		return common_errors.NewValidationError("role " + e.Name + ": permissions contain unknown bits")
+	}
 	return verifyDuplicate[BackupRole](e.Name, backup.Roles)
 }
 
