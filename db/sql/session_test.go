@@ -86,3 +86,36 @@ func TestAuditedDeletes_ReportMissingRow(t *testing.T) {
 		assert.NoError(t, store.DeleteOption("audit_test"))
 	})
 }
+
+func TestAuditedDeletes_MissingTaskParamsIsNotAFailure(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, repositoryID := newTemplateTestProject(t, store)
+	template, err := store.CreateTemplate(db.Template{ProjectID: projectID, RepositoryID: repositoryID, Name: "t", Playbook: "p.yml"})
+	require.NoError(t, err)
+
+	schedule, err := store.CreateSchedule(db.Schedule{ProjectID: projectID, TemplateID: template.ID, Name: "s", CronFormat: "* * * * *", Active: true, Type: db.ScheduleTypeCron, TaskParams: &db.TaskParams{}})
+	require.NoError(t, err)
+	integration, err := store.CreateIntegration(db.Integration{ProjectID: projectID, TemplateID: template.ID, Name: "i", AuthMethod: db.IntegrationAuthNone, TaskParams: &db.TaskParams{}})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name         string
+		taskParamsID *int
+		del          func() error
+	}{
+		{"schedule", schedule.TaskParamsID, func() error { return store.DeleteSchedule(projectID, schedule.ID) }},
+		{"integration", integration.TaskParamsID, func() error { return store.DeleteIntegration(projectID, integration.ID) }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NotNil(t, tt.taskParamsID)
+			_, err := store.exec("PRAGMA foreign_keys = OFF")
+			require.NoError(t, err)
+			require.NoError(t, store.deleteObject(projectID, db.TaskParamsProps, *tt.taskParamsID))
+			_, err = store.exec("PRAGMA foreign_keys = ON")
+			require.NoError(t, err)
+			require.NoError(t, tt.del())
+			assert.ErrorIs(t, tt.del(), db.ErrNotFound)
+		})
+	}
+}
