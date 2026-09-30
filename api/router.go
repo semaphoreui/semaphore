@@ -249,9 +249,9 @@ func Route(
 	globalRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(globalRunnerController.ClearRunnerCache).Methods("DELETE")
 
 	rolesAPI := adminAPI.PathPrefix("/roles").Subrouter()
-	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.GetGlobalRole).Methods("GET", "HEAD")
-	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
-	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
+	rolesAPI.Path("/{role_id}").HandlerFunc(rolesController.GetGlobalRole).Methods("GET", "HEAD")
+	rolesAPI.Path("/{role_id}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
+	rolesAPI.Path("/{role_id}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
 
 	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)
@@ -372,9 +372,9 @@ func Route(
 	projectUserAPI.Path("/roles").HandlerFunc(rolesController.AddProjectRole).Methods("POST")
 
 	projectRolesAPI := projectUserAPI.PathPrefix("/roles").Subrouter()
-	projectRolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.GetProjectRole).Methods("GET", "HEAD")
-	projectRolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.UpdateProjectRole).Methods("PUT", "POST")
-	projectRolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.DeleteProjectRole).Methods("DELETE")
+	projectRolesAPI.Path("/{role_id}").HandlerFunc(rolesController.GetProjectRole).Methods("GET", "HEAD")
+	projectRolesAPI.Path("/{role_id}").HandlerFunc(rolesController.UpdateProjectRole).Methods("PUT", "POST")
+	projectRolesAPI.Path("/{role_id}").HandlerFunc(rolesController.DeleteProjectRole).Methods("DELETE")
 
 	//
 	// Updating and deleting project
