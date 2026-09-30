@@ -58,7 +58,6 @@
             x-small
             label
             class="ml-2"
-            :color="getRoleColor(item.role_id)"
           >
             {{ getRoleScopeLabel(item.role_id) }}
           </v-chip>
@@ -157,22 +156,6 @@ export default {
         return this.$i18n.t('global');
       }
       return this.$i18n.t('project');
-    },
-
-    getRoleColor(roleID) {
-      const role = this.getRole(roleID);
-      if (role.builtin_key == null) {
-        return undefined;
-      }
-
-      const colorMap = {
-        owner: 'red',
-        manager: 'orange',
-        task_runner: 'blue',
-        guest: 'gray',
-      };
-
-      return colorMap[role.builtin_key] || 'gray';
     },
 
     allowActions() {
