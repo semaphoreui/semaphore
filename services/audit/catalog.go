@@ -114,7 +114,7 @@ func Catalog() []Entry {
 		{Kind: ResourceEnvironmentCreate, Type: TypeCreation, Metadata: EnvironmentMetadata{}, Partial: []Reason{ReasonSecretFailed}},
 		{Kind: ResourceEnvironmentUpdate, Type: TypeChange, Metadata: EnvironmentMetadata{}, Partial: []Reason{ReasonSecretFailed}},
 		{Kind: ResourceEnvironmentDelete, Type: TypeDeletion, Metadata: DeleteMetadata{}, Partial: []Reason{ReasonSecretFailed}},
-		{Kind: ResourceEnvironmentSync, Type: TypeChange},
+		{Kind: ResourceEnvironmentSync, Type: TypeChange, Pro: true},
 
 		{Kind: SecretCredentialCreate, Type: TypeCreation, Metadata: CredentialMetadata{}},
 		{Kind: SecretCredentialUpdate, Type: TypeChange, Metadata: CredentialMetadata{}},
@@ -122,7 +122,7 @@ func Catalog() []Entry {
 		{Kind: SecretStorageCreate, Type: TypeCreation, Metadata: SecretStorageMetadata{}},
 		{Kind: SecretStorageUpdate, Type: TypeChange, Metadata: SecretStorageMetadata{}},
 		{Kind: SecretStorageDelete, Type: TypeDeletion, Metadata: DeleteMetadata{}, Partial: []Reason{ReasonKeyFailed}},
-		{Kind: SecretStorageSync, Type: TypeChange},
+		{Kind: SecretStorageSync, Type: TypeChange, Pro: true},
 
 		{Kind: SystemSettingsUpdate, Type: TypeChange, Metadata: SettingsMetadata{}},
 		{Kind: SystemLicenseActivate, Type: TypeChange, Reasons: []Reason{ReasonActivationFailed}, Pro: true},
