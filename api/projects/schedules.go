@@ -258,16 +258,18 @@ func SetScheduleActive(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Schedule ID %d updated", oldSchedule.ID),
 	})
 
-	kind := audit.ResourceScheduleDeactivate
-	if schedule.Active {
-		kind = audit.ResourceScheduleActivate
+	if oldSchedule.Active != schedule.Active {
+		kind := audit.ResourceScheduleDeactivate
+		if schedule.Active {
+			kind = audit.ResourceScheduleActivate
+		}
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      kind,
+			Target:    audit.ResourceTarget(audit.TargetSchedule, oldSchedule.ID, oldSchedule.Name),
+			ProjectID: oldSchedule.ProjectID,
+			Metadata:  audit.ScheduleMetadata{TemplateID: oldSchedule.TemplateID},
+		})
 	}
-	helpers.Audit(r).Record(r.Context(), audit.Event{
-		Kind:      kind,
-		Target:    audit.ResourceTarget(audit.TargetSchedule, oldSchedule.ID, oldSchedule.Name),
-		ProjectID: oldSchedule.ProjectID,
-		Metadata:  audit.ScheduleMetadata{TemplateID: oldSchedule.TemplateID},
-	})
 
 	refreshSchedulePool(r)
 

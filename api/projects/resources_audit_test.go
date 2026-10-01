@@ -156,6 +156,10 @@ func TestUpdateAndDeleteProject_AreRecorded(t *testing.T) {
 func TestBackupExportAndRestore_AreRecorded(t *testing.T) {
 	f := newResourceFixture(t)
 	controller := NewBackupController(proFactory.NewWorkflowStore(f.store))
+	integration, err := f.store.CreateIntegration(db.Integration{Name: "hook", ProjectID: f.project.ID, TemplateID: f.template(t).ID})
+	require.NoError(t, err)
+	_, err = f.store.CreateIntegrationAlias(db.IntegrationAlias{Alias: "a1b2c3", ProjectID: f.project.ID, IntegrationID: &integration.ID})
+	require.NoError(t, err)
 
 	r, rec := f.request(http.MethodGet, "", nil, nil)
 	w := httptest.NewRecorder()
@@ -171,6 +175,7 @@ func TestBackupExportAndRestore_AreRecorded(t *testing.T) {
 	got := only(t, rec, audit.ResourceProjectBackupRestore)
 	assert.Equal(t, "restored", got.Event.Target.Name)
 	assert.Equal(t, 1, got.Event.Metadata.(audit.BackupRestoreMetadata).Objects["keys"])
+	assert.Equal(t, 1, got.Event.Metadata.(audit.BackupRestoreMetadata).Objects["integration_aliases"], "aliases inside integrations are counted")
 }
 
 func TestInventoryEvents(t *testing.T) {
@@ -332,21 +337,34 @@ func TestScheduleEvents(t *testing.T) {
 	t.Cleanup(pool.Destroy)
 
 	tests := []struct {
-		body string
-		kind audit.Kind
+		wasActive bool
+		body      string
+		kind      audit.Kind
 	}{
-		{`{"active":true}`, audit.ResourceScheduleActivate},
-		{`{"active":false}`, audit.ResourceScheduleDeactivate},
+		{false, `{"active":true}`, audit.ResourceScheduleActivate},
+		{true, `{"active":false}`, audit.ResourceScheduleDeactivate},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.kind), func(t *testing.T) {
-			r, rec := f.request(http.MethodPut, tt.body, map[string]any{"schedule": schedule, "schedule_pool": pool}, nil)
+			old := schedule
+			old.Active = tt.wasActive
+			r, rec := f.request(http.MethodPut, tt.body, map[string]any{"schedule": old, "schedule_pool": pool}, nil)
 			SetScheduleActive(httptest.NewRecorder(), r)
 			got := only(t, rec, tt.kind)
 			assert.Equal(t, audit.ResourceTarget(audit.TargetSchedule, schedule.ID, "nightly"), got.Event.Target)
 			assert.Equal(t, audit.ScheduleMetadata{TemplateID: template.ID}, got.Event.Metadata)
 		})
 	}
+
+	t.Run("unchanged", func(t *testing.T) {
+		old := schedule
+		old.Active = true
+		r, rec := f.request(http.MethodPut, `{"active":true}`, map[string]any{"schedule": old, "schedule_pool": pool}, nil)
+		w := httptest.NewRecorder()
+		SetScheduleActive(w, r)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.Empty(t, rec.All())
+	})
 
 	r, rec := f.request(http.MethodDelete, "", map[string]any{"schedule": schedule, "schedule_pool": pool}, nil)
 	RemoveSchedule(httptest.NewRecorder(), r)
@@ -435,14 +453,43 @@ func TestIntegrationEvents(t *testing.T) {
 	assert.Empty(t, alias.Event.Target.Name, "the alias value is a bearer secret")
 	assert.Equal(t, audit.IntegrationPartMetadata{IntegrationID: integrationID}, alias.Event.Metadata)
 
-	r, rec = f.request(http.MethodDelete, "", nil, map[string]string{"integration_id": strconv.Itoa(integrationID)})
+	aliasID := mustAtoi(t, alias.Event.Target.ID)
+	r, rec = f.request(http.MethodDelete, "", map[string]any{"integration": integration}, map[string]string{"alias_id": strconv.Itoa(aliasID)})
+	w = httptest.NewRecorder()
+	RemoveIntegrationAlias(w, r)
+	require.Equal(t, http.StatusNoContent, w.Code)
+	deletedAlias := only(t, rec, audit.ResourceIntegrationAliasDelete)
+	assert.Equal(t, audit.IntegrationPartMetadata{IntegrationID: integrationID}, deletedAlias.Event.Metadata)
+
+	r, rec = f.request(http.MethodDelete, "", map[string]any{"integration": integration}, nil)
 	DeleteIntegration(httptest.NewRecorder(), r)
-	assert.Equal(t, audit.ResourceTarget(audit.TargetIntegration, integrationID, ""), only(t, rec, audit.ResourceIntegrationDelete).Event.Target)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetIntegration, integrationID, "hook"), only(t, rec, audit.ResourceIntegrationDelete).Event.Target)
+}
+
+func TestRemoveIntegrationAlias_OfAnotherIntegrationIsRefused(t *testing.T) {
+	f := newResourceFixture(t)
+	template := f.template(t)
+	owner, err := f.store.CreateIntegration(db.Integration{Name: "owner", ProjectID: f.project.ID, TemplateID: template.ID})
+	require.NoError(t, err)
+	other, err := f.store.CreateIntegration(db.Integration{Name: "other", ProjectID: f.project.ID, TemplateID: template.ID})
+	require.NoError(t, err)
+	alias, err := f.store.CreateIntegrationAlias(db.IntegrationAlias{Alias: "a1b2c3", ProjectID: f.project.ID, IntegrationID: &owner.ID})
+	require.NoError(t, err)
+
+	r, rec := f.request(http.MethodDelete, "", map[string]any{"integration": other}, map[string]string{"alias_id": strconv.Itoa(alias.ID)})
+	w := httptest.NewRecorder()
+	RemoveIntegrationAlias(w, r)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Empty(t, rec.All())
+	aliases, err := f.store.GetIntegrationAliases(f.project.ID, &owner.ID)
+	require.NoError(t, err)
+	assert.Len(t, aliases, 1, "the alias is kept")
 }
 
 func TestDeleteIntegration_FailedDeleteIsNotRecorded(t *testing.T) {
 	f := newResourceFixture(t)
-	r, rec := f.request(http.MethodDelete, "", nil, map[string]string{"integration_id": "999999"})
+	r, rec := f.request(http.MethodDelete, "", map[string]any{"integration": db.Integration{ID: 999999, ProjectID: f.project.ID}}, nil)
 	DeleteIntegration(httptest.NewRecorder(), r)
 	assert.Empty(t, rec.All())
 }

@@ -2,6 +2,7 @@ package projects
 
 import (
 	"net/http"
+	"slices"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -95,16 +96,26 @@ func RemoveIntegrationAlias(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var part audit.IntegrationPartMetadata
+	if integration, ok := helpers.GetFromContext(r, "integration").(db.Integration); ok {
+		// The store deletes by project, so an alias of another integration is refused here.
+		aliases, err := helpers.Store(r).GetIntegrationAliases(project.ID, &integration.ID)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		if !slices.ContainsFunc(aliases, func(a db.IntegrationAlias) bool { return a.ID == aliasID }) {
+			helpers.WriteError(w, db.ErrNotFound)
+			return
+		}
+		part.IntegrationID = integration.ID
+	}
+
 	err := helpers.Store(r).DeleteIntegrationAlias(project.ID, aliasID)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
-	}
-
-	var part audit.IntegrationPartMetadata
-	if integration, ok := helpers.GetFromContext(r, "integration").(db.Integration); ok {
-		part.IntegrationID = integration.ID
 	}
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.ResourceIntegrationAliasDelete,

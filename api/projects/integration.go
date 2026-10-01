@@ -161,14 +161,10 @@ func UpdateIntegration(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteIntegration(w http.ResponseWriter, r *http.Request) {
-	integration_id, ok := helpers.GetIntParamOrAbort("integration_id", w, r)
-	if !ok {
-		return
-	}
-
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
-	err := helpers.Store(r).DeleteIntegration(project.ID, integration_id)
+	err := helpers.Store(r).DeleteIntegration(project.ID, integration.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Integration failed to be deleted",
@@ -180,7 +176,7 @@ func DeleteIntegration(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		helpers.Audit(r).Record(r.Context(), audit.Event{
 			Kind:      audit.ResourceIntegrationDelete,
-			Target:    audit.ResourceTarget(audit.TargetIntegration, integration_id, ""),
+			Target:    audit.ResourceTarget(audit.TargetIntegration, integration.ID, integration.Name),
 			ProjectID: project.ID,
 		})
 	}

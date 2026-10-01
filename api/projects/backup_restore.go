@@ -97,6 +97,11 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	integrationAliases := len(backup.IntegrationAliases)
+	for _, integration := range backup.Integration {
+		integrationAliases += len(integration.Aliases)
+	}
+
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.ResourceProjectBackupRestore,
 		Target:    audit.ResourceTarget(audit.TargetProject, p.ID, p.Name),
@@ -110,7 +115,7 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 			"inventories":         len(backup.Inventories),
 			"environments":        len(backup.Environments),
 			"integrations":        len(backup.Integration),
-			"integration_aliases": len(backup.IntegrationAliases),
+			"integration_aliases": integrationAliases,
 			"schedules":           len(backup.Schedules),
 			"secret_storages":     len(backup.SecretStorages),
 			"roles":               len(backup.Roles),
