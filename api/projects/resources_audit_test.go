@@ -511,9 +511,9 @@ func TestSecretStorageEvents(t *testing.T) {
 	assert.Equal(t, audit.ResourceTarget(audit.TargetSecretStorage, 3, "vault"), created.Event.Target)
 	assert.Equal(t, audit.SecretStorageMetadata{Type: "vault"}, created.Event.Metadata)
 
-	r, rec = f.request(http.MethodDelete, "", nil, map[string]string{"storage_id": "3"})
+	r, rec = f.request(http.MethodDelete, "", map[string]any{"secretStorage": db.SecretStorage{ID: 3, Name: "vault", ProjectID: f.project.ID}}, map[string]string{"storage_id": "3"})
 	controller.Remove(httptest.NewRecorder(), r)
-	assert.Equal(t, audit.ResourceTarget(audit.TargetSecretStorage, 3, ""), only(t, rec, audit.SecretStorageDelete).Event.Target)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetSecretStorage, 3, "vault"), only(t, rec, audit.SecretStorageDelete).Event.Target)
 }
 
 func eventText(recorded audittest.Recorded) string {

@@ -185,12 +185,9 @@ func (c *SecretStorageController) Add(w http.ResponseWriter, r *http.Request) {
 
 func (c *SecretStorageController) Remove(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	storageID, ok := helpers.GetIntParamOrAbort("storage_id", w, r)
-	if !ok {
-		return
-	}
+	storage := helpers.GetFromContext(r, "secretStorage").(db.SecretStorage)
 
-	err := c.secretStorageService.Delete(project.ID, storageID)
+	err := c.secretStorageService.Delete(project.ID, storage.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -198,7 +195,7 @@ func (c *SecretStorageController) Remove(w http.ResponseWriter, r *http.Request)
 
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.SecretStorageDelete,
-		Target:    audit.ResourceTarget(audit.TargetSecretStorage, storageID, ""),
+		Target:    audit.ResourceTarget(audit.TargetSecretStorage, storage.ID, storage.Name),
 		ProjectID: project.ID,
 	})
 
