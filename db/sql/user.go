@@ -199,8 +199,8 @@ func (d *SqlDb) UpdateProjectUser(projectUser db.ProjectUser) error {
 }
 
 func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
-	_, err := d.exec("delete from project__user where user_id=? and project_id=?", userID, projectID)
-	return err
+	res, err := d.exec("delete from project__user where user_id=? and project_id=?", userID, projectID)
+	return requireDeletedRow(res, err)
 }
 
 // GetUser retrieves a user from the database by ID
@@ -365,8 +365,8 @@ func (d *SqlDb) AddTotpVerification(userID int, url string, recoveryHash string)
 }
 
 func (d *SqlDb) DeleteTotpVerification(userID int, totpID int) error {
-	_, err := d.exec("delete from user__totp where user_id=? and id = ?", userID, totpID)
-	return err
+	res, err := d.exec("delete from user__totp where user_id=? and id = ?", userID, totpID)
+	return requireDeletedRow(res, err)
 }
 
 func (d *SqlDb) insertEmailOtp(userID int, code string) (totp db.UserEmailOtp, err error) {

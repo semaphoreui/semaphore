@@ -47,16 +47,18 @@ func validateAPIToken(token string) error {
 	return nil
 }
 
-func (d *SqlDb) DeleteAPIToken(userID int, tokenPrefix string) (err error) {
-
+func (d *SqlDb) GetAPITokensByPrefix(userID int, tokenPrefix string) (tokens []db.APIToken, err error) {
 	err = validateAPIToken(tokenPrefix)
 	if err != nil {
 		return
 	}
-
-	_, err = d.exec("DELETE FROM user__token WHERE id LIKE ? AND user_id=?", tokenPrefix+"%", userID)
-
+	_, err = d.selectAll(&tokens, "select * from user__token where id like ? and user_id=?", tokenPrefix+"%", userID)
 	return
+}
+
+func (d *SqlDb) DeleteAPIToken(userID int, tokenID string) error {
+	res, err := d.exec("delete from user__token where id=? and user_id=?", tokenID, userID)
+	return requireDeletedRow(res, err)
 }
 
 func (d *SqlDb) GetSession(userID int, sessionID int) (session db.Session, err error) {

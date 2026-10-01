@@ -10,6 +10,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/git"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -47,13 +48,25 @@ func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
 }
 
 type RepositoryController struct {
-	keyInstaller db_lib.AccessKeyInstaller
+	keyInstaller      db_lib.AccessKeyInstaller
+	encryptionService db_lib.SecretDeserializer
 }
 
-func NewRepositoryController(keyInstaller db_lib.AccessKeyInstaller) *RepositoryController {
+func NewRepositoryController(
+	keyInstaller db_lib.AccessKeyInstaller,
+	encryptionService db_lib.SecretDeserializer,
+) *RepositoryController {
 	return &RepositoryController{
-		keyInstaller: keyInstaller,
+		keyInstaller:      keyInstaller,
+		encryptionService: encryptionService,
 	}
+}
+
+// hostConfigs loads the credential mappings of the project, so browsing a
+// repository reaches a mapped host the same way a task would.
+func (c *RepositoryController) hostConfigs(r *http.Request, repo db.Repository) (*ssh.HostConfigInstallation, error) {
+	return db_lib.InstallProjectHostConfigs(
+		helpers.Store(r), c.encryptionService, repo.ProjectID, task_logger.NopLogger{})
 }
 
 func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
@@ -64,9 +77,17 @@ func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *h
 		return
 	}
 
+	hostConfigs, err := c.hostConfigs(r, repo)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+	defer hostConfigs.Destroy()
+
 	git := db_lib.GitRepository{
-		Repository: repo,
-		Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
+		Repository:  repo,
+		Client:      db_lib.CreateDefaultGitClient(c.keyInstaller),
+		HostConfigs: hostConfigs,
 	}
 
 	branches, err := git.GetRemoteBranches()
@@ -109,11 +130,19 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		// contain slashes) so each branch gets its own cached checkout instead
 		// of failing to check out a branch that was never fetched.
 		branchHash := sha1.Sum([]byte(branch))
+		hostConfigs, hcErr := c.hostConfigs(r, repo)
+		if hcErr != nil {
+			helpers.WriteError(w, hcErr)
+			return
+		}
+		defer hostConfigs.Destroy()
+
 		git := db_lib.GitRepository{
-			Repository: repoCopy,
-			TmpDirName: fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
-			Client:     db_lib.CreateDefaultGitClient(c.keyInstaller),
-			Logger:     task_logger.NopLogger{},
+			Repository:  repoCopy,
+			TmpDirName:  fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
+			Client:      db_lib.CreateDefaultGitClient(c.keyInstaller),
+			Logger:      task_logger.NopLogger{},
+			HostConfigs: hostConfigs,
 		}
 
 		var err error
@@ -196,7 +225,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		ProjectID:   newRepo.ProjectID,
 		ObjectType:  db.EventRepository,
 		ObjectID:    newRepo.ID,
-		Description: fmt.Sprintf("Repository %s created", repository.GitURL),
+		Description: fmt.Sprintf("Repository %s created", repository.GetRedactedGitURL()),
 	})
 
 	helpers.WriteJSON(w, http.StatusCreated, newRepo)
@@ -244,7 +273,7 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		ProjectID:   oldRepo.ProjectID,
 		ObjectType:  db.EventRepository,
 		ObjectID:    oldRepo.ID,
-		Description: fmt.Sprintf("Repository %s updated", repository.GitURL),
+		Description: fmt.Sprintf("Repository %s updated", repository.GetRedactedGitURL()),
 	})
 
 	w.WriteHeader(http.StatusNoContent)
@@ -275,7 +304,7 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 		ProjectID:   repository.ProjectID,
 		ObjectType:  db.EventRepository,
 		ObjectID:    repository.ID,
-		Description: fmt.Sprintf("Repository %s deleted", repository.GitURL),
+		Description: fmt.Sprintf("Repository %s deleted", repository.GetRedactedGitURL()),
 	})
 
 	w.WriteHeader(http.StatusNoContent)
