@@ -50,10 +50,6 @@ func (e BackupSecretStorage) Restore(b *BackupDB) error {
 }
 
 func (e BackupRole) Verify(backup *BackupFormat) error {
-	// Unknown bits would grant permissions that no event or screen shows.
-	if e.Permissions&^db.KnownRolePermissions != 0 {
-		return common_errors.NewValidationError("role " + e.Name + ": permissions contain unknown bits")
-	}
 	return verifyDuplicate[BackupRole](e.Name, backup.Roles)
 }
 
@@ -61,6 +57,8 @@ func (e BackupRole) Restore(b *BackupDB) error {
 	role := e.Role
 	role.ProjectID = &b.meta.ID
 	role.Slug = random.String(16)
+	// Unknown bits are never checked today but would turn on with a future permission.
+	role.Permissions &= db.KnownRolePermissions
 	newRole, err := b.store.CreateRole(role)
 	if err != nil {
 		return err
@@ -451,7 +449,7 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 					TemplateID:  newTemplate.ID,
 					RoleSlug:    r.Slug,
 					ProjectID:   b.meta.ID,
-					Permissions: role.Permissions,
+					Permissions: role.Permissions & db.KnownRolePermissions,
 				})
 
 				if err != nil {
@@ -467,7 +465,7 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 					TemplateID:  newTemplate.ID,
 					RoleSlug:    k.Slug,
 					ProjectID:   b.meta.ID,
-					Permissions: role.Permissions,
+					Permissions: role.Permissions & db.KnownRolePermissions,
 				})
 				if err != nil {
 					return err

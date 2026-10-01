@@ -421,6 +421,10 @@ func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Requ
 	if !helpers.Bind(w, r, &perm) {
 		return
 	}
+	if perm.Permissions&^db.KnownRolePermissions != 0 {
+		helpers.WriteErrorStatus(w, "Permissions contain unknown bits", http.StatusBadRequest)
+		return
+	}
 
 	perm.ProjectID = template.ProjectID
 	perm.TemplateID = template.ID
@@ -455,6 +459,10 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 
 	var perm db.TemplateRolePerm
 	if !helpers.Bind(w, r, &perm) {
+		return
+	}
+	if perm.Permissions&^db.KnownRolePermissions != 0 {
+		helpers.WriteErrorStatus(w, "Permissions contain unknown bits", http.StatusBadRequest)
 		return
 	}
 
