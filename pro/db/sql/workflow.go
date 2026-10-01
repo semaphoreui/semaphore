@@ -35,6 +35,14 @@ func (d *WorkflowStoreImpl) DeleteWorkflowTemplate(projectID int, workflowID int
 	return
 }
 
+func (d *WorkflowStoreImpl) GetWorkflowRevisions(projectID int, workflowID int) (res []db.WorkflowRevision, err error) {
+	return
+}
+
+func (d *WorkflowStoreImpl) GetWorkflowRevisionGraph(projectID int, revisionID int) (res db.WorkflowTemplate, err error) {
+	return
+}
+
 func (d *WorkflowStoreImpl) GetWorkflowRuns(projectID int, workflowTemplateID int, params db.RetrieveQueryParams) (res []db.WorkflowRun, err error) {
 	return
 }

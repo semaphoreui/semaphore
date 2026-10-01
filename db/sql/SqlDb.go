@@ -84,6 +84,7 @@ func (d *SqlDbConnection) Connect() {
 	}
 
 	d.sql.AddTableWithName(db.APIToken{}, "user__token").SetKeys(false, "id")
+	d.sql.AddTableWithName(db.AuditEvent{}, "audit_event").SetKeys(false, "seq")
 	d.sql.AddTableWithName(db.AccessKey{}, "access_key").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.Environment{}, "project__environment").SetKeys(true, "id")
 	d.sql.AddTableWithName(db.Inventory{}, "project__inventory").SetKeys(true, "id")
@@ -226,6 +227,48 @@ func (d *SqlDbConnection) Insert(primaryKeyColumnName string, query string, args
 		}
 	default:
 		res, err := d.sql.Exec(d.PrepareQuery(query), formattedArgs...)
+		if err != nil {
+			return 0, err
+		}
+
+		insertId, err = res.LastInsertId()
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return int(insertId), nil
+}
+
+// Begin opens a transaction on the underlying connection for callers outside
+// this package (the Pro stores) that must write several rows atomically.
+func (d *SqlDbConnection) Begin() (*gorp.Transaction, error) {
+	return d.sql.Begin()
+}
+
+// InsertTx is Insert inside a transaction: it returns the generated primary
+// key on every dialect (Postgres through "returning", the rest through
+// LastInsertId).
+func (d *SqlDbConnection) InsertTx(tx *gorp.Transaction, primaryKeyColumnName string, query string, args ...any) (int, error) {
+	var insertId int64
+
+	formattedArgs := formatArgs(args)
+
+	switch d.sql.Dialect.(type) {
+	case gorp.PostgresDialect:
+		var err error
+		if primaryKeyColumnName != "" {
+			query += " returning " + primaryKeyColumnName
+			err = tx.QueryRow(d.PrepareQuery(query), formattedArgs...).Scan(&insertId)
+		} else {
+			_, err = tx.Exec(d.PrepareQuery(query), formattedArgs...)
+		}
+
+		if err != nil {
+			return 0, err
+		}
+	default:
+		res, err := tx.Exec(d.PrepareQuery(query), formattedArgs...)
 		if err != nil {
 			return 0, err
 		}
@@ -435,6 +478,21 @@ func validateMutationResult(res sql.Result, err error) error {
 	return nil
 }
 
+// requireDeletedRow returns db.ErrNotFound when the statement removed no row, so the audit records only real deletes.
+func requireDeletedRow(res sql.Result, err error) error {
+	if err = validateMutationResult(res, err); err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return db.ErrNotFound
+	}
+	return nil
+}
+
 func (d *SqlDb) PrepareQuery(query string) string {
 	return d.connection.PrepareQuery(query)
 }
@@ -618,6 +676,13 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 	}
 
 	refs.AccessKeys, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.AccessKeyProps)
+	if err != nil {
+		return
+	}
+
+	// A host config refers to a key through ssh_key_id. Without this, deleting
+	// the key reports no reference and the mapping disappears with it.
+	refs.HostConfigs, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.HostConfigProps)
 	if err != nil {
 		return
 	}

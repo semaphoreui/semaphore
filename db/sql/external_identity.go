@@ -31,8 +31,8 @@ func (d *SqlDb) GetUserExternalIdentities(userID int) (identities []db.UserExter
 }
 
 func (d *SqlDb) DeleteExternalIdentity(userID int, idType string, provider string) error {
-	_, err := d.exec(
+	res, err := d.exec(
 		"delete from user__external_identity where user_id=? and type=? and provider=?",
 		userID, idType, provider)
-	return err
+	return requireDeletedRow(res, err)
 }

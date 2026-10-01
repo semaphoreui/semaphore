@@ -285,7 +285,7 @@ export default {
       try {
         const run = (await axios({
           method: 'post',
-          url: `/api/project/${this.projectId}/workflows/${workflow.id}/run`,
+          url: `/api/project/${this.projectId}/workflows/${workflow.id}/runs`,
           responseType: 'json',
         })).data;
         EventBus.$emit('i-snackbar', {

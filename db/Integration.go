@@ -10,12 +10,13 @@ import (
 type IntegrationAuthMethod string
 
 const (
-	IntegrationAuthNone      = ""
-	IntegrationAuthGitHub    = "github"
-	IntegrationAuthToken     = "token"
-	IntegrationAuthHmac      = "hmac"
-	IntegrationAuthBitbucket = "bitbucket"
-	IntegrationAuthBasic     = "basic"
+	IntegrationAuthNone       = ""
+	IntegrationAuthGitHub     = "github"
+	IntegrationAuthToken      = "token"
+	IntegrationAuthHmac       = "hmac"
+	IntegrationAuthHmacSha512 = "hmac-sha512"
+	IntegrationAuthBitbucket  = "bitbucket"
+	IntegrationAuthBasic      = "basic"
 )
 
 type IntegrationMatchType string

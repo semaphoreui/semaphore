@@ -222,7 +222,13 @@ properties:
   forwarded_env_vars:
     type: array
     items: { type: string }
-    description: Host environment variables forwarded into task runs.
+    description: >-
+      Host environment variables copied into task runs and into the child git
+      processes that clone and update repositories. Proxy variables are not
+      forwarded implicitly: they reach a task only if they are named here or set
+      in env_vars. A bare-metal (systemd) installation behind a corporate proxy
+      therefore has to list the proxy variables explicitly, including the bypass
+      list for internal hosts: ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"].
 
   # ==========================================================================
   # Nested subsystems
@@ -235,6 +241,7 @@ properties:
   schedule:     { $ref: "#/$defs/ScheduleConfig" }
   debugging:    { $ref: "#/$defs/DebuggingConfig" }
   ha:           { $ref: "#/$defs/HAConfig" }
+  audit:        { $ref: "#/$defs/AuditConfig" }
   subscription: { $ref: "#/$defs/SubscriptionConfig" }
   dirs:         { $ref: "#/$defs/ConfigDirs" }
   runner:       { $ref: "#/$defs/RunnerConfig" }
@@ -618,6 +625,35 @@ $defs:
         description: Redis password (sensitive).
       tls:             { type: boolean }
       tls_skip_verify: { type: boolean }
+
+  AuditConfig:
+    type: object
+    properties:
+      enabled: { type: boolean }
+      instance_id:
+        type: string
+        description: Installation name added to every audit event. Required when enabled.
+      trusted_proxy_cidrs:
+        type: array
+        items: { type: string }
+        description: Proxy networks whose X-Forwarded-For and X-Real-IP headers are trusted.
+      syslog: { $ref: "#/$defs/AuditSyslogConfig" }
+
+  AuditSyslogConfig:
+    type: object
+    description: Sends audit events to a Syslog receiver over TLS (Pro).
+    properties:
+      id:
+        type: string
+        description: Destination name. Keep it when the address changes.
+      address:
+        type: string
+        description: Receiver host and port.
+      timeout: { type: string, default: 10s }
+      ca_file: { type: string }
+      server_name:
+        type: string
+        description: Name to check in the receiver certificate.
 
   SubscriptionConfig:
     type: object

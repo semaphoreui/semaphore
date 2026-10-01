@@ -23,6 +23,7 @@ import (
 	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
 	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
@@ -157,6 +158,7 @@ func watchEncryptionKeyReload() {
 
 func runService() {
 	store := createStore("root")
+	defer store.Close()
 
 	watchEncryptionKeyReload()
 
@@ -169,6 +171,17 @@ func runService() {
 
 	// Initialize HA node identity before any component that uses it.
 	util.InitHANodeID()
+
+	auditService, auditErr := audit.StartService(
+		store,
+		util.Config.Audit,
+		util.HANodeID(),
+		proServer.NewAuditExporter(store, util.Config.Audit, proHA.NewAuditExportLeaser()),
+	)
+	if auditErr != nil {
+		log.WithError(auditErr).Fatal("failed to start the audit log")
+	}
+	defer auditService.Stop()
 
 	state := proTasks.NewTaskStateStore()
 	terraformStore := proFactory.NewTerraformStore(store)
@@ -185,7 +198,7 @@ func runService() {
 		store,
 		encryptionService,
 	)
-	accessKeyService := server.NewAccessKeyService(store, encryptionService, store)
+	accessKeyService := server.NewAccessKeyService(store, encryptionService, store, store)
 	secretStorageService := server.NewSecretStorageService(store, store, accessKeyService, encryptionService)
 	secretStorageSyncScheduler := server.NewSecretStorageSyncScheduler(store, secretStorageService)
 	environmentService := server.NewEnvironmentService(store, encryptionService, store)
@@ -337,6 +350,7 @@ func runService() {
 			r = helpers.SetContextValue(r, "task_pool", &taskPool)
 			r = helpers.SetContextValue(r, "log_writer", logWriteService)
 			r = helpers.SetContextValue(r, "cluster_inspector", clusterInspector)
+			r = helpers.SetContextValue(r, "audit", auditService.Recorder())
 
 			next.ServeHTTP(w, r)
 		})
@@ -345,11 +359,11 @@ func runService() {
 	var router http.Handler = route
 
 	router = handlers.ProxyHeaders(router)
+	// Outside ProxyHeaders, which trusts X-Forwarded-For blindly.
+	router = auditService.Wrap(router)
 	http.Handle("/", router)
 
 	fmt.Println("Server is running")
-
-	defer store.Close()
 
 	var err error
 	if util.Config.TLS.Enabled {
