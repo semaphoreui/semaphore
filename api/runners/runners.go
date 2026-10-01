@@ -560,7 +560,8 @@ func UnregisterRunner(w http.ResponseWriter, r *http.Request) {
 
 	err := helpers.Store(r).DeleteGlobalRunner(runner.ID)
 
-	if err != nil {
+	// A concurrent unregister already removed the runner.
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": "Unknown error",
 		})
