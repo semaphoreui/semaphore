@@ -49,3 +49,24 @@ func TestSecretStorageDelete_KeyAlreadyGoneIsNotAnError(t *testing.T) {
 
 	assert.NoError(t, service.Delete(1, 5))
 }
+
+type updateTrackingStorageRepo struct {
+	mockSecretStorageRepository
+	updated bool
+}
+
+func (r *updateTrackingStorageRepo) UpdateSecretStorage(db.SecretStorage) error {
+	r.updated = true
+	return nil
+}
+
+func TestSecretStorageUpdate_UnsupportedSourceIsRefusedBeforeSaving(t *testing.T) {
+	repo := &updateTrackingStorageRepo{}
+	sourceType := db.AccessKeySourceStorageType("unknown")
+	service := &SecretStorageServiceImpl{secretStorageRepo: repo, accessKeyService: &fakeStorageKeyService{}}
+
+	err := service.Update(db.SecretStorage{ID: 5, ProjectID: 1, Type: db.SecretStorageTypeVault, Secret: "token", SourceStorageType: &sourceType})
+
+	require.ErrorContains(t, err, "unsupported source storage type")
+	assert.False(t, repo.updated, "the storage row is not written")
+}
