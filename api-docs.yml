@@ -1501,7 +1501,7 @@ definitions:
         description: Graph revision the run executes; edits of the workflow do not affect it.
       status:
         type: string
-        enum: [running, success, failed, approval]
+        enum: [running, success, failed, stopped, approval]
       start:
         type: string
         format: date-time
