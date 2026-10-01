@@ -178,6 +178,32 @@ func TestBackupExportAndRestore_AreRecorded(t *testing.T) {
 	assert.Equal(t, 1, got.Event.Metadata.(audit.BackupRestoreMetadata).Objects["integration_aliases"], "aliases inside integrations are counted")
 }
 
+func TestRestore_FailedStepIsPartial(t *testing.T) {
+	f := newResourceFixture(t)
+	f.template(t)
+	controller := NewBackupController(proFactory.NewWorkflowStore(f.store))
+
+	r, _ := f.request(http.MethodGet, "", nil, nil)
+	w := httptest.NewRecorder()
+	controller.GetBackup(w, r)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	backup := strings.Replace(w.Body.String(), `"name": "p"`, `"name": "broken"`, 1)
+	// Verify accepts it, the template validation inside Restore refuses it.
+	require.Contains(t, backup, `"app": "ansible"`)
+	backup = strings.Replace(backup, `"app": "ansible"`, `"app": "unknown"`, 1)
+	r, rec := f.request(http.MethodPost, backup, nil, nil)
+	w = httptest.NewRecorder()
+	controller.Restore(w, r)
+
+	assert.NotEqual(t, http.StatusOK, w.Code, "the API answer is unchanged")
+	got := only(t, rec, audit.ResourceProjectBackupRestore)
+	assert.Equal(t, audit.OutcomeSuccess, got.Event.Outcome, "the project is created")
+	assert.Equal(t, audit.ReasonRestoreFailed, got.Event.Reason)
+	assert.Equal(t, "broken", got.Event.Target.Name)
+	assert.True(t, got.Event.Metadata.(audit.BackupRestoreMetadata).Partial)
+}
+
 func TestInventoryEvents(t *testing.T) {
 	f := newResourceFixture(t)
 	body := `{"name":"prod","project_id":` + strconv.Itoa(f.project.ID) + `,"type":"static","inventory":"[all]"}`

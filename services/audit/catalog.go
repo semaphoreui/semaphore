@@ -76,7 +76,7 @@ func Catalog() []Entry {
 		{Kind: ResourceProjectUpdate, Type: TypeChange},
 		{Kind: ResourceProjectDelete, Type: TypeDeletion},
 		{Kind: ResourceProjectBackupExport, Type: TypeAccess},
-		{Kind: ResourceProjectBackupRestore, Type: TypeCreation, Metadata: BackupRestoreMetadata{}},
+		{Kind: ResourceProjectBackupRestore, Type: TypeCreation, Metadata: BackupRestoreMetadata{}, Partial: []Reason{ReasonRestoreFailed}},
 		{Kind: ResourceInventoryCreate, Type: TypeCreation},
 		{Kind: ResourceInventoryUpdate, Type: TypeChange},
 		{Kind: ResourceInventoryDelete, Type: TypeDeletion},

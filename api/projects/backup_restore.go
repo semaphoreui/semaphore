@@ -91,7 +91,8 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 	var p *db.Project
 	p, err := backup.Restore(*user, store, c.workflowStore)
 
-	if err != nil {
+	// Without a project nothing was created; with one, a failed step is a partial success.
+	if err != nil && p == nil {
 		log.Error(err)
 		helpers.WriteError(w, err)
 		return
@@ -102,27 +103,39 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 		integrationAliases += len(integration.Aliases)
 	}
 
-	helpers.Audit(r).Record(r.Context(), audit.Event{
+	event := audit.Event{
 		Kind:      audit.ResourceProjectBackupRestore,
 		Target:    audit.ResourceTarget(audit.TargetProject, p.ID, p.Name),
 		ProjectID: p.ID,
-		Metadata: audit.BackupRestoreMetadata{Objects: map[string]int{
-			"templates":           len(backup.Templates),
-			"repositories":        len(backup.Repositories),
-			"host_configs":        len(backup.HostConfigs),
-			"keys":                len(backup.Keys),
-			"views":               len(backup.Views),
-			"inventories":         len(backup.Inventories),
-			"environments":        len(backup.Environments),
-			"integrations":        len(backup.Integration),
-			"integration_aliases": integrationAliases,
-			"schedules":           len(backup.Schedules),
-			"secret_storages":     len(backup.SecretStorages),
-			"roles":               len(backup.Roles),
-			"runners":             len(backup.Runners),
-			"workflows":           len(backup.Workflows),
-		}},
-	})
+	}
+	metadata := audit.BackupRestoreMetadata{Objects: map[string]int{
+		"templates":           len(backup.Templates),
+		"repositories":        len(backup.Repositories),
+		"host_configs":        len(backup.HostConfigs),
+		"keys":                len(backup.Keys),
+		"views":               len(backup.Views),
+		"inventories":         len(backup.Inventories),
+		"environments":        len(backup.Environments),
+		"integrations":        len(backup.Integration),
+		"integration_aliases": integrationAliases,
+		"schedules":           len(backup.Schedules),
+		"secret_storages":     len(backup.SecretStorages),
+		"roles":               len(backup.Roles),
+		"runners":             len(backup.Runners),
+		"workflows":           len(backup.Workflows),
+	}}
+	if err != nil {
+		event.Reason = audit.ReasonRestoreFailed
+		metadata.Partial = true
+	}
+	event.Metadata = metadata
+	helpers.Audit(r).Record(r.Context(), event)
+
+	if err != nil {
+		log.Error(err)
+		helpers.WriteError(w, err)
+		return
+	}
 
 	helpers.WriteJSON(w, http.StatusOK, p)
 }
