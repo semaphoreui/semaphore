@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -77,14 +78,21 @@ func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err err
 	}, db.RetrieveQueryParams{})
 
 	if err != nil {
-		return
+		return fmt.Errorf("%w: %v", ErrSecretsLeftBehind, err)
 	}
 
+	var errs []error
 	for _, key := range keys {
-		err = s.accessKeyService.Delete(projectID, key.ID)
+		if err = s.accessKeyService.Delete(projectID, key.ID); err != nil && !errors.Is(err, db.ErrNotFound) {
+			errs = append(errs, err)
+		}
 	}
 
-	return
+	if len(errs) > 0 {
+		return fmt.Errorf("%w: failed to delete some keys: %v", ErrSecretsLeftBehind, errs)
+	}
+
+	return nil
 }
 
 func (s *SecretStorageServiceImpl) GetSecretStorage(projectID int, storageID int) (res db.SecretStorage, err error) {

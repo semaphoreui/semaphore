@@ -2,6 +2,7 @@ package projects
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -492,13 +493,14 @@ func TestCredentialEvents_NeverRecordTheSecret(t *testing.T) {
 
 type fakeSecretStorageService struct {
 	server.SecretStorageService
+	deleteErr error
 }
 
 func (fakeSecretStorageService) Create(s db.SecretStorage) (db.SecretStorage, error) {
 	s.ID = 3
 	return s, nil
 }
-func (fakeSecretStorageService) Delete(int, int) error           { return nil }
+func (f fakeSecretStorageService) Delete(int, int) error         { return f.deleteErr }
 func (fakeSecretStorageService) SyncSecrets(db.SecretSync) error { return nil }
 
 func TestSecretStorageEvents(t *testing.T) {
@@ -514,6 +516,31 @@ func TestSecretStorageEvents(t *testing.T) {
 	r, rec = f.request(http.MethodDelete, "", map[string]any{"secretStorage": db.SecretStorage{ID: 3, Name: "vault", ProjectID: f.project.ID}}, map[string]string{"storage_id": "3"})
 	controller.Remove(httptest.NewRecorder(), r)
 	assert.Equal(t, audit.ResourceTarget(audit.TargetSecretStorage, 3, "vault"), only(t, rec, audit.SecretStorageDelete).Event.Target)
+}
+
+func TestRemoveSecretStorage_LeftKeysIsPartial(t *testing.T) {
+	f := newResourceFixture(t)
+	controller := NewSecretStorageController(f.store, fakeSecretStorageService{deleteErr: fmt.Errorf("%w: boom", server.ErrSecretsLeftBehind)})
+
+	r, rec := f.request(http.MethodDelete, "", map[string]any{"secretStorage": db.SecretStorage{ID: 3, Name: "vault", ProjectID: f.project.ID}}, map[string]string{"storage_id": "3"})
+	w := httptest.NewRecorder()
+	controller.Remove(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code, "the API answer is unchanged")
+	got := only(t, rec, audit.SecretStorageDelete)
+	assert.Equal(t, audit.OutcomeSuccess, got.Event.Outcome, "the storage is deleted")
+	assert.Equal(t, audit.ReasonKeyFailed, got.Event.Reason)
+	assert.Equal(t, audit.DeleteMetadata{Partial: true}, got.Event.Metadata)
+}
+
+func TestRemoveSecretStorage_FailedDeleteIsNotRecorded(t *testing.T) {
+	f := newResourceFixture(t)
+	controller := NewSecretStorageController(f.store, fakeSecretStorageService{deleteErr: errors.New("boom")})
+
+	r, rec := f.request(http.MethodDelete, "", map[string]any{"secretStorage": db.SecretStorage{ID: 3, Name: "vault", ProjectID: f.project.ID}}, map[string]string{"storage_id": "3"})
+	controller.Remove(httptest.NewRecorder(), r)
+
+	assert.Empty(t, rec.All())
 }
 
 func eventText(recorded audittest.Recorded) string {
@@ -566,11 +593,31 @@ func TestRemoveEnvironment_IsRecorded(t *testing.T) {
 
 	r, rec := f.request(http.MethodDelete, "", map[string]any{"environment": env}, nil)
 	controller.RemoveEnvironment(httptest.NewRecorder(), r)
-	assert.Equal(t, audit.ResourceTarget(audit.TargetEnvironment, env.ID, "prod"), only(t, rec, audit.ResourceEnvironmentDelete).Event.Target)
+	got := only(t, rec, audit.ResourceEnvironmentDelete)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetEnvironment, env.ID, "prod"), got.Event.Target)
+	assert.Equal(t, audit.ReasonNone, got.Event.Reason)
+}
+
+func TestRemoveEnvironment_LeftSecretsIsPartial(t *testing.T) {
+	f := newResourceFixture(t)
+	env, err := f.store.CreateEnvironment(db.Environment{Name: "prod", ProjectID: f.project.ID, JSON: "{}"})
+	require.NoError(t, err)
+	controller := &EnvironmentController{environmentService: fakeEnvironmentService{deleteErr: fmt.Errorf("%w: boom", server.ErrSecretsLeftBehind)}}
+
+	r, rec := f.request(http.MethodDelete, "", map[string]any{"environment": env}, nil)
+	w := httptest.NewRecorder()
+	controller.RemoveEnvironment(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code, "the API answer is unchanged")
+	got := only(t, rec, audit.ResourceEnvironmentDelete)
+	assert.Equal(t, audit.OutcomeSuccess, got.Event.Outcome, "the environment is deleted")
+	assert.Equal(t, audit.ReasonSecretFailed, got.Event.Reason)
+	assert.Equal(t, audit.DeleteMetadata{Partial: true}, got.Event.Metadata)
 }
 
 type fakeEnvironmentService struct {
 	server.EnvironmentService
+	deleteErr error
 }
 
-func (fakeEnvironmentService) Delete(int, int) error { return nil }
+func (f fakeEnvironmentService) Delete(int, int) error { return f.deleteErr }

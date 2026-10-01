@@ -258,7 +258,7 @@ func TestEnvironmentServiceImpl_Delete_AggregatesSecretDeletionErrors(t *testing
 
 	err := service.Delete(1, 2)
 
-	assert.ErrorContains(t, err, "failed to delete some secrets")
+	assert.ErrorIs(t, err, ErrSecretsLeftBehind)
 	assert.ErrorContains(t, err, "vault unreachable")
 	// The environment itself is still deleted, and all secrets are attempted.
 	assert.Equal(t, 1, envRepo.DeleteEnvironmentCalls)

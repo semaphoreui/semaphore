@@ -113,7 +113,7 @@ func Catalog() []Entry {
 		{Kind: ResourceWorkflowDelete, Type: TypeDeletion, Pro: true},
 		{Kind: ResourceEnvironmentCreate, Type: TypeCreation, Metadata: EnvironmentMetadata{}, Partial: []Reason{ReasonSecretFailed}},
 		{Kind: ResourceEnvironmentUpdate, Type: TypeChange, Metadata: EnvironmentMetadata{}, Partial: []Reason{ReasonSecretFailed}},
-		{Kind: ResourceEnvironmentDelete, Type: TypeDeletion},
+		{Kind: ResourceEnvironmentDelete, Type: TypeDeletion, Metadata: DeleteMetadata{}, Partial: []Reason{ReasonSecretFailed}},
 		{Kind: ResourceEnvironmentSync, Type: TypeChange},
 
 		{Kind: SecretCredentialCreate, Type: TypeCreation, Metadata: CredentialMetadata{}},
@@ -121,7 +121,7 @@ func Catalog() []Entry {
 		{Kind: SecretCredentialDelete, Type: TypeDeletion},
 		{Kind: SecretStorageCreate, Type: TypeCreation, Metadata: SecretStorageMetadata{}},
 		{Kind: SecretStorageUpdate, Type: TypeChange, Metadata: SecretStorageMetadata{}},
-		{Kind: SecretStorageDelete, Type: TypeDeletion},
+		{Kind: SecretStorageDelete, Type: TypeDeletion, Metadata: DeleteMetadata{}, Partial: []Reason{ReasonKeyFailed}},
 		{Kind: SecretStorageSync, Type: TypeChange},
 
 		{Kind: SystemSettingsUpdate, Type: TypeChange, Metadata: SettingsMetadata{}},

@@ -312,6 +312,24 @@ func (c *EnvironmentController) RemoveEnvironment(w http.ResponseWriter, r *http
 		return
 	}
 
+	// The environment row is deleted before its secrets, so a failed secret is a partial success.
+	if err != nil && !errors.Is(err, server.ErrSecretsLeftBehind) {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	event := audit.Event{
+		Kind:      audit.ResourceEnvironmentDelete,
+		Target:    audit.ResourceTarget(audit.TargetEnvironment, env.ID, env.Name),
+		ProjectID: env.ProjectID,
+		Metadata:  audit.DeleteMetadata{},
+	}
+	if err != nil {
+		event.Reason = audit.ReasonSecretFailed
+		event.Metadata = audit.DeleteMetadata{Partial: true}
+	}
+	helpers.Audit(r).Record(r.Context(), event)
+
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -323,12 +341,6 @@ func (c *EnvironmentController) RemoveEnvironment(w http.ResponseWriter, r *http
 		ObjectType:  db.EventEnvironment,
 		ObjectID:    env.ID,
 		Description: fmt.Sprintf("Environment %s deleted", env.Name),
-	})
-
-	helpers.Audit(r).Record(r.Context(), audit.Event{
-		Kind:      audit.ResourceEnvironmentDelete,
-		Target:    audit.ResourceTarget(audit.TargetEnvironment, env.ID, env.Name),
-		ProjectID: env.ProjectID,
 	})
 
 	w.WriteHeader(http.StatusNoContent)

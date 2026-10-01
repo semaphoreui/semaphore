@@ -120,6 +120,11 @@ type EnvironmentMetadata struct {
 	Partial        bool `json:"partial,omitempty"`
 }
 
+// DeleteMetadata marks a delete whose row is gone but whose secrets were not all removed.
+type DeleteMetadata struct {
+	Partial bool `json:"partial,omitempty"`
+}
+
 type CredentialMetadata struct {
 	Type string `json:"type"`
 }
