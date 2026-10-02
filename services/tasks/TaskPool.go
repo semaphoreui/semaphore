@@ -570,7 +570,15 @@ func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) 
 	// above (tsk.Task.End != nil) becomes a real second guard: a late
 	// duplicate finalize on another node observes End set and skips autorun,
 	// even if the cluster-wide finalize lock has already been released.
-	tsk.finishRun()
+	// The runner that reported the end is the actor, unless the server ended the task.
+	actor := audit.SystemActor(audit.ComponentTaskRunner)
+	switch {
+	case tsk.endReason == audit.EndReasonRunnerLost:
+		actor = audit.SystemActor(audit.ComponentReconciler)
+	case tsk.endReason == "" && runner != nil:
+		actor = audit.RunnerActor(runner.ID, runner.Name)
+	}
+	tsk.finishRun(actor)
 	tsk.startAutorunTasks()
 }
 
@@ -1168,6 +1176,7 @@ func (p *TaskPool) AddTaskFrom(
 	if err != nil {
 		taskRunner.Log("Error: " + err.Error())
 		taskRunner.SetStatus(task_logger.TaskFailStatus)
+		taskRunner.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 		return
 	}
 
@@ -1180,6 +1189,7 @@ func (p *TaskPool) AddTaskFrom(
 		if err != nil {
 			taskRunner.Log("Error: failed to store survey secrets: " + err.Error())
 			taskRunner.SetStatus(task_logger.TaskFailStatus)
+			taskRunner.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 			return
 		}
 	}

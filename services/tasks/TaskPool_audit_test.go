@@ -2,10 +2,14 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/sql"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/audit/audittest"
 	"github.com/stretchr/testify/assert"
@@ -71,4 +75,106 @@ func TestAddTask_ActsForTheWorkflowRunUser(t *testing.T) {
 func TestTaskPool_WithoutRecorderRecordsNothing(t *testing.T) {
 	pool := TaskPool{}
 	assert.Equal(t, audit.Nop{}, pool.recorder())
+}
+
+func TestFinishRun_RecordsCompletionOnce(t *testing.T) {
+	fixture := newTaskRunnerRunFixture(t)
+	rec := &audittest.Recorder{}
+	fixture.pool.SetAuditRecorder(rec)
+	userID := 7
+	fixture.task.UserID = &userID
+	taskRunner := TaskRunner{Task: fixture.task, Template: fixture.template, pool: &fixture.pool, keyInstaller: fixture.keyInstaller}
+	taskRunner.job = &successfulKilledJob{onRun: func() {
+		taskRunner.SetStatus(task_logger.TaskStoppingStatus)
+	}}
+
+	taskRunner.run()
+
+	got, err := rec.Only(audit.TaskExecutionComplete)
+	require.NoError(t, err)
+	assert.Equal(t, audit.SystemActor(audit.ComponentTaskRunner), got.Actor)
+	meta := got.Event.Metadata.(audit.TaskCompleteMetadata)
+	assert.Equal(t, "stopped", meta.Result)
+	assert.Equal(t, 7, meta.InitiatorID)
+	assert.Equal(t, fixture.template.ID, meta.TemplateID)
+}
+
+func TestFailTaskRunnerLost_RecordsTheReconciler(t *testing.T) {
+	setupReconcilerConfig(t)
+	store := sql.InitConfigCreateTestStore()
+	pool := newReconcilerTestPool(store, NewMemoryTaskStateStore())
+	rec := &audittest.Recorder{}
+	pool.SetAuditRecorder(rec)
+	now := time.Now()
+	newTask, _ := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
+	tsk := &TaskRunner{Task: newTask, pool: &pool}
+	pool.state.SetRunning(tsk)
+
+	pool.failTaskRunnerLost(tsk, nil, "runner stopped responding")
+	pool.failTaskRunnerLost(tsk, nil, "runner stopped responding")
+
+	got, err := rec.Only(audit.TaskExecutionComplete)
+	require.NoError(t, err, "a second finalize records nothing")
+	assert.Equal(t, audit.SystemActor(audit.ComponentReconciler), got.Actor)
+	meta := got.Event.Metadata.(audit.TaskCompleteMetadata)
+	assert.Equal(t, "error", meta.Result)
+	assert.Equal(t, audit.EndReasonRunnerLost, meta.EndReason)
+	assert.Equal(t, audit.ReasonNone, got.Event.Reason)
+}
+
+func TestFinalizeRemoteTask_RecordsTheReportingRunner(t *testing.T) {
+	setupReconcilerConfig(t)
+	store := sql.InitConfigCreateTestStore()
+	pool := newReconcilerTestPool(store, NewMemoryTaskStateStore())
+	rec := &audittest.Recorder{}
+	pool.SetAuditRecorder(rec)
+	now := time.Now()
+	newTask, runnerID := createReconcilerTestTask(t, store, task_logger.TaskSuccessStatus, &now)
+	tsk := &TaskRunner{Task: newTask, pool: &pool}
+
+	pool.FinalizeRemoteTask(tsk, &db.Runner{ID: runnerID, Name: "r1"})
+
+	got, err := rec.Only(audit.TaskExecutionComplete)
+	require.NoError(t, err)
+	assert.Equal(t, audit.RunnerActor(runnerID, "r1"), got.Actor)
+}
+
+// failingSecretService makes populateDetails fail after the task row is stored.
+type failingSecretService struct{ EncryptionServiceMock }
+
+func (*failingSecretService) DeserializeSecret(*db.AccessKey) error { return errors.New("no key") }
+
+func TestAddTaskFrom_FailedPreparationCompletesTheTask(t *testing.T) {
+	fixture := newTaskRunnerRunFixture(t)
+	rec := &audittest.Recorder{}
+	fixture.pool.SetAuditRecorder(rec)
+	fixture.pool.register = make(chan *TaskRunner, 1)
+	fixture.pool.encryptionService = &failingSecretService{}
+
+	_, err := fixture.pool.AddTaskFrom(context.Background(), db.Task{TemplateID: fixture.template.ID}, nil, "", fixture.template.ProjectID, false)
+	require.Error(t, err)
+
+	kinds := []audit.Kind{}
+	for _, got := range rec.All() {
+		kinds = append(kinds, got.Event.Kind)
+	}
+	assert.Equal(t, []audit.Kind{audit.TaskExecutionCreate, audit.TaskExecutionComplete}, kinds)
+	assert.Equal(t, "error", rec.All()[1].Event.Metadata.(audit.TaskCompleteMetadata).Result)
+}
+
+func TestSetStatus_WaitingConfirmationRequestsApproval(t *testing.T) {
+	fixture := newTaskRunnerRunFixture(t)
+	rec := &audittest.Recorder{}
+	fixture.pool.SetAuditRecorder(rec)
+	runner, err := fixture.store.CreateRunner(db.Runner{Name: "r"})
+	require.NoError(t, err)
+	fixture.task.RunnerID = &runner.ID
+	taskRunner := TaskRunner{Task: fixture.task, Template: fixture.template, pool: &fixture.pool}
+
+	taskRunner.SetStatus(task_logger.TaskWaitingConfirmation)
+	taskRunner.SetStatus(task_logger.TaskWaitingConfirmation)
+
+	got, err := rec.Only(audit.TaskApprovalRequest)
+	require.NoError(t, err, "an unchanged status requests nothing")
+	assert.Equal(t, audit.RunnerActor(runner.ID, ""), got.Actor)
 }

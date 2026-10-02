@@ -8,6 +8,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/debuglog"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -250,6 +251,7 @@ func (p *TaskPool) failTaskRunnerLost(tsk *TaskRunner, runner *db.Runner, reason
 		tsk.Task.RunnerID = nil
 	}
 
+	tsk.endReason = audit.EndReasonRunnerLost
 	tsk.SetStatus(task_logger.TaskFailStatus)
 
 	p.finalizeRemoteTaskLocked(tsk, runner)

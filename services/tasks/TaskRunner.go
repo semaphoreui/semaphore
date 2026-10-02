@@ -57,6 +57,9 @@ type TaskRunner struct {
 	pool         *TaskPool
 	keyInstaller db_lib.AccessKeyInstaller
 
+	// endReason says why the server ended the task: audit.EndReasonTimeout or audit.EndReasonRunnerLost.
+	endReason string
+
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
 
@@ -218,7 +221,7 @@ func (t *TaskRunner) run() {
 			"task_id": t.Task.ID,
 		}).Info("Stopped running task " + t.Template.Name)
 
-		t.finishRun()
+		t.finishRun(audit.SystemActor(audit.ComponentTaskRunner))
 	}()
 
 	// Mark task as stopped if user stopped task during preparation (before task run).
@@ -356,7 +359,7 @@ func (t *TaskRunner) run() {
 // finishRun records the end of a task run, persists it, and notifies the pool
 // to release the task's resources (EventTypeFinished -> onTaskStop). It is used
 // by the synchronous local path and by FinalizeRemoteTask for remote tasks.
-func (t *TaskRunner) finishRun() {
+func (t *TaskRunner) finishRun(actor audit.Actor) {
 	if !t.Task.Status.IsFinished() {
 		log.WithFields(log.Fields{
 			"task_id":     t.Task.ID,
@@ -378,6 +381,7 @@ func (t *TaskRunner) finishRun() {
 	}
 
 	t.createTaskEvent()
+	t.recordComplete(actor)
 	t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
 
 	// Notify the workflow service that this task finished so it can progress the
@@ -391,6 +395,23 @@ func (t *TaskRunner) finishRun() {
 	if err := t.pool.HandleWorkflowTaskCompletion(t.Task); err != nil {
 		t.Log("Workflow progression failed: " + err.Error())
 	}
+}
+
+// recordComplete is shared by finishRun and the paths that end a task without it.
+func (t *TaskRunner) recordComplete(actor audit.Actor) {
+	meta := audit.TaskCompleteMetadata{Result: string(t.Task.Status), EndReason: t.endReason, TemplateID: t.Task.TemplateID}
+	if t.Task.UserID != nil {
+		meta.InitiatorID = *t.Task.UserID
+	}
+	if t.Task.Start != nil && t.Task.End != nil {
+		meta.DurationMS = t.Task.End.Sub(*t.Task.Start).Milliseconds()
+	}
+	t.pool.recorder().Record(audit.WithActor(context.Background(), actor), audit.Event{
+		Kind:      audit.TaskExecutionComplete,
+		Target:    audit.ResourceTarget(audit.TargetTask, t.Task.ID, t.Template.Name),
+		ProjectID: t.Task.ProjectID,
+		Metadata:  meta,
+	})
 }
 
 // startAutorunTasks queues the autorun child templates of a successfully
