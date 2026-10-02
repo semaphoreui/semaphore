@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro/pkg/stage_parsers"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -82,6 +84,8 @@ type TaskPool struct {
 	// after construction via SetWorkflowService; the pool only calls back into it
 	// when a workflow task finishes. nil in tests / before wiring.
 	workflowService pro_interfaces.WorkflowService
+	// auditRecorder is injected after construction, nil means no audit.
+	auditRecorder audit.Recorder
 	// stop signals the background loops started by Run to exit. Closing it (via
 	// Stop) terminates the runner-task reconcile loop and Run's own select.
 	// Channels are used rather than sync.WaitGroup/sync.Once because TaskPool is
@@ -140,6 +144,18 @@ func (p *TaskPool) StateStore() TaskStateStore {
 // and the pool needs the service to progress runs as tasks finish).
 func (p *TaskPool) SetWorkflowService(svc pro_interfaces.WorkflowService) {
 	p.workflowService = svc
+}
+
+func (p *TaskPool) SetAuditRecorder(recorder audit.Recorder) {
+	p.auditRecorder = recorder
+}
+
+// Tests build pools as struct literals without a recorder.
+func (p *TaskPool) recorder() audit.Recorder {
+	if p.auditRecorder == nil {
+		return audit.Nop{}
+	}
+	return p.auditRecorder
 }
 
 // HandleWorkflowTaskCompletion notifies the workflow service that a task that
@@ -1052,9 +1068,19 @@ func (p *TaskPool) taskSecretSweepLoop() {
 	}
 }
 
-// AddTask creates and queues a new task for execution in the task pool.
+// AddTask serves the Pro workflow service, which starts nodes in the background for the run's user.
+func (p *TaskPool) AddTask(taskObj db.Task, userID *int, username string, projectID int, needAlias bool) (db.Task, error) {
+	actor := audit.SystemActor(audit.ComponentTaskRunner)
+	if userID != nil {
+		actor = audit.UserActor(*userID, username, "", "")
+	}
+	return p.AddTaskFrom(audit.WithActor(context.Background(), actor), taskObj, userID, username, projectID, needAlias)
+}
+
+// AddTaskFrom creates and queues a new task for execution in the task pool.
 //
 // Parameters:
+//   - ctx: Carries the audit actor that started the task
 //   - taskObj: The task object with initial configuration
 //   - userID: Optional ID of the user initiating the task
 //   - username: Username of the user initiating the task
@@ -1072,7 +1098,8 @@ func (p *TaskPool) taskSecretSweepLoop() {
 // Returns:
 //   - The newly created task with all properties set
 //   - An error if task creation or validation fails
-func (p *TaskPool) AddTask(
+func (p *TaskPool) AddTaskFrom(
+	ctx context.Context,
 	taskObj db.Task,
 	userID *int,
 	username string,
@@ -1122,6 +1149,13 @@ func (p *TaskPool) AddTask(
 	if err != nil {
 		return
 	}
+
+	p.recorder().Record(ctx, audit.Event{
+		Kind:      audit.TaskExecutionCreate,
+		Target:    audit.ResourceTarget(audit.TargetTask, newTask.ID, tpl.Name),
+		ProjectID: projectID,
+		Metadata:  taskCreateMetadata(newTask),
+	})
 
 	taskRunner := NewTaskRunner(newTask, p, username, p.keyInstallationService)
 
@@ -1195,4 +1229,22 @@ func (p *TaskPool) AddTask(
 	taskRunner.createTaskEvent()
 
 	return
+}
+
+func taskCreateMetadata(task db.Task) audit.TaskCreateMetadata {
+	meta := audit.TaskCreateMetadata{Trigger: audit.TriggerAPI, TemplateID: task.TemplateID}
+	if task.BuildTaskID != nil {
+		meta.ParentTaskID = *task.BuildTaskID
+	}
+	switch {
+	case task.WorkflowRunID != nil:
+		meta.Trigger, meta.WorkflowRunID = audit.TriggerWorkflow, *task.WorkflowRunID
+	case task.ScheduleID != nil:
+		meta.Trigger, meta.ScheduleID = audit.TriggerSchedule, *task.ScheduleID
+	case task.IntegrationID != nil:
+		meta.Trigger, meta.IntegrationID = audit.TriggerIntegration, *task.IntegrationID
+	case task.BuildTaskID != nil && task.UserID == nil:
+		meta.Trigger = audit.TriggerAutorun
+	}
+	return meta
 }

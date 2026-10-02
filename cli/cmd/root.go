@@ -218,6 +218,7 @@ func runService() {
 		jwtSigner,
 		appMetrics,
 	)
+	taskPool.SetAuditRecorder(auditService.Recorder())
 
 	// The workflow service orchestrates workflow runs and launches each node's
 	// task through the pool; the pool calls back into it when a workflow task

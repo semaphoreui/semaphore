@@ -76,7 +76,8 @@ func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newTask, err := taskPool(r).AddTask(
+	newTask, err := taskPool(r).AddTaskFrom(
+		r.Context(),
 		taskObj,
 		&user.ID,
 		user.Username,

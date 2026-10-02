@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/conv"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 	task2 "github.com/semaphoreui/semaphore/services/tasks"
 
@@ -383,7 +384,9 @@ func (c *IntegrationController) RunIntegration(integration db.Integration, proje
 
 	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
-	task, err := pool.AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
+	// The webhook caller authenticates as the integration, and its address stays in the request context.
+	ctx := audit.WithActor(r.Context(), audit.IntegrationActor(integration.ID, integration.Name))
+	task, err := pool.AddTaskFrom(ctx, taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
 		log.Error(err)
 		return

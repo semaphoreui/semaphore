@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 
@@ -414,7 +416,8 @@ func (t *TaskRunner) startAutorunTasks() {
 			ProjectID:   tpl.ProjectID,
 			BuildTaskID: &t.Task.ID,
 		}
-		_, err = t.pool.AddTask(
+		_, err = t.pool.AddTaskFrom(
+			audit.WithActor(context.Background(), audit.SystemActor(audit.ComponentTaskRunner)),
 			task,
 			nil,
 			"",
