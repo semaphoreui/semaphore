@@ -386,7 +386,7 @@ func (c *IntegrationController) RunIntegration(integration db.Integration, proje
 
 	// The webhook caller authenticates as the integration, and its address stays in the request context.
 	ctx := audit.WithActor(r.Context(), audit.IntegrationActor(integration.ID, integration.Name))
-	task, err := pool.AddTaskFrom(ctx, taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
+	task, err := pool.AddTaskFrom(ctx, audit.TriggerIntegration, taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
 		log.Error(err)
 		return

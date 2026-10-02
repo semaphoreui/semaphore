@@ -448,6 +448,7 @@ func (t *TaskRunner) startAutorunTasks() {
 		}
 		_, err = t.pool.AddTaskFrom(
 			audit.WithActor(context.Background(), audit.SystemActor(audit.ComponentTaskRunner)),
+			audit.TriggerAutorun,
 			task,
 			nil,
 			"",

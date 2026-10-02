@@ -1094,13 +1094,14 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, username string, projec
 	if userID != nil {
 		actor = audit.UserActor(*userID, username, "", "")
 	}
-	return p.AddTaskFrom(audit.WithActor(context.Background(), actor), taskObj, userID, username, projectID, needAlias)
+	return p.AddTaskFrom(audit.WithActor(context.Background(), actor), audit.TriggerWorkflow, taskObj, userID, username, projectID, needAlias)
 }
 
 // AddTaskFrom creates and queues a new task for execution in the task pool.
 //
 // Parameters:
 //   - ctx: Carries the audit actor that started the task
+//   - trigger: What started the task, recorded in the audit (audit.Trigger*)
 //   - taskObj: The task object with initial configuration
 //   - userID: Optional ID of the user initiating the task
 //   - username: Username of the user initiating the task
@@ -1120,6 +1121,7 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, username string, projec
 //   - An error if task creation or validation fails
 func (p *TaskPool) AddTaskFrom(
 	ctx context.Context,
+	trigger string,
 	taskObj db.Task,
 	userID *int,
 	username string,
@@ -1174,7 +1176,7 @@ func (p *TaskPool) AddTaskFrom(
 		Kind:      audit.TaskExecutionCreate,
 		Target:    audit.ResourceTarget(audit.TargetTask, newTask.ID, tpl.Name),
 		ProjectID: projectID,
-		Metadata:  taskCreateMetadata(newTask),
+		Metadata:  taskCreateMetadata(trigger, newTask),
 	})
 
 	taskRunner := NewTaskRunner(newTask, p, username, p.keyInstallationService)
@@ -1253,20 +1255,26 @@ func (p *TaskPool) AddTaskFrom(
 	return
 }
 
-func taskCreateMetadata(task db.Task) audit.TaskCreateMetadata {
-	meta := audit.TaskCreateMetadata{Trigger: audit.TriggerAPI, TemplateID: task.TemplateID}
-	if task.BuildTaskID != nil {
-		meta.ParentTaskID = *task.BuildTaskID
-	}
-	switch {
-	case task.WorkflowRunID != nil:
-		meta.Trigger, meta.WorkflowRunID = audit.TriggerWorkflow, *task.WorkflowRunID
-	case task.ScheduleID != nil:
-		meta.Trigger, meta.ScheduleID = audit.TriggerSchedule, *task.ScheduleID
-	case task.IntegrationID != nil:
-		meta.Trigger, meta.IntegrationID = audit.TriggerIntegration, *task.IntegrationID
-	case task.BuildTaskID != nil && task.UserID == nil:
-		meta.Trigger = audit.TriggerAutorun
+// taskCreateMetadata takes the trigger from the caller because the API binds source IDs from the request body.
+func taskCreateMetadata(trigger string, task db.Task) audit.TaskCreateMetadata {
+	meta := audit.TaskCreateMetadata{Trigger: trigger, TemplateID: task.TemplateID}
+	switch trigger {
+	case audit.TriggerSchedule:
+		if task.ScheduleID != nil {
+			meta.ScheduleID = *task.ScheduleID
+		}
+	case audit.TriggerIntegration:
+		if task.IntegrationID != nil {
+			meta.IntegrationID = *task.IntegrationID
+		}
+	case audit.TriggerWorkflow:
+		if task.WorkflowRunID != nil {
+			meta.WorkflowRunID = *task.WorkflowRunID
+		}
+	case audit.TriggerAutorun, audit.TriggerAPI:
+		if task.BuildTaskID != nil {
+			meta.ParentTaskID = *task.BuildTaskID
+		}
 	}
 	return meta
 }

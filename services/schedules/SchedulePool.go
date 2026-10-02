@@ -177,6 +177,7 @@ func (r ScheduleRunner) Run() {
 
 	_, err = r.pool.taskPool.AddTaskFrom(
 		audit.WithActor(context.Background(), audit.SystemActor(audit.ComponentScheduler)),
+		audit.TriggerSchedule,
 		task,
 		nil,
 		"",

@@ -19,20 +19,22 @@ import (
 func TestTaskCreateMetadata(t *testing.T) {
 	id := func(v int) *int { return &v }
 	tests := []struct {
-		name string
-		task db.Task
-		want audit.TaskCreateMetadata
+		name    string
+		trigger string
+		task    db.Task
+		want    audit.TaskCreateMetadata
 	}{
-		{"api", db.Task{TemplateID: 3, UserID: id(7)}, audit.TaskCreateMetadata{Trigger: audit.TriggerAPI, TemplateID: 3}},
-		{"schedule", db.Task{TemplateID: 3, ScheduleID: id(5)}, audit.TaskCreateMetadata{Trigger: audit.TriggerSchedule, TemplateID: 3, ScheduleID: 5}},
-		{"integration", db.Task{TemplateID: 3, IntegrationID: id(6)}, audit.TaskCreateMetadata{Trigger: audit.TriggerIntegration, TemplateID: 3, IntegrationID: 6}},
-		{"autorun", db.Task{TemplateID: 3, BuildTaskID: id(9)}, audit.TaskCreateMetadata{Trigger: audit.TriggerAutorun, TemplateID: 3, ParentTaskID: 9}},
-		{"deploy started by a user", db.Task{TemplateID: 3, UserID: id(7), BuildTaskID: id(9)}, audit.TaskCreateMetadata{Trigger: audit.TriggerAPI, TemplateID: 3, ParentTaskID: 9}},
-		{"workflow", db.Task{TemplateID: 3, WorkflowRunID: id(4), BuildTaskID: id(9)}, audit.TaskCreateMetadata{Trigger: audit.TriggerWorkflow, TemplateID: 3, WorkflowRunID: 4, ParentTaskID: 9}},
+		{"api", audit.TriggerAPI, db.Task{TemplateID: 3, UserID: id(7)}, audit.TaskCreateMetadata{Trigger: audit.TriggerAPI, TemplateID: 3}},
+		{"api ignores source IDs from the request", audit.TriggerAPI, db.Task{TemplateID: 3, UserID: id(7), ScheduleID: id(5), IntegrationID: id(6), WorkflowRunID: id(4)}, audit.TaskCreateMetadata{Trigger: audit.TriggerAPI, TemplateID: 3}},
+		{"deploy started by a user", audit.TriggerAPI, db.Task{TemplateID: 3, UserID: id(7), BuildTaskID: id(9), ScheduleID: id(5)}, audit.TaskCreateMetadata{Trigger: audit.TriggerAPI, TemplateID: 3, ParentTaskID: 9}},
+		{"schedule", audit.TriggerSchedule, db.Task{TemplateID: 3, ScheduleID: id(5)}, audit.TaskCreateMetadata{Trigger: audit.TriggerSchedule, TemplateID: 3, ScheduleID: 5}},
+		{"integration", audit.TriggerIntegration, db.Task{TemplateID: 3, IntegrationID: id(6)}, audit.TaskCreateMetadata{Trigger: audit.TriggerIntegration, TemplateID: 3, IntegrationID: 6}},
+		{"autorun", audit.TriggerAutorun, db.Task{TemplateID: 3, BuildTaskID: id(9)}, audit.TaskCreateMetadata{Trigger: audit.TriggerAutorun, TemplateID: 3, ParentTaskID: 9}},
+		{"workflow", audit.TriggerWorkflow, db.Task{TemplateID: 3, WorkflowRunID: id(4), BuildTaskID: id(9)}, audit.TaskCreateMetadata{Trigger: audit.TriggerWorkflow, TemplateID: 3, WorkflowRunID: 4}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, taskCreateMetadata(tt.task))
+			assert.Equal(t, tt.want, taskCreateMetadata(tt.trigger, tt.task))
 		})
 	}
 }
@@ -46,7 +48,7 @@ func TestAddTaskFrom_RecordsTheCallerActor(t *testing.T) {
 	schedule, err := fixture.store.CreateSchedule(db.Schedule{ProjectID: fixture.template.ProjectID, TemplateID: fixture.template.ID, CronFormat: "* * * * *"})
 	require.NoError(t, err)
 
-	task, err := fixture.pool.AddTaskFrom(ctx, db.Task{TemplateID: fixture.template.ID, ScheduleID: &schedule.ID}, nil, "", fixture.template.ProjectID, false)
+	task, err := fixture.pool.AddTaskFrom(ctx, audit.TriggerSchedule, db.Task{TemplateID: fixture.template.ID, ScheduleID: &schedule.ID}, nil, "", fixture.template.ProjectID, false)
 	require.NoError(t, err)
 
 	got, err := rec.Only(audit.TaskExecutionCreate)
@@ -70,6 +72,7 @@ func TestAddTask_ActsForTheWorkflowRunUser(t *testing.T) {
 	got, err := rec.Only(audit.TaskExecutionCreate)
 	require.NoError(t, err)
 	assert.Equal(t, audit.UserActor(user.ID, "alice", "", ""), got.Actor)
+	assert.Equal(t, audit.TriggerWorkflow, got.Event.Metadata.(audit.TaskCreateMetadata).Trigger)
 }
 
 func TestTaskPool_WithoutRecorderRecordsNothing(t *testing.T) {
@@ -151,7 +154,7 @@ func TestAddTaskFrom_FailedPreparationCompletesTheTask(t *testing.T) {
 	fixture.pool.register = make(chan *TaskRunner, 1)
 	fixture.pool.encryptionService = &failingSecretService{}
 
-	_, err := fixture.pool.AddTaskFrom(context.Background(), db.Task{TemplateID: fixture.template.ID}, nil, "", fixture.template.ProjectID, false)
+	_, err := fixture.pool.AddTaskFrom(context.Background(), audit.TriggerAPI, db.Task{TemplateID: fixture.template.ID}, nil, "", fixture.template.ProjectID, false)
 	require.Error(t, err)
 
 	kinds := []audit.Kind{}
