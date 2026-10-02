@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
@@ -58,6 +59,7 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 		}
 
 		r = helpers.SetContextValue(r, "runner", runner)
+		r = r.WithContext(audit.WithActor(r.Context(), audit.RunnerActor(runner.ID, runner.Name)))
 		next.ServeHTTP(w, r)
 	})
 }
@@ -429,6 +431,14 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 
 		if !job.Status.IsValid() {
 			jobLog.WithField("reported_status", string(job.Status)).Debug("Rejecting runner task update: invalid status")
+			// The status string comes from the runner, so it is not recorded.
+			helpers.Audit(r).Record(r.Context(), audit.Event{
+				Kind:      audit.RunnerProgressReject,
+				Outcome:   audit.OutcomeFailure,
+				Reason:    audit.ReasonInvalidStatus,
+				Target:    audit.ResourceTarget(audit.TargetTask, job.ID, ""),
+				ProjectID: tsk.Task.ProjectID,
+			})
 			helpers.WriteErrorStatus(w, "Invalid task status", http.StatusBadRequest)
 			return
 		}
@@ -500,12 +510,19 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 	var runner db.Runner
 	var err error
 
+	tokenType := audit.RunnerTokenOneTime
 	if strings.HasPrefix(register.RegistrationToken, "smrs_") {
 		// Otherwise the value is a one-time registration token issued for a specific
 		// unregistered runner. The global token cannot be used to register it.
 		runner, err = store.RegisterRunner(server.HashRunnerRegistrationToken(register.RegistrationToken), nil)
 
 		if err != nil {
+			helpers.Audit(r).Record(r.Context(), audit.Event{
+				Kind:     audit.RunnerLifecycleRegister,
+				Outcome:  audit.OutcomeFailure,
+				Reason:   audit.ReasonInvalidRegistrationToken,
+				Metadata: audit.RunnerRegisterMetadata{Token: tokenType},
+			})
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "Invalid registration token",
 			})
@@ -513,6 +530,7 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		}
 	} else if util.Config.GetRunnerRegistrationToken() != "" && register.RegistrationToken == util.Config.GetRunnerRegistrationToken() {
 		// The shared, global registration token creates a brand-new runner.
+		tokenType = audit.RunnerTokenGlobal
 		runner, err = store.CreateRunner(db.Runner{
 			Token:            db.GenerateRunnerToken(),
 			Webhook:          register.Webhook,
@@ -534,6 +552,12 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:     audit.RunnerLifecycleRegister,
+			Outcome:  audit.OutcomeFailure,
+			Reason:   audit.ReasonInvalidRegistrationToken,
+			Metadata: audit.RunnerRegisterMetadata{Token: tokenType},
+		})
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid registration token",
 		})
@@ -544,6 +568,17 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		"runner_id": runner.ID,
 		"context":   "runner",
 	}).Info("New runner registered")
+
+	projectID := 0
+	if runner.ProjectID != nil {
+		projectID = *runner.ProjectID
+	}
+	helpers.Audit(r).Record(audit.WithActor(r.Context(), audit.RunnerActor(runner.ID, runner.Name)), audit.Event{
+		Kind:      audit.RunnerLifecycleRegister,
+		Target:    audit.ResourceTarget(audit.TargetRunner, runner.ID, runner.Name),
+		ProjectID: projectID,
+		Metadata:  audit.RunnerRegisterMetadata{Token: tokenType},
+	})
 
 	var res struct {
 		Token string `json:"token"`
@@ -566,6 +601,13 @@ func UnregisterRunner(w http.ResponseWriter, r *http.Request) {
 			"error": "Unknown error",
 		})
 		return
+	}
+
+	if err == nil {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:   audit.RunnerLifecycleUnregister,
+			Target: audit.ResourceTarget(audit.TargetRunner, runner.ID, runner.Name),
+		})
 	}
 
 	w.WriteHeader(http.StatusNoContent)
