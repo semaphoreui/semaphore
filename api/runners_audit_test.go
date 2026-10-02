@@ -76,7 +76,6 @@ func TestGlobalRunnerEnableUnchangedRecordsNothing(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
 	runner, err := store.CreateRunner(db.Runner{Name: "r1", Active: true})
 	require.NoError(t, err)
-	runner.Active = true
 	controller := NewGlobalRunnerController(fakeRunnerService{})
 
 	r := httptest.NewRequest(http.MethodPost, "/api/runners/1", strings.NewReader(`{"active":true}`))
