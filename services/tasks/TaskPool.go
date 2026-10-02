@@ -571,11 +571,12 @@ func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) 
 	// duplicate finalize on another node observes End set and skips autorun,
 	// even if the cluster-wide finalize lock has already been released.
 	// The runner that reported the end is the actor, unless the server ended the task.
+	// The finish webhook above still needs the runner either way.
 	actor := audit.SystemActor(audit.ComponentTaskRunner)
 	switch {
 	case tsk.endReason == audit.EndReasonRunnerLost:
 		actor = audit.SystemActor(audit.ComponentReconciler)
-	case tsk.endReason == "" && runner != nil:
+	case tsk.endReason == "" && !tsk.dispatchFailed && runner != nil:
 		actor = audit.RunnerActor(runner.ID, runner.Name)
 	}
 	tsk.finishRun(actor)

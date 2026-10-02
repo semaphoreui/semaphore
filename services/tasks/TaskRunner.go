@@ -60,6 +60,9 @@ type TaskRunner struct {
 	// endReason says why the server ended the task: audit.EndReasonTimeout or audit.EndReasonRunnerLost.
 	endReason string
 
+	// dispatchFailed marks a task the server failed before handing it to the runner that polled it.
+	dispatchFailed bool
+
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
 
@@ -395,6 +398,12 @@ func (t *TaskRunner) finishRun(actor audit.Actor) {
 	if err := t.pool.HandleWorkflowTaskCompletion(t.Task); err != nil {
 		t.Log("Workflow progression failed: " + err.Error())
 	}
+}
+
+// FailDispatch fails a task the server could not hand to its runner, so the runner is not the audit actor.
+func (t *TaskRunner) FailDispatch() {
+	t.dispatchFailed = true
+	t.SetStatus(task_logger.TaskFailStatus)
 }
 
 // recordComplete is shared by finishRun and the paths that end a task without it.

@@ -171,7 +171,7 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 			logger.Error("failed to read task survey secrets")
 			tsk.Log("Failed to read survey secrets. More details in the server logs.")
 		}
-		tsk.SetStatus(task_logger.TaskFailStatus)
+		tsk.FailDispatch()
 		c.taskPool.FinalizeRemoteTask(tsk, runner)
 		return
 	}
@@ -202,7 +202,7 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 				"context":     "jwt",
 			}).Warn("invalid template jwt_params.ttl")
 			tsk.Log("Invalid JWT token lifetime in the template settings: " + terr.Error())
-			tsk.SetStatus(task_logger.TaskFailStatus)
+			tsk.FailDispatch()
 			c.taskPool.FinalizeRemoteTask(tsk, runner)
 			return
 		}
@@ -221,7 +221,7 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 				"context": "jwt",
 			}).Error("failed to sign task JWT")
 			tsk.Log("Failed to sign the task JWT. More details in the server logs.")
-			tsk.SetStatus(task_logger.TaskFailStatus)
+			tsk.FailDispatch()
 			c.taskPool.FinalizeRemoteTask(tsk, runner)
 			return
 		}
@@ -236,7 +236,7 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 	taskKeys := make(map[int]db.AccessKey)
 	if kerr := c.collectTaskAccessKeys(tsk, runner.ID, taskKeys); kerr != nil {
 		tsk.Log("Failed to decrypt access keys of the task. More details in the server logs.")
-		tsk.SetStatus(task_logger.TaskFailStatus)
+		tsk.FailDispatch()
 		c.taskPool.FinalizeRemoteTask(tsk, runner)
 		return
 	}

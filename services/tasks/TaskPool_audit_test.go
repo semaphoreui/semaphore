@@ -178,3 +178,22 @@ func TestSetStatus_WaitingConfirmationRequestsApproval(t *testing.T) {
 	require.NoError(t, err, "an unchanged status requests nothing")
 	assert.Equal(t, audit.RunnerActor(runner.ID, ""), got.Actor)
 }
+
+func TestFinalizeRemoteTask_DispatchFailureIsNotTheRunner(t *testing.T) {
+	setupReconcilerConfig(t)
+	store := sql.InitConfigCreateTestStore()
+	pool := newReconcilerTestPool(store, NewMemoryTaskStateStore())
+	rec := &audittest.Recorder{}
+	pool.SetAuditRecorder(rec)
+	now := time.Now()
+	newTask, runnerID := createReconcilerTestTask(t, store, task_logger.TaskRunningStatus, &now)
+	tsk := &TaskRunner{Task: newTask, pool: &pool}
+
+	tsk.FailDispatch()
+	pool.FinalizeRemoteTask(tsk, &db.Runner{ID: runnerID, Name: "r1"})
+
+	got, err := rec.Only(audit.TaskExecutionComplete)
+	require.NoError(t, err)
+	assert.Equal(t, audit.SystemActor(audit.ComponentTaskRunner), got.Actor)
+	assert.Empty(t, got.Event.Metadata.(audit.TaskCompleteMetadata).EndReason)
+}
