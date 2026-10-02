@@ -133,3 +133,29 @@ type CredentialMetadata struct {
 type SecretStorageMetadata struct {
 	Type string `json:"type"`
 }
+
+type TaskCreateMetadata struct {
+	Trigger       string `json:"trigger"`
+	TemplateID    int    `json:"template_id"`
+	ScheduleID    int    `json:"schedule_id,omitempty"`
+	IntegrationID int    `json:"integration_id,omitempty"`
+	ParentTaskID  int    `json:"parent_task_id,omitempty"`
+	WorkflowRunID int    `json:"workflow_run_id,omitempty"`
+}
+
+type TaskCompleteMetadata struct {
+	// The final task status: success, error or stopped.
+	Result      string `json:"result"`
+	EndReason   string `json:"end_reason,omitempty"`
+	TemplateID  int    `json:"template_id"`
+	InitiatorID int    `json:"initiator_id,omitempty"`
+	DurationMS  int64  `json:"duration_ms"`
+}
+
+type TaskMetadata struct {
+	TemplateID int `json:"template_id"`
+}
+
+type RunnerRegisterMetadata struct {
+	Token string `json:"token"`
+}

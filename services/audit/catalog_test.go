@@ -197,3 +197,27 @@ func TestValidatePartialSuccess(t *testing.T) {
 func TestResourceTarget(t *testing.T) {
 	assert.Equal(t, &Target{Type: TargetInventory, ID: "5", Name: "prod"}, ResourceTarget(TargetInventory, 5, "prod"))
 }
+
+func TestTaskAndRunnerEntries(t *testing.T) {
+	tests := []struct {
+		event   Event
+		wantErr bool
+	}{
+		{Event{Kind: TaskExecutionComplete, Metadata: TaskCompleteMetadata{Result: "error", EndReason: EndReasonTimeout}}, false},
+		{Event{Kind: TaskExecutionComplete, Reason: Reason(EndReasonTimeout), Metadata: TaskCompleteMetadata{}}, true},
+		{Event{Kind: RunnerLifecycleRegister, Outcome: OutcomeFailure, Reason: ReasonInvalidRegistrationToken, Metadata: RunnerRegisterMetadata{}}, false},
+		{Event{Kind: RunnerProgressReject, Outcome: OutcomeFailure, Reason: ReasonInvalidStatus}, false},
+		{Event{Kind: RunnerProgressReject}, true},
+		{Event{Kind: TaskControlStopAll}, false},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.event.Kind), func(t *testing.T) {
+			err := Validate(tt.event)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

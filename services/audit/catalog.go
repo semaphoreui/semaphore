@@ -124,6 +124,27 @@ func Catalog() []Entry {
 		{Kind: SecretStorageDelete, Type: TypeDeletion, Metadata: DeleteMetadata{}},
 		{Kind: SecretStorageSync, Type: TypeChange, Pro: true},
 
+		{Kind: TaskExecutionCreate, Type: TypeCreation, Metadata: TaskCreateMetadata{}},
+		{Kind: TaskExecutionComplete, Type: TypeEnd, Metadata: TaskCompleteMetadata{}},
+		{Kind: TaskApprovalRequest, Type: TypeInfo, Metadata: TaskMetadata{}},
+		{Kind: TaskApprovalApprove, Type: TypeChange, Metadata: TaskMetadata{}},
+		{Kind: TaskApprovalReject, Type: TypeChange, Metadata: TaskMetadata{}},
+		{Kind: TaskControlStop, Type: TypeChange, Metadata: TaskMetadata{}},
+		{Kind: TaskControlForceStop, Type: TypeChange, Metadata: TaskMetadata{}},
+		{Kind: TaskControlStopAll, Type: TypeChange},
+		{Kind: TaskHistoryDelete, Type: TypeDeletion, Metadata: TaskMetadata{}},
+
+		{Kind: RunnerLifecycleCreate, Type: TypeCreation},
+		{Kind: RunnerLifecycleUpdate, Type: TypeChange},
+		{Kind: RunnerLifecycleDelete, Type: TypeDeletion},
+		{Kind: RunnerLifecycleEnable, Type: TypeChange},
+		{Kind: RunnerLifecycleDisable, Type: TypeChange},
+		{Kind: RunnerLifecycleRegister, Type: TypeCreation, Metadata: RunnerRegisterMetadata{}, Reasons: []Reason{ReasonInvalidRegistrationToken}},
+		{Kind: RunnerLifecycleUnregister, Type: TypeDeletion},
+		{Kind: RunnerCredentialRotate, Type: TypeChange},
+		{Kind: RunnerCacheClear, Type: TypeDeletion},
+		{Kind: RunnerProgressReject, Type: TypeDenied, Reasons: []Reason{ReasonInvalidStatus}},
+
 		{Kind: SystemSettingsUpdate, Type: TypeChange, Metadata: SettingsMetadata{}},
 		{Kind: SystemLicenseActivate, Type: TypeChange, Reasons: []Reason{ReasonActivationFailed}, Pro: true},
 

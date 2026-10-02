@@ -33,28 +33,30 @@ const (
 type Reason string
 
 const (
-	ReasonNone                   Reason = ""
-	ReasonInvalidCredentials     Reason = "invalid_credentials"
-	ReasonUserNotFound           Reason = "user_not_found"
-	ReasonMethodDisabled         Reason = "method_disabled"
-	ReasonProviderError          Reason = "provider_error"
-	ReasonInvalidState           Reason = "invalid_state"
-	ReasonInternalError          Reason = "internal_error"
-	ReasonInvalidPasscode        Reason = "invalid_passcode"
-	ReasonInvalidRecoveryCode    Reason = "invalid_recovery_code"
-	ReasonCodeExpired            Reason = "code_expired"
-	ReasonTooManyAttempts        Reason = "too_many_attempts"
-	ReasonTokenUnknown           Reason = "token_unknown"
-	ReasonTokenExpired           Reason = "token_expired"
-	ReasonForbidden              Reason = "forbidden"
-	ReasonCrossOrigin            Reason = "cross_origin"
-	ReasonInvalidCurrentPassword Reason = "invalid_current_password"
-	ReasonOwnerSelfChange        Reason = "owner_self_change"
-	ReasonActivationFailed       Reason = "activation_failed"
-	ReasonSecretFailed           Reason = "secret_failed"
-	ReasonInventoryFailed        Reason = "inventory_failed"
-	ReasonSetupFailed            Reason = "setup_failed"
-	ReasonRestoreFailed          Reason = "restore_failed"
+	ReasonNone                     Reason = ""
+	ReasonInvalidCredentials       Reason = "invalid_credentials"
+	ReasonUserNotFound             Reason = "user_not_found"
+	ReasonMethodDisabled           Reason = "method_disabled"
+	ReasonProviderError            Reason = "provider_error"
+	ReasonInvalidState             Reason = "invalid_state"
+	ReasonInternalError            Reason = "internal_error"
+	ReasonInvalidPasscode          Reason = "invalid_passcode"
+	ReasonInvalidRecoveryCode      Reason = "invalid_recovery_code"
+	ReasonCodeExpired              Reason = "code_expired"
+	ReasonTooManyAttempts          Reason = "too_many_attempts"
+	ReasonTokenUnknown             Reason = "token_unknown"
+	ReasonTokenExpired             Reason = "token_expired"
+	ReasonForbidden                Reason = "forbidden"
+	ReasonCrossOrigin              Reason = "cross_origin"
+	ReasonInvalidCurrentPassword   Reason = "invalid_current_password"
+	ReasonOwnerSelfChange          Reason = "owner_self_change"
+	ReasonActivationFailed         Reason = "activation_failed"
+	ReasonSecretFailed             Reason = "secret_failed"
+	ReasonInventoryFailed          Reason = "inventory_failed"
+	ReasonSetupFailed              Reason = "setup_failed"
+	ReasonRestoreFailed            Reason = "restore_failed"
+	ReasonInvalidRegistrationToken Reason = "invalid_registration_token"
+	ReasonInvalidStatus            Reason = "invalid_status"
 )
 
 func knownReasons() []Reason {
@@ -64,6 +66,7 @@ func knownReasons() []Reason {
 		ReasonCodeExpired, ReasonTooManyAttempts, ReasonTokenUnknown, ReasonTokenExpired,
 		ReasonForbidden, ReasonCrossOrigin, ReasonInvalidCurrentPassword, ReasonOwnerSelfChange,
 		ReasonActivationFailed, ReasonSecretFailed, ReasonInventoryFailed, ReasonSetupFailed, ReasonRestoreFailed,
+		ReasonInvalidRegistrationToken, ReasonInvalidStatus,
 	}
 }
 
@@ -106,6 +109,8 @@ const (
 	TargetEnvironment           = "environment"
 	TargetCredential            = "credential"
 	TargetSecretStorage         = "secret_storage"
+	TargetTask                  = "task"
+	TargetRunner                = "runner"
 )
 
 const (
@@ -120,4 +125,25 @@ const (
 	LoginMethodPassword = "password"
 	LoginMethodLDAP     = "ldap"
 	LoginMethodOIDC     = "oidc"
+)
+
+// Values of metadata.trigger of task.execution/create.
+const (
+	TriggerAPI         = "api"
+	TriggerSchedule    = "schedule"
+	TriggerIntegration = "integration"
+	TriggerAutorun     = "autorun"
+	TriggerWorkflow    = "workflow"
+)
+
+// Values of metadata.end_reason of task.execution/complete.
+const (
+	EndReasonTimeout    = "timeout"
+	EndReasonRunnerLost = "runner_lost"
+)
+
+// Values of metadata.token of runner.lifecycle/register.
+const (
+	RunnerTokenOneTime = "one_time"
+	RunnerTokenGlobal  = "global"
 )
