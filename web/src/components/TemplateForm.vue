@@ -773,7 +773,7 @@ export default {
     // The dialog sets the app after it opens, so a loaded list can belong to the
     // previous one; the files an app can run differ.
     app() {
-      if (this.playbooks != null) {
+      if (this.playbooks != null || this.playbooksLoading) {
         this.playbooks = null;
         this.loadPlaybooks();
       }
