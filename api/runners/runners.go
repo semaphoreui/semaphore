@@ -510,8 +510,9 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 	var runner db.Runner
 	var err error
 
-	tokenType := audit.RunnerTokenOneTime
+	tokenType := audit.RunnerTokenGlobal
 	if strings.HasPrefix(register.RegistrationToken, "smrs_") {
+		tokenType = audit.RunnerTokenOneTime
 		// Otherwise the value is a one-time registration token issued for a specific
 		// unregistered runner. The global token cannot be used to register it.
 		runner, err = store.RegisterRunner(server.HashRunnerRegistrationToken(register.RegistrationToken), nil)
@@ -530,7 +531,6 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		}
 	} else if util.Config.GetRunnerRegistrationToken() != "" && register.RegistrationToken == util.Config.GetRunnerRegistrationToken() {
 		// The shared, global registration token creates a brand-new runner.
-		tokenType = audit.RunnerTokenGlobal
 		runner, err = store.CreateRunner(db.Runner{
 			Token:            db.GenerateRunnerToken(),
 			Webhook:          register.Webhook,

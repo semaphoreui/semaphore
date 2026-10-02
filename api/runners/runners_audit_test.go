@@ -48,7 +48,16 @@ func TestRegisterRunner_Events(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, audit.ReasonInvalidRegistrationToken, failed.Event.Reason)
 	assert.Equal(t, audit.AnonymousActor(), failed.Actor)
+	assert.Equal(t, audit.RunnerRegisterMetadata{Token: audit.RunnerTokenGlobal}, failed.Event.Metadata)
 	assert.NotContains(t, fmt.Sprintf("%+v", failed.Event), "wrong")
+
+	r, rec = registerRequest(t, store, "smrs_wrong")
+	RegisterRunner(httptest.NewRecorder(), r)
+	failedOneTime, err := rec.Only(audit.RunnerLifecycleRegister)
+	require.NoError(t, err)
+	assert.Equal(t, audit.ReasonInvalidRegistrationToken, failedOneTime.Event.Reason)
+	assert.Equal(t, audit.RunnerRegisterMetadata{Token: audit.RunnerTokenOneTime}, failedOneTime.Event.Metadata)
+	assert.NotContains(t, fmt.Sprintf("%+v", failedOneTime.Event), "smrs_wrong")
 
 	r, rec = registerRequest(t, store, "global-secret")
 	w = httptest.NewRecorder()
