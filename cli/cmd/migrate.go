@@ -71,7 +71,7 @@ func migrateBoltDb(boltDbPath string) {
 
 	if boltCfg.Dialect != util.DbDriverBolt {
 		fmt.Printf("Error: Source database must be BoltDB (dialect: %s)\n", boltCfg.Dialect)
-		return
+		os.Exit(1)
 	}
 
 	file, err := os.Stat(boltDbPath)
@@ -81,7 +81,7 @@ func migrateBoltDb(boltDbPath string) {
 		} else {
 			fmt.Printf("Error: %v\n", err)
 		}
-		return
+		os.Exit(1)
 	}
 
 	if file.Size() > 1024*1024*1024 {
@@ -95,16 +95,17 @@ func migrateBoltDb(boltDbPath string) {
 	defer boltStore.Close("migrate")
 
 	util.ConfigInit(persistentFlags.configPath, persistentFlags.noConfig)
+	util.LookupDefaultApps()
 
 	dialect, err := util.Config.GetDialect()
 	if err != nil {
 		fmt.Printf("Error reading SQL DB config: %v\n", err)
-		return
+		os.Exit(1)
 	}
 
 	if dialect == util.DbDriverBolt {
 		fmt.Println("Error: Destination database must be a SQL database")
-		return
+		os.Exit(1)
 	}
 
 	sqlStore := factory.CreateStore()
@@ -123,7 +124,7 @@ func migrateBoltDb(boltDbPath string) {
 	err = migrator.Migrate()
 	if err != nil {
 		fmt.Printf("Migration failed: %v\n", err)
-		return
+		os.Exit(1)
 	}
 
 	defer sqlStore.Close("import")
