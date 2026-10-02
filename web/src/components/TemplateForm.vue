@@ -770,6 +770,15 @@ export default {
       }
     },
 
+    // The dialog sets the app after it opens, so a loaded list can belong to the
+    // previous one; the files an app can run differ.
+    app() {
+      if (this.playbooks != null) {
+        this.playbooks = null;
+        this.loadPlaybooks();
+      }
+    },
+
     async repositoryId() {
       this.branches = null;
       this.playbooks = null;
