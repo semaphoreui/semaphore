@@ -61,6 +61,28 @@ func (t TemplateApp) HasInventoryType(inventoryType InventoryType) bool {
 	return false
 }
 
+// RepositoryFileExtensions returns the extensions the entry point of this app
+// can have, lowercase and with the leading dot. Nil means no filtering, which
+// is what an app defined in the configuration file gets: Semaphore knows
+// nothing about its files and must not hide the one the user wants.
+func (t TemplateApp) RepositoryFileExtensions() []string {
+	switch t {
+	case AppBash:
+		return []string{".sh"}
+	case AppPython:
+		return []string{".py"}
+	case AppPowerShell:
+		return []string{".ps1"}
+	case AppAnsible, AppTerraform, AppTofu, AppTerragrunt, AppPulumi, "":
+		// ponytail: the terraform family points at a subdirectory, not a file,
+		// so this list is the wrong shape for them. Left as it was; listing
+		// directories for them is its own change.
+		return []string{".yml", ".yaml"}
+	default:
+		return nil
+	}
+}
+
 func (t TemplateApp) IsTerraform() bool {
 	return t == AppTerraform || t == AppTofu || t == AppTerragrunt
 }

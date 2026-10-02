@@ -69,8 +69,25 @@ func (c *RepositoryController) hostConfigs(r *http.Request, repo db.Repository) 
 		helpers.Store(r), c.encryptionService, repo.ProjectID, task_logger.NopLogger{})
 }
 
-func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
+// repository returns the repository of the request with the secret of its key
+// decrypted. The middleware loads the key but not its secret, and without it the
+// git URL is built with no credentials.
+func (c *RepositoryController) repository(w http.ResponseWriter, r *http.Request) (db.Repository, bool) {
 	repo := helpers.GetFromContext(r, "repository").(db.Repository)
+
+	if err := c.encryptionService.DeserializeSecret(&repo.SSHKey); err != nil {
+		helpers.WriteError(w, err)
+		return repo, false
+	}
+
+	return repo, true
+}
+
+func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
+	repo, ok := c.repository(w, r)
+	if !ok {
+		return
+	}
 
 	if repo.GetType() == db.RepositoryLocal || repo.GetType() == db.RepositoryFile {
 		helpers.WriteJSON(w, http.StatusBadRequest, "Wrong repository type: "+repo.GetType())
@@ -105,7 +122,10 @@ func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *h
 // repositories it checks out the requested branch (defaulting to the
 // repository's configured branch) into a scratch directory before scanning it.
 func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *http.Request) {
-	repo := helpers.GetFromContext(r, "repository").(db.Repository)
+	repo, ok := c.repository(w, r)
+	if !ok {
+		return
+	}
 
 	var rootDir string
 
@@ -160,7 +180,11 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		rootDir = git.GetFullPath()
 	}
 
-	playbooks, err := db_lib.FindPlaybooks(rootDir)
+	// From the template being edited, not the repository: one repository serves
+	// templates of different apps.
+	app := db.TemplateApp(r.URL.Query().Get("app"))
+
+	playbooks, err := db_lib.FindRepositoryFiles(rootDir, app)
 
 	if err != nil {
 		helpers.WriteError(w, err)

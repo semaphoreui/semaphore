@@ -3,20 +3,22 @@ package db_lib
 import (
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
+
+	"github.com/semaphoreui/semaphore/db"
 )
 
-// maxPlaybookFiles caps the number of playbook paths returned by FindPlaybooks
+// maxRepositoryFiles caps the number of paths returned by FindRepositoryFiles
 // as a safety net against huge repositories.
-const maxPlaybookFiles = 1000
+const maxRepositoryFiles = 1000
 
-// excludedPlaybookDirs are conventional Ansible directories that never contain
-// top-level playbooks (roles, variable files, templates, etc). They are skipped
-// while walking the repository to avoid flooding the result with non-playbook
-// yml/yaml files.
-var excludedPlaybookDirs = map[string]bool{
-	".git":           true,
+// ansibleLayoutDirs are conventional Ansible directories that never contain a
+// top-level playbook. They are skipped for Ansible so the result is not flooded
+// with yml files that are not playbooks, and kept for every other app, where
+// they are ordinary directories.
+var ansibleLayoutDirs = map[string]bool{
 	"roles":          true,
 	"group_vars":     true,
 	"host_vars":      true,
@@ -33,31 +35,38 @@ var excludedPlaybookDirs = map[string]bool{
 	"tests":          true,
 }
 
-// FindPlaybooks walks rootDir and returns a sorted slice of paths (relative to
-// rootDir) of files with a .yml or .yaml extension (case-insensitive),
-// skipping .git and conventional non-playbook Ansible directories.
-// The result is capped at maxPlaybookFiles entries.
-func FindPlaybooks(rootDir string) ([]string, error) {
+// FindRepositoryFiles walks rootDir and returns a sorted slice of paths,
+// relative to rootDir, of the files which could be the entry point of app.
+// The result is capped at maxRepositoryFiles entries.
+func FindRepositoryFiles(rootDir string, app db.TemplateApp) ([]string, error) {
 	var result []string
+
+	extensions := app.RepositoryFileExtensions()
+	skipAnsibleDirs := app == db.AppAnsible || app == ""
 
 	err := filepath.WalkDir(rootDir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if len(result) >= maxPlaybookFiles {
+		if len(result) >= maxRepositoryFiles {
 			return filepath.SkipAll
 		}
 
 		if d.IsDir() {
-			if p != rootDir && excludedPlaybookDirs[d.Name()] {
+			if p == rootDir {
+				return nil
+			}
+
+			if d.Name() == ".git" || (skipAnsibleDirs && ansibleLayoutDirs[d.Name()]) {
 				return filepath.SkipDir
 			}
+
 			return nil
 		}
 
-		ext := strings.ToLower(filepath.Ext(d.Name()))
-		if ext != ".yml" && ext != ".yaml" {
+		if len(extensions) > 0 &&
+			!slices.Contains(extensions, strings.ToLower(filepath.Ext(d.Name()))) {
 			return nil
 		}
 
