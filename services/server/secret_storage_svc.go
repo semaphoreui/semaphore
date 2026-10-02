@@ -132,7 +132,7 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 	sourceStorageKey := ""
 
 	// Checked before the write, so a refused source leaves the storage unchanged.
-	if pro.StorageRequiresSecret(storage) && storage.Secret != "" && sourceStorageType != nil {
+	if pro.StorageRequiresSecret(storage) && sourceStorageType != nil {
 		switch *sourceStorageType {
 		case db.AccessKeySourceStorageEnv, db.AccessKeySourceStorageFile:
 			sourceStorageKey = storage.Secret

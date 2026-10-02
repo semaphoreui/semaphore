@@ -37,12 +37,14 @@ func (r *updateTrackingStorageRepo) UpdateSecretStorage(db.SecretStorage) error 
 }
 
 func TestSecretStorageUpdate_UnsupportedSourceIsRefusedBeforeSaving(t *testing.T) {
-	repo := &updateTrackingStorageRepo{}
-	sourceType := db.AccessKeySourceStorageType("unknown")
-	service := &SecretStorageServiceImpl{secretStorageRepo: repo}
+	for _, secret := range []string{"token", ""} {
+		repo := &updateTrackingStorageRepo{}
+		sourceType := db.AccessKeySourceStorageType("unknown")
+		service := &SecretStorageServiceImpl{secretStorageRepo: repo}
 
-	err := service.Update(db.SecretStorage{ID: 5, ProjectID: 1, Type: db.SecretStorageTypeVault, Secret: "token", SourceStorageType: &sourceType})
+		err := service.Update(db.SecretStorage{ID: 5, ProjectID: 1, Type: db.SecretStorageTypeVault, Secret: secret, SourceStorageType: &sourceType})
 
-	require.ErrorContains(t, err, "unsupported source storage type")
-	assert.False(t, repo.updated, "the storage row is not written")
+		require.ErrorContains(t, err, "unsupported source storage type", "secret %q", secret)
+		assert.False(t, repo.updated, "the storage row is not written, secret %q", secret)
+	}
 }
