@@ -251,7 +251,7 @@ func (p *TaskPool) failTaskRunnerLost(tsk *TaskRunner, runner *db.Runner, reason
 		tsk.Task.RunnerID = nil
 	}
 
-	tsk.endReason = audit.EndReasonRunnerLost
+	tsk.endReason.Store(audit.EndReasonRunnerLost)
 	tsk.SetStatus(task_logger.TaskFailStatus)
 
 	p.finalizeRemoteTaskLocked(tsk, runner)

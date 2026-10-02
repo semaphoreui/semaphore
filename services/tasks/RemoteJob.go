@@ -306,7 +306,7 @@ func (t *RemoteJob) scheduleTimeout(runner *db.Runner) {
 			return
 		}
 		tsk.Log("Task timed out")
-		tsk.endReason = audit.EndReasonTimeout
+		tsk.endReason.Store(audit.EndReasonTimeout)
 		tsk.SetStatus(task_logger.TaskFailStatus)
 		pool.FinalizeRemoteTask(tsk, runner)
 	})

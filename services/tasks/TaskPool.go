@@ -573,10 +573,11 @@ func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) 
 	// The runner that reported the end is the actor, unless the server ended the task.
 	// The finish webhook above still needs the runner either way.
 	actor := audit.SystemActor(audit.ComponentTaskRunner)
+	endReason, _ := tsk.endReason.Load().(string)
 	switch {
-	case tsk.endReason == audit.EndReasonRunnerLost:
+	case endReason == audit.EndReasonRunnerLost:
 		actor = audit.SystemActor(audit.ComponentReconciler)
-	case tsk.endReason == "" && !tsk.dispatchFailed && runner != nil:
+	case endReason == "" && !tsk.dispatchFailed && runner != nil:
 		actor = audit.RunnerActor(runner.ID, runner.Name)
 	}
 	tsk.finishRun(actor)

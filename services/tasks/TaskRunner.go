@@ -57,8 +57,9 @@ type TaskRunner struct {
 	pool         *TaskPool
 	keyInstaller db_lib.AccessKeyInstaller
 
-	// endReason says why the server ended the task: audit.EndReasonTimeout or audit.EndReasonRunnerLost.
-	endReason string
+	// endReason holds a string: audit.EndReasonTimeout or audit.EndReasonRunnerLost, set by the server.
+	// It is atomic because the timeout timer writes it while a runner report may read it.
+	endReason atomic.Value
 
 	// dispatchFailed marks a task the server failed before handing it to the runner that polled it.
 	dispatchFailed bool
@@ -408,7 +409,8 @@ func (t *TaskRunner) FailDispatch() {
 
 // recordComplete is shared by finishRun and the paths that end a task without it.
 func (t *TaskRunner) recordComplete(actor audit.Actor) {
-	meta := audit.TaskCompleteMetadata{Result: string(t.Task.Status), EndReason: t.endReason, TemplateID: t.Task.TemplateID}
+	endReason, _ := t.endReason.Load().(string)
+	meta := audit.TaskCompleteMetadata{Result: string(t.Task.Status), EndReason: endReason, TemplateID: t.Task.TemplateID}
 	if t.Task.UserID != nil {
 		meta.InitiatorID = *t.Task.UserID
 	}
