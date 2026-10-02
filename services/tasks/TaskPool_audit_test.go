@@ -30,7 +30,7 @@ func TestTaskCreateMetadata(t *testing.T) {
 		{"schedule", audit.TriggerSchedule, db.Task{TemplateID: 3, ScheduleID: id(5)}, audit.TaskCreateMetadata{Trigger: audit.TriggerSchedule, TemplateID: 3, ScheduleID: 5}},
 		{"integration", audit.TriggerIntegration, db.Task{TemplateID: 3, IntegrationID: id(6)}, audit.TaskCreateMetadata{Trigger: audit.TriggerIntegration, TemplateID: 3, IntegrationID: 6}},
 		{"autorun", audit.TriggerAutorun, db.Task{TemplateID: 3, BuildTaskID: id(9)}, audit.TaskCreateMetadata{Trigger: audit.TriggerAutorun, TemplateID: 3, ParentTaskID: 9}},
-		{"workflow", audit.TriggerWorkflow, db.Task{TemplateID: 3, WorkflowRunID: id(4), BuildTaskID: id(9)}, audit.TaskCreateMetadata{Trigger: audit.TriggerWorkflow, TemplateID: 3, WorkflowRunID: 4}},
+		{"workflow", audit.TriggerWorkflow, db.Task{TemplateID: 3, WorkflowRunID: id(4), BuildTaskID: id(9)}, audit.TaskCreateMetadata{Trigger: audit.TriggerWorkflow, TemplateID: 3, WorkflowRunID: 4, ParentTaskID: 9}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

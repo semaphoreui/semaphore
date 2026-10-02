@@ -1259,6 +1259,9 @@ func (p *TaskPool) AddTaskFrom(
 // taskCreateMetadata takes the trigger from the caller because the API binds source IDs from the request body.
 func taskCreateMetadata(trigger string, task db.Task) audit.TaskCreateMetadata {
 	meta := audit.TaskCreateMetadata{Trigger: trigger, TemplateID: task.TemplateID}
+	if task.BuildTaskID != nil {
+		meta.ParentTaskID = *task.BuildTaskID
+	}
 	switch trigger {
 	case audit.TriggerSchedule:
 		if task.ScheduleID != nil {
@@ -1271,10 +1274,6 @@ func taskCreateMetadata(trigger string, task db.Task) audit.TaskCreateMetadata {
 	case audit.TriggerWorkflow:
 		if task.WorkflowRunID != nil {
 			meta.WorkflowRunID = *task.WorkflowRunID
-		}
-	case audit.TriggerAutorun, audit.TriggerAPI:
-		if task.BuildTaskID != nil {
-			meta.ParentTaskID = *task.BuildTaskID
 		}
 	}
 	return meta
