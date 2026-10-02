@@ -61,25 +61,36 @@ func (t TemplateApp) HasInventoryType(inventoryType InventoryType) bool {
 	return false
 }
 
-// RepositoryFileExtensions returns the extensions the entry point of this app
-// can have, lowercase and with the leading dot. Nil means no filtering, which
-// is what an app defined in the configuration file gets: Semaphore knows
-// nothing about its files and must not hide the one the user wants.
-func (t TemplateApp) RepositoryFileExtensions() []string {
+// RepositoryFileFilter describes which entries of a repository can be the entry
+// point of an app.
+type RepositoryFileFilter struct {
+	// OnlyDirectories lists the top level directories instead of files.
+	OnlyDirectories bool
+
+	// Extensions limits the files to these, lowercase and with the leading dot.
+	// Nil means every file.
+	Extensions []string
+}
+
+// RepositoryFileFilter returns the entries which can be the entry point of this
+// app.
+func (t TemplateApp) RepositoryFileFilter() RepositoryFileFilter {
 	switch t {
+	case AppTerraform, AppTofu, AppTerragrunt, AppPulumi:
+		// These point at a subdirectory, not at a file.
+		return RepositoryFileFilter{OnlyDirectories: true}
 	case AppBash:
-		return []string{".sh"}
+		return RepositoryFileFilter{Extensions: []string{".sh"}}
 	case AppPython:
-		return []string{".py"}
+		return RepositoryFileFilter{Extensions: []string{".py"}}
 	case AppPowerShell:
-		return []string{".ps1"}
-	case AppAnsible, AppTerraform, AppTofu, AppTerragrunt, AppPulumi, "":
-		// ponytail: the terraform family points at a subdirectory, not a file,
-		// so this list is the wrong shape for them. Left as it was; listing
-		// directories for them is its own change.
-		return []string{".yml", ".yaml"}
+		return RepositoryFileFilter{Extensions: []string{".ps1"}}
+	case AppAnsible, "":
+		return RepositoryFileFilter{Extensions: []string{".yml", ".yaml"}}
 	default:
-		return nil
+		// An app from the configuration file: Semaphore knows nothing about its
+		// files and must not hide the one the user wants.
+		return RepositoryFileFilter{}
 	}
 }
 

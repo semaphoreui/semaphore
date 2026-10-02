@@ -1,6 +1,7 @@
 package db_lib
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -133,6 +134,53 @@ func TestFindRepositoryFiles(t *testing.T) {
 			},
 			expected: []string{"site.yml"},
 		},
+		{
+			// Terraform and friends run a directory, so the picker offers one.
+			name: "terraform lists top level directories only",
+			app:  db.AppTerraform,
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "main.tf")
+				writeFile(t, root, "prod/main.tf")
+				writeFile(t, root, "prod/modules/vpc/main.tf")
+				writeFile(t, root, "staging/main.tf")
+				writeFile(t, root, ".terraform/plugin.json")
+				writeFile(t, root, ".git/config")
+			},
+			expected: []string{"prod", "staging"},
+		},
+		{
+			name: "opentofu lists directories",
+			app:  db.AppTofu,
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "envs/dev/main.tf")
+				writeFile(t, root, "main.tf")
+			},
+			expected: []string{"envs"},
+		},
+		{
+			name: "terragrunt lists directories",
+			app:  db.AppTerragrunt,
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "live/terragrunt.hcl")
+			},
+			expected: []string{"live"},
+		},
+		{
+			name: "pulumi lists directories",
+			app:  db.AppPulumi,
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "infra/index.ts")
+			},
+			expected: []string{"infra"},
+		},
+		{
+			name: "a repository of only files offers no directory",
+			app:  db.AppTerraform,
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "main.tf")
+			},
+			expected: nil,
+		},
 	}
 
 	for _, tt := range tests {
@@ -146,4 +194,32 @@ func TestFindRepositoryFiles(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// The picker is a suggestion list: it stops at maxRepositoryFiles, and anything
+// beyond it is still reachable by typing the path.
+func TestFindRepositoryFiles_Limit(t *testing.T) {
+	t.Run("files", func(t *testing.T) {
+		root := t.TempDir()
+		for i := 0; i < maxRepositoryFiles+10; i++ {
+			writeFile(t, root, fmt.Sprintf("playbook-%03d.yml", i))
+		}
+
+		result, err := FindRepositoryFiles(root, db.AppAnsible)
+
+		require.NoError(t, err)
+		assert.Len(t, result, maxRepositoryFiles)
+	})
+
+	t.Run("directories", func(t *testing.T) {
+		root := t.TempDir()
+		for i := 0; i < maxRepositoryFiles+10; i++ {
+			writeFile(t, root, fmt.Sprintf("env-%03d/main.tf", i))
+		}
+
+		result, err := FindRepositoryFiles(root, db.AppTerraform)
+
+		require.NoError(t, err)
+		assert.Len(t, result, maxRepositoryFiles)
+	})
 }
