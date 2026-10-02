@@ -518,12 +518,14 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		runner, err = store.RegisterRunner(server.HashRunnerRegistrationToken(register.RegistrationToken), nil)
 
 		if err != nil {
-			helpers.Audit(r).Record(r.Context(), audit.Event{
-				Kind:     audit.RunnerLifecycleRegister,
-				Outcome:  audit.OutcomeFailure,
-				Reason:   audit.ReasonInvalidRegistrationToken,
-				Metadata: audit.RunnerRegisterMetadata{Token: tokenType},
-			})
+			if errors.Is(err, db.ErrNotFound) || errors.Is(err, db.ErrRunnerAlreadyRegistered) || errors.Is(err, db.ErrRegistrationTokenExpired) {
+				helpers.Audit(r).Record(r.Context(), audit.Event{
+					Kind:     audit.RunnerLifecycleRegister,
+					Outcome:  audit.OutcomeFailure,
+					Reason:   audit.ReasonInvalidRegistrationToken,
+					Metadata: audit.RunnerRegisterMetadata{Token: tokenType},
+				})
+			}
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "Invalid registration token",
 			})

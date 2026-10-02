@@ -3,6 +3,7 @@ package runners
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -160,4 +161,22 @@ func TestUnregisterRunner_EventCarriesProject(t *testing.T) {
 	got, err := rec.Only(audit.RunnerLifecycleUnregister)
 	require.NoError(t, err)
 	assert.Equal(t, project.ID, got.Event.ProjectID)
+}
+
+// brokenRegistrationStore fails registration the way a database outage would.
+type brokenRegistrationStore struct{ db.Store }
+
+func (brokenRegistrationStore) RegisterRunner(string, *string) (db.Runner, error) {
+	return db.Runner{}, errors.New("connection refused")
+}
+
+func TestRegisterRunner_StoreFailureIsNotATokenRefusal(t *testing.T) {
+	r, rec := registerRequest(t, brokenRegistrationStore{sql.InitConfigCreateTestStore()}, "smrs_valid")
+	w := httptest.NewRecorder()
+
+	RegisterRunner(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.JSONEq(t, `{"error":"Invalid registration token"}`, w.Body.String())
+	assert.Empty(t, rec.All())
 }
