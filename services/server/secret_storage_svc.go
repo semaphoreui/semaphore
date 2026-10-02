@@ -66,7 +66,21 @@ func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err err
 		}
 	}
 
-	// The keys owned by the storage are removed with it by the access_key.storage_id cascade.
+	// Deleted before the storage row: MySQL 8 ignores the inline access_key.storage_id cascade.
+	keys, err := s.accessKeyService.GetAll(projectID, db.GetAccessKeyOptions{
+		Owner:     db.AccessKeySecretStorage,
+		StorageID: &storageID,
+	}, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
+	for _, key := range keys {
+		if err = s.accessKeyService.Delete(projectID, key.ID); err != nil && !errors.Is(err, db.ErrNotFound) {
+			return
+		}
+	}
+
 	return s.secretStorageRepo.DeleteSecretStorage(projectID, storageID)
 }
 
