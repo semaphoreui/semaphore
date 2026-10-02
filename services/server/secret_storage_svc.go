@@ -2,7 +2,6 @@ package server
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -67,32 +66,8 @@ func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err err
 		}
 	}
 
-	err = s.secretStorageRepo.DeleteSecretStorage(projectID, storageID)
-	if err != nil {
-		return
-	}
-
-	keys, err := s.accessKeyService.GetAll(projectID, db.GetAccessKeyOptions{
-		Owner:     db.AccessKeySecretStorage,
-		StorageID: &storageID,
-	}, db.RetrieveQueryParams{})
-
-	if err != nil {
-		return fmt.Errorf("%w: %v", ErrSecretsLeftBehind, err)
-	}
-
-	var errs []error
-	for _, key := range keys {
-		if err = s.accessKeyService.Delete(projectID, key.ID); err != nil && !errors.Is(err, db.ErrNotFound) {
-			errs = append(errs, err)
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("%w: failed to delete some keys: %v", ErrSecretsLeftBehind, errs)
-	}
-
-	return nil
+	// The keys owned by the storage are removed with it by the access_key.storage_id cascade.
+	return s.secretStorageRepo.DeleteSecretStorage(projectID, storageID)
 }
 
 func (s *SecretStorageServiceImpl) GetSecretStorage(projectID int, storageID int) (res db.SecretStorage, err error) {

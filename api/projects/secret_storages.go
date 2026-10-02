@@ -1,7 +1,6 @@
 package projects
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -189,28 +188,17 @@ func (c *SecretStorageController) Remove(w http.ResponseWriter, r *http.Request)
 	storage := helpers.GetFromContext(r, "secretStorage").(db.SecretStorage)
 
 	err := c.secretStorageService.Delete(project.ID, storage.ID)
-	// The storage row is deleted before its keys, so a failed key is a partial success.
-	if err != nil && !errors.Is(err, server.ErrSecretsLeftBehind) {
+	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	event := audit.Event{
+	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.SecretStorageDelete,
 		Target:    audit.ResourceTarget(audit.TargetSecretStorage, storage.ID, storage.Name),
 		ProjectID: project.ID,
 		Metadata:  audit.DeleteMetadata{},
-	}
-	if err != nil {
-		event.Reason = audit.ReasonKeyFailed
-		event.Metadata = audit.DeleteMetadata{Partial: true}
-	}
-	helpers.Audit(r).Record(r.Context(), event)
-
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }

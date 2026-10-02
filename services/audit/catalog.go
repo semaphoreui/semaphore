@@ -121,7 +121,7 @@ func Catalog() []Entry {
 		{Kind: SecretCredentialDelete, Type: TypeDeletion},
 		{Kind: SecretStorageCreate, Type: TypeCreation, Metadata: SecretStorageMetadata{}},
 		{Kind: SecretStorageUpdate, Type: TypeChange, Metadata: SecretStorageMetadata{}},
-		{Kind: SecretStorageDelete, Type: TypeDeletion, Metadata: DeleteMetadata{}, Partial: []Reason{ReasonKeyFailed}},
+		{Kind: SecretStorageDelete, Type: TypeDeletion, Metadata: DeleteMetadata{}},
 		{Kind: SecretStorageSync, Type: TypeChange, Pro: true},
 
 		{Kind: SystemSettingsUpdate, Type: TypeChange, Metadata: SettingsMetadata{}},

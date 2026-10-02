@@ -1,53 +1,29 @@
 package server
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type fakeStorageKeyService struct {
-	AccessKeyService
-	keys      []db.AccessKey
-	deleteErr map[int]error
-	deleted   []int
-}
+func TestSecretStorageDelete_RemovesOwnedKeys(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "p"})
+	require.NoError(t, err)
+	storage, err := store.CreateSecretStorage(db.SecretStorage{ProjectID: project.ID, Name: "vault", Type: db.SecretStorageTypeVault})
+	require.NoError(t, err)
+	_, err = store.CreateAccessKey(db.AccessKey{Name: "token", Type: db.AccessKeyString, ProjectID: &project.ID, Owner: db.AccessKeySecretStorage, StorageID: &storage.ID})
+	require.NoError(t, err)
+	service := &SecretStorageServiceImpl{secretStorageRepo: store, accessKeyRepo: store}
 
-func (f *fakeStorageKeyService) GetAll(int, db.GetAccessKeyOptions, db.RetrieveQueryParams) ([]db.AccessKey, error) {
-	return f.keys, nil
-}
+	require.NoError(t, service.Delete(project.ID, storage.ID))
 
-func (f *fakeStorageKeyService) Delete(_ int, keyID int) error {
-	f.deleted = append(f.deleted, keyID)
-	return f.deleteErr[keyID]
-}
-
-func TestSecretStorageDelete_KeyFailureLeavesSecretsBehind(t *testing.T) {
-	keys := &fakeStorageKeyService{
-		keys:      []db.AccessKey{{ID: 1}, {ID: 2}, {ID: 3}},
-		deleteErr: map[int]error{1: errors.New("vault unreachable"), 2: db.ErrNotFound},
-	}
-	service := &SecretStorageServiceImpl{secretStorageRepo: &mockSecretStorageRepository{}, accessKeyService: keys}
-
-	err := service.Delete(1, 5)
-
-	require.ErrorIs(t, err, ErrSecretsLeftBehind)
-	assert.ErrorContains(t, err, "vault unreachable")
-	assert.NotErrorIs(t, err, db.ErrNotFound)
-	assert.Equal(t, []int{1, 2, 3}, keys.deleted)
-}
-
-func TestSecretStorageDelete_KeyAlreadyGoneIsNotAnError(t *testing.T) {
-	keys := &fakeStorageKeyService{
-		keys:      []db.AccessKey{{ID: 1}},
-		deleteErr: map[int]error{1: db.ErrNotFound},
-	}
-	service := &SecretStorageServiceImpl{secretStorageRepo: &mockSecretStorageRepository{}, accessKeyService: keys}
-
-	assert.NoError(t, service.Delete(1, 5))
+	keys, err := store.GetAccessKeys(project.ID, db.GetAccessKeyOptions{Owner: db.AccessKeySecretStorage, StorageID: &storage.ID}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	assert.Empty(t, keys)
 }
 
 type updateTrackingStorageRepo struct {
@@ -63,7 +39,7 @@ func (r *updateTrackingStorageRepo) UpdateSecretStorage(db.SecretStorage) error 
 func TestSecretStorageUpdate_UnsupportedSourceIsRefusedBeforeSaving(t *testing.T) {
 	repo := &updateTrackingStorageRepo{}
 	sourceType := db.AccessKeySourceStorageType("unknown")
-	service := &SecretStorageServiceImpl{secretStorageRepo: repo, accessKeyService: &fakeStorageKeyService{}}
+	service := &SecretStorageServiceImpl{secretStorageRepo: repo}
 
 	err := service.Update(db.SecretStorage{ID: 5, ProjectID: 1, Type: db.SecretStorageTypeVault, Secret: "token", SourceStorageType: &sourceType})
 

@@ -591,21 +591,6 @@ func TestSecretStorageEvents(t *testing.T) {
 	assert.Equal(t, audit.ResourceTarget(audit.TargetSecretStorage, 3, "vault"), only(t, rec, audit.SecretStorageDelete).Event.Target)
 }
 
-func TestRemoveSecretStorage_LeftKeysIsPartial(t *testing.T) {
-	f := newResourceFixture(t)
-	controller := NewSecretStorageController(f.store, fakeSecretStorageService{deleteErr: fmt.Errorf("%w: boom", server.ErrSecretsLeftBehind)})
-
-	r, rec := f.request(http.MethodDelete, "", map[string]any{"secretStorage": db.SecretStorage{ID: 3, Name: "vault", ProjectID: f.project.ID}}, map[string]string{"storage_id": "3"})
-	w := httptest.NewRecorder()
-	controller.Remove(w, r)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code, "the API answer is unchanged")
-	got := only(t, rec, audit.SecretStorageDelete)
-	assert.Equal(t, audit.OutcomeSuccess, got.Event.Outcome, "the storage is deleted")
-	assert.Equal(t, audit.ReasonKeyFailed, got.Event.Reason)
-	assert.Equal(t, audit.DeleteMetadata{Partial: true}, got.Event.Metadata)
-}
-
 func TestRemoveSecretStorage_FailedDeleteIsNotRecorded(t *testing.T) {
 	f := newResourceFixture(t)
 	controller := NewSecretStorageController(f.store, fakeSecretStorageService{deleteErr: errors.New("boom")})
