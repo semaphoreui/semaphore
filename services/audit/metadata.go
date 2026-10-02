@@ -144,7 +144,7 @@ type TaskCreateMetadata struct {
 }
 
 type TaskCompleteMetadata struct {
-	// The final task status: success, error or stopped.
+	// The final task status, for example success, error, stopped or stopping.
 	Result      string `json:"result"`
 	EndReason   string `json:"end_reason,omitempty"`
 	TemplateID  int    `json:"template_id"`

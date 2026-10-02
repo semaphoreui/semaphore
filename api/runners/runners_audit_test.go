@@ -144,3 +144,20 @@ func TestUnregisterRunner_Events(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, w.Code)
 	assert.Empty(t, rec.All(), "an already removed runner is not an event")
 }
+
+func TestUnregisterRunner_EventCarriesProject(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "proj"})
+	require.NoError(t, err)
+	runner, err := store.CreateRunner(db.Runner{Name: "pr1", Token: "project-runner-token", ProjectID: &project.ID})
+	require.NoError(t, err)
+
+	r, rec := unregisterRequest(store, runner)
+	w := httptest.NewRecorder()
+	UnregisterRunner(w, r)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	got, err := rec.Only(audit.RunnerLifecycleUnregister)
+	require.NoError(t, err)
+	assert.Equal(t, project.ID, got.Event.ProjectID)
+}

@@ -185,7 +185,7 @@ func TestRemoveTask_Events(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, strconv.Itoa(task.ID), deleted.Event.Target.ID)
 
-	// A concurrent second delete found no row.
+	// A second delete finds no task.
 	r, rec = f.request("", db.User{ID: 1, Username: "admin", Admin: true}, task)
 	w = httptest.NewRecorder()
 	NewTaskController(f.store, nil).RemoveTask(w, r)

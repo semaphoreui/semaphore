@@ -604,9 +604,14 @@ func UnregisterRunner(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err == nil {
+		projectID := 0
+		if runner.ProjectID != nil {
+			projectID = *runner.ProjectID
+		}
 		helpers.Audit(r).Record(r.Context(), audit.Event{
-			Kind:   audit.RunnerLifecycleUnregister,
-			Target: audit.ResourceTarget(audit.TargetRunner, runner.ID, runner.Name),
+			Kind:      audit.RunnerLifecycleUnregister,
+			Target:    audit.ResourceTarget(audit.TargetRunner, runner.ID, runner.Name),
+			ProjectID: projectID,
 		})
 	}
 
