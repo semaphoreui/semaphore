@@ -221,7 +221,8 @@ func TestStopTasksByTemplate_CompletesOnlyTasksOutsideTheQueue(t *testing.T) {
 
 func TestRecordComplete_EndReasonSetByTheTimeoutTimer(t *testing.T) {
 	pool := TaskPool{}
-	pool.SetAuditRecorder(&audittest.Recorder{})
+	rec := &audittest.Recorder{}
+	pool.SetAuditRecorder(rec)
 	tr := &TaskRunner{pool: &pool}
 	done := make(chan struct{})
 	go func() {
@@ -230,4 +231,9 @@ func TestRecordComplete_EndReasonSetByTheTimeoutTimer(t *testing.T) {
 	}()
 	tr.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 	<-done
+
+	got, err := rec.Only(audit.TaskExecutionComplete)
+	require.NoError(t, err)
+	assert.Contains(t, []string{"", audit.EndReasonTimeout}, got.Event.Metadata.(audit.TaskCompleteMetadata).EndReason)
+	assert.Equal(t, audit.EndReasonTimeout, tr.endReason.Load())
 }
