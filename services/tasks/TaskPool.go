@@ -710,36 +710,38 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 	return res
 }
 
-func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
+func (p *TaskPool) ConfirmTask(targetTask db.Task) (changed bool, err error) {
 	tsk, err := p.GetTask(targetTask.ID)
 
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if tsk == nil { // task not active, but exists in database
-		return fmt.Errorf("task is not active")
+		return false, fmt.Errorf("task is not active")
 	}
 
+	before := tsk.Task.Status
 	tsk.SetStatus(task_logger.TaskConfirmed)
 
-	return nil
+	return before == task_logger.TaskWaitingConfirmation && tsk.Task.Status != before, nil
 }
 
-func (p *TaskPool) RejectTask(targetTask db.Task) error {
+func (p *TaskPool) RejectTask(targetTask db.Task) (changed bool, err error) {
 	tsk, err := p.GetTask(targetTask.ID)
 
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if tsk == nil { // task not active, but exists in database
-		return fmt.Errorf("task is not active")
+		return false, fmt.Errorf("task is not active")
 	}
 
+	before := tsk.Task.Status
 	tsk.SetStatus(task_logger.TaskRejected)
 
-	return nil
+	return before == task_logger.TaskWaitingConfirmation && tsk.Task.Status != before, nil
 }
 
 func (p *TaskPool) stopTaskRunner(t *TaskRunner, forceStop bool) {
@@ -783,10 +785,10 @@ func (p *TaskPool) stopLocalTask(taskID int) {
 	}
 }
 
-func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
+func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) (changed bool, err error) {
 	tsk, err := p.GetTask(targetTask.ID)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// task not active, but exists in database. For non-HA mode
@@ -795,16 +797,23 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 
 		err := tsk.populateDetails()
 		if err != nil {
-			return err
+			return false, err
 		}
+		before := targetTask.Status
 		tsk.SetStatus(task_logger.TaskStoppedStatus)
 		tsk.createTaskEvent()
-		return nil
+		changed = !before.IsFinished() && tsk.Task.Status != before
+		if changed {
+			tsk.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
+		}
+		return changed, nil
 	}
 
+	// In HA every existing task looks active, so a finished one must not count as stopped.
+	before := tsk.Task.Status
 	p.stopTaskRunner(tsk, forceStop)
 
-	return nil
+	return !before.IsFinished() && tsk.Task.Status != before, nil
 }
 
 // StopTasksByTemplate stops all active (queued or running) tasks that belong to
@@ -921,6 +930,7 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 			go p.FinalizeRemoteTask(tsk, nil)
 		} else {
 			tsk.createTaskEvent()
+			tsk.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 		}
 	}
 }
@@ -1020,6 +1030,7 @@ func (p *TaskPool) StopTasksByWorkflowRun(projectID int, runID int, forceStop bo
 			go p.FinalizeRemoteTask(tsk, nil)
 		} else {
 			tsk.createTaskEvent()
+			tsk.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 		}
 	}
 }

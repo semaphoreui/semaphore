@@ -197,3 +197,21 @@ func TestFinalizeRemoteTask_DispatchFailureIsNotTheRunner(t *testing.T) {
 	assert.Equal(t, audit.SystemActor(audit.ComponentTaskRunner), got.Actor)
 	assert.Empty(t, got.Event.Metadata.(audit.TaskCompleteMetadata).EndReason)
 }
+
+func TestStopTasksByTemplate_CompletesOnlyTasksOutsideTheQueue(t *testing.T) {
+	fixture := newTaskRunnerRunFixture(t)
+	rec := &audittest.Recorder{}
+	fixture.pool.SetAuditRecorder(rec)
+	starting, err := fixture.store.CreateTask(db.Task{ProjectID: fixture.template.ProjectID, TemplateID: fixture.template.ID, Status: task_logger.TaskStartingStatus}, 0)
+	require.NoError(t, err)
+	waiting, err := fixture.store.CreateTask(db.Task{ProjectID: fixture.template.ProjectID, TemplateID: fixture.template.ID, Status: task_logger.TaskWaitingStatus}, 0)
+	require.NoError(t, err)
+	fixture.pool.state.Enqueue(NewTaskRunner(waiting, &fixture.pool, "", nil))
+
+	fixture.pool.StopTasksByTemplate(fixture.template.ProjectID, fixture.template.ID, false)
+
+	got, err := rec.Only(audit.TaskExecutionComplete)
+	require.NoError(t, err, "a queued task gets no complete")
+	assert.Equal(t, strconv.Itoa(starting.ID), got.Event.Target.ID)
+	assert.Equal(t, "stopped", got.Event.Metadata.(audit.TaskCompleteMetadata).Result)
+}
