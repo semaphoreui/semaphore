@@ -3,33 +3,17 @@ package helpers
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/gorilla/mux"
 )
 
-// SetTestDelay sets a delay for testing slow network conditions
-func SetTestDelay(delay time.Duration) func() {
-	originalDelay := os.Getenv("DEBUG_DELAY")
-	err := os.Setenv("DEBUG_DELAY", delay.String())
-
-	if err != nil {
-		panic("Failed to set DEBUG_DELAY environment variable: " + err.Error())
-	}
-
-	return func() {
-		if originalDelay == "" {
-			err = os.Unsetenv("DEBUG_DELAY")
-		} else {
-			err = os.Setenv("DEBUG_DELAY", originalDelay)
-		}
-
-		if err != nil {
-			panic("Failed to unset DEBUG_DELAY environment variable: " + err.Error())
-		}
-	}
+// SetTestDelay sets a delay for testing slow network conditions.
+// Cleanup is handled by testing.T.Setenv.
+func SetTestDelay(t *testing.T, delay time.Duration) {
+	t.Helper()
+	t.Setenv("DEBUG_DELAY", delay.String())
 }
 
 func TestGetIntParam(t *testing.T) {

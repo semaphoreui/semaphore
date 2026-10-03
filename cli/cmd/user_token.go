@@ -92,7 +92,10 @@ func createUserToken(store db.Store, out io.Writer, args tokenArgs) error {
 		return err
 	}
 
-	fmt.Fprintln(out, token.ID)
+	if _, err = fmt.Fprintln(out, token.ID); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -119,7 +122,10 @@ func listUserTokens(store db.Store, out io.Writer, args tokenArgs) error {
 			expires = token.ExpiresAt.Format(time.RFC3339)
 		}
 
-		fmt.Fprintf(out, "%s\t%s\t%s\n", token.Name, status, expires)
+		_, err = fmt.Fprintf(out, "%s\t%s\t%s\n", token.Name, status, expires)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

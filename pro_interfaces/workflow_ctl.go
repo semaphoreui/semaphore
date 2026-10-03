@@ -14,6 +14,8 @@ type WorkflowController interface {
 	GetWorkflow(w http.ResponseWriter, r *http.Request)
 	UpdateWorkflow(w http.ResponseWriter, r *http.Request)
 	RemoveWorkflow(w http.ResponseWriter, r *http.Request)
+	GetWorkflowRevisions(w http.ResponseWriter, r *http.Request)
+	GetWorkflowRevision(w http.ResponseWriter, r *http.Request)
 	RunWorkflow(w http.ResponseWriter, r *http.Request)
 	StopWorkflowRun(w http.ResponseWriter, r *http.Request)
 	GetWorkflowRuns(w http.ResponseWriter, r *http.Request)

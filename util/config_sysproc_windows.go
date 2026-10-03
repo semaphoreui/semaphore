@@ -21,4 +21,3 @@ func (conf *ConfigType) GetAppSysProcAttr() *syscall.SysProcAttr {
 func ChownDir(path string) error {
 	return nil
 }
-

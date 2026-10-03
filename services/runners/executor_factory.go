@@ -70,6 +70,7 @@ func newExecutor(
 		jobData.Repository,
 		jobData.Environment,
 		jobData.JWT,
+		jobData.HostConfigs,
 	)
 }
 
@@ -78,6 +79,10 @@ func newExecutor(
 // identical across strategies — every executor sees the same shape of JobData.
 func hydrateJobAccessKeys(jobData *JobData, accessKeys map[int]db.AccessKey) {
 	jobData.Repository.SSHKey = accessKeys[jobData.Repository.SSHKeyID]
+
+	for i := range jobData.HostConfigs {
+		jobData.HostConfigs[i].SSHKey = accessKeys[jobData.HostConfigs[i].SSHKeyID]
+	}
 
 	if jobData.Inventory.SSHKeyID != nil {
 		jobData.Inventory.SSHKey = accessKeys[*jobData.Inventory.SSHKeyID]

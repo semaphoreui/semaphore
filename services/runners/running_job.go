@@ -171,7 +171,7 @@ func (p *runningJob) ackLogRecords(sent int) (pending int) {
 
 func (p *runningJob) logPipe(reader io.Reader) {
 	if closer, ok := reader.(io.Closer); ok {
-		defer closer.Close()
+		defer closer.Close() //nolint:errcheck
 	}
 
 	scanner := bufio.NewScanner(reader)

@@ -9,6 +9,10 @@ linters:
   default: standard
   disable:
     - unused
+  exclusions:
+    paths:
+      # Vendored Go sources of an npm package, not ours to lint.
+      - web/node_modules
 
 formatters:
   enable:

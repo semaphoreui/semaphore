@@ -1,0 +1,45 @@
+// Shared colour palette of the workflow canvas. WorkflowGraph.vue turns these
+// into CSS custom properties (--wf-*) on its root, with a dark-theme override,
+// so every component mounted inside the canvas reads the same values.
+
+$wf-success: #4caf50;
+$wf-error: #f44336;
+$wf-warning: #fb8c00;
+$wf-primary: #1976d2;
+$wf-primary-dark: #2196f3;
+$wf-approval: #ab47bc;
+$wf-delay: #ff9800;
+$wf-always: #9e9e9e;
+
+$wf-surface: #ffffff;
+$wf-surface-dark: #1e1e1e;
+$wf-text: rgba(0, 0, 0, 0.87);
+$wf-text-dark: #ffffff;
+$wf-text2: rgba(0, 0, 0, 0.6);
+$wf-text2-dark: rgba(255, 255, 255, 0.7);
+$wf-divider: rgba(0, 0, 0, 0.12);
+$wf-divider-dark: rgba(255, 255, 255, 0.12);
+$wf-divider-strong: rgba(0, 0, 0, 0.28);
+$wf-divider-strong-dark: rgba(255, 255, 255, 0.3);
+$wf-dot: rgba(0, 0, 0, 0.18);
+$wf-dot-dark: rgba(255, 255, 255, 0.14);
+$wf-tile-bg: rgba(0, 0, 0, 0.06);
+$wf-tile-bg-dark: rgba(255, 255, 255, 0.08);
+$wf-primary-ring: rgba(25, 118, 210, 0.25);
+$wf-primary-ring-dark: rgba(33, 150, 243, 0.3);
+
+$wf-note-bg: #fff8c4;
+$wf-note-border: #e6d873;
+$wf-note-text: #5b5320;
+$wf-note-bg-dark: #4a4420;
+$wf-note-border-dark: #6b6230;
+$wf-note-text-dark: #f3ecb0;
+
+$wf-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+$wf-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.16);
+$wf-shadow-dark: 0 1px 3px rgba(0, 0, 0, 0.5);
+$wf-shadow-hover-dark: 0 4px 14px rgba(0, 0, 0, 0.6);
+
+$wf-grid: 20px;
+$wf-card-width: 220px;
+$wf-card-radius: 12px;

@@ -3,14 +3,17 @@ package api
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/conv"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 	task2 "github.com/semaphoreui/semaphore/services/tasks"
 
@@ -20,10 +23,10 @@ import (
 	"github.com/thedevsaddam/gojsonq/v2"
 )
 
-// isValidHmacPayload checks if the GitHub payload's hash fits with
-// the hash computed by GitHub sent as a header
-func isValidHmacPayload(secret, headerHash string, payload []byte, prefix string) bool {
-	hash := hmacHashPayload(secret, payload)
+// isValidHmacPayload checks if the payload's hash fits with
+// the hash computed by the sender and sent as a header
+func isValidHmacPayload(secret, headerHash string, payload []byte, prefix string, hashFunc func() hash.Hash) bool {
+	hash := hmacHashPayload(secret, payload, hashFunc)
 
 	if !strings.HasPrefix(headerHash, prefix) {
 		return false
@@ -40,8 +43,8 @@ func isValidHmacPayload(secret, headerHash string, payload []byte, prefix string
 // hmacHashPayload computes the hash of payload's body according to the webhook's secret token
 // see https://developer.github.com/webhooks/securing/#validating-payloads-from-github
 // returning the hash as a hexadecimal string
-func hmacHashPayload(secret string, payloadBody []byte) string {
-	hm := hmac.New(sha256.New, []byte(secret))
+func hmacHashPayload(secret string, payloadBody []byte, hashFunc func() hash.Hash) string {
+	hm := hmac.New(hashFunc, []byte(secret))
 	hm.Write(payloadBody)
 	sum := hm.Sum(nil)
 	return fmt.Sprintf("%x", sum)
@@ -122,7 +125,8 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 				integration.AuthSecret.LoginPassword.Password,
 				r.Header.Get("X-Hub-Signature-256"),
 				payload,
-				"sha256=")
+				"sha256=",
+				sha256.New)
 
 			if !ok {
 				log.WithFields(log.Fields{
@@ -135,7 +139,8 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 				integration.AuthSecret.LoginPassword.Password,
 				r.Header.Get("x-hub-signature"),
 				payload,
-				"sha256=")
+				"sha256=",
+				sha256.New)
 
 			if !ok {
 				log.WithFields(log.Fields{
@@ -148,12 +153,27 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 				integration.AuthSecret.LoginPassword.Password,
 				r.Header.Get(integration.AuthHeader),
 				payload,
-				"")
+				"",
+				sha256.New)
 
 			if !ok {
 				log.WithFields(log.Fields{
 					"context": "integrations",
 				}).Error("Invalid HMAC signature")
+				continue
+			}
+		case db.IntegrationAuthHmacSha512:
+			ok := isValidHmacPayload(
+				integration.AuthSecret.LoginPassword.Password,
+				r.Header.Get(integration.AuthHeader),
+				payload,
+				"",
+				sha512.New)
+
+			if !ok {
+				log.WithFields(log.Fields{
+					"context": "integrations",
+				}).Error("Invalid HMAC-SHA512 signature")
 				continue
 			}
 		case db.IntegrationAuthToken:
@@ -364,7 +384,9 @@ func (c *IntegrationController) RunIntegration(integration db.Integration, proje
 
 	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
-	task, err := pool.AddTask(taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
+	// The webhook caller authenticates as the integration, and its address stays in the request context.
+	ctx := audit.WithActor(r.Context(), audit.IntegrationActor(integration.ID, integration.Name))
+	task, err := pool.AddTaskFrom(ctx, audit.TriggerIntegration, taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
 		log.Error(err)
 		return

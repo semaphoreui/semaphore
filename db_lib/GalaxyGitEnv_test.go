@@ -2,6 +2,10 @@ package db_lib
 
 import (
 	"errors"
+	"os"
+	"os/exec"
+	"path"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -105,7 +109,8 @@ func TestGalaxyGitEnv_NoCredentialsForOtherRepoTypes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, []string{"GIT_TERMINAL_PROMPT=0"}, galaxyGitEnv(tt.repo))
+			env := galaxyGitEnv(tt.repo)
+			assert.Equal(t, []string{"GIT_TERMINAL_PROMPT=0"}, env)
 		})
 	}
 }
@@ -123,11 +128,14 @@ func TestGalaxyGitEnv_ScopesCredentialToOneHost(t *testing.T) {
 type fakeInstaller struct {
 	key   db.AccessKey
 	usage db.AccessKeyRole
+	env   []string
 	err   error
+	calls int
 }
 
 func (f *fakeInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, _ task_logger.Logger) (ssh.AccessKeyInstallation, error) {
 	f.key, f.usage = key, usage
+	f.calls++
 	return ssh.AccessKeyInstallation{}, f.err
 }
 
@@ -139,26 +147,88 @@ func setupGalaxyConfig(t *testing.T) {
 	util.Config = &util.ConfigType{TmpPath: t.TempDir(), Process: &util.ConfigProcess{}}
 }
 
+
+// stubGalaxy puts a succeeding ansible-galaxy first on PATH and returns a
+// function reporting how many times it ran. Without it the real binary runs and
+// fails, so InstallRequirements returns before the second requirements file and
+// nothing is reused.
+func stubGalaxy(t *testing.T) func() int {
+	t.Helper()
+
+	dir := t.TempDir()
+	runLog := path.Join(dir, "runs")
+
+	// The path is baked into the script, quoted: makeCmd builds cmd.Env from
+	// scratch, so an env var set here would not reach the stub.
+	script := "#!/bin/sh\nprintf 'run\\n' >> " + sqQuote(runLog) + "\n"
+	require.NoError(t, os.WriteFile(path.Join(dir, "ansible-galaxy"), []byte(script), 0o755))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	return func() int {
+		content, err := os.ReadFile(runLog)
+		if err != nil {
+			return 0
+		}
+		return strings.Count(string(content), "run")
+	}
+}
+
+// newGalaxyApp builds the app the way AppFactory does, so that runGalaxy has a
+// Playbook to run.
+func newGalaxyApp(repo db.Repository) *AnsibleApp {
+	logger := task_logger.NopLogger{}
+
+	return &AnsibleApp{
+		Logger:     logger,
+		Repository: repo,
+		Playbook:   &AnsiblePlaybook{Repository: repo, Logger: logger},
+	}
+}
+
+// writeRequirements puts a requirements.yml where the app looks for it, so that
+// galaxy actually runs. Without one every install is skipped.
+func writeRequirements(t *testing.T, app *AnsibleApp) {
+	t.Helper()
+
+	dir := app.getRepoPath()
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(path.Join(dir, "requirements.yml"), []byte("collections: []\n"), 0o644))
+}
+
 // The repository's own key must be the one galaxy gets, under the git role.
 func TestInstallRequirements_InstallsRepositoryKey(t *testing.T) {
 	setupGalaxyConfig(t)
 
 	inst := &fakeInstaller{}
-	app := &AnsibleApp{
-		Logger:     task_logger.NopLogger{},
-		Repository: db.Repository{SSHKey: db.AccessKey{ID: 42, Type: db.AccessKeySSH}},
-	}
+	app := newGalaxyApp(db.Repository{SSHKey: db.AccessKey{ID: 42, Type: db.AccessKeySSH}})
+	writeRequirements(t, app)
+	galaxyRuns := stubGalaxy(t)
 
-	_ = app.InstallRequirements(LocalAppInstallingArgs{Installer: inst})
+	require.NoError(t, app.InstallRequirements(LocalAppInstallingArgs{Installer: inst}))
 
+	require.Greater(t, galaxyRuns(), 1, "reuse is only meaningful across more than one galaxy run")
 	assert.Equal(t, 42, inst.key.ID)
 	assert.Equal(t, db.AccessKeyRole(db.AccessKeyRoleGit), inst.usage)
+	assert.Equal(t, 1, inst.calls, "one installation must be reused across requirements files")
+}
+
+// Nothing for galaxy to install means no key is decrypted and no agent started.
+func TestInstallRequirements_NoRequirementsFileInstallsNoKey(t *testing.T) {
+	setupGalaxyConfig(t)
+
+	inst := &fakeInstaller{}
+	app := newGalaxyApp(db.Repository{SSHKey: db.AccessKey{ID: 42, Type: db.AccessKeySSH}})
+
+	require.NoError(t, app.InstallRequirements(LocalAppInstallingArgs{Installer: inst}))
+
+	assert.Zero(t, inst.calls)
 }
 
 func TestInstallRequirements_FailsWhenKeyInstallFails(t *testing.T) {
 	setupGalaxyConfig(t)
 
-	app := &AnsibleApp{Logger: task_logger.NopLogger{}}
+	app := newGalaxyApp(db.Repository{})
+	writeRequirements(t, app)
 
 	err := app.InstallRequirements(LocalAppInstallingArgs{
 		Installer: &fakeInstaller{err: errors.New("agent unavailable")},
@@ -171,7 +241,185 @@ func TestInstallRequirements_FailsWhenKeyInstallFails(t *testing.T) {
 func TestInstallRequirements_NilInstaller(t *testing.T) {
 	setupGalaxyConfig(t)
 
-	app := &AnsibleApp{Logger: task_logger.NopLogger{}}
+	app := newGalaxyApp(db.Repository{})
 
 	assert.NoError(t, app.InstallRequirements(LocalAppInstallingArgs{}))
+}
+
+// TestGalaxyGitEnv_EscapesEqualsInCredentials covers a credential containing an
+// "=", which is common in tokens. git splits a GIT_CONFIG_PARAMETERS entry at
+// the first "=", so an unescaped one truncates the key and aborts the clone.
+func TestGalaxyGitEnv_EscapesEqualsInCredentials(t *testing.T) {
+	tests := []struct {
+		name     string
+		login    string
+		password string
+		expected string
+	}{
+		{"equals in password", "bob", "tok=en", "bob:tok%3Den@git.private.repo"},
+		{"equals in token only login", "", "ghp_ab=cd", "ghp_ab%3Dcd@git.private.repo"},
+		{"equals in login", "us=er", "pw", "us%3Der:pw@git.private.repo"},
+		{"equals at both ends", "a=b", "c=d", "a%3Db:c%3Dd@git.private.repo"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := galaxyGitEnv(httpRepo("https://git.private.repo/acme/roles.git", tt.login, tt.password))
+
+			require.Len(t, env, 2)
+			params := strings.TrimPrefix(env[1], "GIT_CONFIG_PARAMETERS=")
+			assert.Contains(t, params, tt.expected)
+
+			// The key is everything before the first "=", so the rewrite must
+			// still be the whole url.<authenticated>.insteadOf key.
+			key, _, found := strings.Cut(strings.Trim(params, "'"), "=")
+			require.True(t, found)
+			assert.True(t, strings.HasSuffix(key, ".insteadOf"),
+				"the config key must not be cut short by a credential: %q", key)
+		})
+	}
+}
+
+// TestGalaxyGitEnv_ParsedByGit hands the generated value to the real git binary,
+// which is the only thing that decides whether the rewrite installs.
+func TestGalaxyGitEnv_ParsedByGit(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+
+	env := galaxyGitEnv(httpRepo("https://git.private.repo/acme/roles.git", "bob", "tok=en"))
+	require.Len(t, env, 2)
+
+	cmd := exec.Command("git", "config", "--get-regexp", "^url\\.")
+	cmd.Dir = t.TempDir()
+	// A clean environment: the developer's own ~/.gitconfig also holds url.*
+	// rewrites, which would make this pass for the wrong reason.
+	cmd.Env = []string{env[1], "HOME=" + cmd.Dir, "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null"}
+
+	out, err := cmd.CombinedOutput()
+
+	require.NoError(t, err, "git could not parse the config: %s", out)
+	assert.Contains(t, string(out), "bob:tok%3Den@git.private.repo")
+	assert.Contains(t, string(out), "insteadof https://git.private.repo/")
+}
+
+// The credential mappings of the project and the repository credentials here
+// both produce git rewrites, and each sets GIT_CONFIG_PARAMETERS on its own.
+// Only one variable reaches git, so they have to be folded into it together.
+func TestMergeGitConfigParameters(t *testing.T) {
+	repoRewrite := `'url.https://bob:s3cr3t@git.example/.insteadOf=https://git.example/'`
+	mappingRewrite := `'url.git@semaphore-mapping-1:acme/.insteadOf=https://github.com/acme/'`
+
+	env := mergeGitConfigParameters([]string{
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_CONFIG_PARAMETERS=" + repoRewrite,
+		"SSH_AUTH_SOCK=/tmp/a.sock",
+		"GIT_CONFIG_PARAMETERS=" + mappingRewrite,
+	})
+
+	var params []string
+	for _, v := range env {
+		if value, ok := strings.CutPrefix(v, "GIT_CONFIG_PARAMETERS="); ok {
+			params = append(params, value)
+		}
+	}
+
+	require.Len(t, params, 1, "git reads one variable, so exactly one must be set")
+	assert.Contains(t, params[0], repoRewrite, "the repository credential must survive")
+	assert.Contains(t, params[0], mappingRewrite, "the mapping must survive")
+
+	assert.Contains(t, env, "GIT_TERMINAL_PROMPT=0")
+	assert.Contains(t, env, "SSH_AUTH_SOCK=/tmp/a.sock")
+}
+
+func TestMergeGitConfigParameters_NothingToMerge(t *testing.T) {
+	env := mergeGitConfigParameters([]string{"GIT_TERMINAL_PROMPT=0"})
+
+	assert.Equal(t, []string{"GIT_TERMINAL_PROMPT=0"}, env)
+}
+
+// The end of the chain: what a galaxy run actually receives when the project has
+// credential mappings and the repository has its own https credential. Both
+// rewrites have to survive into the one variable git reads.
+func TestAnsibleApp_GalaxyEnv_KeepsBothRewrites(t *testing.T) {
+	setupGalaxyConfig(t)
+	util.Config.Ssh = &util.SshConfig{StrictHostKeyChecking: util.SshStrictHostKeyCheckingNo}
+
+	app := &AnsibleApp{
+		Repository: db.Repository{
+			GitURL: "https://git.example/acme/repo.git",
+			SSHKey: db.AccessKey{
+				Type:          db.AccessKeyLoginPassword,
+				LoginPassword: db.LoginPassword{Login: "bob", Password: "s3cr3t"},
+			},
+		},
+	}
+
+	// What the task pipeline hands in: the credential mappings of the project.
+	installation, err := ssh.InstallHostConfigs(1, []db.HostConfig{{
+		ID: 1, ProjectID: 1, Type: db.HostConfigURL,
+		Name: "https://github.com/acme/",
+		SSHKey: db.AccessKey{
+			ID: 2, Type: db.AccessKeyLoginPassword,
+			LoginPassword: db.LoginPassword{Login: "alice", Password: "t0ken"},
+		},
+	}}, task_logger.NopLogger{})
+	require.NoError(t, err)
+	defer installation.Destroy()
+
+	var noKey ssh.AccessKeyInstallation
+	env, err := app.galaxyEnv(noKey.GetGitEnvWithHostConfigs(installation))
+	require.NoError(t, err)
+
+	var params []string
+	for _, v := range env {
+		if value, ok := strings.CutPrefix(v, "GIT_CONFIG_PARAMETERS="); ok {
+			params = append(params, value)
+		}
+	}
+
+	require.Len(t, params, 1, "git reads one variable")
+	assert.Contains(t, params[0], "bob:s3cr3t@git.example", "the repository credential")
+	assert.Contains(t, params[0], "insteadOf=https://github.com/acme/", "the project mapping")
+}
+
+type agentInstaller struct{ socket string }
+
+func (a *agentInstaller) Install(db.AccessKey, db.AccessKeyRole, task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	return ssh.AccessKeyInstallation{SSHAgent: &ssh.Agent{SocketFile: a.socket}}, nil
+}
+
+// GIT_SSH_COMMAND is set by the repository key here and by the credential
+// mappings, and only one survives. The mappings' one must win, because its
+// config binds each mapped host to its own agent — but the repository key must
+// still reach every host the mappings say nothing about, through SSH_AUTH_SOCK.
+func TestAnsibleApp_GalaxyEnv_KeepsRepositoryAgent(t *testing.T) {
+	setupGalaxyConfig(t)
+	util.Config.Ssh = &util.SshConfig{StrictHostKeyChecking: util.SshStrictHostKeyCheckingNo}
+
+	app := &AnsibleApp{
+		Repository:      db.Repository{GitURL: "git@git.example:acme/repo.git"},
+		galaxyInstaller: &agentInstaller{socket: "/tmp/galaxy-key.sock"},
+	}
+
+	generated := "/tmp/semaphore/project_1/ssh-config-test.conf"
+
+	var noKey ssh.AccessKeyInstallation
+	env, err := app.galaxyEnv(noKey.GetGitEnvWithHostConfigs(
+		&ssh.HostConfigInstallation{ConfigFile: generated}))
+	require.NoError(t, err)
+
+	// Later entries win, which is how os/exec resolves duplicates.
+	var sshSock, sshCmd string
+	for _, v := range env {
+		if value, ok := strings.CutPrefix(v, "SSH_AUTH_SOCK="); ok {
+			sshSock = value
+		}
+		if value, ok := strings.CutPrefix(v, "GIT_SSH_COMMAND="); ok {
+			sshCmd = value
+		}
+	}
+
+	assert.Equal(t, "/tmp/galaxy-key.sock", sshSock, "the repository key must still be reachable")
+	assert.Contains(t, sshCmd, "-F "+generated, "the mappings' config must be the one git uses")
 }

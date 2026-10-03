@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/runners"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
@@ -58,6 +59,7 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 		}
 
 		r = helpers.SetContextValue(r, "runner", runner)
+		r = r.WithContext(audit.WithActor(r.Context(), audit.RunnerActor(runner.ID, runner.Name)))
 		next.ServeHTTP(w, r)
 	})
 }
@@ -171,7 +173,7 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 			logger.Error("failed to read task survey secrets")
 			tsk.Log("Failed to read survey secrets. More details in the server logs.")
 		}
-		tsk.SetStatus(task_logger.TaskFailStatus)
+		tsk.FailDispatch()
 		c.taskPool.FinalizeRemoteTask(tsk, runner)
 		return
 	}
@@ -186,6 +188,7 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 		InventoryRepository: tsk.Inventory.Repository,
 		Repository:          tsk.Repository,
 		Environment:         tsk.Environment,
+		HostConfigs:         tsk.HostConfigs,
 	}
 
 	// Always overwrite: the dispatched Secret must be exactly the
@@ -201,7 +204,7 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 				"context":     "jwt",
 			}).Warn("invalid template jwt_params.ttl")
 			tsk.Log("Invalid JWT token lifetime in the template settings: " + terr.Error())
-			tsk.SetStatus(task_logger.TaskFailStatus)
+			tsk.FailDispatch()
 			c.taskPool.FinalizeRemoteTask(tsk, runner)
 			return
 		}
@@ -220,7 +223,7 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 				"context": "jwt",
 			}).Error("failed to sign task JWT")
 			tsk.Log("Failed to sign the task JWT. More details in the server logs.")
-			tsk.SetStatus(task_logger.TaskFailStatus)
+			tsk.FailDispatch()
 			c.taskPool.FinalizeRemoteTask(tsk, runner)
 			return
 		}
@@ -235,7 +238,7 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 	taskKeys := make(map[int]db.AccessKey)
 	if kerr := c.collectTaskAccessKeys(tsk, runner.ID, taskKeys); kerr != nil {
 		tsk.Log("Failed to decrypt access keys of the task. More details in the server logs.")
-		tsk.SetStatus(task_logger.TaskFailStatus)
+		tsk.FailDispatch()
 		c.taskPool.FinalizeRemoteTask(tsk, runner)
 		return
 	}
@@ -248,6 +251,26 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 // and stages them into keys, so the caller publishes either all of them or
 // none. It returns the first decryption error.
 func (c *RunnerController) collectTaskAccessKeys(tsk *tasks.TaskRunner, runnerID int, keys map[int]db.AccessKey) error {
+	// The credential of every mapping, so the runner can bind it to its host.
+	// Decrypted here rather than reused from loadHostConfigs: a task can wait in
+	// the queue long enough for a key to expire between the two.
+	for i := range tsk.HostConfigs {
+		hostConfig := &tsk.HostConfigs[i]
+
+		if err := c.encryptionService.DeserializeSecret(&hostConfig.SSHKey); err != nil {
+			log.WithFields(log.Fields{
+				"runner_id":      runnerID,
+				"task_id":        tsk.Task.ID,
+				"host_config_id": hostConfig.ID,
+				"access_key_id":  hostConfig.SSHKeyID,
+				"context":        "runner",
+			}).WithError(err).Error("Failed to decrypt host config key")
+			return err
+		}
+
+		keys[hostConfig.SSHKeyID] = hostConfig.SSHKey
+	}
+
 	if tsk.Inventory.SSHKeyID != nil {
 		if err := c.encryptionService.DeserializeSecret(&tsk.Inventory.SSHKey); err != nil {
 			log.WithFields(log.Fields{
@@ -408,6 +431,14 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 
 		if !job.Status.IsValid() {
 			jobLog.WithField("reported_status", string(job.Status)).Debug("Rejecting runner task update: invalid status")
+			// The status string comes from the runner, so it is not recorded.
+			helpers.Audit(r).Record(r.Context(), audit.Event{
+				Kind:      audit.RunnerProgressReject,
+				Outcome:   audit.OutcomeFailure,
+				Reason:    audit.ReasonInvalidStatus,
+				Target:    audit.ResourceTarget(audit.TargetTask, job.ID, ""),
+				ProjectID: tsk.Task.ProjectID,
+			})
 			helpers.WriteErrorStatus(w, "Invalid task status", http.StatusBadRequest)
 			return
 		}
@@ -479,12 +510,22 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 	var runner db.Runner
 	var err error
 
+	tokenType := audit.RunnerTokenGlobal
 	if strings.HasPrefix(register.RegistrationToken, "smrs_") {
+		tokenType = audit.RunnerTokenOneTime
 		// Otherwise the value is a one-time registration token issued for a specific
 		// unregistered runner. The global token cannot be used to register it.
 		runner, err = store.RegisterRunner(server.HashRunnerRegistrationToken(register.RegistrationToken), nil)
 
 		if err != nil {
+			if errors.Is(err, db.ErrNotFound) || errors.Is(err, db.ErrRunnerAlreadyRegistered) || errors.Is(err, db.ErrRegistrationTokenExpired) {
+				helpers.Audit(r).Record(r.Context(), audit.Event{
+					Kind:     audit.RunnerLifecycleRegister,
+					Outcome:  audit.OutcomeFailure,
+					Reason:   audit.ReasonInvalidRegistrationToken,
+					Metadata: audit.RunnerRegisterMetadata{Token: tokenType},
+				})
+			}
 			helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "Invalid registration token",
 			})
@@ -513,6 +554,12 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:     audit.RunnerLifecycleRegister,
+			Outcome:  audit.OutcomeFailure,
+			Reason:   audit.ReasonInvalidRegistrationToken,
+			Metadata: audit.RunnerRegisterMetadata{Token: tokenType},
+		})
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid registration token",
 		})
@@ -523,6 +570,17 @@ func RegisterRunner(w http.ResponseWriter, r *http.Request) {
 		"runner_id": runner.ID,
 		"context":   "runner",
 	}).Info("New runner registered")
+
+	projectID := 0
+	if runner.ProjectID != nil {
+		projectID = *runner.ProjectID
+	}
+	helpers.Audit(r).Record(audit.WithActor(r.Context(), audit.RunnerActor(runner.ID, runner.Name)), audit.Event{
+		Kind:      audit.RunnerLifecycleRegister,
+		Target:    audit.ResourceTarget(audit.TargetRunner, runner.ID, runner.Name),
+		ProjectID: projectID,
+		Metadata:  audit.RunnerRegisterMetadata{Token: tokenType},
+	})
 
 	var res struct {
 		Token string `json:"token"`
@@ -539,11 +597,24 @@ func UnregisterRunner(w http.ResponseWriter, r *http.Request) {
 
 	err := helpers.Store(r).DeleteGlobalRunner(runner.ID)
 
-	if err != nil {
+	// A concurrent unregister already removed the runner.
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		helpers.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": "Unknown error",
 		})
 		return
+	}
+
+	if err == nil {
+		projectID := 0
+		if runner.ProjectID != nil {
+			projectID = *runner.ProjectID
+		}
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      audit.RunnerLifecycleUnregister,
+			Target:    audit.ResourceTarget(audit.TargetRunner, runner.ID, runner.Name),
+			ProjectID: projectID,
+		})
 	}
 
 	w.WriteHeader(http.StatusNoContent)

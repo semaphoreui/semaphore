@@ -39,27 +39,12 @@ func TestLoadEnvironmentToObject(t *testing.T) {
 		StringArr []string `env:"TEST_STRING_ARR"`
 	}
 
-	err := os.Setenv("TEST_FLAG", "yes")
-	if err != nil {
-		panic(err)
-	}
+	t.Setenv("TEST_FLAG", "yes")
+	t.Setenv("TEST_ENV_VAR", "758478")
+	t.Setenv("TEST_VALUE_ENV_VAR", "test_value")
+	t.Setenv("TEST_STRING_ARR", "[\"test1\",\"test2\"]")
 
-	err = os.Setenv("TEST_ENV_VAR", "758478")
-	if err != nil {
-		panic(err)
-	}
-
-	err = os.Setenv("TEST_VALUE_ENV_VAR", "test_value")
-	if err != nil {
-		panic(err)
-	}
-
-	err = os.Setenv("TEST_STRING_ARR", "[\"test1\",\"test2\"]")
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = loadEnvironmentToObject(&val)
+	_, err := loadEnvironmentToObject(&val)
 	if err != nil {
 		t.Error(err)
 	}
@@ -94,12 +79,9 @@ func TestLoadEnvironmentToObject_Arr(t *testing.T) {
 		StringArr []string `env:"TEST_STRING_ARR"`
 	}
 
-	err := os.Setenv("TEST_STRING_ARR", "[\"test1\",\"test2\"]")
-	if err != nil {
-		panic(err)
-	}
+	t.Setenv("TEST_STRING_ARR", "[\"test1\",\"test2\"]")
 
-	_, err = loadEnvironmentToObject(&val)
+	_, err := loadEnvironmentToObject(&val)
 	if err != nil {
 		t.Error(err)
 	}
@@ -126,12 +108,9 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 		Users map[string]User `env:"TEST_USERS"`
 	}
 
-	err := os.Setenv("TEST_USERS", "{\"test\":{\"name\":\"test\",\"age\":5}}")
-	if err != nil {
-		panic(err)
-	}
+	t.Setenv("TEST_USERS", "{\"test\":{\"name\":\"test\",\"age\":5}}")
 
-	_, err = loadEnvironmentToObject(&val)
+	_, err := loadEnvironmentToObject(&val)
 	if err != nil {
 		panic(err)
 	}
@@ -144,22 +123,8 @@ func TestLoadEnvironmentToObject_Map(t *testing.T) {
 func TestLoadEnvironmentToObject_RunnerExecutor(t *testing.T) {
 	var val RunnerConfig
 
-	origExecutor, hadExecutor := os.LookupEnv("SEMAPHORE_RUNNER_EXECUTOR")
-	origNetwork, hadNetwork := os.LookupEnv("SEMAPHORE_RUNNER_DOCKER_NETWORK")
-	t.Cleanup(func() {
-		if hadExecutor {
-			_ = os.Setenv("SEMAPHORE_RUNNER_EXECUTOR", origExecutor)
-		} else {
-			_ = os.Unsetenv("SEMAPHORE_RUNNER_EXECUTOR")
-		}
-		if hadNetwork {
-			_ = os.Setenv("SEMAPHORE_RUNNER_DOCKER_NETWORK", origNetwork)
-		} else {
-			_ = os.Unsetenv("SEMAPHORE_RUNNER_DOCKER_NETWORK")
-		}
-	})
-	require.NoError(t, os.Setenv("SEMAPHORE_RUNNER_EXECUTOR", `{"type":"docker","docker":{"image":"example.com/job:1"}}`))
-	require.NoError(t, os.Setenv("SEMAPHORE_RUNNER_DOCKER_NETWORK", "host"))
+	t.Setenv("SEMAPHORE_RUNNER_EXECUTOR", `{"type":"docker","docker":{"image":"example.com/job:1"}}`)
+	t.Setenv("SEMAPHORE_RUNNER_DOCKER_NETWORK", "host")
 
 	_, err := loadEnvironmentToObject(&val)
 	require.NoError(t, err)
@@ -180,10 +145,8 @@ func TestLoadEnvironmentToObject_SensitiveEnvs(t *testing.T) {
 		NotSecret *sub `env:"TEST_PUBLIC_SUB"`
 	}
 
-	require.NoError(t, os.Setenv("TEST_SECRET_SUB", `{"field":"s"}`))
-	require.NoError(t, os.Setenv("TEST_PUBLIC_SUB", `{"field":"p"}`))
-	defer os.Unsetenv("TEST_SECRET_SUB")
-	defer os.Unsetenv("TEST_PUBLIC_SUB")
+	t.Setenv("TEST_SECRET_SUB", `{"field":"s"}`)
+	t.Setenv("TEST_PUBLIC_SUB", `{"field":"p"}`)
 
 	sensitive, err := loadEnvironmentToObject(&val)
 	require.NoError(t, err)
@@ -201,8 +164,7 @@ func TestLoadEnvironmentToObject_SensitiveEnvs_NoDuplicates(t *testing.T) {
 		B *sub `env:"TEST_SHARED_SECRET,sensitive"`
 	}
 
-	require.NoError(t, os.Setenv("TEST_SHARED_SECRET", `{"field":"x"}`))
-	defer os.Unsetenv("TEST_SHARED_SECRET")
+	t.Setenv("TEST_SHARED_SECRET", `{"field":"x"}`)
 
 	sensitive, err := loadEnvironmentToObject(&val)
 	require.NoError(t, err)
@@ -223,8 +185,7 @@ func TestLoadEnvironmentToObject_SensitiveEnvs_Empty(t *testing.T) {
 		Plain string `env:"TEST_PLAIN_VAR"`
 	}
 
-	require.NoError(t, os.Setenv("TEST_PLAIN_VAR", "value"))
-	defer os.Unsetenv("TEST_PLAIN_VAR")
+	t.Setenv("TEST_PLAIN_VAR", "value")
 
 	sensitive, err := loadEnvironmentToObject(&val)
 	require.NoError(t, err)
@@ -401,12 +362,12 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 	envLdapNeedTls := "1"
 	envDbHost := "192.168.0.1"
 
-	os.Setenv("SEMAPHORE_PORT", envPort)                                 //nolint:errcheck
-	os.Setenv("SEMAPHORE_COOKIE_HASH", envCookieHash)                    //nolint:errcheck
-	os.Setenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION", envAccessKeyEncryption) //nolint:errcheck
-	os.Setenv("SEMAPHORE_MAX_PARALLEL_TASKS", envMaxParallelTasks)       //nolint:errcheck
-	os.Setenv("SEMAPHORE_LDAP_NEEDTLS", envLdapNeedTls)                  //nolint:errcheck
-	os.Setenv("SEMAPHORE_DB_HOST", envDbHost)                            //nolint:errcheck
+	t.Setenv("SEMAPHORE_PORT", envPort)
+	t.Setenv("SEMAPHORE_COOKIE_HASH", envCookieHash)
+	t.Setenv("SEMAPHORE_ACCESS_KEY_ENCRYPTION", envAccessKeyEncryption)
+	t.Setenv("SEMAPHORE_MAX_PARALLEL_TASKS", envMaxParallelTasks)
+	t.Setenv("SEMAPHORE_LDAP_NEEDTLS", envLdapNeedTls)
+	t.Setenv("SEMAPHORE_DB_HOST", envDbHost)
 
 	loadConfigEnvironment()
 
@@ -658,15 +619,7 @@ func TestGetSecretsPath_Default(t *testing.T) {
 
 func TestGetSecretsPath_Env(t *testing.T) {
 	Config = NewConfigType()
-	orig, existed := os.LookupEnv("SEMAPHORE_SECRETS_PATH")
-	t.Cleanup(func() {
-		if existed {
-			_ = os.Setenv("SEMAPHORE_SECRETS_PATH", orig)
-		} else {
-			_ = os.Unsetenv("SEMAPHORE_SECRETS_PATH")
-		}
-	})
-	_ = os.Setenv("SEMAPHORE_SECRETS_PATH", "/env/secrets/path")
+	t.Setenv("SEMAPHORE_SECRETS_PATH", "/env/secrets/path")
 
 	loadConfigEnvironment()
 	loadConfigDefaults()
@@ -676,28 +629,19 @@ func TestGetSecretsPath_Env(t *testing.T) {
 	assert.Equal(t, "/env/secrets/path", Config.SecretsPath)
 }
 
-
 func setTestEnv(t *testing.T, key, val string) {
-	orig, existed := os.LookupEnv(key)
-	t.Cleanup(func() {
-		if existed {
-			_ = os.Setenv(key, orig)
-		} else {
-			_ = os.Unsetenv(key)
-		}
-	})
-	_ = os.Setenv(key, val)
+	t.Helper()
+	t.Setenv(key, val)
 }
 
 func unsetTestEnv(t *testing.T, key string) {
+	t.Helper()
 	orig, existed := os.LookupEnv(key)
-	t.Cleanup(func() {
-		if existed {
-			_ = os.Setenv(key, orig)
-		} else {
-			_ = os.Unsetenv(key)
-		}
-	})
+	if !existed {
+		return
+	}
+	// Register restore via t.Setenv, then clear for the duration of the test.
+	t.Setenv(key, orig)
 	_ = os.Unsetenv(key)
 }
 

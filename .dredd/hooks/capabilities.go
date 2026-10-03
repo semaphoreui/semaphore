@@ -31,12 +31,14 @@ var workflowApproval *db.WorkflowApproval
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
+var hostConfigID int
 var inventoryID int
 var environmentID int
 var templateID int
 var integrationID int
 var integrationExtractValueID int
 var integrationMatchID int
+var integrationAliasID int
 var workflowID int
 var workflowRunID int
 var workflowNodeID int
@@ -45,6 +47,7 @@ var capabilities = map[string][]string{
 	"user":                    {},
 	"project":                 {"user"},
 	"repository":              {"access_key"},
+	"host_config":             {"access_key"},
 	"inventory":               {"repository"},
 	"environment":             {"repository"},
 	"template":                {"repository", "inventory", "environment", "view"},
@@ -54,6 +57,8 @@ var capabilities = map[string][]string{
 	"integration":             {"project", "template"},
 	"integrationextractvalue": {"integration"},
 	"integrationmatcher":      {"integration"},
+	"project_alias":           {"integration"},
+	"integration_alias":       {"integration"},
 	"invite":                  {"user", "project"},
 	"runner":                  {"project"},
 	"global_runner":           {},
@@ -106,6 +111,15 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			addUserProjectRelation(userProject.ID, userPathTestUser.ID)
 		case "access_key":
 			userKey = addAccessKey(&userProject.ID)
+		case "host_config":
+			res, err := store.CreateHostConfig(db.HostConfig{
+				ProjectID: userProject.ID,
+				Type:      db.HostConfigHost,
+				Name:      "ITH-" + uid + ".example.org",
+				SSHKeyID:  userKey.ID,
+			})
+			printError(err)
+			hostConfigID = res.ID
 		case "repository":
 			pRepo, err := store.CreateRepository(db.Repository{
 				ProjectID: userProject.ID,
@@ -187,6 +201,10 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "integrationmatcher":
 			integrationmatch = addIntegrationMatcher()
 			integrationMatchID = integrationmatch.ID
+		case "project_alias":
+			integrationAliasID = addIntegrationAlias(nil).ID
+		case "integration_alias":
+			integrationAliasID = addIntegrationAlias(&integration.ID).ID
 		case "runner":
 			runner = addRunner()
 		case "global_runner":
@@ -229,11 +247,8 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(integration.ID) },
 	func() string { return strconv.Itoa(integrationextractvalue.ID) },
 	func() string { return strconv.Itoa(integrationmatch.ID) },
-	func() string { return strconv.Itoa(invite.ID) }, // invite_id, x-example: 14
-	// alias_id, x-example: 15 — integration aliases are not set up by these
-	// hooks, so leave the path segment untouched (kept here only to preserve
-	// the positional mapping of the entries that follow).
-	func() string { return strconv.Itoa(15) },
+	func() string { return strconv.Itoa(invite.ID) },          // invite_id, x-example: 14
+	func() string { return strconv.Itoa(integrationAliasID) }, // alias_id, x-example: 15
 	func() string {
 		if runner == nil {
 			return "0"
@@ -256,6 +271,13 @@ var pathSubPatterns = []func() string{
 	func() string {
 		return strconv.Itoa(workflowNodeID)
 	}, // node_id, x-example: 20
+	func() string { return strconv.Itoa(hostConfigID) }, // host_config_id, x-example: 21
+	func() string {
+		if workflow == nil {
+			return "0"
+		}
+		return strconv.Itoa(workflow.RevisionID)
+	}, // revision_id, x-example: 22
 }
 
 // alterRequestPath with the above slice of functions

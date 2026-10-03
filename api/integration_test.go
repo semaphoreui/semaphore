@@ -1,15 +1,19 @@
 package api
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/json"
 	"errors"
-
-	"github.com/semaphoreui/semaphore/db"
-	"github.com/stretchr/testify/assert"
-
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gorilla/mux"
+	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/sql"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,7 +47,7 @@ func TestExtract_JSONBody_ObjectPreservedAsMap(t *testing.T) {
 		},
 	}
 	got := Extract(values, http.Header{}, payload)
-	dataVal, ok := got["DATA"].(map[string]interface{})
+	dataVal, ok := got["DATA"].(map[string]any)
 	require.True(t, ok, "DATA should be a map[string]interface{}, got %T: %v", got["DATA"], got["DATA"])
 	assert.Equal(t, float64(2), dataVal["id"])
 	assert.Equal(t, "test", dataVal["name"])
@@ -132,12 +136,12 @@ func TestExtract_JSONBody_VariousTypesAndMissing(t *testing.T) {
 	assert.NotContains(t, got, "NULLV", "NULLV should not be present for null JSON value")
 
 	// Array is preserved as []interface{}
-	arrVal, ok := got["ARR"].([]interface{})
+	arrVal, ok := got["ARR"].([]any)
 	assert.True(t, ok, "ARR should be a []interface{}")
 	assert.Len(t, arrVal, 3, "ARR should have 3 elements")
 
 	// Object is preserved as map[string]interface{}
-	objVal, ok := got["OBJ"].(map[string]interface{})
+	objVal, ok := got["OBJ"].(map[string]any)
 	assert.True(t, ok, "OBJ should be a map[string]interface{}")
 	assert.Equal(t, "v", objVal["k"])
 
@@ -298,7 +302,7 @@ func TestGetTaskDefinition_JSONObjectInEnv(t *testing.T) {
 
 	var env map[string]any
 	if assert.NoError(t, json.Unmarshal([]byte(task.Environment), &env)) {
-		dataVal, ok := env["data"].(map[string]interface{})
+		dataVal, ok := env["data"].(map[string]any)
 		assert.True(t, ok, "data should be a JSON object, not a string (was: %T %v)", env["data"], env["data"])
 		assert.Equal(t, float64(2), dataVal["id"])
 		assert.Equal(t, "test", dataVal["name"])
@@ -694,4 +698,147 @@ func TestExtractBodyAndHeaderValues(t *testing.T) {
 	if result["FULL_PAYLOAD"] != string(payload) {
 		t.Errorf("Expected FULL_PAYLOAD to match original payload")
 	}
+}
+
+func TestHmacHashPayload_SHA256AndSHA512(t *testing.T) {
+	payload := []byte(`{"ok":true}`)
+	secret := "secret"
+
+	assert.Equal(t,
+		"f6b4a2841c93f8bf2fb8f2c13d8fb0b6c8e8019f09ee405d248daa8385fad638",
+		hmacHashPayload(secret, payload, sha256.New),
+	)
+	assert.Equal(t,
+		"ebaaedc0ee1bba33d6b35bdc16cde6f350232027278da8ec5124a1a2e7d55c07a4a2be89f1c84cb059fecb793ff0c2b9b3c3beb95299f8401d1718e3683d91d2",
+		hmacHashPayload(secret, payload, sha512.New),
+	)
+}
+
+func TestIsValidHmacPayload_SHA512(t *testing.T) {
+	payload := []byte(`{"ok":true}`)
+	secret := "secret"
+	hash := hmacHashPayload(secret, payload, sha512.New)
+
+	assert.True(t, isValidHmacPayload(secret, hash, payload, "", sha512.New))
+	assert.False(t, isValidHmacPayload(secret, hash, payload, "", sha256.New))
+	assert.False(t, isValidHmacPayload(secret, "deadbeef", payload, "", sha512.New))
+}
+
+type stubIntegrationService struct {
+	password string
+}
+
+func (s *stubIntegrationService) FillIntegration(integration *db.Integration) error {
+	integration.AuthSecret = db.AccessKey{
+		LoginPassword: db.LoginPassword{Password: s.password},
+	}
+	return nil
+}
+
+// templateProbeStore wraps a Store and records GetTemplate calls so
+// ReceiveIntegration tests can tell whether auth succeeded (RunIntegration
+// reaches GetTemplate) without needing a live task pool.
+type templateProbeStore struct {
+	db.Store
+	getTemplateCalls int
+	failTemplate     bool
+}
+
+func (s *templateProbeStore) GetTemplate(projectID int, templateID int) (db.Template, error) {
+	s.getTemplateCalls++
+	if s.failTemplate {
+		return db.Template{}, errors.New("stop before task pool")
+	}
+	return s.Store.GetTemplate(projectID, templateID)
+}
+
+func setupHmacSha512ReceiveIntegration(t *testing.T) (*IntegrationController, *templateProbeStore, string, string) {
+	t.Helper()
+
+	base := sql.InitConfigCreateTestStore()
+	store := &templateProbeStore{Store: base, failTemplate: true}
+
+	project, err := store.CreateProject(db.Project{Name: "hmac-sha512 project"})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		Name:      "repo key",
+		Type:      db.AccessKeyNone,
+		ProjectID: &project.ID,
+	})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		Name:      "repo",
+		ProjectID: project.ID,
+		GitURL:    "git@example.com:test/test.git",
+		GitBranch: "main",
+		SSHKeyID:  key.ID,
+	})
+	require.NoError(t, err)
+
+	template, err := store.CreateTemplate(db.Template{
+		Name:         "tpl",
+		ProjectID:    project.ID,
+		RepositoryID: repo.ID,
+		Playbook:     "run.sh",
+		App:          db.AppBash,
+	})
+	require.NoError(t, err)
+
+	const secret = "webhook-secret"
+	const authHeader = "X-Signature"
+
+	integration, err := store.CreateIntegration(db.Integration{
+		Name:       "hmac-sha512 integration",
+		ProjectID:  project.ID,
+		TemplateID: template.ID,
+		AuthMethod: db.IntegrationAuthHmacSha512,
+		AuthHeader: authHeader,
+	})
+	require.NoError(t, err)
+
+	alias := "hmac-sha512-alias"
+	_, err = store.CreateIntegrationAlias(db.IntegrationAlias{
+		Alias:         alias,
+		ProjectID:     project.ID,
+		IntegrationID: &integration.ID,
+	})
+	require.NoError(t, err)
+
+	ctrl := NewIntegrationController(store, &stubIntegrationService{password: secret})
+	return ctrl, store, alias, authHeader
+}
+
+func TestReceiveIntegration_HmacSha512_AcceptsValidSignature(t *testing.T) {
+	ctrl, store, alias, authHeader := setupHmacSha512ReceiveIntegration(t)
+
+	payload := []byte(`{"event":"deploy"}`)
+	signature := hmacHashPayload("webhook-secret", payload, sha512.New)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+alias, bytes.NewReader(payload))
+	req.Header.Set(authHeader, signature)
+	req = mux.SetURLVars(req, map[string]string{"integration_alias": alias})
+
+	w := httptest.NewRecorder()
+	ctrl.ReceiveIntegration(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Equal(t, 1, store.getTemplateCalls, "valid hmac-sha512 must reach RunIntegration")
+}
+
+func TestReceiveIntegration_HmacSha512_RejectsInvalidSignature(t *testing.T) {
+	ctrl, store, alias, authHeader := setupHmacSha512ReceiveIntegration(t)
+
+	payload := []byte(`{"event":"deploy"}`)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+alias, bytes.NewReader(payload))
+	req.Header.Set(authHeader, "deadbeef")
+	req = mux.SetURLVars(req, map[string]string{"integration_alias": alias})
+
+	w := httptest.NewRecorder()
+	ctrl.ReceiveIntegration(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Equal(t, 0, store.getTemplateCalls, "invalid hmac-sha512 must not run the integration")
 }

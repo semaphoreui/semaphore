@@ -112,7 +112,7 @@ func TestCreateSkipsSerializationForReadOnlyStorage(t *testing.T) {
 
 	repo := &mockAccessKeyRepo{}
 	encryptionService := NewAccessKeyEncryptionService(nil, nil, nil, nil)
-	svc := NewAccessKeyService(repo, encryptionService, nil)
+	svc := NewAccessKeyService(repo, encryptionService, nil, repo)
 
 	created, err := svc.Create(key)
 	require.NoError(t, err)
@@ -290,7 +290,11 @@ func TestRekeyAccessKeysReStampsToActiveID(t *testing.T) {
 }
 
 type mockAccessKeyRepo struct {
-	keys []db.AccessKey
+	hostConfigs []db.HostConfig
+
+	keys              []db.AccessKey
+	UpdateAccessKeyFn func(db.AccessKey) error
+	CreateAccessKeyFn func(db.AccessKey) (db.AccessKey, error)
 }
 
 func (m *mockAccessKeyRepo) GetAccessKey(_ int, keyID int) (db.AccessKey, error) {
@@ -307,8 +311,16 @@ func (m *mockAccessKeyRepo) GetAccessKeyRefs(int, int) (db.ObjectReferrers, erro
 func (m *mockAccessKeyRepo) GetAccessKeys(int, db.GetAccessKeyOptions, db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	return nil, nil
 }
-func (m *mockAccessKeyRepo) UpdateAccessKey(db.AccessKey) error { return nil }
+func (m *mockAccessKeyRepo) UpdateAccessKey(key db.AccessKey) error {
+	if m.UpdateAccessKeyFn != nil {
+		return m.UpdateAccessKeyFn(key)
+	}
+	return nil
+}
 func (m *mockAccessKeyRepo) CreateAccessKey(k db.AccessKey) (db.AccessKey, error) {
+	if m.CreateAccessKeyFn != nil {
+		return m.CreateAccessKeyFn(k)
+	}
 	return k, nil
 }
 func (m *mockAccessKeyRepo) DeleteAccessKey(int, int) error { return nil }
@@ -317,3 +329,19 @@ func (m *mockAccessKeyRepo) GetTaskAccessKey(int, int) (db.AccessKey, error) {
 }
 func (m *mockAccessKeyRepo) DeleteTaskAccessKeys(int, int) error { return nil }
 func (m *mockAccessKeyRepo) DeleteExpiredTaskAccessKeys() error  { return nil }
+
+func (m *mockAccessKeyRepo) GetHostConfig(int, int) (db.HostConfig, error) {
+	return db.HostConfig{}, nil
+}
+
+func (m *mockAccessKeyRepo) GetHostConfigs(int, db.RetrieveQueryParams) ([]db.HostConfig, error) {
+	return m.hostConfigs, nil
+}
+
+func (m *mockAccessKeyRepo) UpdateHostConfig(db.HostConfig) error { return nil }
+
+func (m *mockAccessKeyRepo) CreateHostConfig(hc db.HostConfig) (db.HostConfig, error) {
+	return hc, nil
+}
+
+func (m *mockAccessKeyRepo) DeleteHostConfig(int, int) error { return nil }

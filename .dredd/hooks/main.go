@@ -96,6 +96,8 @@ func main() {
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers > Get Integration Matcher linked to integration extractor > 200 > application/json", capabilityWrapper("integration"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers > Add Integration Matcher > 204 > application/json", capabilityWrapper("integration"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers/{matcher_id} > Updates Integration Matcher > 204 > application/json", capabilityWrapper("integrationmatcher"))
+	h.Before("integration > /api/project/{project_id}/integrations/aliases/{alias_id} > Remove integration alias > 204 > application/json", capabilityWrapper("project_alias"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/aliases/{alias_id} > Remove integration alias > 204 > application/json", capabilityWrapper("integration_alias"))
 
 	h.Before("key-store > /api/project/{project_id}/keys > Add access key > 201 > application/json", capabilityWrapper("access_key"))
 	h.Before("key-store > /api/project/{project_id}/keys/{key_id} > Updates access key > 204 > application/json", capabilityWrapper("access_key"))
@@ -105,6 +107,12 @@ func main() {
 	h.Before("repository > /api/project/{project_id}/repositories/{repository_id} > Get repository > 200 > application/json", capabilityWrapper("repository"))
 	h.Before("repository > /api/project/{project_id}/repositories/{repository_id} > Updates repository > 204 > application/json", capabilityWrapper("repository"))
 	h.Before("repository > /api/project/{project_id}/repositories/{repository_id} > Removes repository > 204 > application/json", capabilityWrapper("repository"))
+
+	h.Before("project > /api/project/{project_id}/host_configs > Get the credential mappings of the project > 200 > application/json", capabilityWrapper("host_config"))
+	h.Before("project > /api/project/{project_id}/host_configs > Add a credential mapping > 201 > application/json", capabilityWrapper("access_key"))
+	h.Before("project > /api/project/{project_id}/host_configs/{host_config_id} > Get a credential mapping > 200 > application/json", capabilityWrapper("host_config"))
+	h.Before("project > /api/project/{project_id}/host_configs/{host_config_id} > Update a credential mapping > 204 > application/json", capabilityWrapper("host_config"))
+	h.Before("project > /api/project/{project_id}/host_configs/{host_config_id} > Delete a credential mapping > 204 > application/json", capabilityWrapper("host_config"))
 
 	h.Before("inventory > /api/project/{project_id}/inventory > create inventory > 201 > application/json", capabilityWrapper("inventory"))
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Get inventory > 200 > application/json", capabilityWrapper("inventory"))
@@ -137,9 +145,12 @@ func main() {
 			t.Request.Body = "{\"id\":" + strconv.Itoa(workflowID) + ",\"project_id\":" + strconv.Itoa(userProject.ID) + ",\"name\":\"workflow-updated\",\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + "},{\"id\":2,\"kind\":\"approval\",\"approval_timeout\":120}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
 		})
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json", capabilityWrapper("workflow"))
-		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/run > Run workflow > 201 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions > Get workflow revisions > 200 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions/{revision_id} > Get workflow revision > 200 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Run workflow > 201 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json", capabilityWrapper("workflow_run"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop > Stop workflow run > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json", capabilityWrapper("workflow_approval"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", capabilityWrapper("workflow_approval"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", func(t *trans.Transaction) {
@@ -165,9 +176,12 @@ func main() {
 			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Get workflow > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json",
-			"workflow > /api/project/{project_id}/workflows/{workflow_id}/run > Run workflow > 201 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions > Get workflow revisions > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions/{revision_id} > Get workflow revision > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Run workflow > 201 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop > Stop workflow run > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/artifacts > Get merged workflow run artifacts > 200 > application/json",

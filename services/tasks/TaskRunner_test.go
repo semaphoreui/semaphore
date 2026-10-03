@@ -84,14 +84,33 @@ func (l *mockLogWriteService) WriteResult(task any) error {
 	return nil
 }
 
-func TestTaskRunnerRun(t *testing.T) {
+type successfulKilledJob struct {
+	onRun func()
+}
 
+func (j *successfulKilledJob) Run(string, *string, string) error {
+	j.onRun()
+	return nil
+}
+
+func (j *successfulKilledJob) Kill()          {}
+func (j *successfulKilledJob) IsKilled() bool { return true }
+func (j *successfulKilledJob) Async() bool    { return false }
+
+type taskRunnerRunFixture struct {
+	store        *sql.SqlDb
+	pool         TaskPool
+	task         db.Task
+	template     db.Template
+	keyInstaller *KeyInstallerMock
+}
+
+func newTaskRunnerRunFixture(t *testing.T) taskRunnerRunFixture {
 	store := sql.InitConfigCreateTestStore()
 	keyInstaller := &KeyInstallerMock{}
-
 	pool := CreateTaskPool(
 		store,
-		&MemoryTaskStateStore{},
+		NewMemoryTaskStateStore(),
 		nil,
 		&InventoryServiceMock{},
 		&EncryptionServiceMock{},
@@ -100,22 +119,17 @@ func TestTaskRunnerRun(t *testing.T) {
 		nil,
 		nil,
 	)
-
-	go pool.Run()
-	// Stop the pool's background loops (notably the runner-task reconcile loop)
-	// before the test returns, so the loop does not outlive this test and race
-	// with later tests that mutate the util.Config global.
-	t.Cleanup(pool.Stop)
+	// finishRun publishes an event after persisting the terminal status. A
+	// buffered channel keeps these tests independent of TaskPool.Run.
+	pool.queueEvents = make(chan PoolEvent, 1)
 
 	proj, err := store.CreateProject(db.Project{})
 	require.NoError(t, err)
-
 	key, err := store.CreateAccessKey(db.AccessKey{
 		ProjectID: &proj.ID,
 		Type:      db.AccessKeyNone,
 	})
 	require.NoError(t, err)
-
 	repo, err := store.CreateRepository(db.Repository{
 		ProjectID: proj.ID,
 		SSHKeyID:  key.ID,
@@ -124,12 +138,10 @@ func TestTaskRunnerRun(t *testing.T) {
 		GitBranch: "master",
 	})
 	require.NoError(t, err)
-
 	inv, err := store.CreateInventory(db.Inventory{
 		ProjectID: proj.ID,
 	})
 	require.NoError(t, err)
-
 	tpl, err := store.CreateTemplate(db.Template{
 		Name:         "Test",
 		Playbook:     "test.yml",
@@ -138,17 +150,49 @@ func TestTaskRunnerRun(t *testing.T) {
 		InventoryID:  &inv.ID,
 	})
 	require.NoError(t, err)
-
 	task, err := store.CreateTask(db.Task{
 		ProjectID:  proj.ID,
 		TemplateID: tpl.ID,
 	}, 0)
 	require.NoError(t, err)
 
-	taskRunner := TaskRunner{
-		Task:         task,
-		pool:         &pool,
+	return taskRunnerRunFixture{
+		store:        store,
+		pool:         pool,
+		task:         task,
+		template:     tpl,
 		keyInstaller: keyInstaller,
+	}
+}
+
+func TestTaskRunnerRun_FinalizesKilledJobThatReturnsNil(t *testing.T) {
+	fixture := newTaskRunnerRunFixture(t)
+	taskRunner := TaskRunner{
+		Task:         fixture.task,
+		Template:     fixture.template,
+		pool:         &fixture.pool,
+		keyInstaller: fixture.keyInstaller,
+	}
+	taskRunner.job = &successfulKilledJob{onRun: func() {
+		taskRunner.SetStatus(task_logger.TaskStoppingStatus)
+	}}
+
+	taskRunner.run()
+
+	assert.Equal(t, task_logger.TaskStoppedStatus, taskRunner.Task.Status)
+	assert.NotNil(t, taskRunner.Task.End)
+	persisted, err := fixture.store.GetTaskByID(fixture.task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, task_logger.TaskStoppedStatus, persisted.Status)
+	assert.NotNil(t, persisted.End)
+}
+
+func TestTaskRunnerRun(t *testing.T) {
+	fixture := newTaskRunnerRunFixture(t)
+	taskRunner := TaskRunner{
+		Task:         fixture.task,
+		pool:         &fixture.pool,
+		keyInstaller: fixture.keyInstaller,
 	}
 	taskRunner.job = &LocalExecutor{
 		Task:         taskRunner.Task,
@@ -157,7 +201,7 @@ func TestTaskRunnerRun(t *testing.T) {
 		Repository:   taskRunner.Repository,
 		Environment:  taskRunner.Environment,
 		Logger:       &taskRunner,
-		KeyInstaller: keyInstaller,
+		KeyInstaller: fixture.keyInstaller,
 		RepoLock:     &KeyLock{},
 		App: &db_lib.AnsibleApp{
 			Template:   taskRunner.Template,

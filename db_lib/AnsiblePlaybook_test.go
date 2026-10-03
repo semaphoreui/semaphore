@@ -5,9 +5,31 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAnsiblePlaybookRunDoesNotStartWhenCancellationIsPending(t *testing.T) {
+	previousConfig := util.Config
+	util.Config = &util.ConfigType{Process: &util.ConfigProcess{}}
+	t.Cleanup(func() { util.Config = previousConfig })
+
+	// Keep ansible-playbook unavailable so the test would fail if RunPlaybook
+	// reached pty.Start.
+	t.Setenv("PATH", t.TempDir())
+	playbook := AnsiblePlaybook{
+		Repository: db.Repository{GitURL: t.TempDir()},
+		Logger:     task_logger.NopLogger{},
+	}
+	stopCh := make(chan struct{})
+	close(stopCh)
+
+	err := playbook.RunPlaybook(nil, nil, nil, stopCh)
+
+	assert.NoError(t, err)
+}
 
 func TestAnsiblePlaybookResolveWorkingDirectory(t *testing.T) {
 	repoRoot := t.TempDir()

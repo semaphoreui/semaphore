@@ -199,8 +199,8 @@ func (d *SqlDb) UpdateProjectUser(projectUser db.ProjectUser) error {
 }
 
 func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
-	_, err := d.exec("delete from project__user where user_id=? and project_id=?", userID, projectID)
-	return err
+	res, err := d.exec("delete from project__user where user_id=? and project_id=?", userID, projectID)
+	return requireDeletedRow(res, err)
 }
 
 // GetUser retrieves a user from the database by ID
@@ -221,6 +221,10 @@ func (d *SqlDb) GetUser(userID int) (user db.User, err error) {
 
 	if errors.Is(err, db.ErrNotFound) {
 		err = nil
+	}
+
+	if err != nil {
+		return
 	}
 
 	var emailOtp db.UserEmailOtp
@@ -308,6 +312,10 @@ func (d *SqlDb) GetUserByLoginOrEmail(login string, email string) (user db.User,
 		err = nil
 	}
 
+	if err != nil {
+		return
+	}
+
 	var emailOtp db.UserEmailOtp
 	err = d.selectOne(&emailOtp, "select * from `user__email_otp` where user_id=?", user.ID)
 
@@ -357,8 +365,8 @@ func (d *SqlDb) AddTotpVerification(userID int, url string, recoveryHash string)
 }
 
 func (d *SqlDb) DeleteTotpVerification(userID int, totpID int) error {
-	_, err := d.exec("delete from user__totp where user_id=? and id = ?", userID, totpID)
-	return err
+	res, err := d.exec("delete from user__totp where user_id=? and id = ?", userID, totpID)
+	return requireDeletedRow(res, err)
 }
 
 func (d *SqlDb) insertEmailOtp(userID int, code string) (totp db.UserEmailOtp, err error) {
@@ -396,7 +404,6 @@ func (d *SqlDb) AddEmailOtpVerification(userID int, code string) (res db.UserEma
 		now := db.GetParsedTime(tz.Now())
 		_, err = d.exec("update user__email_otp set code=?, created=?, attempts=0 where user_id=?", code, now, userID)
 	} else if errors.Is(err, db.ErrNotFound) {
-		err = nil
 		res, err = d.insertEmailOtp(userID, code)
 	} else {
 		return

@@ -111,12 +111,18 @@ func eachLocalAccessKey(store db.Store, fn func(key db.AccessKey) error) error {
 	return nil
 }
 
-func backupAccessKeys(store db.Store, path string) error {
+func backupAccessKeys(store db.Store, path string) (err error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	// The backup is what rollback restores from, so a failed close must not be
+	// silently swallowed: report it unless an earlier error is already returned.
+	defer func() {
+		if closeErr := f.Close(); err == nil {
+			err = closeErr
+		}
+	}()
 
 	w := bufio.NewWriter(f)
 	enc := json.NewEncoder(w)
@@ -143,7 +149,7 @@ func rollbackAccessKeys(store db.Store, encryptionService server.AccessKeyEncryp
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	// Index current keys by id for lookup.
 	current := map[int]db.AccessKey{}

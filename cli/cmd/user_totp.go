@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/mdp/qrterminal/v3"
 	"github.com/pquerna/otp/totp"
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
 )
@@ -116,7 +118,7 @@ var totpDisableCmd = &cobra.Command{
 		}
 
 		err = store.DeleteTotpVerification(user.ID, user.Totp.ID)
-		if err != nil {
+		if err != nil && !errors.Is(err, db.ErrNotFound) {
 			panic(err)
 		}
 	},

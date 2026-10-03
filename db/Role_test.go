@@ -63,6 +63,28 @@ func TestValidateRole(t *testing.T) {
 	}
 }
 
+func TestValidateRole_PermissionBits(t *testing.T) {
+	tests := []struct {
+		permissions ProjectUserPermission
+		wantErr     bool
+	}{
+		{0, false},
+		{1, false},
+		{15, false},
+		{16, true},
+		{-1, true},
+	}
+
+	for _, tt := range tests {
+		err := ValidateRole(Role{Slug: "deployer", Name: "Deployer", Permissions: tt.permissions})
+		if tt.wantErr {
+			assert.Error(t, err, "permissions %d", tt.permissions)
+		} else {
+			assert.NoError(t, err, "permissions %d", tt.permissions)
+		}
+	}
+}
+
 // TestValidateRole_ReservedSlugsMatchBuiltins guards against a built-in role
 // being added later without also reserving its slug in ValidateRole.
 func TestValidateRole_ReservedSlugsMatchBuiltins(t *testing.T) {

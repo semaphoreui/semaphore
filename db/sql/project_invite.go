@@ -48,7 +48,7 @@ func (d *SqlDb) GetProjectInvites(projectID int, params db.RetrieveQueryParams) 
 	if err != nil {
 		return
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	for rows.Next() {
 		var invite db.ProjectInviteWithUser

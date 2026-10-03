@@ -88,13 +88,18 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 	}
 
 	statements := []string{
+		"delete from project__workflow_run where project_id=?",
 		"update project__template set build_template_id = null where project_id=?",
 		"delete from project__template where project_id=?",
 		"delete from project__user where project_id=?",
 		"delete from project__repository where project_id=?",
 		"delete from project__inventory where project_id=?",
+		// Before the keys: a mapping references access_key without an ON DELETE
+		// action, so the key deletion below is rejected while one still exists.
+		// The restriction stays, so deleting a key on its own still reports the
+		// mappings using it.
+		"delete from project__host_config where project_id=?",
 		"delete from access_key where project_id=?",
-		"delete from project where id=?",
 	}
 
 	for _, statement := range statements {
@@ -104,6 +109,13 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 			_ = tx.Rollback()
 			return err
 		}
+	}
+
+	// The project row decides: a project with no children is still a real delete.
+	err = requireDeletedRow(tx.Exec(d.PrepareQuery("delete from project where id=?"), projectID))
+	if err != nil {
+		_ = tx.Rollback()
+		return err
 	}
 
 	return tx.Commit()

@@ -8,6 +8,7 @@ type BackupDB struct {
 	meta         db.Project
 	templates    []db.Template
 	repositories []db.Repository
+	hostConfigs  []db.HostConfig
 	keys         []db.AccessKey
 	views        []db.View
 	inventories  []db.Inventory
@@ -40,6 +41,7 @@ type BackupFormat struct {
 	Meta               BackupMeta            `backup:"meta"`
 	Templates          []BackupTemplate      `backup:"templates"`
 	Repositories       []BackupRepository    `backup:"repositories"`
+	HostConfigs        []BackupHostConfig    `backup:"host_configs"`
 	Keys               []BackupAccessKey     `backup:"keys"`
 	Views              []BackupView          `backup:"views"`
 	Inventories        []BackupInventory     `backup:"inventories"`
@@ -85,6 +87,11 @@ type BackupInventory struct {
 
 type BackupRepository struct {
 	db.Repository
+	SSHKey *string `backup:"ssh_key"`
+}
+
+type BackupHostConfig struct {
+	db.HostConfig
 	SSHKey *string `backup:"ssh_key"`
 }
 

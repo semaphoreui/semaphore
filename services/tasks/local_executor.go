@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
@@ -28,14 +29,23 @@ type LocalExecutor struct {
 
 	App db_lib.LocalApp
 
-	killed  bool // killed means that API request to stop the job has been received
-	Process *os.Process
+	// mu protects terminationRequested and stopCh.
+	mu                   sync.Mutex
+	terminationRequested bool
+	// stopCh carries cancellation and remains non-nil after Run is invoked to
+	// enforce the LocalExecutor's single-use lifecycle.
+	stopCh chan struct{}
 
 	sshKeyInstallation     ssh.AccessKeyInstallation
+	hostConfigInstallation *ssh.HostConfigInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
 	KeyInstaller db_lib.AccessKeyInstaller
+
+	// HostConfigs are the credential mappings of the project, resolved with their
+	// keys by the server: a remote runner has no database to read them from.
+	HostConfigs []db.HostConfig
 
 	// RepoLock serializes git operations on the shared per-template repository
 	// directory. Tasks of the same template may run in parallel
@@ -60,7 +70,9 @@ type LocalExecutor struct {
 }
 
 func (t *LocalExecutor) IsKilled() bool {
-	return t.killed
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.terminationRequested
 }
 
 // Async is false: LocalJob.Run executes the task synchronously and returns only
@@ -70,15 +82,16 @@ func (t *LocalExecutor) Async() bool {
 }
 
 func (t *LocalExecutor) Kill() {
-	t.killed = true
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
-	if t.Process == nil {
+	if t.terminationRequested {
 		return
 	}
 
-	err := t.Process.Kill()
-	if err != nil {
-		t.Log(err.Error())
+	t.terminationRequested = true
+	if t.stopCh != nil {
+		close(t.stopCh)
 	}
 }
 
@@ -448,6 +461,12 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		"--inventory", inventoryFile,
 	}
 
+	// A host mapping selects the credential for an inventory host the same way it
+	// does for a git server, so ansible is pointed at the generated config.
+	if sshArgs := t.inventorySSHCommonArgs(); sshArgs != "" {
+		args = append(args, "--ssh-common-args", sshArgs)
+	}
+
 	if t.Inventory.SSHKeyID != nil {
 		switch t.Inventory.SSHKey.Type {
 		case db.AccessKeySSH:
@@ -748,16 +767,25 @@ func (t *LocalExecutor) getParams() (params any, err error) {
 // app (Ansible / Terraform / shell), and tears everything down. It is the entry point the
 // job pool uses (satisfying the Job interface); the lifecycle methods Prepare/Cleanup are
 // available for callers that want to drive the phases explicitly.
-func (t *LocalExecutor) Run(username string, incomingVersion *string, alias string) (err error) {
+func (t *LocalExecutor) Run(username string, incomingVersion *string, alias string) error {
+	t.mu.Lock()
+	if t.stopCh != nil {
+		t.mu.Unlock()
+		return fmt.Errorf("local executor has already been run")
+	}
+	t.stopCh = make(chan struct{})
+	terminationRequested := t.terminationRequested
+	t.mu.Unlock()
+
 	defer t.Cleanup()
 
-	if err = t.Prepare(username, incomingVersion, alias); err != nil {
-		return
-	}
-
-	if t.killed {
+	if terminationRequested {
 		t.SetStatus(task_logger.TaskStoppedStatus)
 		return nil
+	}
+
+	if err := t.Prepare(username, incomingVersion, alias); err != nil {
+		return err
 	}
 
 	return t.App.Run(db_lib.LocalAppRunningArgs{
@@ -766,9 +794,7 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		Inputs:          t.preparedInputs,
 		TaskParams:      t.preparedParams,
 		TemplateParams:  t.preparedTplParams,
-		Callback: func(p *os.Process) {
-			t.Process = p
-		},
+		StopCh:          t.stopCh,
 	})
 }
 
@@ -787,6 +813,12 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 	}
 
 	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
+
+	// The credential mappings of the project apply to every git operation of the
+	// task, so they are installed before the first clone.
+	if err = t.installHostConfigs(); err != nil {
+		return
+	}
 
 	// Defense in depth: reject playbook paths pointing outside the repository
 	// even if they were stored before validation was added.
@@ -911,6 +943,8 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		environmentVariables = append(environmentVariables, sshEnv)
 	}
 
+	environmentVariables = append(environmentVariables, t.hostConfigEnv()...)
+
 	if t.Template.Type != db.TemplateTask {
 
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SEMAPHORE_TASK_TYPE=%s", t.Template.Type))
@@ -999,7 +1033,7 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
-		localPath := t.Repository.GetGitURL(true)
+		localPath := t.Repository.GetGitURL(false)
 		if _, err := os.Stat(localPath); err != nil {
 			t.Log("Failed in finding static repository: " + err.Error())
 			return err
@@ -1018,6 +1052,8 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
 		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
 	}
+
+	installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, t.hostConfigEnv()...)
 
 	if err := t.App.InstallRequirements(installingArgs); err != nil {
 		t.Log("Failed to install requirements: " + err.Error())
@@ -1053,7 +1089,7 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
-		localPath := t.Repository.GetGitURL(true)
+		localPath := t.Repository.GetGitURL(false)
 		if _, err := os.Stat(localPath); err != nil {
 			t.Log("Failed in finding static repository: " + err.Error())
 			return err
@@ -1072,6 +1108,8 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
 		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
 	}
+
+	installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, t.hostConfigEnv()...)
 
 	// Call Terraform-specific install with init args
 	if err := tfApp.InstallRequirementsWithInitArgs(installingArgs, initArgs); err != nil {
@@ -1113,10 +1151,11 @@ func (t *LocalExecutor) updateAndCheckoutRepository() error {
 
 func (t *LocalExecutor) updateRepository() error {
 	repo := db_lib.GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		Logger:      t.Logger,
+		TemplateID:  t.Template.ID,
+		Repository:  t.Repository,
+		Client:      db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		HostConfigs: t.hostConfigInstallation,
 	}
 
 	err := repo.ValidateRepo()
@@ -1149,10 +1188,11 @@ func (t *LocalExecutor) updateRepository() error {
 func (t *LocalExecutor) checkoutRepository() error {
 
 	repo := db_lib.GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		Logger:      t.Logger,
+		TemplateID:  t.Template.ID,
+		Repository:  t.Repository,
+		Client:      db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		HostConfigs: t.hostConfigInstallation,
 	}
 
 	err := repo.ValidateRepo()
@@ -1222,4 +1262,45 @@ func (t *LocalExecutor) getSSHAgentEnv() string {
 		return fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile)
 	}
 	return ""
+}
+
+// hostConfigEnv returns the environment the credential mappings of the project
+// need. Every command of a task can start git of its own — galaxy downloads a
+// role, terraform fetches a module, a playbook clones a repository with the git
+// module — and each has to reach a mapped host with the mapped credential.
+//
+// It carries the same kind of secret the environment of a task already does,
+// which is what makes a mapping usable from a playbook at all.
+func (t *LocalExecutor) hostConfigEnv() []string {
+	if t.hostConfigInstallation == nil {
+		return nil
+	}
+
+	// No key of its own: the mapped credentials are bound per host inside the
+	// generated configuration.
+	var noKey ssh.AccessKeyInstallation
+
+	return noKey.GetGitEnvWithHostConfigs(t.hostConfigInstallation)
+}
+
+// inventorySSHCommonArgs returns the ssh options ansible must use to reach the
+// hosts of the inventory, so a host mapping selects the credential for them the
+// same way it does for git.
+func (t *LocalExecutor) inventorySSHCommonArgs() string {
+	configPath := t.hostConfigInstallation.SSHConfigPath()
+	if configPath == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("-F %s", configPath)
+}
+
+// installHostConfigs generates the ssh config and git rewrites the credential
+// mappings of the project describe. A project without mappings installs nothing
+// and keeps its current behaviour.
+func (t *LocalExecutor) installHostConfigs() (err error) {
+	t.hostConfigInstallation, err = ssh.InstallHostConfigs(
+		t.Template.ProjectID, t.HostConfigs, t.Logger)
+
+	return
 }

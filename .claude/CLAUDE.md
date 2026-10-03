@@ -7,6 +7,22 @@ in on Docusaurus engine.
 
 You should actualize the documentation for new and updated featues.
 
+### Generated reference pages
+
+`docs/docs/reference/configuration.md` and `docs/docs/reference/cli/commands.md` are generated
+from this repository and must never be edited by hand:
+
+- `tools/docsref` reads the struct tags and doc comments of `util.ConfigType`.
+- `tools/clidocs` walks the real Cobra command tree from `cli/cmd`.
+
+After changing a configuration option or a CLI command, run `task docs:gen` and commit
+the result together with the code. The `docs-reference` job in `.github/workflows/dev.yml`
+fails when the committed pages differ from what the generators produce.
+
+A config field with no doc comment falls back to `tools/docsref/descriptions.json`.
+Prefer writing the doc comment: `docsref` prints how many options still depend on that
+file, and the number should only fall.
+
 ## Writing Plans
 
 All plans, tasks, researches for AI agents stored in folder AGENTS.

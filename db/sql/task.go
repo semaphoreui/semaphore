@@ -395,8 +395,7 @@ func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
 		return
 	}
 
-	_, err = d.exec("delete from task where id=?", taskID)
-	return
+	return requireDeletedRow(d.exec("delete from task where id=?", taskID))
 }
 
 func (d *SqlDb) GetTaskOutputs(projectID int, taskID int, params db.RetrieveQueryParams) (output []db.TaskOutput, err error) {

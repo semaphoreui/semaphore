@@ -11,9 +11,18 @@ import (
 // Sentinel errors let the OIDC redirect handler map link failures to
 // user-visible error codes (see oidcRedirect).
 var (
-	errIdentityLinkedToAnother = errors.New("external identity is already linked to another account")
-	errProviderAlreadyLinked   = errors.New("account already has an identity for this provider, unlink it first")
+	errIdentityLinkedToAnother  = errors.New("external identity is already linked to another account")
+	errProviderAlreadyLinked    = errors.New("account already has an identity for this provider, unlink it first")
 	errCannotUnlinkLastIdentity = errors.New("cannot unlink the last external identity")
+)
+
+type externalResolution int
+
+const (
+	resolvedExisting externalResolution = iota
+	// Matched by email or username and linked.
+	resolvedLinked
+	resolvedProvisioned
 )
 
 // externalUserProfile is what an external auth flow (LDAP or OIDC) learned
@@ -40,13 +49,13 @@ type externalUserProfile struct {
 //  2. by email/username — only under external_auth_email_matching mode,
 //     only External users (local accounts are never adopted);
 //  3. otherwise a new user is created and linked.
-func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error) {
+func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, externalResolution, error) {
 	if p.ExternalUID == "" {
-		return db.User{}, errors.New("external identity: empty external UID")
+		return db.User{}, resolvedExisting, errors.New("external identity: empty external UID")
 	}
 
 	if p.Type == "" {
-		return db.User{}, errors.New("external identity: empty type")
+		return db.User{}, resolvedExisting, errors.New("external identity: empty type")
 	}
 
 	identity, err := store.GetExternalIdentity(p.Type, p.Provider, p.ExternalUID)
@@ -55,11 +64,12 @@ func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error)
 	case err == nil:
 		user, uErr := store.GetUser(identity.UserID)
 		if uErr != nil {
-			return db.User{}, uErr
+			return db.User{}, resolvedExisting, uErr
 		}
-		return syncExternalUserAttrs(store, user, p)
+		synced, err := syncExternalUserAttrs(store, user, p)
+		return synced, resolvedExisting, err
 	case !errors.Is(err, db.ErrNotFound):
-		return db.User{}, err
+		return db.User{}, resolvedExisting, err
 	}
 
 	user, err := matchExternalUserByEmail(store, p)
@@ -72,11 +82,12 @@ func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error)
 			Provider:    p.Provider,
 			ExternalUID: p.ExternalUID,
 		}); err != nil {
-			return db.User{}, err
+			return db.User{}, resolvedExisting, err
 		}
-		return syncExternalUserAttrs(store, user, p)
+		synced, err := syncExternalUserAttrs(store, user, p)
+		return synced, resolvedLinked, err
 	case !errors.Is(err, db.ErrNotFound):
-		return db.User{}, err
+		return db.User{}, resolvedExisting, err
 	}
 
 	user, err = store.CreateUserWithoutPassword(db.User{
@@ -86,7 +97,7 @@ func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error)
 		External: true,
 	})
 	if err != nil {
-		return db.User{}, err
+		return db.User{}, resolvedExisting, err
 	}
 
 	_, err = store.CreateExternalIdentity(db.UserExternalIdentity{
@@ -100,10 +111,10 @@ func resolveExternalUser(store db.Store, p externalUserProfile) (db.User, error)
 		// (with email matching off) every retry dies on duplicate username.
 		// Best-effort: the login already failed, DeleteUser error adds nothing.
 		_ = store.DeleteUser(user.ID)
-		return db.User{}, err
+		return db.User{}, resolvedExisting, err
 	}
 
-	return user, nil
+	return user, resolvedProvisioned, nil
 }
 
 // matchExternalUserByEmail implements the legacy email/username matching,
@@ -168,29 +179,29 @@ func ldapProfileMatchesSemaphoreUser(ldapUser, semaphoreUser db.User) bool {
 // linkExternalIdentity attaches (idType, provider, externalUID) to user. Proof
 // of ownership is the caller's job (active verified session + full auth flow
 // at the provider) - email is never proof, see Grafana CVE-2023-3128.
-func linkExternalIdentity(store db.Store, user db.User, idType string, provider string, externalUID string) error {
+func linkExternalIdentity(store db.Store, user db.User, idType string, provider string, externalUID string) (bool, error) {
 	if externalUID == "" {
-		return errors.New("external identity: empty external UID")
+		return false, errors.New("external identity: empty external UID")
 	}
 
 	existing, err := store.GetExternalIdentity(idType, provider, externalUID)
 	switch {
 	case err == nil:
 		if existing.UserID == user.ID {
-			return nil // already linked - idempotent
+			return false, nil // already linked - idempotent
 		}
-		return errIdentityLinkedToAnother
+		return false, errIdentityLinkedToAnother
 	case !errors.Is(err, db.ErrNotFound):
-		return err
+		return false, err
 	}
 
 	identities, err := store.GetUserExternalIdentities(user.ID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	for _, identity := range identities {
 		if identity.Type == idType && identity.Provider == provider {
-			return errProviderAlreadyLinked
+			return false, errProviderAlreadyLinked
 		}
 	}
 
@@ -200,7 +211,7 @@ func linkExternalIdentity(store db.Store, user db.User, idType string, provider 
 		Provider:    provider,
 		ExternalUID: externalUID,
 	})
-	return err
+	return err == nil, err
 }
 
 // syncExternalUserAttrs updates name/email from the provider on each login,

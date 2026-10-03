@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/subtle"
 	"errors"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	proApi "github.com/semaphoreui/semaphore/pro/api"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 
@@ -62,6 +64,21 @@ func getSession(r *http.Request) (*db.Session, bool) {
 
 	return &session, true
 
+}
+
+// recordLoginAfterMFA records the login once the second factor is accepted.
+func recordLoginAfterMFA(ctx context.Context, r *http.Request, user db.User) {
+	value := make(map[string]any)
+	if cookie, err := r.Cookie("semaphore"); err == nil {
+		_ = util.Cookie.Decode("semaphore", cookie.Value, &value)
+	}
+	method, _ := value["method"].(string)
+	provider, _ := value["provider"].(string)
+	helpers.Audit(r).Record(ctx, audit.Event{
+		Kind:     audit.AuthLogin,
+		Target:   audit.UserTarget(user.ID, user.Username),
+		Metadata: audit.AuthMethodMetadata{Method: method, Provider: provider},
+	})
 }
 
 type totpRequestBody struct {
@@ -128,15 +145,25 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		ctx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
+
 		if !util.VerifyRecoveryCode(body.RecoveryCode, user.Totp.RecoveryHash) {
+			helpers.Audit(r).Record(ctx, audit.Event{
+				Kind: audit.AuthMFARecover, Outcome: audit.OutcomeFailure, Reason: audit.ReasonInvalidRecoveryCode,
+				Target: audit.UserTarget(user.ID, user.Username),
+			})
 			helpers.WriteErrorStatus(w, "INVALID_RECOVERY_CODE", http.StatusUnauthorized)
 			return
 		}
 
 		err = store.DeleteTotpVerification(user.ID, user.Totp.ID)
-		if err != nil {
+		if err != nil && !errors.Is(err, db.ErrNotFound) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
+		}
+		// ErrNotFound: a concurrent request with the same code already removed the TOTP and recorded the recovery.
+		if err == nil {
+			helpers.Audit(r).Record(ctx, audit.Event{Kind: audit.AuthMFARecover, Target: audit.UserTarget(user.ID, user.Username)})
 		}
 
 		err = store.VerifySession(session.UserID, session.ID)
@@ -145,6 +172,9 @@ func recoverySession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if !session.Verified {
+			recordLoginAfterMFA(ctx, r, user)
+		}
 		w.WriteHeader(http.StatusNoContent)
 	case db.SessionVerificationNone:
 		w.WriteHeader(http.StatusNoContent)
@@ -190,6 +220,8 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		ctx := audit.WithActor(r.Context(), audit.UserActor(user.ID, user.Username, audit.AuthSession, ""))
+
 		key, err := otp.NewKeyFromURL(user.Totp.URL)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -197,6 +229,10 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !totp.Validate(body.Passcode, key.Secret()) {
+			helpers.Audit(r).Record(ctx, audit.Event{
+				Kind: audit.AuthMFAVerifyTOTP, Outcome: audit.OutcomeFailure, Reason: audit.ReasonInvalidPasscode,
+				Target: audit.UserTarget(user.ID, user.Username),
+			})
 			helpers.WriteErrorStatus(w, "INVALID_PASSCODE", http.StatusUnauthorized)
 			return
 		}
@@ -205,6 +241,11 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			helpers.WriteError(w, err)
 			return
+		}
+
+		helpers.Audit(r).Record(ctx, audit.Event{Kind: audit.AuthMFAVerifyTOTP, Target: audit.UserTarget(user.ID, user.Username)})
+		if !session.Verified {
+			recordLoginAfterMFA(ctx, r, user)
 		}
 
 	case db.SessionVerificationNone:
@@ -217,16 +258,29 @@ func verifySession(w http.ResponseWriter, r *http.Request) {
 
 func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req *http.Request) {
 	var userID int
+	var authMethod audit.AuthMethod
+	var tokenFingerprint string
 
 	req = r
 
 	authHeader := strings.ToLower(r.Header.Get("authorization"))
 
 	if len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
-		token, err := helpers.Store(r).GetAPIToken(strings.Replace(authHeader, "bearer ", "", 1))
+		tokenID := strings.Replace(authHeader, "bearer ", "", 1)
+		tokenFingerprint = audit.TokenFingerprint(tokenID)
+
+		token, err := helpers.Store(r).GetAPIToken(tokenID)
 
 		if err != nil {
-			if !errors.Is(err, db.ErrNotFound) {
+			if errors.Is(err, db.ErrNotFound) {
+				// Revoking deletes the token, so a revoked token is reported as unknown.
+				helpers.Audit(r).Record(r.Context(), audit.Event{
+					Kind:    audit.AuthAPITokenReject,
+					Outcome: audit.OutcomeFailure,
+					Reason:  audit.ReasonTokenUnknown,
+					Target:  &audit.Target{Type: audit.TargetAPIToken, ID: tokenFingerprint},
+				})
+			} else {
 				log.Error(err)
 			}
 
@@ -235,11 +289,18 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 		}
 
 		if token.IsExpiredAt(tz.Now()) {
+			helpers.Audit(r).Record(r.Context(), audit.Event{
+				Kind:    audit.AuthAPITokenReject,
+				Outcome: audit.OutcomeFailure,
+				Reason:  audit.ReasonTokenExpired,
+				Target:  &audit.Target{Type: audit.TargetAPIToken, ID: tokenFingerprint},
+			})
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		userID = token.UserID
+		authMethod = audit.AuthAPIToken
 	} else {
 		session, found := getSession(r)
 
@@ -261,6 +322,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 		}
 
 		userID = session.UserID
+		authMethod = audit.AuthSession
 
 		if err := helpers.Store(r).TouchSession(userID, session.ID); err != nil {
 			log.Error(err)
@@ -281,6 +343,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 
 	ok = true
 	req = helpers.SetContextValue(r, "user", &user)
+	req = req.WithContext(audit.WithActor(req.Context(), audit.UserActor(user.ID, user.Username, authMethod, tokenFingerprint)))
 	return
 }
 
@@ -312,6 +375,7 @@ func adminMiddleware(next http.Handler) http.Handler {
 		user := helpers.GetFromContext(r, "user").(*db.User)
 
 		if !user.Admin {
+			helpers.RecordDenied(r, "admin", 0)
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
@@ -418,6 +482,13 @@ func csrfProtectionMiddleware(next http.Handler) http.Handler {
 				"path":   r.URL.Path,
 				"method": r.Method,
 			}).Warn("Blocked cross-origin request (possible CSRF)")
+			helpers.Audit(r).Record(r.Context(), audit.Event{
+				Kind:     audit.AuthCSRFBlock,
+				Outcome:  audit.OutcomeFailure,
+				Reason:   audit.ReasonCrossOrigin,
+				Target:   &audit.Target{Type: audit.TargetRoute, ID: helpers.RouteTemplate(r)},
+				Metadata: audit.DenyMetadata{Method: r.Method},
+			})
 			helpers.WriteErrorStatus(w, "CROSS_ORIGIN_REQUEST_BLOCKED", http.StatusForbidden)
 			return
 		}

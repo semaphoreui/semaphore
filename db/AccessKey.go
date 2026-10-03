@@ -45,11 +45,12 @@ type AccessKey struct {
 	// You should use methods SerializeSecret to fill this field.
 	Secret      *string `db:"secret" json:"-" backup:"-"`
 	Plain       *string `db:"plain" json:"plain,omitempty"`
-	IgnorePlain bool
+	IgnorePlain bool    `db:"-" json:"-" backup:"-" `
 
 	String         string        `db:"-" json:"string"`
 	LoginPassword  LoginPassword `db:"-" json:"login_password"`
 	SshKey         SshKey        `db:"-" json:"ssh"`
+	GenerateSSHKey bool          `db:"-" json:"generate_ssh_key,omitempty"`
 	OverrideSecret bool          `db:"-" json:"override_secret,omitempty"`
 
 	StorageID *int `db:"storage_id" json:"-" backup:"-"`

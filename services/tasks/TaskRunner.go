@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 
@@ -41,6 +43,10 @@ type TaskRunner struct {
 	Repository  db.Repository
 	Environment db.Environment
 
+	// HostConfigs are the credential mappings of the project. They are resolved
+	// here, on the server, because a remote runner has no database.
+	HostConfigs []db.HostConfig
+
 	currentStage  *db.TaskStage
 	currentOutput *db.TaskOutput
 	currentState  any
@@ -50,6 +56,13 @@ type TaskRunner struct {
 	alertChat    *string
 	pool         *TaskPool
 	keyInstaller db_lib.AccessKeyInstaller
+
+	// endReason holds a string: audit.EndReasonTimeout or audit.EndReasonRunnerLost, set by the server.
+	// It is atomic because the timeout timer writes it while a runner report may read it.
+	endReason atomic.Value
+
+	// dispatchFailed marks a task the server failed before handing it to the runner that polled it.
+	dispatchFailed bool
 
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
@@ -212,7 +225,7 @@ func (t *TaskRunner) run() {
 			"task_id": t.Task.ID,
 		}).Info("Stopped running task " + t.Template.Name)
 
-		t.finishRun()
+		t.finishRun(audit.SystemActor(audit.ComponentTaskRunner))
 	}()
 
 	// Mark task as stopped if user stopped task during preparation (before task run).
@@ -306,34 +319,37 @@ func (t *TaskRunner) run() {
 
 	err = t.job.Run(username, incomingVersion, t.Alias)
 
-	if err != nil {
-		if errors.Is(err, ErrAllRunnersBusy) {
-			// No runners available right now, put task back in waiting state
-			t.SetStatus(task_logger.TaskWaitingStatus)
-			t.pool.state.Enqueue(t)
-			requeued = true
-			return
-		}
-
-		if t.job.IsKilled() {
-			t.SetStatus(task_logger.TaskStoppedStatus)
-		} else {
-			log.WithError(err).WithFields(log.Fields{
-				"task_id":     t.Task.ID,
-				"context":     "task_runner",
-				"task_status": t.Task.Status,
-			}).Warn("Failed to run task")
-			t.Log("Failed to run task: " + err.Error())
-			t.SetStatus(task_logger.TaskFailStatus)
-		}
-		return
-	}
-
 	// Remote jobs only dispatch the task to a runner; their completion is
 	// reported asynchronously via the runner API and finalized there. Hand off
 	// and let the deferred cleanup skip finalization.
-	if t.job.Async() {
+	if err == nil && t.job.Async() {
 		handedOff = true
+		return
+	}
+
+	// A SIGTERM handler may exit successfully, so cancellation is independent
+	// of whether Run returns a nil or non-nil error.
+	if t.job.IsKilled() {
+		t.SetStatus(task_logger.TaskStoppedStatus)
+		return
+	}
+
+	switch {
+	case errors.Is(err, ErrAllRunnersBusy):
+		// No runners available right now, put task back in waiting state
+		t.SetStatus(task_logger.TaskWaitingStatus)
+		t.pool.state.Enqueue(t)
+		requeued = true
+		return
+
+	case err != nil:
+		log.WithError(err).WithFields(log.Fields{
+			"task_id":     t.Task.ID,
+			"context":     "task_runner",
+			"task_status": t.Task.Status,
+		}).Warn("Failed to run task")
+		t.Log("Failed to run task: " + err.Error())
+		t.SetStatus(task_logger.TaskFailStatus)
 		return
 	}
 
@@ -347,7 +363,14 @@ func (t *TaskRunner) run() {
 // finishRun records the end of a task run, persists it, and notifies the pool
 // to release the task's resources (EventTypeFinished -> onTaskStop). It is used
 // by the synchronous local path and by FinalizeRemoteTask for remote tasks.
-func (t *TaskRunner) finishRun() {
+func (t *TaskRunner) finishRun(actor audit.Actor) {
+	if !t.Task.Status.IsFinished() {
+		log.WithFields(log.Fields{
+			"task_id":     t.Task.ID,
+			"task_status": t.Task.Status,
+		}).Error("finalizing task with non-terminal status")
+	}
+
 	now := tz.Now()
 	t.Task.End = &now
 	t.saveStatus()
@@ -362,6 +385,7 @@ func (t *TaskRunner) finishRun() {
 	}
 
 	t.createTaskEvent()
+	t.recordComplete(actor)
 	t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
 
 	// Notify the workflow service that this task finished so it can progress the
@@ -375,6 +399,30 @@ func (t *TaskRunner) finishRun() {
 	if err := t.pool.HandleWorkflowTaskCompletion(t.Task); err != nil {
 		t.Log("Workflow progression failed: " + err.Error())
 	}
+}
+
+// FailDispatch fails a task the server could not hand to its runner, so the runner is not the audit actor.
+func (t *TaskRunner) FailDispatch() {
+	t.dispatchFailed = true
+	t.SetStatus(task_logger.TaskFailStatus)
+}
+
+// recordComplete is shared by finishRun and the paths that end a task without it.
+func (t *TaskRunner) recordComplete(actor audit.Actor) {
+	endReason, _ := t.endReason.Load().(string)
+	meta := audit.TaskCompleteMetadata{Result: string(t.Task.Status), EndReason: endReason, TemplateID: t.Task.TemplateID}
+	if t.Task.UserID != nil {
+		meta.InitiatorID = *t.Task.UserID
+	}
+	if t.Task.Start != nil && t.Task.End != nil {
+		meta.DurationMS = t.Task.End.Sub(*t.Task.Start).Milliseconds()
+	}
+	t.pool.recorder().Record(audit.WithActor(context.Background(), actor), audit.Event{
+		Kind:      audit.TaskExecutionComplete,
+		Target:    audit.ResourceTarget(audit.TargetTask, t.Task.ID, t.Template.Name),
+		ProjectID: t.Task.ProjectID,
+		Metadata:  meta,
+	})
 }
 
 // startAutorunTasks queues the autorun child templates of a successfully
@@ -400,7 +448,9 @@ func (t *TaskRunner) startAutorunTasks() {
 			ProjectID:   tpl.ProjectID,
 			BuildTaskID: &t.Task.ID,
 		}
-		_, err = t.pool.AddTask(
+		_, err = t.pool.AddTaskFrom(
+			audit.WithActor(context.Background(), audit.SystemActor(audit.ComponentTaskRunner)),
+			audit.TriggerAutorun,
 			task,
 			nil,
 			"",
@@ -551,6 +601,10 @@ func (t *TaskRunner) populateDetails() error {
 
 	t.Repository = withEffectiveBranch(t.Repository, t.Template, t.Task)
 
+	if err = t.loadHostConfigs(); err != nil {
+		return err
+	}
+
 	// load and merge all configured environments
 	err = t.loadEnvironments()
 	if err != nil {
@@ -666,4 +720,27 @@ func checkTmpDir(path string) error {
 		}
 	}
 	return err
+}
+
+// loadHostConfigs reads the credential mappings of the project together with
+// their keys, decrypted the same way the key of the repository is.
+func (t *TaskRunner) loadHostConfigs() (err error) {
+	t.HostConfigs, err = t.pool.store.GetHostConfigs(t.Template.ProjectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
+	for i := range t.HostConfigs {
+		t.HostConfigs[i].SSHKey, err = t.pool.store.GetAccessKey(
+			t.Template.ProjectID, t.HostConfigs[i].SSHKeyID)
+		if err != nil {
+			return
+		}
+
+		if err = t.pool.encryptionService.DeserializeSecret(&t.HostConfigs[i].SSHKey); err != nil {
+			return
+		}
+	}
+
+	return
 }

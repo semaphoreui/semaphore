@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // intHoldsOverflowingInterval reports whether an int is wide enough to express a
@@ -86,7 +87,7 @@ func TestRunnerCheckIntervalNeverPanicsTicker(t *testing.T) {
 // The default tag must match the constant.
 func TestRunnerCheckIntervalDefaultMatchesTag(t *testing.T) {
 	conf := &ConfigType{Runner: &RunnerConfig{}}
-	loadDefaultsToObject(conf)
+	require.NoError(t, loadDefaultsToObject(conf))
 
 	assert.Equal(t, defaultRunnerCheckIntervalSec, conf.Runner.CheckIntervalSeconds)
 	assert.Equal(t, time.Second, conf.RunnerCheckInterval())
