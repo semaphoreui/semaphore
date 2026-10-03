@@ -358,6 +358,7 @@ func runService() {
 
 	var router http.Handler = route
 
+	router = api.AccessLogMiddleware(router)
 	router = handlers.ProxyHeaders(router)
 	// Outside ProxyHeaders, which trusts X-Forwarded-For blindly.
 	router = auditService.Wrap(router)
