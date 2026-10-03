@@ -8,6 +8,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 )
 
 func IntegrationMiddleware(next http.Handler) http.Handler {
@@ -109,6 +110,14 @@ func AddIntegration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// auth_method=none lets anyone start the template, which is what SIEM rules look for.
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceIntegrationCreate,
+		Target:    audit.ResourceTarget(audit.TargetIntegration, newIntegration.ID, newIntegration.Name),
+		ProjectID: project.ID,
+		Metadata:  audit.IntegrationMetadata{TemplateID: newIntegration.TemplateID, AuthMethod: string(newIntegration.AuthMethod)},
+	})
+
 	helpers.WriteJSON(w, http.StatusCreated, newIntegration)
 }
 
@@ -141,23 +150,35 @@ func UpdateIntegration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceIntegrationUpdate,
+		Target:    audit.ResourceTarget(audit.TargetIntegration, oldIntegration.ID, integration.Name),
+		ProjectID: oldIntegration.ProjectID,
+		Metadata:  audit.IntegrationMetadata{TemplateID: integration.TemplateID, AuthMethod: string(integration.AuthMethod)},
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func DeleteIntegration(w http.ResponseWriter, r *http.Request) {
-	integration_id, ok := helpers.GetIntParamOrAbort("integration_id", w, r)
-	if !ok {
-		return
-	}
-
+	integration := helpers.GetFromContext(r, "integration").(db.Integration)
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
-	err := helpers.Store(r).DeleteIntegration(project.ID, integration_id)
+	err := helpers.Store(r).DeleteIntegration(project.ID, integration.ID)
 	if err == db.ErrInvalidOperation {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "Integration failed to be deleted",
 		})
 		return
+	}
+
+	// The handler answers 204 on other store errors too, so only a real delete is recorded.
+	if err == nil {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      audit.ResourceIntegrationDelete,
+			Target:    audit.ResourceTarget(audit.TargetIntegration, integration.ID, integration.Name),
+			ProjectID: project.ID,
+		})
 	}
 
 	w.WriteHeader(http.StatusNoContent)

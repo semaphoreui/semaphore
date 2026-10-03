@@ -267,3 +267,18 @@ func TestRegisterRunner_NonSmrsTokenWithoutGlobalMatchReturnsBadRequest(t *testi
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
+
+func TestUnregisterRunner_AlreadyRemovedRunnerIsNoContent(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	runner, err := store.CreateRunner(db.Runner{Name: "r"})
+	require.NoError(t, err)
+	require.NoError(t, store.DeleteGlobalRunner(runner.ID))
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/internal/runners", nil)
+	req = helpers.SetContextValue(req, "store", store)
+	req = helpers.SetContextValue(req, "runner", runner)
+	w := httptest.NewRecorder()
+	UnregisterRunner(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+}

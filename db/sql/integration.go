@@ -1,6 +1,8 @@
 package sql
 
 import (
+	"errors"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )
@@ -137,6 +139,9 @@ func (d *SqlDb) DeleteIntegration(projectID int, integrationID int) (err error) 
 
 	if integration.TaskParamsID != nil {
 		err = d.deleteObject(projectID, db.TaskParamsProps, *integration.TaskParamsID)
+		if errors.Is(err, db.ErrNotFound) {
+			err = nil
+		}
 	}
 	return
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -228,6 +229,12 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Repository %s created", repository.GetRedactedGitURL()),
 	})
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceRepositoryCreate,
+		Target:    audit.ResourceTarget(audit.TargetRepository, newRepo.ID, newRepo.Name),
+		ProjectID: newRepo.ProjectID,
+	})
+
 	helpers.WriteJSON(w, http.StatusCreated, newRepo)
 }
 
@@ -276,6 +283,12 @@ func UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Repository %s updated", repository.GetRedactedGitURL()),
 	})
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceRepositoryUpdate,
+		Target:    audit.ResourceTarget(audit.TargetRepository, oldRepo.ID, repository.Name),
+		ProjectID: oldRepo.ProjectID,
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -305,6 +318,12 @@ func RemoveRepository(w http.ResponseWriter, r *http.Request) {
 		ObjectType:  db.EventRepository,
 		ObjectID:    repository.ID,
 		Description: fmt.Sprintf("Repository %s deleted", repository.GetRedactedGitURL()),
+	})
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceRepositoryDelete,
+		Target:    audit.ResourceTarget(audit.TargetRepository, repository.ID, repository.Name),
+		ProjectID: repository.ProjectID,
 	})
 
 	w.WriteHeader(http.StatusNoContent)

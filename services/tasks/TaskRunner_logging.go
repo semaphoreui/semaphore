@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
@@ -134,6 +136,19 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 	}
 
 	t.saveStatus()
+
+	if status == task_logger.TaskWaitingConfirmation && t.pool != nil {
+		actor := audit.SystemActor(audit.ComponentTaskRunner)
+		if t.Task.RunnerID != nil {
+			actor = audit.RunnerActor(*t.Task.RunnerID, "")
+		}
+		t.pool.recorder().Record(audit.WithActor(context.Background(), actor), audit.Event{
+			Kind:      audit.TaskApprovalRequest,
+			Target:    audit.ResourceTarget(audit.TargetTask, t.Task.ID, t.Template.Name),
+			ProjectID: t.Task.ProjectID,
+			Metadata:  audit.TaskMetadata{TemplateID: t.Task.TemplateID},
+		})
+	}
 
 	if localJob, ok := t.job.(*LocalExecutor); ok {
 		localJob.SetStatus(status)
