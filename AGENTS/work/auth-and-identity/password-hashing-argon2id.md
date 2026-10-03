@@ -5,7 +5,7 @@ User login passwords are hashed with bcrypt at cost 11 in `db/sql/user.go` and v
 string form, keeps verifying old bcrypt hashes forever, and silently re-hashes on the next
 successful login so the database converges without password resets.
 
-Status (2026-09-27): not implemented on `develop`/`feat/refactor_workflows` — `HEAD` still calls
+Status (2026-09-28): not implemented on `develop` — `HEAD` still calls
 `bcrypt.GenerateFromPassword` in `db/sql/user.go` and `bcrypt.CompareHashAndPassword` in
 `api/login.go:236` and `api/users.go:276`; `go.mod` has no `argon2`. The full change lives on
 branch `feat/password-hash` (PR #3902, open since 2026-05-30, last synced with develop
