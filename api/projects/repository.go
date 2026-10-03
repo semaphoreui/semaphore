@@ -70,11 +70,27 @@ func (c *RepositoryController) hostConfigs(r *http.Request, repo db.Repository) 
 		helpers.Store(r), c.encryptionService, repo.ProjectID, task_logger.NopLogger{})
 }
 
+// decryptKey decrypts the secret of the repository key, which the middleware
+// loads but leaves encrypted. Without it the git URL is built with no
+// credentials. Only the paths which reach a remote need it.
+func (c *RepositoryController) decryptKey(w http.ResponseWriter, repo *db.Repository) bool {
+	if err := c.encryptionService.DeserializeSecret(&repo.SSHKey); err != nil {
+		helpers.WriteError(w, err)
+		return false
+	}
+
+	return true
+}
+
 func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
 	repo := helpers.GetFromContext(r, "repository").(db.Repository)
 
 	if repo.GetType() == db.RepositoryLocal || repo.GetType() == db.RepositoryFile {
 		helpers.WriteJSON(w, http.StatusBadRequest, "Wrong repository type: "+repo.GetType())
+		return
+	}
+
+	if !c.decryptKey(w, &repo) {
 		return
 	}
 
@@ -111,8 +127,14 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 	var rootDir string
 
 	if repo.GetType() == db.RepositoryLocal || repo.GetType() == db.RepositoryFile {
+		// A local repository is read from disk; its key is never used, so a key
+		// that cannot be decrypted must not stop the listing.
 		rootDir = repo.GetFullPath(0)
 	} else {
+		if !c.decryptKey(w, &repo) {
+			return
+		}
+
 		branch := r.URL.Query().Get("branch")
 		if branch == "" {
 			branch = repo.GitBranch
@@ -161,7 +183,11 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		rootDir = git.GetFullPath()
 	}
 
-	playbooks, err := db_lib.FindPlaybooks(rootDir)
+	// From the template being edited, not the repository: one repository serves
+	// templates of different apps.
+	app := db.TemplateApp(r.URL.Query().Get("app"))
+
+	playbooks, err := db_lib.FindRepositoryFiles(rootDir, app)
 
 	if err != nil {
 		helpers.WriteError(w, err)
