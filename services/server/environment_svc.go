@@ -1,10 +1,14 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
 )
+
+// ErrSecretsLeftBehind means the object row is deleted but some of its secrets were not.
+var ErrSecretsLeftBehind = errors.New("deleted, but some secrets were not removed")
 
 type EnvironmentService interface {
 	Delete(projectID int, environmentID int) error
@@ -43,21 +47,26 @@ func (s *EnvironmentServiceImpl) Delete(projectID int, environmentID int) (err e
 		return
 	}
 
+	// Read before the delete, so a failed lookup leaves the environment in place.
+	var storage *db.SecretStorage
+	if env.SecretStorageID != nil {
+		var res db.SecretStorage
+		res, err = s.secretStorageRepo.GetSecretStorage(projectID, *env.SecretStorageID)
+		if err != nil {
+			return
+		}
+		storage = &res
+	}
+
 	err = s.environmentRepo.DeleteEnvironment(projectID, environmentID)
 
 	if err != nil {
 		return
 	}
 
-	var errors []error
+	var errs []error
 
-	if env.SecretStorageID != nil {
-		var storage db.SecretStorage
-		storage, err = s.secretStorageRepo.GetSecretStorage(projectID, *env.SecretStorageID)
-		if err != nil {
-			return
-		}
-
+	if storage != nil {
 		if !storage.ReadOnly {
 			for _, secret := range secrets {
 				if secret.Synchronized {
@@ -65,14 +74,14 @@ func (s *EnvironmentServiceImpl) Delete(projectID int, environmentID int) (err e
 				}
 				err = s.encryptionService.DeleteSecret(&secret)
 				if err != nil {
-					errors = append(errors, err)
+					errs = append(errs, err)
 				}
 			}
 		}
 	}
 
-	if len(errors) > 0 {
-		err = fmt.Errorf("failed to delete some secrets: %v", errors)
+	if len(errs) > 0 {
+		err = fmt.Errorf("%w: failed to delete some secrets: %v", ErrSecretsLeftBehind, errs)
 		return
 	}
 

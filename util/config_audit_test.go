@@ -1,0 +1,79 @@
+package util
+
+import (
+	"net/netip"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestAuditConfig_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *AuditConfig
+		wantErr string
+	}{
+		{"nil section", nil, ""},
+		{"disabled section is ignored", &AuditConfig{TrustedProxyCIDRs: []string{"junk"}}, ""},
+		{"enabled without instance id", &AuditConfig{Enabled: true}, "audit.instance_id"},
+		{"instance id with a space", &AuditConfig{Enabled: true, InstanceID: "prod eu"}, "audit.instance_id"},
+		{"instance id too long", &AuditConfig{Enabled: true, InstanceID: strings.Repeat("a", 256)}, "audit.instance_id"},
+		{"instance id not ascii", &AuditConfig{Enabled: true, InstanceID: "прод"}, "audit.instance_id"},
+		{"invalid cidr", &AuditConfig{Enabled: true, InstanceID: "prod-eu", TrustedProxyCIDRs: []string{"10.0.0.0/33"}}, "trusted_proxy_cidrs"},
+		{"valid", &AuditConfig{Enabled: true, InstanceID: "prod-eu", TrustedProxyCIDRs: []string{"10.0.0.0/8", "fd00::/8"}}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.Validate()
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestAuditConfig_TrustedProxies(t *testing.T) {
+	prefixes, err := (&AuditConfig{TrustedProxyCIDRs: []string{" 10.1.2.3/8", "fd00::1/8"}}).TrustedProxies()
+	require.NoError(t, err)
+	assert.Equal(t, []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8"), netip.MustParsePrefix("fd00::/8")}, prefixes)
+}
+
+func TestAuditConfig_IsEnabled(t *testing.T) {
+	var nilConfig *AuditConfig
+	assert.False(t, nilConfig.IsEnabled())
+	assert.True(t, (&AuditConfig{Enabled: true}).IsEnabled())
+}
+
+func TestAuditSyslogConfig_IsConfigured(t *testing.T) {
+	var nilConfig *AuditSyslogConfig
+	assert.False(t, nilConfig.IsConfigured())
+	assert.False(t, (&AuditSyslogConfig{Timeout: "10s"}).IsConfigured(), "defaults alone do not configure it")
+	assert.False(t, (&AuditSyslogConfig{CAFile: "/etc/ssl/ca.pem", ServerName: "siem"}).IsConfigured(), "optional fields alone send nothing")
+	assert.True(t, (&AuditSyslogConfig{Address: "siem:6514"}).IsConfigured())
+}
+
+func TestAuditConfig_FromEnvironment(t *testing.T) {
+	t.Setenv("SEMAPHORE_AUDIT_ENABLED", "true")
+	t.Setenv("SEMAPHORE_AUDIT_INSTANCE_ID", "prod-eu")
+	t.Setenv("SEMAPHORE_AUDIT_TRUSTED_PROXY_CIDRS", `["10.0.0.0/8","fd00::/8"]`)
+	t.Setenv("SEMAPHORE_AUDIT_SYSLOG_ID", "siem-syslog")
+	t.Setenv("SEMAPHORE_AUDIT_SYSLOG_ADDRESS", "siem.example:6514")
+
+	config := &ConfigType{}
+	_, err := loadEnvironmentToObject(config)
+	require.NoError(t, err)
+	require.NoError(t, loadDefaultsToObject(config))
+
+	assert.True(t, config.Audit.Enabled)
+	assert.Equal(t, "prod-eu", config.Audit.InstanceID)
+	assert.Equal(t, []string{"10.0.0.0/8", "fd00::/8"}, config.Audit.TrustedProxyCIDRs)
+	assert.Equal(t, "siem-syslog", config.Audit.Syslog.ID)
+	assert.Equal(t, "siem.example:6514", config.Audit.Syslog.Address)
+	assert.Equal(t, "10s", config.Audit.Syslog.Timeout)
+	assert.NoError(t, config.Audit.Validate())
+}

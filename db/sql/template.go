@@ -498,8 +498,7 @@ func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template
 }
 
 func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
-	_, err := d.exec("delete from project__template where project_id=? and id=?", projectID, templateID)
-	return err
+	return requireDeletedRow(d.exec("delete from project__template where project_id=? and id=?", projectID, templateID))
 }
 
 func (d *SqlDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferrers, error) {
@@ -617,8 +616,8 @@ func (d *SqlDb) CreateTemplateRole(role db.TemplateRolePerm) (newRole db.Templat
 	return
 }
 func (d *SqlDb) DeleteTemplateRole(projectID int, templateID int, id int) error {
-	_, err := d.exec("delete from project__template_role where project_id=? and template_id=? and id=?", projectID, templateID, id)
-	return err
+	res, err := d.exec("delete from project__template_role where project_id=? and template_id=? and id=?", projectID, templateID, id)
+	return requireDeletedRow(res, err)
 }
 func (d *SqlDb) UpdateTemplateRole(role db.TemplateRolePerm) error {
 	_, err := d.exec(

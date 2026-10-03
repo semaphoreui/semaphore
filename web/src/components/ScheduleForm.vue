@@ -9,6 +9,7 @@
       v-model="showInfo"
       color="info"
       text
+      dismissible
       class="mb-6"
     >
       Use environment variable <code>SEMAPHORE_SCHEDULE_TIMEZONE</code> or config param
@@ -512,7 +513,7 @@ export default {
   },
 
   async created() {
-    this.showInfo = localStorage.getItem('schedule_hide_info') !== '1';
+    this.showInfo = localStorage.getItem('schedule__hide_info') !== '1';
     this.rawCron = localStorage.getItem('schedule__raw_cron') !== '1';
 
     this.templates = (await axios({
