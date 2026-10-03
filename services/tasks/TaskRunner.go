@@ -519,6 +519,27 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 }
 
 // nolint: gocyclo
+// populateWorkflowDetails resolves the workflow template of the run the task
+// belongs to. The task row stores only the run id; the template id is what the
+// task environment and the workflow run URL are built from, on this server or
+// on a remote runner that has no database of its own.
+func (t *TaskRunner) populateWorkflowDetails() error {
+	if t.Task.WorkflowRunID == nil || t.pool.workflowRepo == nil {
+		return nil
+	}
+
+	run, err := t.pool.workflowRepo.GetWorkflowRunByID(t.Task.ProjectID, *t.Task.WorkflowRunID)
+	if err != nil {
+		return t.prepareError(err, "Workflow run not found!")
+	}
+
+	if run.WorkflowTemplateID != 0 {
+		t.Task.WorkflowTemplateID = &run.WorkflowTemplateID
+	}
+
+	return nil
+}
+
 func (t *TaskRunner) populateDetails() error {
 	// get template
 	var err error
@@ -526,6 +547,10 @@ func (t *TaskRunner) populateDetails() error {
 	t.Template, err = t.pool.store.GetTemplate(t.Task.ProjectID, t.Task.TemplateID)
 	if err != nil {
 		return t.prepareError(err, "Template not found!")
+	}
+
+	if err = t.populateWorkflowDetails(); err != nil {
+		return err
 	}
 
 	// get project alert setting

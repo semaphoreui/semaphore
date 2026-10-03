@@ -570,3 +570,56 @@ func TestHostConfigEnv_CarriesRewritesToThePlaybook(t *testing.T) {
 	assert.Contains(t, strings.Join(executor.hostConfigEnv(), "\n"),
 		"url.https://bob:s3cr3t@test.asdf.ru/")
 }
+
+func TestTaskIdentityEnv(t *testing.T) {
+	runID := 42
+	workflowID := 7
+
+	tests := []struct {
+		name     string
+		webHost  string
+		task     db.Task
+		expected []string
+	}{
+		{
+			name:    "plain task",
+			webHost: "https://semaphore.example.com",
+			task:    db.Task{ID: 11, ProjectID: 3},
+			expected: []string{
+				"SEMAPHORE_PROJECT_ID=3",
+				"SEMAPHORE_TASK_ID=11",
+			},
+		},
+		{
+			name:    "workflow task",
+			webHost: "https://semaphore.example.com",
+			task:    db.Task{ID: 11, ProjectID: 3, WorkflowRunID: &runID, WorkflowTemplateID: &workflowID},
+			expected: []string{
+				"SEMAPHORE_PROJECT_ID=3",
+				"SEMAPHORE_TASK_ID=11",
+				"SEMAPHORE_WORKFLOW_RUN_ID=42",
+				"SEMAPHORE_WORKFLOW_ID=7",
+				"SEMAPHORE_WORKFLOW_URL=https://semaphore.example.com/project/3/workflows/7/runs/42",
+			},
+		},
+		{
+			name:    "workflow task without web host",
+			webHost: "",
+			task:    db.Task{ID: 11, ProjectID: 3, WorkflowRunID: &runID, WorkflowTemplateID: &workflowID},
+			expected: []string{
+				"SEMAPHORE_PROJECT_ID=3",
+				"SEMAPHORE_TASK_ID=11",
+				"SEMAPHORE_WORKFLOW_RUN_ID=42",
+				"SEMAPHORE_WORKFLOW_ID=7",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			util.Config = &util.ConfigType{WebHost: tt.webHost}
+
+			assert.Equal(t, tt.expected, taskIdentityEnv(tt.task))
+		})
+	}
+}
