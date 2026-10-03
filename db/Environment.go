@@ -68,6 +68,9 @@ type Environment struct {
 func (s *EnvironmentSecret) Validate() error {
 
 	if s.Type == EnvironmentSecretVar || s.Type == EnvironmentSecretEnv {
+		if s.Type == EnvironmentSecretVar && s.Name == "semaphore_vars" {
+			return errors.New("semaphore_vars is a reserved environment secret name")
+		}
 		return nil
 	}
 
