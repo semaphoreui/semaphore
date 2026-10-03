@@ -9,10 +9,14 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/git"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // RepositoryMiddleware ensures a repository exists and loads it to the context
@@ -62,6 +66,36 @@ func NewRepositoryController(
 	}
 }
 
+// decryptRepositoryKey decrypts the repository's access key in place, as the
+// task runner does before running git. GetGitURL(true) embeds the login and
+// password from repo.SSHKey, and the key loaded from the store holds them
+// only encrypted, so without this a login/password repository is queried
+// with no credentials at all. It writes the response and returns false when
+// the key cannot be used.
+func (c *RepositoryController) decryptRepositoryKey(w http.ResponseWriter, repo *db.Repository) bool {
+	err := c.encryptionService.DeserializeSecret(&repo.SSHKey)
+	if err == nil {
+		return true
+	}
+
+	fields := log.Fields{
+		"context":       "repository",
+		"project_id":    repo.ProjectID,
+		"repository_id": repo.ID,
+		"key_id":        repo.SSHKeyID,
+	}
+
+	if errors.Is(err, server.ErrAccessKeyExpired) {
+		log.WithFields(fields).Warn("repository access key has expired")
+		helpers.WriteError(w, common_errors.NewUserErrorS("The repository's access key has expired"))
+		return false
+	}
+
+	log.WithError(err).WithFields(fields).Error("failed to decrypt repository access key")
+	helpers.WriteErrorStatus(w, "Failed to read the repository's access key", http.StatusInternalServerError)
+	return false
+}
+
 // hostConfigs loads the credential mappings of the project, so browsing a
 // repository reaches a mapped host the same way a task would.
 func (c *RepositoryController) hostConfigs(r *http.Request, repo db.Repository) (*ssh.HostConfigInstallation, error) {
@@ -84,16 +118,24 @@ func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *h
 	}
 	defer hostConfigs.Destroy()
 
+	if !c.decryptRepositoryKey(w, &repo) {
+		return
+	}
+
 	git := db_lib.GitRepository{
 		Repository:  repo,
 		Client:      db_lib.CreateDefaultGitClient(c.keyInstaller),
+		Logger:      task_logger.NopLogger{},
 		HostConfigs: hostConfigs,
 	}
 
 	branches, err := git.GetRemoteBranches()
 
 	if err != nil {
-		helpers.WriteError(w, err)
+		writeRepositoryError(w, err, "Failed to load repository branches", log.Fields{
+			"project_id":    repo.ProjectID,
+			"repository_id": repo.ID,
+		})
 		return
 	}
 
@@ -122,6 +164,10 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 			return
 		}
 
+		if !c.decryptRepositoryKey(w, &repo) {
+			return
+		}
+
 		repoCopy := repo
 		repoCopy.GitBranch = branch
 		// Clone() does a single-branch clone (git clone --branch <branch>), so a
@@ -139,7 +185,7 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 
 		git := db_lib.GitRepository{
 			Repository:  repoCopy,
-			TmpDirName:  fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
+			TmpDirName:  fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:6]),
 			Client:      db_lib.CreateDefaultGitClient(c.keyInstaller),
 			Logger:      task_logger.NopLogger{},
 			HostConfigs: hostConfigs,
@@ -153,7 +199,11 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		}
 
 		if err != nil {
-			helpers.WriteError(w, err)
+			writeRepositoryError(w, err, "Failed to load repository files", log.Fields{
+				"project_id":    repo.ProjectID,
+				"repository_id": repo.ID,
+				"branch":        branch,
+			})
 			return
 		}
 
@@ -163,11 +213,33 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 	playbooks, err := db_lib.FindPlaybooks(rootDir)
 
 	if err != nil {
-		helpers.WriteError(w, err)
+		writeRepositoryError(w, err, "Failed to find playbooks in the repository", log.Fields{
+			"project_id":    repo.ProjectID,
+			"repository_id": repo.ID,
+		})
 		return
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, playbooks)
+}
+
+// writeRepositoryError logs why a repository could not be read for the
+// template form and answers the request. A failed git command is for the user
+// to fix (URL, credentials, branch), so its redacted stderr is returned. Any
+// other error is a server-side problem whose message can name server paths,
+// so only the log gets it and the user sees msg.
+func writeRepositoryError(w http.ResponseWriter, err error, msg string, fields log.Fields) {
+	fields["context"] = "repository"
+
+	var gitErr *db_lib.GitCommandError
+	if errors.As(err, &gitErr) {
+		log.WithError(gitErr).WithFields(fields).Warn(msg)
+		helpers.WriteError(w, common_errors.NewUserError(gitErr))
+		return
+	}
+
+	log.WithError(err).WithFields(fields).Error(msg)
+	helpers.WriteErrorStatus(w, msg, http.StatusInternalServerError)
 }
 
 // GetRepositories returns all repositories in a project sorted by type
