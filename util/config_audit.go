@@ -59,7 +59,12 @@ func (c *AuditConfig) TrustedProxies() ([]netip.Prefix, error) {
 		if err != nil {
 			return nil, fmt.Errorf("audit.trusted_proxy_cidrs: invalid CIDR %q: %w", cidr, err)
 		}
-		prefixes = append(prefixes, prefix.Masked())
+		prefix = prefix.Masked()
+		// Peers are compared unmapped, so a mapped IPv4 network must be unmapped too.
+		if prefix.Addr().Is4In6() && prefix.Bits() >= 96 {
+			prefix = netip.PrefixFrom(prefix.Addr().Unmap(), prefix.Bits()-96)
+		}
+		prefixes = append(prefixes, prefix)
 	}
 	return prefixes, nil
 }
