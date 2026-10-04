@@ -1,77 +1,235 @@
-# Workflow artifacts (set_stats parity)
+# Workflow outputs and inputs (ex "artifacts")
 
-AWX-style hand-off of key/value data between task nodes of one workflow run. Design: a task gets
-`SEMAPHORE_ARTIFACTS_FILE` pointing at a per-task JSON file; Ansible fills it through an
-embedded aggregate callback plugin (`semaphore_artifacts`) from `ansible.builtin.set_stats`, any
-other app writes the JSON itself. After exit the server validates the file and stores it on
-`task.artifacts`; when a downstream node starts, artifacts of every finished upstream task are
-merged (later task id wins, the current task excluded) and injected as top-level Ansible extra
-vars, under `semaphore_workflow_artifacts`, and as `SEMAPHORE_WF_<KEY>` env for scalars. Before
-this the only cross-node value was the Build template `version` (`incoming_version`).
+Hand-off of structured data between task nodes of one workflow run. A task **produces outputs**
+— a JSON object it writes to a file; a downstream node **consumes inputs** — an explicit mapping
+of one of its template's survey variables to one output key of one ancestor node. The UI and the
+docs say "Outputs" / "Inputs"; the DB column and the API field keep the name `artifacts`.
 
-**Status (2026-09-27): partially implemented — storage, merge and read API exist; the
-producer and consumer wiring is absent on this branch.** Evidence:
+**Status (2026-10-04): contract agreed, not implemented.** Storage and helpers exist, the
+producer and consumer wiring does not (see "What exists in the code"). Work is tracked in
+workbench `TASK@1845d9d4d7`; the practices behind the contract are in `RESEARCH@a97b871b1d`.
 
-- Present: `task.artifacts` column (`db/sql/migrations/v2.18.15.sql:92`), `db.Task.Artifacts`,
+## Contract
+
+This section is the source of truth for the implementation stages; where a stage body in the
+task differs, this wins.
+
+### Producer: the outputs file
+
+- A task that belongs to a workflow run (`WorkflowRunID != nil`) gets the environment variable
+  `SEMAPHORE_OUTPUTS_FILE` — the path of an empty file Semaphore creates for that task alone
+  (mode 0600, inside the task's temporary directory, removed in `Cleanup`). Tasks outside a
+  workflow get neither the variable nor the file. `SEMAPHORE_ARTIFACTS_FILE` never worked for
+  anyone, so there is no alias.
+- The process writes one UTF-8 JSON object: output name → any JSON value.
+  `echo '{"image_tag":"1.4.2"}' > "$SEMAPHORE_OUTPUTS_FILE"`.
+- Output names match `^[A-Za-z_][A-Za-z0-9_-]*$`. The hyphen is allowed because Terraform output
+  names may contain it and, with explicit mapping, a name is never turned into a variable name.
+- Limits: the file ≤ 256 KB, ≤ 100 outputs, one value ≤ 32 KB measured as compact JSON. The
+  value limit follows from delivery: a value ends up inside a single process argument
+  (`--extra-vars`, `-var k=v`, `k=v`) and Linux refuses an argument over 128 KB.
+- There are no reserved names: nothing is injected by output name any more, so an output called
+  `task_details` cannot clobber anything.
+- Numbers keep their written form (decode with `UseNumber`) — IDs above 2^53 must survive.
+- The file is read only when the task **succeeded**. A failed or stopped task has no outputs;
+  an `on_failure` branch gets nothing from the node that failed.
+- A missing or empty file is "no outputs", not an error. A file that is not a JSON object, has
+  a bad name, or breaks a limit **fails the task** with a line in its log naming the reason —
+  the mistake shows at the producer, not later at a consumer.
+- The file must be a regular file when read (no symlink following, size-capped read): the
+  process is less trusted than the server and must not be able to make it read another file.
+
+### Producer adapters by application
+
+| App | How outputs get into the file |
+| --- | --- |
+| Ansible | `ansible.builtin.set_stats` with `per_host: false` (the default). The bundled `semaphore_artifacts` callback writes the `_run` scope as Ansible aggregated it; per-host stats are not outputs. `set_stats` itself rejects names that are not variable names. |
+| Terraform, OpenTofu, Terragrunt | After a successful run Semaphore captures `output -json` from the state. A process-written file wins over a captured output of the same name. |
+| Bash, Python, PowerShell, Pulumi | The script writes the file itself. |
+
+Captured Terraform outputs never fail the task — the user did not write them. An output marked
+`sensitive`, one whose name does not match the pattern, one over the value limit, and anything
+that would break the count or file limit (added in name order) is skipped; the task log lists
+each skipped name with its reason, never a value.
+
+### Storage and the API shape
+
+`task.artifacts` holds one JSON document per task, written before
+`HandleWorkflowTaskCompletion` so the engine on any HA node reads it from the DB:
+
+```json
+{
+  "values": {"vpc_id": "vpc-0a1b", "subnet_ids": ["subnet-1", "subnet-2"]},
+  "skipped": {"db_password": "sensitive", "kubeconfig": "too_large"}
+}
+```
+
+`skipped` exists so the mapping form can warn when a mapped key is one Semaphore did not
+capture; reasons are `sensitive`, `too_large`, `invalid_name`, `limit`. A remote runner sends
+the same document in `JobProgress.Outputs`; the server validates it again with the same rules
+before storing it — the runner is not trusted.
+
+Outputs are stored and shown in plain text. They are **not for secrets**: no encryption, no
+masking, no secret outputs in v1.
+
+### Consumer: `input_mappings` on a task node
+
+```json
+{
+  "kind": "task",
+  "template_id": 7,
+  "task_params": {"environment": "{\"region\":\"eu-west-1\"}"},
+  "input_mappings": [
+    {"var": "vpc_id", "source_node_id": 11, "key": "vpc_id"}
+  ]
+}
+```
+
+- `var` — the name of a survey variable of the node's template; at most one mapping per
+  variable; a variable of type `secret` cannot be mapped.
+- `source_node_id` — a `task` node that is an ancestor of this node in the DAG (reachable along
+  edges of any condition). Remapped through `nodeIDMap` on every revision save, like edges, and
+  on backup/restore.
+- `key` — one top-level output name (same pattern). No paths into nested values in v1: a nested
+  object or array is passed whole.
+- Only task nodes carry mappings. Everything not mapped keeps coming from the node's static
+  `task_params.environment`, exactly as before.
+
+### Resolution when the node starts
+
+For each mapping the engine takes, from the DB, the latest task of the source node in this run.
+If that task succeeded and its `values` has the key with a non-null value that fits the
+variable's type, the value is used. Otherwise it falls back, in order: the node's static value
+for that variable → the variable's `default_value` → nothing. If nothing is left and the
+variable is `required`, the node's task is created and immediately failed with a log line naming
+the variable, the source node and the key, so the run follows `on_failure`. For a `required`
+variable an empty string or empty list counts as no value.
+
+With `convergence_mode: any` an ancestor may be unfinished or never run when the node starts —
+that is "no value", resolved by the same fallback.
+
+The resolved values are written into `task.Environment`, so the task shows what it ran with and
+the existing delivery (extra vars, `-var`, `k=v`, `target: env`) needs no per-app code. The task
+log gets one line per mapped variable saying where its value came from (output of which node and
+task / static value / default) — the source, never the value. The total size of mapped values
+for one task is capped at 64 KB; over it the task fails with a clear message instead of an
+"argument list too long" from the OS.
+
+### Type coercion
+
+The result has the shape the survey form itself produces, so a playbook behaves the same
+whether the template is launched by hand or from a workflow.
+
+| Variable type | Accepted output value | Stored in `task.Environment` as |
+| --- | --- | --- |
+| string (`""`), `text` | string; number or boolean; object or array | the string; its JSON literal (`42`, `true`); compact JSON text |
+| `int` | integer number, or a string matching `^-?\d+$` | decimal string (`"42"`) — what the form stores |
+| `enum` | scalar whose string form is one of the variable's `values[].value` | that string |
+| `select` | array of scalars all in `values[].value`, or one such scalar | array of strings |
+| `secret` | — | not mappable |
+
+A value that does not fit is treated as no value (fallback), with the reason in the log line.
+
+### Trust
+
+Output values come from a task process and are data, never code: they must not be evaluated as
+Jinja by Ansible (stage 8 of the task decides between `!unsafe` and ansible-core data tagging),
+are never printed in full to a log, and are re-validated on the server when they arrive from a
+runner. A task created through the API must not be able to set `artifacts`,
+`workflow_run_id` or `workflow_node_id`.
+
+## What exists in the code (checked 2026-10-04)
+
+- Present: `task.artifacts` column (`db/sql/migrations/v2.18.15.sql`), `db.Task.Artifacts`,
   `Store.UpdateTaskArtifacts` (`db/sql/task.go`), `GET
-  /project/{p}/workflows/{w}/runs/{r}/artifacts` (`api/router.go:512`, `api-docs.yml:3401`) →
+  /project/{p}/workflows/{w}/runs/{r}/artifacts` (`api/router.go`, `api-docs.yml`) →
   `WorkflowService.GetWorkflowRunArtifacts` → `artifacts.CollectFromTasks`
   (`pro_impl/services/server/workflow_svc.go`). The package
   `pro_impl/services/tasks/artifacts/` carries `LoadFile`, `Parse`, `Merge`, `ToShellEnv`,
   `AnsibleCallbackEnv`, the embedded callback plugin and `artifacts_test.go`. UI: the task
   dialog shows a pretty-printed `task.artifacts` panel (`web/src/components/TaskDetails.vue`),
   the run view shows only the remote-runner warning (`WorkflowRun.vue`).
-- ⚠️ 2026-09-27: nothing calls `UpdateTaskArtifacts`, `LoadFile`, `ToShellEnv`,
-  `AnsibleCallbackEnv` or `TaskPool.GetWorkflowRunArtifacts` (`grep -rn` over the open module and
-  `pro_impl`, tests excluded); `LocalExecutor.WorkflowArtifacts`
-  (`services/tasks/local_executor.go:57`) has no reader; the body of
-  `pro_impl/services/tasks/LocalJob_artifacts_test.go` is commented out. So no task receives the
-  file path or the callback env, no task row is ever filled, and no downstream task sees
-  anything — the endpoint always returns `{}`. The Copilot commits that had the wiring
-  (`47f725321`, `58d11c192`, PR #3488; re-imported as `30bb3e194`) are not ancestors of HEAD;
-  `f29bb3f40 Workflows` (on HEAD) brought only the plan. The producer side was lost when
-  `LocalJob.go` became `local_executor.go` and the engine moved to `pro_impl`.
+- ⚠️ 2026-09-27, still true 2026-10-04: nothing calls `UpdateTaskArtifacts`, `LoadFile`,
+  `ToShellEnv`, `AnsibleCallbackEnv` or `TaskPool.GetWorkflowRunArtifacts`;
+  `LocalExecutor.WorkflowArtifacts` (`services/tasks/local_executor.go`) has no reader; the body
+  of `pro_impl/services/tasks/LocalJob_artifacts_test.go` is commented out. No task receives the
+  file path or the callback env, no task row is ever filled, the endpoint always returns `{}`.
+  The Copilot commits that had the wiring (`47f725321`, `58d11c192`, PR #3488; re-imported as
+  `30bb3e194`) are not ancestors of HEAD.
+- ⚠️ 2026-10-04: the existing package implements the superseded design and must be brought to
+  the contract: env name `SEMAPHORE_ARTIFACTS_FILE` (Go doc and the callback), key pattern
+  without the hyphen, `reservedKeys`, no count or value limit, `float64` numbers, `Merge` /
+  `CollectFromTasks` / `ToShellEnv` (implicit merge and `SEMAPHORE_WF_*` — to be removed),
+  plain-object storage instead of the `values`/`skipped` document. `AnsibleCallbackEnv` returns
+  bare `ANSIBLE_CALLBACK_PLUGINS` / `ANSIBLE_CALLBACKS_ENABLED` values that would overwrite the
+  user's own — it must append.
+- ⚠️ 2026-10-04: the server never applies survey defaults or validates survey types — only the
+  Vue forms do (`TaskParamsForm.vue`; see `../secrets-and-task-vars/schedule-survey-defaults.md`).
+  The resolver therefore applies `default_value` itself for mapped variables; `int` values are
+  strings in `task.Environment` because the form stores them so.
 - ⚠️ 2026-09-27: `docs/docs/user-guide/workflows.md` § "Workflow artifacts (set_stats)" tells
-  users the feature works for local tasks. Until the wiring is restored the doc overclaims.
+  users the feature works for local tasks and describes the superseded implicit merge. Until
+  the last stage rewrites it the doc overclaims.
 
 ## Decisions and why
 
-- **File hand-off via env var, not stdout parsing** — app-agnostic (Bash, Python, Terraform
-  write the JSON themselves); Ansible needs no playbook change thanks to the callback plugin.
-- **Three projections at once** (flat extra vars, namespaced key, `SEMAPHORE_WF_*` env) — flat
-  vars give AWX parity for existing playbooks, the namespace serves explicit callers, env serves
-  shell/Terraform; only scalars become env, nested values stay in extra vars.
-- **Later task overrides earlier**, current task excluded — mirrors AWX `set_stats` merge and
-  stops a running task from feeding itself.
-- **Per-task text column, merge on read** — no run-level blob to keep consistent; the merged map
-  is derived, so HA nodes need no coordination.
-- **Validation at ingest**: JSON object only, keys `^[A-Za-z_][A-Za-z0-9_]*$`, 256 KB max,
-  reserved keys `semaphore_vars`, `semaphore_workflow_artifacts`, `task_details`,
-  `incoming_version` refused — prevents clobbering Semaphore-injected variables.
-- **Pro-gated with the engine**: the package and merge live in `pro_impl`; the open stub returns
-  an empty map so `TaskRunner` can call it unconditionally.
+- **Explicit mapping, not implicit merge** (2026-09-28). The first design copied AWX: outputs of
+  all finished upstream tasks merged (later task wins) and injected as flat extra vars, a
+  `semaphore_workflow_artifacts` namespace and `SEMAPHORE_WF_*` env. Dropped: the merge order
+  at a fan-in is arbitrary, an output can silently override a survey value, and Terraform
+  rejects an undeclared `-var`. Mapping onto survey variables reuses the delivery every app
+  type already has.
+- **File named by an env var, not stdout markers** — app-agnostic, and a log stream is the wrong
+  channel for data (GitHub retired `::set-output`; Kestra leaked encrypted outputs through its
+  stdout marker).
+- **Outputs only from a successful task** (2026-10-04) — one rule, no half-written data from a
+  crashed process.
+- **A bad file fails the producer** (2026-10-04) — as Tekton and Argo do; a warning would move
+  the error to a consumer far from its cause.
+- **Count and value limits on top of 256 KB, no per-run total** (2026-10-04) — the numbers (100
+  outputs, 32 KB per value) are sized by the 128 KB single-argument limit of Linux, not copied
+  from a product.
+- **Sensitive Terraform outputs are skipped but named** (2026-10-04) — in the task log and, via
+  `skipped`, as a warning in the mapping form; opt-in encrypted transfer is a later feature.
+- **Hyphen allowed in names, reserved names dropped** (2026-10-04) — both restrictions served
+  the implicit projection into variable names; under explicit mapping they would only make a
+  valid Terraform output unusable or fail a task for a harmless name.
+- **Fallback before failure** — output → static node value → default → fail if required. Softer
+  than Spacelift or Tekton (missing input is an error there) but every substitution is logged.
+- **Per-task column, resolved on read** — no run-level blob to keep consistent; HA nodes need no
+  coordination.
+- **Pro-gated with the engine**: the package lives in `pro_impl`; the open module calls it
+  through the open/pro interface, without globals.
 
 ## Open, broken, deferred
 
-- Restore the producer/consumer wiring (env var + callback env on launch, read + validate +
-  `UpdateTaskArtifacts` on finish, merge into extra vars/env on downstream launch), on the Pro
-  side; then un-comment or rewrite `LocalJob_artifacts_test.go`.
-- Remote runners (`useRemoteRunner: true`) have no artifact channel in the runner→server
-  protocol; the docs warning and `workflowArtifactsRemoteRunnerWarning` alert stay until then.
-- Run-level artifacts panel was removed with the run-view table (see
-  `editor-architecture.md`); only the per-task panel remains.
-- Automatic capture of `terraform output -json` as a sub-key — never started.
-- Dredd skips the artifacts endpoint (`.dredd/hooks/main.go:179`), so the API contract is not
-  exercised in CI.
+- Everything in the contract is still to be built: producer wiring in `LocalExecutor`, the
+  runner protocol field, the node column and validation, the resolver in `startWorkflowNode`,
+  the UI, the security hardening, docs and Dredd (stages 3–9 of the task).
+- Docker/K8s executors are out of v1. The Kubernetes termination message (4 KB per pod) cannot
+  carry 256 KB; the path is a file on a shared volume read by the runner side. Until then the
+  `workflowArtifactsRemoteRunnerWarning` alert stays for those executors only.
+- Key hints in the mapping form come from a previous run, but node IDs change on every revision
+  save — the hint source needs an identity that survives a save (decide in the UI stage).
+- `GET …/runs/{r}/artifacts` returns a merged map, meaningless under explicit mapping; the run
+  view needs outputs per node.
+- Related gaps found on the way, not part of this contract: secret survey values set on a node
+  never reach the task; Docker/K8s executors ignore survey secrets and `target: env`; no unique
+  index on `task(workflow_run_id, workflow_node_id)` — all recorded as findings on the task.
+- Dredd skips the artifacts endpoint (`.dredd/hooks/main.go`).
 
 ## Key files and references
 
 - `db/Task.go`, `db/Store.go`, `db/sql/task.go`, `db/sql/migrations/v2.18.15.sql`
-- `services/tasks/TaskPool.go` (`GetWorkflowRunArtifacts` delegator),
-  `services/tasks/local_executor.go` (`WorkflowArtifacts` field)
+- `db/Workflow.go` (`WorkflowNode`), `db/Template.go` (`SurveyVar`, `SurveyVarDefaultValue`),
+  `db/TaskParams.go`
+- `services/tasks/local_executor.go` (survey delivery: `getEnvironmentExtraVars`,
+  `getSurveyEnvVars`, `formatVarValue`), `services/tasks/TaskPool.go`
 - `pro_interfaces/workflow_svc.go`, `pro/services/server/workflow_svc.go` (stub),
-  `pro_impl/services/server/workflow_svc.go`, `pro_impl/services/tasks/artifacts/`
+  `pro_impl/services/server/workflow_svc.go` (`startWorkflowNode`, `mapLatestNodeTask`),
+  `pro_impl/db/Workflow.go` (`ValidateWorkflowTemplate`), `pro_impl/services/tasks/artifacts/`
   (incl. `ansible/callback_plugins/semaphore_artifacts.py`)
-- `web/src/components/TaskDetails.vue`, `web/src/views/project/WorkflowRun.vue`
+- `web/src/components/TaskParamsForm.vue`, `web/src/components/TaskDetails.vue`,
+  `web/src/views/project/WorkflowRun.vue`
 - `api-docs.yml` (artifacts path), `docs/docs/user-guide/workflows.md`
 - https://github.com/semaphoreui/semaphore/pull/3488 (origin of the feature)

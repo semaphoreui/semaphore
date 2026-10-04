@@ -11,5 +11,6 @@ Workflows-as-Code direction.
 | Changing how nodes, edges, quick-add, keyboard or undo work in the canvas, or asking why Drawflow is wrapped the way it is | `editor-architecture.md` |
 | Checking what the first cut (D1..D5) and the redesign (R1..R9) already decided before proposing a change to the model, routes or save flow | `editor-architecture.md` |
 | Picking up an open editor item (bottom-sheet properties, run-view node panel, multi-select, viewport storage) | `editor-architecture.md` |
+| Implementing or changing workflow outputs and node input mappings: file format, limits, storage shape, type coercion, fallback | `artifacts.md` |
 | Anything about `set_stats` / workflow artifacts — especially before promising it works | `artifacts.md` |
 | Re-shooting editor screenshots, re-running the Playwright checklists, regenerating the hotkeys SVG, or opening the approved node mock | `mocks/README.md` |
