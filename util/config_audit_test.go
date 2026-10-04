@@ -97,8 +97,9 @@ func TestAuditSplunkHECConfig_FromEnvironment(t *testing.T) {
 	t.Setenv("SEMAPHORE_AUDIT_SPLUNK_HEC_INDEX", "security")
 
 	config := &ConfigType{}
-	_, err := loadEnvironmentToObject(config)
+	sensitive, err := loadEnvironmentToObject(config)
 	require.NoError(t, err)
+	assert.Contains(t, sensitive, "SEMAPHORE_AUDIT_SPLUNK_HEC_TOKEN")
 	require.NoError(t, loadDefaultsToObject(config))
 
 	hec := config.Audit.SplunkHEC
