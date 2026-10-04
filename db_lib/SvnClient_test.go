@@ -1,11 +1,13 @@
 package db_lib
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -414,6 +416,63 @@ func TestSvnClient_SshTunnel(t *testing.T) {
 	for _, v := range cmd.Env {
 		assert.NotContains(t, v, "GIT_SSH_COMMAND=")
 	}
+}
+
+func TestSvnError(t *testing.T) {
+	exit := errors.New("exit status 1")
+
+	tests := []struct {
+		name     string
+		stderr   string
+		expected string
+	}{
+		{"no stderr", "", "exit status 1"},
+		{
+			"svn lines",
+			"svn: E170013: Unable to connect to a repository at URL 'svn://host/trunk'\nsvn: E170001: Authentication error\n",
+			"exit status 1: svn: E170013: Unable to connect to a repository at URL 'svn://host/trunk' / svn: E170001: Authentication error",
+		},
+		{
+			"userinfo removed",
+			"svn: E170013: Unable to connect to a repository at URL 'svn+ssh://deploy:secret@host/repo'",
+			"exit status 1: svn: E170013: Unable to connect to a repository at URL 'svn+ssh://host/repo'",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := svnError(exit, []byte(tt.stderr))
+			assert.EqualError(t, err, tt.expected)
+			assert.ErrorIs(t, err, exit)
+		})
+	}
+
+	assert.NoError(t, svnError(nil, []byte("svn: warning")))
+}
+
+func TestSvnStderrTail(t *testing.T) {
+	tail := &svnStderrTail{}
+	_, _ = tail.Write([]byte(strings.Repeat("a", svnStderrMax)))
+	_, _ = tail.Write([]byte("svn: E000001: last"))
+	assert.Len(t, tail.buf, svnStderrMax)
+	assert.True(t, strings.HasSuffix(string(tail.buf), "svn: E000001: last"))
+}
+
+// Failures reach callers whose logger discards output, such as the
+// repository API, with svn's explanation instead of an exit status alone.
+func TestSvnClient_ErrorCarriesStderr(t *testing.T) {
+	setupGitClientTest(t)
+	f := newSvnFixture(t)
+
+	client := CreateSvnClient(nopKeyInstaller{})
+
+	r := newTestSvnRepo(t, f.url, "branches/missing")
+	err := client.Clone(r)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "svn: E")
+
+	_, err = client.GetLastRemoteCommitHash(r)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "svn: E")
 }
 
 func TestCreateDefaultGitClient_RoutesSubversion(t *testing.T) {

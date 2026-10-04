@@ -2,9 +2,12 @@ package db_lib
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -156,7 +159,16 @@ func (c SvnClient) run(r GitRepository, targetDir GitRepositoryDirType, args ...
 	finishLog := r.Logger.LogCmd(cmd)
 	defer finishLog()
 
-	return cmd.Run()
+	// The task log gets stderr through LogCmd; the error keeps its end too,
+	// for callers whose logger discards it, such as the repository API.
+	stderr := &svnStderrTail{}
+	if cmd.Stderr != nil {
+		cmd.Stderr = io.MultiWriter(cmd.Stderr, stderr)
+	} else {
+		cmd.Stderr = stderr
+	}
+
+	return svnError(cmd.Run(), stderr.buf)
 }
 
 func (c SvnClient) output(r GitRepository, targetDir GitRepositoryDirType, args ...string) (out string, err error) {
@@ -169,10 +181,56 @@ func (c SvnClient) output(r GitRepository, targetDir GitRepositoryDirType, args 
 
 	bytes, err := c.makeCmd(r, targetDir, keyInstallation, args...).Output()
 	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			err = svnError(err, exitErr.Stderr)
+		}
 		return
 	}
 	out = strings.TrimSpace(string(bytes))
 	return
+}
+
+// svnStderrMax bounds the stderr kept for an error. svn writes a few short
+// lines when it fails; a long checkout can write much more before that.
+const svnStderrMax = 1024
+
+// svnStderrTail keeps the end of what svn writes to stderr.
+type svnStderrTail struct {
+	buf []byte
+}
+
+func (t *svnStderrTail) Write(p []byte) (int, error) {
+	t.buf = append(t.buf, p...)
+	if len(t.buf) > svnStderrMax {
+		t.buf = t.buf[len(t.buf)-svnStderrMax:]
+	}
+	return len(p), nil
+}
+
+// svnUserinfo matches the userinfo of a URL quoted in an svn message.
+var svnUserinfo = regexp.MustCompile(`(\w[\w+.-]*://)[^\s/@']*@`)
+
+// svnError adds what svn said to a failed command's error, which is only an
+// exit status, with the userinfo of quoted URLs removed. svn never prints a
+// password, but a URL may carry one typed into it.
+func svnError(err error, stderr []byte) error {
+	if err == nil {
+		return nil
+	}
+
+	lines := []string{}
+	for _, line := range strings.Split(string(stderr), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			lines = append(lines, svnUserinfo.ReplaceAllString(line, "$1"))
+		}
+	}
+
+	if len(lines) == 0 {
+		return err
+	}
+
+	return fmt.Errorf("%w: %s", err, strings.Join(lines, " / "))
 }
 
 func (c SvnClient) Clone(r GitRepository) error {
