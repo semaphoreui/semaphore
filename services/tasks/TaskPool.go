@@ -1149,7 +1149,12 @@ func (p *TaskPool) AddTaskFrom(
 		return
 	}
 
-	err = taskObj.ValidateNewTask(tpl)
+	repository, err := p.store.GetRepository(projectID, tpl.RepositoryID)
+	if err != nil {
+		return
+	}
+
+	err = taskObj.ValidateNewTask(tpl, repository)
 	if err != nil {
 		return
 	}

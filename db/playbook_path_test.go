@@ -81,7 +81,7 @@ func TestTask_ValidateNewTask_AbsolutePlaybook_ReturnsError(t *testing.T) {
 		Playbook: "/usr/bin/evil.sh",
 	}
 
-	err := task.ValidateNewTask(Template{})
+	err := task.ValidateNewTask(Template{}, Repository{})
 
 	assert.EqualError(t, err, "task playbook must be a relative path inside the repository")
 }
@@ -91,7 +91,7 @@ func TestTask_ValidateNewTask_RelativePlaybook_ReturnsNoError(t *testing.T) {
 		Playbook: "site.yml",
 	}
 
-	err := task.ValidateNewTask(Template{})
+	err := task.ValidateNewTask(Template{}, Repository{})
 
 	assert.NoError(t, err)
 }
