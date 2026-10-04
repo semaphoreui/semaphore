@@ -22,6 +22,7 @@ func TestAuditConfig_Validate(t *testing.T) {
 		{"instance id too long", &AuditConfig{Enabled: true, InstanceID: strings.Repeat("a", 256)}, "audit.instance_id"},
 		{"instance id not ascii", &AuditConfig{Enabled: true, InstanceID: "прод"}, "audit.instance_id"},
 		{"invalid cidr", &AuditConfig{Enabled: true, InstanceID: "prod-eu", TrustedProxyCIDRs: []string{"10.0.0.0/33"}}, "trusted_proxy_cidrs"},
+		{"ipv4-mapped network shorter than /96", &AuditConfig{Enabled: true, InstanceID: "prod-eu", TrustedProxyCIDRs: []string{"::ffff:0:0/80"}}, "/96"},
 		{"valid", &AuditConfig{Enabled: true, InstanceID: "prod-eu", TrustedProxyCIDRs: []string{"10.0.0.0/8", "fd00::/8"}}, ""},
 	}
 	for _, tt := range tests {
@@ -113,14 +114,13 @@ func TestAuditSplunkHECConfig_FromEnvironment(t *testing.T) {
 
 func TestAuditConfig_TrustedProxiesUnmapsIPv4MappedNetworks(t *testing.T) {
 	prefixes, err := (&AuditConfig{TrustedProxyCIDRs: []string{
-		"::ffff:10.0.0.0/104", "::ffff:192.168.1.7/128", "::ffff:0:0/80", "10.1.0.0/16",
+		"::ffff:10.0.0.0/104", "::ffff:192.168.1.7/128", "10.1.0.0/16",
 	}}).TrustedProxies()
 
 	require.NoError(t, err)
 	assert.Equal(t, []netip.Prefix{
 		netip.MustParsePrefix("10.0.0.0/8"),
 		netip.MustParsePrefix("192.168.1.7/32"),
-		netip.MustParsePrefix("::/80"),
 		netip.MustParsePrefix("10.1.0.0/16"),
 	}, prefixes)
 	assert.True(t, prefixes[0].Contains(netip.MustParseAddr("10.1.2.3")), "an unmapped peer matches")
