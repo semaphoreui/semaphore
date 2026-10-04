@@ -17,6 +17,8 @@ type AuditConfig struct {
 	TrustedProxyCIDRs []string `json:"trusted_proxy_cidrs,omitempty" env:"SEMAPHORE_AUDIT_TRUSTED_PROXY_CIDRS"`
 	// Syslog sends audit events to a Syslog receiver over TLS.
 	Syslog *AuditSyslogConfig `json:"syslog,omitempty"`
+	// SplunkHEC exports audit events over the Splunk HTTP Event Collector protocol.
+	SplunkHEC *AuditSplunkHECConfig `json:"splunk_hec,omitempty"`
 }
 
 type AuditSyslogConfig struct {
@@ -64,4 +66,29 @@ func (c *AuditConfig) TrustedProxies() ([]netip.Prefix, error) {
 
 func (c *AuditSyslogConfig) IsConfigured() bool {
 	return c != nil && (c.ID != "" || c.Address != "")
+}
+
+type AuditSplunkHECConfig struct {
+	// ID keys the export cursor. A new ID starts from now.
+	ID string `json:"id,omitempty" env:"SEMAPHORE_AUDIT_SPLUNK_HEC_ID"`
+	// URL is the full HEC endpoint, for example https://hec.example:8088/services/collector/event.
+	URL string `json:"url,omitempty" env:"SEMAPHORE_AUDIT_SPLUNK_HEC_URL"`
+	// Token is the HEC token sent as "Authorization: Splunk <token>".
+	Token string `json:"token,omitempty" env:"SEMAPHORE_AUDIT_SPLUNK_HEC_TOKEN,sensitive"`
+	// Index is the target index. Empty uses the default index of the token.
+	Index string `json:"index,omitempty" env:"SEMAPHORE_AUDIT_SPLUNK_HEC_INDEX"`
+	// Source is the HEC source of every event.
+	Source string `json:"source,omitempty" default:"semaphore" env:"SEMAPHORE_AUDIT_SPLUNK_HEC_SOURCE"`
+	// Sourcetype is the HEC sourcetype of every event.
+	Sourcetype string `json:"sourcetype,omitempty" default:"semaphore:audit" env:"SEMAPHORE_AUDIT_SPLUNK_HEC_SOURCETYPE"`
+	// Timeout bounds one HTTP request with one batch of events.
+	Timeout string `json:"timeout,omitempty" default:"10s" env:"SEMAPHORE_AUDIT_SPLUNK_HEC_TIMEOUT"`
+	// CAFile is a PEM bundle added to the system roots.
+	CAFile string `json:"ca_file,omitempty" env:"SEMAPHORE_AUDIT_SPLUNK_HEC_CA_FILE"`
+	// ServerName overrides the name checked in the receiver certificate.
+	ServerName string `json:"server_name,omitempty" env:"SEMAPHORE_AUDIT_SPLUNK_HEC_SERVER_NAME"`
+}
+
+func (c *AuditSplunkHECConfig) IsConfigured() bool {
+	return c != nil && (c.ID != "" || c.URL != "")
 }

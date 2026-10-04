@@ -77,3 +77,51 @@ func TestAuditConfig_FromEnvironment(t *testing.T) {
 	assert.Equal(t, "10s", config.Audit.Syslog.Timeout)
 	assert.NoError(t, config.Audit.Validate())
 }
+
+func TestAuditSplunkHECConfig_IsConfigured(t *testing.T) {
+	var nilConfig *AuditSplunkHECConfig
+	assert.False(t, nilConfig.IsConfigured())
+	assert.False(t, (&AuditSplunkHECConfig{Source: "semaphore", Sourcetype: "semaphore:audit", Timeout: "10s"}).IsConfigured(), "defaults alone do not configure it")
+	assert.False(t, (&AuditSplunkHECConfig{Token: "t", Index: "security"}).IsConfigured(), "optional fields alone send nothing")
+	assert.True(t, (&AuditSplunkHECConfig{URL: "https://hec.example:8088/services/collector/event"}).IsConfigured())
+	assert.True(t, (&AuditSplunkHECConfig{ID: "siem-hec"}).IsConfigured())
+}
+
+func TestAuditSplunkHECConfig_FromEnvironment(t *testing.T) {
+	t.Setenv("SEMAPHORE_AUDIT_ENABLED", "true")
+	t.Setenv("SEMAPHORE_AUDIT_INSTANCE_ID", "prod-eu")
+	t.Setenv("SEMAPHORE_AUDIT_SPLUNK_HEC_ID", "siem-hec")
+	t.Setenv("SEMAPHORE_AUDIT_SPLUNK_HEC_URL", "https://hec.example:8088/services/collector/event")
+	t.Setenv("SEMAPHORE_AUDIT_SPLUNK_HEC_TOKEN", "00000000-0000-0000-0000-000000000000")
+	t.Setenv("SEMAPHORE_AUDIT_SPLUNK_HEC_INDEX", "security")
+
+	config := &ConfigType{}
+	_, err := loadEnvironmentToObject(config)
+	require.NoError(t, err)
+	require.NoError(t, loadDefaultsToObject(config))
+
+	hec := config.Audit.SplunkHEC
+	require.NotNil(t, hec)
+	assert.Equal(t, "siem-hec", hec.ID)
+	assert.Equal(t, "https://hec.example:8088/services/collector/event", hec.URL)
+	assert.Equal(t, "00000000-0000-0000-0000-000000000000", hec.Token)
+	assert.Equal(t, "security", hec.Index)
+	assert.Equal(t, "semaphore", hec.Source)
+	assert.Equal(t, "semaphore:audit", hec.Sourcetype)
+	assert.Equal(t, "10s", hec.Timeout)
+}
+
+func TestAuditConfig_TrustedProxiesUnmapsIPv4MappedNetworks(t *testing.T) {
+	prefixes, err := (&AuditConfig{TrustedProxyCIDRs: []string{
+		"::ffff:10.0.0.0/104", "::ffff:192.168.1.7/128", "::ffff:0:0/80", "10.1.0.0/16",
+	}}).TrustedProxies()
+
+	require.NoError(t, err)
+	assert.Equal(t, []netip.Prefix{
+		netip.MustParsePrefix("10.0.0.0/8"),
+		netip.MustParsePrefix("192.168.1.7/32"),
+		netip.MustParsePrefix("::/80"),
+		netip.MustParsePrefix("10.1.0.0/16"),
+	}, prefixes)
+	assert.True(t, prefixes[0].Contains(netip.MustParseAddr("10.1.2.3")), "an unmapped peer matches")
+}
