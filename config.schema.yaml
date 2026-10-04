@@ -665,6 +665,7 @@ $defs:
         description: Destination name. Keep it when the URL changes.
       url:
         type: string
+        format: uri
         description: Full HEC endpoint, for example https://splunk.example.com:8088/services/collector/event.
       token:
         type: string
