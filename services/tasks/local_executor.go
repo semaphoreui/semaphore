@@ -287,6 +287,30 @@ func (t *LocalExecutor) getSurveyEnvVars() (res []string, err error) {
 	return
 }
 
+// taskIdentityEnv returns the SEMAPHORE_* variables that identify the task and,
+// when it is part of a workflow run, the workflow. Unlike the task-details
+// variables they are set for every app, Ansible and Terraform included, so a
+// script can always reach back to Semaphore for the task that started it.
+func taskIdentityEnv(task db.Task) (env []string) {
+	env = append(env,
+		fmt.Sprintf("SEMAPHORE_PROJECT_ID=%d", task.ProjectID),
+		fmt.Sprintf("SEMAPHORE_TASK_ID=%d", task.ID))
+
+	if task.WorkflowRunID != nil {
+		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_RUN_ID=%d", *task.WorkflowRunID))
+	}
+
+	if task.WorkflowTemplateID != nil {
+		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_ID=%d", *task.WorkflowTemplateID))
+	}
+
+	if workflowUrl := task.GetWorkflowUrl(); workflowUrl != nil {
+		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_URL=%s", *workflowUrl))
+	}
+
+	return
+}
+
 func (t *LocalExecutor) getShellEnvironmentExtraENV(username string, incomingVersion *string) (extraShellVars []string) {
 	taskDetails := t.getTaskDetails(username, incomingVersion)
 
@@ -944,6 +968,8 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 	}
 
 	environmentVariables = append(environmentVariables, t.hostConfigEnv()...)
+
+	environmentVariables = append(environmentVariables, taskIdentityEnv(t.Task)...)
 
 	if t.Template.Type != db.TemplateTask {
 
