@@ -74,7 +74,7 @@ func (c *AuditSyslogConfig) IsConfigured() bool {
 }
 
 type AuditSplunkHECConfig struct {
-	// ID keys the export cursor. A new ID starts from now.
+	// ID names the destination. Keep it when the URL changes. A new ID starts with new events.
 	ID string `json:"id,omitempty" env:"SEMAPHORE_AUDIT_SPLUNK_HEC_ID"`
 	// URL is the full HEC endpoint, for example https://hec.example:8088/services/collector/event.
 	URL string `json:"url,omitempty" env:"SEMAPHORE_AUDIT_SPLUNK_HEC_URL"`
