@@ -3,7 +3,6 @@ package db_lib
 import (
 	"encoding/xml"
 	"fmt"
-	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -221,12 +220,10 @@ func (c SvnClient) CanBePulled(r GitRepository) bool {
 		return false
 	}
 
-	// svn prints the URL percent-encoded.
+	// Repository edits clear the cache of this server only; a runner may
+	// still hold a working copy of the URL the repository had before.
 	wcURL, err := c.output(r, GitRepositoryFullPath, "info", "--show-item", "url")
-	if err != nil {
-		return false
-	}
-	if decoded, err := url.PathUnescape(wcURL); err != nil || decoded != branchURL {
+	if err != nil || !svn.SameURL(wcURL, branchURL) {
 		return false
 	}
 

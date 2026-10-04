@@ -340,6 +340,7 @@ func TestSvnClient_LoginPassword(t *testing.T) {
 		hash, err := client.GetLastCommitHash(r)
 		require.NoError(t, err)
 		assert.Equal(t, "2", hash)
+		assert.True(t, client.CanBePulled(r), "svn prints the working copy URL canonicalized")
 	})
 
 	t.Run("password is not passed as an argument", func(t *testing.T) {
