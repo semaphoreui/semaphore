@@ -139,6 +139,41 @@ func TestSvnClient_CloneUpdateCheckout(t *testing.T) {
 	assert.Equal(t, "v2", readFile(t, filepath.Join(r.GetFullPath(), "site.yml")))
 }
 
+// svn refuses non-ASCII file names under the C locale on Linux; macOS takes
+// file names as UTF-8 whatever the locale.
+func TestSvnClient_NonASCIIFileName(t *testing.T) {
+	setupGitClientTest(t)
+	f := newSvnFixture(t)
+	f.commit(t, "déploiement.yml", "v2", "accentué")
+
+	client := CreateSvnClient(nopKeyInstaller{})
+	r := newTestSvnRepo(t, f.url, "trunk")
+
+	require.NoError(t, client.Clone(r))
+	assert.Equal(t, "v2", readFile(t, filepath.Join(r.GetFullPath(), "déploiement.yml")))
+
+	msg, err := client.GetLastCommitMessage(r)
+	require.NoError(t, err)
+	assert.Equal(t, "accentué", msg)
+}
+
+func TestSvnClient_Locale(t *testing.T) {
+	setupGitClientTest(t)
+	r := newTestSvnRepo(t, "svn://svn.example.com/repo", "trunk")
+
+	t.Run("utf-8 when no locale is set", func(t *testing.T) {
+		cmd := SvnClient{}.makeCmd(r, GitRepositoryTmpPath, ssh.AccessKeyInstallation{}, "info")
+		assert.Contains(t, cmd.Env, "LC_CTYPE=C.UTF-8")
+	})
+
+	t.Run("the administrator locale wins", func(t *testing.T) {
+		util.Config.EnvVars = map[string]string{"LANG": "de_CH.UTF-8"}
+		cmd := SvnClient{}.makeCmd(r, GitRepositoryTmpPath, ssh.AccessKeyInstallation{}, "info")
+		assert.NotContains(t, cmd.Env, "LC_CTYPE=C.UTF-8")
+		assert.Contains(t, cmd.Env, "LANG=de_CH.UTF-8")
+	})
+}
+
 func TestSvnClient_Branch(t *testing.T) {
 	setupGitClientTest(t)
 	f := newSvnFixture(t)

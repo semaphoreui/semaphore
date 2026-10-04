@@ -107,6 +107,16 @@ func (c SvnClient) makeCmd(
 	}
 	appendPlatformEnv(&cmd.Env)
 
+	// The environment carries no locale of its own. Without one, svn writes
+	// translated messages in a legacy encoding the task log shows as garbage,
+	// and on Linux it refuses to check out a file whose name is not ASCII
+	// ("Can't convert string from 'UTF-8' to native encoding"). A locale set
+	// by the administrator wins.
+	if !hasNonEmptyEnvVar(cmd.Env, "LC_ALL") && !hasNonEmptyEnvVar(cmd.Env, "LC_CTYPE") &&
+		!hasNonEmptyEnvVar(cmd.Env, "LANG") {
+		cmd.Env = append(cmd.Env, "LC_CTYPE=C.UTF-8")
+	}
+
 	switch targetDir {
 	case GitRepositoryTmpPath:
 		cmd.Dir = util.Config.GetProjectTmpDir(r.Repository.ProjectID)
