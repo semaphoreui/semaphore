@@ -265,6 +265,17 @@ func TestSvnClient_CanBePulled(t *testing.T) {
 		assert.False(t, client.CanBePulled(r))
 	})
 
+	// svn revert would unschedule the addition but leave its file behind; the
+	// working copy is checked out again instead.
+	t.Run("scheduled addition", func(t *testing.T) {
+		r := newTestSvnRepo(t, f.url, "trunk")
+		r.TmpDirName = "added"
+		require.NoError(t, client.Clone(r))
+		require.NoError(t, os.WriteFile(filepath.Join(r.GetFullPath(), "added.yml"), []byte("x"), 0644))
+		svnRun(t, r.GetFullPath(), "add", "added.yml")
+		assert.False(t, client.CanBePulled(r))
+	})
+
 	t.Run("other branch", func(t *testing.T) {
 		r := newTestSvnRepo(t, f.url, "trunk")
 		r.TmpDirName = "other"
