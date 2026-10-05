@@ -1,10 +1,12 @@
 package db_lib
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -68,10 +70,96 @@ func TestFindPlaybooks(t *testing.T) {
 			root := t.TempDir()
 			tt.setup(t, root)
 
-			result, err := FindPlaybooks(root)
+			result, err := FindPlaybooks(root, nil)
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestFindPlaybooks_PerApp(t *testing.T) {
+	root := t.TempDir()
+	for _, f := range []string{
+		"site.yml",
+		"main.tf",
+		"envs/prod/main.tf",
+		"envs/prod/variables.tf",
+		"envs/dev/main.tofu",
+		"envs/dev/.terraform/modules/vpc/main.tf",
+		"live/eu/terragrunt.hcl",
+		"live/root.hcl",
+		"scripts/deploy.sh",
+		"scripts/build.bash",
+		"scripts/tool.py",
+		"scripts/__pycache__/tool.py",
+		"scripts/setup.PS1",
+		"node_modules/pkg/install.sh",
+		".git/hooks/pre-commit.sh",
+		".github/workflows/ci.yml",
+		"envs/dev/.venv/bin/activate.py",
+	} {
+		writeFile(t, root, f)
+	}
+
+	tests := []struct {
+		app      db.TemplateApp
+		expected []string
+	}{
+		{"", []string{"site.yml"}},
+		{db.AppTerraform, []string{"envs/dev", "envs/prod"}},
+		{db.AppTofu, []string{"envs/dev", "envs/prod"}},
+		{db.AppTerragrunt, []string{"live/eu"}},
+		{db.AppBash, []string{"scripts/build.bash", "scripts/deploy.sh"}},
+		{db.AppPython, []string{"scripts/tool.py"}},
+		{db.AppPowerShell, []string{"scripts/setup.PS1"}},
+		{db.AppPulumi, []string{
+			"envs/dev/main.tofu",
+			"envs/prod/main.tf",
+			"envs/prod/variables.tf",
+			"live/eu/terragrunt.hcl",
+			"live/root.hcl",
+			"main.tf",
+			"scripts/build.bash",
+			"scripts/deploy.sh",
+			"scripts/setup.PS1",
+			"scripts/tool.py",
+			"site.yml",
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.app), func(t *testing.T) {
+			result, err := FindPlaybooks(root, &tt.app)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestFindPlaybooks_DoesNotFollowSymlinks(t *testing.T) {
+	outside := t.TempDir()
+	writeFile(t, outside, "secret.yml")
+
+	root := t.TempDir()
+	writeFile(t, root, "site.yml")
+	require.NoError(t, os.Symlink(outside, filepath.Join(root, "linked")))
+
+	result, err := FindPlaybooks(root, nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"site.yml"}, result)
+}
+
+func TestFindPlaybooks_Capped(t *testing.T) {
+	root := t.TempDir()
+	for i := 0; i < maxPlaybookFiles+10; i++ {
+		writeFile(t, root, filepath.Join("p", fmt.Sprintf("%04d.yml", i)))
+	}
+
+	result, err := FindPlaybooks(root, nil)
+
+	require.NoError(t, err)
+	assert.Len(t, result, maxPlaybookFiles)
 }
