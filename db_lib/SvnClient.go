@@ -259,9 +259,22 @@ func (c SvnClient) Clone(r GitRepository) error {
 	return c.run(r, GitRepositoryTmpPath, "checkout", "--", svnPeg(branchURL), dirName)
 }
 
+// Pull brings the working copy back to the checked out revision, then
+// updates it. svn update merges into local modifications and reports a
+// conflict as success, and files a task leaves in the working copy, such as a
+// generated playbook or role, would be picked up by the next task of the
+// template. Reverting first also unschedules additions, whose files the
+// cleanup then removes with the other unversioned and ignored files. Unlike
+// git pull, untracked files are not kept.
 func (c SvnClient) Pull(r GitRepository) error {
 	r.Logger.Log("Updating Subversion repository " + r.Repository.GetRedactedGitURL())
 
+	if err := c.run(r, GitRepositoryFullPath, "revert", "--recursive", "."); err != nil {
+		return err
+	}
+	if err := c.run(r, GitRepositoryFullPath, "cleanup", "--remove-unversioned", "--remove-ignored", "."); err != nil {
+		return err
+	}
 	return c.run(r, GitRepositoryFullPath, "update")
 }
 
@@ -279,9 +292,9 @@ func (c SvnClient) Checkout(r GitRepository, target string) error {
 }
 
 // CanBePulled reports whether the working copy can be updated in place: it is
-// a checkout of the same branch and has no local modifications. Unlike git
-// pull, svn update merges into local modifications and reports a conflict as
-// success, so a modified working copy is checked out again instead.
+// a working copy of the branch. Pull removes local changes first; a working
+// copy svn cannot revert or clean, such as one left locked by an interrupted
+// command, makes Pull fail and is checked out again by the caller.
 func (c SvnClient) CanBePulled(r GitRepository) bool {
 	branchURL, err := svnBranchURL(r)
 	if err != nil {
@@ -291,12 +304,7 @@ func (c SvnClient) CanBePulled(r GitRepository) bool {
 	// Repository edits clear the cache of this server only; a runner may
 	// still hold a working copy of the URL the repository had before.
 	wcURL, err := c.output(r, GitRepositoryFullPath, "info", "--show-item", "url")
-	if err != nil || !svn.SameURL(wcURL, branchURL) {
-		return false
-	}
-
-	status, err := c.output(r, GitRepositoryFullPath, "status", "--quiet")
-	return err == nil && status == ""
+	return err == nil && svn.SameURL(wcURL, branchURL)
 }
 
 type svnLog struct {

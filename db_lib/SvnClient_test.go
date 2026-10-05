@@ -257,25 +257,6 @@ func TestSvnClient_CanBePulled(t *testing.T) {
 		assert.False(t, client.CanBePulled(newTestSvnRepo(t, f.url, "trunk")))
 	})
 
-	t.Run("local modification", func(t *testing.T) {
-		r := newTestSvnRepo(t, f.url, "trunk")
-		r.TmpDirName = "modified"
-		require.NoError(t, client.Clone(r))
-		require.NoError(t, os.WriteFile(filepath.Join(r.GetFullPath(), "site.yml"), []byte("local"), 0644))
-		assert.False(t, client.CanBePulled(r))
-	})
-
-	// svn revert would unschedule the addition but leave its file behind; the
-	// working copy is checked out again instead.
-	t.Run("scheduled addition", func(t *testing.T) {
-		r := newTestSvnRepo(t, f.url, "trunk")
-		r.TmpDirName = "added"
-		require.NoError(t, client.Clone(r))
-		require.NoError(t, os.WriteFile(filepath.Join(r.GetFullPath(), "added.yml"), []byte("x"), 0644))
-		svnRun(t, r.GetFullPath(), "add", "added.yml")
-		assert.False(t, client.CanBePulled(r))
-	})
-
 	t.Run("other branch", func(t *testing.T) {
 		r := newTestSvnRepo(t, f.url, "trunk")
 		r.TmpDirName = "other"
@@ -283,14 +264,46 @@ func TestSvnClient_CanBePulled(t *testing.T) {
 		r.Repository.GitBranch = "branches/release"
 		assert.False(t, client.CanBePulled(r))
 	})
+}
 
-	t.Run("unversioned file", func(t *testing.T) {
-		r := newTestSvnRepo(t, f.url, "trunk")
-		r.TmpDirName = "unversioned"
-		require.NoError(t, client.Clone(r))
-		require.NoError(t, os.WriteFile(filepath.Join(r.GetFullPath(), "generated.retry"), []byte("x"), 0644))
-		assert.True(t, client.CanBePulled(r))
-	})
+// Pull brings the working copy back to the checked out revision before
+// updating: local modifications, scheduled additions, unversioned and ignored
+// files a task left behind do not reach the next task of the template.
+func TestSvnClient_PullRestoresWorkingCopy(t *testing.T) {
+	setupGitClientTest(t)
+	f := newSvnFixture(t)
+	f.commit(t, "site.yml", "v2", "second")
+	svnRun(t, f.wc, "update")
+	svnRun(t, f.wc, "propset", "svn:ignore", "*.retry", ".")
+	svnRun(t, f.wc, "commit", "-m", "ignore retry files")
+
+	client := CreateSvnClient(nopKeyInstaller{})
+	r := newTestSvnRepo(t, f.url, "trunk")
+	require.NoError(t, client.Clone(r))
+	wc := r.GetFullPath()
+
+	require.NoError(t, os.WriteFile(filepath.Join(wc, "site.yml"), []byte("local"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(wc, "added.yml"), []byte("x"), 0644))
+	svnRun(t, wc, "add", "added.yml")
+	require.NoError(t, os.WriteFile(filepath.Join(wc, "generated.yml"), []byte("x"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(wc, "site.retry"), []byte("x"), 0644))
+	require.NoError(t, os.MkdirAll(filepath.Join(wc, "roles", "generated", "tasks"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(wc, "roles", "generated", "tasks", "main.yml"), []byte("x"), 0644))
+
+	f.commit(t, "site.yml", "v3", "third")
+
+	require.True(t, client.CanBePulled(r))
+	require.NoError(t, client.Pull(r))
+
+	assert.Equal(t, "v3", readFile(t, filepath.Join(wc, "site.yml")))
+	assert.NoFileExists(t, filepath.Join(wc, "added.yml"), "scheduled addition")
+	assert.NoFileExists(t, filepath.Join(wc, "generated.yml"), "unversioned file")
+	assert.NoFileExists(t, filepath.Join(wc, "site.retry"), "ignored file")
+	assert.NoDirExists(t, filepath.Join(wc, "roles"), "unversioned directory")
+
+	hash, err := client.GetLastCommitHash(r)
+	require.NoError(t, err)
+	assert.Equal(t, "4", hash)
 }
 
 func TestSvnClient_RejectsInvalidBranch(t *testing.T) {
