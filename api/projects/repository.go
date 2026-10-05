@@ -13,6 +13,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/services/audit"
+	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -51,6 +52,7 @@ func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
 type RepositoryController struct {
 	keyInstaller      db_lib.AccessKeyInstaller
 	encryptionService db_lib.SecretDeserializer
+	browseLock        tasks.KeyLock
 }
 
 func NewRepositoryController(
@@ -101,12 +103,19 @@ func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *h
 	helpers.WriteJSON(w, http.StatusOK, branches)
 }
 
-// GetRepositoryPlaybooks returns the list of playbook (.yml/.yaml) file paths,
-// relative to the repository root, found in the repository. For git/ssh/https
-// repositories it checks out the requested branch (defaulting to the
-// repository's configured branch) into a scratch directory before scanning it.
+// GetRepositoryPlaybooks returns the paths, relative to the repository root,
+// that suit the playbook field of a template of the app given by the `app`
+// query parameter (Ansible playbooks when omitted) — see
+// db_lib.FindPlaybooks. For git/ssh/https repositories it checks out the
+// requested branch (defaulting to the repository's configured branch) into a
+// scratch directory before scanning it.
 func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *http.Request) {
 	repo := helpers.GetFromContext(r, "repository").(db.Repository)
+	var app *db.TemplateApp
+	if v := r.URL.Query().Get("app"); v != "" {
+		a := db.TemplateApp(v)
+		app = &a
+	}
 
 	var rootDir string
 
@@ -146,6 +155,9 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 			HostConfigs: hostConfigs,
 		}
 
+		unlock := c.browseLock.Lock(git.GetFullPath())
+		defer unlock()
+
 		var err error
 		if err = git.ValidateRepo(); err != nil {
 			err = git.Clone()
@@ -161,7 +173,7 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		rootDir = git.GetFullPath()
 	}
 
-	playbooks, err := db_lib.FindPlaybooks(rootDir)
+	playbooks, err := db_lib.FindPlaybooks(rootDir, app)
 
 	if err != nil {
 		helpers.WriteError(w, err)
