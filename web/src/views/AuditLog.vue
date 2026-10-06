@@ -1,6 +1,9 @@
 <template>
   <div class="AuditLog">
     <v-toolbar flat>
+      <v-btn icon class="mr-4" data-testid="audit-back" @click="returnToProjects">
+        <v-icon>mdi-arrow-left</v-icon>
+      </v-btn>
       <v-toolbar-title>{{ $t('audit_log') }}</v-toolbar-title>
       <v-spacer />
       <v-menu offset-y>
@@ -190,6 +193,10 @@ export default {
   },
 
   methods: {
+    returnToProjects() {
+      EventBus.$emit('i-open-last-project');
+    },
+
     // Periods come from datetime-local inputs in the browser's time zone.
     requestParams(page) {
       const params = filterParams(this.filters);
