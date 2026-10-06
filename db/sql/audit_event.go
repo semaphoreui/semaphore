@@ -68,29 +68,29 @@ func (d *SqlDb) auditNow(tx gorp.SqlExecutor) (time.Time, error) {
 
 // The time follows seq, so every event up to the last old one is old too.
 func (d *SqlDb) DeleteAuditEventsBefore(ctx context.Context, cutoff time.Time, batch int) (int64, int64, error) {
+	batch = max(batch, 1)
 	exec := d.Sql().WithContext(ctx)
 	last, err := exec.SelectNullInt(d.PrepareQuery("select max(seq) from audit_event where created < ?"), cutoff.UTC())
 	if err != nil || !last.Valid {
 		return 0, 0, err
 	}
-	var deleted int64
-	for {
-		first, err := exec.SelectNullInt(d.PrepareQuery("select min(seq) from audit_event"))
+	first, err := exec.SelectNullInt(d.PrepareQuery("select min(seq) from audit_event"))
+	if err != nil || !first.Valid || first.Int64 > last.Int64 {
+		return 0, 0, err
+	}
+	var deleted, finished int64
+	for from := first.Int64; from <= last.Int64; from = finished + 1 {
+		upTo := min(from+int64(batch)-1, last.Int64)
+		res, err := exec.Exec(d.PrepareQuery("delete from audit_event where seq >= ? and seq <= ?"), from, upTo)
 		if err != nil {
-			return deleted, last.Int64, err
-		}
-		if !first.Valid || first.Int64 > last.Int64 {
-			break
-		}
-		res, err := exec.Exec(d.PrepareQuery("delete from audit_event where seq <= ?"), min(first.Int64+int64(batch)-1, last.Int64))
-		if err != nil {
-			return deleted, last.Int64, err
+			return deleted, finished, err
 		}
 		n, err := res.RowsAffected()
 		if err != nil {
-			return deleted, last.Int64, err
+			return deleted, finished, err
 		}
 		deleted += n
+		finished = upTo
 	}
 	if deleted == 0 {
 		// Another node deleted these rows first.

@@ -31,11 +31,20 @@ func runRetention(ctx context.Context, store db.AuditEventManager, recorder Reco
 }
 
 func pruneAuditEvents(ctx context.Context, store db.AuditEventManager, recorder Recorder, days int) {
-	ctx, cancel := context.WithTimeout(ctx, retentionTimeout)
+	parent := ctx
+	ctx, cancel := context.WithTimeout(parent, retentionTimeout)
 	defer cancel()
 	deleted, lastSeq, err := store.DeleteAuditEventsBefore(ctx, time.Now().UTC().AddDate(0, 0, -days), retentionBatch)
 	if err != nil {
-		log.WithError(err).WithField("context", "audit_retention").Error("Failed to delete old audit events")
+		entry := log.WithError(err).WithField("context", "audit_retention")
+		switch {
+		case parent.Err() != nil:
+			entry.Debug("Audit retention stopped")
+		case ctx.Err() != nil:
+			entry.WithField("deleted", deleted).Warn("Audit retention pass timed out, continues next hour")
+		default:
+			entry.Error("Failed to delete old audit events")
+		}
 	}
 	if deleted == 0 {
 		return

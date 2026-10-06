@@ -224,3 +224,39 @@ func TestDeleteAuditEventsBefore_KeepsCursors(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, old[0], cursor)
 }
+
+func TestDeleteAuditEventsBefore_BatchOfOne(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	old := createAgedAuditEvents(t, store, 3, time.Now().UTC().AddDate(0, 0, -40))
+
+	deleted, lastSeq, err := store.DeleteAuditEventsBefore(context.Background(), time.Now().UTC().AddDate(0, 0, -30), 1)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), deleted)
+	assert.Equal(t, old[2], lastSeq)
+}
+
+func TestDeleteAuditEventsBefore_NonPositiveBatch(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	old := createAgedAuditEvents(t, store, 2, time.Now().UTC().AddDate(0, 0, -40))
+
+	deleted, lastSeq, err := store.DeleteAuditEventsBefore(context.Background(), time.Now().UTC().AddDate(0, 0, -30), 0)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), deleted)
+	assert.Equal(t, old[1], lastSeq)
+}
+
+func TestDeleteAuditEventsBefore_CancelledContext(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	createAgedAuditEvents(t, store, 2, time.Now().UTC().AddDate(0, 0, -40))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	deleted, lastSeq, err := store.DeleteAuditEventsBefore(ctx, time.Now().UTC().AddDate(0, 0, -30), 1)
+
+	require.Error(t, err)
+	assert.Zero(t, deleted)
+	assert.Zero(t, lastSeq)
+	assert.Len(t, selectAuditEvents(t, store), 2)
+}
