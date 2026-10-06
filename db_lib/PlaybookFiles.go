@@ -58,6 +58,7 @@ type repositoryFileMatcher struct {
 	directories bool
 }
 
+// matches reports whether a file with the given base name is a candidate.
 func (m repositoryFileMatcher) matches(name string) bool {
 	if len(m.extensions) == 0 && len(m.fileNames) == 0 {
 		return true
@@ -79,12 +80,16 @@ func (m repositoryFileMatcher) matches(name string) bool {
 	return false
 }
 
+// repositoryFileMatcherFor returns the matcher for the playbook field of a
+// template of the given app; an empty app means Ansible.
 func repositoryFileMatcherFor(app db.TemplateApp) repositoryFileMatcher {
 	switch app {
 	case db.AppAnsible, "":
 		return repositoryFileMatcher{excludedDirs: excludedPlaybookDirs, extensions: []string{".yml", ".yaml"}}
-	case db.AppTerraform, db.AppTofu:
+	case db.AppTerraform:
 		// The field is the subdirectory holding the root module.
+		return repositoryFileMatcher{excludedDirs: excludedCommonDirs, extensions: []string{".tf"}, directories: true}
+	case db.AppTofu:
 		return repositoryFileMatcher{excludedDirs: excludedCommonDirs, extensions: []string{".tf", ".tofu"}, directories: true}
 	case db.AppTerragrunt:
 		return repositoryFileMatcher{excludedDirs: excludedCommonDirs, fileNames: []string{"terragrunt.hcl"}, directories: true}

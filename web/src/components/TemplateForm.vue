@@ -771,8 +771,12 @@ export default {
     },
 
     gitBranchOfTemplate() {
-      if (this.playbooks != null) {
-        this.playbooks = null;
+      // Results, errors and a search in flight belong to the previous branch.
+      const shouldReload = this.playbooks != null || this.playbooksAbort != null;
+      this.cancelPlaybookLoading();
+      this.playbooks = null;
+      this.playbooksError = null;
+      if (shouldReload) {
         this.loadPlaybooks();
       }
     },

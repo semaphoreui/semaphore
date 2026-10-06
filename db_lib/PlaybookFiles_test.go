@@ -107,7 +107,7 @@ func TestFindPlaybooks_PerApp(t *testing.T) {
 		expected []string
 	}{
 		{"", []string{"site.yml"}},
-		{db.AppTerraform, []string{"envs/dev", "envs/prod"}},
+		{db.AppTerraform, []string{"envs/prod"}},
 		{db.AppTofu, []string{"envs/dev", "envs/prod"}},
 		{db.AppTerragrunt, []string{"live/eu"}},
 		{db.AppBash, []string{"scripts/build.bash", "scripts/deploy.sh"}},
