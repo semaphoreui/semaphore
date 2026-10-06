@@ -153,6 +153,15 @@ describe('AuditLog.vue', () => {
     expect(lastQuery()).to.equal('ip=203.0.113.7');
   });
 
+  it('filters by the project clicked in the card', async () => {
+    const wrapper = await mountPage();
+    await wrapper.findAll('tbody tr').at(0).trigger('click');
+    await flush();
+    await wrapper.find('[data-testid="audit-pivot-project"]').trigger('click');
+    await flush();
+    expect(lastQuery()).to.equal('project=9');
+  });
+
   it('shows the Pro notice and disables filters, export and pivots in Community', async () => {
     const wrapper = await mountPage({});
     expect(wrapper.find('[data-testid="audit-pro-notice"]').exists()).to.equal(true);

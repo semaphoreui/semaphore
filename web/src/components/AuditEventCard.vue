@@ -36,7 +36,6 @@
             <span v-else-if="row.pivot" :title="$t('audit_only_pro_short')">
               {{ row.value }}
             </span>
-            <router-link v-else-if="row.to" :to="row.to">{{ row.value }}</router-link>
             <span v-else>{{ row.value }}</span>
           </td>
         </tr>
@@ -122,7 +121,7 @@ export default {
           projectId && {
             label: this.$t('audit_field_project'),
             value: this.projectName,
-            to: `/project/${projectId}`,
+            pivot: { name: 'project', filter: { project: Number(projectId) } },
           },
           source && {
             label: this.$t('audit_field_ip'),
