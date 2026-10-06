@@ -185,6 +185,12 @@ describe('AuditLog.vue', () => {
     expect(wrapper.vm.projectName(auditEvent(1, { scope: undefined }))).to.equal('');
   });
 
+  it('shows no project name until the names have loaded', async () => {
+    http.respond(() => new Promise(() => {}));
+    const wrapper = await mountPage();
+    expect(wrapper.vm.projectName(auditEvent(1))).to.equal('');
+  });
+
   it('builds the export link from the filters', async () => {
     const wrapper = await mountPage();
     wrapper.vm.setFilters({ user: 2, kind: ['iam.role/delete'] });

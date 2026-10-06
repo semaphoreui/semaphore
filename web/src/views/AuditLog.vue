@@ -1,6 +1,6 @@
 <template>
   <div class="AuditLog" :class="{ 'AuditLog--fixed': !$vuetify.breakpoint.xs }">
-    <v-toolbar flat>
+    <v-toolbar flat class="flex-grow-0">
       <v-btn icon class="mr-4" data-testid="audit-back" @click="returnToProjects">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
@@ -193,6 +193,7 @@ export default {
       selected: null,
       users: [],
       projects: [],
+      namesLoaded: false,
     };
   },
 
@@ -258,6 +259,7 @@ export default {
       } catch (err) {
         EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
       }
+      this.namesLoaded = true;
     },
 
     setFilters(filters) {
@@ -280,7 +282,7 @@ export default {
 
     projectName(event) {
       const id = event.scope && Number(event.scope.project_id);
-      if (!id) {
+      if (!id || !this.namesLoaded) {
         return '';
       }
       const project = this.projects.find((p) => p.id === id);
