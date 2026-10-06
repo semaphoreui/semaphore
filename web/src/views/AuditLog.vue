@@ -1,5 +1,5 @@
 <template>
-  <div class="AuditLog" :class="{ 'AuditLog--fixed': $vuetify.breakpoint.mdAndUp }">
+  <div class="AuditLog" :class="{ 'AuditLog--fixed': !$vuetify.breakpoint.xs }">
     <v-toolbar flat>
       <v-btn icon class="mr-4" data-testid="audit-back" @click="returnToProjects">
         <v-icon>mdi-arrow-left</v-icon>
@@ -55,7 +55,7 @@
       @input="setFilters"
     />
 
-    <div v-if="$vuetify.breakpoint.smAndDown" class="d-flex justify-end px-4 pt-2">
+    <div v-if="$vuetify.breakpoint.xs" class="d-flex justify-end px-4 pt-2">
       <v-btn
         text
         :disabled="newer === null"

@@ -165,6 +165,9 @@ describe('AuditLog.vue', () => {
   it('shows a second paging bar only on a narrow screen', async () => {
     const wide = await mountPage();
     expect(wide.find('[data-testid="audit-older-top"]').exists()).to.equal(false);
+    const tablet = await mountPage({ audit_log_filters: true }, 800);
+    expect(tablet.find('[data-testid="audit-older-top"]').exists()).to.equal(false);
+    expect(tablet.classes()).to.include('AuditLog--fixed');
     const narrow = await mountPage({ audit_log_filters: true }, 500);
     await narrow.find('[data-testid="audit-older-top"]').trigger('click');
     expect(lastQuery()).to.equal('before=79');
