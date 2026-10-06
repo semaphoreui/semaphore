@@ -16,6 +16,9 @@ type Service struct {
 	exporter pro_interfaces.AuditExporter
 	trusted  []netip.Prefix
 	enabled  bool
+
+	stopRetention context.CancelFunc
+	retentionDone chan struct{}
 }
 
 func StartService(
@@ -54,10 +57,20 @@ func StartService(
 		Metadata: LifecycleMetadata{Destinations: destinations},
 	})
 
+	if conf.RetentionDays > 0 {
+		ctx, cancel := context.WithCancel(context.Background())
+		s.stopRetention, s.retentionDone = cancel, make(chan struct{})
+		go runRetention(ctx, store, s.recorder, conf.RetentionDays, s.retentionDone)
+	}
+
 	return s, nil
 }
 
 func (s *Service) Stop() {
+	if s.stopRetention != nil {
+		s.stopRetention()
+		<-s.retentionDone
+	}
 	if s.enabled {
 		s.exporter.Stop()
 	}

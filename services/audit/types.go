@@ -118,6 +118,7 @@ const (
 	ComponentTaskRunner = "task_runner"
 	ComponentReconciler = "reconciler"
 	ComponentServer     = "server"
+	ComponentRetention  = "retention"
 )
 
 // Equal to db.IdentityTypeLdap and db.IdentityTypeOidc.
