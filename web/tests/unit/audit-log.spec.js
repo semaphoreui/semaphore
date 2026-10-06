@@ -64,24 +64,28 @@ describe('AuditLog.vue', () => {
     document.querySelectorAll('[data-app]').forEach((el) => el.remove());
   });
 
-  async function mountPage(features = { audit_log_filters: true }) {
+  async function mountPage(features = { audit_log_filters: true }, width = 1280) {
     const app = document.createElement('div');
     app.setAttribute('data-app', 'true');
     document.body.appendChild(app);
     const mountPoint = document.createElement('div');
     app.appendChild(mountPoint);
+    const innerWidth = window.innerWidth;
+    window.innerWidth = width;
+    const vuetify = new Vuetify();
     const localVue = createLocalVue();
     localVue.use(VueRouter);
     const wrapper = mount(AuditLog, {
       localVue,
       router: new VueRouter(),
-      vuetify: new Vuetify(),
+      vuetify,
       i18n,
       attachTo: mountPoint,
       propsData: { systemInfo: { features } },
     });
     wrappers.push(wrapper);
     await flush();
+    window.innerWidth = innerWidth;
     return wrapper;
   }
 
@@ -156,6 +160,14 @@ describe('AuditLog.vue', () => {
     await wrapper.findAll('tbody tr').at(0).trigger('click');
     await flush();
     expect(wrapper.find('[data-testid="audit-pivot-ip"]').exists()).to.equal(false);
+  });
+
+  it('shows a second paging bar only on a narrow screen', async () => {
+    const wide = await mountPage();
+    expect(wide.find('[data-testid="audit-older-top"]').exists()).to.equal(false);
+    const narrow = await mountPage({ audit_log_filters: true }, 500);
+    await narrow.find('[data-testid="audit-older-top"]').trigger('click');
+    expect(lastQuery()).to.equal('before=79');
   });
 
   it('hides the Pro notice in Pro', async () => {

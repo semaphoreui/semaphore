@@ -1,5 +1,5 @@
 <template>
-  <div class="AuditLog">
+  <div class="AuditLog" :class="{ 'AuditLog--fixed': $vuetify.breakpoint.mdAndUp }">
     <v-toolbar flat>
       <v-btn icon class="mr-4" data-testid="audit-back" @click="returnToProjects">
         <v-icon>mdi-arrow-left</v-icon>
@@ -55,7 +55,29 @@
       @input="setFilters"
     />
 
+    <div v-if="$vuetify.breakpoint.smAndDown" class="d-flex justify-end px-4 pt-2">
+      <v-btn
+        text
+        :disabled="newer === null"
+        data-testid="audit-newer-top"
+        @click="load({ after: newer })"
+      >
+        <v-icon left>mdi-chevron-left</v-icon>
+        {{ $t('audit_newer') }}
+      </v-btn>
+      <v-btn
+        text
+        :disabled="older === null"
+        data-testid="audit-older-top"
+        @click="load({ before: older })"
+      >
+        {{ $t('audit_older') }}
+        <v-icon right>mdi-chevron-right</v-icon>
+      </v-btn>
+    </div>
+
     <v-data-table
+      fixed-header
       :headers="headers"
       :items="events"
       :loading="loading"
@@ -296,6 +318,23 @@ export default {
 };
 </script>
 <style lang="scss">
+.AuditLog--fixed {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+
+  .AuditLog__table {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+
+    .v-data-table__wrapper {
+      height: 100%;
+      overflow: auto;
+    }
+  }
+}
+
 .AuditLog__table tbody tr {
   cursor: pointer;
 }
