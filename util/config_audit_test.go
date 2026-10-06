@@ -23,6 +23,8 @@ func TestAuditConfig_Validate(t *testing.T) {
 		{"instance id not ascii", &AuditConfig{Enabled: true, InstanceID: "прод"}, "audit.instance_id"},
 		{"invalid cidr", &AuditConfig{Enabled: true, InstanceID: "prod-eu", TrustedProxyCIDRs: []string{"10.0.0.0/33"}}, "trusted_proxy_cidrs"},
 		{"ipv4-mapped network shorter than /96", &AuditConfig{Enabled: true, InstanceID: "prod-eu", TrustedProxyCIDRs: []string{"::ffff:0:0/80"}}, "/96"},
+		{"negative retention", &AuditConfig{Enabled: true, InstanceID: "prod-eu", RetentionDays: -1}, "audit.retention_days"},
+		{"retention set", &AuditConfig{Enabled: true, InstanceID: "prod-eu", RetentionDays: 90}, ""},
 		{"valid", &AuditConfig{Enabled: true, InstanceID: "prod-eu", TrustedProxyCIDRs: []string{"10.0.0.0/8", "fd00::/8"}}, ""},
 	}
 	for _, tt := range tests {
@@ -125,4 +127,13 @@ func TestAuditConfig_TrustedProxiesUnmapsIPv4MappedNetworks(t *testing.T) {
 		netip.MustParsePrefix("10.1.0.0/16"),
 	}, prefixes)
 	assert.True(t, prefixes[0].Contains(netip.MustParseAddr("10.1.2.3")), "an unmapped peer matches")
+}
+
+func TestAuditConfig_RetentionFromEnvironment(t *testing.T) {
+	t.Setenv("SEMAPHORE_AUDIT_RETENTION_DAYS", "180")
+	config := &ConfigType{}
+	_, err := loadEnvironmentToObject(config)
+	require.NoError(t, err)
+	require.NotNil(t, config.Audit)
+	assert.Equal(t, 180, config.Audit.RetentionDays)
 }

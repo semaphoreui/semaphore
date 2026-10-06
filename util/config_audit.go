@@ -15,6 +15,8 @@ type AuditConfig struct {
 	InstanceID string `json:"instance_id,omitempty" env:"SEMAPHORE_AUDIT_INSTANCE_ID"`
 	// TrustedProxyCIDRs lists the proxy networks allowed to pass the client address.
 	TrustedProxyCIDRs []string `json:"trusted_proxy_cidrs,omitempty" env:"SEMAPHORE_AUDIT_TRUSTED_PROXY_CIDRS"`
+	// RetentionDays deletes audit events older than this many days. 0 keeps everything.
+	RetentionDays int `json:"retention_days,omitempty" env:"SEMAPHORE_AUDIT_RETENTION_DAYS"`
 	// Syslog sends audit events to a Syslog receiver over TLS.
 	Syslog *AuditSyslogConfig `json:"syslog,omitempty"`
 	// SplunkHEC exports audit events over the Splunk HTTP Event Collector protocol.
@@ -44,6 +46,9 @@ func (c *AuditConfig) Validate() error {
 	}
 	if !regexp.MustCompile(`^[!-~]{1,255}$`).MatchString(c.InstanceID) {
 		return errors.New("audit.instance_id is required when audit is enabled: 1-255 printable ASCII characters without spaces")
+	}
+	if c.RetentionDays < 0 {
+		return errors.New("audit.retention_days must be 0 to keep every event, or a number of days")
 	}
 	_, err := c.TrustedProxies()
 	return err

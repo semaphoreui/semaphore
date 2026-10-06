@@ -637,6 +637,11 @@ $defs:
         type: array
         items: { type: string }
         description: Proxy networks whose X-Forwarded-For and X-Real-IP headers are trusted.
+      retention_days:
+        type: integer
+        minimum: 0
+        default: 0
+        description: Delete audit events older than this many days. 0 keeps every event.
       syslog: { $ref: "#/$defs/AuditSyslogConfig" }
       splunk_hec: { $ref: "#/$defs/AuditSplunkHECConfig" }
 

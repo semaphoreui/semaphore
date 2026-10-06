@@ -35,4 +35,6 @@ type AuditEvent struct {
 
 type AuditEventManager interface {
 	CreateAuditEvent(ctx context.Context, event AuditEvent) (AuditEvent, error)
+	// DeleteAuditEventsBefore deletes events created before cutoff, oldest first, batch rows per statement.
+	DeleteAuditEventsBefore(ctx context.Context, cutoff time.Time, batch int) (deleted int64, lastSeq int64, err error)
 }

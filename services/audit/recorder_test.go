@@ -34,6 +34,10 @@ func (s *fakeStore) CreateAuditEvent(ctx context.Context, row db.AuditEvent) (db
 	return row, nil
 }
 
+func (s *fakeStore) DeleteAuditEventsBefore(context.Context, time.Time, int) (int64, int64, error) {
+	return 0, 0, nil
+}
+
 func newTestRecorder(store *fakeStore) Recorder {
 	return NewRecorder(store, Options{
 		InstanceID: "prod-eu",
