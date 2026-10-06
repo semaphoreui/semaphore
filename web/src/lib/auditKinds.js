@@ -1,3 +1,4 @@
+// Every audit event kind the UI can title. A Go test compares it with the catalog.
 export default [
   'auth.login/authenticate',
   'auth.logout/terminate_session',

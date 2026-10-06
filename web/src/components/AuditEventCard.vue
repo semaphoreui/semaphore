@@ -5,7 +5,7 @@
         <div class="text-h6">{{ title }}</div>
         <div class="text-caption text--secondary AuditEventCard__kind">{{ kind }}</div>
       </div>
-      <v-btn icon @click="$emit('close')">
+      <v-btn icon :aria-label="$t('close')" @click="$emit('close')">
         <v-icon>mdi-close</v-icon>
       </v-btn>
     </div>

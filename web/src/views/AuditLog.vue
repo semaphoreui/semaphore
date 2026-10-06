@@ -219,12 +219,16 @@ export default {
     },
 
     async loadNames() {
-      const [users, projects] = await Promise.all([
-        axios.get('/api/users'),
-        axios.get('/api/projects'),
-      ]);
-      this.users = users.data;
-      this.projects = projects.data;
+      try {
+        const [users, projects] = await Promise.all([
+          axios.get('/api/users'),
+          axios.get('/api/projects'),
+        ]);
+        this.users = users.data;
+        this.projects = projects.data;
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+      }
     },
 
     setFilters(filters) {
