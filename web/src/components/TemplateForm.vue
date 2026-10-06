@@ -212,58 +212,39 @@
         </v-card>
 
         <div v-if="needField('playbook')">
-          <div v-if="playbooks != null">
-            <v-autocomplete
-              class="InputWithAppendedButton"
-              v-model="item.playbook"
-              :items="playbooks"
-              :label="fieldLabel('playbook')"
-              :rules="
-                isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
-              "
-              outlined
-              dense
-              clearable
-              :required="isFieldRequired('playbook')"
-              :disabled="formSaving"
-              :placeholder="$t('exampleSiteyml')"
-              :loading="playbooksLoading"
-            >
-              <template v-slot:append-outer>
-                <v-btn
-                  depressed
-                  @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
-                >
-                  <v-icon>{{ playbooksLoading ? 'mdi-close' : 'mdi-refresh' }}</v-icon>
-                </v-btn>
-              </template>
-            </v-autocomplete>
-          </div>
-          <div v-else>
-            <v-text-field
-              class="InputWithAppendedButton"
-              v-model="item.playbook"
-              :label="fieldLabel('playbook')"
-              :rules="
-                isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
-              "
-              outlined
-              dense
-              :required="isFieldRequired('playbook')"
-              :disabled="formSaving"
-              :placeholder="$t('exampleSiteyml')"
-              :loading="playbooksLoading"
-            >
-              <template v-slot:append-outer>
-                <v-btn
-                  depressed
-                  @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
-                >
-                  <v-icon>{{ playbooksLoading ? 'mdi-close' : 'mdi-refresh' }}</v-icon>
-                </v-btn>
-              </template>
-            </v-text-field>
-          </div>
+          <v-combobox
+            ref="playbookInput"
+            v-model="item.playbook"
+            :items="playbooks || []"
+            :label="fieldLabel('playbook')"
+            :rules="
+              isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
+            "
+            outlined
+            dense
+            hide-no-data
+            :required="isFieldRequired('playbook')"
+            :disabled="formSaving"
+            :placeholder="$t('exampleSiteyml')"
+            :loading="playbooksLoading"
+            :messages="playbooksMessage ? [playbooksMessage] : []"
+          >
+            <template v-slot:message="{ message }">
+              <span :class="{ 'error--text': playbooksError != null }">{{ message }}</span>
+            </template>
+            <template v-slot:append>
+              <v-btn
+                icon
+                small
+                :disabled="repositoryId == null"
+                :title="playbooksLoading ? $t('cancel') : $t('searchRepositoryFiles')"
+                @mousedown.prevent.stop
+                @click.stop="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
+              >
+                <v-icon small>{{ playbooksLoading ? 'mdi-close' : 'mdi-magnify' }}</v-icon>
+              </v-btn>
+            </template>
+          </v-combobox>
 
           <div v-if="app === 'ansible'">
             <v-checkbox
@@ -777,6 +758,7 @@ export default {
       playbooks: null,
       playbooksLoading: false,
       playbooksAbort: null,
+      playbooksError: null,
       setBranch: false,
     };
   },
@@ -789,15 +771,21 @@ export default {
     },
 
     gitBranchOfTemplate() {
-      if (this.playbooks != null) {
-        this.playbooks = null;
+      // Results, errors and a search in flight belong to the previous branch.
+      const shouldReload = this.playbooks != null || this.playbooksAbort != null;
+      this.cancelPlaybookLoading();
+      this.playbooks = null;
+      this.playbooksError = null;
+      if (shouldReload) {
         this.loadPlaybooks();
       }
     },
 
     async repositoryId() {
       this.branches = null;
+      this.cancelPlaybookLoading();
       this.playbooks = null;
+      this.playbooksError = null;
 
       await Promise.all([this.loadBranches()]);
     },
@@ -876,6 +864,16 @@ export default {
 
     repositoryId() {
       return this.item?.repository_id;
+    },
+
+    playbooksMessage() {
+      if (this.playbooksError != null) {
+        return this.playbooksError;
+      }
+      if (this.playbooks != null && this.playbooks.length === 0) {
+        return this.$t('noRepositoryFilesFound');
+      }
+      return null;
     },
 
     gitBranchOfTemplate() {
@@ -1020,14 +1018,24 @@ export default {
       const ctrl = new AbortController();
       this.playbooksAbort = ctrl;
       this.playbooksLoading = true;
+      this.playbooksError = null;
+
+      const query = new URLSearchParams({
+        branch: this.item.git_branch || '',
+        app: this.app || '',
+      });
 
       try {
-        this.playbooks = await this.loadProjectEndpoint(
-          `/repositories/${this.repositoryId}/playbooks?branch=${encodeURIComponent(this.item.git_branch || '')}`,
+        this.playbooks = (await this.loadProjectEndpoint(
+          `/repositories/${this.repositoryId}/playbooks?${query}`,
           { signal: ctrl.signal },
-        );
+        )) || [];
+        this.openPlaybookSuggestions();
       } catch (e) {
-        this.playbooks = null;
+        if (!axios.isCancel(e)) {
+          this.playbooks = null;
+          this.playbooksError = e.response?.data?.error || this.$t('repositoryFilesLoadFailed');
+        }
       } finally {
         // ponytail: guard against a newer request having replaced this one
         if (this.playbooksAbort === ctrl || this.playbooksAbort == null) {
@@ -1035,6 +1043,19 @@ export default {
           this.playbooksLoading = false;
         }
       }
+    },
+
+    openPlaybookSuggestions() {
+      if (!this.playbooks?.length) {
+        return;
+      }
+      this.$nextTick(() => {
+        const input = this.$refs.playbookInput;
+        if (input) {
+          input.focus();
+          input.activateMenu();
+        }
+      });
     },
 
     validateBackendFilename(v) {
