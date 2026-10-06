@@ -188,6 +188,22 @@ func TestDeleteAuditEventsBefore(t *testing.T) {
 	assert.Equal(t, recent[0], rows[0].Seq)
 }
 
+func TestDeleteAuditEventsBefore_KeepsNewerEventBehindAClockStep(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	now := time.Now().UTC()
+	createAgedAuditEvents(t, store, 2, now.AddDate(0, 0, -40))
+	recent := createAgedAuditEvents(t, store, 1, now.AddDate(0, 0, -1))
+	createAgedAuditEvents(t, store, 1, now.AddDate(0, 0, -40))
+
+	deleted, _, err := store.DeleteAuditEventsBefore(context.Background(), now.AddDate(0, 0, -30), 1000)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), deleted)
+	rows := selectAuditEvents(t, store)
+	require.Len(t, rows, 1)
+	assert.Equal(t, recent[0], rows[0].Seq)
+}
+
 func TestDeleteAuditEventsBefore_NothingOld(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	createAgedAuditEvents(t, store, 2, time.Now().UTC())

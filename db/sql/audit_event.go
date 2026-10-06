@@ -66,7 +66,7 @@ func (d *SqlDb) auditNow(tx gorp.SqlExecutor) (time.Time, error) {
 	}
 }
 
-// The time follows seq, so every event up to the last old one is old too.
+// Walks seq ranges up to the last old event, and keeps a newer one there if the database clock went back.
 func (d *SqlDb) DeleteAuditEventsBefore(ctx context.Context, cutoff time.Time, batch int) (int64, int64, error) {
 	batch = max(batch, 1)
 	exec := d.Sql().WithContext(ctx)
@@ -81,7 +81,7 @@ func (d *SqlDb) DeleteAuditEventsBefore(ctx context.Context, cutoff time.Time, b
 	var deleted, finished int64
 	for from := first.Int64; from <= last.Int64; from = finished + 1 {
 		upTo := min(from+int64(batch)-1, last.Int64)
-		res, err := exec.Exec(d.PrepareQuery("delete from audit_event where seq >= ? and seq <= ?"), from, upTo)
+		res, err := exec.Exec(d.PrepareQuery("delete from audit_event where seq >= ? and seq <= ? and created < ?"), from, upTo, cutoff.UTC())
 		if err != nil {
 			return deleted, finished, err
 		}
