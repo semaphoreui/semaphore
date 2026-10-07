@@ -1184,31 +1184,7 @@ func (t *LocalExecutor) updateRepository() error {
 		HostConfigs: t.hostConfigInstallation,
 	}
 
-	err := repo.ValidateRepo()
-
-	if err != nil {
-		if !os.IsNotExist(err) {
-			err = os.RemoveAll(repo.GetFullPath())
-			if err != nil {
-				return err
-			}
-		}
-		return repo.Clone()
-	}
-
-	if repo.CanBePulled() {
-		err = repo.Pull()
-		if err == nil {
-			return nil
-		}
-	}
-
-	err = os.RemoveAll(repo.GetFullPath())
-	if err != nil {
-		return err
-	}
-
-	return repo.Clone()
+	return repo.CloneOrPull()
 }
 
 func (t *LocalExecutor) checkoutRepository() error {

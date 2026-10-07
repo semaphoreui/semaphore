@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -51,6 +52,22 @@ func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
 type RepositoryController struct {
 	keyInstaller      db_lib.AccessKeyInstaller
 	encryptionService db_lib.SecretDeserializer
+
+	// browseLocks serializes requests which share a scratch checkout
+	// (scratch dir name -> *sync.Mutex). Without it two concurrent browse
+	// requests race on the same directory: one sees the half-made clone of the
+	// other, treats it as broken and deletes it from under the running git.
+	// The checkout lives on the local disk, so a per-process lock is enough
+	// in HA mode: every node browses its own copy.
+	browseLocks sync.Map
+}
+
+// lockBrowseDir takes the lock of a scratch checkout and returns the function
+// which releases it.
+func (c *RepositoryController) lockBrowseDir(dirName string) func() {
+	mu, _ := c.browseLocks.LoadOrStore(dirName, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	return mu.(*sync.Mutex).Unlock
 }
 
 func NewRepositoryController(
@@ -146,14 +163,10 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 			HostConfigs: hostConfigs,
 		}
 
-		var err error
-		if err = git.ValidateRepo(); err != nil {
-			err = git.Clone()
-		} else {
-			err = git.Pull()
-		}
+		unlock := c.lockBrowseDir(git.TmpDirName)
+		defer unlock()
 
-		if err != nil {
+		if err := git.CloneOrPull(); err != nil {
 			helpers.WriteError(w, err)
 			return
 		}
