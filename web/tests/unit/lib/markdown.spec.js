@@ -60,6 +60,21 @@ describe('lib/markdown', () => {
       });
     });
 
+    it('renders Markdown images as links and drops raw HTML resources', () => {
+      const dom = toDom(renderMarkdown([
+        '![diagram](https://example.com/a.png) ![](https://example.com/b.png)',
+        '<img src="https://example.com/c.png"> <video src="https://example.com/v.mp4"></video>',
+        '<table background="https://example.com/bg.png"><tr><td>t</td></tr></table>',
+        '<svg><image href="https://example.com/s.png"/></svg>',
+      ].join('\n\n')));
+      expect(dom.querySelector('img, video, svg, image, [src], [background]')).to.equal(null);
+      const links = dom.querySelectorAll('a');
+      expect(links).to.have.length(2);
+      expect(links[0].textContent).to.equal('diagram');
+      expect(links[0].getAttribute('href')).to.equal('https://example.com/a.png');
+      expect(links[1].textContent).to.equal('https://example.com/b.png');
+    });
+
     it('removes iframes, forms and style', () => {
       const html = renderMarkdown([
         '<iframe src="https://example.com"></iframe>',
