@@ -5,6 +5,11 @@
         <div class="text-h6">{{ title }}</div>
         <div class="text-caption text--secondary AuditEventCard__kind">{{ kind }}</div>
       </div>
+      <CopyClipboardButton
+        :text="json"
+        :success-message="$t('audit_json_copied')"
+        data-testid="audit-copy-json"
+      />
       <v-btn icon :aria-label="$t('close')" @click="$emit('close')">
         <v-icon>mdi-close</v-icon>
       </v-btn>
@@ -41,15 +46,11 @@
         </tr>
       </table>
     </div>
-
-    <v-btn small outlined class="mt-4" data-testid="audit-copy-json" @click="copyJSON()">
-      <v-icon left small>mdi-content-copy</v-icon>
-      {{ copied ? $t('audit_copied') : $t('audit_copy_json') }}
-    </v-btn>
   </div>
 </template>
 <script>
 import dayjs from 'dayjs';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import utc from 'dayjs/plugin/utc';
 import {
   eventKind, eventTitle, reasonLabel, targetTypeLabel, actorLabel, metadataRows,
@@ -58,17 +59,19 @@ import {
 dayjs.extend(utc);
 
 export default {
+  components: { CopyClipboardButton },
+
   props: {
     event: Object,
     projectName: String,
     pivots: Boolean,
   },
 
-  data() {
-    return { copied: false };
-  },
-
   computed: {
+    json() {
+      return JSON.stringify(this.event, null, 2);
+    },
+
     kind() {
       return eventKind(this.event);
     },
@@ -156,18 +159,6 @@ export default {
     },
   },
 
-  watch: {
-    event() {
-      this.copied = false;
-    },
-  },
-
-  methods: {
-    async copyJSON() {
-      await navigator.clipboard.writeText(JSON.stringify(this.event, null, 2));
-      this.copied = true;
-    },
-  },
 };
 </script>
 <style lang="scss">

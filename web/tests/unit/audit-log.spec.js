@@ -6,6 +6,7 @@ import VueRouter from 'vue-router';
 import Vuetify from 'vuetify';
 import i18n from '@/plugins/i18';
 import AuditLog from '@/views/AuditLog.vue';
+import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import mockAxios from './helpers/axiosMock';
 
 function auditEvent(seq, fields = {}) {
@@ -160,6 +161,15 @@ describe('AuditLog.vue', () => {
     await wrapper.find('[data-testid="audit-pivot-project"]').trigger('click');
     await flush();
     expect(lastQuery()).to.equal('project=9');
+  });
+
+  it('offers the event JSON for copying in the card', async () => {
+    const wrapper = await mountPage();
+    await wrapper.findAll('tbody tr').at(0).trigger('click');
+    await flush();
+    const copy = wrapper.findComponent(CopyClipboardButton);
+    expect(copy.exists()).to.equal(true);
+    expect(JSON.parse(copy.props('text')).event_id).to.equal('e80');
   });
 
   it('shows the Pro notice and disables filters, export and pivots in Community', async () => {
