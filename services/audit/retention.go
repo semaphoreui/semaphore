@@ -34,7 +34,7 @@ func pruneAuditEvents(ctx context.Context, store db.AuditEventManager, recorder 
 	parent := ctx
 	ctx, cancel := context.WithTimeout(parent, retentionTimeout)
 	defer cancel()
-	deleted, lastSeq, err := store.DeleteAuditEventsBefore(ctx, time.Now().UTC().AddDate(0, 0, -days), retentionBatch)
+	deleted, lastSeq, err := store.DeleteAuditEventsOlderThan(ctx, days, retentionBatch)
 	if err != nil {
 		entry := log.WithError(err).WithField("context", "audit_retention")
 		switch {

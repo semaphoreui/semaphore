@@ -67,9 +67,14 @@ func (d *SqlDb) auditNow(tx gorp.SqlExecutor) (time.Time, error) {
 }
 
 // Walks seq ranges up to the last old event, and keeps a newer one there if the database clock went back.
-func (d *SqlDb) DeleteAuditEventsBefore(ctx context.Context, cutoff time.Time, batch int) (int64, int64, error) {
+func (d *SqlDb) DeleteAuditEventsOlderThan(ctx context.Context, days int, batch int) (int64, int64, error) {
 	batch = max(batch, 1)
 	exec := d.Sql().WithContext(ctx)
+	now, err := d.auditNow(exec)
+	if err != nil {
+		return 0, 0, err
+	}
+	cutoff := now.AddDate(0, 0, -days)
 	last, err := exec.SelectNullInt(d.PrepareQuery("select max(seq) from audit_event where created < ?"), cutoff.UTC())
 	if err != nil || !last.Valid {
 		return 0, 0, err

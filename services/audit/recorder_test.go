@@ -34,7 +34,7 @@ func (s *fakeStore) CreateAuditEvent(ctx context.Context, row db.AuditEvent) (db
 	return row, nil
 }
 
-func (s *fakeStore) DeleteAuditEventsBefore(context.Context, time.Time, int) (int64, int64, error) {
+func (s *fakeStore) DeleteAuditEventsOlderThan(context.Context, int, int) (int64, int64, error) {
 	return 0, 0, nil
 }
 

@@ -15,7 +15,7 @@ import (
 
 type retentionStore struct {
 	mu      sync.Mutex
-	calls   []time.Time
+	calls   []int
 	deleted int64
 	lastSeq int64
 	err     error
@@ -25,10 +25,10 @@ func (s *retentionStore) CreateAuditEvent(_ context.Context, row db.AuditEvent) 
 	return row, nil
 }
 
-func (s *retentionStore) DeleteAuditEventsBefore(_ context.Context, cutoff time.Time, _ int) (int64, int64, error) {
+func (s *retentionStore) DeleteAuditEventsOlderThan(_ context.Context, days int, _ int) (int64, int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.calls = append(s.calls, cutoff)
+	s.calls = append(s.calls, days)
 	return s.deleted, s.lastSeq, s.err
 }
 
@@ -53,12 +53,10 @@ func (r *memRecorder) Record(ctx context.Context, event Event) {
 
 func TestRetention_RecordsWhatItDeleted(t *testing.T) {
 	store, recorder := &retentionStore{deleted: 3, lastSeq: 41}, &memRecorder{}
-	before := time.Now().UTC()
 
 	pruneAuditEvents(context.Background(), store, recorder, 30)
 
-	require.Len(t, store.calls, 1)
-	assert.WithinDuration(t, before.AddDate(0, 0, -30), store.calls[0], time.Minute)
+	require.Equal(t, []int{30}, store.calls)
 	require.Len(t, recorder.events, 1)
 	got := recorder.events[0]
 	require.NoError(t, Validate(got.event))
