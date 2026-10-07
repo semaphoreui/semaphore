@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"errors"
 	"os"
 	"path"
 	"strings"
@@ -185,6 +186,79 @@ func TestTaskRunnerRun_FinalizesKilledJobThatReturnsNil(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, task_logger.TaskStoppedStatus, persisted.Status)
 	assert.NotNil(t, persisted.End)
+}
+
+// A workflow run may be progressed by any HA node as soon as the terminal
+// status is in the database, so the outputs must be stored before it.
+func TestTaskRunnerRun_StoresOutputsBeforeSuccess(t *testing.T) {
+	fixture := newTaskRunnerRunFixture(t)
+	taskRunner := TaskRunner{
+		Task:         fixture.task,
+		Template:     fixture.template,
+		pool:         &fixture.pool,
+		keyInstaller: fixture.keyInstaller,
+	}
+	document := `{"values":{"image_tag":"1.4.2"}}`
+	app := &outputsApp{run: func() error {
+		taskRunner.SetStatus(task_logger.TaskRunningStatus)
+		return nil
+	}}
+	taskRunner.job = &LocalExecutor{
+		Task:           taskRunner.Task,
+		Template:       taskRunner.Template,
+		Logger:         &taskRunner,
+		App:            app,
+		prepared:       true,
+		outputsCapture: &outputsCaptureFake{document: &document},
+	}
+
+	var storedAtSuccess *string
+	taskRunner.AddStatusListener(func(status task_logger.TaskStatus) {
+		if status != task_logger.TaskSuccessStatus {
+			return
+		}
+		persisted, err := fixture.store.GetTaskByID(fixture.task.ID)
+		require.NoError(t, err)
+		storedAtSuccess = persisted.Artifacts
+	})
+
+	taskRunner.run()
+
+	assert.Equal(t, task_logger.TaskSuccessStatus, taskRunner.Task.Status)
+	require.NotNil(t, storedAtSuccess)
+	assert.Equal(t, document, *storedAtSuccess)
+	require.NotNil(t, taskRunner.Task.Artifacts)
+	assert.Equal(t, document, *taskRunner.Task.Artifacts)
+}
+
+func TestTaskRunnerRun_FailsOnInvalidOutputs(t *testing.T) {
+	fixture := newTaskRunnerRunFixture(t)
+	taskRunner := TaskRunner{
+		Task:         fixture.task,
+		Template:     fixture.template,
+		pool:         &fixture.pool,
+		keyInstaller: fixture.keyInstaller,
+	}
+	app := &outputsApp{run: func() error {
+		taskRunner.SetStatus(task_logger.TaskRunningStatus)
+		return nil
+	}}
+	taskRunner.job = &LocalExecutor{
+		Task:           taskRunner.Task,
+		Template:       taskRunner.Template,
+		Logger:         &taskRunner,
+		App:            app,
+		prepared:       true,
+		outputsCapture: &outputsCaptureFake{err: errors.New("invalid outputs")},
+	}
+
+	taskRunner.run()
+
+	assert.Equal(t, task_logger.TaskFailStatus, taskRunner.Task.Status)
+	persisted, err := fixture.store.GetTaskByID(fixture.task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, task_logger.TaskFailStatus, persisted.Status)
+	assert.Nil(t, persisted.Artifacts)
 }
 
 func TestTaskRunnerRun(t *testing.T) {

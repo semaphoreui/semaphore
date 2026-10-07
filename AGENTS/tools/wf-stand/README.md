@@ -10,6 +10,7 @@ Call forms (from the repository root):
 ```
 AGENTS/tools/wf-stand/stand.sh {start|stop|restart|build|status|log [n]}
 AGENTS/tools/wf-stand/seed.sh
+AGENTS/tools/wf-stand/seed-outputs.sh          # PROJECT_NAME="…" to seed another project
 AGENTS/tools/wf-stand/run.sh <workflow_id> [--approve|--reject] [--stop-after SEC] [--expect success|failed|stopped] [--timeout SEC] [--run ID]
 NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/wf-stand/shoot-run.cjs <workflow_id> [run_id] [out.png] [--dark]
 ```
@@ -35,6 +36,24 @@ Seeded workflows: "Exec happy" (task → approval → delay 5 s → task, ends `
 and "Exec branches" (ok → fail; on_failure → recover, on_success → never started; always → 30 s
 slow task; ends `failed`). Templates are `bash` scripts from the local repo
 `/tmp/semaphore-stand/wf-repo` (`ok.sh`, `fail.sh`, `slow.sh`), so no network or Ansible is needed.
+
+`seed-outputs.sh` seeds the project "Artifacts QA" (project 1 since the 2026-10-07 rebuild) for
+testing workflow outputs by hand: 16 templates (bash producers for every rule of the contract —
+valid, empty, bad JSON, bad name, 101 outputs, 40 KB value, outputs-then-exit-1, symlink; bash and
+Ansible consumers with one survey var of every type; Terraform / Tofu with a `sensitive` and a
+hyphenated output; Ansible `set_stats`) and four workflows: 1 "producers -> consumers" (expect
+`success`, see `task.artifacts` of tasks of nodes 2–4), 2 "invalid producers" (expect `failed`,
+each bad producer `error` with the reason in its log, "empty" `success` without artifacts),
+3 "failed producer" (expect `failed`, no artifacts stored, `on_failure` consumer ran), 4 "tofu ->
+consume" (expect `success`). Scripts: `/tmp/semaphore-stand/wf-repo/produce*.sh`, `consume.sh`,
+`tf/main.tf`, `playbooks/*.yml`. Ids land in `/tmp/semaphore-stand/wf-outputs-ids.txt`.
+
+Seeding traps learned there: a Terraform-family template must be POSTed without `inventory_id`
+(the API creates a `terraform-workspace` inventory; a shared one gets claimed and hidden) and with
+`task_params.auto_approve`, or a plan with changes parks the task in `waiting_confirmation`; a
+workflow must have exactly one root node; `survey_vars[].default_value` is a plain string; a JSON
+`\"` inside `$( )` inside a double-quoted bash string is mangled — build such fragments in a
+variable first.
 
 Traps: `run.sh` exits 1 when `--expect` does not match or `--timeout` (default 180 s) passes;
 `--approve` resolves every pending approval it sees, so use `--run ID` to only follow an existing

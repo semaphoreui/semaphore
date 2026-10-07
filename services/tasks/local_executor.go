@@ -14,6 +14,7 @@ import (
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/util"
 )
 
@@ -29,9 +30,13 @@ type LocalExecutor struct {
 
 	App db_lib.LocalApp
 
-	// mu protects terminationRequested and stopCh.
+	// mu protects terminationRequested, stopCh and status.
 	mu                   sync.Mutex
 	terminationRequested bool
+	// status is the last status passed through SetStatus. Run reads it to tell
+	// a successful run from one that ended without an error but not
+	// successfully (a rejected Terraform plan).
+	status task_logger.TaskStatus
 	// stopCh carries cancellation and remains non-nil after Run is invoked to
 	// enforce the LocalExecutor's single-use lifecycle.
 	stopCh chan struct{}
@@ -54,7 +59,13 @@ type LocalExecutor struct {
 	// (runner). Must be non-nil when Prepare is called for a git repository.
 	RepoLock *KeyLock
 
-	WorkflowArtifacts map[string]any
+	// OutputsCollector captures the outputs of a workflow task. Nil in the
+	// open-source build and for callers that do not capture outputs.
+	OutputsCollector pro_interfaces.TaskOutputsCollector
+	outputsCapture   pro_interfaces.TaskOutputsCapture
+	// outputs is the document to store on the task, set by Run when the task
+	// succeeded and produced outputs.
+	outputs *string
 
 	// Prepared state — populated by Prepare(), consumed by Run(). Lifted out of Run()
 	// local variables so the lifecycle phases (Prepare / underlying App.Run / Cleanup)
@@ -100,6 +111,10 @@ func (t *LocalExecutor) Log(msg string) {
 }
 
 func (t *LocalExecutor) SetStatus(status task_logger.TaskStatus) {
+	t.mu.Lock()
+	t.status = status
+	t.mu.Unlock()
+
 	t.Logger.SetStatus(status)
 }
 
@@ -788,7 +803,7 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		return err
 	}
 
-	return t.App.Run(db_lib.LocalAppRunningArgs{
+	err := t.App.Run(db_lib.LocalAppRunningArgs{
 		CliArgs:         t.preparedArgsMap,
 		EnvironmentVars: t.preparedEnv,
 		Inputs:          t.preparedInputs,
@@ -796,6 +811,114 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		TemplateParams:  t.preparedTplParams,
 		StopCh:          t.stopCh,
 	})
+	if err != nil {
+		return err
+	}
+
+	return t.collectOutputs()
+}
+
+// Outputs returns the outputs document of the task, or nil when the task has
+// none. It is available once Run has returned without an error; the caller
+// stores it before it marks the task successful.
+func (t *LocalExecutor) Outputs() *string {
+	return t.outputs
+}
+
+// beginOutputs creates the outputs file of a workflow task and returns the
+// environment variables that tell the task process about it. Tasks outside a
+// workflow run have no outputs.
+func (t *LocalExecutor) beginOutputs(env []string) (res []string, err error) {
+	if t.OutputsCollector == nil || t.Task.WorkflowRunID == nil {
+		return
+	}
+
+	t.outputsCapture, err = t.OutputsCollector.Begin(util.Config.GetProjectTmpDir(t.Template.ProjectID), t.Task.ID)
+	if err != nil {
+		return
+	}
+
+	res = t.outputsCapture.Env()
+
+	if t.Template.App == db.AppAnsible {
+		var dir string
+		dir, err = t.outputsCapture.AnsibleCallbackDir()
+		if err != nil {
+			return
+		}
+		res = append(res, ansibleCallbackPluginsEnv+"="+t.ansibleCallbackPlugins(env, dir))
+	}
+
+	return
+}
+
+const ansibleCallbackPluginsEnv = "ANSIBLE_CALLBACK_PLUGINS"
+
+// ansibleCallbackPlugins returns the ANSIBLE_CALLBACK_PLUGINS value that adds
+// dir to the callback plugin path. The variable replaces Ansible's whole path,
+// so the value keeps what the task would have had without it: the value already
+// set for the task, or else Ansible's default path.
+func (t *LocalExecutor) ansibleCallbackPlugins(env []string, dir string) string {
+	current := ""
+	for _, e := range env {
+		if v, ok := strings.CutPrefix(e, ansibleCallbackPluginsEnv+"="); ok {
+			current = v
+		}
+	}
+	if current == "" {
+		current = db_lib.BaseEnvironmentVar(ansibleCallbackPluginsEnv)
+	}
+	if current == "" {
+		ansibleHome := "~/.ansible"
+		if util.Config.HomeDirMode == util.HomeDirModeTemplateDir {
+			ansibleHome = filepath.Join(t.Repository.GetHomePath(t.Template.ID), ".ansible")
+		}
+		current = filepath.Join(ansibleHome, "plugins", "callback") +
+			string(os.PathListSeparator) + "/usr/share/ansible/plugins/callback"
+	}
+
+	return current + string(os.PathListSeparator) + dir
+}
+
+// collectOutputs reads the outputs of a workflow task after its app has
+// finished. Only a successful task has outputs. For Terraform apps the outputs
+// of the state are captured as well. An outputs file that breaks the contract
+// fails the task: the error must show at the task that wrote the file, not at
+// a downstream node.
+func (t *LocalExecutor) collectOutputs() error {
+	if t.outputsCapture == nil || t.IsKilled() {
+		return nil
+	}
+
+	t.mu.Lock()
+	status := t.status
+	t.mu.Unlock()
+	if status != task_logger.TaskRunningStatus {
+		return nil
+	}
+
+	var terraformOutputs []byte
+	if tfApp, ok := t.App.(*db_lib.TerraformApp); ok {
+		var err error
+		terraformOutputs, err = tfApp.Outputs(t.preparedEnv)
+		if err != nil {
+			t.Log("Terraform outputs were not captured: " + err.Error())
+		}
+	}
+
+	document, notes, err := t.outputsCapture.Collect(terraformOutputs)
+	if err != nil {
+		t.Log("Invalid task outputs: " + err.Error())
+		return fmt.Errorf("task outputs: %w", err)
+	}
+
+	for _, note := range notes {
+		t.Log(note)
+	}
+
+	t.outputs = document
+
+	return nil
 }
 
 // Prepare resolves everything the executor needs to start the underlying app: environment
@@ -945,6 +1068,13 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 
 	environmentVariables = append(environmentVariables, t.hostConfigEnv()...)
 
+	outputsEnv, err := t.beginOutputs(environmentVariables)
+	if err != nil {
+		t.Log("Failed to prepare task outputs: " + err.Error())
+		return
+	}
+	environmentVariables = append(environmentVariables, outputsEnv...)
+
 	if t.Template.Type != db.TemplateTask {
 
 		environmentVariables = append(environmentVariables, fmt.Sprintf("SEMAPHORE_TASK_TYPE=%s", t.Template.Type))
@@ -978,6 +1108,9 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 func (t *LocalExecutor) Cleanup() {
 	t.destroyKeys()
 	t.destroyInventoryFile()
+	if t.outputsCapture != nil {
+		t.outputsCapture.Close()
+	}
 	if t.App != nil {
 		t.App.Clear()
 	}

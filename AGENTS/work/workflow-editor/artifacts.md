@@ -5,8 +5,10 @@ Hand-off of structured data between task nodes of one workflow run. A task **pro
 of one of its template's survey variables to one output key of one ancestor node. The UI and the
 docs say "Outputs" / "Inputs"; the DB column and the API field keep the name `artifacts`.
 
-**Status (2026-10-04): contract agreed, not implemented.** Storage and helpers exist, the
-producer and consumer wiring does not (see "What exists in the code"). Work is tracked in
+**Status (2026-10-04): contract agreed; the producer side works for tasks run on the server
+(local executor), nothing else does.** A workflow task run locally gets the file, its outputs
+are validated and stored on `task.artifacts`; remote runners send nothing yet, nodes have no
+`input_mappings`, the engine resolves nothing, the UI shows the raw document. Work is tracked in
 workbench `TASK@1845d9d4d7`; the practices behind the contract are in `RESEARCH@a97b871b1d`.
 
 ## Contract
@@ -43,7 +45,7 @@ task differs, this wins.
 
 | App | How outputs get into the file |
 | --- | --- |
-| Ansible | `ansible.builtin.set_stats` with `per_host: false` (the default). The bundled `semaphore_artifacts` callback writes the `_run` scope as Ansible aggregated it; per-host stats are not outputs. `set_stats` itself rejects names that are not variable names. |
+| Ansible | `ansible.builtin.set_stats` with `per_host: false` (the default). The bundled `semaphore_outputs` callback writes the `_run` scope as Ansible aggregated it; per-host stats are not outputs. `set_stats` itself rejects names that are not variable names. |
 | Terraform, OpenTofu, Terragrunt | After a successful run Semaphore captures `output -json` from the state. A process-written file wins over a captured output of the same name. |
 | Bash, Python, PowerShell, Pulumi | The script writes the file itself. |
 
@@ -140,29 +142,42 @@ runner. A task created through the API must not be able to set `artifacts`,
 
 ## What exists in the code (checked 2026-10-04)
 
-- Present: `task.artifacts` column (`db/sql/migrations/v2.18.15.sql`), `db.Task.Artifacts`,
-  `Store.UpdateTaskArtifacts` (`db/sql/task.go`), `GET
-  /project/{p}/workflows/{w}/runs/{r}/artifacts` (`api/router.go`, `api-docs.yml`) →
-  `WorkflowService.GetWorkflowRunArtifacts` → `artifacts.CollectFromTasks`
-  (`pro_impl/services/server/workflow_svc.go`). The package
-  `pro_impl/services/tasks/artifacts/` carries `LoadFile`, `Parse`, `Merge`, `ToShellEnv`,
-  `AnsibleCallbackEnv`, the embedded callback plugin and `artifacts_test.go`. UI: the task
-  dialog shows a pretty-printed `task.artifacts` panel (`web/src/components/TaskDetails.vue`),
-  the run view shows only the remote-runner warning (`WorkflowRun.vue`).
-- ⚠️ 2026-09-27, still true 2026-10-04: nothing calls `UpdateTaskArtifacts`, `LoadFile`,
-  `ToShellEnv`, `AnsibleCallbackEnv` or `TaskPool.GetWorkflowRunArtifacts`;
-  `LocalExecutor.WorkflowArtifacts` (`services/tasks/local_executor.go`) has no reader; the body
-  of `pro_impl/services/tasks/LocalJob_artifacts_test.go` is commented out. No task receives the
-  file path or the callback env, no task row is ever filled, the endpoint always returns `{}`.
-  The Copilot commits that had the wiring (`47f725321`, `58d11c192`, PR #3488; re-imported as
-  `30bb3e194`) are not ancestors of HEAD.
-- ⚠️ 2026-10-04: the existing package implements the superseded design and must be brought to
-  the contract: env name `SEMAPHORE_ARTIFACTS_FILE` (Go doc and the callback), key pattern
-  without the hyphen, `reservedKeys`, no count or value limit, `float64` numbers, `Merge` /
-  `CollectFromTasks` / `ToShellEnv` (implicit merge and `SEMAPHORE_WF_*` — to be removed),
-  plain-object storage instead of the `values`/`skipped` document. `AnsibleCallbackEnv` returns
-  bare `ANSIBLE_CALLBACK_PLUGINS` / `ANSIBLE_CALLBACKS_ENABLED` values that would overwrite the
-  user's own — it must append.
+- **Producer, local executor — implemented.** `pro_interfaces.TaskOutputsCollector` /
+  `TaskOutputsCapture` (`pro_interfaces/task_outputs.go`) is the open/pro seam: the stub factory
+  `pro/services/tasks.NewTaskOutputsCollector` returns nil, the Pro one returns
+  `artifacts.Collector`; `cli/cmd/root.go` injects it into `TaskPool`
+  (`SetTaskOutputsCollector`), which hands it to each `LocalExecutor`.
+  `LocalExecutor.beginOutputs` (in `Prepare`, only when `WorkflowRunID != nil`) creates
+  `<project tmp>/task_<id>_outputs_*/outputs.json` (dir 0700, file 0600, chowned to the process
+  user) and adds the env; `collectOutputs` (in `Run`, after the app returned without error, the
+  task is not killed and its status is still `running`) reads it; `Cleanup` removes it.
+- **Stored before the success status.** `TaskRunner.saveOutputs` calls `UpdateTaskArtifacts`
+  before `SetStatus(success)`: in HA any node may progress the run once it sees the terminal
+  status in the DB, so the outputs must already be there. For the same reason
+  `TerraformApp.Run` no longer sets `success` itself on "no changes" / plan-only — the caller
+  does it after `Run` returns (both `TaskRunner.run` and the runner's `job_pool` already did).
+- **Package `pro_impl/services/tasks/artifacts`** now implements the contract: `Parse` /
+  `ReadFile` (strict), `Build` (lenient Terraform capture), `Document` (`Encode`, `Notes`,
+  `Decode` — the validation a runner-sent document will go through), `Collector`. `Merge`,
+  `ToShellEnv`, the reserved names and `SEMAPHORE_ARTIFACTS_FILE` are gone.
+  `CollectFromTasks` stays only to feed `GET …/runs/{r}/artifacts` with merged `values`.
+- **Ansible wiring.** The callback is `semaphore_outputs.py`; it has no
+  `CALLBACK_NEEDS_ENABLED`, so Ansible loads it without `ANSIBLE_CALLBACKS_ENABLED` and the
+  user's `callbacks_enabled` is untouched. `ANSIBLE_CALLBACK_PLUGINS` is set to the value the
+  task already had (task env, `Config.EnvVars`, forwarded server env) or else Ansible's default
+  path, plus the plugin dir (`LocalExecutor.ansibleCallbackPlugins`).
+  ⚠️ 2026-10-04: the variable overrides `callback_plugins` of an `ansible.cfg` — a path set
+  only there is lost for workflow tasks (AWX and ansible-runner behave the same). A
+  `callback_plugins/` directory next to the playbook is unaffected.
+- **Terraform capture.** `TerraformApp.Outputs` runs `<binary> output -json` after a successful
+  run and keeps the result out of the task log (it carries sensitive values in plain text).
+  Checked by hand against Ansible core 2.21, Terraform and OpenTofu.
+- Still as before: `GET /project/{p}/workflows/{w}/runs/{r}/artifacts` (`api/router.go`,
+  `api-docs.yml`) → `WorkflowService.GetWorkflowRunArtifacts`; the task dialog pretty-prints
+  `task.artifacts` (`web/src/components/TaskDetails.vue`) — now the `values`/`skipped`
+  document; the run view shows only the remote-runner warning (`WorkflowRun.vue`).
+- ⚠️ 2026-10-04: `LocalExecutorProvider` (remote runner) passes no collector and
+  `JobProgress` has no outputs field — a task on a remote runner produces nothing.
 - ⚠️ 2026-10-04: the server never applies survey defaults or validates survey types — only the
   Vue forms do (`TaskParamsForm.vue`; see `../secrets-and-task-vars/schedule-survey-defaults.md`).
   The resolver therefore applies `default_value` itself for mapped variables; `int` values are
@@ -203,9 +218,9 @@ runner. A task created through the API must not be able to set `artifacts`,
 
 ## Open, broken, deferred
 
-- Everything in the contract is still to be built: producer wiring in `LocalExecutor`, the
-  runner protocol field, the node column and validation, the resolver in `startWorkflowNode`,
-  the UI, the security hardening, docs and Dredd (stages 3–9 of the task).
+- Still to be built: the runner protocol field, the node column and validation, the resolver
+  in `startWorkflowNode`, the UI, the security hardening, docs and Dredd (stages 4–9 of the
+  task).
 - Docker/K8s executors are out of v1. The Kubernetes termination message (4 KB per pod) cannot
   carry 256 KB; the path is a file on a shared volume read by the runner side. Until then the
   `workflowArtifactsRemoteRunnerWarning` alert stays for those executors only.
@@ -223,12 +238,15 @@ runner. A task created through the API must not be able to set `artifacts`,
 - `db/Task.go`, `db/Store.go`, `db/sql/task.go`, `db/sql/migrations/v2.18.15.sql`
 - `db/Workflow.go` (`WorkflowNode`), `db/Template.go` (`SurveyVar`, `SurveyVarDefaultValue`),
   `db/TaskParams.go`
-- `services/tasks/local_executor.go` (survey delivery: `getEnvironmentExtraVars`,
-  `getSurveyEnvVars`, `formatVarValue`), `services/tasks/TaskPool.go`
+- `services/tasks/local_executor.go` (outputs: `beginOutputs`, `collectOutputs`,
+  `ansibleCallbackPlugins`; survey delivery: `getEnvironmentExtraVars`, `getSurveyEnvVars`,
+  `formatVarValue`), `services/tasks/TaskRunner.go` (`saveOutputs`),
+  `services/tasks/TaskPool.go`, `db_lib/TerraformApp.go` (`Outputs`),
+  `pro_interfaces/task_outputs.go`
 - `pro_interfaces/workflow_svc.go`, `pro/services/server/workflow_svc.go` (stub),
   `pro_impl/services/server/workflow_svc.go` (`startWorkflowNode`, `mapLatestNodeTask`),
   `pro_impl/db/Workflow.go` (`ValidateWorkflowTemplate`), `pro_impl/services/tasks/artifacts/`
-  (incl. `ansible/callback_plugins/semaphore_artifacts.py`)
+  (incl. `ansible/callback_plugins/semaphore_outputs.py`)
 - `web/src/components/TaskParamsForm.vue`, `web/src/components/TaskDetails.vue`,
   `web/src/views/project/WorkflowRun.vue`
 - `api-docs.yml` (artifacts path), `docs/docs/user-guide/workflows.md`

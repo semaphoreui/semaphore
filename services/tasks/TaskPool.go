@@ -84,6 +84,9 @@ type TaskPool struct {
 	// after construction via SetWorkflowService; the pool only calls back into it
 	// when a workflow task finishes. nil in tests / before wiring.
 	workflowService pro_interfaces.WorkflowService
+	// outputsCollector captures the outputs of workflow tasks run on this node.
+	// Injected via SetTaskOutputsCollector; nil in the open-source build.
+	outputsCollector pro_interfaces.TaskOutputsCollector
 	// auditRecorder is injected after construction, nil means no audit.
 	auditRecorder audit.Recorder
 	// stop signals the background loops started by Run to exit. Closing it (via
@@ -137,6 +140,12 @@ func CreateTaskPool(
 // Dashboard to reach an optional TaskStateInspector implementation.
 func (p *TaskPool) StateStore() TaskStateStore {
 	return p.state
+}
+
+// SetTaskOutputsCollector injects the collector that captures the outputs of
+// workflow tasks run on this node. Nil (the open-source build) disables it.
+func (p *TaskPool) SetTaskOutputsCollector(collector pro_interfaces.TaskOutputsCollector) {
+	p.outputsCollector = collector
 }
 
 // SetWorkflowService injects the workflow orchestration service. It is wired
@@ -1233,17 +1242,18 @@ func (p *TaskPool) AddTaskFrom(
 			taskRunner)
 
 		job = &LocalExecutor{
-			Task:         taskRunner.Task,
-			Template:     taskRunner.Template,
-			Inventory:    taskRunner.Inventory,
-			Repository:   taskRunner.Repository,
-			Environment:  taskRunner.Environment,
-			Secret:       extraSecretVars,
-			Logger:       app.SetLogger(taskRunner),
-			App:          app,
-			KeyInstaller: p.keyInstallationService,
-			RepoLock:     p.repoLock,
-			HostConfigs:  taskRunner.HostConfigs,
+			Task:             taskRunner.Task,
+			Template:         taskRunner.Template,
+			Inventory:        taskRunner.Inventory,
+			Repository:       taskRunner.Repository,
+			Environment:      taskRunner.Environment,
+			Secret:           extraSecretVars,
+			Logger:           app.SetLogger(taskRunner),
+			App:              app,
+			KeyInstaller:     p.keyInstallationService,
+			RepoLock:         p.repoLock,
+			HostConfigs:      taskRunner.HostConfigs,
+			OutputsCollector: p.outputsCollector,
 		}
 	}
 

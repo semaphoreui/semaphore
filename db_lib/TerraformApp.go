@@ -347,6 +347,15 @@ func (t *TerraformApp) Apply(args []string, environmentVars []string, inputs map
 	return err
 }
 
+// Outputs returns the raw result of `<binary> output -json` for the current
+// state. The result is not written to the task log: it carries the values of
+// sensitive outputs in plain text.
+func (t *TerraformApp) Outputs(environmentVars []string) ([]byte, error) {
+	cmd := t.makeCmd(t.Name, []string{"output", "-json"}, environmentVars)
+	cmd.Stdin = strings.NewReader("")
+	return cmd.Output()
+}
+
 func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 	// Determine which args to use for plan and apply stages
 	var planArgs []string
@@ -383,8 +392,10 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 	params := args.TaskParams.(*db.TerraformTaskParams)
 	tplParams := args.TemplateParams.(*db.TerraformTemplateParams)
 
+	// The status is left to the caller: it marks the task successful once Run
+	// has returned, after everything that must precede a terminal status (the
+	// outputs of a workflow task) is in place.
 	if t.PlanHasNoChanges || params.Plan {
-		t.Logger.SetStatus(task_logger.TaskSuccessStatus)
 		return nil
 	}
 

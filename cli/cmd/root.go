@@ -228,6 +228,7 @@ func runService() {
 	// otherwise, which makes the service fall back to its in-process locker.
 	workflowService := proServer.NewWorkflowService(workflowStore, store, &taskPool, proHA.NewWorkflowRunLocker())
 	taskPool.SetWorkflowService(workflowService)
+	taskPool.SetTaskOutputsCollector(proTasks.NewTaskOutputsCollector())
 
 	schedulePool := schedules.CreateSchedulePool(
 		store,

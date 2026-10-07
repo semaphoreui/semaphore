@@ -51,6 +51,23 @@ func getEnvironmentVars() []string {
 	return res
 }
 
+// BaseEnvironmentVar returns the value a child tool process gets for name from
+// the base environment (see getEnvironmentVars): Config.EnvVars, or the server
+// environment when the variable is forwarded. Empty when it is not set there.
+func BaseEnvironmentVar(name string) string {
+	if v, ok := util.Config.EnvVars[name]; ok {
+		return v
+	}
+
+	for _, e := range util.Config.ForwardedEnvVars {
+		if e == name {
+			return os.Getenv(name)
+		}
+	}
+
+	return ""
+}
+
 type LocalAppRunningArgs struct {
 	CliArgs         map[string][]string // Stage-specific args (e.g., "init", "apply", "default")
 	EnvironmentVars []string

@@ -354,10 +354,44 @@ func (t *TaskRunner) run() {
 	}
 
 	if t.Task.Status == task_logger.TaskRunningStatus {
+		if err = t.saveOutputs(); err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"task_id": t.Task.ID,
+				"context": "task_outputs",
+			}).Error("failed to save task outputs")
+			t.Log("Failed to save task outputs. More details in the server logs.")
+			t.SetStatus(task_logger.TaskFailStatus)
+			return
+		}
+
 		t.SetStatus(task_logger.TaskSuccessStatus)
 	}
 
 	t.startAutorunTasks()
+}
+
+// saveOutputs stores the outputs of a locally run workflow task on its row.
+// It runs before the task is marked successful: in HA mode any node may
+// progress the workflow run as soon as it sees the terminal status in the
+// database, and a downstream node must find the outputs there by then.
+func (t *TaskRunner) saveOutputs() error {
+	localJob, ok := t.job.(*LocalExecutor)
+	if !ok {
+		return nil
+	}
+
+	outputs := localJob.Outputs()
+	if outputs == nil {
+		return nil
+	}
+
+	if err := t.pool.store.UpdateTaskArtifacts(t.Task.ProjectID, t.Task.ID, outputs); err != nil {
+		return err
+	}
+
+	t.Task.Artifacts = outputs
+
+	return nil
 }
 
 // finishRun records the end of a task run, persists it, and notifies the pool
