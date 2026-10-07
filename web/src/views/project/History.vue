@@ -103,8 +103,15 @@
 </template>
 
 <style lang="scss">
-.HistoryTable td {
+.HistoryTable td:not(.v-data-table__mobile-row) {
   height: 60px !important;
+}
+
+.HistoryTable td.v-data-table__mobile-row {
+  height: auto !important;
+  min-height: 48px;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
 }
 </style>
 

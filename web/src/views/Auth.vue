@@ -47,7 +47,7 @@
     </v-dialog>
 
     <v-container fluid fill-height align-center justify-center class="pa-0">
-      <v-card class="px-5 py-5" style="border-radius: 15px">
+      <v-card class="px-5 py-5 auth__card" style="border-radius: 15px">
         <v-card-text>
           <v-form
             @submit.prevent
@@ -266,6 +266,8 @@
   </div>
 </template>
 <style lang="scss">
+@import '~vuetify/src/styles/settings/_variables';
+
 .auth__divider {
   margin-top: 15px;
   margin-bottom: 5px;
@@ -287,6 +289,17 @@
     margin-left: 10px;
   }
 }
+.auth__card {
+  width: calc(100% - 24px);
+  max-width: 422px;
+}
+
+@media #{map-get($display-breakpoints, 'xs-only')} {
+  .auth__card.v-card {
+    padding: 8px !important;
+  }
+}
+
 .auth {
   height: 100dvh;
   background: #80808024;
