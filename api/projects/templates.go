@@ -203,6 +203,12 @@ func UpdateTemplateDescription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The description is raw Markdown; it is never rendered to HTML on the server.
+	if err := db.ValidateTemplateDescription(tpl.Description); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	err := helpers.Store(r).SetTemplateDescription(template.ProjectID, template.ID, tpl.Description)
 	if err != nil {
 		helpers.WriteError(w, err)
