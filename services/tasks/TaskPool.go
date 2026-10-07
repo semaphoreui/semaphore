@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro/pkg/stage_parsers"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -82,6 +84,12 @@ type TaskPool struct {
 	// after construction via SetWorkflowService; the pool only calls back into it
 	// when a workflow task finishes. nil in tests / before wiring.
 	workflowService pro_interfaces.WorkflowService
+	// workflowRepo resolves the workflow run a task belongs to, so the task can
+	// be told which workflow it runs in (SEMAPHORE_WORKFLOW_* env). Injected via
+	// SetWorkflowRepo; nil means tasks never belong to a workflow (CE / tests).
+	workflowRepo db.WorkflowManager
+	// auditRecorder is injected after construction, nil means no audit.
+	auditRecorder audit.Recorder
 	// stop signals the background loops started by Run to exit. Closing it (via
 	// Stop) terminates the runner-task reconcile loop and Run's own select.
 	// Channels are used rather than sync.WaitGroup/sync.Once because TaskPool is
@@ -140,6 +148,22 @@ func (p *TaskPool) StateStore() TaskStateStore {
 // and the pool needs the service to progress runs as tasks finish).
 func (p *TaskPool) SetWorkflowService(svc pro_interfaces.WorkflowService) {
 	p.workflowService = svc
+}
+
+func (p *TaskPool) SetWorkflowRepo(repo db.WorkflowManager) {
+	p.workflowRepo = repo
+}
+
+func (p *TaskPool) SetAuditRecorder(recorder audit.Recorder) {
+	p.auditRecorder = recorder
+}
+
+// Tests build pools as struct literals without a recorder.
+func (p *TaskPool) recorder() audit.Recorder {
+	if p.auditRecorder == nil {
+		return audit.Nop{}
+	}
+	return p.auditRecorder
 }
 
 // HandleWorkflowTaskCompletion notifies the workflow service that a task that
@@ -554,7 +578,17 @@ func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) 
 	// above (tsk.Task.End != nil) becomes a real second guard: a late
 	// duplicate finalize on another node observes End set and skips autorun,
 	// even if the cluster-wide finalize lock has already been released.
-	tsk.finishRun()
+	// The runner that reported the end is the actor, unless the server ended the task.
+	// The finish webhook above still needs the runner either way.
+	actor := audit.SystemActor(audit.ComponentTaskRunner)
+	endReason, _ := tsk.endReason.Load().(string)
+	switch {
+	case endReason == audit.EndReasonRunnerLost:
+		actor = audit.SystemActor(audit.ComponentReconciler)
+	case endReason == "" && !tsk.dispatchFailed && runner != nil:
+		actor = audit.RunnerActor(runner.ID, runner.Name)
+	}
+	tsk.finishRun(actor)
 	tsk.startAutorunTasks()
 }
 
@@ -685,36 +719,38 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 	return res
 }
 
-func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
+func (p *TaskPool) ConfirmTask(targetTask db.Task) (changed bool, err error) {
 	tsk, err := p.GetTask(targetTask.ID)
 
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if tsk == nil { // task not active, but exists in database
-		return fmt.Errorf("task is not active")
+		return false, fmt.Errorf("task is not active")
 	}
 
+	before := tsk.Task.Status
 	tsk.SetStatus(task_logger.TaskConfirmed)
 
-	return nil
+	return before == task_logger.TaskWaitingConfirmation && tsk.Task.Status != before, nil
 }
 
-func (p *TaskPool) RejectTask(targetTask db.Task) error {
+func (p *TaskPool) RejectTask(targetTask db.Task) (changed bool, err error) {
 	tsk, err := p.GetTask(targetTask.ID)
 
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if tsk == nil { // task not active, but exists in database
-		return fmt.Errorf("task is not active")
+		return false, fmt.Errorf("task is not active")
 	}
 
+	before := tsk.Task.Status
 	tsk.SetStatus(task_logger.TaskRejected)
 
-	return nil
+	return before == task_logger.TaskWaitingConfirmation && tsk.Task.Status != before, nil
 }
 
 func (p *TaskPool) stopTaskRunner(t *TaskRunner, forceStop bool) {
@@ -758,10 +794,10 @@ func (p *TaskPool) stopLocalTask(taskID int) {
 	}
 }
 
-func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
+func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) (changed bool, err error) {
 	tsk, err := p.GetTask(targetTask.ID)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// task not active, but exists in database. For non-HA mode
@@ -770,16 +806,23 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 
 		err := tsk.populateDetails()
 		if err != nil {
-			return err
+			return false, err
 		}
+		before := targetTask.Status
 		tsk.SetStatus(task_logger.TaskStoppedStatus)
 		tsk.createTaskEvent()
-		return nil
+		changed = !before.IsFinished() && tsk.Task.Status != before
+		if changed {
+			tsk.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
+		}
+		return changed, nil
 	}
 
+	// In HA every existing task looks active, so a finished one must not count as stopped.
+	before := tsk.Task.Status
 	p.stopTaskRunner(tsk, forceStop)
 
-	return nil
+	return !before.IsFinished() && tsk.Task.Status != before, nil
 }
 
 // StopTasksByTemplate stops all active (queued or running) tasks that belong to
@@ -896,6 +939,7 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 			go p.FinalizeRemoteTask(tsk, nil)
 		} else {
 			tsk.createTaskEvent()
+			tsk.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 		}
 	}
 }
@@ -995,6 +1039,7 @@ func (p *TaskPool) StopTasksByWorkflowRun(projectID int, runID int, forceStop bo
 			go p.FinalizeRemoteTask(tsk, nil)
 		} else {
 			tsk.createTaskEvent()
+			tsk.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 		}
 	}
 }
@@ -1052,9 +1097,20 @@ func (p *TaskPool) taskSecretSweepLoop() {
 	}
 }
 
-// AddTask creates and queues a new task for execution in the task pool.
+// AddTask serves the Pro workflow service, which starts nodes in the background for the run's user.
+func (p *TaskPool) AddTask(taskObj db.Task, userID *int, username string, projectID int, needAlias bool) (db.Task, error) {
+	actor := audit.SystemActor(audit.ComponentTaskRunner)
+	if userID != nil {
+		actor = audit.UserActor(*userID, username, "", "")
+	}
+	return p.AddTaskFrom(audit.WithActor(context.Background(), actor), audit.TriggerWorkflow, taskObj, userID, username, projectID, needAlias)
+}
+
+// AddTaskFrom creates and queues a new task for execution in the task pool.
 //
 // Parameters:
+//   - ctx: Carries the audit actor that started the task
+//   - trigger: What started the task, recorded in the audit (audit.Trigger*)
 //   - taskObj: The task object with initial configuration
 //   - userID: Optional ID of the user initiating the task
 //   - username: Username of the user initiating the task
@@ -1072,7 +1128,9 @@ func (p *TaskPool) taskSecretSweepLoop() {
 // Returns:
 //   - The newly created task with all properties set
 //   - An error if task creation or validation fails
-func (p *TaskPool) AddTask(
+func (p *TaskPool) AddTaskFrom(
+	ctx context.Context,
+	trigger string,
 	taskObj db.Task,
 	userID *int,
 	username string,
@@ -1123,6 +1181,13 @@ func (p *TaskPool) AddTask(
 		return
 	}
 
+	p.recorder().Record(ctx, audit.Event{
+		Kind:      audit.TaskExecutionCreate,
+		Target:    audit.ResourceTarget(audit.TargetTask, newTask.ID, tpl.Name),
+		ProjectID: projectID,
+		Metadata:  taskCreateMetadata(trigger, newTask),
+	})
+
 	taskRunner := NewTaskRunner(newTask, p, username, p.keyInstallationService)
 
 	if needAlias {
@@ -1134,6 +1199,7 @@ func (p *TaskPool) AddTask(
 	if err != nil {
 		taskRunner.Log("Error: " + err.Error())
 		taskRunner.SetStatus(task_logger.TaskFailStatus)
+		taskRunner.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 		return
 	}
 
@@ -1146,6 +1212,7 @@ func (p *TaskPool) AddTask(
 		if err != nil {
 			taskRunner.Log("Error: failed to store survey secrets: " + err.Error())
 			taskRunner.SetStatus(task_logger.TaskFailStatus)
+			taskRunner.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 			return
 		}
 	}
@@ -1195,4 +1262,27 @@ func (p *TaskPool) AddTask(
 	taskRunner.createTaskEvent()
 
 	return
+}
+
+// taskCreateMetadata takes the trigger from the caller because the API binds source IDs from the request body.
+func taskCreateMetadata(trigger string, task db.Task) audit.TaskCreateMetadata {
+	meta := audit.TaskCreateMetadata{Trigger: trigger, TemplateID: task.TemplateID}
+	if task.BuildTaskID != nil {
+		meta.ParentTaskID = *task.BuildTaskID
+	}
+	switch trigger {
+	case audit.TriggerSchedule:
+		if task.ScheduleID != nil {
+			meta.ScheduleID = *task.ScheduleID
+		}
+	case audit.TriggerIntegration:
+		if task.IntegrationID != nil {
+			meta.IntegrationID = *task.IntegrationID
+		}
+	case audit.TriggerWorkflow:
+		if task.WorkflowRunID != nil {
+			meta.WorkflowRunID = *task.WorkflowRunID
+		}
+	}
+	return meta
 }

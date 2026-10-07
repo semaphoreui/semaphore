@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/jwt"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks/hooks"
 
@@ -54,6 +56,13 @@ type TaskRunner struct {
 	alertChat    *string
 	pool         *TaskPool
 	keyInstaller db_lib.AccessKeyInstaller
+
+	// endReason holds a string: audit.EndReasonTimeout or audit.EndReasonRunnerLost, set by the server.
+	// It is atomic because the timeout timer writes it while a runner report may read it.
+	endReason atomic.Value
+
+	// dispatchFailed marks a task the server failed before handing it to the runner that polled it.
+	dispatchFailed bool
 
 	// job executes Ansible and returns stdout to Semaphore logs
 	job Job
@@ -216,7 +225,7 @@ func (t *TaskRunner) run() {
 			"task_id": t.Task.ID,
 		}).Info("Stopped running task " + t.Template.Name)
 
-		t.finishRun()
+		t.finishRun(audit.SystemActor(audit.ComponentTaskRunner))
 	}()
 
 	// Mark task as stopped if user stopped task during preparation (before task run).
@@ -354,7 +363,7 @@ func (t *TaskRunner) run() {
 // finishRun records the end of a task run, persists it, and notifies the pool
 // to release the task's resources (EventTypeFinished -> onTaskStop). It is used
 // by the synchronous local path and by FinalizeRemoteTask for remote tasks.
-func (t *TaskRunner) finishRun() {
+func (t *TaskRunner) finishRun(actor audit.Actor) {
 	if !t.Task.Status.IsFinished() {
 		log.WithFields(log.Fields{
 			"task_id":     t.Task.ID,
@@ -376,6 +385,7 @@ func (t *TaskRunner) finishRun() {
 	}
 
 	t.createTaskEvent()
+	t.recordComplete(actor)
 	t.pool.queueEvents <- PoolEvent{EventTypeFinished, t}
 
 	// Notify the workflow service that this task finished so it can progress the
@@ -389,6 +399,30 @@ func (t *TaskRunner) finishRun() {
 	if err := t.pool.HandleWorkflowTaskCompletion(t.Task); err != nil {
 		t.Log("Workflow progression failed: " + err.Error())
 	}
+}
+
+// FailDispatch fails a task the server could not hand to its runner, so the runner is not the audit actor.
+func (t *TaskRunner) FailDispatch() {
+	t.dispatchFailed = true
+	t.SetStatus(task_logger.TaskFailStatus)
+}
+
+// recordComplete is shared by finishRun and the paths that end a task without it.
+func (t *TaskRunner) recordComplete(actor audit.Actor) {
+	endReason, _ := t.endReason.Load().(string)
+	meta := audit.TaskCompleteMetadata{Result: string(t.Task.Status), EndReason: endReason, TemplateID: t.Task.TemplateID}
+	if t.Task.UserID != nil {
+		meta.InitiatorID = *t.Task.UserID
+	}
+	if t.Task.Start != nil && t.Task.End != nil {
+		meta.DurationMS = t.Task.End.Sub(*t.Task.Start).Milliseconds()
+	}
+	t.pool.recorder().Record(audit.WithActor(context.Background(), actor), audit.Event{
+		Kind:      audit.TaskExecutionComplete,
+		Target:    audit.ResourceTarget(audit.TargetTask, t.Task.ID, t.Template.Name),
+		ProjectID: t.Task.ProjectID,
+		Metadata:  meta,
+	})
 }
 
 // startAutorunTasks queues the autorun child templates of a successfully
@@ -414,7 +448,9 @@ func (t *TaskRunner) startAutorunTasks() {
 			ProjectID:   tpl.ProjectID,
 			BuildTaskID: &t.Task.ID,
 		}
-		_, err = t.pool.AddTask(
+		_, err = t.pool.AddTaskFrom(
+			audit.WithActor(context.Background(), audit.SystemActor(audit.ComponentTaskRunner)),
+			audit.TriggerAutorun,
 			task,
 			nil,
 			"",
@@ -483,6 +519,27 @@ func (t *TaskRunner) populateTaskEnvironment() (err error) {
 }
 
 // nolint: gocyclo
+// populateWorkflowDetails resolves the workflow template of the run the task
+// belongs to. The task row stores only the run id; the template id is what the
+// task environment and the workflow run URL are built from, on this server or
+// on a remote runner that has no database of its own.
+func (t *TaskRunner) populateWorkflowDetails() error {
+	if t.Task.WorkflowRunID == nil || t.pool.workflowRepo == nil {
+		return nil
+	}
+
+	run, err := t.pool.workflowRepo.GetWorkflowRunByID(t.Task.ProjectID, *t.Task.WorkflowRunID)
+	if err != nil {
+		return t.prepareError(err, "Workflow run not found!")
+	}
+
+	if run.WorkflowTemplateID != 0 {
+		t.Task.WorkflowTemplateID = &run.WorkflowTemplateID
+	}
+
+	return nil
+}
+// nolint: gocyclo
 func (t *TaskRunner) populateDetails() error {
 	// get template
 	var err error
@@ -490,6 +547,10 @@ func (t *TaskRunner) populateDetails() error {
 	t.Template, err = t.pool.store.GetTemplate(t.Task.ProjectID, t.Task.TemplateID)
 	if err != nil {
 		return t.prepareError(err, "Template not found!")
+	}
+
+	if err = t.populateWorkflowDetails(); err != nil {
+		return err
 	}
 
 	// get project alert setting

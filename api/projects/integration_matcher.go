@@ -8,6 +8,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -104,6 +105,13 @@ func AddIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceIntegrationMatcherCreate,
+		Target:    audit.ResourceTarget(audit.TargetIntegrationMatcher, newMatcher.ID, newMatcher.Name),
+		ProjectID: project.ID,
+		Metadata:  audit.IntegrationPartMetadata{IntegrationID: integration.ID},
+	})
+
 	helpers.WriteJSON(w, http.StatusOK, newMatcher)
 }
 
@@ -135,6 +143,13 @@ func UpdateIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceIntegrationMatcherUpdate,
+		Target:    audit.ResourceTarget(audit.TargetIntegrationMatcher, matcherId, matcher.Name),
+		ProjectID: project.ID,
+		Metadata:  audit.IntegrationPartMetadata{IntegrationID: integration.ID},
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -160,5 +175,14 @@ func DeleteIntegrationMatcher(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	if err == nil {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      audit.ResourceIntegrationMatcherDelete,
+			Target:    audit.ResourceTarget(audit.TargetIntegrationMatcher, matcher.ID, matcher.Name),
+			ProjectID: project.ID,
+			Metadata:  audit.IntegrationPartMetadata{IntegrationID: integration.ID},
+		})
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }

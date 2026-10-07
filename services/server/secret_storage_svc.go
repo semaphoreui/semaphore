@@ -60,31 +60,28 @@ func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err err
 		}
 
 		for _, key := range syncedKeys {
-			if err = s.accessKeyRepo.DeleteAccessKey(projectID, key.ID); err != nil {
+			if err = s.accessKeyRepo.DeleteAccessKey(projectID, key.ID); err != nil && !errors.Is(err, db.ErrNotFound) {
 				return
 			}
 		}
 	}
 
-	err = s.secretStorageRepo.DeleteSecretStorage(projectID, storageID)
-	if err != nil {
-		return
-	}
-
+	// Deleted before the storage row: MySQL 8 ignores the inline access_key.storage_id cascade.
 	keys, err := s.accessKeyService.GetAll(projectID, db.GetAccessKeyOptions{
 		Owner:     db.AccessKeySecretStorage,
 		StorageID: &storageID,
 	}, db.RetrieveQueryParams{})
-
 	if err != nil {
 		return
 	}
 
 	for _, key := range keys {
-		err = s.accessKeyService.Delete(projectID, key.ID)
+		if err = s.accessKeyService.Delete(projectID, key.ID); err != nil && !errors.Is(err, db.ErrNotFound) {
+			return
+		}
 	}
 
-	return
+	return s.secretStorageRepo.DeleteSecretStorage(projectID, storageID)
 }
 
 func (s *SecretStorageServiceImpl) GetSecretStorage(projectID int, storageID int) (res db.SecretStorage, err error) {
@@ -145,6 +142,20 @@ func (s *SecretStorageServiceImpl) Create(storage db.SecretStorage) (res db.Secr
 }
 
 func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) {
+	sourceStorageType := storage.SourceStorageType
+	sourceStorageKey := ""
+
+	// Checked before the write, so a refused source leaves the storage unchanged.
+	if pro.StorageRequiresSecret(storage) && sourceStorageType != nil {
+		switch *sourceStorageType {
+		case db.AccessKeySourceStorageEnv, db.AccessKeySourceStorageFile:
+			sourceStorageKey = storage.Secret
+		default:
+			err = common_errors.NewUserErrorS("unsupported source storage type")
+			return
+		}
+	}
+
 	err = s.secretStorageRepo.UpdateSecretStorage(storage)
 	if err != nil {
 		return
@@ -177,19 +188,6 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 			return
 		}
 
-		sourceStorageType := storage.SourceStorageType
-		sourceStorageKey := ""
-
-		if sourceStorageType != nil {
-			switch *sourceStorageType {
-			case db.AccessKeySourceStorageEnv, db.AccessKeySourceStorageFile:
-				sourceStorageKey = storage.Secret
-			default:
-				err = errors.New("unsupported source storage type")
-				return
-			}
-		}
-
 		newKey := db.AccessKey{
 			Name:              random.String(10),
 			Type:              db.AccessKeyString,
@@ -215,19 +213,6 @@ func (s *SecretStorageServiceImpl) Update(storage db.SecretStorage) (err error) 
 
 			//err = s.keyRepo.DeleteAccessKey(storage.ProjectID, vault.ID)
 			return
-		}
-
-		sourceStorageType := storage.SourceStorageType
-		sourceStorageKey := ""
-
-		if sourceStorageType != nil {
-			switch *sourceStorageType {
-			case db.AccessKeySourceStorageEnv, db.AccessKeySourceStorageFile:
-				sourceStorageKey = storage.Secret
-			default:
-				err = errors.New("unsupported source storage type")
-				return
-			}
 		}
 
 		vault.OverrideSecret = true

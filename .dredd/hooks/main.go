@@ -96,6 +96,8 @@ func main() {
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers > Get Integration Matcher linked to integration extractor > 200 > application/json", capabilityWrapper("integration"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers > Add Integration Matcher > 204 > application/json", capabilityWrapper("integration"))
 	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/matchers/{matcher_id} > Updates Integration Matcher > 204 > application/json", capabilityWrapper("integrationmatcher"))
+	h.Before("integration > /api/project/{project_id}/integrations/aliases/{alias_id} > Remove integration alias > 204 > application/json", capabilityWrapper("project_alias"))
+	h.Before("integration > /api/project/{project_id}/integrations/{integration_id}/aliases/{alias_id} > Remove integration alias > 204 > application/json", capabilityWrapper("integration_alias"))
 
 	h.Before("key-store > /api/project/{project_id}/keys > Add access key > 201 > application/json", capabilityWrapper("access_key"))
 	h.Before("key-store > /api/project/{project_id}/keys/{key_id} > Updates access key > 204 > application/json", capabilityWrapper("access_key"))

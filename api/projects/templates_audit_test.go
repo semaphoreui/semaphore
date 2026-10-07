@@ -110,3 +110,25 @@ func TestUpdateTemplatePerm_RecordsStoredRoleSlug(t *testing.T) {
 		})
 	}
 }
+
+func TestTemplatePermissions_RejectUnknownBits(t *testing.T) {
+	controller := NewTemplateController(&fakeTemplateRoles{existing: db.TemplateRolePerm{ID: 5, RoleSlug: "ops"}}, nil)
+	tests := []struct {
+		name   string
+		method string
+		permID string
+		handle func(http.ResponseWriter, *http.Request)
+	}{
+		{"add", http.MethodPost, "", controller.AddTemplatePerm},
+		{"update", http.MethodPut, "5", controller.UpdateTemplatePerm},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, rec := templatePermRequest(tt.method, `{"role_slug":"ops","permissions":17}`, tt.permID)
+			w := httptest.NewRecorder()
+			tt.handle(w, r)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.Empty(t, rec.All())
+		})
+	}
+}

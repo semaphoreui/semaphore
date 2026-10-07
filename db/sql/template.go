@@ -498,8 +498,7 @@ func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template
 }
 
 func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
-	_, err := d.exec("delete from project__template where project_id=? and id=?", projectID, templateID)
-	return err
+	return requireDeletedRow(d.exec("delete from project__template where project_id=? and id=?", projectID, templateID))
 }
 
 func (d *SqlDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferrers, error) {

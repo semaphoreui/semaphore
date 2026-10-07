@@ -100,7 +100,6 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		// mappings using it.
 		"delete from project__host_config where project_id=?",
 		"delete from access_key where project_id=?",
-		"delete from project where id=?",
 	}
 
 	for _, statement := range statements {
@@ -110,6 +109,13 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 			_ = tx.Rollback()
 			return err
 		}
+	}
+
+	// The project row decides: a project with no children is still a real delete.
+	err = requireDeletedRow(tx.Exec(d.PrepareQuery("delete from project where id=?"), projectID))
+	if err != nil {
+		_ = tx.Rollback()
+		return err
 	}
 
 	return tx.Commit()

@@ -24,9 +24,11 @@ func (e Event) outcome() Outcome {
 }
 
 type Entry struct {
-	Kind     Kind
-	Type     Type
-	Reasons  []Reason
+	Kind    Kind
+	Type    Type
+	Reasons []Reason
+	// Reasons allowed on a success whose follow-up step failed.
+	Partial  []Reason
 	Metadata any
 	Pro      bool
 }
@@ -70,6 +72,79 @@ func Catalog() []Entry {
 		{Kind: IAMTemplatePermissionUpdate, Type: TypeChange, Metadata: TemplatePermissionMetadata{}},
 		{Kind: IAMTemplatePermissionDelete, Type: TypeDeletion, Metadata: TemplatePermissionMetadata{}},
 
+		{Kind: ResourceProjectCreate, Type: TypeCreation, Metadata: ProjectCreateMetadata{}, Partial: []Reason{ReasonSetupFailed}},
+		{Kind: ResourceProjectUpdate, Type: TypeChange},
+		{Kind: ResourceProjectDelete, Type: TypeDeletion},
+		{Kind: ResourceProjectBackupExport, Type: TypeAccess},
+		{Kind: ResourceProjectBackupRestore, Type: TypeCreation, Metadata: BackupRestoreMetadata{}, Partial: []Reason{ReasonRestoreFailed}},
+		{Kind: ResourceInventoryCreate, Type: TypeCreation},
+		{Kind: ResourceInventoryUpdate, Type: TypeChange},
+		{Kind: ResourceInventoryDelete, Type: TypeDeletion},
+		{Kind: ResourceRepositoryCreate, Type: TypeCreation},
+		{Kind: ResourceRepositoryUpdate, Type: TypeChange},
+		{Kind: ResourceRepositoryDelete, Type: TypeDeletion},
+		{Kind: ResourceTemplateCreate, Type: TypeCreation, Metadata: TemplateMetadata{}, Partial: []Reason{ReasonInventoryFailed}},
+		{Kind: ResourceTemplateUpdate, Type: TypeChange, Metadata: TemplateMetadata{}},
+		{Kind: ResourceTemplateDelete, Type: TypeDeletion},
+		{Kind: ResourceTemplateAttachInventory, Type: TypeChange, Metadata: TemplateInventoryMetadata{}},
+		{Kind: ResourceTemplateDetachInventory, Type: TypeChange, Metadata: TemplateInventoryMetadata{}},
+		{Kind: ResourceTemplateSetDefaultInventory, Type: TypeChange, Metadata: TemplateInventoryMetadata{}},
+		{Kind: ResourceScheduleCreate, Type: TypeCreation, Metadata: ScheduleMetadata{}},
+		{Kind: ResourceScheduleUpdate, Type: TypeChange, Metadata: ScheduleMetadata{}},
+		{Kind: ResourceScheduleDelete, Type: TypeDeletion},
+		{Kind: ResourceScheduleActivate, Type: TypeChange, Metadata: ScheduleMetadata{}},
+		{Kind: ResourceScheduleDeactivate, Type: TypeChange, Metadata: ScheduleMetadata{}},
+		{Kind: ResourceIntegrationCreate, Type: TypeCreation, Metadata: IntegrationMetadata{}},
+		{Kind: ResourceIntegrationUpdate, Type: TypeChange, Metadata: IntegrationMetadata{}},
+		{Kind: ResourceIntegrationDelete, Type: TypeDeletion},
+		{Kind: ResourceIntegrationMatcherCreate, Type: TypeCreation, Metadata: IntegrationPartMetadata{}},
+		{Kind: ResourceIntegrationMatcherUpdate, Type: TypeChange, Metadata: IntegrationPartMetadata{}},
+		{Kind: ResourceIntegrationMatcherDelete, Type: TypeDeletion, Metadata: IntegrationPartMetadata{}},
+		{Kind: ResourceIntegrationExtractorCreate, Type: TypeCreation, Metadata: IntegrationPartMetadata{}},
+		{Kind: ResourceIntegrationExtractorUpdate, Type: TypeChange, Metadata: IntegrationPartMetadata{}},
+		{Kind: ResourceIntegrationExtractorDelete, Type: TypeDeletion, Metadata: IntegrationPartMetadata{}},
+		{Kind: ResourceIntegrationAliasCreate, Type: TypeCreation, Metadata: IntegrationPartMetadata{}},
+		{Kind: ResourceIntegrationAliasDelete, Type: TypeDeletion, Metadata: IntegrationPartMetadata{}},
+		{Kind: ResourceHostConfigCreate, Type: TypeCreation, Metadata: HostConfigMetadata{}},
+		{Kind: ResourceHostConfigUpdate, Type: TypeChange, Metadata: HostConfigMetadata{}},
+		{Kind: ResourceHostConfigDelete, Type: TypeDeletion},
+		{Kind: ResourceWorkflowCreate, Type: TypeCreation, Pro: true},
+		{Kind: ResourceWorkflowUpdate, Type: TypeChange, Pro: true},
+		{Kind: ResourceWorkflowDelete, Type: TypeDeletion, Pro: true},
+		{Kind: ResourceEnvironmentCreate, Type: TypeCreation, Metadata: EnvironmentMetadata{}, Partial: []Reason{ReasonSecretFailed}},
+		{Kind: ResourceEnvironmentUpdate, Type: TypeChange, Metadata: EnvironmentMetadata{}, Partial: []Reason{ReasonSecretFailed}},
+		{Kind: ResourceEnvironmentDelete, Type: TypeDeletion, Metadata: DeleteMetadata{}, Partial: []Reason{ReasonSecretFailed}},
+		{Kind: ResourceEnvironmentSync, Type: TypeChange, Pro: true},
+
+		{Kind: SecretCredentialCreate, Type: TypeCreation, Metadata: CredentialMetadata{}},
+		{Kind: SecretCredentialUpdate, Type: TypeChange, Metadata: CredentialMetadata{}},
+		{Kind: SecretCredentialDelete, Type: TypeDeletion},
+		{Kind: SecretStorageCreate, Type: TypeCreation, Metadata: SecretStorageMetadata{}},
+		{Kind: SecretStorageUpdate, Type: TypeChange, Metadata: SecretStorageMetadata{}},
+		{Kind: SecretStorageDelete, Type: TypeDeletion, Metadata: DeleteMetadata{}},
+		{Kind: SecretStorageSync, Type: TypeChange, Pro: true},
+
+		{Kind: TaskExecutionCreate, Type: TypeCreation, Metadata: TaskCreateMetadata{}},
+		{Kind: TaskExecutionComplete, Type: TypeEnd, Metadata: TaskCompleteMetadata{}},
+		{Kind: TaskApprovalRequest, Type: TypeInfo, Metadata: TaskMetadata{}},
+		{Kind: TaskApprovalApprove, Type: TypeChange, Metadata: TaskMetadata{}},
+		{Kind: TaskApprovalReject, Type: TypeChange, Metadata: TaskMetadata{}},
+		{Kind: TaskControlStop, Type: TypeChange, Metadata: TaskMetadata{}},
+		{Kind: TaskControlForceStop, Type: TypeChange, Metadata: TaskMetadata{}},
+		{Kind: TaskControlStopAll, Type: TypeChange},
+		{Kind: TaskHistoryDelete, Type: TypeDeletion, Metadata: TaskMetadata{}},
+
+		{Kind: RunnerLifecycleCreate, Type: TypeCreation},
+		{Kind: RunnerLifecycleUpdate, Type: TypeChange},
+		{Kind: RunnerLifecycleDelete, Type: TypeDeletion},
+		{Kind: RunnerLifecycleEnable, Type: TypeChange},
+		{Kind: RunnerLifecycleDisable, Type: TypeChange},
+		{Kind: RunnerLifecycleRegister, Type: TypeCreation, Metadata: RunnerRegisterMetadata{}, Reasons: []Reason{ReasonInvalidRegistrationToken}},
+		{Kind: RunnerLifecycleUnregister, Type: TypeDeletion},
+		{Kind: RunnerCredentialRotate, Type: TypeChange},
+		{Kind: RunnerCacheClear, Type: TypeDeletion},
+		{Kind: RunnerProgressReject, Type: TypeDenied, Reasons: []Reason{ReasonInvalidStatus}},
+
 		{Kind: SystemSettingsUpdate, Type: TypeChange, Metadata: SettingsMetadata{}},
 		{Kind: SystemLicenseActivate, Type: TypeChange, Reasons: []Reason{ReasonActivationFailed}, Pro: true},
 
@@ -102,7 +177,7 @@ func Validate(event Event) error {
 		if entry.Type == TypeDenied {
 			return fmt.Errorf("%s is always a failure", event.Kind)
 		}
-		if event.Reason != ReasonNone {
+		if event.Reason != ReasonNone && !slices.Contains(entry.Partial, event.Reason) {
 			return fmt.Errorf("%s success cannot have reason %q", event.Kind, event.Reason)
 		}
 	case OutcomeFailure:
