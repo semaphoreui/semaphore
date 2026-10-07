@@ -68,6 +68,10 @@ func UserTarget(id int, name string) *Target {
 	return &Target{Type: TargetUser, ID: strconv.Itoa(id), Name: name}
 }
 
+func ResourceTarget(targetType string, id int, name string) *Target {
+	return &Target{Type: targetType, ID: strconv.Itoa(id), Name: name}
+}
+
 // PostgreSQL rejects NUL, so control characters are dropped.
 func TruncateName(s string, max int) string {
 	s = strings.ToValidUTF8(s, "�")

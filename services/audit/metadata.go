@@ -75,3 +75,87 @@ func PermissionNames(p db.ProjectUserPermission) []string {
 	}
 	return names
 }
+
+type ProjectCreateMetadata struct {
+	Demo    bool `json:"demo"`
+	Partial bool `json:"partial,omitempty"`
+}
+
+type BackupRestoreMetadata struct {
+	// Object counts per backup section, never the objects.
+	Objects map[string]int `json:"objects"`
+	Partial bool           `json:"partial,omitempty"`
+}
+
+type TemplateMetadata struct {
+	App                string `json:"app"`
+	CreatedInventoryID int    `json:"created_inventory_id,omitempty"`
+	Partial            bool   `json:"partial,omitempty"`
+}
+
+type TemplateInventoryMetadata struct {
+	InventoryID int `json:"inventory_id"`
+}
+
+type ScheduleMetadata struct {
+	TemplateID int `json:"template_id"`
+}
+
+type IntegrationMetadata struct {
+	TemplateID int    `json:"template_id"`
+	AuthMethod string `json:"auth_method"`
+}
+
+type IntegrationPartMetadata struct {
+	IntegrationID int `json:"integration_id,omitempty"`
+}
+
+type HostConfigMetadata struct {
+	Type string `json:"type"`
+}
+
+type EnvironmentMetadata struct {
+	SecretsCreated int  `json:"secrets_created"`
+	SecretsUpdated int  `json:"secrets_updated"`
+	SecretsDeleted int  `json:"secrets_deleted"`
+	Partial        bool `json:"partial,omitempty"`
+}
+
+// DeleteMetadata marks a delete whose row is gone but whose secrets were not all removed.
+type DeleteMetadata struct {
+	Partial bool `json:"partial,omitempty"`
+}
+
+type CredentialMetadata struct {
+	Type string `json:"type"`
+}
+
+type SecretStorageMetadata struct {
+	Type string `json:"type"`
+}
+
+type TaskCreateMetadata struct {
+	Trigger       string `json:"trigger"`
+	TemplateID    int    `json:"template_id"`
+	ScheduleID    int    `json:"schedule_id,omitempty"`
+	IntegrationID int    `json:"integration_id,omitempty"`
+	ParentTaskID  int    `json:"parent_task_id,omitempty"`
+	WorkflowRunID int    `json:"workflow_run_id,omitempty"`
+}
+
+type TaskCompleteMetadata struct {
+	// The final task status, for example success, error, stopped or stopping.
+	Result      string `json:"result"`
+	EndReason   string `json:"end_reason,omitempty"`
+	TemplateID  int    `json:"template_id"`
+	InitiatorID int    `json:"initiator_id,omitempty"`
+	DurationMS  int64  `json:"duration_ms"`
+}
+
+type TaskMetadata struct {
+	TemplateID int `json:"template_id"`
+}
+
+type RunnerRegisterMetadata struct {
+	Token string `json:"token"`
+}

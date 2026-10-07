@@ -574,3 +574,42 @@ func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
 		assert.Equal(t, "github.com", hostConfigs[0].Name)
 	})
 }
+
+// Old backups may carry bits the application never checks: restore keeps the roles and drops the bits.
+func TestRestore_DropsUnknownPermissionBits(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+
+	payload := `{
+  "keys": [{"name": "noop", "owner": "", "type": "none"}],
+  "meta": {"name": "Restored Roles", "type": ""},
+  "repositories": [{"git_branch": "master", "git_url": "git@example.com:test/test.git", "name": "Repo", "ssh_key": "noop"}],
+  "roles": [{"name": "ops", "permissions": 1048577}],
+  "templates": [{
+    "app": "", "name": "Tpl", "playbook": "test.yml", "repository": "Repo", "type": "",
+    "roles": [{"role": "ops", "is_global": false, "permissions": 1048580}],
+    "vaults": [], "view": null, "environments": []
+  }]
+}`
+	backup := &BackupFormat{}
+	require.NoError(t, backup.Unmarshal(payload))
+	require.NoError(t, backup.Verify())
+
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "roles", Name: "roles", Email: "roles@example.com", Admin: true}})
+	require.NoError(t, err)
+	project, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	roles, err := store.GetProjectRoles(project.ID)
+	require.NoError(t, err)
+	require.Len(t, roles, 1)
+	assert.Equal(t, db.CanRunProjectTasks, roles[0].Permissions)
+
+	templates, err := store.GetTemplates(project.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, templates, 1)
+	perms, err := store.GetTemplateRoles(project.ID, templates[0].ID)
+	require.NoError(t, err)
+	require.Len(t, perms, 1)
+	assert.Equal(t, db.CanManageProjectResources, perms[0].Permissions)
+}

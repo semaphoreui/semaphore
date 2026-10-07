@@ -38,6 +38,7 @@ var templateID int
 var integrationID int
 var integrationExtractValueID int
 var integrationMatchID int
+var integrationAliasID int
 var workflowID int
 var workflowRunID int
 var workflowNodeID int
@@ -56,6 +57,8 @@ var capabilities = map[string][]string{
 	"integration":             {"project", "template"},
 	"integrationextractvalue": {"integration"},
 	"integrationmatcher":      {"integration"},
+	"project_alias":           {"integration"},
+	"integration_alias":       {"integration"},
 	"invite":                  {"user", "project"},
 	"runner":                  {"project"},
 	"global_runner":           {},
@@ -198,6 +201,10 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "integrationmatcher":
 			integrationmatch = addIntegrationMatcher()
 			integrationMatchID = integrationmatch.ID
+		case "project_alias":
+			integrationAliasID = addIntegrationAlias(nil).ID
+		case "integration_alias":
+			integrationAliasID = addIntegrationAlias(&integration.ID).ID
 		case "runner":
 			runner = addRunner()
 		case "global_runner":
@@ -240,11 +247,8 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(integration.ID) },
 	func() string { return strconv.Itoa(integrationextractvalue.ID) },
 	func() string { return strconv.Itoa(integrationmatch.ID) },
-	func() string { return strconv.Itoa(invite.ID) }, // invite_id, x-example: 14
-	// alias_id, x-example: 15 — integration aliases are not set up by these
-	// hooks, so leave the path segment untouched (kept here only to preserve
-	// the positional mapping of the entries that follow).
-	func() string { return strconv.Itoa(15) },
+	func() string { return strconv.Itoa(invite.ID) },          // invite_id, x-example: 14
+	func() string { return strconv.Itoa(integrationAliasID) }, // alias_id, x-example: 15
 	func() string {
 		if runner == nil {
 			return "0"

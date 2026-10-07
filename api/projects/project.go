@@ -154,6 +154,12 @@ func (c *ProjectController) UpdateProject(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceProjectUpdate,
+		Target:    audit.ResourceTarget(audit.TargetProject, project.ID, body.Name),
+		ProjectID: project.ID,
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -167,6 +173,12 @@ func (c *ProjectController) DeleteProject(w http.ResponseWriter, r *http.Request
 		helpers.WriteError(w, err)
 		return
 	}
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceProjectDelete,
+		Target:    audit.ResourceTarget(audit.TargetProject, project.ID, project.Name),
+		ProjectID: project.ID,
+	})
 
 	err = util.Config.ClearProjectTmpDir(project.ID)
 	if err != nil {

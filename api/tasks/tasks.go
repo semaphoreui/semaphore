@@ -7,6 +7,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 	task2 "github.com/semaphoreui/semaphore/services/tasks"
 )
 
@@ -95,10 +96,19 @@ func DeleteTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if task != nil {
-		err := pool.StopTask(*task, false)
+		changed, err := pool.StopTask(*task, false)
 		if err != nil {
 			helpers.WriteErrorStatus(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+		if changed {
+			// This admin endpoint stops the task, it does not delete it.
+			helpers.Audit(r).Record(r.Context(), audit.Event{
+				Kind:      audit.TaskControlStop,
+				Target:    audit.ResourceTarget(audit.TargetTask, task.ID, ""),
+				ProjectID: task.ProjectID,
+				Metadata:  audit.TaskMetadata{TemplateID: task.TemplateID},
+			})
 		}
 	}
 
