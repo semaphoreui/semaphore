@@ -33,8 +33,17 @@ type AuditEvent struct {
 	Metadata              string    `db:"metadata"`
 }
 
+// AuditEventPage is a page of the whole audit log, newest first; Older and Newer are seq cursors, 0 means none.
+type AuditEventPage struct {
+	Events []AuditEvent
+	Older  int64
+	Newer  int64
+}
+
 type AuditEventManager interface {
 	CreateAuditEvent(ctx context.Context, event AuditEvent) (AuditEvent, error)
 	// DeleteAuditEventsOlderThan deletes events older than days by the database clock, oldest first, batch rows per statement.
 	DeleteAuditEventsOlderThan(ctx context.Context, days int, batch int) (deleted int64, lastSeq int64, err error)
+	// ListAuditEvents pages by seq: before or after is a cursor, 0 means unset.
+	ListAuditEvents(ctx context.Context, before, after int64, limit int) (AuditEventPage, error)
 }

@@ -21,6 +21,10 @@ type retentionStore struct {
 	err     error
 }
 
+func (s *retentionStore) ListAuditEvents(context.Context, int64, int64, int) (db.AuditEventPage, error) {
+	return db.AuditEventPage{}, nil
+}
+
 func (s *retentionStore) CreateAuditEvent(_ context.Context, row db.AuditEvent) (db.AuditEvent, error) {
 	return row, nil
 }

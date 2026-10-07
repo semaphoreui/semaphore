@@ -117,6 +117,7 @@ func Route(
 	globalRunnerController := NewGlobalRunnerController(runnerService)
 	taskController := projects.NewTaskController(store, ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
+	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
 
@@ -219,6 +220,11 @@ func Route(
 	tokenAPI.Path("/options").HandlerFunc(getUserOptions).Methods("GET", "HEAD")
 	tokenAPI.Path("/options").HandlerFunc(setUserOption).Methods("POST")
 	tokenAPI.Path("/identities/ldap").HandlerFunc(linkLdapIdentity).Methods("POST")
+
+	auditAPI := authenticatedAPI.PathPrefix("/audit").Subrouter()
+	auditAPI.Use(auditLogMiddleware)
+	auditAPI.Path("/events").HandlerFunc(getAuditEvents(auditController.GetEvents)).Methods("GET", "HEAD")
+	auditAPI.Path("/events/export").HandlerFunc(auditController.ExportEvents).Methods("GET", "HEAD")
 
 	adminAPI := authenticatedAPI.NewRoute().Subrouter()
 	adminAPI.Use(adminMiddleware)

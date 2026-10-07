@@ -61,6 +61,7 @@ const (
 
 	AuditLifecycleStart  Kind = "audit.lifecycle/start"
 	AuditRetentionDelete Kind = "audit.retention/delete"
+	AuditLogExport       Kind = "audit.log/export"
 
 	ResourceProjectCreate               Kind = "resource.project/create"
 	ResourceProjectUpdate               Kind = "resource.project/update"
