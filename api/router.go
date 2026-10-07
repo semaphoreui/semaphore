@@ -223,8 +223,8 @@ func Route(
 
 	auditAPI := authenticatedAPI.PathPrefix("/audit").Subrouter()
 	auditAPI.Use(auditLogMiddleware)
-	auditAPI.Path("/events").HandlerFunc(getAuditEvents(auditController.GetEvents)).Methods("GET", "HEAD")
-	auditAPI.Path("/events/export").HandlerFunc(auditController.ExportEvents).Methods("GET", "HEAD")
+	auditAPI.Path("/events").HandlerFunc(getAuditEvents(auditController.GetEvents)).Methods("GET")
+	auditAPI.Path("/events/export").HandlerFunc(auditController.ExportEvents).Methods("GET")
 
 	adminAPI := authenticatedAPI.NewRoute().Subrouter()
 	adminAPI.Use(adminMiddleware)

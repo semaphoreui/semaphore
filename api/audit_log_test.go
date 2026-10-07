@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/db/sql"
 	proApi "github.com/semaphoreui/semaphore/pro/api"
 	"github.com/semaphoreui/semaphore/services/audit"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -103,4 +104,19 @@ func TestAuditStub_RefusesFiltersAndExport(t *testing.T) {
 	w = httptest.NewRecorder()
 	controller.ExportEvents(w, httptest.NewRequest(http.MethodGet, "/api/audit/events/export?format=csv", nil))
 	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestAuditRoutes_AreGetOnly(t *testing.T) {
+	prev := util.Config
+	t.Cleanup(func() { util.Config = prev })
+	util.Config = &util.ConfigType{Debugging: &util.DebuggingConfig{}}
+	router := Route(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	for _, target := range []string{"/api/audit/events", "/api/audit/events/export?format=csv"} {
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest(http.MethodHead, target, nil))
+		assert.Equal(t, http.StatusNotFound, w.Code, target)
+		w = httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, target, nil))
+		assert.Equal(t, http.StatusUnauthorized, w.Code, target)
+	}
 }
