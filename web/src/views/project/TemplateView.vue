@@ -150,7 +150,7 @@
         class="TemplateView__description-content"
         :source="item.description"
         collapsible
-        :max-height="220"
+        :max-lines="3"
       />
       <span
         v-else
