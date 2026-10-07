@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/url"
 	"os"
 	"os/exec"
@@ -19,6 +20,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -149,6 +151,10 @@ type RunnerConfig struct {
 	Tags             []string `json:"tags,omitempty" env:"SEMAPHORE_RUNNER_TAGS"`
 	MaxParallelTasks int      `json:"max_parallel_tasks,omitempty" default:"9999" env:"SEMAPHORE_RUNNER_MAX_PARALLEL_TASKS"`
 	ProjectID        *int     `json:"project_id,omitempty" env:"SEMAPHORE_RUNNER_PROJECT_ID"`
+
+	// CheckIntervalSeconds is how often the runner polls the server for new jobs.
+	// Plain int, not time.Duration, for env-binding simplicity.
+	CheckIntervalSeconds int `json:"check_interval_seconds,omitempty" default:"1" env:"SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS"`
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
 }
@@ -475,6 +481,25 @@ func ClearDir(dir string, preserveFiles bool, prefix string) error {
 	}
 
 	return nil
+}
+
+// Default poll interval for a runner asking the server for work.
+const defaultRunnerCheckIntervalSec = 1
+
+// Larger overflows time.Duration and panics time.NewTicker. Kept as int64: the
+// value exceeds int on 32-bit release targets (386, arm).
+const maxRunnerCheckIntervalSec int64 = int64(math.MaxInt64) / int64(time.Second)
+
+// RunnerCheckInterval returns how often this runner polls the server for new
+// jobs. Out-of-range values fall back to the default: 0 is indistinguishable
+// from "unset" after defaults are applied, and oversized values overflow.
+func (conf *ConfigType) RunnerCheckInterval() time.Duration {
+	sec := int64(defaultRunnerCheckIntervalSec)
+	if configured := int64(conf.Runner.CheckIntervalSeconds); configured > 0 &&
+		configured <= maxRunnerCheckIntervalSec {
+		sec = configured
+	}
+	return time.Duration(sec) * time.Second
 }
 
 func (conf *ConfigType) ClearTmpDir() error {
