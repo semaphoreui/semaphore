@@ -7,18 +7,18 @@ import DOMPurify from 'dompurify';
  */
 const ALLOWED_URI_REGEXP = /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
 
+// Allowlist: text formatting and links only. Nothing that loads external
+// resources (img, media, embeds, CSS) or restyles the app UI (style, class).
 const PURIFY_CONFIG = {
-  USE_PROFILES: { html: true },
+  ALLOWED_TAGS: [
+    'a', 'p', 'br', 'hr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'strong', 'b', 'em', 'i', 'del', 's', 'sub', 'sup', 'kbd', 'code', 'pre',
+    'blockquote', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+    'details', 'summary',
+  ],
+  ALLOWED_ATTR: ['href', 'title', 'align', 'start', 'colspan', 'rowspan', 'open'],
   ALLOWED_URI_REGEXP,
   ALLOW_DATA_ATTR: false,
-  // Elements that can change page behaviour or escape the description box.
-  FORBID_TAGS: [
-    'style', 'form', 'input', 'button', 'textarea', 'select', 'option',
-    'iframe', 'frame', 'frameset', 'object', 'embed', 'audio', 'video', 'source',
-    'track', 'dialog', 'template', 'base', 'link', 'meta',
-  ],
-  // `style`/`class` would let the description overlay or restyle the app UI.
-  FORBID_ATTR: ['style', 'class', 'target', 'srcset', 'formaction'],
   SANITIZE_NAMED_PROPS: true,
 };
 
@@ -27,11 +27,14 @@ function hardenLinks(node) {
     node.setAttribute('target', '_blank');
     node.setAttribute('rel', 'noopener noreferrer nofollow');
   }
-  if (node.tagName === 'IMG') {
-    node.setAttribute('referrerpolicy', 'no-referrer');
-    node.setAttribute('loading', 'lazy');
-  }
 }
+
+// Markdown images become plain links, so viewing a description never fetches a remote URL.
+const renderer = {
+  image(token) {
+    return this.link(token.text ? token : { ...token, text: token.href, autolink: true });
+  },
+};
 
 /**
  * Renders GitHub-flavoured Markdown to sanitized HTML that is safe for v-html.
@@ -48,7 +51,9 @@ export default function renderMarkdown(source, win) {
     return '';
   }
 
-  const marked = new Marked({ gfm: true, breaks: true, async: false });
+  const marked = new Marked({
+    gfm: true, breaks: true, async: false, renderer,
+  });
   const html = marked.parse(String(source));
 
   const purify = DOMPurify(win || window);
