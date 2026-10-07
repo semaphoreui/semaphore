@@ -93,7 +93,7 @@ describe('TemplateForm playbook directory drill-down', () => {
     expect(vm.loaded).to.equal(2);
   });
 
-  ['tofu', 'terragrunt'].forEach((app) => {
+  ['tofu', 'terragrunt', 'pulumi'].forEach((app) => {
     it(`applies to ${app}`, () => {
       const vm = mountFor(app);
 

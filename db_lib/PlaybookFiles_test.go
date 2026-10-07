@@ -239,6 +239,17 @@ func TestFindRepositoryFiles(t *testing.T) {
 			expected: nil,
 		},
 		{
+			// Half-typed input can name a file as easily as a directory.
+			name: "a path naming a file yields nothing",
+			app:  db.AppTerraform,
+			dir:  "main.tf/",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "main.tf")
+				writeFile(t, root, "prod/main.tf")
+			},
+			expected: nil,
+		},
+		{
 			name: "dir is ignored by the apps which list files",
 			app:  db.AppBash,
 			dir:  "scripts/",
@@ -278,6 +289,23 @@ func TestFindRepositoryFiles_Limit(t *testing.T) {
 		assert.Len(t, result, maxRepositoryFiles)
 	})
 
+	// More entries than one ReadDir batch, created in reverse so directory order
+	// is not alphabetical: the cap must still keep the first names.
+	t.Run("directories past a single read batch", func(t *testing.T) {
+		root := t.TempDir()
+		for i := readDirBatch + 50; i >= 0; i-- {
+			writeFile(t, root, fmt.Sprintf("env-%03d/main.tf", i))
+		}
+
+		result, err := FindRepositoryFiles(root, db.AppTerraform, "")
+
+		require.NoError(t, err)
+		assert.Len(t, result, maxRepositoryFiles)
+		assert.Equal(t, ".", result[0])
+		assert.Equal(t, "env-000", result[1])
+		assert.Equal(t, "env-028", result[len(result)-1])
+	})
+
 	t.Run("directories", func(t *testing.T) {
 		root := t.TempDir()
 		for i := 0; i < maxRepositoryFiles+10; i++ {
@@ -288,6 +316,9 @@ func TestFindRepositoryFiles_Limit(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Len(t, result, maxRepositoryFiles)
+		// Which entries survive the cap must not depend on directory order.
+		assert.Equal(t, ".", result[0])
+		assert.Equal(t, "env-028", result[len(result)-1])
 	})
 }
 

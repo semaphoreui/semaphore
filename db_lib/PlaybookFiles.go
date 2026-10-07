@@ -1,6 +1,8 @@
 package db_lib
 
 import (
+	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -84,41 +86,74 @@ func findDirs(rootDir string, dir string) ([]string, error) {
 	}
 	defer f.Close() //nolint:errcheck
 
-	entries, err := f.ReadDir(-1)
+	// A path naming a file is half-typed input like any other, not an error.
+	info, err := f.Stat()
 	if err != nil {
 		return nil, err
 	}
-
-	prefix := filepath.ToSlash(rel)
-	if prefix != "" && prefix != "." {
-		prefix += "/"
-	} else {
-		prefix = ""
+	if !info.IsDir() {
+		return nil, nil
 	}
 
-	// The repository root is a valid entry point - a project with main.tf beside
-	// its README has no subdirectory to offer otherwise.
+	// The directory being listed is itself a valid entry point - a project with
+	// main.tf beside its README has no subdirectory to offer otherwise.
+	prefix := ""
+	if rel != "." {
+		prefix = filepath.ToSlash(rel) + "/"
+	}
+
 	result := []string{"."}
 	if prefix != "" {
 		result = []string{strings.TrimSuffix(prefix, "/")}
 	}
 
-	for _, entry := range entries {
-		if len(result) >= maxRepositoryFiles {
-			break
+	// Read in batches and keep only the entries which make the cut, so a
+	// directory of any size costs the same. They are kept in order because
+	// File.ReadDir returns directory order, which would otherwise make the
+	// result an arbitrary subset of a large directory.
+	for {
+		entries, err := f.ReadDir(readDirBatch)
+
+		for _, entry := range entries {
+			// Dot directories are tooling state - .git, .terraform - never a root.
+			if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+				continue
+			}
+
+			result = insertCapped(result, prefix+entry.Name())
 		}
 
-		// Dot directories are tooling state - .git, .terraform - never a root.
-		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
-			continue
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
 		}
-
-		result = append(result, prefix+entry.Name())
 	}
 
-	sort.Strings(result)
-
 	return result, nil
+}
+
+// readDirBatch is how many directory entries are read at a time.
+const readDirBatch = 256
+
+// insertCapped puts name into the sorted result and drops whatever falls past
+// maxRepositoryFiles, so the slice never outgrows the limit.
+func insertCapped(result []string, name string) []string {
+	at := sort.SearchStrings(result, name)
+	if at >= maxRepositoryFiles {
+		return result
+	}
+
+	result = append(result, "")
+	copy(result[at+1:], result[at:])
+	result[at] = name
+
+	if len(result) > maxRepositoryFiles {
+		result = result[:maxRepositoryFiles]
+	}
+
+	return result
 }
 
 func findFiles(rootDir string, app db.TemplateApp, extensions []string) ([]string, error) {
