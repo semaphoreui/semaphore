@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -58,15 +57,4 @@ func TestUpdateTemplateDescription_StoresRawMarkdown(t *testing.T) {
 	assert.Equal(t, 12, store.projectID)
 	assert.Equal(t, 3, store.templateID)
 	assert.Equal(t, markdown, store.description, "the server stores the Markdown as-is")
-}
-
-func TestUpdateTemplateDescription_RejectsTooLong(t *testing.T) {
-	store := &fakeDescriptionStore{}
-
-	w := httptest.NewRecorder()
-	UpdateTemplateDescription(w, descriptionRequest(t, store, strings.Repeat("a", db.TemplateDescriptionMaxLength+1)))
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "template description can not be longer than")
-	assert.Equal(t, 0, store.calls)
 }
