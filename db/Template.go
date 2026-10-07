@@ -406,6 +406,20 @@ func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
 	return
 }
 
+// TemplateDescriptionMaxLength is the maximum size, in bytes, of a template
+// description. Descriptions are stored as raw Markdown and rendered (and
+// sanitized) only by the web UI.
+const TemplateDescriptionMaxLength = 64 * 1024
+
+// ValidateTemplateDescription checks the size of a template description.
+func ValidateTemplateDescription(description string) error {
+	if len(description) > TemplateDescriptionMaxLength {
+		return common_errors.NewValidationError(fmt.Sprintf(
+			"template description can not be longer than %d bytes", TemplateDescriptionMaxLength))
+	}
+	return nil
+}
+
 func (tpl *Template) Validate() error {
 	if tpl.RunnerTag != nil && *tpl.RunnerTag == "" {
 		return common_errors.NewValidationError("template runner tag can not be empty")
@@ -438,6 +452,12 @@ func (tpl *Template) Validate() error {
 
 	if tpl.Name == "" {
 		return common_errors.NewValidationError("template name can not be empty")
+	}
+
+	if tpl.Description != nil {
+		if err := ValidateTemplateDescription(*tpl.Description); err != nil {
+			return err
+		}
 	}
 
 	if !tpl.App.IsTerraform() && tpl.Playbook == "" {

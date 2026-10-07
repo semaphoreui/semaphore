@@ -1010,6 +1010,9 @@ definitions:
       description:
         type: string
         example: Hello, World!
+        description: >-
+          Template description in GitHub-flavoured Markdown, at most 65536 bytes.
+          It is stored as-is; the web UI renders it with HTML sanitization.
       allow_override_args_in_task:
         type: boolean
         example: false
@@ -1084,6 +1087,9 @@ definitions:
       description:
         type: string
         example: Hello, World!
+        description: >-
+          Template description in GitHub-flavoured Markdown, at most 65536 bytes.
+          It is stored as-is; the web UI renders it with HTML sanitization.
       allow_override_args_in_task:
         type: boolean
         example: false
@@ -3282,6 +3288,34 @@ paths:
       responses:
         204:
           description: tasks stopped
+
+  /project/{project_id}/templates/{template_id}/description:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    put:
+      tags:
+        - template
+      summary: Updates template description
+      description: >-
+        Replaces only the description of the template. The description is
+        GitHub-flavoured Markdown (at most 65536 bytes); it is stored as-is and
+        never rendered to HTML by the server.
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              description:
+                type: string
+                example: "## Deploy\n\nRuns the **production** deploy."
+      responses:
+        204:
+          description: template description updated
+        400:
+          description: invalid request or description too long
 
   /project/{project_id}/templates/{template_id}:
     parameters:
