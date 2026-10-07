@@ -61,14 +61,31 @@ func FindRepositoryFiles(rootDir string, app db.TemplateApp, dir string) ([]stri
 // is what the user has typed so far and is routinely half a name.
 func findDirs(rootDir string, dir string) ([]string, error) {
 	// Anchoring to "/" before cleaning resolves away any ".." the request
-	// carries, so the join can not escape the repository.
+	// carries. os.Root then confines the listing to the repository, which Clean
+	// alone does not: a directory symlink in the checkout would otherwise be
+	// followed out of it.
 	rel := strings.TrimPrefix(filepath.Clean("/"+filepath.FromSlash(dir)), string(filepath.Separator))
+	if rel == "" {
+		rel = "."
+	}
 
-	entries, err := os.ReadDir(filepath.Join(rootDir, rel))
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close() //nolint:errcheck
+
+	f, err := root.Open(rel)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
+		return nil, err
+	}
+	defer f.Close() //nolint:errcheck
+
+	entries, err := f.ReadDir(-1)
+	if err != nil {
 		return nil, err
 	}
 
@@ -79,7 +96,12 @@ func findDirs(rootDir string, dir string) ([]string, error) {
 		prefix = ""
 	}
 
-	var result []string
+	// The repository root is a valid entry point - a project with main.tf beside
+	// its README has no subdirectory to offer otherwise.
+	result := []string{"."}
+	if prefix != "" {
+		result = []string{strings.TrimSuffix(prefix, "/")}
+	}
 
 	for _, entry := range entries {
 		if len(result) >= maxRepositoryFiles {
@@ -118,7 +140,10 @@ func findFiles(rootDir string, app db.TemplateApp, extensions []string) ([]strin
 				return nil
 			}
 
-			if d.Name() == ".git" || (skipAnsibleDirs && ansibleLayoutDirs[d.Name()]) {
+			// Dot directories are tooling state - .git, .venv, .tox - and can
+			// hold enough matching files to fill the cap on their own.
+			if strings.HasPrefix(d.Name(), ".") ||
+				(skipAnsibleDirs && ansibleLayoutDirs[d.Name()]) {
 				return filepath.SkipDir
 			}
 

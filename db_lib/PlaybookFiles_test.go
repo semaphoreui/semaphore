@@ -147,7 +147,7 @@ func TestFindRepositoryFiles(t *testing.T) {
 				writeFile(t, root, ".terraform/plugin.json")
 				writeFile(t, root, ".git/config")
 			},
-			expected: []string{"prod", "staging"},
+			expected: []string{".", "prod", "staging"},
 		},
 		{
 			name: "opentofu lists directories",
@@ -156,7 +156,7 @@ func TestFindRepositoryFiles(t *testing.T) {
 				writeFile(t, root, "envs/dev/main.tf")
 				writeFile(t, root, "main.tf")
 			},
-			expected: []string{"envs"},
+			expected: []string{".", "envs"},
 		},
 		{
 			name: "terragrunt lists directories",
@@ -164,7 +164,7 @@ func TestFindRepositoryFiles(t *testing.T) {
 			setup: func(t *testing.T, root string) {
 				writeFile(t, root, "live/terragrunt.hcl")
 			},
-			expected: []string{"live"},
+			expected: []string{".", "live"},
 		},
 		{
 			name: "pulumi lists directories",
@@ -172,15 +172,16 @@ func TestFindRepositoryFiles(t *testing.T) {
 			setup: func(t *testing.T, root string) {
 				writeFile(t, root, "infra/index.ts")
 			},
-			expected: []string{"infra"},
+			expected: []string{".", "infra"},
 		},
 		{
-			name: "a repository of only files offers no directory",
+			// A project with main.tf in the root still has somewhere to point.
+			name: "a repository of only files offers its root",
 			app:  db.AppTerraform,
 			setup: func(t *testing.T, root string) {
 				writeFile(t, root, "main.tf")
 			},
-			expected: nil,
+			expected: []string{"."},
 		},
 		{
 			// Typing the separator asks for what is inside that directory.
@@ -194,7 +195,7 @@ func TestFindRepositoryFiles(t *testing.T) {
 				writeFile(t, root, "prod/eu/modules/vpc/main.tf")
 				writeFile(t, root, "staging/main.tf")
 			},
-			expected: []string{"prod/eu", "prod/us"},
+			expected: []string{"prod", "prod/eu", "prod/us"},
 		},
 		{
 			name: "a trailing separator is not required",
@@ -203,7 +204,7 @@ func TestFindRepositoryFiles(t *testing.T) {
 			setup: func(t *testing.T, root string) {
 				writeFile(t, root, "prod/eu/main.tf")
 			},
-			expected: []string{"prod/eu"},
+			expected: []string{"prod", "prod/eu"},
 		},
 		{
 			// Half a name while typing must not be an error.
@@ -224,7 +225,7 @@ func TestFindRepositoryFiles(t *testing.T) {
 			setup: func(t *testing.T, root string) {
 				writeFile(t, root, "prod/main.tf")
 			},
-			expected: []string{"prod"},
+			expected: []string{".", "prod"},
 		},
 		{
 			// The absolute path of a real directory outside the repository is
@@ -288,4 +289,46 @@ func TestFindRepositoryFiles_Limit(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, result, maxRepositoryFiles)
 	})
+}
+
+// A checkout can contain a directory symlink pointing out of it. Cleaning the
+// requested path resolves "..", but following such a link would still list a
+// directory outside the repository.
+func TestFindRepositoryFiles_SymlinkDoesNotEscape(t *testing.T) {
+	outside := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(outside, "secret-dir"), 0755))
+
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "prod"), 0755))
+
+	if err := os.Symlink(outside, filepath.Join(root, "escape")); err != nil {
+		t.Skip("symlinks are not available: " + err.Error())
+	}
+
+	result, err := FindRepositoryFiles(root, db.AppTerraform, "escape/")
+
+	assert.Error(t, err, "listing through the symlink must be refused")
+	assert.Empty(t, result)
+
+	// The repository itself is unaffected, and the link is not offered: ReadDir
+	// reports its own type, not the directory it points at.
+	result, err = FindRepositoryFiles(root, db.AppTerraform, "")
+	require.NoError(t, err)
+	assert.Equal(t, []string{".", "prod"}, result)
+}
+
+// A .venv holding more matching files than the cap would fill the result before
+// the walk reached the project's own, leaving the picker empty of what matters.
+func TestFindRepositoryFiles_DotDirsDoNotFillTheLimit(t *testing.T) {
+	root := t.TempDir()
+
+	for i := 0; i < maxRepositoryFiles+10; i++ {
+		writeFile(t, root, fmt.Sprintf(".venv/lib/mod-%03d.py", i))
+	}
+	writeFile(t, root, "main.py")
+
+	result, err := FindRepositoryFiles(root, db.AppPython, "")
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"main.py"}, result)
 }
