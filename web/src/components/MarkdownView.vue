@@ -4,7 +4,7 @@
     <div
       ref="content"
       class="MarkdownView__content"
-      :style="isCollapsed ? { maxHeight: `${maxHeight}px` } : null"
+      :style="isCollapsed ? { maxHeight: `${collapsedHeight}px` } : null"
       v-html="html"
       data-testid="markdown-view"
     ></div>
@@ -26,6 +26,7 @@
 
 <style lang="scss">
 .MarkdownView__content {
+  line-height: 1.5;
   overflow-wrap: anywhere;
   overflow: hidden;
   position: relative;
@@ -108,8 +109,8 @@
 }
 
 .MarkdownView--collapsed .MarkdownView__content {
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.2em), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 1.2em), transparent);
 }
 
 .MarkdownView__toggle {
@@ -131,9 +132,10 @@ export default {
       type: Boolean,
       default: false,
     },
-    maxHeight: {
+    // Number of text lines shown while collapsed.
+    maxLines: {
       type: Number,
-      default: 200,
+      default: 3,
     },
   },
 
@@ -141,12 +143,17 @@ export default {
     return {
       expanded: false,
       overflows: false,
+      lineHeight: 21,
     };
   },
 
   computed: {
     html() {
       return renderMarkdown(this.source);
+    },
+
+    collapsedHeight() {
+      return Math.round(this.lineHeight * this.maxLines);
     },
 
     isCollapsed() {
@@ -181,8 +188,13 @@ export default {
         this.overflows = false;
         return;
       }
+      const lineHeight = parseFloat(window.getComputedStyle(el).lineHeight);
+      if (lineHeight > 0) {
+        this.lineHeight = lineHeight;
+      }
       // scrollHeight is the full content height even while max-height is applied.
-      this.overflows = el.scrollHeight > this.maxHeight + 24;
+      // Allow half a line of slack so a description just over the limit isn't collapsed.
+      this.overflows = el.scrollHeight > this.collapsedHeight + this.lineHeight / 2;
     },
   },
 };
