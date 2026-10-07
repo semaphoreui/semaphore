@@ -25,7 +25,7 @@
             style="
             position: absolute;
             right: 70px;
-            top: 0;
+            bottom: 0;
             margin: 10px;
           "
             @click="spellcheck()"
@@ -41,7 +41,7 @@
             style="
             position: absolute;
             right: 20px;
-            top: 0;
+            bottom: 0;
             margin: 10px;
           "
             @click="save()"
