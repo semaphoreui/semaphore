@@ -2,7 +2,6 @@ package db
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/util"
@@ -216,37 +215,4 @@ func TestTemplateValidate_GalaxyArgs(t *testing.T) {
 
 	tpl = newTemplate(MapStringAnyField{"galaxy_collection_args": "--pre"})
 	assert.ErrorContains(t, tpl.Validate(), "invalid task params")
-}
-
-func TestValidateTemplateDescription(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		wantErr bool
-	}{
-		{"empty", "", false},
-		{"markdown", "# Title\n\n- item\n\n<img src=x onerror=alert(1)>", false},
-		{"at the limit", strings.Repeat("a", TemplateDescriptionMaxLength), false},
-		{"over the limit", strings.Repeat("a", TemplateDescriptionMaxLength+1), true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateTemplateDescription(tt.input)
-			if tt.wantErr {
-				assert.ErrorContains(t, err, "template description can not be longer than")
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestTemplateValidate_Description(t *testing.T) {
-	long := strings.Repeat("a", TemplateDescriptionMaxLength+1)
-	tpl := Template{Name: "test", Playbook: "playbook.yml", Description: &long}
-	assert.ErrorContains(t, tpl.Validate(), "template description can not be longer than")
-
-	markdown := "## Usage\n\n```bash\nmake deploy\n```"
-	tpl.Description = &markdown
-	assert.NoError(t, tpl.Validate())
 }

@@ -120,7 +120,7 @@
 </style>
 
 <script>
-import { renderMarkdown } from '@/lib/markdown';
+import renderMarkdown from '@/lib/markdown';
 
 export default {
   props: {

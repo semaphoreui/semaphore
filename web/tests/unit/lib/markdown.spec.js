@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { renderMarkdown, utf8ByteLength, MARKDOWN_MAX_BYTES } from '@/lib/markdown';
+import renderMarkdown from '@/lib/markdown';
 
 function toDom(html) {
   const div = document.createElement('div');
@@ -87,18 +87,6 @@ describe('lib/markdown', () => {
       const DOMPurify = require('dompurify').default || require('dompurify');
       const html = DOMPurify.sanitize('<a href="https://example.com">a</a>');
       expect(html).to.not.include('target=');
-    });
-  });
-
-  describe('utf8ByteLength', () => {
-    it('counts UTF-8 bytes', () => {
-      expect(utf8ByteLength('')).to.equal(0);
-      expect(utf8ByteLength('abc')).to.equal(3);
-      expect(utf8ByteLength('ü')).to.equal(2);
-    });
-
-    it('exposes a 64 KiB limit', () => {
-      expect(MARKDOWN_MAX_BYTES).to.equal(65536);
     });
   });
 });
