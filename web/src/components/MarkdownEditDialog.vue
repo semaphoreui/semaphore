@@ -66,9 +66,6 @@
           :placeholder="$t('markdownPlaceholder')"
           :hint="$t('markdownHint')"
           persistent-hint
-          :counter="maxBytes"
-          :counter-value="byteLength"
-          :error="tooLarge"
           :disabled="saving"
           data-testid="markdownEditDialog-textarea"
         />
@@ -88,7 +85,6 @@
           color="primary"
           depressed
           :loading="saving"
-          :disabled="tooLarge"
           @click="save()"
           data-testid="markdownEditDialog-save"
         >{{ $t('save') }}</v-btn>
@@ -122,7 +118,6 @@
 
 <script>
 import MarkdownView from '@/components/MarkdownView.vue';
-import { MARKDOWN_MAX_BYTES, utf8ByteLength } from '@/lib/markdown';
 
 function readFileAsText(file) {
   if (typeof file.text === 'function') {
@@ -163,14 +158,7 @@ export default {
       text: '',
       error: null,
       saving: false,
-      maxBytes: MARKDOWN_MAX_BYTES,
     };
-  },
-
-  computed: {
-    tooLarge() {
-      return this.byteLength(this.text) > this.maxBytes;
-    },
   },
 
   watch: {
@@ -194,10 +182,6 @@ export default {
   },
 
   methods: {
-    byteLength(text) {
-      return utf8ByteLength(text);
-    },
-
     reset() {
       this.tab = 0;
       this.text = this.source || '';
@@ -219,17 +203,8 @@ export default {
         return;
       }
 
-      if (file.size > this.maxBytes) {
-        this.error = this.$t('markdownFileTooLarge', { size: `${this.maxBytes / 1024} KB` });
-        return;
-      }
-
       try {
         const content = await readFileAsText(file);
-        if (this.byteLength(content) > this.maxBytes) {
-          this.error = this.$t('markdownFileTooLarge', { size: `${this.maxBytes / 1024} KB` });
-          return;
-        }
         this.error = null;
         this.text = content.replace(/\r\n?/g, '\n');
         this.tab = 0;
@@ -239,11 +214,6 @@ export default {
     },
 
     async save() {
-      if (this.tooLarge) {
-        this.error = this.$t('markdownTooLarge', { size: `${this.maxBytes / 1024} KB` });
-        return;
-      }
-
       this.saving = true;
       this.error = null;
       try {

@@ -669,8 +669,6 @@ export default {
   markdownPlaceholder: 'Describe the template. Markdown is supported.',
   markdownHint: 'Markdown supported: headings, lists, **bold**, `code`, tables and links.',
   markdownNothingToPreview: 'Nothing to preview',
-  markdownFileTooLarge: 'The file is too large. The maximum size is {size}.',
-  markdownTooLarge: 'The text is too large. The maximum size is {size}.',
   markdownFileReadError: 'Could not read the file.',
   markdownShowMore: 'Show more',
   markdownShowLess: 'Show less',

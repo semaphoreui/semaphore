@@ -2,12 +2,6 @@ import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
 
 /**
- * Maximum size of a Markdown document accepted by the UI (UTF-8 bytes).
- * Kept in sync with db.TemplateDescriptionMaxLength on the backend.
- */
-export const MARKDOWN_MAX_BYTES = 64 * 1024;
-
-/**
  * Only http(s), mailto, fragment and relative URLs are allowed.
  * Everything else (javascript:, vbscript:, data: on links, tel:, ...) is stripped.
  */
@@ -27,18 +21,6 @@ const PURIFY_CONFIG = {
   FORBID_ATTR: ['style', 'class', 'target', 'srcset', 'formaction'],
   SANITIZE_NAMED_PROPS: true,
 };
-
-/**
- * Size of a string in UTF-8 bytes.
- * @param {string} text
- * @returns {number}
- */
-export function utf8ByteLength(text) {
-  if (!text) {
-    return 0;
-  }
-  return new TextEncoder().encode(text).length;
-}
 
 function hardenLinks(node) {
   if (node.tagName === 'A' && node.hasAttribute('href')) {
@@ -61,7 +43,7 @@ function hardenLinks(node) {
  * @param {Window} [win] Window used by DOMPurify (defaults to the global window).
  * @returns {string} Sanitized HTML.
  */
-export function renderMarkdown(source, win) {
+export default function renderMarkdown(source, win) {
   if (source == null || source === '') {
     return '';
   }
