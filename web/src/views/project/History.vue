@@ -31,7 +31,7 @@
           <!--            {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}-->
           <!--          </v-icon>-->
 
-          <TaskLink :label="'#' + item.id" :task-id="item.id"/>
+          <TaskLink class="flex-shrink-0" :label="'#' + item.id" :task-id="item.id"/>
 
           <v-icon small class="ml-1 mr-1">mdi-arrow-left</v-icon>
 
