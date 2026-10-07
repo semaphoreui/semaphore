@@ -5,6 +5,7 @@ import { mount, createLocalVue } from '@vue/test-utils';
 import VueRouter from 'vue-router';
 import Vuetify from 'vuetify';
 import i18n from '@/plugins/i18';
+import EventBus from '@/event-bus';
 import AuditLog from '@/views/AuditLog.vue';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import mockAxios from './helpers/axiosMock';
@@ -108,8 +109,10 @@ describe('AuditLog.vue', () => {
   it('pages older, newer and back to the latest', async () => {
     const wrapper = await mountPage();
     await wrapper.find('[data-testid="audit-older"]').trigger('click');
+    await flush();
     expect(lastQuery()).to.equal('before=79');
     await wrapper.find('[data-testid="audit-newer"]').trigger('click');
+    await flush();
     expect(lastQuery()).to.equal('after=80');
     await wrapper.find('[data-testid="audit-latest"]').trigger('click');
     expect(lastQuery()).to.equal('');
@@ -176,6 +179,9 @@ describe('AuditLog.vue', () => {
     const wrapper = await mountPage({});
     expect(wrapper.find('[data-testid="audit-pro-notice"]').exists()).to.equal(true);
     expect(wrapper.find('[data-testid="audit-export"]').attributes('disabled')).to.equal('disabled');
+    const inputs = wrapper.findAll('[data-testid="audit-filters"] input:not([type="hidden"])');
+    expect(inputs.length).to.be.greaterThan(0);
+    inputs.wrappers.forEach((input) => expect(input.attributes('disabled')).to.equal('disabled'));
     await wrapper.findAll('tbody tr').at(0).trigger('click');
     await flush();
     expect(wrapper.find('[data-testid="audit-pivot-ip"]').exists()).to.equal(false);
@@ -213,7 +219,63 @@ describe('AuditLog.vue', () => {
   it('builds the export link from the filters', async () => {
     const wrapper = await mountPage();
     wrapper.vm.setFilters({ user: 2, kind: ['iam.role/delete'] });
-    expect(decodeURIComponent(wrapper.vm.exportUrl('csv')))
-      .to.equal('/api/audit/events/export?user=2&kind=iam.role/delete&format=csv');
+    const url = axios.getUri({
+      url: '/api/audit/events/export',
+      params: { user: 2, kind: ['iam.role/delete'], format: 'csv' },
+      paramsSerializer: { indexes: null },
+    });
+    expect(wrapper.vm.exportUrl('csv')).to.equal(url);
+    expect(decodeURIComponent(url)).to.equal('/api/audit/events/export?user=2&kind=iam.role/delete&format=csv');
+  });
+
+  it('keeps the newest response when an older one arrives late', async () => {
+    const wrapper = await mountPage();
+    const pending = [];
+    http.respond((config) => {
+      if (config.url !== '/api/audit/events') {
+        return [];
+      }
+      return new Promise((resolve) => { pending.push(resolve); });
+    });
+    wrapper.vm.load({});
+    wrapper.vm.load({});
+    pending[1]({ events: [auditEvent(2)], older: null, newer: null });
+    await flush();
+    pending[0]({ events: [auditEvent(1)], older: null, newer: null });
+    await flush();
+    expect(wrapper.vm.events.map((e) => e.seq)).to.deep.equal([2]);
+    expect(wrapper.vm.loading).to.equal(false);
+  });
+
+  it('disables paging while loading', async () => {
+    const wrapper = await mountPage();
+    http.respond(() => new Promise(() => {}));
+    wrapper.vm.load({});
+    await flush();
+    expect(wrapper.find('[data-testid="audit-older"]').attributes('disabled')).to.equal('disabled');
+  });
+
+  it('shows the project ID when the project list fails to load', async () => {
+    http.respond((config) => {
+      if (config.url === '/api/projects') {
+        throw new Error('boom');
+      }
+      return config.url === '/api/users' ? [] : PAGE;
+    });
+    const wrapper = await mountPage();
+    expect(wrapper.vm.projectName(auditEvent(1))).to.equal('Project #9');
+  });
+
+  it('reports a failed events request and keeps the list', async () => {
+    const wrapper = await mountPage();
+    const messages = [];
+    const listener = (m) => messages.push(m);
+    EventBus.$on('i-snackbar', listener);
+    http.respond(() => { throw new Error('boom'); });
+    await wrapper.vm.load({});
+    EventBus.$off('i-snackbar', listener);
+    expect(messages).to.have.length(1);
+    expect(messages[0].color).to.equal('error');
+    expect(wrapper.vm.events).to.have.length(2);
   });
 });

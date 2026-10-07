@@ -58,7 +58,7 @@
     <div v-if="$vuetify.breakpoint.xs" class="d-flex justify-end px-4 pt-2">
       <v-btn
         text
-        :disabled="newer === null"
+        :disabled="loading || newer === null"
         data-testid="audit-newer-top"
         @click="load({ after: newer })"
       >
@@ -67,7 +67,7 @@
       </v-btn>
       <v-btn
         text
-        :disabled="older === null"
+        :disabled="loading || older === null"
         data-testid="audit-older-top"
         @click="load({ before: older })"
       >
@@ -124,12 +124,17 @@
     </v-data-table>
 
     <div class="d-flex justify-end pa-4">
-      <v-btn text :disabled="newer === null" data-testid="audit-latest" @click="load({})">
+      <v-btn
+        text
+        :disabled="loading || newer === null"
+        data-testid="audit-latest"
+        @click="load({})"
+      >
         {{ $t('audit_latest') }}
       </v-btn>
       <v-btn
         text
-        :disabled="newer === null"
+        :disabled="loading || newer === null"
         data-testid="audit-newer"
         @click="load({ after: newer })"
       >
@@ -138,7 +143,7 @@
       </v-btn>
       <v-btn
         text
-        :disabled="older === null"
+        :disabled="loading || older === null"
         data-testid="audit-older"
         @click="load({ before: older })"
       >
@@ -189,11 +194,13 @@ export default {
       older: null,
       newer: null,
       loading: false,
+      requestId: 0,
       filters: {},
       selected: null,
       users: [],
       projects: [],
       namesLoaded: false,
+      namesFailed: false,
     };
   },
 
@@ -232,19 +239,28 @@ export default {
     },
 
     async load(page) {
+      this.requestId += 1;
+      const id = this.requestId;
       this.loading = true;
       try {
         const { data } = await axios.get('/api/audit/events', {
           params: this.requestParams(page),
           paramsSerializer: { indexes: null },
         });
+        if (id !== this.requestId) {
+          return;
+        }
         this.events = data.events;
         this.older = data.older;
         this.newer = data.newer;
       } catch (err) {
-        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+        if (id === this.requestId) {
+          EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+        }
       } finally {
-        this.loading = false;
+        if (id === this.requestId) {
+          this.loading = false;
+        }
       }
     },
 
@@ -256,10 +272,11 @@ export default {
         ]);
         this.users = users.data;
         this.projects = projects.data;
+        this.namesLoaded = true;
       } catch (err) {
+        this.namesFailed = true;
         EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
       }
-      this.namesLoaded = true;
     },
 
     setFilters(filters) {
@@ -273,16 +290,22 @@ export default {
     },
 
     exportUrl(format) {
-      const query = new URLSearchParams();
-      Object.entries(this.requestParams({ format })).forEach(([name, value]) => {
-        [].concat(value).forEach((v) => query.append(name, v));
+      return axios.getUri({
+        url: '/api/audit/events/export',
+        params: this.requestParams({ format }),
+        paramsSerializer: { indexes: null },
       });
-      return `/api/audit/events/export?${query}`;
     },
 
     projectName(event) {
       const id = event.scope && Number(event.scope.project_id);
-      if (!id || !this.namesLoaded) {
+      if (!id) {
+        return '';
+      }
+      if (this.namesFailed) {
+        return this.$t('audit_project_id', { id });
+      }
+      if (!this.namesLoaded) {
         return '';
       }
       const project = this.projects.find((p) => p.id === id);

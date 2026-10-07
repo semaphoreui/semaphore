@@ -99,8 +99,8 @@ export default {
             pivot: actor.type === 'user' && actor.id
               ? { name: 'user', filter: { user: Number(actor.id) } } : null,
           },
-          { label: this.$t('audit_field_type'), value: this.$t(`audit_actor_type_${actor.type}`) },
-          actor.auth && { label: this.$t('audit_field_auth'), value: this.$t(`audit_auth_${actor.auth}`) },
+          { label: this.$t('audit_field_type'), value: this.known(`audit_actor_type_${actor.type}`, actor.type) },
+          actor.auth && { label: this.$t('audit_field_auth'), value: this.known(`audit_auth_${actor.auth}`, actor.auth) },
           actor.token_fingerprint && { label: this.$t('audit_field_token'), value: actor.token_fingerprint },
         ],
       }];
@@ -111,7 +111,8 @@ export default {
             {
               label: this.$t('audit_field_name'),
               value: target.name || target.id,
-              pivot: { name: 'object', filter: { target_type: target.type, target_id: target.id } },
+              pivot: target.id
+                ? { name: 'object', filter: { target_type: target.type, target_id: target.id } } : null,
             },
             { label: this.$t('audit_field_type'), value: targetTypeLabel(target.type, this.$i18n) },
             target.id && { label: this.$t('audit_field_id'), value: target.id },
@@ -123,10 +124,10 @@ export default {
         rows: [
           projectId && {
             label: this.$t('audit_field_project'),
-            value: this.projectName,
+            value: this.projectName || this.$t('audit_project_id', { id: projectId }),
             pivot: { name: 'project', filter: { project: Number(projectId) } },
           },
-          source && {
+          source && source.ip && {
             label: this.$t('audit_field_ip'),
             value: source.ip,
             pivot: { name: 'ip', filter: { ip: source.ip } },
@@ -159,6 +160,11 @@ export default {
     },
   },
 
+  methods: {
+    known(key, value) {
+      return this.$te(key, 'en') ? this.$t(key) : value;
+    },
+  },
 };
 </script>
 <style lang="scss">

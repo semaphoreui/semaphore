@@ -90,6 +90,7 @@
           dense
           hide-details
           @change="update({ ip: $event })"
+          @click:clear="update({ ip: null })"
         />
       </v-col>
     </v-row>
