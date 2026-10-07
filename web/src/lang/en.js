@@ -664,6 +664,8 @@ export default {
   end: 'End',
   audit_log: 'Audit log',
   audit_latest: 'Latest',
+  audit_searched_to: 'No more matches among events since {date}.',
+  audit_search_older: 'Search older',
   audit_newer: 'Newer',
   audit_older: 'Older',
   audit_no_events: 'No audit events match.',

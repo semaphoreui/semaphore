@@ -123,6 +123,22 @@
       <template v-slot:item.ip="{ item }">{{ item.source ? item.source.ip : '' }}</template>
     </v-data-table>
 
+    <div v-if="searchedTo" class="d-flex align-center px-4 pt-2" data-testid="audit-searched-to">
+      <span class="text--secondary">
+        {{ $t('audit_searched_to', { date: localTime(searchedTo.timestamp) }) }}
+      </span>
+      <v-btn
+        text
+        color="primary"
+        class="ml-2"
+        :disabled="loading"
+        data-testid="audit-search-older"
+        @click="load({ before: older })"
+      >
+        {{ $t('audit_search_older') }}
+      </v-btn>
+    </div>
+
     <div class="d-flex justify-end pa-4">
       <v-btn
         text
@@ -193,6 +209,7 @@ export default {
       events: [],
       older: null,
       newer: null,
+      searchedTo: null,
       loading: false,
       requestId: 0,
       filters: {},
@@ -253,6 +270,7 @@ export default {
         this.events = data.events;
         this.older = data.older;
         this.newer = data.newer;
+        this.searchedTo = data.searched_to;
       } catch (err) {
         if (id === this.requestId) {
           EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });

@@ -14,7 +14,7 @@ import {
 
 function event(fields) {
   return {
-    category: 'auth', event_code: 'login', action: 'authenticate', outcome: 'success', ...fields,
+    category: 'auth', event_code: 'auth.login', action: 'authenticate', outcome: 'success', ...fields,
   };
 }
 
@@ -33,12 +33,12 @@ describe('lib/auditEvent', () => {
   });
 
   it('uses the success title for a failure without its own title', () => {
-    const roleDelete = event({ category: 'iam', event_code: 'role', action: 'delete' });
+    const roleDelete = event({ category: 'iam', event_code: 'iam.role', action: 'delete' });
     expect(eventTitle({ ...roleDelete, outcome: 'failure' }, i18n)).to.equal('Role deleted');
   });
 
   it('shows the kind code for a kind without a title', () => {
-    expect(eventTitle(event({ category: 'x', event_code: 'y', action: 'z' }), i18n)).to.equal('x.y/z');
+    expect(eventTitle(event({ category: 'x', event_code: 'x.y', action: 'z' }), i18n)).to.equal('x.y/z');
   });
 
   it('keeps English titles in another locale', () => {

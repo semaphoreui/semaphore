@@ -16,7 +16,7 @@ function auditEvent(seq, fields = {}) {
     seq,
     timestamp: '2026-10-06T10:00:00.000Z',
     category: 'auth',
-    event_code: 'login',
+    event_code: 'auth.login',
     action: 'authenticate',
     outcome: 'success',
     reason: '',
@@ -99,6 +99,26 @@ describe('AuditLog.vue', () => {
     const request = auditRequests().pop();
     return axios.getUri(request).split('?')[1] || '';
   }
+
+  it('offers to search older events when the search stopped', async () => {
+    respondWith({
+      events: [],
+      older: 400,
+      newer: null,
+      searched_to: { seq: 400, timestamp: '2026-09-02T14:20:00.000000Z' },
+    });
+    const wrapper = await mountPage();
+    expect(wrapper.find('[data-testid="audit-searched-to"]').text())
+      .to.contain('No more matches among events since');
+    await wrapper.find('[data-testid="audit-search-older"]').trigger('click');
+    await flush();
+    expect(lastQuery()).to.equal('before=400');
+  });
+
+  it('hides the search line on an ordinary page', async () => {
+    const wrapper = await mountPage();
+    expect(wrapper.find('[data-testid="audit-searched-to"]').exists()).to.equal(false);
+  });
 
   it('opens on the latest page', async () => {
     await mountPage();

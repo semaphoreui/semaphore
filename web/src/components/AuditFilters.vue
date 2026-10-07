@@ -164,10 +164,9 @@ export default {
       return GROUPS.flatMap(([header, categories]) => [
         { header: this.$t(header) },
         ...AUDIT_KINDS.filter((kind) => categories.includes(kind.split('.')[0])).map((kind) => {
-          const [category, rest] = kind.split('.');
-          const [code, action] = rest.split('/');
+          const [code, action] = kind.split('/');
           return {
-            text: eventTitle({ category, event_code: code, action }, this.$i18n),
+            text: eventTitle({ event_code: code, action }, this.$i18n),
             value: kind,
           };
         }),

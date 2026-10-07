@@ -1,7 +1,7 @@
 // Display rules for audit events, the SIEM envelope returned by /api/audit/events.
 
 export function eventKind(event) {
-  return `${event.category}.${event.event_code}/${event.action}`;
+  return `${event.event_code}/${event.action}`;
 }
 
 function keyOf(prefix, value) {
