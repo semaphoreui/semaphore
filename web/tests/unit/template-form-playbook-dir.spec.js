@@ -1,9 +1,9 @@
 import { expect } from 'chai';
 import { shallowMount } from '@vue/test-utils';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
+import TemplateForm from '@/components/TemplateForm.vue';
 
-// The drill-down of TemplateForm, isolated from the form: a path is built one
-// level at a time, and only for the apps whose field names a directory.
+// Exercise TemplateForm's directory handler without mounting the full form.
 const Host = {
   mixins: [AppFieldsMixin],
   props: { app: String },
@@ -14,23 +14,7 @@ const Host = {
     loadPlaybooks() {
       this.loaded += 1;
     },
-    onPlaybookSearch(value) {
-      if (!this.fields.playbook?.directories) {
-        return;
-      }
-
-      if (value == null) {
-        return;
-      }
-
-      const slash = value.lastIndexOf('/');
-      const dir = slash < 0 ? '' : value.slice(0, slash + 1);
-
-      if (dir !== this.playbookDir) {
-        this.playbookDir = dir;
-        this.loadPlaybooks();
-      }
-    },
+    onPlaybookSearch: TemplateForm.methods.onPlaybookSearch,
   },
   render: (h) => h('div'),
 };
