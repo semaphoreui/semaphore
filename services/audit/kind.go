@@ -59,7 +59,8 @@ const (
 	SystemSettingsUpdate  Kind = "system.settings/update"
 	SystemLicenseActivate Kind = "system.license/activate"
 
-	AuditLifecycleStart Kind = "audit.lifecycle/start"
+	AuditLifecycleStart  Kind = "audit.lifecycle/start"
+	AuditRetentionDelete Kind = "audit.retention/delete"
 
 	ResourceProjectCreate               Kind = "resource.project/create"
 	ResourceProjectUpdate               Kind = "resource.project/update"
