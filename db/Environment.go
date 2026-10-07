@@ -83,10 +83,18 @@ func validateJSON(s string, mustValuesBeScalar bool) error {
 		return nil
 	}
 
-	var data map[string]any
-	err := json.Unmarshal([]byte(s), &data)
+	// Unmarshal into any first so a JSON null root is rejected. Decoding null
+	// directly into map[string]any succeeds with a nil map and no error, which
+	// previously allowed saving "null" as empty extra variables.
+	var raw any
+	err := json.Unmarshal([]byte(s), &raw)
 	if err != nil {
 		return errors.New("must be valid JSON")
+	}
+
+	data, ok := raw.(map[string]any)
+	if !ok {
+		return errors.New("must be an object")
 	}
 
 	for k, v := range data {
