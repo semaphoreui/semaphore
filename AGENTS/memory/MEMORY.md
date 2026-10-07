@@ -63,6 +63,11 @@ only when the task touches that topic. Keep this file under 150 lines.
   `AGENTS/research/*.md`) cited as sources in `AGENTS/work/` docs were removed from the tree; read them
   with `git show 539d98ad:<path>`. Some plans exist only on feature branches (`feat/cyberark-secret-storage`,
   `feat/project-alerts-mail-refactor`).
+- SQL migrations: MySQL 8 parses but ignores an inline `add col int references t(id)`; MariaDB,
+  Postgres and SQLite create the FK. Declare FKs with a separate `foreign key (...)` / `add constraint`
+  and verify on MySQL and MariaDB separately (CI runs both). The runner splits a file on `;\n`, so a
+  `--` comment line ending in `;` yields a comment-only query; `{{if .Sqlite}}`-skipped files must
+  render to whitespace only.
 
 ## Topic files
 
