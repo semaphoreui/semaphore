@@ -880,7 +880,7 @@ html.WorkflowEditor-html body {
 
   .v-data-table__mobile-row__cell {
     min-width: 0;
-    overflow-wrap: break-word;
+    overflow-wrap: anywhere;
   }
 }
 
