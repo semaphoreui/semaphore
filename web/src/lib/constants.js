@@ -228,6 +228,8 @@ export const TERRAFORM_FIELDS = {
   playbook: {
     label: 'Subdirectory path (Optional)',
     optional: true,
+    // The field names a directory, so the picker lists one level at a time.
+    directories: true,
   },
   inventory: {
     label: 'Workspace (Optional)',

@@ -24,6 +24,7 @@ func TestFindRepositoryFiles(t *testing.T) {
 	tests := []struct {
 		name     string
 		app      db.TemplateApp
+		dir      string
 		setup    func(t *testing.T, root string)
 		expected []string
 	}{
@@ -181,6 +182,71 @@ func TestFindRepositoryFiles(t *testing.T) {
 			},
 			expected: nil,
 		},
+		{
+			// Typing the separator asks for what is inside that directory.
+			name: "terraform lists the directories inside dir",
+			app:  db.AppTerraform,
+			dir:  "prod/",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "prod/eu/main.tf")
+				writeFile(t, root, "prod/us/main.tf")
+				writeFile(t, root, "prod/main.tf")
+				writeFile(t, root, "prod/eu/modules/vpc/main.tf")
+				writeFile(t, root, "staging/main.tf")
+			},
+			expected: []string{"prod/eu", "prod/us"},
+		},
+		{
+			name: "a trailing separator is not required",
+			app:  db.AppTerraform,
+			dir:  "prod",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "prod/eu/main.tf")
+			},
+			expected: []string{"prod/eu"},
+		},
+		{
+			// Half a name while typing must not be an error.
+			name: "a directory which does not exist yields nothing",
+			app:  db.AppTerraform,
+			dir:  "pro/",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "prod/eu/main.tf")
+			},
+			expected: nil,
+		},
+		{
+			// dir comes from the request. Cleaning it against "/" resolves the
+			// "..", so climbing out lands on the repository root.
+			name: "climbing out of the repository lands on its root",
+			app:  db.AppTerraform,
+			dir:  "../../../../",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "prod/main.tf")
+			},
+			expected: []string{"prod"},
+		},
+		{
+			// The absolute path of a real directory outside the repository is
+			// read relative to it, so it finds nothing.
+			name: "an absolute path outside the repository reads nothing",
+			app:  db.AppTerraform,
+			dir:  "/etc/",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "prod/main.tf")
+			},
+			expected: nil,
+		},
+		{
+			name: "dir is ignored by the apps which list files",
+			app:  db.AppBash,
+			dir:  "scripts/",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "deploy.sh")
+				writeFile(t, root, "scripts/release.sh")
+			},
+			expected: []string{"deploy.sh", "scripts/release.sh"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -188,7 +254,7 @@ func TestFindRepositoryFiles(t *testing.T) {
 			root := t.TempDir()
 			tt.setup(t, root)
 
-			result, err := FindRepositoryFiles(root, tt.app)
+			result, err := FindRepositoryFiles(root, tt.app, tt.dir)
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
@@ -205,7 +271,7 @@ func TestFindRepositoryFiles_Limit(t *testing.T) {
 			writeFile(t, root, fmt.Sprintf("playbook-%03d.yml", i))
 		}
 
-		result, err := FindRepositoryFiles(root, db.AppAnsible)
+		result, err := FindRepositoryFiles(root, db.AppAnsible, "")
 
 		require.NoError(t, err)
 		assert.Len(t, result, maxRepositoryFiles)
@@ -217,7 +283,7 @@ func TestFindRepositoryFiles_Limit(t *testing.T) {
 			writeFile(t, root, fmt.Sprintf("env-%03d/main.tf", i))
 		}
 
-		result, err := FindRepositoryFiles(root, db.AppTerraform)
+		result, err := FindRepositoryFiles(root, db.AppTerraform, "")
 
 		require.NoError(t, err)
 		assert.Len(t, result, maxRepositoryFiles)

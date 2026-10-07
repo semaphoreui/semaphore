@@ -38,25 +38,45 @@ var ansibleLayoutDirs = map[string]bool{
 }
 
 // FindRepositoryFiles returns a sorted slice of paths, relative to rootDir, of
-// the entries which could be the entry point of app. The result is capped at
-// maxRepositoryFiles entries.
-func FindRepositoryFiles(rootDir string, app db.TemplateApp) ([]string, error) {
+// the entries which could be the entry point of app.
+//
+// dir narrows a directory listing to the directories inside it, so a path can be
+// built one step at a time. It is ignored by the apps which list files. The
+// result is capped at maxRepositoryFiles entries.
+func FindRepositoryFiles(rootDir string, app db.TemplateApp, dir string) ([]string, error) {
 	filter := app.RepositoryFileFilter()
 
 	if filter.OnlyDirectories {
-		return findTopLevelDirs(rootDir)
+		return findDirs(rootDir, dir)
 	}
 
 	return findFiles(rootDir, app, filter.Extensions)
 }
 
-// findTopLevelDirs returns the directories directly under rootDir. It does not
-// recurse: a terraform root is a directory of the repository, not any directory
-// below it.
-func findTopLevelDirs(rootDir string) ([]string, error) {
-	entries, err := os.ReadDir(rootDir)
+// findDirs returns the directories directly inside dir, a path relative to
+// rootDir, prefixed with it. It does not recurse: the next level is listed when
+// the user asks for it by typing the separator.
+//
+// A directory which does not exist yields no entries rather than an error: dir
+// is what the user has typed so far and is routinely half a name.
+func findDirs(rootDir string, dir string) ([]string, error) {
+	// Anchoring to "/" before cleaning resolves away any ".." the request
+	// carries, so the join can not escape the repository.
+	rel := strings.TrimPrefix(filepath.Clean("/"+filepath.FromSlash(dir)), string(filepath.Separator))
+
+	entries, err := os.ReadDir(filepath.Join(rootDir, rel))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, err
+	}
+
+	prefix := filepath.ToSlash(rel)
+	if prefix != "" && prefix != "." {
+		prefix += "/"
+	} else {
+		prefix = ""
 	}
 
 	var result []string
@@ -71,7 +91,7 @@ func findTopLevelDirs(rootDir string) ([]string, error) {
 			continue
 		}
 
-		result = append(result, entry.Name())
+		result = append(result, prefix+entry.Name())
 	}
 
 	sort.Strings(result)

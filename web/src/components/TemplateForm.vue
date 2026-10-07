@@ -229,6 +229,7 @@
             :disabled="formSaving"
             :placeholder="$t('exampleSiteyml')"
             :loading="playbooksLoading"
+            @update:search-input="onPlaybookSearch"
           >
             <template v-slot:append-outer>
               <v-btn
@@ -750,6 +751,7 @@ export default {
       runnerTags: null,
       branches: null,
       playbooks: null,
+      playbookDir: '',
       playbooksLoading: false,
       playbooksAbort: null,
       setBranch: false,
@@ -994,6 +996,30 @@ export default {
       }
     },
 
+    // The apps which run a directory list one level at a time: typing the
+    // separator asks for what is inside.
+    onPlaybookSearch(value) {
+      if (!this.fields.playbook?.directories) {
+        return;
+      }
+
+      // Vuetify resets its search to null after every change; only text the
+      // user typed says anything about which directory to list.
+      if (value == null) {
+        return;
+      }
+
+      // Everything up to the last separator, so the listing stays put while the
+      // rest of a name is typed.
+      const slash = value.lastIndexOf('/');
+      const dir = slash < 0 ? '' : value.slice(0, slash + 1);
+
+      if (dir !== this.playbookDir) {
+        this.playbookDir = dir;
+        this.loadPlaybooks();
+      }
+    },
+
     async loadPlaybooks() {
       if (this.repositoryId == null) {
         this.playbooks = null;
@@ -1009,6 +1035,7 @@ export default {
         const params = new URLSearchParams({
           branch: this.item.git_branch || '',
           app: this.app || '',
+          dir: this.playbookDir,
         });
 
         this.playbooks = await this.loadProjectEndpoint(

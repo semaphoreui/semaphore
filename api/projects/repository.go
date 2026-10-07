@@ -186,7 +186,9 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 	// templates of different apps.
 	app := db.TemplateApp(r.URL.Query().Get("app"))
 
-	playbooks, err := db_lib.FindRepositoryFiles(rootDir, app)
+	// What the user has typed so far, when it names a directory: the apps which
+	// run a directory list one level at a time.
+	playbooks, err := db_lib.FindRepositoryFiles(rootDir, app, r.URL.Query().Get("dir"))
 
 	if err != nil {
 		helpers.WriteError(w, err)
