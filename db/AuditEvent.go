@@ -33,7 +33,7 @@ type AuditEvent struct {
 	Metadata              string    `db:"metadata"`
 }
 
-// AuditEventPage is a page of the whole audit log, newest first; Older and Newer are seq cursors, 0 means none.
+// AuditEventPage is a page of the whole audit log, newest first, with Older and Newer seq cursors where 0 means none.
 type AuditEventPage struct {
 	Events []AuditEvent
 	Older  int64

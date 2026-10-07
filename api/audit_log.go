@@ -38,7 +38,7 @@ type auditPage struct {
 	Newer  *int64           `json:"newer"`
 }
 
-// getAuditEvents pages the whole audit log; a request with any other parameter goes to filtered.
+// getAuditEvents pages the whole audit log, a request with any other parameter goes to filtered.
 func getAuditEvents(filtered http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
