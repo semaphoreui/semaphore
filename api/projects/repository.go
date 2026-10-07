@@ -142,7 +142,7 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 			Repository:  repoCopy,
 			TmpDirName:  fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
 			Client:      db_lib.CreateDefaultGitClient(c.keyInstaller),
-			Logger:      task_logger.NopLogger{},
+			Logger:      task_logger.DebugLogger{Prefix: fmt.Sprintf("repository_%d_browse", repo.ID)},
 			HostConfigs: hostConfigs,
 		}
 
