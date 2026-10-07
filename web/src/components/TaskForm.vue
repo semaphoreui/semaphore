@@ -55,8 +55,10 @@
     ></v-skeleton-loader>
 
     <v-text-field
+      v-if="messageMode !== 'hidden'"
       v-model="item.message"
-      :label="$t('messageOptional')"
+      :label="messageLabel"
+      :rules="messageRules"
       :disabled="formSaving"
       outlined
       dense
@@ -237,6 +239,21 @@ export default {
   },
 
   computed: {
+    messageMode() {
+      return this.template.task_params?.message_mode || 'optional';
+    },
+
+    messageLabel() {
+      return this.messageMode === 'required' ? this.$t('message') : this.$t('messageOptional');
+    },
+
+    messageRules() {
+      if (this.messageMode !== 'required') {
+        return [];
+      }
+      return [(v) => !!(v && v.trim()) || `${this.$t('message')} ${this.$t('isRequired')}`];
+    },
+
     needInventory() {
       return this.needField('inventory') && this.template.task_params?.allow_override_inventory;
     },
