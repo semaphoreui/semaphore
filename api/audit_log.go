@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"net/url"
@@ -89,6 +90,11 @@ func getAuditEvents(filtered http.HandlerFunc) http.HandlerFunc {
 }
 
 func auditPageCursor(query url.Values) (before, after int64, err error) {
+	for _, name := range []string{"before", "after"} {
+		if len(query[name]) > 1 {
+			return 0, 0, fmt.Errorf("%s must be given once", name)
+		}
+	}
 	if value := query.Get("before"); value != "" {
 		if before, err = strconv.ParseInt(value, 10, 64); err != nil || before < 1 {
 			return 0, 0, errors.New("before must be a positive number")
