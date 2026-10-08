@@ -11,6 +11,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/sql"
 	proApi "github.com/semaphoreui/semaphore/pro/api"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -131,13 +132,27 @@ func TestGetAuditEvents_StoreFailureAnswers500(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
-func TestAuditStub_RefusesFiltersAndExport(t *testing.T) {
-	controller := proApi.NewAuditController(nil, nil)
+type noLicense struct {
+	pro_interfaces.SubscriptionService
+}
+
+func (noLicense) GetToken() (pro_interfaces.SubscriptionToken, error) {
+	return pro_interfaces.SubscriptionToken{}, db.ErrNotFound
+}
+
+// Holds for the OSS stub and for Pro without a license alike.
+func TestAuditController_RefusesFiltersAndExportWithoutAPlan(t *testing.T) {
+	controller := proApi.NewAuditController(nil, noLicense{})
+	request := func(target string) *http.Request {
+		r, _ := withAuditRecorder(asActor(httptest.NewRequest(http.MethodGet, target, nil),
+			db.User{ID: 1, Admin: true}))
+		return r
+	}
 	w := httptest.NewRecorder()
-	controller.GetEvents(w, httptest.NewRequest(http.MethodGet, "/api/audit/events?user=1", nil))
+	controller.GetEvents(w, request("/api/audit/events?user=1"))
 	assert.Equal(t, http.StatusForbidden, w.Code)
 	w = httptest.NewRecorder()
-	controller.ExportEvents(w, httptest.NewRequest(http.MethodGet, "/api/audit/events/export?format=csv", nil))
+	controller.ExportEvents(w, request("/api/audit/events/export?format=csv"))
 	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
