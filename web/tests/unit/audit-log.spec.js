@@ -265,6 +265,17 @@ describe('AuditLog.vue', () => {
     expect(from).to.equal(new Date('2026-10-01T00:00').toISOString());
   });
 
+  it('includes the chosen end minute in the period and its export', async () => {
+    const wrapper = await mountPage();
+    wrapper.vm.setFilters({ from: '2026-10-01T10:00', to: '2026-10-01T10:00' });
+    await flush();
+    const end = new Date('2026-10-01T10:01').toISOString();
+    const query = new URLSearchParams(lastQuery());
+    expect(query.get('from')).to.equal(new Date('2026-10-01T10:00').toISOString());
+    expect(query.get('to')).to.equal(end);
+    expect(new URLSearchParams(wrapper.vm.exportUrl('csv').split('?')[1]).get('to')).to.equal(end);
+  });
+
   it('filters by the IP clicked in the card', async () => {
     const wrapper = await mountPage();
     await wrapper.findAll('tbody tr').at(0).trigger('click');

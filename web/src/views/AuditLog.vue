@@ -277,11 +277,13 @@ export default {
     // Periods come from datetime-local inputs in the browser's time zone.
     requestParams(page) {
       const params = filterParams(this.filters);
-      ['from', 'to'].forEach((name) => {
-        if (params[name]) {
-          params[name] = dayjs(params[name]).toISOString();
-        }
-      });
+      if (params.from) {
+        params.from = dayjs(params.from).toISOString();
+      }
+      // The server excludes the end, so the whole chosen end minute is sent.
+      if (params.to) {
+        params.to = dayjs(params.to).add(1, 'minute').toISOString();
+      }
       return { ...params, ...page };
     },
 
