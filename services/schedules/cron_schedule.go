@@ -28,6 +28,7 @@ type cronSchedule struct {
 	useWallClock bool
 }
 
+// Next returns the first run after t.
 func (s cronSchedule) Next(t time.Time) time.Time {
 	t = t.In(s.location)
 
@@ -165,6 +166,7 @@ func splitTimezone(cronFormat string) (*time.Location, string, error) {
 	return loc, expr, nil
 }
 
+// hasTimezonePrefix reports whether s starts with TZ= or CRON_TZ=.
 func hasTimezonePrefix(s string) bool {
 	return strings.HasPrefix(s, "TZ=") || strings.HasPrefix(s, "CRON_TZ=")
 }
@@ -242,10 +244,12 @@ func quartzDays(dayOfMonth, dayOfWeek string) (string, string, error) {
 	return "*", dayOfWeek, nil
 }
 
+// isOpenDay reports whether a day field allows every day: * or ?.
 func isOpenDay(field string) bool {
 	return field == "*" || field == "?"
 }
 
+// isQuartzMonthDay reports whether field is L, LW or a day followed by W, such as 15W.
 func isQuartzMonthDay(field string) bool {
 	field = strings.ToUpper(field)
 
@@ -259,6 +263,8 @@ func isQuartzMonthDay(field string) bool {
 	return found && err == nil && n >= 1 && n <= 31 && strconv.Itoa(n) == day
 }
 
+// isQuartzWeekday reports whether item is a weekday followed by #1 to #5 or L,
+// such as 2#2, TUE#2 or 5L.
 func isQuartzWeekday(item string) bool {
 	item = strings.ToUpper(item)
 

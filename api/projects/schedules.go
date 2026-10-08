@@ -77,12 +77,15 @@ type scheduleNextRuns struct {
 	NextRuns []time.Time `json:"next_runs"`
 }
 
+// writeCronError responds with 400 and the reason a cron schedule is invalid.
 func writeCronError(w http.ResponseWriter, err error) {
 	helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 		"error": "Cron: " + err.Error(),
 	})
 }
 
+// validateCronFormat responds with 400 and returns false if the cron format or
+// offset cannot be scheduled.
 func validateCronFormat(cronFormat string, offsetDays int, w http.ResponseWriter) bool {
 	err := schedules.ValidateCronFormat(cronFormat, offsetDays)
 	if err == nil {
