@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -91,8 +92,9 @@ func auditPageCursor(query url.Values) (before, after int64, err error) {
 		}
 	}
 	if value := query.Get("after"); value != "" {
-		if after, err = strconv.ParseInt(value, 10, 64); err != nil || after < 1 {
-			return 0, 0, errors.New("after must be a positive number")
+		// The store reads from after+1, which the largest int64 would overflow.
+		if after, err = strconv.ParseInt(value, 10, 64); err != nil || after < 1 || after == math.MaxInt64 {
+			return 0, 0, errors.New("after must be a number from 1 to 9223372036854775806")
 		}
 	}
 	if before > 0 && after > 0 {

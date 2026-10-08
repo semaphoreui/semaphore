@@ -109,7 +109,7 @@ func TestGetAuditEvents_SendsAnyOtherParameterToTheFilteredHandler(t *testing.T)
 
 func TestGetAuditEvents_RejectsBadCursor(t *testing.T) {
 	for _, target := range []string{"/api/audit/events?before=x", "/api/audit/events?after=0",
-		"/api/audit/events?before=5&after=2"} {
+		"/api/audit/events?before=5&after=2", "/api/audit/events?after=9223372036854775807"} {
 		w := httptest.NewRecorder()
 		getAuditEvents(notFiltered(t))(w, auditLogRequest(t, target, 0))
 		assert.Equal(t, http.StatusBadRequest, w.Code, target)
