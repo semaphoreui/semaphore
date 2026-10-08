@@ -5,10 +5,12 @@ Hand-off of structured data between task nodes of one workflow run. A task **pro
 of one of its template's survey variables to one output key of one ancestor node. The UI and the
 docs say "Outputs" / "Inputs"; the DB column and the API field keep the name `artifacts`.
 
-**Status (2026-10-04): contract agreed; the producer side works for tasks run on the server
-(local executor), nothing else does.** A workflow task run locally gets the file, its outputs
-are validated and stored on `task.artifacts`; remote runners send nothing yet, nodes have no
-`input_mappings`, the engine resolves nothing, the UI shows the raw document. Work is tracked in
+**Status (2026-10-07): contract agreed, consumer side redesigned to live on the edge; the
+producer side works for tasks run on the server (local executor), nothing else does.** A workflow
+task run locally gets the file, its outputs are validated and stored on `task.artifacts`; remote
+runners send nothing yet, edges carry no `input_mode` / `input_mappings`, the engine resolves
+nothing, the UI shows the raw document. The seeded stand for checking it by hand is described in
+`AGENTS/tools/wf-stand/README.md` (`seed-outputs.sh`). Work is tracked in
 workbench `TASK@1845d9d4d7`; the practices behind the contract are in `RESEARCH@a97b871b1d`.
 
 ## Contract
@@ -74,35 +76,62 @@ before storing it — the runner is not trusted.
 Outputs are stored and shown in plain text. They are **not for secrets**: no encryption, no
 masking, no secret outputs in v1.
 
-### Consumer: `input_mappings` on a task node
+### Consumer: input mode and mappings on the edge
+
+Decided 2026-10-07 (supersedes the node-level `input_mappings` of 2026-10-04): the connection
+between two nodes says how the source's outputs feed the destination's survey variables.
 
 ```json
 {
-  "kind": "task",
-  "template_id": 7,
-  "task_params": {"environment": "{\"region\":\"eu-west-1\"}"},
+  "source_node_id": 1,
+  "destination_node_id": 4,
+  "condition": "on_success",
+  "input_mode": "explicit",
   "input_mappings": [
-    {"var": "vpc_id", "source_node_id": 11, "key": "vpc_id"}
+    {"var": "vpc_id", "key": "vpc_id"},
+    {"var": "subnets", "key": "subnet_ids"}
   ]
 }
 ```
 
-- `var` — the name of a survey variable of the node's template; at most one mapping per
-  variable; a variable of type `secret` cannot be mapped.
-- `source_node_id` — a `task` node that is an ancestor of this node in the DAG (reachable along
-  edges of any condition). Remapped through `nodeIDMap` on every revision save, like edges, and
-  on backup/restore.
-- `key` — one top-level output name (same pattern). No paths into nested values in v1: a nested
-  object or array is passed whole.
-- Only task nodes carry mappings. Everything not mapped keeps coming from the node's static
-  `task_params.environment`, exactly as before.
+- `input_mode` — `by_name` (default; omitted in JSON) or `explicit`. In the UI it is one checkbox
+  on the edge, "Map inputs explicitly".
+- **`by_name`**: every output of the source whose name equals the name of a non-`secret` survey
+  variable of the destination template feeds that variable. Outputs with no variable of that
+  name are ignored, so a hyphenated Terraform output (never a valid variable name) is simply
+  not delivered. Nothing to configure, nothing to validate.
+- **`explicit`**: only the listed pairs are delivered. `var` — a survey variable of the
+  destination template, at most one mapping per `var` on one edge, type `secret` not allowed;
+  `key` — one top-level output name (same pattern as the producer). An empty list means the
+  edge passes nothing. The source is always the edge's own source node, so a mapping carries no
+  node id and needs no `nodeIDMap` remap — edges are reinserted with every revision anyway.
+- Only an edge whose destination is a `task` node has an input mode. Everything not fed by an
+  edge keeps coming from the node's static `task_params.environment`, exactly as before.
+- Stored as two columns on `project__workflow_edge` (`input_mode`, `input_mappings` JSON),
+  both with `backup` tags; `ValidateWorkflowTemplate` checks explicit mappings against the
+  destination template's survey; `api-docs.yml` documents them on `WorkflowEdge`.
+
+⚠️ Assumptions still to be confirmed by the owner (2026-10-07):
+
+- **Fan-in.** A node with several incoming edges takes contributions from every edge whose
+  source task succeeded. If two edges feed the same variable, an `explicit` mapping beats a
+  `by_name` one; between two of the same kind the source task that finished last wins. The
+  task log names the winner. Conflicting explicit mappings on two edges are not rejected at
+  save: with `convergence_mode: any` only one of them may ever fire.
+- **Pass-through nodes.** An approval or delay node has no outputs of its own. An edge leaving
+  it is transparent: it offers the outputs that reached that node through its own incoming edges,
+  so `task → approval → task` still passes data, and the mapping is configured on the last edge
+  (the one into the task). The alternative — data stops at an approval — would make the most
+  common "deploy after approval" workflow unable to use outputs.
 
 ### Resolution when the node starts
 
-For each mapping the engine takes, from the DB, the latest task of the source node in this run.
-If that task succeeded and its `values` has the key with a non-null value that fits the
-variable's type, the value is used. Otherwise it falls back, in order: the node's static value
-for that variable → the variable's `default_value` → nothing. If nothing is left and the
+The engine walks the node's incoming edges of the run's revision. For each edge it takes, from
+the DB, the latest task of the source node in this run (through pass-through nodes, see above).
+If that task succeeded, the edge's mode is applied to its `values`: by name, or the explicit
+list. A value is used when it is non-null and fits the variable's type. A variable fed by no
+edge falls back, in order: the node's static value for that variable → the variable's
+`default_value` → nothing. If nothing is left and the
 variable is `required`, the node's task is created and immediately failed with a log line naming
 the variable, the source node and the key, so the run follows `on_failure`. For a `required`
 variable an empty string or empty list counts as no value.
@@ -188,12 +217,22 @@ runner. A task created through the API must not be able to set `artifacts`,
 
 ## Decisions and why
 
-- **Explicit mapping, not implicit merge** (2026-09-28). The first design copied AWX: outputs of
-  all finished upstream tasks merged (later task wins) and injected as flat extra vars, a
-  `semaphore_workflow_artifacts` namespace and `SEMAPHORE_WF_*` env. Dropped: the merge order
-  at a fan-in is arbitrary, an output can silently override a survey value, and Terraform
-  rejects an undeclared `-var`. Mapping onto survey variables reuses the delivery every app
-  type already has.
+- **Mapping lives on the edge; by name by default, explicit per edge** (owner, 2026-10-07).
+  Supersedes the node-level `input_mappings` with `source_node_id` (2026-10-04). The common
+  case — the producer names its outputs like the consumer's survey variables — needs zero
+  configuration; the checkbox on the connection is where a user naturally looks for "what
+  flows along this arrow". The AWX problems that killed the first implicit design stay
+  bounded: outputs only ever land on declared survey variables (never undeclared `-var`s or
+  stray extra vars), the scope of a by-name match is one edge, every delivered value is logged
+  with its source, and the fan-in tie-break is fixed. Accepted cost: in `by_name` mode an output
+  overrides the node's static value of the same name — that is the point of the feature, and
+  the task log shows it.
+- **Explicit mapping, not implicit merge** (2026-09-28, partly superseded above). The first
+  design copied AWX: outputs of all finished upstream tasks merged (later task wins) and
+  injected as flat extra vars, a `semaphore_workflow_artifacts` namespace and `SEMAPHORE_WF_*`
+  env. Dropped: the merge order at a fan-in is arbitrary, an output can silently override a
+  survey value, and Terraform rejects an undeclared `-var`. Mapping onto survey variables
+  reuses the delivery every app type already has.
 - **File named by an env var, not stdout markers** — app-agnostic, and a log stream is the wrong
   channel for data (GitHub retired `::set-output`; Kestra leaked encrypted outputs through its
   stdout marker).
@@ -218,14 +257,17 @@ runner. A task created through the API must not be able to set `artifacts`,
 
 ## Open, broken, deferred
 
-- Still to be built: the runner protocol field, the node column and validation, the resolver
-  in `startWorkflowNode`, the UI, the security hardening, docs and Dredd (stages 4–9 of the
-  task).
+- Still to be built: the runner protocol field, the edge columns and validation, the resolver
+  in `startWorkflowNode`, the UI on the edge, the security hardening, docs and Dredd (stages
+  4–9 of the task). The two ⚠️ assumptions in § Consumer (fan-in tie-break, pass-through
+  nodes) are open until the owner confirms them.
 - Docker/K8s executors are out of v1. The Kubernetes termination message (4 KB per pod) cannot
   carry 256 KB; the path is a file on a shared volume read by the runner side. Until then the
   `workflowArtifactsRemoteRunnerWarning` alert stays for those executors only.
 - Key hints in the mapping form come from a previous run, but node IDs change on every revision
-  save — the hint source needs an identity that survives a save (decide in the UI stage).
+  save — the hint source needs an identity that survives a save (decide in the UI stage). With
+  mappings on the edge the form knows both ends: destination survey variables from the
+  template, candidate keys from the last run of the source node.
 - `GET …/runs/{r}/artifacts` returns a merged map, meaningless under explicit mapping; the run
   view needs outputs per node.
 - Related gaps found on the way, not part of this contract: secret survey values set on a node
@@ -243,11 +285,15 @@ runner. A task created through the API must not be able to set `artifacts`,
   `formatVarValue`), `services/tasks/TaskRunner.go` (`saveOutputs`),
   `services/tasks/TaskPool.go`, `db_lib/TerraformApp.go` (`Outputs`),
   `pro_interfaces/task_outputs.go`
+- `db/Workflow.go` (`WorkflowEdge`), `pro_impl/db/sql/workflow.go` (edge insert / select per
+  revision), `services/project/{types,backup,restore}.go`
 - `pro_interfaces/workflow_svc.go`, `pro/services/server/workflow_svc.go` (stub),
   `pro_impl/services/server/workflow_svc.go` (`startWorkflowNode`, `mapLatestNodeTask`),
   `pro_impl/db/Workflow.go` (`ValidateWorkflowTemplate`), `pro_impl/services/tasks/artifacts/`
   (incl. `ansible/callback_plugins/semaphore_outputs.py`)
-- `web/src/components/TaskParamsForm.vue`, `web/src/components/TaskDetails.vue`,
-  `web/src/views/project/WorkflowRun.vue`
+- `web/src/components/workflow/WorkflowEdgeProperties.vue` (the edge panel: condition today,
+  the input-mode checkbox and mapping table next), `web/src/views/project/WorkflowEditor.vue`
+  (`onConnectionSelected`), `web/src/components/TaskParamsForm.vue`,
+  `web/src/components/TaskDetails.vue`, `web/src/views/project/WorkflowRun.vue`
 - `api-docs.yml` (artifacts path), `docs/docs/user-guide/workflows.md`
 - https://github.com/semaphoreui/semaphore/pull/3488 (origin of the feature)
