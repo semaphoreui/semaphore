@@ -306,6 +306,33 @@ func TestSvnClient_PullRestoresWorkingCopy(t *testing.T) {
 	assert.Equal(t, "4", hash)
 }
 
+// Each template checks the branch out in its own working copy, as for git:
+// nothing a task does in it reaches another template.
+func TestSvnClient_WorkingCopyPerTemplate(t *testing.T) {
+	setupGitClientTest(t)
+	f := newSvnFixture(t)
+	f.commit(t, "site.yml", "v2", "second")
+
+	client := CreateSvnClient(nopKeyInstaller{})
+	one := newTestSvnRepo(t, f.url, "trunk")
+	one.TemplateID = 1
+	two := newTestSvnRepo(t, f.url, "trunk")
+	two.TemplateID = 2
+
+	require.NoError(t, client.Clone(one))
+	require.NoError(t, os.WriteFile(filepath.Join(one.GetFullPath(), "leftover.yml"), []byte("x"), 0644))
+
+	f.commit(t, "site.yml", "v3", "third")
+	require.NoError(t, client.Clone(two))
+
+	assert.NotEqual(t, one.GetFullPath(), two.GetFullPath())
+	assert.DirExists(t, filepath.Join(two.GetFullPath(), ".svn"))
+	assert.NoFileExists(t, filepath.Join(two.GetFullPath(), "leftover.yml"))
+	assert.Equal(t, "v3", readFile(t, filepath.Join(two.GetFullPath(), "site.yml")))
+	assert.Equal(t, "v2", readFile(t, filepath.Join(one.GetFullPath(), "site.yml")),
+		"another template's update does not touch this working copy")
+}
+
 func TestSvnClient_RejectsInvalidBranch(t *testing.T) {
 	setupGitClientTest(t)
 	f := newSvnFixture(t)
