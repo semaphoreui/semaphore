@@ -333,6 +333,35 @@ func TestSvnClient_WorkingCopyPerTemplate(t *testing.T) {
 		"another template's update does not touch this working copy")
 }
 
+// The playbook picker browses an svn branch the way it browses a git one: a
+// scratch checkout, listed without its .svn directory.
+func TestSvnClient_BrowseScratchCheckout(t *testing.T) {
+	setupGitClientTest(t)
+	f := newSvnFixture(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(f.wc, "plays"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(f.wc, "roles", "web", "tasks"), 0755))
+	for _, file := range []string{"site.yml", "plays/db.yaml", "roles/web/tasks/main.yml"} {
+		require.NoError(t, os.WriteFile(filepath.Join(f.wc, file), []byte("x"), 0644))
+	}
+	svnRun(t, f.wc, "add", "--force", ".")
+	svnRun(t, f.wc, "commit", "-m", "playbooks")
+
+	r := newTestSvnRepo(t, f.url, "trunk")
+	r.TmpDirName = "repository_0_browse_trunk"
+	r.Client = CreateSvnClient(nopKeyInstaller{})
+
+	require.NoError(t, r.CloneOrPull())
+	require.NoError(t, r.CloneOrPull(), "the second browse updates the scratch checkout")
+
+	files, err := FindRepositoryFiles(r.GetFullPath(), db.AppAnsible, "")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"plays/db.yaml", "site.yml"}, files)
+
+	dirs, err := FindRepositoryFiles(r.GetFullPath(), db.AppTerraform, "")
+	require.NoError(t, err)
+	assert.NotContains(t, dirs, ".svn")
+}
+
 func TestSvnClient_RejectsInvalidBranch(t *testing.T) {
 	setupGitClientTest(t)
 	f := newSvnFixture(t)
