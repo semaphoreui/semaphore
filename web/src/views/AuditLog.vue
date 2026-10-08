@@ -142,7 +142,7 @@
     <div class="d-flex justify-end pa-4">
       <v-btn
         text
-        :disabled="loading || newer === null"
+        :disabled="loading"
         data-testid="audit-latest"
         @click="load({})"
       >
@@ -299,6 +299,11 @@ export default {
 
     setFilters(filters) {
       this.filters = filters;
+      // A failed request must not leave events of the previous filters under the new ones.
+      this.events = [];
+      this.older = null;
+      this.newer = null;
+      this.searchedTo = null;
       this.load({});
     },
 

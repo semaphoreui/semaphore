@@ -145,6 +145,30 @@ describe('AuditLog.vue', () => {
     expect(wrapper.find('[data-testid="audit-newer"]').attributes('disabled')).to.equal('disabled');
   });
 
+  it('reloads the latest page from the latest page', async () => {
+    respondWith({ events: [auditEvent(1)], older: null, newer: null });
+    const wrapper = await mountPage();
+    wrapper.vm.setFilters({ outcome: 'failure' });
+    await flush();
+    const latest = wrapper.find('[data-testid="audit-latest"]');
+    expect(latest.attributes('disabled')).to.equal(undefined);
+    await latest.trigger('click');
+    await flush();
+    expect(auditRequests()).to.have.length(3);
+    expect(lastQuery()).to.equal('outcome=failure');
+  });
+
+  it('empties the list when a request for new filters fails', async () => {
+    const wrapper = await mountPage();
+    http.respond(() => { throw new Error('boom'); });
+    wrapper.vm.setFilters({ ip: '10.0.0.1' });
+    await flush();
+    expect(wrapper.vm.events).to.deep.equal([]);
+    expect(wrapper.vm.older).to.equal(null);
+    expect(wrapper.vm.newer).to.equal(null);
+    expect(wrapper.vm.searchedTo).to.equal(null);
+  });
+
   it('sends several kinds as repeated parameters', async () => {
     const wrapper = await mountPage();
     wrapper.vm.setFilters({ kind: ['auth.login/authenticate', 'iam.role/delete'] });
