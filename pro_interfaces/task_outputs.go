@@ -10,6 +10,13 @@ type TaskOutputsCollector interface {
 	// Begin creates the outputs file of one task in its own directory under
 	// dir. The returned capture must be closed once the task has finished.
 	Begin(dir string, taskID int) (TaskOutputsCapture, error)
+
+	// Validate checks an outputs document produced elsewhere (a remote runner
+	// reporting a finished task) by the same rules a file written by a task
+	// process goes through, and returns it in canonical form. The runner is not
+	// trusted, so the server must call this before storing what it sent. A
+	// document with nothing to store returns (nil, nil).
+	Validate(document string) (normalized *string, err error)
 }
 
 // TaskOutputsCapture is the outputs file of one running task.

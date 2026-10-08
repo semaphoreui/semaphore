@@ -12,6 +12,7 @@ AGENTS/tools/wf-stand/stand.sh {start|stop|restart|build|status|log [n]}
 AGENTS/tools/wf-stand/seed.sh
 AGENTS/tools/wf-stand/seed-outputs.sh          # PROJECT_NAME="…" to seed another project
 AGENTS/tools/wf-stand/run.sh <workflow_id> [--approve|--reject] [--stop-after SEC] [--expect success|failed|stopped] [--timeout SEC] [--run ID]
+AGENTS/tools/wf-stand/runner.sh {start|stop|status|tag|untag}   # PID=<project> TAG=<tag>; remote runner for the stand
 NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/wf-stand/shoot-run.cjs <workflow_id> [run_id] [out.png] [--dark]
 ```
 
@@ -60,3 +61,14 @@ Traps: `run.sh` exits 1 when `--expect` does not match or `--timeout` (default 1
 run. `stand.sh build` rebuilds the Vue app into `api/public` (a tracked-ignored embed input) and
 the binary at `/tmp/semaphore-stand-bin`; it needs the `pro_impl` workspace for Workflows to be
 enabled. The stand DB is `/tmp/semaphore-stand/database-wf.sqlite` and persists between sessions.
+
+`runner.sh` registers a global runner "wf-runner" (tag `wf`, local executor, `/tmp/semaphore-stand/runner-config.json`,
+log `runner.log`) and starts it from the same binary; `tag` sets `runner_tag` on every template of project
+`PID` (default 1) so their tasks go to it, `untag` sends them back to the server. The remote-runner check
+of workflow outputs (2026-10-08): `runner.sh start && runner.sh tag && run.sh 1 --expect success && run.sh 2
+--expect failed`, then `sqlite3 /tmp/semaphore-stand/database-wf.sqlite "select id,status,runner_id,length(artifacts)
+from task order by id desc limit 13"` shows `runner_id` of the runner and `artifacts` on the producers only.
+Traps: the token is returned once at creation, so a runner whose config file is gone is deleted and recreated;
+stop the runner and `untag` before a session that expects tasks to run on the server, or they wait forever;
+`status` keeps saying `online` for up to 120 s after `stop` (the server's heartbeat timeout), trust the
+`process:` line.

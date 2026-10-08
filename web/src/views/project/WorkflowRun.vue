@@ -52,16 +52,6 @@
 
     <div class="WorkflowRun__body">
       <template v-if="details != null">
-        <v-alert
-          v-if="hasRemoteRunnerNodes"
-          type="warning"
-          dense
-          text
-          tile
-          class="ma-0"
-          icon="mdi-alert-outline"
-        >{{ $t('workflowArtifactsRemoteRunnerWarning') }}</v-alert>
-
         <div class="WorkflowRun__graph">
           <WorkflowGraph
             v-if="workflow"
@@ -200,12 +190,6 @@ export default {
       const { status } = this.details.run;
       return (status === 'running' || status === 'approval')
         && this.can(USER_PERMISSIONS.runProjectTasks);
-    },
-    hasRemoteRunnerNodes() {
-      if (!this.details) return false;
-      return (this.details.nodes || []).some(
-        (n) => n.task && n.task.used_runner_id != null,
-      );
     },
     // node.id -> run info for the card: status, timing, live delay countdown,
     // the task to open on click and the approval message.

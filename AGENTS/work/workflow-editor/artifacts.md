@@ -5,12 +5,13 @@ Hand-off of structured data between task nodes of one workflow run. A task **pro
 of one of its template's survey variables to one output key of one ancestor node. The UI and the
 docs say "Outputs" / "Inputs"; the DB column and the API field keep the name `artifacts`.
 
-**Status (2026-10-07): contract agreed, consumer side redesigned to live on the edge; the
-producer side works for tasks run on the server (local executor), nothing else does.** A workflow
-task run locally gets the file, its outputs are validated and stored on `task.artifacts`; remote
-runners send nothing yet, edges carry no `input_mode` / `input_mappings`, the engine resolves
-nothing, the UI shows the raw document. The seeded stand for checking it by hand is described in
-`AGENTS/tools/wf-stand/README.md` (`seed-outputs.sh`). Work is tracked in
+**Status (2026-10-08): contract agreed, consumer side lives on the edge; the producer side works
+for tasks run on the server and on remote runners with the local executor, nothing else does.** A
+workflow task gets the file, its outputs are validated and stored on `task.artifacts` — on the
+server directly, from a runner through `JobProgress.Outputs` with a second validation on the
+server; edges carry no `input_mode` / `input_mappings`, the engine resolves nothing, the UI shows
+the raw document. The seeded stand for checking it by hand is described in
+`AGENTS/tools/wf-stand/README.md` (`seed-outputs.sh`, `runner.sh`). Work is tracked in
 workbench `TASK@1845d9d4d7`; the practices behind the contract are in `RESEARCH@a97b871b1d`.
 
 ## Contract
@@ -169,7 +170,7 @@ are never printed in full to a log, and are re-validated on the server when they
 runner. A task created through the API must not be able to set `artifacts`,
 `workflow_run_id` or `workflow_node_id`.
 
-## What exists in the code (checked 2026-10-04)
+## What exists in the code (checked 2026-10-08)
 
 - **Producer, local executor — implemented.** `pro_interfaces.TaskOutputsCollector` /
   `TaskOutputsCapture` (`pro_interfaces/task_outputs.go`) is the open/pro seam: the stub factory
@@ -201,12 +202,29 @@ runner. A task created through the API must not be able to set `artifacts`,
 - **Terraform capture.** `TerraformApp.Outputs` runs `<binary> output -json` after a successful
   run and keeps the result out of the task log (it carries sensitive values in plain text).
   Checked by hand against Ansible core 2.21, Terraform and OpenTofu.
+- **Producer, remote runner — implemented (2026-10-08).** `JobProgress.Outputs *string`
+  (`services/runners/types.go`, `json:"outputs,omitempty"`, ignored by an old server, never sent
+  by an old runner) carries the same document as `task.artifacts`. On the runner
+  `runningJob.finish` sets the success status and the outputs under one lock, so a progress
+  snapshot never reports success without them, and `JobPool.taskOutputs` reads them from any
+  executor implementing `tasks.OutputsProvider` (`LocalExecutor.Outputs`). The collector reaches
+  the runner's `LocalExecutorProvider` through `JobPool.SetTaskOutputsCollector`, wired in
+  `cli/cmd/runner.go` from the same open/pro factory as the server. On the server
+  `UpdateRunner` (`api/runners/runners.go`) calls `TaskPool.StoreRemoteTaskOutputs` **before**
+  `SetStatus(success)`: `TaskOutputsCollector.Validate` (pro: `artifacts.Decode` + `Encode`)
+  re-checks the document, `UpdateTaskArtifacts` persists it; an invalid document fails the task
+  with a line in its log. Outputs are accepted only with the success status and only for a task
+  with `WorkflowRunID`; `applyDBPersistedTaskSnapshot` carries `Artifacts`, so an HA node that
+  hydrates the task sees them. Checked end to end on the stand with `runner.sh` (bash,
+  Terraform and `set_stats` producers stored, the six invalid producers failed on the runner).
+- A task of a workflow run on a Docker/K8s executor gets a task-log line saying this executor
+  does not capture outputs (`JobPool.taskOutputs`); the blanket "remote runner" alert in the run
+  view and its `workflowArtifactsRemoteRunnerWarning` string are gone — the server cannot tell a
+  runner's executor type, and the local executor on a runner now works.
 - Still as before: `GET /project/{p}/workflows/{w}/runs/{r}/artifacts` (`api/router.go`,
   `api-docs.yml`) → `WorkflowService.GetWorkflowRunArtifacts`; the task dialog pretty-prints
   `task.artifacts` (`web/src/components/TaskDetails.vue`) — now the `values`/`skipped`
-  document; the run view shows only the remote-runner warning (`WorkflowRun.vue`).
-- ⚠️ 2026-10-04: `LocalExecutorProvider` (remote runner) passes no collector and
-  `JobProgress` has no outputs field — a task on a remote runner produces nothing.
+  document.
 - ⚠️ 2026-10-04: the server never applies survey defaults or validates survey types — only the
   Vue forms do (`TaskParamsForm.vue`; see `../secrets-and-task-vars/schedule-survey-defaults.md`).
   The resolver therefore applies `default_value` itself for mapped variables; `int` values are
@@ -257,13 +275,15 @@ runner. A task created through the API must not be able to set `artifacts`,
 
 ## Open, broken, deferred
 
-- Still to be built: the runner protocol field, the edge columns and validation, the resolver
-  in `startWorkflowNode`, the UI on the edge, the security hardening, docs and Dredd (stages
-  4–9 of the task). The two ⚠️ assumptions in § Consumer (fan-in tie-break, pass-through
-  nodes) are open until the owner confirms them.
+- Still to be built: the edge columns and validation, the resolver in `startWorkflowNode`, the
+  UI on the edge, the security hardening, docs and Dredd (stages 5–9 of the task). The two ⚠️
+  assumptions in § Consumer (fan-in tie-break, pass-through nodes) are open until the owner
+  confirms them; the research direction `AREA@7ec03538fb` (2026-10-07) recommends a
+  deterministic tie-break by edge id, rejecting conflicting explicit mappings at save under
+  `convergence_mode: all`, and stating that pass-through carries raw outputs.
 - Docker/K8s executors are out of v1. The Kubernetes termination message (4 KB per pod) cannot
-  carry 256 KB; the path is a file on a shared volume read by the runner side. Until then the
-  `workflowArtifactsRemoteRunnerWarning` alert stays for those executors only.
+  carry 256 KB; the path is a file on a shared volume read by the runner side. Until then a
+  workflow task on those executors only gets the task-log line from `JobPool.taskOutputs`.
 - Key hints in the mapping form come from a previous run, but node IDs change on every revision
   save — the hint source needs an identity that survives a save (decide in the UI stage). With
   mappings on the edge the form knows both ends: destination survey variables from the
@@ -283,8 +303,13 @@ runner. A task created through the API must not be able to set `artifacts`,
 - `services/tasks/local_executor.go` (outputs: `beginOutputs`, `collectOutputs`,
   `ansibleCallbackPlugins`; survey delivery: `getEnvironmentExtraVars`, `getSurveyEnvVars`,
   `formatVarValue`), `services/tasks/TaskRunner.go` (`saveOutputs`),
-  `services/tasks/TaskPool.go`, `db_lib/TerraformApp.go` (`Outputs`),
-  `pro_interfaces/task_outputs.go`
+  `services/tasks/TaskPool.go` (`StoreRemoteTaskOutputs`, `applyDBPersistedTaskSnapshot`),
+  `services/tasks/local_executor_provider.go`, `services/tasks/executor.go`
+  (`OutputsProvider`), `db_lib/TerraformApp.go` (`Outputs`), `pro_interfaces/task_outputs.go`
+- Runner protocol: `services/runners/types.go` (`JobProgress.Outputs`),
+  `services/runners/running_job.go` (`finish`), `services/runners/job_pool.go`
+  (`taskOutputs`, `SetTaskOutputsCollector`), `api/runners/runners.go` (`UpdateRunner`),
+  `cli/cmd/runner.go`; stand check — `AGENTS/tools/wf-stand/runner.sh`
 - `db/Workflow.go` (`WorkflowEdge`), `pro_impl/db/sql/workflow.go` (edge insert / select per
   revision), `services/project/{types,backup,restore}.go`
 - `pro_interfaces/workflow_svc.go`, `pro/services/server/workflow_svc.go` (stub),

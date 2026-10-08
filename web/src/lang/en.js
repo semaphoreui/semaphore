@@ -599,7 +599,6 @@ export default {
   workflowArtifactsHint: 'Variables produced by this task via Ansible set_stats. Forwarded to downstream tasks in the same workflow run as extra-vars.',
   workflowMergedArtifacts: 'Workflow artifacts (merged)',
   workflowMergedArtifactsHint: 'Combined view of all artifacts produced so far in this run. Later tasks override earlier ones.',
-  workflowArtifactsRemoteRunnerWarning: 'This run contains tasks executed by remote runners. Workflow artifacts (set_stats values) will not flow across remote-runner steps yet — they are only passed between tasks executed locally on the Semaphore server.',
   workflowSaved: 'Workflow saved',
   workflowLastRun: 'Last run',
   workflowRuns: 'Runs',

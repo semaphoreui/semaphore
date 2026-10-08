@@ -50,6 +50,10 @@ type outputsCollectorFake struct {
 	calls  int
 	dir    string
 	taskID int
+
+	// validate overrides Validate; nil returns the document unchanged.
+	validate  func(document string) (*string, error)
+	validated []string
 }
 
 func (c *outputsCollectorFake) Begin(dir string, taskID int) (pro_interfaces.TaskOutputsCapture, error) {
@@ -60,6 +64,17 @@ func (c *outputsCollectorFake) Begin(dir string, taskID int) (pro_interfaces.Tas
 		return nil, c.err
 	}
 	return c.capture, nil
+}
+
+func (c *outputsCollectorFake) Validate(document string) (*string, error) {
+	c.validated = append(c.validated, document)
+	if c.validate != nil {
+		return c.validate(document)
+	}
+	if c.err != nil {
+		return nil, c.err
+	}
+	return &document, nil
 }
 
 // outputsApp is an app whose Run reports what the test tells it to.

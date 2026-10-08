@@ -44,6 +44,17 @@ type ExecutorProvider interface {
 //     (status updates, phased progress reporting) can do so. Run remains the default
 //     orchestrator and must call them itself when invoked directly.
 //   - Kill is invoked from a different goroutine when a stop is requested by the user.
+//
+// OutputsProvider is implemented by executors that capture the outputs of a
+// workflow task (see pro_interfaces.TaskOutputsCollector). The runner reads it
+// after Run returned without an error and ships the document to the server
+// together with the terminal status.
+type OutputsProvider interface {
+	// Outputs returns the outputs document of the task, or nil when the task
+	// produced none.
+	Outputs() *string
+}
+
 type Executor interface {
 	Job
 
