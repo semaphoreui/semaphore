@@ -65,7 +65,18 @@ describe('getRepositoryUrlType', () => {
 
   it('returns null for unknown URL schemes', () => {
     expect(getRepositoryUrlType('ftp://example.com/repo')).to.equal(null);
-    expect(getRepositoryUrlType('svn://example.com/repo')).to.equal(null);
+  });
+
+  it('returns svn for svn:// URLs', () => {
+    expect(getRepositoryUrlType('svn://svn.example.com/repo/trunk')).to.equal('svn');
+  });
+
+  it('returns svn+ssh for svn+ssh:// URLs', () => {
+    expect(getRepositoryUrlType('svn+ssh://user@svn.example.com/repo/trunk')).to.equal('svn+ssh');
+  });
+
+  it('keeps reading other x+y:// URLs as ssh', () => {
+    expect(getRepositoryUrlType('git+ssh://git@github.com/user/repo')).to.equal('ssh');
   });
 });
 

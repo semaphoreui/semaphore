@@ -11,6 +11,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/git"
+	"github.com/semaphoreui/semaphore/pkg/svn"
 	"github.com/semaphoreui/semaphore/util"
 
 	log "github.com/sirupsen/logrus"
@@ -24,6 +25,11 @@ const (
 	RepositoryHTTP  RepositoryType = "https"
 	RepositoryFile  RepositoryType = "file"
 	RepositoryLocal RepositoryType = "local"
+
+	// RepositorySVN and RepositorySVNSSH are Subversion repositories, served by
+	// svnserve directly or tunnelled through ssh.
+	RepositorySVN    RepositoryType = "svn"
+	RepositorySVNSSH RepositoryType = "svn+ssh"
 )
 
 // Repository is the model for code stored in a git repository
@@ -214,6 +220,10 @@ func (r Repository) GetType() RepositoryType {
 		return RepositoryLocal
 	}
 
+	if svn.IsSvnSSHURL(r.GitURL) {
+		return RepositorySVNSSH
+	}
+
 	re := regexp.MustCompile(`^(\w+)://`)
 	m := re.FindStringSubmatch(r.GitURL)
 	if m == nil {
@@ -256,4 +266,24 @@ func (r Repository) Validate() error {
 	}
 
 	return nil
+}
+
+// ValidateCommitRef rejects a commit a task can not be checked out at: a hex
+// object name for git, a revision number for Subversion.
+func (r Repository) ValidateCommitRef(ref string, objectName string) error {
+	if r.IsSubversion() {
+		return svn.ValidateRevision(ref, objectName)
+	}
+	return git.ValidateCommitHash(ref, objectName)
+}
+
+// IsSubversion reports whether the repository is served by Subversion rather
+// than git.
+func (r Repository) IsSubversion() bool {
+	switch r.GetType() {
+	case RepositorySVN, RepositorySVNSSH:
+		return true
+	default:
+		return false
+	}
 }
