@@ -211,6 +211,20 @@ describe('AuditLog.vue', () => {
     expect(lastQuery()).to.equal('before=79');
   });
 
+  it('keeps the error and Retry above the rows when a page change fails', async () => {
+    const wrapper = await mountPage();
+    http.respond(() => { throw new Error('boom'); });
+    await wrapper.vm.load({ before: 79 });
+    await flush();
+    expect(wrapper.findAll('tbody tr')).to.have.length(2);
+    expect(wrapper.find('[data-testid="audit-load-failed"]').exists()).to.equal(true);
+    respondWith(PAGE);
+    await wrapper.find('[data-testid="audit-retry"]').trigger('click');
+    await flush();
+    expect(lastQuery()).to.equal('before=79');
+    expect(wrapper.find('[data-testid="audit-load-failed"]').exists()).to.equal(false);
+  });
+
   it('downloads the export instead of opening it', async () => {
     const wrapper = await mountPage();
     await wrapper.find('[data-testid="audit-export"]').trigger('click');
@@ -395,6 +409,17 @@ describe('AuditLog.vue', () => {
     });
     const wrapper = await mountPage();
     expect(wrapper.vm.projectName(auditEvent(1))).to.equal('Project #9');
+  });
+
+  it('names projects when only the user list fails to load', async () => {
+    http.respond((config) => {
+      if (config.url === '/api/users') {
+        throw new Error('boom');
+      }
+      return config.url === '/api/projects' ? [{ id: 9, name: 'Infra' }] : PAGE;
+    });
+    const wrapper = await mountPage();
+    expect(wrapper.vm.projectName(auditEvent(1))).to.equal('Infra');
   });
 
   it('reports a failed events request and keeps the list', async () => {

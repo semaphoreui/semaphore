@@ -80,6 +80,20 @@
       </v-btn>
     </div>
 
+    <div v-if="failed && events.length" class="px-4 pt-2" data-testid="audit-load-failed">
+      {{ $t('audit_load_failed') }}
+      <v-btn
+        text
+        small
+        color="primary"
+        class="ml-2"
+        data-testid="audit-retry"
+        @click="load(lastPage)"
+      >
+        {{ $t('audit_retry') }}
+      </v-btn>
+    </div>
+
     <v-data-table
       fixed-header
       :headers="headers"
@@ -318,17 +332,22 @@ export default {
     },
 
     async loadNames() {
-      try {
-        const [users, projects] = await Promise.all([
-          axios.get('/api/users'),
-          axios.get('/api/projects'),
-        ]);
-        this.users = users.data;
-        this.projects = projects.data;
-        this.namesLoaded = true;
-      } catch (err) {
+      const [users, projects] = await Promise.allSettled([
+        axios.get('/api/users'),
+        axios.get('/api/projects'),
+      ]);
+      if (users.status === 'fulfilled') {
+        this.users = users.value.data;
+      }
+      if (projects.status === 'fulfilled') {
+        this.projects = projects.value.data;
+      }
+      const failure = [users, projects].find((r) => r.status === 'rejected');
+      if (failure) {
         this.namesFailed = true;
-        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(failure.reason) });
+      } else {
+        this.namesLoaded = true;
       }
     },
 
