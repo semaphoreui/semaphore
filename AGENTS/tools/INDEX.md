@@ -17,6 +17,7 @@ How to add, document and retire a tool — [`CREATE.md`](CREATE.md).
 `stand.sh` starts/stops/builds the `:3100` stand, `seed.sh` creates known-outcome bash
 workflows, `run.sh` starts a run and follows every node (task, approval, delay) to a terminal
 status with optional auto-approve/stop, `runner.sh` registers and runs a remote runner for the
-stand and routes a project's templates to it, `shoot-run.cjs` screenshots the run view. Use it instead of
+stand and routes a project's templates to it, `inputs.sh` prints producer outputs and consumer
+`INPUT` lines of a run, `shoot-run.cjs` screenshots the run view. Use it instead of
 hand-written curl polling whenever a change to the workflow engine or run view must be checked
 against a real run.

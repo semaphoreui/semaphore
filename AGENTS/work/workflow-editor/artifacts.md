@@ -6,11 +6,11 @@ of one of its template's survey variables to one output key of one ancestor node
 docs say "Outputs" / "Inputs"; the DB column and the API field keep the name `artifacts`.
 
 **Status (2026-10-08): contract agreed, consumer side lives on the edge; the producer side works
-for tasks run on the server and on remote runners with the local executor, nothing else does.** A
-workflow task gets the file, its outputs are validated and stored on `task.artifacts` — on the
-server directly, from a runner through `JobProgress.Outputs` with a second validation on the
-server; edges carry no `input_mode` / `input_mappings`, the engine resolves nothing, the UI shows
-the raw document. The seeded stand for checking it by hand is described in
+for tasks run on the server and on remote runners with the local executor; edges store and
+validate `input_mode` / `input_mappings`, but the engine resolves nothing yet and the UI shows the
+raw document.** A workflow task gets the file, its outputs are validated and stored on
+`task.artifacts` — on the server directly, from a runner through `JobProgress.Outputs` with a
+second validation on the server. The seeded stand for checking it by hand is described in
 `AGENTS/tools/wf-stand/README.md` (`seed-outputs.sh`, `runner.sh`). Work is tracked in
 workbench `TASK@1845d9d4d7`; the practices behind the contract are in `RESEARCH@a97b871b1d`.
 
@@ -111,14 +111,24 @@ between two nodes says how the source's outputs feed the destination's survey va
 - Stored as two columns on `project__workflow_edge` (`input_mode`, `input_mappings` JSON),
   both with `backup` tags; `ValidateWorkflowTemplate` checks explicit mappings against the
   destination template's survey; `api-docs.yml` documents them on `WorkflowEdge`.
+  Implemented 2026-10-08 (migration `v2.20.10`): `input_mode` is `not null default 'by_name'`,
+  so a stored edge reads back and is returned by the API with `"input_mode":"by_name"` (the
+  contract's "omitted in JSON" holds only for what a client sends — same as `kind` and
+  `convergence_mode` on nodes); `input_mappings` is NULL for by_name and a JSON list (possibly
+  `[]`) for explicit. Validation: `by_name` passes on any edge; `explicit` or a non-empty list
+  is rejected on an edge into an approval/delay node and on a by_name edge; in explicit, `var`
+  must be a non-secret survey variable of the destination template, `key` must match the
+  output-name pattern (`db.IsValidWorkflowOutputName`), one mapping per `var`.
 
 ⚠️ Assumptions still to be confirmed by the owner (2026-10-07):
 
 - **Fan-in.** A node with several incoming edges takes contributions from every edge whose
   source task succeeded. If two edges feed the same variable, an `explicit` mapping beats a
   `by_name` one; between two of the same kind the source task that finished last wins. The
-  task log names the winner. Conflicting explicit mappings on two edges are not rejected at
-  save: with `convergence_mode: any` only one of them may ever fire.
+  task log names the winner. ⚠️ 2026-10-08: following `AREA@7ec03538fb`, two explicit edges
+  mapping the same variable of one node **are rejected at save when the node's
+  `convergence_mode` is `all`** (both would fire and race); with `any` they are accepted (one
+  branch runs). The tie-break for by_name conflicts is still open (recommendation: by edge id).
 - **Pass-through nodes.** An approval or delay node has no outputs of its own. An edge leaving
   it is transparent: it offers the outputs that reached that node through its own incoming edges,
   so `task → approval → task` still passes data, and the mapping is configured on the last edge
@@ -275,8 +285,8 @@ runner. A task created through the API must not be able to set `artifacts`,
 
 ## Open, broken, deferred
 
-- Still to be built: the edge columns and validation, the resolver in `startWorkflowNode`, the
-  UI on the edge, the security hardening, docs and Dredd (stages 5–9 of the task). The two ⚠️
+- Still to be built: the resolver in `startWorkflowNode`, the UI on the edge, the security
+  hardening, docs and Dredd (stages 6–9 of the task). The two ⚠️
   assumptions in § Consumer (fan-in tie-break, pass-through nodes) are open until the owner
   confirms them; the research direction `AREA@7ec03538fb` (2026-10-07) recommends a
   deterministic tie-break by edge id, rejecting conflicting explicit mappings at save under
@@ -310,8 +320,11 @@ runner. A task created through the API must not be able to set `artifacts`,
   `services/runners/running_job.go` (`finish`), `services/runners/job_pool.go`
   (`taskOutputs`, `SetTaskOutputsCollector`), `api/runners/runners.go` (`UpdateRunner`),
   `cli/cmd/runner.go`; stand check — `AGENTS/tools/wf-stand/runner.sh`
-- `db/Workflow.go` (`WorkflowEdge`), `pro_impl/db/sql/workflow.go` (edge insert / select per
-  revision), `services/project/{types,backup,restore}.go`
+- `db/Workflow.go` (`WorkflowEdge`, `WorkflowEdgeInputMode`, `WorkflowInputMapping`,
+  `IsValidWorkflowOutputName`), `db/sql/migrations/v2.20.10.sql`, `pro_impl/db/sql/workflow.go`
+  (edge insert / select per revision, `fillWorkflowEdge`, `workflowEdgeInputMappingsJSON`),
+  `pro_impl/db/Workflow.go` (`validateWorkflowEdgeInputs`),
+  `services/project/{types,backup,restore}.go`
 - `pro_interfaces/workflow_svc.go`, `pro/services/server/workflow_svc.go` (stub),
   `pro_impl/services/server/workflow_svc.go` (`startWorkflowNode`, `mapLatestNodeTask`),
   `pro_impl/db/Workflow.go` (`ValidateWorkflowTemplate`), `pro_impl/services/tasks/artifacts/`

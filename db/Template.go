@@ -73,6 +73,9 @@ const (
 	SurveyVarEnum   SurveyVarType = "enum"
 	SurveyVarText   SurveyVarType = "text"
 	SurveyVarSelect SurveyVarType = "select"
+	// SurveyVarSecret is entered hidden and delivered to the task as a secret;
+	// it is never stored on the task and never fed from workflow outputs.
+	SurveyVarSecret SurveyVarType = "secret"
 )
 
 type SurveyVarTarget string

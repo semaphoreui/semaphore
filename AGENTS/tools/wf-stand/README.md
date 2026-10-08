@@ -13,6 +13,7 @@ AGENTS/tools/wf-stand/seed.sh
 AGENTS/tools/wf-stand/seed-outputs.sh          # PROJECT_NAME="…" to seed another project
 AGENTS/tools/wf-stand/run.sh <workflow_id> [--approve|--reject] [--stop-after SEC] [--expect success|failed|stopped] [--timeout SEC] [--run ID]
 AGENTS/tools/wf-stand/runner.sh {start|stop|status|tag|untag}   # PID=<project> TAG=<tag>; remote runner for the stand
+AGENTS/tools/wf-stand/inputs.sh <workflow_id> [run_id]           # outputs stored per producer + "INPUT name=value" lines per consumer
 NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/wf-stand/shoot-run.cjs <workflow_id> [run_id] [out.png] [--dark]
 ```
 
@@ -48,6 +49,18 @@ each bad producer `error` with the reason in its log, "empty" `success` without 
 3 "failed producer" (expect `failed`, no artifacts stored, `on_failure` consumer ran), 4 "tofu ->
 consume" (expect `success`). Scripts: `/tmp/semaphore-stand/wf-repo/produce*.sh`, `consume.sh`,
 `tf/main.tf`, `playbooks/*.yml`. Ids land in `/tmp/semaphore-stand/wf-outputs-ids.txt`.
+
+Since 2026-10-08 the same seed adds the mapping checks: templates "bash: produce renamed outputs" and
+"ansible: set_stats renamed outputs" (output names `tag`, `count`, `flag`, `subnets`, `cfg`, `envname` that
+match no survey variable, so only an explicit edge mapping can deliver them) and workflows 9 "Inputs: explicit
+mapping" (renamed producers → bash and ansible consumers over `explicit` edges, `image_tag←tag`,
+`replicas←count`, …), 10 "Inputs: by_name through approval" (produce → approval → consumers, run with
+`--approve`), 11 "Inputs: fan-in by_name vs explicit" (produce by name and renamed explicitly into one consumer
+with convergence all: expect `image_tag` from the explicit edge, `replicas` by name), 12 "Inputs: explicit empty
+list" (the edge passes nothing). Consumers print one `INPUT name=value` line per survey variable (bash: parsed
+`k=v` args plus `env:env_name` — a `target: env` variable keeps its own name, it is not upper-cased; ansible: a debug list), so `inputs.sh <wf>` shows producer outputs next to what
+the consumer received. Until the resolver (stage 6) lands every consumer shows only the node's static values
+(`image_tag=static-from-node`) and `<unset>` for the rest — that is the baseline, not a failure.
 
 Seeding traps learned there: a Terraform-family template must be POSTed without `inventory_id`
 (the API creates a `terraform-workspace` inventory; a shared one gets claimed and hidden) and with

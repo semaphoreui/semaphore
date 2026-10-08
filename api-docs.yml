@@ -1460,6 +1460,31 @@ definitions:
       condition:
         type: string
         enum: [on_success, on_failure, always]
+      input_mode:
+        type: string
+        enum: [by_name, explicit]
+        description: >
+          How the outputs of the source node feed the survey variables of the destination task node.
+          by_name (default) delivers every output whose name equals a non-secret survey variable;
+          explicit delivers only the pairs listed in input_mappings. Allowed only on an edge whose
+          destination is a task node.
+      input_mappings:
+        type: array
+        description: Pairs delivered in explicit mode. An empty list means the edge passes nothing.
+        items:
+          $ref: "#/definitions/WorkflowInputMapping"
+
+  WorkflowInputMapping:
+    type: object
+    required: [var, key]
+    properties:
+      var:
+        type: string
+        description: Name of a non-secret survey variable of the destination template.
+      key:
+        type: string
+        description: Name of a top-level output of the source node.
+        pattern: '^[A-Za-z_][A-Za-z0-9_-]*$'
 
   WorkflowTemplate:
     type: object

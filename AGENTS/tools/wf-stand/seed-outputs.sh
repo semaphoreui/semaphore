@@ -63,13 +63,20 @@ T_TF=$(mk_tpl "terraform: outputs" terraform tf '[{"name":"image_tag","title":"I
 T_TOFU=$(mk_tpl "tofu: outputs" tofu tf)
 T_ANS=$(mk_tpl "ansible: set_stats outputs" ansible playbooks/outputs.yml '[{"name":"image_tag","title":"Image tag","type":"","default_value":"ansible-default"}]')
 T_ANS_CONS=$(mk_tpl "ansible: consume" ansible playbooks/consume.yml "$CONSUMER_VARS")
-echo "templates ok=$T_OK fail=$T_FAIL slow=$T_SLOW produce=$T_PROD empty=$T_EMPTY badjson=$T_BADJSON badname=$T_BADNAME many=$T_MANY large=$T_LARGE thenfail=$T_THENFAIL symlink=$T_SYMLINK consume=$T_CONS tf=$T_TF tofu=$T_TOFU ansible=$T_ANS ansible_consume=$T_ANS_CONS"
+# Producers whose output names differ from the consumer survey: deliverable only via explicit mapping.
+T_PROD_RENAMED=$(mk_tpl "bash: produce renamed outputs" bash produce_renamed.sh)
+T_ANS_RENAMED=$(mk_tpl "ansible: set_stats renamed outputs" ansible playbooks/outputs_renamed.yml)
+echo "templates ok=$T_OK fail=$T_FAIL slow=$T_SLOW produce=$T_PROD empty=$T_EMPTY badjson=$T_BADJSON badname=$T_BADNAME many=$T_MANY large=$T_LARGE thenfail=$T_THENFAIL symlink=$T_SYMLINK consume=$T_CONS tf=$T_TF tofu=$T_TOFU ansible=$T_ANS ansible_consume=$T_ANS_CONS renamed=$T_PROD_RENAMED ansible_renamed=$T_ANS_RENAMED"
 
 mk_wf() { local id; id=$(api GET "/project/$PID/workflows" | find_by_name "$1")
   [ -n "$id" ] && { echo "$id"; return; }
   api POST "/project/$PID/workflows" "$2" | jid; }
 node() { echo "{\"id\":$1,\"kind\":\"task\",\"template_id\":$2,\"task_params\":{${4:-}},\"position_x\":$3,\"position_y\":${5:-200}}"; }
 edge() { echo "{\"source_node_id\":$1,\"destination_node_id\":$2,\"condition\":\"${3:-on_success}\"}"; }
+# edgex SRC DST 'var:key var:key …' — an explicit edge; an empty list passes nothing.
+edgex() { local m="" p; for p in ${3:-}; do m="$m${m:+,}{\"var\":\"${p%%:*}\",\"key\":\"${p#*:}\"}"; done
+  echo "{\"source_node_id\":$1,\"destination_node_id\":$2,\"condition\":\"on_success\",\"input_mode\":\"explicit\",\"input_mappings\":[$m]}"; }
+anode() { echo "{\"id\":$1,\"kind\":\"approval\",\"position_x\":$2,\"position_y\":${3:-200}}"; }
 
 # Static node values for the bash consumer (fallback when a mapped output is missing).
 # Built outside the double-quoted body: bash mangles \" inside $( ) inside "...".
@@ -101,6 +108,32 @@ W_TOFU=$(mk_wf "Outputs: tofu -> consume" "{\"project_id\":$PID,\"name\":\"Outpu
  $(node 1 $T_TOFU 80), $(node 2 $T_CONS 420)],
  \"edges\":[$(edge 1 2)]}")
 
-echo "workflows main=$W_MAIN invalid=$W_BAD failed_producer=$W_FAILPROD tofu=$W_TOFU"
-echo "$PID $W_MAIN $W_BAD $W_FAILPROD $W_TOFU" > /tmp/semaphore-stand/wf-outputs-ids.txt
+# Mapping checks (stage 5+). Consumers print "INPUT name=value" per variable; compare with the
+# producer's outputs. Until the resolver (stage 6) lands, consumers show only static/default values.
+MAP_ALL="image_tag:tag replicas:count enabled:flag subnet_ids:subnets config:cfg env_name:envname"
+
+# 5. Explicit mapping: renamed producers -> bash and ansible consumers; by_name would deliver nothing.
+W_EXPLICIT=$(mk_wf "Inputs: explicit mapping" "{\"project_id\":$PID,\"name\":\"Inputs: explicit mapping\",\"nodes\":[
+ $(node 1 $T_OK 40 '' 200), $(node 2 $T_PROD_RENAMED 360 '' 100), $(node 3 $T_ANS_RENAMED 360 '' 300),
+ $(node 4 $T_CONS 720 "$ENV_STATIC" 100), $(node 5 $T_ANS_CONS 720 '' 300)],
+ \"edges\":[$(edge 1 2), $(edge 1 3), $(edgex 2 4 "$MAP_ALL"), $(edgex 3 5 "image_tag:tag replicas:count subnet_ids:subnets")]}")
+
+# 6. by_name through an approval (pass-through): produce -> approval -> consumers. Run with --approve.
+W_APPROVAL=$(mk_wf "Inputs: by_name through approval" "{\"project_id\":$PID,\"name\":\"Inputs: by_name through approval\",\"nodes\":[
+ $(node 1 $T_PROD 40), $(anode 2 360), $(node 3 $T_CONS 720 "$ENV_STATIC" 100), $(node 4 $T_ANS_CONS 720 '' 300)],
+ \"edges\":[$(edge 1 2), $(edge 2 3), $(edge 2 4)]}")
+
+# 7. Fan-in: by_name edge (produce) and explicit edge (renamed, image_tag<-tag) into one consumer
+#    with convergence all. Expected: image_tag from the explicit edge, replicas by name from produce.
+W_FANIN=$(mk_wf "Inputs: fan-in by_name vs explicit" "{\"project_id\":$PID,\"name\":\"Inputs: fan-in by_name vs explicit\",\"nodes\":[
+ $(node 1 $T_OK 40), $(node 2 $T_PROD 360 '' 100), $(node 3 $T_PROD_RENAMED 360 '' 300), $(node 4 $T_CONS 720 "$ENV_STATIC")],
+ \"edges\":[$(edge 1 2), $(edge 1 3), $(edge 2 4), $(edgex 3 4 "image_tag:tag")]}")
+
+# 8. Explicit with an empty list: the edge passes nothing, the consumer keeps static/default values.
+W_EMPTY=$(mk_wf "Inputs: explicit empty list" "{\"project_id\":$PID,\"name\":\"Inputs: explicit empty list\",\"nodes\":[
+ $(node 1 $T_PROD 40), $(node 2 $T_CONS 420 "$ENV_STATIC")],
+ \"edges\":[$(edgex 1 2 "")]}")
+
+echo "workflows main=$W_MAIN invalid=$W_BAD failed_producer=$W_FAILPROD tofu=$W_TOFU explicit=$W_EXPLICIT approval=$W_APPROVAL fanin=$W_FANIN empty=$W_EMPTY"
+echo "$PID $W_MAIN $W_BAD $W_FAILPROD $W_TOFU $W_EXPLICIT $W_APPROVAL $W_FANIN $W_EMPTY" > /tmp/semaphore-stand/wf-outputs-ids.txt
 echo "UI: $BASE/project/$PID/workflows"
