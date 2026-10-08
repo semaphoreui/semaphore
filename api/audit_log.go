@@ -10,6 +10,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/audit"
+	log "github.com/sirupsen/logrus"
 )
 
 const auditPageSize = 50
@@ -62,7 +63,8 @@ func getAuditEvents(filtered http.HandlerFunc) http.HandlerFunc {
 		}
 		page, err := helpers.Store(r).ListAuditEvents(r.Context(), before, after, auditPageSize)
 		if err != nil {
-			helpers.WriteError(w, err)
+			log.WithError(err).WithField("context", "audit_log").Error("Failed to read audit events")
+			helpers.WriteErrorStatus(w, "Failed to read audit events", http.StatusInternalServerError)
 			return
 		}
 
@@ -70,7 +72,8 @@ func getAuditEvents(filtered http.HandlerFunc) http.HandlerFunc {
 		for _, row := range page.Events {
 			envelope, err := audit.EnvelopeFromRow(row)
 			if err != nil {
-				helpers.WriteError(w, err)
+				log.WithError(err).WithField("context", "audit_log").Error("Failed to read audit events")
+				helpers.WriteErrorStatus(w, "Failed to read audit events", http.StatusInternalServerError)
 				return
 			}
 			body.Events = append(body.Events, envelope)

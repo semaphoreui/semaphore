@@ -116,6 +116,21 @@ func TestGetAuditEvents_RejectsBadCursor(t *testing.T) {
 	}
 }
 
+func TestGetAuditEvents_StoreFailureAnswers500(t *testing.T) {
+	r := auditLogRequest(t, "/api/audit/events", 1)
+	_, err := helpers.Store(r).(*sql.SqlDb).Sql().Exec("update audit_event set metadata = 'not json'")
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	getAuditEvents(notFiltered(t))(w, r)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	_, err = helpers.Store(r).(*sql.SqlDb).Sql().Exec("drop table audit_event")
+	require.NoError(t, err)
+	w = httptest.NewRecorder()
+	getAuditEvents(notFiltered(t))(w, r)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
 func TestAuditStub_RefusesFiltersAndExport(t *testing.T) {
 	controller := proApi.NewAuditController(nil, nil)
 	w := httptest.NewRecorder()
