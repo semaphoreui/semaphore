@@ -12,14 +12,19 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
+// MaxOffsetDays is how far a cron schedule's runs may be moved, either way.
+const MaxOffsetDays = 31
+
 // maxClockChange is more than any DST change moves clocks: the largest in use
 // is two hours (Antarctica/Troll).
 const maxClockChange = 3 * time.Hour
 
-// cronSchedule evaluates a cron_format in one time zone.
+// cronSchedule evaluates a cron_format in one time zone and moves every run by
+// offsetDays calendar days.
 type cronSchedule struct {
 	expr         cron.Schedule
 	location     *time.Location
+	offsetDays   int
 	useWallClock bool
 }
 
@@ -34,16 +39,18 @@ func (s cronSchedule) Next(t time.Time) time.Time {
 	// repeated, and each run is then placed in the schedule's zone. A DST change
 	// can reorder runs close to it, so the search starts early and continues a
 	// little past the first run found.
-	from := wallClock(t).Add(-maxClockChange)
+	from := wallClock(t).Add(-maxClockChange).AddDate(0, 0, -s.offsetDays)
 
 	var next time.Time
 
 	for run, prev := s.expr.Next(from), from; run.After(prev); run, prev = s.expr.Next(run), run {
-		if !next.IsZero() && run.After(wallClock(next).Add(maxClockChange)) {
+		moved := run.AddDate(0, 0, s.offsetDays)
+
+		if !next.IsZero() && moved.After(wallClock(next).Add(maxClockChange)) {
 			break
 		}
 
-		if at := inZone(run, s.location); at.After(t) && (next.IsZero() || at.Before(next)) {
+		if at := inZone(moved, s.location); at.After(t) && (next.IsZero() || at.Before(next)) {
 			next = at
 		}
 	}
@@ -68,9 +75,13 @@ func Location() (*time.Location, error) {
 	return time.LoadLocation(util.Config.Schedule.Timezone)
 }
 
-// ParseCronSchedule parses a cron_format. A format without a TZ prefix is
-// evaluated in loc.
-func ParseCronSchedule(cronFormat string, loc *time.Location) (cron.Schedule, error) {
+// ParseCronSchedule parses a cron_format whose runs are moved by offsetDays.
+// A format without a TZ prefix is evaluated in loc.
+func ParseCronSchedule(cronFormat string, offsetDays int, loc *time.Location) (cron.Schedule, error) {
+	if offsetDays < -MaxOffsetDays || offsetDays > MaxOffsetDays {
+		return nil, fmt.Errorf("offset must be between %d and %d days", -MaxOffsetDays, MaxOffsetDays)
+	}
+
 	tz, expr, err := splitTimezone(cronFormat)
 	if err != nil {
 		return nil, err
@@ -85,19 +96,24 @@ func ParseCronSchedule(cronFormat string, loc *time.Location) (cron.Schedule, er
 		return nil, err
 	}
 
+	if _, every := parsed.(cron.ConstantDelaySchedule); every && offsetDays != 0 {
+		return nil, errors.New("an offset cannot be used with @every")
+	}
+
 	_, quartz := parsed.(*cronexpr.Expression)
 
 	// robfig/cron keeps its own DST handling for the schedules it ran before.
 	return cronSchedule{
 		expr:         parsed,
 		location:     loc,
-		useWallClock: quartz,
+		offsetDays:   offsetDays,
+		useWallClock: quartz || offsetDays != 0,
 	}, nil
 }
 
-// ValidateCronFormat reports whether a cron_format can be scheduled.
-func ValidateCronFormat(cronFormat string) error {
-	_, err := ParseCronSchedule(cronFormat, time.UTC)
+// ValidateCronFormat reports whether a cron_format with the given offset can be scheduled.
+func ValidateCronFormat(cronFormat string, offsetDays int) error {
+	_, err := ParseCronSchedule(cronFormat, offsetDays, time.UTC)
 	return err
 }
 

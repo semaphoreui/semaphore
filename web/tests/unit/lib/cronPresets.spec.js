@@ -7,7 +7,9 @@ import {
   isHourly,
   pruneSelectionsForTiming,
   buildCronFormat,
+  clampOffsetDays,
   usesQuartzDays,
+  MAX_OFFSET_DAYS,
 } from '@/lib/cronPresets';
 
 describe('lib/cronPresets', () => {
@@ -169,6 +171,24 @@ describe('lib/cronPresets', () => {
     tests.forEach(({ cron, expected }) => {
       it(`checks "${cron}"`, () => {
         expect(usesQuartzDays(cron)).to.equal(expected);
+      });
+    });
+  });
+
+  describe('clampOffsetDays', () => {
+    const tests = [
+      { value: 3, expected: 3 },
+      { value: '-2', expected: -2 },
+      { value: 2.7, expected: 2 },
+      { value: '', expected: 0 },
+      { value: '-', expected: 0 },
+      { value: MAX_OFFSET_DAYS + 9, expected: MAX_OFFSET_DAYS },
+      { value: -MAX_OFFSET_DAYS - 9, expected: -MAX_OFFSET_DAYS },
+    ];
+
+    tests.forEach(({ value, expected }) => {
+      it(`turns ${JSON.stringify(value)} into ${expected}`, () => {
+        expect(clampOffsetDays(value)).to.equal(expected);
       });
     });
   });

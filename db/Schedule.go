@@ -12,6 +12,7 @@ type Schedule struct {
 	ProjectID      int    `db:"project_id" json:"project_id" backup:"-"`
 	TemplateID     int    `db:"template_id" json:"template_id" backup:"-"`
 	CronFormat     string `db:"cron_format" json:"cron_format"`
+	OffsetDays     int    `db:"offset_days" json:"offset_days"`
 	Name           string `db:"name" json:"name"`
 	Active         bool   `db:"active" json:"active"`
 	Type           string `db:"type" json:"type"`

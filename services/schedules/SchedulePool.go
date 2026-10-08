@@ -346,7 +346,7 @@ func (p *SchedulePool) Refresh() {
 				continue
 			}
 
-			_, err = p.addRunner(runner, schedule.CronFormat)
+			_, err = p.addRunner(runner, schedule.CronFormat, schedule.OffsetDays)
 		default:
 			log.WithFields(log.Fields{
 				"project_id":  schedule.ProjectID,
@@ -366,8 +366,8 @@ func (p *SchedulePool) Refresh() {
 	}
 }
 
-func (p *SchedulePool) addRunner(runner ScheduleRunner, cronFormat string) (int, error) {
-	schedule, err := ParseCronSchedule(cronFormat, p.cron.Location())
+func (p *SchedulePool) addRunner(runner ScheduleRunner, cronFormat string, offsetDays int) (int, error) {
+	schedule, err := ParseCronSchedule(cronFormat, offsetDays, p.cron.Location())
 	if err != nil {
 		return 0, err
 	}

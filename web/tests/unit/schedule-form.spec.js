@@ -2,6 +2,7 @@ import './setup';
 import { expect } from 'chai';
 import { shallowMount } from '@vue/test-utils';
 import ScheduleForm from '@/components/ScheduleForm.vue';
+import ScheduleOffsetField from '@/components/ScheduleOffsetField.vue';
 import mockAxios, { httpError } from './helpers/axiosMock';
 
 const FormStub = {
@@ -15,11 +16,14 @@ const FormStub = {
 };
 
 const SCHEDULES = {
+  2: {
+    id: 2, type: '', cron_format: '0 3 * * 2#2', offset_days: 1, task_params: {},
+  },
   3: {
-    id: 3, type: '', cron_format: '0 3 * * *', task_params: {},
+    id: 3, type: '', cron_format: '0 3 * * *', offset_days: 0, task_params: {},
   },
   5: {
-    id: 5, type: 'run_at', run_at: '2030-01-01T10:00:00Z', cron_format: '', task_params: {},
+    id: 5, type: 'run_at', run_at: '2030-01-01T10:00:00Z', cron_format: '', offset_days: 0, task_params: {},
   },
 };
 
@@ -84,12 +88,12 @@ describe('ScheduleForm.vue', () => {
     http.restore();
   });
 
-  it('previews the runs the server computes', async () => {
-    const wrapper = mountForm({ itemId: 3 });
+  it('previews the runs the server computes, offset included', async () => {
+    const wrapper = mountForm({ itemId: 2 });
     await flush();
 
     const requests = http.requests.filter((r) => r.url.endsWith('/schedules/validate'));
-    expect(requests[requests.length - 1].data).to.include({ cron_format: '0 3 * * *' });
+    expect(requests[requests.length - 1].data).to.include({ cron_format: '0 3 * * 2#2', offset_days: 1 });
     expect(wrapper.vm.nextRuns.map((run) => run.getTime()))
       .to.deep.equal(RUNS.map((run) => Date.parse(run)));
     expect(wrapper.vm.upcomingRuns.map((run) => run.label))
@@ -132,6 +136,22 @@ describe('ScheduleForm.vue', () => {
 
     expect(wrapper.vm.cronFormatError).to.equal(null);
     expect(wrapper.vm.upcomingRuns).to.deep.equal([]);
+  });
+
+  it('keeps raw mode while an offset is set on a format the timings cannot show', async () => {
+    const wrapper = mountForm({ itemId: 3 });
+    await flush();
+    expect(wrapper.vm.disableRawCron).to.equal(false);
+
+    const offsetField = () => wrapper.findComponent(ScheduleOffsetField);
+
+    offsetField().vm.$emit('input', 1);
+    await flush();
+    expect(wrapper.vm.disableRawCron).to.equal(true);
+
+    offsetField().vm.$emit('input', 0);
+    await flush();
+    expect(wrapper.vm.disableRawCron).to.equal(false);
   });
 
   it('keys the runs by time, so a repeated hour does not clash', async () => {

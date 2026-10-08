@@ -7,6 +7,9 @@ import { CronExpression, CronExpressionParser, CronFieldCollection } from 'cron-
 const FIELD = '\\S+';
 const SET = '[^*]\\S*'; // a field that is not a bare "*"
 
+// Matches schedules.MaxOffsetDays on the server.
+export const MAX_OFFSET_DAYS = 31;
+
 const WEEKLY = new RegExp(`^${FIELD}\\s${FIELD}\\s${FIELD}\\s${FIELD}\\s${SET}$`);
 const YEARLY = new RegExp(`^${FIELD}\\s${FIELD}\\s${FIELD}\\s${SET}\\s${FIELD}$`);
 const MONTHLY = new RegExp(`^${FIELD}\\s${FIELD}\\s${SET}\\s${FIELD}\\s${FIELD}$`);
@@ -109,4 +112,17 @@ export function buildCronFormat(selections) {
 export function usesQuartzDays(cronFormat) {
   const fields = (cronFormat || '').trim().split(/\s+/);
   return fields.length === 5 && (/[LW]/i.test(fields[2]) || /[#L]/i.test(fields[4]));
+}
+
+/**
+ * Turns user input into a whole number of days within the allowed offset.
+ */
+export function clampOffsetDays(value) {
+  const days = Math.trunc(Number(value));
+
+  if (!Number.isFinite(days)) {
+    return 0;
+  }
+
+  return Math.min(MAX_OFFSET_DAYS, Math.max(-MAX_OFFSET_DAYS, days));
 }

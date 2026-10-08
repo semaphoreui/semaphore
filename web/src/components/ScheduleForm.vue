@@ -105,20 +105,29 @@
         :disabled="disableRawCron"
       />
 
-      <v-text-field
-        v-if="rawCron"
-        v-model="item.cron_format"
-        :label="$t('Cron')"
-        :rules="[v => !!v || $t('Cron required')]"
-        required
-        :disabled="formSaving"
-        @input="refreshCheckboxes()"
-        :suffix="timezone + ' time'"
-        outlined
-        :error="cronFormatError != null"
-        :error-messages="cronFormatError"
-        dense
-      ></v-text-field>
+      <template v-if="rawCron">
+        <v-text-field
+          v-model="item.cron_format"
+          :label="$t('Cron')"
+          :rules="[v => !!v || $t('Cron required')]"
+          required
+          :disabled="formSaving"
+          @input="refreshCheckboxes()"
+          :suffix="timezone + ' time'"
+          outlined
+          :error="cronFormatError != null"
+          :error-messages="cronFormatError"
+          dense
+        ></v-text-field>
+
+        <ScheduleOffsetField
+          v-model="item.offset_days"
+          :label="$t('scheduleOffset')"
+          :hint="offsetHint"
+          :disabled="formSaving"
+          @input="refreshCheckboxes()"
+        />
+      </template>
 
       <div v-else>
         <v-select
@@ -351,6 +360,7 @@ import {
 } from '@/lib/cronPresets';
 import { getErrorMessage } from '@/lib/error';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
+import ScheduleOffsetField from '@/components/ScheduleOffsetField.vue';
 
 dayjs.extend(utc);
 dayjs.extend(timezonePlugin);
@@ -498,7 +508,7 @@ function formatRunInTZ(date, tz) {
 }
 
 export default {
-  components: { TaskParamsForm },
+  components: { TaskParamsForm, ScheduleOffsetField },
   mixins: [ItemFormBase],
 
   data() {
@@ -580,6 +590,17 @@ export default {
       }));
     },
 
+    offsetHint() {
+      const days = this.item.offset_days;
+
+      if (!days) {
+        return this.$t('scheduleOffsetNone');
+      }
+
+      const count = Math.abs(days);
+      return this.$tc(days > 0 ? 'scheduleOffsetAfter' : 'scheduleOffsetBefore', count, { count });
+    },
+
     nextRunUtcDate() {
       return formatDateInTZ(this.nextRunTime(), this.timezone);
     },
@@ -613,6 +634,7 @@ export default {
         name: '',
         template_id: null,
         cron_format: '* * * * *',
+        offset_days: 0,
         active: true,
         run_once: false,
         delete_after_run: false,
@@ -674,6 +696,7 @@ export default {
           data: {
             project_id: this.projectId,
             cron_format: this.item.cron_format,
+            offset_days: this.item.offset_days,
           },
         });
         nextRuns = (res.data.next_runs || []).map((run) => new Date(run));
@@ -710,8 +733,8 @@ export default {
         return; // the value changed while validating, ignore stale result
       }
 
-      // The timings cannot show Quartz days, so those stay raw cron.
-      if (cronError != null || usesQuartzDays(this.item.cron_format)) {
+      // The timings cannot show Quartz days or offsets, so those stay raw cron.
+      if (cronError != null || this.item.offset_days || usesQuartzDays(this.item.cron_format)) {
         this.rawCron = true;
         this.disableRawCron = true;
         return;

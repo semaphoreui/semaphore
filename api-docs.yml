@@ -1181,6 +1181,11 @@ definitions:
         type: string
         x-example: "* * * 1 *"
         example: "* * * 1 *"
+      offset_days:
+        type: integer
+        minimum: -31
+        maximum: 31
+        description: Calendar days to move every cron run by, keeping its time of day
       project_id:
         type: integer
       template_id:
@@ -1205,6 +1210,11 @@ definitions:
         type: integer
       cron_format:
         type: string
+      offset_days:
+        type: integer
+        minimum: -31
+        maximum: 31
+        description: Calendar days to move every cron run by, keeping its time of day
       project_id:
         type: integer
       template_id:
@@ -1231,6 +1241,12 @@ definitions:
         type: string
         x-example: "0 3 * * 2#2"
         example: "0 3 * * 2#2"
+      offset_days:
+        type: integer
+        minimum: -31
+        maximum: 31
+        x-example: 1
+        example: 1
 
   ScheduleNextRuns:
     type: object
@@ -3617,7 +3633,7 @@ paths:
           schema:
             $ref: "#/definitions/ScheduleNextRuns"
         400:
-          description: invalid cron format
+          description: invalid cron format or offset
 
   # project views
   /project/{project_id}/views:

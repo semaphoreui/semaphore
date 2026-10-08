@@ -83,8 +83,8 @@ func writeCronError(w http.ResponseWriter, err error) {
 	})
 }
 
-func validateCronFormat(cronFormat string, w http.ResponseWriter) bool {
-	err := schedules.ValidateCronFormat(cronFormat)
+func validateCronFormat(cronFormat string, offsetDays int, w http.ResponseWriter) bool {
+	err := schedules.ValidateCronFormat(cronFormat, offsetDays)
 	if err == nil {
 		return true
 	}
@@ -114,10 +114,11 @@ func validateSchedulePayload(schedule *db.Schedule, w http.ResponseWriter) bool 
 		}
 
 		schedule.CronFormat = ""
+		schedule.OffsetDays = 0
 		return true
 	case db.ScheduleTypeCron:
 		schedule.RunAt = nil
-		return validateCronFormat(schedule.CronFormat, w)
+		return validateCronFormat(schedule.CronFormat, schedule.OffsetDays, w)
 	default:
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "invalid schedule type",
@@ -140,7 +141,7 @@ func ValidateScheduleCronFormat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cronSchedule, err := schedules.ParseCronSchedule(schedule.CronFormat, loc)
+	cronSchedule, err := schedules.ParseCronSchedule(schedule.CronFormat, schedule.OffsetDays, loc)
 	if err != nil {
 		writeCronError(w, err)
 		return

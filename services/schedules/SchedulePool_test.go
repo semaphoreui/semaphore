@@ -226,6 +226,7 @@ func TestRefresh_AddsValidCronSchedules(t *testing.T) {
 			ProjectID:  project.ID,
 			TemplateID: tpl.ID,
 			CronFormat: cronFormat,
+			OffsetDays: 1,
 			Active:     true,
 		})
 		require.NoError(t, err)
@@ -237,5 +238,5 @@ func TestRefresh_AddsValidCronSchedules(t *testing.T) {
 	require.Len(t, entries, 1)
 
 	from := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
-	assert.Equal(t, "2026-10-13T03:00:00Z", entries[0].Schedule.Next(from).Format(time.RFC3339))
+	assert.Equal(t, "2026-10-14T03:00:00Z", entries[0].Schedule.Next(from).Format(time.RFC3339))
 }
