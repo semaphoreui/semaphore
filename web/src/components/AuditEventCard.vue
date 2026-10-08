@@ -137,8 +137,8 @@ export default {
       }, {
         key: 'audit_card_when',
         rows: [
-          { label: this.$t('audit_field_local_time'), value: dayjs(e.timestamp).format('YYYY-MM-DD HH:mm:ss') },
-          { label: this.$t('audit_field_utc'), value: dayjs.utc(e.timestamp).format('YYYY-MM-DD HH:mm:ss') },
+          { label: this.$t('audit_field_local_time'), value: dayjs(e.timestamp).format('YYYY-MM-DD HH:mm:ss.SSS Z') },
+          { label: this.$t('audit_field_utc'), value: dayjs.utc(e.timestamp).format('YYYY-MM-DD HH:mm:ss.SSS Z') },
         ],
       });
       const details = metadataRows(e.metadata).map((row) => ({ label: row.key, value: row.value }));

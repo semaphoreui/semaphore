@@ -193,6 +193,17 @@ describe('AuditLog.vue', () => {
     expect(http.requests).to.have.length(0);
   });
 
+  it('shows the exact time with milliseconds and the offset in the card', async () => {
+    respondWith({ events: [auditEvent(1, { timestamp: '2026-10-06T10:00:00.123456Z' })], older: null, newer: null });
+    const wrapper = await mountPage();
+    await wrapper.findAll('tbody tr').at(0).trigger('click');
+    await flush();
+    const card = wrapper.find('[data-testid="audit-card"]').text();
+    expect(card).to.contain('2026-10-06 10:00:00.123 +00:00');
+    expect(card).to.match(/2026-10-0\d \d\d:\d\d:00\.123 [+-]\d\d:\d\d/);
+    expect(wrapper.findAll('tbody tr').at(0).text()).to.not.contain('.123');
+  });
+
   it('sends several kinds as repeated parameters', async () => {
     const wrapper = await mountPage();
     wrapper.vm.setFilters({ kind: ['auth.login/authenticate', 'iam.role/delete'] });
