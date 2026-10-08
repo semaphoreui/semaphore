@@ -29,6 +29,9 @@ configured differently; a per-schedule value in the DB makes all nodes agree.
   the prefix, so validation and firing of prefixed expressions work today. The engine change is
   a pure helper that prepends `CRON_TZ=<tz> ` when the column is set and no prefix exists, used
   in `SchedulePool.Refresh()`; `cron.New(cron.WithLocation(loc))` stays as the tier-3 fallback.
+  ⚠️ 2026-10-08: robfig no longer sees the prefix — `splitTimezone` takes it off and
+  `ParseCronSchedule(cronFormat, offsetDays, loc)` falls back to `loc`, so a per-schedule zone can be
+  passed as `loc` instead of prepending `CRON_TZ=` ([`quartz-days-and-offsets.md`](quartz-days-and-offsets.md)).
 - **Prefix + column conflict is tolerated by the API** (prefix wins); the UI prevents it by
   disabling the selector and showing a hint when the expression carries a prefix.
 - **Validation:** `time.LoadLocation` on the column (empty passes); cron-type schedules validated
@@ -42,13 +45,14 @@ configured differently; a per-schedule value in the DB makes all nodes agree.
   empty option; an effective-timezone computed property drives next-run preview, checkbox
   extraction and `run_at` parsing. JS `cron-parser` (v5, `CronExpressionParser`) does **not**
   understand `CRON_TZ=`: strip the prefix and pass it as the `tz` option. List view appends the
-  timezone to the cron column.
+  timezone to the cron column. ⚠️ 2026-10-08: the next runs now come from
+  `POST /schedules/validate` (`next_runs`); cron-parser only fills the builder's checkboxes.
 - HA: timezone comes from the DB row, so nodes agree regardless of config; the
   `TryLockExecution` dedup path is untouched. DST semantics are robfig/cron's own.
 
 ## Constraints
 
-- Next free migration on this branch is past `v2.20.7` (`db/Migration.go`); verify at
+- Next free migration is past `v2.20.11` (`offset_days`, `db/Migration.go`); verify at
   implementation time and add an `.err.sql` undo companion (convention since `v2.20.0`).
 - Docs: `docs/docs/user-guide/schedules.md` describes the global timezone only; it must gain the
   field, the prefix and the precedence rules, and `SEMAPHORE_SCHEDULE_TIMEZONE` must be
@@ -56,9 +60,6 @@ configured differently; a per-schedule value in the DB makes all nodes agree.
 
 ## Open questions
 
-- Should `POST /schedules/validate` return the computed `next_run` so the UI preview is
-  backend-authoritative and `CRON_TZ`-proof? Recommended; the UI would keep the local value as
-  an instant preview and reconcile.
 - Browser `Intl` zone list vs Go tzdata may differ slightly; acceptable since the backend
   validates with `time.LoadLocation`.
 - List display: separate column or suffix on the cron expression.
