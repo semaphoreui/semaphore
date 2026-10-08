@@ -6,7 +6,7 @@ name: Pro Self-Hosted Release
       - 'v[0-9]+.[0-9]+.[0-9]+'
 
 concurrency:
-  group: pro-selfhosted-release
+  group: pro-selfhosted-release-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:

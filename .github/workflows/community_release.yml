@@ -7,7 +7,7 @@ name: Community Release
       - v*-rc*
 
 concurrency:
-  group: community-release
+  group: community-release-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
