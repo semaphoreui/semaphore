@@ -320,10 +320,13 @@ describe('AuditLog.vue', () => {
     expect(wrapper.find('[data-testid="audit-pro-notice"]').exists()).to.equal(false);
   });
 
-  it('names a deleted project by its ID', async () => {
+  it('names a project missing from the list by its ID', async () => {
     const wrapper = await mountPage();
     expect(wrapper.vm.projectName(auditEvent(1, { scope: { project_id: '3' } }))).to.equal('Infra');
-    expect(wrapper.vm.projectName(auditEvent(1))).to.equal('Project #9 (deleted)');
+    expect(wrapper.vm.projectName(auditEvent(1))).to.equal('Project #9');
+    await wrapper.findAll('tbody tr').at(0).trigger('click');
+    await flush();
+    expect(wrapper.find('[data-testid="audit-card"]').text()).to.not.contain('deleted');
     expect(wrapper.vm.projectName(auditEvent(1, { scope: undefined }))).to.equal('');
   });
 

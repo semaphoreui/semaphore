@@ -714,7 +714,6 @@ export default {
   audit_actor_integration: 'Integration {name}',
   audit_actor_anonymous: 'Anonymous',
   audit_project_id: 'Project #{id}',
-  audit_project_deleted: 'Project #{id} (deleted)',
   audit_filter_from: 'From',
   audit_filter_to: 'To',
   audit_filter_user: 'User',

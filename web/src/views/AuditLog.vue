@@ -358,14 +358,12 @@ export default {
       if (!id) {
         return '';
       }
-      if (this.namesFailed) {
-        return this.$t('audit_project_id', { id });
-      }
-      if (!this.namesLoaded) {
+      if (!this.namesLoaded && !this.namesFailed) {
         return '';
       }
+      // The project list is capped, so a project missing from it may still exist.
       const project = this.projects.find((p) => p.id === id);
-      return project ? project.name : this.$t('audit_project_deleted', { id });
+      return project ? project.name : this.$t('audit_project_id', { id });
     },
 
     localTime(timestamp) {
