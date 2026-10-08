@@ -1,3 +1,9 @@
+{{if .Mysql}}
+drop index audit_event_created_idx on audit_event;
+{{else}}
+drop index if exists audit_event_created_idx;
+{{end}}
+create index audit_event_created_idx on audit_event (created, seq);
 create index audit_event_actor_idx on audit_event (actor_type, actor_id, seq);
 create index audit_event_project_idx on audit_event (project_id, seq);
 create index audit_event_kind_idx on audit_event (category, event_code, action, seq);
