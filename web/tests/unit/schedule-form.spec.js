@@ -133,6 +133,23 @@ describe('ScheduleForm.vue', () => {
       .to.deep.equal(['2026-10-09T02:30:00.000Z']);
   });
 
+  it('shows no runs while the schedule is being checked', async () => {
+    const wrapper = mountForm({ itemId: 3 });
+    await flush();
+    expect(wrapper.vm.nextRuns).to.have.lengthOf(RUNS.length);
+
+    let release;
+    validate = () => new Promise((resolve) => { release = resolve; });
+    wrapper.vm.item.cron_format = '0 4 * * *';
+    const check = wrapper.vm.refreshCheckboxes();
+
+    expect(wrapper.vm.nextRuns).to.deep.equal([]);
+
+    release({ next_runs: RUNS });
+    await check;
+    expect(wrapper.vm.nextRuns).to.have.lengthOf(RUNS.length);
+  });
+
   it('starts each schedule without the previous one\'s preview or error', async () => {
     const wrapper = mountForm({ itemId: 3 });
     await flush();

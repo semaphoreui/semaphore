@@ -727,6 +727,7 @@ export default {
     async validateCronFormat() {
       this.validationRequest += 1;
       const request = this.validationRequest;
+      this.nextRuns = [];
 
       let nextRuns = [];
       let error = null;
