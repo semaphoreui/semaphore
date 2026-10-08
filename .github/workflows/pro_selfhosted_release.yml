@@ -86,6 +86,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check if latest version
+        id: is_latest
+        run: |
+          git fetch --tags --force
+          HIGHEST_TAG=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          if [ "${{ github.ref_name }}" = "$HIGHEST_TAG" ]; then
+            echo "is_latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_latest=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Determine PRO branch
         uses: ./.github/actions/determine-pro-branch
         with:
@@ -133,7 +144,7 @@ jobs:
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
-            latest=true
+            latest=${{ steps.is_latest.outputs.is_latest }}
 
       - name: Server build
         uses: docker/build-push-action@v7
@@ -215,7 +226,7 @@ jobs:
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
-            latest=true
+            latest=${{ steps.is_latest.outputs.is_latest }}
 
       - name: Runner build
         uses: docker/build-push-action@v7
