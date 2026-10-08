@@ -20,8 +20,12 @@
           </v-btn>
         </template>
         <v-list>
-          <v-list-item :href="exportUrl('csv')">{{ $t('audit_export_csv') }}</v-list-item>
-          <v-list-item :href="exportUrl('jsonl')">{{ $t('audit_export_jsonl') }}</v-list-item>
+          <v-list-item :href="exportUrl('csv')" download>
+            {{ $t('audit_export_csv') }}
+          </v-list-item>
+          <v-list-item :href="exportUrl('jsonl')" download>
+            {{ $t('audit_export_jsonl') }}
+          </v-list-item>
         </v-list>
       </v-menu>
     </v-toolbar>

@@ -169,6 +169,15 @@ describe('AuditLog.vue', () => {
     expect(wrapper.vm.searchedTo).to.equal(null);
   });
 
+  it('downloads the export instead of opening it', async () => {
+    const wrapper = await mountPage();
+    await wrapper.find('[data-testid="audit-export"]').trigger('click');
+    await flush();
+    const links = document.querySelectorAll('a[href^="/api/audit/events/export"]');
+    expect(links).to.have.length(2);
+    links.forEach((link) => expect(link.hasAttribute('download')).to.equal(true));
+  });
+
   it('sends several kinds as repeated parameters', async () => {
     const wrapper = await mountPage();
     wrapper.vm.setFilters({ kind: ['auth.login/authenticate', 'iam.role/delete'] });
