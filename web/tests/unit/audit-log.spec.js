@@ -66,7 +66,11 @@ describe('AuditLog.vue', () => {
     document.querySelectorAll('[data-app]').forEach((el) => el.remove());
   });
 
-  async function mountPage(features = { audit_log_filters: true }, width = 1280) {
+  async function mountPage(
+    features = { audit_log_filters: true },
+    width = 1280,
+    user = { can_read_audit_log: true },
+  ) {
     const app = document.createElement('div');
     app.setAttribute('data-app', 'true');
     document.body.appendChild(app);
@@ -83,7 +87,7 @@ describe('AuditLog.vue', () => {
       vuetify,
       i18n,
       attachTo: mountPoint,
-      propsData: { systemInfo: { features } },
+      propsData: { systemInfo: { features }, user },
     });
     wrappers.push(wrapper);
     await flush();
@@ -176,6 +180,17 @@ describe('AuditLog.vue', () => {
     const links = document.querySelectorAll('a[href^="/api/audit/events/export"]');
     expect(links).to.have.length(2);
     links.forEach((link) => expect(link.hasAttribute('download')).to.equal(true));
+  });
+
+  it('sends a user who cannot read the audit log home', async () => {
+    let opened = 0;
+    const listener = () => { opened += 1; };
+    EventBus.$on('i-open-last-project', listener);
+    await mountPage({ audit_log_filters: true }, 1280, { can_read_audit_log: false });
+    EventBus.$off('i-open-last-project', listener);
+    expect(opened).to.equal(1);
+    expect(auditRequests()).to.have.length(0);
+    expect(http.requests).to.have.length(0);
   });
 
   it('sends several kinds as repeated parameters', async () => {

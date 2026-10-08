@@ -206,6 +206,10 @@ import {
 export default {
   mixins: [PageMixin],
 
+  props: {
+    user: Object,
+  },
+
   components: { AuditFilters, AuditEventCard },
 
   data() {
@@ -240,6 +244,10 @@ export default {
   },
 
   async created() {
+    if (!this.user || !this.user.can_read_audit_log) {
+      EventBus.$emit('i-open-last-project');
+      return;
+    }
     await Promise.all([this.load({}), this.loadNames()]);
   },
 
