@@ -139,7 +139,7 @@
           :rules="[v => !!v || $t('template_required')]"
           required
           :disabled="formSaving"
-          @change="refreshCron()"
+          @change="selectTiming()"
           outlined
           hide-details
           dense
@@ -162,7 +162,24 @@
           </div>
         </div>
 
-        <div v-if="['weekly'].includes(timing)">
+        <div v-if="timing === 'monthly_weekday'">
+          <div class="mt-4">{{ $t('scheduleWeekOfMonth') }}</div>
+          <div class="d-flex flex-wrap">
+            <v-checkbox
+              class="mr-2 mt-0 ScheduleCheckbox"
+              v-for="o in ORDINALS"
+              :key="o.id"
+              :value="o.id"
+              :label="o.title"
+              :input-value="ordinals"
+              color="white"
+              :class="{'ScheduleCheckbox--active': ordinals.includes(o.id)}"
+              @change="(values) => selectOrdinals(values, o.id)"
+            ></v-checkbox>
+          </div>
+        </div>
+
+        <div v-if="['weekly', 'monthly_weekday'].includes(timing)">
           <div class="mt-4">Weekdays</div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -170,12 +187,22 @@
               v-for="d in WEEKDAYS" :key="d.id"
               :value="d.id"
               :label="d.title"
-              v-model="weekdays"
+              :input-value="weekdays"
               color="white"
               :class="{'ScheduleCheckbox--active': weekdays.includes(d.id)}"
-              @change="refreshCron()"
+              @change="(values) => selectWeekdays(values, d.id)"
             ></v-checkbox>
           </div>
+        </div>
+
+        <div v-if="timing === 'monthly_weekday'">
+          <div class="mt-4 mb-2">{{ $t('scheduleOffset') }}</div>
+          <ScheduleOffsetField
+            v-model="item.offset_days"
+            :hint="offsetHint"
+            :disabled="formSaving"
+            @input="validateCronFormat()"
+          />
         </div>
 
         <div v-if="['yearly', 'monthly'].includes(timing)">
@@ -195,7 +222,7 @@
           </div>
         </div>
 
-        <div v-if="['yearly', 'monthly', 'weekly', 'daily'].includes(timing)">
+        <div v-if="['yearly', 'monthly', 'monthly_weekday', 'weekly', 'daily'].includes(timing)">
           <div class="mt-4 d-flex justify-space-between">
             <span>Hours</span>
             <b style="color: red;">{{ timezone + ' time' }}</b>
@@ -357,6 +384,9 @@ import {
   pruneSelectionsForTiming,
   buildCronFormat,
   usesQuartzDays,
+  parseWeekdayOfMonth,
+  buildWeekdayOfMonthCronFormat,
+  LAST,
 } from '@/lib/cronPresets';
 import { getErrorMessage } from '@/lib/error';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
@@ -411,6 +441,9 @@ const TIMINGS = [{
   id: 'monthly',
   title: 'Monthly',
 }, {
+  id: 'monthly_weekday',
+  title: 'Monthly by weekday',
+}, {
   id: 'weekly',
   title: 'Weekly',
 }, {
@@ -443,6 +476,14 @@ const WEEKDAYS = [{
   id: 6,
   title: 'Saturday',
 }];
+
+const ORDINALS = [
+  { id: 1, title: '1st' },
+  { id: 2, title: '2nd' },
+  { id: 3, title: '3rd' },
+  { id: 4, title: '4th' },
+  { id: LAST, title: 'Last' },
+];
 
 const MINUTES = [
   { id: 0, title: ':00' },
@@ -518,12 +559,14 @@ export default {
       TIMINGS,
       MONTHS,
       WEEKDAYS,
+      ORDINALS,
       MINUTES,
       minutes: [],
       hours: [],
       days: [],
       months: [],
       weekdays: [],
+      ordinals: [],
       nextRuns: [],
       validationRequest: 0,
       rawCron: false,
@@ -733,8 +776,13 @@ export default {
         return; // the value changed while validating, ignore stale result
       }
 
-      // The timings cannot show Quartz days or offsets, so those stay raw cron.
-      if (cronError != null || this.item.offset_days || usesQuartzDays(this.item.cron_format)) {
+      const weekdayOfMonth = parseWeekdayOfMonth(this.item.cron_format);
+
+      // Only the "monthly by weekday" timing can show Quartz days and offsets.
+      const fitsTimings = weekdayOfMonth != null
+        || (!this.item.offset_days && !usesQuartzDays(this.item.cron_format));
+
+      if (cronError != null || !fitsTimings) {
         this.rawCron = true;
         this.disableRawCron = true;
         return;
@@ -742,9 +790,16 @@ export default {
 
       this.disableRawCron = false;
 
+      const [minuteField, hourField] = this.item.cron_format.trim().split(/\s+/);
+
+      // cron-parser rejects lists of # items, so for those it reads only the time.
+      const expression = weekdayOfMonth
+        ? `${minuteField} ${hourField} * * *`
+        : this.item.cron_format;
+
       let cron;
       try {
-        cron = CronExpressionParser.parse(this.item.cron_format, {
+        cron = CronExpressionParser.parse(expression, {
           tz: this.timezone,
         });
       } catch {
@@ -757,6 +812,21 @@ export default {
 
       const fields = cron.fields; // JSON.parse(JSON.stringify(cron.fields));
 
+      if (weekdayOfMonth) {
+        this.timing = 'monthly_weekday';
+        this.months = [];
+        this.days = [];
+        this.weekdays = weekdayOfMonth.weekdays;
+        this.ordinals = weekdayOfMonth.ordinals;
+        this.hours = hourField === '*' ? [] : fields.hour.values;
+        this.minutes = minuteField === '*' ? [] : fields.minute.values;
+        return;
+      }
+
+      // The form is reused between schedules, so "* * * * *", which matches
+      // none of the checks below, must not keep the previous timing.
+      this.timing = 'hourly';
+      this.ordinals = [];
       this.months = [];
       this.weekdays = [];
       this.hours = [];
@@ -764,7 +834,6 @@ export default {
 
       if (this.isHourly(this.item.cron_format)) {
         this.minutes = fields.minute.values;
-        this.timing = 'hourly';
       } else {
         this.minutes = [];
       }
@@ -852,6 +921,30 @@ export default {
       return isHourly(s);
     },
 
+    selectTiming() {
+      if (this.timing === 'monthly_weekday') {
+        // The day of week needs at least one weekday and one ordinal.
+        this.weekdays = this.weekdays.length > 0 ? this.weekdays : [1];
+        this.ordinals = this.ordinals.length > 0 ? this.ordinals : [1];
+      }
+
+      this.refreshCron();
+    },
+
+    // Unticking the last weekday or ordinal of a monthly-by-weekday schedule
+    // keeps it ticked; a weekly schedule without weekdays runs every day.
+    selectWeekdays(values, weekday) {
+      this.weekdays = values.length === 0 && this.timing === 'monthly_weekday'
+        ? [weekday]
+        : values;
+      this.refreshCron();
+    },
+
+    selectOrdinals(values, ordinal) {
+      this.ordinals = values.length === 0 ? [ordinal] : values;
+      this.refreshCron();
+    },
+
     refreshCron() {
       const selections = pruneSelectionsForTiming(this.timing, {
         months: this.months,
@@ -867,7 +960,16 @@ export default {
       this.hours = selections.hours;
       this.minutes = selections.minutes;
 
-      this.item.cron_format = buildCronFormat(selections);
+      if (this.timing === 'monthly_weekday') {
+        this.item.cron_format = buildWeekdayOfMonthCronFormat({
+          ...selections,
+          ordinals: this.ordinals,
+        });
+      } else {
+        this.item.cron_format = buildCronFormat(selections);
+        this.item.offset_days = 0;
+      }
+
       this.validateCronFormat();
     },
 

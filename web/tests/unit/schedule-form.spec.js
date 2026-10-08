@@ -100,6 +100,18 @@ describe('ScheduleForm.vue', () => {
       .to.deep.equal(['Wed 2026-11-11 03:00', 'Wed 2026-12-09 03:00']);
   });
 
+  it('reads a monthly-by-weekday schedule into the builder', async () => {
+    const wrapper = mountForm({ itemId: 2 });
+    await flush();
+
+    expect(wrapper.vm.timing).to.equal('monthly_weekday');
+    expect(wrapper.vm.weekdays).to.deep.equal([2]);
+    expect(wrapper.vm.ordinals).to.deep.equal([2]);
+    expect(wrapper.vm.hours).to.deep.equal([3]);
+    expect(wrapper.vm.minutes).to.deep.equal([0]);
+    expect(wrapper.vm.disableRawCron).to.equal(false);
+  });
+
   it('ignores a check that a newer one superseded', async () => {
     const wrapper = mountForm({ itemId: 3 });
     await flush();

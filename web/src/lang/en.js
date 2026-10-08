@@ -383,6 +383,7 @@ export default {
   newRunner: 'New Runner',
   enabled: 'Enabled',
   scheduleNextRun: 'Next run',
+  scheduleWeekOfMonth: 'Week of the month',
   scheduleOffset: 'Offset',
   scheduleOffsetDays: 'day | days',
   scheduleOffsetNone: 'Runs on the matching day',
