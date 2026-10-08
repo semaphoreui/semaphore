@@ -89,7 +89,10 @@ export function formatMilliseconds(value) {
     throw new Error('formatMilliseconds: unsupported value type');
   }
 
-  return dayjs.duration(ms).humanize();
+  // Duration.humanize() measures from a second read of the clock, so 90 seconds
+  // came out as "a minute" whenever the clock ticked in between.
+  const start = dayjs(0);
+  return start.add(ms, 'ms').from(start, true);
 }
 
 export const filters = {
