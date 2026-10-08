@@ -88,10 +88,12 @@ jobs:
 
       - name: Check if latest version
         id: is_latest
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           git fetch --tags --force
           HIGHEST_TAG=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
-          if [ "${{ github.ref_name }}" = "$HIGHEST_TAG" ]; then
+          if [ "$RELEASE_TAG" = "$HIGHEST_TAG" ]; then
             echo "is_latest=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_latest=false" >> "$GITHUB_OUTPUT"
