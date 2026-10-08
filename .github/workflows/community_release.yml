@@ -6,6 +6,10 @@ name: Community Release
       - 'v[0-9]+.[0-9]+.[0-9]+'
       - v*-rc*
 
+concurrency:
+  group: community-release
+  cancel-in-progress: false
+
 permissions:
   contents: write
 

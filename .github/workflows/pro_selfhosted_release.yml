@@ -5,6 +5,10 @@ name: Pro Self-Hosted Release
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
 
+concurrency:
+  group: pro-selfhosted-release
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
