@@ -173,6 +173,44 @@ describe('AuditLog.vue', () => {
     expect(wrapper.vm.searchedTo).to.equal(null);
   });
 
+  it('shows an error with Retry instead of no matches when new filters fail', async () => {
+    const wrapper = await mountPage();
+    http.respond(() => { throw new Error('boom'); });
+    wrapper.vm.setFilters({ ip: '10.0.0.1' });
+    await flush();
+    expect(wrapper.text()).to.not.contain('No audit events match');
+    expect(wrapper.find('[data-testid="audit-load-failed"]').exists()).to.equal(true);
+    respondWith(PAGE);
+    await wrapper.find('[data-testid="audit-retry"]').trigger('click');
+    await flush();
+    expect(lastQuery()).to.equal('ip=10.0.0.1');
+    expect(wrapper.find('[data-testid="audit-load-failed"]').exists()).to.equal(false);
+    expect(wrapper.findAll('tbody tr')).to.have.length(2);
+  });
+
+  it('shows an error with Retry when the first load fails', async () => {
+    http.respond((config) => {
+      if (config.url === '/api/audit/events') {
+        throw new Error('boom');
+      }
+      return [];
+    });
+    const wrapper = await mountPage();
+    expect(wrapper.text()).to.not.contain('No audit events match');
+    expect(wrapper.find('[data-testid="audit-retry"]').exists()).to.equal(true);
+  });
+
+  it('repeats the last page request on Retry', async () => {
+    const wrapper = await mountPage();
+    http.respond(() => { throw new Error('boom'); });
+    wrapper.vm.events = [];
+    await wrapper.vm.load({ before: 79 });
+    respondWith(PAGE);
+    await wrapper.find('[data-testid="audit-retry"]').trigger('click');
+    await flush();
+    expect(lastQuery()).to.equal('before=79');
+  });
+
   it('downloads the export instead of opening it', async () => {
     const wrapper = await mountPage();
     await wrapper.find('[data-testid="audit-export"]').trigger('click');

@@ -669,6 +669,8 @@ export default {
   audit_newer: 'Newer',
   audit_older: 'Older',
   audit_no_events: 'No audit events match.',
+  audit_load_failed: 'The audit events could not be loaded.',
+  audit_retry: 'Retry',
   audit_col_time: 'Time',
   audit_col_actor: 'Who',
   audit_col_action: 'What',

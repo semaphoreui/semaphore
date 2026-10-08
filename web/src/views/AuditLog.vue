@@ -90,9 +90,25 @@
       disable-pagination
       disable-sort
       class="mt-2 AuditLog__table"
-      :no-data-text="$t('audit_no_events')"
       @click:row="selected = $event"
     >
+      <template v-slot:no-data>
+        <span v-if="!failed">{{ $t('audit_no_events') }}</span>
+        <span v-else data-testid="audit-load-failed">
+          {{ $t('audit_load_failed') }}
+          <v-btn
+            text
+            small
+            color="primary"
+            class="ml-2"
+            data-testid="audit-retry"
+            @click="load(lastPage)"
+          >
+            {{ $t('audit_retry') }}
+          </v-btn>
+        </span>
+      </template>
+
       <template v-slot:item.timestamp="{ item }">
         <span style="white-space: nowrap">{{ localTime(item.timestamp) }}</span>
       </template>
@@ -219,6 +235,8 @@ export default {
       newer: null,
       searchedTo: null,
       loading: false,
+      failed: false,
+      lastPage: {},
       requestId: 0,
       filters: {},
       selected: null,
@@ -270,6 +288,7 @@ export default {
     async load(page) {
       this.requestId += 1;
       const id = this.requestId;
+      this.lastPage = page;
       this.loading = true;
       try {
         const { data } = await axios.get('/api/audit/events', {
@@ -283,8 +302,10 @@ export default {
         this.older = data.older;
         this.newer = data.newer;
         this.searchedTo = data.searched_to;
+        this.failed = false;
       } catch (err) {
         if (id === this.requestId) {
+          this.failed = true;
           EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
         }
       } finally {
