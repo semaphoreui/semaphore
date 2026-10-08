@@ -22,8 +22,8 @@ func canReadAuditLog(user *db.User) bool {
 
 func auditLogMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// A link on another site must not make an administrator's browser export the audit log.
-		if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
+		// Only this site's pages or a typed address may make a browser read the audit log.
+		if site := r.Header.Get("Sec-Fetch-Site"); site != "" && site != "same-origin" && site != "none" {
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}

@@ -44,8 +44,9 @@ func TestAuditLogMiddleware_LetsAdminThrough(t *testing.T) {
 	assert.Empty(t, rec.All())
 }
 
-func TestAuditLogMiddleware_RefusesCrossSiteRequests(t *testing.T) {
-	for site, allowed := range map[string]bool{"cross-site": false, "same-origin": true, "none": true, "": true} {
+func TestAuditLogMiddleware_LetsOnlySameOriginBrowserRequestsThrough(t *testing.T) {
+	for site, allowed := range map[string]bool{"cross-site": false, "same-site": false, "same-origin": true,
+		"none": true, "": true} {
 		r, rec := withAuditRecorder(asActor(httptest.NewRequest(http.MethodGet, "/api/audit/events/export", nil),
 			db.User{ID: 1, Admin: true}))
 		if site != "" {
@@ -57,7 +58,9 @@ func TestAuditLogMiddleware_RefusesCrossSiteRequests(t *testing.T) {
 		auditLogMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true })).ServeHTTP(w, r)
 
 		assert.Equal(t, allowed, called, site)
-		if !allowed {
+		if allowed {
+			assert.Equal(t, http.StatusOK, w.Code, site)
+		} else {
 			assert.Equal(t, http.StatusForbidden, w.Code, site)
 		}
 		assert.Empty(t, rec.All(), site)
