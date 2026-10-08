@@ -101,3 +101,12 @@ export function buildCronFormat(selections) {
   const modFields = CronFieldCollection.from(origFields, fields);
   return CronExpression.fieldsToExpression(modFields).stringify();
 }
+
+/**
+ * Reports whether the day fields use the Quartz forms L, W or #, which the
+ * timings cannot show.
+ */
+export function usesQuartzDays(cronFormat) {
+  const fields = (cronFormat || '').trim().split(/\s+/);
+  return fields.length === 5 && (/[LW]/i.test(fields[2]) || /[#L]/i.test(fields[4]));
+}

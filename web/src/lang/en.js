@@ -383,6 +383,7 @@ export default {
   newRunner: 'New Runner',
   enabled: 'Enabled',
   scheduleNextRun: 'Next run',
+  scheduleThen: 'Then',
   maxNumberOfParallelTasks: 'Maximum parallel tasks',
   runnerUsage: 'Usage:',
   runnerDockerCommand: 'Docker:',

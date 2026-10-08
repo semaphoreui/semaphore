@@ -222,6 +222,14 @@
             ></v-checkbox>
           </div>
         </div>
+
+        <v-alert
+          v-if="cronFormatError"
+          class="mt-4 mb-0"
+          type="error"
+          text
+          dense
+        >{{ cronFormatError }}</v-alert>
       </div>
     </div>
 
@@ -256,6 +264,20 @@
         </tbody>
       </template>
     </v-simple-table>
+
+    <div
+      v-if="upcomingRuns.length > 0"
+      class="d-flex flex-wrap align-center mb-4"
+    >
+      <span class="text-caption mr-2">{{ $t('scheduleThen') }}</span>
+      <v-chip
+        v-for="run in upcomingRuns"
+        :key="run.key"
+        class="mr-1 my-1"
+        small
+        outlined
+      >{{ run.label }}</v-chip>
+    </div>
 
     <v-checkbox
       style="position: absolute; bottom: 15px; left: 22px;"
@@ -325,6 +347,7 @@ import {
   isHourly,
   pruneSelectionsForTiming,
   buildCronFormat,
+  usesQuartzDays,
 } from '@/lib/cronPresets';
 import { getErrorMessage } from '@/lib/error';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
@@ -469,6 +492,11 @@ function formatTimeInTZ(date, tz) {
   return `${get('hour')}:${get('minute')}`;
 }
 
+function formatRunInTZ(date, tz) {
+  const weekday = new Intl.DateTimeFormat('en-GB', { timeZone: tz, weekday: 'short' }).format(date);
+  return `${weekday} ${formatDateInTZ(date, tz)} ${formatTimeInTZ(date, tz)}`;
+}
+
 export default {
   components: { TaskParamsForm },
   mixins: [ItemFormBase],
@@ -486,6 +514,8 @@ export default {
       days: [],
       months: [],
       weekdays: [],
+      nextRuns: [],
+      validationRequest: 0,
       rawCron: false,
       disableRawCron: false,
       showInfo: true,
@@ -543,6 +573,13 @@ export default {
       ];
     },
 
+    upcomingRuns() {
+      return this.nextRuns.slice(1).map((run) => ({
+        key: run.toISOString(),
+        label: formatRunInTZ(run, this.timezone),
+      }));
+    },
+
     nextRunUtcDate() {
       return formatDateInTZ(this.nextRunTime(), this.timezone);
     },
@@ -563,6 +600,14 @@ export default {
   },
 
   methods: {
+    // The form is reused between schedules, so drop the previous one's preview
+    // and any check still in flight for it.
+    beforeLoadData() {
+      this.validationRequest += 1;
+      this.nextRuns = [];
+      this.cronFormatError = null;
+    },
+
     getNewItem() {
       return {
         name: '',
@@ -608,30 +653,41 @@ export default {
         return parsed.toDate();
       }
 
-      try {
-        return CronExpressionParser.parse(this.item.cron_format, {
-          tz: this.timezone,
-        }).next().toDate();
-      } catch {
-        return null;
-      }
+      return this.nextRuns[0] || null;
     },
 
-    async validateCronFormat(cronFormat) {
+    // Checks the schedule on the server, which also returns the next runs, so
+    // the preview always matches what the scheduler will do. Returns the error
+    // message, null when valid, or undefined when a newer check superseded it.
+    async validateCronFormat() {
+      this.validationRequest += 1;
+      const request = this.validationRequest;
+
+      let nextRuns = [];
+      let error = null;
+
       try {
-        await axios({
+        const res = await axios({
           method: 'post',
           url: `/api/project/${this.projectId}/schedules/validate`,
           responseType: 'json',
           data: {
             project_id: this.projectId,
-            cron_format: cronFormat,
+            cron_format: this.item.cron_format,
           },
         });
-        return null;
+        nextRuns = (res.data.next_runs || []).map((run) => new Date(run));
       } catch (err) {
-        return getErrorMessage(err);
+        error = getErrorMessage(err);
       }
+
+      if (request !== this.validationRequest) {
+        return undefined;
+      }
+
+      this.nextRuns = nextRuns;
+      this.cronFormatError = error;
+      return error;
     },
 
     async refreshCheckboxes() {
@@ -648,22 +704,20 @@ export default {
       //   this.disableRawCron = false;
       // }
 
-      this.cronFormatError = null;
-      this.disableRawCron = false;
+      const cronError = await this.validateCronFormat();
 
-      const cronFormat = this.item.cron_format;
-      const cronError = await this.validateCronFormat(cronFormat);
-
-      if (cronFormat !== this.item.cron_format) {
+      if (cronError === undefined) {
         return; // the value changed while validating, ignore stale result
       }
 
-      if (cronError != null) {
-        this.cronFormatError = cronError;
+      // The timings cannot show Quartz days, so those stay raw cron.
+      if (cronError != null || usesQuartzDays(this.item.cron_format)) {
         this.rawCron = true;
         this.disableRawCron = true;
         return;
       }
+
+      this.disableRawCron = false;
 
       let cron;
       try {
@@ -791,6 +845,7 @@ export default {
       this.minutes = selections.minutes;
 
       this.item.cron_format = buildCronFormat(selections);
+      this.validateCronFormat();
     },
 
     getItemsUrl() {

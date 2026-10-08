@@ -70,14 +70,25 @@ func GetTemplateSchedules(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, tplSchedules)
 }
 
+// scheduleNextRunsCount is how many upcoming runs the schedule form previews.
+const scheduleNextRunsCount = 5
+
+type scheduleNextRuns struct {
+	NextRuns []time.Time `json:"next_runs"`
+}
+
+func writeCronError(w http.ResponseWriter, err error) {
+	helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
+		"error": "Cron: " + err.Error(),
+	})
+}
+
 func validateCronFormat(cronFormat string, w http.ResponseWriter) bool {
 	err := schedules.ValidateCronFormat(cronFormat)
 	if err == nil {
 		return true
 	}
-	helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-		"error": "Cron: " + err.Error(),
-	})
+	writeCronError(w, err)
 	return false
 }
 
@@ -115,13 +126,29 @@ func validateSchedulePayload(schedule *db.Schedule, w http.ResponseWriter) bool 
 	}
 }
 
+// ValidateScheduleCronFormat checks a cron schedule and returns its next runs,
+// computed the same way the scheduler will compute them.
 func ValidateScheduleCronFormat(w http.ResponseWriter, r *http.Request) {
 	var schedule db.Schedule
 	if !helpers.Bind(w, r, &schedule) {
 		return
 	}
 
-	_ = validateCronFormat(schedule.CronFormat, w)
+	loc, err := schedules.Location()
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	cronSchedule, err := schedules.ParseCronSchedule(schedule.CronFormat, loc)
+	if err != nil {
+		writeCronError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, scheduleNextRuns{
+		NextRuns: schedules.NextRuns(cronSchedule, time.Now(), scheduleNextRunsCount),
+	})
 }
 
 // AddSchedule adds a template to the database

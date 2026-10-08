@@ -7,6 +7,7 @@ import {
   isHourly,
   pruneSelectionsForTiming,
   buildCronFormat,
+  usesQuartzDays,
 } from '@/lib/cronPresets';
 
 describe('lib/cronPresets', () => {
@@ -151,6 +152,24 @@ describe('lib/cronPresets', () => {
       const cron = buildCronFormat({ minutes: [0], hours: [9], weekdays: [1] });
       expect(isWeekly(cron)).to.equal(true);
       expect(isMonthly(cron)).to.equal(false);
+    });
+  });
+
+  describe('usesQuartzDays', () => {
+    const tests = [
+      { cron: '0 3 L * *', expected: true },
+      { cron: '0 3 15w * *', expected: true },
+      { cron: '0 3 * * 2#2', expected: true },
+      { cron: '0 3 * * 5L', expected: true },
+      { cron: '0 3 * JUL WED', expected: false },
+      { cron: '0 3 1-7 * 1', expected: false },
+      { cron: '@monthly', expected: false },
+    ];
+
+    tests.forEach(({ cron, expected }) => {
+      it(`checks "${cron}"`, () => {
+        expect(usesQuartzDays(cron)).to.equal(expected);
+      });
     });
   });
 });
