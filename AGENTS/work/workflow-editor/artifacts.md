@@ -5,10 +5,10 @@ Hand-off of structured data between task nodes of one workflow run. A task **pro
 of one of its template's survey variables to one output key of one ancestor node. The UI and the
 docs say "Outputs" / "Inputs"; the DB column and the API field keep the name `artifacts`.
 
-**Status (2026-10-08): the hand-off works end to end on the server and on remote runners with
+**Status (2026-10-09): the hand-off works end to end on the server and on remote runners with
 the local executor: outputs are captured and stored, edges store and validate `input_mode` /
-`input_mappings`, and the engine fills the survey variables of the next task from them. Left:
-the UI on the edge, the security hardening, docs and Dredd.** A workflow task gets the file, its
+`input_mappings`, the engine fills the survey variables of the next task from them, and the
+editor configures it on the connection. Left: the security hardening, docs and Dredd.** A workflow task gets the file, its
 outputs are validated and stored on `task.artifacts` — on the server directly, from a runner
 through `JobProgress.Outputs` with a second validation on the server; `startWorkflowNode`
 resolves the inputs of the next task before it is enqueued. The seeded stand for checking it by hand is described in
@@ -247,10 +247,22 @@ runner. A task created through the API must not be able to set `artifacts`,
   does not capture outputs (`JobPool.taskOutputs`); the blanket "remote runner" alert in the run
   view and its `workflowArtifactsRemoteRunnerWarning` string are gone — the server cannot tell a
   runner's executor type, and the local executor on a runner now works.
+- **UI (2026-10-09).** The edge panel (`WorkflowEdgeProperties.vue`) shows an "Inputs" section
+  only when the destination is a task node with a template: the checkbox "Map inputs explicitly"
+  switches `input_mode`; unchecked, it lists the destination's non-secret survey variables as
+  chips (a check on those the source produced in the latest finished run of this revision);
+  checked, one row per variable with a combobox for the output key (suggestions from that run,
+  pattern validation, a hint when the key was `skipped`). Key hints come from the latest run
+  whose `revision_id` equals the loaded template's (`WorkflowEditor.loadOutputHints`) — after a
+  save the node ids change and there are no hints until the next run; an approval/delay source
+  has no hints. The canvas keeps `input_mode`/`input_mappings` per edge next to the condition
+  (`WorkflowGraph.inputs`, `setEdge` applies condition and inputs as one undo step) and marks an
+  explicit edge with a swap icon on its pill and the `WorkflowGraph__conn--explicit` class. The
+  task dialog's Details tab shows an "Outputs" table (`values`) and "Not captured" chips
+  (`skipped` with the reason); the run view card says "N outputs" for a producer. Screenshots
+  and the Playwright checks: `mocks/README.md` (`shoot-inputs.cjs`, `interact-inputs.cjs`).
 - Still as before: `GET /project/{p}/workflows/{w}/runs/{r}/artifacts` (`api/router.go`,
-  `api-docs.yml`) → `WorkflowService.GetWorkflowRunArtifacts`; the task dialog pretty-prints
-  `task.artifacts` (`web/src/components/TaskDetails.vue`) — now the `values`/`skipped`
-  document.
+  `api-docs.yml`) → `WorkflowService.GetWorkflowRunArtifacts`, used by nothing in the UI.
 - ⚠️ 2026-10-04: the server never applies survey defaults or validates survey types — only the
   Vue forms do (`TaskParamsForm.vue`; see `../secrets-and-task-vars/schedule-survey-defaults.md`).
   The resolver therefore applies `default_value` itself for mapped variables; `int` values are
@@ -301,8 +313,7 @@ runner. A task created through the API must not be able to set `artifacts`,
 
 ## Open, broken, deferred
 
-- Still to be built: the UI on the edge, the security hardening, docs and Dredd (stages 7–9 of
-  the task). The two ⚠️
+- Still to be built: the security hardening, docs and Dredd (stages 8–9 of the task). The two ⚠️
   assumptions in § Consumer (fan-in tie-break, pass-through nodes) are open until the owner
   confirms them; the research direction `AREA@7ec03538fb` (2026-10-07) recommends a
   deterministic tie-break by edge id, rejecting conflicting explicit mappings at save under
@@ -310,10 +321,9 @@ runner. A task created through the API must not be able to set `artifacts`,
 - Docker/K8s executors are out of v1. The Kubernetes termination message (4 KB per pod) cannot
   carry 256 KB; the path is a file on a shared volume read by the runner side. Until then a
   workflow task on those executors only gets the task-log line from `JobPool.taskOutputs`.
-- Key hints in the mapping form come from a previous run, but node IDs change on every revision
-  save — the hint source needs an identity that survives a save (decide in the UI stage). With
-  mappings on the edge the form knows both ends: destination survey variables from the
-  template, candidate keys from the last run of the source node.
+- Key hints in the mapping form come from the latest finished run of the loaded revision only:
+  node ids change on every save, so right after a save there are no hints until the workflow
+  runs again. An identity that survives a save (e.g. a stable node key) would lift this.
 - `GET …/runs/{r}/artifacts` returns a merged map, meaningless under explicit mapping; the run
   view needs outputs per node.
 - Related gaps found on the way, not part of this contract: secret survey values set on a node
@@ -350,9 +360,12 @@ runner. A task created through the API must not be able to set `artifacts`,
   `pro_impl/services/server/workflow_svc.go` (`startWorkflowNode`, `mapLatestNodeTask`),
   `pro_impl/db/Workflow.go` (`ValidateWorkflowTemplate`), `pro_impl/services/tasks/artifacts/`
   (incl. `ansible/callback_plugins/semaphore_outputs.py`)
-- `web/src/components/workflow/WorkflowEdgeProperties.vue` (the edge panel: condition today,
-  the input-mode checkbox and mapping table next), `web/src/views/project/WorkflowEditor.vue`
-  (`onConnectionSelected`), `web/src/components/TaskParamsForm.vue`,
-  `web/src/components/TaskDetails.vue`, `web/src/views/project/WorkflowRun.vue`
+- `web/src/components/workflow/WorkflowEdgeProperties.vue` (the edge panel: condition, input
+  mode checkbox, mapping table, key hints), `web/src/components/WorkflowGraph.vue` (`inputs`,
+  `setEdge`, explicit class and label flag), `web/src/components/workflow/WorkflowEdgeLabel.vue`,
+  `web/src/views/project/WorkflowEditor.vue` (`loadOutputHints`, `applyEdgeEdit`),
+  `web/src/components/TaskDetails.vue` (Outputs panel), `web/src/views/project/WorkflowRun.vue`
+  + `WorkflowNodeCard.vue` (output count), `web/src/lang/en.js` (`workflowEdgeInputs*`,
+  `workflowOutputs*`)
 - `api-docs.yml` (artifacts path), `docs/docs/user-guide/workflows.md`
 - https://github.com/semaphoreui/semaphore/pull/3488 (origin of the feature)

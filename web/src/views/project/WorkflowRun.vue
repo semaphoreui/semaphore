@@ -157,6 +157,19 @@ import PermissionsCheck from '@/components/PermissionsCheck';
 import WorkflowGraph from '@/components/WorkflowGraph.vue';
 import { USER_PERMISSIONS } from '@/lib/constants';
 
+// Number of output values a task stored (task.artifacts is the
+// {values, skipped} document, as a JSON string or already parsed).
+function countOutputs(raw) {
+  if (!raw) return 0;
+  try {
+    const doc = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const values = doc && typeof doc === 'object' ? doc.values : null;
+    return values && typeof values === 'object' ? Object.keys(values).length : 0;
+  } catch (err) {
+    return 0;
+  }
+}
+
 export default {
   components: { WorkflowGraph },
   mixins: [PermissionsCheck],
@@ -203,6 +216,7 @@ export default {
             start: n.task.start || n.task.created,
             end: n.task.end,
             taskId: n.task.id,
+            outputs: countOutputs(n.task.artifacts),
           };
         } else if (n.approval) {
           map[id] = {

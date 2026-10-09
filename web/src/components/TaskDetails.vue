@@ -184,7 +184,7 @@
       </v-col>
     </v-row>
 
-    <v-row v-if="parsedArtifacts">
+    <v-row v-if="outputs">
       <v-col cols="12">
         <v-card
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
@@ -192,18 +192,42 @@
           class="mb-5"
         >
           <v-card-title>
-            {{ $t('workflowArtifacts') }}
-            <v-tooltip bottom max-width="320">
+            {{ $t('workflowOutputs') }}
+            <v-tooltip bottom max-width="360">
               <template v-slot:activator="{ on, attrs }">
                 <v-icon small class="ml-2" v-bind="attrs" v-on="on">
                   mdi-information-outline
                 </v-icon>
               </template>
-              <span>{{ $t('workflowArtifactsHint') }}</span>
+              <span>{{ $t('workflowOutputsHint') }}</span>
             </v-tooltip>
           </v-card-title>
           <v-card-text>
-            <pre class="TaskDetails__artifacts">{{ formattedArtifacts }}</pre>
+            <v-simple-table v-if="outputs.values.length" dense class="TaskDetails__table">
+              <tbody>
+                <tr v-for="row in outputs.values" :key="row.name">
+                  <td class="TaskDetails__outputName">{{ row.name }}</td>
+                  <td><pre class="TaskDetails__artifacts">{{ row.value }}</pre></td>
+                </tr>
+              </tbody>
+            </v-simple-table>
+            <div v-if="outputs.skipped.length" class="mt-3">
+              <div class="text-caption text--secondary mb-1">
+                {{ $t('workflowOutputsSkipped') }}
+              </div>
+              <v-chip
+                v-for="row in outputs.skipped"
+                :key="`skipped-${row.name}`"
+                x-small
+                label
+                outlined
+                class="mr-1 mb-1"
+                :title="row.reason"
+              >
+                <v-icon x-small left>mdi-eye-off-outline</v-icon>
+                {{ row.name }} — {{ row.reason }}
+              </v-chip>
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -226,6 +250,13 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   margin: 0;
+}
+
+.TaskDetails__outputName {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  width: 1%;
 }
 
 </style>
@@ -263,25 +294,33 @@ export default {
   },
 
   computed: {
-    parsedArtifacts() {
+    // The outputs document of a workflow task: {values, skipped}. A document
+    // written before that shape existed is a flat map and is shown as values.
+    outputs() {
       const raw = this.item?.artifacts;
       if (raw == null || raw === '') return null;
-      if (typeof raw === 'object') {
-        return Object.keys(raw).length === 0 ? null : raw;
-      }
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-            && Object.keys(parsed).length > 0) {
-          return parsed;
+      let doc = raw;
+      if (typeof raw === 'string') {
+        try {
+          doc = JSON.parse(raw);
+        } catch (e) {
+          return null;
         }
-        return null;
-      } catch (e) {
-        return null;
       }
-    },
-    formattedArtifacts() {
-      return this.parsedArtifacts ? JSON.stringify(this.parsedArtifacts, null, 2) : '';
+      if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return null;
+      const hasShape = doc.values && typeof doc.values === 'object';
+      const values = hasShape ? doc.values : doc;
+      const skipped = hasShape && doc.skipped && typeof doc.skipped === 'object' ? doc.skipped : {};
+      const rows = Object.keys(values).sort().map((name) => ({
+        name,
+        value: typeof values[name] === 'string' ? values[name] : JSON.stringify(values[name]),
+      }));
+      const skippedRows = Object.keys(skipped).sort().map((name) => ({
+        name,
+        reason: this.skipReason(skipped[name]),
+      }));
+      if (rows.length === 0 && skippedRows.length === 0) return null;
+      return { values: rows, skipped: skippedRows };
     },
   },
 
@@ -290,6 +329,11 @@ export default {
   },
 
   methods: {
+    skipReason(reason) {
+      const key = `workflowOutputSkipped_${reason}`;
+      return this.$te(key) ? this.$t(key) : reason;
+    },
+
     isReady(origin) {
       return origin != null && origin.status === 'ready';
     },
