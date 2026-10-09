@@ -67,6 +67,10 @@ type LocalExecutor struct {
 	// succeeded and produced outputs.
 	outputs *string
 
+	// extraVarsFile is the YAML file the extra vars of an Ansible task are
+	// passed through (see extra_vars_file.go); removed by Cleanup.
+	extraVarsFile string
+
 	// Prepared state — populated by Prepare(), consumed by Run(). Lifted out of Run()
 	// local variables so the lifecycle phases (Prepare / underlying App.Run / Cleanup)
 	// can be invoked independently by callers that want phased execution (e.g. the
@@ -201,22 +205,6 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 	vars := make(map[string]any)
 	vars["task_details"] = t.getTaskDetails(username, incomingVersion)
 	extraVars["semaphore_vars"] = vars
-
-	return
-}
-
-func (t *LocalExecutor) getEnvironmentExtraVarsJSON(username string, incomingVersion *string) (str string, err error) {
-	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
-	if err != nil {
-		return
-	}
-
-	ev, err := json.Marshal(extraVars)
-	if err != nil {
-		return
-	}
-
-	str = string(ev)
 
 	return
 }
@@ -564,20 +552,15 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		}
 	}
 
-	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
+	// Every extra var, secrets included, goes through a YAML file with !unsafe
+	// tags: Ansible never evaluates an expression inside a value, and no value
+	// shows up on the command line.
+	extraVarsPath, err := t.writeExtraVarsFile(username, incomingVersion)
 	if err != nil {
-		t.Log(err.Error())
-		t.Log("Could not remove command environment, if existent it will be passed to --extra-vars. This is not fatal but be aware of side effects")
-	} else if extraVars != "" {
-		args = append(args, "--extra-vars", extraVars)
+		t.Log("Failed to write the extra vars file: " + err.Error())
+		return nil, nil, err
 	}
-
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
-	}
+	args = append(args, "--extra-vars", "@"+extraVarsPath)
 
 	templateArgs, taskArgs, err := t.getCLIArgs()
 	if err != nil {
@@ -1108,6 +1091,7 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 func (t *LocalExecutor) Cleanup() {
 	t.destroyKeys()
 	t.destroyInventoryFile()
+	t.destroyExtraVarsFile()
 	if t.outputsCapture != nil {
 		t.outputsCapture.Close()
 	}

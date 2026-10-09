@@ -8,7 +8,8 @@ docs say "Outputs" / "Inputs"; the DB column and the API field keep the name `ar
 **Status (2026-10-09): the hand-off works end to end on the server and on remote runners with
 the local executor: outputs are captured and stored, edges store and validate `input_mode` /
 `input_mappings`, the engine fills the survey variables of the next task from them, and the
-editor configures it on the connection. Left: the security hardening, docs and Dredd.** A workflow task gets the file, its
+editor configures it on the connection; survey values and inputs reach Ansible as literals
+(no Jinja evaluation) and the task API cannot forge workflow fields. Left: docs and Dredd.** A workflow task gets the file, its
 outputs are validated and stored on `task.artifacts` — on the server directly, from a runner
 through `JobProgress.Outputs` with a second validation on the server; `startWorkflowNode`
 resolves the inputs of the next task before it is enqueued. The seeded stand for checking it by hand is described in
@@ -190,13 +191,26 @@ A value that does not fit is treated as no value (fallback), with the reason in 
 
 ### Trust
 
-Output values come from a task process and are data, never code: they must not be evaluated as
-Jinja by Ansible (stage 8 of the task decides between `!unsafe` and ansible-core data tagging),
-are never printed in full to a log, and are re-validated on the server when they arrive from a
-runner. A task created through the API must not be able to set `artifacts`,
-`workflow_run_id` or `workflow_node_id`.
+Output values come from a task process and are data, never code: they are never evaluated as
+Jinja by Ansible, are never printed in full to a log, and are re-validated on the server when
+they arrive from a runner. A task created through the API cannot set `artifacts`,
+`workflow_run_id`, `workflow_node_id` or `runner_id` — the engine and the outputs store are the
+only writers.
 
-## What exists in the code (checked 2026-10-08)
+Ansible never evaluates a Jinja2 expression inside a value Semaphore passes, and there is no
+switch to turn evaluation back on (owner's decision 2026-10-09, NOTE@ca2d7bb0cc and its follow-up;
+AWX's `ALLOW_JINJA_IN_EXTRA_VARS=never`). The rule applies to **every** Ansible task, not only
+to workflow tasks, because `ansible-playbook --extra-vars '<json>'` evaluates
+`{{ lookup('pipe', …) }}` inside any value lazily (ansible-core 2.21.2 probe, 2026-10-09). All
+extra vars — variable groups and their `var` secrets, survey answers, workflow inputs, survey
+secrets, `semaphore_vars` — go through a temporary `--extra-vars @task_<id>_extra_vars_*.yml`
+(0600, chowned to the task user, deleted in `Cleanup`) in which every string scalar carries the
+`!unsafe` tag, recursively through lists and objects (`services/tasks/extra_vars_file.go`).
+Numbers and booleans need no tag. Side effects to document in stage 9: Jinja typed into a
+survey answer or a variable group is no longer evaluated, and secrets no longer appear in the
+`ansible-playbook` command line.
+
+## What exists in the code (checked 2026-10-09)
 
 - **Producer, local executor — implemented.** `pro_interfaces.TaskOutputsCollector` /
   `TaskOutputsCapture` (`pro_interfaces/task_outputs.go`) is the open/pro seam: the stub factory
@@ -271,6 +285,17 @@ runner. A task created through the API must not be able to set `artifacts`,
   users the feature works for local tasks and describes the superseded implicit merge. Until
   the last stage rewrites it the doc overclaims.
 
+- **Security (2026-10-09).** `LocalExecutor.getPlaybookArgs` always writes the extra-vars file
+  (`writeExtraVarsFile`; `extraVarsYAML` builds a `yaml.v3` node tree, `markUnsafe` tags every
+  string); the inline JSON builder and the separate `--extra-vars name=secret` arguments are
+  gone. `api/projects/tasks.go` `sanitizeClientTask` zeroes `WorkflowRunID`, `WorkflowNodeID`,
+  `Artifacts`, `RunnerID` on `POST …/tasks`. Stand evidence (workflows 13 "Inputs: jinja
+  injection" and 14 "Inputs: jinja vs vars group", server and runner): `INPUT image_tag={{
+  lookup('pipe', 'echo INJECTED-$(id -un)') }}` and `INPUT group_expr={{ 2*21 }}` printed
+  literally. The same build with the earlier inline form printed `INPUT image_tag=INJECTED-fiftin`
+  and `region=/Users/fiftin`, which is the evaluation the file prevents. No `task_*_extra_vars_*`
+  files remain after the runs.
+
 ## Decisions and why
 
 - **Mapping lives on the edge; by name by default, explicit per edge** (owner, 2026-10-07).
@@ -313,7 +338,8 @@ runner. A task created through the API must not be able to set `artifacts`,
 
 ## Open, broken, deferred
 
-- Still to be built: the security hardening, docs and Dredd (stages 8–9 of the task). The two ⚠️
+- Still to be built: docs and Dredd (stage 9 of the task), including the behaviour change that
+  Jinja in survey answers and variable groups is no longer evaluated. The two ⚠️
   assumptions in § Consumer (fan-in tie-break, pass-through nodes) are open until the owner
   confirms them; the research direction `AREA@7ec03538fb` (2026-10-07) recommends a
   deterministic tie-break by edge id, rejecting conflicting explicit mappings at save under
@@ -338,7 +364,10 @@ runner. A task created through the API must not be able to set `artifacts`,
   `db/TaskParams.go`
 - `services/tasks/local_executor.go` (outputs: `beginOutputs`, `collectOutputs`,
   `ansibleCallbackPlugins`; survey delivery: `getEnvironmentExtraVars`, `getSurveyEnvVars`,
-  `formatVarValue`), `services/tasks/TaskRunner.go` (`saveOutputs`),
+  `formatVarValue`; Jinja rule: `getPlaybookArgs`), `services/tasks/extra_vars_file.go`
+  (`extraVarsYAML`, `markUnsafe`, `writeExtraVarsFile`), `api/projects/tasks.go`
+  (`sanitizeClientTask`); stand checks —
+  `AGENTS/tools/wf-stand/seed-outputs.sh` workflows 13–14, `services/tasks/TaskRunner.go` (`saveOutputs`),
   `services/tasks/TaskPool.go` (`StoreRemoteTaskOutputs`, `applyDBPersistedTaskSnapshot`),
   `services/tasks/local_executor_provider.go`, `services/tasks/executor.go`
   (`OutputsProvider`), `db_lib/TerraformApp.go` (`Outputs`), `pro_interfaces/task_outputs.go`

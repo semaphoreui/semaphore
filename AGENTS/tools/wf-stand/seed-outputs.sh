@@ -29,14 +29,18 @@ INV=$(api GET "/project/$PID/inventory" | find_by_name "localhost")
 [ -n "$INV" ] || INV=$(api POST "/project/$PID/inventory" "{\"project_id\":$PID,\"name\":\"localhost\",\"type\":\"static\",\"inventory\":\"localhost ansible_connection=local ansible_python_interpreter=$(command -v python3)\",\"ssh_key_id\":$KEY}" | jid)
 echo "project $PID key $KEY repo $REPO inv $INV"
 
-# mk_tpl NAME APP PLAYBOOK [SURVEY_VARS_JSON]
+# mk_tpl NAME APP PLAYBOOK [SURVEY_VARS_JSON] [ENVIRONMENT_ID]
 # Terraform-family templates get no inventory_id: the API creates a terraform-workspace inventory
 # owned by the template (passing a shared one makes the API claim it and hide it from the list).
 mk_tpl() { local id inv; id=$(api GET "/project/$PID/templates" | find_by_name "$1")
   [ -n "$id" ] && { echo "$id"; return; }
   # auto_approve: a terraform plan with changes otherwise parks the task in waiting_confirmation.
   case "$2" in terraform|tofu|terragrunt) inv=""; tp='{"auto_approve":true,"allow_auto_approve":true}';; *) inv="\"inventory_id\":$INV,"; tp='{}';; esac
-  api POST "/project/$PID/templates" "{\"project_id\":$PID,\"name\":\"$1\",\"app\":\"$2\",\"playbook\":\"$3\",\"repository_id\":$REPO,${inv}\"environment_ids\":[],\"type\":\"\",\"task_params\":$tp,\"survey_vars\":${4:-[]}}" | jid; }
+  api POST "/project/$PID/templates" "{\"project_id\":$PID,\"name\":\"$1\",\"app\":\"$2\",\"playbook\":\"$3\",\"repository_id\":$REPO,${inv}\"environment_ids\":[${5:-}],\"type\":\"\",\"task_params\":$tp,\"survey_vars\":${4:-[]}}" | jid; }
+
+# A variable group whose value is a Jinja2 expression: it must reach the playbook literally too.
+ENV_JINJA=$(api GET "/project/$PID/environment" | find_by_name "vars group with jinja")
+[ -n "$ENV_JINJA" ] || ENV_JINJA=$(api POST "/project/$PID/environment" "{\"project_id\":$PID,\"name\":\"vars group with jinja\",\"json\":\"{\\\"group_expr\\\":\\\"{{ 2*21 }}\\\"}\",\"env\":\"{}\"}" | jid)
 
 CONSUMER_VARS='[
  {"name":"image_tag","title":"Image tag","type":"","required":true},
@@ -63,9 +67,12 @@ T_TF=$(mk_tpl "terraform: outputs" terraform tf '[{"name":"image_tag","title":"I
 T_TOFU=$(mk_tpl "tofu: outputs" tofu tf)
 T_ANS=$(mk_tpl "ansible: set_stats outputs" ansible playbooks/outputs.yml '[{"name":"image_tag","title":"Image tag","type":"","default_value":"ansible-default"}]')
 T_ANS_CONS=$(mk_tpl "ansible: consume" ansible playbooks/consume.yml "$CONSUMER_VARS")
+T_ANS_CONS_GROUP=$(mk_tpl "ansible: consume + vars group" ansible playbooks/consume.yml "$CONSUMER_VARS" "$ENV_JINJA")
 # Producers whose output names differ from the consumer survey: deliverable only via explicit mapping.
 T_PROD_RENAMED=$(mk_tpl "bash: produce renamed outputs" bash produce_renamed.sh)
 T_ANS_RENAMED=$(mk_tpl "ansible: set_stats renamed outputs" ansible playbooks/outputs_renamed.yml)
+# Outputs that carry Jinja2 expressions: a consumer must print them literally.
+T_PROD_JINJA=$(mk_tpl "bash: produce jinja outputs" bash produce_jinja.sh)
 echo "templates ok=$T_OK fail=$T_FAIL slow=$T_SLOW produce=$T_PROD empty=$T_EMPTY badjson=$T_BADJSON badname=$T_BADNAME many=$T_MANY large=$T_LARGE thenfail=$T_THENFAIL symlink=$T_SYMLINK consume=$T_CONS tf=$T_TF tofu=$T_TOFU ansible=$T_ANS ansible_consume=$T_ANS_CONS renamed=$T_PROD_RENAMED ansible_renamed=$T_ANS_RENAMED"
 
 mk_wf() { local id; id=$(api GET "/project/$PID/workflows" | find_by_name "$1")
@@ -134,6 +141,18 @@ W_EMPTY=$(mk_wf "Inputs: explicit empty list" "{\"project_id\":$PID,\"name\":\"I
  $(node 1 $T_PROD 40), $(node 2 $T_CONS 420 "$ENV_STATIC")],
  \"edges\":[$(edgex 1 2 "")]}")
 
-echo "workflows main=$W_MAIN invalid=$W_BAD failed_producer=$W_FAILPROD tofu=$W_TOFU explicit=$W_EXPLICIT approval=$W_APPROVAL fanin=$W_FANIN empty=$W_EMPTY"
-echo "$PID $W_MAIN $W_BAD $W_FAILPROD $W_TOFU $W_EXPLICIT $W_APPROVAL $W_FANIN $W_EMPTY" > /tmp/semaphore-stand/wf-outputs-ids.txt
+# 13. Jinja injection: outputs with "{{ … }}" by name into the ansible and bash consumers.
+#     Expected: consumers print the expressions literally; "INJECTED" in a log means evaluation.
+W_JINJA=$(mk_wf "Inputs: jinja injection" "{\"project_id\":$PID,\"name\":\"Inputs: jinja injection\",\"nodes\":[
+ $(node 1 $T_PROD_JINJA 40), $(node 2 $T_ANS_CONS 420 '' 100), $(node 3 $T_CONS 420 '' 300)],
+ \"edges\":[$(edge 1 2), $(edge 1 3)]}")
+
+# 14. Jinja by name into a consumer with a variable group: expected INPUT group_expr={{ 2*21 }} and
+#     image_tag/config literal — Ansible evaluates nothing Semaphore passes.
+W_JINJA_GROUP=$(mk_wf "Inputs: jinja vs vars group" "{\"project_id\":$PID,\"name\":\"Inputs: jinja vs vars group\",\"nodes\":[
+ $(node 1 $T_PROD_JINJA 40), $(node 2 $T_ANS_CONS_GROUP 420)],
+ \"edges\":[$(edge 1 2)]}")
+
+echo "workflows main=$W_MAIN invalid=$W_BAD failed_producer=$W_FAILPROD tofu=$W_TOFU explicit=$W_EXPLICIT approval=$W_APPROVAL fanin=$W_FANIN empty=$W_EMPTY jinja=$W_JINJA jinja_group=$W_JINJA_GROUP"
+echo "$PID $W_MAIN $W_BAD $W_FAILPROD $W_TOFU $W_EXPLICIT $W_APPROVAL $W_FANIN $W_EMPTY $W_JINJA $W_JINJA_GROUP" > /tmp/semaphore-stand/wf-outputs-ids.txt
 echo "UI: $BASE/project/$PID/workflows"

@@ -68,6 +68,18 @@ workflow 3 — the on_failure consumer is `error` before start with "Required in
 in its log. The task log of every consumer starts with the engine's `Input "<var>" <- output "<key>" of node N
 (task #M)` lines, so a value's source is always one line above the value.
 
+Since 2026-10-09 the seed also covers the Jinja rule (Ansible never evaluates an expression inside an
+extra var — every value reaches it `!unsafe` through a file): template "bash: produce jinja outputs"
+(`produce_jinja.sh` writes `image_tag`, `config` and `replicas` holding `{{ lookup('pipe', …) }}`,
+`{{ lookup('env', 'HOME') }}`, `{{ 6*7 }}`), the variable group "vars group with jinja" (`group_expr: "{{ 2*21 }}"`),
+template "ansible: consume + vars group" and workflows 13 "Inputs: jinja injection" (→ ansible and bash
+consumers) and 14 "Inputs: jinja vs vars group". Expected on the server and on the runner: `INPUT image_tag={{
+lookup('pipe', 'echo INJECTED-$(id -un)') }}`, `config` with the expressions verbatim, `replicas=1` (the
+default — `{{ 6*7 }}` is not an int) and `INPUT group_expr={{ 2*21 }}` — the variable group is data too. A
+consumer log containing `INJECTED-` or `group_expr=42` means Ansible evaluated a value: a regression.
+`inputs.sh` right after `run.sh` on the runner can miss the last log lines; re-run it with the run id.
+Trap: the template API ignores `environment_id`, pass `environment_ids`.
+
 Seeding traps learned there: a Terraform-family template must be POSTed without `inventory_id`
 (the API creates a `terraform-workspace` inventory; a shared one gets claimed and hidden) and with
 `task_params.auto_approve`, or a plan with changes parks the task in `waiting_confirmation`; a

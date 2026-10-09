@@ -66,10 +66,24 @@ func (c *TaskController) resolveTaskTemplate(projectID int, task *db.Task) (tpl 
 	return
 }
 
+// sanitizeClientTask drops the fields of a task a client must not set: the
+// workflow engine alone binds a task to a run and a node (startWorkflowNode),
+// outputs are written by the task's own run (saveOutputs,
+// StoreRemoteTaskOutputs) and the runner assignment by the pool. A client that
+// could set them would make its task pose as a node of someone else's workflow
+// run and feed arbitrary outputs into the run's next nodes.
+func sanitizeClientTask(task db.Task) db.Task {
+	task.WorkflowRunID = nil
+	task.WorkflowNodeID = nil
+	task.Artifacts = nil
+	task.RunnerID = nil
+	return task
+}
+
 func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	user := helpers.GetFromContext(r, "user").(*db.User)
-	taskObj := helpers.GetFromContext(r, "task").(db.Task)
+	taskObj := sanitizeClientTask(helpers.GetFromContext(r, "task").(db.Task))
 
 	tpl, err := c.resolveTaskTemplate(project.ID, &taskObj)
 	if err != nil {
