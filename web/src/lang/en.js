@@ -301,6 +301,10 @@ export default {
   private_key_required: 'Private key is required',
   project_name_required: 'Project name is required',
   repository_required: 'Repository is required',
+  monorepo: 'Single checkout for all templates',
+  monorepoHelp: 'Clone this repository once and share it between all templates, instead of a copy '
+    + 'per template. For a repository large enough that a copy per template is a problem. Tasks of '
+    + 'templates using it can not override the branch or commit.',
   branch_required: 'Branch or tag is required',
   key_required: 'Key is required',
   user_required: 'User is required',
