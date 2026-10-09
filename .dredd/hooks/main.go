@@ -131,6 +131,7 @@ func main() {
 	h.Before("template > /api/project/{project_id}/templates/{template_id}/stop_all_tasks > Stop all active tasks of template > 204 > application/json", capabilityWrapper("template"))
 	h.Before("template > /api/project/{project_id}/templates/{template_id} > Get template > 200 > application/json", capabilityWrapper("template"))
 	h.Before("template > /api/project/{project_id}/templates/{template_id} > Updates template > 204 > application/json", capabilityWrapper("template"))
+	h.Before("template > /api/project/{project_id}/templates/{template_id}/description > Updates template description > 204 > application/json", capabilityWrapper("template"))
 	h.Before("template > /api/project/{project_id}/templates/{template_id} > Removes template > 204 > application/json", capabilityWrapper("template"))
 
 	if isProBuild() {

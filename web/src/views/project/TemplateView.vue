@@ -130,13 +130,45 @@
       </v-btn>
     </v-toolbar>
 
-    <SingleLineEditable
-      class="mx-4 TemplateView__description"
-      v-model="item.description"
-      @save="updateDescription()"
-      v-if="item.description || can(USER_PERMISSIONS.manageProjectResources)"
-      :can-edit="can(USER_PERMISSIONS.manageProjectResources)"
+    <MarkdownEditDialog
+      v-if="can(USER_PERMISSIONS.manageProjectResources)"
+      v-model="descriptionDialog"
+      :title="$t('editDescription')"
+      :source="item.description || ''"
+      :save-handler="updateDescription"
     />
+
+    <div
+      class="mx-4 TemplateView__description"
+      v-if="item.description || can(USER_PERMISSIONS.manageProjectResources)"
+      data-testid="template-description"
+    >
+      <v-icon small class="TemplateView__description-icon">mdi-message-outline</v-icon>
+
+      <MarkdownView
+        v-if="item.description"
+        class="TemplateView__description-content"
+        :source="item.description"
+        collapsible
+        :max-lines="3"
+      />
+      <span
+        v-else
+        class="TemplateView__description-content TemplateView__description-placeholder"
+      >{{ $t('empty') }}</span>
+
+      <v-btn
+        icon
+        small
+        class="TemplateView__description-edit"
+        v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        :title="$t('editDescription')"
+        @click="descriptionDialog = true"
+        data-testid="template-description-edit"
+      >
+        <v-icon small>mdi-pencil</v-icon>
+      </v-btn>
+    </div>
 
     <v-tabs>
       <v-tab
@@ -188,6 +220,27 @@
 .TemplateView__description {
   font-size: 14px;
   margin-bottom: 12px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.TemplateView__description-icon {
+  margin-top: 2px;
+  padding-right: 4px;
+}
+
+.TemplateView__description-content {
+  padding: 0 5px;
+  min-width: 0;
+}
+
+.TemplateView__description-placeholder {
+  color: grey;
+}
+
+.TemplateView__description-edit {
+  margin-top: -4px;
+  margin-left: 4px;
 }
 
 @media #{map-get($display-breakpoints, 'md-and-up')} {
@@ -214,12 +267,14 @@ import ObjectRefsDialog from '@/components/ObjectRefsDialog.vue';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
 import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
 import PermissionsCheck from '@/components/PermissionsCheck';
-import SingleLineEditable from '@/components/SingleLineEditable.vue';
+import MarkdownView from '@/components/MarkdownView.vue';
+import MarkdownEditDialog from '@/components/MarkdownEditDialog.vue';
 import ProjectMixin from '@/components/ProjectMixin';
 
 export default {
   components: {
-    SingleLineEditable,
+    MarkdownView,
+    MarkdownEditDialog,
     YesNoDialog,
     ObjectRefsDialog,
     NewTaskDialog,
@@ -249,6 +304,7 @@ export default {
       itemRefs: null,
       itemRefsDialog: null,
       newTaskDialog: null,
+      descriptionDialog: false,
       stopAllDialog: null,
       forceStopAllDialog: null,
       USER_PERMISSIONS,
@@ -414,21 +470,23 @@ export default {
       ]);
     },
 
-    async updateDescription() {
+    async updateDescription(description) {
       try {
         await axios({
           method: 'put',
           url: `/api/project/${this.projectId}/templates/${this.itemId}/description`,
           responseType: 'json',
           data: {
-            description: this.item.description,
+            description,
           },
         });
+        this.item.description = description;
       } catch (err) {
         EventBus.$emit('i-snackbar', {
           color: 'error',
           text: getErrorMessage(err),
         });
+        throw err;
       }
     },
 
