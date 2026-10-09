@@ -399,6 +399,55 @@ type TemplateWithPerms struct {
 	Permissions *ProjectUserPermission `db:"permissions" json:"permissions"`
 }
 
+// TemplateMessageMode is what the task dialog does with the Message field for
+// tasks launched from the template.
+type TemplateMessageMode string
+
+const (
+	TemplateMessageOptional TemplateMessageMode = "optional"
+	TemplateMessageRequired TemplateMessageMode = "required"
+	TemplateMessageHidden   TemplateMessageMode = "hidden"
+)
+
+// MessageMode reads task_params.message_mode. An absent, nil or empty value is
+// TemplateMessageOptional; a value that is not one of the three modes is a
+// validation error.
+func (tpl *Template) MessageMode() (TemplateMessageMode, error) {
+	raw, ok := tpl.TaskParams["message_mode"]
+	if !ok || raw == nil {
+		return TemplateMessageOptional, nil
+	}
+
+	s, ok := raw.(string)
+	if !ok {
+		return "", common_errors.NewValidationError("invalid task params: message_mode must be a string")
+	}
+
+	switch mode := TemplateMessageMode(s); mode {
+	case "", TemplateMessageOptional:
+		return TemplateMessageOptional, nil
+	case TemplateMessageRequired, TemplateMessageHidden:
+		return mode, nil
+	default:
+		return "", common_errors.NewValidationError(fmt.Sprintf("invalid task params: unknown message_mode %q", s))
+	}
+}
+
+// ValidateTaskMessage rejects a blank message when the template's message mode
+// is TemplateMessageRequired.
+func (tpl *Template) ValidateTaskMessage(message string) error {
+	mode, err := tpl.MessageMode()
+	if err != nil {
+		return err
+	}
+
+	if mode == TemplateMessageRequired && strings.TrimSpace(message) == "" {
+		return common_errors.NewValidationError("template requires a task message")
+	}
+
+	return nil
+}
+
 func (tpl *Template) FillParams(target any) error {
 	content, err := json.Marshal(tpl.TaskParams)
 	if err != nil {
@@ -467,6 +516,10 @@ func (tpl *Template) Validate() error {
 		if err := params.ValidateGalaxyArgs(); err != nil {
 			return err
 		}
+	}
+
+	if _, err := tpl.MessageMode(); err != nil {
+		return err
 	}
 
 	if tpl.Name == "" {

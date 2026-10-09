@@ -554,6 +554,19 @@
           {{ $t('template_app_prompts', { app: getAppTitle(app, true) }) }}
         </h2>
         <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
+          <v-select
+            v-model="message_mode"
+            :label="$t('message')"
+            :items="messageModes"
+            item-value="value"
+            item-text="text"
+            :disabled="formSaving"
+            style="max-width: 200px"
+            outlined
+            dense
+            v-if="needField('message_mode')"
+          ></v-select>
+
           <v-checkbox
             class="mt-0"
             :label="$t('allowLimitInTask')"
@@ -885,6 +898,25 @@ export default {
       },
       set(newValue) {
         this.item.task_params.allow_override_inventory = newValue;
+      },
+    },
+
+    messageModes() {
+      return [
+        { value: 'optional', text: this.$t('optional') },
+        { value: 'required', text: this.$t('required') },
+        { value: 'hidden', text: this.$t('hidden') },
+      ];
+    },
+
+    // An absent message_mode is presented as optional, which is what the task
+    // dialog does with it.
+    message_mode: {
+      get() {
+        return this.item.task_params.message_mode || 'optional';
+      },
+      set(newValue) {
+        this.$set(this.item.task_params, 'message_mode', newValue);
       },
     },
 

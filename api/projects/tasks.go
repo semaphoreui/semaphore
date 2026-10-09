@@ -77,6 +77,11 @@ func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := tpl.ValidateTaskMessage(taskObj.Message); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	newTask, err := taskPool(r).AddTaskFrom(
 		r.Context(),
 		audit.TriggerAPI,
