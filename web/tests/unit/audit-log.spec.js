@@ -33,6 +33,19 @@ function auditEvent(seq, fields = {}) {
 
 const PAGE = { events: [auditEvent(80), auditEvent(79)], older: 79, newer: 80 };
 
+function searched(seq, older = seq) {
+  return {
+    events: [],
+    older,
+    newer: null,
+    searched_to: { seq, timestamp: `2026-09-${String(1 + (seq % 28)).padStart(2, '0')}T12:00:00.000000Z` },
+  };
+}
+
+function searchedNewer(seq, newer = seq) {
+  return { ...searched(seq, null), newer };
+}
+
 async function flush() {
   await new Promise((resolve) => { setTimeout(resolve, 0); });
 }
@@ -51,6 +64,34 @@ describe('AuditLog.vue', () => {
       }
       return page;
     });
+  }
+
+  // Audit requests get the pages in turn, the last one repeats.
+  function respondInTurn(...pages) {
+    let next = 0;
+    http.respond((config) => {
+      if (config.url !== '/api/audit/events') {
+        return config.url === '/api/users' ? [] : [{ id: 3, name: 'Infra' }];
+      }
+      const page = pages[Math.min(next, pages.length - 1)];
+      next += 1;
+      return page;
+    });
+  }
+
+  // Audit requests wait until resolved and fail like axios when aborted.
+  function respondLater() {
+    const pending = [];
+    http.respond((config) => {
+      if (config.url !== '/api/audit/events') {
+        return [];
+      }
+      return new Promise((resolve, reject) => {
+        pending.push(resolve);
+        config.signal.addEventListener('abort', () => reject(new axios.CanceledError()));
+      });
+    });
+    return pending;
   }
 
   beforeEach(() => {
@@ -105,18 +146,194 @@ describe('AuditLog.vue', () => {
   }
 
   it('offers to search older events when the search stopped', async () => {
-    respondWith({
-      events: [],
-      older: 400,
-      newer: null,
-      searched_to: { seq: 400, timestamp: '2026-09-02T14:20:00.000000Z' },
-    });
+    respondInTurn(searched(400), PAGE);
     const wrapper = await mountPage();
+    expect(auditRequests()).to.have.length(1);
     expect(wrapper.find('[data-testid="audit-searched-to"]').text())
       .to.contain('No more matches among events since');
-    await wrapper.find('[data-testid="audit-search-older"]').trigger('click');
+    await wrapper.find('[data-testid="audit-older"]').trigger('click');
     await flush();
     expect(lastQuery()).to.equal('before=400');
+  });
+
+  it('keeps searching older until a page has events', async () => {
+    respondInTurn(searched(400), searched(300), searched(200), PAGE);
+    const wrapper = await mountPage();
+    await wrapper.find('[data-testid="audit-older"]').trigger('click');
+    await flush();
+    expect(auditRequests().map((r) => r.params.before)).to.deep.equal([undefined, 400, 300, 200]);
+    expect(wrapper.findAll('tbody tr')).to.have.length(2);
+    expect(wrapper.find('[data-testid="audit-searching"]').exists()).to.equal(false);
+    expect(wrapper.vm.loading).to.equal(false);
+  });
+
+  it('stops searching older at the end of the log', async () => {
+    respondInTurn(searched(400), searched(300, null), PAGE);
+    const wrapper = await mountPage();
+    await wrapper.find('[data-testid="audit-older"]').trigger('click');
+    await flush();
+    expect(auditRequests()).to.have.length(2);
+    expect(wrapper.vm.loading).to.equal(false);
+  });
+
+  it('keeps searching older with Older', async () => {
+    respondInTurn(PAGE, searched(400), searched(300), PAGE);
+    const wrapper = await mountPage();
+    await wrapper.find('[data-testid="audit-older"]').trigger('click');
+    await flush();
+    expect(auditRequests().map((r) => r.params.before)).to.deep.equal([undefined, 79, 400, 300]);
+    expect(wrapper.findAll('tbody tr')).to.have.length(2);
+  });
+
+  it('keeps searching newer until a page has events', async () => {
+    respondInTurn(PAGE, searchedNewer(200), searchedNewer(300), PAGE);
+    const wrapper = await mountPage();
+    await wrapper.find('[data-testid="audit-newer"]').trigger('click');
+    await flush();
+    expect(auditRequests().map((r) => r.params.after)).to.deep.equal([undefined, 80, 200, 300]);
+    expect(wrapper.findAll('tbody tr')).to.have.length(2);
+    expect(wrapper.find('[data-testid="audit-searching"]').exists()).to.equal(false);
+    expect(wrapper.vm.loading).to.equal(false);
+  });
+
+  it('shows how far a newer search reached and offers to go on after Stop', async () => {
+    const wrapper = await mountPage();
+    const pending = respondLater();
+    await wrapper.find('[data-testid="audit-newer"]').trigger('click');
+    pending[0](searchedNewer(310));
+    await flush();
+    expect(wrapper.find('[data-testid="audit-searching"]').text()).to.contain('Searching newer events');
+    const inFlight = auditRequests().pop();
+    await wrapper.find('[data-testid="audit-stop"]').trigger('click');
+    await flush();
+    expect(inFlight.signal.aborted).to.equal(true);
+    const line = wrapper.find('[data-testid="audit-searched-to"]').text();
+    expect(line).to.contain('No more matches among events until');
+    expect(line).to.contain('2026-09-03');
+    await wrapper.find('[data-testid="audit-newer"]').trigger('click');
+    expect(lastQuery()).to.equal('after=310');
+  });
+
+  it('ends a newer search when the filters change', async () => {
+    const wrapper = await mountPage();
+    const pending = respondLater();
+    await wrapper.find('[data-testid="audit-newer"]').trigger('click');
+    pending[0](searchedNewer(310));
+    await flush();
+    const searching = auditRequests().pop();
+    wrapper.vm.setFilters({ outcome: 'failure' });
+    expect(searching.signal.aborted).to.equal(true);
+    pending[2](PAGE);
+    await flush();
+    expect(auditRequests()).to.have.length(4);
+    expect(lastQuery()).to.equal('outcome=failure');
+    expect(wrapper.find('[data-testid="audit-searching"]').exists()).to.equal(false);
+  });
+
+  it('keeps the stopped line of the shown page until a newer page arrives', async () => {
+    respondInTurn({ ...searched(400), newer: 500 });
+    const wrapper = await mountPage();
+    http.respond(() => { throw new Error('boom'); });
+    await wrapper.find('[data-testid="audit-newer"]').trigger('click');
+    await flush();
+    expect(wrapper.find('[data-testid="audit-searched-to"]').text()).to.contain('since');
+    respondInTurn(searchedNewer(600), PAGE);
+    await wrapper.find('[data-testid="audit-retry"]').trigger('click');
+    await flush();
+    expect(auditRequests().map((r) => r.params.after)).to.deep.equal([undefined, 500, 500, 600]);
+  });
+
+  it('says no older matches at the end of the log', async () => {
+    respondInTurn(searched(400), searched(300, null));
+    const wrapper = await mountPage();
+    await wrapper.find('[data-testid="audit-older"]').trigger('click');
+    await flush();
+    expect(wrapper.text()).to.contain('No older matches.');
+    expect(wrapper.text()).to.not.contain('No audit events match');
+  });
+
+  it('says no newer matches on an empty newer page', async () => {
+    respondInTurn(PAGE, { events: [], older: 81, newer: null });
+    const wrapper = await mountPage();
+    await wrapper.find('[data-testid="audit-newer"]').trigger('click');
+    await flush();
+    expect(auditRequests()).to.have.length(2);
+    expect(wrapper.text()).to.contain('No newer matches.');
+    expect(wrapper.text()).to.not.contain('No audit events match');
+  });
+
+  it('says no audit events match on an empty first page', async () => {
+    respondWith({ events: [], older: null, newer: null });
+    const wrapper = await mountPage();
+    expect(wrapper.text()).to.contain('No audit events match.');
+  });
+
+  it('shows how far the search reached and stops on Stop', async () => {
+    respondInTurn(searched(400));
+    const wrapper = await mountPage();
+    const pending = respondLater();
+    await wrapper.find('[data-testid="audit-older"]').trigger('click');
+    pending[0](searched(310));
+    await flush();
+    const line = wrapper.find('[data-testid="audit-searching"]');
+    expect(line.text()).to.contain('Searching older events');
+    expect(line.text()).to.contain('2026-09-03');
+    const inFlight = auditRequests().pop();
+    await wrapper.find('[data-testid="audit-stop"]').trigger('click');
+    await flush();
+    expect(inFlight.signal.aborted).to.equal(true);
+    expect(auditRequests()).to.have.length(3);
+    expect(wrapper.find('[data-testid="audit-searching"]').exists()).to.equal(false);
+    expect(wrapper.find('[data-testid="audit-searched-to"]').text()).to.contain('2026-09-03');
+    const older = wrapper.find('[data-testid="audit-older"]');
+    expect(older.attributes('disabled')).to.equal(undefined);
+    expect(wrapper.vm.loading).to.equal(false);
+  });
+
+  it('reports no error for a cancelled request', async () => {
+    respondInTurn(searched(400));
+    const wrapper = await mountPage();
+    const pending = respondLater();
+    const messages = [];
+    const listener = (m) => messages.push(m);
+    EventBus.$on('i-snackbar', listener);
+    await wrapper.find('[data-testid="audit-older"]').trigger('click');
+    pending[0](searched(310));
+    await flush();
+    await wrapper.find('[data-testid="audit-stop"]').trigger('click');
+    await flush();
+    EventBus.$off('i-snackbar', listener);
+    expect(messages).to.have.length(0);
+    expect(wrapper.vm.failed).to.equal(false);
+  });
+
+  it('ends the search when the filters change', async () => {
+    respondInTurn(searched(400));
+    const wrapper = await mountPage();
+    const pending = respondLater();
+    await wrapper.find('[data-testid="audit-older"]').trigger('click');
+    const searching = auditRequests().pop();
+    wrapper.vm.setFilters({ outcome: 'failure' });
+    expect(searching.signal.aborted).to.equal(true);
+    pending[1](PAGE);
+    pending[0](searched(300));
+    await flush();
+    expect(auditRequests()).to.have.length(3);
+    expect(lastQuery()).to.equal('outcome=failure');
+    expect(wrapper.findAll('tbody tr')).to.have.length(2);
+  });
+
+  it('ends the search when leaving the page', async () => {
+    respondInTurn(searched(400));
+    const wrapper = await mountPage();
+    const pending = respondLater();
+    await wrapper.find('[data-testid="audit-older"]').trigger('click');
+    const searching = auditRequests().pop();
+    wrappers.pop().destroy();
+    expect(searching.signal.aborted).to.equal(true);
+    pending[0](searched(300));
+    await flush();
+    expect(auditRequests()).to.have.length(2);
   });
 
   it('hides the search line on an ordinary page', async () => {

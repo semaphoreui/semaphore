@@ -64,7 +64,7 @@
         text
         :disabled="loading || newer === null"
         data-testid="audit-newer-top"
-        @click="load({ after: newer })"
+        @click="load({ after: newer }, 'newer')"
       >
         <v-icon left>mdi-chevron-left</v-icon>
         {{ $t('audit_newer') }}
@@ -73,7 +73,7 @@
         text
         :disabled="loading || older === null"
         data-testid="audit-older-top"
-        @click="load({ before: older })"
+        @click="load({ before: older }, 'older')"
       >
         {{ $t('audit_older') }}
         <v-icon right>mdi-chevron-right</v-icon>
@@ -88,7 +88,7 @@
         color="primary"
         class="ml-2"
         data-testid="audit-retry"
-        @click="load(lastPage)"
+        @click="load(...lastLoad)"
       >
         {{ $t('audit_retry') }}
       </v-btn>
@@ -107,7 +107,9 @@
       @click:row="selected = $event"
     >
       <template v-slot:no-data>
-        <span v-if="!failed">{{ $t('audit_no_events') }}</span>
+        <span v-if="!failed && direction === 'older'">{{ $t('audit_no_older') }}</span>
+        <span v-else-if="!failed && direction === 'newer'">{{ $t('audit_no_newer') }}</span>
+        <span v-else-if="!failed">{{ $t('audit_no_events') }}</span>
         <span v-else data-testid="audit-load-failed">
           {{ $t('audit_load_failed') }}
           <v-btn
@@ -116,9 +118,28 @@
             color="primary"
             class="ml-2"
             data-testid="audit-retry"
-            @click="load(lastPage)"
+            @click="load(...lastLoad)"
           >
             {{ $t('audit_retry') }}
+          </v-btn>
+        </span>
+      </template>
+
+      <template v-if="searching" v-slot:loading>
+        <span class="d-inline-flex align-center" data-testid="audit-searching">
+          <v-progress-circular indeterminate size="16" width="2" class="mr-2" />
+          {{ $t(direction === 'newer' ? 'audit_searching_newer' : 'audit_searching', {
+            date: localTime(searchedTo.timestamp),
+          }) }}
+          <v-btn
+            text
+            small
+            color="primary"
+            class="ml-2"
+            data-testid="audit-stop"
+            @click="stop"
+          >
+            {{ $t('audit_stop') }}
           </v-btn>
         </span>
       </template>
@@ -157,20 +178,16 @@
       <template v-slot:item.ip="{ item }">{{ item.source ? item.source.ip : '' }}</template>
     </v-data-table>
 
-    <div v-if="searchedTo" class="d-flex align-center px-4 pt-2" data-testid="audit-searched-to">
+    <div
+      v-if="searchedTo && !searching"
+      class="d-flex align-center px-4 pt-2"
+      data-testid="audit-searched-to"
+    >
       <span class="text--secondary">
-        {{ $t('audit_searched_to', { date: localTime(searchedTo.timestamp) }) }}
+        {{ $t(direction === 'newer' ? 'audit_searched_to_newer' : 'audit_searched_to', {
+          date: localTime(searchedTo.timestamp),
+        }) }}
       </span>
-      <v-btn
-        text
-        color="primary"
-        class="ml-2"
-        :disabled="loading"
-        data-testid="audit-search-older"
-        @click="load({ before: older })"
-      >
-        {{ $t('audit_search_older') }}
-      </v-btn>
     </div>
 
     <div class="d-flex justify-end pa-4">
@@ -186,7 +203,7 @@
         text
         :disabled="loading || newer === null"
         data-testid="audit-newer"
-        @click="load({ after: newer })"
+        @click="load({ after: newer }, 'newer')"
       >
         <v-icon left>mdi-chevron-left</v-icon>
         {{ $t('audit_newer') }}
@@ -195,7 +212,7 @@
         text
         :disabled="loading || older === null"
         data-testid="audit-older"
-        @click="load({ before: older })"
+        @click="load({ before: older }, 'older')"
       >
         {{ $t('audit_older') }}
         <v-icon right>mdi-chevron-right</v-icon>
@@ -250,8 +267,11 @@ export default {
       searchedTo: null,
       loading: false,
       failed: false,
-      lastPage: {},
+      lastLoad: [{}, null],
       requestId: 0,
+      controller: null,
+      searching: false,
+      direction: null,
       filters: {},
       selected: null,
       users: [],
@@ -283,6 +303,10 @@ export default {
     await Promise.all([this.load({}), this.loadNames()]);
   },
 
+  beforeDestroy() {
+    this.stop();
+  },
+
   methods: {
     returnToProjects() {
       EventBus.$emit('i-open-last-project');
@@ -301,24 +325,47 @@ export default {
       return { ...params, ...page };
     },
 
-    async load(page) {
+    // Every load and leaving the page go through here, so a newer request always wins.
+    stop() {
       this.requestId += 1;
+      this.controller?.abort();
+      this.loading = false;
+      this.searching = false;
+    },
+
+    // A direction ('older' or 'newer') keeps asking while the server stops with no events.
+    async load(page, direction = null) {
+      this.stop();
       const id = this.requestId;
-      this.lastPage = page;
+      this.controller = new AbortController();
+      const { signal } = this.controller;
       this.loading = true;
+      let next = page;
       try {
-        const { data } = await axios.get('/api/audit/events', {
-          params: this.requestParams(page),
-          paramsSerializer: { indexes: null },
-        });
-        if (id !== this.requestId) {
-          return;
+        for (;;) {
+          this.lastLoad = [next, direction];
+          // eslint-disable-next-line no-await-in-loop
+          const { data } = await axios.get('/api/audit/events', {
+            params: this.requestParams(next),
+            paramsSerializer: { indexes: null },
+            signal,
+          });
+          if (id !== this.requestId) {
+            return;
+          }
+          this.events = data.events;
+          this.older = data.older;
+          this.newer = data.newer;
+          this.searchedTo = data.searched_to;
+          this.direction = direction;
+          this.failed = false;
+          const cursor = direction === 'newer' ? data.newer : data.older;
+          if (!direction || data.events.length || !data.searched_to || !cursor) {
+            break;
+          }
+          this.searching = true;
+          next = direction === 'newer' ? { after: cursor } : { before: cursor };
         }
-        this.events = data.events;
-        this.older = data.older;
-        this.newer = data.newer;
-        this.searchedTo = data.searched_to;
-        this.failed = false;
       } catch (err) {
         if (id === this.requestId) {
           this.failed = true;
@@ -327,6 +374,7 @@ export default {
       } finally {
         if (id === this.requestId) {
           this.loading = false;
+          this.searching = false;
         }
       }
     },
