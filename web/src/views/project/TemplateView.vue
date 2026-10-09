@@ -60,9 +60,9 @@
 
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title class="breadcrumbs">
+      <v-toolbar-title class="breadcrumbs TemplateView__title">
         <router-link
-          class="breadcrumbs__item breadcrumbs__item--link"
+          class="breadcrumbs__item breadcrumbs__item--link TemplateView__parent-link"
           :to="
             viewId
               ? `/project/${projectId}/views/${viewId}/templates/`
@@ -71,7 +71,7 @@
         >
           {{ $t('taskTemplates2') }}
         </router-link>
-        <v-icon>mdi-chevron-right</v-icon>
+        <v-icon class="TemplateView__parent-link">mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">{{ item.name }}</span>
       </v-toolbar-title>
 
@@ -83,10 +83,12 @@
             v-bind="attrs"
             v-on="on"
             color="grey"
-            class="mr-3 pr-2"
+            class="mr-3 pr-2 TemplateView__toolbar-btn"
             :disabled="stopAllTasksProgress"
+            :aria-label="$t('stopAll')"
           >
-            {{ $t('stopAll') }}
+            <v-icon v-if="$vuetify.breakpoint.xsOnly">mdi-stop</v-icon>
+            <template v-else>{{ $t('stopAll') }}</template>
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
@@ -110,11 +112,13 @@
         v-if="canRun"
         color="primary"
         depressed
-        class="mr-3"
+        class="mr-3 TemplateView__toolbar-btn"
         @click="newTaskDialog = true"
         data-testid="template-run"
+        :aria-label="$t(TEMPLATE_TYPE_ACTION_TITLES[item.type])"
       >
-        {{ $t(TEMPLATE_TYPE_ACTION_TITLES[item.type]) }}
+        <v-icon v-if="$vuetify.breakpoint.xsOnly">mdi-play</v-icon>
+        <template v-else>{{ $t(TEMPLATE_TYPE_ACTION_TITLES[item.type]) }}</template>
       </v-btn>
 
       <v-btn icon color="error" @click="askDelete()" v-if="canUpdate">
@@ -188,6 +192,26 @@
 .TemplateView__description {
   font-size: 14px;
   margin-bottom: 12px;
+}
+
+@media #{map-get($display-breakpoints, 'xs-only')} {
+  // Keep the toolbar buttons inside the viewport: show only the template
+  // name (ellipsized) and tighten the button spacing.
+  .TemplateView__parent-link {
+    display: none !important;
+  }
+
+  .TemplateView__title {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .TemplateView__toolbar-btn.v-btn {
+    margin-right: 4px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    min-width: 0 !important;
+  }
 }
 
 @media #{map-get($display-breakpoints, 'md-and-up')} {

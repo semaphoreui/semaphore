@@ -845,6 +845,42 @@ html.WorkflowEditor-html body {
     & > td {
       white-space: nowrap;
     }
+
+    // Mobile (stacked) rows: long values must wrap instead of pushing the
+    // value column past the viewport edge.
+    & > td.v-data-table__mobile-row {
+      white-space: normal;
+      padding-left: 16px !important;
+      padding-right: 16px !important;
+    }
+  }
+
+  // Stacked (mobile) rows are not a real grid. In table layout, unbreakable
+  // values (paths, URLs) set the table's min width and push the values past
+  // the viewport, so lay the rows out as blocks that follow the page width.
+  &.v-data-table--mobile > .v-data-table__wrapper > table {
+    display: block;
+
+    & > thead,
+    & > tbody,
+    & > tbody > tr,
+    & > thead > tr {
+      display: block;
+    }
+
+    & > colgroup {
+      display: none;
+    }
+  }
+
+  .v-data-table__mobile-row__header {
+    flex-shrink: 0;
+    padding-right: 12px;
+  }
+
+  .v-data-table__mobile-row__cell {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 }
 
