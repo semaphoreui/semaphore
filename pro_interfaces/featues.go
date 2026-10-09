@@ -12,4 +12,5 @@ type Features struct {
 	Workflows                 bool `json:"workflows"`
 	DockerExecutor            bool `json:"docker_executor"`
 	K8sExecutor               bool `json:"k8s_executor"`
+	AuditLogFilters           bool `json:"audit_log_filters"`
 }

@@ -22,6 +22,10 @@ type fakeStore struct {
 	deadline time.Time
 }
 
+func (s *fakeStore) ListAuditEvents(context.Context, int64, int64, int) (db.AuditEventPage, error) {
+	return db.AuditEventPage{}, nil
+}
+
 func (s *fakeStore) CreateAuditEvent(ctx context.Context, row db.AuditEvent) (db.AuditEvent, error) {
 	s.ctxErr = ctx.Err()
 	s.deadline, _ = ctx.Deadline()
