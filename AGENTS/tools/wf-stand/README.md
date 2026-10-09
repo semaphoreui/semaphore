@@ -59,8 +59,14 @@ mapping" (renamed producers → bash and ansible consumers over `explicit` edges
 with convergence all: expect `image_tag` from the explicit edge, `replicas` by name), 12 "Inputs: explicit empty
 list" (the edge passes nothing). Consumers print one `INPUT name=value` line per survey variable (bash: parsed
 `k=v` args plus `env:env_name` — a `target: env` variable keeps its own name, it is not upper-cased; ansible: a debug list), so `inputs.sh <wf>` shows producer outputs next to what
-the consumer received. Until the resolver (stage 6) lands every consumer shows only the node's static values
-(`image_tag=static-from-node`) and `<unset>` for the rest — that is the baseline, not a failure.
+the consumer received. Expected since the resolver landed (2026-10-08): workflow 1 and 10 — the consumer's
+`INPUT` lines repeat the producer's `image_tag`, `replicas`, `enabled`, `subnet_ids`, `config` (by name;
+`env-name` with a hyphen is not delivered); workflow 9 — the renamed values (`image_tag=renamed-…`,
+`replicas=7`, `env:env_name=prod`); workflow 11 — `image_tag=renamed-…` from the explicit edge and `replicas=3`
+by name; workflow 12 — only `image_tag=static-from-node`, `replicas=1` (the default) and `env:env_name=static-env`;
+workflow 3 — the on_failure consumer is `error` before start with "Required input(s) without a value: image_tag"
+in its log. The task log of every consumer starts with the engine's `Input "<var>" <- output "<key>" of node N
+(task #M)` lines, so a value's source is always one line above the value.
 
 Seeding traps learned there: a Terraform-family template must be POSTed without `inventory_id`
 (the API creates a `terraform-workspace` inventory; a shared one gets claimed and hidden) and with

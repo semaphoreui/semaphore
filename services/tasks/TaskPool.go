@@ -1163,6 +1163,76 @@ func (p *TaskPool) AddTask(taskObj db.Task, userID *int, username string, projec
 // Returns:
 //   - The newly created task with all properties set
 //   - An error if task creation or validation fails
+//
+// LogTask appends lines to the log of task through the pool's log writer, the
+// same path every task line takes. The workflow engine uses it right after
+// AddTask to record where the task's inputs came from: at that moment the
+// task is usually not registered in the pool yet (registration goes through
+// the pool loop), so a runner is built for the lines when none is found.
+func (p *TaskPool) LogTask(task db.Task, lines []string) {
+	if len(lines) == 0 {
+		return
+	}
+	tsk, err := p.GetTask(task.ID)
+	if err != nil || tsk == nil {
+		tsk = NewTaskRunner(task, p, "", p.keyInstallationService)
+		if tpl, tplErr := p.store.GetTemplate(task.ProjectID, task.TemplateID); tplErr == nil {
+			tsk.Template = tpl
+		}
+	}
+	for _, line := range lines {
+		tsk.Log(line)
+	}
+}
+
+// AddFailedTask persists a workflow task that can not start because its inputs
+// could not be resolved: created, started and ended now with the error status,
+// the given lines in its log, and the usual creation and completion audit
+// events. It never enters the queue, and it does not notify the workflow
+// service: the caller is the engine's own progression pass, which re-reads the
+// run's tasks and follows the on_failure edges itself.
+func (p *TaskPool) AddFailedTask(taskObj db.Task, userID *int, username string, lines []string) (newTask db.Task, err error) {
+	now := tz.Now()
+	taskObj.Created = now
+	taskObj.Start = &now
+	taskObj.End = &now
+	taskObj.Status = task_logger.TaskFailStatus
+	taskObj.UserID = userID
+	taskObj.Secret = ""
+
+	tpl, err := p.store.GetTemplate(taskObj.ProjectID, taskObj.TemplateID)
+	if err != nil {
+		return
+	}
+
+	newTask, err = p.store.CreateTask(taskObj, util.Config.MaxTasksPerTemplate)
+	if err != nil {
+		return
+	}
+
+	actor := audit.SystemActor(audit.ComponentTaskRunner)
+	if userID != nil {
+		actor = audit.UserActor(*userID, username, "", "")
+	}
+	ctx := audit.WithActor(context.Background(), actor)
+	p.recorder().Record(ctx, audit.Event{
+		Kind:      audit.TaskExecutionCreate,
+		Target:    audit.ResourceTarget(audit.TargetTask, newTask.ID, tpl.Name),
+		ProjectID: taskObj.ProjectID,
+		Metadata:  taskCreateMetadata(audit.TriggerWorkflow, newTask),
+	})
+
+	taskRunner := NewTaskRunner(newTask, p, username, p.keyInstallationService)
+	taskRunner.Template = tpl
+	for _, line := range lines {
+		taskRunner.Log(line)
+	}
+	taskRunner.createTaskEvent()
+	taskRunner.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
+
+	return
+}
+
 func (p *TaskPool) AddTaskFrom(
 	ctx context.Context,
 	trigger string,

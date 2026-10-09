@@ -24,6 +24,16 @@ type WorkflowService interface {
 // avoiding an import of (and a cycle with) the services/tasks package.
 type WorkflowTaskEnqueuer interface {
 	AddTask(task db.Task, userID *int, username string, projectID int, needAlias bool) (db.Task, error)
+	// AddFailedTask persists a task that can not start — the workflow engine
+	// could not resolve its inputs — already finished with the error status
+	// and with lines in its log. Nothing is enqueued: the caller is the engine
+	// itself, which progresses the run from the stored status.
+	AddFailedTask(task db.Task, userID *int, username string, lines []string) (db.Task, error)
+	// LogTask appends lines to the log of a task AddTask just returned, so the
+	// engine can say where every workflow input of the task came from. The
+	// task is passed whole: right after AddTask it may not be registered in the
+	// pool yet, and the lines must not depend on that.
+	LogTask(task db.Task, lines []string)
 	// StopTasksByWorkflowRun stops every active (queued or running) task that
 	// belongs to the given workflow run. forceStop kills running tasks
 	// immediately instead of letting them stop gracefully.
