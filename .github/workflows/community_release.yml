@@ -7,8 +7,9 @@ name: Community Release
       - v*-rc*
 
 concurrency:
-  group: community-release-${{ github.ref }}
+  group: community-release
   cancel-in-progress: false
+  queue: max
 
 permissions:
   contents: write
@@ -81,8 +82,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          git fetch --tags --force
-          HIGHEST_TAG=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          HIGHEST_TAG=$(git tag -l --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)
           if [ "$RELEASE_TAG" = "$HIGHEST_TAG" ]; then
             echo "is_latest=true" >> "$GITHUB_OUTPUT"
           else
