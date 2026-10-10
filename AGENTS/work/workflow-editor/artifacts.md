@@ -202,13 +202,30 @@ switch to turn evaluation back on (owner's decision 2026-10-09, NOTE@ca2d7bb0cc 
 AWX's `ALLOW_JINJA_IN_EXTRA_VARS=never`). The rule applies to **every** Ansible task, not only
 to workflow tasks, because `ansible-playbook --extra-vars '<json>'` evaluates
 `{{ lookup('pipe', …) }}` inside any value lazily (ansible-core 2.21.2 probe, 2026-10-09). All
-extra vars — variable groups and their `var` secrets, survey answers, workflow inputs, survey
-secrets, `semaphore_vars` — go through a temporary `--extra-vars @task_<id>_extra_vars_*.yml`
-(0600, chowned to the task user, deleted in `Cleanup`) in which every string scalar carries the
-`!unsafe` tag, recursively through lists and objects (`services/tasks/extra_vars_file.go`).
-Numbers and booleans need no tag. Side effects to document in stage 9: Jinja typed into a
-survey answer or a variable group is no longer evaluated, and secrets no longer appear in the
-`ansible-playbook` command line.
+extra vars go through temporary YAML files in which every string scalar carries the `!unsafe`
+tag, recursively through lists and objects (`services/tasks/extra_vars_file.go`); numbers and
+booleans need no tag. Since 2026-10-10 (TASK@CEA87DDD08) there are two files per task, both in
+the project's tmp directory, 0600, chowned to the task user and deleted in `Cleanup`:
+
+- `task_<id>_extra_vars_*.yml` — variable groups, survey answers, workflow inputs,
+  `semaphore_vars`; in clear.
+- `task_<id>_secret_vars_*.yml` — the survey secrets and the variable-group secrets of type
+  `var`, encrypted in the Ansible Vault 1.1 format (`pkg/ansible_vault`, stdlib only) with a
+  one-off password. The password and the vault id are random GUIDs that live in the executor's
+  memory only: ansible-playbook gets `--vault-id <guid>@prompt` and the password is typed on its
+  prompt through the same pty mechanism that answers the template's own vault prompts
+  (`db_lib/AnsiblePlaybook.go`). The file comes last on the command line, so a secret still
+  overrides a group variable of the same name. No secret is on disk in clear while the task
+  runs, and none is in `ps`. A task without secrets writes the open file only.
+
+The vault header carries no id, so Ansible tries every `--vault-id` it was given on it: a
+template's own password vault and the secrets vault coexist (stand task 171, 2026-10-10). Files
+of the repository that Ansible loads itself (`vars_files`, `group_vars`) are the playbook
+author's code and are still templated — the `!unsafe` rule is for data Semaphore passes.
+`SEMAPHORE_DEBUG_FILTER=extra_vars` logs the split, the files and their removal by name
+(`AGENTS/work/logging/debug-filter.md`). Side effects to document: Jinja typed into a survey
+answer or a variable group is no longer evaluated, and secrets no longer appear in the
+`ansible-playbook` command line or on disk in clear.
 
 ## What exists in the code (checked 2026-10-09)
 
@@ -365,7 +382,8 @@ survey answer or a variable group is no longer evaluated, and secrets no longer 
 - `services/tasks/local_executor.go` (outputs: `beginOutputs`, `collectOutputs`,
   `ansibleCallbackPlugins`; survey delivery: `getEnvironmentExtraVars`, `getSurveyEnvVars`,
   `formatVarValue`; Jinja rule: `getPlaybookArgs`), `services/tasks/extra_vars_file.go`
-  (`extraVarsYAML`, `markUnsafe`, `writeExtraVarsFile`), `api/projects/tasks.go`
+  (`extraVarsYAML`, `markUnsafe`, `writeExtraVarsFiles`, `takeSecretExtraVars`),
+  `pkg/ansible_vault/vault.go` (`Encrypt`, `Decrypt`), `api/projects/tasks.go`
   (`sanitizeClientTask`); stand checks —
   `AGENTS/tools/wf-stand/seed-outputs.sh` workflows 13–14, `services/tasks/TaskRunner.go` (`saveOutputs`),
   `services/tasks/TaskPool.go` (`StoreRemoteTaskOutputs`, `applyDBPersistedTaskSnapshot`),

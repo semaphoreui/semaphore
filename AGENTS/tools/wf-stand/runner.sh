@@ -59,11 +59,15 @@ PY
     login
     VALUE=$TAG; [ "$1" = untag ] && VALUE=""
     # An empty runner_tag is rejected by the API; clearing it means sending null.
+    # Each template is re-read by id before the PUT: the list omits `vaults`, and a PUT without
+    # them deletes the template's vaults (seen 2026-10-10).
     api GET "/project/$PID/templates" | python3 -c "
 import sys,json,subprocess
-for t in json.load(sys.stdin):
+def curl(*a): return subprocess.run(['curl','-s','-b','$JAR',*a],capture_output=True,text=True).stdout
+for row in json.load(sys.stdin):
+    t=json.loads(curl('$BASE/api/project/$PID/templates/%d'%row['id']))
     t['runner_tag']='$VALUE' or None
-    code=subprocess.run(['curl','-s','-o','/dev/null','-w','%{http_code}','-b','$JAR','-X','PUT','-H','Content-Type: application/json','-d',json.dumps(t),'$BASE/api/project/$PID/templates/%d'%t['id']],capture_output=True,text=True).stdout
+    code=curl('-o','/dev/null','-w','%{http_code}','-X','PUT','-H','Content-Type: application/json','-d',json.dumps(t),'$BASE/api/project/$PID/templates/%d'%t['id'])
     print('%3d %-32s runner_tag=%-4r -> %s'%(t['id'],t['name'],'$VALUE',code))" ;;
   *) echo "usage: $0 {start|stop|status|tag|untag}" >&2; exit 2 ;;
 esac

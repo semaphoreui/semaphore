@@ -80,6 +80,28 @@ consumer log containing `INJECTED-` or `group_expr=42` means Ansible evaluated a
 `inputs.sh` right after `run.sh` on the runner can miss the last log lines; re-run it with the run id.
 Trap: the template API ignores `environment_id`, pass `environment_ids`.
 
+Since 2026-10-10 the stand also checks the secret extra vars (TASK@CEA87DDD08): the survey secret
+`token` and the variable-group secret `db_password` (type `var`, added to "vars group with jinja" by hand
+through `PUT /project/1/environment/1` with `secrets:[{type:"var",name,secret,operation:"create"}]`) reach
+Ansible through a second, vault-encrypted `--extra-vars @task_<id>_secret_vars_*.yml` with a one-off
+`--vault-id <guid>@prompt`. `playbooks/consume.yml` prints `INPUT token=…` and `INPUT db_password=…`;
+template 37 "ansible: consume + own vault" (access key "tpl vault", type login_password, vault `default`)
+runs `playbooks/consume_vault.yml`, which loads `playbooks/vaulted.yml` (encrypted by `ansible-vault` with
+that key's password) through `vars_files` and prints `INPUT vaulted_var=…`. Expected on the server and on
+the runner: `INPUT token=s3cr3t {{ 1+1 }}`, `INPUT db_password=p@ss {{ 7*6 }}` literally; `ps -axo args=`
+shows `--vault-id=<guid>@prompt` and two `--extra-vars @`, never a secret or the password; `grep -rl
+s3cr3t /tmp/semaphore-stand/tmp` (or `runner-tmp`) finds nothing while the task runs; no `task_*_vars_*`
+file is left after. With `SEMAPHORE_LOG_LEVEL=DEBUG SEMAPHORE_DEBUG_FILTER=extra_vars` exported before
+`stand.sh start` / `runner.sh start`, the server and runner logs show seven `context=extra_vars` lines per
+task (split, two files written, vault added, two files removed, password forgotten). Checked 2026-10-10:
+server task 162, runner task 164, own vault task 171, regression runs 39 (wf 13) and 40 (wf 14).
+Traps: a vault-encrypted file must not sit in `playbooks/group_vars/` — Ansible loads it for every playbook
+of the directory and a template without that vault fails with "Decryption failed"; `vars_files` of the
+repository are still templated (`{{ 3*3 }}` prints `9`) — only values Semaphore passes are `!unsafe`;
+`runner.sh start | tail` hangs because the runner inherits the pipe — redirect to a file instead; a PUT of a
+template without the `vaults` field deletes its vaults, which is why `runner.sh tag/untag` re-reads each
+template by id before the PUT.
+
 Seeding traps learned there: a Terraform-family template must be POSTed without `inventory_id`
 (the API creates a `terraform-workspace` inventory; a shared one gets claimed and hidden) and with
 `task_params.auto_approve`, or a plan with changes parks the task in `waiting_confirmation`; a
