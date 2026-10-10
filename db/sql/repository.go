@@ -63,11 +63,12 @@ func (d *SqlDb) UpdateRepository(repository db.Repository) error {
 	}
 
 	_, err = d.exec(
-		"update project__repository set name=?, git_url=?, git_branch=?, ssh_key_id=? where id=?",
+		"update project__repository set name=?, git_url=?, git_branch=?, ssh_key_id=?, monorepo=? where id=?",
 		repository.Name,
 		repository.GitURL,
 		repository.GitBranch,
 		repository.SSHKeyID,
+		repository.Monorepo,
 		repository.ID)
 
 	return err
@@ -82,12 +83,13 @@ func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repositor
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__repository(project_id, git_url, git_branch, ssh_key_id, name) values (?, ?, ?, ?, ?)",
+		"insert into project__repository(project_id, git_url, git_branch, ssh_key_id, name, monorepo) values (?, ?, ?, ?, ?, ?)",
 		repository.ProjectID,
 		repository.GitURL,
 		repository.GitBranch,
 		repository.SSHKeyID,
-		repository.Name)
+		repository.Name,
+		repository.Monorepo)
 
 	if err != nil {
 		return

@@ -43,6 +43,10 @@ func (d *SqlDb) CreateTemplate(tmpl db.Template) (db.Template, error) {
 		return db.Template{}, err
 	}
 
+	if err := d.verifyTemplateRepository(tmpl); err != nil {
+		return db.Template{}, err
+	}
+
 	tmpl.ApplyLegacyEnvironmentField()
 
 	query, args, err := sq.Insert("project__template").
@@ -108,6 +112,10 @@ func (d *SqlDb) UpdateTemplate(tmpl db.Template) error {
 	}
 
 	if err = d.validateTemplateNameIsFree(tmpl.ProjectID, tmpl.ID, tmpl.Name); err != nil {
+		return err
+	}
+
+	if err := d.verifyTemplateRepository(tmpl); err != nil {
 		return err
 	}
 
@@ -629,4 +637,26 @@ func (d *SqlDb) UpdateTemplateRole(role db.TemplateRolePerm) error {
 		role.ID)
 
 	return err
+}
+
+// verifyTemplateRepository rejects a template whose tasks could check out a
+// commit of their own in a repository every template shares: the checkout is
+// serialized, but only for the length of one prepare step, so the next task
+// would run against whatever the last one left in the working tree.
+func (d *SqlDb) verifyTemplateRepository(tmpl db.Template) error {
+	if !tmpl.AllowOverrideBranchInTask {
+		return nil
+	}
+
+	repo, err := d.GetRepository(tmpl.ProjectID, tmpl.RepositoryID)
+	if err != nil {
+		return err
+	}
+
+	if repo.Monorepo {
+		return common_errors.NewValidationError(
+			"a template of a monorepo repository can not let its tasks override the branch or commit")
+	}
+
+	return nil
 }
