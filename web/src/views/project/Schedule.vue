@@ -117,7 +117,16 @@
         <div v-if="item.type === 'run_at'">
           {{ formatRunAt(item) }}
         </div>
-        <code v-else>{{ item.cron_format }}</code>
+        <div v-else class="text-no-wrap">
+          <code>{{ item.cron_format }}</code>
+          <v-chip
+            v-if="item.offset_days"
+            class="ml-1"
+            x-small
+            label
+            outlined
+          >{{ formatOffsetDays(item.offset_days) }}</v-chip>
+        </div>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -176,6 +185,11 @@ export default {
     editSchedule(id, type) {
       this.scheduleType = type;
       this.editItem(id);
+    },
+
+    formatOffsetDays(days) {
+      const count = Math.abs(days);
+      return `${days < 0 ? '\u2212' : '+'}${count} ${this.$tc('scheduleOffsetDays', count)}`;
     },
 
     formatRunAt(item) {

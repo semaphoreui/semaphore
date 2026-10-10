@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // mockEncryptionService is a test implementation of AccessKeyEncryptionService
@@ -47,18 +48,6 @@ func (m *mockEncryptionService) GetTaskSurveySecrets(projectID int, taskID int) 
 
 func (m *mockEncryptionService) DeleteTaskSurveySecrets(projectID int, taskID int) error {
 	return nil
-}
-
-func TestValidateCronFormat(t *testing.T) {
-	err := ValidateCronFormat("* * * *")
-	if err == nil {
-		t.Fatal("")
-	}
-
-	err = ValidateCronFormat("* * 1 * *")
-	if err != nil {
-		t.Fatal(err.Error())
-	}
 }
 
 func TestOneTimeSchedule(t *testing.T) {
@@ -203,4 +192,51 @@ func TestScheduleProceedsWhenTryLockExecutionReturnsTrue(t *testing.T) {
 	// Verify the deduplicator was called and returned true (schedule proceeds)
 	assert.False(t, shouldSkip, "schedule should proceed when TryLockExecution returns true")
 	assert.Equal(t, 1, dedup.getLockAttempts(scheduleID), "TryLockExecution should be called once")
+}
+
+func TestRefresh_AddsValidCronSchedules(t *testing.T) {
+	pool, store := setupTestSchedulePool(t)
+
+	project, err := store.CreateProject(db.Project{Name: "Test"})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{Name: "None", Type: db.AccessKeyNone, ProjectID: &project.ID})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		Name:      "Test",
+		ProjectID: project.ID,
+		GitURL:    "git@example.com:test/test.git",
+		GitBranch: "main",
+		SSHKeyID:  key.ID,
+	})
+	require.NoError(t, err)
+
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:         "Test",
+		ProjectID:    project.ID,
+		RepositoryID: repo.ID,
+		Playbook:     "run.sh",
+		App:          db.AppBash,
+	})
+	require.NoError(t, err)
+
+	for _, cronFormat := range []string{"0 3 * * 2#2", "not a cron format"} {
+		_, err = store.CreateSchedule(db.Schedule{
+			ProjectID:  project.ID,
+			TemplateID: tpl.ID,
+			CronFormat: cronFormat,
+			OffsetDays: 1,
+			Active:     true,
+		})
+		require.NoError(t, err)
+	}
+
+	pool.Refresh()
+
+	entries := pool.cron.Entries()
+	require.Len(t, entries, 1)
+
+	from := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	assert.Equal(t, "2026-10-14T03:00:00Z", entries[0].Schedule.Next(from).Format(time.RFC3339))
 }

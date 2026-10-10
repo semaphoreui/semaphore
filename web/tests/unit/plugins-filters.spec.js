@@ -20,6 +20,13 @@ describe('plugins/filters', () => {
       expect(formatMilliseconds(3000)).to.equal('a few seconds');
     });
 
+    it('rounds long durations like Duration.humanize()', () => {
+      [45, 75, 320].forEach((days) => {
+        const ms = days * 24 * 3600 * 1000;
+        expect(formatMilliseconds(ms), `${days} days`).to.equal(dayjs.duration(ms).humanize());
+      });
+    });
+
     it('humanizes a start/end pair', () => {
       expect(formatMilliseconds(['2026-01-01T10:00:00Z', '2026-01-01T10:45:00Z'])).to.equal('an hour');
       expect(formatMilliseconds(['2026-01-01T10:00:00Z', '2026-01-03T10:00:00Z'])).to.equal('2 days');

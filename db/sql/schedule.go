@@ -25,11 +25,12 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run)"+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__schedule (project_id, template_id, cron_format, offset_days, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,
 		schedule.CronFormat,
+		schedule.OffsetDays,
 		schedule.RepositoryID,
 		schedule.Name,
 		schedule.Active,
@@ -90,6 +91,7 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 
 	_, err = d.exec("update project__schedule set "+
 		"cron_format=?, "+
+		"offset_days=?, "+
 		"repository_id=?, "+
 		"template_id=?, "+
 		"`name`=?, "+
@@ -101,6 +103,7 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		"delete_after_run=? "+
 		"where project_id=? and id=?",
 		schedule.CronFormat,
+		schedule.OffsetDays,
 		schedule.RepositoryID,
 		schedule.TemplateID,
 		schedule.Name,
