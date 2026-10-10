@@ -212,58 +212,34 @@
         </v-card>
 
         <div v-if="needField('playbook')">
-          <div v-if="playbooks != null">
-            <v-autocomplete
-              class="InputWithAppendedButton"
-              v-model="item.playbook"
-              :items="playbooks"
-              :label="fieldLabel('playbook')"
-              :rules="
-                isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
-              "
-              outlined
-              dense
-              clearable
-              :required="isFieldRequired('playbook')"
-              :disabled="formSaving"
-              :placeholder="$t('exampleSiteyml')"
-              :loading="playbooksLoading"
-            >
-              <template v-slot:append-outer>
-                <v-btn
-                  depressed
-                  @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
-                >
-                  <v-icon>{{ playbooksLoading ? 'mdi-close' : 'mdi-refresh' }}</v-icon>
-                </v-btn>
-              </template>
-            </v-autocomplete>
-          </div>
-          <div v-else>
-            <v-text-field
-              class="InputWithAppendedButton"
-              v-model="item.playbook"
-              :label="fieldLabel('playbook')"
-              :rules="
-                isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
-              "
-              outlined
-              dense
-              :required="isFieldRequired('playbook')"
-              :disabled="formSaving"
-              :placeholder="$t('exampleSiteyml')"
-              :loading="playbooksLoading"
-            >
-              <template v-slot:append-outer>
-                <v-btn
-                  depressed
-                  @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
-                >
-                  <v-icon>{{ playbooksLoading ? 'mdi-close' : 'mdi-refresh' }}</v-icon>
-                </v-btn>
-              </template>
-            </v-text-field>
-          </div>
+          <!-- A combobox, not an autocomplete: a path which is not in the list
+               must still be accepted. -->
+          <v-combobox
+            class="InputWithAppendedButton"
+            v-model="item.playbook"
+            :items="playbooks || []"
+            :label="fieldLabel('playbook')"
+            :rules="
+              isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
+            "
+            outlined
+            dense
+            clearable
+            :required="isFieldRequired('playbook')"
+            :disabled="formSaving"
+            :placeholder="$t('exampleSiteyml')"
+            :loading="playbooksLoading"
+            @update:search-input="onPlaybookSearch"
+          >
+            <template v-slot:append-outer>
+              <v-btn
+                depressed
+                @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
+              >
+                <v-icon>{{ playbooksLoading ? 'mdi-close' : 'mdi-refresh' }}</v-icon>
+              </v-btn>
+            </template>
+          </v-combobox>
 
           <div v-if="app === 'ansible'">
             <v-checkbox
@@ -775,6 +751,7 @@ export default {
       runnerTags: null,
       branches: null,
       playbooks: null,
+      playbookDir: '',
       playbooksLoading: false,
       playbooksAbort: null,
       setBranch: false,
@@ -790,6 +767,15 @@ export default {
 
     gitBranchOfTemplate() {
       if (this.playbooks != null) {
+        this.playbooks = null;
+        this.loadPlaybooks();
+      }
+    },
+
+    // The dialog sets the app after it opens, so a loaded list can belong to the
+    // previous one; the files an app can run differ.
+    app() {
+      if (this.playbooks != null || this.playbooksLoading) {
         this.playbooks = null;
         this.loadPlaybooks();
       }
@@ -1010,6 +996,30 @@ export default {
       }
     },
 
+    // The apps which run a directory list one level at a time: typing the
+    // separator asks for what is inside.
+    onPlaybookSearch(value) {
+      if (!this.fields.playbook?.directories) {
+        return;
+      }
+
+      // Vuetify resets its search to null after every change; only text the
+      // user typed says anything about which directory to list.
+      if (value == null) {
+        return;
+      }
+
+      // Everything up to the last separator, so the listing stays put while the
+      // rest of a name is typed.
+      const slash = value.lastIndexOf('/');
+      const dir = slash < 0 ? '' : value.slice(0, slash + 1);
+
+      if (dir !== this.playbookDir) {
+        this.playbookDir = dir;
+        this.loadPlaybooks();
+      }
+    },
+
     async loadPlaybooks() {
       if (this.repositoryId == null) {
         this.playbooks = null;
@@ -1022,8 +1032,14 @@ export default {
       this.playbooksLoading = true;
 
       try {
+        const params = new URLSearchParams({
+          branch: this.item.git_branch || '',
+          app: this.app || '',
+          dir: this.playbookDir,
+        });
+
         this.playbooks = await this.loadProjectEndpoint(
-          `/repositories/${this.repositoryId}/playbooks?branch=${encodeURIComponent(this.item.git_branch || '')}`,
+          `/repositories/${this.repositoryId}/playbooks?${params}`,
           { signal: ctrl.signal },
         );
       } catch (e) {

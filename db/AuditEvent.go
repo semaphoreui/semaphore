@@ -35,4 +35,6 @@ type AuditEvent struct {
 
 type AuditEventManager interface {
 	CreateAuditEvent(ctx context.Context, event AuditEvent) (AuditEvent, error)
+	// DeleteAuditEventsOlderThan deletes events older than days by the database clock, oldest first, batch rows per statement.
+	DeleteAuditEventsOlderThan(ctx context.Context, days int, batch int) (deleted int64, lastSeq int64, err error)
 }

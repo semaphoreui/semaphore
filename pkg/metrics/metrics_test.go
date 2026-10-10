@@ -1,11 +1,14 @@
 package metrics
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // scrape renders the current metrics in Prometheus text exposition format,
@@ -97,4 +100,22 @@ func TestMetrics_RecordTaskStatusChange_NilReceiverIsNoop(t *testing.T) {
 	assert.NotPanics(t, func() {
 		m.RecordTaskStatusChange(task_logger.TaskWaitingStatus, task_logger.TaskRunningStatus)
 	})
+}
+
+func TestRegister_ExposesForeignCollectors(t *testing.T) {
+	m := NewMetrics()
+	gauge := prometheus.NewGauge(prometheus.GaugeOpts{Name: "semaphore_test_gauge", Help: "Test."})
+	gauge.Set(7)
+
+	require.NoError(t, m.Register(gauge))
+
+	w := httptest.NewRecorder()
+	m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/metrics", nil))
+	assert.Contains(t, w.Body.String(), "semaphore_test_gauge 7")
+	assert.Error(t, m.Register(gauge), "a second registration of the same collector")
+}
+
+func TestRegister_NilMetrics(t *testing.T) {
+	var m *Metrics
+	assert.NoError(t, m.Register(prometheus.NewGauge(prometheus.GaugeOpts{Name: "x", Help: "x"})))
 }

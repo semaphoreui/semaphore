@@ -61,6 +61,39 @@ func (t TemplateApp) HasInventoryType(inventoryType InventoryType) bool {
 	return false
 }
 
+// RepositoryFileFilter describes which entries of a repository can be the entry
+// point of an app.
+type RepositoryFileFilter struct {
+	// OnlyDirectories lists the top level directories instead of files.
+	OnlyDirectories bool
+
+	// Extensions limits the files to these, lowercase and with the leading dot.
+	// Nil means every file.
+	Extensions []string
+}
+
+// RepositoryFileFilter returns the entries which can be the entry point of this
+// app.
+func (t TemplateApp) RepositoryFileFilter() RepositoryFileFilter {
+	switch t {
+	case AppTerraform, AppTofu, AppTerragrunt, AppPulumi:
+		// These point at a subdirectory, not at a file.
+		return RepositoryFileFilter{OnlyDirectories: true}
+	case AppBash:
+		return RepositoryFileFilter{Extensions: []string{".sh"}}
+	case AppPython:
+		return RepositoryFileFilter{Extensions: []string{".py"}}
+	case AppPowerShell:
+		return RepositoryFileFilter{Extensions: []string{".ps1"}}
+	case AppAnsible, "":
+		return RepositoryFileFilter{Extensions: []string{".yml", ".yaml"}}
+	default:
+		// An app from the configuration file: Semaphore knows nothing about its
+		// files and must not hide the one the user wants.
+		return RepositoryFileFilter{}
+	}
+}
+
 func (t TemplateApp) IsTerraform() bool {
 	return t == AppTerraform || t == AppTofu || t == AppTerragrunt
 }

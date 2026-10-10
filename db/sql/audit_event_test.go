@@ -156,3 +156,123 @@ func TestCreateAuditEvent_TimesOutWaitingForAConnection(t *testing.T) {
 		t.Fatal("CreateAuditEvent ignored its context while waiting for a connection")
 	}
 }
+
+func createAgedAuditEvents(t *testing.T, store *SqlDb, n int, created time.Time) []int64 {
+	t.Helper()
+	seqs := make([]int64, 0, n)
+	for i := 0; i < n; i++ {
+		event := fullAuditEvent()
+		event.EventID = fmt.Sprintf("aged-%d-%d", created.Unix(), i)
+		row, err := store.CreateAuditEvent(context.Background(), event)
+		require.NoError(t, err)
+		_, err = store.Sql().Exec(store.PrepareQuery("update audit_event set created = ? where seq = ?"), created.UTC(), row.Seq)
+		require.NoError(t, err)
+		seqs = append(seqs, row.Seq)
+	}
+	return seqs
+}
+
+func TestDeleteAuditEventsOlderThan(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	now := time.Now().UTC()
+	old := createAgedAuditEvents(t, store, 5, now.AddDate(0, 0, -40))
+	recent := createAgedAuditEvents(t, store, 2, now.AddDate(0, 0, -1))
+
+	deleted, lastSeq, err := store.DeleteAuditEventsOlderThan(context.Background(), 30, 2)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), deleted)
+	assert.Equal(t, old[len(old)-1], lastSeq)
+	rows := selectAuditEvents(t, store)
+	require.Len(t, rows, 2)
+	assert.Equal(t, recent[0], rows[0].Seq)
+}
+
+func TestDeleteAuditEventsOlderThan_KeepsNewerEventBehindAClockStep(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	now := time.Now().UTC()
+	createAgedAuditEvents(t, store, 2, now.AddDate(0, 0, -40))
+	recent := createAgedAuditEvents(t, store, 1, now.AddDate(0, 0, -1))
+	createAgedAuditEvents(t, store, 1, now.AddDate(0, 0, -40))
+
+	deleted, _, err := store.DeleteAuditEventsOlderThan(context.Background(), 30, 1000)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), deleted)
+	rows := selectAuditEvents(t, store)
+	require.Len(t, rows, 1)
+	assert.Equal(t, recent[0], rows[0].Seq)
+}
+
+func TestDeleteAuditEventsOlderThan_NothingOld(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	createAgedAuditEvents(t, store, 2, time.Now().UTC())
+
+	deleted, lastSeq, err := store.DeleteAuditEventsOlderThan(context.Background(), 30, 1000)
+
+	require.NoError(t, err)
+	assert.Zero(t, deleted)
+	assert.Zero(t, lastSeq)
+	assert.Len(t, selectAuditEvents(t, store), 2)
+}
+
+func TestDeleteAuditEventsOlderThan_EmptyTable(t *testing.T) {
+	store := InitConfigCreateTestStore()
+
+	deleted, lastSeq, err := store.DeleteAuditEventsOlderThan(context.Background(), 0, 1000)
+
+	require.NoError(t, err)
+	assert.Zero(t, deleted)
+	assert.Zero(t, lastSeq)
+}
+
+func TestDeleteAuditEventsOlderThan_KeepsCursors(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	old := createAgedAuditEvents(t, store, 3, time.Now().UTC().AddDate(0, 0, -40))
+	_, err := store.Sql().Exec(store.PrepareQuery("insert into audit_export_state (destination_id, cursor_seq) values (?, ?)"), "siem", old[0])
+	require.NoError(t, err)
+
+	deleted, _, err := store.DeleteAuditEventsOlderThan(context.Background(), 30, 1000)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), deleted)
+	cursor, err := store.Sql().SelectInt(store.PrepareQuery("select cursor_seq from audit_export_state where destination_id = ?"), "siem")
+	require.NoError(t, err)
+	assert.Equal(t, old[0], cursor)
+}
+
+func TestDeleteAuditEventsOlderThan_BatchOfOne(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	old := createAgedAuditEvents(t, store, 3, time.Now().UTC().AddDate(0, 0, -40))
+
+	deleted, lastSeq, err := store.DeleteAuditEventsOlderThan(context.Background(), 30, 1)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), deleted)
+	assert.Equal(t, old[2], lastSeq)
+}
+
+func TestDeleteAuditEventsOlderThan_NonPositiveBatch(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	old := createAgedAuditEvents(t, store, 2, time.Now().UTC().AddDate(0, 0, -40))
+
+	deleted, lastSeq, err := store.DeleteAuditEventsOlderThan(context.Background(), 30, 0)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), deleted)
+	assert.Equal(t, old[1], lastSeq)
+}
+
+func TestDeleteAuditEventsOlderThan_CancelledContext(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	createAgedAuditEvents(t, store, 2, time.Now().UTC().AddDate(0, 0, -40))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	deleted, lastSeq, err := store.DeleteAuditEventsOlderThan(ctx, 30, 1)
+
+	require.Error(t, err)
+	assert.Zero(t, deleted)
+	assert.Zero(t, lastSeq)
+	assert.Len(t, selectAuditEvents(t, store), 2)
+}

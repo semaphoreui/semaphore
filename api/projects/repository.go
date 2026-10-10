@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -51,6 +52,22 @@ func GetRepositoryRefs(w http.ResponseWriter, r *http.Request) {
 type RepositoryController struct {
 	keyInstaller      db_lib.AccessKeyInstaller
 	encryptionService db_lib.SecretDeserializer
+
+	// browseLocks serializes requests which share a scratch checkout
+	// (scratch dir name -> *sync.Mutex). Without it two concurrent browse
+	// requests race on the same directory: one sees the half-made clone of the
+	// other, treats it as broken and deletes it from under the running git.
+	// The checkout lives on the local disk, so a per-process lock is enough
+	// in HA mode: every node browses its own copy.
+	browseLocks sync.Map
+}
+
+// lockBrowseDir takes the lock of a scratch checkout and returns the function
+// which releases it.
+func (c *RepositoryController) lockBrowseDir(dirName string) func() {
+	mu, _ := c.browseLocks.LoadOrStore(dirName, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	return mu.(*sync.Mutex).Unlock
 }
 
 func NewRepositoryController(
@@ -70,11 +87,27 @@ func (c *RepositoryController) hostConfigs(r *http.Request, repo db.Repository) 
 		helpers.Store(r), c.encryptionService, repo.ProjectID, task_logger.NopLogger{})
 }
 
+// decryptKey decrypts the secret of the repository key, which the middleware
+// loads but leaves encrypted. Without it the git URL is built with no
+// credentials. Only the paths which reach a remote need it.
+func (c *RepositoryController) decryptKey(w http.ResponseWriter, repo *db.Repository) bool {
+	if err := c.encryptionService.DeserializeSecret(&repo.SSHKey); err != nil {
+		helpers.WriteError(w, err)
+		return false
+	}
+
+	return true
+}
+
 func (c *RepositoryController) GetRepositoryBranches(w http.ResponseWriter, r *http.Request) {
 	repo := helpers.GetFromContext(r, "repository").(db.Repository)
 
 	if repo.GetType() == db.RepositoryLocal || repo.GetType() == db.RepositoryFile {
 		helpers.WriteJSON(w, http.StatusBadRequest, "Wrong repository type: "+repo.GetType())
+		return
+	}
+
+	if !c.decryptKey(w, &repo) {
 		return
 	}
 
@@ -111,8 +144,14 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 	var rootDir string
 
 	if repo.GetType() == db.RepositoryLocal || repo.GetType() == db.RepositoryFile {
+		// A local repository is read from disk; its key is never used, so a key
+		// that cannot be decrypted must not stop the listing.
 		rootDir = repo.GetFullPath(0)
 	} else {
+		if !c.decryptKey(w, &repo) {
+			return
+		}
+
 		branch := r.URL.Query().Get("branch")
 		if branch == "" {
 			branch = repo.GitBranch
@@ -142,18 +181,14 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 			Repository:  repoCopy,
 			TmpDirName:  fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
 			Client:      db_lib.CreateDefaultGitClient(c.keyInstaller),
-			Logger:      task_logger.NopLogger{},
+			Logger:      task_logger.DebugLogger{Prefix: fmt.Sprintf("repository_%d_browse", repo.ID)},
 			HostConfigs: hostConfigs,
 		}
 
-		var err error
-		if err = git.ValidateRepo(); err != nil {
-			err = git.Clone()
-		} else {
-			err = git.Pull()
-		}
+		unlock := c.lockBrowseDir(git.TmpDirName)
+		defer unlock()
 
-		if err != nil {
+		if err := git.CloneOrPull(); err != nil {
 			helpers.WriteError(w, err)
 			return
 		}
@@ -161,7 +196,13 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		rootDir = git.GetFullPath()
 	}
 
-	playbooks, err := db_lib.FindPlaybooks(rootDir)
+	// From the template being edited, not the repository: one repository serves
+	// templates of different apps.
+	app := db.TemplateApp(r.URL.Query().Get("app"))
+
+	// What the user has typed so far, when it names a directory: the apps which
+	// run a directory list one level at a time.
+	playbooks, err := db_lib.FindRepositoryFiles(rootDir, app, r.URL.Query().Get("dir"))
 
 	if err != nil {
 		helpers.WriteError(w, err)

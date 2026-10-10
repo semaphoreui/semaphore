@@ -822,3 +822,71 @@ func TestTaskRunner_populateTaskEnvironment(t *testing.T) {
 
 	assert.Equal(t, "{\"a\":11,\"b\":22,\"c\":33,\"d\":4}", tsk.Environment.JSON)
 }
+
+// fakeWorkflowRepo answers GetWorkflowRunByID from a fixed run; every other
+// WorkflowManager method panics via the nil embedded interface.
+type fakeWorkflowRepo struct {
+	db.WorkflowManager
+	run   db.WorkflowRun
+	err   error
+	calls int
+}
+
+func (f *fakeWorkflowRepo) GetWorkflowRunByID(projectID int, runID int) (db.WorkflowRun, error) {
+	f.calls++
+	return f.run, f.err
+}
+
+func TestTaskRunner_populateWorkflowDetails(t *testing.T) {
+	runID := 42
+
+	t.Run("resolves the workflow template of the run", func(t *testing.T) {
+		repo := &fakeWorkflowRepo{run: db.WorkflowRun{ID: runID, ProjectID: 3, WorkflowTemplateID: 7}}
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3, WorkflowRunID: &runID},
+			pool: &TaskPool{workflowRepo: repo},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		require.NotNil(t, tr.Task.WorkflowTemplateID)
+		assert.Equal(t, 7, *tr.Task.WorkflowTemplateID)
+		assert.Equal(t, 1, repo.calls)
+	})
+
+	t.Run("skips tasks outside a workflow", func(t *testing.T) {
+		repo := &fakeWorkflowRepo{}
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3},
+			pool: &TaskPool{workflowRepo: repo},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		assert.Nil(t, tr.Task.WorkflowTemplateID)
+		assert.Equal(t, 0, repo.calls)
+	})
+
+	t.Run("skips when no workflow repo is wired", func(t *testing.T) {
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3, WorkflowRunID: &runID},
+			pool: &TaskPool{},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		assert.Nil(t, tr.Task.WorkflowTemplateID)
+	})
+
+	t.Run("ignores an empty run from a stub store", func(t *testing.T) {
+		repo := &fakeWorkflowRepo{}
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3, WorkflowRunID: &runID},
+			pool: &TaskPool{workflowRepo: repo},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		assert.Nil(t, tr.Task.WorkflowTemplateID)
+	})
+}

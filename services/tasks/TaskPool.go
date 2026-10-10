@@ -88,6 +88,10 @@ type TaskPool struct {
 	// outputsCollector captures the outputs of workflow tasks run on this node.
 	// Injected via SetTaskOutputsCollector; nil in the open-source build.
 	outputsCollector pro_interfaces.TaskOutputsCollector
+	// workflowRepo resolves the workflow run a task belongs to, so the task can
+	// be told which workflow it runs in (SEMAPHORE_WORKFLOW_* env). Injected via
+	// SetWorkflowRepo; nil means tasks never belong to a workflow (CE / tests).
+	workflowRepo db.WorkflowManager
 	// auditRecorder is injected after construction, nil means no audit.
 	auditRecorder audit.Recorder
 	// stop signals the background loops started by Run to exit. Closing it (via
@@ -154,6 +158,10 @@ func (p *TaskPool) SetTaskOutputsCollector(collector pro_interfaces.TaskOutputsC
 // and the pool needs the service to progress runs as tasks finish).
 func (p *TaskPool) SetWorkflowService(svc pro_interfaces.WorkflowService) {
 	p.workflowService = svc
+}
+
+func (p *TaskPool) SetWorkflowRepo(repo db.WorkflowManager) {
+	p.workflowRepo = repo
 }
 
 func (p *TaskPool) SetAuditRecorder(recorder audit.Recorder) {
