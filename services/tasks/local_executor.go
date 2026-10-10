@@ -68,8 +68,15 @@ type LocalExecutor struct {
 	outputs *string
 
 	// extraVarsFile is the YAML file the extra vars of an Ansible task are
-	// passed through (see extra_vars_file.go); removed by Cleanup.
-	extraVarsFile string
+	// passed through, secretVarsFile the vault-encrypted one holding the
+	// secrets among them (see extra_vars_file.go); both removed by Cleanup.
+	// secretVaultID and secretVaultPassword are the one-off vault the
+	// secrets file is encrypted with; the password only ever reaches the
+	// stdin of ansible-playbook.
+	extraVarsFile       string
+	secretVarsFile      string
+	secretVaultID       string
+	secretVaultPassword string
 
 	// Prepared state — populated by Prepare(), consumed by Run(). Lifted out of Run()
 	// local variables so the lifecycle phases (Prepare / underlying App.Run / Cleanup)
@@ -576,15 +583,26 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		}
 	}
 
-	// Every extra var, secrets included, goes through a YAML file with !unsafe
-	// tags: Ansible never evaluates an expression inside a value, and no value
-	// shows up on the command line.
-	extraVarsPath, err := t.writeExtraVarsFile(username, incomingVersion)
+	// Every extra var goes through a YAML file with !unsafe tags: Ansible never
+	// evaluates an expression inside a value, and no value shows up on the
+	// command line. The secrets go in a second file, encrypted with a one-off
+	// vault password that Ansible asks for on its prompt and gets on stdin,
+	// the same way the template's vault passwords are answered above. The
+	// secrets file comes last: the last --extra-vars wins in Ansible, so a
+	// secret overrides a variable of the group with the same name.
+	files, err := t.writeExtraVarsFiles(username, incomingVersion)
 	if err != nil {
-		t.Log("Failed to write the extra vars file: " + err.Error())
+		t.Log("Failed to write the extra vars files: " + err.Error())
 		return nil, nil, err
 	}
-	args = append(args, "--extra-vars", "@"+extraVarsPath)
+	if files.Vault != "" {
+		args = append(args, fmt.Sprintf("--vault-id=%s@prompt", files.VaultID))
+		inputs[fmt.Sprintf("Vault password (%s):", files.VaultID)] = files.VaultPassword
+	}
+	args = append(args, "--extra-vars", "@"+files.Open)
+	if files.Vault != "" {
+		args = append(args, "--extra-vars", "@"+files.Vault)
+	}
 
 	templateArgs, taskArgs, err := t.getCLIArgs()
 	if err != nil {
@@ -1117,7 +1135,7 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 func (t *LocalExecutor) Cleanup() {
 	t.destroyKeys()
 	t.destroyInventoryFile()
-	t.destroyExtraVarsFile()
+	t.destroyExtraVarsFiles()
 	if t.outputsCapture != nil {
 		t.outputsCapture.Close()
 	}

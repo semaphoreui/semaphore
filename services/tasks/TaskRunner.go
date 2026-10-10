@@ -573,6 +573,7 @@ func (t *TaskRunner) populateWorkflowDetails() error {
 
 	return nil
 }
+
 // nolint: gocyclo
 func (t *TaskRunner) populateDetails() error {
 	// get template

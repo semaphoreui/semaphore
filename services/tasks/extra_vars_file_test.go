@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/ansible_vault"
+	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -102,42 +104,191 @@ func newExtraVarsExecutor(t *testing.T) *LocalExecutor {
 	return executor
 }
 
+// vaultArgs returns the --vault-id arguments and, for the one of the secrets
+// file, the password found in inputs under the prompt Ansible prints for it.
+func vaultArgs(t *testing.T, executor *LocalExecutor, args []string, inputs map[string]string) (vaultIDs []string, password string) {
+	t.Helper()
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--vault-id=") {
+			vaultIDs = append(vaultIDs, strings.TrimPrefix(arg, "--vault-id="))
+		}
+	}
+	if executor.secretVaultID != "" {
+		password = inputs["Vault password ("+executor.secretVaultID+"):"]
+	}
+	return
+}
+
 func TestLocalExecutor_getPlaybookArgs_ExtraVarsFile(t *testing.T) {
 	executor := newExtraVarsExecutor(t)
 
-	args, _, err := executor.getPlaybookArgs("denis", nil)
+	args, inputs, err := executor.getPlaybookArgs("denis", nil)
 	require.NoError(t, err)
 
+	tmpDir := regexpQuote(util.Config.GetProjectTmpDir(3))
 	joined := strings.Join(args, " ")
-	require.Regexp(t, `--extra-vars @`+regexpQuote(util.Config.GetProjectTmpDir(3))+`/task_42_extra_vars_[^ ]+\.yml`, joined)
-	assert.Equal(t, 1, strings.Count(joined, "--extra-vars"), "the file is the only --extra-vars")
+	require.Regexp(t, `--extra-vars @`+tmpDir+`/task_42_extra_vars_[^ ]+\.yml --extra-vars @`+tmpDir+`/task_42_secret_vars_[^ ]+\.yml`, joined,
+		"the open file first, the secrets file last so a secret wins over a group variable of the same name")
+	assert.Equal(t, 2, strings.Count(joined, "--extra-vars"), "the two files are the only --extra-vars")
 	assert.NotContains(t, joined, "{{", "no expression reaches the command line")
 	assert.NotContains(t, joined, "p@ss", "no secret reaches the command line")
+	assert.NotContains(t, joined, "secret_expr", "no survey secret reaches the command line")
 
-	path := executor.extraVarsFile
-	info, err := os.Stat(path)
+	// The one-off vault: a random id on the command line, the password only in
+	// the answers to the prompt.
+	vaultIDs, password := vaultArgs(t, executor, args, inputs)
+	require.Len(t, vaultIDs, 1)
+	assert.Regexp(t, `^[0-9a-f-]{36}@prompt$`, vaultIDs[0])
+	assert.Equal(t, executor.secretVaultID+"@prompt", vaultIDs[0])
+	require.Regexp(t, `^[0-9a-f-]{36}$`, password, "the password is a GUID answered on the prompt")
+	assert.NotEqual(t, executor.secretVaultID, password)
+	assert.NotContains(t, joined, password, "the password is not an argument")
+	assert.Len(t, inputs, 1)
+
+	// The open file: no secret keys, every value !unsafe.
+	openPath := executor.extraVarsFile
+	info, err := os.Stat(openPath)
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
-	assert.Equal(t, filepath.Clean(util.Config.GetProjectTmpDir(3)), filepath.Dir(path))
+	assert.Equal(t, filepath.Clean(util.Config.GetProjectTmpDir(3)), filepath.Dir(openPath))
 
-	content, err := os.ReadFile(path)
+	openContent, err := os.ReadFile(openPath)
 	require.NoError(t, err)
-	tags := tagsOf(t, content)
-	assert.Equal(t, "!unsafe", tags[".image_tag"], "survey answer")
-	assert.Equal(t, "!unsafe", tags[".group_var"], "variable group value")
-	assert.Equal(t, "!unsafe", tags[".token"], "survey secret")
-	assert.Equal(t, "!unsafe", tags[".db_password"], "variable group secret of type var")
-	assert.NotContains(t, tags, ".ENV_ONLY", "an env secret is not an extra var")
-	assert.Equal(t, "!unsafe", tags[".semaphore_vars.task_details.username"])
+	openTags := tagsOf(t, openContent)
+	assert.Equal(t, "!unsafe", openTags[".image_tag"], "survey answer")
+	assert.Equal(t, "!unsafe", openTags[".group_var"], "variable group value")
+	assert.Equal(t, "!unsafe", openTags[".semaphore_vars.task_details.username"])
+	assert.NotContains(t, openTags, ".token", "a survey secret is not in the open file")
+	assert.NotContains(t, openTags, ".db_password", "a variable group secret is not in the open file")
+	assert.NotContains(t, openTags, ".ENV_ONLY", "an env secret is not an extra var")
+	assert.NotContains(t, string(openContent), "p@ss")
+	assert.NotContains(t, string(openContent), "secret_expr")
 
-	var parsed map[string]any
-	require.NoError(t, yaml.Unmarshal(content, &parsed))
-	assert.Equal(t, "p@ss {{ 1+1 }}", parsed["db_password"])
+	// The secrets file: vault-encrypted, decrypts with the prompt's password to
+	// a YAML document of !unsafe secrets and nothing else.
+	vaultPath := executor.secretVarsFile
+	info, err = os.Stat(vaultPath)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	assert.Equal(t, filepath.Dir(openPath), filepath.Dir(vaultPath))
+
+	vaulttext, err := os.ReadFile(vaultPath)
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(string(vaulttext), "$ANSIBLE_VAULT;1.1;AES256\n"), "%s", vaulttext)
+	assert.NotContains(t, string(vaulttext), "p@ss")
+	assert.NotContains(t, string(vaulttext), "token")
+
+	plaintext, err := ansible_vault.Decrypt(vaulttext, password)
+	require.NoError(t, err)
+	secretTags := tagsOf(t, plaintext)
+	assert.Equal(t, map[string]string{".token": "!unsafe", ".db_password": "!unsafe"}, secretTags,
+		"the secrets, each !unsafe, and nothing else")
+
+	var secrets map[string]any
+	require.NoError(t, yaml.Unmarshal(plaintext, &secrets))
+	assert.Equal(t, "p@ss {{ 1+1 }}", secrets["db_password"], "a variable group secret, expression kept literal")
+	assert.Equal(t, "{{ secret_expr }}", secrets["token"], "a survey secret, expression kept literal")
 
 	executor.Cleanup()
-	_, err = os.Stat(path)
-	assert.True(t, os.IsNotExist(err), "Cleanup removes the file")
+	_, err = os.Stat(openPath)
+	assert.True(t, os.IsNotExist(err), "Cleanup removes the open file")
+	_, err = os.Stat(vaultPath)
+	assert.True(t, os.IsNotExist(err), "Cleanup removes the secrets file")
 	assert.Empty(t, executor.extraVarsFile)
+	assert.Empty(t, executor.secretVarsFile)
+	assert.Empty(t, executor.secretVaultID)
+	assert.Empty(t, executor.secretVaultPassword, "Cleanup forgets the password")
+}
+
+func TestLocalExecutor_getPlaybookArgs_SecretsWithTemplateVault(t *testing.T) {
+	executor := newExtraVarsExecutor(t)
+	executor.vaultFileInstallations = map[string]ssh.AccessKeyInstallation{
+		"default": {Password: "template-vault-pass"},
+	}
+
+	args, inputs, err := executor.getPlaybookArgs("denis", nil)
+	require.NoError(t, err)
+
+	vaultIDs, password := vaultArgs(t, executor, args, inputs)
+	assert.ElementsMatch(t, []string{"default@prompt", executor.secretVaultID + "@prompt"}, vaultIDs,
+		"the template's vault and the one-off vault of the secrets")
+	assert.Equal(t, "template-vault-pass", inputs["Vault password (default):"])
+	assert.Equal(t, executor.secretVaultPassword, password)
+	assert.Len(t, inputs, 2, "both prompts are answered")
+	assert.NotContains(t, strings.Join(args, " "), "template-vault-pass")
+
+	executor.Cleanup()
+}
+
+func TestLocalExecutor_getPlaybookArgs_SurveySecretWithEnvTarget(t *testing.T) {
+	executor := newExtraVarsExecutor(t)
+	executor.Template.SurveyVars = []db.SurveyVar{
+		{Name: "api_key", Type: db.SurveyVarSecret, Target: db.SurveyVarTargetEnv},
+	}
+	executor.Secret = `{"token":"{{ secret_expr }}","api_key":"env-only-secret"}`
+
+	args, inputs, err := executor.getPlaybookArgs("denis", nil)
+	require.NoError(t, err)
+	defer executor.Cleanup()
+
+	openContent, err := os.ReadFile(executor.extraVarsFile)
+	require.NoError(t, err)
+	assert.NotContains(t, string(openContent), "api_key")
+	assert.NotContains(t, string(openContent), "env-only-secret")
+
+	vaulttext, err := os.ReadFile(executor.secretVarsFile)
+	require.NoError(t, err)
+	_, password := vaultArgs(t, executor, args, inputs)
+	plaintext, err := ansible_vault.Decrypt(vaulttext, password)
+	require.NoError(t, err)
+	var secrets map[string]any
+	require.NoError(t, yaml.Unmarshal(plaintext, &secrets))
+	assert.Equal(t, map[string]any{"token": "{{ secret_expr }}", "db_password": "p@ss {{ 1+1 }}"}, secrets,
+		"a secret with the env target is delivered through the environment, not through a file")
+
+	env, err := executor.getSurveyEnvVars()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"api_key=env-only-secret"}, env)
+}
+
+func TestLocalExecutor_getPlaybookArgs_NoSecrets(t *testing.T) {
+	executor := newExtraVarsExecutor(t)
+	executor.Secret = ""
+	executor.Environment.Secrets = []db.EnvironmentSecret{
+		{Type: db.EnvironmentSecretEnv, Name: "ENV_ONLY", Secret: "not-a-var"},
+	}
+
+	args, inputs, err := executor.getPlaybookArgs("denis", nil)
+	require.NoError(t, err)
+	defer executor.Cleanup()
+
+	joined := strings.Join(args, " ")
+	assert.Equal(t, 1, strings.Count(joined, "--extra-vars"), "no secrets: the open file only")
+	assert.NotContains(t, joined, "--vault-id", "no secrets: no vault")
+	assert.NotContains(t, joined, "secret_vars")
+	assert.Empty(t, inputs)
+	assert.Empty(t, executor.secretVarsFile)
+	assert.Empty(t, executor.secretVaultID)
+	assert.Empty(t, executor.secretVaultPassword)
+	assert.FileExists(t, executor.extraVarsFile)
+}
+
+func TestLocalExecutor_takeSecretExtraVars_SecretWinsOverGroupVariable(t *testing.T) {
+	executor := newExtraVarsExecutor(t)
+	// The group defines db_password in clear and as a secret; the survey secret
+	// token shadows a survey answer of the same name.
+	executor.Environment.JSON = `{"db_password":"from-group-json","token":"from-survey-answer"}`
+	executor.Task.Environment = executor.Environment.JSON
+
+	vars, err := executor.getEnvironmentExtraVars("denis", nil)
+	require.NoError(t, err)
+	secrets, err := executor.takeSecretExtraVars(vars)
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]any{"token": "{{ secret_expr }}", "db_password": "p@ss {{ 1+1 }}"}, secrets)
+	assert.NotContains(t, vars, "token")
+	assert.NotContains(t, vars, "db_password")
+	assert.Contains(t, vars, "semaphore_vars")
 }
 
 func regexpQuote(s string) string {
