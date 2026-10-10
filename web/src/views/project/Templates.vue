@@ -130,6 +130,29 @@
 
     <v-divider style="margin-top: -1px;"/>
 
+    <div class="d-flex align-center px-4 pt-4">
+      <v-text-field
+        v-model="search"
+        ref="searchField"
+        prepend-inner-icon="mdi-magnify"
+        :placeholder="$t('searchTemplatesByName')"
+        hide-details
+        dense
+        outlined
+        clearable
+        single-line
+        style="max-width: 380px;"
+      ></v-text-field>
+
+      <span
+        v-if="search"
+        class="ml-4"
+        style="color: gray; font-size: 14px;"
+      >
+        {{ $t('xOfYTemplates', { x: filteredItems.length, y: items.length }) }}
+      </span>
+    </div>
+
     <v-data-table
       hide-default-footer
       class="mt-4 templates-table"
@@ -137,6 +160,9 @@
       show-expand
       :headers="filteredHeaders"
       :items="items"
+      :search="search"
+      :custom-filter="filterByName"
+      :no-results-text="noResultsText"
       :items-per-page="Number.MAX_VALUE"
       :expanded.sync="openedItems"
       :style="{
@@ -311,6 +337,7 @@ export default {
       viewTab: null,
       apps: null,
       itemApp: '',
+      search: '',
     };
   },
 
@@ -328,6 +355,20 @@ export default {
         return null;
       }
       return this.items.find((x) => x.id === this.itemId);
+    },
+
+    noResultsText() {
+      return this.$t('noTemplatesMatchSearch', { search: this.search || '' });
+    },
+
+    filteredItems() {
+      const query = (this.search || '').trim().toLowerCase();
+      if (query === '') {
+        return this.items || [];
+      }
+      return (this.items || []).filter(
+        (item) => (item.name || '').toLowerCase().includes(query),
+      );
     },
 
     isLoaded() {
@@ -383,6 +424,15 @@ export default {
 
     allowActions() {
       return true;
+    },
+
+    // Filter the templates table by name only (case-insensitive).
+    filterByName(value, search, item) {
+      const query = (search || '').trim().toLowerCase();
+      if (query === '') {
+        return true;
+      }
+      return (item.name || '').toLowerCase().includes(query);
     },
 
     formatEnvironmentNames(item) {
