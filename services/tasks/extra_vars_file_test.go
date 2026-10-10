@@ -10,6 +10,8 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/ansible_vault"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -289,6 +291,68 @@ func TestLocalExecutor_takeSecretExtraVars_SecretWinsOverGroupVariable(t *testin
 	assert.NotContains(t, vars, "token")
 	assert.NotContains(t, vars, "db_password")
 	assert.Contains(t, vars, "semaphore_vars")
+}
+
+// The DEBUG entries of the extra_vars namespace tell the operator what was
+// written and removed, by variable name and file, and must never carry a
+// value or the vault password.
+func TestLocalExecutor_extraVarsDebugLog(t *testing.T) {
+	executor := newExtraVarsExecutor(t)
+
+	logger := log.StandardLogger()
+	level, formatter := logger.GetLevel(), logger.Formatter
+	logger.SetLevel(log.DebugLevel)
+	logger.SetFormatter(&log.TextFormatter{})
+	hook := logtest.NewLocal(logger)
+	t.Cleanup(func() {
+		hook.Reset()
+		logger.ReplaceHooks(make(log.LevelHooks))
+		logger.SetLevel(level)
+		logger.SetFormatter(formatter)
+	})
+
+	args, inputs, err := executor.getPlaybookArgs("denis", nil)
+	require.NoError(t, err)
+	openPath, vaultPath := executor.extraVarsFile, executor.secretVarsFile
+	_, password := vaultArgs(t, executor, args, inputs)
+	executor.Cleanup()
+
+	var messages []string
+	var rendered strings.Builder
+	for _, entry := range hook.AllEntries() {
+		if entry.Data["context"] != "extra_vars" {
+			continue
+		}
+		assert.Equal(t, log.DebugLevel, entry.Level)
+		assert.Equal(t, 42, entry.Data["task_id"])
+		assert.Equal(t, 3, entry.Data["project_id"])
+		messages = append(messages, entry.Message)
+		line, err := entry.String()
+		require.NoError(t, err)
+		rendered.WriteString(line)
+	}
+
+	assert.Equal(t, []string{
+		"Extra vars split into open and secret",
+		"Open extra vars file written",
+		"Secret extra vars file written, vault-encrypted",
+		"Secret extra vars vault added to the ansible-playbook arguments, password answered on the prompt",
+		"Extra vars file removed",
+		"Extra vars file removed",
+		"Secret extra vars vault password forgotten",
+	}, messages)
+
+	text := rendered.String()
+	for _, name := range []string{"image_tag", "group_var", "semaphore_vars", "token", "db_password"} {
+		assert.Contains(t, text, name, "variable names are logged")
+	}
+	assert.Contains(t, text, openPath)
+	assert.Contains(t, text, vaultPath)
+	assert.Contains(t, text, executor.extraVarsFile+"", "paths are logged")
+
+	for _, secret := range []string{"p@ss", "secret_expr", "lookup('pipe'", "{{ ok }}", password} {
+		assert.NotContains(t, text, secret, "no value and no password in the debug log")
+	}
 }
 
 func regexpQuote(s string) string {

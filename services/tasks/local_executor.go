@@ -16,6 +16,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 )
 
 type LocalExecutor struct {
@@ -596,8 +597,14 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		return nil, nil, err
 	}
 	if files.Vault != "" {
+		prompt := fmt.Sprintf("Vault password (%s):", files.VaultID)
 		args = append(args, fmt.Sprintf("--vault-id=%s@prompt", files.VaultID))
-		inputs[fmt.Sprintf("Vault password (%s):", files.VaultID)] = files.VaultPassword
+		inputs[prompt] = files.VaultPassword
+		t.extraVarsLog().WithFields(log.Fields{
+			"vault_id":        files.VaultID,
+			"prompt":          prompt,
+			"template_vaults": len(t.vaultFileInstallations),
+		}).Debug("Secret extra vars vault added to the ansible-playbook arguments, password answered on the prompt")
 	}
 	args = append(args, "--extra-vars", "@"+files.Open)
 	if files.Vault != "" {

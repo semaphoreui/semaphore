@@ -6,13 +6,38 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/ansible_vault"
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
+
+// extraVarsLog is the logger of the DEBUG entries this file writes under the
+// `extra_vars` namespace (SEMAPHORE_DEBUG_FILTER=extra_vars): how the
+// variables of a task are split, written and removed. The entries name
+// variables and files, never a value or the vault password.
+func (t *LocalExecutor) extraVarsLog() *log.Entry {
+	return log.WithFields(log.Fields{
+		"context":     "extra_vars",
+		"task_id":     t.Task.ID,
+		"project_id":  t.Template.ProjectID,
+		"template_id": t.Template.ID,
+	})
+}
+
+// varNames returns the names of vars, sorted and comma-separated, for a log entry.
+func varNames(vars map[string]any) string {
+	names := make([]string, 0, len(vars))
+	for name := range vars {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ",")
+}
 
 // Ansible evaluates a Jinja2 expression found inside a variable's value when
 // the playbook uses the variable, whatever the source of the value: a survey
@@ -106,8 +131,14 @@ func (t *LocalExecutor) writeExtraVarsFiles(username string, incomingVersion *st
 		return
 	}
 
+	t.extraVarsLog().WithFields(log.Fields{
+		"vars":    varNames(vars),
+		"secrets": varNames(secrets),
+	}).Debug("Extra vars split into open and secret")
+
 	defer func() {
 		if err != nil {
+			t.extraVarsLog().WithError(err).Debug("Extra vars files not written, removing what was")
 			t.destroyExtraVarsFiles()
 		}
 	}()
@@ -120,8 +151,14 @@ func (t *LocalExecutor) writeExtraVarsFiles(username string, incomingVersion *st
 		return
 	}
 	t.extraVarsFile = files.Open
+	t.extraVarsLog().WithFields(log.Fields{
+		"file":      files.Open,
+		"bytes":     len(content),
+		"var_count": len(vars),
+	}).Debug("Open extra vars file written")
 
 	if len(secrets) == 0 {
+		t.extraVarsLog().Debug("No secret extra vars, no vault file")
 		return
 	}
 
@@ -150,6 +187,14 @@ func (t *LocalExecutor) writeExtraVarsFiles(username string, incomingVersion *st
 	t.secretVarsFile = files.Vault
 	t.secretVaultID = files.VaultID
 	t.secretVaultPassword = files.VaultPassword
+	t.extraVarsLog().WithFields(log.Fields{
+		"file":            files.Vault,
+		"bytes":           len(vaulttext),
+		"plaintext_bytes": len(plaintext),
+		"var_count":       len(secrets),
+		"vault_id":        files.VaultID,
+		"password_length": len(files.VaultPassword),
+	}).Debug("Secret extra vars file written, vault-encrypted")
 
 	return
 }
@@ -171,6 +216,8 @@ func (t *LocalExecutor) takeSecretExtraVars(vars map[string]any) (secrets map[st
 			if value, ok := vars[name]; ok {
 				secrets[name] = value
 				delete(vars, name)
+			} else {
+				t.extraVarsLog().WithField("var", name).Debug("Survey secret is not an extra var (env target), left to the process environment")
 			}
 		}
 	}
@@ -213,13 +260,25 @@ func (t *LocalExecutor) writeTaskTmpFile(kind string, content []byte) (string, e
 // destroyExtraVarsFiles removes both files and forgets the vault password.
 func (t *LocalExecutor) destroyExtraVarsFiles() {
 	if t.extraVarsFile != "" {
-		_ = os.Remove(t.extraVarsFile)
+		t.removeExtraVarsFile(t.extraVarsFile)
 		t.extraVarsFile = ""
 	}
 	if t.secretVarsFile != "" {
-		_ = os.Remove(t.secretVarsFile)
+		t.removeExtraVarsFile(t.secretVarsFile)
 		t.secretVarsFile = ""
+	}
+	if t.secretVaultID != "" {
+		t.extraVarsLog().WithField("vault_id", t.secretVaultID).Debug("Secret extra vars vault password forgotten")
 	}
 	t.secretVaultID = ""
 	t.secretVaultPassword = ""
+}
+
+func (t *LocalExecutor) removeExtraVarsFile(path string) {
+	entry := t.extraVarsLog().WithFields(log.Fields{"file": path})
+	if err := os.Remove(path); err != nil {
+		entry.WithError(err).Debug("Extra vars file not removed")
+		return
+	}
+	entry.Debug("Extra vars file removed")
 }

@@ -37,6 +37,12 @@ and HA namespaces have no debug statements yet.
   the filter; flag wins over env, like `--log-level`.
 - `debuglog.Enabled(logger, ns)` (added with the runner diagnostics) lets hot paths skip
   building expensive debug fields when the namespace is filtered out.
+- Namespace `extra_vars` (2026-10-10, `services/tasks/extra_vars_file.go`): how the extra vars of
+  an Ansible task are split into the open and the vault-encrypted secrets file, when each file is
+  written (path, size, variable names) and removed, and which one-off vault id goes on the
+  command line. Variable names only — never a value, never the vault password (its length is
+  logged instead). `SEMAPHORE_LOG_LEVEL=DEBUG SEMAPHORE_DEBUG_FILTER=extra_vars` shows it on the
+  server or on a runner.
 - Rules for new debug statements: DEBUG level only, never downgrade existing Info/Warn/Error;
   always set `context`; include ids (`task_id`, `project_id`, `runner_id`); never log secrets —
   log presence or length instead; prefer structured fields to interpolation.
