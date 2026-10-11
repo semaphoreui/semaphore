@@ -85,3 +85,57 @@ func TestRepository_MonorepoPersists(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, loaded.Monorepo)
 }
+
+// A monorepo is shared on the repository's own branch, so a template can not
+// pin a branch of its own either — neither when created nor when updated.
+func TestTemplate_MonorepoRefusesOwnBranch(t *testing.T) {
+	store := InitConfigCreateTestStore()
+
+	project, err := store.CreateProject(db.Project{Name: "proj"})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &project.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+
+	newRepo := func(monorepo bool, name string) db.Repository {
+		repo, err := store.CreateRepository(db.Repository{
+			ProjectID: project.ID, Name: name,
+			GitURL: "https://example.com/x.git", GitBranch: "main",
+			SSHKeyID: key.ID, Monorepo: monorepo,
+		})
+		require.NoError(t, err)
+		return repo
+	}
+
+	inventory, err := store.CreateInventory(db.Inventory{
+		ProjectID: project.ID, Name: "inv", Type: db.InventoryStatic, Inventory: "localhost",
+	})
+	require.NoError(t, err)
+
+	mono := newRepo(true, "mono")
+	plain := newRepo(false, "plain")
+
+	tpl := func(repoID int, branch *string, name string) db.Template {
+		return db.Template{
+			ProjectID: project.ID, RepositoryID: repoID, Name: name,
+			App: db.AppAnsible, Playbook: "site.yml", InventoryID: &inventory.ID,
+			GitBranch: branch,
+		}
+	}
+
+	develop := "develop"
+	empty := ""
+
+	_, err = store.CreateTemplate(tpl(mono.ID, &develop, "a"))
+	assert.ErrorContains(t, err, "can not have a branch of its own")
+
+	// An empty branch is no branch.
+	created, err := store.CreateTemplate(tpl(mono.ID, &empty, "b"))
+	require.NoError(t, err)
+
+	created.GitBranch = &develop
+	assert.ErrorContains(t, store.UpdateTemplate(created), "can not have a branch of its own")
+
+	_, err = store.CreateTemplate(tpl(plain.ID, &develop, "c"))
+	assert.NoError(t, err)
+}

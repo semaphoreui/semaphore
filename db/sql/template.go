@@ -639,12 +639,15 @@ func (d *SqlDb) UpdateTemplateRole(role db.TemplateRolePerm) error {
 	return err
 }
 
-// verifyTemplateRepository rejects a template whose tasks could check out a
-// commit of their own in a repository every template shares: the checkout is
-// serialized, but only for the length of one prepare step, so the next task
-// would run against whatever the last one left in the working tree.
+// verifyTemplateRepository rejects a template which would move a repository
+// every template shares away from the repository's own branch: a branch of the
+// template's own, or tasks checking out a branch or commit of their own. The
+// checkout is serialized only for the length of one prepare step, so the next
+// task would run against whatever the last one left in the working tree.
 func (d *SqlDb) verifyTemplateRepository(tmpl db.Template) error {
-	if !tmpl.AllowOverrideBranchInTask {
+	hasOwnBranch := tmpl.GitBranch != nil && *tmpl.GitBranch != ""
+
+	if !tmpl.AllowOverrideBranchInTask && !hasOwnBranch {
 		return nil
 	}
 
@@ -653,10 +656,15 @@ func (d *SqlDb) verifyTemplateRepository(tmpl db.Template) error {
 		return err
 	}
 
-	if repo.Monorepo {
+	if !repo.Monorepo {
+		return nil
+	}
+
+	if tmpl.AllowOverrideBranchInTask {
 		return common_errors.NewValidationError(
 			"a template of a monorepo repository can not let its tasks override the branch or commit")
 	}
 
-	return nil
+	return common_errors.NewValidationError(
+		"a template of a monorepo repository can not have a branch of its own")
 }

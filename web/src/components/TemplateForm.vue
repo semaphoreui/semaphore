@@ -193,8 +193,10 @@
                 :label="fieldLabel('branch')"
                 outlined
                 dense
-                :disabled="formSaving"
+                :disabled="formSaving || isMonorepo"
                 :placeholder="$t('branch')"
+                :hint="isMonorepo ? $t('monorepoBranchHint') : ''"
+                :persistent-hint="isMonorepo"
               ></v-autocomplete>
             </div>
             <div v-else>
@@ -204,8 +206,10 @@
                 :label="fieldLabel('branch')"
                 outlined
                 dense
-                :disabled="formSaving"
+                :disabled="formSaving || isMonorepo"
                 :placeholder="$t('branch')"
+                :hint="isMonorepo ? $t('monorepoBranchHint') : ''"
+                :persistent-hint="isMonorepo"
               ></v-text-field>
             </div>
           </v-card-text>
@@ -471,6 +475,7 @@
             class="mt-0"
             :label="$t('allow_override_branch')"
             v-model="item.allow_override_branch_in_task"
+            :disabled="isMonorepo"
           />
 
           <v-checkbox
@@ -788,6 +793,13 @@ export default {
       await Promise.all([this.loadBranches()]);
     },
 
+    isMonorepo(val) {
+      if (val && this.item) {
+        this.item.git_branch = null;
+        this.item.allow_override_branch_in_task = false;
+      }
+    },
+
     needReset(val) {
       if (val) {
         if (this.item != null) {
@@ -862,6 +874,13 @@ export default {
 
     repositoryId() {
       return this.item?.repository_id;
+    },
+
+    // A monorepo is one checkout shared by every template on the repository's
+    // own branch, so a template can neither pin a branch nor let a task pick one.
+    isMonorepo() {
+      const repo = (this.repositories || []).find((x) => x.id === this.repositoryId);
+      return !!repo?.monorepo;
     },
 
     gitBranchOfTemplate() {

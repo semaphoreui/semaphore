@@ -303,8 +303,9 @@ export default {
   repository_required: 'Repository is required',
   monorepo: 'Single checkout for all templates',
   monorepoHelp: 'Clone this repository once and share it between all templates, instead of a copy '
-    + 'per template. For a repository large enough that a copy per template is a problem. Tasks of '
-    + 'templates using it can not override the branch or commit.',
+    + 'per template. For a repository large enough that a copy per template is a problem. Templates '
+    + 'using it can not have a branch of their own, and their tasks can not override the branch or commit.',
+  monorepoBranchHint: 'The repository is a single checkout shared by all templates, so a template can not have a branch of its own.',
   branch_required: 'Branch or tag is required',
   key_required: 'Key is required',
   user_required: 'User is required',
