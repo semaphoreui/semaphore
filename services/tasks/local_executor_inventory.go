@@ -39,7 +39,12 @@ func (t *LocalExecutor) installInventory() (err error) {
 
 func (t *LocalExecutor) tmpInventoryFilename() string {
 	if t.Inventory.Repository == nil {
-		return "inventory_" + strconv.Itoa(t.Inventory.ID)
+		filename := "inventory_" + strconv.Itoa(t.Inventory.ID)
+		if t.Inventory.Type.IsStatic() {
+			// Static inventory files belong to a task; parallel tasks can share an inventory.
+			filename += "_task_" + strconv.Itoa(t.Task.ID)
+		}
+		return filename
 	}
 	return t.Inventory.Repository.GetDirName(t.Template.ID) + "_inventory_" + strconv.Itoa(t.Inventory.ID)
 }
