@@ -83,6 +83,8 @@ func TestExtraVarsYAML(t *testing.T) {
 
 func newExtraVarsExecutor(t *testing.T) *LocalExecutor {
 	t.Helper()
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{
 		TmpPath: t.TempDir(),
 		Process: &util.ConfigProcess{},
