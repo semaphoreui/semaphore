@@ -172,11 +172,13 @@ func runService() {
 	// Initialize HA node identity before any component that uses it.
 	util.InitHANodeID()
 
+	appMetrics := metrics.NewMetrics()
+
 	auditService, auditErr := audit.StartService(
 		store,
 		util.Config.Audit,
 		util.HANodeID(),
-		proServer.NewAuditExporter(store, util.Config.Audit, proHA.NewAuditExportLeaser()),
+		proServer.NewAuditExporter(store, util.Config.Audit, proHA.NewAuditExportLeaser(), appMetrics),
 	)
 	if auditErr != nil {
 		log.WithError(auditErr).Fatal("failed to start the audit log")
@@ -205,7 +207,6 @@ func runService() {
 	runnerService := server.NewRunnerService(store)
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
-	appMetrics := metrics.NewMetrics()
 
 	taskPool := tasks.CreateTaskPool(
 		store,

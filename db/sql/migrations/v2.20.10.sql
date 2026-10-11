@@ -27,3 +27,4 @@ update `task` set `user_id` = null where `user_id` is not null and `user_id` not
 alter table `session` add constraint `session__user_fk` foreign key (`user_id`) references `user`(`id`) on delete cascade;
 alter table `task` add constraint `task__user_fk` foreign key (`user_id`) references `user`(`id`) on delete set null;
 {{end}}
+create index audit_event_created_idx on audit_event (created);

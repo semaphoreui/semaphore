@@ -149,6 +149,7 @@ func Catalog() []Entry {
 		{Kind: SystemLicenseActivate, Type: TypeChange, Reasons: []Reason{ReasonActivationFailed}, Pro: true},
 
 		{Kind: AuditLifecycleStart, Type: TypeStart, Metadata: LifecycleMetadata{}},
+		{Kind: AuditRetentionDelete, Type: TypeDeletion, Metadata: RetentionMetadata{}},
 	}
 }
 

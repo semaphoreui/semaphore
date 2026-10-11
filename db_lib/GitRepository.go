@@ -1,6 +1,7 @@
 package db_lib
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -64,9 +65,63 @@ func (r GitRepository) GetFullPath() string {
 	return r.Repository.GetFullPath(r.TemplateID)
 }
 
+// ErrNotGitRepository is returned by ValidateRepo when the checkout directory
+// exists but holds no git metadata, e.g. after a clone which was interrupted
+// before git created it. Callers tell it apart from a missing directory
+// (os.IsNotExist) because the fix is different: a missing directory is
+// cloned, a broken one is removed first.
+var ErrNotGitRepository = errors.New("directory is not a git repository")
+
+// ValidateRepo reports whether the checkout directory holds a git repository.
+// Checking the directory alone is not enough: Clone() creates it before git
+// runs, so an interrupted clone leaves a directory which would otherwise be
+// taken for a repository and then fail on every pull with
+// "fatal: not a git repository".
 func (r GitRepository) ValidateRepo() error {
-	_, err := os.Stat(r.GetFullPath())
-	return err
+	fullPath := r.GetFullPath()
+
+	if _, err := os.Stat(fullPath); err != nil {
+		return err
+	}
+
+	// .git is a directory for a clone and a file for a worktree or submodule;
+	// either one marks a repository.
+	if _, err := os.Stat(path.Join(fullPath, ".git")); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%w: %s", ErrNotGitRepository, fullPath)
+		}
+		return err
+	}
+
+	return nil
+}
+
+// CloneOrPull brings the checkout directory up to date with the remote branch.
+// A missing directory is cloned; a directory which is not a repository, or
+// one whose pull fails, is removed and cloned from scratch.
+func (r GitRepository) CloneOrPull() error {
+	err := r.ValidateRepo()
+
+	if err != nil {
+		if !os.IsNotExist(err) {
+			if err = os.RemoveAll(r.GetFullPath()); err != nil {
+				return err
+			}
+		}
+		return r.Clone()
+	}
+
+	if r.CanBePulled() {
+		if err = r.Pull(); err == nil {
+			return nil
+		}
+	}
+
+	if err = os.RemoveAll(r.GetFullPath()); err != nil {
+		return err
+	}
+
+	return r.Clone()
 }
 
 // gitRetryDelayFor returns the delay before the given attempt: base doubled once

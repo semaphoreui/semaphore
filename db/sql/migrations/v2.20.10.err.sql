@@ -8,4 +8,7 @@ alter table `session` drop foreign key `session__user_fk`;
 {{if .Postgresql}}
 alter table `task` drop foreign key `task__user_fk`;
 alter table `session` drop foreign key `session__user_fk`;
+drop index audit_event_created_idx on audit_event;
+{{else}}
+drop index if exists audit_event_created_idx;
 {{end}}

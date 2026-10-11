@@ -59,6 +59,12 @@ type LifecycleMetadata struct {
 	Destinations []string `json:"destinations"`
 }
 
+type RetentionMetadata struct {
+	Deleted       int64 `json:"deleted"`
+	LastSeq       int64 `json:"last_seq"`
+	RetentionDays int   `json:"retention_days"`
+}
+
 func PermissionNames(p db.ProjectUserPermission) []string {
 	names := []string{}
 	if p&db.CanRunProjectTasks != 0 {

@@ -166,6 +166,7 @@
   ],
   "editions": {
     "audit.syslog.": "pro",
+    "audit.splunk_hec.": "pro",
     "log.": "pro",
     "syslog.": "pro",
     "runner.executor.docker.": "pro",
