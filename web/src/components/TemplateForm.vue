@@ -163,10 +163,15 @@
             max-width="400"
             transition="fade-transition"
           >
-            <template v-slot:activator="{ on }">
+            <template v-slot:activator="{ on, attrs }">
               <!-- A monorepo chip gets no click listener at all, so it is neither
                    styled nor behaves as clickable; the wrapper carries the tooltip. -->
-              <span v-on="on" style="position: absolute; right: 45px; top: 8px">
+              <span
+                v-bind="attrs"
+                v-on="on"
+                :tabindex="isMonorepo ? 0 : null"
+                style="position: absolute; right: 45px; top: 8px"
+              >
                 <v-chip
                   v-if="gitBranch"
                   small
