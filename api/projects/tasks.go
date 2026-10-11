@@ -75,6 +75,7 @@ func (c *TaskController) resolveTaskTemplate(projectID int, task *db.Task) (tpl 
 func sanitizeClientTask(task db.Task) db.Task {
 	task.WorkflowRunID = nil
 	task.WorkflowNodeID = nil
+	task.WorkflowTemplateID = nil
 	task.Artifacts = nil
 	task.RunnerID = nil
 	return task
