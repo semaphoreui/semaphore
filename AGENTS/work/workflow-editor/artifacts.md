@@ -5,11 +5,13 @@ Hand-off of structured data between task nodes of one workflow run. A task **pro
 of one of its template's survey variables to one output key of one ancestor node. The UI and the
 docs say "Outputs" / "Inputs"; the DB column and the API field keep the name `artifacts`.
 
-**Status (2026-10-09): the hand-off works end to end on the server and on remote runners with
-the local executor: outputs are captured and stored, edges store and validate `input_mode` /
-`input_mappings`, the engine fills the survey variables of the next task from them, and the
-editor configures it on the connection; survey values and inputs reach Ansible as literals
-(no Jinja evaluation) and the task API cannot forge workflow fields. Left: docs and Dredd.** A workflow task gets the file, its
+**Status (2026-10-11): complete. The hand-off works end to end on the server and on remote
+runners with the local executor: outputs are captured and stored, edges store and validate
+`input_mode` / `input_mappings`, the engine fills the survey variables of the next task from
+them, the editor configures it on the connection, survey values and inputs reach Ansible as
+literals (no Jinja evaluation), the task API cannot forge workflow fields, and the user guide
+(`docs/docs/user-guide/workflows.md` § Outputs and inputs, `tasks.md`, `survey-vars.md`,
+`environment.md`, 11 locales), `api-docs.yml` and the Dredd hooks describe it.** A workflow task gets the file, its
 outputs are validated and stored on `task.artifacts` — on the server directly, from a runner
 through `JobProgress.Outputs` with a second validation on the server; `startWorkflowNode`
 resolves the inputs of the next task before it is enqueued. The seeded stand for checking it by hand is described in
@@ -355,8 +357,7 @@ answer or a variable group is no longer evaluated, and secrets no longer appear 
 
 ## Open, broken, deferred
 
-- Still to be built: docs and Dredd (stage 9 of the task), including the behaviour change that
-  Jinja in survey answers and variable groups is no longer evaluated. The two ⚠️
+- The two ⚠️
   assumptions in § Consumer (fan-in tie-break, pass-through nodes) are open until the owner
   confirms them; the research direction `AREA@7ec03538fb` (2026-10-07) recommends a
   deterministic tie-break by edge id, rejecting conflicting explicit mappings at save under
@@ -367,12 +368,16 @@ answer or a variable group is no longer evaluated, and secrets no longer appear 
 - Key hints in the mapping form come from the latest finished run of the loaded revision only:
   node ids change on every save, so right after a save there are no hints until the workflow
   runs again. An identity that survives a save (e.g. a stable node key) would lift this.
-- `GET …/runs/{r}/artifacts` returns a merged map, meaningless under explicit mapping; the run
-  view needs outputs per node.
+- `GET …/runs/{r}/artifacts` returns a merged map (task-id order, later wins), meaningless
+  under explicit mapping; `api-docs.yml` now says so and points to `nodes[].task.artifacts`
+  of the run details, which is what the UI and `inputs.sh` read. Candidate for removal.
 - Related gaps found on the way, not part of this contract: secret survey values set on a node
   never reach the task; Docker/K8s executors ignore survey secrets and `target: env`; no unique
   index on `task(workflow_run_id, workflow_node_id)` — all recorded as findings on the task.
-- Dredd skips the artifacts endpoint (`.dredd/hooks/main.go`).
+- Dredd (2026-10-11): the Pro branch of `.dredd/hooks/main.go` runs the artifacts endpoint
+  with `capabilityWrapper("workflow_run")` (a run without outputs answers `{}`); the OSS
+  branch still skips it with every other workflow endpoint because the OSS stub answers 404.
+  Not run locally — needs the Postgres + goodman setup of `integration-testing.md`.
 
 ## Key files and references
 
@@ -414,5 +419,9 @@ answer or a variable group is no longer evaluated, and secrets no longer appear 
   `web/src/components/TaskDetails.vue` (Outputs panel), `web/src/views/project/WorkflowRun.vue`
   + `WorkflowNodeCard.vue` (output count), `web/src/lang/en.js` (`workflowEdgeInputs*`,
   `workflowOutputs*`)
-- `api-docs.yml` (artifacts path), `docs/docs/user-guide/workflows.md`
+- `api-docs.yml` (`Task.workflow_run_id` / `workflow_node_id` / `artifacts`, `WorkflowEdge`
+  inputs, artifacts path), `.dredd/hooks/main.go`; docs — `docs/docs/user-guide/workflows.md`
+  (§ Outputs and inputs, env var, API), `tasks.md` (`SEMAPHORE_OUTPUTS_FILE`),
+  `task-templates/survey-vars.md` (Ansible: `!unsafe` file, vault file for secrets),
+  `environment.md` (variable groups are literal), plus the ten `docs/i18n/*` copies
 - https://github.com/semaphoreui/semaphore/pull/3488 (origin of the feature)

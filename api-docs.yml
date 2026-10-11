@@ -894,6 +894,19 @@ definitions:
           - $ref: '#/definitions/TerraformTaskParams'
       limit:
         type: string
+      workflow_run_id:
+        type: integer
+        description: Set by the server when the task is a node of a workflow run. Ignored on create.
+      workflow_node_id:
+        type: integer
+        description: Node of the workflow revision that started the task. Ignored on create.
+      artifacts:
+        type: string
+        description: >
+          Outputs of a workflow task, as a JSON document in a string:
+          {"values": {"<name>": <any JSON value>}, "skipped": {"<name>": "<reason>"}}.
+          Set by the server after the task succeeded with outputs; reasons are sensitive, too_large,
+          invalid_name and limit. Ignored on create.
 
   AnsibleTaskParams:
     type: object
@@ -3521,9 +3534,13 @@ paths:
       tags:
         - workflow
       summary: Get merged workflow run artifacts
+      description: >
+        The output values of every successful task of the run merged into one object, later tasks
+        overriding earlier ones. Meant for debugging; the outputs of each node are in the
+        artifacts field of its task in the run details.
       responses:
         200:
-          description: merged artifacts
+          description: merged output values
           schema:
             type: object
             additionalProperties: true

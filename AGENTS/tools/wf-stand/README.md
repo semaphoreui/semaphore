@@ -15,6 +15,8 @@ AGENTS/tools/wf-stand/run.sh <workflow_id> [--approve|--reject] [--stop-after SE
 AGENTS/tools/wf-stand/runner.sh {start|stop|status|tag|untag}   # PID=<project> TAG=<tag>; remote runner for the stand
 AGENTS/tools/wf-stand/inputs.sh <workflow_id> [run_id]           # outputs stored per producer + "INPUT name=value" lines per consumer
 NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/wf-stand/shoot-run.cjs <workflow_id> [run_id] [out.png] [--dark]
+AGENTS/tools/wf-stand/seed-docs.sh                                # project "Demo Stand" + workflow "Build and deploy" for the docs screenshots
+PID=<project> WF=<workflow> NODE_PATH=… node AGENTS/tools/wf-stand/shoot-docs.cjs   # the four screenshots of workflows.md § Outputs and inputs
 ```
 
 Examples:
@@ -101,6 +103,19 @@ repository are still templated (`{{ 3*3 }}` prints `9`) — only values Semaphor
 `runner.sh start | tail` hangs because the runner inherits the pipe — redirect to a file instead; a PUT of a
 template without the `vaults` field deletes its vaults, which is why `runner.sh tag/untag` re-reads each
 template by id before the PUT.
+
+Docs screenshots (2026-10-11): `seed-docs.sh` seeds a separate project "Demo Stand" (the name the published
+editor screenshot already shows) with "Provision network" (bash, outputs `vpc_id`, `subnet_ids`), "Build image"
+(bash, outputs `image_tag`, `replicas` — the values quoted in the user guide), "Deploy to cluster" (ansible
+`playbooks/deploy.yml`, survey `image_tag`, `replicas`, `subnets`) and the workflow "Build and deploy":
+Provision → Build → Deploy by name plus Provision → Deploy explicit (`subnets ← subnet_ids`). Run it once
+(`PID=<p> run.sh <wf> --expect success`), then `shoot-docs.cjs` writes `workflow-inputs-explicit.png`,
+`workflow-inputs-by-name.png`, `workflow-run-outputs.png` and `task-outputs.png` (dialog clipped) to
+`/tmp/semaphore-stand/shots-docs`; convert with `cwebp -q 88` into `docs/static/assets/`. Traps: a workflow must
+have exactly one root node (the explicit edge alone would make Provision and Build two roots); key hints need a
+run of the current revision, so re-run after any re-seed; the editor fits a three-node graph at ~45 % on a 1440 px
+viewport — the script collapses the palette (`.WorkflowEditor__sideToggle`) and clicks the fit control after the
+side panel opens instead of zooming in, which pushes nodes under the panel.
 
 Seeding traps learned there: a Terraform-family template must be POSTed without `inventory_id`
 (the API creates a `terraform-workspace` inventory; a shared one gets claimed and hidden) and with
