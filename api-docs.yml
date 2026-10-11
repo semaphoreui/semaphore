@@ -1181,6 +1181,11 @@ definitions:
         type: string
         x-example: "* * * 1 *"
         example: "* * * 1 *"
+      offset_days:
+        type: integer
+        minimum: -31
+        maximum: 31
+        description: Calendar days to move every cron run by, keeping its time of day
       project_id:
         type: integer
       template_id:
@@ -1205,6 +1210,11 @@ definitions:
         type: integer
       cron_format:
         type: string
+      offset_days:
+        type: integer
+        minimum: -31
+        maximum: 31
+        description: Calendar days to move every cron run by, keeping its time of day
       project_id:
         type: integer
       template_id:
@@ -1221,6 +1231,31 @@ definitions:
         enum: ['', 'run_at']
       task_params:
         $ref: '#/definitions/TaskPrams'
+
+  ScheduleCronFormat:
+    type: object
+    required:
+      - cron_format
+    properties:
+      cron_format:
+        type: string
+        x-example: "0 3 * * 2#2"
+        example: "0 3 * * 2#2"
+      offset_days:
+        type: integer
+        minimum: -31
+        maximum: 31
+        x-example: 1
+        example: 1
+
+  ScheduleNextRuns:
+    type: object
+    properties:
+      next_runs:
+        type: array
+        items:
+          type: string
+          format: date-time
 
   ViewRequest:
     type: object
@@ -3578,6 +3613,27 @@ paths:
           description: schedule created
           schema:
             $ref: "#/definitions/Schedule"
+
+  /project/{project_id}/schedules/validate:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    post:
+      tags:
+        - schedule
+      summary: Validates a cron schedule and returns its next runs
+      parameters:
+        - name: schedule
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ScheduleCronFormat"
+      responses:
+        200:
+          description: schedule is valid
+          schema:
+            $ref: "#/definitions/ScheduleNextRuns"
+        400:
+          description: invalid cron format or offset
 
   # project views
   /project/{project_id}/views:

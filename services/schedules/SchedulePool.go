@@ -9,7 +9,6 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
-	"github.com/semaphoreui/semaphore/util"
 
 	"github.com/robfig/cron/v3"
 	"github.com/semaphoreui/semaphore/db"
@@ -264,7 +263,7 @@ func (p *SchedulePool) SetDeduplicator(d ScheduleDeduplicator) {
 }
 
 func (p *SchedulePool) init() {
-	loc, err := time.LoadLocation(util.Config.Schedule.Timezone)
+	loc, err := Location()
 	if err != nil {
 		panic(err)
 	}
@@ -347,7 +346,7 @@ func (p *SchedulePool) Refresh() {
 				continue
 			}
 
-			_, err = p.addRunner(runner, schedule.CronFormat)
+			_, err = p.addRunner(runner, schedule.CronFormat, schedule.OffsetDays)
 		default:
 			log.WithFields(log.Fields{
 				"project_id":  schedule.ProjectID,
@@ -367,14 +366,13 @@ func (p *SchedulePool) Refresh() {
 	}
 }
 
-func (p *SchedulePool) addRunner(runner ScheduleRunner, cronFormat string) (int, error) {
-	id, err := p.cron.AddJob(cronFormat, runner)
-
+func (p *SchedulePool) addRunner(runner ScheduleRunner, cronFormat string, offsetDays int) (int, error) {
+	schedule, err := ParseCronSchedule(cronFormat, offsetDays, p.cron.Location())
 	if err != nil {
 		return 0, err
 	}
 
-	return int(id), nil
+	return int(p.cron.Schedule(schedule, runner)), nil
 }
 
 func (p *SchedulePool) addOneTimeRunner(runner ScheduleRunner, runAt time.Time) (int, error) {
@@ -417,9 +415,4 @@ func CreateSchedulePool(
 	pool.init()
 	pool.Refresh()
 	return pool
-}
-
-func ValidateCronFormat(cronFormat string) error {
-	_, err := cron.ParseStandard(cronFormat)
-	return err
 }

@@ -89,7 +89,11 @@ export function formatMilliseconds(value) {
     throw new Error('formatMilliseconds: unsupported value type');
   }
 
-  return dayjs.duration(ms).humanize();
+  // Like Duration.humanize(), but with one read of the clock: humanize() reads it
+  // twice, so 90 seconds came out as "a minute" whenever it ticked in between.
+  // Months are rounded by calendar, so the duration still starts now.
+  const now = dayjs();
+  return now.add(ms, 'ms').from(now, true);
 }
 
 export const filters = {

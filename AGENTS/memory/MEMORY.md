@@ -24,6 +24,8 @@ only when the task touches that topic. Keep this file under 150 lines.
 
 ## Gotchas
 
+- Parse a cron format with `schedules.ParseCronSchedule`, never `cron.ParseStandard` or
+  `Cron.AddJob`: robfig/cron v3.0.1 panics on a `TZ=`/`CRON_TZ=` prefix with nothing after it.
 - `default:` struct tags in `util/config.go` are applied at config load (when the section exists),
   so they — not in-package fallback constants — are the effective documented defaults.
 - `config.schema.yaml` is not a source of truth; it drifts (gave wrong k8s executor image
