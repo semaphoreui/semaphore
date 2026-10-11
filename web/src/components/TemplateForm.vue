@@ -155,15 +155,30 @@
             v-if="needField('repository')"
           >
           </v-autocomplete>
-          <v-chip
-            v-if="gitBranch"
-            small
-            label
-            style="position: absolute; right: 45px; top: 8px"
-            @click="setBranch = !setBranch"
+          <v-tooltip
+            bottom
+            :disabled="!isMonorepo"
+            color="black"
+            content-class="opacity1"
+            max-width="400"
           >
-            {{ gitBranch }}
-          </v-chip>
+            <template v-slot:activator="{ on }">
+              <!-- A monorepo chip gets no click listener at all, so it is neither
+                   styled nor behaves as clickable; the wrapper carries the tooltip. -->
+              <span v-on="on" style="position: absolute; right: 45px; top: 8px">
+                <v-chip
+                  v-if="gitBranch"
+                  small
+                  label
+                  :class="{ 'text--disabled': isMonorepo }"
+                  v-on="isMonorepo ? {} : { click: () => { setBranch = !setBranch; } }"
+                >
+                  {{ gitBranch }}
+                </v-chip>
+              </span>
+            </template>
+            {{ $t('monorepoBranchTooltip') }}
+          </v-tooltip>
         </div>
 
         <v-card
@@ -471,12 +486,26 @@
             v-model="item.allow_override_args_in_task"
           />
 
-          <v-checkbox
-            class="mt-0"
-            :label="$t('allow_override_branch')"
-            v-model="item.allow_override_branch_in_task"
-            :disabled="isMonorepo"
-          />
+          <v-tooltip
+            bottom
+            :disabled="!isMonorepo"
+            color="black"
+            content-class="opacity1"
+            max-width="400"
+          >
+            <template v-slot:activator="{ on }">
+              <!-- A disabled input emits no mouse events, so the wrapper owns the tooltip. -->
+              <div v-on="on">
+                <v-checkbox
+                  class="mt-0"
+                  :label="$t('allow_override_branch')"
+                  v-model="item.allow_override_branch_in_task"
+                  :disabled="isMonorepo"
+                />
+              </div>
+            </template>
+            {{ $t('monorepoBranchTooltip') }}
+          </v-tooltip>
 
           <v-checkbox
             class="mt-0"
