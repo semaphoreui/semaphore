@@ -161,6 +161,7 @@
             color="black"
             content-class="opacity1"
             max-width="400"
+            transition="fade-transition"
           >
             <template v-slot:activator="{ on }">
               <!-- A monorepo chip gets no click listener at all, so it is neither
@@ -492,6 +493,7 @@
             color="black"
             content-class="opacity1"
             max-width="400"
+            transition="fade-transition"
           >
             <template v-slot:activator="{ on }">
               <!-- A disabled input emits no mouse events, so the wrapper owns the tooltip. -->
