@@ -382,7 +382,7 @@ func (p *TaskPool) handleQueue() {
 			}
 
 			if curr.Task.Status == task_logger.TaskFailStatus {
-				//delete failed TaskRunner from queue
+				// delete failed TaskRunner from queue
 				p.state.DequeueByID(curr.Task.ID)
 				log.Info("Task " + getTaskName(curr) + " removed from queue")
 				continue
@@ -411,7 +411,6 @@ func (p *TaskPool) handleLogs() {
 	logs := make([]logRecord, 0)
 
 	for {
-
 		select {
 		case record := <-p.logger:
 			logs = append(logs, record)
@@ -433,7 +432,6 @@ func (p *TaskPool) flushLogs(logs *[]logRecord) {
 }
 
 func (p *TaskPool) writeLogs(logs []logRecord) {
-
 	taskOutput := make([]db.TaskOutput, 0)
 
 	for _, record := range logs {
@@ -456,7 +454,6 @@ func (p *TaskPool) writeLogs(logs []logRecord) {
 			record.task.currentStage,
 			currentOutput,
 			newOutput)
-
 		if err != nil {
 			log.Error(err)
 			return
@@ -685,7 +682,6 @@ func (p *TaskPool) HydrateTaskRunnerFromDB(taskID int) (*TaskRunner, error) {
 }
 
 func (p *TaskPool) blocks(t *TaskRunner) bool {
-
 	if util.Config.MaxParallelTasks > 0 && p.state.RunningCount() >= util.Config.MaxParallelTasks {
 		return true
 	}
@@ -704,7 +700,6 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 	}
 
 	proj, err := p.store.GetProject(t.Task.ProjectID)
-
 	if err != nil {
 		log.Error(err)
 		return false
@@ -721,7 +716,6 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 
 func (p *TaskPool) ConfirmTask(targetTask db.Task) (changed bool, err error) {
 	tsk, err := p.GetTask(targetTask.ID)
-
 	if err != nil {
 		return false, err
 	}
@@ -738,7 +732,6 @@ func (p *TaskPool) ConfirmTask(targetTask db.Task) (changed bool, err error) {
 
 func (p *TaskPool) RejectTask(targetTask db.Task) (changed bool, err error) {
 	tsk, err := p.GetTask(targetTask.ID)
-
 	if err != nil {
 		return false, err
 	}
@@ -834,7 +827,6 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) (changed bool, e
 // the database in a single query, avoiding expensive per-task hydration.
 // Non-waiting tasks go through the regular per-task SetStatus path.
 func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop bool) {
-
 	stoppedTasks := map[int]struct{}{}
 
 	// Bulk-update all waiting tasks in DB in a single query.
@@ -894,7 +886,6 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 			Status: task_logger.UnfinishedTaskStatuses(),
 		},
 	})
-
 	if err != nil {
 		log.Error(err)
 		return
@@ -1291,6 +1282,9 @@ func taskCreateMetadata(trigger string, task db.Task) audit.TaskCreateMetadata {
 // and either fails them (local) or re-adopts them (remote) so runners can
 // still report results.
 //
+// It must run after Run has started: failing a task goes through finishRun,
+// which sends to the queue and log consumers that Run starts.
+//
 // It does nothing in HA mode: the shared database also holds the unfinished
 // tasks of every other live node, so a restarting node cannot tell which of
 // them are orphaned. Tasks of dead nodes are handled by the HA orphan cleaner.
@@ -1322,20 +1316,23 @@ func (p *TaskPool) RecoverOrphanedTasks() {
 			continue
 		}
 
-		if _, isRemote := tr.job.(*RemoteJob); isRemote {
+		// Decide by the persisted runner assignment, not by the job type:
+		// the job type is rebuilt from the current runner settings, which may
+		// have changed during the restart.
+		if task.RunnerID != nil {
+			// The runner may still be running the task. Back in the running
+			// set, the runner reconciler fails it if the runner is gone or
+			// restarted, and the runner's final report finalizes it as usual.
 			tr.Log("Task recovered after server restart, waiting for runner to report status")
 			p.onTaskRun(tr)
-			go p.monitorOrphanedTask(tr)
 			remoteCount++
-		} else {
-			tr.Log("Task failed: server was shut down or crashed")
-			tr.SetStatus(task_logger.TaskFailStatus)
-			now := tz.Now()
-			tr.Task.End = &now
-			tr.saveStatus()
-			tr.createTaskEvent()
-			localCount++
+			continue
 		}
+
+		tr.Log("Task failed: server was shut down or crashed")
+		tr.SetStatus(task_logger.TaskFailStatus)
+		tr.finishRun(audit.SystemActor(audit.ComponentServer))
+		localCount++
 	}
 
 	if localCount > 0 {
@@ -1345,43 +1342,6 @@ func (p *TaskPool) RecoverOrphanedTasks() {
 	if remoteCount > 0 {
 		log.WithFields(log.Fields{"context": "orphan_recovery", "count": remoteCount}).
 			Info("re-adopted orphaned remote tasks after restart")
-	}
-}
-
-// monitorOrphanedTask waits for a remote runner to report a final status for
-// an orphaned task. If no update arrives within the timeout, the task is failed.
-func (p *TaskPool) monitorOrphanedTask(tr *TaskRunner) {
-	timeout := 10 * time.Minute
-	if util.Config.MaxTaskDurationSec > 0 {
-		timeout = time.Duration(util.Config.MaxTaskDurationSec) * time.Second
-	}
-
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-timer.C:
-			tr.Log("Task timed out waiting for runner after server restart")
-			tr.SetStatus(task_logger.TaskFailStatus)
-			now := tz.Now()
-			tr.Task.End = &now
-			tr.saveStatus()
-			tr.createTaskEvent()
-			p.queueEvents <- PoolEvent{EventTypeFinished, tr}
-			return
-		case <-ticker.C:
-			if tr.Task.Status.IsFinished() {
-				now := tz.Now()
-				tr.Task.End = &now
-				tr.saveStatus()
-				tr.createTaskEvent()
-				p.queueEvents <- PoolEvent{EventTypeFinished, tr}
-				return
-			}
-		}
 	}
 }
 

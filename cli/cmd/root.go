@@ -285,12 +285,6 @@ func runService() {
 		defer orphanCleaner.Stop()
 	}
 
-	// Start the WebSocket hub before RecoverOrphanedTasks so that h.broadcast
-	// channel is being consumed when task logging sends messages.
-	go sockets.StartWS()
-
-	taskPool.RecoverOrphanedTasks()
-
 	// The workflow reconciler periodically progresses non-terminal runs so
 	// approval timeouts fire and statuses converge without a browser poll or a
 	// task completion. Cluster-safe: each pass takes the per-run lock. Nil in
@@ -315,6 +309,10 @@ func runService() {
 
 	subscriptionService.StartValidationCron()
 
+	// Start the WebSocket hub before the broadcaster so that h.broadcast
+	// channel is being consumed when LocalBroadcast is called.
+	go sockets.StartWS()
+
 	if wsBroadcaster := proHA.NewWSBroadcaster(); wsBroadcaster != nil {
 		sockets.SetBroadcaster(wsBroadcaster)
 		wsBroadcaster.Start()
@@ -324,6 +322,10 @@ func runService() {
 	taskPool.LogRunnerStateSnapshot()
 	go schedulePool.Run()
 	go taskPool.Run()
+
+	// Recovery fails tasks through the normal completion path, which needs
+	// the queue and log consumers started by Run.
+	taskPool.RecoverOrphanedTasks()
 
 	secretStorageSyncScheduler.Start()
 	defer secretStorageSyncScheduler.Stop()
@@ -386,9 +388,7 @@ func runService() {
 		}
 
 		if httpRedirectAddr != "" {
-
 			go func() {
-
 				err = http.ListenAndServe(httpRedirectAddr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					target := "https://"
 
@@ -422,7 +422,6 @@ func runService() {
 		}
 
 		err = http.ListenAndServeTLS(util.Config.Interface+port, util.Config.TLS.CertFile, util.Config.TLS.KeyFile, cropTrailingSlashMiddleware(router))
-
 		if err != nil {
 			log.Panic(err)
 		}
@@ -455,7 +454,6 @@ func createStoreWithMigrationVersion(token string, undoTo *string, applyTo *stri
 	}
 
 	err = db.FillConfigFromDB(store)
-
 	if err != nil {
 		panic(err)
 	}

@@ -228,14 +228,20 @@ func (s *stubLogWriteService) WriteResult(_ any) error                          
 // stubEncryptionService is a no-op encryption service for tests.
 type stubEncryptionService struct{}
 
-func (s *stubEncryptionService) SerializeSecret(_ *db.AccessKey) error                  { return nil }
-func (s *stubEncryptionService) DeserializeSecret(_ *db.AccessKey) error                { return nil }
+func (s *stubEncryptionService) SerializeSecret(_ *db.AccessKey) error { return nil }
+
+func (s *stubEncryptionService) DeserializeSecret(_ *db.AccessKey) error { return nil }
+
 func (s *stubEncryptionService) FillEnvironmentSecrets(_ *db.Environment, _ bool) error { return nil }
-func (s *stubEncryptionService) DeleteSecret(_ *db.AccessKey) error                     { return nil }
-func (s *stubEncryptionService) RekeyAccessKeys(_ string) error                         { return nil }
+
+func (s *stubEncryptionService) DeleteSecret(_ *db.AccessKey) error { return nil }
+
+func (s *stubEncryptionService) RekeyAccessKeys(_ string) error { return nil }
+
 func (s *stubEncryptionService) CreateTaskSurveySecrets(_ int, _ int, _ string, _ time.Time) error {
 	return nil
 }
+
 func (s *stubEncryptionService) GetTaskSurveySecrets(_ int, _ int) (string, error) { return "", nil }
 func (s *stubEncryptionService) DeleteTaskSurveySecrets(_ int, _ int) error        { return nil }
 
@@ -343,6 +349,7 @@ func TestRecoverOrphanedTasks_LocalTaskMarkedFailed(t *testing.T) {
 		store:             store,
 		state:             NewMemoryTaskStateStore(),
 		logger:            make(chan logRecord, 10000),
+		queueEvents:       make(chan PoolEvent, 1),
 		encryptionService: &stubEncryptionService{},
 		inventoryService:  &stubInventoryService{},
 		logWriteService:   &stubLogWriteService{},
@@ -355,6 +362,76 @@ func TestRecoverOrphanedTasks_LocalTaskMarkedFailed(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, task_logger.TaskFailStatus, updated.Status)
 	assert.NotNil(t, updated.End, "task End time should be set")
+
+	// The task went through the normal completion path.
+	require.Len(t, pool.queueEvents, 1)
+	ev := <-pool.queueEvents
+	assert.Equal(t, EventTypeFinished, ev.eventType)
+	assert.Equal(t, task.ID, ev.task.Task.ID)
+}
+
+func TestRecoverOrphanedTasks_UnassignedTaskFailedWithRemoteRunners(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	store := sql.InitConfigCreateTestStore()
+	// Remote runners are configured, but no runner was ever assigned, so no
+	// runner can report the task.
+	util.Config.UseRemoteRunner = true
+	task := createOrphanTestFixtures(t, store, task_logger.TaskStartingStatus)
+
+	pool := TaskPool{
+		store:             store,
+		state:             NewMemoryTaskStateStore(),
+		logger:            make(chan logRecord, 10000),
+		queueEvents:       make(chan PoolEvent, 1),
+		encryptionService: &stubEncryptionService{},
+		inventoryService:  &stubInventoryService{},
+		logWriteService:   &stubLogWriteService{},
+	}
+
+	pool.RecoverOrphanedTasks()
+
+	updated, err := store.GetTask(task.ProjectID, task.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, task_logger.TaskFailStatus, updated.Status)
+	assert.NotNil(t, updated.End)
+	assert.Equal(t, 0, pool.state.RunningCount())
+}
+
+func TestRecoverOrphanedTasks_AssignedTaskReadopted(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	store := sql.InitConfigCreateTestStore()
+	task := createOrphanTestFixtures(t, store, task_logger.TaskRunningStatus)
+
+	runner, err := store.CreateRunner(db.Runner{Name: "orphan-runner"})
+	require.NoError(t, err)
+	task.RunnerID = &runner.ID
+	require.NoError(t, store.UpdateTask(task))
+
+	pool := TaskPool{
+		store:             store,
+		state:             NewMemoryTaskStateStore(),
+		logger:            make(chan logRecord, 10000),
+		encryptionService: &stubEncryptionService{},
+		inventoryService:  &stubInventoryService{},
+		logWriteService:   &stubLogWriteService{},
+	}
+
+	// Runner settings no longer select a remote runner, but the task was
+	// assigned to one before the restart.
+	pool.RecoverOrphanedTasks()
+
+	updated, err := store.GetTask(task.ProjectID, task.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, task_logger.TaskRunningStatus, updated.Status)
+	assert.Nil(t, updated.End)
+
+	running := pool.state.RunningRange()
+	require.Len(t, running, 1)
+	assert.Equal(t, task.ID, running[0].Task.ID)
+	require.NotNil(t, running[0].Task.RunnerID)
+	assert.Equal(t, runner.ID, *running[0].Task.RunnerID)
 }
 
 func TestRecoverOrphanedTasks_SkippedInHAMode(t *testing.T) {
