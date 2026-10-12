@@ -1879,12 +1879,9 @@ func validateConfig() {
 		panic(err)
 	}
 
-	if Config.Auth != nil && Config.Auth.JWT != nil && Config.Auth.JWT.Enabled {
-		if Config.Auth.JWT.Header == "" {
-			panic("jwt auth is enabled but header is not configured (set auth.jwt.header or SEMAPHORE_JWT_AUTH_HEADER)")
-		}
-		if Config.Auth.JWT.JWKSURL == "" {
-			panic("jwt auth is enabled but jwks_url is not configured (set auth.jwt.jwks_url or SEMAPHORE_JWT_AUTH_JWKS_URL)")
+	if Config.Auth != nil && Config.Auth.JWT != nil {
+		if err := Config.Auth.JWT.Validate(); err != nil {
+			panic(err)
 		}
 	}
 

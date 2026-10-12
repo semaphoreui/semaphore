@@ -59,7 +59,7 @@ func newJWTParser(config *util.JWTAuthConfig) *jwt.Parser {
 }
 
 func validateProxyJWT(tokenString string) (map[string]any, error) {
-	if globalKeyfunc == nil {
+	if globalKeyfunc == nil || globalJWTParser == nil {
 		return nil, fmt.Errorf("JWKS not available — JWT auth is not configured")
 	}
 

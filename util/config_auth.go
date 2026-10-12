@@ -1,6 +1,10 @@
 package util
 
-import "time"
+import (
+	"fmt"
+	"net/url"
+	"time"
+)
 
 // AuthConfig holds settings that apply to every login method.
 type AuthConfig struct {
@@ -47,6 +51,28 @@ type JWTAuthConfig struct {
 	UsernameClaim string `json:"username_claim" env:"SEMAPHORE_JWT_AUTH_USERNAME_CLAIM"`
 	NameClaim     string `json:"name_claim" env:"SEMAPHORE_JWT_AUTH_NAME_CLAIM"`
 	EmailClaim    string `json:"email_claim" env:"SEMAPHORE_JWT_AUTH_EMAIL_CLAIM"`
+}
+
+// Validate checks the settings JWT proxy auth cannot work without. It does
+// nothing when JWT auth is disabled.
+func (j *JWTAuthConfig) Validate() error {
+	if !j.Enabled {
+		return nil
+	}
+
+	if j.Header == "" {
+		return fmt.Errorf("jwt auth is enabled but header is not configured (set auth.jwt.header or SEMAPHORE_JWT_AUTH_HEADER)")
+	}
+	if j.JWKSURL == "" {
+		return fmt.Errorf("jwt auth is enabled but jwks_url is not configured (set auth.jwt.jwks_url or SEMAPHORE_JWT_AUTH_JWKS_URL)")
+	}
+
+	u, err := url.Parse(j.JWKSURL)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return fmt.Errorf("auth.jwt.jwks_url must be an http or https URL with a host, got %q", j.JWKSURL)
+	}
+
+	return nil
 }
 
 func (j *JWTAuthConfig) GetUsernameClaim() string {

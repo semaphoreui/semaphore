@@ -285,3 +285,14 @@ func TestJWTAuthConfig_CustomValues(t *testing.T) {
 		t.Errorf("expected username claim 'preferred_username', got %s", config.GetUsernameClaim())
 	}
 }
+
+func TestValidateProxyJWT_ParserNotInitialized(t *testing.T) {
+	key := generateTestKey(t)
+	setupTestJWTAuth(t, key, &util.JWTAuthConfig{Enabled: true})
+	globalJWTParser = nil
+
+	_, err := validateProxyJWT("not-a-real-token")
+	if err == nil {
+		t.Fatal("expected an error when the JWT parser is not initialized")
+	}
+}
