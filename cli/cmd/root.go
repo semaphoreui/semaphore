@@ -285,6 +285,12 @@ func runService() {
 		defer orphanCleaner.Stop()
 	}
 
+	// Start the WebSocket hub before RecoverOrphanedTasks so that h.broadcast
+	// channel is being consumed when task logging sends messages.
+	go sockets.StartWS()
+
+	taskPool.RecoverOrphanedTasks()
+
 	// The workflow reconciler periodically progresses non-terminal runs so
 	// approval timeouts fire and statuses converge without a browser poll or a
 	// task completion. Cluster-safe: each pass takes the per-run lock. Nil in
@@ -308,10 +314,6 @@ func runService() {
 	fmt.Printf("Port %v\n", util.Config.Port)
 
 	subscriptionService.StartValidationCron()
-
-	// Start the WebSocket hub before the broadcaster so that h.broadcast
-	// channel is being consumed when LocalBroadcast is called.
-	go sockets.StartWS()
 
 	if wsBroadcaster := proHA.NewWSBroadcaster(); wsBroadcaster != nil {
 		sockets.SetBroadcaster(wsBroadcaster)

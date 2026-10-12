@@ -5,14 +5,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pkg/tz"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	// Start the WebSocket hub so that sockets.Message() doesn't block.
+	go sockets.StartWS()
+}
 
 type spyTaskStateStore struct {
 	*MemoryTaskStateStore
@@ -209,4 +216,193 @@ func TestTaskPool_StopTasksByTemplate_DequeuesWaitingTasksByID(t *testing.T) {
 
 	assert.Equal(t, 1, state.QueueLen(), "only the targeted template's waiting task should be dequeued")
 	assert.Equal(t, keepMe.Task.ID, state.QueueGet(0).Task.ID)
+}
+
+// stubLogWriteService is a no-op log write service for tests.
+type stubLogWriteService struct{}
+
+func (s *stubLogWriteService) WriteEventLog(_ pro_interfaces.EventLogRecord) error { return nil }
+func (s *stubLogWriteService) WriteTaskLog(_ pro_interfaces.TaskLogRecord) error   { return nil }
+func (s *stubLogWriteService) WriteResult(_ any) error                             { return nil }
+
+// stubEncryptionService is a no-op encryption service for tests.
+type stubEncryptionService struct{}
+
+func (s *stubEncryptionService) SerializeSecret(_ *db.AccessKey) error                  { return nil }
+func (s *stubEncryptionService) DeserializeSecret(_ *db.AccessKey) error                { return nil }
+func (s *stubEncryptionService) FillEnvironmentSecrets(_ *db.Environment, _ bool) error { return nil }
+func (s *stubEncryptionService) DeleteSecret(_ *db.AccessKey) error                     { return nil }
+func (s *stubEncryptionService) RekeyAccessKeys(_ string) error                         { return nil }
+func (s *stubEncryptionService) CreateTaskSurveySecrets(_ int, _ int, _ string, _ time.Time) error {
+	return nil
+}
+func (s *stubEncryptionService) GetTaskSurveySecrets(_ int, _ int) (string, error) { return "", nil }
+func (s *stubEncryptionService) DeleteTaskSurveySecrets(_ int, _ int) error        { return nil }
+
+// stubInventoryService returns a fixed inventory for tests.
+type stubInventoryService struct {
+	inv db.Inventory
+	err error
+}
+
+func (s *stubInventoryService) GetInventory(_ int, _ int) (db.Inventory, error) {
+	return s.inv, s.err
+}
+
+// createOrphanTestFixtures sets up minimal DB state for orphan recovery tests:
+// a project, user, access key, repository, inventory, template, and a task in
+// the given status. Returns the created task.
+func createOrphanTestFixtures(t *testing.T, store *sql.SqlDb, status task_logger.TaskStatus) db.Task {
+	t.Helper()
+
+	proj, err := store.CreateProject(db.Project{Name: "orphan-test"})
+	assert.NoError(t, err)
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		User: db.User{Username: "testuser", Name: "Test", Email: "test@example.com"},
+		Pwd:  "password123",
+	})
+	assert.NoError(t, err)
+
+	_, err = store.CreateProjectUser(db.ProjectUser{
+		ProjectID: proj.ID,
+		UserID:    user.ID,
+		Role:      db.ProjectOwner,
+	})
+	assert.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		Name:      "none-key",
+		Type:      db.AccessKeyNone,
+		ProjectID: &proj.ID,
+	})
+	assert.NoError(t, err)
+
+	inv, err := store.CreateInventory(db.Inventory{
+		Name:      "test-inv",
+		ProjectID: proj.ID,
+		Type:      "static",
+		Inventory: "localhost",
+	})
+	assert.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		Name:      "test-repo",
+		ProjectID: proj.ID,
+		GitURL:    "https://git.example.com/repo.git",
+		GitBranch: "main",
+		SSHKeyID:  key.ID,
+	})
+	assert.NoError(t, err)
+
+	invID := inv.ID
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:         "test-template",
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+		InventoryID:  &invID,
+		Playbook:     "test.yml",
+		App:          db.AppAnsible,
+	})
+	assert.NoError(t, err)
+
+	task, err := store.CreateTask(db.Task{
+		ProjectID:  proj.ID,
+		TemplateID: tpl.ID,
+		Status:     status,
+	}, 0)
+	assert.NoError(t, err)
+
+	return task
+}
+
+func TestRecoverOrphanedTasks_NoOrphans(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	store := sql.InitConfigCreateTestStore()
+
+	pool := TaskPool{
+		store:           store,
+		state:           NewMemoryTaskStateStore(),
+		logger:          make(chan logRecord, 10000),
+		logWriteService: &stubLogWriteService{},
+	}
+
+	// Should be a no-op when there are no orphaned tasks.
+	pool.RecoverOrphanedTasks()
+}
+
+func TestRecoverOrphanedTasks_LocalTaskMarkedFailed(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	store := sql.InitConfigCreateTestStore()
+	task := createOrphanTestFixtures(t, store, task_logger.TaskRunningStatus)
+
+	pool := TaskPool{
+		store:             store,
+		state:             NewMemoryTaskStateStore(),
+		logger:            make(chan logRecord, 10000),
+		encryptionService: &stubEncryptionService{},
+		inventoryService:  &stubInventoryService{},
+		logWriteService:   &stubLogWriteService{},
+	}
+
+	pool.RecoverOrphanedTasks()
+
+	// Verify the task was marked as failed in the database.
+	updated, err := store.GetTask(task.ProjectID, task.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, task_logger.TaskFailStatus, updated.Status)
+	assert.NotNil(t, updated.End, "task End time should be set")
+}
+
+func TestRecoverOrphanedTasks_SkippedInHAMode(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	store := sql.InitConfigCreateTestStore()
+	// In HA the unfinished task may belong to another live node.
+	util.Config.HA = &util.HAConfig{Enabled: true}
+	task := createOrphanTestFixtures(t, store, task_logger.TaskRunningStatus)
+
+	pool := TaskPool{
+		store:             store,
+		state:             NewMemoryTaskStateStore(),
+		logger:            make(chan logRecord, 10000),
+		encryptionService: &stubEncryptionService{},
+		inventoryService:  &stubInventoryService{},
+		logWriteService:   &stubLogWriteService{},
+	}
+
+	pool.RecoverOrphanedTasks()
+
+	updated, err := store.GetTask(task.ProjectID, task.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, task_logger.TaskRunningStatus, updated.Status)
+	assert.Nil(t, updated.End)
+}
+
+func TestRecoverOrphanedTasks_HydrationFailureStillFails(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	store := sql.InitConfigCreateTestStore()
+
+	// Report the inventory as deleted so hydration fails.
+	task := createOrphanTestFixtures(t, store, task_logger.TaskRunningStatus)
+
+	pool := TaskPool{
+		store:             store,
+		state:             NewMemoryTaskStateStore(),
+		logger:            make(chan logRecord, 10000),
+		encryptionService: &stubEncryptionService{},
+		inventoryService:  &stubInventoryService{err: db.ErrNotFound},
+	}
+
+	pool.RecoverOrphanedTasks()
+
+	// Even though hydration failed, the task should be marked as failed.
+	updated, err := store.GetTask(task.ProjectID, task.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, task_logger.TaskFailStatus, updated.Status)
+	assert.NotNil(t, updated.End, "task End time should be set")
 }

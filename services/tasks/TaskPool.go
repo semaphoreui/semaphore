@@ -1286,3 +1286,112 @@ func taskCreateMetadata(trigger string, task db.Task) audit.TaskCreateMetadata {
 	}
 	return meta
 }
+
+// RecoverOrphanedTasks finds tasks left in unfinished states after a crash
+// and either fails them (local) or re-adopts them (remote) so runners can
+// still report results.
+//
+// It does nothing in HA mode: the shared database also holds the unfinished
+// tasks of every other live node, so a restarting node cannot tell which of
+// them are orphaned. Tasks of dead nodes are handled by the HA orphan cleaner.
+func (p *TaskPool) RecoverOrphanedTasks() {
+	if util.HAEnabled() {
+		return
+	}
+
+	tasks, err := p.store.GetOrphanedTasks()
+	if err != nil {
+		log.WithError(err).WithField("context", "orphan_recovery").Error("failed to query orphaned tasks")
+		return
+	}
+
+	if len(tasks) == 0 {
+		return
+	}
+
+	localCount := 0
+	remoteCount := 0
+
+	for _, task := range tasks {
+		tr, err := p.hydrateTaskRunner(task.ID, task.ProjectID)
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{"context": "orphan_recovery", "task_id": task.ID}).
+				Warn("failed to hydrate orphaned task, marking as failed")
+			p.failOrphanedTaskInDB(task)
+			localCount++
+			continue
+		}
+
+		if _, isRemote := tr.job.(*RemoteJob); isRemote {
+			tr.Log("Task recovered after server restart, waiting for runner to report status")
+			p.onTaskRun(tr)
+			go p.monitorOrphanedTask(tr)
+			remoteCount++
+		} else {
+			tr.Log("Task failed: server was shut down or crashed")
+			tr.SetStatus(task_logger.TaskFailStatus)
+			now := tz.Now()
+			tr.Task.End = &now
+			tr.saveStatus()
+			tr.createTaskEvent()
+			localCount++
+		}
+	}
+
+	if localCount > 0 {
+		log.WithFields(log.Fields{"context": "orphan_recovery", "count": localCount}).
+			Warn("marked orphaned local tasks as failed after restart")
+	}
+	if remoteCount > 0 {
+		log.WithFields(log.Fields{"context": "orphan_recovery", "count": remoteCount}).
+			Info("re-adopted orphaned remote tasks after restart")
+	}
+}
+
+// monitorOrphanedTask waits for a remote runner to report a final status for
+// an orphaned task. If no update arrives within the timeout, the task is failed.
+func (p *TaskPool) monitorOrphanedTask(tr *TaskRunner) {
+	timeout := 10 * time.Minute
+	if util.Config.MaxTaskDurationSec > 0 {
+		timeout = time.Duration(util.Config.MaxTaskDurationSec) * time.Second
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timer.C:
+			tr.Log("Task timed out waiting for runner after server restart")
+			tr.SetStatus(task_logger.TaskFailStatus)
+			now := tz.Now()
+			tr.Task.End = &now
+			tr.saveStatus()
+			tr.createTaskEvent()
+			p.queueEvents <- PoolEvent{EventTypeFinished, tr}
+			return
+		case <-ticker.C:
+			if tr.Task.Status.IsFinished() {
+				now := tz.Now()
+				tr.Task.End = &now
+				tr.saveStatus()
+				tr.createTaskEvent()
+				p.queueEvents <- PoolEvent{EventTypeFinished, tr}
+				return
+			}
+		}
+	}
+}
+
+// failOrphanedTaskInDB marks a task as failed directly in the database when
+// the task cannot be fully hydrated (e.g., template or inventory deleted).
+func (p *TaskPool) failOrphanedTaskInDB(task db.Task) {
+	now := tz.Now()
+	task.Status = task_logger.TaskFailStatus
+	task.End = &now
+	if err := p.store.UpdateTask(task); err != nil {
+		log.WithError(err).WithFields(log.Fields{"context": "orphan_recovery", "task_id": task.ID}).Error("failed to update orphaned task")
+	}
+}
