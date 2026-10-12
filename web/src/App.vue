@@ -491,6 +491,16 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item key="audit-log" to="/audit-log" v-if="user.can_read_audit_log">
+                <v-list-item-icon>
+                  <v-icon>mdi-shield-search</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('audit_log') }}
+                </v-list-item-content>
+              </v-list-item>
+
               <v-list-item key="roles" to="/roles" v-if="isPro && user.admin">
                 <v-list-item-icon>
                   <v-icon>mdi-account-cog</v-icon>
