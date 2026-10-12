@@ -1,6 +1,7 @@
 package db
 
 import (
+	"regexp"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -22,6 +23,36 @@ const (
 	WorkflowNodeNoteKind     WorkflowNodeKind = "note"
 	WorkflowNodeDelayKind    WorkflowNodeKind = "delay"
 )
+
+// WorkflowEdgeInputMode says how the outputs of the edge's source node feed
+// the survey variables of its destination task node.
+type WorkflowEdgeInputMode string
+
+const (
+	// WorkflowEdgeInputByName delivers every output whose name equals the name
+	// of a non-secret survey variable of the destination template. The default;
+	// an empty mode means by_name.
+	WorkflowEdgeInputByName WorkflowEdgeInputMode = "by_name"
+	// WorkflowEdgeInputExplicit delivers only the pairs listed in InputMappings.
+	WorkflowEdgeInputExplicit WorkflowEdgeInputMode = "explicit"
+)
+
+// WorkflowInputMapping feeds one survey variable of the destination template
+// (Var) from one top-level output of the source node (Key).
+type WorkflowInputMapping struct {
+	Var string `json:"var" backup:"var"`
+	Key string `json:"key" backup:"key"`
+}
+
+// workflowOutputNamePattern is the shape of an output name. The hyphen is
+// allowed because Terraform output names may contain it.
+var workflowOutputNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
+
+// IsValidWorkflowOutputName reports whether name may be the key of an output
+// or of an input mapping.
+func IsValidWorkflowOutputName(name string) bool {
+	return workflowOutputNamePattern.MatchString(name)
+}
 
 type WorkflowConvergenceMode string
 
@@ -111,6 +142,34 @@ type WorkflowEdge struct {
 	DestinationNodeID  int `db:"destination_node_id" json:"destination_node_id" backup:"destination_node_id"`
 
 	Condition WorkflowEdgeCondition `db:"condition" json:"condition" backup:"condition"`
+
+	// InputMode and InputMappings say how the outputs of the source node feed
+	// the survey variables of the destination task node; see
+	// AGENTS/work/workflow-editor/artifacts.md § Consumer. Only an edge into a
+	// task node may carry them.
+	InputMode WorkflowEdgeInputMode `db:"input_mode" json:"input_mode,omitempty" backup:"input_mode"`
+
+	// InputMappingsJSON used internally for read from database.
+	// It is not used for store input mappings to database.
+	// Do not use it in your code. Use InputMappings instead.
+	InputMappingsJSON *string                `db:"input_mappings" json:"-" backup:"-"`
+	InputMappings     []WorkflowInputMapping `db:"-" json:"input_mappings,omitempty" backup:"input_mappings"`
+}
+
+func (mode WorkflowEdgeInputMode) Validate() error {
+	switch mode {
+	case WorkflowEdgeInputByName, WorkflowEdgeInputExplicit:
+		return nil
+	default:
+		return common_errors.NewValidationError("workflow edge input mode is invalid")
+	}
+}
+
+func (edge WorkflowEdge) EffectiveInputMode() WorkflowEdgeInputMode {
+	if edge.InputMode == "" {
+		return WorkflowEdgeInputByName
+	}
+	return edge.InputMode
 }
 
 type WorkflowDelayStatus string

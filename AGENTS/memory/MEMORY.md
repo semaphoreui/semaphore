@@ -59,6 +59,9 @@ only when the task touches that topic. Keep this file under 150 lines.
 - `docs.cyberark.com` returns 404 to WebFetch/curl for every page; use the Ansible collection
   `cyberark/ansible-security-automation-collection` and the Go client `infamousjoeg/cybr-cli`
   as the PVWA API reference.
+- `PUT /project/{p}/templates/{id}` with no `vaults` field deletes the template's vaults, and the
+  `GET /templates` list omits `vaults` — re-read a template by id before updating it from a script
+  (`db/sql/template_vault.go UpdateTemplateVaults`, seen 2026-10-10).
 - Pre-2026-09-27 plan, task and research-digest files (`AGENTS/plans/…`, `AGENTS/tasks/…`,
   `AGENTS/research/*.md`) cited as sources in `AGENTS/work/` docs were removed from the tree; read them
   with `git show 539d98ad:<path>`. Some plans exist only on feature branches (`feat/cyberark-secret-storage`,
