@@ -13,6 +13,7 @@ import (
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -322,4 +323,115 @@ func TestAuthentication_JWTActor(t *testing.T) {
 	require.True(t, ok)
 	actor := audit.ActorFrom(req.Context())
 	assert.Equal(t, audit.AuthProxyJWT, actor.Auth)
+}
+
+func setupJWTIdentityTest(t *testing.T, emailMatching string) (db.Store, *ecdsa.PrivateKey) {
+	t.Helper()
+	store := setupIdentityTest(t, emailMatching)
+	key := generateTestKey(t)
+	config := &util.JWTAuthConfig{Enabled: true, Header: "X-Test-Jwt"}
+	setupTestJWTAuth(t, key, config)
+	util.Config.Auth = &util.AuthConfig{JWT: config}
+	return store, key
+}
+
+func jwtRequest(t *testing.T, store db.Store, key *ecdsa.PrivateKey, sub string, email string) *http.Request {
+	t.Helper()
+	claims := jwt.MapClaims{
+		"email": email,
+		"exp":   jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	}
+	if sub != "" {
+		claims["sub"] = sub
+	}
+	r := helpers.SetContextValue(httptest.NewRequest(http.MethodGet, "/api/user", nil), "store", store)
+	r.Header.Set("X-Test-Jwt", signTestJWT(t, key, claims))
+	return r
+}
+
+func TestAuthenticateByJWT_LinksIdentityBySub(t *testing.T) {
+	store, key := setupJWTIdentityTest(t, "auto")
+
+	first, err := authenticateByJWT(jwtRequest(t, store, key, "sub-1", "jwtuser@example.com"))
+	require.NoError(t, err)
+
+	ids, err := store.GetUserExternalIdentities(first)
+	require.NoError(t, err)
+	require.Len(t, ids, 1)
+	assert.Equal(t, db.IdentityTypeJwt, ids[0].Type)
+	assert.Equal(t, "jwt", ids[0].Provider)
+	assert.Equal(t, "sub-1", ids[0].ExternalUID)
+
+	// The email changed at the proxy: the same sub finds the same user.
+	second, err := authenticateByJWT(jwtRequest(t, store, key, "sub-1", "renamed@example.com"))
+	require.NoError(t, err)
+	assert.Equal(t, first, second)
+}
+
+func TestAuthenticateByJWT_RequiresSub(t *testing.T) {
+	store, key := setupJWTIdentityTest(t, "auto")
+
+	_, err := authenticateByJWT(jwtRequest(t, store, key, "", "jwtuser@example.com"))
+	assert.Error(t, err)
+}
+
+func TestAuthenticateByJWT_DoesNotAdoptPinnedUser(t *testing.T) {
+	store, key := setupJWTIdentityTest(t, "auto")
+
+	pinned, _, err := resolveExternalUser(store, externalUserProfile{
+		Type: db.IdentityTypeOidc, Provider: "keycloak", ExternalUID: "oidc-sub",
+		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", EmailVerified: true,
+	})
+	require.NoError(t, err)
+
+	userID, err := authenticateByJWT(jwtRequest(t, store, key, "jwt-sub", "jdoe@example.com"))
+	if err == nil {
+		assert.NotEqual(t, pinned.ID, userID)
+	}
+
+	ids, err := store.GetUserExternalIdentities(pinned.ID)
+	require.NoError(t, err)
+	assert.Len(t, ids, 1)
+}
+
+func TestAuthenticateByJWT_NeverMatchesByEmail(t *testing.T) {
+	store, key := setupJWTIdentityTest(t, "never")
+
+	existing, err := store.CreateUserWithoutPassword(db.User{
+		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", External: true,
+	})
+	require.NoError(t, err)
+
+	userID, err := authenticateByJWT(jwtRequest(t, store, key, "jwt-sub", "jdoe@example.com"))
+	if err == nil {
+		assert.NotEqual(t, existing.ID, userID)
+	}
+}
+
+func TestAuthenticateByJWT_AutoLinksExistingJWTUser(t *testing.T) {
+	store, key := setupJWTIdentityTest(t, "auto")
+
+	// Created by an earlier version, which matched JWT users by email only.
+	existing, err := store.CreateUserWithoutPassword(db.User{
+		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com", External: true,
+	})
+	require.NoError(t, err)
+
+	userID, err := authenticateByJWT(jwtRequest(t, store, key, "jwt-sub", "jdoe@example.com"))
+	require.NoError(t, err)
+	assert.Equal(t, existing.ID, userID)
+}
+
+func TestAuthenticateByJWT_DoesNotAdoptLocalUser(t *testing.T) {
+	store, key := setupJWTIdentityTest(t, "always")
+
+	local, err := store.CreateUserWithoutPassword(db.User{
+		Username: "jdoe", Name: "John Doe", Email: "jdoe@example.com",
+	})
+	require.NoError(t, err)
+
+	userID, err := authenticateByJWT(jwtRequest(t, store, key, "jwt-sub", "jdoe@example.com"))
+	if err == nil {
+		assert.NotEqual(t, local.ID, userID)
+	}
 }

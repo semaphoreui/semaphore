@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -15,6 +14,10 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
 )
+
+// jwtIdentityProvider is the provider of every JWT identity: there is one JWT
+// configuration, and the issuer can be longer than the provider column.
+const jwtIdentityProvider = "jwt"
 
 var (
 	globalKeyfunc   keyfunc.Keyfunc
@@ -104,26 +107,24 @@ func authenticateByJWT(r *http.Request) (int, error) {
 		return 0, fmt.Errorf("extract claims: %w", err)
 	}
 
-	store := helpers.Store(r)
-
-	user, err := store.GetUserByLoginOrEmail("", parsed.email)
-
-	if errors.Is(err, db.ErrNotFound) {
-		user = db.User{
-			Username: parsed.username,
-			Name:     parsed.name,
-			Email:    parsed.email,
-			External: true,
-		}
-		user, err = store.CreateUserWithoutPassword(user)
+	sub, _ := claims["sub"].(string)
+	if sub == "" {
+		return 0, fmt.Errorf("JWT has no sub claim")
 	}
 
+	// The proxy is configured by the administrator and is authoritative for
+	// the email it asserts, as the directory is for LDAP.
+	user, _, err := resolveExternalUser(helpers.Store(r), externalUserProfile{
+		Type:          db.IdentityTypeJwt,
+		Provider:      jwtIdentityProvider,
+		ExternalUID:   sub,
+		Username:      parsed.username,
+		Name:          parsed.name,
+		Email:         parsed.email,
+		EmailVerified: true,
+	})
 	if err != nil {
 		return 0, fmt.Errorf("JWT user lookup/creation: %w", err)
-	}
-
-	if !user.External {
-		return 0, fmt.Errorf("JWT user %q conflicts with local user", user.Email)
 	}
 
 	return user.ID, nil
