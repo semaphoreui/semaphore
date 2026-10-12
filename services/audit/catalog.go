@@ -150,6 +150,7 @@ func Catalog() []Entry {
 
 		{Kind: AuditLifecycleStart, Type: TypeStart, Metadata: LifecycleMetadata{}},
 		{Kind: AuditRetentionDelete, Type: TypeDeletion, Metadata: RetentionMetadata{}},
+		{Kind: AuditLogExport, Type: TypeAccess, Metadata: ExportMetadata{}, Pro: true},
 	}
 }
 
