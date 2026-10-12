@@ -24,6 +24,10 @@ func accessLogFormatter(_ io.Writer, params handlers.LogFormatterParams) {
 	}).Debug("http request")
 }
 
+// AccessLogMiddleware logs each request at debug level with method, path,
+// status, size, duration and remote address. /api/ping is skipped, also
+// under a web path prefix. Wrap it inside handlers.ProxyHeaders so the
+// logged remote address honors X-Forwarded-For.
 func AccessLogMiddleware(next http.Handler) http.Handler {
 	return handlers.CustomLoggingHandler(nil, next, accessLogFormatter)
 }
