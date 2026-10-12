@@ -281,6 +281,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
+		authMethod = audit.AuthProxyJWT
 	} else if len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
 		tokenID := strings.Replace(authHeader, "bearer ", "", 1)
 		tokenFingerprint = audit.TokenFingerprint(tokenID)

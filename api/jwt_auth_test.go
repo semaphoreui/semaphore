@@ -4,13 +4,19 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/MicahParks/jwkset"
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func generateTestKey(t *testing.T) *ecdsa.PrivateKey {
@@ -295,4 +301,25 @@ func TestValidateProxyJWT_ParserNotInitialized(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error when the JWT parser is not initialized")
 	}
+}
+
+func TestAuthentication_JWTActor(t *testing.T) {
+	store := setupSessionTest(t)
+	key := generateTestKey(t)
+	config := &util.JWTAuthConfig{Enabled: true, Header: "X-Test-Jwt"}
+	setupTestJWTAuth(t, key, config)
+	util.Config.Auth = &util.AuthConfig{JWT: config}
+
+	r := helpers.SetContextValue(httptest.NewRequest(http.MethodGet, "/api/user", nil), "store", store)
+	r.Header.Set("X-Test-Jwt", signTestJWT(t, key, jwt.MapClaims{
+		"sub":   "user123",
+		"email": "jwtuser@example.com",
+		"exp":   jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	}))
+
+	ok, req := authenticationHandler(httptest.NewRecorder(), r)
+
+	require.True(t, ok)
+	actor := audit.ActorFrom(req.Context())
+	assert.Equal(t, audit.AuthProxyJWT, actor.Auth)
 }
