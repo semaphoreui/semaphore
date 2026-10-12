@@ -45,6 +45,9 @@ func initJWKSCache(jwksURL string) {
 	log.Info("JWKS initialized from ", jwksURL)
 }
 
+// newJWTParser returns a parser that accepts only ES256/384/512 and
+// RS256/384/512 signatures, requires an exp claim, and checks aud and iss when
+// the config sets them.
 func newJWTParser(config *util.JWTAuthConfig) *jwt.Parser {
 	opts := []jwt.ParserOption{
 		jwt.WithValidMethods([]string{"ES256", "ES384", "ES512", "RS256", "RS384", "RS512"}),
@@ -61,6 +64,9 @@ func newJWTParser(config *util.JWTAuthConfig) *jwt.Parser {
 	return jwt.NewParser(opts...)
 }
 
+// validateProxyJWT verifies the token's signature against the JWKS and its
+// claims with the configured parser, and returns the claims. It fails when the
+// JWKS client was not set up.
 func validateProxyJWT(tokenString string) (map[string]any, error) {
 	if globalKeyfunc == nil || globalJWTParser == nil {
 		return nil, fmt.Errorf("JWKS not available — JWT auth is not configured")
@@ -88,6 +94,12 @@ func validateProxyJWT(tokenString string) (map[string]any, error) {
 	return claims, nil
 }
 
+// authenticateByJWT validates the JWT in the configured request header and
+// returns the ID of the user it identifies. Users are resolved like LDAP and
+// OIDC users: by the "jwt" identity with the token's sub claim, then by email
+// under external_auth_email_matching, otherwise a new external user is
+// created. Any error means the request is rejected; callers must not fall
+// back to another authentication method.
 func authenticateByJWT(r *http.Request) (int, error) {
 	config := util.Config.Auth.JWT
 

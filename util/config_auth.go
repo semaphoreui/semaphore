@@ -42,16 +42,40 @@ type EmailAuthConfig struct {
 	DisableForOidc           bool     `json:"disable_for_oidc" env:"SEMAPHORE_EMAIL_2TP_DISABLE_FOR_OIDC"`
 }
 
+// JWTAuthConfig configures login through a signed JWT that a reverse proxy
+// (for example Pomerium) adds to every request. The proxy is trusted for the
+// identity in the token; Semaphore only checks the signature and claims.
 type JWTAuthConfig struct {
-	Enabled       bool   `json:"enabled" env:"SEMAPHORE_JWT_AUTH_ENABLED"`
-	Header        string `json:"header" env:"SEMAPHORE_JWT_AUTH_HEADER"`
-	JWKSURL       string `json:"jwks_url" env:"SEMAPHORE_JWT_AUTH_JWKS_URL"`
-	Audience      string `json:"audience" env:"SEMAPHORE_JWT_AUTH_AUDIENCE"`
-	Issuer        string `json:"issuer" env:"SEMAPHORE_JWT_AUTH_ISSUER"`
+	// Enabled turns on JWT proxy authentication. When the configured header is
+	// present on a request, the token must be valid: there is no fallback to
+	// session or API token authentication.
+	Enabled bool `json:"enabled" env:"SEMAPHORE_JWT_AUTH_ENABLED"`
+	// Header is the HTTP request header the proxy puts the JWT in, for example
+	// `X-Pomerium-Jwt-Assertion`. Required when JWT auth is enabled.
+	Header string `json:"header" env:"SEMAPHORE_JWT_AUTH_HEADER"`
+	// JWKSURL is the URL of the proxy's JSON Web Key Set, used to verify token
+	// signatures. Must be http or https; required when JWT auth is enabled. The
+	// key set is refreshed in the background.
+	JWKSURL string `json:"jwks_url" env:"SEMAPHORE_JWT_AUTH_JWKS_URL"`
+	// Audience is a value the token's `aud` claim must contain. Empty means
+	// `aud` is not checked.
+	Audience string `json:"audience" env:"SEMAPHORE_JWT_AUTH_AUDIENCE"`
+	// Issuer is the value the token's `iss` claim must equal. Empty means
+	// `iss` is not checked.
+	Issuer string `json:"issuer" env:"SEMAPHORE_JWT_AUTH_ISSUER"`
+	// UsernameClaim is the token claim used as the username of a new user.
+	// Default: `email`.
 	UsernameClaim string `json:"username_claim" env:"SEMAPHORE_JWT_AUTH_USERNAME_CLAIM"`
-	NameClaim     string `json:"name_claim" env:"SEMAPHORE_JWT_AUTH_NAME_CLAIM"`
-	EmailClaim    string `json:"email_claim" env:"SEMAPHORE_JWT_AUTH_EMAIL_CLAIM"`
-	SignoutURL    string `json:"signout_url" env:"SEMAPHORE_JWT_AUTH_SIGNOUT_URL"`
+	// NameClaim is the token claim used as the user's display name. Default:
+	// `name`.
+	NameClaim string `json:"name_claim" env:"SEMAPHORE_JWT_AUTH_NAME_CLAIM"`
+	// EmailClaim is the token claim holding the user's email address. Default:
+	// `email`.
+	EmailClaim string `json:"email_claim" env:"SEMAPHORE_JWT_AUTH_EMAIL_CLAIM"`
+	// SignoutURL is where the web UI sends the browser after logout, typically
+	// the proxy's sign-out endpoint. Without it the proxy sends the JWT again
+	// on the next request and the user is signed straight back in.
+	SignoutURL string `json:"signout_url" env:"SEMAPHORE_JWT_AUTH_SIGNOUT_URL"`
 }
 
 // Validate checks the settings JWT proxy auth cannot work without. It does
@@ -76,6 +100,7 @@ func (j *JWTAuthConfig) Validate() error {
 	return nil
 }
 
+// GetUsernameClaim returns the claim used as the username, `email` by default.
 func (j *JWTAuthConfig) GetUsernameClaim() string {
 	if j.UsernameClaim == "" {
 		return "email"
@@ -83,6 +108,7 @@ func (j *JWTAuthConfig) GetUsernameClaim() string {
 	return j.UsernameClaim
 }
 
+// GetEmailClaim returns the claim holding the email, `email` by default.
 func (j *JWTAuthConfig) GetEmailClaim() string {
 	if j.EmailClaim == "" {
 		return "email"
@@ -90,6 +116,7 @@ func (j *JWTAuthConfig) GetEmailClaim() string {
 	return j.EmailClaim
 }
 
+// GetNameClaim returns the claim used as the display name, `name` by default.
 func (j *JWTAuthConfig) GetNameClaim() string {
 	if j.NameClaim == "" {
 		return "name"
@@ -97,6 +124,7 @@ func (j *JWTAuthConfig) GetNameClaim() string {
 	return j.NameClaim
 }
 
+// GetHeader returns the request header that carries the JWT.
 func (j *JWTAuthConfig) GetHeader() string {
 	return j.Header
 }
