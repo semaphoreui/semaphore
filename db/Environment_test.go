@@ -83,3 +83,25 @@ func Test_EnvironmentValidate_ValidEnvJSON_ReturnsNoError(t *testing.T) {
 	err := env.Validate()
 	assert.NoError(t, err)
 }
+
+func Test_EnvironmentSecretValidate_ReservedSemaphoreVarsName(t *testing.T) {
+	err := (&EnvironmentSecret{
+		Type:   EnvironmentSecretVar,
+		Name:   "semaphore_vars",
+		Secret: "x",
+	}).Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "semaphore_vars")
+
+	assert.NoError(t, (&EnvironmentSecret{
+		Type:   EnvironmentSecretVar,
+		Name:   "my_secret",
+		Secret: "x",
+	}).Validate())
+
+	assert.NoError(t, (&EnvironmentSecret{
+		Type:   EnvironmentSecretEnv,
+		Name:   "semaphore_vars",
+		Secret: "x",
+	}).Validate(), "env-type secrets may reuse the name")
+}
