@@ -17,8 +17,9 @@ func setupExecutorConfig(t *testing.T) {
 	t.Helper()
 	prevCfg := util.Config
 	t.Cleanup(func() { util.Config = prevCfg })
-	if util.Config == nil {
-		util.Config = &util.ConfigType{}
+	util.Config = &util.ConfigType{
+		TmpPath: t.TempDir(),
+		Process: &util.ConfigProcess{},
 	}
 }
 
