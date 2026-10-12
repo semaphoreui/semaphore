@@ -9,9 +9,26 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 )
 
+// captureAccessLog turns on debug logging and records entries from the
+// standard logger. The previous level and hooks are restored when the test
+// ends so other tests in the package see an unchanged logger.
+func captureAccessLog(t *testing.T) *test.Hook {
+	t.Helper()
+
+	logger := log.StandardLogger()
+	prevLevel := logger.GetLevel()
+	prevHooks := logger.ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() {
+		logger.SetLevel(prevLevel)
+		logger.ReplaceHooks(prevHooks)
+	})
+
+	logger.SetLevel(log.DebugLevel)
+	return test.NewLocal(logger)
+}
+
 func TestAccessLogMiddleware(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
-	hook := test.NewLocal(log.StandardLogger())
+	hook := captureAccessLog(t)
 
 	handler := AccessLogMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -49,7 +66,7 @@ func TestAccessLogMiddleware(t *testing.T) {
 }
 
 func TestAccessLogMiddleware_SkipsPing(t *testing.T) {
-	hook := test.NewLocal(log.StandardLogger())
+	hook := captureAccessLog(t)
 
 	handler := AccessLogMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -64,5 +81,28 @@ func TestAccessLogMiddleware_SkipsPing(t *testing.T) {
 		if len(hook.Entries) != 0 {
 			t.Errorf("expected no log entries for %s, got %d", path, len(hook.Entries))
 		}
+	}
+}
+
+// The websocket endpoint needs http.Hijacker from the wrapped ResponseWriter.
+func TestAccessLogMiddleware_PreservesHijacker(t *testing.T) {
+	captureAccessLog(t)
+
+	var hijackable bool
+	handler := AccessLogMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, hijackable = w.(http.Hijacker)
+	}))
+
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/api/ws")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+
+	if !hijackable {
+		t.Error("ResponseWriter passed to the handler does not implement http.Hijacker")
 	}
 }

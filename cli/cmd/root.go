@@ -361,6 +361,8 @@ func runService() {
 
 	var router http.Handler = route
 
+	// Each assignment wraps the previous one, so ProxyHeaders runs first and
+	// the access log sees the X-Forwarded-For based RemoteAddr.
 	router = api.AccessLogMiddleware(router)
 	router = handlers.ProxyHeaders(router)
 	// Outside ProxyHeaders, which trusts X-Forwarded-For blindly.
