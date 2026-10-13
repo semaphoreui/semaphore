@@ -150,8 +150,10 @@ list. A value is used when it is non-null and fits the variable's type. A variab
 edge falls back, in order: the node's static value for that variable → the variable's
 `default_value` → nothing. If nothing is left and the
 variable is `required`, the node's task is created and immediately failed with a log line naming
-the variable, the source node and the key, so the run follows `on_failure`. For a `required`
-variable an empty string or empty list counts as no value.
+the variable, the source node and the key, so the run follows `on_failure`. Only `null` (or
+an absent key) counts as no value: an empty string or empty list is a value, whether it comes
+from an output or from the node's static environment, and it overrides the rest of the chain
+(decided 2026-10-13, `isMissingInputValue`).
 
 With `convergence_mode: any` an ancestor may be unfinished or never run when the node starts —
 that is "no value", resolved by the same fallback.
