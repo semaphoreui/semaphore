@@ -230,6 +230,9 @@ export default {
         const end = this.run.end ? new Date(this.run.end).getTime() : this.now;
         parts.push(formatDurationLong(end - new Date(this.run.start).getTime()));
       }
+      if (this.run.outputs) {
+        parts.push(this.$tc('workflowNodeOutputsCount', this.run.outputs, { count: this.run.outputs }));
+      }
       return parts.join(' · ');
     },
     hasParamOverrides() {

@@ -144,6 +144,9 @@ export default {
       editor: null,
       // condition keyed by `${sourceNodeId}->${destNodeId}`
       conditions: {},
+      // { input_mode, input_mappings } keyed like conditions, only for edges
+      // that map inputs explicitly (by_name is the default and stores nothing)
+      inputs: {},
       // guards re-entrancy while we mutate Drawflow programmatically
       syncing: false,
       built: false,
@@ -317,6 +320,7 @@ export default {
         this.editor.clear();
         this.attachOverlay();
         this.conditions = {};
+        this.inputs = {};
         this.edgeLabels = [];
         this.store.nodes = {};
         const dfIdByNodeId = {};
@@ -342,6 +346,12 @@ export default {
           this.editor.addConnection(src, dst, 'output_1', 'input_1');
           const key = this.condKey(edge.source_node_id, edge.destination_node_id);
           this.conditions[key] = edge.condition || CONDITION_DEFAULT;
+          if (edge.input_mode === 'explicit') {
+            this.inputs[key] = {
+              input_mode: 'explicit',
+              input_mappings: edge.input_mappings || [],
+            };
+          }
         });
         this.built = true;
       } finally {
@@ -437,10 +447,12 @@ export default {
         outputs.forEach((conn) => {
           const destNodeId = data[conn.node] ? data[conn.node].data.nodeId : null;
           if (destNodeId == null) return;
+          const key = this.condKey(nodeId, destNodeId);
           edges.push({
             source_node_id: nodeId,
             destination_node_id: destNodeId,
-            condition: this.conditions[this.condKey(nodeId, destNodeId)] || CONDITION_DEFAULT,
+            condition: this.conditions[key] || CONDITION_DEFAULT,
+            ...(this.inputs[key] || {}),
           });
         });
       });
@@ -499,6 +511,32 @@ export default {
     setCondition(sourceNodeId, destNodeId, condition) {
       this.conditions[this.condKey(sourceNodeId, destNodeId)] = condition;
       this.emitChange();
+    },
+
+    // How the edge feeds the destination's survey variables: null / by_name
+    // drops the explicit configuration, an explicit mode keeps its mappings.
+    setInputs(sourceNodeId, destNodeId, inputs) {
+      this.storeInputs(sourceNodeId, destNodeId, inputs);
+      this.emitChange();
+    },
+
+    // Condition and inputs of one edge in a single change (one undo step).
+    setEdge(sourceNodeId, destNodeId, edge) {
+      this.conditions[this.condKey(sourceNodeId, destNodeId)] = edge.condition || CONDITION_DEFAULT;
+      this.storeInputs(sourceNodeId, destNodeId, edge);
+      this.emitChange();
+    },
+
+    storeInputs(sourceNodeId, destNodeId, inputs) {
+      const key = this.condKey(sourceNodeId, destNodeId);
+      if (inputs && inputs.input_mode === 'explicit') {
+        this.inputs[key] = {
+          input_mode: 'explicit',
+          input_mappings: (inputs.input_mappings || []).map((m) => ({ var: m.var, key: m.key })),
+        };
+      } else {
+        delete this.inputs[key];
+      }
     },
 
     removeSelectedNode(nodeId) {
@@ -820,7 +858,10 @@ export default {
         this.$delete(this.store.nodes, nodeId);
         Object.keys(this.conditions).forEach((key) => {
           const [s, d] = key.split('->').map(Number);
-          if (s === nodeId || d === nodeId) delete this.conditions[key];
+          if (s === nodeId || d === nodeId) {
+            delete this.conditions[key];
+            delete this.inputs[key];
+          }
         });
       }
       this.emitChange();
@@ -855,16 +896,19 @@ export default {
       const source = this.nodeIdOf(e.output_id);
       const dest = this.nodeIdOf(e.input_id);
       delete this.conditions[this.condKey(source, dest)];
+      delete this.inputs[this.condKey(source, dest)];
       this.emitChange();
     },
 
     onConnectionSelected(e) {
       const source = this.nodeIdOf(e.output_id);
       const dest = this.nodeIdOf(e.input_id);
+      const key = this.condKey(source, dest);
       this.$emit('connection-selected', {
         source_node_id: source,
         destination_node_id: dest,
-        condition: this.conditions[this.condKey(source, dest)] || CONDITION_DEFAULT,
+        condition: this.conditions[key] || CONDITION_DEFAULT,
+        ...(this.inputs[key] || {}),
       });
     },
 
@@ -922,9 +966,11 @@ export default {
           const state = this.editable
             ? null : edgeRunState(edge, this.store.runs, this.store.nodes);
 
+          const explicit = !!this.inputs[key];
           CONDITIONS.forEach((c) => svg.classList.remove(`WorkflowGraph__conn--${c}`));
           EDGE_STATES.forEach((s) => svg.classList.remove(`WorkflowGraph__conn--${s}`));
           svg.classList.add(`WorkflowGraph__conn--${condition}`);
+          svg.classList.toggle('WorkflowGraph__conn--explicit', explicit);
           if (state) svg.classList.add(`WorkflowGraph__conn--${state}`);
 
           const path = svg.querySelector('path.main-path');
@@ -938,7 +984,7 @@ export default {
             return;
           }
           labels.push({
-            key, source, dest, condition, x: point.x, y: point.y, state,
+            key, source, dest, condition, x: point.x, y: point.y, state, explicit,
           });
         });
       });

@@ -58,7 +58,7 @@
             "args": ["server", "--config", "./config.yml"],
             "cwd": "${workspaceFolder}",
             "env": {
-                "DEBUG_DELAY": "1s"
+                "SEMAPHORE_LOG_LEVEL": "debug"
             }
         },
         {

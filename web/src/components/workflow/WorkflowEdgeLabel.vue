@@ -18,6 +18,12 @@
         >
           <v-icon x-small :color="current.color">{{ current.icon }}</v-icon>
           <span class="WorkflowEdgeLabel__text">{{ current.text }}</span>
+          <v-icon
+            v-if="label.explicit"
+            x-small
+            class="WorkflowEdgeLabel__inputs"
+            :title="$t('workflowEdgeInputsExplicit')"
+          >mdi-swap-horizontal-bold</v-icon>
           <button
             type="button"
             class="WorkflowEdgeLabel__del"
@@ -47,6 +53,12 @@
     <span v-else class="WorkflowEdgeLabel__pill">
       <v-icon x-small :color="current.color">{{ current.icon }}</v-icon>
       <span class="WorkflowEdgeLabel__text">{{ current.text }}</span>
+      <v-icon
+        v-if="label.explicit"
+        x-small
+        class="WorkflowEdgeLabel__inputs"
+        :title="$t('workflowEdgeInputsExplicit')"
+      >mdi-swap-horizontal-bold</v-icon>
     </span>
   </div>
 </template>
@@ -56,7 +68,7 @@
 // coordinates inside the Drawflow canvas, so it pans and zooms with it.
 export default {
   props: {
-    // { key, source, dest, condition, x, y, state }
+    // { key, source, dest, condition, x, y, state, explicit }
     label: { type: Object, required: true },
     editable: { type: Boolean, default: false },
   },
@@ -114,6 +126,11 @@ export default {
         box-shadow: var(--wf-shadow-hover);
       }
     }
+  }
+
+  &__inputs {
+    margin-left: 2px;
+    color: var(--wf-text2) !important;
   }
 
   &__del {
