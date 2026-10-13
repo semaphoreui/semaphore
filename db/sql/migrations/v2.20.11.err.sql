@@ -1,3 +1,5 @@
+alter table `project__repository` drop column `monorepo`;
+
 {{if .Mysql}}
 drop index audit_event_actor_idx on audit_event;
 drop index audit_event_project_idx on audit_event;

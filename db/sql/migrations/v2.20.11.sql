@@ -1,3 +1,5 @@
+alter table `project__repository` add column `monorepo` bool not null default false;
+
 {{if .Mysql}}
 drop index audit_event_created_idx on audit_event;
 {{else}}

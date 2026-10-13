@@ -1175,7 +1175,15 @@ func resolveGitBranch(repoBranch string, template db.Template, task db.Task) str
 
 // withEffectiveBranch settles the branch before the App is built, so the App
 // and Git operations use the same branch-specific checkout directory.
+//
+// A monorepo is one checkout shared by every template on the repository's own
+// branch, so the template's branch and the task's branch are ignored there even
+// if a template still carries them from before the repository became a monorepo.
 func withEffectiveBranch(repository db.Repository, template db.Template, task db.Task) db.Repository {
+	if repository.Monorepo {
+		return repository
+	}
+
 	repository.GitBranch = resolveGitBranch(repository.GitBranch, template, task)
 	return repository
 }
@@ -1345,8 +1353,10 @@ func (t *LocalExecutor) checkoutRepository() error {
 		return err
 	}
 
-	if t.Task.CommitHash != nil {
-		// checkout to commit if it is provided for TaskRunner
+	// Checkout the commit the task asks for. A monorepo stays on the head of
+	// its branch: the checkout is shared, and a task-supplied commit is ignored
+	// the same way as a task-supplied branch.
+	if t.Task.CommitHash != nil && !t.Repository.Monorepo {
 		return repo.Checkout(*t.Task.CommitHash)
 	}
 

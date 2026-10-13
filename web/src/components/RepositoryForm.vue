@@ -69,6 +69,15 @@
       dense
     ></v-text-field>
 
+    <v-checkbox
+      v-model="item.monorepo"
+      :label="$t('monorepo')"
+      :hint="$t('monorepoHelp')"
+      persistent-hint
+      :disabled="formSaving || type === 'local'"
+      class="mt-0 mb-4"
+    ></v-checkbox>
+
     <v-autocomplete
         v-model="item.ssh_key_id"
         :label="$t('accessKey')"

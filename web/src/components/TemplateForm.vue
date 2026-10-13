@@ -155,15 +155,36 @@
             v-if="needField('repository')"
           >
           </v-autocomplete>
-          <v-chip
-            v-if="gitBranch"
-            small
-            label
-            style="position: absolute; right: 45px; top: 8px"
-            @click="setBranch = !setBranch"
+          <v-tooltip
+            bottom
+            :disabled="!isMonorepo"
+            color="black"
+            content-class="opacity1"
+            max-width="400"
+            transition="fade-transition"
           >
-            {{ gitBranch }}
-          </v-chip>
+            <template v-slot:activator="{ on, attrs }">
+              <!-- A monorepo chip gets no click listener at all, so it is neither
+                   styled nor behaves as clickable; the wrapper carries the tooltip. -->
+              <span
+                v-bind="attrs"
+                v-on="on"
+                :tabindex="isMonorepo ? 0 : null"
+                style="position: absolute; right: 45px; top: 8px"
+              >
+                <v-chip
+                  v-if="gitBranch"
+                  small
+                  label
+                  :class="{ 'text--disabled': isMonorepo }"
+                  v-on="isMonorepo ? {} : { click: () => { setBranch = !setBranch; } }"
+                >
+                  {{ gitBranch }}
+                </v-chip>
+              </span>
+            </template>
+            {{ $t('monorepoBranchTooltip') }}
+          </v-tooltip>
         </div>
 
         <v-card
@@ -193,8 +214,10 @@
                 :label="fieldLabel('branch')"
                 outlined
                 dense
-                :disabled="formSaving"
+                :disabled="formSaving || isMonorepo"
                 :placeholder="$t('branch')"
+                :hint="isMonorepo ? $t('monorepoBranchHint') : ''"
+                :persistent-hint="isMonorepo"
               ></v-autocomplete>
             </div>
             <div v-else>
@@ -204,8 +227,10 @@
                 :label="fieldLabel('branch')"
                 outlined
                 dense
-                :disabled="formSaving"
+                :disabled="formSaving || isMonorepo"
                 :placeholder="$t('branch')"
+                :hint="isMonorepo ? $t('monorepoBranchHint') : ''"
+                :persistent-hint="isMonorepo"
               ></v-text-field>
             </div>
           </v-card-text>
@@ -467,11 +492,27 @@
             v-model="item.allow_override_args_in_task"
           />
 
-          <v-checkbox
-            class="mt-0"
-            :label="$t('allow_override_branch')"
-            v-model="item.allow_override_branch_in_task"
-          />
+          <v-tooltip
+            bottom
+            :disabled="!isMonorepo"
+            color="black"
+            content-class="opacity1"
+            max-width="400"
+            transition="fade-transition"
+          >
+            <template v-slot:activator="{ on }">
+              <!-- A disabled input emits no mouse events, so the wrapper owns the tooltip. -->
+              <div v-on="on">
+                <v-checkbox
+                  class="mt-0"
+                  :label="$t('allow_override_branch')"
+                  v-model="item.allow_override_branch_in_task"
+                  :disabled="isMonorepo"
+                />
+              </div>
+            </template>
+            {{ $t('monorepoBranchTooltip') }}
+          </v-tooltip>
 
           <v-checkbox
             class="mt-0"
@@ -788,6 +829,13 @@ export default {
       await Promise.all([this.loadBranches()]);
     },
 
+    isMonorepo(val) {
+      if (val && this.item) {
+        this.item.git_branch = null;
+        this.item.allow_override_branch_in_task = false;
+      }
+    },
+
     needReset(val) {
       if (val) {
         if (this.item != null) {
@@ -862,6 +910,13 @@ export default {
 
     repositoryId() {
       return this.item?.repository_id;
+    },
+
+    // A monorepo is one checkout shared by every template on the repository's
+    // own branch, so a template can neither pin a branch nor let a task pick one.
+    isMonorepo() {
+      const repo = (this.repositories || []).find((x) => x.id === this.repositoryId);
+      return !!repo?.monorepo;
     },
 
     gitBranchOfTemplate() {
