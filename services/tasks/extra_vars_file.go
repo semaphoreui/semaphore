@@ -45,13 +45,27 @@ func varNames(vars map[string]any) string {
 // executes the task. The extra vars Semaphore passes — variable groups and
 // their secrets, survey answers, workflow outputs of earlier tasks, survey
 // secrets and the semaphore_vars task details — are data, never code, so they
-// are handed over as YAML files in which every string carries the !unsafe
-// tag, which makes Ansible use it literally (the ALLOW_JINJA_IN_EXTRA_VARS=never
-// behaviour of AWX). The files also keep the values out of the command line,
-// and the secrets among them sit in a vault-encrypted file (see
-// extraVarsFiles), so no secret is on disk in clear while the task runs.
+// are handed over as YAML files in which every string that could be a template
+// carries the !unsafe tag, which makes Ansible use it literally (the
+// ALLOW_JINJA_IN_EXTRA_VARS=never behaviour of AWX). The files also keep the
+// values out of the command line, and the secrets among them sit in a
+// vault-encrypted file (see extraVarsFiles), so no secret is on disk in clear
+// while the task runs.
+//
+// The tag goes on the strings that contain a Jinja2 delimiter only. Ansible
+// templates a string only when it finds one of the delimiters in it, or the
+// "#jinja2:" header that declares other delimiters (is_possibly_template), so
+// a string without them is literal either way.
+// Tagging every string instead changes types: ansible-core 2.19 and later
+// construct an !unsafe scalar by resolving its value again as a plain scalar,
+// quotes ignored, so a webhook value of "2026.08" would reach the playbook as
+// a float, "00123" as the int 83 and "true" as a boolean. A string a YAML
+// resolver could take for another type cannot contain a delimiter, so the two
+// rules never meet: such a string is written double-quoted and untagged, which
+// every Ansible release reads as a string.
 
-// extraVarsYAML renders vars as a YAML document. Every string is tagged
+// extraVarsYAML renders vars as a YAML document. Every string is written
+// double-quoted, and the strings holding a Jinja2 delimiter are tagged
 // !unsafe, nested maps and lists included; numbers, booleans and nulls carry
 // no expression and stay as they are. Keys are written in sorted order so the
 // file is reproducible.
@@ -80,15 +94,30 @@ func extraVarsYAML(vars map[string]any) ([]byte, error) {
 	return yaml.Marshal(doc)
 }
 
-// markUnsafe tags every string scalar under node with !unsafe. A string that
-// yaml.v3 would write plain gets the double-quoted style, so the tag and the
-// value round-trip through any YAML reader.
+// isPossiblyTemplate reports whether Ansible would template s: it holds the
+// opening of a Jinja2 expression, statement or comment in the default
+// configuration Ansible templates with, or it starts with the "#jinja2:"
+// header that sets other delimiters for the rest of the value. The name is
+// Ansible's own for the same check.
+func isPossiblyTemplate(s string) bool {
+	return strings.HasPrefix(s, "#jinja2:") ||
+		strings.Contains(s, "{{") || strings.Contains(s, "{%") || strings.Contains(s, "{#")
+}
+
+// markUnsafe writes every string scalar under node double-quoted, so the
+// value round-trips through any YAML reader as a string, and tags the ones
+// Ansible could template with !unsafe. A string a YAML resolver would take for
+// a number, boolean, null or date holds no Jinja2 delimiter, so it stays
+// untagged: an !unsafe scalar loses its quotes on ansible-core >= 2.19 and
+// would change type.
 func markUnsafe(node *yaml.Node) {
 	switch node.Kind {
 	case yaml.ScalarNode:
 		if node.Tag == "!!str" {
-			node.Tag = "!unsafe"
 			node.Style = yaml.DoubleQuotedStyle
+			if isPossiblyTemplate(node.Value) {
+				node.Tag = "!unsafe"
+			}
 		}
 	case yaml.MappingNode:
 		// Content alternates key, value: only the values carry data.
