@@ -66,6 +66,10 @@ only when the task touches that topic. Keep this file under 150 lines.
   `AGENTS/research/*.md`) cited as sources in `AGENTS/work/` docs were removed from the tree; read them
   with `git show 539d98ad:<path>`. Some plans exist only on feature branches (`feat/cyberark-secret-storage`,
   `feat/project-alerts-mail-refactor`).
+- ansible-core ≥ 2.19 (bundled in every current image) re-resolves an `!unsafe` scalar as plain,
+  quotes ignored: `!unsafe "2026.08"` is a float, `"00123"` the int 83. Tag only strings holding a
+  Jinja2 delimiter or a `#jinja2:` header (`isPossiblyTemplate`, `services/tasks/extra_vars_file.go`);
+  check a generated extra-vars file with the real loader, not yaml.v3 (`extra_vars_ansible_test.go`).
 
 ## Topic files
 

@@ -53,6 +53,7 @@ func TestExtraVarsYAML(t *testing.T) {
 		"subnets":   []any{"subnet-1", "{{ 6*7 }}"},
 		"config":    map[string]any{"region": "{{ region }}", "depth": map[string]any{"leaf": "x"}},
 		"group_var": "{{ from_variable_group }}",
+		"header":    "#jinja2: variable_start_string:'[[', variable_end_string:']]'\n[[ 6*7 ]]",
 		"semaphore_vars": map[string]any{
 			"task_details": map[string]any{"commit_message": "{{ evil }}", "id": 7},
 		},
@@ -64,11 +65,12 @@ func TestExtraVarsYAML(t *testing.T) {
 
 	assert.Equal(t, "!unsafe", tags[".image_tag"])
 	assert.Equal(t, "!unsafe", tags[".group_var"], "variable groups are data too")
-	assert.Equal(t, "!unsafe", tags[".subnets[0]"])
+	assert.Equal(t, "!!str", tags[".subnets[0]"], "no delimiter, nothing to template: a plain quoted string")
 	assert.Equal(t, "!unsafe", tags[".subnets[1]"])
 	assert.Equal(t, "!unsafe", tags[".config.region"])
-	assert.Equal(t, "!unsafe", tags[".config.depth.leaf"])
+	assert.Equal(t, "!!str", tags[".config.depth.leaf"])
 	assert.Equal(t, "!unsafe", tags[".semaphore_vars.task_details.commit_message"])
+	assert.Equal(t, "!unsafe", tags[".header"], "a #jinja2: header is templated with the delimiters it declares")
 	assert.Equal(t, "!!int", tags[".semaphore_vars.task_details.id"])
 	assert.Equal(t, "!!int", tags[".replicas"], "a number carries no expression")
 	assert.Equal(t, "!!bool", tags[".enabled"])
@@ -79,6 +81,33 @@ func TestExtraVarsYAML(t *testing.T) {
 	assert.Less(t, strings.Index(text, "config:"), strings.Index(text, "image_tag:"))
 	assert.Contains(t, text, `image_tag: !unsafe "{{ lookup('pipe', 'id') }}"`)
 	assert.Contains(t, text, `group_var: !unsafe "{{ from_variable_group }}"`)
+	assert.Contains(t, text, `- "subnet-1"`)
+	assert.Contains(t, text, `leaf: "x"`)
+}
+
+func TestIsPossiblyTemplate(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{"expression", "{{ lookup('pipe', 'id') }}", true},
+		{"statement", "{% if x %}y{% endif %}", true},
+		{"comment", "{# note #}", true},
+		{"override header, other delimiters", "#jinja2: variable_start_string:'[[', variable_end_string:']]'\n[[ 6*7 ]]", true},
+		{"header not at the start", "x #jinja2: y", false},
+		{"delimiter in the middle", "v{{ 1 }}", true},
+		{"unclosed delimiter", "{{ open", true},
+		{"plain text", "subnet-1", false},
+		{"numeric string", "2026.08", false},
+		{"single brace", "{ not jinja }", false},
+		{"empty", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isPossiblyTemplate(tt.value))
+		})
+	}
 }
 
 func newExtraVarsExecutor(t *testing.T) *LocalExecutor {
@@ -161,7 +190,7 @@ func TestLocalExecutor_getPlaybookArgs_ExtraVarsFile(t *testing.T) {
 	openTags := tagsOf(t, openContent)
 	assert.Equal(t, "!unsafe", openTags[".image_tag"], "survey answer")
 	assert.Equal(t, "!unsafe", openTags[".group_var"], "variable group value")
-	assert.Equal(t, "!unsafe", openTags[".semaphore_vars.task_details.username"])
+	assert.Equal(t, "!!str", openTags[".semaphore_vars.task_details.username"], "a plain string needs no tag")
 	assert.NotContains(t, openTags, ".token", "a survey secret is not in the open file")
 	assert.NotContains(t, openTags, ".db_password", "a variable group secret is not in the open file")
 	assert.NotContains(t, openTags, ".ENV_ONLY", "an env secret is not an extra var")

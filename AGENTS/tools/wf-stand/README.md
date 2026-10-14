@@ -71,7 +71,7 @@ in its log. The task log of every consumer starts with the engine's `Input "<var
 (task #M)` lines, so a value's source is always one line above the value.
 
 Since 2026-10-09 the seed also covers the Jinja rule (Ansible never evaluates an expression inside an
-extra var — every value reaches it `!unsafe` through a file): template "bash: produce jinja outputs"
+extra var — every value reaches it through a file, the ones with a Jinja2 delimiter tagged `!unsafe`): template "bash: produce jinja outputs"
 (`produce_jinja.sh` writes `image_tag`, `config` and `replicas` holding `{{ lookup('pipe', …) }}`,
 `{{ lookup('env', 'HOME') }}`, `{{ 6*7 }}`), the variable group "vars group with jinja" (`group_expr: "{{ 2*21 }}"`),
 template "ansible: consume + vars group" and workflows 13 "Inputs: jinja injection" (→ ansible and bash
