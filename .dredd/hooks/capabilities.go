@@ -290,13 +290,13 @@ var pathSubPatterns = []func() string{
 	func() string {
 		return strconv.Itoa(proxyID)
 	}, // proxy_id, x-example: 21
-	func() string { return strconv.Itoa(hostConfigID) }, // host_config_id, x-example: 21
+	func() string { return strconv.Itoa(hostConfigID) }, // host_config_id, x-example: 22
 	func() string {
 		if workflow == nil {
 			return "0"
 		}
 		return strconv.Itoa(workflow.RevisionID)
-	}, // revision_id, x-example: 22
+	}, // revision_id, x-example: 23
 }
 
 // alterRequestPath with the above slice of functions

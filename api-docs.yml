@@ -1735,14 +1735,14 @@ parameters:
     in: path
     type: integer
     required: true
-    x-example: 21
+    x-example: 22
   revision_id:
     name: revision_id
     description: workflow revision ID
     in: path
     type: integer
     required: true
-    x-example: 22
+    x-example: 23
   user_id:
     name: user_id
     description: User ID
