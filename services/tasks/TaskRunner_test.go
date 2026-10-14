@@ -676,7 +676,7 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 	require.NoError(t, err)
 
 	defer tsk.job.(*LocalExecutor).Cleanup()
-	assert.Regexp(t, `^--inventory /tmp/project_0/inventory_0 --extra-vars @/tmp/project_0/task_0_extra_vars_[^ ]+\.yml /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml$`, strings.Join(args, " "))
+	assert.Regexp(t, `^--inventory /tmp/project_0/inventory_0_task_0 --extra-vars @/tmp/project_0/task_0_extra_vars_[^ ]+\.yml /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml$`, strings.Join(args, " "))
 }
 
 func TestTaskGetPlaybookArgs2(t *testing.T) {
@@ -728,7 +728,7 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 	require.NoError(t, err)
 
 	defer tsk.job.(*LocalExecutor).Cleanup()
-	assert.Regexp(t, `^--inventory /tmp/project_0/inventory_0 --extra-vars @/tmp/project_0/task_0_extra_vars_[^ ]+\.yml /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml$`, strings.Join(args, " "))
+	assert.Regexp(t, `^--inventory /tmp/project_0/inventory_0_task_0 --extra-vars @/tmp/project_0/task_0_extra_vars_[^ ]+\.yml /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml$`, strings.Join(args, " "))
 }
 
 func TestTaskGetPlaybookArgs3(t *testing.T) {
@@ -781,7 +781,7 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	require.NoError(t, err)
 
 	defer tsk.job.(*LocalExecutor).Cleanup()
-	assert.Regexp(t, `^--inventory /tmp/project_0/inventory_0 --extra-vars @/tmp/project_0/task_0_extra_vars_[^ ]+\.yml /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml$`, strings.Join(args, " "))
+	assert.Regexp(t, `^--inventory /tmp/project_0/inventory_0_task_0 --extra-vars @/tmp/project_0/task_0_extra_vars_[^ ]+\.yml /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml$`, strings.Join(args, " "))
 }
 
 func TestCheckTmpDir(t *testing.T) {
