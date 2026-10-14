@@ -63,7 +63,7 @@ export default {
   proxyKeyHint: 'Key used to authenticate against the proxy itself.',
   proxy: 'Proxy',
   proxyHint: 'SSH jump host used to reach the hosts of this inventory.',
-  repositoryProxyHint: 'SSH jump host used to reach the Git server of this repository.',
+  repositoryProxyHint: 'Proxy used to reach the Git server of this repository.',
   hostConfig: 'Host config',
   hostConfigEmpty: 'No mappings yet. Add one to use a different credential for a '
     + 'specific Git host or repository URL, for example for submodules or role '

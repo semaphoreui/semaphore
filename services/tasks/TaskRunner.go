@@ -661,10 +661,15 @@ func (t *TaskRunner) populateDetails() error {
 
 	t.Repository = withEffectiveBranch(t.Repository, t.Template, t.Task)
 
-	// The proxy of the repository is reached with its own key, which the git
-	// client installs into a separate agent.
-	if t.Repository.Proxy != nil && t.Repository.Proxy.SSHKeyID != nil {
-		if err = t.pool.encryptionService.DeserializeSecret(&t.Repository.Proxy.SSHKey); err != nil {
+	// The proxies of the repository are reached with their own keys, which the
+	// git client installs into a separate agent. Every hop of the chain needs
+	// its key, not only the first: ProxyChainKeys hands them all to InstallAll.
+	for proxy := t.Repository.Proxy; proxy != nil; proxy = proxy.RequiresProxy {
+		if proxy.SSHKeyID == nil {
+			continue
+		}
+
+		if err = t.pool.encryptionService.DeserializeSecret(&proxy.SSHKey); err != nil {
 			return err
 		}
 	}

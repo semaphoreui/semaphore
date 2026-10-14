@@ -903,7 +903,20 @@ func ValidateRepository(store Store, repo *Repository) (err error) {
 	// must be resolved in the project of the repository to reject proxies of
 	// other projects, which GetRepository would then fail to load.
 	if repo.ProxyID != nil {
-		_, err = store.GetProxy(repo.ProjectID, *repo.ProxyID)
+		var proxy Proxy
+
+		proxy, err = store.GetProxy(repo.ProjectID, *repo.ProxyID)
+		if err != nil {
+			return
+		}
+
+		// An http(s) remote is proxied by git itself, which speaks SOCKS and
+		// HTTP but has no way through an ssh jump host. Accepting the pair would
+		// store a proxy the clone silently ignores.
+		if repo.GetType() == RepositoryHTTP && proxy.Type.IsSSH() {
+			err = common_errors.NewValidationError(
+				"an http repository can not be reached through an ssh proxy")
+		}
 	}
 
 	return
@@ -967,6 +980,14 @@ func validateProxyChain(store Store, proxy *Proxy) error {
 		required, err := store.GetProxy(proxy.ProjectID, *id)
 		if err != nil {
 			return err
+		}
+
+		// Every hop of a chain is reached with ssh -W, so a SOCKS or HTTP proxy
+		// would be given to ssh as a destination instead of carrying the
+		// connection. It can still be the proxy a repository selects.
+		if !required.Type.IsSSH() {
+			return common_errors.NewValidationError(
+				"only an ssh proxy can be required by another proxy")
 		}
 
 		id = required.RequiresProxyID

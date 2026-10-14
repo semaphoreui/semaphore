@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"golang.org/x/net/proxy"
 )
@@ -74,17 +75,35 @@ func dialSOCKS5(ctx context.Context, u *url.URL, address string) (net.Conn, erro
 func dialHTTPConnect(ctx context.Context, u *url.URL, address string) (net.Conn, error) {
 	var d net.Dialer
 
-	conn, err := d.DialContext(ctx, "tcp", u.Host)
+	conn, err := d.DialContext(ctx, "tcp", proxyAddress(u))
 	if err != nil {
 		return nil, err
 	}
 
-	if u.Scheme == "https" {
-		host, _, splitErr := net.SplitHostPort(u.Host)
-		if splitErr != nil {
-			host = u.Host
+	// Until CONNECT completes the context is the only thing that can stop a
+	// proxy which accepts the connection and then goes quiet. The deadline is
+	// cleared before the tunnel is handed over.
+	if deadline, ok := ctx.Deadline(); ok {
+		if err = conn.SetDeadline(deadline); err != nil {
+			conn.Close() //nolint: errcheck
+			return nil, err
 		}
-		conn = tls.Client(conn, &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12})
+	}
+
+	stop := context.AfterFunc(ctx, func() { conn.Close() }) //nolint: errcheck
+	defer stop()
+
+	if u.Scheme == "https" {
+		tlsConn := tls.Client(conn, &tls.Config{
+			ServerName: u.Hostname(), MinVersion: tls.VersionTLS12,
+		})
+
+		if err = tlsConn.HandshakeContext(ctx); err != nil {
+			conn.Close() //nolint: errcheck
+			return nil, fmt.Errorf("proxy TLS handshake: %w", err)
+		}
+
+		conn = tlsConn
 	}
 
 	req := &http.Request{
@@ -119,7 +138,27 @@ func dialHTTPConnect(ctx context.Context, u *url.URL, address string) (net.Conn,
 		return nil, fmt.Errorf("proxy refused CONNECT: %s", strings.TrimSpace(res.Status))
 	}
 
+	if err = conn.SetDeadline(time.Time{}); err != nil {
+		conn.Close() //nolint: errcheck
+		return nil, err
+	}
+
 	return &bufferedConn{Conn: conn, reader: br}, nil
+}
+
+// proxyAddress is the address the proxy is dialed at. A proxy configured
+// without a port has none in its URL, so the default of its scheme is used, and
+// JoinHostPort brackets an IPv6 host.
+func proxyAddress(u *url.URL) string {
+	port := u.Port()
+	if port == "" {
+		port = "80"
+		if u.Scheme == "https" {
+			port = "443"
+		}
+	}
+
+	return net.JoinHostPort(u.Hostname(), port)
 }
 
 // bufferedConn keeps whatever the CONNECT response reader buffered ahead of the

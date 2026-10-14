@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 
 	"github.com/semaphoreui/semaphore/pkg/netproxy"
@@ -41,7 +42,7 @@ var proxyConnectCmd = &cobra.Command{
 			Password: os.Getenv("SEMAPHORE_PROXY_PASSWORD"),
 		}
 
-		conn, err := netproxy.Dial(context.Background(), proxyConnectArgs.proxy, args[0]+":"+args[1], creds)
+		conn, err := netproxy.Dial(context.Background(), proxyConnectArgs.proxy, net.JoinHostPort(args[0], args[1]), creds)
 		if err != nil {
 			return err
 		}

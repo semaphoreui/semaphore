@@ -750,6 +750,11 @@ func (backup *BackupFormat) Verify() error {
 // restoreProxyChains links the proxies which require another proxy, once every
 // proxy of the backup exists and can be found by name.
 func (backup *BackupFormat) restoreProxyChains(b *BackupDB) error {
+	// Two passes: a chain is only as long as its last link, and ValidateProxy
+	// walks it through the store, so validating while the links are still being
+	// written measures a chain which is not the one being restored.
+	linked := make([]db.Proxy, 0, len(backup.Proxies))
+
 	for i, o := range backup.Proxies {
 		if o.RequiresProxy == nil {
 			continue
@@ -765,19 +770,23 @@ func (backup *BackupFormat) restoreProxyChains(b *BackupDB) error {
 		proxy := *restored
 		proxy.RequiresProxyID = &required.ID
 
-		// The chain is only complete now, so the rules the API enforces on it
-		// (no self reference, no loop, no over-long chain, ssh only) are checked
-		// here rather than on create.
 		if err := proxy.Validate(); err != nil {
-			return fmt.Errorf("error at proxies[%d]: %s", i, err.Error())
-		}
-
-		if err := db.ValidateProxy(b.store, &proxy); err != nil {
 			return fmt.Errorf("error at proxies[%d]: %s", i, err.Error())
 		}
 
 		if err := b.store.UpdateProxy(proxy); err != nil {
 			return fmt.Errorf("error at proxies[%d]: %s", i, err.Error())
+		}
+
+		linked = append(linked, proxy)
+	}
+
+	// The graph is complete now, so the rules the API enforces on a chain (no
+	// self reference, no loop, no over-long chain, ssh only) measure what was
+	// actually restored.
+	for i := range linked {
+		if err := db.ValidateProxy(b.store, &linked[i]); err != nil {
+			return fmt.Errorf("error at proxies[%s]: %s", linked[i].Name, err.Error())
 		}
 	}
 

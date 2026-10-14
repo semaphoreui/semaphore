@@ -86,7 +86,9 @@ func TestProxyCommandOption_NonSSH(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			opt := ProxyCommandOption(tt.proxy, "")
 
-			assert.Contains(t, opt, "proxy-connect --proxy "+tt.expected+" %h %p")
+			// The arguments are shell quoted: ssh hands the whole command to a
+			// shell, and an installation path can hold a space.
+			assert.Contains(t, opt, "proxy-connect --proxy '"+tt.expected+"' %h %p")
 			assert.NotContains(t, opt, "ssh -o", "a non-ssh proxy is not a jump host")
 		})
 	}

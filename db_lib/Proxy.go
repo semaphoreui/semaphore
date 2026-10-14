@@ -15,10 +15,12 @@ import (
 // than depend on netcat or socat being installed next to Semaphore, the
 // Semaphore binary connects on its behalf.
 func connectorCommand(proxy db.Proxy) string {
+	// The executable is an installation path, so it can hold a space; ssh hands
+	// the whole command to a shell.
 	return strings.Join([]string{
-		semaphoreExecutable(),
+		shellQuote(semaphoreExecutable()),
 		"proxy-connect",
-		"--proxy", proxy.URL(),
+		"--proxy", shellQuote(proxy.URL()),
 		"%h", "%p",
 	}, " ")
 }
