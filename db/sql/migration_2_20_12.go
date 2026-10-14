@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/go-gorp/gorp/v3"
 	log "github.com/sirupsen/logrus"
@@ -70,11 +69,6 @@ func (m migration_2_20_12) PostApply(tx *gorp.Transaction) error {
 		return a.Slug < b.Slug
 	})
 
-	taken := map[string]bool{}
-	for _, r := range roles {
-		taken[strings.ToLower(r.Slug)] = true
-	}
-
 	kept := map[string]bool{}
 	for _, r := range roles {
 		global := strings.ToLower(r.Slug)
@@ -87,7 +81,20 @@ func (m migration_2_20_12) PostApply(tx *gorp.Transaction) error {
 			continue
 		}
 
-		newSlug := freeRoleSlug(r.Slug, taken)
+		// The database checks the candidates, so its collation decides what is taken, as in the unique index.
+		var newSlug string
+		for n := 2; newSlug == ""; n++ {
+			suffix := fmt.Sprintf("-%d", n)
+			runes := []rune(r.Slug)
+			candidate := string(runes[:min(len(runes), 100-len(suffix))]) + suffix
+			taken, err := tx.SelectInt(m.db.PrepareQuery("select count(*) from role where lower(slug) = lower(?)"), candidate)
+			if err != nil {
+				return err
+			}
+			if taken == 0 {
+				newSlug = candidate
+			}
+		}
 		if _, err = tx.Exec(m.db.PrepareQuery("update `role` set slug=? where id=?"), newSlug, r.ID); err != nil {
 			return err
 		}
@@ -95,19 +102,4 @@ func (m migration_2_20_12) PostApply(tx *gorp.Transaction) error {
 			Warn("Renamed a role whose slug collides with another role ignoring case or with a built-in role")
 	}
 	return nil
-}
-
-func freeRoleSlug(slug string, taken map[string]bool) string {
-	for n := 2; ; n++ {
-		suffix := fmt.Sprintf("-%d", n)
-		cut := min(len(slug), 100-len(suffix))
-		for cut > 0 && cut < len(slug) && !utf8.RuneStart(slug[cut]) {
-			cut--
-		}
-		candidate := slug[:cut] + suffix
-		if !taken[strings.ToLower(candidate)] {
-			taken[strings.ToLower(candidate)] = true
-			return candidate
-		}
-	}
 }

@@ -146,7 +146,7 @@ func TestMigration_2_20_12_RenamesCollidingSlugs(t *testing.T) {
 		slug    string
 		project int // 0 global, 1 or 2 a project
 	}
-	long := strings.Repeat("é", 49)
+	long := strings.Repeat("é", 99)
 	tests := []struct {
 		name  string
 		roles []role
@@ -158,7 +158,7 @@ func TestMigration_2_20_12_RenamesCollidingSlugs(t *testing.T) {
 		{"case variants in one project", []role{{"dev", 1}, {"Dev", 1}}, []string{"dev-2", "Dev"}},
 		{"custom role named like a built-in", []role{{"manager", 0}}, []string{"manager-2"}},
 		{"case variant of a built-in", []role{{"Manager", 1}}, []string{"Manager-2"}},
-		{"multibyte slug is cut on a character", []role{{"a" + long, 0}, {"A" + long, 1}}, []string{"a" + long, "A" + strings.Repeat("é", 48) + "-2"}},
+		{"multibyte slug is cut on a character", []role{{"a" + long, 0}, {"A" + long, 1}}, []string{"a" + long, "A" + strings.Repeat("é", 97) + "-2"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
