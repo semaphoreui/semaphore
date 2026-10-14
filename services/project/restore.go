@@ -693,16 +693,17 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		}
 	}
 
+	ownerRole, err := b.store.GetGlobalRoleBySlug(string(db.ProjectOwner))
+	if err != nil {
+		return nil, err
+	}
+
 	newProject, err := b.store.CreateProject(project)
 
 	if err != nil {
 		return nil, err
 	}
 
-	ownerRole, err := b.store.GetGlobalRoleBySlug(string(db.ProjectOwner))
-	if err != nil {
-		return nil, err
-	}
 	if err = b.store.CreateProjectUser(newProject.ID, user.ID, []int{ownerRole.ID}); err != nil {
 		return &newProject, err
 	}
