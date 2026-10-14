@@ -931,6 +931,22 @@ func ValidateInventory(store Store, inventory *Inventory) (err error) {
 		_, err = store.GetTemplate(inventory.ProjectID, *inventory.TemplateID)
 	}
 
+	if err != nil {
+		return
+	}
+
+	// Only a "file" inventory lives in a repository. The UI keeps the hidden
+	// repository_id when the type is switched to static, and API clients may
+	// send it too — drop it so the inventory is never routed through the
+	// repository path at run time.
+	if inventory.Type != InventoryFile {
+		inventory.RepositoryID = nil
+	}
+
+	if inventory.RepositoryID != nil {
+		_, err = store.GetRepository(inventory.ProjectID, *inventory.RepositoryID)
+	}
+
 	return
 }
 
