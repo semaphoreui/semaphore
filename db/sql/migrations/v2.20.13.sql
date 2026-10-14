@@ -1,5 +1,3 @@
-{{if .Mysql}}
-create unique index `role__scope_slug` on `role` (`scope`, `slug`);
-{{else}}
-create unique index `role__scope_slug` on `role` (`scope`, lower(`slug`));
-{{end}}
+drop table if exists `project__template_role_old`;
+drop table if exists `project__user_old`;
+drop table if exists `role_old`;

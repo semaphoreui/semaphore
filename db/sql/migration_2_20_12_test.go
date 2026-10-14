@@ -17,7 +17,7 @@ func newRoleMigrationTestStore() *SqlDb {
 
 func migrateRoles(t *testing.T, store *SqlDb) {
 	t.Helper()
-	// 2.20.13 adds the unique slug index once 2.20.12 has renamed the collisions.
+	// 2.20.13 drops the old tables that 2.20.12 swapped out.
 	target := "2.20.13"
 	require.NoError(t, db.Migrate(store, &target))
 }
@@ -93,10 +93,28 @@ func TestMigration_2_20_12_SeedsBuiltinsAndKeepsSlugs(t *testing.T) {
 		  count(*)
 		from sqlite_master
 		where type = 'table'
-		  and name in ('project__user', 'project__user_old', 'role_old', 'project__template_role_old', 'role_new', 'project__template_role_new')
+		  and name in ('project__user', 'project__user_old', 'role_old', 'project__template_role_old', 'role_new', 'project__user_role_new', 'project__template_role_new')
 	`)
 	require.NoError(t, err)
 	assert.Zero(t, leftovers, "the membership table and the old tables are gone")
+}
+
+func TestMigration_2_20_12_IgnoresScratchTablesOfAFailedRun(t *testing.T) {
+	// On MySQL a failed run keeps its scratch tables, the old tables are still in use.
+	store := newRoleMigrationTestStore()
+	project, err := store.CreateProject(db.Project{Name: "p"})
+	require.NoError(t, err)
+	user := createLegacyUser(t, store, "member")
+	insertLegacyMember(t, store, project.ID, user, "manager")
+	for _, table := range []string{"role_new", "project__user_role_new", "project__template_role_new"} {
+		_, err = store.exec("create table " + table + " (leftover int)")
+		require.NoError(t, err)
+	}
+
+	migrateRoles(t, store)
+
+	manager := roleIDOf(t, store, "select id from role where builtin=true and slug='manager'")
+	assert.Equal(t, manager, roleIDOf(t, store, "select role_id from project__user_role where user_id=?", user))
 }
 
 func TestMigration_2_20_12_MovesMembersAndGrantsToRoleIDs(t *testing.T) {
