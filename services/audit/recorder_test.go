@@ -196,7 +196,7 @@ func TestRecord_OversizedMetadataIsReplaced(t *testing.T) {
 
 	newTestRecorder(store).Record(context.Background(), Event{
 		Kind:     IAMProjectRoleChange,
-		Metadata: ProjectRoleMetadata{OldRole: strings.Repeat("x", MaxMetadataBytes+1)},
+		Metadata: ProjectRoleMetadata{OldRoles: []RoleRef{{Slug: strings.Repeat("x", MaxMetadataBytes+1)}}},
 	})
 
 	require.Len(t, store.rows, 1)

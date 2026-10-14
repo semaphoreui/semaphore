@@ -53,7 +53,7 @@
     <v-select
       v-model="item.role"
       :label="$t('role')"
-      :items="userRoles"
+      :items="roles"
       item-value="slug"
       item-text="name"
       :rules="[v => !!v || $t('user_required')]"
@@ -67,7 +67,6 @@
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
-import { USER_ROLES } from '@/lib/constants';
 
 export default {
   mixins: [ItemFormBase],
@@ -78,18 +77,11 @@ export default {
     roles: Array,
   },
 
-  computed: {
-    userRoles() {
-      return [...USER_ROLES, ...(this.roles || [])];
-    },
-  },
-
   data() {
     return {
       users: null,
       userId: null,
       teamMembers: null,
-      USER_ROLES,
       selectedInviteType: this.inviteType === 'both' ? 'username' : this.inviteType,
     };
   },

@@ -3,10 +3,13 @@ package db
 import "github.com/semaphoreui/semaphore/pkg/common_errors"
 
 type Role struct {
+	ID          int                   `db:"id" json:"id" backup:"-"`
 	Slug        string                `db:"slug" json:"slug" backup:"-"`
 	Name        string                `db:"name" json:"name"`
 	Permissions ProjectUserPermission `db:"permissions" json:"permissions"`
 	ProjectID   *int                  `db:"project_id" json:"project_id"`
+	Scope       int                   `db:"scope" json:"-" backup:"-"`
+	Builtin     bool                  `db:"builtin" json:"builtin" backup:"-"`
 }
 
 const KnownRolePermissions = CanRunProjectTasks | CanUpdateProject | CanManageProjectResources | CanManageProjectUsers
@@ -31,8 +34,9 @@ func ValidateRole(role Role) error {
 
 type TemplateRolePerm struct {
 	ID          int                   `db:"id" json:"id"`
-	RoleSlug    string                `db:"role_slug" json:"role_slug"`
+	RoleID      int                   `db:"role_id" json:"-"`
 	TemplateID  int                   `db:"template_id" json:"template_id"`
 	ProjectID   int                   `db:"project_id" json:"project_id"`
 	Permissions ProjectUserPermission `db:"permissions" json:"permissions"`
+	RoleSlug    string                `db:"role_slug" json:"role_slug"`
 }

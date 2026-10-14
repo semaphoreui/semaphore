@@ -5,11 +5,6 @@ type BackupEntity interface {
 	GetName() string
 }
 
-type BackupSluggedEntity interface {
-	GetSlug() string
-	GetName() string
-}
-
 func (e View) GetID() int {
 	return e.ID
 }
@@ -71,17 +66,10 @@ func (e SecretStorage) GetName() string {
 }
 
 func (e Role) GetID() int {
-	panic("Role does not implement GetID")
-}
-
-func (e Role) GetSlug() string {
-	return e.Slug
+	return e.ID
 }
 
 func (e Role) GetName() string {
-	if e.ProjectID == nil {
-		return e.Slug
-	}
 	return e.Name
 }
 

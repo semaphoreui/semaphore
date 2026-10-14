@@ -80,3 +80,98 @@ func TestDeleteUser_WithTask(t *testing.T) {
 	_, err = store.GetTask(projectID, task.ID)
 	assert.NoError(t, err)
 }
+
+func createMembershipTestProjectAndUser(t *testing.T, store db.Store) (db.Project, db.User) {
+	p, err := store.CreateProject(db.Project{Name: "membership"})
+	require.NoError(t, err)
+	u, err := store.CreateUserWithoutPassword(db.User{Username: "a", Name: "A", Email: "a@e.st"})
+	require.NoError(t, err)
+	return p, u
+}
+
+func slugsOf(roles []db.Role) []string {
+	slugs := []string{}
+	for _, r := range roles {
+		slugs = append(slugs, r.Slug)
+	}
+	return slugs
+}
+
+func TestMembershipRoles(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	p, u := createMembershipTestProjectAndUser(t, store)
+	owner, err := store.GetGlobalRoleBySlug("owner")
+	require.NoError(t, err)
+	runner, err := store.GetGlobalRoleBySlug("task_runner")
+	require.NoError(t, err)
+
+	err = store.CreateProjectUser(p.ID, u.ID, []int{runner.ID})
+	require.NoError(t, err)
+	roles, err := store.GetProjectUserRoles(p.ID, u.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"task_runner"}, slugsOf(roles))
+
+	require.NoError(t, store.SetProjectUserRoles(p.ID, u.ID, []int{owner.ID, runner.ID}))
+	roles, err = store.GetProjectUserRoles(p.ID, u.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"owner", "task_runner"}, slugsOf(roles))
+
+	require.NoError(t, store.DeleteProjectUser(p.ID, u.ID))
+	_, err = store.GetProjectUser(p.ID, u.ID)
+	assert.ErrorIs(t, err, db.ErrNotFound)
+
+	assert.ErrorIs(t, store.SetProjectUserRoles(p.ID, u.ID, []int{owner.ID}), db.ErrNotFound, "a removed member does not come back")
+	_, err = store.GetProjectUser(p.ID, u.ID)
+	assert.ErrorIs(t, err, db.ErrNotFound)
+}
+
+func TestMembershipRejectsForeignProjectRole(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	p1, u := createMembershipTestProjectAndUser(t, store)
+	p2, err := store.CreateProject(db.Project{Name: "other"})
+	require.NoError(t, err)
+	foreign, err := store.CreateRole(db.Role{Slug: "x", Name: "X", ProjectID: &p2.ID})
+	require.NoError(t, err)
+	err = store.CreateProjectUser(p1.ID, u.ID, []int{foreign.ID})
+	assert.Error(t, err)
+}
+
+func TestDeleteRoleRefusedWhileAssigned(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	p, u := createMembershipTestProjectAndUser(t, store)
+	r, err := store.CreateRole(db.Role{Slug: "dev", Name: "Dev", ProjectID: &p.ID})
+	require.NoError(t, err)
+	err = store.CreateProjectUser(p.ID, u.ID, []int{r.ID})
+	require.NoError(t, err)
+	assert.ErrorIs(t, store.DeleteRole(r.ID), db.ErrInvalidOperation)
+}
+
+func TestDeleteProjectRemovesRolesAndMemberships(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	p, u := createMembershipTestProjectAndUser(t, store)
+	r, err := store.CreateRole(db.Role{Slug: "dev", Name: "Dev", ProjectID: &p.ID})
+	require.NoError(t, err)
+	err = store.CreateProjectUser(p.ID, u.ID, []int{r.ID})
+	require.NoError(t, err)
+	require.NoError(t, store.DeleteProject(p.ID))
+	_, err = store.GetProjectRole(p.ID, "dev")
+	assert.ErrorIs(t, err, db.ErrNotFound)
+}
+
+func TestProjectUsersSortByRole(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	p, u1 := createMembershipTestProjectAndUser(t, store)
+	u2, err := store.CreateUserWithoutPassword(db.User{Username: "b", Name: "B", Email: "b@e.st"})
+	require.NoError(t, err)
+	owner, err := store.GetGlobalRoleBySlug("owner")
+	require.NoError(t, err)
+	guest, err := store.GetGlobalRoleBySlug("guest")
+	require.NoError(t, err)
+	err = store.CreateProjectUser(p.ID, u1.ID, []int{owner.ID})
+	require.NoError(t, err)
+	err = store.CreateProjectUser(p.ID, u2.ID, []int{guest.ID})
+	require.NoError(t, err)
+	users, err := store.GetProjectUsers(p.ID, db.RetrieveQueryParams{SortBy: "role"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"guest", "owner"}, []string{users[0].Roles[0].Slug, users[1].Roles[0].Slug})
+}

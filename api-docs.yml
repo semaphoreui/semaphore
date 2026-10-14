@@ -159,7 +159,8 @@ definitions:
         type: string
       role:
         type: string
-        enum: [owner, manager, task_runner, guest]
+        description: "Role slug: a built-in role (owner, manager, task_runner, guest) or a custom role"
+        example: manager
 
   ProjectInvite:
     type: object
@@ -2470,8 +2471,8 @@ paths:
                 minimum: 2
               role:
                 type: string
-                enum: [owner, manager, task_runner, guest]
-                example: owner
+                description: "Role slug: a built-in role (owner, manager, task_runner, guest) or a custom role"
+                example: manager
       responses:
         204:
           description: User added
@@ -2496,8 +2497,8 @@ paths:
             properties:
               role:
                 type: string
-                enum: [owner, manager, task_runner, guest]
-                example: owner
+                description: "Role slug: a built-in role (owner, manager, task_runner, guest) or a custom role"
+                example: manager
       summary: Update user role
       tags:
         - project

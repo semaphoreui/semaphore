@@ -6,7 +6,7 @@
       :item-id="itemId"
       :invites-enabled="systemInfo.teams.invites_enabled"
       :invite-type="systemInfo.teams.invite_type"
-      :roles="userRoles"
+      :roles="roles"
       @save="openInvites()"
     />
 
@@ -53,7 +53,7 @@
         <v-select
           hide-details
           v-model="item.role"
-          :items="userRoles"
+          :items="roles"
           item-value="slug"
           item-text="name"
           :style="{ width: '200px' }"
@@ -61,7 +61,7 @@
           v-if="can(USER_PERMISSIONS.manageProjectUsers)"
           class="pt-0 mt-0"
         />
-        <div v-else>{{ userRoles.find((r) => r.slug === item.role).name }}</div>
+        <div v-else>{{ roles.find((r) => r.slug === item.role).name }}</div>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -78,7 +78,7 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';
 import axios from 'axios';
-import { USER_PERMISSIONS, USER_ROLES } from '@/lib/constants';
+import { USER_PERMISSIONS } from '@/lib/constants';
 import TeamMenu from '@/components/TeamMenu.vue';
 
 export default {
@@ -96,10 +96,6 @@ export default {
   },
 
   computed: {
-    userRoles() {
-      return [...USER_ROLES, ...this.roles];
-    },
-
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
     },

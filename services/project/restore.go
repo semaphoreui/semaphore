@@ -1,6 +1,7 @@
 package project
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -441,13 +442,16 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 		for _, role := range e.Roles {
 			if role.IsGlobal {
 				r, err := b.store.GetGlobalRoleBySlug(role.Role)
-				if err != nil {
+				if errors.Is(err, db.ErrNotFound) {
 					return fmt.Errorf("global role does not exist: %s", role.Role)
+				}
+				if err != nil {
+					return err
 				}
 
 				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
 					TemplateID:  newTemplate.ID,
-					RoleSlug:    r.Slug,
+					RoleID:      r.ID,
 					ProjectID:   b.meta.ID,
 					Permissions: role.Permissions & db.KnownRolePermissions,
 				})
@@ -463,7 +467,7 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 			} else {
 				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
 					TemplateID:  newTemplate.ID,
-					RoleSlug:    k.Slug,
+					RoleID:      k.ID,
 					ProjectID:   b.meta.ID,
 					Permissions: role.Permissions & db.KnownRolePermissions,
 				})
@@ -695,16 +699,15 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		return nil, err
 	}
 
-	if _, err = b.store.CreateProjectUser(db.ProjectUser{
-		ProjectID: newProject.ID,
-		UserID:    user.ID,
-		Role:      db.ProjectOwner,
-	}); err != nil {
+	ownerRole, err := b.store.GetGlobalRoleBySlug(string(db.ProjectOwner))
+	if err != nil {
+		return nil, err
+	}
+	if err = b.store.CreateProjectUser(newProject.ID, user.ID, []int{ownerRole.ID}); err != nil {
 		return &newProject, err
 	}
 
 	b.meta = newProject
-
 	for i, o := range backup.SecretStorages {
 		if err := o.Restore(&b); err != nil {
 			return &newProject, fmt.Errorf("error at secret storage[%d]: %s", i, err.Error())

@@ -2,10 +2,13 @@ package sql
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/go-gorp/gorp/v3"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -124,44 +127,98 @@ func (d *SqlDb) SetUserPassword(userID int, password string) error {
 	return err
 }
 
-func (d *SqlDb) CreateProjectUser(projectUser db.ProjectUser) (newProjectUser db.ProjectUser, err error) {
-	_, err = d.exec(
-		"insert into project__user (project_id, user_id, `role`) values (?, ?, ?)",
-		projectUser.ProjectID,
-		projectUser.UserID,
-		projectUser.Role)
-
-	if err != nil {
-		return
+func (d *SqlDb) CreateProjectUser(projectID int, userID int, roleIDs []int) error {
+	_, err := d.GetProjectUser(projectID, userID)
+	if err == nil {
+		return fmt.Errorf("the user is already a project member: %w", db.ErrInvalidOperation)
+	}
+	if !errors.Is(err, db.ErrNotFound) {
+		return err
 	}
 
-	newProjectUser = projectUser
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return err
+	}
+	if err = d.insertProjectUserRoles(tx, projectID, userID, roleIDs); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
+// SetProjectUserRoles replaces the roles of a member. It returns db.ErrNotFound if the user is not a member.
+func (d *SqlDb) SetProjectUserRoles(projectID int, userID int, roleIDs []int) error {
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return err
+	}
+	res, err := d.execTx(tx, "delete from project__user_role where project_id=? and user_id=?", projectID, userID)
+	if err = requireDeletedRow(res, err); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if err = d.insertProjectUserRoles(tx, projectID, userID, roleIDs); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
+func (d *SqlDb) insertProjectUserRoles(tx *gorp.Transaction, projectID int, userID int, roleIDs []int) error {
+	query, args, err := squirrel.Select("count(*)").From("`role`").
+		Where(squirrel.Eq{"id": roleIDs}).
+		Where("(project_id is null or project_id=?)", projectID).
+		ToSql()
+	if err != nil {
+		return err
+	}
+	available, err := tx.SelectInt(d.PrepareQuery(query), args...)
+	if err != nil {
+		return err
+	}
+	if int(available) != len(roleIDs) {
+		return &common_errors.ValidationError{Message: "Role is not available in this project"}
+	}
+	for _, roleID := range roleIDs {
+		_, err = d.execTx(tx, "insert into project__user_role (project_id, user_id, role_id) values (?, ?, ?)", projectID, userID, roleID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *SqlDb) GetProjectUserRoles(projectID int, userID int) (roles []db.Role, err error) {
+	_, err = d.selectAll(&roles, `
+		select
+		  r.*
+		from role r
+		join project__user_role pur on pur.role_id = r.id
+		where pur.project_id=? and pur.user_id=?
+		order by r.name
+	`, projectID, userID)
 	return
 }
 
-func (d *SqlDb) GetProjectUser(projectID, userID int) (db.ProjectUser, error) {
-	var user db.ProjectUser
-
-	err := d.selectOne(&user,
-		"select * from project__user where project_id=? and user_id=?",
+func (d *SqlDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err error) {
+	err = d.selectOne(&user,
+		"select project_id, user_id from project__user_role where project_id=? and user_id=? limit 1",
 		projectID,
 		userID)
-
-	return user, err
+	return
 }
 
-func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (users []db.UserWithProjectRole, err error) {
+func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) ([]db.UserWithProjectRoles, error) {
 
 	pp, err := params.Validate(db.UserProps)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	q := squirrel.Select("u.*").
-		Column("pu.role").
-		From("project__user as pu").
-		LeftJoin("`user` as u on pu.user_id=u.id").
-		Where("pu.project_id=?", projectID)
+		From("`user` as u").
+		Where("exists (select 1 from project__user_role pur where pur.project_id = ? and pur.user_id = u.id)", projectID)
 
 	sortDirection := "ASC"
 	if pp.SortInverted {
@@ -172,34 +229,58 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) (u
 	case "name", "username", "email":
 		q = q.OrderBy("u." + pp.SortBy + " " + sortDirection)
 	case "role":
-		q = q.OrderBy("pu.role " + sortDirection)
+		q = q.OrderByClause(`(
+			select
+			  min(r.name)
+			from project__user_role pur
+			join role r on r.id = pur.role_id
+			where pur.project_id = ? and pur.user_id = u.id
+		) `+sortDirection, projectID)
 	default:
 		q = q.OrderBy("u.name " + sortDirection)
 	}
 
 	query, args, err := q.ToSql()
-
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	_, err = d.selectAll(&users, query, args...)
+	var users []db.User
+	if _, err = d.selectAll(&users, query, args...); err != nil {
+		return nil, err
+	}
 
-	return
-}
+	var memberRoles []struct {
+		UserID int `db:"user_id"`
+		db.Role
+	}
+	_, err = d.selectAll(&memberRoles, `
+		select
+		  pur.user_id, r.*
+		from project__user_role pur
+		join role r on r.id = pur.role_id
+		where pur.project_id=?
+		order by r.name
+	`, projectID)
+	if err != nil {
+		return nil, err
+	}
 
-func (d *SqlDb) UpdateProjectUser(projectUser db.ProjectUser) error {
-	_, err := d.exec(
-		"update `project__user` set role=? where user_id=? and project_id = ?",
-		projectUser.Role,
-		projectUser.UserID,
-		projectUser.ProjectID)
+	rolesByUser := make(map[int][]db.Role)
+	for _, mr := range memberRoles {
+		rolesByUser[mr.UserID] = append(rolesByUser[mr.UserID], mr.Role)
+	}
 
-	return err
+	result := make([]db.UserWithProjectRoles, 0, len(users))
+	for _, u := range users {
+		result = append(result, db.UserWithProjectRoles{User: u, Roles: rolesByUser[u.ID]})
+	}
+
+	return result, nil
 }
 
 func (d *SqlDb) DeleteProjectUser(projectID, userID int) error {
-	res, err := d.exec("delete from project__user where user_id=? and project_id=?", userID, projectID)
+	res, err := d.exec("delete from project__user_role where project_id=? and user_id=?", projectID, userID)
 	return requireDeletedRow(res, err)
 }
 

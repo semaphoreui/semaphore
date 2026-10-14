@@ -246,11 +246,12 @@ type ProjectStore interface {
 	CreateProject(project Project) (Project, error)
 	DeleteProject(projectID int) error
 	UpdateProject(project Project) error
-	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]UserWithProjectRole, error)
-	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
+	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]UserWithProjectRoles, error)
+	CreateProjectUser(projectID int, userID int, roleIDs []int) error
 	DeleteProjectUser(projectID int, userID int) error
 	GetProjectUser(projectID int, userID int) (ProjectUser, error)
-	UpdateProjectUser(projectUser ProjectUser) error
+	SetProjectUserRoles(projectID int, userID int, roleIDs []int) error
+	GetProjectUserRoles(projectID int, userID int) ([]Role, error)
 }
 
 type ProjectInviteRepository interface {
@@ -581,7 +582,7 @@ type RoleRepository interface {
 	GetGlobalRoles() ([]Role, error)
 	UpdateRole(role Role) error
 	CreateRole(role Role) (Role, error)
-	DeleteRole(slug string, projectID *int) error
+	DeleteRole(roleID int) error
 }
 
 // Store is the main interface that aggregates all specialized interfaces
@@ -705,12 +706,6 @@ var WorkflowTemplateProps = ObjectProps{
 	DefaultSortingColumn:  "name",
 }
 
-var ProjectUserProps = ObjectProps{
-	TableName:         "project__user",
-	Type:              reflect.TypeFor[ProjectUser](),
-	PrimaryColumnName: "user_id",
-}
-
 var ProjectInviteProps = ObjectProps{
 	TableName:             "project__invite",
 	Type:                  reflect.TypeFor[ProjectInvite](),
@@ -742,14 +737,6 @@ var SecretStorageProps = ObjectProps{
 	Type:                  reflect.TypeFor[SecretStorage](),
 	PrimaryColumnName:     "id",
 	Ownerships:            []*ObjectProps{&ProjectProps},
-}
-
-var RoleProps = ObjectProps{
-	TableName:         "role",
-	Type:              reflect.TypeFor[Role](),
-	PrimaryColumnName: "slug",
-	IsGlobal:          true,
-	SortableColumns:   []string{"name"},
 }
 
 var UserProps = ObjectProps{

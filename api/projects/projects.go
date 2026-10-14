@@ -334,7 +334,13 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 
 	store := helpers.Store(r)
 
-	body, err := store.CreateProject(body)
+	ownerRole, err := store.GetGlobalRoleBySlug(string(db.ProjectOwner))
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	body, err = store.CreateProject(body)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -351,7 +357,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 		})
 	}
 
-	_, err = store.CreateProjectUser(db.ProjectUser{ProjectID: body.ID, UserID: user.ID, Role: db.ProjectOwner})
+	err = store.CreateProjectUser(body.ID, user.ID, []int{ownerRole.ID})
 	if err != nil {
 		recordSetupFailed()
 		helpers.WriteError(w, err)
@@ -380,10 +386,6 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		recordSetupFailed()
 		helpers.WriteError(w, err)
-		return
-	}
-
-	if err != nil {
 		return
 	}
 

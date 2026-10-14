@@ -118,7 +118,7 @@ export default {
     async loadRoles() {
       try {
         const response = await axios.get(
-          `/api/project/${this.template.project_id}/roles?mode=merge`,
+          `/api/project/${this.template.project_id}/roles/all`,
         );
         this.availableRoles = response.data;
       } catch (error) {
