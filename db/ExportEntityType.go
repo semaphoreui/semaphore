@@ -50,6 +50,10 @@ func (e Inventory) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
 
+func (e HostConfig) GetDbKey() string {
+	return NewKeyFromInt(e.ID)
+}
+
 func (e Role) GetDbKey() string {
 	return e.Slug
 }

@@ -128,7 +128,7 @@ export default {
       try {
         const run = (await axios({
           method: 'post',
-          url: `/api/project/${this.projectId}/workflows/${this.itemId}/run`,
+          url: `/api/project/${this.projectId}/workflows/${this.itemId}/runs`,
           responseType: 'json',
         })).data;
 

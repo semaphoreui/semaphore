@@ -28,7 +28,9 @@ func (c CmdGitClient) makeCmd(
 ) *exec.Cmd {
 	cmd := exec.Command("git") //nolint:gosec
 
-	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnv(gitProxyOpts(r.Repository, proxyInstallation)...)...)
+	cmd.Env = append(getEnvironmentVars(),
+		installation.GetGitEnvWithHostConfigs(
+			r.HostConfigs, gitProxyOpts(r.Repository, proxyInstallation)...)...)
 	cmd.Env = append(cmd.Env, gitProxyEnv(r.Repository)...)
 
 	// Unlike the app runners, git gets HOME only when nothing has set it already,

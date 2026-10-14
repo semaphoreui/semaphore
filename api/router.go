@@ -102,7 +102,7 @@ func Route(
 	integrationController := NewIntegrationController(store, integrationService)
 	environmentController := projects.NewEnvironmentController(store, encryptionService, accessKeyService, environmentService, secretStorageService)
 	secretStorageController := projects.NewSecretStorageController(store, secretStorageService)
-	repositoryController := projects.NewRepositoryController(accessKeyInstallationService)
+	repositoryController := projects.NewRepositoryController(accessKeyInstallationService, encryptionService)
 	keyController := projects.NewKeyController(accessKeyService)
 	projectsController := projects.NewProjectsController(accessKeyService)
 	terraformController := proApi.NewTerraformController(encryptionService, terraformStore, store)
@@ -117,6 +117,7 @@ func Route(
 	globalRunnerController := NewGlobalRunnerController(runnerService)
 	taskController := projects.NewTaskController(store, ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
+	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
 
@@ -220,6 +221,11 @@ func Route(
 	tokenAPI.Path("/options").HandlerFunc(setUserOption).Methods("POST")
 	tokenAPI.Path("/identities/ldap").HandlerFunc(linkLdapIdentity).Methods("POST")
 
+	auditAPI := authenticatedAPI.PathPrefix("/audit").Subrouter()
+	auditAPI.Use(auditLogMiddleware)
+	auditAPI.Path("/events").HandlerFunc(getAuditEvents(auditController.GetEvents)).Methods("GET")
+	auditAPI.Path("/events/export").HandlerFunc(auditController.ExportEvents).Methods("GET")
+
 	adminAPI := authenticatedAPI.NewRoute().Subrouter()
 	adminAPI.Use(adminMiddleware)
 	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
@@ -321,6 +327,9 @@ func Route(
 
 	projectUserAPI.Path("/repositories").HandlerFunc(projects.GetRepositories).Methods("GET", "HEAD")
 	projectUserAPI.Path("/repositories").HandlerFunc(projects.AddRepository).Methods("POST")
+
+	projectUserAPI.Path("/host_configs").HandlerFunc(projects.GetHostConfigs).Methods("GET", "HEAD")
+	projectUserAPI.Path("/host_configs").HandlerFunc(projects.AddHostConfig).Methods("POST")
 
 	projectUserAPI.Path("/inventory").HandlerFunc(projects.GetInventory).Methods("GET", "HEAD")
 	projectUserAPI.Path("/inventory").HandlerFunc(projects.AddInventory).Methods("POST")
@@ -440,6 +449,12 @@ func Route(
 	projectProxyManagement.HandleFunc("/{proxy_id}/refs", projects.GetProxyRefs).Methods("GET", "HEAD")
 	projectProxyManagement.HandleFunc("/{proxy_id}", projects.UpdateProxy).Methods("PUT")
 	projectProxyManagement.HandleFunc("/{proxy_id}", projects.RemoveProxy).Methods("DELETE")
+	projectHostConfigManagement := projectUserAPI.PathPrefix("/host_configs").Subrouter()
+	projectHostConfigManagement.Use(projects.HostConfigMiddleware)
+
+	projectHostConfigManagement.HandleFunc("/{host_config_id}", projects.GetHostConfigs).Methods("GET", "HEAD")
+	projectHostConfigManagement.HandleFunc("/{host_config_id}", projects.UpdateHostConfig).Methods("PUT")
+	projectHostConfigManagement.HandleFunc("/{host_config_id}", projects.RemoveHostConfig).Methods("DELETE")
 
 	projectInventoryManagement := projectUserAPI.PathPrefix("/inventory").Subrouter()
 	projectInventoryManagement.Use(projects.InventoryMiddleware)
@@ -500,10 +515,12 @@ func Route(
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.UpdateWorkflow).Methods("PUT")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.RemoveWorkflow).Methods("DELETE")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.GetWorkflow).Methods("GET")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions", workflowController.GetWorkflowRevisions).Methods("GET", "HEAD")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions/{revision_id}", workflowController.GetWorkflowRevision).Methods("GET", "HEAD")
 
 	projectWorkflowRunAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
 	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
-	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/run", workflowController.RunWorkflow).Methods("POST")
+	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.RunWorkflow).Methods("POST")
 	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.GetWorkflowRuns).Methods("GET", "HEAD")
 
 	projectWorkflowRunManagement := projectWorkflowRunAPI.PathPrefix("/{workflow_id}/runs").Subrouter()

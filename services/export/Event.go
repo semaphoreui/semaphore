@@ -86,6 +86,8 @@ func eventObjectTypeToEntityName(t db.EventObjectType) (string, bool) {
 		return Task, true
 	case db.EventRepository:
 		return Repository, true
+	case db.EventHostConfig:
+		return HostConfig, true
 	case db.EventEnvironment:
 		return Environment, true
 	case db.EventInventory:

@@ -75,6 +75,22 @@ func (a *Agent) Listen() error {
 		return fmt.Errorf("listening on socket %q: %w", a.SocketFile, err)
 	}
 
+	// Anyone able to connect to the socket can authenticate with the key it
+	// holds. The directory is shared with the repository checkout and stays
+	// traversable, so the restriction goes on the socket itself. git may run as
+	// the configured process user, which then has to own it.
+	if err := os.Chmod(a.SocketFile, 0o600); err != nil {
+		_ = l.Close()
+		return fmt.Errorf("securing socket %q: %w", a.SocketFile, err)
+	}
+
+	if util.Config != nil && util.Config.Process != nil {
+		if err := util.ChownDir(a.SocketFile); err != nil {
+			_ = l.Close()
+			return fmt.Errorf("securing socket %q: %w", a.SocketFile, err)
+		}
+	}
+
 	l.SetUnlinkOnClose(true)
 	a.listener = l
 	a.done = make(chan struct{})
@@ -168,31 +184,61 @@ type AccessKeyInstallation struct {
 // GetGitEnv returns the environment for git commands. Additional ssh options,
 // for example the jump host of a proxy, are appended to GIT_SSH_COMMAND.
 func (key *AccessKeyInstallation) GetGitEnv(sshOpts ...string) (env []string) {
+	return key.GetGitEnvWithHostConfigs(nil, sshOpts...)
+}
+
+// GetGitEnvWithHostConfigs returns the environment for git commands, applying
+// the credential mappings of the project when it has any.
+//
+// The generated config replaces the administrator's as the file given to -F,
+// and includes it, so a mapped host uses its own credential while everything
+// else keeps the configuration it has today.
+func (key *AccessKeyInstallation) GetGitEnvWithHostConfigs(
+	hostConfigs *HostConfigInstallation,
+	sshOpts ...string,
+) (env []string) {
+
 	env = make([]string, 0)
 
 	env = append(env, "GIT_TERMINAL_PROMPT=0")
 
-	if key.SSHAgent != nil {
-		env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
-	}
+	generated := hostConfigs.SSHConfigPath()
 
-	// GIT_SSH_COMMAND is also needed without an agent, otherwise a repository
-	// which needs no key of its own loses the options of its proxy.
-	if key.SSHAgent != nil || len(sshOpts) > 0 {
-		sshCmd := "ssh " + HostKeyCheckingOpts()
-		if util.Config.GetSshConfigPath() != "" {
-			sshCmd += " -F " + util.Config.GetSshConfigPath()
+	// The command is needed without a key of its own too: a repository which
+	// needs no key still has to reach a mapped host with the mapped credential,
+	// and must not lose the options of its proxy.
+	if key.SSHAgent != nil || generated != "" || len(sshOpts) > 0 {
+		if key.SSHAgent != nil {
+			env = append(env, fmt.Sprintf("SSH_AUTH_SOCK=%s", key.SSHAgent.SocketFile))
 		}
+
+		// The generated config includes the administrator's, so it replaces it
+		// rather than being added to it.
+		sshConfigPath := generated
+		if sshConfigPath == "" {
+			sshConfigPath = util.Config.GetSshConfigPath()
+		}
+
+		sshCmd := "ssh " + HostKeyCheckingOpts()
+		if sshConfigPath != "" {
+			sshCmd += " -F " + sshConfigPath
+		}
+
 		for _, opt := range sshOpts {
 			sshCmd += " " + opt
 		}
+
 		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
+	}
+
+	if params := hostConfigs.GitConfigParameters(); params != "" {
+		env = append(env, "GIT_CONFIG_PARAMETERS="+params)
 	}
 
 	return env
 }
 
-// gitHostKeyCheckingOpts returns the ssh host-key verification options used for
+// HostKeyCheckingOpts returns the ssh host-key verification options used for
 // git operations. Host-key checking is enabled so a network attacker cannot
 // impersonate the git server. When an explicit known_hosts file is configured
 // it is used with strict checking; otherwise a persistent trust-on-first-use

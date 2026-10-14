@@ -77,6 +77,7 @@ type ObjectReferrers struct {
 	Schedules    []ObjectReferrer `json:"schedules"`
 	AccessKeys   []ObjectReferrer `json:"access_keys"`
 	Proxies      []ObjectReferrer `json:"proxies"`
+	HostConfigs  []ObjectReferrer `json:"host_configs"`
 }
 
 type IntegrationReferrers struct {
@@ -158,6 +159,8 @@ type ObjectProps struct {
 
 var ErrNotFound = errors.New("no rows in result set")
 var ErrInvalidOperation = errors.New("invalid operation")
+var ErrRunnerAlreadyRegistered = errors.New("runner is already registered")
+var ErrRegistrationTokenExpired = errors.New("registration token expired")
 
 type TaskStatUnit string
 
@@ -314,6 +317,16 @@ type RepositoryManager interface {
 	DeleteRepository(projectID int, repositoryID int) error
 }
 
+// HostConfigManager handles the per-project credential mappings for ssh hosts
+// and git URLs.
+type HostConfigManager interface {
+	GetHostConfig(projectID int, hostConfigID int) (HostConfig, error)
+	GetHostConfigs(projectID int, params RetrieveQueryParams) ([]HostConfig, error)
+	UpdateHostConfig(hostConfig HostConfig) error
+	CreateHostConfig(hostConfig HostConfig) (HostConfig, error)
+	DeleteHostConfig(projectID int, hostConfigID int) error
+}
+
 // EnvironmentManager handles environment-related operations
 type EnvironmentManager interface {
 	GetEnvironment(projectID int, environmentID int) (Environment, error)
@@ -438,6 +451,7 @@ type TokenManager interface {
 	CreateAPIToken(token APIToken) (APIToken, error)
 	GetAPIToken(tokenID string) (APIToken, error)
 	ExpireAPIToken(userID int, tokenID string) error
+	GetAPITokensByPrefix(userID int, tokenPrefix string) ([]APIToken, error)
 	DeleteAPIToken(userID int, tokenID string) error
 }
 
@@ -575,7 +589,7 @@ type RoleRepository interface {
 	GetGlobalRoles() ([]Role, error)
 	UpdateRole(role Role) error
 	CreateRole(role Role) (Role, error)
-	DeleteRole(slug string) error
+	DeleteRole(slug string, projectID *int) error
 }
 
 // Store is the main interface that aggregates all specialized interfaces
@@ -589,6 +603,7 @@ type Store interface {
 	TemplateManager
 	InventoryManager
 	RepositoryManager
+	HostConfigManager
 	EnvironmentManager
 	AccessKeyManager
 	IntegrationManager
@@ -603,6 +618,7 @@ type Store interface {
 	SecretStorageRepository
 	SecretSyncRepository
 	RoleRepository
+	AuditEventManager
 }
 
 var AccessKeyProps = ObjectProps{
@@ -810,6 +826,14 @@ var ViewProps = ObjectProps{
 	DefaultSortingColumn: "position",
 }
 
+var HostConfigProps = ObjectProps{
+	TableName:            "project__host_config",
+	Type:                 reflect.TypeFor[HostConfig](),
+	PrimaryColumnName:    "id",
+	SortableColumns:      []string{"name"},
+	DefaultSortingColumn: "name",
+}
+
 var GlobalRunnerProps = ObjectProps{
 	TableName:            "runner",
 	Type:                 reflect.TypeFor[Runner](),
@@ -946,6 +970,36 @@ func validateProxyChain(store Store, proxy *Proxy) error {
 		}
 
 		id = required.RequiresProxyID
+	}
+
+	return nil
+}
+
+// ValidateHostConfig resolves the credential in the project of the mapping. The
+// foreign key of ssh_key_id points at access_key without a project condition, so
+// a key of another project would be stored and only fail when a task uses it.
+func ValidateHostConfig(store Store, hostConfig *HostConfig) error {
+	key, err := store.GetAccessKey(hostConfig.ProjectID, hostConfig.SSHKeyID)
+	if err != nil {
+		return err
+	}
+
+	if err = hostConfig.ValidateCredential(key.Type); err != nil {
+		return err
+	}
+
+	// The unique index catches this too, but only as a constraint violation with
+	// nothing a user can act on.
+	existing, err := store.GetHostConfigs(hostConfig.ProjectID, RetrieveQueryParams{})
+	if err != nil {
+		return err
+	}
+
+	for _, other := range existing {
+		if other.ID != hostConfig.ID && other.Type == hostConfig.Type && other.Name == hostConfig.Name {
+			return common_errors.NewValidationError(
+				"a mapping for " + hostConfig.Name + " already exists")
+		}
 	}
 
 	return nil

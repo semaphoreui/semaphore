@@ -55,10 +55,10 @@
             "request": "launch",
             "mode": "auto",
             "program": "./cli/main.go",
-            "args": ["server", "--config", "./config.yaml"],
+            "args": ["server", "--config", "./config.yml"],
             "cwd": "${workspaceFolder}",
             "env": {
-                "DEBUG_DELAY": "1s"
+                "SEMAPHORE_LOG_LEVEL": "debug"
             }
         },
         {

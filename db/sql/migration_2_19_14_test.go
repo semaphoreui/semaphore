@@ -42,8 +42,9 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 		"insert into access_key (name, type, project_id) values ('key', 'none', ?)", projectID)
 	require.NoError(t, err)
 
-	// SqlDb.CreateRepository writes proxy_id, which appears only in 2.20.5,
-	// so seed the repository with SQL matching the 2.19.12 schema.
+	// SqlDb.CreateRepository writes monorepo and proxy_id, which appear only in
+	// 2.20.11 and 2.20.13, so seed the repository with SQL matching the 2.19.12
+	// schema.
 	repoID, err := store.insert("id",
 		"insert into project__repository (project_id, name, git_url, git_branch, ssh_key_id) "+
 			"values (?, 'repo', 'https://example.com/repo.git', 'main', ?)", projectID, keyID)

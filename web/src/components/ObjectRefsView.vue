@@ -79,6 +79,12 @@ export default {
         pageless: true,
         title: 'Proxies',
         icon: 'transit-connection-variant',
+      }, {
+        slug: 'host_configs',
+        path: 'host_config',
+        pageless: true,
+        title: 'Host config',
+        icon: 'server-network',
       }].filter((s) => (this.objectRefs[s.slug] || []).length > 0);
     },
   },

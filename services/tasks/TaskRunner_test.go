@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"errors"
 	"os"
 	"path"
 	"strings"
@@ -185,6 +186,79 @@ func TestTaskRunnerRun_FinalizesKilledJobThatReturnsNil(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, task_logger.TaskStoppedStatus, persisted.Status)
 	assert.NotNil(t, persisted.End)
+}
+
+// A workflow run may be progressed by any HA node as soon as the terminal
+// status is in the database, so the outputs must be stored before it.
+func TestTaskRunnerRun_StoresOutputsBeforeSuccess(t *testing.T) {
+	fixture := newTaskRunnerRunFixture(t)
+	taskRunner := TaskRunner{
+		Task:         fixture.task,
+		Template:     fixture.template,
+		pool:         &fixture.pool,
+		keyInstaller: fixture.keyInstaller,
+	}
+	document := `{"values":{"image_tag":"1.4.2"}}`
+	app := &outputsApp{run: func() error {
+		taskRunner.SetStatus(task_logger.TaskRunningStatus)
+		return nil
+	}}
+	taskRunner.job = &LocalExecutor{
+		Task:           taskRunner.Task,
+		Template:       taskRunner.Template,
+		Logger:         &taskRunner,
+		App:            app,
+		prepared:       true,
+		outputsCapture: &outputsCaptureFake{document: &document},
+	}
+
+	var storedAtSuccess *string
+	taskRunner.AddStatusListener(func(status task_logger.TaskStatus) {
+		if status != task_logger.TaskSuccessStatus {
+			return
+		}
+		persisted, err := fixture.store.GetTaskByID(fixture.task.ID)
+		require.NoError(t, err)
+		storedAtSuccess = persisted.Artifacts
+	})
+
+	taskRunner.run()
+
+	assert.Equal(t, task_logger.TaskSuccessStatus, taskRunner.Task.Status)
+	require.NotNil(t, storedAtSuccess)
+	assert.Equal(t, document, *storedAtSuccess)
+	require.NotNil(t, taskRunner.Task.Artifacts)
+	assert.Equal(t, document, *taskRunner.Task.Artifacts)
+}
+
+func TestTaskRunnerRun_FailsOnInvalidOutputs(t *testing.T) {
+	fixture := newTaskRunnerRunFixture(t)
+	taskRunner := TaskRunner{
+		Task:         fixture.task,
+		Template:     fixture.template,
+		pool:         &fixture.pool,
+		keyInstaller: fixture.keyInstaller,
+	}
+	app := &outputsApp{run: func() error {
+		taskRunner.SetStatus(task_logger.TaskRunningStatus)
+		return nil
+	}}
+	taskRunner.job = &LocalExecutor{
+		Task:           taskRunner.Task,
+		Template:       taskRunner.Template,
+		Logger:         &taskRunner,
+		App:            app,
+		prepared:       true,
+		outputsCapture: &outputsCaptureFake{err: errors.New("invalid outputs")},
+	}
+
+	taskRunner.run()
+
+	assert.Equal(t, task_logger.TaskFailStatus, taskRunner.Task.Status)
+	persisted, err := fixture.store.GetTaskByID(fixture.task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, task_logger.TaskFailStatus, persisted.Status)
+	assert.Nil(t, persisted.Artifacts)
 }
 
 func TestTaskRunnerRun(t *testing.T) {
@@ -555,9 +629,12 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// The extra vars travel in a YAML file (see extra_vars_file_test.go); these
+// tests pin the rest of the command line.
 func TestTaskGetPlaybookArgs(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
+		Process: &util.ConfigProcess{},
 	}
 
 	inventoryID := 1
@@ -598,12 +675,14 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml", strings.Join(args, " "))
+	defer tsk.job.(*LocalExecutor).Cleanup()
+	assert.Regexp(t, `^--inventory /tmp/project_0/inventory_0 --extra-vars @/tmp/project_0/task_0_extra_vars_[^ ]+\.yml /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml$`, strings.Join(args, " "))
 }
 
 func TestTaskGetPlaybookArgs2(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
+		Process: &util.ConfigProcess{},
 	}
 
 	inventoryID := 1
@@ -648,12 +727,14 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml", strings.Join(args, " "))
+	defer tsk.job.(*LocalExecutor).Cleanup()
+	assert.Regexp(t, `^--inventory /tmp/project_0/inventory_0 --extra-vars @/tmp/project_0/task_0_extra_vars_[^ ]+\.yml /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml$`, strings.Join(args, " "))
 }
 
 func TestTaskGetPlaybookArgs3(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
+		Process: &util.ConfigProcess{},
 	}
 
 	inventoryID := 1
@@ -699,7 +780,8 @@ func TestTaskGetPlaybookArgs3(t *testing.T) {
 	args, _, err := tsk.job.(*LocalExecutor).getPlaybookArgs("", nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "--inventory /tmp/project_0/inventory_0 --extra-vars {\"semaphore_vars\":{\"task_details\":{\"commit_hash\":null,\"commit_message\":\"\",\"id\":0,\"inventory_id\":0,\"inventory_name\":\"\",\"repository_id\":0,\"repository_name\":\"\",\"url\":null,\"username\":\"\"}}} /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml", strings.Join(args, " "))
+	defer tsk.job.(*LocalExecutor).Cleanup()
+	assert.Regexp(t, `^--inventory /tmp/project_0/inventory_0 --extra-vars @/tmp/project_0/task_0_extra_vars_[^ ]+\.yml /tmp/project_0/repository_0_template_0_da39a3ee5e6b4b0d3255bfef95601890/test.yml$`, strings.Join(args, " "))
 }
 
 func TestCheckTmpDir(t *testing.T) {
@@ -743,4 +825,72 @@ func TestTaskRunner_populateTaskEnvironment(t *testing.T) {
 
 func (*KeyInstallerMock) InstallAll(keys []db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (ssh.AccessKeyInstallation, error) {
 	return ssh.AccessKeyInstallation{}, nil
+}
+
+// fakeWorkflowRepo answers GetWorkflowRunByID from a fixed run; every other
+// WorkflowManager method panics via the nil embedded interface.
+type fakeWorkflowRepo struct {
+	db.WorkflowManager
+	run   db.WorkflowRun
+	err   error
+	calls int
+}
+
+func (f *fakeWorkflowRepo) GetWorkflowRunByID(projectID int, runID int) (db.WorkflowRun, error) {
+	f.calls++
+	return f.run, f.err
+}
+
+func TestTaskRunner_populateWorkflowDetails(t *testing.T) {
+	runID := 42
+
+	t.Run("resolves the workflow template of the run", func(t *testing.T) {
+		repo := &fakeWorkflowRepo{run: db.WorkflowRun{ID: runID, ProjectID: 3, WorkflowTemplateID: 7}}
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3, WorkflowRunID: &runID},
+			pool: &TaskPool{workflowRepo: repo},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		require.NotNil(t, tr.Task.WorkflowTemplateID)
+		assert.Equal(t, 7, *tr.Task.WorkflowTemplateID)
+		assert.Equal(t, 1, repo.calls)
+	})
+
+	t.Run("skips tasks outside a workflow", func(t *testing.T) {
+		repo := &fakeWorkflowRepo{}
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3},
+			pool: &TaskPool{workflowRepo: repo},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		assert.Nil(t, tr.Task.WorkflowTemplateID)
+		assert.Equal(t, 0, repo.calls)
+	})
+
+	t.Run("skips when no workflow repo is wired", func(t *testing.T) {
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3, WorkflowRunID: &runID},
+			pool: &TaskPool{},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		assert.Nil(t, tr.Task.WorkflowTemplateID)
+	})
+
+	t.Run("ignores an empty run from a stub store", func(t *testing.T) {
+		repo := &fakeWorkflowRepo{}
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3, WorkflowRunID: &runID},
+			pool: &TaskPool{workflowRepo: repo},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		assert.Nil(t, tr.Task.WorkflowTemplateID)
+	})
 }

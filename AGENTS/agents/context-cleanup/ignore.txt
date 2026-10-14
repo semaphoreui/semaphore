@@ -1,0 +1,3 @@
+# Folders the walk does not open. Path from the repo root, one path per line, # is a comment.
+AGENTS/agents/setup  # setup instructions name files the setup creates later; false positives with --prose
+AGENTS/agents/context-cleanup  # the tool's own instructions quote sample paths on purpose

@@ -49,6 +49,13 @@ func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error
 			"repository proxy is not supported by the go_git client, use git_client: cmd_git")
 	}
 
+	// The same for the credential mappings: go-git speaks the protocols itself
+	// and reads neither the generated ssh config nor the git rewrites.
+	if r.HostConfigs != nil {
+		return nil, common_errors.NewUserErrorS(
+			"host config mappings are not supported by the go_git client, use git_client: cmd_git")
+	}
+
 	switch r.Repository.SSHKey.Type {
 	case db.AccessKeySSH:
 

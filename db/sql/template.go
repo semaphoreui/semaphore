@@ -43,6 +43,10 @@ func (d *SqlDb) CreateTemplate(tmpl db.Template) (db.Template, error) {
 		return db.Template{}, err
 	}
 
+	if err := d.verifyTemplateRepository(tmpl); err != nil {
+		return db.Template{}, err
+	}
+
 	tmpl.ApplyLegacyEnvironmentField()
 
 	query, args, err := sq.Insert("project__template").
@@ -108,6 +112,10 @@ func (d *SqlDb) UpdateTemplate(tmpl db.Template) error {
 	}
 
 	if err = d.validateTemplateNameIsFree(tmpl.ProjectID, tmpl.ID, tmpl.Name); err != nil {
+		return err
+	}
+
+	if err := d.verifyTemplateRepository(tmpl); err != nil {
 		return err
 	}
 
@@ -498,8 +506,7 @@ func (d *SqlDb) GetTemplate(projectID int, templateID int) (template db.Template
 }
 
 func (d *SqlDb) DeleteTemplate(projectID int, templateID int) error {
-	_, err := d.exec("delete from project__template where project_id=? and id=?", projectID, templateID)
-	return err
+	return requireDeletedRow(d.exec("delete from project__template where project_id=? and id=?", projectID, templateID))
 }
 
 func (d *SqlDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferrers, error) {
@@ -617,8 +624,8 @@ func (d *SqlDb) CreateTemplateRole(role db.TemplateRolePerm) (newRole db.Templat
 	return
 }
 func (d *SqlDb) DeleteTemplateRole(projectID int, templateID int, id int) error {
-	_, err := d.exec("delete from project__template_role where project_id=? and template_id=? and id=?", projectID, templateID, id)
-	return err
+	res, err := d.exec("delete from project__template_role where project_id=? and template_id=? and id=?", projectID, templateID, id)
+	return requireDeletedRow(res, err)
 }
 func (d *SqlDb) UpdateTemplateRole(role db.TemplateRolePerm) error {
 	_, err := d.exec(
@@ -630,4 +637,34 @@ func (d *SqlDb) UpdateTemplateRole(role db.TemplateRolePerm) error {
 		role.ID)
 
 	return err
+}
+
+// verifyTemplateRepository rejects a template which would move a repository
+// every template shares away from the repository's own branch: a branch of the
+// template's own, or tasks checking out a branch or commit of their own. The
+// checkout is serialized only for the length of one prepare step, so the next
+// task would run against whatever the last one left in the working tree.
+func (d *SqlDb) verifyTemplateRepository(tmpl db.Template) error {
+	hasOwnBranch := tmpl.GitBranch != nil && *tmpl.GitBranch != ""
+
+	if !tmpl.AllowOverrideBranchInTask && !hasOwnBranch {
+		return nil
+	}
+
+	repo, err := d.GetRepository(tmpl.ProjectID, tmpl.RepositoryID)
+	if err != nil {
+		return err
+	}
+
+	if !repo.Monorepo {
+		return nil
+	}
+
+	if tmpl.AllowOverrideBranchInTask {
+		return common_errors.NewValidationError(
+			"a template of a monorepo repository can not let its tasks override the branch or commit")
+	}
+
+	return common_errors.NewValidationError(
+		"a template of a monorepo repository can not have a branch of its own")
 }

@@ -1,0 +1,50 @@
+{
+  "postgres": {
+    "host": "localhost:5432",
+    "user": "root",
+    "pass": "mypassword",
+    "name": "semaphore_sem272",
+    "options": {
+      "sslmode": "disable"
+    }
+  },
+  "dialect": "postgres",
+  "tmp_path": "/tmp/semaphore",
+  "oidc_providers": {
+    "dex": {
+      "display_name": "Sign in with Dex",
+      "provider_url": "http://localhost:5556/dex",
+      "client_id": "semaphore",
+      "client_secret": "semaphore-secret",
+      "redirect_url": "http://localhost:3000/api/auth/oidc/dex/redirect",
+      "scopes": [
+        "openid",
+        "profile",
+        "email"
+      ],
+      "username_claim": "email",
+      "name_claim": "name",
+      "email_claim": "email",
+      "color": "teal"
+    }
+  },
+  "env_vars": {
+    "PYTHONPATH": "/home/befika/.local/lib/python3.11/site-packages"
+  },
+  "metrics": {
+    "enabled": true,
+    "username": "prometheus",
+    "password": "changeme"
+  },
+  "cookie_hash": "VycxfSRY5regHgxqbtN0Bl990aMok+5b4jz8BoT6IoM=",
+  "cookie_encryption": "mLr5WJDH0mLUccKkFt68CyljScVn0NPPniJOmkbCITQ=",
+  "runner": {
+    "token": "9oASa1HyBuBk/TpBti/FHWElyNSYCZNx7A75HmdNfFw=",
+    "check_interval_seconds": 10
+  },
+  "web_host": "http://localhost:3000",
+  "ssh": {
+    "strict_host_key_checking": "accept-new",
+    "known_hosts_file": "/tmp/known_hosts"
+  }
+}

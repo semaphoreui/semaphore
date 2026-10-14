@@ -3,6 +3,7 @@ package tasks
 import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 )
 
 // LocalExecutorProvider is the ExecutorProvider for the "local" strategy: tasks run
@@ -19,6 +20,17 @@ type LocalExecutorProvider struct {
 	// (runner process) and TaskPool (server process) never operate on the
 	// same directories, so they need no shared lock.
 	repoLock *KeyLock
+
+	// outputsCollector captures the outputs of workflow tasks. Injected via
+	// SetTaskOutputsCollector; nil in the open-source build, where no task
+	// belongs to a workflow run.
+	outputsCollector pro_interfaces.TaskOutputsCollector
+}
+
+// SetTaskOutputsCollector injects the collector that captures the outputs of
+// workflow tasks run by this provider's executors. Nil disables it.
+func (p *LocalExecutorProvider) SetTaskOutputsCollector(collector pro_interfaces.TaskOutputsCollector) {
+	p.outputsCollector = collector
 }
 
 // NewLocalExecutorProvider takes the AccessKey installer the runner constructed at
@@ -34,7 +46,8 @@ func NewLocalExecutorProvider(keyInstaller db_lib.AccessKeyInstaller) *LocalExec
 // NewExecutor returns a freshly-wired *LocalExecutor. db_lib.CreateApp is called
 // here rather than inside LocalExecutor.Prepare so the executor arrives with a
 // non-nil App — Prepare's contract is "do the I/O", not "build the structure".
-func (p *LocalExecutorProvider) NewExecutor(task db.Task, template db.Template, inventory db.Inventory, repository db.Repository, environment db.Environment, jwt string) (Executor, error) {
+func (p *LocalExecutorProvider) NewExecutor(task db.Task, template db.Template, inventory db.Inventory, repository db.Repository, environment db.Environment, jwt string,
+	hostConfigs []db.HostConfig) (Executor, error) {
 	repository = withEffectiveBranch(repository, template, task)
 
 	return &LocalExecutor{
@@ -50,5 +63,8 @@ func (p *LocalExecutorProvider) NewExecutor(task db.Task, template db.Template, 
 		App:          db_lib.CreateApp(template, repository, inventory, nil),
 		JWT:          jwt,
 		RepoLock:     p.repoLock,
+		HostConfigs:  hostConfigs,
+
+		OutputsCollector: p.outputsCollector,
 	}, nil
 }

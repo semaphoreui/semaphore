@@ -14,7 +14,9 @@ import (
 	"github.com/semaphoreui/semaphore/db_lib"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 )
 
 type LocalExecutor struct {
@@ -29,19 +31,28 @@ type LocalExecutor struct {
 
 	App db_lib.LocalApp
 
-	// mu protects terminationRequested and stopCh.
+	// mu protects terminationRequested, stopCh and status.
 	mu                   sync.Mutex
 	terminationRequested bool
+	// status is the last status passed through SetStatus. Run reads it to tell
+	// a successful run from one that ended without an error but not
+	// successfully (a rejected Terraform plan).
+	status task_logger.TaskStatus
 	// stopCh carries cancellation and remains non-nil after Run is invoked to
 	// enforce the LocalExecutor's single-use lifecycle.
 	stopCh chan struct{}
 
 	sshKeyInstallation     ssh.AccessKeyInstallation
+	hostConfigInstallation *ssh.HostConfigInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
 	proxyKeyInstallation   ssh.AccessKeyInstallation
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
 	KeyInstaller db_lib.AccessKeyInstaller
+
+	// HostConfigs are the credential mappings of the project, resolved with their
+	// keys by the server: a remote runner has no database to read them from.
+	HostConfigs []db.HostConfig
 
 	// RepoLock serializes git operations on the shared per-template repository
 	// directory. Tasks of the same template may run in parallel
@@ -50,7 +61,24 @@ type LocalExecutor struct {
 	// (runner). Must be non-nil when Prepare is called for a git repository.
 	RepoLock *KeyLock
 
-	WorkflowArtifacts map[string]any
+	// OutputsCollector captures the outputs of a workflow task. Nil in the
+	// open-source build and for callers that do not capture outputs.
+	OutputsCollector pro_interfaces.TaskOutputsCollector
+	outputsCapture   pro_interfaces.TaskOutputsCapture
+	// outputs is the document to store on the task, set by Run when the task
+	// succeeded and produced outputs.
+	outputs *string
+
+	// extraVarsFile is the YAML file the extra vars of an Ansible task are
+	// passed through, secretVarsFile the vault-encrypted one holding the
+	// secrets among them (see extra_vars_file.go); both removed by Cleanup.
+	// secretVaultID and secretVaultPassword are the one-off vault the
+	// secrets file is encrypted with; the password only ever reaches the
+	// stdin of ansible-playbook.
+	extraVarsFile       string
+	secretVarsFile      string
+	secretVaultID       string
+	secretVaultPassword string
 
 	// Prepared state — populated by Prepare(), consumed by Run(). Lifted out of Run()
 	// local variables so the lifecycle phases (Prepare / underlying App.Run / Cleanup)
@@ -96,6 +124,10 @@ func (t *LocalExecutor) Log(msg string) {
 }
 
 func (t *LocalExecutor) SetStatus(status task_logger.TaskStatus) {
+	t.mu.Lock()
+	t.status = status
+	t.mu.Unlock()
+
 	t.Logger.SetStatus(status)
 }
 
@@ -186,22 +218,6 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 	return
 }
 
-func (t *LocalExecutor) getEnvironmentExtraVarsJSON(username string, incomingVersion *string) (str string, err error) {
-	extraVars, err := t.getEnvironmentExtraVars(username, incomingVersion)
-	if err != nil {
-		return
-	}
-
-	ev, err := json.Marshal(extraVars)
-	if err != nil {
-		return
-	}
-
-	str = string(ev)
-
-	return
-}
-
 func (t *LocalExecutor) getEnvironmentENV() (res []string, err error) {
 	environmentVars := make(map[string]string)
 
@@ -278,6 +294,30 @@ func (t *LocalExecutor) getSurveyEnvVars() (res []string, err error) {
 		if val, ok := vars[v.Name]; ok {
 			res = append(res, fmt.Sprintf("%s=%s", v.Name, formatVarValue(val)))
 		}
+	}
+
+	return
+}
+
+// taskIdentityEnv returns the SEMAPHORE_* variables that identify the task and,
+// when it is part of a workflow run, the workflow. Unlike the task-details
+// variables they are set for every app, Ansible and Terraform included, so a
+// script can always reach back to Semaphore for the task that started it.
+func taskIdentityEnv(task db.Task) (env []string) {
+	env = append(env,
+		fmt.Sprintf("SEMAPHORE_PROJECT_ID=%d", task.ProjectID),
+		fmt.Sprintf("SEMAPHORE_TASK_ID=%d", task.ID))
+
+	if task.WorkflowRunID != nil {
+		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_RUN_ID=%d", *task.WorkflowRunID))
+	}
+
+	if task.WorkflowTemplateID != nil {
+		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_ID=%d", *task.WorkflowTemplateID))
+	}
+
+	if workflowUrl := task.GetWorkflowUrl(); workflowUrl != nil {
+		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_URL=%s", *workflowUrl))
 	}
 
 	return
@@ -457,6 +497,12 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		"--inventory", inventoryFile,
 	}
 
+	// A host mapping selects the credential for an inventory host the same way it
+	// does for a git server, so ansible is pointed at the generated config.
+	if sshArgs := t.inventorySSHCommonArgs(); sshArgs != "" {
+		args = append(args, "--ssh-common-args", sshArgs)
+	}
+
 	if t.Inventory.SSHKeyID != nil {
 		switch t.Inventory.SSHKey.Type {
 		case db.AccessKeySSH:
@@ -543,19 +589,31 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 		}
 	}
 
-	extraVars, err := t.getEnvironmentExtraVarsJSON(username, incomingVersion)
+	// Every extra var goes through a YAML file with !unsafe tags: Ansible never
+	// evaluates an expression inside a value, and no value shows up on the
+	// command line. The secrets go in a second file, encrypted with a one-off
+	// vault password that Ansible asks for on its prompt and gets on stdin,
+	// the same way the template's vault passwords are answered above. The
+	// secrets file comes last: the last --extra-vars wins in Ansible, so a
+	// secret overrides a variable of the group with the same name.
+	files, err := t.writeExtraVarsFiles(username, incomingVersion)
 	if err != nil {
-		t.Log(err.Error())
-		t.Log("Could not remove command environment, if existent it will be passed to --extra-vars. This is not fatal but be aware of side effects")
-	} else if extraVars != "" {
-		args = append(args, "--extra-vars", extraVars)
+		t.Log("Failed to write the extra vars files: " + err.Error())
+		return nil, nil, err
 	}
-
-	for _, secret := range t.Environment.Secrets {
-		if secret.Type != db.EnvironmentSecretVar {
-			continue
-		}
-		args = append(args, "--extra-vars", fmt.Sprintf("%s=%s", secret.Name, secret.Secret))
+	if files.Vault != "" {
+		prompt := fmt.Sprintf("Vault password (%s):", files.VaultID)
+		args = append(args, fmt.Sprintf("--vault-id=%s@prompt", files.VaultID))
+		inputs[prompt] = files.VaultPassword
+		t.extraVarsLog().WithFields(log.Fields{
+			"vault_id":        files.VaultID,
+			"prompt":          prompt,
+			"template_vaults": len(t.vaultFileInstallations),
+		}).Debug("Secret extra vars vault added to the ansible-playbook arguments, password answered on the prompt")
+	}
+	args = append(args, "--extra-vars", "@"+files.Open)
+	if files.Vault != "" {
+		args = append(args, "--extra-vars", "@"+files.Vault)
 	}
 
 	templateArgs, taskArgs, err := t.getCLIArgs()
@@ -782,7 +840,7 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		return err
 	}
 
-	return t.App.Run(db_lib.LocalAppRunningArgs{
+	err := t.App.Run(db_lib.LocalAppRunningArgs{
 		CliArgs:         t.preparedArgsMap,
 		EnvironmentVars: t.preparedEnv,
 		Inputs:          t.preparedInputs,
@@ -790,6 +848,114 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		TemplateParams:  t.preparedTplParams,
 		StopCh:          t.stopCh,
 	})
+	if err != nil {
+		return err
+	}
+
+	return t.collectOutputs()
+}
+
+// Outputs returns the outputs document of the task, or nil when the task has
+// none. It is available once Run has returned without an error; the caller
+// stores it before it marks the task successful.
+func (t *LocalExecutor) Outputs() *string {
+	return t.outputs
+}
+
+// beginOutputs creates the outputs file of a workflow task and returns the
+// environment variables that tell the task process about it. Tasks outside a
+// workflow run have no outputs.
+func (t *LocalExecutor) beginOutputs(env []string) (res []string, err error) {
+	if t.OutputsCollector == nil || t.Task.WorkflowRunID == nil {
+		return
+	}
+
+	t.outputsCapture, err = t.OutputsCollector.Begin(util.Config.GetProjectTmpDir(t.Template.ProjectID), t.Task.ID)
+	if err != nil {
+		return
+	}
+
+	res = t.outputsCapture.Env()
+
+	if t.Template.App == db.AppAnsible {
+		var dir string
+		dir, err = t.outputsCapture.AnsibleCallbackDir()
+		if err != nil {
+			return
+		}
+		res = append(res, ansibleCallbackPluginsEnv+"="+t.ansibleCallbackPlugins(env, dir))
+	}
+
+	return
+}
+
+const ansibleCallbackPluginsEnv = "ANSIBLE_CALLBACK_PLUGINS"
+
+// ansibleCallbackPlugins returns the ANSIBLE_CALLBACK_PLUGINS value that adds
+// dir to the callback plugin path. The variable replaces Ansible's whole path,
+// so the value keeps what the task would have had without it: the value already
+// set for the task, or else Ansible's default path.
+func (t *LocalExecutor) ansibleCallbackPlugins(env []string, dir string) string {
+	current := ""
+	for _, e := range env {
+		if v, ok := strings.CutPrefix(e, ansibleCallbackPluginsEnv+"="); ok {
+			current = v
+		}
+	}
+	if current == "" {
+		current = db_lib.BaseEnvironmentVar(ansibleCallbackPluginsEnv)
+	}
+	if current == "" {
+		ansibleHome := "~/.ansible"
+		if util.Config.HomeDirMode == util.HomeDirModeTemplateDir {
+			ansibleHome = filepath.Join(t.Repository.GetHomePath(t.Template.ID), ".ansible")
+		}
+		current = filepath.Join(ansibleHome, "plugins", "callback") +
+			string(os.PathListSeparator) + "/usr/share/ansible/plugins/callback"
+	}
+
+	return current + string(os.PathListSeparator) + dir
+}
+
+// collectOutputs reads the outputs of a workflow task after its app has
+// finished. Only a successful task has outputs. For Terraform apps the outputs
+// of the state are captured as well. An outputs file that breaks the contract
+// fails the task: the error must show at the task that wrote the file, not at
+// a downstream node.
+func (t *LocalExecutor) collectOutputs() error {
+	if t.outputsCapture == nil || t.IsKilled() {
+		return nil
+	}
+
+	t.mu.Lock()
+	status := t.status
+	t.mu.Unlock()
+	if status != task_logger.TaskRunningStatus {
+		return nil
+	}
+
+	var terraformOutputs []byte
+	if tfApp, ok := t.App.(*db_lib.TerraformApp); ok {
+		var err error
+		terraformOutputs, err = tfApp.Outputs(t.preparedEnv)
+		if err != nil {
+			t.Log("Terraform outputs were not captured: " + err.Error())
+		}
+	}
+
+	document, notes, err := t.outputsCapture.Collect(terraformOutputs)
+	if err != nil {
+		t.Log("Invalid task outputs: " + err.Error())
+		return fmt.Errorf("task outputs: %w", err)
+	}
+
+	for _, note := range notes {
+		t.Log(note)
+	}
+
+	t.outputs = document
+
+	return nil
 }
 
 // Prepare resolves everything the executor needs to start the underlying app: environment
@@ -807,6 +973,12 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 	}
 
 	t.SetStatus(task_logger.TaskRunningStatus) // It is required for local mode. Don't delete
+
+	// The credential mappings of the project apply to every git operation of the
+	// task, so they are installed before the first clone.
+	if err = t.installHostConfigs(); err != nil {
+		return
+	}
 
 	// Defense in depth: reject playbook paths pointing outside the repository
 	// even if they were stored before validation was added.
@@ -934,6 +1106,16 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 	// A SOCKS or HTTP proxy is reached by the connector ssh runs as its
 	// ProxyCommand, which takes its credentials from the environment.
 	environmentVariables = append(environmentVariables, db_lib.ProxyEnv(t.Inventory.Proxy)...)
+	environmentVariables = append(environmentVariables, t.hostConfigEnv()...)
+
+	outputsEnv, err := t.beginOutputs(environmentVariables)
+	if err != nil {
+		t.Log("Failed to prepare task outputs: " + err.Error())
+		return
+	}
+	environmentVariables = append(environmentVariables, outputsEnv...)
+
+	environmentVariables = append(environmentVariables, taskIdentityEnv(t.Task)...)
 
 	if t.Template.Type != db.TemplateTask {
 
@@ -968,6 +1150,10 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 func (t *LocalExecutor) Cleanup() {
 	t.destroyKeys()
 	t.destroyInventoryFile()
+	t.destroyExtraVarsFiles()
+	if t.outputsCapture != nil {
+		t.outputsCapture.Close()
+	}
 	if t.App != nil {
 		t.App.Clear()
 	}
@@ -997,7 +1183,15 @@ func resolveGitBranch(repoBranch string, template db.Template, task db.Task) str
 
 // withEffectiveBranch settles the branch before the App is built, so the App
 // and Git operations use the same branch-specific checkout directory.
+//
+// A monorepo is one checkout shared by every template on the repository's own
+// branch, so the template's branch and the task's branch are ignored there even
+// if a template still carries them from before the repository became a monorepo.
 func withEffectiveBranch(repository db.Repository, template db.Template, task db.Task) db.Repository {
+	if repository.Monorepo {
+		return repository
+	}
+
 	repository.GitBranch = resolveGitBranch(repository.GitBranch, template, task)
 	return repository
 }
@@ -1042,6 +1236,8 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 	if sshEnv := t.getSSHAgentEnv(); sshEnv != "" {
 		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
 	}
+
+	installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, t.hostConfigEnv()...)
 
 	if err := t.App.InstallRequirements(installingArgs); err != nil {
 		t.Log("Failed to install requirements: " + err.Error())
@@ -1097,6 +1293,8 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 		installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, sshEnv)
 	}
 
+	installingArgs.EnvironmentVars = append(installingArgs.EnvironmentVars, t.hostConfigEnv()...)
+
 	// Call Terraform-specific install with init args
 	if err := tfApp.InstallRequirementsWithInitArgs(installingArgs, initArgs); err != nil {
 		t.Log("Failed to install requirements: " + err.Error())
@@ -1137,46 +1335,24 @@ func (t *LocalExecutor) updateAndCheckoutRepository() error {
 
 func (t *LocalExecutor) updateRepository() error {
 	repo := db_lib.GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		Logger:      t.Logger,
+		TemplateID:  t.Template.ID,
+		Repository:  t.Repository,
+		Client:      db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		HostConfigs: t.hostConfigInstallation,
 	}
 
-	err := repo.ValidateRepo()
-
-	if err != nil {
-		if !os.IsNotExist(err) {
-			err = os.RemoveAll(repo.GetFullPath())
-			if err != nil {
-				return err
-			}
-		}
-		return repo.Clone()
-	}
-
-	if repo.CanBePulled() {
-		err = repo.Pull()
-		if err == nil {
-			return nil
-		}
-	}
-
-	err = os.RemoveAll(repo.GetFullPath())
-	if err != nil {
-		return err
-	}
-
-	return repo.Clone()
+	return repo.CloneOrPull()
 }
 
 func (t *LocalExecutor) checkoutRepository() error {
 
 	repo := db_lib.GitRepository{
-		Logger:     t.Logger,
-		TemplateID: t.Template.ID,
-		Repository: t.Repository,
-		Client:     db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		Logger:      t.Logger,
+		TemplateID:  t.Template.ID,
+		Repository:  t.Repository,
+		Client:      db_lib.CreateDefaultGitClient(t.KeyInstaller),
+		HostConfigs: t.hostConfigInstallation,
 	}
 
 	err := repo.ValidateRepo()
@@ -1185,8 +1361,10 @@ func (t *LocalExecutor) checkoutRepository() error {
 		return err
 	}
 
-	if t.Task.CommitHash != nil {
-		// checkout to commit if it is provided for TaskRunner
+	// Checkout the commit the task asks for. A monorepo stays on the head of
+	// its branch: the checkout is shared, and a task-supplied commit is ignored
+	// the same way as a task-supplied branch.
+	if t.Task.CommitHash != nil && !t.Repository.Monorepo {
 		return repo.Checkout(*t.Task.CommitHash)
 	}
 
@@ -1246,4 +1424,45 @@ func (t *LocalExecutor) getSSHAgentEnv() string {
 		return fmt.Sprintf("SSH_AUTH_SOCK=%s", t.sshKeyInstallation.SSHAgent.SocketFile)
 	}
 	return ""
+}
+
+// hostConfigEnv returns the environment the credential mappings of the project
+// need. Every command of a task can start git of its own — galaxy downloads a
+// role, terraform fetches a module, a playbook clones a repository with the git
+// module — and each has to reach a mapped host with the mapped credential.
+//
+// It carries the same kind of secret the environment of a task already does,
+// which is what makes a mapping usable from a playbook at all.
+func (t *LocalExecutor) hostConfigEnv() []string {
+	if t.hostConfigInstallation == nil {
+		return nil
+	}
+
+	// No key of its own: the mapped credentials are bound per host inside the
+	// generated configuration.
+	var noKey ssh.AccessKeyInstallation
+
+	return noKey.GetGitEnvWithHostConfigs(t.hostConfigInstallation)
+}
+
+// inventorySSHCommonArgs returns the ssh options ansible must use to reach the
+// hosts of the inventory, so a host mapping selects the credential for them the
+// same way it does for git.
+func (t *LocalExecutor) inventorySSHCommonArgs() string {
+	configPath := t.hostConfigInstallation.SSHConfigPath()
+	if configPath == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("-F %s", configPath)
+}
+
+// installHostConfigs generates the ssh config and git rewrites the credential
+// mappings of the project describe. A project without mappings installs nothing
+// and keeps its current behaviour.
+func (t *LocalExecutor) installHostConfigs() (err error) {
+	t.hostConfigInstallation, err = ssh.InstallHostConfigs(
+		t.Template.ProjectID, t.HostConfigs, t.Logger)
+
+	return
 }

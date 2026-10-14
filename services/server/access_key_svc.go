@@ -21,23 +21,63 @@ type AccessKeyServiceImpl struct {
 	accessKeyRepo     db.AccessKeyManager
 	encryptionService AccessKeyEncryptionService
 	secretStorageRepo db.SecretStorageRepository
+	hostConfigRepo    db.HostConfigManager
 }
 
 func NewAccessKeyService(
 	accessKeyRepo db.AccessKeyManager,
 	encryptionService AccessKeyEncryptionService,
 	secretStorageRepo db.SecretStorageRepository,
+	hostConfigRepo db.HostConfigManager,
 ) AccessKeyService {
 	return &AccessKeyServiceImpl{
 		accessKeyRepo:     accessKeyRepo,
 		encryptionService: encryptionService,
 		secretStorageRepo: secretStorageRepo,
+		hostConfigRepo:    hostConfigRepo,
 	}
+}
+
+// hostConfigsUsing returns the credential mappings of the project which point at
+// the key. The repository rejects a change breaking one of them too, but only
+// once the secret storage has already been written or emptied, which is too
+// late to undo.
+func (s *AccessKeyServiceImpl) hostConfigsUsing(projectID *int, keyID int) (used []db.HostConfig, err error) {
+	if s.hostConfigRepo == nil || projectID == nil {
+		return
+	}
+
+	hostConfigs, err := s.hostConfigRepo.GetHostConfigs(*projectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
+	for _, hostConfig := range hostConfigs {
+		if hostConfig.SSHKeyID == keyID {
+			used = append(used, hostConfig)
+		}
+	}
+
+	return
 }
 
 func (s *AccessKeyServiceImpl) Delete(projectID int, keyID int) (err error) {
 	key, err := s.accessKeyRepo.GetAccessKey(projectID, keyID)
 	if err != nil {
+		return
+	}
+
+	// Checked here rather than left to the repository: the secret is removed
+	// from its storage below, and a deletion refused after that has destroyed
+	// the credential while leaving the mapping pointing at it.
+	used, err := s.hostConfigsUsing(&projectID, keyID)
+	if err != nil {
+		return
+	}
+
+	if len(used) > 0 {
+		err = common_errors.NewValidationError(
+			"the credential is used by the mapping for " + used[0].Name)
 		return
 	}
 
@@ -185,6 +225,21 @@ func (s *AccessKeyServiceImpl) Update(key db.AccessKey) (err error) {
 
 		if !oldSt.ReadOnly && (key.SourceStorageID == nil || *oldKey.SourceStorageID != *key.SourceStorageID) {
 			err = common_errors.NewUserErrorS("cannot override secret storage")
+			return
+		}
+	}
+
+	// Before the secret is written to its storage: a type the mappings can not
+	// use is rejected by the repository, but by then the remote secret has
+	// already been overwritten with a payload the old row can not deserialize.
+	var used []db.HostConfig
+	used, err = s.hostConfigsUsing(key.ProjectID, key.ID)
+	if err != nil {
+		return
+	}
+
+	for _, hostConfig := range used {
+		if err = hostConfig.ValidateCredential(key.Type); err != nil {
 			return
 		}
 	}

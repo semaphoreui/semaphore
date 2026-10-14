@@ -274,6 +274,19 @@ func addIntegration() *db.Integration {
 	return &integration
 }
 
+func addIntegrationAlias(integrationID *int) db.IntegrationAlias {
+	alias, err := store.CreateIntegrationAlias(db.IntegrationAlias{
+		Alias:         "ITA-" + getUUID(),
+		ProjectID:     userProject.ID,
+		IntegrationID: integrationID,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return alias
+}
+
 func addIntegrationExtractValue() *db.IntegrationExtractValue {
 	integrationextractvalue, err := store.CreateIntegrationExtractValue(userProject.ID, db.IntegrationExtractValue{
 		Name:          "Value",

@@ -1,1 +1,3 @@
-alter table `project__proxy` drop column `requires_proxy_id`;
+drop table if exists `audit_export_state`;
+drop table if exists `audit_event_sequence`;
+drop table if exists `audit_event`;

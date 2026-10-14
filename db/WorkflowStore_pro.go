@@ -9,6 +9,13 @@ type WorkflowManager interface {
 	UpdateWorkflowTemplate(workflow WorkflowTemplate) error
 	DeleteWorkflowTemplate(projectID int, workflowID int) error
 
+	// GetWorkflowRevisions lists the surviving revisions of a template, newest
+	// first, with HasRuns filled.
+	GetWorkflowRevisions(projectID int, workflowID int) ([]WorkflowRevision, error)
+	// GetWorkflowRevisionGraph returns the template with the nodes and edges of
+	// the given revision instead of the latest one. Runs read their graph here.
+	GetWorkflowRevisionGraph(projectID int, revisionID int) (WorkflowTemplate, error)
+
 	GetWorkflowRuns(projectID int, workflowTemplateID int, params RetrieveQueryParams) ([]WorkflowRun, error)
 	GetWorkflowRun(projectID int, workflowTemplateID int, runID int) (WorkflowRun, error)
 	GetWorkflowRunByID(projectID int, runID int) (WorkflowRun, error)
