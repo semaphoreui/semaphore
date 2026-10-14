@@ -61,7 +61,9 @@
           v-if="can(USER_PERMISSIONS.manageProjectUsers)"
           class="pt-0 mt-0"
         />
-        <div v-else>{{ roles.find((r) => r.slug === item.role).name }}</div>
+        <div v-else>
+          {{ (roles.find((r) => r.slug === item.role) || { name: item.role }).name }}
+        </div>
       </template>
 
       <template v-slot:item.actions="{ item }">
