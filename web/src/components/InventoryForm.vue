@@ -260,6 +260,14 @@ export default {
   },
 
   methods: {
+    beforeSave() {
+      // The repository selector is only shown for "file" inventories; a value
+      // left over from a previous type must not be submitted.
+      if (this.item.type !== 'file') {
+        this.item.repository_id = null;
+      }
+    },
+
     getItemsUrl() {
       return `/api/project/${this.projectId}/inventory`;
     },

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 
@@ -152,6 +153,13 @@ func gitSubmoduleJobs() int {
 	return 1
 }
 
+// isShallowCheckout reports whether the checkout directory is a shallow clone,
+// which git marks with a .git/shallow file.
+func isShallowCheckout(r GitRepository) bool {
+	_, err := os.Stat(path.Join(r.GetFullPath(), ".git", "shallow"))
+	return err == nil
+}
+
 func (c CmdGitClient) Clone(r GitRepository) error {
 	r.Logger.Log("Cloning Repository " + r.Repository.GetRedactedGitURL())
 
@@ -170,16 +178,28 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 		return err
 	}
 
-	return c.run(r, GitRepositoryTmpPath,
+	args := []string{
 		"clone",
 		"--recursive",
 		"--jobs",
 		strconv.Itoa(gitSubmoduleJobs()),
 		"--branch",
 		r.Repository.GitBranch,
+	}
+
+	// Submodules are left at full depth on purpose: --shallow-submodules
+	// fetches the recorded submodule commit by hash, which not every git
+	// server allows, and a failed submodule fails the whole clone.
+	if r.ShallowClone {
+		args = append(args, "--depth", "1")
+	}
+
+	args = append(args,
 		"--end-of-options",
 		r.Repository.GetGitURL(true),
 		dirName)
+
+	return c.run(r, GitRepositoryTmpPath, args...)
 }
 
 func (c CmdGitClient) Pull(r GitRepository) error {
@@ -200,6 +220,19 @@ func (c CmdGitClient) Pull(r GitRepository) error {
 
 func (c CmdGitClient) Checkout(r GitRepository, target string) error {
 	r.Logger.Log("Checkout repository to " + target)
+
+	// A shallow checkout holds only the tip of the branch, so a commit a task
+	// asks for is usually missing locally. Fetch it by hash first, still at
+	// depth 1. The fetch is best effort: the commit may already be local, and
+	// when the server refuses a fetch by hash the checkout below reports the
+	// missing commit itself. The check is on the checkout, not the flag: an
+	// existing shallow clone stays shallow whatever the caller asks for now.
+	if isShallowCheckout(r) {
+		if err := c.run(r, GitRepositoryFullPath,
+			"fetch", "--depth", "1", "origin", "--end-of-options", target); err != nil {
+			r.Logger.Log("Fetching commit " + target + " failed, trying to check out the local copy")
+		}
+	}
 
 	return c.run(r, GitRepositoryFullPath, "checkout", "--end-of-options", target)
 }

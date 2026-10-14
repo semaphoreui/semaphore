@@ -204,9 +204,15 @@ switch to turn evaluation back on (owner's decision 2026-10-09, NOTE@ca2d7bb0cc 
 AWX's `ALLOW_JINJA_IN_EXTRA_VARS=never`). The rule applies to **every** Ansible task, not only
 to workflow tasks, because `ansible-playbook --extra-vars '<json>'` evaluates
 `{{ lookup('pipe', …) }}` inside any value lazily (ansible-core 2.21.2 probe, 2026-10-09). All
-extra vars go through temporary YAML files in which every string scalar carries the `!unsafe`
-tag, recursively through lists and objects (`services/tasks/extra_vars_file.go`); numbers and
-booleans need no tag. Since 2026-10-10 (TASK@CEA87DDD08) there are two files per task, both in
+extra vars go through temporary YAML files in which every string scalar is double-quoted and the
+ones holding a Jinja2 delimiter (`{{`, `{%`, `{#`) or starting with a `#jinja2:` override header
+(it declares other delimiters; probed on 2.21.2, 2026-10-14) carry the `!unsafe` tag, recursively through
+lists and objects (`services/tasks/extra_vars_file.go`); numbers and booleans need no tag. ⚠️
+2026-10-14: the tag must not go on every string — ansible-core ≥ 2.19 resolves an `!unsafe` scalar
+again as plain, quotes ignored, so `!unsafe "2026.08"` became a float, `"00123"` the int 83 and
+`"true"` a bool (webhook regression, six integration tests). A string a resolver could mistype
+holds no delimiter, so selective tagging loses nothing; `extra_vars_ansible_test.go` checks the
+file with the real Ansible loader when one is on the machine (`SEMAPHORE_TEST_ANSIBLE_PYTHON`). Since 2026-10-10 (TASK@CEA87DDD08) there are two files per task, both in
 the project's tmp directory, 0600, chowned to the task user and deleted in `Cleanup`:
 
 - `task_<id>_extra_vars_*.yml` — variable groups, survey answers, workflow inputs,

@@ -127,6 +127,10 @@ func (c GoGitClient) Clone(r GitRepository) error {
 		Auth:              authMethod,
 	}
 
+	if r.ShallowClone {
+		cloneOpt.Depth = 1
+	}
+
 	_, err := git.PlainClone(r.GetFullPath(), false, cloneOpt)
 	if err != nil {
 		r.Logger.Log("Unable to clone repository: " + err.Error())

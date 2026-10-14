@@ -54,6 +54,12 @@ type GitRepository struct {
 	// host this repository reaches, including submodules.
 	HostConfigs *ssh.HostConfigInstallation
 
+	// ShallowClone clones only the last commit of the branch (git clone --depth 1)
+	// instead of the whole history. A checkout of an older commit then fetches
+	// that commit by hash, which the git server must allow. Submodules are still
+	// cloned with their full history.
+	ShallowClone bool
+
 	// retryDelay overrides gitRetryDelay so tests do not have to wait for it.
 	retryDelay time.Duration
 }
