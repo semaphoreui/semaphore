@@ -178,11 +178,12 @@ func (c *RepositoryController) GetRepositoryPlaybooks(w http.ResponseWriter, r *
 		defer hostConfigs.Destroy()
 
 		git := db_lib.GitRepository{
-			Repository:  repoCopy,
-			TmpDirName:  fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
-			Client:      db_lib.CreateDefaultGitClient(c.keyInstaller),
-			Logger:      task_logger.DebugLogger{Prefix: fmt.Sprintf("repository_%d_browse", repo.ID)},
-			HostConfigs: hostConfigs,
+			Repository:   repoCopy,
+			TmpDirName:   fmt.Sprintf("repository_%d_browse_%x", repo.ID, branchHash[:4]),
+			Client:       db_lib.CreateDefaultGitClient(c.keyInstaller),
+			Logger:       task_logger.DebugLogger{Prefix: fmt.Sprintf("repository_%d_browse", repo.ID)},
+			HostConfigs:  hostConfigs,
+			ShallowClone: true,
 		}
 
 		unlock := c.lockBrowseDir(git.TmpDirName)
