@@ -25,6 +25,7 @@ maintained, not a full export of the MCP catalogue.
 | Code | Why it matters here |
 | --- | --- |
 | `RESEARCH@bc356e4b9b` | Kestra YAML deep dive and the agreed `semaphore/v1` Workflow YAML format with its phased plan — start here for any Workflows-as-Code task. |
+| `RESEARCH@a97b871b1d` | How CI/CD products pass outputs → inputs between steps (GitHub Actions, GitLab, Tekton, Argo, Kestra, AWX, Spacelift) checked against the workflow outputs plan — read before changing the outputs contract or node input mappings. |
 | `RESEARCH@5bf4fc406f` | Workflow canvas libraries benchmark (n8n, Kestra, Airflow, Dify) and why Drawflow stays on Vue 2.7 — read before proposing a canvas change. |
 | `RESEARCH@e6d5aa256f` | Wider node-editor market survey (Vue/React libraries, embeddable platforms, licences, canvas UX mechanics). |
 | `RESEARCH@e21ac95e0a` | Full audit of the docs submodule (107 pages): per-section AREA@ reports, features documented but absent from develop, P1–P3 plan — start any docs work here. |

@@ -343,3 +343,37 @@ func TestRepository_GetCheckoutDirName(t *testing.T) {
 	repo.GitBranch = "feature-login"
 	assert.NotEqual(t, slashed, repo.GetCheckoutDirName(2))
 }
+
+// A monorepo is cloned once and shared, so its checkout directory must not
+// carry the template. The branch stays in either case: two branches can never
+// share a working tree while tasks run.
+func TestRepository_GetCheckoutDirName_Monorepo(t *testing.T) {
+	repo := Repository{ID: 7, ProjectID: 1, GitURL: "https://example.com/x.git", GitBranch: "main"}
+
+	perTemplate := repo.GetCheckoutDirName(114)
+	assert.Contains(t, perTemplate, "template_114")
+
+	repo.Monorepo = true
+	shared := repo.GetCheckoutDirName(114)
+
+	assert.NotContains(t, shared, "template_")
+	assert.Equal(t, shared, repo.GetCheckoutDirName(999), "every template shares one checkout")
+
+	// The branch still separates working trees.
+	other := repo
+	other.GitBranch = "release"
+	assert.NotEqual(t, shared, other.GetCheckoutDirName(114))
+}
+
+// The home and metadata directories are not the checkout and stay per template:
+// ANSIBLE_HOME and the galaxy requirements hash must not be shared.
+func TestRepository_MonorepoKeepsPerTemplateHome(t *testing.T) {
+	previous := util.Config
+	util.Config = &util.ConfigType{TmpPath: t.TempDir()}
+	t.Cleanup(func() { util.Config = previous })
+
+	repo := Repository{ID: 7, ProjectID: 1, GitURL: "https://example.com/x.git", GitBranch: "main", Monorepo: true}
+
+	assert.NotEqual(t, repo.GetHomePath(1), repo.GetHomePath(2))
+	assert.NotEqual(t, repo.GetInternalPath(1), repo.GetInternalPath(2))
+}

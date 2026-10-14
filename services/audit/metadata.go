@@ -59,6 +59,14 @@ type LifecycleMetadata struct {
 	Destinations []string `json:"destinations"`
 }
 
+// ExportMetadata describes a download of audit events: the query string filters and how many events were sent.
+type ExportMetadata struct {
+	Format   string              `json:"format"`
+	Filters  map[string][]string `json:"filters"`
+	Events   int64               `json:"events"`
+	Complete bool                `json:"complete"`
+}
+
 type RetentionMetadata struct {
 	Deleted       int64 `json:"deleted"`
 	LastSeq       int64 `json:"last_seq"`

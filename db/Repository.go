@@ -35,6 +35,11 @@ type Repository struct {
 	GitBranch string `db:"git_branch" json:"git_branch" binding:"required"`
 	SSHKeyID  int    `db:"ssh_key_id" json:"ssh_key_id" binding:"required" backup:"-"`
 
+	// Monorepo makes every template share one checkout of this repository
+	// instead of cloning it per template. Meant for a repository large enough
+	// that a copy per template is a problem.
+	Monorepo bool `db:"monorepo" json:"monorepo"`
+
 	SSHKey AccessKey `db:"-" json:"-" backup:"-"`
 }
 
@@ -79,7 +84,14 @@ func branchDirName(branch string) string {
 
 // GetCheckoutDirName returns the checkout directory name for this template and
 // branch. Different branches must not share a working tree while tasks run.
+//
+// A monorepo leaves the template out, so every template of the project works in
+// the same checkout. The branch stays in either case.
 func (r Repository) GetCheckoutDirName(templateID int) string {
+	if r.Monorepo {
+		return r.getDirNamePrefix() + branchDirName(r.GitBranch)
+	}
+
 	return r.GetDirName(templateID) + "_" + branchDirName(r.GitBranch)
 }
 
