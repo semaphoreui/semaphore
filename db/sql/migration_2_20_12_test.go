@@ -246,3 +246,158 @@ func TestMigration_2_20_12_EnforcesScopeRules(t *testing.T) {
 	assert.Error(t, insert("x", nil, p1.ID), "a global role has scope 0")
 	assert.Error(t, insert("y", &p1.ID, p2.ID), "scope equals project_id")
 }
+
+func rollbackRoles(t *testing.T, store *SqlDb) {
+	t.Helper()
+	require.NoError(t, db.Rollback(store, "2.20.11"))
+	applied, err := store.IsMigrationApplied(db.Migration{Version: "2.20.12"})
+	require.NoError(t, err)
+	require.False(t, applied, "the rollback failed, see the log")
+}
+
+func TestMigration_2_20_12_RollbackRestoresOldTables(t *testing.T) {
+	store := newRoleMigrationTestStore()
+	projectID, templateID := createLegacyTemplate(t, store)
+	other, err := store.CreateProject(db.Project{Name: "other"})
+	require.NoError(t, err)
+	owner, member := createLegacyUser(t, store, "owner"), createLegacyUser(t, store, "member")
+	insertLegacyRole(t, store, "deployer", "Deployer", nil)
+	insertLegacyMember(t, store, projectID, owner, "owner")
+	insertLegacyMember(t, store, projectID, member, "deployer")
+	insertLegacyGrant(t, store, projectID, templateID, "deployer")
+	migrateRoles(t, store)
+
+	for _, p := range []int{projectID, other.ID} {
+		_, err = store.exec("insert into role (slug, name, permissions, project_id, scope, builtin) values ('dev', 'Dev', 1, ?, ?, false)", p, p)
+		require.NoError(t, err)
+	}
+	manager := roleIDOf(t, store, "select id from role where builtin=true and slug='manager'")
+	_, err = store.exec("insert into project__user_role (project_id, user_id, role_id) values (?, ?, ?)", projectID, member, manager)
+	require.NoError(t, err)
+	_, err = store.exec("insert into project__template_role (template_id, role_id, project_id, permissions) values (?, ?, ?, 2)", templateID, manager, projectID)
+	require.NoError(t, err)
+
+	rollbackRoles(t, store)
+
+	role := func(userID int) string {
+		slug, err := store.Sql().SelectStr(store.PrepareQuery("select role from project__user where user_id=?"), userID)
+		require.NoError(t, err)
+		return slug
+	}
+	assert.Equal(t, "owner", role(owner))
+	assert.Equal(t, "manager", role(member), "the role with the most permissions stays")
+
+	var roles []struct {
+		Slug      string `db:"slug"`
+		ProjectID *int   `db:"project_id"`
+	}
+	_, err = store.selectAll(&roles, "select slug, project_id from role order by slug")
+	require.NoError(t, err)
+	require.Len(t, roles, 3)
+	assert.Equal(t, "deployer", roles[0].Slug)
+	assert.Equal(t, []any{"dev", projectID}, []any{roles[1].Slug, *roles[1].ProjectID})
+	assert.Equal(t, []any{"dev-2", other.ID}, []any{roles[2].Slug, *roles[2].ProjectID}, "the role created later yields its slug")
+
+	grant, err := store.Sql().SelectStr("select role_slug from project__template_role")
+	require.NoError(t, err)
+	assert.Equal(t, "deployer", grant, "a grant of a built-in role is dropped")
+
+	leftovers, err := store.Sql().SelectInt(`
+		select
+		  count(*)
+		from sqlite_master
+		where type = 'table'
+		  and name in ('project__user_role', 'role_legacy', 'project__template_role_legacy', 'role_new', 'project__user_role_new', 'project__template_role_new')
+	`)
+	require.NoError(t, err)
+	assert.Zero(t, leftovers)
+
+	migrateRoles(t, store)
+	assert.Equal(t, manager, roleIDOf(t, store, "select role_id from project__user_role where user_id=?", member), "the upgrade runs again")
+}
+
+func TestMigration_2_20_12_RollbackKeepsTheStrongestRole(t *testing.T) {
+	type custom struct {
+		slug        string
+		permissions int
+	}
+	tests := []struct {
+		name     string
+		customs  []custom
+		builtins []string
+		want     string
+	}{
+		{"owner beats a custom role", []custom{{"deployer", 1}}, []string{"owner"}, "owner"},
+		{"a custom role beats guest", []custom{{"deployer", 1}}, []string{"guest"}, "deployer"},
+		{"a built-in role wins a tie", []custom{{"runner", 1}}, []string{"task_runner"}, "task_runner"},
+		{"the role created first wins a tie", []custom{{"b", 4}, {"a", 4}}, nil, "b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := newRoleMigrationTestStore()
+			project, err := store.CreateProject(db.Project{Name: "p"})
+			require.NoError(t, err)
+			user := createLegacyUser(t, store, "member")
+			migrateRoles(t, store)
+
+			assign := func(roleID int) {
+				_, err := store.exec("insert into project__user_role (project_id, user_id, role_id) values (?, ?, ?)", project.ID, user, roleID)
+				require.NoError(t, err)
+			}
+			for _, c := range tt.customs {
+				_, err = store.exec("insert into role (slug, name, permissions, project_id, scope, builtin) values (?, ?, ?, ?, ?, false)", c.slug, c.slug, c.permissions, project.ID, project.ID)
+				require.NoError(t, err)
+				assign(roleIDOf(t, store, "select id from role where slug=?", c.slug))
+			}
+			for _, slug := range tt.builtins {
+				assign(roleIDOf(t, store, "select id from role where builtin=true and slug=?", slug))
+			}
+
+			rollbackRoles(t, store)
+
+			slug, err := store.Sql().SelectStr(store.PrepareQuery("select role from project__user where user_id=?"), user)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, slug)
+		})
+	}
+}
+
+func TestMigration_2_20_12_FailedUpgradeKeepsOldTables(t *testing.T) {
+	store := newRoleMigrationTestStore()
+	project, err := store.CreateProject(db.Project{Name: "p"})
+	require.NoError(t, err)
+	user := createLegacyUser(t, store, "member")
+	insertLegacyMember(t, store, project.ID, user, "manager")
+	_, err = store.exec("create table project__user_role (blocker int)")
+	require.NoError(t, err)
+
+	target := "2.20.13"
+	assert.Error(t, db.Migrate(store, &target))
+
+	slug, err := store.Sql().SelectStr(store.PrepareQuery("select role from project__user where user_id=?"), user)
+	require.NoError(t, err)
+	assert.Equal(t, "manager", slug)
+	applied, err := store.IsMigrationApplied(db.Migration{Version: "2.20.12"})
+	require.NoError(t, err)
+	assert.False(t, applied)
+}
+
+func TestMigration_2_20_12_RollbackIgnoresTablesOfAFailedRollback(t *testing.T) {
+	// On MySQL a failed rollback keeps the tables it built, the new tables are still in use.
+	store := newRoleMigrationTestStore()
+	project, err := store.CreateProject(db.Project{Name: "p"})
+	require.NoError(t, err)
+	user := createLegacyUser(t, store, "member")
+	insertLegacyMember(t, store, project.ID, user, "manager")
+	migrateRoles(t, store)
+	for _, table := range []string{"role_legacy", "project__user", "project__template_role_legacy"} {
+		_, err = store.exec("create table " + table + " (leftover int)")
+		require.NoError(t, err)
+	}
+
+	rollbackRoles(t, store)
+
+	slug, err := store.Sql().SelectStr(store.PrepareQuery("select role from project__user where user_id=?"), user)
+	require.NoError(t, err)
+	assert.Equal(t, "manager", slug)
+}

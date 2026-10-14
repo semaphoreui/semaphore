@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/go-gorp/gorp/v3"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -76,19 +77,9 @@ func (m migration_2_20_12) PostApply(tx *gorp.Transaction) error {
 			continue
 		}
 
-		// The database checks the candidates, so its collation decides what is taken, as in the unique index.
-		var newSlug string
-		for n := 2; newSlug == ""; n++ {
-			suffix := fmt.Sprintf("-%d", n)
-			runes := []rune(r.Slug)
-			candidate := string(runes[:min(len(runes), 100-len(suffix))]) + suffix
-			taken, err := tx.SelectInt(m.db.PrepareQuery("select count(*) from role_new where lower(slug) = lower(?)"), candidate)
-			if err != nil {
-				return err
-			}
-			if taken == 0 {
-				newSlug = candidate
-			}
+		newSlug, err := m.freeSlug(tx, "role_new", r.Slug)
+		if err != nil {
+			return err
 		}
 		if _, err = tx.Exec(m.db.PrepareQuery("update role_new set slug=? where id=?"), newSlug, r.ID); err != nil {
 			return err
@@ -125,6 +116,113 @@ func (m migration_2_20_12) PostApply(tx *gorp.Transaction) error {
 		if _, err = tx.Exec(m.db.PrepareQuery(query)); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// freeSlug adds the first free -2, -3 suffix. The database checks the candidates, so its collation decides what is
+// taken, as in the unique index.
+func (m migration_2_20_12) freeSlug(tx *gorp.Transaction, table string, slug string) (string, error) {
+	for n := 2; ; n++ {
+		suffix := fmt.Sprintf("-%d", n)
+		runes := []rune(slug)
+		candidate := string(runes[:min(len(runes), 100-len(suffix))]) + suffix
+		query, args, err := sq.Select("count(*)").From(table).Where("lower(slug) = lower(?)", candidate).ToSql()
+		if err != nil {
+			return "", err
+		}
+		taken, err := tx.SelectInt(m.db.PrepareQuery(query), args...)
+		if err != nil {
+			return "", err
+		}
+		if taken == 0 {
+			return candidate, nil
+		}
+	}
+}
+
+// PreRollback prepares v2.20.12.err.sql: the old tables key roles by slug alone and hold one role per member.
+func (m migration_2_20_12) PreRollback(tx *gorp.Transaction) error {
+	var assignments []struct {
+		ProjectID int    `db:"project_id"`
+		UserID    int    `db:"user_id"`
+		Slug      string `db:"slug"`
+	}
+	// After a failed upgrade the new tables do not exist, so the rollback stops here and changes nothing.
+	_, err := tx.Select(&assignments, m.db.PrepareQuery(`
+		select
+		  pur.project_id, pur.user_id, r.slug
+		from project__user_role pur
+		join role r on r.id = pur.role_id
+		where (
+		  select
+		    count(*)
+		  from project__user_role o
+		  where o.project_id = pur.project_id
+		    and o.user_id = pur.user_id
+		) > 1
+		order by pur.project_id, pur.user_id, r.slug
+	`))
+	if err != nil {
+		return fmt.Errorf("nothing to roll back, the new role tables are missing: %w", err)
+	}
+	for _, a := range assignments {
+		log.WithFields(log.Fields{"context": "migration", "version": "2.20.12", "project_id": a.ProjectID, "user_id": a.UserID, "role": a.Slug}).
+			Warn("A member has several roles, the old tables keep only the one with the most permissions")
+	}
+
+	var grants []struct {
+		ID   int    `db:"id"`
+		Slug string `db:"slug"`
+	}
+	_, err = tx.Select(&grants, m.db.PrepareQuery(`
+		select
+		  tr.id, r.slug
+		from project__template_role tr
+		join role r on r.id = tr.role_id
+		where r.builtin = true
+	`))
+	if err != nil {
+		return err
+	}
+	for _, g := range grants {
+		log.WithFields(log.Fields{"context": "migration", "version": "2.20.12", "template_role_id": g.ID, "role": g.Slug}).
+			Warn("Dropped a template permission of a built-in role, the old tables cannot hold it")
+	}
+
+	// A project role yields its slug to a global role and to a project role created earlier.
+	var clashes []struct {
+		ID   int    `db:"id"`
+		Slug string `db:"slug"`
+	}
+	_, err = tx.Select(&clashes, m.db.PrepareQuery(`
+		select
+		  r.id, r.slug
+		from role r
+		where r.project_id is not null
+		  and exists (
+		    select
+		      1
+		    from role e
+		    where e.id <> r.id
+		      and lower(e.slug) = lower(r.slug)
+		      and (e.project_id is null or e.id < r.id)
+		  )
+		order by r.id
+	`))
+	if err != nil {
+		return err
+	}
+	for _, r := range clashes {
+		newSlug, err := m.freeSlug(tx, "role", r.Slug)
+		if err != nil {
+			return err
+		}
+		if _, err = tx.Exec(m.db.PrepareQuery("update role set slug=? where id=?"), newSlug, r.ID); err != nil {
+			return err
+		}
+		log.WithFields(log.Fields{"context": "migration", "version": "2.20.12", "old_slug": r.Slug, "new_slug": newSlug}).
+			Warn("Renamed a project role whose slug another role uses, the old tables need slugs unique across projects")
 	}
 	return nil
 }
