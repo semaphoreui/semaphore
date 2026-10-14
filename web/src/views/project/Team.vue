@@ -22,7 +22,7 @@
       <v-toolbar-title>{{ $t('team2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
-        v-if="systemInfo.teams.memebers_can_leave"
+        v-if="systemInfo.teams.members_can_leave"
         color="error"
         @click="leftProject()"
         class="mr-2"
