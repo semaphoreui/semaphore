@@ -40,13 +40,21 @@ func (m migration_2_20_12) PostApply(tx *gorp.Transaction) error {
 		}
 	}
 
+	// The database compares with built-in slugs itself: MySQL collations also ignore accents and trailing spaces.
 	var roles []struct {
-		ID        int    `db:"id"`
-		Slug      string `db:"slug"`
-		ProjectID *int   `db:"project_id"`
-		Builtin   bool   `db:"builtin"`
+		ID             int    `db:"id"`
+		Slug           string `db:"slug"`
+		ProjectID      *int   `db:"project_id"`
+		Builtin        bool   `db:"builtin"`
+		ShadowsBuiltin bool   `db:"shadows_builtin"`
 	}
-	if _, err = tx.Select(&roles, m.db.PrepareQuery("select id, slug, project_id, builtin from `role`")); err != nil {
+	_, err = tx.Select(&roles, m.db.PrepareQuery(`
+		select
+		  id, slug, project_id, builtin,
+		  builtin = false and slug in ('owner', 'manager', 'task_runner', 'guest') as shadows_builtin
+		from role
+	`))
+	if err != nil {
 		return err
 	}
 
@@ -74,7 +82,7 @@ func (m migration_2_20_12) PostApply(tx *gorp.Transaction) error {
 		if r.ProjectID != nil {
 			key = fmt.Sprintf("%s/%d", global, *r.ProjectID)
 		}
-		if !kept[global] && !kept[key] {
+		if !r.ShadowsBuiltin && !kept[global] && !kept[key] {
 			kept[key] = true
 			continue
 		}
