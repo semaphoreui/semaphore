@@ -903,6 +903,10 @@ func (conf *ConfigType) GetProjectTmpDir(projectID int) string {
 	return path.Join(conf.TmpPath, fmt.Sprintf("project_%d", projectID))
 }
 
+func (conf *ConfigType) GetProjectTmpFile(projectID int, filename string) string {
+	return path.Join(conf.GetProjectTmpDir(projectID), filename)
+}
+
 func (conf *ConfigType) ClearProjectTmpDir(projectID int) error {
 	return ClearDir(conf.GetProjectTmpDir(projectID), false, "")
 }
