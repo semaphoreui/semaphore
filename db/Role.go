@@ -1,6 +1,11 @@
 package db
 
-import "github.com/semaphoreui/semaphore/pkg/common_errors"
+import (
+	"regexp"
+	"strings"
+
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
+)
 
 type Role struct {
 	ID          int                   `db:"id" json:"id" backup:"-"`
@@ -14,20 +19,25 @@ type Role struct {
 
 const KnownRolePermissions = CanRunProjectTasks | CanUpdateProject | CanManageProjectResources | CanManageProjectUsers
 
-func ValidateRole(role Role) error {
+var roleSlugRE = regexp.MustCompile(`^[A-Za-z0-9_-]{1,100}$`)
+
+// ValidateRole checks a role sent by a user. Slug rules apply only to new roles, so old slugs stay editable.
+func ValidateRole(role Role, isNew bool) error {
 	if role.Name == "" {
 		return &common_errors.ValidationError{Message: "Role name cannot be empty"}
 	}
-	if role.Slug == "" {
-		return &common_errors.ValidationError{Message: "Role slug cannot be empty"}
-	}
-	// Built-in role slugs are reserved. Allowing a custom role to reuse one lets
-	// it shadow the built-in role and escalate the permissions of its members.
-	if ProjectUserRole(role.Slug).IsValid() {
-		return &common_errors.ValidationError{Message: "Role slug is reserved and cannot be used: " + role.Slug}
-	}
 	if role.Permissions&^KnownRolePermissions != 0 {
 		return &common_errors.ValidationError{Message: "Role permissions contain unknown bits"}
+	}
+	if !isNew {
+		return nil
+	}
+	if !roleSlugRE.MatchString(role.Slug) {
+		return &common_errors.ValidationError{Message: "Role slug must be 1 to 100 characters: letters A-Z, digits, '_' and '-'"}
+	}
+	// "all" is taken by the /project/{id}/roles/all route.
+	if ProjectUserRole(strings.ToLower(role.Slug)).IsValid() || strings.EqualFold(role.Slug, "all") {
+		return &common_errors.ValidationError{Message: "Role slug is reserved: " + role.Slug}
 	}
 	return nil
 }
