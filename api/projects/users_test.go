@@ -186,3 +186,55 @@ func TestGetUsers_RoleOnlyForOneRole(t *testing.T) {
 	assert.Equal(t, "", byName["member"].Role, "one value would hide the other role")
 	assert.Equal(t, []string{"manager", "task_runner"}, byName["member"].Roles)
 }
+
+func TestLastOwnerRule(t *testing.T) {
+	tests := []struct {
+		name        string
+		secondOwner bool
+		actor       string
+		action      string
+		body        string
+		code        int
+	}{
+		{"the only owner leaves", false, "owner", "leave", "", http.StatusBadRequest},
+		{"an owner leaves while another owner stays", true, "owner", "leave", "", http.StatusNoContent},
+		{"the only owner drops the owner role", false, "owner", "update", `{"roles":["guest"]}`, http.StatusBadRequest},
+		{"the only owner adds a role and keeps owner", false, "owner", "update", `{"roles":["owner","guest"]}`, http.StatusNoContent},
+		{"another member removes the only owner", false, "member", "remove", "", http.StatusBadRequest},
+		{"another member demotes the only owner", false, "member", "update", `{"role":"guest"}`, http.StatusBadRequest},
+		{"an admin removes the only owner", false, "admin", "remove", "", http.StatusNoContent},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newMembershipFixture(t)
+			if tt.secondOwner {
+				require.NoError(t, f.store.SetProjectUserRoles(f.project.ID, f.member.ID, []int{f.roles[db.ProjectOwner].ID}))
+			}
+			me, myRole := f.owner, f.roles[db.ProjectOwner]
+			if tt.actor == "member" {
+				me, myRole = f.member, f.roles[db.ProjectManager]
+			}
+			if tt.actor == "admin" {
+				admin, err := f.store.CreateUser(db.UserWithPwd{Pwd: "verystrongpassword1", User: db.User{Username: "admin", Name: "admin", Email: "admin@example.com", Admin: true}})
+				require.NoError(t, err)
+				me, myRole = admin, nil
+			}
+			w := httptest.NewRecorder()
+
+			if tt.action == "leave" {
+				r, _ := f.request(http.MethodDelete, "", me, myRole, nil)
+				LeftProject(w, r)
+			}
+			if tt.action == "remove" {
+				r, _ := f.request(http.MethodDelete, "", me, myRole, &f.owner)
+				RemoveUser(w, r)
+			}
+			if tt.action == "update" {
+				r, _ := f.request(http.MethodPut, tt.body, me, myRole, &f.owner)
+				UpdateUser(w, r)
+			}
+
+			assert.Equal(t, tt.code, w.Code)
+		})
+	}
+}

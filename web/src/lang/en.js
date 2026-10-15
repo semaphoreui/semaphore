@@ -896,7 +896,7 @@ export default {
   audit_reason_forbidden: 'Not allowed',
   audit_reason_cross_origin: 'Cross-origin request',
   audit_reason_invalid_current_password: 'Wrong current password',
-  audit_reason_owner_self_change: 'An owner cannot change their own role',
+  audit_reason_last_owner: 'The project needs at least one Owner',
   audit_reason_activation_failed: 'Activation failed',
   audit_reason_secret_failed: 'Secret could not be read',
   audit_reason_inventory_failed: 'Inventory could not be prepared',

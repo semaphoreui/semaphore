@@ -252,6 +252,7 @@ type ProjectStore interface {
 	GetProjectUser(projectID int, userID int) (ProjectUser, error)
 	SetProjectUserRoles(projectID int, userID int, roleIDs []int) error
 	GetProjectUserRoles(projectID int, userID int) ([]Role, error)
+	CountProjectOwners(projectID int) (int, error)
 }
 
 type ProjectInviteRepository interface {

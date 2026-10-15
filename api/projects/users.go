@@ -52,11 +52,14 @@ type projUser struct {
 	Roles    []string `json:"roles"`
 }
 
-func callerIsProjectOwner(r *http.Request) bool {
-	roles, _ := helpers.GetFromContext(r, "projectRoles").([]db.Role)
-	return slices.ContainsFunc(roles, func(role db.Role) bool {
-		return role.Builtin && role.Slug == string(db.ProjectOwner)
-	})
+// takesLastOwner reports whether the change takes the owner role from the only owner of the project.
+func takesLastOwner(store db.Store, projectID int, oldRoles []db.Role, newRoles []db.Role) (bool, error) {
+	isOwner := func(role db.Role) bool { return role.Builtin && role.Slug == string(db.ProjectOwner) }
+	if !slices.ContainsFunc(oldRoles, isOwner) || slices.ContainsFunc(newRoles, isOwner) {
+		return false, nil
+	}
+	owners, err := store.CountProjectOwners(projectID)
+	return owners == 1, err
 }
 
 func roleRefs(roles []db.Role) []audit.RoleRef {
@@ -197,12 +200,19 @@ func removeUser(targetUser db.User, roles []db.Role, w http.ResponseWriter, r *h
 		Metadata:  audit.MembershipMetadata{Roles: roleRefs(roles), SelfRemoval: targetUser.ID == me.ID},
 	}
 
-	if !me.Admin && targetUser.ID == me.ID && callerIsProjectOwner(r) {
-		event.Outcome = audit.OutcomeFailure
-		event.Reason = audit.ReasonOwnerSelfChange
-		helpers.Audit(r).Record(r.Context(), event)
-		helpers.WriteError(w, fmt.Errorf("owner can not left the project"))
-		return
+	if !me.Admin {
+		last, err := takesLastOwner(helpers.Store(r), project.ID, roles, nil)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		if last {
+			event.Outcome = audit.OutcomeFailure
+			event.Reason = audit.ReasonLastOwner
+			helpers.Audit(r).Record(r.Context(), event)
+			helpers.WriteError(w, &common_errors.ValidationError{Message: "The project needs at least one Owner"})
+			return
+		}
 	}
 
 	err := helpers.Store(r).DeleteProjectUser(project.ID, targetUser.ID)
@@ -256,14 +266,6 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		Metadata:  audit.ProjectRoleMetadata{OldRoles: roleRefs(oldRoles)},
 	}
 
-	if !me.Admin && targetUser.ID == me.ID && callerIsProjectOwner(r) {
-		event.Outcome = audit.OutcomeFailure
-		event.Reason = audit.ReasonOwnerSelfChange
-		helpers.Audit(r).Record(r.Context(), event)
-		helpers.WriteError(w, fmt.Errorf("owner can not change his role in the project"))
-		return
-	}
-
 	var projectUser struct {
 		Role  string   `json:"role"`
 		Roles []string `json:"roles"`
@@ -277,6 +279,21 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	if !me.Admin {
+		last, err := takesLastOwner(store, project.ID, oldRoles, newRoles)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		if last {
+			event.Outcome = audit.OutcomeFailure
+			event.Reason = audit.ReasonLastOwner
+			helpers.Audit(r).Record(r.Context(), event)
+			helpers.WriteError(w, &common_errors.ValidationError{Message: "The project needs at least one Owner"})
+			return
+		}
 	}
 
 	err = store.SetProjectUserRoles(project.ID, targetUser.ID, roleIDs(newRoles))
