@@ -113,8 +113,12 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	role, err := store.GetProjectOrGlobalRoleBySlug(project.ID, projectUser.Role)
-	if err != nil {
+	if errors.Is(err, db.ErrNotFound) {
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		helpers.WriteError(w, err)
 		return
 	}
 
@@ -235,8 +239,12 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newRole, err := store.GetProjectOrGlobalRoleBySlug(project.ID, projectUser.Role)
-	if err != nil {
+	if errors.Is(err, db.ErrNotFound) {
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		helpers.WriteError(w, err)
 		return
 	}
 
