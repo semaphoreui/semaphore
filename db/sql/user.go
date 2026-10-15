@@ -128,12 +128,16 @@ func (d *SqlDb) SetUserPassword(userID int, password string) error {
 }
 
 func (d *SqlDb) CreateProjectUser(projectID int, userID int, roleIDs []int) error {
-	_, err := d.GetProjectUser(projectID, userID)
-	if err == nil {
-		return fmt.Errorf("the user is already a project member: %w", db.ErrInvalidOperation)
+	if len(roleIDs) == 0 {
+		return &common_errors.ValidationError{Message: "A member needs at least one role"}
 	}
-	if !errors.Is(err, db.ErrNotFound) {
+	// A user with roles only from group mappings can get manual roles here.
+	manual, err := d.Sql().SelectInt(d.PrepareQuery("select count(*) from project__user_role where project_id=? and user_id=?"), projectID, userID)
+	if err != nil {
 		return err
+	}
+	if manual > 0 {
+		return fmt.Errorf("the user is already a project member: %w", db.ErrInvalidOperation)
 	}
 
 	tx, err := d.Sql().Begin()
@@ -147,18 +151,33 @@ func (d *SqlDb) CreateProjectUser(projectID int, userID int, roleIDs []int) erro
 	return tx.Commit()
 }
 
-// SetProjectUserRoles replaces the roles of a member. It returns db.ErrNotFound if the user is not a member.
+// SetProjectUserRoles replaces the manual roles of a member. The list may be empty while the member keeps roles from
+// group mappings. It returns db.ErrNotFound if the user is not a member.
 func (d *SqlDb) SetProjectUserRoles(projectID int, userID int, roleIDs []int) error {
 	tx, err := d.Sql().Begin()
 	if err != nil {
 		return err
 	}
 	res, err := d.execTx(tx, "delete from project__user_role where project_id=? and user_id=?", projectID, userID)
-	if err = requireDeletedRow(res, err); err != nil {
-		_ = tx.Rollback()
-		return err
+	var deleted int64
+	if err == nil {
+		deleted, err = res.RowsAffected()
 	}
-	if err = d.insertProjectUserRoles(tx, projectID, userID, roleIDs); err != nil {
+	var mapped int64
+	if err == nil {
+		mapped, err = tx.SelectInt(d.PrepareQuery("select count(*) from project__user_mapped_role where project_id=? and user_id=?"), projectID, userID)
+	}
+	switch {
+	case err != nil:
+	case deleted == 0 && mapped == 0:
+		// A member removed meanwhile must not come back.
+		err = db.ErrNotFound
+	case len(roleIDs) == 0 && mapped == 0:
+		err = &common_errors.ValidationError{Message: "A member needs at least one role"}
+	default:
+		err = d.insertProjectUserRoles(tx, projectID, userID, roleIDs)
+	}
+	if err != nil {
 		_ = tx.Rollback()
 		return err
 	}
@@ -166,10 +185,6 @@ func (d *SqlDb) SetProjectUserRoles(projectID int, userID int, roleIDs []int) er
 }
 
 func (d *SqlDb) insertProjectUserRoles(tx *gorp.Transaction, projectID int, userID int, roleIDs []int) error {
-	// A member is a user with at least one role row, so an empty list would silently remove the member.
-	if len(roleIDs) == 0 {
-		return &common_errors.ValidationError{Message: "A member needs at least one role"}
-	}
 	query, args, err := squirrel.Select("count(*)").From("`role`").
 		Where(squirrel.Eq{"id": roleIDs}).
 		Where("(project_id is null or project_id=?)", projectID).
@@ -193,19 +208,63 @@ func (d *SqlDb) insertProjectUserRoles(tx *gorp.Transaction, projectID int, user
 	return nil
 }
 
+// GetProjectUserRoles returns the effective roles of a member: manual and mapped, each role once.
 func (d *SqlDb) GetProjectUserRoles(projectID int, userID int) (roles []db.Role, err error) {
 	_, err = d.selectAll(&roles, `
 		select
 		  r.*
 		from role r
-		join project__user_role pur on pur.role_id = r.id
-		where pur.project_id=? and pur.user_id=?
+		where r.id in (
+		  select pur.role_id from project__user_role pur where pur.project_id = ? and pur.user_id = ?
+		  union
+		  select m.role_id
+		  from project__user_mapped_role mr
+		  join group_role_mapping m on m.id = mr.mapping_id
+		  where mr.project_id = ? and mr.user_id = ?
+		)
 		order by r.name
-	`, projectID, userID)
+	`, projectID, userID, projectID, userID)
 	return
 }
 
-// CountProjectOwners counts the members who hold the built-in owner role.
+// mappedRolesQuery selects mapped assignments with their mapping, role and username.
+func mappedRolesQuery() squirrel.SelectBuilder {
+	return squirrel.Select("mr.project_id", "mr.user_id", "u.username", "mr.mapping_id", "m.provider", "m.group_name",
+		"r.id as role_id", "r.slug as role_slug", "r.name as role_name").
+		From("project__user_mapped_role as mr").
+		Join("group_role_mapping as m on m.id = mr.mapping_id").
+		Join("`role` as r on r.id = m.role_id").
+		Join("`user` as u on u.id = mr.user_id").
+		OrderBy("r.name", "m.provider", "m.group_name")
+}
+
+// GetProjectMember returns the manual and the mapped roles of a member, db.ErrNotFound if the user holds neither.
+func (d *SqlDb) GetProjectMember(projectID int, userID int) (member db.ProjectMember, err error) {
+	_, err = d.selectAll(&member.Roles, `
+		select
+		  r.*
+		from role r
+		join project__user_role pur on pur.role_id = r.id
+		where pur.project_id = ? and pur.user_id = ?
+		order by r.name
+	`, projectID, userID)
+	if err != nil {
+		return
+	}
+	query, args, err := mappedRolesQuery().Where("mr.project_id = ? and mr.user_id = ?", projectID, userID).ToSql()
+	if err != nil {
+		return
+	}
+	if _, err = d.selectAll(&member.MappedRoles, query, args...); err != nil {
+		return
+	}
+	if len(member.Roles) == 0 && len(member.MappedRoles) == 0 {
+		err = db.ErrNotFound
+	}
+	return
+}
+
+// CountProjectOwners counts manual Owner roles, mapped ones can vanish at the next login.
 func (d *SqlDb) CountProjectOwners(projectID int) (int, error) {
 	count, err := d.Sql().SelectInt(d.PrepareQuery(`
 		select
@@ -218,10 +277,11 @@ func (d *SqlDb) CountProjectOwners(projectID int) (int, error) {
 }
 
 func (d *SqlDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err error) {
-	err = d.selectOne(&user,
-		"select project_id, user_id from project__user_role where project_id=? and user_id=? limit 1",
-		projectID,
-		userID)
+	err = d.selectOne(&user, `
+		select project_id, user_id from project__user_role where project_id = ? and user_id = ?
+		union
+		select project_id, user_id from project__user_mapped_role where project_id = ? and user_id = ?
+	`, projectID, userID, projectID, userID)
 	return
 }
 
@@ -234,7 +294,10 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) ([
 
 	q := squirrel.Select("u.*").
 		From("`user` as u").
-		Where("exists (select 1 from project__user_role pur where pur.project_id = ? and pur.user_id = u.id)", projectID)
+		Where(`(
+			exists (select 1 from project__user_role pur where pur.project_id = ? and pur.user_id = u.id)
+			or exists (select 1 from project__user_mapped_role mr where mr.project_id = ? and mr.user_id = u.id)
+		)`, projectID, projectID)
 
 	sortDirection := "ASC"
 	if pp.SortInverted {
@@ -287,9 +350,22 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) ([
 		rolesByUser[mr.UserID] = append(rolesByUser[mr.UserID], mr.Role)
 	}
 
+	mappedQuery, mappedArgs, err := mappedRolesQuery().Where("mr.project_id = ?", projectID).ToSql()
+	if err != nil {
+		return nil, err
+	}
+	var mapped []db.MappedRole
+	if _, err = d.selectAll(&mapped, mappedQuery, mappedArgs...); err != nil {
+		return nil, err
+	}
+	mappedByUser := make(map[int][]db.MappedRole)
+	for _, m := range mapped {
+		mappedByUser[m.UserID] = append(mappedByUser[m.UserID], m)
+	}
+
 	result := make([]db.UserWithProjectRoles, 0, len(users))
 	for _, u := range users {
-		result = append(result, db.UserWithProjectRoles{User: u, Roles: rolesByUser[u.ID]})
+		result = append(result, db.UserWithProjectRoles{User: u, Roles: rolesByUser[u.ID], MappedRoles: mappedByUser[u.ID]})
 	}
 
 	return result, nil

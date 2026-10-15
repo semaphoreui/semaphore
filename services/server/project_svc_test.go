@@ -54,6 +54,9 @@ func (m *mockProjectStore) SetProjectUserRoles(projectID int, userID int, roleID
 func (m *mockProjectStore) GetProjectUserRoles(projectID int, userID int) ([]db.Role, error) {
 	return nil, nil
 }
+func (m *mockProjectStore) GetProjectMember(projectID int, userID int) (db.ProjectMember, error) {
+	return db.ProjectMember{}, nil
+}
 func (m *mockProjectStore) CountProjectOwners(projectID int) (int, error) { return 0, nil }
 
 type mockAccessKeyManager struct {

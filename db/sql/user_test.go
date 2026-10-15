@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -211,4 +212,155 @@ func TestCountProjectOwners(t *testing.T) {
 	count, err = store.CountProjectOwners(projectID)
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
+}
+
+// addMappedRole gives the user a role through a new mapping, as a login sync would.
+func addMappedRole(t *testing.T, store *SqlDb, projectID int, userID int, roleID int, group string) int {
+	t.Helper()
+	_, err := store.exec(`
+		insert into group_role_mapping (provider, group_name, project_id, role_id, created)
+		values ('okta', ?, ?, ?, ?)
+	`, group, projectID, roleID, time.Now().UTC())
+	require.NoError(t, err)
+	mappingID := roleIDOf(t, store, "select id from group_role_mapping where group_name=? and project_id=? and role_id=?", group, projectID, roleID)
+	_, err = store.exec("insert into project__user_mapped_role (project_id, user_id, mapping_id) values (?, ?, ?)", projectID, userID, mappingID)
+	require.NoError(t, err)
+	return mappingID
+}
+
+func TestMappedRoles_Reads(t *testing.T) {
+	store, projectID, templateID := newTemplatePermissionTest(t)
+	guest, err := store.GetGlobalRoleBySlug("guest")
+	require.NoError(t, err)
+	dev, err := store.CreateRole(db.Role{Slug: "dev", Name: "Dev", Permissions: db.CanRunProjectTasks, ProjectID: &projectID})
+	require.NoError(t, err)
+	_, err = store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: projectID, TemplateID: templateID, RoleID: dev.ID, Permissions: db.CanUpdateProject})
+	require.NoError(t, err)
+
+	mapped, err := store.CreateUserWithoutPassword(db.User{Username: "m", Name: "m", Email: "m@example.com"})
+	require.NoError(t, err)
+	addMappedRole(t, store, projectID, mapped.ID, dev.ID, "devops")
+	both := createTemplatePermissionTestUser(t, store, projectID, "b", dev.ID)
+	addMappedRole(t, store, projectID, both.ID, dev.ID, "admins")
+	createTemplatePermissionTestUser(t, store, projectID, "g", guest.ID)
+
+	t.Run("effective roles hold a mapped role once", func(t *testing.T) {
+		roles, err := store.GetProjectUserRoles(projectID, both.ID)
+		require.NoError(t, err)
+		require.Len(t, roles, 1)
+		assert.Equal(t, dev.ID, roles[0].ID)
+	})
+	t.Run("a mapped role gives its mask and template grants", func(t *testing.T) {
+		roles, err := store.GetProjectUserRoles(projectID, mapped.ID)
+		require.NoError(t, err)
+		require.Len(t, roles, 1)
+		grant, err := store.GetTemplatePermission(projectID, templateID, mapped.ID)
+		require.NoError(t, err)
+		assert.Equal(t, db.CanUpdateProject, grant)
+		templates, err := store.GetTemplatesWithPermissions(projectID, mapped.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+		require.NoError(t, err)
+		require.Len(t, templates, 1)
+		require.NotNil(t, templates[0].Permissions)
+		assert.Equal(t, db.CanUpdateProject, *templates[0].Permissions)
+	})
+	t.Run("a mapped member sees the project", func(t *testing.T) {
+		projects, err := store.GetProjects(mapped.ID)
+		require.NoError(t, err)
+		assert.Len(t, projects, 1)
+		_, err = store.GetProjectUser(projectID, mapped.ID)
+		assert.NoError(t, err)
+	})
+	t.Run("the member list keeps manual and mapped roles apart", func(t *testing.T) {
+		users, err := store.GetProjectUsers(projectID, db.RetrieveQueryParams{})
+		require.NoError(t, err)
+		byName := map[string]db.UserWithProjectRoles{}
+		for _, u := range users {
+			byName[u.Username] = u
+		}
+		require.Len(t, byName, 3)
+		assert.Empty(t, byName["m"].Roles)
+		require.Len(t, byName["m"].MappedRoles, 1)
+		assert.Equal(t, "devops", byName["m"].MappedRoles[0].Group)
+		assert.Equal(t, "dev", byName["m"].MappedRoles[0].RoleSlug)
+		assert.Len(t, byName["b"].Roles, 1)
+		assert.Len(t, byName["b"].MappedRoles, 1)
+	})
+	t.Run("a member keeps the manual and the mapped roles apart", func(t *testing.T) {
+		member, err := store.GetProjectMember(projectID, both.ID)
+		require.NoError(t, err)
+		assert.Len(t, member.Roles, 1)
+		assert.Len(t, member.MappedRoles, 1)
+		_, err = store.GetProjectMember(projectID, 9999)
+		assert.ErrorIs(t, err, db.ErrNotFound)
+	})
+}
+
+func TestMappedRoles_ManualChanges(t *testing.T) {
+	store, projectID, _ := newTemplatePermissionTest(t)
+	guest, err := store.GetGlobalRoleBySlug("guest")
+	require.NoError(t, err)
+	manager, err := store.GetGlobalRoleBySlug("manager")
+	require.NoError(t, err)
+	newMapped := func(name string) db.User {
+		user, err := store.CreateUserWithoutPassword(db.User{Username: name, Name: name, Email: name + "@example.com"})
+		require.NoError(t, err)
+		addMappedRole(t, store, projectID, user.ID, guest.ID, name)
+		return user
+	}
+
+	t.Run("a mapped member can get manual roles", func(t *testing.T) {
+		user := newMapped("a")
+		require.NoError(t, store.CreateProjectUser(projectID, user.ID, []int{manager.ID}))
+		member, err := store.GetProjectMember(projectID, user.ID)
+		require.NoError(t, err)
+		assert.Len(t, member.Roles, 1)
+	})
+	t.Run("a user with manual roles is already a member", func(t *testing.T) {
+		user := createTemplatePermissionTestUser(t, store, projectID, "b", guest.ID)
+		assert.ErrorIs(t, store.CreateProjectUser(projectID, user.ID, []int{manager.ID}), db.ErrInvalidOperation)
+	})
+	t.Run("a mapped member can lose the last manual role", func(t *testing.T) {
+		user := newMapped("c")
+		require.NoError(t, store.CreateProjectUser(projectID, user.ID, []int{manager.ID}))
+		require.NoError(t, store.SetProjectUserRoles(projectID, user.ID, []int{}))
+		member, err := store.GetProjectMember(projectID, user.ID)
+		require.NoError(t, err)
+		assert.Empty(t, member.Roles)
+		assert.Len(t, member.MappedRoles, 1)
+	})
+	t.Run("a mapped member can get manual roles through set", func(t *testing.T) {
+		user := newMapped("d")
+		require.NoError(t, store.SetProjectUserRoles(projectID, user.ID, []int{manager.ID}))
+		member, err := store.GetProjectMember(projectID, user.ID)
+		require.NoError(t, err)
+		assert.Len(t, member.Roles, 1)
+	})
+	t.Run("a member without mapped roles keeps at least one role", func(t *testing.T) {
+		user := createTemplatePermissionTestUser(t, store, projectID, "e", guest.ID)
+		var validation *common_errors.ValidationError
+		assert.ErrorAs(t, store.SetProjectUserRoles(projectID, user.ID, []int{}), &validation)
+	})
+	t.Run("a user who is not a member is not found", func(t *testing.T) {
+		user, err := store.CreateUserWithoutPassword(db.User{Username: "f", Name: "f", Email: "f@example.com"})
+		require.NoError(t, err)
+		assert.ErrorIs(t, store.SetProjectUserRoles(projectID, user.ID, []int{manager.ID}), db.ErrNotFound)
+	})
+	t.Run("removing the manual roles keeps the mapped membership", func(t *testing.T) {
+		user := newMapped("g")
+		require.NoError(t, store.CreateProjectUser(projectID, user.ID, []int{manager.ID}))
+		require.NoError(t, store.DeleteProjectUser(projectID, user.ID))
+		roles, err := store.GetProjectUserRoles(projectID, user.ID)
+		require.NoError(t, err)
+		assert.Len(t, roles, 1)
+	})
+	t.Run("owners count only manual roles", func(t *testing.T) {
+		owner, err := store.GetGlobalRoleBySlug("owner")
+		require.NoError(t, err)
+		user, err := store.CreateUserWithoutPassword(db.User{Username: "h", Name: "h", Email: "h@example.com"})
+		require.NoError(t, err)
+		addMappedRole(t, store, projectID, user.ID, owner.ID, "owners")
+		count, err := store.CountProjectOwners(projectID)
+		require.NoError(t, err)
+		assert.Zero(t, count)
+	})
 }
