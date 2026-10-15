@@ -3,7 +3,7 @@
     <EditDialog
       v-model="editDialog"
       save-button-text="Save"
-      :title="$t('editRole')"
+      :title="itemId === 'new' ? $t('newRole') : $t('editRole')"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
