@@ -644,6 +644,7 @@ definitions:
       repository_id:
         type: integer
         minimum: 1
+        description: Repository holding the inventory file. Used only by a "file" inventory; for any other type it is dropped and stored as null.
       type:
         type: string
         enum: [static, static-yaml, file, terraform-workspace]
@@ -666,6 +667,11 @@ definitions:
         type: integer
       repository_id:
         type: integer
+        x-nullable: true
+        description: Repository holding the inventory file. Set only for a "file" inventory, null otherwise.
+      template_id:
+        type: integer
+        x-nullable: true
       type:
         type: string
         enum: [static, static-yaml, file, terraform-workspace]
