@@ -56,6 +56,7 @@ type RoleImpact struct {
 	Members        int `json:"members"`
 	Projects       int `json:"projects"`
 	TemplateGrants int `json:"template_grants"`
+	Mappings       int `json:"mappings"`
 }
 
 // RoleMember is a project member who holds a role, with all roles the member holds in that project.
@@ -64,22 +65,37 @@ type RoleMember struct {
 	UserID    int
 	Username  string
 	Roles     []Role
+	// The member also holds roles through group mappings, so losing every manual role keeps the membership.
+	Mapped bool
 }
 
-// RoleAssignments is everything that points to a role: the members who hold it and its template grants.
+// RoleAssignments is everything that points to a role: the members who hold it, its template grants and its mappings.
 type RoleAssignments struct {
-	Members []RoleMember
-	Grants  []TemplateRolePerm
+	Members  []RoleMember
+	Grants   []TemplateRolePerm
+	Mappings []RoleMapping
+	// Assignments that go with Mappings.
+	MappedRoles []MappedRole
 }
 
 // Impact counts the assignments for the delete confirmation and the audit event.
 func (a RoleAssignments) Impact() RoleImpact {
+	type member struct{ projectID, userID int }
+	members := map[member]bool{}
 	projects := map[int]bool{}
 	for _, m := range a.Members {
+		members[member{m.ProjectID, m.UserID}] = true
+		projects[m.ProjectID] = true
+	}
+	for _, m := range a.MappedRoles {
+		members[member{m.ProjectID, m.UserID}] = true
 		projects[m.ProjectID] = true
 	}
 	for _, g := range a.Grants {
 		projects[g.ProjectID] = true
 	}
-	return RoleImpact{Members: len(a.Members), Projects: len(projects), TemplateGrants: len(a.Grants)}
+	for _, m := range a.Mappings {
+		projects[m.ProjectID] = true
+	}
+	return RoleImpact{Members: len(members), Projects: len(projects), TemplateGrants: len(a.Grants), Mappings: len(a.Mappings)}
 }

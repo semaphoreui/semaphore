@@ -586,7 +586,7 @@ type RoleRepository interface {
 	CreateRole(role Role) (Role, error)
 	DeleteRole(roleID int) error
 	GetRoleAssignments(roleID int) (RoleAssignments, error)
-	DeleteRoleWithAssignments(roleID int) (RoleAssignments, error)
+	DeleteRoleWithAssignments(roleID int, withMappings bool) (RoleAssignments, error)
 }
 
 // Store is the main interface that aggregates all specialized interfaces
