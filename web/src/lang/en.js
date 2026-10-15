@@ -214,6 +214,7 @@ export default {
 
   confirmTask: 'Confirm',
   deleteTeamMember: 'Delete team member',
+  memberNeedsRole: 'A member needs at least one role. To remove the member, use the delete button.',
   team2: 'Team',
   newTeamMember: 'New Team Member',
   user: 'User',

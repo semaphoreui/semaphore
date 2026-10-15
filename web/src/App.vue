@@ -163,7 +163,7 @@
                 <v-list-item-title class="app__project-selector-title">
                   {{ project.name }}
                 </v-list-item-title>
-                <v-list-item-subtitle>{{ userRole.role }}</v-list-item-subtitle>
+                <v-list-item-subtitle>{{ (userRole.roles || []).join(', ') }}</v-list-item-subtitle>
               </v-list-item-content>
 
               <v-list-item-icon>
@@ -555,7 +555,6 @@
         :projectId="projectId"
         :projectType="(project || {}).type || ''"
         :userPermissions="(userRole || {}).permissions"
-        :userRole="(userRole || {}).role"
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
         :user="user"

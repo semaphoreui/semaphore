@@ -26,7 +26,6 @@
         color="error"
         @click="leftProject()"
         class="mr-2"
-        :disabled="userRole === 'owner'"
         >{{ $t('LeaveProject') }}
       </v-btn>
       <v-btn
@@ -49,17 +48,20 @@
       :items-per-page="Number.MAX_VALUE"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
-      <template v-slot:item.role="{ item }">
-        <v-select
-          hide-details
-          v-model="item.role"
-          :items="groupedRoles"
+      <template v-slot:item.roles="{ item }">
+        <v-autocomplete
+          v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+          v-model="item.roles"
+          :items="roleItems(item)"
           item-value="slug"
           item-text="name"
-          :style="{ width: '200px' }"
-          @change="updateProjectUser(item)"
-          v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+          multiple
+          small-chips
+          deletable-chips
+          hide-details
+          dense
           class="pt-0 mt-0"
+          @change="updateProjectUser(item)"
         >
           <template v-slot:item="{ item: role }">
             <v-list-item-content>
@@ -67,9 +69,10 @@
               <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
             </v-list-item-content>
           </template>
-        </v-select>
+        </v-autocomplete>
         <div v-else>
-          {{ (roles.find((r) => r.slug === item.role) || { name: item.role }).name }}
+          <v-chip v-for="role in roleItems(item).filter((r) => item.roles.includes(r.slug))"
+                  :key="role.slug" small class="mr-1">{{ role.name }}</v-chip>
         </div>
       </template>
 
@@ -90,6 +93,8 @@ import axios from 'axios';
 import { USER_PERMISSIONS } from '@/lib/constants';
 import groupRolesForSelect from '@/lib/roles';
 import TeamMenu from '@/components/TeamMenu.vue';
+import EventBus from '@/event-bus';
+import { getErrorMessage } from '@/lib/error';
 
 export default {
   components: { TeamMenu, EditTeamMemberDialog },
@@ -106,10 +111,6 @@ export default {
   },
 
   computed: {
-    groupedRoles() {
-      return groupRolesForSelect(this.roles, (key) => this.$i18n.t(key));
-    },
-
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
     },
@@ -135,21 +136,42 @@ export default {
     },
 
     async leftProject() {
-      await axios({
-        method: 'delete',
-        url: `/api/project/${this.projectId}/me`,
-        responseType: 'json',
-      });
-      window.location.reload();
+      try {
+        await axios({
+          method: 'delete',
+          url: `/api/project/${this.projectId}/me`,
+          responseType: 'json',
+        });
+        window.location.reload();
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+      }
+    },
+
+    roleItems(member) {
+      // A role missing from the list (a custom role in a build without them) still shows its slug.
+      const missing = member.roles
+        .filter((slug) => !this.roles.some((role) => role.slug === slug))
+        .map((slug) => ({ slug, name: slug }));
+      return [...groupRolesForSelect(this.roles, (key) => this.$i18n.t(key)), ...missing];
     },
 
     async updateProjectUser(user) {
-      await axios({
-        method: 'put',
-        url: `/api/project/${this.projectId}/users/${user.id}`,
-        responseType: 'json',
-        data: { role: user.role },
-      });
+      // Removing a member is the delete button, the server refuses an empty role list.
+      if (user.roles.length > 0) {
+        try {
+          await axios({
+            method: 'put',
+            url: `/api/project/${this.projectId}/users/${user.id}`,
+            responseType: 'json',
+            data: { roles: user.roles },
+          });
+        } catch (err) {
+          EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+        }
+      } else {
+        EventBus.$emit('i-snackbar', { color: 'error', text: this.$i18n.t('memberNeedsRole') });
+      }
       await this.loadItems();
     },
 
@@ -171,7 +193,8 @@ export default {
         },
         {
           text: this.$i18n.t('role'),
-          value: 'role',
+          value: 'roles',
+          sortable: false,
           width: '30%',
         },
         {
