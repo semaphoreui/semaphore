@@ -251,7 +251,6 @@ type ProjectStore interface {
 	DeleteProjectUser(projectID int, userID int) error
 	GetProjectUser(projectID int, userID int) (ProjectUser, error)
 	SetProjectUserRoles(projectID int, userID int, roleIDs []int) error
-	GetProjectUserRoles(projectID int, userID int) ([]Role, error)
 	GetProjectMember(projectID int, userID int) (ProjectMember, error)
 	CountProjectOwners(projectID int) (int, error)
 }

@@ -108,14 +108,14 @@ func TestMembershipRoles(t *testing.T) {
 
 	err = store.CreateProjectUser(p.ID, u.ID, []int{runner.ID})
 	require.NoError(t, err)
-	roles, err := store.GetProjectUserRoles(p.ID, u.ID)
+	member, err := store.GetProjectMember(p.ID, u.ID)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"task_runner"}, slugsOf(roles))
+	assert.Equal(t, []string{"task_runner"}, slugsOf(member.Roles))
 
 	require.NoError(t, store.SetProjectUserRoles(p.ID, u.ID, []int{owner.ID, runner.ID}))
-	roles, err = store.GetProjectUserRoles(p.ID, u.ID)
+	member, err = store.GetProjectMember(p.ID, u.ID)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{"owner", "task_runner"}, slugsOf(roles))
+	assert.ElementsMatch(t, []string{"owner", "task_runner"}, slugsOf(member.Roles))
 
 	require.NoError(t, store.DeleteProjectUser(p.ID, u.ID))
 	_, err = store.GetProjectUser(p.ID, u.ID)
@@ -149,9 +149,9 @@ func TestMembershipNeedsARole(t *testing.T) {
 
 	require.NoError(t, store.CreateProjectUser(p.ID, u.ID, []int{runner.ID}))
 	assert.Error(t, store.SetProjectUserRoles(p.ID, u.ID, nil))
-	roles, err := store.GetProjectUserRoles(p.ID, u.ID)
+	member, err := store.GetProjectMember(p.ID, u.ID)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"task_runner"}, slugsOf(roles), "an empty list does not remove the member")
+	assert.Equal(t, []string{"task_runner"}, slugsOf(member.Roles), "an empty list does not remove the member")
 }
 
 func TestDeleteRoleRefusedWhileAssigned(t *testing.T) {
@@ -244,16 +244,10 @@ func TestMappedRoles_Reads(t *testing.T) {
 	addMappedRole(t, store, projectID, both.ID, dev.ID, "admins")
 	createTemplatePermissionTestUser(t, store, projectID, "g", guest.ID)
 
-	t.Run("effective roles hold a mapped role once", func(t *testing.T) {
-		roles, err := store.GetProjectUserRoles(projectID, both.ID)
-		require.NoError(t, err)
-		require.Len(t, roles, 1)
-		assert.Equal(t, dev.ID, roles[0].ID)
-	})
 	t.Run("a mapped role gives its mask and template grants", func(t *testing.T) {
-		roles, err := store.GetProjectUserRoles(projectID, mapped.ID)
+		member, err := store.GetProjectMember(projectID, mapped.ID)
 		require.NoError(t, err)
-		require.Len(t, roles, 1)
+		require.Len(t, member.MappedRoles, 1)
 		grant, err := store.GetTemplatePermission(projectID, templateID, mapped.ID)
 		require.NoError(t, err)
 		assert.Equal(t, db.CanUpdateProject, grant)
@@ -350,9 +344,10 @@ func TestMappedRoles_ManualChanges(t *testing.T) {
 		user := newMapped("g")
 		require.NoError(t, store.CreateProjectUser(projectID, user.ID, []int{manager.ID}))
 		require.NoError(t, store.DeleteProjectUser(projectID, user.ID))
-		roles, err := store.GetProjectUserRoles(projectID, user.ID)
+		member, err := store.GetProjectMember(projectID, user.ID)
 		require.NoError(t, err)
-		assert.Len(t, roles, 1)
+		assert.Empty(t, member.Roles)
+		assert.Len(t, member.MappedRoles, 1)
 	})
 	t.Run("owners count only manual roles", func(t *testing.T) {
 		owner, err := store.GetGlobalRoleBySlug("owner")

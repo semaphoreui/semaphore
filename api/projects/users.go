@@ -35,7 +35,7 @@ func UserMiddleware(next http.Handler) http.Handler {
 		}
 
 		r = helpers.SetContextValue(r, "projectUser", user)
-		r = helpers.SetContextValue(r, "projectMember", member)
+		r = helpers.SetContextValue(r, "projectUserMember", member)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -265,14 +265,10 @@ func removeUser(targetUser db.User, member db.ProjectMember, w http.ResponseWrit
 // LeftProject removes a user from a project team
 func LeftProject(w http.ResponseWriter, r *http.Request) {
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
-	project := helpers.GetFromContext(r, "project").(db.Project)
-	member, err := helpers.Store(r).GetProjectMember(project.ID, me.ID)
-	if errors.Is(err, db.ErrNotFound) {
+	member := helpers.GetFromContext(r, "projectMember").(db.ProjectMember)
+	// An admin who is not a member has nothing to leave.
+	if len(member.Roles) == 0 && len(member.MappedRoles) == 0 {
 		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	if err != nil {
-		helpers.WriteError(w, err)
 		return
 	}
 	removeUser(*me, member, w, r)
@@ -281,7 +277,7 @@ func LeftProject(w http.ResponseWriter, r *http.Request) {
 // RemoveUser removes a user from a project team
 func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	targetUser := helpers.GetFromContext(r, "projectUser").(db.User) // target user
-	removeUser(targetUser, helpers.GetFromContext(r, "projectMember").(db.ProjectMember), w, r)
+	removeUser(targetUser, helpers.GetFromContext(r, "projectUserMember").(db.ProjectMember), w, r)
 }
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -289,7 +285,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	store := helpers.Store(r)
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
 	targetUser := helpers.GetFromContext(r, "projectUser").(db.User)
-	oldRoles := helpers.GetFromContext(r, "projectMember").(db.ProjectMember).Roles
+	oldRoles := helpers.GetFromContext(r, "projectUserMember").(db.ProjectMember).Roles
 
 	event := audit.Event{
 		Kind:      audit.IAMProjectRoleChange,

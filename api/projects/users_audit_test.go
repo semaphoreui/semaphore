@@ -70,17 +70,17 @@ func (f membershipFixture) request(method string, body string, me db.User, myRol
 	r = helpers.SetContextValue(r, "store", f.store)
 	r = helpers.SetContextValue(r, "user", &me)
 	r = helpers.SetContextValue(r, "project", f.project)
-	var myRoles []db.Role
+	var myMember db.ProjectMember
 	if myRole != nil {
-		myRoles = []db.Role{*myRole}
+		myMember.Roles = []db.Role{*myRole}
 	}
-	r = helpers.SetContextValue(r, "projectRoles", myRoles)
+	r = helpers.SetContextValue(r, "projectMember", myMember)
 	r = helpers.SetContextValue(r, "log_writer", nopLogWriter{})
 	r = helpers.SetContextValue(r, "audit", rec)
 	if target != nil {
 		member, _ := f.store.GetProjectMember(f.project.ID, target.ID)
 		r = helpers.SetContextValue(r, "projectUser", *target)
-		r = helpers.SetContextValue(r, "projectMember", member)
+		r = helpers.SetContextValue(r, "projectUserMember", member)
 	}
 	return r.WithContext(audit.WithActor(r.Context(), audit.UserActor(me.ID, me.Username, audit.AuthSession, ""))), rec
 }
@@ -170,6 +170,19 @@ func TestLeftProject_IsRecorded(t *testing.T) {
 	assert.Equal(t, audit.MembershipMetadata{Roles: []audit.RoleRef{f.ref(db.ProjectManager)}, SelfRemoval: true}, only(t, rec, audit.IAMMembershipRemove).Event.Metadata)
 }
 
+func TestLeftProject_AdminWithoutMembershipRecordsNothing(t *testing.T) {
+	f := newMembershipFixture(t)
+	admin, err := f.store.CreateUser(db.UserWithPwd{Pwd: "verystrongpassword1", User: db.User{Username: "admin", Name: "admin", Email: "admin@example.com", Admin: true}})
+	require.NoError(t, err)
+	r, rec := f.request(http.MethodDelete, "", admin, nil, nil)
+	w := httptest.NewRecorder()
+
+	LeftProject(w, r)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Empty(t, rec.All())
+}
+
 func TestLeftProject_OwnerRefusalIsRecorded(t *testing.T) {
 	f := newMembershipFixture(t)
 	r, rec := f.request(http.MethodDelete, "", f.owner, f.roles[db.ProjectOwner], nil)
@@ -202,9 +215,9 @@ func TestUpdateUser_LastOwnerRefusalIsRecorded(t *testing.T) {
 	UpdateUser(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	roles, err := f.store.GetProjectUserRoles(f.project.ID, f.owner.ID)
+	member, err := f.store.GetProjectMember(f.project.ID, f.owner.ID)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"owner"}, slugsOf(roles), "the owner keeps the role")
+	assert.Equal(t, []string{"owner"}, slugsOf(member.Roles), "the owner keeps the role")
 	got := only(t, rec, audit.IAMProjectRoleChange)
 	assert.Equal(t, audit.ReasonLastOwner, got.Event.Reason)
 	assert.Equal(t, audit.ProjectRoleMetadata{OldRoles: []audit.RoleRef{f.ref(db.ProjectOwner)}}, got.Event.Metadata)

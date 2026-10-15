@@ -46,12 +46,12 @@ func TestAddUser_RoleSlug(t *testing.T) {
 			AddUser(w, r)
 
 			assert.Equal(t, tt.code, w.Code)
-			roles, err := f.store.GetProjectUserRoles(f.project.ID, user.ID)
-			require.NoError(t, err)
+			member, err := f.store.GetProjectMember(f.project.ID, user.ID)
 			if tt.stored == "" {
-				assert.Empty(t, roles)
-			} else if assert.Len(t, roles, 1) {
-				assert.Equal(t, tt.stored, roles[0].Slug)
+				assert.ErrorIs(t, err, db.ErrNotFound)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, []string{tt.stored}, slugsOf(member.Roles))
 			}
 		})
 	}
@@ -76,9 +76,9 @@ func TestUpdateUser_UnknownRoleKeepsTheRole(t *testing.T) {
 	UpdateUser(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	roles, err := f.store.GetProjectUserRoles(f.project.ID, f.member.ID)
+	member, err := f.store.GetProjectMember(f.project.ID, f.member.ID)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"manager"}, slugsOf(roles))
+	assert.Equal(t, []string{"manager"}, slugsOf(member.Roles))
 }
 
 func TestUserMiddleware_NonMemberIsNotFound(t *testing.T) {
@@ -132,9 +132,11 @@ func TestAddUser_Roles(t *testing.T) {
 			AddUser(w, r)
 
 			assert.Equal(t, tt.code, w.Code)
-			roles, err := f.store.GetProjectUserRoles(f.project.ID, user.ID)
-			require.NoError(t, err)
-			assert.Equal(t, tt.stored, slugsOf(roles))
+			member, err := f.store.GetProjectMember(f.project.ID, user.ID)
+			if len(tt.stored) == 0 {
+				assert.ErrorIs(t, err, db.ErrNotFound)
+			}
+			assert.Equal(t, tt.stored, slugsOf(member.Roles))
 		})
 	}
 }
@@ -161,9 +163,9 @@ func TestUpdateUser_Roles(t *testing.T) {
 			UpdateUser(w, r)
 
 			assert.Equal(t, tt.code, w.Code)
-			roles, err := f.store.GetProjectUserRoles(f.project.ID, f.member.ID)
+			member, err := f.store.GetProjectMember(f.project.ID, f.member.ID)
 			require.NoError(t, err)
-			assert.Equal(t, tt.stored, slugsOf(roles))
+			assert.Equal(t, tt.stored, slugsOf(member.Roles))
 		})
 	}
 }

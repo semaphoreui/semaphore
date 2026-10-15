@@ -208,25 +208,6 @@ func (d *SqlDb) insertProjectUserRoles(tx *gorp.Transaction, projectID int, user
 	return nil
 }
 
-// GetProjectUserRoles returns the effective roles of a member: manual and mapped, each role once.
-func (d *SqlDb) GetProjectUserRoles(projectID int, userID int) (roles []db.Role, err error) {
-	_, err = d.selectAll(&roles, `
-		select
-		  r.*
-		from role r
-		where r.id in (
-		  select pur.role_id from project__user_role pur where pur.project_id = ? and pur.user_id = ?
-		  union
-		  select m.role_id
-		  from project__user_mapped_role mr
-		  join group_role_mapping m on m.id = mr.mapping_id
-		  where mr.project_id = ? and mr.user_id = ?
-		)
-		order by r.name
-	`, projectID, userID, projectID, userID)
-	return
-}
-
 // MappedRolesQuery selects db.MappedRole rows, each caller adds its filter and order.
 func MappedRolesQuery() squirrel.SelectBuilder {
 	return squirrel.Select("mr.project_id", "mr.user_id", "u.username", "mr.mapping_id", "m.provider", "m.group_name",

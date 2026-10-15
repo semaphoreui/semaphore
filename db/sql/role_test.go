@@ -175,9 +175,9 @@ func TestDeleteRoleWithAssignments(t *testing.T) {
 	assert.ErrorIs(t, err, db.ErrNotFound)
 	_, err = store.GetProjectUser(projectID, only.ID)
 	assert.ErrorIs(t, err, db.ErrNotFound, "a member whose only role it was leaves the project")
-	roles, err := store.GetProjectUserRoles(projectID, both.ID)
+	member, err := store.GetProjectMember(projectID, both.ID)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"guest"}, slugsOf(roles))
+	assert.Equal(t, []string{"guest"}, slugsOf(member.Roles))
 	grants, err := store.GetTemplateRoles(projectID, templateID)
 	require.NoError(t, err)
 	assert.Empty(t, grants)
@@ -192,9 +192,9 @@ func TestDeleteRoleWithAssignments_BuiltinRole(t *testing.T) {
 	_, err = store.DeleteRoleWithAssignments(owner.ID, false)
 
 	assert.ErrorIs(t, err, db.ErrNotFound)
-	roles, err := store.GetProjectUserRoles(projectID, user.ID)
+	member, err := store.GetProjectMember(projectID, user.ID)
 	require.NoError(t, err)
-	assert.Len(t, roles, 1, "the rollback keeps the assignment")
+	assert.Len(t, member.Roles, 1, "the rollback keeps the assignment")
 }
 
 func TestDeleteRoleWithAssignments_Mappings(t *testing.T) {
