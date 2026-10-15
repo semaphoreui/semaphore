@@ -75,3 +75,29 @@ func TestProjectMiddleware_NonMember(t *testing.T) {
 	assert.Zero(t, permissions)
 	assert.Empty(t, roles)
 }
+
+func TestGetUserRole_RoleOnlyForOneRole(t *testing.T) {
+	manager := db.Role{Slug: "manager"}
+	runner := db.Role{Slug: "task_runner"}
+	tests := []struct {
+		name  string
+		roles []db.Role
+		want  string
+	}{
+		{"one role", []db.Role{manager}, `{"role":"manager","roles":["manager"],"permissions":0}`},
+		{"two roles", []db.Role{manager, runner}, `{"role":"","roles":["manager","task_runner"],"permissions":0}`},
+		{"admin without roles", nil, `{"role":"","roles":[],"permissions":0}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, "/api/project/1/role", nil)
+			r = helpers.SetContextValue(r, "projectRoles", tt.roles)
+			r = helpers.SetContextValue(r, "permissions", db.ProjectUserPermission(0))
+			w := httptest.NewRecorder()
+
+			GetUserRole(w, r)
+
+			assert.JSONEq(t, tt.want, w.Body.String())
+		})
+	}
+}

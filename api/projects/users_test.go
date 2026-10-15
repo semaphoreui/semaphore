@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -103,4 +104,85 @@ func slugsOf(roles []db.Role) []string {
 		slugs = append(slugs, r.Slug)
 	}
 	return slugs
+}
+
+func TestAddUser_Roles(t *testing.T) {
+	f := newMembershipFixture(t)
+	tests := []struct {
+		name   string
+		fields string
+		code   int
+		stored []string
+	}{
+		{"several roles", `"roles":["task_runner","manager"]`, http.StatusNoContent, []string{"manager", "task_runner"}},
+		{"same role in another case", `"roles":["manager","Manager"]`, http.StatusNoContent, []string{"manager"}},
+		{"role and roles", `"role":"guest","roles":["manager"]`, http.StatusBadRequest, []string{}},
+		{"empty role", `"role":""`, http.StatusBadRequest, []string{}},
+		{"empty roles", `"roles":[]`, http.StatusBadRequest, []string{}},
+		{"one unknown role", `"roles":["manager","missing"]`, http.StatusBadRequest, []string{}},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user, err := f.store.CreateUserWithoutPassword(db.User{Username: fmt.Sprintf("r%d", i), Name: "R", Email: fmt.Sprintf("r%d@example.com", i)})
+			require.NoError(t, err)
+			r, _ := f.request(http.MethodPost, fmt.Sprintf(`{"user_id":%d,%s}`, user.ID, tt.fields), f.owner, f.roles[db.ProjectOwner], nil)
+			w := httptest.NewRecorder()
+
+			AddUser(w, r)
+
+			assert.Equal(t, tt.code, w.Code)
+			roles, err := f.store.GetProjectUserRoles(f.project.ID, user.ID)
+			require.NoError(t, err)
+			assert.Equal(t, tt.stored, slugsOf(roles))
+		})
+	}
+}
+
+func TestUpdateUser_Roles(t *testing.T) {
+	tests := []struct {
+		name   string
+		body   string
+		code   int
+		stored []string
+	}{
+		{"several roles", `{"roles":["guest","task_runner"]}`, http.StatusNoContent, []string{"guest", "task_runner"}},
+		{"one role replaces all", `{"role":"guest"}`, http.StatusNoContent, []string{"guest"}},
+		{"empty list", `{"roles":[]}`, http.StatusBadRequest, []string{"manager", "task_runner"}},
+		{"role and roles", `{"role":"guest","roles":["guest"]}`, http.StatusBadRequest, []string{"manager", "task_runner"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newMembershipFixture(t)
+			require.NoError(t, f.store.SetProjectUserRoles(f.project.ID, f.member.ID, []int{f.roles[db.ProjectManager].ID, f.roles[db.ProjectTaskRunner].ID}))
+			r, _ := f.request(http.MethodPut, tt.body, f.owner, f.roles[db.ProjectOwner], &f.member)
+			w := httptest.NewRecorder()
+
+			UpdateUser(w, r)
+
+			assert.Equal(t, tt.code, w.Code)
+			roles, err := f.store.GetProjectUserRoles(f.project.ID, f.member.ID)
+			require.NoError(t, err)
+			assert.Equal(t, tt.stored, slugsOf(roles))
+		})
+	}
+}
+
+func TestGetUsers_RoleOnlyForOneRole(t *testing.T) {
+	f := newMembershipFixture(t)
+	require.NoError(t, f.store.SetProjectUserRoles(f.project.ID, f.member.ID, []int{f.roles[db.ProjectManager].ID, f.roles[db.ProjectTaskRunner].ID}))
+	r, _ := f.request(http.MethodGet, "", f.owner, f.roles[db.ProjectOwner], nil)
+	w := httptest.NewRecorder()
+
+	GetUsers(w, r)
+
+	var users []projUser
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &users))
+	byName := map[string]projUser{}
+	for _, u := range users {
+		byName[u.Username] = u
+	}
+	assert.Equal(t, "owner", byName["owner"].Role)
+	assert.Equal(t, []string{"owner"}, byName["owner"].Roles)
+	assert.Equal(t, "", byName["member"].Role, "one value would hide the other role")
+	assert.Equal(t, []string{"manager", "task_runner"}, byName["member"].Roles)
 }
