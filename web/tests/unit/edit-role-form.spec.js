@@ -31,6 +31,12 @@ describe('EditRoleForm', () => {
     });
   });
 
+  it('derives the slug again after the form is reset', () => {
+    const form = { slugTouched: true };
+    EditRoleForm.methods.afterReset.call(form);
+    expect(form.slugTouched).to.equal(false);
+  });
+
   it('accepts letters of both cases, digits, _ and -', () => {
     expect(EditRoleForm.methods.validateSlug.call(ctx, 'CI_bot-2')).to.equal(true);
     expect(EditRoleForm.methods.validateSlug.call(ctx, 'with space')).to.equal('invalidSlugFormat');

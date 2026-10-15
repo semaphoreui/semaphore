@@ -193,6 +193,7 @@ export default {
     },
 
     afterReset() {
+      this.slugTouched = false;
       // Reset permissions checkboxes
       this.permissions = {
         canRunProjectTasks: false,
