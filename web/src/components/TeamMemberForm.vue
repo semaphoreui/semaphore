@@ -56,7 +56,7 @@
       :items="groupedRoles"
       item-value="slug"
       item-text="name"
-      :rules="[v => !!v || $t('user_required')]"
+      :rules="[v => !!v || $t('role_required')]"
       required
       :disabled="formSaving"
       outlined
