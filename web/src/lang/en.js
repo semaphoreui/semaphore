@@ -524,6 +524,9 @@ export default {
   editRole: 'Edit Role',
   deleteRole: 'Delete Role',
   askDeleteRole: 'Do you really want to delete this role?',
+  askDeleteAssignedRole: 'This role is in use. Members: {members}. Projects: {projects}. Template permissions: {template_grants}. Delete it together with these assignments? Members who have no other role leave their projects.',
+  roleInUseNeedsManageUsers: 'This role is in use. Only a member who can manage project users can delete it together with its assignments.',
+  deleteWithAssignments: 'Delete with assignments',
   Roles: 'Roles',
   role_required: 'Role is required',
 
