@@ -136,6 +136,23 @@ func TestMembershipRejectsForeignProjectRole(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestMembershipNeedsARole(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	p, u := createMembershipTestProjectAndUser(t, store)
+	runner, err := store.GetGlobalRoleBySlug("task_runner")
+	require.NoError(t, err)
+
+	assert.Error(t, store.CreateProjectUser(p.ID, u.ID, []int{}))
+	_, err = store.GetProjectUser(p.ID, u.ID)
+	assert.ErrorIs(t, err, db.ErrNotFound)
+
+	require.NoError(t, store.CreateProjectUser(p.ID, u.ID, []int{runner.ID}))
+	assert.Error(t, store.SetProjectUserRoles(p.ID, u.ID, nil))
+	roles, err := store.GetProjectUserRoles(p.ID, u.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"task_runner"}, slugsOf(roles), "an empty list does not remove the member")
+}
+
 func TestDeleteRoleRefusedWhileAssigned(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	p, u := createMembershipTestProjectAndUser(t, store)

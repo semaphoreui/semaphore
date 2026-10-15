@@ -166,6 +166,10 @@ func (d *SqlDb) SetProjectUserRoles(projectID int, userID int, roleIDs []int) er
 }
 
 func (d *SqlDb) insertProjectUserRoles(tx *gorp.Transaction, projectID int, userID int, roleIDs []int) error {
+	// A member is a user with at least one role row, so an empty list would silently remove the member.
+	if len(roleIDs) == 0 {
+		return &common_errors.ValidationError{Message: "A member needs at least one role"}
+	}
 	query, args, err := squirrel.Select("count(*)").From("`role`").
 		Where(squirrel.Eq{"id": roleIDs}).
 		Where("(project_id is null or project_id=?)", projectID).
