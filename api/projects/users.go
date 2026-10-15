@@ -62,14 +62,6 @@ func takesLastOwner(store db.Store, projectID int, oldRoles []db.Role, newRoles 
 	return owners == 1, err
 }
 
-func roleRefs(roles []db.Role) []audit.RoleRef {
-	refs := make([]audit.RoleRef, 0, len(roles))
-	for _, role := range roles {
-		refs = append(refs, audit.NewRoleRef(role))
-	}
-	return refs
-}
-
 // resolveRoles finds the slugs among the project and global roles, a role of another project counts as unknown.
 func resolveRoles(store db.Store, projectID int, role string, roles []string) ([]db.Role, error) {
 	slugs := roles
@@ -182,7 +174,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.IAMMembershipAdd,
 		Target:    target,
 		ProjectID: project.ID,
-		Metadata:  audit.MembershipMetadata{Roles: roleRefs(roles)},
+		Metadata:  audit.MembershipMetadata{Roles: audit.NewRoleRefs(roles)},
 	})
 
 	w.WriteHeader(http.StatusNoContent)
@@ -197,7 +189,7 @@ func removeUser(targetUser db.User, roles []db.Role, w http.ResponseWriter, r *h
 		Kind:      audit.IAMMembershipRemove,
 		Target:    audit.UserTarget(targetUser.ID, targetUser.Username),
 		ProjectID: project.ID,
-		Metadata:  audit.MembershipMetadata{Roles: roleRefs(roles), SelfRemoval: targetUser.ID == me.ID},
+		Metadata:  audit.MembershipMetadata{Roles: audit.NewRoleRefs(roles), SelfRemoval: targetUser.ID == me.ID},
 	}
 
 	if !me.Admin {
@@ -263,7 +255,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.IAMProjectRoleChange,
 		Target:    audit.UserTarget(targetUser.ID, targetUser.Username),
 		ProjectID: project.ID,
-		Metadata:  audit.ProjectRoleMetadata{OldRoles: roleRefs(oldRoles)},
+		Metadata:  audit.ProjectRoleMetadata{OldRoles: audit.NewRoleRefs(oldRoles)},
 	}
 
 	var projectUser struct {
@@ -311,8 +303,8 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Changed role for User ID %d", targetUser.ID),
 	})
 	event.Metadata = audit.ProjectRoleMetadata{
-		OldRoles: roleRefs(oldRoles),
-		NewRoles: roleRefs(newRoles),
+		OldRoles: audit.NewRoleRefs(oldRoles),
+		NewRoles: audit.NewRoleRefs(newRoles),
 	}
 	helpers.Audit(r).Record(r.Context(), event)
 
