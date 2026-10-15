@@ -1177,12 +1177,12 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 
 	if err = syncLoginRoles(r, user, pid, claims.raw); err != nil {
 		log.WithError(err).WithFields(log.Fields{"user_id": user.ID, "provider": pid}).Error("Failed to apply group role mappings")
-		reason := audit.ReasonInternalError
+		reason, status := audit.ReasonInternalError, http.StatusInternalServerError
 		if errors.Is(err, pro_interfaces.ErrGroupsClaim) {
-			reason = audit.ReasonProviderError
+			reason, status = audit.ReasonProviderError, http.StatusBadGateway
 		}
 		recordLoginFailure(r, "", meta, reason)
-		http.Error(w, "OIDC sign-in failed: could not apply the group roles. Contact your administrator.", http.StatusInternalServerError)
+		http.Error(w, "OIDC sign-in failed: could not apply the group roles. Contact your administrator.", status)
 		return
 	}
 
