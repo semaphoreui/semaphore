@@ -132,6 +132,19 @@ func TestRemoveUser_IsRecorded(t *testing.T) {
 	assert.Equal(t, audit.MembershipMetadata{Roles: []audit.RoleRef{f.ref(db.ProjectManager)}}, only(t, rec, audit.IAMMembershipRemove).Event.Metadata)
 }
 
+func TestAddUser_MappedMemberIsRoleChange(t *testing.T) {
+	f := newMembershipFixture(t)
+	user := f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+	r, rec := f.request(http.MethodPost, fmt.Sprintf(`{"user_id":%d,"role":"manager"}`, user.ID), f.owner, f.roles[db.ProjectOwner], nil)
+
+	AddUser(httptest.NewRecorder(), r)
+
+	got := only(t, rec, audit.IAMProjectRoleChange)
+	encoded, err := json.Marshal(got.Event.Metadata)
+	require.NoError(t, err)
+	assert.JSONEq(t, fmt.Sprintf(`{"old_roles":[],"new_roles":[{"id":%d,"slug":"manager"}]}`, f.roles[db.ProjectManager].ID), string(encoded))
+}
+
 type concurrentMemberRemoval struct{ *sql.SqlDb }
 
 func (concurrentMemberRemoval) DeleteProjectUser(int, int) error { return db.ErrNotFound }

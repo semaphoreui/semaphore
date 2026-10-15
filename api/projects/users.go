@@ -159,6 +159,12 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	member, err := store.GetProjectMember(project.ID, projectUser.UserID)
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	err = store.CreateProjectUser(project.ID, projectUser.UserID, roleIDs(roles))
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -177,12 +183,18 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	if added, err := helpers.Store(r).GetUser(projectUser.UserID); err == nil {
 		target.Name = added.Username
 	}
-	helpers.Audit(r).Record(r.Context(), audit.Event{
+	event := audit.Event{
 		Kind:      audit.IAMMembershipAdd,
 		Target:    target,
 		ProjectID: project.ID,
 		Metadata:  audit.MembershipMetadata{Roles: audit.NewRoleRefs(roles)},
-	})
+	}
+	// Mapped roles already made the user a member, so only the manual roles change.
+	if len(member.MappedRoles) > 0 {
+		event.Kind = audit.IAMProjectRoleChange
+		event.Metadata = audit.ProjectRoleMetadata{OldRoles: []audit.RoleRef{}, NewRoles: audit.NewRoleRefs(roles)}
+	}
+	helpers.Audit(r).Record(r.Context(), event)
 
 	w.WriteHeader(http.StatusNoContent)
 }
