@@ -812,6 +812,8 @@ export default {
   audit_kind_iam_project_role_definition_delete: 'Project role deleted',
   audit_kind_iam_mapped_role_add: 'Mapped role added',
   audit_kind_iam_mapped_role_remove: 'Mapped role removed',
+  audit_kind_iam_role_mapping_create: 'Group mapping created',
+  audit_kind_iam_role_mapping_delete: 'Group mapping deleted',
   audit_kind_iam_template_permission_create: 'Template permission added',
   audit_kind_iam_template_permission_update: 'Template permission changed',
   audit_kind_iam_template_permission_delete: 'Template permission removed',

@@ -333,6 +333,7 @@ func runService() {
 		store,
 		terraformStore,
 		workflowStore,
+		roleMappingStore,
 		ansibleTaskRepo,
 		&taskPool,
 		projectService,

@@ -54,6 +54,8 @@ const (
 	IAMProjectRoleDefinitionDelete Kind = "iam.project_role_definition/delete"
 	IAMMappedRoleAdd               Kind = "iam.mapped_role/add"
 	IAMMappedRoleRemove            Kind = "iam.mapped_role/remove"
+	IAMRoleMappingCreate           Kind = "iam.role_mapping/create"
+	IAMRoleMappingDelete           Kind = "iam.role_mapping/delete"
 	IAMTemplatePermissionCreate    Kind = "iam.template_permission/create"
 	IAMTemplatePermissionUpdate    Kind = "iam.template_permission/update"
 	IAMTemplatePermissionDelete    Kind = "iam.template_permission/delete"

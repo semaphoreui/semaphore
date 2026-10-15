@@ -105,6 +105,13 @@ func NewMappedRoleEvent(kind Kind, m db.MappedRole, cause string) Event {
 	}
 }
 
+// RoleMappingMetadata describes a group mapping that an admin created or deleted.
+type RoleMappingMetadata struct {
+	Provider string  `json:"provider"`
+	Group    string  `json:"group"`
+	Role     RoleRef `json:"role"`
+}
+
 type TemplatePermissionMetadata struct {
 	TemplateID  int      `json:"template_id"`
 	Role        RoleRef  `json:"role,omitzero"`
