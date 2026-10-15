@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -237,4 +238,79 @@ func TestLastOwnerRule(t *testing.T) {
 			assert.Equal(t, tt.code, w.Code)
 		})
 	}
+}
+
+func TestMappedMembers(t *testing.T) {
+	t.Run("a mapped member gets a manual role through POST", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		user := f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+		r, _ := f.request(http.MethodPost, fmt.Sprintf(`{"user_id":%d,"role":"manager"}`, user.ID), f.owner, f.roles[db.ProjectOwner], nil)
+		w := httptest.NewRecorder()
+		AddUser(w, r)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+	t.Run("removing a member with only mapped roles is refused", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		user := f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+		r, rec := f.request(http.MethodDelete, "", f.owner, f.roles[db.ProjectOwner], &user)
+		w := httptest.NewRecorder()
+		RemoveUser(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "group mappings")
+		assert.Empty(t, rec.All())
+	})
+	t.Run("removing a member who keeps mapped roles is a role change", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		user := f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+		require.NoError(t, f.store.CreateProjectUser(f.project.ID, user.ID, []int{f.roles[db.ProjectManager].ID}))
+		r, rec := f.request(http.MethodDelete, "", f.owner, f.roles[db.ProjectOwner], &user)
+		w := httptest.NewRecorder()
+		RemoveUser(w, r)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		got := only(t, rec, audit.IAMProjectRoleChange)
+		md, err := json.Marshal(got.Event.Metadata)
+		require.NoError(t, err)
+		assert.JSONEq(t, fmt.Sprintf(`{"old_roles":[{"id":%d,"slug":"manager"}],"new_roles":[]}`, f.roles[db.ProjectManager].ID), string(md))
+	})
+	t.Run("an empty roles list is allowed while mapped roles remain", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		user := f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+		require.NoError(t, f.store.CreateProjectUser(f.project.ID, user.ID, []int{f.roles[db.ProjectManager].ID}))
+		r, _ := f.request(http.MethodPut, `{"roles":[]}`, f.owner, f.roles[db.ProjectOwner], &user)
+		w := httptest.NewRecorder()
+		UpdateUser(w, r)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+	t.Run("an empty body is refused", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		r, _ := f.request(http.MethodPut, `{}`, f.owner, f.roles[db.ProjectOwner], &f.member)
+		w := httptest.NewRecorder()
+		UpdateUser(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("an empty roles list is refused without mapped roles", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		r, _ := f.request(http.MethodPut, `{"roles":[]}`, f.owner, f.roles[db.ProjectOwner], &f.member)
+		w := httptest.NewRecorder()
+		UpdateUser(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("the list shows mapped roles apart", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+		r, _ := f.request(http.MethodGet, "", f.owner, f.roles[db.ProjectOwner], nil)
+		w := httptest.NewRecorder()
+		GetUsers(w, r)
+		assert.Contains(t, w.Body.String(), `"username":"m","name":"m","role":"","roles":[],"mapped_roles":[{"role":"guest","provider":"okta","group":"m"}]`)
+		assert.Contains(t, w.Body.String(), `"username":"owner","name":"owner","role":"owner","roles":["owner"]}`, "no mapped_roles without mapped roles")
+	})
+	t.Run("a mapped owner does not count as the last owner", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		user := f.newMappedUser(t, "m", f.roles[db.ProjectOwner])
+		require.NoError(t, f.store.CreateProjectUser(f.project.ID, user.ID, []int{f.roles[db.ProjectManager].ID}))
+		r, _ := f.request(http.MethodPut, `{"roles":["guest"]}`, f.owner, f.roles[db.ProjectOwner], &user)
+		w := httptest.NewRecorder()
+		UpdateUser(w, r)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
 }

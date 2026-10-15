@@ -57,7 +57,7 @@ type MembershipMetadata struct {
 
 type ProjectRoleMetadata struct {
 	OldRoles []RoleRef `json:"old_roles"`
-	NewRoles []RoleRef `json:"new_roles,omitempty"`
+	NewRoles []RoleRef `json:"new_roles,omitzero"`
 	// Set when the role was taken away because it was deleted.
 	DeletedRole RoleRef `json:"deleted_role,omitzero"`
 }

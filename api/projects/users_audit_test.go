@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -77,11 +78,28 @@ func (f membershipFixture) request(method string, body string, me db.User, myRol
 	r = helpers.SetContextValue(r, "log_writer", nopLogWriter{})
 	r = helpers.SetContextValue(r, "audit", rec)
 	if target != nil {
-		targetRoles, _ := f.store.GetProjectUserRoles(f.project.ID, target.ID)
+		member, _ := f.store.GetProjectMember(f.project.ID, target.ID)
 		r = helpers.SetContextValue(r, "projectUser", *target)
-		r = helpers.SetContextValue(r, "projectMemberRoles", targetRoles)
+		r = helpers.SetContextValue(r, "projectMember", member)
 	}
 	return r.WithContext(audit.WithActor(r.Context(), audit.UserActor(me.ID, me.Username, audit.AuthSession, ""))), rec
+}
+
+// newMappedUser creates a user whose only access comes from a group mapping of the okta provider.
+func (f membershipFixture) newMappedUser(t *testing.T, group string, role *db.Role) db.User {
+	t.Helper()
+	user, err := f.store.CreateUser(db.UserWithPwd{Pwd: "verystrongpassword1", User: db.User{Username: group, Name: group, Email: group + "@example.com"}})
+	require.NoError(t, err)
+	res, err := f.store.Sql().Exec(`
+		insert into group_role_mapping (provider, group_name, project_id, role_id, created)
+		values ('okta', ?, ?, ?, ?)
+	`, group, f.project.ID, role.ID, time.Now().UTC())
+	require.NoError(t, err)
+	mappingID, err := res.LastInsertId()
+	require.NoError(t, err)
+	_, err = f.store.Sql().Exec("insert into project__user_mapped_role (project_id, user_id, mapping_id) values (?, ?, ?)", f.project.ID, user.ID, mappingID)
+	require.NoError(t, err)
+	return user
 }
 
 func only(t *testing.T, rec *audittest.Recorder, kind audit.Kind) audittest.Recorded {
