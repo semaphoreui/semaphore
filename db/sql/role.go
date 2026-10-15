@@ -140,7 +140,10 @@ func (d *SqlDb) roleAssignments(q gorp.SqlExecutor, roleID int) (assigned db.Rol
 	if err != nil {
 		return
 	}
-	query, args, err = mappedRolesQuery().Where("m.role_id = ?", roleID).ToSql()
+	query, args, err = MappedRolesQuery().
+		Where("m.role_id = ?", roleID).
+		OrderBy("r.name", "m.provider", "m.group_name").
+		ToSql()
 	if err != nil {
 		return
 	}

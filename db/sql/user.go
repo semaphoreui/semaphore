@@ -227,15 +227,14 @@ func (d *SqlDb) GetProjectUserRoles(projectID int, userID int) (roles []db.Role,
 	return
 }
 
-// mappedRolesQuery selects mapped assignments with their mapping, role and username.
-func mappedRolesQuery() squirrel.SelectBuilder {
+// MappedRolesQuery selects db.MappedRole rows, each caller adds its filter and order.
+func MappedRolesQuery() squirrel.SelectBuilder {
 	return squirrel.Select("mr.project_id", "mr.user_id", "u.username", "mr.mapping_id", "m.provider", "m.group_name",
-		"r.id as role_id", "r.slug as role_slug", "r.name as role_name").
+		"r.id as role_id", "r.slug as role_slug", "r.name as role_name", "r.permissions as role_permissions").
 		From("project__user_mapped_role as mr").
 		Join("group_role_mapping as m on m.id = mr.mapping_id").
 		Join("`role` as r on r.id = m.role_id").
-		Join("`user` as u on u.id = mr.user_id").
-		OrderBy("r.name", "m.provider", "m.group_name")
+		Join("`user` as u on u.id = mr.user_id")
 }
 
 // GetProjectMember returns the manual and the mapped roles of a member, db.ErrNotFound if the user holds neither.
@@ -251,7 +250,10 @@ func (d *SqlDb) GetProjectMember(projectID int, userID int) (member db.ProjectMe
 	if err != nil {
 		return
 	}
-	query, args, err := mappedRolesQuery().Where("mr.project_id = ? and mr.user_id = ?", projectID, userID).ToSql()
+	query, args, err := MappedRolesQuery().
+		Where("mr.project_id = ? and mr.user_id = ?", projectID, userID).
+		OrderBy("r.name", "m.provider", "m.group_name").
+		ToSql()
 	if err != nil {
 		return
 	}
@@ -350,7 +352,10 @@ func (d *SqlDb) GetProjectUsers(projectID int, params db.RetrieveQueryParams) ([
 		rolesByUser[mr.UserID] = append(rolesByUser[mr.UserID], mr.Role)
 	}
 
-	mappedQuery, mappedArgs, err := mappedRolesQuery().Where("mr.project_id = ?", projectID).ToSql()
+	mappedQuery, mappedArgs, err := MappedRolesQuery().
+		Where("mr.project_id = ?", projectID).
+		OrderBy("r.name", "m.provider", "m.group_name").
+		ToSql()
 	if err != nil {
 		return nil, err
 	}
