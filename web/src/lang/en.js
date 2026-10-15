@@ -530,6 +530,16 @@ export default {
   deleteWithAssignments: 'Delete with assignments',
   Roles: 'Roles',
   role_required: 'Role is required',
+  roleMappings: 'Group mappings',
+  newRoleMapping: 'New mapping',
+  deleteRoleMapping: 'Delete mapping',
+  askDeleteRoleMapping: 'Members lose this role now. Members who have no other role leave the project.',
+  roleMappingProvider: 'Provider',
+  roleMappingGroup: 'Group',
+  providerNotConfigured: 'Provider not configured',
+  provider_required: 'Provider is required',
+  group_required: 'Group is required',
+  project_required: 'Project is required',
 
   templatePermission: 'Template permissions',
 
