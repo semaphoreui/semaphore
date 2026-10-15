@@ -265,7 +265,7 @@ func addIntegration() *db.Integration {
 	integration, err := store.CreateIntegration(db.Integration{
 		ProjectID:  userProject.ID,
 		Name:       "Test Integration",
-		TemplateID: templateID,
+		TemplateID: &templateID,
 	})
 	if err != nil {
 		panic(err)

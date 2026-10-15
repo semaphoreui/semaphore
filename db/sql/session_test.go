@@ -95,7 +95,7 @@ func TestAuditedDeletes_MissingTaskParamsIsNotAFailure(t *testing.T) {
 
 	schedule, err := store.CreateSchedule(db.Schedule{ProjectID: projectID, TemplateID: template.ID, Name: "s", CronFormat: "* * * * *", Active: true, Type: db.ScheduleTypeCron, TaskParams: &db.TaskParams{}})
 	require.NoError(t, err)
-	integration, err := store.CreateIntegration(db.Integration{ProjectID: projectID, TemplateID: template.ID, Name: "i", AuthMethod: db.IntegrationAuthNone, TaskParams: &db.TaskParams{}})
+	integration, err := store.CreateIntegration(db.Integration{ProjectID: projectID, TemplateID: &template.ID, Name: "i", AuthMethod: db.IntegrationAuthNone, TaskParams: &db.TaskParams{}})
 	require.NoError(t, err)
 
 	tests := []struct {

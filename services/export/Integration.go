@@ -51,7 +51,7 @@ func (e *IntegrationExporter) restoreValue(val EntityObject[db.Integration], sto
 		}
 	}
 
-	old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID)
+	old.TemplateID, err = exporter.getNewKeyIntRef(Template, val.scope, old.TemplateID, e)
 	if err != nil {
 		return err
 	}

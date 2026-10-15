@@ -487,7 +487,11 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			aliases = append(aliases, a.Alias)
 		}
 
-		tplName, _ := findNameByID[db.Template](o.TemplateID, b.templates)
+		if o.TemplateID == nil {
+			continue
+		}
+
+		tplName, _ := findNameByID[db.Template](*o.TemplateID, b.templates)
 
 		if tplName == nil {
 			continue

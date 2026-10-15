@@ -312,12 +312,19 @@ func GetTaskDefinition(
 
 	var extractedEnvResults = Extract(envValues, h, payload)
 
+	// A workflow integration has no template: the task definition then only
+	// carries the extracted values for the task of the workflow's root node.
+	templateID := 0
+	if integration.TemplateID != nil {
+		templateID = *integration.TemplateID
+	}
+
 	if integration.TaskParams != nil {
-		taskDefinition = integration.TaskParams.CreateTask(integration.TemplateID)
+		taskDefinition = integration.TaskParams.CreateTask(templateID)
 	} else {
 		taskDefinition = db.Task{
 			ProjectID:  integration.ProjectID,
-			TemplateID: integration.TemplateID,
+			TemplateID: templateID,
 			Params:     make(db.MapStringAnyField),
 		}
 	}
@@ -376,7 +383,15 @@ func (c *IntegrationController) RunIntegration(integration db.Integration, proje
 		return
 	}
 
-	tpl, err := c.store.GetTemplate(integration.ProjectID, integration.TemplateID)
+	if integration.TemplateID == nil {
+		log.WithFields(log.Fields{
+			"context":        "integrations",
+			"integration_id": integration.ID,
+		}).Error("integration runs a workflow, which is not supported yet")
+		return
+	}
+
+	tpl, err := c.store.GetTemplate(integration.ProjectID, *integration.TemplateID)
 	if err != nil {
 		log.Error(err)
 		return

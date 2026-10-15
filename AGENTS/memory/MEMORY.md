@@ -53,7 +53,7 @@ only when the task touches that topic. Keep this file under 150 lines.
   re-run `workspace_use` on the first "not bound" error.
 - Workbench MCP: `task_update` refuses to change context/constraints/criteria of a human-created
   task (only type, priority, group/parent change) — propose a brief via `note_add(type="decision")`.
-- Workbench MCP: body limits refuse instead of trimming — task body 8192 chars, note body 2048;
+- Workbench MCP: body limits refuse instead of trimming — task plan accepts ≥5 300 chars, a task note ≥9 000 (limit 65 536 per the tool, seen 2026-10-15);
   stages exist only on `extended` tasks and have their own bodies, so move detail there.
 - Subagents on the Fable model hit 403 twice during the docs audit and had to be rerun on Opus.
 - `docs.cyberark.com` returns 404 to WebFetch/curl for every page; use the Ansible collection

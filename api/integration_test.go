@@ -202,7 +202,7 @@ func TestGetTaskDefinitionSuccess(t *testing.T) {
 	integration := db.Integration{
 		ID:         11,
 		ProjectID:  22,
-		TemplateID: 33,
+		TemplateID: new(33),
 		TaskParams: &db.TaskParams{
 			ProjectID:   22,
 			Environment: `{"existing":"value"}`,
@@ -250,7 +250,7 @@ func TestGetTaskDefinitionSuccess(t *testing.T) {
 	}
 
 	assert.Equal(t, integration.ProjectID, task.ProjectID)
-	assert.Equal(t, integration.TemplateID, task.TemplateID)
+	assert.Equal(t, *integration.TemplateID, task.TemplateID)
 	assert.NotEmpty(t, task.Environment)
 
 	var env map[string]any
@@ -279,7 +279,7 @@ func TestGetTaskDefinition_JSONObjectInEnv(t *testing.T) {
 	integration := db.Integration{
 		ID:         11,
 		ProjectID:  22,
-		TemplateID: 33,
+		TemplateID: new(33),
 	}
 
 	header := make(http.Header)
@@ -313,7 +313,7 @@ func TestGetTaskDefinitionTaskParamExtractionWithNilParamsMap(t *testing.T) {
 	integration := db.Integration{
 		ID:         111,
 		ProjectID:  222,
-		TemplateID: 333,
+		TemplateID: new(333),
 		TaskParams: &db.TaskParams{
 			ProjectID: 222,
 			GitBranch: nil,
@@ -346,7 +346,7 @@ func TestGetTaskDefinitionExtractorError(t *testing.T) {
 	integration := db.Integration{
 		ID:         44,
 		ProjectID:  55,
-		TemplateID: 66,
+		TemplateID: new(66),
 	}
 
 	header := make(http.Header)
@@ -370,7 +370,7 @@ func TestGetTaskDefinitionInvalidEnvironmentJSON(t *testing.T) {
 	integration := db.Integration{
 		ID:         77,
 		ProjectID:  88,
-		TemplateID: 99,
+		TemplateID: new(99),
 		TaskParams: &db.TaskParams{
 			ProjectID:   88,
 			Environment: "{not-json}",
@@ -392,7 +392,7 @@ func TestGetTaskDefinitionIntegrationWithoutTaskParams(t *testing.T) {
 	integration := db.Integration{
 		ID:         44,
 		ProjectID:  55,
-		TemplateID: 66,
+		TemplateID: new(66),
 	}
 
 	header := make(http.Header)
@@ -435,7 +435,7 @@ func TestGetTaskDefinitionWithExtractedEnvValues(t *testing.T) {
 	integration := db.Integration{
 		ID:         1,
 		ProjectID:  1,
-		TemplateID: 1,
+		TemplateID: new(1),
 	}
 
 	// Create test payload
@@ -792,7 +792,7 @@ func setupHmacSha512ReceiveIntegration(t *testing.T) (*IntegrationController, *t
 	integration, err := store.CreateIntegration(db.Integration{
 		Name:       "hmac-sha512 integration",
 		ProjectID:  project.ID,
-		TemplateID: template.ID,
+		TemplateID: &template.ID,
 		AuthMethod: db.IntegrationAuthHmacSha512,
 		AuthHeader: authHeader,
 	})

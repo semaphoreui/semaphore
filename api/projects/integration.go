@@ -11,6 +11,14 @@ import (
 	"github.com/semaphoreui/semaphore/services/audit"
 )
 
+func integrationMetadata(integration db.Integration) audit.IntegrationMetadata {
+	metadata := audit.IntegrationMetadata{AuthMethod: string(integration.AuthMethod)}
+	if integration.TemplateID != nil {
+		metadata.TemplateID = *integration.TemplateID
+	}
+	return metadata
+}
+
 func IntegrationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		integrationId, ok := helpers.GetIntParamOrAbort("integration_id", w, r)
@@ -115,7 +123,7 @@ func AddIntegration(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.ResourceIntegrationCreate,
 		Target:    audit.ResourceTarget(audit.TargetIntegration, newIntegration.ID, newIntegration.Name),
 		ProjectID: project.ID,
-		Metadata:  audit.IntegrationMetadata{TemplateID: newIntegration.TemplateID, AuthMethod: string(newIntegration.AuthMethod)},
+		Metadata:  integrationMetadata(newIntegration),
 	})
 
 	helpers.WriteJSON(w, http.StatusCreated, newIntegration)
@@ -154,7 +162,7 @@ func UpdateIntegration(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.ResourceIntegrationUpdate,
 		Target:    audit.ResourceTarget(audit.TargetIntegration, oldIntegration.ID, integration.Name),
 		ProjectID: oldIntegration.ProjectID,
-		Metadata:  audit.IntegrationMetadata{TemplateID: integration.TemplateID, AuthMethod: string(integration.AuthMethod)},
+		Metadata:  integrationMetadata(integration),
 	})
 
 	w.WriteHeader(http.StatusNoContent)

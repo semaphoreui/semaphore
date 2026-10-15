@@ -307,7 +307,12 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 // are referenced by other tables' foreign keys and therefore must be applied
 // (and rolled back) with FK enforcement disabled on the connection.
 func sqliteNeedsFkOff(dialect string, version string) bool {
-	return dialect == util.DbDriverSQLite && version == "2.19.14"
+	switch version {
+	case "2.19.14", "2.20.12":
+		return dialect == util.DbDriverSQLite
+	default:
+		return false
+	}
 }
 
 // TryRollbackMigration attempts to rollback the database to an earlier version if a rollback exists

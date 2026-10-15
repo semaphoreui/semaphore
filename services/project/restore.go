@@ -496,7 +496,7 @@ func (e BackupIntegration) Restore(b *BackupDB) error {
 	integration := e.Integration
 	integration.ProjectID = b.meta.ID
 	integration.AuthSecretID = authSecretID
-	integration.TemplateID = tpl.ID
+	integration.TemplateID = &tpl.ID
 
 	if integration.TaskParams != nil {
 		inv := findEntityByName[db.Inventory](e.TaskParams.InventoryName, b.inventories)
