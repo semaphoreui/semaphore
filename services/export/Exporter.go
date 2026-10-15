@@ -22,6 +22,7 @@ const (
 	HostConfig              = "HostConfig"
 	View                    = "View"
 	Role                    = "Role"
+	RoleMapping             = "RoleMapping"
 	TaskParams              = "TaskParams"
 	Integration             = "Integration"
 	IntegrationAlias        = "IntegrationAlias"
@@ -423,6 +424,7 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUs
 		Inventory:               &InventoryExporter{},
 		View:                    &ViewExporter{},
 		Role:                    &RoleExporter{},
+		RoleMapping:             &RoleMappingExporter{},
 		Schedule:                &ScheduleExporter{},
 		ProjectUser:             &ProjectUserExporter{},
 		Integration:             &IntegrationExporter{},
