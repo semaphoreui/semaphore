@@ -59,6 +59,7 @@ You can install Semaphore using the following methods:
   * [Vultr](https://www.vultr.com/marketplace/apps/semaphore)
   * [Yandex Cloud](https://yandex.cloud/ru/marketplace/products/fastlix/semaphore)
   * [RepoCloud](https://repocloud.io/details/Semaphore/)
+  * [Pethost](https://pethost.dev/templates/semaphore/)
 * [Snap](http://snapcraft.io/semaphore)
 * [Binary file](https://semaphoreui.com/install/binary)
 * [Debian or RPM package](https://semaphoreui.com/install/binary)
