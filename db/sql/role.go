@@ -77,7 +77,8 @@ func (d *SqlDb) DeleteRole(roleID int) error {
 	return requireDeletedRow(res, err)
 }
 
-// GetRoleAssignments lists the members who hold a role, with all their roles, and the template grants of the role.
+// GetRoleAssignments lists the members who hold a role, with all their roles, the template grants of the role,
+// and the group mappings of the role with their assignments.
 func (d *SqlDb) GetRoleAssignments(roleID int) (db.RoleAssignments, error) {
 	return d.roleAssignments(d.Sql(), roleID)
 }

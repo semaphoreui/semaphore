@@ -65,7 +65,7 @@ type RoleMember struct {
 	UserID    int
 	Username  string
 	Roles     []Role
-	// The member also holds roles through group mappings, so losing every manual role keeps the membership.
+	// The member also holds roles through mappings of other roles, so losing every manual role keeps the membership.
 	Mapped bool
 }
 
