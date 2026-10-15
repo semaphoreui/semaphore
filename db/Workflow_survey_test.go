@@ -107,16 +107,28 @@ func TestWorkflowSurveyJSONShape(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(revision), "survey_vars")
 
-	environment := `{"tag":"1.2.3"}`
-	run, err := json.Marshal(WorkflowRun{Environment: &environment})
+	// The run's environment is an object on the wire and JSON text in the
+	// database column.
+	run, err := json.Marshal(WorkflowRun{Environment: MapStringAnyField{"tag": "1.2.3", "regions": []string{"eu"}}})
 	require.NoError(t, err)
-	assert.Contains(t, string(run), `"environment":"{\"tag\":\"1.2.3\"}"`)
+	assert.Contains(t, string(run), `"environment":{"regions":["eu"],"tag":"1.2.3"}`)
 
 	bareRun, err := json.Marshal(WorkflowRun{})
 	require.NoError(t, err)
 	assert.NotContains(t, string(bareRun), "environment")
 
+	column, err := WorkflowRun{Environment: MapStringAnyField{"tag": "1.2.3"}}.Environment.Value()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"tag":"1.2.3"}`, string(column.([]byte)))
+	column, err = WorkflowRun{}.Environment.Value()
+	require.NoError(t, err)
+	assert.Nil(t, column, "no survey is NULL, not an empty object")
+
 	var params WorkflowRunParams
-	require.NoError(t, json.Unmarshal([]byte(`{"environment":"{\"tag\":\"x\"}"}`), &params))
-	assert.Equal(t, `{"tag":"x"}`, params.Environment)
+	require.NoError(t, json.Unmarshal([]byte(`{"environment":{"tag":"x","count":2}}`), &params))
+	assert.Equal(t, "x", params.Environment["tag"])
+	assert.Equal(t, float64(2), params.Environment["count"])
+	var empty WorkflowRunParams
+	require.NoError(t, json.Unmarshal([]byte(`{}`), &empty))
+	assert.Nil(t, empty.Environment)
 }

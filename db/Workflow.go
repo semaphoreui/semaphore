@@ -53,12 +53,11 @@ type WorkflowNodeSurveyInput struct {
 	WorkflowVar string `json:"workflow_var" backup:"workflow_var"`
 }
 
-// WorkflowRunParams is the body of POST .../workflows/{id}/runs: the values
-// of the workflow's survey variables, a JSON object encoded as a string —
-// the same shape as Task.Environment. An empty body starts the run with the
-// survey defaults only.
+// WorkflowRunParams is the body of POST .../workflows/{id}/runs: the answers
+// to the workflow's survey as a JSON object, variable name → value. An empty
+// body starts the run with the survey defaults only.
 type WorkflowRunParams struct {
-	Environment string `json:"environment,omitempty"`
+	Environment MapStringAnyField `json:"environment,omitempty"`
 }
 
 // workflowOutputNamePattern is the shape of an output name. The hyphen is
@@ -267,12 +266,12 @@ type WorkflowRun struct {
 	Version *string `db:"version" json:"version,omitempty" backup:"version"`
 
 	// Environment holds the values of the workflow's survey variables the run
-	// was started with, a JSON object encoded as a string (the shape of
-	// Task.Environment). Written once by the engine at start, after defaults
-	// and type checks; every node of a cluster reads it when it launches a
-	// task. Nil when the workflow has no survey (and for runs created before
-	// the column existed). Never holds a secret.
-	Environment *string `db:"environment" json:"environment,omitempty" backup:"-"`
+	// was started with: a JSON object in the API, JSON text in the database
+	// (MapStringAnyField, as Task.Params). Written once by the engine at
+	// start, after defaults and type checks; every node of a cluster reads
+	// it when it launches a task. Nil when the workflow has no survey (and
+	// for runs created before the column existed). Never holds a secret.
+	Environment MapStringAnyField `db:"environment" json:"environment,omitempty" backup:"-"`
 
 	Start *time.Time `db:"start" json:"start,omitempty" backup:"start"`
 	End   *time.Time `db:"end" json:"end,omitempty" backup:"end"`
