@@ -505,6 +505,11 @@ export default {
   template_tf_workspaces: 'Workspaces',
 
   // Role-related translations
+  roleScope: 'Scope',
+  builtIn: 'Built-in',
+  projectRoles: 'Project roles',
+  globalRoles: 'Global roles',
+  builtInRoles: 'Built-in roles',
   slug: 'Slug',
   slug_required: 'Slug is required',
   slugHint: 'Unique identifier (letters, digits, underscores and hyphens, up to 100 characters)',

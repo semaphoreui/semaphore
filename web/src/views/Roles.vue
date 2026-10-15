@@ -67,9 +67,17 @@
     <v-data-table
       :headers="headers"
       :items="items"
+      item-key="slug"
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
+      <template v-slot:item.name="{ item }">
+        <div>{{ item.name }}</div>
+        <div class="text--secondary caption">{{ item.slug }}</div>
+      </template>
+      <template v-slot:item.scope="{ item }">
+        <v-chip small label>{{ $t(roleScope(item)) }}</v-chip>
+      </template>
       <template v-slot:item.permissions="{ item }">
         <TemplatePermissionsChips class="py-1" :permissions="item.permissions" />
       </template>
@@ -95,6 +103,7 @@ import EditDialog from '@/components/EditDialog.vue';
 import RoleForm from '@/components/EditRoleForm.vue';
 import TeamMenu from '@/components/TeamMenu.vue';
 import TemplatePermissionsChips from '@/components/TemplatePermissionsChips.vue';
+import { roleScope } from '@/lib/roles';
 
 export default {
   mixins: [ItemListPageBase],
@@ -138,6 +147,11 @@ export default {
           width: '50%',
         },
         {
+          text: this.$i18n.t('roleScope'),
+          value: 'scope',
+          sortable: false,
+        },
+        {
           text: this.$i18n.t('permissions'),
           value: 'permissions',
         },
@@ -152,6 +166,8 @@ export default {
     async returnToProjects() {
       EventBus.$emit('i-open-last-project');
     },
+
+    roleScope,
 
     getItemsUrl() {
       return this.projectId ? `/api/project/${this.projectId}/roles` : '/api/roles';

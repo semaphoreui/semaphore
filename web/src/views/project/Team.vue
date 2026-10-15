@@ -53,14 +53,21 @@
         <v-select
           hide-details
           v-model="item.role"
-          :items="roles"
+          :items="groupedRoles"
           item-value="slug"
           item-text="name"
           :style="{ width: '200px' }"
           @change="updateProjectUser(item)"
           v-if="can(USER_PERMISSIONS.manageProjectUsers)"
           class="pt-0 mt-0"
-        />
+        >
+          <template v-slot:item="{ item: role }">
+            <v-list-item-content>
+              <v-list-item-title>{{ role.name }}</v-list-item-title>
+              <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
+            </v-list-item-content>
+          </template>
+        </v-select>
         <div v-else>
           {{ (roles.find((r) => r.slug === item.role) || { name: item.role }).name }}
         </div>
@@ -81,6 +88,7 @@ import ItemListPageBase from '@/components/ItemListPageBase';
 import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';
 import axios from 'axios';
 import { USER_PERMISSIONS } from '@/lib/constants';
+import groupRolesForSelect from '@/lib/roles';
 import TeamMenu from '@/components/TeamMenu.vue';
 
 export default {
@@ -98,6 +106,10 @@ export default {
   },
 
   computed: {
+    groupedRoles() {
+      return groupRolesForSelect(this.roles, (key) => this.$i18n.t(key));
+    },
+
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
     },
@@ -136,7 +148,7 @@ export default {
         method: 'put',
         url: `/api/project/${this.projectId}/users/${user.id}`,
         responseType: 'json',
-        data: user,
+        data: { role: user.role },
       });
       await this.loadItems();
     },

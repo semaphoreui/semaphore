@@ -5,6 +5,32 @@ import EditRoleForm from '@/components/EditRoleForm.vue';
 const ctx = { $t: (key) => key };
 
 describe('EditRoleForm', () => {
+  describe('name watcher', () => {
+    const onNameChange = EditRoleForm.watch['item.name'];
+
+    it('derives the slug of a new role from the name', () => {
+      const form = { isNew: true, slugTouched: false, item: { slug: '' } };
+      onNameChange.call(form, 'CI Deployer');
+      expect(form.item.slug).to.equal('ci-deployer');
+      onNameChange.call(form, '  Ops / Prod  ');
+      expect(form.item.slug).to.equal('ops-prod');
+      onNameChange.call(form, 'Тест');
+      expect(form.item.slug).to.equal('');
+    });
+
+    it('keeps the slug the user has edited', () => {
+      const form = { isNew: true, slugTouched: true, item: { slug: 'mine' } };
+      onNameChange.call(form, 'CI Deployer');
+      expect(form.item.slug).to.equal('mine');
+    });
+
+    it('keeps the slug of an existing role', () => {
+      const form = { isNew: false, slugTouched: false, item: { slug: 'legacy' } };
+      onNameChange.call(form, 'CI Deployer');
+      expect(form.item.slug).to.equal('legacy');
+    });
+  });
+
   it('accepts letters of both cases, digits, _ and -', () => {
     expect(EditRoleForm.methods.validateSlug.call(ctx, 'CI_bot-2')).to.equal(true);
     expect(EditRoleForm.methods.validateSlug.call(ctx, 'with space')).to.equal('invalidSlugFormat');
