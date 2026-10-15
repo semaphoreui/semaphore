@@ -189,6 +189,7 @@ func runService() {
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
 	workflowStore := proFactory.NewWorkflowStore(store)
+	roleMappingStore := proFactory.NewRoleMappingStore(store)
 
 	projectService := server.NewProjectService(store, store)
 	encryptionService := server.NewAccessKeyEncryptionService(store, store, store, store)
@@ -207,6 +208,7 @@ func runService() {
 	runnerService := server.NewRunnerService(store)
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
+	roleSyncService := proServer.NewRoleSyncService(roleMappingStore)
 
 	taskPool := tasks.CreateTaskPool(
 		store,
@@ -355,6 +357,7 @@ func runService() {
 			r = helpers.SetContextValue(r, "log_writer", logWriteService)
 			r = helpers.SetContextValue(r, "cluster_inspector", clusterInspector)
 			r = helpers.SetContextValue(r, "audit", auditService.Recorder())
+			r = helpers.SetContextValue(r, "role_sync", roleSyncService)
 
 			next.ServeHTTP(w, r)
 		})

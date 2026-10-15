@@ -463,6 +463,9 @@ $defs:
       username_claim:   { type: string, default: preferred_username }
       name_claim:       { type: string, default: preferred_username }
       email_claim:      { type: string, default: email }
+      groups_claim:
+        type: string
+        description: Claim that lists the user's groups. Semaphore Pro applies the group role mappings at every sign-in through this provider when it is set.
       order:            { type: integer }
       return_via_state: { type: boolean, default: true }
       require_verified_email:

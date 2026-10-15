@@ -30,6 +30,8 @@ export default [
   'iam.project_role_definition/create',
   'iam.project_role_definition/update',
   'iam.project_role_definition/delete',
+  'iam.mapped_role/add',
+  'iam.mapped_role/remove',
   'iam.template_permission/create',
   'iam.template_permission/update',
   'iam.template_permission/delete',

@@ -73,6 +73,38 @@ type RoleDeleteMetadata struct {
 	Impact *db.RoleImpact `json:"impact,omitempty"`
 }
 
+// MappedRoleMetadata describes a role a member got or lost through a group mapping.
+type MappedRoleMetadata struct {
+	Role      RoleRef `json:"role"`
+	Provider  string  `json:"provider"`
+	Group     string  `json:"group"`
+	MappingID int     `json:"mapping_id"`
+	// Why the role changed: login, mapping_deleted or role_deleted.
+	Cause string `json:"cause"`
+}
+
+const (
+	MappedRoleCauseLogin          = "login"
+	MappedRoleCauseMappingDeleted = "mapping_deleted"
+	MappedRoleCauseRoleDeleted    = "role_deleted"
+)
+
+// NewMappedRoleEvent describes one mapped assignment.
+func NewMappedRoleEvent(kind Kind, m db.MappedRole, cause string) Event {
+	return Event{
+		Kind:      kind,
+		Target:    UserTarget(m.UserID, m.Username),
+		ProjectID: m.ProjectID,
+		Metadata: MappedRoleMetadata{
+			Role:      RoleRef{ID: m.RoleID, Slug: TruncateName(m.RoleSlug, MaxNameBytes)},
+			Provider:  m.Provider,
+			Group:     m.Group,
+			MappingID: m.MappingID,
+			Cause:     cause,
+		},
+	}
+}
+
 type TemplatePermissionMetadata struct {
 	TemplateID  int      `json:"template_id"`
 	Role        RoleRef  `json:"role,omitzero"`

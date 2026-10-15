@@ -68,6 +68,8 @@ func Catalog() []Entry {
 		{Kind: IAMProjectRoleDefinitionCreate, Type: TypeCreation, Metadata: RoleMetadata{}, Pro: true},
 		{Kind: IAMProjectRoleDefinitionUpdate, Type: TypeChange, Metadata: RoleMetadata{}, Pro: true},
 		{Kind: IAMProjectRoleDefinitionDelete, Type: TypeDeletion, Metadata: RoleDeleteMetadata{}, Pro: true},
+		{Kind: IAMMappedRoleAdd, Type: TypeChange, Metadata: MappedRoleMetadata{}, Pro: true},
+		{Kind: IAMMappedRoleRemove, Type: TypeChange, Metadata: MappedRoleMetadata{}, Pro: true},
 		{Kind: IAMTemplatePermissionCreate, Type: TypeCreation, Metadata: TemplatePermissionMetadata{}},
 		{Kind: IAMTemplatePermissionUpdate, Type: TypeChange, Metadata: TemplatePermissionMetadata{}},
 		{Kind: IAMTemplatePermissionDelete, Type: TypeDeletion, Metadata: TemplatePermissionMetadata{}},

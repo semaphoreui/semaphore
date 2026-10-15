@@ -26,6 +26,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -770,6 +771,7 @@ type claimResult struct {
 	name          string
 	email         string
 	emailVerified bool
+	raw           map[string]any
 }
 
 // emailVerifiedClaim reads the standard OIDC email_verified claim as a
@@ -906,6 +908,7 @@ func claimOidcUserInfo(userInfo *oidc.UserInfo, provider util.OidcProvider) (res
 	res, err = parseClaims(claims, &provider)
 	res.sub = userInfo.Subject
 	res.emailVerified = resolveEmailVerified(claims, provider)
+	res.raw = claims
 	return
 }
 
@@ -920,7 +923,25 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res clai
 	res, err = parseClaims(claims, &provider)
 	res.sub = idToken.Subject
 	res.emailVerified = resolveEmailVerified(claims, provider)
+	res.raw = claims
 	return
+}
+
+// syncLoginRoles applies the group role mappings of the provider and records each change.
+func syncLoginRoles(r *http.Request, user db.User, provider string, claims map[string]any) error {
+	service := helpers.GetFromContext(r, "role_sync").(pro_interfaces.RoleSyncService)
+	added, removed, err := service.SyncLoginRoles(user.ID, provider, claims)
+	if err != nil {
+		return err
+	}
+	ctx := audit.WithActor(r.Context(), audit.SystemActor(audit.ComponentServer))
+	for _, m := range added {
+		helpers.Audit(r).Record(ctx, audit.NewMappedRoleEvent(audit.IAMMappedRoleAdd, m, audit.MappedRoleCauseLogin))
+	}
+	for _, m := range removed {
+		helpers.Audit(r).Record(ctx, audit.NewMappedRoleEvent(audit.IAMMappedRoleRemove, m, audit.MappedRoleCauseLogin))
+	}
+	return nil
 }
 
 func getRandomUsername() string {
@@ -1060,6 +1081,10 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 				claims.name = userInfo.Profile
 				claims.sub = userInfo.Subject
 				claims.emailVerified = oidcEmailVerified(userInfo, provider)
+				raw := make(map[string]any)
+				if userInfo.Claims(&raw) == nil {
+					claims.raw = raw
+				}
 			}
 		}
 
@@ -1147,6 +1172,17 @@ func oidcRedirect(w http.ResponseWriter, r *http.Request) {
 		log.Error(err.Error())
 		recordLoginFailure(r, "", meta, audit.ReasonInternalError)
 		http.Error(w, "OIDC sign-in failed: could not find or create the user account. Contact your administrator.", http.StatusInternalServerError)
+		return
+	}
+
+	if err = syncLoginRoles(r, user, pid, claims.raw); err != nil {
+		log.WithError(err).WithFields(log.Fields{"user_id": user.ID, "provider": pid}).Error("Failed to apply group role mappings")
+		reason := audit.ReasonInternalError
+		if errors.Is(err, pro_interfaces.ErrGroupsClaim) {
+			reason = audit.ReasonProviderError
+		}
+		recordLoginFailure(r, "", meta, reason)
+		http.Error(w, "OIDC sign-in failed: could not apply the group roles. Contact your administrator.", http.StatusInternalServerError)
 		return
 	}
 
