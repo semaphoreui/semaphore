@@ -55,6 +55,10 @@
   a wrapper that `exec`s `bin/semaphore-pro`; same DB recreate and `ECONNREFUSED 61321` retry.
   Baseline: 127 passing, 0 failing, 32 skipped. A worktree without `web/node_modules` can use
   the main checkout's `web/node_modules/.bin/dredd` and its `.dredd/config.json`.
+- The dredd↔goodman race also shows as `complete: 2 passing, 130 failing … 27 skipped` with every
+  transaction 401 and no `ECONNREFUSED` in the log (2026-10-16): retry until the summary says
+  `0 failing` instead of grepping for the error. A `run_in_background` Bash inherits whatever cwd the
+  session last had — use absolute paths for `go build ./cli` and the Dredd config.
 
 ## Bookwright `integration-tests/` repo
 
