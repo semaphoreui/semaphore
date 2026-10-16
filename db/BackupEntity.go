@@ -25,6 +25,14 @@ func (e Template) GetName() string {
 	return e.Name
 }
 
+func (e Proxy) GetID() int {
+	return e.ID
+}
+
+func (e Proxy) GetName() string {
+	return e.Name
+}
+
 func (e Inventory) GetID() int {
 	return e.ID
 }

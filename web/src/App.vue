@@ -1234,6 +1234,12 @@ export default {
             to: `${base}/repositories`,
           },
           {
+            key: 'proxies',
+            icon: 'mdi-transit-connection-variant',
+            title: this.$t('proxies'),
+            to: `${base}/proxies`,
+          },
+          {
             key: 'host_config',
             icon: 'mdi-server-network',
             title: this.$t('hostConfig'),

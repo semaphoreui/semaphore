@@ -45,6 +45,7 @@ type LocalExecutor struct {
 	sshKeyInstallation     ssh.AccessKeyInstallation
 	hostConfigInstallation *ssh.HostConfigInstallation
 	becomeKeyInstallation  ssh.AccessKeyInstallation
+	proxyKeyInstallation   ssh.AccessKeyInstallation
 	vaultFileInstallations map[string]ssh.AccessKeyInstallation
 
 	KeyInstaller db_lib.AccessKeyInstaller
@@ -521,6 +522,10 @@ func (t *LocalExecutor) getPlaybookArgs(username string, incomingVersion *string
 			err = fmt.Errorf("access key does not suite for inventory's user credentials")
 			return
 		}
+	}
+
+	if sshArgs := t.getInventorySSHCommonArgs(); sshArgs != "" {
+		args = append(args, "--ssh-common-args", sshArgs)
 	}
 
 	if t.Inventory.BecomeKeyID != nil {
@@ -1098,6 +1103,9 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		environmentVariables = append(environmentVariables, sshEnv)
 	}
 
+	// A SOCKS or HTTP proxy is reached by the connector ssh runs as its
+	// ProxyCommand, which takes its credentials from the environment.
+	environmentVariables = append(environmentVariables, db_lib.ProxyEnv(t.Inventory.Proxy)...)
 	environmentVariables = append(environmentVariables, t.hostConfigEnv()...)
 
 	outputsEnv, err := t.beginOutputs(environmentVariables)

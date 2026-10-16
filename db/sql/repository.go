@@ -14,6 +14,18 @@ func (d *SqlDb) GetRepository(projectID int, repositoryID int) (db.Repository, e
 	}
 
 	repository.SSHKey, err = d.GetAccessKey(projectID, repository.SSHKeyID)
+	if err != nil {
+		return repository, err
+	}
+
+	if repository.ProxyID != nil {
+		var proxy db.Proxy
+		proxy, err = d.GetProxy(projectID, *repository.ProxyID)
+		if err != nil {
+			return repository, err
+		}
+		repository.Proxy = &proxy
+	}
 
 	return repository, err
 }
@@ -63,11 +75,12 @@ func (d *SqlDb) UpdateRepository(repository db.Repository) error {
 	}
 
 	_, err = d.exec(
-		"update project__repository set name=?, git_url=?, git_branch=?, ssh_key_id=?, monorepo=? where id=?",
+		"update project__repository set name=?, git_url=?, git_branch=?, ssh_key_id=?, proxy_id=?, monorepo=? where id=?",
 		repository.Name,
 		repository.GitURL,
 		repository.GitBranch,
 		repository.SSHKeyID,
+		repository.ProxyID,
 		repository.Monorepo,
 		repository.ID)
 
@@ -83,12 +96,13 @@ func (d *SqlDb) CreateRepository(repository db.Repository) (newRepo db.Repositor
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__repository(project_id, git_url, git_branch, ssh_key_id, name, monorepo) values (?, ?, ?, ?, ?, ?)",
+		"insert into project__repository(project_id, git_url, git_branch, ssh_key_id, name, proxy_id, monorepo) values (?, ?, ?, ?, ?, ?, ?)",
 		repository.ProjectID,
 		repository.GitURL,
 		repository.GitBranch,
 		repository.SSHKeyID,
 		repository.Name,
+		repository.ProxyID,
 		repository.Monorepo)
 
 	if err != nil {
