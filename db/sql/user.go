@@ -153,33 +153,37 @@ func (d *SqlDb) CreateProjectUser(projectID int, userID int, roleIDs []int) erro
 
 // SetProjectUserRoles replaces the manual roles of a member. The list may be empty while the member keeps roles from
 // group mappings. It returns db.ErrNotFound if the user is not a member.
-func (d *SqlDb) SetProjectUserRoles(projectID int, userID int, roleIDs []int) error {
+func (d *SqlDb) SetProjectUserRoles(projectID int, userID int, roleIDs []int) (err error) {
 	tx, err := d.Sql().Begin()
 	if err != nil {
-		return err
+		return
 	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
 	res, err := d.execTx(tx, "delete from project__user_role where project_id=? and user_id=?", projectID, userID)
-	var deleted int64
-	if err == nil {
-		deleted, err = res.RowsAffected()
-	}
-	var mapped int64
-	if err == nil {
-		mapped, err = tx.SelectInt(d.PrepareQuery("select count(*) from project__user_mapped_role where project_id=? and user_id=?"), projectID, userID)
-	}
-	switch {
-	case err != nil:
-	case deleted == 0 && mapped == 0:
-		// A member removed meanwhile must not come back.
-		err = db.ErrNotFound
-	case len(roleIDs) == 0 && mapped == 0:
-		err = &common_errors.ValidationError{Message: "A member needs at least one role"}
-	default:
-		err = d.insertProjectUserRoles(tx, projectID, userID, roleIDs)
-	}
 	if err != nil {
-		_ = tx.Rollback()
-		return err
+		return
+	}
+	deleted, err := res.RowsAffected()
+	if err != nil {
+		return
+	}
+	mapped, err := tx.SelectInt(d.PrepareQuery("select count(*) from project__user_mapped_role where project_id=? and user_id=?"), projectID, userID)
+	if err != nil {
+		return
+	}
+	if deleted == 0 && mapped == 0 {
+		// A member removed meanwhile must not come back.
+		return db.ErrNotFound
+	}
+	if len(roleIDs) == 0 && mapped == 0 {
+		return &common_errors.ValidationError{Message: "A member needs at least one role"}
+	}
+	if err = d.insertProjectUserRoles(tx, projectID, userID, roleIDs); err != nil {
+		return
 	}
 	return tx.Commit()
 }
