@@ -1,1 +1,3 @@
-alter table `project__repository` add `proxy_id` int references `project__proxy`(`id`) on delete set null;
+drop table if exists `project__template_role_old`;
+drop table if exists `project__user_old`;
+drop table if exists `role_old`;

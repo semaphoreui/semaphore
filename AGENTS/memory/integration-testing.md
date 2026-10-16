@@ -42,6 +42,13 @@
   `web`, `go install .../goodman`, build `bin/semaphore` and `.dredd/compiled_hooks` with
   `GOWORK=off`, then `./web/node_modules/.bin/dredd --config .dredd/dredd.testing.yml`. The
   dredd↔goodman startup is racy (ECONNREFUSED 61321 → every txn 401): retry.
+- Local Dredd recipe that works on this Mac (2026-10-14): the `my-postgres` Docker container already
+  matches `.dredd/config.json`; drop/create `semaphore_test_000071` before each run (fixtures assume
+  a fresh DB), `GOWORK=off go build -o bin/semaphore ./cli` and the hooks, `PATH=$HOME/go/bin:$PATH`
+  for goodman, then `dredd --config .dredd/dredd.testing.yml` (server-wrapper starts the server on
+  58427 itself). 54 skips (ws, login, OIDC, 400s, Pro workflow endpoints) are the normal baseline.
+- A field the server nulls (e.g. `Inventory.repository_id` for non-file types since `6a4a04ba`)
+  must be `x-nullable: true` in `api-docs.yml`; the openapi2 parser Dredd uses honours it.
 
 ## Bookwright `integration-tests/` repo
 

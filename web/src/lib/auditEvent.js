@@ -54,17 +54,19 @@ export function actorIcon(actor) {
   }[actor.type] || 'mdi-incognito';
 }
 
-// Nested metadata becomes dotted keys, lists become comma-separated text.
+// Nested metadata becomes dotted keys, lists become comma-separated text, a role shows its slug.
 export function metadataRows(metadata, prefix = '') {
+  const isRole = (item) => item !== null && typeof item === 'object' && 'slug' in item;
+  const text = (item) => (isRole(item) ? item.slug : item);
   return Object.entries(metadata || {}).flatMap(([key, value]) => {
     const path = prefix ? `${prefix}.${key}` : key;
     if (Array.isArray(value)) {
-      return [{ key: path, value: value.join(', ') }];
+      return [{ key: path, value: value.map(text).join(', ') }];
     }
-    if (value !== null && typeof value === 'object') {
+    if (value !== null && typeof value === 'object' && !isRole(value)) {
       return metadataRows(value, path);
     }
-    return [{ key: path, value: String(value) }];
+    return [{ key: path, value: String(text(value)) }];
   });
 }
 

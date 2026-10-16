@@ -42,8 +42,7 @@ func (d *SqlDb) GetAllProjects() (projects []db.Project, err error) {
 func (d *SqlDb) GetProjects(userID int) (projects []db.Project, err error) {
 	query, args, err := squirrel.Select("p.*").
 		From("project as p").
-		Join("project__user as pu on pu.project_id=p.id").
-		Where("pu.user_id=?", userID).
+		Where("exists (select 1 from project__user_role pur where pur.project_id = p.id and pur.user_id = ?)", userID).
 		OrderBy("p.name").
 		Limit(200).
 		ToSql()
@@ -91,7 +90,10 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		"delete from project__workflow_run where project_id=?",
 		"update project__template set build_template_id = null where project_id=?",
 		"delete from project__template where project_id=?",
-		"delete from project__user where project_id=?",
+		"delete from project__template_role where project_id=?",
+		"delete from project__invite where project_id=?",
+		"delete from project__user_role where project_id=?",
+		"delete from `role` where project_id=?",
 		"delete from project__repository where project_id=?",
 		"delete from project__inventory where project_id=?",
 		// Before the keys: a mapping references access_key without an ON DELETE

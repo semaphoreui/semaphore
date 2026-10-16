@@ -25,11 +25,11 @@
     <v-text-field
       v-model="item.slug"
       :label="$t('slug')"
-      :rules="[v => !!v || $t('slug_required'), v => this.validateSlug(v)]"
+      :rules="slugRules"
       outlined
       dense
       required
-      :disabled="formSaving"
+      :disabled="formSaving || !isNew"
       :hint="$t('slugHint')"
     ></v-text-field>
 
@@ -85,6 +85,13 @@ export default {
     };
   },
 
+  computed: {
+    slugRules() {
+      if (!this.isNew) return [];
+      return [(v) => !!v || this.$t('slug_required'), (v) => this.validateSlug(v)];
+    },
+  },
+
   watch: {
     // Watch permissions and update the item.permissions value
     permissions: {
@@ -120,9 +127,7 @@ export default {
     validateSlug(value) {
       if (!value) return true; // Required validation is handled separately
 
-      // Slug should be lowercase, alphanumeric with underscores/hyphens
-      const slugPattern = /^[a-z0-9_-]+$/;
-      if (!slugPattern.test(value)) {
+      if (!/^[A-Za-z0-9_-]{1,100}$/.test(value)) {
         return this.$t('invalidSlugFormat');
       }
 

@@ -43,7 +43,19 @@ func (c *RolesController) GetProjectRoles(w http.ResponseWriter, r *http.Request
 }
 
 func (c *RolesController) GetProjectAndGlobalRoles(w http.ResponseWriter, r *http.Request) {
-	helpers.WriteJSON(w, http.StatusOK, []string{})
+	roles, err := c.roleRepo.GetGlobalRoles()
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	builtinRoles := make([]db.Role, 0, len(roles))
+	for _, role := range roles {
+		if role.Builtin {
+			builtinRoles = append(builtinRoles, role)
+		}
+	}
+	helpers.WriteJSON(w, http.StatusOK, builtinRoles)
 }
 
 func (c *RolesController) AddProjectRole(w http.ResponseWriter, r *http.Request) {

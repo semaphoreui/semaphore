@@ -159,7 +159,8 @@ definitions:
         type: string
       role:
         type: string
-        enum: [owner, manager, task_runner, guest]
+        description: "Role slug: a built-in role (owner, manager, task_runner, guest) or a custom role"
+        example: manager
 
   ProjectInvite:
     type: object
@@ -644,6 +645,7 @@ definitions:
       repository_id:
         type: integer
         minimum: 1
+        description: Repository holding the inventory file. Used only by a "file" inventory; for any other type it is dropped and stored as null.
       type:
         type: string
         enum: [static, static-yaml, file, terraform-workspace]
@@ -666,9 +668,15 @@ definitions:
         type: integer
       repository_id:
         type: integer
+        x-nullable: true
+        description: Repository holding the inventory file. Set only for a "file" inventory, null otherwise.
+      template_id:
+        type: integer
+        x-nullable: true
       proxy_id:
         type: integer
-        description: SSH jump host used to reach the hosts of the inventory
+        x-nullable: true
+        description: Proxy used to reach the hosts of the inventory
       type:
         type: string
         enum: [static, static-yaml, file, terraform-workspace]
@@ -2540,8 +2548,8 @@ paths:
                 minimum: 2
               role:
                 type: string
-                enum: [owner, manager, task_runner, guest]
-                example: owner
+                description: "Role slug: a built-in role (owner, manager, task_runner, guest) or a custom role"
+                example: manager
       responses:
         204:
           description: User added
@@ -2566,8 +2574,8 @@ paths:
             properties:
               role:
                 type: string
-                enum: [owner, manager, task_runner, guest]
-                example: owner
+                description: "Role slug: a built-in role (owner, manager, task_runner, guest) or a custom role"
+                example: manager
       summary: Update user role
       tags:
         - project

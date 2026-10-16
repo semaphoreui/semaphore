@@ -522,8 +522,8 @@ export default {
   // Role-related translations
   slug: 'Slug',
   slug_required: 'Slug is required',
-  slugHint: 'Unique identifier (lowercase, alphanumeric, underscores and hyphens only)',
-  invalidSlugFormat: 'Slug must be lowercase, alphanumeric with underscores/hyphens only',
+  slugHint: 'Unique identifier (letters, digits, underscores and hyphens, up to 100 characters)',
+  invalidSlugFormat: 'Slug must be 1 to 100 letters, digits, underscores or hyphens',
   permissions: 'Permissions',
   canRunProjectTasks: 'Can run project tasks',
   canUpdateProject: 'Can update project',
