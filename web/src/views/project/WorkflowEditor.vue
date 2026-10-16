@@ -519,7 +519,7 @@ export default {
       };
     },
     setSurveyVars(vars) {
-      this.item.survey_vars = vars;
+      this.item.survey_vars = [...vars];
     },
     async loadData() {
       this.selectedNodeId = null;
