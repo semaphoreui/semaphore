@@ -11,13 +11,15 @@ import (
 	"github.com/semaphoreui/semaphore/services/audit"
 )
 
+// integrationMetadata names what the integration starts. An integration has
+// exactly one target (Integration.Validate and the store enforce it), so one
+// of the two ids is recorded, never both.
 func integrationMetadata(integration db.Integration) audit.IntegrationMetadata {
 	metadata := audit.IntegrationMetadata{AuthMethod: string(integration.AuthMethod)}
-	if integration.TemplateID != nil {
-		metadata.TemplateID = *integration.TemplateID
-	}
-	if integration.WorkflowID != nil {
+	if integration.RunsWorkflow() {
 		metadata.WorkflowID = *integration.WorkflowID
+	} else if integration.TemplateID != nil {
+		metadata.TemplateID = *integration.TemplateID
 	}
 	return metadata
 }
