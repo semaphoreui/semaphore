@@ -81,6 +81,9 @@ jobs:
         run: |
           git diff --exit-code --stat -- . ':(exclude)web/package.json' ':(exclude)web/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
 
+      - name: Install subversion
+        run: sudo apt-get update && sudo apt-get install -y subversion
+
       - name: Run tests
         run: task test
 

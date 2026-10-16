@@ -190,7 +190,9 @@ func (task *Task) GetWorkflowUrl() *string {
 	return &workflowUrl
 }
 
-func (task *Task) ValidateNewTask(template Template) error {
+// ValidateNewTask checks a task before it is created. The repository is the
+// template's: the commit a task may be checked out at depends on its type.
+func (task *Task) ValidateNewTask(template Template, repository Repository) error {
 	if task.GitBranch != nil {
 		if err := git.ValidateGitBranch(*task.GitBranch, "task"); err != nil {
 			return err
@@ -198,7 +200,7 @@ func (task *Task) ValidateNewTask(template Template) error {
 	}
 
 	if task.CommitHash != nil {
-		if err := git.ValidateCommitHash(*task.CommitHash, "task"); err != nil {
+		if err := repository.ValidateCommitRef(*task.CommitHash, "task"); err != nil {
 			return err
 		}
 	}
