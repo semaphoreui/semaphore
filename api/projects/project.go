@@ -1,7 +1,9 @@
 package projects
 
 import (
+	"errors"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -25,14 +27,13 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// check if user in project's team
-		roles, err := helpers.Store(r).GetProjectUserRoles(projectID, user.ID)
+		// An admin enters a project without being a member.
+		member, err := helpers.Store(r).GetProjectMember(projectID, user.ID)
+		if errors.Is(err, db.ErrNotFound) && user.Admin {
+			err = nil
+		}
 		if err != nil {
 			helpers.WriteError(w, err)
-			return
-		}
-		if len(roles) == 0 && !user.Admin {
-			helpers.WriteError(w, db.ErrNotFound)
 			return
 		}
 
@@ -44,8 +45,11 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 		}
 
 		var permissions db.ProjectUserPermission
-		for _, role := range roles {
+		for _, role := range member.Roles {
 			permissions |= role.Permissions
+		}
+		for _, mapped := range member.MappedRoles {
+			permissions |= mapped.RolePermissions
 		}
 
 		if helpers.HasParam("template_id", r) {
@@ -61,7 +65,7 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			permissions |= grants
 		}
 
-		r = helpers.SetContextValue(r, "projectRoles", roles)
+		r = helpers.SetContextValue(r, "projectMember", member)
 		r = helpers.SetContextValue(r, "permissions", permissions)
 		r = helpers.SetContextValue(r, "project", project)
 		next.ServeHTTP(w, r)
@@ -184,7 +188,15 @@ func GetUserRole(w http.ResponseWriter, r *http.Request) {
 		Roles       []string                 `json:"roles"`
 		Permissions db.ProjectUserPermission `json:"permissions"`
 	}{Roles: []string{}}
-	for _, role := range helpers.GetFromContext(r, "projectRoles").([]db.Role) {
+	member := helpers.GetFromContext(r, "projectMember").(db.ProjectMember)
+	roles := slices.Clone(member.Roles)
+	for _, mapped := range member.MappedRoles {
+		if !slices.ContainsFunc(roles, func(role db.Role) bool { return role.ID == mapped.RoleID }) {
+			roles = append(roles, db.Role{ID: mapped.RoleID, Slug: mapped.RoleSlug, Name: mapped.RoleName})
+		}
+	}
+	slices.SortStableFunc(roles, func(a, b db.Role) int { return strings.Compare(a.Name, b.Name) })
+	for _, role := range roles {
 		result.Roles = append(result.Roles, role.Slug)
 	}
 	if len(result.Roles) == 1 {
