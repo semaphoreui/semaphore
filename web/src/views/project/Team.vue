@@ -107,6 +107,8 @@ export default {
   data() {
     return {
       roles: null,
+      saving: Promise.resolve(),
+      pendingSaves: 0,
     };
   },
 
@@ -157,22 +159,32 @@ export default {
     },
 
     async updateProjectUser(user) {
-      // Removing a member is the delete button, the server refuses an empty role list.
-      if (user.roles.length > 0) {
-        try {
-          await axios({
-            method: 'put',
-            url: `/api/project/${this.projectId}/users/${user.id}`,
-            responseType: 'json',
-            data: { roles: user.roles },
-          });
-        } catch (err) {
-          EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+      const save = async () => {
+        // Removing a member is the delete button, the server refuses an empty role list.
+        if (user.roles.length > 0) {
+          try {
+            await axios({
+              method: 'put',
+              url: `/api/project/${this.projectId}/users/${user.id}`,
+              responseType: 'json',
+              data: { roles: user.roles },
+            });
+          } catch (err) {
+            EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+          }
+        } else {
+          EventBus.$emit('i-snackbar', { color: 'error', text: this.$i18n.t('memberNeedsRole') });
         }
-      } else {
-        EventBus.$emit('i-snackbar', { color: 'error', text: this.$i18n.t('memberNeedsRole') });
-      }
-      await this.loadItems();
+        this.pendingSaves -= 1;
+        // A reload before the next queued save would drop the pick it is saving.
+        if (this.pendingSaves === 0) {
+          await this.loadItems();
+        }
+      };
+      // Saves go one at a time, so an older role list is never written after a newer one.
+      this.pendingSaves += 1;
+      this.saving = this.saving.then(save, save);
+      await this.saving;
     },
 
     allowActions() {

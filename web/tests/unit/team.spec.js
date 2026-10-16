@@ -28,6 +28,8 @@ describe('Team.vue', () => {
       },
     ],
     loaded: 0,
+    saving: Promise.resolve(),
+    pendingSaves: 0,
     async loadItems() { this.loaded += 1; },
     $i18n: { t: (key) => key },
     ...extra,
@@ -70,6 +72,28 @@ describe('Team.vue', () => {
 
     EventBus.$off('i-snackbar', listener);
     expect(shown).to.deep.equal(['The project needs at least one Owner']);
+    expect(c.loaded).to.equal(1);
+  });
+
+  it('saves quick picks one after another', async () => {
+    const tick = () => new Promise((resolve) => { setTimeout(resolve); });
+    let release;
+    http.respond(() => (http.requests.length === 1
+      ? new Promise((resolve) => { release = resolve; })
+      : {}));
+    const c = ctx();
+    const member = { id: 5, roles: ['owner'] };
+
+    const first = Team.methods.updateProjectUser.call(c, member);
+    await tick();
+    member.roles = ['owner', 'guest'];
+    const second = Team.methods.updateProjectUser.call(c, member);
+    await tick();
+    expect(http.requests).to.have.length(1);
+
+    release({});
+    await Promise.all([first, second]);
+    expect(http.requests.map((r) => r.data.roles)).to.deep.equal([['owner'], ['owner', 'guest']]);
     expect(c.loaded).to.equal(1);
   });
 
