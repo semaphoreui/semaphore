@@ -264,6 +264,7 @@ func (d *SqlDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err 
 		select project_id, user_id from project__user_role where project_id = ? and user_id = ?
 		union
 		select project_id, user_id from project__user_mapped_role where project_id = ? and user_id = ?
+		limit 1
 	`, projectID, userID, projectID, userID)
 	return
 }
