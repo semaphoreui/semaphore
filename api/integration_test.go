@@ -806,7 +806,7 @@ func setupHmacSha512ReceiveIntegration(t *testing.T) (*IntegrationController, *t
 	})
 	require.NoError(t, err)
 
-	ctrl := NewIntegrationController(store, &stubIntegrationService{password: secret})
+	ctrl := NewIntegrationController(store, &stubIntegrationService{password: secret}, nil, nil)
 	return ctrl, store, alias, authHeader
 }
 

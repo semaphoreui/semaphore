@@ -43,6 +43,17 @@
   `GOWORK=off`, then `./web/node_modules/.bin/dredd --config .dredd/dredd.testing.yml`. The
   dredd↔goodman startup is racy (ECONNREFUSED 61321 → every txn 401): retry.
 
+- Cheapest full local run (2026-10-16, mirrors CI): `GOWORK=off go build -o bin/semaphore ./cli`,
+  `cd .dredd/hooks && GOWORK=off go build -o ../compiled_hooks .`, `npm install --no-save dredd@13.1.2`
+  in `web`, `go install github.com/snikch/goodman/cmd/goodman@latest`, then generate
+  `.dredd/config.json` with `./bin/semaphore setup - < config.stdin` using the exact answers of the
+  `integrate-sqlite` job in `.github/workflows/dev.yml` (option `4`, SQLite path and tmp path in the
+  scratchpad, `http://localhost:58427`, six `no`, `$(pwd)/.dredd`, admin/admin@localhost/Developer/password),
+  and `./web/node_modules/.bin/dredd --config .dredd/dredd.testing.yml`. Delete the SQLite file between
+  runs. The first run usually ends `2 passing, 130 failing` with every status `401` — that is the
+  goodman race, not the code; loop up to three runs and keep the first with zero `got '401'`.
+  Baseline on `feat/wf_integrations` (2026-10-16): `104 passing, 1 failing (POST /inventory), 54 skipped`.
+
 ## Bookwright `integration-tests/` repo
 
 - Separate untracked git repo inside the checkout: Bookwright v1.4.0 (Java 21, JUnit 5,

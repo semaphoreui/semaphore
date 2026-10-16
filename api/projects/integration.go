@@ -16,6 +16,9 @@ func integrationMetadata(integration db.Integration) audit.IntegrationMetadata {
 	if integration.TemplateID != nil {
 		metadata.TemplateID = *integration.TemplateID
 	}
+	if integration.WorkflowID != nil {
+		metadata.WorkflowID = *integration.WorkflowID
+	}
 	return metadata
 }
 

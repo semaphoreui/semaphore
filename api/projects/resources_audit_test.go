@@ -459,6 +459,23 @@ func TestUpdateKey_RecordsTheStoredType(t *testing.T) {
 	}
 }
 
+func TestIntegrationEvents_WorkflowTarget(t *testing.T) {
+	f := newResourceFixture(t)
+	_, err := f.store.Sql().Exec(f.store.PrepareQuery(
+		"insert into project__workflow_template (project_id, name) values (?, ?)"), f.project.ID, "wf")
+	require.NoError(t, err)
+	workflowID, err := f.store.Sql().SelectInt(f.store.PrepareQuery(
+		"select id from project__workflow_template where project_id = ? and name = ?"), f.project.ID, "wf")
+	require.NoError(t, err)
+
+	r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"workflow_id":`+strconv.FormatInt(workflowID, 10)+`,"auth_method":"none"}`, nil, nil)
+	w := httptest.NewRecorder()
+	AddIntegration(w, r)
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	created := only(t, rec, audit.ResourceIntegrationCreate)
+	assert.Equal(t, audit.IntegrationMetadata{WorkflowID: int(workflowID), AuthMethod: "none"}, created.Event.Metadata)
+}
+
 func TestIntegrationEvents(t *testing.T) {
 	f := newResourceFixture(t)
 	template := f.template(t)

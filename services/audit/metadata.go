@@ -115,8 +115,11 @@ type ScheduleMetadata struct {
 	TemplateID int `json:"template_id"`
 }
 
+// IntegrationMetadata names what the integration starts: exactly one of
+// TemplateID and WorkflowID is set.
 type IntegrationMetadata struct {
-	TemplateID int    `json:"template_id"`
+	TemplateID int    `json:"template_id,omitempty"`
+	WorkflowID int    `json:"workflow_id,omitempty"`
 	AuthMethod string `json:"auth_method"`
 }
 

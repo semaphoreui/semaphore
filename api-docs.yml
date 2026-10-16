@@ -683,7 +683,12 @@ definitions:
         minimum: 1
       template_id:
         type: integer
-        minimum: 1
+        x-nullable: true
+        description: The task template the integration starts. Exactly one of template_id and workflow_id is set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow the integration starts instead of a template (Pro). Extracted values become the answers to the workflow's survey.
       auth_method:
         type: string
         example: none
@@ -709,6 +714,12 @@ definitions:
         type: integer
       template_id:
         type: integer
+        x-nullable: true
+        description: The task template to start. Exactly one of template_id and workflow_id must be set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow to start instead of a template (Pro). task_params do not apply to a workflow and are dropped.
       auth_method:
         type: string
         example: none
