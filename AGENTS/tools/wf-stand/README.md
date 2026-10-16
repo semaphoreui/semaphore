@@ -18,6 +18,7 @@ NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/wf-stand/s
 AGENTS/tools/wf-stand/seed-docs.sh                                # project "Demo Stand" + workflow "Build and deploy" for the docs screenshots
 AGENTS/tools/wf-stand/seed-survey.sh                              # workflow "Survey: workflow variables" (survey + node bindings) in the seed-outputs project
 NODE_PATH=… node AGENTS/tools/wf-stand/shoot-editor.cjs <workflow_id> [node_title] [out.png] [--dark]   # editor with a node selected: survey panel, canvas, bindings
+NODE_PATH=… node AGENTS/tools/wf-stand/shoot-run-dialog.cjs <workflow_id> [out_dir] [--dark]       # starts a run through the survey dialog; shoots the dialog and the run view's Variables strip
 PID=<project> WF=<workflow> NODE_PATH=… node AGENTS/tools/wf-stand/shoot-docs.cjs   # the four screenshots of workflows.md § Outputs and inputs
 ```
 
@@ -151,8 +152,11 @@ the names match); node 4 "bash: produce renamed outputs" → node 5 "bash: consu
 `replicas←count` plus the binding `image_tag←image_tag`. Start a run with a body:
 `POST …/workflows/<id>/runs {"environment":{"image_tag":"1.2.3","env":"prod"}}` (ids in
 `/tmp/semaphore-stand/wf-survey-ids.txt`). `shoot-editor.cjs` logs in, opens the editor, clicks the first card
-whose title matches, scrolls the "Workflow variables" section into view and writes the page plus a crop of that
-section (`<out>-bindings.png`).
+whose title matches, scrolls the first bound survey field into view and writes the page, a crop of the task
+params card (`<out>-fields.png`) and the open assign menu (`<out>-assign.png`). `shoot-run-dialog.cjs` opens the
+workflow page, presses Run, checks that an empty required answer is refused, fills `image_tag` (`IMAGE_TAG`,
+default 1.2.3) and the first enum option, starts the run and shoots `run-dialog-invalid.png`, `run-dialog.png` and
+`run-view-variables.png` in `out_dir`; it prints the run id and the Variables chips.
 
 ⚠️ 2026-10-16: macOS purges files (not directories) under `/tmp` that were not touched for ~3 days —
 `config-wf.json`, `database-wf.sqlite`, the admin user and every script in `wf-repo` vanished between sessions.

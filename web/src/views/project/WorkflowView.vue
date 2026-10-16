@@ -10,6 +10,13 @@
       @yes="remove()"
     />
 
+    <WorkflowRunDialog
+      v-model="runDialog"
+      :workflow="item"
+      :running="runStarting"
+      @run="startRun($event)"
+    />
+
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title class="breadcrumbs">
@@ -72,6 +79,7 @@ import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import YesNoDialog from '@/components/YesNoDialog.vue';
+import WorkflowRunDialog from '@/components/WorkflowRunDialog.vue';
 import PermissionsCheck from '@/components/PermissionsCheck';
 import ProjectMixin from '@/components/ProjectMixin';
 import { USER_PERMISSIONS } from '@/lib/constants';
@@ -79,6 +87,7 @@ import { USER_PERMISSIONS } from '@/lib/constants';
 export default {
   components: {
     YesNoDialog,
+    WorkflowRunDialog,
   },
 
   mixins: [PermissionsCheck, ProjectMixin],
@@ -91,6 +100,8 @@ export default {
     return {
       item: null,
       deleteDialog: null,
+      runDialog: false,
+      runStarting: false,
       USER_PERMISSIONS,
     };
   },
@@ -124,13 +135,26 @@ export default {
       EventBus.$emit('i-show-drawer');
     },
 
-    async runWorkflow() {
+    // A workflow with a survey asks for its answers first; one without
+    // starts at once, with no request body, as before.
+    runWorkflow() {
+      if ((this.item.survey_vars || []).length === 0) {
+        this.startRun(null);
+        return;
+      }
+      this.runDialog = true;
+    },
+
+    async startRun(environment) {
+      this.runStarting = true;
       try {
         const run = (await axios({
           method: 'post',
           url: `/api/project/${this.projectId}/workflows/${this.itemId}/runs`,
           responseType: 'json',
+          ...(environment ? { data: { environment } } : {}),
         })).data;
+        this.runDialog = false;
 
         EventBus.$emit('i-snackbar', {
           color: 'success',
@@ -145,6 +169,8 @@ export default {
           color: 'error',
           text: getErrorMessage(err),
         });
+      } finally {
+        this.runStarting = false;
       }
     },
 

@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import { mount, createLocalVue } from '@vue/test-utils';
 import Vuetify from 'vuetify';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
-import WorkflowVarAssign from '@/components/workflow/WorkflowVarAssign.vue';
+import SurveyFields from '@/components/SurveyFields.vue';
 
 const template = {
   id: 7,
@@ -12,19 +12,13 @@ const template = {
     {
       name: 'image_tag', title: 'Image tag', type: '', required: true,
     },
-    { name: 'replicas', title: 'Replicas', type: 'int' },
     {
-      name: 'env', title: 'Env', type: 'enum', values: [{ name: 'prod', value: 'prod' }],
+      name: 'replicas', title: 'Replicas', type: 'int', default_value: '1',
     },
-    { name: 'notes', title: 'Notes', type: 'text' },
-    { name: 'token', title: 'Token', type: 'secret' },
   ],
 };
 
-const workflowVars = [
-  { name: 'tag', title: 'Release tag', type: '' },
-  { name: 'count', title: 'count', type: 'int' },
-];
+const workflowVars = [{ name: 'tag', title: 'Release tag', type: '' }];
 
 function mountForm(props = {}) {
   const localVue = createLocalVue();
@@ -33,94 +27,45 @@ function mountForm(props = {}) {
     vuetify: new Vuetify(),
     propsData: { value: { environment: '{"image_tag":"static"}' }, template, ...props },
     mocks: { $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k) },
-    stubs: { WorkflowVarAssign: true, ArgsPicker: true },
+    stubs: { SurveyFields: true, ArgsPicker: true },
   });
 }
 
-function fieldLabels(w) {
-  return w.findAll('.v-label').wrappers.map((l) => l.text());
-}
+const settle = () => new Promise((resolve) => { setTimeout(resolve, 10); });
 
-describe('TaskParamsForm.vue — workflow variable bindings', () => {
-  it('shows no assign buttons without workflow variables (plain task forms)', () => {
+describe('TaskParamsForm.vue — survey fields and bindings', () => {
+  it('renders the survey through SurveyFields with the edited environment and defaults', async () => {
     const w = mountForm();
-    expect(w.findAllComponents(WorkflowVarAssign).length).to.equal(0);
-    expect(w.find('.TaskParamsForm__bound').exists()).to.equal(false);
+    await settle();
+    const fields = w.findComponent(SurveyFields);
+    expect(fields.exists()).to.equal(true);
+    expect(fields.props('vars')).to.deep.equal(template.survey_vars);
+    expect(fields.props('value')).to.deep.equal({ image_tag: 'static', replicas: '1' });
+    expect(fields.props('workflowVars')).to.equal(null, 'no binding UI for a plain task form');
   });
 
-  it('offers an assign button on every non-secret survey field, even with an empty list', () => {
-    const w = mountForm({ workflowVars: [] });
-    expect(w.findAllComponents(WorkflowVarAssign).length).to.equal(4);
-    const w2 = mountForm({ workflowVars });
-    expect(w2.findAllComponents(WorkflowVarAssign).length).to.equal(4);
-    w2.findAllComponents(WorkflowVarAssign).wrappers.forEach((a) => {
-      expect(a.props('vars')).to.deep.equal(workflowVars);
-    });
-  });
+  it('passes the workflow variables and bindings through and re-emits bind/unbind', async () => {
+    const surveyInputs = [{ var: 'image_tag', workflow_var: 'tag' }];
+    const w = mountForm({ workflowVars, surveyInputs });
+    await settle();
+    const fields = w.findComponent(SurveyFields);
+    expect(fields.props('workflowVars')).to.deep.equal(workflowVars);
+    expect(fields.props('surveyInputs')).to.deep.equal(surveyInputs);
 
-  it('emits bind(var, workflow_var) when a workflow variable is picked for a field', () => {
-    const w = mountForm({ workflowVars });
-    // Assign buttons follow the survey order: image_tag, replicas, env, notes.
-    w.findAllComponents(WorkflowVarAssign).at(1).vm.$emit('select', 'count');
-    expect(w.emitted('bind')).to.deep.equal([['replicas', 'count']]);
-  });
-
-  it('renders a bound field read-only with the workflow variable, no assign button, and an unbind cross', async () => {
-    const w = mountForm({ workflowVars, surveyInputs: [{ var: 'image_tag', workflow_var: 'tag' }] });
-    const bound = w.find('.TaskParamsForm__bound');
-    expect(bound.exists()).to.equal(true);
-    const input = bound.find('input');
-    expect(input.attributes('readonly')).to.equal('readonly');
-    expect(input.element.value).to.equal('Release tag (tag)');
-    expect(bound.find('.v-label').text()).to.equal('Image tag *');
-    expect(bound.find('.mdi-link-variant').exists()).to.equal(true);
-    expect(w.findAllComponents(WorkflowVarAssign).length).to.equal(3, 'the bound field has no assign button');
-    expect(fieldLabels(w)).to.include('Replicas');
-
-    await bound.find('.TaskParamsForm__unbind').trigger('click');
+    fields.vm.$emit('bind', 'replicas', 'tag');
+    expect(w.emitted('bind')).to.deep.equal([['replicas', 'tag']]);
+    fields.vm.$emit('unbind', 'image_tag');
     expect(w.emitted('unbind')).to.deep.equal([['image_tag']]);
   });
 
-  it('flags a binding whose workflow variable no longer exists', () => {
-    const w = mountForm({ workflowVars, surveyInputs: [{ var: 'replicas', workflow_var: 'gone' }] });
-    const bound = w.find('.TaskParamsForm__bound');
-    expect(bound.find('input').element.value).to.equal('gone');
-    expect(bound.text()).to.contain('workflowNodeSurveyInputsUnknown:{"name":"gone"}');
-    expect(bound.classes()).to.include('error--text');
-  });
-
-  it('never binds a secret field', () => {
-    const w = mountForm({ workflowVars, surveyInputs: [{ var: 'token', workflow_var: 'tag' }] });
-    expect(w.find('.TaskParamsForm__bound').exists()).to.equal(true, 'a stored binding is still shown');
-    expect(w.vm.canBind({ name: 'token', type: 'secret' })).to.equal(false);
-  });
-});
-
-describe('WorkflowVarAssign.vue', () => {
-  function mountAssign(vars) {
-    const localVue = createLocalVue();
-    return mount(WorkflowVarAssign, {
-      localVue,
-      vuetify: new Vuetify(),
-      propsData: { vars },
-      mocks: { $t: (k) => k },
-    });
-  }
-
-  it('lists the workflow variables with name and type and emits select', async () => {
-    const w = mountAssign(workflowVars);
-    const items = w.findAll('.WorkflowVarAssign__item');
-    expect(items.length).to.equal(2);
-    expect(items.at(0).text()).to.contain('Release tag');
-    expect(items.at(0).text()).to.contain('tag · string');
-    expect(items.at(1).text()).to.contain('count · int');
-    await items.at(1).trigger('click');
-    expect(w.emitted('select')).to.deep.equal([['count']]);
-  });
-
-  it('explains an empty list', () => {
-    const w = mountAssign([]);
-    expect(w.findAll('.WorkflowVarAssign__item').length).to.equal(0);
-    expect(w.text()).to.contain('workflowNodeSurveyInputsNoWorkflowVars');
+  it('still emits input with the environment when a survey value changes', async () => {
+    const w = mountForm();
+    await settle();
+    const before = (w.emitted('input') || []).length;
+    w.vm.editedEnvironment.image_tag = '1.2.3';
+    await w.vm.$nextTick();
+    const emitted = w.emitted('input');
+    expect(emitted.length).to.be.greaterThan(before);
+    expect(JSON.parse(emitted[emitted.length - 1][0].environment).image_tag).to.equal('1.2.3');
   });
 });
