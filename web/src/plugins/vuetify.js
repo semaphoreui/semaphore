@@ -8,6 +8,7 @@ import OpenBaoIcon from '@/components/OpenBaoIcon.vue';
 import DvlsIcon from '../components/DvlsIcon.vue';
 import AwsSmIcon from '../components/AwsSmIcon.vue';
 import AzureKvIcon from '../components/AzureKvIcon.vue';
+import CyberArkIcon from '../components/CyberArkIcon.vue';
 
 Vue.use(Vuetify);
 
@@ -37,6 +38,9 @@ export default new Vuetify({
       },
       azure_kv: {
         component: AzureKvIcon,
+      },
+      cyberark: {
+        component: CyberArkIcon,
       },
     },
   },
