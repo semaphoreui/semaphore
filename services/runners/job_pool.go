@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -34,7 +35,7 @@ func derefString(s *string) string {
 
 func newHTTPClient() *http.Client {
 	tlsConfig := &tls.Config{}
-	conn := util.Config.Runner.Connection
+	conn := util.Config.Runner.Connection // connection can't be null because initialized via reflections
 	if conn.SkipTLSVerify {
 		tlsConfig.InsecureSkipVerify = true
 	}
@@ -46,8 +47,34 @@ func newHTTPClient() *http.Client {
 			tlsConfig.RootCAs = pool
 		}
 	}
+
+	// Every phase that waits on the server gets the configured budget. A custom
+	// Transport starts from the zero value, so without these the dial and the
+	// handshake would have no deadline at all (http.DefaultTransport is not
+	// used once TLSClientConfig is set). ResponseHeaderTimeout is what bounds a
+	// server that accepts the connection and then goes silent: the poll loop
+	// skips every cycle while the previous request is in flight, so such a hang
+	// stops the heartbeat too and the server declares the runner offline.
+	// The request body upload stays unbounded on purpose — a progress report
+	// carries task logs, and cutting a slow upload would retry it forever.
+	timeout := util.Config.RunnerConnectionTimeout()
+
+	dialer := &net.Dialer{
+		Timeout: timeout,
+		// Detects a peer that died silently on an established connection,
+		// which no timeout above covers. Mirrors http.DefaultTransport.
+		KeepAlive: 30 * time.Second,
+	}
+
 	return &http.Client{
-		Transport: &http.Transport{TLSClientConfig: tlsConfig},
+		Transport: &http.Transport{
+			TLSClientConfig:       tlsConfig,
+			DialContext:           dialer.DialContext,
+			TLSHandshakeTimeout:   timeout,
+			ResponseHeaderTimeout: timeout,
+			IdleConnTimeout:       90 * time.Second,
+			ExpectContinueTimeout: time.Second,
+		},
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return errors.New("runner API redirects are not allowed")
 		},

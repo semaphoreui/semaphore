@@ -511,3 +511,65 @@ func TestJobProgress_OutputsOmittedWhenAbsent(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(raw), "outputs")
 }
+
+// Every phase that waits on the server must carry the configured budget: a
+// custom Transport starts from the zero value, so an unset field means "wait
+// forever", not the http.DefaultTransport value.
+func TestNewHTTPClientAppliesConnectionTimeout(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	util.Config = &util.ConfigType{
+		Runner: &util.RunnerConfig{
+			Connection: &util.RunnerConnectionConfig{TimeoutSeconds: 7},
+		},
+	}
+
+	client := newHTTPClient()
+
+	transport, ok := client.Transport.(*http.Transport)
+	require.True(t, ok)
+	assert.Equal(t, 7*time.Second, transport.TLSHandshakeTimeout)
+	assert.Equal(t, 7*time.Second, transport.ResponseHeaderTimeout)
+	assert.NotNil(t, transport.DialContext)
+}
+
+// A server that accepts the connection and then goes silent used to hang the
+// poll goroutine forever; the processing guard then skipped every later cycle,
+// so the heartbeat stopped and the server declared the runner offline.
+func TestJobPoolSendProgressGivesUpOnSilentServer(t *testing.T) {
+	released := make(chan struct{})
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		<-released
+	}))
+	// Cleanups run last-registered-first: the handler must be released before
+	// srv.Close, which blocks until every in-flight request returns.
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(released) })
+
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "runner-token",
+			Connection: &util.RunnerConnectionConfig{TimeoutSeconds: 1},
+		},
+	}
+
+	p := &JobPool{
+		runningJobs: make(map[int]*runningJob),
+		client:      newHTTPClient(),
+	}
+
+	done := make(chan bool, 1)
+	go func() { done <- p.sendProgress() }()
+
+	select {
+	case ok := <-done:
+		assert.False(t, ok, "a silent server must not count as a delivered report")
+	case <-time.After(10 * time.Second):
+		t.Fatal("sendProgress never returned: the request has no deadline")
+	}
+}
