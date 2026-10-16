@@ -204,7 +204,7 @@ func removeUser(targetUser db.User, member db.ProjectMember, w http.ResponseWrit
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
 
-	if len(member.Roles) == 0 {
+	if len(member.Roles) == 0 && len(member.MappedRoles) > 0 {
 		helpers.WriteError(w, &common_errors.ValidationError{Message: "Access comes from group mappings. An admin can change the mappings."})
 		return
 	}
@@ -265,13 +265,7 @@ func removeUser(targetUser db.User, member db.ProjectMember, w http.ResponseWrit
 // LeftProject removes a user from a project team
 func LeftProject(w http.ResponseWriter, r *http.Request) {
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
-	member := helpers.GetFromContext(r, "projectMember").(db.ProjectMember)
-	// An admin who is not a member has nothing to leave.
-	if len(member.Roles) == 0 && len(member.MappedRoles) == 0 {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	removeUser(*me, member, w, r)
+	removeUser(*me, helpers.GetFromContext(r, "projectMember").(db.ProjectMember), w, r)
 }
 
 // RemoveUser removes a user from a project team
