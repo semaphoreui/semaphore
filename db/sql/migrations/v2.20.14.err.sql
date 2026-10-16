@@ -1,7 +1,7 @@
 delete from `project__integration` where `template_id` is null;
 
 {{if .Sqlite}}
-create table project__integration_old_2_20_12 (
+create table project__integration_old_2_20_14 (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     name           VARCHAR(255) NOT NULL,
     project_id     INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
@@ -13,12 +13,12 @@ create table project__integration_old_2_20_12 (
     task_params_id INTEGER REFERENCES project__task_params(id)
 );
 
-insert into project__integration_old_2_20_12 (id, name, project_id, template_id, auth_method, auth_secret_id, auth_header, searchable, task_params_id)
+insert into project__integration_old_2_20_14 (id, name, project_id, template_id, auth_method, auth_secret_id, auth_header, searchable, task_params_id)
     select id, name, project_id, template_id, auth_method, auth_secret_id, auth_header, searchable, task_params_id from project__integration;
 
 drop table project__integration;
 
-alter table project__integration_old_2_20_12 rename to project__integration;
+alter table project__integration_old_2_20_14 rename to project__integration;
 
 create index project__integration__auth_secret_id on project__integration(auth_secret_id);
 

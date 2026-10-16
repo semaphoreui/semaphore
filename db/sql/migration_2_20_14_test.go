@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMigration_2_20_12 seeds an integration with everything that refers to
+// TestMigration_2_20_14 seeds an integration with everything that refers to
 // it on the pre-workflow schema and checks the upgrade (a table rebuild on
 // SQLite) keeps those rows and lets an integration point at a workflow.
-func TestMigration_2_20_12(t *testing.T) {
+func TestMigration_2_20_14(t *testing.T) {
 	target := "2.20.11"
 	store := InitConfigCreateTestStoreAt(&target)
 

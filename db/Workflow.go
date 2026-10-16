@@ -44,6 +44,19 @@ type WorkflowInputMapping struct {
 	Key string `json:"key" backup:"key"`
 }
 
+// WorkflowRunParams is the body of POST .../workflows/{id}/runs: the answers
+// to the workflow's survey as a JSON object, variable name → value. An empty
+// body starts the run with the survey defaults only.
+type WorkflowRunParams struct {
+	Environment MapStringAnyField `json:"environment,omitempty"`
+
+	// IntegrationID is set by the server when a webhook integration starts
+	// the run: it is stamped on the root task (task.integration_id), so the
+	// task page and the audit trail show which integration started the run.
+	// Never read from a request body.
+	IntegrationID *int `json:"-"`
+}
+
 // workflowOutputNamePattern is the shape of an output name. The hyphen is
 // allowed because Terraform output names may contain it.
 var workflowOutputNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
