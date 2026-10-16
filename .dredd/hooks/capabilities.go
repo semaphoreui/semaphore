@@ -358,7 +358,7 @@ func alterRequestBody(t *trans.Transaction) {
 			}
 			request["id"] = objectID
 
-		} else {
+		} else if !strings.HasSuffix(t.FullPath, "/description") {
 			panic("Unexpected PUT request " + t.FullPath)
 		}
 	}
