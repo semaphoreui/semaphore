@@ -5,15 +5,13 @@ drag, SVG paths) under an n8n-style visual layer that is entirely ours — nodes
 components, edges get colour, arrows and condition pills, viewport control is ours. One renderer
 (`WorkflowGraph.vue`) serves the full-page editor and the read-only run view. Two generations:
 the first cut (plan `graphical-workflow-editor`, shipped on develop with PR #3962/#4145) and the
-redesign on `feat/refactor_workflows` (task `TASK@88179c9bc1`, 2026-09-26/27).
+redesign (task `TASK@88179c9bc1`, 2026-09-26/27), merged to `develop` as PR #4287
+(`a7463967`, 2026-09-28).
 
-**Status (2026-09-27): redesign implemented, unmerged** — 14 commits ahead of develop
-(`5fdfe0ae..539d98ad`), no PR opened yet (`gh pr list --head feat/refactor_workflows` is
-empty). Evidence: `web/src/components/workflow/` holds the six card/pill/menu components,
-`web/src/lib/workflow{Viewport,History,Layout,Graph,EditorPrefs}.js` with specs in
-`web/tests/unit/`, and `grep nodeHtml|innerHTML|escapeHtml` over `WorkflowGraph.vue` +
-`components/workflow/` + `views/project/Workflow*.vue` returns nothing. Docs already updated in
-the `docs` submodule (`docs/docs/user-guide/workflows.md`, `workflow-hotkeys.svg`).
+**Status (2026-09-28): redesign on `develop`.** Canvas layer: `web/src/components/workflow/`,
+`web/src/lib/workflow{Viewport,History,Layout,Graph,EditorPrefs}.js` (unit specs in
+`web/tests/unit/`). User guide in the `docs` submodule (`docs/docs/user-guide/workflows.md`,
+`docs/static/assets/workflow-hotkeys.svg`) — init the submodule before editing.
 
 ## Model and backend (unchanged by the redesign)
 
@@ -35,6 +33,10 @@ the `docs` submodule (`docs/docs/user-guide/workflows.md`, `workflow-hotkeys.svg
 - Pro-gated: interfaces in `pro_interfaces/workflow_{ctl,svc}.go`, stubs in `pro/`, engine in
   `pro_impl/services/server/workflow_svc.go` (gitignored, local only); `TaskRunner` calls
   `HandleWorkflowTaskCompletion` on every terminal status, so runs advance without the poll.
+- HTTP API (`api/router.go`, `api-docs.yml`): `GET/POST …/workflows/{workflow_id}/runs` (list and
+  start — POST moved off the singular `…/run` path in `8bb263ef`), `GET …/runs/{run_id}`,
+  `POST …/runs/{run_id}/stop`, approvals under `…/runs/{run_id}/approvals/{node_id}`, revisions
+  under `…/revisions` and `…/revisions/{revision_id}`. Pro-only; OSS stubs return 501.
 - Engine facts verified on the stand (2026-09-27, `AGENTS/tools/wf-stand/`): a run is a loop of
   "launch every ready node, re-read, repeat" under a per-run lock; approval timeouts and delay
   expiries are resolved lazily by any progression pass (GET run, task completion, reconciler
@@ -97,6 +99,10 @@ Denis rejected a custom canvas, a library swap and a second Vue 3 runtime (2026-
   `App.vue` render the nav drawer mini on editor routes before mount (no shrink animation).
 - **R9 Pan from the empty container**: Drawflow reads `classList[0]`, so `parent-drawflow` is
   forced to be the first class (commit `0d601c12`).
+- **Run-view status mapping** (`workflowGraph.js` `statusKind`): approval nodes map `approved` /
+  `rejected` to success / error pills; task nodes keep `waiting_confirmation`, `confirmed` and
+  `rejected` in the waiting bucket so interactive task confirmation is not drawn like a finished
+  approval (fix `b2e45e22`).
 - Guardrails from the brief are in `direction.md`; none of the "ask first" items (new dep,
   Drawflow patch, viewport column) has been raised. Permissions unchanged
   (`manageProjectResources` edit, `runProjectTasks` approve/stop). Accepted Drawflow limits:
