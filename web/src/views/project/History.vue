@@ -31,7 +31,7 @@
           <!--            {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}-->
           <!--          </v-icon>-->
 
-          <TaskLink :label="'#' + item.id" :task-id="item.id"/>
+          <TaskLink class="flex-shrink-0" :label="'#' + item.id" :task-id="item.id"/>
 
           <v-icon small class="ml-1 mr-1">mdi-arrow-left</v-icon>
 
@@ -103,8 +103,15 @@
 </template>
 
 <style lang="scss">
-.HistoryTable td {
+.HistoryTable td:not(.v-data-table__mobile-row) {
   height: 60px !important;
+}
+
+.HistoryTable td.v-data-table__mobile-row {
+  height: auto !important;
+  min-height: 48px;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
 }
 </style>
 
