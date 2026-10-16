@@ -205,6 +205,18 @@ func (d *SqlDb) GetProjectUserRoles(projectID int, userID int) (roles []db.Role,
 	return
 }
 
+// CountProjectOwners counts the members who hold the built-in owner role.
+func (d *SqlDb) CountProjectOwners(projectID int) (int, error) {
+	count, err := d.Sql().SelectInt(d.PrepareQuery(`
+		select
+		  count(*)
+		from project__user_role pur
+		join role r on r.id = pur.role_id
+		where pur.project_id=? and r.builtin=true and r.slug=?
+	`), projectID, string(db.ProjectOwner))
+	return int(count), err
+}
+
 func (d *SqlDb) GetProjectUser(projectID, userID int) (user db.ProjectUser, err error) {
 	err = d.selectOne(&user,
 		"select project_id, user_id from project__user_role where project_id=? and user_id=? limit 1",

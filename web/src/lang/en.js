@@ -214,6 +214,7 @@ export default {
 
   confirmTask: 'Confirm',
   deleteTeamMember: 'Delete team member',
+  memberNeedsRole: 'A member needs at least one role. To remove the member, use the delete button.',
   team2: 'Team',
   newTeamMember: 'New Team Member',
   user: 'User',
@@ -505,6 +506,11 @@ export default {
   template_tf_workspaces: 'Workspaces',
 
   // Role-related translations
+  roleScope: 'Scope',
+  builtIn: 'Built-in',
+  projectRoles: 'Project roles',
+  globalRoles: 'Global roles',
+  builtInRoles: 'Built-in roles',
   slug: 'Slug',
   slug_required: 'Slug is required',
   slugHint: 'Unique identifier (letters, digits, underscores and hyphens, up to 100 characters)',
@@ -518,6 +524,9 @@ export default {
   editRole: 'Edit Role',
   deleteRole: 'Delete Role',
   askDeleteRole: 'Do you really want to delete this role?',
+  askDeleteAssignedRole: 'This role is in use. Members: {members}. Projects: {projects}. Template permissions: {template_grants}. Delete it together with these assignments? Members who have no other role leave their projects.',
+  roleInUseNeedsManageUsers: 'This role is in use. Only a member who can manage project users can delete it together with its assignments.',
+  deleteWithAssignments: 'Delete with assignments',
   Roles: 'Roles',
   role_required: 'Role is required',
 
@@ -896,7 +905,7 @@ export default {
   audit_reason_forbidden: 'Not allowed',
   audit_reason_cross_origin: 'Cross-origin request',
   audit_reason_invalid_current_password: 'Wrong current password',
-  audit_reason_owner_self_change: 'An owner cannot change their own role',
+  audit_reason_last_owner: 'The project needs at least one Owner',
   audit_reason_activation_failed: 'Activation failed',
   audit_reason_secret_failed: 'Secret could not be read',
   audit_reason_inventory_failed: 'Inventory could not be prepared',

@@ -138,3 +138,61 @@ func TestDeleteRole(t *testing.T) {
 	assert.ErrorIs(t, err, db.ErrNotFound)
 	assert.ErrorIs(t, store.DeleteRole(role.ID), db.ErrNotFound)
 }
+
+func TestDeleteRoleWithAssignments(t *testing.T) {
+	store, projectID, templateID := newTemplatePermissionTest(t)
+	role, err := store.CreateRole(db.Role{Slug: "deployer", Name: "Deployer"})
+	require.NoError(t, err)
+	guest, err := store.GetGlobalRoleBySlug("guest")
+	require.NoError(t, err)
+	only := createTemplatePermissionTestUser(t, store, projectID, "only", role.ID)
+	both := createTemplatePermissionTestUser(t, store, projectID, "both", role.ID)
+	require.NoError(t, store.SetProjectUserRoles(projectID, both.ID, []int{role.ID, guest.ID}))
+	grant, err := store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: projectID, TemplateID: templateID, RoleID: role.ID, Permissions: db.CanRunProjectTasks})
+	require.NoError(t, err)
+	check := func(assigned db.RoleAssignments) {
+		t.Helper()
+		require.Len(t, assigned.Members, 2)
+		assert.Equal(t, "only", assigned.Members[0].Username)
+		assert.Equal(t, []string{"deployer"}, slugsOf(assigned.Members[0].Roles))
+		assert.Equal(t, "both", assigned.Members[1].Username)
+		assert.ElementsMatch(t, []string{"deployer", "guest"}, slugsOf(assigned.Members[1].Roles))
+		require.Len(t, assigned.Grants, 1)
+		assert.Equal(t, grant.ID, assigned.Grants[0].ID)
+		assert.Equal(t, db.RoleImpact{Members: 2, Projects: 1, TemplateGrants: 1}, assigned.Impact())
+	}
+
+	assigned, err := store.GetRoleAssignments(role.ID)
+	require.NoError(t, err)
+	check(assigned)
+	assert.ErrorIs(t, store.DeleteRole(role.ID), db.ErrInvalidOperation, "the foreign keys keep an assigned role")
+
+	removed, err := store.DeleteRoleWithAssignments(role.ID)
+
+	require.NoError(t, err)
+	check(removed)
+	_, err = store.GetGlobalRoleBySlug("deployer")
+	assert.ErrorIs(t, err, db.ErrNotFound)
+	_, err = store.GetProjectUser(projectID, only.ID)
+	assert.ErrorIs(t, err, db.ErrNotFound, "a member whose only role it was leaves the project")
+	roles, err := store.GetProjectUserRoles(projectID, both.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"guest"}, slugsOf(roles))
+	grants, err := store.GetTemplateRoles(projectID, templateID)
+	require.NoError(t, err)
+	assert.Empty(t, grants)
+}
+
+func TestDeleteRoleWithAssignments_BuiltinRole(t *testing.T) {
+	store, projectID, _ := newTemplatePermissionTest(t)
+	owner, err := store.GetGlobalRoleBySlug("owner")
+	require.NoError(t, err)
+	user := createTemplatePermissionTestUser(t, store, projectID, "u", owner.ID)
+
+	_, err = store.DeleteRoleWithAssignments(owner.ID)
+
+	assert.ErrorIs(t, err, db.ErrNotFound)
+	roles, err := store.GetProjectUserRoles(projectID, user.ID)
+	require.NoError(t, err)
+	assert.Len(t, roles, 1, "the rollback keeps the assignment")
+}

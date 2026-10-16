@@ -192,3 +192,23 @@ func TestProjectUsersSortByRole(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"guest", "owner"}, []string{users[0].Roles[0].Slug, users[1].Roles[0].Slug})
 }
+
+func TestCountProjectOwners(t *testing.T) {
+	store, projectID, _ := newTemplatePermissionTest(t)
+	owner, err := store.GetGlobalRoleBySlug("owner")
+	require.NoError(t, err)
+	guest, err := store.GetGlobalRoleBySlug("guest")
+	require.NoError(t, err)
+	createTemplatePermissionTestUser(t, store, projectID, "a", owner.ID)
+	b := createTemplatePermissionTestUser(t, store, projectID, "b", guest.ID)
+	createTemplatePermissionTestUser(t, store, projectID, "c", guest.ID)
+
+	count, err := store.CountProjectOwners(projectID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	require.NoError(t, store.SetProjectUserRoles(projectID, b.ID, []int{owner.ID, guest.ID}))
+	count, err = store.CountProjectOwners(projectID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+}

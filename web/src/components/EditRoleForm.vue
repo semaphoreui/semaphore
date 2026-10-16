@@ -25,6 +25,7 @@
     <v-text-field
       v-model="item.slug"
       :label="$t('slug')"
+      @input="slugTouched = true"
       :rules="slugRules"
       outlined
       dense
@@ -76,6 +77,7 @@ export default {
 
   data() {
     return {
+      slugTouched: false,
       permissions: {
         canRunProjectTasks: false,
         canUpdateProject: false,
@@ -93,6 +95,17 @@ export default {
   },
 
   watch: {
+    'item.name': function onNameChange(name) {
+      if (this.isNew && !this.slugTouched && this.item) {
+        this.item.slug = (name || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 100);
+      }
+    },
+
     // Watch permissions and update the item.permissions value
     permissions: {
       handler(newPermissions) {
@@ -180,6 +193,7 @@ export default {
     },
 
     afterReset() {
+      this.slugTouched = false;
       // Reset permissions checkboxes
       this.permissions = {
         canRunProjectTasks: false,

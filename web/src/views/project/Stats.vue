@@ -41,7 +41,6 @@ export default {
     projectId: Number,
     projectType: String,
     userId: Number,
-    userRole: String,
     user: Object,
   },
 

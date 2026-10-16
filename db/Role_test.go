@@ -43,3 +43,13 @@ func TestValidateRole(t *testing.T) {
 		})
 	}
 }
+
+func TestRoleAssignments_Impact(t *testing.T) {
+	assigned := RoleAssignments{
+		Members: []RoleMember{{ProjectID: 1}, {ProjectID: 1}, {ProjectID: 2}},
+		Grants:  []TemplateRolePerm{{ProjectID: 3}},
+	}
+
+	assert.Equal(t, RoleImpact{Members: 3, Projects: 3, TemplateGrants: 1}, assigned.Impact())
+	assert.Equal(t, RoleImpact{}, RoleAssignments{}.Impact())
+}

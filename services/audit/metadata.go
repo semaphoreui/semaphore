@@ -40,14 +40,26 @@ func NewRoleRef(r db.Role) RoleRef {
 	return RoleRef{ID: r.ID, Slug: TruncateName(r.Slug, MaxNameBytes)}
 }
 
+func NewRoleRefs(roles []db.Role) []RoleRef {
+	refs := make([]RoleRef, 0, len(roles))
+	for _, role := range roles {
+		refs = append(refs, NewRoleRef(role))
+	}
+	return refs
+}
+
 type MembershipMetadata struct {
 	Roles       []RoleRef `json:"roles"`
 	SelfRemoval bool      `json:"self_removal"`
+	// Set when the member lost the last role because the role was deleted.
+	DeletedRole RoleRef `json:"deleted_role,omitzero"`
 }
 
 type ProjectRoleMetadata struct {
 	OldRoles []RoleRef `json:"old_roles"`
 	NewRoles []RoleRef `json:"new_roles,omitempty"`
+	// Set when the role was taken away because it was deleted.
+	DeletedRole RoleRef `json:"deleted_role,omitzero"`
 }
 
 type RoleMetadata struct {
@@ -57,6 +69,8 @@ type RoleMetadata struct {
 
 type RoleDeleteMetadata struct {
 	Slug string `json:"slug"`
+	// Set only when the role was deleted together with its assignments.
+	Impact *db.RoleImpact `json:"impact,omitempty"`
 }
 
 type TemplatePermissionMetadata struct {

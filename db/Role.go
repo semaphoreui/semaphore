@@ -50,3 +50,36 @@ type TemplateRolePerm struct {
 	Permissions ProjectUserPermission `db:"permissions" json:"permissions"`
 	RoleSlug    string                `db:"role_slug" json:"role_slug"`
 }
+
+// RoleImpact counts what deleting a role together with its assignments removes.
+type RoleImpact struct {
+	Members        int `json:"members"`
+	Projects       int `json:"projects"`
+	TemplateGrants int `json:"template_grants"`
+}
+
+// RoleMember is a project member who holds a role, with all roles the member holds in that project.
+type RoleMember struct {
+	ProjectID int
+	UserID    int
+	Username  string
+	Roles     []Role
+}
+
+// RoleAssignments is everything that points to a role: the members who hold it and its template grants.
+type RoleAssignments struct {
+	Members []RoleMember
+	Grants  []TemplateRolePerm
+}
+
+// Impact counts the assignments for the delete confirmation and the audit event.
+func (a RoleAssignments) Impact() RoleImpact {
+	projects := map[int]bool{}
+	for _, m := range a.Members {
+		projects[m.ProjectID] = true
+	}
+	for _, g := range a.Grants {
+		projects[g.ProjectID] = true
+	}
+	return RoleImpact{Members: len(a.Members), Projects: len(projects), TemplateGrants: len(a.Grants)}
+}

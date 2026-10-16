@@ -179,12 +179,16 @@ func GetProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUserRole(w http.ResponseWriter, r *http.Request) {
-	var result struct {
+	result := struct {
 		Role        string                   `json:"role"`
+		Roles       []string                 `json:"roles"`
 		Permissions db.ProjectUserPermission `json:"permissions"`
+	}{Roles: []string{}}
+	for _, role := range helpers.GetFromContext(r, "projectRoles").([]db.Role) {
+		result.Roles = append(result.Roles, role.Slug)
 	}
-	if roles := helpers.GetFromContext(r, "projectRoles").([]db.Role); len(roles) > 0 {
-		result.Role = roles[0].Slug
+	if len(result.Roles) == 1 {
+		result.Role = result.Roles[0]
 	}
 	result.Permissions = helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
 	helpers.WriteJSON(w, http.StatusOK, result)

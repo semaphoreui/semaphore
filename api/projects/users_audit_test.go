@@ -151,7 +151,7 @@ func TestLeftProject_OwnerRefusalIsRecorded(t *testing.T) {
 	assert.NoError(t, err, "the owner stays in the project")
 	got := only(t, rec, audit.IAMMembershipRemove)
 	assert.Equal(t, audit.OutcomeFailure, got.Event.Outcome)
-	assert.Equal(t, audit.ReasonOwnerSelfChange, got.Event.Reason)
+	assert.Equal(t, audit.ReasonLastOwner, got.Event.Reason)
 }
 
 func TestUpdateUser_RoleChangeIsRecorded(t *testing.T) {
@@ -163,7 +163,7 @@ func TestUpdateUser_RoleChangeIsRecorded(t *testing.T) {
 	assert.Equal(t, audit.ProjectRoleMetadata{OldRoles: []audit.RoleRef{f.ref(db.ProjectManager)}, NewRoles: []audit.RoleRef{f.ref(db.ProjectTaskRunner)}}, only(t, rec, audit.IAMProjectRoleChange).Event.Metadata)
 }
 
-func TestUpdateUser_OwnerSelfChangeIsRecorded(t *testing.T) {
+func TestUpdateUser_LastOwnerRefusalIsRecorded(t *testing.T) {
 	f := newMembershipFixture(t)
 	r, rec := f.request(http.MethodPut, `{"role":"guest"}`, f.owner, f.roles[db.ProjectOwner], &f.owner)
 	w := httptest.NewRecorder()
@@ -175,7 +175,7 @@ func TestUpdateUser_OwnerSelfChangeIsRecorded(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"owner"}, slugsOf(roles), "the owner keeps the role")
 	got := only(t, rec, audit.IAMProjectRoleChange)
-	assert.Equal(t, audit.ReasonOwnerSelfChange, got.Event.Reason)
+	assert.Equal(t, audit.ReasonLastOwner, got.Event.Reason)
 	assert.Equal(t, audit.ProjectRoleMetadata{OldRoles: []audit.RoleRef{f.ref(db.ProjectOwner)}}, got.Event.Metadata)
 
 	encoded, err := json.Marshal(got.Event.Metadata)

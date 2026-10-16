@@ -53,20 +53,28 @@
     <v-select
       v-model="item.role"
       :label="$t('role')"
-      :items="roles"
+      :items="groupedRoles"
       item-value="slug"
       item-text="name"
-      :rules="[v => !!v || $t('user_required')]"
+      :rules="[v => !!v || $t('role_required')]"
       required
       :disabled="formSaving"
       outlined
       dense
-    ></v-select>
+    >
+      <template v-slot:item="{ item: role }">
+        <v-list-item-content>
+          <v-list-item-title>{{ role.name }}</v-list-item-title>
+          <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
+        </v-list-item-content>
+      </template>
+    </v-select>
   </v-form>
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
+import groupRolesForSelect from '@/lib/roles';
 
 export default {
   mixins: [ItemFormBase],
@@ -75,6 +83,20 @@ export default {
     invitesEnabled: Boolean,
     inviteType: String,
     roles: Array,
+  },
+
+  computed: {
+    availableRoles() {
+      const roles = this.roles || [];
+      if (!this.invitesEnabled) {
+        return roles;
+      }
+      return roles.filter((role) => role.builtin);
+    },
+
+    groupedRoles() {
+      return groupRolesForSelect(this.availableRoles, (key) => this.$i18n.t(key));
+    },
   },
 
   data() {
