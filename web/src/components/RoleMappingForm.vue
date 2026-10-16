@@ -100,11 +100,16 @@ export default {
         this.roles = [];
         return;
       }
-      this.roles = (await axios({
+      const roles = (await axios({
         method: 'get',
         url: `/api/project/${projectId}/roles/all`,
         responseType: 'json',
       })).data;
+      // A late answer for a project chosen before must not replace the roles of the current one.
+      if (projectId !== this.item.project_id) {
+        return;
+      }
+      this.roles = roles;
       // A project role of the previous project would stay selected but hidden.
       if (!this.roles.some((role) => role.slug === this.item.role)) {
         this.item.role = null;

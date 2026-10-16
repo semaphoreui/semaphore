@@ -83,6 +83,33 @@ describe('RoleMappings.vue', () => {
     expect(deletes.map((r) => r.url)).to.deep.equal(['/api/role_mappings/3']);
   });
 
+  it('keeps the roles of the project chosen last', async () => {
+    let release;
+    http.respond((config) => {
+      if (config.url === '/api/project/1/roles/all') {
+        return new Promise((resolve) => { release = () => resolve(ROUTES[config.url]); });
+      }
+      if (config.url === '/api/project/2/roles/all') {
+        return [{
+          slug: 'auditor', name: 'Auditor', builtin: false, project_id: null,
+        }];
+      }
+      return ROUTES[config.url] || null;
+    });
+    const wrapper = await mountWith(RoleMappingForm, {
+      itemId: 'new', providers: [{ id: 'okta', name: 'Okta' }],
+    });
+    wrapper.vm.item.project_id = 1;
+    await flush();
+    wrapper.vm.item.project_id = 2;
+    await flush();
+
+    release();
+    await flush();
+
+    expect(wrapper.vm.roles.map((r) => r.slug)).to.deep.equal(['auditor']);
+  });
+
   it('posts the form', async () => {
     const wrapper = await mountWith(RoleMappingForm, {
       itemId: 'new', providers: [{ id: 'okta', name: 'Okta' }],
