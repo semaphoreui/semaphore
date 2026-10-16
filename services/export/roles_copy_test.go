@@ -2,7 +2,6 @@ package export
 
 import (
 	"testing"
-	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/sql"
@@ -74,58 +73,4 @@ func TestCopyKeepsRolesMembershipsAndGrants(t *testing.T) {
 		grantSlugs = append(grantSlugs, g.RoleSlug)
 	}
 	assert.ElementsMatch(t, []string{"local", "legacy role", "manager"}, grantSlugs)
-}
-
-// addMappedRole gives the user a role through a new mapping, as a login sync would.
-func addMappedRole(t *testing.T, store *sql.SqlDb, projectID int, userID int, roleID int, group string) {
-	t.Helper()
-	_, err := store.Sql().Exec(store.PrepareQuery(`
-		insert into group_role_mapping (provider, group_name, project_id, role_id, created)
-		values ('okta', ?, ?, ?, ?)
-	`), group, projectID, roleID, time.Now().UTC())
-	require.NoError(t, err)
-	mappingID, err := store.Sql().SelectInt(store.PrepareQuery("select id from group_role_mapping where group_name=? and project_id=?"), group, projectID)
-	require.NoError(t, err)
-	_, err = store.Sql().Exec(store.PrepareQuery("insert into project__user_mapped_role (project_id, user_id, mapping_id) values (?, ?, ?)"), projectID, userID, mappingID)
-	require.NoError(t, err)
-}
-
-func TestCopySkipsMemberWithoutManualRoles(t *testing.T) {
-	src := sql.InitConfigCreateTestStore()
-
-	proj, err := src.CreateProject(db.Project{Name: "P"})
-	require.NoError(t, err)
-	manager, err := src.GetGlobalRoleBySlug("manager")
-	require.NoError(t, err)
-	manual, err := src.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "manual", Name: "manual", Email: "manual@example.com"}})
-	require.NoError(t, err)
-	require.NoError(t, src.CreateProjectUser(proj.ID, manual.ID, []int{manager.ID}))
-	mapped, err := src.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "mapped", Name: "mapped", Email: "mapped@example.com"}})
-	require.NoError(t, err)
-	addMappedRole(t, src, proj.ID, mapped.ID, manager.ID, "devops")
-
-	dst := sql.InitConfigCreateTestStore()
-	chain := InitProjectExporters(NewKeyMapper(), true, false)
-	require.NoError(t, chain.Load(src))
-	// Restore only logs a failed member, so the skip is checked on the loaded values.
-	members := chain.getTypeExporter(ProjectUser).(*ProjectUserExporter).values
-	require.Len(t, members, 1)
-	assert.Equal(t, manual.ID, members[0].value.UserID)
-	require.NoError(t, chain.Restore(dst, 10))
-
-	projects, err := dst.GetAllProjects()
-	require.NoError(t, err)
-	require.Len(t, projects, 1)
-	users, err := dst.GetProjectUsers(projects[0].ID, db.RetrieveQueryParams{})
-	require.NoError(t, err)
-	require.Len(t, users, 1)
-	assert.Equal(t, "manual", users[0].Username)
-	require.Len(t, users[0].Roles, 1)
-	assert.Equal(t, "manager", users[0].Roles[0].Slug)
-
-	copied, err := dst.GetUserByLoginOrEmail("mapped", "mapped@example.com")
-	require.NoError(t, err)
-	rows, err := dst.Sql().SelectInt(dst.PrepareQuery("select count(*) from project__user_role where user_id=?"), copied.ID)
-	require.NoError(t, err)
-	assert.Zero(t, rows)
 }

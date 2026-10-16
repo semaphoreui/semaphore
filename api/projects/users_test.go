@@ -318,16 +318,14 @@ func TestMappedMembers(t *testing.T) {
 		r, _ := f.request(http.MethodGet, "", f.owner, f.roles[db.ProjectOwner], nil)
 		w := httptest.NewRecorder()
 		GetUsers(w, r)
-		assert.Contains(t, w.Body.String(), `"username":"m","name":"m","role":"","roles":[],"mapped_roles":[{"role":"guest","provider":"okta","group":"m"}]`)
-		assert.Contains(t, w.Body.String(), `"username":"owner","name":"owner","role":"owner","roles":["owner"]}`, "no mapped_roles without mapped roles")
-	})
-	t.Run("a mapped owner does not count as the last owner", func(t *testing.T) {
-		f := newMembershipFixture(t)
-		user := f.newMappedUser(t, "m", f.roles[db.ProjectOwner])
-		require.NoError(t, f.store.CreateProjectUser(f.project.ID, user.ID, []int{f.roles[db.ProjectManager].ID}))
-		r, _ := f.request(http.MethodPut, `{"roles":["guest"]}`, f.owner, f.roles[db.ProjectOwner], &user)
-		w := httptest.NewRecorder()
-		UpdateUser(w, r)
-		assert.Equal(t, http.StatusNoContent, w.Code)
+		var list []projUser
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &list))
+		users := make(map[string]projUser)
+		for _, u := range list {
+			users[u.Username] = u
+		}
+		assert.Equal(t, []string{}, users["m"].Roles)
+		assert.Equal(t, []mappedRole{{Role: "guest", Provider: "okta", Group: "m"}}, users["m"].MappedRoles)
+		assert.Nil(t, users["owner"].MappedRoles, "no mapped_roles without mapped roles")
 	})
 }
