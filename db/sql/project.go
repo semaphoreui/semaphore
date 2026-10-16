@@ -96,6 +96,8 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		"delete from project__template_role where project_id=?",
 		"delete from project__invite where project_id=?",
 		"delete from project__user_role where project_id=?",
+		// Before the roles: a mapping keeps its role from being deleted.
+		"delete from group_role_mapping where project_id=?",
 		"delete from `role` where project_id=?",
 		"delete from project__repository where project_id=?",
 		"delete from project__inventory where project_id=?",

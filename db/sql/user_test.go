@@ -171,9 +171,13 @@ func TestDeleteProjectRemovesRolesAndMemberships(t *testing.T) {
 	require.NoError(t, err)
 	err = store.CreateProjectUser(p.ID, u.ID, []int{r.ID})
 	require.NoError(t, err)
+	addMappedRole(t, store, p.ID, u.ID, r.ID, "devops")
 	require.NoError(t, store.DeleteProject(p.ID))
 	_, err = store.GetProjectRole(p.ID, "dev")
 	assert.ErrorIs(t, err, db.ErrNotFound)
+	mappings, err := store.Sql().SelectInt("select count(*) from group_role_mapping")
+	require.NoError(t, err)
+	assert.Zero(t, mappings)
 }
 
 func TestProjectUsersSortByRole(t *testing.T) {
