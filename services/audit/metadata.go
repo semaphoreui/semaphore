@@ -30,23 +30,38 @@ type UserUpdateMetadata struct {
 	Pro    *BoolChange `json:"pro,omitempty"`
 }
 
+// RoleRef names a role by its unique ID and by the slug it had at the time.
+type RoleRef struct {
+	ID   int    `json:"id"`
+	Slug string `json:"slug"`
+}
+
+func NewRoleRef(r db.Role) RoleRef {
+	return RoleRef{ID: r.ID, Slug: TruncateName(r.Slug, MaxNameBytes)}
+}
+
 type MembershipMetadata struct {
-	Role        string `json:"role"`
-	SelfRemoval bool   `json:"self_removal"`
+	Roles       []RoleRef `json:"roles"`
+	SelfRemoval bool      `json:"self_removal"`
 }
 
 type ProjectRoleMetadata struct {
-	OldRole string `json:"old_role"`
-	NewRole string `json:"new_role,omitempty"`
+	OldRoles []RoleRef `json:"old_roles"`
+	NewRoles []RoleRef `json:"new_roles,omitempty"`
 }
 
 type RoleMetadata struct {
+	Slug        string   `json:"slug"`
 	Permissions []string `json:"permissions"`
+}
+
+type RoleDeleteMetadata struct {
+	Slug string `json:"slug"`
 }
 
 type TemplatePermissionMetadata struct {
 	TemplateID  int      `json:"template_id"`
-	RoleSlug    string   `json:"role_slug,omitempty"`
+	Role        RoleRef  `json:"role,omitzero"`
 	Permissions []string `json:"permissions,omitempty"`
 }
 

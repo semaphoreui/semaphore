@@ -285,6 +285,8 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		err = migration_2_19_11{db: d}.PostApply(tx)
 	case "2.20.8":
 		err = migration_2_20_8{db: d}.PostApply(tx)
+	case "2.20.12":
+		err = migration_2_20_12{db: d}.PostApply(tx)
 	}
 
 	if err != nil {
@@ -355,6 +357,8 @@ func (d *SqlDb) TryRollbackMigration(version db.Migration) {
 	switch version.Version {
 	case "2.16.8":
 		err = migration_2_16_8{db: d}.PreRollback(tx)
+	case "2.20.12":
+		err = migration_2_20_12{db: d}.PreRollback(tx)
 	}
 
 	if err != nil {

@@ -6,6 +6,7 @@
       :item-id="itemId"
       :invites-enabled="systemInfo.teams.invites_enabled"
       :invite-type="systemInfo.teams.invite_type"
+      :roles="USER_ROLES"
       @save="loadItems()"
     />
 

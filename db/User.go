@@ -43,9 +43,9 @@ type UserEmailOtp struct {
 
 const EmailOtpMaxAttempts = 5
 
-type UserWithProjectRole struct {
-	Role ProjectUserRole `db:"role" json:"role"`
+type UserWithProjectRoles struct {
 	User
+	Roles []Role `db:"-" json:"roles"` // ordered by name
 }
 
 // UserWithPwd extends User structure with field for unhashed password received from JSON.
