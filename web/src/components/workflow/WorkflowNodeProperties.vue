@@ -57,7 +57,7 @@
           dense
           hide-details="auto"
           class="mb-5"
-          @change="emitChange"
+          @change="onTemplateChanged"
         />
 
         <v-card
@@ -70,8 +70,12 @@
             <TaskParamsForm
               :template="template"
               v-model="node.task_params"
+              :workflow-vars="workflowVars"
+              :survey-inputs="bindings"
               class="mt-2"
               @input="emitChange"
+              @bind="setBinding"
+              @unbind="setBinding($event, null)"
             />
           </v-card-text>
         </v-card>
@@ -164,6 +168,9 @@ export default {
     value: { type: Object, required: true },
     templates: { type: Array, default: () => [] },
     canManage: { type: Boolean, default: false },
+    // The workflow's own survey (WorkflowTemplate.survey_vars): the values a
+    // task node may be bound to through node.survey_inputs.
+    surveyVars: { type: Array, default: () => [] },
   },
 
   data() {
@@ -218,11 +225,42 @@ export default {
         { value: 'any', text: this.$t('workflowConvergenceAny') },
       ];
     },
+    // Workflow variables a survey field of the node may be bound to. A secret
+    // is never offered: the run keeps its values in clear.
+    workflowVars() {
+      return (this.surveyVars || []).filter((v) => v.type !== 'secret');
+    },
+    bindings() {
+      return Array.isArray(this.node.survey_inputs) ? this.node.survey_inputs : [];
+    },
   },
 
   methods: {
     emitChange() {
       this.$emit('input', this.node);
+    },
+    boundVar(name) {
+      const b = this.bindings.find((x) => x.var === name);
+      return b ? b.workflow_var : null;
+    },
+    // Writes node.survey_inputs as [{ var, workflow_var }]; an empty list
+    // leaves the node without the field, the shape the API returns. Called
+    // by the form's `bind` (name, workflow var) and `unbind` (name, null).
+    setBinding(name, workflowVar) {
+      const rest = this.bindings.filter((b) => b.var !== name);
+      const list = workflowVar ? [...rest, { var: name, workflow_var: workflowVar }] : rest;
+      if (list.length > 0) {
+        this.$set(this.node, 'survey_inputs', list);
+      } else {
+        this.$delete(this.node, 'survey_inputs');
+      }
+      this.emitChange();
+    },
+    // Bindings name variables of the old template; none of them is known to
+    // carry over, so a new template starts without bindings.
+    onTemplateChanged() {
+      this.$delete(this.node, 'survey_inputs');
+      this.emitChange();
     },
     onKindChanged() {
       const { node } = this;
@@ -230,6 +268,8 @@ export default {
       if (kind === 'approval' || kind === 'delay') {
         node.template_id = null;
         node.task_params = null;
+        // Only a task node may carry bindings (backend validation).
+        this.$delete(node, 'survey_inputs');
       }
       if (kind !== 'approval') {
         node.approval_timeout = null;

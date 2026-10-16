@@ -4,7 +4,32 @@
 
     <div v-for="v in template.survey_vars || []" :key="v.name">
       <v-text-field
-        v-if="v.type === 'secret'"
+        v-if="isBound(v.name)"
+        :label="v.title + (v.required ? ' *' : '')"
+        :value="boundLabel(v.name)"
+        :error-messages="boundErrors(v.name)"
+        persistent-hint
+        readonly
+        prepend-inner-icon="mdi-link"
+        outlined
+        dense
+        class="TaskParamsForm__bound"
+      >
+        <template v-slot:append-outer>
+          <v-btn
+            icon
+            small
+            :title="$t('workflowNodeSurveyInputsUnbind')"
+            class="TaskParamsForm__unbind"
+            @click="$emit('unbind', v.name)"
+          >
+            <v-icon small>mdi-close</v-icon>
+          </v-btn>
+        </template>
+      </v-text-field>
+
+      <v-text-field
+        v-else-if="v.type === 'secret'"
         :label="v.title"
         :hint="v.description"
         v-model="editedSecretEnvironment[v.name]"
@@ -41,6 +66,9 @@
             {{ item && item.name ? item.name : String(item) }}
           </v-chip>
         </template>
+        <template v-if="canBind(v)" v-slot:append-outer>
+          <WorkflowVarAssign :vars="workflowVars" @select="$emit('bind', v.name, $event)" />
+        </template>
       </v-select>
 
       <v-textarea
@@ -54,7 +82,11 @@
         auto-grow
         outlined
         dense
-      />
+      >
+        <template v-if="canBind(v)" v-slot:append-outer>
+          <WorkflowVarAssign :vars="workflowVars" @select="$emit('bind', v.name, $event)" />
+        </template>
+      </v-textarea>
 
       <v-text-field
         v-else
@@ -69,7 +101,11 @@
         ]"
         outlined
         dense
-      />
+      >
+        <template v-if="canBind(v)" v-slot:append-outer>
+          <WorkflowVarAssign :vars="workflowVars" @select="$emit('bind', v.name, $event)" />
+        </template>
+      </v-text-field>
     </div>
 
     <v-text-field
@@ -130,6 +166,7 @@ import ArgsPicker from '@/components/ArgsPicker.vue';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import TaskParamsAnsibleForm from '@/components/TaskParamsAnsibleForm.vue';
 import TaskParamsTerraformForm from '@/components/TaskParamsTerraformForm.vue';
+import WorkflowVarAssign from '@/components/workflow/WorkflowVarAssign.vue';
 
 export default {
   mixins: [AppFieldsMixin],
@@ -137,12 +174,20 @@ export default {
   props: {
     value: Object,
     template: Object,
+    // Workflow task node only: the workflow's survey variables a field may be
+    // bound to (null = no binding UI) and the node's current bindings
+    // (WorkflowNode.survey_inputs, [{ var, workflow_var }]). A bound field is
+    // read-only and shows the variable it reads; the form emits `bind(var,
+    // workflow_var)` and `unbind(var)`, the owner stores them.
+    workflowVars: { type: Array, default: null },
+    surveyInputs: { type: Array, default: () => [] },
   },
 
   components: {
     TaskParamsAnsibleForm,
     TaskParamsTerraformForm,
     ArgsPicker,
+    WorkflowVarAssign,
   },
 
   data() {
@@ -372,6 +417,39 @@ export default {
       return res;
     },
 
+    canBind(v) {
+      return this.workflowVars != null && v.type !== 'secret';
+    },
+
+    binding(varName) {
+      return (this.surveyInputs || []).find((b) => b.var === varName) || null;
+    },
+
+    isBound(varName) {
+      return this.binding(varName) != null;
+    },
+
+    boundWorkflowVar(varName) {
+      const b = this.binding(varName);
+      if (!b) return null;
+      return (this.workflowVars || []).find((w) => w.name === b.workflow_var) || null;
+    },
+
+    boundLabel(varName) {
+      const w = this.boundWorkflowVar(varName);
+      if (w) return w.title && w.title !== w.name ? `${w.title} (${w.name})` : w.name;
+      const b = this.binding(varName);
+      return b ? b.workflow_var : '';
+    },
+
+    // A binding may outlive its workflow variable (renamed or deleted in the
+    // editor's left panel): say what it points at instead of a blank field.
+    boundErrors(varName) {
+      const b = this.binding(varName);
+      if (!b || this.boundWorkflowVar(varName)) return [];
+      return [this.$t('workflowNodeSurveyInputsUnknown', { name: b.workflow_var })];
+    },
+
     removeSelectedItem(varName, index) {
       const env = this.editedEnvironment;
       if (!Object.prototype.hasOwnProperty.call(env, varName) || !Array.isArray(env[varName])) {
@@ -385,3 +463,9 @@ export default {
   },
 };
 </script>
+
+<style lang="scss">
+.TaskParamsForm__bound input {
+  cursor: default;
+}
+</style>

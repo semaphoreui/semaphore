@@ -16,6 +16,8 @@ AGENTS/tools/wf-stand/runner.sh {start|stop|status|tag|untag}   # PID=<project> 
 AGENTS/tools/wf-stand/inputs.sh <workflow_id> [run_id]           # outputs stored per producer + "INPUT name=value" lines per consumer
 NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/wf-stand/shoot-run.cjs <workflow_id> [run_id] [out.png] [--dark]
 AGENTS/tools/wf-stand/seed-docs.sh                                # project "Demo Stand" + workflow "Build and deploy" for the docs screenshots
+AGENTS/tools/wf-stand/seed-survey.sh                              # workflow "Survey: workflow variables" (survey + node bindings) in the seed-outputs project
+NODE_PATH=… node AGENTS/tools/wf-stand/shoot-editor.cjs <workflow_id> [node_title] [out.png] [--dark]   # editor with a node selected: survey panel, canvas, bindings
 PID=<project> WF=<workflow> NODE_PATH=… node AGENTS/tools/wf-stand/shoot-docs.cjs   # the four screenshots of workflows.md § Outputs and inputs
 ```
 
@@ -140,3 +142,20 @@ Traps: the token is returned once at creation, so a runner whose config file is 
 stop the runner and `untag` before a session that expects tasks to run on the server, or they wait forever;
 `status` keeps saying `online` for up to 120 s after `stop` (the server's heartbeat timeout), trust the
 `process:` line.
+
+`seed-survey.sh` (2026-10-16, TASK@B197C72B7F) needs the templates of `seed-outputs.sh` and adds workflow
+"Survey: workflow variables": survey `env` (enum, default `staging`), `image_tag` (required), `replicas` (int,
+default 2); node 2 "bash: consume" bound `image_tag←image_tag`, `replicas←replicas`, `env_name←env` on top of
+static `image_tag=static-from-node`; node 3 the same template without bindings (must receive nothing although
+the names match); node 4 "bash: produce renamed outputs" → node 5 "bash: consume" over an explicit edge
+`replicas←count` plus the binding `image_tag←image_tag`. Start a run with a body:
+`POST …/workflows/<id>/runs {"environment":{"image_tag":"1.2.3","env":"prod"}}` (ids in
+`/tmp/semaphore-stand/wf-survey-ids.txt`). `shoot-editor.cjs` logs in, opens the editor, clicks the first card
+whose title matches, scrolls the "Workflow variables" section into view and writes the page plus a crop of that
+section (`<out>-bindings.png`).
+
+⚠️ 2026-10-16: macOS purges files (not directories) under `/tmp` that were not touched for ~3 days —
+`config-wf.json`, `database-wf.sqlite`, the admin user and every script in `wf-repo` vanished between sessions.
+`stand.sh build` + a fresh `config-wf.json` (sqlite at `$DIR/database-wf.sqlite`, port `:3100`, three
+`openssl rand -base64 32` keys, `use_remote_runner: true`), `migrate`, `user add --admin --login admin
+--password admin123` and the seeds bring it back; `wf-repo` scripts must be recreated before any run.
