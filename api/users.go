@@ -376,7 +376,7 @@ func (c *UsersController) DeleteUserIdentity(w http.ResponseWriter, r *http.Requ
 	idType := mux.Vars(r)["type"]
 	provider := mux.Vars(r)["provider"]
 
-	if idType != db.IdentityTypeLdap && idType != db.IdentityTypeOidc {
+	if idType != db.IdentityTypeLdap && idType != db.IdentityTypeOidc && idType != db.IdentityTypeJwt {
 		helpers.WriteErrorStatus(w, "Invalid identity type", http.StatusBadRequest)
 		return
 	}

@@ -1726,6 +1726,18 @@ export default {
       this.snackbarText = '';
 
       try {
+        let jwtSignoutUrl = '';
+        try {
+          const meta = await axios({
+            method: 'get',
+            url: '/api/auth/login',
+            responseType: 'json',
+          });
+          jwtSignoutUrl = meta.data.jwt_signout_url || '';
+        } catch (e) {
+          // ignore — fall through to normal logout flow
+        }
+
         await axios({
           method: 'post',
           url: '/api/auth/logout',
@@ -1734,6 +1746,11 @@ export default {
 
         socket.setSessionActive(false);
         socket.stop();
+
+        if (jwtSignoutUrl) {
+          document.location = jwtSignoutUrl;
+          return;
+        }
 
         if (this.$route.path !== '/auth/login') {
           await this.$router.push({ path: '/auth/login' });

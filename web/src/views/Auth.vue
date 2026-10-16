@@ -319,6 +319,7 @@ export default {
       oidcProviders: [],
       loginWithPassword: null,
       authMethods: {},
+      jwtSignoutUrl: '',
 
       ldapProviders: [],
       loginTab: 0,
@@ -408,6 +409,7 @@ export default {
         this.loginWithPassword = resp.data.login_with_password;
         this.authMethods = resp.data.auth_methods || {};
         this.ldapProviders = resp.data.ldap_providers || [];
+        this.jwtSignoutUrl = resp.data.jwt_signout_url || '';
       });
     },
 
@@ -441,8 +443,12 @@ export default {
           responseType: 'json',
         });
 
-        const { location } = document;
-        document.location = location;
+        if (this.jwtSignoutUrl) {
+          document.location = this.jwtSignoutUrl;
+        } else {
+          const { location } = document;
+          document.location = location;
+        }
       } catch (e) {
         EventBus.$emit('i-snackbar', {
           color: 'error',

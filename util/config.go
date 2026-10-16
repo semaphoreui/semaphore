@@ -670,9 +670,9 @@ type ConfigType struct {
 	// OpenID Connect as the only ways in. Set it once an identity provider is
 	// configured and working, so that local passwords stop being a second door.
 	PasswordLoginDisable bool `json:"password_login_disable,omitempty" env:"SEMAPHORE_PASSWORD_LOGIN_DISABLED"`
-	// ExternalAuthEmailMatching controls whether an LDAP/OIDC login may be
-	// linked to an existing user by email when no external identity record
-	// exists yet:
+	// ExternalAuthEmailMatching controls whether an LDAP, OIDC or JWT proxy
+	// login may be linked to an existing user by email when no external
+	// identity record exists yet:
 	//   "auto" (default) - only external users without any linked identity
 	//                      (one-time adoption of pre-2.20 accounts);
 	//   "always"         - any external user (needed when the same person
@@ -1881,6 +1881,12 @@ func validateConfig() {
 
 	if err := Config.Audit.Validate(); err != nil {
 		panic(err)
+	}
+
+	if Config.Auth != nil && Config.Auth.JWT != nil {
+		if err := Config.Auth.JWT.Validate(); err != nil {
+			panic(err)
+		}
 	}
 
 	if err := validateAccessKeyEncryption(Config.AccessKeyEncryption); err != nil {

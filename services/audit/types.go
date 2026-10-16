@@ -85,6 +85,7 @@ type AuthMethod string
 const (
 	AuthSession  AuthMethod = "session"
 	AuthAPIToken AuthMethod = "api_token"
+	AuthProxyJWT AuthMethod = "proxy_jwt"
 )
 
 const (
