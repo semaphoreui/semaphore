@@ -15,8 +15,8 @@ type OidcProvider struct {
 	UsernameClaim    string       `json:"username_claim" default:"preferred_username"`
 	NameClaim        string       `json:"name_claim" default:"preferred_username"`
 	EmailClaim       string       `json:"email_claim" default:"email"`
-	// GroupsClaim names the claim that lists the user's groups. Semaphore Pro applies
-	// the group role mappings at every sign-in through this provider when it is set.
+	// GroupsClaim names the claim that lists the user's groups. Group role mappings use
+	// this claim at every sign-in through this provider.
 	GroupsClaim string `json:"groups_claim"`
 	Order       int    `json:"order"`
 
