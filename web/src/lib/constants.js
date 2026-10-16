@@ -172,6 +172,9 @@ const BASE_FIELDS = {
   allow_override_branch: {
     label: 'allow_override_branch',
   },
+  message_mode: {
+    label: 'message',
+  },
 };
 
 export const ANSIBLE_FIELDS = {
