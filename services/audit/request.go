@@ -18,7 +18,7 @@ func RequestMiddleware(trusted []netip.Prefix) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			info := RequestInfo{
 				ID:        uuid.NewString(),
-				IP:        clientIP(r.RemoteAddr, r.Header, trusted),
+				IP:        ClientIP(r.RemoteAddr, r.Header, trusted),
 				UserAgent: TruncateName(r.UserAgent(), maxUserAgentBytes),
 			}
 			w.Header().Set("X-Request-ID", info.ID)
@@ -27,15 +27,13 @@ func RequestMiddleware(trusted []netip.Prefix) func(http.Handler) http.Handler {
 	}
 }
 
-func clientIP(remoteAddr string, header http.Header, trusted []netip.Prefix) string {
-	addrPort, err := netip.ParseAddrPort(remoteAddr)
-	peer := addrPort.Addr()
-	if err != nil {
-		if peer, err = netip.ParseAddr(remoteAddr); err != nil {
-			return TruncateName(remoteAddr, maxIPBytes)
-		}
+// ClientIP returns the client address of a request. Forwarded headers are
+// used only when the peer is in trusted.
+func ClientIP(remoteAddr string, header http.Header, trusted []netip.Prefix) string {
+	peer, ok := parsePeer(remoteAddr)
+	if !ok {
+		return TruncateName(remoteAddr, maxIPBytes)
 	}
-	peer = peer.Unmap().WithZone("")
 	if !isTrusted(peer, trusted) {
 		return peer.String()
 	}
@@ -56,6 +54,23 @@ func clientIP(remoteAddr string, header http.Header, trusted []netip.Prefix) str
 	}
 
 	return peer.String()
+}
+
+// FromTrustedProxy reports whether the peer address is in trusted.
+func FromTrustedProxy(remoteAddr string, trusted []netip.Prefix) bool {
+	peer, ok := parsePeer(remoteAddr)
+	return ok && isTrusted(peer, trusted)
+}
+
+func parsePeer(remoteAddr string) (netip.Addr, bool) {
+	addrPort, err := netip.ParseAddrPort(remoteAddr)
+	peer := addrPort.Addr()
+	if err != nil {
+		if peer, err = netip.ParseAddr(remoteAddr); err != nil {
+			return netip.Addr{}, false
+		}
+	}
+	return peer.Unmap().WithZone(""), true
 }
 
 func fromForwardedFor(values []string, trusted []netip.Prefix) (netip.Addr, bool) {
