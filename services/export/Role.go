@@ -1,8 +1,6 @@
 package export
 
 import (
-	"strconv"
-
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -22,7 +20,8 @@ func (e *RoleExporter) load(store db.Store, exporter DataExporter, progress Prog
 		if err != nil {
 			return err
 		}
-		err = e.appendValues(roles, strconv.Itoa(proj))
+		// Role ids are unique across projects, so every role lives in the global scope.
+		err = e.appendValues(roles, GlobalScope)
 		if err != nil {
 			return err
 		}
@@ -43,6 +42,14 @@ func (e *RoleExporter) restore(store db.Store, exporter DataExporter, progress P
 func (e *RoleExporter) restoreValue(val EntityObject[db.Role], store db.Store, exporter DataExporter) (err error) {
 
 	old := val.value
+
+	if old.Builtin {
+		destRole, err := store.GetGlobalRoleBySlug(old.Slug)
+		if err != nil {
+			return err
+		}
+		return exporter.mapKeys(e.getName(), val.scope, old.GetDbKey(), destRole.GetDbKey())
+	}
 
 	old.ProjectID, err = exporter.getNewKeyIntRef(Project, GlobalScope, old.ProjectID, e)
 	if err != nil {

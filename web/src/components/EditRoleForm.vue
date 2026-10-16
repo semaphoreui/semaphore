@@ -25,11 +25,12 @@
     <v-text-field
       v-model="item.slug"
       :label="$t('slug')"
-      :rules="[v => !!v || $t('slug_required'), v => this.validateSlug(v)]"
+      @input="slugTouched = true"
+      :rules="slugRules"
       outlined
       dense
       required
-      :disabled="formSaving"
+      :disabled="formSaving || !isNew"
       :hint="$t('slugHint')"
     ></v-text-field>
 
@@ -76,6 +77,7 @@ export default {
 
   data() {
     return {
+      slugTouched: false,
       permissions: {
         canRunProjectTasks: false,
         canUpdateProject: false,
@@ -85,7 +87,25 @@ export default {
     };
   },
 
+  computed: {
+    slugRules() {
+      if (!this.isNew) return [];
+      return [(v) => !!v || this.$t('slug_required'), (v) => this.validateSlug(v)];
+    },
+  },
+
   watch: {
+    'item.name': function onNameChange(name) {
+      if (this.isNew && !this.slugTouched && this.item) {
+        this.item.slug = (name || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 100);
+      }
+    },
+
     // Watch permissions and update the item.permissions value
     permissions: {
       handler(newPermissions) {
@@ -120,9 +140,7 @@ export default {
     validateSlug(value) {
       if (!value) return true; // Required validation is handled separately
 
-      // Slug should be lowercase, alphanumeric with underscores/hyphens
-      const slugPattern = /^[a-z0-9_-]+$/;
-      if (!slugPattern.test(value)) {
+      if (!/^[A-Za-z0-9_-]{1,100}$/.test(value)) {
         return this.$t('invalidSlugFormat');
       }
 
@@ -175,6 +193,7 @@ export default {
     },
 
     afterReset() {
+      this.slugTouched = false;
       // Reset permissions checkboxes
       this.permissions = {
         canRunProjectTasks: false,

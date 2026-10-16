@@ -6,7 +6,7 @@
       :item-id="itemId"
       :invites-enabled="systemInfo.teams.invites_enabled"
       :invite-type="systemInfo.teams.invite_type"
-      :roles="userRoles"
+      :roles="roles"
       @save="openInvites()"
     />
 
@@ -22,11 +22,10 @@
       <v-toolbar-title>{{ $t('team2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
-        v-if="systemInfo.teams.memebers_can_leave"
+        v-if="systemInfo.teams.members_can_leave"
         color="error"
         @click="leftProject()"
         class="mr-2"
-        :disabled="userRole === 'owner'"
         >{{ $t('LeaveProject') }}
       </v-btn>
       <v-btn
@@ -49,19 +48,32 @@
       :items-per-page="Number.MAX_VALUE"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
-      <template v-slot:item.role="{ item }">
-        <v-select
-          hide-details
-          v-model="item.role"
-          :items="userRoles"
+      <template v-slot:item.roles="{ item }">
+        <v-autocomplete
+          v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+          v-model="item.roles"
+          :items="roleItems(item)"
           item-value="slug"
           item-text="name"
-          :style="{ width: '200px' }"
-          @change="updateProjectUser(item)"
-          v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+          multiple
+          small-chips
+          deletable-chips
+          hide-details
+          dense
           class="pt-0 mt-0"
-        />
-        <div v-else>{{ userRoles.find((r) => r.slug === item.role).name }}</div>
+          @change="updateProjectUser(item)"
+        >
+          <template v-slot:item="{ item: role }">
+            <v-list-item-content>
+              <v-list-item-title>{{ role.name }}</v-list-item-title>
+              <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
+            </v-list-item-content>
+          </template>
+        </v-autocomplete>
+        <div v-else>
+          <v-chip v-for="role in roleItems(item).filter((r) => item.roles.includes(r.slug))"
+                  :key="role.slug" small class="mr-1">{{ role.name }}</v-chip>
+        </div>
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -78,8 +90,11 @@
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';
 import axios from 'axios';
-import { USER_PERMISSIONS, USER_ROLES } from '@/lib/constants';
+import { USER_PERMISSIONS } from '@/lib/constants';
+import groupRolesForSelect from '@/lib/roles';
 import TeamMenu from '@/components/TeamMenu.vue';
+import EventBus from '@/event-bus';
+import { getErrorMessage } from '@/lib/error';
 
 export default {
   components: { TeamMenu, EditTeamMemberDialog },
@@ -92,14 +107,12 @@ export default {
   data() {
     return {
       roles: null,
+      saving: Promise.resolve(),
+      pendingSaves: 0,
     };
   },
 
   computed: {
-    userRoles() {
-      return [...USER_ROLES, ...this.roles];
-    },
-
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
     },
@@ -125,22 +138,53 @@ export default {
     },
 
     async leftProject() {
-      await axios({
-        method: 'delete',
-        url: `/api/project/${this.projectId}/me`,
-        responseType: 'json',
-      });
-      window.location.reload();
+      try {
+        await axios({
+          method: 'delete',
+          url: `/api/project/${this.projectId}/me`,
+          responseType: 'json',
+        });
+        window.location.reload();
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+      }
+    },
+
+    roleItems(member) {
+      // A role missing from the list (a custom role in a build without them) still shows its slug.
+      const missing = member.roles
+        .filter((slug) => !this.roles.some((role) => role.slug === slug))
+        .map((slug) => ({ slug, name: slug }));
+      return [...groupRolesForSelect(this.roles, (key) => this.$i18n.t(key)), ...missing];
     },
 
     async updateProjectUser(user) {
-      await axios({
-        method: 'put',
-        url: `/api/project/${this.projectId}/users/${user.id}`,
-        responseType: 'json',
-        data: user,
-      });
-      await this.loadItems();
+      const save = async () => {
+        // Removing a member is the delete button, the server refuses an empty role list.
+        if (user.roles.length > 0) {
+          try {
+            await axios({
+              method: 'put',
+              url: `/api/project/${this.projectId}/users/${user.id}`,
+              responseType: 'json',
+              data: { roles: user.roles },
+            });
+          } catch (err) {
+            EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+          }
+        } else {
+          EventBus.$emit('i-snackbar', { color: 'error', text: this.$i18n.t('memberNeedsRole') });
+        }
+        this.pendingSaves -= 1;
+        // A reload before the next queued save would drop the pick it is saving.
+        if (this.pendingSaves === 0) {
+          await this.loadItems();
+        }
+      };
+      // Saves go one at a time, so an older role list is never written after a newer one.
+      this.pendingSaves += 1;
+      this.saving = this.saving.then(save, save);
+      await this.saving;
     },
 
     allowActions() {
@@ -161,7 +205,8 @@ export default {
         },
         {
           text: this.$i18n.t('role'),
-          value: 'role',
+          value: 'roles',
+          sortable: false,
           width: '30%',
         },
         {

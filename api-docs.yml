@@ -159,7 +159,14 @@ definitions:
         type: string
       role:
         type: string
-        enum: [owner, manager, task_runner, guest]
+        description: "Role slug when the member has exactly one role, otherwise empty"
+        example: manager
+      roles:
+        type: array
+        items:
+          type: string
+        description: "Slugs of all roles of the member. `role` is set only when this list has one role"
+        example: [manager]
 
   ProjectInvite:
     type: object
@@ -2457,7 +2464,13 @@ paths:
             properties:
               role:
                 type: string
+                description: "Role slug when the user has exactly one role, otherwise empty"
                 example: owner
+              roles:
+                type: array
+                items:
+                  type: string
+                example: [owner]
               permissions:
                 type: number
                 example: 0
@@ -2524,8 +2537,13 @@ paths:
                 minimum: 2
               role:
                 type: string
-                enum: [owner, manager, task_runner, guest]
-                example: owner
+                description: "Role slug: a built-in role (owner, manager, task_runner, guest) or a custom role"
+                example: manager
+              roles:
+                type: array
+                items:
+                  type: string
+                description: "Several role slugs. Send either role or roles"
       responses:
         204:
           description: User added
@@ -2550,9 +2568,14 @@ paths:
             properties:
               role:
                 type: string
-                enum: [owner, manager, task_runner, guest]
-                example: owner
-      summary: Update user role
+                description: "Role slug: a built-in role (owner, manager, task_runner, guest) or a custom role"
+                example: manager
+              roles:
+                type: array
+                items:
+                  type: string
+                description: "Several role slugs. Send either role or roles"
+      summary: Update user roles
       tags:
         - project
       responses:

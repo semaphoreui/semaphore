@@ -77,6 +77,17 @@ describe('lib/auditEvent', () => {
     expect(metadataRows(null)).to.deep.equal([]);
   });
 
+  it('shows a role reference by its slug', () => {
+    const owner = { id: 1, slug: 'owner' };
+    const runner = { id: 3, slug: 'task_runner' };
+    const metadata = { old_roles: [owner], new_roles: [owner, runner], role: runner };
+    expect(metadataRows(metadata)).to.deep.equal([
+      { key: 'old_roles', value: 'owner' },
+      { key: 'new_roles', value: 'owner, task_runner' },
+      { key: 'role', value: 'task_runner' },
+    ]);
+  });
+
   it('drops empty filters', () => {
     expect(filterParams({
       user: 5, ip: '', project: null, kind: [], outcome: 'failure', from: undefined,

@@ -30,23 +30,52 @@ type UserUpdateMetadata struct {
 	Pro    *BoolChange `json:"pro,omitempty"`
 }
 
+// RoleRef names a role by its unique ID and by the slug it had at the time.
+type RoleRef struct {
+	ID   int    `json:"id"`
+	Slug string `json:"slug"`
+}
+
+func NewRoleRef(r db.Role) RoleRef {
+	return RoleRef{ID: r.ID, Slug: TruncateName(r.Slug, MaxNameBytes)}
+}
+
+func NewRoleRefs(roles []db.Role) []RoleRef {
+	refs := make([]RoleRef, 0, len(roles))
+	for _, role := range roles {
+		refs = append(refs, NewRoleRef(role))
+	}
+	return refs
+}
+
 type MembershipMetadata struct {
-	Role        string `json:"role"`
-	SelfRemoval bool   `json:"self_removal"`
+	Roles       []RoleRef `json:"roles"`
+	SelfRemoval bool      `json:"self_removal"`
+	// Set when the member lost the last role because the role was deleted.
+	DeletedRole RoleRef `json:"deleted_role,omitzero"`
 }
 
 type ProjectRoleMetadata struct {
-	OldRole string `json:"old_role"`
-	NewRole string `json:"new_role,omitempty"`
+	OldRoles []RoleRef `json:"old_roles"`
+	NewRoles []RoleRef `json:"new_roles,omitempty"`
+	// Set when the role was taken away because it was deleted.
+	DeletedRole RoleRef `json:"deleted_role,omitzero"`
 }
 
 type RoleMetadata struct {
+	Slug        string   `json:"slug"`
 	Permissions []string `json:"permissions"`
+}
+
+type RoleDeleteMetadata struct {
+	Slug string `json:"slug"`
+	// Set only when the role was deleted together with its assignments.
+	Impact *db.RoleImpact `json:"impact,omitempty"`
 }
 
 type TemplatePermissionMetadata struct {
 	TemplateID  int      `json:"template_id"`
-	RoleSlug    string   `json:"role_slug,omitempty"`
+	Role        RoleRef  `json:"role,omitzero"`
 	Permissions []string `json:"permissions,omitempty"`
 }
 

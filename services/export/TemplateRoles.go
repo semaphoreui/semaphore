@@ -49,7 +49,7 @@ func (e *TemplateRoleExporter) restore(store db.Store, exporter DataExporter, pr
 func (e *TemplateRoleExporter) restoreValue(val EntityObject[db.TemplateRolePerm], store db.Store, exporter DataExporter) (err error) {
 	old := val.value
 
-	old.RoleSlug, err = exporter.getNewKey(Role, val.scope, old.RoleSlug)
+	old.RoleID, err = exporter.getNewKeyInt(Role, GlobalScope, old.RoleID)
 	if err != nil {
 		return err
 	}

@@ -38,17 +38,23 @@ func (m *mockProjectStore) GetProjects(userID int) ([]db.Project, error) { retur
 func (m *mockProjectStore) CreateProject(project db.Project) (db.Project, error) {
 	return db.Project{}, nil
 }
-func (m *mockProjectStore) GetProjectUsers(projectID int, params db.RetrieveQueryParams) ([]db.UserWithProjectRole, error) {
+func (m *mockProjectStore) GetProjectUsers(projectID int, params db.RetrieveQueryParams) ([]db.UserWithProjectRoles, error) {
 	return nil, nil
 }
-func (m *mockProjectStore) CreateProjectUser(projectUser db.ProjectUser) (db.ProjectUser, error) {
-	return db.ProjectUser{}, nil
+func (m *mockProjectStore) CreateProjectUser(projectID int, userID int, roleIDs []int) error {
+	return nil
 }
 func (m *mockProjectStore) DeleteProjectUser(projectID int, userID int) error { return nil }
 func (m *mockProjectStore) GetProjectUser(projectID int, userID int) (db.ProjectUser, error) {
 	return db.ProjectUser{}, nil
 }
-func (m *mockProjectStore) UpdateProjectUser(projectUser db.ProjectUser) error { return nil }
+func (m *mockProjectStore) SetProjectUserRoles(projectID int, userID int, roleIDs []int) error {
+	return nil
+}
+func (m *mockProjectStore) GetProjectUserRoles(projectID int, userID int) ([]db.Role, error) {
+	return nil, nil
+}
+func (m *mockProjectStore) CountProjectOwners(projectID int) (int, error) { return 0, nil }
 
 type mockAccessKeyManager struct {
 	GetAccessKeysFn   func(projectID int, opts db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error)
