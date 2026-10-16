@@ -526,6 +526,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Roles from group mappings come only from a sign-in that brings the groups.
+	if err = syncLoginRoles(r, user, "", nil); err != nil {
+		log.WithError(err).WithField("user_id", user.ID).Error("Failed to apply group role mappings")
+		recordLoginFailure(r, login.Auth, meta, audit.ReasonInternalError)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	verified, err := createSession(w, r, user, meta)
 	if err != nil {
 		recordLoginFailure(r, login.Auth, meta, audit.ReasonInternalError)
@@ -927,7 +935,8 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res clai
 	return
 }
 
-// syncLoginRoles applies the group role mappings of the provider and records each change.
+// syncLoginRoles applies the group role mappings of the provider and records each change. An empty provider takes
+// away all mapped roles.
 func syncLoginRoles(r *http.Request, user db.User, provider string, claims map[string]any) error {
 	service := helpers.GetFromContext(r, "role_sync").(pro_interfaces.RoleSyncService)
 	added, removed, err := service.SyncLoginRoles(user.ID, provider, claims)
