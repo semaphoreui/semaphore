@@ -42,7 +42,7 @@
       <v-toolbar-title>{{ $t('Roles') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        v-if="canManageRoles"
         :disabled="!features.custom_roles_management"
         color="primary"
         @click="editItem('new')"
@@ -90,6 +90,13 @@
       <template v-slot:item.permissions="{ item }">
         <TemplatePermissionsChips class="py-1" :permissions="item.permissions" />
       </template>
+      <template v-slot:item.global_permissions="{ item }">
+        <TemplatePermissionsChips
+          class="py-1"
+          scope="global"
+          :permissions="item.global_permissions || 0"
+        />
+      </template>
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
           <v-btn icon class="mr-1" @click="askDeleteItem(item.slug)">
@@ -115,7 +122,8 @@ import RoleForm from '@/components/EditRoleForm.vue';
 import TeamMenu from '@/components/TeamMenu.vue';
 import TemplatePermissionsChips from '@/components/TemplatePermissionsChips.vue';
 import { roleScope } from '@/lib/roles';
-import { USER_PERMISSIONS } from '@/lib/constants';
+import { GLOBAL_PERMISSIONS, USER_PERMISSIONS } from '@/lib/constants';
+import { hasGlobalPermission } from '@/lib/role-permissions';
 
 export default {
   mixins: [ItemListPageBase],
@@ -145,6 +153,14 @@ export default {
     IDFieldName() {
       return 'slug';
     },
+
+    /** Project roles follow the project permission, global roles the global one. */
+    canManageRoles() {
+      if (this.projectId) {
+        return this.can(USER_PERMISSIONS.manageProjectResources);
+      }
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageRoles);
+    },
   },
 
   watch: {
@@ -154,8 +170,17 @@ export default {
   },
 
   methods: {
+    // Called from data() of the list mixin, before computed properties exist,
+    // so the props are read directly.
+    allowActions() {
+      if (this.projectId) {
+        return this.can(USER_PERMISSIONS.manageProjectResources);
+      }
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageRoles);
+    },
+
     getHeaders() {
-      return [
+      const headers = [
         {
           text: this.$i18n.t('name'),
           value: 'name',
@@ -170,12 +195,19 @@ export default {
           text: this.$i18n.t('permissions'),
           value: 'permissions',
         },
-        {
-          text: this.$i18n.t('actions'),
-          value: 'actions',
-          sortable: false,
-        },
       ];
+      if (!this.projectId) {
+        headers.push({
+          text: this.$i18n.t('globalPermissions'),
+          value: 'global_permissions',
+        });
+      }
+      headers.push({
+        text: this.$i18n.t('actions'),
+        value: 'actions',
+        sortable: false,
+      });
+      return headers;
     },
 
     async returnToProjects() {

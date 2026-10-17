@@ -1,0 +1,14 @@
+import './setup';
+import { expect } from 'chai';
+import Users from '@/views/Users.vue';
+
+describe('Users.vue', () => {
+  // ItemListPageBase calls allowActions() from data(), before any computed property exists.
+  it('decides the actions column from props alone', () => {
+    const { allowActions } = Users.methods;
+    expect(allowActions.call({ user: { admin: true } })).to.equal(true);
+    expect(allowActions.call({ user: { admin: false, global_permissions: 1 } })).to.equal(true);
+    expect(allowActions.call({ user: { admin: false, global_permissions: 2 } })).to.equal(false);
+    expect(allowActions.call({ user: null })).to.equal(false);
+  });
+});

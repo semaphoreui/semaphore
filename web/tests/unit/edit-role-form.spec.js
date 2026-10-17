@@ -31,6 +31,38 @@ describe('EditRoleForm', () => {
     });
   });
 
+  describe('global permissions', () => {
+    const { hasGlobalPermission, setGlobalPermission, getNewItem } = EditRoleForm.methods;
+    const form = (item, projectId) => ({
+      item, projectId, $set(target, key, value) { Object.assign(target, { [key]: value }); },
+    });
+
+    it('toggles bits of item.global_permissions', () => {
+      const f = form({ global_permissions: 0 });
+      setGlobalPermission.call(f, 2, true);
+      setGlobalPermission.call(f, 8, true);
+      expect(f.item.global_permissions).to.equal(10);
+      expect(hasGlobalPermission.call(f, 2)).to.equal(true);
+      expect(hasGlobalPermission.call(f, 4)).to.equal(false);
+      setGlobalPermission.call(f, 2, false);
+      expect(f.item.global_permissions).to.equal(8);
+    });
+
+    it('treats a missing mask as empty', () => {
+      const f = form({});
+      expect(hasGlobalPermission.call(f, 1)).to.equal(false);
+      setGlobalPermission.call(f, 1, true);
+      expect(f.item.global_permissions).to.equal(1);
+    });
+
+    it('starts a global role with an empty mask and a project role without one', () => {
+      expect(getNewItem.call(form(null, null))).to.deep.equal({
+        name: '', slug: '', permissions: 0, global_permissions: 0,
+      });
+      expect(getNewItem.call(form(null, 7))).to.deep.equal({ name: '', slug: '', permissions: 0 });
+    });
+  });
+
   it('derives the slug again after the form is reset', () => {
     const form = { slugTouched: true };
     EditRoleForm.methods.afterReset.call(form);

@@ -29,6 +29,16 @@
   `/tmp/semaphore-stand/wf-repo`) and follows a run to its end. The older workflows 1–4 reference
   the demo repo, whose playbooks do not exist, so their tasks always end in `error`.
 
+- Global-roles stand: `config-gr.json` + `database-gr.sqlite`, port `:3101`, binary `semaphore-gr`
+  (built from this worktree), users `admin`/`admin123`, `manager`/`manager123` (holds the global
+  role `user_manager`), `plain`/`plain1234`; roles were inserted with `sqlite3` because the community
+  roles API is a stub. Screenshots in `shots-global-roles/`.
+- macOS has no `timeout`; wait for a server with a `for` loop around `curl -sf …/api/ping` and
+  `python3 -c 'import time; time.sleep(0.5)'`.
+- Admin pages (`/users`, `/roles`, `/runners`…) render without the navigation drawer; the
+  bottom-left account menu (`.v-navigation-drawer .v-list-item:has(.mdi-account)`) exists only on
+  project pages, and a user without projects has no drawer at all.
+
 ## Playwright recipe
 
 - Playwright is not installed globally; the module lives in

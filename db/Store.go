@@ -586,6 +586,13 @@ type RoleRepository interface {
 	DeleteRole(roleID int) error
 	GetRoleAssignments(roleID int) (RoleAssignments, error)
 	DeleteRoleWithAssignments(roleID int) (RoleAssignments, error)
+
+	GetGlobalRoleAssignments(userID int) ([]GlobalRoleAssignment, error)
+	GetGlobalRoleAssignment(userID int, assignmentID int) (GlobalRoleAssignment, error)
+	CreateGlobalRoleAssignment(userID int, roleID int) (GlobalRoleAssignment, error)
+	DeleteGlobalRoleAssignment(userID int, assignmentID int) error
+	// GetEffectiveGlobalPermissions is everything for an admin, otherwise the union of the assigned global roles.
+	GetEffectiveGlobalPermissions(userID int) (GlobalPermission, error)
 }
 
 // Store is the main interface that aggregates all specialized interfaces

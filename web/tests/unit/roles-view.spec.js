@@ -34,6 +34,21 @@ describe('Roles.vue', () => {
     getSingleItemUrl() { return `/api/roles/${this.itemId}`; },
   });
 
+  // ItemListPageBase calls allowActions() from data(), before any computed property exists.
+  it('decides the actions column from props alone', () => {
+    const { allowActions } = Roles.methods;
+    const can = () => true;
+    const global = (user) => allowActions.call({ projectId: null, user, can });
+    expect(global({ admin: true })).to.equal(true);
+    expect(global({ admin: false, global_permissions: 2 })).to.equal(true);
+    expect(global({ admin: false, global_permissions: 1 })).to.equal(false);
+    const project = (canProject) => allowActions.call({
+      projectId: 7, user: { admin: false }, can: () => canProject,
+    });
+    expect(project(false)).to.equal(false);
+    expect(project(true)).to.equal(true);
+  });
+
   it('asks again with the impact when the role is assigned', async () => {
     const impact = { members: 2, projects: 1, template_grants: 3 };
     http.respond(() => { throw httpError(409, { error: 'assigned', impact }); });

@@ -64,7 +64,7 @@
       <v-btn
         dark
         depressed
-        v-if="isAdmin"
+        v-if="canManageSystem"
         color="amber darken-3"
         href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_cluster"
         target="_blank"
@@ -192,6 +192,8 @@
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import RedisMemoryChart from '@/components/RedisMemoryChart.vue';
+import { GLOBAL_PERMISSIONS } from '@/lib/constants';
+import { hasGlobalPermission } from '@/lib/role-permissions';
 
 const MEMORY_WINDOW_MS = 60 * 60 * 1000;
 
@@ -201,6 +203,7 @@ export default {
   props: {
     features: Object,
     isAdmin: Boolean,
+    user: Object,
   },
 
   data() {
@@ -226,6 +229,10 @@ export default {
   },
 
   computed: {
+    canManageSystem() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageSystem);
+    },
+
     isAnyGroupSelected() {
       return Object.values(this.clearScope).some((v) => v);
     },

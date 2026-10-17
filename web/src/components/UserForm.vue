@@ -22,6 +22,9 @@
     <v-tabs v-model="tab">
       <v-tab key="settings">Settings</v-tab>
       <v-tab key="2fa" v-if="canChangePassword || authMethods.totp || !isNew"> Security</v-tab>
+      <v-tab key="global-roles" v-if="canManageGlobalRoles && !isNew">
+        {{ $t('globalRolesTab') }}
+      </v-tab>
     </v-tabs>
 
     <v-divider class="mb-6" style="margin-top: -1px" />
@@ -293,6 +296,10 @@
           </div>
         </div>
       </v-tab-item>
+
+      <v-tab-item key="global-roles" v-if="item != null && canManageGlobalRoles && !isNew">
+        <GlobalRoleAssignments :user-id="itemId" />
+      </v-tab-item>
     </v-tabs-items>
   </div>
 </template>
@@ -302,12 +309,17 @@ import axios from 'axios';
 import EditDialog from '@/components/EditDialog.vue';
 import ChangePasswordForm from '@/components/ChangePasswordForm.vue';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
+import GlobalRoleAssignments from '@/components/GlobalRoleAssignments.vue';
 
 export default {
-  components: { CopyClipboardButton, ChangePasswordForm, EditDialog },
+  components: {
+    CopyClipboardButton, ChangePasswordForm, EditDialog, GlobalRoleAssignments,
+  },
   props: {
     isAdmin: Boolean,
     isSelf: Boolean,
+    // The signed-in user may assign global roles; the tab is hidden otherwise.
+    canManageGlobalRoles: Boolean,
     authMethods: Object,
     LoginWithPassword: Boolean,
   },

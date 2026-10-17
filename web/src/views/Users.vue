@@ -15,7 +15,8 @@
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
-          :is-admin="true"
+          :is-admin="isAdmin"
+          :can-manage-global-roles="canManageGlobalRoles"
           @hide-action-buttons="hideEditDialogButtons = true"
           @show-action-buttons="hideEditDialogButtons = false"
           :auth-methods="authMethods"
@@ -37,7 +38,9 @@
       </v-btn>
       <v-toolbar-title>{{ $t('users') }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn color="primary" @click="editItem('new')">{{ $t('newUser') }}</v-btn>
+      <v-btn v-if="canManageUsers" color="primary" @click="editItem('new')">
+        {{ $t('newUser') }}
+      </v-btn>
     </v-toolbar>
 
     <v-divider />
@@ -83,6 +86,8 @@ import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import UserForm from '@/components/UserForm.vue';
+import { GLOBAL_PERMISSIONS } from '@/lib/constants';
+import { hasGlobalPermission } from '@/lib/role-permissions';
 
 export default {
   mixins: [ItemListPageBase],
@@ -90,6 +95,15 @@ export default {
   props: {
     authMethods: Object,
     systemInfo: Object,
+  },
+
+  computed: {
+    canManageUsers() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageUsers);
+    },
+    canManageGlobalRoles() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageRoles);
+    },
   },
 
   components: {
@@ -105,6 +119,12 @@ export default {
   },
 
   methods: {
+    // Called from data() of the list mixin, before computed properties exist,
+    // so the props are read directly.
+    allowActions() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageUsers);
+    },
+
     getHeaders() {
       return [
         {

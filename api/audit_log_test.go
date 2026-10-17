@@ -19,8 +19,10 @@ import (
 )
 
 func TestAuditLogMiddleware_DeniesNonAdminAndRecordsIt(t *testing.T) {
-	r, rec := withAuditRecorder(asActor(httptest.NewRequest(http.MethodGet, "/api/audit/events", nil),
-		db.User{ID: 5, Username: "mallory"}))
+	store := setupSessionTest(t)
+	mallory := createUserOptionsTestUser(t, store, "mallory")
+	r := helpers.SetContextValue(httptest.NewRequest(http.MethodGet, "/api/audit/events", nil), "store", store)
+	r, rec := withAuditRecorder(asActor(r, mallory))
 	w := httptest.NewRecorder()
 	called := false
 

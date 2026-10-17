@@ -61,6 +61,7 @@ func truncateAll() {
 		"project__template_vault",
 		"project__schedule",
 		"project__user_role",
+		"user__global_role",
 		"user",
 		"project__view",
 		"project__integration",
@@ -187,6 +188,28 @@ func addUser() *db.User {
 		panic(err)
 	}
 	return &user
+}
+
+// addGlobalRole creates a global role that grants the audit log, so that it can be assigned to a user.
+func addGlobalRole() *db.Role {
+	uid := getUUID()
+	role, err := store.CreateRole(db.Role{
+		Slug:              "ITGR-" + uid,
+		Name:              "ITGR-" + uid,
+		GlobalPermissions: db.CanReadGlobalAudit,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &role
+}
+
+func addGlobalRoleAssignment(userID int, roleID int) *db.GlobalRoleAssignment {
+	assignment, err := store.CreateGlobalRoleAssignment(userID, roleID)
+	if err != nil {
+		panic(err)
+	}
+	return &assignment
 }
 
 func addView() *db.View {

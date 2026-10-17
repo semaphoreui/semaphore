@@ -35,7 +35,9 @@ func TestMigration_2_20_6_DropsEventBackup(t *testing.T) {
 		user.ID)
 	require.NoError(t, err)
 
-	assert.ErrorIs(t, store.DeleteUser(user.ID), db.ErrInvalidOperation)
+	// DeleteUser itself needs the 2.20.14 schema, so the pre-migration refusal is checked with its statement.
+	res, err := store.exec("delete from `user` where id=?", user.ID)
+	assert.ErrorIs(t, validateMutationResult(res, err), db.ErrInvalidOperation)
 
 	require.NoError(t, db.Migrate(store, nil))
 

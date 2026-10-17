@@ -66,17 +66,34 @@
       :disabled="formSaving"
     ></v-checkbox>
 
+    <template v-if="!projectId">
+      <v-subheader class="pl-0">{{ $t('globalPermissions') }}</v-subheader>
+      <div class="text--secondary caption mb-3">{{ $t('globalPermissionsHint') }}</div>
+
+      <v-checkbox
+        v-for="p in GLOBAL_ROLE_PERMISSIONS"
+        :key="p.permission"
+        class="mt-0"
+        :input-value="hasGlobalPermission(p.permission)"
+        :label="$t(p.label)"
+        :disabled="formSaving"
+        @change="setGlobalPermission(p.permission, $event)"
+      ></v-checkbox>
+    </template>
+
   </v-form>
 </template>
 
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import { ROLE_PERMISSIONS } from '@/lib/constants';
 
 export default {
   mixins: [ItemFormBase],
 
   data() {
     return {
+      GLOBAL_ROLE_PERMISSIONS: ROLE_PERMISSIONS.global,
       slugTouched: false,
       permissions: {
         canRunProjectTasks: false,
@@ -162,11 +179,26 @@ export default {
     },
 
     getNewItem() {
-      return {
+      const item = {
         name: '',
         slug: '',
         permissions: 0,
       };
+      if (!this.projectId) {
+        item.global_permissions = 0;
+      }
+      return item;
+    },
+
+    hasGlobalPermission(permission) {
+      // eslint-disable-next-line no-bitwise
+      return ((this.item.global_permissions || 0) & permission) === permission;
+    },
+
+    setGlobalPermission(permission, enabled) {
+      const current = this.item.global_permissions || 0;
+      // eslint-disable-next-line no-bitwise
+      this.$set(this.item, 'global_permissions', enabled ? current | permission : current & ~permission);
     },
 
     beforeSave() {
