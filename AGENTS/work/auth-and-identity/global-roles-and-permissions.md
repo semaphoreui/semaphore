@@ -12,9 +12,9 @@ assigned global roles.
 ## Decisions
 
 - **Split as in `feat/group-role-mappings`.** Community owns the contract and the schema: types in
-  `db/Role.go`, migrations `v2.20.14` (first version: a `global_permissions` column on `role`) and
-  `v2.20.15` (the `global_role` table, data moved by slug, `user__global_role` rebuilt against it, the
-  column dropped), the interface `db.GlobalRoleStore` (not part of `db.Store`: global role CRUD +
+  `db/Role.go`, migration `v2.20.16` (`global_role`, the `global_role_state` lock row and
+  `user__global_role`; the interim 2.20.14/2.20.15 pair that first put a column on `role` was folded into
+  it before release), the interface `db.GlobalRoleStore` (not part of `db.Store`: global role CRUD +
   assignments), the stub `pro/db/sql/global_role.go` (no roles, no assignments, effective permissions 0),
   the factory `pro/db/factory.NewGlobalRoleStore`, the stub controller `pro/api/global_roles.go` (empty
   lists, 404 on writes), the middleware `globalPermissionMiddleware` (`api/global_permissions.go`) and the
@@ -28,11 +28,10 @@ assigned global roles.
   are **shared roles** in code (`GetSharedRoles`, `GetSharedRoleBySlug`, `GetProjectOrSharedRoleBySlug`,
   `GetProjectAndSharedRoles`, UI scope `shared`) and "Project-level roles" on the UI tab. Global roles are
   addressed by id in the API (`/global-roles/{role_id}`), project roles by slug.
-- **Migration 2.20.15 data rule.** A role with global bits is copied to `global_role` under its slug; its
-  assignments follow; the row is deleted from `role` only when it has no project permissions and is held
-  by nobody and granted on no template. Global and project slugs are independent afterwards (a global role
-  may share a slug with a project role). Store-to-store export (`services/export`) does not carry global
-  roles or their assignments.
+- Global and project slugs are independent (a global role may share a slug with a project role).
+  Store-to-store export (`services/export`) does not carry global roles or their assignments. A dev
+  database that ran the interim 2.20.14/2.20.15 migrations must be recreated: 2.20.16 creates the same
+  tables and is not applied on top of them.
 - **Community edition = admin flag only.** Without the Pro store the effective mask is the admin flag;
   the community store still refuses to leave the instance without an administrator (its `UpdateUser`,
   `DeleteUser` read `user__global_role` through the shared, exported helpers `LockGlobalRoleState` /
