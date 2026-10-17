@@ -274,6 +274,7 @@ export default {
   sendAlerts: 'Send alerts',
   deleteUser: 'Delete user',
   newUser: 'New User',
+  userCreated: 'User created',
   re: 'Re{getActionButtonTitle}',
   teamMember: '{expr} Team Member',
   taskId: 'Task ID',

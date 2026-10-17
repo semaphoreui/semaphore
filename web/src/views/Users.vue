@@ -2,8 +2,9 @@
   <div v-if="items != null">
     <EditDialog
       v-model="editDialog"
-      save-button-text="Save"
-      :title="$t('editUser')"
+      :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
+      :title="itemId === 'new' ? $t('newUser') : $t('editUser')"
+      :dont-close-on-save="itemId === 'new'"
       @save="loadItems()"
       :hide-buttons="hideEditDialogButtons"
     >
@@ -11,7 +12,7 @@
         <UserForm
           :project-id="projectId"
           :item-id="itemId"
-          @save="onSave"
+          @save="onSave($event); onUserSaved($event)"
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
@@ -129,6 +130,16 @@ export default {
     // so the props are read directly.
     allowActions() {
       return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageUsers);
+    },
+
+    // A created user stays open for editing, so that roles can be assigned right away.
+    async onUserSaved(e) {
+      if (e.action !== 'new' || !e.item || !e.item.id) {
+        return;
+      }
+      this.itemId = e.item.id;
+      EventBus.$emit('i-snackbar', { color: 'success', text: this.$i18n.t('userCreated') });
+      await this.loadItems();
     },
 
     getHeaders() {

@@ -86,7 +86,7 @@ func main() {
 		addCapabilities([]string{"global_role"})
 		dbConnect()
 		defer store.Close()
-		if err := store.DeleteGlobalRoleAssignment(userPathTestUser.ID, globalRoleAssignment.ID); err != nil {
+		if err := globalRoleStore.DeleteGlobalRoleAssignment(userPathTestUser.ID, globalRoleAssignment.ID); err != nil {
 			panic(err)
 		}
 		transaction.Request.Body = "{\"role_id\": " + strconv.Itoa(globalRole.ID) + "}"

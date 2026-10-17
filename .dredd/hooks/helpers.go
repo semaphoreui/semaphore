@@ -205,7 +205,7 @@ func addGlobalRole() *db.Role {
 }
 
 func addGlobalRoleAssignment(userID int, roleID int) *db.GlobalRoleAssignment {
-	assignment, err := store.CreateGlobalRoleAssignment(userID, roleID)
+	assignment, err := globalRoleStore.CreateGlobalRoleAssignment(userID, roleID)
 	if err != nil {
 		panic(err)
 	}
@@ -504,6 +504,7 @@ func loadConfig() {
 
 var store db.Store
 var workflowStore db.WorkflowManager
+var globalRoleStore db.GlobalRoleStore
 
 func dbConnect() {
 	store = factory.CreateStore()
@@ -511,6 +512,7 @@ func dbConnect() {
 	store.Connect()
 
 	workflowStore = proFactory.NewWorkflowStore(store)
+	globalRoleStore = proFactory.NewGlobalRoleStore(store)
 }
 
 func stringInSlice(a string, list []string) (int, bool) {

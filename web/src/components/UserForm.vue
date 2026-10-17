@@ -20,9 +20,11 @@
     </EditDialog>
 
     <v-tabs v-model="tab">
-      <v-tab key="settings">Settings</v-tab>
-      <v-tab key="2fa" v-if="canChangePassword || authMethods.totp || !isNew"> Security</v-tab>
-      <v-tab key="global-roles" v-if="canManageGlobalRoles && !isNew">
+      <v-tab key="settings" href="#settings">Settings</v-tab>
+      <v-tab key="2fa" href="#security" v-if="canChangePassword || authMethods.totp || !isNew">
+        Security
+      </v-tab>
+      <v-tab key="global-roles" href="#global-roles" v-if="canManageGlobalRoles && !isNew">
         {{ $t('globalRolesTab') }}
       </v-tab>
     </v-tabs>
@@ -30,7 +32,7 @@
     <v-divider class="mb-6" style="margin-top: -1px" />
 
     <v-tabs-items v-model="tab" style="overflow: unset">
-      <v-tab-item key="settings">
+      <v-tab-item key="settings" value="settings">
         <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
           <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
 
@@ -121,6 +123,7 @@
 
       <v-tab-item
         key="2fa"
+        value="security"
         v-if="item != null && (canChangePassword || authMethods.totp || !isNew)"
       >
         <div v-if="canChangePassword">
@@ -297,7 +300,11 @@
         </div>
       </v-tab-item>
 
-      <v-tab-item key="global-roles" v-if="item != null && canManageGlobalRoles && !isNew">
+      <v-tab-item
+        key="global-roles"
+        value="global-roles"
+        v-if="item != null && canManageGlobalRoles && !isNew"
+      >
         <GlobalRoleAssignments :user-id="itemId" />
       </v-tab-item>
     </v-tabs-items>
@@ -347,10 +354,21 @@ export default {
 
   watch: {
     tab(value) {
-      if (value === 0) {
+      if (value === 'settings') {
         this.$emit('show-action-buttons');
       } else {
         this.$emit('hide-action-buttons');
+      }
+    },
+
+    // The dialog keeps the form open after a user is created: load the user and go to the roles.
+    async itemId(value, previous) {
+      if (previous !== 'new' || value === 'new') {
+        return;
+      }
+      await this.loadData();
+      if (this.canManageGlobalRoles) {
+        this.tab = 'global-roles';
       }
     },
 
