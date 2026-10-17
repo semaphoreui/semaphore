@@ -81,18 +81,6 @@ func main() {
 		transaction.Request.Body = "{\"roles\":[\"manager\",\"task_runner\"]}"
 	})
 
-	// The fixture already holds the role, so the assignment is removed before it is assigned again.
-	h.Before("user > /api/users/{user_id}/global-roles > Assigns a global role to the user > 201 > application/json", func(transaction *trans.Transaction) {
-		addCapabilities([]string{"global_role"})
-		dbConnect()
-		defer store.Close()
-		if err := globalRoleStore.DeleteGlobalRoleAssignment(userPathTestUser.ID, globalRoleAssignment.ID); err != nil {
-			panic(err)
-		}
-		transaction.Request.Body = "{\"role_id\": " + strconv.Itoa(globalRole.ID) + "}"
-	})
-	h.Before("user > /api/users/{user_id}/global-roles/{assignment_id} > Removes a global role from the user > 204 > application/json", capabilityWrapper("global_role"))
-
 	h.Before("project > /api/project/{project_id}/invites > Get invitations for project > 200 > application/json", capabilityWrapper("invite"))
 	h.Before("project > /api/project/{project_id}/invites > Create project invitation > 201 > application/json", capabilityWrapper("invite"))
 	h.Before("project > /api/project/{project_id}/invites/{invite_id} > Get specific project invitation > 200 > application/json", capabilityWrapper("invite"))
@@ -150,6 +138,20 @@ func main() {
 	h.Before("template > /api/project/{project_id}/templates/{template_id} > Removes template > 204 > application/json", capabilityWrapper("template"))
 
 	if isProBuild() {
+		// Global role assignments are a Pro feature: the community store cannot create the fixture and the
+		// community server answers 404.
+		// The fixture already holds the role, so the assignment is removed before it is assigned again.
+		h.Before("user > /api/users/{user_id}/global-roles > Assigns a global role to the user > 201 > application/json", func(transaction *trans.Transaction) {
+			addCapabilities([]string{"global_role"})
+			dbConnect()
+			defer store.Close()
+			if err := globalRoleStore.DeleteGlobalRoleAssignment(userPathTestUser.ID, globalRoleAssignment.ID); err != nil {
+				panic(err)
+			}
+			transaction.Request.Body = "{\"role_id\": " + strconv.Itoa(globalRole.ID) + "}"
+		})
+		h.Before("user > /api/users/{user_id}/global-roles/{assignment_id} > Removes a global role from the user > 204 > application/json", capabilityWrapper("global_role"))
+
 		h.Before("workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", capabilityWrapper("template"))
 		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", func(t *trans.Transaction) {
@@ -188,6 +190,9 @@ func main() {
 		// In a non-PRO build (e.g. PR builds without access to pro_impl)
 		// these endpoints are not functional, so their tests must be skipped.
 		proOnlyTests := []string{
+			"user > /api/users/{user_id}/global-roles > Assigns a global role to the user > 201 > application/json",
+			"user > /api/users/{user_id}/global-roles/{assignment_id} > Removes a global role from the user > 204 > application/json",
+			"user > /api/users/{user_id}/global-permissions > Effective global permissions of the user > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Get workflow > 200 > application/json",
