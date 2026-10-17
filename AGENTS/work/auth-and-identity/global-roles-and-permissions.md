@@ -8,24 +8,31 @@ carries a second bit mask, `global_permissions`; assigning the role to a user *g
 
 ## Decisions
 
-- **Community side holds everything but role CRUD.** Model, migration (`v2.20.14`), store
-  (`db/sql/global_role.go`), `globalPermissionMiddleware` (`api/global_permissions.go`), the
-  assignment and effective-permission handlers (`api/global_roles.go`), UI and docs are here. Role
-  CRUD stays in the private `pro_impl`; it needs no change for the new field because
-  `helpers.Bind(&db.Role)`, `db.ValidateRole` and the store already carry `global_permissions`.
-- **No `revision` / string `role_id` from ex.** Roles keep `int id` + `slug`. Instead of optimistic
-  locking, every transaction that can remove an administrator first updates the single row of
-  `global_role_state` (`lockGlobalRoleState`), which serializes those transactions across HA nodes.
+- **Split as in `feat/group-role-mappings`.** Community owns the contract and the schema: types in
+  `db/Role.go`, migration `v2.20.14`, the interface `db.GlobalRoleStore` (not part of `db.Store`), the
+  stub `pro/db/sql/global_role.go` (no assignments, effective permissions 0), the factory
+  `pro/db/factory.NewGlobalRoleStore`, the stub controller `pro/api/global_roles.go` (404), the
+  middleware `globalPermissionMiddleware` (`api/global_permissions.go`) and the user handlers.
+  `cli/cmd/root.go` builds the store and hands it to `api.Route`, which puts it on every authenticated
+  request (`global_roles` context key). `pro_impl` owns the real store (`db/sql/global_role.go`), the
+  factory and the `GlobalRolesController` (`api/global_roles.go`), plus the global bits in the role
+  audit metadata and the `iam.global_role/unassign` events of a forced role delete.
+- **Community edition = admin flag only.** Without the Pro store the effective mask is the admin flag;
+  the community store still refuses to leave the instance without an administrator (its `UpdateUser`,
+  `DeleteUser`, `UpdateRole`, `DeleteRoleWithAssignments` read `user__global_role` through the shared,
+  exported helpers `LockGlobalRoleState` / `RequireAdministrator` / `GlobalRoleAssignmentSelect` that the
+  Pro store reuses). The "Global roles" tab needs `features.custom_roles_management`.
+- **No `revision` / string `role_id` from ex.** Roles keep `int id` + `slug`; the row lock
+  `global_role_state` serializes administrator-removing transactions across HA nodes.
 - **Only four bits** (1 users, 2 roles, 4 system, 8 audit): the other ex bits have no consumer here.
 - **The admin flag is break-glass.** `user.admin` passes every check without a store read. Only an
   admin may set `admin`/`pro`; a user manager cannot touch an admin or a user holding a global
   permission the manager lacks (`userMayManageUser`), because a password reset would be a way up.
-- **Last administrator invariant.** `requireAdministratorTx` refuses a change that would leave no
-  user with `admin` or `CanManageGlobalRoles` (delete/demote user, remove assignment, delete role or
-  strip the bit). An instance with zero such users is not protected (fresh DB, tests).
 - Built-in roles cannot be assigned globally (they grant nothing); a project backup never carries
-  `global_permissions` (`backup:"-"`), a store-to-store export does.
+  `global_permissions` (`backup:"-"`), a store-to-store export does. `RoleImpact.members` counts global
+  holders too, as in ex.
 - The effective mask reaches the UI through `GET /api/user` (`global_permissions`), not system info.
+- The Pro endpoints are not in `api-docs.yml` and have no Dredd fixtures, like `/role_mappings`.
 
 ## Route → permission
 
@@ -38,7 +45,8 @@ carries a second bit mask, `global_permissions`; assigning the role to a user *g
 
 ## Open
 
-- `pro_impl/api/roles.go` is behind this branch's `RoleRepository` (`ValidateRole(role, isNew)`,
-  `DeleteRole(id)`) and could add `global_permissions` to `audit.RoleMetadata`.
-- The Dredd fixtures (`global_role` capability, `assignment_id` x-example 23) were only compiled, not
-  run locally.
+- `pro_impl` work sits on branch `feat/features_from_ex` of the clone at `<worktree>/pro_impl`
+  (from `origin/main` de0fc15); `feat/group-role-mappings` changes `DeleteRoleWithAssignments` and
+  `RoleAssignments` too, so expect a merge in `api/roles.go` / `recordRemovedAssignments`.
+- A Pro stand without a licence hides the "Global roles" tab (`custom_roles_management` is Enterprise);
+  the API was checked with curl instead.

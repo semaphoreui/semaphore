@@ -8,8 +8,19 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 )
 
+// globalRoleStoreMiddleware puts the edition's global role store on the request, where the permission checks
+// below find it. The community store answers with no permissions.
+func globalRoleStoreMiddleware(globalRoles db.GlobalRoleStore) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, helpers.SetContextValue(r, "global_roles", globalRoles))
+		})
+	}
+}
+
 // effectiveGlobalPermissions is what the user may do instance-wide. An admin holds everything without a
-// database read, so the break-glass account works even when the role tables are unreadable.
+// store read, so the break-glass account works even when the role tables are unreadable. Without a global
+// role store on the request only the admin flag counts.
 func effectiveGlobalPermissions(r *http.Request, user *db.User) (db.GlobalPermission, error) {
 	if user == nil {
 		return 0, nil
@@ -17,7 +28,11 @@ func effectiveGlobalPermissions(r *http.Request, user *db.User) (db.GlobalPermis
 	if user.Admin {
 		return db.AllGlobalPermissions, nil
 	}
-	return helpers.Store(r).GetEffectiveGlobalPermissions(user.ID)
+	globalRoles, ok := helpers.GetFromContext(r, "global_roles").(db.GlobalRoleStore)
+	if !ok || globalRoles == nil {
+		return 0, nil
+	}
+	return globalRoles.GetEffectiveGlobalPermissions(user.ID)
 }
 
 func hasGlobalPermission(r *http.Request, user *db.User, permission db.GlobalPermission) (bool, error) {

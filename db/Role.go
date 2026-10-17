@@ -119,7 +119,8 @@ type GlobalRoleAssignment struct {
 	UserID int `db:"user_id" json:"user_id"`
 	RoleID int `db:"role_id" json:"role_id"`
 
-	// Taken from the role when the assignment is read.
+	// Taken from the user and the role when the assignment is read.
+	Username          string           `db:"username" json:"username"`
 	RoleSlug          string           `db:"role_slug" json:"role_slug"`
 	RoleName          string           `db:"role_name" json:"role_name"`
 	GlobalPermissions GlobalPermission `db:"global_permissions" json:"global_permissions"`
@@ -175,10 +176,19 @@ func ExplainEffectiveGlobalPermissions(isAdmin bool, assignments []GlobalRoleAss
 	return result
 }
 
-// RoleImpact counts what deleting a role together with its assignments removes.
+// AdministratorExclusion names what a store transaction is about to remove, so that it does not count when
+// the store checks that someone able to manage global roles remains.
+type AdministratorExclusion struct {
+	UserID       int // the user being deleted
+	AdminOfUser  int // the user whose admin flag is being cleared
+	AssignmentID int // the global role assignment being deleted
+	RoleID       int // the role being deleted or losing CanManageGlobalRoles
+}
+
+// RoleImpact counts what deleting a role together with its assignments removes. Members counts project
+// members and global holders alike.
 type RoleImpact struct {
 	Members        int `json:"members"`
-	GlobalMembers  int `json:"global_members"`
 	Projects       int `json:"projects"`
 	TemplateGrants int `json:"template_grants"`
 }
@@ -209,8 +219,7 @@ func (a RoleAssignments) Impact() RoleImpact {
 		projects[g.ProjectID] = true
 	}
 	return RoleImpact{
-		Members:        len(a.Members),
-		GlobalMembers:  len(a.GlobalMembers),
+		Members:        len(a.Members) + len(a.GlobalMembers),
 		Projects:       len(projects),
 		TemplateGrants: len(a.Grants),
 	}

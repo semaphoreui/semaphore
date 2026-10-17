@@ -84,10 +84,10 @@ func (d *SqlDb) DeleteUser(userID int) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err = d.lockGlobalRoleState(tx); err != nil {
+	if err = d.LockGlobalRoleState(tx); err != nil {
 		return err
 	}
-	if err = d.requireAdministratorTx(tx, administratorExclusion{UserID: userID}); err != nil {
+	if err = d.RequireAdministrator(tx, db.AdministratorExclusion{UserID: userID}); err != nil {
 		return err
 	}
 	res, err := d.execTx(tx, "delete from `user` where id=?", userID)
@@ -113,11 +113,11 @@ func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err = d.lockGlobalRoleState(tx); err != nil {
+	if err = d.LockGlobalRoleState(tx); err != nil {
 		return err
 	}
 	if !user.Admin {
-		if err = d.requireAdministratorTx(tx, administratorExclusion{AdminOfUser: user.ID}); err != nil {
+		if err = d.RequireAdministrator(tx, db.AdministratorExclusion{AdminOfUser: user.ID}); err != nil {
 			return err
 		}
 	}

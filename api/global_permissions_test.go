@@ -13,7 +13,6 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/audit"
-	"github.com/semaphoreui/semaphore/services/audit/audittest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,22 +24,59 @@ func bytesReader(body string) io.Reader {
 	return bytes.NewBufferString(body)
 }
 
-// grantGlobalRole creates a global role with the permissions and assigns it to the user.
-func grantGlobalRole(t *testing.T, store db.Store, user db.User, slug string, permissions db.GlobalPermission) db.GlobalRoleAssignment {
+// fakeGlobalRoleStore stands in for the Pro store: it only answers the effective permissions of a user.
+type fakeGlobalRoleStore struct {
+	permissions map[int]db.GlobalPermission
+}
+
+func (f fakeGlobalRoleStore) GetGlobalRoleAssignments(int) ([]db.GlobalRoleAssignment, error) {
+	return []db.GlobalRoleAssignment{}, nil
+}
+func (f fakeGlobalRoleStore) GetGlobalRoleAssignment(int, int) (db.GlobalRoleAssignment, error) {
+	return db.GlobalRoleAssignment{}, db.ErrNotFound
+}
+func (f fakeGlobalRoleStore) CreateGlobalRoleAssignment(int, int) (db.GlobalRoleAssignment, error) {
+	return db.GlobalRoleAssignment{}, db.ErrNotFound
+}
+func (f fakeGlobalRoleStore) DeleteGlobalRoleAssignment(int, int) error { return db.ErrNotFound }
+func (f fakeGlobalRoleStore) GetEffectiveGlobalPermissions(userID int) (db.GlobalPermission, error) {
+	return f.permissions[userID], nil
+}
+
+// globalRolesTest is a store with a root admin, a user per global permission mask and the fake store that
+// grants those masks.
+type globalRolesTest struct {
+	store   db.Store
+	roles   fakeGlobalRoleStore
+	root    db.User
+	manager db.User // manages users
+	auditor db.User // reads the audit log
+	plain   db.User
+}
+
+func newGlobalRolesTest(t *testing.T) globalRolesTest {
 	t.Helper()
-	role, err := store.CreateRole(db.Role{Slug: slug, Name: slug, GlobalPermissions: permissions})
-	require.NoError(t, err)
-	assignment, err := store.CreateGlobalRoleAssignment(user.ID, role.ID)
-	require.NoError(t, err)
-	return assignment
+	store := setupSessionTest(t)
+	f := globalRolesTest{store: store, roles: fakeGlobalRoleStore{permissions: map[int]db.GlobalPermission{}}}
+	f.root = makeAdmin(t, store, createUserOptionsTestUser(t, store, "root"))
+	f.manager = createUserOptionsTestUser(t, store, "manager")
+	f.roles.permissions[f.manager.ID] = db.CanManageGlobalUsers
+	f.auditor = createUserOptionsTestUser(t, store, "auditor")
+	f.roles.permissions[f.auditor.ID] = db.CanReadGlobalAudit
+	f.plain = createUserOptionsTestUser(t, store, "plain")
+	return f
+}
+
+// request carries the store, the fake global role store and the actor, like the real middleware chain.
+func (f globalRolesTest) request(method string, path string, body string, actor db.User) *http.Request {
+	r := httptest.NewRequest(method, path, bytesReader(body))
+	r = helpers.SetContextValue(r, "store", f.store)
+	r = helpers.SetContextValue(r, "global_roles", f.roles)
+	return asActor(r, actor)
 }
 
 func TestGlobalPermissionMiddleware(t *testing.T) {
-	store := setupSessionTest(t)
-	admin := makeAdmin(t, store, createUserOptionsTestUser(t, store, "root"))
-	auditor := createUserOptionsTestUser(t, store, "auditor")
-	grantGlobalRole(t, store, auditor, "auditor", db.CanReadGlobalAudit)
-	nobody := createUserOptionsTestUser(t, store, "nobody")
+	f := newGlobalRolesTest(t)
 
 	tests := []struct {
 		name       string
@@ -49,10 +85,10 @@ func TestGlobalPermissionMiddleware(t *testing.T) {
 		wantCode   int
 		wantDenied string
 	}{
-		{"admin passes everything", admin, db.CanManageGlobalSystem, http.StatusNoContent, ""},
-		{"holder passes", auditor, db.CanReadGlobalAudit, http.StatusNoContent, ""},
-		{"holder lacks another bit", auditor, db.CanManageGlobalSystem, http.StatusForbidden, "global.system.manage"},
-		{"nobody is denied", nobody, db.CanManageGlobalRoles, http.StatusForbidden, "global.roles.manage"},
+		{"admin passes everything", f.root, db.CanManageGlobalSystem, http.StatusNoContent, ""},
+		{"holder passes", f.auditor, db.CanReadGlobalAudit, http.StatusNoContent, ""},
+		{"holder lacks another bit", f.auditor, db.CanManageGlobalSystem, http.StatusForbidden, "global.system.manage"},
+		{"nobody is denied", f.plain, db.CanManageGlobalRoles, http.StatusForbidden, "global.roles.manage"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -60,8 +96,7 @@ func TestGlobalPermissionMiddleware(t *testing.T) {
 			router.Handle("/api/options", globalPermissionMiddleware(tt.permission)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNoContent)
 			}))).Methods(http.MethodPost)
-			r := helpers.SetContextValue(httptest.NewRequest(http.MethodPost, "/api/options", nil), "store", store)
-			r, rec := withAuditRecorder(asActor(r, tt.user))
+			r, rec := withAuditRecorder(f.request(http.MethodPost, "/api/options", "", tt.user))
 			w := httptest.NewRecorder()
 
 			router.ServeHTTP(w, r)
@@ -79,16 +114,30 @@ func TestGlobalPermissionMiddleware(t *testing.T) {
 	}
 }
 
+// Without a global role store on the request (the community edition, a stray handler) only admins pass.
+func TestGlobalPermissionMiddleware_WithoutStoreOnlyAdminsPass(t *testing.T) {
+	f := newGlobalRolesTest(t)
+	handler := globalPermissionMiddleware(db.CanReadGlobalAudit)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	for _, tt := range []struct {
+		user     db.User
+		wantCode int
+	}{{f.root, http.StatusNoContent}, {f.auditor, http.StatusForbidden}} {
+		r := asActor(helpers.SetContextValue(httptest.NewRequest(http.MethodGet, "/api/audit/events", nil), "store", f.store), tt.user)
+		r, _ = withAuditRecorder(r)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		assert.Equal(t, tt.wantCode, w.Code, tt.user.Username)
+	}
+}
+
 func TestUserMayManageUser(t *testing.T) {
-	store := setupSessionTest(t)
-	admin := makeAdmin(t, store, createUserOptionsTestUser(t, store, "root"))
-	manager := createUserOptionsTestUser(t, store, "manager")
-	grantGlobalRole(t, store, manager, "user_manager", db.CanManageGlobalUsers)
-	wider := createUserOptionsTestUser(t, store, "wider")
-	grantGlobalRole(t, store, wider, "system", db.CanManageGlobalSystem)
-	narrower := createUserOptionsTestUser(t, store, "narrower")
-	grantGlobalRole(t, store, narrower, "also_users", db.CanManageGlobalUsers)
-	plain := createUserOptionsTestUser(t, store, "plain")
+	f := newGlobalRolesTest(t)
+	wider := createUserOptionsTestUser(t, f.store, "wider")
+	f.roles.permissions[wider.ID] = db.CanManageGlobalSystem
+	narrower := createUserOptionsTestUser(t, f.store, "narrower")
+	f.roles.permissions[narrower.ID] = db.CanManageGlobalUsers
 
 	tests := []struct {
 		name   string
@@ -96,19 +145,18 @@ func TestUserMayManageUser(t *testing.T) {
 		target db.User
 		want   bool
 	}{
-		{"admin manages an admin", admin, admin, true},
-		{"admin manages anyone", admin, wider, true},
-		{"manager manages a plain user", manager, plain, true},
-		{"manager manages an equal", manager, narrower, true},
-		{"manager cannot touch an admin", manager, admin, false},
-		{"manager cannot touch a user with a permission the manager lacks", manager, wider, false},
-		{"plain user manages nobody", plain, plain, false},
-		{"system manager does not manage users", wider, plain, false},
+		{"admin manages an admin", f.root, f.root, true},
+		{"admin manages anyone", f.root, wider, true},
+		{"manager manages a plain user", f.manager, f.plain, true},
+		{"manager manages an equal", f.manager, narrower, true},
+		{"manager cannot touch an admin", f.manager, f.root, false},
+		{"manager cannot touch a user with a permission the manager lacks", f.manager, wider, false},
+		{"plain user manages nobody", f.plain, f.plain, false},
+		{"system manager does not manage users", wider, f.plain, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := helpers.SetContextValue(httptest.NewRequest(http.MethodGet, "/", nil), "store", store)
-			got, err := userMayManageUser(r, &tt.editor, tt.target)
+			got, err := userMayManageUser(f.request(http.MethodGet, "/", "", tt.editor), &tt.editor, tt.target)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
@@ -116,18 +164,15 @@ func TestUserMayManageUser(t *testing.T) {
 }
 
 func TestGetUsers_DetailsNeedManageUsers(t *testing.T) {
-	store := setupSessionTest(t)
-	manager := createUserOptionsTestUser(t, store, "manager")
-	grantGlobalRole(t, store, manager, "user_manager", db.CanManageGlobalUsers)
-	plain := createUserOptionsTestUser(t, store, "plain")
+	f := newGlobalRolesTest(t)
 
 	for _, tt := range []struct {
 		name      string
 		user      db.User
 		wantEmail bool
-	}{{"manager sees details", manager, true}, {"plain user sees names only", plain, false}} {
+	}{{"manager sees details", f.manager, true}, {"plain user sees names only", f.plain, false}} {
 		t.Run(tt.name, func(t *testing.T) {
-			r, _ := userRequest(store, http.MethodGet, "/api/users", "", tt.user, db.User{})
+			r, _ := withAuditRecorder(f.request(http.MethodGet, "/api/users", "", tt.user))
 			w := httptest.NewRecorder()
 			NewUsersController(nil).GetUsers(w, r)
 			require.Equal(t, http.StatusOK, w.Code)
@@ -142,39 +187,32 @@ func TestGetUsers_DetailsNeedManageUsers(t *testing.T) {
 
 // A user manager edits plain users through the same middleware an admin does, but never gets the admin flag.
 func TestUserManager_EditsUsersWithoutTheAdminFlag(t *testing.T) {
-	store := setupSessionTest(t)
-	makeAdmin(t, store, createUserOptionsTestUser(t, store, "root"))
-	manager := createUserOptionsTestUser(t, store, "manager")
-	grantGlobalRole(t, store, manager, "user_manager", db.CanManageGlobalUsers)
-	plain := createUserOptionsTestUser(t, store, "plain")
+	f := newGlobalRolesTest(t)
 
 	router := mux.NewRouter()
 	router.Handle("/api/users/{user_id}", NewUsersController(nil).GetUserMiddleware(http.HandlerFunc(NewUsersController(nil).UpdateUser))).Methods(http.MethodPut)
 	router.Handle("/api/users/{user_id}", NewUsersController(nil).GetUserMiddleware(http.HandlerFunc(NewUsersController(nil).DeleteUser))).Methods(http.MethodDelete)
 	send := func(method string, target db.User, body string) *httptest.ResponseRecorder {
-		r := helpers.SetContextValue(httptest.NewRequest(method, fmt.Sprintf("/api/users/%d", target.ID), bytesReader(body)), "store", store)
-		r, _ = withAuditRecorder(asActor(r, manager))
+		r, _ := withAuditRecorder(f.request(method, fmt.Sprintf("/api/users/%d", target.ID), body, f.manager))
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, r)
 		return w
 	}
 
-	assert.Equal(t, http.StatusNoContent, send(http.MethodPut, plain, `{"username":"plain","name":"Renamed","email":"plain@example.com"}`).Code)
-	renamed, err := store.GetUser(plain.ID)
+	assert.Equal(t, http.StatusNoContent, send(http.MethodPut, f.plain, `{"username":"plain","name":"Renamed","email":"plain@example.com"}`).Code)
+	renamed, err := f.store.GetUser(f.plain.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Renamed", renamed.Name)
 
-	assert.Equal(t, http.StatusForbidden, send(http.MethodPut, plain, `{"username":"plain","name":"Plain","email":"plain@example.com","admin":true}`).Code, "the admin flag stays with admins")
-	still, err := store.GetUser(plain.ID)
+	assert.Equal(t, http.StatusForbidden, send(http.MethodPut, f.plain, `{"username":"plain","name":"Plain","email":"plain@example.com","admin":true}`).Code, "the admin flag stays with admins")
+	still, err := f.store.GetUser(f.plain.ID)
 	require.NoError(t, err)
 	assert.False(t, still.Admin)
 
-	root, err := store.GetUserByLoginOrEmail("root", "")
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusUnauthorized, send(http.MethodPut, root, `{"username":"root","name":"Pwned","email":"root@example.com","admin":true}`).Code, "an admin is out of reach")
-	assert.Equal(t, http.StatusUnauthorized, send(http.MethodDelete, root, "").Code)
+	assert.Equal(t, http.StatusUnauthorized, send(http.MethodPut, f.root, `{"username":"root","name":"Pwned","email":"root@example.com","admin":true}`).Code, "an admin is out of reach")
+	assert.Equal(t, http.StatusUnauthorized, send(http.MethodDelete, f.root, "").Code)
 
-	assert.Equal(t, http.StatusNoContent, send(http.MethodDelete, plain, "").Code)
+	assert.Equal(t, http.StatusNoContent, send(http.MethodDelete, f.plain, "").Code)
 }
 
 func TestDeleteUser_LastAdministratorIsAConflict(t *testing.T) {
@@ -190,128 +228,30 @@ func TestDeleteUser_LastAdministratorIsAConflict(t *testing.T) {
 }
 
 func TestEffectiveGlobalPermissions(t *testing.T) {
-	store := setupSessionTest(t)
-	auditor := createUserOptionsTestUser(t, store, "auditor")
-	grantGlobalRole(t, store, auditor, "auditor", db.CanReadGlobalAudit)
-	r := helpers.SetContextValue(httptest.NewRequest(http.MethodGet, "/api/user", nil), "store", store)
+	f := newGlobalRolesTest(t)
 
-	permissions, err := effectiveGlobalPermissions(r, &auditor)
+	permissions, err := effectiveGlobalPermissions(f.request(http.MethodGet, "/api/user", "", f.auditor), &f.auditor)
 	require.NoError(t, err)
 	assert.Equal(t, db.CanReadGlobalAudit, permissions)
 
-	permissions, err = effectiveGlobalPermissions(r, &db.User{ID: 999999, Admin: true})
-	require.NoError(t, err, "an admin needs no store read")
+	bare := helpers.SetContextValue(httptest.NewRequest(http.MethodGet, "/api/user", nil), "store", f.store)
+	permissions, err = effectiveGlobalPermissions(bare, &db.User{ID: 999999, Admin: true})
+	require.NoError(t, err, "an admin needs no store")
 	assert.Equal(t, db.AllGlobalPermissions, permissions)
 
-	permissions, err = effectiveGlobalPermissions(r, nil)
+	permissions, err = effectiveGlobalPermissions(bare, &f.auditor)
+	require.NoError(t, err)
+	assert.Equal(t, db.GlobalPermission(0), permissions, "no global role store: only the admin flag counts")
+
+	permissions, err = effectiveGlobalPermissions(bare, nil)
 	require.NoError(t, err)
 	assert.Equal(t, db.GlobalPermission(0), permissions)
 }
 
-func newGlobalRolesRouter(store db.Store) *mux.Router {
-	controller := NewGlobalRolesController()
-	router := mux.NewRouter()
-	api := router.NewRoute().Subrouter()
-	api.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, helpers.SetContextValue(r, "store", store))
-		})
-	}, globalPermissionMiddleware(db.CanManageGlobalRoles))
-	api.Path("/api/roles/permissions").HandlerFunc(controller.GetGlobalPermissionCatalog).Methods(http.MethodGet)
-	api.Path("/api/users/{user_id}/global-roles").HandlerFunc(controller.GetGlobalRoleAssignments).Methods(http.MethodGet)
-	api.Path("/api/users/{user_id}/global-roles").HandlerFunc(controller.AddGlobalRoleAssignment).Methods(http.MethodPost)
-	api.Path("/api/users/{user_id}/global-roles/{assignment_id}").HandlerFunc(controller.DeleteGlobalRoleAssignment).Methods(http.MethodDelete)
-	api.Path("/api/users/{user_id}/global-permissions").HandlerFunc(controller.GetEffectiveGlobalPermissions).Methods(http.MethodGet)
-	return router
-}
-
-func TestGlobalRoleAssignments_API(t *testing.T) {
-	store := setupSessionTest(t)
-	root := makeAdmin(t, store, createUserOptionsTestUser(t, store, "root"))
-	alice := createUserOptionsTestUser(t, store, "alice")
-	auditor, err := store.CreateRole(db.Role{Slug: "auditor", Name: "Auditor", GlobalPermissions: db.CanReadGlobalAudit})
-	require.NoError(t, err)
-	router := newGlobalRolesRouter(store)
-	send := func(actor db.User, method string, path string, body string) (*httptest.ResponseRecorder, *audittest.Recorder) {
-		r, rec := withAuditRecorder(asActor(httptest.NewRequest(method, path, bytesReader(body)), actor))
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, r)
-		return w, rec
-	}
-	userPath := fmt.Sprintf("/api/users/%d/global-roles", alice.ID)
-
-	w, _ := send(root, http.MethodGet, "/api/roles/permissions", "")
-	require.Equal(t, http.StatusOK, w.Code)
-	var catalog []db.GlobalPermissionDefinition
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &catalog))
-	assert.Equal(t, db.GlobalPermissionCatalog(), catalog)
-
-	w, _ = send(alice, http.MethodGet, userPath, "")
-	assert.Equal(t, http.StatusForbidden, w.Code, "alice cannot read her own assignments without the permission")
-
-	w, rec := send(root, http.MethodPost, userPath, fmt.Sprintf(`{"role_id":%d}`, auditor.ID))
-	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
-	var assignment db.GlobalRoleAssignment
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &assignment))
-	assert.Equal(t, auditor.ID, assignment.RoleID)
-	assert.Equal(t, "auditor", assignment.RoleSlug)
-	got := onlyEvent(t, rec, audit.IAMGlobalRoleAssign)
-	assert.Equal(t, audit.UserTarget(alice.ID, "alice"), got.Event.Target)
-	assert.Equal(t, audit.GlobalRoleMetadata{Role: audit.RoleRef{ID: auditor.ID, Slug: "auditor"}, GlobalPermissions: []string{"global.audit.read"}}, got.Event.Metadata)
-
-	w, _ = send(root, http.MethodPost, userPath, fmt.Sprintf(`{"role_id":%d}`, auditor.ID))
-	assert.Equal(t, http.StatusBadRequest, w.Code, "assigned twice")
-	w, _ = send(root, http.MethodPost, userPath, `{"role_id":0}`)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	w, _ = send(root, http.MethodPost, "/api/users/99999/global-roles", fmt.Sprintf(`{"role_id":%d}`, auditor.ID))
-	assert.Equal(t, http.StatusNotFound, w.Code)
-
-	w, _ = send(root, http.MethodGet, userPath, "")
-	require.Equal(t, http.StatusOK, w.Code)
-	var assignments []db.GlobalRoleAssignment
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &assignments))
-	assert.Equal(t, []db.GlobalRoleAssignment{assignment}, assignments)
-
-	w, _ = send(root, http.MethodGet, fmt.Sprintf("/api/users/%d/global-permissions", alice.ID), "")
-	require.Equal(t, http.StatusOK, w.Code)
-	var effective db.EffectiveGlobalPermissions
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &effective))
-	assert.Equal(t, db.CanReadGlobalAudit, effective.Permissions)
-	assert.Len(t, effective.Decisions, len(db.GlobalPermissionCatalog()))
-
-	w, rec = send(root, http.MethodDelete, fmt.Sprintf("%s/%d", userPath, assignment.ID), "")
-	assert.Equal(t, http.StatusNoContent, w.Code)
-	got = onlyEvent(t, rec, audit.IAMGlobalRoleUnassign)
-	assert.Equal(t, audit.UserTarget(alice.ID, "alice"), got.Event.Target)
-	w, rec = send(root, http.MethodDelete, fmt.Sprintf("%s/%d", userPath, assignment.ID), "")
-	assert.Equal(t, http.StatusNotFound, w.Code)
-	assert.Empty(t, rec.All())
-}
-
-// A role manager who holds the only CanManageGlobalRoles grant cannot drop it, so the instance keeps an
-// administrator; the refusal is a conflict, not a failure.
-func TestGlobalRoleAssignments_LastAdministrator(t *testing.T) {
-	store := setupSessionTest(t)
-	manager := createUserOptionsTestUser(t, store, "manager")
-	assignment := grantGlobalRole(t, store, manager, "role_manager", db.CanManageGlobalRoles)
-	router := newGlobalRolesRouter(store)
-
-	r, _ := withAuditRecorder(asActor(httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/users/%d/global-roles/%d", manager.ID, assignment.ID), nil), manager))
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, r)
-
-	assert.Equal(t, http.StatusConflict, w.Code)
-	assert.Contains(t, w.Body.String(), "at least one administrator")
-}
-
 func TestCanReadAuditLog(t *testing.T) {
-	store := setupSessionTest(t)
-	auditor := createUserOptionsTestUser(t, store, "auditor")
-	grantGlobalRole(t, store, auditor, "auditor", db.CanReadGlobalAudit)
-	plain := createUserOptionsTestUser(t, store, "plain")
-
-	r := helpers.SetContextValue(httptest.NewRequest(http.MethodGet, "/api/audit/events", nil), "store", store)
-	assert.True(t, canReadAuditLog(r, &auditor))
-	assert.False(t, canReadAuditLog(r, &plain))
+	f := newGlobalRolesTest(t)
+	r := f.request(http.MethodGet, "/api/audit/events", "", f.auditor)
+	assert.True(t, canReadAuditLog(r, &f.auditor))
+	assert.False(t, canReadAuditLog(r, &f.plain))
 	assert.True(t, canReadAuditLog(r, &db.User{Admin: true}))
 }

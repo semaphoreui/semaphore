@@ -575,6 +575,17 @@ type SecretSyncRepository interface {
 	SaveSecretSync(sync SecretSync) error
 }
 
+// GlobalRoleStore holds who has which global role. The community edition keeps it empty: there global
+// permissions come from the admin flag alone.
+type GlobalRoleStore interface {
+	GetGlobalRoleAssignments(userID int) ([]GlobalRoleAssignment, error)
+	GetGlobalRoleAssignment(userID int, assignmentID int) (GlobalRoleAssignment, error)
+	CreateGlobalRoleAssignment(userID int, roleID int) (GlobalRoleAssignment, error)
+	DeleteGlobalRoleAssignment(userID int, assignmentID int) error
+	// GetEffectiveGlobalPermissions is everything for an admin, otherwise the union of the assigned global roles.
+	GetEffectiveGlobalPermissions(userID int) (GlobalPermission, error)
+}
+
 type RoleRepository interface {
 	GetGlobalRoleBySlug(slug string) (Role, error)
 	GetProjectOrGlobalRoleBySlug(projectID int, slug string) (Role, error)
@@ -586,13 +597,6 @@ type RoleRepository interface {
 	DeleteRole(roleID int) error
 	GetRoleAssignments(roleID int) (RoleAssignments, error)
 	DeleteRoleWithAssignments(roleID int) (RoleAssignments, error)
-
-	GetGlobalRoleAssignments(userID int) ([]GlobalRoleAssignment, error)
-	GetGlobalRoleAssignment(userID int, assignmentID int) (GlobalRoleAssignment, error)
-	CreateGlobalRoleAssignment(userID int, roleID int) (GlobalRoleAssignment, error)
-	DeleteGlobalRoleAssignment(userID int, assignmentID int) error
-	// GetEffectiveGlobalPermissions is everything for an admin, otherwise the union of the assigned global roles.
-	GetEffectiveGlobalPermissions(userID int) (GlobalPermission, error)
 }
 
 // Store is the main interface that aggregates all specialized interfaces

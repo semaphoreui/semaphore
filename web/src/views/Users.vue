@@ -16,7 +16,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :is-admin="isAdmin"
-          :can-manage-global-roles="canManageGlobalRoles"
+          :can-manage-global-roles="canAssignGlobalRoles"
           @hide-action-buttons="hideEditDialogButtons = true"
           @show-action-buttons="hideEditDialogButtons = false"
           :auth-methods="authMethods"
@@ -95,6 +95,7 @@ export default {
   props: {
     authMethods: Object,
     systemInfo: Object,
+    features: Object,
   },
 
   computed: {
@@ -103,6 +104,11 @@ export default {
     },
     canManageGlobalRoles() {
       return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageRoles);
+    },
+
+    // Assigning global roles is a Pro feature, like managing the roles themselves.
+    canAssignGlobalRoles() {
+      return this.canManageGlobalRoles && !!(this.features || {}).custom_roles_management;
     },
   },
 

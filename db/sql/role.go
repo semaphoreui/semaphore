@@ -75,7 +75,7 @@ func (d *SqlDb) UpdateRole(role db.Role) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err = d.lockGlobalRoleState(tx); err != nil {
+	if err = d.LockGlobalRoleState(tx); err != nil {
 		return err
 	}
 	var current db.Role
@@ -88,7 +88,7 @@ func (d *SqlDb) UpdateRole(role db.Role) error {
 		return err
 	}
 	if current.GlobalPermissions.Can(db.CanManageGlobalRoles) && !role.GlobalPermissions.Can(db.CanManageGlobalRoles) {
-		if err = d.requireAdministratorTx(tx, administratorExclusion{RoleID: role.ID}); err != nil {
+		if err = d.RequireAdministrator(tx, db.AdministratorExclusion{RoleID: role.ID}); err != nil {
 			return err
 		}
 	}
@@ -150,7 +150,7 @@ func (d *SqlDb) roleAssignments(q gorp.SqlExecutor, roleID int) (assigned db.Rol
 		return
 	}
 	assigned.GlobalMembers = make([]db.GlobalRoleAssignment, 0)
-	_, err = q.Select(&assigned.GlobalMembers, d.PrepareQuery(globalAssignmentSelect+" where a.role_id=? order by a.id"), roleID)
+	_, err = q.Select(&assigned.GlobalMembers, d.PrepareQuery(GlobalRoleAssignmentSelect+" where a.role_id=? order by a.id"), roleID)
 	return
 }
 
@@ -162,7 +162,7 @@ func (d *SqlDb) DeleteRoleWithAssignments(roleID int) (db.RoleAssignments, error
 	if err != nil {
 		return db.RoleAssignments{}, err
 	}
-	if err = d.lockGlobalRoleState(tx); err != nil {
+	if err = d.LockGlobalRoleState(tx); err != nil {
 		_ = tx.Rollback()
 		return db.RoleAssignments{}, err
 	}
@@ -172,7 +172,7 @@ func (d *SqlDb) DeleteRoleWithAssignments(roleID int) (db.RoleAssignments, error
 		return db.RoleAssignments{}, err
 	}
 	if len(assigned.GlobalMembers) > 0 && assigned.GlobalMembers[0].GlobalPermissions.Can(db.CanManageGlobalRoles) {
-		if err = d.requireAdministratorTx(tx, administratorExclusion{RoleID: roleID}); err != nil {
+		if err = d.RequireAdministrator(tx, db.AdministratorExclusion{RoleID: roleID}); err != nil {
 			_ = tx.Rollback()
 			return db.RoleAssignments{}, err
 		}

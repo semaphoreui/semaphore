@@ -25,6 +25,8 @@ func TestMigration_2_20_14_AddsGlobalPermissionsAndAssignments(t *testing.T) {
 	assert.Equal(t, int64(1), revision)
 	user, err := store.CreateUserWithoutPassword(db.User{Username: "a", Name: "A", Email: "a@e.st"})
 	require.NoError(t, err)
-	_, err = store.CreateGlobalRoleAssignment(user.ID, role.ID)
+	_, err = store.exec("insert into user__global_role (user_id, role_id) values (?, ?)", user.ID, role.ID)
 	require.NoError(t, err)
+	_, err = store.exec("insert into user__global_role (user_id, role_id) values (?, ?)", user.ID, role.ID)
+	assert.Error(t, err, "a user holds a role once")
 }

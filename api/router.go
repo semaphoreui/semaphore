@@ -78,6 +78,7 @@ func DelayMiddleware(delay time.Duration) func(http.Handler) http.Handler {
 // Route declares all routes
 func Route(
 	store db.Store,
+	globalRoleStore db.GlobalRoleStore,
 	terraformStore db.TerraformStore,
 	workflowStore db.WorkflowManager,
 	ansibleTaskRepo db.AnsibleTaskRepository,
@@ -117,7 +118,7 @@ func Route(
 	globalRunnerController := NewGlobalRunnerController(runnerService)
 	taskController := projects.NewTaskController(store, ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
-	globalRolesController := NewGlobalRolesController()
+	globalRolesController := proApi.NewGlobalRolesController(globalRoleStore, store)
 	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
@@ -193,7 +194,7 @@ func Route(
 	authenticatedWS.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 
 	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
-	authenticatedAPI.Use(csrfProtectionMiddleware, StoreMiddleware, JSONMiddleware, authentication)
+	authenticatedAPI.Use(csrfProtectionMiddleware, StoreMiddleware, JSONMiddleware, globalRoleStoreMiddleware(globalRoleStore), authentication)
 
 	authenticatedAPI.Path("/info").HandlerFunc(systemInfoController.GetSystemInfo).Methods("GET", "HEAD")
 

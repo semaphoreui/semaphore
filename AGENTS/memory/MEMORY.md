@@ -61,6 +61,13 @@ only when the task touches that topic. Keep this file under 150 lines.
   disappears (hit in `Users.vue`/`Roles.vue`, 2026-10-17).
 - Semaphore web: `/api/user` carries `global_permissions` (mask) — gate admin menus and pages with
   `hasGlobalPermission(user, GLOBAL_PERMISSIONS.x)` from `web/src/lib/role-permissions.js`, not `user.admin`.
+- A Pro feature with its own tables follows `feat/group-role-mappings`: community keeps the migration,
+  the `db.XStore` interface, a stub in `pro/db/sql` + `pro/db/factory`, a stub controller in `pro/api`
+  and the `api.Route` parameter wired in `cli/cmd/root.go`; `pro_impl` holds the real store
+  (`db/sql`, wrapping `*coresql.SqlDb`), `db/factory` and the controller. Pro endpoints stay out of
+  `api-docs.yml`/Dredd. Build community with `GOWORK=off`, Pro with the gitignored `go.work`.
+- This worktree has its own `pro_impl/` clone (not a git worktree of the main one): branch it, test
+  it with `cd pro_impl && go test ./...`, and remember its commits live in that clone.
 - `docs.cyberark.com` returns 404 to WebFetch/curl for every page; use the Ansible collection
   `cyberark/ansible-security-automation-collection` and the Go client `infamousjoeg/cybr-cli`
   as the PVWA API reference.

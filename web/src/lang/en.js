@@ -534,7 +534,7 @@ export default {
   canManageGlobalRoles: 'Can manage global roles',
   canManageGlobalSystem: 'Can manage system settings',
   canReadGlobalAudit: 'Can read the audit log',
-  globalRolesTab: 'Global roles',
+  globalRolesTab: 'Roles',
   assignGlobalRole: 'Assign',
   globalRole: 'Global role',
   noGlobalRolesAssigned: 'No global roles assigned.',

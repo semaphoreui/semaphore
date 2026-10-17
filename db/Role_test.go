@@ -59,7 +59,7 @@ func TestRoleAssignments_Impact(t *testing.T) {
 	assert.Equal(t, RoleImpact{}, RoleAssignments{}.Impact())
 
 	assigned.GlobalMembers = []GlobalRoleAssignment{{UserID: 1}, {UserID: 2}}
-	assert.Equal(t, RoleImpact{Members: 3, GlobalMembers: 2, Projects: 3, TemplateGrants: 1}, assigned.Impact(), "global members count no project")
+	assert.Equal(t, RoleImpact{Members: 5, Projects: 3, TemplateGrants: 1}, assigned.Impact(), "global members count as members of no project")
 }
 
 func TestGlobalPermission_Can(t *testing.T) {
