@@ -485,7 +485,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="users" to="/users" v-if="canManageUsers">
+              <v-list-item key="users" to="/users" v-if="canManageUsers || canManageRoles">
                 <v-list-item-icon>
                   <v-icon>mdi-account-multiple</v-icon>
                 </v-list-item-icon>
