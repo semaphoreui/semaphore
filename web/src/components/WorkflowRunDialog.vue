@@ -100,6 +100,7 @@ export default {
     },
 
     run() {
+      if (this.running) return;
       if (this.$refs.form && !this.$refs.form.validate()) return;
       this.$emit('run', { ...this.environment });
     },
