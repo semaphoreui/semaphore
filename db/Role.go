@@ -45,17 +45,25 @@ func GlobalPermissionCatalog() []GlobalPermissionDefinition {
 	}
 }
 
+// Role grants project permissions. A role with no project is shared: it can be given to a member of any
+// project. Instance-wide permissions live in GlobalRole, never here.
 type Role struct {
 	ID          int                   `db:"id" json:"id" backup:"-"`
 	Slug        string                `db:"slug" json:"slug" backup:"-"`
 	Name        string                `db:"name" json:"name"`
 	Permissions ProjectUserPermission `db:"permissions" json:"permissions"`
-	// GlobalPermissions apply to the whole instance when the role is assigned to a user globally.
-	// A project backup never carries them: restoring a backup must not grant instance-wide rights.
-	GlobalPermissions GlobalPermission `db:"global_permissions" json:"global_permissions" backup:"-"`
-	ProjectID         *int             `db:"project_id" json:"project_id"`
-	Scope             int              `db:"scope" json:"-" backup:"-"`
-	Builtin           bool             `db:"builtin" json:"builtin" backup:"-"`
+	ProjectID   *int                  `db:"project_id" json:"project_id"`
+	Scope       int                   `db:"scope" json:"-" backup:"-"`
+	Builtin     bool                  `db:"builtin" json:"builtin" backup:"-"`
+}
+
+// GlobalRole grants instance-wide permissions to the users it is assigned to. It is kept apart from Role on
+// purpose: project permissions and instance permissions never mix in one row.
+type GlobalRole struct {
+	ID          int              `db:"id" json:"id"`
+	Slug        string           `db:"slug" json:"slug"`
+	Name        string           `db:"name" json:"name"`
+	Permissions GlobalPermission `db:"permissions" json:"permissions"`
 }
 
 const KnownRolePermissions = CanRunProjectTasks | CanUpdateProject | CanManageProjectResources | CanManageProjectUsers
@@ -71,11 +79,18 @@ func (e conflictError) Is(target error) bool { return target == ErrInvalidOperat
 // global roles: no admin and no user with CanManageGlobalRoles.
 var ErrLastGlobalAdministrator error = conflictError{"the instance must keep at least one administrator"}
 
-// ErrGlobalRoleAssigned refuses to delete a role that users hold globally until the caller asks to delete
+// ErrGlobalRoleAssigned refuses to delete a global role that users hold until the caller asks to delete
 // the assignments too.
 var ErrGlobalRoleAssigned error = conflictError{"the role is assigned to users"}
 
 var roleSlugRE = regexp.MustCompile(`^[A-Za-z0-9_-]{1,100}$`)
+
+func validateRoleSlug(slug string) error {
+	if !roleSlugRE.MatchString(slug) {
+		return &common_errors.ValidationError{Message: "Role slug must be 1 to 100 characters: letters A-Z, digits, '_' and '-'"}
+	}
+	return nil
+}
 
 // ValidateRole checks a role sent by a user. Slug rules apply only to new roles, so old slugs stay editable.
 func ValidateRole(role Role, isNew bool) error {
@@ -85,23 +100,32 @@ func ValidateRole(role Role, isNew bool) error {
 	if role.Permissions&^KnownRolePermissions != 0 {
 		return &common_errors.ValidationError{Message: "Role permissions contain unknown bits"}
 	}
-	if role.GlobalPermissions&^AllGlobalPermissions != 0 {
-		return &common_errors.ValidationError{Message: "Role global permissions contain unknown bits"}
-	}
-	if role.ProjectID != nil && role.GlobalPermissions != 0 {
-		return &common_errors.ValidationError{Message: "Only a global role can have global permissions"}
-	}
 	if !isNew {
 		return nil
 	}
-	if !roleSlugRE.MatchString(role.Slug) {
-		return &common_errors.ValidationError{Message: "Role slug must be 1 to 100 characters: letters A-Z, digits, '_' and '-'"}
+	if err := validateRoleSlug(role.Slug); err != nil {
+		return err
 	}
 	// "all" is taken by the /project/{id}/roles/all route.
 	if ProjectUserRole(strings.ToLower(role.Slug)).IsValid() || strings.EqualFold(role.Slug, "all") {
 		return &common_errors.ValidationError{Message: "Role slug is reserved: " + role.Slug}
 	}
 	return nil
+}
+
+// ValidateGlobalRole checks a global role sent by a user. As with ValidateRole, the slug is checked only
+// when the role is new.
+func ValidateGlobalRole(role GlobalRole, isNew bool) error {
+	if role.Name == "" {
+		return &common_errors.ValidationError{Message: "Role name cannot be empty"}
+	}
+	if role.Permissions&^AllGlobalPermissions != 0 {
+		return &common_errors.ValidationError{Message: "Role global permissions contain unknown bits"}
+	}
+	if !isNew {
+		return nil
+	}
+	return validateRoleSlug(role.Slug)
 }
 
 type TemplateRolePerm struct {
@@ -113,13 +137,13 @@ type TemplateRolePerm struct {
 	RoleSlug    string                `db:"role_slug" json:"role_slug"`
 }
 
-// GlobalRoleAssignment gives a user the global permissions of a global role.
+// GlobalRoleAssignment gives a user the permissions of a global role.
 type GlobalRoleAssignment struct {
 	ID     int `db:"id" json:"id"`
 	UserID int `db:"user_id" json:"user_id"`
 	RoleID int `db:"role_id" json:"role_id"`
 
-	// Taken from the user and the role when the assignment is read.
+	// Taken from the user and the global role when the assignment is read.
 	Username          string           `db:"username" json:"username"`
 	RoleSlug          string           `db:"role_slug" json:"role_slug"`
 	RoleName          string           `db:"role_name" json:"role_name"`
@@ -182,11 +206,11 @@ type AdministratorExclusion struct {
 	UserID       int // the user being deleted
 	AdminOfUser  int // the user whose admin flag is being cleared
 	AssignmentID int // the global role assignment being deleted
-	RoleID       int // the role being deleted or losing CanManageGlobalRoles
+	RoleID       int // the global role being deleted or losing CanManageGlobalRoles
 }
 
-// RoleImpact counts what deleting a role together with its assignments removes. Members counts project
-// members and global holders alike.
+// RoleImpact counts what deleting a role together with its assignments removes. For a global role only
+// Members is set: the users who hold it.
 type RoleImpact struct {
 	Members        int `json:"members"`
 	Projects       int `json:"projects"`
@@ -201,12 +225,10 @@ type RoleMember struct {
 	Roles     []Role
 }
 
-// RoleAssignments is everything that points to a role: the project members who hold it, the users who hold
-// it globally and its template grants.
+// RoleAssignments is everything that points to a role: the project members who hold it and its template grants.
 type RoleAssignments struct {
-	Members       []RoleMember
-	GlobalMembers []GlobalRoleAssignment
-	Grants        []TemplateRolePerm
+	Members []RoleMember
+	Grants  []TemplateRolePerm
 }
 
 // Impact counts the assignments for the delete confirmation and the audit event.
@@ -219,7 +241,7 @@ func (a RoleAssignments) Impact() RoleImpact {
 		projects[g.ProjectID] = true
 	}
 	return RoleImpact{
-		Members:        len(a.Members) + len(a.GlobalMembers),
+		Members:        len(a.Members),
 		Projects:       len(projects),
 		TemplateGrants: len(a.Grants),
 	}

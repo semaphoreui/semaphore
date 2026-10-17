@@ -441,7 +441,7 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 	if e.Roles != nil {
 		for _, role := range e.Roles {
 			if role.IsGlobal {
-				r, err := b.store.GetGlobalRoleBySlug(role.Role)
+				r, err := b.store.GetSharedRoleBySlug(role.Role)
 				if errors.Is(err, db.ErrNotFound) {
 					return fmt.Errorf("global role does not exist: %s", role.Role)
 				}
@@ -693,7 +693,7 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		}
 	}
 
-	ownerRole, err := b.store.GetGlobalRoleBySlug(string(db.ProjectOwner))
+	ownerRole, err := b.store.GetSharedRoleBySlug(string(db.ProjectOwner))
 	if err != nil {
 		return nil, err
 	}

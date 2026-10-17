@@ -100,9 +100,9 @@ func slugsOf(roles []db.Role) []string {
 func TestMembershipRoles(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	p, u := createMembershipTestProjectAndUser(t, store)
-	owner, err := store.GetGlobalRoleBySlug("owner")
+	owner, err := store.GetSharedRoleBySlug("owner")
 	require.NoError(t, err)
-	runner, err := store.GetGlobalRoleBySlug("task_runner")
+	runner, err := store.GetSharedRoleBySlug("task_runner")
 	require.NoError(t, err)
 
 	err = store.CreateProjectUser(p.ID, u.ID, []int{runner.ID})
@@ -139,7 +139,7 @@ func TestMembershipRejectsForeignProjectRole(t *testing.T) {
 func TestMembershipNeedsARole(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	p, u := createMembershipTestProjectAndUser(t, store)
-	runner, err := store.GetGlobalRoleBySlug("task_runner")
+	runner, err := store.GetSharedRoleBySlug("task_runner")
 	require.NoError(t, err)
 
 	assert.Error(t, store.CreateProjectUser(p.ID, u.ID, []int{}))
@@ -180,9 +180,9 @@ func TestProjectUsersSortByRole(t *testing.T) {
 	p, u1 := createMembershipTestProjectAndUser(t, store)
 	u2, err := store.CreateUserWithoutPassword(db.User{Username: "b", Name: "B", Email: "b@e.st"})
 	require.NoError(t, err)
-	owner, err := store.GetGlobalRoleBySlug("owner")
+	owner, err := store.GetSharedRoleBySlug("owner")
 	require.NoError(t, err)
-	guest, err := store.GetGlobalRoleBySlug("guest")
+	guest, err := store.GetSharedRoleBySlug("guest")
 	require.NoError(t, err)
 	err = store.CreateProjectUser(p.ID, u1.ID, []int{owner.ID})
 	require.NoError(t, err)
@@ -195,9 +195,9 @@ func TestProjectUsersSortByRole(t *testing.T) {
 
 func TestCountProjectOwners(t *testing.T) {
 	store, projectID, _ := newTemplatePermissionTest(t)
-	owner, err := store.GetGlobalRoleBySlug("owner")
+	owner, err := store.GetSharedRoleBySlug("owner")
 	require.NoError(t, err)
-	guest, err := store.GetGlobalRoleBySlug("guest")
+	guest, err := store.GetSharedRoleBySlug("guest")
 	require.NoError(t, err)
 	createTemplatePermissionTestUser(t, store, projectID, "a", owner.ID)
 	b := createTemplatePermissionTestUser(t, store, projectID, "b", guest.ID)

@@ -1,16 +1,13 @@
 package sql
 
 import (
-	"database/sql"
-	"errors"
-
 	"github.com/Masterminds/squirrel"
 	"github.com/go-gorp/gorp/v3"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
-func (d *SqlDb) GetGlobalRoleBySlug(slug string) (role db.Role, err error) {
+func (d *SqlDb) GetSharedRoleBySlug(slug string) (role db.Role, err error) {
 	err = d.selectOne(&role, "select * from `role` where lower(slug)=lower(?) and project_id is null", slug)
 	return
 }
@@ -20,8 +17,8 @@ func (d *SqlDb) GetProjectRole(projectID int, slug string) (role db.Role, err er
 	return
 }
 
-// GetProjectOrGlobalRoleBySlug prefers the project role when a global role has the same slug.
-func (d *SqlDb) GetProjectOrGlobalRoleBySlug(projectID int, slug string) (role db.Role, err error) {
+// GetProjectOrSharedRoleBySlug prefers the project role when a global role has the same slug.
+func (d *SqlDb) GetProjectOrSharedRoleBySlug(projectID int, slug string) (role db.Role, err error) {
 	err = d.selectOne(&role, `
 		select
 		  *
@@ -39,7 +36,7 @@ func (d *SqlDb) GetProjectRoles(projectID int) (roles []db.Role, err error) {
 	return
 }
 
-func (d *SqlDb) GetGlobalRoles() (roles []db.Role, err error) {
+func (d *SqlDb) GetSharedRoles() (roles []db.Role, err error) {
 	_, err = d.selectAll(&roles, "select * from `role` where project_id is null order by name")
 	return
 }
@@ -60,44 +57,18 @@ func (d *SqlDb) CreateRole(role db.Role) (db.Role, error) {
 	}
 
 	role.ID, err = d.insert("id", `
-		insert into role (slug, name, permissions, global_permissions, project_id, scope, builtin)
-		values (?, ?, ?, ?, ?, ?, false)
-	`, role.Slug, role.Name, role.Permissions, role.GlobalPermissions, role.ProjectID, scope)
+		insert into role (slug, name, permissions, project_id, scope, builtin)
+		values (?, ?, ?, ?, ?, false)
+	`, role.Slug, role.Name, role.Permissions, role.ProjectID, scope)
 	role.Scope, role.Builtin = scope, false
 	return role, err
 }
 
-// UpdateRole changes only the name and the permissions. Built-in roles never match. Taking CanManageGlobalRoles
-// away from a role is refused when its holders are the only administrators left.
+// UpdateRole changes only the name and the permissions. Built-in roles never match.
 func (d *SqlDb) UpdateRole(role db.Role) error {
-	tx, err := d.Sql().Begin()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-	if err = d.LockGlobalRoleState(tx); err != nil {
-		return err
-	}
-	var current db.Role
-	err = tx.SelectOne(&current, d.PrepareQuery("select * from `role` where id=? and builtin=false"), role.ID)
-	if errors.Is(err, sql.ErrNoRows) {
-		// A built-in or unknown role: the update below changes nothing, as before.
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if current.GlobalPermissions.Can(db.CanManageGlobalRoles) && !role.GlobalPermissions.Can(db.CanManageGlobalRoles) {
-		if err = d.RequireAdministrator(tx, db.AdministratorExclusion{RoleID: role.ID}); err != nil {
-			return err
-		}
-	}
-	_, err = d.execTx(tx, "update `role` set name=?, permissions=?, global_permissions=? where id=? and builtin=false",
-		role.Name, role.Permissions, role.GlobalPermissions, role.ID)
-	if err != nil {
-		return err
-	}
-	return tx.Commit()
+	_, err := d.exec("update `role` set name=?, permissions=? where id=? and builtin=false",
+		role.Name, role.Permissions, role.ID)
+	return err
 }
 
 // DeleteRole removes a custom role. The foreign keys refuse a role that is still assigned or granted.
@@ -146,38 +117,18 @@ func (d *SqlDb) roleAssignments(q gorp.SqlExecutor, roleID int) (assigned db.Rol
 		assigned.Members[last].Roles = append(assigned.Members[last].Roles, db.Role{ID: row.RoleID, Slug: row.Slug})
 	}
 	_, err = q.Select(&assigned.Grants, d.PrepareQuery("select id, template_id, project_id from project__template_role where role_id=?"), roleID)
-	if err != nil {
-		return
-	}
-	assigned.GlobalMembers = make([]db.GlobalRoleAssignment, 0)
-	_, err = q.Select(&assigned.GlobalMembers, d.PrepareQuery(GlobalRoleAssignmentSelect+" where a.role_id=? order by a.id"), roleID)
 	return
 }
 
-// DeleteRoleWithAssignments removes a custom role with its member assignments, global assignments and template
-// grants and returns what it removed. A member whose only role it was stops being a member. The role is kept
-// when its global holders are the only administrators left.
+// DeleteRoleWithAssignments removes a custom role with its member assignments and template grants and returns
+// what it removed. A member whose only role it was stops being a member.
 func (d *SqlDb) DeleteRoleWithAssignments(roleID int) (db.RoleAssignments, error) {
 	tx, err := d.Sql().Begin()
 	if err != nil {
 		return db.RoleAssignments{}, err
 	}
-	if err = d.LockGlobalRoleState(tx); err != nil {
-		_ = tx.Rollback()
-		return db.RoleAssignments{}, err
-	}
 	assigned, err := d.roleAssignments(tx, roleID)
 	if err != nil {
-		_ = tx.Rollback()
-		return db.RoleAssignments{}, err
-	}
-	if len(assigned.GlobalMembers) > 0 && assigned.GlobalMembers[0].GlobalPermissions.Can(db.CanManageGlobalRoles) {
-		if err = d.RequireAdministrator(tx, db.AdministratorExclusion{RoleID: roleID}); err != nil {
-			_ = tx.Rollback()
-			return db.RoleAssignments{}, err
-		}
-	}
-	if _, err = d.execTx(tx, "delete from user__global_role where role_id=?", roleID); err != nil {
 		_ = tx.Rollback()
 		return db.RoleAssignments{}, err
 	}

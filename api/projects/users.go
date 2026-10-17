@@ -76,7 +76,7 @@ func resolveRoles(store db.Store, projectID int, role string, roles []string) ([
 	}
 	result := make([]db.Role, 0, len(slugs))
 	for _, slug := range slugs {
-		found, err := store.GetProjectOrGlobalRoleBySlug(projectID, slug)
+		found, err := store.GetProjectOrSharedRoleBySlug(projectID, slug)
 		if errors.Is(err, db.ErrNotFound) {
 			return nil, &common_errors.ValidationError{Message: "Role does not exist in this project"}
 		}

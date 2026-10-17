@@ -28,7 +28,7 @@ var globalRunner *db.Runner
 var workflow *db.WorkflowTemplate
 var workflowRun *db.WorkflowRun
 var workflowApproval *db.WorkflowApproval
-var globalRole *db.Role
+var globalRole *db.GlobalRole
 var globalRoleAssignment *db.GlobalRoleAssignment
 
 // Runtime created simple ID values for some items we need to reference in other objects
@@ -290,6 +290,12 @@ var pathSubPatterns = []func() string{
 		}
 		return strconv.Itoa(globalRoleAssignment.ID)
 	}, // assignment_id, x-example: 23
+	func() string {
+		if globalRole == nil {
+			return "0"
+		}
+		return strconv.Itoa(globalRole.ID)
+	}, // global role_id, x-example: 24
 }
 
 // alterRequestPath with the above slice of functions

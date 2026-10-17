@@ -30,16 +30,44 @@ func TestValidateRole(t *testing.T) {
 		{"negative permissions", Role{Slug: "d", Name: "D", Permissions: -1}, true, true},
 		{"old slug stays editable", Role{Slug: "my role", Name: "D"}, false, false},
 		{"update still needs a name", Role{Slug: "my role"}, false, true},
-		{"global role with global permissions", Role{Slug: "ops", Name: "Ops", GlobalPermissions: AllGlobalPermissions}, true, false},
-		{"unknown global permission bit", Role{Slug: "ops", Name: "Ops", GlobalPermissions: 16}, true, true},
-		{"negative global permissions", Role{Slug: "ops", Name: "Ops", GlobalPermissions: -1}, true, true},
-		{"project role cannot hold global permissions", Role{Slug: "ops", Name: "Ops", ProjectID: new(int), GlobalPermissions: CanReadGlobalAudit}, true, true},
-		{"project role update cannot gain global permissions", Role{Slug: "ops", Name: "Ops", ProjectID: new(int), GlobalPermissions: CanReadGlobalAudit}, false, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateRole(tt.role, tt.isNew)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateGlobalRole(t *testing.T) {
+	tests := []struct {
+		name    string
+		role    GlobalRole
+		isNew   bool
+		wantErr bool
+	}{
+		{"valid new role", GlobalRole{Slug: "auditor-2", Name: "Auditor", Permissions: AllGlobalPermissions}, true, false},
+		{"no permissions yet", GlobalRole{Slug: "empty", Name: "Empty"}, true, false},
+		{"empty name", GlobalRole{Slug: "auditor"}, true, true},
+		{"empty slug", GlobalRole{Name: "A"}, true, true},
+		{"space in slug", GlobalRole{Slug: "with space", Name: "A"}, true, true},
+		{"slug too long", GlobalRole{Slug: strings.Repeat("a", 101), Name: "A"}, true, true},
+		{"built-in project role slugs are free here", GlobalRole{Slug: string(ProjectOwner), Name: "A"}, true, false},
+		{"unknown permission bit", GlobalRole{Slug: "a", Name: "A", Permissions: 16}, true, true},
+		{"negative permissions", GlobalRole{Slug: "a", Name: "A", Permissions: -1}, true, true},
+		{"old slug stays editable", GlobalRole{Slug: "my role", Name: "A"}, false, false},
+		{"update still needs a name", GlobalRole{Slug: "my role"}, false, true},
+		{"update checks the bits", GlobalRole{Slug: "a", Name: "A", Permissions: 16}, false, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateGlobalRole(tt.role, tt.isNew)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -57,9 +85,6 @@ func TestRoleAssignments_Impact(t *testing.T) {
 
 	assert.Equal(t, RoleImpact{Members: 3, Projects: 3, TemplateGrants: 1}, assigned.Impact())
 	assert.Equal(t, RoleImpact{}, RoleAssignments{}.Impact())
-
-	assigned.GlobalMembers = []GlobalRoleAssignment{{UserID: 1}, {UserID: 2}}
-	assert.Equal(t, RoleImpact{Members: 5, Projects: 3, TemplateGrants: 1}, assigned.Impact(), "global members count as members of no project")
 }
 
 func TestGlobalPermission_Can(t *testing.T) {

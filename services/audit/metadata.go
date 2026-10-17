@@ -62,11 +62,11 @@ type ProjectRoleMetadata struct {
 	DeletedRole RoleRef `json:"deleted_role,omitzero"`
 }
 
+// RoleMetadata describes a role definition: project permission names for a project role, global permission
+// ids for a global role.
 type RoleMetadata struct {
 	Slug        string   `json:"slug"`
 	Permissions []string `json:"permissions"`
-	// Set for a global role that grants instance-wide permissions.
-	GlobalPermissions []string `json:"global_permissions,omitempty"`
 }
 
 // GlobalRoleMetadata describes a global role given to or taken from a user; the target is the user.

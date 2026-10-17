@@ -7,10 +7,10 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 )
 
-// GlobalRoleAssignmentSelect reads global role assignments together with the role they grant. The Pro store
-// that manages assignments and this store's role deletion share it.
-const GlobalRoleAssignmentSelect = "select a.id, a.user_id, a.role_id, u.username, r.slug as role_slug, r.name as role_name, r.global_permissions " +
-	"from user__global_role as a join `user` as u on u.id = a.user_id join `role` as r on r.id = a.role_id"
+// GlobalRoleAssignmentSelect reads global role assignments together with the global role they grant. The Pro
+// store that manages global roles and this store's user deletion share it.
+const GlobalRoleAssignmentSelect = "select a.id, a.user_id, a.role_id, u.username, r.slug as role_slug, r.name as role_name, r.permissions as global_permissions " +
+	"from user__global_role as a join `user` as u on u.id = a.user_id join global_role as r on r.id = a.role_id"
 
 // LockGlobalRoleState takes the row lock that serializes every transaction able to remove an administrator:
 // changing global roles, their assignments or the admin flag. Without it two HA nodes could each see the
@@ -40,8 +40,8 @@ func (d *SqlDb) CountAdministrators(tx gorp.SqlExecutor, exclude db.Administrato
 		  and ((u.admin = true and u.id <> ?) or exists (
 		    select 1
 		    from user__global_role as a
-		    join `+"`role`"+` as r on r.id = a.role_id
-		    where a.user_id = u.id and a.id <> ? and a.role_id <> ? and (r.global_permissions & ?) = ?
+		    join global_role as r on r.id = a.role_id
+		    where a.user_id = u.id and a.id <> ? and a.role_id <> ? and (r.permissions & ?) = ?
 		  ))
 	`), exclude.UserID, exclude.AdminOfUser, exclude.AssignmentID, exclude.RoleID,
 		db.CanManageGlobalRoles, db.CanManageGlobalRoles)

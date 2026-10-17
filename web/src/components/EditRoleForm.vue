@@ -66,34 +66,19 @@
       :disabled="formSaving"
     ></v-checkbox>
 
-    <template v-if="!projectId">
-      <v-subheader class="pl-0">{{ $t('globalPermissions') }}</v-subheader>
-      <div class="text--secondary caption mb-3">{{ $t('globalPermissionsHint') }}</div>
-
-      <v-checkbox
-        v-for="p in GLOBAL_ROLE_PERMISSIONS"
-        :key="p.permission"
-        class="mt-0"
-        :input-value="hasGlobalPermission(p.permission)"
-        :label="$t(p.label)"
-        :disabled="formSaving"
-        @change="setGlobalPermission(p.permission, $event)"
-      ></v-checkbox>
-    </template>
-
   </v-form>
 </template>
 
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
-import { ROLE_PERMISSIONS } from '@/lib/constants';
+import { isValidSlug, slugFromName } from '@/lib/roles';
 
+/** The form of a project role: a name, a slug and the project permissions it grants. */
 export default {
   mixins: [ItemFormBase],
 
   data() {
     return {
-      GLOBAL_ROLE_PERMISSIONS: ROLE_PERMISSIONS.global,
       slugTouched: false,
       permissions: {
         canRunProjectTasks: false,
@@ -114,12 +99,7 @@ export default {
   watch: {
     'item.name': function onNameChange(name) {
       if (this.isNew && !this.slugTouched && this.item) {
-        this.item.slug = (name || '')
-          .toLowerCase()
-          .replace(/[^a-z0-9_-]+/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '')
-          .slice(0, 100);
+        this.item.slug = slugFromName(name);
       }
     },
 
@@ -156,12 +136,7 @@ export default {
   methods: {
     validateSlug(value) {
       if (!value) return true; // Required validation is handled separately
-
-      if (!/^[A-Za-z0-9_-]{1,100}$/.test(value)) {
-        return this.$t('invalidSlugFormat');
-      }
-
-      return true;
+      return isValidSlug(value) || this.$t('invalidSlugFormat');
     },
 
     getItemsUrl() {
@@ -179,26 +154,11 @@ export default {
     },
 
     getNewItem() {
-      const item = {
+      return {
         name: '',
         slug: '',
         permissions: 0,
       };
-      if (!this.projectId) {
-        item.global_permissions = 0;
-      }
-      return item;
-    },
-
-    hasGlobalPermission(permission) {
-      // eslint-disable-next-line no-bitwise
-      return ((this.item.global_permissions || 0) & permission) === permission;
-    },
-
-    setGlobalPermission(permission, enabled) {
-      const current = this.item.global_permissions || 0;
-      // eslint-disable-next-line no-bitwise
-      this.$set(this.item, 'global_permissions', enabled ? current | permission : current & ~permission);
     },
 
     beforeSave() {

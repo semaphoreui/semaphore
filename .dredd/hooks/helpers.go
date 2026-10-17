@@ -121,7 +121,7 @@ func setupObjectsAndPaths(t *transaction.Transaction) {
 
 // Object Lifecycle
 func addUserProjectRelation(pid int, user int) {
-	owner, err := store.GetGlobalRoleBySlug("owner")
+	owner, err := store.GetSharedRoleBySlug("owner")
 	if err != nil {
 		panic(err)
 	}
@@ -191,12 +191,12 @@ func addUser() *db.User {
 }
 
 // addGlobalRole creates a global role that grants the audit log, so that it can be assigned to a user.
-func addGlobalRole() *db.Role {
+func addGlobalRole() *db.GlobalRole {
 	uid := getUUID()
-	role, err := store.CreateRole(db.Role{
-		Slug:              "ITGR-" + uid,
-		Name:              "ITGR-" + uid,
-		GlobalPermissions: db.CanReadGlobalAudit,
+	role, err := globalRoleStore.CreateGlobalRole(db.GlobalRole{
+		Slug:        "ITGR-" + uid,
+		Name:        "ITGR-" + uid,
+		Permissions: db.CanReadGlobalAudit,
 	})
 	if err != nil {
 		panic(err)

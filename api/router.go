@@ -273,7 +273,6 @@ func Route(
 	// is never read as a slug.
 	rolesAdminAPI := authenticatedAPI.NewRoute().Subrouter()
 	rolesAdminAPI.Use(globalPermissionMiddleware(db.CanManageGlobalRoles))
-	rolesAdminAPI.Path("/roles/permissions").HandlerFunc(globalRolesController.GetGlobalPermissionCatalog).Methods("GET", "HEAD")
 	rolesAdminAPI.Path("/roles").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
 	rolesAdminAPI.Path("/roles").HandlerFunc(rolesController.AddRole).Methods("POST", "HEAD")
 
@@ -281,6 +280,16 @@ func Route(
 	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.GetGlobalRole).Methods("GET", "HEAD")
 	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
 	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
+
+	// The catalog goes first so that "permissions" is never read as a role id.
+	rolesAdminAPI.Path("/global-roles/permissions").HandlerFunc(globalRolesController.GetGlobalPermissionCatalog).Methods("GET", "HEAD")
+	rolesAdminAPI.Path("/global-roles").HandlerFunc(globalRolesController.GetGlobalRoles).Methods("GET", "HEAD")
+	rolesAdminAPI.Path("/global-roles").HandlerFunc(globalRolesController.AddGlobalRole).Methods("POST")
+
+	globalRolesAPI := rolesAdminAPI.PathPrefix("/global-roles").Subrouter()
+	globalRolesAPI.Path("/{role_id}").HandlerFunc(globalRolesController.GetGlobalRole).Methods("GET", "HEAD")
+	globalRolesAPI.Path("/{role_id}").HandlerFunc(globalRolesController.UpdateGlobalRole).Methods("PUT", "POST")
+	globalRolesAPI.Path("/{role_id}").HandlerFunc(globalRolesController.DeleteGlobalRole).Methods("DELETE")
 
 	globalRoleAssignmentsAPI := rolesAdminAPI.PathPrefix("/users/{user_id}/global-roles").Subrouter()
 	globalRoleAssignmentsAPI.Path("").HandlerFunc(globalRolesController.GetGlobalRoleAssignments).Methods("GET", "HEAD")
@@ -390,7 +399,7 @@ func Route(
 	projectRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(projectRunnerController.ClearRunnerCache).Methods("DELETE")
 
 	projectUserAPI.Path("/roles").HandlerFunc(rolesController.GetProjectRoles).Methods("GET", "HEAD")
-	projectUserAPI.Path("/roles/all").HandlerFunc(rolesController.GetProjectAndGlobalRoles).Methods("GET", "HEAD")
+	projectUserAPI.Path("/roles/all").HandlerFunc(rolesController.GetProjectAndSharedRoles).Methods("GET", "HEAD")
 	projectUserAPI.Path("/roles").HandlerFunc(rolesController.AddProjectRole).Methods("POST")
 
 	projectRolesAPI := projectUserAPI.PathPrefix("/roles").Subrouter()

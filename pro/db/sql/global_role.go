@@ -4,8 +4,36 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 )
 
-// GlobalRoleStoreImpl is the community stub: global roles grant nothing, only the admin flag counts.
+// GlobalRoleStoreImpl is the community stub: there are no global roles, only the admin flag counts.
 type GlobalRoleStoreImpl struct {
+}
+
+func (d *GlobalRoleStoreImpl) GetGlobalRoles() ([]db.GlobalRole, error) {
+	return []db.GlobalRole{}, nil
+}
+
+func (d *GlobalRoleStoreImpl) GetGlobalRole(roleID int) (db.GlobalRole, error) {
+	return db.GlobalRole{}, db.ErrNotFound
+}
+
+func (d *GlobalRoleStoreImpl) CreateGlobalRole(role db.GlobalRole) (db.GlobalRole, error) {
+	return db.GlobalRole{}, db.ErrNotFound
+}
+
+func (d *GlobalRoleStoreImpl) UpdateGlobalRole(role db.GlobalRole) error {
+	return db.ErrNotFound
+}
+
+func (d *GlobalRoleStoreImpl) DeleteGlobalRole(roleID int) error {
+	return db.ErrNotFound
+}
+
+func (d *GlobalRoleStoreImpl) DeleteGlobalRoleWithAssignments(roleID int) ([]db.GlobalRoleAssignment, error) {
+	return nil, db.ErrNotFound
+}
+
+func (d *GlobalRoleStoreImpl) GetGlobalRoleHolders(roleID int) ([]db.GlobalRoleAssignment, error) {
+	return []db.GlobalRoleAssignment{}, nil
 }
 
 func (d *GlobalRoleStoreImpl) GetGlobalRoleAssignments(userID int) ([]db.GlobalRoleAssignment, error) {

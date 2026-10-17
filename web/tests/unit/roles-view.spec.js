@@ -22,6 +22,8 @@ describe('Roles.vue', () => {
 
   const ctx = () => ({
     projectId: null,
+    tab: 'project',
+    isGlobalTab: false,
     itemId: null,
     items: [{ slug: 'deployer' }],
     IDFieldName: 'slug',
@@ -86,6 +88,29 @@ describe('Roles.vue', () => {
     EventBus.$off('i-snackbar', listener);
     expect(c.forceDeleteDialog).to.equal(false);
     expect(shown).to.deep.equal(['roleInUseNeedsManageUsers']);
+  });
+
+  it('addresses project roles by slug and global roles by id', () => {
+    const { getItemsUrl, getSingleItemUrl } = Roles.methods;
+    const { IDFieldName } = Roles.computed;
+    const project = { projectId: null, isGlobalTab: false, itemId: 'deployer' };
+    expect(IDFieldName.call(project)).to.equal('slug');
+    expect(getItemsUrl.call(project)).to.equal('/api/roles');
+    expect(getSingleItemUrl.call(project)).to.equal('/api/roles/deployer');
+    const global = { projectId: null, isGlobalTab: true, itemId: 4 };
+    expect(IDFieldName.call(global)).to.equal('id');
+    expect(getItemsUrl.call(global)).to.equal('/api/global-roles');
+    expect(getSingleItemUrl.call(global)).to.equal('/api/global-roles/4');
+    const inProject = { projectId: 7, isGlobalTab: false, itemId: 'deployer' };
+    expect(getItemsUrl.call(inProject)).to.equal('/api/project/7/roles');
+    expect(getSingleItemUrl.call(inProject)).to.equal('/api/project/7/roles/deployer');
+  });
+
+  it('has the global tab only on the instance page', () => {
+    const { isGlobalTab } = Roles.computed;
+    expect(isGlobalTab.call({ projectId: null, tab: 'global' })).to.equal(true);
+    expect(isGlobalTab.call({ projectId: null, tab: 'project' })).to.equal(false);
+    expect(isGlobalTab.call({ projectId: 7, tab: 'global' })).to.equal(false);
   });
 
   it('deletes with force after the second question', async () => {

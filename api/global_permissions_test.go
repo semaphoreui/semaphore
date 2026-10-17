@@ -29,6 +29,21 @@ type fakeGlobalRoleStore struct {
 	permissions map[int]db.GlobalPermission
 }
 
+func (f fakeGlobalRoleStore) GetGlobalRoles() ([]db.GlobalRole, error) { return []db.GlobalRole{}, nil }
+func (f fakeGlobalRoleStore) GetGlobalRole(int) (db.GlobalRole, error) {
+	return db.GlobalRole{}, db.ErrNotFound
+}
+func (f fakeGlobalRoleStore) CreateGlobalRole(db.GlobalRole) (db.GlobalRole, error) {
+	return db.GlobalRole{}, db.ErrNotFound
+}
+func (f fakeGlobalRoleStore) UpdateGlobalRole(db.GlobalRole) error { return db.ErrNotFound }
+func (f fakeGlobalRoleStore) DeleteGlobalRole(int) error           { return db.ErrNotFound }
+func (f fakeGlobalRoleStore) DeleteGlobalRoleWithAssignments(int) ([]db.GlobalRoleAssignment, error) {
+	return nil, db.ErrNotFound
+}
+func (f fakeGlobalRoleStore) GetGlobalRoleHolders(int) ([]db.GlobalRoleAssignment, error) {
+	return []db.GlobalRoleAssignment{}, nil
+}
 func (f fakeGlobalRoleStore) GetGlobalRoleAssignments(int) ([]db.GlobalRoleAssignment, error) {
 	return []db.GlobalRoleAssignment{}, nil
 }

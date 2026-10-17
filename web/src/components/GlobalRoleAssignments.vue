@@ -117,16 +117,10 @@ export default {
   },
 
   computed: {
-    /**
-     * Global roles that grant something and are not held yet.
-     * Built-in roles grant nothing globally, so they are never offered.
-     */
+    /** Global roles the user does not hold yet. */
     availableRoles() {
       const held = new Set(this.assignments.map((assignment) => assignment.role_id));
-      return this.roles.filter((role) => !role.builtin
-        && role.project_id == null
-        && (role.global_permissions || 0) !== 0
-        && !held.has(role.id));
+      return this.roles.filter((role) => !held.has(role.id));
     },
   },
 
@@ -150,8 +144,8 @@ export default {
       this.loading = true;
       try {
         [this.roles, this.catalog] = await Promise.all([
-          this.get('/api/roles'),
-          this.get('/api/roles/permissions'),
+          this.get('/api/global-roles'),
+          this.get('/api/global-roles/permissions'),
         ]);
         await this.loadUser();
       } catch (err) {

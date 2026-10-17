@@ -15,11 +15,12 @@ func createGlobalRoleTestUser(t *testing.T, store *SqlDb, username string, admin
 	return user
 }
 
-func createGlobalRole(t *testing.T, store *SqlDb, slug string, permissions db.GlobalPermission) db.Role {
+// createGlobalRole writes the row the Pro store would write; this store only reads global roles.
+func createGlobalRole(t *testing.T, store *SqlDb, slug string, permissions db.GlobalPermission) int {
 	t.Helper()
-	role, err := store.CreateRole(db.Role{Slug: slug, Name: slug, GlobalPermissions: permissions})
+	id, err := store.insert("id", "insert into global_role (slug, name, permissions) values (?, ?, ?)", slug, slug, permissions)
 	require.NoError(t, err)
-	return role
+	return id
 }
 
 // assignGlobally writes the row the Pro store would write; this store only reads and removes assignments.
@@ -37,32 +38,26 @@ func globalAssignmentsOf(t *testing.T, store *SqlDb, userID int) (assignments []
 	return
 }
 
-func TestCreateRole_StoresGlobalPermissions(t *testing.T) {
-	store := InitConfigCreateTestStore()
-	created := createGlobalRole(t, store, "auditor", db.CanReadGlobalAudit|db.CanManageGlobalUsers)
-
-	role, err := store.GetGlobalRoleBySlug("auditor")
-	require.NoError(t, err)
-	assert.Equal(t, db.CanReadGlobalAudit|db.CanManageGlobalUsers, role.GlobalPermissions)
-	assert.Equal(t, created.ID, role.ID)
-
-	require.NoError(t, store.UpdateRole(db.Role{ID: role.ID, Name: "Auditor", GlobalPermissions: db.CanReadGlobalAudit}))
-	role, err = store.GetGlobalRoleBySlug("auditor")
-	require.NoError(t, err)
-	assert.Equal(t, db.CanReadGlobalAudit, role.GlobalPermissions)
-	assert.Equal(t, "Auditor", role.Name)
-}
-
-func TestGlobalRoleAssignmentSelect_JoinsTheRole(t *testing.T) {
+func TestGlobalRoleAssignmentSelect_JoinsTheGlobalRole(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	user := createGlobalRoleTestUser(t, store, "alice", false)
 	auditor := createGlobalRole(t, store, "auditor", db.CanReadGlobalAudit)
-	id := assignGlobally(t, store, user.ID, auditor.ID)
+	id := assignGlobally(t, store, user.ID, auditor)
 
 	assert.Equal(t, []db.GlobalRoleAssignment{{
-		ID: id, UserID: user.ID, RoleID: auditor.ID, Username: "alice",
+		ID: id, UserID: user.ID, RoleID: auditor, Username: "alice",
 		RoleSlug: "auditor", RoleName: "auditor", GlobalPermissions: db.CanReadGlobalAudit,
 	}}, globalAssignmentsOf(t, store, user.ID))
+}
+
+// A global role and a project role may share a slug: they live in different tables.
+func TestGlobalRole_SlugIsIndependentOfProjectRoles(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	_, err := store.CreateRole(db.Role{Slug: "auditor", Name: "Project auditor"})
+	require.NoError(t, err)
+	createGlobalRole(t, store, "auditor", db.CanReadGlobalAudit)
+	_, err = store.insert("id", "insert into global_role (slug, name, permissions) values (?, ?, ?)", "auditor", "again", 0)
+	assert.Error(t, err, "a global role slug is unique among global roles")
 }
 
 func TestDeleteUser_RemovesGlobalAssignments(t *testing.T) {
@@ -70,35 +65,27 @@ func TestDeleteUser_RemovesGlobalAssignments(t *testing.T) {
 	createGlobalRoleTestUser(t, store, "root", true)
 	user := createGlobalRoleTestUser(t, store, "alice", false)
 	auditor := createGlobalRole(t, store, "auditor", db.CanReadGlobalAudit)
-	assignGlobally(t, store, user.ID, auditor.ID)
+	assignGlobally(t, store, user.ID, auditor)
 
 	require.NoError(t, store.DeleteUser(user.ID))
 
-	assigned, err := store.GetRoleAssignments(auditor.ID)
+	count, err := store.Sql().SelectInt(store.PrepareQuery("select count(*) from user__global_role where role_id=?"), auditor)
 	require.NoError(t, err)
-	assert.Empty(t, assigned.GlobalMembers)
+	assert.Equal(t, int64(0), count)
 }
 
 // The last user who can manage global roles cannot lose that ability through this store: by losing the
-// role, the role's permission, the admin flag or the account. The Pro store protects the assignment itself.
+// admin flag or the account. The Pro store protects the role and the assignment themselves.
 func TestLastGlobalAdministrator(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	alice := createGlobalRoleTestUser(t, store, "alice", false)
 	manager := createGlobalRole(t, store, "role_manager", db.CanManageGlobalRoles|db.CanReadGlobalAudit)
-	assignGlobally(t, store, alice.ID, manager.ID)
+	assignGlobally(t, store, alice.ID, manager)
 
 	assert.ErrorIs(t, store.DeleteUser(alice.ID), db.ErrLastGlobalAdministrator)
-	assert.ErrorIs(t, store.UpdateRole(db.Role{ID: manager.ID, Name: "x", GlobalPermissions: db.CanReadGlobalAudit}), db.ErrLastGlobalAdministrator)
-	_, err := store.DeleteRoleWithAssignments(manager.ID)
-	assert.ErrorIs(t, err, db.ErrLastGlobalAdministrator)
-	assert.ErrorIs(t, store.DeleteRole(manager.ID), db.ErrInvalidOperation, "a plain delete is refused by the foreign key")
-	// Keeping the permission and the name change is fine.
-	require.NoError(t, store.UpdateRole(db.Role{ID: manager.ID, Name: "Renamed", GlobalPermissions: db.CanManageGlobalRoles}))
 
-	// A second administrator lifts every refusal.
+	// A second administrator lifts the refusal.
 	root := createGlobalRoleTestUser(t, store, "root", true)
-	require.NoError(t, store.UpdateRole(db.Role{ID: manager.ID, Name: "Renamed", GlobalPermissions: db.CanReadGlobalAudit}))
-	require.NoError(t, store.UpdateRole(db.Role{ID: manager.ID, Name: "Renamed", GlobalPermissions: db.CanManageGlobalRoles}))
 	require.NoError(t, store.DeleteUser(alice.ID))
 
 	// Now root is the last one: the admin flag and the account are protected the same way.
@@ -123,7 +110,7 @@ func TestRequireAdministrator_CountsAdminsAndRoleHolders(t *testing.T) {
 	root := createGlobalRoleTestUser(t, store, "root", true)
 	alice := createGlobalRoleTestUser(t, store, "alice", false)
 	manager := createGlobalRole(t, store, "role_manager", db.CanManageGlobalRoles)
-	assignment := assignGlobally(t, store, alice.ID, manager.ID)
+	assignment := assignGlobally(t, store, alice.ID, manager)
 	tx, err := store.Sql().Begin()
 	require.NoError(t, err)
 	defer func() { _ = tx.Rollback() }()
@@ -137,31 +124,26 @@ func TestRequireAdministrator_CountsAdminsAndRoleHolders(t *testing.T) {
 	count, err = store.CountAdministrators(tx, db.AdministratorExclusion{AdminOfUser: root.ID, AssignmentID: assignment})
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), count)
-	assert.ErrorIs(t, store.RequireAdministrator(tx, db.AdministratorExclusion{UserID: root.ID, RoleID: manager.ID}), db.ErrLastGlobalAdministrator)
+	assert.ErrorIs(t, store.RequireAdministrator(tx, db.AdministratorExclusion{UserID: root.ID, RoleID: manager}), db.ErrLastGlobalAdministrator)
 	require.NoError(t, store.RequireAdministrator(tx, db.AdministratorExclusion{UserID: root.ID}))
 }
 
-func TestGetRoleAssignments_IncludesGlobalMembers(t *testing.T) {
+// Deleting a project role with its assignments does not touch global assignments: the tables are unrelated.
+func TestDeleteRoleWithAssignments_LeavesGlobalRolesAlone(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	createGlobalRoleTestUser(t, store, "root", true)
 	alice := createGlobalRoleTestUser(t, store, "alice", false)
 	bob := createGlobalRoleTestUser(t, store, "bob", false)
 	auditor := createGlobalRole(t, store, "auditor", db.CanReadGlobalAudit)
+	assignGlobally(t, store, alice.ID, auditor)
+	role, err := store.CreateRole(db.Role{Slug: "auditor", Name: "Auditor"})
+	require.NoError(t, err)
 	project, err := store.CreateProject(db.Project{Name: "p"})
 	require.NoError(t, err)
-	require.NoError(t, store.CreateProjectUser(project.ID, bob.ID, []int{auditor.ID}))
-	assignGlobally(t, store, alice.ID, auditor.ID)
+	require.NoError(t, store.CreateProjectUser(project.ID, bob.ID, []int{role.ID}))
 
-	assigned, err := store.GetRoleAssignments(auditor.ID)
+	removed, err := store.DeleteRoleWithAssignments(role.ID)
 	require.NoError(t, err)
-	require.Len(t, assigned.GlobalMembers, 1)
-	assert.Equal(t, alice.ID, assigned.GlobalMembers[0].UserID)
-	assert.Equal(t, db.RoleImpact{Members: 2, Projects: 1}, assigned.Impact())
-
-	removed, err := store.DeleteRoleWithAssignments(auditor.ID)
-	require.NoError(t, err)
-	assert.Equal(t, assigned.Impact(), removed.Impact())
-	assert.Empty(t, globalAssignmentsOf(t, store, alice.ID))
-	_, err = store.GetGlobalRoleBySlug("auditor")
-	assert.ErrorIs(t, err, db.ErrNotFound)
+	assert.Equal(t, db.RoleImpact{Members: 1, Projects: 1}, removed.Impact())
+	assert.Len(t, globalAssignmentsOf(t, store, alice.ID), 1)
 }

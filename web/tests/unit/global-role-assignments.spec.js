@@ -19,19 +19,14 @@ describe('GlobalRoleAssignments.vue', () => {
   describe('availableRoles', () => {
     const { availableRoles } = GlobalRoleAssignments.computed;
 
-    it('offers only unheld global roles that grant something', () => {
-      const role = (id, slug, builtin, projectId, globalPermissions) => ({
-        id, slug, builtin, project_id: projectId, global_permissions: globalPermissions,
-      });
+    it('offers only the global roles the user does not hold', () => {
       const roles = [
-        role(1, 'owner', true, null, 0),
-        role(2, 'auditor', false, null, 8),
-        role(3, 'ops', false, null, 4),
-        role(4, 'dev', false, 7, 0),
-        role(5, 'empty', false, null, 0),
+        { id: 2, slug: 'auditor', permissions: 8 },
+        { id: 3, slug: 'ops', permissions: 4 },
+        { id: 5, slug: 'empty', permissions: 0 },
       ];
       const assignments = [{ id: 10, role_id: 3 }];
-      expect(availableRoles.call({ roles, assignments }).map((r) => r.slug)).to.deep.equal(['auditor']);
+      expect(availableRoles.call({ roles, assignments }).map((r) => r.slug)).to.deep.equal(['auditor', 'empty']);
     });
 
     it('is empty without roles', () => {
@@ -84,8 +79,8 @@ describe('GlobalRoleAssignments.vue', () => {
       const c = ctx();
       http.respond((config) => {
         switch (config.url) {
-          case '/api/roles': return [{ id: 2, slug: 'auditor' }];
-          case '/api/roles/permissions': return [{ id: 'global.audit.read', permission: 8 }];
+          case '/api/global-roles': return [{ id: 2, slug: 'auditor' }];
+          case '/api/global-roles/permissions': return [{ id: 'global.audit.read', permission: 8 }];
           case '/api/users/5/global-roles': return [{ id: 10, role_id: 2 }];
           case '/api/users/5/global-permissions': return { permissions: 8, decisions: [] };
           default: throw new Error(`unexpected ${config.url}`);
