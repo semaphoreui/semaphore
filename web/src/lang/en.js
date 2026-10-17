@@ -514,7 +514,6 @@ export default {
   sharedRoles: 'Shared roles',
   builtInRoles: 'Built-in roles',
   shared: 'Shared',
-  projectLevelRoles: 'Project-level roles',
   slug: 'Slug',
   slug_required: 'Slug is required',
   slugHint: 'Unique identifier (letters, digits, underscores and hyphens, up to 100 characters)',

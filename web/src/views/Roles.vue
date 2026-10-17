@@ -3,21 +3,11 @@
     <EditDialog
       v-model="editDialog"
       save-button-text="Save"
-      :title="editDialogTitle"
+      :title="itemId === 'new' ? $t('newRole') : $t('editRole')"
       @save="loadItems()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
-        <GlobalRoleForm
-          v-if="isGlobalTab"
-          :item-id="itemId"
-          @save="onSave"
-          @error="onError"
-          :need-save="needSave"
-          :need-reset="needReset"
-          :is-admin="true"
-        />
         <RoleForm
-          v-else
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -30,15 +20,15 @@
     </EditDialog>
 
     <YesNoDialog
-      :title="$t(isGlobalTab ? 'deleteGlobalRole' : 'deleteRole')"
-      :text="$t(isGlobalTab ? 'askDeleteGlobalRole' : 'askDeleteRole')"
+      :title="$t('deleteRole')"
+      :text="$t('askDeleteRole')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
 
     <YesNoDialog
-      :title="$t(isGlobalTab ? 'deleteGlobalRole' : 'deleteRole')"
-      :text="roleImpact ? $t(forceDeleteQuestionKey, roleImpact) : ''"
+      :title="$t('deleteRole')"
+      :text="roleImpact ? $t('askDeleteAssignedRole', roleImpact) : ''"
       :yes-button-title="$t('deleteWithAssignments')"
       :max-width="520"
       v-model="forceDeleteDialog"
@@ -56,20 +46,11 @@
         :disabled="!features.custom_roles_management"
         color="primary"
         @click="editItem('new')"
-        >{{ $t(isGlobalTab ? 'newGlobalRole' : 'newRole') }}</v-btn
+        >{{ $t('newRole') }}</v-btn
       >
     </v-toolbar>
 
     <TeamMenu v-if="projectId" :project-id="projectId" :system-info="systemInfo" />
-
-    <v-tabs v-else v-model="tab" class="px-4">
-      <v-tab key="project" href="#project" data-testid="roles-tab-project">
-        {{ $t('projectLevelRoles') }}
-      </v-tab>
-      <v-tab key="global" href="#global" data-testid="roles-tab-global">
-        {{ $t('globalRoles') }}
-      </v-tab>
-    </v-tabs>
 
     <v-divider style="margin-top: -1px" />
 
@@ -92,14 +73,10 @@
       </span>
     </v-alert>
 
-    <v-alert v-if="isGlobalTab" text dense type="info" class="mx-4 mt-4">
-      {{ $t('globalRolesHint') }}
-    </v-alert>
-
     <v-data-table
-      :headers="tableHeaders"
+      :headers="headers"
       :items="items"
-      :item-key="IDFieldName"
+      item-key="slug"
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
     >
@@ -111,19 +88,15 @@
         <v-chip small label>{{ $t(roleScope(item)) }}</v-chip>
       </template>
       <template v-slot:item.permissions="{ item }">
-        <TemplatePermissionsChips
-          class="py-1"
-          :scope="isGlobalTab ? 'global' : 'default'"
-          :permissions="item.permissions || 0"
-        />
+        <TemplatePermissionsChips class="py-1" :permissions="item.permissions" />
       </template>
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap">
-          <v-btn icon class="mr-1" @click="askDeleteItem(item[IDFieldName])">
+          <v-btn icon class="mr-1" @click="askDeleteItem(item.slug)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item[IDFieldName])">
+          <v-btn icon class="mr-1" @click="editItem(item.slug)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>
@@ -139,7 +112,6 @@ import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import RoleForm from '@/components/EditRoleForm.vue';
-import GlobalRoleForm from '@/components/EditGlobalRoleForm.vue';
 import TeamMenu from '@/components/TeamMenu.vue';
 import TemplatePermissionsChips from '@/components/TemplatePermissionsChips.vue';
 import { roleScope } from '@/lib/roles';
@@ -147,9 +119,8 @@ import { GLOBAL_PERMISSIONS, USER_PERMISSIONS } from '@/lib/constants';
 import { hasGlobalPermission } from '@/lib/role-permissions';
 
 /**
- * The roles page. Inside a project it lists the project's own roles. On the instance it has
- * two tabs: project-level roles shared by every project, and global roles that grant
- * instance-wide permissions.
+ * Project roles. Inside a project it lists the project's own roles; on the instance it lists the
+ * shared roles every project can use. Global roles live on the Users page.
  */
 export default {
   mixins: [ItemListPageBase],
@@ -164,70 +135,23 @@ export default {
     TeamMenu,
     YesNoDialog,
     RoleForm,
-    GlobalRoleForm,
     EditDialog,
     TemplatePermissionsChips,
   },
 
   data() {
     return {
-      tab: 'project',
       roleImpact: null,
       forceDeleteDialog: false,
     };
   },
 
   computed: {
-    isGlobalTab() {
-      return !this.projectId && this.tab === 'global';
-    },
-
-    /** Project roles are addressed by slug, global roles by id. */
     IDFieldName() {
-      return this.isGlobalTab ? 'id' : 'slug';
+      return 'slug';
     },
 
-    forceDeleteQuestionKey() {
-      return this.isGlobalTab ? 'askDeleteAssignedGlobalRole' : 'askDeleteAssignedRole';
-    },
-
-    editDialogTitle() {
-      if (this.isGlobalTab) {
-        return this.itemId === 'new' ? this.$t('newGlobalRole') : this.$t('editGlobalRole');
-      }
-      return this.itemId === 'new' ? this.$t('newRole') : this.$t('editRole');
-    },
-
-    tableHeaders() {
-      const headers = [
-        {
-          text: this.$i18n.t('name'),
-          value: 'name',
-          width: '50%',
-        },
-      ];
-      if (!this.isGlobalTab) {
-        headers.push({
-          text: this.$i18n.t('roleScope'),
-          value: 'scope',
-          sortable: false,
-        });
-      }
-      headers.push({
-        text: this.$i18n.t(this.isGlobalTab ? 'globalPermissions' : 'permissions'),
-        value: 'permissions',
-      });
-      if (this.allowActions()) {
-        headers.push({
-          text: this.$i18n.t('actions'),
-          value: 'actions',
-          sortable: false,
-        });
-      }
-      return headers;
-    },
-
-    /** Project roles follow the project permission, instance roles the global one. */
+    /** Project roles follow the project permission, shared roles the global one. */
     canManageRoles() {
       return this.allowActions();
     },
@@ -235,11 +159,6 @@ export default {
 
   watch: {
     async projectId() {
-      await this.loadItems();
-    },
-
-    async tab() {
-      this.items = null;
       await this.loadItems();
     },
   },
@@ -255,7 +174,27 @@ export default {
     },
 
     getHeaders() {
-      return [];
+      return [
+        {
+          text: this.$i18n.t('name'),
+          value: 'name',
+          width: '50%',
+        },
+        {
+          text: this.$i18n.t('roleScope'),
+          value: 'scope',
+          sortable: false,
+        },
+        {
+          text: this.$i18n.t('permissions'),
+          value: 'permissions',
+        },
+        {
+          text: this.$i18n.t('actions'),
+          value: 'actions',
+          sortable: false,
+        },
+      ];
     },
 
     async returnToProjects() {
@@ -292,21 +231,17 @@ export default {
     },
 
     getItemsUrl() {
-      if (this.projectId) {
-        return `/api/project/${this.projectId}/roles`;
-      }
-      return this.isGlobalTab ? '/api/global-roles' : '/api/roles';
+      return this.projectId ? `/api/project/${this.projectId}/roles` : '/api/roles';
     },
 
     getSingleItemUrl() {
-      if (this.projectId) {
-        return `/api/project/${this.projectId}/roles/${this.itemId}`;
-      }
-      return this.isGlobalTab ? `/api/global-roles/${this.itemId}` : `/api/roles/${this.itemId}`;
+      return this.projectId
+        ? `/api/project/${this.projectId}/roles/${this.itemId}`
+        : `/api/roles/${this.itemId}`;
     },
 
     getEventName() {
-      return this.isGlobalTab ? 'i-global-role' : 'i-role';
+      return 'i-role';
     },
   },
 };

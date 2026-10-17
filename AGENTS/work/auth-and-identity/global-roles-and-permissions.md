@@ -26,7 +26,8 @@ assigned global roles.
   `RoleDeleteMetadata`) and `assign|unassign` events.
 - **Names.** "Global role" means only the new entity. The project-level roles with `project_id is null`
   are **shared roles** in code (`GetSharedRoles`, `GetSharedRoleBySlug`, `GetProjectOrSharedRoleBySlug`,
-  `GetProjectAndSharedRoles`, UI scope `shared`) and "Project-level roles" on the UI tab. Global roles are
+  `GetProjectAndSharedRoles`, UI scope `shared`) and stay on the Roles page. Global roles are managed on
+  the "Global roles" tab of the Users page (`GlobalRolesList.vue`, owner's choice 2026-10-17) and are
   addressed by id in the API (`/global-roles/{role_id}`), project roles by slug.
 - Global and project slugs are independent (a global role may share a slug with a project role).
   Store-to-store export (`services/export`) does not carry global roles or their assignments. A dev
@@ -37,8 +38,8 @@ assigned global roles.
   `DeleteUser` read `user__global_role` through the shared, exported helpers `LockGlobalRoleState` /
   `RequireAdministrator` / `GlobalRoleAssignmentSelect` that the Pro store reuses for `UpdateGlobalRole`,
   `DeleteGlobalRoleWithAssignments` and `DeleteGlobalRoleAssignment`). Project role updates and deletes no
-  longer take the lock. The Roles page tabs ("Project-level roles", "Global roles") and the user's "Roles"
-  tab need `features.custom_roles_management`.
+  longer take the lock. The Roles page, the Users page "Global roles" tab and the user's "Roles" tab need
+  `features.custom_roles_management`.
 - **No `revision` / string `role_id` from ex.** Roles keep `int id` + `slug`; the row lock
   `global_role_state` serializes administrator-removing transactions across HA nodes.
 - **Only four bits** (1 users, 2 roles, 4 system, 8 audit): the other ex bits have no consumer here.
