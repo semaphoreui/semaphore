@@ -2,75 +2,16 @@
   <div>
     <v-text-field v-model="item.message" :label="$t('messageOptional')" outlined dense />
 
-    <div v-for="v in template.survey_vars || []" :key="v.name">
-      <v-text-field
-        v-if="v.type === 'secret'"
-        :label="v.title"
-        :hint="v.description"
-        v-model="editedSecretEnvironment[v.name]"
-        :required="v.required"
-        class="masked-secret-input"
-        :rules="[(val) => !v.required || !!val || v.title + $t('isRequired')]"
-        outlined
-        dense
-      />
-
-      <v-select
-        clearable
-        v-else-if="v.type === 'enum' || v.type === 'select'"
-        :label="v.title + (v.required ? ' *' : '')"
-        :hint="v.description"
-        v-model="editedEnvironment[v.name]"
-        :required="v.required"
-        :rules="[(val) => !v.required || (Array.isArray(val) ? val.length > 0 : val != null) ||
-         v.title + ' ' + $t('isRequired')]"
-        :items="v.values"
-        item-text="name"
-        item-value="value"
-        :multiple="v.type === 'select'"
-        :chips="v.type === 'select'"
-        outlined
-        dense
-      >
-        <template v-if="v.type === 'select'" v-slot:selection="{ item, index }">
-          <v-chip
-            small
-            close
-            @click:close="removeSelectedItem(v.name, index)"
-          >
-            {{ item && item.name ? item.name : String(item) }}
-          </v-chip>
-        </template>
-      </v-select>
-
-      <v-textarea
-        v-else-if="v.type === 'text'"
-        :label="v.title + (v.required ? ' *' : '')"
-        :hint="v.description"
-        v-model="editedEnvironment[v.name]"
-        :required="v.required"
-        :rules="[(val) => !v.required || !!val || v.title + ' ' + $t('isRequired')]"
-        rows="3"
-        auto-grow
-        outlined
-        dense
-      />
-
-      <v-text-field
-        v-else
-        :label="v.title + (v.required ? ' *' : '')"
-        :hint="v.description"
-        v-model="editedEnvironment[v.name]"
-        :required="v.required"
-        :rules="[
-          (val) => !v.required || !!val || v.title + ' ' + $t('isRequired'),
-          (val) =>
-            !val || v.type !== 'int' || /^\d+$/.test(val) || v.title + ' ' + $t('mustBeInteger'),
-        ]"
-        outlined
-        dense
-      />
-    </div>
+    <SurveyFields
+      v-if="editedEnvironment"
+      :vars="template.survey_vars || []"
+      :value="editedEnvironment"
+      :secret-value="editedSecretEnvironment"
+      :workflow-vars="workflowVars"
+      :survey-inputs="surveyInputs"
+      @bind="(name, workflowVar) => $emit('bind', name, workflowVar)"
+      @unbind="$emit('unbind', $event)"
+    />
 
     <v-text-field
       v-model="git_branch"
@@ -130,6 +71,7 @@ import ArgsPicker from '@/components/ArgsPicker.vue';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import TaskParamsAnsibleForm from '@/components/TaskParamsAnsibleForm.vue';
 import TaskParamsTerraformForm from '@/components/TaskParamsTerraformForm.vue';
+import SurveyFields from '@/components/SurveyFields.vue';
 
 export default {
   mixins: [AppFieldsMixin],
@@ -137,12 +79,19 @@ export default {
   props: {
     value: Object,
     template: Object,
+    // Workflow task node only, passed through to SurveyFields: the workflow's
+    // survey variables a field may be bound to (null = no binding UI) and the
+    // node's current bindings (WorkflowNode.survey_inputs); `bind` and
+    // `unbind` are re-emitted for the owner to store.
+    workflowVars: { type: Array, default: null },
+    surveyInputs: { type: Array, default: () => [] },
   },
 
   components: {
     TaskParamsAnsibleForm,
     TaskParamsTerraformForm,
     ArgsPicker,
+    SurveyFields,
   },
 
   data() {
@@ -370,17 +319,6 @@ export default {
           break;
       }
       return res;
-    },
-
-    removeSelectedItem(varName, index) {
-      const env = this.editedEnvironment;
-      if (!Object.prototype.hasOwnProperty.call(env, varName) || !Array.isArray(env[varName])) {
-        return;
-      }
-
-      if (index < env[varName].length) {
-        env[varName].splice(index, 1);
-      }
     },
   },
 };

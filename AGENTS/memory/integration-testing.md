@@ -49,6 +49,16 @@
   58427 itself). 54 skips (ws, login, OIDC, 400s, Pro workflow endpoints) are the normal baseline.
 - A field the server nulls (e.g. `Inventory.repository_id` for non-file types since `6a4a04ba`)
   must be `x-nullable: true` in `api-docs.yml`; the openapi2 parser Dredd uses honours it.
+- Pro Dredd run (2026-10-15, exercises the 14 workflow endpoints the OSS run skips): build server
+  and hooks *with* `go.work` (`go build -o bin/semaphore-pro ./cli`, hooks to `compiled_hooks_pro`),
+  point a copy of `dredd.testing.yml` at them with absolute paths (keep it outside the repo) and
+  a wrapper that `exec`s `bin/semaphore-pro`; same DB recreate and `ECONNREFUSED 61321` retry.
+  Baseline: 127 passing, 0 failing, 32 skipped. A worktree without `web/node_modules` can use
+  the main checkout's `web/node_modules/.bin/dredd` and its `.dredd/config.json`.
+- The dredd↔goodman race also shows as `complete: 2 passing, 130 failing … 27 skipped` with every
+  transaction 401 and no `ECONNREFUSED` in the log (2026-10-16): retry until the summary says
+  `0 failing` instead of grepping for the error. A `run_in_background` Bash inherits whatever cwd the
+  session last had — use absolute paths for `go build ./cli` and the Dredd config.
 
 ## Bookwright `integration-tests/` repo
 

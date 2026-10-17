@@ -1479,6 +1479,16 @@ definitions:
         description: Number of seconds to wait before continuing (delay kind only).
       task_params:
         $ref: '#/definitions/TaskPrams'
+      survey_inputs:
+        type: array
+        description: >-
+          Task nodes only. Feeds survey variables of the node's template from the workflow's
+          survey variables (the answers the run was started with). A workflow value reaches a
+          variable only through such a binding, whatever the names. When several sources offer
+          a value for one variable: explicit edge mapping, then workflow variable, then by-name
+          edge delivery, then the node's static value, then the variable's default.
+        items:
+          $ref: "#/definitions/WorkflowNodeSurveyInput"
 
   WorkflowEdge:
     type: object
@@ -1507,6 +1517,19 @@ definitions:
         description: Pairs delivered in explicit mode. An empty list means the edge passes nothing.
         items:
           $ref: "#/definitions/WorkflowInputMapping"
+
+  WorkflowNodeSurveyInput:
+    type: object
+    required:
+      - var
+      - workflow_var
+    properties:
+      var:
+        type: string
+        description: Non-secret survey variable of the node's template.
+      workflow_var:
+        type: string
+        description: Non-secret survey variable of the workflow whose value the run collected.
 
   WorkflowInputMapping:
     type: object
@@ -1537,6 +1560,14 @@ definitions:
       revision:
         type: integer
         description: Ordinal of that revision within the workflow (read-only).
+      survey_vars:
+        type: array
+        description: >-
+          Survey asked when a run is started (the same shape as a template's survey; a secret
+          type is rejected). Stored with the graph revision, so every run knows the survey it
+          answered.
+        items:
+          $ref: "#/definitions/TemplateSurveyVar"
       nodes:
         type: array
         items:
@@ -1545,6 +1576,18 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/WorkflowEdge"
+
+  WorkflowRunRequest:
+    type: object
+    description: >-
+      Body of "Run workflow"; optional. The answers to the workflow's survey. The server applies
+      the survey defaults, rejects the start with a validation error when a required variable has
+      no value or a value does not fit its type, and drops keys that are not survey variables.
+    properties:
+      environment:
+        type: object
+        description: Survey variable name → value (a select variable takes a list of strings).
+        additionalProperties: true
 
   WorkflowRun:
     type: object
@@ -1561,6 +1604,12 @@ definitions:
       status:
         type: string
         enum: [running, success, failed, stopped, approval]
+      environment:
+        type: object
+        description: >-
+          Survey answers the run was started with, after defaults and type checks (read-only).
+          Absent for a workflow without a survey. Never holds a secret.
+        additionalProperties: true
       start:
         type: string
         format: date-time
@@ -1642,6 +1691,11 @@ definitions:
       has_runs:
         type: boolean
         description: At least one run pins this revision, so it survives later saves.
+      survey_vars:
+        type: array
+        description: Survey of this revision (see WorkflowTemplate.survey_vars).
+        items:
+          $ref: "#/definitions/TemplateSurveyVar"
 
   WorkflowApprovalResolveRequest:
     type: object
@@ -3509,6 +3563,12 @@ paths:
       tags:
         - workflow
       summary: Run workflow
+      parameters:
+        - name: Workflow run
+          in: body
+          required: false
+          schema:
+            $ref: "#/definitions/WorkflowRunRequest"
       responses:
         201:
           description: workflow run created

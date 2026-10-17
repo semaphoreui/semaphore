@@ -692,7 +692,7 @@ export default {
     // reads this instead of the raw field.
     checkInterval() {
       const n = Number(this.checkIntervalSeconds);
-      return Number.isInteger(n) && n > 0 ? n : 1;
+      return Number.isInteger(n) && n > 0 ? n : 5;
     },
 
     isUnregisteredRunner() {
@@ -807,7 +807,7 @@ ${advancedOptions}-d semaphoreui/runner:${this.version}`;
       newRunner: null,
       // Mirrors the runner-side default in util.RunnerConfig.CheckIntervalSeconds.
       // Only shapes the snippets below; the server does not store it.
-      checkIntervalSeconds: 1,
+      checkIntervalSeconds: 5,
       usageTab: null,
       registerTab: null,
       globalFilter: false,

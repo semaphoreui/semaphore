@@ -126,6 +126,15 @@ type RunnerConnectionConfig struct {
 	// SkipTLSVerify disables server certificate verification entirely.
 	// This is insecure (vulnerable to MITM) — use only for testing.
 	SkipTLSVerify bool `json:"skip_tls_verify,omitempty" env:"SEMAPHORE_RUNNER_SKIP_TLS_VERIFY"`
+	// TimeoutSeconds bounds how long a runner→server request may wait for the
+	// server to answer: the TCP connect, the TLS handshake and the wait for the
+	// response headers each get this budget. Without it a server that accepts
+	// the connection but never replies freezes the runner's poll loop — and
+	// with it the heartbeat — until the OS gives up.
+	// Uploading the request body is deliberately not bounded, so a large log
+	// batch on a slow link is not cut off.
+	// Plain int, not time.Duration, for env-binding simplicity.
+	TimeoutSeconds int `json:"timeout_seconds,omitempty" default:"3" env:"SEMAPHORE_RUNNER_CONNECTION_TIMEOUT_SECONDS"`
 }
 
 // ExecutorType identifies the strategy the runner uses to execute each task. The default
@@ -169,7 +178,7 @@ type RunnerConfig struct {
 
 	// CheckIntervalSeconds is how often the runner polls the server for new jobs.
 	// Plain int, not time.Duration, for env-binding simplicity.
-	CheckIntervalSeconds int `json:"check_interval_seconds,omitempty" default:"1" env:"SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS"`
+	CheckIntervalSeconds int `json:"check_interval_seconds,omitempty" default:"5" env:"SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS"`
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
 
@@ -746,11 +755,19 @@ const (
 )
 
 // Default poll interval for a runner asking the server for work.
-const defaultRunnerCheckIntervalSec = 1
+const defaultRunnerCheckIntervalSec = 5
 
 // Larger overflows time.Duration and panics time.NewTicker. Kept as int64: the
 // value exceeds int on 32-bit release targets (386, arm).
 const maxRunnerCheckIntervalSec int64 = int64(math.MaxInt64) / int64(time.Second)
+
+// Default timeout for a runner→server request. Kept below the default poll
+// interval so a stuck request cannot outlive the cycle that started it.
+const defaultRunnerConnectionTimeoutSec = 3
+
+// Larger overflows time.Duration. Shares the bound with the poll interval:
+// both are seconds cast to a duration.
+const maxRunnerConnectionTimeoutSec = maxRunnerCheckIntervalSec
 
 // GetSecretsPath returns the secrets path from configuration.
 // Used for backward compatibility with legacy top-level secrets_path.
@@ -818,6 +835,21 @@ func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
 		res = offline
 	}
 	return res
+}
+
+// RunnerConnectionTimeout returns the per-request budget for the runner→server
+// connect, TLS handshake and response-header wait. Out-of-range values fall
+// back to the default: 0 is indistinguishable from "unset" after defaults are
+// applied, and oversized values overflow time.Duration.
+func (conf *ConfigType) RunnerConnectionTimeout() time.Duration {
+	sec := int64(defaultRunnerConnectionTimeoutSec)
+	if conf.Runner != nil && conf.Runner.Connection != nil {
+		if configured := int64(conf.Runner.Connection.TimeoutSeconds); configured > 0 &&
+			configured <= maxRunnerConnectionTimeoutSec {
+			sec = configured
+		}
+	}
+	return time.Duration(sec) * time.Second
 }
 
 // RunnerCheckInterval returns how often this runner polls the server for new
