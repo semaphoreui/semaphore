@@ -400,7 +400,7 @@ semaphore runner start --config ./config.runner.json</pre
       <span v-html="$t('project_runners_only_pro')"></span>
       <v-btn
         dark
-        v-if="isAdmin"
+        v-if="canManageSystem"
         class="ml-2"
         color="hsl(348deg, 86%, 61%)"
         @click="upgradeToPro('project_runners')"
@@ -479,7 +479,7 @@ semaphore runner start --config ./config.runner.json</pre
           v-model="item.active"
           inset
           @change="setActive(item.id, item.active)"
-          :disabled="item.project_id == null && !isAdmin"
+          :disabled="item.project_id == null && !canManageSystem"
         />
       </template>
 
@@ -575,7 +575,7 @@ semaphore runner start --config ./config.runner.json</pre
           >
             <template v-slot:activator="{ on, attrs }">
               <v-btn
-                :disabled="item.project_id == null && !isAdmin"
+                :disabled="item.project_id == null && !canManageSystem"
                 class="mr-1"
                 icon
                 v-bind="attrs"
@@ -598,7 +598,7 @@ semaphore runner start --config ./config.runner.json</pre
             icon
             class="mr-1"
             @click="askDeleteItem(item.id)"
-            :disabled="item.project_id == null && !isAdmin"
+            :disabled="item.project_id == null && !canManageSystem"
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
@@ -608,7 +608,7 @@ semaphore runner start --config ./config.runner.json</pre
             icon
             class="mr-1"
             @click="editItem(item.id)"
-            :disabled="item.project_id == null && !isAdmin"
+            :disabled="item.project_id == null && !canManageSystem"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
@@ -621,7 +621,7 @@ semaphore runner start --config ./config.runner.json</pre
                 icon
                 class="mr-1"
                 @click="clearCache(item)"
-                :disabled="item.project_id == null && !isAdmin"
+                :disabled="item.project_id == null && !canManageSystem"
               >
                 <v-icon>mdi-broom</v-icon>
               </v-btn>
@@ -652,6 +652,8 @@ import axios from 'axios';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import PageMixin from '@/components/PageMixin';
 import HighlightedCard from '@/components/HighlightedCard.vue';
+import { GLOBAL_PERMISSIONS } from '@/lib/constants';
+import { hasGlobalPermission } from '@/lib/role-permissions';
 
 export default {
   mixins: [ItemListPageBase, PageMixin],
@@ -675,6 +677,10 @@ export default {
   },
 
   computed: {
+    canManageSystem() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageSystem);
+    },
+
     webHost() {
       return this.systemInfo?.web_host || window.location.origin;
     },

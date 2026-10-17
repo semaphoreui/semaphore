@@ -62,9 +62,17 @@ type ProjectRoleMetadata struct {
 	DeletedRole RoleRef `json:"deleted_role,omitzero"`
 }
 
+// RoleMetadata describes a role definition: project permission names for a project role, global permission
+// ids for a global role.
 type RoleMetadata struct {
 	Slug        string   `json:"slug"`
 	Permissions []string `json:"permissions"`
+}
+
+// GlobalRoleMetadata describes a global role given to or taken from a user; the target is the user.
+type GlobalRoleMetadata struct {
+	Role              RoleRef  `json:"role"`
+	GlobalPermissions []string `json:"global_permissions"`
 }
 
 type RoleDeleteMetadata struct {
@@ -100,6 +108,17 @@ type RetentionMetadata struct {
 	Deleted       int64 `json:"deleted"`
 	LastSeq       int64 `json:"last_seq"`
 	RetentionDays int   `json:"retention_days"`
+}
+
+// GlobalPermissionNames lists the global permissions of a mask by their catalog ids.
+func GlobalPermissionNames(p db.GlobalPermission) []string {
+	names := []string{}
+	for _, definition := range db.GlobalPermissionCatalog() {
+		if p.Can(definition.Permission) {
+			names = append(names, definition.ID)
+		}
+	}
+	return names
 }
 
 func PermissionNames(p db.ProjectUserPermission) []string {

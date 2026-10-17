@@ -634,7 +634,7 @@ func TestBackupKeepsBuiltinAndGlobalGrants(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
 	workflows := proFactory.NewWorkflowStore(store)
 	p, tpl := createBackupFixture(t, store)
-	runner, err := store.GetGlobalRoleBySlug("task_runner")
+	runner, err := store.GetSharedRoleBySlug("task_runner")
 	require.NoError(t, err)
 	global, err := store.CreateRole(db.Role{Slug: "deployer", Name: "Deployer Name"})
 	require.NoError(t, err)

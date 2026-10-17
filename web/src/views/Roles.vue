@@ -42,7 +42,7 @@
       <v-toolbar-title>{{ $t('Roles') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        v-if="canManageRoles"
         :disabled="!features.custom_roles_management"
         color="primary"
         @click="editItem('new')"
@@ -115,8 +115,13 @@ import RoleForm from '@/components/EditRoleForm.vue';
 import TeamMenu from '@/components/TeamMenu.vue';
 import TemplatePermissionsChips from '@/components/TemplatePermissionsChips.vue';
 import { roleScope } from '@/lib/roles';
-import { USER_PERMISSIONS } from '@/lib/constants';
+import { GLOBAL_PERMISSIONS, USER_PERMISSIONS } from '@/lib/constants';
+import { hasGlobalPermission } from '@/lib/role-permissions';
 
+/**
+ * Project roles. Inside a project it lists the project's own roles; on the instance it lists the
+ * shared roles every project can use. Global roles live on the Users page.
+ */
 export default {
   mixins: [ItemListPageBase],
 
@@ -145,6 +150,11 @@ export default {
     IDFieldName() {
       return 'slug';
     },
+
+    /** Project roles follow the project permission, shared roles the global one. */
+    canManageRoles() {
+      return this.allowActions();
+    },
   },
 
   watch: {
@@ -154,6 +164,15 @@ export default {
   },
 
   methods: {
+    // Called from data() of the list mixin, before computed properties exist,
+    // so the props are read directly.
+    allowActions() {
+      if (this.projectId) {
+        return this.can(USER_PERMISSIONS.manageProjectResources);
+      }
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageRoles);
+    },
+
     getHeaders() {
       return [
         {

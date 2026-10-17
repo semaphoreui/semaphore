@@ -2,8 +2,9 @@
   <div v-if="items != null">
     <EditDialog
       v-model="editDialog"
-      save-button-text="Save"
-      :title="$t('editUser')"
+      :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
+      :title="itemId === 'new' ? $t('newUser') : $t('editUser')"
+      :dont-close-on-save="itemId === 'new'"
       @save="loadItems()"
       :hide-buttons="hideEditDialogButtons"
     >
@@ -11,11 +12,12 @@
         <UserForm
           :project-id="projectId"
           :item-id="itemId"
-          @save="onSave"
+          @save="onSave($event); onUserSaved($event)"
           @error="onError"
           :need-save="needSave"
           :need-reset="needReset"
-          :is-admin="true"
+          :is-admin="isAdmin"
+          :can-manage-global-roles="canAssignGlobalRoles"
           @hide-action-buttons="hideEditDialogButtons = true"
           @show-action-buttons="hideEditDialogButtons = false"
           :auth-methods="authMethods"
@@ -37,12 +39,42 @@
       </v-btn>
       <v-toolbar-title>{{ $t('users') }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn color="primary" @click="editItem('new')">{{ $t('newUser') }}</v-btn>
+      <v-btn
+        v-if="tab === 'users' && canManageUsers"
+        color="primary"
+        @click="editItem('new')"
+      >
+        {{ $t('newUser') }}
+      </v-btn>
+      <v-btn
+        v-if="tab === 'global-roles' && canManageGlobalRoles"
+        :disabled="!(features || {}).custom_roles_management"
+        color="primary"
+        @click="$refs.globalRoles.editItem('new')"
+      >
+        {{ $t('newGlobalRole') }}
+      </v-btn>
     </v-toolbar>
 
-    <v-divider />
+    <v-tabs v-if="canManageGlobalRoles" v-model="tab" class="px-4">
+      <v-tab key="users" href="#users" data-testid="users-tab-users">{{ $t('users') }}</v-tab>
+      <v-tab key="global-roles" href="#global-roles" data-testid="users-tab-global-roles">
+        {{ $t('globalRoles') }}
+      </v-tab>
+    </v-tabs>
+
+    <v-divider style="margin-top: -1px" />
+
+    <GlobalRolesList
+      v-if="tab === 'global-roles'"
+      ref="globalRoles"
+      :user="user"
+      :is-admin="isAdmin"
+      :features="features"
+    />
 
     <v-data-table
+      v-else
       :headers="headers"
       :items="items"
       class="mt-4"
@@ -83,6 +115,9 @@ import YesNoDialog from '@/components/YesNoDialog.vue';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditDialog from '@/components/EditDialog.vue';
 import UserForm from '@/components/UserForm.vue';
+import GlobalRolesList from '@/components/GlobalRolesList.vue';
+import { GLOBAL_PERMISSIONS } from '@/lib/constants';
+import { hasGlobalPermission } from '@/lib/role-permissions';
 
 export default {
   mixins: [ItemListPageBase],
@@ -90,21 +125,54 @@ export default {
   props: {
     authMethods: Object,
     systemInfo: Object,
+    features: Object,
+  },
+
+  computed: {
+    canManageUsers() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageUsers);
+    },
+    canManageGlobalRoles() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageRoles);
+    },
+
+    // Assigning global roles is a Pro feature, like managing the roles themselves.
+    canAssignGlobalRoles() {
+      return this.canManageGlobalRoles && !!(this.features || {}).custom_roles_management;
+    },
   },
 
   components: {
     YesNoDialog,
     UserForm,
     EditDialog,
+    GlobalRolesList,
   },
 
   data() {
     return {
+      tab: 'users',
       hideEditDialogButtons: false,
     };
   },
 
   methods: {
+    // Called from data() of the list mixin, before computed properties exist,
+    // so the props are read directly.
+    allowActions() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageUsers);
+    },
+
+    // A created user stays open for editing, so that roles can be assigned right away.
+    async onUserSaved(e) {
+      if (e.action !== 'new' || !e.item || !e.item.id) {
+        return;
+      }
+      this.itemId = e.item.id;
+      EventBus.$emit('i-snackbar', { color: 'success', text: this.$i18n.t('userCreated') });
+      await this.loadItems();
+    },
+
     getHeaders() {
       return [
         {

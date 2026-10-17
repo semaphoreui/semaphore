@@ -78,6 +78,7 @@ func DelayMiddleware(delay time.Duration) func(http.Handler) http.Handler {
 // Route declares all routes
 func Route(
 	store db.Store,
+	globalRoleStore db.GlobalRoleStore,
 	terraformStore db.TerraformStore,
 	workflowStore db.WorkflowManager,
 	ansibleTaskRepo db.AnsibleTaskRepository,
@@ -117,6 +118,7 @@ func Route(
 	globalRunnerController := NewGlobalRunnerController(runnerService)
 	taskController := projects.NewTaskController(store, ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
+	globalRolesController := proApi.NewGlobalRolesController(globalRoleStore, store)
 	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
@@ -192,7 +194,7 @@ func Route(
 	authenticatedWS.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 
 	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
-	authenticatedAPI.Use(csrfProtectionMiddleware, StoreMiddleware, JSONMiddleware, authentication)
+	authenticatedAPI.Use(csrfProtectionMiddleware, StoreMiddleware, JSONMiddleware, globalRoleStoreMiddleware(globalRoleStore), authentication)
 
 	authenticatedAPI.Path("/info").HandlerFunc(systemInfoController.GetSystemInfo).Methods("GET", "HEAD")
 
@@ -208,7 +210,9 @@ func Route(
 	authenticatedAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
 
 	authenticatedAPI.Path("/users").HandlerFunc(usersController.GetUsers).Methods("GET", "HEAD")
-	authenticatedAPI.Path("/users").HandlerFunc(usersController.AddUser).Methods("POST")
+	authenticatedAPI.Path("/users").Handler(
+		globalPermissionMiddleware(db.CanManageGlobalUsers)(http.HandlerFunc(usersController.AddUser)),
+	).Methods("POST")
 	authenticatedAPI.Path("/user").HandlerFunc(userController.GetUser).Methods("GET", "HEAD")
 
 	authenticatedAPI.Path("/apps").HandlerFunc(getApps).Methods("GET", "HEAD")
@@ -226,26 +230,24 @@ func Route(
 	auditAPI.Path("/events").HandlerFunc(getAuditEvents(auditController.GetEvents)).Methods("GET")
 	auditAPI.Path("/events/export").HandlerFunc(auditController.ExportEvents).Methods("GET")
 
-	adminAPI := authenticatedAPI.NewRoute().Subrouter()
-	adminAPI.Use(adminMiddleware)
-	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
-	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
-	adminAPI.Path("/admin/info").HandlerFunc(getAdminInfo).Methods("GET", "HEAD")
+	// Instance settings: options, apps, runners, cluster, active tasks.
+	systemAPI := authenticatedAPI.NewRoute().Subrouter()
+	systemAPI.Use(globalPermissionMiddleware(db.CanManageGlobalSystem))
+	systemAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
+	systemAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
+	systemAPI.Path("/admin/info").HandlerFunc(getAdminInfo).Methods("GET", "HEAD")
 
-	adminAPI.Path("/cluster").HandlerFunc(getClusterStatus).Methods("GET", "HEAD")
-	adminAPI.Path("/cluster/tasks").HandlerFunc(getClusterTasks).Methods("GET", "HEAD")
-	adminAPI.Path("/cluster/tasks").HandlerFunc(clearClusterTasks).Methods("DELETE")
+	systemAPI.Path("/cluster").HandlerFunc(getClusterStatus).Methods("GET", "HEAD")
+	systemAPI.Path("/cluster/tasks").HandlerFunc(getClusterTasks).Methods("GET", "HEAD")
+	systemAPI.Path("/cluster/tasks").HandlerFunc(clearClusterTasks).Methods("DELETE")
 
-	adminAPI.Path("/runners").HandlerFunc(globalRunnerController.GetRunners).Methods("GET", "HEAD")
-	adminAPI.Path("/runners").HandlerFunc(globalRunnerController.AddRunner).Methods("POST", "HEAD")
-	adminAPI.Path("/runner_tags").HandlerFunc(globalRunnerController.GetRunnerTags).Methods("GET", "HEAD")
+	systemAPI.Path("/runners").HandlerFunc(globalRunnerController.GetRunners).Methods("GET", "HEAD")
+	systemAPI.Path("/runners").HandlerFunc(globalRunnerController.AddRunner).Methods("POST", "HEAD")
+	systemAPI.Path("/runner_tags").HandlerFunc(globalRunnerController.GetRunnerTags).Methods("GET", "HEAD")
 
-	adminAPI.Path("/roles").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
-	adminAPI.Path("/roles").HandlerFunc(rolesController.AddRole).Methods("POST", "HEAD")
+	systemAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
 
-	adminAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
-
-	globalRunnersAPI := adminAPI.PathPrefix("/runners").Subrouter()
+	globalRunnersAPI := systemAPI.PathPrefix("/runners").Subrouter()
 	globalRunnersAPI.Use(globalRunnerController.RunnerMiddleware)
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(globalRunnerController.GetRunner).Methods("GET", "HEAD")
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(globalRunnerController.UpdateRunner).Methods("PUT", "POST")
@@ -254,23 +256,46 @@ func Route(
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(globalRunnerController.DeleteRunner).Methods("DELETE")
 	globalRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(globalRunnerController.ClearRunnerCache).Methods("DELETE")
 
-	rolesAPI := adminAPI.PathPrefix("/roles").Subrouter()
-	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.GetGlobalRole).Methods("GET", "HEAD")
-	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
-	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
-
-	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
+	appsAPI := systemAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)
 	appsAPI.Path("/{app_id}").HandlerFunc(getApp).Methods("GET", "HEAD")
 	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("PUT", "POST")
 	appsAPI.Path("/{app_id}/active").HandlerFunc(setAppActive).Methods("POST")
 	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("DELETE")
 
-	adminAPI.Path("/tasks").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
-	tasksAPI := adminAPI.PathPrefix("/tasks").Subrouter()
+	systemAPI.Path("/tasks").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
+	tasksAPI := systemAPI.PathPrefix("/tasks").Subrouter()
 	tasksAPI.Use(tasks.TaskMiddleware)
 	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
 	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.DeleteTask).Methods("DELETE")
+
+	// Global roles and who holds them. The catalog route comes before the role routes so that "permissions"
+	// is never read as a slug.
+	rolesAdminAPI := authenticatedAPI.NewRoute().Subrouter()
+	rolesAdminAPI.Use(globalPermissionMiddleware(db.CanManageGlobalRoles))
+	rolesAdminAPI.Path("/roles").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
+	rolesAdminAPI.Path("/roles").HandlerFunc(rolesController.AddRole).Methods("POST", "HEAD")
+
+	rolesAPI := rolesAdminAPI.PathPrefix("/roles").Subrouter()
+	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.GetGlobalRole).Methods("GET", "HEAD")
+	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
+	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
+
+	// The catalog goes first so that "permissions" is never read as a role id.
+	rolesAdminAPI.Path("/global-roles/permissions").HandlerFunc(globalRolesController.GetGlobalPermissionCatalog).Methods("GET", "HEAD")
+	rolesAdminAPI.Path("/global-roles").HandlerFunc(globalRolesController.GetGlobalRoles).Methods("GET", "HEAD")
+	rolesAdminAPI.Path("/global-roles").HandlerFunc(globalRolesController.AddGlobalRole).Methods("POST")
+
+	globalRolesAPI := rolesAdminAPI.PathPrefix("/global-roles").Subrouter()
+	globalRolesAPI.Path("/{role_id}").HandlerFunc(globalRolesController.GetGlobalRole).Methods("GET", "HEAD")
+	globalRolesAPI.Path("/{role_id}").HandlerFunc(globalRolesController.UpdateGlobalRole).Methods("PUT", "POST")
+	globalRolesAPI.Path("/{role_id}").HandlerFunc(globalRolesController.DeleteGlobalRole).Methods("DELETE")
+
+	globalRoleAssignmentsAPI := rolesAdminAPI.PathPrefix("/users/{user_id}/global-roles").Subrouter()
+	globalRoleAssignmentsAPI.Path("").HandlerFunc(globalRolesController.GetGlobalRoleAssignments).Methods("GET", "HEAD")
+	globalRoleAssignmentsAPI.Path("").HandlerFunc(globalRolesController.AddGlobalRoleAssignment).Methods("POST")
+	globalRoleAssignmentsAPI.Path("/{assignment_id}").HandlerFunc(globalRolesController.DeleteGlobalRoleAssignment).Methods("DELETE")
+	rolesAdminAPI.Path("/users/{user_id}/global-permissions").HandlerFunc(globalRolesController.GetEffectiveGlobalPermissions).Methods("GET", "HEAD")
 
 	userUserAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
 	userUserAPI.Use(usersController.ReadonlyUserMiddleware)
@@ -374,7 +399,7 @@ func Route(
 	projectRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(projectRunnerController.ClearRunnerCache).Methods("DELETE")
 
 	projectUserAPI.Path("/roles").HandlerFunc(rolesController.GetProjectRoles).Methods("GET", "HEAD")
-	projectUserAPI.Path("/roles/all").HandlerFunc(rolesController.GetProjectAndGlobalRoles).Methods("GET", "HEAD")
+	projectUserAPI.Path("/roles/all").HandlerFunc(rolesController.GetProjectAndSharedRoles).Methods("GET", "HEAD")
 	projectUserAPI.Path("/roles").HandlerFunc(rolesController.AddProjectRole).Methods("POST")
 
 	projectRolesAPI := projectUserAPI.PathPrefix("/roles").Subrouter()

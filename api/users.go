@@ -48,7 +48,14 @@ func (c *UsersController) GetUsers(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	if currentUser.Admin {
+	// Everyone may look members up by name; the details are for those who manage users.
+	managesUsers, err := hasGlobalPermission(r, currentUser, db.CanManageGlobalUsers)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	if managesUsers {
 		helpers.WriteJSON(w, http.StatusOK, users)
 	} else {
 		var result = make([]minimalUser, 0)
@@ -71,11 +78,13 @@ func (c *UsersController) AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The route requires CanManageGlobalUsers; the admin and Pro flags stay with admins, so that a user
+	// manager cannot create an account more powerful than their own.
 	editor := helpers.GetFromContext(r, "user").(*db.User)
-	if !editor.Admin {
-		c.log.WithField("editor", editor.Username).Debug("Not permitted to create users")
+	if !editor.Admin && (user.Admin || user.Pro) {
+		c.log.WithField("editor", editor.Username).Debug("Not permitted to create admin or Pro users")
 		helpers.RecordDenied(r, "admin", 0)
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -138,7 +147,12 @@ func (c *UsersController) ReadonlyUserMiddleware(next http.Handler) http.Handler
 
 		editor := helpers.GetFromContext(r, "user").(*db.User)
 
-		if !editor.Admin && editor.ID != user.ID {
+		mayManage, err := userMayManageUser(r, editor, user)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		if !mayManage && editor.ID != user.ID {
 			user = db.User{
 				ID:       user.ID,
 				Username: user.Username,
@@ -168,7 +182,12 @@ func (c *UsersController) GetUserMiddleware(next http.Handler) http.Handler {
 
 		editor := helpers.GetFromContext(r, "user").(*db.User)
 
-		if !editor.Admin && editor.ID != user.ID {
+		mayManage, err := userMayManageUser(r, editor, user)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		if !mayManage && editor.ID != user.ID {
 			c.log.WithFields(log.Fields{
 				"editor":  editor.Username,
 				"user_id": user.ID,
@@ -224,19 +243,19 @@ func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !editor.Admin && editor.ID != targetUser.ID {
-		c.log.WithFields(log.Fields{
-			"editor":  editor.Username,
-			"user_id": targetUser.ID,
-		}).Debug("Not permitted to update another user")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
+	// GetUserMiddleware let the editor in: an admin, a user manager allowed to touch this user, or the user.
 	if editor.ID == targetUser.ID && targetUser.Admin != user.Admin {
 		c.log.WithField("editor", editor.Username).Debug("Not permitted to change own admin status")
 		helpers.RecordDenied(r, "admin", 0)
 		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Only an admin hands out the admin flag.
+	if !editor.Admin && targetUser.Admin != user.Admin {
+		c.log.WithField("editor", editor.Username).Debug("Not permitted to change the admin flag")
+		helpers.RecordDenied(r, "admin", 0)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -249,6 +268,10 @@ func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	meta := userUpdateMetadata(targetUser, user)
 	user.ID = targetUser.ID
 	if err := helpers.Store(r).UpdateUser(user); err != nil {
+		if errors.Is(err, db.ErrInvalidOperation) {
+			helpers.WriteError(w, err)
+			return
+		}
 		c.log.WithError(err).WithField("user_id", targetUser.ID).Error("Failed to update user")
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -277,15 +300,6 @@ func (c *UsersController) UpdateUserPassword(w http.ResponseWriter, r *http.Requ
 	var pwd struct {
 		Pwd        string `json:"password"`
 		CurrentPwd string `json:"current_password"`
-	}
-
-	if !editor.Admin && editor.ID != user.ID {
-		c.log.WithFields(log.Fields{
-			"editor":  editor.Username,
-			"user_id": user.ID,
-		}).Debug("Not permitted to change another user's password")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
 	}
 
 	if user.External {
@@ -332,18 +346,12 @@ func (c *UsersController) UpdateUserPassword(w http.ResponseWriter, r *http.Requ
 
 func (c *UsersController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "_user").(db.User)
-	editor := helpers.GetFromContext(r, "user").(*db.User)
-
-	if !editor.Admin && editor.ID != user.ID {
-		c.log.WithFields(log.Fields{
-			"editor":  editor.Username,
-			"user_id": user.ID,
-		}).Debug("Not permitted to delete another user")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
 
 	if err := helpers.Store(r).DeleteUser(user.ID); err != nil {
+		if errors.Is(err, db.ErrInvalidOperation) {
+			helpers.WriteError(w, err)
+			return
+		}
 		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete user")
 		w.WriteHeader(http.StatusInternalServerError)
 		return

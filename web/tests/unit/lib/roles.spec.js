@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import groupRolesForSelect, { roleScope } from '@/lib/roles';
 
-const labels = { projectRoles: 'Project', globalRoles: 'Global', builtInRoles: 'Built-in' };
+const labels = { projectRoles: 'Project', sharedRoles: 'Shared', builtInRoles: 'Built-in' };
 const t = (key) => labels[key];
 
 describe('groupRolesForSelect', () => {
@@ -17,7 +17,7 @@ describe('groupRolesForSelect', () => {
         slug: 'local', name: 'Local', builtin: false, project_id: 1,
       },
     ], t);
-    expect(items.filter((i) => i.header).map((i) => i.header)).to.deep.equal(['Project', 'Global', 'Built-in']);
+    expect(items.filter((i) => i.header).map((i) => i.header)).to.deep.equal(['Project', 'Shared', 'Built-in']);
     expect(items.filter((i) => i.slug).map((i) => i.slug)).to.deep.equal(['local', 'deployer', 'owner']);
   });
 
@@ -35,9 +35,9 @@ describe('groupRolesForSelect', () => {
 });
 
 describe('roleScope', () => {
-  it('names built-in, global and project roles', () => {
+  it('names built-in, shared and project roles', () => {
     expect(roleScope({ builtin: true, project_id: null })).to.equal('builtIn');
-    expect(roleScope({ builtin: false, project_id: null })).to.equal('global');
+    expect(roleScope({ builtin: false, project_id: null })).to.equal('shared');
     expect(roleScope({ builtin: false, project_id: 1 })).to.equal('project');
   });
 });
