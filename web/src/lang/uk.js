@@ -381,4 +381,7 @@ export default {
   role_required: 'Роль обов’язкова',
 
   templatePermission: 'Права шаблону',
+  projectRoles: 'Ролі проєкту',
+  globalRoles: 'Глобальні ролі',
+  builtInRoles: 'Вбудовані ролі',
 };

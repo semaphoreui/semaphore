@@ -80,6 +80,7 @@ func Route(
 	store db.Store,
 	terraformStore db.TerraformStore,
 	workflowStore db.WorkflowManager,
+	roleMappingStore db.RoleMappingStore,
 	ansibleTaskRepo db.AnsibleTaskRepository,
 	taskPool *taskServices.TaskPool,
 	projectService server.ProjectService,
@@ -117,6 +118,7 @@ func Route(
 	globalRunnerController := NewGlobalRunnerController(runnerService)
 	taskController := projects.NewTaskController(store, ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
+	roleMappingsController := proApi.NewRoleMappingsController(roleMappingStore, store)
 	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
@@ -258,6 +260,10 @@ func Route(
 	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.GetGlobalRole).Methods("GET", "HEAD")
 	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
 	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
+
+	adminAPI.Path("/role_mappings").HandlerFunc(roleMappingsController.GetMappings).Methods("GET", "HEAD")
+	adminAPI.Path("/role_mappings").HandlerFunc(roleMappingsController.AddMapping).Methods("POST")
+	adminAPI.Path("/role_mappings/{mapping_id}").HandlerFunc(roleMappingsController.DeleteMapping).Methods("DELETE")
 
 	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)

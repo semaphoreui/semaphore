@@ -252,7 +252,8 @@ type ProjectStore interface {
 	DeleteProjectUser(projectID int, userID int) error
 	GetProjectUser(projectID int, userID int) (ProjectUser, error)
 	SetProjectUserRoles(projectID int, userID int, roleIDs []int) error
-	GetProjectUserRoles(projectID int, userID int) ([]Role, error)
+	GetProjectMember(projectID int, userID int) (ProjectMember, error)
+	CountProjectOwners(projectID int) (int, error)
 }
 
 type ProjectInviteRepository interface {
@@ -591,6 +592,8 @@ type RoleRepository interface {
 	UpdateRole(role Role) error
 	CreateRole(role Role) (Role, error)
 	DeleteRole(roleID int) error
+	GetRoleAssignments(roleID int) (RoleAssignments, error)
+	DeleteRoleWithAssignments(roleID int, withMappings bool) (RoleAssignments, error)
 }
 
 // Store is the main interface that aggregates all specialized interfaces

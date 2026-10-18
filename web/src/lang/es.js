@@ -351,4 +351,7 @@ export default {
   project_stats: 'Estadísticas',
   allow_override_branch: 'Rama',
   template_common_options: 'Opciones comunes',
+  projectRoles: 'Roles de proyecto',
+  globalRoles: 'Roles globales',
+  builtInRoles: 'Roles integrados',
 };
