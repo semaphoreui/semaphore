@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,12 +46,12 @@ func TestAddUser_RoleSlug(t *testing.T) {
 			AddUser(w, r)
 
 			assert.Equal(t, tt.code, w.Code)
-			roles, err := f.store.GetProjectUserRoles(f.project.ID, user.ID)
-			require.NoError(t, err)
+			member, err := f.store.GetProjectMember(f.project.ID, user.ID)
 			if tt.stored == "" {
-				assert.Empty(t, roles)
-			} else if assert.Len(t, roles, 1) {
-				assert.Equal(t, tt.stored, roles[0].Slug)
+				assert.ErrorIs(t, err, db.ErrNotFound)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, []string{tt.stored}, slugsOf(member.Roles))
 			}
 		})
 	}
@@ -75,9 +76,9 @@ func TestUpdateUser_UnknownRoleKeepsTheRole(t *testing.T) {
 	UpdateUser(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	roles, err := f.store.GetProjectUserRoles(f.project.ID, f.member.ID)
+	member, err := f.store.GetProjectMember(f.project.ID, f.member.ID)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"manager"}, slugsOf(roles))
+	assert.Equal(t, []string{"manager"}, slugsOf(member.Roles))
 }
 
 func TestUserMiddleware_NonMemberIsNotFound(t *testing.T) {
@@ -131,9 +132,11 @@ func TestAddUser_Roles(t *testing.T) {
 			AddUser(w, r)
 
 			assert.Equal(t, tt.code, w.Code)
-			roles, err := f.store.GetProjectUserRoles(f.project.ID, user.ID)
-			require.NoError(t, err)
-			assert.Equal(t, tt.stored, slugsOf(roles))
+			member, err := f.store.GetProjectMember(f.project.ID, user.ID)
+			if len(tt.stored) == 0 {
+				assert.ErrorIs(t, err, db.ErrNotFound)
+			}
+			assert.Equal(t, tt.stored, slugsOf(member.Roles))
 		})
 	}
 }
@@ -160,9 +163,9 @@ func TestUpdateUser_Roles(t *testing.T) {
 			UpdateUser(w, r)
 
 			assert.Equal(t, tt.code, w.Code)
-			roles, err := f.store.GetProjectUserRoles(f.project.ID, f.member.ID)
+			member, err := f.store.GetProjectMember(f.project.ID, f.member.ID)
 			require.NoError(t, err)
-			assert.Equal(t, tt.stored, slugsOf(roles))
+			assert.Equal(t, tt.stored, slugsOf(member.Roles))
 		})
 	}
 }
@@ -237,4 +240,92 @@ func TestLastOwnerRule(t *testing.T) {
 			assert.Equal(t, tt.code, w.Code)
 		})
 	}
+}
+
+func TestMappedMembers(t *testing.T) {
+	t.Run("a mapped member gets a manual role through POST", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		user := f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+		r, _ := f.request(http.MethodPost, fmt.Sprintf(`{"user_id":%d,"role":"manager"}`, user.ID), f.owner, f.roles[db.ProjectOwner], nil)
+		w := httptest.NewRecorder()
+		AddUser(w, r)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+	t.Run("removing a member with only mapped roles is refused", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		user := f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+		r, rec := f.request(http.MethodDelete, "", f.owner, f.roles[db.ProjectOwner], &user)
+		w := httptest.NewRecorder()
+		RemoveUser(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "group mappings")
+		assert.Empty(t, rec.All())
+	})
+	t.Run("removing a member who keeps mapped roles is a role change", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		user := f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+		require.NoError(t, f.store.CreateProjectUser(f.project.ID, user.ID, []int{f.roles[db.ProjectManager].ID}))
+		r, rec := f.request(http.MethodDelete, "", f.owner, f.roles[db.ProjectOwner], &user)
+		w := httptest.NewRecorder()
+		RemoveUser(w, r)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		got := only(t, rec, audit.IAMProjectRoleChange)
+		md, err := json.Marshal(got.Event.Metadata)
+		require.NoError(t, err)
+		assert.JSONEq(t, fmt.Sprintf(`{"old_roles":[{"id":%d,"slug":"manager"}],"new_roles":[]}`, f.roles[db.ProjectManager].ID), string(md))
+	})
+	t.Run("removing the last manual owner who keeps mapped roles is refused", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		user := f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+		require.NoError(t, f.store.CreateProjectUser(f.project.ID, user.ID, []int{f.roles[db.ProjectOwner].ID}))
+		require.NoError(t, f.store.SetProjectUserRoles(f.project.ID, f.owner.ID, []int{f.roles[db.ProjectManager].ID}))
+		r, rec := f.request(http.MethodDelete, "", f.member, f.roles[db.ProjectManager], &user)
+		w := httptest.NewRecorder()
+		RemoveUser(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		got := only(t, rec, audit.IAMProjectRoleChange)
+		assert.Equal(t, audit.ReasonLastOwner, got.Event.Reason)
+		md, err := json.Marshal(got.Event.Metadata)
+		require.NoError(t, err)
+		assert.JSONEq(t, fmt.Sprintf(`{"old_roles":[{"id":%d,"slug":"owner"}]}`, f.roles[db.ProjectOwner].ID), string(md))
+	})
+	t.Run("an empty roles list is allowed while mapped roles remain", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		user := f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+		require.NoError(t, f.store.CreateProjectUser(f.project.ID, user.ID, []int{f.roles[db.ProjectManager].ID}))
+		r, _ := f.request(http.MethodPut, `{"roles":[]}`, f.owner, f.roles[db.ProjectOwner], &user)
+		w := httptest.NewRecorder()
+		UpdateUser(w, r)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+	t.Run("an empty body is refused", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		r, _ := f.request(http.MethodPut, `{}`, f.owner, f.roles[db.ProjectOwner], &f.member)
+		w := httptest.NewRecorder()
+		UpdateUser(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("an empty roles list is refused without mapped roles", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		r, _ := f.request(http.MethodPut, `{"roles":[]}`, f.owner, f.roles[db.ProjectOwner], &f.member)
+		w := httptest.NewRecorder()
+		UpdateUser(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("the list shows mapped roles apart", func(t *testing.T) {
+		f := newMembershipFixture(t)
+		f.newMappedUser(t, "m", f.roles[db.ProjectGuest])
+		r, _ := f.request(http.MethodGet, "", f.owner, f.roles[db.ProjectOwner], nil)
+		w := httptest.NewRecorder()
+		GetUsers(w, r)
+		var list []projUser
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &list))
+		users := make(map[string]projUser)
+		for _, u := range list {
+			users[u.Username] = u
+		}
+		assert.Equal(t, []string{}, users["m"].Roles)
+		assert.Equal(t, []mappedRole{{Role: "guest", Provider: "okta", Group: "m"}}, users["m"].MappedRoles)
+		assert.Nil(t, users["owner"].MappedRoles, "no mapped_roles without mapped roles")
+	})
 }

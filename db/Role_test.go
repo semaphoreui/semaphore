@@ -45,11 +45,42 @@ func TestValidateRole(t *testing.T) {
 }
 
 func TestRoleAssignments_Impact(t *testing.T) {
-	assigned := RoleAssignments{
-		Members: []RoleMember{{ProjectID: 1}, {ProjectID: 1}, {ProjectID: 2}},
-		Grants:  []TemplateRolePerm{{ProjectID: 3}},
+	tests := []struct {
+		name     string
+		assigned RoleAssignments
+		want     RoleImpact
+	}{
+		{
+			name: "manual members and grants",
+			assigned: RoleAssignments{
+				Members: []RoleMember{{ProjectID: 1, UserID: 1}, {ProjectID: 1, UserID: 2}, {ProjectID: 2, UserID: 1}},
+				Grants:  []TemplateRolePerm{{ProjectID: 3}},
+			},
+			want: RoleImpact{Members: 3, Projects: 3, TemplateGrants: 1},
+		},
+		{name: "nothing", want: RoleImpact{}},
+		{
+			name: "manual member, mapped member and mapping",
+			assigned: RoleAssignments{
+				Members:     []RoleMember{{ProjectID: 1, UserID: 1}},
+				MappedRoles: []MappedRole{{ProjectID: 2, UserID: 2}},
+				Mappings:    []RoleMapping{{ProjectID: 3}},
+			},
+			want: RoleImpact{Members: 2, Projects: 3, Mappings: 1},
+		},
+		{
+			name: "a manual and mapped member counts once",
+			assigned: RoleAssignments{
+				Members:     []RoleMember{{ProjectID: 1, UserID: 1}},
+				MappedRoles: []MappedRole{{ProjectID: 1, UserID: 1}},
+				Mappings:    []RoleMapping{{ProjectID: 1}},
+			},
+			want: RoleImpact{Members: 1, Projects: 1, Mappings: 1},
+		},
 	}
-
-	assert.Equal(t, RoleImpact{Members: 3, Projects: 3, TemplateGrants: 1}, assigned.Impact())
-	assert.Equal(t, RoleImpact{}, RoleAssignments{}.Impact())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.assigned.Impact())
+		})
+	}
 }

@@ -167,6 +167,19 @@ definitions:
           type: string
         description: "Slugs of all roles of the member. `role` is set only when this list has one role"
         example: [manager]
+      mapped_roles:
+        type: array
+        readOnly: true
+        description: Roles from IdP group mappings, present only when the member has some. They cannot be changed through this API.
+        items:
+          type: object
+          properties:
+            role:
+              type: string
+            provider:
+              type: string
+            group:
+              type: string
 
   ProjectInvite:
     type: object

@@ -511,6 +511,16 @@
                 </v-list-item-content>
               </v-list-item>
 
+              <v-list-item key="role-mappings" to="/role-mappings" v-if="isPro && user.admin">
+                <v-list-item-icon>
+                  <v-icon>mdi-account-group</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('roleMappings') }}
+                </v-list-item-content>
+              </v-list-item>
+
               <v-divider />
 
               <v-list-item key="tokens" data-testid="sidebar-tokens" to="/tokens">
