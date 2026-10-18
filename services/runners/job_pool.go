@@ -2,6 +2,7 @@ package runners
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -57,6 +58,8 @@ func newHTTPClient() *http.Client {
 	// stops the heartbeat too and the server declares the runner offline.
 	// The request body upload stays unbounded on purpose — a progress report
 	// carries task logs, and cutting a slow upload would retry it forever.
+	// ResponseHeaderTimeout stops applying once the headers arrive; the body
+	// read is bounded separately by doRequest.
 	timeout := util.Config.RunnerConnectionTimeout()
 
 	dialer := &net.Dialer{
@@ -79,6 +82,35 @@ func newHTTPClient() *http.Client {
 			return errors.New("runner API redirects are not allowed")
 		},
 	}
+}
+
+// doRequest sends req through the shared client and arms the response-body
+// deadline the moment the headers arrive. The transport's ResponseHeaderTimeout
+// stops applying at that point, so a server that sends the headers and then
+// stalls the body would otherwise block the poll goroutine — and with it the
+// heartbeat — indefinitely. The deadline is armed only after Do returns, so the
+// request body upload stays unbounded (see newHTTPClient). A read that outlives
+// the deadline fails with context.Canceled.
+//
+// The caller must call release once done with the body, in place of
+// resp.Body.Close(): it closes the body and disarms the deadline. Read the body
+// to EOF before releasing so the connection goes back to the keep-alive pool.
+func (p *JobPool) doRequest(req *http.Request) (resp *http.Response, release func(), err error) {
+	ctx, cancel := context.WithCancel(req.Context())
+
+	resp, err = p.client.Do(req.WithContext(ctx))
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
+
+	deadline := time.AfterFunc(util.Config.RunnerConnectionTimeout(), cancel)
+	release = func() {
+		deadline.Stop()
+		_ = resp.Body.Close()
+		cancel()
+	}
+	return resp, release, nil
 }
 
 type JobPool struct {
@@ -294,11 +326,11 @@ func (p *JobPool) Unregister() (err error) {
 		"url":     url,
 	}).Debug("Sending unregistration request to the server")
 
-	resp, err := p.client.Do(req)
+	resp, release, err := p.doRequest(req)
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer release()
 
 	if resp.StatusCode >= 400 && resp.StatusCode != 404 {
 		err = fmt.Errorf("encountered error while unregistering runner; server returned code %d", resp.StatusCode)
@@ -542,14 +574,14 @@ func (p *JobPool) sendProgress() (ok bool) {
 
 	p.setCommonHeaders(req)
 
-	resp, err := p.client.Do(req)
+	resp, release, err := p.doRequest(req)
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
 			"context": "sending_progress",
 		}).Error("failed to send job progress to the server")
 		return
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer release()
 
 	if resp.StatusCode >= 400 {
 		log.WithError(fmt.Errorf("invalid status code")).WithFields(log.Fields{
@@ -708,7 +740,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		"url":         url,
 	}).Debug("Sending registration request to the server")
 
-	resp, err := p.client.Do(req)
+	resp, release, err := p.doRequest(req)
 
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
@@ -716,7 +748,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		}).Error("failed to send registration request to the server")
 		return
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer release()
 
 	if resp.StatusCode != 200 {
 		log.WithError(fmt.Errorf("invalid status code")).WithFields(log.Fields{
@@ -839,7 +871,7 @@ func (p *JobPool) checkNewJobs() {
 		"queued_jobs":  p.queueLen(),
 	}).Debug("Fetching new jobs from the server")
 
-	resp, err := p.client.Do(req)
+	resp, release, err := p.doRequest(req)
 
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
@@ -847,7 +879,7 @@ func (p *JobPool) checkNewJobs() {
 		}).Error("failed to fetch new jobs from the server")
 		return
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer release()
 
 	if resp.StatusCode >= 400 {
 
