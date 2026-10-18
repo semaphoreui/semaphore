@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/semaphoreui/semaphore/db"
+	log "github.com/sirupsen/logrus"
 )
 
 type IntegrationExporter struct {
@@ -18,10 +19,27 @@ func (e *IntegrationExporter) load(store db.Store, exporter DataExporter, progre
 	}
 
 	for _, proj := range projs {
-		keys, err := store.GetIntegrations(proj, db.RetrieveQueryParams{}, true)
+		integrations, err := store.GetIntegrations(proj, db.RetrieveQueryParams{}, true)
 		if err != nil {
 			return err
 		}
+
+		// This exporter does not carry workflows, so an integration that
+		// starts one has no target on the other side: it is left out together
+		// with its aliases, matchers and extractors (they load by its key).
+		keys := make([]db.Integration, 0, len(integrations))
+		for _, integration := range integrations {
+			if integration.RunsWorkflow() {
+				log.WithFields(log.Fields{
+					"context":        "export",
+					"project_id":     proj,
+					"integration_id": integration.ID,
+				}).Warn("integration starts a workflow and is skipped: workflows are not exported")
+				continue
+			}
+			keys = append(keys, integration)
+		}
+
 		err = e.appendValues(keys, strconv.Itoa(proj))
 		if err != nil {
 			return err

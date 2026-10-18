@@ -123,12 +123,16 @@ type BackupTemplateVault struct {
 	VaultKey *string `backup:"vault_key"`
 }
 
+// BackupIntegration wraps an integration with its target by name: exactly
+// one of Template and Workflow is set. Backups written before workflow
+// targets existed carry "template" only and restore unchanged.
 type BackupIntegration struct {
 	db.Integration
 	Aliases       []string                     `backup:"aliases"`
 	Matchers      []db.IntegrationMatcher      `backup:"matchers"`
 	ExtractValues []db.IntegrationExtractValue `backup:"extract_values"`
-	Template      string                       `backup:"template"`
+	Template      *string                      `backup:"template"`
+	Workflow      *string                      `backup:"workflow"`
 	AuthSecret    *string                      `backup:"auth_secret"`
 }
 
