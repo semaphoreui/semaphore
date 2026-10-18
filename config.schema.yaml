@@ -731,11 +731,12 @@ $defs:
       check_interval_seconds:
         type: integer
         minimum: 1
-        default: 1
+        default: 5
         description: >
-          How often the runner polls the server for new jobs and reports progress.
-          Raising it reduces request volume on a server with many runners, at the
-          cost of jobs starting slightly later.
+          How often the runner polls the server for new jobs. Raising it reduces
+          request volume on a server with many runners, at the cost of jobs
+          starting slightly later. Progress reporting keeps its own fixed
+          one-second cadence, because it doubles as the runner heartbeat.
       connection: { $ref: "#/$defs/RunnerConnectionConfig" }
       executor:   { $ref: "#/$defs/ExecutorConfig" }
 
@@ -754,6 +755,16 @@ $defs:
         description: >
           Disables server certificate verification entirely. Insecure
           (vulnerable to MITM) — use only for testing.
+      timeout_seconds:
+        type: integer
+        minimum: 1
+        default: 3
+        description: >
+          Per-request budget for waiting on the server: the TCP connect, the TLS
+          handshake and the wait for response headers each get this many seconds.
+          Keep it below check_interval_seconds so a stuck request cannot outlive
+          the poll cycle that started it. Uploading the request body is not
+          bounded, so a large log batch is never cut off.
 
   ExecutorConfig:
     type: object

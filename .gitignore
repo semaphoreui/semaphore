@@ -62,3 +62,4 @@ __debug_bin*
 /*-config.yml
 /*-config.config
 /*.sqlite*
+/integration-tests/

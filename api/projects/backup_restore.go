@@ -76,14 +76,19 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 	str := buf.String()
 
 	if err := backup.Unmarshal(str); err != nil {
-		log.Error(err)
+		log.WithFields(log.Fields{
+			"context": "backup_api",
+		}).WithError(err).Error("failed to unmarshal backup")
 		helpers.WriteError(w, err)
 		return
 	}
 
 	store := helpers.Store(r)
+
 	if err := backup.Verify(); err != nil {
-		log.Error(err)
+		log.WithFields(log.Fields{
+			"context": "backup_api",
+		}).WithError(err).Error("failed to verify backup")
 		helpers.WriteError(w, err)
 		return
 	}
@@ -91,9 +96,14 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 	var p *db.Project
 	p, err := backup.Restore(*user, store, c.workflowStore)
 
+	if err != nil {
+		log.WithFields(log.Fields{
+			"context": "backup_api",
+		}).WithError(err).Error("failed to restore backup")
+	}
+
 	// Without a project nothing was created; with one, a failed step is a partial success.
 	if err != nil && p == nil {
-		log.Error(err)
 		helpers.WriteError(w, err)
 		return
 	}
@@ -124,6 +134,7 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 		"runners":             len(backup.Runners),
 		"workflows":           len(backup.Workflows),
 	}}
+
 	if err != nil {
 		event.Reason = audit.ReasonRestoreFailed
 		metadata.Partial = true
@@ -132,7 +143,6 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 	helpers.Audit(r).Record(r.Context(), event)
 
 	if err != nil {
-		log.Error(err)
 		helpers.WriteError(w, err)
 		return
 	}

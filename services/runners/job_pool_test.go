@@ -2,6 +2,7 @@ package runners
 
 import (
 	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -510,4 +511,180 @@ func TestJobProgress_OutputsOmittedWhenAbsent(t *testing.T) {
 	raw, err := json.Marshal(JobProgress{ID: 1, Status: task_logger.TaskRunningStatus})
 	require.NoError(t, err)
 	assert.NotContains(t, string(raw), "outputs")
+}
+
+// Every phase that waits on the server must carry the configured budget: a
+// custom Transport starts from the zero value, so an unset field means "wait
+// forever", not the http.DefaultTransport value.
+func TestNewHTTPClientAppliesConnectionTimeout(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	util.Config = &util.ConfigType{
+		Runner: &util.RunnerConfig{
+			Connection: &util.RunnerConnectionConfig{TimeoutSeconds: 7},
+		},
+	}
+
+	client := newHTTPClient()
+
+	transport, ok := client.Transport.(*http.Transport)
+	require.True(t, ok)
+	assert.Equal(t, 7*time.Second, transport.TLSHandshakeTimeout)
+	assert.Equal(t, 7*time.Second, transport.ResponseHeaderTimeout)
+	assert.NotNil(t, transport.DialContext)
+}
+
+// A server that accepts the connection and then goes silent used to hang the
+// poll goroutine forever; the processing guard then skipped every later cycle,
+// so the heartbeat stopped and the server declared the runner offline.
+func TestJobPoolSendProgressGivesUpOnSilentServer(t *testing.T) {
+	released := make(chan struct{})
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		<-released
+	}))
+	// Cleanups run last-registered-first: the handler must be released before
+	// srv.Close, which blocks until every in-flight request returns.
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(released) })
+
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "runner-token",
+			Connection: &util.RunnerConnectionConfig{TimeoutSeconds: 1},
+		},
+	}
+
+	p := &JobPool{
+		runningJobs: make(map[int]*runningJob),
+		client:      newHTTPClient(),
+	}
+
+	done := make(chan bool, 1)
+	go func() { done <- p.sendProgress() }()
+
+	select {
+	case ok := <-done:
+		assert.False(t, ok, "a silent server must not count as a delivered report")
+	case <-time.After(10 * time.Second):
+		t.Fatal("sendProgress never returned: the request has no deadline")
+	}
+}
+
+// stalledBodyServer replies with the headers at once and then never finishes
+// the body, so the transport's ResponseHeaderTimeout does not fire. The handler
+// returns when the test ends.
+func stalledBodyServer(t *testing.T) *httptest.Server {
+	released := make(chan struct{})
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("{"))
+		w.(http.Flusher).Flush()
+		<-released
+	}))
+	// Cleanups run last-registered-first: the handler must be released before
+	// srv.Close, which blocks until every in-flight request returns.
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(released) })
+
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "runner-token",
+			Connection: &util.RunnerConnectionConfig{TimeoutSeconds: 1},
+		},
+	}
+
+	return srv
+}
+
+// A server that sends the headers and then stalls the body is not covered by
+// ResponseHeaderTimeout. The body read must still give up within the connection
+// timeout, or the poll goroutine — and the heartbeat with it — hangs forever.
+func TestJobPoolSendProgressGivesUpOnStalledBody(t *testing.T) {
+	stalledBodyServer(t)
+
+	p := &JobPool{
+		runningJobs: make(map[int]*runningJob),
+		client:      newHTTPClient(),
+	}
+
+	done := make(chan bool, 1)
+	go func() { done <- p.sendProgress() }()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("sendProgress never returned: the response body read has no deadline")
+	}
+}
+
+func TestJobPoolCheckNewJobsGivesUpOnStalledBody(t *testing.T) {
+	stalledBodyServer(t)
+
+	p := &JobPool{
+		runningJobs: make(map[int]*runningJob),
+		client:      newHTTPClient(),
+	}
+
+	done := make(chan struct{})
+	go func() {
+		p.checkNewJobs()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("checkNewJobs never returned: the response body read has no deadline")
+	}
+}
+
+// The response-body deadline is armed only once the headers arrive, so a slow
+// upload of a progress report (task logs) is never cut by it.
+func TestJobPoolDoRequestDoesNotBoundUpload(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	t.Cleanup(srv.Close)
+
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Connection: &util.RunnerConnectionConfig{TimeoutSeconds: 1},
+		},
+	}
+
+	p := &JobPool{client: newHTTPClient()}
+
+	// The upload takes longer than the connection timeout.
+	pr, pw := io.Pipe()
+	go func() {
+		for range 3 {
+			time.Sleep(500 * time.Millisecond)
+			_, _ = pw.Write([]byte("x"))
+		}
+		_ = pw.Close()
+	}()
+
+	req, err := http.NewRequest(http.MethodPut, srv.URL, pr)
+	require.NoError(t, err)
+
+	resp, release, err := p.doRequest(req)
+	require.NoError(t, err)
+	defer release()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "{}", string(body))
 }
