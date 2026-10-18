@@ -12,20 +12,68 @@
       dense
     ></v-text-field>
 
+    <div
+      v-if="workflowsEnabled"
+      class="d-flex justify-space-between align-center mb-2 IntegrationForm__target"
+    >
+      <b style="font-size: 13px; margin-left: 5px">{{ $t('integrationRunTarget') }}</b>
+      <v-btn-toggle
+        :value="target"
+        @change="setTarget($event)"
+        tile
+        group
+        mandatory
+        :disabled="formSaving"
+      >
+        <v-btn value="template" small class="ma-0" style="border-radius: 4px">
+          {{ $t('integrationTargetTemplate') }}
+        </v-btn>
+        <v-btn value="workflow" small class="ma-0" style="border-radius: 4px">
+          {{ $t('integrationTargetWorkflow') }}
+        </v-btn>
+      </v-btn-toggle>
+    </div>
+
+    <v-alert
+      v-if="target === 'workflow' && !workflowsEnabled"
+      type="info"
+      text
+      dense
+      class="IntegrationForm__workflowUnavailable"
+    >
+      {{ $t('integrationWorkflowTargetUnavailable', { id: item.workflow_id }) }}
+    </v-alert>
+
     <v-autocomplete
+      v-else-if="target === 'workflow'"
+      v-model="item.workflow_id"
+      :label="$t('workflowToRun')"
+      clearable
+      :items="workflows"
+      item-value="id"
+      item-text="name"
+      :rules="[(v) => !!v || $t('integrationTargetRequired')]"
+      :disabled="formSaving"
+      outlined
+      dense
+    ></v-autocomplete>
+
+    <v-autocomplete
+      v-else
       v-model="item.template_id"
       label="Task Template to run"
       clearable
       :items="templates"
       item-value="id"
       item-text="name"
+      :rules="[(v) => !!v || $t('integrationTargetRequired')]"
       :disabled="formSaving"
       outlined
       dense
     ></v-autocomplete>
 
     <v-card
-      v-if="item.template_id"
+      v-if="target === 'template' && item.template_id"
       style="background: var(--highlighted-card-bg-color)"
       class="mb-6 pt-3"
     >
@@ -96,9 +144,16 @@ import HighlightedCard from '@/components/HighlightedCard.vue';
 export default {
   components: { HighlightedCard, TaskParamsForm },
   mixins: [ItemFormBase],
+  props: {
+    /** Server feature flags (`systemInfo.features`); `workflows` unlocks the workflow target. */
+    features: Object,
+  },
   data() {
     return {
       templates: [],
+      workflows: [],
+      /** What the integration runs: 'template' or 'workflow'. Derived from the item on load. */
+      target: 'template',
       authMethods: [
         {
           id: '',
@@ -135,16 +190,30 @@ export default {
   async created() {
     this.templates = (
       await axios({
-        templates: 'get',
+        method: 'get',
         url: `/api/project/${this.projectId}/templates`,
         responseType: 'json',
       })
     ).data;
+
+    if (this.workflowsEnabled) {
+      this.workflows = (
+        await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/workflows`,
+          responseType: 'json',
+        })
+      ).data || [];
+    }
   },
 
   computed: {
     isLoaded() {
       return this.item && this.keys != null;
+    },
+
+    workflowsEnabled() {
+      return !!(this.features && this.features.workflows);
     },
 
     loginPasswordKeys() {
@@ -163,6 +232,7 @@ export default {
     getNewItem() {
       return {
         template_id: null,
+        workflow_id: null,
       };
     },
 
@@ -174,6 +244,26 @@ export default {
       return `/api/project/${this.projectId}/integrations/${this.itemId}`;
     },
 
+    /**
+     * Switches the run target. Exactly one of template_id / workflow_id is kept;
+     * task params only make sense for a template.
+     */
+    setTarget(target) {
+      if (!target || target === this.target) {
+        return;
+      }
+      this.target = target;
+      if (target === 'workflow') {
+        this.item.template_id = null;
+        this.item.task_params = null;
+      } else {
+        this.item.workflow_id = null;
+        if (this.item.task_params == null) {
+          this.item.task_params = {};
+        }
+      }
+    },
+
     async afterLoadData() {
       this.keys = (
         await axios({
@@ -183,8 +273,25 @@ export default {
         })
       ).data;
 
-      if (this.item.task_params == null) {
+      // The API omits workflow_id when it is null; add the key reactively so the
+      // workflow autocomplete can bind to it.
+      if (this.item.workflow_id === undefined) {
+        this.$set(this.item, 'workflow_id', null);
+      }
+
+      this.target = this.item.workflow_id ? 'workflow' : 'template';
+
+      if (this.target === 'template' && this.item.task_params == null) {
         this.item.task_params = {};
+      }
+    },
+
+    beforeSave() {
+      if (this.target === 'workflow') {
+        this.item.template_id = null;
+        this.item.task_params = null;
+      } else {
+        this.item.workflow_id = null;
       }
     },
   },

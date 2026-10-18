@@ -1,5 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null && templates != null">
+  <div v-if="items != null && templates != null && workflows != null">
     <EditDialog
       v-model="editDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
@@ -12,6 +12,7 @@
         <IntegrationForm
           :project-id="projectId"
           :item-id="itemId"
+          :features="features"
           @save="onSave"
           @error="onError"
           :need-save="needSave"
@@ -86,8 +87,21 @@
           >{{ item.name }}
         </router-link>
       </template>
-      <template v-slot:item.template_id="{ item }">
-        <router-link :to="`/project/${projectId}/templates/${item.template_id}`">
+      <template v-slot:item.target="{ item }">
+        <router-link
+          v-if="item.workflow_id"
+          :to="`/project/${projectId}/workflows/${item.workflow_id}`"
+          class="IntegrationsTarget IntegrationsTarget--workflow"
+        >
+          <v-icon small class="mr-1">mdi-graph-outline</v-icon>
+          {{ (workflows.find((w) => w.id === item.workflow_id) || { name: '—' }).name }}
+        </router-link>
+        <router-link
+          v-else
+          :to="`/project/${projectId}/templates/${item.template_id}`"
+          class="IntegrationsTarget IntegrationsTarget--template"
+        >
+          <v-icon small class="mr-1">mdi-check-all</v-icon>
           {{ (templates.find((t) => t.id === item.template_id) || { name: '—' }).name }}
         </router-link>
       </template>
@@ -117,9 +131,14 @@ import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 export default {
   mixins: [ItemListPageBase, IntegrationsBase],
   components: { IntegrationForm, CopyClipboardButton },
+  props: {
+    /** Server feature flags; `workflows` enables the workflow target of an integration. */
+    features: Object,
+  },
   data() {
     return {
       templates: null,
+      workflows: null,
     };
   },
 
@@ -131,6 +150,19 @@ export default {
         responseType: 'json',
       })
     ).data;
+
+    // Workflows exist only in builds with the feature; elsewhere the endpoint is 404.
+    if (this.features && this.features.workflows) {
+      this.workflows = (
+        await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/workflows`,
+          responseType: 'json',
+        })
+      ).data || [];
+    } else {
+      this.workflows = [];
+    }
   },
 
   methods: {
@@ -146,10 +178,10 @@ export default {
           sortable: true,
         },
         {
-          text: this.$i18n.t('template'),
-          value: 'template_id',
+          text: this.$i18n.t('integrationRunTarget'),
+          value: 'target',
           width: '60%',
-          sortable: true,
+          sortable: false,
         },
         {
           value: 'actions',

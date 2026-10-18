@@ -33,9 +33,12 @@ only when the task touches that topic. Keep this file under 150 lines.
 - Anything the Vue build emits to `api/public` is `go:embed`-ed into the binary and served by
   `serveFile()`; ship static content that way, not through a new Go handler. Use relative paths
   (`publicPath: './'`) — `serveFile()` rewrites `<base href>` from `util.WebHostURL`.
-- `go.mod` has `replace .../pro => ./pro`; `go.work` and `pro_impl/` are gitignored but present
-  locally. Any Dockerfile layer running `go mod download` must also COPY `pro/go.mod` + `pro/go.sum`;
-  build images from a shallow `git clone file://<repo>` so they never see `go.work`.
+- `go.mod` has `replace .../pro => ./pro`; `go.work` is gitignored. Since 2026-10-18 `pro_impl/` is a
+  git submodule (`semaphorepro-module`, `update = none`, so `git submodule update` leaves it empty;
+  branch `feat/wf_integrations_2`) — a worktree's `go.work` may still point at another checkout's
+  `pro_impl`; check both are on the same commit before trusting a build. Any Dockerfile layer
+  running `go mod download` must also COPY `pro/go.mod` + `pro/go.sum`; build images from a
+  shallow `git clone file://<repo>` so they never see `go.work`.
 - `go mod why` in workspace mode blames `pro/services/tasks/docker`; use `GOWORK=off` to see the
   real dependency chain. A version-specific `replace` (not a wildcard) is used to pin grpc, because
   a wildcard downgrades the Pro workspace.
