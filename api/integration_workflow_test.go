@@ -166,7 +166,7 @@ func TestReceiveIntegration_WorkflowUnavailableInOpenSourceBuild(t *testing.T) {
 	f := newWorkflowWebhookFixture(t)
 	svc := &stubWorkflowService{}
 	// The open-source store answers with an empty template and no error.
-	wfStore := &stubWorkflowStore{workflows: map[int]db.WorkflowTemplate{f.workflowID: {}}}
+	wfStore := &stubWorkflowStore{workflows: map[int]db.WorkflowTemplate{f.workflowID: {ProjectID: f.project.ID}}}
 	ctrl := NewIntegrationController(f.store, &stubIntegrationService{}, wfStore, svc)
 
 	w := f.receive(t, ctrl)
