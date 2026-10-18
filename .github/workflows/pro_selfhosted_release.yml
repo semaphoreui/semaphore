@@ -79,6 +79,9 @@ jobs:
   deploy-prod:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'semaphoreui'
+    concurrency:
+      group: ${{ github.workflow }}-latest-promotion
+      cancel-in-progress: false
 
     steps:
       - name: Checkout source
@@ -88,9 +91,11 @@ jobs:
 
       - name: Determine if tag is latest stable release
         id: check_latest
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
           HIGHEST_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
-          if [ "${{ github.ref_name }}" = "$HIGHEST_TAG" ]; then
+          if [ "$REF_NAME" = "$HIGHEST_TAG" ]; then
             echo "is_latest=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_latest=false" >> "$GITHUB_OUTPUT"
