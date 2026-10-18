@@ -67,6 +67,7 @@ jobs:
     if: github.repository_owner == 'semaphoreui'
     concurrency:
       group: ${{ github.workflow }}-latest-promotion
+      queue: max
       cancel-in-progress: false
 
     steps:
