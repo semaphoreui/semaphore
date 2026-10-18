@@ -24,6 +24,9 @@
   (is-file-esm crashes on a `/tmp` path without package.json).
 - Stand workflow 1 shows the unsaved-changes dialog after merely selecting a node (pre-existing,
   unexplained).
+- ⚠️ macOS purges files under `/tmp` untouched for ~3 days (directories stay): the stand's config, DB, admin
+  user and the `wf-repo` scripts disappear between sessions. Recreate per `AGENTS/tools/wf-stand/README.md`
+  (seen 2026-10-16); keep anything durable out of `/tmp`.
 - Config `config-wf.json` + DB `database-wf.sqlite` is the workflow stand; `AGENTS/tools/wf-stand/`
   starts it, seeds workflows 5 "Exec happy" / 6 "Exec branches" (bash scripts from the local repo
   `/tmp/semaphore-stand/wf-repo`) and follows a run to its end. The older workflows 1–4 reference

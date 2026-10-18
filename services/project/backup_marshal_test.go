@@ -1,11 +1,13 @@
 package project
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_MarshalValue_NilPointer_ReturnsNil(t *testing.T) {
@@ -113,4 +115,43 @@ func Test_ToFloat64_ValidInt_ReturnsFloat64(t *testing.T) {
 func Test_ToFloat64_InvalidType_ReturnsFalse(t *testing.T) {
 	_, ok := toFloat64("string")
 	assert.False(t, ok)
+}
+
+// A survey variable's default value keeps its shape (a string, a list for a
+// select variable) through a backup, for templates and workflows alike.
+func TestBackupMarshal_SurveyDefaultValue(t *testing.T) {
+	type holder struct {
+		Vars []db.SurveyVar `backup:"survey_vars"`
+	}
+
+	var selectDefault db.SurveyVarDefaultValue
+	require.NoError(t, json.Unmarshal([]byte(`["a","b"]`), &selectDefault))
+
+	in := holder{Vars: []db.SurveyVar{
+		{Name: "tag", Title: "Tag", DefaultValue: &db.SurveyVarDefaultValue{Values: []string{"v1"}}},
+		{Name: "subnets", Title: "Subnets", Type: db.SurveyVarSelect, DefaultValue: &selectDefault},
+		{Name: "none", Title: "None"},
+	}}
+
+	data, err := marshalValue(reflect.ValueOf(in))
+	require.NoError(t, err)
+	vars := data.(map[string]any)["survey_vars"].([]any)
+	assert.Equal(t, "v1", vars[0].(map[string]any)["default_value"])
+	assert.Equal(t, []any{"a", "b"}, vars[1].(map[string]any)["default_value"])
+	assert.NotContains(t, vars[2].(map[string]any), "default_value")
+
+	// Through JSON text, as a backup file is.
+	raw, err := json.Marshal(data)
+	require.NoError(t, err)
+	var decoded any
+	require.NoError(t, json.Unmarshal(raw, &decoded))
+
+	var out holder
+	require.NoError(t, unmarshalValueWithBackupTags(decoded, reflect.ValueOf(&out).Elem()))
+	require.Len(t, out.Vars, 3)
+	assert.Equal(t, []string{"v1"}, out.Vars[0].DefaultValue.Values)
+	assert.False(t, out.Vars[0].DefaultValue.IsArray())
+	assert.Equal(t, []string{"a", "b"}, out.Vars[1].DefaultValue.Values)
+	assert.True(t, out.Vars[1].DefaultValue.IsArray())
+	assert.Nil(t, out.Vars[2].DefaultValue)
 }

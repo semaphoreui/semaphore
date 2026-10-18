@@ -81,6 +81,7 @@ func Route(
 	globalRoleStore db.GlobalRoleStore,
 	terraformStore db.TerraformStore,
 	workflowStore db.WorkflowManager,
+	roleMappingStore db.RoleMappingStore,
 	ansibleTaskRepo db.AnsibleTaskRepository,
 	taskPool *taskServices.TaskPool,
 	projectService server.ProjectService,
@@ -119,6 +120,7 @@ func Route(
 	taskController := projects.NewTaskController(store, ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
 	globalRolesController := proApi.NewGlobalRolesController(globalRoleStore, store)
+	roleMappingsController := proApi.NewRoleMappingsController(roleMappingStore, store)
 	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
@@ -255,6 +257,10 @@ func Route(
 	globalRunnersAPI.Path("/{runner_id}/registration-token").HandlerFunc(globalRunnerController.RegenerateRegistrationToken).Methods("POST")
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(globalRunnerController.DeleteRunner).Methods("DELETE")
 	globalRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(globalRunnerController.ClearRunnerCache).Methods("DELETE")
+
+	systemAPI.Path("/role_mappings").HandlerFunc(roleMappingsController.GetMappings).Methods("GET", "HEAD")
+	systemAPI.Path("/role_mappings").HandlerFunc(roleMappingsController.AddMapping).Methods("POST")
+	systemAPI.Path("/role_mappings/{mapping_id}").HandlerFunc(roleMappingsController.DeleteMapping).Methods("DELETE")
 
 	appsAPI := systemAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)

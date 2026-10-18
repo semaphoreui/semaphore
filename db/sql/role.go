@@ -77,14 +77,21 @@ func (d *SqlDb) DeleteRole(roleID int) error {
 	return requireDeletedRow(res, err)
 }
 
-// GetRoleAssignments lists the members who hold a role, with all their roles, and the template grants of the role.
+// GetRoleAssignments lists the members who hold a role, with all their roles, the template grants of the role,
+// and the group mappings of the role with their assignments.
 func (d *SqlDb) GetRoleAssignments(roleID int) (db.RoleAssignments, error) {
 	return d.roleAssignments(d.Sql(), roleID)
 }
 
 // roleAssignments takes the executor so that a transaction reads with its own connection, SQLite has only one.
 func (d *SqlDb) roleAssignments(q gorp.SqlExecutor, roleID int) (assigned db.RoleAssignments, err error) {
+	// A mapping of this role goes with it, so only mappings of other roles keep the membership.
 	query, args, err := squirrel.Select("pur.project_id", "pur.user_id", "u.username", "r.id as role_id", "r.slug").
+		Column(squirrel.Alias(squirrel.Expr(`exists (
+			select 1 from project__user_mapped_role mr
+			join group_role_mapping gm on gm.id = mr.mapping_id
+			where mr.project_id = pur.project_id and mr.user_id = pur.user_id and gm.role_id <> ?
+		)`, roleID), "mapped")).
 		From("project__user_role as pur").
 		Join("`user` as u on u.id = pur.user_id").
 		Join("`role` as r on r.id = pur.role_id").
@@ -103,6 +110,7 @@ func (d *SqlDb) roleAssignments(q gorp.SqlExecutor, roleID int) (assigned db.Rol
 		Username  string `db:"username"`
 		RoleID    int    `db:"role_id"`
 		Slug      string `db:"slug"`
+		Mapped    bool   `db:"mapped"`
 	}
 	if _, err = q.Select(&rows, d.PrepareQuery(query), args...); err != nil {
 		return
@@ -111,18 +119,42 @@ func (d *SqlDb) roleAssignments(q gorp.SqlExecutor, roleID int) (assigned db.Rol
 	for _, row := range rows {
 		last := len(assigned.Members) - 1
 		if last < 0 || assigned.Members[last].ProjectID != row.ProjectID || assigned.Members[last].UserID != row.UserID {
-			assigned.Members = append(assigned.Members, db.RoleMember{ProjectID: row.ProjectID, UserID: row.UserID, Username: row.Username})
+			assigned.Members = append(assigned.Members, db.RoleMember{ProjectID: row.ProjectID, UserID: row.UserID, Username: row.Username, Mapped: row.Mapped})
 			last++
 		}
 		assigned.Members[last].Roles = append(assigned.Members[last].Roles, db.Role{ID: row.RoleID, Slug: row.Slug})
 	}
 	_, err = q.Select(&assigned.Grants, d.PrepareQuery("select id, template_id, project_id from project__template_role where role_id=?"), roleID)
+	if err != nil {
+		return
+	}
+	_, err = q.Select(&assigned.Mappings, d.PrepareQuery(`
+		select
+		  m.*, p.name as project_name, r.slug as role_slug, r.name as role_name
+		from group_role_mapping m
+		join project p on p.id = m.project_id
+		join role r on r.id = m.role_id
+		where m.role_id = ?
+		order by m.id
+	`), roleID)
+	if err != nil {
+		return
+	}
+	query, args, err = MappedRolesQuery().
+		Where("m.role_id = ?", roleID).
+		OrderBy("r.name", "m.provider", "m.group_name").
+		ToSql()
+	if err != nil {
+		return
+	}
+	_, err = q.Select(&assigned.MappedRoles, d.PrepareQuery(query), args...)
 	return
 }
 
 // DeleteRoleWithAssignments removes a custom role with its member assignments and template grants and returns
-// what it removed. A member whose only role it was stops being a member.
-func (d *SqlDb) DeleteRoleWithAssignments(roleID int) (db.RoleAssignments, error) {
+// what it removed. A member whose only role it was stops being a member. Without withMappings the foreign key
+// refuses a role that a group mapping uses, with db.ErrInvalidOperation, and nothing is removed.
+func (d *SqlDb) DeleteRoleWithAssignments(roleID int, withMappings bool) (db.RoleAssignments, error) {
 	tx, err := d.Sql().Begin()
 	if err != nil {
 		return db.RoleAssignments{}, err
@@ -131,6 +163,13 @@ func (d *SqlDb) DeleteRoleWithAssignments(roleID int) (db.RoleAssignments, error
 	if err != nil {
 		_ = tx.Rollback()
 		return db.RoleAssignments{}, err
+	}
+	if withMappings {
+		// Their mapped assignments go with them by the cascade.
+		if _, err = d.execTx(tx, "delete from group_role_mapping where role_id=?", roleID); err != nil {
+			_ = tx.Rollback()
+			return db.RoleAssignments{}, err
+		}
 	}
 	if _, err = d.execTx(tx, "delete from project__user_role where role_id=?", roleID); err != nil {
 		_ = tx.Rollback()

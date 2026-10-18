@@ -134,7 +134,8 @@ Amplifiers: `max_parallel_tasks` defaults to `9999` (TP-7) and the MySQL/Postgre
 - **RUN-1 — Runner auth is `SELECT * FROM runner WHERE token=?` on an unindexed column, ~2×/s per runner.**
   `RunnerMiddleware` (`api/runners/runners.go:22-63`) → `GetRunnerByToken` (`db/sql/global_runner.go:12-32`).
   Progress `PUT` every 1 s (`services/runners/job_pool.go:267,288-291`), job `GET` every
-  `runner.check_interval_seconds` (default 1 s). Remedy: unique index, short-TTL cache. **present**.
+  `runner.check_interval_seconds` (default 5 s since 2026-10-16). Remedy: unique index, short-TTL
+  cache. **present**.
 - **RUN-2 — `TouchRunner` UPDATE on every `GET` poll.** `runners.go:106` → `global_runner.go:138-157`
   (now also `started_at`); consumed at the 120 s offline timeout (`util/config.go:275`). Remedy:
   debounce to ~60 s. **present**.

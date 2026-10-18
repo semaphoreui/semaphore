@@ -20,3 +20,7 @@ func NewWorkflowStore(store db.Store) db.WorkflowManager {
 func NewGlobalRoleStore(store db.Store) db.GlobalRoleStore {
 	return &sql.GlobalRoleStoreImpl{}
 }
+
+func NewRoleMappingStore(store db.Store) db.RoleMappingStore {
+	return &sql.RoleMappingStoreImpl{}
+}

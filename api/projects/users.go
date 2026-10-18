@@ -21,13 +21,9 @@ func UserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		memberRoles, err := helpers.Store(r).GetProjectUserRoles(project.ID, userID)
+		member, err := helpers.Store(r).GetProjectMember(project.ID, userID)
 		if err != nil {
 			helpers.WriteError(w, err)
-			return
-		}
-		if len(memberRoles) == 0 {
-			helpers.WriteError(w, db.ErrNotFound)
 			return
 		}
 
@@ -39,17 +35,24 @@ func UserMiddleware(next http.Handler) http.Handler {
 		}
 
 		r = helpers.SetContextValue(r, "projectUser", user)
-		r = helpers.SetContextValue(r, "projectMemberRoles", memberRoles)
+		r = helpers.SetContextValue(r, "projectUserMember", member)
 		next.ServeHTTP(w, r)
 	})
 }
 
+type mappedRole struct {
+	Role     string `json:"role"`
+	Provider string `json:"provider"`
+	Group    string `json:"group"`
+}
+
 type projUser struct {
-	ID       int      `json:"id"`
-	Username string   `json:"username"`
-	Name     string   `json:"name"`
-	Role     string   `json:"role"`
-	Roles    []string `json:"roles"`
+	ID          int          `json:"id"`
+	Username    string       `json:"username"`
+	Name        string       `json:"name"`
+	Role        string       `json:"role"`
+	Roles       []string     `json:"roles"`
+	MappedRoles []mappedRole `json:"mapped_roles,omitempty"`
 }
 
 // takesLastOwner reports whether the change takes the owner role from the only owner of the project.
@@ -71,8 +74,9 @@ func resolveRoles(store db.Store, projectID int, role string, roles []string) ([
 		}
 		slugs = []string{role}
 	}
-	if len(slugs) == 0 {
-		return nil, &common_errors.ValidationError{Message: "At least one role is required"}
+	// An empty list is a request to drop the manual roles, the store decides whether the member keeps access.
+	if slugs == nil {
+		return nil, &common_errors.ValidationError{Message: "Send role or roles"}
 	}
 	result := make([]db.Role, 0, len(slugs))
 	for _, slug := range slugs {
@@ -126,6 +130,9 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		if len(item.Roles) == 1 {
 			item.Role = item.Roles[0]
 		}
+		for _, mapped := range user.MappedRoles {
+			item.MappedRoles = append(item.MappedRoles, mappedRole{Role: mapped.RoleSlug, Provider: mapped.Provider, Group: mapped.Group})
+		}
 		result = append(result, item)
 	}
 
@@ -152,6 +159,12 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	member, err := store.GetProjectMember(project.ID, projectUser.UserID)
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	err = store.CreateProjectUser(project.ID, projectUser.UserID, roleIDs(roles))
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -170,30 +183,46 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	if added, err := helpers.Store(r).GetUser(projectUser.UserID); err == nil {
 		target.Name = added.Username
 	}
-	helpers.Audit(r).Record(r.Context(), audit.Event{
+	event := audit.Event{
 		Kind:      audit.IAMMembershipAdd,
 		Target:    target,
 		ProjectID: project.ID,
 		Metadata:  audit.MembershipMetadata{Roles: audit.NewRoleRefs(roles)},
-	})
+	}
+	// Mapped roles already made the user a member, so only the manual roles change.
+	if len(member.MappedRoles) > 0 {
+		event.Kind = audit.IAMProjectRoleChange
+		event.Metadata = audit.ProjectRoleMetadata{OldRoles: []audit.RoleRef{}, NewRoles: audit.NewRoleRefs(roles)}
+	}
+	helpers.Audit(r).Record(r.Context(), event)
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // removeUser removes a user from a project team
-func removeUser(targetUser db.User, roles []db.Role, w http.ResponseWriter, r *http.Request) {
+func removeUser(targetUser db.User, member db.ProjectMember, w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
+
+	if len(member.Roles) == 0 && len(member.MappedRoles) > 0 {
+		helpers.WriteError(w, &common_errors.ValidationError{Message: "Access comes from group mappings. An admin can change the mappings."})
+		return
+	}
 
 	event := audit.Event{
 		Kind:      audit.IAMMembershipRemove,
 		Target:    audit.UserTarget(targetUser.ID, targetUser.Username),
 		ProjectID: project.ID,
-		Metadata:  audit.MembershipMetadata{Roles: audit.NewRoleRefs(roles), SelfRemoval: targetUser.ID == me.ID},
+		Metadata:  audit.MembershipMetadata{Roles: audit.NewRoleRefs(member.Roles), SelfRemoval: targetUser.ID == me.ID},
+	}
+	// Mapped roles keep the user in the project, so only the manual roles change.
+	if len(member.MappedRoles) > 0 {
+		event.Kind = audit.IAMProjectRoleChange
+		event.Metadata = audit.ProjectRoleMetadata{OldRoles: audit.NewRoleRefs(member.Roles), NewRoles: []audit.RoleRef{}}
 	}
 
 	if !me.Admin {
-		last, err := takesLastOwner(helpers.Store(r), project.ID, roles, nil)
+		last, err := takesLastOwner(helpers.Store(r), project.ID, member.Roles, nil)
 		if err != nil {
 			helpers.WriteError(w, err)
 			return
@@ -201,6 +230,9 @@ func removeUser(targetUser db.User, roles []db.Role, w http.ResponseWriter, r *h
 		if last {
 			event.Outcome = audit.OutcomeFailure
 			event.Reason = audit.ReasonLastOwner
+			if len(member.MappedRoles) > 0 {
+				event.Metadata = audit.ProjectRoleMetadata{OldRoles: audit.NewRoleRefs(member.Roles)}
+			}
 			helpers.Audit(r).Record(r.Context(), event)
 			helpers.WriteError(w, &common_errors.ValidationError{Message: "The project needs at least one Owner"})
 			return
@@ -233,15 +265,13 @@ func removeUser(targetUser db.User, roles []db.Role, w http.ResponseWriter, r *h
 // LeftProject removes a user from a project team
 func LeftProject(w http.ResponseWriter, r *http.Request) {
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
-	roles, _ := helpers.GetFromContext(r, "projectRoles").([]db.Role)
-	removeUser(*me, roles, w, r)
+	removeUser(*me, helpers.GetFromContext(r, "projectMember").(db.ProjectMember), w, r)
 }
 
 // RemoveUser removes a user from a project team
 func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	targetUser := helpers.GetFromContext(r, "projectUser").(db.User) // target user
-	roles, _ := helpers.GetFromContext(r, "projectMemberRoles").([]db.Role)
-	removeUser(targetUser, roles, w, r)
+	removeUser(targetUser, helpers.GetFromContext(r, "projectUserMember").(db.ProjectMember), w, r)
 }
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -249,7 +279,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	store := helpers.Store(r)
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
 	targetUser := helpers.GetFromContext(r, "projectUser").(db.User)
-	oldRoles, _ := helpers.GetFromContext(r, "projectMemberRoles").([]db.Role)
+	oldRoles := helpers.GetFromContext(r, "projectUserMember").(db.ProjectMember).Roles
 
 	event := audit.Event{
 		Kind:      audit.IAMProjectRoleChange,

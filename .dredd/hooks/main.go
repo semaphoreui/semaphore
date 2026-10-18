@@ -169,17 +169,21 @@ func main() {
 		h.Before("workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", capabilityWrapper("template"))
 		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", func(t *trans.Transaction) {
-			t.Request.Body = "{\"name\":\"workflow-doc-test\",\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + "},{\"id\":2,\"kind\":\"approval\"}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
+			t.Request.Body = "{\"name\":\"workflow-doc-test\",\"survey_vars\":[{\"name\":\"wf_var\",\"title\":\"Workflow var\",\"type\":\"\"}],\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + ",\"survey_inputs\":[{\"var\":\"dredd_var\",\"workflow_var\":\"wf_var\"}]},{\"id\":2,\"kind\":\"approval\"}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
 		})
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Get workflow > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json", func(t *trans.Transaction) {
-			t.Request.Body = "{\"id\":" + strconv.Itoa(workflowID) + ",\"project_id\":" + strconv.Itoa(userProject.ID) + ",\"name\":\"workflow-updated\",\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + "},{\"id\":2,\"kind\":\"approval\",\"approval_timeout\":120}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
+			t.Request.Body = "{\"id\":" + strconv.Itoa(workflowID) + ",\"project_id\":" + strconv.Itoa(userProject.ID) + ",\"name\":\"workflow-updated\",\"survey_vars\":[{\"name\":\"wf_var\",\"title\":\"Workflow var\",\"type\":\"\",\"default_value\":\"v1\"}],\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + ",\"survey_inputs\":[{\"var\":\"dredd_var\",\"workflow_var\":\"wf_var\"}]},{\"id\":2,\"kind\":\"approval\",\"approval_timeout\":120}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
 		})
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions > Get workflow revisions > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions/{revision_id} > Get workflow revision > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Run workflow > 201 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Run workflow > 201 > application/json", func(t *trans.Transaction) {
+			// The answers to the workflow's survey (see Add workflow above).
+			t.Request.Body = "{\"environment\":{\"wf_var\":\"from-dredd\"}}"
+		})
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop > Stop workflow run > 200 > application/json", capabilityWrapper("workflow_run"))

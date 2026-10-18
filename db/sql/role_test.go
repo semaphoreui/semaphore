@@ -167,7 +167,7 @@ func TestDeleteRoleWithAssignments(t *testing.T) {
 	check(assigned)
 	assert.ErrorIs(t, store.DeleteRole(role.ID), db.ErrInvalidOperation, "the foreign keys keep an assigned role")
 
-	removed, err := store.DeleteRoleWithAssignments(role.ID)
+	removed, err := store.DeleteRoleWithAssignments(role.ID, false)
 
 	require.NoError(t, err)
 	check(removed)
@@ -175,9 +175,9 @@ func TestDeleteRoleWithAssignments(t *testing.T) {
 	assert.ErrorIs(t, err, db.ErrNotFound)
 	_, err = store.GetProjectUser(projectID, only.ID)
 	assert.ErrorIs(t, err, db.ErrNotFound, "a member whose only role it was leaves the project")
-	roles, err := store.GetProjectUserRoles(projectID, both.ID)
+	member, err := store.GetProjectMember(projectID, both.ID)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"guest"}, slugsOf(roles))
+	assert.Equal(t, []string{"guest"}, slugsOf(member.Roles))
 	grants, err := store.GetTemplateRoles(projectID, templateID)
 	require.NoError(t, err)
 	assert.Empty(t, grants)
@@ -189,10 +189,77 @@ func TestDeleteRoleWithAssignments_BuiltinRole(t *testing.T) {
 	require.NoError(t, err)
 	user := createTemplatePermissionTestUser(t, store, projectID, "u", owner.ID)
 
-	_, err = store.DeleteRoleWithAssignments(owner.ID)
+	_, err = store.DeleteRoleWithAssignments(owner.ID, false)
 
 	assert.ErrorIs(t, err, db.ErrNotFound)
-	roles, err := store.GetProjectUserRoles(projectID, user.ID)
+	member, err := store.GetProjectMember(projectID, user.ID)
 	require.NoError(t, err)
-	assert.Len(t, roles, 1, "the rollback keeps the assignment")
+	assert.Len(t, member.Roles, 1, "the rollback keeps the assignment")
+}
+
+func TestDeleteRoleWithAssignments_Mappings(t *testing.T) {
+	store, projectID, _ := newTemplatePermissionTest(t)
+	guest, err := store.GetSharedRoleBySlug("guest")
+	require.NoError(t, err)
+	dev, err := store.CreateRole(db.Role{Slug: "dev", Name: "Dev", ProjectID: &projectID})
+	require.NoError(t, err)
+	keeps := createTemplatePermissionTestUser(t, store, projectID, "keeps", dev.ID)
+	addMappedRole(t, store, projectID, keeps.ID, guest.ID, "admins")
+	mapped, err := store.CreateUserWithoutPassword(db.User{Username: "mapped", Name: "mapped", Email: "mapped@example.com"})
+	require.NoError(t, err)
+	mappingID := addMappedRole(t, store, projectID, mapped.ID, dev.ID, "devops")
+	check := func(assigned db.RoleAssignments) {
+		t.Helper()
+		require.Len(t, assigned.Members, 1)
+		assert.Equal(t, keeps.ID, assigned.Members[0].UserID)
+		assert.True(t, assigned.Members[0].Mapped)
+		require.Len(t, assigned.Mappings, 1)
+		assert.Equal(t, mappingID, assigned.Mappings[0].ID)
+		assert.Equal(t, "devops", assigned.Mappings[0].Group)
+		assert.Equal(t, "dev", assigned.Mappings[0].RoleSlug)
+		require.Len(t, assigned.MappedRoles, 1)
+		assert.Equal(t, mapped.ID, assigned.MappedRoles[0].UserID)
+		assert.Equal(t, mappingID, assigned.MappedRoles[0].MappingID)
+		assert.Equal(t, db.RoleImpact{Members: 2, Projects: 1, Mappings: 1}, assigned.Impact())
+	}
+
+	assigned, err := store.GetRoleAssignments(dev.ID)
+	require.NoError(t, err)
+	check(assigned)
+	assert.ErrorIs(t, store.DeleteRole(dev.ID), db.ErrInvalidOperation)
+
+	_, err = store.DeleteRoleWithAssignments(dev.ID, false)
+
+	assert.ErrorIs(t, err, db.ErrInvalidOperation, "the mapping keeps the role")
+	assigned, err = store.GetRoleAssignments(dev.ID)
+	require.NoError(t, err)
+	check(assigned)
+
+	removed, err := store.DeleteRoleWithAssignments(dev.ID, true)
+
+	require.NoError(t, err)
+	check(removed)
+	_, err = store.GetProjectRole(projectID, "dev")
+	assert.ErrorIs(t, err, db.ErrNotFound)
+	assert.Equal(t, 0, roleIDOf(t, store, "select count(*) from group_role_mapping where id=?", mappingID))
+	_, err = store.GetProjectUser(projectID, keeps.ID)
+	assert.NoError(t, err, "the mapped guest role keeps the membership")
+	_, err = store.GetProjectUser(projectID, mapped.ID)
+	assert.ErrorIs(t, err, db.ErrNotFound)
+}
+
+// A mapping of the deleted role goes with it, so it does not keep the membership.
+func TestGetRoleAssignments_MappingOfTheSameRoleIsNotMapped(t *testing.T) {
+	store, projectID, _ := newTemplatePermissionTest(t)
+	dev, err := store.CreateRole(db.Role{Slug: "dev", Name: "Dev", ProjectID: &projectID})
+	require.NoError(t, err)
+	user := createTemplatePermissionTestUser(t, store, projectID, "u", dev.ID)
+	addMappedRole(t, store, projectID, user.ID, dev.ID, "devops")
+
+	assigned, err := store.GetRoleAssignments(dev.ID)
+
+	require.NoError(t, err)
+	require.Len(t, assigned.Members, 1)
+	assert.False(t, assigned.Members[0].Mapped)
+	assert.Equal(t, db.RoleImpact{Members: 1, Projects: 1, Mappings: 1}, assigned.Impact())
 }

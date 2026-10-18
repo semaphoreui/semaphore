@@ -142,7 +142,7 @@ func TestDeleteRoleWithAssignments_LeavesGlobalRolesAlone(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, store.CreateProjectUser(project.ID, bob.ID, []int{role.ID}))
 
-	removed, err := store.DeleteRoleWithAssignments(role.ID)
+	removed, err := store.DeleteRoleWithAssignments(role.ID, true)
 	require.NoError(t, err)
 	assert.Equal(t, db.RoleImpact{Members: 1, Projects: 1}, removed.Impact())
 	assert.Len(t, globalAssignmentsOf(t, store, alice.ID), 1)

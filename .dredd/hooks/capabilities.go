@@ -188,7 +188,9 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				ViewID:                  &view.ID,
 				App:                     db.AppAnsible,
 				GitBranch:               &branch,
-				SurveyVars:              []db.SurveyVar{},
+				// A non-required survey variable, so a workflow node can bind it to a
+				// workflow variable (survey_inputs) without blocking task creation.
+				SurveyVars: []db.SurveyVar{{Name: "dredd_var", Title: "Dredd var"}},
 			})
 
 			printError(err)

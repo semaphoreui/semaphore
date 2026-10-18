@@ -201,6 +201,8 @@ export default {
       if (this.kind === 'task') {
         if (this.appTitle) parts.push(this.appTitle);
         if (this.hasParamOverrides) parts.push(this.$t('workflowParamsOverridden'));
+        const bound = Array.isArray(this.node.survey_inputs) ? this.node.survey_inputs.length : 0;
+        if (bound > 0) parts.push(this.$tc('workflowNodeSurveyInputsCount', bound, { count: bound }));
       } else if (this.kind === 'approval') {
         parts.push(this.node.approval_timeout
           ? this.$t('workflowApprovalTimeoutShort', {

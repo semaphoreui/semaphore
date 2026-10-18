@@ -121,11 +121,17 @@
               <v-text-field
                 v-model="item.start_version"
                 :label="$t('startVersion')"
-                :hint="$t('workflowStartVersionHint')"
                 persistent-hint
                 :disabled="!canManage"
                 outlined
                 dense
+              />
+
+              <SurveyVars
+                :key="`survey-${graphKey}`"
+                :vars="item.survey_vars"
+                :allow-secret="false"
+                @change="setSurveyVars"
               />
             </div>
 
@@ -188,6 +194,7 @@
           :key="`node-${editingNode.id}`"
           :value="editingNode"
           :templates="templates"
+          :survey-vars="item.survey_vars"
           :can-manage="canManage"
           @input="applyNodeEdit"
           @delete="deleteSelectedNode()"
@@ -220,6 +227,7 @@ import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import WorkflowGraph from '@/components/WorkflowGraph.vue';
 import WorkflowNodeProperties from '@/components/workflow/WorkflowNodeProperties.vue';
+import SurveyVars from '@/components/SurveyVars.vue';
 import WorkflowEdgeProperties from '@/components/workflow/WorkflowEdgeProperties.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import ProjectMixin from '@/components/ProjectMixin';
@@ -237,7 +245,7 @@ function isTypingTarget(target) {
 
 export default {
   components: {
-    WorkflowGraph, WorkflowNodeProperties, WorkflowEdgeProperties, YesNoDialog,
+    WorkflowGraph, WorkflowNodeProperties, WorkflowEdgeProperties, YesNoDialog, SurveyVars,
   },
   mixins: [ProjectMixin, PermissionsCheck],
   props: {
@@ -308,6 +316,7 @@ export default {
       return JSON.stringify({
         name: this.item.name,
         start_version: this.item.start_version || '',
+        survey_vars: this.item.survey_vars || [],
         nodes: this.item.nodes,
         edges: this.item.edges,
       });
@@ -340,10 +349,41 @@ export default {
         roots.forEach((n) => out.push({ text, nodeId: n.id }));
       }
 
+      // The workflow survey: unique names (db.ValidateWorkflowSurveyVars).
+      const workflowVarNames = new Set();
+      (this.item.survey_vars || []).forEach((v) => {
+        if (workflowVarNames.has(v.name)) {
+          out.push({ text: this.$t('workflowErrorSurveyVarDuplicate', { name: v.name }) });
+        }
+        workflowVarNames.add(v.name);
+      });
+
       nodes.forEach((n) => {
         const kind = n.kind || 'task';
         if (kind === 'task' && !n.template_id) {
           out.push({ text: this.$t('workflowErrorTaskNeedsTemplate'), nodeId: n.id });
+        }
+        if (kind === 'task' && Array.isArray(n.survey_inputs) && n.survey_inputs.length > 0) {
+          // A binding refers to names: the template's survey variable it feeds
+          // and the workflow variable it reads. Either may have been renamed or
+          // deleted since (validateWorkflowNodeSurveyInputs on the server).
+          const tpl = (this.templates || []).find((t) => t.id === n.template_id);
+          const templateVars = tpl
+            ? new Set((tpl.survey_vars || []).filter((v) => v.type !== 'secret').map((v) => v.name))
+            : null;
+          const seen = new Set();
+          n.survey_inputs.forEach((b) => {
+            if (seen.has(b.var)) {
+              out.push({ text: this.$t('workflowErrorSurveyInputDuplicate', { name: b.var, node: n.id }), nodeId: n.id });
+            }
+            seen.add(b.var);
+            if (templateVars && !templateVars.has(b.var)) {
+              out.push({ text: this.$t('workflowErrorSurveyInputUnknownVar', { name: b.var, node: n.id }), nodeId: n.id });
+            }
+            if (!workflowVarNames.has(b.workflow_var)) {
+              out.push({ text: this.$t('workflowErrorSurveyInputUnknownWorkflowVar', { name: b.workflow_var, node: n.id }), nodeId: n.id });
+            }
+          });
         }
         if (kind === 'approval' && n.approval_timeout != null && n.approval_timeout <= 0) {
           out.push({ text: this.$t('workflowErrorApprovalTimeoutPositive'), nodeId: n.id });
@@ -469,9 +509,13 @@ export default {
       return {
         name: '',
         description: '',
+        survey_vars: [],
         nodes: [],
         edges: [],
       };
+    },
+    setSurveyVars(vars) {
+      this.item.survey_vars = [...vars];
     },
     async loadData() {
       this.selectedNodeId = null;
@@ -486,6 +530,7 @@ export default {
           );
           if (!Array.isArray(this.item.nodes)) this.item.nodes = [];
           if (!Array.isArray(this.item.edges)) this.item.edges = [];
+          if (!Array.isArray(this.item.survey_vars)) this.item.survey_vars = [];
           this.item.nodes = this.item.nodes.map((node) => ({
             kind: 'task',
             convergence_mode: 'all',

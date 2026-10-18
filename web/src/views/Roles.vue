@@ -217,6 +217,10 @@ export default {
       } catch (err) {
         const impact = err.response && err.response.status === 409
           && err.response.data && err.response.data.impact;
+        if (impact && impact.mappings > 0 && !this.isAdmin) {
+          EventBus.$emit('i-snackbar', { color: 'error', text: this.$i18n.t('roleUsedByMappings') });
+          return;
+        }
         if (impact && this.projectId && !this.can(USER_PERMISSIONS.manageProjectUsers)) {
           EventBus.$emit('i-snackbar', { color: 'error', text: this.$i18n.t('roleInUseNeedsManageUsers') });
           return;

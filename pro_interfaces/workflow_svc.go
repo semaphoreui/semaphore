@@ -8,7 +8,11 @@ import "github.com/semaphoreui/semaphore/db"
 // (pro/services/server/workflow_svc.go); the licensed build provides the real
 // implementation (pro_impl/services/server/workflow_svc.go).
 type WorkflowService interface {
-	StartWorkflow(workflow db.WorkflowTemplate, user *db.User) (db.WorkflowRun, error)
+	// StartWorkflow creates a run of the workflow's current revision. params
+	// carries the answers to the workflow's survey; the service applies the
+	// survey defaults and rejects the start with a validation error when a
+	// required variable has no value or a value does not fit its type.
+	StartWorkflow(workflow db.WorkflowTemplate, params db.WorkflowRunParams, user *db.User) (db.WorkflowRun, error)
 	ProgressWorkflowRun(projectID int, runID int, user *db.User) error
 	// StopWorkflowRun stops a non-finished run: it signals every in-flight task
 	// of the run to stop and marks the run as stopped (terminal).

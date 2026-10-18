@@ -2,12 +2,14 @@ package runners
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -34,7 +36,7 @@ func derefString(s *string) string {
 
 func newHTTPClient() *http.Client {
 	tlsConfig := &tls.Config{}
-	conn := util.Config.Runner.Connection
+	conn := util.Config.Runner.Connection // connection can't be null because initialized via reflections
 	if conn.SkipTLSVerify {
 		tlsConfig.InsecureSkipVerify = true
 	}
@@ -46,12 +48,69 @@ func newHTTPClient() *http.Client {
 			tlsConfig.RootCAs = pool
 		}
 	}
+
+	// Every phase that waits on the server gets the configured budget. A custom
+	// Transport starts from the zero value, so without these the dial and the
+	// handshake would have no deadline at all (http.DefaultTransport is not
+	// used once TLSClientConfig is set). ResponseHeaderTimeout is what bounds a
+	// server that accepts the connection and then goes silent: the poll loop
+	// skips every cycle while the previous request is in flight, so such a hang
+	// stops the heartbeat too and the server declares the runner offline.
+	// The request body upload stays unbounded on purpose — a progress report
+	// carries task logs, and cutting a slow upload would retry it forever.
+	// ResponseHeaderTimeout stops applying once the headers arrive; the body
+	// read is bounded separately by doRequest.
+	timeout := util.Config.RunnerConnectionTimeout()
+
+	dialer := &net.Dialer{
+		Timeout: timeout,
+		// Detects a peer that died silently on an established connection,
+		// which no timeout above covers. Mirrors http.DefaultTransport.
+		KeepAlive: 30 * time.Second,
+	}
+
 	return &http.Client{
-		Transport: &http.Transport{TLSClientConfig: tlsConfig},
+		Transport: &http.Transport{
+			TLSClientConfig:       tlsConfig,
+			DialContext:           dialer.DialContext,
+			TLSHandshakeTimeout:   timeout,
+			ResponseHeaderTimeout: timeout,
+			IdleConnTimeout:       90 * time.Second,
+			ExpectContinueTimeout: time.Second,
+		},
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return errors.New("runner API redirects are not allowed")
 		},
 	}
+}
+
+// doRequest sends req through the shared client and arms the response-body
+// deadline the moment the headers arrive. The transport's ResponseHeaderTimeout
+// stops applying at that point, so a server that sends the headers and then
+// stalls the body would otherwise block the poll goroutine — and with it the
+// heartbeat — indefinitely. The deadline is armed only after Do returns, so the
+// request body upload stays unbounded (see newHTTPClient). A read that outlives
+// the deadline fails with context.Canceled.
+//
+// The caller must call release once done with the body, in place of
+// resp.Body.Close(): it closes the body and disarms the deadline. Read the body
+// to EOF before releasing so the connection goes back to the keep-alive pool.
+func (p *JobPool) doRequest(req *http.Request) (resp *http.Response, release func(), err error) {
+	ctx, cancel := context.WithCancel(req.Context())
+
+	resp, err = p.client.Do(req.WithContext(ctx))
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
+
+	deadline := time.AfterFunc(util.Config.RunnerConnectionTimeout(), cancel)
+	release = func() {
+		deadline.Stop()
+		_ = resp.Body.Close()
+		cancel()
+	}
+	return resp, release, nil
 }
 
 type JobPool struct {
@@ -267,11 +326,11 @@ func (p *JobPool) Unregister() (err error) {
 		"url":     url,
 	}).Debug("Sending unregistration request to the server")
 
-	resp, err := p.client.Do(req)
+	resp, release, err := p.doRequest(req)
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer release()
 
 	if resp.StatusCode >= 400 && resp.StatusCode != 404 {
 		err = fmt.Errorf("encountered error while unregistering runner; server returned code %d", resp.StatusCode)
@@ -515,14 +574,14 @@ func (p *JobPool) sendProgress() (ok bool) {
 
 	p.setCommonHeaders(req)
 
-	resp, err := p.client.Do(req)
+	resp, release, err := p.doRequest(req)
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
 			"context": "sending_progress",
 		}).Error("failed to send job progress to the server")
 		return
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer release()
 
 	if resp.StatusCode >= 400 {
 		log.WithError(fmt.Errorf("invalid status code")).WithFields(log.Fields{
@@ -681,7 +740,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		"url":         url,
 	}).Debug("Sending registration request to the server")
 
-	resp, err := p.client.Do(req)
+	resp, release, err := p.doRequest(req)
 
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
@@ -689,7 +748,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		}).Error("failed to send registration request to the server")
 		return
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer release()
 
 	if resp.StatusCode != 200 {
 		log.WithError(fmt.Errorf("invalid status code")).WithFields(log.Fields{
@@ -812,7 +871,7 @@ func (p *JobPool) checkNewJobs() {
 		"queued_jobs":  p.queueLen(),
 	}).Debug("Fetching new jobs from the server")
 
-	resp, err := p.client.Do(req)
+	resp, release, err := p.doRequest(req)
 
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
@@ -820,7 +879,7 @@ func (p *JobPool) checkNewJobs() {
 		}).Error("failed to fetch new jobs from the server")
 		return
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer release()
 
 	if resp.StatusCode >= 400 {
 

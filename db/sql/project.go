@@ -42,7 +42,10 @@ func (d *SqlDb) GetAllProjects() (projects []db.Project, err error) {
 func (d *SqlDb) GetProjects(userID int) (projects []db.Project, err error) {
 	query, args, err := squirrel.Select("p.*").
 		From("project as p").
-		Where("exists (select 1 from project__user_role pur where pur.project_id = p.id and pur.user_id = ?)", userID).
+		Where(`(
+			exists (select 1 from project__user_role pur where pur.project_id = p.id and pur.user_id = ?)
+			or exists (select 1 from project__user_mapped_role mr where mr.project_id = p.id and mr.user_id = ?)
+		)`, userID, userID).
 		OrderBy("p.name").
 		Limit(200).
 		ToSql()
@@ -93,6 +96,8 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		"delete from project__template_role where project_id=?",
 		"delete from project__invite where project_id=?",
 		"delete from project__user_role where project_id=?",
+		// Before the roles: a mapping keeps its role from being deleted.
+		"delete from group_role_mapping where project_id=?",
 		"delete from `role` where project_id=?",
 		"delete from project__repository where project_id=?",
 		"delete from project__inventory where project_id=?",

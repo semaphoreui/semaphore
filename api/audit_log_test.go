@@ -166,7 +166,26 @@ func TestAuditRoutes_AreGetOnly(t *testing.T) {
 	prev := util.Config
 	t.Cleanup(func() { util.Config = prev })
 	util.Config = &util.ConfigType{Debugging: &util.DebuggingConfig{}}
-	router := Route(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	router := Route(
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil)
 	for _, target := range []string{"/api/audit/events", "/api/audit/events/export?format=csv"} {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, httptest.NewRequest(http.MethodHead, target, nil))
