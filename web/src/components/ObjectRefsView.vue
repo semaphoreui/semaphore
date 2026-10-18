@@ -75,6 +75,11 @@ export default {
         title: 'Schedules',
         icon: 'clock-outline',
       }, {
+        slug: 'proxies',
+        pageless: true,
+        title: 'Proxies',
+        icon: 'transit-connection-variant',
+      }, {
         slug: 'host_configs',
         path: 'host_config',
         pageless: true,

@@ -18,6 +18,7 @@ import Templates from '../views/project/Templates.vue';
 import TemplateView from '../views/project/TemplateView.vue';
 import Environment from '../views/project/Environment.vue';
 import Inventory from '../views/project/Inventory.vue';
+import Proxies from '../views/project/Proxies.vue';
 import Keys from '../views/project/Keys.vue';
 import Repositories from '../views/project/Repositories.vue';
 import HostConfig from '../views/project/HostConfig.vue';
@@ -163,6 +164,10 @@ const routes = [
   {
     path: '/project/:projectId/inventory',
     component: Inventory,
+  },
+  {
+    path: '/project/:projectId/proxies',
+    component: Proxies,
   },
   {
     path: '/project/:projectId/integrations',

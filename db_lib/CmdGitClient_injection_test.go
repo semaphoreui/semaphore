@@ -111,3 +111,7 @@ func TestCmdGitClient_LegitRemoteOperations(t *testing.T) {
 		assert.Equal(t, []string{"main"}, branches)
 	})
 }
+
+func (nopKeyInstaller) InstallAll(keys []db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	return ssh.AccessKeyInstallation{}, nil
+}

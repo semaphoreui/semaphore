@@ -823,6 +823,10 @@ func TestTaskRunner_populateTaskEnvironment(t *testing.T) {
 	assert.Equal(t, "{\"a\":11,\"b\":22,\"c\":33,\"d\":4}", tsk.Environment.JSON)
 }
 
+func (*KeyInstallerMock) InstallAll(keys []db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	return ssh.AccessKeyInstallation{}, nil
+}
+
 // fakeWorkflowRepo answers GetWorkflowRunByID from a fixed run; every other
 // WorkflowManager method panics via the nil embedded interface.
 type fakeWorkflowRepo struct {

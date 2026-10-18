@@ -192,6 +192,11 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
+	b.proxies, err = store.GetProxies(projectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
 	b.inventories, err = store.GetInventories(projectID, db.RetrieveQueryParams{}, []db.InventoryType{})
 	if err != nil {
 		return
@@ -356,10 +361,32 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		if o.BecomeKeyID != nil {
 			BecomeKey, _ = findNameByID[db.AccessKey](*o.BecomeKeyID, b.keys)
 		}
+		var Proxy *string = nil
+		if o.ProxyID != nil {
+			Proxy, _ = findNameByID[db.Proxy](*o.ProxyID, b.proxies)
+		}
 		inventories[i] = BackupInventory{
 			Inventory: o,
 			SSHKey:    SSHKey,
 			BecomeKey: BecomeKey,
+			Proxy:     Proxy,
+		}
+	}
+
+	proxies := make([]BackupProxy, len(b.proxies))
+	for i, o := range b.proxies {
+		var SSHKey *string = nil
+		if o.SSHKeyID != nil {
+			SSHKey, _ = findNameByID[db.AccessKey](*o.SSHKeyID, b.keys)
+		}
+		var RequiresProxy *string = nil
+		if o.RequiresProxyID != nil {
+			RequiresProxy, _ = findNameByID[db.Proxy](*o.RequiresProxyID, b.proxies)
+		}
+		proxies[i] = BackupProxy{
+			Proxy:         o,
+			SSHKey:        SSHKey,
+			RequiresProxy: RequiresProxy,
 		}
 	}
 
@@ -373,9 +400,14 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 	repositories := make([]BackupRepository, len(b.repositories))
 	for i, o := range b.repositories {
 		SSHKey, _ := findNameByID[db.AccessKey](o.SSHKeyID, b.keys)
+		var Proxy *string = nil
+		if o.ProxyID != nil {
+			Proxy, _ = findNameByID[db.Proxy](*o.ProxyID, b.proxies)
+		}
 		repositories[i] = BackupRepository{
 			Repository: o,
 			SSHKey:     SSHKey,
+			Proxy:      Proxy,
 		}
 	}
 
@@ -530,6 +562,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			b.meta,
 		},
 		Inventories:        inventories,
+		Proxies:            proxies,
 		Environments:       environments,
 		Views:              views,
 		Repositories:       repositories,
