@@ -121,16 +121,12 @@
               <v-text-field
                 v-model="item.start_version"
                 :label="$t('startVersion')"
-                :hint="$t('workflowStartVersionHint')"
                 persistent-hint
                 :disabled="!canManage"
                 outlined
                 dense
               />
 
-              <div class="text-caption text--secondary mb-4">
-                {{ $t('workflowSurveyVarsHint') }}
-              </div>
               <SurveyVars
                 :key="`survey-${graphKey}`"
                 :vars="item.survey_vars"
