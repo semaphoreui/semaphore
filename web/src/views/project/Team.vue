@@ -49,30 +49,42 @@
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.roles="{ item }">
-        <v-autocomplete
-          v-if="can(USER_PERMISSIONS.manageProjectUsers)"
-          v-model="item.roles"
-          :items="roleItems(item)"
-          item-value="slug"
-          item-text="name"
-          multiple
-          small-chips
-          deletable-chips
-          hide-details
-          dense
-          class="pt-0 mt-0"
-          @change="updateProjectUser(item)"
-        >
-          <template v-slot:item="{ item: role }">
-            <v-list-item-content>
-              <v-list-item-title>{{ role.name }}</v-list-item-title>
-              <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
-            </v-list-item-content>
-          </template>
-        </v-autocomplete>
-        <div v-else>
-          <v-chip v-for="role in roleItems(item).filter((r) => item.roles.includes(r.slug))"
-                  :key="role.slug" small class="mr-1">{{ role.name }}</v-chip>
+        <div class="d-flex align-center">
+          <v-tooltip v-for="mapped in item.mapped_roles || []"
+                     :key="`${mapped.provider}/${mapped.group}/${mapped.role}`" bottom>
+            <template v-slot:activator="{ on, attrs }">
+              <v-chip small outlined class="mr-1" v-bind="attrs" v-on="on">
+                <v-icon x-small left>mdi-lock</v-icon>
+                {{ (roles.find((r) => r.slug === mapped.role) || { name: mapped.role }).name }}
+              </v-chip>
+            </template>
+            {{ mapped.provider }}: {{ mapped.group }}
+          </v-tooltip>
+          <v-autocomplete
+            v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+            v-model="item.roles"
+            :items="roleItems(item)"
+            item-value="slug"
+            item-text="name"
+            multiple
+            small-chips
+            deletable-chips
+            hide-details
+            dense
+            class="pt-0 mt-0"
+            @change="updateProjectUser(item)"
+          >
+            <template v-slot:item="{ item: role }">
+              <v-list-item-content>
+                <v-list-item-title>{{ role.name }}</v-list-item-title>
+                <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
+              </v-list-item-content>
+            </template>
+          </v-autocomplete>
+          <div v-else>
+            <v-chip v-for="role in roleItems(item).filter((r) => item.roles.includes(r.slug))"
+                    :key="role.slug" small class="mr-1">{{ role.name }}</v-chip>
+          </div>
         </div>
       </template>
 
@@ -160,8 +172,8 @@ export default {
 
     async updateProjectUser(user) {
       const save = async () => {
-        // Removing a member is the delete button, the server refuses an empty role list.
-        if (user.roles.length > 0) {
+        // The server accepts an empty list only while roles from group mappings remain.
+        if (user.roles.length > 0 || (user.mapped_roles || []).length > 0) {
           try {
             await axios({
               method: 'put',
@@ -185,6 +197,24 @@ export default {
       this.pendingSaves += 1;
       this.saving = this.saving.then(save, save);
       await this.saving;
+    },
+
+    async deleteItem(itemId) {
+      this.itemId = itemId;
+      try {
+        await axios({
+          method: 'delete',
+          url: this.getSingleItemUrl(),
+          responseType: 'json',
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+        return;
+      }
+      await this.loadItems();
+      if (this.items.some((member) => member.id === itemId)) {
+        EventBus.$emit('i-snackbar', { color: 'info', text: this.$i18n.t('memberKeepsMappedRoles') });
+      }
     },
 
     allowActions() {

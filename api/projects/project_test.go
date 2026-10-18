@@ -14,19 +14,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func runProjectMiddleware(store db.Store, projectID int, user *db.User) (int, db.ProjectUserPermission, []db.Role) {
+func runProjectMiddleware(store db.Store, projectID int, user *db.User) (int, db.ProjectUserPermission, db.ProjectMember) {
 	r := httptest.NewRequest(http.MethodGet, "/api/project/"+strconv.Itoa(projectID), nil)
 	r = mux.SetURLVars(r, map[string]string{"project_id": strconv.Itoa(projectID)})
 	r = helpers.SetContextValue(r, "store", store)
 	r = helpers.SetContextValue(r, "user", user)
 	w := httptest.NewRecorder()
 	var permissions db.ProjectUserPermission
-	var roles []db.Role
+	var member db.ProjectMember
 	ProjectMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		permissions = helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
-		roles = helpers.GetFromContext(r, "projectRoles").([]db.Role)
+		member = helpers.GetFromContext(r, "projectMember").(db.ProjectMember)
 	})).ServeHTTP(w, r)
-	return w.Code, permissions, roles
+	return w.Code, permissions, member
 }
 
 func TestProjectMiddleware_PermissionsComeFromRoles(t *testing.T) {
@@ -52,11 +52,11 @@ func TestProjectMiddleware_PermissionsComeFromRoles(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, f.store.CreateProjectUser(f.project.ID, user.ID, tt.roleIDs))
 
-			code, permissions, roles := runProjectMiddleware(f.store, f.project.ID, &user)
+			code, permissions, member := runProjectMiddleware(f.store, f.project.ID, &user)
 
 			assert.Equal(t, http.StatusOK, code)
 			assert.Equal(t, tt.want, permissions)
-			assert.Len(t, roles, len(tt.roleIDs))
+			assert.Len(t, member.Roles, len(tt.roleIDs))
 		})
 	}
 }
@@ -70,28 +70,51 @@ func TestProjectMiddleware_NonMember(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, code)
 
 	admin := db.User{ID: stranger.ID, Admin: true}
-	code, permissions, roles := runProjectMiddleware(f.store, f.project.ID, &admin)
+	code, permissions, member := runProjectMiddleware(f.store, f.project.ID, &admin)
 	assert.Equal(t, http.StatusOK, code, "an admin enters a project without membership")
 	assert.Zero(t, permissions)
-	assert.Empty(t, roles)
+	assert.Empty(t, member.Roles)
+	assert.Empty(t, member.MappedRoles)
+}
+
+func TestProjectMiddleware_MappedOnlyMember(t *testing.T) {
+	f := newMembershipFixture(t)
+	deployer, err := f.store.CreateRole(db.Role{Slug: "deployer", Name: "Deployer", Permissions: db.CanRunProjectTasks, ProjectID: &f.project.ID})
+	require.NoError(t, err)
+	user := f.newMappedUser(t, "devops", &deployer)
+	r := httptest.NewRequest(http.MethodGet, "/api/project/"+strconv.Itoa(f.project.ID)+"/role", nil)
+	r = mux.SetURLVars(r, map[string]string{"project_id": strconv.Itoa(f.project.ID)})
+	r = helpers.SetContextValue(r, "store", f.store)
+	r = helpers.SetContextValue(r, "user", &user)
+	w := httptest.NewRecorder()
+
+	ProjectMiddleware(http.HandlerFunc(GetUserRole)).ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.JSONEq(t, fmt.Sprintf(`{"role":"deployer","roles":["deployer"],"permissions":%d}`, db.CanRunProjectTasks), w.Body.String())
 }
 
 func TestGetUserRole_RoleOnlyForOneRole(t *testing.T) {
-	manager := db.Role{Slug: "manager"}
-	runner := db.Role{Slug: "task_runner"}
+	manager := db.Role{ID: 1, Slug: "manager", Name: "Manager"}
+	runner := db.Role{ID: 2, Slug: "task_runner", Name: "Task Runner"}
+	mappedManager := db.MappedRole{RoleID: 1, RoleSlug: "manager", RoleName: "Manager"}
+	mappedRunner := db.MappedRole{RoleID: 2, RoleSlug: "task_runner", RoleName: "Task Runner"}
 	tests := []struct {
-		name  string
-		roles []db.Role
-		want  string
+		name   string
+		member db.ProjectMember
+		want   string
 	}{
-		{"one role", []db.Role{manager}, `{"role":"manager","roles":["manager"],"permissions":0}`},
-		{"two roles", []db.Role{manager, runner}, `{"role":"","roles":["manager","task_runner"],"permissions":0}`},
-		{"admin without roles", nil, `{"role":"","roles":[],"permissions":0}`},
+		{"one role", db.ProjectMember{Roles: []db.Role{manager}}, `{"role":"manager","roles":["manager"],"permissions":0}`},
+		{"two roles", db.ProjectMember{Roles: []db.Role{manager, runner}}, `{"role":"","roles":["manager","task_runner"],"permissions":0}`},
+		{"admin without roles", db.ProjectMember{}, `{"role":"","roles":[],"permissions":0}`},
+		{"a mapped role", db.ProjectMember{MappedRoles: []db.MappedRole{mappedManager}}, `{"role":"manager","roles":["manager"],"permissions":0}`},
+		{"a manual and a mapped role by name", db.ProjectMember{Roles: []db.Role{runner}, MappedRoles: []db.MappedRole{mappedManager}}, `{"role":"","roles":["manager","task_runner"],"permissions":0}`},
+		{"a role held twice counts once", db.ProjectMember{Roles: []db.Role{runner}, MappedRoles: []db.MappedRole{mappedRunner, mappedRunner}}, `{"role":"task_runner","roles":["task_runner"],"permissions":0}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/api/project/1/role", nil)
-			r = helpers.SetContextValue(r, "projectRoles", tt.roles)
+			r = helpers.SetContextValue(r, "projectMember", tt.member)
 			r = helpers.SetContextValue(r, "permissions", db.ProjectUserPermission(0))
 			w := httptest.NewRecorder()
 
