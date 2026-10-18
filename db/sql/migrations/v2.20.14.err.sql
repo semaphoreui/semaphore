@@ -1,3 +1,12 @@
+{{if .Sqlite}}
+delete from project__integration_alias where integration_id in (select id from project__integration where template_id is null);
+
+delete from project__integration_matcher where integration_id in (select id from project__integration where template_id is null);
+
+delete from project__integration_extract_value where integration_id in (select id from project__integration where template_id is null);
+
+update task set integration_id = null where integration_id in (select id from project__integration where template_id is null);
+{{end}}
 delete from `project__integration` where `template_id` is null;
 
 {{if .Sqlite}}
