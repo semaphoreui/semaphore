@@ -24,9 +24,9 @@ func TestRunnerCheckInterval(t *testing.T) {
 		runner   *RunnerConfig
 		expected time.Duration
 	}{
-		{"unset field", &RunnerConfig{}, time.Second},
-		{"zero falls back", &RunnerConfig{CheckIntervalSeconds: 0}, time.Second},
-		{"negative falls back", &RunnerConfig{CheckIntervalSeconds: -5}, time.Second},
+		{"unset field", &RunnerConfig{}, 5 * time.Second},
+		{"zero falls back", &RunnerConfig{CheckIntervalSeconds: 0}, 5 * time.Second},
+		{"negative falls back", &RunnerConfig{CheckIntervalSeconds: -5}, 5 * time.Second},
 		{"configured", &RunnerConfig{CheckIntervalSeconds: 10}, 10 * time.Second},
 		{"large", &RunnerConfig{CheckIntervalSeconds: 300}, 5 * time.Minute},
 		{"largest int", &RunnerConfig{CheckIntervalSeconds: math.MaxInt},
@@ -46,7 +46,7 @@ func TestRunnerCheckInterval(t *testing.T) {
 				runner   *RunnerConfig
 				expected time.Duration
 			}{"overflows falls back", &RunnerConfig{CheckIntervalSeconds: int(maxIntervalSec) + 1},
-				time.Second},
+				5 * time.Second},
 		)
 	}
 
@@ -90,5 +90,5 @@ func TestRunnerCheckIntervalDefaultMatchesTag(t *testing.T) {
 	require.NoError(t, loadDefaultsToObject(conf))
 
 	assert.Equal(t, defaultRunnerCheckIntervalSec, conf.Runner.CheckIntervalSeconds)
-	assert.Equal(t, time.Second, conf.RunnerCheckInterval())
+	assert.Equal(t, 5*time.Second, conf.RunnerCheckInterval())
 }

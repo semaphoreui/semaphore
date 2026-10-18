@@ -19,6 +19,7 @@ type WorkflowService interface {
 	// rejects the start with a validation error when a required variable has
 	// no value or a value does not fit its type.
 	StartWorkflow(ctx context.Context, workflow db.WorkflowTemplate, params db.WorkflowRunParams, user *db.User) (db.WorkflowRun, error)
+
 	ProgressWorkflowRun(projectID int, runID int, user *db.User) error
 	// StopWorkflowRun stops a non-finished run: it signals every in-flight task
 	// of the run to stop and marks the run as stopped (terminal).

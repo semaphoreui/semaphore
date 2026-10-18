@@ -30,23 +30,91 @@ type UserUpdateMetadata struct {
 	Pro    *BoolChange `json:"pro,omitempty"`
 }
 
+// RoleRef names a role by its unique ID and by the slug it had at the time.
+type RoleRef struct {
+	ID   int    `json:"id"`
+	Slug string `json:"slug"`
+}
+
+func NewRoleRef(r db.Role) RoleRef {
+	return RoleRef{ID: r.ID, Slug: TruncateName(r.Slug, MaxNameBytes)}
+}
+
+func NewRoleRefs(roles []db.Role) []RoleRef {
+	refs := make([]RoleRef, 0, len(roles))
+	for _, role := range roles {
+		refs = append(refs, NewRoleRef(role))
+	}
+	return refs
+}
+
 type MembershipMetadata struct {
-	Role        string `json:"role"`
-	SelfRemoval bool   `json:"self_removal"`
+	Roles       []RoleRef `json:"roles"`
+	SelfRemoval bool      `json:"self_removal"`
+	// Set when the member lost the last role because the role was deleted.
+	DeletedRole RoleRef `json:"deleted_role,omitzero"`
 }
 
 type ProjectRoleMetadata struct {
-	OldRole string `json:"old_role"`
-	NewRole string `json:"new_role,omitempty"`
+	OldRoles []RoleRef `json:"old_roles"`
+	NewRoles []RoleRef `json:"new_roles,omitzero"`
+	// Set when the role was taken away because it was deleted.
+	DeletedRole RoleRef `json:"deleted_role,omitzero"`
 }
 
 type RoleMetadata struct {
+	Slug        string   `json:"slug"`
 	Permissions []string `json:"permissions"`
+}
+
+type RoleDeleteMetadata struct {
+	Slug string `json:"slug"`
+	// Set only when the role was deleted together with its assignments.
+	Impact *db.RoleImpact `json:"impact,omitempty"`
+}
+
+// MappedRoleMetadata describes a role a member got or lost through a group mapping.
+type MappedRoleMetadata struct {
+	Role      RoleRef `json:"role"`
+	Provider  string  `json:"provider"`
+	Group     string  `json:"group"`
+	MappingID int     `json:"mapping_id"`
+	// Why the role changed: login, mapping_deleted or role_deleted.
+	Cause string `json:"cause"`
+}
+
+const (
+	MappedRoleCauseLogin          = "login"
+	MappedRoleCauseMappingDeleted = "mapping_deleted"
+	MappedRoleCauseRoleDeleted    = "role_deleted"
+)
+
+// NewMappedRoleEvent describes one mapped assignment.
+func NewMappedRoleEvent(kind Kind, m db.MappedRole, cause string) Event {
+	return Event{
+		Kind:      kind,
+		Target:    UserTarget(m.UserID, m.Username),
+		ProjectID: m.ProjectID,
+		Metadata: MappedRoleMetadata{
+			Role:      RoleRef{ID: m.RoleID, Slug: TruncateName(m.RoleSlug, MaxNameBytes)},
+			Provider:  m.Provider,
+			Group:     m.Group,
+			MappingID: m.MappingID,
+			Cause:     cause,
+		},
+	}
+}
+
+// RoleMappingMetadata describes a group mapping that an admin created or deleted.
+type RoleMappingMetadata struct {
+	Provider string  `json:"provider"`
+	Group    string  `json:"group"`
+	Role     RoleRef `json:"role"`
 }
 
 type TemplatePermissionMetadata struct {
 	TemplateID  int      `json:"template_id"`
-	RoleSlug    string   `json:"role_slug,omitempty"`
+	Role        RoleRef  `json:"role,omitzero"`
 	Permissions []string `json:"permissions,omitempty"`
 }
 

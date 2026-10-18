@@ -49,7 +49,7 @@ const (
 	ReasonForbidden                Reason = "forbidden"
 	ReasonCrossOrigin              Reason = "cross_origin"
 	ReasonInvalidCurrentPassword   Reason = "invalid_current_password"
-	ReasonOwnerSelfChange          Reason = "owner_self_change"
+	ReasonLastOwner                Reason = "last_owner"
 	ReasonActivationFailed         Reason = "activation_failed"
 	ReasonSecretFailed             Reason = "secret_failed"
 	ReasonInventoryFailed          Reason = "inventory_failed"
@@ -64,7 +64,7 @@ func knownReasons() []Reason {
 		ReasonInvalidCredentials, ReasonUserNotFound, ReasonMethodDisabled, ReasonProviderError,
 		ReasonInvalidState, ReasonInternalError, ReasonInvalidPasscode, ReasonInvalidRecoveryCode,
 		ReasonCodeExpired, ReasonTooManyAttempts, ReasonTokenUnknown, ReasonTokenExpired,
-		ReasonForbidden, ReasonCrossOrigin, ReasonInvalidCurrentPassword, ReasonOwnerSelfChange,
+		ReasonForbidden, ReasonCrossOrigin, ReasonInvalidCurrentPassword, ReasonLastOwner,
 		ReasonActivationFailed, ReasonSecretFailed, ReasonInventoryFailed, ReasonSetupFailed, ReasonRestoreFailed,
 		ReasonInvalidRegistrationToken, ReasonInvalidStatus,
 	}
@@ -94,6 +94,7 @@ const (
 	TargetRole                  = "role"
 	TargetProjectRoleDefinition = "project_role_definition"
 	TargetTemplatePermission    = "template_permission"
+	TargetRoleMapping           = "role_mapping"
 	TargetLicense               = "license"
 	TargetProject               = "project"
 	TargetInventory             = "inventory"

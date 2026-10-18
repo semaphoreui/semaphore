@@ -2,7 +2,6 @@ package sql
 
 import (
 	"encoding/json"
-	"errors"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
@@ -298,16 +297,7 @@ func (d *SqlDb) getTemplates(
 		"(SELECT `id` FROM `task` WHERE template_id = pt.id ORDER BY `id` DESC LIMIT 1) last_task_id",
 	}
 
-	if userID != nil {
-		fields = append(fields, "ptr.permissions permissions")
-	}
-
 	q := sq.Select(fields...).From("project__template pt")
-
-	if userID != nil {
-		q = q.LeftJoin("project__user pu ON (pu.project_id = pt.project_id AND pu.user_id = ?)", *userID).
-			LeftJoin("project__template_role ptr ON (ptr.template_id = pt.id AND ptr.role_slug = pu.`role`)")
-	}
 
 	if filter.App != nil {
 		q = q.Where("pt.app=?", *filter.App)
@@ -375,6 +365,33 @@ func (d *SqlDb) getTemplates(
 		return
 	}
 
+	// Grants are ORed in Go because SQLite has no BIT_OR.
+	grants := make(map[int]db.ProjectUserPermission)
+
+	if userID != nil {
+		var rows []db.TemplateRolePerm
+		_, err = d.selectAll(&rows, `
+			select
+			  ptr.template_id, ptr.permissions
+			from project__template_role ptr
+			where ptr.project_id = ?
+			  and ptr.role_id in (
+			    select pur.role_id from project__user_role pur where pur.project_id = ? and pur.user_id = ?
+			    union
+			    select m.role_id
+			    from project__user_mapped_role mr
+			    join group_role_mapping m on m.id = mr.mapping_id
+			    where mr.project_id = ? and mr.user_id = ?
+			  )
+		`, projectID, projectID, *userID, projectID, *userID)
+		if err != nil {
+			return
+		}
+		for _, row := range rows {
+			grants[row.TemplateID] |= row.Permissions
+		}
+	}
+
 	taskIDs := make([]int, 0)
 
 	for _, tpl := range tpls {
@@ -392,6 +409,10 @@ func (d *SqlDb) getTemplates(
 
 	for _, tpl := range tpls {
 		template := tpl.TemplateWithPerms
+
+		if g, ok := grants[template.ID]; ok {
+			template.Permissions = &g
+		}
 
 		if tpl.LastTaskID != nil {
 			for _, tsk := range tasks {
@@ -515,11 +536,12 @@ func (d *SqlDb) GetTemplateRefs(projectID int, templateID int) (db.ObjectReferre
 
 func (d *SqlDb) GetTemplateRole(projectID int, templateID int, id int) (templateRole db.TemplateRolePerm, err error) {
 
-	query, args, err := sq.Select("*").
-		From("project__template_role").
-		Where("project_id = ?", projectID).
-		Where("template_id = ?", templateID).
-		Where("id = ?", id).
+	query, args, err := sq.Select("ptr.*", "r.slug role_slug").
+		From("project__template_role ptr").
+		Join("`role` r ON r.id = ptr.role_id").
+		Where("ptr.project_id = ?", projectID).
+		Where("ptr.template_id = ?", templateID).
+		Where("ptr.id = ?", id).
 		ToSql()
 
 	if err != nil {
@@ -531,72 +553,40 @@ func (d *SqlDb) GetTemplateRole(projectID int, templateID int, id int) (template
 	return
 }
 
-func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int) (perm db.ProjectUserPermission, err error) {
-	var projectUser db.ProjectUser
-	projectUser, err = d.GetProjectUser(projectID, userID)
+// GetTemplatePermission returns the OR of the template grants of the member's roles.
+func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int) (db.ProjectUserPermission, error) {
+	var rows []db.TemplateRolePerm
+	_, err := d.selectAll(&rows, `
+		select
+		  ptr.permissions
+		from project__template_role ptr
+		where ptr.project_id = ? and ptr.template_id = ?
+		  and ptr.role_id in (
+		    select pur.role_id from project__user_role pur where pur.project_id = ? and pur.user_id = ?
+		    union
+		    select m.role_id
+		    from project__user_mapped_role mr
+		    join group_role_mapping m on m.id = mr.mapping_id
+		    where mr.project_id = ? and mr.user_id = ?
+		  )
+	`, projectID, templateID, projectID, userID, projectID, userID)
 	if err != nil {
-		if errors.Is(err, db.ErrNotFound) {
-			err = nil // user not in project, no permissions
-		}
-		return
+		return 0, err
 	}
 
-	perm = projectUser.Role.GetPermissions()
-
-	roleSlug := string(projectUser.Role)
-
-	// Only custom roles are resolved from the database; built-in roles use their
-	// own slug directly so a same-named custom role cannot shadow them.
-	if !projectUser.Role.IsValid() {
-		var role db.Role
-		role, err = d.GetProjectOrGlobalRoleBySlug(projectUser.ProjectID, string(projectUser.Role))
-
-		if errors.Is(err, db.ErrNotFound) {
-			err = nil
-			return
-		}
-
-		if err != nil {
-			return
-		}
-
-		roleSlug = role.Slug
+	var permissions db.ProjectUserPermission
+	for _, row := range rows {
+		permissions |= row.Permissions
 	}
-
-	query, args, err := sq.Select("permissions").
-		From("project__template_role").
-		Where("project_id = ?", projectID).
-		Where("template_id = ?", templateID).
-		Where("role_slug = ?", roleSlug).
-		ToSql()
-
-	if err != nil {
-		return
-	}
-
-	var templateRole db.TemplateRolePerm
-
-	err = d.selectOne(&templateRole, query, args...)
-
-	if errors.Is(err, db.ErrNotFound) {
-		err = nil
-		return
-	}
-
-	if err != nil {
-		return
-	}
-
-	perm |= templateRole.Permissions
-
-	return
+	return permissions, nil
 }
 
 func (d *SqlDb) GetTemplateRoles(projectID int, templateID int) (roles []db.TemplateRolePerm, err error) {
-	query, args, err := sq.Select("*").
-		From("project__template_role").
-		Where("project_id = ?", projectID).
-		Where("template_id = ?", templateID).
+	query, args, err := sq.Select("ptr.*", "r.slug role_slug").
+		From("project__template_role ptr").
+		Join("`role` r ON r.id = ptr.role_id").
+		Where("ptr.project_id = ?", projectID).
+		Where("ptr.template_id = ?", templateID).
 		ToSql()
 
 	if err != nil {
@@ -607,12 +597,22 @@ func (d *SqlDb) GetTemplateRoles(projectID int, templateID int) (roles []db.Temp
 	return
 }
 func (d *SqlDb) CreateTemplateRole(role db.TemplateRolePerm) (newRole db.TemplateRolePerm, err error) {
+	available, err := d.Sql().SelectInt(d.PrepareQuery(
+		"select count(*) from `role` where id=? and (project_id is null or project_id=?)"), role.RoleID, role.ProjectID)
+	if err != nil {
+		return
+	}
+	if available == 0 {
+		err = &common_errors.ValidationError{Message: "Role is not available in this project"}
+		return
+	}
+
 	insertID, err := d.insert(
 		"id",
-		"insert into project__template_role (project_id, template_id, role_slug, permissions) values (?, ?, ?, ?)",
+		"insert into project__template_role (project_id, template_id, role_id, permissions) values (?, ?, ?, ?)",
 		role.ProjectID,
 		role.TemplateID,
-		role.RoleSlug,
+		role.RoleID,
 		role.Permissions)
 
 	if err != nil {

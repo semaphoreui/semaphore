@@ -32,3 +32,6 @@ alter table `project__integration` drop column `workflow_id`;
 
 alter table `project__integration` change `template_id` `template_id` int not null;
 {{end}}
+
+drop table `project__user_mapped_role`;
+drop table `group_role_mapping`;

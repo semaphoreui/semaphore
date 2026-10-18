@@ -3,6 +3,7 @@ package projects
 import (
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -26,10 +27,12 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// check if user in project's team
-		projectUser, err := helpers.Store(r).GetProjectUser(projectID, user.ID)
-
-		if !user.Admin && err != nil {
+		// An admin enters a project without being a member.
+		member, err := helpers.Store(r).GetProjectMember(projectID, user.ID)
+		if errors.Is(err, db.ErrNotFound) && user.Admin {
+			err = nil
+		}
+		if err != nil {
 			helpers.WriteError(w, err)
 			return
 		}
@@ -41,24 +44,12 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		roleSlug := projectUser.Role
-
-		permissions := roleSlug.GetPermissions()
-
-		// Built-in roles are defined in code and are the source of truth for their
-		// permissions. Only custom roles are resolved from the database, otherwise a
-		// project role sharing a built-in slug (e.g. "manager") could override the
-		// built-in permissions and escalate privileges.
-		if !roleSlug.IsValid() {
-			role, err := helpers.Store(r).GetProjectOrGlobalRoleBySlug(projectID, string(projectUser.Role))
-
-			if err == nil {
-				roleSlug = db.ProjectUserRole(role.Slug)
-				permissions = role.Permissions
-			} else if !errors.Is(err, db.ErrNotFound) {
-				helpers.WriteError(w, err)
-				return
-			}
+		var permissions db.ProjectUserPermission
+		for _, role := range member.Roles {
+			permissions |= role.Permissions
+		}
+		for _, mapped := range member.MappedRoles {
+			permissions |= mapped.RolePermissions
 		}
 
 		if helpers.HasParam("template_id", r) {
@@ -66,17 +57,15 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			if !templateOk {
 				return
 			}
-			var perm db.ProjectUserPermission
-			perm, err = helpers.Store(r).GetTemplatePermission(project.ID, templateID, user.ID)
+			grants, err := helpers.Store(r).GetTemplatePermission(project.ID, templateID, user.ID)
 			if err != nil {
 				helpers.WriteError(w, err)
 				return
 			}
-
-			permissions |= perm
+			permissions |= grants
 		}
 
-		r = helpers.SetContextValue(r, "projectUserRole", roleSlug)
+		r = helpers.SetContextValue(r, "projectMember", member)
 		r = helpers.SetContextValue(r, "permissions", permissions)
 		r = helpers.SetContextValue(r, "project", project)
 		next.ServeHTTP(w, r)
@@ -194,11 +183,25 @@ func GetProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUserRole(w http.ResponseWriter, r *http.Request) {
-	var result struct {
-		Role        db.ProjectUserRole       `json:"role"`
+	result := struct {
+		Role        string                   `json:"role"`
+		Roles       []string                 `json:"roles"`
 		Permissions db.ProjectUserPermission `json:"permissions"`
+	}{Roles: []string{}}
+	member := helpers.GetFromContext(r, "projectMember").(db.ProjectMember)
+	roles := slices.Clone(member.Roles)
+	for _, mapped := range member.MappedRoles {
+		if !slices.ContainsFunc(roles, func(role db.Role) bool { return role.ID == mapped.RoleID }) {
+			roles = append(roles, db.Role{ID: mapped.RoleID, Slug: mapped.RoleSlug, Name: mapped.RoleName})
+		}
 	}
-	result.Role = helpers.GetFromContext(r, "projectUserRole").(db.ProjectUserRole)
+	slices.SortStableFunc(roles, func(a, b db.Role) int { return strings.Compare(a.Name, b.Name) })
+	for _, role := range roles {
+		result.Roles = append(result.Roles, role.Slug)
+	}
+	if len(result.Roles) == 1 {
+		result.Role = result.Roles[0]
+	}
 	result.Permissions = helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
 	helpers.WriteJSON(w, http.StatusOK, result)
 }

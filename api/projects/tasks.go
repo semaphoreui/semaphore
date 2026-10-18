@@ -229,6 +229,7 @@ func (c *TaskController) GetTaskPermissionsMiddleware(next http.Handler) http.Ha
 		perm, err := c.store.GetTemplatePermission(project.ID, task.TemplateID, user.ID)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
 		permissions |= perm

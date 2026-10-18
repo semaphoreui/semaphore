@@ -426,6 +426,17 @@ func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	role, err := helpers.Store(r).GetProjectOrGlobalRoleBySlug(template.ProjectID, perm.RoleSlug)
+	if errors.Is(err, db.ErrNotFound) {
+		helpers.WriteErrorStatus(w, "Role does not exist in this project", http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	perm.RoleID = role.ID
 	perm.ProjectID = template.ProjectID
 	perm.TemplateID = template.ID
 
@@ -434,15 +445,15 @@ func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Requ
 		helpers.WriteError(w, err)
 		return
 	}
+	newPerm.RoleSlug = role.Slug
 
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.IAMTemplatePermissionCreate,
 		Target:    &audit.Target{Type: audit.TargetTemplatePermission, ID: strconv.Itoa(newPerm.ID)},
 		ProjectID: template.ProjectID,
 		Metadata: audit.TemplatePermissionMetadata{
-			TemplateID: template.ID,
-			// The slug comes from the request body, and SQLite does not enforce column lengths.
-			RoleSlug:    audit.TruncateName(newPerm.RoleSlug, audit.MaxNameBytes),
+			TemplateID:  template.ID,
+			Role:        audit.NewRoleRef(role),
 			Permissions: audit.PermissionNames(newPerm.Permissions),
 		},
 	})
@@ -477,11 +488,11 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 	}
 
 	// The update changes only permissions, so the role comes from the stored rule.
-	roleSlug := ""
-	if stored, getErr := c.templateRepo.GetTemplateRole(template.ProjectID, template.ID, permID); getErr == nil {
-		roleSlug = stored.RoleSlug
+	var role audit.RoleRef
+	if stored, err := c.templateRepo.GetTemplateRole(template.ProjectID, template.ID, permID); err != nil {
+		log.WithError(err).WithField("context", "audit").Error("Cannot read the template permission for the audit")
 	} else {
-		log.WithError(getErr).WithField("context", "audit").Error("Cannot read the template permission for the audit")
+		role = audit.NewRoleRef(db.Role{ID: stored.RoleID, Slug: stored.RoleSlug})
 	}
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.IAMTemplatePermissionUpdate,
@@ -489,7 +500,7 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 		ProjectID: template.ProjectID,
 		Metadata: audit.TemplatePermissionMetadata{
 			TemplateID:  template.ID,
-			RoleSlug:    audit.TruncateName(roleSlug, audit.MaxNameBytes),
+			Role:        role,
 			Permissions: audit.PermissionNames(perm.Permissions),
 		},
 	})

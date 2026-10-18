@@ -61,3 +61,7 @@ __debug_bin*
 /*-config.yml
 /*-config.config
 /*.sqlite*
+<<<<<<< HEAD
+=======
+/integration-tests/
+>>>>>>> develop

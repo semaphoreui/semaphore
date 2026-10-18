@@ -42,6 +42,23 @@
   `web`, `go install .../goodman`, build `bin/semaphore` and `.dredd/compiled_hooks` with
   `GOWORK=off`, then `./web/node_modules/.bin/dredd --config .dredd/dredd.testing.yml`. The
   dredd↔goodman startup is racy (ECONNREFUSED 61321 → every txn 401): retry.
+- Local Dredd recipe that works on this Mac (2026-10-14): the `my-postgres` Docker container already
+  matches `.dredd/config.json`; drop/create `semaphore_test_000071` before each run (fixtures assume
+  a fresh DB), `GOWORK=off go build -o bin/semaphore ./cli` and the hooks, `PATH=$HOME/go/bin:$PATH`
+  for goodman, then `dredd --config .dredd/dredd.testing.yml` (server-wrapper starts the server on
+  58427 itself). 54 skips (ws, login, OIDC, 400s, Pro workflow endpoints) are the normal baseline.
+- A field the server nulls (e.g. `Inventory.repository_id` for non-file types since `6a4a04ba`)
+  must be `x-nullable: true` in `api-docs.yml`; the openapi2 parser Dredd uses honours it.
+- Pro Dredd run (2026-10-15, exercises the 14 workflow endpoints the OSS run skips): build server
+  and hooks *with* `go.work` (`go build -o bin/semaphore-pro ./cli`, hooks to `compiled_hooks_pro`),
+  point a copy of `dredd.testing.yml` at them with absolute paths (keep it outside the repo) and
+  a wrapper that `exec`s `bin/semaphore-pro`; same DB recreate and `ECONNREFUSED 61321` retry.
+  Baseline: 127 passing, 0 failing, 32 skipped. A worktree without `web/node_modules` can use
+  the main checkout's `web/node_modules/.bin/dredd` and its `.dredd/config.json`.
+- The dredd↔goodman race also shows as `complete: 2 passing, 130 failing … 27 skipped` with every
+  transaction 401 and no `ECONNREFUSED` in the log (2026-10-16): retry until the summary says
+  `0 failing` instead of grepping for the error. A `run_in_background` Bash inherits whatever cwd the
+  session last had — use absolute paths for `go build ./cli` and the Dredd config.
 
 - Cheapest full local run (2026-10-16, mirrors CI): `GOWORK=off go build -o bin/semaphore ./cli`,
   `cd .dredd/hooks && GOWORK=off go build -o ../compiled_hooks .`, `npm install --no-save dredd@13.1.2`
