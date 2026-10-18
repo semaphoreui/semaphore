@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -402,8 +403,45 @@ type TemplateWithPerms struct {
 	Permissions *ProjectUserPermission `db:"permissions" json:"permissions"`
 }
 
+// nestedTaskParamsKeys are wrapper keys that some API clients (for example the
+// Terraform provider) put the template params under instead of sending them
+// at the top level of task_params.
+var nestedTaskParamsKeys = []string{"params", "ansible"}
+
+// normalizedTaskParams returns task_params with the fields from any nested
+// wrapper object lifted to the top level. Top-level fields win over nested
+// ones, so params written flat (as the Web UI does) are never overridden.
+func (tpl *Template) normalizedTaskParams() map[string]any {
+	if tpl.TaskParams == nil {
+		return nil
+	}
+
+	res := make(map[string]any, len(tpl.TaskParams))
+
+	for _, key := range nestedTaskParamsKeys {
+		nested, ok := tpl.TaskParams[key].(map[string]any)
+		if !ok {
+			continue
+		}
+		for k, v := range nested {
+			res[k] = v
+		}
+	}
+
+	for k, v := range tpl.TaskParams {
+		if slices.Contains(nestedTaskParamsKeys, k) {
+			if _, ok := v.(map[string]any); ok {
+				continue
+			}
+		}
+		res[k] = v
+	}
+
+	return res
+}
+
 func (tpl *Template) FillParams(target any) error {
-	content, err := json.Marshal(tpl.TaskParams)
+	content, err := json.Marshal(tpl.normalizedTaskParams())
 	if err != nil {
 		return nil
 	}
