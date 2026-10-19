@@ -53,7 +53,6 @@ __debug_bin*
 /events.log
 /tasks.log
 /task_results.log
-/pro_impl/
 /go.work.x
 /go.work
 /go.work.sum
@@ -62,4 +61,7 @@ __debug_bin*
 /*-config.yml
 /*-config.config
 /*.sqlite*
+<<<<<<< HEAD
+=======
 /integration-tests/
+>>>>>>> develop

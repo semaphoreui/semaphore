@@ -346,6 +346,9 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("repository_id", repoID, &request)
 	bodyFieldProcessor("template_id", templateID, &request)
 	bodyFieldProcessor("build_template_id", nil, &request)
+	// An integration runs either a template or a workflow; the generated body
+	// carries both ids, so the workflow one is cleared.
+	bodyFieldProcessor("workflow_id", nil, &request)
 	if task != nil {
 		bodyFieldProcessor("task_id", task.ID, &request)
 	}

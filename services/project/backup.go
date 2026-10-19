@@ -456,8 +456,8 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 	}
 
-	integrations := make([]BackupIntegration, len(b.integrations))
-	for i, o := range b.integrations {
+	integrations := make([]BackupIntegration, 0, len(b.integrations))
+	for _, o := range b.integrations {
 
 		var aliases []string
 
@@ -465,9 +465,17 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			aliases = append(aliases, a.Alias)
 		}
 
-		tplName, _ := findNameByID[db.Template](o.TemplateID, b.templates)
-
-		if tplName == nil {
+		// The target is stored by name. An integration whose target is not in
+		// the backup (a workflow in a build without workflows) is left out
+		// rather than written as an entry nothing can restore.
+		var tplName, workflowName *string
+		switch {
+		case o.TemplateID != nil:
+			tplName, _ = findNameByID[db.Template](*o.TemplateID, b.templates)
+		case o.WorkflowID != nil:
+			workflowName, _ = findNameByID[db.WorkflowTemplate](*o.WorkflowID, b.workflows)
+		}
+		if tplName == nil && workflowName == nil {
 			continue
 		}
 
@@ -477,18 +485,21 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			keyName, _ = findNameByID[db.AccessKey](*o.AuthSecretID, b.keys)
 		}
 
-		integrations[i] = BackupIntegration{
+		integration := BackupIntegration{
 			Integration:   o,
 			Aliases:       aliases,
 			Matchers:      b.integrationMatchers[o.ID],
 			ExtractValues: b.integrationExtractValues[o.ID],
-			Template:      *tplName,
+			Template:      tplName,
+			Workflow:      workflowName,
 			AuthSecret:    keyName,
 		}
 
 		if o.TaskParams != nil && o.TaskParams.InventoryID != nil {
-			integrations[i].TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
+			integration.TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
 		}
+
+		integrations = append(integrations, integration)
 	}
 
 	var integrationAliases []string

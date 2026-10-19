@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 )
@@ -22,7 +24,7 @@ func NewWorkflowReconciler(_ db.WorkflowManager, _ pro_interfaces.WorkflowServic
 	return nil
 }
 
-func (s *workflowService) StartWorkflow(workflow db.WorkflowTemplate, params db.WorkflowRunParams, user *db.User) (db.WorkflowRun, error) {
+func (s *workflowService) StartWorkflow(ctx context.Context, workflow db.WorkflowTemplate, params db.WorkflowRunParams, user *db.User) (db.WorkflowRun, error) {
 	return db.WorkflowRun{}, nil
 }
 

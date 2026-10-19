@@ -5,13 +5,56 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
+
+// validateIntegrationTarget checks that the template or the workflow the
+// integration runs exists in the integration's own project. The foreign keys
+// only guarantee the row exists somewhere; without this a project could start
+// another project's template through a webhook.
+func (d *SqlDb) validateIntegrationTarget(integration db.Integration) error {
+	var table string
+	var targetID int
+	var what string
+
+	switch {
+	case integration.TemplateID != nil:
+		table, targetID, what = "project__template", *integration.TemplateID, "Template"
+	case integration.WorkflowID != nil:
+		table, targetID, what = "project__workflow_template", *integration.WorkflowID, "Workflow"
+	default:
+		return common_errors.NewValidationError("Integration must run a template or a workflow")
+	}
+
+	count, err := d.Sql().SelectInt(
+		d.PrepareQuery("select count(1) from "+table+" where id=? and project_id=?"),
+		targetID,
+		integration.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		return common_errors.NewValidationError(what + " does not exist in the project")
+	}
+
+	return nil
+}
 
 func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db.Integration, err error) {
 	err = integration.Validate()
 
 	if err != nil {
 		return
+	}
+
+	if err = d.validateIntegrationTarget(integration); err != nil {
+		return
+	}
+
+	if integration.RunsWorkflow() {
+		// A workflow's root node carries its own task params.
+		integration.TaskParams = nil
 	}
 
 	if integration.TaskParams != nil {
@@ -27,11 +70,12 @@ func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db
 	insertID, err := d.insert(
 		"id",
 		"insert into project__integration "+
-			"(project_id, name, template_id, auth_method, auth_secret_id, auth_header, searchable, task_params_id) values "+
-			"(?, ?, ?, ?, ?, ?, ?, ?)",
+			"(project_id, name, template_id, workflow_id, auth_method, auth_secret_id, auth_header, searchable, task_params_id) values "+
+			"(?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		integration.ProjectID,
 		integration.Name,
 		integration.TemplateID,
+		integration.WorkflowID,
 		integration.AuthMethod,
 		integration.AuthSecretID,
 		integration.AuthHeader,
@@ -152,13 +196,26 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) (err error) {
 		return
 	}
 
-	if integration.TaskParams != nil {
-		var curr db.Integration
-		err = d.getObject(integration.ProjectID, db.IntegrationProps, integration.ID, &curr)
-		if err != nil {
-			return
-		}
+	if err = d.validateIntegrationTarget(integration); err != nil {
+		return
+	}
 
+	var curr db.Integration
+	err = d.getObject(integration.ProjectID, db.IntegrationProps, integration.ID, &curr)
+	if err != nil {
+		return
+	}
+
+	if integration.RunsWorkflow() {
+		// Switching to a workflow leaves the old task params behind: the row
+		// is unlinked below and removed after the update succeeds.
+		integration.TaskParams = nil
+		integration.TaskParamsID = nil
+	} else if integration.TaskParams == nil {
+		integration.TaskParamsID = curr.TaskParamsID
+	}
+
+	if integration.TaskParams != nil {
 		params := *integration.TaskParams
 		params.ProjectID = integration.ProjectID
 
@@ -180,6 +237,7 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) (err error) {
 		"update project__integration set "+
 			"`name`=?, "+
 			"template_id=?, "+
+			"workflow_id=?, "+
 			"auth_method=?, "+
 			"auth_secret_id=?, "+
 			"auth_header=?, "+
@@ -188,6 +246,7 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) (err error) {
 			"where project_id=? AND `id`=?",
 		integration.Name,
 		integration.TemplateID,
+		integration.WorkflowID,
 		integration.AuthMethod,
 		integration.AuthSecretID,
 		integration.AuthHeader,
@@ -195,6 +254,17 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) (err error) {
 		integration.TaskParamsID,
 		integration.ProjectID,
 		integration.ID)
+
+	if err != nil {
+		return
+	}
+
+	if integration.RunsWorkflow() && curr.TaskParamsID != nil {
+		err = d.deleteObject(integration.ProjectID, db.TaskParamsProps, *curr.TaskParamsID)
+		if errors.Is(err, db.ErrNotFound) {
+			err = nil
+		}
+	}
 
 	return err
 }
