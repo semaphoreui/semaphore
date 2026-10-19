@@ -66,7 +66,7 @@
         small
         label
         class="IntegrationForm__upgrade"
-        style="position: absolute; top: -10px; right: 15px"
+        style="position: absolute; top: 8px; right: 8px"
         @click="upgradeToPro('workflow_integrations_management')"
       >
         Upgrade to PRO
