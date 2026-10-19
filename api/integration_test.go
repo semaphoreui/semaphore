@@ -842,3 +842,77 @@ func TestReceiveIntegration_HmacSha512_RejectsInvalidSignature(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, w.Code)
 	assert.Equal(t, 0, store.getTemplateCalls, "invalid hmac-sha512 must not run the integration")
 }
+
+func TestApplyGitBranchParam(t *testing.T) {
+	tests := []struct {
+		name           string
+		params         db.MapStringAnyField
+		allowOverride  bool
+		initialBranch  *string
+		wantBranch     *string
+		wantIgnored    bool
+		wantParamsLeft db.MapStringAnyField
+	}{
+		{
+			name:           "applied when the template allows it",
+			params:         db.MapStringAnyField{"git_branch": "feature/x", "limit": "web"},
+			allowOverride:  true,
+			wantBranch:     new("feature/x"),
+			wantParamsLeft: db.MapStringAnyField{"limit": "web"},
+		},
+		{
+			name:           "overrides the static integration branch",
+			params:         db.MapStringAnyField{"git_branch": "hotfix"},
+			allowOverride:  true,
+			initialBranch:  new("main"),
+			wantBranch:     new("hotfix"),
+			wantParamsLeft: db.MapStringAnyField{},
+		},
+		{
+			name:           "ignored and stripped when the template forbids overriding",
+			params:         db.MapStringAnyField{"git_branch": "feature/x", "limit": "web"},
+			allowOverride:  false,
+			initialBranch:  new("main"),
+			wantBranch:     new("main"),
+			wantIgnored:    true,
+			wantParamsLeft: db.MapStringAnyField{"limit": "web"},
+		},
+		{
+			name:           "blank value is stripped and not reported",
+			params:         db.MapStringAnyField{"git_branch": "  "},
+			allowOverride:  false,
+			wantParamsLeft: db.MapStringAnyField{},
+		},
+		{
+			name:           "non-string value is stripped and not applied",
+			params:         db.MapStringAnyField{"git_branch": 42},
+			allowOverride:  true,
+			wantParamsLeft: db.MapStringAnyField{},
+		},
+		{
+			name:           "nothing to do without the parameter",
+			params:         db.MapStringAnyField{"limit": "web"},
+			allowOverride:  true,
+			wantParamsLeft: db.MapStringAnyField{"limit": "web"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			task := db.Task{Params: tt.params, GitBranch: tt.initialBranch}
+
+			ignored := applyGitBranchParam(&task, tt.allowOverride)
+
+			assert.Equal(t, tt.wantIgnored, ignored)
+			assert.Equal(t, tt.wantBranch, task.GitBranch)
+			assert.Equal(t, tt.wantParamsLeft, task.Params)
+		})
+	}
+}
+
+func TestApplyGitBranchParam_NilParams(t *testing.T) {
+	task := db.Task{}
+
+	assert.False(t, applyGitBranchParam(&task, true))
+	assert.Nil(t, task.GitBranch)
+}

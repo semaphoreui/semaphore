@@ -355,6 +355,8 @@ export default {
   matchMethod: 'Comparison Method',
   matchBodyDataType: 'Body Data Type',
   extractValue: 'Extract Value',
+  integrationTaskParamGitBranchHint:
+    'The variable git_branch sets the branch of the started task when the template allows overriding it.',
   newExtractedValue: 'New Extracted Value',
   extractedValueSource: 'Value Source',
   matchKey: 'Key',

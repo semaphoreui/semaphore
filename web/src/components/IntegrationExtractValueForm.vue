@@ -66,6 +66,8 @@
             v-model="item.variable"
             label="Variable *"
             :rules="[(v) => !!v || 'Variable is required']"
+            :hint="item.variable_type === 'task' ? $t('integrationTaskParamGitBranchHint') : ''"
+            persistent-hint
             outlined
             dense
             required

@@ -396,6 +396,34 @@ func GetTaskDefinition(
 	return
 }
 
+// applyGitBranchParam moves the reserved `git_branch` task parameter of a
+// webhook-built task onto task.GitBranch. The key is always removed from Params
+// so it never reaches the app-specific params. The branch is applied only when
+// the template allows a task to override its branch — the same gate the task
+// form and resolveGitBranch use — so an integration cannot redirect a
+// branch-locked template. It reports whether a supplied branch was ignored.
+// The value is validated later by ValidateNewTask like any task branch.
+func applyGitBranchParam(task *db.Task, allowOverride bool) (ignored bool) {
+	raw, ok := task.Params[db.TaskParamGitBranch]
+	if !ok {
+		return false
+	}
+	delete(task.Params, db.TaskParamGitBranch)
+
+	branch, _ := raw.(string)
+	branch = strings.TrimSpace(branch)
+	if branch == "" {
+		return false
+	}
+
+	if !allowOverride {
+		return true
+	}
+
+	task.GitBranch = &branch
+	return false
+}
+
 // GetWorkflowRunParams builds the start parameters of a workflow run from a
 // webhook: every extracted value, whatever its variable type, becomes an
 // answer to the workflow's survey under the extractor's variable name. The
@@ -458,6 +486,11 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 	if err != nil {
 		log.Error(err)
 		return nil
+	}
+
+	if applyGitBranchParam(&taskDefinition, tpl.AllowOverrideBranchInTask) {
+		logger.WithField("template_id", tpl.ID).
+			Warn("Extracted git_branch ignored: the template does not allow overriding its branch in a task")
 	}
 
 	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
