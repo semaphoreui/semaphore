@@ -51,6 +51,12 @@ assigned global roles.
 - **No `revision` / string `role_id` from ex.** Roles keep `int id` + `slug`; the row lock
   `global_role_state` serializes administrator-removing transactions across HA nodes.
 - **Only four bits** (1 users, 2 roles, 4 system, 8 audit): the other ex bits have no consumer here.
+- **The middleware is the only gate.** A handler behind `systemAPI` / `rolesAdminAPI` never re-checks
+  `user.Admin`: such a check silently shuts out every global-role holder (`api/cache.go` and `api/options.go`
+  carried one until 2026-10-19). `api/global_routes_test.go` drives the table below through the real
+  `api.Route` with a session cookie, for an admin, one holder per bit, one holder of every other bit and a
+  user without roles; a second test walks the router and fails when a route that refuses the plain user
+  with a global permission name is missing from the table. Add a row there with every new system route.
 - **The admin flag is break-glass.** `user.admin` passes every check without a store read, and one admin-flag
   user always remains (see above). Only an
   admin may set `admin`/`pro`; a user manager cannot touch an admin or a user holding a global
@@ -64,6 +70,8 @@ assigned global roles.
   `isProBuild()` and listed in `proOnlyTests`, so a community build skips them.
 
 ## Route → permission
+
+Kept in step with `globalRoutes()` in `api/global_routes_test.go`.
 
 | Routes | Permission |
 | --- | --- |

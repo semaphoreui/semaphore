@@ -66,6 +66,9 @@ only when the task touches that topic. Keep this file under 150 lines.
   and the `api.Route` parameter wired in `cli/cmd/root.go`; `pro_impl` holds the real store
   (`db/sql`, wrapping `*coresql.SqlDb`), `db/factory` and the controller. Pro endpoints stay out of
   `api-docs.yml`/Dredd. Build community with `GOWORK=off`, Pro with the gitignored `go.work`.
+- An `api/` test that builds the real `api.Route` must pass under `go.work` too: the Pro controllers
+  dereference nil stores and the subscription service — pass fakes (`noLicense{}`, `fakeRoleMappingStore`
+  in `api/global_routes_test.go`) and expect a plan 403 without an audit deny event on roles/audit routes.
 - This worktree has its own `pro_impl/` clone (not a git worktree of the main one): branch it, test
   it with `cd pro_impl && go test ./...`, and remember its commits live in that clone.
 - `docs.cyberark.com` returns 404 to WebFetch/curl for every page; use the Ansible collection
