@@ -38,6 +38,9 @@ module.exports = {
   },
   transpileDependencies: [
     'vuetify',
+    // Shipped as modern ES modules; transpile them for the browserslist targets.
+    // Unit tests run in Node, where these packages are loaded as externals.
+    ...(process.env.NODE_ENV === 'test' ? [] : ['marked', 'dompurify']),
   ],
   publicPath: './',
   outputDir: '../api/public',
