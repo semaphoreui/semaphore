@@ -44,19 +44,34 @@
       {{ $t('integrationWorkflowTargetUnavailable', { id: item.workflow_id }) }}
     </v-alert>
 
-    <v-autocomplete
-      v-else-if="target === 'workflow'"
-      v-model="item.workflow_id"
-      :label="$t('workflowToRun')"
-      clearable
-      :items="workflows"
-      item-value="id"
-      item-text="name"
-      :rules="[(v) => !!v || $t('integrationTargetRequired')]"
-      :disabled="formSaving"
-      outlined
-      dense
-    ></v-autocomplete>
+    <div v-else-if="target === 'workflow'" style="position: relative">
+      <v-autocomplete
+        v-model="item.workflow_id"
+        :label="$t('workflowToRun')"
+        clearable
+        :items="workflows"
+        item-value="id"
+        item-text="name"
+        :rules="[(v) => !!v || $t('integrationTargetRequired')]"
+        :disabled="formSaving || !workflowIntegrationsAvailable"
+        outlined
+        dense
+        class="IntegrationForm__workflow"
+      ></v-autocomplete>
+
+      <v-chip
+        v-if="!workflowIntegrationsAvailable"
+        color="hsl(348deg, 86%, 61%)"
+        text-color="white"
+        small
+        label
+        class="IntegrationForm__upgrade"
+        style="position: absolute; top: -10px; right: 15px"
+        @click="upgradeToPro('workflow_integrations_management')"
+      >
+        Upgrade to PRO
+      </v-chip>
+    </div>
 
     <v-autocomplete
       v-else
@@ -145,7 +160,10 @@ export default {
   components: { HighlightedCard, TaskParamsForm },
   mixins: [ItemFormBase],
   props: {
-    /** Server feature flags (`systemInfo.features`); `workflows` unlocks the workflow target. */
+    /**
+     * Server feature flags (`systemInfo.features`): `workflows` shows the workflow target,
+     * `workflow_integrations_management` (Pro) lets the user pick a workflow.
+     */
     features: Object,
   },
   data() {
@@ -214,6 +232,15 @@ export default {
 
     workflowsEnabled() {
       return !!(this.features && this.features.workflows);
+    },
+
+    /**
+     * Whether this user may point an integration at a workflow. Without it the workflow
+     * select is shown disabled with an "Upgrade to PRO" chip, and the server refuses the
+     * target with 403 anyway.
+     */
+    workflowIntegrationsAvailable() {
+      return !!(this.features && this.features.workflow_integrations_management);
     },
 
     loginPasswordKeys() {

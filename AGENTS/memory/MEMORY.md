@@ -59,6 +59,12 @@ only when the task touches that topic. Keep this file under 150 lines.
 - Workbench MCP: body limits refuse instead of trimming — task plan accepts ≥5 300 chars, a task note ≥9 000 (limit 65 536 per the tool, seen 2026-10-15);
   stages exist only on `extended` tasks and have their own bodies, so move detail there.
 - Subagents on the Fable model hit 403 twice during the docs audit and had to be rerun on Opus.
+- `GOWORK=off go test ./api/` hangs locally in `TestGlobalRoutes_TableCoversTheRouter` (probe of
+  `GET /api/info`, spins in `GetSystemInfo`; same on a clean HEAD, 2026-10-19) — run the package
+  with `-skip TestGlobalRoutes_TableCoversTheRouter`; the rest passes in ~20 s.
+- A Pro plan gate in community handlers: `api/projects/pro_features.go proFeatureGate` (plan via
+  `features.CurrentPlan`, which the OSS stub `pro/pkg/features` also has) — tests inject
+  `getFeatures` so they hold in both builds; a plan 403 records no audit deny event.
 - `ItemListPageBase` calls `allowActions()` from `data()`, before computed properties exist — an
   override must read props (`this.user`, `this.isAdmin`) directly, or the actions column silently
   disappears (hit in `Users.vue`/`Roles.vue`, 2026-10-17).

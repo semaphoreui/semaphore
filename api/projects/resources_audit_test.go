@@ -155,7 +155,7 @@ func TestUpdateAndDeleteProject_AreRecorded(t *testing.T) {
 
 func TestBackupExportAndRestore_AreRecorded(t *testing.T) {
 	f := newResourceFixture(t)
-	controller := NewBackupController(proFactory.NewWorkflowStore(f.store))
+	controller := NewBackupController(proFactory.NewWorkflowStore(f.store), noLicense{})
 	integration, err := f.store.CreateIntegration(db.Integration{Name: "hook", ProjectID: f.project.ID, TemplateID: new(f.template(t).ID)})
 	require.NoError(t, err)
 	_, err = f.store.CreateIntegrationAlias(db.IntegrationAlias{Alias: "a1b2c3", ProjectID: f.project.ID, IntegrationID: &integration.ID})
@@ -181,7 +181,7 @@ func TestBackupExportAndRestore_AreRecorded(t *testing.T) {
 func TestRestore_FailedStepIsPartial(t *testing.T) {
 	f := newResourceFixture(t)
 	f.template(t)
-	controller := NewBackupController(proFactory.NewWorkflowStore(f.store))
+	controller := NewBackupController(proFactory.NewWorkflowStore(f.store), noLicense{})
 
 	r, _ := f.request(http.MethodGet, "", nil, nil)
 	w := httptest.NewRecorder()
@@ -470,7 +470,8 @@ func TestIntegrationEvents_WorkflowTarget(t *testing.T) {
 
 	r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"workflow_id":`+strconv.FormatInt(workflowID, 10)+`,"auth_method":"none"}`, nil, nil)
 	w := httptest.NewRecorder()
-	AddIntegration(w, r)
+	// The workflow target is a Pro feature; the audit metadata is what is under test here.
+	integrationController(allFeatures).AddIntegration(w, r)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	created := only(t, rec, audit.ResourceIntegrationCreate)
 	assert.Equal(t, audit.IntegrationMetadata{WorkflowID: int(workflowID), AuthMethod: "none"}, created.Event.Metadata)
@@ -482,7 +483,7 @@ func TestIntegrationEvents(t *testing.T) {
 
 	r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"template_id":`+strconv.Itoa(template.ID)+`,"auth_method":"none"}`, nil, nil)
 	w := httptest.NewRecorder()
-	AddIntegration(w, r)
+	integrationController(noFeatures).AddIntegration(w, r)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	created := only(t, rec, audit.ResourceIntegrationCreate)
 	assert.Equal(t, audit.IntegrationMetadata{TemplateID: template.ID, AuthMethod: "none"}, created.Event.Metadata)

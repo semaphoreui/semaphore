@@ -3,6 +3,7 @@ import { expect } from 'chai';
 import { mount, createLocalVue } from '@vue/test-utils';
 import Vuetify from 'vuetify';
 import IntegrationForm from '@/components/IntegrationForm.vue';
+import EventBus from '@/event-bus';
 import mockAxios from './helpers/axiosMock';
 
 const localVue = createLocalVue();
@@ -106,7 +107,10 @@ describe('IntegrationForm.vue', () => {
       if (c.method === 'post') return { id: 9 };
       return respondTo(c.url);
     });
-    const wrapper = mountForm({ itemId: 'new', features: { workflows: true } });
+    const wrapper = mountForm({
+      itemId: 'new',
+      features: { workflows: true, workflow_integrations_management: true },
+    });
     await flush();
 
     wrapper.vm.item.name = 'hook';
@@ -132,5 +136,63 @@ describe('IntegrationForm.vue', () => {
     expect(wrapper.vm.target).to.equal('workflow');
     expect(wrapper.find('.IntegrationForm__workflowUnavailable').exists()).to.equal(true);
     expect(wrapper.find('.IntegrationForm__target').exists()).to.equal(false);
+  });
+
+  it('disables the workflow select and offers an upgrade without the Pro feature', async () => {
+    http.respond((c) => respondTo(c.url));
+    const wrapper = mountForm({ itemId: 'new', features: { workflows: true } });
+    await flush();
+    wrapper.vm.setTarget('workflow');
+    await flush();
+
+    expect(wrapper.find('.IntegrationForm__target').exists()).to.equal(true, 'the toggle stays');
+    expect(wrapper.find('.IntegrationForm__workflow').classes()).to.include('v-input--is-disabled');
+    const chip = wrapper.find('.IntegrationForm__upgrade');
+    expect(chip.exists()).to.equal(true);
+    expect(chip.text()).to.equal('Upgrade to PRO');
+
+    const events = [];
+    const listener = (e) => events.push(e);
+    EventBus.$on('i-subscription', listener);
+    try {
+      await chip.trigger('click');
+    } finally {
+      EventBus.$off('i-subscription', listener);
+    }
+    expect(events).to.deep.equal([{ feature: 'workflow_integrations_management' }]);
+  });
+
+  it('shows the workflow select without the chip when the Pro feature is on', async () => {
+    http.respond((c) => respondTo(c.url, { id: 3, name: 'hook', workflow_id: 5 }));
+    const wrapper = mountForm({
+      itemId: 3,
+      features: { workflows: true, workflow_integrations_management: true },
+    });
+    await flush();
+
+    expect(wrapper.find('.IntegrationForm__workflow').classes()).to.not.include('v-input--is-disabled');
+    expect(wrapper.find('.IntegrationForm__upgrade').exists()).to.equal(false);
+  });
+
+  it('keeps an existing workflow integration editable without the Pro feature', async () => {
+    http.respond((c) => {
+      if (c.method === 'put') return {};
+      return respondTo(c.url, { id: 3, name: 'hook', workflow_id: 5 });
+    });
+    const wrapper = mountForm({ itemId: 3, features: { workflows: true } });
+    await flush();
+
+    expect(wrapper.find('.IntegrationForm__workflow').classes()).to.include('v-input--is-disabled');
+    expect(wrapper.find('.IntegrationForm__upgrade').exists()).to.equal(true);
+
+    wrapper.vm.item.name = 'renamed';
+    await flush();
+    await wrapper.vm.save();
+
+    expect(wrapper.vm.formError).to.equal(null);
+    const put = http.requests.find((r) => r.method === 'put');
+    expect(put, 'PUT request').to.not.equal(undefined);
+    expect(put.data.workflow_id).to.equal(5);
+    expect(put.data.name).to.equal('renamed');
   });
 });
