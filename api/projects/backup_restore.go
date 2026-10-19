@@ -94,7 +94,7 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 	if !user.Admin && !util.Config.NonAdminCanCreateProject {
 		log.Warn(user.Username + " is not permitted to restore the project")
 		helpers.RecordDenied(r, "admin", 0)
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 

@@ -354,4 +354,8 @@ export default {
   projectRoles: 'Funções do projeto',
   globalRoles: 'Funções globais',
   builtInRoles: 'Funções incorporadas',
+  noProjectsTitle: 'Ainda não há projetos',
+  noProjectsText: 'Você não é membro de nenhum projeto. Peça ao administrador do Semaphore para adicionar você a um.',
+  signedInAs: 'Conectado como {username} ({email})',
+  signedInAsNoEmail: 'Conectado como {username}',
 };

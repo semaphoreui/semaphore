@@ -389,4 +389,8 @@ export default {
   projectRoles: '專案角色',
   globalRoles: '全域角色',
   builtInRoles: '內建角色',
+  noProjectsTitle: '尚無專案',
+  noProjectsText: '您還不是任何專案的成員。請聯絡 Semaphore 管理員將您加入專案。',
+  signedInAs: '已登入為 {username} ({email})',
+  signedInAsNoEmail: '已登入為 {username}',
 };

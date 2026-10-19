@@ -315,9 +315,9 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	if !user.Admin && !util.Config.NonAdminCanCreateProject {
-		log.Warn(user.Username + " is not permitted to edit users")
+		log.Warn(user.Username + " is not permitted to create projects")
 		helpers.RecordDenied(r, "admin", 0)
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 

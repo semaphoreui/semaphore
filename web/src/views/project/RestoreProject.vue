@@ -1,5 +1,6 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div>
+  <NoProjects v-if="user && !user.can_create_project" :user="user"/>
+  <div v-else>
     <v-toolbar flat >
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('restoreProject') }}</v-toolbar-title>
@@ -31,9 +32,13 @@
 <script>
 import EventBus from '@/event-bus';
 import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
+import NoProjects from '@/components/NoProjects.vue';
 
 export default {
-  components: { RestoreProjectForm },
+  components: { RestoreProjectForm, NoProjects },
+  props: {
+    user: Object,
+  },
   data() {
     return {
     };
