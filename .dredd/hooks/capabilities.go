@@ -28,6 +28,8 @@ var globalRunner *db.Runner
 var workflow *db.WorkflowTemplate
 var workflowRun *db.WorkflowRun
 var workflowApproval *db.WorkflowApproval
+var globalRole *db.GlobalRole
+var globalRoleAssignment *db.GlobalRoleAssignment
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
@@ -65,6 +67,7 @@ var capabilities = map[string][]string{
 	"workflow":                {"template"},
 	"workflow_run":            {"workflow"},
 	"workflow_approval":       {"workflow_run"},
+	"global_role":             {"user"},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -220,6 +223,9 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "workflow_approval":
 			workflowApproval = addWorkflowApproval()
 			workflowNodeID = workflowApproval.WorkflowNodeID
+		case "global_role":
+			globalRole = addGlobalRole()
+			globalRoleAssignment = addGlobalRoleAssignment(userPathTestUser.ID, globalRole.ID)
 		default:
 			panic("unknown capability " + v)
 		}
@@ -280,6 +286,18 @@ var pathSubPatterns = []func() string{
 		}
 		return strconv.Itoa(workflow.RevisionID)
 	}, // revision_id, x-example: 22
+	func() string {
+		if globalRoleAssignment == nil {
+			return "0"
+		}
+		return strconv.Itoa(globalRoleAssignment.ID)
+	}, // assignment_id, x-example: 23
+	func() string {
+		if globalRole == nil {
+			return "0"
+		}
+		return strconv.Itoa(globalRole.ID)
+	}, // global role_id, x-example: 24
 }
 
 // alterRequestPath with the above slice of functions

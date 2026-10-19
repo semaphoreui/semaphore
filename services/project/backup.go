@@ -221,7 +221,7 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
-	b.globalRoles, err = store.GetGlobalRoles()
+	b.globalRoles, err = store.GetSharedRoles()
 	if err != nil {
 		return
 	}

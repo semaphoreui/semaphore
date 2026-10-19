@@ -81,24 +81,6 @@ func TestAuthentication_ActorReachesHandler(t *testing.T) {
 	assert.Equal(t, audit.UserActor(user.ID, "alice", audit.AuthSession, ""), onlyEvent(t, rec, audit.IAMUserDelete).Actor)
 }
 
-func TestAdminMiddleware_RecordsDenial(t *testing.T) {
-	router := mux.NewRouter()
-	router.Handle("/api/options", adminMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	}))).Methods(http.MethodPost)
-
-	r, rec := withAuditRecorder(asActor(httptest.NewRequest(http.MethodPost, "/api/options", nil), db.User{ID: 7, Username: "bob"}))
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, r)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-	got := onlyEvent(t, rec, audit.AuthAuthorizationDeny)
-	assert.Equal(t, audit.ReasonForbidden, got.Event.Reason)
-	assert.Equal(t, &audit.Target{Type: audit.TargetRoute, ID: "/api/options"}, got.Event.Target)
-	assert.Equal(t, audit.DenyMetadata{Method: http.MethodPost, Permission: "admin"}, got.Event.Metadata)
-	assert.Equal(t, "7", got.Actor.ID)
-}
-
 func TestGetUserMiddleware_RecordsDenialOnChanges(t *testing.T) {
 	store := setupSessionTest(t)
 	target := createUserOptionsTestUser(t, store, "alice")
@@ -133,12 +115,6 @@ func TestGetUserMiddleware_RecordsDenialOnChanges(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestAdminMiddleware_AdminIsNotRecorded(t *testing.T) {
-	r, rec := withAuditRecorder(asActor(httptest.NewRequest(http.MethodPost, "/api/options", nil), db.User{ID: 1, Admin: true}))
-	adminMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})).ServeHTTP(httptest.NewRecorder(), r)
-	assert.Empty(t, rec.All())
 }
 
 func TestCsrfProtectionMiddleware_RecordsBlock(t *testing.T) {

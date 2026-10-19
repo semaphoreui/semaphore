@@ -41,7 +41,7 @@ func Test_GetTemplatePermission_ReturnsZeroForNonMember(t *testing.T) {
 
 func TestTemplateListWithTwoRolesHasNoDuplicates(t *testing.T) {
 	store, projectID, templateID := newTemplatePermissionTest(t)
-	guest, err := store.GetGlobalRoleBySlug("guest")
+	guest, err := store.GetSharedRoleBySlug("guest")
 	require.NoError(t, err)
 	user := createTemplatePermissionTestUser(t, store, projectID, "two-roles", guest.ID)
 	a, err := store.CreateRole(db.Role{Slug: "a", Name: "A", ProjectID: &projectID})

@@ -7,7 +7,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
-func (d *SqlDb) GetGlobalRoleBySlug(slug string) (role db.Role, err error) {
+func (d *SqlDb) GetSharedRoleBySlug(slug string) (role db.Role, err error) {
 	err = d.selectOne(&role, "select * from `role` where lower(slug)=lower(?) and project_id is null", slug)
 	return
 }
@@ -17,8 +17,8 @@ func (d *SqlDb) GetProjectRole(projectID int, slug string) (role db.Role, err er
 	return
 }
 
-// GetProjectOrGlobalRoleBySlug prefers the project role when a global role has the same slug.
-func (d *SqlDb) GetProjectOrGlobalRoleBySlug(projectID int, slug string) (role db.Role, err error) {
+// GetProjectOrSharedRoleBySlug prefers the project role when a global role has the same slug.
+func (d *SqlDb) GetProjectOrSharedRoleBySlug(projectID int, slug string) (role db.Role, err error) {
 	err = d.selectOne(&role, `
 		select
 		  *
@@ -36,7 +36,7 @@ func (d *SqlDb) GetProjectRoles(projectID int) (roles []db.Role, err error) {
 	return
 }
 
-func (d *SqlDb) GetGlobalRoles() (roles []db.Role, err error) {
+func (d *SqlDb) GetSharedRoles() (roles []db.Role, err error) {
 	_, err = d.selectAll(&roles, "select * from `role` where project_id is null order by name")
 	return
 }
