@@ -847,52 +847,38 @@ func TestApplyGitBranchParam(t *testing.T) {
 	tests := []struct {
 		name           string
 		params         db.MapStringAnyField
-		allowOverride  bool
 		initialBranch  *string
 		wantBranch     *string
-		wantIgnored    bool
 		wantParamsLeft db.MapStringAnyField
 	}{
 		{
-			name:           "applied when the template allows it",
+			name:           "moved from params onto the task",
 			params:         db.MapStringAnyField{"git_branch": "feature/x", "limit": "web"},
-			allowOverride:  true,
 			wantBranch:     new("feature/x"),
 			wantParamsLeft: db.MapStringAnyField{"limit": "web"},
 		},
 		{
 			name:           "overrides the static integration branch",
 			params:         db.MapStringAnyField{"git_branch": "hotfix"},
-			allowOverride:  true,
 			initialBranch:  new("main"),
 			wantBranch:     new("hotfix"),
 			wantParamsLeft: db.MapStringAnyField{},
 		},
 		{
-			name:           "ignored and stripped when the template forbids overriding",
-			params:         db.MapStringAnyField{"git_branch": "feature/x", "limit": "web"},
-			allowOverride:  false,
+			name:           "blank value is stripped and keeps the static branch",
+			params:         db.MapStringAnyField{"git_branch": "  "},
 			initialBranch:  new("main"),
 			wantBranch:     new("main"),
-			wantIgnored:    true,
-			wantParamsLeft: db.MapStringAnyField{"limit": "web"},
-		},
-		{
-			name:           "blank value is stripped and not reported",
-			params:         db.MapStringAnyField{"git_branch": "  "},
-			allowOverride:  false,
 			wantParamsLeft: db.MapStringAnyField{},
 		},
 		{
 			name:           "non-string value is stripped and not applied",
 			params:         db.MapStringAnyField{"git_branch": 42},
-			allowOverride:  true,
 			wantParamsLeft: db.MapStringAnyField{},
 		},
 		{
 			name:           "nothing to do without the parameter",
 			params:         db.MapStringAnyField{"limit": "web"},
-			allowOverride:  true,
 			wantParamsLeft: db.MapStringAnyField{"limit": "web"},
 		},
 	}
@@ -901,9 +887,8 @@ func TestApplyGitBranchParam(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			task := db.Task{Params: tt.params, GitBranch: tt.initialBranch}
 
-			ignored := applyGitBranchParam(&task, tt.allowOverride)
+			applyGitBranchParam(&task)
 
-			assert.Equal(t, tt.wantIgnored, ignored)
 			assert.Equal(t, tt.wantBranch, task.GitBranch)
 			assert.Equal(t, tt.wantParamsLeft, task.Params)
 		})
@@ -913,6 +898,28 @@ func TestApplyGitBranchParam(t *testing.T) {
 func TestApplyGitBranchParam_NilParams(t *testing.T) {
 	task := db.Task{}
 
-	assert.False(t, applyGitBranchParam(&task, true))
+	applyGitBranchParam(&task)
+
 	assert.Nil(t, task.GitBranch)
+}
+
+func TestGetTaskDefinitionGitBranchParam(t *testing.T) {
+	integration := db.Integration{ID: 1, ProjectID: 2, TemplateID: new(3)}
+	payload := []byte(`{"ref":"release/1.0"}`)
+
+	task, err := GetTaskDefinition(integration, payload, http.Header{}, func(int, int) ([]db.IntegrationExtractValue, error) {
+		return []db.IntegrationExtractValue{{
+			VariableType: db.IntegrationVariableTaskParam,
+			ValueSource:  db.IntegrationExtractBodyValue,
+			BodyDataType: db.IntegrationBodyDataJSON,
+			Key:          "ref",
+			Variable:     db.TaskParamGitBranch,
+		}}, nil
+	})
+
+	require.NoError(t, err)
+	if assert.NotNil(t, task.GitBranch) {
+		assert.Equal(t, "release/1.0", *task.GitBranch)
+	}
+	assert.NotContains(t, task.Params, db.TaskParamGitBranch)
 }

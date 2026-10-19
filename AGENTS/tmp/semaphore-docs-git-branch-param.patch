@@ -6,7 +6,7 @@ index a39d0c1..7648e93 100644
  * **Environment**: the value is added to the task's environment variables, overriding a variable of the same name from the variable group.
  * **Task parameter**: the value becomes a task parameter, for example a survey variable or a prompt.
  
-+The task parameter `git_branch` is reserved: its value becomes the git branch of the started task, the same way a user picks a branch in the task dialog. It is honored only when the template has the **Branch** prompt enabled (`allow_override_branch_in_task`); otherwise the value is ignored and a warning is logged. An invalid branch name rejects the task.
++The task parameter `git_branch` is reserved: its value becomes the git branch of the started task, the same way a user picks a branch in the task dialog. It is honored only when the template has the **Branch** prompt enabled (`allow_override_branch_in_task`); otherwise the value is ignored. An invalid branch name rejects the task.
 +
  ## Task parameters {#task-parameters}
  

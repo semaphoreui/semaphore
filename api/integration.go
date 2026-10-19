@@ -393,35 +393,31 @@ func GetTaskDefinition(
 		taskDefinition.Params[k] = v
 	}
 
+	applyGitBranchParam(&taskDefinition)
+
 	return
 }
 
-// applyGitBranchParam moves the reserved `git_branch` task parameter of a
-// webhook-built task onto task.GitBranch. The key is always removed from Params
-// so it never reaches the app-specific params. The branch is applied only when
-// the template allows a task to override its branch — the same gate the task
-// form and resolveGitBranch use — so an integration cannot redirect a
-// branch-locked template. It reports whether a supplied branch was ignored.
-// The value is validated later by ValidateNewTask like any task branch.
-func applyGitBranchParam(task *db.Task, allowOverride bool) (ignored bool) {
+// applyGitBranchParam moves the reserved `git_branch` task parameter onto
+// task.GitBranch, so a webhook sets the branch the same way the task dialog
+// does. The key is removed from Params so it never reaches the app-specific
+// params. Whether the branch is honored is decided at run time by the
+// template (AllowOverrideBranchInTask, see resolveGitBranch), and the value is
+// validated by ValidateNewTask like any task branch.
+func applyGitBranchParam(task *db.Task) {
 	raw, ok := task.Params[db.TaskParamGitBranch]
 	if !ok {
-		return false
+		return
 	}
 	delete(task.Params, db.TaskParamGitBranch)
 
 	branch, _ := raw.(string)
 	branch = strings.TrimSpace(branch)
 	if branch == "" {
-		return false
-	}
-
-	if !allowOverride {
-		return true
+		return
 	}
 
 	task.GitBranch = &branch
-	return false
 }
 
 // GetWorkflowRunParams builds the start parameters of a workflow run from a
@@ -486,11 +482,6 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 	if err != nil {
 		log.Error(err)
 		return nil
-	}
-
-	if applyGitBranchParam(&taskDefinition, tpl.AllowOverrideBranchInTask) {
-		logger.WithField("template_id", tpl.ID).
-			Warn("Extracted git_branch ignored: the template does not allow overriding its branch in a task")
 	}
 
 	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
