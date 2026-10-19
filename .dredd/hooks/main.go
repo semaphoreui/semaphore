@@ -139,9 +139,11 @@ func main() {
 
 	// Global roles need a PRO plan: the community server answers 404, a PRO server without a plan 403.
 	globalRoleTests := []string{
+		"user > /api/users/{user_id}/global-roles > Lists the global roles assigned to the user > 200 > application/json",
 		"user > /api/users/{user_id}/global-roles > Assigns a global role to the user > 201 > application/json",
 		"user > /api/users/{user_id}/global-roles/{assignment_id} > Removes a global role from the user > 204 > application/json",
 		"user > /api/users/{user_id}/global-permissions > Effective global permissions of the user > 200 > application/json",
+		"user > /api/global-roles > Lists global roles > 200 > application/json",
 		"user > /api/global-roles > Creates a global role > 201 > application/json",
 		"user > /api/global-roles/{role_id} > Gets a global role > 200 > application/json",
 		"user > /api/global-roles/{role_id} > Updates a global role > 204 > application/json",
