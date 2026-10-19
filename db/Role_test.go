@@ -44,6 +44,39 @@ func TestValidateRole(t *testing.T) {
 	}
 }
 
+func TestValidateGlobalRole(t *testing.T) {
+	tests := []struct {
+		name    string
+		role    GlobalRole
+		isNew   bool
+		wantErr bool
+	}{
+		{"valid new role", GlobalRole{Slug: "auditor-2", Name: "Auditor", Permissions: AllGlobalPermissions}, true, false},
+		{"no permissions yet", GlobalRole{Slug: "empty", Name: "Empty"}, true, false},
+		{"empty name", GlobalRole{Slug: "auditor"}, true, true},
+		{"empty slug", GlobalRole{Name: "A"}, true, true},
+		{"space in slug", GlobalRole{Slug: "with space", Name: "A"}, true, true},
+		{"slug too long", GlobalRole{Slug: strings.Repeat("a", 101), Name: "A"}, true, true},
+		{"built-in project role slugs are free here", GlobalRole{Slug: string(ProjectOwner), Name: "A"}, true, false},
+		{"unknown permission bit", GlobalRole{Slug: "a", Name: "A", Permissions: 16}, true, true},
+		{"negative permissions", GlobalRole{Slug: "a", Name: "A", Permissions: -1}, true, true},
+		{"old slug stays editable", GlobalRole{Slug: "my role", Name: "A"}, false, false},
+		{"update still needs a name", GlobalRole{Slug: "my role"}, false, true},
+		{"update checks the bits", GlobalRole{Slug: "a", Name: "A", Permissions: 16}, false, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateGlobalRole(tt.role, tt.isNew)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestRoleAssignments_Impact(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -83,4 +116,62 @@ func TestRoleAssignments_Impact(t *testing.T) {
 			assert.Equal(t, tt.want, tt.assigned.Impact())
 		})
 	}
+}
+
+func TestGlobalPermission_Can(t *testing.T) {
+	mask := CanManageGlobalUsers | CanReadGlobalAudit
+	assert.True(t, mask.Can(CanManageGlobalUsers))
+	assert.True(t, mask.Can(CanManageGlobalUsers|CanReadGlobalAudit))
+	assert.False(t, mask.Can(CanManageGlobalRoles))
+	assert.False(t, mask.Can(CanManageGlobalUsers|CanManageGlobalRoles))
+	assert.True(t, AllGlobalPermissions.Can(CanManageGlobalSystem))
+	assert.Equal(t, GlobalPermission(15), AllGlobalPermissions, "the bit values are part of the API")
+}
+
+func TestGlobalPermissionCatalog_CoversEveryBit(t *testing.T) {
+	var covered GlobalPermission
+	ids := map[string]bool{}
+	for _, definition := range GlobalPermissionCatalog() {
+		covered |= definition.Permission
+		assert.False(t, ids[definition.ID], "duplicate id %s", definition.ID)
+		ids[definition.ID] = true
+		assert.NotEmpty(t, definition.Description)
+	}
+	assert.Equal(t, AllGlobalPermissions, covered)
+}
+
+func TestExplainEffectiveGlobalPermissions(t *testing.T) {
+	assignments := []GlobalRoleAssignment{
+		{RoleID: 3, RoleName: "Auditor", GlobalPermissions: CanReadGlobalAudit},
+		{RoleID: 4, RoleName: "Ops", GlobalPermissions: CanReadGlobalAudit | CanManageGlobalSystem},
+	}
+
+	explained := ExplainEffectiveGlobalPermissions(false, assignments)
+	assert.Equal(t, CanReadGlobalAudit|CanManageGlobalSystem, explained.Permissions)
+	byID := map[string]GlobalPermissionDecision{}
+	for _, decision := range explained.Decisions {
+		byID[decision.Permission] = decision
+	}
+	assert.Len(t, byID, len(GlobalPermissionCatalog()))
+	assert.Equal(t, GlobalPermissionDecision{Permission: "global.audit.read", Allowed: true, RoleID: 3, RoleName: "Auditor"}, byID["global.audit.read"], "the first role that grants it")
+	assert.Equal(t, GlobalPermissionDecision{Permission: "global.system.manage", Allowed: true, RoleID: 4, RoleName: "Ops"}, byID["global.system.manage"])
+	assert.Equal(t, GlobalPermissionDecision{Permission: "global.users.manage"}, byID["global.users.manage"])
+
+	admin := ExplainEffectiveGlobalPermissions(true, nil)
+	assert.Equal(t, AllGlobalPermissions, admin.Permissions)
+	for _, decision := range admin.Decisions {
+		assert.True(t, decision.Allowed)
+		assert.Equal(t, "Administrator", decision.RoleName)
+	}
+
+	nobody := ExplainEffectiveGlobalPermissions(false, nil)
+	assert.Equal(t, GlobalPermission(0), nobody.Permissions)
+	assert.Len(t, nobody.Decisions, len(GlobalPermissionCatalog()))
+}
+
+func TestErrLastGlobalAdministrator_IsAConflict(t *testing.T) {
+	assert.ErrorIs(t, ErrLastGlobalAdministrator, ErrInvalidOperation)
+	assert.ErrorIs(t, ErrGlobalRoleAssigned, ErrInvalidOperation)
+	assert.NotErrorIs(t, ErrLastGlobalAdministrator, ErrGlobalRoleAssigned)
+	assert.NotErrorIs(t, ErrInvalidOperation, ErrLastGlobalAdministrator)
 }

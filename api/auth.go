@@ -370,20 +370,6 @@ func authenticationWithStore(next http.Handler) http.Handler {
 	})
 }
 
-func adminMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := helpers.GetFromContext(r, "user").(*db.User)
-
-		if !user.Admin {
-			helpers.RecordDenied(r, "admin", 0)
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
 func metricsAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username := util.Config.Metrics.Username

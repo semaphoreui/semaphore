@@ -8,7 +8,7 @@ not migrate to a new project.
 
 | When you need it | Read |
 | --- | --- |
-| Changing login, LDAP/OIDC providers, external identity linking, password hashing, task JWT tokens, or per-template RBAC | `auth-and-identity/INDEX.md` |
+| Changing login, LDAP/OIDC providers, external identity linking, password hashing, task JWT tokens, per-template RBAC, or global roles and permissions | `auth-and-identity/INDEX.md` |
 | Touching runner liveness and lost tasks, runner tokens, the runners page, git working-copy locking, or host-config SSH credentials | `runners-and-execution/INDEX.md` |
 | Touching task environment/survey variables, survey secrets on remote runners, survey defaults in schedules, or secret storages (CyberArk) | `secrets-and-task-vars/INDEX.md` |
 | Changing how encryption keys are sourced, identified, rotated or verified (`vault rekey` / `check`) | `encryption-keys/INDEX.md` |

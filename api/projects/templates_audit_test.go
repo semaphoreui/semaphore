@@ -50,7 +50,7 @@ func templatePermRequest(t *testing.T, store db.Store, method string, body strin
 
 func builtinRole(t *testing.T, store db.Store, slug db.ProjectUserRole) db.Role {
 	t.Helper()
-	role, err := store.GetGlobalRoleBySlug(string(slug))
+	role, err := store.GetSharedRoleBySlug(string(slug))
 	require.NoError(t, err)
 	return role
 }

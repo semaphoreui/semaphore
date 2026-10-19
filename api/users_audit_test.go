@@ -319,15 +319,17 @@ func TestUserUpdateMetadata(t *testing.T) {
 
 func TestUsers_SelfEscalationIsDenied(t *testing.T) {
 	tests := []struct {
-		name    string
-		method  string
-		body    string
-		self    bool
-		handler func(*UsersController, http.ResponseWriter, *http.Request)
+		name     string
+		method   string
+		body     string
+		self     bool
+		handler  func(*UsersController, http.ResponseWriter, *http.Request)
+		wantCode int
 	}{
-		{"create a user", http.MethodPost, `{"username":"carol","name":"Carol","email":"carol@example.com","password":"verystrongpassword1","admin":true}`, false, (*UsersController).AddUser},
-		{"make self admin", http.MethodPut, `{"username":"bob","name":"bob","email":"bob@example.com","admin":true}`, true, (*UsersController).UpdateUser},
-		{"make self pro", http.MethodPut, `{"username":"bob","name":"bob","email":"bob@example.com","pro":true}`, true, (*UsersController).UpdateUser},
+		// The route itself requires CanManageGlobalUsers; the handler still keeps the admin flag with admins.
+		{"create an admin", http.MethodPost, `{"username":"carol","name":"Carol","email":"carol@example.com","password":"verystrongpassword1","admin":true}`, false, (*UsersController).AddUser, http.StatusForbidden},
+		{"make self admin", http.MethodPut, `{"username":"bob","name":"bob","email":"bob@example.com","admin":true}`, true, (*UsersController).UpdateUser, http.StatusUnauthorized},
+		{"make self pro", http.MethodPut, `{"username":"bob","name":"bob","email":"bob@example.com","pro":true}`, true, (*UsersController).UpdateUser, http.StatusUnauthorized},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -342,7 +344,7 @@ func TestUsers_SelfEscalationIsDenied(t *testing.T) {
 
 			tt.handler(NewUsersController(nil), w, r)
 
-			assert.Equal(t, http.StatusUnauthorized, w.Code, "the response does not change")
+			assert.Equal(t, tt.wantCode, w.Code, "the response does not change")
 			got := onlyEvent(t, rec, audit.AuthAuthorizationDeny)
 			assert.Equal(t, audit.DenyMetadata{Method: tt.method, Permission: "admin"}, got.Event.Metadata)
 			assert.Equal(t, "bob", got.Actor.Name)

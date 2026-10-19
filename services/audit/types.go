@@ -92,6 +92,7 @@ const (
 	TargetAPIToken              = "api_token"
 	TargetRoute                 = "route"
 	TargetRole                  = "role"
+	TargetGlobalRole            = "global_role"
 	TargetProjectRoleDefinition = "project_role_definition"
 	TargetTemplatePermission    = "template_permission"
 	TargetRoleMapping           = "role_mapping"

@@ -38,14 +38,21 @@ func (c *UserController) GetUser(w http.ResponseWriter, r *http.Request) {
 
 	var user struct {
 		db.User
-		CanCreateProject      bool `json:"can_create_project"`
-		CanReadAuditLog       bool `json:"can_read_audit_log"`
-		HasActiveSubscription bool `json:"has_active_subscription"`
+		CanCreateProject      bool                `json:"can_create_project"`
+		CanReadAuditLog       bool                `json:"can_read_audit_log"`
+		GlobalPermissions     db.GlobalPermission `json:"global_permissions"`
+		HasActiveSubscription bool                `json:"has_active_subscription"`
 	}
 
 	user.User = *helpers.GetFromContext(r, "user").(*db.User)
 	user.CanCreateProject = user.Admin || util.Config.NonAdminCanCreateProject
-	user.CanReadAuditLog = canReadAuditLog(&user.User)
+	permissions, err := effectiveGlobalPermissions(r, &user.User)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+	user.GlobalPermissions = permissions
+	user.CanReadAuditLog = permissions.Can(db.CanReadGlobalAudit)
 	user.HasActiveSubscription = c.subscriptionService.HasActiveSubscription()
 	if !user.HasActiveSubscription {
 		user.Pro = false
