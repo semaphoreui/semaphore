@@ -460,8 +460,24 @@
             />
           </DropdownCard>
 
-          <div class="mb-4">
+          <div class="pb-8">
             <div class="text-body-2 mb-1">{{ $t('alerts') }}</div>
+
+            <v-checkbox
+                class="mt-0"
+                dense
+                hide-details
+                :label="$t('suppressSuccessAlerts')"
+                v-model="item.suppress_success_alerts"
+            />
+
+            <v-checkbox
+                class="mt-1 mb-3"
+                dense
+                hide-details
+                :label="$t('suppressErrorAlerts')"
+                v-model="item.suppress_error_alerts"
+            />
 
             <v-radio-group
               v-model="item.alert_mode"
@@ -474,20 +490,15 @@
               <v-radio :label="$t('templateAlertsCustom')" value="ids" />
             </v-radio-group>
 
-            <div v-if="item.alert_mode !== 'ids'" class="caption grey--text mt-1 mb-3">
-              {{ $t('templateAlertsDefaultHint') }}
-            </div>
-
             <v-autocomplete
-              v-else
+                v-if="item.alert_mode === 'ids'"
               v-model="item.alert_ids"
               :items="alerts"
               item-value="id"
               item-text="name"
               :label="$t('alerts')"
-              :hint="$t('templateAlertsCustomHint')"
               persistent-hint
-              class="mt-3 mb-3"
+              class="mt-3"
               multiple
               chips
               small-chips
@@ -501,21 +512,6 @@
               </template>
             </v-autocomplete>
 
-            <v-checkbox
-              class="mt-0"
-              dense
-              hide-details
-              :label="$t('suppressSuccessAlerts')"
-              v-model="item.suppress_success_alerts"
-            />
-
-            <v-checkbox
-              class="mt-1"
-              dense
-              hide-details
-              :label="$t('suppressErrorAlerts')"
-              v-model="item.suppress_error_alerts"
-            />
           </div>
 
           <div style="position: relative">
