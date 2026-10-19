@@ -364,3 +364,41 @@ func TestMappedRoles_ManualChanges(t *testing.T) {
 		assert.Zero(t, count)
 	})
 }
+
+func createAdminTestUser(t *testing.T, store *SqlDb, username string, admin bool) db.User {
+	t.Helper()
+	user, err := store.CreateUserWithoutPassword(db.User{Username: username, Name: username, Email: username + "@e.st", Admin: admin})
+	require.NoError(t, err)
+	return user
+}
+
+// The last admin cannot lose the flag or the account; a second admin lifts the refusal.
+func TestLastAdministrator(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	root := createAdminTestUser(t, store, "root", true)
+	alice := createAdminTestUser(t, store, "alice", false)
+
+	assert.ErrorIs(t, store.UpdateUser(db.UserWithPwd{User: db.User{ID: root.ID, Username: "root", Name: "root", Email: "root@e.st", Admin: false}}), db.ErrLastGlobalAdministrator)
+	assert.ErrorIs(t, store.DeleteUser(root.ID), db.ErrLastGlobalAdministrator)
+	assert.ErrorIs(t, store.DeleteUser(root.ID), db.ErrInvalidOperation, "the API answers 409")
+
+	// Other users and other fields are not affected.
+	require.NoError(t, store.UpdateUser(db.UserWithPwd{User: db.User{ID: root.ID, Username: "root", Name: "Root", Email: "root@e.st", Admin: true}}))
+	user, err := store.GetUser(root.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "Root", user.Name)
+	require.NoError(t, store.DeleteUser(alice.ID))
+
+	bob := createAdminTestUser(t, store, "bob", true)
+	require.NoError(t, store.UpdateUser(db.UserWithPwd{User: db.User{ID: root.ID, Username: "root", Name: "Root", Email: "root@e.st", Admin: false}}))
+	assert.ErrorIs(t, store.DeleteUser(bob.ID), db.ErrLastGlobalAdministrator, "bob is the last admin now")
+	require.NoError(t, store.DeleteUser(root.ID))
+}
+
+// An instance without any admin (a fresh database) is not protected: there is nothing to keep.
+func TestLastAdministrator_NoAdminsYet(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	alice := createAdminTestUser(t, store, "alice", false)
+	require.NoError(t, store.UpdateUser(db.UserWithPwd{User: db.User{ID: alice.ID, Username: "alice", Name: "A", Email: "a@e.st"}}))
+	require.NoError(t, store.DeleteUser(alice.ID))
+}

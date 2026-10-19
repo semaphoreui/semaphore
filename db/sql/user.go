@@ -77,17 +77,17 @@ func (d *SqlDb) ImportUser(user db.UserWithPwd) (newUser db.User, err error) {
 	return
 }
 
-// DeleteUser removes the user, unless that leaves nobody who can manage global roles.
+// DeleteUser removes the user, unless it is the last admin.
 func (d *SqlDb) DeleteUser(userID int) error {
 	tx, err := d.Sql().Begin()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err = d.LockGlobalRoleState(tx); err != nil {
+	if err = d.LockAdministratorState(tx); err != nil {
 		return err
 	}
-	if err = d.RequireAdministrator(tx, db.AdministratorExclusion{UserID: userID}); err != nil {
+	if err = d.requireAnotherAdmin(tx, userID); err != nil {
 		return err
 	}
 	res, err := d.execTx(tx, "delete from `user` where id=?", userID)
@@ -97,7 +97,7 @@ func (d *SqlDb) DeleteUser(userID int) error {
 	return tx.Commit()
 }
 
-// UpdateUser saves the user. Clearing the admin flag is refused when nobody else can manage global roles.
+// UpdateUser saves the user. Clearing the admin flag of the last admin is refused.
 func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
 	var pwdHash []byte
 	if user.Pwd != "" {
@@ -113,11 +113,11 @@ func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err = d.LockGlobalRoleState(tx); err != nil {
+	if err = d.LockAdministratorState(tx); err != nil {
 		return err
 	}
 	if !user.Admin {
-		if err = d.RequireAdministrator(tx, db.AdministratorExclusion{AdminOfUser: user.ID}); err != nil {
+		if err = d.requireAnotherAdmin(tx, user.ID); err != nil {
 			return err
 		}
 	}

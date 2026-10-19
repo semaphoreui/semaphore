@@ -27,23 +27,32 @@ assigned global roles.
 - **Names.** "Global role" means only the new entity. The project-level roles with `project_id is null`
   are **shared roles** in code (`GetSharedRoles`, `GetSharedRoleBySlug`, `GetProjectOrSharedRoleBySlug`,
   `GetProjectAndSharedRoles`, UI scope `shared`) and stay on the Roles page. Global roles are managed on
-  the "Global roles" tab of the Users page (`GlobalRolesList.vue`, owner's choice 2026-10-17) and are
+  the "Global roles" tab of the Users page (`GlobalRolesList.vue`, owner's choice 2026-10-17) at its own
+  address `/users/roles` (same `Users.vue`, the tab is a computed over `$route.path`; 2026-10-19) and are
   addressed by id in the API (`/global-roles/{role_id}`), project roles by slug.
 - Global and project slugs are independent (a global role may share a slug with a project role).
   Store-to-store export (`services/export`) does not carry global roles or their assignments. A dev
   database that ran the interim 2.20.14/2.20.15 migrations must be recreated: 2.20.16 creates the same
   tables and is not applied on top of them.
-- **Community edition = admin flag only.** Without the Pro store the effective mask is the admin flag;
-  the community store still refuses to leave the instance without an administrator (its `UpdateUser`,
-  `DeleteUser` read `user__global_role` through the shared, exported helpers `LockGlobalRoleState` /
-  `RequireAdministrator` / `GlobalRoleAssignmentSelect` that the Pro store reuses for `UpdateGlobalRole`,
-  `DeleteGlobalRoleWithAssignments` and `DeleteGlobalRoleAssignment`). Project role updates and deletes no
-  longer take the lock. The Roles page, the Users page "Global roles" tab and the user's "Roles" tab need
-  `features.custom_roles_management`.
+- **Community edition = admin flag only** (tightened 2026-10-19, `TASK@7C74934683`). The community store has no
+  global-role SQL: `db/sql/administrator.go` holds only `LockAdministratorState` (the `global_role_state` row
+  lock) and an admin-flag count, so `UpdateUser` / `DeleteUser` refuse to remove the **last admin-flag user**
+  whatever global roles exist. The Pro store (`pro_impl/db/sql/global_role.go`) takes the same lock and owns
+  `globalRoleAssignmentSelect`, `countAdministrators` (admins + holders of `CanManageGlobalRoles`) and
+  `requireAdministrator`, used by `UpdateGlobalRole`, `DeleteGlobalRoleWithAssignments` and
+  `DeleteGlobalRoleAssignment`; with the community rule in place they only matter on an instance that has no
+  admin-flag user. Project role updates and deletes do not take the lock. The Roles page, the Users page
+  "Global roles" tab and the user's "Roles" tab exist only in a Pro build (`isPro`) and need
+  `features.global_roles_management` — a **Pro** feature of **Pro users** (`GlobalRolesManagement:
+  planDetails.IsPro() && user.Pro || planDetails.IsEnterprise()`, 2026-10-19), unlike the Enterprise
+  `custom_roles_management` that gates shared/project roles. The Pro `GlobalRolesController`
+  answers 403 on every route but the catalog when the plan lacks it, so Dredd skips those transactions
+  unless `globalRolesEnabled()`.
 - **No `revision` / string `role_id` from ex.** Roles keep `int id` + `slug`; the row lock
   `global_role_state` serializes administrator-removing transactions across HA nodes.
 - **Only four bits** (1 users, 2 roles, 4 system, 8 audit): the other ex bits have no consumer here.
-- **The admin flag is break-glass.** `user.admin` passes every check without a store read. Only an
+- **The admin flag is break-glass.** `user.admin` passes every check without a store read, and one admin-flag
+  user always remains (see above). Only an
   admin may set `admin`/`pro`; a user manager cannot touch an admin or a user holding a global
   permission the manager lacks (`userMayManageUser`), because a password reset would be a way up.
 - Only global roles can be assigned globally; built-in, shared and project roles belong to project

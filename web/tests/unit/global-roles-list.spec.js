@@ -31,6 +31,30 @@ describe('GlobalRolesList.vue', () => {
     getSingleItemUrl() { return `/api/global-roles/${this.itemId}`; },
   });
 
+  describe('loadItems', () => {
+    it('does not ask the API without the Pro feature and shows an empty list', async () => {
+      const c = { features: { global_roles_management: false }, items: null, getItemsUrl: () => '/api/global-roles' };
+      await GlobalRolesList.methods.loadItems.call(c);
+      expect(c.items).to.deep.equal([]);
+      expect(http.requests).to.have.length(0);
+    });
+
+    it('loads the roles with the feature', async () => {
+      http.respond(() => [{ id: 4, slug: 'auditor' }]);
+      const c = { features: { global_roles_management: true }, items: null, getItemsUrl: () => '/api/global-roles' };
+      await GlobalRolesList.methods.loadItems.call(c);
+      expect(c.items).to.deep.equal([{ id: 4, slug: 'auditor' }]);
+      expect(http.requests[0].url).to.equal('/api/global-roles');
+    });
+
+    it('treats a 403 from the API as an empty list', async () => {
+      http.respond(() => { throw httpError(403, { error: 'Pro only' }); });
+      const c = { features: { global_roles_management: true }, items: null, getItemsUrl: () => '/api/global-roles' };
+      await GlobalRolesList.methods.loadItems.call(c);
+      expect(c.items).to.deep.equal([]);
+    });
+  });
+
   it('talks to the global roles API by id', () => {
     const { getItemsUrl, getSingleItemUrl } = GlobalRolesList.methods;
     expect(getItemsUrl.call({})).to.equal('/api/global-roles');

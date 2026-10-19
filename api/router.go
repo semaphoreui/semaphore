@@ -119,7 +119,7 @@ func Route(
 	globalRunnerController := NewGlobalRunnerController(runnerService)
 	taskController := projects.NewTaskController(store, ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
-	globalRolesController := proApi.NewGlobalRolesController(globalRoleStore, store)
+	globalRolesController := proApi.NewGlobalRolesController(globalRoleStore, store, subscriptionService)
 	roleMappingsController := proApi.NewRoleMappingsController(roleMappingStore, store)
 	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)

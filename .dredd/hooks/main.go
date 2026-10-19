@@ -137,9 +137,21 @@ func main() {
 	h.Before("template > /api/project/{project_id}/templates/{template_id} > Updates template > 204 > application/json", capabilityWrapper("template"))
 	h.Before("template > /api/project/{project_id}/templates/{template_id} > Removes template > 204 > application/json", capabilityWrapper("template"))
 
-	if isProBuild() {
-		// Global role assignments are a Pro feature: the community store cannot create the fixture and the
-		// community server answers 404.
+	// Global roles need a PRO plan: the community server answers 404, a PRO server without a plan 403.
+	globalRoleTests := []string{
+		"user > /api/users/{user_id}/global-roles > Assigns a global role to the user > 201 > application/json",
+		"user > /api/users/{user_id}/global-roles/{assignment_id} > Removes a global role from the user > 204 > application/json",
+		"user > /api/users/{user_id}/global-permissions > Effective global permissions of the user > 200 > application/json",
+		"user > /api/global-roles > Creates a global role > 201 > application/json",
+		"user > /api/global-roles/{role_id} > Gets a global role > 200 > application/json",
+		"user > /api/global-roles/{role_id} > Updates a global role > 204 > application/json",
+		"user > /api/global-roles/{role_id} > Deletes a global role > 204 > application/json",
+	}
+	if !globalRolesEnabled() {
+		for _, v := range globalRoleTests {
+			h.Before(v, skipTest)
+		}
+	} else {
 		// The fixture already holds the role, so the assignment is removed before it is assigned again.
 		h.Before("user > /api/users/{user_id}/global-roles > Assigns a global role to the user > 201 > application/json", func(transaction *trans.Transaction) {
 			addCapabilities([]string{"global_role"})
@@ -165,7 +177,9 @@ func main() {
 			defer store.Close()
 			globalRole = addGlobalRole()
 		})
+	}
 
+	if isProBuild() {
 		h.Before("workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", capabilityWrapper("template"))
 		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", func(t *trans.Transaction) {
@@ -208,13 +222,6 @@ func main() {
 		// In a non-PRO build (e.g. PR builds without access to pro_impl)
 		// these endpoints are not functional, so their tests must be skipped.
 		proOnlyTests := []string{
-			"user > /api/users/{user_id}/global-roles > Assigns a global role to the user > 201 > application/json",
-			"user > /api/users/{user_id}/global-roles/{assignment_id} > Removes a global role from the user > 204 > application/json",
-			"user > /api/users/{user_id}/global-permissions > Effective global permissions of the user > 200 > application/json",
-			"user > /api/global-roles > Creates a global role > 201 > application/json",
-			"user > /api/global-roles/{role_id} > Gets a global role > 200 > application/json",
-			"user > /api/global-roles/{role_id} > Updates a global role > 204 > application/json",
-			"user > /api/global-roles/{role_id} > Deletes a global role > 204 > application/json",
 			"workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id} > Get workflow > 200 > application/json",

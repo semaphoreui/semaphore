@@ -13,14 +13,42 @@ describe('Users.vue', () => {
     expect(allowActions.call({ user: null })).to.equal(false);
   });
 
-  it('offers the Global roles tab only with the permission and the Pro feature', () => {
+  it('shows the Global roles tab only in a Pro build', () => {
+    const can = (isPro, user) => Users.computed.canManageGlobalRoles.call({ isPro, user });
+    expect(can(true, { admin: true })).to.equal(true);
+    expect(can(true, { admin: false, global_permissions: 2 })).to.equal(true);
+    expect(can(true, { admin: false, global_permissions: 1 })).to.equal(false);
+    expect(can(false, { admin: true })).to.equal(false);
+  });
+
+  it('offers role assignment only with the permission and the Pro feature', () => {
     const can = (canManageGlobalRoles, features) => Users.computed.canAssignGlobalRoles.call({
       canManageGlobalRoles, features,
     });
-    expect(can(true, { custom_roles_management: true })).to.equal(true);
+    expect(can(true, { global_roles_management: true })).to.equal(true);
     expect(can(true, {})).to.equal(false);
-    expect(can(false, { custom_roles_management: true })).to.equal(false);
+    expect(can(false, { global_roles_management: true })).to.equal(false);
     expect(can(true, undefined)).to.equal(false);
+  });
+
+  describe('tab', () => {
+    const { get, set } = Users.computed.tab;
+
+    it('is read from the address', () => {
+      expect(get.call({ canManageGlobalRoles: true, $route: { path: '/users/roles' } })).to.equal('global-roles');
+      expect(get.call({ canManageGlobalRoles: true, $route: { path: '/users' } })).to.equal('users');
+      expect(get.call({ canManageGlobalRoles: false, $route: { path: '/users/roles' } })).to.equal('users');
+    });
+
+    it('changes the address when switched', () => {
+      const pushed = [];
+      const c = { $route: { path: '/users' }, $router: { push: (p) => pushed.push(p) } };
+      set.call(c, 'global-roles');
+      set.call(c, 'users');
+      c.$route.path = '/users/roles';
+      set.call(c, 'global-roles');
+      expect(pushed).to.deep.equal(['/users/roles']);
+    });
   });
 
   describe('onUserSaved', () => {

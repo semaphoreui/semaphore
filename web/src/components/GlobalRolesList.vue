@@ -34,22 +34,26 @@
       @yes="deleteItem(itemId, true)"
     />
 
-    <v-alert v-if="!features.custom_roles_management" text color="amber darken-3" class="PageAlert">
-      <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
+    <v-alert
+      v-if="!features.global_roles_management"
+      text
+      color="hsl(348deg, 86%, 61%)"
+      class="PageAlert"
+    >
+      <span class="mr-1" v-html="$t('global_roles_only_pro')"></span>
 
       <v-btn
         dark
         depressed
         v-if="isAdmin"
-        color="amber darken-3"
-        href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
-        target="_blank"
+        color="hsl(348deg, 86%, 61%)"
+        @click="upgradeToPro('global_roles_management')"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
       <span v-else style="font-weight: bold">
-        {{ $t('contact_admin_to_upgrade_enterprise') }}
+        {{ $t('contact_admin_to_upgrade') }}
       </span>
     </v-alert>
 
@@ -127,7 +131,32 @@ export default {
     };
   },
 
+  watch: {
+    // The plan may be read after the list: a change of the feature reloads the roles.
+    'features.global_roles_management': async function onFeature() {
+      await this.loadItems();
+    },
+  },
+
   methods: {
+    // Without the Pro feature the API answers 403: the list stays empty and the page shows the
+    // upgrade alert instead of nothing at all.
+    async loadItems() {
+      if (!(this.features || {}).global_roles_management) {
+        this.items = [];
+        return;
+      }
+      try {
+        await ItemListPageBase.methods.loadItems.call(this);
+      } catch (err) {
+        if (err.response && err.response.status === 403) {
+          this.items = [];
+          return;
+        }
+        throw err;
+      }
+    },
+
     // Called from data() of the list mixin, before computed properties exist,
     // so the props are read directly.
     allowActions() {

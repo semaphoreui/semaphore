@@ -24,7 +24,8 @@ func TestMigration_2_20_16_AddsGlobalRolesAndAssignments(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), revision)
 
-	auditor := createGlobalRole(t, store, "auditor", db.CanReadGlobalAudit)
+	auditor, err := store.insert("id", "insert into global_role (slug, name, permissions) values (?, ?, ?)", "auditor", "auditor", db.CanReadGlobalAudit)
+	require.NoError(t, err)
 	_, err = store.insert("id", "insert into global_role (slug, name, permissions) values (?, ?, ?)", "auditor", "Again", 0)
 	assert.Error(t, err, "a global role slug is unique")
 	user, err := store.CreateUserWithoutPassword(db.User{Username: "a", Name: "A", Email: "a@e.st"})
@@ -35,5 +36,7 @@ func TestMigration_2_20_16_AddsGlobalRolesAndAssignments(t *testing.T) {
 	assert.Error(t, err, "a user holds a role once")
 	_, err = store.exec("insert into user__global_role (user_id, role_id) values (?, ?)", user.ID, role.ID+1000)
 	assert.Error(t, err, "an assignment needs a global role")
-	assert.Len(t, globalAssignmentsOf(t, store, user.ID), 1)
+	held, err := store.Sql().SelectInt(store.PrepareQuery("select count(*) from user__global_role where user_id=?"), user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), held)
 }

@@ -5,12 +5,13 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 )
 
 // GlobalRolesController is the community stub: global roles and their assignment to users are a Pro feature.
 type GlobalRolesController struct{}
 
-func NewGlobalRolesController(globalRoles db.GlobalRoleStore, store db.Store) *GlobalRolesController {
+func NewGlobalRolesController(globalRoles db.GlobalRoleStore, store db.Store, subscription pro_interfaces.SubscriptionService) *GlobalRolesController {
 	return &GlobalRolesController{}
 }
 

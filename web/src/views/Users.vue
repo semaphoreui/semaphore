@@ -46,9 +46,10 @@
       >
         {{ $t('newUser') }}
       </v-btn>
+
       <v-btn
         v-if="tab === 'global-roles' && canManageGlobalRoles"
-        :disabled="!(features || {}).custom_roles_management"
+        :disabled="!(features || {}).global_roles_management"
         color="primary"
         @click="$refs.globalRoles.editItem('new')"
       >
@@ -119,6 +120,9 @@ import GlobalRolesList from '@/components/GlobalRolesList.vue';
 import { GLOBAL_PERMISSIONS } from '@/lib/constants';
 import { hasGlobalPermission } from '@/lib/role-permissions';
 
+const USERS_PATH = '/users';
+const GLOBAL_ROLES_PATH = '/users/roles';
+
 export default {
   mixins: [ItemListPageBase],
 
@@ -129,16 +133,39 @@ export default {
   },
 
   computed: {
+    isPro() {
+      return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
+
     canManageUsers() {
       return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageUsers);
     },
+
+    // Global roles exist in the Pro edition only: the community build has no tab for them.
     canManageGlobalRoles() {
-      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageRoles);
+      return this.isPro && hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageRoles);
     },
 
-    // Assigning global roles is a Pro feature, like managing the roles themselves.
+    // Assigning global roles needs the Pro feature, like managing the roles themselves.
     canAssignGlobalRoles() {
-      return this.canManageGlobalRoles && !!(this.features || {}).custom_roles_management;
+      return this.canManageGlobalRoles && !!(this.features || {}).global_roles_management;
+    },
+
+    // The tab is the address: /users/roles shows the global roles, /users the users.
+    // Someone who may not manage global roles sees the users whatever the address says.
+    tab: {
+      get() {
+        if (this.canManageGlobalRoles && this.$route.path === GLOBAL_ROLES_PATH) {
+          return 'global-roles';
+        }
+        return 'users';
+      },
+      set(value) {
+        const path = value === 'global-roles' ? GLOBAL_ROLES_PATH : USERS_PATH;
+        if (this.$route.path !== path) {
+          this.$router.push(path);
+        }
+      },
     },
   },
 
@@ -151,7 +178,6 @@ export default {
 
   data() {
     return {
-      tab: 'users',
       hideEditDialogButtons: false,
     };
   },

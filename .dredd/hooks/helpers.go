@@ -463,6 +463,12 @@ func isProBuild() bool {
 	return proFeatures.GetFeatures(&db.User{}, "").Workflows
 }
 
+// globalRolesEnabled reports whether the server under test offers global roles to the test user: the PRO
+// implementation enables them only for an active PRO plan, which the Dredd stand does not have.
+func globalRolesEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").GlobalRolesManagement
+}
+
 // HELPERS
 var randSetup = false
 

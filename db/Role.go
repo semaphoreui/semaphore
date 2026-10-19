@@ -75,8 +75,9 @@ func (e conflictError) Error() string { return e.message }
 
 func (e conflictError) Is(target error) bool { return target == ErrInvalidOperation }
 
-// ErrLastGlobalAdministrator refuses a change that would leave the instance without anyone who can manage
-// global roles: no admin and no user with CanManageGlobalRoles.
+// ErrLastGlobalAdministrator refuses a change that would leave the instance without an administrator. The
+// community store keeps the last admin-flag user; the Pro store also keeps the last holder of a global role
+// with CanManageGlobalRoles when no admin-flag user exists.
 var ErrLastGlobalAdministrator error = conflictError{"the instance must keep at least one administrator"}
 
 // ErrGlobalRoleAssigned refuses to delete a global role that users hold until the caller asks to delete
@@ -198,15 +199,6 @@ func ExplainEffectiveGlobalPermissions(isAdmin bool, assignments []GlobalRoleAss
 		result.Decisions = append(result.Decisions, decision)
 	}
 	return result
-}
-
-// AdministratorExclusion names what a store transaction is about to remove, so that it does not count when
-// the store checks that someone able to manage global roles remains.
-type AdministratorExclusion struct {
-	UserID       int // the user being deleted
-	AdminOfUser  int // the user whose admin flag is being cleared
-	AssignmentID int // the global role assignment being deleted
-	RoleID       int // the global role being deleted or losing CanManageGlobalRoles
 }
 
 // RoleImpact counts what deleting a role together with its assignments removes. For a global role only
