@@ -125,6 +125,10 @@ export default {
   },
 
   methods: {
+    allowActions() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageSystem);
+    },
+
     getHeaders() {
       return [{
         text: '',
