@@ -23,7 +23,7 @@ type Store interface {
 	db.AlertManager
 	PayloadSource
 	GetProject(projectID int) (db.Project, error)
-	GetProjectUsers(projectID int, params db.RetrieveQueryParams) ([]db.UserWithProjectRole, error)
+	GetProjectUsers(projectID int, params db.RetrieveQueryParams) ([]db.UserWithProjectRoles, error)
 	GetAllAdmins() ([]db.User, error)
 	GetAccessKey(projectID int, accessKeyID int) (db.AccessKey, error)
 }

@@ -39,6 +39,14 @@ func (c *workflowController) RemoveWorkflow(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusNotFound)
 }
 
+func (c *workflowController) GetWorkflowRevisions(w http.ResponseWriter, r *http.Request) {
+	helpers.WriteJSON(w, http.StatusOK, []struct{}{})
+}
+
+func (c *workflowController) GetWorkflowRevision(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+}
+
 func (c *workflowController) RunWorkflow(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 }

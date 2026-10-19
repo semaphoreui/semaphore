@@ -1,7 +1,9 @@
 package tasks
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/semaphoreui/semaphore/services/alerting"
 	"strconv"
@@ -14,6 +16,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro/pkg/stage_parsers"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -84,6 +87,15 @@ type TaskPool struct {
 	// after construction via SetWorkflowService; the pool only calls back into it
 	// when a workflow task finishes. nil in tests / before wiring.
 	workflowService pro_interfaces.WorkflowService
+	// outputsCollector captures the outputs of workflow tasks run on this node.
+	// Injected via SetTaskOutputsCollector; nil in the open-source build.
+	outputsCollector pro_interfaces.TaskOutputsCollector
+	// workflowRepo resolves the workflow run a task belongs to, so the task can
+	// be told which workflow it runs in (SEMAPHORE_WORKFLOW_* env). Injected via
+	// SetWorkflowRepo; nil means tasks never belong to a workflow (CE / tests).
+	workflowRepo db.WorkflowManager
+	// auditRecorder is injected after construction, nil means no audit.
+	auditRecorder audit.Recorder
 	// stop signals the background loops started by Run to exit. Closing it (via
 	// Stop) terminates the runner-task reconcile loop and Run's own select.
 	// Channels are used rather than sync.WaitGroup/sync.Once because TaskPool is
@@ -139,11 +151,33 @@ func (p *TaskPool) StateStore() TaskStateStore {
 	return p.state
 }
 
+// SetTaskOutputsCollector injects the collector that captures the outputs of
+// workflow tasks run on this node. Nil (the open-source build) disables it.
+func (p *TaskPool) SetTaskOutputsCollector(collector pro_interfaces.TaskOutputsCollector) {
+	p.outputsCollector = collector
+}
+
 // SetWorkflowService injects the workflow orchestration service. It is wired
 // after the pool is created (the service needs the pool as its task enqueuer,
 // and the pool needs the service to progress runs as tasks finish).
 func (p *TaskPool) SetWorkflowService(svc pro_interfaces.WorkflowService) {
 	p.workflowService = svc
+}
+
+func (p *TaskPool) SetWorkflowRepo(repo db.WorkflowManager) {
+	p.workflowRepo = repo
+}
+
+func (p *TaskPool) SetAuditRecorder(recorder audit.Recorder) {
+	p.auditRecorder = recorder
+}
+
+// Tests build pools as struct literals without a recorder.
+func (p *TaskPool) recorder() audit.Recorder {
+	if p.auditRecorder == nil {
+		return audit.Nop{}
+	}
+	return p.auditRecorder
 }
 
 // HandleWorkflowTaskCompletion notifies the workflow service that a task that
@@ -558,7 +592,17 @@ func (p *TaskPool) finalizeRemoteTaskLocked(tsk *TaskRunner, runner *db.Runner) 
 	// above (tsk.Task.End != nil) becomes a real second guard: a late
 	// duplicate finalize on another node observes End set and skips autorun,
 	// even if the cluster-wide finalize lock has already been released.
-	tsk.finishRun()
+	// The runner that reported the end is the actor, unless the server ended the task.
+	// The finish webhook above still needs the runner either way.
+	actor := audit.SystemActor(audit.ComponentTaskRunner)
+	endReason, _ := tsk.endReason.Load().(string)
+	switch {
+	case endReason == audit.EndReasonRunnerLost:
+		actor = audit.SystemActor(audit.ComponentReconciler)
+	case endReason == "" && !tsk.dispatchFailed && runner != nil:
+		actor = audit.RunnerActor(runner.ID, runner.Name)
+	}
+	tsk.finishRun(actor)
 	tsk.startAutorunTasks()
 }
 
@@ -569,6 +613,39 @@ func applyDBPersistedTaskSnapshot(dst *db.Task, src db.Task) {
 	dst.RunnerID = src.RunnerID
 	dst.CommitHash = src.CommitHash
 	dst.CommitMessage = src.CommitMessage
+	dst.Artifacts = src.Artifacts
+}
+
+// StoreRemoteTaskOutputs validates and persists the outputs document a runner
+// reported for a workflow task. The runner is not trusted, so the document goes
+// through the same rules as a file written by a task process; an invalid one is
+// an error the caller turns into a failed task. It must run before the success
+// status is persisted: in HA any node may progress the workflow run as soon as
+// it sees the terminal status in the database. Tasks outside a workflow run
+// have no outputs, and their document is dropped.
+func (p *TaskPool) StoreRemoteTaskOutputs(tsk *TaskRunner, document string) error {
+	if tsk.Task.WorkflowRunID == nil {
+		return nil
+	}
+
+	if p.outputsCollector == nil {
+		return errors.New("workflow task outputs are not supported by this server")
+	}
+
+	normalized, err := p.outputsCollector.Validate(document)
+	if err != nil {
+		return err
+	}
+	if normalized == nil {
+		return nil
+	}
+
+	if err = p.store.UpdateTaskArtifacts(tsk.Task.ProjectID, tsk.Task.ID, normalized); err != nil {
+		return err
+	}
+	tsk.Task.Artifacts = normalized
+
+	return nil
 }
 
 // refreshTaskStatusFromDB updates tsk with the persisted task row. In HA mode
@@ -689,36 +766,38 @@ func (p *TaskPool) blocks(t *TaskRunner) bool {
 	return res
 }
 
-func (p *TaskPool) ConfirmTask(targetTask db.Task) error {
+func (p *TaskPool) ConfirmTask(targetTask db.Task) (changed bool, err error) {
 	tsk, err := p.GetTask(targetTask.ID)
 
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if tsk == nil { // task not active, but exists in database
-		return fmt.Errorf("task is not active")
+		return false, fmt.Errorf("task is not active")
 	}
 
+	before := tsk.Task.Status
 	tsk.SetStatus(task_logger.TaskConfirmed)
 
-	return nil
+	return before == task_logger.TaskWaitingConfirmation && tsk.Task.Status != before, nil
 }
 
-func (p *TaskPool) RejectTask(targetTask db.Task) error {
+func (p *TaskPool) RejectTask(targetTask db.Task) (changed bool, err error) {
 	tsk, err := p.GetTask(targetTask.ID)
 
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if tsk == nil { // task not active, but exists in database
-		return fmt.Errorf("task is not active")
+		return false, fmt.Errorf("task is not active")
 	}
 
+	before := tsk.Task.Status
 	tsk.SetStatus(task_logger.TaskRejected)
 
-	return nil
+	return before == task_logger.TaskWaitingConfirmation && tsk.Task.Status != before, nil
 }
 
 func (p *TaskPool) stopTaskRunner(t *TaskRunner, forceStop bool) {
@@ -762,10 +841,10 @@ func (p *TaskPool) stopLocalTask(taskID int) {
 	}
 }
 
-func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
+func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) (changed bool, err error) {
 	tsk, err := p.GetTask(targetTask.ID)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// task not active, but exists in database. For non-HA mode
@@ -774,16 +853,23 @@ func (p *TaskPool) StopTask(targetTask db.Task, forceStop bool) error {
 
 		err := tsk.populateDetails()
 		if err != nil {
-			return err
+			return false, err
 		}
+		before := targetTask.Status
 		tsk.SetStatus(task_logger.TaskStoppedStatus)
 		tsk.createTaskEvent()
-		return nil
+		changed = !before.IsFinished() && tsk.Task.Status != before
+		if changed {
+			tsk.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
+		}
+		return changed, nil
 	}
 
+	// In HA every existing task looks active, so a finished one must not count as stopped.
+	before := tsk.Task.Status
 	p.stopTaskRunner(tsk, forceStop)
 
-	return nil
+	return !before.IsFinished() && tsk.Task.Status != before, nil
 }
 
 // StopTasksByTemplate stops all active (queued or running) tasks that belong to
@@ -900,6 +986,7 @@ func (p *TaskPool) StopTasksByTemplate(projectID int, templateID int, forceStop 
 			go p.FinalizeRemoteTask(tsk, nil)
 		} else {
 			tsk.createTaskEvent()
+			tsk.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 		}
 	}
 }
@@ -999,6 +1086,7 @@ func (p *TaskPool) StopTasksByWorkflowRun(projectID int, runID int, forceStop bo
 			go p.FinalizeRemoteTask(tsk, nil)
 		} else {
 			tsk.createTaskEvent()
+			tsk.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 		}
 	}
 }
@@ -1056,9 +1144,20 @@ func (p *TaskPool) taskSecretSweepLoop() {
 	}
 }
 
-// AddTask creates and queues a new task for execution in the task pool.
+// AddTask serves the Pro workflow service, which starts nodes in the background for the run's user.
+func (p *TaskPool) AddTask(taskObj db.Task, userID *int, username string, projectID int, needAlias bool) (db.Task, error) {
+	actor := audit.SystemActor(audit.ComponentTaskRunner)
+	if userID != nil {
+		actor = audit.UserActor(*userID, username, "", "")
+	}
+	return p.AddTaskFrom(audit.WithActor(context.Background(), actor), audit.TriggerWorkflow, taskObj, userID, username, projectID, needAlias)
+}
+
+// AddTaskFrom creates and queues a new task for execution in the task pool.
 //
 // Parameters:
+//   - ctx: Carries the audit actor that started the task
+//   - trigger: What started the task, recorded in the audit (audit.Trigger*)
 //   - taskObj: The task object with initial configuration
 //   - userID: Optional ID of the user initiating the task
 //   - username: Username of the user initiating the task
@@ -1076,7 +1175,79 @@ func (p *TaskPool) taskSecretSweepLoop() {
 // Returns:
 //   - The newly created task with all properties set
 //   - An error if task creation or validation fails
-func (p *TaskPool) AddTask(
+//
+// LogTask appends lines to the log of task through the pool's log writer, the
+// same path every task line takes. The workflow engine uses it right after
+// AddTask to record where the task's inputs came from: at that moment the
+// task is usually not registered in the pool yet (registration goes through
+// the pool loop), so a runner is built for the lines when none is found.
+func (p *TaskPool) LogTask(task db.Task, lines []string) {
+	if len(lines) == 0 {
+		return
+	}
+	tsk, err := p.GetTask(task.ID)
+	if err != nil || tsk == nil {
+		tsk = NewTaskRunner(task, p, "", p.keyInstallationService)
+		if tpl, tplErr := p.store.GetTemplate(task.ProjectID, task.TemplateID); tplErr == nil {
+			tsk.Template = tpl
+		}
+	}
+	for _, line := range lines {
+		tsk.Log(line)
+	}
+}
+
+// AddFailedTask persists a workflow task that can not start because its inputs
+// could not be resolved: created, started and ended now with the error status,
+// the given lines in its log, and the usual creation and completion audit
+// events. It never enters the queue, and it does not notify the workflow
+// service: the caller is the engine's own progression pass, which re-reads the
+// run's tasks and follows the on_failure edges itself.
+func (p *TaskPool) AddFailedTask(taskObj db.Task, userID *int, username string, lines []string) (newTask db.Task, err error) {
+	now := tz.Now()
+	taskObj.Created = now
+	taskObj.Start = &now
+	taskObj.End = &now
+	taskObj.Status = task_logger.TaskFailStatus
+	taskObj.UserID = userID
+	taskObj.Secret = ""
+
+	tpl, err := p.store.GetTemplate(taskObj.ProjectID, taskObj.TemplateID)
+	if err != nil {
+		return
+	}
+
+	newTask, err = p.store.CreateTask(taskObj, util.Config.MaxTasksPerTemplate)
+	if err != nil {
+		return
+	}
+
+	actor := audit.SystemActor(audit.ComponentTaskRunner)
+	if userID != nil {
+		actor = audit.UserActor(*userID, username, "", "")
+	}
+	ctx := audit.WithActor(context.Background(), actor)
+	p.recorder().Record(ctx, audit.Event{
+		Kind:      audit.TaskExecutionCreate,
+		Target:    audit.ResourceTarget(audit.TargetTask, newTask.ID, tpl.Name),
+		ProjectID: taskObj.ProjectID,
+		Metadata:  taskCreateMetadata(audit.TriggerWorkflow, newTask),
+	})
+
+	taskRunner := NewTaskRunner(newTask, p, username, p.keyInstallationService)
+	taskRunner.Template = tpl
+	for _, line := range lines {
+		taskRunner.Log(line)
+	}
+	taskRunner.createTaskEvent()
+	taskRunner.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
+
+	return
+}
+
+func (p *TaskPool) AddTaskFrom(
+	ctx context.Context,
+	trigger string,
 	taskObj db.Task,
 	userID *int,
 	username string,
@@ -1135,6 +1306,13 @@ func (p *TaskPool) AddTask(
 		return
 	}
 
+	p.recorder().Record(ctx, audit.Event{
+		Kind:      audit.TaskExecutionCreate,
+		Target:    audit.ResourceTarget(audit.TargetTask, newTask.ID, tpl.Name),
+		ProjectID: projectID,
+		Metadata:  taskCreateMetadata(trigger, newTask),
+	})
+
 	taskRunner := NewTaskRunner(newTask, p, username, p.keyInstallationService)
 
 	if needAlias {
@@ -1146,6 +1324,7 @@ func (p *TaskPool) AddTask(
 	if err != nil {
 		taskRunner.Log("Error: " + err.Error())
 		taskRunner.SetStatus(task_logger.TaskFailStatus)
+		taskRunner.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 		return
 	}
 
@@ -1158,6 +1337,7 @@ func (p *TaskPool) AddTask(
 		if err != nil {
 			taskRunner.Log("Error: failed to store survey secrets: " + err.Error())
 			taskRunner.SetStatus(task_logger.TaskFailStatus)
+			taskRunner.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 			return
 		}
 	}
@@ -1186,17 +1366,18 @@ func (p *TaskPool) AddTask(
 			taskRunner)
 
 		job = &LocalExecutor{
-			Task:         taskRunner.Task,
-			Template:     taskRunner.Template,
-			Inventory:    taskRunner.Inventory,
-			Repository:   taskRunner.Repository,
-			Environment:  taskRunner.Environment,
-			Secret:       extraSecretVars,
-			Logger:       app.SetLogger(taskRunner),
-			App:          app,
-			KeyInstaller: p.keyInstallationService,
-			RepoLock:     p.repoLock,
-			HostConfigs:  taskRunner.HostConfigs,
+			Task:             taskRunner.Task,
+			Template:         taskRunner.Template,
+			Inventory:        taskRunner.Inventory,
+			Repository:       taskRunner.Repository,
+			Environment:      taskRunner.Environment,
+			Secret:           extraSecretVars,
+			Logger:           app.SetLogger(taskRunner),
+			App:              app,
+			KeyInstaller:     p.keyInstallationService,
+			RepoLock:         p.repoLock,
+			HostConfigs:      taskRunner.HostConfigs,
+			OutputsCollector: p.outputsCollector,
 		}
 	}
 
@@ -1207,4 +1388,27 @@ func (p *TaskPool) AddTask(
 	taskRunner.createTaskEvent()
 
 	return
+}
+
+// taskCreateMetadata takes the trigger from the caller because the API binds source IDs from the request body.
+func taskCreateMetadata(trigger string, task db.Task) audit.TaskCreateMetadata {
+	meta := audit.TaskCreateMetadata{Trigger: trigger, TemplateID: task.TemplateID}
+	if task.BuildTaskID != nil {
+		meta.ParentTaskID = *task.BuildTaskID
+	}
+	switch trigger {
+	case audit.TriggerSchedule:
+		if task.ScheduleID != nil {
+			meta.ScheduleID = *task.ScheduleID
+		}
+	case audit.TriggerIntegration:
+		if task.IntegrationID != nil {
+			meta.IntegrationID = *task.IntegrationID
+		}
+	case audit.TriggerWorkflow:
+		if task.WorkflowRunID != nil {
+			meta.WorkflowRunID = *task.WorkflowRunID
+		}
+	}
+	return meta
 }

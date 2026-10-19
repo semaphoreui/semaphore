@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image/png"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
+	"github.com/semaphoreui/semaphore/services/audit"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 
@@ -72,6 +74,7 @@ func (c *UsersController) AddUser(w http.ResponseWriter, r *http.Request) {
 	editor := helpers.GetFromContext(r, "user").(*db.User)
 	if !editor.Admin {
 		c.log.WithField("editor", editor.Username).Debug("Not permitted to create users")
+		helpers.RecordDenied(r, "admin", 0)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -109,6 +112,12 @@ func (c *UsersController) AddUser(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:     audit.IAMUserCreate,
+		Target:   audit.UserTarget(newUser.ID, newUser.Username),
+		Metadata: audit.UserCreateMetadata{Admin: newUser.Admin, Pro: newUser.Pro, External: newUser.External},
+	})
 
 	helpers.WriteJSON(w, http.StatusCreated, newUser)
 }
@@ -164,6 +173,10 @@ func (c *UsersController) GetUserMiddleware(next http.Handler) http.Handler {
 				"editor":  editor.Username,
 				"user_id": user.ID,
 			}).Debug("Not permitted to access another user")
+			// Reads of another user are not audited, attempts to change them are.
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				helpers.RecordDenied(r, "admin", 0)
+			}
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -187,6 +200,7 @@ func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 			"editor":  editor.Username,
 			"user_id": targetUser.ID,
 		}).Debug("Not permitted to mark users as Pro")
+		helpers.RecordDenied(r, "admin", 0)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -221,6 +235,7 @@ func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	if editor.ID == targetUser.ID && targetUser.Admin != user.Admin {
 		c.log.WithField("editor", editor.Username).Debug("Not permitted to change own admin status")
+		helpers.RecordDenied(r, "admin", 0)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -231,11 +246,25 @@ func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	meta := userUpdateMetadata(targetUser, user)
 	user.ID = targetUser.ID
 	if err := helpers.Store(r).UpdateUser(user); err != nil {
 		c.log.WithError(err).WithField("user_id", targetUser.ID).Error("Failed to update user")
 		w.WriteHeader(http.StatusBadRequest)
 		return
+	}
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:     audit.IAMUserUpdate,
+		Target:   audit.UserTarget(targetUser.ID, user.Username),
+		Metadata: meta,
+	})
+	if user.Pwd != "" {
+		passwordKind := audit.IAMUserPasswordAdminReset
+		if editor.ID == targetUser.ID {
+			passwordKind = audit.IAMUserPasswordChange
+		}
+		helpers.Audit(r).Record(r.Context(), audit.Event{Kind: passwordKind, Target: audit.UserTarget(targetUser.ID, user.Username)})
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -275,6 +304,12 @@ func (c *UsersController) UpdateUserPassword(w http.ResponseWriter, r *http.Requ
 	if editor.ID == user.ID {
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(pwd.CurrentPwd)); err != nil {
 			c.log.WithField("user_id", user.ID).Debug("Current password does not match")
+			helpers.Audit(r).Record(r.Context(), audit.Event{
+				Kind:    audit.IAMUserPasswordChange,
+				Outcome: audit.OutcomeFailure,
+				Reason:  audit.ReasonInvalidCurrentPassword,
+				Target:  audit.UserTarget(user.ID, user.Username),
+			})
 			helpers.WriteErrorStatus(w, "Current password is incorrect", http.StatusBadRequest)
 			return
 		}
@@ -285,6 +320,12 @@ func (c *UsersController) UpdateUserPassword(w http.ResponseWriter, r *http.Requ
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	passwordKind := audit.IAMUserPasswordAdminReset
+	if editor.ID == user.ID {
+		passwordKind = audit.IAMUserPasswordChange
+	}
+	helpers.Audit(r).Record(r.Context(), audit.Event{Kind: passwordKind, Target: audit.UserTarget(user.ID, user.Username)})
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -307,6 +348,8 @@ func (c *UsersController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{Kind: audit.IAMUserDelete, Target: audit.UserTarget(user.ID, user.Username)})
 
 	if err := helpers.Store(r).DeleteOptions(fmt.Sprintf("user%d", user.ID)); err != nil {
 		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete options of removed user")
@@ -357,11 +400,22 @@ func (c *UsersController) DeleteUserIdentity(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if err := helpers.Store(r).DeleteExternalIdentity(user.ID, idType, provider); err != nil {
+	err = helpers.Store(r).DeleteExternalIdentity(user.ID, idType, provider)
+	if errors.Is(err, db.ErrNotFound) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if err != nil {
 		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete user identity")
 		helpers.WriteErrorStatus(w, "Failed to delete identity", http.StatusInternalServerError)
 		return
 	}
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:     audit.IAMExternalIdentityUnlink,
+		Target:   audit.UserTarget(user.ID, user.Username),
+		Metadata: audit.AuthMethodMetadata{Method: idType, Provider: provider},
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -393,6 +447,8 @@ func (c *UsersController) TotpQr(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pngBytes := buf.Bytes()
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{Kind: audit.IAMMFAViewQR, Target: audit.UserTarget(user.ID, user.Username)})
 
 	w.Header().Add("Content-Type", "image/png")
 	_, _ = w.Write(pngBytes)
@@ -440,6 +496,8 @@ func (c *UsersController) EnableTotp(w http.ResponseWriter, r *http.Request) {
 
 	newTotp.RecoveryCode = code
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{Kind: audit.IAMMFAEnable, Target: audit.UserTarget(user.ID, user.Username)})
+
 	helpers.WriteJSON(w, http.StatusOK, newTotp)
 }
 
@@ -456,10 +514,44 @@ func (c *UsersController) DisableTotp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := helpers.Store(r).DeleteTotpVerification(user.ID, totpID)
+	if errors.Is(err, db.ErrNotFound) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
+	helpers.Audit(r).Record(r.Context(), audit.Event{Kind: audit.IAMMFADisable, Target: audit.UserTarget(user.ID, user.Username)})
+
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func userUpdateMetadata(before db.User, after db.UserWithPwd) audit.UserUpdateMetadata {
+	meta := audit.UserUpdateMetadata{Fields: []string{}}
+	if before.Username != after.Username {
+		meta.Fields = append(meta.Fields, "username")
+	}
+	if before.Name != after.Name {
+		meta.Fields = append(meta.Fields, "name")
+	}
+	if before.Email != after.Email {
+		meta.Fields = append(meta.Fields, "email")
+	}
+	if before.Alert != after.Alert {
+		meta.Fields = append(meta.Fields, "alert")
+	}
+	if before.Admin != after.Admin {
+		meta.Fields = append(meta.Fields, "admin")
+		meta.Admin = &audit.BoolChange{Old: before.Admin, New: after.Admin}
+	}
+	if before.Pro != after.Pro {
+		meta.Fields = append(meta.Fields, "pro")
+		meta.Pro = &audit.BoolChange{Old: before.Pro, New: after.Pro}
+	}
+	if after.Pwd != "" {
+		meta.Fields = append(meta.Fields, "password")
+	}
+	return meta
 }

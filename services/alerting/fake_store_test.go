@@ -17,7 +17,7 @@ type fakeStore struct {
 	alerts    map[int]db.Alert
 	nextID    int
 	users     map[int]db.User
-	members   []db.UserWithProjectRole
+	members   []db.UserWithProjectRoles
 	admins    []db.User
 	claims    map[string]bool
 	templates map[int]db.Template
@@ -206,7 +206,7 @@ func (s *fakeStore) GetProject(projectID int) (db.Project, error) {
 	return s.project, nil
 }
 
-func (s *fakeStore) GetProjectUsers(int, db.RetrieveQueryParams) ([]db.UserWithProjectRole, error) {
+func (s *fakeStore) GetProjectUsers(int, db.RetrieveQueryParams) ([]db.UserWithProjectRoles, error) {
 	return s.members, nil
 }
 

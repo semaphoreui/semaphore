@@ -1,10 +1,13 @@
 package schedules
 
 import (
+	"context"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/util"
 
@@ -172,7 +175,9 @@ func (r ScheduleRunner) Run() {
 	}
 	task.ScheduleID = &schedule.ID
 
-	_, err = r.pool.taskPool.AddTask(
+	_, err = r.pool.taskPool.AddTaskFrom(
+		audit.WithActor(context.Background(), audit.SystemActor(audit.ComponentScheduler)),
+		audit.TriggerSchedule,
 		task,
 		nil,
 		"",
@@ -316,7 +321,7 @@ func (p *SchedulePool) Refresh() {
 			if !runAt.After(now) {
 				if schedule.DeleteAfterRun {
 					err = p.store.DeleteSchedule(schedule.ProjectID, schedule.ID)
-					if err != nil {
+					if err != nil && !errors.Is(err, db.ErrNotFound) {
 						log.WithError(err).WithFields(log.Fields{
 							"context":     common_errors.GetErrorContext(),
 							"project_id":  schedule.ProjectID,

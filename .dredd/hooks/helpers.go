@@ -60,7 +60,7 @@ func truncateAll() {
 		"project__template",
 		"project__template_vault",
 		"project__schedule",
-		"project__user",
+		"project__user_role",
 		"user",
 		"project__view",
 		"project__alert",
@@ -124,11 +124,11 @@ func setupObjectsAndPaths(t *transaction.Transaction) {
 
 // Object Lifecycle
 func addUserProjectRelation(pid int, user int) {
-	_, err := store.CreateProjectUser(db.ProjectUser{
-		ProjectID: pid,
-		UserID:    user,
-		Role:      db.ProjectOwner,
-	})
+	owner, err := store.GetGlobalRoleBySlug("owner")
+	if err != nil {
+		panic(err)
+	}
+	err = store.CreateProjectUser(pid, user, []int{owner.ID})
 	if err != nil {
 		panic(err)
 	}
@@ -291,6 +291,19 @@ func addIntegration() *db.Integration {
 	}
 
 	return &integration
+}
+
+func addIntegrationAlias(integrationID *int) db.IntegrationAlias {
+	alias, err := store.CreateIntegrationAlias(db.IntegrationAlias{
+		Alias:         "ITA-" + getUUID(),
+		ProjectID:     userProject.ID,
+		IntegrationID: integrationID,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return alias
 }
 
 func addIntegrationExtractValue() *db.IntegrationExtractValue {

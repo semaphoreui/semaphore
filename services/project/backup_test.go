@@ -672,3 +672,128 @@ func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
 		assert.Equal(t, "github.com", hostConfigs[0].Name)
 	})
 }
+
+// Old backups may carry bits the application never checks: restore keeps the roles and drops the bits.
+func TestRestore_DropsUnknownPermissionBits(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+
+	payload := `{
+  "keys": [{"name": "noop", "owner": "", "type": "none"}],
+  "meta": {"name": "Restored Roles", "type": ""},
+  "repositories": [{"git_branch": "master", "git_url": "git@example.com:test/test.git", "name": "Repo", "ssh_key": "noop"}],
+  "roles": [{"name": "ops", "permissions": 1048577}],
+  "templates": [{
+    "app": "", "name": "Tpl", "playbook": "test.yml", "repository": "Repo", "type": "",
+    "roles": [{"role": "ops", "is_global": false, "permissions": 1048580}],
+    "vaults": [], "view": null, "environments": []
+  }]
+}`
+	backup := &BackupFormat{}
+	require.NoError(t, backup.Unmarshal(payload))
+	require.NoError(t, backup.Verify())
+
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "roles", Name: "roles", Email: "roles@example.com", Admin: true}})
+	require.NoError(t, err)
+	project, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	roles, err := store.GetProjectRoles(project.ID)
+	require.NoError(t, err)
+	require.Len(t, roles, 1)
+	assert.Equal(t, db.CanRunProjectTasks, roles[0].Permissions)
+
+	templates, err := store.GetTemplates(project.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, templates, 1)
+	perms, err := store.GetTemplateRoles(project.ID, templates[0].ID)
+	require.NoError(t, err)
+	require.Len(t, perms, 1)
+	assert.Equal(t, db.CanManageProjectResources, perms[0].Permissions)
+}
+
+func createBackupFixture(t *testing.T, store db.Store) (db.Project, db.Template) {
+	t.Helper()
+	proj, err := store.CreateProject(db.Project{Name: "Grants"})
+	require.NoError(t, err)
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+	repo, err := store.CreateRepository(db.Repository{ProjectID: proj.ID, SSHKeyID: key.ID, Name: "Repo", GitURL: "git@example.com:test/test", GitBranch: "master"})
+	require.NoError(t, err)
+	inv, err := store.CreateInventory(db.Inventory{ProjectID: proj.ID})
+	require.NoError(t, err)
+	tpl, err := store.CreateTemplate(db.Template{Name: "Tpl", Playbook: "test.yml", ProjectID: proj.ID, RepositoryID: repo.ID, InventoryID: &inv.ID})
+	require.NoError(t, err)
+	return proj, tpl
+}
+
+func TestBackupKeepsBuiltinAndGlobalGrants(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+	workflows := proFactory.NewWorkflowStore(store)
+	p, tpl := createBackupFixture(t, store)
+	runner, err := store.GetGlobalRoleBySlug("task_runner")
+	require.NoError(t, err)
+	global, err := store.CreateRole(db.Role{Slug: "deployer", Name: "Deployer Name"})
+	require.NoError(t, err)
+	_, err = store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: p.ID, TemplateID: tpl.ID, RoleID: runner.ID, Permissions: db.CanUpdateProject})
+	require.NoError(t, err)
+	_, err = store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: p.ID, TemplateID: tpl.ID, RoleID: global.ID, Permissions: db.CanRunProjectTasks})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(p.ID, store, workflows)
+	require.NoError(t, err)
+	require.Len(t, backup.Templates, 1)
+	assert.ElementsMatch(t, []BackupTemplateRole{
+		{Role: "task_runner", IsGlobal: true, Permissions: db.CanUpdateProject},
+		{Role: "deployer", IsGlobal: true, Permissions: db.CanRunProjectTasks},
+	}, backup.Templates[0].Roles)
+
+	backup.Meta.Name = "Grants restored"
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "g", Name: "g", Email: "g@example.com", Admin: true}})
+	require.NoError(t, err)
+	restored, err := backup.Restore(user, store, workflows)
+	require.NoError(t, err)
+	templates, err := store.GetTemplates(restored.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, templates, 1)
+	grants, err := store.GetTemplateRoles(restored.ID, templates[0].ID)
+	require.NoError(t, err)
+	require.Len(t, grants, 2)
+	assert.ElementsMatch(t, []string{"task_runner", "deployer"}, []string{grants[0].RoleSlug, grants[1].RoleSlug})
+}
+
+func TestRestore_FailsOnUnknownGlobalGrant(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+	p, _ := createBackupFixture(t, store)
+	backup, err := GetBackup(p.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+	backup.Meta.Name = "Missing global"
+	backup.Templates[0].Roles = []BackupTemplateRole{{Role: "nope", IsGlobal: true}}
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "m", Name: "m", Email: "m@example.com", Admin: true}})
+	require.NoError(t, err)
+	_, err = backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+	require.Error(t, err)
+}
+
+func TestBackupJSONHasNoRoleInternals(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+	p, _ := createBackupFixture(t, store)
+	_, err := store.CreateRole(db.Role{Slug: "local", Name: "Local", ProjectID: &p.ID})
+	require.NoError(t, err)
+	backup, err := GetBackup(p.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+	raw, err := backup.Marshal()
+	require.NoError(t, err)
+
+	var doc struct {
+		Roles []map[string]any `json:"roles"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(raw), &doc))
+	require.Len(t, doc.Roles, 1)
+	for _, key := range []string{"id", "scope", "builtin", "slug"} {
+		assert.NotContains(t, doc.Roles[0], key)
+	}
+}

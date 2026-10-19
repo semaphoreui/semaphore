@@ -8,7 +8,11 @@ import "github.com/semaphoreui/semaphore/db"
 // (pro/services/server/workflow_svc.go); the licensed build provides the real
 // implementation (pro_impl/services/server/workflow_svc.go).
 type WorkflowService interface {
-	StartWorkflow(workflow db.WorkflowTemplate, user *db.User) (db.WorkflowRun, error)
+	// StartWorkflow creates a run of the workflow's current revision. params
+	// carries the answers to the workflow's survey; the service applies the
+	// survey defaults and rejects the start with a validation error when a
+	// required variable has no value or a value does not fit its type.
+	StartWorkflow(workflow db.WorkflowTemplate, params db.WorkflowRunParams, user *db.User) (db.WorkflowRun, error)
 	ProgressWorkflowRun(projectID int, runID int, user *db.User) error
 	// StopWorkflowRun stops a non-finished run: it signals every in-flight task
 	// of the run to stop and marks the run as stopped (terminal).
@@ -24,6 +28,16 @@ type WorkflowService interface {
 // avoiding an import of (and a cycle with) the services/tasks package.
 type WorkflowTaskEnqueuer interface {
 	AddTask(task db.Task, userID *int, username string, projectID int, needAlias bool) (db.Task, error)
+	// AddFailedTask persists a task that can not start — the workflow engine
+	// could not resolve its inputs — already finished with the error status
+	// and with lines in its log. Nothing is enqueued: the caller is the engine
+	// itself, which progresses the run from the stored status.
+	AddFailedTask(task db.Task, userID *int, username string, lines []string) (db.Task, error)
+	// LogTask appends lines to the log of a task AddTask just returned, so the
+	// engine can say where every workflow input of the task came from. The
+	// task is passed whole: right after AddTask it may not be registered in the
+	// pool yet, and the lines must not depend on that.
+	LogTask(task db.Task, lines []string)
 	// StopTasksByWorkflowRun stops every active (queued or running) task that
 	// belongs to the given workflow run. forceStop kills running tasks
 	// immediately instead of letting them stop gracefully.

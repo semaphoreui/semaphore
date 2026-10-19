@@ -35,6 +35,7 @@ func TestApiPing(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	r.ServeHTTP(rr, req)

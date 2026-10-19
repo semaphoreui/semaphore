@@ -1,6 +1,8 @@
 package sql
 
 import (
+	"errors"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )
@@ -197,6 +199,9 @@ func (d *SqlDb) DeleteSchedule(projectID int, scheduleID int) (err error) {
 
 	if schedule.TaskParamsID != nil {
 		err = d.deleteObject(projectID, db.TaskParamsProps, *schedule.TaskParamsID)
+		if errors.Is(err, db.ErrNotFound) {
+			err = nil
+		}
 	}
 
 	return err

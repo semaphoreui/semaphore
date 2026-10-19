@@ -23,6 +23,7 @@ const (
 	View                    = "View"
 	Alert                   = "Alert"
 	Role                    = "Role"
+	RoleMapping             = "RoleMapping"
 	TaskParams              = "TaskParams"
 	Integration             = "Integration"
 	IntegrationAlias        = "IntegrationAlias"
@@ -425,6 +426,7 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUs
 		View:                    &ViewExporter{},
 		Alert:                   &AlertExporter{},
 		Role:                    &RoleExporter{},
+		RoleMapping:             &RoleMappingExporter{},
 		Schedule:                &ScheduleExporter{},
 		ProjectUser:             &ProjectUserExporter{},
 		Integration:             &IntegrationExporter{},

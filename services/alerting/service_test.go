@@ -202,7 +202,7 @@ func TestService_Notify_FailedSendCanRetry(t *testing.T) {
 
 func TestService_EmailFallsBackToOptedInMembers(t *testing.T) {
 	store := newFakeStore(db.Project{ID: 1, Alert: true})
-	store.members = []db.UserWithProjectRole{
+	store.members = []db.UserWithProjectRoles{
 		{User: db.User{ID: 1, Email: "yes@example.com", Alert: true}},
 		{User: db.User{ID: 2, Email: "no@example.com", Alert: false}},
 	}

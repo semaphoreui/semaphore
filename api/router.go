@@ -81,6 +81,7 @@ func Route(
 	store db.Store,
 	terraformStore db.TerraformStore,
 	workflowStore db.WorkflowManager,
+	roleMappingStore db.RoleMappingStore,
 	ansibleTaskRepo db.AnsibleTaskRepository,
 	taskPool *taskServices.TaskPool,
 	projectService server.ProjectService,
@@ -120,6 +121,8 @@ func Route(
 	globalRunnerController := NewGlobalRunnerController(runnerService)
 	taskController := projects.NewTaskController(store, ansibleTaskRepo)
 	rolesController := proApi.NewRolesController(store)
+	roleMappingsController := proApi.NewRoleMappingsController(roleMappingStore, store)
+	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
 
@@ -223,6 +226,11 @@ func Route(
 	tokenAPI.Path("/options").HandlerFunc(setUserOption).Methods("POST")
 	tokenAPI.Path("/identities/ldap").HandlerFunc(linkLdapIdentity).Methods("POST")
 
+	auditAPI := authenticatedAPI.PathPrefix("/audit").Subrouter()
+	auditAPI.Use(auditLogMiddleware)
+	auditAPI.Path("/events").HandlerFunc(getAuditEvents(auditController.GetEvents)).Methods("GET")
+	auditAPI.Path("/events/export").HandlerFunc(auditController.ExportEvents).Methods("GET")
+
 	adminAPI := authenticatedAPI.NewRoute().Subrouter()
 	adminAPI.Use(adminMiddleware)
 	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
@@ -255,6 +263,10 @@ func Route(
 	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.GetGlobalRole).Methods("GET", "HEAD")
 	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
 	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
+
+	adminAPI.Path("/role_mappings").HandlerFunc(roleMappingsController.GetMappings).Methods("GET", "HEAD")
+	adminAPI.Path("/role_mappings").HandlerFunc(roleMappingsController.AddMapping).Methods("POST")
+	adminAPI.Path("/role_mappings/{mapping_id}").HandlerFunc(roleMappingsController.DeleteMapping).Methods("DELETE")
 
 	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)
@@ -505,10 +517,12 @@ func Route(
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.UpdateWorkflow).Methods("PUT")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.RemoveWorkflow).Methods("DELETE")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.GetWorkflow).Methods("GET")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions", workflowController.GetWorkflowRevisions).Methods("GET", "HEAD")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions/{revision_id}", workflowController.GetWorkflowRevision).Methods("GET", "HEAD")
 
 	projectWorkflowRunAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
 	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
-	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/run", workflowController.RunWorkflow).Methods("POST")
+	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.RunWorkflow).Methods("POST")
 	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.GetWorkflowRuns).Methods("GET", "HEAD")
 
 	projectWorkflowRunManagement := projectWorkflowRunAPI.PathPrefix("/{workflow_id}/runs").Subrouter()

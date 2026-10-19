@@ -1,6 +1,7 @@
 package project
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -57,6 +58,8 @@ func (e BackupRole) Restore(b *BackupDB) error {
 	role := e.Role
 	role.ProjectID = &b.meta.ID
 	role.Slug = random.String(16)
+	// Unknown bits are never checked today but would turn on with a future permission.
+	role.Permissions &= db.KnownRolePermissions
 	newRole, err := b.store.CreateRole(role)
 	if err != nil {
 		return err
@@ -506,15 +509,18 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 		for _, role := range e.Roles {
 			if role.IsGlobal {
 				r, err := b.store.GetGlobalRoleBySlug(role.Role)
-				if err != nil {
+				if errors.Is(err, db.ErrNotFound) {
 					return fmt.Errorf("global role does not exist: %s", role.Role)
+				}
+				if err != nil {
+					return err
 				}
 
 				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
 					TemplateID:  newTemplate.ID,
-					RoleSlug:    r.Slug,
+					RoleID:      r.ID,
 					ProjectID:   b.meta.ID,
-					Permissions: role.Permissions,
+					Permissions: role.Permissions & db.KnownRolePermissions,
 				})
 
 				if err != nil {
@@ -528,9 +534,9 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 			} else {
 				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
 					TemplateID:  newTemplate.ID,
-					RoleSlug:    k.Slug,
+					RoleID:      k.ID,
 					ProjectID:   b.meta.ID,
-					Permissions: role.Permissions,
+					Permissions: role.Permissions & db.KnownRolePermissions,
 				})
 				if err != nil {
 					return err
@@ -744,6 +750,7 @@ func (backup *BackupFormat) Verify() error {
 	return nil
 }
 
+// Restore returns the created project with the error when a step after the project row fails.
 func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore db.WorkflowManager) (*db.Project, error) {
 	var b = BackupDB{store: store, workflowStore: workflowStore}
 	project := backup.Meta.Project
@@ -758,67 +765,67 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		}
 	}
 
+	ownerRole, err := b.store.GetGlobalRoleBySlug(string(db.ProjectOwner))
+	if err != nil {
+		return nil, err
+	}
+
 	newProject, err := b.store.CreateProject(project)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err = b.store.CreateProjectUser(db.ProjectUser{
-		ProjectID: newProject.ID,
-		UserID:    user.ID,
-		Role:      db.ProjectOwner,
-	}); err != nil {
-		return nil, err
+	if err = b.store.CreateProjectUser(newProject.ID, user.ID, []int{ownerRole.ID}); err != nil {
+		return &newProject, err
 	}
 
 	b.meta = newProject
-
 	for i, o := range backup.SecretStorages {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at secret storage[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at secret storage[%d]: %s", i, err.Error())
 		}
 	}
 
 	for i, o := range backup.Roles {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at roles[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at roles[%d]: %s", i, err.Error())
 		}
 	}
 
 	for i, o := range backup.Environments {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at environments[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at environments[%d]: %s", i, err.Error())
 		}
 	}
 
 	for i, o := range backup.Views {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at views[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at views[%d]: %s", i, err.Error())
 		}
 	}
 
 	for i, o := range backup.Keys {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at keys[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at keys[%d]: %s", i, err.Error())
 		}
 	}
 
 	for i, o := range backup.Repositories {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at repositories[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at repositories[%d]: %s", i, err.Error())
 		}
 	}
 
 	for i, o := range backup.HostConfigs {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at host_configs[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at host_configs[%d]: %s", i, err.Error())
 		}
 	}
 
 	for i, o := range backup.Inventories {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at inventories[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at inventories[%d]: %s", i, err.Error())
 		}
 	}
 
@@ -835,20 +842,20 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 			continue
 		}
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
 	}
 
 	for _, i := range deployTemplates {
 		o := backup.Templates[i]
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
 		}
 	}
 
 	for i, o := range backup.Integration {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at integrations[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at integrations[%d]: %s", i, err.Error())
 		}
 	}
 
@@ -862,13 +869,13 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 
 	for i, o := range backup.Schedules {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at schedules[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at schedules[%d]: %s", i, err.Error())
 		}
 	}
 
 	for i, o := range backup.Runners {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at runners[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at runners[%d]: %s", i, err.Error())
 		}
 	}
 
@@ -876,7 +883,7 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 	// and environments by name, all of which must already exist in the project.
 	for i, o := range backup.Workflows {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at workflows[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at workflows[%d]: %s", i, err.Error())
 		}
 	}
 

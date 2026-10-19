@@ -23,7 +23,9 @@ import (
 	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
 	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
+
 	"github.com/semaphoreui/semaphore/services/alerting"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
@@ -158,6 +160,7 @@ func watchEncryptionKeyReload() {
 
 func runService() {
 	store := createStore("root")
+	defer store.Close()
 
 	watchEncryptionKeyReload()
 
@@ -171,10 +174,24 @@ func runService() {
 	// Initialize HA node identity before any component that uses it.
 	util.InitHANodeID()
 
+	appMetrics := metrics.NewMetrics()
+
+	auditService, auditErr := audit.StartService(
+		store,
+		util.Config.Audit,
+		util.HANodeID(),
+		proServer.NewAuditExporter(store, util.Config.Audit, proHA.NewAuditExportLeaser(), appMetrics),
+	)
+	if auditErr != nil {
+		log.WithError(auditErr).Fatal("failed to start the audit log")
+	}
+	defer auditService.Stop()
+
 	state := proTasks.NewTaskStateStore()
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
 	workflowStore := proFactory.NewWorkflowStore(store)
+	roleMappingStore := proFactory.NewRoleMappingStore(store)
 
 	projectService := server.NewProjectService(store, store)
 	encryptionService := server.NewAccessKeyEncryptionService(store, store, store, store)
@@ -193,8 +210,8 @@ func runService() {
 	runnerService := server.NewRunnerService(store)
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
-	appMetrics := metrics.NewMetrics()
 	alertService := alerting.NewService(store, alerting.NewRegistry(), encryptionService)
+	roleSyncService := proServer.NewRoleSyncService(roleMappingStore)
 
 	taskPool := tasks.CreateTaskPool(
 		store,
@@ -208,6 +225,8 @@ func runService() {
 		appMetrics,
 		alertService,
 	)
+	taskPool.SetAuditRecorder(auditService.Recorder())
+	taskPool.SetWorkflowRepo(workflowStore)
 
 	// The workflow service orchestrates workflow runs and launches each node's
 	// task through the pool; the pool calls back into it when a workflow task
@@ -217,6 +236,7 @@ func runService() {
 	// otherwise, which makes the service fall back to its in-process locker.
 	workflowService := proServer.NewWorkflowService(workflowStore, store, &taskPool, proHA.NewWorkflowRunLocker())
 	taskPool.SetWorkflowService(workflowService)
+	taskPool.SetTaskOutputsCollector(proTasks.NewTaskOutputsCollector())
 
 	schedulePool := schedules.CreateSchedulePool(
 		store,
@@ -317,6 +337,7 @@ func runService() {
 		store,
 		terraformStore,
 		workflowStore,
+		roleMappingStore,
 		ansibleTaskRepo,
 		&taskPool,
 		projectService,
@@ -341,6 +362,8 @@ func runService() {
 			r = helpers.SetContextValue(r, "task_pool", &taskPool)
 			r = helpers.SetContextValue(r, "log_writer", logWriteService)
 			r = helpers.SetContextValue(r, "cluster_inspector", clusterInspector)
+			r = helpers.SetContextValue(r, "audit", auditService.Recorder())
+			r = helpers.SetContextValue(r, "role_sync", roleSyncService)
 
 			next.ServeHTTP(w, r)
 		})
@@ -349,11 +372,11 @@ func runService() {
 	var router http.Handler = route
 
 	router = handlers.ProxyHeaders(router)
+	// Outside ProxyHeaders, which trusts X-Forwarded-For blindly.
+	router = auditService.Wrap(router)
 	http.Handle("/", router)
 
 	fmt.Println("Server is running")
-
-	defer store.Close()
 
 	var err error
 	if util.Config.TLS.Enabled {

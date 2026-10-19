@@ -74,3 +74,16 @@ func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	m.handler.ServeHTTP(w, r)
 }
+
+// Register adds collectors owned by other packages, such as the Pro audit exporter.
+func (m *Metrics) Register(collectors ...prometheus.Collector) error {
+	if m == nil {
+		return nil
+	}
+	for _, c := range collectors {
+		if err := m.registry.Register(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}

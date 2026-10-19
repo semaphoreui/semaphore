@@ -55,7 +55,7 @@
                 <v-select
                   v-model="editedVar.type"
                   :label="$t('type')"
-                  :items="varTypes"
+                  :items="availableVarTypes"
                   item-value="id"
                   item-text="name"
                   dense
@@ -268,6 +268,15 @@ export default {
   },
   props: {
     vars: Array,
+    // A workflow survey can not hold a secret: the run stores its answers in
+    // clear. The template form keeps the full list.
+    allowSecret: { type: Boolean, default: true },
+  },
+  computed: {
+    availableVarTypes() {
+      if (this.allowSecret) return this.varTypes;
+      return this.varTypes.filter((t) => t.id !== 'secret');
+    },
   },
   watch: {
     vars(val) {

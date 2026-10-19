@@ -55,7 +55,7 @@ func (e HostConfig) GetDbKey() string {
 }
 
 func (e Role) GetDbKey() string {
-	return e.Slug
+	return NewKeyFromInt(e.ID)
 }
 
 func (e View) GetDbKey() string {
@@ -91,10 +91,6 @@ func (e TemplateRolePerm) GetDbKey() string {
 }
 
 func (e TaskParams) GetDbKey() string {
-	return NewKeyFromInt(e.ID)
-}
-
-func (e ProjectUser) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
 

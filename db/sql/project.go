@@ -42,8 +42,10 @@ func (d *SqlDb) GetAllProjects() (projects []db.Project, err error) {
 func (d *SqlDb) GetProjects(userID int) (projects []db.Project, err error) {
 	query, args, err := squirrel.Select("p.*").
 		From("project as p").
-		Join("project__user as pu on pu.project_id=p.id").
-		Where("pu.user_id=?", userID).
+		Where(`(
+			exists (select 1 from project__user_role pur where pur.project_id = p.id and pur.user_id = ?)
+			or exists (select 1 from project__user_mapped_role mr where mr.project_id = p.id and mr.user_id = ?)
+		)`, userID, userID).
 		OrderBy("p.name").
 		Limit(200).
 		ToSql()
@@ -88,9 +90,15 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 	}
 
 	statements := []string{
+		"delete from project__workflow_run where project_id=?",
 		"update project__template set build_template_id = null where project_id=?",
 		"delete from project__template where project_id=?",
-		"delete from project__user where project_id=?",
+		"delete from project__template_role where project_id=?",
+		"delete from project__invite where project_id=?",
+		"delete from project__user_role where project_id=?",
+		// Before the roles: a mapping keeps its role from being deleted.
+		"delete from group_role_mapping where project_id=?",
+		"delete from `role` where project_id=?",
 		"delete from project__repository where project_id=?",
 		"delete from project__inventory where project_id=?",
 		// Before the keys: a mapping references access_key without an ON DELETE
@@ -99,7 +107,6 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		// mappings using it.
 		"delete from project__host_config where project_id=?",
 		"delete from access_key where project_id=?",
-		"delete from project where id=?",
 	}
 
 	for _, statement := range statements {
@@ -109,6 +116,13 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 			_ = tx.Rollback()
 			return err
 		}
+	}
+
+	// The project row decides: a project with no children is still a real delete.
+	err = requireDeletedRow(tx.Exec(d.PrepareQuery("delete from project where id=?"), projectID))
+	if err != nil {
+		_ = tx.Rollback()
+		return err
 	}
 
 	return tx.Commit()

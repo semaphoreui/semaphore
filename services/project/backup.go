@@ -4,20 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
 )
-
-func findNameBySlug[T db.BackupSluggedEntity](slug string, items []T) (*string, error) {
-	for _, o := range items {
-		if o.GetSlug() == slug {
-			name := o.GetName()
-			return &name, nil
-		}
-	}
-	return nil, fmt.Errorf("item %s does not exist", slug)
-}
 
 func findNameByID[T db.BackupEntity](ID int, items []T) (*string, error) {
 	for _, o := range items {
@@ -468,25 +459,12 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 
 		var roles []BackupTemplateRole
 		for _, r := range b.templateRoles[o.ID] {
-			name, err := findNameBySlug[db.Role](r.RoleSlug, b.roles)
-			if err == nil {
-				roles = append(roles, BackupTemplateRole{
-					Role:        *name,
-					IsGlobal:    false,
-					Permissions: r.Permissions,
-				})
-			} else {
-				// Try to find in Global
-				name, err = findNameBySlug[db.Role](r.RoleSlug, b.globalRoles)
-				if err != nil {
-					continue
-				}
-
-				roles = append(roles, BackupTemplateRole{
-					Role:        *name,
-					IsGlobal:    true,
-					Permissions: r.Permissions,
-				})
+			sameRole := func(role db.Role) bool { return role.ID == r.RoleID }
+			if i := slices.IndexFunc(b.roles, sameRole); i >= 0 {
+				roles = append(roles, BackupTemplateRole{Role: b.roles[i].Name, Permissions: r.Permissions})
+			} else if i := slices.IndexFunc(b.globalRoles, sameRole); i >= 0 {
+				// Global and built-in roles are written by slug.
+				roles = append(roles, BackupTemplateRole{Role: b.globalRoles[i].Slug, IsGlobal: true, Permissions: r.Permissions})
 			}
 		}
 

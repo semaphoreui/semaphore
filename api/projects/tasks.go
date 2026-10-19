@@ -12,6 +12,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -65,10 +66,25 @@ func (c *TaskController) resolveTaskTemplate(projectID int, task *db.Task) (tpl 
 	return
 }
 
+// sanitizeClientTask drops the fields of a task a client must not set: the
+// workflow engine alone binds a task to a run and a node (startWorkflowNode),
+// outputs are written by the task's own run (saveOutputs,
+// StoreRemoteTaskOutputs) and the runner assignment by the pool. A client that
+// could set them would make its task pose as a node of someone else's workflow
+// run and feed arbitrary outputs into the run's next nodes.
+func sanitizeClientTask(task db.Task) db.Task {
+	task.WorkflowRunID = nil
+	task.WorkflowNodeID = nil
+	task.WorkflowTemplateID = nil
+	task.Artifacts = nil
+	task.RunnerID = nil
+	return task
+}
+
 func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	user := helpers.GetFromContext(r, "user").(*db.User)
-	taskObj := helpers.GetFromContext(r, "task").(db.Task)
+	taskObj := sanitizeClientTask(helpers.GetFromContext(r, "task").(db.Task))
 
 	tpl, err := c.resolveTaskTemplate(project.ID, &taskObj)
 	if err != nil {
@@ -76,7 +92,9 @@ func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newTask, err := taskPool(r).AddTask(
+	newTask, err := taskPool(r).AddTaskFrom(
+		r.Context(),
+		audit.TriggerAPI,
 		taskObj,
 		&user.ID,
 		user.Username,
@@ -211,6 +229,7 @@ func (c *TaskController) GetTaskPermissionsMiddleware(next http.Handler) http.Ha
 		perm, err := c.store.GetTemplatePermission(project.ID, task.TemplateID, user.ID)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
 		permissions |= perm
@@ -387,10 +406,19 @@ func (c *TaskController) ConfirmTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := taskPool(r).ConfirmTask(targetTask)
+	changed, err := taskPool(r).ConfirmTask(targetTask)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	if changed {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      audit.TaskApprovalApprove,
+			Target:    audit.ResourceTarget(audit.TargetTask, targetTask.ID, ""),
+			ProjectID: project.ID,
+			Metadata:  audit.TaskMetadata{TemplateID: targetTask.TemplateID},
+		})
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -405,10 +433,19 @@ func (c *TaskController) RejectTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := taskPool(r).RejectTask(targetTask)
+	changed, err := taskPool(r).RejectTask(targetTask)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	if changed {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      audit.TaskApprovalReject,
+			Target:    audit.ResourceTarget(audit.TargetTask, targetTask.ID, ""),
+			ProjectID: project.ID,
+			Metadata:  audit.TaskMetadata{TemplateID: targetTask.TemplateID},
+		})
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -431,10 +468,23 @@ func (c *TaskController) StopTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := taskPool(r).StopTask(targetTask, stopObj.Force)
+	changed, err := taskPool(r).StopTask(targetTask, stopObj.Force)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	if changed {
+		kind := audit.TaskControlStop
+		if stopObj.Force {
+			kind = audit.TaskControlForceStop
+		}
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      kind,
+			Target:    audit.ResourceTarget(audit.TargetTask, targetTask.ID, ""),
+			ProjectID: project.ID,
+			Metadata:  audit.TaskMetadata{TemplateID: targetTask.TemplateID},
+		})
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -462,16 +512,28 @@ func (c *TaskController) RemoveTask(w http.ResponseWriter, r *http.Request) {
 
 	if !editor.Admin {
 		log.Warn(editor.Username + " is not permitted to delete task logs")
+		helpers.RecordDenied(r, "admin", project.ID)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	err = c.store.DeleteTaskWithOutputs(project.ID, targetTask.ID)
+	if errors.Is(err, db.ErrNotFound) {
+		helpers.WriteError(w, err)
+		return
+	}
 	if err != nil {
 		util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot delete task from database"})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.TaskHistoryDelete,
+		Target:    audit.ResourceTarget(audit.TargetTask, targetTask.ID, ""),
+		ProjectID: project.ID,
+		Metadata:  audit.TaskMetadata{TemplateID: targetTask.TemplateID},
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -539,5 +601,10 @@ func (c *TaskController) StopAllTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	taskPool(r).StopTasksByTemplate(project.ID, tpl.ID, stopObj.Force)
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.TaskControlStopAll,
+		Target:    audit.ResourceTarget(audit.TargetTemplate, tpl.ID, tpl.Name),
+		ProjectID: project.ID,
+	})
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -27,15 +27,19 @@ export const USER_PERMISSIONS = {
 
 export const USER_ROLES = [{
   slug: 'owner',
+  builtin: true,
   name: 'Owner',
 }, {
   slug: 'manager',
+  builtin: true,
   name: 'Manager',
 }, {
   slug: 'task_runner',
+  builtin: true,
   name: 'Task Runner',
 }, {
   slug: 'guest',
+  builtin: true,
   name: 'Guest',
 }];
 
@@ -228,6 +232,8 @@ export const TERRAFORM_FIELDS = {
   playbook: {
     label: 'Subdirectory path (Optional)',
     optional: true,
+    // The field names a directory, so the picker lists one level at a time.
+    directories: true,
   },
   inventory: {
     label: 'Workspace (Optional)',
@@ -260,12 +266,20 @@ export const UNKNOWN_APP_FIELDS = {
   inventory: undefined,
 };
 
+// Pulumi runs a directory like the terraform family, but shares none of their
+// other options, so only the path field is taken from them.
+export const PULUMI_FIELDS = {
+  ...UNKNOWN_APP_FIELDS,
+  playbook: TERRAFORM_FIELDS.playbook,
+};
+
 export const APP_FIELDS = {
   '': ANSIBLE_FIELDS,
   ansible: ANSIBLE_FIELDS,
   terraform: TERRAFORM_FIELDS,
   tofu: TERRAFORM_FIELDS,
   terragrunt: TERRAFORM_FIELDS,
+  pulumi: PULUMI_FIELDS,
 };
 
 export const ROLE_PERMISSIONS = {
