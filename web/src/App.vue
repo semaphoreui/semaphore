@@ -117,7 +117,7 @@
       </template>
     </EditDialog>
 
-    <SystemInfoDialog v-model="systemInfoDialog" v-if="user && user.admin" />
+    <SystemInfoDialog v-model="systemInfoDialog" v-if="user && canManageSystem" />
 
     <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" top>
       {{ snackbarText }}
@@ -224,7 +224,7 @@
       </v-menu>
 
       <v-list class="pt-0" v-if="!project">
-        <v-list-item key="new_project" :to="`/project/new`">
+        <v-list-item v-if="user.can_create_project" key="new_project" :to="`/project/new`">
           <v-list-item-icon>
             <v-icon>mdi-plus</v-icon>
           </v-list-item-icon>
@@ -234,7 +234,7 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="restore_project" :to="`/project/restore`">
+        <v-list-item v-if="user.can_create_project" key="restore_project" :to="`/project/restore`">
           <v-list-item-icon>
             <v-icon>mdi-restore</v-icon>
           </v-list-item-icon>
@@ -409,7 +409,11 @@
             </template>
 
             <v-list>
-              <v-list-item key="system-info" v-if="user.admin" @click="systemInfoDialog = true">
+              <v-list-item
+                key="system-info"
+                v-if="canManageSystem"
+                @click="systemInfoDialog = true"
+              >
                 <v-list-item-icon>
                   <v-icon>mdi-server</v-icon>
                 </v-list-item-icon>
@@ -451,7 +455,7 @@
 
               <v-divider />
 
-              <v-list-item key="runners" to="/runners" v-if="user.admin">
+              <v-list-item key="runners" to="/runners" v-if="canManageSystem">
                 <v-list-item-icon>
                   <v-icon>mdi-cogs</v-icon>
                 </v-list-item-icon>
@@ -461,7 +465,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="cluster" to="/cluster" v-if="user.admin">
+              <v-list-item key="cluster" to="/cluster" v-if="canManageSystem">
                 <v-list-item-icon>
                   <v-icon>mdi-server-network</v-icon>
                 </v-list-item-icon>
@@ -471,7 +475,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="tasks" to="/tasks" v-if="user.admin">
+              <v-list-item key="tasks" to="/tasks" v-if="canManageSystem">
                 <v-list-item-icon>
                   <v-icon>mdi-check-all</v-icon>
                 </v-list-item-icon>
@@ -481,7 +485,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="users" to="/users" v-if="user.admin">
+              <v-list-item key="users" to="/users" v-if="canManageUsers || canManageRoles">
                 <v-list-item-icon>
                   <v-icon>mdi-account-multiple</v-icon>
                 </v-list-item-icon>
@@ -501,7 +505,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="roles" to="/roles" v-if="isPro && user.admin">
+              <v-list-item key="roles" to="/roles" v-if="isPro && canManageRoles">
                 <v-list-item-icon>
                   <v-icon>mdi-account-cog</v-icon>
                 </v-list-item-icon>
@@ -961,6 +965,8 @@ html.WorkflowEditor-html body {
 <script>
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
+import { GLOBAL_PERMISSIONS } from '@/lib/constants';
+import { hasGlobalPermission } from '@/lib/role-permissions';
 import EditDialog from '@/components/EditDialog.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
@@ -1115,7 +1121,7 @@ export default {
         && this.$route.path !== '/project/new'
         && this.$route.path !== '/project/premium'
       ) {
-        if (this.$route.query.new_project === 'premium') {
+        if (this.$route.query.new_project === 'premium' && this.user.can_create_project) {
           await this.$router.push({ path: '/project/premium' });
         } else {
           await this.$router.push({ path: '/project/new' });
@@ -1160,6 +1166,19 @@ export default {
   computed: {
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
+
+    // Instance-wide rights of the signed-in user: the admin flag or an assigned global role.
+    canManageSystem() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageSystem);
+    },
+
+    canManageUsers() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageUsers);
+    },
+
+    canManageRoles() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageRoles);
     },
 
     lang() {
@@ -1472,6 +1491,9 @@ export default {
     },
 
     showNewProjectDialogue(projectType = '') {
+      if (!this.user.can_create_project) {
+        return;
+      }
       this.newProjectDialog = true;
       this.newProjectType = projectType;
     },

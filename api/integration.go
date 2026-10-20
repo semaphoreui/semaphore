@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/conv"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 	task2 "github.com/semaphoreui/semaphore/services/tasks"
@@ -53,13 +55,30 @@ func hmacHashPayload(secret string, payloadBody []byte, hashFunc func() hash.Has
 type IntegrationController struct {
 	store              db.Store
 	integrationService server.IntegrationService
+	workflowRepo       db.WorkflowManager
+	workflowService    pro_interfaces.WorkflowService
 }
 
-func NewIntegrationController(store db.Store, integrationService server.IntegrationService) *IntegrationController {
+func NewIntegrationController(
+	store db.Store,
+	integrationService server.IntegrationService,
+	workflowRepo db.WorkflowManager,
+	workflowService pro_interfaces.WorkflowService,
+) *IntegrationController {
 	return &IntegrationController{
 		store:              store,
 		integrationService: integrationService,
+		workflowRepo:       workflowRepo,
+		workflowService:    workflowService,
 	}
+}
+
+// IntegrationRunResult is what one matching integration started: a task for
+// a template integration, a workflow run for a workflow integration, neither
+// when the start failed (the reason is in the log).
+type IntegrationRunResult struct {
+	Task *db.Task
+	Run  *db.WorkflowRun
 }
 
 func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
@@ -227,8 +246,9 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			}
 		}
 
-		task := c.RunIntegration(integration, project, r, payload)
-		if task != nil {
+		result := c.RunIntegration(integration, project, r, payload)
+
+		if task := result.Task; task != nil {
 			w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(task.ID))
 			w.Header().Add("X-Semaphore-Template-ID", strconv.Itoa(task.TemplateID))
 			w.Header().Add("X-Semaphore-Project-ID", strconv.Itoa(task.ProjectID))
@@ -239,6 +259,17 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 
 			if task.InventoryID != nil {
 				w.Header().Add("X-Semaphore-Inventory-ID", strconv.Itoa(*task.InventoryID))
+			}
+		}
+
+		if run := result.Run; run != nil {
+			w.Header().Add("X-Semaphore-Workflow-ID", strconv.Itoa(run.WorkflowTemplateID))
+			w.Header().Add("X-Semaphore-Workflow-Run-ID", strconv.Itoa(run.ID))
+			w.Header().Add("X-Semaphore-Project-ID", strconv.Itoa(run.ProjectID))
+			w.Header().Add("X-Semaphore-Integration-ID", strconv.Itoa(integration.ID))
+
+			if run.RootTaskID != nil {
+				w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(*run.RootTaskID))
 			}
 		}
 	}
@@ -312,12 +343,19 @@ func GetTaskDefinition(
 
 	var extractedEnvResults = Extract(envValues, h, payload)
 
+	// Only a template integration gets here (a workflow one goes through
+	// GetWorkflowRunParams); a missing template id is left as zero.
+	templateID := 0
+	if integration.TemplateID != nil {
+		templateID = *integration.TemplateID
+	}
+
 	if integration.TaskParams != nil {
-		taskDefinition = integration.TaskParams.CreateTask(integration.TemplateID)
+		taskDefinition = integration.TaskParams.CreateTask(templateID)
 	} else {
 		taskDefinition = db.Task{
 			ProjectID:  integration.ProjectID,
-			TemplateID: integration.TemplateID,
+			TemplateID: templateID,
 			Params:     make(db.MapStringAnyField),
 		}
 	}
@@ -333,12 +371,7 @@ func GetTaskDefinition(
 		}
 	}
 
-	for k, v := range extractedEnvResults {
-		//if _, exists := env[k]; !exists {
-		//	env[k] = v
-		//}
-		env[k] = v
-	}
+	maps.Copy(env, extractedEnvResults)
 
 	envStr, err := json.Marshal(env)
 	if err != nil {
@@ -352,35 +385,107 @@ func GetTaskDefinition(
 	}
 
 	extractedTaskResults := Extract(taskValues, h, payload)
-	for k, v := range extractedTaskResults {
-		taskDefinition.Params[k] = v
+	maps.Copy(taskDefinition.Params, extractedTaskResults)
+
+	return
+}
+
+// applyGitBranchParam moves the reserved `git_branch` task parameter onto
+// task.GitBranch, so a webhook sets the branch the same way the task dialog
+// does. The key is removed from Params so it never reaches the app-specific
+// params. Callers must check the template's AllowOverrideBranchInTask first.
+// The value is validated by ValidateNewTask like any task branch.
+func applyGitBranchParam(task *db.Task, allowOverrideGitBranch bool) {
+	raw, ok := task.Params[db.TaskParamGitBranch]
+	if !ok {
+		return
+	}
+	delete(task.Params, db.TaskParamGitBranch)
+
+	if !allowOverrideGitBranch {
+		log.WithFields(log.Fields{
+			"context":       "integration",
+			"project_id":    task.ProjectID,
+			"template_name": task.TemplateName,
+			"task_id":       task.ID,
+		}).Debug("Skipping Git branch from params because doesn't allow override git branch")
+		return
+	}
+
+	branch, _ := raw.(string)
+	branch = strings.TrimPrefix(strings.TrimSpace(branch), "refs/heads/")
+	if branch == "" {
+		return
+	}
+
+	task.GitBranch = &branch
+}
+
+// GetWorkflowRunParams builds the start parameters of a workflow run from a
+// webhook: every extracted value, whatever its variable type, becomes an
+// answer to the workflow's survey under the extractor's variable name. The
+// engine validates the answers against the survey (defaults, required,
+// types) and delivers them to nodes through their explicit bindings.
+func GetWorkflowRunParams(
+	integration db.Integration,
+	payload []byte,
+	h http.Header,
+	extractorCreator func(projectID, integrationID int) ([]db.IntegrationExtractValue, error),
+) (params db.WorkflowRunParams, err error) {
+	extractValues, err := extractorCreator(integration.ProjectID, integration.ID)
+	if err != nil {
+		return
+	}
+
+	params.IntegrationID = &integration.ID
+
+	extracted := Extract(extractValues, h, payload)
+	if len(extracted) > 0 {
+		params.Environment = db.MapStringAnyField(extracted)
 	}
 
 	return
 }
 
-func (c *IntegrationController) RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) (taskRef *db.Task) {
-	taskRef = nil
-
+func (c *IntegrationController) RunIntegration(integration db.Integration, project db.Project, r *http.Request, payload []byte) (result IntegrationRunResult) {
 	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
+
+	if integration.RunsWorkflow() {
+		result.Run = c.runWorkflowIntegration(integration, r, payload)
+		return
+	}
+
+	result.Task = c.runTemplateIntegration(integration, r, payload)
+	return
+}
+
+func (c *IntegrationController) runTemplateIntegration(integration db.Integration, r *http.Request, payload []byte) *db.Task {
+	logger := log.WithFields(log.Fields{
+		"context":        "integrations",
+		"integration_id": integration.ID,
+	})
+
+	if integration.TemplateID == nil {
+		logger.Error("integration has no template")
+		return nil
+	}
 
 	taskDefinition, err := GetTaskDefinition(
 		integration, payload, r.Header, func(projectID, integrationID int) ([]db.IntegrationExtractValue, error) {
 			return c.store.GetIntegrationExtractValues(projectID, db.RetrieveQueryParams{}, integrationID)
 		})
 	if err != nil {
-		log.WithError(err).WithFields(log.Fields{
-			"context":        "integrations",
-			"integration_id": integration.ID,
-		}).Error("Failed to get task definition")
-		return
+		logger.WithError(err).Error("Failed to get task definition")
+		return nil
 	}
 
-	tpl, err := c.store.GetTemplate(integration.ProjectID, integration.TemplateID)
+	tpl, err := c.store.GetTemplate(integration.ProjectID, *integration.TemplateID)
 	if err != nil {
 		log.Error(err)
-		return
+		return nil
 	}
+
+	applyGitBranchParam(&taskDefinition, tpl.AllowOverrideBranchInTask)
 
 	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
@@ -389,12 +494,54 @@ func (c *IntegrationController) RunIntegration(integration db.Integration, proje
 	task, err := pool.AddTaskFrom(ctx, audit.TriggerIntegration, taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
 		log.Error(err)
-		return
+		return nil
 	}
 
-	taskRef = &task
+	return &task
+}
 
-	return
+// runWorkflowIntegration starts a run of the integration's workflow. The
+// start is attributed to the integration (audit actor, task.integration_id
+// of the root task); a start the engine refuses — a required survey variable
+// the webhook did not provide, a workflow without a root — is logged, and
+// the webhook still answers 204 like every other silently skipped
+// integration.
+func (c *IntegrationController) runWorkflowIntegration(integration db.Integration, r *http.Request, payload []byte) *db.WorkflowRun {
+	logger := log.WithFields(log.Fields{
+		"context":        "integrations",
+		"integration_id": integration.ID,
+		"workflow_id":    *integration.WorkflowID,
+	})
+
+	workflow, err := c.workflowRepo.GetWorkflowTemplate(integration.ProjectID, *integration.WorkflowID)
+	if err != nil {
+		logger.WithError(err).Error("Failed to load the integration's workflow")
+		return nil
+	}
+	if workflow.ID == 0 {
+		// The open-source workflow store answers every lookup with an empty
+		// template and no error: workflows are a Pro feature.
+		logger.Error("Workflows are not available in this build")
+		return nil
+	}
+
+	params, err := GetWorkflowRunParams(
+		integration, payload, r.Header, func(projectID, integrationID int) ([]db.IntegrationExtractValue, error) {
+			return c.store.GetIntegrationExtractValues(projectID, db.RetrieveQueryParams{}, integrationID)
+		})
+	if err != nil {
+		logger.WithError(err).Error("Failed to get workflow run params")
+		return nil
+	}
+
+	ctx := audit.WithActor(r.Context(), audit.IntegrationActor(integration.ID, integration.Name))
+	run, err := c.workflowService.StartWorkflow(ctx, workflow, params, nil)
+	if err != nil {
+		logger.WithError(err).Error("Failed to start workflow")
+		return nil
+	}
+
+	return &run
 }
 
 func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]any) {

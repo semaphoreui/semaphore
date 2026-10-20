@@ -33,9 +33,12 @@ only when the task touches that topic. Keep this file under 150 lines.
 - Anything the Vue build emits to `api/public` is `go:embed`-ed into the binary and served by
   `serveFile()`; ship static content that way, not through a new Go handler. Use relative paths
   (`publicPath: './'`) — `serveFile()` rewrites `<base href>` from `util.WebHostURL`.
-- `go.mod` has `replace .../pro => ./pro`; `go.work` and `pro_impl/` are gitignored but present
-  locally. Any Dockerfile layer running `go mod download` must also COPY `pro/go.mod` + `pro/go.sum`;
-  build images from a shallow `git clone file://<repo>` so they never see `go.work`.
+- `go.mod` has `replace .../pro => ./pro`; `go.work` is gitignored. Since 2026-10-18 `pro_impl/` is a
+  git submodule (`semaphorepro-module`, `update = none`, so `git submodule update` leaves it empty;
+  branch `feat/wf_integrations_2`) — a worktree's `go.work` may still point at another checkout's
+  `pro_impl`; check both are on the same commit before trusting a build. Any Dockerfile layer
+  running `go mod download` must also COPY `pro/go.mod` + `pro/go.sum`; build images from a
+  shallow `git clone file://<repo>` so they never see `go.work`.
 - `go mod why` in workspace mode blames `pro/services/tasks/docker`; use `GOWORK=off` to see the
   real dependency chain. A version-specific `replace` (not a wildcard) is used to pin grpc, because
   a wildcard downgrades the Pro workspace.
@@ -53,9 +56,30 @@ only when the task touches that topic. Keep this file under 150 lines.
   re-run `workspace_use` on the first "not bound" error.
 - Workbench MCP: `task_update` refuses to change context/constraints/criteria of a human-created
   task (only type, priority, group/parent change) — propose a brief via `note_add(type="decision")`.
-- Workbench MCP: body limits refuse instead of trimming — task body 8192 chars, note body 2048;
+- Workbench MCP: body limits refuse instead of trimming — task plan accepts ≥5 300 chars, a task note ≥9 000 (limit 65 536 per the tool, seen 2026-10-15);
   stages exist only on `extended` tasks and have their own bodies, so move detail there.
 - Subagents on the Fable model hit 403 twice during the docs audit and had to be rerun on Opus.
+- `GOWORK=off go test ./api/` hangs locally in `TestGlobalRoutes_TableCoversTheRouter` (probe of
+  `GET /api/info`, spins in `GetSystemInfo`; same on a clean HEAD, 2026-10-19) — run the package
+  with `-skip TestGlobalRoutes_TableCoversTheRouter`; the rest passes in ~20 s.
+- A Pro plan gate in community handlers: `api/projects/pro_features.go proFeatureGate` (plan via
+  `features.CurrentPlan`, which the OSS stub `pro/pkg/features` also has) — tests inject
+  `getFeatures` so they hold in both builds; a plan 403 records no audit deny event.
+- `ItemListPageBase` calls `allowActions()` from `data()`, before computed properties exist — an
+  override must read props (`this.user`, `this.isAdmin`) directly, or the actions column silently
+  disappears (hit in `Users.vue`/`Roles.vue`, 2026-10-17).
+- Semaphore web: `/api/user` carries `global_permissions` (mask) — gate admin menus and pages with
+  `hasGlobalPermission(user, GLOBAL_PERMISSIONS.x)` from `web/src/lib/role-permissions.js`, not `user.admin`.
+- A Pro feature with its own tables follows `feat/group-role-mappings`: community keeps the migration,
+  the `db.XStore` interface, a stub in `pro/db/sql` + `pro/db/factory`, a stub controller in `pro/api`
+  and the `api.Route` parameter wired in `cli/cmd/root.go`; `pro_impl` holds the real store
+  (`db/sql`, wrapping `*coresql.SqlDb`), `db/factory` and the controller. Pro endpoints stay out of
+  `api-docs.yml`/Dredd. Build community with `GOWORK=off`, Pro with the gitignored `go.work`.
+- An `api/` test that builds the real `api.Route` must pass under `go.work` too: the Pro controllers
+  dereference nil stores and the subscription service — pass fakes (`noLicense{}`, `fakeRoleMappingStore`
+  in `api/global_routes_test.go`) and expect a plan 403 without an audit deny event on roles/audit routes.
+- This worktree has its own `pro_impl/` clone (not a git worktree of the main one): branch it, test
+  it with `cd pro_impl && go test ./...`, and remember its commits live in that clone.
 - `docs.cyberark.com` returns 404 to WebFetch/curl for every page; use the Ansible collection
   `cyberark/ansible-security-automation-collection` and the Go client `infamousjoeg/cybr-cli`
   as the PVWA API reference.

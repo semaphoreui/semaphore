@@ -31,6 +31,26 @@
   starts it, seeds workflows 5 "Exec happy" / 6 "Exec branches" (bash scripts from the local repo
   `/tmp/semaphore-stand/wf-repo`) and follows a run to its end. The older workflows 1–4 reference
   the demo repo, whose playbooks do not exist, so their tasks always end in `error`.
+- Config `config-int.json` + DB `database-int.sqlite` (2026-10-18) is the stand of `feat/wf_integrations`:
+  project 1 "Integrations QA", seeded with `PID=1 seed.sh` (workflows 1 "Exec happy" / 2 "Exec
+  branches"), integrations 1 (template) and 2 (workflow, alias + extractor `tag` → `image_tag`),
+  `use_remote_runner: false` so tasks run on the server. Started by hand (`stand.sh` is bound to
+  `config-wf.json`): `migrate`, `server --config` with `nohup`, pid in `server-int.pid`. Screenshot
+  script `shoot-integrations.cjs`, shots in `shots-int/`.
+- ⚠️ `database-wf.sqlite` was migrated by `feat/wf_survey_vars` (2.20.13, column `survey_vars`): a
+  build without that branch answers `GET /workflows` with 400 (`gorp: no fields [survey_vars]`).
+  Use a separate DB per schema-diverging branch. `wf-repo` was found empty on 2026-10-18 and
+  recreated (`ok.sh`, `fail.sh`, `slow.sh` on `main`).
+
+- Global-roles stand: `config-gr.json` + `database-gr.sqlite`, port `:3101`, binary `semaphore-gr`
+  (built from this worktree), users `admin`/`admin123`, `manager`/`manager123` (holds the global
+  role `user_manager`), `plain`/`plain1234`; roles were inserted with `sqlite3` because the community
+  roles API is a stub. Screenshots in `shots-global-roles/`.
+- macOS has no `timeout`; wait for a server with a `for` loop around `curl -sf …/api/ping` and
+  `python3 -c 'import time; time.sleep(0.5)'`.
+- Admin pages (`/users`, `/roles`, `/runners`…) render without the navigation drawer; the
+  bottom-left account menu (`.v-navigation-drawer .v-list-item:has(.mdi-account)`) exists only on
+  project pages, and a user without projects has no drawer at all.
 
 ## Playwright recipe
 

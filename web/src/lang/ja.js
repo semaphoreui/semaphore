@@ -354,4 +354,8 @@ export default {
   projectRoles: 'プロジェクトロール',
   globalRoles: 'グローバルロール',
   builtInRoles: '組み込みロール',
+  noProjectsTitle: 'プロジェクトはまだありません',
+  noProjectsText: 'どのプロジェクトにも参加していません。Semaphore の管理者に追加を依頼してください。',
+  signedInAs: '{username} ({email}) としてサインイン中',
+  signedInAsNoEmail: '{username} としてサインイン中',
 };

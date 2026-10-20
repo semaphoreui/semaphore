@@ -21,6 +21,14 @@ func (e Template) GetID() int {
 	return e.ID
 }
 
+func (e WorkflowTemplate) GetID() int {
+	return e.ID
+}
+
+func (e WorkflowTemplate) GetName() string {
+	return e.Name
+}
+
 func (e Template) GetName() string {
 	return e.Name
 }

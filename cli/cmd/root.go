@@ -191,6 +191,7 @@ func runService() {
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
 	workflowStore := proFactory.NewWorkflowStore(store)
+	globalRoleStore := proFactory.NewGlobalRoleStore(store)
 	roleMappingStore := proFactory.NewRoleMappingStore(store)
 
 	projectService := server.NewProjectService(store, store)
@@ -335,6 +336,7 @@ func runService() {
 
 	route := api.Route(
 		store,
+		globalRoleStore,
 		terraformStore,
 		workflowStore,
 		roleMappingStore,

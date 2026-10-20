@@ -40,7 +40,7 @@ func newMembershipFixture(t *testing.T) membershipFixture {
 	require.NoError(t, err)
 	roles := map[db.ProjectUserRole]*db.Role{}
 	for _, key := range []db.ProjectUserRole{db.ProjectOwner, db.ProjectManager, db.ProjectTaskRunner, db.ProjectGuest} {
-		role, err := store.GetGlobalRoleBySlug(string(key))
+		role, err := store.GetSharedRoleBySlug(string(key))
 		require.NoError(t, err)
 		roles[key] = &role
 	}

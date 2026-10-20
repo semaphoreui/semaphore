@@ -601,12 +601,39 @@ type SecretSyncRepository interface {
 	SaveSecretSync(sync SecretSync) error
 }
 
+// GlobalRoleStore holds the global roles and who has which. The community edition keeps it empty: there
+// global permissions come from the admin flag alone.
+type GlobalRoleStore interface {
+	GetGlobalRoles() ([]GlobalRole, error)
+	GetGlobalRole(roleID int) (GlobalRole, error)
+	CreateGlobalRole(role GlobalRole) (GlobalRole, error)
+	// UpdateGlobalRole changes the name and the permissions. Taking CanManageGlobalRoles away from a role
+	// is refused when its holders are the only administrators left.
+	UpdateGlobalRole(role GlobalRole) error
+	// DeleteGlobalRole removes a role nobody holds; a held role is refused with ErrGlobalRoleAssigned.
+	DeleteGlobalRole(roleID int) error
+	// DeleteGlobalRoleWithAssignments removes the role together with its assignments and returns them.
+	// The role is kept when its holders are the only administrators left.
+	DeleteGlobalRoleWithAssignments(roleID int) ([]GlobalRoleAssignment, error)
+	// GetGlobalRoleHolders lists the assignments of one role.
+	GetGlobalRoleHolders(roleID int) ([]GlobalRoleAssignment, error)
+
+	GetGlobalRoleAssignments(userID int) ([]GlobalRoleAssignment, error)
+	GetGlobalRoleAssignment(userID int, assignmentID int) (GlobalRoleAssignment, error)
+	CreateGlobalRoleAssignment(userID int, roleID int) (GlobalRoleAssignment, error)
+	DeleteGlobalRoleAssignment(userID int, assignmentID int) error
+	// GetEffectiveGlobalPermissions is everything for an admin, otherwise the union of the assigned global roles.
+	GetEffectiveGlobalPermissions(userID int) (GlobalPermission, error)
+}
+
+// RoleRepository holds the project roles. A shared role has no project and can be given in every project;
+// the built-in roles are shared.
 type RoleRepository interface {
-	GetGlobalRoleBySlug(slug string) (Role, error)
-	GetProjectOrGlobalRoleBySlug(projectID int, slug string) (Role, error)
+	GetSharedRoleBySlug(slug string) (Role, error)
+	GetProjectOrSharedRoleBySlug(projectID int, slug string) (Role, error)
 	GetProjectRole(projectID int, slug string) (Role, error)
 	GetProjectRoles(projectID int) ([]Role, error)
-	GetGlobalRoles() ([]Role, error)
+	GetSharedRoles() ([]Role, error)
 	UpdateRole(role Role) error
 	CreateRole(role Role) (Role, error)
 	DeleteRole(roleID int) error

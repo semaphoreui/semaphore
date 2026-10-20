@@ -101,9 +101,9 @@ func slugsOf(roles []db.Role) []string {
 func TestMembershipRoles(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	p, u := createMembershipTestProjectAndUser(t, store)
-	owner, err := store.GetGlobalRoleBySlug("owner")
+	owner, err := store.GetSharedRoleBySlug("owner")
 	require.NoError(t, err)
-	runner, err := store.GetGlobalRoleBySlug("task_runner")
+	runner, err := store.GetSharedRoleBySlug("task_runner")
 	require.NoError(t, err)
 
 	err = store.CreateProjectUser(p.ID, u.ID, []int{runner.ID})
@@ -140,7 +140,7 @@ func TestMembershipRejectsForeignProjectRole(t *testing.T) {
 func TestMembershipNeedsARole(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	p, u := createMembershipTestProjectAndUser(t, store)
-	runner, err := store.GetGlobalRoleBySlug("task_runner")
+	runner, err := store.GetSharedRoleBySlug("task_runner")
 	require.NoError(t, err)
 
 	assert.Error(t, store.CreateProjectUser(p.ID, u.ID, []int{}))
@@ -185,9 +185,9 @@ func TestProjectUsersSortByRole(t *testing.T) {
 	p, u1 := createMembershipTestProjectAndUser(t, store)
 	u2, err := store.CreateUserWithoutPassword(db.User{Username: "b", Name: "B", Email: "b@e.st"})
 	require.NoError(t, err)
-	owner, err := store.GetGlobalRoleBySlug("owner")
+	owner, err := store.GetSharedRoleBySlug("owner")
 	require.NoError(t, err)
-	guest, err := store.GetGlobalRoleBySlug("guest")
+	guest, err := store.GetSharedRoleBySlug("guest")
 	require.NoError(t, err)
 	err = store.CreateProjectUser(p.ID, u1.ID, []int{owner.ID})
 	require.NoError(t, err)
@@ -200,9 +200,9 @@ func TestProjectUsersSortByRole(t *testing.T) {
 
 func TestCountProjectOwners(t *testing.T) {
 	store, projectID, _ := newTemplatePermissionTest(t)
-	owner, err := store.GetGlobalRoleBySlug("owner")
+	owner, err := store.GetSharedRoleBySlug("owner")
 	require.NoError(t, err)
-	guest, err := store.GetGlobalRoleBySlug("guest")
+	guest, err := store.GetSharedRoleBySlug("guest")
 	require.NoError(t, err)
 	createTemplatePermissionTestUser(t, store, projectID, "a", owner.ID)
 	b := createTemplatePermissionTestUser(t, store, projectID, "b", guest.ID)
@@ -234,7 +234,7 @@ func addMappedRole(t *testing.T, store *SqlDb, projectID int, userID int, roleID
 
 func TestMappedRoles_Reads(t *testing.T) {
 	store, projectID, templateID := newTemplatePermissionTest(t)
-	guest, err := store.GetGlobalRoleBySlug("guest")
+	guest, err := store.GetSharedRoleBySlug("guest")
 	require.NoError(t, err)
 	dev, err := store.CreateRole(db.Role{Slug: "dev", Name: "Dev", Permissions: db.CanRunProjectTasks, ProjectID: &projectID})
 	require.NoError(t, err)
@@ -296,9 +296,9 @@ func TestMappedRoles_Reads(t *testing.T) {
 
 func TestMappedRoles_ManualChanges(t *testing.T) {
 	store, projectID, _ := newTemplatePermissionTest(t)
-	guest, err := store.GetGlobalRoleBySlug("guest")
+	guest, err := store.GetSharedRoleBySlug("guest")
 	require.NoError(t, err)
-	manager, err := store.GetGlobalRoleBySlug("manager")
+	manager, err := store.GetSharedRoleBySlug("manager")
 	require.NoError(t, err)
 	newMapped := func(name string) db.User {
 		user, err := store.CreateUserWithoutPassword(db.User{Username: name, Name: name, Email: name + "@example.com"})
@@ -354,7 +354,7 @@ func TestMappedRoles_ManualChanges(t *testing.T) {
 		assert.Len(t, member.MappedRoles, 1)
 	})
 	t.Run("owners count only manual roles", func(t *testing.T) {
-		owner, err := store.GetGlobalRoleBySlug("owner")
+		owner, err := store.GetSharedRoleBySlug("owner")
 		require.NoError(t, err)
 		user, err := store.CreateUserWithoutPassword(db.User{Username: "h", Name: "h", Email: "h@example.com"})
 		require.NoError(t, err)
@@ -363,4 +363,42 @@ func TestMappedRoles_ManualChanges(t *testing.T) {
 		require.NoError(t, err)
 		assert.Zero(t, count)
 	})
+}
+
+func createAdminTestUser(t *testing.T, store *SqlDb, username string, admin bool) db.User {
+	t.Helper()
+	user, err := store.CreateUserWithoutPassword(db.User{Username: username, Name: username, Email: username + "@e.st", Admin: admin})
+	require.NoError(t, err)
+	return user
+}
+
+// The last admin cannot lose the flag or the account; a second admin lifts the refusal.
+func TestLastAdministrator(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	root := createAdminTestUser(t, store, "root", true)
+	alice := createAdminTestUser(t, store, "alice", false)
+
+	assert.ErrorIs(t, store.UpdateUser(db.UserWithPwd{User: db.User{ID: root.ID, Username: "root", Name: "root", Email: "root@e.st", Admin: false}}), db.ErrLastGlobalAdministrator)
+	assert.ErrorIs(t, store.DeleteUser(root.ID), db.ErrLastGlobalAdministrator)
+	assert.ErrorIs(t, store.DeleteUser(root.ID), db.ErrInvalidOperation, "the API answers 409")
+
+	// Other users and other fields are not affected.
+	require.NoError(t, store.UpdateUser(db.UserWithPwd{User: db.User{ID: root.ID, Username: "root", Name: "Root", Email: "root@e.st", Admin: true}}))
+	user, err := store.GetUser(root.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "Root", user.Name)
+	require.NoError(t, store.DeleteUser(alice.ID))
+
+	bob := createAdminTestUser(t, store, "bob", true)
+	require.NoError(t, store.UpdateUser(db.UserWithPwd{User: db.User{ID: root.ID, Username: "root", Name: "Root", Email: "root@e.st", Admin: false}}))
+	assert.ErrorIs(t, store.DeleteUser(bob.ID), db.ErrLastGlobalAdministrator, "bob is the last admin now")
+	require.NoError(t, store.DeleteUser(root.ID))
+}
+
+// An instance without any admin (a fresh database) is not protected: there is nothing to keep.
+func TestLastAdministrator_NoAdminsYet(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	alice := createAdminTestUser(t, store, "alice", false)
+	require.NoError(t, store.UpdateUser(db.UserWithPwd{User: db.User{ID: alice.ID, Username: "alice", Name: "A", Email: "a@e.st"}}))
+	require.NoError(t, store.DeleteUser(alice.ID))
 }

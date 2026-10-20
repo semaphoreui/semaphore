@@ -147,6 +147,100 @@ definitions:
       external:
         type: boolean
 
+  GlobalPermissionDefinition:
+    type: object
+    properties:
+      id:
+        type: string
+        example: global.users.manage
+      permission:
+        type: integer
+        description: "Bit value: 1 manage users, 2 manage global roles, 4 manage system settings, 8 read the audit log"
+        example: 1
+      description:
+        type: string
+        example: Manage users
+
+  GlobalRole:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 1
+      slug:
+        type: string
+        example: auditor
+      name:
+        type: string
+        example: Auditor
+      permissions:
+        type: integer
+        description: "Mask of global permission bits: 1 manage users, 2 manage global roles, 4 manage system settings, 8 read the audit log"
+        example: 8
+
+  GlobalRoleRequest:
+    type: object
+    required:
+      - slug
+      - name
+    properties:
+      slug:
+        type: string
+        description: Unique identifier, 1 to 100 letters, digits, '_' or '-'. It cannot change after creation.
+        example: auditor
+      name:
+        type: string
+        example: Auditor
+      permissions:
+        type: integer
+        description: Mask of global permission bits
+        example: 8
+
+  GlobalRoleAssignment:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 1
+      user_id:
+        type: integer
+        minimum: 1
+      role_id:
+        type: integer
+        minimum: 1
+      role_slug:
+        type: string
+        example: auditor
+      role_name:
+        type: string
+        example: Auditor
+      global_permissions:
+        type: integer
+        description: Mask of global permission bits granted by the role
+        example: 8
+
+  EffectiveGlobalPermissions:
+    type: object
+    properties:
+      permissions:
+        type: integer
+        description: Mask of the global permissions the user holds
+        example: 8
+      decisions:
+        type: array
+        items:
+          type: object
+          properties:
+            permission:
+              type: string
+              example: global.audit.read
+            allowed:
+              type: boolean
+            role_id:
+              type: integer
+            role_name:
+              type: string
+
   ProjectUser:
     type: object
     properties:
@@ -709,7 +803,12 @@ definitions:
         minimum: 1
       template_id:
         type: integer
-        minimum: 1
+        x-nullable: true
+        description: The task template the integration starts. Exactly one of template_id and workflow_id is set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow the integration starts instead of a template (Pro). Extracted values become the answers to the workflow's survey.
       auth_method:
         type: string
         example: none
@@ -735,6 +834,12 @@ definitions:
         type: integer
       template_id:
         type: integer
+        x-nullable: true
+        description: The task template to start. Exactly one of template_id and workflow_id must be set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow to start instead of a template (Pro). task_params do not apply to a workflow and are dropped.
       auth_method:
         type: string
         example: none
@@ -1915,6 +2020,20 @@ parameters:
     type: integer
     required: true
     x-example: 2
+  assignment_id:
+    name: assignment_id
+    description: Global role assignment ID
+    in: path
+    type: integer
+    required: true
+    x-example: 23
+  role_id:
+    name: role_id
+    description: Global role ID
+    in: path
+    type: integer
+    required: true
+    x-example: 24
   key_id:
     name: key_id
     description: key ID
@@ -2498,6 +2617,175 @@ paths:
       responses:
         204:
           description: Password updated
+
+  /users/{user_id}/global-roles:
+    parameters:
+      - $ref: "#/parameters/user_id"
+    get:
+      tags:
+        - user
+      summary: Lists the global roles assigned to the user
+      description: Requires the global permission "Can manage global roles".
+      responses:
+        200:
+          description: Global role assignments
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/GlobalRoleAssignment"
+    post:
+      tags:
+        - user
+      summary: Assigns a global role to the user
+      description: Requires the global permission "Can manage global roles". Only a global role can be assigned.
+      consumes:
+        - application/json
+      parameters:
+        - name: Assignment
+          in: body
+          required: true
+          schema:
+            type: object
+            required:
+              - role_id
+            properties:
+              role_id:
+                type: integer
+                minimum: 1
+                example: 1
+      responses:
+        201:
+          description: Global role assigned
+          schema:
+            $ref: "#/definitions/GlobalRoleAssignment"
+        400:
+          description: Unknown global role or the user already holds it
+
+  /users/{user_id}/global-roles/{assignment_id}:
+    parameters:
+      - $ref: "#/parameters/user_id"
+      - $ref: "#/parameters/assignment_id"
+    delete:
+      tags:
+        - user
+      summary: Removes a global role from the user
+      description: Refused when the user is the last one who can manage global roles.
+      responses:
+        204:
+          description: Global role removed
+        409:
+          description: The instance would be left without an administrator
+
+  /users/{user_id}/global-permissions:
+    parameters:
+      - $ref: "#/parameters/user_id"
+    get:
+      tags:
+        - user
+      summary: Effective global permissions of the user
+      description: Everything for an admin, otherwise the union of the assigned global roles, with the role that grants each permission.
+      responses:
+        200:
+          description: Effective global permissions
+          schema:
+            $ref: "#/definitions/EffectiveGlobalPermissions"
+
+  /global-roles/permissions:
+    get:
+      tags:
+        - user
+      summary: Lists the global permissions a global role can grant
+      description: Requires the global permission "Can manage global roles".
+      responses:
+        200:
+          description: Global permission catalog
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/GlobalPermissionDefinition"
+
+  /global-roles:
+    get:
+      tags:
+        - user
+      summary: Lists global roles
+      description: A global role grants instance-wide permissions to the users it is assigned to. Requires the global permission "Can manage global roles".
+      responses:
+        200:
+          description: Global roles
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/GlobalRole"
+    post:
+      tags:
+        - user
+      summary: Creates a global role
+      description: Requires the global permission "Can manage global roles".
+      consumes:
+        - application/json
+      parameters:
+        - name: Global role
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/GlobalRoleRequest"
+      responses:
+        201:
+          description: Global role created
+          schema:
+            $ref: "#/definitions/GlobalRole"
+        400:
+          description: Invalid role or the slug is taken
+
+  /global-roles/{role_id}:
+    parameters:
+      - $ref: "#/parameters/role_id"
+    get:
+      tags:
+        - user
+      summary: Gets a global role
+      responses:
+        200:
+          description: Global role
+          schema:
+            $ref: "#/definitions/GlobalRole"
+    put:
+      tags:
+        - user
+      summary: Updates a global role
+      description: Changes the name and the permissions; the slug stays. Refused when the role would stop being the only way to manage global roles.
+      consumes:
+        - application/json
+      parameters:
+        - name: Global role
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/GlobalRoleRequest"
+      responses:
+        204:
+          description: Global role updated
+        400:
+          description: Invalid role
+        409:
+          description: The instance would be left without an administrator
+    delete:
+      tags:
+        - user
+      summary: Deletes a global role
+      description: A role that users hold is refused with the number of holders; with force=true the assignments are removed too, unless the holders are the last administrators.
+      parameters:
+        - name: force
+          in: query
+          required: false
+          type: boolean
+          description: Delete the role together with its assignments
+      responses:
+        204:
+          description: Global role deleted
+        409:
+          description: The role is assigned to users, or the instance would be left without an administrator
 
   # Projects
   /projects:

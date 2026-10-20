@@ -71,7 +71,9 @@
 
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import { isValidSlug, slugFromName } from '@/lib/roles';
 
+/** The form of a project role: a name, a slug and the project permissions it grants. */
 export default {
   mixins: [ItemFormBase],
 
@@ -97,12 +99,7 @@ export default {
   watch: {
     'item.name': function onNameChange(name) {
       if (this.isNew && !this.slugTouched && this.item) {
-        this.item.slug = (name || '')
-          .toLowerCase()
-          .replace(/[^a-z0-9_-]+/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '')
-          .slice(0, 100);
+        this.item.slug = slugFromName(name);
       }
     },
 
@@ -139,12 +136,7 @@ export default {
   methods: {
     validateSlug(value) {
       if (!value) return true; // Required validation is handled separately
-
-      if (!/^[A-Za-z0-9_-]{1,100}$/.test(value)) {
-        return this.$t('invalidSlugFormat');
-      }
-
-      return true;
+      return isValidSlug(value) || this.$t('invalidSlugFormat');
     },
 
     getItemsUrl() {

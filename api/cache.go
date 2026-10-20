@@ -4,21 +4,14 @@ import (
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
-	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
 )
 
+// clearCache empties the server's temporary directory. The route is under systemAPI, so
+// globalPermissionMiddleware(db.CanManageGlobalSystem) has already let the caller through: an admin or a
+// holder of a global role with that permission. The handler must not re-check the admin flag.
 func clearCache(w http.ResponseWriter, r *http.Request) {
-	currentUser := helpers.GetFromContext(r, "user").(*db.User)
-
-	if !currentUser.Admin {
-		helpers.WriteJSON(w, http.StatusForbidden, map[string]string{
-			"error": "User must be admin",
-		})
-		return
-	}
-
 	err := util.Config.ClearTmpDir()
 	if err != nil {
 		log.Error(err)

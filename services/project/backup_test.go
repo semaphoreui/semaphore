@@ -712,6 +712,120 @@ func TestRestore_DropsUnknownPermissionBits(t *testing.T) {
 	assert.Equal(t, db.CanManageProjectResources, perms[0].Permissions)
 }
 
+// A template integration round-trips with its target by name; an
+// integration whose workflow the store cannot return (the open-source
+// workflow store persists nothing) is left out of the backup instead of being
+// written as an empty entry.
+func TestBackup_IntegrationTargets(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{Name: "integrations"})
+	require.NoError(t, err)
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID, SSHKeyID: key.ID, Name: "Repo", GitURL: "git@example.com:test/test", GitBranch: "master",
+	})
+	require.NoError(t, err)
+	tpl, err := store.CreateTemplate(db.Template{Name: "Deploy", Playbook: "deploy.yml", ProjectID: proj.ID, RepositoryID: repo.ID})
+	require.NoError(t, err)
+
+	_, err = store.CreateIntegration(db.Integration{Name: "template hook", ProjectID: proj.ID, TemplateID: &tpl.ID})
+	require.NoError(t, err)
+
+	_, err = store.Sql().Exec(store.PrepareQuery(
+		"insert into project__workflow_template (project_id, name) values (?, ?)"), proj.ID, "WF")
+	require.NoError(t, err)
+	workflowID, err := store.Sql().SelectInt(store.PrepareQuery(
+		"select id from project__workflow_template where project_id = ? and name = ?"), proj.ID, "WF")
+	require.NoError(t, err)
+	wfID := int(workflowID)
+	_, err = store.CreateIntegration(db.Integration{Name: "workflow hook", ProjectID: proj.ID, WorkflowID: &wfID})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+	// With the open-source workflow store the backup carries no workflows and
+	// the workflow hook is left out; with the Pro store (workspace build) it is
+	// exported by the workflow's name. Either way it is never an empty entry.
+	if len(backup.Workflows) == 0 {
+		require.Len(t, backup.Integration, 1, "an integration without its workflow in the backup is skipped")
+	} else {
+		require.Len(t, backup.Integration, 2)
+		require.NotNil(t, backup.Integration[1].Workflow)
+		assert.Equal(t, "WF", *backup.Integration[1].Workflow)
+		assert.Nil(t, backup.Integration[1].Template)
+	}
+	require.NotNil(t, backup.Integration[0].Template)
+	assert.Equal(t, "Deploy", *backup.Integration[0].Template)
+	assert.Nil(t, backup.Integration[0].Workflow)
+
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+	assert.Contains(t, string(str), `"template": "Deploy"`)
+
+	restoredBackup := &BackupFormat{}
+	require.NoError(t, restoredBackup.Unmarshal(str))
+	restoredBackup.Meta.Name = "integrations restored"
+	// The hand-inserted workflow has no graph and cannot be restored by the
+	// Pro store; the workflow round-trip lives in pro_impl's backup test.
+	restoredBackup.Workflows = nil
+	restoredBackup.Integration = restoredBackup.Integration[:1]
+
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "u", Name: "U", Email: "u@example.com", Admin: true}})
+	require.NoError(t, err)
+	restoredProj, err := restoredBackup.Restore(user, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	restoredTemplates, err := store.GetTemplates(restoredProj.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, restoredTemplates, 1)
+	restored, err := store.GetIntegrations(restoredProj.ID, db.RetrieveQueryParams{}, false)
+	require.NoError(t, err)
+	require.Len(t, restored, 1)
+	assert.Equal(t, "template hook", restored[0].Name)
+	require.NotNil(t, restored[0].TemplateID)
+	assert.Equal(t, restoredTemplates[0].ID, *restored[0].TemplateID)
+	assert.Nil(t, restored[0].WorkflowID)
+}
+
+// Verify refuses an integration whose target is missing, doubled or unknown
+// before anything is written.
+func TestRestore_IntegrationVerify(t *testing.T) {
+	templateName := "Deploy"
+	workflowName := "WF"
+	base := func() *BackupFormat {
+		return &BackupFormat{
+			Templates: []BackupTemplate{{Template: db.Template{Name: templateName}}},
+			Workflows: []BackupWorkflow{{WorkflowTemplate: db.WorkflowTemplate{Name: workflowName}}},
+		}
+	}
+
+	tests := []struct {
+		name        string
+		integration BackupIntegration
+		wantErr     string
+	}{
+		{"template target", BackupIntegration{Template: &templateName}, ""},
+		{"workflow target", BackupIntegration{Workflow: &workflowName}, ""},
+		{"both", BackupIntegration{Template: &templateName, Workflow: &workflowName}, "either a template or a workflow"},
+		{"none", BackupIntegration{}, "neither a template nor a workflow"},
+		{"unknown template", BackupIntegration{Template: new("missing")}, "template does not exist"},
+		{"unknown workflow", BackupIntegration{Workflow: new("missing")}, "workflow does not exist"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.integration.Verify(base())
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
 func createBackupFixture(t *testing.T, store db.Store) (db.Project, db.Template) {
 	t.Helper()
 	proj, err := store.CreateProject(db.Project{Name: "Grants"})
@@ -732,7 +846,7 @@ func TestBackupKeepsBuiltinAndGlobalGrants(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
 	workflows := proFactory.NewWorkflowStore(store)
 	p, tpl := createBackupFixture(t, store)
-	runner, err := store.GetGlobalRoleBySlug("task_runner")
+	runner, err := store.GetSharedRoleBySlug("task_runner")
 	require.NoError(t, err)
 	global, err := store.CreateRole(db.Role{Slug: "deployer", Name: "Deployer Name"})
 	require.NoError(t, err)

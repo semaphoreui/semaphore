@@ -38,6 +38,11 @@ type AnsibleTaskParams struct {
 	SkipGalaxyInstall bool     `json:"skip_galaxy_install"`
 }
 
+// TaskParamGitBranch is the reserved task parameter an integration may fill
+// to set the git branch of the task it starts. It is moved onto Task.GitBranch
+// and never reaches the app-specific params.
+const TaskParamGitBranch = "git_branch"
+
 // Task is a model of a task which will be executed by the runner
 type Task struct {
 	ID         int `db:"id" json:"id"`

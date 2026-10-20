@@ -210,6 +210,11 @@ const routes = [
     component: Users,
   },
   {
+    // The Global roles tab of the Users page, with its own address.
+    path: '/users/roles',
+    component: Users,
+  },
+  {
     path: '/roles',
     component: Roles,
   },
