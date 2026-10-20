@@ -887,7 +887,7 @@ func TestApplyGitBranchParam(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			task := db.Task{Params: tt.params, GitBranch: tt.initialBranch}
 
-			applyGitBranchParam(&task)
+			applyGitBranchParam(&task, true)
 
 			assert.Equal(t, tt.wantBranch, task.GitBranch)
 			assert.Equal(t, tt.wantParamsLeft, task.Params)
@@ -898,7 +898,7 @@ func TestApplyGitBranchParam(t *testing.T) {
 func TestApplyGitBranchParam_NilParams(t *testing.T) {
 	task := db.Task{}
 
-	applyGitBranchParam(&task)
+	applyGitBranchParam(&task, true)
 
 	assert.Nil(t, task.GitBranch)
 }
