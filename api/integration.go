@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -370,12 +371,7 @@ func GetTaskDefinition(
 		}
 	}
 
-	for k, v := range extractedEnvResults {
-		//if _, exists := env[k]; !exists {
-		//	env[k] = v
-		//}
-		env[k] = v
-	}
+	maps.Copy(env, extractedEnvResults)
 
 	envStr, err := json.Marshal(env)
 	if err != nil {
@@ -389,11 +385,40 @@ func GetTaskDefinition(
 	}
 
 	extractedTaskResults := Extract(taskValues, h, payload)
-	for k, v := range extractedTaskResults {
-		taskDefinition.Params[k] = v
-	}
+	maps.Copy(taskDefinition.Params, extractedTaskResults)
 
 	return
+}
+
+// applyGitBranchParam moves the reserved `git_branch` task parameter onto
+// task.GitBranch, so a webhook sets the branch the same way the task dialog
+// does. The key is removed from Params so it never reaches the app-specific
+// params. Callers must check the template's AllowOverrideBranchInTask first.
+// The value is validated by ValidateNewTask like any task branch.
+func applyGitBranchParam(task *db.Task, allowOverrideGitBranch bool) {
+	raw, ok := task.Params[db.TaskParamGitBranch]
+	if !ok {
+		return
+	}
+	delete(task.Params, db.TaskParamGitBranch)
+
+	if !allowOverrideGitBranch {
+		log.WithFields(log.Fields{
+			"context":       "integration",
+			"project_id":    task.ProjectID,
+			"template_name": task.TemplateName,
+			"task_id":       task.ID,
+		}).Debug("Skipping Git branch from params because doesn't allow override git branch")
+		return
+	}
+
+	branch, _ := raw.(string)
+	branch = strings.TrimPrefix(strings.TrimSpace(branch), "refs/heads/")
+	if branch == "" {
+		return
+	}
+
+	task.GitBranch = &branch
 }
 
 // GetWorkflowRunParams builds the start parameters of a workflow run from a
@@ -459,6 +484,8 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 		log.Error(err)
 		return nil
 	}
+
+	applyGitBranchParam(&taskDefinition, tpl.AllowOverrideBranchInTask)
 
 	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
