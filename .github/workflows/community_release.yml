@@ -96,7 +96,7 @@ jobs:
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
-            latest=true
+            latest=false
 
       - name: Server build
         uses: docker/build-push-action@v5
@@ -152,7 +152,7 @@ jobs:
           tags: |
             type=raw,value=${{ github.ref_name }}
           flavor: |
-            latest=true
+            latest=false
 
       - name: Runner build
         uses: docker/build-push-action@v5
