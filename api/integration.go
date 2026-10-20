@@ -395,12 +395,22 @@ func GetTaskDefinition(
 // does. The key is removed from Params so it never reaches the app-specific
 // params. Callers must check the template's AllowOverrideBranchInTask first.
 // The value is validated by ValidateNewTask like any task branch.
-func applyGitBranchParam(task *db.Task) {
+func applyGitBranchParam(task *db.Task, allowOverrideGitBranch bool) {
 	raw, ok := task.Params[db.TaskParamGitBranch]
 	if !ok {
 		return
 	}
 	delete(task.Params, db.TaskParamGitBranch)
+
+	if !allowOverrideGitBranch {
+		log.WithFields(log.Fields{
+			"context":       "integration",
+			"project_id":    task.ProjectID,
+			"template_name": task.TemplateName,
+			"task_id":       task.ID,
+		}).Debug("Skipping Git branch from params because doesn't allow override git branch")
+		return
+	}
 
 	branch, _ := raw.(string)
 	branch = strings.TrimPrefix(strings.TrimSpace(branch), "refs/heads/")
@@ -475,9 +485,7 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 		return nil
 	}
 
-	if tpl.AllowOverrideBranchInTask {
-		applyGitBranchParam(&taskDefinition)
-	}
+	applyGitBranchParam(&taskDefinition, tpl.AllowOverrideBranchInTask)
 
 	pool := helpers.GetFromContext(r, "task_pool").(*task2.TaskPool)
 
