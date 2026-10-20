@@ -354,4 +354,8 @@ export default {
   projectRoles: '프로젝트 역할',
   globalRoles: '전역 역할',
   builtInRoles: '기본 제공 역할',
+  noProjectsTitle: '아직 프로젝트가 없습니다',
+  noProjectsText: '어떤 프로젝트에도 속해 있지 않습니다. Semaphore 관리자에게 프로젝트에 추가해 달라고 요청하세요.',
+  signedInAs: '{username}({email})(으)로 로그인됨',
+  signedInAsNoEmail: '{username}(으)로 로그인됨',
 };

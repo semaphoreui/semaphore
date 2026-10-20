@@ -119,7 +119,20 @@ func TestAddProject_DeniedIsRecorded(t *testing.T) {
 
 	NewProjectsController(storeKeyService{&mockAccessKeyService{}, f.store}).AddProject(w, r)
 
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Equal(t, audit.DenyMetadata{Method: http.MethodPost, Permission: "admin"}, only(t, rec, audit.AuthAuthorizationDeny).Event.Metadata)
+}
+
+func TestRestore_DeniedIsRecorded(t *testing.T) {
+	f := newResourceFixture(t)
+	f.user.Admin = false
+	util.Config.NonAdminCanCreateProject = false
+	r, rec := f.request(http.MethodPost, `{}`, nil, nil)
+	w := httptest.NewRecorder()
+
+	NewBackupController(proFactory.NewWorkflowStore(f.store), noLicense{}).Restore(w, r)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Equal(t, audit.DenyMetadata{Method: http.MethodPost, Permission: "admin"}, only(t, rec, audit.AuthAuthorizationDeny).Event.Metadata)
 }
 

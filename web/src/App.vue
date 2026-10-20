@@ -224,7 +224,7 @@
       </v-menu>
 
       <v-list class="pt-0" v-if="!project">
-        <v-list-item key="new_project" :to="`/project/new`">
+        <v-list-item v-if="user.can_create_project" key="new_project" :to="`/project/new`">
           <v-list-item-icon>
             <v-icon>mdi-plus</v-icon>
           </v-list-item-icon>
@@ -234,7 +234,7 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="restore_project" :to="`/project/restore`">
+        <v-list-item v-if="user.can_create_project" key="restore_project" :to="`/project/restore`">
           <v-list-item-icon>
             <v-icon>mdi-restore</v-icon>
           </v-list-item-icon>
@@ -1121,7 +1121,7 @@ export default {
         && this.$route.path !== '/project/new'
         && this.$route.path !== '/project/premium'
       ) {
-        if (this.$route.query.new_project === 'premium') {
+        if (this.$route.query.new_project === 'premium' && this.user.can_create_project) {
           await this.$router.push({ path: '/project/premium' });
         } else {
           await this.$router.push({ path: '/project/new' });
@@ -1484,6 +1484,9 @@ export default {
     },
 
     showNewProjectDialogue(projectType = '') {
+      if (!this.user.can_create_project) {
+        return;
+      }
       this.newProjectDialog = true;
       this.newProjectType = projectType;
     },

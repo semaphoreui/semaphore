@@ -354,4 +354,8 @@ export default {
   projectRoles: 'Role projektu',
   globalRoles: 'Role globalne',
   builtInRoles: 'Role wbudowane',
+  noProjectsTitle: 'Brak projektów',
+  noProjectsText: 'Nie należysz do żadnego projektu. Poproś administratora Semaphore o dodanie Cię do projektu.',
+  signedInAs: 'Zalogowano jako {username} ({email})',
+  signedInAsNoEmail: 'Zalogowano jako {username}',
 };
