@@ -918,8 +918,6 @@ func TestGetTaskDefinitionGitBranchParam(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	if assert.NotNil(t, task.GitBranch) {
-		assert.Equal(t, "release/1.0", *task.GitBranch)
-	}
-	assert.NotContains(t, task.Params, db.TaskParamGitBranch)
+	assert.Nil(t, task.GitBranch)
+	assert.Equal(t, "release/1.0", task.Params[db.TaskParamGitBranch])
 }
