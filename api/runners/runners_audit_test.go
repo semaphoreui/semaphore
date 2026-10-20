@@ -93,7 +93,17 @@ func TestRunnerMiddleware_PutsTheRunnerIntoTheAuditContext(t *testing.T) {
 
 func TestUpdateRunner_InvalidStatusIsRecorded(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
-	pool := tasks.CreateTaskPool(store, tasks.NewMemoryTaskStateStore(), nil, nil, nil, nil, nil, nil, nil)
+	pool := tasks.CreateTaskPool(
+		store,
+		tasks.NewMemoryTaskStateStore(),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil)
 	ctrl := NewRunnerController(nil, &pool, nil, nil)
 	runnerID := 1
 	tr := tasks.NewTaskRunner(db.Task{ID: 7, ProjectID: 1, RunnerID: &runnerID, Status: task_logger.TaskRunningStatus}, &pool, "", nil)

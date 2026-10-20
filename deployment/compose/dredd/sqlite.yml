@@ -1,9 +1,19 @@
-version: "3.4"
+# The hooks open the SQLite file directly, so server and dredd share one
+# volume. Both containers run as root for that reason.
+volumes:
+  data:
 
 services:
+  server:
+    environment:
+      SEMAPHORE_DB_DIALECT: sqlite
+      SEMAPHORE_DB_HOST: /data/database.sqlite
+    volumes:
+      - data:/data
+
   dredd:
     environment:
       SEMAPHORE_DB_DIALECT: sqlite
-      SEMAPHORE_DB_CONFIG: '{"host": "/data/database.sqlite3"}'
-    depends_on:
-      - server
+      SEMAPHORE_DB_CONFIG: '{"host": "/data/database.sqlite"}'
+    volumes:
+      - data:/data

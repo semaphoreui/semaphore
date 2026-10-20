@@ -73,6 +73,11 @@ func (e *TemplateExporter) restoreValue(val EntityObject[db.Template], store db.
 		return err
 	}
 
+	old.AlertIDs, err = mapAlertIDs(exporter, val.scope, old.AlertIDs)
+	if err != nil {
+		return err
+	}
+
 	old.BuildTemplateID, err = exporter.getNewKeyIntRef(Template, val.scope, old.BuildTemplateID, e)
 	if err != nil {
 		return err
@@ -95,5 +100,5 @@ func (e *TemplateExporter) exportDependsOn() []string {
 }
 
 func (e *TemplateExporter) importDependsOn() []string {
-	return []string{Project, Inventory, Environment, Repository, View}
+	return []string{Project, Inventory, Environment, Repository, View, Alert}
 }

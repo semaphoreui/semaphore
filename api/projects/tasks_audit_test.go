@@ -41,7 +41,18 @@ func newTaskControlFixture(t *testing.T) taskControlFixture {
 	require.NoError(t, err)
 	encryption := server.NewAccessKeyEncryptionService(store, store, store, store)
 	inventories := server.NewInventoryService(store, store, store, encryption)
-	pool := tasks.CreateTaskPool(store, tasks.NewMemoryTaskStateStore(), nil, inventories, encryption, nil, nopLogWriter{}, nil, nil)
+	pool := tasks.CreateTaskPool(
+		store,
+		tasks.NewMemoryTaskStateStore(),
+		nil,
+		inventories,
+		encryption,
+		nil,
+		nopLogWriter{},
+		nil,
+		nil,
+		nil,
+	)
 	return taskControlFixture{store: store, pool: &pool, project: project, template: template}
 }
 

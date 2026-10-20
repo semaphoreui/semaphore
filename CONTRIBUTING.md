@@ -74,6 +74,26 @@ As Dredd and the application database config may differ it expects it's own conf
 
 ### How to run Dredd tests locally
 
+The easiest way is to run everything in Docker. It needs nothing but Docker:
+a database, a Semaphore server built from your working tree and Dredd with the
+Go hooks are started in containers, the tests run, and the containers and
+volumes are removed afterwards. The task exits with Dredd's exit code.
+
+```bash
+task dredd:docker            # PostgreSQL
+task dredd:docker DB=mysql
+task dredd:docker DB=mariadb
+task dredd:docker DB=sqlite
+```
+
+The first run is slow because it builds the web UI and the server; later runs
+only rebuild what changed. See `deployment/compose/README.md` for the files
+behind the task.
+
+### How to run Dredd tests against a locally started server
+
+Use this when you want to debug the server process itself while the tests run.
+
 1) Build Dredd hooks:
 
     ```bash
@@ -84,7 +104,7 @@ As Dredd and the application database config may differ it expects it's own conf
     ```bash
     npm install -g dredd
     ```
-3) Create `./dredd/config.json` for Dredd. It must contain database connection same as used in Semaphore server.
+3) Create `./.dredd/config.json` for Dredd. It must contain database connection same as used in Semaphore server.
    You can use any supported database dialect for tests. For example SQLite.
     ```json
    {
@@ -96,7 +116,7 @@ As Dredd and the application database config may differ it expects it's own conf
     ```
 4) Start Semaphore server (add `--config` option if required):
 
-5) ```bash
+    ```bash
     ./bin/semaphore server
     ```
 5) Start Dredd tests

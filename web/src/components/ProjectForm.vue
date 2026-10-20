@@ -28,22 +28,6 @@
       dense
     ></v-text-field>
 
-    <v-text-field
-      v-model="item.alert_chat"
-      :label="$t('telegramChatIdOptional')"
-      :disabled="formSaving"
-      data-testid="newProject-tg"
-      outlined
-      dense
-    ></v-text-field>
-
-    <v-checkbox
-      class="mt-0"
-      v-model="item.alert"
-      :label="$t('allowAlertsForThisProject')"
-      data-testid="newProject-alert"
-    ></v-checkbox>
-
     <v-switch
       data-testid="newProject-demo"
       v-if="itemId === 'new' && !hideDemoSwitch"

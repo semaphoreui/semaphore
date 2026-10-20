@@ -104,6 +104,8 @@ func eventObjectTypeToEntityName(t db.EventObjectType) (string, bool) {
 		return User, true
 	case db.EventView:
 		return View, true
+	case db.EventAlert:
+		return Alert, true
 	case db.EventIntegration:
 		return Integration, true
 	case db.EventIntegrationExtractValue:
@@ -148,7 +150,7 @@ func (e *EventExporter) exportDependsOn() []string {
 }
 
 func (e *EventExporter) importDependsOn() []string {
-	return []string{Project, User, Integration, AccessKey, Schedule, Environment, Template, Task, Inventory, Repository, View}
+	return []string{Project, User, Integration, AccessKey, Schedule, Environment, Template, Task, Inventory, Repository, View, Alert}
 }
 
 func (e *EventExporter) getName() string {

@@ -23,6 +23,8 @@ import (
 	proHA "github.com/semaphoreui/semaphore/pro/services/ha"
 	proServer "github.com/semaphoreui/semaphore/pro/services/server"
 	proTasks "github.com/semaphoreui/semaphore/pro/services/tasks"
+
+	"github.com/semaphoreui/semaphore/services/alerting"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/schedules"
 	"github.com/semaphoreui/semaphore/services/server"
@@ -209,6 +211,7 @@ func runService() {
 	runnerService := server.NewRunnerService(store)
 	subscriptionService := proServer.NewSubscriptionService(store, store, store, terraformStore)
 	logWriteService := proServer.NewLogWriteService()
+	alertService := alerting.NewService(store, alerting.NewRegistry(), encryptionService)
 	roleSyncService := proServer.NewRoleSyncService(roleMappingStore)
 
 	taskPool := tasks.CreateTaskPool(
@@ -221,6 +224,7 @@ func runService() {
 		logWriteService,
 		jwtSigner,
 		appMetrics,
+		alertService,
 	)
 	taskPool.SetAuditRecorder(auditService.Recorder())
 	taskPool.SetWorkflowRepo(workflowStore)
@@ -350,6 +354,7 @@ func runService() {
 		runnerService,
 		workflowService,
 		appMetrics,
+		alertService,
 	)
 
 	route.Use(func(next http.Handler) http.Handler {

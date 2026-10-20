@@ -1,6 +1,8 @@
 package db
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	ScheduleTypeCron  = ""
@@ -23,6 +25,21 @@ type Schedule struct {
 
 	TaskParamsID *int        `db:"task_params_id" json:"-" backup:"-"`
 	TaskParams   *TaskParams `db:"-" json:"task_params,omitempty" backup:"task_params"`
+
+	// AlertMode is inherit (whatever the template resolves to) or ids
+	// (only AlertIDs, which may be empty to make the schedule silent).
+	AlertMode string `db:"alert_mode" json:"alert_mode"`
+	// AlertIDs are used when AlertMode is ids. nil on update means the
+	// client omitted the field and the existing bindings are kept.
+	AlertIDs []int `db:"-" json:"alert_ids" backup:"-"`
+}
+
+// NormalizeAlerts fills the default mode and validates it.
+func (s *Schedule) NormalizeAlerts() error {
+	if s.AlertMode == "" {
+		s.AlertMode = AlertModeInherit
+	}
+	return ValidateAlertMode(s.AlertMode, AlertModeInherit, AlertModeIDs)
 }
 
 type ScheduleWithTpl struct {

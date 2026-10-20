@@ -21,6 +21,7 @@ const (
 	Repository              = "Repository"
 	HostConfig              = "HostConfig"
 	View                    = "View"
+	Alert                   = "Alert"
 	Role                    = "Role"
 	RoleMapping             = "RoleMapping"
 	TaskParams              = "TaskParams"
@@ -423,6 +424,7 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUs
 		SecretStorage:           &SecretStorageExporter{},
 		Inventory:               &InventoryExporter{},
 		View:                    &ViewExporter{},
+		Alert:                   &AlertExporter{},
 		Role:                    &RoleExporter{},
 		RoleMapping:             &RoleMappingExporter{},
 		Schedule:                &ScheduleExporter{},

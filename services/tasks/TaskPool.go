@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/semaphoreui/semaphore/services/alerting"
 	"strconv"
 	"time"
 
@@ -68,6 +69,7 @@ type TaskPool struct {
 	keyInstallationService server.AccessKeyInstallationService
 	signer                 jwt.Signer
 	metrics                *metrics.Metrics
+	alertService           alerting.Service
 
 	// repoLock serializes git operations on shared repository directories
 	// across parallel tasks of the same template.
@@ -118,6 +120,7 @@ func CreateTaskPool(
 	logWriteService pro_interfaces.LogWriteService,
 	signer jwt.Signer,
 	appMetrics *metrics.Metrics,
+	alertService alerting.Service,
 ) TaskPool {
 	p := TaskPool{
 		register:               make(chan *TaskRunner),      // add TaskRunner to queue
@@ -132,6 +135,7 @@ func CreateTaskPool(
 		keyInstallationService: keyInstallationService,
 		signer:                 signer,
 		metrics:                appMetrics,
+		alertService:           alertService,
 		repoLock:               &KeyLock{},
 		stop:                   make(chan struct{}),
 		reconcileDone:          make(chan struct{}),
@@ -1274,6 +1278,14 @@ func (p *TaskPool) AddTaskFrom(
 	// branch-locked template to an arbitrary commit/ref.
 	if !tpl.AllowOverrideBranchInTask {
 		taskObj.CommitHash = nil
+	}
+
+	// Freeze the alerting decision now so every HA node reports the same
+	// destinations for this task whatever changes later.
+	if p.alertService != nil {
+		if err = p.alertService.Snapshot(&taskObj, tpl); err != nil {
+			return
+		}
 	}
 
 	if tpl.Type == db.TemplateBuild { // get next version for TaskRunner if it is a Build

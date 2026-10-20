@@ -64,6 +64,10 @@ func truncateAll() {
 		"user__global_role",
 		"user",
 		"project__view",
+		"project__alert",
+		"project__template_alert",
+		"project__schedule_alert",
+		"task__alert_send",
 		"project__integration",
 		"project__integration_extract_value",
 		"project__integration_matcher",
@@ -188,6 +192,18 @@ func addUser() *db.User {
 		panic(err)
 	}
 	return &user
+}
+
+func addAlert() *db.Alert {
+	url := "https://hooks.slack.com/services/T000/B000/XXXX"
+	alert, err := store.CreateAlert(db.Alert{
+		ProjectID: userProject.ID,
+		Name:      "ITA-" + getUUID(),
+		Type:      "slack",
+		Enabled:   true,
+		URL:       &url,
+	})
+  return &alert
 }
 
 // addGlobalRole creates a global role that grants the audit log, so that it can be assigned to a user.
