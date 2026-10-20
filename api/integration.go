@@ -412,7 +412,7 @@ func applyGitBranchParam(task *db.Task) {
 	delete(task.Params, db.TaskParamGitBranch)
 
 	branch, _ := raw.(string)
-	branch = strings.TrimSpace(branch)
+	branch = strings.TrimPrefix(strings.TrimSpace(branch), "refs/heads/")
 	if branch == "" {
 		return
 	}
