@@ -921,3 +921,90 @@ func TestGetTaskDefinitionGitBranchParam(t *testing.T) {
 	assert.Nil(t, task.GitBranch)
 	assert.Equal(t, "release/1.0", task.Params[db.TaskParamGitBranch])
 }
+
+// receivedCalls returns the call history recorded for the alias's project.
+func receivedCalls(t *testing.T, store db.Store, alias string) []db.IntegrationCall {
+	t.Helper()
+	integrations, _, _, err := store.GetIntegrationsByAlias(alias)
+	require.NoError(t, err)
+	require.Len(t, integrations, 1)
+
+	calls, err := store.GetIntegrationCalls(integrations[0].ProjectID, db.RetrieveQueryParams{}, "", nil)
+	require.NoError(t, err)
+	return calls
+}
+
+func TestReceiveIntegration_RecordsRejectedCall(t *testing.T) {
+	ctrl, store, alias, authHeader := setupHmacSha512ReceiveIntegration(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+alias, bytes.NewReader([]byte(`{}`)))
+	req.Header.Set(authHeader, "deadbeef")
+	req = mux.SetURLVars(req, map[string]string{"integration_alias": alias})
+
+	ctrl.ReceiveIntegration(httptest.NewRecorder(), req)
+
+	calls := receivedCalls(t, store, alias)
+	require.Len(t, calls, 1)
+	assert.Equal(t, db.IntegrationCallUnauthorized, calls[0].Outcome)
+	assert.Equal(t, "Invalid HMAC-SHA512 signature", calls[0].Reason)
+	assert.Equal(t, alias, calls[0].Alias)
+	assert.Equal(t, http.MethodPost, calls[0].Method)
+	assert.Equal(t, "192.0.2.1", calls[0].SourceIP)
+	assert.Nil(t, calls[0].TaskID)
+}
+
+// The template lookup is stubbed to fail, which is the last step before the
+// task pool: the call must be recorded with the reason the start failed.
+func TestReceiveIntegration_RecordsFailedStart(t *testing.T) {
+	ctrl, store, alias, authHeader := setupHmacSha512ReceiveIntegration(t)
+
+	payload := []byte(`{"event":"deploy"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+alias, bytes.NewReader(payload))
+	req.Header.Set(authHeader, hmacHashPayload("webhook-secret", payload, sha512.New))
+	req = mux.SetURLVars(req, map[string]string{"integration_alias": alias})
+
+	ctrl.ReceiveIntegration(httptest.NewRecorder(), req)
+
+	calls := receivedCalls(t, store, alias)
+	require.Len(t, calls, 1)
+	assert.Equal(t, db.IntegrationCallError, calls[0].Outcome)
+	assert.Equal(t, "Failed to retrieve the template", calls[0].Reason)
+	assert.Nil(t, calls[0].TaskID)
+}
+
+// A real alias that starts nothing must still show up in the history — that is
+// the case a webhook author debugs. An unknown alias stays unrecorded.
+func TestReceiveIntegration_RecordsAliasThatMatchedNothing(t *testing.T) {
+	base := sql.InitConfigCreateTestStore()
+	store := &templateProbeStore{Store: base}
+
+	project, err := store.CreateProject(db.Project{Name: "empty project"})
+	require.NoError(t, err)
+
+	alias := "project-wide-alias"
+	_, err = store.CreateIntegrationAlias(db.IntegrationAlias{Alias: alias, ProjectID: project.ID})
+	require.NoError(t, err)
+
+	ctrl := NewIntegrationController(store, &stubIntegrationService{}, nil, nil)
+
+	send := func(a string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+a, bytes.NewReader([]byte(`{}`)))
+		req = mux.SetURLVars(req, map[string]string{"integration_alias": a})
+		w := httptest.NewRecorder()
+		ctrl.ReceiveIntegration(w, req)
+		return w
+	}
+
+	w := send(alias)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	send("alias-that-does-not-exist")
+
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil)
+	require.NoError(t, err)
+	require.Len(t, calls, 1, "only the real alias is recorded")
+	assert.Equal(t, db.IntegrationCallSkipped, calls[0].Outcome)
+	assert.Equal(t, "No integration matched the alias", calls[0].Reason)
+	assert.Equal(t, alias, calls[0].Alias)
+	assert.Nil(t, calls[0].IntegrationID)
+}

@@ -957,6 +957,40 @@ definitions:
       url:
         type: string
 
+  IntegrationCall:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      integration_id:
+        type: integer
+        description: null once the integration has been deleted
+      integration_name:
+        type: string
+      alias:
+        type: string
+      created:
+        type: string
+        format: date-time
+      source_ip:
+        type: string
+      method:
+        type: string
+      outcome:
+        type: string
+        enum: [ok, unauthorized, skipped, error]
+      reason:
+        type: string
+      duration:
+        type: integer
+        description: how long the integration took to answer the call, in milliseconds
+      task_id:
+        type: integer
+      run_id:
+        type: integer
+
   RepositoryRequest:
     type: object
     properties:
@@ -3174,6 +3208,46 @@ paths:
       responses:
         204:
           description: integration matcher removed
+
+  /project/{project_id}/integrations/calls:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - integration
+      summary: Get the integration call history of the project, newest first
+      parameters:
+        - name: alias
+          in: query
+          type: string
+          required: false
+          description: only calls made through this alias
+        - name: integration_id
+          in: query
+          type: integer
+          required: false
+          description: only calls of this integration
+        - name: count
+          in: query
+          type: integer
+          required: false
+          description: page size, capped at 200
+        - name: before
+          in: query
+          type: integer
+          required: false
+          description: keyset cursor, returns only calls older than this call id
+      responses:
+        200:
+          description: Integration Calls
+          headers:
+            X-Has-Next:
+              type: string
+              description: "true when older calls exist"
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationCall"
 
   /project/{project_id}/integrations/aliases:
     parameters:

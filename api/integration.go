@@ -9,9 +9,11 @@ import (
 	"hash"
 	"io"
 	"maps"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/conv"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
@@ -75,10 +77,86 @@ func NewIntegrationController(
 
 // IntegrationRunResult is what one matching integration started: a task for
 // a template integration, a workflow run for a workflow integration, neither
-// when the start failed (the reason is in the log).
+// when the start failed.
 type IntegrationRunResult struct {
 	Task *db.Task
 	Run  *db.WorkflowRun
+	// Reason is why nothing started, empty when a task or a run did. It is
+	// logged and stored with the call so a failed webhook can be debugged.
+	Reason string
+}
+
+// sourceIP is the address the call came from: the one the audit middleware
+// resolved against the trusted proxies when audit logging is on, otherwise the
+// peer address of the connection.
+func sourceIP(r *http.Request) string {
+	if info, ok := audit.RequestFrom(r.Context()); ok && info.IP != "" {
+		return info.IP
+	}
+
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+
+	return r.RemoteAddr
+}
+
+// verifyIntegrationAuth checks the request against the integration's auth
+// method and returns why it was rejected, empty when it passed.
+func verifyIntegrationAuth(integration db.Integration, r *http.Request, payload []byte) string {
+	secret := integration.AuthSecret.LoginPassword
+
+	switch integration.AuthMethod {
+	case db.IntegrationAuthGitHub:
+		if !isValidHmacPayload(secret.Password, r.Header.Get("X-Hub-Signature-256"), payload, "sha256=", sha256.New) {
+			return "Invalid GitHub/HMAC signature"
+		}
+	case db.IntegrationAuthBitbucket:
+		if !isValidHmacPayload(secret.Password, r.Header.Get("x-hub-signature"), payload, "sha256=", sha256.New) {
+			return "Invalid Bitbucket/HMAC signature"
+		}
+	case db.IntegrationAuthHmac:
+		if !isValidHmacPayload(secret.Password, r.Header.Get(integration.AuthHeader), payload, "", sha256.New) {
+			return "Invalid HMAC signature"
+		}
+	case db.IntegrationAuthHmacSha512:
+		if !isValidHmacPayload(secret.Password, r.Header.Get(integration.AuthHeader), payload, "", sha512.New) {
+			return "Invalid HMAC-SHA512 signature"
+		}
+	case db.IntegrationAuthToken:
+		if secret.Password != r.Header.Get(integration.AuthHeader) {
+			return "Invalid verification token"
+		}
+	case db.IntegrationAuthBasic:
+		login, password, ok := r.BasicAuth()
+		if !ok || secret.Password != password || secret.Login != login {
+			return "Invalid BasicAuth: incorrect login or password"
+		}
+	case db.IntegrationAuthNone:
+		// Do nothing
+	default:
+		return "Unknown verification method: " + string(integration.AuthMethod)
+	}
+
+	return ""
+}
+
+// recordCall stores one call in the project's integration history. A failure to
+// store it is logged and otherwise ignored: the integration has already run.
+func (c *IntegrationController) recordCall(
+	call db.IntegrationCall, started time.Time, outcome db.IntegrationCallOutcome, reason string,
+) {
+	call.Created = started
+	call.Duration = int(time.Since(started).Milliseconds())
+	call.Outcome = outcome
+	call.Reason = reason
+
+	if err := c.store.CreateIntegrationCall(call); err != nil {
+		log.WithFields(log.Fields{
+			"context": "integrations",
+			"alias":   call.Alias,
+		}).WithError(err).Error("Failed to record the integration call")
+	}
 }
 
 func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
@@ -89,9 +167,11 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 		return
 	}
 
+	received := time.Now()
+
 	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
 
-	integrations, level, err := c.store.GetIntegrationsByAlias(integrationAlias)
+	integrations, level, projectID, err := c.store.GetIntegrationsByAlias(integrationAlias)
 
 	if err != nil {
 		log.Error(err)
@@ -99,6 +179,20 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 	}
 
 	log.Info(fmt.Sprintf("%d integrations found for alias %s", len(integrations), integrationAlias))
+
+	if len(integrations) == 0 {
+		// A real alias that starts nothing is the case a webhook author most needs to see.
+		// An unknown alias resolves to no project and is deliberately left unrecorded, so a
+		// public endpoint cannot be used to fill the table from the internet.
+		c.recordCall(db.IntegrationCall{
+			ProjectID: projectID,
+			Alias:     integrationAlias,
+			SourceIP:  sourceIP(r),
+			Method:    r.Method,
+		}, received, db.IntegrationCallSkipped, "No integration matched the alias")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 
 	projects := make(map[int]db.Project)
 
@@ -113,109 +207,50 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 
 	for _, integration := range integrations {
 
+		started := time.Now()
+
+		logger := log.WithFields(log.Fields{
+			"context":        "integrations",
+			"integration_id": integration.ID,
+			"alias":          integrationAlias,
+		})
+
+		call := db.IntegrationCall{
+			ProjectID:       integration.ProjectID,
+			IntegrationID:   &integration.ID,
+			IntegrationName: integration.Name,
+			Alias:           integrationAlias,
+			SourceIP:        sourceIP(r),
+			Method:          r.Method,
+		}
+
 		project, ok := projects[integration.ProjectID]
 		if !ok {
-			project, err = c.store.GetProject(integrations[0].ProjectID)
+			project, err = c.store.GetProject(integration.ProjectID)
 			if err != nil {
-				log.Error(err)
+				logger.WithError(err).Error("Could not retrieve the project")
+				c.recordCall(call, started, db.IntegrationCallError, "Could not retrieve the project")
 				return
 			}
 			projects[integration.ProjectID] = project
 		}
 
 		if integration.ProjectID != project.ID {
-			log.WithFields(log.Fields{
-				"context":       "integrations",
-				"project_id":    project.ID,
-				"integrationId": integration.ID,
-			}).Error("integration project mismatch")
+			logger.WithField("project_id", project.ID).Error("integration project mismatch")
+			c.recordCall(call, started, db.IntegrationCallError, "Integration project mismatch")
 			continue
 		}
 
 		err = c.integrationService.FillIntegration(&integration)
 		if err != nil {
-			log.Error(err)
+			logger.WithError(err).Error("Could not load the integration secret")
+			c.recordCall(call, started, db.IntegrationCallError, "Could not load the integration secret")
 			return
 		}
 
-		switch integration.AuthMethod {
-		case db.IntegrationAuthGitHub:
-			ok := isValidHmacPayload(
-				integration.AuthSecret.LoginPassword.Password,
-				r.Header.Get("X-Hub-Signature-256"),
-				payload,
-				"sha256=",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid GitHub/HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthBitbucket:
-			ok := isValidHmacPayload(
-				integration.AuthSecret.LoginPassword.Password,
-				r.Header.Get("x-hub-signature"),
-				payload,
-				"sha256=",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid Bitbucket/HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthHmac:
-			ok := isValidHmacPayload(
-				integration.AuthSecret.LoginPassword.Password,
-				r.Header.Get(integration.AuthHeader),
-				payload,
-				"",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthHmacSha512:
-			ok := isValidHmacPayload(
-				integration.AuthSecret.LoginPassword.Password,
-				r.Header.Get(integration.AuthHeader),
-				payload,
-				"",
-				sha512.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid HMAC-SHA512 signature")
-				continue
-			}
-		case db.IntegrationAuthToken:
-			if integration.AuthSecret.LoginPassword.Password != r.Header.Get(integration.AuthHeader) {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid verification token")
-				continue
-			}
-		case db.IntegrationAuthBasic:
-			var username, password, auth = r.BasicAuth()
-			if !auth || integration.AuthSecret.LoginPassword.Password != password || integration.AuthSecret.LoginPassword.Login != username {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid BasicAuth: incorrect login or password")
-				continue
-			}
-		case db.IntegrationAuthNone:
-			// Do nothing
-		default:
-			log.WithFields(log.Fields{
-				"context": "integrations",
-			}).Error("Unknown verification method: " + integration.AuthMethod)
+		if reason := verifyIntegrationAuth(integration, r, payload); reason != "" {
+			logger.Error(reason)
+			c.recordCall(call, started, db.IntegrationCallUnauthorized, reason)
 			continue
 		}
 
@@ -223,9 +258,8 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			var matchers []db.IntegrationMatcher
 			matchers, err = c.store.GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
 			if err != nil {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).WithError(err).Error("Could not retrieve matchers")
+				logger.WithError(err).Error("Could not retrieve matchers")
+				c.recordCall(call, started, db.IntegrationCallError, "Could not retrieve matchers")
 				continue
 			}
 
@@ -242,6 +276,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			}
 
 			if !matched {
+				c.recordCall(call, started, db.IntegrationCallSkipped, "No matcher matched the request")
 				continue
 			}
 		}
@@ -260,6 +295,8 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			if task.InventoryID != nil {
 				w.Header().Add("X-Semaphore-Inventory-ID", strconv.Itoa(*task.InventoryID))
 			}
+
+			call.TaskID = &task.ID
 		}
 
 		if run := result.Run; run != nil {
@@ -271,6 +308,15 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			if run.RootTaskID != nil {
 				w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(*run.RootTaskID))
 			}
+
+			call.RunID = &run.ID
+			call.TaskID = run.RootTaskID
+		}
+
+		if result.Reason != "" {
+			c.recordCall(call, started, db.IntegrationCallError, result.Reason)
+		} else {
+			c.recordCall(call, started, db.IntegrationCallOK, "")
 		}
 	}
 
@@ -451,15 +497,15 @@ func (c *IntegrationController) RunIntegration(integration db.Integration, proje
 	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
 
 	if integration.RunsWorkflow() {
-		result.Run = c.runWorkflowIntegration(integration, r, payload)
+		result.Run, result.Reason = c.runWorkflowIntegration(integration, r, payload)
 		return
 	}
 
-	result.Task = c.runTemplateIntegration(integration, r, payload)
+	result.Task, result.Reason = c.runTemplateIntegration(integration, r, payload)
 	return
 }
 
-func (c *IntegrationController) runTemplateIntegration(integration db.Integration, r *http.Request, payload []byte) *db.Task {
+func (c *IntegrationController) runTemplateIntegration(integration db.Integration, r *http.Request, payload []byte) (*db.Task, string) {
 	logger := log.WithFields(log.Fields{
 		"context":        "integrations",
 		"integration_id": integration.ID,
@@ -467,7 +513,7 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 
 	if integration.TemplateID == nil {
 		logger.Error("integration has no template")
-		return nil
+		return nil, "Integration has no template"
 	}
 
 	taskDefinition, err := GetTaskDefinition(
@@ -476,13 +522,13 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 		})
 	if err != nil {
 		logger.WithError(err).Error("Failed to get task definition")
-		return nil
+		return nil, "Failed to build the task definition"
 	}
 
 	tpl, err := c.store.GetTemplate(integration.ProjectID, *integration.TemplateID)
 	if err != nil {
-		log.Error(err)
-		return nil
+		logger.WithError(err).Error("Failed to get template")
+		return nil, "Failed to retrieve the template"
 	}
 
 	applyGitBranchParam(&taskDefinition, tpl.AllowOverrideBranchInTask)
@@ -493,11 +539,11 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 	ctx := audit.WithActor(r.Context(), audit.IntegrationActor(integration.ID, integration.Name))
 	task, err := pool.AddTaskFrom(ctx, audit.TriggerIntegration, taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
-		log.Error(err)
-		return nil
+		logger.WithError(err).Error("Failed to add task")
+		return nil, "Failed to start the task: " + err.Error()
 	}
 
-	return &task
+	return &task, ""
 }
 
 // runWorkflowIntegration starts a run of the integration's workflow. The
@@ -506,7 +552,7 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 // the webhook did not provide, a workflow without a root — is logged, and
 // the webhook still answers 204 like every other silently skipped
 // integration.
-func (c *IntegrationController) runWorkflowIntegration(integration db.Integration, r *http.Request, payload []byte) *db.WorkflowRun {
+func (c *IntegrationController) runWorkflowIntegration(integration db.Integration, r *http.Request, payload []byte) (*db.WorkflowRun, string) {
 	logger := log.WithFields(log.Fields{
 		"context":        "integrations",
 		"integration_id": integration.ID,
@@ -516,13 +562,13 @@ func (c *IntegrationController) runWorkflowIntegration(integration db.Integratio
 	workflow, err := c.workflowRepo.GetWorkflowTemplate(integration.ProjectID, *integration.WorkflowID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to load the integration's workflow")
-		return nil
+		return nil, "Failed to load the workflow"
 	}
 	if workflow.ID == 0 {
 		// The open-source workflow store answers every lookup with an empty
 		// template and no error: workflows are a Pro feature.
 		logger.Error("Workflows are not available in this build")
-		return nil
+		return nil, "Workflows are not available in this build"
 	}
 
 	params, err := GetWorkflowRunParams(
@@ -531,17 +577,17 @@ func (c *IntegrationController) runWorkflowIntegration(integration db.Integratio
 		})
 	if err != nil {
 		logger.WithError(err).Error("Failed to get workflow run params")
-		return nil
+		return nil, "Failed to build the workflow run parameters"
 	}
 
 	ctx := audit.WithActor(r.Context(), audit.IntegrationActor(integration.ID, integration.Name))
 	run, err := c.workflowService.StartWorkflow(ctx, workflow, params, nil)
 	if err != nil {
 		logger.WithError(err).Error("Failed to start workflow")
-		return nil
+		return nil, "Failed to start the workflow: " + err.Error()
 	}
 
-	return &run
+	return &run, ""
 }
 
 func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]any) {

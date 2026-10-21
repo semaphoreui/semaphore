@@ -425,8 +425,11 @@ type IntegrationManager interface {
 
 	CreateIntegrationAlias(alias IntegrationAlias) (IntegrationAlias, error)
 	GetIntegrationAliases(projectID int, integrationID *int) ([]IntegrationAlias, error)
-	GetIntegrationsByAlias(alias string) ([]Integration, IntegrationAliasLevel, error)
+	GetIntegrationsByAlias(alias string) (integrations []Integration, level IntegrationAliasLevel, projectID int, err error)
 	DeleteIntegrationAlias(projectID int, aliasID int) error
+
+	CreateIntegrationCall(call IntegrationCall) error
+	GetIntegrationCalls(projectID int, params RetrieveQueryParams, alias string, integrationID *int) ([]IntegrationCall, error)
 }
 
 // SessionManager handles session-related operations
