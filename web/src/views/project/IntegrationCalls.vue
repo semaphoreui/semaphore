@@ -19,6 +19,7 @@
         dense
         hide-details
         style="max-width: 260px"
+        @change="resetAndLoad()"
       ></v-select>
 
       <v-text-field
@@ -168,15 +169,18 @@ export default {
   },
 
   watch: {
+    // The component is reused across projects, so created() does not run again:
+    // both filters and the integration options still belong to the project that
+    // was open before and have to be cleared here.
     async projectId() {
+      this.integrations = [];
+      this.integrationId = null;
+      this.alias = '';
+      await this.beforeLoadItems();
       await this.resetAndLoad();
     },
 
     async perPage() {
-      await this.resetAndLoad();
-    },
-
-    async integrationId() {
       await this.resetAndLoad();
     },
   },
