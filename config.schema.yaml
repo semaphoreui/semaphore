@@ -243,6 +243,7 @@ properties:
   ha:           { $ref: "#/$defs/HAConfig" }
   audit:        { $ref: "#/$defs/AuditConfig" }
   subscription: { $ref: "#/$defs/SubscriptionConfig" }
+  mcp:          { $ref: "#/$defs/MCPConfig" }
   dirs:         { $ref: "#/$defs/ConfigDirs" }
   runner:       { $ref: "#/$defs/RunnerConfig" }
   runners: { $ref: "#/$defs/RunnersConfig" }
@@ -616,6 +617,13 @@ $defs:
         type: string
         description: Cluster node id; auto-generated if empty.
       redis: { $ref: "#/$defs/HARedisConfig" }
+
+  MCPConfig:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+        description: Turns the built-in MCP server on (Pro). Off by default; settings stored in the database cannot turn it on.
 
   HARedisConfig:
     type: object

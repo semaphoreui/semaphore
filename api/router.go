@@ -125,6 +125,7 @@ func Route(
 	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
+	mcpController := proApi.NewMCPController(util.MCPEnabled())
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
@@ -154,6 +155,10 @@ func Route(
 	pingRouter := r.Path(webPath + "api/ping").Subrouter()
 	pingRouter.Use(plainTextMiddleware)
 	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)
+
+	// MCP checks access itself and answers with its own content types, so it
+	// stays outside the shared /api groups (JSON responses, session and API-token auth).
+	r.Path(webPath + "api/mcp").Handler(mcpController)
 
 	metricsRouter := r.Path(webPath + "api/metrics").Subrouter()
 	metricsRouter.Use(metricsAuthMiddleware)

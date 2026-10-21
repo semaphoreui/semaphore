@@ -156,6 +156,14 @@
       ]
     },
     {
+      "title": "MCP server",
+      "intro": "The built-in MCP server that lets AI agents work with Semaphore.",
+      "edition": "pro",
+      "prefixes": [
+        "mcp."
+      ]
+    },
+    {
       "title": "Debugging",
       "intro": "Switches useful when diagnosing a problem. Do not leave them on in production.",
       "prefixes": [

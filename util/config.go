@@ -411,6 +411,17 @@ type HAConfig struct {
 	Redis   *HARedisConfig `json:"redis,omitempty"`
 }
 
+// MCPConfig holds the settings of the built-in MCP server (Pro).
+type MCPConfig struct {
+	// Enabled turns the MCP endpoint on. It is off by default.
+	Enabled bool `json:"enabled" env:"SEMAPHORE_MCP_ENABLED"`
+}
+
+// MCPEnabled reports whether the MCP endpoint is switched on in the config.
+func MCPEnabled() bool {
+	return Config != nil && Config.MCP != nil && Config.MCP.Enabled
+}
+
 // HAEnabled returns true when high-availability mode is configured.
 func HAEnabled() bool {
 	return Config.HA != nil && Config.HA.Enabled
@@ -726,6 +737,10 @@ type ConfigType struct {
 	Audit *AuditConfig `json:"audit,omitempty"`
 
 	Subscription *SubscriptionConfig `json:"subscription,omitempty"`
+
+	// MCP is a ceiling set by the file or the environment only: db:"-" keeps
+	// settings stored in the database from turning the endpoint on.
+	MCP *MCPConfig `json:"mcp,omitempty" db:"-"`
 
 	Dirs *ConfigDirs `json:"dirs,omitempty"`
 
