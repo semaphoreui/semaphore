@@ -57,9 +57,13 @@ Status (2026-10-21): implemented on branch `prod-10-logs-for-intergrations`, not
 - Filter changes start a load without awaiting the one in flight, so each request carries a
   sequence number and only the newest applies its response (`requestSeq` in `IntegrationCalls.vue`).
 - `projectId` is a prop, so switching project reuses the component and `created()` does not run
-  again: the watcher clears both filters and reloads the integration options, or they would still
-  belong to the previous project. The integration select reloads on `@change`, not a watcher, so
-  clearing it in code does not fire a second request.
+  again: the watcher clears both filters and the rows, and reloads the integration options, or they
+  would still belong to the previous project. The integration select reloads on `@change`, not a
+  watcher, so clearing it in code does not fire a second request.
+- The call list and the integration options are fetched independently (`Promise.all`), so a failed
+  integration lookup cannot leave the previous project's calls on screen, and each has its own
+  sequence counter: A -> B -> A gives overlapping requests with the same project id, so the id
+  cannot decide which response is current.
 - The ngrok reference also shows Path and Host. Path is `/api/integrations/<alias>`, which the
   alias column already carries; Host is not stored.
 - The user docs (`docs/` submodule) are not checked out in this workspace, so the History tab is

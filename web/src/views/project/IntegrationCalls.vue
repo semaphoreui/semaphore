@@ -138,9 +138,12 @@ export default {
       integrationId: null,
       alias: '',
       loading: false,
-      // Changing a filter starts a load without waiting for the one in flight,
-      // so each request carries a sequence number and only the newest applies.
+      // Changing a filter or the project starts a load without waiting for the
+      // one in flight, so each request carries a sequence number and only the
+      // newest applies. The two lists are fetched independently and so count
+      // independently.
       requestSeq: 0,
+      integrationsSeq: 0,
       // Keyset pagination: `cursors[i]` is the `before` call id of page i (null
       // for the newest page), `hasNext` comes from the X-Has-Next header.
       cursors: [null],
@@ -176,8 +179,12 @@ export default {
       this.integrations = [];
       this.integrationId = null;
       this.alias = '';
-      await this.beforeLoadItems();
-      await this.resetAndLoad();
+      // Not null: that unmounts the page through the v-if and flashes it blank.
+      this.items = [];
+
+      // Independent, so a failure to list the integrations cannot leave the
+      // previous project's calls on screen.
+      await Promise.all([this.resetAndLoad(), this.beforeLoadItems()]);
     },
 
     async perPage() {
@@ -203,13 +210,16 @@ export default {
     },
 
     async beforeLoadItems() {
-      this.integrations = (
-        await axios({
-          method: 'get',
-          url: `/api/project/${this.projectId}/integrations`,
-          responseType: 'json',
-        })
-      ).data;
+      this.integrationsSeq += 1;
+      const seq = this.integrationsSeq;
+
+      const integrations = await this.loadProjectResources('integrations');
+
+      // Switching A -> B -> A gives overlapping requests with the same project
+      // id, so the sequence number decides, not the id.
+      if (seq === this.integrationsSeq) {
+        this.integrations = integrations;
+      }
     },
 
     async filterByAlias(alias) {
