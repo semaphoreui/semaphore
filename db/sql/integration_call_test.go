@@ -3,6 +3,7 @@ package sql
 import (
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/stretchr/testify/assert"
@@ -128,4 +129,54 @@ func TestIntegrationCall_ReasonTruncated(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, calls, 1)
 	assert.Len(t, calls[0].Reason, maxIntegrationCallReason)
+}
+
+func TestTruncateUTF8(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		n        int
+		expected string
+	}{
+		{"shorter than the limit", "abc", 10, "abc"},
+		{"exactly the limit", "abcd", 4, "abcd"},
+		{"ascii cut", "abcdef", 3, "abc"},
+		{"cut lands inside a rune", "aé", 2, "a"},
+		{"cut lands on a rune start", "aéb", 3, "aé"},
+		{"every rune is multi-byte", "日本語", 4, "日"},
+		{"limit zero", "日本語", 0, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := truncateUTF8(tt.input, tt.n)
+			assert.Equal(t, tt.expected, out)
+			assert.True(t, utf8.ValidString(out), "truncation must not leave invalid UTF-8")
+			assert.LessOrEqual(t, len(out), max(tt.n, 0))
+		})
+	}
+}
+
+// A reason carrying non-ASCII must survive the round trip to the database:
+// PostgreSQL rejects an invalid byte sequence outright, which would lose the row.
+func TestIntegrationCall_MultiByteReasonIsStored(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, _ := createTestIntegration(t, store)
+
+	long := ""
+	for range maxIntegrationCallReason {
+		long += "é"
+	}
+
+	createTestCall(t, store, db.IntegrationCall{
+		ProjectID: project.ID, Alias: "alias", Method: "POST",
+		Outcome: db.IntegrationCallError, Reason: long,
+	})
+
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil)
+	require.NoError(t, err)
+	require.Len(t, calls, 1)
+	assert.True(t, utf8.ValidString(calls[0].Reason))
+	assert.LessOrEqual(t, len(calls[0].Reason), maxIntegrationCallReason)
+	assert.NotEmpty(t, calls[0].Reason)
 }

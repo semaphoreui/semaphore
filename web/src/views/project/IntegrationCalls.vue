@@ -137,6 +137,9 @@ export default {
       integrationId: null,
       alias: '',
       loading: false,
+      // Changing a filter starts a load without waiting for the one in flight,
+      // so each request carries a sequence number and only the newest applies.
+      requestSeq: 0,
       // Keyset pagination: `cursors[i]` is the `before` call id of page i (null
       // for the newest page), `hasNext` comes from the X-Has-Next header.
       cursors: [null],
@@ -240,6 +243,9 @@ export default {
         params.set('alias', this.alias);
       }
 
+      this.requestSeq += 1;
+      const seq = this.requestSeq;
+
       this.loading = true;
       try {
         const response = await axios({
@@ -248,10 +254,16 @@ export default {
           responseType: 'json',
         });
 
+        if (seq !== this.requestSeq) {
+          return;
+        }
+
         this.items = response.data;
         this.hasNext = response.headers['x-has-next'] === 'true';
       } finally {
-        this.loading = false;
+        if (seq === this.requestSeq) {
+          this.loading = false;
+        }
       }
     },
 

@@ -27,6 +27,14 @@ Status (2026-10-21): implemented on branch `prod-10-logs-for-intergrations`, not
   when it matched no integration, so that call can still be attributed to a project.
 - **Keyset pagination**, reusing `parseTasksPageParams` and the `X-Has-Next` convention — see
   `history-keyset-pagination.md`.
+- **One row per (call, integration), including failures.** A per-integration failure `continue`s
+  rather than returning, so one integration with an unloadable secret neither hides the others from
+  the history nor stops them running — the pre-review code returned and aborted the whole fan-out.
+- **Every column written from the request is truncated on a rune boundary** (`truncateUTF8`).
+  `handlers.ProxyHeaders` rewrites `RemoteAddr` from `X-Forwarded-For` without validating it
+  (`cli/cmd/root.go:371`), so `source_ip` is caller-controlled and unbounded; a reason carries an
+  error message that may be non-ASCII. A cut inside a multi-byte rune leaves invalid UTF-8, which
+  PostgreSQL rejects — and `recordCall` does not retry, so the row would be lost silently.
 - **Failure reasons are plumbed, not re-derived.** `IntegrationRunResult.Reason` carries why nothing
   started ("Integration has no template", "Workflows are not available in this build", …) from the
   run helpers to the recorded row.
@@ -46,6 +54,8 @@ Status (2026-10-21): implemented on branch `prod-10-logs-for-intergrations`, not
   project is known. It stays a log line.
 - The alias filter is exact match on an indexed column; aliases are random strings, so the alias
   in each row is clickable to apply it. No substring search.
+- Filter changes start a load without awaiting the one in flight, so each request carries a
+  sequence number and only the newest applies its response (`requestSeq` in `IntegrationCalls.vue`).
 - The ngrok reference also shows Path and Host. Path is `/api/integrations/<alias>`, which the
   alias column already carries; Host is not stored.
 - The user docs (`docs/` submodule) are not checked out in this workspace, so the History tab is

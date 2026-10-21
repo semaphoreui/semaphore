@@ -230,7 +230,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			if err != nil {
 				logger.WithError(err).Error("Could not retrieve the project")
 				c.recordCall(call, started, db.IntegrationCallError, "Could not retrieve the project")
-				return
+				continue
 			}
 			projects[integration.ProjectID] = project
 		}
@@ -245,7 +245,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 		if err != nil {
 			logger.WithError(err).Error("Could not load the integration secret")
 			c.recordCall(call, started, db.IntegrationCallError, "Could not load the integration secret")
-			return
+			continue
 		}
 
 		if reason := verifyIntegrationAuth(integration, r, payload); reason != "" {

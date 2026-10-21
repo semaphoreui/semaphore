@@ -726,9 +726,14 @@ func TestIsValidHmacPayload_SHA512(t *testing.T) {
 
 type stubIntegrationService struct {
 	password string
+	// failFor is the integration whose secret cannot be loaded, zero for none.
+	failFor int
 }
 
 func (s *stubIntegrationService) FillIntegration(integration *db.Integration) error {
+	if s.failFor != 0 && integration.ID == s.failFor {
+		return errors.New("secret unavailable")
+	}
 	integration.AuthSecret = db.AccessKey{
 		LoginPassword: db.LoginPassword{Password: s.password},
 	}
@@ -1007,4 +1012,71 @@ func TestReceiveIntegration_RecordsAliasThatMatchedNothing(t *testing.T) {
 	assert.Equal(t, "No integration matched the alias", calls[0].Reason)
 	assert.Equal(t, alias, calls[0].Alias)
 	assert.Nil(t, calls[0].IntegrationID)
+}
+
+// One alias can fan out to several integrations. A failure on one must not hide
+// the rest from the history, nor stop them from running.
+func TestReceiveIntegration_FailureOnOneIntegrationDoesNotHideTheOthers(t *testing.T) {
+	base := sql.InitConfigCreateTestStore()
+	store := &templateProbeStore{Store: base}
+
+	project, err := store.CreateProject(db.Project{Name: "fan-out project"})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		Name: "repo key", Type: db.AccessKeyNone, ProjectID: &project.ID,
+	})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		Name: "repo", ProjectID: project.ID,
+		GitURL: "git@example.com:test/test.git", GitBranch: "main", SSHKeyID: key.ID,
+	})
+	require.NoError(t, err)
+
+	template, err := store.CreateTemplate(db.Template{
+		Name: "tpl", ProjectID: project.ID, RepositoryID: repo.ID,
+		Playbook: "run.sh", App: db.AppBash,
+	})
+	require.NoError(t, err)
+
+	var ids []int
+	for _, name := range []string{"broken", "healthy"} {
+		integration, err := store.CreateIntegration(db.Integration{
+			Name:       name,
+			ProjectID:  project.ID,
+			TemplateID: &template.ID,
+			Searchable: true,
+		})
+		require.NoError(t, err)
+		ids = append(ids, integration.ID)
+	}
+
+	alias := "project-alias"
+	_, err = store.CreateIntegrationAlias(db.IntegrationAlias{Alias: alias, ProjectID: project.ID})
+	require.NoError(t, err)
+
+	ctrl := NewIntegrationController(store, &stubIntegrationService{failFor: ids[0]}, nil, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+alias, bytes.NewReader([]byte(`{}`)))
+	req = mux.SetURLVars(req, map[string]string{"integration_alias": alias})
+	w := httptest.NewRecorder()
+
+	ctrl.ReceiveIntegration(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil)
+	require.NoError(t, err)
+	require.Len(t, calls, 2, "both integrations are recorded, not just the one that failed")
+
+	byIntegration := map[int]db.IntegrationCall{}
+	for _, call := range calls {
+		require.NotNil(t, call.IntegrationID)
+		byIntegration[*call.IntegrationID] = call
+	}
+
+	assert.Equal(t, db.IntegrationCallError, byIntegration[ids[0]].Outcome)
+	assert.Equal(t, "Could not load the integration secret", byIntegration[ids[0]].Reason)
+	assert.Equal(t, db.IntegrationCallSkipped, byIntegration[ids[1]].Outcome)
 }

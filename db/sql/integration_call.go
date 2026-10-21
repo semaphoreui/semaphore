@@ -1,19 +1,41 @@
 package sql
 
 import (
+	"unicode/utf8"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 )
 
-// maxIntegrationCallReason is the width of project__integration_call.reason.
-// A reason comes from an error message, so it is truncated rather than refused:
-// losing the tail of an explanation must not lose the call itself.
-const maxIntegrationCallReason = 255
+// Widths of the project__integration_call columns written from request data.
+// Method and source IP reach us through the request: `handlers.ProxyHeaders`
+// rewrites RemoteAddr from X-Forwarded-For without validating it, and a reason
+// carries an error message. All three are truncated rather than refused —
+// losing the tail of a value must not lose the call itself.
+const (
+	maxIntegrationCallReason   = 255
+	maxIntegrationCallSourceIP = 64
+	maxIntegrationCallMethod   = 10
+)
+
+// truncateUTF8 cuts s to at most n bytes without splitting a rune. A cut inside
+// a multi-byte rune leaves invalid UTF-8, which PostgreSQL rejects outright.
+func truncateUTF8(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+
+	return s[:n]
+}
 
 func (d *SqlDb) CreateIntegrationCall(call db.IntegrationCall) error {
-	if len(call.Reason) > maxIntegrationCallReason {
-		call.Reason = call.Reason[:maxIntegrationCallReason]
-	}
+	call.Reason = truncateUTF8(call.Reason, maxIntegrationCallReason)
+	call.SourceIP = truncateUTF8(call.SourceIP, maxIntegrationCallSourceIP)
+	call.Method = truncateUTF8(call.Method, maxIntegrationCallMethod)
 
 	_, err := d.exec(
 		"insert into project__integration_call "+
