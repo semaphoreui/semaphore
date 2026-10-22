@@ -49,10 +49,10 @@ func GlobalPermissionCatalog() []GlobalPermissionDefinition {
 // project. Instance-wide permissions live in GlobalRole, never here.
 type Role struct {
 	ID          int                   `db:"id" json:"id" backup:"-"`
-	Slug        string                `db:"slug" json:"slug" backup:"-"`
+	Slug        string                `db:"slug" json:"slug"`
 	Name        string                `db:"name" json:"name"`
 	Permissions ProjectUserPermission `db:"permissions" json:"permissions"`
-	ProjectID   *int                  `db:"project_id" json:"project_id"`
+	ProjectID   *int                  `db:"project_id" json:"project_id" backup:"-"`
 	Scope       int                   `db:"scope" json:"-" backup:"-"`
 	Builtin     bool                  `db:"builtin" json:"builtin" backup:"-"`
 }

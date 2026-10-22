@@ -22,7 +22,6 @@ type BackupDB struct {
 	integrationExtractValues map[int][]db.IntegrationExtractValue
 
 	secretStorages []db.SecretStorage
-	globalRoles    []db.Role
 	roles          []db.Role
 	templateRoles  map[int][]db.TemplateRolePerm
 	runners        []db.Runner
@@ -96,8 +95,7 @@ type BackupHostConfig struct {
 }
 
 type BackupTemplateRole struct {
-	Role        string                   `backup:"role"`
-	IsGlobal    bool                     `backup:"is_global"`
+	Slug        string                   `backup:"slug"`
 	Permissions db.ProjectUserPermission `backup:"permissions"`
 }
 

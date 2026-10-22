@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"slices"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -123,12 +122,6 @@ func (b *BackupDB) makeUniqueNames() {
 		item.Name = name
 	})
 
-	makeUniqueNames(b.roles, func(item *db.Role) string {
-		return item.Name
-	}, func(item *db.Role, name string) {
-		item.Name = name
-	})
-
 	makeUniqueNames(b.runners, func(item *db.Runner) string {
 		return item.Name
 	}, func(item *db.Runner, name string) {
@@ -217,11 +210,6 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 	}
 
 	b.roles, err = store.GetProjectRoles(projectID)
-	if err != nil {
-		return
-	}
-
-	b.globalRoles, err = store.GetSharedRoles()
 	if err != nil {
 		return
 	}
@@ -435,13 +423,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 
 		var roles []BackupTemplateRole
 		for _, r := range b.templateRoles[o.ID] {
-			sameRole := func(role db.Role) bool { return role.ID == r.RoleID }
-			if i := slices.IndexFunc(b.roles, sameRole); i >= 0 {
-				roles = append(roles, BackupTemplateRole{Role: b.roles[i].Name, Permissions: r.Permissions})
-			} else if i := slices.IndexFunc(b.globalRoles, sameRole); i >= 0 {
-				// Global and built-in roles are written by slug.
-				roles = append(roles, BackupTemplateRole{Role: b.globalRoles[i].Slug, IsGlobal: true, Permissions: r.Permissions})
-			}
+			roles = append(roles, BackupTemplateRole{Slug: r.RoleSlug, Permissions: r.Permissions})
 		}
 
 		templates[i] = BackupTemplate{

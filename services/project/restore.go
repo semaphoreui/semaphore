@@ -7,7 +7,6 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
-	"github.com/semaphoreui/semaphore/pkg/random"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -51,22 +50,20 @@ func (e BackupSecretStorage) Restore(b *BackupDB) error {
 	return nil
 }
 
+// Verify applies the API rules to the slug, so a restored role stays addressable. Roles may share a name.
 func (e BackupRole) Verify(backup *BackupFormat) error {
-	return verifyDuplicate[BackupRole](e.Name, backup.Roles)
+	role := e.Role
+	role.Permissions &= db.KnownRolePermissions
+	return db.ValidateRole(role, true)
 }
 
 func (e BackupRole) Restore(b *BackupDB) error {
 	role := e.Role
 	role.ProjectID = &b.meta.ID
-	role.Slug = random.String(16)
 	// Unknown bits are never checked today but would turn on with a future permission.
 	role.Permissions &= db.KnownRolePermissions
-	newRole, err := b.store.CreateRole(role)
-	if err != nil {
-		return err
-	}
-	b.roles = append(b.roles, newRole)
-	return nil
+	_, err := b.store.CreateRole(role)
+	return err
 }
 
 func (e BackupEnvironment) Verify(backup *BackupFormat) error {
@@ -336,6 +333,12 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 		return fmt.Errorf("vault_key does not exist in keys[].name")
 	}
 
+	for _, grant := range e.Roles {
+		if grant.Slug == "" {
+			return fmt.Errorf("role grant has no slug")
+		}
+	}
+
 	if e.Vaults != nil {
 		for _, vault := range e.Vaults {
 			if vault.VaultKey != nil {
@@ -439,43 +442,22 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 		}
 	}
 
-	if e.Roles != nil {
-		for _, role := range e.Roles {
-			if role.IsGlobal {
-				r, err := b.store.GetSharedRoleBySlug(role.Role)
-				if errors.Is(err, db.ErrNotFound) {
-					return fmt.Errorf("global role does not exist: %s", role.Role)
-				}
-				if err != nil {
-					return err
-				}
-
-				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
-					TemplateID:  newTemplate.ID,
-					RoleID:      r.ID,
-					ProjectID:   b.meta.ID,
-					Permissions: role.Permissions & db.KnownRolePermissions,
-				})
-
-				if err != nil {
-					return err
-				}
-
-				continue
-			}
-			if k := findEntityByName[db.Role](&role.Role, b.roles); k == nil {
-				return fmt.Errorf("roles[].role does not exist in roles[].name")
-			} else {
-				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
-					TemplateID:  newTemplate.ID,
-					RoleID:      k.ID,
-					ProjectID:   b.meta.ID,
-					Permissions: role.Permissions & db.KnownRolePermissions,
-				})
-				if err != nil {
-					return err
-				}
-			}
+	for _, grant := range e.Roles {
+		role, err := b.store.GetProjectOrSharedRoleBySlug(b.meta.ID, grant.Slug)
+		if errors.Is(err, db.ErrNotFound) {
+			return common_errors.NewValidationError("role does not exist: " + grant.Slug)
+		}
+		if err != nil {
+			return err
+		}
+		_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
+			TemplateID:  newTemplate.ID,
+			RoleID:      role.ID,
+			ProjectID:   b.meta.ID,
+			Permissions: grant.Permissions & db.KnownRolePermissions,
+		})
+		if err != nil {
+			return err
 		}
 	}
 
