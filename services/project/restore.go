@@ -7,7 +7,6 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
-	"github.com/semaphoreui/semaphore/pkg/random"
 )
 
 func getEntryByName[T BackupEntry](name *string, items []T) *T {
@@ -50,22 +49,53 @@ func (e BackupSecretStorage) Restore(b *BackupDB) error {
 	return nil
 }
 
+// Verify skips the slug format: an upgraded instance keeps old slugs like "my role", and its export must restore.
 func (e BackupRole) Verify(backup *BackupFormat) error {
-	return verifyDuplicate[BackupRole](e.Name, backup.Roles)
+	role := e.Role
+	role.Permissions &= db.KnownRolePermissions
+	if err := db.ValidateRole(role, false); err != nil {
+		return err
+	}
+	if n := len([]rune(role.Slug)); n == 0 || n > 100 {
+		return &common_errors.ValidationError{Message: "Role slug must be 1 to 100 characters"}
+	}
+	if db.IsReservedRoleSlug(role.Slug) {
+		return &common_errors.ValidationError{Message: "Role slug is reserved: " + role.Slug}
+	}
+	return nil
 }
 
 func (e BackupRole) Restore(b *BackupDB) error {
 	role := e.Role
 	role.ProjectID = &b.meta.ID
-	role.Slug = random.String(16)
 	// Unknown bits are never checked today but would turn on with a future permission.
 	role.Permissions &= db.KnownRolePermissions
-	newRole, err := b.store.CreateRole(role)
+	_, err := b.store.GetSharedRoleBySlug(role.Slug)
+	if err == nil {
+		taken := b.unassignedRole(role.Slug, ReasonSlugTaken)
+		taken.Name, taken.Permissions = role.Name, role.Permissions
+		return nil
+	}
+	if !errors.Is(err, db.ErrNotFound) {
+		return err
+	}
+	created, err := b.store.CreateRole(role)
 	if err != nil {
 		return err
 	}
-	b.roles = append(b.roles, newRole)
+	b.roles = append(b.roles, created)
 	return nil
+}
+
+// unassignedRole finds or adds the report entry for a slug. Use the pointer at once, a later add may move it.
+func (b *BackupDB) unassignedRole(slug, reason string) *UnassignedRole {
+	for i := range b.unassigned {
+		if b.unassigned[i].Slug == slug {
+			return &b.unassigned[i]
+		}
+	}
+	b.unassigned = append(b.unassigned, UnassignedRole{Slug: slug, Reason: reason, Templates: []UnassignedTemplate{}})
+	return &b.unassigned[len(b.unassigned)-1]
 }
 
 func (e BackupEnvironment) Verify(backup *BackupFormat) error {
@@ -335,6 +365,12 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 		return fmt.Errorf("vault_key does not exist in keys[].name")
 	}
 
+	for _, grant := range e.Roles {
+		if grant.Slug == "" {
+			return fmt.Errorf("role grant has no slug")
+		}
+	}
+
 	if e.Vaults != nil {
 		for _, vault := range e.Vaults {
 			if vault.VaultKey != nil {
@@ -438,47 +474,43 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 		}
 	}
 
-	if e.Roles != nil {
-		for _, role := range e.Roles {
-			if role.IsGlobal {
-				r, err := b.store.GetSharedRoleBySlug(role.Role)
-				if errors.Is(err, db.ErrNotFound) {
-					return fmt.Errorf("global role does not exist: %s", role.Role)
-				}
-				if err != nil {
-					return err
-				}
-
-				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
-					TemplateID:  newTemplate.ID,
-					RoleID:      r.ID,
-					ProjectID:   b.meta.ID,
-					Permissions: role.Permissions & db.KnownRolePermissions,
-				})
-
-				if err != nil {
-					return err
-				}
-
-				continue
-			}
-			if k := findEntityByName[db.Role](&role.Role, b.roles); k == nil {
-				return fmt.Errorf("roles[].role does not exist in roles[].name")
-			} else {
-				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
-					TemplateID:  newTemplate.ID,
-					RoleID:      k.ID,
-					ProjectID:   b.meta.ID,
-					Permissions: role.Permissions & db.KnownRolePermissions,
-				})
-				if err != nil {
-					return err
-				}
-			}
+	for _, grant := range e.Roles {
+		permissions := grant.Permissions & db.KnownRolePermissions
+		role, err := b.fileRole(grant.Slug)
+		if errors.Is(err, db.ErrNotFound) {
+			unassigned := b.unassignedRole(grant.Slug, ReasonNotInFile)
+			unassigned.Templates = append(unassigned.Templates, UnassignedTemplate{ID: newTemplate.ID, Name: newTemplate.Name, Permissions: permissions})
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
+			TemplateID:  newTemplate.ID,
+			RoleID:      role.ID,
+			ProjectID:   b.meta.ID,
+			Permissions: permissions,
+		})
+		if err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// fileRole is a role from the file or a builtin one; any other role is the user's choice, never a slug match.
+func (b *BackupDB) fileRole(slug string) (db.Role, error) {
+	for _, role := range b.roles {
+		if role.Slug == slug {
+			return role, nil
+		}
+	}
+	role, err := b.store.GetSharedRoleBySlug(slug)
+	if err == nil && !role.Builtin {
+		return db.Role{}, db.ErrNotFound
+	}
+	return role, err
 }
 
 func (e BackupIntegration) Verify(backup *BackupFormat) error {
@@ -716,8 +748,8 @@ func (backup *BackupFormat) Verify() error {
 }
 
 // Restore creates the project whole or not at all: a failed entry removes it again.
-func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore db.WorkflowManager) (restored *db.Project, err error) {
-	var b = BackupDB{store: store, workflowStore: workflowStore}
+func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore db.WorkflowManager) (restored *RestoredProject, err error) {
+	var b = BackupDB{store: store, workflowStore: workflowStore, unassigned: []UnassignedRole{}}
 	project := backup.Meta.Project
 
 	// Prevent importing a project with a name that already exists
@@ -855,5 +887,5 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		_, _ = b.store.CreateIntegrationAlias(alias)
 	}
 
-	return &newProject, nil
+	return &RestoredProject{Project: newProject, UnassignedRoles: b.unassigned}, nil
 }

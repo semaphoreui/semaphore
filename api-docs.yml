@@ -550,6 +550,44 @@ definitions:
       type:
         type: string
 
+  RestoredProject:
+    allOf:
+      - $ref: "#/definitions/Project"
+      - type: object
+        properties:
+          unassigned_roles:
+            type: array
+            description: >-
+              Roles the restore left for you to decide about. A template grant to a role that is not in the
+              file (reason not_in_file) or a project role whose slug a shared role already holds (reason
+              slug_taken) is not restored. Assign the templates to a role of this instance yourself.
+            example: []
+            items:
+              type: object
+              properties:
+                slug:
+                  type: string
+                reason:
+                  type: string
+                  enum: [not_in_file, slug_taken]
+                name:
+                  type: string
+                  description: Name of the role in the file, only for slug_taken.
+                permissions:
+                  type: integer
+                  description: Permissions of the role in the file, only for slug_taken.
+                templates:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      permissions:
+                        type: integer
+
   AccessKeyRequest:
     type: object
     properties:
@@ -2675,7 +2713,7 @@ paths:
         200:
           description: Created project
           schema:
-            $ref: "#/definitions/Project"
+            $ref: "#/definitions/RestoredProject"
 
   /events:
     get:
