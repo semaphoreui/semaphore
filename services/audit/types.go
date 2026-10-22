@@ -53,7 +53,6 @@ const (
 	ReasonActivationFailed         Reason = "activation_failed"
 	ReasonSecretFailed             Reason = "secret_failed"
 	ReasonInventoryFailed          Reason = "inventory_failed"
-	ReasonRestoreFailed            Reason = "restore_failed"
 	ReasonInvalidRegistrationToken Reason = "invalid_registration_token"
 	ReasonInvalidStatus            Reason = "invalid_status"
 )
@@ -64,7 +63,7 @@ func knownReasons() []Reason {
 		ReasonInvalidState, ReasonInternalError, ReasonInvalidPasscode, ReasonInvalidRecoveryCode,
 		ReasonCodeExpired, ReasonTooManyAttempts, ReasonTokenUnknown, ReasonTokenExpired,
 		ReasonForbidden, ReasonCrossOrigin, ReasonInvalidCurrentPassword, ReasonLastOwner,
-		ReasonActivationFailed, ReasonSecretFailed, ReasonInventoryFailed, ReasonRestoreFailed,
+		ReasonActivationFailed, ReasonSecretFailed, ReasonInventoryFailed,
 		ReasonInvalidRegistrationToken, ReasonInvalidStatus,
 	}
 }

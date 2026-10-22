@@ -20,22 +20,6 @@ func (f resourceFixture) backup(t *testing.T, controller *BackupController) stri
 	return w.Body.String()
 }
 
-func TestRestore_RefusedBackupSaysWhere(t *testing.T) {
-	f := newResourceFixture(t)
-	f.template(t)
-	controller := NewBackupController(proFactory.NewWorkflowStore(f.store), noLicense{})
-	backup := strings.Replace(f.backup(t, controller), `"name": "p"`, `"name": "copy"`, 1)
-	require.Contains(t, backup, `"app": "ansible"`)
-	backup = strings.Replace(backup, `"app": "ansible"`, `"app": "unknown"`, 1)
-
-	r, _ := f.request(http.MethodPost, backup, nil, nil)
-	w := httptest.NewRecorder()
-	controller.Restore(w, r)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "error at templates[0]: invalid app")
-}
-
 func TestRestore_RefusedFileSaysWhere(t *testing.T) {
 	f := newResourceFixture(t)
 	f.template(t)

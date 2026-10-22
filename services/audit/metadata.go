@@ -184,7 +184,6 @@ type ProjectCreateMetadata struct {
 type BackupRestoreMetadata struct {
 	// Object counts per backup section, never the objects.
 	Objects map[string]int `json:"objects"`
-	Partial bool           `json:"partial,omitempty"`
 }
 
 type TemplateMetadata struct {

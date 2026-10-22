@@ -813,3 +813,28 @@ func TestBackupJSONHasNoRoleInternals(t *testing.T) {
 		assert.NotContains(t, doc.Roles[0], key)
 	}
 }
+
+func TestRestore_FailedEntryLeavesNoProject(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd:  "3412341234123",
+		User: db.User{Username: "restorer", Name: "Restorer", Email: "restorer@example.com", Admin: true},
+	})
+	require.NoError(t, err)
+	keyName := "k"
+	backup := &BackupFormat{
+		Meta:         BackupMeta{Project: db.Project{Name: "broken"}},
+		Keys:         []BackupAccessKey{{AccessKey: db.AccessKey{Name: keyName, Type: db.AccessKeyNone}}},
+		Repositories: []BackupRepository{{Repository: db.Repository{Name: "r", GitURL: "git@example.com:r.git", GitBranch: "main"}, SSHKey: &keyName}},
+		Templates:    []BackupTemplate{{Template: db.Template{Name: "deploy", App: "unknown", Playbook: "site.yml"}, Repository: "r"}},
+	}
+	require.NoError(t, backup.Verify())
+
+	_, err = backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+	require.ErrorContains(t, err, "error at templates[0]")
+	projects, err := store.GetAllProjects()
+	require.NoError(t, err)
+	assert.Empty(t, projects)
+}
