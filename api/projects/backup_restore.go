@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/audit"
 	projectService "github.com/semaphoreui/semaphore/services/project"
@@ -123,7 +125,7 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(log.Fields{
 			"context": "backup_api",
 		}).WithError(err).Error("failed to verify backup")
-		helpers.WriteError(w, err)
+		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -181,6 +183,10 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 	helpers.Audit(r).Record(r.Context(), event)
 
 	if err != nil {
+		if _, ok := errors.AsType[*common_errors.ValidationError](err); ok {
+			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		helpers.WriteError(w, err)
 		return
 	}
