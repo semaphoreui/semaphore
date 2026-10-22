@@ -2,6 +2,7 @@ package project
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db/sql"
@@ -945,4 +946,37 @@ func TestVerify_RefusesOtherFormatVersions(t *testing.T) {
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
+}
+
+func TestVerify_NamesTheScheduleEntry(t *testing.T) {
+	backup := &BackupFormat{
+		Version:   BackupFormatVersion,
+		Meta:      BackupMeta{Project: db.Project{Name: "p"}},
+		Schedules: []BackupSchedule{{Schedule: db.Schedule{Name: "nightly"}}, {Schedule: db.Schedule{Name: "nightly"}}, {Schedule: db.Schedule{Name: "nightly"}}},
+	}
+
+	err := backup.Verify()
+
+	assert.ErrorContains(t, err, "error at schedules[0]: nightly is duplicate")
+}
+
+type failingDelete struct{ db.Store }
+
+func (failingDelete) DeleteProject(int) error { return errors.New("locked") }
+
+func TestRestore_ReportsAFailedCleanup(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "m", Name: "m", Email: "m@example.com", Admin: true}})
+	require.NoError(t, err)
+	backup := &BackupFormat{
+		Version:   BackupFormatVersion,
+		Meta:      BackupMeta{Project: db.Project{Name: "stuck"}},
+		Templates: []BackupTemplate{{Template: db.Template{Name: "deploy"}, Repository: "gone"}},
+	}
+
+	_, err = backup.Restore(user, failingDelete{store}, proFactory.NewWorkflowStore(store))
+
+	require.ErrorContains(t, err, "error at templates[0]")
+	assert.ErrorContains(t, err, "could not be removed: locked")
 }

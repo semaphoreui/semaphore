@@ -7,7 +7,6 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
-	log "github.com/sirupsen/logrus"
 )
 
 func getEntryByName[T BackupEntry](name *string, items []T) *T {
@@ -647,7 +646,7 @@ func (backup *BackupFormat) Verify() error {
 	}
 	for i, o := range backup.Schedules {
 		if err := o.Verify(backup); err != nil {
-			return fmt.Errorf("error at templates[%d]: %s", i, err.Error())
+			return fmt.Errorf("error at schedules[%d]: %s", i, err.Error())
 		}
 	}
 	for i, o := range backup.Keys {
@@ -733,7 +732,7 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 			return
 		}
 		if deleteErr := b.store.DeleteProject(newProject.ID); deleteErr != nil {
-			log.WithError(deleteErr).Error("failed to delete the project after a failed restore")
+			err = fmt.Errorf("%w (project %d could not be removed: %v)", err, newProject.ID, deleteErr)
 		}
 	}()
 
