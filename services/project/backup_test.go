@@ -191,6 +191,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
     }
   ],
   "templates": [],
+  "version": 2,
   "views": [],
   "workflows": []
 }`, str)
@@ -471,7 +472,8 @@ func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
 	keyName := "k"
 	newBackup := func(name string, hostConfigs []BackupHostConfig) *BackupFormat {
 		return &BackupFormat{
-			Meta: BackupMeta{Project: db.Project{Name: name}},
+			Version: BackupFormatVersion,
+			Meta:    BackupMeta{Project: db.Project{Name: name}},
 			Keys: []BackupAccessKey{{
 				AccessKey: db.AccessKey{Name: keyName, Type: db.AccessKeySSH},
 			}},
@@ -583,6 +585,7 @@ func TestRestore_DropsUnknownPermissionBits(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
 
 	payload := `{
+  "version": 2,
   "keys": [{"name": "noop", "owner": "", "type": "none"}],
   "meta": {"name": "Restored Roles", "type": ""},
   "repositories": [{"git_branch": "master", "git_url": "git@example.com:test/test.git", "name": "Repo", "ssh_key": "noop"}],
@@ -930,8 +933,9 @@ func TestVerify_RoleSlugIsAddressable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			backup := &BackupFormat{
-				Meta:  BackupMeta{Project: db.Project{Name: "old file"}},
-				Roles: []BackupRole{{Role: db.Role{Slug: tt.slug, Name: "Deployer"}}},
+				Version: BackupFormatVersion,
+				Meta:    BackupMeta{Project: db.Project{Name: "p"}},
+				Roles:   []BackupRole{{Role: db.Role{Slug: tt.slug, Name: "Deployer"}}},
 			}
 
 			err := backup.Verify()
@@ -978,7 +982,7 @@ func TestRestore_UnassignedRolesIsEmptyList(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
 	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "m", Name: "m", Email: "m@example.com", Admin: true}})
 	require.NoError(t, err)
-	backup := &BackupFormat{Meta: BackupMeta{Project: db.Project{Name: "plain"}}}
+	backup := &BackupFormat{Version: BackupFormatVersion, Meta: BackupMeta{Project: db.Project{Name: "plain"}}}
 
 	restored, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
 
@@ -989,6 +993,7 @@ func TestRestore_UnassignedRolesIsEmptyList(t *testing.T) {
 
 func TestVerify_NamesTheScheduleEntry(t *testing.T) {
 	backup := &BackupFormat{
+		Version:   BackupFormatVersion,
 		Meta:      BackupMeta{Project: db.Project{Name: "p"}},
 		Schedules: []BackupSchedule{{Schedule: db.Schedule{Name: "nightly"}}, {Schedule: db.Schedule{Name: "nightly"}}, {Schedule: db.Schedule{Name: "nightly"}}},
 	}
@@ -1008,6 +1013,7 @@ func TestRestore_ReportsAFailedCleanup(t *testing.T) {
 	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "m", Name: "m", Email: "m@example.com", Admin: true}})
 	require.NoError(t, err)
 	backup := &BackupFormat{
+		Version:   BackupFormatVersion,
 		Meta:      BackupMeta{Project: db.Project{Name: "stuck"}},
 		Templates: []BackupTemplate{{Template: db.Template{Name: "deploy"}, Repository: "gone"}},
 	}
@@ -1016,4 +1022,35 @@ func TestRestore_ReportsAFailedCleanup(t *testing.T) {
 
 	require.ErrorContains(t, err, "error at templates[0]")
 	assert.ErrorContains(t, err, "could not be removed: locked")
+}
+
+func TestVerify_RefusesOtherFormatVersions(t *testing.T) {
+	grant := []BackupTemplateRole{{Slug: "ops", Permissions: db.CanRunProjectTasks}}
+	tests := []struct {
+		name    string
+		backup  BackupFormat
+		wantErr string
+	}{
+		{"no version with roles", BackupFormat{Roles: []BackupRole{{Role: db.Role{Slug: "ops", Name: "Ops"}}}}, "older version of Semaphore"},
+		{"no version with a grant", BackupFormat{Templates: []BackupTemplate{{Template: db.Template{Name: "t"}, Roles: grant}}}, "older version of Semaphore"},
+		{"newer", BackupFormat{Version: 3}, "newer version of Semaphore"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := tt.backup
+			backup.Meta = BackupMeta{Project: db.Project{Name: "p"}}
+
+			err := backup.Verify()
+
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestVerify_ReadsAnOldFileWithoutRoles(t *testing.T) {
+	backup := &BackupFormat{Meta: BackupMeta{Project: db.Project{Name: "p"}}}
+
+	err := backup.Verify()
+
+	assert.NoError(t, err)
 }
