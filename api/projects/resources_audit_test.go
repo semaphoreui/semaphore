@@ -94,7 +94,7 @@ func TestAddProject_IsRecorded(t *testing.T) {
 	}
 }
 
-func TestAddProject_SetupFailureIsPartial(t *testing.T) {
+func TestAddProject_FailedSetupLeavesNoProject(t *testing.T) {
 	f := newResourceFixture(t)
 	util.Config.Apps = map[string]util.App{}
 	r, rec := f.request(http.MethodPost, `{"name":"ops","demo":true}`, nil, nil)
@@ -103,11 +103,10 @@ func TestAddProject_SetupFailureIsPartial(t *testing.T) {
 	NewProjectsController(storeKeyService{&mockAccessKeyService{}, f.store}).AddProject(w, r)
 
 	assert.GreaterOrEqual(t, w.Code, http.StatusBadRequest, w.Body.String())
-	got := only(t, rec, audit.ResourceProjectCreate)
-	assert.Equal(t, audit.OutcomeSuccess, got.Event.Outcome, "the project is stored")
-	assert.Equal(t, audit.ReasonSetupFailed, got.Event.Reason)
-	assert.Equal(t, audit.ProjectCreateMetadata{Demo: true, Partial: true}, got.Event.Metadata)
-	assert.Equal(t, "ops", got.Event.Target.Name)
+	projects, err := f.store.GetAllProjects()
+	require.NoError(t, err)
+	assert.Len(t, projects, 1, "only the fixture project is left")
+	assert.Empty(t, rec.All())
 }
 
 func TestAddProject_DeniedIsRecorded(t *testing.T) {

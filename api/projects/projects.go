@@ -346,20 +346,16 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// The project row exists, so a failed setup step is still recorded.
-	recordSetupFailed := func() {
-		helpers.Audit(r).Record(r.Context(), audit.Event{
-			Kind:      audit.ResourceProjectCreate,
-			Target:    audit.ResourceTarget(audit.TargetProject, body.ID, body.Name),
-			ProjectID: body.ID,
-			Reason:    audit.ReasonSetupFailed,
-			Metadata:  audit.ProjectCreateMetadata{Demo: bodyWithDemo.Demo, Partial: true},
-		})
+	// A failed setup step must not leave a half-made project behind.
+	deleteProject := func() {
+		if err := store.DeleteProject(body.ID); err != nil {
+			log.WithError(err).Error("failed to delete the project after a failed setup step")
+		}
 	}
 
 	err = store.CreateProjectUser(body.ID, user.ID, []int{ownerRole.ID})
 	if err != nil {
-		recordSetupFailed()
+		deleteProject()
 		helpers.WriteError(w, err)
 		return
 	}
@@ -371,7 +367,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 	})
 
 	if err != nil {
-		recordSetupFailed()
+		deleteProject()
 		helpers.WriteError(w, err)
 		return
 	}
@@ -384,7 +380,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 	})
 
 	if err != nil {
-		recordSetupFailed()
+		deleteProject()
 		helpers.WriteError(w, err)
 		return
 	}
@@ -393,7 +389,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 		err = c.createDemoProject(body.ID, noneKey.ID, store)
 
 		if err != nil {
-			recordSetupFailed()
+			deleteProject()
 			helpers.WriteError(w, err)
 			return
 		}
