@@ -138,6 +138,10 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(log.Fields{
 			"context": "backup_api",
 		}).WithError(err).Error("failed to restore backup")
+		if cleanup, ok := errors.AsType[*projectService.CleanupError](err); ok {
+			writeCleanupFailure(w, cleanup.Err, cleanup.ProjectID)
+			return
+		}
 		if _, ok := errors.AsType[*common_errors.ValidationError](err); ok {
 			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
 			return

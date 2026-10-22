@@ -1,6 +1,8 @@
 package project
 
 import (
+	"fmt"
+
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -36,6 +38,19 @@ type BackupDB struct {
 	// separately rather than reached through store.
 	workflowStore db.WorkflowManager
 }
+
+// CleanupError says the project stayed behind after a failed restore.
+type CleanupError struct {
+	ProjectID int
+	Err       error
+	DeleteErr error
+}
+
+func (e *CleanupError) Error() string {
+	return fmt.Sprintf("%v (project %d could not be removed: %v)", e.Err, e.ProjectID, e.DeleteErr)
+}
+
+func (e *CleanupError) Unwrap() error { return e.Err }
 
 type BackupFormat struct {
 	Meta               BackupMeta            `backup:"meta"`

@@ -1,12 +1,15 @@
 package projects
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/semaphoreui/semaphore/services/server"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/util"
 	log "github.com/sirupsen/logrus"
@@ -22,6 +25,15 @@ func NewProjectsController(
 	return &ProjectsController{
 		accessKeyService: accessKeyService,
 	}
+}
+
+// writeCleanupFailure names the project that stayed behind. Store errors stay in the log.
+func writeCleanupFailure(w http.ResponseWriter, err error, projectID int) {
+	reason := "project setup failed"
+	if _, ok := errors.AsType[*common_errors.ValidationError](err); ok {
+		reason = err.Error()
+	}
+	helpers.WriteErrorStatus(w, fmt.Sprintf("%s (project %d could not be removed, delete it by hand)", reason, projectID), http.StatusBadRequest)
 }
 
 // GetProjects returns all projects in this users context
@@ -347,16 +359,22 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// A failed setup step must not leave a half-made project behind.
-	deleteProject := func() {
-		if err := store.DeleteProject(body.ID); err != nil {
-			log.WithError(err).Error("failed to delete the project after a failed setup step")
+	failSetup := func(err error) {
+		if deleteErr := store.DeleteProject(body.ID); deleteErr != nil {
+			log.WithError(deleteErr).WithField("project_id", body.ID).Error("failed to delete the project after a failed setup step")
+			writeCleanupFailure(w, err, body.ID)
+			return
 		}
+		if _, ok := errors.AsType[*common_errors.ValidationError](err); ok {
+			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		helpers.WriteError(w, err)
 	}
 
 	err = store.CreateProjectUser(body.ID, user.ID, []int{ownerRole.ID})
 	if err != nil {
-		deleteProject()
-		helpers.WriteError(w, err)
+		failSetup(err)
 		return
 	}
 
@@ -367,8 +385,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 	})
 
 	if err != nil {
-		deleteProject()
-		helpers.WriteError(w, err)
+		failSetup(err)
 		return
 	}
 
@@ -380,8 +397,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 	})
 
 	if err != nil {
-		deleteProject()
-		helpers.WriteError(w, err)
+		failSetup(err)
 		return
 	}
 
@@ -389,8 +405,7 @@ func (c *ProjectsController) AddProject(w http.ResponseWriter, r *http.Request) 
 		err = c.createDemoProject(body.ID, noneKey.ID, store)
 
 		if err != nil {
-			deleteProject()
-			helpers.WriteError(w, err)
+			failSetup(err)
 			return
 		}
 	}
