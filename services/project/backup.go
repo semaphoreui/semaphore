@@ -519,6 +519,7 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 	}
 
 	return &BackupFormat{
+		Version: BackupFormatVersion,
 		Meta: BackupMeta{
 			b.meta,
 		},

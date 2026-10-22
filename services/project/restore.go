@@ -629,6 +629,12 @@ func (e BackupWorkflow) Restore(b *BackupDB) error {
 }
 
 func (backup *BackupFormat) Verify() error {
+	if backup.Version < BackupFormatVersion {
+		return fmt.Errorf("backup was written by an older version of Semaphore, export the project again")
+	}
+	if backup.Version > BackupFormatVersion {
+		return fmt.Errorf("backup was written by a newer version of Semaphore")
+	}
 	for i, o := range backup.Environments {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at environments[%d]: %s", i, err.Error())

@@ -36,7 +36,11 @@ type BackupDB struct {
 	workflowStore db.WorkflowManager
 }
 
+// BackupFormatVersion is 2: files before it carry no version and refer to roles by name.
+const BackupFormatVersion = 2
+
 type BackupFormat struct {
+	Version            int                   `backup:"version"`
 	Meta               BackupMeta            `backup:"meta"`
 	Templates          []BackupTemplate      `backup:"templates"`
 	Repositories       []BackupRepository    `backup:"repositories"`

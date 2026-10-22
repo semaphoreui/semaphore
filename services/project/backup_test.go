@@ -189,6 +189,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
     }
   ],
   "templates": [],
+  "version": 2,
   "views": [],
   "workflows": []
 }`, str)
@@ -469,7 +470,8 @@ func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
 	keyName := "k"
 	newBackup := func(name string, hostConfigs []BackupHostConfig) *BackupFormat {
 		return &BackupFormat{
-			Meta: BackupMeta{Project: db.Project{Name: name}},
+			Version: BackupFormatVersion,
+			Meta:    BackupMeta{Project: db.Project{Name: name}},
 			Keys: []BackupAccessKey{{
 				AccessKey: db.AccessKey{Name: keyName, Type: db.AccessKeySSH},
 			}},
@@ -581,6 +583,7 @@ func TestRestore_DropsUnknownPermissionBits(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
 
 	payload := `{
+  "version": 2,
   "keys": [{"name": "noop", "owner": "", "type": "none"}],
   "meta": {"name": "Restored Roles", "type": ""},
   "repositories": [{"git_branch": "master", "git_url": "git@example.com:test/test.git", "name": "Repo", "ssh_key": "noop"}],
@@ -889,8 +892,9 @@ func TestVerify_RoleSlugFollowsTheApiRules(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			backup := &BackupFormat{
-				Meta:  BackupMeta{Project: db.Project{Name: "old file"}},
-				Roles: []BackupRole{{Role: db.Role{Slug: tt.slug, Name: "Deployer"}}},
+				Version: BackupFormatVersion,
+				Meta:    BackupMeta{Project: db.Project{Name: "p"}},
+				Roles:   []BackupRole{{Role: db.Role{Slug: tt.slug, Name: "Deployer"}}},
 			}
 
 			err := backup.Verify()
@@ -908,8 +912,9 @@ func TestRestore_TakenSlugLeavesNoProject(t *testing.T) {
 	_, err = store.CreateRole(db.Role{Slug: "ops", Name: "Ops"})
 	require.NoError(t, err)
 	backup := &BackupFormat{
-		Meta:  BackupMeta{Project: db.Project{Name: "taken"}},
-		Roles: []BackupRole{{Role: db.Role{Slug: "ops", Name: "Deployer"}}},
+		Version: BackupFormatVersion,
+		Meta:    BackupMeta{Project: db.Project{Name: "taken"}},
+		Roles:   []BackupRole{{Role: db.Role{Slug: "ops", Name: "Deployer"}}},
 	}
 	require.NoError(t, backup.Verify())
 
@@ -919,4 +924,25 @@ func TestRestore_TakenSlugLeavesNoProject(t *testing.T) {
 	projects, err := store.GetAllProjects()
 	require.NoError(t, err)
 	assert.Empty(t, projects)
+}
+
+func TestVerify_RefusesOtherFormatVersions(t *testing.T) {
+	tests := []struct {
+		name    string
+		version int
+		wantErr string
+	}{
+		{"no version", 0, "older version of Semaphore"},
+		{"older", 1, "older version of Semaphore"},
+		{"newer", 3, "newer version of Semaphore"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := &BackupFormat{Version: tt.version, Meta: BackupMeta{Project: db.Project{Name: "p"}}}
+
+			err := backup.Verify()
+
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
 }
