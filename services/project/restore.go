@@ -748,49 +748,49 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 	b.meta = newProject
 	for i, o := range backup.SecretStorages {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at secret storage[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at secret storage[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Roles {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at roles[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at roles[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Environments {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at environments[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at environments[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Views {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at views[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at views[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Keys {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at keys[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at keys[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Repositories {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at repositories[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at repositories[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.HostConfigs {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at host_configs[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at host_configs[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Inventories {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at inventories[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at inventories[%d]: %w", i, err)
 		}
 	}
 
@@ -801,26 +801,26 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 			continue
 		}
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at templates[%d]: %w", i, err)
 		}
 	}
 
 	for _, i := range deployTemplates {
 		o := backup.Templates[i]
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at templates[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Schedules {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at schedules[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at schedules[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Runners {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at runners[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at runners[%d]: %w", i, err)
 		}
 	}
 
@@ -828,7 +828,7 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 	// and environments by name, all of which must already exist in the project.
 	for i, o := range backup.Workflows {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at workflows[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at workflows[%d]: %w", i, err)
 		}
 	}
 
@@ -836,7 +836,7 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 	// restored above refers to an integration.
 	for i, o := range backup.Integration {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at integrations[%d]: %s", i, err.Error())
+			return &newProject, fmt.Errorf("error at integrations[%d]: %w", i, err)
 		}
 	}
 
