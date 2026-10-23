@@ -44,6 +44,10 @@ only when the task touches that topic. Keep this file under 150 lines.
   a wildcard downgrades the Pro workspace.
 - `integration-tests/` inside the checkout is a separate untracked git repo (Java/Gradle,
   Bookwright); see `integration-testing.md`.
+- goreleaser's `sboms` pipe runs the command from the dist dir (`bin/`, hence `../` for the module)
+  with a fresh env (only HOME/PATH/TMP* pass through): every Go var the SBOM needs (`GOOS`, `GOARCH`,
+  `GOFLAGS`, `GOWORK`) must be listed in `sboms[].env`, or a local `GOWORK=off` run gets a Pro graph.
+  Test with `goreleaser release --snapshot --skip=sign,publish,nfpm` on a config copy with one target.
 - Docker Desktop on this Mac is not running by default: `open -a Docker` starts it in ~2 s.
 - The shell `grep` is ugrep and silently returns 0 matches on Cyrillic patterns in built HTML;
   verify locale pages with Python.
