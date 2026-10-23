@@ -7,7 +7,7 @@ connection of the task through a generated `ssh_config` and temporary git URL re
 touching user files. A follow-up plan proposed collapsing the per-mapping SSH agents into one
 agent per task.
 
-Status (2026-09-27):
+Status (2026-09-28):
 - Host config feature — implemented: PR #4251 (`sem-272-host-config-page`, merged into develop
   2026-09-25, `232bfb242`, unreleased); migration `v2.20.7` (`project__host_config`);
   `db/HostConfig.go`, `pkg/ssh/host_config.go`, `api/projects/host_configs.go`,
@@ -36,6 +36,10 @@ Status (2026-09-27):
   http/https without userinfo and without `=`/quotes/whitespace (git splits an entry at the first
   `=`), ssh login regex (a newline would inject a `ProxyCommand`). Login/password mappings only
   over https and need no agent — the credential goes into the rewritten URL with `=` escaped.
+- **Project delete removes mappings before keys.** `project__host_config` references
+  `access_key` without `ON DELETE CASCADE`, so `DeleteProject` must drop host configs (and other
+  dependents) before secret-storage teardown — see `db/sql/project.go` and
+  `TestDeleteProject_WithHostConfigs` (`e5d6e84a`).
 - **Loaded wherever git runs for the project**: task prepare (`LocalExecutor.installHostConfigs`,
   torn down in `destroyKeys`), inventory repo, `ansible-galaxy`, Terraform init, schedule polling
   (`SchedulePool`), branch listing (`api/projects/repository.go`) via

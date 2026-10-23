@@ -1,6 +1,6 @@
 # workflow-editor — zone index
 
-The graphical workflow editor (Drawflow-based canvas on `feat/refactor_workflows`) and the
+The graphical workflow editor (Drawflow-based canvas on `develop` since PR #4287) and the
 Workflows-as-Code direction.
 
 | When you need it | Read |
