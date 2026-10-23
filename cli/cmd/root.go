@@ -172,6 +172,9 @@ func runService() {
 
 	// Initialize HA node identity before any component that uses it.
 	util.InitHANodeID()
+	for _, warning := range util.HAWarnings() {
+		log.Warn(warning)
+	}
 
 	// One Redis connection per node, shared by every HA component so that
 	// they all see the same master and the node holds one connection pool.
