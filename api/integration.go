@@ -310,6 +310,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			}
 
 			call.RunID = &run.ID
+			call.WorkflowID = &run.WorkflowTemplateID
 			call.TaskID = run.RootTaskID
 		}
 

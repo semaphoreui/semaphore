@@ -30,6 +30,20 @@ Status (2026-10-21): implemented on branch `prod-10-logs-for-intergrations`, not
 - **One row per (call, integration), including failures.** A per-integration failure `continue`s
   rather than returning, so one integration with an unloadable secret neither hides the others from
   the history nor stops them running — the pre-review code returned and aborted the whole fan-out.
+- **The caller's address is resolved whether or not audit recording is on.** `handlers.ProxyHeaders`
+  (`cli/cmd/root.go:371`) overwrites `RemoteAddr` from `X-Forwarded-For` without validating it, and
+  `audit.Service.Wrap` — installed outside it, the only place the real peer is still visible — used
+  to be a no-op when audit was disabled, which is the default. The source IP in the history was then
+  whatever the caller put in the header. `Wrap` now always installs `ClientAddrMiddleware`; the
+  request id stays an audit concern, so `X-Request-ID` is still absent when audit is off.
+- **`run_id` comes with `workflow_id`.** The run route is
+  `/project/:projectId/workflows/:workflowId/runs/:runId`, and a workflow run's `RootTaskID` is
+  nullable, so a task id alone left a successful workflow call pointing at nothing.
+- **The history is exported.** `services/export.IntegrationCallExporter` is in the chain
+  `db/migration` uses, so switching database backend keeps the calls instead of dropping them in
+  silence. References that cannot be remapped become null rather than keeping an old id that would
+  name an unrelated object in the destination; workflow runs are not exported at all, so `run_id`
+  and `workflow_id` are dropped.
 - **Every column written from the request is truncated on a rune boundary** (`truncateUTF8`).
   `handlers.ProxyHeaders` rewrites `RemoteAddr` from `X-Forwarded-For` without validating it
   (`cli/cmd/root.go:371`), so `source_ip` is caller-controlled and unbounded; a reason carries an
@@ -53,7 +67,11 @@ Status (2026-10-21): implemented on branch `prod-10-logs-for-intergrations`, not
   `db/sql/integration_alias.go:87` rejects with `ErrNotFound`) records nothing: at that point no
   project is known. It stays a log line.
 - The alias filter is exact match on an indexed column; aliases are random strings, so the alias
-  in each row is clickable to apply it. No substring search.
+  in each row is clickable to apply it. No substring search. The typed value and the applied one are
+  separate: typing must not change the filter a paged request sends, or Next would combine the new
+  filter with the previous one's cursor.
+- Page position moves only when a page actually loads; a failed Next or Previous puts the cursor and
+  the index back, so the rows on screen and the position cannot disagree.
 - Filter changes start a load without awaiting the one in flight, so each request carries a
   sequence number and only the newest applies its response (`requestSeq` in `IntegrationCalls.vue`).
 - `projectId` is a prop, so switching project reuses the component and `created()` does not run

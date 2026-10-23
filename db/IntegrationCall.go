@@ -36,5 +36,9 @@ type IntegrationCall struct {
 	// Duration is how long the integration took to answer the call, in milliseconds.
 	Duration int  `db:"duration" json:"duration"`
 	TaskID   *int `db:"task_id" json:"task_id"`
-	RunID    *int `db:"run_id" json:"run_id"`
+	// RunID and WorkflowID identify the workflow run a call started. Both are
+	// needed to link to it, and a workflow run has no root task of its own, so
+	// TaskID alone would leave a successful workflow call pointing at nothing.
+	RunID      *int `db:"run_id" json:"run_id"`
+	WorkflowID *int `db:"workflow_id" json:"workflow_id"`
 }

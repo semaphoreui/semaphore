@@ -39,8 +39,8 @@ func (d *SqlDb) CreateIntegrationCall(call db.IntegrationCall) error {
 
 	_, err := d.exec(
 		"insert into project__integration_call "+
-			"(project_id, integration_id, integration_name, alias, created, source_ip, method, outcome, reason, duration, task_id, run_id) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"(project_id, integration_id, integration_name, alias, created, source_ip, method, outcome, reason, duration, task_id, run_id, workflow_id) "+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		call.ProjectID,
 		call.IntegrationID,
 		call.IntegrationName,
@@ -52,7 +52,8 @@ func (d *SqlDb) CreateIntegrationCall(call db.IntegrationCall) error {
 		call.Reason,
 		call.Duration,
 		call.TaskID,
-		call.RunID)
+		call.RunID,
+		call.WorkflowID)
 
 	return err
 }

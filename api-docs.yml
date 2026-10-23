@@ -990,6 +990,9 @@ definitions:
         type: integer
       run_id:
         type: integer
+      workflow_id:
+        type: integer
+        description: set together with run_id, both are needed to link to the run
 
   RepositoryRequest:
     type: object

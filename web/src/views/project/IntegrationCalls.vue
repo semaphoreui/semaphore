@@ -30,9 +30,9 @@
         dense
         hide-details
         style="max-width: 260px"
-        @keyup.enter="resetAndLoad()"
-        @click:append="resetAndLoad()"
-        @click:clear="clearAlias()"
+        @keyup.enter="applyAlias(alias)"
+        @click:append="applyAlias(alias)"
+        @click:clear="applyAlias('')"
       ></v-text-field>
     </div>
 
@@ -60,7 +60,7 @@
         <span v-else class="text--secondary">{{ item.integration_name }}</span>
 
         <div style="font-size: 14px">
-          <a @click.prevent="filterByAlias(item.alias)" :title="$t('alias')">
+          <a @click.prevent="applyAlias(item.alias)" :title="$t('alias')">
             <code>{{ item.alias }}</code>
           </a>
         </div>
@@ -75,7 +75,13 @@
       </template>
 
       <template v-slot:item.task_id="{ item }">
-        <TaskLink v-if="item.task_id" :label="'#' + item.task_id" :task-id="item.task_id" />
+        <router-link
+          v-if="item.run_id && item.workflow_id"
+          :to="`/project/${projectId}/workflows/${item.workflow_id}/runs/${item.run_id}`"
+        >{{ $t('run') }} #{{ item.run_id }}
+        </router-link>
+        <span v-else-if="item.run_id">{{ $t('run') }} #{{ item.run_id }}</span>
+        <TaskLink v-else-if="item.task_id" :label="'#' + item.task_id" :task-id="item.task_id" />
         <span v-else>&mdash;</span>
       </template>
 
@@ -136,7 +142,11 @@ export default {
       OUTCOME_COLORS,
       integrations: [],
       integrationId: null,
+      // What the user is typing, and what the list is actually filtered by.
+      // Typing alone must not change the filter a paged request sends, or Next
+      // would combine the new filter with the previous one's cursor.
       alias: '',
+      appliedAlias: '',
       loading: false,
       // Changing a filter or the project starts a load without waiting for the
       // one in flight, so each request carries a sequence number and only the
@@ -179,6 +189,7 @@ export default {
       this.integrations = [];
       this.integrationId = null;
       this.alias = '';
+      this.appliedAlias = '';
       // Not null: that unmounts the page through the v-if and flashes it blank.
       this.items = [];
 
@@ -222,13 +233,9 @@ export default {
       }
     },
 
-    async filterByAlias(alias) {
+    async applyAlias(alias) {
       this.alias = alias;
-      await this.resetAndLoad();
-    },
-
-    async clearAlias() {
-      this.alias = '';
+      this.appliedAlias = alias;
       await this.resetAndLoad();
     },
 
@@ -253,8 +260,8 @@ export default {
         params.set('integration_id', this.integrationId);
       }
 
-      if (this.alias) {
-        params.set('alias', this.alias);
+      if (this.appliedAlias) {
+        params.set('alias', this.appliedAlias);
       }
 
       this.requestSeq += 1;
@@ -286,13 +293,24 @@ export default {
         return;
       }
 
+      const { cursors, pageIndex } = this;
+
       // Calls are ordered by id desc, so the last row holds the smallest id on
       // this page — the cursor for the next, older page.
-      this.cursors = this.cursors.slice(0, this.pageIndex + 1);
-      this.cursors.push(this.items[this.items.length - 1].id);
-      this.pageIndex += 1;
+      this.cursors = [...cursors.slice(0, pageIndex + 1), this.items[this.items.length - 1].id];
+      this.pageIndex = pageIndex + 1;
 
-      await this.loadItems();
+      try {
+        await this.loadItems();
+      } catch (err) {
+        // The rows on screen are still the previous page's, so the position has
+        // to go back with them — otherwise Next pages from the wrong cursor.
+        if (this.pageIndex === pageIndex + 1) {
+          this.cursors = cursors;
+          this.pageIndex = pageIndex;
+        }
+        throw err;
+      }
     },
 
     async goPrev() {
@@ -300,8 +318,17 @@ export default {
         return;
       }
 
-      this.pageIndex -= 1;
-      await this.loadItems();
+      const { pageIndex } = this;
+      this.pageIndex = pageIndex - 1;
+
+      try {
+        await this.loadItems();
+      } catch (err) {
+        if (this.pageIndex === pageIndex - 1) {
+          this.pageIndex = pageIndex;
+        }
+        throw err;
+      }
     },
   },
 };
