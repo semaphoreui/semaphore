@@ -992,6 +992,7 @@ definitions:
         type: integer
       workflow_id:
         type: integer
+        x-nullable: true
         description: set together with run_id, both are needed to link to the run
 
   RepositoryRequest:
