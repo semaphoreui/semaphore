@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/snikch/goodman/hooks"
 	trans "github.com/snikch/goodman/transaction"
 )
@@ -61,7 +62,7 @@ func main() {
 		dbConnect()
 		defer store.Close()
 		//tokens are expired and not deleted so we need to clean up
-		_ = store.DeleteAPIToken(testRunnerUser.ID, expiredToken)
+		_ = store.DeleteAPIToken(testRunnerUser.ID, expiredToken, db.APITokenTypeAPI)
 	})
 
 	// This one seems to need some manual value setting in the body

@@ -269,7 +269,7 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 		tokenID := strings.Replace(authHeader, "bearer ", "", 1)
 		tokenFingerprint = audit.TokenFingerprint(tokenID)
 
-		token, err := helpers.Store(r).GetAPIToken(tokenID)
+		token, err := helpers.Store(r).GetAPIToken(tokenID, db.APITokenTypeAPI)
 
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {

@@ -104,7 +104,7 @@ func truncateAll() {
 func removeTestRunnerUser(transactions []*transaction.Transaction) {
 	dbConnect()
 	defer store.Close()
-	_ = store.DeleteAPIToken(testRunnerUser.ID, adminToken)
+	_ = store.DeleteAPIToken(testRunnerUser.ID, adminToken, db.APITokenTypeAPI)
 	_ = store.DeleteUser(testRunnerUser.ID)
 }
 
@@ -444,7 +444,7 @@ func addWorkflowApproval() *db.WorkflowApproval {
 
 // Token Handling
 func addToken(tok string, user int) {
-	_, err := store.CreateAPIToken(db.APIToken{
+	_, err := store.CreateAPIToken(db.APITokenTypeAPI, db.APIToken{
 		ID:      tok,
 		Created: tz.Now(),
 		UserID:  user,

@@ -78,7 +78,7 @@ func createUserToken(store db.Store, out io.Writer, args tokenArgs) error {
 		return err
 	}
 
-	token, err := store.CreateAPIToken(db.APIToken{
+	token, err := store.CreateAPIToken(db.APITokenTypeAPI, db.APIToken{
 		ID:        tokenID,
 		UserID:    user.ID,
 		Expired:   false,
@@ -102,7 +102,7 @@ func listUserTokens(store db.Store, out io.Writer, args tokenArgs) error {
 		return err
 	}
 
-	tokens, err := store.GetAPITokens(user.ID)
+	tokens, err := store.GetAPITokens(user.ID, db.APITokenTypeAPI)
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		return err
 	}

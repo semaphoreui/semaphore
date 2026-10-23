@@ -125,7 +125,7 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
 
-	tokens, err := helpers.Store(r).GetAPITokens(user.ID)
+	tokens, err := helpers.Store(r).GetAPITokens(user.ID, db.APITokenTypeAPI)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -165,7 +165,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := helpers.Store(r).CreateAPIToken(db.APIToken{
+	token, err := helpers.Store(r).CreateAPIToken(db.APITokenTypeAPI, db.APIToken{
 		ID:        tokenID,
 		UserID:    user.ID,
 		Expired:   false,
@@ -189,14 +189,14 @@ func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
 
 	tokenID := mux.Vars(r)["token_id"]
 
-	tokens, err := helpers.Store(r).GetAPITokensByPrefix(user.ID, tokenID)
+	tokens, err := helpers.Store(r).GetAPITokensByPrefix(user.ID, tokenID, db.APITokenTypeAPI)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
 	for _, token := range tokens {
-		err = helpers.Store(r).DeleteAPIToken(user.ID, token.ID)
+		err = helpers.Store(r).DeleteAPIToken(user.ID, token.ID, db.APITokenTypeAPI)
 		if errors.Is(err, db.ErrNotFound) {
 			continue
 		}

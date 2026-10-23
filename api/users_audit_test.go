@@ -201,7 +201,7 @@ func TestDeleteAPIToken_RecordsEveryTokenTheStoreDeleted(t *testing.T) {
 			store := setupSessionTest(t)
 			user := createUserOptionsTestUser(t, store, "alice")
 			for _, id := range []string{"abcdefgh1111", "abcdefgx2222", "zzzzzzzz3333"} {
-				_, err := store.CreateAPIToken(db.APIToken{ID: id, UserID: user.ID, Name: id})
+				_, err := store.CreateAPIToken(db.APITokenTypeAPI, db.APIToken{ID: id, UserID: user.ID, Name: id})
 				require.NoError(t, err)
 			}
 
@@ -224,11 +224,11 @@ type scriptedTokenDelete struct {
 	deleteErr map[string]error
 }
 
-func (s scriptedTokenDelete) GetAPITokensByPrefix(int, string) ([]db.APIToken, error) {
+func (s scriptedTokenDelete) GetAPITokensByPrefix(int, string, db.APITokenType) ([]db.APIToken, error) {
 	return []db.APIToken{{ID: "abcdefgh1111", Name: "first"}, {ID: "abcdefgh2222", Name: "second"}}, nil
 }
 
-func (s scriptedTokenDelete) DeleteAPIToken(_ int, tokenID string) error {
+func (s scriptedTokenDelete) DeleteAPIToken(_ int, tokenID string, _ db.APITokenType) error {
 	return s.deleteErr[tokenID]
 }
 
