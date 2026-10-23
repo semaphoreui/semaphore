@@ -54,7 +54,7 @@ FROM alpine:3.24
 ARG TARGETARCH="amd64"
 
 RUN apk add --no-cache -U \
-    bash curl git gnupg mysql-client openssh-client-default python3 python3-dev py3-pip rsync sshpass tar tini tzdata unzip wget zip && \
+    bash curl git gnupg mysql-client openssh-client-default python3 python3-dev py3-pip rsync sshpass subversion tar tini tzdata unzip wget zip && \
     rm -rf /var/cache/apk/* && \
     adduser -D -u 1001 -G root semaphore && \
     mkdir -p /tmp/semaphore && \
