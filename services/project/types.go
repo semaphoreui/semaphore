@@ -22,7 +22,6 @@ type BackupDB struct {
 	integrationExtractValues map[int][]db.IntegrationExtractValue
 
 	secretStorages []db.SecretStorage
-	globalRoles    []db.Role
 	roles          []db.Role
 	templateRoles  map[int][]db.TemplateRolePerm
 	runners        []db.Runner
@@ -37,7 +36,11 @@ type BackupDB struct {
 	workflowStore db.WorkflowManager
 }
 
+// BackupFormatVersion is 2: files before it carry no version and refer to roles by name.
+const BackupFormatVersion = 2
+
 type BackupFormat struct {
+	Version            int                   `backup:"version"`
 	Meta               BackupMeta            `backup:"meta"`
 	Templates          []BackupTemplate      `backup:"templates"`
 	Repositories       []BackupRepository    `backup:"repositories"`
@@ -96,8 +99,7 @@ type BackupHostConfig struct {
 }
 
 type BackupTemplateRole struct {
-	Role        string                   `backup:"role"`
-	IsGlobal    bool                     `backup:"is_global"`
+	Slug        string                   `backup:"slug"`
 	Permissions db.ProjectUserPermission `backup:"permissions"`
 }
 
