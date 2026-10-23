@@ -25,11 +25,11 @@ const (
 	resolvedProvisioned
 )
 
-// externalUserProfile is what an external auth flow (LDAP or OIDC) learned
-// about the user. ExternalUID must be the provider's stable ID: LDAP DN or
-// OIDC "sub" claim.
+// externalUserProfile is what an external auth flow (LDAP, OIDC or JWT proxy)
+// learned about the user. ExternalUID must be the provider's stable ID: LDAP
+// DN or the OIDC or JWT "sub" claim.
 type externalUserProfile struct {
-	Type            string // db.IdentityTypeLdap or db.IdentityTypeOidc
+	Type            string // db.IdentityTypeLdap, db.IdentityTypeOidc or db.IdentityTypeJwt
 	Provider        string
 	ExternalUID     string
 	Username        string
