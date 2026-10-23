@@ -726,9 +726,14 @@ func TestIsValidHmacPayload_SHA512(t *testing.T) {
 
 type stubIntegrationService struct {
 	password string
+	// failFor is the integration whose secret cannot be loaded, zero for none.
+	failFor int
 }
 
 func (s *stubIntegrationService) FillIntegration(integration *db.Integration) error {
+	if s.failFor != 0 && integration.ID == s.failFor {
+		return errors.New("secret unavailable")
+	}
 	integration.AuthSecret = db.AccessKey{
 		LoginPassword: db.LoginPassword{Password: s.password},
 	}
@@ -920,4 +925,158 @@ func TestGetTaskDefinitionGitBranchParam(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, task.GitBranch)
 	assert.Equal(t, "release/1.0", task.Params[db.TaskParamGitBranch])
+}
+
+// receivedCalls returns the call history recorded for the alias's project.
+func receivedCalls(t *testing.T, store db.Store, alias string) []db.IntegrationCall {
+	t.Helper()
+	integrations, _, _, err := store.GetIntegrationsByAlias(alias)
+	require.NoError(t, err)
+	require.Len(t, integrations, 1)
+
+	calls, err := store.GetIntegrationCalls(integrations[0].ProjectID, db.RetrieveQueryParams{}, "", nil)
+	require.NoError(t, err)
+	return calls
+}
+
+func TestReceiveIntegration_RecordsRejectedCall(t *testing.T) {
+	ctrl, store, alias, authHeader := setupHmacSha512ReceiveIntegration(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+alias, bytes.NewReader([]byte(`{}`)))
+	req.Header.Set(authHeader, "deadbeef")
+	req = mux.SetURLVars(req, map[string]string{"integration_alias": alias})
+
+	ctrl.ReceiveIntegration(httptest.NewRecorder(), req)
+
+	calls := receivedCalls(t, store, alias)
+	require.Len(t, calls, 1)
+	assert.Equal(t, db.IntegrationCallUnauthorized, calls[0].Outcome)
+	assert.Equal(t, "Invalid HMAC-SHA512 signature", calls[0].Reason)
+	assert.Equal(t, alias, calls[0].Alias)
+	assert.Equal(t, http.MethodPost, calls[0].Method)
+	assert.Equal(t, "192.0.2.1", calls[0].SourceIP)
+	assert.Nil(t, calls[0].TaskID)
+}
+
+// The template lookup is stubbed to fail, which is the last step before the
+// task pool: the call must be recorded with the reason the start failed.
+func TestReceiveIntegration_RecordsFailedStart(t *testing.T) {
+	ctrl, store, alias, authHeader := setupHmacSha512ReceiveIntegration(t)
+
+	payload := []byte(`{"event":"deploy"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+alias, bytes.NewReader(payload))
+	req.Header.Set(authHeader, hmacHashPayload("webhook-secret", payload, sha512.New))
+	req = mux.SetURLVars(req, map[string]string{"integration_alias": alias})
+
+	ctrl.ReceiveIntegration(httptest.NewRecorder(), req)
+
+	calls := receivedCalls(t, store, alias)
+	require.Len(t, calls, 1)
+	assert.Equal(t, db.IntegrationCallError, calls[0].Outcome)
+	assert.Equal(t, "Failed to retrieve the template", calls[0].Reason)
+	assert.Nil(t, calls[0].TaskID)
+}
+
+// A real alias that starts nothing must still show up in the history — that is
+// the case a webhook author debugs. An unknown alias stays unrecorded.
+func TestReceiveIntegration_RecordsAliasThatMatchedNothing(t *testing.T) {
+	base := sql.InitConfigCreateTestStore()
+	store := &templateProbeStore{Store: base}
+
+	project, err := store.CreateProject(db.Project{Name: "empty project"})
+	require.NoError(t, err)
+
+	alias := "project-wide-alias"
+	_, err = store.CreateIntegrationAlias(db.IntegrationAlias{Alias: alias, ProjectID: project.ID})
+	require.NoError(t, err)
+
+	ctrl := NewIntegrationController(store, &stubIntegrationService{}, nil, nil)
+
+	send := func(a string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+a, bytes.NewReader([]byte(`{}`)))
+		req = mux.SetURLVars(req, map[string]string{"integration_alias": a})
+		w := httptest.NewRecorder()
+		ctrl.ReceiveIntegration(w, req)
+		return w
+	}
+
+	w := send(alias)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	send("alias-that-does-not-exist")
+
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil)
+	require.NoError(t, err)
+	require.Len(t, calls, 1, "only the real alias is recorded")
+	assert.Equal(t, db.IntegrationCallSkipped, calls[0].Outcome)
+	assert.Equal(t, "No integration matched the alias", calls[0].Reason)
+	assert.Equal(t, alias, calls[0].Alias)
+	assert.Nil(t, calls[0].IntegrationID)
+}
+
+// One alias can fan out to several integrations. A failure on one must not hide
+// the rest from the history, nor stop them from running.
+func TestReceiveIntegration_FailureOnOneIntegrationDoesNotHideTheOthers(t *testing.T) {
+	base := sql.InitConfigCreateTestStore()
+	store := &templateProbeStore{Store: base}
+
+	project, err := store.CreateProject(db.Project{Name: "fan-out project"})
+	require.NoError(t, err)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		Name: "repo key", Type: db.AccessKeyNone, ProjectID: &project.ID,
+	})
+	require.NoError(t, err)
+
+	repo, err := store.CreateRepository(db.Repository{
+		Name: "repo", ProjectID: project.ID,
+		GitURL: "git@example.com:test/test.git", GitBranch: "main", SSHKeyID: key.ID,
+	})
+	require.NoError(t, err)
+
+	template, err := store.CreateTemplate(db.Template{
+		Name: "tpl", ProjectID: project.ID, RepositoryID: repo.ID,
+		Playbook: "run.sh", App: db.AppBash,
+	})
+	require.NoError(t, err)
+
+	var ids []int
+	for _, name := range []string{"broken", "healthy"} {
+		integration, err := store.CreateIntegration(db.Integration{
+			Name:       name,
+			ProjectID:  project.ID,
+			TemplateID: &template.ID,
+			Searchable: true,
+		})
+		require.NoError(t, err)
+		ids = append(ids, integration.ID)
+	}
+
+	alias := "project-alias"
+	_, err = store.CreateIntegrationAlias(db.IntegrationAlias{Alias: alias, ProjectID: project.ID})
+	require.NoError(t, err)
+
+	ctrl := NewIntegrationController(store, &stubIntegrationService{failFor: ids[0]}, nil, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+alias, bytes.NewReader([]byte(`{}`)))
+	req = mux.SetURLVars(req, map[string]string{"integration_alias": alias})
+	w := httptest.NewRecorder()
+
+	ctrl.ReceiveIntegration(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil)
+	require.NoError(t, err)
+	require.Len(t, calls, 2, "both integrations are recorded, not just the one that failed")
+
+	byIntegration := map[int]db.IntegrationCall{}
+	for _, call := range calls {
+		require.NotNil(t, call.IntegrationID)
+		byIntegration[*call.IntegrationID] = call
+	}
+
+	assert.Equal(t, db.IntegrationCallError, byIntegration[ids[0]].Outcome)
+	assert.Equal(t, "Could not load the integration secret", byIntegration[ids[0]].Reason)
+	assert.Equal(t, db.IntegrationCallSkipped, byIntegration[ids[1]].Outcome)
 }

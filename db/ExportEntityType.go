@@ -66,6 +66,10 @@ func (e IntegrationAlias) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
 
+func (e IntegrationCall) GetDbKey() string {
+	return NewKeyFromInt(e.ID)
+}
+
 func (e IntegrationExtractValue) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }

@@ -44,7 +44,10 @@ func (d *SqlDb) GetIntegrationAliases(projectID int, integrationID *int) (res []
 	return
 }
 
-func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, level db.IntegrationAliasLevel, err error) {
+// GetIntegrationsByAlias resolves an alias to the integrations it starts. projectID is the
+// project owning the alias, returned even when no integration matched so the call can still
+// be recorded in that project's history.
+func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, level db.IntegrationAliasLevel, projectID int, err error) {
 
 	var aliasObj db.IntegrationAlias
 
@@ -63,6 +66,8 @@ func (d *SqlDb) GetIntegrationsByAlias(alias string) (res []db.Integration, leve
 	if err != nil {
 		return
 	}
+
+	projectID = aliasObj.ProjectID
 
 	if aliasObj.IntegrationID == nil {
 		level = db.IntegrationAliasProject

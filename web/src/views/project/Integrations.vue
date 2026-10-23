@@ -47,6 +47,11 @@
       </v-btn>
     </v-toolbar>
 
+    <v-tabs>
+      <v-tab :to="`/project/${projectId}/integrations`" exact>{{ $t('integrations') }}</v-tab>
+      <v-tab :to="`/project/${projectId}/integrations/history`">{{ $t('history') }}</v-tab>
+    </v-tabs>
+
     <div class="px-4 py-3">
       <div class="mb-3 pl-1" v-if="(aliases || []).length === 0">There are no aliases.</div>
 

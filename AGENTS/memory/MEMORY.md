@@ -98,6 +98,13 @@ only when the task touches that topic. Keep this file under 150 lines.
   quotes ignored: `!unsafe "2026.08"` is a float, `"00123"` the int 83. Tag only strings holding a
   Jinja2 delimiter or a `#jinja2:` header (`isPossiblyTemplate`, `services/tasks/extra_vars_file.go`);
   check a generated extra-vars file with the real loader, not yaml.v3 (`extra_vars_ansible_test.go`).
+- The `migrations` ledger records a version *string*, so a number applied on one branch never re-runs
+  on another where it means different SQL. Use one database per branch; to repair, delete the rows
+  (`delete from migrations where version in (…)`) and restart so the real migrations apply.
+- ⚠️ 2026-10-21: an empty-body 400 on every project page is the symptom (`helpers.WriteError`'s
+  default branch, stack trace in the server log) — seen when develop's 2.20.12/13/14 were skipped
+  this way and `project__user_role` was missing. The other branch's DDL stays applied but
+  unrecorded, so drop it too or it collides again when that branch merges.
 
 ## Topic files
 
