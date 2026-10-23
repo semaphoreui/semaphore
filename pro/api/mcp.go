@@ -3,10 +3,11 @@ package api
 import (
 	"net/http"
 
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 )
 
-func NewMCPController(enabled bool) pro_interfaces.MCPController {
+func NewMCPController(enabled bool, store db.Store) pro_interfaces.MCPController {
 	return &mcpControllerImpl{}
 }
 

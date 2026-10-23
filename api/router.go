@@ -126,7 +126,7 @@ func Route(
 	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
-	mcpController := proApi.NewMCPController(util.MCPEnabled())
+	mcpController := proApi.NewMCPController(util.MCPEnabled(), store)
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(servePublic)
