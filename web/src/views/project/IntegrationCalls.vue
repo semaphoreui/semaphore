@@ -19,7 +19,7 @@
         dense
         hide-details
         style="max-width: 260px"
-        @change="resetAndLoad()"
+        @change="applyIntegration($event)"
       ></v-select>
 
       <v-text-field
@@ -141,12 +141,21 @@ export default {
     return {
       OUTCOME_COLORS,
       integrations: [],
+      // What the controls show. Separate from the applied values below: a
+      // filter the server has not answered yet must not change what the rows
+      // on screen mean.
       integrationId: null,
-      // What the user is typing, and what the list is actually filtered by.
-      // Typing alone must not change the filter a paged request sends, or Next
-      // would combine the new filter with the previous one's cursor.
       alias: '',
+      // What the rows on screen are actually filtered and paged by. `load`
+      // commits these together with the rows, and only once a response has
+      // arrived, so the table, the filters it was built from and the cursor can
+      // never disagree — and a failed or superseded request needs no rollback
+      // because it changed nothing.
+      appliedIntegrationId: null,
       appliedAlias: '',
+      appliedPerPage: 20,
+      cursors: [null],
+      pageIndex: 0,
       loading: false,
       // Changing a filter or the project starts a load without waiting for the
       // one in flight, so each request carries a sequence number and only the
@@ -154,10 +163,8 @@ export default {
       // independently.
       requestSeq: 0,
       integrationsSeq: 0,
-      // Keyset pagination: `cursors[i]` is the `before` call id of page i (null
-      // for the newest page), `hasNext` comes from the X-Has-Next header.
-      cursors: [null],
-      pageIndex: 0,
+      // `cursors[i]` is the `before` call id of page i, null for the newest
+      // page; `hasNext` comes from the X-Has-Next header.
       hasNext: false,
       perPage: 20,
       perPageOptions: [10, 20, 50, 100],
@@ -173,7 +180,7 @@ export default {
     },
 
     rangeStart() {
-      return this.pageIndex * this.perPage;
+      return this.pageIndex * this.appliedPerPage;
     },
 
     rangeEnd() {
@@ -189,17 +196,21 @@ export default {
       this.integrations = [];
       this.integrationId = null;
       this.alias = '';
+      this.appliedIntegrationId = null;
       this.appliedAlias = '';
+      this.cursors = [null];
+      this.pageIndex = 0;
       // Not null: that unmounts the page through the v-if and flashes it blank.
       this.items = [];
+      this.hasNext = false;
 
       // Independent, so a failure to list the integrations cannot leave the
       // previous project's calls on screen.
-      await Promise.all([this.resetAndLoad(), this.beforeLoadItems()]);
+      await Promise.all([this.load(), this.beforeLoadItems()]);
     },
 
     async perPage() {
-      await this.resetAndLoad();
+      await this.load({ appliedPerPage: this.perPage, cursors: [null], pageIndex: 0 });
     },
   },
 
@@ -235,33 +246,45 @@ export default {
 
     async applyAlias(alias) {
       this.alias = alias;
-      this.appliedAlias = alias;
-      await this.resetAndLoad();
+      await this.load({ appliedAlias: alias, cursors: [null], pageIndex: 0 });
     },
 
-    // Existing cursors become meaningless when the project, the filters or the
-    // page size change, so go back to the newest page.
-    async resetAndLoad() {
-      this.cursors = [null];
-      this.pageIndex = 0;
-      await this.loadItems();
+    async applyIntegration(integrationId) {
+      await this.load({ appliedIntegrationId: integrationId, cursors: [null], pageIndex: 0 });
     },
 
-    // Overrides ItemListPageBase.loadItems to page with the keyset cursor.
+    // Overrides ItemListPageBase.loadItems; ItemListPageBase.created calls it.
     async loadItems() {
-      const params = new URLSearchParams({ count: this.perPage });
+      await this.load();
+    },
 
-      const before = this.cursors[this.pageIndex];
+    // Loads the page described by `target` — the applied filters and the cursor
+    // it should be built from, defaulting to the ones on screen. They are
+    // committed with the rows and only on success, so a request that fails or
+    // is overtaken by a newer one leaves the page exactly as it was.
+    async load(target = {}) {
+      const next = {
+        appliedIntegrationId: this.appliedIntegrationId,
+        appliedAlias: this.appliedAlias,
+        appliedPerPage: this.appliedPerPage,
+        cursors: this.cursors,
+        pageIndex: this.pageIndex,
+        ...target,
+      };
+
+      const params = new URLSearchParams({ count: next.appliedPerPage });
+
+      const before = next.cursors[next.pageIndex];
       if (before != null) {
         params.set('before', before);
       }
 
-      if (this.integrationId != null) {
-        params.set('integration_id', this.integrationId);
+      if (next.appliedIntegrationId != null) {
+        params.set('integration_id', next.appliedIntegrationId);
       }
 
-      if (this.appliedAlias) {
-        params.set('alias', this.appliedAlias);
+      if (next.appliedAlias) {
+        params.set('alias', next.appliedAlias);
       }
 
       this.requestSeq += 1;
@@ -279,6 +302,7 @@ export default {
           return;
         }
 
+        Object.assign(this, next);
         this.items = response.data;
         this.hasNext = response.headers['x-has-next'] === 'true';
       } finally {
@@ -293,24 +317,14 @@ export default {
         return;
       }
 
-      const { cursors, pageIndex } = this;
-
       // Calls are ordered by id desc, so the last row holds the smallest id on
       // this page — the cursor for the next, older page.
-      this.cursors = [...cursors.slice(0, pageIndex + 1), this.items[this.items.length - 1].id];
-      this.pageIndex = pageIndex + 1;
+      const kept = this.cursors.slice(0, this.pageIndex + 1);
 
-      try {
-        await this.loadItems();
-      } catch (err) {
-        // The rows on screen are still the previous page's, so the position has
-        // to go back with them — otherwise Next pages from the wrong cursor.
-        if (this.pageIndex === pageIndex + 1) {
-          this.cursors = cursors;
-          this.pageIndex = pageIndex;
-        }
-        throw err;
-      }
+      await this.load({
+        cursors: [...kept, this.items[this.items.length - 1].id],
+        pageIndex: this.pageIndex + 1,
+      });
     },
 
     async goPrev() {
@@ -318,17 +332,7 @@ export default {
         return;
       }
 
-      const { pageIndex } = this;
-      this.pageIndex = pageIndex - 1;
-
-      try {
-        await this.loadItems();
-      } catch (err) {
-        if (this.pageIndex === pageIndex - 1) {
-          this.pageIndex = pageIndex;
-        }
-        throw err;
-      }
+      await this.load({ pageIndex: this.pageIndex - 1 });
     },
   },
 };

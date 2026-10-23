@@ -67,13 +67,18 @@ Status (2026-10-21): implemented on branch `prod-10-logs-for-intergrations`, not
   `db/sql/integration_alias.go:87` rejects with `ErrNotFound`) records nothing: at that point no
   project is known. It stays a log line.
 - The alias filter is exact match on an indexed column; aliases are random strings, so the alias
-  in each row is clickable to apply it. No substring search. The typed value and the applied one are
-  separate: typing must not change the filter a paged request sends, or Next would combine the new
-  filter with the previous one's cursor.
-- Page position moves only when a page actually loads; a failed Next or Previous puts the cursor and
-  the index back, so the rows on screen and the position cannot disagree.
-- Filter changes start a load without awaiting the one in flight, so each request carries a
-  sequence number and only the newest applies its response (`requestSeq` in `IntegrationCalls.vue`).
+  in each row is clickable to apply it. No substring search.
+- A project change is the one case that commits immediately: the project has already changed, so the
+  previous applied filters are meaningless rather than something to fall back to.
+- ⚠️ 2026-10-23: `IntegrationCalls.vue` keeps what the controls **show** apart from what the rows
+  are **applied** with (`appliedAlias`, `appliedIntegrationId`, `appliedPerPage`, `cursors`,
+  `pageIndex`). `load(target)` commits the applied set together with the rows, and only once a
+  response arrives. Mutating that state before the request and repairing it afterwards was tried
+  first and produced a new race on every path — a failed page leaving the position moved, a stale
+  failure rolling back over a newer filter. Nothing to roll back is the only version that stays
+  correct; keep it that way rather than adding another guard.
+- Each request still carries a sequence number so only the newest commits (`requestSeq`); the
+  integration options count separately (`integrationsSeq`).
 - `projectId` is a prop, so switching project reuses the component and `created()` does not run
   again: the watcher clears both filters and the rows, and reloads the integration options, or they
   would still belong to the previous project. The integration select reloads on `@change`, not a
