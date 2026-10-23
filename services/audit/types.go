@@ -90,6 +90,7 @@ const (
 const (
 	TargetUser                  = "user"
 	TargetAPIToken              = "api_token"
+	TargetMCPToken              = "mcp_token"
 	TargetRoute                 = "route"
 	TargetRole                  = "role"
 	TargetGlobalRole            = "global_role"

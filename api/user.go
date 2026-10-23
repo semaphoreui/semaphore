@@ -122,6 +122,10 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// getAPITokens, createAPIToken and deleteAPIToken are intentionally duplicated
+// for MCP tokens in the Pro module (pro_impl/api/mcp_tokens.go), so that the MCP
+// token logic stays in the private repository and can diverge later without
+// touching these handlers. Until then, keep both in step.
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
 
@@ -149,7 +153,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt *time.Time `json:"expires_at"`
 	}
 	if r.ContentLength > 0 {
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil && err != io.EOF {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}

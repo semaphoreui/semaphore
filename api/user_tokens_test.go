@@ -41,10 +41,12 @@ func TestCreateAPIToken_IgnoresTypeInBody(t *testing.T) {
 	createAPIToken(w, r)
 
 	require.Equal(t, http.StatusCreated, w.Code)
-	var body map[string]any
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-	assert.NotContains(t, body, "type", "the token type is not sent to clients")
-	_, err := store.GetAPIToken(body["id"].(string), db.APITokenTypeAPI)
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &fields))
+	assert.NotContains(t, fields, "type", "the token type is not sent to clients")
+	var token db.APIToken
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &token))
+	_, err := store.GetAPIToken(token.ID, db.APITokenTypeAPI)
 	assert.NoError(t, err, "the REST API issues REST API tokens whatever the body says")
 }
 
@@ -99,7 +101,7 @@ func TestDeleteAPIToken_LeavesMCPTokens(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, w.Code)
 	assert.Equal(t, "rest", onlyEvent(t, rec, audit.IAMAPITokenDelete).Event.Target.Name)
 	_, err = store.GetAPIToken("abcdefgh1111", db.APITokenTypeAPI)
-	assert.ErrorIs(t, err, db.ErrNotFound)
+	require.ErrorIs(t, err, db.ErrNotFound)
 	_, err = store.GetAPIToken("abcdefgh2222", db.APITokenTypeMCP)
 	assert.NoError(t, err, "a REST revoke by prefix does not touch an MCP token")
 }

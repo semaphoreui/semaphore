@@ -36,7 +36,7 @@ func TestMigration_2_20_17_ExistingTokensBecomeAPITokens(t *testing.T) {
 	require.NoError(t, err, "a token issued before the migration keeps working on the REST API")
 	assert.Equal(t, db.APITokenTypeAPI, token.Type)
 	_, err = store.GetAPIToken("existingtoken123", db.APITokenTypeMCP)
-	assert.ErrorIs(t, err, db.ErrNotFound)
+	require.ErrorIs(t, err, db.ErrNotFound)
 
 	require.NoError(t, db.Rollback(store, "2.20.16"))
 	columns, err := store.Sql().SelectInt(store.PrepareQuery(
