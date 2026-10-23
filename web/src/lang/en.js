@@ -981,8 +981,6 @@ export default {
   audit_reason_activation_failed: 'Activation failed',
   audit_reason_secret_failed: 'Secret could not be read',
   audit_reason_inventory_failed: 'Inventory could not be prepared',
-  audit_reason_setup_failed: 'Setup failed',
-  audit_reason_restore_failed: 'Restore failed',
   audit_reason_invalid_registration_token: 'Invalid registration token',
   audit_reason_invalid_status: 'Invalid status',
   audit_target_user: 'User',
