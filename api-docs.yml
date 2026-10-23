@@ -1550,6 +1550,12 @@ definitions:
         type: string
       features:
         type: object
+      mcp:
+        type: object
+        properties:
+          enabled:
+            type: boolean
+            description: Whether the built-in MCP server is switched on (mcp.enabled)
 
   ClusterTaskRecord:
     type: object

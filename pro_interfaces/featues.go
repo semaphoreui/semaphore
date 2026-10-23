@@ -21,4 +21,8 @@ type Features struct {
 	DockerExecutor                 bool `json:"docker_executor"`
 	K8sExecutor                    bool `json:"k8s_executor"`
 	AuditLogFilters                bool `json:"audit_log_filters"`
+	// MCP lets the user work with the built-in MCP server: issue MCP tokens
+	// and connect an MCP client. In a Pro plan only Pro users have it; in
+	// Enterprise everyone. The server must also have mcp.enabled set.
+	MCP bool `json:"mcp"`
 }
