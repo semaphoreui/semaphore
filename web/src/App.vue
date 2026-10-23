@@ -527,6 +527,16 @@
 
               <v-divider />
 
+              <v-list-item key="mcp" data-testid="sidebar-mcp" to="/mcp">
+                <v-list-item-icon>
+                  <v-icon>mdi-robot-outline</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('mcp_server') }}
+                </v-list-item-content>
+              </v-list-item>
+
               <v-list-item key="tokens" data-testid="sidebar-tokens" to="/tokens">
                 <v-list-item-icon>
                   <v-icon>mdi-api</v-icon>

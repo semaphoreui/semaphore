@@ -462,6 +462,15 @@ export default {
   status_stopped: 'Stopped',
 
   api_tokens: 'API Tokens',
+  mcp_server: 'MCP Server',
+  mcp_only_pro: 'The MCP server is only available for <b>PRO</b> users.',
+  mcp_disabled_banner: 'The MCP server is switched off. An administrator switches it on with the <code>mcp.enabled</code> option.',
+  mcp_tokens: 'MCP tokens',
+  mcp_connection: 'Connection',
+  mcp_endpoint: 'Endpoint',
+  mcp_client: 'MCP client',
+  mcp_plain_http_warning: 'The connection does not use an SSL certificate: the data sent is not encrypted.',
+  mcp_cloud_clients_info: 'Clients that run in a vendor cloud (ChatGPT web, claude.ai and Claude Desktop connectors, Cursor Cloud Agents) cannot reach a Semaphore in an internal network. ChatGPT web is not supported: use Codex instead.',
   tokenName: 'Token Name',
 
   // Terraform/OpenTofu/Terragrunt

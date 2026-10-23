@@ -332,6 +332,15 @@ export default {
   status_stopped: 'Остановлено',
 
   api_tokens: 'API токены',
+  mcp_server: 'MCP сервер',
+  mcp_only_pro: 'MCP сервер доступен только пользователям <b>PRO</b>.',
+  mcp_disabled_banner: 'MCP сервер выключен. Администратор включает его настройкой <code>mcp.enabled</code>.',
+  mcp_tokens: 'MCP-токены',
+  mcp_connection: 'Подключение',
+  mcp_endpoint: 'Адрес',
+  mcp_client: 'MCP-клиент',
+  mcp_plain_http_warning: 'Подключение не использует SSL-сертификат, передаваемая информация не зашифрована.',
+  mcp_cloud_clients_info: 'Клиенты, которые работают в облаке вендора (ChatGPT web, коннекторы claude.ai и Claude Desktop, облачные агенты Cursor), не достанут Semaphore во внутренней сети. ChatGPT web не поддерживается: используйте Codex.',
 
   // Terraform/OpenTofu
   auto_approve: 'Авто одобрение',
