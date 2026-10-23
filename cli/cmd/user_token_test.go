@@ -103,7 +103,7 @@ func TestCreateUserToken_WithTTL(t *testing.T) {
 
 	// create prints the token value
 	assert.Equal(t, token.ID, strings.TrimSpace(out.String()))
-	assert.NotEmpty(t, token.ID)
+	assert.Regexp(t, `^[a-z0-9_-]{43}=$`, token.ID)
 }
 
 func TestCreateUserToken_NoTTL_NeverExpires(t *testing.T) {

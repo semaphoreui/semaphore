@@ -1,13 +1,10 @@
 package cmd
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -76,13 +73,13 @@ func createUserToken(store db.Store, out io.Writer, args tokenArgs) error {
 		expiresAt = &t
 	}
 
-	tokenID := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
+	tokenID, err := db.NewUserTokenID()
+	if err != nil {
 		return err
 	}
 
 	token, err := store.CreateAPIToken(db.APIToken{
-		ID:        strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
+		ID:        tokenID,
 		UserID:    user.ID,
 		Expired:   false,
 		ExpiresAt: expiresAt,

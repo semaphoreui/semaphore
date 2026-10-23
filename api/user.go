@@ -1,13 +1,10 @@
 package api
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -162,13 +159,14 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenID := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
-		panic(err)
+	tokenID, err := db.NewUserTokenID()
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
 	token, err := helpers.Store(r).CreateAPIToken(db.APIToken{
-		ID:        strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
+		ID:        tokenID,
 		UserID:    user.ID,
 		Expired:   false,
 		ExpiresAt: body.ExpiresAt,
