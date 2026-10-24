@@ -177,6 +177,32 @@ describe('RestoreProjectResult.vue', () => {
     expect(http.requests.map((r) => r.url)).to.include('/api/project/8/roles/all');
   });
 
+  it('ignores a roles answer that arrives for the previous project', async () => {
+    let release;
+    const held = new Promise((resolve) => { release = resolve; });
+    http.respond(async (config) => {
+      if (config.url === '/api/project/7/roles/all') {
+        await held;
+      }
+      return ROUTES[config.url] || {};
+    });
+    const wrapper = await mountWith(PROJECT);
+    await wrapper.setProps({
+      project: {
+        id: 8,
+        name: 'second',
+        unassigned_roles: [{ slug: 'ops', reason: 'not_in_file', templates: [] }],
+      },
+    });
+    await flush();
+
+    release();
+    await flush();
+
+    expect(wrapper.vm.roles).to.deep.equal([]);
+    expect(wrapper.vm.choices.ops).to.equal(null);
+  });
+
   it('hides the list when nothing is unassigned', async () => {
     const wrapper = await mountWith({ id: 7, name: 'copy', unassigned_roles: [] });
 

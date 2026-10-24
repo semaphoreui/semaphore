@@ -133,12 +133,21 @@ export default {
     isValidSlug,
 
     async loadRoles() {
+      const projectId = this.project.id;
+      let roles;
       try {
-        this.roles = (await axios.get(`/api/project/${this.project.id}/roles/all`)).data;
+        roles = (await axios.get(`/api/project/${projectId}/roles/all`)).data;
       } catch (err) {
-        this.loadError = getErrorMessage(err);
+        if (projectId === this.project.id) {
+          this.loadError = getErrorMessage(err);
+        }
         return;
       }
+      // The dialog may already show the next restored project.
+      if (projectId !== this.project.id) {
+        return;
+      }
+      this.roles = roles;
       this.rows.forEach((row) => {
         if (this.roles.some((role) => role.slug === row.slug)) {
           this.choices[row.slug] = row.slug;
