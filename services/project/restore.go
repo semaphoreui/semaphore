@@ -62,6 +62,15 @@ func (e BackupRole) Verify(backup *BackupFormat) error {
 	if db.IsReservedRoleSlug(role.Slug) {
 		return &common_errors.ValidationError{Message: "Role slug is reserved: " + role.Slug}
 	}
+	n := 0
+	for _, other := range backup.Roles {
+		if strings.EqualFold(other.Slug, role.Slug) {
+			n++
+		}
+	}
+	if n > 1 {
+		return &common_errors.ValidationError{Message: "Role slug is duplicate: " + role.Slug}
+	}
 	return nil
 }
 

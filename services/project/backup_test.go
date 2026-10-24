@@ -921,6 +921,21 @@ func TestBackupProject_KeepsAnOldSlug(t *testing.T) {
 	assert.Equal(t, "my role", roles[0].Slug)
 }
 
+func TestVerify_RefusesDuplicateRoleSlugs(t *testing.T) {
+	backup := &BackupFormat{
+		Version: BackupFormatVersion,
+		Meta:    BackupMeta{Project: db.Project{Name: "p"}},
+		Roles: []BackupRole{
+			{Role: db.Role{Slug: "ops", Name: "Ops"}},
+			{Role: db.Role{Slug: "OPS", Name: "Ops again"}},
+		},
+	}
+
+	err := backup.Verify()
+
+	assert.ErrorContains(t, err, "error at roles[0]: Role slug is duplicate: ops")
+}
+
 func TestVerify_RoleSlugIsAddressable(t *testing.T) {
 	tests := []struct {
 		name string
