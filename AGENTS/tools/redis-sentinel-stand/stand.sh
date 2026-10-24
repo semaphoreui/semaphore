@@ -53,6 +53,11 @@ case "${1:-status}" in
     done
     echo "no failover within 30 s" >&2; exit 1 ;;
   restore) dc start redis-master; sleep 3; echo "redis-master started; role: $(dc exec -T redis-master redis-cli role | head -1); master=$(master)" ;;
-  logs) dc logs --no-color --tail "${3:-50}" "${2:-}" ;;
+  logs)
+    if [ -n "${2:-}" ]; then
+      dc logs --no-color --tail "${3:-50}" "$2"
+    else
+      dc logs --no-color --tail "${3:-50}"
+    fi ;;
   *) echo "usage: $0 {build|up|down|status|master|failover|restore|logs [service] [n]}" >&2; exit 2 ;;
 esac
