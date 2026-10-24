@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -171,6 +172,26 @@ func runService() {
 
 	// Initialize HA node identity before any component that uses it.
 	util.InitHANodeID()
+	for _, warning := range util.HAWarnings() {
+		log.Warn(warning)
+	}
+
+	// One Redis connection per node, shared by every HA component so that
+	// they all see the same master and the node holds one connection pool.
+	// Nil outside HA mode and in the open-source build. An HA node that
+	// cannot reach Redis must not start: it would fire schedules and claim
+	// tasks without coordinating with the rest of the cluster.
+	haRedis := proHA.NewHARedis()
+	if haRedis != nil {
+		pingCtx, cancelPing := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := haRedis.Ping(pingCtx); err != nil {
+			cancelPing()
+			log.WithError(err).WithField("redis", haRedis.Describe()).Fatal("failed to connect to the HA Redis backend")
+		}
+		cancelPing()
+		defer haRedis.Close()
+		log.WithField("redis", haRedis.Describe()).Info("HA Redis backend connected")
+	}
 
 	appMetrics := metrics.NewMetrics()
 
@@ -178,14 +199,14 @@ func runService() {
 		store,
 		util.Config.Audit,
 		util.HANodeID(),
-		proServer.NewAuditExporter(store, util.Config.Audit, proHA.NewAuditExportLeaser(), appMetrics),
+		proServer.NewAuditExporter(store, util.Config.Audit, proHA.NewAuditExportLeaser(haRedis), appMetrics),
 	)
 	if auditErr != nil {
 		log.WithError(auditErr).Fatal("failed to start the audit log")
 	}
 	defer auditService.Stop()
 
-	state := proTasks.NewTaskStateStore()
+	state := proTasks.NewTaskStateStore(haRedis)
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
 	workflowStore := proFactory.NewWorkflowStore(store)
@@ -231,7 +252,7 @@ func runService() {
 	// enqueuer), then inject the service back into the pool. The run locker is
 	// Redis-backed in HA mode (cluster-wide progression locks) and nil
 	// otherwise, which makes the service fall back to its in-process locker.
-	workflowService := proServer.NewWorkflowService(workflowStore, store, &taskPool, proHA.NewWorkflowRunLocker())
+	workflowService := proServer.NewWorkflowService(workflowStore, store, &taskPool, proHA.NewWorkflowRunLocker(haRedis))
 	taskPool.SetWorkflowService(workflowService)
 	taskPool.SetTaskOutputsCollector(proTasks.NewTaskOutputsCollector())
 
@@ -252,7 +273,8 @@ func runService() {
 	// 2. Schedule deduplication: only one node fires each schedule occurrence
 	// 3. WebSocket broadcaster: real-time events reach clients on all nodes
 	// 4. Orphan cleaner: tasks from dead nodes are marked as failed
-	if nodeRegistry := proHA.NewNodeRegistry(); nodeRegistry != nil {
+	nodeRegistry := proHA.NewNodeRegistry(haRedis)
+	if nodeRegistry != nil {
 		if err := nodeRegistry.Start(); err != nil {
 			log.WithError(err).Fatal("failed to start HA node registry")
 		}
@@ -263,9 +285,9 @@ func runService() {
 	// Cluster inspector powers the admin Cluster Dashboard. It is nil when HA
 	// is disabled; the dashboard then falls back to the local task pool. The
 	// instance is injected per-request below.
-	clusterInspector := proHA.NewClusterInspector()
+	clusterInspector := proHA.NewClusterInspector(haRedis)
 
-	if dedup := proHA.NewScheduleDeduplicator(); dedup != nil {
+	if dedup := proHA.NewScheduleDeduplicator(haRedis); dedup != nil {
 		schedulePool.SetDeduplicator(dedup)
 		secretStorageSyncScheduler.SetTickDeduplicator(dedup)
 	}
@@ -284,7 +306,7 @@ func runService() {
 		}()
 	}
 
-	if orphanCleaner := proHA.NewOrphanCleaner(store); orphanCleaner != nil {
+	if orphanCleaner := proHA.NewOrphanCleaner(haRedis, nodeRegistry, store); orphanCleaner != nil {
 		orphanCleaner.Start()
 		defer orphanCleaner.Stop()
 	}
@@ -317,7 +339,7 @@ func runService() {
 	// channel is being consumed when LocalBroadcast is called.
 	go sockets.StartWS()
 
-	if wsBroadcaster := proHA.NewWSBroadcaster(); wsBroadcaster != nil {
+	if wsBroadcaster := proHA.NewWSBroadcaster(haRedis); wsBroadcaster != nil {
 		sockets.SetBroadcaster(wsBroadcaster)
 		wsBroadcaster.Start()
 		defer wsBroadcaster.Stop()
