@@ -639,7 +639,7 @@ $defs:
       trusted_proxy_cidrs:
         type: array
         items: { type: string }
-        description: Proxy networks whose X-Forwarded-For and X-Real-IP headers are trusted.
+        description: Proxy networks whose X-Forwarded-For, X-Real-IP, X-Forwarded-Host and X-Forwarded-Proto headers are trusted. Applies to every request, also when the audit log is disabled. Empty ignores those headers.
       retention_days:
         type: integer
         minimum: 0
