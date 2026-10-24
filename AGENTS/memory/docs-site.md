@@ -18,8 +18,8 @@
   plugin in `docusaurus.config.js` honours `SEMAPHORE_DOCS_WEBPACK_CACHE_DIR` (set by
   `build-parallel.sh`). Run `npx docusaurus clear` (or remove `.docusaurus .docusaurus-build build
   node_modules/.cache`) before trusting a red build.
-- `onBrokenLinks` is `'ignore'`, so broken links and empty pages build silently (39 broken links
-  and 5 empty pages found on 2026-09-13).
+- `onBrokenLinks` and `onBrokenAnchors` are `'throw'` (since at least 2026-10-25; they were `'ignore'`
+  on 2026-09-13), so a bad link or `#anchor` fails the build — use explicit `{#ids}` on headings.
 - `node scripts/check-docs.mjs` (`npm run check`) must run from the submodule root, or it fails
   with MODULE_NOT_FOUND. It compares anchors, link/heading/fence counts across locales; images
   count as links, so every locale needs the same number.
@@ -34,7 +34,18 @@
   `descriptions.json` fallback prose, count should only fall) and `tools/clidocs` (walks the real
   Cobra tree via `cmd.RootCommand()`; persistent flags registered in a `sync.OnceFunc`).
 - `task docs:gen` regenerates, `task docs:check` and the `docs-reference` CI job fail on drift.
-  Both pages are English only — `ENGLISH_ONLY` in `docs/scripts/check-docs.mjs` exempts them.
+  English-only pages are listed in `ENGLISH_ONLY` in `docs/scripts/check-docs.mjs` (the two
+  generated pages, `reference/audit-events`, `reference/task-environment`); a hand-written
+  English-only page still needs its row in every locale's `reference/README.md`.
+- Docs `main` can be generated from code that is ahead of `develop`: on 2026-10-25 `task docs:gen`
+  on develop dropped the `ha.engine` / `ha.redis_sentinel.*` rows that docs main already had.
+  Check `git -C docs diff docs/reference/configuration.md` after regenerating and keep only the
+  rows your change produced, or you silently un-document a feature of another branch.
+- Edition badges: never write `(Pro)` by hand — `<FeatureState feature="<key>" />` with a key from
+  `docs/src/data/editions.js` (`workflows`, `docker-executor`, `k8s-executor`, `terraform-backend`,
+  `extended-rbac`, …), or `<Pro />` / `<Enterprise />`; they are global MDX components. A badge
+  works inside a table cell too. New pages start from `docs/templates/<type>.md`
+  (`reference.md` ends with a `## Related pages {#related-pages}` list).
 
 ## Content conventions
 

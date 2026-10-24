@@ -851,7 +851,35 @@ func TestTaskRunner_populateWorkflowDetails(t *testing.T) {
 
 		require.NotNil(t, tr.Task.WorkflowTemplateID)
 		assert.Equal(t, 7, *tr.Task.WorkflowTemplateID)
+		assert.Nil(t, tr.Task.WorkflowVersion)
 		assert.Equal(t, 1, repo.calls)
+	})
+
+	t.Run("resolves the version of the run", func(t *testing.T) {
+		version := "1.4.0"
+		repo := &fakeWorkflowRepo{run: db.WorkflowRun{ID: runID, ProjectID: 3, WorkflowTemplateID: 7, Version: &version}}
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3, WorkflowRunID: &runID},
+			pool: &TaskPool{workflowRepo: repo},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		require.NotNil(t, tr.Task.WorkflowVersion)
+		assert.Equal(t, "1.4.0", *tr.Task.WorkflowVersion)
+	})
+
+	t.Run("ignores an empty version of the run", func(t *testing.T) {
+		version := ""
+		repo := &fakeWorkflowRepo{run: db.WorkflowRun{ID: runID, ProjectID: 3, WorkflowTemplateID: 7, Version: &version}}
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3, WorkflowRunID: &runID},
+			pool: &TaskPool{workflowRepo: repo},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		assert.Nil(t, tr.Task.WorkflowVersion)
 	})
 
 	t.Run("skips tasks outside a workflow", func(t *testing.T) {

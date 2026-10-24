@@ -315,6 +315,10 @@ func taskIdentityEnv(task db.Task) (env []string) {
 		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_ID=%d", *task.WorkflowTemplateID))
 	}
 
+	if task.WorkflowVersion != nil && *task.WorkflowVersion != "" {
+		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_VERSION=%s", *task.WorkflowVersion))
+	}
+
 	if workflowUrl := task.GetWorkflowUrl(); workflowUrl != nil {
 		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_URL=%s", *workflowUrl))
 	}

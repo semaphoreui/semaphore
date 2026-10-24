@@ -1039,6 +1039,12 @@ definitions:
       workflow_node_id:
         type: integer
         description: Node of the workflow revision that started the task. Ignored on create.
+      workflow_template_id:
+        type: integer
+        description: Workflow the run of workflow_run_id belongs to. Resolved by the server before the task starts, not stored. Ignored on create.
+      workflow_version:
+        type: string
+        description: Version of the workflow run the task belongs to. Resolved by the server before the task starts, not stored. Ignored on create.
       artifacts:
         type: string
         description: >
