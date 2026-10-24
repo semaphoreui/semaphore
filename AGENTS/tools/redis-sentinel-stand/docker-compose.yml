@@ -69,7 +69,7 @@ services:
       SEMAPHORE_HA_REDIS_ADDR: ${SEMAPHORE_HA_REDIS_ADDR:-}
       SEMAPHORE_HA_NODE_ID: node-a
     ports:
-      - "3110:3000"
+      - "127.0.0.1:3110:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,7 +87,7 @@ services:
       <<: *node-env
       SEMAPHORE_HA_NODE_ID: node-b
     ports:
-      - "3111:3000"
+      - "127.0.0.1:3111:3000"
     depends_on:
       # Node A runs the migrations first; B only starts once A answers.
       semaphore-a:
