@@ -362,7 +362,7 @@ definitions:
     properties:
       version:
         type: integer
-        description: Format version of the backup file. Files of another version are refused.
+        description: Format version of the backup file. Files written by a newer version are refused. A file without a version is accepted only when it carries no roles and no template permissions.
       meta:
         type: object
         properties:
