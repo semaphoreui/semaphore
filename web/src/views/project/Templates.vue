@@ -33,6 +33,7 @@
       item-id="new"
       @save="loadItems()"
       :features="features"
+      :jwt="jwt"
     ></EditTemplateDialog>
 
     <NewTaskDialog
@@ -291,6 +292,7 @@ export default {
   },
   props: {
     features: Object,
+    jwt: Object,
   },
   mixins: [ItemListPageBase, AppsMixin],
 

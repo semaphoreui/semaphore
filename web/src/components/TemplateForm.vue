@@ -389,7 +389,7 @@
             </template>
           </v-checkbox>
 
-          <template v-if="systemInfo && systemInfo.jwt && systemInfo.jwt.enabled">
+          <template v-if="jwt?.enabled">
             <v-checkbox class="mt-0" v-model="item.jwt_params.enabled">
               <template v-slot:label>
                 {{ $t('jwt_enabled') }}
@@ -732,6 +732,7 @@ export default {
     app: String,
     features: Object,
     taskType: String,
+    jwt: Object,
   },
 
   data() {
@@ -901,7 +902,7 @@ export default {
     },
 
     jwtTtlHint() {
-      const max = this.systemInfo?.jwt?.max_ttl;
+      const max = this.jwt?.max_ttl;
       if (!max) {
         return this.$t('jwt_ttl_hint_no_max');
       }

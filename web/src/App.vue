@@ -573,6 +573,7 @@
         :isAdmin="(user || {}).admin"
         :user="user"
         :features="(systemInfo || { features: {} }).features"
+        :jwt="(systemInfo || {}).jwt"
         :authMethods="(systemInfo || { auth_methods: {} }).auth_methods"
         :systemInfo="systemInfo"
       ></router-view>
@@ -1694,21 +1695,21 @@ export default {
     },
 
     async loadUserInfo() {
-      this.user = (
-        await axios({
+      const [user, systemInfo] = await Promise.all([
+        axios({
           method: 'get',
           url: '/api/user',
           responseType: 'json',
-        })
-      ).data;
-
-      this.systemInfo = (
-        await axios({
+        }),
+        axios({
           method: 'get',
           url: '/api/info',
           responseType: 'json',
-        })
-      ).data;
+        }),
+      ]);
+
+      this.user = user.data;
+      this.systemInfo = systemInfo;
     },
 
     getProjectColor(projectData) {
