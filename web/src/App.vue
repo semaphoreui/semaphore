@@ -1526,33 +1526,6 @@ export default {
       this.$i18n.locale = locale;
     },
 
-    async loadUserOptions() {
-      const options = (
-        await axios({
-          method: 'get',
-          url: '/api/user/options',
-          responseType: 'json',
-        })
-      ).data;
-
-      if (options['nav.unpinnedItems'] != null) {
-        try {
-          this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
-        } catch {
-          // do nothing
-        }
-      }
-
-      if (options.lang != null) {
-        const currentLang = localStorage.getItem('lang');
-        try {
-          this.applyLanguage(JSON.parse(options.lang));
-        } catch {
-          this.applyLanguage(currentLang);
-        }
-      }
-    },
-
     async selectLanguage(lang) {
       const previousLang = localStorage.getItem('lang');
       this.applyLanguage(lang);
@@ -1587,7 +1560,6 @@ export default {
 
     async loadData() {
       await this.loadUserInfo();
-      await this.loadUserOptions();
 
       // Activate session and start socket only after confirming user is authenticated
       socket.setSessionActive(true);
@@ -1695,7 +1667,7 @@ export default {
     },
 
     async loadUserInfo() {
-      const [user, systemInfo] = await Promise.all([
+      const [user, systemInfo, options] = await Promise.all([
         axios({
           method: 'get',
           url: '/api/user',
@@ -1706,8 +1678,29 @@ export default {
           url: '/api/info',
           responseType: 'json',
         }),
+        await axios({
+          method: 'get',
+          url: '/api/user/options',
+          responseType: 'json',
+        }),
       ]);
 
+      if (options['nav.unpinnedItems'] != null) {
+        try {
+          this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
+        } catch {
+          // do nothing
+        }
+      }
+
+      if (options.lang != null) {
+        const currentLang = localStorage.getItem('lang');
+        try {
+          this.applyLanguage(JSON.parse(options.lang));
+        } catch {
+          this.applyLanguage(currentLang);
+        }
+      }
       this.user = user.data;
       this.systemInfo = systemInfo.data;
     },
