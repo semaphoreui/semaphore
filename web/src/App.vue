@@ -1685,6 +1685,9 @@ export default {
         }),
       ]);
 
+      this.user = user.data;
+      this.systemInfo = systemInfo.data;
+
       if (options['nav.unpinnedItems'] != null) {
         try {
           this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
@@ -1701,8 +1704,6 @@ export default {
           this.applyLanguage(currentLang);
         }
       }
-      this.user = user.data;
-      this.systemInfo = systemInfo.data;
     },
 
     getProjectColor(projectData) {
