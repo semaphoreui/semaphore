@@ -774,7 +774,6 @@ export default {
         task_params: {},
         jwt_params: { enabled: false, audience: [], ttl: '' },
       },
-      systemInfo: null,
       inventory: null,
       repositories: null,
       environment: null,
@@ -1282,18 +1281,6 @@ export default {
         if (typeof this.item.jwt_params.ttl !== 'string') {
           this.$set(this.item.jwt_params, 'ttl', '');
         }
-      }
-
-      try {
-        this.systemInfo = (
-          await axios({
-            method: 'get',
-            url: '/api/info',
-            responseType: 'json',
-          })
-        ).data;
-      } catch (e) {
-        this.systemInfo = null;
       }
 
       if (!Array.isArray(this.item.environment_ids)) {

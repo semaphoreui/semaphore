@@ -1709,7 +1709,7 @@ export default {
       ]);
 
       this.user = user.data;
-      this.systemInfo = systemInfo;
+      this.systemInfo = systemInfo.data;
     },
 
     getProjectColor(projectData) {
