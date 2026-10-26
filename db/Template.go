@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -52,13 +53,7 @@ func (t TemplateApp) InventoryTypes() []InventoryType {
 func (t TemplateApp) HasInventoryType(inventoryType InventoryType) bool {
 	types := t.InventoryTypes()
 
-	for _, typ := range types {
-		if typ == inventoryType {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(types, inventoryType)
 }
 
 // RepositoryFileFilter describes which entries of a repository can be the entry
@@ -106,6 +101,9 @@ const (
 	SurveyVarEnum   SurveyVarType = "enum"
 	SurveyVarText   SurveyVarType = "text"
 	SurveyVarSelect SurveyVarType = "select"
+	// SurveyVarSecret is entered hidden and delivered to the task as a secret;
+	// it is never stored on the task and never fed from workflow outputs.
+	SurveyVarSecret SurveyVarType = "secret"
 )
 
 type SurveyVarTarget string

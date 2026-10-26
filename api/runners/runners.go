@@ -461,6 +461,19 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 		}
 		logRecordCount += len(job.LogRecords)
 
+		// The outputs of a workflow task arrive with the success status and
+		// must be in the database before it (HA nodes progress the run from
+		// the persisted status). A document that fails validation fails the
+		// task: the runner is not trusted, and a success without the outputs
+		// it reported would be a lie to the downstream nodes.
+		if job.Outputs != nil && job.Status == task_logger.TaskSuccessStatus {
+			if err = taskPool.StoreRemoteTaskOutputs(tsk, *job.Outputs); err != nil {
+				jobLog.WithError(err).Warn("runner reported invalid task outputs")
+				tsk.Log("Invalid task outputs reported by the runner: " + err.Error())
+				job.Status = task_logger.TaskFailStatus
+			}
+		}
+
 		tsk.SetStatus(job.Status)
 
 		if job.Commit != nil {

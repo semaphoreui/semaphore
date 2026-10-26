@@ -381,4 +381,11 @@ export default {
   role_required: 'Роль обов’язкова',
 
   templatePermission: 'Права шаблону',
+  projectRoles: 'Ролі проєкту',
+  globalRoles: 'Глобальні ролі',
+  builtInRoles: 'Вбудовані ролі',
+  noProjectsTitle: 'Ще немає проєктів',
+  noProjectsText: 'Ви не є учасником жодного проєкту. Попросіть адміністратора Semaphore додати вас до проєкту.',
+  signedInAs: 'Ви увійшли як {username} ({email})',
+  signedInAsNoEmail: 'Ви увійшли як {username}',
 };

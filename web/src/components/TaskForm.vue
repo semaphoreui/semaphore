@@ -146,9 +146,7 @@
       dense
       required
       :disabled="formSaving"
-      v-if="
-        needField('allow_override_branch')
-        && template.allow_override_branch_in_task"
+      v-if="canOverrideBranch"
     />
 
     <v-autocomplete
@@ -233,12 +231,21 @@ export default {
         indentWithTabs: false,
       },
       inventory: null,
+      repository: null,
     };
   },
 
   computed: {
     needInventory() {
       return this.needField('inventory') && this.template.task_params?.allow_override_inventory;
+    },
+
+    // A monorepo is shared by every template on the repository's own branch, so
+    // the task may not pick one even if the template still says it may.
+    canOverrideBranch() {
+      return this.needField('allow_override_branch')
+        && this.template.allow_override_branch_in_task
+        && !this.repository?.monorepo;
     },
 
     args() {
@@ -386,6 +393,7 @@ export default {
       [
         this.buildTasks,
         this.inventory,
+        this.repository,
       ] = await Promise.all([
 
         this.template.type === 'deploy' ? (await axios({
@@ -399,6 +407,14 @@ export default {
           url: this.getInventoryUrl(),
           responseType: 'json',
         })).data : [],
+
+        // The template carries only the repository id, and the monorepo flag
+        // decides whether the branch prompt is shown at all.
+        this.template.allow_override_branch_in_task ? (await axios({
+          keys: 'get',
+          url: `/api/project/${this.projectId}/repositories`,
+          responseType: 'json',
+        })).data.find((r) => r.id === this.template.repository_id) || null : null,
       ]);
 
       if (this.item.build_task_id == null

@@ -28,6 +28,7 @@
         :app="itemApp"
         :features="features"
         :task-type="taskType"
+        :jwt="jwt"
       />
     </template>
   </EditDialog>
@@ -56,6 +57,7 @@ export default {
     sourceItemId: Number,
     features: Object,
     taskType: String,
+    jwt: Object,
   },
 
   data() {

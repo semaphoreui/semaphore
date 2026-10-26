@@ -463,6 +463,9 @@ $defs:
       username_claim:   { type: string, default: preferred_username }
       name_claim:       { type: string, default: preferred_username }
       email_claim:      { type: string, default: email }
+      groups_claim:
+        type: string
+        description: Claim that lists the user's groups. Group role mappings use this claim at every sign-in through this provider.
       order:            { type: integer }
       return_via_state: { type: boolean, default: true }
       require_verified_email:
@@ -612,10 +615,17 @@ $defs:
       node_id:
         type: string
         description: Cluster node id; auto-generated if empty.
-      redis: { $ref: "#/$defs/HARedisConfig" }
+      engine:
+        type: string
+        enum: [redis, redis_sentinel]
+        default: redis
+        description: Backend that stores the shared state and coordinates the HA nodes. `redis` reads `redis`, `redis_sentinel` reads `redis_sentinel`.
+      redis:          { $ref: "#/$defs/HARedisConfig" }
+      redis_sentinel: { $ref: "#/$defs/HARedisSentinelConfig" }
 
   HARedisConfig:
     type: object
+    description: Single Redis server, used when engine is `redis`.
     properties:
       addr: { type: string }
       db:   { type: integer, minimum: 0 }
@@ -624,6 +634,35 @@ $defs:
         type: string
         description: Redis password (sensitive).
       tls:             { type: boolean }
+      tls_skip_verify: { type: boolean }
+
+  HARedisSentinelConfig:
+    type: object
+    description: Redis Sentinel deployment, used when engine is `redis_sentinel`.
+    properties:
+      master_name:
+        type: string
+        description: Name of the monitored master as configured in Sentinel.
+      addrs:
+        type: array
+        items: { type: string }
+        description: Sentinel addresses, host:port each.
+      sentinel_user:
+        type: string
+        description: Username for the Sentinel nodes themselves.
+      sentinel_pass:
+        type: string
+        description: Password for the Sentinel nodes themselves (sensitive).
+      db:   { type: integer, minimum: 0 }
+      user:
+        type: string
+        description: Username for the Redis data nodes.
+      pass:
+        type: string
+        description: Password for the Redis data nodes (sensitive).
+      tls:
+        type: boolean
+        description: TLS for both the Sentinel and the Redis data-node connections.
       tls_skip_verify: { type: boolean }
 
   AuditConfig:
@@ -728,11 +767,12 @@ $defs:
       check_interval_seconds:
         type: integer
         minimum: 1
-        default: 1
+        default: 5
         description: >
-          How often the runner polls the server for new jobs and reports progress.
-          Raising it reduces request volume on a server with many runners, at the
-          cost of jobs starting slightly later.
+          How often the runner polls the server for new jobs. Raising it reduces
+          request volume on a server with many runners, at the cost of jobs
+          starting slightly later. Progress reporting keeps its own fixed
+          one-second cadence, because it doubles as the runner heartbeat.
       connection: { $ref: "#/$defs/RunnerConnectionConfig" }
       executor:   { $ref: "#/$defs/ExecutorConfig" }
 
@@ -751,6 +791,16 @@ $defs:
         description: >
           Disables server certificate verification entirely. Insecure
           (vulnerable to MITM) — use only for testing.
+      timeout_seconds:
+        type: integer
+        minimum: 1
+        default: 3
+        description: >
+          Per-request budget for waiting on the server: the TCP connect, the TLS
+          handshake and the wait for response headers each get this many seconds.
+          Keep it below check_interval_seconds so a stuck request cannot outlive
+          the poll cycle that started it. Uploading the request body is not
+          bounded, so a large log batch is never cut off.
 
   ExecutorConfig:
     type: object

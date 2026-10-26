@@ -52,6 +52,15 @@ const (
 	IAMProjectRoleDefinitionCreate Kind = "iam.project_role_definition/create"
 	IAMProjectRoleDefinitionUpdate Kind = "iam.project_role_definition/update"
 	IAMProjectRoleDefinitionDelete Kind = "iam.project_role_definition/delete"
+	IAMGlobalRoleCreate            Kind = "iam.global_role/create"
+	IAMGlobalRoleUpdate            Kind = "iam.global_role/update"
+	IAMGlobalRoleDelete            Kind = "iam.global_role/delete"
+	IAMGlobalRoleAssign            Kind = "iam.global_role/assign"
+	IAMGlobalRoleUnassign          Kind = "iam.global_role/unassign"
+	IAMMappedRoleAdd               Kind = "iam.mapped_role/add"
+	IAMMappedRoleRemove            Kind = "iam.mapped_role/remove"
+	IAMRoleMappingCreate           Kind = "iam.role_mapping/create"
+	IAMRoleMappingDelete           Kind = "iam.role_mapping/delete"
 	IAMTemplatePermissionCreate    Kind = "iam.template_permission/create"
 	IAMTemplatePermissionUpdate    Kind = "iam.template_permission/update"
 	IAMTemplatePermissionDelete    Kind = "iam.template_permission/delete"
@@ -61,6 +70,7 @@ const (
 
 	AuditLifecycleStart  Kind = "audit.lifecycle/start"
 	AuditRetentionDelete Kind = "audit.retention/delete"
+	AuditLogExport       Kind = "audit.log/export"
 
 	ResourceProjectCreate               Kind = "resource.project/create"
 	ResourceProjectUpdate               Kind = "resource.project/update"

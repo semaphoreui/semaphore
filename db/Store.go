@@ -246,11 +246,13 @@ type ProjectStore interface {
 	CreateProject(project Project) (Project, error)
 	DeleteProject(projectID int) error
 	UpdateProject(project Project) error
-	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]UserWithProjectRole, error)
-	CreateProjectUser(projectUser ProjectUser) (ProjectUser, error)
+	GetProjectUsers(projectID int, params RetrieveQueryParams) ([]UserWithProjectRoles, error)
+	CreateProjectUser(projectID int, userID int, roleIDs []int) error
 	DeleteProjectUser(projectID int, userID int) error
 	GetProjectUser(projectID int, userID int) (ProjectUser, error)
-	UpdateProjectUser(projectUser ProjectUser) error
+	SetProjectUserRoles(projectID int, userID int, roleIDs []int) error
+	GetProjectMember(projectID int, userID int) (ProjectMember, error)
+	CountProjectOwners(projectID int) (int, error)
 }
 
 type ProjectInviteRepository interface {
@@ -573,15 +575,44 @@ type SecretSyncRepository interface {
 	SaveSecretSync(sync SecretSync) error
 }
 
+// GlobalRoleStore holds the global roles and who has which. The community edition keeps it empty: there
+// global permissions come from the admin flag alone.
+type GlobalRoleStore interface {
+	GetGlobalRoles() ([]GlobalRole, error)
+	GetGlobalRole(roleID int) (GlobalRole, error)
+	CreateGlobalRole(role GlobalRole) (GlobalRole, error)
+	// UpdateGlobalRole changes the name and the permissions. Taking CanManageGlobalRoles away from a role
+	// is refused when its holders are the only administrators left.
+	UpdateGlobalRole(role GlobalRole) error
+	// DeleteGlobalRole removes a role nobody holds; a held role is refused with ErrGlobalRoleAssigned.
+	DeleteGlobalRole(roleID int) error
+	// DeleteGlobalRoleWithAssignments removes the role together with its assignments and returns them.
+	// The role is kept when its holders are the only administrators left.
+	DeleteGlobalRoleWithAssignments(roleID int) ([]GlobalRoleAssignment, error)
+	// GetGlobalRoleHolders lists the assignments of one role.
+	GetGlobalRoleHolders(roleID int) ([]GlobalRoleAssignment, error)
+
+	GetGlobalRoleAssignments(userID int) ([]GlobalRoleAssignment, error)
+	GetGlobalRoleAssignment(userID int, assignmentID int) (GlobalRoleAssignment, error)
+	CreateGlobalRoleAssignment(userID int, roleID int) (GlobalRoleAssignment, error)
+	DeleteGlobalRoleAssignment(userID int, assignmentID int) error
+	// GetEffectiveGlobalPermissions is everything for an admin, otherwise the union of the assigned global roles.
+	GetEffectiveGlobalPermissions(userID int) (GlobalPermission, error)
+}
+
+// RoleRepository holds the project roles. A shared role has no project and can be given in every project;
+// the built-in roles are shared.
 type RoleRepository interface {
-	GetGlobalRoleBySlug(slug string) (Role, error)
-	GetProjectOrGlobalRoleBySlug(projectID int, slug string) (Role, error)
+	GetSharedRoleBySlug(slug string) (Role, error)
+	GetProjectOrSharedRoleBySlug(projectID int, slug string) (Role, error)
 	GetProjectRole(projectID int, slug string) (Role, error)
 	GetProjectRoles(projectID int) ([]Role, error)
-	GetGlobalRoles() ([]Role, error)
+	GetSharedRoles() ([]Role, error)
 	UpdateRole(role Role) error
 	CreateRole(role Role) (Role, error)
-	DeleteRole(slug string, projectID *int) error
+	DeleteRole(roleID int) error
+	GetRoleAssignments(roleID int) (RoleAssignments, error)
+	DeleteRoleWithAssignments(roleID int, withMappings bool) (RoleAssignments, error)
 }
 
 // Store is the main interface that aggregates all specialized interfaces
@@ -705,12 +736,6 @@ var WorkflowTemplateProps = ObjectProps{
 	DefaultSortingColumn:  "name",
 }
 
-var ProjectUserProps = ObjectProps{
-	TableName:         "project__user",
-	Type:              reflect.TypeFor[ProjectUser](),
-	PrimaryColumnName: "user_id",
-}
-
 var ProjectInviteProps = ObjectProps{
 	TableName:             "project__invite",
 	Type:                  reflect.TypeFor[ProjectInvite](),
@@ -742,14 +767,6 @@ var SecretStorageProps = ObjectProps{
 	Type:                  reflect.TypeFor[SecretStorage](),
 	PrimaryColumnName:     "id",
 	Ownerships:            []*ObjectProps{&ProjectProps},
-}
-
-var RoleProps = ObjectProps{
-	TableName:         "role",
-	Type:              reflect.TypeFor[Role](),
-	PrimaryColumnName: "slug",
-	IsGlobal:          true,
-	SortableColumns:   []string{"name"},
 }
 
 var UserProps = ObjectProps{
@@ -929,6 +946,22 @@ func ValidateInventory(store Store, inventory *Inventory) (err error) {
 
 	if inventory.TemplateID != nil {
 		_, err = store.GetTemplate(inventory.ProjectID, *inventory.TemplateID)
+	}
+
+	if err != nil {
+		return
+	}
+
+	// Only a "file" inventory lives in a repository. The UI keeps the hidden
+	// repository_id when the type is switched to static, and API clients may
+	// send it too — drop it so the inventory is never routed through the
+	// repository path at run time.
+	if inventory.Type != InventoryFile {
+		inventory.RepositoryID = nil
+	}
+
+	if inventory.RepositoryID != nil {
+		_, err = store.GetRepository(inventory.ProjectID, *inventory.RepositoryID)
 	}
 
 	return

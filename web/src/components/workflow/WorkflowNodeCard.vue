@@ -201,6 +201,8 @@ export default {
       if (this.kind === 'task') {
         if (this.appTitle) parts.push(this.appTitle);
         if (this.hasParamOverrides) parts.push(this.$t('workflowParamsOverridden'));
+        const bound = Array.isArray(this.node.survey_inputs) ? this.node.survey_inputs.length : 0;
+        if (bound > 0) parts.push(this.$tc('workflowNodeSurveyInputsCount', bound, { count: bound }));
       } else if (this.kind === 'approval') {
         parts.push(this.node.approval_timeout
           ? this.$t('workflowApprovalTimeoutShort', {
@@ -229,6 +231,9 @@ export default {
       if (this.run.start) {
         const end = this.run.end ? new Date(this.run.end).getTime() : this.now;
         parts.push(formatDurationLong(end - new Date(this.run.start).getTime()));
+      }
+      if (this.run.outputs) {
+        parts.push(this.$tc('workflowNodeOutputsCount', this.run.outputs, { count: this.run.outputs }));
       }
       return parts.join(' · ');
     },

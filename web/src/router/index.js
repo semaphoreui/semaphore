@@ -8,6 +8,8 @@ import TemplateTerraformState from '@/views/project/template/TemplateTerraformSt
 import Invites from '@/views/project/Invites.vue';
 import TemplatePerms from '@/views/project/template/TemplatePerms.vue';
 import Roles from '@/views/Roles.vue';
+import RoleMappings from '@/views/RoleMappings.vue';
+import AuditLog from '@/views/AuditLog.vue';
 import Schedule from '../views/project/Schedule.vue';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
@@ -203,8 +205,17 @@ const routes = [
     component: Users,
   },
   {
+    // The Global roles tab of the Users page, with its own address.
+    path: '/users/roles',
+    component: Users,
+  },
+  {
     path: '/roles',
     component: Roles,
+  },
+  {
+    path: '/role-mappings',
+    component: RoleMappings,
   },
   {
     path: '/runners',
@@ -225,6 +236,10 @@ const routes = [
   {
     path: '/tokens',
     component: Tokens,
+  },
+  {
+    path: '/audit-log',
+    component: AuditLog,
   },
   {
     path: '/accept-invite/:token',

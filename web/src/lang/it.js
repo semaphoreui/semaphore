@@ -351,4 +351,11 @@ export default {
   project_stats: 'Statistiche',
   allow_override_branch: 'Ramo',
   template_common_options: 'Opzioni comuni',
+  projectRoles: 'Ruoli del progetto',
+  globalRoles: 'Ruoli globali',
+  builtInRoles: 'Ruoli integrati',
+  noProjectsTitle: 'Ancora nessun progetto',
+  noProjectsText: 'Non sei membro di alcun progetto. Chiedi al tuo amministratore Semaphore di aggiungerti a uno.',
+  signedInAs: 'Accesso effettuato come {username} ({email})',
+  signedInAsNoEmail: 'Accesso effettuato come {username}',
 };

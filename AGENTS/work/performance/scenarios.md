@@ -20,7 +20,8 @@ Where the cost concentrates, in order of estimated weight:
    memory per task ≈ 20 MB of scanner buffers + two 100k channels (OUT-7).
 
 Runner-side cadence (verified 2026-09-27): progress `PUT` fixed at 1 s, job `GET` at
-`runner.check_interval_seconds` (default 1 s); each request costs an unindexed `runner.token` lookup.
+`runner.check_interval_seconds` (default 5 s since 2026-10-16); each request costs an unindexed
+`runner.token` lookup.
 
 ## Scenario B — one static inventory of ~5 000 hosts
 

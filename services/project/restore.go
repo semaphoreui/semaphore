@@ -1,6 +1,7 @@
 package project
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -440,14 +441,17 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 	if e.Roles != nil {
 		for _, role := range e.Roles {
 			if role.IsGlobal {
-				r, err := b.store.GetGlobalRoleBySlug(role.Role)
-				if err != nil {
+				r, err := b.store.GetSharedRoleBySlug(role.Role)
+				if errors.Is(err, db.ErrNotFound) {
 					return fmt.Errorf("global role does not exist: %s", role.Role)
+				}
+				if err != nil {
+					return err
 				}
 
 				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
 					TemplateID:  newTemplate.ID,
-					RoleSlug:    r.Slug,
+					RoleID:      r.ID,
 					ProjectID:   b.meta.ID,
 					Permissions: role.Permissions & db.KnownRolePermissions,
 				})
@@ -463,7 +467,7 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 			} else {
 				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
 					TemplateID:  newTemplate.ID,
-					RoleSlug:    k.Slug,
+					RoleID:      k.ID,
 					ProjectID:   b.meta.ID,
 					Permissions: role.Permissions & db.KnownRolePermissions,
 				})
@@ -474,6 +478,24 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 		}
 	}
 
+	return nil
+}
+
+func (e BackupIntegration) Verify(backup *BackupFormat) error {
+	switch {
+	case e.Template != nil && e.Workflow != nil:
+		return fmt.Errorf("integration runs either a template or a workflow, not both")
+	case e.Template != nil:
+		if getEntryByName[BackupTemplate](e.Template, backup.Templates) == nil {
+			return fmt.Errorf("template does not exist in templates[].name")
+		}
+	case e.Workflow != nil:
+		if getEntryByName[BackupWorkflow](e.Workflow, backup.Workflows) == nil {
+			return fmt.Errorf("workflow does not exist in workflows[].name")
+		}
+	default:
+		return fmt.Errorf("integration has neither a template nor a workflow")
+	}
 	return nil
 }
 
@@ -488,15 +510,29 @@ func (e BackupIntegration) Restore(b *BackupDB) error {
 		authSecretID = &((*k).ID)
 	}
 
-	tpl := findEntityByName[db.Template](&e.Template, b.templates)
-	if tpl == nil {
-		return fmt.Errorf("template does not exist in templates[].name")
-	}
-
 	integration := e.Integration
 	integration.ProjectID = b.meta.ID
 	integration.AuthSecretID = authSecretID
-	integration.TemplateID = tpl.ID
+	integration.TemplateID = nil
+	integration.WorkflowID = nil
+
+	switch {
+	case e.Template != nil:
+		tpl := findEntityByName[db.Template](e.Template, b.templates)
+		if tpl == nil {
+			return fmt.Errorf("template does not exist in templates[].name")
+		}
+		integration.TemplateID = &tpl.ID
+	case e.Workflow != nil:
+		// Workflows are restored before integrations, so b.workflows is complete.
+		workflow := findEntityByName[db.WorkflowTemplate](e.Workflow, b.workflows)
+		if workflow == nil {
+			return fmt.Errorf("workflow does not exist in workflows[].name")
+		}
+		integration.WorkflowID = &workflow.ID
+	default:
+		return fmt.Errorf("integration has neither a template nor a workflow")
+	}
 
 	if integration.TaskParams != nil {
 		inv := findEntityByName[db.Inventory](e.TaskParams.InventoryName, b.inventories)
@@ -670,6 +706,11 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at workflows[%d]: %s", i, err.Error())
 		}
 	}
+	for i, o := range backup.Integration {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at integrations[%d]: %s", i, err.Error())
+		}
+	}
 
 	return nil
 }
@@ -689,22 +730,22 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		}
 	}
 
+	ownerRole, err := b.store.GetSharedRoleBySlug(string(db.ProjectOwner))
+	if err != nil {
+		return nil, err
+	}
+
 	newProject, err := b.store.CreateProject(project)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err = b.store.CreateProjectUser(db.ProjectUser{
-		ProjectID: newProject.ID,
-		UserID:    user.ID,
-		Role:      db.ProjectOwner,
-	}); err != nil {
+	if err = b.store.CreateProjectUser(newProject.ID, user.ID, []int{ownerRole.ID}); err != nil {
 		return &newProject, err
 	}
 
 	b.meta = newProject
-
 	for i, o := range backup.SecretStorages {
 		if err := o.Restore(&b); err != nil {
 			return &newProject, fmt.Errorf("error at secret storage[%d]: %s", i, err.Error())
@@ -771,20 +812,6 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		}
 	}
 
-	for i, o := range backup.Integration {
-		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at integrations[%d]: %s", i, err.Error())
-		}
-	}
-
-	for _, o := range backup.IntegrationAliases {
-		alias := db.IntegrationAlias{
-			Alias:     o,
-			ProjectID: b.meta.ID,
-		}
-		_, _ = b.store.CreateIntegrationAlias(alias)
-	}
-
 	for i, o := range backup.Schedules {
 		if err := o.Restore(&b); err != nil {
 			return &newProject, fmt.Errorf("error at schedules[%d]: %s", i, err.Error())
@@ -803,6 +830,22 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		if err := o.Restore(&b); err != nil {
 			return &newProject, fmt.Errorf("error at workflows[%d]: %s", i, err.Error())
 		}
+	}
+
+	// Integrations come after workflows: one may start a workflow, and nothing
+	// restored above refers to an integration.
+	for i, o := range backup.Integration {
+		if err := o.Restore(&b); err != nil {
+			return &newProject, fmt.Errorf("error at integrations[%d]: %s", i, err.Error())
+		}
+	}
+
+	for _, o := range backup.IntegrationAliases {
+		alias := db.IntegrationAlias{
+			Alias:     o,
+			ProjectID: b.meta.ID,
+		}
+		_, _ = b.store.CreateIntegrationAlias(alias)
 	}
 
 	return &newProject, nil

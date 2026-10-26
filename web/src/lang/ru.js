@@ -360,4 +360,11 @@ export default {
   project_stats: 'Статистика',
   allow_override_branch: 'Ветка',
   template_common_options: 'Общие параметры',
+  projectRoles: 'Роли проекта',
+  globalRoles: 'Глобальные роли',
+  builtInRoles: 'Встроенные роли',
+  noProjectsTitle: 'Пока нет проектов',
+  noProjectsText: 'Вы не состоите ни в одном проекте. Попросите администратора Semaphore добавить вас в проект.',
+  signedInAs: 'Вы вошли как {username} ({email})',
+  signedInAsNoEmail: 'Вы вошли как {username}',
 };

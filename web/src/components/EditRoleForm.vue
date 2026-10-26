@@ -25,11 +25,12 @@
     <v-text-field
       v-model="item.slug"
       :label="$t('slug')"
-      :rules="[v => !!v || $t('slug_required'), v => this.validateSlug(v)]"
+      @input="slugTouched = true"
+      :rules="slugRules"
       outlined
       dense
       required
-      :disabled="formSaving"
+      :disabled="formSaving || !isNew"
       :hint="$t('slugHint')"
     ></v-text-field>
 
@@ -70,12 +71,15 @@
 
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
+import { isValidSlug, slugFromName } from '@/lib/roles';
 
+/** The form of a project role: a name, a slug and the project permissions it grants. */
 export default {
   mixins: [ItemFormBase],
 
   data() {
     return {
+      slugTouched: false,
       permissions: {
         canRunProjectTasks: false,
         canUpdateProject: false,
@@ -85,7 +89,20 @@ export default {
     };
   },
 
+  computed: {
+    slugRules() {
+      if (!this.isNew) return [];
+      return [(v) => !!v || this.$t('slug_required'), (v) => this.validateSlug(v)];
+    },
+  },
+
   watch: {
+    'item.name': function onNameChange(name) {
+      if (this.isNew && !this.slugTouched && this.item) {
+        this.item.slug = slugFromName(name);
+      }
+    },
+
     // Watch permissions and update the item.permissions value
     permissions: {
       handler(newPermissions) {
@@ -119,14 +136,7 @@ export default {
   methods: {
     validateSlug(value) {
       if (!value) return true; // Required validation is handled separately
-
-      // Slug should be lowercase, alphanumeric with underscores/hyphens
-      const slugPattern = /^[a-z0-9_-]+$/;
-      if (!slugPattern.test(value)) {
-        return this.$t('invalidSlugFormat');
-      }
-
-      return true;
+      return isValidSlug(value) || this.$t('invalidSlugFormat');
     },
 
     getItemsUrl() {
@@ -175,6 +185,7 @@ export default {
     },
 
     afterReset() {
+      this.slugTouched = false;
       // Reset permissions checkboxes
       this.permissions = {
         canRunProjectTasks: false,

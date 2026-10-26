@@ -20,3 +20,5 @@ what is still open.
 | Adding `nonce` to the OIDC flow | `oidc-idp-initiated-login.md` |
 | Starting per-team template visibility (a new RBAC permission bit) | `template-visibility-rbac.md` |
 | Changing read-side permission checks on templates, tasks, schedules, events or websocket updates | `template-visibility-rbac.md` |
+| Touching global roles, `global_permissions`, the admin flag, `globalPermissionMiddleware` or the "last administrator" rule | `global-roles-and-permissions.md` |
+| Asked which API route needs which global permission, or why role CRUD still lives in `pro_impl` | `global-roles-and-permissions.md` |

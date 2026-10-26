@@ -1,6 +1,7 @@
 package db
 
 import (
+	"regexp"
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -23,6 +24,58 @@ const (
 	WorkflowNodeDelayKind    WorkflowNodeKind = "delay"
 )
 
+// WorkflowEdgeInputMode says how the outputs of the edge's source node feed
+// the survey variables of its destination task node.
+type WorkflowEdgeInputMode string
+
+const (
+	// WorkflowEdgeInputByName delivers every output whose name equals the name
+	// of a non-secret survey variable of the destination template. The default;
+	// an empty mode means by_name.
+	WorkflowEdgeInputByName WorkflowEdgeInputMode = "by_name"
+	// WorkflowEdgeInputExplicit delivers only the pairs listed in InputMappings.
+	WorkflowEdgeInputExplicit WorkflowEdgeInputMode = "explicit"
+)
+
+// WorkflowInputMapping feeds one survey variable of the destination template
+// (Var) from one top-level output of the source node (Key).
+type WorkflowInputMapping struct {
+	Var string `json:"var" backup:"var"`
+	Key string `json:"key" backup:"key"`
+}
+
+// WorkflowNodeSurveyInput feeds one survey variable of the node's template
+// (Var) from one survey variable of the workflow (WorkflowVar), whose value
+// the run collected at start. The delivery is explicit only: a variable
+// without such a binding never receives a workflow value, whatever its name.
+type WorkflowNodeSurveyInput struct {
+	Var         string `json:"var" backup:"var"`
+	WorkflowVar string `json:"workflow_var" backup:"workflow_var"`
+}
+
+// WorkflowRunParams is the body of POST .../workflows/{id}/runs: the answers
+// to the workflow's survey as a JSON object, variable name → value. An empty
+// body starts the run with the survey defaults only.
+type WorkflowRunParams struct {
+	Environment MapStringAnyField `json:"environment,omitempty"`
+
+	// IntegrationID is set by the server when a webhook integration starts
+	// the run: it is stamped on the root task (task.integration_id), so the
+	// task page and the audit trail show which integration started the run.
+	// Never read from a request body.
+	IntegrationID *int `json:"-"`
+}
+
+// workflowOutputNamePattern is the shape of an output name. The hyphen is
+// allowed because Terraform output names may contain it.
+var workflowOutputNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
+
+// IsValidWorkflowOutputName reports whether name may be the key of an output
+// or of an input mapping.
+func IsValidWorkflowOutputName(name string) bool {
+	return workflowOutputNamePattern.MatchString(name)
+}
+
 type WorkflowConvergenceMode string
 
 const (
@@ -42,6 +95,12 @@ type WorkflowTemplate struct {
 
 	Nodes []WorkflowNode `db:"-" bolt:"include" json:"nodes" backup:"-"`
 	Edges []WorkflowEdge `db:"-" bolt:"include" json:"edges" backup:"edges"`
+
+	// SurveyVars is the survey a run asks for before it starts, the same
+	// shape as Template.SurveyVars. It belongs to the revision together with
+	// the graph (the node bindings of a revision refer to its names), so it is
+	// loaded with the nodes and edges and saved with every PUT.
+	SurveyVars []SurveyVar `db:"-" json:"survey_vars" backup:"survey_vars"`
 
 	// RevisionID and Revision describe the graph revision the Nodes/Edges were
 	// loaded from: the latest one for a template read through
@@ -75,6 +134,12 @@ type WorkflowRevision struct {
 	Created         time.Time `db:"created" json:"created"`
 	CreatedByUserID *int      `db:"created_by_user_id" json:"created_by_user_id,omitempty"`
 
+	// SurveyVarsJSON used internally for read from database.
+	// It is not used for store survey vars to database.
+	// Do not use it in your code. Use SurveyVars instead.
+	SurveyVarsJSON *string     `db:"survey_vars" json:"-"`
+	SurveyVars     []SurveyVar `db:"-" json:"survey_vars,omitempty"`
+
 	// HasRuns is filled by list queries: true when at least one run pins this
 	// revision (such a revision survives later saves).
 	HasRuns bool `db:"-" json:"has_runs"`
@@ -98,6 +163,14 @@ type WorkflowNode struct {
 	Note         *string `db:"note" json:"note,omitempty" backup:"note"`
 	DelaySeconds *int    `db:"delay_seconds" json:"delay_seconds,omitempty" backup:"delay_seconds"`
 
+	// SurveyInputsJSON used internally for read from database.
+	// It is not used for store survey inputs to database.
+	// Do not use it in your code. Use SurveyInputs instead.
+	SurveyInputsJSON *string `db:"survey_inputs" json:"-" backup:"-"`
+	// SurveyInputs binds survey variables of the node's template to survey
+	// variables of the workflow; only a task node may carry them.
+	SurveyInputs []WorkflowNodeSurveyInput `db:"-" json:"survey_inputs,omitempty" backup:"survey_inputs"`
+
 	PositionX int `db:"position_x" json:"position_x" backup:"position_x"`
 	PositionY int `db:"position_y" json:"position_y" backup:"position_y"`
 }
@@ -111,6 +184,34 @@ type WorkflowEdge struct {
 	DestinationNodeID  int `db:"destination_node_id" json:"destination_node_id" backup:"destination_node_id"`
 
 	Condition WorkflowEdgeCondition `db:"condition" json:"condition" backup:"condition"`
+
+	// InputMode and InputMappings say how the outputs of the source node feed
+	// the survey variables of the destination task node; see
+	// AGENTS/work/workflow-editor/artifacts.md § Consumer. Only an edge into a
+	// task node may carry them.
+	InputMode WorkflowEdgeInputMode `db:"input_mode" json:"input_mode,omitempty" backup:"input_mode"`
+
+	// InputMappingsJSON used internally for read from database.
+	// It is not used for store input mappings to database.
+	// Do not use it in your code. Use InputMappings instead.
+	InputMappingsJSON *string                `db:"input_mappings" json:"-" backup:"-"`
+	InputMappings     []WorkflowInputMapping `db:"-" json:"input_mappings,omitempty" backup:"input_mappings"`
+}
+
+func (mode WorkflowEdgeInputMode) Validate() error {
+	switch mode {
+	case WorkflowEdgeInputByName, WorkflowEdgeInputExplicit:
+		return nil
+	default:
+		return common_errors.NewValidationError("workflow edge input mode is invalid")
+	}
+}
+
+func (edge WorkflowEdge) EffectiveInputMode() WorkflowEdgeInputMode {
+	if edge.InputMode == "" {
+		return WorkflowEdgeInputByName
+	}
+	return edge.InputMode
 }
 
 type WorkflowDelayStatus string
@@ -169,6 +270,14 @@ type WorkflowRun struct {
 	Status WorkflowRunStatus `db:"status" json:"status" backup:"status"`
 
 	Version *string `db:"version" json:"version,omitempty" backup:"version"`
+
+	// Environment holds the values of the workflow's survey variables the run
+	// was started with: a JSON object in the API, JSON text in the database
+	// (MapStringAnyField, as Task.Params). Written once by the engine at
+	// start, after defaults and type checks; every node of a cluster reads
+	// it when it launches a task. Nil when the workflow has no survey (and
+	// for runs created before the column existed). Never holds a secret.
+	Environment MapStringAnyField `db:"environment" json:"environment,omitempty" backup:"-"`
 
 	Start *time.Time `db:"start" json:"start,omitempty" backup:"start"`
 	End   *time.Time `db:"end" json:"end,omitempty" backup:"end"`
@@ -247,6 +356,49 @@ func (status WorkflowApprovalStatus) Validate() error {
 	default:
 		return common_errors.NewValidationError("workflow approval status is invalid")
 	}
+}
+
+// ValidateWorkflowSurveyVars checks the survey of a workflow: every variable
+// has a unique, non-empty name, a known target, a default that fits its type
+// (ValidateSurveyVar) and is not a secret. A secret can not be a workflow
+// variable because the run stores its survey values in clear in
+// WorkflowRun.Environment, exactly as a task does.
+func ValidateWorkflowSurveyVars(vars []SurveyVar) error {
+	seen := make(map[string]struct{}, len(vars))
+	for _, v := range vars {
+		if v.Name == "" {
+			return common_errors.NewValidationError("workflow survey variable name can not be empty")
+		}
+		if _, dup := seen[v.Name]; dup {
+			return common_errors.NewValidationError("workflow survey variable \"" + v.Name + "\" is declared more than once")
+		}
+		seen[v.Name] = struct{}{}
+
+		if v.Type == SurveyVarSecret {
+			return common_errors.NewValidationError("workflow survey variable \"" + v.Name + "\" can not be a secret")
+		}
+
+		switch v.Target {
+		case SurveyVarTargetDefault, SurveyVarTargetEnv:
+		default:
+			return common_errors.NewValidationError("workflow survey variable \"" + v.Name + "\": invalid target \"" + string(v.Target) + "\"")
+		}
+
+		if err := ValidateSurveyVar(v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SurveyVarByName returns the workflow's survey variable called name.
+func (workflow WorkflowTemplate) SurveyVarByName(name string) (SurveyVar, bool) {
+	for _, v := range workflow.SurveyVars {
+		if v.Name == name {
+			return v, true
+		}
+	}
+	return SurveyVar{}, false
 }
 
 // WorkflowTemplateValidationStore is the slice of Store workflow template

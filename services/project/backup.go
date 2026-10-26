@@ -4,20 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
 )
-
-func findNameBySlug[T db.BackupSluggedEntity](slug string, items []T) (*string, error) {
-	for _, o := range items {
-		if o.GetSlug() == slug {
-			name := o.GetName()
-			return &name, nil
-		}
-	}
-	return nil, fmt.Errorf("item %s does not exist", slug)
-}
 
 func findNameByID[T db.BackupEntity](ID int, items []T) (*string, error) {
 	for _, o := range items {
@@ -230,7 +221,7 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
-	b.globalRoles, err = store.GetGlobalRoles()
+	b.globalRoles, err = store.GetSharedRoles()
 	if err != nil {
 		return
 	}
@@ -444,25 +435,12 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 
 		var roles []BackupTemplateRole
 		for _, r := range b.templateRoles[o.ID] {
-			name, err := findNameBySlug[db.Role](r.RoleSlug, b.roles)
-			if err == nil {
-				roles = append(roles, BackupTemplateRole{
-					Role:        *name,
-					IsGlobal:    false,
-					Permissions: r.Permissions,
-				})
-			} else {
-				// Try to find in Global
-				name, err = findNameBySlug[db.Role](r.RoleSlug, b.globalRoles)
-				if err != nil {
-					continue
-				}
-
-				roles = append(roles, BackupTemplateRole{
-					Role:        *name,
-					IsGlobal:    true,
-					Permissions: r.Permissions,
-				})
+			sameRole := func(role db.Role) bool { return role.ID == r.RoleID }
+			if i := slices.IndexFunc(b.roles, sameRole); i >= 0 {
+				roles = append(roles, BackupTemplateRole{Role: b.roles[i].Name, Permissions: r.Permissions})
+			} else if i := slices.IndexFunc(b.globalRoles, sameRole); i >= 0 {
+				// Global and built-in roles are written by slug.
+				roles = append(roles, BackupTemplateRole{Role: b.globalRoles[i].Slug, IsGlobal: true, Permissions: r.Permissions})
 			}
 		}
 
@@ -478,8 +456,8 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 	}
 
-	integrations := make([]BackupIntegration, len(b.integrations))
-	for i, o := range b.integrations {
+	integrations := make([]BackupIntegration, 0, len(b.integrations))
+	for _, o := range b.integrations {
 
 		var aliases []string
 
@@ -487,9 +465,17 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			aliases = append(aliases, a.Alias)
 		}
 
-		tplName, _ := findNameByID[db.Template](o.TemplateID, b.templates)
-
-		if tplName == nil {
+		// The target is stored by name. An integration whose target is not in
+		// the backup (a workflow in a build without workflows) is left out
+		// rather than written as an entry nothing can restore.
+		var tplName, workflowName *string
+		switch {
+		case o.TemplateID != nil:
+			tplName, _ = findNameByID[db.Template](*o.TemplateID, b.templates)
+		case o.WorkflowID != nil:
+			workflowName, _ = findNameByID[db.WorkflowTemplate](*o.WorkflowID, b.workflows)
+		}
+		if tplName == nil && workflowName == nil {
 			continue
 		}
 
@@ -499,18 +485,21 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			keyName, _ = findNameByID[db.AccessKey](*o.AuthSecretID, b.keys)
 		}
 
-		integrations[i] = BackupIntegration{
+		integration := BackupIntegration{
 			Integration:   o,
 			Aliases:       aliases,
 			Matchers:      b.integrationMatchers[o.ID],
 			ExtractValues: b.integrationExtractValues[o.ID],
-			Template:      *tplName,
+			Template:      tplName,
+			Workflow:      workflowName,
 			AuthSecret:    keyName,
 		}
 
 		if o.TaskParams != nil && o.TaskParams.InventoryID != nil {
-			integrations[i].TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
+			integration.TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
 		}
+
+		integrations = append(integrations, integration)
 	}
 
 	var integrationAliases []string

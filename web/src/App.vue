@@ -117,7 +117,7 @@
       </template>
     </EditDialog>
 
-    <SystemInfoDialog v-model="systemInfoDialog" v-if="user && user.admin" />
+    <SystemInfoDialog v-model="systemInfoDialog" v-if="user && canManageSystem" />
 
     <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" top>
       {{ snackbarText }}
@@ -163,7 +163,7 @@
                 <v-list-item-title class="app__project-selector-title">
                   {{ project.name }}
                 </v-list-item-title>
-                <v-list-item-subtitle>{{ userRole.role }}</v-list-item-subtitle>
+                <v-list-item-subtitle>{{ (userRole.roles || []).join(', ') }}</v-list-item-subtitle>
               </v-list-item-content>
 
               <v-list-item-icon>
@@ -224,7 +224,7 @@
       </v-menu>
 
       <v-list class="pt-0" v-if="!project">
-        <v-list-item key="new_project" :to="`/project/new`">
+        <v-list-item v-if="user.can_create_project" key="new_project" :to="`/project/new`">
           <v-list-item-icon>
             <v-icon>mdi-plus</v-icon>
           </v-list-item-icon>
@@ -234,7 +234,7 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item key="restore_project" :to="`/project/restore`">
+        <v-list-item v-if="user.can_create_project" key="restore_project" :to="`/project/restore`">
           <v-list-item-icon>
             <v-icon>mdi-restore</v-icon>
           </v-list-item-icon>
@@ -409,7 +409,11 @@
             </template>
 
             <v-list>
-              <v-list-item key="system-info" v-if="user.admin" @click="systemInfoDialog = true">
+              <v-list-item
+                key="system-info"
+                v-if="canManageSystem"
+                @click="systemInfoDialog = true"
+              >
                 <v-list-item-icon>
                   <v-icon>mdi-server</v-icon>
                 </v-list-item-icon>
@@ -451,7 +455,7 @@
 
               <v-divider />
 
-              <v-list-item key="runners" to="/runners" v-if="user.admin">
+              <v-list-item key="runners" to="/runners" v-if="canManageSystem">
                 <v-list-item-icon>
                   <v-icon>mdi-cogs</v-icon>
                 </v-list-item-icon>
@@ -461,7 +465,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="cluster" to="/cluster" v-if="user.admin">
+              <v-list-item key="cluster" to="/cluster" v-if="canManageSystem">
                 <v-list-item-icon>
                   <v-icon>mdi-server-network</v-icon>
                 </v-list-item-icon>
@@ -471,7 +475,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="tasks" to="/tasks" v-if="user.admin">
+              <v-list-item key="tasks" to="/tasks" v-if="canManageSystem">
                 <v-list-item-icon>
                   <v-icon>mdi-check-all</v-icon>
                 </v-list-item-icon>
@@ -481,7 +485,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="users" to="/users" v-if="user.admin">
+              <v-list-item key="users" to="/users" v-if="canManageUsers || canManageRoles">
                 <v-list-item-icon>
                   <v-icon>mdi-account-multiple</v-icon>
                 </v-list-item-icon>
@@ -491,13 +495,33 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="roles" to="/roles" v-if="isPro && user.admin">
+              <v-list-item key="audit-log" to="/audit-log" v-if="user.can_read_audit_log">
+                <v-list-item-icon>
+                  <v-icon>mdi-shield-search</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('audit_log') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item key="roles" to="/roles" v-if="isPro && canManageRoles">
                 <v-list-item-icon>
                   <v-icon>mdi-account-cog</v-icon>
                 </v-list-item-icon>
 
                 <v-list-item-content>
                   {{ $t('Roles') }}
+                </v-list-item-content>
+              </v-list-item>
+
+              <v-list-item key="role-mappings" to="/role-mappings" v-if="isPro && user.admin">
+                <v-list-item-icon>
+                  <v-icon>mdi-account-group</v-icon>
+                </v-list-item-icon>
+
+                <v-list-item-content>
+                  {{ $t('roleMappings') }}
                 </v-list-item-content>
               </v-list-item>
 
@@ -545,11 +569,11 @@
         :projectId="projectId"
         :projectType="(project || {}).type || ''"
         :userPermissions="(userRole || {}).permissions"
-        :userRole="(userRole || {}).role"
         :userId="(user || {}).id"
         :isAdmin="(user || {}).admin"
         :user="user"
         :features="(systemInfo || { features: {} }).features"
+        :jwt="(systemInfo || {}).jwt"
         :authMethods="(systemInfo || { auth_methods: {} }).auth_methods"
         :systemInfo="systemInfo"
       ></router-view>
@@ -942,6 +966,8 @@ html.WorkflowEditor-html body {
 <script>
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
+import { GLOBAL_PERMISSIONS } from '@/lib/constants';
+import { hasGlobalPermission } from '@/lib/role-permissions';
 import EditDialog from '@/components/EditDialog.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
@@ -1096,7 +1122,7 @@ export default {
         && this.$route.path !== '/project/new'
         && this.$route.path !== '/project/premium'
       ) {
-        if (this.$route.query.new_project === 'premium') {
+        if (this.$route.query.new_project === 'premium' && this.user.can_create_project) {
           await this.$router.push({ path: '/project/premium' });
         } else {
           await this.$router.push({ path: '/project/new' });
@@ -1141,6 +1167,19 @@ export default {
   computed: {
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
+
+    // Instance-wide rights of the signed-in user: the admin flag or an assigned global role.
+    canManageSystem() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageSystem);
+    },
+
+    canManageUsers() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageUsers);
+    },
+
+    canManageRoles() {
+      return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageRoles);
     },
 
     lang() {
@@ -1446,6 +1485,9 @@ export default {
     },
 
     showNewProjectDialogue(projectType = '') {
+      if (!this.user.can_create_project) {
+        return;
+      }
       this.newProjectDialog = true;
       this.newProjectType = projectType;
     },
@@ -1484,33 +1526,6 @@ export default {
       this.$i18n.locale = locale;
     },
 
-    async loadUserOptions() {
-      const options = (
-        await axios({
-          method: 'get',
-          url: '/api/user/options',
-          responseType: 'json',
-        })
-      ).data;
-
-      if (options['nav.unpinnedItems'] != null) {
-        try {
-          this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
-        } catch {
-          // do nothing
-        }
-      }
-
-      if (options.lang != null) {
-        const currentLang = localStorage.getItem('lang');
-        try {
-          this.applyLanguage(JSON.parse(options.lang));
-        } catch {
-          this.applyLanguage(currentLang);
-        }
-      }
-    },
-
     async selectLanguage(lang) {
       const previousLang = localStorage.getItem('lang');
       this.applyLanguage(lang);
@@ -1545,7 +1560,6 @@ export default {
 
     async loadData() {
       await this.loadUserInfo();
-      await this.loadUserOptions();
 
       // Activate session and start socket only after confirming user is authenticated
       socket.setSessionActive(true);
@@ -1653,21 +1667,43 @@ export default {
     },
 
     async loadUserInfo() {
-      this.user = (
-        await axios({
+      const [user, systemInfo, options] = await Promise.all([
+        axios({
           method: 'get',
           url: '/api/user',
           responseType: 'json',
-        })
-      ).data;
-
-      this.systemInfo = (
-        await axios({
+        }),
+        axios({
           method: 'get',
           url: '/api/info',
           responseType: 'json',
-        })
-      ).data;
+        }),
+        await axios({
+          method: 'get',
+          url: '/api/user/options',
+          responseType: 'json',
+        }),
+      ]);
+
+      this.user = user.data;
+      this.systemInfo = systemInfo.data;
+
+      if (options['nav.unpinnedItems'] != null) {
+        try {
+          this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
+        } catch {
+          // do nothing
+        }
+      }
+
+      if (options.lang != null) {
+        const currentLang = localStorage.getItem('lang');
+        try {
+          this.applyLanguage(JSON.parse(options.lang));
+        } catch {
+          this.applyLanguage(currentLang);
+        }
+      }
     },
 
     getProjectColor(projectData) {

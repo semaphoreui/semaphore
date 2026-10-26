@@ -77,6 +77,19 @@ func TestWithEffectiveBranch(t *testing.T) {
 	assert.Equal(t, "main", repository.GitBranch)
 }
 
+// A monorepo is shared on the repository's own branch, so neither a branch the
+// template still carries nor a task-supplied branch moves it.
+func TestWithEffectiveBranch_MonorepoIgnoresOverrides(t *testing.T) {
+	repository := db.Repository{GitBranch: "main", Monorepo: true}
+	template := db.Template{GitBranch: new("release"), AllowOverrideBranchInTask: true}
+	task := db.Task{GitBranch: new("feature")}
+
+	assert.Equal(t, "main", withEffectiveBranch(repository, template, task).GitBranch)
+
+	repository.Monorepo = false
+	assert.Equal(t, "feature", withEffectiveBranch(repository, template, task).GitBranch)
+}
+
 // TestLocalExecutorImplementsExecutor is a compile-time guard: if LocalExecutor stops
 // satisfying the Executor interface, this file fails to build. It documents the
 // contract introduced in Phase 1 of the Kubernetes runner refactor.

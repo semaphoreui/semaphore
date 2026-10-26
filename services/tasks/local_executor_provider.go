@@ -3,6 +3,7 @@ package tasks
 import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 )
 
 // LocalExecutorProvider is the ExecutorProvider for the "local" strategy: tasks run
@@ -19,6 +20,17 @@ type LocalExecutorProvider struct {
 	// (runner process) and TaskPool (server process) never operate on the
 	// same directories, so they need no shared lock.
 	repoLock *KeyLock
+
+	// outputsCollector captures the outputs of workflow tasks. Injected via
+	// SetTaskOutputsCollector; nil in the open-source build, where no task
+	// belongs to a workflow run.
+	outputsCollector pro_interfaces.TaskOutputsCollector
+}
+
+// SetTaskOutputsCollector injects the collector that captures the outputs of
+// workflow tasks run by this provider's executors. Nil disables it.
+func (p *LocalExecutorProvider) SetTaskOutputsCollector(collector pro_interfaces.TaskOutputsCollector) {
+	p.outputsCollector = collector
 }
 
 // NewLocalExecutorProvider takes the AccessKey installer the runner constructed at
@@ -52,5 +64,7 @@ func (p *LocalExecutorProvider) NewExecutor(task db.Task, template db.Template, 
 		JWT:          jwt,
 		RepoLock:     p.repoLock,
 		HostConfigs:  hostConfigs,
+
+		OutputsCollector: p.outputsCollector,
 	}, nil
 }

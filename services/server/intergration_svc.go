@@ -21,16 +21,16 @@ func NewIntegrationService(
 	}
 }
 
-func (s *IntegrationServiceImpl) FillIntegration(inventory *db.Integration) (err error) {
-	if inventory.AuthSecretID != nil {
-		inventory.AuthSecret, err = s.accessKeyRepo.GetAccessKey(inventory.ProjectID, *inventory.AuthSecretID)
+func (s *IntegrationServiceImpl) FillIntegration(integration *db.Integration) (err error) {
+	if integration.AuthSecretID != nil {
+		integration.AuthSecret, err = s.accessKeyRepo.GetAccessKey(integration.ProjectID, *integration.AuthSecretID)
 	}
 
 	if err != nil {
 		return
 	}
 
-	err = s.encryptionService.DeserializeSecret(&inventory.AuthSecret)
+	err = s.encryptionService.DeserializeSecret(&integration.AuthSecret)
 
 	return
 }

@@ -458,4 +458,11 @@ export default {
   unlimited: 'Bez omezení',
   featureFlags: 'Přepínače funkcí',
   nonAdminCanCreateProject: 'Uživatel bez role administrátora může vytvořit projekt',
+  projectRoles: 'Projektové role',
+  globalRoles: 'Globální role',
+  builtInRoles: 'Vestavěné role',
+  noProjectsTitle: 'Zatím žádné projekty',
+  noProjectsText: 'Nejste členem žádného projektu. Požádejte správce Semaphore, aby vás do nějakého přidal.',
+  signedInAs: 'Přihlášen jako {username} ({email})',
+  signedInAsNoEmail: 'Přihlášen jako {username}',
 };

@@ -394,4 +394,11 @@ export default {
   role_required: 'Rolle ist erforderlich',
 
   templatePermission: 'Vorlagenrechte',
+  projectRoles: 'Projektrollen',
+  globalRoles: 'Globale Rollen',
+  builtInRoles: 'Integrierte Rollen',
+  noProjectsTitle: 'Noch keine Projekte',
+  noProjectsText: 'Sie sind in keinem Projekt Mitglied. Bitten Sie Ihren Semaphore-Administrator, Sie zu einem hinzuzufügen.',
+  signedInAs: 'Angemeldet als {username} ({email})',
+  signedInAsNoEmail: 'Angemeldet als {username}',
 };

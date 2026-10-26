@@ -45,12 +45,26 @@
     <v-data-table
       :headers="headers"
       :items="items"
+      item-key="role_slug"
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
     >
-      <template v-slot:item.role="{ item }">
-        {{ getRoleName(item.role_slug) }}
+      <template v-slot:item.role_slug="{ item }">
+        <div class="d-flex align-center">
+          <div>
+            <div>{{ getRoleName(item.role_slug) }}</div>
+            <div class="text--secondary caption">{{ item.role_slug }}</div>
+          </div>
+          <v-chip
+            v-if="getRole(item.role_slug)"
+            x-small
+            label
+            class="ml-2"
+          >
+            {{ $t(roleScope(getRole(item.role_slug))) }}
+          </v-chip>
+        </div>
       </template>
 
       <template v-slot:item.permissions="{ item }">
@@ -78,6 +92,7 @@ import YesNoDialog from '@/components/YesNoDialog.vue';
 import TemplatePermissionsChips from '@/components/TemplatePermissionsChips.vue';
 import axios from 'axios';
 import { USER_PERMISSIONS } from '@/lib/constants';
+import { roleScope } from '@/lib/roles';
 
 export default {
   components: {
@@ -118,7 +133,7 @@ export default {
     async loadRoles() {
       try {
         const response = await axios.get(
-          `/api/project/${this.template.project_id}/roles?mode=merge`,
+          `/api/project/${this.template.project_id}/roles/all`,
         );
         this.availableRoles = response.data;
       } catch (error) {
@@ -127,25 +142,16 @@ export default {
       }
     },
 
-    getRoleName(roleId) {
-      const role = this.availableRoles.find((r) => r.slug === roleId);
-      return role ? role.name : `Role ${roleId}`;
+    getRole(slug) {
+      return this.availableRoles.find((role) => role.slug === slug);
     },
 
-    getRoleColor(roleId) {
-      const role = this.availableRoles.find((r) => r.slug === roleId);
-      if (!role) return 'gray';
-
-      // Color based on role slug or default colors
-      const colorMap = {
-        owner: 'red',
-        manager: 'orange',
-        task_runner: 'blue',
-        guest: 'gray',
-      };
-
-      return colorMap[role.slug] || 'primary';
+    getRoleName(slug) {
+      const role = this.getRole(slug);
+      return role ? role.name : slug;
     },
+
+    roleScope,
 
     allowActions() {
       return true;
@@ -155,7 +161,7 @@ export default {
       return [
         {
           text: this.$i18n.t('role'),
-          value: 'role',
+          value: 'role_slug',
           width: '25%',
         },
         {

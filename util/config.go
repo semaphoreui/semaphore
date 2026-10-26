@@ -126,6 +126,15 @@ type RunnerConnectionConfig struct {
 	// SkipTLSVerify disables server certificate verification entirely.
 	// This is insecure (vulnerable to MITM) — use only for testing.
 	SkipTLSVerify bool `json:"skip_tls_verify,omitempty" env:"SEMAPHORE_RUNNER_SKIP_TLS_VERIFY"`
+	// TimeoutSeconds bounds how long a runner→server request may wait for the
+	// server to answer: the TCP connect, the TLS handshake and the wait for the
+	// response headers each get this budget. Without it a server that accepts
+	// the connection but never replies freezes the runner's poll loop — and
+	// with it the heartbeat — until the OS gives up.
+	// Uploading the request body is deliberately not bounded, so a large log
+	// batch on a slow link is not cut off.
+	// Plain int, not time.Duration, for env-binding simplicity.
+	TimeoutSeconds int `json:"timeout_seconds,omitempty" default:"3" env:"SEMAPHORE_RUNNER_CONNECTION_TIMEOUT_SECONDS"`
 }
 
 // ExecutorType identifies the strategy the runner uses to execute each task. The default
@@ -169,7 +178,7 @@ type RunnerConfig struct {
 
 	// CheckIntervalSeconds is how often the runner polls the server for new jobs.
 	// Plain int, not time.Duration, for env-binding simplicity.
-	CheckIntervalSeconds int `json:"check_interval_seconds,omitempty" default:"1" env:"SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS"`
+	CheckIntervalSeconds int `json:"check_interval_seconds,omitempty" default:"5" env:"SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS"`
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
 
@@ -387,19 +396,124 @@ type DebuggingConfig struct {
 	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
 }
 
+// HAEngineType selects the backend that stores shared state and coordinates
+// the HA nodes.
+type HAEngineType string
+
+const (
+	// HAEngineRedis is a single Redis address, configured in ha.redis.
+	HAEngineRedis HAEngineType = "redis"
+	// HAEngineRedisSentinel is a Redis Sentinel deployment, configured in
+	// ha.redis_sentinel.
+	HAEngineRedisSentinel HAEngineType = "redis_sentinel"
+)
+
+// HARedisConfig connects the HA nodes to a single Redis server. Used when
+// ha.engine is `redis`.
 type HARedisConfig struct {
-	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
-	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
-	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS,sensitive"`
-	User          string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
-	TLS           bool   `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
-	TLSSkipVerify bool   `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
+	// Address of the Redis server, `host:port`. Default: `127.0.0.1:6379`.
+	Addr string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
+	// Redis database number.
+	DB int `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
+	// Password for the Redis server.
+	Pass string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS,sensitive"`
+	// Username (ACL) for the Redis server.
+	User string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
+	// Enable TLS for the Redis connection.
+	TLS bool `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
+	// Skip TLS certificate verification for the Redis connection.
+	TLSSkipVerify bool `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
+}
+
+// HARedisSentinelConfig connects the HA nodes to a Redis Sentinel deployment:
+// the nodes ask the sentinels for the current master and follow a failover
+// without a restart. Used when ha.engine is `redis_sentinel`.
+type HARedisSentinelConfig struct {
+	// Name of the monitored master as configured in Sentinel (`sentinel monitor <name> ...`).
+	MasterName string `json:"master_name,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_MASTER_NAME"`
+	// Sentinel addresses, `host:port` each. As an environment variable, a JSON array string: `["s1:26379","s2:26379"]`.
+	Addrs []string `json:"addrs,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_ADDRS"`
+	// Username (ACL) for the Sentinel nodes themselves, not for the Redis data nodes.
+	SentinelUser string `json:"sentinel_user,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_SENTINEL_USER"`
+	// Password for the Sentinel nodes themselves (`requirepass` in sentinel.conf), not for the Redis data nodes.
+	SentinelPass string `json:"sentinel_pass,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_SENTINEL_PASS,sensitive"`
+	// Redis database number on the data nodes.
+	DB int `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_DB"`
+	// Username (ACL) for the Redis data nodes.
+	User string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_USER"`
+	// Password for the Redis data nodes.
+	Pass string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_PASS,sensitive"`
+	// Enable TLS for both the Sentinel and the Redis data-node connections.
+	TLS bool `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_TLS"`
+	// Skip TLS certificate verification for the Sentinel and Redis connections.
+	TLSSkipVerify bool `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_TLS_SKIP_VERIFY"`
+}
+
+// IsSet reports whether the block carries any Sentinel settings. The config
+// loader allocates every nested block, so a nil check is not enough.
+func (c *HARedisSentinelConfig) IsSet() bool {
+	return c != nil && (c.MasterName != "" || len(c.Addrs) > 0)
 }
 
 type HAConfig struct {
-	Enabled bool           `json:"enabled" env:"SEMAPHORE_HA_ENABLED"`
-	NodeID  string         `json:"node_id,omitempty" env:"SEMAPHORE_HA_NODE_ID"` // auto-generated if empty
-	Redis   *HARedisConfig `json:"redis,omitempty"`
+	// Enable High Availability (HA) mode.
+	Enabled bool `json:"enabled" env:"SEMAPHORE_HA_ENABLED"`
+	// Unique identifier of this node in the cluster. Auto-generated if empty.
+	NodeID string `json:"node_id,omitempty" env:"SEMAPHORE_HA_NODE_ID"`
+	// Backend that stores the shared state and coordinates the HA nodes: `redis` (single server, settings in `ha.redis`) or `redis_sentinel` (Redis Sentinel, settings in `ha.redis_sentinel`).
+	Engine        HAEngineType           `json:"engine,omitempty" default:"redis" rule:"^(redis|redis_sentinel)?$" env:"SEMAPHORE_HA_ENGINE"`
+	Redis         *HARedisConfig         `json:"redis,omitempty"`
+	RedisSentinel *HARedisSentinelConfig `json:"redis_sentinel,omitempty"`
+}
+
+// EngineType returns the configured engine, `redis` when the field is empty.
+func (c *HAConfig) EngineType() HAEngineType {
+	if c == nil || c.Engine == "" {
+		return HAEngineRedis
+	}
+	return c.Engine
+}
+
+// validateHAConfig checks the HA block. It returns a fatal error for an
+// unusable configuration and warnings for settings that are present but
+// ignored, so the caller can log them without util depending on a logger.
+// Only an enabled HA block is checked beyond the engine name: a disabled
+// block is inert whatever it contains.
+func validateHAConfig(c *HAConfig) (warnings []string, err error) {
+	if c == nil {
+		return nil, nil
+	}
+	if err = validate(c); err != nil {
+		return nil, err
+	}
+	if !c.Enabled {
+		return nil, nil
+	}
+
+	switch c.EngineType() {
+	case HAEngineRedisSentinel:
+		if c.RedisSentinel == nil || c.RedisSentinel.MasterName == "" {
+			return nil, fmt.Errorf("ha.redis_sentinel.master_name is required when ha.engine is %q", HAEngineRedisSentinel)
+		}
+		if len(c.RedisSentinel.Addrs) == 0 {
+			return nil, fmt.Errorf("ha.redis_sentinel.addrs must list at least one sentinel when ha.engine is %q", HAEngineRedisSentinel)
+		}
+		if c.Redis != nil && c.Redis.Addr != "" {
+			warnings = append(warnings, fmt.Sprintf("ha.redis.addr is ignored because ha.engine is %q", HAEngineRedisSentinel))
+		}
+	case HAEngineRedis:
+		if c.RedisSentinel.IsSet() {
+			warnings = append(warnings, fmt.Sprintf("ha.redis_sentinel is ignored because ha.engine is %q", HAEngineRedis))
+		}
+	}
+	return warnings, nil
+}
+
+// HAWarnings returns the non-fatal findings of the HA validation for the
+// loaded configuration, for the server to log at startup.
+func HAWarnings() []string {
+	warnings, _ := validateHAConfig(Config.HA)
+	return warnings
 }
 
 // HAEnabled returns true when high-availability mode is configured.
@@ -746,11 +860,19 @@ const (
 )
 
 // Default poll interval for a runner asking the server for work.
-const defaultRunnerCheckIntervalSec = 1
+const defaultRunnerCheckIntervalSec = 5
 
 // Larger overflows time.Duration and panics time.NewTicker. Kept as int64: the
 // value exceeds int on 32-bit release targets (386, arm).
 const maxRunnerCheckIntervalSec int64 = int64(math.MaxInt64) / int64(time.Second)
+
+// Default timeout for a runner→server request. Kept below the default poll
+// interval so a stuck request cannot outlive the cycle that started it.
+const defaultRunnerConnectionTimeoutSec = 3
+
+// Larger overflows time.Duration. Shares the bound with the poll interval:
+// both are seconds cast to a duration.
+const maxRunnerConnectionTimeoutSec = maxRunnerCheckIntervalSec
 
 // GetSecretsPath returns the secrets path from configuration.
 // Used for backward compatibility with legacy top-level secrets_path.
@@ -818,6 +940,21 @@ func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
 		res = offline
 	}
 	return res
+}
+
+// RunnerConnectionTimeout returns the per-request budget for the runner→server
+// connect, TLS handshake and response-header wait. Out-of-range values fall
+// back to the default: 0 is indistinguishable from "unset" after defaults are
+// applied, and oversized values overflow time.Duration.
+func (conf *ConfigType) RunnerConnectionTimeout() time.Duration {
+	sec := int64(defaultRunnerConnectionTimeoutSec)
+	if conf.Runner != nil && conf.Runner.Connection != nil {
+		if configured := int64(conf.Runner.Connection.TimeoutSeconds); configured > 0 &&
+			configured <= maxRunnerConnectionTimeoutSec {
+			sec = configured
+		}
+	}
+	return time.Duration(sec) * time.Second
 }
 
 // RunnerCheckInterval returns how often this runner polls the server for new
@@ -901,6 +1038,10 @@ func (conf *ConfigType) ClearTmpDir() error {
 
 func (conf *ConfigType) GetProjectTmpDir(projectID int) string {
 	return path.Join(conf.TmpPath, fmt.Sprintf("project_%d", projectID))
+}
+
+func (conf *ConfigType) GetProjectTmpFile(projectID int, filename string) string {
+	return path.Join(conf.GetProjectTmpDir(projectID), filename)
 }
 
 func (conf *ConfigType) ClearProjectTmpDir(projectID int) error {
@@ -1873,6 +2014,10 @@ func validateConfig() {
 		if err := validate(Config.Auth); err != nil {
 			panic(err)
 		}
+	}
+
+	if _, err := validateHAConfig(Config.HA); err != nil {
+		panic(err)
 	}
 
 	if err := Config.Audit.Validate(); err != nil {

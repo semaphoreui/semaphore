@@ -54,7 +54,7 @@
             ref="signInForm"
             lazy-validation
             v-model="signInFormValid"
-            style="width: 350px"
+            style="width: 350px; max-width: 100%;"
           >
             <v-img
               width="80"

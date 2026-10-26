@@ -7,8 +7,15 @@ const (
 	ProjectManager    ProjectUserRole = "manager"
 	ProjectTaskRunner ProjectUserRole = "task_runner"
 	ProjectGuest      ProjectUserRole = "guest"
-	ProjectNone       ProjectUserRole = ""
 )
+
+func (r ProjectUserRole) IsValid() bool {
+	switch r {
+	case ProjectOwner, ProjectManager, ProjectTaskRunner, ProjectGuest:
+		return true
+	}
+	return false
+}
 
 type ProjectUserPermission int64
 
@@ -19,29 +26,7 @@ const (
 	CanManageProjectUsers
 )
 
-var rolePermissions = map[ProjectUserRole]ProjectUserPermission{
-	ProjectOwner:      CanRunProjectTasks | CanManageProjectResources | CanUpdateProject | CanManageProjectUsers,
-	ProjectManager:    CanRunProjectTasks | CanManageProjectResources,
-	ProjectTaskRunner: CanRunProjectTasks,
-	ProjectGuest:      0,
-}
-
-func (r ProjectUserRole) IsValid() bool {
-	_, ok := rolePermissions[r]
-	return ok
-}
-
 type ProjectUser struct {
-	ID        int             `db:"id" json:"-"`
-	ProjectID int             `db:"project_id" json:"project_id"`
-	UserID    int             `db:"user_id" json:"user_id"`
-	Role      ProjectUserRole `db:"role" json:"role"`
-}
-
-func (r ProjectUserRole) Can(permissions ProjectUserPermission) bool {
-	return (rolePermissions[r] & permissions) == permissions
-}
-
-func (r ProjectUserRole) GetPermissions() ProjectUserPermission {
-	return rolePermissions[r]
+	ProjectID int `db:"project_id" json:"project_id"`
+	UserID    int `db:"user_id" json:"user_id"`
 }

@@ -50,18 +50,25 @@
 
     <v-divider />
 
+    <div v-if="runVariables.length > 0" class="WorkflowRun__vars px-4 py-2">
+      <span class="text-caption text--secondary mr-2">{{ $t('workflowRunVariables') }}</span>
+      <v-chip
+        v-for="v in runVariables"
+        :key="v.name"
+        x-small
+        label
+        outlined
+        class="WorkflowRun__var mr-1 mb-1"
+        :title="`${v.name} = ${v.value}`"
+      >
+        <span class="WorkflowRun__varName">{{ v.name }}</span>
+        <span class="mx-1">=</span>
+        <span class="WorkflowRun__varValue">{{ v.value }}</span>
+      </v-chip>
+    </div>
+
     <div class="WorkflowRun__body">
       <template v-if="details != null">
-        <v-alert
-          v-if="hasRemoteRunnerNodes"
-          type="warning"
-          dense
-          text
-          tile
-          class="ma-0"
-          icon="mdi-alert-outline"
-        >{{ $t('workflowArtifactsRemoteRunnerWarning') }}</v-alert>
-
         <div class="WorkflowRun__graph">
           <WorkflowGraph
             v-if="workflow"
@@ -118,6 +125,23 @@
 
 <style lang="scss">
 .WorkflowRun {
+  &__vars {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    border-bottom: 1px solid rgba(133, 133, 133, 0.25);
+  }
+
+  &__varName {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  &__varValue {
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   &__body {
     height: calc(100vh - 65px);
@@ -167,6 +191,19 @@ import PermissionsCheck from '@/components/PermissionsCheck';
 import WorkflowGraph from '@/components/WorkflowGraph.vue';
 import { USER_PERMISSIONS } from '@/lib/constants';
 
+// Number of output values a task stored (task.artifacts is the
+// {values, skipped} document, as a JSON string or already parsed).
+function countOutputs(raw) {
+  if (!raw) return 0;
+  try {
+    const doc = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const values = doc && typeof doc === 'object' ? doc.values : null;
+    return values && typeof values === 'object' ? Object.keys(values).length : 0;
+  } catch (err) {
+    return 0;
+  }
+}
+
 export default {
   components: { WorkflowGraph },
   mixins: [PermissionsCheck],
@@ -184,6 +221,20 @@ export default {
     };
   },
   computed: {
+    // The survey answers the run was started with (run.environment): a value
+    // per variable, lists joined. Never secrets — a workflow survey has none.
+    runVariables() {
+      const env = this.details && this.details.run.environment;
+      if (!env || typeof env !== 'object') return [];
+      return Object.keys(env).sort().map((name) => {
+        const raw = env[name];
+        let value;
+        if (Array.isArray(raw)) value = raw.join(', ');
+        else if (raw == null) value = '';
+        else value = typeof raw === 'object' ? JSON.stringify(raw) : String(raw);
+        return { name, value };
+      });
+    },
     workflowId() {
       return parseInt(this.$route.params.workflowId, 10);
     },
@@ -201,12 +252,6 @@ export default {
       return (status === 'running' || status === 'approval')
         && this.can(USER_PERMISSIONS.runProjectTasks);
     },
-    hasRemoteRunnerNodes() {
-      if (!this.details) return false;
-      return (this.details.nodes || []).some(
-        (n) => n.task && n.task.used_runner_id != null,
-      );
-    },
     // node.id -> run info for the card: status, timing, live delay countdown,
     // the task to open on click and the approval message.
     nodeRuns() {
@@ -219,6 +264,7 @@ export default {
             start: n.task.start || n.task.created,
             end: n.task.end,
             taskId: n.task.id,
+            outputs: countOutputs(n.task.artifacts),
           };
         } else if (n.approval) {
           map[id] = {

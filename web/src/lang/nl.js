@@ -351,4 +351,11 @@ export default {
   project_stats: 'Statistieken',
   allow_override_branch: 'Tak',
   template_common_options: 'Gemeenschappelijke opties',
+  projectRoles: 'Projectrollen',
+  globalRoles: 'Globale rollen',
+  builtInRoles: 'Ingebouwde rollen',
+  noProjectsTitle: 'Nog geen projecten',
+  noProjectsText: 'U bent geen lid van een project. Vraag uw Semaphore-beheerder om u aan een project toe te voegen.',
+  signedInAs: 'Aangemeld als {username} ({email})',
+  signedInAsNoEmail: 'Aangemeld als {username}',
 };

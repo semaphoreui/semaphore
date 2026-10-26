@@ -673,7 +673,7 @@ func TestRequeueTaskRunnerOffline_NoopWhenReassigned(t *testing.T) {
 		name     string
 		runnerID *int
 	}{
-		{"task moved to another runner", intPtr(43)},
+		{"task moved to another runner", new(43)},
 		{"runner already cleared", nil},
 	}
 
@@ -901,5 +901,3 @@ func TestRequeueUndispatchedTask_FinalizeLockHeld(t *testing.T) {
 	assert.Equal(t, 0, state.QueueLen())
 	assert.Empty(t, pool.queueEvents)
 }
-
-func intPtr(v int) *int { return &v }

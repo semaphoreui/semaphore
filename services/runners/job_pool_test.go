@@ -2,6 +2,7 @@ package runners
 
 import (
 	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -373,4 +375,316 @@ func TestJobPool_checkNewJobs_ExecutorErrorWithoutCacheCleanProjectID(t *testing
 		p.checkNewJobs()
 	})
 	assert.Equal(t, 0, p.queueLen())
+}
+
+// outputsCollectorStub is the pro collector seen from the runner: the job pool
+// only has to hand it to the executor provider.
+type outputsCollectorStub struct{}
+
+func (outputsCollectorStub) Begin(string, int) (pro_interfaces.TaskOutputsCapture, error) {
+	return nil, nil
+}
+
+func (outputsCollectorStub) Validate(document string) (*string, error) {
+	return &document, nil
+}
+
+func TestJobPool_SetTaskOutputsCollectorReachesLocalExecutor(t *testing.T) {
+	initConfig(t)
+
+	p := NewJobPool(nil)
+	collector := outputsCollectorStub{}
+	p.SetTaskOutputsCollector(collector)
+
+	executor, err := p.provider.NewExecutor(db.Task{ID: 1}, db.Template{App: db.AppBash}, db.Inventory{}, db.Repository{}, db.Environment{}, "", nil)
+	require.NoError(t, err)
+
+	local, ok := executor.(*tasks.LocalExecutor)
+	require.True(t, ok)
+	assert.Equal(t, collector, local.OutputsCollector)
+}
+
+func TestJobPool_SetTaskOutputsCollectorWithoutProvider(t *testing.T) {
+	initConfig(t)
+
+	p := &JobPool{}
+
+	assert.NotPanics(t, func() {
+		p.SetTaskOutputsCollector(outputsCollectorStub{})
+	})
+}
+
+// outputsExecutor is an executor that captured an outputs document, as the
+// local executor does after a successful run.
+type outputsExecutor struct {
+	*tasks.LocalExecutor
+	outputs *string
+}
+
+func (e *outputsExecutor) Outputs() *string { return e.outputs }
+
+func TestJobPool_TaskOutputs(t *testing.T) {
+	initConfig(t)
+	p := NewJobPool(nil)
+	document := `{"values":{"image_tag":"1.4.2"}}`
+
+	t.Run("workflow task on an executor with outputs", func(t *testing.T) {
+		rj := &runningJob{job: &outputsExecutor{LocalExecutor: &tasks.LocalExecutor{}, outputs: &document}}
+
+		outputs := p.taskOutputs(&job{workflowTask: true}, rj)
+
+		require.NotNil(t, outputs)
+		assert.Equal(t, document, *outputs)
+	})
+
+	t.Run("local executor without outputs", func(t *testing.T) {
+		rj := newTestRunningJob(1)
+
+		assert.Nil(t, p.taskOutputs(&job{workflowTask: true}, rj))
+		_, logs, _, _ := rj.getProgress()
+		assert.Empty(t, logs)
+	})
+
+	t.Run("task outside a workflow run", func(t *testing.T) {
+		rj := &runningJob{job: &outputsExecutor{LocalExecutor: &tasks.LocalExecutor{}, outputs: &document}}
+
+		assert.Nil(t, p.taskOutputs(&job{workflowTask: false}, rj))
+	})
+
+	t.Run("executor without outputs support leaves a log line", func(t *testing.T) {
+		rj := &runningJob{job: &MockDockerExecutor{}}
+
+		assert.Nil(t, p.taskOutputs(&job{workflowTask: true}, rj))
+
+		_, logs, _, _ := rj.getProgress()
+		require.Len(t, logs, 1)
+		assert.Contains(t, logs[0].Message, "not captured by this runner's executor")
+	})
+}
+
+// The outputs document rides in the progress report next to the status.
+func TestJobPool_SendProgressIncludesOutputs(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	var mu sync.Mutex
+	var received RunnerProgress
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			mu.Lock()
+			defer mu.Unlock()
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&received))
+		}
+		_, _ = w.Write([]byte("{}"))
+	}))
+	t.Cleanup(srv.Close)
+
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "test-token",
+			Executor:   &util.ExecutorConfig{},
+			Connection: &util.RunnerConnectionConfig{},
+		},
+	}
+
+	p := NewJobPool(nil)
+	document := `{"values":{"image_tag":"1.4.2"}}`
+	rj := newTestRunningJob(7)
+	rj.finish(task_logger.TaskSuccessStatus, &document)
+	p.addRunningJob(7, rj)
+
+	require.True(t, p.sendProgress())
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, received.Jobs, 1)
+	assert.Equal(t, 7, received.Jobs[0].ID)
+	assert.Equal(t, task_logger.TaskSuccessStatus, received.Jobs[0].Status)
+	require.NotNil(t, received.Jobs[0].Outputs)
+	assert.Equal(t, document, *received.Jobs[0].Outputs)
+	// The terminal report was accepted, so the job leaves the running list.
+	assert.Nil(t, p.getRunningJob(7))
+}
+
+func TestJobProgress_OutputsOmittedWhenAbsent(t *testing.T) {
+	raw, err := json.Marshal(JobProgress{ID: 1, Status: task_logger.TaskRunningStatus})
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "outputs")
+}
+
+// Every phase that waits on the server must carry the configured budget: a
+// custom Transport starts from the zero value, so an unset field means "wait
+// forever", not the http.DefaultTransport value.
+func TestNewHTTPClientAppliesConnectionTimeout(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	util.Config = &util.ConfigType{
+		Runner: &util.RunnerConfig{
+			Connection: &util.RunnerConnectionConfig{TimeoutSeconds: 7},
+		},
+	}
+
+	client := newHTTPClient()
+
+	transport, ok := client.Transport.(*http.Transport)
+	require.True(t, ok)
+	assert.Equal(t, 7*time.Second, transport.TLSHandshakeTimeout)
+	assert.Equal(t, 7*time.Second, transport.ResponseHeaderTimeout)
+	assert.NotNil(t, transport.DialContext)
+}
+
+// A server that accepts the connection and then goes silent used to hang the
+// poll goroutine forever; the processing guard then skipped every later cycle,
+// so the heartbeat stopped and the server declared the runner offline.
+func TestJobPoolSendProgressGivesUpOnSilentServer(t *testing.T) {
+	released := make(chan struct{})
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		<-released
+	}))
+	// Cleanups run last-registered-first: the handler must be released before
+	// srv.Close, which blocks until every in-flight request returns.
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(released) })
+
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "runner-token",
+			Connection: &util.RunnerConnectionConfig{TimeoutSeconds: 1},
+		},
+	}
+
+	p := &JobPool{
+		runningJobs: make(map[int]*runningJob),
+		client:      newHTTPClient(),
+	}
+
+	done := make(chan bool, 1)
+	go func() { done <- p.sendProgress() }()
+
+	select {
+	case ok := <-done:
+		assert.False(t, ok, "a silent server must not count as a delivered report")
+	case <-time.After(10 * time.Second):
+		t.Fatal("sendProgress never returned: the request has no deadline")
+	}
+}
+
+// stalledBodyServer replies with the headers at once and then never finishes
+// the body, so the transport's ResponseHeaderTimeout does not fire. The handler
+// returns when the test ends.
+func stalledBodyServer(t *testing.T) *httptest.Server {
+	released := make(chan struct{})
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("{"))
+		w.(http.Flusher).Flush()
+		<-released
+	}))
+	// Cleanups run last-registered-first: the handler must be released before
+	// srv.Close, which blocks until every in-flight request returns.
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(released) })
+
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "runner-token",
+			Connection: &util.RunnerConnectionConfig{TimeoutSeconds: 1},
+		},
+	}
+
+	return srv
+}
+
+// A server that sends the headers and then stalls the body is not covered by
+// ResponseHeaderTimeout. The body read must still give up within the connection
+// timeout, or the poll goroutine — and the heartbeat with it — hangs forever.
+func TestJobPoolSendProgressGivesUpOnStalledBody(t *testing.T) {
+	stalledBodyServer(t)
+
+	p := &JobPool{
+		runningJobs: make(map[int]*runningJob),
+		client:      newHTTPClient(),
+	}
+
+	done := make(chan bool, 1)
+	go func() { done <- p.sendProgress() }()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("sendProgress never returned: the response body read has no deadline")
+	}
+}
+
+func TestJobPoolCheckNewJobsGivesUpOnStalledBody(t *testing.T) {
+	stalledBodyServer(t)
+
+	p := &JobPool{
+		runningJobs: make(map[int]*runningJob),
+		client:      newHTTPClient(),
+	}
+
+	done := make(chan struct{})
+	go func() {
+		p.checkNewJobs()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("checkNewJobs never returned: the response body read has no deadline")
+	}
+}
+
+// The response-body deadline is armed only once the headers arrive, so a slow
+// upload of a progress report (task logs) is never cut by it.
+func TestJobPoolDoRequestDoesNotBoundUpload(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	t.Cleanup(srv.Close)
+
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Connection: &util.RunnerConnectionConfig{TimeoutSeconds: 1},
+		},
+	}
+
+	p := &JobPool{client: newHTTPClient()}
+
+	// The upload takes longer than the connection timeout.
+	pr, pw := io.Pipe()
+	go func() {
+		for range 3 {
+			time.Sleep(500 * time.Millisecond)
+			_, _ = pw.Write([]byte("x"))
+		}
+		_ = pw.Close()
+	}()
+
+	req, err := http.NewRequest(http.MethodPut, srv.URL, pr)
+	require.NoError(t, err)
+
+	resp, release, err := p.doRequest(req)
+	require.NoError(t, err)
+	defer release()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "{}", string(body))
 }

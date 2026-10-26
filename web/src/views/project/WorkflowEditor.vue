@@ -121,11 +121,17 @@
               <v-text-field
                 v-model="item.start_version"
                 :label="$t('startVersion')"
-                :hint="$t('workflowStartVersionHint')"
                 persistent-hint
                 :disabled="!canManage"
                 outlined
                 dense
+              />
+
+              <SurveyVars
+                :key="`survey-${graphKey}`"
+                :vars="item.survey_vars"
+                :allow-secret="false"
+                @change="setSurveyVars"
               />
             </div>
 
@@ -188,6 +194,7 @@
           :key="`node-${editingNode.id}`"
           :value="editingNode"
           :templates="templates"
+          :survey-vars="item.survey_vars"
           :can-manage="canManage"
           @input="applyNodeEdit"
           @delete="deleteSelectedNode()"
@@ -197,6 +204,9 @@
           v-else
           :key="edgeKey(editingEdge)"
           :value="editingEdge"
+          :nodes="item.nodes"
+          :templates="templates"
+          :output-hints="outputHints"
           :can-manage="canManage"
           @input="applyEdgeEdit"
           @delete="deleteSelectedEdge()"
@@ -217,6 +227,7 @@ import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import WorkflowGraph from '@/components/WorkflowGraph.vue';
 import WorkflowNodeProperties from '@/components/workflow/WorkflowNodeProperties.vue';
+import SurveyVars from '@/components/SurveyVars.vue';
 import WorkflowEdgeProperties from '@/components/workflow/WorkflowEdgeProperties.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import ProjectMixin from '@/components/ProjectMixin';
@@ -234,7 +245,7 @@ function isTypingTarget(target) {
 
 export default {
   components: {
-    WorkflowGraph, WorkflowNodeProperties, WorkflowEdgeProperties, YesNoDialog,
+    WorkflowGraph, WorkflowNodeProperties, WorkflowEdgeProperties, YesNoDialog, SurveyVars,
   },
   mixins: [ProjectMixin, PermissionsCheck],
   props: {
@@ -261,6 +272,11 @@ export default {
       // Runs still in progress: they keep executing the revision they started
       // from, so saving is safe — the chip in the toolbar just says so.
       activeRuns: 0,
+      // Outputs of the latest finished run of the loaded revision, keyed by
+      // node id, for the key suggestions of the edge panel. Null when no such
+      // run exists — node ids change with every save, so a run of an older
+      // revision can not be matched to the nodes on the canvas.
+      outputHints: null,
       // JSON of the last loaded / saved model, for the unsaved-changes guard.
       savedSnapshot: null,
       leaveDialog: false,
@@ -300,6 +316,7 @@ export default {
       return JSON.stringify({
         name: this.item.name,
         start_version: this.item.start_version || '',
+        survey_vars: this.item.survey_vars || [],
         nodes: this.item.nodes,
         edges: this.item.edges,
       });
@@ -332,10 +349,41 @@ export default {
         roots.forEach((n) => out.push({ text, nodeId: n.id }));
       }
 
+      // The workflow survey: unique names (db.ValidateWorkflowSurveyVars).
+      const workflowVarNames = new Set();
+      (this.item.survey_vars || []).forEach((v) => {
+        if (workflowVarNames.has(v.name)) {
+          out.push({ text: this.$t('workflowErrorSurveyVarDuplicate', { name: v.name }) });
+        }
+        workflowVarNames.add(v.name);
+      });
+
       nodes.forEach((n) => {
         const kind = n.kind || 'task';
         if (kind === 'task' && !n.template_id) {
           out.push({ text: this.$t('workflowErrorTaskNeedsTemplate'), nodeId: n.id });
+        }
+        if (kind === 'task' && Array.isArray(n.survey_inputs) && n.survey_inputs.length > 0) {
+          // A binding refers to names: the template's survey variable it feeds
+          // and the workflow variable it reads. Either may have been renamed or
+          // deleted since (validateWorkflowNodeSurveyInputs on the server).
+          const tpl = (this.templates || []).find((t) => t.id === n.template_id);
+          const templateVars = tpl
+            ? new Set((tpl.survey_vars || []).filter((v) => v.type !== 'secret').map((v) => v.name))
+            : null;
+          const seen = new Set();
+          n.survey_inputs.forEach((b) => {
+            if (seen.has(b.var)) {
+              out.push({ text: this.$t('workflowErrorSurveyInputDuplicate', { name: b.var, node: n.id }), nodeId: n.id });
+            }
+            seen.add(b.var);
+            if (templateVars && !templateVars.has(b.var)) {
+              out.push({ text: this.$t('workflowErrorSurveyInputUnknownVar', { name: b.var, node: n.id }), nodeId: n.id });
+            }
+            if (!workflowVarNames.has(b.workflow_var)) {
+              out.push({ text: this.$t('workflowErrorSurveyInputUnknownWorkflowVar', { name: b.workflow_var, node: n.id }), nodeId: n.id });
+            }
+          });
         }
         if (kind === 'approval' && n.approval_timeout != null && n.approval_timeout <= 0) {
           out.push({ text: this.$t('workflowErrorApprovalTimeoutPositive'), nodeId: n.id });
@@ -408,7 +456,8 @@ export default {
     setNavMini(mini) {
       EventBus.$emit('i-nav-mini', { mini });
     },
-    // Informational only (see activeRuns); a failure must not block editing.
+    // Informational only (see activeRuns, outputHints); a failure must not
+    // block editing.
     async loadActiveRuns() {
       try {
         const runs = await this.loadEndpoint(
@@ -416,17 +465,57 @@ export default {
         );
         this.activeRuns = (runs || [])
           .filter((r) => r.status === 'running' || r.status === 'approval').length;
+        await this.loadOutputHints(runs || []);
       } catch (err) {
         this.activeRuns = 0;
+        this.outputHints = null;
       }
+    },
+    // The latest finished run of the current revision tells which outputs each
+    // task node produced; the edge panel offers them as keys.
+    async loadOutputHints(runs) {
+      this.outputHints = null;
+      const revisionId = this.item?.revision_id;
+      if (!revisionId) return;
+      const candidates = runs
+        .filter((r) => r.revision_id === revisionId && r.status !== 'running' && r.status !== 'approval')
+        .sort((a, b) => b.id - a.id);
+      if (candidates.length === 0) return;
+      const run = candidates[0];
+      const details = await this.loadEndpoint(
+        `/api/project/${this.projectId}/workflows/${this.workflowId}/runs/${run.id}`,
+      );
+      const byNode = {};
+      (details?.nodes || []).forEach((n) => {
+        const raw = n.task?.artifacts;
+        if (!raw) return;
+        let doc;
+        try {
+          doc = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        } catch (err) {
+          return;
+        }
+        const values = doc && typeof doc === 'object' && doc.values && typeof doc.values === 'object'
+          ? doc.values : {};
+        const skipped = doc && typeof doc === 'object' && doc.skipped && typeof doc.skipped === 'object'
+          ? doc.skipped : {};
+        const keys = Object.keys(values).sort();
+        if (keys.length === 0 && Object.keys(skipped).length === 0) return;
+        byNode[n.node.id] = { keys, skipped };
+      });
+      this.outputHints = { runId: run.id, byNode };
     },
     getNewItem() {
       return {
         name: '',
         description: '',
+        survey_vars: [],
         nodes: [],
         edges: [],
       };
+    },
+    setSurveyVars(vars) {
+      this.item.survey_vars = [...vars];
     },
     async loadData() {
       this.selectedNodeId = null;
@@ -441,12 +530,24 @@ export default {
           );
           if (!Array.isArray(this.item.nodes)) this.item.nodes = [];
           if (!Array.isArray(this.item.edges)) this.item.edges = [];
+          if (!Array.isArray(this.item.survey_vars)) this.item.survey_vars = [];
           this.item.nodes = this.item.nodes.map((node) => ({
             kind: 'task',
             convergence_mode: 'all',
             position_x: 0,
             position_y: 0,
             ...node,
+          }));
+          // The same shape the canvas emits (see WorkflowGraph.liveModel), so
+          // the unsaved-changes snapshot only differs after a real edit: the
+          // API also returns row ids and the default input mode.
+          this.item.edges = this.item.edges.map((edge) => ({
+            source_node_id: edge.source_node_id,
+            destination_node_id: edge.destination_node_id,
+            condition: edge.condition || 'on_success',
+            ...(edge.input_mode === 'explicit'
+              ? { input_mode: 'explicit', input_mappings: edge.input_mappings || [] }
+              : {}),
           }));
           this.autoLayout();
           this.loadActiveRuns();
@@ -552,13 +653,13 @@ export default {
       this.pendingHistoryKey = `node-${this.editingNode.id}`;
       this.$refs.graph.syncNode(this.editingNode.id, { ...this.editingNode });
     },
-    applyEdgeEdit() {
+    applyEdgeEdit(edge) {
       if (!this.editingEdge || !this.$refs.graph) return;
-      this.$refs.graph.setCondition(
-        this.editingEdge.source_node_id,
-        this.editingEdge.destination_node_id,
-        this.editingEdge.condition,
-      );
+      if (edge) this.editingEdge = { ...edge };
+      const { source_node_id: s, destination_node_id: d } = this.editingEdge;
+      // Coalesce keystrokes in the mapping table into a single undo step.
+      this.pendingHistoryKey = `edge-${s}-${d}`;
+      this.$refs.graph.setEdge(s, d, this.editingEdge);
     },
     deleteSelectedNode() {
       if (this.editingNode == null || !this.$refs.graph) return;

@@ -77,6 +77,10 @@ func main() {
 		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"role\": \"owner\"}"
 	})
 
+	h.Before("project > /api/project/{project_id}/users/{user_id} > Update user roles > 204 > application/json", func(transaction *trans.Transaction) {
+		transaction.Request.Body = "{\"roles\":[\"manager\",\"task_runner\"]}"
+	})
+
 	h.Before("project > /api/project/{project_id}/invites > Get invitations for project > 200 > application/json", capabilityWrapper("invite"))
 	h.Before("project > /api/project/{project_id}/invites > Create project invitation > 201 > application/json", capabilityWrapper("invite"))
 	h.Before("project > /api/project/{project_id}/invites/{invite_id} > Get specific project invitation > 200 > application/json", capabilityWrapper("invite"))
@@ -133,24 +137,73 @@ func main() {
 	h.Before("template > /api/project/{project_id}/templates/{template_id} > Updates template > 204 > application/json", capabilityWrapper("template"))
 	h.Before("template > /api/project/{project_id}/templates/{template_id} > Removes template > 204 > application/json", capabilityWrapper("template"))
 
+	// Global roles need a PRO plan: the community server answers 404, a PRO server without a plan 403.
+	globalRoleTests := []string{
+		"user > /api/users/{user_id}/global-roles > Lists the global roles assigned to the user > 200 > application/json",
+		"user > /api/users/{user_id}/global-roles > Assigns a global role to the user > 201 > application/json",
+		"user > /api/users/{user_id}/global-roles/{assignment_id} > Removes a global role from the user > 204 > application/json",
+		"user > /api/users/{user_id}/global-permissions > Effective global permissions of the user > 200 > application/json",
+		"user > /api/global-roles > Lists global roles > 200 > application/json",
+		"user > /api/global-roles > Creates a global role > 201 > application/json",
+		"user > /api/global-roles/{role_id} > Gets a global role > 200 > application/json",
+		"user > /api/global-roles/{role_id} > Updates a global role > 204 > application/json",
+		"user > /api/global-roles/{role_id} > Deletes a global role > 204 > application/json",
+	}
+	if !globalRolesEnabled() {
+		for _, v := range globalRoleTests {
+			h.Before(v, skipTest)
+		}
+	} else {
+		// The fixture already holds the role, so the assignment is removed before it is assigned again.
+		h.Before("user > /api/users/{user_id}/global-roles > Assigns a global role to the user > 201 > application/json", func(transaction *trans.Transaction) {
+			addCapabilities([]string{"global_role"})
+			dbConnect()
+			defer store.Close()
+			if err := globalRoleStore.DeleteGlobalRoleAssignment(userPathTestUser.ID, globalRoleAssignment.ID); err != nil {
+				panic(err)
+			}
+			transaction.Request.Body = "{\"role_id\": " + strconv.Itoa(globalRole.ID) + "}"
+		})
+		h.Before("user > /api/users/{user_id}/global-roles/{assignment_id} > Removes a global role from the user > 204 > application/json", capabilityWrapper("global_role"))
+		h.Before("user > /api/global-roles > Creates a global role > 201 > application/json", func(transaction *trans.Transaction) {
+			transaction.Request.Body = "{\"slug\": \"ITGR-" + getUUID() + "\", \"name\": \"Dredd global role\", \"permissions\": 8}"
+		})
+		h.Before("user > /api/global-roles/{role_id} > Gets a global role > 200 > application/json", capabilityWrapper("global_role"))
+		h.Before("user > /api/global-roles/{role_id} > Updates a global role > 204 > application/json", func(transaction *trans.Transaction) {
+			addCapabilities([]string{"global_role"})
+			transaction.Request.Body = "{\"name\": \"Dredd global role\", \"permissions\": 8}"
+		})
+		// A plain delete needs a role nobody holds, so the fixture with the assignment is not used.
+		h.Before("user > /api/global-roles/{role_id} > Deletes a global role > 204 > application/json", func(transaction *trans.Transaction) {
+			dbConnect()
+			defer store.Close()
+			globalRole = addGlobalRole()
+		})
+	}
+
 	if isProBuild() {
 		h.Before("workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", capabilityWrapper("template"))
 		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", func(t *trans.Transaction) {
-			t.Request.Body = "{\"name\":\"workflow-doc-test\",\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + "},{\"id\":2,\"kind\":\"approval\"}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
+			t.Request.Body = "{\"name\":\"workflow-doc-test\",\"survey_vars\":[{\"name\":\"wf_var\",\"title\":\"Workflow var\",\"type\":\"\"}],\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + ",\"survey_inputs\":[{\"var\":\"dredd_var\",\"workflow_var\":\"wf_var\"}]},{\"id\":2,\"kind\":\"approval\"}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
 		})
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Get workflow > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Update workflow > 204 > application/json", func(t *trans.Transaction) {
-			t.Request.Body = "{\"id\":" + strconv.Itoa(workflowID) + ",\"project_id\":" + strconv.Itoa(userProject.ID) + ",\"name\":\"workflow-updated\",\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + "},{\"id\":2,\"kind\":\"approval\",\"approval_timeout\":120}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
+			t.Request.Body = "{\"id\":" + strconv.Itoa(workflowID) + ",\"project_id\":" + strconv.Itoa(userProject.ID) + ",\"name\":\"workflow-updated\",\"survey_vars\":[{\"name\":\"wf_var\",\"title\":\"Workflow var\",\"type\":\"\",\"default_value\":\"v1\"}],\"nodes\":[{\"id\":1,\"template_id\":" + strconv.Itoa(templateID) + ",\"survey_inputs\":[{\"var\":\"dredd_var\",\"workflow_var\":\"wf_var\"}]},{\"id\":2,\"kind\":\"approval\",\"approval_timeout\":120}],\"edges\":[{\"source_node_id\":1,\"destination_node_id\":2,\"condition\":\"on_success\"}]}"
 		})
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id} > Remove workflow > 204 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions > Get workflow revisions > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/revisions/{revision_id} > Get workflow revision > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Run workflow > 201 > application/json", capabilityWrapper("workflow"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Run workflow > 201 > application/json", func(t *trans.Transaction) {
+			// The answers to the workflow's survey (see Add workflow above).
+			t.Request.Body = "{\"environment\":{\"wf_var\":\"from-dredd\"}}"
+		})
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop > Stop workflow run > 200 > application/json", capabilityWrapper("workflow_run"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/artifacts > Get merged workflow run artifacts > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json", capabilityWrapper("workflow_approval"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", capabilityWrapper("workflow_approval"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", func(t *trans.Transaction) {

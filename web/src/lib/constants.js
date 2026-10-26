@@ -25,17 +25,29 @@ export const USER_PERMISSIONS = {
   manageProjectUsers: 8,
 };
 
+// Instance-wide permissions of a global role, as db.GlobalPermission. An admin holds all of them.
+export const GLOBAL_PERMISSIONS = {
+  manageUsers: 1,
+  manageRoles: 2,
+  manageSystem: 4,
+  readAudit: 8,
+};
+
 export const USER_ROLES = [{
   slug: 'owner',
+  builtin: true,
   name: 'Owner',
 }, {
   slug: 'manager',
+  builtin: true,
   name: 'Manager',
 }, {
   slug: 'task_runner',
+  builtin: true,
   name: 'Task Runner',
 }, {
   slug: 'guest',
+  builtin: true,
   name: 'Guest',
 }];
 
@@ -309,6 +321,27 @@ export const ROLE_PERMISSIONS = {
     permission: 4,
     label: 'Can update the template',
     color: 'orange',
+    textColor: 'white',
+  }],
+  global: [{
+    permission: GLOBAL_PERMISSIONS.manageUsers,
+    label: 'canManageGlobalUsers',
+    color: 'blue',
+    textColor: 'white',
+  }, {
+    permission: GLOBAL_PERMISSIONS.manageRoles,
+    label: 'canManageGlobalRoles',
+    color: 'purple',
+    textColor: 'white',
+  }, {
+    permission: GLOBAL_PERMISSIONS.manageSystem,
+    label: 'canManageGlobalSystem',
+    color: 'orange',
+    textColor: 'white',
+  }, {
+    permission: GLOBAL_PERMISSIONS.readAudit,
+    label: 'canReadGlobalAudit',
+    color: 'green',
     textColor: 'white',
   }],
 };

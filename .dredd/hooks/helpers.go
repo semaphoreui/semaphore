@@ -60,7 +60,8 @@ func truncateAll() {
 		"project__template",
 		"project__template_vault",
 		"project__schedule",
-		"project__user",
+		"project__user_role",
+		"user__global_role",
 		"user",
 		"project__view",
 		"project__integration",
@@ -120,11 +121,11 @@ func setupObjectsAndPaths(t *transaction.Transaction) {
 
 // Object Lifecycle
 func addUserProjectRelation(pid int, user int) {
-	_, err := store.CreateProjectUser(db.ProjectUser{
-		ProjectID: pid,
-		UserID:    user,
-		Role:      db.ProjectOwner,
-	})
+	owner, err := store.GetSharedRoleBySlug("owner")
+	if err != nil {
+		panic(err)
+	}
+	err = store.CreateProjectUser(pid, user, []int{owner.ID})
 	if err != nil {
 		panic(err)
 	}
@@ -187,6 +188,28 @@ func addUser() *db.User {
 		panic(err)
 	}
 	return &user
+}
+
+// addGlobalRole creates a global role that grants the audit log, so that it can be assigned to a user.
+func addGlobalRole() *db.GlobalRole {
+	uid := getUUID()
+	role, err := globalRoleStore.CreateGlobalRole(db.GlobalRole{
+		Slug:        "ITGR-" + uid,
+		Name:        "ITGR-" + uid,
+		Permissions: db.CanReadGlobalAudit,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &role
+}
+
+func addGlobalRoleAssignment(userID int, roleID int) *db.GlobalRoleAssignment {
+	assignment, err := globalRoleStore.CreateGlobalRoleAssignment(userID, roleID)
+	if err != nil {
+		panic(err)
+	}
+	return &assignment
 }
 
 func addView() *db.View {
@@ -265,7 +288,7 @@ func addIntegration() *db.Integration {
 	integration, err := store.CreateIntegration(db.Integration{
 		ProjectID:  userProject.ID,
 		Name:       "Test Integration",
-		TemplateID: templateID,
+		TemplateID: &templateID,
 	})
 	if err != nil {
 		panic(err)
@@ -440,6 +463,12 @@ func isProBuild() bool {
 	return proFeatures.GetFeatures(&db.User{}, "").Workflows
 }
 
+// globalRolesEnabled reports whether the server under test offers global roles to the test user: the PRO
+// implementation enables them only for an active PRO plan, which the Dredd stand does not have.
+func globalRolesEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").GlobalRolesManagement
+}
+
 // HELPERS
 var randSetup = false
 
@@ -481,6 +510,7 @@ func loadConfig() {
 
 var store db.Store
 var workflowStore db.WorkflowManager
+var globalRoleStore db.GlobalRoleStore
 
 func dbConnect() {
 	store = factory.CreateStore()
@@ -488,6 +518,7 @@ func dbConnect() {
 	store.Connect()
 
 	workflowStore = proFactory.NewWorkflowStore(store)
+	globalRoleStore = proFactory.NewGlobalRoleStore(store)
 }
 
 func stringInSlice(a string, list []string) (int, bool) {

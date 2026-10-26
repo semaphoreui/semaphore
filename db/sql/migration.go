@@ -285,6 +285,8 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		err = migration_2_19_11{db: d}.PostApply(tx)
 	case "2.20.8":
 		err = migration_2_20_8{db: d}.PostApply(tx)
+	case "2.20.12":
+		err = migration_2_20_12{db: d}.PostApply(tx)
 	}
 
 	if err != nil {
@@ -307,7 +309,12 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 // are referenced by other tables' foreign keys and therefore must be applied
 // (and rolled back) with FK enforcement disabled on the connection.
 func sqliteNeedsFkOff(dialect string, version string) bool {
-	return dialect == util.DbDriverSQLite && version == "2.19.14"
+	switch version {
+	case "2.19.14", "2.20.14":
+		return dialect == util.DbDriverSQLite
+	default:
+		return false
+	}
 }
 
 // TryRollbackMigration attempts to rollback the database to an earlier version if a rollback exists
@@ -355,6 +362,8 @@ func (d *SqlDb) TryRollbackMigration(version db.Migration) {
 	switch version.Version {
 	case "2.16.8":
 		err = migration_2_16_8{db: d}.PreRollback(tx)
+	case "2.20.12":
+		err = migration_2_20_12{db: d}.PreRollback(tx)
 	}
 
 	if err != nil {

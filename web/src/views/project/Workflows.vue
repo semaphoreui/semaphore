@@ -13,6 +13,13 @@
       @yes="deleteItem(itemId)"
     />
 
+    <WorkflowRunDialog
+      v-model="runDialog"
+      :workflow="runDialogWorkflow"
+      :running="runStarting"
+      @run="startRun(runDialogWorkflow, $event)"
+    />
+
     <v-toolbar flat>
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>
@@ -153,10 +160,12 @@ import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
+import WorkflowRunDialog from '@/components/WorkflowRunDialog.vue';
 
 export default {
   components: {
     TableSettingsSheet,
+    WorkflowRunDialog,
   },
   mixins: [ItemListPageBase],
 
@@ -167,6 +176,9 @@ export default {
       openedItems: [],
       runs: {},
       runsLoading: {},
+      runDialog: false,
+      runDialogWorkflow: null,
+      runStarting: false,
     };
   },
 
@@ -281,13 +293,26 @@ export default {
       return 'i-workflow';
     },
 
-    async runWorkflow(workflow) {
+    // A workflow with a survey asks for its answers first; one without
+    // starts at once, with no request body, as before.
+    runWorkflow(workflow) {
+      if ((workflow.survey_vars || []).length === 0) {
+        this.startRun(workflow, null);
+        return;
+      }
+      this.runDialogWorkflow = workflow;
+      this.runDialog = true;
+    },
+    async startRun(workflow, environment) {
+      this.runStarting = true;
       try {
         const run = (await axios({
           method: 'post',
           url: `/api/project/${this.projectId}/workflows/${workflow.id}/runs`,
           responseType: 'json',
+          ...(environment ? { data: { environment } } : {}),
         })).data;
+        this.runDialog = false;
         EventBus.$emit('i-snackbar', {
           color: 'success',
           text: this.$t('workflowRunStarted'),
@@ -300,6 +325,8 @@ export default {
           color: 'error',
           text: getErrorMessage(err),
         });
+      } finally {
+        this.runStarting = false;
       }
     },
   },
