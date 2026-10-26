@@ -84,22 +84,6 @@ import { getErrorMessage } from '@/lib/error';
 // Not a string: any string is a possible role slug on an upgraded instance.
 const CREATE = Symbol('create');
 
-// A key per row up front, so a slug like "constructor" never reads an inherited property.
-function stateFor(project) {
-  const unassigned = project.unassigned_roles || [];
-  const perRow = (value) => Object.fromEntries(unassigned.map((row) => [row.slug, value]));
-  return {
-    roles: [],
-    loadError: null,
-    choices: perRow(null),
-    newSlugs: perRow(''),
-    errors: perRow(null),
-    done: perRow(false),
-    granted: {},
-    assigning: false,
-  };
-}
-
 /** What a restore left for the user: a choice of role per unassigned role from the backup file. */
 export default {
   props: {
@@ -107,8 +91,21 @@ export default {
     emptyKeys: Number,
   },
 
+  // A key per row up front, so a slug like "constructor" never reads an inherited property.
   data() {
-    return { CREATE, ...stateFor(this.project) };
+    const unassigned = this.project.unassigned_roles || [];
+    const perRow = (value) => Object.fromEntries(unassigned.map((row) => [row.slug, value]));
+    return {
+      CREATE,
+      roles: [],
+      loadError: null,
+      choices: perRow(null),
+      newSlugs: perRow(''),
+      errors: perRow(null),
+      done: perRow(false),
+      granted: {},
+      assigning: false,
+    };
   },
 
   computed: {
@@ -121,13 +118,6 @@ export default {
     },
   },
 
-  watch: {
-    project() {
-      Object.assign(this.$data, stateFor(this.project));
-      this.loadRoles();
-    },
-  },
-
   created() {
     this.loadRoles();
   },
@@ -136,21 +126,12 @@ export default {
     isValidSlug,
 
     async loadRoles() {
-      const projectId = this.project.id;
-      let roles;
       try {
-        roles = (await axios.get(`/api/project/${projectId}/roles/all`)).data;
+        this.roles = (await axios.get(`/api/project/${this.project.id}/roles/all`)).data;
       } catch (err) {
-        if (projectId === this.project.id) {
-          this.loadError = getErrorMessage(err);
-        }
+        this.loadError = getErrorMessage(err);
         return;
       }
-      // The dialog may already show the next restored project.
-      if (projectId !== this.project.id) {
-        return;
-      }
-      this.roles = roles;
       this.rows.forEach((row) => {
         if (this.roles.some((role) => role.slug === row.slug)) {
           this.choices[row.slug] = row.slug;

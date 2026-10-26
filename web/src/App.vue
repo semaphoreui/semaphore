@@ -9,6 +9,7 @@
     >
       <RestoreProjectResult
         v-if="restoreProjectResult"
+        :key="restoreProjectResult.project.id"
         :project="restoreProjectResult.project"
         :empty-keys="restoreProjectResult.emptyKeys"
       />

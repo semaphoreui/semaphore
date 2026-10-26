@@ -18,7 +18,6 @@ const ROUTES = {
       slug: 'deployer', name: 'Deployer', builtin: false, project_id: null,
     },
   ],
-  '/api/project/8/roles/all': [],
 };
 
 const PROJECT = {
@@ -174,56 +173,6 @@ describe('RestoreProjectResult.vue', () => {
     await flush();
 
     expect(wrapper.find('.v-select').classes()).to.include('v-input--is-disabled');
-  });
-
-  it('starts over for the next restored project', async () => {
-    const wrapper = await mountWith(PROJECT);
-    wrapper.vm.choices.ops = 'manager';
-    wrapper.vm.choices.deployer = null;
-    await wrapper.vm.assign();
-    await flush();
-    expect(wrapper.vm.rows.map((r) => r.slug)).to.deep.equal(['deployer']);
-
-    await wrapper.setProps({
-      project: {
-        id: 8,
-        name: 'second',
-        unassigned_roles: [
-          { slug: 'ops', reason: 'not_in_file', templates: [{ id: 9, name: 'Run', permissions: 1 }] },
-        ],
-      },
-    });
-    await flush();
-
-    expect(wrapper.vm.rows.map((r) => r.slug)).to.deep.equal(['ops']);
-    expect(wrapper.vm.choices.ops).to.equal(null);
-    expect(http.requests.map((r) => r.url)).to.include('/api/project/8/roles/all');
-  });
-
-  it('ignores a roles answer that arrives for the previous project', async () => {
-    let release;
-    const held = new Promise((resolve) => { release = resolve; });
-    http.respond(async (config) => {
-      if (config.url === '/api/project/7/roles/all') {
-        await held;
-      }
-      return ROUTES[config.url] || {};
-    });
-    const wrapper = await mountWith(PROJECT);
-    await wrapper.setProps({
-      project: {
-        id: 8,
-        name: 'second',
-        unassigned_roles: [{ slug: 'ops', reason: 'not_in_file', templates: [] }],
-      },
-    });
-    await flush();
-
-    release();
-    await flush();
-
-    expect(wrapper.vm.roles).to.deep.equal([]);
-    expect(wrapper.vm.choices.ops).to.equal(null);
   });
 
   it('shows a role whose slug is an object property name', async () => {
