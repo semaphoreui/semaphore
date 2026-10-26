@@ -99,6 +99,14 @@ func (s *EnvironmentServiceImpl) Delete(projectID int, environmentID int) (err e
 
 	var errs []error
 
+	// The group's own keys cascade with it on SQLite and Postgres; MySQL ignores the inline cascade of
+	// access_key.environment_id and would leave them behind as orphans. Their links are gone with the group.
+	for _, key := range secrets {
+		if delErr := s.accessKeyRepo.DeleteAccessKey(projectID, key.ID); delErr != nil && !errors.Is(delErr, db.ErrNotFound) {
+			errs = append(errs, delErr)
+		}
+	}
+
 	if storage != nil {
 		if !storage.ReadOnly {
 			for _, secret := range secrets {

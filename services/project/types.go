@@ -13,7 +13,9 @@ type BackupDB struct {
 	views        []db.View
 	inventories  []db.Inventory
 	environments []db.Environment
-	schedules    []db.Schedule
+	// environmentSecrets holds the links of every group by environment id.
+	environmentSecrets map[int][]db.EnvironmentSecretWithKey
+	schedules          []db.Schedule
 
 	integrationProjAliases   []db.IntegrationAlias
 	integrations             []db.Integration
@@ -61,12 +63,22 @@ type BackupMeta struct {
 
 type BackupEnvironment struct {
 	db.Environment
+	// Secrets are the links of the group; the value stays in the key, which is given by name.
+	Secrets []BackupEnvironmentSecret `backup:"secrets"`
+}
+
+type BackupEnvironmentSecret struct {
+	Type string `backup:"type"`
+	Name string `backup:"name"`
+	Key  string `backup:"key"`
 }
 
 type BackupAccessKey struct {
 	db.AccessKey
 	SourceStorage *string `backup:"source_storage"`
 	Storage       *string `backup:"storage"`
+	// Environment names the variable group that owns the key (a secret created with a value).
+	Environment *string `backup:"environment"`
 }
 
 type BackupSchedule struct {

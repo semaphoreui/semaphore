@@ -167,6 +167,7 @@ func TestEnvironmentServiceImpl_Delete_InvalidIDs(t *testing.T) {
 				environmentRepo:   envRepo,
 				encryptionService: &mockAccessKeyEncryptionService{},
 				secretStorageRepo: &mockSecretStorageRepository{},
+				accessKeyRepo:     &mockAccessKeyManager{},
 			}
 
 			err := service.Delete(tt.projectID, tt.environmentID)
@@ -193,6 +194,7 @@ func TestEnvironmentServiceImpl_Delete_NoSecretStorage(t *testing.T) {
 		environmentRepo:   envRepo,
 		encryptionService: encryption,
 		secretStorageRepo: &mockSecretStorageRepository{},
+		accessKeyRepo:     &mockAccessKeyManager{},
 	}
 
 	err := service.Delete(1, 2)
@@ -227,6 +229,7 @@ func TestEnvironmentServiceImpl_Delete_DeletesUnsynchronizedSecrets(t *testing.T
 		environmentRepo:   envRepo,
 		encryptionService: encryption,
 		secretStorageRepo: storageRepo,
+		accessKeyRepo:     &mockAccessKeyManager{},
 	}
 
 	err := service.Delete(1, 2)
@@ -256,6 +259,7 @@ func TestEnvironmentServiceImpl_Delete_ReadOnlyStorageKeepsSecrets(t *testing.T)
 		environmentRepo:   envRepo,
 		encryptionService: encryption,
 		secretStorageRepo: storageRepo,
+		accessKeyRepo:     &mockAccessKeyManager{},
 	}
 
 	err := service.Delete(1, 2)
@@ -287,6 +291,7 @@ func TestEnvironmentServiceImpl_Delete_AggregatesSecretDeletionErrors(t *testing
 		environmentRepo:   envRepo,
 		encryptionService: encryption,
 		secretStorageRepo: &mockSecretStorageRepository{},
+		accessKeyRepo:     &mockAccessKeyManager{},
 	}
 
 	err := service.Delete(1, 2)
@@ -311,6 +316,7 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 			environmentRepo:   envRepo,
 			encryptionService: &mockAccessKeyEncryptionService{},
 			secretStorageRepo: &mockSecretStorageRepository{},
+			accessKeyRepo:     &mockAccessKeyManager{},
 		}
 
 		err := service.Delete(1, 2)
@@ -329,6 +335,7 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 			environmentRepo:   envRepo,
 			encryptionService: &mockAccessKeyEncryptionService{},
 			secretStorageRepo: &mockSecretStorageRepository{},
+			accessKeyRepo:     &mockAccessKeyManager{},
 		}
 
 		err := service.Delete(1, 2)
@@ -348,6 +355,7 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 			environmentRepo:   envRepo,
 			encryptionService: encryption,
 			secretStorageRepo: &mockSecretStorageRepository{},
+			accessKeyRepo:     &mockAccessKeyManager{},
 		}
 
 		err := service.Delete(1, 2)
@@ -375,6 +383,7 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 			environmentRepo:   envRepo,
 			encryptionService: encryption,
 			secretStorageRepo: storageRepo,
+			accessKeyRepo:     &mockAccessKeyManager{},
 		}
 
 		err := service.Delete(1, 2)
@@ -401,6 +410,7 @@ func TestEnvironmentServiceImpl_Delete_RefusesWhenAnotherGroupLinksAnOwnedKey(t 
 		environmentRepo:   envRepo,
 		encryptionService: &mockAccessKeyEncryptionService{},
 		secretStorageRepo: &mockSecretStorageRepository{},
+		accessKeyRepo:     &mockAccessKeyManager{},
 	}
 
 	err := service.Delete(1, 2)
@@ -424,8 +434,36 @@ func TestEnvironmentServiceImpl_Delete_OwnKeyLinkedOnlyByItselfIsFine(t *testing
 		environmentRepo:   envRepo,
 		encryptionService: &mockAccessKeyEncryptionService{},
 		secretStorageRepo: &mockSecretStorageRepository{},
+		accessKeyRepo:     &mockAccessKeyManager{},
 	}
 
 	require.NoError(t, service.Delete(1, 2))
 	assert.Equal(t, 1, envRepo.DeleteEnvironmentCalls)
+}
+
+func TestEnvironmentServiceImpl_Delete_RemovesOwnedKeysExplicitly(t *testing.T) {
+	envRepo := &mockEnvironmentManager{
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+			return []db.AccessKey{{ID: 10, Name: "a"}, {ID: 11, Name: "b"}}, nil
+		},
+	}
+	var deleted []int
+	keys := &mockAccessKeyManager{
+		DeleteAccessKeyFn: func(projectID, keyID int) error {
+			deleted = append(deleted, keyID)
+			if keyID == 10 {
+				return db.ErrNotFound // already gone by cascade
+			}
+			return nil
+		},
+	}
+	service := &EnvironmentServiceImpl{
+		environmentRepo:   envRepo,
+		encryptionService: &mockAccessKeyEncryptionService{},
+		secretStorageRepo: &mockSecretStorageRepository{},
+		accessKeyRepo:     keys,
+	}
+
+	require.NoError(t, service.Delete(1, 2))
+	assert.Equal(t, []int{10, 11}, deleted, "a key the cascade already removed is not an error")
 }

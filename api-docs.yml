@@ -612,6 +612,7 @@ definitions:
 
   EnvironmentSecret:
     type: object
+    description: A secret of a variable group. The value never leaves the server; the secret points at a string Access Key, either the group's own key or a shared key of the Key Store.
     properties:
       id:
         type: integer
@@ -620,9 +621,18 @@ definitions:
       type:
         type: string
         enum: [env, var]
+      key_id:
+        type: integer
+        description: The Access Key holding the value
+      key_name:
+        type: string
+      owned:
+        type: boolean
+        description: true when the key was created from this group with a value, false when the secret links to another key
 
   EnvironmentSecretRequest:
     type: object
+    description: Either `secret` (a value stored in a key owned by the group) or `key_id` (a link to a string Access Key of the project) is given, never both. On update an empty `secret` keeps the stored value; a value on a linked secret is refused.
     properties:
       id:
         type: integer
@@ -631,6 +641,9 @@ definitions:
         example: Test
       secret:
         type: string
+      key_id:
+        type: integer
+        description: ID of a string Access Key to link instead of a value
       type:
         type: string
         enum: [env, var]
