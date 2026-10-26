@@ -322,11 +322,7 @@ func runService() {
 
 	util.Config.PrintDbInfo()
 
-	port := util.Config.Port
-
-	if !strings.HasPrefix(port, ":") {
-		port = ":" + port
-	}
+	port := util.Config.Port.Addr()
 
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 	fmt.Printf("Semaphore %v\n", util.Version())
