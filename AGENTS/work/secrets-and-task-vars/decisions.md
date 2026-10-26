@@ -47,3 +47,10 @@ branch: `AGENTS/plans/2_20/cyberark-secret-storage.md`.
 ⚠️ 2026-09-25: never tested against a real PVWA, only against the httptest fake in
 `pro_impl/services/server/cyberark_client_test.go`. Verify pagination (`nextLink`) and
 `Password/Retrieve` for key accounts against a real instance before touching it again.
+
+## Variable Group secrets link to Access Keys (2026-10-26)
+
+A group secret is a row of `project__environment_secret` pointing at a `string` Access Key — the group's
+own key or a shared Key Store key, so one rotation in the Key Store reaches every group. Only string keys,
+links in a separate table, the old owner/environment_id read path removed. Decisions, rejected options and
+traps: `variable-group-secret-refs.md`. Task: `TASK@1183D50F16`.
