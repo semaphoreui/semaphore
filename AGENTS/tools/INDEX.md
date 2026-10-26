@@ -23,3 +23,12 @@ stand and routes a project's templates to it, `inputs.sh` prints producer output
 Outputs and inputs section. Use it instead of
 hand-written curl polling whenever a change to the workflow engine or run view must be checked
 against a real run.
+
+### `redis-sentinel-stand/` — prove HA failover on Redis Sentinel
+
+`stand.sh` builds the Pro binary for linux, brings up Redis master + replica + Sentinel, PostgreSQL
+and two Semaphore HA nodes (`:3110`, `:3111`) in docker compose, kills and restores the master;
+`seed.sh` creates bash templates, `run.sh` starts a task on one node and follows it through the
+other, `wsprobe.go` prints the WebSocket events a node receives. Use it whenever the HA Redis
+connection, `ha.engine` / `ha.redis_sentinel` or the Pub/Sub broadcaster change — unit tests run
+on miniredis, which has no Sentinel.
