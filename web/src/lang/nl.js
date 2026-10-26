@@ -27,6 +27,7 @@ export default {
   keyFormStringValue: 'Waarde',
   value_required: 'Waarde is verplicht',
   keyFormStringHint: 'Gebruik dit sleuteltype voor één geheime waarde zonder login: een token, een API-sleutel of een wachtwoord. Het kan niet worden gebruikt als SSH-sleutel, sudo-referentie of vault-wachtwoord.',
+  integrationAuthSecret: 'Auth-secret',
   incorrectUrl: 'Onjuiste URL',
   username: 'Gebruikersnaam',
   username_required: 'Gebruikersnaam is vereist',

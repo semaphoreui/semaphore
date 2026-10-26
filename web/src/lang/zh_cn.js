@@ -27,6 +27,7 @@ export default {
   keyFormStringValue: '值',
   value_required: '必须填写值',
   keyFormStringHint: '此类型密钥用于不带登录名的单个秘密值：令牌、API 密钥或密码。它不能用作 SSH 密钥、sudo 凭据或 vault 密码。',
+  integrationAuthSecret: '认证密钥',
   incorrectUrl: '不正确的 URL',
   username: '用户名',
   username_required: '用户名是必需的',

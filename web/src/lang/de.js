@@ -27,6 +27,7 @@ export default {
   keyFormStringValue: 'Wert',
   value_required: 'Wert ist erforderlich',
   keyFormStringHint: 'Verwenden Sie diesen Schlüsseltyp für einen einzelnen geheimen Wert ohne Login: ein Token, einen API-Schlüssel oder ein Passwort. Er kann nicht als SSH-Schlüssel, Sudo-Zugangsdaten oder Vault-Passwort verwendet werden.',
+  integrationAuthSecret: 'Auth-Secret',
   incorrectUrl: 'Ungültige URL',
   username: 'Benutzername',
   username_required: 'Benutzername ist erforderlich',

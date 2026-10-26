@@ -27,6 +27,7 @@ export default {
   keyFormStringValue: 'Valor',
   value_required: 'O valor é obrigatório',
   keyFormStringHint: 'Use este tipo de chave para um único valor secreto sem login: um token, uma chave de API ou uma senha. Não pode ser usada como chave SSH, credencial sudo ou senha do vault.',
+  integrationAuthSecret: 'Segredo de autenticação',
   incorrectUrl: 'URL incorreta',
   username: 'Nome de usuário',
   username_required: 'Nome de usuário é obrigatório',

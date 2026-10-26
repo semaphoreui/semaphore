@@ -27,6 +27,7 @@ export default {
   keyFormStringValue: '値',
   value_required: '値は必須です',
   keyFormStringHint: 'ログインを伴わない単一の秘密の値（トークン、APIキー、パスワード）にこの種類のキーを使用します。SSHキー、sudo の認証情報、vault のパスワードとしては使用できません。',
+  integrationAuthSecret: '認証シークレット',
   incorrectUrl: '不正なURL',
   username: 'ユーザー名',
   username_required: 'ユーザー名は必須です',

@@ -27,6 +27,7 @@ export default {
   keyFormStringValue: 'Valeur',
   value_required: 'La valeur est requise',
   keyFormStringHint: 'Utilisez ce type de clé pour une seule valeur secrète sans identifiant : un jeton, une clé API ou un mot de passe. Elle ne peut pas servir de clé SSH, d\'identifiant sudo ou de mot de passe vault.',
+  integrationAuthSecret: 'Secret d\'authentification',
   incorrectUrl: 'URL incorrecte',
   username: 'Nom d\'utilisateur',
   username_required: 'Le nom d\'utilisateur est requis',

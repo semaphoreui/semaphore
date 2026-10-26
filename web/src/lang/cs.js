@@ -27,6 +27,7 @@ export default {
   keyFormStringValue: 'Hodnota',
   value_required: 'Hodnota je povinná',
   keyFormStringHint: 'Použijte tento typ klíče pro jedinou tajnou hodnotu bez přihlašovacího jména: token, API klíč nebo heslo. Nelze jej použít jako SSH klíč, přihlašovací údaje sudo ani heslo vault.',
+  integrationAuthSecret: 'Autentizační tajemství',
   incorrectUrl: 'Nesprávná URL',
   username: 'Uživatelské jméno',
   username_required: 'Uživatelské jméno je povinné',

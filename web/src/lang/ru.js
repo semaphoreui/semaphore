@@ -27,6 +27,7 @@ export default {
   keyFormStringValue: 'Значение',
   value_required: 'Укажите значение',
   keyFormStringHint: 'Используйте этот тип ключа для одного секретного значения без логина: токена, API-ключа или пароля. Его нельзя использовать как SSH-ключ, учётные данные sudo или пароль vault.',
+  integrationAuthSecret: 'Секрет аутентификации',
   incorrectUrl: 'Неверный URL',
   username: 'Имя пользователя',
   username_required: 'Имя пользователя обязательно',
