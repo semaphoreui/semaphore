@@ -11,9 +11,10 @@ import (
 )
 
 type mockEnvironmentManager struct {
-	GetEnvironmentFn        func(projectID int, environmentID int) (db.Environment, error)
-	GetEnvironmentOwnedKeysFn func(projectID int, environmentID int) ([]db.AccessKey, error)
-	DeleteEnvironmentFn     func(projectID int, environmentID int) error
+	GetEnvironmentFn           func(projectID int, environmentID int) (db.Environment, error)
+	GetEnvironmentOwnedKeysFn  func(projectID int, environmentID int) ([]db.AccessKey, error)
+	GetEnvironmentSecretKeysFn func(projectID int, environmentID int) ([]db.EnvironmentSecretWithKey, error)
+	DeleteEnvironmentFn        func(projectID int, environmentID int) error
 
 	DeleteEnvironmentCalls int
 }
@@ -52,6 +53,9 @@ func (m *mockEnvironmentManager) CreateEnvironment(env db.Environment) (db.Envir
 	return db.Environment{}, nil
 }
 func (m *mockEnvironmentManager) GetEnvironmentSecretKeys(projectID int, environmentID int) ([]db.EnvironmentSecretWithKey, error) {
+	if m.GetEnvironmentSecretKeysFn != nil {
+		return m.GetEnvironmentSecretKeysFn(projectID, environmentID)
+	}
 	return nil, nil
 }
 func (m *mockEnvironmentManager) GetEnvironmentSecret(projectID int, environmentID int, secretID int) (db.EnvironmentSecret, error) {
@@ -60,7 +64,9 @@ func (m *mockEnvironmentManager) GetEnvironmentSecret(projectID int, environment
 func (m *mockEnvironmentManager) CreateEnvironmentSecret(secret db.EnvironmentSecret) (db.EnvironmentSecret, error) {
 	return secret, nil
 }
-func (m *mockEnvironmentManager) UpdateEnvironmentSecret(secret db.EnvironmentSecret) error { return nil }
+func (m *mockEnvironmentManager) UpdateEnvironmentSecret(secret db.EnvironmentSecret) error {
+	return nil
+}
 func (m *mockEnvironmentManager) DeleteEnvironmentSecret(projectID int, environmentID int, secretID int) error {
 	return nil
 }
