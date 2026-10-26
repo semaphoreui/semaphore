@@ -83,16 +83,18 @@ import { getErrorMessage } from '@/lib/error';
 
 const CREATE = '__create__';
 
+// A key per row up front, so a slug like "constructor" never reads an inherited property.
 function stateFor(project) {
   const unassigned = project.unassigned_roles || [];
+  const perRow = (value) => Object.fromEntries(unassigned.map((row) => [row.slug, value]));
   return {
     roles: [],
     loadError: null,
-    choices: Object.fromEntries(unassigned.map((row) => [row.slug, null])),
-    newSlugs: Object.fromEntries(unassigned.map((row) => [row.slug, ''])),
-    errors: {},
+    choices: perRow(null),
+    newSlugs: perRow(''),
+    errors: perRow(null),
+    done: perRow(false),
     granted: {},
-    done: {},
     assigning: false,
   };
 }
@@ -193,7 +195,7 @@ export default {
             permissions: row.permissions,
           });
         } catch (err) {
-          this.$set(this.errors, row.slug, getErrorMessage(err));
+          this.errors[row.slug] = getErrorMessage(err);
           return;
         }
         this.roles.push({ slug: roleSlug, name: row.name, project_id: this.project.id });
@@ -218,11 +220,11 @@ export default {
         }
       }
       if (failed.length > 0) {
-        this.$set(this.errors, row.slug, failed.join('\n'));
+        this.errors[row.slug] = failed.join('\n');
         return;
       }
-      this.$delete(this.errors, row.slug);
-      this.$set(this.done, row.slug, true);
+      this.errors[row.slug] = null;
+      this.done[row.slug] = true;
     },
   },
 };

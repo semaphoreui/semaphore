@@ -203,6 +203,23 @@ describe('RestoreProjectResult.vue', () => {
     expect(wrapper.vm.choices.ops).to.equal(null);
   });
 
+  it('shows a role whose slug is an object property name', async () => {
+    const wrapper = await mountWith({
+      id: 7,
+      name: 'copy',
+      unassigned_roles: [
+        { slug: 'constructor', reason: 'not_in_file', templates: [{ id: 3, name: 'Deploy', permissions: 1 }] },
+      ],
+    });
+
+    expect(wrapper.vm.rows.map((r) => r.slug)).to.deep.equal(['constructor']);
+    expect(wrapper.text()).not.to.include('function');
+    wrapper.vm.choices.constructor = 'manager';
+    await wrapper.vm.assign();
+    await flush();
+    expect(wrapper.vm.rows).to.have.lengthOf(0);
+  });
+
   it('hides the list when nothing is unassigned', async () => {
     const wrapper = await mountWith({ id: 7, name: 'copy', unassigned_roles: [] });
 
