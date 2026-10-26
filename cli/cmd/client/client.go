@@ -6,6 +6,7 @@ package client
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/apiclient"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 // IO is where a command reads from and writes to. Tests pass buffers.
@@ -29,6 +31,10 @@ type IO struct {
 	Getenv func(string) string
 	// Version of the client, sent as User-Agent and shown by `info`.
 	Version string
+
+	// forceInteractive makes the runtime behave as if stdin and stdout were
+	// terminals. Tests use it to drive prompts through buffers.
+	forceInteractive bool
 }
 
 // StdIO is the IO of a real process.
@@ -62,6 +68,11 @@ type runtime struct {
 }
 
 type ctxKey struct{}
+
+// annotationNewContext marks a command that may name a context which does not
+// exist yet (auth login); for every other command an unknown --context is an
+// error.
+const annotationNewContext = "client.newContext"
 
 // rt returns the runtime stored by the pre-run hook.
 func rt(cmd *cobra.Command) *runtime {
@@ -143,7 +154,7 @@ stopped, 124 wait timeout, 130 interrupted.`,
 		return nil
 	}
 
-	cmd.AddCommand(newInfoCmd())
+	cmd.AddCommand(newInfoCmd(), newAuthCmd(), newContextCmd())
 	silence(cmd)
 	return cmd
 }
@@ -180,12 +191,19 @@ func newRuntime(cmd *cobra.Command, stdio IO, f *flags) (*runtime, error) {
 	}
 
 	cfg, err := config.Resolve(f.Flags, stdio.Getenv, cfgFile)
+	if errors.Is(err, config.ErrUnknownContext) && f.Context != "" && cmd.Annotations[annotationNewContext] == "true" {
+		// `auth login --context NAME` creates NAME: resolve without any
+		// context so that the URL must come from --url or the environment.
+		noCtx := f.Flags
+		noCtx.Context = ""
+		cfg, err = config.Resolve(noCtx, stdio.Getenv, &config.File{Contexts: cfgFile.Contexts, Defaults: cfgFile.Defaults})
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	interactive := output.IsTerminal(stdio.In) && output.IsTerminal(stdio.Out)
-	outTTY := output.IsTerminal(stdio.Out)
+	interactive := stdio.forceInteractive || (output.IsTerminal(stdio.In) && output.IsTerminal(stdio.Out))
+	outTTY := stdio.forceInteractive || output.IsTerminal(stdio.Out)
 
 	r := &runtime{
 		io:          stdio,
@@ -212,47 +230,93 @@ func newRuntime(cmd *cobra.Command, stdio IO, f *flags) (*runtime, error) {
 		},
 	}
 
-	if cfg.URL != "" {
-		var debug io.Writer
-		if cfg.Debug {
-			debug = stdio.Err
-		}
-		r.api, err = apiclient.New(apiclient.Options{
-			BaseURL:    cfg.URL,
-			Token:      cfg.Token,
-			CACertFile: cfg.CACert,
-			Insecure:   cfg.Insecure,
-			Timeout:    cfg.Timeout,
-			UserAgent:  "semaphore-cli/" + stdio.Version,
-			Debug:      debug,
-		})
-		if err != nil {
-			return nil, usage(cmd.CommandPath(), "%s", err.Error())
-		}
-		if cfg.Insecure {
-			fmt.Fprintln(stdio.Err, "warning: TLS certificate verification is disabled (--insecure)")
-		} else if strings.HasPrefix(strings.ToLower(cfg.URL), "http://") && !isLoopback(cfg.URL) {
-			fmt.Fprintln(stdio.Err, "warning: the server URL uses plain http; the token travels unencrypted")
-		}
-	}
-
 	return r, nil
 }
 
-// client returns the API client or a usage error when no URL is configured.
+// client returns the API client, building it on first use so that commands
+// which never talk to the server (context list, context set) do not fail on a
+// missing URL or an unreadable CA file. A missing URL is a usage error.
 func (r *runtime) client(cmd *cobra.Command) (*apiclient.Client, error) {
-	if r.api == nil {
-		return nil, usage(cmd.CommandPath(), "%s", r.cfg.RequireURL().Error())
+	if r.api != nil {
+		return r.api, nil
 	}
+	if err := r.cfg.RequireURL(); err != nil {
+		return nil, usage(cmd.CommandPath(), "%s", err.Error())
+	}
+
+	var debug io.Writer
+	if r.cfg.Debug {
+		debug = r.io.Err
+	}
+	api, err := apiclient.New(apiclient.Options{
+		BaseURL:    r.cfg.URL,
+		Token:      r.cfg.Token,
+		CACertFile: r.cfg.CACert,
+		Insecure:   r.cfg.Insecure,
+		Timeout:    r.cfg.Timeout,
+		UserAgent:  "semaphore-cli/" + r.io.Version,
+		Debug:      debug,
+	})
+	if err != nil {
+		return nil, usage(cmd.CommandPath(), "%s", err.Error())
+	}
+	if r.cfg.Insecure {
+		r.warnf("warning: TLS certificate verification is disabled (--insecure)")
+	} else if strings.HasPrefix(strings.ToLower(r.cfg.URL), "http://") && !isLoopback(r.cfg.URL) {
+		r.warnf("warning: the server URL uses plain http; the token travels unencrypted")
+	}
+	r.api = api
 	return r.api, nil
 }
 
 // requireToken fails early with a clear message instead of a bare 401.
 func (r *runtime) requireToken(cmd *cobra.Command) error {
+	if r.cfg.TokenError != nil {
+		return r.cfg.TokenError
+	}
 	if r.cfg.Token == "" {
 		return usage(cmd.CommandPath(), "no API token: set %s, %s or run 'semaphore client auth login'", config.EnvToken, config.EnvTokenFile)
 	}
 	return nil
+}
+
+// readLine reads one line from stdin through the shared buffered reader, so
+// that a prompt and a piped token never fight over the same bytes.
+func (r *runtime) readLine() (string, error) {
+	return r.prompter.readLine()
+}
+
+// prompt writes a question to stderr and reads the answer. It refuses when the
+// session is not interactive, so a script never hangs on a hidden question.
+func (r *runtime) prompt(cmd *cobra.Command, question string) (string, error) {
+	if r.cfg.NoInput || !r.interactive {
+		return "", usage(cmd.CommandPath(), "%s: input required but the session is not interactive", strings.TrimSuffix(question, ": "))
+	}
+	fmt.Fprint(r.io.Err, question)
+	return r.readLine()
+}
+
+// promptSecret is prompt without echo. On a real terminal the characters are
+// hidden; on any other reader (tests) the line is read as-is.
+func (r *runtime) promptSecret(cmd *cobra.Command, question string) (string, error) {
+	if r.cfg.NoInput || !r.interactive {
+		return "", usage(cmd.CommandPath(), "%s: input required but the session is not interactive", strings.TrimSuffix(question, ": "))
+	}
+	fmt.Fprint(r.io.Err, question)
+	if f, ok := r.io.In.(*os.File); ok && output.IsTerminal(f) {
+		b, err := term.ReadPassword(int(f.Fd()))
+		fmt.Fprintln(r.io.Err)
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(string(b)), nil
+	}
+	return r.readLine()
+}
+
+// saveConfig writes the configuration file with tight permissions.
+func (r *runtime) saveConfig() error {
+	return config.Save(r.cfgPath, r.cfgFile)
 }
 
 // warnf prints a message to stderr; data never goes there.

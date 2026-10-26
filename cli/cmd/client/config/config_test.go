@@ -257,14 +257,19 @@ func TestResolve_ContextTokenFile(t *testing.T) {
 	assert.Equal(t, filepath.Join(dir, "tok"), e.TokenFile)
 	assert.Equal(t, SourceContext, e.Sources.Token)
 
+	// A broken token file is reported through TokenError, not as a failure of
+	// Resolve: commands that need no token must still run.
 	file.Contexts["a"] = Context{URL: "https://a", TokenFile: filepath.Join(dir, "missing")}
-	_, err = Resolve(Flags{}, env(map[string]string{}), file)
-	assert.ErrorContains(t, err, "read token file")
+	e, err = Resolve(Flags{}, env(map[string]string{}), file)
+	require.NoError(t, err)
+	assert.Empty(t, e.Token)
+	assert.ErrorContains(t, e.TokenError, "read token file")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "empty"), []byte("\n"), 0o600))
 	file.Contexts["a"] = Context{URL: "https://a", TokenFile: filepath.Join(dir, "empty")}
-	_, err = Resolve(Flags{}, env(map[string]string{}), file)
-	assert.ErrorContains(t, err, "is empty")
+	e, err = Resolve(Flags{}, env(map[string]string{}), file)
+	require.NoError(t, err)
+	assert.ErrorContains(t, e.TokenError, "is empty")
 }
 
 func TestResolve_UnknownContext(t *testing.T) {

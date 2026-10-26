@@ -43,13 +43,17 @@ type Effective struct {
 	Token       string
 	// TokenFile is the file Token was read from, when it came from one.
 	TokenFile string
-	Project   string
-	CACert    string
-	Insecure  bool
-	Output    string
-	Timeout   time.Duration
-	NoInput   bool
-	Debug     bool
+	// TokenError is set when a token file could not be read. It is deferred
+	// rather than returned so that commands which need no token (context
+	// list, context set) still work on a broken context.
+	TokenError error
+	Project    string
+	CACert     string
+	Insecure   bool
+	Output     string
+	Timeout    time.Duration
+	NoInput    bool
+	Debug      bool
 
 	Sources Sources
 }
@@ -132,21 +136,14 @@ func Resolve(flags Flags, getenv func(string) string, file *File) (Effective, er
 			eff.Token = strings.TrimSpace(envToken)
 		} else {
 			eff.TokenFile = expandHome(envTokenFile, getenv)
-			token, err := readTokenFile(eff.TokenFile)
-			if err != nil {
-				return eff, err
-			}
-			eff.Token = token
+			eff.Token, eff.TokenError = readTokenFile(eff.TokenFile)
 		}
 	case ctx.Token != "":
 		eff.Token, eff.Sources.Token = strings.TrimSpace(ctx.Token), SourceContext
 	case ctx.TokenFile != "":
 		eff.TokenFile = expandHome(ctx.TokenFile, getenv)
-		token, err := readTokenFile(eff.TokenFile)
-		if err != nil {
-			return eff, err
-		}
-		eff.Token, eff.Sources.Token = token, SourceContext
+		eff.Token, eff.TokenError = readTokenFile(eff.TokenFile)
+		eff.Sources.Token = SourceContext
 	}
 
 	// Project.

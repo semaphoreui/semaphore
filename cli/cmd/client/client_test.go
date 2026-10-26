@@ -21,6 +21,13 @@ import (
 // returns stdout, stderr and the error cobra reported.
 func run(t *testing.T, env map[string]string, stdin string, args ...string) (string, string, error) {
 	t.Helper()
+	return runWith(t, env, stdin, false, args...)
+}
+
+// runWith is run with control over interactivity: interactive=true makes the
+// runtime treat the buffers as terminals so that prompts are exercised.
+func runWith(t *testing.T, env map[string]string, stdin string, interactive bool, args ...string) (string, string, error) {
+	t.Helper()
 	if env == nil {
 		env = map[string]string{}
 	}
@@ -35,6 +42,8 @@ func run(t *testing.T, env map[string]string, stdin string, args ...string) (str
 		Err:     &errOut,
 		Getenv:  func(k string) string { return env[k] },
 		Version: "2.20.0-test",
+
+		forceInteractive: interactive,
 	})
 	cmd.SetArgs(args)
 	cmd.SetOut(&out)
