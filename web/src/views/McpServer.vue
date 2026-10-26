@@ -151,8 +151,16 @@ export default {
       return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageSystem);
     },
 
+    // The server mounts its routes under the path of web_host, so the endpoint keeps that path
+    // (https://host/semaphore → https://host/semaphore/api/mcp) and drops a trailing slash that
+    // would give "//api/mcp". Without web_host the routes are at the root of the page's origin.
     endpoint() {
-      return `${this.systemInfo?.web_host || window.location.origin}/api/mcp`;
+      const host = this.systemInfo?.web_host;
+      try {
+        return new URL('api/mcp', host ? `${host.replace(/\/+$/, '')}/` : document.baseURI).href;
+      } catch (e) {
+        return new URL('api/mcp', document.baseURI).href;
+      }
     },
 
     clients() {

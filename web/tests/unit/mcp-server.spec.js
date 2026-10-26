@@ -39,7 +39,16 @@ describe('McpServer.vue', () => {
     const endpoint = (systemInfo) => McpServer.computed.endpoint.call({ systemInfo });
     expect(endpoint({ web_host: 'https://semaphore.example.com' }))
       .to.equal('https://semaphore.example.com/api/mcp');
-    expect(endpoint({})).to.equal(`${window.location.origin}/api/mcp`);
+    expect(endpoint({})).to.equal(new URL('api/mcp', document.baseURI).href);
+  });
+
+  it('keeps the path of web_host and does not double the slash', () => {
+    const endpoint = (webHost) => McpServer.computed.endpoint
+      .call({ systemInfo: { web_host: webHost } });
+    expect(endpoint('https://example.com/semaphore')).to.equal('https://example.com/semaphore/api/mcp');
+    expect(endpoint('https://example.com/semaphore/')).to.equal('https://example.com/semaphore/api/mcp');
+    expect(endpoint('https://example.com/')).to.equal('https://example.com/api/mcp');
+    expect(endpoint('not a url'), 'an unparsable web_host').to.equal(new URL('api/mcp', document.baseURI).href);
   });
 });
 
