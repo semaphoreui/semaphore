@@ -28,6 +28,9 @@ only when the task touches that topic. Keep this file under 150 lines.
   so they — not in-package fallback constants — are the effective documented defaults.
 - `config.schema.yaml` is not a source of truth; it drifts (gave wrong k8s executor image
   defaults). Generate reference docs from the Go struct with `task docs:gen`.
+- The docs submodule's `main` may be generated from code ahead of `develop` (2026-10-25: it had the
+  `ha.redis_sentinel.*` rows develop lacks) — after `task docs:gen`, diff `docs/reference/configuration.md`
+  and keep only the rows your change produced, or you un-document another branch's feature.
 - The `docs/` submodule is checked out by no CI job except `docs-reference` in
   `.github/workflows/dev.yml` — a build step that reads `docs/` must fail loudly when it is absent.
 - Anything the Vue build emits to `api/public` is `go:embed`-ed into the binary and served by
