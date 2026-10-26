@@ -162,7 +162,7 @@ func (s *accessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) er
 }
 
 func (s *accessKeyEncryptionServiceImpl) FillEnvironmentSecrets(env *db.Environment, deserializeSecret bool) error {
-	keys, err := s.environmentRepo.GetEnvironmentSecrets(env.ProjectID, env.ID)
+	keys, err := s.environmentRepo.GetEnvironmentOwnedKeys(env.ProjectID, env.ID)
 
 	if err != nil {
 		return err
