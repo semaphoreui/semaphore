@@ -21,10 +21,14 @@ properties:
   # HTTP server
   # ==========================================================================
   port:
-    type: string
-    pattern: "^:?([0-9]{1,5})$"
+    oneOf:
+      - type: string
+        pattern: "^:?([0-9]{1,5})$"
+      - type: integer
+        minimum: 0
+        maximum: 65535
     default: ":3000"
-    description: TCP port the HTTP server listens on. Leading ':' optional.
+    description: TCP port the HTTP server listens on, as a string (leading ':' optional) or a bare integer.
   interface:
     type: string
     description: Bind address (empty = all interfaces).
