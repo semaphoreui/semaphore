@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/handlers"
 	"github.com/semaphoreui/semaphore/api"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/api/sockets"
@@ -384,16 +383,24 @@ func runService() {
 		})
 	})
 
+	trustedProxies, err := util.Config.Audit.TrustedProxies()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	var router http.Handler = route
 
-	router = handlers.ProxyHeaders(router)
-	// Outside ProxyHeaders, which trusts X-Forwarded-For blindly.
+	// Each assignment wraps the previous one, so the proxy headers are applied
+	// first and the access log sees the client address.
+	router = api.AccessLogMiddleware(router)
+	router = api.ProxyHeadersMiddleware(trustedProxies)(router)
+	// The audit log reads the forwarded headers itself, from the same trusted
+	// proxies, and sees the request before they are applied.
 	router = auditService.Wrap(router)
 	http.Handle("/", router)
 
 	fmt.Println("Server is running")
 
-	var err error
 	if util.Config.TLS.Enabled {
 
 		if util.Config.TLS.HTTPRedirectPort != nil && util.Config.TLS.HTTPRedirectAddr != "" {
