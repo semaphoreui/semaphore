@@ -33,7 +33,7 @@
           dense
           hide-details
           class="mt-2"
-          :disabled="assigning"
+          :disabled="assigning || locked(row)"
         >
           <template v-slot:item="{ item: role }">
             <v-list-item-content>
@@ -164,6 +164,11 @@ export default {
         items.push({ slug: CREATE, name: this.$t('createAsNewRole') });
       }
       return items.concat(groupRolesForSelect(this.roles, (key) => this.$i18n.t(key)));
+    },
+
+    /** A row keeps its role once a template is granted, so a retry cannot split the grants. */
+    locked(row) {
+      return row.templates.some((tpl) => this.granted[`${row.slug}/${tpl.id}`]);
     },
 
     /** The slug the row's templates go to, or null when there is nothing valid to do yet. */

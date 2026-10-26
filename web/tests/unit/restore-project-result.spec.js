@@ -153,6 +153,29 @@ describe('RestoreProjectResult.vue', () => {
     expect(wrapper.vm.rows).to.have.lengthOf(0);
   });
 
+  it('locks the role once one of its templates is granted', async () => {
+    http.respond((config) => {
+      if (config.url === '/api/project/7/templates/4/perms') {
+        throw httpError(400, { error: 'Role already has permissions on this template' });
+      }
+      return ROUTES[config.url] || {};
+    });
+    const wrapper = await mountWith({
+      id: 7,
+      name: 'copy',
+      unassigned_roles: [{
+        slug: 'ops',
+        reason: 'not_in_file',
+        templates: [{ id: 3, name: 'Deploy', permissions: 1 }, { id: 4, name: 'Stage', permissions: 1 }],
+      }],
+    });
+
+    await wrapper.vm.assign();
+    await flush();
+
+    expect(wrapper.find('.v-select').classes()).to.include('v-input--is-disabled');
+  });
+
   it('starts over for the next restored project', async () => {
     const wrapper = await mountWith(PROJECT);
     wrapper.vm.choices.ops = 'manager';
