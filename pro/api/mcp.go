@@ -7,7 +7,7 @@ import (
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 )
 
-func NewMCPController(enabled bool, store db.Store) pro_interfaces.MCPController {
+func NewMCPController(enabled bool, store db.Store, rest http.Handler, webPath string) pro_interfaces.MCPController {
 	return &mcpControllerImpl{}
 }
 

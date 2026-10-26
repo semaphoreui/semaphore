@@ -85,6 +85,7 @@ type AuthMethod string
 const (
 	AuthSession  AuthMethod = "session"
 	AuthAPIToken AuthMethod = "api_token"
+	AuthMCPToken AuthMethod = "mcp_token"
 )
 
 const (
