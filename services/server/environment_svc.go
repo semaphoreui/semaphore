@@ -63,6 +63,23 @@ func (s *EnvironmentServiceImpl) Delete(projectID int, environmentID int) (err e
 		return
 	}
 
+	// The group's own keys go with it by cascade; a key another group still links to would stop that cascade
+	// at the foreign key half-way through. Refuse up front and name the group that has to unlink first.
+	for _, key := range secrets {
+		var users []db.ObjectReferrer
+		users, err = s.environmentRepo.GetAccessKeyEnvironmentRefs(projectID, key.ID)
+		if err != nil {
+			return
+		}
+		for _, user := range users {
+			if user.ID == environmentID {
+				continue
+			}
+			return common_errors.NewValidationError(fmt.Sprintf(
+				"secret %q is used by variable group %q; unlink it there first", key.Name, user.Name))
+		}
+	}
+
 	// Read before the delete, so a failed lookup leaves the environment in place.
 	var storage *db.SecretStorage
 	if env.SecretStorageID != nil {

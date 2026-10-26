@@ -6,15 +6,17 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockEnvironmentManager struct {
-	GetEnvironmentFn           func(projectID int, environmentID int) (db.Environment, error)
-	GetEnvironmentOwnedKeysFn  func(projectID int, environmentID int) ([]db.AccessKey, error)
-	GetEnvironmentSecretKeysFn func(projectID int, environmentID int) ([]db.EnvironmentSecretWithKey, error)
-	DeleteEnvironmentFn        func(projectID int, environmentID int) error
+	GetEnvironmentFn              func(projectID int, environmentID int) (db.Environment, error)
+	GetEnvironmentOwnedKeysFn     func(projectID int, environmentID int) ([]db.AccessKey, error)
+	GetEnvironmentSecretKeysFn    func(projectID int, environmentID int) ([]db.EnvironmentSecretWithKey, error)
+	GetAccessKeyEnvironmentRefsFn func(projectID int, keyID int) ([]db.ObjectReferrer, error)
+	DeleteEnvironmentFn           func(projectID int, environmentID int) error
 
 	DeleteEnvironmentCalls int
 }
@@ -77,6 +79,9 @@ func (m *mockEnvironmentManager) CountEnvironmentSecretsByKey(projectID int, key
 	return 0, nil
 }
 func (m *mockEnvironmentManager) GetAccessKeyEnvironmentRefs(projectID int, keyID int) ([]db.ObjectReferrer, error) {
+	if m.GetAccessKeyEnvironmentRefsFn != nil {
+		return m.GetAccessKeyEnvironmentRefsFn(projectID, keyID)
+	}
 	return nil, nil
 }
 
@@ -378,4 +383,49 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 		assert.Zero(t, envRepo.DeleteEnvironmentCalls, "a failed lookup leaves the environment in place")
 		assert.Empty(t, encryption.DeletedSecretIDs)
 	})
+}
+
+func TestEnvironmentServiceImpl_Delete_RefusesWhenAnotherGroupLinksAnOwnedKey(t *testing.T) {
+	envRepo := &mockEnvironmentManager{
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+			return []db.AccessKey{{ID: 10, Name: "db_password"}, {ID: 11, Name: "token"}}, nil
+		},
+		GetAccessKeyEnvironmentRefsFn: func(projectID int, keyID int) ([]db.ObjectReferrer, error) {
+			if keyID == 11 {
+				return []db.ObjectReferrer{{ID: 2, Name: "this group"}, {ID: 3, Name: "staging"}}, nil
+			}
+			return []db.ObjectReferrer{{ID: 2, Name: "this group"}}, nil
+		},
+	}
+	service := &EnvironmentServiceImpl{
+		environmentRepo:   envRepo,
+		encryptionService: &mockAccessKeyEncryptionService{},
+		secretStorageRepo: &mockSecretStorageRepository{},
+	}
+
+	err := service.Delete(1, 2)
+
+	var validation *common_errors.ValidationError
+	require.ErrorAs(t, err, &validation)
+	assert.ErrorContains(t, err, `secret "token" is used by variable group "staging"`)
+	assert.Equal(t, 0, envRepo.DeleteEnvironmentCalls, "nothing is deleted")
+}
+
+func TestEnvironmentServiceImpl_Delete_OwnKeyLinkedOnlyByItselfIsFine(t *testing.T) {
+	envRepo := &mockEnvironmentManager{
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+			return []db.AccessKey{{ID: 10, Name: "db_password"}}, nil
+		},
+		GetAccessKeyEnvironmentRefsFn: func(projectID int, keyID int) ([]db.ObjectReferrer, error) {
+			return []db.ObjectReferrer{{ID: 2, Name: "this group"}}, nil
+		},
+	}
+	service := &EnvironmentServiceImpl{
+		environmentRepo:   envRepo,
+		encryptionService: &mockAccessKeyEncryptionService{},
+		secretStorageRepo: &mockSecretStorageRepository{},
+	}
+
+	require.NoError(t, service.Delete(1, 2))
+	assert.Equal(t, 1, envRepo.DeleteEnvironmentCalls)
 }

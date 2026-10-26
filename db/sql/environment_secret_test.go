@@ -154,6 +154,15 @@ func TestEnvironmentSecret_KeyReferences(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []db.ObjectReferrer{{ID: f.env.ID, Name: "E"}, {ID: f.otherEnv.ID, Name: "F"}}, refs, "a group is listed once")
 
+	all, err := f.store.GetAccessKeyRefs(f.project.ID, f.shared.ID)
+	require.NoError(t, err)
+	assert.Equal(t, refs, all.Environments, "the key refs dialog lists the groups")
+	assert.Empty(t, all.Templates)
+
+	none, err := f.store.GetAccessKeyRefs(f.project.ID, f.owned.ID)
+	require.NoError(t, err)
+	assert.Empty(t, none.Environments)
+
 	err = f.store.DeleteAccessKey(f.project.ID, f.shared.ID)
 	assert.ErrorIs(t, err, db.ErrInvalidOperation, "the foreign key refuses to delete a key groups still use")
 
