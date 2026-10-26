@@ -214,6 +214,12 @@ describe('RestoreProjectResult.vue', () => {
     ]);
   });
 
+  it('hides the keys alert when no key is empty', async () => {
+    const wrapper = await mountWith({ id: 7, name: 'copy', unassigned_roles: [] }, 0);
+
+    expect(wrapper.text()).not.to.include('empty keys added');
+  });
+
   it('hides the list when nothing is unassigned', async () => {
     const wrapper = await mountWith({ id: 7, name: 'copy', unassigned_roles: [] });
 

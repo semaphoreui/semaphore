@@ -4,7 +4,7 @@
       {{ $t('projectWithNameRestored', { projectName: project.name }) }}
     </v-alert>
 
-    <v-alert dense outlined type="error" class="mb-0">
+    <v-alert v-if="emptyKeys > 0" dense outlined type="error" class="mb-0">
       <b>{{ $t('emptyKeysRestored', { emptyKeys }) }}</b>
       {{ $t('pleaseUpdateAccessKeys') }}
     </v-alert>
