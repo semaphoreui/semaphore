@@ -16,7 +16,7 @@
         {{ loadError }}
       </v-alert>
 
-      <div v-for="row in rows" :key="row.slug" class="mt-3">
+      <div v-for="row in rows" :key="`row-${row.slug}`" class="mt-3">
         <div>
           <b>{{ row.slug }}</b>
           <span v-if="row.name" class="ml-1">{{ row.name }}</span>
@@ -81,7 +81,8 @@ import axios from 'axios';
 import groupRolesForSelect, { isValidSlug } from '@/lib/roles';
 import { getErrorMessage } from '@/lib/error';
 
-const CREATE = '__create__';
+// Not a string: any string is a possible role slug on an upgraded instance.
+const CREATE = Symbol('create');
 
 // A key per row up front, so a slug like "constructor" never reads an inherited property.
 function stateFor(project) {

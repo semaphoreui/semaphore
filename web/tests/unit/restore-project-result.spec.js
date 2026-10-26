@@ -220,6 +220,28 @@ describe('RestoreProjectResult.vue', () => {
     expect(wrapper.vm.rows).to.have.lengthOf(0);
   });
 
+  it('assigns to a role whose slug is __create__', async () => {
+    http.respond((config) => {
+      if (config.url === '/api/project/7/roles/all') {
+        return [{
+          slug: '__create__', name: 'Odd', builtin: false, project_id: null,
+        }];
+      }
+      return {};
+    });
+    const taken = PROJECT.unassigned_roles[1];
+    const wrapper = await mountWith({ ...PROJECT, unassigned_roles: [taken] });
+    wrapper.vm.choices.deployer = '__create__';
+
+    await wrapper.vm.assign();
+    await flush();
+
+    const posts = http.requests.filter((r) => r.method === 'post');
+    expect(posts.map((r) => [r.url, r.data])).to.deep.equal([
+      ['/api/project/7/templates/3/perms', { role_slug: '__create__', permissions: 2 }],
+    ]);
+  });
+
   it('hides the list when nothing is unassigned', async () => {
     const wrapper = await mountWith({ id: 7, name: 'copy', unassigned_roles: [] });
 
