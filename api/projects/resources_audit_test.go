@@ -646,12 +646,13 @@ func TestAddEnvironment_Events(t *testing.T) {
 		wantPartial bool
 	}{
 		{"all secrets saved", `[{"name":"A","secret":"` + secretValue + `","type":"env","operation":"create"}]`, http.StatusCreated, audit.EnvironmentMetadata{SecretsCreated: 1}, false},
-		{"one secret refused", `[{"name":"A","secret":"` + secretValue + `","type":"env","operation":"create"},{"id":42,"type":"env","operation":"delete"}]`, http.StatusNotFound, audit.EnvironmentMetadata{SecretsCreated: 1, Partial: true}, true},
+		{"one secret refused", `[{"name":"A","secret":"` + secretValue + `","type":"env","operation":"create"},{"id":42,"type":"env","operation":"delete"}]`, http.StatusBadRequest, audit.EnvironmentMetadata{SecretsCreated: 1, Partial: true}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newResourceFixture(t)
-			controller := &EnvironmentController{accessKeyRepo: &mockAccessKeyRepo{keys: map[int]db.AccessKey{}}, accessKeyService: &mockAccessKeyService{}}
+			keyService := storeKeyService{&mockAccessKeyService{}, f.store}
+			controller := &EnvironmentController{environmentService: server.NewEnvironmentService(f.store, nil, f.store, f.store, keyService)}
 			body := `{"name":"prod","project_id":` + strconv.Itoa(f.project.ID) + `,"json":"{}","secrets":` + tt.secrets + `}`
 
 			r, rec := f.request(http.MethodPost, body, nil, nil)

@@ -12,7 +12,7 @@ import (
 
 type mockEnvironmentManager struct {
 	GetEnvironmentFn        func(projectID int, environmentID int) (db.Environment, error)
-	GetEnvironmentSecretsFn func(projectID int, environmentID int) ([]db.AccessKey, error)
+	GetEnvironmentOwnedKeysFn func(projectID int, environmentID int) ([]db.AccessKey, error)
 	DeleteEnvironmentFn     func(projectID int, environmentID int) error
 
 	DeleteEnvironmentCalls int
@@ -25,9 +25,9 @@ func (m *mockEnvironmentManager) GetEnvironment(projectID int, environmentID int
 	return db.Environment{}, nil
 }
 
-func (m *mockEnvironmentManager) GetEnvironmentSecrets(projectID int, environmentID int) ([]db.AccessKey, error) {
-	if m.GetEnvironmentSecretsFn != nil {
-		return m.GetEnvironmentSecretsFn(projectID, environmentID)
+func (m *mockEnvironmentManager) GetEnvironmentOwnedKeys(projectID int, environmentID int) ([]db.AccessKey, error) {
+	if m.GetEnvironmentOwnedKeysFn != nil {
+		return m.GetEnvironmentOwnedKeysFn(projectID, environmentID)
 	}
 	return nil, nil
 }
@@ -50,6 +50,28 @@ func (m *mockEnvironmentManager) GetEnvironments(projectID int, params db.Retrie
 func (m *mockEnvironmentManager) UpdateEnvironment(env db.Environment) error { return nil }
 func (m *mockEnvironmentManager) CreateEnvironment(env db.Environment) (db.Environment, error) {
 	return db.Environment{}, nil
+}
+func (m *mockEnvironmentManager) GetEnvironmentSecretKeys(projectID int, environmentID int) ([]db.EnvironmentSecretWithKey, error) {
+	return nil, nil
+}
+func (m *mockEnvironmentManager) GetEnvironmentSecret(projectID int, environmentID int, secretID int) (db.EnvironmentSecret, error) {
+	return db.EnvironmentSecret{}, nil
+}
+func (m *mockEnvironmentManager) CreateEnvironmentSecret(secret db.EnvironmentSecret) (db.EnvironmentSecret, error) {
+	return secret, nil
+}
+func (m *mockEnvironmentManager) UpdateEnvironmentSecret(secret db.EnvironmentSecret) error { return nil }
+func (m *mockEnvironmentManager) DeleteEnvironmentSecret(projectID int, environmentID int, secretID int) error {
+	return nil
+}
+func (m *mockEnvironmentManager) DeleteEnvironmentSecretsByKey(projectID int, keyID int) error {
+	return nil
+}
+func (m *mockEnvironmentManager) CountEnvironmentSecretsByKey(projectID int, keyID int) (int, error) {
+	return 0, nil
+}
+func (m *mockEnvironmentManager) GetAccessKeyEnvironmentRefs(projectID int, keyID int) ([]db.ObjectReferrer, error) {
+	return nil, nil
 }
 
 type mockSecretStorageRepository struct {
@@ -151,7 +173,7 @@ func TestEnvironmentServiceImpl_Delete_NoSecretStorage(t *testing.T) {
 			assert.Equal(t, 2, environmentID)
 			return db.Environment{ID: environmentID, ProjectID: projectID}, nil
 		},
-		GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 			return []db.AccessKey{{ID: 10}}, nil
 		},
 	}
@@ -175,7 +197,7 @@ func TestEnvironmentServiceImpl_Delete_DeletesUnsynchronizedSecrets(t *testing.T
 		GetEnvironmentFn: func(projectID int, environmentID int) (db.Environment, error) {
 			return db.Environment{ID: environmentID, ProjectID: projectID, SecretStorageID: &storageID}, nil
 		},
-		GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 			return []db.AccessKey{
 				{ID: 10},
 				{ID: 11, Synchronized: true},
@@ -209,7 +231,7 @@ func TestEnvironmentServiceImpl_Delete_ReadOnlyStorageKeepsSecrets(t *testing.T)
 		GetEnvironmentFn: func(projectID int, environmentID int) (db.Environment, error) {
 			return db.Environment{ID: environmentID, ProjectID: projectID, SecretStorageID: &storageID}, nil
 		},
-		GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 			return []db.AccessKey{{ID: 10}}, nil
 		},
 	}
@@ -238,7 +260,7 @@ func TestEnvironmentServiceImpl_Delete_AggregatesSecretDeletionErrors(t *testing
 		GetEnvironmentFn: func(projectID int, environmentID int) (db.Environment, error) {
 			return db.Environment{ID: environmentID, ProjectID: projectID, SecretStorageID: &storageID}, nil
 		},
-		GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 			return []db.AccessKey{{ID: 10}, {ID: 11}}, nil
 		},
 	}
@@ -286,9 +308,9 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 		assert.Equal(t, 0, envRepo.DeleteEnvironmentCalls)
 	})
 
-	t.Run("GetEnvironmentSecrets fails", func(t *testing.T) {
+	t.Run("GetEnvironmentOwnedKeys fails", func(t *testing.T) {
 		envRepo := &mockEnvironmentManager{
-			GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+			GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 				return nil, errors.New("secrets query failed")
 			},
 		}
@@ -328,7 +350,7 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 			GetEnvironmentFn: func(projectID int, environmentID int) (db.Environment, error) {
 				return db.Environment{ID: environmentID, ProjectID: projectID, SecretStorageID: &storageID}, nil
 			},
-			GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+			GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 				return []db.AccessKey{{ID: 10}}, nil
 			},
 		}

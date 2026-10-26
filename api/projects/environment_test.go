@@ -1,10 +1,18 @@
 package projects
 
 import (
-	"fmt"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/services/audit"
+	"github.com/semaphoreui/semaphore/services/server"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockAccessKeyRepo struct {
@@ -56,168 +64,74 @@ func (m *mockAccessKeyService) Delete(_ int, keyID int) error {
 	return nil
 }
 
-func TestUpdateEnvironmentSecrets_DeleteRejectsKeyFromOtherEnvironment(t *testing.T) {
-	otherEnvID := 999
-	repo := &mockAccessKeyRepo{
-		keys: map[int]db.AccessKey{
-			42: {ID: 42, EnvironmentID: &otherEnvID},
-		},
-	}
-	svc := &mockAccessKeyService{}
-	ctrl := &EnvironmentController{accessKeyRepo: repo, accessKeyService: svc}
-
-	env := db.Environment{
-		ID:        1,
-		ProjectID: 10,
-		Secrets: []db.EnvironmentSecret{
-			{ID: 42, Type: db.EnvironmentSecretVar, Operation: db.EnvironmentSecretDelete},
-		},
-	}
-
-	_, err := ctrl.updateEnvironmentSecrets(env)
-	if err == nil {
-		t.Fatal("expected error when deleting secret from another environment, got nil")
-	}
-	if len(svc.deleted) != 0 {
-		t.Fatalf("expected no deletions, got %d", len(svc.deleted))
-	}
+// recordingEnvironmentService captures what the controller hands to ApplySecrets.
+type recordingEnvironmentService struct {
+	server.EnvironmentService
+	applied  []db.Environment
+	result   audit.EnvironmentMetadata
+	applyErr error
 }
 
-func TestUpdateEnvironmentSecrets_DeleteRejectsKeyWithNilEnvironmentID(t *testing.T) {
-	repo := &mockAccessKeyRepo{
-		keys: map[int]db.AccessKey{
-			42: {ID: 42, EnvironmentID: nil},
-		},
-	}
-	svc := &mockAccessKeyService{}
-	ctrl := &EnvironmentController{accessKeyRepo: repo, accessKeyService: svc}
-
-	env := db.Environment{
-		ID:        1,
-		ProjectID: 10,
-		Secrets: []db.EnvironmentSecret{
-			{ID: 42, Type: db.EnvironmentSecretVar, Operation: db.EnvironmentSecretDelete},
-		},
-	}
-
-	_, err := ctrl.updateEnvironmentSecrets(env)
-	if err == nil {
-		t.Fatal("expected error when deleting key with nil EnvironmentID, got nil")
-	}
-	if len(svc.deleted) != 0 {
-		t.Fatalf("expected no deletions, got %d", len(svc.deleted))
-	}
+func (s *recordingEnvironmentService) ApplySecrets(env db.Environment) (audit.EnvironmentMetadata, error) {
+	s.applied = append(s.applied, env)
+	return s.result, s.applyErr
 }
 
-func TestUpdateEnvironmentSecrets_DeleteAllowsMatchingEnvironment(t *testing.T) {
-	envID := 1
-	repo := &mockAccessKeyRepo{
-		keys: map[int]db.AccessKey{
-			42: {ID: 42, EnvironmentID: &envID},
-		},
-	}
-	svc := &mockAccessKeyService{}
-	ctrl := &EnvironmentController{accessKeyRepo: repo, accessKeyService: svc}
+func TestUpdateEnvironment_PassesSecretsToTheService(t *testing.T) {
+	f := newResourceFixture(t)
+	env, err := f.store.CreateEnvironment(db.Environment{Name: "prod", ProjectID: f.project.ID, JSON: "{}"})
+	require.NoError(t, err)
+	svc := &recordingEnvironmentService{result: audit.EnvironmentMetadata{SecretsCreated: 1, SecretsUpdated: 1}}
+	controller := &EnvironmentController{environmentService: svc}
+	body := `{"id":` + strconv.Itoa(env.ID) + `,"name":"prod","project_id":` + strconv.Itoa(f.project.ID) + `,"json":"{}","env":"{}",` +
+		`"secrets":[{"name":"A","type":"env","key_id":7,"operation":"create"},{"id":3,"name":"B","type":"var","secret":"v","operation":"update"}]}`
 
-	env := db.Environment{
-		ID:        1,
-		ProjectID: 10,
-		Secrets: []db.EnvironmentSecret{
-			{ID: 42, Type: db.EnvironmentSecretVar, Operation: db.EnvironmentSecretDelete},
-		},
-	}
+	r, rec := f.request(http.MethodPut, body, map[string]any{"environment": env}, nil)
+	w := httptest.NewRecorder()
+	controller.UpdateEnvironment(w, r)
 
-	_, err := ctrl.updateEnvironmentSecrets(env)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(svc.deleted) != 1 || svc.deleted[0] != 42 {
-		t.Fatalf("expected key 42 to be deleted, got %v", svc.deleted)
-	}
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	require.Len(t, svc.applied, 1)
+	assert.Equal(t, env.ID, svc.applied[0].ID)
+	assert.Equal(t, []db.EnvironmentSecret{
+		{Name: "A", Type: db.EnvironmentSecretEnv, KeyID: 7, Operation: db.EnvironmentSecretCreate},
+		{ID: 3, Name: "B", Type: db.EnvironmentSecretVar, Secret: "v", Operation: db.EnvironmentSecretUpdate},
+	}, svc.applied[0].Secrets)
+	got := only(t, rec, audit.ResourceEnvironmentUpdate)
+	assert.Equal(t, audit.EnvironmentMetadata{SecretsCreated: 1, SecretsUpdated: 1}, got.Event.Metadata)
 }
 
-func TestUpdateEnvironmentSecrets_UpdateRejectsKeyFromOtherEnvironment(t *testing.T) {
-	otherEnvID := 999
-	repo := &mockAccessKeyRepo{
-		keys: map[int]db.AccessKey{
-			42: {ID: 42, EnvironmentID: &otherEnvID},
-		},
+func TestUpdateEnvironment_SecretErrorsAreAnswered(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"refused link", common_errors.NewValidationError("key ssh is ssh, only string keys can be used as a secret"), http.StatusBadRequest, "only string keys"},
+		{"store failure", errors.New("db down"), http.StatusBadRequest, ""},
+		{"missing key", db.ErrNotFound, http.StatusNotFound, ""},
 	}
-	svc := &mockAccessKeyService{}
-	ctrl := &EnvironmentController{accessKeyRepo: repo, accessKeyService: svc}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newResourceFixture(t)
+			env, err := f.store.CreateEnvironment(db.Environment{Name: "prod", ProjectID: f.project.ID, JSON: "{}"})
+			require.NoError(t, err)
+			svc := &recordingEnvironmentService{result: audit.EnvironmentMetadata{SecretsCreated: 1}, applyErr: tt.err}
+			controller := &EnvironmentController{environmentService: svc}
+			body := `{"id":` + strconv.Itoa(env.ID) + `,"name":"prod","project_id":` + strconv.Itoa(f.project.ID) + `,"json":"{}","env":"{}","secrets":[]}`
 
-	env := db.Environment{
-		ID:        1,
-		ProjectID: 10,
-		Secrets: []db.EnvironmentSecret{
-			{ID: 42, Name: "SECRET", Type: db.EnvironmentSecretVar, Operation: db.EnvironmentSecretUpdate, Secret: "new-val"},
-		},
-	}
+			r, rec := f.request(http.MethodPut, body, map[string]any{"environment": env}, nil)
+			w := httptest.NewRecorder()
+			controller.UpdateEnvironment(w, r)
 
-	_, err := ctrl.updateEnvironmentSecrets(env)
-	if err == nil {
-		t.Fatal("expected error when updating secret from another environment, got nil")
+			assert.Equal(t, tt.wantCode, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			got := only(t, rec, audit.ResourceEnvironmentUpdate)
+			assert.Equal(t, audit.EnvironmentMetadata{SecretsCreated: 1, Partial: true}, got.Event.Metadata, "the group is saved, the secrets partly")
+			assert.Equal(t, audit.ReasonSecretFailed, got.Event.Reason)
+		})
 	}
-	if len(svc.updated) != 0 {
-		t.Fatalf("expected no updates, got %d", len(svc.updated))
-	}
-}
-
-func TestUpdateEnvironmentSecrets_UpdateRejectsKeyWithNilEnvironmentID(t *testing.T) {
-	repo := &mockAccessKeyRepo{
-		keys: map[int]db.AccessKey{
-			42: {ID: 42, EnvironmentID: nil},
-		},
-	}
-	svc := &mockAccessKeyService{}
-	ctrl := &EnvironmentController{accessKeyRepo: repo, accessKeyService: svc}
-
-	env := db.Environment{
-		ID:        1,
-		ProjectID: 10,
-		Secrets: []db.EnvironmentSecret{
-			{ID: 42, Name: "SECRET", Type: db.EnvironmentSecretVar, Operation: db.EnvironmentSecretUpdate, Secret: "new-val"},
-		},
-	}
-
-	_, err := ctrl.updateEnvironmentSecrets(env)
-	if err == nil {
-		t.Fatal("expected error when updating key with nil EnvironmentID, got nil")
-	}
-	if len(svc.updated) != 0 {
-		t.Fatalf("expected no updates, got %d", len(svc.updated))
-	}
-}
-
-func TestUpdateEnvironmentSecrets_DeleteErrorIsReported(t *testing.T) {
-	envID := 1
-	repo := &mockAccessKeyRepo{
-		keys: map[int]db.AccessKey{
-			42: {ID: 42, EnvironmentID: &envID},
-		},
-	}
-	svc := &mockAccessKeyServiceWithDeleteError{deleteErr: fmt.Errorf("storage backend unavailable")}
-	ctrl := &EnvironmentController{accessKeyRepo: repo, accessKeyService: svc}
-
-	env := db.Environment{
-		ID:        1,
-		ProjectID: 10,
-		Secrets: []db.EnvironmentSecret{
-			{ID: 42, Type: db.EnvironmentSecretVar, Operation: db.EnvironmentSecretDelete},
-		},
-	}
-
-	_, err := ctrl.updateEnvironmentSecrets(env)
-	if err == nil {
-		t.Fatal("expected error when Delete fails, got nil")
-	}
-}
-
-type mockAccessKeyServiceWithDeleteError struct {
-	mockAccessKeyService
-	deleteErr error
-}
-
-func (m *mockAccessKeyServiceWithDeleteError) Delete(_ int, _ int) error {
-	return m.deleteErr
 }

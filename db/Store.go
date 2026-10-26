@@ -329,7 +329,23 @@ type EnvironmentManager interface {
 	UpdateEnvironment(env Environment) error
 	CreateEnvironment(env Environment) (Environment, error)
 	DeleteEnvironment(projectID int, templateID int) error
-	GetEnvironmentSecrets(projectID int, environmentID int) ([]AccessKey, error)
+
+	// GetEnvironmentOwnedKeys returns the access keys the group owns (access_key.environment_id), for
+	// cleaning them up with the group. Secret values are read through GetEnvironmentSecretKeys.
+	GetEnvironmentOwnedKeys(projectID int, environmentID int) ([]AccessKey, error)
+
+	// GetEnvironmentSecretKeys returns the group's secrets with the key each one points to, Owned set.
+	GetEnvironmentSecretKeys(projectID int, environmentID int) ([]EnvironmentSecretWithKey, error)
+	GetEnvironmentSecret(projectID int, environmentID int, secretID int) (EnvironmentSecret, error)
+	CreateEnvironmentSecret(secret EnvironmentSecret) (EnvironmentSecret, error)
+	// UpdateEnvironmentSecret changes type, name and key of the row with secret.ID in secret.EnvironmentID.
+	UpdateEnvironmentSecret(secret EnvironmentSecret) error
+	DeleteEnvironmentSecret(projectID int, environmentID int, secretID int) error
+	// DeleteEnvironmentSecretsByKey unlinks a key from every group, before the key itself is deleted.
+	DeleteEnvironmentSecretsByKey(projectID int, keyID int) error
+	CountEnvironmentSecretsByKey(projectID int, keyID int) (int, error)
+	// GetAccessKeyEnvironmentRefs lists the groups whose secrets point to the key.
+	GetAccessKeyEnvironmentRefs(projectID int, keyID int) ([]ObjectReferrer, error)
 }
 
 type GetAccessKeyOptions struct {
@@ -688,6 +704,12 @@ var IntegrationMatcherProps = ObjectProps{
 var IntegrationAliasProps = ObjectProps{
 	TableName:         "project__integration_alias",
 	Type:              reflect.TypeFor[IntegrationAlias](),
+	PrimaryColumnName: "id",
+}
+
+var EnvironmentSecretProps = ObjectProps{
+	TableName:         "project__environment_secret",
+	Type:              reflect.TypeFor[EnvironmentSecret](),
 	PrimaryColumnName: "id",
 }
 

@@ -287,6 +287,8 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 		err = migration_2_20_8{db: d}.PostApply(tx)
 	case "2.20.12":
 		err = migration_2_20_12{db: d}.PostApply(tx)
+	case "2.20.18":
+		err = migration_2_20_18{db: d}.PostApply(tx)
 	}
 
 	if err != nil {
