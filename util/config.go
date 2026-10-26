@@ -636,6 +636,41 @@ type SshConfig struct {
 	StrictHostKeyChecking SshStrictHostKeyChecking `json:"strict_host_key_checking,omitempty" env:"" default:"no"`
 }
 
+// ListenPort is the HTTP listen port of the server. In the config file it may
+// be given either as a string (`":3000"`, `"3000"`) or as a bare number (`3000`);
+// both decode to the string form so the rest of the code sees one shape.
+type ListenPort string
+
+// UnmarshalJSON accepts a JSON string or a JSON integer.
+func (p *ListenPort) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		*p = ListenPort(str)
+		return nil
+	}
+
+	var num int64
+	if err := json.Unmarshal(data, &num); err != nil {
+		return fmt.Errorf("port must be a string or an integer, got %s", string(data))
+	}
+
+	*p = ListenPort(strconv.FormatInt(num, 10))
+	return nil
+}
+
+func (p ListenPort) String() string {
+	return string(p)
+}
+
+// Addr returns the port in `:port` form, ready for net.Listen.
+func (p ListenPort) Addr() string {
+	port := strings.TrimPrefix(string(p), ":")
+	if port == "" {
+		port = "3000"
+	}
+	return ":" + port
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -644,9 +679,8 @@ type ConfigType struct {
 
 	Dialect string `json:"dialect,omitempty" default:"sqlite" rule:"^mysql|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
 
-	// Format `:port_num` eg, :3000
-	// if : is missing it will be corrected
-	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	// TCP port the HTTP server listens on, as `:port_num` (e.g. `:3000`) or a bare number (`3000`, quoted or not). A missing `:` is added automatically.
+	Port ListenPort `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 	TLS  *TLSConfig `json:"tls,omitempty"`
 
 	Auth *AuthConfig            `json:"auth,omitempty"`
@@ -2480,15 +2514,8 @@ func LookupDefaultApps() {
 
 func GetPublicHost() string {
 	aliasURL := Config.WebHost
-	port := Config.Port
-	if port == "" {
-		port = "3000"
-	}
-
-	port = strings.TrimPrefix(port, ":")
-
 	if aliasURL == "" {
-		aliasURL = "http://localhost:" + port
+		aliasURL = "http://localhost" + Config.Port.Addr()
 	}
 
 	return aliasURL
