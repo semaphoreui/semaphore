@@ -813,3 +813,109 @@ func TestBackupJSONHasNoRoleInternals(t *testing.T) {
 		assert.NotContains(t, doc.Roles[0], key)
 	}
 }
+
+// A string key travels through a backup like every other key: by name and
+// type only. Its value stays behind, and the restored key is empty until the
+// owner fills it in again.
+func TestBackupProject_StringKey(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{Name: "String key"})
+	require.NoError(t, err)
+
+	ciphertext := "ciphertext-of-s3cr3t"
+	_, err = store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Name:      "api-token",
+		Type:      db.AccessKeyString,
+		String:    "s3cr3t",
+		Secret:    &ciphertext,
+	})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+	assert.NotContains(t, str, "s3cr3t", "a backup must not carry the value")
+	assert.NotContains(t, str, ciphertext, "a backup must not carry the ciphertext either")
+
+	var doc struct {
+		Keys []map[string]any `json:"keys"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(str), &doc))
+	require.Len(t, doc.Keys, 1)
+	assert.Equal(t, "api-token", doc.Keys[0]["name"])
+	assert.Equal(t, "string", doc.Keys[0]["type"])
+	assert.NotContains(t, doc.Keys[0], "string", "the value field must not even be present")
+	assert.NotContains(t, doc.Keys[0], "secret")
+
+	restoredBackup := &BackupFormat{}
+	require.NoError(t, restoredBackup.Unmarshal(str))
+	restoredBackup.Meta.Name = "String key restored"
+	require.NoError(t, restoredBackup.Verify())
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "stringkeytest", Name: "String Key Test",
+			Email: "stringkey@example.com", Admin: true,
+		},
+	})
+	require.NoError(t, err)
+
+	restoredProj, err := restoredBackup.Restore(user, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	restoredKeys, err := store.GetAccessKeys(restoredProj.ID, db.GetAccessKeyOptions{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, restoredKeys, 1)
+	restored := restoredKeys[0]
+	assert.Equal(t, "api-token", restored.Name)
+	assert.Equal(t, db.AccessKeyString, restored.Type)
+	assert.Equal(t, db.AccessKeyShared, restored.Owner)
+	assert.Nil(t, restored.Secret)
+	assert.Empty(t, restored.String)
+	assert.True(t, restored.Empty, "the restored key waits for a value")
+}
+
+// A hand-edited backup may point a credential mapping at a string key; the
+// preflight applies the same rule as the API and rejects it before anything
+// is written.
+func TestRestore_RejectsStringKeyInHostConfig(t *testing.T) {
+	keyName := "api-token"
+	tests := []struct {
+		name    string
+		mapping db.HostConfig
+		wantErr string
+	}{
+		{
+			name:    "host mapping",
+			mapping: db.HostConfig{Type: db.HostConfigHost, Name: "github.com"},
+			wantErr: "a host mapping needs an SSH key",
+		},
+		{
+			name:    "url mapping",
+			mapping: db.HostConfig{Type: db.HostConfigURL, Name: "https://github.com/acme/"},
+			wantErr: "a URL mapping needs an SSH key or a login/password credential",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := &BackupFormat{
+				Meta: BackupMeta{Project: db.Project{Name: "string key mapping"}},
+				Keys: []BackupAccessKey{{
+					AccessKey: db.AccessKey{Name: keyName, Type: db.AccessKeyString},
+				}},
+				HostConfigs: []BackupHostConfig{{HostConfig: tt.mapping, SSHKey: &keyName}},
+			}
+
+			err := backup.Verify()
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
