@@ -1,0 +1,272 @@
+package config
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// Source says where an effective value came from.
+type Source string
+
+const (
+	SourceFlag    Source = "flag"
+	SourceEnv     Source = "env"
+	SourceContext Source = "context"
+	SourceDefault Source = "default"
+	SourceNone    Source = ""
+)
+
+// Flags are the values given on the command line. A zero value means the flag
+// was not used; a bool flag can only switch a setting on.
+type Flags struct {
+	Context  string
+	URL      string
+	Project  string
+	CACert   string
+	Insecure bool
+	Output   string
+	Timeout  time.Duration
+	NoInput  bool
+	Debug    bool
+}
+
+// Effective is the resolved configuration of one invocation.
+type Effective struct {
+	// ContextName is the context in use, empty when the client runs on
+	// environment and flags alone.
+	ContextName string
+	URL         string
+	Token       string
+	// TokenFile is the file Token was read from, when it came from one.
+	TokenFile string
+	Project   string
+	CACert    string
+	Insecure  bool
+	Output    string
+	Timeout   time.Duration
+	NoInput   bool
+	Debug     bool
+
+	Sources Sources
+}
+
+// Sources records the origin of the values a user is likely to ask about.
+type Sources struct {
+	Context Source
+	URL     Source
+	Token   Source
+	Project Source
+	Output  Source
+}
+
+// Errors a caller may want to tell apart.
+var (
+	// ErrNoURL means no flag, variable or context gave a server address.
+	ErrNoURL = errors.New("server URL is not set")
+	// ErrUnknownContext means the requested context is not in the file.
+	ErrUnknownContext = errors.New("unknown context")
+	// ErrTokenWithoutURL means SEMAPHORE_CLIENT_TOKEN is set while the URL
+	// comes from the config file. The token would be sent to whichever server
+	// the context names, which is how a CI token leaks to a foreign host.
+	ErrTokenWithoutURL = errors.New(EnvToken + " is set but the server URL comes from the configuration file")
+	// ErrTokenAndTokenFile means both variables are set and it is unclear which wins.
+	ErrTokenAndTokenFile = errors.New(EnvToken + " and " + EnvTokenFile + " are both set; use one")
+	// ErrBadOutput means the output format is not table, json or yaml.
+	ErrBadOutput = errors.New("output format must be table, json or yaml")
+)
+
+// Resolve combines flags, environment and file into the effective settings.
+// file may be nil. getenv is os.Getenv in production and a map lookup in tests.
+func Resolve(flags Flags, getenv func(string) string, file *File) (Effective, error) {
+	if file == nil {
+		file = &File{}
+	}
+	var eff Effective
+
+	// Context: flag > env > current_context. An explicitly named context must
+	// exist; a missing current_context is fine (environment-only setups).
+	var ctx Context
+	switch {
+	case flags.Context != "":
+		eff.ContextName, eff.Sources.Context = flags.Context, SourceFlag
+	case getenv(EnvContext) != "":
+		eff.ContextName, eff.Sources.Context = getenv(EnvContext), SourceEnv
+	case file.CurrentContext != "":
+		eff.ContextName, eff.Sources.Context = file.CurrentContext, SourceContext
+	}
+	if eff.ContextName != "" {
+		var ok bool
+		ctx, ok = file.Contexts[eff.ContextName]
+		if !ok {
+			return eff, fmt.Errorf("%w %q; known contexts: %s", ErrUnknownContext, eff.ContextName, joinOrNone(file.ContextNames()))
+		}
+	}
+
+	// URL.
+	switch {
+	case flags.URL != "":
+		eff.URL, eff.Sources.URL = flags.URL, SourceFlag
+	case getenv(EnvURL) != "":
+		eff.URL, eff.Sources.URL = getenv(EnvURL), SourceEnv
+	case ctx.URL != "":
+		eff.URL, eff.Sources.URL = ctx.URL, SourceContext
+	}
+
+	// Token. There is no flag on purpose: process arguments are visible to
+	// every user of the machine and end up in shell history.
+	envToken, envTokenFile := getenv(EnvToken), getenv(EnvTokenFile)
+	if envToken != "" && envTokenFile != "" {
+		return eff, ErrTokenAndTokenFile
+	}
+	switch {
+	case envToken != "" || envTokenFile != "":
+		if eff.Sources.URL == SourceContext {
+			return eff, fmt.Errorf("%w (context %q); set %s as well or unset the token", ErrTokenWithoutURL, eff.ContextName, EnvURL)
+		}
+		eff.Sources.Token = SourceEnv
+		if envToken != "" {
+			eff.Token = strings.TrimSpace(envToken)
+		} else {
+			eff.TokenFile = expandHome(envTokenFile, getenv)
+			token, err := readTokenFile(eff.TokenFile)
+			if err != nil {
+				return eff, err
+			}
+			eff.Token = token
+		}
+	case ctx.Token != "":
+		eff.Token, eff.Sources.Token = strings.TrimSpace(ctx.Token), SourceContext
+	case ctx.TokenFile != "":
+		eff.TokenFile = expandHome(ctx.TokenFile, getenv)
+		token, err := readTokenFile(eff.TokenFile)
+		if err != nil {
+			return eff, err
+		}
+		eff.Token, eff.Sources.Token = token, SourceContext
+	}
+
+	// Project.
+	switch {
+	case flags.Project != "":
+		eff.Project, eff.Sources.Project = flags.Project, SourceFlag
+	case getenv(EnvProject) != "":
+		eff.Project, eff.Sources.Project = getenv(EnvProject), SourceEnv
+	case ctx.Project != "":
+		eff.Project, eff.Sources.Project = ctx.Project, SourceContext
+	}
+
+	// TLS.
+	switch {
+	case flags.CACert != "":
+		eff.CACert = expandHome(flags.CACert, getenv)
+	case getenv(EnvCACert) != "":
+		eff.CACert = expandHome(getenv(EnvCACert), getenv)
+	case ctx.CACert != "":
+		eff.CACert = expandHome(ctx.CACert, getenv)
+	}
+	eff.Insecure = flags.Insecure || truthy(getenv(EnvInsecure)) || ctx.Insecure
+
+	// Output.
+	switch {
+	case flags.Output != "":
+		eff.Output, eff.Sources.Output = flags.Output, SourceFlag
+	case getenv(EnvOutput) != "":
+		eff.Output, eff.Sources.Output = getenv(EnvOutput), SourceEnv
+	case file.Defaults.Output != "":
+		eff.Output, eff.Sources.Output = file.Defaults.Output, SourceContext
+	default:
+		eff.Output, eff.Sources.Output = OutputTable, SourceDefault
+	}
+	eff.Output = strings.ToLower(eff.Output)
+	switch eff.Output {
+	case OutputTable, OutputJSON, OutputYAML:
+	default:
+		return eff, fmt.Errorf("%w, got %q", ErrBadOutput, eff.Output)
+	}
+
+	// Timeout.
+	switch {
+	case flags.Timeout > 0:
+		eff.Timeout = flags.Timeout
+	case getenv(EnvTimeout) != "":
+		d, err := parseDuration(getenv(EnvTimeout))
+		if err != nil {
+			return eff, fmt.Errorf("%s: %w", EnvTimeout, err)
+		}
+		eff.Timeout = d
+	case file.Defaults.Timeout != "":
+		d, err := parseDuration(file.Defaults.Timeout)
+		if err != nil {
+			return eff, fmt.Errorf("defaults.timeout: %w", err)
+		}
+		eff.Timeout = d
+	default:
+		eff.Timeout = DefaultTimeout
+	}
+
+	eff.NoInput = flags.NoInput || truthy(getenv(EnvNoInput)) || truthy(getenv(EnvCI))
+	eff.Debug = flags.Debug || truthy(getenv(EnvDebug))
+
+	return eff, nil
+}
+
+// RequireURL is what a command that talks to the server calls first.
+func (e Effective) RequireURL() error {
+	if e.URL == "" {
+		return fmt.Errorf("%w: pass --url, set %s or run `semaphore client auth login`", ErrNoURL, EnvURL)
+	}
+	return nil
+}
+
+// readTokenFile reads a token from a file, trimming the trailing newline an
+// editor or `echo` leaves behind.
+func readTokenFile(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read token file: %w", err)
+	}
+	token := strings.TrimSpace(string(data))
+	if token == "" {
+		return "", fmt.Errorf("token file %s is empty", path)
+	}
+	return token, nil
+}
+
+// parseDuration accepts Go durations ("30s", "2m") and bare seconds ("45").
+func parseDuration(s string) (time.Duration, error) {
+	s = strings.TrimSpace(s)
+	if n, err := strconv.Atoi(s); err == nil {
+		if n <= 0 {
+			return 0, fmt.Errorf("timeout must be positive, got %d", n)
+		}
+		return time.Duration(n) * time.Second, nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, fmt.Errorf("invalid timeout %q: use seconds or a duration like 30s", s)
+	}
+	if d <= 0 {
+		return 0, fmt.Errorf("timeout must be positive, got %s", s)
+	}
+	return d, nil
+}
+
+// truthy reads an environment boolean: 1, true, yes, on (any case).
+func truthy(s string) bool {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "1", "true", "yes", "on", "y":
+		return true
+	}
+	return false
+}
+
+func joinOrNone(names []string) string {
+	if len(names) == 0 {
+		return "(none)"
+	}
+	return strings.Join(names, ", ")
+}
