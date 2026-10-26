@@ -87,6 +87,11 @@ export default {
         pageless: true,
         title: 'Host config',
         icon: 'server-network',
+      }, {
+        slug: 'environments',
+        path: 'environment',
+        title: 'Variable Groups',
+        icon: 'code-braces',
       }].filter((s) => (this.objectRefs[s.slug] || []).length > 0);
     },
   },

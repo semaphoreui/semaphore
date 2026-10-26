@@ -77,6 +77,8 @@ type ObjectReferrers struct {
 	Schedules    []ObjectReferrer `json:"schedules"`
 	AccessKeys   []ObjectReferrer `json:"access_keys"`
 	HostConfigs  []ObjectReferrer `json:"host_configs"`
+	// Environments are the variable groups whose secrets point at an access key.
+	Environments []ObjectReferrer `json:"environments"`
 }
 
 type IntegrationReferrers struct {
