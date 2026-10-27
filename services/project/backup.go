@@ -202,6 +202,14 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
+	b.environmentSecrets = make(map[int][]db.EnvironmentSecretWithKey, len(b.environments))
+	for _, env := range b.environments {
+		b.environmentSecrets[env.ID], err = store.GetEnvironmentSecretKeys(projectID, env.ID)
+		if err != nil {
+			return
+		}
+	}
+
 	schedules, err := store.GetProjectSchedules(projectID, true, true)
 	if err != nil {
 		return
@@ -321,6 +329,10 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		keys[i] = BackupAccessKey{
 			AccessKey: o,
 		}
+		if o.EnvironmentID != nil {
+			// The owner group by name; the id column itself is not exported.
+			keys[i].Environment, _ = findNameByID[db.Environment](*o.EnvironmentID, b.environments)
+		}
 	}
 
 	secretStorages := make([]BackupSecretStorage, len(b.secretStorages))
@@ -342,7 +354,19 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 	environments := make([]BackupEnvironment, len(b.environments))
 	for i, o := range b.environments {
 		environments[i] = BackupEnvironment{
-			o,
+			Environment: o,
+			Secrets:     make([]BackupEnvironmentSecret, 0),
+		}
+		for _, link := range b.environmentSecrets[o.ID] {
+			keyName, err := findNameByID[db.AccessKey](link.KeyID, b.keys)
+			if err != nil {
+				return nil, fmt.Errorf("secret %s of variable group %s: %w", link.Name, o.Name, err)
+			}
+			environments[i].Secrets = append(environments[i].Secrets, BackupEnvironmentSecret{
+				Type: string(link.Type),
+				Name: link.Name,
+				Key:  *keyName,
+			})
 		}
 	}
 

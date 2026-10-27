@@ -1007,4 +1007,11 @@ export default {
   noProjectsText: 'You are not a member of any project. Ask your Semaphore administrator to add you to one.',
   signedInAs: 'Signed in as {username} ({email})',
   signedInAsNoEmail: 'Signed in as {username}',
+  secretUseKeyStoreKey: 'Use a Key Store key instead of a value',
+  secretEnterValue: 'Enter a value instead of using a key',
+  secretSelectKey: 'Select a key',
+  secretNoStringKeys: 'No string keys in the Key Store',
+  secretLinkedToKey: 'Linked to key "{key}"',
+  secretLinkedReadOnlyHint: 'This secret reads its value from a Key Store key. Change the value in the Key Store, pick another key, or remove the secret.',
+  secretKeyRequired: 'Secret "{name}": select a key or switch to a value',
 };

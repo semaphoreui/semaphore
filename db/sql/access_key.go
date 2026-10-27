@@ -14,8 +14,15 @@ func (d *SqlDb) GetAccessKey(projectID int, accessKeyID int) (key db.AccessKey, 
 	return
 }
 
-func (d *SqlDb) GetAccessKeyRefs(projectID int, keyID int) (db.ObjectReferrers, error) {
-	return d.getObjectRefs(projectID, db.AccessKeyProps, keyID)
+func (d *SqlDb) GetAccessKeyRefs(projectID int, keyID int) (refs db.ObjectReferrers, err error) {
+	refs, err = d.getObjectRefs(projectID, db.AccessKeyProps, keyID)
+	if err != nil {
+		return
+	}
+
+	// Variable groups refer to a key through project__environment_secret, not through a column of their own.
+	refs.Environments, err = d.GetAccessKeyEnvironmentRefs(projectID, keyID)
+	return
 }
 
 func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, params db.RetrieveQueryParams) (keys []db.AccessKey, err error) {

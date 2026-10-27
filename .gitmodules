@@ -1,7 +1,3 @@
 [submodule "docs"]
 	path = docs
 	url = git@github.com:semaphoreui/semaphore-docs
-[submodule "pro_impl"]
-	path = pro_impl
-	url = git@github.com:semaphoreui/semaphorepro-module
-	update = none

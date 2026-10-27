@@ -162,12 +162,22 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				ENV:       &env,
 			})
 			printError(err)
-			_, err = store.CreateAccessKey(db.AccessKey{
+			key, err := store.CreateAccessKey(db.AccessKey{
+				Name:          secret.Name,
 				String:        secret.Secret,
 				EnvironmentID: &res.ID,
 				ProjectID:     &userProject.ID,
 				Type:          db.AccessKeyString,
 				Owner:         secret.Type.GetAccessKeyOwner(),
+			})
+			printError(err)
+			// The key alone is invisible: a group reads its secrets through the links.
+			_, err = store.CreateEnvironmentSecret(db.EnvironmentSecret{
+				ProjectID:     userProject.ID,
+				EnvironmentID: res.ID,
+				Type:          secret.Type,
+				Name:          secret.Name,
+				KeyID:         key.ID,
 			})
 			printError(err)
 			environmentID = res.ID

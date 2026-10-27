@@ -69,17 +69,70 @@ func (e BackupRole) Restore(b *BackupDB) error {
 }
 
 func (e BackupEnvironment) Verify(backup *BackupFormat) error {
-	return verifyDuplicate[BackupEnvironment](e.Name, backup.Environments)
+	if err := verifyDuplicate[BackupEnvironment](e.Name, backup.Environments); err != nil {
+		return err
+	}
+
+	seen := make(map[string]bool, len(e.Secrets))
+	for _, secret := range e.Secrets {
+		switch db.EnvironmentSecretType(secret.Type) {
+		case db.EnvironmentSecretVar, db.EnvironmentSecretEnv:
+		default:
+			return fmt.Errorf("secret %s has unknown type %q", secret.Name, secret.Type)
+		}
+		if secret.Name == "" {
+			return fmt.Errorf("secret without a name in variable group %s", e.Name)
+		}
+		if seen[secret.Type+":"+secret.Name] {
+			return fmt.Errorf("secret %s (%s) is listed twice in variable group %s", secret.Name, secret.Type, e.Name)
+		}
+		seen[secret.Type+":"+secret.Name] = true
+
+		key := findEntityByName[BackupAccessKey](&secret.Key, backup.Keys)
+		if key == nil {
+			return fmt.Errorf("secret %s of variable group %s: key %q does not exist in keys[].name", secret.Name, e.Name, secret.Key)
+		}
+		if key.Type != db.AccessKeyString {
+			return fmt.Errorf("secret %s of variable group %s: key %q is %s, only string keys can be used", secret.Name, e.Name, secret.Key, key.Type)
+		}
+	}
+	return nil
 }
 
 func (e BackupEnvironment) Restore(b *BackupDB) error {
 	env := e.Environment
 	env.ProjectID = b.meta.ID
+	env.Secrets = nil
 	newEnv, err := b.store.CreateEnvironment(env)
 	if err != nil {
 		return err
 	}
 	b.environments = append(b.environments, newEnv)
+	return nil
+}
+
+// RestoreSecrets links the group to its keys; it runs after the keys, which the group row does not need.
+func (e BackupEnvironment) RestoreSecrets(b *BackupDB) error {
+	env := findEntityByName[db.Environment](&e.Name, b.environments)
+	if env == nil {
+		return fmt.Errorf("variable group %s was not restored", e.Name)
+	}
+	for _, secret := range e.Secrets {
+		key := findEntityByName[db.AccessKey](&secret.Key, b.keys)
+		if key == nil {
+			return fmt.Errorf("secret %s: key %q was not restored", secret.Name, secret.Key)
+		}
+		_, err := b.store.CreateEnvironmentSecret(db.EnvironmentSecret{
+			ProjectID:     b.meta.ID,
+			EnvironmentID: env.ID,
+			Type:          db.EnvironmentSecretType(secret.Type),
+			Name:          secret.Name,
+			KeyID:         key.ID,
+		})
+		if err != nil {
+			return fmt.Errorf("secret %s: %w", secret.Name, err)
+		}
+	}
 	return nil
 }
 
@@ -137,6 +190,9 @@ func (e BackupSchedule) Restore(b *BackupDB) error {
 }
 
 func (e BackupAccessKey) Verify(backup *BackupFormat) error {
+	if e.Environment != nil && findEntityByName[BackupEnvironment](e.Environment, backup.Environments) == nil {
+		return fmt.Errorf("key %s: variable group %q does not exist in environments[].name", e.Name, *e.Environment)
+	}
 	return verifyDuplicate[BackupAccessKey](e.Name, backup.Keys)
 }
 
@@ -144,6 +200,15 @@ func (e BackupAccessKey) Restore(b *BackupDB) error {
 
 	key := e.AccessKey
 	key.ProjectID = &b.meta.ID
+	key.EnvironmentID = nil
+
+	if e.Environment != nil {
+		env := findEntityByName[db.Environment](e.Environment, b.environments)
+		if env == nil {
+			return fmt.Errorf("variable group %q does not exist in environments[].name", *e.Environment)
+		}
+		key.EnvironmentID = &env.ID
+	}
 
 	if e.Storage != nil {
 		storage := findEntityByName[db.SecretStorage](e.Storage, b.secretStorages)
@@ -773,6 +838,12 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 	for i, o := range backup.Keys {
 		if err := o.Restore(&b); err != nil {
 			return &newProject, fmt.Errorf("error at keys[%d]: %s", i, err.Error())
+		}
+	}
+
+	for i, o := range backup.Environments {
+		if err := o.RestoreSecrets(&b); err != nil {
+			return &newProject, fmt.Errorf("error at environments[%d] secrets: %s", i, err.Error())
 		}
 	}
 

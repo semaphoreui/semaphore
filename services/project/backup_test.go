@@ -813,3 +813,87 @@ func TestBackupJSONHasNoRoleInternals(t *testing.T) {
 		assert.NotContains(t, doc.Roles[0], key)
 	}
 }
+
+func TestBackup_VariableGroupSecretLinks(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{Name: "Links"})
+	require.NoError(t, err)
+	secret := "x"
+	shared, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Name: "db_password", Type: db.AccessKeyString, Secret: &secret})
+	require.NoError(t, err)
+	env, err := store.CreateEnvironment(db.Environment{ProjectID: proj.ID, Name: "app", JSON: "{}"})
+	require.NoError(t, err)
+	owned, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Name: "token", Type: db.AccessKeyString, Secret: &secret, Owner: db.AccessKeyVariable, EnvironmentID: &env.ID})
+	require.NoError(t, err)
+	_, err = store.CreateEnvironmentSecret(db.EnvironmentSecret{ProjectID: proj.ID, EnvironmentID: env.ID, Type: db.EnvironmentSecretEnv, Name: "DB_PASSWORD", KeyID: shared.ID})
+	require.NoError(t, err)
+	_, err = store.CreateEnvironmentSecret(db.EnvironmentSecret{ProjectID: proj.ID, EnvironmentID: env.ID, Type: db.EnvironmentSecretVar, Name: "token", KeyID: owned.ID})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+	assert.Contains(t, str, `"environment": "app"`, "the owned key names its group")
+	assert.Contains(t, str, `"key": "db_password"`)
+	assert.NotContains(t, str, `"secret"`, "no value leaves with the backup")
+
+	restored := &BackupFormat{}
+	require.NoError(t, restored.Unmarshal(str))
+	require.NoError(t, restored.Verify())
+	require.Len(t, restored.Environments[0].Secrets, 2)
+	restored.Meta.Name = "Links copy"
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "links", Name: "L", Email: "l@example.com", Admin: true}})
+	require.NoError(t, err)
+
+	newProj, err := restored.Restore(user, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	envs, err := store.GetEnvironments(newProj.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, envs, 1)
+	links, err := store.GetEnvironmentSecretKeys(newProj.ID, envs[0].ID)
+	require.NoError(t, err)
+	require.Len(t, links, 2)
+	assert.Equal(t, "DB_PASSWORD", links[0].Name)
+	assert.Equal(t, "db_password", links[0].KeyName)
+	assert.False(t, links[0].Owned)
+	assert.Equal(t, newProj.ID, *links[0].Key.ProjectID, "the link points at the restored key, not the original")
+	assert.Equal(t, "token", links[1].Name)
+	assert.True(t, links[1].Owned, "ownership of the group's own key is restored")
+	assert.Equal(t, db.AccessKeyVariable, links[1].Key.Owner)
+
+	keys, err := store.GetAccessKeys(newProj.ID, db.GetAccessKeyOptions{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, keys, 1, "the owned key stays out of the Key Store list")
+	assert.Equal(t, "db_password", keys[0].Name)
+}
+
+func TestRestore_VariableGroupSecretVerify(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload string
+		wantErr string
+	}{
+		{"unknown key", `{"meta":{"name":"p"},"keys":[{"name":"k","type":"string"}],"environments":[{"name":"e","json":"{}","secrets":[{"type":"env","name":"A","key":"missing"}]}]}`, `key "missing" does not exist`},
+		{"non-string key", `{"meta":{"name":"p"},"keys":[{"name":"k","type":"ssh"}],"environments":[{"name":"e","json":"{}","secrets":[{"type":"env","name":"A","key":"k"}]}]}`, "only string keys"},
+		{"bad type", `{"meta":{"name":"p"},"keys":[{"name":"k","type":"string"}],"environments":[{"name":"e","json":"{}","secrets":[{"type":"file","name":"A","key":"k"}]}]}`, "unknown type"},
+		{"duplicate secret", `{"meta":{"name":"p"},"keys":[{"name":"k","type":"string"}],"environments":[{"name":"e","json":"{}","secrets":[{"type":"env","name":"A","key":"k"},{"type":"env","name":"A","key":"k"}]}]}`, "listed twice"},
+		{"owner group missing", `{"meta":{"name":"p"},"keys":[{"name":"k","type":"string","owner":"variable","environment":"nope"}],"environments":[]}`, `variable group "nope" does not exist`},
+		{"valid", `{"meta":{"name":"p"},"keys":[{"name":"k","type":"string","owner":"variable","environment":"e"}],"environments":[{"name":"e","json":"{}","secrets":[{"type":"var","name":"a","key":"k"}]}]}`, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &BackupFormat{}
+			require.NoError(t, b.Unmarshal(tt.payload))
+			err := b.Verify()
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
