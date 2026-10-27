@@ -62,8 +62,24 @@ func (c *Client) RestoreProject(ctx context.Context, backup io.Reader) (db.Proje
 	return project, err
 }
 
-// ProjectMember is a user of a project with the roles granted there.
-type ProjectMember = db.UserWithProjectRoles
+// ProjectMember is a user of a project as GET /project/{id}/users returns it:
+// roles are slugs, and Role repeats the slug when there is exactly one, for
+// older clients.
+type ProjectMember struct {
+	ID          int          `json:"id"`
+	Username    string       `json:"username"`
+	Name        string       `json:"name"`
+	Role        string       `json:"role,omitempty"`
+	Roles       []string     `json:"roles"`
+	MappedRoles []MappedRole `json:"mapped_roles,omitempty"`
+}
+
+// MappedRole is a role granted through an identity-provider group mapping.
+type MappedRole struct {
+	Role     string `json:"role"`
+	Provider string `json:"provider"`
+	Group    string `json:"group"`
+}
 
 // ListProjectMembers returns the users of a project with their roles.
 func (c *Client) ListProjectMembers(ctx context.Context, projectID int) ([]ProjectMember, error) {

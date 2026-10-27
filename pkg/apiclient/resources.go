@@ -165,8 +165,10 @@ func (c *Client) DeleteRepository(ctx context.Context, projectID, repositoryID i
 
 // Schedules.
 
-func (c *Client) ListSchedules(ctx context.Context, projectID int) ([]db.Schedule, error) {
-	var items []db.Schedule
+// ListSchedules returns the project's schedules with the template name
+// (tpl_name) the UI shows next to each.
+func (c *Client) ListSchedules(ctx context.Context, projectID int) ([]db.ScheduleWithTpl, error) {
+	var items []db.ScheduleWithTpl
 	err := c.Do(ctx, http.MethodGet, projectPath(projectID, "/schedules"), nil, &items)
 	return items, err
 }

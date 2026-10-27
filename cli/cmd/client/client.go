@@ -65,6 +65,8 @@ type runtime struct {
 	prompter *Prompter
 	// interactive is true when both stdin and stdout are terminals.
 	interactive bool
+	// projectID caches the resolved project for the invocation.
+	projectID int
 }
 
 type ctxKey struct{}
@@ -155,6 +157,7 @@ stopped, 124 wait timeout, 130 interrupted.`,
 	}
 
 	cmd.AddCommand(newInfoCmd(), newAuthCmd(), newContextCmd())
+	cmd.AddCommand(resourceCommands()...)
 	silence(cmd)
 	return cmd
 }
