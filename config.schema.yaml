@@ -21,10 +21,14 @@ properties:
   # HTTP server
   # ==========================================================================
   port:
-    type: string
-    pattern: "^:?([0-9]{1,5})$"
+    oneOf:
+      - type: string
+        pattern: "^:?([0-9]{1,5})$"
+      - type: integer
+        minimum: 0
+        maximum: 65535
     default: ":3000"
-    description: TCP port the HTTP server listens on. Leading ':' optional.
+    description: TCP port the HTTP server listens on, as a string (leading ':' optional) or a bare integer.
   interface:
     type: string
     description: Bind address (empty = all interfaces).
@@ -616,7 +620,13 @@ $defs:
       node_id:
         type: string
         description: Cluster node id; auto-generated if empty.
-      redis: { $ref: "#/$defs/HARedisConfig" }
+      engine:
+        type: string
+        enum: [redis, redis_sentinel]
+        default: redis
+        description: Backend that stores the shared state and coordinates the HA nodes. `redis` reads `redis`, `redis_sentinel` reads `redis_sentinel`.
+      redis:          { $ref: "#/$defs/HARedisConfig" }
+      redis_sentinel: { $ref: "#/$defs/HARedisSentinelConfig" }
 
   MCPConfig:
     type: object
@@ -627,6 +637,7 @@ $defs:
 
   HARedisConfig:
     type: object
+    description: Single Redis server, used when engine is `redis`.
     properties:
       addr: { type: string }
       db:   { type: integer, minimum: 0 }
@@ -635,6 +646,35 @@ $defs:
         type: string
         description: Redis password (sensitive).
       tls:             { type: boolean }
+      tls_skip_verify: { type: boolean }
+
+  HARedisSentinelConfig:
+    type: object
+    description: Redis Sentinel deployment, used when engine is `redis_sentinel`.
+    properties:
+      master_name:
+        type: string
+        description: Name of the monitored master as configured in Sentinel.
+      addrs:
+        type: array
+        items: { type: string }
+        description: Sentinel addresses, host:port each.
+      sentinel_user:
+        type: string
+        description: Username for the Sentinel nodes themselves.
+      sentinel_pass:
+        type: string
+        description: Password for the Sentinel nodes themselves (sensitive).
+      db:   { type: integer, minimum: 0 }
+      user:
+        type: string
+        description: Username for the Redis data nodes.
+      pass:
+        type: string
+        description: Password for the Redis data nodes (sensitive).
+      tls:
+        type: boolean
+        description: TLS for both the Sentinel and the Redis data-node connections.
       tls_skip_verify: { type: boolean }
 
   AuditConfig:

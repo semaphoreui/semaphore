@@ -37,10 +37,15 @@ type ClusterInspector interface {
 
 // Stubs – these are replaced by pro_impl via Go workspace.
 
-func NewNodeRegistry() NodeRegistry                           { return nil }
-func NewScheduleDeduplicator() schedules.ScheduleDeduplicator { return nil }
-func NewWSBroadcaster() sockets.Broadcaster                   { return nil }
-func NewOrphanCleaner(_ db.Store) OrphanCleaner               { return nil }
-func NewClusterInspector() ClusterInspector                   { return nil }
-func NewWorkflowRunLocker() pro_interfaces.WorkflowRunLocker  { return nil }
-func NewAuditExportLeaser() pro_interfaces.AuditExportLeaser  { return nil }
+// NewHARedis returns the shared HA Redis connection, nil in the open-source build.
+func NewHARedis() pro_interfaces.HARedis { return nil }
+
+func NewNodeRegistry(_ pro_interfaces.HARedis) NodeRegistry                           { return nil }
+func NewScheduleDeduplicator(_ pro_interfaces.HARedis) schedules.ScheduleDeduplicator { return nil }
+func NewWSBroadcaster(_ pro_interfaces.HARedis) sockets.Broadcaster                   { return nil }
+func NewOrphanCleaner(_ pro_interfaces.HARedis, _ pro_interfaces.NodeRegistry, _ db.Store) OrphanCleaner {
+	return nil
+}
+func NewClusterInspector(_ pro_interfaces.HARedis) ClusterInspector                  { return nil }
+func NewWorkflowRunLocker(_ pro_interfaces.HARedis) pro_interfaces.WorkflowRunLocker { return nil }
+func NewAuditExportLeaser(_ pro_interfaces.HARedis) pro_interfaces.AuditExportLeaser { return nil }

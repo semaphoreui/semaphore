@@ -18,7 +18,6 @@ type SystemInfoController struct {
 
 type SystemInfo struct {
 	Version           string                  `json:"version"`
-	Ansible           string                  `json:"ansible"`
 	WebHost           string                  `json:"web_host"`
 	UseRemoteRunner   bool                    `json:"use_remote_runner"`
 	AuthMethods       LoginAuthMethods        `json:"auth_methods"`
@@ -106,7 +105,6 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	body := SystemInfo{
 		Version:           util.Version(),
-		Ansible:           util.AnsibleVersion(),
 		WebHost:           util.Config.WebHost,
 		UseRemoteRunner:   util.Config.IsUseRemoteRunner(),
 		AuthMethods:       authMethods,
