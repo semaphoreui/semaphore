@@ -565,7 +565,15 @@ func newProjectGetCmd(res resource[db.Project]) *cobra.Command {
 func resourceCommands() []*cobra.Command {
 	projects := projectResource()
 	templates := templateResource()
+	inventories := inventoryResource()
+	environments := environmentResource()
+	keys := keyResource()
+	repositories := repositoryResource()
+	schedules := scheduleResource()
 	views := viewResource()
+	users := userResource()
+	runners := runnerResource()
+	members := memberResource()
 
 	projectCmd := &cobra.Command{
 		Use:     projects.kind,
@@ -574,19 +582,42 @@ func resourceCommands() []*cobra.Command {
 		Args:    cobra.NoArgs,
 		RunE:    func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	projectCmd.AddCommand(projects.listCmd(), newProjectGetCmd(projects), memberResource().newCmd())
+	memberCmd := members.newCmd(newMemberAddCmd(members, users), newMemberUpdateCmd(members), newMemberRemoveCmd(members))
+	projectCmd.AddCommand(projects.listCmd(), newProjectGetCmd(projects), newProjectCreateCmd(projects))
+	projectCmd.AddCommand(projectMutable(projects).commands()...)
+	projectCmd.AddCommand(newProjectDeleteCmd(projects), newProjectBackupCmd(projects), newProjectRestoreCmd(projects), memberCmd)
+
+	templateCmd := templates.newCmd(newTemplateTasksCmd(templates), newTemplateRunCmd(templates), newTemplateStopAllCmd(templates))
+	templateCmd.AddCommand(templateMutable(templates).commands()...)
+
+	inventoryCmd := inventories.newCmd(inventoryMutable(inventories).commands()...)
+	environmentCmd := environments.newCmd(environmentMutable(environments).commands()...)
+	keyCmd := keys.newCmd(keyMutable(keys).commands()...)
+	repositoryCmd := repositories.newCmd(repositoryMutable(repositories).commands()...)
+
+	scheduleCmd := schedules.newCmd(newScheduleActiveCmd(schedules, true), newScheduleActiveCmd(schedules, false), newScheduleValidateCmd())
+	scheduleCmd.AddCommand(scheduleMutable(schedules).commands()...)
+
+	viewCmd := views.newCmd(newViewTemplatesCmd(views, templates))
+	viewCmd.AddCommand(viewMutable(views).commands()...)
+
+	userCmd := users.newCmd(newUserCreateCmd(users), newUserSetPasswordCmd(users))
+	userCmd.AddCommand(userMutable(users).commands()...)
+
+	runnerCmd := runners.newCmd(newRunnerCreateCmd(runners), newRunnerActiveCmd(runners, true), newRunnerActiveCmd(runners, false), newRunnerTokenCmd(runners), newRunnerClearCacheCmd(runners))
+	runnerCmd.AddCommand(runnerMutable(runners).commands()...)
 
 	return []*cobra.Command{
 		projectCmd,
-		templates.newCmd(newTemplateTasksCmd(templates), newTemplateRunCmd(templates)),
+		templateCmd,
 		newTaskCmd(templates),
-		inventoryResource().newCmd(),
-		environmentResource().newCmd(),
-		keyResource().newCmd(),
-		repositoryResource().newCmd(),
-		scheduleResource().newCmd(),
-		views.newCmd(newViewTemplatesCmd(views, templates)),
-		userResource().newCmd(),
-		runnerResource().newCmd(),
+		inventoryCmd,
+		environmentCmd,
+		keyCmd,
+		repositoryCmd,
+		scheduleCmd,
+		viewCmd,
+		userCmd,
+		runnerCmd,
 	}
 }
