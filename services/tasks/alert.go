@@ -118,7 +118,7 @@ func (t *TaskRunner) sendMailAlert() {
 			fmt.Sprintf("Task '%s' failed", t.Template.Name),
 			str,
 		); err != nil {
-			util.LogError(err)
+			t.Logf("Can't send email alert to %s: %v", user.Email, err)
 			continue
 		}
 
