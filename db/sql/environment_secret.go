@@ -121,7 +121,8 @@ func (d *SqlDb) UpdateEnvironmentSecret(secret db.EnvironmentSecret) error {
 		return err
 	}
 	if affected == 0 {
-		return db.ErrNotFound
+		_, err = d.GetEnvironmentSecret(secret.ProjectID, secret.EnvironmentID, secret.ID)
+		return err
 	}
 	return nil
 }
