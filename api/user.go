@@ -153,7 +153,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt *time.Time `json:"expires_at"`
 	}
 	if r.ContentLength > 0 {
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil && err != io.EOF {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -200,7 +200,7 @@ func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, token := range tokens {
-		err = helpers.Store(r).DeleteAPIToken(user.ID, token.ID, db.APITokenTypeAPI)
+		err = helpers.Store(r).DeleteAPIToken(user.ID, token.ID)
 		if errors.Is(err, db.ErrNotFound) {
 			continue
 		}

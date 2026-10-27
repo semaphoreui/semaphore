@@ -228,7 +228,7 @@ func (s scriptedTokenDelete) GetAPITokensByPrefix(int, string, db.APITokenType) 
 	return []db.APIToken{{ID: "abcdefgh1111", Name: "first"}, {ID: "abcdefgh2222", Name: "second"}}, nil
 }
 
-func (s scriptedTokenDelete) DeleteAPIToken(_ int, tokenID string, _ db.APITokenType) error {
+func (s scriptedTokenDelete) DeleteAPIToken(_ int, tokenID string) error {
 	return s.deleteErr[tokenID]
 }
 

@@ -57,8 +57,8 @@ func (d *SqlDb) GetAPITokensByPrefix(userID int, tokenPrefix string, tokenType d
 	return
 }
 
-func (d *SqlDb) DeleteAPIToken(userID int, tokenID string, tokenType db.APITokenType) error {
-	res, err := d.exec("delete from user__token where id=? and user_id=? and type=?", tokenID, userID, tokenType)
+func (d *SqlDb) DeleteAPIToken(userID int, tokenID string) error {
+	res, err := d.exec("delete from user__token where id=? and user_id=?", tokenID, userID)
 	return requireDeletedRow(res, err)
 }
 

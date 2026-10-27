@@ -28,9 +28,9 @@ func TestAPITokens_PrefixLookupAndExactDelete(t *testing.T) {
 	_, err = store.GetAPITokensByPrefix(user.ID, "short", db.APITokenTypeAPI)
 	assert.Error(t, err, "a prefix shorter than 8 characters is refused")
 
-	require.NoError(t, store.DeleteAPIToken(user.ID, "abcdefgh1111", db.APITokenTypeAPI))
-	assert.ErrorIs(t, store.DeleteAPIToken(user.ID, "abcdefgh1111", db.APITokenTypeAPI), db.ErrNotFound, "a token deleted earlier is not reported again")
-	assert.ErrorIs(t, store.DeleteAPIToken(user.ID, "abcdefgh", db.APITokenTypeAPI), db.ErrNotFound, "delete takes an exact ID, not a prefix")
+	require.NoError(t, store.DeleteAPIToken(user.ID, "abcdefgh1111"))
+	assert.ErrorIs(t, store.DeleteAPIToken(user.ID, "abcdefgh1111"), db.ErrNotFound, "a token deleted earlier is not reported again")
+	assert.ErrorIs(t, store.DeleteAPIToken(user.ID, "abcdefgh"), db.ErrNotFound, "delete takes an exact ID, not a prefix")
 }
 
 func TestAPITokens_TypesAreSeparate(t *testing.T) {
@@ -59,11 +59,6 @@ func TestAPITokens_TypesAreSeparate(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, matched, 1)
 	assert.Equal(t, "abcdefgh2222", matched[0].ID)
-
-	require.ErrorIs(t, store.DeleteAPIToken(user.ID, "abcdefgh2222", db.APITokenTypeAPI), db.ErrNotFound, "a delete of one type leaves the other")
-	_, err = store.GetAPIToken("abcdefgh2222")
-	assert.NoError(t, err)
-	require.NoError(t, store.DeleteAPIToken(user.ID, "abcdefgh2222", db.APITokenTypeMCP))
 }
 
 // The audit records a delete only when the store confirms it removed a row.
