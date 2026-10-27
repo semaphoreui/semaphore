@@ -441,11 +441,12 @@ type SessionManager interface {
 
 // TokenManager handles token-related operations. Methods that take a token
 // type see the tokens of that type only: a token of another type is not found.
+// GetAPIToken finds a token of any type; token.Type says which.
 type TokenManager interface {
 	GetAPITokens(userID int, tokenType APITokenType) ([]APIToken, error)
 	// CreateAPIToken stores the token with the given type, whatever token.Type holds.
 	CreateAPIToken(tokenType APITokenType, token APIToken) (APIToken, error)
-	GetAPIToken(tokenID string, tokenType APITokenType) (APIToken, error)
+	GetAPIToken(tokenID string) (APIToken, error)
 	ExpireAPIToken(userID int, tokenID string) error
 	GetAPITokensByPrefix(userID int, tokenPrefix string, tokenType APITokenType) ([]APIToken, error)
 	DeleteAPIToken(userID int, tokenID string, tokenType APITokenType) error

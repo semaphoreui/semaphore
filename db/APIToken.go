@@ -7,14 +7,15 @@ import (
 	"time"
 )
 
-// APITokenType says where a user token is accepted. A token of one type is
-// unknown everywhere else.
+// APITokenType says where a user token is accepted and on which routes it is
+// listed, issued and revoked.
 type APITokenType string
 
 const (
 	// APITokenTypeAPI is accepted by the REST API.
 	APITokenTypeAPI APITokenType = "api"
-	// APITokenTypeMCP is accepted by the MCP endpoint only.
+	// APITokenTypeMCP is accepted by the MCP endpoint and the REST API: MCP
+	// tools call the REST API with the token of the MCP request.
 	APITokenTypeMCP APITokenType = "mcp"
 )
 
@@ -26,8 +27,8 @@ type APIToken struct {
 	ExpiresAt *time.Time `db:"expires_at" json:"expires_at,omitempty"`
 	UserID    int        `db:"user_id" json:"user_id"`
 	Name      string     `db:"name" json:"name"`
-	// Type is set by the store from the type it is asked for; each route
-	// serves one type, so it is not sent to clients.
+	// Type is read from the row; each token route serves one type, so it is
+	// not sent to clients.
 	Type APITokenType `db:"type" json:"-"`
 }
 

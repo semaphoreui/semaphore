@@ -265,17 +265,11 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 
 	authHeader := strings.ToLower(r.Header.Get("authorization"))
 
-	if caller, internal := helpers.InternalCallerFrom(r.Context()); internal {
-		if !validInternalCaller(r, caller) {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		userID, authMethod, tokenFingerprint = caller.UserID, caller.Auth, caller.TokenFingerprint
-	} else if len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
+	if len(authHeader) > 0 && strings.Contains(authHeader, "bearer") {
 		tokenID := strings.Replace(authHeader, "bearer ", "", 1)
 		tokenFingerprint = audit.TokenFingerprint(tokenID)
 
-		token, err := helpers.Store(r).GetAPIToken(tokenID, db.APITokenTypeAPI)
+		token, err := helpers.Store(r).GetAPIToken(tokenID)
 
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
@@ -306,7 +300,11 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 		}
 
 		userID = token.UserID
+		// MCP tokens are accepted too: MCP tools call REST with the token of the MCP request.
 		authMethod = audit.AuthAPIToken
+		if token.Type == db.APITokenTypeMCP {
+			authMethod = audit.AuthMCPToken
+		}
 	} else {
 		session, found := getSession(r)
 

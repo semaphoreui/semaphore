@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
@@ -46,14 +47,32 @@ func TestCreateAPIToken_IgnoresTypeInBody(t *testing.T) {
 	assert.NotContains(t, fields, "type", "the token type is not sent to clients")
 	var token db.APIToken
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &token))
-	_, err := store.GetAPIToken(token.ID, db.APITokenTypeAPI)
-	assert.NoError(t, err, "the REST API issues REST API tokens whatever the body says")
+	stored, err := store.GetAPIToken(token.ID)
+	require.NoError(t, err)
+	assert.Equal(t, db.APITokenTypeAPI, stored.Type, "the REST API issues REST API tokens whatever the body says")
 }
 
-func TestAuthentication_MCPTokenIsUnknownToREST(t *testing.T) {
+// MCP tools call REST with the token of the MCP request, so REST takes MCP
+// tokens as well; the audit tells them apart.
+func TestAuthentication_MCPTokenActor(t *testing.T) {
 	store := setupSessionTest(t)
 	user := createUserOptionsTestUser(t, store, "alice")
 	_, err := store.CreateAPIToken(db.APITokenTypeMCP, db.APIToken{ID: "mcptoken1234567890", UserID: user.ID, Name: "agent"})
+	require.NoError(t, err)
+
+	r, rec := withAuditRecorder(bearerRequest(store, "mcptoken1234567890"))
+	ok, req := authenticationHandler(httptest.NewRecorder(), r)
+
+	require.True(t, ok)
+	assert.Empty(t, rec.All())
+	assert.Equal(t, audit.UserActor(user.ID, "alice", audit.AuthMCPToken, audit.TokenFingerprint("mcptoken1234567890")), audit.ActorFrom(req.Context()))
+}
+
+func TestAuthentication_ExpiredMCPTokenIsRefused(t *testing.T) {
+	store := setupSessionTest(t)
+	user := createUserOptionsTestUser(t, store, "alice")
+	past := time.Now().Add(-time.Hour)
+	_, err := store.CreateAPIToken(db.APITokenTypeMCP, db.APIToken{ID: "mcptoken1234567890", UserID: user.ID, ExpiresAt: &past, Name: "agent"})
 	require.NoError(t, err)
 
 	r, rec := withAuditRecorder(bearerRequest(store, "mcptoken1234567890"))
@@ -62,9 +81,7 @@ func TestAuthentication_MCPTokenIsUnknownToREST(t *testing.T) {
 
 	assert.False(t, ok)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
-	got := onlyEvent(t, rec, audit.AuthAPITokenReject)
-	assert.Equal(t, audit.ReasonTokenUnknown, got.Event.Reason)
-	assert.Equal(t, &audit.Target{Type: audit.TargetAPIToken, ID: audit.TokenFingerprint("mcptoken1234567890")}, got.Event.Target)
+	assert.Equal(t, audit.ReasonTokenExpired, onlyEvent(t, rec, audit.AuthAPITokenReject).Event.Reason)
 }
 
 func TestGetAPITokens_HidesMCPTokens(t *testing.T) {
@@ -100,8 +117,8 @@ func TestDeleteAPIToken_LeavesMCPTokens(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
 	assert.Equal(t, "rest", onlyEvent(t, rec, audit.IAMAPITokenDelete).Event.Target.Name)
-	_, err = store.GetAPIToken("abcdefgh1111", db.APITokenTypeAPI)
+	_, err = store.GetAPIToken("abcdefgh1111")
 	require.ErrorIs(t, err, db.ErrNotFound)
-	_, err = store.GetAPIToken("abcdefgh2222", db.APITokenTypeMCP)
+	_, err = store.GetAPIToken("abcdefgh2222")
 	assert.NoError(t, err, "a REST revoke by prefix does not touch an MCP token")
 }

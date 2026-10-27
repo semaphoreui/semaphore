@@ -31,8 +31,8 @@ func (d *SqlDb) CreateAPIToken(tokenType db.APITokenType, token db.APIToken) (db
 	return token, err
 }
 
-func (d *SqlDb) GetAPIToken(tokenID string, tokenType db.APITokenType) (token db.APIToken, err error) {
-	err = d.selectOne(&token, d.PrepareQuery("select * from user__token where id=? and type=? and expired=false"), tokenID, tokenType)
+func (d *SqlDb) GetAPIToken(tokenID string) (token db.APIToken, err error) {
+	err = d.selectOne(&token, d.PrepareQuery("select * from user__token where id=? and expired=false"), tokenID)
 
 	return
 }

@@ -128,7 +128,7 @@ func Route(
 	systemInfoController := NewSystemInfoController(subscriptionService)
 
 	r := mux.NewRouter()
-	r.NotFoundHandler = denyInternalCallerMiddleware(http.HandlerFunc(servePublic))
+	r.NotFoundHandler = http.HandlerFunc(servePublic)
 
 	if util.Config.Debugging.ApiDelay != "" {
 		delay, err := time.ParseDuration(util.Config.Debugging.ApiDelay)
@@ -150,26 +150,24 @@ func Route(
 
 	r.Use(mux.CORSMethodMiddleware(r))
 
-	// In-process calls (helpers.InternalCaller) reach only authenticatedAPI.
-	r.Path("/.well-known/jwks.json").Methods("GET", "HEAD").Handler(
-		denyInternalCallerMiddleware(http.HandlerFunc(jwksController.GetJWKS)))
+	r.Path("/.well-known/jwks.json").Methods("GET", "HEAD").HandlerFunc(jwksController.GetJWKS)
 
 	pingRouter := r.Path(webPath + "api/ping").Subrouter()
-	pingRouter.Use(denyInternalCallerMiddleware, plainTextMiddleware)
+	pingRouter.Use(plainTextMiddleware)
 	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)
 
 	// MCP checks access itself and answers with its own content types, so it
 	// stays outside the shared /api groups (JSON responses, session and API-token auth).
-	// Its tools call the REST API through r, with the same permissions as the user.
+	// Its tools call the REST API through r with the token of the MCP request.
 	mcpController := proApi.NewMCPController(util.MCPEnabled(), store, r, webPath)
 	r.Path(webPath + "api/mcp").Handler(mcpController)
 
 	metricsRouter := r.Path(webPath + "api/metrics").Subrouter()
-	metricsRouter.Use(denyInternalCallerMiddleware, metricsAuthMiddleware)
+	metricsRouter.Use(metricsAuthMiddleware)
 	metricsRouter.Methods("GET", "HEAD").Handler(appMetrics)
 
 	publicAPIRouter := r.PathPrefix(webPath + "api").Subrouter()
-	publicAPIRouter.Use(denyInternalCallerMiddleware, StoreMiddleware, JSONMiddleware)
+	publicAPIRouter.Use(StoreMiddleware, JSONMiddleware)
 
 	publicAPIRouter.HandleFunc("/auth/login", login).Methods("GET", "POST")
 	publicAPIRouter.HandleFunc("/auth/verify", verifySession).Methods("POST")
@@ -190,7 +188,7 @@ func Route(
 	runnersAPI.Path("").HandlerFunc(runners.UnregisterRunner).Methods("DELETE")
 
 	publicWebHookRouter := r.PathPrefix(webPath + "api").Subrouter()
-	publicWebHookRouter.Use(denyInternalCallerMiddleware, StoreMiddleware, JSONMiddleware)
+	publicWebHookRouter.Use(StoreMiddleware, JSONMiddleware)
 	publicWebHookRouter.Path("/integrations/{integration_alias}").HandlerFunc(
 		integrationController.ReceiveIntegration).Methods("POST", "GET", "OPTIONS")
 
@@ -202,7 +200,7 @@ func Route(
 	terraformWebhookRouter.Path("/{alias}").HandlerFunc(terraformController.UnlockTerraformState).Methods("UNLOCK")
 
 	authenticatedWS := r.PathPrefix(webPath + "api").Subrouter()
-	authenticatedWS.Use(denyInternalCallerMiddleware, JSONMiddleware, authenticationWithStore)
+	authenticatedWS.Use(JSONMiddleware, authenticationWithStore)
 	authenticatedWS.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 
 	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
@@ -229,20 +227,16 @@ func Route(
 
 	authenticatedAPI.Path("/apps").HandlerFunc(getApps).Methods("GET", "HEAD")
 
-	// Tokens are managed only by the user signed in directly.
 	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
-	tokenAPI.Use(denyInternalCallerMiddleware)
 	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
 	tokenAPI.HandleFunc("/tokens/{token_id}", deleteAPIToken).Methods("DELETE")
 	tokenAPI.Path("/mcp-tokens").HandlerFunc(mcpTokenController.GetTokens).Methods("GET", "HEAD")
 	tokenAPI.Path("/mcp-tokens").HandlerFunc(mcpTokenController.CreateToken).Methods("POST")
 	tokenAPI.HandleFunc("/mcp-tokens/{token_id}", mcpTokenController.DeleteToken).Methods("DELETE")
-
-	userSettingsAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
-	userSettingsAPI.Path("/options").HandlerFunc(getUserOptions).Methods("GET", "HEAD")
-	userSettingsAPI.Path("/options").HandlerFunc(setUserOption).Methods("POST")
-	userSettingsAPI.Path("/identities/ldap").HandlerFunc(linkLdapIdentity).Methods("POST")
+	tokenAPI.Path("/options").HandlerFunc(getUserOptions).Methods("GET", "HEAD")
+	tokenAPI.Path("/options").HandlerFunc(setUserOption).Methods("POST")
+	tokenAPI.Path("/identities/ldap").HandlerFunc(linkLdapIdentity).Methods("POST")
 
 	auditAPI := authenticatedAPI.PathPrefix("/audit").Subrouter()
 	auditAPI.Use(auditLogMiddleware)

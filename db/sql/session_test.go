@@ -43,13 +43,12 @@ func TestAPITokens_TypesAreSeparate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, db.APITokenTypeMCP, created.Type, "the type argument wins over token.Type")
 
-	got, err := store.GetAPIToken("abcdefgh2222", db.APITokenTypeMCP)
+	got, err := store.GetAPIToken("abcdefgh2222")
 	require.NoError(t, err)
-	assert.Equal(t, db.APITokenTypeMCP, got.Type)
-	_, err = store.GetAPIToken("abcdefgh2222", db.APITokenTypeAPI)
-	require.ErrorIs(t, err, db.ErrNotFound, "an MCP token is unknown to a REST lookup")
-	_, err = store.GetAPIToken("abcdefgh1111", db.APITokenTypeMCP)
-	require.ErrorIs(t, err, db.ErrNotFound, "a REST token is unknown to an MCP lookup")
+	assert.Equal(t, db.APITokenTypeMCP, got.Type, "a lookup by value finds a token of any type and says which")
+	got, err = store.GetAPIToken("abcdefgh1111")
+	require.NoError(t, err)
+	assert.Equal(t, db.APITokenTypeAPI, got.Type)
 
 	listed, err := store.GetAPITokens(user.ID, db.APITokenTypeAPI)
 	require.NoError(t, err)
@@ -62,7 +61,7 @@ func TestAPITokens_TypesAreSeparate(t *testing.T) {
 	assert.Equal(t, "abcdefgh2222", matched[0].ID)
 
 	require.ErrorIs(t, store.DeleteAPIToken(user.ID, "abcdefgh2222", db.APITokenTypeAPI), db.ErrNotFound, "a delete of one type leaves the other")
-	_, err = store.GetAPIToken("abcdefgh2222", db.APITokenTypeMCP)
+	_, err = store.GetAPIToken("abcdefgh2222")
 	assert.NoError(t, err)
 	require.NoError(t, store.DeleteAPIToken(user.ID, "abcdefgh2222", db.APITokenTypeMCP))
 }
