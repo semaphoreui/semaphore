@@ -35,6 +35,8 @@ type IO struct {
 	// forceInteractive makes the runtime behave as if stdin and stdout were
 	// terminals. Tests use it to drive prompts through buffers.
 	forceInteractive bool
+	// pollInterval overrides the task polling interval (tests).
+	pollInterval time.Duration
 }
 
 // StdIO is the IO of a real process.
@@ -67,6 +69,8 @@ type runtime struct {
 	interactive bool
 	// projectID caches the resolved project for the invocation.
 	projectID int
+	// pollInterval is how often waiting commands ask the server; tests shorten it.
+	pollInterval time.Duration
 }
 
 type ctxKey struct{}
@@ -209,12 +213,13 @@ func newRuntime(cmd *cobra.Command, stdio IO, f *flags) (*runtime, error) {
 	outTTY := stdio.forceInteractive || output.IsTerminal(stdio.Out)
 
 	r := &runtime{
-		io:          stdio,
-		flags:       f,
-		cfg:         cfg,
-		cfgFile:     cfgFile,
-		cfgPath:     cfgPath,
-		interactive: interactive,
+		io:           stdio,
+		flags:        f,
+		cfg:          cfg,
+		cfgFile:      cfgFile,
+		cfgPath:      cfgPath,
+		interactive:  interactive,
+		pollInterval: stdio.pollInterval,
 		printer: output.New(stdio.Out, output.Options{
 			Format:    cfg.Output,
 			Fields:    f.fields,

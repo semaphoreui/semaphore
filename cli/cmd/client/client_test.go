@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/cli/cmd/client/config"
 	"github.com/semaphoreui/semaphore/pkg/apiclient"
@@ -44,6 +45,7 @@ func runWith(t *testing.T, env map[string]string, stdin string, interactive bool
 		Version: "2.20.0-test",
 
 		forceInteractive: interactive,
+		pollInterval:     5 * time.Millisecond,
 	})
 	cmd.SetArgs(args)
 	cmd.SetOut(&out)

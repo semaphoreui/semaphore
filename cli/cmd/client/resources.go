@@ -578,7 +578,8 @@ func resourceCommands() []*cobra.Command {
 
 	return []*cobra.Command{
 		projectCmd,
-		templates.newCmd(newTemplateTasksCmd(templates)),
+		templates.newCmd(newTemplateTasksCmd(templates), newTemplateRunCmd(templates)),
+		newTaskCmd(templates),
 		inventoryResource().newCmd(),
 		environmentResource().newCmd(),
 		keyResource().newCmd(),
