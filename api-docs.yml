@@ -816,7 +816,7 @@ definitions:
         description: The workflow the integration starts instead of a template (Pro). Extracted values become the answers to the workflow's survey.
       auth_method:
         type: string
-        example: none
+        example: ""
       auth_secret_id:
         type: integer
         x-nullable: true
@@ -847,7 +847,7 @@ definitions:
         description: The workflow to start instead of a template (Pro). task_params do not apply to a workflow and are dropped.
       auth_method:
         type: string
-        example: none
+        example: ""
       auth_secret_id:
         type: integer
         x-nullable: true
@@ -984,7 +984,7 @@ definitions:
         type: boolean
         description: Share one checkout of this repository between all templates instead of cloning it per template. Templates of a monorepo can not have a branch of their own or let tasks override the branch or commit.
         example: false
-  
+
   Repository:
     type: object
     properties:
@@ -2662,7 +2662,7 @@ paths:
           description: Created project
           schema:
             $ref: "#/definitions/Project"
-  
+
   /projects/restore:
     post:
       tags:
@@ -2692,7 +2692,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Event'
-  
+
   /events/last:
     get:
       summary: Get last 200 Events related to Semaphore and projects you are part of
@@ -3031,7 +3031,7 @@ paths:
           description: Integration Created
           schema:
             $ref: "#/definitions/Integration"
-  
+
   /project/{project_id}/integrations/{integration_id}:
     parameters:
       - $ref: "#/parameters/project_id"
