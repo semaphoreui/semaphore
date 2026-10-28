@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div v-if="!isLoaded" data-testid="template-page" data-state="loading">
     <v-progress-linear
       indeterminate
@@ -73,7 +73,7 @@
         @click="showDrawer()"
         data-testid="template-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title class="breadcrumbs" data-testid="template-title">
+      <v-toolbar-title class="breadcrumbs flex-0-1" data-testid="template-title">
         <router-link
           class="breadcrumbs__item breadcrumbs__item--link"
           data-testid="template-breadcrumbTemplates"
@@ -91,11 +91,12 @@
 
       <v-spacer></v-spacer>
 
-      <v-menu offset-y v-if="canStop">
+      <v-menu location="bottom" v-if="canStop">
         <template v-slot:activator="{ props }">
           <v-btn
             v-bind="props"
             color="grey"
+            variant="elevated"
             class="mr-3 pr-2"
             :disabled="stopAllTasksProgress"
             data-testid="template-stopAllMenu"
@@ -109,18 +110,18 @@
             @click="stopAllDialog = true"
             data-testid="template-stopAllMenu-stop"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-stop</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>{{ $t('stop') }}</v-list-item-title>
           </v-list-item>
           <v-list-item
             @click="forceStopAllDialog = true"
             data-testid="template-stopAllMenu-forceStop"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-alert-octagon</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>{{ $t('forceStop') }}</v-list-item-title>
           </v-list-item>
         </v-list>

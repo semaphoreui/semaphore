@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div v-if="tasks != null">
 
     <NewTaskDialog
@@ -13,6 +13,7 @@
       :headers="headers"
       :items="tasks"
       :items-per-page="-1"
+      :mobile-breakpoint="600"
       :loading="loading"
       hide-default-footer
       class="mt-0 TaskListTable"
@@ -62,11 +63,11 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle density="compact" :value-comparator="() => false">
+        <v-btn-group density="compact">
           <v-btn @click="createTask(item)" data-testid="taskList-rowRerun">
             <v-icon>mdi-replay</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
 
@@ -86,6 +87,7 @@
         :items="perPageOptions"
         class="TaskListPerPage mr-4"
         density="compact"
+        variant="underlined"
         hide-details
         style="max-width: 72px;"
         data-testid="taskList-perPage"
@@ -145,38 +147,38 @@ export default {
     return {
       headers: [
         {
-          text: this.$t('taskId'),
-          value: 'id',
+          title: this.$t('taskId'),
+          key: 'id',
           sortable: false,
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         },
         {
-          text: this.$t('version'),
-          value: 'version',
+          title: this.$t('version'),
+          key: 'version',
           sortable: false,
         },
         {
-          text: this.$t('status'),
-          value: 'status',
+          title: this.$t('status'),
+          key: 'status',
           sortable: false,
         },
         {
-          text: this.$t('user'),
-          value: 'user_name',
+          title: this.$t('user'),
+          key: 'user_name',
           sortable: false,
         },
         {
-          text: this.$t('start'),
-          value: 'start',
+          title: this.$t('start'),
+          key: 'start',
           sortable: false,
         },
         {
-          text: this.$t('duration'),
-          value: 'end',
+          title: this.$t('duration'),
+          key: 'end',
           sortable: false,
         },
       ],

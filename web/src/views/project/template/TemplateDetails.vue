@@ -2,11 +2,11 @@
   <v-container fluid class="pb-0 mt-8" data-testid="template-details">
     <v-row class="mb-2">
       <v-col>
-        <v-list subheader>
+        <v-list>
           <v-list-item>
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-book-play</v-icon>
-            </v-list-item-icon>
+            </template>
 
               <v-list-item-title>{{ $t('playbook') }}</v-list-item-title>
               <v-list-item-subtitle
@@ -16,11 +16,11 @@
         </v-list>
       </v-col>
       <v-col>
-        <v-list subheader>
+        <v-list>
           <v-list-item>
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>{{ TEMPLATE_TYPE_ICONS[template.type] }}</v-icon>
-            </v-list-item-icon>
+            </template>
 
               <v-list-item-title>{{ $t('type') }}</v-list-item-title>
               <v-list-item-subtitle
@@ -31,11 +31,11 @@
         </v-list>
       </v-col>
       <v-col>
-        <v-list subheader>
+        <v-list>
           <v-list-item>
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-monitor</v-icon>
-            </v-list-item-icon>
+            </template>
 
               <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
               <v-list-item-subtitle data-testid="template-detailsInventory">
@@ -45,11 +45,11 @@
         </v-list>
       </v-col>
       <v-col>
-        <v-list subheader>
+        <v-list>
           <v-list-item>
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-code-braces</v-icon>
-            </v-list-item-icon>
+            </template>
               <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
               <v-list-item-subtitle data-testid="template-detailsEnvironment">
                 {{ environmentNames }}
@@ -58,11 +58,11 @@
         </v-list>
       </v-col>
       <v-col>
-        <v-list subheader>
+        <v-list>
           <v-list-item>
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-git</v-icon>
-            </v-list-item-icon>
+            </template>
               <v-list-item-title>{{ $t('repository2') }}</v-list-item-title>
               <v-list-item-subtitle data-testid="template-detailsRepository">
                 {{ repositories.find((x) => x.id === template.repository_id).name }}
