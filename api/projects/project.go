@@ -65,6 +65,19 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			permissions |= grants
 		}
 
+		if helpers.HasParam("workflow_id", r) {
+			workflowID, workflowOk := helpers.GetIntParamOrAbort("workflow_id", w, r)
+			if !workflowOk {
+				return
+			}
+			grants, err := helpers.Store(r).GetWorkflowPermission(project.ID, workflowID, user.ID)
+			if err != nil {
+				helpers.WriteError(w, err)
+				return
+			}
+			permissions |= grants
+		}
+
 		r = helpers.SetContextValue(r, "projectMember", member)
 		r = helpers.SetContextValue(r, "permissions", permissions)
 		r = helpers.SetContextValue(r, "project", project)
