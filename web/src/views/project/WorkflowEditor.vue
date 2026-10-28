@@ -80,6 +80,7 @@
 
       <v-btn
         icon
+        variant="text"
         :disabled="!canUndo"
         :title="$t('workflowUndo')"
         @click="undo()"
@@ -89,6 +90,7 @@
       </v-btn>
       <v-btn
         icon
+        variant="text"
         :disabled="!canRedo"
         :title="$t('workflowRedo')"
         class="mr-2"
@@ -98,7 +100,7 @@
         <v-icon>mdi-redo</v-icon>
       </v-btn>
 
-      <v-menu v-if="problems.length > 0" offset-y :close-on-content-click="true">
+      <v-menu v-if="problems.length > 0" location="bottom" :close-on-content-click="true">
         <template v-slot:activator="{ props }">
           <v-chip
             size="small"
@@ -119,9 +121,9 @@
             @click="focusProblem(p)"
             data-testid="workflowEditor-problemsMenu-item"
           >
-            <v-list-item-icon class="mr-2">
+            <template v-slot:prepend>
               <v-icon size="small" color="warning">mdi-alert</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>{{ p.text }}</v-list-item-title>
           </v-list-item>
         </v-list>
@@ -142,7 +144,6 @@
         :model-value="dirty"
         dot
         color="warning"
-        overlap
         offset-x="8"
         offset-y="8"
         data-testid="workflowEditor-unsavedBadge"
@@ -859,6 +860,18 @@ $worklow_pallete_width_collapsed: 60px;
   // Inline, borderless name editor in the toolbar title.
   &__title {
     overflow: visible;
+    // Vuetify 3 lets the title shrink to nothing (flex: 1 1, min-width: 0); as in
+    // Vuetify 2 it keeps the width of its content.
+    flex: 0 1 auto;
+    min-width: auto;
+
+    // Vuetify 3 wraps the title slot in a placeholder that clips (ellipsis) and is not
+    // a flex box: keep the link, the name editor and the chips in one centred row.
+    :deep(.v-toolbar-title__placeholder) {
+      display: flex;
+      align-items: center;
+      overflow: visible;
+    }
   }
 
   // Inline name editor: looks like a title, but the pencil + hover/focus
@@ -1061,7 +1074,7 @@ $worklow_pallete_width_collapsed: 60px;
   }
 }
 
-.theme--dark {
+.v-theme--dark {
   .WorkflowEditor__sideToggle {
     background: #1e1e1e;
   }

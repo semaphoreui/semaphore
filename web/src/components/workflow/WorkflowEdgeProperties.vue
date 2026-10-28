@@ -15,6 +15,7 @@
       </div>
       <v-btn
         icon
+        variant="text"
         size="small"
         :title="$t('close')"
         @click="$emit('close')"
@@ -39,23 +40,27 @@
         @update:model-value="emitChange"
         data-testid="workflowEdgeProps-condition"
       >
-        <template v-slot:item="{ item }">
-          <v-icon
-            size="small"
-            start
-            :color="item.color"
-            :data-testid="`workflowEdgeProps-conditionOption-${item.value}`"
-          >{{ item.icon }}</v-icon>
-          {{ item.text }}
+        <!-- Vuetify 3: the item slot draws the whole list item; the option is item.raw,
+             item.value its item-value -->
+        <template v-slot:item="{ item, props }">
+          <v-list-item v-bind="props">
+            <template v-slot:prepend>
+              <v-icon
+                size="small"
+                :color="item.raw.color"
+                :data-testid="`workflowEdgeProps-conditionOption-${item.value}`"
+              >{{ item.raw.icon }}</v-icon>
+            </template>
+          </v-list-item>
         </template>
         <template v-slot:selection="{ item }">
           <v-icon
             size="small"
             start
-            :color="item.color"
+            :color="item.raw.color"
             :data-testid="`workflowEdgeProps-conditionSelected-${item.value}`"
-          >{{ item.icon }}</v-icon>
-          {{ item.text }}
+          >{{ item.raw.icon }}</v-icon>
+          {{ item.raw.text }}
         </template>
       </v-select>
     </div>
@@ -73,7 +78,7 @@
           v-model="explicit"
           :label="$t('workflowEdgeInputsExplicit')"
           :disabled="!canManage"
-          dense
+          density="compact"
           hide-details
           class="mt-0 mb-2"
           @update:model-value="onModeChanged"

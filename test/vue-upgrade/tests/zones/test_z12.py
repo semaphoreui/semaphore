@@ -18,9 +18,9 @@ import re
 import pytest
 from playwright.sync_api import Page, expect
 
-from vu.ui import (answer_api, badge_dot, dialog, expect_snackbar, fail_api, field_input, field_message,
-                   field_selection, goto, hold_api, hold_snackbar, only_names, open_menu, patch_api, pick, press,
-                   settle, snap, tid, wait_state, wait_until)
+from vu.ui import (answer_api, badge_dot, dialog, expect_no_snackbar, expect_snackbar, fail_api, field_input,
+                   field_message, field_selection, goto, hold_api, hold_snackbar, only_names, open_menu, patch_api,
+                   pick, press, settle, snap, tid, toggle, wait_state, wait_until)
 from vu.ui import DRAWFLOW_NODE, DRAWFLOW_INPUT, DRAWFLOW_OUTPUT, DRAWFLOW_EDGE_PATH, VUETIFY_BTN_LOADING
 
 ZONE = "z12"
@@ -205,6 +205,14 @@ def expect_dirty(page, dirty):
     else:
         expect(dot).to_have_css("display", "none")
     expect(dot).not_to_have_class(re.compile(r"-transition-"))
+
+
+def queued_timers_run(page: Page):
+    """Wait until every timer the page has queued so far has fired: a setTimeout queued now runs after
+    them. Vuetify 3 moves the top of its overlay stack (globalTop, which the dialog's Esc handler asks)
+    in a setTimeout after a dialog opens; under the suite's fake clock that timer fires late
+    (JOURNAL@C559E533D7), so an Esc pressed at once would meet the previous top."""
+    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def pick_template(page, name):
@@ -538,7 +546,7 @@ def test_node_task(ui, project, api):
     expect(tid(page, "workflowNodeProps-heading")).to_have_text("OK script")
     expect(tid(page, "workflowNodeProps-nodeId")).to_have_text(f"Node #{wf.node('task', 'OK script')}")
     expect(field_selection(page, "workflowNodeProps-kind")).to_have_text("Task")
-    expect(field_input(page, "workflowNodeProps-templateId")).to_have_value("OK script")
+    expect(field_selection(page, "workflowNodeProps-templateId")).to_have_text("OK script")
     wait_state(page, "workflowNodeProps-taskParams", "ready")
     expect(field_selection(page, "workflowNodeProps-convergenceMode")).to_have_text("All parents")
     snap(page, ZONE, "node-props", "task")
@@ -563,6 +571,7 @@ def test_node_task_no_template(ui, project):
     tid(page, "workflowEditor-palette-task").click()
     expect(tid(page, "workflowNodeProps-heading")).to_have_text("Task")
     expect(field_input(page, "workflowNodeProps-templateId")).to_have_value("")
+    expect(field_selection(page, "workflowNodeProps-templateId")).to_have_count(0)
     expect(tid(page, "workflowNodeProps-taskParams")).to_have_count(0)
     snap(page, ZONE, "node-props", "task-no-template")
 
@@ -649,8 +658,9 @@ def test_node_template_menu(ui, project, api):
     page = editor(ui)
     open_wf(page, project, wf)
     select_node(page, "OK script")
-    field_input(page, "workflowNodeProps-templateId").click()
-    expect(page.get_by_role("option", name="Ansible build", exact=True)).to_be_visible()
+    open_menu(page, "workflowNodeProps-templateId")
+    # Vuetify 3 opens the (virtual) list scrolled to the chosen template, Vuetify 2 at its top
+    expect(page.get_by_role("option", name="OK script", exact=True)).to_be_visible()
     snap(page, ZONE, "node-props", "template-menu")
 
 
@@ -759,7 +769,7 @@ def test_edge_by_name(ui, project, api):
     wf = Wf(api, project, INPUTS)
     page = editor(ui)
     _inputs_edge(page, project, wf)
-    tid(page, "workflowEdgeProps-explicit").uncheck(force=True)
+    toggle(page, "workflowEdgeProps-explicit", False)
     expect(tid(page, "workflowEdgeProps-byNameHint")).to_be_visible()
     expect(tid(page, "workflowEdgeProps-varChip-TARGET")).to_be_visible()
     expect(tid(page, "workflowEdgeProps-varChip-REPLICAS")).to_be_visible()
@@ -771,7 +781,7 @@ def test_edge_explicit(ui, project, api):
     wf = Wf(api, project, INPUTS)
     page = editor(ui)
     _inputs_edge(page, project, wf)
-    expect(tid(page, "workflowEdgeProps-explicit")).to_be_checked()
+    expect(field_input(page, "workflowEdgeProps-explicit")).to_be_checked()
     expect(tid(page, "workflowEdgeProps-explicitHint")).to_be_visible()
     expect(field_input(page, "workflowEdgeProps-key-TARGET")).to_have_value("")
     expect(field_input(page, "workflowEdgeProps-key-REPLICAS")).to_have_value("replica_count")
@@ -813,7 +823,7 @@ def test_edge_hints_by_name(ui, project, api):
     runs(page, wf, RUN_ARTIFACTS)
     _inputs_edge(page, project, wf)
     expect(tid(page, "workflowEdgeProps-hintsCaption")).to_have_text(f"Keys suggested from run #{RUN_ID}.")
-    tid(page, "workflowEdgeProps-explicit").uncheck(force=True)
+    toggle(page, "workflowEdgeProps-explicit", False)
     expect(tid(page, "workflowEdgeProps-varChip-TARGET")).to_be_visible()
     snap(page, ZONE, "edge-props", "hints-by-name")
 
@@ -862,7 +872,7 @@ def test_edge_no_access(ui, project, api):
     wf = Wf(api, project, INPUTS)
     page = editor(ui, "runner")
     _inputs_edge(page, project, wf)
-    expect(tid(page, "workflowEdgeProps-explicit")).to_be_disabled()
+    expect(field_input(page, "workflowEdgeProps-explicit")).to_be_disabled()
     expect(field_input(page, "workflowEdgeProps-key-TARGET")).to_be_disabled()
     expect(tid(page, "workflowEdgeProps-delete")).to_be_disabled()
     snap(page, ZONE, "edge-props", "no-access")
@@ -1037,7 +1047,10 @@ def test_self_connection(ui, project, api):
     ok = df_node(page, "OK script")
     drag(page, ok.locator(DRAWFLOW_OUTPUT), ok.locator(DRAWFLOW_INPUT))
     settle(page)
-    expect(tid(page, "app-snackbar")).not_to_contain_text("A node cannot connect to itself.")
+    # Vuetify 3 renders the app-snackbar root only from its first opening on: no root, or a root without
+    # the message — either way no message
+    expect(tid(page, "app-snackbar").filter(has_text="A node cannot connect to itself.")).to_have_count(0)
+    expect_no_snackbar(page)
     expect(tid(page, "workflowCanvas-edge")).to_have_count(3)
     expect(dirty_dot(page)).to_be_hidden()
 
@@ -1144,9 +1157,9 @@ def test_edge_inputs_edit(ui, project, api):
     wf = Wf(api, project, INPUTS)
     page = editor(ui)
     _inputs_edge(page, project, wf)
-    tid(page, "workflowEdgeProps-explicit").uncheck(force=True)
+    toggle(page, "workflowEdgeProps-explicit", False)
     expect(tid(page, "workflowEdgeProps-varChips")).to_be_visible()
-    tid(page, "workflowEdgeProps-explicit").check(force=True)
+    toggle(page, "workflowEdgeProps-explicit", True)
     expect(field_input(page, "workflowEdgeProps-key-REPLICAS")).to_have_value("")
     key = field_input(page, "workflowEdgeProps-key-TARGET")
     key.fill("good_key")
@@ -1185,6 +1198,7 @@ def test_leave_dialog(ui, project, api):
 
     tid(page, "workflowEditor-backToList").click()
     card_ = dialog(page, "workflowEditorLeaveDialog")
+    queued_timers_run(page)  # the opened dialog is the top of the overlay stack
     page.keyboard.press("Escape")
     expect(card_).to_be_hidden()
     assert page.url.endswith(wf.path(project))

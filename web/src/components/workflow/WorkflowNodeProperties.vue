@@ -20,6 +20,7 @@
       </div>
       <v-btn
         icon
+        variant="text"
         size="small"
         :title="$t('close')"
         @click="$emit('close')"

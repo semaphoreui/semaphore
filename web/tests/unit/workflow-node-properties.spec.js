@@ -32,7 +32,6 @@ function mountPanel(node, surveyVars = workflowVars) {
     global: {
       mocks: {
         $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k),
-        $tc: (k, n) => `${k}:${n}`,
       },
       stubs: { TaskParamsForm: true },
     },
