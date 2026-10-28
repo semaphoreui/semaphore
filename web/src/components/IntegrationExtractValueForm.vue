@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="integrationValueForm-error"
@@ -31,10 +31,10 @@
             label="Source of the Value"
             :items="valueSources"
             item-value="id"
-            item-text="text"
+            item-title="text"
             :rules="[(v) => !!v || 'Value Source is required']"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             required
             :disabled="formSaving"
           >
@@ -46,10 +46,10 @@
             v-if="item.value_source == 'body'"
             :items="bodyDataTypes"
             item-value="id"
-            item-text="text"
+            item-title="text"
             :rules="[(v) => !!v || 'Body Data Type is required']"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             required
             :disabled="formSaving"
           >
@@ -59,8 +59,8 @@
             data-testid="integrationValueForm-key"
             label="Key *"
             :rules="[(v) => !!v || 'Key is required']"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             required
             :disabled="formSaving"
           >
@@ -71,10 +71,10 @@
             label="Variable Usage *"
             :items="variableTypes"
             item-value="id"
-            item-text="text"
+            item-title="text"
             :rules="[(v) => !!v || 'Variable Type is required']"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             required
             :disabled="formSaving"
           >
@@ -84,8 +84,8 @@
             data-testid="integrationValueForm-variable"
             label="Variable *"
             :rules="[(v) => !!v || 'Variable is required']"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             required
             :disabled="formSaving"
           ></v-text-field>

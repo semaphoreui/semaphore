@@ -3,12 +3,13 @@ Modal dialog which contains slot "form" and two buttons ("Cancel" and "OK").
 Should be used to wrap forms which need to be displayed in modal dialog.
 Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
 -->
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <v-dialog
     ref="dialog"
     v-model="dialog"
     :max-width="maxWidth || 400"
     persistent
+    :close-on-back="false"
     :fullscreen="expandable && fullscreen"
     :transition="false"
     :content-class="
@@ -81,8 +82,8 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         <v-spacer></v-spacer>
 
         <v-btn
-          color="blue darken-1"
-          text
+          color="blue-darken-1"
+          variant="text"
           @click="close()"
           data-testid="editDialog-cancel"
         >
@@ -90,8 +91,8 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         </v-btn>
 
         <v-btn
-          color="blue darken-1"
-          text
+          color="blue-darken-1"
+          variant="text"
           @click="needSave = true"
           v-if="saveButtonText != null"
           data-testid="editDialog-save"
@@ -113,7 +114,9 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
   }
 
   .item-dialog {
-    .v-card__title {
+    .v-card-title {
+      display: flex;
+      align-items: center;
       white-space: nowrap;
       overflow: hidden;
       margin-right: 12px;
@@ -121,13 +124,13 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     }
   }
 
-  .theme--dark {
+  .v-theme--dark {
     .item-dialog__title-actions {
         background: #1E1E1E;
     }
   }
 
-  .theme--light {
+  .v-theme--light {
     .item-dialog__title-actions {
       background: white;
     }
@@ -145,7 +148,7 @@ export default {
     title: String,
     icon: String,
     iconColor: String,
-    value: Boolean,
+    modelValue: Boolean,
     maxWidth: Number,
     minContentHeight: Number,
     eventName: String,
@@ -163,7 +166,7 @@ export default {
     noEscape: Boolean,
   },
 
-  emits: ['input', 'save', 'close'],
+  emits: ['update:modelValue', 'save', 'close'],
 
   data() {
     return {
@@ -178,7 +181,7 @@ export default {
   watch: {
     async dialog(val) {
       this.needReset = val;
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
       if (val) {
         window.addEventListener('keydown', this.handleEscape);
       } else {
@@ -186,7 +189,7 @@ export default {
       }
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.dialog = val;
     },
 
@@ -241,15 +244,15 @@ export default {
 
     /**
      * Returns true if this dialog is the topmost active overlay (dialog or menu).
-     * Uses the same check as Vuetify's VDialog (activeZIndex vs getMaxZIndex),
+     * Uses the same check as Vuetify's VDialog (`globalTop` of the overlay stack),
      * so a nested dialog or an open dropdown menu makes the parent non-topmost.
      */
     isTopmost() {
       const dialog = this.$refs.dialog;
-      if (!dialog || typeof dialog.getMaxZIndex !== 'function') {
+      if (!dialog || typeof dialog.globalTop !== 'boolean') {
         return true;
       }
-      return dialog.activeZIndex >= dialog.getMaxZIndex();
+      return dialog.globalTop;
     },
 
     handleEscape(ev) {

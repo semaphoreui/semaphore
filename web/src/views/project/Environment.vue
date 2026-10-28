@@ -78,7 +78,7 @@
       </template>
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle
-          dense
+          density="compact"
           :value-comparator="() => false"
           data-testid="varGroup-rowActions"
         >
@@ -140,12 +140,12 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '100%',
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           align: 'end',
         },

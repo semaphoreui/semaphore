@@ -58,7 +58,7 @@
 
         <v-progress-linear
           v-if="testNotificationProgress"
-          color="blue-grey darken-1"
+          color="blue-grey-darken-1"
           indeterminate
           rounded
           width="170"
@@ -90,7 +90,7 @@
 
             <v-progress-linear
               v-if="backupProgress"
-              color="primary accent-4"
+              color="primary-accent-4"
               indeterminate
               rounded
               height="36"
@@ -121,7 +121,7 @@
 
             <v-progress-linear
               v-if="clearCacheProgress"
-              color="blue-grey darken-1"
+              color="blue-grey-darken-1"
               indeterminate
               rounded
               height="36"
@@ -160,7 +160,8 @@
   </div>
 </template>
 <style lang="scss">
-  @import '~vuetify/src/styles/styles.sass';
+@use 'sass:map';
+@use '@/scss/variables' as settings;
 
   .project-settings-form {
     //max-width: 600px;
@@ -171,7 +172,7 @@
     //max-width: 400px;
     margin: 30px 0;
 
-    @media #{map-get($display-breakpoints, 'sm-and-down')} {
+    @media #{map.get(settings.$display-breakpoints, 'sm-and-down')} {
       padding: 0 6px;
     }
   }

@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="integrationForm-error"
@@ -20,8 +20,8 @@
       :rules="[(v) => !!v || 'Name is required']"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="integrationForm-name"
     ></v-text-field>
 
@@ -32,8 +32,8 @@
     >
       <b style="font-size: 13px; margin-left: 5px">{{ $t('integrationRunTarget') }}</b>
       <v-btn-toggle
-        :value="target"
-        @change="setTarget($event)"
+        :model-value="target"
+        @update:model-value="setTarget($event)"
         tile
         group
         mandatory
@@ -42,7 +42,7 @@
       >
         <v-btn
           value="template"
-          small
+          size="small"
           class="ma-0"
           style="border-radius: 4px"
           data-testid="integrationForm-target-template"
@@ -51,7 +51,7 @@
         </v-btn>
         <v-btn
           value="workflow"
-          small
+          size="small"
           class="ma-0"
           style="border-radius: 4px"
           data-testid="integrationForm-target-workflow"
@@ -64,8 +64,8 @@
     <v-alert
       v-if="target === 'workflow' && !workflowsEnabled"
       type="info"
-      text
-      dense
+      variant="tonal"
+      density="compact"
       class="IntegrationForm__workflowUnavailable"
       data-testid="integrationForm-workflowUnavailable"
     >
@@ -79,11 +79,11 @@
         clearable
         :items="workflows"
         item-value="id"
-        item-text="name"
+        item-title="name"
         :rules="[(v) => !!v || $t('integrationTargetRequired')]"
         :disabled="formSaving || !workflowIntegrationsAvailable"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         class="IntegrationForm__workflow"
         data-testid="integrationForm-workflowId"
       ></v-autocomplete>
@@ -92,7 +92,7 @@
         v-if="!workflowIntegrationsAvailable"
         color="hsl(348deg, 86%, 61%)"
         text-color="white"
-        small
+        size="small"
         label
         class="IntegrationForm__upgrade"
         style="position: absolute; top: 8px; right: 8px"
@@ -110,11 +110,11 @@
       clearable
       :items="templates"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :rules="[(v) => !!v || $t('integrationTargetRequired')]"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="integrationForm-templateId"
     ></v-autocomplete>
 
@@ -151,10 +151,10 @@
       label="Auth method"
       :items="authMethods"
       item-value="id"
-      item-text="title"
+      item-title="title"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="integrationForm-authMethod"
     ></v-select>
 
@@ -165,8 +165,8 @@
             v-model="item.auth_header"
             label="Auth header"
             :disabled="formSaving"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             data-testid="integrationForm-authHeader"
         ></v-text-field>
 
@@ -176,10 +176,10 @@
             clearable
             :items="loginPasswordKeys"
             item-value="id"
-            item-text="name"
+            item-title="name"
             :disabled="formSaving"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             data-testid="integrationForm-authSecretId"
         ></v-select>
       </template>
@@ -339,7 +339,7 @@ export default {
       // The API omits workflow_id when it is null; add the key reactively so the
       // workflow autocomplete can bind to it.
       if (this.item.workflow_id === undefined) {
-        this.$set(this.item, 'workflow_id', null);
+        this.item.workflow_id = null;
       }
 
       this.target = this.item.workflow_id ? 'workflow' : 'template';

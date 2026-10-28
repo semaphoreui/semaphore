@@ -3,8 +3,8 @@
     <v-text-field
       v-model="item.message"
       :label="$t('messageOptional')"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="taskParams-message"
     />
 
@@ -24,8 +24,8 @@
       v-model="git_branch"
       data-testid="taskParams-gitBranch"
       :label="fieldLabel('branch')"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       required
       v-if="needField('allow_override_branch') && template.allow_override_branch_in_task"
     />
@@ -36,9 +36,9 @@
       :label="fieldLabel('inventory')"
       :items="inventory"
       item-value="id"
-      item-text="name"
-      outlined
-      dense
+      item-title="name"
+      variant="outlined"
+      density="compact"
       required
       v-if="inventory != null && needInventory"
     ></v-autocomplete>
@@ -90,7 +90,7 @@ export default {
   mixins: [AppFieldsMixin],
 
   props: {
-    value: Object,
+    modelValue: Object,
     template: Object,
     // Workflow task node only, passed through to SurveyFields: the workflow's
     // survey variables a field may be bound to (null = no binding UI) and the
@@ -107,7 +107,7 @@ export default {
     SurveyFields,
   },
 
-  emits: ['bind', 'unbind', 'input'],
+  emits: ['bind', 'unbind', 'update:modelValue'],
 
   data() {
     return {
@@ -167,7 +167,7 @@ export default {
           return;
         }
         this.item.environment = JSON.stringify(this.editedEnvironment);
-        this.$emit('input', this.item);
+        this.$emit('update:modelValue', this.item);
       },
       deep: true,
       immediate: true,
@@ -179,7 +179,7 @@ export default {
           return;
         }
         this.item.secret = JSON.stringify(this.editedSecretEnvironment);
-        this.$emit('input', this.item);
+        this.$emit('update:modelValue', this.item);
       },
       deep: true,
       immediate: true,
@@ -190,7 +190,7 @@ export default {
         if (oldVal == null) {
           return;
         }
-        this.$emit('input', newVal);
+        this.$emit('update:modelValue', newVal);
       },
       deep: true,
       immediate: true,
@@ -221,7 +221,7 @@ export default {
       const v = val || {};
 
       // Build the item in one assignment so every edited key is reactive and
-      // the deep `item` watcher (which emits `input`) fires on any change.
+      // the deep `item` watcher (which emits `update:modelValue`) fires on any change.
       // Keys added to an already-reactive object one by one are NOT reactive
       // in Vue 2, which silently swallowed edits of params/message/branch/etc.
       this.item = {
@@ -255,7 +255,7 @@ export default {
     },
 
     refreshItem() {
-      this.assignItem(this.value);
+      this.assignItem(this.modelValue);
 
       if (!this.item.params) {
         this.item.params = {};

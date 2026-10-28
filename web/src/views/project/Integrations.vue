@@ -128,7 +128,7 @@
           class="IntegrationsTarget IntegrationsTarget--workflow"
           data-testid="integrations-rowTarget-workflow"
         >
-          <v-icon small class="mr-1">mdi-graph-outline</v-icon>
+          <v-icon size="small" class="mr-1">mdi-graph-outline</v-icon>
           {{ (workflows.find((w) => w.id === item.workflow_id) || { name: '—' }).name }}
         </router-link>
         <router-link
@@ -137,13 +137,13 @@
           class="IntegrationsTarget IntegrationsTarget--template"
           data-testid="integrations-rowTarget-template"
         >
-          <v-icon small class="mr-1">mdi-check-all</v-icon>
+          <v-icon size="small" class="mr-1">mdi-check-all</v-icon>
           {{ (templates.find((t) => t.id === item.template_id) || { name: '—' }).name }}
         </router-link>
       </template>
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle
-          dense
+          density="compact"
           :value-comparator="() => false"
           data-testid="integrations-rowActions"
         >
@@ -218,19 +218,19 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '40%',
           sortable: true,
         },
         {
-          text: this.$i18n.t('integrationRunTarget'),
-          value: 'target',
+          title: this.$t('integrationRunTarget'),
+          key: 'target',
           width: '60%',
           sortable: false,
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         },

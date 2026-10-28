@@ -22,7 +22,7 @@
       :headers="headers"
       :items="items"
       class="mt-4"
-      :footer-props="{ itemsPerPageOptions: [20] }"
+      :items-per-page-options="[20]"
       data-testid="activeTasks-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -111,7 +111,7 @@ export default {
     }, 10000);
   },
 
-  destroyed() {
+  unmounted() {
     clearInterval(this.updateTimer);
   },
 
@@ -119,23 +119,23 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('task', {}),
-        value: 'task_id',
+        title: this.$t('task', {}),
+        key: 'task_id',
       }, {
-        text: this.$i18n.t('project'),
-        value: 'project_id',
+        title: this.$t('project'),
+        key: 'project_id',
       }, {
-        text: this.$i18n.t('username'),
-        value: 'username',
+        title: this.$t('username'),
+        key: 'username',
       }, {
-        text: this.$i18n.t('status'),
-        value: 'status',
+        title: this.$t('status'),
+        key: 'status',
       }, {
-        text: this.$i18n.t('location'),
-        value: 'location',
+        title: this.$t('location'),
+        key: 'location',
       }, {
-        text: this.$i18n.t('actions'),
-        value: 'actions',
+        title: this.$t('actions'),
+        key: 'actions',
         sortable: false,
         width: 70,
       }];

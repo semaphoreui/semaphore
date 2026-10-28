@@ -109,14 +109,14 @@
         <v-chip
           color="error"
           v-if="item.empty && item.type !== 'none'"
-          small
+          size="small"
           style="font-weight: bold;"
           class="ml-2"
           data-testid="keystore-rowEmpty"
         >{{ $t('empty') }}</v-chip>
         <v-chip
           v-if="item.synchronized"
-          x-small
+          size="x-small"
           class="ml-2"
           data-testid="keystore-rowSynchronized"
         >{{ $t('synchronized') }}</v-chip>
@@ -126,7 +126,7 @@
       </template>
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle
-          dense
+          density="compact"
           :value-comparator="() => false"
           data-testid="keystore-rowActions"
         >
@@ -226,17 +226,17 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
+        title: this.$t('name'),
+        key: 'name',
         width: '60%',
       },
       {
-        text: this.$i18n.t('type'),
-        value: 'type',
+        title: this.$t('type'),
+        key: 'type',
         width: '40%',
       },
       {
-        value: 'actions',
+        key: 'actions',
         sortable: false,
         width: '0%',
       },

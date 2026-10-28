@@ -16,14 +16,14 @@
           / {{ workflow ? workflow.name : $t('workflowRun') }} #{{ runId }}
           <span
             v-if="details && details.run.version"
-            class="text--secondary"
+            class="text-medium-emphasis"
             data-testid="workflowRun-version"
           >
             · {{ details.run.version }}
           </span>
           <span
             v-if="details && details.revision"
-            class="text--secondary"
+            class="text-medium-emphasis"
             :title="$t('workflowRunRevisionHint')"
             data-testid="workflowRun-revision"
           >
@@ -37,7 +37,7 @@
       <v-chip
         v-if="details"
         :color="statusColor(details.run.status)"
-        small
+        size="small"
         class="mr-3"
         :data-testid="`workflowRun-status-${details.run.status}`"
       >{{ details.run.status }}</v-chip>
@@ -45,14 +45,14 @@
       <v-btn
         v-if="canStopRun"
         color="error"
-        small
-        outlined
+        size="small"
+        variant="outlined"
         class="mr-3"
         :loading="stopping"
         @click="stopRun()"
         data-testid="workflowRun-stop"
       >
-        <v-icon left small>mdi-stop</v-icon>
+        <v-icon start size="small">mdi-stop</v-icon>
         {{ $t('stop') }}
       </v-btn>
 
@@ -74,15 +74,15 @@
       data-testid="workflowRun-vars"
     >
       <span
-        class="text-caption text--secondary mr-2"
+        class="text-caption text-medium-emphasis mr-2"
         data-testid="workflowRun-varsTitle"
       >{{ $t('workflowRunVariables') }}</span>
       <v-chip
         v-for="v in runVariables"
         :key="v.name"
-        x-small
+        size="x-small"
         label
-        outlined
+        variant="outlined"
         class="WorkflowRun__var mr-1 mb-1"
         :title="`${v.name} = ${v.value}`"
         :data-testid="`workflowRun-var-${v.name}`"
@@ -112,7 +112,7 @@
 
           <!-- Narrow screens: the in-card buttons are hard to hit, keep the bar. -->
           <div
-            v-if="canResolveApprovals && pendingApprovals.length && $vuetify.breakpoint.smAndDown"
+            v-if="canResolveApprovals && pendingApprovals.length && $vuetify.display.smAndDown"
             class="WorkflowRun__approvals"
             data-testid="workflowRun-approvals"
           >
@@ -120,7 +120,7 @@
               v-for="a in pendingApprovals"
               :key="`approval-${a.nodeId}`"
               class="WorkflowRun__approval px-3 py-2"
-              outlined
+              border
               data-testid="workflowRun-approval"
             >
               <div class="WorkflowRun__approvalText" data-testid="workflowRun-approvalText">
@@ -129,14 +129,14 @@
               </div>
               <v-spacer />
               <v-btn
-                small
+                size="small"
                 color="success"
                 class="ml-3"
                 @click="resolveApproval(a.nodeId, 'approved')"
                 data-testid="workflowRun-approvalApprove"
               >{{ $t('workflowApprove') }}</v-btn>
               <v-btn
-                small
+                size="small"
                 color="error"
                 class="ml-2"
                 @click="resolveApproval(a.nodeId, 'rejected')"
@@ -333,7 +333,7 @@ export default {
       }
     }, 5000);
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.pollHandle) clearInterval(this.pollHandle);
   },
   methods: {

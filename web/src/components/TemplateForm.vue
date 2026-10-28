@@ -48,7 +48,7 @@
     data-testid="templateForm-form"
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
-    <v-dialog v-model="helpDialog" hide-overlay content-class="NestedDialog" width="300">
+    <v-dialog v-model="helpDialog" :scrim="false" content-class="NestedDialog" width="300">
       <v-alert
         border="top"
         colored-border
@@ -101,7 +101,7 @@
     </v-dialog>
 
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       data-testid="templateForm-error"
     >{{ formError }}</v-alert>
@@ -115,7 +115,7 @@
 
         <v-card
           class="mb-6"
-          :color="$vuetify.theme.dark ? '#212121' : 'white'"
+          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
           style="background: #8585850f"
           data-testid="templateForm-typeCard"
         >
@@ -126,7 +126,7 @@
               :key="key"
               :data-testid="`templateForm-tab-${key || 'task'}`"
             >
-              <v-icon small class="mr-2">{{ TEMPLATE_TYPE_ICONS[key] }}</v-icon>
+              <v-icon size="small" class="mr-2">{{ TEMPLATE_TYPE_ICONS[key] }}</v-icon>
               {{ $t(TEMPLATE_TYPE_TITLES[key]) }}
             </v-tab>
           </v-tabs>
@@ -141,8 +141,8 @@
               :disabled="formSaving"
               :placeholder="$t('example000')"
               data-testid="templateForm-startVersion"
-              append-outer-icon="mdi-help-circle"
-              @click:append-outer="showHelpDialog('build_version')"
+              append-icon="mdi-help-circle"
+              @click:append="showHelpDialog('build_version')"
             ></v-text-field>
 
             <v-autocomplete
@@ -151,13 +151,13 @@
               :label="$t('buildTemplate')"
               :items="buildTemplates"
               item-value="id"
-              item-text="name"
+              item-title="name"
               :rules="[(v) => !!v || $t('build_template_required')]"
               required
               :disabled="formSaving"
               data-testid="templateForm-buildTemplateId"
-              append-outer-icon="mdi-help-circle"
-              @click:append-outer="showHelpDialog('build')"
+              append-icon="mdi-help-circle"
+              @click:append="showHelpDialog('build')"
             ></v-autocomplete>
 
             <v-checkbox
@@ -174,8 +174,8 @@
           v-model="item.name"
           :label="$t('name2')"
           :rules="[(v) => !!v || $t('name_required')]"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           required
           :disabled="formSaving"
           data-testid="templateForm-name"
@@ -187,10 +187,10 @@
             :label="fieldLabel('repository') + ' *'"
             :items="repositories"
             item-value="id"
-            item-text="name"
+            item-title="name"
             :rules="isFieldRequired('repository') ? [(v) => !!v || $t('repository_required')] : []"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             :required="isFieldRequired('repository')"
             :disabled="formSaving"
             v-if="needField('repository')"
@@ -198,27 +198,26 @@
           >
           </v-autocomplete>
           <v-tooltip
-            bottom
+            location="bottom"
             :disabled="!isMonorepo"
             color="black"
             content-class="opacity1"
             max-width="400"
             transition="fade-transition"
           >
-            <template v-slot:activator="{ on, attrs }">
+            <template v-slot:activator="{ props }">
               <!-- A monorepo chip gets no click listener at all, so it is neither
                    styled nor behaves as clickable; the wrapper carries the tooltip. -->
               <span
-                v-bind="attrs"
-                v-on="on"
+                v-bind="props"
                 :tabindex="isMonorepo ? 0 : null"
                 style="position: absolute; right: 45px; top: 8px"
               >
                 <v-chip
                   v-if="gitBranch"
-                  small
+                  size="small"
                   label
-                  :class="{ 'text--disabled': isMonorepo }"
+                  :class="{ 'text-disabled': isMonorepo }"
                   data-testid="templateForm-branchChip"
                   v-on="isMonorepo ? {} : { click: () => { setBranch = !setBranch; } }"
                 >
@@ -257,8 +256,8 @@
                 data-testid="templateForm-gitBranch"
                 v-model="item.git_branch"
                 :label="fieldLabel('branch')"
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 :disabled="formSaving || isMonorepo"
                 :placeholder="$t('branch')"
                 :hint="isMonorepo ? $t('monorepoBranchHint') : ''"
@@ -271,8 +270,8 @@
                 data-testid="templateForm-gitBranch"
                 v-model="item.git_branch"
                 :label="fieldLabel('branch')"
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 :disabled="formSaving || isMonorepo"
                 :placeholder="$t('branch')"
                 :hint="isMonorepo ? $t('monorepoBranchHint') : ''"
@@ -293,20 +292,20 @@
             :rules="
               isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
             "
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             clearable
             :required="isFieldRequired('playbook')"
             :disabled="formSaving"
             :placeholder="$t('exampleSiteyml')"
             :loading="playbooksLoading"
-            @update:search-input="onPlaybookSearch"
+            @update:search="onPlaybookSearch"
             data-testid="templateForm-playbook"
             :data-state="playbooksLoading ? 'loading' : 'ready'"
           >
             <template v-slot:append-outer>
               <v-btn
-                depressed
+                variant="flat"
                 @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
                 data-testid="templateForm-playbookReload"
               >
@@ -329,8 +328,8 @@
               v-model="item.working_directory"
               :label="$t('workingDirectory')"
               :rules="[(v) => !!(v && v.trim()) || $t('working_directory_required')]"
-              outlined
-              dense
+              variant="outlined"
+              density="compact"
               required
               :disabled="formSaving"
               data-testid="templateForm-workingDirectory"
@@ -343,9 +342,9 @@
           :label="fieldLabel('inventory')"
           :items="inventory"
           item-value="id"
-          item-text="name"
-          outlined
-          dense
+          item-title="name"
+          variant="outlined"
+          density="compact"
           required
           :disabled="formSaving"
           v-if="needField('inventory')"
@@ -357,7 +356,7 @@
           :label="fieldLabel('environment')"
           :items="environment"
           item-value="id"
-          item-text="name"
+          item-title="name"
           :rules="
             isFieldRequired('environment')
               ? [(v) => (Array.isArray(v) && v.length > 0) || $t('environment_required')]
@@ -366,8 +365,8 @@
           persistent-hint
           multiple
           chips
-          deletable-chips
-          outlined
+          closable-chips
+          variant="outlined"
           small-chips
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
@@ -383,10 +382,10 @@
           clearable
           :items="views"
           item-value="id"
-          item-text="title"
+          item-title="title"
           :disabled="formSaving"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           data-testid="templateForm-viewId"
         ></v-autocomplete>
       </v-col>
@@ -401,9 +400,9 @@
             :items="runnerTags"
             :label="fieldLabel('runner_tag')"
             item-value="tag"
-            item-text="tag"
-            outlined
-            dense
+            item-title="tag"
+            variant="outlined"
+            density="compact"
             :disabled="formSaving"
             :placeholder="$t('runner_tag')"
             clearable
@@ -416,8 +415,8 @@
               :label="$t('executor_image')"
               persistent-hint
               placeholder="semaphoreui/job:latest"
-              outlined
-              dense
+              variant="outlined"
+              density="compact"
               clearable
               class="mb-4"
               :disabled="formSaving || !isExecutorImageAvailable"
@@ -428,7 +427,7 @@
               v-if="!isExecutorImageAvailable"
               color="hsl(348deg, 86%, 61%)"
               text-color="white"
-              small
+              size="small"
               label
               style="position: absolute; top: -10px; right: 15px"
               @click="upgradeToPro('docker_executor')"
@@ -460,7 +459,7 @@
                 {{ $t('jwt_enabled') }}
                 <v-chip
                   class="ml-2"
-                  small
+                  size="small"
                   color="error"
                   data-testid="templateForm-jwtNew"
                 >New</v-chip>
@@ -480,9 +479,9 @@
                 multiple
                 chips
                 small-chips
-                deletable-chips
-                outlined
-                dense
+                closable-chips
+                variant="outlined"
+                density="compact"
                 :disabled="formSaving"
                 data-testid="templateForm-jwtAudience"
               ></v-combobox>
@@ -494,8 +493,8 @@
                 :hint="jwtTtlHint"
                 persistent-hint
                 placeholder="1h"
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 :disabled="formSaving"
                 data-testid="templateForm-jwtTtl"
               ></v-text-field>
@@ -517,11 +516,11 @@
               :rules="[(v) => !!v || $t('repository_required')]"
               :items="repositories"
               item-value="id"
-              item-text="name"
+              item-title="name"
               clearable
               :disabled="formSaving"
-              outlined
-              dense
+              variant="outlined"
+              density="compact"
               data-testid="templateForm-cronRepositoryId"
             ></v-select>
 
@@ -530,12 +529,12 @@
               :label="$t('checkInterval')"
               :hint="$t('newCommitCheckInterval')"
               item-value="cron"
-              item-text="title"
+              item-title="title"
               :items="cronFormats"
               :disabled="formSaving"
-              outlined
+              variant="outlined"
               hide-details
-              dense
+              density="compact"
               data-testid="templateForm-cronFormat"
             />
           </DropdownCard>
@@ -581,16 +580,16 @@
           />
 
           <v-tooltip
-            bottom
+            location="bottom"
             :disabled="!isMonorepo"
             color="black"
             content-class="opacity1"
             max-width="400"
             transition="fade-transition"
           >
-            <template v-slot:activator="{ on }">
+            <template v-slot:activator="{ props }">
               <!-- A disabled input emits no mouse events, so the wrapper owns the tooltip. -->
-              <div v-on="on">
+              <div v-bind="props">
                 <v-checkbox
                   class="mt-0"
                   :label="$t('allow_override_branch')"
@@ -677,8 +676,8 @@
           <v-text-field
             v-model="item.task_params.backend_filename"
             :label="fieldLabel('terraform_backend_filename')"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             :disabled="formSaving || !item.task_params.override_backend"
             placeholder="backend.tf"
             :rules="[(v) => validateBackendFilename(v) || $t('terraform_invalid_backend_filename')]"
@@ -802,7 +801,7 @@
   </v-form>
 </template>
 <style lang="scss">
-.CodeMirror-placeholder {
+.cm-placeholder {
   color: #a4a4a4 !important;
 }
 </style>
@@ -812,10 +811,6 @@
 import axios from 'axios';
 
 import ItemFormBase from '@/components/ItemFormBase';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/mode/vue/vue.js';
-import 'codemirror/addon/lint/json-lint.js';
-import 'codemirror/addon/display/placeholder.js';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 import TemplateVaults from '@/components/TemplateVaults.vue';
 import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
@@ -872,14 +867,6 @@ export default {
       itemTypeIndex: 0,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_TITLES,
-      cmOptions: {
-        tabSize: 2,
-        mode: 'application/json',
-        lineNumbers: true,
-        line: true,
-        lint: true,
-        indentWithTabs: false,
-      },
       item: {
         task_params: {},
         jwt_params: { enabled: false, audience: [], ttl: '' },
@@ -988,11 +975,7 @@ export default {
         return this.item?.working_directory != null;
       },
       set(enabled) {
-        this.$set(
-          this.item,
-          'working_directory',
-          enabled ? this.item.working_directory || '' : null,
-        );
+        this.item.working_directory = enabled ? this.item.working_directory || '' : null;
       },
     },
 
@@ -1062,7 +1045,7 @@ export default {
         return !this.item.task_params.hide_dry_run;
       },
       set(newValue) {
-        this.$set(this.item.task_params, 'hide_dry_run', !newValue);
+        this.item.task_params.hide_dry_run = !newValue;
       },
     },
 
@@ -1071,7 +1054,7 @@ export default {
         return !this.item.task_params.hide_diff;
       },
       set(newValue) {
-        this.$set(this.item.task_params, 'hide_diff', !newValue);
+        this.item.task_params.hide_diff = !newValue;
       },
     },
 
@@ -1358,7 +1341,7 @@ export default {
       }
 
       if (!this.item.task_params) {
-        this.$set(this.item, 'task_params', {});
+        this.item.task_params = {};
       }
 
       // Same reactivity concern as executor_image: keys absent in the API response
@@ -1372,7 +1355,7 @@ export default {
         };
         Object.keys(galaxyDefaults).forEach((key) => {
           if (this.item.task_params[key] === undefined) {
-            this.$set(this.item.task_params, key, galaxyDefaults[key]);
+            this.item.task_params[key] = galaxyDefaults[key];
           }
         });
       }
@@ -1380,17 +1363,17 @@ export default {
       // The API omits executor_image when it is not set; declare it explicitly so
       // the text field stays reactive for templates without an override.
       if (this.item.executor_image === undefined) {
-        this.$set(this.item, 'executor_image', null);
+        this.item.executor_image = null;
       }
 
       if (!this.item.jwt_params) {
-        this.$set(this.item, 'jwt_params', { enabled: false, audience: [], ttl: '' });
+        this.item.jwt_params = { enabled: false, audience: [], ttl: '' };
       } else {
         if (!Array.isArray(this.item.jwt_params.audience)) {
-          this.$set(this.item.jwt_params, 'audience', []);
+          this.item.jwt_params.audience = [];
         }
         if (typeof this.item.jwt_params.ttl !== 'string') {
-          this.$set(this.item.jwt_params, 'ttl', '');
+          this.item.jwt_params.ttl = '';
         }
       }
 
@@ -1407,7 +1390,7 @@ export default {
       }
 
       if (!Array.isArray(this.item.environment_ids)) {
-        this.$set(this.item, 'environment_ids', []);
+        this.item.environment_ids = [];
       }
 
       this.args = JSON.parse(this.item.arguments || '[]');

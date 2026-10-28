@@ -41,7 +41,7 @@ export default {
   },
 
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     projectId: Number,
     itemId: [String, Number],
     invitesEnabled: Boolean,
@@ -49,7 +49,7 @@ export default {
     roles: Array,
   },
 
-  emits: ['input', 'save'],
+  emits: ['update:modelValue', 'save'],
 
   data() {
     return {
@@ -59,10 +59,10 @@ export default {
 
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.dialog = val;
     },
   },

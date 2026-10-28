@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="roleMapping-error"
@@ -20,13 +20,13 @@
       :label="$t('roleMappingProvider')"
       :items="providers"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :rules="[v => !!v || $t('provider_required')]"
       required
       data-testid="roleMapping-provider"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-select>
 
     <v-text-field
@@ -36,8 +36,8 @@
       required
       data-testid="roleMapping-group"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-select
@@ -45,13 +45,13 @@
       :label="$t('project')"
       :items="projects"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :rules="[v => !!v || $t('project_required')]"
       required
       data-testid="roleMapping-projectId"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-select>
 
     <v-select
@@ -59,13 +59,13 @@
       :label="$t('role')"
       :items="groupedRoles"
       item-value="slug"
-      item-text="name"
+      item-title="name"
       :rules="[v => !!v || $t('role_required')]"
       required
       data-testid="roleMapping-role"
       :disabled="formSaving || item.project_id == null"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     >
       <template v-slot:item="{ item: role }">
         <v-list-item-content :data-testid="`roleMapping-roleOption-${role.slug}`">
@@ -97,7 +97,7 @@ export default {
 
   computed: {
     groupedRoles() {
-      return groupRolesForSelect(this.roles, (key) => this.$i18n.t(key));
+      return groupRolesForSelect(this.roles, (key) => this.$t(key));
     },
   },
 

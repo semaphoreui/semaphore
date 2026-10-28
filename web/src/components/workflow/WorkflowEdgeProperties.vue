@@ -9,18 +9,18 @@
           class="text-subtitle-2"
           data-testid="workflowEdgeProps-heading"
         >{{ $t('workflowEdgeCondition') }}</div>
-        <div class="text-caption text--secondary" data-testid="workflowEdgeProps-nodes">
+        <div class="text-caption text-medium-emphasis" data-testid="workflowEdgeProps-nodes">
           #{{ edge.source_node_id }} → #{{ edge.destination_node_id }}
         </div>
       </div>
       <v-btn
         icon
-        small
+        size="small"
         :title="$t('close')"
         @click="$emit('close')"
         data-testid="workflowEdgeProps-close"
       >
-        <v-icon small>mdi-close</v-icon>
+        <v-icon size="small">mdi-close</v-icon>
       </v-btn>
     </div>
 
@@ -31,18 +31,18 @@
         v-model="edge.condition"
         :items="conditionOptions"
         item-value="value"
-        item-text="text"
+        item-title="text"
         :disabled="!canManage"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         hide-details="auto"
-        @change="emitChange"
+        @update:model-value="emitChange"
         data-testid="workflowEdgeProps-condition"
       >
         <template v-slot:item="{ item }">
           <v-icon
-            small
-            left
+            size="small"
+            start
             :color="item.color"
             :data-testid="`workflowEdgeProps-conditionOption-${item.value}`"
           >{{ item.icon }}</v-icon>
@@ -50,8 +50,8 @@
         </template>
         <template v-slot:selection="{ item }">
           <v-icon
-            small
-            left
+            size="small"
+            start
             :color="item.color"
             :data-testid="`workflowEdgeProps-conditionSelected-${item.value}`"
           >{{ item.icon }}</v-icon>
@@ -76,21 +76,21 @@
           dense
           hide-details
           class="mt-0 mb-2"
-          @change="onModeChanged"
+          @update:model-value="onModeChanged"
           data-testid="workflowEdgeProps-explicit"
         />
 
         <template v-if="!explicit">
           <div
             v-if="surveyVars.length === 0"
-            class="text-caption text--secondary"
+            class="text-caption text-medium-emphasis"
             data-testid="workflowEdgeProps-inputsNone"
           >
             {{ $t('workflowEdgeInputsByNameNone', { template: destinationTemplate.name }) }}
           </div>
           <template v-else>
             <div
-              class="text-caption text--secondary mb-2"
+              class="text-caption text-medium-emphasis mb-2"
               data-testid="workflowEdgeProps-byNameHint"
             >
               {{ $t('workflowEdgeInputsByNameHint', { template: destinationTemplate.name }) }}
@@ -99,15 +99,15 @@
               <v-chip
                 v-for="v in surveyVars"
                 :key="v.name"
-                x-small
+                size="x-small"
                 label
-                outlined
+                variant="outlined"
                 :color="hintHas(v.name) ? 'success' : null"
                 :title="hintHas(v.name)
                   ? $t('workflowEdgeInputsMatched', { run: hints.runId }) : null"
                 :data-testid="`workflowEdgeProps-varChip-${v.name}`"
               >
-                <v-icon v-if="hintHas(v.name)" x-small left>mdi-check</v-icon>
+                <v-icon v-if="hintHas(v.name)" size="x-small" start>mdi-check</v-icon>
                 {{ v.name }}
               </v-chip>
             </div>
@@ -117,14 +117,14 @@
         <template v-else>
           <div
             v-if="surveyVars.length === 0"
-            class="text-caption text--secondary"
+            class="text-caption text-medium-emphasis"
             data-testid="workflowEdgeProps-inputsNone"
           >
             {{ $t('workflowEdgeInputsByNameNone', { template: destinationTemplate.name }) }}
           </div>
           <template v-else>
             <div
-              class="text-caption text--secondary mb-3"
+              class="text-caption text-medium-emphasis mb-3"
               data-testid="workflowEdgeProps-explicitHint"
             >
               {{ $t('workflowEdgeInputsExplicitHint') }}
@@ -141,24 +141,24 @@
                   data-testid="workflowEdgeProps-varName"
                 >{{ v.name }}</span>
                 <span
-                  class="text-caption text--secondary"
+                  class="text-caption text-medium-emphasis"
                   data-testid="workflowEdgeProps-varType"
                 >{{ typeLabel(v) }}</span>
               </div>
               <v-combobox
-                :value="mappingKey(v.name)"
+                :model-value="mappingKey(v.name)"
                 :items="hintKeys"
                 :disabled="!canManage"
                 :label="$t('workflowEdgeInputsKey')"
                 :error-messages="keyErrors(v.name)"
                 :hint="keyHint(v.name)"
                 persistent-hint
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 clearable
                 hide-details="auto"
                 class="WorkflowEdgeProperties__key"
-                @input="setMapping(v.name, $event)"
+                @update:model-value="setMapping(v.name, $event)"
                 :data-testid="`workflowEdgeProps-key-${v.name}`"
               />
             </div>
@@ -166,7 +166,7 @@
         </template>
 
         <div
-          class="text-caption text--secondary mt-2"
+          class="text-caption text-medium-emphasis mt-2"
           data-testid="workflowEdgeProps-hintsCaption"
         >{{ hintsCaption }}</div>
       </div>
@@ -176,15 +176,15 @@
 
     <div class="pa-4">
       <v-btn
-        outlined
-        small
+        variant="outlined"
+        size="small"
         block
         color="error"
         :disabled="!canManage"
         @click="$emit('delete')"
         data-testid="workflowEdgeProps-delete"
       >
-        <v-icon left small>mdi-delete-outline</v-icon>
+        <v-icon start size="small">mdi-delete-outline</v-icon>
         {{ $t('workflowEdgeDelete') }}
       </v-btn>
     </div>
@@ -199,7 +199,7 @@ const OUTPUT_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 export default {
   props: {
     // { source_node_id, destination_node_id, condition, input_mode?, input_mappings? }
-    value: { type: Object, required: true },
+    modelValue: { type: Object, required: true },
     canManage: { type: Boolean, default: false },
     // The workflow's nodes and the project's templates, to find the
     // destination's survey variables.
@@ -211,17 +211,17 @@ export default {
     outputHints: { type: Object, default: null },
   },
 
-  emits: ['close', 'delete', 'input'],
+  emits: ['close', 'delete', 'update:modelValue'],
 
   data() {
     return {
-      edge: this.normalize(this.value),
-      explicit: this.value.input_mode === 'explicit',
+      edge: this.normalize(this.modelValue),
+      explicit: this.modelValue.input_mode === 'explicit',
     };
   },
 
   watch: {
-    value(v) {
+    modelValue(v) {
       this.edge = this.normalize(v);
       this.explicit = v.input_mode === 'explicit';
     },
@@ -334,7 +334,7 @@ export default {
         delete out.input_mode;
         delete out.input_mappings;
       }
-      this.$emit('input', out);
+      this.$emit('update:modelValue', out);
     },
   },
 };

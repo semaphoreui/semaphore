@@ -12,7 +12,7 @@
         || (needInventory && inventory == null) ? 'loading' : 'ready'))"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="newTask-error"
@@ -22,9 +22,9 @@
     <v-alert
       color="blue"
       dark
-      dismissible
-      dense
-      @input="item.commit_hash=null"
+      closable
+      density="compact"
+      @update:model-value="item.commit_hash=null"
       v-model="hasCommit"
       class="overflow-hidden mt-2"
       data-testid="newTask-commit"
@@ -33,7 +33,7 @@
         style="font-weight: bold;"
         data-testid="newTask-commitHash"
       >
-        <v-icon small>mdi-source-fork</v-icon>
+        <v-icon size="small">mdi-source-fork</v-icon>
         {{ (item.commit_hash || '').substr(0, 10) }}
       </div>
       <div
@@ -50,12 +50,12 @@
       :label="$t('buildVersion')"
       :items="buildTasks"
       item-value="id"
-      :item-text="(itm) => getTaskMessage(itm)"
+      :item-title="(itm) => getTaskMessage(itm)"
       :rules="[v => !!v || $t('build_version_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="newTask-buildTaskId"
     />
 
@@ -71,8 +71,8 @@
       v-model="item.message"
       :label="$t('messageOptional')"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="newTask-message"
     />
 
@@ -89,8 +89,8 @@
         :rules="[
             val => !v.required || !!val || v.title + $t('isRequired'),
           ]"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       />
 
       <v-select
@@ -105,18 +105,18 @@
           || v.title + ' ' + $t('isRequired')
         ]"
         :items="v.values"
-        item-text="name"
+        item-title="name"
         item-value="value"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         :multiple="v.type === 'select'"
         :chips="v.type === 'select'"
         :data-testid="`newTask-survey-${v.name}`"
       >
-      <template v-if="v.type === 'select'" v-slot:selection="{ item, index }">
+      <template v-if="v.type === 'select'" v-slot:chip="{ item, index }">
         <v-chip
-          small
-          close
+          size="small"
+          closable
           @click:close="deleteItem(v.name, index)"
           :data-testid="`newTask-surveyChip-${v.name}`"
         >
@@ -136,8 +136,8 @@
         ]"
         rows="3"
         auto-grow
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         :data-testid="`newTask-survey-${v.name}`"
       />
 
@@ -152,8 +152,8 @@
           val => !val || v.type !== 'int' || /^\d+$/.test(val) ||
           v.title + ' ' + $t('mustBeInteger'),
         ]"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         :data-testid="`newTask-survey-${v.name}`"
       />
     </div>
@@ -161,8 +161,8 @@
     <v-text-field
       v-model="git_branch"
       :label="fieldLabel('branch')"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       required
       :disabled="formSaving"
       v-if="canOverrideBranch"
@@ -174,9 +174,9 @@
       :label="fieldLabel('inventory')"
       :items="inventory"
       item-value="id"
-      item-text="name"
-      outlined
-      dense
+      item-title="name"
+      variant="outlined"
+      density="compact"
       required
       :disabled="formSaving"
       v-if="inventory != null && needInventory"
@@ -492,9 +492,9 @@ export default {
         if (sv.type !== 'select') return;
         const cur = this.editedEnvironment[sv.name];
         if (cur == null || cur === '') {
-          this.$set(this.editedEnvironment, sv.name, []);
+          this.editedEnvironment[sv.name] = [];
         } else if (!Array.isArray(cur)) {
-          this.$set(this.editedEnvironment, sv.name, [cur]);
+          this.editedEnvironment[sv.name] = [cur];
         }
       });
     },

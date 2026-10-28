@@ -4,27 +4,27 @@
       <v-text-field
         v-if="isBound(v.name)"
         :label="v.title + (v.required ? ' *' : '')"
-        :value="boundLabel(v.name)"
+        :model-value="boundLabel(v.name)"
         :hint="$t('workflowNodeSurveyInputsBoundHint')"
         :error-messages="boundErrors(v.name)"
         persistent-hint
         readonly
         prepend-inner-icon="mdi-link-variant"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         class="SurveyFields__bound"
         :data-testid="`surveyFields-bound-${v.name}`"
       >
         <template v-slot:append-outer>
           <v-btn
             icon
-            small
+            size="small"
             :title="$t('workflowNodeSurveyInputsUnbind')"
             class="SurveyFields__unbind"
             :data-testid="`surveyFields-unbind-${v.name}`"
             @click="$emit('unbind', v.name)"
           >
-            <v-icon small>mdi-close</v-icon>
+            <v-icon size="small">mdi-close</v-icon>
           </v-btn>
         </template>
       </v-text-field>
@@ -38,8 +38,8 @@
         class="masked-secret-input"
         :data-testid="`surveyFields-var-${v.name}`"
         :rules="[(val) => !v.required || !!val || v.title + $t('isRequired')]"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       />
 
       <v-select
@@ -52,18 +52,18 @@
         :rules="[(val) => !v.required || (Array.isArray(val) ? val.length > 0 : val != null) ||
          v.title + ' ' + $t('isRequired')]"
         :items="v.values"
-        item-text="name"
+        item-title="name"
         item-value="value"
         :multiple="v.type === 'select'"
         :chips="v.type === 'select'"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         :data-testid="`surveyFields-var-${v.name}`"
       >
-        <template v-if="v.type === 'select'" v-slot:selection="{ item, index }">
+        <template v-if="v.type === 'select'" v-slot:chip="{ item, index }">
           <v-chip
-            small
-            close
+            size="small"
+            closable
             @click:close="removeSelectedItem(v.name, index)"
             :data-testid="`surveyFields-chip-${v.name}`"
           >
@@ -88,8 +88,8 @@
         :rules="[(val) => !v.required || !!val || v.title + ' ' + $t('isRequired')]"
         rows="3"
         auto-grow
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         :data-testid="`surveyFields-var-${v.name}`"
       >
         <template v-if="canBind(v)" v-slot:append-outer>
@@ -112,8 +112,8 @@
           (val) =>
             !val || v.type !== 'int' || /^\d+$/.test(val) || v.title + ' ' + $t('mustBeInteger'),
         ]"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         :data-testid="`surveyFields-var-${v.name}`"
       >
         <template v-if="canBind(v)" v-slot:append-outer>

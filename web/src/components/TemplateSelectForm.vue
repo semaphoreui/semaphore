@@ -8,7 +8,7 @@
     :data-state="formError ? 'error' : 'ready'"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="inventoryAttach-error"
@@ -21,7 +21,7 @@
       v-model="itemId"
       label="Template"
       item-value="id"
-      item-text="name"
+      item-title="name"
       data-testid="inventoryAttach-templateId"
     />
   </v-form>
@@ -102,7 +102,8 @@ export default {
     async save() {
       this.formError = null;
 
-      if (!this.$refs.form.validate()) {
+      const { valid } = await this.$refs.form.validate();
+      if (!valid) {
         this.$emit('error', {});
         return null;
       }

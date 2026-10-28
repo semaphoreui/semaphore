@@ -23,7 +23,7 @@
       <template v-slot:item.status="{ item: run }">
         <v-chip
           :color="statusColor(run.status)"
-          small
+          size="small"
           :data-testid="`workflowRuns-rowStatus-${run.status}`"
         >{{ run.status }}</v-chip>
       </template>
@@ -60,11 +60,11 @@ export default {
   computed: {
     headers() {
       return [
-        { text: this.$i18n.t('workflowRun'), value: 'id', sortable: false },
-        { text: this.$i18n.t('status'), value: 'status', sortable: false },
-        { text: this.$i18n.t('version'), value: 'version', sortable: false },
-        { text: this.$i18n.t('start'), value: 'start', sortable: false },
-        { text: this.$i18n.t('end'), value: 'end', sortable: false },
+        { text: this.$t('workflowRun'), value: 'id', sortable: false },
+        { text: this.$t('status'), value: 'status', sortable: false },
+        { text: this.$t('version'), value: 'version', sortable: false },
+        { text: this.$t('start'), value: 'start', sortable: false },
+        { text: this.$t('end'), value: 'end', sortable: false },
       ];
     },
   },

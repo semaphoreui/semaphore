@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="newProject-error"
@@ -21,8 +21,8 @@
       required
       :disabled="formSaving"
       data-testid="newProject-name"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-text-field
@@ -37,8 +37,8 @@
       type="number"
       :step="1"
       data-testid="newProject-maxParallelTasks"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-text-field
@@ -46,8 +46,8 @@
       :label="$t('telegramChatIdOptional')"
       :disabled="formSaving"
       data-testid="newProject-tg"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-checkbox

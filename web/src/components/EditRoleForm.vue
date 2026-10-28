@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="role-error"
@@ -19,8 +19,8 @@
       v-model="item.name"
       :label="$t('name')"
       :rules="[v => !!v || $t('name_required')]"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       required
       :disabled="formSaving"
       data-testid="role-name"
@@ -29,10 +29,10 @@
     <v-text-field
       v-model="item.slug"
       :label="$t('slug')"
-      @input="slugTouched = true"
+      @update:model-value="slugTouched = true"
       :rules="slugRules"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       required
       :disabled="formSaving || !isNew"
       :hint="$t('slugHint')"

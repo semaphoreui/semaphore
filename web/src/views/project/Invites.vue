@@ -63,7 +63,11 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false" data-testid="invites-rowActions">
+        <v-btn-toggle
+          density="compact"
+          :value-comparator="() => false"
+          data-testid="invites-rowActions"
+        >
           <v-btn
             @click="askDeleteItem(item.id)"
             v-if="can(USER_PERMISSIONS.manageProjectUsers)"
@@ -116,22 +120,22 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '40%',
         },
         {
-          text: this.$i18n.t('username'),
-          value: 'username',
+          title: this.$t('username'),
+          key: 'username',
           width: '30%',
         },
         {
-          text: this.$i18n.t('role'),
-          value: 'role',
+          title: this.$t('role'),
+          key: 'role',
           width: '30%',
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         }];

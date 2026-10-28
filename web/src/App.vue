@@ -9,13 +9,18 @@
       :max-width="400"
     >
       <div class="pt-3" v-if="restoreProjectResult">
-        <v-alert dense outlined type="success" data-testid="appRestoreResultDialog-success">
+        <v-alert
+          density="compact"
+          variant="outlined"
+          type="success"
+          data-testid="appRestoreResultDialog-success"
+        >
           {{ $t('projectWithNameRestored', { projectName: restoreProjectResult.projectName }) }}
         </v-alert>
 
         <v-alert
-          dense
-          outlined
+          density="compact"
+          variant="outlined"
           type="error"
           class="mb-0"
           data-testid="appRestoreResultDialog-emptyKeys"
@@ -91,7 +96,7 @@
     >
       <template v-slot:title="{}">
         {{
-          user.has_active_subscription ? 'Subscription &amp; Billing' : 'Upgrade to Semaphore PRO'
+          user.has_active_subscription ? 'Subscription & Billing' : 'Upgrade to Semaphore PRO'
         }}
       </template>
 
@@ -134,118 +139,120 @@
       v-model="snackbar"
       :color="snackbarColor"
       :timeout="3000"
-      top
+      location="top"
       data-testid="app-snackbar"
       :data-state="snackbarColor === 'error' ? 'error' : 'ready'"
     >
       {{ snackbarText }}
-      <v-btn text @click="snackbar = false" data-testid="app-snackbarClose">
-        {{ $t('close') }}
-      </v-btn>
+      <template v-slot:actions>
+        <v-btn variant="text" @click="snackbar = false" data-testid="app-snackbarClose">
+          {{ $t('close') }}
+        </v-btn>
+      </template>
     </v-snackbar>
 
     <v-navigation-drawer
-      app
-      dark
+      theme="dark"
       :color="darkMode ? '#003236' : '#005057'"
-      fixed
       width="260"
       v-model="drawer"
-      mobile-breakpoint="960"
-      :mini-variant="navMini && $vuetify.breakpoint.mdAndUp"
-      mini-variant-width="60"
+      :mobile-breakpoint="960"
+      :rail="navMini && $vuetify.display.mdAndUp"
+      rail-width="60"
       v-if="$route.path.startsWith('/project/')"
       class="NavDrawer"
       data-testid="sidebar"
     >
-      <v-menu bottom max-width="235" max-height="100%" v-if="project">
-        <template v-slot:activator="{ on, attrs }">
+      <v-menu
+        location="top start"
+        origin="overlap"
+        min-width="235"
+        max-width="235"
+        v-if="project"
+      >
+        <template v-slot:activator="{ props }">
           <v-list class="pa-0 overflow-y-auto">
             <v-list-item
               key="project"
               class="app__project-selector"
-              v-bind="attrs"
-              v-on="on"
+              v-bind="props"
               data-testid="sidebar-currentProject"
             >
-              <v-list-item-icon>
+              <template v-slot:prepend>
                 <v-avatar
                   :color="getProjectColor(project)"
                   size="24"
                   style="font-size: 13px; font-weight: bold"
                 >
-                  <span class="white--text">{{ getProjectInitials(project) }}</span>
+                  <span class="text-white">{{ getProjectInitials(project) }}</span>
                 </v-avatar>
-              </v-list-item-icon>
+              </template>
 
-              <v-list-item-content>
-                <v-list-item-title
-                  class="app__project-selector-title"
-                  data-testid="sidebar-currentProjectName"
-                >
-                  {{ project.name }}
-                </v-list-item-title>
-                <v-list-item-subtitle data-testid="sidebar-currentProjectRoles">
-                  {{ (userRole.roles || []).join(', ') }}
-                </v-list-item-subtitle>
-              </v-list-item-content>
+              <v-list-item-title
+                class="app__project-selector-title"
+                data-testid="sidebar-currentProjectName"
+              >
+                {{ project.name }}
+              </v-list-item-title>
+              <v-list-item-subtitle data-testid="sidebar-currentProjectRoles">
+                {{ (userRole.roles || []).join(', ') }}
+              </v-list-item-subtitle>
 
-              <v-list-item-icon>
+              <template v-slot:append>
                 <v-icon>mdi-chevron-down</v-icon>
-              </v-list-item-icon>
+              </template>
             </v-list-item>
           </v-list>
         </template>
-        <v-list>
-          <v-list-item
-            v-for="(item, i) in projects"
-            :key="i"
-            :to="`/project/${item.id}`"
-            @click="selectProject(item.id)"
-            data-testid="sidebar-projectMenu-item"
-          >
-            <v-list-item-icon>
-              <v-avatar
-                :color="getProjectColor(item)"
-                size="24"
-                style="font-size: 13px; font-weight: bold"
-              >
-                <span class="white--text">{{ getProjectInitials(item) }}</span>
-              </v-avatar>
-            </v-list-item-icon>
-            <v-list-item-content>{{ item.name }}</v-list-item-content>
-          </v-list-item>
+        <v-theme-provider :theme="menuTheme">
+          <v-list>
+            <v-list-item
+              v-for="(item, i) in projects"
+              :key="i"
+              :to="`/project/${item.id}`"
+              :active="isRouteActive(`/project/${item.id}`)"
+              @click="selectProject(item.id)"
+              data-testid="sidebar-projectMenu-item"
+            >
+              <template v-slot:prepend>
+                <v-avatar
+                  :color="getProjectColor(item)"
+                  size="24"
+                  style="font-size: 13px; font-weight: bold"
+                >
+                  <span class="text-white">{{ getProjectInitials(item) }}</span>
+                </v-avatar>
+              </template>
+              {{ item.name }}
+            </v-list-item>
 
-          <v-divider v-if="user.can_create_project" />
+            <v-divider v-if="user.can_create_project" />
 
-          <v-list-item
-            @click="showNewProjectDialogue()"
-            v-if="user.can_create_project"
-            data-testid="sidebar-newProject"
-          >
-            <v-list-item-icon>
-              <v-icon>mdi-plus</v-icon>
-            </v-list-item-icon>
+            <v-list-item
+              @click="showNewProjectDialogue()"
+              v-if="user.can_create_project"
+              data-testid="sidebar-newProject"
+            >
+              <template v-slot:prepend>
+                <v-icon>mdi-plus</v-icon>
+              </template>
 
-            <v-list-item-content>
               {{ $t('newProject2') }}
-            </v-list-item-content>
-          </v-list-item>
+            </v-list-item>
 
-          <v-list-item
-            @click="restoreProjectDialog = true"
-            v-if="user.can_create_project"
-            data-testid="sidebar-restoreProject"
-          >
-            <v-list-item-icon>
-              <v-icon>mdi-backup-restore</v-icon>
-            </v-list-item-icon>
+            <v-list-item
+              @click="restoreProjectDialog = true"
+              v-if="user.can_create_project"
+              data-testid="sidebar-restoreProject"
+            >
+              <template v-slot:prepend>
+                <v-icon>mdi-backup-restore</v-icon>
+              </template>
 
-            <v-list-item-content>
               {{ $t('restoreProject') }}
-            </v-list-item-content>
-          </v-list-item>
-        </v-list>
+            </v-list-item>
+          </v-list>
+        </v-theme-provider>
       </v-menu>
 
       <v-list class="pt-0" v-if="!project">
@@ -253,30 +260,28 @@
           v-if="user.can_create_project"
           key="new_project"
           :to="`/project/new`"
+          :active="isRouteActive(`/project/new`)"
           data-testid="sidebar-newProjectLink"
         >
-          <v-list-item-icon>
+          <template v-slot:prepend>
             <v-icon>mdi-plus</v-icon>
-          </v-list-item-icon>
+          </template>
 
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('newProject2') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('newProject2') }}</v-list-item-title>
         </v-list-item>
 
         <v-list-item
           v-if="user.can_create_project"
           key="restore_project"
           :to="`/project/restore`"
+          :active="isRouteActive(`/project/restore`)"
           data-testid="sidebar-restoreProjectLink"
         >
-          <v-list-item-icon>
+          <template v-slot:prepend>
             <v-icon>mdi-restore</v-icon>
-          </v-list-item-icon>
+          </template>
 
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('restoreProject') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('restoreProject') }}</v-list-item-title>
         </v-list-item>
       </v-list>
 
@@ -284,42 +289,42 @@
         <v-list-item
           key="dashboard"
           :to="`/project/${projectId}/history`"
+          :active="isRouteActive(`/project/${projectId}/history`)"
           data-testid="sidebar-dashboard"
         >
-          <v-list-item-icon>
+          <template v-slot:prepend>
             <v-icon>mdi-view-dashboard</v-icon>
-          </v-list-item-icon>
+          </template>
 
-          <v-list-item-content>
-            <v-list-item-title>{{ $t('dashboard') }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ $t('dashboard') }}</v-list-item-title>
         </v-list-item>
 
         <v-list-item
           v-for="item in pinnedNavItemsList"
           :key="item.key"
           :to="item.to"
+          :active="isRouteActive(item.to)"
           :data-testid="item.testId"
           class="nav-item--pinnable"
         >
-          <v-list-item-icon>
+          <template v-slot:prepend>
             <v-icon>{{ item.icon }}</v-icon>
-          </v-list-item-icon>
+          </template>
 
-          <v-list-item-content>
-            <v-list-item-title>{{ item.title }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ item.title }}</v-list-item-title>
 
-          <div class="nav-pin-wrap" v-if="navEditMode && navItems.length > 1">
-            <v-btn
-              icon
-              @click.stop.prevent="togglePin(item.key)"
-              :title="$t('unpin')"
-              data-testid="sidebar-unpin"
-            >
-              <v-icon small>mdi-pin-off-outline</v-icon>
-            </v-btn>
-          </div>
+          <template v-slot:append>
+            <div class="nav-pin-wrap" v-if="navEditMode && navItems.length > 1">
+              <v-btn
+                icon
+                @click.stop.prevent="togglePin(item.key)"
+                :title="$t('unpin')"
+                data-testid="sidebar-unpin"
+              >
+                <v-icon size="small">mdi-pin-off-outline</v-icon>
+              </v-btn>
+            </div>
+          </template>
         </v-list-item>
 
         <template v-if="unpinnedNavItems.length > 0">
@@ -328,15 +333,13 @@
             class="nav-more-toggle"
             data-testid="sidebar-more"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>{{ showMoreToggle ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-            </v-list-item-icon>
+            </template>
 
-            <v-list-item-content>
-              <v-list-item-title class="nav-more-title">
-                {{ $t('more') }}
-              </v-list-item-title>
-            </v-list-item-content>
+            <v-list-item-title class="nav-more-title">
+              {{ $t('more') }}
+            </v-list-item-title>
           </v-list-item>
 
           <template v-if="showMoreToggle">
@@ -344,27 +347,28 @@
               v-for="item in unpinnedNavItems"
               :key="'unpinned-' + item.key"
               :to="item.to"
+              :active="isRouteActive(item.to)"
               :data-testid="item.testId"
               class="nav-item--pinnable"
             >
-              <v-list-item-icon>
+              <template v-slot:prepend>
                 <v-icon>{{ item.icon }}</v-icon>
-              </v-list-item-icon>
+              </template>
 
-              <v-list-item-content>
-                <v-list-item-title>{{ item.title }}</v-list-item-title>
-              </v-list-item-content>
+              <v-list-item-title>{{ item.title }}</v-list-item-title>
 
-              <div class="nav-pin-wrap" v-if="navEditMode">
-                <v-btn
-                  icon
-                  @click.stop.prevent="togglePin(item.key)"
-                  :title="$t('pin')"
-                  data-testid="sidebar-pin"
-                >
-                  <v-icon small>mdi-pin-outline</v-icon>
-                </v-btn>
-              </div>
+              <template v-slot:append>
+                <div class="nav-pin-wrap" v-if="navEditMode">
+                  <v-btn
+                    icon
+                    @click.stop.prevent="togglePin(item.key)"
+                    :title="$t('pin')"
+                    data-testid="sidebar-pin"
+                  >
+                    <v-icon size="small">mdi-pin-outline</v-icon>
+                  </v-btn>
+                </div>
+              </template>
             </v-list-item>
           </template>
         </template>
@@ -380,10 +384,10 @@
                 inset
                 flat
                 hide-details
-                dense
+                density="compact"
                 data-testid="sidebar-darkMode"
               ></v-switch>
-              <v-icon class="DarkModeSwitchWrap__icon" small>
+              <v-icon class="DarkModeSwitchWrap__icon" size="small">
                 {{ darkMode ? 'mdi-weather-night' : 'mdi-white-balance-sunny' }}
               </v-icon>
             </div>
@@ -406,9 +410,14 @@
 
             <v-spacer />
 
-            <v-menu top min-width="150" max-width="235" nudge-top="12" :position-x="50" absolute>
-              <template v-slot:activator="{ on, attrs }">
-                <v-btn icon v-bind="attrs" v-on="on" data-testid="sidebar-langMenu">
+            <v-menu
+              location="top end"
+              :offset="12"
+              min-width="150"
+              max-width="235"
+            >
+              <template v-slot:activator="{ props }">
+                <v-btn icon v-bind="props" data-testid="sidebar-langMenu">
                   <img
                     style="border-radius: 30px; max-width: 100%"
                     :src="`flags/${lang.flag}.svg`"
@@ -417,247 +426,241 @@
                 </v-btn>
               </template>
 
-              <v-list dense>
-                <v-list-item
-                  v-for="lang in languages"
-                  :key="lang.id"
-                  @click="selectLanguage(lang.id)"
-                  :data-testid="`sidebar-langMenu-${lang.id || 'system'}`"
-                >
-                  <v-list-item-icon>
-                    <v-img
-                      style="border-radius: 20px; max-width: 24px"
-                      :src="`flags/${lang.flag}.svg`"
-                      alt=""
-                    />
-                  </v-list-item-icon>
+              <v-theme-provider :theme="menuTheme">
+                <v-list density="compact">
+                  <v-list-item
+                    v-for="lang in languages"
+                    :key="lang.id"
+                    @click="selectLanguage(lang.id)"
+                    :data-testid="`sidebar-langMenu-${lang.id || 'system'}`"
+                  >
+                    <template v-slot:prepend>
+                      <v-img
+                        style="border-radius: 20px; width: 24px; max-width: 24px"
+                        :src="`flags/${lang.flag}.svg`"
+                        alt=""
+                      />
+                    </template>
 
-                  <v-list-item-content>
                     <v-list-item-title>{{ lang.title }}</v-list-item-title>
-                  </v-list-item-content>
-                </v-list-item>
-              </v-list>
+                  </v-list-item>
+                </v-list>
+              </v-theme-provider>
             </v-menu>
           </v-list-item>
 
-          <v-menu top max-width="235" nudge-top="12">
-            <template v-slot:activator="{ on, attrs }">
-              <v-list-item key="project" v-bind="attrs" v-on="on" data-testid="sidebar-userMenu">
-                <v-list-item-icon>
+          <v-menu
+            location="bottom start"
+            origin="overlap"
+            :offset="-12"
+            min-width="235"
+            max-width="235"
+          >
+            <template v-slot:activator="{ props }">
+              <v-list-item key="project" v-bind="props" data-testid="sidebar-userMenu">
+                <template v-slot:prepend>
                   <v-icon
                     color="#f14668"
                     v-if="user.pro"
                     data-testid="sidebar-userPro"
                   > mdi-professional-hexagon</v-icon>
                   <v-icon v-else>mdi-account</v-icon>
-                </v-list-item-icon>
+                </template>
 
-                <v-list-item-content>
-                  <v-list-item-title data-testid="sidebar-userName">
-                    {{ user.name }}
-                  </v-list-item-title>
-                </v-list-item-content>
+                <v-list-item-title data-testid="sidebar-userName">
+                  {{ user.name }}
+                </v-list-item-title>
 
-                <v-list-item-action>
-                  <v-chip color="red" v-if="user.admin" small data-testid="sidebar-userAdmin">{{
-                    $i18n.t('admin')
-                  }}</v-chip>
-                </v-list-item-action>
+                <template v-slot:append>
+                  <v-chip
+                    color="red"
+                    variant="flat"
+                    v-if="user.admin"
+                    size="small"
+                    data-testid="sidebar-userAdmin"
+                  >{{ $t('admin') }}</v-chip>
+                </template>
               </v-list-item>
             </template>
 
-            <v-list>
-              <v-list-item
-                key="system-info"
-                v-if="canManageSystem"
-                @click="systemInfoDialog = true"
-                data-testid="sidebar-userMenu-systemInfo"
-              >
-                <v-list-item-icon>
-                  <v-icon>mdi-server</v-icon>
-                </v-list-item-icon>
+            <v-theme-provider :theme="menuTheme">
+              <v-list>
+                <v-list-item
+                  key="system-info"
+                  v-if="canManageSystem"
+                  @click="systemInfoDialog = true"
+                  data-testid="sidebar-userMenu-systemInfo"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-server</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ $t('systemInfo') }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-list-item v-else key="version" data-testid="sidebar-userMenu-version">
-                <v-list-item-icon>
-                  <v-icon>mdi-information-variant</v-icon>
-                </v-list-item-icon>
+                <v-list-item v-else key="version" data-testid="sidebar-userMenu-version">
+                  <template v-slot:prepend>
+                    <v-icon>mdi-information-variant</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ systemInfo.version }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-list-item
-                key="subscription"
-                v-if="isPro && user.admin"
-                @click="subscriptionDialog = true"
-                data-testid="sidebar-userMenu-subscription"
-              >
-                <v-list-item-icon>
-                  <v-icon color="#f14668" style="transform: scale(1.4)">
-                    mdi-professional-hexagon
-                  </v-icon>
-                </v-list-item-icon>
+                <v-list-item
+                  key="subscription"
+                  v-if="isPro && user.admin"
+                  @click="subscriptionDialog = true"
+                  data-testid="sidebar-userMenu-subscription"
+                >
+                  <template v-slot:prepend>
+                    <v-icon color="#f14668" style="transform: scale(1.4)">
+                      mdi-professional-hexagon
+                    </v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{
-                    user.has_active_subscription
-                      ? 'Subscription &amp; Billing'
-                      : 'Upgrade to PRO or EE'
+                    user.has_active_subscription ? 'Subscription & Billing' : 'Upgrade to PRO or EE'
                   }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-divider />
+                <v-divider />
 
-              <v-list-item
-                key="runners"
-                to="/runners"
-                v-if="canManageSystem"
-                data-testid="sidebar-userMenu-runners"
-              >
-                <v-list-item-icon>
-                  <v-icon>mdi-cogs</v-icon>
-                </v-list-item-icon>
+                <v-list-item
+                  key="runners"
+                  to="/runners"
+                  :active="isRouteActive('/runners')"
+                  v-if="canManageSystem"
+                  data-testid="sidebar-userMenu-runners"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-cogs</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ $t('runners') }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-list-item
-                key="cluster"
-                to="/cluster"
-                v-if="canManageSystem"
-                data-testid="sidebar-userMenu-cluster"
-              >
-                <v-list-item-icon>
-                  <v-icon>mdi-server-network</v-icon>
-                </v-list-item-icon>
+                <v-list-item
+                  key="cluster"
+                  to="/cluster"
+                  :active="isRouteActive('/cluster')"
+                  v-if="canManageSystem"
+                  data-testid="sidebar-userMenu-cluster"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-server-network</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ $t('cluster') }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-list-item
-                key="tasks"
-                to="/tasks"
-                v-if="canManageSystem"
-                data-testid="sidebar-userMenu-tasks"
-              >
-                <v-list-item-icon>
-                  <v-icon>mdi-check-all</v-icon>
-                </v-list-item-icon>
+                <v-list-item
+                  key="tasks"
+                  to="/tasks"
+                  :active="isRouteActive('/tasks')"
+                  v-if="canManageSystem"
+                  data-testid="sidebar-userMenu-tasks"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-check-all</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ $t('activeTasks') }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-list-item
-                key="users"
-                to="/users"
-                v-if="canManageUsers || canManageRoles"
-                data-testid="sidebar-userMenu-users"
-              >
-                <v-list-item-icon>
-                  <v-icon>mdi-account-multiple</v-icon>
-                </v-list-item-icon>
+                <v-list-item
+                  key="users"
+                  to="/users"
+                  :active="isRouteActive('/users')"
+                  v-if="canManageUsers || canManageRoles"
+                  data-testid="sidebar-userMenu-users"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-account-multiple</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ $t('users') }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-list-item
-                key="audit-log"
-                to="/audit-log"
-                v-if="user.can_read_audit_log"
-                data-testid="sidebar-userMenu-auditLog"
-              >
-                <v-list-item-icon>
-                  <v-icon>mdi-shield-search</v-icon>
-                </v-list-item-icon>
+                <v-list-item
+                  key="audit-log"
+                  to="/audit-log"
+                  :active="isRouteActive('/audit-log')"
+                  v-if="user.can_read_audit_log"
+                  data-testid="sidebar-userMenu-auditLog"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-shield-search</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ $t('audit_log') }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-list-item
-                key="roles"
-                to="/roles"
-                v-if="isPro && canManageRoles"
-                data-testid="sidebar-userMenu-roles"
-              >
-                <v-list-item-icon>
-                  <v-icon>mdi-account-cog</v-icon>
-                </v-list-item-icon>
+                <v-list-item
+                  key="roles"
+                  to="/roles"
+                  :active="isRouteActive('/roles')"
+                  v-if="isPro && canManageRoles"
+                  data-testid="sidebar-userMenu-roles"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-account-cog</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ $t('Roles') }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-list-item
-                key="role-mappings"
-                to="/role-mappings"
-                v-if="isPro && user.admin"
-                data-testid="sidebar-userMenu-roleMappings"
-              >
-                <v-list-item-icon>
-                  <v-icon>mdi-account-group</v-icon>
-                </v-list-item-icon>
+                <v-list-item
+                  key="role-mappings"
+                  to="/role-mappings"
+                  :active="isRouteActive('/role-mappings')"
+                  v-if="isPro && user.admin"
+                  data-testid="sidebar-userMenu-roleMappings"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-account-group</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ $t('roleMappings') }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-divider />
+                <v-divider />
 
-              <v-list-item key="tokens" data-testid="sidebar-tokens" to="/tokens">
-                <v-list-item-icon>
-                  <v-icon>mdi-api</v-icon>
-                </v-list-item-icon>
+                <v-list-item
+                  key="tokens"
+                  data-testid="sidebar-tokens"
+                  to="/tokens"
+                  :active="isRouteActive('/tokens')"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-api</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ $t('api_tokens') }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-list-item
-                key="edit"
-                @click="userDialog = true"
-                data-testid="sidebar-userMenu-editAccount"
-              >
-                <v-list-item-icon>
-                  <v-icon>mdi-pencil</v-icon>
-                </v-list-item-icon>
+                <v-list-item
+                  key="edit"
+                  @click="userDialog = true"
+                  data-testid="sidebar-userMenu-editAccount"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-pencil</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ $t('editAccount') }}
-                </v-list-item-content>
-              </v-list-item>
+                </v-list-item>
 
-              <v-divider />
+                <v-divider />
 
-              <v-list-item key="sign_out" @click="signOut()" data-testid="sidebar-signout">
-                <v-list-item-icon>
-                  <v-icon>mdi-exit-to-app</v-icon>
-                </v-list-item-icon>
+                <v-list-item key="sign_out" @click="signOut()" data-testid="sidebar-signout">
+                  <template v-slot:prepend>
+                    <v-icon>mdi-exit-to-app</v-icon>
+                  </template>
 
-                <v-list-item-content>
                   {{ $t('signOut') }}
-                </v-list-item-content>
-              </v-list-item>
-            </v-list>
+                </v-list-item>
+              </v-list>
+            </v-theme-provider>
           </v-menu>
         </v-list>
       </template>
@@ -679,7 +682,7 @@
   </v-app>
   <v-app v-else-if="state === 'loading'" data-testid="app-page" data-state="loading">
     <v-main>
-      <v-container fluid fill-height align-center justify-center class="pa-0">
+      <v-container fluid class="pa-0 fill-height d-flex align-center justify-center">
         <v-progress-circular
           :size="70"
           color="primary"
@@ -693,25 +696,31 @@
     <v-main>
       <v-container
         fluid
-        flex-column
-        fill-height
-        align-center
-        justify-center
-        class="pa-0 text-center"
+        class="pa-0 text-center fill-height d-flex flex-column align-center justify-center"
       >
-        <v-alert text color="error" class="d-inline-block" data-testid="app-error">
-          <h3 class="headline">
+        <v-alert
+          variant="tonal"
+          color="error"
+          class="d-inline-block flex-0-0"
+          data-testid="app-error"
+        >
+          <h3 class="text-h5">
             {{ $t('error') }}
           </h3>
           {{ snackbarText }}
         </v-alert>
         <div class="mb-6">
-          <v-btn text color="blue darken-1" @click="refreshPage()" data-testid="app-refresh">
-            <v-icon left>mdi-refresh</v-icon>
+          <v-btn
+            variant="text"
+            color="blue-darken-1"
+            @click="refreshPage()"
+            data-testid="app-refresh"
+          >
+            <v-icon start>mdi-refresh</v-icon>
             {{ $t('refreshPage') }}
           </v-btn>
-          <v-btn text color="blue darken-1" @click="signOut()" data-testid="app-relogin">
-            <v-icon left>mdi-exit-to-app</v-icon>
+          <v-btn variant="text" color="blue-darken-1" @click="signOut()" data-testid="app-relogin">
+            <v-icon start>mdi-exit-to-app</v-icon>
             {{ $t('relogin') }}
           </v-btn>
         </div>
@@ -746,27 +755,67 @@ html.WorkflowEditor-html body {
   overscroll-behavior: none;
 }
 
+// Visually hidden, but kept in the accessibility tree (Vuetify 2's mini variant did the same).
+@mixin nav-rail-hidden {
+  position: absolute !important;
+  height: 1px;
+  width: 1px;
+  overflow: hidden;
+  clip: rect(1px, 1px, 1px, 1px);
+  white-space: nowrap;
+}
+
 .NavDrawer {
   height: 100dvh !important;
   // No width animation: the drawer switches between full and icon-only
   // together with a route change and must take its final width at once.
   transition-property: transform, visibility;
 
+  // The tools row lays its children out in one line (a flex row in Vuetify 2).
+  .NavDrawer__toolsRow > .v-list-item__content {
+    display: flex;
+    align-items: center;
+  }
+
+  // The flag fills its button (`max-width: 100%`): in Vuetify 2 the button content took the
+  // button's width, in Vuetify 3 its grid column is as wide as the content, so the image
+  // collapsed to 0.
+  .NavDrawer__toolsRow .v-btn--icon {
+    grid-template-columns: max-content 1fr max-content;
+  }
+
   // Icon-only strip while the workflow editor has its palette collapsed.
-  // The global first-child icon rule below is !important, so it has to be
-  // undone here with the same weight.
-  &.v-navigation-drawer--mini-variant {
-    .v-list-item__icon:first-child {
-      margin-right: 0 !important;
+  // Vuetify 2 showed only the first child of every list item (the icon) and
+  // hid the rest; Vuetify 3's rail hides nothing, so do it here.
+  &.v-navigation-drawer--rail {
+    .v-list-item__prepend > .v-list-item__spacer {
+      width: 0 !important;
     }
 
-    // Only the dark-mode switch survives (Vuetify hides the other children);
-    // the switch track sits left of its box, so nudge it to the middle.
+    .v-list-item > .v-list-item__content,
+    .v-list-item > .v-list-item__append {
+      @include nav-rail-hidden;
+    }
+
+    // Only the dark-mode switch survives; put its track (52 px in Vuetify 3)
+    // in the middle of the strip.
     .NavDrawer__toolsRow {
       padding: 0;
 
+      & > .v-list-item__content {
+        position: static !important;
+        height: auto;
+        width: auto;
+        overflow: visible;
+        clip: auto;
+
+        & > *:not(:first-child) {
+          @include nav-rail-hidden;
+        }
+      }
+
       .DarkModeSwitchWrap {
-        margin-left: 16px;
+        margin-left: 4px;
       }
     }
   }
@@ -837,7 +886,7 @@ html.WorkflowEditor-html body {
   border-radius: 12px;
 }
 
-.theme--dark {
+.v-theme--dark {
   --highlighted-card-bg-color: #262626;
 
   // Dialogs opened above another dialog have no overlay; the default Vuetify
@@ -848,7 +897,7 @@ html.WorkflowEditor-html body {
   }
 }
 
-.theme--light {
+.v-theme--light {
   --highlighted-card-bg-color: #f8f8f8;
 }
 
@@ -869,25 +918,22 @@ html.WorkflowEditor-html body {
     pointer-events: none;
     color: #fff !important;
     transition: left 0.2s ease;
-    left: 1px;
+    // Centred on the thumb of the Vuetify 3 inset switch (off: 16 px at 8 px, on: 24 px at 24 px).
+    left: 6px;
   }
 
   &--dark .DarkModeSwitchWrap__icon {
-    left: 22px;
+    left: 26px;
   }
 }
 
-.v-dialog > .v-card > .v-card__title {
+.v-dialog > .v-overlay__content > .v-card > .v-card-title {
   flex-wrap: nowrap;
   overflow: hidden;
 
   & * {
     white-space: nowrap;
   }
-}
-
-.v-data-table tbody tr.v-data-table__expanded__content {
-  box-shadow: none !important;
 }
 
 .v-data-table a {
@@ -910,15 +956,13 @@ html.WorkflowEditor-html body {
   padding: 0 10px;
 }
 
+// Vuetify 3 centres the prepend and append slots of a list item itself
+// (Vuetify 2 needed `margin-top: 20px` on the icons).
 .app__project-selector {
   height: 64px;
 
   & > .v-list-item__content {
     padding: 0;
-  }
-
-  .v-list-item__icon {
-    margin-top: 20px !important;
   }
 }
 
@@ -927,26 +971,28 @@ html.WorkflowEditor-html body {
   font-weight: bold;
 }
 
-.v-application--is-ltr .v-list-item__action:first-child,
-.v-application--is-ltr .v-list-item__icon:first-child {
-  margin-right: 16px !important;
+// Gap between the icon (or action) in front of a list item and its text.
+.v-list-item__prepend > * ~ .v-list-item__spacer {
+  width: 16px !important;
 }
 
 .v-toolbar__content {
   height: 64px !important;
 }
 
-.v-data-table .v-data-footer {
+// Tables: `.v-table` is the root of both v-data-table and v-table (v-simple-table in Vuetify 2,
+// which drew `.v-data-table` too).
+.v-data-table .v-data-table-footer {
   margin-left: 16px !important;
   margin-right: 16px !important;
 }
 
-.v-data-table__wrapper {
+.v-table__wrapper {
   padding-left: 16px !important;
   padding-right: 16px !important;
 }
 
-.v-data-table {
+.v-table {
   td:first-child,
   th:first-child {
     padding-left: 2px !important;
@@ -957,12 +1003,12 @@ html.WorkflowEditor-html body {
     padding-right: 2px !important;
   }
 
-  .v-data-table__wrapper > table > thead > tr:last-child > th {
+  .v-table__wrapper > table > thead > tr:last-child > th {
     text-transform: uppercase;
     white-space: nowrap;
   }
 
-  .v-data-table__wrapper > table > tbody > tr {
+  .v-table__wrapper > table > tbody > tr {
     background: transparent !important;
 
     &:hover {
@@ -975,26 +1021,22 @@ html.WorkflowEditor-html body {
   }
 }
 
-.v-data-table > .v-data-table__wrapper > table > tbody > tr > th,
-.v-data-table > .v-data-table__wrapper > table > thead > tr > th,
-.v-data-table > .v-data-table__wrapper > table > tfoot > tr > th,
-.v-data-table > .v-data-table__wrapper > table > tbody > tr > td {
+.v-table > .v-table__wrapper > table > tbody > tr > th,
+.v-table > .v-table__wrapper > table > thead > tr > th,
+.v-table > .v-table__wrapper > table > tfoot > tr > th,
+.v-table > .v-table__wrapper > table > tbody > tr > td {
   font-size: 1rem !important;
 }
 
-.v-data-footer {
+.v-data-table-footer {
   font-size: 1rem !important;
 }
 
-.v-toolbar__title {
+.v-toolbar-title {
   font-weight: bold !important;
 }
 
-.v-app-bar__nav-icon {
-  margin-left: 0 !important;
-}
-
-.v-toolbar__title:not(:first-child) {
+.v-toolbar-title:not(:first-child) {
   margin-left: 10px !important;
 }
 
@@ -1003,63 +1045,62 @@ html.WorkflowEditor-html body {
 }
 
 @media (min-width: 960px) {
-  .v-app-bar__nav-icon {
+  .v-app-bar-nav-icon {
     display: none !important;
   }
 
-  .v-toolbar__title:not(:first-child) {
+  // With the nav icon hidden the title starts the toolbar: the offset Vuetify 3 gives a
+  // leading title (`.v-toolbar__content > .v-toolbar-title`).
+  .v-toolbar-title:not(:first-child) {
     padding-left: 0 !important;
-    margin-left: 0 !important;
+    margin-left: 20px !important;
   }
 }
 
-.v-input {
-  .v-input__slot fieldset {
-    border-radius: 8px;
-    border-width: 1px;
-    border-color: rgba(133, 133, 133, 0.4);
-    background-color: rgba(133, 133, 133, 0.1);
+// Outlined fields (the `fieldset` of Vuetify 2): the box, then focused and error states.
+.v-field--variant-outlined {
+  border-radius: 8px;
+  background-color: rgba(133, 133, 133, 0.1);
+
+  .v-field__outline {
+    --v-field-border-width: 1px !important;
+    --v-field-border-opacity: 1 !important;
+    color: rgba(133, 133, 133, 0.4);
   }
 
-  .v-label--active {
-    text-shadow: 0 0 2px black;
-    font-weight: 500;
+  &.v-field--focused .v-field__outline {
+    --v-field-border-width: 2px !important;
+    color: #2196f3;
   }
 
-  &.primary--text {
-    .v-input__slot fieldset {
-      border-width: 2px;
-      border-color: #2196f3;
-    }
-  }
-
-  &.error--text {
-    .v-input__slot fieldset {
-      border-width: 2px;
-      border-color: #ff5252;
-    }
+  &.v-field--error .v-field__outline {
+    --v-field-border-width: 2px !important;
+    color: #ff5252;
   }
 }
 
-.v-input--is-disabled {
+.v-field-label--floating {
+  text-shadow: 0 0 2px black;
+  font-weight: 500;
+}
+
+.v-input--disabled {
   opacity: 0.5;
 }
 
-.theme--light {
-  .v-input {
-    .v-label--active {
-      text-shadow: 0 0 2px white;
-    }
+.v-theme--light {
+  .v-field-label--floating {
+    text-shadow: 0 0 2px white;
   }
 }
 
-.v-list--dense .v-list-item .v-list-item__title {
+.v-list--density-compact .v-list-item .v-list-item-title {
   font-weight: normal;
   font-size: 1rem;
 }
 
-@import '~vuetify/src/styles/styles.sass';
-@media #{map-get($display-breakpoints, 'xl-only')} {
+// xl of Vuetify 2 and up.
+@media (min-width: 1904px) {
   .CenterToScreen {
     transform: translateX(-130px);
   }
@@ -1068,6 +1109,7 @@ html.WorkflowEditor-html body {
 
 <script>
 import axios from 'axios';
+import { parseQuery } from 'vue-router';
 import { getErrorMessage } from '@/lib/error';
 import { GLOBAL_PERMISSIONS } from '@/lib/constants';
 import { hasGlobalPermission } from '@/lib/role-permissions';
@@ -1255,7 +1297,7 @@ export default {
     },
 
     darkMode(val) {
-      this.$vuetify.theme.dark = val;
+      this.$vuetify.theme.change(val ? 'dark' : 'light');
       // Native scrollbars (and other browser-drawn chrome) follow the theme;
       // otherwise a light scrollbar track shows up on dark pages.
       document.documentElement.style.colorScheme = val ? 'dark' : 'light';
@@ -1287,6 +1329,12 @@ export default {
 
     lang() {
       return getLangInfo(this.$i18n.locale);
+    },
+
+    // Menus of the drawer take the theme of the application, as detached menus did in
+    // Vuetify 2; in Vuetify 3 they would inherit the dark theme of the drawer.
+    menuTheme() {
+      return this.darkMode ? 'dark' : 'light';
     },
 
     projectId() {
@@ -1783,9 +1831,13 @@ export default {
         ...overriderQuery,
       };
 
+      // Vue Router 3 merged the query string of `path` with `query`; Vue Router 4 drops it.
       await this.$router.push({
-        path: `/project/${projectId}${window.location.search}`,
-        query,
+        path: `/project/${projectId}`,
+        query: {
+          ...parseQuery(window.location.search),
+          ...query,
+        },
       });
     },
 
@@ -1883,6 +1935,25 @@ export default {
           text: getErrorMessage(err),
         });
       }
+    },
+
+    // Whether a drawer link is active, as in Vuetify 2 on Vue Router 3 (`isIncludedRoute`): the
+    // link is resolved through its redirects and is active while the current path starts with its
+    // path. Vuetify 3 asks Vue Router 4, which matches route records only
+    // (`/project/1/templates/5` would not be under `/project/1/templates`).
+    isRouteActive(to) {
+      let target = this.$router.resolve(to);
+      for (let i = 0; i < 10; i += 1) {
+        const record = target.matched[target.matched.length - 1];
+        if (!record || !record.redirect) {
+          break;
+        }
+        const { redirect } = record;
+        target = this.$router.resolve(typeof redirect === 'function' ? redirect(target) : redirect);
+      }
+      const trailingSlash = /\/?$/;
+      const current = this.$route.path.replace(trailingSlash, '/');
+      return current.indexOf(target.path.replace(trailingSlash, '/')) === 0;
     },
 
     refreshPage() {

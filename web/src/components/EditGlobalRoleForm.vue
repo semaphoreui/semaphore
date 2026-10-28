@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="globalRole-error"
@@ -20,8 +20,8 @@
       data-testid="globalRole-name"
       :label="$t('name')"
       :rules="[v => !!v || $t('name_required')]"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       required
       :disabled="formSaving"
     ></v-text-field>
@@ -30,10 +30,10 @@
       v-model="item.slug"
       data-testid="globalRole-slug"
       :label="$t('slug')"
-      @input="slugTouched = true"
+      @update:model-value="slugTouched = true"
       :rules="slugRules"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       required
       :disabled="formSaving || !isNew"
       :hint="$t('slugHint')"
@@ -44,7 +44,7 @@
       data-testid="globalRole-permissionsTitle"
     >{{ $t('globalPermissions') }}</v-subheader>
     <div
-      class="text--secondary caption mb-3"
+      class="text-medium-emphasis text-caption mb-3"
       data-testid="globalRole-permissionsHint"
     >{{ $t('globalPermissionsHint') }}</div>
 
@@ -52,10 +52,10 @@
       v-for="p in GLOBAL_ROLE_PERMISSIONS"
       :key="p.permission"
       class="mt-0"
-      :input-value="hasPermission(p.permission)"
+      :model-value="hasPermission(p.permission)"
       :label="$t(p.label)"
       :disabled="formSaving"
-      @change="setPermission(p.permission, $event)"
+      @update:model-value="setPermission(p.permission, $event)"
       :data-testid="`globalRole-${p.label}`"
     ></v-checkbox>
   </v-form>
@@ -122,7 +122,7 @@ export default {
     setPermission(permission, enabled) {
       const current = this.item.permissions || 0;
       // eslint-disable-next-line no-bitwise
-      this.$set(this.item, 'permissions', enabled ? current | permission : current & ~permission);
+      this.item.permissions = enabled ? current | permission : current & ~permission;
     },
 
     afterReset() {

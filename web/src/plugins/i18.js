@@ -1,8 +1,5 @@
-import Vue from 'vue';
-import VueI18n from 'vue-i18n';
+import { createI18n } from 'vue-i18n';
 import { messages } from '../lang';
-
-Vue.use(VueI18n);
 
 let locale = localStorage.getItem('lang');
 
@@ -10,9 +7,13 @@ if (!locale) {
   locale = navigator.language.replace('-', '_').toLocaleLowerCase();
 }
 
-export default new VueI18n({
+// Composition mode: `$t`, `$te` and `$i18n.locale` are injected into every component.
+export default createI18n({
+  legacy: false,
+  globalInjection: true,
   fallbackLocale: 'en',
   locale,
   messages,
-  silentFallbackWarn: true,
+  fallbackWarn: false,
+  warnHtmlMessage: false,
 });

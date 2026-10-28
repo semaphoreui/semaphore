@@ -25,7 +25,7 @@ describe('GlobalRolesList.vue', () => {
     items: [{ id: 4, slug: 'auditor' }],
     roleImpact: null,
     forceDeleteDialog: false,
-    $i18n: { t: (key) => key },
+    $t: (key) => key, // vue-i18n 11 (composition mode): components translate with $t
     async loadItems() { return null; },
     getEventName() { return 'i-global-role'; },
     getSingleItemUrl() { return `/api/global-roles/${this.itemId}`; },

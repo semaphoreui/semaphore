@@ -35,9 +35,9 @@
       <v-col v-if="templateParams.allow_debug">
         <v-checkbox
           class="mt-0"
-          :input-value="params.debug"
+          :model-value="params.debug"
           v-model="params.debug"
-          @change="updateValue('debug', $event)"
+          @update:model-value="updateValue('debug', $event)"
           hide-details
           data-testid="taskParams-debug"
         >
@@ -63,8 +63,8 @@
       <v-col v-if="!templateParams.hide_dry_run">
         <v-checkbox
           class="mt-0"
-          :input-value="params.dry_run"
-          @change="updateValue('dry_run', $event)"
+          :model-value="params.dry_run"
+          @update:model-value="updateValue('dry_run', $event)"
           data-testid="taskParams-dryRun"
         >
           <template v-slot:label>
@@ -75,8 +75,8 @@
       <v-col v-if="!templateParams.hide_diff">
         <v-checkbox
           class="mt-0"
-          :input-value="params.diff"
-          @change="updateValue('diff', $event)"
+          :model-value="params.diff"
+          @update:model-value="updateValue('diff', $event)"
           data-testid="taskParams-diff"
         >
           <template v-slot:label>
@@ -86,9 +86,9 @@
       </v-col>
       <v-col v-if="templateParams.allow_override_skip_galaxy_install">
         <v-checkbox
-          :input-value="params.skip_galaxy_install"
+          :model-value="params.skip_galaxy_install"
           class="mt-0"
-          @change="updateValue('skip_galaxy_install', $event)"
+          @update:model-value="updateValue('skip_galaxy_install', $event)"
           data-testid="taskParams-skipGalaxyInstall"
         >
           <template v-slot:label>
@@ -124,15 +124,15 @@ const APP_PARAMS = {
 export default {
   components: { ArgsPicker },
   props: {
-    value: Object,
+    modelValue: Object,
     app: String,
     templateParams: Object,
   },
 
-  emits: ['input'],
+  emits: ['update:modelValue'],
 
   watch: {
-    value(val) {
+    modelValue(val) {
       this.params = val;
     },
   },
@@ -147,8 +147,8 @@ export default {
 
   created() {
     this.params = {
-      ...this.value,
-      debug_level: this.value.debug_level || 4,
+      ...this.modelValue,
+      debug_level: this.modelValue.debug_level || 4,
     };
   },
 
@@ -178,7 +178,7 @@ export default {
         }), {});
       }
 
-      this.$emit('input', input);
+      this.$emit('update:modelValue', input);
     },
   },
 };

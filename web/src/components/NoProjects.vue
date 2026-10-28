@@ -24,7 +24,7 @@
         data-testid="noProjects-signedInAs"
         :path="user.email ? 'signedInAs' : 'signedInAsNoEmail'"
         tag="div"
-        class="mt-6 grey--text"
+        class="mt-6 text-grey"
       >
         <template #username><b>{{ user.username }}</b></template>
         <template #email>{{ user.email }}</template>

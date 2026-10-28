@@ -24,7 +24,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="inventoryForm-error"
@@ -37,8 +37,8 @@
       :rules="[v => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="inventoryForm-name"
     ></v-text-field>
 
@@ -48,9 +48,9 @@
       :items="runnerTags"
       :label="$t('runner_tag')"
       item-value="tag"
-      item-text="tag"
-      outlined
-      dense
+      item-title="tag"
+      variant="outlined"
+      density="compact"
       clearable
       :disabled="formSaving"
       :placeholder="$t('runner_tag')"
@@ -62,12 +62,12 @@
       :label="$t('userCredentials')"
       :items="keys"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :rules="[v => !!v || $t('user_credentials_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="inventoryForm-sshKeyId"
     ></v-autocomplete>
 
@@ -77,10 +77,10 @@
       clearable
       :items="loginPasswordKeys"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="inventoryForm-becomeKeyId"
     ></v-autocomplete>
 
@@ -90,11 +90,11 @@
       :rules="[v => !!v || $t('type_required')]"
       :items="inventoryTypes"
       item-value="id"
-      item-text="name"
+      item-title="name"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="inventoryForm-type"
     ></v-select>
 
@@ -105,8 +105,8 @@
       required
       :disabled="formSaving"
       v-if="item.type === 'file'"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="inventoryForm-inventoryPath"
     ></v-text-field>
 
@@ -116,11 +116,11 @@
       clearable
       :items="repositories"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :disabled="formSaving"
       v-if="item.type === 'file'"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="inventoryForm-repositoryId"
     ></v-select>
 
@@ -128,7 +128,7 @@
       style="position: relative"
       v-if="item.type === 'static' || item.type === 'static-yaml'"
     >
-      <codemirror
+      <CodeMirror
         :class="{
         'InventoryEditor': true,
         'InventoryEditor--static': item.type === 'static',
@@ -136,7 +136,9 @@
       }"
         :style="{ border: '1px solid lightgray' }"
         v-model.trim="item.inventory"
-        :options="cmOptions"
+        minimal
+        :tab-size="2"
+        :extensions="cmExtensions"
         :placeholder="$t('enterInventory')"
         data-testid="inventoryForm-inventoryCode"
       />
@@ -158,15 +160,15 @@
   </v-form>
 </template>
 <style>
-.InventoryEditor .CodeMirror {
+.InventoryEditor .cm-editor {
   height: 160px !important;
 }
 
-.v-dialog--fullscreen .InventoryEditor--static .CodeMirror {
+.v-dialog--fullscreen .InventoryEditor--static .cm-editor {
   height: calc(100dvh - 540px) !important;
 }
 
-.v-dialog--fullscreen .InventoryEditor--static-yaml .CodeMirror {
+.v-dialog--fullscreen .InventoryEditor--static-yaml .cm-editor {
   height: calc(100dvh - 600px) !important;
 }
 </style>
@@ -175,10 +177,8 @@
 
 import ItemFormBase from '@/components/ItemFormBase';
 
-import { codemirror } from 'vue-codemirror';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/mode/vue/vue.js';
-import 'codemirror/addon/display/placeholder.js';
+import CodeMirror from 'vue-codemirror6';
+import codeEditorExtensions from '@/lib/codeEditor';
 import RichEditor from '@/components/RichEditor.vue';
 
 export default {
@@ -186,7 +186,7 @@ export default {
 
   components: {
     RichEditor,
-    codemirror,
+    CodeMirror,
   },
 
   props: {
@@ -195,26 +195,7 @@ export default {
 
   data() {
     return {
-      cmOptions: {
-        tabSize: 2,
-        indentUnit: 2,
-        mode: 'text/x-ini',
-        lineNumbers: true,
-        line: true,
-        lint: true,
-        indentWithTabs: false,
-        extraKeys: {
-          Tab(cm) {
-            // If something is selected, indent that selection
-            if (cm.somethingSelected()) {
-              cm.indentSelection('add');
-            } else {
-              // Otherwise, insert two spaces at the cursor
-              cm.replaceSelection('  ', 'end');
-            }
-          },
-        },
-      },
+      cmExtensions: codeEditorExtensions({ tab: 'spaces' }),
       inventoryTypes: [{
         id: 'static',
         name: 'Static',

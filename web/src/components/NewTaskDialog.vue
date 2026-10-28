@@ -9,7 +9,7 @@
   >
     <template v-slot:title={}>
       <v-icon
-        small
+        size="small"
         class="mr-4"
         data-testid="newTask-templateTypeIcon"
       >{{ TEMPLATE_TYPE_ICONS[template?.type || ''] }}</v-icon>
@@ -45,7 +45,7 @@ export default {
     EditDialog,
   },
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     projectId: Number,
     template: Object,
     sourceTask: Object,
@@ -54,7 +54,7 @@ export default {
       default: 'newTaskDialog',
     },
   },
-  emits: ['input', 'save', 'close'],
+  emits: ['update:modelValue', 'save', 'close'],
   data() {
     return {
       dialog: false,
@@ -64,10 +64,10 @@ export default {
   },
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.dialog = val;
     },
   },

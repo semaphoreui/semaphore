@@ -4,12 +4,12 @@
     <div class="d-flex flex-row flex-wrap">
       <v-checkbox
         class="mr-6"
-        v-for="(header) in headers.filter((header) => header.value !== 'actions')"
+        v-for="(header) in columns"
         :key="header.value"
         :label="header.text"
         :data-testid="`tableSettings-column-${header.value}`"
         v-model="settings.columns[header.value].visible"
-        @change="saveSettings()"
+        @update:model-value="saveSettings()"
       />
     </div>
   </PageBottomSheet>
@@ -20,14 +20,14 @@ import PageBottomSheet from '@/components/PageBottomSheet.vue';
 
 export default {
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     tableName: String,
     headers: Array,
   },
 
   components: { PageBottomSheet },
 
-  emits: ['input', 'change'],
+  emits: ['update:modelValue', 'change'],
 
   data() {
     return {
@@ -36,12 +36,21 @@ export default {
     };
   },
 
+  computed: {
+    // Checkbox per column: Vuetify 3 headers carry `key` / `title`.
+    columns() {
+      return this.headers
+        .filter((header) => header.key !== 'actions')
+        .map((header) => ({ value: header.key, text: header.title }));
+    },
+  },
+
   watch: {
     async sheet(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.sheet = val;
     },
     headers() {
@@ -70,8 +79,8 @@ export default {
       }
 
       this.headers.forEach((header) => {
-        if (!this.settings.columns[header.value]) {
-          this.settings.columns[header.value] = {
+        if (!this.settings.columns[header.key]) {
+          this.settings.columns[header.key] = {
             visible: true,
           };
         }
@@ -80,7 +89,7 @@ export default {
       this.$emit('change', {
         settings: this.settings,
         headers: this.headers.filter((header) => {
-          const column = this.settings.columns[header.value];
+          const column = this.settings.columns[header.key];
           return !column || column.visible;
         }),
       });

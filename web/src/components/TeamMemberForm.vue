@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="teamMember-error"
@@ -24,7 +24,7 @@
       >
         <v-btn
           value="email"
-          small
+          size="small"
           class="mr-0"
           style="border-radius: 4px;"
           data-testid="teamMember-inviteType-email"
@@ -33,7 +33,7 @@
         </v-btn>
         <v-btn
           value="username"
-          small
+          size="small"
           class="mr-0"
           style="border-radius: 4px;"
           data-testid="teamMember-inviteType-username"
@@ -49,8 +49,8 @@
       :label="$t('email')"
       v-model="item.email"
       data-testid="teamMember-email"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     />
 
     <v-autocomplete
@@ -60,12 +60,12 @@
       :label="$t('user')"
       :items="users"
       item-value="id"
-      :item-text="(itm) => `${itm.username} (${itm.name})`"
+      :item-title="(itm) => `${itm.username} (${itm.name})`"
       :rules="[v => !!v || $t('user_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-autocomplete>
 
     <v-select
@@ -74,12 +74,12 @@
       :label="$t('role')"
       :items="groupedRoles"
       item-value="slug"
-      item-text="name"
+      item-title="name"
       :rules="[v => !!v || $t('role_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     >
       <template v-slot:item="{ item: role }">
         <v-list-item-content :data-testid="`teamMember-roleOption-${role.slug}`">
@@ -114,7 +114,7 @@ export default {
     },
 
     groupedRoles() {
-      return groupRolesForSelect(this.availableRoles, (key) => this.$i18n.t(key));
+      return groupRolesForSelect(this.availableRoles, (key) => this.$t(key));
     },
   },
 

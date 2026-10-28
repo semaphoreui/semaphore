@@ -63,7 +63,12 @@
             </div>
           </div>
 
-          <v-alert color="warning" dense text data-testid="runnerToken-registrationHint">
+          <v-alert
+            color="warning"
+            density="compact"
+            variant="tonal"
+            data-testid="runnerToken-registrationHint"
+          >
             {{ $t('registrationTokenHint') }}
           </v-alert>
 
@@ -94,8 +99,8 @@
                 :hint="$t('runnerCheckIntervalHint')"
                 :rules="[checkIntervalRule]"
                 persistent-hint
-                dense
-                outlined
+                density="compact"
+                variant="outlined"
             />
             </template>
           </HighlightedCard>
@@ -246,8 +251,8 @@
                 :hint="$t('runnerCheckIntervalHint')"
                 :rules="[checkIntervalRule]"
                 persistent-hint
-                dense
-                outlined
+                density="compact"
+                variant="outlined"
             />
             </template>
           </HighlightedCard>
@@ -440,7 +445,7 @@ semaphore runner start --config ./config.runner.json</pre
 
     <v-alert
       v-if="projectId && !features.project_runners"
-      text
+      variant="tonal"
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
       data-testid="runners-licenseAlert"
@@ -464,7 +469,7 @@ semaphore runner start --config ./config.runner.json</pre
     <v-alert
       style="border-radius: 0"
       type="info"
-      text
+      variant="tonal"
       v-if="!systemInfo.use_remote_runner && projectId == null"
       data-testid="runners-remoteRunnersDisabled"
     >
@@ -485,8 +490,8 @@ semaphore runner start --config ./config.runner.json</pre
       <v-chip
         v-if="globalFilter"
         class="mr-2"
-        small
-        close
+        size="small"
+        closable
         color="info"
         @click:close="globalFilter = false"
         data-testid="runners-filter-global"
@@ -496,8 +501,8 @@ semaphore runner start --config ./config.runner.json</pre
       <v-chip
         v-if="defaultFilter"
         class="mr-2"
-        small
-        close
+        size="small"
+        closable
         color="warning"
         @click:close="defaultFilter = false"
         data-testid="runners-filter-default"
@@ -508,8 +513,8 @@ semaphore runner start --config ./config.runner.json</pre
       <v-chip
         v-if="unregisteredFilter"
         class="mr-2"
-        close
-        small
+        closable
+        size="small"
         @click:close="unregisteredFilter = false"
         data-testid="runners-filter-unregistered"
       >
@@ -518,8 +523,8 @@ semaphore runner start --config ./config.runner.json</pre
 
       <v-chip
         v-if="tagFilter"
-        small
-        close
+        size="small"
+        closable
         label
         color="primary"
         @click:close="tagFilter = null"
@@ -534,7 +539,7 @@ semaphore runner start --config ./config.runner.json</pre
       :items="filteredItems"
       class="mt-4"
       :style="projectId && !features.project_runners ? 'opacity: 0.4' : ''"
-      :footer-props="{ itemsPerPageOptions: [20] }"
+      :items-per-page-options="[20]"
       data-testid="runners-table"
       :data-state="filteredItems.length === 0 ? 'empty' : 'ready'"
     >
@@ -543,7 +548,7 @@ semaphore runner start --config ./config.runner.json</pre
           v-if="item.project_id != null || projectId == null"
           v-model="item.active"
           inset
-          @change="setActive(item.id, item.active)"
+          @update:model-value="setActive(item.id, item.active)"
           :disabled="item.project_id == null && !canManageSystem"
           data-testid="runners-rowActive"
         />
@@ -554,7 +559,7 @@ semaphore runner start --config ./config.runner.json</pre
         <v-chip
           v-if="item.is_default"
           class="ml-2"
-          small
+          size="small"
           color="warning"
           style="cursor: pointer"
           @click="defaultFilter = !defaultFilter"
@@ -566,7 +571,7 @@ semaphore runner start --config ./config.runner.json</pre
         <v-chip
           v-if="item.project_id == null"
           class="ml-2"
-          small
+          size="small"
           color="info"
           style="cursor: pointer"
           @click="globalFilter = !globalFilter"
@@ -578,7 +583,7 @@ semaphore runner start --config ./config.runner.json</pre
         <v-chip
           v-if="!item.registered"
           class="ml-2"
-          small
+          size="small"
           style="cursor: pointer"
           @click="unregisteredFilter = !unregisteredFilter"
           data-testid="runners-rowUnregistered"
@@ -592,13 +597,12 @@ semaphore runner start --config ./config.runner.json</pre
       </template>
 
       <template v-slot:item.status="{ item }">
-        <v-tooltip bottom>
-          <template v-slot:activator="{ on, attrs }">
+        <v-tooltip location="bottom">
+          <template v-slot:activator="{ props }">
             <v-chip
-              small
-              v-bind="attrs"
-              v-on="on"
-              :color="item.status === 'online' ? 'success' : 'blue-grey lighten-3'"
+              size="small"
+              v-bind="props"
+              :color="item.status === 'online' ? 'success' : 'blue-grey-lighten-3'"
               style="font-weight: bold"
               :data-testid="`runners-rowStatus-${item.status === 'online' ? 'online' : 'offline'}`"
             >
@@ -626,7 +630,7 @@ semaphore runner start --config ./config.runner.json</pre
           <v-chip
             v-for="t in item.tags"
             :key="t"
-            x-small
+            size="x-small"
             label
             class="mr-1 mb-1"
             style="cursor: pointer"
@@ -646,17 +650,16 @@ semaphore runner start --config ./config.runner.json</pre
           <v-tooltip
             v-if="item.project_id != null || projectId == null"
             :max-width="200"
-            bottom
+            location="bottom"
           >
-            <template v-slot:activator="{ on, attrs }">
+            <template v-slot:activator="{ props }">
               <v-btn
                 :disabled="item.project_id == null && !canManageSystem"
                 class="mr-1"
                 icon
-                v-bind="attrs"
                 @click="askRegenerateRegistrationToken(item)"
                 data-testid="runners-rowRegenerateToken"
-                v-on="on"
+                v-bind="props"
               >
                 <v-icon>mdi-sync</v-icon>
               </v-btn>
@@ -691,11 +694,14 @@ semaphore runner start --config ./config.runner.json</pre
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
 
-          <v-tooltip v-if="item.project_id != null || projectId == null" bottom :max-width="150">
-            <template v-slot:activator="{ on, attrs }">
+          <v-tooltip
+            v-if="item.project_id != null || projectId == null"
+            location="bottom"
+            :max-width="150"
+          >
+            <template v-slot:activator="{ props }">
               <v-btn
-                v-bind="attrs"
-                v-on="on"
+                v-bind="props"
                 icon
                 class="mr-1"
                 @click="clearCache(item)"
@@ -1028,33 +1034,33 @@ ${advancedOptions}-d semaphoreui/runner:${this.version}`;
     getHeaders() {
       return [
         {
-          value: 'active',
+          key: 'active',
         },
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '50%',
         },
         ...(this.projectId
           ? []
           : [
             {
-              text: this.$i18n.t('project'),
-              value: 'project_id',
+              title: this.$t('project'),
+              key: 'project_id',
             },
           ]),
         {
-          text: this.$i18n.t('tag'),
-          value: 'tags',
+          title: this.$t('tag'),
+          key: 'tags',
           sortable: false,
         },
         {
-          text: this.$i18n.t('status'),
-          value: 'status',
+          title: this.$t('status'),
+          key: 'status',
         },
         {
-          text: this.$i18n.t('actions'),
-          value: 'actions',
+          title: this.$t('actions'),
+          key: 'actions',
           sortable: false,
           align: 'end',
         },

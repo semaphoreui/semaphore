@@ -3,8 +3,8 @@
     <v-col>
       <v-checkbox
         class="mt-0"
-        :input-value="params.plan"
-        @change="updateValue('plan', $event)"
+        :model-value="params.plan"
+        @update:model-value="updateValue('plan', $event)"
         data-testid="taskParams-plan"
       >
         <template v-slot:label>
@@ -16,8 +16,8 @@
     <v-col>
       <v-checkbox
         class="mt-0"
-        :input-value="params.destroy"
-        @change="updateValue('destroy', $event)"
+        :model-value="params.destroy"
+        @update:model-value="updateValue('destroy', $event)"
         data-testid="taskParams-destroy"
       >
         <template v-slot:label>
@@ -29,8 +29,8 @@
     <v-col>
       <v-checkbox
         class="mt-0"
-        :input-value="params.auto_approve"
-        @change="updateValue('auto_approve', $event)"
+        :model-value="params.auto_approve"
+        @update:model-value="updateValue('auto_approve', $event)"
         data-testid="taskParams-autoApprove"
       >
         <template v-slot:label>
@@ -42,8 +42,8 @@
     <v-col>
       <v-checkbox
         class="mt-0"
-        :input-value="params.upgrade"
-        @change="updateValue('upgrade', $event)"
+        :model-value="params.upgrade"
+        @update:model-value="updateValue('upgrade', $event)"
         data-testid="taskParams-upgrade"
       >
         <template v-slot:label>
@@ -55,8 +55,8 @@
     <v-col>
       <v-checkbox
         class="mt-0"
-        :input-value="params.reconfigure"
-        @change="updateValue('reconfigure', $event)"
+        :model-value="params.reconfigure"
+        @update:model-value="updateValue('reconfigure', $event)"
         data-testid="taskParams-reconfigure"
       >
         <template v-slot:label>
@@ -88,15 +88,15 @@ const APP_PARAMS = {
 
 export default {
   props: {
-    value: Object,
+    modelValue: Object,
     app: String,
     templateParams: Object,
   },
 
-  emits: ['input'],
+  emits: ['update:modelValue'],
 
   watch: {
-    value(val) {
+    modelValue(val) {
       this.params = val;
     },
   },
@@ -111,8 +111,8 @@ export default {
 
   created() {
     this.params = {
-      ...this.value,
-      debug_level: this.value.debug_level || 4,
+      ...this.modelValue,
+      debug_level: this.modelValue.debug_level || 4,
     };
   },
 
@@ -129,7 +129,7 @@ export default {
         }), {});
       }
 
-      this.$emit('input', input);
+      this.$emit('update:modelValue', input);
     },
   },
 };

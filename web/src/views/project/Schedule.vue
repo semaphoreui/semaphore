@@ -52,11 +52,10 @@
       <v-menu
         offset-y
       >
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-btn
             class="pr-2"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             color="primary"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
             data-testid="schedule-new"
@@ -111,7 +110,7 @@
           :disabled="!can(USER_PERMISSIONS.manageProjectResources)"
           v-model="item.active"
           inset
-          @change="setActive(item.id, item.active)"
+          @update:model-value="setActive(item.id, item.active)"
           data-testid="schedule-rowActive"
         ></v-switch>
       </template>
@@ -140,7 +139,7 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle
-          dense
+          density="compact"
           :value-comparator="() => false"
           data-testid="schedule-rowActions"
         >
@@ -234,22 +233,22 @@ export default {
 
     getHeaders() {
       return [{
-        text: '',
-        value: 'active',
+        title: '',
+        key: 'active',
         sortable: false,
       }, {
-        text: this.$i18n.t('name'),
-        value: 'name',
+        title: this.$t('name'),
+        key: 'name',
       }, {
-        text: this.$i18n.t('schedule'),
-        value: 'cron_format',
+        title: this.$t('schedule'),
+        key: 'cron_format',
       }, {
-        text: this.$i18n.t('template'),
-        value: 'tpl_name',
+        title: this.$t('template'),
+        key: 'tpl_name',
         width: '100%',
       }, {
-        text: this.$i18n.t('actions'),
-        value: 'actions',
+        title: this.$t('actions'),
+        key: 'actions',
         sortable: false,
       }];
     },

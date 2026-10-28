@@ -1,35 +1,35 @@
 <template>
   <v-menu
-    :value="value"
+    :model-value="modelValue"
     :position-x="x"
     :position-y="y"
     absolute
     :close-on-content-click="false"
-    :close-on-click="true"
+    :persistent="false"
     min-width="260"
     max-width="300"
     transition="fade-transition"
     content-class="WorkflowQuickAddMenu"
-    @input="$emit('input', $event)"
+    @update:model-value="$emit('update:modelValue', $event)"
   >
     <v-card data-testid="workflowCanvas-quickAddMenu">
       <v-text-field
         ref="search"
         data-testid="workflowCanvas-quickAddSearch"
         v-model="search"
-        dense
-        outlined
+        density="compact"
+        variant="outlined"
         hide-details
         autofocus
         prepend-inner-icon="mdi-magnify"
         :placeholder="$t('workflowQuickAddSearch')"
         class="ma-2"
-        @keydown.esc="$emit('input', false)"
+        @keydown.esc="$emit('update:modelValue', false)"
         @keydown.enter="pickFirst"
       />
 
       <v-list
-        dense
+        density="compact"
         class="WorkflowQuickAddMenu__list py-0"
         data-testid="workflowCanvas-quickAddList"
       >
@@ -50,7 +50,7 @@
               class="WorkflowQuickAddMenu__tile"
               :class="`WorkflowQuickAddMenu__tile--${k.kind}`"
             >
-              <v-icon small :color="k.color">{{ k.icon }}</v-icon>
+              <v-icon size="small" :color="k.color">{{ k.icon }}</v-icon>
             </span>
             <v-list-item-title>{{ k.text }}</v-list-item-title>
           </v-list-item>
@@ -70,7 +70,7 @@
           @click="pick({ kind: 'task', template_id: t.id })"
         >
           <span class="WorkflowQuickAddMenu__tile">
-            <v-icon small>{{ appIcon(t.app) }}</v-icon>
+            <v-icon size="small">{{ appIcon(t.app) }}</v-icon>
           </span>
           <v-list-item-title>{{ t.name }}</v-list-item-title>
         </v-list-item>
@@ -79,7 +79,7 @@
           disabled
           data-testid="workflowCanvas-quickAddMenu-noTemplates"
         >
-          <v-list-item-title class="text--secondary">
+          <v-list-item-title class="text-medium-emphasis">
             {{ $t('workflowQuickAddNoTemplates') }}
           </v-list-item-title>
         </v-list-item>
@@ -101,14 +101,14 @@ import { APP_ICONS } from '@/lib/constants';
 // a right click on empty canvas. Emits `add` with { kind, template_id }.
 export default {
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     x: { type: Number, default: 0 },
     y: { type: Number, default: 0 },
     templates: { type: Array, default: () => [] },
     hint: { type: String, default: null },
   },
 
-  emits: ['input', 'add'],
+  emits: ['update:modelValue', 'add'],
 
   data() {
     return { search: '' };
@@ -146,7 +146,7 @@ export default {
   },
 
   watch: {
-    value(open) {
+    modelValue(open) {
       if (open) {
         this.search = '';
         this.$nextTick(() => {
@@ -163,7 +163,7 @@ export default {
     },
     pick(choice) {
       this.$emit('add', choice);
-      this.$emit('input', false);
+      this.$emit('update:modelValue', false);
     },
     pickFirst() {
       if (this.filteredTemplates.length > 0 && this.query) {

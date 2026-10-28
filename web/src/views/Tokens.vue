@@ -14,8 +14,8 @@
           <v-text-field
             v-model="newTokenName"
             :label="$t('tokenName')"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             data-testid="token-name"
           />
 
@@ -23,8 +23,8 @@
             v-model="expiresInDays"
             :items="expiryOptions"
             :label="$t('Expires')"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             data-testid="token-expires"
           />
           <v-text-field
@@ -32,15 +32,15 @@
             v-model="customExpiresAt"
             type="datetime-local"
             :label="$t('Expiration date')"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             data-testid="token-expiresAt"
           />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
           <v-btn
-            text
+            variant="text"
             color="primary"
             @click="newTokenDialog = false"
             :disabled="creatingToken"
@@ -49,7 +49,7 @@
             {{ $t('Cancel') }}
           </v-btn>
           <v-btn
-            text
+            variant="text"
             color="primary"
             @click="createToken()"
             :loading="creatingToken"
@@ -90,7 +90,7 @@
       :headers="headers"
       :items="items"
       class="mt-4"
-      :footer-props="{ itemsPerPageOptions: [20] }"
+      :items-per-page-options="[20]"
       data-testid="tokens-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -134,7 +134,7 @@
         >{{ $filters.formatDate(item.expires_at) }}</span>
         <span
           v-else
-          class="text--disabled"
+          class="text-disabled"
           data-testid="tokens-rowExpiresNever"
         >{{ $t('Never') }}</span>
       </template>
@@ -198,11 +198,11 @@ export default {
   computed: {
     expiryOptions() {
       return [
-        { text: this.$i18n.t('Never'), value: 0 },
+        { text: this.$t('Never'), value: 0 },
         { text: '30 days', value: 30 },
         { text: '90 days', value: 90 },
         { text: '1 year', value: 365 },
-        { text: this.$i18n.t('Custom'), value: 'custom' },
+        { text: this.$t('Custom'), value: 'custom' },
       ];
     },
   },
@@ -286,28 +286,28 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
         },
         {
-          text: this.$i18n.t('token'),
-          value: 'id',
+          title: this.$t('token'),
+          key: 'id',
         },
         {
-          text: this.$i18n.t('created'),
-          value: 'created',
+          title: this.$t('created'),
+          key: 'created',
         },
         {
-          text: this.$i18n.t('Expires'),
-          value: 'expires_at',
+          title: this.$t('Expires'),
+          key: 'expires_at',
         },
         {
-          text: this.$i18n.t('status'),
-          value: 'expired',
+          title: this.$t('status'),
+          key: 'expired',
         },
         {
-          text: '',
-          value: 'actions',
+          title: '',
+          key: 'actions',
           sortable: false,
           width: 70,
         },

@@ -1,7 +1,6 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { mount } from '@vue/test-utils';
 import i18n from '@/plugins/i18';
 import EventBus from '@/event-bus';
 import mockAxios, { httpError } from './helpers/axiosMock';
@@ -34,7 +33,8 @@ describe('Team.vue', () => {
     saving: Promise.resolve(),
     pendingSaves: 0,
     async loadItems() { this.loaded += 1; },
-    $i18n: { t: (key) => key },
+    // vue-i18n 11 (composition mode): the component translates with $t
+    $t: (key) => key,
     ...extra,
   });
 
@@ -176,15 +176,16 @@ describe('Team.vue', () => {
       }];
     });
     const wrapper = mount(Team, {
-      localVue: createLocalVue(),
-      vuetify: new Vuetify(),
-      i18n,
-      propsData: { projectId: 1, systemInfo: { teams: {} } },
-      stubs: {
-        EditTeamMemberDialog: true,
-        YesNoDialog: true,
-        TeamMenu: true,
-        'v-tooltip': { template: '<div><slot name="activator" :on="{}" :attrs="{}" /><slot /></div>' },
+      props: { projectId: 1, systemInfo: { teams: {} } },
+      global: {
+        plugins: [i18n],
+        stubs: {
+          EditTeamMemberDialog: true,
+          YesNoDialog: true,
+          TeamMenu: true,
+          // Vuetify 3 activator slot: { props }
+          'v-tooltip': { template: '<div><slot name="activator" :props="{}" /><slot /></div>' },
+        },
       },
     });
     await new Promise((resolve) => { setTimeout(resolve, 0); });
@@ -193,6 +194,6 @@ describe('Team.vue', () => {
     expect(chip.find('.mdi-lock').exists()).to.equal(true);
     expect(chip.text()).to.equal('Owner');
     expect(wrapper.text()).to.contain('okta: Admins');
-    wrapper.destroy();
+    wrapper.unmount();
   });
 });

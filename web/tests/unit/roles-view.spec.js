@@ -29,7 +29,7 @@ describe('Roles.vue', () => {
     forceDeleteDialog: false,
     isAdmin: true,
     can() { return true; },
-    $i18n: { t: (key) => key },
+    $t: (key) => key, // vue-i18n 11 (composition mode): the component translates with $t
     async loadItems() { return null; },
     getEventName() { return 'i-role'; },
     getSingleItemUrl() { return `/api/roles/${this.itemId}`; },

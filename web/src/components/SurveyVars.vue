@@ -2,12 +2,12 @@
   <div class="pb-6" style="margin-top: -10px;" data-testid="surveyVars">
     <v-dialog
       v-model="editDialog"
-      hide-overlay
+      :scrim="false"
       content-class="NestedDialog"
       width="440"
     >
       <v-card
-        :color="$vuetify.theme.dark ? '#212121' : 'white'"
+        :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
         @keydown.enter.prevent
         data-testid="surveyVarDialog"
       >
@@ -22,7 +22,7 @@
             :data-state="formError != null ? 'error' : 'ready'"
           >
             <v-alert
-              :value="formError != null"
+              :model-value="formError != null"
               color="error"
               data-testid="surveyVarDialog-error"
             >{{ formError }}
@@ -33,8 +33,8 @@
               v-model.trim="editedVar.name"
               :rules="[(v) => !!v || $t('name_required')]"
               required
-              dense
-              outlined
+              density="compact"
+              variant="outlined"
               data-testid="surveyVarDialog-name"
             />
 
@@ -43,8 +43,8 @@
               v-model="editedVar.title"
               :rules="[(v) => !!v || $t('title_required')]"
               required
-              dense
-              outlined
+              density="compact"
+              variant="outlined"
               data-testid="surveyVarDialog-title"
             />
 
@@ -52,8 +52,8 @@
               :label="$t('description')"
               v-model="editedVar.description"
               required
-              dense
-              outlined
+              density="compact"
+              variant="outlined"
               data-testid="surveyVarDialog-description"
             />
 
@@ -64,9 +64,9 @@
                   :label="$t('type')"
                   :items="availableVarTypes"
                   item-value="id"
-                  item-text="name"
-                  dense
-                  outlined
+                  item-title="name"
+                  density="compact"
+                  variant="outlined"
                   data-testid="surveyVarDialog-type"
                 ></v-select>
               </v-col>
@@ -76,9 +76,9 @@
                   :label="$t('survey_var_target')"
                   :items="varTargets"
                   item-value="id"
-                  item-text="name"
-                  dense
-                  outlined
+                  item-title="name"
+                  density="compact"
+                  variant="outlined"
                   data-testid="surveyVarDialog-target"
                 ></v-select>
               </v-col>
@@ -117,7 +117,7 @@
                     <tr data-testid="surveyVarDialog-valueRow">
                       <td class="pa-1">
                         <v-text-field
-                          solo-inverted
+                          variant="solo-inverted"
                           flat
                           hide-details
                           v-model="props.item.name"
@@ -128,7 +128,7 @@
                       </td>
                       <td class="pa-1">
                         <v-text-field
-                          solo-inverted
+                          variant="solo-inverted"
                           flat
                           hide-details
                           v-model="props.item.value"
@@ -139,7 +139,7 @@
                       </td>
                       <td style="width: 38px">
                         <v-icon
-                          small
+                          size="small"
                           class="pa-1"
                           @click="removeEditedVarValue(props.item)"
                           data-testid="surveyVarDialog-valueDelete"
@@ -164,21 +164,21 @@
                   :label="$t('default_value')"
                   :items="editedValues"
                   item-value="value"
-                  item-text="name"
+                  item-title="name"
                   clearable
-                  dense
-                  outlined
+                  density="compact"
+                  variant="outlined"
                   hide-details
                   :multiple="editedVar.type === 'select'"
                   :chips="editedVar.type === 'select'"
                   data-testid="surveyVarDialog-defaultValue"
                 >
                   <template
-                    v-slot:selection="{ item, index }"
+                    v-slot:chip="{ item, index }"
                     v-if="editedVar.type === 'select'">
                     <v-chip
-                      small
-                      close
+                      size="small"
+                      closable
                       data-testid="surveyVarDialog-defaultChip"
                       @click:close="removeDefaultItem(index)"
                       >{{ selectedItemLabel(item) }}
@@ -193,8 +193,8 @@
               v-else-if="editedVar.type === 'int'"
               :label="$t('default_value')"
               v-model="editedVar.default_value"
-              dense
-              outlined
+              density="compact"
+              variant="outlined"
               data-testid="surveyVarDialog-defaultValue"
             />
 
@@ -204,8 +204,8 @@
               v-model="editedVar.default_value"
               rows="3"
               auto-grow
-              dense
-              outlined
+              density="compact"
+              variant="outlined"
               data-testid="surveyVarDialog-defaultValue"
             />
 
@@ -213,8 +213,8 @@
               v-else-if="editedVar.type !== 'secret'"
               :label="$t('default_value')"
               v-model="editedVar.default_value"
-              dense
-              outlined
+              density="compact"
+              variant="outlined"
               data-testid="surveyVarDialog-defaultValue"
             />
           </v-form>
@@ -229,16 +229,16 @@
           />
           <v-spacer></v-spacer>
           <v-btn
-            color="blue darken-1"
-            text
+            color="blue-darken-1"
+            variant="text"
             @click="editDialog = false"
             data-testid="surveyVarDialog-cancel"
           >
             {{ $t('cancel') }}
           </v-btn>
           <v-btn
-            color="blue darken-1"
-            text
+            color="blue-darken-1"
+            variant="text"
             @click="saveVar()"
             data-testid="surveyVarDialog-save"
           >
@@ -271,7 +271,7 @@
         >
           <v-chip
             v-for="(v, i) in modifiedVars"
-            close
+            closable
             @click:close="deleteVar(i)"
             :key="v.name"
             @click="editVar(i)"
@@ -303,7 +303,7 @@
 }
 </style>
 <script>
-import draggable from 'vuedraggable';
+import { VueDraggable as draggable } from 'vue-draggable-plus';
 
 export default {
   components: {
@@ -334,9 +334,9 @@ export default {
         }
 
         if (newType === 'select') {
-          this.$set(this.editedVar, 'default_value', []);
+          this.editedVar.default_value = [];
         } else {
-          this.$set(this.editedVar, 'default_value', '');
+          this.editedVar.default_value = '';
         }
 
         const isNotListType = newType !== 'enum' && newType !== 'select';
@@ -438,10 +438,11 @@ export default {
       this.editDialog = true;
     },
 
-    saveVar() {
+    async saveVar() {
       this.formError = null;
 
-      if (!this.$refs.form.validate()) {
+      const { valid } = await this.$refs.form.validate();
+      if (!valid) {
         return;
       }
 

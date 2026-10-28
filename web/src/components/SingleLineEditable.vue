@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-icon small class="pr-1">mdi-message-outline</v-icon>
+    <v-icon size="small" class="pr-1">mdi-message-outline</v-icon>
 
     <span
       key="placeholder"
@@ -8,9 +8,9 @@
       class="SingleLineEditable__content"
       data-testid="singleLineEditable-text"
       :class="{
-        'SingleLineEditable__content--placeholder': !value,
+        'SingleLineEditable__content--placeholder': !modelValue,
       }"
-    >{{ value || placeholder || $t('empty') }}</span>
+    >{{ modelValue || placeholder || $t('empty') }}</span>
 
     <span
       key="content"
@@ -21,11 +21,11 @@
       data-testid="singleLineEditable-input"
       @paste="handlePaste"
       @keypress="handleKeypress"
-    >{{ value }}</span>
+    >{{ modelValue }}</span>
 
     <v-btn
       icon @click="edit()"
-      small
+      size="small"
       v-if="canEdit && !editable"
       class="ml-1 SingleLineEditable__button"
       data-testid="singleLineEditable-edit"
@@ -38,7 +38,7 @@
       @click="save()"
       v-if="editable"
       class="ml-2 SingleLineEditable__button"
-      small
+      size="small"
       data-testid="singleLineEditable-save"
     >
       <v-icon color="green">mdi-check</v-icon>
@@ -49,7 +49,7 @@
       @click="cancel()"
       v-if="editable"
       class="SingleLineEditable__button"
-      small
+      size="small"
       data-testid="singleLineEditable-cancel"
     >
       <v-icon color="red">mdi-close</v-icon>
@@ -81,18 +81,18 @@
 <script>
 export default {
   props: {
-    value: String,
+    modelValue: String,
     placeholder: String,
     canEdit: Boolean,
   },
-  emits: ['input', 'save'],
+  emits: ['update:modelValue', 'save'],
   data() {
     return {
       editable: false,
     };
   },
   watch: {
-    value(newVal) {
+    modelValue(newVal) {
       if (this.$refs.editableDiv.innerText !== newVal) {
         this.$refs.editableDiv.innerText = newVal || '';
       }
@@ -118,12 +118,12 @@ export default {
 
     save() {
       this.editable = false;
-      this.$emit('input', this.$refs.editableDiv.innerText);
+      this.$emit('update:modelValue', this.$refs.editableDiv.innerText);
       this.$emit('save');
     },
 
     cancel() {
-      this.$refs.editableDiv.innerText = this.value;
+      this.$refs.editableDiv.innerText = this.modelValue;
       this.editable = false;
     },
 

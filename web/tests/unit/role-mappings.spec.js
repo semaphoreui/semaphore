@@ -1,7 +1,6 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { mount } from '@vue/test-utils';
 import i18n from '@/plugins/i18';
 import RoleMappings from '@/views/RoleMappings.vue';
 import RoleMappingForm from '@/components/RoleMappingForm.vue';
@@ -44,16 +43,16 @@ describe('RoleMappings.vue', () => {
 
   afterEach(() => {
     http.restore();
-    wrappers.splice(0).forEach((w) => w.destroy());
+    wrappers.splice(0).forEach((w) => w.unmount());
   });
 
-  async function mountWith(component, propsData) {
+  async function mountWith(component, props) {
     const wrapper = mount(component, {
-      localVue: createLocalVue(),
-      vuetify: new Vuetify(),
-      i18n,
-      propsData,
-      stubs: { EditDialog: { template: '<div />' }, YesNoDialog: true },
+      props,
+      global: {
+        plugins: [i18n],
+        stubs: { EditDialog: { template: '<div />' }, YesNoDialog: true },
+      },
     });
     wrappers.push(wrapper);
     await flush();
@@ -66,10 +65,10 @@ describe('RoleMappings.vue', () => {
     });
 
     const rows = wrapper.findAll('tbody tr');
-    expect(rows.at(0).text()).to.contain('Okta');
-    expect(rows.at(0).text()).not.to.contain('Provider not configured');
-    expect(rows.at(1).text()).to.contain('gone');
-    expect(rows.at(1).text()).to.contain('Provider not configured');
+    expect(rows[0].text()).to.contain('Okta');
+    expect(rows[0].text()).not.to.contain('Provider not configured');
+    expect(rows[1].text()).to.contain('gone');
+    expect(rows[1].text()).to.contain('Provider not configured');
   });
 
   it('deletes a mapping', async () => {

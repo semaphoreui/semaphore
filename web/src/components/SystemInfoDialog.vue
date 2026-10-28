@@ -4,7 +4,7 @@
       data-testid="systemInfoDialog"
       :data-state="loading ? 'loading' : error ? 'error' : info ? 'ready' : 'empty'"
     >
-      <v-card-title class="headline" data-testid="systemInfoDialog-title">
+      <v-card-title class="text-h5" data-testid="systemInfoDialog-title">
         {{ $t('systemInfo') }}
         <v-spacer />
         <v-btn icon @click="dialog = false" data-testid="systemInfoDialog-close">
@@ -17,7 +17,7 @@
       </v-card-text>
 
       <v-card-text v-else-if="error" class="py-4">
-        <v-alert type="error" dense outlined data-testid="systemInfo-error">
+        <v-alert type="error" density="compact" variant="outlined" data-testid="systemInfo-error">
           {{ error }}
         </v-alert>
       </v-card-text>
@@ -30,7 +30,7 @@
           style="background: var(--highlighted-card-bg-color)"
         >
           <v-card-text class="px-0 py-2">
-            <v-simple-table dense style="background: transparent">
+            <v-table density="compact" style="background: transparent">
               <tbody>
                 <tr>
                   <td class="font-weight-medium" style="width: 200px">
@@ -64,7 +64,7 @@
                   >{{ info.system.schedule_timezone }}</td>
                 </tr>
               </tbody>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
 
@@ -84,7 +84,7 @@
             </pre>
             <div
               v-else
-              class="px-0 text--secondary text-body-2"
+              class="px-0 text-medium-emphasis text-body-2"
               data-testid="systemInfo-ansibleNotFound"
             >
               {{ $t('ansibleNotFound') }}
@@ -99,7 +99,7 @@
           style="background: var(--highlighted-card-bg-color)"
         >
           <v-card-text class="px-0 py-2">
-            <v-simple-table dense style="background: transparent">
+            <v-table density="compact" style="background: transparent">
               <tbody>
                 <tr>
                   <td class="font-weight-medium" style="width: 200px">
@@ -108,7 +108,7 @@
                   <td data-testid="systemInfo-dbDialect">{{ info.database.dialect }}</td>
                 </tr>
               </tbody>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
 
@@ -119,14 +119,17 @@
           style="background: var(--highlighted-card-bg-color)"
         >
           <v-card-text class="px-0 py-2">
-            <v-simple-table dense style="background: transparent">
+            <v-table density="compact" style="background: transparent">
               <tbody>
                 <tr>
                   <td class="font-weight-medium" style="width: 200px">
                     {{ $t('passwordLogin') }}
                   </td>
                   <td data-testid="systemInfo-passwordLogin">
-                    <v-icon small :color="info.auth.password_login_enabled ? 'success' : 'grey'">
+                    <v-icon
+                      size="small"
+                      :color="info.auth.password_login_enabled ? 'success' : 'grey'"
+                    >
                       {{
                         info.auth.password_login_enabled ? 'mdi-check-circle' : 'mdi-close-circle'
                       }}
@@ -136,7 +139,7 @@
                 <tr>
                   <td class="font-weight-medium">TOTP</td>
                   <td data-testid="systemInfo-totp">
-                    <v-icon small :color="info.auth.totp_enabled ? 'success' : 'grey'">
+                    <v-icon size="small" :color="info.auth.totp_enabled ? 'success' : 'grey'">
                       {{ info.auth.totp_enabled ? 'mdi-check-circle' : 'mdi-close-circle' }}
                     </v-icon>
                   </td>
@@ -144,7 +147,7 @@
                 <tr>
                   <td class="font-weight-medium">{{ $t('emailOtp') }}</td>
                   <td data-testid="systemInfo-emailOtp">
-                    <v-icon small :color="info.auth.email_otp_enabled ? 'success' : 'grey'">
+                    <v-icon size="small" :color="info.auth.email_otp_enabled ? 'success' : 'grey'">
                       {{
                         info.auth.email_otp_enabled ? 'mdi-check-circle' : 'mdi-close-circle'
                       }}
@@ -154,7 +157,7 @@
                 <tr>
                   <td class="font-weight-medium">LDAP</td>
                   <td data-testid="systemInfo-ldap">
-                    <v-icon small :color="info.auth.ldap_enabled ? 'success' : 'grey'">
+                    <v-icon size="small" :color="info.auth.ldap_enabled ? 'success' : 'grey'">
                       {{ info.auth.ldap_enabled ? 'mdi-check-circle' : 'mdi-close-circle' }}
                     </v-icon>
                   </td>
@@ -165,11 +168,11 @@
                     <span v-if="info.auth.oidc_providers && info.auth.oidc_providers.length > 0">
                       {{ info.auth.oidc_providers.join(', ') }}
                     </span>
-                    <span v-else class="text--secondary">{{ $t('none') }}</span>
+                    <span v-else class="text-medium-emphasis">{{ $t('none') }}</span>
                   </td>
                 </tr>
               </tbody>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
 
@@ -180,7 +183,7 @@
           style="background: var(--highlighted-card-bg-color)"
         >
           <v-card-text class="px-0 py-2">
-            <v-simple-table dense style="background: transparent">
+            <v-table density="compact" style="background: transparent">
               <tbody>
                 <tr
                   v-for="(enabled, name) in info.notifications"
@@ -191,13 +194,13 @@
                     {{ formatNotificationName(name) }}
                   </td>
                   <td>
-                    <v-icon small :color="enabled ? 'success' : 'grey'">
+                    <v-icon size="small" :color="enabled ? 'success' : 'grey'">
                       {{ enabled ? 'mdi-check-circle' : 'mdi-close-circle' }}
                     </v-icon>
                   </td>
                 </tr>
               </tbody>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
 
@@ -207,14 +210,14 @@
           style="background: var(--highlighted-card-bg-color)"
         >
           <v-card-text class="px-0 py-2">
-            <v-simple-table dense style="background: transparent">
+            <v-table density="compact" style="background: transparent">
               <tbody>
                 <tr>
                   <td class="font-weight-medium" style="width: 200px">
                     {{ $t('highAvailability') }}
                   </td>
                   <td data-testid="systemInfo-haEnabled">
-                    <v-icon small :color="info.cluster.ha_enabled ? 'success' : 'grey'">
+                    <v-icon size="small" :color="info.cluster.ha_enabled ? 'success' : 'grey'">
                       {{ info.cluster.ha_enabled ? 'mdi-check-circle' : 'mdi-close-circle' }}
                     </v-icon>
                   </td>
@@ -224,7 +227,7 @@
                   <td data-testid="systemInfo-nodeId">{{ info.cluster.node_id }}</td>
                 </tr>
               </tbody>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
 
@@ -235,14 +238,17 @@
           style="background: var(--highlighted-card-bg-color)"
         >
           <v-card-text class="px-0 py-2">
-            <v-simple-table dense style="background: transparent">
+            <v-table density="compact" style="background: transparent">
               <tbody>
                 <tr>
                   <td class="font-weight-medium" style="width: 200px">
                     {{ $t('useRemoteRunner') }}
                   </td>
                   <td data-testid="systemInfo-useRemoteRunner">
-                    <v-icon small :color="info.runners.use_remote_runner ? 'success' : 'grey'">
+                    <v-icon
+                      size="small"
+                      :color="info.runners.use_remote_runner ? 'success' : 'grey'"
+                    >
                       {{ info.runners.use_remote_runner ? 'mdi-check-circle' : 'mdi-close-circle' }}
                     </v-icon>
                   </td>
@@ -254,7 +260,7 @@
                   >{{ info.runners.active }} / {{ info.runners.total }} {{ $t('active2') }}</td>
                 </tr>
               </tbody>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
 
@@ -265,7 +271,7 @@
           style="background: var(--highlighted-card-bg-color)"
         >
           <v-card-text class="px-0 py-2">
-            <v-simple-table dense style="background: transparent">
+            <v-table density="compact" style="background: transparent">
               <tbody>
                 <tr>
                   <td class="font-weight-medium" style="width: 200px">
@@ -292,7 +298,7 @@
                   >{{ info.task_settings.max_tasks_per_template || $t('unlimited') }}</td>
                 </tr>
               </tbody>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
 
@@ -303,7 +309,7 @@
           style="background: var(--highlighted-card-bg-color)"
         >
           <v-card-text class="px-0 py-2">
-            <v-simple-table dense style="background: transparent">
+            <v-table density="compact" style="background: transparent">
               <tbody>
                 <tr>
                   <td class="font-weight-medium" style="width: 200px">
@@ -311,7 +317,7 @@
                   </td>
                   <td data-testid="systemInfo-nonAdminCanCreateProject">
                     <v-icon
-                      small
+                      size="small"
                       :color="info.features.non_admin_can_create_project ? 'success' : 'grey'"
                     >
                       {{
@@ -323,7 +329,7 @@
                   </td>
                 </tr>
               </tbody>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
       </v-card-text>
@@ -345,10 +351,10 @@ import axios from 'axios';
 
 export default {
   props: {
-    value: Boolean,
+    modelValue: Boolean,
   },
 
-  emits: ['input'],
+  emits: ['update:modelValue'],
 
   data() {
     return {
@@ -361,13 +367,13 @@ export default {
 
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
       if (val && !this.info) {
         await this.loadInfo();
       }
     },
 
-    value(val) {
+    modelValue(val) {
       this.dialog = val;
     },
   },

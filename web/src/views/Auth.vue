@@ -22,8 +22,8 @@
             {{ $t('executeTheFollowingCommandOnTheServerToSeeExisting') }}
           </p>
           <v-alert
-            dense
-            text
+            density="compact"
+            variant="tonal"
             color="info"
             style="font-family: monospace"
             data-testid="authHelpDialog-userListCmd"
@@ -34,8 +34,8 @@
             {{ $t('youCanChangePasswordOfExistingUser') }}
           </p>
           <v-alert
-            dense
-            text
+            density="compact"
+            variant="tonal"
             color="info"
             style="font-family: monospace"
             data-testid="authHelpDialog-changePasswordCmd"
@@ -50,8 +50,8 @@
             {{ $t('orCreateNewAdminUser') }}
           </p>
           <v-alert
-            dense
-            text
+            density="compact"
+            variant="tonal"
             color="info"
             style="font-family: monospace"
             data-testid="authHelpDialog-addAdminCmd"
@@ -63,8 +63,8 @@
         <v-card-actions>
           <v-spacer />
           <v-btn
-            color="blue darken-1"
-            text
+            color="blue-darken-1"
+            variant="text"
             @click="loginHelpDialog = false"
             data-testid="authHelpDialog-close"
           >
@@ -74,7 +74,7 @@
       </v-card>
     </v-dialog>
 
-    <v-container fluid fill-height align-center justify-center class="pa-0">
+    <v-container fluid align-center justify-center class="pa-0 fill-height">
       <v-card class="px-5 py-5" style="border-radius: 15px" data-testid="auth-card">
         <v-card-text>
           <v-form
@@ -118,7 +118,7 @@
             >Enter to your account</h2>
 
             <v-alert
-              :value="signInError != null"
+              :model-value="signInError != null"
               color="error"
               style="margin-bottom: 20px"
               data-testid="auth-error"
@@ -172,7 +172,7 @@
 
                 <v-btn
                   :width="200"
-                  small
+                  size="small"
                   :disabled="verificationEmailSending"
                   color="primary"
                   v-if="isPortal && verificationMethod === 'email'"
@@ -193,7 +193,7 @@
 
               <v-text-field
                 class="mt-6"
-                outlined
+                variant="outlined"
                 v-model="recoveryCode"
                 @keyup.enter="signIn"
                 :label="$t('Recovery code')"
@@ -226,13 +226,13 @@
                 mandatory
                 borderless
                 class="mb-7 d-flex"
-                :background-color="$vuetify.theme.dark ? '#212121' : 'grey lighten-3'"
+                :background-color="$vuetify.theme.current.dark ? '#212121' : 'grey-lighten-3'"
                 data-testid="auth-loginTabs"
               >
                 <v-btn
                   v-for="tab in loginTabs"
                   :key="tab.id || 'local'"
-                  small
+                  size="small"
                   class="flex-grow-1"
                   :data-testid="`auth-loginTab-${tab.id || 'local'}`"
                 >
@@ -249,10 +249,10 @@
                   v-bind:label="$t('username')"
                   :rules="[(v) => !!v || $t('username_required')]"
                   required
-                  outlined
+                  variant="outlined"
                   :disabled="signInProcess"
                   id="auth-username"
-                  dense
+                  density="compact"
                   data-testid="auth-username"
                 ></v-text-field>
 
@@ -262,8 +262,8 @@
                   :rules="[(v) => !!v || $t('password_required')]"
                   type="password"
                   required
-                  outlined
-                  dense
+                  variant="outlined"
+                  density="compact"
                   :disabled="signInProcess"
                   @keyup.enter="signIn"
                   id="auth-password"
@@ -271,7 +271,7 @@
                 ></v-text-field>
 
                 <v-btn
-                  large
+                  size="large"
                   color="primary"
                   @click="signIn"
                   :disabled="signInProcess"
@@ -294,12 +294,12 @@
                   @keyup.enter="signInWithEmail"
                   style="margin-bottom: 20px"
                   data-testid="auth-password"
-                  outlined
+                  variant="outlined"
                   class="mb-0"
                 ></v-text-field>
 
                 <v-btn
-                  large
+                  size="large"
                   color="primary"
                   @click="signInWithEmail"
                   :disabled="signInProcess"
@@ -307,7 +307,7 @@
                   rounded
                   data-testid="auth-signin-with-eamil"
                 >
-                  <v-icon left dark> mdi-email </v-icon>
+                  <v-icon start dark> mdi-email </v-icon>
 
                   {{ $t('Continue with Email') }}
                 </v-btn>
@@ -325,7 +325,7 @@
               </div>
 
               <v-btn
-                large
+                size="large"
                 v-for="provider in oidcProviders"
                 :color="provider.color || 'secondary'"
                 dark
@@ -336,7 +336,7 @@
                 rounded
                 :data-testid="`auth-oidc-${provider.id}`"
               >
-                <v-icon left dark v-if="provider.icon"> mdi-{{ provider.icon }} </v-icon>
+                <v-icon start dark v-if="provider.icon"> mdi-{{ provider.icon }} </v-icon>
 
                 {{ provider.name }}
               </v-btn>
@@ -583,7 +583,8 @@ export default {
     async verify() {
       this.signInError = null;
 
-      if (!this.$refs.signInForm.validate()) {
+      const { valid } = await this.$refs.signInForm.validate();
+      if (!valid) {
         return;
       }
 
@@ -610,7 +611,8 @@ export default {
     async signInWithEmail() {
       this.signInError = null;
 
-      if (!this.$refs.signInForm.validate()) {
+      const { valid } = await this.$refs.signInForm.validate();
+      if (!valid) {
         return;
       }
 
@@ -640,7 +642,8 @@ export default {
     async signIn() {
       this.signInError = null;
 
-      if (!this.$refs.signInForm.validate()) {
+      const { valid } = await this.$refs.signInForm.validate();
+      if (!valid) {
         return;
       }
 

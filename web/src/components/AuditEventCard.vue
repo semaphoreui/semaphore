@@ -4,7 +4,7 @@
       <div class="flex-grow-1">
         <div class="text-h6" data-testid="audit-cardTitle">{{ title }}</div>
         <div
-          class="text-caption text--secondary AuditEventCard__kind"
+          class="text-caption text-medium-emphasis AuditEventCard__kind"
           data-testid="audit-cardKind"
         >{{ kind }}</div>
       </div>
@@ -26,8 +26,8 @@
 
     <v-alert
       v-if="event.outcome === 'failure' || event.reason"
-      dense
-      text
+      density="compact"
+      variant="tonal"
       :type="event.outcome === 'failure' ? 'error' : 'warning'"
       class="mt-3 mb-0"
       data-testid="audit-cardOutcome"
@@ -69,6 +69,7 @@
 </template>
 <script>
 import dayjs from 'dayjs';
+import i18n from '@/plugins/i18';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import utc from 'dayjs/plugin/utc';
 import {
@@ -98,11 +99,11 @@ export default {
     },
 
     title() {
-      return eventTitle(this.event, this.$i18n);
+      return eventTitle(this.event, i18n.global);
     },
 
     reason() {
-      return reasonLabel(this.event.reason, this.$i18n);
+      return reasonLabel(this.event.reason, i18n.global);
     },
 
     sections() {
@@ -116,7 +117,7 @@ export default {
         rows: [
           {
             label: this.$t('audit_field_name'),
-            value: actorLabel(actor, this.$i18n),
+            value: actorLabel(actor, i18n.global),
             pivot: actor.type === 'user' && actor.id
               ? { name: 'user', filter: { user: Number(actor.id) } } : null,
           },
@@ -135,7 +136,7 @@ export default {
               pivot: target.id
                 ? { name: 'object', filter: { target_type: target.type, target_id: target.id } } : null,
             },
-            { label: this.$t('audit_field_type'), value: targetTypeLabel(target.type, this.$i18n) },
+            { label: this.$t('audit_field_type'), value: targetTypeLabel(target.type, i18n.global) },
             target.id && { label: this.$t('audit_field_id'), value: target.id },
           ],
         });

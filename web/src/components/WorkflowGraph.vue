@@ -3,7 +3,7 @@
     class="WorkflowGraph"
     :class="{
       'WorkflowGraph--editable': editable,
-      'WorkflowGraph--dark': $vuetify.theme.dark,
+      'WorkflowGraph--dark': $vuetify.theme.current.dark,
     }"
   >
     <div
@@ -60,8 +60,8 @@
     <v-btn
       v-if="editable"
       fab
-      small
-      depressed
+      size="small"
+      variant="flat"
       color="primary"
       class="WorkflowGraph__fab"
       data-testid="workflowCanvas-quickAdd"
@@ -78,17 +78,17 @@
         data-testid="workflowCanvas-emptyTitle"
       >{{ $t('workflowEmptyTitle') }}</div>
       <div
-        class="text-body-2 text--secondary mb-3"
+        class="text-body-2 text-medium-emphasis mb-3"
         data-testid="workflowCanvas-emptyHint"
       >{{ $t('workflowEmptyHint') }}</div>
       <v-btn
         color="primary"
-        depressed
-        small
+        variant="flat"
+        size="small"
         data-testid="workflowCanvas-emptyAdd"
         @click="openQuickAddAtCenter()"
       >
-        <v-icon left small>mdi-plus</v-icon>
+        <v-icon start size="small">mdi-plus</v-icon>
         {{ $t('workflowQuickAdd') }}
       </v-btn>
     </div>
@@ -105,7 +105,7 @@
 </template>
 
 <script>
-import Vue from 'vue';
+import { h, render } from 'vue';
 import Drawflow from 'drawflow';
 import 'drawflow/dist/drawflow.min.css';
 import WorkflowNodeCard from '@/components/workflow/WorkflowNodeCard.vue';
@@ -131,8 +131,6 @@ const AUTO_FIT_WINDOW_MS = 1500;
 // Arrow-key pan distance in screen pixels (Shift multiplies it).
 const KEY_PAN_STEP = 40;
 const KEY_PAN_STEP_FAST = 200;
-
-const NodeCard = Vue.extend(WorkflowNodeCard);
 
 export default {
   components: { WorkflowEdgeLabel, WorkflowCanvasControls, WorkflowQuickAddMenu },
@@ -311,7 +309,7 @@ export default {
     this.buildCanvas();
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     const canvas = this.$refs.canvas;
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -419,7 +417,7 @@ export default {
         false,
       );
       this.nodeIdByDf[dfId] = node.id;
-      this.$set(this.store.nodes, node.id, this.stripPosition(node));
+      this.store.nodes[node.id] = this.stripPosition(node);
       this.mountCard(dfId, node.id);
       return dfId;
     },
@@ -427,23 +425,31 @@ export default {
     mountCard(dfId, nodeId) {
       const el = this.$refs.canvas.querySelector(`#node-${dfId} .WorkflowGraph__mount`);
       if (!el) return;
-      const vm = new NodeCard({
-        parent: this,
-        propsData: { store: this.store, nodeId, editable: this.editable },
+      // The card is rendered into Drawflow's node element with the context of this app
+      // (Vuetify, i18n, router); `cards` keeps the element to unmount it.
+      const vnode = h(WorkflowNodeCard, {
+        store: this.store,
+        nodeId,
+        editable: this.editable,
+        onQuickAdd: () => this.openQuickAddFromNode(nodeId),
+        onSelect: () => this.$emit('node-click', nodeId),
+        onActivate: () => {
+          if (this.editable) this.selectNode(nodeId);
+          else this.$emit('node-click', nodeId);
+        },
+        onResolveApproval: (status) => this.$emit('resolve-approval', { nodeId, status }),
       });
-      vm.$on('quick-add', () => this.openQuickAddFromNode(nodeId));
-      vm.$on('select', () => this.$emit('node-click', nodeId));
-      vm.$on('activate', () => {
-        if (this.editable) this.selectNode(nodeId);
-        else this.$emit('node-click', nodeId);
-      });
-      vm.$on('resolve-approval', (status) => this.$emit('resolve-approval', { nodeId, status }));
-      vm.$mount(el);
-      this.cards[dfId] = vm;
+      vnode.appContext = this.$.appContext;
+      render(vnode, el);
+      this.cards[dfId] = el;
+    },
+
+    unmountCard(el) {
+      render(null, el);
     },
 
     destroyCards() {
-      Object.keys(this.cards).forEach((dfId) => this.cards[dfId].$destroy());
+      Object.keys(this.cards).forEach((dfId) => this.unmountCard(this.cards[dfId]));
       this.cards = {};
       this.nodeIdByDf = {};
     },
@@ -523,7 +529,7 @@ export default {
       const dfId = this.dfIdOf(nodeId);
       if (dfId == null) return;
       this.editor.updateNodeDataFromId(dfId, { nodeId, node: this.stripPosition(node) });
-      this.$set(this.store.nodes, nodeId, this.stripPosition(node));
+      this.store.nodes[nodeId] = this.stripPosition(node);
       const wrapper = this.$refs.canvas.querySelector(`#node-${dfId}`);
       if (wrapper) {
         const selected = wrapper.classList.contains('selected');
@@ -871,15 +877,15 @@ export default {
     // ---- Drawflow event handlers ---------------------------------------------
 
     onNodeRemoved(dfId) {
-      const vm = this.cards[dfId];
-      if (vm) {
-        vm.$destroy();
+      const el = this.cards[dfId];
+      if (el) {
+        this.unmountCard(el);
         delete this.cards[dfId];
       }
       const nodeId = this.nodeIdByDf[dfId];
       delete this.nodeIdByDf[dfId];
       if (nodeId != null) {
-        this.$delete(this.store.nodes, nodeId);
+        delete this.store.nodes[nodeId];
         Object.keys(this.conditions).forEach((key) => {
           const [s, d] = key.split('->').map(Number);
           if (s === nodeId || d === nodeId) {

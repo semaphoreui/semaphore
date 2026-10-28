@@ -2,53 +2,28 @@
 // `--include tests/unit/setup.js` in the `test:unit` npm script.
 // Specs can also import it explicitly so they work when run directly.
 
-import Vue from 'vue';
-import Vuetify from 'vuetify';
-import * as components from 'vuetify/lib/components';
-import filtersPlugin from '@/plugins/filters';
-
-// --- jsdom polyfills ---------------------------------------------------------
-// src/plugins/i18.js reads localStorage at import time.
-function defineGlobal(name, value) {
-  [global, typeof window !== 'undefined' ? window : null].forEach((target) => {
-    if (!target) {
-      return;
-    }
-    // jsdom exposes some properties (e.g. localStorage) as getters that throw
-    // for opaque origins, so always (re)define them as plain values.
-    Object.defineProperty(target, name, { value, configurable: true, writable: true });
-  });
-}
-
-function hasGlobal(name) {
-  try {
-    return typeof global[name] !== 'undefined';
-  } catch (e) {
-    return false;
-  }
-}
-
-if (!hasGlobal('localStorage')) {
-  const store = new Map();
-  defineGlobal('localStorage', {
-    getItem: (k) => (store.has(k) ? store.get(k) : null),
-    setItem: (k, v) => store.set(k, String(v)),
-    removeItem: (k) => store.delete(k),
-    clear: () => store.clear(),
-  });
-}
-
-// Vuetify overlays use requestAnimationFrame/cancelAnimationFrame.
-if (!hasGlobal('requestAnimationFrame')) {
-  defineGlobal('requestAnimationFrame', (cb) => setTimeout(() => cb(Date.now()), 0));
-  defineGlobal('cancelAnimationFrame', (id) => clearTimeout(id));
-}
+// The jsdom polyfills come first: Vuetify reads some globals (CSS) as soon as it is imported.
+import './polyfills';
+import { config } from '@vue/test-utils';
+import { createVuetify } from 'vuetify';
+import * as components from 'vuetify/components';
+import * as directives from 'vuetify/directives';
+import { filters } from '@/plugins/filters';
 
 // --- Vuetify -----------------------------------------------------------------
-// vuetify-loader is disabled in test mode (see vue.config.js), so register all
-// components globally. Vuetify installs only once per bundle, so this has to
-// run before any spec calls `localVue.use(Vuetify)`.
-Vue.use(Vuetify, { components });
+// webpack-plugin-vuetify (automatic component imports) is off in test mode (see vue.config.js),
+// so the test instance registers every component and directive globally. Every mount gets it
+// through the global plugins of @vue/test-utils; a spec adds its own (i18n, router) per mount.
+// A spec that needs a display of its own width (the display is measured when the instance is
+// created) passes a fresh instance in its global plugins: the one installed last wins.
+export default function createTestVuetify() {
+  return createVuetify({ components, directives });
+}
 
-// Global template filters, normally installed by src/main.js.
-Vue.use(filtersPlugin);
+config.global.plugins.push(createTestVuetify());
+
+// Global template formatters, normally set by src/main.js (`$filters`).
+config.global.config.globalProperties = {
+  ...config.global.config.globalProperties,
+  $filters: filters,
+};

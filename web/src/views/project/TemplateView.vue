@@ -2,7 +2,7 @@
   <div v-if="!isLoaded" data-testid="template-page" data-state="loading">
     <v-progress-linear
       indeterminate
-      color="primary darken-2"
+      color="primary-darken-2"
       data-testid="template-loading"
     ></v-progress-linear>
   </div>
@@ -92,10 +92,9 @@
       <v-spacer></v-spacer>
 
       <v-menu offset-y v-if="canStop">
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-btn
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             color="grey"
             class="mr-3 pr-2"
             :disabled="stopAllTasksProgress"
@@ -130,7 +129,7 @@
       <v-btn
         v-if="canRun"
         color="primary"
-        depressed
+        variant="flat"
         class="mr-3"
         @click="newTaskDialog = true"
         data-testid="template-run"
@@ -214,15 +213,15 @@
 </template>
 
 <style lang="scss">
-
-@import '~vuetify/src/styles/settings/_variables';
+@use 'sass:map';
+@use '@/scss/variables' as settings;
 
 .TemplateView__description {
   font-size: 14px;
   margin-bottom: 12px;
 }
 
-@media #{map-get($display-breakpoints, 'md-and-up')} {
+@media #{map.get(settings.$display-breakpoints, 'md-and-up')} {
   .TemplateView__description {
     transform: translateY(-12px);
     margin-bottom: 0;

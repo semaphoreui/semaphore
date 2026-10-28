@@ -64,8 +64,8 @@
 
     <v-alert
       v-if="!features.custom_roles_management"
-      text
-      color="amber darken-3"
+      variant="tonal"
+      color="amber-darken-3"
       class="PageAlert"
       data-testid="roles-licenseAlert"
     >
@@ -77,9 +77,9 @@
 
       <v-btn
         dark
-        depressed
+        variant="flat"
         v-if="isAdmin"
-        color="amber darken-3"
+        color="amber-darken-3"
         href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
         target="_blank"
         data-testid="roles-upgrade"
@@ -97,17 +97,20 @@
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       :headers="headers"
       :items="items"
-      item-key="slug"
+      item-value="slug"
       class="mt-4"
-      :footer-props="{ itemsPerPageOptions: [20] }"
+      :items-per-page-options="[20]"
     >
       <template v-slot:item.name="{ item }">
         <div data-testid="roles-rowName">{{ item.name }}</div>
-        <div class="text--secondary caption" data-testid="roles-rowSlug">{{ item.slug }}</div>
+        <div
+          class="text-medium-emphasis text-caption"
+          data-testid="roles-rowSlug"
+        >{{ item.slug }}</div>
       </template>
       <template v-slot:item.scope="{ item }">
         <v-chip
-          small
+          size="small"
           label
           :data-testid="`roles-rowScope-${roleScope(item)}`"
         >{{ $t(roleScope(item)) }}</v-chip>
@@ -210,22 +213,22 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '50%',
         },
         {
-          text: this.$i18n.t('roleScope'),
-          value: 'scope',
+          title: this.$t('roleScope'),
+          key: 'scope',
           sortable: false,
         },
         {
-          text: this.$i18n.t('permissions'),
-          value: 'permissions',
+          title: this.$t('permissions'),
+          key: 'permissions',
         },
         {
-          text: this.$i18n.t('actions'),
-          value: 'actions',
+          title: this.$t('actions'),
+          key: 'actions',
           sortable: false,
         },
       ];
@@ -252,11 +255,11 @@ export default {
         const impact = err.response && err.response.status === 409
           && err.response.data && err.response.data.impact;
         if (impact && impact.mappings > 0 && !this.isAdmin) {
-          EventBus.$emit('i-snackbar', { color: 'error', text: this.$i18n.t('roleUsedByMappings') });
+          EventBus.$emit('i-snackbar', { color: 'error', text: this.$t('roleUsedByMappings') });
           return;
         }
         if (impact && this.projectId && !this.can(USER_PERMISSIONS.manageProjectUsers)) {
-          EventBus.$emit('i-snackbar', { color: 'error', text: this.$i18n.t('roleInUseNeedsManageUsers') });
+          EventBus.$emit('i-snackbar', { color: 'error', text: this.$t('roleInUseNeedsManageUsers') });
           return;
         }
         if (impact) {

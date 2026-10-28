@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="templatePerm-error"
@@ -19,12 +19,12 @@
       v-model="item.role_slug"
       :items="groupedRoles"
       item-value="slug"
-      item-text="name"
+      item-title="name"
       :label="$t('role')"
       :rules="[v => !!v || $t('role_required')]"
       required
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       :disabled="formSaving"
       data-testid="templatePerm-roleSlug"
     >
@@ -84,7 +84,7 @@ export default {
 
   computed: {
     groupedRoles() {
-      return groupRolesForSelect(this.availableRoles, (key) => this.$i18n.t(key));
+      return groupRolesForSelect(this.availableRoles, (key) => this.$t(key));
     },
   },
 

@@ -87,7 +87,7 @@
     >
       <div class="mb-6">
         <v-btn-toggle
-          dense
+          density="compact"
           v-model="inventoryId"
           v-if="inventories.length > 0"
           mandatory
@@ -117,15 +117,14 @@
         <span v-else data-testid="templateState-empty">No workspaces.</span>
 
         <v-menu offset-y>
-          <template v-slot:activator="{ on, attrs }">
+          <template v-slot:activator="{ props }">
             <v-btn
               color="primary"
               dark
               fab
-              small
+              size="small"
               class="ml-3"
-              v-bind="attrs"
-              v-on="on"
+              v-bind="props"
               data-testid="templateState-new"
             >
               <v-icon dark>mdi-plus</v-icon>
@@ -217,7 +216,7 @@
 
         <v-alert
           type="info"
-          text
+          variant="tonal"
           color="hsl(348deg, 86%, 61%)"
           style="border-radius: 0;"
           v-if="!features.terraform_backend"
@@ -427,12 +426,12 @@ export default {
           sortable: false,
         },
         {
-          text: this.$i18n.t('taskId'),
+          text: this.$t('taskId'),
           value: 'task_id',
           sortable: false,
         },
         {
-          text: this.$i18n.t('created'),
+          text: this.$t('created'),
           value: 'created',
           sortable: false,
         },

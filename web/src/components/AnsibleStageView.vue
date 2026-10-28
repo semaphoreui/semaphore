@@ -6,7 +6,7 @@
     :data-state="hosts == null ? 'loading' : (hosts.length === 0 ? 'empty' : 'ready')"
   >
     <v-alert
-      text
+      variant="tonal"
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
       v-if="!features.task_summary"
@@ -47,7 +47,7 @@
 
     <v-btn-toggle
       class="pl-5 mt-8 mb-3"
-      dense
+      density="compact"
       v-model="tab"
       mandatory
       data-testid="taskSummary-filter"
@@ -100,7 +100,7 @@
       </template>
     </v-data-table>
 
-    <v-simple-table
+    <v-table
       v-else-if="tab === 'allServers'"
       data-testid="taskSummary-hostsTable"
       :data-state="hosts == null ? 'loading' : (hosts.length === 0 ? 'empty' : 'ready')"
@@ -193,7 +193,7 @@
           </tr>
         </tbody>
       </template>
-    </v-simple-table>
+    </v-table>
   </div>
 </template>
 <style lang="scss">

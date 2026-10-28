@@ -1,9 +1,9 @@
 <template>
   <LineChartGenerator
-    :chart-id="chartId"
+    :id="chartId"
     :dataset-id-key="chartId"
-    :chart-options="chartOptions"
-    :chart-data="chartData"
+    :options="chartOptions"
+    :data="chartData"
     style="height: 220px;"
   />
 </template>

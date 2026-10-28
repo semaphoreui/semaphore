@@ -2,11 +2,14 @@
   <div class="pb-6" style="margin-top: -10px;" data-testid="templateVaults">
     <v-dialog
       v-model="editDialog"
-      hide-overlay
+      :scrim="false"
       content-class="NestedDialog"
       width="300"
     >
-      <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'" data-testid="templateVaultDialog">
+      <v-card
+        :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
+        data-testid="templateVaultDialog"
+      >
         <v-card-title data-testid="templateVaultDialog-heading"></v-card-title>
         <v-card-text class="pb-0">
           <v-form
@@ -16,7 +19,7 @@
             data-testid="templateVaultDialog-form"
           >
             <v-alert
-              :value="formError"
+              :model-value="!!formError"
               color="error"
               data-testid="templateVaultDialog-error"
             >{{ formError }}
@@ -35,10 +38,10 @@
               :label="$t('type')"
               :items="vaultTypes"
               item-value="id"
-              item-text="name"
+              item-title="name"
               required
               :rules="[v => !!v  || $t('type_required')]"
-              @change="updateType"
+              @update:model-value="updateType"
               data-testid="templateVaultDialog-type"
             />
 
@@ -48,7 +51,7 @@
               :label="$t('vaultPassword2')"
               :items="vaultKeys"
               item-value="id"
-              item-text="name"
+              item-title="name"
               required
               :rules="[(v) => !!v || $t('vaultRequired')]"
               data-testid="templateVaultDialog-vaultKeyId"
@@ -68,16 +71,16 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn
-            color="blue darken-1"
-            text
+            color="blue-darken-1"
+            variant="text"
             @click="editDialog = false"
             data-testid="templateVaultDialog-cancel"
           >
             {{ $t('cancel') }}
           </v-btn>
           <v-btn
-            color="blue darken-1"
-            text
+            color="blue-darken-1"
+            variant="text"
             @click="saveVault()"
             data-testid="templateVaultDialog-save"
           >
@@ -97,7 +100,7 @@
       <v-chip-group column style="margin-top: -4px;">
         <v-chip
           v-for="(v, i) in modifiedVaults"
-          close
+          closable
           @click:close="deleteVault(i)"
           :key="v.name"
           @click="editVault(i)"
@@ -217,10 +220,11 @@ export default {
       this.editDialog = true;
     },
 
-    saveVault() {
+    async saveVault() {
       this.formError = null;
 
-      if (!this.$refs.form.validate()) {
+      const { valid } = await this.$refs.form.validate();
+      if (!valid) {
         return;
       }
 

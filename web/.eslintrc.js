@@ -7,7 +7,7 @@ module.exports = {
 
   extends: [
     'plugin:import/recommended',
-    'plugin:vue/essential',
+    'plugin:vue/vue3-essential',
     '@vue/airbnb',
   ],
 

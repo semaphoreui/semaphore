@@ -2,7 +2,7 @@
   <div v-if="item == null" data-testid="workflow-page" data-state="loading">
     <v-progress-linear
       indeterminate
-      color="primary darken-2"
+      color="primary-darken-2"
       data-testid="workflow-loading"
     ></v-progress-linear>
   </div>
@@ -44,7 +44,7 @@
       <v-btn
         v-if="canRun"
         color="primary"
-        depressed
+        variant="flat"
         class="mr-3"
         @click="runWorkflow()"
         data-testid="workflow-run"

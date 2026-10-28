@@ -87,7 +87,7 @@
       :headers="headers"
       :items="items"
       class="mt-4"
-      :footer-props="{ itemsPerPageOptions: [20] }"
+      :items-per-page-options="[20]"
       data-testid="users-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -208,41 +208,41 @@ export default {
         return;
       }
       this.itemId = e.item.id;
-      EventBus.$emit('i-snackbar', { color: 'success', text: this.$i18n.t('userCreated') });
+      EventBus.$emit('i-snackbar', { color: 'success', text: this.$t('userCreated') });
       await this.loadItems();
     },
 
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '50%',
         },
         {
-          text: this.$i18n.t('username'),
-          value: 'username',
+          title: this.$t('username'),
+          key: 'username',
         },
         {
-          text: this.$i18n.t('email'),
-          value: 'email',
+          title: this.$t('email'),
+          key: 'email',
         },
         {
-          text: this.$i18n.t('alert'),
-          value: 'alert',
+          title: this.$t('alert'),
+          key: 'alert',
         },
         {
-          text: this.$i18n.t('admin'),
-          value: 'admin',
+          title: this.$t('admin'),
+          key: 'admin',
         },
         {
-          text: this.$i18n.t('external'),
-          value: 'external',
+          title: this.$t('external'),
+          key: 'external',
           width: '50%',
         },
         {
-          text: this.$i18n.t('actions'),
-          value: 'actions',
+          title: this.$t('actions'),
+          key: 'actions',
           sortable: false,
         },
       ];

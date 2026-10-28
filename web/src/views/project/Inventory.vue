@@ -76,11 +76,10 @@
       <v-menu
         offset-y
       >
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-btn
             class="pr-2"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             color="primary"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
             data-testid="inventory-new"
@@ -121,7 +120,7 @@
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
     >
       <template v-slot:item.name="{ item }">
-        <v-icon class="mr-3" small data-testid="inventory-rowIcon">
+        <v-icon class="mr-3" size="small" data-testid="inventory-rowIcon">
           {{ getAppIcon(getAppByType(item.type)) }}
         </v-icon>
 
@@ -136,7 +135,7 @@
       </template>
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle
-          dense
+          density="compact"
           :value-comparator="() => false"
           data-testid="inventory-rowActions"
         >
@@ -224,22 +223,22 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
+        title: this.$t('name'),
+        key: 'name',
         width: '30%',
       },
       {
-        text: this.$i18n.t('type'),
-        value: 'type',
+        title: this.$t('type'),
+        key: 'type',
         width: '20%',
       },
       {
-        text: this.$i18n.t('path'),
-        value: 'inventory',
+        title: this.$t('path'),
+        key: 'inventory',
         width: '50%',
       },
       {
-        value: 'actions',
+        key: 'actions',
         sortable: false,
         width: '0%',
       },

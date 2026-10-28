@@ -32,7 +32,7 @@
     >
       <template v-slot:item.tpl_alias="{ item }">
         <div class="d-flex align-center">
-          <v-icon class="mr-3" small data-testid="history-rowApp">
+          <v-icon class="mr-3" size="small" data-testid="history-rowApp">
             {{ getAppIcon(item.tpl_app) }}
           </v-icon>
 
@@ -46,7 +46,7 @@
             data-testid="history-rowTask"
           />
 
-          <v-icon small class="ml-1 mr-1">mdi-arrow-left</v-icon>
+          <v-icon size="small" class="ml-1 mr-1">mdi-arrow-left</v-icon>
 
           <router-link
             :to="'/project/' + item.project_id + '/templates/' + item.template_id"
@@ -57,10 +57,10 @@
 
         <div class="ml-7" style="font-size: 14px">
           <span v-if="item.message" data-testid="history-rowMessage">
-            <v-icon x-small>mdi-message-outline</v-icon> {{ item.message }}
+            <v-icon size="x-small">mdi-message-outline</v-icon> {{ item.message }}
           </span>
           <span v-else-if="item.commit_hash" data-testid="history-rowCommit">
-            <v-icon x-small>mdi-source-fork</v-icon> {{ item.commit_message }}
+            <v-icon size="x-small">mdi-source-fork</v-icon> {{ item.commit_message }}
           </span>
         </div>
       </template>
@@ -97,7 +97,7 @@
       data-testid="history-pagination"
     >
       <span
-        class="text--secondary mr-2"
+        class="text-medium-emphasis mr-2"
         data-testid="history-perPageLabel"
       >{{ $t('rowsPerPage') }}</span>
 
@@ -106,7 +106,7 @@
         :disabled="loading"
         :items="perPageOptions"
         class="HistoryPerPage mr-4"
-        dense
+        density="compact"
         hide-details
         style="max-width: 72px"
         data-testid="history-perPage"
@@ -122,7 +122,7 @@
       </v-btn>
 
       <span
-        class="mx-2 text--secondary"
+        class="mx-2 text-medium-emphasis"
         data-testid="history-range"
       >{{ rangeStart }} - {{ rangeEnd }}</span>
 
@@ -205,7 +205,7 @@ export default {
     this.socketListenerId = socket.addListener((data) => this.onWebsocketDataReceived(data));
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     socket.removeListener(this.socketListenerId);
     if (this.reloadTimer) {
       clearTimeout(this.reloadTimer);
@@ -287,33 +287,33 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('task2'),
-          value: 'tpl_alias',
+          title: this.$t('task2'),
+          key: 'tpl_alias',
           sortable: false,
         },
         {
-          text: this.$i18n.t('version'),
-          value: 'version',
+          title: this.$t('version'),
+          key: 'version',
           sortable: false,
         },
         {
-          text: this.$i18n.t('status'),
-          value: 'status',
+          title: this.$t('status'),
+          key: 'status',
           sortable: false,
         },
         {
-          text: this.$i18n.t('user'),
-          value: 'user_name',
+          title: this.$t('user'),
+          key: 'user_name',
           sortable: false,
         },
         {
-          text: this.$i18n.t('start'),
-          value: 'start',
+          title: this.$t('start'),
+          key: 'start',
           sortable: false,
         },
         {
-          text: this.$i18n.t('duration'),
-          value: 'end',
+          title: this.$t('duration'),
+          key: 'end',
           sortable: false,
         },
       ];

@@ -1,7 +1,6 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { mount } from '@vue/test-utils';
 import WorkflowNodeProperties from '@/components/workflow/WorkflowNodeProperties.vue';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
 
@@ -25,23 +24,23 @@ const workflowVars = [
 ];
 
 function mountPanel(node, surveyVars = workflowVars) {
-  const localVue = createLocalVue();
   return mount(WorkflowNodeProperties, {
-    localVue,
-    vuetify: new Vuetify(),
-    propsData: {
-      value: node, templates, surveyVars, canManage: true,
+    // v-model of a Vue 3 component: modelValue / update:modelValue (Vue 2: value / input)
+    props: {
+      modelValue: node, templates, surveyVars, canManage: true,
     },
-    mocks: {
-      $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k),
-      $tc: (k, n) => `${k}:${n}`,
+    global: {
+      mocks: {
+        $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k),
+        $tc: (k, n) => `${k}:${n}`,
+      },
+      stubs: { TaskParamsForm: true },
     },
-    stubs: { TaskParamsForm: true },
   });
 }
 
 function lastEmitted(w) {
-  const events = w.emitted('input');
+  const events = w.emitted('update:modelValue');
   return events[events.length - 1][0];
 }
 

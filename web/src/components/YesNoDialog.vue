@@ -1,10 +1,11 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <v-dialog
     v-model="dialog"
     :max-width="maxWidth || 290"
+    :close-on-back="false"
   >
     <v-card :data-testid="testId">
-      <v-card-title class="headline" data-testid="yesNoDialog-title">{{ title }}</v-card-title>
+      <v-card-title class="text-h5" data-testid="yesNoDialog-title">{{ title }}</v-card-title>
 
       <v-card-text data-testid="yesNoDialog-text">
         <slot>{{ text }}</slot>
@@ -15,8 +16,8 @@
 
         <v-btn
           v-if="!hideNoButton"
-          color="blue darken-1"
-          text
+          color="blue-darken-1"
+          variant="text"
           @click="no()"
           data-testid="yesNoDialog-no"
         >
@@ -24,8 +25,8 @@
         </v-btn>
 
         <v-btn
-          color="blue darken-1"
-          text
+          color="blue-darken-1"
+          variant="text"
           @click="yes()"
           data-testid="yesNoDialog-yes"
         >
@@ -39,7 +40,7 @@
 
 export default {
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     title: String,
     text: String,
     yesButtonTitle: String,
@@ -52,7 +53,7 @@ export default {
     },
   },
 
-  emits: ['input', 'yes', 'no'],
+  emits: ['update:modelValue', 'yes', 'no'],
 
   data() {
     return {
@@ -62,10 +63,10 @@ export default {
 
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.dialog = val;
     },
   },

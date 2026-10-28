@@ -8,7 +8,7 @@
       :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-        :value="formError"
+        :model-value="!!formError"
         color="error"
         class="pb-2"
         data-testid="repository-error"
@@ -21,8 +21,8 @@
         :rules="[v => !!v || $t('name_required')]"
         required
         :disabled="formSaving"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         data-testid="repository-name"
     ></v-text-field>
 
@@ -36,16 +36,16 @@
         required
         :disabled="formSaving"
         :hide-details="true"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         data-testid="repository-gitUrl"
     ></v-text-field>
 
     <div class="mt-1 mb-5" data-testid="repository-urlTypes">
-      <span class="caption">git:</span>
+      <span class="text-caption">git:</span>
       <v-chip
         v-for="x in ['ssh', 'http', 'https', 'file', 'git']"
-        x-small
+        size="x-small"
         class="ml-1"
         :color="type ===x ? 'primary' : ''"
         @click="setType(x)"
@@ -53,9 +53,9 @@
         :key="x"
         :data-testid="`repository-urlType-${x}`"
       >{{ x }}</v-chip>
-      <span class="caption ml-3">local:</span>
+      <span class="text-caption ml-3">local:</span>
       <v-chip
-        x-small
+        size="x-small"
         class="ml-1"
         :color="type ==='local' ? 'primary' : ''"
         @click="setType('local')"
@@ -72,8 +72,8 @@
       :rules="[v => (!!v || type === 'local') || $t('branch_required')]"
       required
       :disabled="formSaving || type === 'local'"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="repository-gitBranch"
     ></v-text-field>
 
@@ -92,20 +92,19 @@
         :label="$t('accessKey')"
         :items="keys"
         item-value="id"
-        item-text="name"
+        item-title="name"
         :rules="[v => !!v || $t('key_required')]"
         required
         :disabled="formSaving"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         data-testid="repository-sshKeyId"
     >
       <template v-slot:append-outer>
-        <v-tooltip left color="black" content-class="opacity1">
-          <template v-slot:activator="{ on, attrs }">
+        <v-tooltip location="left" color="black" content-class="opacity1">
+          <template v-slot:activator="{ props }">
             <v-icon
-              v-bind="attrs"
-              v-on="on"
+              v-bind="props"
               data-testid="repository-sshKeyHelp"
             >
               mdi-help-circle

@@ -12,7 +12,7 @@
     @keydown.space.prevent="activate"
   >
     <v-icon
-      x-small
+      size="x-small"
       class="WorkflowNodeCard__noteIcon"
       data-testid="workflowCanvas-nodeNoteIcon"
     >mdi-note-text-outline</v-icon>
@@ -63,16 +63,16 @@
         data-testid="workflowCanvas-nodeActions"
       >
         <v-btn
-          x-small
-          depressed
+          size="x-small"
+          variant="flat"
           color="success"
           data-testid="workflowCanvas-nodeApprove"
           @mousedown.stop
           @click.stop="resolve('approved')"
         >{{ $t('workflowApprove') }}</v-btn>
         <v-btn
-          x-small
-          outlined
+          size="x-small"
+          variant="outlined"
           color="error"
           class="ml-1"
           data-testid="workflowCanvas-nodeReject"
@@ -93,21 +93,20 @@
       />
       <v-icon
         v-else
-        small
+        size="small"
         :color="statusColor"
         :data-testid="`workflowCanvas-nodeStatus-${status}`"
       >{{ statusIcon }}</v-icon>
     </div>
 
-    <v-tooltip v-if="problem" bottom max-width="280">
-      <template v-slot:activator="{ on, attrs }">
+    <v-tooltip v-if="problem" location="bottom" max-width="280">
+      <template v-slot:activator="{ props }">
         <span
           class="WorkflowNodeCard__badge"
           data-testid="workflowCanvas-nodeProblem"
-          v-bind="attrs"
-          v-on="on"
+          v-bind="props"
         >
-          <v-icon x-small color="white">mdi-alert</v-icon>
+          <v-icon size="x-small" color="white">mdi-alert</v-icon>
         </span>
       </template>
       <span data-testid="workflowCanvas-nodeProblemText">{{ problem }}</span>
@@ -122,7 +121,7 @@
       @mousedown.stop
       @click.stop="$emit('quick-add', nodeId)"
     >
-      <v-icon small color="primary">mdi-plus</v-icon>
+      <v-icon size="small" color="primary">mdi-plus</v-icon>
     </button>
   </div>
 </template>
@@ -197,7 +196,7 @@ export default {
       const apps = this.store.apps || {};
       if (this.app && apps[this.app] && apps[this.app].color) return apps[this.app].color;
       if (this.app && APP_ICONS[this.app]) {
-        const dark = this.$vuetify && this.$vuetify.theme.dark;
+        const dark = this.$vuetify && this.$vuetify.theme.current.dark;
         return (dark ? APP_ICONS[this.app].darkColor : APP_ICONS[this.app].color) || null;
       }
       return null;
@@ -238,7 +237,7 @@ export default {
         if (this.appTitle) parts.push(this.appTitle);
         if (this.hasParamOverrides) parts.push(this.$t('workflowParamsOverridden'));
         const bound = Array.isArray(this.node.survey_inputs) ? this.node.survey_inputs.length : 0;
-        if (bound > 0) parts.push(this.$tc('workflowNodeSurveyInputsCount', bound, { count: bound }));
+        if (bound > 0) parts.push(this.$t('workflowNodeSurveyInputsCount', { count: bound }, bound));
       } else if (this.kind === 'approval') {
         parts.push(this.node.approval_timeout
           ? this.$t('workflowApprovalTimeoutShort', {
@@ -269,7 +268,7 @@ export default {
         parts.push(formatDurationLong(end - new Date(this.run.start).getTime()));
       }
       if (this.run.outputs) {
-        parts.push(this.$tc('workflowNodeOutputsCount', this.run.outputs, { count: this.run.outputs }));
+        parts.push(this.$t('workflowNodeOutputsCount', { count: this.run.outputs }, this.run.outputs));
       }
       return parts.join(' · ');
     },
@@ -348,7 +347,7 @@ export default {
     },
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.timer) clearInterval(this.timer);
   },
 

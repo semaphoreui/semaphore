@@ -9,7 +9,12 @@
           data-testid="clusterClearDialog-title"
         >{{ $t('clearTasksTitle') }}</v-card-title>
         <v-card-text>
-          <v-alert type="warning" dense text data-testid="clusterClearDialog-warning">
+          <v-alert
+            type="warning"
+            density="compact"
+            variant="tonal"
+            data-testid="clusterClearDialog-warning"
+          >
             {{ $t('clearTasksWarning') }}
           </v-alert>
           <div class="mb-2">{{ $t('clearTasksGroups') }}</div>
@@ -59,7 +64,7 @@
         <v-card-actions>
           <v-spacer />
           <v-btn
-            text
+            variant="text"
             @click="clearDialog = false"
             data-testid="clusterClearDialog-cancel"
           >{{ $t('cancel') }}</v-btn>
@@ -88,7 +93,7 @@
         :disabled="!features.high_availability || !status.ha_enabled"
         data-testid="cluster-clear"
       >
-        <v-icon left>mdi-delete-sweep</v-icon>
+        <v-icon start>mdi-delete-sweep</v-icon>
         {{ $t('clearTasksFromRedis') }}
       </v-btn>
     </v-toolbar>
@@ -97,8 +102,8 @@
 
     <v-alert
       v-if="!features.high_availability"
-      text
-      color="amber darken-3"
+      variant="tonal"
+      color="amber-darken-3"
       class="PageAlert"
       data-testid="cluster-licenseAlert"
     >
@@ -106,9 +111,9 @@
 
       <v-btn
         dark
-        depressed
+        variant="flat"
         v-if="canManageSystem"
-        color="amber darken-3"
+        color="amber-darken-3"
         href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_cluster"
         target="_blank"
         data-testid="cluster-upgrade"
@@ -124,8 +129,8 @@
     <v-alert
       v-if="status && !status.ha_enabled"
       type="info"
-      dense
-      text
+      density="compact"
+      variant="tonal"
       data-testid="cluster-haDisabled"
     >
       {{ $t('haDisabledBanner') }}
@@ -133,13 +138,13 @@
 
     <div class="pa-4">
       <!-- Nodes -->
-      <v-card v-if="status && status.nodes" class="mb-4" outlined data-testid="cluster-nodes">
-        <v-card-title class="subtitle-1">{{ $t('nodes') }}</v-card-title>
+      <v-card v-if="status && status.nodes" class="mb-4" border data-testid="cluster-nodes">
+        <v-card-title class="text-subtitle-1">{{ $t('nodes') }}</v-card-title>
         <v-data-table
           :headers="nodeHeaders"
           :items="status.nodes"
           :items-per-page="20"
-          dense
+          density="compact"
           data-testid="cluster-nodesTable"
           :data-state="status.nodes.length === 0 ? 'empty' : 'ready'"
         >
@@ -147,14 +152,14 @@
             <code data-testid="cluster-rowNodeId">{{ item.node_id }}</code>
             <v-chip
               v-if="item.is_self"
-              x-small
+              size="x-small"
               class="ml-2"
               data-testid="cluster-rowThisNode"
             >{{ $t('thisNode') }}</v-chip>
           </template>
           <template v-slot:item.alive="{ item }">
             <v-chip
-              x-small
+              size="x-small"
               :color="item.alive ? 'success' : 'error'"
               dark
               :data-testid="`cluster-rowStatus-${item.alive ? 'alive' : 'dead'}`"
@@ -172,20 +177,20 @@
       </v-card>
 
       <!-- Redis -->
-      <v-card v-if="status && status.redis" class="mb-4" outlined data-testid="cluster-redis">
-        <v-card-title class="subtitle-1">{{ $t('redisStatus') }}</v-card-title>
+      <v-card v-if="status && status.redis" class="mb-4" border data-testid="cluster-redis">
+        <v-card-title class="text-subtitle-1">{{ $t('redisStatus') }}</v-card-title>
         <v-card-text>
           <v-row dense>
             <v-col cols="12" md="6">
               <v-row dense>
                 <v-col>
-                  <div class="text-caption grey--text">Addr</div>
+                  <div class="text-caption text-grey">Addr</div>
                   <code data-testid="cluster-redisAddr">{{ status.redis.addr }}</code>
                 </v-col>
                 <v-col>
-                  <div class="text-caption grey--text">{{ $t('connected') }}</div>
+                  <div class="text-caption text-grey">{{ $t('connected') }}</div>
                   <v-chip
-                    x-small
+                    size="x-small"
                     :color="status.redis.connected ? 'success' : 'error'"
                     dark
                     data-testid="cluster-redisConnected"
@@ -194,23 +199,23 @@
                   </v-chip>
                 </v-col>
                 <v-col data-testid="cluster-redisVersion">
-                  <div class="text-caption grey--text">{{ $t('version') }}</div>
+                  <div class="text-caption text-grey">{{ $t('version') }}</div>
                   {{ status.redis.version || '—' }}
                 </v-col>
                 <v-col data-testid="cluster-redisUsedMemory">
-                  <div class="text-caption grey--text">{{ $t('usedMemory') }}</div>
+                  <div class="text-caption text-grey">{{ $t('usedMemory') }}</div>
                   {{ status.redis.used_memory || '—' }}
                 </v-col>
                 <v-col data-testid="cluster-redisTotalKeys">
-                  <div class="text-caption grey--text">{{ $t('totalKeys') }}</div>
+                  <div class="text-caption text-grey">{{ $t('totalKeys') }}</div>
                   {{ status.redis.total_keys }}
                 </v-col>
               </v-row>
-              <div class="text-caption grey--text mt-3">{{ $t('keyGroups') }}</div>
+              <div class="text-caption text-grey mt-3">{{ $t('keyGroups') }}</div>
               <v-chip
                 v-for="(count, group) in status.redis.key_groups || {}"
                 :key="group"
-                small
+                size="small"
                 class="mr-2 mt-1"
                 :data-testid="`cluster-redisKeyGroup-${group}`"
               >
@@ -218,7 +223,7 @@
               </v-chip>
             </v-col>
             <v-col cols="12" md="6">
-              <div class="text-caption grey--text">{{ $t('redisMemoryChart') }}</div>
+              <div class="text-caption text-grey">{{ $t('redisMemoryChart') }}</div>
               <RedisMemoryChart
                 data-testid="cluster-redisChart"
                 :history="memoryHistory"
@@ -231,8 +236,8 @@
       </v-card>
 
       <!-- Task records -->
-      <v-card outlined data-testid="cluster-taskRecords">
-        <v-card-title class="subtitle-1">{{ $t('taskRecords') }}</v-card-title>
+      <v-card border data-testid="cluster-taskRecords">
+        <v-card-title class="text-subtitle-1">{{ $t('taskRecords') }}</v-card-title>
         <v-tabs v-model="tab" data-testid="cluster-tabs">
           <v-tab data-testid="cluster-tab-queue">{{ $t('queue') }} ({{ queueRows.length }})</v-tab>
           <v-tab
@@ -253,7 +258,7 @@
             <v-data-table
               :headers="taskHeaders"
               :items="queueRows"
-              dense
+              density="compact"
               data-testid="cluster-queueTable"
               :data-state="tasks == null
                 ? 'loading' : (queueRows.length === 0 ? 'empty' : 'ready')"
@@ -263,7 +268,7 @@
             <v-data-table
               :headers="taskHeaders"
               :items="runningRows"
-              dense
+              density="compact"
               data-testid="cluster-runningTable"
               :data-state="tasks == null
                 ? 'loading' : (runningRows.length === 0 ? 'empty' : 'ready')"
@@ -273,7 +278,7 @@
             <v-data-table
               :headers="taskHeaders"
               :items="activeRows"
-              dense
+              density="compact"
               data-testid="cluster-activeByProjectTable"
               :data-state="tasks == null
                 ? 'loading' : (activeRows.length === 0 ? 'empty' : 'ready')"
@@ -283,7 +288,7 @@
             <v-data-table
               :headers="aliasHeaders"
               :items="aliasRows"
-              dense
+              density="compact"
               data-testid="cluster-aliasesTable"
               :data-state="tasks == null
                 ? 'loading' : (aliasRows.length === 0 ? 'empty' : 'ready')"
@@ -293,7 +298,7 @@
             <v-data-table
               :headers="claimHeaders"
               :items="claimRows"
-              dense
+              density="compact"
               data-testid="cluster-claimsTable"
               :data-state="tasks == null
                 ? 'loading' : (claimRows.length === 0 ? 'empty' : 'ready')"
@@ -419,7 +424,7 @@ export default {
     }, 10000);
   },
 
-  destroyed() {
+  unmounted() {
     clearInterval(this.updateTimer);
   },
 

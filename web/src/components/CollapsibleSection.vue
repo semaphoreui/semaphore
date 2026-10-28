@@ -2,22 +2,22 @@
   <div>
     <div>
       <v-btn
-        text
-        small
+        variant="text"
+        size="small"
         class="px-1 text-none"
-        @click="$emit('input', !value)"
+        @click="$emit('update:modelValue', !modelValue)"
         data-testid="collapsibleSection-toggle"
       >
         <v-icon
-          left
-          small
+          start
+          size="small"
           class="mr-1 CollapsibleSection__chevron"
-          :class="{ 'CollapsibleSection__chevron--open': value }"
+          :class="{ 'CollapsibleSection__chevron--open': modelValue }"
         >mdi-chevron-right</v-icon>
         {{ title }}
         <v-chip
           v-if="badge"
-          x-small
+          size="x-small"
           class="ml-2"
           data-testid="collapsibleSection-badge"
         >{{ badge }}</v-chip>
@@ -25,7 +25,7 @@
     </div>
 
     <DropdownCard
-      v-if="value"
+      v-if="modelValue"
       class="mt-4"
       data-testid="collapsibleSection-body"
     >
@@ -50,10 +50,10 @@ import DropdownCard from '@/components/DropdownCard.vue';
 export default {
   components: { DropdownCard },
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     title: String,
     badge: String,
   },
-  emits: ['input'],
+  emits: ['update:modelValue'],
 };
 </script>

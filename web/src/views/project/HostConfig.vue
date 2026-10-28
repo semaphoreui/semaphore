@@ -52,7 +52,7 @@
     <v-alert
       v-if="items.length === 0"
       type="info"
-      text
+      variant="tonal"
       class="mt-4"
       style="max-width: 800px; margin: auto;"
       data-testid="hostConfig-empty"
@@ -69,7 +69,10 @@
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px); margin: auto;"
     >
       <template v-slot:item.type="{ item }">
-        <v-chip small :data-testid="`hostConfig-rowType-${item.type === 'url' ? 'url' : 'host'}`">{{
+        <v-chip
+          size="small"
+          :data-testid="`hostConfig-rowType-${item.type === 'url' ? 'url' : 'host'}`"
+        >{{
           item.type === 'url' ? $t('hostConfigTypeUrl') : $t('hostConfigTypeHost')
         }}</v-chip>
       </template>
@@ -80,7 +83,7 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle
-          dense
+          density="compact"
           :value-comparator="() => false"
           data-testid="hostConfig-rowActions"
         >
@@ -127,23 +130,23 @@ export default {
   methods: {
     getHeaders() {
       return [{
-        text: this.$i18n.t('hostConfigHostOrUrl'),
-        value: 'host',
+        title: this.$t('hostConfigHostOrUrl'),
+        key: 'host',
         width: '50%',
       },
       {
-        text: this.$i18n.t('type'),
-        value: 'type',
+        title: this.$t('type'),
+        key: 'type',
         width: '15%',
       },
       {
-        text: this.$i18n.t('credential'),
-        value: 'ssh_key_id',
+        title: this.$t('credential'),
+        key: 'ssh_key_id',
         width: '25%',
       },
       {
-        text: this.$i18n.t('actions'),
-        value: 'actions',
+        title: this.$t('actions'),
+        key: 'actions',
         sortable: false,
       }];
     },

@@ -2,7 +2,7 @@
   <div v-if="!isLoaded" data-testid="templates-page" data-state="loading">
     <v-progress-linear
       indeterminate
-      color="primary darken-2"
+      color="primary-darken-2"
       data-testid="templates-loading"
     ></v-progress-linear>
   </div>
@@ -68,10 +68,9 @@
       <v-menu
         offset-y
       >
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-btn
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             color="primary"
             class="mr-1 pr-2"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
@@ -166,7 +165,7 @@
       :headers="filteredHeaders"
       :items="items"
       :items-per-page="Number.MAX_VALUE"
-      :expanded.sync="openedItems"
+      v-model:expanded="openedItems"
       :style="{
         opacity: viewItemsLoading ? 0.3 : 1,
       }"
@@ -176,7 +175,7 @@
       <template v-slot:item.name="{ item }">
         <v-icon
           class="mr-3"
-          small
+          size="small"
           data-testid="templates-rowApp"
         >
           {{ getAppIcon(item.app) }}
@@ -257,7 +256,7 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle
-          dense
+          density="compact"
           :value-comparator="() => false"
           data-testid="templates-rowActions"
         >
@@ -297,13 +296,14 @@
   </div>
 </template>
 <style lang="scss">
-@import '~vuetify/src/styles/settings/variables';
+@use 'sass:map';
+@use '@/scss/variables' as settings;
 
 .templates-table .text-start:first-child {
   padding-right: 0 !important;
 }
 
-@media #{map-get($display-breakpoints, 'sm-and-down')} {
+@media #{map.get(settings.$display-breakpoints, 'sm-and-down')} {
   .templates-table .v-data-table__mobile-row:first-child {
     display: none !important;
   }
@@ -406,7 +406,7 @@ export default {
     await this.loadData();
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     socket.removeListener(this.socketListenerId);
   },
 
@@ -536,47 +536,47 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         },
         {
-          text: this.$i18n.t('version'),
-          value: 'version',
+          title: this.$t('version'),
+          key: 'version',
           sortable: false,
         },
         {
-          text: this.$i18n.t('status'),
-          value: 'status',
+          title: this.$t('status'),
+          key: 'status',
           sortable: false,
         },
         {
-          text: this.$i18n.t('lastTask'),
-          value: 'last_task',
+          title: this.$t('lastTask'),
+          key: 'last_task',
           sortable: false,
         },
         {
-          text: this.$i18n.t('playbook'),
-          value: 'playbook',
+          title: this.$t('playbook'),
+          key: 'playbook',
           sortable: false,
         },
         {
-          text: this.$i18n.t('inventory'),
-          value: 'inventory_id',
+          title: this.$t('inventory'),
+          key: 'inventory_id',
           sortable: false,
         },
         {
-          text: this.$i18n.t('environment'),
-          value: 'environment_ids',
+          title: this.$t('environment'),
+          key: 'environment_ids',
           sortable: false,
         },
         {
-          text: this.$i18n.t('repository2'),
-          value: 'repository_id',
+          title: this.$t('repository2'),
+          key: 'repository_id',
           sortable: false,
         },
       ];

@@ -50,7 +50,7 @@ export default {
   mixins: [AppsMixin],
 
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     itemApp: String,
     projectId: Number,
     itemId: [String, Number],
@@ -61,7 +61,7 @@ export default {
     testId: { type: String, default: 'templateDialog' },
   },
 
-  emits: ['input', 'save'],
+  emits: ['update:modelValue', 'save'],
 
   data() {
     return {
@@ -82,10 +82,10 @@ export default {
 
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.dialog = val;
     },
   },

@@ -1,20 +1,17 @@
-$material-dark: (
-        'background': #1E1E1E,
-        'app-bar': transparent,
-        'toolbar': transparent,
+// Vuetify Sass settings: the plugin of the build (`webpack-plugin-vuetify`, `styles.configFile`)
+// loads this file before every Vuetify style. Component styles reach the configured values with
+// `@use '@/scss/variables' as settings`. Emits no CSS.
+//
+// Breakpoints of Vuetify 2 (lg and xl 16px below Vuetify 3), the same as `display.thresholds` in
+// plugins/vuetify.js.
+
+@forward 'vuetify/settings' with (
+  $grid-breakpoints: (
+    'xs': 0,
+    'sm': 600px,
+    'md': 960px,
+    'lg': 1264px,
+    'xl': 1904px,
+    'xxl': 2560px,
+  ),
 );
-
-$material-light: (
-        'app-bar': transparent,
-        'toolbar': transparent,
-);
-
-$tabs-bar-background-color: 'toolbar';
-
-:root {
-  --breakpoint-sm: 600px;
-  --breakpoint-md: 960px;
-  --breakpoint-lg: 1264px;
-  --breakpoint-xl: 1904px;
-  --nav-drawer-width: 260px;
-}

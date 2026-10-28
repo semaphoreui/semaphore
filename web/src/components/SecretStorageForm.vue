@@ -8,10 +8,10 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       type="error"
       class="mb-6"
-      dismissible
+      closable
       data-testid="secretStorage-error"
     >{{ formError }} </v-alert>
 
@@ -22,8 +22,8 @@
       required
       :disabled="formSaving"
       data-testid="secretStorage-name"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-text-field
@@ -34,8 +34,8 @@
       :rules="[(v) => !!v || $t('url_required')]"
       required
       data-testid="secretStorage-vaultURL"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <div
@@ -48,8 +48,8 @@
         hint="'secret' by default"
         :disabled="formSaving"
         data-testid="secretStorage-vaultMount"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
 
       <v-text-field
@@ -60,8 +60,8 @@
           : 'For Vault Enterprise and HCP Dedicated only'"
         :disabled="formSaving"
         data-testid="secretStorage-vaultNamespace"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
 
       <SecretSourceToggle v-model="secretStorage" label="Token" :disabled="formSaving" />
@@ -75,8 +75,8 @@
         :rules="[(v) => !!v || itemId !== 'new' || $t('token_required')]"
         required
         data-testid="secretStorage-vaultToken"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         append-icon="mdi-lock"
       ></v-text-field>
 
@@ -88,8 +88,8 @@
         :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
         required
         data-testid="secretStorage-vaultTokenSource"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
     </div>
 
@@ -110,8 +110,8 @@
         :rules="[(v) => !!v || itemId !== 'new' || $t('key_required')]"
         required
         data-testid="secretStorage-dvlsKey"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
 
       <v-text-field
@@ -121,8 +121,8 @@
         :rules="[(v) => !!v || itemId !== 'new' || $t('key_required')]"
         required
         data-testid="secretStorage-dvlsKey"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
 
       <SecretSourceToggle v-model="secretStorage" label="App secret" :disabled="formSaving" />
@@ -136,8 +136,8 @@
         :rules="[(v) => !!v || itemId !== 'new' || $t('secret_required')]"
         required
         data-testid="secretStorage-dvlsSecret"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         append-icon="mdi-lock"
       ></v-text-field>
 
@@ -150,8 +150,8 @@
         :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
         required
         data-testid="secretStorage-dvlsEnv"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
     </div>
 
@@ -164,8 +164,8 @@
         required
         placeholder="us-east-1"
         data-testid="secretStorage-awsRegion"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
 
       <v-text-field
@@ -174,8 +174,8 @@
         :disabled="formSaving"
         hint="Leave empty to use the default AWS endpoint"
         data-testid="secretStorage-awsEndpointURL"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
 
       <v-checkbox
@@ -198,8 +198,8 @@
           :rules="[(v) => !!v || useIamRole || 'Access Key ID is required']"
           required
           data-testid="secretStorage-awsAccessKeyId"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
         ></v-text-field>
 
         <SecretSourceToggle
@@ -217,8 +217,8 @@
           :rules="[(v) => !!v || !awsSecretRequired || 'Secret Access Key is required']"
           required
           data-testid="secretStorage-awsSecretKey"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           append-icon="mdi-lock"
         ></v-text-field>
 
@@ -231,8 +231,8 @@
           :rules="[(v) => !!v || !awsSecretRequired || $t('envvar_required')]"
           required
           data-testid="secretStorage-awsSecretKeySource"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
         ></v-text-field>
       </div>
     </div>
@@ -246,8 +246,8 @@
         required
         placeholder="https://my-vault.vault.azure.net"
         data-testid="secretStorage-azureVaultURL"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
 
       <v-text-field
@@ -257,8 +257,8 @@
         :rules="[(v) => !!v || 'Tenant ID is required']"
         required
         data-testid="secretStorage-azureTenantId"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
 
       <v-text-field
@@ -268,8 +268,8 @@
         :rules="[(v) => !!v || 'Client ID is required']"
         required
         data-testid="secretStorage-azureClientId"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
 
       <SecretSourceToggle v-model="secretStorage" label="Client Secret" :disabled="formSaving" />
@@ -283,8 +283,8 @@
         :rules="[(v) => !!v || itemId !== 'new' || 'Client Secret is required']"
         required
         data-testid="secretStorage-azureClientSecret"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         append-icon="mdi-lock"
       ></v-text-field>
 
@@ -297,8 +297,8 @@
         :rules="[(v) => !!v || itemId !== 'new' || $t('envvar_required')]"
         required
         data-testid="secretStorage-azureClientSecretSource"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       ></v-text-field>
     </div>
 
@@ -322,21 +322,21 @@
 
       <v-btn
         style="margin-right: -10px"
-        text
+        variant="text"
         color="primary"
         @click="syncSettingsDialog = true"
         :disabled="formSaving"
         v-if="item.sync_enabled"
         data-testid="secretStorage-syncPaths"
       >
-        <v-icon left>mdi-cog-sync</v-icon>
+        <v-icon start>mdi-cog-sync</v-icon>
         Sync paths
         <v-chip
           class="ml-2"
-          outlined
+          variant="outlined"
           style="transform: translateY(-1px)"
           color="primary"
-          small
+          size="small"
           data-testid="secretStorage-syncPathsCount"
         >
           {{ item.sync_paths.length }}</v-chip
@@ -358,8 +358,8 @@
             :disabled="formSaving"
             suffix="minutes"
             data-testid="secretStorageSync-syncInterval"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
           ></v-text-field>
 
           <SecretStorageSyncOptionsForm
@@ -370,8 +370,8 @@
         <v-card-actions>
           <v-spacer />
           <v-btn
-            text
-            color="blue darken-1"
+            variant="text"
+            color="blue-darken-1"
             @click="syncSettingsDialog = false"
             data-testid="secretStorageSyncDialog-close"
           >
@@ -422,7 +422,7 @@ export default {
       }
 
       if (!this.item.sync_paths) {
-        this.$set(this.item, 'sync_paths', []);
+        this.item.sync_paths = [];
       }
 
       if (this.itemId === 'new') {
@@ -432,7 +432,7 @@ export default {
       if (this.item.type === 'aws_sm' && this.item.params.use_iam_role === undefined) {
         // Storages created before the IAM role option always had an access key.
         const useIamRole = this.itemId !== 'new' && !this.item.params.access_key_id;
-        this.$set(this.item.params, 'use_iam_role', useIamRole);
+        this.item.params.use_iam_role = useIamRole;
       }
 
       this.initialUseIamRole = !!this.item.params.use_iam_role;

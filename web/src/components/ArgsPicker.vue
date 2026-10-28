@@ -2,12 +2,12 @@
   <div class="pb-6" style="margin-top: -10px;" :data-testid="testId">
     <v-dialog
       v-model="editDialog"
-      hide-overlay
+      :scrim="false"
       content-class="NestedDialog"
       width="400"
     >
       <v-card
-        :color="$vuetify.theme.dark ? '#212121' : 'white'"
+        :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
         :data-testid="`${testId}Dialog`"
       >
         <v-card-title :data-testid="`${testId}Dialog-title`"></v-card-title>
@@ -20,7 +20,7 @@
             @submit.prevent="saveVar()"
           >
             <v-alert
-              :value="formError != null"
+              :model-value="formError != null"
               color="error"
               :data-testid="`${testId}Dialog-error`"
             >{{ formError }}
@@ -32,8 +32,8 @@
               :data-testid="`${testId}Dialog-name`"
               :rules="[(v) => !!v || $t('arg_required')]"
               required
-              outlined
-              dense
+              variant="outlined"
+              density="compact"
               autofocus
               @keydown.enter.prevent="saveVar()"
             />
@@ -52,16 +52,16 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn
-            color="blue darken-1"
-            text
+            color="blue-darken-1"
+            variant="text"
             @click="editDialog = false"
             :data-testid="`${testId}Dialog-cancel`"
           >
             {{ $t('cancel') }}
           </v-btn>
           <v-btn
-            color="blue darken-1"
-            text
+            color="blue-darken-1"
+            variant="text"
             @click="saveVar()"
             :data-testid="`${testId}Dialog-save`"
           >
@@ -91,7 +91,7 @@
         >
           <v-chip
             v-for="(v, i) in modifiedVars"
-            close
+            closable
             @click:close="deleteVar(i)"
             :key="i"
             @click="editVar(i)"
@@ -131,7 +131,7 @@
 }
 </style>
 <script>
-import draggable from 'vuedraggable';
+import { VueDraggable as draggable } from 'vue-draggable-plus';
 
 export default {
   components: {
@@ -195,10 +195,11 @@ export default {
       this.editDialog = true;
     },
 
-    saveVar() {
+    async saveVar() {
       this.formError = null;
 
-      if (!this.$refs.form.validate()) {
+      const { valid } = await this.$refs.form.validate();
+      if (!valid) {
         return;
       }
 

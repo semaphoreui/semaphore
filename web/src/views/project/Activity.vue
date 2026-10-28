@@ -22,7 +22,7 @@
       :headers="headers"
       :items="items"
       class="mt-4 CenterToScreen"
-      :footer-props="{ itemsPerPageOptions: [20] }"
+      :items-per-page-options="[20]"
       style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width)); margin: auto;"
       data-testid="activity-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
@@ -46,20 +46,20 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('time'),
-          value: 'created',
+          title: this.$t('time'),
+          key: 'created',
           sortable: false,
           width: '20%',
         },
         {
-          text: this.$i18n.t('user'),
-          value: 'username',
+          title: this.$t('user'),
+          key: 'username',
           sortable: false,
           width: '10%',
         },
         {
-          text: this.$i18n.t('description'),
-          value: 'description',
+          title: this.$t('description'),
+          key: 'description',
           sortable: false,
           width: '70%',
         },

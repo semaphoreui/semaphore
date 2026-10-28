@@ -1,10 +1,9 @@
 <template>
   <v-container
     fluid
-    fill-height
     align-center
     justify-center
-    class="pa-0"
+    class="pa-0 fill-height"
     data-testid="acceptInvite-page"
     :data-state="state === 'processing' ? 'loading' : (state === 'success' ? 'ready' : 'error')"
   >
@@ -34,13 +33,13 @@
         <v-alert
           v-else-if="state === 'success'"
           type="success"
-          text
+          variant="tonal"
           data-testid="acceptInvite-success"
         >
           Invitation accepted. You now have access to the project.
         </v-alert>
 
-        <v-alert v-else type="error" text data-testid="acceptInvite-error">
+        <v-alert v-else type="error" variant="tonal" data-testid="acceptInvite-error">
           {{ errorMessage }}
         </v-alert>
       </v-card-text>
@@ -59,7 +58,7 @@
 
         <div v-else-if="state === 'error'" >
           <v-btn
-            text
+            variant="text"
             color="primary"
             @click="goToDashboard"
             :disabled="!token"
@@ -68,7 +67,7 @@
             Go to dashboard
           </v-btn>
           <v-btn
-            text
+            variant="text"
             color="primary"
             @click="retry"
             :disabled="!token"

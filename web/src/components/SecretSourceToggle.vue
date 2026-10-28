@@ -3,8 +3,8 @@
     <b style="font-size: 13px; margin-left: 5px" data-testid="secretSource-label">{{ label }}</b>
     <v-btn-toggle
         data-testid="secretSource-options"
-        :value="value"
-        @change="$emit('input', $event)"
+        :model-value="modelValue"
+        @update:model-value="$emit('update:modelValue', $event)"
         tile
         group
         mandatory
@@ -13,7 +13,7 @@
         v-for="source in sources"
         :key="source.value"
         :value="source.value"
-        small
+        size="small"
         class="ma-0"
         style="border-radius: 4px"
         :data-testid="`secretSource-${source.value}`"
@@ -27,13 +27,13 @@
 export default {
   props: {
     /** Where the secret is taken from: 'database', 'env' or 'file'. */
-    value: String,
+    modelValue: String,
     /** Name of the secret, shown on the left of the toggle. */
     label: String,
     disabled: Boolean,
   },
 
-  emits: ['input'],
+  emits: ['update:modelValue'],
 
   data() {
     return {

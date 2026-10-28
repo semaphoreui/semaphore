@@ -4,7 +4,7 @@
       <v-card-title data-testid="workflowRunDialog-title">{{ title }}</v-card-title>
       <v-card-text class="pb-0">
         <div
-          class="text-caption text--secondary mb-4"
+          class="text-caption text-medium-emphasis mb-4"
           data-testid="workflowRunDialog-hint"
         >{{ $t('workflowRunDialogHint') }}</div>
         <v-form
@@ -25,14 +25,14 @@
       <v-card-actions>
         <v-spacer />
         <v-btn
-          text
+          variant="text"
           :disabled="running"
           @click="dialog = false"
           data-testid="workflowRunDialog-cancel"
         >{{ $t('cancel') }}</v-btn>
         <v-btn
           color="primary"
-          depressed
+          variant="flat"
           :loading="running"
           data-testid="workflow-run-dialog-run"
           @click="run()"
@@ -56,16 +56,16 @@ export default {
   components: { SurveyFields },
 
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     workflow: Object,
     running: Boolean,
   },
 
-  emits: ['input', 'run'],
+  emits: ['update:modelValue', 'run'],
 
   data() {
     return {
-      dialog: this.value,
+      dialog: this.modelValue,
       environment: null,
       secretEnvironment: {},
     };
@@ -81,12 +81,12 @@ export default {
   },
 
   watch: {
-    value(v) {
+    modelValue(v) {
       this.dialog = v;
       if (v) this.reset();
     },
     dialog(v) {
-      if (v !== this.value) this.$emit('input', v);
+      if (v !== this.modelValue) this.$emit('update:modelValue', v);
     },
   },
 
@@ -115,9 +115,9 @@ export default {
       if (this.$refs.form) this.$refs.form.resetValidation();
     },
 
-    run() {
+    async run() {
       if (this.running) return;
-      if (this.$refs.form && !this.$refs.form.validate()) return;
+      if (this.$refs.form && !(await this.$refs.form.validate()).valid) return;
       this.$emit('run', { ...this.environment });
     },
   },

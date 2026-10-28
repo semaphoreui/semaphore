@@ -13,7 +13,7 @@
       <v-spacer />
       <v-select
         hide-details
-        dense
+        density="compact"
         :items="dateRanges"
         class="mr-6"
         style="max-width: 200px"
@@ -23,7 +23,7 @@
 
       <v-select
         hide-details
-        dense
+        density="compact"
         :items="users"
         style="max-width: 200px"
         v-model="user"

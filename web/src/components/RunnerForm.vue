@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="runner-error"
@@ -21,8 +21,8 @@
       required
       data-testid="runner-name"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <div style="position: relative">
@@ -41,10 +41,10 @@
         :loading="tagSuggestions == null"
         multiple
         chips
-        deletable-chips
+        closable-chips
         small-chips
         hide-selected
-        outlined
+        variant="outlined"
         hide-details
       />
 
@@ -52,7 +52,7 @@
         v-if="!isTagsAvailable"
         color="hsl(348deg, 86%, 61%)"
         text-color="white"
-        small
+        size="small"
         label
         style="position: absolute; top: -10px; right: 15px"
         @click="upgradeToPro('runners')"
@@ -67,7 +67,7 @@
         <v-checkbox v-model="item.is_default" data-testid="runner-isDefault">
           <template v-slot:label>
             Is default
-            <v-chip class="ml-2" color="error" small>New</v-chip>
+            <v-chip class="ml-2" color="error" size="small">New</v-chip>
           </template>
         </v-checkbox>
       </v-col>
@@ -80,7 +80,7 @@
         >
           <template v-slot:label>
             {{ $t('register') }}
-            <v-chip class="ml-2" color="error" small>New</v-chip>
+            <v-chip class="ml-2" color="error" size="small">New</v-chip>
           </template>
         </v-checkbox>
       </v-col>
@@ -90,8 +90,8 @@
       v-if="isNew && !item.registered"
       class="mb-4"
       color="info"
-      dense
-      text
+      density="compact"
+      variant="tonal"
       data-testid="runner-unregisteredHint"
     >
       {{ $t('unregisteredRunnerHint') }}
@@ -103,8 +103,8 @@
       required
       data-testid="runner-webhook"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-text-field
@@ -114,8 +114,8 @@
       required
       data-testid="runner-maxParallelTasks"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-checkbox

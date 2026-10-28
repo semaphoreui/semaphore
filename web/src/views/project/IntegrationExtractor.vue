@@ -16,13 +16,18 @@
         class="mt-0"
         v-model="integration.searchable"
         :label="$t('globalAlias')"
-        @change="updateIntegration()"
+        @update:model-value="updateIntegration()"
         data-testid="integration-searchable"
       />
     </div>
 
     <div v-if="integration.searchable" class="px-4">
-      <v-alert type="info" text class="d-inline-block" data-testid="integration-matchersInfo">
+      <v-alert
+        type="info"
+        variant="tonal"
+        class="d-inline-block"
+        data-testid="integration-matchersInfo"
+      >
         Matchers allow the integration to be found by a project alias.
       </v-alert>
     </div>

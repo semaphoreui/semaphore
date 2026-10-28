@@ -63,17 +63,16 @@
       <template v-slot:item.roles="{ item }">
         <div class="d-flex align-center" data-testid="team-rowRoles">
           <v-tooltip v-for="mapped in item.mapped_roles || []"
-                     :key="`${mapped.provider}/${mapped.group}/${mapped.role}`" bottom>
-            <template v-slot:activator="{ on, attrs }">
+                     :key="`${mapped.provider}/${mapped.group}/${mapped.role}`" location="bottom">
+            <template v-slot:activator="{ props }">
               <v-chip
-                small
-                outlined
+                size="small"
+                variant="outlined"
                 class="mr-1"
-                v-bind="attrs"
-                v-on="on"
+                v-bind="props"
                 :data-testid="`team-rowMappedRole-${mapped.role}`"
               >
-                <v-icon x-small left>mdi-lock</v-icon>
+                <v-icon size="x-small" start>mdi-lock</v-icon>
                 {{ (roles.find((r) => r.slug === mapped.role) || { name: mapped.role }).name }}
               </v-chip>
             </template>
@@ -84,14 +83,14 @@
             v-model="item.roles"
             :items="roleItems(item)"
             item-value="slug"
-            item-text="name"
+            item-title="name"
             multiple
             small-chips
-            deletable-chips
+            closable-chips
             hide-details
-            dense
+            density="compact"
             class="pt-0 mt-0"
-            @change="updateProjectUser(item)"
+            @update:model-value="updateProjectUser(item)"
             data-testid="team-rowRolesSelect"
           >
             <template v-slot:item="{ item: role }">
@@ -103,14 +102,18 @@
           </v-autocomplete>
           <div v-else data-testid="team-rowRoleChips">
             <v-chip v-for="role in roleItems(item).filter((r) => item.roles.includes(r.slug))"
-                    :key="role.slug" small class="mr-1"
+                    :key="role.slug" size="small" class="mr-1"
                     :data-testid="`team-rowRole-${role.slug}`">{{ role.name }}</v-chip>
           </div>
         </div>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false" data-testid="team-rowActions">
+        <v-btn-toggle
+          density="compact"
+          :value-comparator="() => false"
+          data-testid="team-rowActions"
+        >
           <v-btn
             @click="askDeleteItem(item.id)"
             v-if="can(USER_PERMISSIONS.manageProjectUsers)"
@@ -192,7 +195,7 @@ export default {
       const missing = member.roles
         .filter((slug) => !this.roles.some((role) => role.slug === slug))
         .map((slug) => ({ slug, name: slug }));
-      return [...groupRolesForSelect(this.roles, (key) => this.$i18n.t(key)), ...missing];
+      return [...groupRolesForSelect(this.roles, (key) => this.$t(key)), ...missing];
     },
 
     async updateProjectUser(user) {
@@ -210,7 +213,7 @@ export default {
             EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
           }
         } else {
-          EventBus.$emit('i-snackbar', { color: 'error', text: this.$i18n.t('memberNeedsRole') });
+          EventBus.$emit('i-snackbar', { color: 'error', text: this.$t('memberNeedsRole') });
         }
         this.pendingSaves -= 1;
         // A reload before the next queued save would drop the pick it is saving.
@@ -238,7 +241,7 @@ export default {
       }
       await this.loadItems();
       if (this.items.some((member) => member.id === itemId)) {
-        EventBus.$emit('i-snackbar', { color: 'info', text: this.$i18n.t('memberKeepsMappedRoles') });
+        EventBus.$emit('i-snackbar', { color: 'info', text: this.$t('memberKeepsMappedRoles') });
       }
     },
 
@@ -249,23 +252,23 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '40%',
         },
         {
-          text: this.$i18n.t('username'),
-          value: 'username',
+          title: this.$t('username'),
+          key: 'username',
           width: '30%',
         },
         {
-          text: this.$i18n.t('role'),
-          value: 'roles',
+          title: this.$t('role'),
+          key: 'roles',
           sortable: false,
           width: '30%',
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         },

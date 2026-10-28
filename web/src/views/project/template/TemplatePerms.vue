@@ -22,8 +22,8 @@
 
     <v-alert
       v-if="!features.custom_roles_management"
-      text
-      color="amber darken-3"
+      variant="tonal"
+      color="amber-darken-3"
       class="PageAlert"
       data-testid="templatePerms-licenseAlert"
     >
@@ -35,9 +35,9 @@
 
       <v-btn
         dark
-        depressed
+        variant="flat"
         v-if="isAdmin"
-        color="amber darken-3"
+        color="amber-darken-3"
         href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
         target="_blank"
         data-testid="templatePerms-upgrade"
@@ -62,7 +62,7 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      item-key="role_slug"
+      item-value="role_slug"
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
@@ -74,13 +74,13 @@
           <div>
             <div data-testid="templatePerms-rowName">{{ getRoleName(item.role_slug) }}</div>
             <div
-              class="text--secondary caption"
+              class="text-medium-emphasis text-caption"
               data-testid="templatePerms-rowSlug"
             >{{ item.role_slug }}</div>
           </div>
           <v-chip
             v-if="getRole(item.role_slug)"
-            x-small
+            size="x-small"
             label
             class="ml-2"
             data-testid="templatePerms-rowScope"
@@ -100,7 +100,7 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle
-          dense
+          density="compact"
           :value-comparator="() => false"
           data-testid="templatePerms-rowActions"
         >
@@ -191,17 +191,17 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('role'),
-          value: 'role_slug',
+          title: this.$t('role'),
+          key: 'role_slug',
           width: '25%',
         },
         {
-          text: this.$i18n.t('permissions'),
-          value: 'permissions',
+          title: this.$t('permissions'),
+          key: 'permissions',
           width: '65%',
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '10%',
         },

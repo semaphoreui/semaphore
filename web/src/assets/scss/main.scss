@@ -1,5 +1,6 @@
-$mdi-font-path: "~@mdi/font/fonts";
-@import '~@mdi/font/scss/materialdesignicons';
+@use "components";
+
+// The mdi icon font is imported in main.js ('@mdi/font/css/materialdesignicons.css').
 
 @font-face {
   font-family: "Roboto";
@@ -57,14 +58,30 @@ $mdi-font-path: "~@mdi/font/fonts";
   src: url("../fonts/Roboto-Black.ttf") format('truetype');
 }
 
-@import '~vuetify/src/styles/main';
+// Vuetify styles are imported in main.js ('vuetify/styles') before this file.
 
-.v-application.theme--dark .v-overlay__scrim {
+// Layout variables of the resource pages (`max-width: calc(var(--breakpoint-xl) - ...)`).
+:root {
+  --breakpoint-sm: 600px;
+  --breakpoint-md: 960px;
+  --breakpoint-lg: 1264px;
+  --breakpoint-xl: 1904px;
+  --nav-drawer-width: 260px;
+}
+
+.v-theme--dark .v-overlay__scrim {
   background: #878787 !important;
 }
 
-.v-bottom-sheet > .v-sheet.theme--dark {
+.v-bottom-sheet .v-sheet.v-theme--dark {
   background: #212121;
+}
+
+// SVG icons of the IconSet in plugins/vuetify.js fill the box of `v-icon`
+// instead of their own width and height.
+.v-icon > svg {
+  width: 100%;
+  height: 100%;
 }
 
 .opacity1 {
@@ -74,5 +91,3 @@ $mdi-font-path: "~@mdi/font/fonts";
 .masked-secret-input input {
   -webkit-text-security: disc;
 }
-
-@import "components";

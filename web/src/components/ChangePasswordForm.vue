@@ -7,7 +7,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="changePassword-error"
@@ -23,8 +23,8 @@
       @click:append="showCurrentPassword = !showCurrentPassword"
       :rules="[(v) => !!v || $t('password_required')]"
       required
-      dense
-      outlined
+      density="compact"
+      variant="outlined"
       :disabled="formSaving"
     ></v-text-field>
 
@@ -37,8 +37,8 @@
       @click:append="showPassword = !showPassword"
       :rules="[(v) => !!v || $t('password_required')]"
       required
-      dense
-      outlined
+      density="compact"
+      variant="outlined"
       :disabled="formSaving"
     ></v-text-field>
   </v-form>

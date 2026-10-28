@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import { h } from 'vue';
 import { shallowMount } from '@vue/test-utils';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import TemplateForm from '@/components/TemplateForm.vue';
@@ -16,12 +17,12 @@ const Host = {
     },
     onPlaybookSearch: TemplateForm.methods.onPlaybookSearch,
   },
-  render: (h) => h('div'),
+  render: () => h('div'),
 };
 
 const mountFor = (app) => shallowMount(Host, {
-  propsData: { app },
-  mocks: { $t: (k) => `t:${k}` },
+  props: { app },
+  global: { mocks: { $t: (k) => `t:${k}` } },
 }).vm;
 
 describe('TemplateForm playbook directory drill-down', () => {

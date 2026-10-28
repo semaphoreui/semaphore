@@ -11,21 +11,20 @@
     @touchstart.stop
   >
     <v-menu v-if="editable" offset-y nudge-top="-4" transition="fade-transition">
-      <template v-slot:activator="{ on, attrs }">
+      <template v-slot:activator="{ props }">
         <span
           class="WorkflowEdgeLabel__pill WorkflowEdgeLabel__pill--clickable"
           data-testid="workflowCanvas-edgePill"
-          v-bind="attrs"
-          v-on="on"
+          v-bind="props"
         >
-          <v-icon x-small :color="current.color">{{ current.icon }}</v-icon>
+          <v-icon size="x-small" :color="current.color">{{ current.icon }}</v-icon>
           <span
             class="WorkflowEdgeLabel__text"
             :data-testid="`workflowCanvas-edgeCondition-${current.value}`"
           >{{ current.text }}</span>
           <v-icon
             v-if="label.explicit"
-            x-small
+            size="x-small"
             class="WorkflowEdgeLabel__inputs"
             data-testid="workflowCanvas-edgeInputs"
             :title="$t('workflowEdgeInputsExplicit')"
@@ -38,11 +37,11 @@
             @mousedown.stop
             @click.stop="$emit('remove')"
           >
-            <v-icon x-small>mdi-close</v-icon>
+            <v-icon size="x-small">mdi-close</v-icon>
           </button>
         </span>
       </template>
-      <v-list dense data-testid="workflowCanvas-edgeMenu">
+      <v-list density="compact" data-testid="workflowCanvas-edgeMenu">
         <v-list-item
           v-for="opt in options"
           :key="opt.value"
@@ -51,7 +50,7 @@
           @click="$emit('change', opt.value)"
         >
           <v-list-item-icon class="mr-2">
-            <v-icon small :color="opt.color">{{ opt.icon }}</v-icon>
+            <v-icon size="small" :color="opt.color">{{ opt.icon }}</v-icon>
           </v-list-item-icon>
           <v-list-item-title>{{ opt.text }}</v-list-item-title>
         </v-list-item>
@@ -59,14 +58,14 @@
     </v-menu>
 
     <span v-else class="WorkflowEdgeLabel__pill" data-testid="workflowCanvas-edgePill">
-      <v-icon x-small :color="current.color">{{ current.icon }}</v-icon>
+      <v-icon size="x-small" :color="current.color">{{ current.icon }}</v-icon>
       <span
         class="WorkflowEdgeLabel__text"
         :data-testid="`workflowCanvas-edgeCondition-${current.value}`"
       >{{ current.text }}</span>
       <v-icon
         v-if="label.explicit"
-        x-small
+        size="x-small"
         class="WorkflowEdgeLabel__inputs"
         data-testid="workflowCanvas-edgeInputs"
         :title="$t('workflowEdgeInputsExplicit')"

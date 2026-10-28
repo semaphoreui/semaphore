@@ -1,7 +1,7 @@
 <template>
   <div
     class="AuditLog"
-    :class="{ 'AuditLog--fixed': !$vuetify.breakpoint.xs }"
+    :class="{ 'AuditLog--fixed': !$vuetify.display.xs }"
     data-testid="audit-page"
     :data-state="loading ? 'loading' : failed ? 'error' : events.length ? 'ready' : 'empty'"
   >
@@ -12,15 +12,14 @@
       <v-toolbar-title data-testid="audit-title">{{ $t('audit_log') }}</v-toolbar-title>
       <v-spacer />
       <v-menu offset-y>
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-btn
             color="primary"
             :disabled="!features.audit_log_filters"
             data-testid="audit-export"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
           >
-            <v-icon left>mdi-download</v-icon>
+            <v-icon start>mdi-download</v-icon>
             {{ $t('audit_export') }}
           </v-btn>
         </template>
@@ -43,7 +42,7 @@
 
     <v-alert
       v-if="!features.audit_log_filters"
-      text
+      variant="tonal"
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
       data-testid="audit-pro-notice"
@@ -61,40 +60,40 @@
     </v-alert>
 
     <AuditFilters
-      :value="filters"
+      :model-value="filters"
       :disabled="!features.audit_log_filters"
       :users="users"
       :projects="projects"
       :style="features.audit_log_filters ? '' : 'opacity: 0.5'"
-      @input="setFilters"
+      @update:model-value="setFilters"
     />
 
-    <div v-if="$vuetify.breakpoint.xs" class="d-flex justify-end px-4 pt-2">
+    <div v-if="$vuetify.display.xs" class="d-flex justify-end px-4 pt-2">
       <v-btn
-        text
+        variant="text"
         :disabled="loading || newer === null"
         data-testid="audit-newer-top"
         @click="load({ after: newer }, 'newer')"
       >
-        <v-icon left>mdi-chevron-left</v-icon>
+        <v-icon start>mdi-chevron-left</v-icon>
         {{ $t('audit_newer') }}
       </v-btn>
       <v-btn
-        text
+        variant="text"
         :disabled="loading || older === null"
         data-testid="audit-older-top"
         @click="load({ before: older }, 'older')"
       >
         {{ $t('audit_older') }}
-        <v-icon right>mdi-chevron-right</v-icon>
+        <v-icon end>mdi-chevron-right</v-icon>
       </v-btn>
     </div>
 
     <div v-if="failed && events.length" class="px-4 pt-2" data-testid="audit-load-failed">
       {{ $t('audit_load_failed') }}
       <v-btn
-        text
-        small
+        variant="text"
+        size="small"
         color="primary"
         class="ml-2"
         data-testid="audit-retry"
@@ -131,8 +130,8 @@
         <span v-else data-testid="audit-load-failed">
           {{ $t('audit_load_failed') }}
           <v-btn
-            text
-            small
+            variant="text"
+            size="small"
             color="primary"
             class="ml-2"
             data-testid="audit-retry"
@@ -150,8 +149,8 @@
             date: localTime(searchedTo.timestamp),
           }) }}
           <v-btn
-            text
-            small
+            variant="text"
+            size="small"
             color="primary"
             class="ml-2"
             data-testid="audit-stop"
@@ -170,7 +169,7 @@
 
       <template v-slot:item.actor="{ item }">
         <span style="white-space: nowrap" data-testid="audit-rowActor">
-          <v-icon small class="mr-1">{{ actorIcon(item.actor) }}</v-icon>
+          <v-icon size="small" class="mr-1">{{ actorIcon(item.actor) }}</v-icon>
           {{ actorLabel(item.actor) }}
         </span>
       </template>
@@ -179,7 +178,7 @@
 
       <template v-slot:item.target="{ item }">
         <span v-if="item.target" data-testid="audit-rowTarget">
-          <span class="text--secondary" data-testid="audit-rowTargetType">{{
+          <span class="text-medium-emphasis" data-testid="audit-rowTargetType">{{
             targetType(item.target.type)
           }}</span>
           {{ item.target.name || item.target.id }}
@@ -192,19 +191,19 @@
         <span style="white-space: nowrap" data-testid="audit-rowOutcome">
           <v-icon
             v-if="item.outcome === 'failure'"
-            small
+            size="small"
             color="error"
             data-testid="audit-rowOutcome-failure"
           >mdi-close-circle</v-icon>
           <v-icon
             v-else-if="item.reason"
-            small
+            size="small"
             color="warning"
             data-testid="audit-rowOutcome-reason"
           >mdi-alert-circle</v-icon>
           <v-icon
             v-else
-            small
+            size="small"
             color="success"
             data-testid="audit-rowOutcome-success"
           >mdi-check-circle</v-icon>
@@ -222,7 +221,7 @@
       class="d-flex align-center px-4 pt-2"
       data-testid="audit-searched-to"
     >
-      <span class="text--secondary">
+      <span class="text-medium-emphasis">
         {{ $t(direction === 'newer' ? 'audit_searched_to_newer' : 'audit_searched_to', {
           date: localTime(searchedTo.timestamp),
         }) }}
@@ -231,7 +230,7 @@
 
     <div class="d-flex justify-end pa-4">
       <v-btn
-        text
+        variant="text"
         :disabled="loading"
         data-testid="audit-latest"
         @click="load({})"
@@ -239,33 +238,33 @@
         {{ $t('audit_latest') }}
       </v-btn>
       <v-btn
-        text
+        variant="text"
         :disabled="loading || newer === null"
         data-testid="audit-newer"
         @click="load({ after: newer }, 'newer')"
       >
-        <v-icon left>mdi-chevron-left</v-icon>
+        <v-icon start>mdi-chevron-left</v-icon>
         {{ $t('audit_newer') }}
       </v-btn>
       <v-btn
-        text
+        variant="text"
         :disabled="loading || older === null"
         data-testid="audit-older"
         @click="load({ before: older }, 'older')"
       >
         {{ $t('audit_older') }}
-        <v-icon right>mdi-chevron-right</v-icon>
+        <v-icon end>mdi-chevron-right</v-icon>
       </v-btn>
     </div>
 
     <v-navigation-drawer
-      :value="selected !== null"
-      right
+      :model-value="selected !== null"
+      location="right"
       fixed
       temporary
       width="480"
       data-testid="audit-drawer"
-      @input="onDrawer"
+      @update:model-value="onDrawer"
     >
       <AuditEventCard
         v-if="selected"
@@ -285,6 +284,7 @@ import PageMixin from '@/components/PageMixin';
 import AuditFilters from '@/components/AuditFilters.vue';
 import AuditEventCard from '@/components/AuditEventCard.vue';
 import EventBus from '@/event-bus';
+import i18n from '@/plugins/i18';
 import { getErrorMessage } from '@/lib/error';
 import {
   eventTitle, reasonLabel, targetTypeLabel, actorLabel, actorIcon, filterParams,
@@ -343,7 +343,7 @@ export default {
     await Promise.all([this.load({}), this.loadNames()]);
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.stop();
   },
 
@@ -480,19 +480,19 @@ export default {
     },
 
     title(event) {
-      return eventTitle(event, this.$i18n);
+      return eventTitle(event, i18n.global);
     },
 
     reason(value) {
-      return reasonLabel(value, this.$i18n);
+      return reasonLabel(value, i18n.global);
     },
 
     targetType(value) {
-      return targetTypeLabel(value, this.$i18n);
+      return targetTypeLabel(value, i18n.global);
     },
 
     actorLabel(actor) {
-      return actorLabel(actor, this.$i18n);
+      return actorLabel(actor, i18n.global);
     },
 
     actorIcon,

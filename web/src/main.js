@@ -1,29 +1,34 @@
-import Vue from 'vue';
+// Vuetify base styles first: component and application styles come after them.
+// eslint-disable-next-line import/extensions
+import 'vuetify/styles';
+import { createApp } from 'vue';
 import axios from 'axios';
-import { Line, Bar } from 'vue-chartjs/legacy';
+import { Line, Bar } from 'vue-chartjs';
 
 import App from './App.vue';
 import router from './router';
 import vuetify from './plugins/vuetify';
+import '@mdi/font/css/materialdesignicons.css';
 import './assets/scss/main.scss';
 import i18n from './plugins/i18';
-import filtersPlugin from './plugins/filters';
+import { filters } from './plugins/filters';
 
 axios.defaults.baseURL = document.baseURI;
-Vue.config.productionTip = false;
 
-Vue.use(filtersPlugin);
+const app = createApp(App);
+
+app.use(router);
+app.use(vuetify);
+app.use(i18n);
+
+app.config.globalProperties.$filters = filters;
 
 //
 // -------------
 //
 
-Vue.component('LineChartGenerator', Line);
-Vue.component('BarChartGenerator', Bar);
+app.component('LineChartGenerator', Line);
+app.component('BarChartGenerator', Bar);
 
-new Vue({
-  router,
-  vuetify,
-  i18n,
-  render: (h) => h(App),
-}).$mount('#app');
+// Mount after the initial navigation: App.vue reads the real `$route` in data() and created().
+router.isReady().then(() => app.mount('#app'));

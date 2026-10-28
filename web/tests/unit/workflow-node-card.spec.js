@@ -1,7 +1,6 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { mount } from '@vue/test-utils';
 import WorkflowNodeCard from '@/components/workflow/WorkflowNodeCard.vue';
 
 const XSS_NAME = '<img src=x onerror=alert(1)>';
@@ -22,15 +21,15 @@ function makeStore(overrides = {}) {
 }
 
 function mountCard(node, storeOverrides = {}, editable = true) {
-  const localVue = createLocalVue();
   const store = makeStore(storeOverrides);
   store.nodes[node.id] = node;
   return mount(WorkflowNodeCard, {
-    localVue,
-    vuetify: new Vuetify(),
-    propsData: { store, nodeId: node.id, editable },
-    mocks: { $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k) },
-    stubs: { 'v-tooltip': { template: '<div><slot name="activator" :on="{}" :attrs="{}" /><slot /></div>' } },
+    props: { store, nodeId: node.id, editable },
+    global: {
+      mocks: { $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k) },
+      // Vuetify 3 activator slot: { props }
+      stubs: { 'v-tooltip': { template: '<div><slot name="activator" :props="{}" /><slot /></div>' } },
+    },
   });
 }
 
@@ -139,7 +138,7 @@ describe('WorkflowNodeCard.vue', () => {
         expect(w.find('.WorkflowNodeCard__status .mdi-clock-outline').exists()).to.equal(true);
         expect(w.find('.WorkflowNodeCard__status .mdi-check-circle').exists()).to.equal(false);
         expect(w.find('.WorkflowNodeCard__status .mdi-close-circle').exists()).to.equal(false);
-        w.destroy();
+        w.unmount();
       });
     });
 
@@ -150,7 +149,7 @@ describe('WorkflowNodeCard.vue', () => {
         }, false);
         const icon = status === 'approved' ? 'mdi-check-circle' : 'mdi-close-circle';
         expect(w.find(`.WorkflowNodeCard__status .${icon}`).exists()).to.equal(true);
-        w.destroy();
+        w.unmount();
       });
     });
 
@@ -184,7 +183,7 @@ describe('WorkflowNodeCard.vue', () => {
       }, false);
       expect(w.classes()).to.include('WorkflowNodeCard--running');
       expect(w.find('.WorkflowNodeCard__status .v-progress-circular').exists()).to.equal(true);
-      w.destroy();
+      w.unmount();
     });
 
     it('counts down a waiting delay', () => {
@@ -195,7 +194,7 @@ describe('WorkflowNodeCard.vue', () => {
       expect(w.find('.WorkflowNodeCard__sub').text()).to.contain('workflowDelayRemaining');
       expect(w.find('.WorkflowNodeCard__sub').text()).to.contain('1m 15s');
       expect(w.find('.WorkflowNodeCard__status .mdi-timer-sand').exists()).to.equal(true);
-      w.destroy();
+      w.unmount();
     });
 
     it('offers Approve / Reject on a pending approval when allowed', async () => {
@@ -207,8 +206,8 @@ describe('WorkflowNodeCard.vue', () => {
       expect(w.find('.WorkflowNodeCard__sub').text()).to.equal('Deploy to prod?');
       const buttons = w.findAll('.WorkflowNodeCard__actions button');
       expect(buttons.length).to.equal(2);
-      await buttons.at(0).trigger('click');
-      await buttons.at(1).trigger('click');
+      await buttons[0].trigger('click');
+      await buttons[1].trigger('click');
       expect(w.emitted('resolve-approval')).to.deep.equal([['approved'], ['rejected']]);
     });
 

@@ -43,7 +43,7 @@
 
     <v-alert
       v-if="!features.global_roles_management"
-      text
+      variant="tonal"
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
       data-testid="globalRoles-licenseAlert"
@@ -56,7 +56,7 @@
 
       <v-btn
         dark
-        depressed
+        variant="flat"
         v-if="isAdmin"
         color="hsl(348deg, 86%, 61%)"
         @click="upgradeToPro('global_roles_management')"
@@ -70,22 +70,31 @@
       </span>
     </v-alert>
 
-    <v-alert text dense type="info" class="mx-4 mt-4" data-testid="globalRoles-hint">
+    <v-alert
+      variant="tonal"
+      density="compact"
+      type="info"
+      class="mx-4 mt-4"
+      data-testid="globalRoles-hint"
+    >
       {{ $t('globalRolesHint') }}
     </v-alert>
 
     <v-data-table
       :headers="headers"
       :items="items"
-      item-key="id"
+      item-value="id"
       class="mt-4"
-      :footer-props="{ itemsPerPageOptions: [20] }"
+      :items-per-page-options="[20]"
       data-testid="globalRoles-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.name="{ item }">
         <div data-testid="globalRoles-rowName">{{ item.name }}</div>
-        <div class="text--secondary caption" data-testid="globalRoles-rowSlug">{{ item.slug }}</div>
+        <div
+          class="text-medium-emphasis text-caption"
+          data-testid="globalRoles-rowSlug"
+        >{{ item.slug }}</div>
       </template>
       <template v-slot:item.permissions="{ item }">
         <TemplatePermissionsChips
@@ -187,17 +196,17 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '50%',
         },
         {
-          text: this.$i18n.t('globalPermissions'),
-          value: 'permissions',
+          title: this.$t('globalPermissions'),
+          key: 'permissions',
         },
         {
-          text: this.$i18n.t('actions'),
-          value: 'actions',
+          title: this.$t('actions'),
+          key: 'actions',
           sortable: false,
         },
       ];

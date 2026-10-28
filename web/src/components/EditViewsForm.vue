@@ -6,7 +6,7 @@
   >
     <draggable
         v-if="views.length > 0"
-        :list="views"
+        v-model="views"
         handle=".handle6785"
         class="mb-5"
         @end="onDragEnd"
@@ -30,8 +30,8 @@
           <v-text-field
             class="ml-2 mr-1"
             hide-details
-            dense
-            solo
+            density="compact"
+            variant="solo"
             :flat="!view.active"
             v-model="view.title"
             @focus="editView(view.id)"
@@ -41,25 +41,25 @@
 
           <v-btn
             class="mt-1"
-            small
+            size="small"
             icon
             @click="saveView(view.id)"
             v-if="view.active"
             :disabled="view.disabled"
             data-testid="viewsForm-viewSave"
           >
-            <v-icon small color="green">mdi-check</v-icon>
+            <v-icon size="small" color="green">mdi-check</v-icon>
           </v-btn>
           <v-btn
             class="mt-1"
-            small
+            size="small"
             icon
             @click="resetView(view.id)"
             v-if="view.active && view.id > 0"
             :disabled="view.disabled"
             data-testid="viewsForm-viewReset"
           >
-            <v-icon small color="red">mdi-close</v-icon>
+            <v-icon size="small" color="red">mdi-close</v-icon>
           </v-btn>
 
           <v-btn
@@ -103,12 +103,12 @@
             <v-select
               :items="viewTypes"
               item-value="slug"
-              item-text="title"
+              item-title="title"
               v-model="view.type"
               label="Type"
-              outlined
-              dense
-              @change="saveView(view.id)"
+              variant="outlined"
+              density="compact"
+              @update:model-value="saveView(view.id)"
               data-testid="viewsForm-type"
             />
 
@@ -120,13 +120,13 @@
               <v-select
                 :items="sortableColumns"
                 item-value="name"
-                item-text="title"
+                item-title="title"
                 v-model="view.sort_column"
                 label="Sort by"
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 hide-details
-                @change="saveView(view.id)"
+                @update:model-value="saveView(view.id)"
                 data-testid="viewsForm-sortColumn"
               />
 
@@ -135,7 +135,7 @@
                 label="Reverse"
                 v-model="view.sort_reverse"
                 class="mt-0 pt-0"
-                @change="saveView(view.id)"
+                @update:model-value="saveView(view.id)"
                 data-testid="viewsForm-sortReverse"
               />
 
@@ -145,7 +145,7 @@
               hide-details
               label="Hidden"
               v-model="view.hidden"
-              @change="saveView(view.id)"
+              @update:model-value="saveView(view.id)"
               data-testid="viewsForm-hidden"
             />
           </v-card-text>
@@ -169,7 +169,7 @@
 </template>
 
 <script>
-import draggable from 'vuedraggable';
+import { VueDraggable as draggable } from 'vue-draggable-plus';
 import axios from 'axios';
 // import ArgsPicker from '@/components/ArgsPicker.vue';
 

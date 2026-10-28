@@ -1,5 +1,4 @@
-import Vue from 'vue';
-import VueRouter from 'vue-router';
+import { createRouter, createWebHistory } from 'vue-router';
 import RestoreProject from '@/views/project/RestoreProject.vue';
 import Tasks from '@/views/Tasks.vue';
 import TaskList from '@/components/TaskList.vue';
@@ -41,7 +40,11 @@ import WorkflowStats from '../views/project/workflow/WorkflowStats.vue';
 import WorkflowRun from '../views/project/WorkflowRun.vue';
 import WorkflowEditor from '../views/project/WorkflowEditor.vue';
 
-Vue.use(VueRouter);
+// Redirect to a path built from the route params, keeping the query and the hash
+// (`?t=<task>` must reach the history page).
+function redirectTo(build) {
+  return (to) => ({ path: build(to.params), query: to.query, hash: to.hash });
+}
 
 const routes = [
   {
@@ -54,7 +57,7 @@ const routes = [
   },
   {
     path: '/project/:projectId',
-    redirect: '/project/:projectId/history',
+    redirect: redirectTo((p) => `/project/${p.projectId}/history`),
   },
   {
     path: '/project/:projectId/secret_storages',
@@ -106,7 +109,7 @@ const routes = [
   },
   {
     path: '/project/:projectId/workflows/:workflowId',
-    redirect: '/project/:projectId/workflows/:workflowId/runs',
+    redirect: redirectTo((p) => `/project/${p.projectId}/workflows/${p.workflowId}/runs`),
     component: WorkflowView,
     children: [{
       path: 'runs',
@@ -122,7 +125,7 @@ const routes = [
   },
   {
     path: '/project/:projectId/templates/:templateId',
-    redirect: '/project/:projectId/templates/:templateId/tasks',
+    redirect: redirectTo((p) => `/project/${p.projectId}/templates/${p.templateId}/tasks`),
     component: TemplateView,
     children: [{
       path: 'tasks',
@@ -140,7 +143,7 @@ const routes = [
   },
   {
     path: '/project/:projectId/views/:viewId/templates/:templateId',
-    redirect: '/project/:projectId/views/:viewId/templates/:templateId/tasks',
+    redirect: redirectTo((p) => `/project/${p.projectId}/views/${p.viewId}/templates/${p.templateId}/tasks`),
     component: TemplateView,
     children: [{
       path: 'tasks',
@@ -248,8 +251,9 @@ const routes = [
   },
 ];
 
-const router = new VueRouter({
-  mode: 'history',
+// The base of the history is the `<base href>` of index.html (the path of `web_host`).
+const router = createRouter({
+  history: createWebHistory(),
   routes,
 });
 

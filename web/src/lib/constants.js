@@ -99,17 +99,17 @@ export const APP_ICONS = {
     darkColor: '#7b42bc',
   },
   tofu: {
-    icon: '$vuetify.icons.tofu',
+    icon: '$tofu',
     color: 'black',
     darkColor: 'white',
   },
   terragrunt: {
-    icon: '$vuetify.icons.terragrunt',
+    icon: '$terragrunt',
     color: '#4b3b7a',
     darkColor: '#4b3b7a',
   },
   pulumi: {
-    icon: '$vuetify.icons.pulumi',
+    icon: '$pulumi',
     color: 'black',
     darkColor: 'white',
   },

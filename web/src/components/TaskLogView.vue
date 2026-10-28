@@ -10,7 +10,7 @@
         class="mr-3"
         data-testid="taskLog-message"
       >
-        <v-icon small>mdi-message-outline</v-icon>
+        <v-icon size="small">mdi-message-outline</v-icon>
         {{ item.message }}
       </span>
 
@@ -19,7 +19,7 @@
         v-if="item.commit_message"
         data-testid="taskLog-commitMessage"
       >
-        <v-icon small>mdi-source-fork</v-icon>
+        <v-icon size="small">mdi-source-fork</v-icon>
         {{ item.commit_message }}
       </span>
     </div>
@@ -30,7 +30,7 @@
     >
       <TaskStatus :status="item.status" data-testid="task-status" />
 
-      <span class="ml-3 hidden-xs-only task-log-view__status_part" data-testid="taskLog-started">
+      <span class="ml-3 hidden-xs task-log-view__status_part" data-testid="taskLog-started">
 
         Started <span v-if="user" data-testid="taskLog-author">by <b>{{ user.name }}</b></span>
 
@@ -42,12 +42,12 @@
         data-testid="taskLog-duration"
       >
         <v-icon
-          small style="transform: translateY(-1px)">mdi-clock-outline</v-icon>
+          size="small" style="transform: translateY(-1px)">mdi-clock-outline</v-icon>
         {{ $filters.formatMilliseconds([item.start, item.end]) }}
       </span>
     </div>
 
-    <v-tabs class="task-log-view__tabs" right v-model="tab" data-testid="taskLog-tabs">
+    <v-tabs class="task-log-view__tabs" align-tabs="end" v-model="tab" data-testid="taskLog-tabs">
       <v-tab data-testid="taskLog-tab-log">Log</v-tab>
       <v-tab data-testid="taskLog-tab-details">Details</v-tab>
       <v-tab
@@ -60,24 +60,33 @@
     </v-tabs>
 
     <div v-if="tab === 0" data-testid="taskLog-logPanel">
-      <VirtualList
+      <div
         class="task-log-records"
         data-testid="taskLog-output"
-        :data-key="'id'"
-        :data-sources="output"
-        :data-component="itemComponent"
-        :estimate-size="22"
-        :keeps="100"
         ref="records"
       >
-        <div class="task-log-records__record" v-for="record in output" :key="record.id">
-          <div class="task-log-records__time">
-            {{ $filters.formatTime(record.time) }}
-          </div>
-          <div class="task-log-records__output" v-html="$filters.formatLog(record.output)">
+        <div
+          role="group"
+          :style="{ position: 'relative', height: `${recordsVirtualizer.getTotalSize()}px` }"
+        >
+          <div
+            v-for="row in recordsVirtualizer.getVirtualItems()"
+            :key="output[row.index].id"
+            :ref="measureRecord"
+            :data-index="row.index"
+            role="listitem"
+            :style="{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform: `translateY(${row.start}px)`,
+            }"
+          >
+            <TaskLogViewRecord :index="row.index" :source="output[row.index]" />
           </div>
         </div>
-      </VirtualList>
+      </div>
 
       <v-btn
         color="success"
@@ -152,8 +161,6 @@
 </template>
 
 <style lang="scss">
-
-@import '~vuetify/src/styles/settings/_variables';
 
 $card-title-height: 68px;
 
@@ -253,7 +260,8 @@ $task-log-status-tab-height:
 import axios from 'axios';
 import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
-import VirtualList from 'vue-virtual-scroll-list';
+import { computed, ref } from 'vue';
+import { useVirtualizer } from '@tanstack/vue-virtual';
 import TaskLogViewRecord from '@/components/TaskLogViewRecord.vue';
 import ProjectMixin from '@/components/ProjectMixin';
 import AnsibleStageView from '@/components/AnsibleStageView.vue';
@@ -261,7 +269,7 @@ import TaskDetails from '@/components/TaskDetails.vue';
 
 export default {
   components: {
-    TaskDetails, AnsibleStageView, TaskStatus, VirtualList,
+    TaskDetails, AnsibleStageView, TaskStatus, TaskLogViewRecord,
   },
 
   mixins: [ProjectMixin],
@@ -273,11 +281,29 @@ export default {
     features: null,
   },
 
+  // The log is a virtual list: only the records in view (and an overscan) are rendered.
+  setup() {
+    const output = ref([]);
+    const records = ref(null);
+    const recordsVirtualizer = useVirtualizer(computed(() => ({
+      count: output.value.length,
+      getScrollElement: () => records.value,
+      estimateSize: () => 22,
+      overscan: 50,
+    })));
+    const measureRecord = (el) => {
+      if (el) {
+        recordsVirtualizer.value.measureElement(el);
+      }
+    };
+    return {
+      output, records, recordsVirtualizer, measureRecord,
+    };
+  },
+
   data() {
     return {
       tab: 0,
-      itemComponent: TaskLogViewRecord,
-      output: [],
       outputBuffer: [],
       user: {},
       // The schedule or integration that started this task, resolved by id so
@@ -352,7 +378,7 @@ export default {
           return;
         }
 
-        const scrollContainer = this.$refs.records?.$el;
+        const scrollContainer = this.$refs.records;
         if (!scrollContainer) {
           return;
         }
@@ -381,7 +407,7 @@ export default {
     await this.loadData();
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     clearInterval(this.outputInterval);
     socket.removeListener(this.socketListenerId);
   },

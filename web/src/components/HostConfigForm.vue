@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="hostConfigForm-error"
@@ -17,7 +17,7 @@
 
     <v-radio-group
       v-model="item.type"
-      row
+      inline
       class="mt-0"
       :disabled="formSaving"
       data-testid="hostConfigForm-type"
@@ -43,8 +43,8 @@
       :rules="[v => !!v || $t('hostConfigHostRequired')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="hostConfigForm-host"
     ></v-text-field>
 
@@ -53,14 +53,14 @@
       :label="$t('credential')"
       :items="credentials"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :rules="[v => !!v || $t('hostConfigCredentialRequired')]"
       required
       :hint="isHost ? $t('hostConfigCredentialHostHint') : $t('hostConfigCredentialUrlHint')"
       persistent-hint
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       class="mt-4"
       data-testid="hostConfigForm-sshKeyId"
     ></v-autocomplete>

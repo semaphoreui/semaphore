@@ -7,12 +7,14 @@
         :transition="false"
     >
       <div style="position: relative; height: 100%;" :data-testid="`${testId}Dialog`">
-        <codemirror
+        <CodeMirror
             v-if="envEditorDialog"
             class="EnvironmentMaximizedEditor"
             :style="{ border: '1px solid lightgray' }"
             v-model="text"
-            :options="cmOptions"
+            minimal
+            :tab-size="2"
+            :extensions="cmExtensions"
             :placeholder="placeholderText"
             :data-testid="`${testId}-code`"
         />
@@ -21,7 +23,7 @@
             v-if="validatable"
             dark
             fab
-            small
+            size="small"
             color="success"
             style="
             position: absolute;
@@ -38,7 +40,7 @@
         <v-btn
             dark
             fab
-            small
+            size="small"
             color="blue-grey"
             style="
             position: absolute;
@@ -55,7 +57,7 @@
         <v-alert
             v-model="showAlert"
             :color="errorMessage ? 'error' : 'success'"
-            dismissible
+            closable
             :data-testid="`${testId}-result`"
             :data-state="errorMessage ? 'error' : 'ready'"
             style="
@@ -72,7 +74,7 @@
     <v-btn
         dark
         fab
-        small
+        size="small"
         color="blue-grey"
         @click="envEditorDialog = true"
         :data-testid="`${testId}-expand`"
@@ -85,18 +87,15 @@
 
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
-import { codemirror } from 'vue-codemirror';
+import CodeMirror from 'vue-codemirror6';
 import { load as loadYaml } from 'js-yaml';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/mode/vue/vue.js';
-import 'codemirror/mode/yaml/yaml.js';
-import 'codemirror/addon/display/placeholder.js';
+import codeEditorExtensions from '@/lib/codeEditor';
 import { getErrorMessage } from '@/lib/error';
 // import { getErrorMessage } from '@/lib/error';
 
 export default {
   props: {
-    value: String,
+    modelValue: String,
     type: String,
     testId: {
       type: String,
@@ -105,10 +104,10 @@ export default {
   },
 
   components: {
-    codemirror,
+    CodeMirror,
   },
 
-  emits: ['maximize', 'input'],
+  emits: ['maximize', 'update:modelValue'],
 
   watch: {
     envEditorDialog(val) {
@@ -117,13 +116,13 @@ export default {
       });
     },
 
-    value() {
-      this.text = this.value;
+    modelValue() {
+      this.text = this.modelValue;
     },
   },
 
   created() {
-    this.text = this.value;
+    this.text = this.modelValue;
   },
 
   data() {
@@ -137,15 +136,8 @@ export default {
 
   computed: {
 
-    cmOptions() {
-      return {
-        tabSize: 2,
-        mode: this.type === 'yaml' ? 'text/x-yaml' : 'application/json',
-        lineNumbers: true,
-        line: true,
-        lint: this.type !== 'yaml',
-        indentWithTabs: false,
-      };
+    cmExtensions() {
+      return codeEditorExtensions({ language: this.type === 'yaml' ? 'yaml' : 'json' });
     },
 
     validatable() {
@@ -175,7 +167,7 @@ export default {
   methods: {
     cancel() {
       this.errorMessage = null;
-      this.text = this.value;
+      this.text = this.modelValue;
       this.envEditorDialog = false;
     },
     spellcheck() {
@@ -210,8 +202,8 @@ export default {
       this.showAlert = true;
     },
     save() {
-      if (this.text !== this.value) {
-        this.$emit('input', this.text);
+      if (this.text !== this.modelValue) {
+        this.$emit('update:modelValue', this.text);
       }
       this.envEditorDialog = false;
     },
@@ -223,7 +215,7 @@ export default {
   height: 100% !important;
   border-radius: 0 !important;
 
-  .CodeMirror {
+  .cm-editor {
     height: 100% !important;
     font-size: 14px;
     border-radius: 0 !important;

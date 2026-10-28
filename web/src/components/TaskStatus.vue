@@ -2,7 +2,7 @@
   <v-chip v-if="status" style="font-weight: bold;" :color="getStatusColor(status)">
     <v-icon
       v-if="status !== 'running'"
-      left
+      start
       :data-testid="`taskStatus-${status}`"
     >{{ getStatusIcon(status) }}</v-icon>
     <IndeterminateProgressCircular

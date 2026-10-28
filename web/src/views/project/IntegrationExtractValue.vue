@@ -132,38 +132,38 @@ export default {
     getHeaders() {
       return [
         {
-          text: 'Name',
-          value: 'name',
+          title: 'Name',
+          key: 'name',
           sortable: true,
         },
         {
-          text: 'Value Source',
-          value: 'value_source',
+          title: 'Value Source',
+          key: 'value_source',
           sortable: false,
         },
         // {
-        //   text: 'Body Data Type',
-        //   value: 'body_data_type',
+        //   title: 'Body Data Type',
+        //   key: 'body_data_type',
         //   sortable: false,
         // },
         {
-          text: 'Key',
-          value: 'key',
+          title: 'Key',
+          key: 'key',
           sortable: false,
         },
         {
-          text: 'Variable',
-          value: 'variable',
+          title: 'Variable',
+          key: 'variable',
           sortable: false,
         },
         {
-          text: 'Variable Type',
-          value: 'variable_type',
+          title: 'Variable Type',
+          key: 'variable_type',
           sortable: false,
         },
         {
-          text: 'Actions',
-          value: 'actions',
+          title: 'Actions',
+          key: 'actions',
           sortable: false,
         },
       ];

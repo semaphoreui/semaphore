@@ -1,19 +1,18 @@
 <template>
-  <v-menu offset-y left eager>
-    <template v-slot:activator="{ on, attrs }">
+  <v-menu offset-y location="left" eager>
+    <template v-slot:activator="{ props }">
       <v-btn
         icon
-        small
+        size="small"
         :title="$t('workflowNodeSurveyInputsAssign')"
         class="WorkflowVarAssign__btn"
         :data-testid="`${testId}-open`"
-        v-bind="attrs"
-        v-on="on"
+        v-bind="props"
       >
-        <v-icon small>mdi-link-variant-plus</v-icon>
+        <v-icon size="small">mdi-link-variant-plus</v-icon>
       </v-btn>
     </template>
-    <v-list dense class="WorkflowVarAssign__list" :data-testid="`${testId}-list`">
+    <v-list density="compact" class="WorkflowVarAssign__list" :data-testid="`${testId}-list`">
       <v-subheader
         :data-testid="`${testId}-title`"
       >{{ $t('workflowNodeSurveyInputsAssignTitle') }}</v-subheader>
@@ -29,12 +28,10 @@
         :data-testid="`${testId}-item-${v.name}`"
         @click="$emit('select', v.name)"
       >
-        <v-list-item-content>
           <v-list-item-title>{{ v.title || v.name }}</v-list-item-title>
           <v-list-item-subtitle class="WorkflowVarAssign__name">
             {{ v.name }} · {{ v.type || 'string' }}
           </v-list-item-subtitle>
-        </v-list-item-content>
       </v-list-item>
     </v-list>
   </v-menu>

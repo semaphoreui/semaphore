@@ -27,10 +27,10 @@
         />
         <div style="font-size: 14px;">
           <span v-if="item.message" data-testid="taskList-rowMessage">
-            <v-icon x-small>mdi-message-outline</v-icon> {{ item.message }}
+            <v-icon size="x-small">mdi-message-outline</v-icon> {{ item.message }}
           </span>
           <span v-else-if="item.commit_hash" data-testid="taskList-rowCommit">
-            <v-icon x-small>mdi-source-fork</v-icon> {{ item.commit_message }}
+            <v-icon size="x-small">mdi-source-fork</v-icon> {{ item.commit_message }}
           </span>
         </div>
       </template>
@@ -62,7 +62,7 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
+        <v-btn-toggle density="compact" :value-comparator="() => false">
           <v-btn @click="createTask(item)" data-testid="taskList-rowRerun">
             <v-icon>mdi-replay</v-icon>
           </v-btn>
@@ -76,7 +76,7 @@
       data-testid="taskList-pagination"
     >
       <span
-        class="text--secondary mr-2"
+        class="text-medium-emphasis mr-2"
         data-testid="taskList-perPageLabel"
       >{{ $t('rowsPerPage') }}</span>
 
@@ -85,7 +85,7 @@
         :disabled="loading"
         :items="perPageOptions"
         class="TaskListPerPage mr-4"
-        dense
+        density="compact"
         hide-details
         style="max-width: 72px;"
         data-testid="taskList-perPage"
@@ -101,7 +101,7 @@
       </v-btn>
 
       <span
-        class="mx-2 text--secondary"
+        class="mx-2 text-medium-emphasis"
         data-testid="taskList-range"
       >{{ rangeStart }} - {{ rangeEnd }}</span>
 
@@ -145,7 +145,7 @@ export default {
     return {
       headers: [
         {
-          text: this.$i18n.t('taskId'),
+          text: this.$t('taskId'),
           value: 'id',
           sortable: false,
         },
@@ -155,27 +155,27 @@ export default {
           width: '0%',
         },
         {
-          text: this.$i18n.t('version'),
+          text: this.$t('version'),
           value: 'version',
           sortable: false,
         },
         {
-          text: this.$i18n.t('status'),
+          text: this.$t('status'),
           value: 'status',
           sortable: false,
         },
         {
-          text: this.$i18n.t('user'),
+          text: this.$t('user'),
           value: 'user_name',
           sortable: false,
         },
         {
-          text: this.$i18n.t('start'),
+          text: this.$t('start'),
           value: 'start',
           sortable: false,
         },
         {
-          text: this.$i18n.t('duration'),
+          text: this.$t('duration'),
           value: 'end',
           sortable: false,
         },
@@ -240,7 +240,7 @@ export default {
   async mounted() {
     await this.loadData();
   },
-  beforeDestroy() {
+  beforeUnmount() {
     socket.removeListener(this.socketListenerId);
     if (this.reloadTimer) {
       clearTimeout(this.reloadTimer);
@@ -376,7 +376,7 @@ export default {
     },
 
     getActionButtonTitle() {
-      return this.$i18n.t(`Re${TEMPLATE_TYPE_ACTION_TITLES[this.template.type]}`);
+      return this.$t(`Re${TEMPLATE_TYPE_ACTION_TITLES[this.template.type]}`);
     },
 
     createTask(task) {

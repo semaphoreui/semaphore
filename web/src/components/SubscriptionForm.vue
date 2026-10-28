@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : formError ? 'error' : 'ready'"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       :type="(formError || '').includes('already activated') ? 'warning' : 'error'"
       data-testid="subscription-error"
       >{{ formError }}
@@ -78,20 +78,19 @@
         :rules="[(v) => !!v || $t('key_required')]"
         required
         :disabled="formSaving || item.managed_by_config"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         data-testid="subscription-key"
       ></v-textarea>
 
       <v-menu offset-y v-if="item.state === 'active' || item.state === 'expired'">
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-btn
             color="primary"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             fab
             data-testid="subscription-actionsMenu"
-            small
+            size="small"
             style="position: absolute; top: 15px; right: -15px"
           >
             <v-icon>mdi-dots-horizontal</v-icon>
@@ -124,7 +123,7 @@
         v-else
         color="primary"
         fab
-        small
+        size="small"
         style="position: absolute; top: 30px; right: -15px"
         @click="uploadKeyFile()"
         data-testid="subscription-upload"
@@ -171,7 +170,7 @@
         class="mt-4"
         :disabled="formSaving"
         target="_blank"
-        outlined
+        variant="outlined"
         data-testid="subscription-trial"
         :href="`https://portal.semaphoreui.com/start_trial?utm_source=app&utm_content=feature_${feature}`"
       >
@@ -202,43 +201,34 @@
           <v-col class="py-0">
             <v-list class="py-0" style="background: unset">
               <v-list-item class="pa-0">
-                <v-list-item-content>
                   <v-list-item-title>Plan</v-list-item-title>
                   <v-list-item-subtitle
                     data-testid="subscription-planName"
                   >{{ item.plan }}</v-list-item-subtitle>
-                </v-list-item-content>
               </v-list-item>
               <v-list-item class="pa-0">
-                <v-list-item-content>
                   <v-list-item-title>Expires at</v-list-item-title>
                   <v-list-item-subtitle
                     data-testid="subscription-planExpiresAt"
                   >{{ item.expiresAt }}</v-list-item-subtitle>
-                </v-list-item-content>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.nodes">
-                <v-list-item-content>
                   <v-list-item-title>Nodes</v-list-item-title>
                   <v-list-item-subtitle data-testid="subscription-planNodes">
                     {{ item.nodes_used }} / {{ item.nodes }}
                   </v-list-item-subtitle>
-                </v-list-item-content>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.runners < 100000">
-                <v-list-item-content>
                   <v-list-item-title>Project runners</v-list-item-title>
                   <v-list-item-subtitle data-testid="subscription-planRunners">
                     {{ item.runners_used }} / {{ item.runners }}
                   </v-list-item-subtitle>
-                </v-list-item-content>
               </v-list-item>
             </v-list>
           </v-col>
           <v-col class="py-0">
             <v-list class="py-0" style="background: unset">
               <v-list-item class="pa-0">
-                <v-list-item-content>
                   <v-list-item-title>Status</v-list-item-title>
                   <v-list-item-subtitle
                     style="display: flex; align-items: center"
@@ -258,31 +248,24 @@
                     ></div>
                     <div>{{ item.state }}</div>
                   </v-list-item-subtitle>
-                </v-list-item-content>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.users < 100000">
-                <v-list-item-content>
                   <v-list-item-title>Pro users</v-list-item-title>
                   <v-list-item-subtitle
                     data-testid="subscription-planUsers"
                   >{{ item.used }} / {{ item.users }}</v-list-item-subtitle>
-                </v-list-item-content>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.terraform_states < 100000">
-                <v-list-item-content>
                   <v-list-item-title>Terraform backends</v-list-item-title>
                   <v-list-item-subtitle data-testid="subscription-planTerraformStates">
                     {{ item.terraform_states_used }} / {{ item.terraform_states }}
                   </v-list-item-subtitle>
-                </v-list-item-content>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.uis">
-                <v-list-item-content>
                   <v-list-item-title>UIs</v-list-item-title>
                   <v-list-item-subtitle data-testid="subscription-planUis">
                     {{ item.uis_used }} / {{ item.uis }}
                   </v-list-item-subtitle>
-                </v-list-item-content>
               </v-list-item>
             </v-list>
           </v-col>
@@ -309,7 +292,11 @@
           data-testid="subscription-contactSupport"
         >
           Contact support
-          <v-icon small color="primary" style="transform: translateY(-1px)">mdi-open-in-new</v-icon>
+          <v-icon
+            size="small"
+            color="primary"
+            style="transform: translateY(-1px)"
+          >mdi-open-in-new</v-icon>
         </a>
       </div>
     </div>

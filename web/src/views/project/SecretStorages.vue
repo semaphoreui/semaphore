@@ -50,11 +50,10 @@
       <v-spacer></v-spacer>
 
       <v-menu offset-y>
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-btn
             class="pr-2"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             color="primary"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
             data-testid="secretStorages-new"
@@ -74,7 +73,7 @@
             data-testid="secretStorages-new-vault"
           >
             <v-list-item-icon>
-              <v-icon>$vuetify.icons.hashicorp_vault</v-icon>
+              <v-icon>$hashicorp_vault</v-icon>
             </v-list-item-icon>
             <v-list-item-title>Hashicorp Vault</v-list-item-title>
           </v-list-item>
@@ -89,7 +88,7 @@
             data-testid="secretStorages-new-openbao"
           >
             <v-list-item-icon>
-              <v-icon>$vuetify.icons.openbao</v-icon>
+              <v-icon>$openbao</v-icon>
             </v-list-item-icon>
             <v-list-item-title>OpenBao</v-list-item-title>
           </v-list-item>
@@ -103,7 +102,7 @@
             :style="{
               backgroundColor:
                 features.secret_storage_management && !features.secret_storage_management_ex
-                  ? $vuetify.theme.dark
+                  ? $vuetify.theme.current.dark
                     ? '#3f3f3f'
                     : '#f0f0f0'
                   : '',
@@ -119,7 +118,7 @@
               data-testid="secretStorages-new-aws_sm"
             >
               <v-list-item-icon>
-                <v-icon>$vuetify.icons.aws_sm</v-icon>
+                <v-icon>$aws_sm</v-icon>
               </v-list-item-icon>
               <v-list-item-title>AWS Secrets Manager</v-list-item-title>
             </v-list-item>
@@ -134,7 +133,7 @@
               data-testid="secretStorages-new-azure_kv"
             >
               <v-list-item-icon>
-                <v-icon>$vuetify.icons.azure_kv</v-icon>
+                <v-icon>$azure_kv</v-icon>
               </v-list-item-icon>
               <v-list-item-title>Azure Key Vault</v-list-item-title>
             </v-list-item>
@@ -149,7 +148,7 @@
               data-testid="secretStorages-new-dvls"
             >
               <v-list-item-icon>
-                <v-icon>$vuetify.icons.dvls</v-icon>
+                <v-icon>$dvls</v-icon>
               </v-list-item-icon>
               <v-list-item-title>Devolutions Server</v-list-item-title>
             </v-list-item>
@@ -163,7 +162,7 @@
             >
               <div class="SecretStoragesEnterpriseMenu__button">
                 Enterprise
-                <v-icon color="white" small class="ml-1">mdi-arrow-right</v-icon>
+                <v-icon color="white" size="small" class="ml-1">mdi-arrow-right</v-icon>
               </div>
             </a>
           </div>
@@ -189,7 +188,7 @@
 
     <v-alert
       v-if="!features.secret_storage_management"
-      text
+      variant="tonal"
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
       data-testid="secretStorages-proAlert"
@@ -222,7 +221,7 @@
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.name="{ item }">
-        <v-icon class="mr-3" small :data-testid="`secretStorages-rowIcon-${item.type}`">
+        <v-icon class="mr-3" size="small" :data-testid="`secretStorages-rowIcon-${item.type}`">
           {{ getIcon(item.type) }}
         </v-icon>
 
@@ -232,7 +231,7 @@
           v-if="item.readonly"
           style="transform: translateY(-1px)"
           color="info"
-          small
+          size="small"
           data-testid="secretStorages-rowReadonly"
         >
           Read only
@@ -245,7 +244,7 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle
-          dense
+          density="compact"
           :value-comparator="() => false"
           style=""
           data-testid="secretStorages-rowActions"
@@ -358,15 +357,15 @@ export default {
     getIcon(type) {
       switch (type) {
         case 'vault':
-          return '$vuetify.icons.hashicorp_vault';
+          return '$hashicorp_vault';
         case 'openbao':
-          return '$vuetify.icons.openbao';
+          return '$openbao';
         case 'dvls':
-          return '$vuetify.icons.dvls';
+          return '$dvls';
         case 'aws_sm':
-          return '$vuetify.icons.aws_sm';
+          return '$aws_sm';
         case 'azure_kv':
-          return '$vuetify.icons.azure_kv';
+          return '$azure_kv';
         default:
           return '';
       }
@@ -375,17 +374,17 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '60%',
         },
         {
-          text: this.$i18n.t('type'),
-          value: 'type',
+          title: this.$t('type'),
+          key: 'type',
           width: '40%',
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
           align: 'end',

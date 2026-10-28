@@ -1,13 +1,14 @@
-import './setup';
 import { expect } from 'chai';
 import axios from 'axios';
-import { mount, createLocalVue } from '@vue/test-utils';
-import VueRouter from 'vue-router';
-import Vuetify from 'vuetify';
+import { h } from 'vue';
+import { mount } from '@vue/test-utils';
+import { VLayout } from 'vuetify/components';
+import { createRouter, createMemoryHistory } from 'vue-router';
 import i18n from '@/plugins/i18';
 import EventBus from '@/event-bus';
 import AuditLog from '@/views/AuditLog.vue';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
+import createTestVuetify from './setup';
 import mockAxios from './helpers/axiosMock';
 
 function auditEvent(seq, fields = {}) {
@@ -102,7 +103,7 @@ describe('AuditLog.vue', () => {
   afterEach(() => {
     http.restore();
     while (wrappers.length) {
-      wrappers.pop().destroy();
+      wrappers.pop().unmount();
     }
     document.querySelectorAll('[data-app]').forEach((el) => el.remove());
   });
@@ -119,18 +120,20 @@ describe('AuditLog.vue', () => {
     app.appendChild(mountPoint);
     const innerWidth = window.innerWidth;
     window.innerWidth = width;
-    const vuetify = new Vuetify();
-    const localVue = createLocalVue();
-    localVue.use(VueRouter);
-    const wrapper = mount(AuditLog, {
-      localVue,
-      router: new VueRouter(),
-      vuetify,
-      i18n,
-      attachTo: mountPoint,
-      propsData: { systemInfo: { features }, user },
+    // the display breakpoints are measured when the Vuetify instance is created
+    const vuetify = createTestVuetify();
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
     });
-    wrappers.push(wrapper);
+    // Vuetify 3: the navigation drawer of the screen needs a layout around it (v-app of App.vue)
+    const props = { systemInfo: { features }, user };
+    const root = mount({ render: () => h(VLayout, null, () => h(AuditLog, props)) }, {
+      global: { plugins: [router, vuetify, i18n] },
+      attachTo: mountPoint,
+    });
+    wrappers.push(root);
+    const wrapper = root.findComponent(AuditLog);
     await flush();
     window.innerWidth = innerWidth;
     return wrapper;
@@ -329,7 +332,7 @@ describe('AuditLog.vue', () => {
     const pending = respondLater();
     await wrapper.find('[data-testid="audit-older"]').trigger('click');
     const searching = auditRequests().pop();
-    wrappers.pop().destroy();
+    wrappers.pop().unmount();
     expect(searching.signal.aborted).to.equal(true);
     pending[0](searched(300));
     await flush();
@@ -362,8 +365,8 @@ describe('AuditLog.vue', () => {
   it('disables paging past either end', async () => {
     respondWith({ events: [auditEvent(1)], older: null, newer: null });
     const wrapper = await mountPage();
-    expect(wrapper.find('[data-testid="audit-older"]').attributes('disabled')).to.equal('disabled');
-    expect(wrapper.find('[data-testid="audit-newer"]').attributes('disabled')).to.equal('disabled');
+    expect(wrapper.find('[data-testid="audit-older"]').attributes('disabled')).to.equal('');
+    expect(wrapper.find('[data-testid="audit-newer"]').attributes('disabled')).to.equal('');
   });
 
   it('reloads the latest page from the latest page', async () => {
@@ -465,12 +468,12 @@ describe('AuditLog.vue', () => {
   it('shows the exact time with milliseconds and the offset in the card', async () => {
     respondWith({ events: [auditEvent(1, { timestamp: '2026-10-06T10:00:00.123456Z' })], older: null, newer: null });
     const wrapper = await mountPage();
-    await wrapper.findAll('tbody tr').at(0).trigger('click');
+    await wrapper.findAll('tbody tr')[0].trigger('click');
     await flush();
     const card = wrapper.find('[data-testid="audit-card"]').text();
     expect(card).to.contain('2026-10-06 10:00:00.123 +00:00');
     expect(card).to.match(/2026-10-0\d \d\d:\d\d:00\.123 [+-]\d\d:\d\d/);
-    expect(wrapper.findAll('tbody tr').at(0).text()).to.not.contain('.123');
+    expect(wrapper.findAll('tbody tr')[0].text()).to.not.contain('.123');
   });
 
   it('sends several kinds as repeated parameters', async () => {
@@ -509,7 +512,7 @@ describe('AuditLog.vue', () => {
 
   it('filters by the IP clicked in the card', async () => {
     const wrapper = await mountPage();
-    await wrapper.findAll('tbody tr').at(0).trigger('click');
+    await wrapper.findAll('tbody tr')[0].trigger('click');
     await flush();
     await wrapper.find('[data-testid="audit-pivot-ip"]').trigger('click');
     await flush();
@@ -518,7 +521,7 @@ describe('AuditLog.vue', () => {
 
   it('filters by the project clicked in the card', async () => {
     const wrapper = await mountPage();
-    await wrapper.findAll('tbody tr').at(0).trigger('click');
+    await wrapper.findAll('tbody tr')[0].trigger('click');
     await flush();
     await wrapper.find('[data-testid="audit-pivot-project"]').trigger('click');
     await flush();
@@ -527,7 +530,7 @@ describe('AuditLog.vue', () => {
 
   it('offers the event JSON for copying in the card', async () => {
     const wrapper = await mountPage();
-    await wrapper.findAll('tbody tr').at(0).trigger('click');
+    await wrapper.findAll('tbody tr')[0].trigger('click');
     await flush();
     const copy = wrapper.findComponent(CopyClipboardButton);
     expect(copy.exists()).to.equal(true);
@@ -537,11 +540,11 @@ describe('AuditLog.vue', () => {
   it('shows the Pro notice and disables filters, export and pivots in Community', async () => {
     const wrapper = await mountPage({});
     expect(wrapper.find('[data-testid="audit-pro-notice"]').exists()).to.equal(true);
-    expect(wrapper.find('[data-testid="audit-export"]').attributes('disabled')).to.equal('disabled');
+    expect(wrapper.find('[data-testid="audit-export"]').attributes('disabled')).to.equal('');
     const inputs = wrapper.findAll('[data-testid="audit-filters"] input:not([type="hidden"])');
     expect(inputs.length).to.be.greaterThan(0);
-    inputs.wrappers.forEach((input) => expect(input.attributes('disabled')).to.equal('disabled'));
-    await wrapper.findAll('tbody tr').at(0).trigger('click');
+    inputs.forEach((input) => expect(input.attributes('disabled')).to.equal(''));
+    await wrapper.findAll('tbody tr')[0].trigger('click');
     await flush();
     expect(wrapper.find('[data-testid="audit-pivot-ip"]').exists()).to.equal(false);
   });
@@ -566,7 +569,7 @@ describe('AuditLog.vue', () => {
     const wrapper = await mountPage();
     expect(wrapper.vm.projectName(auditEvent(1, { scope: { project_id: '3' } }))).to.equal('Infra');
     expect(wrapper.vm.projectName(auditEvent(1))).to.equal('Project #9');
-    await wrapper.findAll('tbody tr').at(0).trigger('click');
+    await wrapper.findAll('tbody tr')[0].trigger('click');
     await flush();
     expect(wrapper.find('[data-testid="audit-card"]').text()).to.not.contain('deleted');
     expect(wrapper.vm.projectName(auditEvent(1, { scope: undefined }))).to.equal('');
@@ -614,7 +617,7 @@ describe('AuditLog.vue', () => {
     http.respond(() => new Promise(() => {}));
     wrapper.vm.load({});
     await flush();
-    expect(wrapper.find('[data-testid="audit-older"]').attributes('disabled')).to.equal('disabled');
+    expect(wrapper.find('[data-testid="audit-older"]').attributes('disabled')).to.equal('');
   });
 
   it('shows the project ID when the project list fails to load', async () => {

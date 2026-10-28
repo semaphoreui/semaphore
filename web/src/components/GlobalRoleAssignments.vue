@@ -6,7 +6,7 @@
       : (!loaded || loading ? 'loading' : (assignments.length === 0 ? 'empty' : 'ready'))"
   >
     <v-alert
-      :value="!!error"
+      :model-value="!!error"
       color="error"
       class="pb-2"
       data-testid="globalRoleAssign-error"
@@ -14,8 +14,8 @@
 
     <v-alert
       v-if="loaded && availableRoles.length === 0 && assignments.length === 0"
-      text
-      dense
+      variant="tonal"
+      density="compact"
       type="info"
       data-testid="globalRoleAssign-noRoles"
     >
@@ -28,10 +28,10 @@
           v-model="newRoleId"
           :items="availableRoles"
           item-value="id"
-          item-text="name"
+          item-title="name"
           :label="$t('globalRole')"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           hide-details
           :disabled="loading"
           data-testid="global-role-select"
@@ -58,7 +58,6 @@
         class="px-0"
         data-testid="globalRoleAssign-item"
       >
-        <v-list-item-content>
           <v-list-item-title
             data-testid="globalRoleAssign-itemName"
           >{{ assignment.role_name }}</v-list-item-title>
@@ -68,7 +67,6 @@
             :permissions="assignment.global_permissions || 0"
             data-testid="globalRoleAssign-itemPermissions"
           />
-        </v-list-item-content>
         <v-list-item-action>
           <v-btn
             icon
@@ -84,8 +82,8 @@
     </v-list>
     <v-alert
       v-else-if="availableRoles.length > 0"
-      text
-      dense
+      variant="tonal"
+      density="compact"
       type="info"
       class="mt-4"
       data-testid="globalRoleAssign-noAssignments"
@@ -97,7 +95,7 @@
       class="px-0 mt-4"
       data-testid="globalRoleAssign-effectiveTitle"
     >{{ $t('effectiveGlobalPermissions') }}</v-subheader>
-    <v-list dense class="px-0" data-testid="globalRoleAssign-effective">
+    <v-list density="compact" class="px-0" data-testid="globalRoleAssign-effective">
       <v-list-item
         v-for="decision in effective.decisions || []"
         :key="decision.permission"
@@ -114,14 +112,12 @@
             {{ decision.allowed ? 'mdi-check-circle' : 'mdi-minus-circle-outline' }}
           </v-icon>
         </v-list-item-icon>
-        <v-list-item-content>
           <v-list-item-title
             data-testid="globalRoleAssign-effectiveName"
           >{{ permissionTitle(decision.permission) }}</v-list-item-title>
           <v-list-item-subtitle
             data-testid="globalRoleAssign-effectiveSource"
           >{{ provenance(decision) }}</v-list-item-subtitle>
-        </v-list-item-content>
       </v-list-item>
     </v-list>
   </div>

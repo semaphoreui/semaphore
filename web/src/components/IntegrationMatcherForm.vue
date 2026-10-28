@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="integrationMatcherForm-error"
@@ -21,8 +21,8 @@
       :rules="[v => !!v || 'Name is required']"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-divider class="mb-5" />
@@ -34,10 +34,10 @@
         label="Match on *"
         :items="matchTypes"
         item-value="id"
-        item-text="text"
+        item-title="text"
         :rules="[v => !!v || 'Match source is required']"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         required
         :disabled="formSaving"
       ></v-select>
@@ -48,10 +48,10 @@
         label="Body Data Format *"
         :items="bodyDataFormats"
         item-value="id"
-        item-text="text"
+        item-title="text"
         :rules="[v => !!v || 'Body Data Format is required']"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         required
         :disabled="formSaving"
       ></v-select>
@@ -60,8 +60,8 @@
         data-testid="integrationMatcherForm-key"
         label="Key *"
         :rules="[v => !!v || 'Key is required']"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         required
         :disabled="formSaving"
       ></v-text-field>
@@ -71,10 +71,10 @@
         label="Comparison Method *"
         :items="methods"
         item-value="id"
-        item-text="text"
+        item-title="text"
         :rules="[v => !!v || 'Comparison Method is required']"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         required
         :disabled="formSaving"
       ></v-select>
@@ -83,8 +83,8 @@
         data-testid="integrationMatcherForm-value"
         label="Value *"
         :rules="[v => !!v || 'Value is required']"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         required
         :disabled="formSaving"
       ></v-text-field>

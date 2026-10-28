@@ -54,7 +54,7 @@
         :headers="headers"
         :items="items"
         class="mt-4"
-        :footer-props="{ itemsPerPageOptions: [20] }"
+        :items-per-page-options="[20]"
         data-testid="apps-table"
         :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -63,7 +63,7 @@
             :disabled="!canManageSystem"
             v-model="item.active"
             inset
-            @change="setActive(item.id, item.active)"
+            @update:model-value="setActive(item.id, item.active)"
             data-testid="apps-rowActive"
         ></v-switch>
       </template>
@@ -71,7 +71,7 @@
       <template v-slot:item.title="{ item }">
         <v-icon
             class="mr-2"
-            small
+            size="small"
             data-testid="apps-rowIcon"
         >
           {{ getAppIcon(item.id) }}
@@ -145,18 +145,18 @@ export default {
 
     getHeaders() {
       return [{
-        text: '',
-        value: 'active',
+        title: '',
+        key: 'active',
       }, {
-        text: this.$i18n.t('name'),
-        value: 'title',
+        title: this.$t('name'),
+        key: 'title',
       }, {
-        text: 'ID',
-        value: 'id',
+        title: 'ID',
+        key: 'id',
         width: '100%',
       }, {
-        text: this.$i18n.t('actions'),
-        value: 'actions',
+        title: this.$t('actions'),
+        key: 'actions',
         sortable: false,
       }];
     },

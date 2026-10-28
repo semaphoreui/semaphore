@@ -8,13 +8,13 @@
       <v-col cols="12" md="6">
         <v-card
           v-if="template"
-          :color="$vuetify.theme.dark ? '#212121' : 'white'"
+          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
           style="background: #8585850f"
           data-testid="taskDetails-templateCard"
         >
           <v-card-title>Template info</v-card-title>
           <v-card-text>
-            <v-simple-table
+            <v-table
               class="TaskDetails__table"
               data-testid="taskDetails-templateTable"
             >
@@ -37,7 +37,7 @@
                 </tr>
                 </tbody>
               </template>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
       </v-col>
@@ -45,14 +45,14 @@
       <v-col cols="12" md="6">
         <v-card
           v-if="item.commit_hash"
-          :color="$vuetify.theme.dark ? '#212121' : 'white'"
+          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
           style="background: #8585850f"
           data-testid="taskDetails-commitCard"
         >
           <v-card-title>Commit info</v-card-title>
 
           <v-card-text>
-            <v-simple-table
+            <v-table
               class="TaskDetails__table"
               data-testid="taskDetails-commitTable"
             >
@@ -68,7 +68,7 @@
                 </tr>
                 </tbody>
               </template>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
       </v-col>
@@ -77,14 +77,14 @@
     <v-row>
       <v-col cols="12" md="6">
         <v-card
-          :color="$vuetify.theme.dark ? '#212121' : 'white'"
+          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
           style="background: #8585850f"
           class="mb-5"
           data-testid="taskDetails-runningCard"
         >
           <v-card-title>Running info</v-card-title>
           <v-card-text>
-            <v-simple-table
+            <v-table
               class="pa-0 TaskDetails__table"
               data-testid="taskDetails-runningTable"
             >
@@ -151,21 +151,21 @@
                 </tr>
                 </tbody>
               </template>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
       </v-col>
       <v-col cols="12" md="6">
         <v-card
           v-if="item?.params"
-          :color="$vuetify.theme.dark ? '#212121' : 'white'"
+          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
           style="background: #8585850f"
           class="mb-5"
           data-testid="taskDetails-paramsCard"
         >
           <v-card-title>Task parameters</v-card-title>
           <v-card-text>
-            <v-simple-table
+            <v-table
               class="pa-0 TaskDetails__table"
               data-testid="taskDetails-paramsTable"
             >
@@ -211,7 +211,7 @@
                 </tr>
                 </tbody>
               </template>
-            </v-simple-table>
+            </v-table>
           </v-card-text>
         </v-card>
       </v-col>
@@ -220,20 +220,19 @@
     <v-row v-if="outputs">
       <v-col cols="12">
         <v-card
-          :color="$vuetify.theme.dark ? '#212121' : 'white'"
+          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
           style="background: #8585850f"
           class="mb-5"
           data-testid="taskDetails-outputsCard"
         >
           <v-card-title>
             {{ $t('workflowOutputs') }}
-            <v-tooltip bottom max-width="360">
-              <template v-slot:activator="{ on, attrs }">
+            <v-tooltip location="bottom" max-width="360">
+              <template v-slot:activator="{ props }">
                 <v-icon
-                  small
+                  size="small"
                   class="ml-2"
-                  v-bind="attrs"
-                  v-on="on"
+                  v-bind="props"
                   data-testid="taskDetails-outputsHint"
                 >
                   mdi-information-outline
@@ -243,9 +242,9 @@
             </v-tooltip>
           </v-card-title>
           <v-card-text>
-            <v-simple-table
+            <v-table
               v-if="outputs.values.length"
-              dense
+              density="compact"
               class="TaskDetails__table"
               data-testid="taskDetails-outputsTable"
             >
@@ -263,26 +262,26 @@
                   </td>
                 </tr>
               </tbody>
-            </v-simple-table>
+            </v-table>
             <div
               v-if="outputs.skipped.length"
               class="mt-3"
               data-testid="taskDetails-outputsSkipped"
             >
-              <div class="text-caption text--secondary mb-1">
+              <div class="text-caption text-medium-emphasis mb-1">
                 {{ $t('workflowOutputsSkipped') }}
               </div>
               <v-chip
                 v-for="row in outputs.skipped"
                 :key="`skipped-${row.name}`"
-                x-small
+                size="x-small"
                 label
-                outlined
+                variant="outlined"
                 class="mr-1 mb-1"
                 :title="row.reason"
                 data-testid="taskDetails-outputSkipped"
               >
-                <v-icon x-small left>mdi-eye-off-outline</v-icon>
+                <v-icon size="x-small" start>mdi-eye-off-outline</v-icon>
                 {{ row.name }} — {{ row.reason }}
               </v-chip>
             </div>

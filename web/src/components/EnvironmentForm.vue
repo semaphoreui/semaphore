@@ -8,7 +8,7 @@
     data-testid="varGroup-form"
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
-    <v-alert :value="formError" color="error" data-testid="varGroup-error"
+    <v-alert :model-value="!!formError" color="error" data-testid="varGroup-error"
       >{{ formError }}
     </v-alert>
 
@@ -18,8 +18,8 @@
       :rules="[(v) => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="varGroup-name"
     ></v-text-field>
 
@@ -31,9 +31,9 @@
           :items="secretStorages"
           :disabled="formSaving || !isNew"
           item-value="id"
-          item-text="name"
-          outlined
-          dense
+          item-title="name"
+          variant="outlined"
+          density="compact"
           clearable
           data-testid="varGroup-secretStorageId"
         />
@@ -43,8 +43,8 @@
           v-model="item.secret_storage_key_prefix"
           :label="$t('Secret key prefix')"
           :disabled="formSaving || !item.secret_storage_id || !isNew"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           data-testid="varGroup-secretStorageKeyPrefix"
         />
       </v-col>
@@ -62,9 +62,15 @@
         <v-subheader class="px-0">
           {{ $t('extraVariables') }}
 
-          <v-tooltip v-if="needHelp" bottom color="black" open-delay="300" max-width="400">
-            <template v-slot:activator="{ on, attrs }">
-              <v-icon class="ml-1" v-bind="attrs" v-on="on" data-testid="varGroup-varsHelp"
+          <v-tooltip
+            v-if="needHelp"
+            location="bottom"
+            color="black"
+            open-delay="300"
+            max-width="400"
+          >
+            <template v-slot:activator="{ props }">
+              <v-icon class="ml-1" v-bind="props" data-testid="varGroup-varsHelp"
                 >mdi-help-box </v-icon>
             </template>
             <div>
@@ -83,21 +89,21 @@
           >
             <v-btn
               value="table"
-              small
+              size="small"
               class="mr-0"
               style="border-radius: 4px"
               data-testid="varGroup-extraVarsMode-table"
             > Table </v-btn>
             <v-btn
               value="json"
-              small
+              size="small"
               class="mr-0"
               style="border-radius: 4px"
               data-testid="varGroup-extraVarsMode-json"
             > JSON </v-btn>
             <v-btn
               value="yaml"
-              small
+              size="small"
               class="mr-0"
               style="border-radius: 4px"
               data-testid="varGroup-extraVarsMode-yaml"
@@ -110,13 +116,15 @@
         </v-subheader>
 
         <div v-if="extraVarsEditMode === 'json'" style="position: relative">
-          <codemirror
+          <CodeMirror
             :class="{
               EnvironmentEditor: true,
             }"
             :style="{ border: '1px solid lightgray' }"
             v-model="json"
-            :options="cmOptions"
+            minimal
+            :tab-size="2"
+            :extensions="cmExtensions"
             :placeholder="$t('enterExtraVariablesJson')"
             data-testid="varGroup-extraVarsJson"
           />
@@ -130,13 +138,15 @@
           />
         </div>
         <div v-else-if="extraVarsEditMode === 'yaml'" style="position: relative">
-          <codemirror
+          <CodeMirror
             :class="{
               EnvironmentEditor: true,
             }"
             :style="{ border: '1px solid lightgray' }"
             v-model="yaml"
-            :options="cmYamlOptions"
+            minimal
+            :tab-size="2"
+            :extensions="cmYamlExtensions"
             :placeholder="$t('enterExtraVariablesYaml')"
             data-testid="varGroup-extraVarsYaml"
           />
@@ -165,7 +175,7 @@
               <tr data-testid="varGroup-varRow">
                 <td class="pa-1">
                   <v-text-field
-                    solo-inverted
+                    variant="solo-inverted"
                     flat
                     hide-details
                     v-model="props.item.name"
@@ -176,7 +186,7 @@
                 </td>
                 <td class="pa-1" style="width: 130px">
                   <v-select
-                    solo-inverted
+                    variant="solo-inverted"
                     flat
                     hide-details
                     v-model="props.item.type"
@@ -188,7 +198,7 @@
                 <td class="pa-1">
                   <div class="d-flex align-center">
                     <v-text-field
-                      solo-inverted
+                      variant="solo-inverted"
                       flat
                       hide-details
                       v-model="props.item.value"
@@ -207,7 +217,7 @@
                 </td>
                 <td style="width: 38px">
                   <v-icon
-                    small
+                    size="small"
                     class="pa-1"
                     @click="removeExtraVar(props.item)"
                     data-testid="varGroup-varRemove"
@@ -248,7 +258,7 @@
               <tr data-testid="varGroup-envRow">
                 <td class="pa-1">
                   <v-text-field
-                    solo-inverted
+                    variant="solo-inverted"
                     flat
                     hide-details
                     v-model="props.item.name"
@@ -259,7 +269,7 @@
                 </td>
                 <td class="pa-1">
                   <v-text-field
-                    solo-inverted
+                    variant="solo-inverted"
                     flat
                     hide-details
                     v-model="props.item.value"
@@ -270,7 +280,7 @@
                 </td>
                 <td style="width: 38px">
                   <v-icon
-                    small
+                    size="small"
                     class="pa-1"
                     @click="removeEnvVar(props.item)"
                     data-testid="varGroup-envRemove"
@@ -294,7 +304,7 @@
           "
         >
           <div style="font-weight: bold; font-size: 20px" data-testid="varGroup-secretStorageName">
-            <v-icon small class="mr-1">{{ getIcon(secretStorage.type) }}</v-icon>
+            <v-icon size="small" class="mr-1">{{ getIcon(secretStorage.type) }}</v-icon>
             {{ secretStorage.name }}
           </div>
           <pre
@@ -314,21 +324,21 @@
             <div class="d-flex align-center">
               <v-btn
                 style="margin-right: -10px"
-                text
+                variant="text"
                 color="primary"
                 @click="syncSettingsDialog = true"
                 :disabled="formSaving"
                 v-if="item.sync_enabled"
                 data-testid="varGroup-syncPaths"
               >
-                <v-icon left>mdi-cog-sync</v-icon>
+                <v-icon start>mdi-cog-sync</v-icon>
                 Sync paths
                 <v-chip
                   class="ml-2"
-                  outlined
+                  variant="outlined"
                   style="transform: translateY(-1px)"
                   color="primary"
-                  small
+                  size="small"
                   data-testid="varGroup-syncPathsCount"
                 >
                   {{ (item.sync_paths || []).length }}
@@ -350,8 +360,8 @@
                 persistent-hint
                 :disabled="formSaving"
                 suffix="minutes"
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 data-testid="varGroupSync-syncInterval"
               ></v-text-field>
 
@@ -363,8 +373,8 @@
             <v-card-actions>
               <v-spacer />
               <v-btn
-                text
-                color="blue darken-1"
+                variant="text"
+                color="blue-darken-1"
                 @click="syncSettingsDialog = false"
                 data-testid="varGroupSyncDialog-close"
               >
@@ -377,9 +387,15 @@
         <div>
           <v-subheader class="px-0">
             {{ $t('extraVariables') }}
-            <v-tooltip v-if="needHelp" bottom color="black" open-delay="300" max-width="400">
-              <template v-slot:activator="{ on, attrs }">
-                <v-icon class="ml-1" v-bind="attrs" v-on="on" data-testid="varGroup-secretVarsHelp"
+            <v-tooltip
+              v-if="needHelp"
+              location="bottom"
+              color="black"
+              open-delay="300"
+              max-width="400"
+            >
+              <template v-slot:activator="{ props }">
+                <v-icon class="ml-1" v-bind="props" data-testid="varGroup-secretVarsHelp"
                   >mdi-help-box </v-icon>
               </template>
               <div>
@@ -396,7 +412,7 @@
 
           <v-alert
             color="warning"
-            text
+            variant="tonal"
             v-if="secrets.filter((s) => !s.remove && s.type === 'var').length > 0"
             data-testid="varGroup-secretVarsWarning"
           >
@@ -418,7 +434,7 @@
               <tr data-testid="varGroup-secretVarRow">
                 <td class="pa-1">
                   <v-text-field
-                    solo-inverted
+                    variant="solo-inverted"
                     flat
                     hide-details
                     v-model="props.item.name"
@@ -430,7 +446,7 @@
 
                 <td class="pa-1">
                   <v-text-field
-                    solo-inverted
+                    variant="solo-inverted"
                     flat
                     hide-details
                     v-model="props.item.value"
@@ -442,7 +458,7 @@
 
                 <td style="width: 38px">
                   <v-icon
-                    small
+                    size="small"
                     class="pa-1"
                     @click="removeSecret(props.item)"
                     data-testid="varGroup-secretVarRemove"
@@ -479,7 +495,7 @@
               <tr data-testid="varGroup-secretEnvRow">
                 <td class="pa-1">
                   <v-text-field
-                    solo-inverted
+                    variant="solo-inverted"
                     flat
                     hide-details
                     v-model="props.item.name"
@@ -491,7 +507,7 @@
 
                 <td class="pa-1">
                   <v-text-field
-                    solo-inverted
+                    variant="solo-inverted"
                     flat
                     hide-details
                     v-model="props.item.value"
@@ -503,7 +519,7 @@
 
                 <td style="width: 38px">
                   <v-icon
-                    small
+                    size="small"
                     class="pa-1"
                     @click="removeSecret(props.item)"
                     data-testid="varGroup-secretEnvRemove"
@@ -519,7 +535,7 @@
 </template>
 <style lang="scss">
 .EnvironmentEditor {
-  .CodeMirror {
+  .cm-editor {
     height: 160px !important;
   }
 }
@@ -543,7 +559,7 @@
 
 import ItemFormBase from '@/components/ItemFormBase';
 
-import { codemirror } from 'vue-codemirror';
+import CodeMirror from 'vue-codemirror6';
 import {
   load as loadYaml, dump as dumpYaml, JSON_SCHEMA,
 } from 'js-yaml';
@@ -556,10 +572,7 @@ import {
   extraVarsToObjectLenient,
   objectToExtraVars,
 } from '@/lib/extraVars';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/mode/vue/vue.js';
-import 'codemirror/mode/yaml/yaml.js';
-import 'codemirror/addon/display/placeholder.js';
+import codeEditorExtensions from '@/lib/codeEditor';
 import { getErrorMessage } from '@/lib/error';
 import RichEditor from '@/components/RichEditor.vue';
 import SecretStorageSyncOptionsForm from '@/components/SecretStorageSyncOptionsForm.vue';
@@ -574,7 +587,7 @@ export default {
 
   components: {
     RichEditor,
-    codemirror,
+    CodeMirror,
     SecretStorageSyncOptionsForm,
   },
 
@@ -752,22 +765,9 @@ export default {
 
       tab: 'variables',
 
-      cmOptions: {
-        tabSize: 2,
-        mode: 'application/json',
-        lineNumbers: true,
-        line: true,
-        lint: true,
-        indentWithTabs: false,
-      },
+      cmExtensions: codeEditorExtensions({ language: 'json' }),
 
-      cmYamlOptions: {
-        tabSize: 2,
-        mode: 'text/x-yaml',
-        lineNumbers: true,
-        line: true,
-        indentWithTabs: false,
-      },
+      cmYamlExtensions: codeEditorExtensions({ language: 'yaml' }),
 
       extraVarsEditMode: 'json',
       suppressExtraVarsConversion: false,
@@ -797,15 +797,15 @@ export default {
     getIcon(type) {
       switch (type) {
         case 'aws_sm':
-          return '$vuetify.icons.aws_sm';
+          return '$aws_sm';
         case 'vault':
-          return '$vuetify.icons.hashicorp_vault';
+          return '$hashicorp_vault';
         case 'openbao':
-          return '$vuetify.icons.openbao';
+          return '$openbao';
         case 'dvls':
-          return '$vuetify.icons.dvls';
+          return '$dvls';
         case 'azure_kv':
-          return '$vuetify.icons.azure_kv';
+          return '$azure_kv';
         default:
           return '';
       }
@@ -998,13 +998,13 @@ export default {
       }
 
       if (!this.item.sync_paths) {
-        this.$set(this.item, 'sync_paths', []);
+        this.item.sync_paths = [];
       }
       if (this.item.sync_enabled == null) {
-        this.$set(this.item, 'sync_enabled', false);
+        this.item.sync_enabled = false;
       }
       if (this.item.sync_interval == null) {
-        this.$set(this.item, 'sync_interval', 0);
+        this.item.sync_interval = 0;
       }
 
       this.json = JSON.stringify(JSON.parse(this.item?.json || '{}'), null, 2);

@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="tfWorkspace-error"
@@ -27,11 +27,11 @@
       v-model="item.ssh_key_id"
       label="SSH key for private modules *"
       :rules="[v => !!v || 'Key is required']"
-      dense
+      density="compact"
       required
       :items="keys"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :disabled="formSaving"
       data-testid="tfWorkspace-sshKeyId"
     ></v-select>

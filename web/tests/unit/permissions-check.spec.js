@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import { h } from 'vue';
 import { shallowMount } from '@vue/test-utils';
 import PermissionsCheck from '@/components/PermissionsCheck';
 import { USER_PERMISSIONS } from '@/lib/constants';
@@ -6,11 +7,11 @@ import { USER_PERMISSIONS } from '@/lib/constants';
 const Host = {
   mixins: [PermissionsCheck],
   props: { item: Object },
-  render: (h) => h('div'),
+  render: () => h('div'),
 };
 
-function can(propsData, permission) {
-  return shallowMount(Host, { propsData }).vm.can(permission);
+function can(props, permission) {
+  return shallowMount(Host, { props }).vm.can(permission);
 }
 
 describe('PermissionsCheck mixin', () => {

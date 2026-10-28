@@ -81,7 +81,7 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle
-          dense
+          density="compact"
           :value-comparator="() => false"
           data-testid="repositories-rowActions"
         >
@@ -131,23 +131,23 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
+        title: this.$t('name'),
+        key: 'name',
         width: '25%',
       },
       {
-        text: this.$i18n.t('gitUrl'),
-        value: 'git_url',
+        title: this.$t('gitUrl'),
+        key: 'git_url',
         width: '50%',
       },
       {
-        text: this.$i18n.t('sshKey'),
-        value: 'ssh_key_id',
+        title: this.$t('sshKey'),
+        key: 'ssh_key_id',
         width: '25%',
       },
       {
-        text: this.$i18n.t('actions'),
-        value: 'actions',
+        title: this.$t('actions'),
+        key: 'actions',
         sortable: false,
       }];
     },

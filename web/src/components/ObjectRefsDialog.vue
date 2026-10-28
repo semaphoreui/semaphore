@@ -2,10 +2,11 @@
   <v-dialog
     v-model="dialog"
     max-width="400"
+    :close-on-back="false"
   >
     <v-card :data-testid="testId">
       <v-card-title
-        class="headline"
+        class="text-h5"
         data-testid="objectRefsDialog-title"
       >{{ $t('cantDeleteThe', {objectTitle: objectTitle}) }}
       </v-card-title>
@@ -22,8 +23,8 @@
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn
-          color="blue darken-1"
-          text
+          color="blue-darken-1"
+          variant="text"
           @click="dialog = false"
           data-testid="objectRefsDialog-close"
         >{{ $t('close2') }}</v-btn>
@@ -39,7 +40,7 @@ export default {
     ObjectRefsView,
   },
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     objectRefs: Object,
     projectId: Number,
     objectTitle: String,
@@ -48,7 +49,7 @@ export default {
       default: 'objectRefsDialog',
     },
   },
-  emits: ['input'],
+  emits: ['update:modelValue'],
   data() {
     return {
       dialog: false,
@@ -56,10 +57,10 @@ export default {
   },
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.dialog = val;
     },
   },

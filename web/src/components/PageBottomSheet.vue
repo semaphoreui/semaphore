@@ -38,10 +38,10 @@
 <script>
 export default {
   props: {
-    value: Boolean,
+    modelValue: Boolean,
   },
 
-  emits: ['input'],
+  emits: ['update:modelValue'],
 
   data() {
     return {
@@ -51,10 +51,10 @@ export default {
 
   watch: {
     async sheet(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.sheet = val;
     },
   },

@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="tfAlias-error"
@@ -19,9 +19,9 @@
       :label="$t('Auth key')"
       :items="keys"
       item-value="id"
-      item-text="name"
-      outlined
-      dense
+      item-title="name"
+      variant="outlined"
+      density="compact"
       required
       :disabled="formSaving"
       data-testid="tfAlias-authKeyId"

@@ -8,7 +8,7 @@
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="mb-6"
       data-testid="key-error"
@@ -20,14 +20,14 @@
       :rules="[(v) => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="key-name"
     />
 
     <v-card
       class="mb-6"
-      :color="$vuetify.theme.dark ? '#212121' : 'white'"
+      :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
       style="background: #8585850f"
       data-testid="key-source"
     >
@@ -69,7 +69,7 @@
         data-testid="key-sourceBody"
       >
         <v-alert
-          text
+          variant="tonal"
           color="hsl(348deg, 86%, 61%)"
           class="PageAlert PageAlert--flat-top"
           v-if="!supportStorages && sourceStorageType === 'vault'"
@@ -93,10 +93,10 @@
           :label="$t('Storage')"
           :items="secretStorages"
           item-value="id"
-          item-text="name"
+          item-title="name"
           :disabled="formSaving || !canEditSecrets || isSynced"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           clearable
           data-testid="key-sourceStorageId"
         />
@@ -106,8 +106,8 @@
           v-model="item.source_storage_key"
           :label="$t('Source Key')"
           :disabled="formSaving || !canEditSecrets || isSynced"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           data-testid="key-sourceStorageKey"
         />
 
@@ -119,8 +119,8 @@
           "
           :rules="[(v) => !!v || $t('type_required')]"
           :disabled="formSaving || !canEditSecrets"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           :data-testid="`key-sourceStorageKey-${sourceStorageType}`"
         />
       </div>
@@ -132,18 +132,18 @@
       :rules="[(v) => !!v || !canEditSecrets || $t('type_required')]"
       :items="inventoryTypes"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :required="canEditSecrets"
       :disabled="formSaving || !canEditSecrets"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="key-type"
     />
 
     <v-alert
       v-if="isReadOnly"
       type="info"
-      text
+      variant="tonal"
       data-testid="key-readOnlyAlert"
     >Read-only secret storage chosen.</v-alert>
 
@@ -152,8 +152,8 @@
       :label="$t('usernameOptional')"
       v-if="!isReadOnly && item.type === 'login_password'"
       :disabled="formSaving || !canEditSecrets"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="key-loginPasswordLogin"
     />
 
@@ -168,8 +168,8 @@
       :disabled="formSaving || !canEditSecrets"
       autocomplete="new-password"
       @click:append="showLoginPassword = !showLoginPassword"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="key-loginPasswordPassword"
     />
 
@@ -178,8 +178,8 @@
       :label="$t('usernameOptional')"
       v-if="!isReadOnly && item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="key-sshLogin"
     />
 
@@ -191,8 +191,8 @@
       v-if="!isReadOnly && item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
       @click:append="showSSHPassphrase = !showSSHPassphrase"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="key-sshPassphrase"
     />
 
@@ -207,7 +207,7 @@
     />
 
     <v-textarea
-      outlined
+      variant="outlined"
       v-model="item.ssh.private_key"
       :label="$t('privateKey')"
       :disabled="formSaving || !canEditSecrets || item.generate_ssh_key"
@@ -244,7 +244,7 @@
 
         <v-btn
           style="position: absolute; right: 40px; top: 0; transform: scale(0.9);"
-          text
+          variant="text"
           @click="showPublicKey = !showPublicKey"
           data-testid="key-publicKeyToggle"
         >
@@ -270,8 +270,8 @@
     />
 
     <v-alert
-      dense
-      text
+      density="compact"
+      variant="tonal"
       type="info"
       v-if="item.type === 'none'"
       data-testid="key-noneInfo"

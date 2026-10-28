@@ -10,8 +10,8 @@
     <v-alert
       v-model="showInfo"
       color="info"
-      text
-      dismissible
+      variant="tonal"
+      closable
       class="mb-6"
       data-testid="scheduleForm-timezoneInfo"
     >
@@ -20,7 +20,7 @@
     </v-alert>
 
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
       data-testid="scheduleForm-error"
@@ -33,8 +33,8 @@
       :rules="[v => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="scheduleForm-name"
     ></v-text-field>
 
@@ -43,12 +43,12 @@
       :label="$t('Template')"
       :items="templates"
       item-value="id"
-      :item-text="(itm) => itm.name"
+      :item-title="(itm) => itm.name"
       :rules="[v => !!v || $t('template_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       data-testid="scheduleForm-templateId"
     />
 
@@ -88,8 +88,8 @@
         :rules="runAtRules"
         :disabled="formSaving"
         :suffix="timezone + ' time'"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         data-testid="scheduleForm-runAt"
       ></v-text-field>
 
@@ -123,12 +123,12 @@
         :rules="[v => !!v || $t('Cron required')]"
         required
         :disabled="formSaving"
-        @input="refreshCheckboxes()"
+        @update:model-value="refreshCheckboxes()"
         :suffix="timezone + ' time'"
-        outlined
+        variant="outlined"
         :error="cronFormatError != null"
         :error-messages="cronFormatError"
-        dense
+        density="compact"
         data-testid="scheduleForm-cronFormat"
       ></v-text-field>
 
@@ -138,14 +138,14 @@
           :label="$t('Timing')"
           :items="TIMINGS"
           item-value="id"
-          item-text="title"
+          item-title="title"
           :rules="[v => !!v || $t('template_required')]"
           required
           :disabled="formSaving"
-          @change="refreshCron()"
-          outlined
+          @update:model-value="refreshCron()"
+          variant="outlined"
           hide-details
-          dense
+          density="compact"
           data-testid="scheduleForm-timing"
         />
 
@@ -162,7 +162,7 @@
               :data-testid="`scheduleForm-month-${m.id}`"
               color="white"
               :class="{'ScheduleCheckbox--active': months.includes(m.id)}"
-              @change="refreshCron()"
+              @update:model-value="refreshCron()"
             ></v-checkbox>
           </div>
         </div>
@@ -179,7 +179,7 @@
               :data-testid="`scheduleForm-weekday-${d.id}`"
               color="white"
               :class="{'ScheduleCheckbox--active': weekdays.includes(d.id)}"
-              @change="refreshCron()"
+              @update:model-value="refreshCron()"
             ></v-checkbox>
           </div>
         </div>
@@ -197,7 +197,7 @@
               :data-testid="`scheduleForm-day-${d}`"
               color="white"
               :class="{'ScheduleCheckbox--active': days.includes(d)}"
-              @change="refreshCron()"
+              @update:model-value="refreshCron()"
             ></v-checkbox>
           </div>
         </div>
@@ -224,7 +224,7 @@
               :data-testid="`scheduleForm-hour-${h - 1}`"
               color="white"
               :class="{'ScheduleCheckbox--active': hours.includes(h - 1)}"
-              @change="refreshCron()"
+              @update:model-value="refreshCron()"
             ></v-checkbox>
           </div>
         </div>
@@ -242,7 +242,7 @@
               :data-testid="`scheduleForm-minute-${m.id}`"
               color="white"
               :class="{'ScheduleCheckbox--active': minutes.includes(m.id)}"
-              @change="refreshCron()"
+              @update:model-value="refreshCron()"
             ></v-checkbox>
           </div>
         </div>
@@ -258,7 +258,7 @@
       Next run time
     </div>
 
-    <v-simple-table
+    <v-table
       class="TaskDetails__table text-sub mb-2"
       data-testid="scheduleForm-nextRun"
     >
@@ -283,7 +283,7 @@
         </tr>
         </tbody>
       </template>
-    </v-simple-table>
+    </v-table>
 
     <v-checkbox
       style="position: absolute; bottom: 15px; left: 22px;"

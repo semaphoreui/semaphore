@@ -1,5 +1,5 @@
 // Formatters used in templates through the global property `$filters`
-// (e.g. `{{ $filters.formatDate(task.start) }}`). The functions are exported
+// (e.g. `{{ $filters.formatDate(task.start) }}`), set in main.js. The functions are exported
 // separately so they can be unit-tested and reused outside templates.
 
 import dayjs from 'dayjs';
@@ -98,18 +98,4 @@ export const filters = {
   formatTime,
   formatLog,
   formatMilliseconds,
-};
-
-export default {
-  install(app) {
-    if (app.config && app.config.globalProperties) {
-      // Vue 3: app.use(filtersPlugin)
-      // eslint-disable-next-line no-param-reassign
-      app.config.globalProperties.$filters = filters;
-    } else {
-      // Vue 2: Vue.use(filtersPlugin)
-      // eslint-disable-next-line no-param-reassign
-      app.prototype.$filters = filters;
-    }
-  },
 };

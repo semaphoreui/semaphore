@@ -2,7 +2,7 @@
   <div v-if="items == null" data-testid="workflows-page" data-state="loading">
     <v-progress-linear
       indeterminate
-      color="primary darken-2"
+      color="primary-darken-2"
       data-testid="workflows-loading"
     ></v-progress-linear>
   </div>
@@ -61,7 +61,7 @@
       :headers="filteredHeaders"
       :items="items"
       :items-per-page="Number.MAX_VALUE"
-      :expanded.sync="openedItems"
+      v-model:expanded="openedItems"
       data-testid="workflows-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -86,7 +86,7 @@
         <div class="mt-2 mb-2 d-flex" v-if="item.last_run != null">
           <v-chip
             :color="statusColor(item.last_run.status)"
-            small
+            size="small"
             :data-testid="`workflows-rowStatus-${item.last_run.status}`"
           >
             {{ item.last_run.status }}
@@ -115,7 +115,7 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle
-          dense
+          density="compact"
           :value-comparator="() => false"
           data-testid="workflows-rowActions"
         >
@@ -159,7 +159,7 @@
             <template v-slot:item.status="{ item: run }">
               <v-chip
                 :color="statusColor(run.status)"
-                small
+                size="small"
                 :data-testid="`workflows-runsRowStatus-${run.status}`"
               >{{ run.status }}</v-chip>
             </template>
@@ -187,13 +187,14 @@
   </div>
 </template>
 <style lang="scss">
-@import '~vuetify/src/styles/settings/variables';
+@use 'sass:map';
+@use '@/scss/variables' as settings;
 
 .workflows-table .text-start:first-child {
   padding-right: 0 !important;
 }
 
-@media #{map-get($display-breakpoints, 'sm-and-down')} {
+@media #{map.get(settings.$display-breakpoints, 'sm-and-down')} {
   .workflows-table .v-data-table__mobile-row:first-child {
     display: none !important;
   }
@@ -230,11 +231,11 @@ export default {
   computed: {
     runHeaders() {
       return [
-        { text: this.$i18n.t('workflowRun'), value: 'id', sortable: false },
-        { text: this.$i18n.t('status'), value: 'status', sortable: false },
-        { text: this.$i18n.t('version'), value: 'version', sortable: false },
-        { text: this.$i18n.t('start'), value: 'start', sortable: false },
-        { text: this.$i18n.t('end'), value: 'end', sortable: false },
+        { text: this.$t('workflowRun'), value: 'id', sortable: false },
+        { text: this.$t('status'), value: 'status', sortable: false },
+        { text: this.$t('version'), value: 'version', sortable: false },
+        { text: this.$t('start'), value: 'start', sortable: false },
+        { text: this.$t('end'), value: 'end', sortable: false },
       ];
     },
   },
@@ -278,18 +279,18 @@ export default {
       if (this.runs[workflowId] != null) {
         return;
       }
-      this.$set(this.runsLoading, workflowId, true);
+      this.runsLoading[workflowId] = true;
       try {
         const runs = (await axios({
           method: 'get',
           url: `/api/project/${this.projectId}/workflows/${workflowId}/runs`,
           responseType: 'json',
         })).data;
-        this.$set(this.runs, workflowId, runs);
+        this.runs[workflowId] = runs;
       } catch (err) {
         EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
       } finally {
-        this.$set(this.runsLoading, workflowId, false);
+        this.runsLoading[workflowId] = false;
       }
     },
 
@@ -300,27 +301,27 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         },
         {
-          text: this.$i18n.t('version'),
-          value: 'version',
+          title: this.$t('version'),
+          key: 'version',
           sortable: false,
         },
         {
-          text: this.$i18n.t('status'),
-          value: 'status',
+          title: this.$t('status'),
+          key: 'status',
           sortable: false,
         },
         {
-          text: this.$i18n.t('workflowLastRun'),
-          value: 'last_run',
+          title: this.$t('workflowLastRun'),
+          key: 'last_run',
           sortable: false,
         },
       ];

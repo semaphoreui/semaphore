@@ -5,18 +5,17 @@
     @mousedown.stop
     @wheel.stop
   >
-    <v-tooltip right v-for="item in items" :key="item.event">
-      <template v-slot:activator="{ on, attrs }">
+    <v-tooltip location="right" v-for="item in items" :key="item.event">
+      <template v-slot:activator="{ props }">
         <button
           type="button"
           class="WorkflowCanvasControls__btn"
           :data-testid="`workflowCanvas-control-${item.event}`"
           :aria-label="item.title"
-          v-bind="attrs"
-          v-on="on"
+          v-bind="props"
           @click="$emit(item.event)"
         >
-          <v-icon small>{{ item.icon }}</v-icon>
+          <v-icon size="small">{{ item.icon }}</v-icon>
         </button>
       </template>
       <span :data-testid="`workflowCanvas-controlTooltip-${item.event}`">{{ item.title }}</span>

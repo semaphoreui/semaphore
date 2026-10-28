@@ -2,7 +2,7 @@
   <span>
     <v-icon
         v-if="status != null"
-        small
+        size="small"
         class="mr-1"
         :color="statusColor"
         :data-testid="`taskLink-status-${status}`"
@@ -14,15 +14,14 @@
 
     <v-tooltip
         v-else
-        right
+        location="right"
         max-width="350"
         transition="fade-transition"
         :disabled="!tooltip"
     >
-      <template v-slot:activator="{ on, attrs }">
+      <template v-slot:activator="{ props }">
         <a
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             @click="showTaskLog()"
             :class="{'task-link-with-tooltip': tooltip}"
             data-testid="taskLink-open"
@@ -37,8 +36,8 @@
   </span>
 </template>
 <style lang="scss">
-
-@import '~vuetify/src/styles/settings/_colors.scss';
+@use 'sass:map';
+@use '@/scss/variables' as settings;
 
 .task-link-with-tooltip {
   text-decoration: underline !important;
@@ -49,7 +48,7 @@
 a.task-link-with-tooltip {
   &:hover {
     text-decoration-style: solid !important;
-    text-decoration-color: map-deep-get($blue, 'darken-2') !important;
+    text-decoration-color: map.get(settings.$blue, 'darken-2') !important;
   }
 }
 

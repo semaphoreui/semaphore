@@ -50,8 +50,8 @@
 
     <v-alert
       v-if="!features.custom_roles_management"
-      text
-      color="amber darken-3"
+      variant="tonal"
+      color="amber-darken-3"
       class="PageAlert"
       data-testid="roleMappings-licenseAlert"
     >
@@ -63,8 +63,8 @@
 
       <v-btn
         dark
-        depressed
-        color="amber darken-3"
+        variant="flat"
+        color="amber-darken-3"
         href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
         target="_blank"
         data-testid="roleMappings-upgrade"
@@ -77,7 +77,7 @@
       :headers="headers"
       :items="items"
       class="mt-4"
-      :footer-props="{ itemsPerPageOptions: [20] }"
+      :items-per-page-options="[20]"
       data-testid="roleMappings-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -85,10 +85,10 @@
         {{ (providers.find((p) => p.id === item.provider) || { name: item.provider }).name }}
         <v-chip
           v-if="!item.provider_configured"
-          small
+          size="small"
           label
           dark
-          color="amber darken-3"
+          color="amber-darken-3"
           class="ml-1"
           data-testid="roleMappings-rowProviderNotConfigured"
         >{{ $t('providerNotConfigured') }}</v-chip>
@@ -96,7 +96,7 @@
       <template v-slot:item.role="{ item }">
         <div data-testid="roleMappings-rowRoleName">{{ item.role_name }}</div>
         <div
-          class="text--secondary caption"
+          class="text-medium-emphasis text-caption"
           data-testid="roleMappings-rowRoleSlug"
         >{{ item.role }}</div>
       </template>
@@ -143,24 +143,24 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('roleMappingProvider'),
-          value: 'provider',
+          title: this.$t('roleMappingProvider'),
+          key: 'provider',
         },
         {
-          text: this.$i18n.t('roleMappingGroup'),
-          value: 'group',
+          title: this.$t('roleMappingGroup'),
+          key: 'group',
         },
         {
-          text: this.$i18n.t('project'),
-          value: 'project_name',
+          title: this.$t('project'),
+          key: 'project_name',
         },
         {
-          text: this.$i18n.t('role'),
-          value: 'role',
+          title: this.$t('role'),
+          key: 'role',
         },
         {
-          text: this.$i18n.t('actions'),
-          value: 'actions',
+          title: this.$t('actions'),
+          key: 'actions',
           sortable: false,
         },
       ];

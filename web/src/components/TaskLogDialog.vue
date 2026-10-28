@@ -81,20 +81,20 @@ export default {
   mixins: [ProjectMixin],
 
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     projectId: Number,
     itemId: Number,
     systemInfo: Object,
   },
 
-  emits: ['input', 'close'],
+  emits: ['update:modelValue', 'close'],
 
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.item = null;
       this.template = null;
       this.dialog = val;

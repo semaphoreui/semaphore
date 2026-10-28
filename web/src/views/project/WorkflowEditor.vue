@@ -35,7 +35,7 @@
           class="WorkflowEditor__nameWrap"
           :class="{ 'WorkflowEditor__nameWrap--disabled': !canManage }"
         >
-          <v-icon small class="WorkflowEditor__nameIcon">mdi-pencil</v-icon>
+          <v-icon size="small" class="WorkflowEditor__nameIcon">mdi-pencil</v-icon>
           <span class="WorkflowEditor__nameSizer" :data-value="item.name || $t('newWorkflow')">
             <input
               v-model="item.name"
@@ -50,25 +50,24 @@
         </span>
         <v-chip
           v-if="item != null && item.revision"
-          x-small
-          outlined
+          size="x-small"
+          variant="outlined"
           class="ml-3"
           :title="$t('workflowRevisionHint')"
           data-testid="workflowEditor-revision"
         >{{ $t('workflowRevisionLabel', { number: item.revision }) }}</v-chip>
-        <v-tooltip v-if="activeRuns > 0" bottom>
-          <template v-slot:activator="{ on, attrs }">
+        <v-tooltip v-if="activeRuns > 0" location="bottom">
+          <template v-slot:activator="{ props }">
             <v-chip
-              x-small
-              outlined
+              size="x-small"
+              variant="outlined"
               color="warning"
               class="ml-2"
-              v-bind="attrs"
-              v-on="on"
+              v-bind="props"
               data-testid="workflowEditor-activeRuns"
             >
-              <v-icon x-small left>mdi-play-circle-outline</v-icon>
-              {{ $tc('workflowActiveRunsCount', activeRuns, { count: activeRuns }) }}
+              <v-icon size="x-small" start>mdi-play-circle-outline</v-icon>
+              {{ $t('workflowActiveRunsCount', { count: activeRuns }, activeRuns) }}
             </v-chip>
           </template>
           <span
@@ -100,21 +99,20 @@
       </v-btn>
 
       <v-menu v-if="problems.length > 0" offset-y :close-on-content-click="true">
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-chip
-            small
-            outlined
+            size="small"
+            variant="outlined"
             color="warning"
             class="mr-4"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             data-testid="workflowEditor-problemsMenu"
           >
-            <v-icon left small>mdi-alert</v-icon>
-            {{ $tc('workflowProblemsCount', problems.length, { count: problems.length }) }}
+            <v-icon start size="small">mdi-alert</v-icon>
+            {{ $t('workflowProblemsCount', { count: problems.length }, problems.length) }}
           </v-chip>
         </template>
-        <v-list dense data-testid="workflowEditor-problemsMenu-list">
+        <v-list density="compact" data-testid="workflowEditor-problemsMenu-list">
           <v-list-item
             v-for="(p, i) in problems"
             :key="`problem-${i}`"
@@ -122,7 +120,7 @@
             data-testid="workflowEditor-problemsMenu-item"
           >
             <v-list-item-icon class="mr-2">
-              <v-icon small color="warning">mdi-alert</v-icon>
+              <v-icon size="small" color="warning">mdi-alert</v-icon>
             </v-list-item-icon>
             <v-list-item-title>{{ p.text }}</v-list-item-title>
           </v-list-item>
@@ -130,18 +128,18 @@
       </v-menu>
       <v-chip
         v-else
-        small
-        outlined
+        size="small"
+        variant="outlined"
         color="success"
         class="mr-4"
         data-testid="workflowEditor-validationPassed"
       >
-        <v-icon left small>mdi-check</v-icon>
+        <v-icon start size="small">mdi-check</v-icon>
         {{ $t('workflowValidationPassed') }}
       </v-chip>
 
       <v-badge
-        :value="dirty"
+        :model-value="dirty"
         dot
         color="warning"
         overlap
@@ -151,7 +149,7 @@
       >
         <v-btn
           color="primary"
-          depressed
+          variant="flat"
           :disabled="!canManage || saving || problems.length > 0"
           :loading="saving"
           @click="save()"
@@ -180,7 +178,7 @@
           @click="toggleSide()"
           data-testid="workflowEditor-sideToggle"
         >
-          <v-icon small>
+          <v-icon size="small">
             {{ sideCollapsed ? 'mdi-chevron-right' : 'mdi-chevron-left' }}
           </v-icon>
         </button>
@@ -193,8 +191,8 @@
                 :label="$t('startVersion')"
                 persistent-hint
                 :disabled="!canManage"
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 data-testid="workflowEditor-startVersion"
               />
 
@@ -216,7 +214,7 @@
                 data-testid="workflowEditor-paletteTitle"
               >{{ $t('workflowEditorPalette') }}</div>
               <div
-                class="text-caption text--secondary mb-3"
+                class="text-caption text-medium-emphasis mb-3"
                 data-testid="workflowEditor-paletteHint"
               >
                 {{ $t('workflowPaletteClickHint') }}
@@ -237,7 +235,7 @@
                 class="WorkflowEditor__paletteTile"
                 :class="`WorkflowEditor__paletteTile--${p.kind}`"
               >
-                <v-icon small :color="p.color">{{ p.icon }}</v-icon>
+                <v-icon size="small" :color="p.color">{{ p.icon }}</v-icon>
               </span>
               <span v-if="!sideCollapsed" class="WorkflowEditor__paletteText">{{ p.text }}</span>
             </div>
@@ -272,23 +270,23 @@
         <WorkflowNodeProperties
           v-if="editingNode"
           :key="`node-${editingNode.id}`"
-          :value="editingNode"
+          :model-value="editingNode"
           :templates="templates"
           :survey-vars="item.survey_vars"
           :can-manage="canManage"
-          @input="applyNodeEdit"
+          @update:model-value="applyNodeEdit"
           @delete="deleteSelectedNode()"
           @close="closePanel()"
         />
         <WorkflowEdgeProperties
           v-else
           :key="edgeKey(editingEdge)"
-          :value="editingEdge"
+          :model-value="editingEdge"
           :nodes="item.nodes"
           :templates="templates"
           :output-hints="outputHints"
           :can-manage="canManage"
-          @input="applyEdgeEdit"
+          @update:model-value="applyEdgeEdit"
           @delete="deleteSelectedEdge()"
           @close="closePanel()"
         />
@@ -345,7 +343,7 @@ export default {
       editingEdge: null,
       // Collapses the palette and, through App.vue, the main navigation to
       // icon-only strips. Remembered per browser; App restores the navigation
-      // when the editor is left (see beforeDestroy).
+      // when the editor is left (see beforeUnmount).
       sideCollapsed: readSideCollapsed(),
       canUndo: false,
       canRedo: false,
@@ -518,7 +516,7 @@ export default {
     this.templates = await this.loadProjectResources('templates');
     await this.loadData();
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('keydown', this.onWindowKeyDown);
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     document.documentElement.classList.remove('WorkflowEditor-html');

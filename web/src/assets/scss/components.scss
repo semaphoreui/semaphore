@@ -1,5 +1,5 @@
 .FieldTable {
-  .v-data-table__wrapper {
+  .v-table__wrapper {
     padding-left: 0 !important;
     padding-right: 0 !important;
     td {
@@ -18,7 +18,7 @@
   border-radius: 6px !important;
 }
 
-.CodeMirror {
+.cm-editor {
   border-radius: 5px !important;
 }
 
@@ -42,17 +42,17 @@
 }
 
 .TextInput--no-legend {
-  legend {
+  .v-field__outline__notch {
     width: 0 !important;
   }
 
-  .v-label.v-label--active {
+  .v-field-label--floating {
     display: none;
   }
 }
 
 .InputWithAppendedButton {
-  .v-input__append-outer {
+  .v-input__append {
     margin: 0 !important;
     .v-btn {
       max-width: 40px;
@@ -66,7 +66,7 @@
       border-left: 0;
     }
   }
-  fieldset {
+  .v-field__outline__end {
     border-top-right-radius: 0 !important;
     border-bottom-right-radius: 0 !important;
   }

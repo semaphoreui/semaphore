@@ -198,7 +198,7 @@ export default {
   pleaseAllowOverridingCliArgumentInTaskTemplateSett:
     'To allow overriding CLI argument in Task Template settings',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe:
-    'CLI Args (JSON array). Example: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
+    'CLI Args (JSON array). Example: [ "-i", "{\'@\'}myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   started: 'Started',
   author: 'Author',
   duration: 'Duration',
@@ -257,7 +257,7 @@ export default {
   suppressSuccessAlerts: 'Suppress success notifications',
   suppressErrorAlerts: 'Suppress error notifications',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2:
-    'CLI Args (JSON array). Example: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
+    'CLI Args (JSON array). Example: [ "-i", "{\'@\'}myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'CLI args',
   docs: 'docs',
   editViews: 'Edit Views',
