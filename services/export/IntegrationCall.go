@@ -23,6 +23,10 @@ func (e *IntegrationCallExporter) load(store db.Store, exporter DataExporter, pr
 			return err
 		}
 
+		for i, j := 0, len(calls)-1; i < j; i, j = i+1, j-1 {
+			calls[i], calls[j] = calls[j], calls[i]
+		}
+
 		if err = e.appendValues(calls, strconv.Itoa(proj)); err != nil {
 			return err
 		}
