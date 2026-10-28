@@ -6,7 +6,7 @@
         :model-value="modelValue"
         @update:model-value="$emit('update:modelValue', $event)"
         tile
-        group
+        variant="text"
         mandatory
     >
       <v-btn

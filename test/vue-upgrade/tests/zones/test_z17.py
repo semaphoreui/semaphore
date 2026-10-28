@@ -13,13 +13,12 @@ Shots: z17__<screen>__<state>__<size>.png.
 
 import json
 import re
-from contextlib import contextmanager
 
 import pytest
 from playwright.sync_api import Locator, Page, Route, expect
 
-from vu.ui import (button, dialog, fail_api, field_input, field_message, goto, open_dialog, snap, tid,
-                   wait_state, wait_until)
+from vu.ui import (button, dialog, fail_api, field_input, field_message, goto, hold_snackbar, open_dialog, snap,
+                   tid, toggle, wait_state, wait_until)
 
 ZONE = "z17"
 DEMO, EMPTY = "Seed Demo", "Seed Empty"
@@ -78,25 +77,6 @@ def requests_of(page: Page, method, part):
     seen = []
     page.on("request", lambda r: seen.append(r.url) if r.method == method and part in r.url else None)
     return seen
-
-
-@contextmanager
-def keep_hover(page: Page):
-    """snap() moves the mouse off the page before the shot; the hover state of the Enterprise overlay
-    needs it to stay. TODO(base): a snap(..., hover=True) parameter in vu/ui.py."""
-    mouse = page.mouse
-    original = mouse.move
-
-    def move(x, y, **kw):
-        if (x, y) == (-1, -1):
-            return None
-        return original(x, y, **kw)
-
-    mouse.move = move
-    try:
-        yield
-    finally:
-        del mouse.move
 
 
 def blur(page: Page):
@@ -167,10 +147,21 @@ def edit_storage(page: Page, name) -> Locator:
 
 
 def check(card: Locator, test_id):
-    """A Vuetify 2 checkbox carries its mark on the hidden <input>."""
-    box = tid(card, test_id)
-    box.check(force=True)
-    expect(box).to_be_checked()
+    """Check the checkbox <test_id> (its hidden <input>: toggle of vu/ui.py)."""
+    toggle(card, test_id, True)
+
+
+def dvls_keys(card: Locator) -> Locator:
+    """The two inputs marked secretStorage-dvlsKey (Vault ID, App Key): Vuetify 2 puts the mark on the
+    <input>, Vuetify 3 on the .v-input around it."""
+    t = '[data-testid="secretStorage-dvlsKey"]'
+    return card.locator(f"input{t}, {t} input")
+
+
+def expect_item_disabled(item: Locator, disabled=True):
+    """A menu item is (not) disabled: it takes no pointer events (Vuetify 2 also set aria-disabled,
+    Vuetify 3 sets no ARIA state on a disabled v-list-item)."""
+    (expect(item).to_have_css if disabled else expect(item).not_to_have_css)("pointer-events", "none")
 
 
 def snackbar(page: Page, state, text) -> Locator:
@@ -186,9 +177,17 @@ def snap_dialog(page: Page, screen, state, element=DIALOG):
     snap(page, ZONE, screen, state, element=element)
 
 
+FOCUS_INSIDE_JS = """(el) => { const a = document.activeElement;
+  return !!a && a !== document.body && (a.contains(el) || el.contains(a)); }"""
+
+
 def open_sync_dialog(card: Locator, page: Page) -> Locator:
     tid(card, "secretStorage-syncPaths").click()
-    return dialog(page, SYNC_DIALOG)
+    sync = dialog(page, SYNC_DIALOG)
+    # Vuetify 3 moves the focus into the dialog once its enter transition is over (to the dialog frame
+    # around the card, or to its first field): wait for it, or the blur before a shot races with it
+    wait_until(page, lambda: sync.evaluate(FOCUS_INSIDE_JS), "the focus inside the Sync paths dialog")
+    return sync
 
 
 # ==== snapshots: untouched data, three sizes =========================================================
@@ -259,7 +258,7 @@ def test_list__load_error(ui, project):
 
 
 @pytest.mark.snapshot
-def test_list__sync_success(ui, project):
+def test_list__sync_success(ui, project, clock):
     page = ui("admin")
     open_list(page, project)
     hits = fail_api(page, "POST", SYNC, 200, {})
@@ -268,22 +267,24 @@ def test_list__sync_success(ui, project):
     snackbar(page, "ready", "Secrets synced successfully")
     wait_state(page, "secretStorages-page", "ready")
     expect(tid(page, "secretStorages-rowName")).to_have_count(len(STORAGES))
+    hold_snackbar(page, clock, "Secrets synced successfully", "ready")
     snap(page, ZONE, "list", "sync-success", element="app-snackbar")
 
 
 @pytest.mark.snapshot
-def test_list__sync_error(ui, project):
+def test_list__sync_error(ui, project, clock):
     page = ui("admin")
     open_list(page, project)
     hits = fail_api(page, "POST", SYNC, 400, {"error": "Cannot list vault secrets"})
     storage_row(page, VAULT).get_by_test_id("secretStorages-rowSync").click()
     wait_until(page, lambda: hits, "the failed POST sync")
     snackbar(page, "error", "Cannot list vault secrets")
+    hold_snackbar(page, clock, "Cannot list vault secrets", "error")
     snap(page, ZONE, "list", "sync-error", element="app-snackbar")
 
 
 @pytest.mark.snapshot
-def test_list__delete_error(ui, project):
+def test_list__delete_error(ui, project, clock):
     """DELETE answers 500: red snackbar with the server text, the row stays."""
     page = ui("admin")
     open_list(page, project)
@@ -294,6 +295,7 @@ def test_list__delete_error(ui, project):
     snackbar(page, "error", "vu 500 DELETE")
     expect(tid(page, "secretStoragesDeleteDialog")).to_be_hidden()
     expect(storage_row(page, AWS)).to_have_count(1)
+    hold_snackbar(page, clock, "vu 500 DELETE", "error")
     snap(page, ZONE, "list", "delete-error", element="app-snackbar")
 
 
@@ -329,8 +331,7 @@ def test_menu_new__pro_only_hover(ui, project):
     open_menu(page)
     tid(page, "secretStorages-newEnterpriseGroup").hover()
     expect(tid(page, "secretStorages-enterpriseLink")).to_have_css("opacity", "1")
-    with keep_hover(page):
-        snap(page, ZONE, "menu-new", "pro-only-hover")
+    snap(page, ZONE, "menu-new", "pro-only-hover", hover=True)
 
 
 @pytest.mark.snapshot
@@ -370,8 +371,8 @@ def test_dialog_new__aws_sm(ui, project):
     page = ui("admin")
     open_list(page, project)
     card = new_storage(page, "aws_sm")
-    expect(tid(card, "secretStorage-awsUseIamRole")).not_to_be_checked()
-    expect(tid(card, "secretStorage-awsAccessKeyId")).to_be_enabled()
+    expect(field_input(card, "secretStorage-awsUseIamRole")).not_to_be_checked()
+    expect(field_input(card, "secretStorage-awsAccessKeyId")).to_be_enabled()
     snap_dialog(page, "dialog-new", "aws-sm")
 
 
@@ -381,8 +382,8 @@ def test_dialog_new__aws_sm_iam_role(ui, project):
     open_list(page, project)
     card = new_storage(page, "aws_sm")
     check(card, "secretStorage-awsUseIamRole")
-    expect(tid(card, "secretStorage-awsAccessKeyId")).to_be_disabled()
-    expect(tid(card, "secretStorage-awsSecretKey")).to_be_disabled()
+    expect(field_input(card, "secretStorage-awsAccessKeyId")).to_be_disabled()
+    expect(field_input(card, "secretStorage-awsSecretKey")).to_be_disabled()
     snap_dialog(page, "dialog-new", "aws-sm-iam-role")
 
 
@@ -525,8 +526,8 @@ def test_dialog_edit__vault(ui, project):
     card = edit_storage(page, VAULT)
     expect(tid(card, "editDialog-title")).to_have_text("Edit vault Storage")
     expect(field_input(card, "secretStorage-name")).to_have_value(VAULT)
-    expect(tid(card, "secretStorage-readonly")).to_be_checked()
-    expect(tid(card, "secretStorage-syncEnabled")).to_be_checked()
+    expect(field_input(card, "secretStorage-readonly")).to_be_checked()
+    expect(field_input(card, "secretStorage-syncEnabled")).to_be_checked()
     expect(tid(card, "secretStorage-syncPathsCount")).to_have_text("2")
     expect(field_input(card, "secretStorage-vaultToken")).to_have_value("")
     expect(button(card, "editDialog-save")).to_have_text("Save")
@@ -551,8 +552,8 @@ def test_dialog_edit__aws_sm_iam_role(ui, project):
     open_list(page, project)
     card = edit_storage(page, AWS)
     expect(tid(card, "editDialog-title")).to_have_text("Edit vault Storage")
-    expect(tid(card, "secretStorage-awsUseIamRole")).to_be_checked()
-    expect(tid(card, "secretStorage-awsAccessKeyId")).to_be_disabled()
+    expect(field_input(card, "secretStorage-awsUseIamRole")).to_be_checked()
+    expect(field_input(card, "secretStorage-awsAccessKeyId")).to_be_disabled()
     snap_dialog(page, "dialog-edit", "aws-sm-iam-role")
 
 
@@ -571,8 +572,9 @@ def test_dialog_edit__dvls(ui, project):
     page = ui("admin")
     open_list(page, project)
     card = edit_storage(page, DVLS)
-    expect(tid(card, "secretStorage-dvlsInsecureTls")).to_be_checked()
-    keys = tid(card, "secretStorage-dvlsKey")
+    expect(field_input(card, "secretStorage-dvlsInsecureTls")).to_be_checked()
+    keys = dvls_keys(card)
+    expect(keys).to_have_count(2)
     expect(keys.nth(0)).to_have_value("17171717-0000-4000-8000-000000000003")
     expect(keys.nth(1)).to_have_value("z17-app-key")
     expect(field_input(card, "secretStorage-dvlsSecret")).to_have_value("")
@@ -794,9 +796,9 @@ def test_menu_by_license(ui, project):
     expect(link).to_have_attribute("target", "_blank")
     expect(link).to_have_text(re.compile(r"Enterprise"))
     for typ in ("aws_sm", "azure_kv", "dvls"):
-        expect(tid(page, f"secretStorages-new-{typ}")).to_have_attribute("aria-disabled", "true")
+        expect_item_disabled(tid(page, f"secretStorages-new-{typ}"))
     for typ in ("vault", "openbao"):
-        expect(tid(page, f"secretStorages-new-{typ}")).not_to_have_attribute("aria-disabled", "true")
+        expect_item_disabled(tid(page, f"secretStorages-new-{typ}"), False)
     page.context.close()
 
     page = ui("admin")
@@ -804,7 +806,7 @@ def test_menu_by_license(ui, project):
     open_list(page, project)
     open_menu(page)
     for typ in TYPES:
-        expect(tid(page, f"secretStorages-new-{typ}")).to_have_attribute("aria-disabled", "true")
+        expect_item_disabled(tid(page, f"secretStorages-new-{typ}"))
     tid(page, "secretStorages-new-vault").click(force=True)
     expect(tid(page, DIALOG)).to_have_count(0)
 
@@ -861,10 +863,8 @@ def test_aws_iam_role_off_needs_secret(ui, project):
     open_list(page, project)
     puts = requests_of(page, "PUT", "/secret_storages")
     card = edit_storage(page, AWS)
-    box = tid(card, "secretStorage-awsUseIamRole")
-    box.uncheck(force=True)
-    expect(box).not_to_be_checked()
-    expect(tid(card, "secretStorage-awsAccessKeyId")).to_be_enabled()
+    toggle(card, "secretStorage-awsUseIamRole", False)
+    expect(field_input(card, "secretStorage-awsAccessKeyId")).to_be_enabled()
     button(card, "editDialog-save").click()
     expect(field_message(card, "secretStorage-awsAccessKeyId")).to_have_text("Access Key ID is required")
     expect(field_message(card, "secretStorage-awsSecretKey")).to_have_text("Secret Access Key is required")
@@ -886,7 +886,7 @@ def test_source_toggle_ignores_iam_role(ui, project):
     env.focus()
     page.keyboard.press("Enter")
     expect(tid(card, "secretStorage-awsSecretKeySource")).to_be_visible()
-    expect(tid(card, "secretStorage-awsSecretKeySource")).to_be_disabled()
+    expect(field_input(card, "secretStorage-awsSecretKeySource")).to_be_disabled()
 
 
 @pytest.mark.functional
@@ -1038,3 +1038,5 @@ def test_source_toggle_overflows_on_mobile(ui, project):
     card = new_storage(page, "vault")
     tid(card, "secretSource-file").click()
     expect(card.get_by_label("Path to the file", exact=True)).to_be_visible()
+
+

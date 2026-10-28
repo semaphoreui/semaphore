@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null"
     data-testid="secretStorage-form"
@@ -77,7 +76,7 @@
         data-testid="secretStorage-vaultToken"
         variant="outlined"
         density="compact"
-        append-icon="mdi-lock"
+        append-inner-icon="mdi-lock"
       ></v-text-field>
 
       <v-text-field
@@ -138,7 +137,7 @@
         data-testid="secretStorage-dvlsSecret"
         variant="outlined"
         density="compact"
-        append-icon="mdi-lock"
+        append-inner-icon="mdi-lock"
       ></v-text-field>
 
       <v-text-field
@@ -219,7 +218,7 @@
           data-testid="secretStorage-awsSecretKey"
           variant="outlined"
           density="compact"
-          append-icon="mdi-lock"
+          append-inner-icon="mdi-lock"
         ></v-text-field>
 
         <v-text-field
@@ -285,7 +284,7 @@
         data-testid="secretStorage-azureClientSecret"
         variant="outlined"
         density="compact"
-        append-icon="mdi-lock"
+        append-inner-icon="mdi-lock"
       ></v-text-field>
 
       <v-text-field
@@ -506,7 +505,7 @@ export default {
   }
 }
 
-.theme--dark {
+.v-theme--dark {
   .aws-credentials--inactive {
     position: relative;
     &::after {

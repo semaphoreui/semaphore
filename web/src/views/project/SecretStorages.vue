@@ -46,15 +46,18 @@
         @click="showDrawer()"
         data-testid="secretStorages-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="secretStorages-title">{{ $t('keyStore') }}</v-toolbar-title>
+      <v-toolbar-title class="flex-0-1" data-testid="secretStorages-title">
+        {{ $t('keyStore') }}
+      </v-toolbar-title>
       <v-spacer></v-spacer>
 
-      <v-menu offset-y>
+      <v-menu location="bottom">
         <template v-slot:activator="{ props }">
           <v-btn
             class="pr-2"
             v-bind="props"
             color="primary"
+            variant="elevated"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
             data-testid="secretStorages-new"
           >
@@ -72,9 +75,9 @@
             :disabled="!features.secret_storage_management"
             data-testid="secretStorages-new-vault"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>$hashicorp_vault</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>Hashicorp Vault</v-list-item-title>
           </v-list-item>
 
@@ -87,9 +90,9 @@
             :disabled="!features.secret_storage_management"
             data-testid="secretStorages-new-openbao"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>$openbao</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>OpenBao</v-list-item-title>
           </v-list-item>
 
@@ -117,9 +120,9 @@
               :disabled="!features.secret_storage_management_ex"
               data-testid="secretStorages-new-aws_sm"
             >
-              <v-list-item-icon>
+              <template v-slot:prepend>
                 <v-icon>$aws_sm</v-icon>
-              </v-list-item-icon>
+              </template>
               <v-list-item-title>AWS Secrets Manager</v-list-item-title>
             </v-list-item>
 
@@ -132,9 +135,9 @@
               :disabled="!features.secret_storage_management_ex"
               data-testid="secretStorages-new-azure_kv"
             >
-              <v-list-item-icon>
+              <template v-slot:prepend>
                 <v-icon>$azure_kv</v-icon>
-              </v-list-item-icon>
+              </template>
               <v-list-item-title>Azure Key Vault</v-list-item-title>
             </v-list-item>
 
@@ -147,9 +150,9 @@
               :disabled="!features.secret_storage_management_ex"
               data-testid="secretStorages-new-dvls"
             >
-              <v-list-item-icon>
+              <template v-slot:prepend>
                 <v-icon>$dvls</v-icon>
-              </v-list-item-icon>
+              </template>
               <v-list-item-title>Devolutions Server</v-list-item-title>
             </v-list-item>
 
@@ -196,7 +199,6 @@
       <span class="mr-1" v-html="$t('secret_storage_only_pro')"></span>
 
       <v-btn
-        dark
         v-if="isAdmin"
         color="hsl(348deg, 86%, 61%)"
         @click="upgradeToPro('secret_storage_management')"
@@ -215,7 +217,8 @@
       :items="items"
       hide-default-footer
       class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       data-testid="secretStorages-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
@@ -243,10 +246,8 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
-          style=""
           data-testid="secretStorages-rowActions"
         >
           <v-btn
@@ -263,7 +264,7 @@
           <v-btn @click="editItem(item.id)" data-testid="secretStorages-rowEdit">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
