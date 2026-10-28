@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null"
     data-testid="tfAlias-form"
@@ -17,7 +16,7 @@
     <v-select
       v-model="item.auth_key_id"
       :label="$t('Auth key')"
-      :items="keys"
+      :items="keys || []"
       item-value="id"
       item-title="name"
       variant="outlined"

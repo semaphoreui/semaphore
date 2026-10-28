@@ -699,9 +699,10 @@ def test_double_load(ui, project, api):
 
 @pytest.mark.functional
 def test_single_expand(ui, project, api):
-    """One expanded row at a time. Expanding #2 after #1 moves the row but keeps the JSON of #1 and
-    sends no request for #2 (TerraformStateView loads in created() only — JOURNAL@33906B43AB);
-    collapse and expand again shows #2."""
+    """One expanded row at a time. Expanding #2 after #1 closes #1 and shows the JSON of #2.
+    Vuetify 2 reused the view of #1 there (JSON of #1, no request for #2 — JOURNAL@33906B43AB); Vuetify 3
+    keys the expanded row by its item, so the view of #2 is new and loads its state — the bug is gone
+    with the standard Vuetify 3 rendering. Collapse and expand again shows #2."""
     page = ui("admin")
     s1, s2 = state_ids(api, project)
     open_z08(page, api, project)
@@ -710,8 +711,9 @@ def test_single_expand(ui, project, api):
     expect(tid(page, "tfState-json")).to_contain_text('"serial": 1')
     expand_row(page, s2)
     expect(tid(page, "templateState-rowState")).to_have_count(1)
-    expect(tid(page, "tfState-json")).to_contain_text('"serial": 1')
-    assert [u.rsplit("/", 1)[-1] for u, _ in gets] == [str(s1)]
+    expect(tid(page, "tfState-json")).to_contain_text('"serial": 2')
+    wait_until(page, lambda: len(gets) >= 2, "GET state #2")
+    assert [u.rsplit("/", 1)[-1] for u, _ in gets] == [str(s1), str(s2)]
     expand_row(page, s2)  # collapse
     expect(tid(page, "templateState-rowState")).to_have_count(0)
     expand_row(page, s2)

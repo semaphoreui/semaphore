@@ -90,7 +90,7 @@
           density="compact"
           v-model="inventoryId"
           v-if="inventories.length > 0"
-          mandatory
+          mandatory="force"
           style="overflow: auto"
           class="mb-2"
           data-testid="templateState-workspaces"
@@ -104,7 +104,6 @@
           >
             {{ inv.inventory }}
             <v-icon
-              dark
               v-if="inv.id === template.inventory_id"
               class="ml-1"
               color="success"
@@ -116,18 +115,17 @@
 
         <span v-else data-testid="templateState-empty">No workspaces.</span>
 
-        <v-menu offset-y>
+        <v-menu location="bottom">
           <template v-slot:activator="{ props }">
             <v-btn
               color="primary"
-              dark
-              fab
+              icon
               size="small"
               class="ml-3"
               v-bind="props"
               data-testid="templateState-new"
             >
-              <v-icon dark>mdi-plus</v-icon>
+              <v-icon>mdi-plus</v-icon>
             </v-btn>
           </template>
           <v-list>
@@ -135,18 +133,18 @@
               @click="itemId = 'new'; inventoryDialog = true"
               data-testid="templateState-new-workspace"
             >
-              <v-list-item-icon>
+              <template v-slot:prepend>
                 <v-icon>mdi-pencil</v-icon>
-              </v-list-item-icon>
+              </template>
               <v-list-item-title>New workspace</v-list-item-title>
             </v-list-item>
             <v-list-item
               @click="attachInventoryDialog = true"
               data-testid="templateState-new-attach"
             >
-              <v-list-item-icon>
+              <template v-slot:prepend>
                 <v-icon>mdi-connection</v-icon>
-              </v-list-item-icon>
+              </template>
               <v-list-item-title>Attach existing workspace</v-list-item-title>
             </v-list-item>
           </v-list>
@@ -159,8 +157,9 @@
         data-testid="templateState-workspaceCard"
       >
 
+        <!-- flex-wrap, text-wrap: v-card__title of Vuetify 2 wrapped on narrow screens -->
         <v-card-title
-          class="d-flex justify-space-between align-center"
+          class="d-flex flex-wrap text-wrap justify-space-between align-center"
           style="font-weight: normal;"
         >
 
@@ -287,9 +286,11 @@
             v-if="features.terraform_backend"
             :headers="headers"
             :items="states"
-            :footer-props="{ itemsPerPageOptions: [20] }"
-            single-expand
+            :items-per-page-options="[20]"
+            :mobile-breakpoint="600"
             show-expand
+            :expanded="expanded"
+            @update:expanded="expanded = $event.slice(-1)"
             class="mt-4 TaskListTable TaskListTable TerraformStateTable"
             data-testid="templateState-table"
             :data-state="states.length === 0 ? 'empty' : 'ready'"
@@ -316,19 +317,22 @@
               {{ $filters.formatDate(item.created) }}
             </template>
 
-            <template v-slot:expanded-item="{ headers, item }">
-              <td
-                :colspan="headers.length"
-                style="max-width: 400px"
-                data-testid="templateState-rowState"
-              >
-                <TerraformStateView
-                  class="mb-1"
-                  :project-id="template.project_id"
-                  :inventory-id="inventoryId"
-                  :state-id="item.id"
-                />
-              </td>
+            <!-- the slot draws the whole row: Vuetify 3 does not wrap it in a <tr> -->
+            <template v-slot:expanded-row="{ columns, item }">
+              <tr>
+                <td
+                  :colspan="columns.length"
+                  style="max-width: 400px"
+                  data-testid="templateState-rowState"
+                >
+                  <TerraformStateView
+                    class="mb-1"
+                    :project-id="template.project_id"
+                    :inventory-id="inventoryId"
+                    :state-id="item.id"
+                  />
+                </td>
+              </tr>
             </template>
           </v-data-table>
 
@@ -346,12 +350,12 @@
 <style lang="scss">
 .TerraformStateTable {
 
-  .v-data-table__wrapper {
+  .v-table__wrapper {
     padding-left: 0 !important;
     padding-right: 0 !important;
   }
 
-  .v-data-footer {
+  .v-data-table-footer {
     margin-left: 0 !important;
     margin-right: 0 !important;
   }
@@ -419,24 +423,30 @@ export default {
       attachInventoryDialog: null,
       aliasId: null,
       editDialog: null,
+      // single-expand of Vuetify 2: only the last expanded row stays open
+      expanded: [],
       headers: [
+        // the expand column first, as Vuetify 2 drew it (Vuetify 3 adds it last)
         {
-          text: 'ID',
-          value: 'id',
+          key: 'data-table-expand',
+        },
+        {
+          title: 'ID',
+          key: 'id',
           sortable: false,
         },
         {
-          text: this.$t('taskId'),
-          value: 'task_id',
+          title: this.$t('taskId'),
+          key: 'task_id',
           sortable: false,
         },
         {
-          text: this.$t('created'),
-          value: 'created',
+          title: this.$t('created'),
+          key: 'created',
           sortable: false,
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         },
