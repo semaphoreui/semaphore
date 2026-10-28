@@ -59,7 +59,7 @@
 
     <v-btn
       v-if="editable"
-      fab
+      icon
       size="small"
       variant="flat"
       color="primary"
@@ -105,7 +105,7 @@
 </template>
 
 <script>
-import { h, render } from 'vue';
+import { h, markRaw, render } from 'vue';
 import Drawflow from 'drawflow';
 import 'drawflow/dist/drawflow.min.css';
 import WorkflowNodeCard from '@/components/workflow/WorkflowNodeCard.vue';
@@ -242,7 +242,9 @@ export default {
   },
 
   mounted() {
-    const editor = new Drawflow(this.$refs.canvas);
+    // Drawflow stays outside reactivity: a reactive proxy would wrap every
+    // call and every mouse handler of the library.
+    const editor = markRaw(new Drawflow(this.$refs.canvas));
     editor.reroute = false;
     editor.curvature = 0.35;
     editor.zoom_min = ZOOM_MIN;

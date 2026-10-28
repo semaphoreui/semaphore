@@ -10,7 +10,7 @@
     @mousedown.stop
     @touchstart.stop
   >
-    <v-menu v-if="editable" offset-y nudge-top="-4" transition="fade-transition">
+    <v-menu v-if="editable" location="bottom start" offset="4" transition="fade-transition">
       <template v-slot:activator="{ props }">
         <span
           class="WorkflowEdgeLabel__pill WorkflowEdgeLabel__pill--clickable"
@@ -46,12 +46,13 @@
           v-for="opt in options"
           :key="opt.value"
           :data-testid="`workflowCanvas-edgeMenu-${opt.value}`"
-          :input-value="opt.value === label.condition"
+          :active="opt.value === label.condition"
+          prepend-gap="8"
           @click="$emit('change', opt.value)"
         >
-          <v-list-item-icon class="mr-2">
+          <template v-slot:prepend>
             <v-icon size="small" :color="opt.color">{{ opt.icon }}</v-icon>
-          </v-list-item-icon>
+          </template>
           <v-list-item-title>{{ opt.text }}</v-list-item-title>
         </v-list-item>
       </v-list>

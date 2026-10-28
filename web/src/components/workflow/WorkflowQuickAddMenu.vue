@@ -1,18 +1,17 @@
 <template>
   <v-menu
     :model-value="modelValue"
-    :position-x="x"
-    :position-y="y"
-    absolute
+    :target="[x, y]"
+    location="bottom start"
     :close-on-content-click="false"
-    :persistent="false"
-    min-width="260"
     max-width="300"
     transition="fade-transition"
     content-class="WorkflowQuickAddMenu"
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <v-card data-testid="workflowCanvas-quickAddMenu">
+    <!-- min-width on the card: a menu opened at a point caps its own min-width at the target's
+         width (0 px) in Vuetify 3 -->
+    <v-card min-width="260" data-testid="workflowCanvas-quickAddMenu">
       <v-text-field
         ref="search"
         data-testid="workflowCanvas-quickAddSearch"
@@ -28,50 +27,56 @@
         @keydown.enter="pickFirst"
       />
 
+      <!-- prepend-gap 0: the tile keeps its own 10 px margin, as next to the title in Vuetify 2 -->
       <v-list
         density="compact"
+        prepend-gap="0"
         class="WorkflowQuickAddMenu__list py-0"
         data-testid="workflowCanvas-quickAddList"
       >
         <template v-if="filteredKinds.length">
-          <v-subheader
+          <v-list-subheader
             class="WorkflowQuickAddMenu__subheader"
             data-testid="workflowCanvas-quickAddMenu-stepsHeader"
           >
             {{ $t('workflowQuickAddSteps') }}
-          </v-subheader>
+          </v-list-subheader>
           <v-list-item
             v-for="k in filteredKinds"
             :key="k.kind"
             :data-testid="`workflowCanvas-quickAddMenu-${k.kind}`"
             @click="pick({ kind: k.kind })"
           >
-            <span
-              class="WorkflowQuickAddMenu__tile"
-              :class="`WorkflowQuickAddMenu__tile--${k.kind}`"
-            >
-              <v-icon size="small" :color="k.color">{{ k.icon }}</v-icon>
-            </span>
+            <template v-slot:prepend>
+              <span
+                class="WorkflowQuickAddMenu__tile"
+                :class="`WorkflowQuickAddMenu__tile--${k.kind}`"
+              >
+                <v-icon size="small" :color="k.color">{{ k.icon }}</v-icon>
+              </span>
+            </template>
             <v-list-item-title>{{ k.text }}</v-list-item-title>
           </v-list-item>
           <v-divider />
         </template>
 
-        <v-subheader
+        <v-list-subheader
           class="WorkflowQuickAddMenu__subheader"
           data-testid="workflowCanvas-quickAddMenu-templatesHeader"
         >
           {{ $t('workflowQuickAddTemplates') }}
-        </v-subheader>
+        </v-list-subheader>
         <v-list-item
           v-for="t in filteredTemplates"
           :key="`tpl-${t.id}`"
           data-testid="workflowCanvas-quickAddMenu-template"
           @click="pick({ kind: 'task', template_id: t.id })"
         >
-          <span class="WorkflowQuickAddMenu__tile">
-            <v-icon size="small">{{ appIcon(t.app) }}</v-icon>
-          </span>
+          <template v-slot:prepend>
+            <span class="WorkflowQuickAddMenu__tile">
+              <v-icon size="small">{{ appIcon(t.app) }}</v-icon>
+            </span>
+          </template>
           <v-list-item-title>{{ t.name }}</v-list-item-title>
         </v-list-item>
         <v-list-item

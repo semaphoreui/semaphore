@@ -22,7 +22,7 @@ from contextlib import contextmanager
 import pytest
 from playwright.sync_api import expect
 
-from vu.ui import fail_api, goto, settle, snap, tid, wait_state, wait_until
+from vu.ui import fail_api, field_input, goto, settle, snap, tid, wait_state, wait_until
 from vu.ui import DRAWFLOW_NODE, DRAWFLOW_SELECTED, DRAWFLOW_INPUT, DRAWFLOW_OUTPUT, DRAWFLOW_PRECANVAS  # noqa: E402 — step 2.4: shared selectors
 
 ZONE = "b7"
@@ -183,7 +183,8 @@ def open_quick_add(page, trigger="workflowCanvas-quickAdd"):
     tid(page, trigger).click()
     menu = tid(page, "workflowCanvas-quickAddMenu")
     expect(menu).to_be_visible()
-    expect(tid(page, "workflowCanvas-quickAddSearch")).to_be_focused()
+    # the mark is on the <input> in Vuetify 2, on the root .v-input in Vuetify 3: field_input
+    expect(field_input(page, "workflowCanvas-quickAddSearch")).to_be_focused()
     return menu
 
 
@@ -524,7 +525,7 @@ def test_editor_blocked_self(ui, project, api):
     # «A node cannot connect to itself.» of the catalogue is unreachable — the shot keeps what the
     # user really sees: nothing changed, no dangling line, no message.
     settle(page)
-    expect(tid(page, "app-snackbar")).not_to_contain_text("A node cannot connect to itself.")
+    expect(tid(page, "app-snackbar").filter(has_text="A node cannot connect to itself.")).to_have_count(0)
     expect(tid(page, "workflowCanvas-edge")).to_have_count(CANVAS_EDGES)
     snap(page, ZONE, "editor", "blocked-self")
 
@@ -604,7 +605,7 @@ def test_quick_add_search(ui, project):
     page = ui("admin")
     open_new(page, project)
     open_quick_add(page)
-    tid(page, "workflowCanvas-quickAddSearch").fill("ok")
+    field_input(page, "workflowCanvas-quickAddSearch").fill("ok")
     expect(tid(page, "workflowCanvas-quickAddMenu-stepsHeader")).to_be_hidden()
     # exact name: other zones add templates whose names contain «OK script» (Z03/Z10 OK script)
     expect(tid(page, "workflowCanvas-quickAddMenu-template")
@@ -617,7 +618,7 @@ def test_quick_add_no_match(ui, project):
     page = ui("admin")
     open_new(page, project)
     open_quick_add(page)
-    tid(page, "workflowCanvas-quickAddSearch").fill("zzzz")
+    field_input(page, "workflowCanvas-quickAddSearch").fill("zzzz")
     expect(tid(page, "workflowCanvas-quickAddMenu-noTemplates")).to_be_visible()
     expect(tid(page, "workflowCanvas-quickAddMenu-task")).to_be_hidden()
     snap(page, ZONE, "quick-add", "no-match", element="workflowCanvas-quickAddMenu")
@@ -864,7 +865,7 @@ def test_connect_nodes(ui, project, api):
     expect(tid(page, "workflowCanvas-edgeCondition-on_success")).to_have_count(5)
     drag(page, df_node(page, "Survey script").locator(DRAWFLOW_OUTPUT), df_node(page, "Survey script").locator(DRAWFLOW_INPUT))
     settle(page)  # Drawflow drops a self-connection silently: no edge, no message
-    expect(tid(page, "app-snackbar")).not_to_contain_text("A node cannot connect to itself.")
+    expect(tid(page, "app-snackbar").filter(has_text="A node cannot connect to itself.")).to_have_count(0)
     expect(tid(page, "workflowCanvas-edge")).to_have_count(CANVAS_EDGES + 1)
     drag(page, df_node(page, "Tofu apply").locator(DRAWFLOW_OUTPUT), df_node(page, "Survey script").locator(DRAWFLOW_INPUT))
     snackbar(page, "This connection would create a cycle.")
@@ -895,18 +896,24 @@ def test_quick_add_every_kind(ui, project):
 def test_quick_add_template_and_enter(ui, project):
     page = ui("admin")
     open_new(page, project)
+    menu = tid(page, "workflowCanvas-quickAddMenu")
     open_quick_add(page)
     tid(page, "workflowCanvas-quickAddMenu-template").filter(has_text="Tofu apply").click()
     expect(card(page, "Tofu apply")).to_have_count(1)
+    # a pick closes the menu; Vuetify 3 animates it out — reopened only once it is gone (a reopen in
+    # the middle of the leave under the suite's fake clock leaves the next Esc without effect)
+    expect(menu).to_be_hidden()
     open_quick_add(page)
-    tid(page, "workflowCanvas-quickAddSearch").fill("ok")
-    tid(page, "workflowCanvas-quickAddSearch").press("Enter")
+    field_input(page, "workflowCanvas-quickAddSearch").fill("ok")
+    field_input(page, "workflowCanvas-quickAddSearch").press("Enter")
     expect(card(page, "OK script")).to_have_count(1)
+    expect(menu).to_be_hidden()
     open_quick_add(page)
-    tid(page, "workflowCanvas-quickAddSearch").press("Enter")  # empty query: the first step, Task
+    field_input(page, "workflowCanvas-quickAddSearch").press("Enter")  # empty query: the first step, Task
     expect(card(page, "No template")).to_have_count(1)
+    expect(menu).to_be_hidden()
     open_quick_add(page)
-    tid(page, "workflowCanvas-quickAddSearch").press("Escape")
+    field_input(page, "workflowCanvas-quickAddSearch").press("Escape")
     expect(tid(page, "workflowCanvas-quickAddMenu")).to_be_hidden()
     expect(nodes(page)).to_have_count(3)
 

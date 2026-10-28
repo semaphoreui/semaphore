@@ -5,7 +5,7 @@
     @mousedown.stop
     @wheel.stop
   >
-    <v-tooltip location="right" v-for="item in items" :key="item.event">
+    <v-tooltip location="end" v-for="item in items" :key="item.event">
       <template v-slot:activator="{ props }">
         <button
           type="button"
