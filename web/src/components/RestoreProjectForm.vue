@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null"
     data-testid="restoreProject-form"
@@ -27,7 +26,7 @@
       show-size
       truncate-length="15"
       :placeholder="$t('Backup file')"
-      @change="setFile"
+      @update:model-value="setFile"
       data-testid="restoreProject-file"
     ></v-file-input>
   </v-form>

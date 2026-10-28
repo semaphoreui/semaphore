@@ -19,16 +19,16 @@
       <v-icon size="64" color="grey" data-testid="noProjects-icon">mdi-folder-outline</v-icon>
       <div class="text-h6 mt-4" data-testid="noProjects-heading">{{ $t('noProjectsTitle') }}</div>
       <div class="mt-2" data-testid="noProjects-text">{{ $t('noProjectsText') }}</div>
-      <i18n
+      <i18n-t
         v-if="user"
         data-testid="noProjects-signedInAs"
-        :path="user.email ? 'signedInAs' : 'signedInAsNoEmail'"
+        :keypath="user.email ? 'signedInAs' : 'signedInAsNoEmail'"
         tag="div"
         class="mt-6 text-grey"
       >
         <template #username><b>{{ user.username }}</b></template>
         <template #email>{{ user.email }}</template>
-      </i18n>
+      </i18n-t>
     </div>
   </div>
 </template>

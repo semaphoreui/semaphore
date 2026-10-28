@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <NoProjects v-if="user && !user.can_create_project" :user="user"/>
   <div v-else data-testid="restoreProject-page">
     <v-toolbar flat >

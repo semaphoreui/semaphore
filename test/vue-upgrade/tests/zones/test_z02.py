@@ -17,7 +17,8 @@ import re
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from vu.ui import button, dialog, fail_api, field_input, field_message, goto, snap, tid, wait_state, wait_until
+from vu.ui import (button, dialog, fail_api, field_input, field_message, goto, menu_of, open_sidebar, snap, tid,
+                   wait_state, wait_until)
 
 ZONE = "z02"
 DEMO, EMPTY = "Seed Demo", "Seed Empty"
@@ -38,7 +39,8 @@ BACKUP_NO_META = backup("z02-no-meta.json", '{"templates":[]}')
 
 
 # ---- TEMPORARY helpers: candidates for vu/ui.py (base_requests of Z02; same as in test_b2.py) -------
-# No Vuetify class is used: the open sidebar is "in the viewport", the menu is ARIA role=menu.
+# open_sidebar and menu_of come from vu/ui.py (the menu: ARIA role=menu in Vuetify 2, the active menu
+# overlay in Vuetify 3).
 
 def answer_api(page: Page, method, path_glob, status=200, body=None):
     """Answer <method> requests to <path_glob> with <status> and JSON <body>; the hits are the requests."""
@@ -83,21 +85,6 @@ def abort_api(page: Page, method, path_glob):
 
     page.route(path_glob, handler)
     return hits
-
-
-def open_sidebar(page: Page, toggle):
-    """mobile / tablet: open the temporary sidebar with <p>-drawerToggle; desktop: it is always open."""
-    sidebar = tid(page, "sidebar")
-    if page.vu.size != "desktop":
-        tid(page, toggle).click()
-    expect(sidebar).to_be_in_viewport(ratio=1)
-    return sidebar
-
-
-def menu_of(page: Page, item_test_id):
-    menu = page.get_by_role("menu").filter(has=tid(page, item_test_id))
-    expect(menu).to_be_visible()
-    return menu
 
 
 # ---- steps -----------------------------------------------------------------------------------------
