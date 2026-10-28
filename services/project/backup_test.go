@@ -191,7 +191,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
     }
   ],
   "templates": [],
-  "version": 2,
+  "version": 3,
   "views": [],
   "workflows": []
 }`, str)
@@ -585,7 +585,7 @@ func TestRestore_DropsUnknownPermissionBits(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
 
 	payload := `{
-  "version": 2,
+  "version": 3,
   "keys": [{"name": "noop", "owner": "", "type": "none"}],
   "meta": {"name": "Restored Roles", "type": ""},
   "repositories": [{"git_branch": "master", "git_url": "git@example.com:test/test.git", "name": "Repo", "ssh_key": "noop"}],
@@ -757,7 +757,7 @@ func TestBackupKeepsBuiltinAndGlobalGrants(t *testing.T) {
 	require.NoError(t, err)
 	global, err := store.CreateRole(db.Role{Slug: "deployer", Name: "Deployer Name"})
 	require.NoError(t, err)
-	_, err = store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: p.ID, TemplateID: tpl.ID, RoleID: runner.ID, Permissions: db.CanUpdateProject})
+	_, err = store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: p.ID, TemplateID: tpl.ID, RoleID: runner.ID, Permissions: db.CanManageProjectResources})
 	require.NoError(t, err)
 	_, err = store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: p.ID, TemplateID: tpl.ID, RoleID: global.ID, Permissions: db.CanRunProjectTasks})
 	require.NoError(t, err)
@@ -766,7 +766,7 @@ func TestBackupKeepsBuiltinAndGlobalGrants(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, backup.Templates, 1)
 	assert.ElementsMatch(t, []BackupTemplateRole{
-		{Slug: "task_runner", Permissions: db.CanUpdateProject},
+		{Slug: "task_runner", Permissions: db.CanManageProjectResources},
 		{Slug: "deployer", Permissions: db.CanRunProjectTasks},
 	}, backup.Templates[0].Roles)
 
@@ -784,7 +784,7 @@ func TestBackupKeepsBuiltinAndGlobalGrants(t *testing.T) {
 	assert.Equal(t, "task_runner", grants[0].RoleSlug)
 	assert.Equal(t, []UnassignedRole{{Slug: "deployer", Reason: "not_in_file", Templates: []UnassignedTemplate{
 		{ID: templates[0].ID, Name: templates[0].Name, Permissions: db.CanRunProjectTasks},
-	}}}, restored.UnassignedRoles)
+	}, Workflows: []UnassignedWorkflow{}}}, restored.UnassignedRoles)
 }
 
 func TestRestore_ReportsRolesOutsideTheFile(t *testing.T) {
@@ -809,7 +809,7 @@ func TestRestore_ReportsRolesOutsideTheFile(t *testing.T) {
 	assert.Empty(t, grants)
 	assert.Equal(t, []UnassignedRole{{Slug: "nobody", Reason: "not_in_file", Templates: []UnassignedTemplate{
 		{ID: templates[0].ID, Name: templates[0].Name, Permissions: db.CanRunProjectTasks},
-	}}}, restored.UnassignedRoles)
+	}, Workflows: []UnassignedWorkflow{}}}, restored.UnassignedRoles)
 }
 
 func TestBackupJSONHasNoRoleInternals(t *testing.T) {
@@ -853,7 +853,7 @@ func TestBackupProject_Roles(t *testing.T) {
 	require.NoError(t, err)
 	_, err = source.CreateTemplateRole(db.TemplateRolePerm{TemplateID: template.ID, ProjectID: project.ID, RoleID: deployA.ID, Permissions: db.CanRunProjectTasks})
 	require.NoError(t, err)
-	_, err = source.CreateTemplateRole(db.TemplateRolePerm{TemplateID: template.ID, ProjectID: project.ID, RoleID: taskRunner.ID, Permissions: db.CanUpdateProject})
+	_, err = source.CreateTemplateRole(db.TemplateRolePerm{TemplateID: template.ID, ProjectID: project.ID, RoleID: taskRunner.ID, Permissions: db.CanManageProjectResources})
 	require.NoError(t, err)
 	target := sql.InitConfigCreateTestStore()
 	user, err := target.CreateUser(db.UserWithPwd{
@@ -888,7 +888,7 @@ func TestBackupProject_Roles(t *testing.T) {
 	for _, grant := range grants {
 		granted[grant.RoleSlug] = grant.Permissions
 	}
-	assert.Equal(t, map[string]db.ProjectUserPermission{"deploy-a": db.CanRunProjectTasks, "task_runner": db.CanUpdateProject}, granted)
+	assert.Equal(t, map[string]db.ProjectUserPermission{"deploy-a": db.CanRunProjectTasks, "task_runner": db.CanManageProjectResources}, granted)
 }
 
 func TestBackupProject_KeepsAnOldSlug(t *testing.T) {
@@ -966,7 +966,7 @@ func TestRestore_ReportsATakenSlug(t *testing.T) {
 	p, tpl := createBackupFixture(t, store)
 	own, err := store.CreateRole(db.Role{Slug: "ops", Name: "Deployer", Permissions: db.CanRunProjectTasks, ProjectID: &p.ID})
 	require.NoError(t, err)
-	_, err = store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: p.ID, TemplateID: tpl.ID, RoleID: own.ID, Permissions: db.CanUpdateProject})
+	_, err = store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: p.ID, TemplateID: tpl.ID, RoleID: own.ID, Permissions: db.CanManageProjectResources})
 	require.NoError(t, err)
 	backup, err := GetBackup(p.ID, store, proFactory.NewWorkflowStore(store))
 	require.NoError(t, err)
@@ -988,8 +988,8 @@ func TestRestore_ReportsATakenSlug(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, templates, 1)
 	assert.Equal(t, []UnassignedRole{{Slug: "ops", Reason: "slug_taken", Name: "Deployer", Permissions: db.CanRunProjectTasks, Templates: []UnassignedTemplate{
-		{ID: templates[0].ID, Name: templates[0].Name, Permissions: db.CanUpdateProject},
-	}}}, restored.UnassignedRoles)
+		{ID: templates[0].ID, Name: templates[0].Name, Permissions: db.CanManageProjectResources},
+	}, Workflows: []UnassignedWorkflow{}}}, restored.UnassignedRoles)
 }
 
 func TestRestore_UnassignedRolesIsEmptyList(t *testing.T) {
@@ -1048,7 +1048,7 @@ func TestVerify_RefusesOtherFormatVersions(t *testing.T) {
 	}{
 		{"no version with roles", BackupFormat{Roles: []BackupRole{{Role: db.Role{Slug: "ops", Name: "Ops"}}}}, "older version of Semaphore"},
 		{"no version with a grant", BackupFormat{Templates: []BackupTemplate{{Template: db.Template{Name: "t"}, Roles: grant}}}, "older version of Semaphore"},
-		{"newer", BackupFormat{Version: 3}, "newer version of Semaphore"},
+		{"newer", BackupFormat{Version: 4}, "newer version of Semaphore"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1174,4 +1174,45 @@ func TestRestore_RejectsStringKeyInHostConfig(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
+}
+
+// A file written before the workflow verbs carries roles and grants without them; restoring it gives them the
+// same bits the upgrade gives stored roles.
+func TestRestore_LiftsMasksOfAVersion2File(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+
+	payload := `{
+  "version": 2,
+  "keys": [{"name": "noop", "owner": "", "type": "none"}],
+  "meta": {"name": "Old Roles", "type": ""},
+  "repositories": [{"git_branch": "master", "git_url": "git@example.com:test/test.git", "name": "Repo", "ssh_key": "noop"}],
+  "roles": [{"name": "ops", "slug": "ops", "permissions": 5}],
+  "templates": [{
+    "app": "", "name": "Tpl", "playbook": "test.yml", "repository": "Repo", "type": "",
+    "roles": [{"slug": "ops", "permissions": 1}],
+    "vaults": [], "view": null, "environments": []
+  }]
+}`
+	backup := &BackupFormat{}
+	require.NoError(t, backup.Unmarshal(payload))
+	require.NoError(t, backup.Verify())
+
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "old", Name: "old", Email: "old@example.com", Admin: true}})
+	require.NoError(t, err)
+	project, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	roles, err := store.GetProjectRoles(project.ID)
+	require.NoError(t, err)
+	require.Len(t, roles, 1)
+	assert.Equal(t, db.ProjectUserPermission(117), roles[0].Permissions, "5 lifted: run and approve workflows, edit workflows")
+
+	templates, err := store.GetTemplates(project.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, templates, 1)
+	perms, err := store.GetTemplateRoles(project.ID, templates[0].ID)
+	require.NoError(t, err)
+	require.Len(t, perms, 1)
+	assert.Equal(t, db.CanRunProjectTasks, perms[0].Permissions, "a template grant has no workflow verbs to gain")
 }

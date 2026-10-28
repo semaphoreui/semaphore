@@ -79,6 +79,9 @@ func (e BackupRole) Restore(b *BackupDB) error {
 	role.ProjectID = &b.meta.ID
 	// Unknown bits are never checked today but would turn on with a future permission.
 	role.Permissions &= db.KnownRolePermissions
+	if b.version < 3 {
+		role.Permissions = db.LiftPermissions(role.Permissions)
+	}
 	_, err := b.store.GetSharedRoleBySlug(role.Slug)
 	if err == nil {
 		taken := b.unassignedRole(role.Slug, ReasonSlugTaken)
@@ -103,7 +106,7 @@ func (b *BackupDB) unassignedRole(slug, reason string) *UnassignedRole {
 			return &b.unassigned[i]
 		}
 	}
-	b.unassigned = append(b.unassigned, UnassignedRole{Slug: slug, Reason: reason, Templates: []UnassignedTemplate{}})
+	b.unassigned = append(b.unassigned, UnassignedRole{Slug: slug, Reason: reason, Templates: []UnassignedTemplate{}, Workflows: []UnassignedWorkflow{}})
 	return &b.unassigned[len(b.unassigned)-1]
 }
 
@@ -484,7 +487,7 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 	}
 
 	for _, grant := range e.Roles {
-		permissions := grant.Permissions & db.KnownRolePermissions
+		permissions := grant.Permissions & db.TemplateGrantPermissions
 		role, err := b.fileRole(grant.Slug)
 		if errors.Is(err, db.ErrNotFound) {
 			unassigned := b.unassignedRole(grant.Slug, ReasonNotInFile)
@@ -627,6 +630,11 @@ func (e BackupRunner) Restore(b *BackupDB) error {
 }
 
 func (e BackupWorkflow) Verify(backup *BackupFormat) error {
+	for _, grant := range e.Roles {
+		if grant.Slug == "" {
+			return fmt.Errorf("role grant has no slug")
+		}
+	}
 	if err := verifyDuplicate[BackupWorkflow](e.Name, backup.Workflows); err != nil {
 		return err
 	}
@@ -682,6 +690,28 @@ func (e BackupWorkflow) Restore(b *BackupDB) error {
 		return err
 	}
 
+	for _, grant := range e.Roles {
+		permissions := grant.Permissions & db.WorkflowGrantPermissions
+		role, err := b.fileRole(grant.Slug)
+		if errors.Is(err, db.ErrNotFound) {
+			unassigned := b.unassignedRole(grant.Slug, ReasonNotInFile)
+			unassigned.Workflows = append(unassigned.Workflows, UnassignedWorkflow{ID: newWorkflow.ID, Name: newWorkflow.Name, Permissions: permissions})
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		_, err = b.store.CreateWorkflowRole(db.WorkflowRolePerm{
+			WorkflowID:  newWorkflow.ID,
+			RoleID:      role.ID,
+			ProjectID:   b.meta.ID,
+			Permissions: permissions,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	b.workflows = append(b.workflows, newWorkflow)
 	return nil
 }
@@ -691,8 +721,8 @@ func (backup *BackupFormat) Verify() error {
 	for _, t := range backup.Templates {
 		grants += len(t.Roles)
 	}
-	// Only roles changed shape with the version, so an older file without them still reads.
-	if backup.Version < BackupFormatVersion && (len(backup.Roles) > 0 || grants > 0) {
+	// Roles got slugs in version 2, so an older file without them still reads.
+	if backup.Version < 2 && (len(backup.Roles) > 0 || grants > 0) {
 		return fmt.Errorf("backup was written by an older version of Semaphore, export the project again")
 	}
 	if backup.Version > BackupFormatVersion {
@@ -769,7 +799,7 @@ func (backup *BackupFormat) Verify() error {
 
 // Restore creates the project whole or not at all: a failed entry removes it again.
 func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore db.WorkflowManager) (restored *RestoredProject, err error) {
-	var b = BackupDB{store: store, workflowStore: workflowStore, unassigned: []UnassignedRole{}}
+	var b = BackupDB{store: store, workflowStore: workflowStore, unassigned: []UnassignedRole{}, version: backup.Version}
 	project := backup.Meta.Project
 
 	// Prevent importing a project with a name that already exists
