@@ -31,6 +31,16 @@ describe('EditRoleForm', () => {
     });
   });
 
+  it('keeps the verbs the form does not show', () => {
+    const form = { item: { permissions: 245 }, permissions: {} };
+    EditRoleForm.watch.permissions.handler.call(form, { canRunProjectTasks: true });
+    expect(form.item.permissions).to.equal(241);
+
+    form.permissions = { canManageProjectUsers: true };
+    EditRoleForm.methods.beforeSave.call(form);
+    expect(form.item.permissions).to.equal(248);
+  });
+
   it('starts a new role without permissions', () => {
     expect(EditRoleForm.methods.getNewItem.call({ projectId: null })).to.deep.equal({ name: '', slug: '', permissions: 0 });
     expect(EditRoleForm.methods.getNewItem.call({ projectId: 7 })).to.deep.equal({ name: '', slug: '', permissions: 0 });
