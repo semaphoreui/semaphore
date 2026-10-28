@@ -448,7 +448,7 @@ definitions:
               type: string
             type:
               type: string
-              enum: [ssh, login_password, none]
+              enum: [ssh, login_password, none, string]
       views:
         type: array
         items:
@@ -561,7 +561,7 @@ definitions:
         example: None
       type:
         type: string
-        enum: [none, ssh, login_password]
+        enum: [none, ssh, login_password, string]
         x-example: none
       project_id:
         type: integer
@@ -569,6 +569,11 @@ definitions:
         x-example: 2
       override_secret:
         type: boolean
+      string:
+        type: string
+        description: Value of a key of type `string` — a single secret with no login (a token, an API key). Stored encrypted, never returned.
+        x-example: secret-token
+        example: secret-token
       login_password:
         type: object
         properties:
@@ -606,7 +611,7 @@ definitions:
         example: Test
       type:
         type: string
-        enum: [none, ssh, login_password]
+        enum: [none, ssh, login_password, string]
       project_id:
         type: integer
 
@@ -811,7 +816,7 @@ definitions:
         description: The workflow the integration starts instead of a template (Pro). Extracted values become the answers to the workflow's survey.
       auth_method:
         type: string
-        example: none
+        example: ""
       auth_secret_id:
         type: integer
         x-nullable: true
@@ -842,7 +847,7 @@ definitions:
         description: The workflow to start instead of a template (Pro). task_params do not apply to a workflow and are dropped.
       auth_method:
         type: string
-        example: none
+        example: ""
       auth_secret_id:
         type: integer
         x-nullable: true
@@ -979,7 +984,7 @@ definitions:
         type: boolean
         description: Share one checkout of this repository between all templates instead of cloning it per template. Templates of a monorepo can not have a branch of their own or let tasks override the branch or commit.
         example: false
-  
+
   Repository:
     type: object
     properties:
@@ -2657,7 +2662,7 @@ paths:
           description: Created project
           schema:
             $ref: "#/definitions/Project"
-  
+
   /projects/restore:
     post:
       tags:
@@ -2687,7 +2692,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Event'
-  
+
   /events/last:
     get:
       summary: Get last 200 Events related to Semaphore and projects you are part of
@@ -3026,7 +3031,7 @@ paths:
           description: Integration Created
           schema:
             $ref: "#/definitions/Integration"
-  
+
   /project/{project_id}/integrations/{integration_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -3263,7 +3268,7 @@ paths:
           in: query
           required: false
           type: string
-          enum: [none, ssh, login_password]
+          enum: [none, ssh, login_password, string]
           description: Filter by key type
           x-example: none
         - name: sort
